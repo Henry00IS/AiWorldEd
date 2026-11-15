@@ -31,6 +31,17 @@ function run(...lines: SolidScriptLine[]) {
 function standalone(command: SolidScriptCommand): SolidScriptLine[] {
   const line: SolidScriptLine = { command: command.id };
   const counter: SolidScriptLine = { command: 'variable', values: { name: 'i', value: '0' } };
+  const started: SolidScriptLine[] = [
+    line,
+    ...command.starter.map((entry) => ({ ...entry, values: { ...entry.values } })),
+  ];
+  if (command.starter.length > 0 && command.category === '2D Shapes')
+    return [{ command: 'linear_extrude' }, ...started, { command: 'end' }, { command: 'end' }];
+  if (command.starter.length > 0) return [...started, { command: 'end' }];
+  if (command.id === 'point') {
+    const corners = ['1, 0, 0', '0, 1, 0', '0, 0, 1'].map((position) => ({ command: 'point', values: { position } }));
+    return [{ command: 'polyhedron' }, line, ...corners, { command: 'end' }];
+  }
   if (command.category === '2D Shapes') return [{ command: 'linear_extrude' }, line, { command: 'end' }];
   if (command.id === 'linear_extrude') return [line, { command: 'square' }, { command: 'end' }];
   if (command.id === 'else')
@@ -111,11 +122,15 @@ describe('solid script command catalog', () => {
     expect(cube?.valueText({ size: '[w],\n2, 3' }, 'size')).toBe('[w], 2, 3');
   });
 
-  it('opens a block for transforms, combinations, loops, conditions and parts only', () => {
+  it('opens a block for transforms, combinations, loops, conditions, parts and point shapes only', () => {
     const openers = solidScriptCommands
-      .filter((command) => command.nesting === 'open')
+      .filter((command) => command.nesting === 'open' && command.starter.length === 0)
       .map((command) => command.category);
     expect(new Set(openers)).toEqual(new Set(['Transforms', 'Combine', 'Logic', 'Parts']));
+    const pointShapes = solidScriptCommands
+      .filter((command) => command.starter.length > 0)
+      .map((command) => command.id);
+    expect(pointShapes).toEqual(['polyhedron', 'polygon']);
     expect(solidScriptCommandFind('cube')?.nesting).toBe('none');
     expect(solidScriptCommandFind('else')?.nesting).toBe('continue');
     expect(solidScriptCommandFind('end')?.nesting).toBe('close');

@@ -19,6 +19,12 @@ import { SolidScriptEditorSession } from './solid_script_editor_session.js';
 import { SolidScriptEditorPalette } from './solid_script_editor_palette.js';
 import { SolidScriptEditorLines } from './solid_script_editor_lines.js';
 import { SolidScriptEditorDebugger } from './solid_script_editor_debugger.js';
+import {
+  solidScriptDebugBreakpointAllowed,
+  solidScriptDebugBreakpointLines,
+  solidScriptDebugBreakpoints,
+  solidScriptDebugBreakpointSet,
+} from '@/solid_script/debug/solid_script_debug_breakpoints.js';
 import { SolidScriptEditorToolbar } from './solid_script_editor_toolbar.js';
 import { SolidScriptEditorHelp } from './solid_script_editor_help.js';
 import { SolidScriptConfigurator } from './solid_script_configurator.js';
@@ -40,7 +46,7 @@ const SOLID_SCRIPT_EDITOR_NOTICE_MS = 4000;
 
 /** Status bar text while nothing else is shown. */
 const SOLID_SCRIPT_EDITOR_HINT =
-  'Drag a command into the script, or double-click it to add it below the current line. Double-click a line to configure it.';
+  'Double-click a command (or drag it in) to add it below the current line, then press Start. Double-click a line to change it. Ctrl+F searches, F9 sets a breakpoint.';
 
 /**
  * The script editor window of a SolidScript generator: commands on the left,
@@ -51,6 +57,7 @@ export class SolidScriptEditor extends PanelFloating {
   private readonly session: SolidScriptEditorSession;
   private readonly lines: SolidScriptEditorLines;
   private readonly debugger: SolidScriptEditorDebugger;
+  private palette: SolidScriptEditorPalette | null = null;
   private readonly toolbar: SolidScriptEditorToolbar;
   private readonly help = new SolidScriptEditorHelp();
   private readonly output = new SolidScriptEditorOutput();
@@ -85,6 +92,7 @@ export class SolidScriptEditor extends PanelFloating {
       insert: (command, drop) => this.insert(command, drop.line, 'before'),
       select: (line) => this.selectLine(line),
       notice: (text) => this.noticeShow(text),
+      breakpoint: (line) => this.breakpointToggle(line),
     });
     this.toolbar = new SolidScriptEditorToolbar({
       start: () => this.debugger.start(),
@@ -145,13 +153,13 @@ export class SolidScriptEditor extends PanelFloating {
       flexShrinkZero: true,
       onClose: () => this.close(),
     });
-    const palette = new SolidScriptEditorPalette(
+    const palette = (this.palette = new SolidScriptEditorPalette(
       (command) => this.insert(command, this.lines.caret(), 'caret'),
       (command) => this.help.show(command, null),
-    );
+    ));
     const body = document.createElement('div');
     body.className = SOLID_SCRIPT_EDITOR_CLASSES.body;
-    body.append(palette.element, this.lines.element, this.help.element);
+    body.append(palette.element, this.lines.host, this.help.element);
     solidScriptFileDropBind(this.lines.element, ThemeCss.accentColor, (result) => this.dropped(result));
     styleFloatingPanelStatusBar(this.status);
     this.root.append(bar.bar, this.toolbar.element, body, this.output.element, this.status, this.grip());
@@ -205,16 +213,24 @@ export class SolidScriptEditor extends PanelFloating {
   }
 
   /**
-   * Handles the run keys (Ctrl+F5 starts, F5 debugs, F10 steps, Shift+F5 stops)
-   * and keeps every other key inside the editor, so Delete or Backspace never
+   * Handles the run keys (Ctrl+F5 starts, F5 debugs or continues, F10 steps,
+   * Shift+F5 stops, F9 sets or clears the breakpoint of the current line) and
+   * keeps every other key inside the editor, so Delete or Backspace never
    * removes anything from the level. Undo and redo pass on: script edits are
    * steps of the level's undo history.
    *
    * @param event Key event.
    */
   private key(event: KeyboardEvent): void {
-    if ((event.ctrlKey || event.metaKey) && ['z', 'y'].includes(event.key.toLowerCase())) return;
+    const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
+    if (!typing && (event.ctrlKey || event.metaKey) && ['z', 'y'].includes(event.key.toLowerCase())) return;
     event.stopPropagation();
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
+      event.preventDefault();
+      this.palette?.search.focus();
+      this.palette?.search.select();
+      return;
+    }
     const action =
       event.key === 'F5'
         ? event.shiftKey
@@ -224,10 +240,25 @@ export class SolidScriptEditor extends PanelFloating {
             : () => this.debugger.play()
         : event.key === 'F10'
           ? () => this.debugger.stepOnce()
-          : null;
+          : event.key === 'F9'
+            ? () => this.breakpointToggle(this.keyLine(event))
+            : null;
     if (!action) return;
     event.preventDefault();
     action();
+  }
+
+  /**
+   * Returns the line a key was pressed on: the row holding the focus, or else
+   * the caret line.
+   *
+   * @param event Key event.
+   * @returns Line index.
+   */
+  private keyLine(event: KeyboardEvent): number {
+    const row = event.target instanceof HTMLElement ? event.target.closest<HTMLElement>('[data-line]') : null;
+    const line = row ? Number(row.dataset['line']) : Number.NaN;
+    return Number.isInteger(line) ? line : this.lines.caret();
   }
 
   /**
@@ -273,12 +304,58 @@ export class SolidScriptEditor extends PanelFloating {
    */
   private debugChanged(): void {
     const stepped = this.debugger.line();
-    const debugging = this.debugger.stateGet() !== 'stopped';
-    this.output.show(this.session.document(), debugging ? this.debugger.position().step : null, stepped);
+    const atBreak = this.debugger.atBreakpoint();
+    this.output.show(this.session.document(), this.debugger.runOptions(), this.debugCaption());
     const traced = new Set(this.tracing ? this.debugger.passedLines() : []);
-    this.lines.mark({ stepped, failed: this.output.failedLine(), traced });
-    this.toolbar.stateShow(this.debugger.stateGet());
+    const breakpoints = this.breakpointLines();
+    this.lines.mark({ stepped, failed: this.output.failedLine(), traced, breakpoints, atBreak });
+    this.toolbar.stateShow(this.debugger.stateGet(), atBreak);
     this.statusRefresh();
+  }
+
+  /**
+   * Describes what the variables show.
+   *
+   * @returns Caption.
+   */
+  private debugCaption(): string {
+    const line = this.debugger.line();
+    if (this.debugger.stateGet() === 'stopped' || line === null) return 'After the last solid';
+    if (this.debugger.atBreakpoint()) return `Paused at the breakpoint on line ${line + 1}`;
+    return `At step ${this.debugger.position().step}, line ${line + 1}`;
+  }
+
+  /**
+   * Returns the 0-based lines that hold a breakpoint.
+   *
+   * @returns Line indices.
+   */
+  private breakpointLines(): Set<number> {
+    const { node, stepId } = this.session;
+    const lines = solidScriptDebugBreakpointLines(this.session.document(), solidScriptDebugBreakpoints(node, stepId));
+    return new Set([...lines].map((line) => line - 1));
+  }
+
+  /**
+   * Sets or clears the breakpoint of a line. Lines that do nothing when the
+   * script runs (notes, blank lines, End, Else) cannot hold one.
+   *
+   * @param line Line index.
+   */
+  private breakpointToggle(line: number): void {
+    const block = this.session.document().blocks[line];
+    if (!block) return;
+    if (!solidScriptDebugBreakpointAllowed(block))
+      return this.noticeShow('Notes, blank lines, End and Else do not run, so they cannot hold a breakpoint.');
+    const { node, stepId } = this.session;
+    const on = !solidScriptDebugBreakpoints(node, stepId).has(block.id);
+    solidScriptDebugBreakpointSet(node, stepId, block.id, on);
+    this.debugChanged();
+    this.noticeShow(
+      on
+        ? `Breakpoint on line ${line + 1}: Start and Debug pause before it runs.`
+        : `Breakpoint on line ${line + 1} cleared.`,
+    );
   }
 
   /**
@@ -296,7 +373,9 @@ export class SolidScriptEditor extends PanelFloating {
     const { step, count } = this.debugger.position();
     const line = this.debugger.line();
     const debugging = this.debugger.stateGet() !== 'stopped';
-    const stepText = `Step ${step} of ${count}${line === null ? '' : ` · Line ${line + 1}`}`;
+    const stepText = this.debugger.atBreakpoint()
+      ? `Paused at the breakpoint on line ${(line ?? 0) + 1} · Step (F10) or Continue (F5)`
+      : `Step ${step} of ${count}${line === null ? '' : ` · Line ${line + 1}`}`;
     this.status.textContent = this.notice || (debugging ? stepText : SOLID_SCRIPT_EDITOR_HINT);
   }
 

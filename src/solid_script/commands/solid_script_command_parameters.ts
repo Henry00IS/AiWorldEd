@@ -22,6 +22,24 @@ export function solidScriptParameter(
 }
 
 /**
+ * Describes a field that may stay empty.
+ *
+ * @param key Key of the stored value.
+ * @param label Visible caption.
+ * @param type Editor the configurator shows.
+ * @param hint Hover text.
+ * @returns Field.
+ */
+export function solidScriptParameterOptional(
+  key: string,
+  label: string,
+  type: SolidScriptCommandParameterType,
+  hint: string,
+): SolidScriptCommandParameter {
+  return { key, label, type, default: '', hint, optional: true };
+}
+
+/**
  * The Center switch of shapes that start at the origin.
  *
  * @returns Field.

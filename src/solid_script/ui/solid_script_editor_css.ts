@@ -17,9 +17,15 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
   palette: 'solid-script-editor-palette',
   paletteCaption: 'solid-script-editor-palette-caption',
   paletteItem: 'solid-script-editor-palette-item',
+  paletteSearch: 'solid-script-editor-palette-search',
+  paletteList: 'solid-script-editor-palette-list',
+  paletteEmpty: 'solid-script-editor-palette-empty',
+  paletteHighlighted: 'solid-script-editor-palette-highlighted',
   lines: 'solid-script-editor-lines',
   row: 'solid-script-editor-row',
   gutter: 'solid-script-editor-gutter',
+  linesHost: 'solid-script-editor-lines-host',
+  linesCanvas: 'solid-script-editor-lines-canvas',
   chip: 'solid-script-editor-chip',
   listName: 'solid-script-editor-list-name',
   listWord: 'solid-script-editor-list-word',
@@ -36,6 +42,7 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
   current: 'solid-script-editor-current',
   stepped: 'solid-script-editor-stepped',
   traced: 'solid-script-editor-traced',
+  breakpoint: 'solid-script-editor-breakpoint',
   failed: 'solid-script-editor-failed',
   output: 'solid-script-editor-output',
   outputTabs: 'solid-script-editor-output-tabs',
@@ -90,9 +97,15 @@ const SOLID_SCRIPT_EDITOR_FRAME_CSS = `
 .${c.icon} { display: inline-flex; width: 14px; height: 14px; flex-shrink: 0; }
 .${c.icon} svg { width: 100%; height: 100%; }
 .${c.body} { display: flex; flex: 1; min-height: 0; }
-.${c.palette} { width: 176px; flex-shrink: 0; overflow-y: auto; padding: 4px 0 8px; border-right: 1px solid ${ThemeCss.separatorColor}; }
-.${c.paletteCaption} { padding: 10px 12px 4px; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: ${ThemeCss.mutedTextColor}; }
-.${c.paletteItem} { display: flex; align-items: center; gap: 8px; margin: 1px 6px; padding: 5px 8px; border-radius: 5px; cursor: grab; user-select: none; }
+.${c.palette} { width: 176px; flex-shrink: 0; display: flex; flex-direction: column; min-height: 0; border-right: 1px solid ${ThemeCss.separatorColor}; }
+.${c.paletteSearch} { margin: 6px 6px 2px; padding: 4px 8px; border: 1px solid ${ThemeCss.separatorColor}; border-radius: 5px; background: ${ThemeCss.inputBackground}; color: ${ThemeCss.textColor}; font: inherit; outline: none; min-width: 0; }
+.${c.paletteSearch}:focus { border-color: ${ThemeCss.accentColor}; }
+.${c.paletteList} { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0 0 6px; }
+.${c.paletteEmpty} { padding: 8px 12px; color: ${ThemeCss.mutedTextColor}; line-height: 1.4; }
+.${c.paletteCaption} { padding: 6px 12px 1px; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: ${ThemeCss.mutedTextColor}; white-space: nowrap; }
+.${c.paletteItem} { display: flex; align-items: center; gap: 7px; height: 22px; margin: 0 6px; padding: 0 8px; border-radius: 4px; cursor: grab; user-select: none; white-space: nowrap; overflow: hidden; }
+.${c.paletteItem}.${c.paletteHighlighted} { background: ${ThemeCss.accentAlpha(0.32)}; }
+.${c.paletteItem}[hidden], .${c.paletteCaption}[hidden] { display: none; }
 .${c.paletteItem}:hover { background: ${ThemeCss.inkAlpha(0.07)}; }
 .${c.paletteItem}:active { cursor: grabbing; }
 `;
@@ -103,17 +116,23 @@ const SOLID_SCRIPT_EDITOR_FRAME_CSS = `
  */
 export const SOLID_SCRIPT_EDITOR_STEP_COLOR = '#2f9e6e';
 
+/** Colour of the breakpoint dot in the gutter. */
+export const SOLID_SCRIPT_EDITOR_BREAKPOINT_COLOR = '#e5484d';
+
 /**
  * Script line rules: one full-width row per line in one readable colour set,
  * the selection in the editor's orange accent across the whole row, and the
  * debugger's step in its own green with a marker.
  */
 const SOLID_SCRIPT_EDITOR_LINES_CSS = `
-.${c.lines} { flex: 1; min-width: 0; overflow: auto; padding: 4px 0 24px; background: ${ThemeCss.inputBackground}; }
-.${c.row} { position: relative; display: flex; align-items: stretch; min-height: 24px; cursor: default; user-select: none; }
-.${c.row}:hover { background: ${ThemeCss.inkAlpha(0.05)}; }
-.${c.gutter} { width: 44px; flex-shrink: 0; padding-right: 8px; display: flex; align-items: center; justify-content: flex-end; color: ${ThemeCss.mutedTextColor}; font: 11px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; box-sizing: border-box; }
-.${c.chip} { flex: 1; min-width: 0; display: flex; align-items: center; padding: 2px 8px; white-space: pre; overflow: hidden; text-overflow: ellipsis; color: ${ThemeCss.textColor}; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; outline: none; box-sizing: border-box; }
+.${c.linesHost} { position: relative; flex: 1; min-width: 0; display: flex; background: ${ThemeCss.inputBackground}; }
+.${c.lines} { flex: 1; min-width: 0; overflow: auto; }
+.${c.linesCanvas} { position: relative; min-width: 100%; }
+.${c.row} { position: absolute; left: 0; min-width: 100%; height: 24px; display: flex; align-items: stretch; flex-wrap: nowrap; white-space: pre; cursor: default; user-select: none; background: var(--solid-script-row-bg, transparent); box-sizing: border-box; }
+.${c.row}:hover { --solid-script-row-bg: ${ThemeCss.inkAlpha(0.05)}; }
+.${c.gutter} { position: sticky; left: 0; z-index: 1; width: 44px; flex-shrink: 0; padding-right: 8px; display: flex; align-items: center; justify-content: flex-end; color: ${ThemeCss.mutedTextColor}; font: 11px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; box-sizing: border-box; background: linear-gradient(var(--solid-script-row-bg, transparent), var(--solid-script-row-bg, transparent)), ${ThemeCss.inputBackground}; }
+.${c.chip} { flex: 1 0 auto; display: flex; flex-wrap: nowrap; align-items: center; padding: 0 16px 0 8px; white-space: pre; color: ${ThemeCss.textColor}; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; outline: none; box-sizing: border-box; }
+.${c.chip} > span { flex-shrink: 0; white-space: pre; }
 .${c.listName} { font-weight: 700; color: ${ThemeCss.textColor}; }
 .${c.listWord} { color: ${ThemeCss.textColor}; }
 .${c.listValue} { color: ${ThemeCss.inputTextColor}; font-weight: 600; }
@@ -123,15 +142,18 @@ const SOLID_SCRIPT_EDITOR_LINES_CSS = `
 .${c.row}.${c.dropBefore}::before, .${c.row}.${c.dropAfter}::after { content: ''; position: absolute; left: 44px; right: 0; height: 2px; background: ${ThemeCss.accentColor}; pointer-events: none; }
 .${c.row}.${c.dropBefore}::before { top: -1px; }
 .${c.row}.${c.dropAfter}::after { bottom: -1px; }
-.${c.row}.${c.dropInto} { background: ${ThemeCss.accentAlpha(0.14)}; }
-.${c.row}.${c.traced} { box-shadow: inset 3px 0 0 ${SOLID_SCRIPT_EDITOR_STEP_COLOR}; }
-.${c.row}.${c.stepped} { background: color-mix(in srgb, ${SOLID_SCRIPT_EDITOR_STEP_COLOR} 26%, transparent); }
+.${c.row}.${c.dropInto} { --solid-script-row-bg: ${ThemeCss.accentAlpha(0.14)}; }
+.${c.row}.${c.traced} .${c.gutter} { box-shadow: inset 3px 0 0 ${SOLID_SCRIPT_EDITOR_STEP_COLOR}; }
+.${c.row}.${c.stepped} { --solid-script-row-bg: color-mix(in srgb, ${SOLID_SCRIPT_EDITOR_STEP_COLOR} 26%, transparent); }
 .${c.row}.${c.stepped} .${c.gutter} { color: ${SOLID_SCRIPT_EDITOR_STEP_COLOR}; font-weight: 700; }
 .${c.row}.${c.stepped} .${c.gutter}::before { content: '\\25B6'; margin-right: 4px; font-size: 9px; }
-.${c.row}.${c.current} { background: ${ThemeCss.accentAlpha(0.38)}; }
+.${c.gutter} { cursor: pointer; }
+.${c.gutter}:hover::after { content: ''; order: -1; width: 9px; height: 9px; margin-right: 5px; border-radius: 50%; background: ${SOLID_SCRIPT_EDITOR_BREAKPOINT_COLOR}; opacity: 0.35; flex-shrink: 0; }
+.${c.row}.${c.breakpoint} .${c.gutter}::after { content: ''; order: -1; width: 9px; height: 9px; margin-right: 5px; border-radius: 50%; background: ${SOLID_SCRIPT_EDITOR_BREAKPOINT_COLOR}; opacity: 1; flex-shrink: 0; }
+.${c.row}.${c.current} { --solid-script-row-bg: ${ThemeCss.accentAlpha(0.38)}; }
 .${c.row}.${c.current} .${c.gutter} { color: ${ThemeCss.textColor}; font-weight: 700; }
 .${c.row}.${c.failed} .${c.gutter} { color: #e5484d; font-weight: 700; }
-.${c.row}.${c.failed} { box-shadow: inset 3px 0 0 #e5484d; }
+.${c.row}.${c.failed} .${c.gutter} { box-shadow: inset 3px 0 0 #e5484d; }
 `;
 
 /** Help panel and output area rules. */

@@ -19,6 +19,12 @@ const SOLID_SCRIPT_CONFIGURATOR_AXES = ['X', 'Y', 'Z'];
 const SOLID_SCRIPT_CONFIGURATOR_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /**
+ * Pattern of what Set can change: a variable, or an item of a list such as
+ * points(2) or points().
+ */
+const SOLID_SCRIPT_CONFIGURATOR_TARGET = /^[A-Za-z_][A-Za-z0-9_]*(\s*\(.*\))?$/;
+
+/**
  * Builds the field of one command parameter.
  *
  * @param parameter Parameter.
@@ -150,6 +156,9 @@ function solidScriptConfiguratorProblem(parameter: SolidScriptCommandParameter, 
   const text = value.trim();
   if (parameter.type === 'name' && !SOLID_SCRIPT_CONFIGURATOR_NAME.test(text))
     return `${parameter.label} must start with a letter and use only letters, digits and _.`;
+  if (parameter.type === 'target' && !SOLID_SCRIPT_CONFIGURATOR_TARGET.test(text))
+    return `${parameter.label} must be a name such as width, or an item such as points(0), or points() to add one.`;
+  if (text === '' && parameter.optional) return '';
   if (parameter.type !== 'text' && text === '') return `${parameter.label} needs a value.`;
   if (parameter.type === 'name' || parameter.type === 'text') return '';
   const problem = solidScriptFieldCheck(text);

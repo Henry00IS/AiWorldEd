@@ -123,6 +123,7 @@ describe('solidScriptProgramRun', () => {
         { command: 'linear_extrude' },
         { command: 'polygon', values: { points: '0, 0; 2, 0; 2, 1; 1, 1; 1, 2; 0, 2' } },
         { command: 'end' },
+        { command: 'end' },
       ),
     ).shapes[0];
     expect(outline?.kind === 'boolean' && outline.operation).toBe('union');

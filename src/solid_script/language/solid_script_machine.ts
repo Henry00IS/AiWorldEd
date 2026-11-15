@@ -12,6 +12,11 @@ import {
 } from './solid_script_field.js';
 import { solidScriptExtrude } from './solid_script_extrude.js';
 import { solidScriptPolygonHull, type SolidScriptPoint2 } from './solid_script_polygon.js';
+import {
+  solidScriptListItemParse,
+  solidScriptListItemRead,
+  solidScriptListItemWrite,
+} from './solid_script_list_item.js';
 import { SolidScriptScope } from './solid_script_scope.js';
 import { solidScriptShapeJoin, solidScriptShapeLeavesPositive, type SolidScriptShape } from './solid_script_shape.js';
 import { solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
@@ -20,7 +25,7 @@ import { solidScriptValueText, type SolidScriptValue } from './solid_script_valu
 const SOLID_SCRIPT_SOLIDS_MAX = 2000;
 
 /** Most parts that may be in use inside each other at once. */
-const SOLID_SCRIPT_PART_DEPTH_MAX = 64;
+export const SOLID_SCRIPT_PART_DEPTH_MAX = 64;
 
 /**
  * Most steps of work one run may take: lines, loop rounds and function calls.
@@ -30,7 +35,7 @@ const SOLID_SCRIPT_PART_DEPTH_MAX = 64;
 export const SOLID_SCRIPT_WORK_LIMIT = 1000000;
 
 /** Field types whose stored text is used as typed instead of evaluated. */
-const SOLID_SCRIPT_TEXT_FIELDS: ReadonlySet<string> = new Set(['name', 'text']);
+const SOLID_SCRIPT_TEXT_FIELDS: ReadonlySet<string> = new Set(['name', 'target', 'text']);
 
 /** Pattern of a variable or part name. */
 const SOLID_SCRIPT_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -94,6 +99,13 @@ export interface SolidScriptBlockRun {
   branched(holds: boolean): SolidScriptShape[];
   /** Builds the lines of a part defined in the script. */
   partUse(name: string): SolidScriptShape[];
+  /**
+   * Runs the lines inside and returns the points their Point lines add, moved
+   * by the blocks between.
+   */
+  pointsGathered(): THREE.Vector3[];
+  /** Adds a point to the Polyhedron or Polygon around this line. */
+  point(position: THREE.Vector3): SolidScriptShape[];
   /** Writes a line to the output. */
   print(text: string): SolidScriptShape[];
 }
@@ -104,8 +116,37 @@ export interface SolidScriptEvaluation {
   messages: string[];
   /** Line of every shape in run order, built or not. */
   steps: number[];
-  /** Variables visible at the last built step, with their values as text. */
+  /**
+   * Variables visible at the last built step, or where the run paused, with
+   * their values as text.
+   */
   variables: SolidScriptVariable[];
+  /**
+   * Every time the run reached a breakpoint line, in run order, up to where it
+   * paused.
+   */
+  breaks: SolidScriptBreak[];
+  /** Where the run paused, or null when it did not. */
+  paused: SolidScriptBreak | null;
+}
+
+/** One time a run reached a breakpoint line, before that line ran. */
+export interface SolidScriptBreak {
+  /** 1-based line. */
+  line: number;
+  /** Shape steps made before it. */
+  steps: number;
+}
+
+/** Breakpoints of a run. */
+export interface SolidScriptBreakpoints {
+  /** 1-based lines that have a breakpoint. */
+  lines: ReadonlySet<number>;
+  /**
+   * Pause at this hit of any breakpoint, counting from 1; 0 or less to only
+   * record the hits.
+   */
+  pauseAt: number;
 }
 
 /** The mistake a run stopped at. */
@@ -171,15 +212,26 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
   private line = 0;
   private work = 0;
   private used = false;
+  private readonly breaks: SolidScriptBreak[] = [];
+  /**
+   * Points being gathered by the Polyhedron or Polygon blocks around the
+   * running line, innermost last.
+   */
+  private readonly gathering: THREE.Vector3[][] = [];
   private watched: SolidScriptScope | null = null;
   private failure: SolidScriptFailure | null = null;
+  private paused: SolidScriptBreak | null = null;
 
   /**
    * Creates a machine.
    *
    * @param stepLimit Shapes to build; later shapes are only counted.
+   * @param breakpoints Lines to record or pause at, or null.
    */
-  constructor(private readonly stepLimit = Number.POSITIVE_INFINITY) {}
+  constructor(
+    private readonly stepLimit = Number.POSITIVE_INFINITY,
+    private readonly breakpoints: SolidScriptBreakpoints | null = null,
+  ) {}
 
   /**
    * Runs a script once.
@@ -198,9 +250,17 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
       name,
       value: solidScriptValueText(value),
     }));
-    if (!this.failure && this.steps.length === 0)
+    if (!this.failure && !this.paused && this.steps.length === 0)
       this.failure = solidScriptFailure(null, 'the script builds no shapes; add a shape such as Cube');
-    return { shapes, messages: this.messages, steps: this.steps, variables, error: this.failure };
+    return {
+      shapes,
+      messages: this.messages,
+      steps: this.steps,
+      variables,
+      breaks: this.breaks,
+      paused: this.paused,
+      error: this.failure,
+    };
   }
 
   /**
@@ -269,8 +329,27 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     scope: SolidScriptScope,
     context: SolidScriptContext,
   ): SolidScriptShape[] {
-    if (node.command.id === 'part') return [];
+    if (node.command.id === 'part' || this.breakReached(node.line, scope)) return [];
     return this.guarded(node.line, () => node.command.execute(this.runOf(node, scope, context))) ?? [];
+  }
+
+  /**
+   * Records a breakpoint line about to run, and pauses the run when it is the
+   * hit to pause at: nothing after it runs, and the variables are the ones the
+   * line would see.
+   *
+   * @param line Line about to run.
+   * @param scope Scope it runs in.
+   * @returns True when the run paused here.
+   */
+  private breakReached(line: number, scope: SolidScriptScope): boolean {
+    if (!this.breakpoints?.lines.has(line) || this.failure || this.paused) return false;
+    const reached = { line, steps: this.steps.length };
+    this.breaks.push(reached);
+    if (this.breaks.length !== this.breakpoints.pauseAt) return false;
+    this.paused = reached;
+    this.watched = scope;
+    return true;
   }
 
   /**
@@ -282,7 +361,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
    * @returns Its result, or undefined when the run stopped.
    */
   private guarded<T>(line: number, step: () => T): T | undefined {
-    if (this.failure) return undefined;
+    if (this.failure || this.paused) return undefined;
     const outer = this.line;
     this.line = line;
     try {
@@ -331,11 +410,13 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
       value,
       variableSet: (name, assigned) => this.variableSet(scope, name, assigned),
       solid: (points) => {
+        this.gatherCheck(node);
         this.flatCheck(node, context, false);
         if (!this.stepTake(scope)) return [];
         return [{ kind: 'solid', label, points: points.map((point) => point.applyMatrix4(context.matrix)) }];
       },
       outline: (points) => {
+        this.gatherCheck(node);
         this.flatCheck(node, context, true);
         if (!this.stepTake(scope)) return [];
         const moved = points.map(([x, y]): SolidScriptPoint2 => {
@@ -381,6 +462,23 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
         return lines.length === 0 ? [] : this.linesRun(lines, scope, context);
       },
       partUse: (name) => this.partUse(name, scope, context),
+      pointsGathered: () => {
+        const points: THREE.Vector3[] = [];
+        this.gathering.push(points);
+        try {
+          if (node.children.length > 0)
+            this.linesRun(node.children, scope, { matrix: new THREE.Matrix4(), planar: context.planar });
+        } finally {
+          this.gathering.pop();
+        }
+        return points;
+      },
+      point: (position) => {
+        const into = this.gathering[this.gathering.length - 1];
+        if (!into) throw new Error('a Point belongs between a Polyhedron or Polygon line and its End');
+        into.push(position.clone().applyMatrix4(context.matrix));
+        return [];
+      },
       print: (text) => {
         this.messages.push(text);
         return [];
@@ -416,9 +514,13 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
   private fieldContext(scope: SolidScriptScope): SolidScriptFieldContext {
     return {
       variable: (name) => {
-        if (!scope.variableHas(name))
-          throw new Error(`there is no variable [${name}]; set it on a line above this one`);
-        return scope.variableGet(name);
+        const item = solidScriptListItemParse(name);
+        const base = item?.name ?? name;
+        if (!scope.variableHas(base))
+          throw new Error(`there is no variable [${base}]; set it on a line above this one`);
+        if (!item) return scope.variableGet(base);
+        const index = item.index === '' ? null : this.indexValue(item.index, scope);
+        return solidScriptListItemRead(base, scope.variableGet(base), index, item.method);
       },
       formula: (text) => {
         let expression: SolidScriptExpression;
@@ -441,9 +543,26 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
    * @param value Value.
    */
   private variableSet(scope: SolidScriptScope, name: string, value: SolidScriptValue): void {
-    this.nameCheck(name, 'a variable');
-    this.writableCheck(name);
-    scope.variableSet(name, value);
+    const item = solidScriptListItemParse(name);
+    if (item?.method) throw new Error(`${item.name}().${item.method} can only be read`);
+    const base = item?.name ?? name;
+    this.nameCheck(base, 'a variable');
+    this.writableCheck(base);
+    if (!item) return scope.variableSet(base, value);
+    const index = item.index === '' ? null : this.indexValue(item.index, scope);
+    scope.variableSet(base, solidScriptListItemWrite(base, scope.variableGet(base), index, value));
+  }
+
+  /**
+   * Reads the item number of a list reference, which may use variables and
+   * formulas such as points([i]).
+   *
+   * @param text Index text.
+   * @param scope Scope.
+   * @returns Index value.
+   */
+  private indexValue(text: string, scope: SolidScriptScope): SolidScriptValue {
+    return solidScriptFieldResolve('number', text, this.fieldContext(scope));
   }
 
   /**
@@ -467,6 +586,19 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     if (origin !== undefined)
       throw new Error(
         `"${name}" is an ${origin} of this script and can only be read; change its value in the inspector`,
+      );
+  }
+
+  /**
+   * Fails when a shape is built among the Point lines of a Polyhedron or
+   * Polygon.
+   *
+   * @param node Line.
+   */
+  private gatherCheck(node: SolidScriptBlockNode<Command>): void {
+    if (this.gathering.length > 0)
+      throw new Error(
+        `${node.command.label} cannot be inside a Polyhedron or Polygon; only Point lines, logic and moves go there`,
       );
   }
 
@@ -511,7 +643,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     const operands: SolidScriptShape[] = [];
     node.children.forEach((child, index) => {
       const joined = solidScriptShapeJoin(this.lineRun(child, inner, context), label);
-      if (index === 0 && operation === 'difference' && this.steps.length === reached && !this.failure)
+      if (index === 0 && operation === 'difference' && this.steps.length === reached && !this.failure && !this.paused)
         throw new Error('Difference has nothing to cut from: its first line builds no shape');
       if (joined) operands.push(joined);
     });
@@ -536,9 +668,10 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
         `no part is named "${name}". ${known.length > 0 ? `Parts: ${known.join(', ')}` : 'Define one with Define Part'}`,
       );
     }
-    if (this.partsActive.includes(name)) throw new Error(`part "${name}" uses itself; that would never end`);
     if (this.partsActive.length >= SOLID_SCRIPT_PART_DEPTH_MAX)
-      throw new Error('parts are used inside each other too deeply');
+      throw new Error(
+        `parts are used inside each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} deep; a part that uses itself needs an If that stops it`,
+      );
     if (part.node.children.length === 0) throw new Error(`part "${name}" has nothing inside`);
     this.partsActive.push(name);
     try {

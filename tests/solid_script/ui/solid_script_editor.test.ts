@@ -349,6 +349,124 @@ describe('SolidScript editor', () => {
     }
   });
 
+  it('sets a breakpoint from the gutter or F9; Start pauses before that line with its variables, then continues', () => {
+    const { root, node, stepId } = editorFixture([
+      { command: 'sphere' },
+      { command: 'repeat', values: { variable: 'i', from: '0', to: '1' } },
+      { command: 'cube', values: { size: '[=[i] + 1], 1, 1' } },
+      { command: 'end' },
+      { command: 'note', values: { text: 'Done' } },
+    ]);
+    find('[data-line="2"] .solid-script-editor-gutter').click();
+    expect(find('[data-line="2"]').classList.contains('solid-script-editor-breakpoint')).toBe(true);
+    press(chip(4), 'F9');
+    expect(find('[data-line="4"]').classList.contains('solid-script-editor-breakpoint')).toBe(false);
+    expect(root.textContent).toContain('cannot hold a breakpoint');
+    tool('Start').click();
+    expect(solidScriptDebugStepLimit(node, stepId)).toBe(1);
+    const paused = find('[data-line="2"]');
+    expect(paused.classList.contains('solid-script-editor-stepped')).toBe(true);
+    expect(paused.title).toMatch(/^Paused at this breakpoint/);
+    expect(root.textContent).toContain('Paused at the breakpoint on line 3');
+    const variables = () => [...root.querySelectorAll('.solid-script-editor-variable')].map((row) => row.textContent);
+    expect(variables()).toEqual(['i0']);
+    expect(tool('Continue')).toBeTruthy();
+    tool('Start').click();
+    expect(solidScriptDebugStepLimit(node, stepId)).toBe(2);
+    expect(variables()).toEqual(['i1']);
+    tool('Step').click();
+    expect(solidScriptDebugStepLimit(node, stepId)).toBe(3);
+    expect(tool('Debug')).toBeTruthy();
+    tool('Start').click();
+    expect(solidScriptDebugStepLimit(node, stepId)).toBeUndefined();
+    expect(root.querySelector('.solid-script-editor-stepped')).toBeNull();
+  });
+
+  it('keeps a breakpoint on its line when the line moves', () => {
+    const { commands } = editorFixture([{ command: 'cube' }, { command: 'sphere' }, { command: 'cylinder' }]);
+    press(chip(2), 'F9');
+    expect(find('[data-line="2"]').classList.contains('solid-script-editor-breakpoint')).toBe(true);
+    press(chip(2), 'ArrowUp', { ctrlKey: true, shiftKey: true });
+    expect(commands()).toEqual(['cube', 'cylinder', 'sphere']);
+    expect(find('[data-line="1"]').classList.contains('solid-script-editor-breakpoint')).toBe(true);
+    expect(find('[data-line="2"]').classList.contains('solid-script-editor-breakpoint')).toBe(false);
+  });
+
+  it('pauses Debug at a breakpoint and continues playing from it', () => {
+    vi.useFakeTimers();
+    try {
+      const { root, node, stepId } = editorFixture([
+        { command: 'cube' },
+        { command: 'sphere' },
+        { command: 'cylinder' },
+      ]);
+      press(chip(1), 'F9');
+      tool('Debug').click();
+      vi.advanceTimersByTime(400 * 3);
+      expect(solidScriptDebugStepLimit(node, stepId)).toBe(1);
+      expect(root.querySelector('.solid-script-editor-stepped')?.getAttribute('data-line')).toBe('1');
+      vi.advanceTimersByTime(400 * 3);
+      expect(solidScriptDebugStepLimit(node, stepId)).toBe(1);
+      tool('Continue').click();
+      vi.advanceTimersByTime(400 * 10);
+      expect(solidScriptDebugStepLimit(node, stepId)).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('searches the palette by name, description and category; arrows pick, Enter inserts, Escape clears', () => {
+    const { root, commands } = editorFixture([{ command: 'cube' }]);
+    const search = find<HTMLInputElement>('.solid-script-editor-palette-search');
+    press(chip(0), 'f', { ctrlKey: true });
+    expect(document.activeElement).toBe(search);
+    type(search, 'ball');
+    const shown = () =>
+      [...root.querySelectorAll<HTMLElement>('.solid-script-editor-palette-item')]
+        .filter((item) => !item.hidden)
+        .map((item) => item.dataset['command']);
+    expect(shown()).toEqual(['sphere']);
+    type(search, 'logic');
+    expect(shown()).toContain('repeat');
+    expect(shown()).not.toContain('cube');
+    expect(find('.solid-script-editor-palette-highlighted').dataset['command']).toBe(shown()[0]);
+    type(search, 'cyl');
+    press(search, 'ArrowDown');
+    press(search, 'Enter');
+    tool('OK').click();
+    expect(commands()).toEqual(['cube', 'cylinder']);
+    press(search, 'Escape');
+    expect(search.value).toBe('');
+    expect(shown().length).toBeGreaterThan(10);
+    type(search, 'zzzz');
+    expect(root.textContent).toContain('No command matches');
+  });
+
+  it('keeps typing in the search inside the window, undo keys included', () => {
+    editorFixture(CUBE_SPHERE);
+    const scene = vi.fn();
+    window.addEventListener('keydown', scene);
+    try {
+      const search = find<HTMLInputElement>('.solid-script-editor-palette-search');
+      for (const key of ['Delete', 'Backspace', 'a', 'z']) press(search, key, { ctrlKey: key === 'z' });
+    } finally {
+      window.removeEventListener('keydown', scene);
+    }
+    expect(scene).not.toHaveBeenCalled();
+  });
+
+  it('keeps every line on one row of fixed height that scrolls sideways', () => {
+    const { root } = editorFixture([
+      { command: 'note', values: { text: 'A very long note '.repeat(20) } },
+      { command: 'cube' },
+    ]);
+    const rows = [...root.querySelectorAll<HTMLElement>('.solid-script-editor-row')];
+    expect(rows.map((row) => row.style.top)).toEqual(['4px', '28px']);
+    const canvas = find('.solid-script-editor-lines-canvas');
+    expect(parseFloat(canvas.style.width)).toBeGreaterThan(2000);
+    expect(root.querySelector('.solid-script-editor-lines-host')?.children.length).toBeGreaterThanOrEqual(3);
+  });
+
   it('orders the run buttons Start, Debug, Step, Stop', () => {
     const { root } = editorFixture(CUBE_SPHERE);
     const labels = [...root.querySelectorAll('.solid-script-editor-toolbar button')].map(

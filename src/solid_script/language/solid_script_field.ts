@@ -20,6 +20,7 @@ export type SolidScriptFieldKind =
   | 'condition'
   | 'message'
   | 'name'
+  | 'target'
   | 'text';
 
 /** What resolving field text needs from the running script. */
@@ -34,7 +35,7 @@ export interface SolidScriptFieldContext {
 type SolidScriptFieldPiece = { kind: 'plain'; text: string } | { kind: 'group'; pieces: SolidScriptFieldPiece[] };
 
 /** Field kinds whose text is used exactly as typed. */
-const SOLID_SCRIPT_FIELD_KINDS_RAW: ReadonlySet<SolidScriptFieldKind> = new Set(['name', 'text']);
+const SOLID_SCRIPT_FIELD_KINDS_RAW: ReadonlySet<SolidScriptFieldKind> = new Set(['name', 'target', 'text']);
 
 /**
  * Splits field text into plain characters and bracketed parts.
@@ -246,6 +247,7 @@ export function solidScriptFieldResolve(
       return solidScriptFieldVector(text, context);
     case 'points2':
     case 'points3': {
+      if (text.trim() === '') return [];
       const points = solidScriptFieldSplit(text, ';');
       if (points.length === 1) return solidScriptFieldVector(points[0]!, context);
       return points.map((point) => solidScriptFieldVector(point, context));
@@ -283,5 +285,5 @@ export function solidScriptFieldCheck(text: string): string {
  * @returns True for a lone variable.
  */
 export function solidScriptFieldIsVariable(text: string): boolean {
-  return /^\[\s*[A-Za-z_]\w*\s*\]$/.test(text.trim());
+  return /^\[\s*[A-Za-z_]\w*(\s*\([^[\]]*\)(\s*\.\s*\w+)?)?\s*\]$/.test(text.trim());
 }

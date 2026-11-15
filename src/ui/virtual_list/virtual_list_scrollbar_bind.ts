@@ -98,3 +98,53 @@ export function virtualListScrollbarSync(scrollbar: VirtualListScrollbar, scroll
   const range = Math.max(0, content - viewport);
   scrollbar.metricsSync(viewport, content, range <= 0 ? 0 : scroller.scrollTop / range, content > viewport + 1);
 }
+
+/**
+ * Binds a horizontal custom scrollbar along the bottom of a host to a native
+ * scroller that overflows sideways: dragging, track clicks and arrows scroll
+ * it, and scrolling or resizing moves the thumb.
+ *
+ * @param host Positioned host that receives the scrollbar element.
+ * @param scroller Element that actually scrolls sideways.
+ * @param stepPx Arrow step in CSS pixels.
+ * @param observed Extra elements whose size changes the content width.
+ * @returns Binding.
+ */
+export function virtualListScrollbarBindHorizontal(
+  host: HTMLElement,
+  scroller: HTMLElement,
+  stepPx: number,
+  observed: readonly HTMLElement[] = [],
+): VirtualListScrollbarBinding {
+  const scrollbar = new VirtualListScrollbar('horizontal');
+  host.appendChild(scrollbar.getElement());
+  scrollbar.stepRowHeightPxSet(stepPx);
+  scrollbar.onPercentChangeSet((percent) => {
+    scroller.scrollLeft = Math.max(0, scroller.scrollWidth - scroller.clientWidth) * percent;
+  });
+  scrollbar.onStepSet((deltaPx) => (scroller.scrollLeft += deltaPx));
+  const sync = (): void => virtualListScrollbarSyncHorizontal(scrollbar, scroller);
+  scroller.addEventListener('scroll', sync);
+  const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(sync);
+  for (const element of [host, scroller, ...observed]) observer?.observe(element);
+  sync();
+  const dispose = (): void => {
+    observer?.disconnect();
+    scroller.removeEventListener('scroll', sync);
+    scrollbar.dispose();
+  };
+  return { scrollbar, sync, dispose };
+}
+
+/**
+ * Pushes a scroller's sideways metrics into a horizontal custom scrollbar.
+ *
+ * @param scrollbar Horizontal custom scrollbar.
+ * @param scroller Native scroller.
+ */
+export function virtualListScrollbarSyncHorizontal(scrollbar: VirtualListScrollbar, scroller: HTMLElement): void {
+  const viewport = scroller.clientWidth;
+  const content = scroller.scrollWidth;
+  const range = Math.max(0, content - viewport);
+  scrollbar.metricsSync(viewport, content, range <= 0 ? 0 : scroller.scrollLeft / range, content > viewport + 1);
+}

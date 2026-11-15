@@ -1,8 +1,10 @@
-import { SolidScriptCommand } from './solid_script_command.js';
+import * as THREE from 'three';
+import { SolidScriptCommand, type SolidScriptCommandStarter } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import {
   solidScriptParameter,
   solidScriptParameterCenter,
+  solidScriptParameterOptional,
   solidScriptParameterRings,
   solidScriptParameterSides,
 } from './solid_script_command_parameters.js';
@@ -15,6 +17,22 @@ import {
   solidScriptSpherePoints,
   solidScriptSquarePoints,
 } from '@/solid_script/language/solid_script_primitives.js';
+
+/**
+ * Point lines a new block starts with.
+ *
+ * @param positions Point positions.
+ * @returns Starter lines.
+ */
+function solidScriptPointStarter(positions: readonly string[]): SolidScriptCommandStarter[] {
+  return positions.map((position) => ({ command: 'point', values: { position } }));
+}
+
+/** A new Polyhedron starts as a small pyramid. */
+const SOLID_SCRIPT_POLYHEDRON_STARTER = solidScriptPointStarter(['0, 0, 0', '1, 0, 0', '0, 1, 0', '0, 0, 1']);
+
+/** A new Polygon starts as a triangle. */
+const SOLID_SCRIPT_POLYGON_STARTER = solidScriptPointStarter(['0, 0, 0', '2, 0, 0', '1, 2, 0']);
 
 /** Commands that build one convex solid each. */
 export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
@@ -99,21 +117,47 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     id: 'polyhedron',
     label: 'Polyhedron',
     category: 'Solids',
-    description: 'Build a solid around corner points',
+    description: 'Build a solid around Point lines',
     manual:
-      'Builds the convex solid that wraps corner points, like shrink wrap around pins. Write each point as x, y, z and separate the points with semicolons. Points inside the wrap are ignored, so the result is never hollow or dented. Example: 0, 0, 0; 1, 0, 0; 0, 1, 0; 0, 0, 1 gives a small three-sided pyramid.',
-    stops: ['Fewer than four points, or a point that is not x, y, z.', 'Points that all lie in one plane.'],
+      'Builds the convex solid that wraps the corner points given by the Point lines between this line and its End, like shrink wrap around pins. Points inside the wrap are ignored, so the result is never hollow or dented. The lines inside may use Repeat, For Each, If, Set and moves such as Translate, so corners can come from loops and formulas. Points From List adds the points of a list variable too, such as [corners]. Example: Points at 0, 0, 0 and 1, 0, 0 and 0, 1, 0 and 0, 0, 1 give a small three-sided pyramid.',
+    stops: [
+      'Fewer than four points.',
+      'Points that all lie in one plane.',
+      'A solid or flat shape among the Point lines.',
+      'A missing End line.',
+    ],
+    nesting: 'open',
     parameters: [
-      solidScriptParameter(
+      solidScriptParameterOptional(
         'points',
-        'Points',
+        'Points From List',
         'points3',
-        '0, 0, 0; 1, 0, 0; 0, 1, 0; 0, 0, 1',
-        'At least four corner points in metres: x, y, z for each, separated by semicolons.',
+        'Optional: a list of x, y, z points, such as a list variable [corners]. Point lines inside add more.',
       ),
     ],
-    listing: (read) => ['Polyhedron', 'around ', read.value('points')],
-    execute: (run) => run.solid(solidScriptPolyhedronPoints(run.fields())),
+    starter: SOLID_SCRIPT_POLYHEDRON_STARTER,
+    listing: (read) => [
+      'Polyhedron',
+      ...solidScriptListingOptions([read.changed('points') && ['From ', read.value('points')]]),
+    ],
+    execute: (run) => run.solid(solidScriptPolyhedronPoints(run.fields(), run.pointsGathered())),
+  }),
+  new SolidScriptCommand({
+    id: 'point',
+    label: 'Point',
+    category: 'Solids',
+    description: 'Add a corner to a Polyhedron or Polygon',
+    manual:
+      'Adds one corner point at X, Y and Z in metres to the Polyhedron or Polygon around this line, moved by any Translate, Rotate or other move between them. A Polygon uses X and Y and ignores Z. Each value may be a variable or a formula, so a Repeat around a Point can place many corners. Example: inside Repeat [i] from 0 to 5, Point [=cos([i] * 60)], [=sin([i] * 60)], 0 adds the six corners of a hexagon.',
+    stops: ['Being placed outside a Polyhedron or Polygon.', 'A position that is not x, y, z.'],
+    parameters: [
+      solidScriptParameter('position', 'Position', 'vector3', '0, 0, 0', 'X, Y and Z of the corner in metres.'),
+    ],
+    listing: (read) => ['Point', read.value('position')],
+    execute: (run) => {
+      const xyz = run.fields().vector('position', [0, 0, 0]);
+      return run.point(new THREE.Vector3(xyz[0], xyz[1], xyz[2] ?? 0));
+    },
   }),
 ];
 
@@ -162,20 +206,24 @@ export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
     id: 'polygon',
     label: 'Polygon',
     category: '2D Shapes',
-    description: 'Draw an outline through points',
+    description: 'Draw an outline through Point lines',
     manual:
-      'Draws a flat outline through points in order around the edge: x, y for each, separated by semicolons. Unlike the solids it may be dented (concave), such as an L or a star; it is split into convex brushes when extruded. It only works inside a Linear Extrude. Example: 0, 0; 2, 0; 2, 1; 1, 1; 1, 2; 0, 2 gives an L.',
-    stops: ['Fewer than three points, or a point that is not x, y.', 'Being placed outside a Linear Extrude.'],
+      'Draws a flat outline through the Point lines between this line and its End, in order around the edge; each Point gives X and Y, and Z is ignored. Unlike the solids it may be dented (concave), such as an L or a star; it is split into convex brushes when extruded. It only works inside a Linear Extrude. The lines inside may use Repeat, For Each, If and Set, and Points From List adds the points of a list variable such as [outline]. Example: Points at 0, 0 and 2, 0 and 2, 1 and 1, 1 and 1, 2 and 0, 2 give an L.',
+    stops: ['Fewer than three points.', 'Being placed outside a Linear Extrude.', 'A missing End line.'],
+    nesting: 'open',
     parameters: [
-      solidScriptParameter(
+      solidScriptParameterOptional(
         'points',
-        'Points',
+        'Points From List',
         'points2',
-        '0, 0; 2, 0; 1, 2',
-        'At least three points in metres in order around the outline: x, y for each, separated by semicolons.',
+        'Optional: a list of x, y points in outline order, such as a list variable [outline]. Point lines inside add more.',
       ),
     ],
-    listing: (read) => ['Polygon', 'through ', read.value('points')],
-    execute: (run) => run.outline(solidScriptPolygonOutline(run.fields())),
+    starter: SOLID_SCRIPT_POLYGON_STARTER,
+    listing: (read) => [
+      'Polygon',
+      ...solidScriptListingOptions([read.changed('points') && ['From ', read.value('points')]]),
+    ],
+    execute: (run) => run.outline(solidScriptPolygonOutline(run.fields(), run.pointsGathered())),
   }),
 ];

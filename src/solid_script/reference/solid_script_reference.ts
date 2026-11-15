@@ -40,7 +40,7 @@ SolidScript is how AiWorldEd describes brush geometry as a script of block lines
 - Every run starts a fresh machine: no variable or setting survives from an earlier run or from another generator.
 - Before anything runs, the block structure is checked: a missing End, an End without a block, an Else outside an If, or an unknown command stops the script and builds nothing.
 - Lines then run top to bottom. A variable exists from its Set line on; a line above it cannot use it. Setting a name again changes the existing variable, so a Set inside a Repeat can count up across rounds.
-- Define Part lines are registered before the run, so Use Part may come before or after its Define Part. A part may not use itself.
+- Define Part lines are registered before the run, so Use Part may come before or after its Define Part. Use Part works like a call: the part's lines run, then the script carries on after the Use Part line. The part sees the caller's variables, and Set inside it changes a variable that already exists outside, so a part can hand back results. A part may use itself (recursion) as long as an If stops it; parts nest at most 64 deep. Use Part's name may be a variable, such as "[style]".
 - The first mistake stops the script at that line; the error names the line and the field, such as "line 3: Size must be greater than 0".
 - A script builds at most 2000 solids, and Repeat runs at most 10000 rounds.
 
@@ -50,7 +50,8 @@ Every field is plain text, without quotes, read like this:
 
 - A number: "2", "0.5", "-1".
 - A list for positions, sizes and angles: numbers separated by commas, "1, 2, 3". One number fills every axis: "2" means 2, 2, 2.
-- Points for Polyhedron and Polygon: points separated by semicolons, each x, y, z (or x, y): "0, 0, 0; 1, 0, 0; 0, 1, 0; 0, 0, 1".
+- Polyhedron and Polygon are blocks: each Point line between them and their End adds one corner (x, y, z; a Polygon ignores z). Point lines may sit inside Repeat, For Each, If and moves such as Translate, so corners can come from loops and formulas. Their optional Points From List field adds the points of a list variable, such as "[corners]"; written out, points are separated by semicolons: "0, 0, 0; 1, 0, 0".
+- Lists: Set "points()" adds an item at the end of the list points (creating it), Set "points(2)" changes item 2 (items count from 0, and the next free number appends), "[points(2)]" reads it, "[points().count]" is the number of items and "[points]" is the whole list. An item number past the end stops the script. For Each runs its lines once per item of a list.
 - Switches: "true" or "false" (Yes or No also work).
 - [name] puts in the value of a variable: "[width]", or "[width], 1, 1" for one axis.
 - [=formula] puts in the result of a formula; inside it, write variables as [name] too: "[=[i] * 2]", "[=[width] / 2], 0, [=sin([angle]) * 3]".
@@ -59,7 +60,7 @@ Every field is plain text, without quotes, read like this:
 - $ keeps the next character as typed: $[ and $] write brackets, $$ a dollar sign.
 - If's condition is a formula without the leading =: "[i] % 2 == 0", "[width] > 2 && [open]".
 - Set's value is a number, a comma list of numbers, true/false, or else plain text.
-- Name fields (variable, counter, part names) take a plain name, without brackets. Note text is used as typed.
+- Name fields (variable, counter, part names) take a plain name, without brackets; Set's name may also be a list item such as points([i]). Note text is used as typed.
 - An unknown [name] stops the script with "line N: ... there is no variable [name]"; a formula that cannot be read stops it with the formula and the reason.
 
 Formulas know: numbers, text in double quotes, true, false, lists in $[ $] brackets, the operators (loosest first) ? :, ||, &&, == !=, < <= > >=, + -, * / %, unary - + !, and the functions sin, cos, tan, asin, acos, atan, atan2 (degrees), abs, sign, ceil, floor, round, sqrt, exp, ln, log (base 10), pow, min, max, norm, cross, len, concat, str, is_undef, is_num, is_list, is_string, is_bool, and PI. Lists add item by item and a number times a list scales it.

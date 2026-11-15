@@ -4,6 +4,7 @@ import { solidScriptErrorLine } from './solid_script_error.js';
 import {
   SolidScriptMachine,
   solidScriptFailure,
+  type SolidScriptBreakpoints,
   type SolidScriptEvaluation,
   type SolidScriptPreset,
   type SolidScriptRun,
@@ -15,6 +16,8 @@ export interface SolidScriptProgramOptions {
   stepLimit?: number;
   /** Values defined before the first line, such as inspector inputs. */
   presets?: readonly SolidScriptPreset[];
+  /** Breakpoint lines to record, and the hit to pause at, for the debugger. */
+  breakpoints?: SolidScriptBreakpoints;
 }
 
 /** The lines of a script to run. */
@@ -36,7 +39,7 @@ export function solidScriptProgramRun(
 ): SolidScriptRun {
   try {
     const lines = solidScriptBlockTree(program.blocks, solidScriptCommandFind);
-    return new SolidScriptMachine(options.stepLimit).run(lines, options.presets);
+    return new SolidScriptMachine(options.stepLimit, options.breakpoints ?? null).run(lines, options.presets);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return {
@@ -44,6 +47,8 @@ export function solidScriptProgramRun(
       messages: [],
       steps: [],
       variables: [],
+      breaks: [],
+      paused: null,
       error: solidScriptFailure(solidScriptErrorLine(message), message),
     };
   }

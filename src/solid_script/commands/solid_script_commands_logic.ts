@@ -2,7 +2,7 @@ import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import { solidScriptParameter } from './solid_script_command_parameters.js';
 import { solidScriptValueText, solidScriptValueTruthy } from '@/solid_script/language/solid_script_value.js';
-import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine.js';
+import { SOLID_SCRIPT_PART_DEPTH_MAX, type SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine.js';
 
 /** Id of the command that closes a block. */
 export const SOLID_SCRIPT_COMMAND_END = 'end';
@@ -42,14 +42,21 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Logic',
     description: 'Set a variable to a value',
     manual:
-      'Gives a name to a value so later lines can use the name instead of the number. Lines below this one see the new value; lines above it do not. Setting the same name again changes it, so a Set inside a Repeat can count up. Use the variable in any field as [width], or compute with it as [=[width] * 2]. Example: Set [width] to 3, then a Cube of size [width], 1, 1 and a Translate by [width], 0, 0 stay in step when you change width once.',
+      'Gives a name to a value so later lines can use the name instead of the number. Lines below this one see the new value; lines above it do not. Setting the same name again changes it, so a Set inside a Repeat can count up. Use the variable in any field as [width], or compute with it as [=[width] * 2]. Example: Set [width] to 3, then a Cube of size [width], 1, 1 and a Translate by [width], 0, 0 stay in step when you change width once. Lists: Set points() adds an item at the end of the list points, Set points(2) changes item 2 (items count from 0), [points(2)] reads it and [points().count] is how many items there are.',
     stops: [
       'A name that is not letters, digits and _, or starts with a digit.',
       'A [name] for a variable not set above this line, or a [=formula] that cannot be read.',
       'Setting an input of the script, which can only be read.',
+      'An item number past the end of a list, such as points(5) when points has 3 items.',
     ],
     parameters: [
-      solidScriptParameter('name', 'Variable', 'name', 'width', 'Letters, digits and _; must not start with a digit.'),
+      solidScriptParameter(
+        'name',
+        'Variable',
+        'target',
+        'width',
+        'Letters, digits and _, not starting with a digit. For a list: points() adds an item, points(2) changes item 2.',
+      ),
       solidScriptParameter(
         'value',
         'Value',
@@ -94,6 +101,38 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
       ...solidScriptListingOptions([read.changed('step') && ['Step ', read.value('step')]]),
     ],
     execute: (run) => run.repeated(run.text('variable'), solidScriptRepeatValues(run)),
+  }),
+  new SolidScriptCommand({
+    id: 'for_each',
+    label: 'For Each',
+    category: 'Logic',
+    description: 'Run lines once per list item',
+    manual:
+      'Runs the lines between this line and its End once for every item of a list, with the counter set to that item. The list can be numbers separated by commas, or a list variable such as [points]. Example: For Each [h] in 1, 2, 4 around a Translate by [h], 0, 0 and a Cube builds three cubes at 1, 2 and 4 metres.',
+    stops: [
+      `More than ${SOLID_SCRIPT_REPEAT_ROUNDS_MAX} items.`,
+      'A counter name that is not letters, digits and _.',
+      'A missing End line.',
+    ],
+    nesting: 'open',
+    parameters: [
+      solidScriptParameter('variable', 'Counter', 'name', 'item', 'Name the lines inside use for the current item.'),
+      solidScriptParameter(
+        'list',
+        'List',
+        'value',
+        '1, 2, 3',
+        'Items separated by commas, or a list variable such as [points].',
+      ),
+    ],
+    listing: (read) => ['For Each', read.variable('variable'), ' in ', read.value('list')],
+    execute: (run) => {
+      const list = run.value('list');
+      const items = Array.isArray(list) ? list : [list];
+      if (items.length > SOLID_SCRIPT_REPEAT_ROUNDS_MAX)
+        throw new Error(`For Each would run ${items.length} times, more than ${SOLID_SCRIPT_REPEAT_ROUNDS_MAX}`);
+      return run.repeated(run.text('variable'), items);
+    },
   }),
   new SolidScriptCommand({
     id: 'if',
@@ -215,10 +254,18 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Parts',
     description: 'Build a part here',
     manual:
-      'Builds the lines of a part defined with Define Part, here, moved by the blocks around this line. A part may be used any number of times, and Define Part may come before or after it. Example: Use Part post inside Translate by 2, 0, 0 builds the post two metres to the right.',
-    stops: ['No part with this name.', 'A part that uses itself.'],
-    parameters: [solidScriptParameter('name', 'Name', 'name', 'part', 'Name of a part defined in this script.')],
+      'Builds the lines of a part defined with Define Part, here, moved by the blocks around this line, and then carries on with the next line, like a call that returns. A part may be used any number of times, and Define Part may come before or after it. The part sees the variables of the line that uses it, and Set inside the part changes a variable that already exists outside, so a part can hand back results. The name may be a variable, such as [style], to choose a part while the script runs. A part may use itself, as long as an If stops it. Example: Use Part post inside Translate by 2, 0, 0 builds the post two metres to the right.',
+    stops: ['No part with this name.', `Parts used inside each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} deep.`],
+    parameters: [
+      solidScriptParameter(
+        'name',
+        'Name',
+        'message',
+        'part',
+        'Name of a part defined in this script, or a variable such as [style] that holds one.',
+      ),
+    ],
     listing: (read) => ['Use Part', { kind: 'value', text: `'${read.text('name')}'` }],
-    execute: (run) => run.partUse(run.text('name')),
+    execute: (run) => run.partUse(String(run.value('name')).trim()),
   }),
 ];

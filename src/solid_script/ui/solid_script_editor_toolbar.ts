@@ -69,10 +69,12 @@ export class SolidScriptEditorToolbar {
    * Shows the debugger state on the buttons.
    *
    * @param state Debugger state.
+   * @param atBreak True while paused at a breakpoint: Debug continues.
    */
-  stateShow(state: SolidScriptDebuggerState): void {
+  stateShow(state: SolidScriptDebuggerState, atBreak: boolean): void {
     const playing = state === 'playing';
-    this.debug.replaceChildren(solidScriptEditorIcon(playing ? 'pause' : 'debug'), playing ? 'Pause' : 'Debug');
+    const label = playing ? 'Pause' : atBreak ? 'Continue' : 'Debug';
+    this.debug.replaceChildren(solidScriptEditorIcon(playing ? 'pause' : 'debug'), label);
     this.debug.setAttribute('aria-pressed', String(playing));
     this.stop.disabled = state === 'stopped';
   }

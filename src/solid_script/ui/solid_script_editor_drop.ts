@@ -104,8 +104,9 @@ export class SolidScriptEditorDrop {
     const row =
       (event.target as HTMLElement | null)?.closest?.<HTMLElement>(`.${SOLID_SCRIPT_EDITOR_CLASSES.row}`) ?? null;
     if (!row) {
-      const last = this.element.querySelector<HTMLElement>(`.${SOLID_SCRIPT_EDITOR_CLASSES.row}:last-of-type`);
-      return { row: last, line: Math.max(0, this.handlers.count() - 1), mark: SOLID_SCRIPT_EDITOR_CLASSES.dropAfter };
+      const line = Math.max(0, this.handlers.count() - 1);
+      const last = this.element.querySelector<HTMLElement>(`.${SOLID_SCRIPT_EDITOR_CLASSES.row}[data-line="${line}"]`);
+      return { row: last, line, mark: SOLID_SCRIPT_EDITOR_CLASSES.dropAfter };
     }
     const line = Number(row.dataset['line']);
     if (this.handlers.blank(line)) return { row, line, mark: SOLID_SCRIPT_EDITOR_CLASSES.dropInto };

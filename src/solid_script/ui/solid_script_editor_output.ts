@@ -1,7 +1,10 @@
 import type { SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
 import type { SolidScriptVariable } from '@/solid_script/language/solid_script_machine.js';
 import { solidScriptErrorLine, solidScriptErrorText } from '@/solid_script/language/solid_script_error.js';
-import { solidScriptProgramEvaluate } from '@/solid_script/language/solid_script_program.js';
+import {
+  solidScriptProgramEvaluate,
+  type SolidScriptProgramOptions,
+} from '@/solid_script/language/solid_script_program.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 
 /** Tabs of the output area. */
@@ -45,20 +48,18 @@ export class SolidScriptEditorOutput {
    * Runs a script and shows its result.
    *
    * @param document Script.
-   * @param step Debugger step whose variables to show, or null after the last
-   *   solid.
-   * @param line Line of that step as a 0-based index, or null.
+   * @param options How the debugger runs it to the state shown, or null for the
+   *   whole script.
+   * @param caption What the variables show, such as "At step 2, line 4".
    */
-  show(document: SolidScriptDocument, step: number | null, line: number | null): void {
+  show(document: SolidScriptDocument, options: SolidScriptProgramOptions | null, caption: string): void {
     try {
-      const result = solidScriptProgramEvaluate(document, step === null ? {} : { stepLimit: step });
+      const result = solidScriptProgramEvaluate(document, options ?? {});
       const count = result.steps.length;
       this.failed = null;
-      this.text([`${count} ${count === 1 ? 'solid' : 'solids'}`, ...result.messages].join('\n'), false);
-      this.variablesShow(
-        result.variables,
-        step === null ? 'After the last solid' : `At step ${step}, line ${(line ?? 0) + 1}`,
-      );
+      const solids = `${count} ${count === 1 ? 'solid' : 'solids'}${result.paused ? ' so far' : ''}`;
+      this.text([solids, ...result.messages].join('\n'), false);
+      this.variablesShow(result.variables, caption);
     } catch (error) {
       const message = solidScriptErrorText(error);
       const failed = solidScriptErrorLine(message);

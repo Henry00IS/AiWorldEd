@@ -23,10 +23,13 @@ export type VirtualListScrollbarPercentCallback = (scrollPercent: number) => voi
  */
 export type VirtualListScrollbarStepCallback = (deltaPx: number) => void;
 
+/** Which way a scrollbar runs. */
+export type VirtualListScrollbarOrientation = 'vertical' | 'horizontal';
+
 /**
- * Custom vertical scrollbar for a virtual list. Draws arrows, track, and thumb
- * and maps pointer input to scroll percent or step deltas without native
- * overflow.
+ * Custom scrollbar for a virtual list, vertical at the right edge of its host
+ * or horizontal along the bottom. Draws arrows, track, and thumb and maps
+ * pointer input to scroll percent or step deltas without native overflow.
  */
 export class VirtualListScrollbar {
   private readonly rootElement: HTMLElement;
@@ -45,8 +48,12 @@ export class VirtualListScrollbar {
   private readonly pointerMoveBound: (event: PointerEvent) => void;
   private readonly pointerUpBound: (event: PointerEvent) => void;
 
-  /** Creates a detached custom scrollbar ready to attach under a host. */
-  constructor() {
+  /**
+   * Creates a detached custom scrollbar ready to attach under a host.
+   *
+   * @param orientation Vertical (default) or horizontal.
+   */
+  constructor(private readonly orientation: VirtualListScrollbarOrientation = 'vertical') {
     this.rootElement = document.createElement('div');
     this.trackElement = document.createElement('div');
     this.thumbElement = document.createElement('div');
@@ -63,8 +70,9 @@ export class VirtualListScrollbar {
     this.pointerMoveBound = (event) => this.pointerMoveHandle(event);
     this.pointerUpBound = (event) => this.pointerUpHandle(event);
     this.rootStylesApply();
-    this.arrowStylesApply(this.arrowUpElement, '▲');
-    this.arrowStylesApply(this.arrowDownElement, '▼');
+    const horizontal = orientation === 'horizontal';
+    this.arrowStylesApply(this.arrowUpElement, horizontal ? '◀' : '▲');
+    this.arrowStylesApply(this.arrowDownElement, horizontal ? '▶' : '▼');
     this.trackStylesApply();
     this.thumbStylesApply();
     this.trackElement.appendChild(this.thumbElement);
@@ -113,8 +121,9 @@ export class VirtualListScrollbar {
   /**
    * Updates thumb size and position from viewport and content metrics.
    *
-   * @param viewportHeightPx Visible viewport height in CSS pixels.
-   * @param contentHeightPx Total content height in CSS pixels.
+   * @param viewportHeightPx Visible viewport length along the bar in CSS
+   *   pixels.
+   * @param contentHeightPx Total content length along the bar in CSS pixels.
    * @param scrollPercent Normalized scroll position in [0, 1].
    * @param overflowIs True when content overflows the viewport.
    */
@@ -131,8 +140,9 @@ export class VirtualListScrollbar {
     const thumbHeight = this.thumbHeightResolve(trackHeight, viewportHeightPx, contentHeightPx);
     const maxThumbTop = Math.max(0, trackHeight - thumbHeight);
     const thumbTop = maxThumbTop * Math.max(0, Math.min(1, scrollPercent));
-    this.thumbElement.style.height = `${Math.round(thumbHeight)}px`;
-    this.thumbElement.style.top = `${Math.round(thumbTop)}px`;
+    const horizontal = this.orientation === 'horizontal';
+    this.thumbElement.style[horizontal ? 'width' : 'height'] = `${Math.round(thumbHeight)}px`;
+    this.thumbElement.style[horizontal ? 'left' : 'top'] = `${Math.round(thumbTop)}px`;
   }
 
   /** Removes listeners and detaches the scrollbar from the DOM. */
@@ -148,15 +158,20 @@ export class VirtualListScrollbar {
     }
   }
 
-  /** Applies base styles to the scrollbar root column. */
+  /**
+   * Applies base styles to the scrollbar root: a column at the right, or a row
+   * at the bottom.
+   */
   private rootStylesApply(): void {
+    const horizontal = this.orientation === 'horizontal';
     this.rootElement.style.position = 'absolute';
-    this.rootElement.style.top = '0';
+    this.rootElement.style.top = horizontal ? 'auto' : '0';
+    this.rootElement.style.left = horizontal ? '0' : 'auto';
     this.rootElement.style.right = '0';
     this.rootElement.style.bottom = '0';
-    this.rootElement.style.width = `${VIRTUAL_LIST_SCROLLBAR_TRACK_WIDTH_PX}px`;
+    this.rootElement.style[horizontal ? 'height' : 'width'] = `${VIRTUAL_LIST_SCROLLBAR_TRACK_WIDTH_PX}px`;
     this.rootElement.style.display = 'none';
-    this.rootElement.style.flexDirection = 'column';
+    this.rootElement.style.flexDirection = horizontal ? 'row' : 'column';
     this.rootElement.style.boxSizing = 'border-box';
     this.rootElement.style.zIndex = '15';
     this.rootElement.style.cursor = 'default';
@@ -173,7 +188,8 @@ export class VirtualListScrollbar {
   private arrowStylesApply(arrowElement: HTMLElement, glyph: string): void {
     arrowElement.textContent = glyph;
     arrowElement.style.flex = `0 0 ${VIRTUAL_LIST_SCROLLBAR_ARROW_HEIGHT_PX}px`;
-    arrowElement.style.height = `${VIRTUAL_LIST_SCROLLBAR_ARROW_HEIGHT_PX}px`;
+    arrowElement.style[this.orientation === 'horizontal' ? 'width' : 'height'] =
+      `${VIRTUAL_LIST_SCROLLBAR_ARROW_HEIGHT_PX}px`;
     arrowElement.style.lineHeight = `${VIRTUAL_LIST_SCROLLBAR_ARROW_HEIGHT_PX}px`;
     arrowElement.style.textAlign = 'center';
     arrowElement.style.fontSize = '8px';
@@ -186,19 +202,21 @@ export class VirtualListScrollbar {
   private trackStylesApply(): void {
     this.trackElement.style.position = 'relative';
     this.trackElement.style.flex = '1 1 auto';
-    this.trackElement.style.minHeight = '0';
-    this.trackElement.style.width = '100%';
+    const horizontal = this.orientation === 'horizontal';
+    this.trackElement.style[horizontal ? 'minWidth' : 'minHeight'] = '0';
+    this.trackElement.style[horizontal ? 'height' : 'width'] = '100%';
     this.trackElement.style.cursor = 'default';
     this.trackElement.style.boxSizing = 'border-box';
   }
 
   /** Applies base styles to the thumb. */
   private thumbStylesApply(): void {
+    const horizontal = this.orientation === 'horizontal';
     this.thumbElement.style.position = 'absolute';
-    this.thumbElement.style.left = '1px';
-    this.thumbElement.style.right = '1px';
-    this.thumbElement.style.top = '0';
-    this.thumbElement.style.height = `${VIRTUAL_LIST_SCROLLBAR_THUMB_MIN_PX}px`;
+    this.thumbElement.style[horizontal ? 'top' : 'left'] = '1px';
+    this.thumbElement.style[horizontal ? 'bottom' : 'right'] = '1px';
+    this.thumbElement.style[horizontal ? 'left' : 'top'] = '0';
+    this.thumbElement.style[horizontal ? 'width' : 'height'] = `${VIRTUAL_LIST_SCROLLBAR_THUMB_MIN_PX}px`;
     this.thumbElement.style.borderRadius = '3px';
     this.thumbElement.style.background = 'rgba(160, 160, 160, 0.75)';
     this.thumbElement.style.border = `1px solid ${ThemeCss.separatorColor}`;
@@ -275,11 +293,11 @@ export class VirtualListScrollbar {
     const thumbRect = this.thumbElement.getBoundingClientRect();
     const isOnThumb = event.target === this.thumbElement || this.thumbElement.contains(event.target as Node);
     if (isOnThumb) {
-      this.dragStart(event, event.clientY - thumbRect.top);
+      this.dragStart(event, this.along(event) - this.rectStart(thumbRect));
       return;
     }
-    this.trackJumpToClientY(event.clientY, trackRect);
-    this.dragStart(event, thumbRect.height / 2);
+    this.trackJumpToClientY(this.along(event), trackRect);
+    this.dragStart(event, this.rectLength(thumbRect) / 2);
   }
 
   /**
@@ -309,9 +327,9 @@ export class VirtualListScrollbar {
     }
     event.preventDefault();
     const trackRect = this.trackElement.getBoundingClientRect();
-    const thumbHeight = this.thumbElement.getBoundingClientRect().height;
-    const y = event.clientY - trackRect.top - this.dragGrabOffsetPx;
-    this.percentFromThumbTopApply(y, trackRect.height, thumbHeight);
+    const thumbHeight = this.rectLength(this.thumbElement.getBoundingClientRect());
+    const y = this.along(event) - this.rectStart(trackRect) - this.dragGrabOffsetPx;
+    this.percentFromThumbTopApply(y, this.rectLength(trackRect), thumbHeight);
   }
 
   /**
@@ -348,13 +366,43 @@ export class VirtualListScrollbar {
   /**
    * Jumps the scroll percent so the thumb centers under a track click.
    *
-   * @param clientY Pointer Y in viewport coordinates.
+   * @param clientY Pointer position along the bar in viewport coordinates.
    * @param trackRect Track bounding rect.
    */
   private trackJumpToClientY(clientY: number, trackRect: DOMRect): void {
-    const thumbHeight = this.thumbElement.getBoundingClientRect().height;
-    const y = clientY - trackRect.top - thumbHeight / 2;
-    this.percentFromThumbTopApply(y, trackRect.height, thumbHeight);
+    const thumbHeight = this.rectLength(this.thumbElement.getBoundingClientRect());
+    const y = clientY - this.rectStart(trackRect) - thumbHeight / 2;
+    this.percentFromThumbTopApply(y, this.rectLength(trackRect), thumbHeight);
+  }
+
+  /**
+   * Returns the pointer position along the bar.
+   *
+   * @param event Pointer event.
+   * @returns Client X for a horizontal bar, client Y otherwise.
+   */
+  private along(event: PointerEvent): number {
+    return this.orientation === 'horizontal' ? event.clientX : event.clientY;
+  }
+
+  /**
+   * Returns where a rect starts along the bar.
+   *
+   * @param rect Rect.
+   * @returns Left for a horizontal bar, top otherwise.
+   */
+  private rectStart(rect: DOMRect): number {
+    return this.orientation === 'horizontal' ? rect.left : rect.top;
+  }
+
+  /**
+   * Returns the length of a rect along the bar.
+   *
+   * @param rect Rect.
+   * @returns Width for a horizontal bar, height otherwise.
+   */
+  private rectLength(rect: DOMRect): number {
+    return this.orientation === 'horizontal' ? rect.width : rect.height;
   }
 
   /**

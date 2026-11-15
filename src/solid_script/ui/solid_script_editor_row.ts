@@ -30,6 +30,8 @@ export interface SolidScriptEditorRowHandlers {
   configure: (line: number) => void;
   /** The line got the keyboard focus. */
   focus: (line: number) => void;
+  /** Sets or clears the breakpoint of the line. */
+  breakpoint: (line: number) => void;
 }
 
 /** How one row looks: its line, indent and the block an End closes. */
@@ -65,6 +67,8 @@ export function solidScriptEditorRowBuild(
   const gutter = document.createElement('div');
   gutter.className = SOLID_SCRIPT_EDITOR_CLASSES.gutter;
   gutter.textContent = String(look.line + 1);
+  gutter.title = 'Click to set or clear a breakpoint (F9)';
+  gutter.addEventListener('click', () => handlers.breakpoint(look.line));
   const chip = document.createElement('div');
   chip.className = SOLID_SCRIPT_EDITOR_CLASSES.chip;
   chip.tabIndex = 0;
