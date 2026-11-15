@@ -8,17 +8,19 @@ import {
   physicsShatterResetAction,
   physicsShatterSimulateAction,
 } from '@/modifier/stack/kinds/shatter/sim/physics_shatter_simulate.js';
+import { PHYSICS_SHATTER_FORMAT_VERSION } from '@/modifier/stack/kinds/shatter/physics_shatter_format_version.js';
 import { PhysicsShatterSimulation } from '@/modifier/stack/kinds/shatter/sim/physics_shatter_sim.js';
 import { stackFixture } from '../../../modifier_stack_fixture.js';
 
 /**
  * Builds a shattered unit box and the action target of its modifier.
  *
+ * @param extra Parameters to add or change.
  * @returns Fixture, target and the status lines the action wrote.
  */
-function simulateTestFixture() {
+function simulateTestFixture(extra: Record<string, unknown> = {}) {
   const fixture = stackFixture([
-    { kind: MODIFIER_STACK_KIND_PHYSICS_SHATTER, parameters: { crackSize: 0.35, strength: 6, duration: 1 } },
+    { kind: MODIFIER_STACK_KIND_PHYSICS_SHATTER, parameters: { crackSize: 0.35, strength: 6, duration: 1, ...extra } },
   ]);
   const statuses: string[] = [];
   const stepId = ModifierVolume.read(fixture.volume).modifiers[0]?.id ?? '';
@@ -70,6 +72,7 @@ describe('physics shatter simulate action', () => {
     await physicsShatterSimulateAction(target);
     const parameters = simulateTestParameters(target);
     expect(String(parameters['bake']).length).toBeGreaterThan(0);
+    expect(parameters['formatVersion']).toBe(PHYSICS_SHATTER_FORMAT_VERSION);
     expect(parameters['bakeHash']).toBe(physicsShatterLastRunOf(fixture.volume.uuid, stepId)?.inputHash);
     expect(statuses.at(-1)).toMatch(/^Simulated /);
     const landed = simulatePiecePositions(fixture.compile().instances, fixture.source.id);
@@ -85,5 +88,14 @@ describe('physics shatter simulate action', () => {
     physicsShatterResetAction(target);
     expect(simulateTestParameters(target)['bake']).toBe('');
     expect(simulatePiecePositions(fixture.compile().instances, fixture.source.id)).toEqual(unbroken);
+  });
+
+  it('refuses to simulate a modifier saved by a newer editor, keeping what it stored', async () => {
+    const { fixture, target, statuses } = simulateTestFixture({ formatVersion: PHYSICS_SHATTER_FORMAT_VERSION + 1 });
+    fixture.compile();
+    await physicsShatterSimulateAction(target);
+    expect(simulateTestParameters(target)['bake']).toBe('');
+    expect(simulateTestParameters(target)['formatVersion']).toBe(PHYSICS_SHATTER_FORMAT_VERSION + 1);
+    expect(statuses.at(-1)).toMatch(/Newer Editor/);
   });
 });

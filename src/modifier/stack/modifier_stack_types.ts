@@ -91,6 +91,11 @@ export interface ModifierStackField {
    * nothing.
    */
   action?: (target: ModifierStackActionTarget) => Promise<void> | void;
+  /**
+   * Returns whether an action field's button is unavailable for the current
+   * parameters.
+   */
+  actionDisabled?: (parameters: Record<string, unknown>) => boolean;
 }
 
 /** What an action field's button acts on. */

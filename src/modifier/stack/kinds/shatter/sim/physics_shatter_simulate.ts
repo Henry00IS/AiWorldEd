@@ -11,6 +11,7 @@ import {
   PHYSICS_SHATTER_BAKE_KEY,
 } from '@/modifier/stack/kinds/shatter/physics_shatter_bake_state.js';
 import { physicsShatterBakeEncode } from './physics_shatter_bake.js';
+import { physicsShatterBakeParameters } from '@/modifier/stack/kinds/shatter/physics_shatter_format_version.js';
 import { PHYSICS_SHATTER_SIM_MAX_MOVING_PIECES, PhysicsShatterSimulation } from './physics_shatter_sim.js';
 import type { PhysicsShatterSimResult, PhysicsShatterSimSetup } from './physics_shatter_sim_types.js';
 import { physicsShatterStaticsGather } from './physics_shatter_sim_statics.js';
@@ -31,6 +32,8 @@ export async function physicsShatterSimulateAction(target: ModifierStackActionTa
   const key = `${target.volume.uuid}/${target.stepId}`;
   const run = physicsShatterLastRunOf(target.volume.uuid, target.stepId);
   if (physicsShatterSimulationsRunning.has(key)) return;
+  if (run?.status === 'unsupported')
+    return target.status('Saved By A Newer Editor: update before simulating, so its rubble is not overwritten.');
   if (!run || run.fracture.pieces.length === 0)
     return target.status('Nothing To Shatter: no brush is inside the volume.');
   physicsShatterSimulationsRunning.add(key);
@@ -144,10 +147,7 @@ function physicsShatterSimulateStore(
   timing: PhysicsShatterPlaybackTiming,
 ): void {
   const bake = physicsShatterBakeEncode(result.transforms);
-  const patch = {
-    [PHYSICS_SHATTER_BAKE_KEY]: bake,
-    [PHYSICS_SHATTER_BAKE_HASH_KEY]: run.inputHash,
-  };
+  const patch = physicsShatterBakeParameters(bake, run.inputHash);
   if (!physicsShatterCommitParameters(target.volume, target.stepId, patch, target.commandStack))
     return target.status('The modifier was removed while it simulated.');
   const stuck = result.stuck.filter(Boolean).length;

@@ -1,5 +1,6 @@
 import type { ModifierStackActionTarget, ModifierStackField } from '@/modifier/stack/modifier_stack_types.js';
 import { PHYSICS_SHATTER_BAKE_KEY } from './physics_shatter_bake_state.js';
+import { physicsShatterFormatIsFuture } from './physics_shatter_format_version.js';
 
 /**
  * Loads the simulation code on first use and plays the blast.
@@ -42,6 +43,7 @@ export const PHYSICS_SHATTER_ACTION_FIELDS: readonly ModifierStackField[] = [
     group: 'Simulation',
     hint: 'Plays the blast with physics and stores where the pieces land, for everyone in the room.',
     action: physicsShatterActionSimulate,
+    actionDisabled: physicsShatterFormatIsFuture,
   },
   {
     key: 'resetBake',

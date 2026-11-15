@@ -25,12 +25,17 @@ export function modifierStackActionRow(
     status.style.display = text ? '' : 'none';
   };
   writeStatus('');
+  const state = { running: false, unavailable: false };
   const button = modifierStackUiTextButton(field.label, field.hint ?? field.label, () => {
-    const target = targetOf(writeStatus);
-    if (target) void modifierStackActionRun(field, target, button);
+    const target = state.running || state.unavailable ? null : targetOf(writeStatus);
+    if (target) void modifierStackActionRun(field, target, button, state);
   });
   row.append(button, status);
-  return { field, row, write: () => undefined };
+  const write = (_value: unknown, parameters: Record<string, unknown>): void => {
+    state.unavailable = field.actionDisabled?.(parameters) ?? false;
+    button.disabled = state.running || state.unavailable;
+  };
+  return { field, row, write };
 }
 
 /**
@@ -39,18 +44,22 @@ export function modifierStackActionRow(
  * @param field Action field.
  * @param target Action target.
  * @param button Button to disable meanwhile.
+ * @param state Running and unavailable flags of the row.
  */
 async function modifierStackActionRun(
   field: ModifierStackField,
   target: ModifierStackActionTarget,
   button: HTMLButtonElement,
+  state: { running: boolean; unavailable: boolean },
 ): Promise<void> {
+  state.running = true;
   button.disabled = true;
   try {
     await field.action?.(target);
   } catch (error) {
     target.status(error instanceof Error ? error.message : String(error));
   } finally {
-    button.disabled = false;
+    state.running = false;
+    button.disabled = state.unavailable;
   }
 }

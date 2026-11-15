@@ -54,4 +54,31 @@ describe('modifier stack action rows', () => {
     await Promise.resolve();
     expect(button?.disabled).toBe(false);
   });
+
+  it('keep the button disabled while the field says the action is unavailable', () => {
+    const calls: ModifierStackActionTarget[] = [];
+    const field = {
+      ...actionRowTestField(calls, Promise.resolve()),
+      actionDisabled: (p: Record<string, unknown>) => p['locked'] === true,
+    };
+    const rows = new ModifierStackFieldRows(
+      [field],
+      () => undefined,
+      undefined,
+      undefined,
+      (status) => ({
+        volume: new THREE.Object3D(),
+        stepId: 'step-1',
+        commandStack: null,
+        status,
+      }),
+    );
+    const button = rows.getElement().querySelector('button');
+    rows.update({ locked: true });
+    expect(button?.disabled).toBe(true);
+    button?.click();
+    expect(calls.length).toBe(0);
+    rows.update({ locked: false });
+    expect(button?.disabled).toBe(false);
+  });
 });
