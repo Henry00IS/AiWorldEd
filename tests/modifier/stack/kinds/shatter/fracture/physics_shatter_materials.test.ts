@@ -8,7 +8,11 @@ import {
   PHYSICS_SHATTER_MATERIALS,
   type PhysicsShatterMaterial,
 } from '@/modifier/stack/kinds/shatter/fracture/physics_shatter_materials.js';
-import { physicsShatterMaterialApply } from '@/modifier/stack/kinds/shatter/fracture/physics_shatter_material_presets.js';
+import { PHYSICS_SHATTER_PATTERNS } from '@/modifier/stack/kinds/shatter/fracture/physics_shatter_patterns.js';
+import {
+  physicsShatterMaterialApply,
+  physicsShatterMaterialPreset,
+} from '@/modifier/stack/kinds/shatter/fracture/physics_shatter_material_presets.js';
 import {
   PHYSICS_SHATTER_MIN_EDGE,
   physicsShatterMinPieceThickness,
@@ -100,13 +104,31 @@ const X = new THREE.Vector3(1, 0, 0);
 const Y = new THREE.Vector3(0, 1, 0);
 
 describe('physics shatter materials', () => {
-  it('leaves Custom to the raw rows and is the same every time for every material', () => {
-    const raw = physicsShatterTestSettings({ mode: 'radial', crackSize: 0.3 });
+  it('leaves Custom Random Cells to the raw rows and is the same every time for every material', () => {
+    const raw = physicsShatterTestSettings({ mode: 'glass', crackSize: 0.3, cracks: '2d', grainStretch: 3 });
     expect(physicsShatterMaterialApply(raw)).toEqual(raw);
     for (const material of PHYSICS_SHATTER_MATERIALS) {
       const settings = physicsShatterTestSettings({ material, impactDetail: 0.4 });
       const applied = physicsShatterMaterialApply(settings);
       expect(physicsShatterMaterialApply(applied), material).toEqual(applied);
+    }
+  });
+
+  it('offers every preset pattern under Custom, making the same pieces from the same rows', () => {
+    const impact = new THREE.Vector3(0.2, 0.7, 0);
+    const rows = { crackSize: 0.2, impactDetail: 0.4, impactPoint: impact, radialSpokes: 9, grainAxis: 'y' as const };
+    for (const material of PHYSICS_SHATTER_MATERIALS) {
+      const pattern = physicsShatterMaterialPreset(material).pattern;
+      if (!pattern) continue;
+      expect(PHYSICS_SHATTER_PATTERNS, material).toContain(pattern);
+      const brush = ['radial', 'dice', 'tile', 'plates'].includes(pattern) ? PANE : SLAB;
+      const preset = materialBreak(brush, material, { ...rows, mode: 'glass', cracks: '3d', grainStretch: 7 }).result;
+      const custom = materialBreak(brush, 'custom', { ...rows, mode: pattern, cracks: 'auto', grainStretch: 2 }).result;
+      expect(custom.pieces.length, material).toBe(preset.pieces.length);
+      expect(
+        custom.pieces.map((piece) => Array.from(piece.hull)),
+        material,
+      ).toEqual(preset.pieces.map((piece) => Array.from(piece.hull)));
     }
   });
 

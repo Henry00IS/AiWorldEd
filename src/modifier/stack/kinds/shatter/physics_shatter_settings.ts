@@ -6,6 +6,7 @@ import type {
   PhysicsShatterSettings,
 } from './fracture/physics_shatter_types.js';
 import { PHYSICS_SHATTER_MATERIALS } from './fracture/physics_shatter_materials.js';
+import { PHYSICS_SHATTER_PATTERNS } from './fracture/physics_shatter_patterns.js';
 
 /**
  * Reads a choice parameter.
@@ -98,7 +99,7 @@ export function physicsShatterSettingsRead(parameters: Record<string, unknown>):
   const number = (key: string, fallback: number): number => physicsShatterNumber(parameters, key, fallback);
   return {
     material: physicsShatterChoice(parameters['material'], PHYSICS_SHATTER_MATERIALS),
-    mode: physicsShatterChoice<PhysicsShatterMode>(parameters['mode'], ['glass', 'radial', 'bricks']),
+    mode: physicsShatterChoice<PhysicsShatterMode>(parameters['mode'], PHYSICS_SHATTER_PATTERNS),
     cracks: physicsShatterChoice<PhysicsShatterCracks>(parameters['cracks'], ['auto', '2d', '3d']),
     thicknessAxis: physicsShatterChoice<PhysicsShatterAxis>(parameters['thicknessAxis'], ['auto', 'x', 'y', 'z']),
     grainAxis: physicsShatterChoice<PhysicsShatterAxis>(parameters['grainAxis'], ['auto', 'x', 'y', 'z']),

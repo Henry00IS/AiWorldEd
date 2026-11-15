@@ -43,6 +43,7 @@ import {
   physicsShatterFormatVersionOf,
 } from './physics_shatter_format_version.js';
 import { physicsShatterMaterialPreset } from './fracture/physics_shatter_material_presets.js';
+import { physicsShatterPatternSpec } from './fracture/physics_shatter_patterns.js';
 
 /** Persisted kind id of the Physics Shatter modifier. */
 export const MODIFIER_STACK_KIND_PHYSICS_SHATTER = 'physicsShatter';
@@ -128,12 +129,9 @@ export class ModifierStackKindPhysicsShatter extends ModifierStackKind {
     const size = `${String(parameters['crackSize'])} m`;
     const flat = parameters['cracks'] === '2d' ? ' 2D' : '';
     const material = physicsShatterSettingsRead(parameters).material;
-    const custom =
-      parameters['mode'] === 'bricks'
-        ? 'Bricks'
-        : parameters['mode'] === 'radial'
-          ? `Radial Shards ${size}`
-          : `Cells${flat} ${size}`;
+    const mode = String(parameters['mode']);
+    const spec = physicsShatterPatternSpec(mode);
+    const custom = mode === 'bricks' ? spec.label : mode === 'glass' ? `Cells${flat} ${size}` : `${spec.label} ${size}`;
     const { label } = physicsShatterMaterialPreset(material);
     const pattern = material === 'custom' ? custom : material === 'brick' ? label : `${label} ${size}`;
     const bake = parameters[PHYSICS_SHATTER_BAKE_KEY];

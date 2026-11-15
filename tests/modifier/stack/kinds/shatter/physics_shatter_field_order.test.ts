@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
 import { PHYSICS_SHATTER_MATERIALS } from '@/modifier/stack/kinds/shatter/fracture/physics_shatter_materials.js';
+import { PHYSICS_SHATTER_PATTERNS } from '@/modifier/stack/kinds/shatter/fracture/physics_shatter_patterns.js';
+import { physicsShatterMaterialPreset } from '@/modifier/stack/kinds/shatter/fracture/physics_shatter_material_presets.js';
 
 /** Rows every material shares after its own pattern rows, as `group/label`. */
 const SHARED_BLAST = [
@@ -94,8 +96,34 @@ describe('physics shatter inspector rows', () => {
     const radial = physicsShatterRows({ material: 'custom', mode: 'radial' });
     expect(radial).toContain('Details/Spokes');
     expect(radial).not.toContain('/Cracks');
+    const wood = physicsShatterRows({ material: 'custom', mode: 'splinters' });
+    expect(wood.filter((row) => row.startsWith('Details/'))).toEqual([
+      'Details/Seed',
+      'Details/Grain Axis',
+      'Details/Max Pieces',
+    ]);
     const bricks = physicsShatterRows({ material: 'custom', mode: 'bricks' });
     expect(bricks.slice(0, 5)).toEqual(['/Material', '/Pattern', '/Brick Length', '/Brick Height', '/Inside Texture']);
+  });
+
+  it('let Custom pick every preset pattern and show the preset rows for it', () => {
+    const fields = modifierStackKindFind('physicsShatter')?.fields ?? [];
+    const pattern = fields.find((field) => field.key === 'mode');
+    expect(pattern?.choices?.map((choice) => choice.value)).toEqual([...PHYSICS_SHATTER_PATTERNS]);
+    for (const choice of pattern?.choices ?? []) {
+      expect(choice.title, choice.value).toBeTruthy();
+      expect(choice.title?.length ?? 0, choice.value).toBeLessThanOrEqual(120);
+    }
+    for (const material of PHYSICS_SHATTER_MATERIALS) {
+      const mode = physicsShatterMaterialPreset(material).pattern;
+      if (!mode) continue;
+      const preset = physicsShatterRows({ material });
+      const custom = physicsShatterRows({ material: 'custom', mode });
+      expect(
+        custom.filter((row) => row !== '/Pattern'),
+        material,
+      ).toEqual(preset);
+    }
   });
 
   it('keep every group together, so each caption sits above its own rows', () => {

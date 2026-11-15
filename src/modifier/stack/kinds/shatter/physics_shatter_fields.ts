@@ -2,6 +2,7 @@ import type { ModifierStackField } from '@/modifier/stack/modifier_stack_types.j
 import { modifierStackChoices, modifierStackVectorFields } from '@/modifier/stack/modifier_stack_fields.js';
 import { MODIFIER_STACK_RANDOM_MAX_SEED } from '@/modifier/stack/kinds/array/modifier_stack_array_random.js';
 import { PHYSICS_SHATTER_MATERIALS } from './fracture/physics_shatter_materials.js';
+import { PHYSICS_SHATTER_PATTERNS, physicsShatterPatternSpec } from './fracture/physics_shatter_patterns.js';
 import {
   physicsShatterMaterialPreset,
   physicsShatterRowShown,
@@ -51,13 +52,12 @@ const PHYSICS_SHATTER_MAIN_FIELDS: readonly ModifierStackField[] = [
     label: 'Pattern',
     type: 'choice',
     default: 'glass',
-    choices: modifierStackChoices([
-      ['glass', 'Random Cells'],
-      ['radial', 'Radial Shards'],
-      ['bricks', 'Bricks'],
-    ]),
+    choices: PHYSICS_SHATTER_PATTERNS.map((value) => {
+      const { label, title } = physicsShatterPatternSpec(value);
+      return { value, label, title };
+    }),
     visible: physicsShatterShows('mode'),
-    hint: 'Random Cells: irregular chunks. Radial Shards: long shards around the impact. Bricks: a brick bond.',
+    hint: 'Crack pattern of Custom. Every material’s pattern is here; hover an entry to see what it makes.',
   },
   {
     key: 'crackSize',

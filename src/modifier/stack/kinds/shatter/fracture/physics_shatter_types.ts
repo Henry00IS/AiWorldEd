@@ -2,12 +2,14 @@ import type { SolidOperation } from '@/solid/types/solid_operation.js';
 import type * as THREE from 'three';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import type { PhysicsShatterMaterial } from './physics_shatter_materials.js';
+import type { PhysicsShatterPatternId } from './physics_shatter_patterns.js';
 
 /**
- * How the input is broken: 'glass' random Voronoi cells, 'radial' shards around
- * the impact point, or 'bricks' a staggered brick bond.
+ * How the input is broken, one of PHYSICS_SHATTER_PATTERNS: 'glass' uniform
+ * random Voronoi cells, 'radial' shards around the impact point, 'bricks' a
+ * staggered brick bond, and the patterns of the other materials.
  */
-export type PhysicsShatterMode = 'glass' | 'radial' | 'bricks';
+export type PhysicsShatterMode = PhysicsShatterPatternId;
 
 /**
  * Whether cracks run straight through the thickness ('2d': flat prisms) or cut

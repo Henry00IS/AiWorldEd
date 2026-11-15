@@ -72,7 +72,7 @@ export function physicsShatterMinThicknessForSize(pieceSize: number): number {
  */
 export function physicsShatterPieceSize(settings: PhysicsShatterPieceSizeSettings): number {
   const preset = settings.material ? physicsShatterMaterialPreset(settings.material).pattern : null;
-  return (preset?.mode ?? settings.mode) === 'bricks'
+  return (preset ?? settings.mode) === 'bricks'
     ? Math.min(settings.brickLength, settings.brickHeight)
     : settings.crackSize;
 }

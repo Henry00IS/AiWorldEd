@@ -1,21 +1,12 @@
 import type { PhysicsShatterMaterial } from './physics_shatter_materials.js';
-import type { PhysicsShatterMode, PhysicsShatterSettings } from './physics_shatter_types.js';
-import type { PhysicsShatterRadialShape } from './physics_shatter_radial.js';
+import type { PhysicsShatterSettings } from './physics_shatter_types.js';
+import {
+  physicsShatterPatternSpec,
+  type PhysicsShatterPatternId,
+  type PhysicsShatterPatternRow,
+} from './physics_shatter_patterns.js';
 
-/** Inspector rows a preset can show; the rest stay hidden for that material. */
-export type PhysicsShatterPatternRow =
-  | 'mode'
-  | 'crackSize'
-  | 'cracks'
-  | 'impactDetail'
-  | 'radialSpokes'
-  | 'thicknessAxis'
-  | 'grainAxis'
-  | 'grainStretch'
-  | 'brickLength'
-  | 'brickHeight'
-  | 'mortarGap'
-  | 'brickJitter';
+export type { PhysicsShatterPatternRow } from './physics_shatter_patterns.js';
 
 /** How a material breaks. */
 export interface PhysicsShatterMaterialPreset {
@@ -24,135 +15,59 @@ export interface PhysicsShatterMaterialPreset {
   /** Tooltip of the preset, at most 120 characters. */
   title: string;
   /**
-   * Pattern the preset sets, or null for 'custom', which keeps the raw rows.
-   * `impactDetail` is null where the Impact Detail row is used. Every value is
-   * fixed or taken from a row, so applying a preset twice changes nothing.
+   * Pattern the preset uses, or null for 'custom', which takes the Pattern row.
+   * A preset is exactly its pattern: Custom with the same pattern and rows
+   * makes the same pieces.
    */
-  pattern: {
-    mode: PhysicsShatterMode;
-    cracks: '2d' | '3d';
-    impactDetail: number | null;
-  } | null;
-  /** 'random' scatters cell sites; 'grid' lays them on a jittered grid. */
-  sites: 'random' | 'grid';
-  /** Lloyd relaxation rounds: 0 keeps cells irregular, 1 evens them out. */
-  relaxRounds: number;
-  /** Radial shape; null takes the glass shape with the Spokes row. */
-  radial: PhysicsShatterRadialShape | null;
-  /** Cell length along the grain over its width; null takes the row. */
-  grainStretch: number | null;
-  /** Pattern rows shown for the material, in field order. */
-  rows: readonly PhysicsShatterPatternRow[];
+  pattern: PhysicsShatterPatternId | null;
 }
-
-/** Brick rows. */
-const PHYSICS_SHATTER_BRICK_ROWS: readonly PhysicsShatterPatternRow[] = [
-  'brickLength',
-  'brickHeight',
-  'mortarGap',
-  'brickJitter',
-];
-
-/** Ceramic tile: a few long straight cracks and large plates. */
-const PHYSICS_SHATTER_RADIAL_CERAMIC: PhysicsShatterRadialShape = {
-  spokes: 6,
-  growth: 2.2,
-  maxWidth: 2,
-  maxLength: 6,
-  firstRing: 0.6,
-};
 
 /** Every preset by id. */
 const PHYSICS_SHATTER_MATERIAL_PRESETS: Readonly<Record<PhysicsShatterMaterial, PhysicsShatterMaterialPreset>> = {
   glass: {
     label: 'Glass',
     title: 'Window glass: long radial shards and rings around the impact, cracked straight through the pane.',
-    pattern: { mode: 'radial', cracks: '2d', impactDetail: null },
-    sites: 'random',
-    relaxRounds: 0,
-    radial: null,
-    grainStretch: 1,
-    rows: ['crackSize', 'radialSpokes', 'thicknessAxis'],
+    pattern: 'radial',
   },
   temperedGlass: {
     label: 'Tempered Glass',
     title: 'Safety glass: crumbles into many small, even, cube-like bits over the whole pane instead of sharp shards.',
-    pattern: { mode: 'glass', cracks: '2d', impactDetail: 0 },
-    sites: 'grid',
-    relaxRounds: 0,
-    radial: null,
-    grainStretch: 1,
-    rows: ['crackSize', 'thicknessAxis'],
+    pattern: 'dice',
   },
   stone: {
     label: 'Stone',
     title: 'Natural stone: chunky angular blocks, a little longer along the bedding (Grain Axis).',
-    pattern: { mode: 'glass', cracks: '3d', impactDetail: null },
-    sites: 'random',
-    relaxRounds: 1,
-    radial: null,
-    grainStretch: 1.5,
-    rows: ['crackSize', 'impactDetail', 'grainAxis'],
+    pattern: 'blocks',
   },
   concrete: {
     label: 'Concrete',
     title: 'Concrete: rough irregular chunks, crushed into fine rubble near the impact and coarser farther out.',
-    pattern: { mode: 'glass', cracks: '3d', impactDetail: 0.9 },
-    sites: 'random',
-    relaxRounds: 0,
-    radial: null,
-    grainStretch: 1,
-    rows: ['crackSize'],
+    pattern: 'clustered',
   },
   wood: {
     label: 'Wood',
     title: 'Wood: long splinters along the grain, about four times as long as they are wide.',
-    pattern: { mode: 'glass', cracks: '3d', impactDetail: 0 },
-    sites: 'random',
-    relaxRounds: 1,
-    radial: null,
-    grainStretch: 4,
-    rows: ['crackSize', 'grainAxis'],
+    pattern: 'splinters',
   },
   ceramic: {
     label: 'Ceramic (tile/porcelain)',
     title: 'Tiles and porcelain: a few long straight cracks from the impact that leave large plates.',
-    pattern: { mode: 'radial', cracks: '2d', impactDetail: null },
-    sites: 'random',
-    relaxRounds: 0,
-    radial: PHYSICS_SHATTER_RADIAL_CERAMIC,
-    grainStretch: 1,
-    rows: ['crackSize', 'thicknessAxis'],
+    pattern: 'tile',
   },
   plaster: {
     label: 'Plaster (gypsum/drywall)',
     title: 'Plaster and drywall: irregular slabs through the board, smaller near the impact.',
-    pattern: { mode: 'glass', cracks: '2d', impactDetail: null },
-    sites: 'random',
-    relaxRounds: 0,
-    radial: null,
-    grainStretch: 1,
-    rows: ['crackSize', 'impactDetail', 'thicknessAxis'],
+    pattern: 'plates',
   },
   brick: {
     label: 'Brick',
     title: 'Masonry: breaks along the mortar joints into whole bricks in a running bond.',
-    pattern: { mode: 'bricks', cracks: '3d', impactDetail: null },
-    sites: 'random',
-    relaxRounds: 0,
-    radial: null,
-    grainStretch: 1,
-    rows: PHYSICS_SHATTER_BRICK_ROWS,
+    pattern: 'bricks',
   },
   custom: {
     label: 'Custom',
-    title: 'Set the crack pattern yourself with the raw pattern rows.',
+    title: 'Pick any pattern yourself, including those of the other materials, with all of its rows.',
     pattern: null,
-    sites: 'random',
-    relaxRounds: 1,
-    radial: null,
-    grainStretch: null,
-    rows: [],
   },
 };
 
@@ -167,51 +82,53 @@ export function physicsShatterMaterialPreset(material: PhysicsShatterMaterial): 
 }
 
 /**
- * Returns the pattern rows a custom material shows for a pattern and crack
- * choice.
+ * Returns the pattern the stored parameters break with: the material's, or the
+ * Pattern row for Custom.
  *
- * @param mode Pattern.
- * @param cracks Cracks choice.
- * @returns Rows in field order.
+ * @param parameters Normalized parameters.
+ * @returns Pattern id.
  */
-function physicsShatterCustomRows(mode: unknown, cracks: unknown): PhysicsShatterPatternRow[] {
-  if (mode === 'bricks') return ['mode', ...PHYSICS_SHATTER_BRICK_ROWS];
-  if (mode === 'radial') return ['mode', 'crackSize', 'radialSpokes', 'thicknessAxis'];
-  const flat: PhysicsShatterPatternRow[] = cracks === '2d' ? ['thicknessAxis'] : [];
-  return ['mode', 'crackSize', 'cracks', 'impactDetail', ...flat, 'grainAxis', 'grainStretch'];
+function physicsShatterPatternOf(parameters: Record<string, unknown>): string {
+  const preset = PHYSICS_SHATTER_MATERIAL_PRESETS[parameters['material'] as PhysicsShatterMaterial] as
+    PhysicsShatterMaterialPreset | undefined;
+  return preset?.pattern ?? String(parameters['mode']);
 }
 
 /**
- * Returns whether a pattern row shows for the stored parameters.
+ * Returns whether a pattern row shows for the stored parameters: the rows of
+ * the pattern in use, the Pattern row only for Custom, and Thickness Axis only
+ * when the cracks run in 2D.
  *
  * @param row Row key.
  * @param parameters Normalized parameters.
- * @returns True when the row is relevant to the material.
+ * @returns True when the row is relevant.
  */
 export function physicsShatterRowShown(row: PhysicsShatterPatternRow, parameters: Record<string, unknown>): boolean {
-  const material = parameters['material'];
-  const preset = PHYSICS_SHATTER_MATERIAL_PRESETS[material as PhysicsShatterMaterial] as
-    PhysicsShatterMaterialPreset | undefined;
-  if (preset && preset.pattern) return preset.rows.includes(row);
-  return physicsShatterCustomRows(parameters['mode'], parameters['cracks']).includes(row);
+  const custom = !PHYSICS_SHATTER_MATERIAL_PRESETS[parameters['material'] as PhysicsShatterMaterial]?.pattern;
+  if (row === 'mode') return custom;
+  const spec = physicsShatterPatternSpec(physicsShatterPatternOf(parameters));
+  if (!spec.rows.includes(row)) return false;
+  if (row === 'thicknessAxis' && spec.cracks === 'row') return parameters['cracks'] === '2d';
+  return true;
 }
 
 /**
- * Applies a material to settings read from the raw rows: outside 'custom' the
- * preset sets the pattern, crack direction, impact detail and grain stretch.
- * Applying it again changes nothing.
+ * Applies the material and its pattern to settings read from the raw rows: a
+ * preset sets the pattern, and the pattern fixes the crack direction, impact
+ * detail and grain stretch it does not take from rows. Applying it again
+ * changes nothing.
  *
  * @param settings Settings as the rows store them.
  * @returns Settings the fracture uses.
  */
 export function physicsShatterMaterialApply(settings: PhysicsShatterSettings): PhysicsShatterSettings {
-  const preset = PHYSICS_SHATTER_MATERIAL_PRESETS[settings.material];
-  if (!preset.pattern) return settings;
+  const mode = PHYSICS_SHATTER_MATERIAL_PRESETS[settings.material].pattern ?? settings.mode;
+  const spec = physicsShatterPatternSpec(mode);
   return {
     ...settings,
-    mode: preset.pattern.mode,
-    cracks: preset.pattern.cracks,
-    impactDetail: preset.pattern.impactDetail ?? settings.impactDetail,
-    grainStretch: preset.grainStretch ?? settings.grainStretch,
+    mode,
+    cracks: spec.cracks === 'row' ? settings.cracks : spec.cracks,
+    impactDetail: spec.impactDetail ?? settings.impactDetail,
+    grainStretch: spec.grainStretch ?? settings.grainStretch,
   };
 }

@@ -3,7 +3,7 @@ import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import type { PhysicsShatterAxis, PhysicsShatterSettings } from './physics_shatter_types.js';
 import { physicsShatterBrushBounds, physicsShatterBrushVolume } from './physics_shatter_geometry.js';
 import { physicsShatterGridSites } from './physics_shatter_grid.js';
-import { physicsShatterMaterialPreset } from './physics_shatter_material_presets.js';
+import { physicsShatterPatternSpec } from './physics_shatter_patterns.js';
 import { physicsShatterSites } from './physics_shatter_sites.js';
 import {
   PHYSICS_SHATTER_METRIC_EUCLIDEAN,
@@ -46,20 +46,20 @@ export interface PhysicsShatterRecipe {
 }
 
 /**
- * Resolves material-applied settings into a cell pattern recipe. Radial shards
- * and grid bits are always 2D; random cells are 3D unless 2D is asked for.
+ * Resolves material-applied settings into a cell pattern recipe from the
+ * pattern's spec. Radial shards and grid bits are always 2D; random cells are
+ * 3D unless 2D is asked for.
  *
  * @param settings Fracture settings after physicsShatterMaterialApply.
  * @returns Recipe.
  */
 export function physicsShatterRecipeOf(settings: PhysicsShatterSettings): PhysicsShatterRecipe {
-  const preset = physicsShatterMaterialPreset(settings.material);
-  const sites = settings.mode === 'radial' ? 'radial' : 'cells';
-  const pattern = sites === 'cells' && preset.sites === 'grid' ? 'grid' : sites;
+  const spec = physicsShatterPatternSpec(settings.mode);
+  const pattern = spec.sites === 'grid' || spec.sites === 'radial' ? spec.sites : 'cells';
   const planar = pattern !== 'cells' || settings.cracks === '2d';
-  const radial = preset.radial ?? { ...PHYSICS_SHATTER_RADIAL_GLASS, spokes: settings.radialSpokes };
+  const radial = spec.radial ?? { ...PHYSICS_SHATTER_RADIAL_GLASS, spokes: settings.radialSpokes };
   const grainStretch = Math.max(1, settings.grainStretch);
-  return { pattern, planar, radial, relaxRounds: preset.relaxRounds, grainStretch };
+  return { pattern, planar, radial, relaxRounds: spec.relaxRounds, grainStretch };
 }
 
 /** A built cell pattern and whether the allowance made its pieces larger. */
