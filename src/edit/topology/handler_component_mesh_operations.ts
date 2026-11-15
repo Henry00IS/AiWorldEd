@@ -35,6 +35,7 @@ import {
 } from './topology_face_triangulate.js';
 import { joinTopologyWorkingTriangles } from './topology_face_join_triangles.js';
 import { solidifyTopologyWorkingFaces } from './topology_face_solidify.js';
+import { rotateTopologyWorkingEdges } from './topology_edge_rotate.js';
 import { fillTopologyWorkingHoles } from './topology_face_fill_holes.js';
 import { smoothTopologyWorkingVertices } from './topology_vertex_smooth.js';
 import { findEditDomainTargetById, resolveTopologyEditTarget } from './topology_target_resolve.js';
@@ -450,6 +451,27 @@ export class HandlerComponentMeshOperations {
         return outcome.result;
       },
       () => this.deps.getSession().getComponentSelection().replaceAll(pieces),
+    );
+  }
+
+  /**
+   * Turns each selected edge between two mesh faces to the next corners of
+   * their shared outline and selects the turned edges.
+   *
+   * @returns True when at least one mesh changed.
+   */
+  rotateSelectedEdges(): boolean {
+    const selected = this.deps.getSession().getComponentSelection().getSelected();
+    const turned: ComponentSelectionEntry[] = [];
+    const targets = this.collectMeshTargets('Rotate Edges', [EditorComponentMode.EDGE], 'Edge');
+    return this.commitOnMeshTargets(
+      targets,
+      (targetId, geometry) => {
+        const outcome = rotateTopologyWorkingEdges(geometry, collectSelectedEdgeEndpoints(selected, targetId));
+        turned.push(...outcome.edges.map(([a, b]) => meshEdgeEntry(targetId, a, b)));
+        return outcome.result;
+      },
+      () => this.deps.getSession().getComponentSelection().replaceAll(turned),
     );
   }
 

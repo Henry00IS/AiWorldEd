@@ -135,6 +135,12 @@ export function buildViewportToolEdgeMenuEntries(actions: ViewportToolEditMenuAc
       'Join two selected edge loops, or two open edge runs of the same length, with a strip of faces',
       () => actions.onMeshTool('bridge_edge_loops'),
     ),
+    createAction(
+      'Rotate Edges',
+      '',
+      'Turn each selected edge between two mesh faces to the next corners, such as the other diagonal of a quad',
+      () => actions.onMeshTool('rotate_edges'),
+    ),
   ];
 }
 

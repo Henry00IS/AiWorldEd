@@ -20,4 +20,5 @@ export type EditMeshToolCommand =
   | 'solidify_faces'
   | 'split_faces'
   | 'smooth_vertices'
-  | 'fill_holes';
+  | 'fill_holes'
+  | 'rotate_edges';
