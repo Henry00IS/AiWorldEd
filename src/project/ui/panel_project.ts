@@ -61,6 +61,7 @@ const PANEL_PROJECT_KIND_LABELS: Readonly<Record<string, string>> = {
   glb: 'GLB',
   fbx: 'FBX',
   curve: 'CURVE',
+  script: 'SCRIPT',
 };
 
 /** Everything the project panel shows. */

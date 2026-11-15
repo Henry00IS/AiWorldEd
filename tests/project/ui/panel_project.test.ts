@@ -188,6 +188,15 @@ describe('PanelProject', () => {
     expect(root.querySelector('[data-file-path="AiWorldEd/Curves/ramp.aicurve"]')).not.toBeNull();
   });
 
+  it('shows SolidScript files as draggable SCRIPT tiles', () => {
+    const { panel, root } = panelCreate();
+    panel.render(openState(['props/Arch.aiscript']));
+    panel.folderSelect('props');
+    const tile = root.querySelector<HTMLElement>('[data-file-path="props/Arch.aiscript"]');
+    expect(tile?.draggable).toBe(true);
+    expect(tile?.textContent).toContain('SCRIPT');
+  });
+
   it("tells a room member the owner's textures are coming instead of showing an empty Curves folder", () => {
     const { panel, root } = panelCreate();
     const tiles = () => [...root.querySelectorAll<HTMLElement>('[data-folder-tile]')].map((tile) => tile.textContent);

@@ -53,6 +53,13 @@ describe('ProjectScanner', () => {
     expect(snapshot.files.get('maps/Legacy.json')?.kind).toBe('scene');
   });
 
+  it('lists .aiscript files as SolidScript scripts', async () => {
+    const root = new ProjectMockDirectoryHandle('game');
+    root.put('AiWorldEd/Scripts/Arch.aiscript', '{}');
+    const snapshot = await new ProjectScanner().scan(new ProjectFileSystemHandle(root.asHandle()));
+    expect(snapshot.files.get('AiWorldEd/Scripts/Arch.aiscript')?.kind).toBe('script');
+  });
+
   it('stops at the file and depth caps', async () => {
     const root = new ProjectMockDirectoryHandle('game');
     for (let index = 0; index < 5; index += 1) root.put(`t${index}.png`, 'x');

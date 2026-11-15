@@ -37,6 +37,10 @@ const CONTROLLER_PROJECT_EDITOR_MODEL_KINDS: ReadonlySet<ProjectFileKind> = new 
 export const CONTROLLER_PROJECT_EDITOR_CURVE_HINT =
   'Drag a .aicurve file onto a curve field, such as a Column profile.';
 
+/** Explains what to do with a SolidScript file. */
+export const CONTROLLER_PROJECT_EDITOR_SCRIPT_HINT =
+  "Drag a .aiscript file onto a SolidScript generator's Script row, or into its script editor.";
+
 /** Explains the read-only room project to a room member. */
 export const CONTROLLER_PROJECT_EDITOR_ROOM_NOTICE =
   "You are in a collaboration room: this is the room owner's project, read-only, including its Remote curves. Your own folder comes back when you work offline.";
@@ -310,6 +314,7 @@ export class ControllerProjectEditor {
   private async activate(record: ProjectFileRecord, placement: ProjectModelPlacement = 'view'): Promise<void> {
     if (record.kind === 'texture') return this.host.textureSelect(record.path);
     if (record.kind === 'curve') return this.statusShow(CONTROLLER_PROJECT_EDITOR_CURVE_HINT);
+    if (record.kind === 'script') return this.statusShow(CONTROLLER_PROJECT_EDITOR_SCRIPT_HINT);
     if (this.project.suspendedReason() !== null) return this.statusShow(CONTROLLER_PROJECT_EDITOR_ROOM_NOTICE);
     await this.opener.open(record, placement);
   }
