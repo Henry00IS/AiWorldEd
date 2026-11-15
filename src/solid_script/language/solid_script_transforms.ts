@@ -25,7 +25,7 @@ function solidScriptRotateMatrix(args: SolidScriptCallArguments): THREE.Matrix4 
     number,
     number,
   ];
-  return new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(x, y, z, 'XYZ'));
+  return new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(x, y, z, 'ZYX'));
 }
 
 /**
