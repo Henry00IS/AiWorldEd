@@ -76,13 +76,23 @@ export abstract class SolidScriptCommand {
   }
 
   /**
-   * Describes a command line in words, for the line itself and tooltips.
+   * Lists the values of a command line in words, without the command name.
+   *
+   * @param values Stored values.
+   * @returns Each value after its caption.
+   */
+  details(values: SolidScriptCommandValues): string {
+    return this.parameters.map((parameter) => `${parameter.label} ${this.value(values, parameter.key)}`).join('  ·  ');
+  }
+
+  /**
+   * Describes a command line in words, for tooltips and lists.
    *
    * @param values Stored values.
    * @returns Label followed by each value.
    */
   summary(values: SolidScriptCommandValues): string {
-    const parts = this.parameters.map((parameter) => `${parameter.label} ${this.value(values, parameter.key)}`);
-    return parts.length > 0 ? `${this.label}  ${parts.join('  ·  ')}` : this.label;
+    const details = this.details(values);
+    return details ? `${this.label}  ${details}` : this.label;
   }
 }

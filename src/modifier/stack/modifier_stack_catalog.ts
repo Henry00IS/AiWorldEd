@@ -10,6 +10,7 @@ import { ModifierStackKindStairs } from './kinds/generator/modifier_stack_kind_s
 import { ModifierStackKindArch } from './kinds/generator/modifier_stack_kind_arch.js';
 import { ModifierStackKindBlastHole } from './kinds/generator/modifier_stack_kind_blast_hole.js';
 import { ModifierStackKindColumn } from './kinds/generator/modifier_stack_kind_column.js';
+import { ModifierStackKindSolidScript } from './kinds/generator/solid_script/modifier_stack_kind_solid_script.js';
 import { ModifierStackKindPhysicsShatter } from './kinds/shatter/modifier_stack_kind_physics_shatter.js';
 import { physicsShatterBakeDecode } from './kinds/shatter/sim/physics_shatter_bake.js';
 
@@ -19,6 +20,7 @@ export const modifierStackKinds: readonly ModifierStackKind[] = [
   new ModifierStackKindArch(),
   new ModifierStackKindBlastHole(),
   new ModifierStackKindColumn(),
+  new ModifierStackKindSolidScript(),
   new ModifierStackKindArrayLinear(),
   new ModifierStackKindArrayRadial(),
   new ModifierStackKindArrayTransform(),

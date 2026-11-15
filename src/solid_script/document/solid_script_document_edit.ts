@@ -53,6 +53,7 @@ function solidScriptBlockIsBlank(block: SolidScriptBlock | undefined): boolean {
  * @param command Command id.
  * @param index Current line or drop target.
  * @param mode Below the current line, or before the drop target.
+ * @param values Configured values, or the command's defaults when omitted.
  * @returns Edited script and the command's line.
  */
 export function solidScriptDocumentCommandInsert(
@@ -60,12 +61,13 @@ export function solidScriptDocumentCommandInsert(
   command: string,
   index: number,
   mode: SolidScriptInsertMode,
+  values?: Record<string, string>,
 ): SolidScriptInsertResult {
   const blocks = [...document.blocks];
   const reuse = solidScriptBlockIsBlank(blocks[index]);
   const at = reuse || mode === 'before' || blocks.length === 0 ? index : index + 1;
   const line = Math.max(0, Math.min(at, blocks.length));
-  const inserted = [solidScriptBlockCommandCreate(command)];
+  const inserted = [solidScriptBlockCommandCreate(command, values)];
   if (solidScriptCommandFind(command)?.opensBlock)
     inserted.push(solidScriptBlockCommandCreate(SOLID_SCRIPT_COMMAND_END));
   blocks.splice(line, reuse ? 1 : 0, ...inserted);

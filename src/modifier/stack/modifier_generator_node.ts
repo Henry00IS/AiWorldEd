@@ -5,7 +5,13 @@ import { ModifierVolume } from './modifier_volume.js';
 import { modifierVolumeTemplateEntries } from './modifier_volume_templates.js';
 
 /** Generator kinds offered as standalone nodes, in menu order. */
-export const MODIFIER_GENERATOR_NODE_KINDS: readonly string[] = ['column', 'stairs', 'arch', 'blastHole'];
+export const MODIFIER_GENERATOR_NODE_KINDS: readonly string[] = [
+  'column',
+  'stairs',
+  'arch',
+  'blastHole',
+  'solidScript',
+];
 
 /** Box size of a new generator node, per kind, in meters. */
 const MODIFIER_GENERATOR_NODE_SIZES: Readonly<Record<string, readonly [number, number, number]>> = {
@@ -13,6 +19,7 @@ const MODIFIER_GENERATOR_NODE_SIZES: Readonly<Record<string, readonly [number, n
   stairs: [2, 2, 3],
   arch: [3, 3, 1],
   blastHole: [3, 3, 0.5],
+  solidScript: [2, 2, 2],
 };
 
 /**
