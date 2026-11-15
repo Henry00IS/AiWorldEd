@@ -13,7 +13,12 @@ import {
   collectSelectedFaceIndices,
   collectSelectionTargetIds,
 } from './topology_selection_vertices.js';
-import { subdivideTopologyWorkingEdges } from './topology_edge_subdivide.js';
+import { subdivideTopologyWorkingEdges, type TopologyEdgeEndpoints } from './topology_edge_subdivide.js';
+import {
+  collectTopologyBorderEdges,
+  extrudeTopologyWorkingEdges,
+  topologyBorderEdgeOffsets,
+} from './topology_edge_extrude.js';
 import { makeTopologyWorkingFace } from './topology_face_make.js';
 import { connectTopologyWorkingVertices } from './topology_vertex_connect.js';
 import { bridgeTopologyWorkingEdgeLoops } from './topology_edge_bridge.js';
@@ -27,6 +32,16 @@ export interface FaceSelectionAxis {
   anchor: THREE.Vector3;
   /** Unit world direction a positive distance moves the faces. */
   direction: THREE.Vector3;
+}
+
+/** Selected edges of one edited mesh. */
+interface MeshEdgeSelection {
+  /** Target id. */
+  targetId: string;
+  /** Live mesh target. */
+  target: TopologyMeshTarget;
+  /** Selected edges. */
+  edges: TopologyEdgeEndpoints[];
 }
 
 /** Selected faces of one edited mesh. */
@@ -92,6 +107,79 @@ export class HandlerComponentMeshOperations {
       if (result.applied) appendNewFaceSegments(geometry, faces, firstWall, target, points);
     }
     return points;
+  }
+
+  /**
+   * Returns the drag axis of the current extrusion: along the face normal in
+   * Face mode, straight out of the faces in Edge mode.
+   *
+   * @returns Axis, or null when nothing can be extruded.
+   */
+  describeExtrudeAxis(): FaceSelectionAxis | null {
+    if (!this.isEdgeMode()) return this.describeFaceSelectionAxis('Extrude Faces');
+    const selections = this.collectMeshEdgeSelections();
+    const anchor = new THREE.Vector3();
+    const direction = new THREE.Vector3();
+    let count = 0;
+    for (const { target, edges } of selections) {
+      count += addBorderOffsetsToWorldSums(target, edges, anchor, direction);
+    }
+    if (count === 0) return null;
+    return { anchor: anchor.divideScalar(count), direction: direction.normalize() };
+  }
+
+  /**
+   * Builds world line segments of what the current extrusion would create.
+   *
+   * @param distance Signed world distance.
+   * @param grouping Region or individual grouping of faces.
+   * @returns Flat list of segment endpoints.
+   */
+  previewExtrude(distance: number, grouping: TopologyFaceExtrudeGrouping): THREE.Vector3[] {
+    if (!this.isEdgeMode()) return this.previewFaceExtrude(distance, grouping);
+    const points: THREE.Vector3[] = [];
+    for (const { target, edges } of this.collectMeshEdgeSelections()) {
+      const geometry = loadWorkingGeometryFromTarget(target);
+      const firstNew = geometry.faces.length;
+      const outcome = extrudeTopologyWorkingEdges(geometry, edges, distance, meshNormalScale(target));
+      if (outcome.result.applied) appendNewFaceSegments(geometry, [], firstNew, target, points);
+    }
+    return points;
+  }
+
+  /**
+   * Extrudes the selected faces, or in Edge mode the selected border edges, and
+   * selects the result so it can be moved or scaled on.
+   *
+   * @param distance Signed world distance.
+   * @param grouping Region or individual grouping of faces.
+   * @returns True when at least one mesh changed.
+   */
+  extrudeSelection(distance: number, grouping: TopologyFaceExtrudeGrouping): boolean {
+    if (!this.isEdgeMode()) return this.extrudeSelectedFaces(distance, grouping);
+    const outer: ComponentSelectionEntry[] = [];
+    const targets = this.collectMeshEdgeSelections();
+    return this.commitOnMeshTargets(
+      targets.map(({ targetId, target }) => ({ targetId, target })),
+      (targetId, geometry) => {
+        const { target, edges } = targets.find((entry) => entry.targetId === targetId)!;
+        const outcome = extrudeTopologyWorkingEdges(geometry, edges, distance, meshNormalScale(target));
+        outer.push(...outcome.outerEdges.map(([a, b]) => meshEdgeEntry(targetId, a, b)));
+        return outcome.result;
+      },
+      () => this.deps.getSession().getComponentSelection().replaceAll(outer),
+    );
+  }
+
+  /**
+   * Returns the label of the current extrusion for the status bar.
+   *
+   * @param grouping Region or individual grouping of faces.
+   * @returns Tool label.
+   */
+  describeExtrudeLabel(grouping: TopologyFaceExtrudeGrouping): string {
+    if (this.isEdgeMode()) return 'Extrude Edges';
+    return grouping === 'individual' ? 'Extrude Faces Individually' : 'Extrude Faces';
   }
 
   /**
@@ -291,6 +379,29 @@ export class HandlerComponentMeshOperations {
   }
 
   /**
+   * Returns whether the edit session is in Edge mode.
+   *
+   * @returns True in Edge mode.
+   */
+  private isEdgeMode(): boolean {
+    return this.deps.getSession().getComponentMode() === EditorComponentMode.EDGE;
+  }
+
+  /**
+   * Collects selected edges of edited meshes in Edge mode.
+   *
+   * @returns Mesh edge selections.
+   */
+  private collectMeshEdgeSelections(): MeshEdgeSelection[] {
+    const selected = this.deps.getSession().getComponentSelection().getSelected();
+    return this.collectMeshTargets('Extrude Edges', [EditorComponentMode.EDGE], 'Edge').map(({ targetId, target }) => ({
+      targetId,
+      target,
+      edges: collectSelectedEdgeEndpoints(selected, targetId),
+    }));
+  }
+
+  /**
    * Collects selected faces of edited meshes, reporting why nothing applies.
    *
    * @param toolLabel Tool name used in status messages.
@@ -332,6 +443,32 @@ export class HandlerComponentMeshOperations {
     if (targets.length === 0) this.deps.showStatusMessage(`${toolLabel} needs a selection on a mesh`);
     return targets;
   }
+}
+
+/**
+ * Adds the world positions of selected border vertices and their world outward
+ * directions to running sums.
+ *
+ * @param target Mesh target.
+ * @param edges Selected edges.
+ * @param anchor Running position sum.
+ * @param direction Running direction sum.
+ * @returns Number of vertices added.
+ */
+function addBorderOffsetsToWorldSums(
+  target: TopologyMeshTarget,
+  edges: readonly TopologyEdgeEndpoints[],
+  anchor: THREE.Vector3,
+  direction: THREE.Vector3,
+): number {
+  const geometry = loadWorkingGeometryFromTarget(target);
+  const offsets = topologyBorderEdgeOffsets(geometry, collectTopologyBorderEdges(geometry, edges));
+  const linear = new THREE.Matrix3().setFromMatrix4(target.mesh.matrixWorld);
+  for (const [vertex, offset] of offsets) {
+    anchor.add(geometry.positions[vertex]!.clone().applyMatrix4(target.mesh.matrixWorld));
+    direction.add(offset.clone().applyMatrix3(linear).normalize());
+  }
+  return offsets.size;
 }
 
 /**

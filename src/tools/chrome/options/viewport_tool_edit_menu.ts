@@ -106,6 +106,12 @@ export function buildViewportToolEdgeMenuEntries(actions: ViewportToolEditMenuAc
       actions.onMeshTool('subdivide_edges'),
     ),
     createAction(
+      'Extrude Edges',
+      'E',
+      'Pull the selected open border edges straight out of their faces into a new strip; the new edges stay selected',
+      () => actions.onMeshTool('extrude_edges'),
+    ),
+    createAction(
       'Bridge Edge Loops',
       '',
       'Join two selected edge loops, or two open edge runs of the same length, with a strip of faces',

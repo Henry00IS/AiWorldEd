@@ -9,4 +9,5 @@ export type EditMeshToolCommand =
   | 'subdivide_edges'
   | 'make_face'
   | 'connect_vertices'
-  | 'bridge_edge_loops';
+  | 'bridge_edge_loops'
+  | 'extrude_edges';

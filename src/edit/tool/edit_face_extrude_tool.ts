@@ -40,8 +40,7 @@ export class EditFaceExtrudeTool extends Tool {
   /** Reads the drag axis, or hands control back when nothing can extrude. */
   override onActivate(): void {
     this.finished = false;
-    this.axis =
-      this.editor?.getServices()?.getEditMeshOperations?.()?.describeFaceSelectionAxis('Extrude Faces') ?? null;
+    this.axis = this.editor?.getServices()?.getEditMeshOperations?.()?.describeExtrudeAxis() ?? null;
     if (!this.axis) {
       this.returnToParentTool();
       return;
@@ -71,7 +70,7 @@ export class EditFaceExtrudeTool extends Tool {
     if (this.finished || !this.axis) return;
     this.distance = this.numericEntry.resolve(this.readPointerDistance());
     this.ensurePreview()?.setSegments(
-      this.editor?.getServices()?.getEditMeshOperations?.()?.previewFaceExtrude(this.distance, this.grouping) ?? [],
+      this.editor?.getServices()?.getEditMeshOperations?.()?.previewExtrude(this.distance, this.grouping) ?? [],
     );
     this.publishStatus();
   }
@@ -132,7 +131,7 @@ export class EditFaceExtrudeTool extends Tool {
   private confirm(): void {
     const operations = this.editor?.getServices()?.getEditMeshOperations?.();
     this.returnToParentTool();
-    operations?.extrudeSelectedFaces(this.distance, this.grouping);
+    operations?.extrudeSelection(this.distance, this.grouping);
   }
 
   /**
@@ -169,7 +168,8 @@ export class EditFaceExtrudeTool extends Tool {
   /** Shows the distance and the controls in the status bar. */
   private publishStatus(): void {
     const typed = this.numericEntry.hasText() ? ` [${this.numericEntry.readText()}]` : '';
-    const label = this.grouping === 'individual' ? 'Extrude Faces Individually' : 'Extrude Faces';
+    const operations = this.editor?.getServices()?.getEditMeshOperations?.();
+    const label = operations?.describeExtrudeLabel(this.grouping) ?? 'Extrude Faces';
     this.editor
       ?.getServices()
       ?.setStatusMessage(

@@ -52,7 +52,7 @@ Shortcuts can be changed in **Settings > Keyboard**. The table below describes t
 | `Ctrl+R`        | Loop Cut (Edit Mode)                                      |
 | `M`             | Merge selected vertices (Edit Mode)                       |
 | `X`             | Delete selected components (Edit Mode)                    |
-| `E`             | Extrude faces along their normal (Edit Mode, meshes)      |
+| `E`             | Extrude faces, or border edges in Edge select (Edit Mode) |
 | `I`             | Inset faces; `Tab` depth, `I` per face (Edit Mode)        |
 | `J`             | Connect selected vertices (Edit Mode, meshes)             |
 | `Ctrl+D`        | Duplicate selected                                        |

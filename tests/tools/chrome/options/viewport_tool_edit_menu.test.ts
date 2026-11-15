@@ -118,15 +118,18 @@ describe('viewport_tool_edit_menu', () => {
     expect(shortcutForLabel(entries, 'Connect Vertices')).toBe('J');
   });
 
-  it('offers Subdivide Edges and Bridge Edge Loops in the Edge menu', () => {
+  it('offers Subdivide Edges, Extrude Edges and Bridge Edge Loops in the Edge menu', () => {
     const calls: string[] = [];
     const entries = buildViewportToolEdgeMenuEntries(createActions(calls));
     const subdivide = entries.find((entry) => isMenuAction(entry) && entry.label === 'Subdivide Edges');
     expect(subdivide && isMenuAction(subdivide)).toBe(true);
     if (subdivide && isMenuAction(subdivide)) subdivide.onClick();
-    const bridge = entries.find((entry) => isMenuAction(entry) && entry.label === 'Bridge Edge Loops');
-    if (bridge && isMenuAction(bridge)) bridge.onClick();
-    expect(calls).toEqual(['tool:subdivide_edges', 'tool:bridge_edge_loops']);
+    for (const label of ['Extrude Edges', 'Bridge Edge Loops']) {
+      const entry = entries.find((candidate) => isMenuAction(candidate) && candidate.label === label);
+      if (entry && isMenuAction(entry)) entry.onClick();
+    }
+    expect(calls).toEqual(['tool:subdivide_edges', 'tool:extrude_edges', 'tool:bridge_edge_loops']);
+    expect(shortcutForLabel(entries, 'Extrude Edges')).toBe('E');
   });
 });
 

@@ -4,7 +4,8 @@ import { EditFaceInsetTool } from './edit_face_inset_tool.js';
 import type { EditMeshToolCommand } from './edit_mesh_tool_command.js';
 
 /**
- * Creates the single-use tool for an Edit Mode modelling command.
+ * Creates the single-use tool for an interactive Edit Mode modelling command.
+ * Extrude follows the component mode, so Extrude Edges shares its tool.
  *
  * @param command Tool to create.
  * @returns New tool instance.

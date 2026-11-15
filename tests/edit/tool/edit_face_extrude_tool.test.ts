@@ -23,9 +23,10 @@ function openExtrudeEditor(snapStep = 0): { editor: EditorWindow; calls: Extrude
   const calls: ExtrudeCall[] = [];
   const editor = new EditorWindow();
   const operations = {
-    describeFaceSelectionAxis: () => ({ anchor: new THREE.Vector3(), direction: new THREE.Vector3(0, 1, 0) }),
-    previewFaceExtrude: () => [],
-    extrudeSelectedFaces: vi.fn((distance: number, grouping: TopologyFaceExtrudeGrouping) => {
+    describeExtrudeAxis: () => ({ anchor: new THREE.Vector3(), direction: new THREE.Vector3(0, 1, 0) }),
+    describeExtrudeLabel: () => 'Extrude Faces',
+    previewExtrude: () => [],
+    extrudeSelection: vi.fn((distance: number, grouping: TopologyFaceExtrudeGrouping) => {
       calls.push({ distance, grouping });
       return true;
     }),
