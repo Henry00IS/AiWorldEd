@@ -18,6 +18,8 @@ import { physicsShatterLevelWorldBuild } from './physics_shatter_sim_level.js';
 import { physicsShatterSimWarnThin } from './physics_shatter_sim_thin.js';
 import { physicsShatterSettingsRead } from '@/modifier/stack/kinds/shatter/physics_shatter_settings.js';
 import { PhysicsShatterPreview } from './physics_shatter_preview.js';
+import { physicsShatterSimMaterialRead } from './physics_shatter_sim_material.js';
+import { physicsShatterMaterialApply } from '@/modifier/stack/kinds/shatter/fracture/physics_shatter_material_presets.js';
 import { physicsShatterPlaybackRun, type PhysicsShatterPlaybackTiming } from './physics_shatter_playback.js';
 import { physicsShatterCommitParameters, physicsShatterCommitParametersRead } from './physics_shatter_commit.js';
 import {
@@ -76,7 +78,7 @@ async function physicsShatterSimulateRun(target: ModifierStackActionTarget, run:
   const rapier = await PhysicsRapierRuntime.ensureLoaded();
   const setup = physicsShatterSimulateSetup(target, run);
   const parameters = physicsShatterCommitParametersRead(target.volume, target.stepId) ?? {};
-  physicsShatterSimWarnThin(run.fracture.pieces, physicsShatterSettingsRead(parameters));
+  physicsShatterSimWarnThin(run.fracture.pieces, physicsShatterMaterialApply(physicsShatterSettingsRead(parameters)));
   const moving = PhysicsShatterSimulation.movingPieceCount(setup);
   if (moving > PHYSICS_SHATTER_SIM_MAX_MOVING_PIECES)
     return target.status(`Too Many Pieces: ${moving} would move, at most ${PHYSICS_SHATTER_SIM_MAX_MOVING_PIECES}.`);
@@ -162,6 +164,10 @@ function physicsShatterSimulateSetup(
     seed: run.fracture.pieces[0]?.seed ?? 0,
     staticHulls: [],
     solverIterations: physicsShatterSimulateSolverIterations(target),
+    material: physicsShatterSimMaterialRead(
+      run.material,
+      physicsShatterCommitParametersRead(target.volume, target.stepId) ?? {},
+    ),
   };
 }
 

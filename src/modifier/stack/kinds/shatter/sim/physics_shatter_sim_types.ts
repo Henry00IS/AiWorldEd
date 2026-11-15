@@ -1,6 +1,7 @@
 import type * as THREE from 'three';
 import type { PhysicsShatterPiece } from '@/modifier/stack/kinds/shatter/fracture/physics_shatter_types.js';
 import type { PhysicsShatterBlastSettings } from '@/modifier/stack/kinds/shatter/physics_shatter_settings.js';
+import type { PhysicsShatterSimMaterial } from './physics_shatter_sim_material.js';
 import type { PhysicsShatterPieceTransform } from '@/modifier/stack/kinds/shatter/physics_shatter_transform.js';
 
 /** What the simulation needs of one piece. */
@@ -20,6 +21,8 @@ export interface PhysicsShatterSimSetup {
   staticHulls: readonly Float32Array[];
   /** Physics solver iterations per step. */
   solverIterations: number;
+  /** How the pieces' material moves. */
+  material: PhysicsShatterSimMaterial;
 }
 
 /** Outcome of one simulation. */

@@ -1,6 +1,7 @@
 import type RAPIER from '@dimforge/rapier3d-deterministic-compat';
 import type * as THREE from 'three';
 import type { PhysicsRapierModule } from '@/physics/rapier/physics_rapier_runtime.js';
+import type { PhysicsShatterSimMaterial } from './physics_shatter_sim_material.js';
 
 /**
  * Gap kept between neighbouring pieces so touching cut faces start apart, in
@@ -11,17 +12,11 @@ const PHYSICS_SHATTER_BODY_INSET = 0.001;
 /** Smallest share of its size a piece keeps when inset. */
 const PHYSICS_SHATTER_BODY_INSET_MIN_SCALE = 0.9;
 
-/** Surface friction of pieces and fixed geometry. */
-const PHYSICS_SHATTER_BODY_FRICTION = 0.7;
-
 /**
  * Steps after the blast during which pieces slide on each other without
  * friction, so bricks squeezed by their neighbours still leave the wall.
  */
 export const PHYSICS_SHATTER_BODY_LAUNCH_STEPS = 12;
-
-/** Bounciness of pieces and fixed geometry. */
-const PHYSICS_SHATTER_BODY_RESTITUTION = 0.1;
 
 /**
  * Returns hull points relative to a centre and pulled towards it by a
@@ -48,38 +43,42 @@ export function physicsShatterBodyLocalHull(worldPoints: Float32Array, centre: T
 }
 
 /**
- * Creates the convex collider description of a hull with the shared surface
- * settings and unit density, so mass follows the hull volume.
+ * Creates the convex collider description of a hull with the material's
+ * density, friction and bounciness.
  *
  * @param rapier Rapier module.
  * @param points Flat hull points in the body's space.
+ * @param material Material physics.
  * @returns Collider description, or null when the hull is flat or degenerate.
  */
 export function physicsShatterBodyColliderDesc(
   rapier: PhysicsRapierModule,
   points: Float32Array,
+  material: PhysicsShatterSimMaterial,
 ): RAPIER.ColliderDesc | null {
   const desc = points.length >= 12 ? rapier.ColliderDesc.convexHull(points) : null;
   return desc
-    ? desc.setDensity(1).setFriction(PHYSICS_SHATTER_BODY_FRICTION).setRestitution(PHYSICS_SHATTER_BODY_RESTITUTION)
+    ? desc.setDensity(material.density).setFriction(material.friction).setRestitution(material.restitution)
     : null;
 }
 
 /**
  * Switches a piece's collider between launch (frictionless against everything)
- * and normal surface friction.
+ * and the material's surface friction.
  *
  * @param rapier Rapier module.
  * @param collider Piece collider.
+ * @param friction Material friction after the launch.
  * @param launching True while the piece leaves the wall.
  */
 export function physicsShatterBodyLaunchFriction(
   rapier: PhysicsRapierModule,
   collider: RAPIER.Collider,
+  friction: number,
   launching: boolean,
 ): void {
   const rules = rapier.CoefficientCombineRule;
-  collider.setFriction(launching ? 0 : PHYSICS_SHATTER_BODY_FRICTION);
+  collider.setFriction(launching ? 0 : friction);
   collider.setFrictionCombineRule(launching ? rules.Min : rules.Average);
 }
 
@@ -89,14 +88,16 @@ export function physicsShatterBodyLaunchFriction(
  * @param rapier Rapier module.
  * @param world Simulation world.
  * @param worldPoints Flat world-space hull points.
+ * @param material Material physics.
  * @returns True when the hull was usable.
  */
 export function physicsShatterBodyAddStaticHull(
   rapier: PhysicsRapierModule,
   world: RAPIER.World,
   worldPoints: Float32Array,
+  material: PhysicsShatterSimMaterial,
 ): boolean {
-  const desc = physicsShatterBodyColliderDesc(rapier, worldPoints);
+  const desc = physicsShatterBodyColliderDesc(rapier, worldPoints, material);
   if (desc) world.createCollider(desc);
   return desc !== null;
 }

@@ -24,6 +24,7 @@ import type {
   PhysicsShatterSimResult,
   PhysicsShatterSimSetup,
 } from './physics_shatter_sim_types.js';
+import type { PhysicsShatterSimMaterial } from './physics_shatter_sim_material.js';
 
 /** Fixed simulation step in seconds. */
 export const PHYSICS_SHATTER_SIM_STEP_SECONDS = 1 / 60;
@@ -59,6 +60,7 @@ export class PhysicsShatterSimulation {
   private readonly frame: PhysicsShatterSimFrame;
   private readonly bodies: PhysicsShatterSimBody[];
   private readonly maximumSteps: number;
+  private readonly material: PhysicsShatterSimMaterial;
   private stepsTaken = 0;
 
   /**
@@ -80,6 +82,7 @@ export class PhysicsShatterSimulation {
     this.world.timestep = PHYSICS_SHATTER_SIM_STEP_SECONDS;
     this.world.numSolverIterations = setup.solverIterations;
     this.frame = new PhysicsShatterSimFrame(setup.frameToWorld);
+    this.material = setup.material;
     this.maximumSteps = Math.max(1, Math.ceil(setup.blast.duration / PHYSICS_SHATTER_SIM_STEP_SECONDS));
     this.staticsAdd(setup);
     const blast = PhysicsShatterSimulation.blastWorldOf(setup, this.frame);
@@ -147,7 +150,7 @@ export class PhysicsShatterSimulation {
   private launchEnd(): void {
     for (const { body } of this.bodies) {
       const collider = body && body.numColliders() > 0 ? body.collider(0) : null;
-      if (collider) physicsShatterBodyLaunchFriction(this.rapier, collider, false);
+      if (collider) physicsShatterBodyLaunchFriction(this.rapier, collider, this.material.friction, false);
     }
   }
 
@@ -199,7 +202,7 @@ export class PhysicsShatterSimulation {
    * @param setup Simulation setup.
    */
   private staticsAdd(setup: PhysicsShatterSimSetup): void {
-    for (const hull of setup.staticHulls) physicsShatterBodyAddStaticHull(this.rapier, this.world, hull);
+    for (const hull of setup.staticHulls) physicsShatterBodyAddStaticHull(this.rapier, this.world, hull, this.material);
   }
 
   /**
@@ -253,18 +256,50 @@ export class PhysicsShatterSimulation {
   ): RAPIER.RigidBody | null {
     const worldPoints = this.frame.pointsToWorld(piece.hull);
     if (PhysicsShatterSimulation.startsStuck(piece, this.frame, blast)) {
-      physicsShatterBodyAddStaticHull(this.rapier, this.world, worldPoints);
+      physicsShatterBodyAddStaticHull(this.rapier, this.world, worldPoints, this.material);
       return null;
     }
     const centre = this.frame.pointToWorld(piece.centroid);
-    const collider = physicsShatterBodyColliderDesc(this.rapier, physicsShatterBodyLocalHull(worldPoints, centre));
+    const local = physicsShatterBodyLocalHull(worldPoints, centre);
+    const collider = physicsShatterBodyColliderDesc(this.rapier, local, this.material);
     if (!collider) return null;
-    const velocity = physicsShatterBlastVelocity(centre, blast);
-    const spin = physicsShatterBlastSpin(seed, piece.index, velocity.length());
-    const desc = this.rapier.RigidBodyDesc.dynamic().setTranslation(centre.x, centre.y, centre.z).setCcdEnabled(true);
-    const body = this.world.createRigidBody(desc.setLinvel(velocity.x, velocity.y, velocity.z).setAngvel(spin));
-    physicsShatterBodyLaunchFriction(this.rapier, this.world.createCollider(collider, body), true);
+    const body = this.world.createRigidBody(this.bodyDesc(piece, centre, blast, seed));
+    physicsShatterBodyLaunchFriction(
+      this.rapier,
+      this.world.createCollider(collider, body),
+      this.material.friction,
+      true,
+    );
     return body;
+  }
+
+  /**
+   * Describes a moving piece's body: its blast velocity scaled by the
+   * material's blast multiplier, its spin by the tumble multiplier, and the
+   * material's damping.
+   *
+   * @param piece Piece.
+   * @param centre World centre of the body.
+   * @param blast World blast.
+   * @param seed Spin seed.
+   * @returns Body description.
+   */
+  private bodyDesc(
+    piece: PhysicsShatterSimPiece,
+    centre: THREE.Vector3,
+    blast: PhysicsShatterSimBlastWorld,
+    seed: number,
+  ): RAPIER.RigidBodyDesc {
+    const launch = physicsShatterBlastVelocity(centre, blast);
+    const spin = physicsShatterBlastSpin(seed, piece.index, launch.length()).multiplyScalar(this.material.tumble);
+    const velocity = launch.multiplyScalar(this.material.blast);
+    return this.rapier.RigidBodyDesc.dynamic()
+      .setTranslation(centre.x, centre.y, centre.z)
+      .setCcdEnabled(true)
+      .setLinvel(velocity.x, velocity.y, velocity.z)
+      .setAngvel(spin)
+      .setLinearDamping(this.material.linearDamping)
+      .setAngularDamping(this.material.angularDamping);
   }
 
   /**

@@ -7,6 +7,7 @@ import type {
   PhysicsShatterSimResult,
   PhysicsShatterSimSetup,
 } from '@/modifier/stack/kinds/shatter/sim/physics_shatter_sim_types.js';
+import type { PhysicsShatterSimMaterial } from '@/modifier/stack/kinds/shatter/sim/physics_shatter_sim_material.js';
 import {
   physicsShatterTestInputs,
   physicsShatterTestSettings,
@@ -49,8 +50,23 @@ export function simTestSetup(
     seed: 7,
     staticHulls: [SIM_TEST_FLOOR],
     solverIterations: 8,
+    material: SIM_TEST_MATERIAL,
   };
 }
+
+/**
+ * Undamped material with the surface settings the simulation tests were tuned
+ * on.
+ */
+export const SIM_TEST_MATERIAL: PhysicsShatterSimMaterial = {
+  density: 1,
+  friction: 0.7,
+  restitution: 0.1,
+  linearDamping: 0,
+  angularDamping: 0,
+  blast: 1,
+  tumble: 1,
+};
 
 /**
  * A 100 m square, 1 m thick fixed slab in the world whose top is the bottom of

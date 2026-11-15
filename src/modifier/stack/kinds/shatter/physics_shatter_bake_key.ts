@@ -4,6 +4,7 @@ import {
   PHYSICS_SHATTER_SOLVER_ITERATIONS_KEY,
   PHYSICS_SHATTER_SOLVER_ITERATIONS_MAX,
 } from './physics_shatter_action_fields.js';
+import { PHYSICS_SHATTER_SIM_MATERIAL_KEYS } from './sim/physics_shatter_sim_material.js';
 
 /**
  * Parameter keys of the simulation settings a bake depends on. Changing one of
@@ -18,6 +19,7 @@ export const PHYSICS_SHATTER_SIM_PARAMETER_KEYS: string[] = [
   'directionY',
   'directionZ',
   PHYSICS_SHATTER_SOLVER_ITERATIONS_KEY,
+  ...PHYSICS_SHATTER_SIM_MATERIAL_KEYS,
 ];
 
 /**

@@ -17,6 +17,17 @@ const SHARED_BLAST = [
   'Blast/Duration',
 ];
 
+/** Material physics rows only Custom shows, before Solver Iterations. */
+const CUSTOM_PHYSICS_ROWS = [
+  'Simulation/Density',
+  'Simulation/Friction',
+  'Simulation/Bounciness',
+  'Simulation/Air Drag',
+  'Simulation/Spin Drag',
+  'Simulation/Blast Scale',
+  'Simulation/Tumble',
+];
+
 /** Rows after the details. */
 const SHARED_TAIL = [
   'Crack Faces/Projection',
@@ -120,9 +131,25 @@ describe('physics shatter inspector rows', () => {
       const preset = physicsShatterRows({ material });
       const custom = physicsShatterRows({ material: 'custom', mode });
       expect(
-        custom.filter((row) => row !== '/Pattern'),
+        custom.filter((row) => row !== '/Pattern' && !CUSTOM_PHYSICS_ROWS.includes(row)),
         material,
       ).toEqual(preset);
+    }
+  });
+
+  it('show the material physics rows only for Custom, right before Solver Iterations', () => {
+    const rows = physicsShatterRows({ material: 'custom' });
+    const solver = rows.indexOf('Simulation/Solver Iterations');
+    expect(rows.slice(solver - CUSTOM_PHYSICS_ROWS.length, solver)).toEqual(CUSTOM_PHYSICS_ROWS);
+    for (const material of PHYSICS_SHATTER_MATERIALS.filter((id) => id !== 'custom')) {
+      expect(
+        physicsShatterRows({ material }).filter((row) => CUSTOM_PHYSICS_ROWS.includes(row)),
+        material,
+      ).toEqual([]);
+    }
+    const fields = modifierStackKindFind('physicsShatter')?.fields ?? [];
+    for (const label of CUSTOM_PHYSICS_ROWS) {
+      expect(fields.find((field) => `${field.group}/${field.label}` === label)?.hint, label).toBeTruthy();
     }
   });
 
