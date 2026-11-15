@@ -10,6 +10,7 @@ import { McpToolsSolidModel } from './solid_model/mcp_tools_solid_model.js';
 import { McpToolsCsgGroup } from './csg_group/mcp_tools_csg_group.js';
 import { McpToolsBrush } from './brush/mcp_tools_brush.js';
 import { McpToolsBuild } from './build/mcp_tools_build.js';
+import { McpToolsGeometry } from './geometry/mcp_tools_geometry.js';
 import { McpToolsSpace } from './space/mcp_tools_space.js';
 import { McpToolsView } from './view/mcp_tools_view.js';
 
@@ -29,6 +30,7 @@ export function mcpToolGroupsCreate(parts: EditorApiParts): McpToolGroup[] {
     new McpToolsSolidModel(parts),
     new McpToolsCsgGroup(parts),
     new McpToolsBrush(parts),
+    new McpToolsGeometry(parts),
     new McpToolsBuild(parts),
     new McpToolsSpace(parts),
     new McpToolsView(parts),

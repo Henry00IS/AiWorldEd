@@ -4,6 +4,7 @@ import { EditorApiBuilders } from './editor_api_builders.js';
 import { EditorApiCapture } from './editor_api_capture.js';
 import { EditorApiCsgQuery } from './editor_api_csg_query.js';
 import { EditorApiFind } from './editor_api_find.js';
+import { EditorApiGeometry } from './editor_api_geometry.js';
 import { EditorApiHierarchy } from './editor_api_hierarchy.js';
 import { EditorApiSolidReads } from './editor_api_solid_reads.js';
 import { EditorApiSolidWrites } from './editor_api_solid_writes.js';
@@ -23,6 +24,7 @@ export class EditorApiParts {
   readonly csgQuery: EditorApiCsgQuery;
   readonly hierarchy: EditorApiHierarchy;
   readonly capture: EditorApiCapture;
+  readonly geometry: EditorApiGeometry;
 
   /**
    * Creates every part for one editor.
@@ -41,5 +43,6 @@ export class EditorApiParts {
     this.csgQuery = new EditorApiCsgQuery(host);
     this.hierarchy = new EditorApiHierarchy(host);
     this.capture = new EditorApiCapture(host);
+    this.geometry = new EditorApiGeometry(host);
   }
 }
