@@ -26,7 +26,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommandModule[] =
     category: 'Solids',
     description: 'A faceted cylinder or cone standing on the origin. Different radii make a cone.',
     parameters: [
-      solidScriptParameter('h', 'Height', 'number', '2', 'Height along Z in metres.'),
+      solidScriptParameter('h', 'Height', 'number', '1', 'Height along Z in metres.'),
       solidScriptParameter('r1', 'Bottom Radius', 'number', '1', 'Radius at the bottom in metres.'),
       solidScriptParameter('r2', 'Top Radius', 'number', '1', 'Radius at the top in metres; 0 makes a pointed cone.'),
       solidScriptParameterCenter(),

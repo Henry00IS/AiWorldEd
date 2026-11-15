@@ -20,7 +20,7 @@ describe('solid script document', () => {
     ]);
     const source = solidScriptDocumentSource(document);
     expect(source.split('\n')).toHaveLength(4);
-    expect(source.split('\n')[0]).toBe('translate(v = [0, 0, 1]) {');
+    expect(source.split('\n')[0]).toBe('translate(v = [0, 0, 0]) {');
     expect(() => solidScriptProgramEvaluate(source)).toThrow(/line 4/);
   });
 

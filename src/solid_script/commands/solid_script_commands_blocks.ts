@@ -9,7 +9,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommandModule
     category: 'Transforms',
     description: 'Moves everything up to its End.',
     nesting: 'open',
-    parameters: [solidScriptParameter('v', 'Offset', 'vector3', '[0, 0, 1]', 'Distance along X, Y and Z in metres.')],
+    parameters: [solidScriptParameter('v', 'Offset', 'vector3', '[0, 0, 0]', 'Distance along X, Y and Z in metres.')],
   }),
   new SolidScriptCommandModule({
     module: 'rotate',
@@ -17,7 +17,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommandModule
     category: 'Transforms',
     description: 'Turns everything up to its End around the origin.',
     nesting: 'open',
-    parameters: [solidScriptParameter('a', 'Angles', 'vector3', '[0, 0, 45]', 'Degrees around X, then Y, then Z.')],
+    parameters: [solidScriptParameter('a', 'Angles', 'vector3', '[0, 0, 0]', 'Degrees around X, then Y, then Z.')],
   }),
   new SolidScriptCommandModule({
     module: 'scale',
@@ -25,7 +25,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommandModule
     category: 'Transforms',
     description: 'Stretches everything up to its End from the origin.',
     nesting: 'open',
-    parameters: [solidScriptParameter('v', 'Factors', 'vector3', '[1, 1, 2]', 'Stretch factor along X, Y and Z.')],
+    parameters: [solidScriptParameter('v', 'Factors', 'vector3', '[1, 1, 1]', 'Stretch factor along X, Y and Z.')],
   }),
   new SolidScriptCommandModule({
     module: 'mirror',

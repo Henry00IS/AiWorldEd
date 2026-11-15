@@ -1,4 +1,7 @@
-import { SOLID_SCRIPT_COMMAND_CATEGORIES, solidScriptCommands } from '@/solid_script/commands/solid_script_command_catalog.js';
+import {
+  SOLID_SCRIPT_COMMAND_CATEGORIES,
+  solidScriptCommands,
+} from '@/solid_script/commands/solid_script_command_catalog.js';
 import type { SolidScriptCommand } from '@/solid_script/commands/solid_script_command.js';
 
 /** Short description of SolidScript for tool descriptions. */
@@ -6,7 +9,7 @@ export const SOLID_SCRIPT_REFERENCE_SUMMARY =
   "SolidScript is AiWorldEd's own C-style CSG language: cube, sphere, cylinder, polyhedron (convex hull), linear_extrude of square/circle/polygon, " +
   'hull, union, difference, intersection, translate/rotate/scale/mirror/multmatrix, variables, modules, functions, for, if/else and echo. ' +
   'Every primitive becomes one convex brush; difference becomes a CSG group whose first child adds and the rest subtract. ' +
-  'Z-up, units in metres, angles in degrees. Read geometry_script_reference once before writing a script: it lists every command, its defaults, ' +
+  'Z-up, units in metres, angles in degrees. Read geometry_script_reference_get once before writing a script: it lists every command, its defaults, ' +
   'what is not supported and the common mistakes.';
 
 /** Language part of the reference: coordinates, grammar, shapes and rules. */
@@ -139,7 +142,8 @@ The same row as generator lines:
 function solidScriptReferenceCommand(command: SolidScriptCommand): string {
   const block = command.nesting === 'open' ? ' Opens a block.' : '';
   const values = command.parameters.map(
-    (parameter) => `  - ${parameter.key} (${parameter.label}, ${parameter.type}, default ${parameter.default}): ${parameter.hint}`,
+    (parameter) =>
+      `  - ${parameter.key} (${parameter.label}, ${parameter.type}, default ${parameter.default}): ${parameter.hint}`,
   );
   const code = command.code(command.valuesDefault()) || '(empty line)';
   return [`- ${command.id}: ${command.label}. ${command.description}${block} Writes: ${code}`, ...values].join('\n');

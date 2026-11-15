@@ -23,7 +23,7 @@ describe('SolidScript generator tools', () => {
     const result = api.invokeTool('geometry_script_command_list', {});
     const commands = (result.data as { commands: { id: string; example: string; parameters: unknown[] }[] }).commands;
     expect(commands.find((command) => command.id === 'cylinder')?.example).toBe(
-      'cylinder(h = 2, r1 = 1, r2 = 1, center = false);',
+      'cylinder(h = 1, r1 = 1, r2 = 1, center = false);',
     );
     expect(commands.find((command) => command.id === 'difference')?.parameters).toEqual([]);
   });

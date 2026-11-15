@@ -210,7 +210,7 @@ describe('SolidScript editor', () => {
     const { source } = editorFixture([{ command: 'translate' }, { command: 'cube' }, { command: 'end' }]);
     doubleClick(chip(0));
     const fields = document.querySelectorAll<HTMLInputElement>('[data-solid-script-configurator="translate"] input');
-    expect([...fields].map((input) => input.value)).toEqual(['0', '0', '1']);
+    expect([...fields].map((input) => input.value)).toEqual(['0', '0', '0']);
     type(fields[2] as HTMLInputElement, '3');
     tool('Apply').click();
     expect(source().split('\n')[0]).toBe('translate(v = [0, 0, 3]) {');

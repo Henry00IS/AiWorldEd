@@ -45,6 +45,29 @@ describe('solid script command catalog', () => {
     }
   });
 
+  it('starts every transform as a neutral one that changes nothing', () => {
+    const defaults = (id: string) => solidScriptCommandFind(id)?.valuesDefault();
+    expect(defaults('translate')).toEqual({ v: '[0, 0, 0]' });
+    expect(defaults('rotate')).toEqual({ a: '[0, 0, 0]' });
+    expect(defaults('scale')).toEqual({ v: '[1, 1, 1]' });
+    expect(defaults('linear_extrude')).toMatchObject({ scale: '[1, 1]' });
+    const plain = JSON.stringify(solidScriptProgramEvaluate('cube(1);').shapes);
+    for (const id of ['translate', 'rotate', 'scale']) {
+      const command = solidScriptCommandFind(id);
+      const line = command?.code(command.valuesDefault()) ?? '';
+      expect(JSON.stringify(solidScriptProgramEvaluate(`${line}\ncube(1);\n}`).shapes), id).toBe(plain);
+    }
+  });
+
+  it('starts every solid with the defaults the language uses when a value is left out', () => {
+    for (const command of solidScriptCommands.filter((entry) => entry.category === 'Solids')) {
+      if (command.id === 'polyhedron') continue;
+      const configured = solidScriptProgramEvaluate(command.code(command.valuesDefault())).shapes;
+      const bare = solidScriptProgramEvaluate(`${command.id}();`).shapes;
+      expect(JSON.stringify(configured), command.id).toBe(JSON.stringify(bare));
+    }
+  });
+
   it('writes exactly one line per command that the language evaluates', () => {
     for (const command of solidScriptCommands) {
       const line = command.code(command.valuesDefault());
