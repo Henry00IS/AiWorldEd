@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { solidScriptProgramEvaluate } from '@/ai/client/tools/geometry/solid_script/solid_script_program.js';
-import type { SolidScriptShape } from '@/ai/client/tools/geometry/solid_script/solid_script_shape.js';
+import { solidScriptProgramEvaluate } from '@/solid_script/language/solid_script_program.js';
+import type { SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
 
 /**
  * Returns the bounds of a solid shape.

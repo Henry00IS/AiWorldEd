@@ -12,8 +12,8 @@ import { findCsgGroup, findSolidModel } from './editor_api_lookup.js';
 import { dtoToVec3 } from './editor_api_math.js';
 import { nameToSolidOperation, solidOperationToName } from './editor_api_operations.js';
 import { failResult, okResult } from './editor_api_result.js';
-import { solidScriptProgramEvaluate } from './tools/geometry/solid_script/solid_script_program.js';
-import { solidScriptSolidTreeBuild } from './tools/geometry/solid_script/solid_script_solid_tree.js';
+import { solidScriptProgramEvaluate } from '@/solid_script/language/solid_script_program.js';
+import { solidScriptSolidTreeBuild } from '@/solid_script/language/solid_script_solid_tree.js';
 
 /** Arguments of geometry_script_build and geometry_script_preview. */
 export interface GeometrySolidScriptArgs {

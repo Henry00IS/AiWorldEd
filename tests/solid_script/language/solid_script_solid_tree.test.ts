@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { solidScriptProgramEvaluate } from '@/ai/client/tools/geometry/solid_script/solid_script_program.js';
+import { solidScriptProgramEvaluate } from '@/solid_script/language/solid_script_program.js';
 import {
   solidScriptSolidTreeBuild,
   type SolidScriptSolidTreeOptions,
-} from '@/ai/client/tools/geometry/solid_script/solid_script_solid_tree.js';
+} from '@/solid_script/language/solid_script_solid_tree.js';
 import type { SolidTreeNode } from '@/solid/commands/tree/solid_tree_node.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 
