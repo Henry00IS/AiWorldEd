@@ -1,0 +1,59 @@
+import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
+
+/** Line-art icons of the script editor, drawn in the current text colour. */
+const SOLID_SCRIPT_EDITOR_ICON_PATHS: Readonly<Record<string, string>> = {
+  Solids: '<path d="M8 1.5 14 4.75v6.5L8 14.5 2 11.25v-6.5z M2 4.75 8 8l6-3.25 M8 8v6.5"/>',
+  '2D Shapes': '<rect x="2.5" y="2.5" width="11" height="11" rx="1"/>',
+  Transforms: '<path d="M8 1.5v13 M1.5 8h13 M8 1.5 6 3.5 M8 1.5l2 2 M14.5 8l-2-2 M14.5 8l-2 2"/>',
+  Combine: '<circle cx="6" cy="8" r="4.5"/><circle cx="10" cy="8" r="4.5"/>',
+  Logic:
+    '<path d="M5.5 2C3.5 2 4 5 3 6.5 2.5 7.5 1.5 8 1.5 8s1 .5 1.5 1.5C4 11 3.5 14 5.5 14 M10.5 2c2 0 1.5 3 2.5 4.5.5 1 1.5 1.5 1.5 1.5s-1 .5-1.5 1.5c-1 1.5-.5 4.5-2.5 4.5"/>',
+  play: '<path d="M4.5 2.5v11l9-5.5z" fill="currentColor"/>',
+  pause: '<path d="M4.5 2.5v11 M11.5 2.5v11" stroke-width="2.4"/>',
+  step: '<path d="M3 2.5v11l7-5.5z" fill="currentColor"/><path d="M13 2.5v11" stroke-width="2"/>',
+  stop: '<rect x="3.5" y="3.5" width="9" height="9" rx="1" fill="currentColor"/>',
+  save: '<path d="M2.5 2.5h9l2 2v9h-11z M5 2.5v4h6v-4 M5 13.5v-4h6v4"/>',
+  load: '<path d="M1.5 4.5v8.5h13v-7H8L6.5 4.5z"/>',
+};
+
+/**
+ * Builds one icon.
+ *
+ * @param name Category or toolbar action.
+ * @param color Stroke colour, or the text colour when omitted.
+ * @returns Icon element.
+ */
+export function solidScriptEditorIcon(name: string, color = 'currentColor'): HTMLElement {
+  const icon = document.createElement('span');
+  icon.className = SOLID_SCRIPT_EDITOR_CLASSES.icon;
+  icon.setAttribute('aria-hidden', 'true');
+  icon.style.color = color;
+  icon.innerHTML = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round">${SOLID_SCRIPT_EDITOR_ICON_PATHS[name] ?? ''}</svg>`;
+  return icon;
+}
+
+/**
+ * Builds a toolbar button.
+ *
+ * @param label Visible text.
+ * @param icon Icon name.
+ * @param hint Hover text.
+ * @param onClick Click handler.
+ * @returns Button.
+ */
+export function solidScriptEditorToolButton(
+  label: string,
+  icon: string,
+  hint: string,
+  onClick: () => void,
+): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = SOLID_SCRIPT_EDITOR_CLASSES.tool;
+  button.title = hint;
+  const text = document.createElement('span');
+  text.textContent = label;
+  button.append(solidScriptEditorIcon(icon), text);
+  button.addEventListener('click', onClick);
+  return button;
+}
