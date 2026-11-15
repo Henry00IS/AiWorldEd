@@ -3,7 +3,10 @@ import type { ModifierPlacementArgs } from '@/ai/client/modifier/editor_api_modi
 import type { McpToolSchema } from '@/ai/shared/mcp_tool_definition.js';
 import type { McpTool } from '@/ai/client/tools/mcp_tool.js';
 import { McpToolGroup } from '@/ai/client/tools/mcp_tool_group.js';
-import { MODIFIER_GENERATOR_NODE_KINDS } from '@/modifier/stack/modifier_generator_node.js';
+import {
+  MODIFIER_GENERATOR_NODE_KINDS,
+  modifierGeneratorNodeLabels,
+} from '@/modifier/stack/modifier_generator_node.js';
 import {
   mcpArgumentBooleanOptional,
   mcpArgumentNumber,
@@ -62,13 +65,12 @@ function modifierPlacement(args: Record<string, unknown>): ModifierPlacementArgs
 }
 
 /**
- * Modifier stacks: kinds with every parameter and its tooltip, volumes,
- * generators (Column, Stairs, Arch), entries, parameters, presets and bake.
+ * Modifier stacks: kinds with every parameter and its tooltip, volumes, every
+ * generator kind, entries, parameters, presets and bake.
  */
 export class McpToolsModifier extends McpToolGroup {
   readonly category = 'modifier';
-  readonly summary =
-    'Modifier stacks: kinds and parameters with tooltips, modifier volumes, Column/Stairs/Arch/Blast Hole generators, buttons, entries, parameters, presets, bake.';
+  readonly summary = `Modifier stacks: kinds and parameters with tooltips, modifier volumes, generators (${modifierGeneratorNodeLabels()}), buttons, entries, parameters, presets, bake.`;
 
   /**
    * Creates the group.
@@ -155,8 +157,7 @@ export class McpToolsModifier extends McpToolGroup {
       },
       {
         name: 'modifier_generator_create',
-        description:
-          'Creates a generator (Column, Stairs, Arch, Blast Hole) inside a solid model; it builds brushes filling its box. Tune it with modifier_parameters_set and curve_* tools.',
+        description: `Creates a generator (${modifierGeneratorNodeLabels()}) inside a solid model; it builds brushes filling its box. Tune it with modifier_parameters_set and curve_* tools; modifier_stack_bake turns it into regular brushes (Convert to Brush).`,
         inputSchema: {
           type: 'object',
           properties: {
