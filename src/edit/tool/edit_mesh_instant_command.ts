@@ -25,5 +25,9 @@ export function runEditMeshInstantCommand(
     operations?.connectSelectedVertices();
     return true;
   }
+  if (command === 'bridge_edge_loops') {
+    operations?.bridgeSelectedEdgeLoops();
+    return true;
+  }
   return false;
 }

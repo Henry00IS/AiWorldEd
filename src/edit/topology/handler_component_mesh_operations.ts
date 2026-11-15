@@ -16,6 +16,7 @@ import {
 import { subdivideTopologyWorkingEdges } from './topology_edge_subdivide.js';
 import { makeTopologyWorkingFace } from './topology_face_make.js';
 import { connectTopologyWorkingVertices } from './topology_vertex_connect.js';
+import { bridgeTopologyWorkingEdgeLoops } from './topology_edge_bridge.js';
 import { findEditDomainTargetById, resolveTopologyEditTarget } from './topology_target_resolve.js';
 import type { TopologyMeshTarget } from './topology_target.js';
 import type { TopologyWorkingGeometry } from './topology_working_geometry.js';
@@ -37,9 +38,9 @@ interface MeshFaceSelection {
 }
 
 /**
- * Runs mesh modelling operations (extrude, inset, subdivide and friends) on the
- * Edit Mode selection. Brushes are left alone: these operations add faces a
- * convex brush cannot hold.
+ * Runs mesh modelling operations (extrude, inset, subdivide, bridge and
+ * friends) on the Edit Mode selection. Brushes are left alone: these operations
+ * add faces a convex brush cannot hold.
  */
 export class HandlerComponentMeshOperations {
   private readonly deps: HandlerComponentTopologyDependencies;
@@ -241,6 +242,19 @@ export class HandlerComponentMeshOperations {
       targets,
       (targetId, geometry) =>
         connectTopologyWorkingVertices(geometry, collectSelectedVertexIndices(selected, targetId)).result,
+    );
+  }
+
+  /**
+   * Joins the two selected edge loops of each edited mesh with quads.
+   *
+   * @returns True when at least one mesh changed.
+   */
+  bridgeSelectedEdgeLoops(): boolean {
+    const selected = this.deps.getSession().getComponentSelection().getSelected();
+    const targets = this.collectMeshTargets('Bridge Edge Loops', [EditorComponentMode.EDGE], 'Edge');
+    return this.commitOnMeshTargets(targets, (targetId, geometry) =>
+      bridgeTopologyWorkingEdgeLoops(geometry, collectSelectedEdgeEndpoints(selected, targetId)),
     );
   }
 

@@ -118,13 +118,15 @@ describe('viewport_tool_edit_menu', () => {
     expect(shortcutForLabel(entries, 'Connect Vertices')).toBe('J');
   });
 
-  it('offers Subdivide Edges in the Edge menu', () => {
+  it('offers Subdivide Edges and Bridge Edge Loops in the Edge menu', () => {
     const calls: string[] = [];
     const entries = buildViewportToolEdgeMenuEntries(createActions(calls));
     const subdivide = entries.find((entry) => isMenuAction(entry) && entry.label === 'Subdivide Edges');
     expect(subdivide && isMenuAction(subdivide)).toBe(true);
     if (subdivide && isMenuAction(subdivide)) subdivide.onClick();
-    expect(calls).toEqual(['tool:subdivide_edges']);
+    const bridge = entries.find((entry) => isMenuAction(entry) && entry.label === 'Bridge Edge Loops');
+    if (bridge && isMenuAction(bridge)) bridge.onClick();
+    expect(calls).toEqual(['tool:subdivide_edges', 'tool:bridge_edge_loops']);
   });
 });
 

@@ -3,4 +3,10 @@
  * channel: interactive tools and instant operations alike.
  */
 export type EditMeshToolCommand =
-  'extrude_faces' | 'extrude_faces_individual' | 'inset_faces' | 'subdivide_edges' | 'make_face' | 'connect_vertices';
+  | 'extrude_faces'
+  | 'extrude_faces_individual'
+  | 'inset_faces'
+  | 'subdivide_edges'
+  | 'make_face'
+  | 'connect_vertices'
+  | 'bridge_edge_loops';

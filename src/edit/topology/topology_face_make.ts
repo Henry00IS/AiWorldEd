@@ -26,7 +26,22 @@ export function makeTopologyWorkingFace(
   if (topologyCornerPlaneNormal(geometry, corners).lengthSq() < 0.5) {
     return topologyOperatorRefused('Make Face needs vertices that do not lie on one line');
   }
-  const loop = windAgainstNeighbours(geometry, orderTopologyFaceCorners(geometry, corners));
+  return addTopologyWorkingFaceLoop(geometry, orderTopologyFaceCorners(geometry, corners));
+}
+
+/**
+ * Adds one face along an ordered loop of corners, wound against its neighbours
+ * and textured like them.
+ *
+ * @param geometry Working geometry mutated in place.
+ * @param ordered Corners in loop order, either winding.
+ * @returns Operator result.
+ */
+export function addTopologyWorkingFaceLoop(
+  geometry: TopologyWorkingGeometry,
+  ordered: readonly number[],
+): TopologyOperatorResult {
+  const loop = windAgainstNeighbours(geometry, [...ordered]);
   const refusal = makeFaceRefusal(geometry, loop);
   if (refusal) return topologyOperatorRefused(refusal);
   geometry.faces.push(buildMadeFace(geometry, loop));

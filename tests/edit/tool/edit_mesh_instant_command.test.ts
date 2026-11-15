@@ -22,9 +22,11 @@ describe('runEditMeshInstantCommand', () => {
     const operations = {
       makeFaceFromSelection: () => calls.push('make'),
       connectSelectedVertices: () => calls.push('connect'),
+      bridgeSelectedEdgeLoops: () => calls.push('bridge'),
     } as unknown as HandlerComponentMeshOperations;
     expect(runEditMeshInstantCommand('make_face', operations)).toBe(true);
     expect(runEditMeshInstantCommand('connect_vertices', operations)).toBe(true);
-    expect(calls).toEqual(['make', 'connect']);
+    expect(runEditMeshInstantCommand('bridge_edge_loops', operations)).toBe(true);
+    expect(calls).toEqual(['make', 'connect', 'bridge']);
   });
 });

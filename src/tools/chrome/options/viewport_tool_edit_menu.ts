@@ -105,6 +105,12 @@ export function buildViewportToolEdgeMenuEntries(actions: ViewportToolEditMenuAc
     createAction('Subdivide Edges', '', 'Split each selected mesh edge in half; run it again for finer cuts', () =>
       actions.onMeshTool('subdivide_edges'),
     ),
+    createAction(
+      'Bridge Edge Loops',
+      '',
+      'Join two selected edge loops, or two open edge runs of the same length, with a strip of faces',
+      () => actions.onMeshTool('bridge_edge_loops'),
+    ),
   ];
 }
 
