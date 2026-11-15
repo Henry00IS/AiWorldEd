@@ -1,0 +1,95 @@
+import type * as THREE from 'three';
+import type { SolidBrush } from '@/solid/brush/solid_brush.js';
+
+/** How the input is broken: glass-like Voronoi cracks or a staggered brick grid. */
+export type PhysicsShatterMode = 'glass' | 'bricks';
+
+/** Settings of one fracture, all lengths in metres of the modifier frame. */
+export interface PhysicsShatterSettings {
+  /** Fracture pattern. */
+  mode: PhysicsShatterMode;
+  /** Integer seed; the same seed and inputs give the same pieces. */
+  seed: number;
+  /** Typical piece size of glass mode. */
+  crackSize: number;
+  /** Zero spreads glass pieces evenly; one gathers them around the impact point. */
+  impactDetail: number;
+  /** Impact point in the modifier frame. */
+  impactPoint: THREE.Vector3;
+  /** Distance over which Impact Detail fades out. */
+  impactRadius: number;
+  /** Brick size along the run of the wall. */
+  brickLength: number;
+  /** Brick size along the frame's up axis. */
+  brickHeight: number;
+  /** Gap left between neighbouring bricks. */
+  mortarGap: number;
+  /**
+   * Zero keeps every joint on the half-brick bond; one shifts joints up to a
+   * quarter brick.
+   */
+  brickJitter: number;
+  /** Largest number of pieces made from all inputs together. */
+  maxPieces: number;
+}
+
+/** One convex brush to fracture, already in the modifier frame. */
+export interface PhysicsShatterInput {
+  /** Id of the brush the piece came from. */
+  sourceBrushId: string;
+  /** Convex brush in modifier frame coordinates. */
+  brush: SolidBrush;
+}
+
+/** Where a piece face came from. */
+export interface PhysicsShatterFaceOrigin {
+  /**
+   * 'original' faces lie on an input face; 'crack' faces were made by the
+   * fracture.
+   */
+  kind: 'original' | 'crack';
+  /** Face index on the input brush for original faces, else -1. */
+  sourceFaceIndex: number;
+}
+
+/** One convex piece of a fracture, in modifier frame coordinates. */
+export interface PhysicsShatterPiece {
+  /** Position in the result list, stable for the same seed and inputs. */
+  index: number;
+  /** Stable text id made of the input index and the cell index. */
+  key: string;
+  /** Id of the brush the piece came from. */
+  sourceBrushId: string;
+  /** Index of that brush in the fracture inputs. */
+  sourceIndex: number;
+  /** Voronoi site or brick index inside its input brush. */
+  cellIndex: number;
+  /** Fracture seed that produced the piece. */
+  seed: number;
+  /** True for bricks mode pieces. */
+  isBrick: boolean;
+  /** Convex piece geometry. */
+  brush: SolidBrush;
+  /** Hull vertices as flat x, y, z triples. */
+  hull: Float32Array;
+  /** Average of the hull vertices: the pivot c of a baked transform. */
+  centroid: THREE.Vector3;
+  /** Enclosed volume in cubic metres. */
+  volume: number;
+  /** Origin of each face, in face order. */
+  faces: PhysicsShatterFaceOrigin[];
+}
+
+/** Outcome of one fracture. */
+export interface PhysicsShatterResult {
+  /** Pieces in deterministic order. */
+  pieces: PhysicsShatterPiece[];
+  /** Total volume of the inputs. */
+  inputVolume: number;
+  /** Volume of slivers and failed cells that were dropped. */
+  droppedVolume: number;
+  /** Number of dropped slivers and failed cells. */
+  droppedPieces: number;
+  /** True when Max Pieces limited the result. */
+  limited: boolean;
+}
