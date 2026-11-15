@@ -178,13 +178,7 @@ export class EditorApiGeometryScript {
    */
   private describe(generator: GeometryScriptGenerator, document: SolidScriptDocument): Record<string, unknown> {
     const source = solidScriptDocumentSource(document);
-    let error = '';
-    let solids = 0;
-    try {
-      solids = solidScriptProgramEvaluate(source).steps.length;
-    } catch (thrown) {
-      error = solidScriptErrorText(thrown);
-    }
+    const { solids, error } = geometryScriptRun(source);
     const lines = document.blocks.map((block, index) => ({
       line: index + 1,
       code: solidScriptBlockSource(block),
@@ -213,5 +207,19 @@ export class EditorApiGeometryScript {
     if (entry?.kind !== MODIFIER_STACK_SOLID_SCRIPT_KIND)
       return `${node.name || objectId} is no SolidScript generator; create one with modifier_generator_create kind ${MODIFIER_STACK_SOLID_SCRIPT_KIND}`;
     return { node, stepId: entry.id, parameters: entry.parameters };
+  }
+}
+
+/**
+ * Runs a script to count its solids and find its first error.
+ *
+ * @param source Script source.
+ * @returns Solid count and error text, empty without an error.
+ */
+function geometryScriptRun(source: string): { solids: number; error: string } {
+  try {
+    return { solids: solidScriptProgramEvaluate(source).steps.length, error: '' };
+  } catch (thrown) {
+    return { solids: 0, error: solidScriptErrorText(thrown) };
   }
 }
