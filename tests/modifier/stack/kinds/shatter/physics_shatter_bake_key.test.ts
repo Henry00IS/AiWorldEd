@@ -67,9 +67,23 @@ describe('physics shatter bake key', () => {
     expect(physicsShatterBakeKey('0123456789abcdef', { ...BAKE_KEY_SIM, insideScaleU: 3 })).toBe(base);
   });
 
-  it('covers strength, direction, radius and duration', () => {
-    for (const key of ['strength', 'radius', 'duration', 'directionX', 'directionY', 'directionZ'])
+  it('covers strength, direction, radius, duration and solver iterations', () => {
+    for (const key of ['strength', 'radius', 'duration', 'directionX', 'directionY', 'directionZ', 'solverIterations'])
       expect(PHYSICS_SHATTER_SIM_PARAMETER_KEYS).toContain(key);
+  });
+
+  it('reads a missing solver iteration count as the default', () => {
+    const { fixture, stepId } = bakeKeyFixture();
+    const keyOf = () => physicsShatterLastRunOf(fixture.volume.uuid, stepId)?.bakeKey;
+    fixture.compile();
+    const missing = keyOf();
+    bakeKeyPatch(fixture, { solverIterations: 8 });
+    expect(keyOf()).toBe(missing);
+    bakeKeyPatch(fixture, { solverIterations: 12 });
+    expect(keyOf()).not.toBe(missing);
+    expect(physicsShatterBakeKey('0123456789abcdef', { ...BAKE_KEY_SIM, solverIterations: 40 })).toBe(
+      physicsShatterBakeKey('0123456789abcdef', { ...BAKE_KEY_SIM, solverIterations: 16 }),
+    );
   });
 
   it('keeps the fracture memo key apart from the bake key', () => {
@@ -100,7 +114,7 @@ describe('physics shatter bake key', () => {
       bakeKeyPatch(fixture, { [key]: value });
       expect(bakeKeyStatus(fixture, stepId)).toBe('stale');
       expect(modifierStackStatusRead(fixture.volume)?.steps[0]?.error).toContain(PHYSICS_SHATTER_BAKE_STALE);
-      bakeKeyPatch(fixture, { [key]: (BAKE_KEY_SIM as Record<string, number>)[key] });
+      bakeKeyPatch(fixture, { [key]: (BAKE_KEY_SIM as Record<string, number>)[key] ?? 8 });
       expect(bakeKeyStatus(fixture, stepId)).toBe('baked');
     }
   });
