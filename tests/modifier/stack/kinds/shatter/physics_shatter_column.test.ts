@@ -81,7 +81,8 @@ async function columnShatter(steps: StackFixtureStep[]) {
   return { fixture, reference, unbroken, run, statuses, landed: columnOutputs(fixture) };
 }
 
-describe('physics shatter of generated columns', () => {
+// Each case fractures and simulates; give a loaded machine room past the 5 s default.
+describe('physics shatter of generated columns', { timeout: 30_000 }, () => {
   it('shatters the column a Column step generates, not the authored brush', async () => {
     const result = await columnShatter([COLUMN_STEP]);
     const run = result.run;

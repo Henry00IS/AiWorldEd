@@ -1,6 +1,13 @@
 import * as THREE from 'three';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import { physicsShatterBrushVolume } from './physics_shatter_geometry.js';
+import type { PhysicsShatterSettings } from './physics_shatter_types.js';
+
+/** Settings the piece size depends on. */
+export type PhysicsShatterPieceSizeSettings = Pick<
+  PhysicsShatterSettings,
+  'mode' | 'crackSize' | 'brickLength' | 'brickHeight'
+>;
 
 /** Thinnest piece any pattern may make, in metres. */
 export const PHYSICS_SHATTER_MIN_THICKNESS = 0.02;
@@ -42,16 +49,40 @@ export interface PhysicsShatterPieceBounds {
 }
 
 /**
- * Returns the thinnest piece a pattern may make: 2 cm or a tenth of its typical
- * piece size, whichever is larger. The simulation warns with the same number.
+ * Returns the thinnest piece a pattern of a given piece size may make: 2 cm or
+ * a tenth of the size, whichever is larger.
  *
- * @param pieceSize Typical piece size of the pattern in metres (crack size, or
- *   the smaller brick side).
+ * @param pieceSize Typical piece size in metres (crack size, or the smaller
+ *   brick side).
  * @returns Minimum thickness in metres.
  */
-export function physicsShatterMinPieceThickness(pieceSize: number): number {
+export function physicsShatterMinThicknessForSize(pieceSize: number): number {
   const size = Number.isFinite(pieceSize) ? Math.max(0, pieceSize) : 0;
   return Math.max(PHYSICS_SHATTER_MIN_THICKNESS, PHYSICS_SHATTER_MIN_THICKNESS_SHARE * size);
+}
+
+/**
+ * Returns the pattern's typical piece size: the crack size, or the smaller
+ * brick side in bricks mode.
+ *
+ * @param settings Fracture settings.
+ * @returns Size in metres.
+ */
+export function physicsShatterPieceSize(settings: PhysicsShatterPieceSizeSettings): number {
+  return settings.mode === 'bricks' ? Math.min(settings.brickLength, settings.brickHeight) : settings.crackSize;
+}
+
+/**
+ * Returns the thinnest piece the fracture makes for some settings: 2 cm or a
+ * tenth of the crack size (the smaller brick side for bricks), whichever is
+ * larger. Pieces of an input that is itself thinner keep the input's thickness.
+ * The simulation's thin-piece warning uses the same number.
+ *
+ * @param settings Fracture settings.
+ * @returns Minimum thickness in metres.
+ */
+export function physicsShatterMinPieceThickness(settings: PhysicsShatterPieceSizeSettings): number {
+  return physicsShatterMinThicknessForSize(physicsShatterPieceSize(settings));
 }
 
 /**
@@ -68,7 +99,7 @@ export function physicsShatterPieceBoundsFor(
   pieceSize: number,
   input: PhysicsShatterPieceShape,
 ): PhysicsShatterPieceBounds {
-  const thickness = Math.min(physicsShatterMinPieceThickness(pieceSize), 0.98 * input.thickness);
+  const thickness = Math.min(physicsShatterMinThicknessForSize(pieceSize), 0.98 * input.thickness);
   const edge = Math.min(PHYSICS_SHATTER_MIN_EDGE, 0.5 * thickness, 0.98 * input.minEdge);
   const faceArea = Math.min(PHYSICS_SHATTER_MIN_FACE_AREA, edge * edge, 0.98 * input.minFaceArea);
   return { thickness, edge, faceArea };

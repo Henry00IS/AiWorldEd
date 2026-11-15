@@ -11,7 +11,7 @@ import type {
 import {
   PHYSICS_SHATTER_MAX_BULGE,
   PHYSICS_SHATTER_MIN_EDGE,
-  physicsShatterMinPieceThickness,
+  physicsShatterMinThicknessForSize,
   physicsShatterPieceShape,
 } from '@/modifier/stack/kinds/shatter/fracture/physics_shatter_quality.js';
 
@@ -124,7 +124,7 @@ export function physicsShatterTestExpectSound(
   expect(result.droppedPieces).toBe(0);
   expect(result.unsoundPieces).toBe(0);
   const worst = physicsShatterTestWorst(result.pieces);
-  expect(worst.thickness).toBeGreaterThanOrEqual(physicsShatterMinPieceThickness(pieceSize) - 1e-9);
+  expect(worst.thickness).toBeGreaterThanOrEqual(physicsShatterMinThicknessForSize(pieceSize) - 1e-9);
   expect(worst.edge).toBeGreaterThanOrEqual(Math.min(PHYSICS_SHATTER_MIN_EDGE, 0.98 * inputEdge) - 1e-9);
   expect(worst.bulge).toBeLessThanOrEqual(PHYSICS_SHATTER_MAX_BULGE);
   for (const piece of result.pieces) expect(SolidBrushValidator.validateGenerated(piece.brush).valid).toBe(true);

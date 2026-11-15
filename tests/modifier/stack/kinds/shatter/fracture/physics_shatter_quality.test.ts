@@ -7,6 +7,7 @@ import {
   physicsShatterMinPieceThickness,
   physicsShatterPieceBoundsFor,
   physicsShatterPieceShape,
+  physicsShatterPieceSize,
 } from '@/modifier/stack/kinds/shatter/fracture/physics_shatter_quality.js';
 import type {
   PhysicsShatterInput,
@@ -75,7 +76,7 @@ function qualityExpectSound(
   settings: PhysicsShatterSettings,
   result: PhysicsShatterResult,
 ): void {
-  const size = settings.mode === 'bricks' ? Math.min(settings.brickLength, settings.brickHeight) : settings.crackSize;
+  const size = physicsShatterPieceSize(settings);
   expect(result.droppedPieces).toBe(0);
   expect(result.unsoundPieces).toBe(0);
   let volume = 0;
@@ -96,8 +97,11 @@ function qualityExpectSound(
 
 describe('physics shatter piece quality', () => {
   it('keeps the minimum thickness at 2 cm or a tenth of the crack size', () => {
-    expect(physicsShatterMinPieceThickness(0.1)).toBeCloseTo(0.02, 12);
-    expect(physicsShatterMinPieceThickness(0.5)).toBeCloseTo(0.05, 12);
+    const glass = physicsShatterTestSettings({ crackSize: 0.1 });
+    expect(physicsShatterMinPieceThickness(glass)).toBeCloseTo(0.02, 12);
+    expect(physicsShatterMinPieceThickness({ ...glass, crackSize: 0.5 })).toBeCloseTo(0.05, 12);
+    const bricks = { ...glass, mode: 'bricks' as const, brickLength: 0.6, brickHeight: 0.3 };
+    expect(physicsShatterMinPieceThickness(bricks)).toBeCloseTo(0.03, 12);
   });
 
   it('heals every case of the sweep into sound pieces that fill the input', () => {

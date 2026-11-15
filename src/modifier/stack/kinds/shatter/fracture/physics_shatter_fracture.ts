@@ -25,6 +25,7 @@ import {
 } from './physics_shatter_carve.js';
 import {
   physicsShatterPieceBoundsFor,
+  physicsShatterPieceSize,
   physicsShatterPieceShape,
   physicsShatterPieceShapeSound,
   type PhysicsShatterPieceBounds,
@@ -359,17 +360,6 @@ function physicsShatterPieceShare(run: PhysicsShatterRun, sourceIndex: number): 
   const total = run.result.inputVolume;
   const fraction = total > 0 ? volume / total : 1 / Math.max(1, run.volumes.length);
   return Math.max(1, Math.floor(Math.max(1, run.settings.maxPieces) * fraction * Math.min(1, run.scale)));
-}
-
-/**
- * Returns the pattern's typical piece size: the crack size, or the smaller
- * brick side.
- *
- * @param settings Fracture settings.
- * @returns Size in metres.
- */
-export function physicsShatterPieceSize(settings: PhysicsShatterSettings): number {
-  return settings.mode === 'bricks' ? Math.min(settings.brickLength, settings.brickHeight) : settings.crackSize;
 }
 
 /**
