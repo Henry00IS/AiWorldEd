@@ -182,6 +182,50 @@ describe('EditorApi solid hierarchy', () => {
     expect(getSolidGroupOperation(group)).toBe(SolidOperation.Intersecting);
   });
 
+  it('creates, reads and sets pass-through groups, and keeps brushes off pass-through', () => {
+    const { api, model, brushA, brushB } = createModelWithTwoBrushes();
+    const created = api.invokeTool('csg_group_create', {
+      modelId: model.root.uuid,
+      brushIds: [brushA],
+      name: 'Folder',
+      operation: 'passthrough',
+    });
+    expect(created.ok).toBe(true);
+    const groupId = (created.data as { groupId: string; operation: string }).groupId;
+    expect((created.data as { operation: string }).operation).toBe('passthrough');
+    const group = model.root.children.find((child) => child.uuid === groupId)!;
+    expect(getSolidGroupOperation(group)).toBe(SolidOperation.PassThrough);
+    const detail = api.invokeTool('csg_group_get', { groupId });
+    expect((detail.data as { operation: string }).operation).toBe('passthrough');
+    expect(api.invokeTool('csg_group_operation_set', { groupIds: [groupId], operation: 'additive' }).ok).toBe(true);
+    expect(getSolidGroupOperation(group)).toBe(SolidOperation.Additive);
+    expect(api.invokeTool('csg_group_operation_set', { groupIds: [groupId], operation: 'passthrough' }).ok).toBe(true);
+    expect(getSolidGroupOperation(group)).toBe(SolidOperation.PassThrough);
+    const brushResult = api.invokeTool('brush_operation_set', { brushIds: [brushB], operation: 'passthrough' });
+    expect(brushResult.ok).toBe(false);
+    expect(model.findBrush(brushB)?.operation).toBe(SolidOperation.Additive);
+  });
+
+  it('explains a point with a pass-through group cutting a sibling outside it', () => {
+    const { api, model, brushB } = createModelWithTwoBrushes();
+    expect(api.invokeTool('brush_operation_set', { brushIds: [brushB], operation: 'subtractive' }).ok).toBe(true);
+    const created = api.invokeTool('csg_group_create', {
+      modelId: model.root.uuid,
+      brushIds: [brushB],
+      operation: 'additive',
+    });
+    const groupId = (created.data as { groupId: string }).groupId;
+    const explain = (): string =>
+      (
+        api.invokeTool('space_solid_point_explain', { modelId: model.root.uuid, point: { x: 0, y: 0, z: 0 } }).data as {
+          final: string;
+        }
+      ).final;
+    expect(explain()).toBe('solid');
+    api.invokeTool('csg_group_operation_set', { groupIds: [groupId], operation: 'passthrough' });
+    expect(explain()).toBe('void');
+  });
+
   it('rejects csg_group_create when parentGroupId is a member (no hang)', () => {
     const { api, model, brushA } = createModelWithTwoBrushes();
     const outer = api.invokeTool('csg_group_create', {

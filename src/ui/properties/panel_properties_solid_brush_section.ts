@@ -3,7 +3,11 @@ import * as THREE from 'three';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { getSolidGroupOperation, isSolidCsgGroup } from '@/solid/model/solid_group.js';
-import { SolidOperation, solidOperationLabel } from '@/solid/types/solid_operation.js';
+import {
+  SOLID_OPERATION_PASS_THROUGH_TOOLTIP,
+  SolidOperation,
+  solidOperationLabel,
+} from '@/solid/types/solid_operation.js';
 import { SolidCsgOperationIcons } from '@/ui/properties/solid_csg_operation_icons.js';
 import type { CommandStack } from '@/commands/command_stack.js';
 import { MODIFIER_GENERATOR_NODE_KINDS } from '@/modifier/stack/modifier_generator_node.js';
@@ -140,6 +144,7 @@ export class PanelPropertiesSolidBrushSection {
     }
     this.section.style.display = 'block';
     this.syncInvertedWorldCheckbox(objects);
+    this.passThroughButtonShow(solidGroups.length > 0 && brushMeshes.length === 0);
     if (brushMeshes.length === 0 && solidGroups.length === 0) {
       this.dimOperationButtons();
       return;
@@ -170,6 +175,17 @@ export class PanelPropertiesSolidBrushSection {
       this.handlers.onSetOperation(brushMeshes, operation);
     }
     this.updateFromObjects(boundObjects);
+  }
+
+  /**
+   * Shows the pass-through button only while the selection holds groups and no
+   * brushes, since brushes cannot pass through.
+   *
+   * @param visible Whether the button is shown.
+   */
+  private passThroughButtonShow(visible: boolean): void {
+    const button = this.operationButtons.get(SolidOperation.PassThrough);
+    if (button) button.style.display = visible ? 'inline-flex' : 'none';
   }
 
   /** Invokes the add-box-brush handler when configured. */
@@ -329,7 +345,8 @@ export class PanelPropertiesSolidBrushSection {
   }
 
   /**
-   * Builds compact icon buttons for Additive / Subtractive / Intersecting.
+   * Builds compact icon buttons for Additive / Subtractive / Intersecting and
+   * the group-only Pass-Through.
    *
    * @returns Button row element.
    */
@@ -371,6 +388,11 @@ export class PanelPropertiesSolidBrushSection {
         operation: SolidOperation.Intersecting,
         icon: SolidCsgOperationIcons.intersecting(),
         title: solidOperationLabel(SolidOperation.Intersecting),
+      },
+      {
+        operation: SolidOperation.PassThrough,
+        icon: SolidCsgOperationIcons.passThrough(),
+        title: SOLID_OPERATION_PASS_THROUGH_TOOLTIP,
       },
     ];
   }

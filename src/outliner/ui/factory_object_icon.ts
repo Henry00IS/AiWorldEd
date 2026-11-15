@@ -49,6 +49,9 @@ const SOLID_SUBTRACTIVE_COLOR = '#c0392b';
 /** Outliner blue for intersecting solid brushes / groups. */
 const SOLID_INTERSECTING_COLOR = '#2980b9';
 
+/** Outliner gray badge for pass-through groups, which add no CSG of their own. */
+const SOLID_PASS_THROUGH_COLOR = '#95a5a6';
+
 /** Yellow folder color for ordinary and additive CSG groups. */
 const FOLDER_COLOR = '#e67e22';
 
@@ -154,7 +157,8 @@ export class FactoryObjectIcon {
   /**
    * Returns the folder icon for a solid CSG group. Additive groups keep the
    * plain yellow folder; subtractive and intersecting groups add a colored
-   * operation badge so the folder glyph stays yellow.
+   * operation badge so the folder glyph stays yellow; pass-through groups show
+   * an open folder with a gray badge.
    *
    * @param group Solid CSG group.
    * @returns Folder icon with optional operation badge.
@@ -165,7 +169,7 @@ export class FactoryObjectIcon {
       return this.getGroupIcon();
     }
     return {
-      character: '📁',
+      character: operation === SolidOperation.PassThrough ? '📂' : '📁',
       color: FOLDER_COLOR,
       badgeCssDot: true,
       badgeColor: this.colorForSolidOperation(operation),
@@ -200,12 +204,13 @@ export class FactoryObjectIcon {
   /**
    * Maps a solid CSG operation to an outliner CSS color.
    *
-   * @param operation Additive, subtractive, or intersecting.
+   * @param operation Additive, subtractive, intersecting, or pass-through.
    * @returns CSS hex color string.
    */
   private static colorForSolidOperation(operation: SolidOperation): string {
     if (operation === SolidOperation.Subtractive) return SOLID_SUBTRACTIVE_COLOR;
     if (operation === SolidOperation.Intersecting) return SOLID_INTERSECTING_COLOR;
+    if (operation === SolidOperation.PassThrough) return SOLID_PASS_THROUGH_COLOR;
     return SOLID_ADDITIVE_COLOR;
   }
 

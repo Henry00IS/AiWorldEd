@@ -14,7 +14,7 @@ import type {
 import { boxToDto, computeBrushWorldBounds, computeModelWorldBounds, vec3ToDto } from './editor_api_math.js';
 import { eulerToDegreesDto } from './editor_api_snap.js';
 import { findBrush, findCsgGroup, findSolidModel, listSolidModels } from './editor_api_lookup.js';
-import { solidOperationToName } from './editor_api_operations.js';
+import { solidGroupOperationToName, solidOperationToName } from './editor_api_operations.js';
 import { APPLICATION_DISPLAY_NAME, APPLICATION_VERSION } from '@/application_identity.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
@@ -288,7 +288,7 @@ export class EditorApiSolidReads {
     return {
       groupId: group.uuid,
       name: group.name,
-      operation: solidOperationToName(getSolidGroupOperation(group)),
+      operation: solidGroupOperationToName(getSolidGroupOperation(group)),
       modelId: model.root.uuid,
       parentGroupId,
       childBrushIds,
@@ -372,7 +372,7 @@ export class EditorApiSolidReads {
         id: child.uuid,
         name: child.name || 'Group',
         kind: 'csg_group',
-        operation: solidOperationToName(getSolidGroupOperation(child)),
+        operation: solidGroupOperationToName(getSolidGroupOperation(child)),
         children: this.collectSolidContentChildren(model, child),
       };
     }

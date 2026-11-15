@@ -2,6 +2,7 @@ import type {
   McpBounds,
   McpBrushOrderEnd,
   McpDetailLevel,
+  McpSolidGroupOperationName,
   McpSolidOperationName,
   McpVec3,
 } from '@/ai/shared/mcp_protocol_types.js';
@@ -10,6 +11,7 @@ export type {
   McpBounds,
   McpBrushOrderEnd,
   McpDetailLevel,
+  McpSolidGroupOperationName,
   McpSolidOperationName,
   McpVec3,
 } from '@/ai/shared/mcp_protocol_types.js';
@@ -47,7 +49,7 @@ export interface SolidBrushSummaryDto {
 export interface SolidCsgGroupSummaryDto {
   groupId: string;
   name: string;
-  operation: McpSolidOperationName;
+  operation: McpSolidGroupOperationName;
   modelId: string;
   /** Parent group uuid, or null when parented under the solid model root. */
   parentGroupId: string | null;
@@ -116,7 +118,7 @@ export interface HierarchyNodeDto {
   name: string;
   kind: 'solid_model' | 'csg_group' | 'brush' | 'other';
   /** Present on brushes and csg_group nodes. */
-  operation?: McpSolidOperationName;
+  operation?: McpSolidGroupOperationName;
   children: HierarchyNodeDto[];
 }
 
@@ -154,13 +156,13 @@ export interface CreateCsgGroupArgs {
   /** Display name for the new group (default GroupN). */
   name?: string;
   /** Branch CSG operation when combining into the parent (default additive). */
-  operation?: McpSolidOperationName;
+  operation?: McpSolidGroupOperationName;
 }
 
 /** Set CSG operation on solid compound groups. */
 export interface SetGroupOperationArgs {
   groupIds: string[];
-  operation: McpSolidOperationName;
+  operation: McpSolidGroupOperationName;
 }
 
 /** Ungroup solid CSG compounds (children reparent to the former group parent). */

@@ -46,6 +46,15 @@ describe('SolidCsgOperationIcons', () => {
     expect(countFilledRects(markup)).toBe(1);
     expect(countOutlineRects(markup)).toBe(2);
   });
+
+  it('draws only two dashed outlines for pass-through', () => {
+    const markup = SolidCsgOperationIcons.passThrough();
+    expect(markup.startsWith('<svg')).toBe(true);
+    expect(countFilledRects(markup)).toBe(0);
+    expect(countOutlineRects(markup)).toBe(2);
+    expect(markup.match(/stroke-dasharray=/g)).toHaveLength(2);
+    expect(markup).not.toContain('#1a1a1a');
+  });
 });
 
 /**

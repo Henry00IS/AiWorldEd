@@ -18,7 +18,7 @@ import { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { getSolidGroupOperation, isSolidCsgGroup, markAsSolidCsgGroup } from '@/solid/model/solid_group.js';
-import { SolidOperation } from '@/solid/types/solid_operation.js';
+import { SolidOperation, solidOperationBrushRead } from '@/solid/types/solid_operation.js';
 import { createWingEdge, createSolidFace } from '@/solid/types/wing_edge.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
 import {
@@ -441,7 +441,7 @@ export class SolidModelCodec {
    */
   static brushDecode(data: SerializedSolidBrush): SolidBrushInstance {
     const brush = this.decodeBrushGeometry(data);
-    const instance = new SolidBrushInstance(data.id, data.name, brush, data.operation ?? SolidOperation.Additive);
+    const instance = new SolidBrushInstance(data.id, data.name, brush, solidOperationBrushRead(data.operation));
     preservedFieldsCapture(instance, 'brush', data);
     instance.position.set(data.position.x, data.position.y, data.position.z);
     instance.rotation.set(data.rotation.x, data.rotation.y, data.rotation.z, 'XYZ');

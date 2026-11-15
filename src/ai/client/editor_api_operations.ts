@@ -1,5 +1,5 @@
 import { SolidOperation } from '@/solid/types/solid_operation.js';
-import type { McpSolidOperationName } from '@/ai/shared/mcp_protocol_types.js';
+import type { McpSolidGroupOperationName, McpSolidOperationName } from '@/ai/shared/mcp_protocol_types.js';
 
 /**
  * Maps a solid operation enum to an MCP string name.
@@ -24,6 +24,29 @@ export function nameToSolidOperation(name: string | undefined): SolidOperation |
   if (name === 'subtractive') return SolidOperation.Subtractive;
   if (name === 'intersecting') return SolidOperation.Intersecting;
   return null;
+}
+
+/**
+ * Maps a solid group operation enum to an MCP string name.
+ *
+ * @param operation Group operation enum value.
+ * @returns MCP group operation name.
+ */
+export function solidGroupOperationToName(operation: SolidOperation): McpSolidGroupOperationName {
+  if (operation === SolidOperation.PassThrough) return 'passthrough';
+  return solidOperationToName(operation);
+}
+
+/**
+ * Maps an MCP group operation name to the solid operation enum. Accepts the
+ * brush operations and the group-only passthrough.
+ *
+ * @param name MCP group operation name or unknown string.
+ * @returns Solid operation or null when invalid.
+ */
+export function nameToSolidGroupOperation(name: string | undefined): SolidOperation | null {
+  if (name === 'passthrough') return SolidOperation.PassThrough;
+  return nameToSolidOperation(name);
 }
 
 /**

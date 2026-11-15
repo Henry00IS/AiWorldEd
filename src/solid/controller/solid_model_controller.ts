@@ -423,12 +423,14 @@ export class SolidModelController {
 
   /**
    * Sets the CSG operation on solid brush meshes and generator nodes, whose
-   * pieces inherit it (one undo step).
+   * pieces inherit it (one undo step). The group-only pass-through operation
+   * leaves them unchanged.
    *
    * @param meshes Brush preview meshes and generator nodes.
    * @param operation New operation.
    */
   setBrushOperationForMeshes(meshes: THREE.Mesh[], operation: SolidOperation): void {
+    if (operation === SolidOperation.PassThrough) return;
     const brushes = meshes.filter((mesh) => !ModifierVolume.isGenerator(mesh));
     const commands = modifierGeneratorOperationCommands(
       meshes.filter((mesh) => ModifierVolume.isGenerator(mesh)),

@@ -1,4 +1,4 @@
-import { MCP_SCHEMA_OPERATION } from '@/ai/client/tools/mcp_tool_schema.js';
+import { MCP_SCHEMA_GROUP_OPERATION } from '@/ai/client/tools/mcp_tool_schema.js';
 import type { McpTool } from '@/ai/client/tools/mcp_tool.js';
 import { McpToolGroup } from '@/ai/client/tools/mcp_tool_group.js';
 import type { EditorApiParts } from '@/ai/client/editor_api_parts.js';
@@ -49,7 +49,7 @@ export class McpToolsCsgGroup extends McpToolGroup {
       {
         name: 'csg_group_create',
         description:
-          'Group solid brushes and/or nested CSG groups into a new solid CSG compound (same as outliner Group). Members stay under the solid model. operation is the branch op when the group combines into its parent (default additive). Optional parentGroupId nests the new group under another group (must not be a member or under a member).',
+          'Group solid brushes and/or nested CSG groups into a new solid CSG compound (same as outliner Group). Members stay under the solid model. operation is the branch op when the group combines into its parent (default additive); passthrough makes it a plain folder whose members combine in the parent as if ungrouped. Optional parentGroupId nests the new group under another group (must not be a member or under a member).',
         inputSchema: {
           type: 'object',
           properties: {
@@ -68,7 +68,7 @@ export class McpToolsCsgGroup extends McpToolGroup {
               type: 'string',
               description: 'Display name shown in the outliner; stable names make brush_find easy.',
             },
-            operation: MCP_SCHEMA_OPERATION,
+            operation: MCP_SCHEMA_GROUP_OPERATION,
           },
           required: ['modelId'],
         },
@@ -78,12 +78,12 @@ export class McpToolsCsgGroup extends McpToolGroup {
       {
         name: 'csg_group_operation_set',
         description:
-          'Set CSG operation on solid CSG groups (branch ops). Additive keeps yellow folder in outliner; subtractive/intersecting show red/blue badges. Rebuilds solid CSG.',
+          'Set CSG operation on solid CSG groups (branch ops). Additive keeps yellow folder in outliner; subtractive/intersecting show red/blue badges; passthrough shows an open folder with a gray badge and makes the group a plain folder whose children combine in the parent as if ungrouped. Rebuilds solid CSG.',
         inputSchema: {
           type: 'object',
           properties: {
             groupIds: { type: 'array', items: { type: 'string' }, description: 'Groups to change.' },
-            operation: MCP_SCHEMA_OPERATION,
+            operation: MCP_SCHEMA_GROUP_OPERATION,
           },
           required: ['groupIds', 'operation'],
         },
