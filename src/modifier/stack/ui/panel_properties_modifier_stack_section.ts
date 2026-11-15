@@ -205,7 +205,7 @@ export class PanelPropertiesModifierStackSection {
   private createBody(): HTMLElement {
     const body = document.createElement('div');
     const toolbar = document.createElement('div');
-    Object.assign(toolbar.style, { display: 'flex', gap: '6px', padding: '2px 6px 6px' });
+    Object.assign(toolbar.style, { display: 'flex', flexWrap: 'wrap', gap: '6px', padding: '2px 6px 6px' });
     toolbar.append(
       modifierStackAddButton((anchor) => this.openAddMenu(anchor)),
       this.convert,
@@ -713,7 +713,13 @@ function modifierStackAddButton(onOpen: (anchor: HTMLElement) => void): HTMLButt
   label.className = MODIFIER_STACK_UI_CLASSES.ellipsis;
   button.append(icon, label);
   Object.assign(button.style, { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' });
-  Object.assign(button.style, { minWidth: '0', whiteSpace: 'nowrap', height: '26px', padding: '0 8px' });
+  Object.assign(button.style, {
+    flex: '1 1 110px',
+    minWidth: '0',
+    whiteSpace: 'nowrap',
+    height: '26px',
+    padding: '0 8px',
+  });
   return button;
 }
 

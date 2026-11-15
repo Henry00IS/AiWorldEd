@@ -13,6 +13,12 @@ export const MODIFIER_STACK_CONVERT_HINT =
 export function modifierStackConvertButton(onConvert: () => void): HTMLButtonElement {
   const button = modifierStackUiTextButton('Convert to Brush', MODIFIER_STACK_CONVERT_HINT, () => onConvert());
   button.dataset['generatorConvert'] = '';
-  Object.assign(button.style, { minWidth: '0', whiteSpace: 'nowrap', height: '26px', padding: '0 8px' });
+  Object.assign(button.style, {
+    flex: '1 1 110px',
+    minWidth: '0',
+    whiteSpace: 'nowrap',
+    height: '26px',
+    padding: '0 8px',
+  });
   return button;
 }
