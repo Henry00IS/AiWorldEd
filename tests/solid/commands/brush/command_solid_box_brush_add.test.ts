@@ -44,6 +44,30 @@ describe('CommandSolidBoxBrushAdd', () => {
     expect(xAxis.z).toBeCloseTo(-Math.sin(yaw), 5);
   });
 
+  it('adds a wedge brush as a plain brush with the same undo and redo', () => {
+    const model = new SolidModel('AddWedge');
+    const command = new CommandSolidBoxBrushAdd(
+      model,
+      2,
+      SolidOperation.Subtractive,
+      new THREE.Vector3(1, 0, 0),
+      null,
+      null,
+      null,
+      'wedge',
+    );
+    command.execute();
+    const created = command.getCreatedBrush()!;
+    expect(created.brush.vertices).toHaveLength(6);
+    expect(created.operation).toBe(SolidOperation.Subtractive);
+    expect(created.position.x).toBeCloseTo(1);
+    expect(created.mesh?.parent).toBe(model.root);
+    command.undo();
+    expect(model.getBrushCount()).toBe(0);
+    command.execute();
+    expect(model.findBrush(created.id)?.brush.vertices).toHaveLength(6);
+  });
+
   it('re-inserts the same brush on redo', () => {
     const model = new SolidModel('AddBrushRedo');
     const command = new CommandSolidBoxBrushAdd(model, 2, SolidOperation.Additive, new THREE.Vector3());

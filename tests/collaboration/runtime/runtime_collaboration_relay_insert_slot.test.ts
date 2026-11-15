@@ -58,7 +58,7 @@ describe('collaboration insert beside a selected group over the relay', { timeou
     const { owner, room } = await harnessRelayRoomBuilt('insert slot', sceneBuild);
     const alice = await harnessRelayJoin(room, 'Alice');
     await alice.select('Group');
-    alice.solids().addBoxBrush();
+    alice.solids().addBrush();
     const created = alice.selection.getLastSelectedObject();
     expect(created?.parent?.name).toBe('Solid');
     const expected = rootChildNames(alice);

@@ -39,7 +39,7 @@ describe('HandlerAlignment solid pose commit', () => {
       world,
       stack,
       selection,
-      new SolidModelPanel(document.createElement('div'), { onAddBoxBrush: () => undefined }),
+      new SolidModelPanel(document.createElement('div'), { onAddBrush: () => undefined }),
     );
     let finalizeCalls = 0;
     handler.setAfterTransformCommit((objects) => {

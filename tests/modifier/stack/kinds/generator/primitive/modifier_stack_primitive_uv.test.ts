@@ -33,7 +33,7 @@ describe('primitive generator texture mapping', () => {
   });
 
   it('textures every flat shape at one repeat per metre', () => {
-    for (const kind of ['wedge', 'pyramid', 'prism', 'hollowBox']) {
+    for (const kind of ['pyramid', 'prism', 'hollowBox']) {
       for (const face of primitiveMappedFaces(primitivePieces(kind, [3, 2, 4]).pieces)) {
         const [a, b] = face.corners;
         if (!a || !b) continue;
@@ -43,7 +43,7 @@ describe('primitive generator texture mapping', () => {
   });
 
   it('never mirrors a texture: U, V and the face normal stay right-handed', () => {
-    for (const kind of ['torus', 'pipe', 'curvedStairs', 'wedge', 'hollowBox', 'sphere']) {
+    for (const kind of ['torus', 'pipe', 'curvedStairs', 'hollowBox', 'sphere']) {
       for (const piece of primitivePieces(kind, [3, 2, 3]).pieces)
         piece.brush.faces.forEach((face, index) => {
           const uv = piece.getFaceSurface(face.surfaceIndex).uv;

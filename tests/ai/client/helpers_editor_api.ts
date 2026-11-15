@@ -27,7 +27,7 @@ export function editorApiFixtureCreate(overrides: Partial<EditorApiHost> = {}): 
   const world = new THREE.Group();
   const stack = new CommandStack(256);
   const selection = new ManagerSelection();
-  const panel = new SolidModelPanel(document.createElement('div'), { onAddBoxBrush: () => undefined });
+  const panel = new SolidModelPanel(document.createElement('div'), { onAddBrush: () => undefined });
   const host: EditorApiHost = {
     worldObject: world,
     commandStack: stack,

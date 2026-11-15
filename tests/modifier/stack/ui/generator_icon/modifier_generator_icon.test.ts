@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MODIFIER_GENERATOR_NODE_KINDS } from '@/modifier/stack/modifier_generator_node.js';
 import {
-  modifierGeneratorIconBoxSvg,
+  modifierGeneratorIconBrushSvg,
   modifierGeneratorIconSvg,
 } from '@/modifier/stack/ui/generator_icon/modifier_generator_icon.js';
 
@@ -43,9 +43,11 @@ describe('generator icons', () => {
     }
   });
 
-  it('draws the box brush the same way and returns the same markup every time', () => {
-    expect(parse(modifierGeneratorIconBoxSvg()).querySelectorAll('polygon')).toHaveLength(3);
+  it('draws the box and wedge brushes the same way and returns the same markup every time', () => {
+    expect(parse(modifierGeneratorIconBrushSvg('box')).querySelectorAll('polygon')).toHaveLength(3);
+    expect(parse(modifierGeneratorIconBrushSvg('wedge')).querySelectorAll('polygon').length).toBeGreaterThanOrEqual(2);
+    expect(modifierGeneratorIconBrushSvg('wedge')).not.toBe(modifierGeneratorIconBrushSvg('box'));
     expect(modifierGeneratorIconSvg('sphere')).toBe(modifierGeneratorIconSvg('sphere'));
-    expect(modifierGeneratorIconSvg('unknownKind')).toBe(modifierGeneratorIconBoxSvg());
+    expect(modifierGeneratorIconSvg('unknownKind')).toBe(modifierGeneratorIconBrushSvg('box'));
   });
 });

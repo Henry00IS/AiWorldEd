@@ -60,8 +60,6 @@ describe('primitive generator volumes', () => {
   });
 
   it('match flat solids exactly', () => {
-    expect(volume('wedge', [2, 1, 3])).toBeCloseTo(3, 6);
-    expect(volume('wedge', [2, 1, 3], { direction: '-x' })).toBeCloseTo(3, 6);
     expect(volume('pyramid', [2, 3, 2])).toBeCloseTo(4, 6);
     expect(volume('pyramid', [2, 3, 2], { topSize: 0.5 })).toBeCloseTo((3 * (4 + 1 + 2)) / 3, 6);
     expect(volume('prism', [2, 1, 3])).toBeCloseTo(3, 6);

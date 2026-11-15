@@ -15,7 +15,6 @@ const PRIMITIVE_KINDS = [
   'capsule',
   'torus',
   'pipe',
-  'wedge',
   'pyramid',
   'prism',
   'hollowBox',
@@ -54,7 +53,7 @@ describe('primitive generators', () => {
   });
 
   it('fill the box: their bounds touch every side of the volume', () => {
-    for (const kind of ['cylinder', 'sphere', 'capsule', 'torus', 'pipe', 'wedge', 'pyramid', 'prism', 'hollowBox']) {
+    for (const kind of ['cylinder', 'sphere', 'capsule', 'torus', 'pipe', 'pyramid', 'prism', 'hollowBox']) {
       const { pieces, box } = primitivePieces(kind, [2, 3, 2], { sides: 64, ringSides: 64 });
       const bounds = new THREE.Box3();
       for (const piece of pieces) for (const vertex of piece.brush.vertices) bounds.expandByPoint(vertex);

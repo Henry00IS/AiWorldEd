@@ -55,7 +55,7 @@ describe('Solid model active context', () => {
     expect(selection.getSelectedObjects().size).toBe(0);
     expect(model.getBrushCount()).toBe(1);
 
-    controller.addBoxBrush();
+    controller.addBrush();
     expect(model.getBrushCount()).toBe(2);
     expect(panel.getModel()).toBe(model);
     void first;
@@ -87,7 +87,7 @@ describe('Solid model active context', () => {
     expect(panel.getModel()).toBeNull();
     expect(controller.adoptFirstSolidModelInWorld()).toBe(true);
     expect(panel.getModel()).toBe(startup);
-    controller.addBoxBrush();
+    controller.addBrush();
     expect(startup.getBrushCount()).toBe(2);
   });
 
@@ -106,7 +106,7 @@ describe('Solid model active context', () => {
     group.add(nested.mesh!);
     model.syncBrushOrderFromScene();
     selection.selectObject(nested.mesh!);
-    controller.addBoxBrush();
+    controller.addBrush();
     expect(model.getBrushCount()).toBe(3);
     const created = model.getBrushes().find((brush) => brush.id !== rootBrush.id && brush.id !== nested.id);
     expect(created?.mesh?.parent).toBe(group);

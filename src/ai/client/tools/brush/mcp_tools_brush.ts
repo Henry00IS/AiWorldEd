@@ -31,13 +31,22 @@ import type {
   SetBrushTransformArgs,
   SplitBrushArgs,
 } from '@/ai/client/editor_api_types.js';
+import { SOLID_BRUSH_SHAPES } from '@/solid/brush/solid_brush_shape.js';
+
+/** Shape of a new plain brush. */
+const MCP_SCHEMA_BRUSH_SHAPE = {
+  type: 'string',
+  enum: [...SOLID_BRUSH_SHAPES],
+  description: 'box (default) or wedge: a ramp filling the size, full height at +Z, an edge on the floor at -Z.',
+};
+
 /**
- * Convex brushes: read, find, create boxes, transform, clip, split, order,
- * delete.
+ * Convex brushes: read, find, create boxes and wedges, transform, clip, split,
+ * order, delete.
  */
 export class McpToolsBrush extends McpToolGroup {
   readonly category = 'brush';
-  readonly summary = 'Convex brushes: read, find, create boxes, transform, clip, split, order, delete.';
+  readonly summary = 'Convex brushes: read, find, create boxes and wedges, transform, clip, split, order, delete.';
 
   /**
    * Creates the group.
@@ -197,11 +206,12 @@ export class McpToolsBrush extends McpToolGroup {
       {
         name: 'brush_box_add',
         description:
-          'Add a convex box brush. Model-local, right-handed Y-up. Use rotationDegrees (not radians). Optional name. Optional parentGroupId to nest under a solid CSG group. Snaps unless snap:false or exact:true. operation: additive|subtractive|intersecting.',
+          'Add a convex box brush, or a wedge (ramp) brush with shape:wedge that is full height at +Z and comes to an edge on the floor at -Z. Model-local, right-handed Y-up. Use rotationDegrees (not radians). Optional name. Optional parentGroupId to nest under a solid CSG group. Snaps unless snap:false or exact:true. operation: additive|subtractive|intersecting.',
         inputSchema: {
           type: 'object',
           properties: {
             modelId: { type: 'string', description: 'Solid model id from solid_model_list.' },
+            shape: MCP_SCHEMA_BRUSH_SHAPE,
             size: {
               oneOf: [{ type: 'number' }, MCP_SCHEMA_VECTOR3],
               description: 'Full size in meters: one number for a cube, or {x,y,z}.',
@@ -225,7 +235,7 @@ export class McpToolsBrush extends McpToolGroup {
       {
         name: 'brush_boxes_add',
         description:
-          'Batch create many box brushes. Per entry: size/position/rotationDegrees/scale/operation/name/parentGroupId plus optional nameAfter|nameBefore|brushIdAfter|brushIdBefore for CSG order.',
+          'Batch create many box or wedge brushes. Per entry: shape/size/position/rotationDegrees/scale/operation/name/parentGroupId plus optional nameAfter|nameBefore|brushIdAfter|brushIdBefore for CSG order.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -237,6 +247,7 @@ export class McpToolsBrush extends McpToolGroup {
               items: {
                 type: 'object',
                 properties: {
+                  shape: MCP_SCHEMA_BRUSH_SHAPE,
                   size: {
                     oneOf: [{ type: 'number' }, MCP_SCHEMA_VECTOR3],
                     description: 'Full size in meters: one number for a cube, or {x,y,z}.',

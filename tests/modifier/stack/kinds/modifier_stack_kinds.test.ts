@@ -43,7 +43,6 @@ describe('modifier stack kinds', () => {
       'capsule',
       'torus',
       'pipe',
-      'wedge',
       'pyramid',
       'prism',
       'hollowBox',

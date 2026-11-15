@@ -161,7 +161,7 @@ difference() { translate([-2, -0.1, 0]) cube([4, 0.2, 3.5]); arch(); }
 ## Generators, modifiers and curves
 
 - `modifier_kind_list` with `kindId` lists every property of a kind. Each entry gives key, label, type, range, choices, default and the inspector tooltip, plus the kind's presets. The list is read from the same field descriptors the inspector draws, so new inspector fields show up in MCP by themselves.
-- `modifier_generator_create` adds a generator inside a solid model: Cylinder, Cone, Sphere, Capsule, Torus, Pipe, Wedge, Pyramid, Prism, Hollow Box, Column, Stairs, Curved Stairs, Arch, Blast Hole. `modifier_stack_bake` on the node is Convert to Brush. `modifier_volume_create` adds a scene-level modifier volume from an Add menu template.
+- `modifier_generator_create` adds a generator inside a solid model: Cylinder, Cone, Sphere, Capsule, Torus, Pipe, Pyramid, Prism, Hollow Box, Column, Stairs, Curved Stairs, Arch, Blast Hole. `modifier_stack_bake` on the node is Convert to Brush. `modifier_volume_create` adds a scene-level modifier volume from an Add menu template.
 - `modifier_parameters_set` validates like the inspector does. Unknown keys are refused with the valid list. Numbers are clamped to their range with a warning. Objects are referenced by id, and curves are given as curve data. Bevel options use `options.<name>` keys.
 - Curve properties, such as a column `profile`, are edited with the `curve_*` tools. Coordinates run 0..1: x along the curve and y the value, y up. Segment i joins points i and i+1. `curve_get` reports handles as absolute positions, and `curve_point_set` takes them the same way.
 
@@ -288,8 +288,8 @@ Convex brushes: read, find, create boxes, transform, clip, split, order, delete.
 | `brush_validate`          | Validate convex brush topology for one brush.                                                                                                                    |
 | `brush_box_preview`       | Dry-run create: same TRS fields as brush_box_add but does not create.                                                                                            |
 | `brush_transform_preview` | Dry-run: predicted world bounds/size/center for a proposed position/rotationDegrees/scale without applying.                                                      |
-| `brush_box_add`           | Add a convex box brush.                                                                                                                                          |
-| `brush_boxes_add`         | Batch create many box brushes.                                                                                                                                   |
+| `brush_box_add`           | Add a convex box brush, or a wedge brush with `shape: wedge`.                                                                                                    |
+| `brush_boxes_add`         | Batch create many box or wedge brushes.                                                                                                                          |
 | `brush_duplicate`         | Duplicate brushes and/or solid CSG groups (groupIds clones the whole nested compound).                                                                           |
 | `brush_mirror`            | Mirror across X or Z.                                                                                                                                            |
 | `brush_operation_set`     | Set CSG operation on brushes.                                                                                                                                    |
@@ -317,7 +317,7 @@ Architectural helpers: walls, room shells, doors and windows.
 
 ### modifier
 
-Modifier stacks: kinds and parameters with tooltips, modifier volumes, generators (Cylinder, Cone, Sphere, Capsule, Torus, Pipe, Wedge, Pyramid, Prism, Hollow Box, Column, Stairs, Curved Stairs, Arch, Blast Hole), buttons, entries, parameters, presets, bake.
+Modifier stacks: kinds and parameters with tooltips, modifier volumes, generators (Cylinder, Cone, Sphere, Capsule, Torus, Pipe, Pyramid, Prism, Hollow Box, Column, Stairs, Curved Stairs, Arch, Blast Hole), buttons, entries, parameters, presets, bake.
 
 | Tool                          | Purpose                                                                                                                                          |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |

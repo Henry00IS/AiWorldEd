@@ -8,6 +8,7 @@ import {
 import { CommandStack } from '@/commands/command_stack.js';
 import { CommandSolidModelCreate } from '@/solid/commands/model/command_solid_model_create.js';
 import { CommandSolidBoxBrushAdd } from '@/solid/commands/brush/command_solid_box_brush_add.js';
+import type { SolidBrushShape } from '@/solid/brush/solid_brush_shape.js';
 import { CommandModifierVolumeCreate } from '@/modifier/stack/command_modifier_volume_create.js';
 import { modifierGeneratorNodeCreate, modifierGeneratorNodePlace } from '@/modifier/stack/modifier_generator_node.js';
 import {
@@ -318,17 +319,20 @@ export class SolidModelController {
   }
 
   /**
-   * Adds a box brush under the active solid model and selects it. Spawns
-   * grid-aligned in front of the active camera (model-local space). Goes under
-   * the most recently selected solid parent, or right after a selected CSG
-   * group.
+   * Adds a box or wedge brush under the active solid model and selects it.
+   * Spawns grid-aligned in front of the active camera (model-local space). Goes
+   * under the most recently selected solid parent, or right after a selected
+   * CSG group.
+   *
+   * @param shape Brush shape.
    */
-  addBoxBrush(): void {
+  addBrush(shape: SolidBrushShape = 'box'): void {
     const placement = this.resolveInsertPlacement();
     if (!placement) return;
     const { model, parent, after, offset, rotation } = placement;
     const size = SOLID_MODEL_STARTUP_DEFAULT_BRUSH_SIZE;
-    const command = new CommandSolidBoxBrushAdd(model, size, SolidOperation.Additive, offset, parent, rotation, after);
+    const operation = SolidOperation.Additive;
+    const command = new CommandSolidBoxBrushAdd(model, size, operation, offset, parent, rotation, after, shape);
     this.commandStack.push(command);
     this.finishInsert(command.getCreatedBrush()?.mesh ?? null, command.getCreatedBrush()?.name ?? 'brush');
   }

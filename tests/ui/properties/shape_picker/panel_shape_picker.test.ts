@@ -9,19 +9,22 @@ import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.j
  * @returns Picker element and handlers.
  */
 function picker() {
-  const onAddBoxBrush = vi.fn();
+  const onAddBrush = vi.fn();
   const onAddGenerator = vi.fn();
-  const element = new PanelShapePicker({ onAddBoxBrush, onAddGenerator }).getElement();
+  const element = new PanelShapePicker({ onAddBrush, onAddGenerator }).getElement();
   document.body.replaceChildren(element);
-  return { element, onAddBoxBrush, onAddGenerator };
+  return { element, onAddBrush, onAddGenerator };
 }
 
 describe('shape picker', () => {
-  it('offers the box brush first, then one icon tile per generator kind', () => {
+  it('offers the box and wedge brushes first, then one icon tile per generator kind', () => {
     const { element } = picker();
     const tiles = [...element.querySelectorAll<HTMLButtonElement>('button')];
     expect(tiles[0]?.getAttribute('aria-label')).toBe('Add Box Brush');
-    const kinds = tiles.slice(1).map((tile) => tile.dataset['addGenerator']);
+    expect(tiles[1]?.getAttribute('aria-label')).toBe('Add Wedge Brush');
+    expect(tiles[0]?.innerHTML).not.toBe(tiles[1]?.innerHTML);
+    const kinds = tiles.slice(2).map((tile) => tile.dataset['addGenerator']);
+    expect(kinds).not.toContain('wedge');
     expect(kinds).toEqual([...MODIFIER_GENERATOR_NODE_KINDS]);
     for (const tile of tiles) {
       expect(tile.querySelector('svg')).not.toBeNull();
@@ -41,9 +44,12 @@ describe('shape picker', () => {
   });
 
   it('adds the clicked shape and names the hovered tile in the caption', () => {
-    const { element, onAddBoxBrush, onAddGenerator } = picker();
+    const { element, onAddBrush, onAddGenerator } = picker();
     element.querySelector<HTMLButtonElement>('button[aria-label="Add Box Brush"]')?.click();
-    expect(onAddBoxBrush).toHaveBeenCalledTimes(1);
+    expect(onAddBrush).toHaveBeenLastCalledWith('box');
+    element.querySelector<HTMLButtonElement>('button[aria-label="Add Wedge Brush"]')?.click();
+    expect(onAddBrush).toHaveBeenLastCalledWith('wedge');
+    expect(onAddGenerator).not.toHaveBeenCalled();
     const sphere = element.querySelector<HTMLButtonElement>('button[data-add-generator="sphere"]');
     sphere?.click();
     expect(onAddGenerator).toHaveBeenCalledWith('sphere');

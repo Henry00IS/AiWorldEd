@@ -1,15 +1,16 @@
 import { MODIFIER_GENERATOR_NODE_KINDS } from '@/modifier/stack/modifier_generator_node.js';
 import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
 import {
-  modifierGeneratorIconBoxSvg,
+  modifierGeneratorIconBrushSvg,
   modifierGeneratorIconSvg,
 } from '@/modifier/stack/ui/generator_icon/modifier_generator_icon.js';
+import { SOLID_BRUSH_SHAPE_LABELS, SOLID_BRUSH_SHAPES, type SolidBrushShape } from '@/solid/brush/solid_brush_shape.js';
 import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 
 /** What the picker does when a tile is clicked. */
 export interface PanelShapePickerHandlers {
-  /** Adds a plain box brush. */
-  onAddBoxBrush: () => void;
+  /** Adds a plain brush of a shape. */
+  onAddBrush: (shape: SolidBrushShape) => void;
   /** Adds a generator node of a kind. */
   onAddGenerator: (kind: string) => void;
 }
@@ -23,9 +24,16 @@ const PANEL_SHAPE_PICKER_TILE_CLASS = 'aiworlded-shape-picker-tile';
 /** Identifier of the shared tile stylesheet. */
 const PANEL_SHAPE_PICKER_STYLE_ID = 'aiworlded-shape-picker-style';
 
+/** What adding each plain brush shape does. */
+const PANEL_SHAPE_PICKER_BRUSH_DESCRIPTIONS: Readonly<Record<SolidBrushShape, string>> = {
+  box: 'Adds a plain box brush to the solid model.',
+  wedge: 'Adds a plain wedge (ramp) brush to the solid model, edited like any other brush.',
+};
+
 /**
- * Grid of icon tiles adding a box brush or a generator node to the solid, each
- * icon drawn from the shape itself. A caption above names the hovered tile.
+ * Grid of icon tiles adding a box or wedge brush or a generator node to the
+ * solid, each icon drawn from the shape itself. A caption above names the
+ * hovered tile.
  */
 export class PanelShapePicker {
   private readonly element: HTMLElement;
@@ -58,7 +66,7 @@ export class PanelShapePicker {
   }
 
   /**
-   * Builds the tile grid: the box brush first, then every generator kind.
+   * Builds the tile grid: the plain brushes first, then every generator kind.
    *
    * @returns Grid element.
    */
@@ -70,14 +78,29 @@ export class PanelShapePicker {
       gridTemplateColumns: 'repeat(auto-fill, minmax(34px, 1fr))',
       gap: '4px',
     });
-    const box = this.createTile(
-      'Box Brush',
-      'Adds a plain box brush to the solid model.',
-      modifierGeneratorIconBoxSvg(),
+    grid.append(
+      ...SOLID_BRUSH_SHAPES.map((shape) => this.createBrushTile(shape)),
+      ...MODIFIER_GENERATOR_NODE_KINDS.map((kind) => this.createGeneratorTile(kind)),
     );
-    box.addEventListener('click', () => this.handlers.onAddBoxBrush());
-    grid.append(box, ...MODIFIER_GENERATOR_NODE_KINDS.map((kind) => this.createGeneratorTile(kind)));
     return grid;
+  }
+
+  /**
+   * Builds the tile of one plain brush shape.
+   *
+   * @param shape Brush shape.
+   * @returns Tile button.
+   */
+  private createBrushTile(shape: SolidBrushShape): HTMLButtonElement {
+    const label = SOLID_BRUSH_SHAPE_LABELS[shape];
+    const tile = this.createTile(
+      label,
+      PANEL_SHAPE_PICKER_BRUSH_DESCRIPTIONS[shape],
+      modifierGeneratorIconBrushSvg(shape),
+    );
+    tile.dataset['addBrush'] = shape;
+    tile.addEventListener('click', () => this.handlers.onAddBrush(shape));
+    return tile;
   }
 
   /**

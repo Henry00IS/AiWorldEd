@@ -11,6 +11,7 @@ import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierGeneratorOperationRead } from '@/modifier/stack/modifier_generator_operation.js';
 import { solidHierarchyReorderable } from '@/solid/commands/brushes/command_solid_brushes_reorder.js';
+import type { SolidBrushShape } from '@/solid/brush/solid_brush_shape.js';
 
 /** Handlers for solid-brush context controls in the inspector. */
 export interface SolidBrushPropertyHandlers {
@@ -28,7 +29,8 @@ export interface SolidBrushPropertyHandlers {
    * @param operation New group operation.
    */
   onSetGroupOperation?: (groups: THREE.Group[], operation: SolidOperation) => void;
-  onAddBoxBrush: () => void;
+  /** Adds a plain brush of a shape to the solid model. */
+  onAddBrush: (shape: SolidBrushShape) => void;
   /**
    * Adds a Column, Stairs, or Arch generator node inside the solid model.
    *
@@ -171,9 +173,13 @@ export class PanelPropertiesSolidBrushSection {
     this.updateFromObjects(boundObjects);
   }
 
-  /** Invokes the add-box-brush handler when configured. */
-  requestAddBoxBrush(): void {
-    this.handlers?.onAddBoxBrush();
+  /**
+   * Invokes the add-brush handler when configured.
+   *
+   * @param shape Brush shape.
+   */
+  requestAddBrush(shape: SolidBrushShape): void {
+    this.handlers?.onAddBrush(shape);
   }
 
   /**
@@ -453,13 +459,13 @@ export class PanelPropertiesSolidBrushSection {
   }
 
   /**
-   * Builds the shape picker adding a box brush or a generator node.
+   * Builds the shape picker adding a plain brush or a generator node.
    *
    * @returns Picker element.
    */
   private createShapePicker(): HTMLElement {
     return new PanelShapePicker({
-      onAddBoxBrush: () => this.requestAddBoxBrush(),
+      onAddBrush: (shape) => this.requestAddBrush(shape),
       onAddGenerator: (kind) => this.handlers?.onAddGenerator?.(kind),
     }).getElement();
   }

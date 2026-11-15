@@ -3,10 +3,12 @@ import { PanelShapePicker } from '@/ui/properties/shape_picker/panel_shape_picke
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
 import { applyFloatingPanelToolChrome } from '@/ui/floating_panel/panel_floating_tool_chrome.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
+import type { SolidBrushShape } from '@/solid/brush/solid_brush_shape.js';
 
 /** Callbacks for the slim solid model tools panel. */
 export interface SolidModelPanelHandlers {
-  onAddBoxBrush: () => void;
+  /** Adds a plain brush of a shape to the solid model. */
+  onAddBrush: (shape: SolidBrushShape) => void;
   /** Adds a generator node of a kind to the solid model. */
   onAddGenerator?: (kind: string) => void;
 }
@@ -104,7 +106,7 @@ export class SolidModelPanel extends PanelFloating {
   }
 
   /**
-   * Builds the shape picker row adding a box brush or a generator node.
+   * Builds the shape picker row adding a plain brush or a generator node.
    *
    * @returns Toolbar element.
    */
@@ -113,7 +115,7 @@ export class SolidModelPanel extends PanelFloating {
     bar.style.padding = '8px 10px';
     bar.style.borderBottom = `1px solid ${ThemeCss.separatorColor}`;
     const picker = new PanelShapePicker({
-      onAddBoxBrush: () => this.handlers.onAddBoxBrush(),
+      onAddBrush: (shape) => this.handlers.onAddBrush(shape),
       onAddGenerator: (kind) => this.handlers.onAddGenerator?.(kind),
     });
     bar.appendChild(picker.getElement());

@@ -123,6 +123,8 @@ export interface HierarchyNodeDto {
 /** Arguments accepted by brush_box_add. */
 export interface AddBoxBrushArgs {
   modelId: string;
+  /** Brush shape filling the size: box (default) or wedge. */
+  shape?: string;
   size?: number | McpVec3;
   position?: McpVec3;
   /** Local Euler rotation in degrees (XYZ). Preferred. */
@@ -194,6 +196,8 @@ export interface GetCsgGroupArgs {
 
 /** One box entry for brush_boxes_add batch create. */
 export interface AddBoxBrushBatchEntry {
+  /** Brush shape filling the size: box (default) or wedge. */
+  shape?: string;
   size?: number | McpVec3;
   position?: McpVec3;
   rotationDegrees?: McpVec3;

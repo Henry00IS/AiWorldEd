@@ -6,7 +6,7 @@ import { MODIFIER_STACK_CAP_TEXTURE_FIELDS } from '@/modifier/stack/kinds/genera
 import { modifierStackPrimitivePlanarSurfaces } from './modifier_stack_primitive_planar.js';
 
 /**
- * Base class of primitives with only flat faces, such as wedges and pyramids.
+ * Base class of primitives with only flat faces, such as pyramids and prisms.
  * Every face gets a planar mapping anchored at the box corner, so coplanar
  * faces of neighbouring pieces continue one texture, and textures turn with the
  * volume.

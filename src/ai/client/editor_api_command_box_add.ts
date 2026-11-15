@@ -3,11 +3,11 @@ import { UndoCommand } from '@/commands/command_undo.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
-import { SolidBrushFactory } from '@/solid/brush/solid_brush_factory.js';
+import { solidBrushShapeCreate, type SolidBrushShape } from '@/solid/brush/solid_brush_shape.js';
 
 /**
- * Undoable command that adds a sized box brush under a solid model for the AI
- * EditorApi path (supports non-uniform size).
+ * Undoable command that adds a sized box or wedge brush under a solid model for
+ * the AI EditorApi path (supports non-uniform size).
  */
 export class EditorApiCommandAddBox implements UndoCommand {
   private readonly model: SolidModel;
@@ -19,6 +19,7 @@ export class EditorApiCommandAddBox implements UndoCommand {
   private readonly rotation: THREE.Euler;
   private readonly scale: THREE.Vector3;
   private readonly parent: THREE.Object3D | null;
+  private readonly shape: SolidBrushShape;
   private created: SolidBrushInstance | null;
   private listIndex: number;
   private hierarchySiblingIndex: number;
@@ -34,6 +35,7 @@ export class EditorApiCommandAddBox implements UndoCommand {
    * @param rotation Local rotation.
    * @param scale Local scale.
    * @param parent Optional solid CSG group (or solid root) to parent under.
+   * @param shape Brush shape filling the size.
    */
   constructor(
     model: SolidModel,
@@ -43,6 +45,7 @@ export class EditorApiCommandAddBox implements UndoCommand {
     rotation: THREE.Euler,
     scale: THREE.Vector3,
     parent: THREE.Object3D | null = null,
+    shape: SolidBrushShape = 'box',
   ) {
     this.model = model;
     this.width = size.x;
@@ -53,6 +56,7 @@ export class EditorApiCommandAddBox implements UndoCommand {
     this.rotation = rotation.clone();
     this.scale = scale.clone();
     this.parent = parent;
+    this.shape = shape;
     this.created = null;
     this.listIndex = -1;
     this.hierarchySiblingIndex = -1;
@@ -83,9 +87,10 @@ export class EditorApiCommandAddBox implements UndoCommand {
     return this.created;
   }
 
-  /** Builds a new box brush, applies TRS, and records its list index. */
+  /** Builds a new brush of the shape, applies TRS, and records its list index. */
   private createBrush(): void {
-    const topology = SolidBrushFactory.createCenteredBox(this.width, this.height, this.depth);
+    const size = new THREE.Vector3(this.width, this.height, this.depth);
+    const topology = solidBrushShapeCreate(this.shape, size);
     const instance = this.model.prepareTopologyBrush(topology, this.operation, this.position);
     instance.rotation.copy(this.rotation);
     instance.scale.copy(this.scale);

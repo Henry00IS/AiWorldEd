@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
-import { solidHullBrushFromPoints } from '@/solid/algorithm/surface/solid_hull_brush.js';
+import { solidBrushShapeCreate, type SolidBrushShape } from '@/solid/brush/solid_brush_shape.js';
 import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
 import { modifierGeneratorNodeSize } from '@/modifier/stack/modifier_generator_node.js';
 import { ModifierStackKindGenerator } from '@/modifier/stack/kinds/generator/modifier_stack_kind_generator.js';
@@ -59,7 +59,7 @@ export function modifierGeneratorIconSvg(kind: string): string {
   const cached = modifierGeneratorIconCache.get(kind);
   if (cached) return cached;
   const generator = modifierStackKindFind(kind);
-  if (!(generator instanceof ModifierStackKindGenerator)) return modifierGeneratorIconBoxSvg();
+  if (!(generator instanceof ModifierStackKindGenerator)) return modifierGeneratorIconBrushSvg('box');
   const size = new THREE.Vector3(...modifierGeneratorNodeSize(kind));
   const box = new THREE.Box3().setFromCenterAndSize(new THREE.Vector3(), size);
   const markup = modifierGeneratorIconDraw(
@@ -70,17 +70,18 @@ export function modifierGeneratorIconSvg(kind: string): string {
 }
 
 /**
- * Returns the icon of a plain box brush in the same style.
+ * Returns the icon of a plain brush shape in the same style, drawn from the
+ * brush itself.
  *
+ * @param shape Brush shape.
  * @returns SVG markup.
  */
-export function modifierGeneratorIconBoxSvg(): string {
-  const cached = modifierGeneratorIconCache.get('');
+export function modifierGeneratorIconBrushSvg(shape: SolidBrushShape): string {
+  const key = `brush:${shape}`;
+  const cached = modifierGeneratorIconCache.get(key);
   if (cached) return cached;
-  const corners = [-1, 1].flatMap((x) => [-1, 1].flatMap((y) => [-1, 1].map((z) => new THREE.Vector3(x, y, z))));
-  const cube = solidHullBrushFromPoints(corners);
-  const markup = modifierGeneratorIconDraw(cube ? [cube] : []);
-  modifierGeneratorIconCache.set('', markup);
+  const markup = modifierGeneratorIconDraw([solidBrushShapeCreate(shape, new THREE.Vector3(2, 2, 2))]);
+  modifierGeneratorIconCache.set(key, markup);
   return markup;
 }
 
