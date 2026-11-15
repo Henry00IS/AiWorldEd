@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { solidScriptProgramEvaluate } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptShapeLeafCount } from '@/solid_script/language/solid_script_shape.js';
 
-/** Program with one primitive per line and a loop, so steps can be counted per line. */
+/**
+ * Program with one primitive per line and a loop, so steps can be counted per
+ * line.
+ */
 const SOLID_SCRIPT_STEPS_PROGRAM = [
   'cube([1, 1, 1]);',
   'translate([3, 0, 0]) sphere(r = 1);',
@@ -20,7 +23,10 @@ const SOLID_SCRIPT_STEPS_PROGRAM = [
  * @returns Leaf count.
  */
 function leavesAfter(stepLimit?: number): number {
-  const { shapes } = solidScriptProgramEvaluate(SOLID_SCRIPT_STEPS_PROGRAM, stepLimit === undefined ? {} : { stepLimit });
+  const { shapes } = solidScriptProgramEvaluate(
+    SOLID_SCRIPT_STEPS_PROGRAM,
+    stepLimit === undefined ? {} : { stepLimit },
+  );
   return shapes.reduce((sum, shape) => sum + solidScriptShapeLeafCount(shape), 0);
 }
 
