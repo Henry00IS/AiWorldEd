@@ -2,7 +2,8 @@
  * Inline SVG icons for solid CSG operation buttons in the inspector. Top-down
  * two-square layout: back square (X) upper-left, front square (Y) offset
  * down-right. Additive lights both; subtractive darkens Y; intersecting lights
- * only the overlap (I) and darkens the exclusive regions.
+ * only the overlap (I) and darkens the exclusive regions; pass-through draws
+ * both as dashed outlines.
  */
 export class SolidCsgOperationIcons {
   private static readonly viewSize = 18;
@@ -44,6 +45,32 @@ export class SolidCsgOperationIcons {
     return this.wrapSvg(
       this.backExclusiveDark() + this.frontExclusiveDark() + this.overlapLight() + this.bothSquareOutlines(),
     );
+  }
+
+  /**
+   * Same two-square layout drawn as dashed outlines only, with no fill: the
+   * squares are grouped but combine as if they were not.
+   *
+   * @returns SVG markup string.
+   */
+  static passThrough(): string {
+    return this.wrapSvg(
+      this.squareOutlineDashed(this.backX, this.backY) +
+        this.squareOutlineDashed(this.backX + this.frontOffset, this.backY + this.frontOffset),
+    );
+  }
+
+  /**
+   * Dashed full-opacity stroke outline for one square at the given corner.
+   *
+   * @param x Left edge.
+   * @param y Top edge.
+   * @returns SVG rect outline markup.
+   */
+  private static squareOutlineDashed(x: number, y: number): string {
+    const s = this.squareSize;
+    const r = this.cornerRadius;
+    return `<rect x="${this.fmt(x)}" y="${this.fmt(y)}" width="${this.fmt(s)}" height="${this.fmt(s)}" rx="${this.fmt(r)}" fill="none" stroke="${this.outlineStroke}" stroke-width="1.2" stroke-dasharray="2 1.5"/>`;
   }
 
   /**

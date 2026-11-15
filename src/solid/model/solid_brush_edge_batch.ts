@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { isSolidModelObject } from './solid_model_keys.js';
 import { SolidBrushVisual, SOLID_BRUSH_OPERATION_USERDATA_KEY } from './solid_brush_visual.js';
 import { SolidBrushEdgeMaterials, SOLID_BRUSH_EDGE_USERDATA_KEY } from './solid_brush_edge_materials.js';
-import { SolidOperation } from '@/solid/types/solid_operation.js';
+import { SolidOperation, solidOperationBrushRead } from '@/solid/types/solid_operation.js';
 import { modifierStackDerivedByRoot } from '@/modifier/stack/evaluate/modifier_stack_compile.js';
 import type { SolidBrushInstance } from './solid_brush_instance.js';
 
@@ -724,9 +724,6 @@ export class SolidBrushEdgeBatch {
    * @returns Solid operation.
    */
   private static readOperation(mesh: THREE.Mesh): SolidOperation {
-    const value = mesh.userData[SOLID_BRUSH_OPERATION_USERDATA_KEY];
-    if (value === SolidOperation.Subtractive) return SolidOperation.Subtractive;
-    if (value === SolidOperation.Intersecting) return SolidOperation.Intersecting;
-    return SolidOperation.Additive;
+    return solidOperationBrushRead(mesh.userData[SOLID_BRUSH_OPERATION_USERDATA_KEY]);
   }
 }

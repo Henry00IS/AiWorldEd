@@ -46,7 +46,7 @@ Keep the editor open with MCP started while Grok uses the tools.
 
 - Three.js **right-handed**, **Y-up**
 - Brush transforms are **model-local** unless a field is labeled world
-- CSG operations: `additive` | `subtractive` | `intersecting`
+- CSG operations: `additive` | `subtractive` | `intersecting`; CSG groups also take `passthrough` (a plain folder: its children combine in the parent as if they were not grouped)
 - Brush **order** is evaluation order (first → last), depth-first over the hierarchy
 
 ## Solid hierarchy (outliner / CSG groups)
@@ -63,12 +63,12 @@ solid_model
 └── brush
 ```
 
-| Concept             | Details                                                                                                                                                                      |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Solid CSG group** | Outliner folder under a solid. Combines its children as one compound, then applies the **group operation** into the parent.                                                  |
-| **Nesting**         | Groups may contain brushes and other groups. `parentGroupId` on brushes / groups is `null` when parented under the solid root.                                               |
-| **Operations**      | Brushes: `brush_operation_set`. Groups: `csg_group_operation_set`. Additive groups look like normal yellow folders; subtractive/intersecting show red/blue badges in the UI. |
-| **CSG order**       | Evaluation walks the scene depth-first. Sibling order under a parent matters (`brush_reorder` / `brush_reorder_relative` / `nodeIdBefore` on reparent).                      |
+| Concept             | Details                                                                                                                                                                                                                                |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Solid CSG group** | Outliner folder under a solid. Combines its children as one compound, then applies the **group operation** into the parent.                                                                                                            |
+| **Nesting**         | Groups may contain brushes and other groups. `parentGroupId` on brushes / groups is `null` when parented under the solid root.                                                                                                         |
+| **Operations**      | Brushes: `brush_operation_set`. Groups: `csg_group_operation_set`. Additive groups look like normal yellow folders; subtractive/intersecting show red/blue badges in the UI; passthrough groups show an open folder with a gray badge. |
+| **CSG order**       | Evaluation walks the scene depth-first. Sibling order under a parent matters (`brush_reorder` / `brush_reorder_relative` / `nodeIdBefore` on reparent).                                                                                |
 
 ### Hierarchy tools
 

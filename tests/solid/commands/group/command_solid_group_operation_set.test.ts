@@ -2,9 +2,16 @@ import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
-import { markAsSolidCsgGroup } from '@/solid/model/solid_group.js';
+import { getSolidGroupOperation, markAsSolidCsgGroup } from '@/solid/model/solid_group.js';
 import { CommandSolidGroupOperationSet } from '@/solid/commands/group/command_solid_group_operation_set.js';
 import { CommandStack } from '@/commands/command_stack.js';
+import {
+  layoutBox,
+  layoutGroup,
+  layoutModelBuild,
+  meshSignature,
+  type PassThroughLayoutNode,
+} from '../../algorithm/compile/solid_csg_pass_through_fixture.js';
 
 /** Unit tests for solid CSG group operation changes (partial rebuild path). */
 describe('CommandSolidGroupOperationSet', () => {
@@ -75,4 +82,55 @@ describe('CommandSolidGroupOperationSet', () => {
     expect(stats.fullRebuild).toBe(false);
     expect(stats.recompiledBrushCount).toBeLessThan(16);
   }, 30_000);
+});
+
+/**
+ * Layouts for switching one group between additive and pass-through: a window
+ * cutter that only reaches outside the group as pass-through, and an
+ * intersecting brush that clips a distant wall once it joins the root.
+ *
+ * @returns Named layout builders taking the group operation.
+ */
+function passThroughSwitchLayouts(): Array<{
+  name: string;
+  nodes: (operation: SolidOperation) => PassThroughLayoutNode[];
+}> {
+  return [
+    {
+      name: 'window cutter',
+      nodes: (operation) => [
+        layoutBox([0, 0, 0], [6, 3, 0.5]),
+        layoutGroup(operation, [layoutBox([0, 0, 0], [1.5, 1.5, 2], SolidOperation.Subtractive)]),
+      ],
+    },
+    {
+      name: 'intersecting clip of a distant wall',
+      nodes: (operation) => [
+        layoutBox([0, 0, 0], [4, 4, 4]),
+        layoutBox([20, 0, 0], [2, 2, 2]),
+        layoutGroup(operation, [layoutBox([1, 1, 1], [4, 4, 4], SolidOperation.Intersecting)]),
+      ],
+    },
+  ];
+}
+
+/** Switching a group to and from pass-through rebuilds the result exactly. */
+describe('CommandSolidGroupOperationSet pass-through', () => {
+  for (const layout of passThroughSwitchLayouts()) {
+    it(`matches a fresh build after switching and undoing: ${layout.name}`, () => {
+      const { model, groups } = layoutModelBuild('Switch', layout.nodes(SolidOperation.Additive));
+      const additive = meshSignature(model);
+      const expected = meshSignature(layoutModelBuild('Fresh', layout.nodes(SolidOperation.PassThrough)).model);
+      expect(expected.triangles).not.toEqual(additive.triangles);
+      const stack = new CommandStack(8);
+      stack.push(new CommandSolidGroupOperationSet(groups, SolidOperation.PassThrough));
+      expect(getSolidGroupOperation(groups[0]!)).toBe(SolidOperation.PassThrough);
+      expect(meshSignature(model).triangles).toEqual(expected.triangles);
+      stack.undo();
+      expect(getSolidGroupOperation(groups[0]!)).toBe(SolidOperation.Additive);
+      expect(meshSignature(model).triangles).toEqual(additive.triangles);
+      stack.redo();
+      expect(meshSignature(model).triangles).toEqual(expected.triangles);
+    });
+  }
 });

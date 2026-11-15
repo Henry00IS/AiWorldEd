@@ -13,7 +13,7 @@ import {
   resolveSolidHierarchyNodes,
   resolveSolidTreeParent,
 } from './editor_api_lookup.js';
-import { nameToSolidOperation, solidOperationToName } from './editor_api_operations.js';
+import { nameToSolidGroupOperation, solidGroupOperationToName } from './editor_api_operations.js';
 import { CommandObjectGroup } from '@/outliner/commands/command_object_group.js';
 import { CommandObjectRename } from '@/outliner/commands/command_object_rename.js';
 import { CommandObjectUngroup } from '@/outliner/commands/command_object_ungroup.js';
@@ -25,7 +25,7 @@ import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { hierarchySeedBrushIdsCollectUnderRoots } from '@/solid/model/hierarchy/solid_hierarchy_mutation_refresh.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { collapseToHierarchyRoots, findCommonParent } from '@/utils/hierarchy_selection.js';
-import type { McpSolidOperationName, McpToolResult } from '@/ai/shared/mcp_protocol_types.js';
+import type { McpSolidGroupOperationName, McpToolResult } from '@/ai/shared/mcp_protocol_types.js';
 
 /** Solid CSG group hierarchy mutations for EditorApi / MCP. */
 export class EditorApiHierarchy {
@@ -70,7 +70,7 @@ export class EditorApiHierarchy {
    * @returns Tool result.
    */
   setGroupOperation(args: SetGroupOperationArgs): McpToolResult {
-    const operation = nameToSolidOperation(args.operation);
+    const operation = nameToSolidGroupOperation(args.operation);
     if (operation === null) return fail(`Invalid operation: ${args.operation}`);
     const groups = this.resolveGroups(args.groupIds);
     if (groups.length === 0) return fail('No matching solid CSG groups found');
@@ -194,7 +194,7 @@ export class EditorApiHierarchy {
    */
   private resolveCreateOperation(name: string | undefined): SolidOperation | null {
     if (name === undefined) return SolidOperation.Additive;
-    return nameToSolidOperation(name);
+    return nameToSolidGroupOperation(name);
   }
 
   /**
@@ -239,7 +239,7 @@ export class EditorApiHierarchy {
     operation: SolidOperation,
     memberCount: number,
   ): McpToolResult {
-    const operationName: McpSolidOperationName = solidOperationToName(operation);
+    const operationName: McpSolidGroupOperationName = solidGroupOperationToName(operation);
     return {
       ok: true,
       message: `Created CSG group ${group.name}`,

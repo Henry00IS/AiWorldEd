@@ -41,9 +41,21 @@ export function getSolidGroupOperation(group: THREE.Object3D): SolidOperation {
   const value = group.userData[SOLID_GROUP_OPERATION_USERDATA_KEY];
   if (value === SolidOperation.Subtractive) return SolidOperation.Subtractive;
   if (value === SolidOperation.Intersecting) return SolidOperation.Intersecting;
+  if (value === SolidOperation.PassThrough) return SolidOperation.PassThrough;
   if (value === 'subtractive') return SolidOperation.Subtractive;
   if (value === 'intersecting') return SolidOperation.Intersecting;
   return SolidOperation.Additive;
+}
+
+/**
+ * Returns whether an object is a solid CSG group whose operation is
+ * pass-through, so its children join its parent as if they were not grouped.
+ *
+ * @param object Candidate scene object.
+ * @returns True for a pass-through solid CSG group.
+ */
+export function isSolidPassThroughGroup(object: THREE.Object3D): boolean {
+  return isSolidCsgGroup(object) && getSolidGroupOperation(object) === SolidOperation.PassThrough;
 }
 
 /**
