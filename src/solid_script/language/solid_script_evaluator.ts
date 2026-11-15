@@ -63,6 +63,14 @@ export interface SolidScriptEvaluation {
   messages: string[];
   /** Source line of every primitive in evaluation order, built or not. */
   steps: number[];
+  /** Variables visible at the last built step, with their values as text. */
+  variables: SolidScriptVariable[];
+}
+
+/** One variable and its value as the debugger shows it. */
+export interface SolidScriptVariable {
+  name: string;
+  value: string;
 }
 
 /** Evaluates solid script statements into a shape tree. */
@@ -72,6 +80,7 @@ export class SolidScriptEvaluator {
   private readonly steps: number[] = [];
   private solids = 0;
   private line = 0;
+  private watched: SolidScriptScope | null = null;
 
   /**
    * Creates an evaluator.
@@ -92,7 +101,9 @@ export class SolidScriptEvaluator {
     root.variableSet('$fa', 12);
     root.variableSet('$fs', 2);
     const shapes = this.statementsEvaluate(statements, root, { matrix: new THREE.Matrix4(), planar: false });
-    return { shapes, messages: this.messages, steps: this.steps };
+    const visible = [...(this.watched?.variablesVisible() ?? [])];
+    const variables = visible.map(([name, value]) => ({ name, value: solidScriptValueText(value) }));
+    return { shapes, messages: this.messages, steps: this.steps, variables };
   }
 
   /**
@@ -277,7 +288,7 @@ export class SolidScriptEvaluator {
     if (planar !== context.planar) {
       throw new Error(`${name}() is ${planar ? '2D and must be inside' : '3D and cannot be inside'} linear_extrude()`);
     }
-    if (!this.stepTake()) return [];
+    if (!this.stepTake(scope)) return [];
     if (planar) return [this.planarShape(name, args, scope, context, label)];
     const build = SOLID_SCRIPT_SOLID_PRIMITIVES[name];
     if (!build) throw new Error(`unknown module ${name}()`);
@@ -552,11 +563,14 @@ export class SolidScriptEvaluator {
   /**
    * Records one primitive step at the current line.
    *
+   * @param scope Scope of the primitive, watched while the step gets built.
    * @returns True while the step is within the step limit and gets built.
    */
-  private stepTake(): boolean {
+  private stepTake(scope: SolidScriptScope): boolean {
     this.steps.push(this.line);
-    return this.steps.length <= this.stepLimit;
+    if (this.steps.length > this.stepLimit) return false;
+    this.watched = scope;
+    return true;
   }
 
   /** Counts one more solid and stops runaway programs. */

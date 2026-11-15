@@ -53,4 +53,17 @@ describe('solid script steps', () => {
     expect(last.operation).toBe('difference');
     expect(last.children).toHaveLength(1);
   });
+
+  it('reports the variables visible at the last built step, loop counters included', () => {
+    const program = 'width = 2;\nfor (i = [0 : 2]) translate([width * i, 0, 0]) cube(width);';
+    expect(solidScriptProgramEvaluate(program, { stepLimit: 2 }).variables).toEqual([
+      { name: 'width', value: '2' },
+      { name: 'i', value: '1' },
+    ]);
+    expect(solidScriptProgramEvaluate(program, { stepLimit: 0 }).variables).toEqual([]);
+    expect(solidScriptProgramEvaluate(program).variables).toEqual([
+      { name: 'width', value: '2' },
+      { name: 'i', value: '2' },
+    ]);
+  });
 });

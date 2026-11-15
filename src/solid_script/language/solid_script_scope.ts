@@ -62,6 +62,21 @@ export class SolidScriptScope {
   }
 
   /**
+   * Lists the variables this scope sees, outer scopes first and inner names
+   * replacing outer ones; the special $ settings are left out.
+   *
+   * @returns Visible variables by name.
+   */
+  variablesVisible(): Map<string, SolidScriptValue> {
+    const visible = this.parent ? this.parent.variablesVisible() : new Map<string, SolidScriptValue>();
+    for (const [name, value] of this.variables) {
+      visible.delete(name);
+      if (!name.startsWith('$')) visible.set(name, value);
+    }
+    return visible;
+  }
+
+  /**
    * Defines a function in this scope.
    *
    * @param name Function name.
