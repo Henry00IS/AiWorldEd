@@ -481,7 +481,6 @@ describe('EditorWindow focus system', () => {
       pickObjectStackAtClientPoint: () => [],
       clearObjectSelection: () => {},
       applyObjectClickSelectionAtClientPoint: () => {},
-      applyObjectMarqueeSelection: () => {},
       tryBeginPermanentGizmoDragFromEditorPointer: () => false,
       probePermanentGizmoUnderPointer: () => false,
       updateBoundsHoverAtClientPoint: () => {},

@@ -1,4 +1,3 @@
-import type { Vector2 } from 'three';
 import { Tool } from '../tool.js';
 import { boxSelectApplyClickSelection } from './box_select_click_select.js';
 
@@ -11,15 +10,6 @@ export class BoxSelectTool extends Tool {
   /** Creates a box select tool. */
   constructor() {
     super();
-  }
-
-  /**
-   * Marquee busy flag (Shape Editor IsBusy). Marquee is inactive for now.
-   *
-   * @returns Always false until marquee selection returns.
-   */
-  override isBusy(): boolean {
-    return false;
   }
 
   /** Called when the tool is activated. */
@@ -41,7 +31,7 @@ export class BoxSelectTool extends Tool {
   override onMouseDown(_button: number): void {}
 
   /**
-   * Shape Editor OnGlobalMouseUp: plain click selection (marquee deferred).
+   * Shape Editor OnGlobalMouseUp: plain click selection.
    *
    * @param button Mouse button index.
    */
@@ -51,15 +41,6 @@ export class BoxSelectTool extends Tool {
     }
     this.applyClickSelectionAtLastPointer();
   }
-
-  /**
-   * Shape Editor OnMouseDrag: marquee arming deferred.
-   *
-   * @param _button Mouse button index.
-   * @param _screenDelta Screen-space movement delta.
-   * @param _gridDelta Grid/world-space movement delta.
-   */
-  override onMouseDrag(_button: number, _screenDelta: Vector2, _gridDelta: Vector2): void {}
 
   /**
    * Called when the tool receives a key down event.

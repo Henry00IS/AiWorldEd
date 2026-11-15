@@ -541,20 +541,6 @@ function createEditorServices(
       }
       applyObjectClickSelectionAtClientPoint(deps, clientX, clientY, additive, toggle, getPointerOwnerDocument());
     },
-    applyObjectMarqueeSelection: (clientMinX, clientMinY, clientMaxX, clientMaxY, subtractive) => {
-      if (deps.getEditModeCoordinator?.()?.isActive() === true) {
-        return;
-      }
-      applyObjectMarqueeSelection(
-        deps,
-        clientMinX,
-        clientMinY,
-        clientMaxX,
-        clientMaxY,
-        subtractive,
-        getPointerOwnerDocument(),
-      );
-    },
     tryBeginPermanentGizmoDragFromEditorPointer: (clientX, clientY, modifiers) => {
       if (deps.getEditModeCoordinator?.()?.isActive() === true) {
         return componentTransformBridge.tryBeginFromEditorPointer(clientX, clientY, modifiers);
@@ -828,96 +814,6 @@ function shouldUseReverseOutlinerObjectPick(viewport: Viewport3D | Viewport2D | 
     return false;
   }
   return !isPerspectiveViewportKind(viewport.getViewportKind());
-}
-
-/**
- * Selects or deselects meshes whose projected centers fall inside a marquee.
- *
- * @param deps Layout services.
- * @param clientMinX Marquee min X.
- * @param clientMinY Marquee min Y.
- * @param clientMaxX Marquee max X.
- * @param clientMaxY Marquee max Y.
- * @param subtractive True when Ctrl marquee removes from selection.
- * @param ownerDocument Document that owns the client coordinates, or null.
- */
-function applyObjectMarqueeSelection(
-  deps: LayoutToolEditorSetupDeps,
-  clientMinX: number,
-  clientMinY: number,
-  clientMaxX: number,
-  clientMaxY: number,
-  subtractive: boolean,
-  ownerDocument: Document | null = null,
-): void {
-  const viewport = findInteractiveViewportAtClientPoint(
-    deps,
-    (clientMinX + clientMaxX) * 0.5,
-    (clientMinY + clientMaxY) * 0.5,
-    ownerDocument,
-  );
-  if (!viewport) {
-    return;
-  }
-  const camera = viewport.getCamera();
-  const pickElement = viewport.getContentElement();
-  const rect = pickElement.getBoundingClientRect();
-  const selectable =
-    typeof viewport.getSelectableObjects === 'function'
-      ? viewport.getSelectableObjects()
-      : collectMeshesFromWorldFallback(deps);
-  for (const mesh of selectable) {
-    if (isMeshScreenCenterInMarquee(mesh, camera, rect, clientMinX, clientMinY, clientMaxX, clientMaxY)) {
-      if (subtractive) {
-        deps.selectionManager.removeFromSelection(mesh);
-      } else {
-        deps.selectionManager.addToSelection(mesh);
-      }
-    }
-  }
-}
-
-/**
- * Returns whether a mesh projected center lies inside a client marquee rect.
- *
- * @param mesh Mesh to test.
- * @param camera Viewport camera.
- * @param pickRect Pick element client rect.
- * @param clientMinX Marquee min X.
- * @param clientMinY Marquee min Y.
- * @param clientMaxX Marquee max X.
- * @param clientMaxY Marquee max Y.
- * @returns True when the center is inside the marquee.
- */
-function isMeshScreenCenterInMarquee(
-  mesh: THREE.Mesh,
-  camera: THREE.Camera,
-  pickRect: DOMRect,
-  clientMinX: number,
-  clientMinY: number,
-  clientMaxX: number,
-  clientMaxY: number,
-): boolean {
-  mesh.updateMatrixWorld(true);
-  const center = new THREE.Vector3();
-  mesh.getWorldPosition(center);
-  center.project(camera);
-  if (center.z < -1 || center.z > 1) {
-    return false;
-  }
-  const clientX = pickRect.left + (center.x + 1) * 0.5 * pickRect.width;
-  const clientY = pickRect.top + (1 - center.y) * 0.5 * pickRect.height;
-  return clientX >= clientMinX && clientX <= clientMaxX && clientY >= clientMinY && clientY <= clientMaxY;
-}
-
-/**
- * Fallback mesh list when a viewport does not expose selectable objects.
- *
- * @param deps Layout services.
- * @returns Empty array (marquee requires viewport selectable lists).
- */
-function collectMeshesFromWorldFallback(_deps: LayoutToolEditorSetupDeps): THREE.Mesh[] {
-  return [];
 }
 
 /**
