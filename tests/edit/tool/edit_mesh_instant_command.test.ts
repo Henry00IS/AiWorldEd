@@ -17,15 +17,14 @@ describe('runEditMeshInstantCommand', () => {
     expect(runEditMeshInstantCommand('subdivide_edges', null)).toBe(true);
   });
 
-  it('makes a face from the selection', () => {
-    let made = 0;
+  it('makes a face from the selection and connects selected vertices', () => {
+    const calls: string[] = [];
     const operations = {
-      makeFaceFromSelection: () => {
-        made += 1;
-        return true;
-      },
+      makeFaceFromSelection: () => calls.push('make'),
+      connectSelectedVertices: () => calls.push('connect'),
     } as unknown as HandlerComponentMeshOperations;
     expect(runEditMeshInstantCommand('make_face', operations)).toBe(true);
-    expect(made).toBe(1);
+    expect(runEditMeshInstantCommand('connect_vertices', operations)).toBe(true);
+    expect(calls).toEqual(['make', 'connect']);
   });
 });

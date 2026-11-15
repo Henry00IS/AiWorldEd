@@ -109,6 +109,15 @@ describe('viewport_tool_edit_menu', () => {
     expect(shortcutForLabel(entries, 'Inset Faces')).toBe('I');
   });
 
+  it('offers Connect Vertices with J in the Vertex menu', () => {
+    const calls: string[] = [];
+    const entries = buildViewportToolVertexMenuEntries(createActions(calls));
+    const connect = entries.find((entry) => isMenuAction(entry) && entry.label === 'Connect Vertices');
+    if (connect && isMenuAction(connect)) connect.onClick();
+    expect(calls).toEqual(['tool:connect_vertices']);
+    expect(shortcutForLabel(entries, 'Connect Vertices')).toBe('J');
+  });
+
   it('offers Subdivide Edges in the Edge menu', () => {
     const calls: string[] = [];
     const entries = buildViewportToolEdgeMenuEntries(createActions(calls));

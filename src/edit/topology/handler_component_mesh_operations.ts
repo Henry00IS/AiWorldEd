@@ -15,6 +15,7 @@ import {
 } from './topology_selection_vertices.js';
 import { subdivideTopologyWorkingEdges } from './topology_edge_subdivide.js';
 import { makeTopologyWorkingFace } from './topology_face_make.js';
+import { connectTopologyWorkingVertices } from './topology_vertex_connect.js';
 import { findEditDomainTargetById, resolveTopologyEditTarget } from './topology_target_resolve.js';
 import type { TopologyMeshTarget } from './topology_target.js';
 import type { TopologyWorkingGeometry } from './topology_working_geometry.js';
@@ -225,6 +226,21 @@ export class HandlerComponentMeshOperations {
         ...collectSelectedVertexIndices(selected, targetId),
         ...collectSelectedEdgeEndpoints(selected, targetId).flatMap((edge) => [edge.vertexA, edge.vertexB]),
       ]),
+    );
+  }
+
+  /**
+   * Cuts the faces between selected vertices with new edges.
+   *
+   * @returns True when at least one mesh changed.
+   */
+  connectSelectedVertices(): boolean {
+    const selected = this.deps.getSession().getComponentSelection().getSelected();
+    const targets = this.collectMeshTargets('Connect Vertices', [EditorComponentMode.VERTEX], 'Vertex');
+    return this.commitOnMeshTargets(
+      targets,
+      (targetId, geometry) =>
+        connectTopologyWorkingVertices(geometry, collectSelectedVertexIndices(selected, targetId)).result,
     );
   }
 

@@ -85,7 +85,12 @@ export function buildViewportToolMeshMenuEntries(actions: ViewportToolEditMenuAc
  * @returns Menu entries.
  */
 export function buildViewportToolVertexMenuEntries(actions: ViewportToolEditMenuActions): ToolbarMenuEntry[] {
-  return [createMergeSubmenu(actions.onMerge)];
+  return [
+    createMergeSubmenu(actions.onMerge),
+    createAction('Connect Vertices', 'J', 'Cut the faces between the selected vertices with new edges', () =>
+      actions.onMeshTool('connect_vertices'),
+    ),
+  ];
 }
 
 /**

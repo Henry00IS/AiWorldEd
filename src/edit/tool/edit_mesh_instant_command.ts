@@ -21,5 +21,9 @@ export function runEditMeshInstantCommand(
     operations?.makeFaceFromSelection();
     return true;
   }
+  if (command === 'connect_vertices') {
+    operations?.connectSelectedVertices();
+    return true;
+  }
   return false;
 }
