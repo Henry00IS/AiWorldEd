@@ -345,7 +345,7 @@ export class PlayerPlaySession {
     this.viewModel.root.visible = this.viewMode === 'first_person' && held !== null;
     this.viewModel.setItem(held, this.host.ballSystem.getOwnColor());
     this.viewModel.setTint(this.host.ballSystem.getRoomColor());
-    this.viewModel.update(now / 1000, deltaSeconds, this.body.getPlanarSpeed());
+    this.viewModel.update(now / 1000, deltaSeconds, this.body.getPlanarSpeed(), this.body.getIsGrounded());
     const released = this.viewModel.takeRelease(now / 1000);
     const hand = released ? this.viewModel.getHandWorld(camera, new THREE.Vector3()) : undefined;
     if (released) this.throwToy(released, hand, this.viewModel.getPower());

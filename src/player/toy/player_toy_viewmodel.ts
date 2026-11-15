@@ -30,6 +30,15 @@ const PLAYER_TOY_VIEW_FOV = 70;
 const PLAYER_TOY_VIEW_NEAR = 0.01;
 /** Size of the held soccer ball against its true size (it would fill the view). */
 const PLAYER_TOY_VIEW_SOCCER_SCALE = 1 / 1.5;
+/** Walk bob speed while airborne, as a share of the walking speed (floaty). */
+const PLAYER_TOY_VIEW_AIR_STRIDE = 0.08;
+/** Seconds off the ground before the bob slows, so steps and slopes never do. */
+const PLAYER_TOY_VIEW_AIR_DELAY = 0.1;
+/**
+ * Time constants of the bob slowing in the air and speeding up on landing, in
+ * seconds.
+ */
+const PLAYER_TOY_VIEW_AIR_EASE = { slow: 0.15, fast: 0.1 };
 /** Attitude of the held plane in view space: level, nose a little up. */
 const PLAYER_TOY_VIEW_PLANE_ATTITUDE = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.1, 0.06, 0, 'YXZ'));
 
@@ -63,6 +72,12 @@ export class PlayerToyViewModel {
   private pressed: boolean;
   private charge: number;
   private bobPhase: number;
+  /**
+   * Walk bob speed factor: 1 on the ground, PLAYER_TOY_VIEW_AIR_STRIDE in the
+   * air.
+   */
+  private stride: number;
+  private airborne: number;
 
   /**
    * Builds the arm.
@@ -96,6 +111,8 @@ export class PlayerToyViewModel {
     this.pressed = false;
     this.charge = 0;
     this.bobPhase = 0;
+    this.stride = 1;
+    this.airborne = 0;
   }
 
   /**
@@ -200,15 +217,22 @@ export class PlayerToyViewModel {
   }
 
   /**
-   * Animates the arm: idle sway, walking bob and the throw.
+   * Animates the arm: idle sway, walking bob (all but frozen in the air, its
+   * size kept) and the throw.
    *
    * @param now Time in seconds.
    * @param deltaSeconds Frame time.
    * @param planarSpeed Walking speed in meters per second.
+   * @param grounded Whether the player stands on the ground.
    */
-  update(now: number, deltaSeconds: number, planarSpeed: number): void {
+  update(now: number, deltaSeconds: number, planarSpeed: number, grounded = true): void {
     const walk = Math.min(1, planarSpeed / 5);
-    this.bobPhase += deltaSeconds * (4 + 5 * walk);
+    this.airborne = grounded ? 0 : this.airborne + deltaSeconds;
+    const air = this.airborne > PLAYER_TOY_VIEW_AIR_DELAY;
+    const target = air ? PLAYER_TOY_VIEW_AIR_STRIDE : 1;
+    const ease = air ? PLAYER_TOY_VIEW_AIR_EASE.slow : PLAYER_TOY_VIEW_AIR_EASE.fast;
+    this.stride = target + (this.stride - target) * Math.exp(-deltaSeconds / ease);
+    this.bobPhase += deltaSeconds * (4 + 5 * walk) * this.stride;
     const since = this.since(now);
     const charge = this.pressed ? playerToyCharge(now - this.actionAt) : this.charge;
     const pose = playerToyPoseAt(since, this.actionKind === 'soccer', charge);
