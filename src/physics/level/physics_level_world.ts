@@ -12,6 +12,13 @@ import type { PhysicsLevelTrimeshBuffers } from './physics_level_trimesh.js';
 interface PhysicsLevelColliderEntry {
   collider: RAPIER.Collider;
   triangleCount: number;
+  invertedWorld: boolean;
+}
+
+/** Vertical crossing counts split by whether the hit collider is inverted. */
+interface PhysicsLevelEnclosureCrossings {
+  normal: number;
+  inverted: number;
 }
 
 /** Running totals of level collision work, for diagnostics and benchmarks. */
@@ -68,6 +75,7 @@ export class PhysicsLevelWorld {
   private isBroadPhaseDirty: boolean;
   private readonly scratchRay: RAPIER.Ray;
   private readonly scratchSphereShapes: Map<number, RAPIER.Ball>;
+  private invertedColliderCount: number;
 
   /**
    * Creates an empty level world with zero gravity.
@@ -83,6 +91,7 @@ export class PhysicsLevelWorld {
     this.isBroadPhaseDirty = false;
     this.scratchRay = new rapier.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: -1, z: 0 });
     this.scratchSphereShapes = new Map();
+    this.invertedColliderCount = 0;
   }
 
   /**
@@ -148,24 +157,43 @@ export class PhysicsLevelWorld {
    * @param buffers Triangle mesh buffers in the collider's local space.
    * @param position World translation of the collider.
    * @param quaternion World rotation of the collider.
+   * @param invertedWorld True when the mesh bounds a carved inverted-world
+   *   void.
    */
   setTrimesh(
     key: string,
     buffers: PhysicsLevelTrimeshBuffers,
     position: THREE.Vector3,
     quaternion: THREE.Quaternion,
+    invertedWorld: boolean = false,
   ): void {
     const startMilliseconds = performance.now();
     this.removeCollider(key);
     const description = this.createTrimeshDescription(buffers, position, quaternion);
     const collider = this.world.createCollider(description);
-    this.entriesByKey.set(key, { collider, triangleCount: buffers.triangleCount });
-    this.keysByHandle.set(collider.handle, key);
-    this.stats.triangleCount += buffers.triangleCount;
-    this.stats.colliderCount = this.entriesByKey.size;
-    this.stats.collidersBuilt++;
+    this.recordCollider(key, collider, buffers.triangleCount, invertedWorld);
     this.stats.totalColliderBuildMilliseconds += performance.now() - startMilliseconds;
     this.isBroadPhaseDirty = true;
+  }
+
+  /**
+   * Stores one collider and updates collider statistics.
+   *
+   * @param key Collider key.
+   * @param collider Created collider.
+   * @param triangleCount Triangle count of the collider.
+   * @param invertedWorld True when the mesh bounds a carved inverted-world
+   *   void.
+   */
+  private recordCollider(key: string, collider: RAPIER.Collider, triangleCount: number, invertedWorld: boolean): void {
+    this.entriesByKey.set(key, { collider, triangleCount, invertedWorld });
+    this.keysByHandle.set(collider.handle, key);
+    this.stats.triangleCount += triangleCount;
+    this.stats.colliderCount = this.entriesByKey.size;
+    this.stats.collidersBuilt++;
+    if (invertedWorld) {
+      this.invertedColliderCount++;
+    }
   }
 
   /**
@@ -223,6 +251,9 @@ export class PhysicsLevelWorld {
     this.stats.triangleCount -= entry.triangleCount;
     this.stats.colliderCount = this.entriesByKey.size;
     this.stats.collidersRemoved++;
+    if (entry.invertedWorld) {
+      this.invertedColliderCount--;
+    }
     this.isBroadPhaseDirty = true;
   }
 
@@ -292,17 +323,50 @@ export class PhysicsLevelWorld {
   }
 
   /**
-   * Returns whether a point lies inside closed level geometry, by counting
-   * surface crossings straight up and straight down: both must be odd. Works on
-   * per-brush shells that are only closed together.
+   * Returns whether a point lies inside solid level geometry. A closed additive
+   * shell is solid when both vertical crossing counts are odd. An
+   * inverted-world shell is solid everywhere except the carved interior.
    *
    * @param point World point.
    * @param maxCrossings Crossings counted per direction before giving up.
-   * @returns True when enclosed.
+   * @returns True when the point is inside solid.
    */
   isPointEnclosed(point: THREE.Vector3, maxCrossings: number = 64): boolean {
-    const up = this.countRayCrossings(point, 1, maxCrossings);
-    return up % 2 === 1 && this.countRayCrossings(point, -1, maxCrossings) % 2 === 1;
+    return this.pointIsInsideSolid(
+      this.countRayCrossings(point, 1, maxCrossings),
+      this.countRayCrossings(point, -1, maxCrossings),
+    );
+  }
+
+  /**
+   * Combines additive and inverted-world crossing counts into a solid test.
+   *
+   * @param upward Crossings straight up.
+   * @param downward Crossings straight down.
+   * @returns True when the point is inside solid.
+   */
+  private pointIsInsideSolid(
+    upward: PhysicsLevelEnclosureCrossings,
+    downward: PhysicsLevelEnclosureCrossings,
+  ): boolean {
+    if (this.enclosureShellContainsPoint(upward.normal, downward.normal)) {
+      return true;
+    }
+    if (this.invertedColliderCount === 0) {
+      return false;
+    }
+    return !this.enclosureShellContainsPoint(upward.inverted, downward.inverted);
+  }
+
+  /**
+   * Returns whether both vertical crossing counts are odd.
+   *
+   * @param upwardCount Crossings straight up.
+   * @param downwardCount Crossings straight down.
+   * @returns True when the counts describe a closed shell interior.
+   */
+  private enclosureShellContainsPoint(upwardCount: number, downwardCount: number): boolean {
+    return upwardCount % 2 === 1 && downwardCount % 2 === 1;
   }
 
   /**
@@ -312,24 +376,66 @@ export class PhysicsLevelWorld {
    * @param point World start point.
    * @param directionY Plus one for up, minus one for down.
    * @param maxCrossings Maximum crossings to count per collider.
-   * @returns Crossing count.
+   * @returns Crossing counts split by collider kind.
    */
-  private countRayCrossings(point: THREE.Vector3, directionY: number, maxCrossings: number): number {
+  private countRayCrossings(
+    point: THREE.Vector3,
+    directionY: number,
+    maxCrossings: number,
+  ): PhysicsLevelEnclosureCrossings {
     this.scratchRay.origin = { x: point.x, y: point.y, z: point.z };
     this.scratchRay.dir = { x: 0, y: directionY, z: 0 };
-    let crossings = 0;
+    const crossings: PhysicsLevelEnclosureCrossings = { normal: 0, inverted: 0 };
     this.world.intersectionsWithRay(
       this.scratchRay,
       PHYSICS_LEVEL_CROSSING_RAY_LENGTH_METERS,
       false,
       (intersection) => {
-        crossings += this.countColliderCrossings(intersection.collider, point, directionY, maxCrossings);
+        this.addColliderCrossings(intersection.collider, point, directionY, maxCrossings, crossings);
         return true;
       },
       undefined,
       PHYSICS_LEVEL_GROUPS_LEVEL_QUERY,
     );
     return crossings;
+  }
+
+  /**
+   * Adds one collider's vertical crossings into the matching count bucket.
+   *
+   * @param collider Level collider.
+   * @param point World start point.
+   * @param directionY Plus one for up, minus one for down.
+   * @param maxCrossings Maximum crossings to count.
+   * @param crossings Counts to update.
+   */
+  private addColliderCrossings(
+    collider: RAPIER.Collider,
+    point: THREE.Vector3,
+    directionY: number,
+    maxCrossings: number,
+    crossings: PhysicsLevelEnclosureCrossings,
+  ): void {
+    const added = this.countColliderCrossings(collider, point, directionY, maxCrossings);
+    if (this.colliderRepresentsInvertedWorld(collider)) {
+      crossings.inverted += added;
+      return;
+    }
+    crossings.normal += added;
+  }
+
+  /**
+   * Returns whether a collider belongs to an inverted-world shell.
+   *
+   * @param collider Level collider.
+   * @returns True when the collider was recorded as inverted-world.
+   */
+  private colliderRepresentsInvertedWorld(collider: RAPIER.Collider): boolean {
+    const key = this.keysByHandle.get(collider.handle);
+    if (!key) {
+      return false;
+    }
+    return this.entriesByKey.get(key)?.invertedWorld === true;
   }
 
   /**
@@ -491,6 +597,7 @@ export class PhysicsLevelWorld {
   dispose(): void {
     this.entriesByKey.clear();
     this.keysByHandle.clear();
+    this.invertedColliderCount = 0;
     this.world.free();
   }
 }

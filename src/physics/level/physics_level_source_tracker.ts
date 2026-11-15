@@ -79,6 +79,16 @@ export abstract class PhysicsLevelSourceTracker {
   }
 
   /**
+   * Returns whether new colliders from this tracker bound an inverted-world
+   * void.
+   *
+   * @returns False unless a subclass represents an inverted-world solid.
+   */
+  protected colliderRepresentsInvertedWorld(): boolean {
+    return false;
+  }
+
+  /**
    * Lists the keys of built colliders and of colliders with a pending job.
    *
    * @returns Keys.
@@ -173,7 +183,13 @@ export abstract class PhysicsLevelSourceTracker {
     const localBounds = new THREE.Box3();
     if (buffers) {
       localBounds.setFromArray(buffers.vertices);
-      this.levelWorld.setTrimesh(key, buffers, this.pose.position, this.pose.quaternion);
+      this.levelWorld.setTrimesh(
+        key,
+        buffers,
+        this.pose.position,
+        this.pose.quaternion,
+        this.colliderRepresentsInvertedWorld(),
+      );
     }
     this.trackedColliders.set(key, { sourceToken, localBounds });
     report.recordChange(this.resolveWorldBounds(localBounds));

@@ -153,4 +153,20 @@ describe('PhysicsLevelWorld', () => {
     expect(world.isPointEnclosed(new THREE.Vector3(3, 0.5, 0))).toBe(false);
     world.dispose();
   });
+
+  it('treats a tagged inverted-world shell as solid outside and air inside', () => {
+    const world = new PhysicsLevelWorld(rapier);
+    world.setTrimesh(
+      'room',
+      createBoxBuffers(new THREE.Vector3(4, 4, 4)),
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Quaternion(),
+      true,
+    );
+    world.commit();
+    expect(world.isPointEnclosed(new THREE.Vector3(0, 0, 0))).toBe(false);
+    expect(world.isPointEnclosed(new THREE.Vector3(0, 6, 0))).toBe(true);
+    expect(world.isPointEnclosed(new THREE.Vector3(6, 0, 0))).toBe(true);
+    world.dispose();
+  });
 });

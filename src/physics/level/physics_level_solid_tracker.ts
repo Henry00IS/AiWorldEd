@@ -12,6 +12,7 @@ export class PhysicsLevelSolidTracker extends PhysicsLevelSourceTracker {
   private readonly resultMesh: THREE.Mesh;
   private readonly chunkSource: SolidCollisionChunkSource;
   private readonly keyPrefix: string;
+  private readonly isInvertedWorld: () => boolean;
   private lastSyncedRevision: number;
   private readonly seenKeys: Set<string>;
 
@@ -22,19 +23,31 @@ export class PhysicsLevelSolidTracker extends PhysicsLevelSourceTracker {
    * @param queue Queue of pending collider changes.
    * @param resultMesh Result mesh whose world matrix places the chunks.
    * @param chunkSource Per-brush chunk access of the model.
+   * @param isInvertedWorld Reads whether the solid uses inverted-world CSG.
    */
   constructor(
     levelWorld: PhysicsLevelWorld,
     queue: PhysicsLevelJobQueue,
     resultMesh: THREE.Mesh,
     chunkSource: SolidCollisionChunkSource,
+    isInvertedWorld: () => boolean,
   ) {
     super(levelWorld, queue);
     this.resultMesh = resultMesh;
     this.chunkSource = chunkSource;
     this.keyPrefix = `solid:${resultMesh.uuid}:`;
+    this.isInvertedWorld = isInvertedWorld;
     this.lastSyncedRevision = -1;
     this.seenKeys = new Set();
+  }
+
+  /**
+   * Returns whether this solid's colliders bound a carved inverted-world void.
+   *
+   * @returns True when the solid uses inverted-world CSG.
+   */
+  protected override colliderRepresentsInvertedWorld(): boolean {
+    return this.isInvertedWorld();
   }
 
   /**

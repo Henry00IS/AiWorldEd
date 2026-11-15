@@ -1,9 +1,14 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { PlayerCollisionWorld } from '@/player/collision/player_collision_world.js';
-import { PLAYER_EYE_HEIGHT_METERS } from '@/player/player_constants.js';
+import { PLAYER_COLLIDER_HEIGHT_METERS, PLAYER_EYE_HEIGHT_METERS } from '@/player/player_constants.js';
+import { getDefaultPerspectiveCameraPosition } from '@/navigation/placement/default_camera_placement.js';
 import { playerSpawnRaycastSupportY, playerSpawnResolveFeetUnderCamera } from '@/player/spawn/player_spawn_ground.js';
 import { PhysicsRapierRuntime } from '@/physics/rapier/physics_rapier_runtime.js';
+import { SolidBrushFactory } from '@/solid/brush/solid_brush_factory.js';
+import { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
+import { SolidModel } from '@/solid/model/solid_model.js';
+import { SolidOperation } from '@/solid/types/solid_operation.js';
 
 /**
  * Builds a thick floor box with its top surface at y = 0.
@@ -55,6 +60,34 @@ function createChamberWorld(ceilingBottomY: number): PlayerCollisionWorld {
   const root = new THREE.Group();
   root.add(createFloorMesh());
   root.add(createCeilingMesh(ceilingBottomY));
+  const world = new PlayerCollisionWorld();
+  world.activate();
+  world.setWorldRoot(root);
+  return world;
+}
+
+/**
+ * Builds an inverted-world room centered on the origin.
+ *
+ * @param width Room size along X.
+ * @param height Room size along Y.
+ * @param depth Room size along Z.
+ * @returns Collision world over the compiled room.
+ */
+function createInvertedRoomWorld(width: number, height: number, depth: number): PlayerCollisionWorld {
+  const model = new SolidModel('InvertedRoom');
+  const instance = new SolidBrushInstance(
+    'room',
+    'Room',
+    SolidBrushFactory.createCenteredBox(width, height, depth),
+    SolidOperation.Subtractive,
+  );
+  model.addBrushInstance(instance);
+  model.setInvertedWorld(true);
+  model.root.updateMatrixWorld(true);
+  const root = new THREE.Group();
+  root.add(model.root);
+  root.updateMatrixWorld(true);
   const world = new PlayerCollisionWorld();
   world.activate();
   world.setWorldRoot(root);
@@ -124,6 +157,22 @@ describe('playerSpawnResolveFeetUnderCamera', () => {
     playerSpawnResolveFeetUnderCamera(camera, world, feet);
     expect(feet.y).toBeCloseTo(3.5 - PLAYER_EYE_HEIGHT_METERS, 3);
   });
+
+  it('keeps the capsule inside an inverted room when the camera starts above the ceiling', () => {
+    const roomHeight = 3;
+    const floorY = -roomHeight * 0.5;
+    const ceilingY = roomHeight * 0.5;
+    const world = createInvertedRoomWorld(6, roomHeight, 5);
+    const camera = new THREE.PerspectiveCamera();
+    camera.position.copy(getDefaultPerspectiveCameraPosition());
+    camera.updateMatrixWorld(true);
+    const feet = new THREE.Vector3();
+    playerSpawnResolveFeetUnderCamera(camera, world, feet);
+    expect(feet.y).toBeLessThan(ceilingY - PLAYER_COLLIDER_HEIGHT_METERS);
+    expect(feet.y).toBeGreaterThanOrEqual(floorY - 0.05);
+    expect(Math.abs(feet.x)).toBeLessThan(3);
+    expect(Math.abs(feet.z)).toBeLessThan(2.5);
+  });
 });
 
 describe('playerSpawnRaycastSupportY', () => {
@@ -149,5 +198,10 @@ describe('playerSpawnRaycastSupportY', () => {
     expect(y).not.toBeNull();
     expect(y as number).toBeGreaterThan(-0.05);
     expect(y as number).toBeLessThan(0.15);
+  });
+
+  it('does not treat an inverted-world ceiling as walkable support from above', () => {
+    const world = createInvertedRoomWorld(6, 3, 5);
+    expect(playerSpawnRaycastSupportY(getDefaultPerspectiveCameraPosition(), world)).toBeNull();
   });
 });

@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { PLAYER_EYE_HEIGHT_METERS } from '@/player/player_constants.js';
-import type { PlayerCollisionWorld } from '@/player/collision/player_collision_world.js';
+import type { PhysicsLevelWorld } from '@/physics/level/physics_level_world.js';
 import { playerCollisionSettlePose } from '@/player/collision/player_collision_resolve.js';
-import type { PlayerCollisionRayHit } from '@/player/collision/player_collision_world.js';
+import type { PlayerCollisionRayHit, PlayerCollisionWorld } from '@/player/collision/player_collision_world.js';
+import { PLAYER_EYE_HEIGHT_METERS } from '@/player/player_constants.js';
 
 /** How far below the camera the ground cast may travel. */
 const SPAWN_PROBE_MAX_DROP_METERS = 256;
@@ -10,7 +10,12 @@ const SPAWN_PROBE_MAX_DROP_METERS = 256;
 /** Minimum surface normal Y accepted as walkable spawn ground. */
 const SPAWN_WALKABLE_NORMAL_Y = 0.45;
 
+/** Offset along the hit normal used to test the stand-on side of a surface. */
+const SPAWN_SUPPORT_SIDE_METERS = 0.05;
+
 const WORLD_DOWN = new THREE.Vector3(0, -1, 0);
+
+const scratchSupportSide = new THREE.Vector3();
 
 /**
  * Resolves a safe feet position under the camera for play-mode spawn.
@@ -47,10 +52,8 @@ export function playerSpawnRaycastSupportY(
   collisionWorld: PlayerCollisionWorld,
 ): number | null {
   const hit = collisionWorld.raycastNearest(samplePosition, WORLD_DOWN, SPAWN_PROBE_MAX_DROP_METERS);
-  if (!hit) {
-    return null;
-  }
-  if (!playerSpawnHitIsWalkable(hit)) {
+  const levelWorld = collisionWorld.syncLevelWorld();
+  if (!hit || !levelWorld || !playerSpawnHitIsWalkable(hit, levelWorld)) {
     return null;
   }
   return hit.point.y;
@@ -59,9 +62,17 @@ export function playerSpawnRaycastSupportY(
 /**
  * Returns whether a ray hit is a walkable spawn surface.
  *
+ * Rejects a hit whose stand-on side is solid, so the exterior of an
+ * inverted-world ceiling is not treated as a floor.
+ *
  * @param hit Level ray hit.
- * @returns True when the surface faces upward enough to stand on.
+ * @param levelWorld Level world used for the solid test.
+ * @returns True when the surface faces upward and the stand-on side is air.
  */
-function playerSpawnHitIsWalkable(hit: PlayerCollisionRayHit): boolean {
-  return hit.normal.y >= SPAWN_WALKABLE_NORMAL_Y;
+function playerSpawnHitIsWalkable(hit: PlayerCollisionRayHit, levelWorld: PhysicsLevelWorld): boolean {
+  if (hit.normal.y < SPAWN_WALKABLE_NORMAL_Y) {
+    return false;
+  }
+  scratchSupportSide.copy(hit.point).addScaledVector(hit.normal, SPAWN_SUPPORT_SIDE_METERS);
+  return !levelWorld.isPointEnclosed(scratchSupportSide);
 }

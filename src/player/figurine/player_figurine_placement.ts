@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { SceneRaycaster } from '@/selection/object/scene_raycaster.js';
 import type { PlayerSpawnState } from '@/player/player_spawn_state.js';
 import type { PlayerFigurineMarker } from './player_figurine_marker.js';
 import { playerFigurineBuildMesh, playerFigurineDispose } from './player_figurine_builder.js';
@@ -10,7 +9,6 @@ export class PlayerFigurinePlacement {
   private readonly spawnState: PlayerSpawnState;
   private readonly marker: PlayerFigurineMarker;
   private readonly worldRoot: THREE.Object3D;
-  private readonly groundRaycaster: SceneRaycaster;
   private readonly getPerspectiveViewports: () => readonly PlayerFigurineViewport[];
   private readonly onSpawnPlaced: (() => void) | null;
   private isDragging: boolean;
@@ -46,7 +44,6 @@ export class PlayerFigurinePlacement {
     this.spawnState = spawnState;
     this.marker = marker;
     this.worldRoot = worldRoot;
-    this.groundRaycaster = new SceneRaycaster();
     this.getPerspectiveViewports = getPerspectiveViewports;
     this.onSpawnPlaced = onSpawnPlaced;
     this.isDragging = false;
@@ -233,7 +230,7 @@ export class PlayerFigurinePlacement {
     this.ndc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
     this.raycaster.setFromCamera(this.ndc, camera);
     const ray = this.raycaster.ray;
-    const hit = playerFigurineGroundHit(this.groundRaycaster, this.worldRoot, ray, this.scratchHit);
+    const hit = playerFigurineGroundHit(this.worldRoot, ray, this.scratchHit);
     if (!hit && !intersectGroundPlane(ray, this.scratchHit)) {
       return null;
     }
