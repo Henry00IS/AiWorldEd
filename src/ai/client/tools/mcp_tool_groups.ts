@@ -13,6 +13,7 @@ import { McpToolsBuild } from './build/mcp_tools_build.js';
 import { McpToolsGeometry } from './geometry/mcp_tools_geometry.js';
 import { McpToolsModifier } from './modifier/mcp_tools_modifier.js';
 import { McpToolsCurve } from './curve/mcp_tools_curve.js';
+import { McpToolsTexture } from './texture/mcp_tools_texture.js';
 import { McpToolsSpace } from './space/mcp_tools_space.js';
 import { McpToolsView } from './view/mcp_tools_view.js';
 
@@ -32,6 +33,7 @@ export function mcpToolGroupsCreate(parts: EditorApiParts): McpToolGroup[] {
     new McpToolsSolidModel(parts),
     new McpToolsCsgGroup(parts),
     new McpToolsBrush(parts),
+    new McpToolsTexture(parts),
     new McpToolsGeometry(parts),
     new McpToolsModifier(parts),
     new McpToolsCurve(parts),
