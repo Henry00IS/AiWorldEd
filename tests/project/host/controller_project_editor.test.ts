@@ -136,7 +136,11 @@ describe('ControllerProjectEditor', () => {
       ?.dispatchEvent(new MouseEvent('dblclick'));
     await settle();
     expect(sceneSet).toHaveBeenLastCalledWith('maps/start.json');
+    const afterLoad = sceneSet.mock.calls.length;
     editor.sceneLoaded();
+    expect(sceneSet).toHaveBeenCalledTimes(afterLoad);
+    expect(sceneSet).toHaveBeenLastCalledWith('maps/start.json');
+    editor.sceneReset();
     expect(sceneSet).toHaveBeenLastCalledWith(null);
     editor.dispose();
   });
@@ -144,7 +148,9 @@ describe('ControllerProjectEditor', () => {
   it('makes a snapshot when a level file opens or is saved', async () => {
     const { editor, autosave } = editorCreate();
     const snapshot = vi.spyOn(autosave, 'snapshot');
+    const sceneSet = vi.spyOn(autosave, 'sceneSet');
     await editor.levelOpened();
+    expect(sceneSet).toHaveBeenCalledWith(null);
     await editor.levelSaved();
     expect(snapshot).toHaveBeenCalledTimes(2);
     editor.dispose();

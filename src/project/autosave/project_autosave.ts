@@ -162,6 +162,11 @@ export class ProjectAutosave {
   changed(): void {
     const fileSystem = this.deps.fileSystem();
     if (fileSystem === null || !fileSystem.writable) return;
+    if (this.unchanged()) {
+      this.dirty = false;
+      this.timerClear();
+      return;
+    }
     this.dirty = true;
     if (this.timer === null && this.writing === null) this.schedule();
   }

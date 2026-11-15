@@ -155,9 +155,21 @@ export class ControllerProjectEditor {
     return this.project.pendingName() !== null ? this.project.reopen() : this.project.open();
   }
 
-  /** Tells the autosave which scene is now in the editor after any load. */
+  /**
+   * Tells the autosave which project scene is now in the editor. Only applies
+   * while the opener is loading that scene, so a later load notification cannot
+   * forget the path and treat the restored scene as unsaved.
+   */
   sceneLoaded(): void {
-    this.autosave.sceneSet(this.opener.loadingPath());
+    if (this.opener.sceneLoading()) this.autosave.sceneSet(this.opener.loadingPath());
+  }
+
+  /**
+   * Starts a new untitled scene for the autosave (File → New, a file opened
+   * outside the project, or the scene discarded before a room loads).
+   */
+  sceneReset(): void {
+    this.autosave.sceneSet(null);
   }
 
   /**
@@ -166,6 +178,7 @@ export class ControllerProjectEditor {
    * @returns Resolves once written.
    */
   async levelOpened(): Promise<void> {
+    this.sceneReset();
     await this.autosave.snapshot();
   }
 

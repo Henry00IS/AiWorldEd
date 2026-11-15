@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CommandStack } from '@/commands/command_stack.js';
 import type { UndoCommand } from '@/commands/command_undo.js';
 import { ProjectAutosave } from '@/project/autosave/project_autosave.js';
@@ -30,9 +30,10 @@ function commandOf(): UndoCommand {
  * Builds an editor whose autosave follows the undo stack, like the running
  * editor, and whose scene load clears that stack then marks it saved.
  *
+ * @param clock Optional autosave clock.
  * @returns Fixture.
  */
-async function restoreFixture() {
+async function restoreFixture(clock?: { now: number }) {
   const fake = projectHostFakeCreate();
   const { picker } = projectHostFolderCreate();
   const { project } = projectHostControllerCreate(fake.library, picker);
@@ -44,6 +45,7 @@ async function restoreFixture() {
     idle: (run) => run(),
     revision: () => stack.getHistoryRevision(),
     state: () => stack.peekUndo(),
+    ...(clock === undefined ? {} : { now: () => clock.now }),
   });
   const editor = new ControllerProjectEditor(fake.host, {
     project,
@@ -109,7 +111,10 @@ async function autosavesSeed(
 }
 
 describe('Level History restore and autosave', () => {
-  afterEach(() => document.body.replaceChildren());
+  afterEach(() => {
+    vi.useRealTimers();
+    document.body.replaceChildren();
+  });
 
   it('does not write an autosave when a save is restored, until the user edits', async () => {
     const fixture = await restoreFixture();
@@ -151,6 +156,25 @@ describe('Level History restore and autosave', () => {
     expect(await autosavesOf(fixture.store, PATH)).toHaveLength(PROJECT_HISTORY_AUTOSAVE_KEEP);
     await fixture.autosave.flush();
     expect(await autosavesOf(fixture.store, PATH)).toHaveLength(PROJECT_HISTORY_AUTOSAVE_KEEP);
+    fixture.editor.dispose();
+  });
+
+  it('does not write an autosave a few seconds after restore when the load later notifies again', async () => {
+    const clock = { now: Date.UTC(2026, 10, 15, 12) };
+    const fixture = await restoreFixture(clock);
+    const seeded = await autosavesSeed(fixture, 3);
+    expect((await fixture.editor.history.restore(seeded[0]!)).message).toMatch(/^Restored /);
+    expect(fixture.stack.isAtSavedPoint()).toBe(true);
+    expect(fixture.autosave.scenePath()).toBe(PATH);
+    vi.useFakeTimers();
+    fixture.editor.sceneLoaded();
+    fixture.historyFire();
+    clock.now += 30_000;
+    await vi.advanceTimersByTimeAsync(30_000);
+    const autosaves = (await fixture.store.entries()).filter((entry) => entry.kind === 'autosave');
+    expect(fixture.autosave.scenePath()).toBe(PATH);
+    expect(autosaves).toHaveLength(3);
+    expect(autosaves.every((entry) => entry.path === PATH)).toBe(true);
     fixture.editor.dispose();
   });
 });

@@ -93,6 +93,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
         this.refreshAfterWorldMutation();
       },
       sceneLoaded: () => this.onSceneLoaded(),
+      sceneReset: () => this.projectHost?.sceneReset(),
       operationCancel: (refused: boolean) => {
         const system = this.toolEditorSystem;
         const services = system?.editorWindow.getServices();
@@ -866,7 +867,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
       this.commandStack,
       this.statusBar,
       this.solidModelController,
-      () => this.onSceneLoaded(),
+      () => this.onNewSceneLoaded(),
     );
   }
 
@@ -945,6 +946,12 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
       refreshAfterWorldMutation: () => this.refreshAfterWorldMutation(),
     });
     this.projectHost?.sceneLoaded();
+  }
+
+  /** Handles File → New: refreshes the editor and starts an untitled autosave. */
+  private onNewSceneLoaded(): void {
+    this.onSceneLoaded();
+    this.projectHost?.sceneReset();
   }
 
   /**
