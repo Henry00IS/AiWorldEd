@@ -13,6 +13,7 @@ import { playerFigurineCreateToolbarButton, playerFigurineSetButtonActive } from
 import { playerCharacterEnsureModelLoaded } from './character/player_character_model_loader.js';
 import { PlayerBallSystem } from './ball/player_ball_system.js';
 import type { PlayerBallLink } from './ball/player_ball_link.js';
+import type { PlayerHelperLayer } from './player_helper_layer.js';
 
 /** Host surface used to wire the player system into the editor layout. */
 export interface PlayerSystemHost {
@@ -70,17 +71,20 @@ export class PlayerSystem {
       isPlaying: () => this.session.getIsActive(),
       localPlayer: () => this.session.getBodyMotion(),
     });
-    this.figurineMarker = new PlayerFigurineMarker(host.worldRoot);
+    const helperLayer: PlayerHelperLayer = { helperAdd: host.helperAdd, helperRemove: host.helperRemove };
+    this.figurineMarker = new PlayerFigurineMarker(helperLayer);
     this.placement = new PlayerFigurinePlacement(
       this.spawnState,
       this.figurineMarker,
       host.worldRoot,
+      helperLayer,
       () => host.getPerspectiveViewports(),
       () => playerSystemSpawnPlaced(() => this.refreshButtonActiveState(), host.showStatusMessage),
     );
     this.session = new PlayerPlaySession({
       inputManager: host.inputManager,
       worldRoot: host.worldRoot,
+      helperLayer,
       spawnState: this.spawnState,
       figurineMarker: this.figurineMarker,
       collisionWorld: this.collisionWorld,

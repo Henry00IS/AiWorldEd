@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { notificationFrameEvents } from '@/audio/notification/notification_frame_events.js';
 import { audioSettings } from '@/audio/settings/audio_settings.js';
 import { PlayerCharacterAvatar } from '@/player/character/player_character_avatar.js';
+import type { PlayerHelperLayer } from '@/player/player_helper_layer.js';
 import { PlayerBodyState } from '@/player/movement/player_body_state.js';
 import { PlayerCollisionWorld } from '@/player/collision/player_collision_world.js';
 import { PhysicsRapierRuntime } from '@/physics/rapier/physics_rapier_runtime.js';
@@ -20,7 +21,7 @@ describe('PlayerCharacterAvatar footstep audio', () => {
   it('raises footstep plants while walking in first person without a mesh rig', () => {
     vi.spyOn(audioSettings, 'isEnabled').mockReturnValue(true);
     const worldRoot = new THREE.Object3D();
-    const avatar = new PlayerCharacterAvatar(worldRoot);
+    const avatar = new PlayerCharacterAvatar(layerOn(worldRoot));
     avatar.attach();
     const body = createWalkingBody();
     let plants = 0;
@@ -59,4 +60,14 @@ function createWalkingBody(): PlayerBodyState {
   anyBody.moveIntent.set(0, 0, 1);
   anyBody.wantsRun = false;
   return body;
+}
+
+/**
+ * Overlay layer that puts the character under a test root.
+ *
+ * @param root Test root.
+ * @returns Overlay layer.
+ */
+function layerOn(root: THREE.Object3D): PlayerHelperLayer {
+  return { helperAdd: (object) => root.add(object), helperRemove: (object) => root.remove(object) };
 }

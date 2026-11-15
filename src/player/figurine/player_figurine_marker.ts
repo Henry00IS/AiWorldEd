@@ -5,10 +5,14 @@ import {
   playerFigurineCanBuildSync,
   playerFigurineDispose,
 } from './player_figurine_builder.js';
+import type { PlayerHelperLayer } from '@/player/player_helper_layer.js';
 
-/** Owns the world-space figurine marker mesh while a spawn is placed. */
+/**
+ * Owns the world-space figurine marker mesh while a spawn is placed. The mesh
+ * lives on the editor overlay layer, never in the level.
+ */
 export class PlayerFigurineMarker {
-  private readonly worldRoot: THREE.Object3D;
+  private readonly layer: PlayerHelperLayer;
   private marker: THREE.Group | null;
   private pendingLoad: Promise<void> | null;
   private isDisposed: boolean;
@@ -17,12 +21,12 @@ export class PlayerFigurineMarker {
   private hasPendingPose: boolean;
 
   /**
-   * Creates a marker manager bound to a world root.
+   * Creates a marker manager bound to an overlay layer.
    *
-   * @param worldRoot Scene root that receives the figurine.
+   * @param layer Overlay layer that receives the figurine, outside the level.
    */
-  constructor(worldRoot: THREE.Object3D) {
-    this.worldRoot = worldRoot;
+  constructor(layer: PlayerHelperLayer) {
+    this.layer = layer;
     this.marker = null;
     this.pendingLoad = null;
     this.isDisposed = false;
@@ -70,13 +74,13 @@ export class PlayerFigurineMarker {
     }
   }
 
-  /** Removes the figurine from the world and disposes resources. */
+  /** Removes the figurine from the overlay layer and disposes resources. */
   clear(): void {
     if (!this.marker) {
       this.hasPendingPose = false;
       return;
     }
-    this.worldRoot.remove(this.marker);
+    this.layer.helperRemove(this.marker);
     playerFigurineDispose(this.marker);
     this.marker = null;
     this.hasPendingPose = false;
@@ -100,7 +104,7 @@ export class PlayerFigurineMarker {
   /** Creates the marker immediately when the model is already loaded. */
   private createMarkerSync(): void {
     this.marker = playerFigurineBuildMesh();
-    this.worldRoot.add(this.marker);
+    this.layer.helperAdd(this.marker);
     this.applyPendingPoseToMarker();
     this.marker.visible = true;
   }
@@ -131,7 +135,7 @@ export class PlayerFigurineMarker {
       return;
     }
     this.marker = mesh;
-    this.worldRoot.add(this.marker);
+    this.layer.helperAdd(this.marker);
     if (this.hasPendingPose) {
       this.applyPendingPoseToMarker();
       this.marker.visible = true;
