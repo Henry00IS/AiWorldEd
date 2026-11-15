@@ -10,6 +10,17 @@ import { ModifierStackKindStairs } from './kinds/generator/modifier_stack_kind_s
 import { ModifierStackKindArch } from './kinds/generator/modifier_stack_kind_arch.js';
 import { ModifierStackKindBlastHole } from './kinds/generator/modifier_stack_kind_blast_hole.js';
 import { ModifierStackKindColumn } from './kinds/generator/modifier_stack_kind_column.js';
+import { ModifierStackKindCylinder } from './kinds/generator/primitive/modifier_stack_kind_cylinder.js';
+import { ModifierStackKindCone } from './kinds/generator/primitive/modifier_stack_kind_cone.js';
+import { ModifierStackKindSphere } from './kinds/generator/primitive/modifier_stack_kind_sphere.js';
+import { ModifierStackKindCapsule } from './kinds/generator/primitive/modifier_stack_kind_capsule.js';
+import { ModifierStackKindTorus } from './kinds/generator/primitive/modifier_stack_kind_torus.js';
+import { ModifierStackKindPipe } from './kinds/generator/primitive/modifier_stack_kind_pipe.js';
+import { ModifierStackKindWedge } from './kinds/generator/primitive/modifier_stack_kind_wedge.js';
+import { ModifierStackKindPyramid } from './kinds/generator/primitive/modifier_stack_kind_pyramid.js';
+import { ModifierStackKindPrism } from './kinds/generator/primitive/modifier_stack_kind_prism.js';
+import { ModifierStackKindHollowBox } from './kinds/generator/primitive/modifier_stack_kind_hollow_box.js';
+import { ModifierStackKindCurvedStairs } from './kinds/generator/primitive/modifier_stack_kind_curved_stairs.js';
 import { ModifierStackKindPhysicsShatter } from './kinds/shatter/modifier_stack_kind_physics_shatter.js';
 import { physicsShatterBakeDecode } from './kinds/shatter/sim/physics_shatter_bake.js';
 
@@ -19,6 +30,17 @@ export const modifierStackKinds: readonly ModifierStackKind[] = [
   new ModifierStackKindArch(),
   new ModifierStackKindBlastHole(),
   new ModifierStackKindColumn(),
+  new ModifierStackKindCylinder(),
+  new ModifierStackKindCone(),
+  new ModifierStackKindSphere(),
+  new ModifierStackKindCapsule(),
+  new ModifierStackKindTorus(),
+  new ModifierStackKindPipe(),
+  new ModifierStackKindWedge(),
+  new ModifierStackKindPyramid(),
+  new ModifierStackKindPrism(),
+  new ModifierStackKindHollowBox(),
+  new ModifierStackKindCurvedStairs(),
   new ModifierStackKindArrayLinear(),
   new ModifierStackKindArrayRadial(),
   new ModifierStackKindArrayTransform(),

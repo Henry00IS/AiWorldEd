@@ -88,6 +88,18 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
   protected abstract buildPieces(parameters: Record<string, unknown>, box: THREE.Box3): SolidBrush[];
 
   /**
+   * Builds the bare pieces of a box from raw parameters, for previews such as
+   * the shape picker icons. Textures and smoothing are left out.
+   *
+   * @param parameters Raw parameters; missing ones take their defaults.
+   * @param box Box in frame coordinates.
+   * @returns Convex pieces in frame coordinates.
+   */
+  previewPieces(parameters: Record<string, unknown>, box: THREE.Box3): SolidBrush[] {
+    return this.buildPieces(this.normalizeParameters(parameters), box);
+  }
+
+  /**
    * Returns custom face surfaces of a piece, such as wrapped side textures. The
    * default keeps every face on its default mapping.
    *

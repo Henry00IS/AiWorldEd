@@ -5,7 +5,23 @@ import { ModifierVolume } from './modifier_volume.js';
 import { modifierVolumeTemplateEntries } from './modifier_volume_templates.js';
 
 /** Generator kinds offered as standalone nodes, in menu order. */
-export const MODIFIER_GENERATOR_NODE_KINDS: readonly string[] = ['column', 'stairs', 'arch', 'blastHole'];
+export const MODIFIER_GENERATOR_NODE_KINDS: readonly string[] = [
+  'cylinder',
+  'cone',
+  'sphere',
+  'capsule',
+  'torus',
+  'pipe',
+  'wedge',
+  'pyramid',
+  'prism',
+  'hollowBox',
+  'column',
+  'stairs',
+  'curvedStairs',
+  'arch',
+  'blastHole',
+];
 
 /** Box size of a new generator node, per kind, in meters. */
 const MODIFIER_GENERATOR_NODE_SIZES: Readonly<Record<string, readonly [number, number, number]>> = {
@@ -13,7 +29,38 @@ const MODIFIER_GENERATOR_NODE_SIZES: Readonly<Record<string, readonly [number, n
   stairs: [2, 2, 3],
   arch: [3, 3, 1],
   blastHole: [3, 3, 0.5],
+  cylinder: [1, 2, 1],
+  cone: [1, 2, 1],
+  sphere: [2, 2, 2],
+  capsule: [1, 2, 1],
+  torus: [3, 1, 3],
+  pipe: [2, 3, 2],
+  wedge: [2, 1, 3],
+  pyramid: [2, 2, 2],
+  prism: [3, 1.5, 4],
+  hollowBox: [4, 3, 4],
+  curvedStairs: [4, 3, 4],
 };
+
+/**
+ * Lists the generator kinds by label, in menu order, for help texts.
+ *
+ * @returns Labels joined with commas.
+ */
+export function modifierGeneratorNodeLabels(): string {
+  return MODIFIER_GENERATOR_NODE_KINDS.map((kind) => modifierStackKindFind(kind)?.label ?? kind).join(', ');
+}
+
+/**
+ * Returns the box size a new generator node of a kind starts with.
+ *
+ * @param kind Generator kind id.
+ * @returns Width, height and depth in meters.
+ */
+export function modifierGeneratorNodeSize(kind: string): [number, number, number] {
+  const [x, y, z] = MODIFIER_GENERATOR_NODE_SIZES[kind] ?? [1, 1, 1];
+  return [x, y, z];
+}
 
 /**
  * Creates a generator node: a box that builds the kind's pieces and owns its
@@ -24,8 +71,7 @@ const MODIFIER_GENERATOR_NODE_SIZES: Readonly<Record<string, readonly [number, n
  */
 export function modifierGeneratorNodeCreate(kind: string): THREE.Mesh {
   const mesh = ModifierVolume.create({ role: 'generator', modifiers: modifierVolumeTemplateEntries([kind]) });
-  const [x, y, z] = MODIFIER_GENERATOR_NODE_SIZES[kind] ?? [1, 1, 1];
-  mesh.scale.set(x, y, z);
+  mesh.scale.set(...modifierGeneratorNodeSize(kind));
   mesh.name = hierarchyNameAllocator.allocate(modifierStackKindFind(kind)?.label ?? 'Generator');
   return mesh;
 }
