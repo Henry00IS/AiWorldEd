@@ -1,9 +1,6 @@
 import * as THREE from 'three';
-import type {
-  ModifierStackActionTarget,
-  ModifierStackField,
-  ModifierStackUnit,
-} from '@/modifier/stack/modifier_stack_types.js';
+import type { ModifierStackField, ModifierStackUnit } from '@/modifier/stack/modifier_stack_types.js';
+import { solidScriptInspectorRow } from '@/solid_script/ui/solid_script_inspector_row.js';
 import type { ModifierStackContext } from '@/modifier/stack/evaluate/modifier_stack_context.js';
 import { modifierStackChoices } from '@/modifier/stack/modifier_stack_fields.js';
 import type { SolidTreeNode } from '@/solid/commands/tree/solid_tree_node.js';
@@ -26,27 +23,17 @@ export const MODIFIER_STACK_SOLID_SCRIPT_KIND = 'solidScript';
 export const MODIFIER_STACK_SOLID_SCRIPT_KEY = 'script';
 
 /**
- * Loads the script editor on first use and opens it on the generator.
- *
- * @param target Generator and undo stack.
- */
-async function modifierStackSolidScriptEdit(target: ModifierStackActionTarget): Promise<void> {
-  const { solidScriptEditorOpen } = await import('@/solid_script/ui/solid_script_editor_open.js');
-  solidScriptEditorOpen(target);
-}
-
-/**
  * Fields of the SolidScript generator before the shared texture and output
  * ones.
  */
 const MODIFIER_STACK_SOLID_SCRIPT_FIELDS: readonly ModifierStackField[] = [
   {
-    key: 'editScript',
-    label: 'Edit Script',
-    type: 'action',
+    key: 'scriptFile',
+    label: 'Script',
+    type: 'widget',
     default: '',
-    hint: 'Opens the script editor: drag commands in, configure them, and step through the script.',
-    action: modifierStackSolidScriptEdit,
+    hint: 'The script this generator runs; edit it in the script editor or drop an .aiscript file on it. Assistants use geometry_script_generator_set.',
+    widget: (targetOf) => solidScriptInspectorRow(targetOf, MODIFIER_STACK_SOLID_SCRIPT_KEY),
   },
   {
     key: 'placement',
@@ -70,7 +57,8 @@ const MODIFIER_STACK_SOLID_SCRIPT_FIELDS: readonly ModifierStackField[] = [
 export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase {
   readonly id = MODIFIER_STACK_SOLID_SCRIPT_KIND;
   readonly label = 'SolidScript';
-  readonly description = 'Builds brushes from a script. Edit Script opens the editor with its command palette.';
+  readonly description =
+    'Builds brushes from a SolidScript of command lines. Edit Script opens the editor with its command palette; .aiscript files from the project browser can be dropped on the Script row.';
   protected readonly specificFields = MODIFIER_STACK_SOLID_SCRIPT_FIELDS;
 
   /**
