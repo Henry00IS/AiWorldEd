@@ -6,6 +6,7 @@ import { EditorApiCsgQuery } from './editor_api_csg_query.js';
 import { EditorApiFind } from './editor_api_find.js';
 import { EditorApiGeometry } from './editor_api_geometry.js';
 import { EditorApiHierarchy } from './editor_api_hierarchy.js';
+import { EditorApiMenu } from './editor_api_menu.js';
 import { EditorApiSolidReads } from './editor_api_solid_reads.js';
 import { EditorApiSolidWrites } from './editor_api_solid_writes.js';
 import { EditorApiSpatial } from './editor_api_spatial.js';
@@ -31,6 +32,7 @@ export class EditorApiParts {
   readonly modifier: EditorApiModifier;
   readonly curve: EditorApiCurve;
   readonly texture: EditorApiTexture;
+  readonly menu: EditorApiMenu;
 
   /**
    * Creates every part for one editor.
@@ -53,5 +55,6 @@ export class EditorApiParts {
     this.modifier = new EditorApiModifier(host);
     this.curve = new EditorApiCurve(host, this.modifier);
     this.texture = new EditorApiTexture(host);
+    this.menu = new EditorApiMenu(host);
   }
 }

@@ -423,7 +423,7 @@ export class BuilderEditorShell {
    * @param actions Callbacks for each toolbar control.
    */
   private addFileMenu(toolbar: Toolbar, actions: EditorToolbarActions): void {
-    toolbar.addDropdown('File', this.buildFileMenuEntries(actions));
+    toolbar.addDropdown('File', this.buildFileMenuEntries(actions), false);
   }
 
   /**

@@ -1,6 +1,7 @@
 import { Theme } from '@/theme.js';
 import { PanelMenu } from '@/ui/menu/panel_menu.js';
 import { PanelMenuDropdown } from '@/ui/menu/panel_menu_dropdown.js';
+import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
 import { ObjectApplyTransformKind } from '@/types/object_apply_transform_kind.js';
 import { applyViewportToolOptionsTextButtonMetrics } from './viewport_tool_options_control_style.js';
 import { buildViewportToolObjectMenuEntries } from './viewport_tool_object_menu.js';
@@ -23,6 +24,7 @@ export class ViewportToolObjectDropdown extends PanelMenuDropdown {
     this.onApply = onApply;
     this.onConvexHull = onConvexHull;
     this.buildChrome();
+    this.menuRegister('Object', () => this.entries());
   }
 
   /** Builds the Object trigger button. */
@@ -44,18 +46,22 @@ export class ViewportToolObjectDropdown extends PanelMenuDropdown {
     this.button.style.fontSize = '11px';
   }
 
+  /**
+   * Builds the Object menu entries.
+   *
+   * @returns Entries.
+   */
+  private entries(): ToolbarMenuEntry[] {
+    return buildViewportToolObjectMenuEntries(
+      (kind) => this.handleApplyChosen(kind),
+      () => this.handleHullChosen(),
+    );
+  }
+
   /** Rebuilds menu entries so Apply actions stay current. */
   protected rebuildMenuPanel(): void {
     this.menuPanel?.dispose();
-    this.menuPanel = new PanelMenu(
-      buildViewportToolObjectMenuEntries(
-        (kind) => this.handleApplyChosen(kind),
-        () => this.handleHullChosen(),
-      ),
-      () => this.closeMenu(),
-      false,
-      this.ownerDocument,
-    );
+    this.menuPanel = new PanelMenu(this.entries(), () => this.closeMenu(), false, this.ownerDocument);
     this.wrapper.appendChild(this.menuPanel.getElement());
   }
 

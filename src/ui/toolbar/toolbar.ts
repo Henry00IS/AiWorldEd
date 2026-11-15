@@ -1,6 +1,7 @@
 import { Theme } from '@/theme.js';
 import { PanelMenu } from '@/ui/menu/panel_menu.js';
 import { appendMenuDropdownCaret } from '@/ui/menu/menu_dropdown_caret.js';
+import { menuRegistry } from '@/ui/menu/menu_registry.js';
 import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
 import { UiStackLayers } from '@/ui/stack/ui_stack_layers.js';
 import { getActiveUiThemePalette, type UiThemePalette } from '@/ui/theme/theme_ui_palette.js';
@@ -153,9 +154,11 @@ export class Toolbar {
    *
    * @param label The dropdown header label.
    * @param items The menu entries (actions, separators, submenus).
+   * @param agentRunnable False for menus AI tools may list but never run.
    * @returns The header button element.
    */
-  addDropdown(label: string, items: ToolbarMenuEntry[]): HTMLButtonElement {
+  addDropdown(label: string, items: ToolbarMenuEntry[], agentRunnable = true): HTMLButtonElement {
+    menuRegistry.add(label, () => items, agentRunnable);
     const wrapper = document.createElement('div');
     wrapper.classList.add('editor-toolbar-dropdown');
     wrapper.style.position = 'relative';

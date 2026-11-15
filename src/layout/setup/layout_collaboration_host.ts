@@ -113,7 +113,7 @@ export function installLayoutCollaborationMenu(
   hostCreate: () => HostCollaborationEditor,
 ): LoaderCollaborationMenu {
   const menu = new LoaderCollaborationMenu(hostCreate, configCollaborationDevelopmentDefault());
-  const wrapper = toolbar.addDropdown('Collaborate', menu.entries()).parentElement;
+  const wrapper = toolbar.addDropdown('Collaborate', menu.entries(), false).parentElement;
   const spacer = wrapper?.parentElement?.querySelector('[data-toolbar-trailing-spacer]');
   if (wrapper && spacer) spacer.before(wrapper);
   sharedMcpBridgeHandler.publisherSet(menu);

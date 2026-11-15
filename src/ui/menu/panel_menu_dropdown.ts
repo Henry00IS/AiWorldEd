@@ -1,6 +1,8 @@
 import { PanelMenu } from './panel_menu.js';
 import { appendMenuDropdownCaret } from './menu_dropdown_caret.js';
 import { MenuOutsidePointerClose } from './menu_outside_pointer_close.js';
+import { menuRegistry } from './menu_registry.js';
+import type { ToolbarMenuEntry } from './menu_types.js';
 
 /**
  * Shared base for controls that open a {@link PanelMenu} under a trigger button
@@ -14,6 +16,7 @@ export abstract class PanelMenuDropdown {
   protected readonly button: HTMLButtonElement;
   protected menuPanel: PanelMenu | null;
   private readonly outsideCloser: MenuOutsidePointerClose;
+  private menuUnregister: (() => void) | null = null;
 
   /**
    * Creates dropdown chrome owned by the parent element's document.
@@ -49,8 +52,20 @@ export abstract class PanelMenuDropdown {
     return this.menuPanel;
   }
 
+  /**
+   * Lists this dropdown's entries for AI tools under a menu name.
+   *
+   * @param path Menu name.
+   * @param entries Builds the current entries.
+   */
+  protected menuRegister(path: string, entries: () => ToolbarMenuEntry[]): void {
+    this.menuUnregister?.();
+    this.menuUnregister = menuRegistry.add(path, entries);
+  }
+
   /** Closes the menu, disposes the panel, and removes the wrapper. */
   dispose(): void {
+    this.menuUnregister?.();
     this.closeMenu();
     this.menuPanel?.dispose();
     this.menuPanel = null;
