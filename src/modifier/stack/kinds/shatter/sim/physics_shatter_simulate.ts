@@ -21,7 +21,10 @@ import { PhysicsShatterPreview } from './physics_shatter_preview.js';
 import { physicsShatterSimMaterialRead } from './physics_shatter_sim_material.js';
 import { physicsShatterMaterialApply } from '@/modifier/stack/kinds/shatter/fracture/physics_shatter_material_presets.js';
 import { physicsShatterPlaybackRun, type PhysicsShatterPlaybackTiming } from './physics_shatter_playback.js';
-import { physicsShatterCommitParameters, physicsShatterCommitParametersRead } from './physics_shatter_commit.js';
+import {
+  modifierStackParametersCommit,
+  modifierStackParametersRead,
+} from '@/modifier/stack/modifier_stack_parameters_commit.js';
 import {
   PHYSICS_SHATTER_SOLVER_ITERATIONS_DEFAULT,
   PHYSICS_SHATTER_SOLVER_ITERATIONS_KEY,
@@ -64,7 +67,7 @@ export function physicsShatterResetAction(target: ModifierStackActionTarget): vo
     [PHYSICS_SHATTER_BAKE_KEY]: '',
     [PHYSICS_SHATTER_BAKE_HASH_KEY]: '',
   };
-  physicsShatterCommitParameters(target.volume, target.stepId, patch, target.commandStack);
+  modifierStackParametersCommit(target.volume, target.stepId, patch, target.commandStack);
   target.status('');
 }
 
@@ -77,7 +80,7 @@ export function physicsShatterResetAction(target: ModifierStackActionTarget): vo
 async function physicsShatterSimulateRun(target: ModifierStackActionTarget, run: PhysicsShatterLastRun): Promise<void> {
   const rapier = await PhysicsRapierRuntime.ensureLoaded();
   const setup = physicsShatterSimulateSetup(target, run);
-  const parameters = physicsShatterCommitParametersRead(target.volume, target.stepId) ?? {};
+  const parameters = modifierStackParametersRead(target.volume, target.stepId) ?? {};
   physicsShatterSimWarnThin(run.fracture.pieces, physicsShatterMaterialApply(physicsShatterSettingsRead(parameters)));
   const moving = PhysicsShatterSimulation.movingPieceCount(setup);
   if (moving > PHYSICS_SHATTER_SIM_MAX_MOVING_PIECES)
@@ -166,7 +169,7 @@ function physicsShatterSimulateSetup(
     solverIterations: physicsShatterSimulateSolverIterations(target),
     material: physicsShatterSimMaterialRead(
       run.material,
-      physicsShatterCommitParametersRead(target.volume, target.stepId) ?? {},
+      modifierStackParametersRead(target.volume, target.stepId) ?? {},
     ),
   };
 }
@@ -178,9 +181,7 @@ function physicsShatterSimulateSetup(
  * @returns Solver iterations per step.
  */
 function physicsShatterSimulateSolverIterations(target: ModifierStackActionTarget): number {
-  const value = physicsShatterCommitParametersRead(target.volume, target.stepId)?.[
-    PHYSICS_SHATTER_SOLVER_ITERATIONS_KEY
-  ];
+  const value = modifierStackParametersRead(target.volume, target.stepId)?.[PHYSICS_SHATTER_SOLVER_ITERATIONS_KEY];
   if (typeof value !== 'number' || !Number.isFinite(value)) return PHYSICS_SHATTER_SOLVER_ITERATIONS_DEFAULT;
   return Math.min(PHYSICS_SHATTER_SOLVER_ITERATIONS_MAX, Math.max(1, Math.round(value)));
 }
@@ -202,7 +203,7 @@ function physicsShatterSimulateStore(
 ): void {
   const bake = physicsShatterBakeEncode(result.transforms);
   const patch = physicsShatterBakeParameters(bake, run.bakeKey);
-  if (!physicsShatterCommitParameters(target.volume, target.stepId, patch, target.commandStack))
+  if (!modifierStackParametersCommit(target.volume, target.stepId, patch, target.commandStack))
     return target.status('The modifier was removed while it simulated.');
   const stuck = result.stuck.filter(Boolean).length;
   const seconds = (result.steps / 60).toFixed(1);

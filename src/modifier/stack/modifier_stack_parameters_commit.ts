@@ -12,7 +12,7 @@ import { modifierStackOwnerEncode } from '@/modifier/stack/owner/modifier_stack_
  * @param owner Volume, brush or group.
  * @returns Stack, or undefined when the object has none.
  */
-function physicsShatterCommitStackRead(owner: THREE.Object3D): ModifierStackSettings | undefined {
+function modifierStackParametersStackRead(owner: THREE.Object3D): ModifierStackSettings | undefined {
   return ModifierVolume.isVolume(owner) ? ModifierVolume.read(owner) : modifierStackOwnerEncode(owner);
 }
 
@@ -23,11 +23,11 @@ function physicsShatterCommitStackRead(owner: THREE.Object3D): ModifierStackSett
  * @param stepId Modifier id.
  * @returns Parameters, or undefined when the modifier no longer exists.
  */
-export function physicsShatterCommitParametersRead(
+export function modifierStackParametersRead(
   owner: THREE.Object3D,
   stepId: string,
 ): Record<string, unknown> | undefined {
-  return physicsShatterCommitStackRead(owner)?.modifiers.find((candidate) => candidate.id === stepId)?.parameters;
+  return modifierStackParametersStackRead(owner)?.modifiers.find((candidate) => candidate.id === stepId)?.parameters;
 }
 
 /**
@@ -39,13 +39,13 @@ export function physicsShatterCommitParametersRead(
  * @param commandStack Undo stack, or null to apply directly.
  * @returns False when the modifier no longer exists.
  */
-export function physicsShatterCommitParameters(
+export function modifierStackParametersCommit(
   owner: THREE.Object3D,
   stepId: string,
   patch: Record<string, unknown>,
   commandStack: CommandStack | null,
 ): boolean {
-  const before = physicsShatterCommitStackRead(owner);
+  const before = modifierStackParametersStackRead(owner);
   const entry = before?.modifiers.find((candidate) => candidate.id === stepId);
   if (!before || !entry) return false;
   const after = modifierStackPatch(before, stepId, { parameters: { ...entry.parameters, ...patch } });
