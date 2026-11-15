@@ -1,3 +1,4 @@
+import { SolidOperation } from '@/solid/types/solid_operation.js';
 import * as THREE from 'three';
 import type { ModifierStackField, ModifierStackUnit } from '@/modifier/stack/modifier_stack_types.js';
 import type { ModifierStackContext } from '@/modifier/stack/evaluate/modifier_stack_context.js';
@@ -129,6 +130,10 @@ export class ModifierStackKindPhysicsShatter extends ModifierStackKind {
 
   /**
    * Fractures the working set and places every piece at its baked pose.
+   * Subtractive units ahead of every additive one carve nothing the step
+   * breaks, only what lies before them in the world, so they pass through
+   * unchanged and stay in place: a Blast Hole's cut keeps cutting the wall
+   * while its filled-back pieces are shattered.
    *
    * @param units Previous output.
    * @param context Evaluation context.
@@ -137,13 +142,16 @@ export class ModifierStackKindPhysicsShatter extends ModifierStackKind {
   apply(units: readonly ModifierStackUnit[], context: ModifierStackContext): ModifierStackUnit[] {
     const frameToWorld = modifierStackFrame(context.volume, 'volume');
     const frameToModel = context.solidRoot.matrixWorld.clone().invert().multiply(frameToWorld);
-    const gathered = physicsShatterGather(units, context, frameToModel.clone().invert());
-    physicsShatterHideAuthored(units, context);
-    if (gathered.inputs.length === 0 || physicsShatterPreviewActive(context.volume.uuid, context.step.id)) return [];
+    const passed = physicsShatterLeadingSubtractive(units);
+    const broken = units.slice(passed.length);
+    const gathered = physicsShatterGather(broken, context, frameToModel.clone().invert());
+    physicsShatterHideAuthored(broken, context);
+    if (gathered.inputs.length === 0 || physicsShatterPreviewActive(context.volume.uuid, context.step.id))
+      return passed;
     const { fracture, bake } = this.evaluate(context, gathered, frameToWorld);
-    this.reportOf(fracture, bake, context, physicsShatterInputNotes(units, context));
+    this.reportOf(fracture, bake, context, physicsShatterInputNotes(broken, context));
     const inside = physicsShatterInsideRead(context.step.parameters);
-    return this.outputOf(fracture, bake, { context, sources: gathered.sources, frameToModel, inside });
+    return [...passed, ...this.outputOf(fracture, bake, { context, sources: gathered.sources, frameToModel, inside })];
   }
 
   /**
@@ -239,4 +247,20 @@ export class ModifierStackKindPhysicsShatter extends ModifierStackKind {
     if (fracture.droppedPieces > 0) messages.push(`Dropped ${fracture.droppedPieces} sliver piece(s).`);
     context.report.error = messages.join(' ');
   }
+}
+
+/**
+ * Returns the leading units whose brushes are all subtractive.
+ *
+ * @param units Working set in CSG order.
+ * @returns Leading subtractive units.
+ */
+export function physicsShatterLeadingSubtractive(units: readonly ModifierStackUnit[]): ModifierStackUnit[] {
+  const leading: ModifierStackUnit[] = [];
+  for (const unit of units) {
+    if (unit.brushes.length === 0 || unit.brushes.some((brush) => brush.operation !== SolidOperation.Subtractive))
+      break;
+    leading.push(unit);
+  }
+  return leading;
 }

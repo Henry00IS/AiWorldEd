@@ -35,6 +35,7 @@ describe('modifier stack kinds', () => {
     expect(modifierStackKinds.map((kind) => kind.id)).toEqual([
       'stairs',
       'arch',
+      'blastHole',
       'column',
       'linear',
       'radial',
