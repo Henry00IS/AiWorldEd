@@ -1,10 +1,19 @@
 import * as THREE from 'three';
 import { SolidBrushFactory } from '@/solid/brush/solid_brush_factory.js';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
+import { expect } from 'vitest';
+import { SolidBrushValidator } from '@/solid/brush/solid_brush_validator.js';
 import type {
   PhysicsShatterInput,
+  PhysicsShatterResult,
   PhysicsShatterSettings,
 } from '@/modifier/stack/kinds/shatter/fracture/physics_shatter_types.js';
+import {
+  PHYSICS_SHATTER_MAX_BULGE,
+  PHYSICS_SHATTER_MIN_EDGE,
+  physicsShatterMinPieceThickness,
+  physicsShatterPieceShape,
+} from '@/modifier/stack/kinds/shatter/fracture/physics_shatter_quality.js';
 
 /**
  * Returns fracture settings for tests, with overrides.
@@ -65,4 +74,58 @@ export function physicsShatterTestConvexityError(brush: SolidBrush): number {
   for (const plane of brush.planes)
     for (const vertex of brush.vertices) worst = Math.max(worst, plane.signedDistance(vertex));
   return worst;
+}
+
+/** Worst shape found among a fracture's pieces. */
+export interface PhysicsShatterTestWorst {
+  /** Thinnest piece, in metres. */
+  thickness: number;
+  /** Shortest edge, in metres. */
+  edge: number;
+  /** Smallest face area, in square metres. */
+  faceArea: number;
+  /** Largest vertex bulge outside a face plane. */
+  bulge: number;
+}
+
+/**
+ * Measures the worst piece shapes of a fracture.
+ *
+ * @param pieces Pieces.
+ * @returns Worst thickness, edge, face area and bulge.
+ */
+export function physicsShatterTestWorst(pieces: readonly { brush: SolidBrush }[]): PhysicsShatterTestWorst {
+  const worst = { thickness: Infinity, edge: Infinity, faceArea: Infinity, bulge: 0 };
+  for (const piece of pieces) {
+    const shape = physicsShatterPieceShape(piece.brush);
+    worst.thickness = Math.min(worst.thickness, shape.thickness);
+    worst.edge = Math.min(worst.edge, shape.minEdge);
+    worst.faceArea = Math.min(worst.faceArea, shape.minFaceArea);
+    worst.bulge = Math.max(worst.bulge, shape.bulge);
+  }
+  return worst;
+}
+
+/**
+ * Expects a fracture to hold only sound pieces: none dropped, none left unsound
+ * after healing, each at least the minimum thickness for its piece size, no
+ * edge under 5 mm and every piece a valid convex brush.
+ *
+ * @param result Fracture result.
+ * @param pieceSize Typical piece size of the pattern.
+ * @param inputEdge Shortest edge of the inputs, when shorter than 5 mm: a piece
+ *   keeps the input's own edges.
+ */
+export function physicsShatterTestExpectSound(
+  result: PhysicsShatterResult,
+  pieceSize: number,
+  inputEdge = PHYSICS_SHATTER_MIN_EDGE,
+): void {
+  expect(result.droppedPieces).toBe(0);
+  expect(result.unsoundPieces).toBe(0);
+  const worst = physicsShatterTestWorst(result.pieces);
+  expect(worst.thickness).toBeGreaterThanOrEqual(physicsShatterMinPieceThickness(pieceSize) - 1e-9);
+  expect(worst.edge).toBeGreaterThanOrEqual(Math.min(PHYSICS_SHATTER_MIN_EDGE, 0.98 * inputEdge) - 1e-9);
+  expect(worst.bulge).toBeLessThanOrEqual(PHYSICS_SHATTER_MAX_BULGE);
+  for (const piece of result.pieces) expect(SolidBrushValidator.validateGenerated(piece.brush).valid).toBe(true);
 }

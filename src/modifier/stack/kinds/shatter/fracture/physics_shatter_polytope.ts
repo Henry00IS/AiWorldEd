@@ -8,6 +8,9 @@ import { PhysicsShatterPolytopeCap } from './physics_shatter_polytope_cap.js';
 /** Distance from a plane within which a vertex counts as lying on it. */
 const PHYSICS_SHATTER_ON_PLANE = SOLID_BRUSH_VERTEX_WELD_EPSILON * 1.01;
 
+/** Key stride of an edge's crossing: more than any polytope's vertex count. */
+const PHYSICS_SHATTER_CROSSING_STRIDE = 1 << 20;
+
 /** One face loop of a polytope. */
 export interface PhysicsShatterPolytopeFace {
   /** Vertex indices, counter-clockwise seen from outside. */
@@ -61,14 +64,40 @@ export class PhysicsShatterPolytope {
     if (!sides.includes(1)) return this;
     if (!sides.includes(-1)) return null;
     const vertices = this.vertices.slice();
-    const crossings = new Map<string, number>();
+    const crossings = new Map<number, number>();
     const cut = { plane, sides, vertices, crossings };
     const faces = this.faces
       .map((face) => this.clipFace(face, cut))
       .filter((face) => face.loop.length >= 3 && face.loop.some((index) => sides[index] === -1));
     const cap = PhysicsShatterPolytopeCap.build(faces, vertices, sides, plane);
     if (cap) faces.push({ loop: cap, origin: capOrigin });
-    return faces.length >= 4 ? new PhysicsShatterPolytope(vertices, faces) : null;
+    return faces.length >= 4 ? PhysicsShatterPolytope.compacted(vertices, faces) : null;
+  }
+
+  /**
+   * Builds a polytope that keeps only the vertices its faces use, so later cuts
+   * test no vertex that was already cut away.
+   *
+   * @param vertices Vertices, some unused.
+   * @param faces Face loops into the vertices.
+   * @returns Polytope with renumbered loops.
+   */
+  private static compacted(
+    vertices: readonly THREE.Vector3[],
+    faces: PhysicsShatterPolytopeFace[],
+  ): PhysicsShatterPolytope {
+    const renumber = new Map<number, number>();
+    const kept: THREE.Vector3[] = [];
+    for (const face of faces)
+      face.loop = face.loop.map((index) => {
+        let target = renumber.get(index);
+        if (target === undefined) {
+          target = kept.push(vertices[index] ?? new THREE.Vector3()) - 1;
+          renumber.set(index, target);
+        }
+        return target;
+      });
+    return new PhysicsShatterPolytope(kept, faces);
   }
 
   /**
@@ -102,6 +131,38 @@ export class PhysicsShatterPolytope {
       }
     }
     return sixfold / 6;
+  }
+
+  /**
+   * Returns the volume centroid, from a tetrahedron fan around the first
+   * vertex.
+   *
+   * @returns Centroid, or the first vertex when the volume is zero.
+   */
+  centroid(): THREE.Vector3 {
+    const apex = this.vertices[this.faces[0]?.loop[0] ?? -1]?.clone() ?? new THREE.Vector3();
+    const sum = new THREE.Vector3();
+    const a = new THREE.Vector3();
+    const b = new THREE.Vector3();
+    const c = new THREE.Vector3();
+    const cross = new THREE.Vector3();
+    let total = 0;
+    for (const { loop } of this.faces) {
+      const first = this.vertices[loop[0] ?? -1];
+      if (!first) continue;
+      a.subVectors(first, apex);
+      for (let corner = 1; corner + 1 < loop.length; corner++) {
+        const second = this.vertices[loop[corner] ?? -1];
+        const third = this.vertices[loop[corner + 1] ?? -1];
+        if (!second || !third) continue;
+        b.subVectors(second, apex);
+        c.subVectors(third, apex);
+        const sixfold = a.dot(cross.crossVectors(b, c));
+        total += sixfold;
+        sum.addScaledVector(a, sixfold).addScaledVector(b, sixfold).addScaledVector(c, sixfold);
+      }
+    }
+    return Math.abs(total) > 1e-18 ? apex.addScaledVector(sum, 1 / (4 * total)) : apex;
   }
 
   /**
@@ -177,7 +238,7 @@ export class PhysicsShatterPolytope {
    */
   private crossingOf(from: number, to: number, cut: PhysicsShatterCut): number {
     const [low, high] = from < to ? [from, to] : [to, from];
-    const key = `${low}:${high}`;
+    const key = low * PHYSICS_SHATTER_CROSSING_STRIDE + high;
     const known = cut.crossings.get(key);
     if (known !== undefined) return known;
     const start = this.vertices[low] ?? new THREE.Vector3();
@@ -194,7 +255,7 @@ interface PhysicsShatterCut {
   plane: SolidPlane;
   sides: PhysicsShatterSide[];
   vertices: THREE.Vector3[];
-  crossings: Map<string, number>;
+  crossings: Map<number, number>;
 }
 
 /** Distance below which polytope vertices become one brush vertex, in metres. */

@@ -105,6 +105,13 @@ export interface PhysicsShatterResult {
   droppedVolume: number;
   /** Number of dropped slivers and failed cells. */
   droppedPieces: number;
-  /** True when Max Pieces limited the result. */
+  /**
+   * Number of bad cells (too thin, too small, a too short edge or too small
+   * face) merged into their neighbours while healing.
+   */
+  repairedPieces: number;
+  /** Number of pieces still short of the bounds after healing; kept anyway. */
+  unsoundPieces: number;
+  /** True when Max Pieces limited the result: fewer, larger pieces were made. */
   limited: boolean;
 }

@@ -13,6 +13,7 @@ import { physicsShatterLastRunOf } from '@/modifier/stack/kinds/shatter/physics_
 import { physicsShatterBrushVolume } from '@/modifier/stack/kinds/shatter/fracture/physics_shatter_geometry.js';
 import { physicsShatterSimulateAction } from '@/modifier/stack/kinds/shatter/sim/physics_shatter_simulate.js';
 import { stackFixture, type StackFixtureStep } from '../../modifier_stack_fixture.js';
+import { physicsShatterTestExpectSound, physicsShatterTestWorst } from './fracture/physics_shatter_fixtures.js';
 
 /** A plain eight-sided column. */
 const COLUMN_STEP: StackFixtureStep = { kind: 'column', parameters: { sides: '8' } };
@@ -44,6 +45,16 @@ function columnOutputs(fixture: ReturnType<typeof stackFixture>): SolidBrushInst
  */
 function columnVolume(brushes: readonly SolidBrushInstance[]): number {
   return brushes.reduce((sum, brush) => sum + physicsShatterBrushVolume(brush.getModelSpaceBrush()), 0);
+}
+
+/**
+ * Returns the shortest edge of some brushes.
+ *
+ * @param brushes Brushes.
+ * @returns Shortest edge in metres.
+ */
+function columnShortestEdge(brushes: readonly SolidBrushInstance[]): number {
+  return physicsShatterTestWorst(brushes.map((brush) => ({ brush: brush.getModelSpaceBrush() }))).edge;
 }
 
 /**
@@ -82,7 +93,8 @@ describe('physics shatter of generated columns', () => {
     for (const piece of run?.fracture.pieces ?? [])
       expect(SolidBrushValidator.validateGenerated(piece.brush).valid).toBe(true);
     const kept = (run?.fracture.pieces ?? []).reduce((sum, piece) => sum + piece.volume, 0);
-    expect(kept + (run?.fracture.droppedVolume ?? 0)).toBeCloseTo(columnVolume(result.reference), 4);
+    if (run) physicsShatterTestExpectSound(run.fracture, 0, columnShortestEdge(result.reference));
+    expect(kept).toBeCloseTo(columnVolume(result.reference), 4);
     expect(columnVolume(result.unbroken)).toBeCloseTo(kept, 4);
     expect(result.statuses.at(-1)).toMatch(/^Simulated /);
     expect(columnVolume(result.landed)).toBeCloseTo(kept, 3);
@@ -93,7 +105,8 @@ describe('physics shatter of generated columns', () => {
     const run = result.run;
     expect(run?.inputBrushIds.length).toBe(result.reference.length);
     const kept = (run?.fracture.pieces ?? []).reduce((sum, piece) => sum + piece.volume, 0);
-    expect(kept + (run?.fracture.droppedVolume ?? 0)).toBeCloseTo(columnVolume(result.reference), 4);
+    if (run) physicsShatterTestExpectSound(run.fracture, 0, columnShortestEdge(result.reference));
+    expect(kept).toBeCloseTo(columnVolume(result.reference), 4);
     const xs = (run?.fracture.pieces ?? []).map((piece) => piece.centroid.x);
     expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(1);
     for (const piece of run?.fracture.pieces ?? [])
@@ -120,7 +133,8 @@ describe('physics shatter of generated columns', () => {
       expect(SolidBrushValidator.validateGenerated(piece.brush).valid).toBe(true);
     const kept = (run?.fracture.pieces ?? []).reduce((sum, piece) => sum + piece.volume, 0);
     expect(run?.fracture.pieces.length ?? 0).toBeGreaterThan(reference.length);
-    expect(kept + (run?.fracture.droppedVolume ?? 0)).toBeCloseTo(columnVolume(reference), 4);
+    if (run) physicsShatterTestExpectSound(run.fracture, 0, columnShortestEdge(reference));
+    expect(kept).toBeCloseTo(columnVolume(reference), 4);
     expect(columnVolume(unbroken)).toBeCloseTo(kept, 4);
     const statuses: string[] = [];
     await physicsShatterSimulateAction({

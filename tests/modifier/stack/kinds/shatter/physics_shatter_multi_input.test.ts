@@ -19,6 +19,7 @@ import { physicsShatterBrushVolume } from '@/modifier/stack/kinds/shatter/fractu
 import type { PhysicsShatterPiece } from '@/modifier/stack/kinds/shatter/fracture/physics_shatter_types.js';
 import { physicsShatterSimulateAction } from '@/modifier/stack/kinds/shatter/sim/physics_shatter_simulate.js';
 import { stackFixtureEntries, type StackFixtureStep } from '../../modifier_stack_fixture.js';
+import { physicsShatterTestExpectSound } from './fracture/physics_shatter_fixtures.js';
 
 /** Glass shatter with half-metre cracks. */
 const MULTI_SHATTER: StackFixtureStep = { kind: 'physicsShatter', parameters: { crackSize: 0.5, duration: 1 } };
@@ -144,6 +145,7 @@ function multiExpectSoundPieces(run: PhysicsShatterLastRun | null): void {
   const pieces = run?.fracture.pieces ?? [];
   for (const piece of pieces) expect(SolidBrushValidator.validateGenerated(piece.brush).valid).toBe(true);
   expect(multiOverlapCount(pieces)).toBe(0);
+  if (run) physicsShatterTestExpectSound(run.fracture, 0);
 }
 
 /**

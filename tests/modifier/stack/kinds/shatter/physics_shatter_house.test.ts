@@ -12,6 +12,7 @@ import { physicsShatterBrushVolume } from '@/modifier/stack/kinds/shatter/fractu
 import { physicsShatterSimulateAction } from '@/modifier/stack/kinds/shatter/sim/physics_shatter_simulate.js';
 import { stackFixtureEntries } from '../../modifier_stack_fixture.js';
 import { SHATTER_HOUSE, SHATTER_HOUSE_PARAMETERS, SHATTER_HOUSE_VOLUME } from './physics_shatter_house_fixture.js';
+import { physicsShatterTestExpectSound } from './fracture/physics_shatter_fixtures.js';
 
 /**
  * Builds the test house and one Physics Shatter volume around it.
@@ -64,7 +65,8 @@ describe('physics shatter of a house', () => {
     expect(unbroken.every((brush) => brush.operation === SolidOperation.Additive)).toBe(true);
     expect(pieces.every((piece) => SolidBrushValidator.validateGenerated(piece.brush).valid)).toBe(true);
     const kept = pieces.reduce((sum, piece) => sum + piece.volume, 0);
-    expect(kept + (run?.fracture.droppedVolume ?? 0)).toBeCloseTo(SHATTER_HOUSE_VOLUME, 2);
+    if (run) physicsShatterTestExpectSound(run.fracture, 0);
+    expect(kept).toBeCloseTo(SHATTER_HOUSE_VOLUME, 2);
     const statuses: string[] = [];
     const target: ModifierStackActionTarget = {
       volume: scene.volume,
