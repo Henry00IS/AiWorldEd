@@ -223,8 +223,8 @@ describe('Function blocks', () => {
         name: 'step()',
         line: 6,
         locals: [
-          { name: 'local.i', value: '2' },
-          { name: 'local.h', value: '0.4' },
+          { name: 'local.i', value: '2', type: 'Whole Number', items: [] },
+          { name: 'local.h', value: '0.4', type: 'Number', items: [] },
         ],
       },
     ]);
