@@ -15,5 +15,6 @@ export function createEditMeshTool(command: EditMeshToolCommand): Tool {
   if (command === 'extrude_faces_individual') return new EditFaceExtrudeTool('individual');
   if (command === 'inset_faces') return new EditFaceInsetTool();
   if (command === 'bevel_edges') return new EditEdgeBevelTool();
+  if (command === 'solidify_faces') return new EditFaceExtrudeTool('solidify');
   return new EditFaceExtrudeTool('region');
 }

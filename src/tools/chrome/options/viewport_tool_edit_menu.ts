@@ -153,6 +153,12 @@ export function buildViewportToolFaceMenuEntries(actions: ViewportToolEditMenuAc
       'Shrink the selected mesh faces inside their outline and ring them with new faces; Tab sets the depth, I toggles individual faces',
       tool('inset_faces'),
     ),
+    createAction(
+      'Solidify',
+      '',
+      'Give loose mesh faces, such as a single panel, a thickness so they become a closed slab',
+      tool('solidify_faces'),
+    ),
     { kind: 'separator' },
     createAction(
       'Duplicate Faces',

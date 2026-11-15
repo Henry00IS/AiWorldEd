@@ -1,8 +1,7 @@
 import type { Vector2 } from 'three';
 import { Tool } from '@/editor/tools/tool.js';
 import { OverlaySegmentsPreview } from '@/edit/overlay/overlay_segments_preview.js';
-import type { FaceSelectionAxis } from '@/edit/topology/handler_component_mesh_operations.js';
-import type { TopologyFaceExtrudeGrouping } from '@/edit/topology/topology_face_extrude.js';
+import type { FaceSelectionAxis, MeshExtrudeMode } from '@/edit/topology/handler_component_mesh_operations.js';
 import { editAxisDragParameter } from './edit_axis_drag.js';
 import { EditNumericEntry } from './edit_numeric_entry.js';
 
@@ -13,7 +12,7 @@ import { EditNumericEntry } from './edit_numeric_entry.js';
  * click or Enter confirms and Esc or right click cancels.
  */
 export class EditFaceExtrudeTool extends Tool {
-  private readonly grouping: TopologyFaceExtrudeGrouping;
+  private readonly grouping: MeshExtrudeMode;
   private readonly numericEntry: EditNumericEntry;
   private preview: OverlaySegmentsPreview | null;
   private axis: FaceSelectionAxis | null;
@@ -24,9 +23,10 @@ export class EditFaceExtrudeTool extends Tool {
   /**
    * Creates the extrude tool.
    *
-   * @param grouping Whether touching faces move together or one by one.
+   * @param grouping Whether touching faces move together or one by one, or
+   *   'solidify' to give loose faces a thickness instead.
    */
-  constructor(grouping: TopologyFaceExtrudeGrouping = 'region') {
+  constructor(grouping: MeshExtrudeMode = 'region') {
     super();
     this.grouping = grouping;
     this.numericEntry = new EditNumericEntry();

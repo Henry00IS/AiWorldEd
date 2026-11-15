@@ -30,6 +30,7 @@ import {
   type TopologyFaceSplitOutcome,
 } from './topology_face_triangulate.js';
 import { joinTopologyWorkingTriangles } from './topology_face_join_triangles.js';
+import { solidifyTopologyWorkingFaces } from './topology_face_solidify.js';
 import { findEditDomainTargetById, resolveTopologyEditTarget } from './topology_target_resolve.js';
 import type { TopologyMeshTarget } from './topology_target.js';
 import type { TopologyWorkingGeometry } from './topology_working_geometry.js';
@@ -41,6 +42,12 @@ export interface FaceSelectionAxis {
   /** Unit world direction a positive distance moves the faces. */
   direction: THREE.Vector3;
 }
+
+/**
+ * What the extrude tool builds: an extrusion grouped one way, or a solidified
+ * slab.
+ */
+export type MeshExtrudeMode = TopologyFaceExtrudeGrouping | 'solidify';
 
 /** Selected edges of one edited mesh. */
 interface MeshEdgeSelection {
@@ -142,10 +149,11 @@ export class HandlerComponentMeshOperations {
    * Builds world line segments of what the current extrusion would create.
    *
    * @param distance Signed world distance.
-   * @param grouping Region or individual grouping of faces.
+   * @param grouping Region or individual grouping of faces, or Solidify.
    * @returns Flat list of segment endpoints.
    */
-  previewExtrude(distance: number, grouping: TopologyFaceExtrudeGrouping): THREE.Vector3[] {
+  previewExtrude(distance: number, grouping: MeshExtrudeMode): THREE.Vector3[] {
+    if (grouping === 'solidify') return this.previewSolidify(distance);
     if (!this.isEdgeMode()) return this.previewFaceExtrude(distance, grouping);
     const points: THREE.Vector3[] = [];
     for (const { target, edges } of this.collectMeshEdgeSelections()) {
@@ -162,10 +170,11 @@ export class HandlerComponentMeshOperations {
    * selects the result so it can be moved or scaled on.
    *
    * @param distance Signed world distance.
-   * @param grouping Region or individual grouping of faces.
+   * @param grouping Region or individual grouping of faces, or Solidify.
    * @returns True when at least one mesh changed.
    */
-  extrudeSelection(distance: number, grouping: TopologyFaceExtrudeGrouping): boolean {
+  extrudeSelection(distance: number, grouping: MeshExtrudeMode): boolean {
+    if (grouping === 'solidify') return this.solidifySelectedFaces(distance);
     if (!this.isEdgeMode()) return this.extrudeSelectedFaces(distance, grouping);
     const outer: ComponentSelectionEntry[] = [];
     const targets = this.collectMeshEdgeSelections();
@@ -184,10 +193,11 @@ export class HandlerComponentMeshOperations {
   /**
    * Returns the label of the current extrusion for the status bar.
    *
-   * @param grouping Region or individual grouping of faces.
+   * @param grouping Region or individual grouping of faces, or Solidify.
    * @returns Tool label.
    */
-  describeExtrudeLabel(grouping: TopologyFaceExtrudeGrouping): string {
+  describeExtrudeLabel(grouping: MeshExtrudeMode): string {
+    if (grouping === 'solidify') return 'Solidify';
     if (this.isEdgeMode()) return 'Extrude Edges';
     return grouping === 'individual' ? 'Extrude Faces Individually' : 'Extrude Faces';
   }
@@ -323,6 +333,37 @@ export class HandlerComponentMeshOperations {
         return outcome.result;
       },
       () => this.deps.getSession().getComponentSelection().replaceAll(pieces),
+    );
+  }
+
+  /**
+   * Builds world line segments of the slab Solidify would build.
+   *
+   * @param thickness Signed world thickness.
+   * @returns Flat list of segment endpoints.
+   */
+  previewSolidify(thickness: number): THREE.Vector3[] {
+    const points: THREE.Vector3[] = [];
+    for (const { target, faces } of this.collectMeshFaceSelections('Solidify')) {
+      const geometry = loadWorkingGeometryFromTarget(target);
+      const firstNew = geometry.faces.length;
+      if (solidifyTopologyWorkingFaces(geometry, faces, thickness, meshNormalScale(target)).applied) {
+        appendNewFaceSegments(geometry, faces, firstNew, target, points);
+      }
+    }
+    return points;
+  }
+
+  /**
+   * Gives the selected loose mesh faces a thickness and keeps the front faces
+   * selected.
+   *
+   * @param thickness Signed world thickness; negative grows behind the faces.
+   * @returns True when at least one mesh changed.
+   */
+  solidifySelectedFaces(thickness: number): boolean {
+    return this.mutateSelectedMeshFaces('Solidify', (target, geometry, faces) =>
+      solidifyTopologyWorkingFaces(geometry, faces, thickness, meshNormalScale(target)),
     );
   }
 
