@@ -16,9 +16,13 @@ interface SolidTriangleSourceRow {
  * brush hull itself (hull materials must stay brush helpers).
  *
  * @param brushMesh Selected solid brush preview mesh.
+ * @param surfaceIndices Brush faces to target; omit for every face.
  * @returns One target per visible brush face on the result mesh.
  */
-export function buildTargetsFromSolidBrushMesh(brushMesh: THREE.Mesh): TextureApplyTarget[] {
+export function buildTargetsFromSolidBrushMesh(
+  brushMesh: THREE.Mesh,
+  surfaceIndices?: readonly number[],
+): TextureApplyTarget[] {
   if (!SolidBrushVisual.isBrushObject(brushMesh)) {
     return [];
   }
@@ -32,6 +36,8 @@ export function buildTargetsFromSolidBrushMesh(brushMesh: THREE.Mesh): TextureAp
   }
   const resultMesh = model.getResultMesh();
   const bySurface = collectResultTrianglesByBrushSurface(resultMesh, brush.id);
+  if (surfaceIndices)
+    for (const surface of bySurface.keys()) if (!surfaceIndices.includes(surface)) bySurface.delete(surface);
   return buildTargetsFromSurfaceTriangleMap(resultMesh, bySurface);
 }
 

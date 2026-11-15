@@ -4,7 +4,7 @@ import { SolidBrushFactory } from '@/solid/brush/solid_brush_factory.js';
 import { SolidAlgorithmIntersectingPlanes } from '@/solid/algorithm/spatial/solid_algorithm_intersecting_planes.js';
 import { SolidAlgorithmIntersectionType } from '@/solid/algorithm/routing/solid_algorithm_intersection_type.js';
 
-/** Chisel GetIntersectingPlanes local plane tables. */
+/** Intersecting-plane lookup for local plane tables. */
 describe('SolidAlgorithmIntersectingPlanes', () => {
   it('returns every plane index when the pair type is not Intersection', () => {
     const brush = SolidBrushFactory.createCenteredBox(2, 2, 2);

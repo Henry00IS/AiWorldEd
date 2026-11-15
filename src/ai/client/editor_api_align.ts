@@ -75,16 +75,16 @@ export class EditorApiAlign {
   private resolvePreviewPose(brush: SolidBrushInstance, args: PreviewTransformArgs) {
     const useSnap = shouldApplySnap(args);
     const position = resolveSnappedPosition(this.host, args.position, brush.position, useSnap);
-    const hasRotation = Boolean(args.rotationDegrees || args.rotation);
+    const hasRotation = Boolean(args.rotationDegrees);
     const rotation = hasRotation
-      ? snapEulerWhenRequested(this.host, resolveEulerFromArgs(args.rotationDegrees, args.rotation), useSnap)
+      ? snapEulerWhenRequested(this.host, resolveEulerFromArgs(args.rotationDegrees), useSnap)
       : brush.rotation.clone();
     const scale = resolveSnappedScale(this.host, args.scale, brush.scale, useSnap);
     return { position, rotation, scale };
   }
 
   /**
-   * Builds the preview_transform response payload.
+   * Builds the brush_transform_preview response payload.
    *
    * @param brushId Brush id.
    * @param pose Resolved pose.

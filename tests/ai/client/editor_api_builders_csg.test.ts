@@ -63,7 +63,7 @@ describe('EditorApi builders and csg helpers', () => {
     brush.scale.set(2, 4, 6);
     brush.pushTransformToMesh();
     model.rebuild(true);
-    const result = api.invokeTool('half_extents', { brushId: brush.id });
+    const result = api.invokeTool('brush_extents_get', { brushId: brush.id });
     expect(result.ok).toBe(true);
     const data = result.data as {
       halfExtents: { x: number; y: number; z: number };
@@ -79,7 +79,7 @@ describe('EditorApi builders and csg helpers', () => {
     const { api, world, stack } = createApi();
     const model = pushModel(world, stack, 'PreviewModel');
     const before = model.getBrushCount();
-    const result = api.invokeTool('preview_new_box', {
+    const result = api.invokeTool('brush_box_preview', {
       modelId: model.root.uuid,
       size: { x: 2, y: 3, z: 4 },
       position: { x: 5, y: 1.5, z: 0 },
@@ -97,7 +97,7 @@ describe('EditorApi builders and csg helpers', () => {
     const { api, world, stack } = createApi();
     const model = pushModel(world, stack, 'WallModel');
     const before = model.getBrushCount();
-    const result = api.invokeTool('place_wall', {
+    const result = api.invokeTool('build_wall_place', {
       modelId: model.root.uuid,
       from: { x: 0, z: 0 },
       to: { x: 10, z: 0 },
@@ -121,7 +121,7 @@ describe('EditorApi builders and csg helpers', () => {
   it('places a wall along +Z with zero yaw', () => {
     const { api, world, stack } = createApi();
     const model = pushModel(world, stack, 'WallZModel');
-    api.invokeTool('place_wall', {
+    api.invokeTool('build_wall_place', {
       modelId: model.root.uuid,
       from: { x: 2, z: -4 },
       to: { x: 2, z: 4 },
@@ -144,7 +144,7 @@ describe('EditorApi builders and csg helpers', () => {
     const model = pushModel(world, stack, 'RoomModel');
     const wallT = 0.25;
     const size = { x: 8, y: 3, z: 6 };
-    const result = api.invokeTool('add_room_shell', {
+    const result = api.invokeTool('build_room_shell_add', {
       modelId: model.root.uuid,
       size,
       position: { x: 0, y: 1.5, z: 0 },
@@ -172,7 +172,7 @@ describe('EditorApi builders and csg helpers', () => {
   it('cuts a subtractive opening', () => {
     const { api, world, stack } = createApi();
     const model = pushModel(world, stack, 'CutModel');
-    const result = api.invokeTool('cut_opening', {
+    const result = api.invokeTool('build_opening_cut', {
       modelId: model.root.uuid,
       position: { x: 0, y: 1, z: 2 },
       size: { x: 1, y: 2, z: 0.5 },
@@ -188,7 +188,7 @@ describe('EditorApi builders and csg helpers', () => {
     const { api, world, stack } = createApi();
     const model = pushModel(world, stack, 'DoorModel');
     const wallT = 0.3;
-    api.invokeTool('add_room_shell', {
+    api.invokeTool('build_room_shell_add', {
       modelId: model.root.uuid,
       size: { x: 10, y: 3, z: 8 },
       position: { x: 0, y: 1.5, z: 0 },
@@ -197,21 +197,21 @@ describe('EditorApi builders and csg helpers', () => {
       ceilingThickness: 0.2,
       name: 'hall',
       snap: false,
-      carveInterior: false,
+      interiorCarve: false,
     });
     const front = model.getBrushes().find((brush) => brush.name === 'hall_wall_front')!;
     front.pullTransformFromMesh();
     const doorWidth = 1.2;
     const doorHeight = 2.1;
     const sillHeight = 0.2;
-    const result = api.invokeTool('add_opening', {
+    const result = api.invokeTool('build_opening_add', {
       modelId: model.root.uuid,
       kind: 'door',
       targetBrushId: front.id,
       position: { x: 1.5, y: 0, z: 99 },
       size: { width: doorWidth, height: doorHeight },
       sillHeight,
-      addFrame: false,
+      frameAdd: false,
       name: 'entry',
       snap: false,
     });
@@ -243,7 +243,7 @@ describe('EditorApi builders and csg helpers', () => {
   it('omits bottom frame for doors and includes it for windows', () => {
     const { api, world, stack } = createApi();
     const model = pushModel(world, stack, 'FrameModel');
-    api.invokeTool('add_box_brush', {
+    api.invokeTool('brush_box_add', {
       modelId: model.root.uuid,
       size: { x: 4, y: 3, z: 0.25 },
       position: { x: 0, y: 1.5, z: 0 },
@@ -251,7 +251,7 @@ describe('EditorApi builders and csg helpers', () => {
       snap: false,
     });
     const wall = model.getBrushes().find((brush) => brush.name === 'thin_wall')!;
-    api.invokeTool('add_opening', {
+    api.invokeTool('build_opening_add', {
       modelId: model.root.uuid,
       kind: 'door',
       targetBrushId: wall.id,
@@ -261,7 +261,7 @@ describe('EditorApi builders and csg helpers', () => {
       name: 'd',
       snap: false,
     });
-    api.invokeTool('add_opening', {
+    api.invokeTool('build_opening_add', {
       modelId: model.root.uuid,
       kind: 'window',
       targetBrushId: wall.id,
@@ -284,7 +284,7 @@ describe('EditorApi builders and csg helpers', () => {
     brush.scale.set(4, 4, 4);
     brush.pushTransformToMesh();
     model.rebuild(true);
-    const result = api.invokeTool('explain_csg_at_point', {
+    const result = api.invokeTool('space_solid_point_explain', {
       modelId: model.root.uuid,
       point: { x: 0, y: 0, z: 0 },
     });
@@ -305,7 +305,7 @@ describe('EditorApi builders and csg helpers', () => {
     const outer = model.getBrushes()[0]!;
     outer.scale.set(4, 4, 4);
     outer.pushTransformToMesh();
-    api.invokeTool('add_box_brush', {
+    api.invokeTool('brush_box_add', {
       modelId: model.root.uuid,
       size: { x: 2, y: 2, z: 2 },
       position: { x: 0, y: 0, z: 0 },
@@ -314,7 +314,7 @@ describe('EditorApi builders and csg helpers', () => {
       snap: false,
     });
     const cutter = model.getBrushes().find((brush) => brush.name === 'cutter_body')!;
-    const grouped = api.invokeTool('create_csg_group', {
+    const grouped = api.invokeTool('csg_group_create', {
       modelId: model.root.uuid,
       brushIds: [cutter.id],
       operation: 'subtractive',
@@ -322,7 +322,7 @@ describe('EditorApi builders and csg helpers', () => {
     });
     expect(grouped.ok).toBe(true);
     model.rebuild(true);
-    const result = api.invokeTool('explain_csg_at_point', {
+    const result = api.invokeTool('space_solid_point_explain', {
       modelId: model.root.uuid,
       point: { x: 0, y: 0, z: 0 },
     });
@@ -341,10 +341,10 @@ describe('EditorApi builders and csg helpers', () => {
     brush.position.set(100, 0, 0);
     brush.pushTransformToMesh();
     model.rebuild(true);
-    const result = api.invokeTool('query_void_connectivity', {
+    const result = api.invokeTool('space_void_connectivity_query', {
       modelId: model.root.uuid,
-      fromPoint: { x: 0, y: 0, z: 0 },
-      toPoint: { x: 0, y: 0, z: 5 },
+      pointFrom: { x: 0, y: 0, z: 0 },
+      pointTo: { x: 0, y: 0, z: 5 },
     });
     expect(result.ok).toBe(true);
     const data = result.data as { connected: boolean };
@@ -354,22 +354,22 @@ describe('EditorApi builders and csg helpers', () => {
   it('reorders a brush relative to another by name', () => {
     const { api, world, stack } = createApi();
     const model = pushModel(world, stack, 'OrderModel');
-    api.invokeTool('add_box_brush', {
+    api.invokeTool('brush_box_add', {
       modelId: model.root.uuid,
       position: { x: 2, y: 0, z: 0 },
       name: 'second',
       snap: false,
     });
-    api.invokeTool('add_box_brush', {
+    api.invokeTool('brush_box_add', {
       modelId: model.root.uuid,
       position: { x: 4, y: 0, z: 0 },
       name: 'third',
       snap: false,
     });
     const third = model.getBrushes().find((brush) => brush.name === 'third')!;
-    const result = api.invokeTool('reorder_brush_relative', {
+    const result = api.invokeTool('brush_reorder_relative', {
       brushId: third.id,
-      relativeToName: 'second',
+      nameRelative: 'second',
       placement: 'before',
     });
     expect(result.ok).toBe(true);
@@ -381,7 +381,7 @@ describe('EditorApi builders and csg helpers', () => {
     const { api, world, stack } = createApi();
     const model = pushModel(world, stack, 'InsertModel');
     model.renameBrush(model.getBrushes()[0]!.id, 'wall_a');
-    const result = api.invokeTool('add_box_brushes', {
+    const result = api.invokeTool('brush_boxes_add', {
       modelId: model.root.uuid,
       snap: false,
       brushes: [
@@ -390,7 +390,7 @@ describe('EditorApi builders and csg helpers', () => {
           position: { x: 0, y: 1, z: 0 },
           size: { x: 1, y: 2, z: 0.4 },
           operation: 'subtractive',
-          insertAfterName: 'wall_a',
+          nameAfter: 'wall_a',
         },
       ],
     });

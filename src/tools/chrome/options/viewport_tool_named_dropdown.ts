@@ -16,11 +16,13 @@ export class ViewportToolNamedDropdown extends PanelMenuDropdown {
    * @param parentElement Options bar host.
    * @param label Trigger label.
    * @param buildEntries Menu entry factory evaluated when the menu opens.
+   * @param menuPath Name AI tools list the menu under; default the label.
    */
-  constructor(parentElement: HTMLElement, label: string, buildEntries: () => ToolbarMenuEntry[]) {
+  constructor(parentElement: HTMLElement, label: string, buildEntries: () => ToolbarMenuEntry[], menuPath = label) {
     super(parentElement);
     this.label = label;
     this.buildEntries = buildEntries;
+    this.menuRegister(menuPath, buildEntries);
     this.buildChrome();
   }
 

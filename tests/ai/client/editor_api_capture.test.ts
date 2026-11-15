@@ -108,7 +108,7 @@ function lookAtIsOpticalCenter(position: THREE.Vector3, lookAt: THREE.Vector3, u
 }
 
 /** Unit tests for offline AI capture helpers and framing. */
-describe('EditorApi capture_view', () => {
+describe('EditorApi view_capture', () => {
   it('defaults and clamps capture resolution for MCP-safe sizes', () => {
     expect(clampCaptureResolution(undefined)).toBe(MCP_CAPTURE_DEFAULT_SIZE);
     expect(clampCaptureResolution(16)).toBe(32);
@@ -221,10 +221,10 @@ describe('EditorApi capture_view', () => {
     expect(lookAtIsOpticalCenter(pose.position, pose.lookAt, pose.up)).toBe(true);
   });
 
-  it('fails capture_view when scene/renderer are not wired', () => {
+  it('fails view_capture when scene/renderer are not wired', () => {
     const world = new THREE.Group();
     const api = new EditorApi(createTestHost(world));
-    const result = api.invokeTool('capture_view', { size: 128 });
+    const result = api.invokeTool('view_capture', { size: 128 });
     expect(result.ok).toBe(false);
     expect(result.message.toLowerCase()).toContain('scene');
     expect(result.message.toLowerCase()).toContain('start mcp');

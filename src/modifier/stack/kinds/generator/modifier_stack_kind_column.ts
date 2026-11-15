@@ -104,6 +104,7 @@ const MODIFIER_STACK_COLUMN_WRAP_FIELDS: readonly ModifierStackField[] = [
   {
     key: 'repeatAround',
     label: 'Repeat Around',
+    hint: 'How many times the texture repeats around the column.',
     type: 'number',
     default: 1,
     min: 1,
@@ -129,6 +130,7 @@ const MODIFIER_STACK_COLUMN_WRAP_FIELDS: readonly ModifierStackField[] = [
   {
     key: 'repeatAlong',
     label: 'Repeat Along',
+    hint: 'How many times the texture repeats along the column height.',
     type: 'number',
     default: 1,
     min: 1,
@@ -181,7 +183,7 @@ export class ModifierStackKindColumn extends ModifierStackKindGeneratorCapped {
     },
     {
       key: 'aspect',
-      label: 'Depth / width',
+      label: 'Depth / Width',
       type: 'number',
       default: 1,
       min: 0.05,

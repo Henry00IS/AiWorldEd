@@ -55,8 +55,8 @@ function classifyPair(subject: SolidBrushInstance, other: SolidBrushInstance): S
 }
 
 /**
- * Subtractive last into earlier additive — Chisel InvalidateBrushes +
- * CreateRoutingTable AInsideB/BInsideA/Intersection surface update rules.
+ * Subtractive last into earlier additive — brush invalidation and routing table
+ * AInsideB/BInsideA/Intersection surface update rules.
  */
 describe('subtractive last into earlier additive', () => {
   it('recompiles BInsideA chair when subtractive table fully contains it', () => {

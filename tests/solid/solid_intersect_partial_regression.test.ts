@@ -21,7 +21,7 @@ function makeBox(id: string, size: number, operation: SolidOperation, position?:
   return instance;
 }
 
-describe('Intersecting brush peer-local regression (Chisel routing tables)', () => {
+describe('Intersecting brush peer-local regression (routing tables)', () => {
   it('keeps shared volume when intersect is added after many additives (full)', () => {
     const brushes: SolidBrushInstance[] = [];
     for (let i = 0; i < 8; i++) {

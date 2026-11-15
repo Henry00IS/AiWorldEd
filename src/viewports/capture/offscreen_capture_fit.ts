@@ -35,7 +35,7 @@ export function fitCaptureCameraToMeshes(
 ): CaptureFitResult {
   const bounds = new BoundingVolumeComputer().computeWorldBoundingBox(meshes);
   if (bounds.isEmpty()) {
-    throw new Error('capture_view: subject bounds are empty');
+    throw new Error('view_capture: subject bounds are empty');
   }
   return fitCaptureCameraToBounds(camera, bounds, view, paddingFactor, distanceOffset);
 }

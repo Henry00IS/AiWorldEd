@@ -30,7 +30,7 @@ function makeBounds(
   };
 }
 
-/** Chisel plane/bounds early-out helpers. */
+/** Plane/bounds early-out helpers. */
 describe('SolidPlaneBounds and SolidBoundsOps', () => {
   it('classifies bounds entirely outside a plane as Outside', () => {
     const plane = new SolidPlane(new THREE.Vector3(1, 0, 0), -10);
@@ -54,7 +54,7 @@ describe('SolidPlaneBounds and SolidBoundsOps', () => {
     expect(SolidPlaneBounds.classify(plane, bounds)).toBe(SolidPlaneBoundsResult.Intersecting);
   });
 
-  it('intersects bounds with Chisel epsilon semantics', () => {
+  it('intersects bounds with epsilon semantics', () => {
     const left = makeBounds(0, 0, 0, 1, 1, 1);
     const right = makeBounds(1.0005, 0, 0, 2, 1, 1);
     expect(SolidBoundsOps.intersects(left, right, 0.001)).toBe(true);

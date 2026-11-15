@@ -381,8 +381,15 @@ export class SolidModel {
    * @param instance Brush instance to own.
    * @param parent Solid root or CSG group of this model.
    * @param after Sibling to follow, or null to append.
+   * @param rebuildAfter When false, only registers the brush so callers can
+   *   batch a single compile.
    */
-  addBrushInstanceAfter(instance: SolidBrushInstance, parent: THREE.Object3D, after: THREE.Object3D | null): void {
+  addBrushInstanceAfter(
+    instance: SolidBrushInstance,
+    parent: THREE.Object3D,
+    after: THREE.Object3D | null,
+    rebuildAfter: boolean = true,
+  ): void {
     this.brushes.ensureBrushPreviewMesh(instance, 2);
     const mesh = instance.mesh;
     const destination = this.resolveBrushInsertParent(parent);
@@ -394,7 +401,7 @@ export class SolidModel {
     this.brushes.appendPreparedBrush(instance);
     this.syncBrushOrderFromScene();
     this.markBrushesDirty([instance.id]);
-    this.rebuild();
+    if (rebuildAfter) this.rebuild();
   }
 
   /**

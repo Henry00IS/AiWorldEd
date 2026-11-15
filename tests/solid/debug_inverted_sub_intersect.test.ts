@@ -24,7 +24,7 @@ function makeBox(id: string, size: number, operation: SolidOperation, position?:
   return instance;
 }
 
-describe('inverted subtractive + intersecting (Chisel infinite + routing tables)', () => {
+describe('inverted subtractive + intersecting (infinite brush + routing tables)', () => {
   it('keeps room while inter is apart; hull-sized inter clips without total wipe', () => {
     const model = new SolidModel('InvSubInter');
     model.setInvertedWorld(true);

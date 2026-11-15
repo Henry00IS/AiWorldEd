@@ -1,0 +1,69 @@
+import * as THREE from 'three';
+import { describe, expect, it } from 'vitest';
+import { SolidBrushFactory } from '@/solid/brush/solid_brush_factory.js';
+import { CommandSolidTreeAdd } from '@/solid/commands/tree/command_solid_tree_add.js';
+import type { SolidTreeNode } from '@/solid/commands/tree/solid_tree_node.js';
+import { SolidModel } from '@/solid/model/solid_model.js';
+import { getSolidGroupOperation, isSolidCsgGroup } from '@/solid/model/solid_group.js';
+import { SolidOperation } from '@/solid/types/solid_operation.js';
+
+/**
+ * Builds a box brush node.
+ *
+ * @param name Name.
+ * @param operation Operation.
+ * @param x Center X.
+ * @returns Node.
+ */
+function box(name: string, operation: SolidOperation, x: number): SolidTreeNode {
+  return {
+    kind: 'brush',
+    name,
+    operation,
+    brush: SolidBrushFactory.createCenteredBox(1, 1, 1),
+    center: new THREE.Vector3(x, 0, 0),
+  };
+}
+
+/**
+ * Lists names under an object depth-first.
+ *
+ * @param root Object.
+ * @returns Names.
+ */
+function names(root: THREE.Object3D): string[] {
+  return root.children.flatMap((child) => [child.name, ...names(child)]);
+}
+
+describe('CommandSolidTreeAdd', () => {
+  const tree: SolidTreeNode[] = [
+    box('Floor', SolidOperation.Additive, 0),
+    {
+      kind: 'group',
+      name: 'Wall',
+      operation: SolidOperation.Additive,
+      children: [box('Slab', SolidOperation.Additive, 2), box('Door', SolidOperation.Subtractive, 2)],
+    },
+  ];
+
+  it('inserts groups and brushes in order and undoes and redoes as one step', () => {
+    const model = new SolidModel('Tree');
+    const command = new CommandSolidTreeAdd(model, tree);
+    command.execute();
+    const group = model.root.children.find((child) => child.name === 'Wall');
+    expect(group && isSolidCsgGroup(group)).toBe(true);
+    expect(group && getSolidGroupOperation(group)).toBe(SolidOperation.Additive);
+    expect(model.getBrushes().map((brush) => brush.operation)).toEqual([
+      SolidOperation.Additive,
+      SolidOperation.Additive,
+      SolidOperation.Subtractive,
+    ]);
+    const before = names(model.root);
+    command.undo();
+    expect(model.getBrushes()).toHaveLength(0);
+    expect(model.root.children.some((child) => child.name === 'Wall')).toBe(false);
+    command.execute();
+    expect(names(model.root)).toEqual(before);
+    expect(command.getRootObjects()).toHaveLength(2);
+  });
+});

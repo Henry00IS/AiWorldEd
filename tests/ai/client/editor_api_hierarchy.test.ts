@@ -72,7 +72,7 @@ function createModelWithTwoBrushes(): {
 describe('EditorApi solid hierarchy', () => {
   it('creates a CSG group from brushes and reports hierarchy nesting', () => {
     const { api, model, brushA, brushB } = createModelWithTwoBrushes();
-    const created = api.invokeTool('create_csg_group', {
+    const created = api.invokeTool('csg_group_create', {
       modelId: model.root.uuid,
       brushIds: [brushA, brushB],
       name: 'Compound',
@@ -85,7 +85,7 @@ describe('EditorApi solid hierarchy', () => {
     expect(group).toBeDefined();
     expect(isSolidCsgGroup(group!)).toBe(true);
     expect(getSolidGroupOperation(group!)).toBe(SolidOperation.Subtractive);
-    const detail = api.invokeTool('get_solid_model', { modelId: model.root.uuid });
+    const detail = api.invokeTool('solid_model_get', { modelId: model.root.uuid });
     expect(detail.ok).toBe(true);
     const data = detail.data as {
       hierarchy: Array<{ kind: string; id: string; operation?: string; children: unknown[] }>;
@@ -93,7 +93,7 @@ describe('EditorApi solid hierarchy', () => {
     };
     expect(data.hierarchy.some((node) => node.kind === 'csg_group' && node.id === groupId)).toBe(true);
     expect(data.brushes.every((brush) => brush.parentGroupId === groupId)).toBe(true);
-    const groupDetail = api.invokeTool('get_csg_group', { groupId });
+    const groupDetail = api.invokeTool('csg_group_get', { groupId });
     expect(groupDetail.ok).toBe(true);
     const summary = groupDetail.data as {
       operation: string;
@@ -107,13 +107,13 @@ describe('EditorApi solid hierarchy', () => {
 
   it('adds a box under a parent group and reparents between groups', () => {
     const { api, model, brushA, brushB } = createModelWithTwoBrushes();
-    const outer = api.invokeTool('create_csg_group', {
+    const outer = api.invokeTool('csg_group_create', {
       modelId: model.root.uuid,
       brushIds: [brushA],
       name: 'Outer',
     });
     const outerId = (outer.data as { groupId: string }).groupId;
-    const added = api.invokeTool('add_box_brush', {
+    const added = api.invokeTool('brush_box_add', {
       modelId: model.root.uuid,
       parentGroupId: outerId,
       name: 'Nested',
@@ -124,33 +124,33 @@ describe('EditorApi solid hierarchy', () => {
     const nestedId = (added.data as { brushId: string }).brushId;
     const brush = model.findBrush(nestedId);
     expect(brush?.mesh?.parent?.uuid).toBe(outerId);
-    const inner = api.invokeTool('create_csg_group', {
+    const inner = api.invokeTool('csg_group_create', {
       modelId: model.root.uuid,
       brushIds: [brushB],
       name: 'Inner',
     });
     const innerId = (inner.data as { groupId: string }).groupId;
-    const reparent = api.invokeTool('reparent_solid_nodes', {
+    const reparent = api.invokeTool('scene_hierarchy_reparent', {
       nodeIds: [innerId],
       parentId: outerId,
     });
     expect(reparent.ok).toBe(true);
     const nestedGroup = model.root.getObjectByProperty('uuid', innerId);
     expect(nestedGroup?.parent?.uuid).toBe(outerId);
-    const tree = api.invokeTool('get_scene_hierarchy');
+    const tree = api.invokeTool('scene_hierarchy_get');
     expect(tree.ok).toBe(true);
   });
 
   it('duplicates a CSG group with nested brushes and can ungroup', () => {
     const { api, model, brushA, brushB } = createModelWithTwoBrushes();
-    const created = api.invokeTool('create_csg_group', {
+    const created = api.invokeTool('csg_group_create', {
       modelId: model.root.uuid,
       brushIds: [brushA, brushB],
       name: 'ToCopy',
     });
     const groupId = (created.data as { groupId: string }).groupId;
     const beforeCount = model.getBrushCount();
-    const duplicated = api.invokeTool('duplicate_brushes', {
+    const duplicated = api.invokeTool('brush_duplicate', {
       groupIds: [groupId],
       offset: { x: 2, y: 0, z: 0 },
     });
@@ -159,21 +159,21 @@ describe('EditorApi solid hierarchy', () => {
     const data = duplicated.data as { groupIds: string[]; brushIds: string[] };
     expect(data.groupIds.length).toBe(1);
     expect(data.brushIds.length).toBe(2);
-    const ungrouped = api.invokeTool('ungroup_csg_groups', { groupIds: [groupId] });
+    const ungrouped = api.invokeTool('csg_group_ungroup', { groupIds: [groupId] });
     expect(ungrouped.ok).toBe(true);
     expect(model.root.children.some((child) => child.uuid === groupId)).toBe(false);
   });
 
-  it('sets group operation via set_group_operation', () => {
+  it('sets group operation via csg_group_operation_set', () => {
     const { api, model, brushA } = createModelWithTwoBrushes();
-    const created = api.invokeTool('create_csg_group', {
+    const created = api.invokeTool('csg_group_create', {
       modelId: model.root.uuid,
       brushIds: [brushA],
       name: 'Ops',
       operation: 'additive',
     });
     const groupId = (created.data as { groupId: string }).groupId;
-    const result = api.invokeTool('set_group_operation', {
+    const result = api.invokeTool('csg_group_operation_set', {
       groupIds: [groupId],
       operation: 'intersecting',
     });
@@ -182,15 +182,15 @@ describe('EditorApi solid hierarchy', () => {
     expect(getSolidGroupOperation(group)).toBe(SolidOperation.Intersecting);
   });
 
-  it('rejects create_csg_group when parentGroupId is a member (no hang)', () => {
+  it('rejects csg_group_create when parentGroupId is a member (no hang)', () => {
     const { api, model, brushA } = createModelWithTwoBrushes();
-    const outer = api.invokeTool('create_csg_group', {
+    const outer = api.invokeTool('csg_group_create', {
       modelId: model.root.uuid,
       brushIds: [brushA],
       name: 'Outer',
     });
     const outerId = (outer.data as { groupId: string }).groupId;
-    const bad = api.invokeTool('create_csg_group', {
+    const bad = api.invokeTool('csg_group_create', {
       modelId: model.root.uuid,
       groupIds: [outerId],
       parentGroupId: outerId,
@@ -200,15 +200,15 @@ describe('EditorApi solid hierarchy', () => {
     expect(bad.message.toLowerCase()).toContain('parentgroupid');
   });
 
-  it('rejects create_csg_group when parent is nested under a member', () => {
+  it('rejects csg_group_create when parent is nested under a member', () => {
     const { api, model, brushA, brushB } = createModelWithTwoBrushes();
-    const outer = api.invokeTool('create_csg_group', {
+    const outer = api.invokeTool('csg_group_create', {
       modelId: model.root.uuid,
       brushIds: [brushA],
       name: 'Outer',
     });
     const outerId = (outer.data as { groupId: string }).groupId;
-    const inner = api.invokeTool('create_csg_group', {
+    const inner = api.invokeTool('csg_group_create', {
       modelId: model.root.uuid,
       brushIds: [brushB],
       name: 'Inner',
@@ -216,7 +216,7 @@ describe('EditorApi solid hierarchy', () => {
     });
     const innerId = (inner.data as { groupId: string }).groupId;
     expect(inner.ok).toBe(true);
-    const bad = api.invokeTool('create_csg_group', {
+    const bad = api.invokeTool('csg_group_create', {
       modelId: model.root.uuid,
       groupIds: [outerId],
       parentGroupId: innerId,
@@ -225,9 +225,9 @@ describe('EditorApi solid hierarchy', () => {
     expect(bad.ok).toBe(false);
   });
 
-  it('rejects invalid create_csg_group operation', () => {
+  it('rejects invalid csg_group_create operation', () => {
     const { api, model, brushA } = createModelWithTwoBrushes();
-    const bad = api.invokeTool('create_csg_group', {
+    const bad = api.invokeTool('csg_group_create', {
       modelId: model.root.uuid,
       brushIds: [brushA],
       operation: 'not_a_real_op',
@@ -238,32 +238,32 @@ describe('EditorApi solid hierarchy', () => {
 
   it('renames a group undoably', () => {
     const { api, model, brushA, stack } = createModelWithTwoBrushes();
-    const created = api.invokeTool('create_csg_group', {
+    const created = api.invokeTool('csg_group_create', {
       modelId: model.root.uuid,
       brushIds: [brushA],
       name: 'Before',
     });
     const groupId = (created.data as { groupId: string }).groupId;
     const undoBeforeRename = stack.getUndoCount();
-    const renamed = api.invokeTool('rename_group', { groupId, name: 'After' });
+    const renamed = api.invokeTool('csg_group_rename', { groupId, name: 'After' });
     expect(renamed.ok).toBe(true);
     expect(stack.getUndoCount()).toBe(undoBeforeRename + 1);
     const group = model.root.children.find((child) => child.uuid === groupId);
     expect(group?.name).toBe('After');
-    const undone = api.invokeTool('undo');
+    const undone = api.invokeTool('history_undo');
     expect(undone.ok).toBe(true);
     expect(group?.name).toBe('Before');
   });
 
   it('exposes group ids separately from createdIds on duplicate', () => {
     const { api, model, brushA, brushB } = createModelWithTwoBrushes();
-    const created = api.invokeTool('create_csg_group', {
+    const created = api.invokeTool('csg_group_create', {
       modelId: model.root.uuid,
       brushIds: [brushA, brushB],
       name: 'CopyMe',
     });
     const groupId = (created.data as { groupId: string }).groupId;
-    const duplicated = api.invokeTool('duplicate_brushes', {
+    const duplicated = api.invokeTool('brush_duplicate', {
       groupIds: [groupId],
       offset: { x: 3, y: 0, z: 0 },
     });

@@ -88,6 +88,7 @@ const MODIFIER_STACK_ARRAY_SHARED_FIELDS: readonly ModifierStackField[] = [
   {
     key: 'uv',
     label: 'Textures',
+    hint: "Move with copy keeps each copy's textures attached to it; World aligned re-projects textures in world space so they run seamlessly across copies.",
     type: 'choice',
     default: 'copied',
     choices: modifierStackChoices([
@@ -97,7 +98,7 @@ const MODIFIER_STACK_ARRAY_SHARED_FIELDS: readonly ModifierStackField[] = [
   },
   {
     key: 'uvShiftU',
-    label: 'UV shift U',
+    label: 'UV Shift U',
     type: 'number',
     default: 0,
     min: -100,
@@ -108,7 +109,7 @@ const MODIFIER_STACK_ARRAY_SHARED_FIELDS: readonly ModifierStackField[] = [
   },
   {
     key: 'uvShiftV',
-    label: 'UV shift V',
+    label: 'UV Shift V',
     type: 'number',
     default: 0,
     min: -100,

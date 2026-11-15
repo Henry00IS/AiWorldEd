@@ -23,6 +23,7 @@ const desktopRpc = Electroview.defineRPC<ElectrobunDesktopRpcSchema>({
   handlers: {
     requests: {
       invokeEditorTool: (params: McpInvokeEditorToolParams) => sharedMcpBridgeHandler.invokeEditorTool(params),
+      listEditorTools: () => sharedMcpBridgeHandler.toolsList(),
     },
     messages: {
       updateInstallProgress: (progress: UpdateInstallProgress) => updaterBridge?.progressReceive(progress),

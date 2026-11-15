@@ -420,7 +420,7 @@ export class BuilderEditorShell {
    * @param actions Callbacks for each toolbar control.
    */
   private addFileMenu(toolbar: Toolbar, actions: EditorToolbarActions): void {
-    toolbar.addDropdown('File', this.buildFileMenuEntries(actions));
+    toolbar.addDropdown('File', this.buildFileMenuEntries(actions), false);
   }
 
   /**
@@ -621,7 +621,7 @@ export class BuilderEditorShell {
     toolbar.addIconButton('Detached Viewport', ToolbarIcons.detachedViewport(), () => actions.onOpenDetachedViewport());
     toolbar.addIconButton('AI Captures', ToolbarIcons.aiCaptureDebug(), () =>
       actions.onToggleAiCaptureDebugPanel(),
-    ).title = 'AI capture_view images (debug)';
+    ).title = 'AI view_capture images (debug)';
     toolbar.addSeparator();
     const audioButton = toolbar.addButton('Audio', () => actions.onToggleAudio());
     audioButton.title = 'Editor sound feedback';

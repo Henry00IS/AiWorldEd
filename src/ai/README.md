@@ -63,95 +63,351 @@ solid_model
 └── brush
 ```
 
-| Concept             | Details                                                                                                                                                                  |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Solid CSG group** | Outliner folder under a solid. Combines its children as one compound, then applies the **group operation** into the parent.                                              |
-| **Nesting**         | Groups may contain brushes and other groups. `parentGroupId` on brushes / groups is `null` when parented under the solid root.                                           |
-| **Operations**      | Brushes: `set_brush_operation`. Groups: `set_group_operation`. Additive groups look like normal yellow folders; subtractive/intersecting show red/blue badges in the UI. |
-| **CSG order**       | Evaluation walks the scene depth-first. Sibling order under a parent matters (`reorder_brushes` / `reorder_brush_relative` / `insertBeforeId` on reparent).              |
+| Concept             | Details                                                                                                                                                                      |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Solid CSG group** | Outliner folder under a solid. Combines its children as one compound, then applies the **group operation** into the parent.                                                  |
+| **Nesting**         | Groups may contain brushes and other groups. `parentGroupId` on brushes / groups is `null` when parented under the solid root.                                               |
+| **Operations**      | Brushes: `brush_operation_set`. Groups: `csg_group_operation_set`. Additive groups look like normal yellow folders; subtractive/intersecting show red/blue badges in the UI. |
+| **CSG order**       | Evaluation walks the scene depth-first. Sibling order under a parent matters (`brush_reorder` / `brush_reorder_relative` / `nodeIdBefore` on reparent).                      |
 
 ### Hierarchy tools
 
-| Tool                   | Purpose                                                                                                                                           |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `get_scene_hierarchy`  | Full outliner tree (`solid_model` → `csg_group` → `brush`) with operations                                                                        |
-| `get_solid_model`      | Flat brush list (evaluation order) **plus** nested `hierarchy`                                                                                    |
-| `get_csg_group`        | One group: children, `parentGroupId`, operation                                                                                                   |
-| `create_csg_group`     | Group `brushIds` / `groupIds` into a new compound (`parentGroupId`, `operation`, `name`). `parentGroupId` must not be a member or under a member. |
-| `set_group_operation`  | Branch op on groups                                                                                                                               |
-| `ungroup_csg_groups`   | Dissolve groups; children rise to the former parent                                                                                               |
-| `reparent_solid_nodes` | Move nodes under model root or another group (`parentId`, optional `insertBeforeId`)                                                              |
-| `rename_group`         | Outliner display name (undoable)                                                                                                                  |
-| `add_box_brush`        | Optional `parentGroupId` to spawn under a group                                                                                                   |
-| `duplicate_brushes`    | `brushIds` and/or `groupIds` (group clone keeps nesting). `createdIds` = brush ids; group uuids in `data.groupIds`.                               |
-| `reorder_brushes`      | `brushIds` and/or `groupIds` → first/last among siblings                                                                                          |
+| Tool                       | Purpose                                                                                                                                           |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scene_hierarchy_get`      | Full outliner tree (`solid_model` → `csg_group` → `brush`) with operations                                                                        |
+| `solid_model_get`          | Flat brush list (evaluation order) **plus** nested `hierarchy`                                                                                    |
+| `csg_group_get`            | One group: children, `parentGroupId`, operation                                                                                                   |
+| `csg_group_create`         | Group `brushIds` / `groupIds` into a new compound (`parentGroupId`, `operation`, `name`). `parentGroupId` must not be a member or under a member. |
+| `csg_group_operation_set`  | Branch op on groups                                                                                                                               |
+| `csg_group_ungroup`        | Dissolve groups; children rise to the former parent                                                                                               |
+| `scene_hierarchy_reparent` | Move nodes under model root or another group (`parentId`, optional `nodeIdBefore`)                                                                |
+| `csg_group_rename`         | Outliner display name (undoable)                                                                                                                  |
+| `brush_box_add`            | Optional `parentGroupId` to spawn under a group                                                                                                   |
+| `brush_duplicate`          | `brushIds` and/or `groupIds` (group clone keeps nesting). `createdIds` = brush ids; group uuids in `data.groupIds`.                               |
+| `brush_reorder`            | `brushIds` and/or `groupIds` → first/last among siblings                                                                                          |
 
-**Brush-only tools (no `groupIds`):** `delete_brushes`, `select`, `mirror_brushes`, `find_brushes`. Find groups via `get_scene_hierarchy` / `get_csg_group`.
+**Brush-only tools (no `groupIds`):** `brush_delete`, `selection_set`, `brush_mirror`, `brush_find`. Find groups via `scene_hierarchy_get` / `csg_group_get`.
 
-**Workflow example:** build wall pieces → `create_csg_group` with those `brushIds` and `operation: "subtractive"` → nest a cutter under that group with `add_box_brush` + `parentGroupId` (or `reparent_solid_nodes`) → `duplicate_brushes` with `groupIds` to copy the whole compound.
+**Workflow example:** build wall pieces → `csg_group_create` with those `brushIds` and `operation: "subtractive"` → nest a cutter under that group with `brush_box_add` + `parentGroupId` (or `scene_hierarchy_reparent`) → `brush_duplicate` with `groupIds` to copy the whole compound.
 
 Same-solid only: reparent/group never moves a brush out of its solid model root.
 
 ## CSG: solid vs brush AABB (critical)
 
-| Tool                                                 | What it measures                                                        |
-| ---------------------------------------------------- | ----------------------------------------------------------------------- |
-| `query_point` / `query_overlaps` / `query_neighbors` | **Brush volume AABBs** — includes subtractive cutters as hits           |
-| `explain_csg_at_point`                               | **Final solid or void** after ordered CSG (use this for doors/cavities) |
-| `query_void_connectivity`                            | Approximate path between two voids (coarse grid; not navmesh)           |
+| Tool                                                                   | What it measures                                                        |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `space_point_query` / `space_overlaps_query` / `space_neighbors_query` | **Brush volume AABBs** — includes subtractive cutters as hits           |
+| `space_solid_point_explain`                                            | **Final solid or void** after ordered CSG (use this for doors/cavities) |
+| `space_void_connectivity_query`                                        | Approximate path between two voids (coarse grid; not navmesh)           |
 
 **Default workflow (leave `invertedWorld` false):** space starts empty → additive brushes create solid → subtractive brushes carve holes **only where they overlap prior solid**. A floating subtractive that does not overlap an additive does nothing.
 
-**Do not enable `set_inverted_world` for normal room shells / door cuts.** Inverted mode starts the universe solid so subtractives dig space (advanced).
+**Do not enable `solid_model_inverted_world_set` for normal room shells / door cuts.** Inverted mode starts the universe solid so subtractives dig space (advanced).
 
-**Doors:** use `add_opening` / `cut_opening` (subtractive boxes through walls), not `clip_brush`. Clip/split change **one brush’s topology** along a world plane (ramps, bevels, permanent cuts).
+**Doors:** use `build_opening_add` / `build_opening_cut` (subtractive boxes through walls), not `brush_clip`. Clip/split change **one brush’s topology** along a world plane (ramps, bevels, permanent cuts).
 
 ## Walls, rooms, openings (math)
 
-| Piece            | Placement rule                                                                                                                                                                                                                                                                                                                  |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `place_wall`     | Centerline `from`→`to` on XZ. Box size `{thickness, height, length}`. Yaw = `atan2(dx, dz)` so local **+Z** follows the segment. Bottom = `baseY` (default 0).                                                                                                                                                                  |
-| `add_room_shell` | Exterior AABB `size`; `position` is center (default floor on y=0). Front wall at **+Z**, back **−Z**, left **−X**, right **+X**. Side walls are shortened so corners do not double-stack.                                                                                                                                       |
-| `cut_opening`    | Subtractive box; **position is the hole center**, `size` is full extents. No auto wall align.                                                                                                                                                                                                                                   |
-| `add_opening`    | Prefer **`targetBrushId`** = wall brush. Snaps cut to wall **midplane**, uses wall thickness as flush depth (exact, no overcut), reorders cut **after** that wall. `sillHeight` = bottom of hole → center Y = sill + height/2. Doors skip bottom frame strip. **Axis-aligned walls only** (not diagonal `place_wall` segments). |
+| Piece                  | Placement rule                                                                                                                                                                                                                                                                                                                        |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `build_wall_place`     | Centerline `from`→`to` on XZ. Box size `{thickness, height, length}`. Yaw = `atan2(dx, dz)` so local **+Z** follows the segment. Bottom = `baseY` (default 0).                                                                                                                                                                        |
+| `build_room_shell_add` | Exterior AABB `size`; `position` is center (default floor on y=0). Front wall at **+Z**, back **−Z**, left **−X**, right **+X**. Side walls are shortened so corners do not double-stack.                                                                                                                                             |
+| `build_opening_cut`    | Subtractive box; **position is the hole center**, `size` is full extents. No auto wall align.                                                                                                                                                                                                                                         |
+| `build_opening_add`    | Prefer **`targetBrushId`** = wall brush. Snaps cut to wall **midplane**, uses wall thickness as flush depth (exact, no overcut), reorders cut **after** that wall. `sillHeight` = bottom of hole → center Y = sill + height/2. Doors skip bottom frame strip. **Axis-aligned walls only** (not diagonal `build_wall_place` segments). |
 
-**Door example:** build room → `find_brushes` nameContains `wall_front` → `add_opening` with `kind: "door"`, `targetBrushId`, `sillHeight` = floor top, `size: { width, height }`, `position` along the wall (x/z of doorway center; y ignored when sillHeight set), `snap: false`.
+**Door example:** build room → `brush_find` nameContains `wall_front` → `build_opening_add` with `kind: "door"`, `targetBrushId`, `sillHeight` = floor top, `size: { width, height }`, `position` along the wall (x/z of doorway center; y ignored when sillHeight set), `snap: false`.
 
-## Core tools
+## Geometry language: solid script (`geometry_script_build`)
 
-| Tool                                                              | Purpose                                                    |
-| ----------------------------------------------------------------- | ---------------------------------------------------------- |
-| `get_editor_context`                                              | Snap, history, selection, coords                           |
-| `calculate`                                                       | Safe arithmetic (`20+(0.5*12)`), no eval                   |
-| `list_solid_models` / `get_solid_model` / `get_brush`             | Inventory (+ hierarchy on model detail)                    |
-| `get_scene_hierarchy` / `get_csg_group` / `get_selection`         | Tree, group detail, brush+group selection                  |
-| `find_brushes` / `describe_brush` / `half_extents`                | Filter; summaries; half-size + face centers                |
-| `query_overlaps` / `query_point` / `query_neighbors` / `measure`  | Spatial planning                                           |
-| `preview_transform` / `preview_new_box`                           | Dry-run existing or new box bounds                         |
-| `explain_csg_at_point` / `query_void_connectivity`                | CSG solid/void; approx cavity path                         |
-| `validate_brush` / `validate_solid_model`                         | Topology checks                                            |
-| `create_solid_model` / `add_box_brush` / `add_box_brushes`        | Create geometry (`parentGroupId` supported)                |
-| `create_csg_group` / `set_group_operation` / `ungroup_csg_groups` | Hierarchy compounds                                        |
-| `reparent_solid_nodes` / `rename_group`                           | Nest / rename groups and brushes                           |
-| `place_wall` / `add_room_shell` / `cut_opening` / `add_opening`   | Walls, rooms, door/window cuts                             |
-| `set_brush_transform` / `batch_set_brush_transform`               | Pose edits (`snap:false` for exact)                        |
-| `align_brush`                                                     | Stack on top / hang under / touch side                     |
-| `rotate_brush`                                                    | Rotate in **degrees** (default Y/yaw)                      |
-| `rename_brush`                                                    | Stable names (`start_a_flag`, …)                           |
-| `clip_brush` / `split_brush`                                      | Plane cut / split into two                                 |
-| `delete_brushes` / `duplicate_brushes` / `mirror_brushes`         | Delete/mirror: brushes only; duplicate supports `groupIds` |
-| `reorder_brushes` / `reorder_brush_relative`                      | Sibling order (ends or before/after)                       |
-| `set_inverted_world` / `select` / `undo` / `redo`                 | Session                                                    |
-| `capture_view`                                                    | Take a picture of the 3D world (JPEG, or PNG link)         |
+Describing shapes beats computing clip planes. `geometry_script_build` takes a solid script: a subset of the [OpenSCAD](https://openscad.org/documentation.html) language syntax, a widely used text format for CSG solids. `geometry_script_preview` evaluates the same source and returns the tree without changing the scene. The whole build is one undo step and syncs in multiplayer like any user edit.
 
-### Seeing the world (`capture_view`)
+License: the lexer, parser and evaluator are an independent clean-room implementation written from the public language documentation only. No OpenSCAD source code, grammar files, tests or examples are used, and no dependency was added; the code is MIT like the rest of the editor.
+
+How it maps:
+
+- Every primitive becomes one convex brush. Spheres and cylinders are faceted hulls; `$fn` sets the facet count (at most 128).
+- `difference()` becomes a CSG group: the first child is additive and the rest are subtractive. `intersection()` becomes a group with intersecting members. `union()` flattens into its parent.
+- Module names become brush and group names, so wrap parts in modules for a readable outliner.
+- Solid scripts are Z-up. The editor is Y-up, so (x, y, z) becomes (x, z, −y) unless `upAxis: "y"`. Units are meters.
+- `operation: "subtractive"` with a `modelId` carves the result out of existing brushes.
+
+Supported: `cube`, `sphere`, `cylinder`, `polyhedron` (convex hull of its points), and `linear_extrude` (height, center, scale) of `square`, `circle` and `polygon`. Concave outlines are split into convex pieces, and extra paths become holes. Also supported are `hull`, `union`, `difference`, `intersection`, `translate`, `rotate`, `scale`, `mirror`, `multmatrix` and `color` (ignored). The language parts that work are variables, `function` and `module` with `children()`, `for`, `if`/`else`, list comprehensions, ranges, math built-ins in degrees, `echo`, `assert`, `$fn`/`$fa`/`$fs`, and the `*` and `%` prefixes. Not supported: `rotate_extrude`, `minkowski`, `offset`, `text`, `import`, `resize`, and `linear_extrude` twist. Each of these fails with a hint.
+
+Room with a doorway:
+
+```solid-script
+module wall() cube([4, 0.2, 3]);
+module doorway() translate([1.5, -0.1, 0]) cube([1, 0.4, 2.1]);
+difference() { wall(); doorway(); }
+```
+
+Stairs:
+
+```solid-script
+module step(i) translate([0, i * 0.3, 0]) cube([1.2, 0.3, (i + 1) * 0.18]);
+for (i = [0 : 9]) step(i);
+```
+
+Arch opening:
+
+```solid-script
+module arch() union() {
+  translate([-0.6, -0.2, 0]) cube([1.2, 0.4, 2]);
+  translate([0, 0.2, 2]) rotate([90, 0, 0]) cylinder(h = 0.4, r = 0.6, $fn = 24);
+}
+difference() { translate([-2, -0.1, 0]) cube([4, 0.2, 3.5]); arch(); }
+```
+
+## Generators, modifiers and curves
+
+- `modifier_kind_list` with `kindId` lists every property of a kind. Each entry gives key, label, type, range, choices, default and the inspector tooltip, plus the kind's presets. The list is read from the same field descriptors the inspector draws, so new inspector fields show up in MCP by themselves.
+- `modifier_generator_create` adds a Column, Stairs or Arch generator inside a solid model. `modifier_volume_create` adds a scene-level modifier volume from an Add menu template.
+- `modifier_parameters_set` validates like the inspector does. Unknown keys are refused with the valid list. Numbers are clamped to their range with a warning. Objects are referenced by id, and curves are given as curve data. Bevel options use `options.<name>` keys.
+- Curve properties, such as a column `profile`, are edited with the `curve_*` tools. Coordinates run 0..1: x along the curve and y the value, y up. Segment i joins points i and i+1. `curve_get` reports handles as absolute positions, and `curve_point_set` takes them the same way.
+
+### Curve paths: SVG path subset (`curve_path_set`)
+
+`curve_path_set` draws a curve line with [SVG path data](https://www.w3.org/TR/SVG2/paths.html#PathData), the standard 2D path syntax. Supported commands:
+
+- `M x y`, given once at the start.
+- `L`, `H` and `V` for straight segments.
+- `Q` and `T` for quadratic segments, `C` and `S` for cubic Bezier segments.
+- Lower case means relative coordinates. `Z` is ignored.
+
+x must increase along the path. Arcs (`A`) are refused.
+
+```svg-path
+M 0 0.8 L 0.1 0.8 C 0.2 0.8 0.2 0.5 0.3 0.5 L 0.9 0.5 Q 1 0.5 1 0.7
+```
+
+That path is a column profile with a wide base that flares out again at the top.
+
+## Textures and UVs
+
+`texture_list` lists the texture ids. `texture_face_list` lists a brush's faces with surface index, world normal and center, whether the face is visible in the built result, its texture and its UV fields as the UV editor shows them. `texture_face_assign` and the `texture_uv_*` tools run the same undoable commands as the texture browser and UV editor. Offsets are in meters: 0.25 is a quarter tile at scale 1.
+
+## Menus
+
+`editor_menu_list` reads every visible menu entry live from the same declarative entries the menus draw. That covers the toolbar menus (Edit, Add, CSG) and the viewport Object, Align, Mode, Select, Mesh, Vertex, Edge and Face menus. Menus added later appear without MCP changes. `editor_menu_run` runs an entry exactly like a click on the current selection.
+
+File and Collaborate entries are listed but refused, so no AI client can load a scene or change a shared session. Entries that open a dialog (label ending in "…") are refused too.
+
+## Tools
+
+Tool names follow the AGENTS.md naming rule: `category_subject_verb` in snake_case, category first and verb last (`brush_box_add`, `modifier_parameters_set`, `texture_uv_rotate`). Arguments are camelCase with the category first where it adds meaning (`modelId`, `parentGroupId`, `surfaceIndices`). Tools are listed in this order: groups from editor context to helpers, and within a group reads before edits. There are no legacy aliases.
+
+### editor
+
+Editor context, and every menu entry of the editor: list and run.
+
+| Tool                 | Purpose                                                                                                                                                                                                   |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `editor_context_get` | Call first.                                                                                                                                                                                               |
+| `editor_menu_list`   | Lists every visible editor menu entry (toolbar menus such as Edit, Add, CSG and the viewport Object, Align, Mode, Select, Mesh, Vertex, Edge, Face menus) with path, enabled state, shortcut and tooltip. |
+| `editor_menu_run`    | Runs a menu entry exactly like a click, on the current selection and mode (undoable, synced in multiplayer).                                                                                              |
+
+### history
+
+Undo and redo; every editing tool is one undo step.
+
+| Tool           | Purpose                                                  |
+| -------------- | -------------------------------------------------------- |
+| `history_undo` | Undoes the last editor step, exactly like Ctrl+Z.        |
+| `history_redo` | Redoes the last undone editor step, exactly like Ctrl+Y. |
+
+### selection
+
+Read or replace the object selection the user sees.
+
+| Tool            | Purpose                                                        |
+| --------------- | -------------------------------------------------------------- |
+| `selection_get` | Returns the selected brushIds, CSG groupIds and solidModelIds. |
+| `selection_set` | Replaces the object selection with the given brushes.          |
+
+### snap
+
+Grid, rotation and scale snap settings that placement tools follow.
+
+| Tool                | Purpose                                                                                             |
+| ------------------- | --------------------------------------------------------------------------------------------------- |
+| `snap_settings_get` | Returns whether snapping is on, the grid interval, the rotation step in degrees and the scale step. |
+
+### scene
+
+The outliner hierarchy of solid models, CSG groups and brushes; reparenting.
+
+| Tool                       | Purpose                                                                                                               |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `scene_hierarchy_get`      | Solid outliner tree: solid_model → csg_group (with operation) → brush (with operation).                               |
+| `scene_hierarchy_reparent` | Move solid brushes and/or CSG groups under a solid model root or another CSG group in the same solid (outliner drag). |
+
+### geometry
+
+Geometry languages: describe solids as a solid script and get ordered CSG brushes and groups in one undo step.
+
+| Tool                      | Purpose                                                                                                                                                  |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `geometry_script_preview` | Dry run of geometry_script_build: evaluates solid script source and returns the brush/group tree with operations and centers without changing the scene. |
+| `geometry_script_build`   | Builds solids from solid script source as CSG brushes and groups in one undo step.                                                                       |
+
+### solid_model
+
+Solid models: containers whose brushes combine by CSG in order.
+
+| Tool                             | Purpose                                                                                                                  |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `solid_model_list`               | List solid models with brush counts and world bounds.                                                                    |
+| `solid_model_get`                | Full solid model: ordered CSG brush list (evaluation order) plus nested hierarchy tree (solid root → csg_group → brush). |
+| `solid_model_validate`           | Validate all brushes and report simple CSG warnings.                                                                     |
+| `solid_model_create`             | Create a solid model with one additive unit box brush.                                                                   |
+| `solid_model_inverted_world_set` | ADVANCED.                                                                                                                |
+
+### csg_group
+
+CSG groups: outliner folders that combine their children, then apply their own operation.
+
+| Tool                      | Purpose                                                                                              |
+| ------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `csg_group_get`           | One solid CSG compound group: operation, parentGroupId, childBrushIds, childGroupIds.                |
+| `csg_group_create`        | Group solid brushes and/or nested CSG groups into a new solid CSG compound (same as outliner Group). |
+| `csg_group_operation_set` | Set CSG operation on solid CSG groups (branch ops).                                                  |
+| `csg_group_rename`        | Rename a solid CSG group (outliner display name).                                                    |
+| `csg_group_ungroup`       | Dissolve solid CSG groups; children reparent to the former group parent (solid root or outer group). |
+
+### brush
+
+Convex brushes: read, find, create boxes, transform, clip, split, order, delete.
+
+| Tool                      | Purpose                                                                                                                                                          |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `brush_get`               | One brush summary (includes parentGroupId), or full vertices/planes when detail=full.                                                                            |
+| `brush_find`              | Filter brushes without dumping everything.                                                                                                                       |
+| `brush_describe`          | One-line human summary: kind (thin vertical pole, flat panel/flag), approx size and center.                                                                      |
+| `brush_extents_get`       | Half-size (halfExtents), full size, center, bounds, and six face centers (plusX/minusX/plusY/minusY/plusZ/minusZ) for alignment math without hand-halving AABBs. |
+| `brush_bounds_get`        | World AABB for one brush or all brushes (optional model filter).                                                                                                 |
+| `brush_validate`          | Validate convex brush topology for one brush.                                                                                                                    |
+| `brush_box_preview`       | Dry-run create: same TRS fields as brush_box_add but does not create.                                                                                            |
+| `brush_transform_preview` | Dry-run: predicted world bounds/size/center for a proposed position/rotationDegrees/scale without applying.                                                      |
+| `brush_box_add`           | Add a convex box brush.                                                                                                                                          |
+| `brush_boxes_add`         | Batch create many box brushes.                                                                                                                                   |
+| `brush_duplicate`         | Duplicate brushes and/or solid CSG groups (groupIds clones the whole nested compound).                                                                           |
+| `brush_mirror`            | Mirror across X or Z.                                                                                                                                            |
+| `brush_operation_set`     | Set CSG operation on brushes.                                                                                                                                    |
+| `brush_transform_set`     | Set brush local position / rotationDegrees / scale (any subset).                                                                                                 |
+| `brush_transforms_set`    | Move/rotate/scale several brushes in one call.                                                                                                                   |
+| `brush_align`             | Attach brushId to targetBrushId without hand-computing half-widths.                                                                                              |
+| `brush_rotate`            | Simple brush rotate in degrees.                                                                                                                                  |
+| `brush_rename`            | Set a stable display name (e.g.                                                                                                                                  |
+| `brush_clip`              | Plane-clip ONE brush topology (not CSG subtract).                                                                                                                |
+| `brush_split`             | Split ONE brush into two along a WORLD plane (same plane args as brush_clip).                                                                                    |
+| `brush_reorder`           | Move brushes and/or solid CSG groups to first or last among siblings under their own parent (outliner To First/Last).                                            |
+| `brush_reorder_relative`  | Move one brush before or after another (by brushIdRelative or nameRelative).                                                                                     |
+| `brush_delete`            | Delete brushes by id (undoable).                                                                                                                                 |
+
+### build
+
+Architectural helpers: walls, room shells, doors and windows.
+
+| Tool                   | Purpose                                                         |
+| ---------------------- | --------------------------------------------------------------- |
+| `build_wall_place`     | Vertical wall from {x,z}→{x,z}.                                 |
+| `build_room_shell_add` | Hollow room shell: floor + four wall panels + optional ceiling. |
+| `build_opening_add`    | Door/window through an axis-aligned wall.                       |
+| `build_opening_cut`    | Minimal subtractive hole.                                       |
+
+### modifier
+
+Modifier stacks: kinds and parameters with tooltips, modifier volumes, Column/Stairs/Arch generators, entries, parameters, presets, bake.
+
+| Tool                          | Purpose                                                                                                                                   |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `modifier_kind_list`          | Lists modifier kinds and volume templates.                                                                                                |
+| `modifier_holder_list`        | Lists every object with a modifier stack: modifier volumes, generator nodes, brushes and CSG groups.                                      |
+| `modifier_stack_get`          | One stack: settings, transform and every modifier with its parameter values (inactive ones listed apart).                                 |
+| `modifier_volume_create`      | Creates a scene-level modifier volume from a template; it changes the brushes inside its box.                                             |
+| `modifier_generator_create`   | Creates a Column, Stairs or Arch generator inside a solid model; it builds brushes filling its box.                                       |
+| `modifier_entry_add`          | Adds a modifier to a stack, optionally with parameters.                                                                                   |
+| `modifier_entry_remove`       | Removes a modifier from a stack.                                                                                                          |
+| `modifier_entry_move`         | Moves a modifier to another stack position (the generator stays first).                                                                   |
+| `modifier_entry_duplicate`    | Duplicates a modifier right after itself.                                                                                                 |
+| `modifier_entry_set`          | Enables, disables or renames a modifier.                                                                                                  |
+| `modifier_parameters_set`     | Sets parameters of a modifier.                                                                                                            |
+| `modifier_preset_apply`       | Applies one of the kind's presets (ids from modifier_kind_list with kindId).                                                              |
+| `modifier_stack_settings_set` | Sets stack-wide settings: enabled, grouping (compound treats all inside brushes as one shape, brush works per brush) and ignored objects. |
+| `modifier_stack_bake`         | Bakes a holder's modifiers into plain editable brushes and removes the stack (one undo step).                                             |
+
+### curve
+
+Curves of modifier parameters (column profiles): read, SVG path, points, handles, segments, presets, markers.
+
+| Tool                 | Purpose                                                                                                                                                                                                                                                                           |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `curve_get`          | One curve: points with absolute handle positions, segments (segment i joins points i and i+1), markers and raw data.                                                                                                                                                              |
+| `curve_set`          | Replaces a whole curve with curve data as curve_get returns it in data.                                                                                                                                                                                                           |
+| `curve_path_set`     | Draws a curve line with SVG path data: M x y once, then L, H, V (straight), Q, T (quadratic) and C, S (cubic Bezier), lower case relative; Z is ignored.                                                                                                                          |
+| `curve_preset_list`  | Lists the curve parameter's presets (id, label, group, tooltip).                                                                                                                                                                                                                  |
+| `curve_preset_apply` | Replaces the curve with a preset.                                                                                                                                                                                                                                                 |
+| `curve_point_add`    | Inserts a point on the curve at x (keeping its shape), optionally moved to y.                                                                                                                                                                                                     |
+| `curve_point_set`    | Moves a point and/or its handles; handles are absolute positions as curve_get reports them.                                                                                                                                                                                       |
+| `curve_point_delete` | Deletes an inner point.                                                                                                                                                                                                                                                           |
+| `curve_segment_set`  | Changes segments: mode (linear, quadratic, bezier), detail (steps), section (cross-section shape), side (mirror, negative, positive, custom), fixedDepth, blend and section properties (cornerSize, cornerSides, polygonSides, armWidth, armWidthEnd, straight, twist, rotation). |
+| `curve_marker_set`   | Switches, moves or sizes the Base (bottom) or Top marker that splits a fixed-height base or top part off the curve.                                                                                                                                                               |
+| `curve_mirror`       | Mirrors the curve left to right (x becomes 1 - x).                                                                                                                                                                                                                                |
+| `curve_flip`         | Flips the curve upside down (y becomes 1 - y).                                                                                                                                                                                                                                    |
+
+### texture
+
+Textures and UVs: list textures, read brush faces, assign textures, set, align, scale, offset, rotate and reset UVs.
+
+| Tool                  | Purpose                                                                                                                    |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `texture_list`        | Lists texture ids and labels in the texture library, plus textures the level uses whose files are missing.                 |
+| `texture_face_list`   | Lists a brush's faces: surfaceIndex, world normal and center, visible in the built result, textureId, align and UV fields. |
+| `texture_face_assign` | Assigns a texture to brush faces (all faces when surfaceIndices is omitted); UVs stay.                                     |
+| `texture_uv_set`      | Sets UV fields on brush faces; only the given fields change.                                                               |
+| `texture_uv_align`    | Projects UVs like the UV editor align buttons: floor, wall, ceiling, face or auto.                                         |
+| `texture_uv_reset`    | Resets UVs to the default projection; textures stay.                                                                       |
+| `texture_uv_scale`    | Multiplies the U or V scale of each face (2 doubles the tile size).                                                        |
+| `texture_uv_offset`   | Shifts the U or V offset of each face by meters (0.25 is a quarter tile at scale 1).                                       |
+| `texture_uv_rotate`   | Rotates the UVs of each face by degrees.                                                                                   |
+
+### space
+
+Spatial questions: what is at a point, overlaps, neighbors, distances, solid or void.
+
+| Tool                            | Purpose                                                                                                           |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `space_point_query`             | Brush volumes whose world AABB contains a point (NOT final CSG).                                                  |
+| `space_solid_point_explain`     | TRUE solid\|void at a world point via ordered CSG (respects additive/subtractive/intersecting and invertedWorld). |
+| `space_overlaps_query`          | AABB overlap of brush volumes (NOT final CSG solid).                                                              |
+| `space_neighbors_query`         | Nearest brush centers within radius.                                                                              |
+| `space_distance_measure`        | Distance between brushes/points, or size of one brush.                                                            |
+| `space_void_connectivity_query` | APPROXIMATE only: do two void points connect? Line sample then coarse grid BFS.                                   |
+
+### view
+
+Pictures of the world from any camera.
+
+| Tool           | Purpose                                                 |
+| -------------- | ------------------------------------------------------- |
+| `view_capture` | Take a picture of the 3D world (JPEG, default 256×256). |
+
+### math
+
+Arithmetic helper; rarely needed when shapes are described with geometry_script_build.
+
+| Tool             | Purpose                                                               |
+| ---------------- | --------------------------------------------------------------------- |
+| `math_calculate` | Evaluates an arithmetic expression with + - * / and parentheses, e.g. |
+
+### Seeing the world (`view_capture`)
 
 **What it does:** Renders one still image of the world and returns it as a **JPEG**. The editor viewports are not moved or changed. In **solid** shading, the default checker texture is replaced with **white** for the capture only; faces with real assigned textures keep those maps.
 
 **Requirements:** AiWorldEd must be running with MCP started (toolbar **MCP** → **Start Server**). MCP always runs inside the app; there is no separate browser MCP.
 
 **Size limits (important):** Many MCP clients cap tool results near **20KB** (Grok Build default is 20_000 bytes). A full 512×512 PNG is far too large and gets **truncated**, which shows up as “image bytes are truncated” / “payload too large”.  
-`capture_view` therefore:
+`view_capture` therefore:
 
 - Defaults to **256×256 JPEG**
 - Lowers JPEG quality first; if still too large, **halves** resolution repeatedly: 512→256→128→64→**32**, then gives up
@@ -192,7 +448,7 @@ max_output_bytes = 200000
 
 (Legacy `wireframe` is accepted and mapped to `overlap`.)
 
-**Optional:** `size` (32–512, default 256), `fov` (default 60), `padding` (default 1.15), `includeHelpers` (default false).
+**Optional:** `size` (32–512, default 256), `fov` (default 60), `padding` (default 1.15), `helpersInclude` (default false).
 
 **What you get back:**
 
@@ -201,7 +457,7 @@ max_output_bytes = 200000
 
 **Image delivery** (MCP dialog → _capture_view images_, saved in the browser): **Embed images** returns the small JPEG above. **Localhost links** renders a lossless PNG at the full requested size and returns `links: ["http://127.0.0.1:<port>/transfer/<id>"]`, served by the local MCP host for one hour. **Public links** shares the PNG as a transfer link through the editor's one relay connection (opened on startup, reconnected automatically, the same one rooms use; the relay must announce `transfer`) (`https://<relay>/ws/transfer/<id>`, one hour, dies when the editor disconnects); when the relay is unavailable the capture falls back to an embedded JPEG with a warning.
 
-**Local debug UI:** every successful `capture_view` is also stored in the floating **AI Captures** window (toolbar button next to **Detached Viewport**). Open it to inspect thumbnails, camera summary, shading, and size. Use **Clear** to drop the history (max 48 images).
+**Local debug UI:** every successful `view_capture` is also stored in the floating **AI Captures** window (toolbar button next to **Detached Viewport**). Open it to inspect thumbnails, camera summary, shading, and size. Use **Clear** to drop the history (max 48 images).
 
 **Example — look at a wall by name (preferred):**
 
@@ -225,34 +481,34 @@ max_output_bytes = 200000
 
 ### AI level-building tips
 
-- **Names (brushes):** pass `name` on `add_box_brush` / `add_box_brushes`, or `rename_brush`, then `find_brushes` with `nameContains`.
-- **Names (groups):** `rename_group` / `create_csg_group` `name`; locate with `get_scene_hierarchy` (not `find_brushes`).
-- **Shapes:** `find_brushes` shape filter accepts `thin`/`pole`, `flat`/`panel`/`flag`, `tall`, `long`, `box`.
-- **Place on pole:** `align_brush` with `mode: "top"`, `gap: 0` (optional `center: true`).
-- **Exact coords:** `set_brush_transform` / `add_box_brush` with `snap: false` or `exact: true` so `-17.125` is not rounded to `-17`.
-- **Assemblies:** `duplicate_brushes` with many `brushIds`, or `groupIds` for whole compounds; use `data.groupIds` after group clone. `mirror_brushes` is brush ids only.
-- **Groups:** prefer `create_csg_group` + `set_group_operation` over flattening; inspect with `get_scene_hierarchy` before reparenting.
-- **Nest under group:** `add_box_brush` with `parentGroupId`, or `reparent_solid_nodes` after create.
-- **Math:** `calculate` with expressions like `"20+(0.5*12)"` — only `+ - * / ( )` and decimals.
-- **Half extents:** `half_extents` for face centers when aligning openings or stacking props.
-- **Preview:** `preview_transform` / `preview_new_box` return predicted world bounds without mutating.
-- **Rooms:** `add_room_shell` then `add_opening` with **`targetBrushId`** on a wall brush (not bare `cut_opening` unless you compute midplane yourself).
+- **Names (brushes):** pass `name` on `brush_box_add` / `brush_boxes_add`, or `brush_rename`, then `brush_find` with `nameContains`.
+- **Names (groups):** `csg_group_rename` / `csg_group_create` `name`; locate with `scene_hierarchy_get` (not `brush_find`).
+- **Shapes:** `brush_find` shape filter accepts `thin`/`pole`, `flat`/`panel`/`flag`, `tall`, `long`, `box`.
+- **Place on pole:** `brush_align` with `mode: "top"`, `gap: 0` (optional `center: true`).
+- **Exact coords:** `brush_transform_set` / `brush_box_add` with `snap: false` or `exact: true` so `-17.125` is not rounded to `-17`.
+- **Assemblies:** `brush_duplicate` with many `brushIds`, or `groupIds` for whole compounds; use `data.groupIds` after group clone. `brush_mirror` is brush ids only.
+- **Groups:** prefer `csg_group_create` + `csg_group_operation_set` over flattening; inspect with `scene_hierarchy_get` before reparenting.
+- **Nest under group:** `brush_box_add` with `parentGroupId`, or `scene_hierarchy_reparent` after create.
+- **Math:** prefer `geometry_script_build`; `math_calculate` evaluates expressions like `"20+(0.5*12)"` when needed.
+- **Half extents:** `brush_extents_get` for face centers when aligning openings or stacking props.
+- **Preview:** `brush_transform_preview` / `brush_box_preview` return predicted world bounds without mutating.
+- **Rooms:** `build_room_shell_add` then `build_opening_add` with **`targetBrushId`** on a wall brush (not bare `build_opening_cut` unless you compute midplane yourself).
 - **Doors:** set `sillHeight` to the floor top; omit bottom frame automatically; do not enable mullions.
-- **CSG order:** `add_opening` + `targetBrushId` reorders the cut after the wall; otherwise use `reorder_brush_relative` / `insertAfterName`.
+- **CSG order:** `build_opening_add` + `targetBrushId` reorders the cut after the wall; otherwise use `brush_reorder_relative` / `nameAfter`.
 - **Mirror:** X-mirror flips yaw to −yaw; Z-mirror uses π − yaw.
-- **Solid/void:** always `explain_csg_at_point` before trusting space is empty or solid; AABB queries list cutter volumes too.
-- **Subtractives:** must overlap additive solid (and evaluate after it) or they are wasted; `validate_solid_model` warns when they do not.
+- **Solid/void:** always `space_solid_point_explain` before trusting space is empty or solid; AABB queries list cutter volumes too.
+- **Subtractives:** must overlap additive solid (and evaluate after it) or they are wasted; `solid_model_validate` warns when they do not.
 - **Clip/split:** world plane on one brush for bevels/splits — not a substitute for doorway CSG.
 
-**Clip plane tips:** prefer `axis` + `distance` (e.g. cut at `y=0` with `axis: "y", distance: 0`). `keepFront: true` (default) keeps the **+axis** side.
+**Clip plane tips:** prefer `axis` + `distance` (e.g. cut at `y=0` with `axis: "y", distance: 0`). `frontKeep: true` (default) keeps the **+axis** side.
 
-**Transform tips:** use **degrees** (`rotationDegrees`, `rotate_brush.degrees`), not radians. When snap is on, positions and angles snap to the editor grid / rotation step (default 15°) unless you pass `snap: false`.
+**Transform tips:** use **degrees** (`rotationDegrees`, `brush_rotate.degrees`), not radians. When snap is on, positions and angles snap to the editor grid / rotation step (default 15°) unless you pass `snap: false`.
 
-Solid mutations (including hierarchy create/reparent/rename/ungroup) are **undoable** via `undo` / `redo` and the editor history.
+Solid mutations (including hierarchy create/reparent/rename/ungroup) are **undoable** via `history_undo` / `history_redo` and the editor history.
 
 ## Not in this build
 
-- **`capture_section`** — orthographic 2D section slices (top/front/side) are not a separate tool yet; use `capture_view` with a free camera for now.
+- **`capture_section`** — orthographic 2D section slices (top/front/side) are not a separate tool yet; use `view_capture` with a free camera for now.
 - **Separate tag system** — use stable `name` strings instead of a second metadata channel.
 - **Exact navmesh void paths** — connectivity uses a capped grid / line sample only.
 

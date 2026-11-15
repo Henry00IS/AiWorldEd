@@ -101,7 +101,7 @@ export interface EditorContextDto {
   selection: SelectionSummaryDto;
 }
 
-/** Selection summary for context and get_selection. */
+/** Selection summary for context and selection_get. */
 export interface SelectionSummaryDto {
   brushIds: string[];
   /** Selected solid CSG group uuids (outliner group selection). */
@@ -120,15 +120,13 @@ export interface HierarchyNodeDto {
   children: HierarchyNodeDto[];
 }
 
-/** Arguments accepted by add_box_brush. */
+/** Arguments accepted by brush_box_add. */
 export interface AddBoxBrushArgs {
   modelId: string;
   size?: number | McpVec3;
   position?: McpVec3;
   /** Local Euler rotation in degrees (XYZ). Preferred. */
   rotationDegrees?: McpVec3;
-  /** Legacy radians Euler; ignored when rotationDegrees is set. */
-  rotation?: McpVec3;
   scale?: McpVec3;
   operation?: McpSolidOperationName;
   /** Display name (e.g. start_a_flag). Prefer stable names over Brush14. */
@@ -180,7 +178,7 @@ export interface ReparentSolidNodesArgs {
   /** Destination parent: solid model uuid (root) or solid CSG group uuid. */
   parentId: string;
   /** Optional sibling id (brush or group) to insert before; omit to append. */
-  insertBeforeId?: string;
+  nodeIdBefore?: string;
 }
 
 /** Rename a solid CSG group. */
@@ -194,7 +192,7 @@ export interface GetCsgGroupArgs {
   groupId: string;
 }
 
-/** One box entry for add_box_brushes batch create. */
+/** One box entry for brush_boxes_add batch create. */
 export interface AddBoxBrushBatchEntry {
   size?: number | McpVec3;
   position?: McpVec3;
@@ -205,13 +203,13 @@ export interface AddBoxBrushBatchEntry {
   /** Optional solid CSG group uuid to parent under. */
   parentGroupId?: string;
   /** Insert after a brush with this display name after create. */
-  insertAfterName?: string;
+  nameAfter?: string;
   /** Insert before a brush with this display name after create. */
-  insertBeforeName?: string;
+  nameBefore?: string;
   /** Insert after this brush id after create. */
-  insertAfterBrushId?: string;
+  brushIdAfter?: string;
   /** Insert before this brush id after create. */
-  insertBeforeBrushId?: string;
+  brushIdBefore?: string;
 }
 
 /** Batch create many box brushes on one model. */
@@ -225,12 +223,12 @@ export interface AddBoxBrushesArgs {
 /** Relative CSG order placement. */
 export interface ReorderBrushRelativeArgs {
   brushId: string;
-  relativeToBrushId?: string;
-  relativeToName?: string;
+  brushIdRelative?: string;
+  nameRelative?: string;
   placement: 'before' | 'after';
 }
 
-/** Dry-run new box (same TRS fields as add_box_brush). */
+/** Dry-run new box (same TRS fields as brush_box_add). */
 export interface PreviewNewBoxArgs {
   modelId: string;
   size?: number | McpVec3;
@@ -254,8 +252,8 @@ export interface ExplainCsgAtPointArgs {
 
 /** Approximate void connectivity between two world points. */
 export interface QueryVoidConnectivityArgs {
-  fromPoint: McpVec3;
-  toPoint: McpVec3;
+  pointFrom: McpVec3;
+  pointTo: McpVec3;
   modelId?: string;
 }
 
@@ -280,7 +278,7 @@ export interface PlaceWallArgs {
 /**
  * Hollow room shell: floor + four wall panels + optional ceiling. Outer size is
  * the exterior footprint; walls sit inside that AABB. Interior is empty without
- * carveInterior (default true still adds a nibble cut).
+ * interiorCarve (default true still adds a nibble cut).
  */
 export interface AddRoomShellArgs {
   modelId: string;
@@ -300,7 +298,7 @@ export interface AddRoomShellArgs {
    * clear span. The panel walls are already hollow; this is optional CSG
    * cleanup.
    */
-  carveInterior?: boolean;
+  interiorCarve?: boolean;
   name?: string;
   snap?: boolean;
   exact?: boolean;
@@ -335,8 +333,6 @@ export interface AddOpeningArgs {
   wall?: 'front' | 'back' | 'left' | 'right';
   /** Thickness axis when wall is omitted (through-wall axis). Default z. */
   axis?: 'x' | 'z';
-  /** Legacy; unused for placement. Kept for schema compatibility. */
-  direction?: 1 | -1;
   /**
    * Opening center. When targetBrushId is set, the through-wall axis coordinate
    * is replaced with the wall midplane. Use sillHeight for bottom Y instead of
@@ -358,9 +354,9 @@ export interface AddOpeningArgs {
    */
   targetBrushId?: string;
   /** Frame strips (default true). Doors omit the bottom strip. */
-  addFrame?: boolean;
+  frameAdd?: boolean;
   /** Center mullion (default false). Avoid for doors. */
-  addMullions?: boolean;
+  mullionsAdd?: boolean;
   name?: string;
   snap?: boolean;
   exact?: boolean;
@@ -372,8 +368,6 @@ export interface SetBrushTransformArgs {
   position?: McpVec3;
   /** Local Euler rotation in degrees (XYZ). Preferred. */
   rotationDegrees?: McpVec3;
-  /** Legacy radians Euler; ignored when rotationDegrees is set. */
-  rotation?: McpVec3;
   scale?: McpVec3;
   /** When false, skip grid/rotation/scale snap. */
   snap?: boolean;
@@ -434,7 +428,6 @@ export interface PreviewTransformArgs {
   brushId: string;
   position?: McpVec3;
   rotationDegrees?: McpVec3;
-  rotation?: McpVec3;
   scale?: McpVec3;
   snap?: boolean;
   exact?: boolean;
@@ -447,8 +440,8 @@ export interface FindBrushesArgs {
   nameContains?: string;
   /** Shape filter: thin|pole|tall|flat|panel|flag|long|box|any. */
   shape?: string;
-  minHeight?: number;
-  maxHeight?: number;
+  heightMin?: number;
+  heightMax?: number;
   /** World AABB region filter (center must be inside). */
   region?: McpBounds;
   limit?: number;
@@ -482,7 +475,7 @@ export interface DuplicateBrushesArgs {
 
 /**
  * Plane clip of one brush. Define the plane with axis+distance (simplest),
- * point+normal, or three points. keepFront keeps the Three.js front half-space
+ * point+normal, or three points. frontKeep keeps the Three.js front half-space
  * (along the plane normal / +axis).
  */
 export interface ClipBrushArgs {
@@ -495,7 +488,7 @@ export interface ClipBrushArgs {
   pointB?: McpVec3;
   pointC?: McpVec3;
   /** Keep the front half-space (default true). */
-  keepFront?: boolean;
+  frontKeep?: boolean;
 }
 
 /** Split one brush into two pieces with the same plane definition as clip. */
@@ -535,10 +528,10 @@ export interface QueryPointArgs {
 
 /** Measure distance or size between entities. */
 export interface MeasureArgs {
-  fromBrushId?: string;
-  toBrushId?: string;
-  fromPoint?: McpVec3;
-  toPoint?: McpVec3;
+  brushIdFrom?: string;
+  brushIdTo?: string;
+  pointFrom?: McpVec3;
+  pointTo?: McpVec3;
   brushId?: string;
 }
 

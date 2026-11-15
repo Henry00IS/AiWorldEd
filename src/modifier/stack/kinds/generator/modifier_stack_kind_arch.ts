@@ -86,6 +86,7 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
     {
       key: 'span',
       label: 'Span Along',
+      hint: 'Box axis the arch spans across; the other horizontal axis is its depth.',
       type: 'choice',
       default: 'x',
       choices: modifierStackChoices([
@@ -120,6 +121,7 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
     {
       key: 'sweep',
       label: 'Sweep °',
+      hint: 'Angle in degrees of the ring segment the arch follows; 180 is a full half circle.',
       type: 'number',
       default: 180,
       min: 1,

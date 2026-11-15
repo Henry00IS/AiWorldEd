@@ -41,13 +41,13 @@ export class EditorApiCapture {
     const scene = this.resolveScene();
     if (!scene) {
       return failResult(
-        'capture_view failed: editor scene is not available. Start MCP from the editor toolbar and try again.',
+        'view_capture failed: editor scene is not available. Start MCP from the editor toolbar and try again.',
       );
     }
     const renderer = this.resolveRenderer();
     if (!renderer) {
       return failResult(
-        'capture_view failed: WebGL renderer is not available. Start MCP from the editor toolbar and try again.',
+        'view_capture failed: WebGL renderer is not available. Start MCP from the editor toolbar and try again.',
       );
     }
     return this.executeCapture(scene, renderer, args);
@@ -70,7 +70,7 @@ export class EditorApiCapture {
     const pixels = offscreenCaptureRender(renderer, scene, camera, {
       size,
       shading,
-      includeHelpers: Boolean(args.includeHelpers),
+      includeHelpers: Boolean(args.helpersInclude),
     });
     const ownerDocument = renderer.domElement.ownerDocument ?? document;
     const rendered = args.lossless
@@ -78,7 +78,7 @@ export class EditorApiCapture {
       : encodeCaptureImageForMcp(pixels.rgba, size, size, size, undefined, ownerDocument);
     if (!args.lossless && rendered.base64.length > MCP_CAPTURE_MAX_BASE64_CHARS) {
       return failResult(
-        `capture_view failed: image is still too large after shrinking (${rendered.width}×${rendered.height}, ${rendered.base64.length} base64 chars).`,
+        `view_capture failed: image is still too large after shrinking (${rendered.width}×${rendered.height}, ${rendered.base64.length} base64 chars).`,
       );
     }
     const data = buildCaptureData(rendered, shading, pose, camera.fov);

@@ -2,7 +2,7 @@ import { MCP_BIND_HOST, MCP_HTTP_PATH } from '@/ai/shared/mcp_constants.js';
 import type { McpHostStartResult, McpHostStatus } from '@/ai/shared/mcp_protocol_types.js';
 import { handleMcpHttpRequest } from './handler_mcp_http.js';
 import { createMcpSessionState, listMcpPortCandidates, type SessionMcpState } from './session_mcp.js';
-import type { EditorToolInvoker } from './mcp_tool_dispatch.js';
+import type { McpEditorEndpoint } from './mcp_editor_endpoint.js';
 import { StoreMcpFile } from './store_mcp_file.js';
 
 /** Minimal server surface used so tests can mock without Bun.serve types. */
@@ -22,7 +22,7 @@ export type McpServerFactory = (port: number, fetchHandler: (request: Request) =
 export class McpHost {
   private server: McpHttpServer | null;
   private session: SessionMcpState | null;
-  private invoker: EditorToolInvoker | null;
+  private endpoint: McpEditorEndpoint | null;
   private readonly serverFactory: McpServerFactory;
   private readonly files: StoreMcpFile;
 
@@ -34,7 +34,7 @@ export class McpHost {
   constructor(serverFactory: McpServerFactory = defaultBunServerFactory) {
     this.server = null;
     this.session = null;
-    this.invoker = null;
+    this.endpoint = null;
     this.serverFactory = serverFactory;
     this.files = new StoreMcpFile();
   }
@@ -42,10 +42,10 @@ export class McpHost {
   /**
    * Starts the MCP server on the first free loopback port.
    *
-   * @param invoker Callback that runs tools in the webview editor.
+   * @param endpoint Editor that lists and runs the tools in the webview.
    * @returns Start result with URL.
    */
-  start(invoker: EditorToolInvoker): McpHostStartResult {
+  start(endpoint: McpEditorEndpoint): McpHostStartResult {
     if (this.server && this.session) {
       return {
         ok: true,
@@ -53,12 +53,12 @@ export class McpHost {
         status: this.getStatus(),
       };
     }
-    this.invoker = invoker;
+    this.endpoint = endpoint;
     for (const port of listMcpPortCandidates()) {
       const started = this.tryBindPort(port);
       if (started) return started;
     }
-    this.invoker = null;
+    this.endpoint = null;
     return {
       ok: false,
       message: 'Could not bind a local MCP port',
@@ -81,7 +81,7 @@ export class McpHost {
     }
     this.server = null;
     this.session = null;
-    this.invoker = null;
+    this.endpoint = null;
     this.files.clear();
     return this.getStatus();
   }
@@ -132,15 +132,18 @@ export class McpHost {
    * @returns HTTP response.
    */
   private async handleRequest(request: Request): Promise<Response> {
-    const invoker = this.invoker;
+    const endpoint = this.endpoint;
     const session = this.session;
-    if (!invoker || !session) {
+    if (!endpoint || !session) {
       return new Response(JSON.stringify({ error: 'MCP host not ready' }), { status: 503 });
     }
     const served = this.files.serve(request);
     if (served !== null) return served;
     const origin = `http://${MCP_BIND_HOST}:${session.port}`;
-    return handleMcpHttpRequest(request, async (name, args) => this.files.publish(await invoker(name, args), origin));
+    return handleMcpHttpRequest(request, {
+      toolsList: () => endpoint.toolsList(),
+      toolCall: async (name, args) => this.files.publish(await endpoint.toolCall(name, args), origin),
+    });
   }
 }
 

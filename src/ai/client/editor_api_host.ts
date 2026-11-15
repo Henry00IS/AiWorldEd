@@ -21,12 +21,12 @@ export interface EditorApiHost {
   refreshOutliner: () => void;
   showStatus: (message: string) => void;
   /**
-   * Shared editor scene for capture_view. Set by layout bootstrap; unit tests
+   * Shared editor scene for view_capture. Set by layout bootstrap; unit tests
    * may omit it.
    */
   getScene?: () => THREE.Scene | null;
   /**
-   * Shared WebGL renderer for capture_view. Set by layout bootstrap; unit tests
+   * Shared WebGL renderer for view_capture. Set by layout bootstrap; unit tests
    * may omit it.
    */
   getRenderer?: () => THREE.WebGLRenderer | null;

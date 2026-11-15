@@ -1333,7 +1333,7 @@ export abstract class ViewportLayoutCore {
     this.setupAiCaptureDebugPanel();
   }
 
-  /** Creates the floating AI Captures debug panel (capture_view image history). */
+  /** Creates the floating AI Captures debug panel (view_capture image history). */
   protected setupAiCaptureDebugPanel(): void {
     if (this.aiCaptureDebugPanel) {
       return;

@@ -47,7 +47,7 @@ describe('EditorApi batch rename mirror snap', () => {
     model.addBoxBrush(1, SolidOperation.Additive);
     stack.push(new CommandSolidModelCreate(model, world));
     const before = model.getBrushCount();
-    const result = api.invokeTool('add_box_brushes', {
+    const result = api.invokeTool('brush_boxes_add', {
       modelId: model.root.uuid,
       snap: false,
       brushes: [
@@ -67,10 +67,10 @@ describe('EditorApi batch rename mirror snap', () => {
     const model = new SolidModel('RenameModel');
     const brush = model.addBoxBrush(1, SolidOperation.Additive);
     stack.push(new CommandSolidModelCreate(model, world));
-    const renamed = api.invokeTool('rename_brush', { brushId: brush.id, name: 'def_pad_nw' });
+    const renamed = api.invokeTool('brush_rename', { brushId: brush.id, name: 'def_pad_nw' });
     expect(renamed.ok).toBe(true);
     expect(model.findBrush(brush.id)?.name).toBe('def_pad_nw');
-    api.invokeTool('undo');
+    api.invokeTool('history_undo');
     expect(model.findBrush(brush.id)?.name).not.toBe('def_pad_nw');
   });
 
@@ -80,7 +80,7 @@ describe('EditorApi batch rename mirror snap', () => {
     const brush = model.addBoxBrush(1, SolidOperation.Additive);
     stack.push(new CommandSolidModelCreate(model, world));
     const exact = -17.125;
-    const result = api.invokeTool('set_brush_transform', {
+    const result = api.invokeTool('brush_transform_set', {
       brushId: brush.id,
       position: { x: exact, y: 0, z: 0 },
       snap: false,
@@ -96,7 +96,7 @@ describe('EditorApi batch rename mirror snap', () => {
     const a = model.addBoxBrush(1, SolidOperation.Additive);
     const b = model.addBoxBrush(1, SolidOperation.Additive);
     stack.push(new CommandSolidModelCreate(model, world));
-    const result = api.invokeTool('batch_set_brush_transform', {
+    const result = api.invokeTool('brush_transforms_set', {
       snap: false,
       transforms: [
         { brushId: a.id, position: { x: 2, y: 0, z: 0 } },
@@ -120,7 +120,7 @@ describe('EditorApi batch rename mirror snap', () => {
     model.rebuild(true);
     stack.push(new CommandSolidModelCreate(model, world));
     const before = model.getBrushCount();
-    const result = api.invokeTool('mirror_brushes', {
+    const result = api.invokeTool('brush_mirror', {
       brushIds: [brush.id],
       axis: 'x',
       plane: 0,
@@ -146,7 +146,7 @@ describe('EditorApi batch rename mirror snap', () => {
     brush.pushTransformToMesh();
     model.rebuild(true);
     stack.push(new CommandSolidModelCreate(model, world));
-    const result = api.invokeTool('mirror_brushes', {
+    const result = api.invokeTool('brush_mirror', {
       brushIds: [brush.id],
       axis: 'z',
       plane: 0,
@@ -163,7 +163,7 @@ describe('EditorApi batch rename mirror snap', () => {
 
   it('calculates expressions through the tool facade', () => {
     const { api } = createWriteFixture();
-    const result = api.invokeTool('calculate', { expression: '20+(0.5*12)' });
+    const result = api.invokeTool('math_calculate', { expression: '20+(0.5*12)' });
     expect(result.ok).toBe(true);
     expect((result.data as { value: number }).value).toBe(26);
   });
@@ -181,7 +181,7 @@ describe('EditorApi batch rename mirror snap', () => {
     flag.pushTransformToMesh();
     model.rebuild(true);
     stack.push(new CommandSolidModelCreate(model, world));
-    const result = api.invokeTool('query_neighbors', {
+    const result = api.invokeTool('space_neighbors_query', {
       brushId: pole.id,
       radius: 20,
       limit: 1,

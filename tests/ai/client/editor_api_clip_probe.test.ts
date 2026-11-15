@@ -49,11 +49,11 @@ describe('clip world plane and CSG vs AABB', () => {
     brush.pushTransformToMesh();
     model.rebuild(true);
     stack.push(new CommandSolidModelCreate(model, world));
-    const result = api.invokeTool('clip_brush', {
+    const result = api.invokeTool('brush_clip', {
       brushId: brush.id,
       axis: 'x',
       distance: 5,
-      keepFront: false,
+      frontKeep: false,
     });
     expect(result.ok).toBe(true);
     const updated = model.findBrush(brush.id)!;
@@ -70,18 +70,18 @@ describe('clip world plane and CSG vs AABB', () => {
     brush.pushTransformToMesh();
     model.rebuild(true);
     stack.push(new CommandSolidModelCreate(model, world));
-    const result = api.invokeTool('clip_brush', {
+    const result = api.invokeTool('brush_clip', {
       brushId: brush.id,
       axis: 'x',
       distance: 10,
-      keepFront: false,
+      frontKeep: false,
     });
     expect(result.ok).toBe(true);
     const updated = model.findBrush(brush.id)!;
     expect(updated.brush.computeLocalBounds().max.x).toBeLessThanOrEqual(0.01);
   });
 
-  it('AABB query_point hits subtractives while explain_csg reports void', () => {
+  it('AABB space_point_query hits subtractives while explain_csg reports void', () => {
     const { api, world, stack } = createApi();
     const model = new SolidModel('CsgPoint');
     const outer = model.addBoxBrush(4, SolidOperation.Additive);
@@ -90,8 +90,8 @@ describe('clip world plane and CSG vs AABB', () => {
     cutter.pushTransformToMesh();
     model.rebuild(true);
     stack.push(new CommandSolidModelCreate(model, world));
-    const aabb = api.invokeTool('query_point', { point: { x: 0, y: 0, z: 0 }, modelId: model.root.uuid });
-    const csg = api.invokeTool('explain_csg_at_point', {
+    const aabb = api.invokeTool('space_point_query', { point: { x: 0, y: 0, z: 0 }, modelId: model.root.uuid });
+    const csg = api.invokeTool('space_solid_point_explain', {
       point: { x: 0, y: 0, z: 0 },
       modelId: model.root.uuid,
     });
@@ -103,7 +103,7 @@ describe('clip world plane and CSG vs AABB', () => {
     expect((csg.data as { finalSolid: boolean }).finalSolid).toBe(false);
   });
 
-  it('validate_solid_model warns when a subtractive misses additive solid', () => {
+  it('solid_model_validate warns when a subtractive misses additive solid', () => {
     const { api, world, stack } = createApi();
     const model = new SolidModel('OrphanCut');
     model.addBoxBrush(1, SolidOperation.Additive);
@@ -112,7 +112,7 @@ describe('clip world plane and CSG vs AABB', () => {
     floating.pushTransformToMesh();
     model.rebuild(true);
     stack.push(new CommandSolidModelCreate(model, world));
-    const result = api.invokeTool('validate_solid_model', { modelId: model.root.uuid });
+    const result = api.invokeTool('solid_model_validate', { modelId: model.root.uuid });
     expect(result.ok).toBe(true);
     const warnings = (result.data as { warnings: string[] }).warnings;
     expect(warnings.some((text) => text.includes(floating.id) || text.includes('does not overlap'))).toBe(true);

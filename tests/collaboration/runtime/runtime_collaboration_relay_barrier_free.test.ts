@@ -307,9 +307,9 @@ describe('barrier-free collaboration convergence', { timeout: 30000 }, () => {
       5000,
       'brush lease seen',
     );
-    const held = await alice!.tool('rename_brush', { brushId: dragged, name: 'Nope' });
+    const held = await alice!.tool('brush_rename', { brushId: dragged, name: 'Nope' });
     expect(held).toMatchObject({ ok: false, error: 'locked', holder: 'Bob' });
-    const free = await alice!.tool('rename_brush', { brushId: other, name: 'By AI' });
+    const free = await alice!.tool('brush_rename', { brushId: other, name: 'By AI' });
     expect(free.ok).toBe(true);
     await bob!.editEnd();
     await harnessRelayConverged([owner!, alice!, bob!]);

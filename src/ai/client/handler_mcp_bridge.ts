@@ -1,8 +1,8 @@
 import { deliveryMcpCapture, type McpImagePublisher } from './delivery_mcp_capture.js';
 import type { EditorApi } from './editor_api.js';
-import { editorApiToolMutates } from './editor_api_tool_kinds.js';
 import { mcpImageDeliveryGet } from './mode_mcp_image_delivery.js';
 import type { McpInvokeEditorToolParams, McpToolResult } from '@/ai/shared/mcp_protocol_types.js';
+import type { McpToolDefinition } from '@/ai/shared/mcp_tool_definition.js';
 
 /**
  * Runs a mutating tool inside a shared room: takes the locks the tool needs as
@@ -62,6 +62,15 @@ export class HandlerMcpBridge {
   }
 
   /**
+   * Lists the tools of the bound editor, or none before the editor is ready.
+   *
+   * @returns Tool definitions in catalog order.
+   */
+  toolsList(): Promise<McpToolDefinition[]> {
+    return Promise.resolve(this.editorApi ? this.editorApi.toolsList() : []);
+  }
+
+  /**
    * Invokes a named tool with JSON arguments. Mutating tools run one at a time
    * through the collaboration guard while a room is joined.
    *
@@ -87,16 +96,13 @@ export class HandlerMcpBridge {
     if (!editorApi) return Promise.resolve({ ok: false, message: 'Editor API is not ready' });
     const args = params.arguments && typeof params.arguments === 'object' ? params.arguments : {};
     const delivery = mcpImageDeliveryGet();
-    if (params.name === 'capture_view')
-      return deliveryMcpCapture(
-        online && delivery === 'localhost' ? 'public' : delivery,
-        this.publisher,
-        args,
-        (next) => editorApi.invokeTool('capture_view', next),
+    if (params.name === 'view_capture')
+      return deliveryMcpCapture(online && delivery === 'localhost' ? 'public' : delivery, this.publisher, (lossless) =>
+        editorApi.invokeTool('view_capture', args, { lossless }),
       );
     const invoke = (): McpToolResult => editorApi.invokeTool(params.name, args);
     const guard = this.guard;
-    if (guard === null || !editorApiToolMutates(params.name)) return Promise.resolve(invoke());
+    if (guard === null || !editorApi.toolMutates(params.name)) return Promise.resolve(invoke());
     return guard.run(params.name, invoke);
   }
 }

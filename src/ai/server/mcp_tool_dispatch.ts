@@ -1,8 +1,5 @@
 import type { McpImagePayload, McpToolResult } from '@/ai/shared/mcp_protocol_types.js';
-import { findMcpTool } from './registry_mcp_tool.js';
-
-/** Function that runs a named editor tool in the webview. */
-export type EditorToolInvoker = (name: string, args: Record<string, unknown>) => Promise<McpToolResult>;
+import type { McpEditorEndpoint } from './mcp_editor_endpoint.js';
 
 /** One MCP tools/call content block (text or image). */
 export type McpContentBlock = { type: 'text'; text: string } | { type: 'image'; data: string; mimeType: string };
@@ -11,21 +8,19 @@ export type McpContentBlock = { type: 'text'; text: string } | { type: 'image'; 
 export type McpToolCallResponse = { content: McpContentBlock[]; isError?: boolean };
 
 /**
- * Handles MCP tools/call by validating the name and forwarding to the editor.
+ * Handles MCP tools/call by forwarding the call to the editor, which rejects
+ * unknown tool names itself.
  *
  * @param params Raw tools/call params.
- * @param invoker Editor tool invoker (usually Electrobun RPC).
+ * @param endpoint Editor endpoint (usually Electrobun RPC).
  * @returns MCP tools/call result content blocks.
  */
-export async function dispatchMcpToolCall(params: unknown, invoker: EditorToolInvoker): Promise<McpToolCallResponse> {
+export async function dispatchMcpToolCall(params: unknown, endpoint: McpEditorEndpoint): Promise<McpToolCallResponse> {
   const parsed = parseToolCallParams(params);
   if (!parsed) {
     return buildToolCallResponse({ ok: false, message: 'Invalid tools/call params' }, true);
   }
-  if (!findMcpTool(parsed.name)) {
-    return buildToolCallResponse({ ok: false, message: `Unknown tool: ${parsed.name}` }, true);
-  }
-  const result = await invoker(parsed.name, parsed.arguments);
+  const result = await endpoint.toolCall(parsed.name, parsed.arguments);
   return buildToolCallResponse(result, !result.ok);
 }
 

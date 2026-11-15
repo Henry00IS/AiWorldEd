@@ -347,7 +347,7 @@ describe('collaboration relay owner verification', { timeout: 30000 }, () => {
     ownerMute(owner);
     const brush = alice.solid('Solid').getBrushes()[0];
     if (brush === undefined) throw new Error('missing brush');
-    const result = await alice.tool('select', { brushIds: [brush.id] });
+    const result = await alice.tool('selection_set', { brushIds: [brush.id] });
     expect(result).toMatchObject({ ok: true });
   });
 });

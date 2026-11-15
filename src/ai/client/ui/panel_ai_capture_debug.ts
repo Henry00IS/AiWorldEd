@@ -9,7 +9,7 @@ import {
 } from '@/ai/client/store_ai_capture_debug.js';
 
 /**
- * Floating debug window listing every AI capture_view image for visual
+ * Floating debug window listing every AI view_capture image for visual
  * inspection. Uses the same {@link PanelFloating} base as Tools / Solid Model.
  */
 export class PanelAiCaptureDebug extends PanelFloating {
@@ -149,7 +149,7 @@ export class PanelAiCaptureDebug extends PanelFloating {
    */
   private buildEmptyState(): HTMLElement {
     const empty = document.createElement('div');
-    empty.textContent = 'No AI captures yet. Call capture_view from MCP to see images here.';
+    empty.textContent = 'No AI captures yet. Call view_capture from MCP to see images here.';
     empty.style.color = ThemeCss.mutedTextColor;
     empty.style.fontSize = '11px';
     empty.style.lineHeight = '1.4';

@@ -52,7 +52,7 @@ function linkOverlaps(prepared: PreparedBrush[]): void {
 /**
  * Regression for reference/subtractive-broken.json: a subtractive that only
  * overlaps another subtractive (not the additive solid) must not emit visible
- * SelfAligned hull polygons. Chisel empty-stack fallback is AllOutside.
+ * SelfAligned hull polygons. The empty-stack fallback is AllOutside.
  */
 describe('Floating subtractive after another subtractive', () => {
   it('routes a non-touching-solid subtractive to Outside (not AllSelfAligned)', () => {

@@ -42,7 +42,7 @@ export class ObjGeometryWriter {
     const geometry = mesh.geometry;
     const positions = geometry.getAttribute('position');
     if (!positions) return;
-    // A group of the same name too: some importers (Unity) split meshes by group only.
+    // A group of the same name too: some importers split meshes by group only.
     const name = this.sanitizeObjectName(mesh.name);
     this.lines.push(`o ${name}`, `g ${name}`);
     const vertices = this.writeVertices(mesh, positions);

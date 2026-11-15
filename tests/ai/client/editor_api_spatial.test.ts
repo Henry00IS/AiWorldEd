@@ -55,7 +55,7 @@ function createSpatialFixture(): { api: EditorApi; modelId: string; outerId: str
 describe('EditorApi spatial', () => {
   it('detects overlapping brush AABBs and tags operations', () => {
     const { api, outerId, cutterId } = createSpatialFixture();
-    const result = api.invokeTool('query_overlaps', { brushId: outerId });
+    const result = api.invokeTool('space_overlaps_query', { brushId: outerId });
     expect(result.ok).toBe(true);
     const data = result.data as {
       brushIds: string[];
@@ -69,7 +69,7 @@ describe('EditorApi spatial', () => {
 
   it('finds brush volumes at a point including subtractives, without claiming CSG solid', () => {
     const { api, outerId, cutterId } = createSpatialFixture();
-    const result = api.invokeTool('query_point', { point: { x: 0, y: 0, z: 0 } });
+    const result = api.invokeTool('space_point_query', { point: { x: 0, y: 0, z: 0 } });
     expect(result.ok).toBe(true);
     const data = result.data as {
       brushIds: string[];
@@ -79,12 +79,12 @@ describe('EditorApi spatial', () => {
     expect(data.brushIds).toContain(outerId);
     expect(data.brushIds).toContain(cutterId);
     expect(data.brushes.find((hit) => hit.brushId === cutterId)?.operation).toBe('subtractive');
-    expect(data.note.toLowerCase()).toContain('explain_csg');
+    expect(data.note.toLowerCase()).toContain('space_solid_point_explain');
   });
 
   it('measures brush size from world bounds', () => {
     const { api, outerId } = createSpatialFixture();
-    const result = api.invokeTool('measure', { brushId: outerId });
+    const result = api.invokeTool('space_distance_measure', { brushId: outerId });
     expect(result.ok).toBe(true);
     const size = (result.data as { size: { x: number; y: number; z: number } }).size;
     expect(size.x).toBeGreaterThan(3.5);
@@ -94,7 +94,7 @@ describe('EditorApi spatial', () => {
 
   it('validates a factory box brush', () => {
     const { api, outerId } = createSpatialFixture();
-    const result = api.invokeTool('validate_brush', { brushId: outerId });
+    const result = api.invokeTool('brush_validate', { brushId: outerId });
     expect(result.ok).toBe(true);
   });
 });

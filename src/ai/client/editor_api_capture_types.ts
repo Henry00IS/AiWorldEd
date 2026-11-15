@@ -9,7 +9,7 @@ export type CaptureViewShading = OffscreenCaptureShading;
 export type CaptureViewSide = OffscreenCaptureSide;
 
 /**
- * Arguments for capture_view.
+ * Arguments for view_capture.
  *
  * Prefer the simple path: brushId / nameContains (optional view,
  * distanceOffset). Free camera path: position + lookAt.
@@ -58,7 +58,7 @@ export interface CaptureViewArgs {
   /** Solid | overlap | flat (default solid). Legacy wireframe maps to overlap. */
   shading?: CaptureViewShading;
   /** Include grids/gizmos (default false). */
-  includeHelpers?: boolean;
+  helpersInclude?: boolean;
   /**
    * Lossless PNG at the full requested size instead of a small JPEG; set by the
    * MCP bridge when captures are delivered as links.

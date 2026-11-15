@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { handleMcpHttpRequest } from '@/ai/server/handler_mcp_http.js';
-import type { EditorToolInvoker } from '@/ai/server/mcp_tool_dispatch.js';
+import type { McpEditorEndpoint } from '@/ai/server/mcp_editor_endpoint.js';
+import { mcpEndpointFake } from './helpers_mcp_endpoint.js';
 import type { McpToolResult } from '@/ai/shared/mcp_protocol_types.js';
 
 const MCP_ENDPOINT_URL = 'http://127.0.0.1:18765/mcp';
@@ -27,14 +28,14 @@ function buildRequest(method: string, origin: string | null, body?: string): Req
 
 /** Editor tool invoker that records the last call for assertions. */
 function buildRecordingInvoker(): {
-  invoker: EditorToolInvoker;
+  invoker: McpEditorEndpoint;
   calls: Array<{ name: string; args: Record<string, unknown> }>;
 } {
   const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
-  const invoker: EditorToolInvoker = async (name, args): Promise<McpToolResult> => {
+  const invoker = mcpEndpointFake(async (name, args): Promise<McpToolResult> => {
     calls.push({ name, args });
     return { ok: true, message: `Invoked ${name}` };
-  };
+  });
   return { invoker, calls };
 }
 
@@ -114,12 +115,12 @@ describe('handler_mcp_http', () => {
       jsonrpc: '2.0',
       id: 2,
       method: 'tools/call',
-      params: { name: 'list_solid_models', arguments: {} },
+      params: { name: 'solid_model_list', arguments: {} },
     });
     const response = await handleMcpHttpRequest(buildRequest('POST', null, body), invoker);
     expect(response.status).toBe(200);
     expect(calls).toHaveLength(1);
-    expect(calls[0]?.name).toBe('list_solid_models');
+    expect(calls[0]?.name).toBe('solid_model_list');
   });
 
   it('rejects malformed JSON bodies with 400', async () => {

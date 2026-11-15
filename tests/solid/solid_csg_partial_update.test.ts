@@ -141,8 +141,8 @@ describe('SolidCsgCompiler partial updates', () => {
     const partial = compiler.compile(brushes, { dirtyBrushIds: ['cutter'] });
     const stats = compiler.getLastCompileStats();
     expect(stats.fullRebuild).toBe(false);
-    // Fully contained AInsideB pairs do not expand the update set (Chisel
-    // CreateIntersectionLoops only emits surface loops for Intersection).
+    // Fully contained AInsideB pairs do not expand the update set (surface
+    // loops are only emitted for Intersection pairs).
     // The cavity is owned by the cutter brush surfaces.
     expect(stats.recompiledBrushCount).toBeGreaterThanOrEqual(1);
     expect(stats.recompiledBrushCount).toBeLessThanOrEqual(3);

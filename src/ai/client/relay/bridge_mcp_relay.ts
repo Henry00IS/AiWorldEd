@@ -3,7 +3,7 @@ import { sharedMcpBridgeHandler } from '@/ai/client/handler_mcp_bridge.js';
 import type { McpHostStartResult, McpHostStatus } from '@/ai/shared/mcp_protocol_types.js';
 import { mcpJsonRpcAnswer } from '@/ai/server/mcp_jsonrpc_answer.js';
 import { jsonRpcError } from '@/ai/server/mcp_jsonrpc.js';
-import type { EditorToolInvoker } from '@/ai/server/mcp_tool_dispatch.js';
+import type { McpEditorEndpoint } from '@/ai/server/mcp_editor_endpoint.js';
 import type { McpRelayLink } from './link_mcp_relay.js';
 import type { McpSettingsStorage } from '@/ai/client/settings_mcp.js';
 import { mcpRelayTokenGet, mcpRelayTokenRegenerate } from './token_mcp_relay.js';
@@ -17,13 +17,15 @@ export class BridgeMcpRelay implements BridgeMcpDesktop {
    *
    * @param link Relay link.
    * @param storage Settings storage.
-   * @param invoker Tool invoker; defaults to the shared editor bridge.
+   * @param endpoint Editor endpoint; defaults to the shared editor bridge.
    */
   constructor(
     private readonly link: McpRelayLink,
     private readonly storage: McpSettingsStorage | null,
-    private readonly invoker: EditorToolInvoker = (name, args) =>
-      sharedMcpBridgeHandler.invokeEditorTool({ name, arguments: args }, true),
+    private readonly endpoint: McpEditorEndpoint = {
+      toolsList: () => sharedMcpBridgeHandler.toolsList(),
+      toolCall: (name, args) => sharedMcpBridgeHandler.invokeEditorTool({ name, arguments: args }, true),
+    },
   ) {}
 
   /**
@@ -93,7 +95,7 @@ export class BridgeMcpRelay implements BridgeMcpDesktop {
    */
   private async answer(body: string, fits: (response: string) => boolean): Promise<string> {
     try {
-      const answer = await mcpJsonRpcAnswer(body, this.invoker);
+      const answer = await mcpJsonRpcAnswer(body, this.endpoint);
       if (answer.response === null) return '';
       const text = JSON.stringify(answer.response);
       if (fits(text)) return text;

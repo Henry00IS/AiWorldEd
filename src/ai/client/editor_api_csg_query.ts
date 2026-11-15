@@ -65,8 +65,8 @@ export class EditorApiCsgQuery {
   queryVoidConnectivity(args: QueryVoidConnectivityArgs): McpToolResult {
     const model = this.resolveModel(args.modelId);
     if (!model) return failResult(args.modelId ? `Solid model not found: ${args.modelId}` : 'No solid model in scene');
-    const fromWorld = dtoToVec3(args.fromPoint, new THREE.Vector3());
-    const toWorld = dtoToVec3(args.toPoint, new THREE.Vector3());
+    const fromWorld = dtoToVec3(args.pointFrom, new THREE.Vector3());
+    const toWorld = dtoToVec3(args.pointTo, new THREE.Vector3());
     const from = worldToModelPoint(model, fromWorld);
     const to = worldToModelPoint(model, toWorld);
     if (isSolidAtModelPoint(model, from)) {
@@ -209,7 +209,7 @@ function evaluateTreeMembership(
 }
 
 /**
- * Builds per-brush containment steps for explain_csg_at_point. Flat models
+ * Builds per-brush containment steps for space_solid_point_explain. Flat models
  * report a running solidAfter fold; hierarchical models stamp the true final
  * membership on every step so solidAfter is never a misleading flat fold.
  *

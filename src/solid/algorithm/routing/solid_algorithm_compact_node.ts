@@ -31,5 +31,5 @@ export interface SolidAlgorithmCompactNode {
   parentIndex: number;
 }
 
-/** Prepared index reserved for the RealtimeCSG-style infinite inverted brush. */
+/** Prepared index reserved for the infinite inverted-world brush. */
 export const SOLID_ALGORITHM_INFINITE_PREPARED_INDEX = -1;

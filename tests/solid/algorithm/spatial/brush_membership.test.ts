@@ -31,7 +31,7 @@ function tiltedFromPositiveX(targetDot: number): THREE.Vector3 {
   return new THREE.Vector3(clamped, y, 0).normalize();
 }
 
-/** BrushMembership coplanar align detection uses Chisel normal epsilon. */
+/** BrushMembership coplanar align detection uses a tight normal epsilon. */
 describe('BrushMembership classifyPoint align epsilon', () => {
   it('classifies coplanar points with near-identical normals as Aligned', () => {
     const { brush, point } = unitBoxOnPositiveXFace();
@@ -39,7 +39,7 @@ describe('BrushMembership classifyPoint align epsilon', () => {
     expect(BrushMembership.classifyPoint(point, brush, normal)).toBe(SurfaceCategory.Aligned);
   });
 
-  it('does not treat a 0.99-dot tilt as Aligned (Chisel uses 0.9999)', () => {
+  it('does not treat a 0.99-dot tilt as Aligned (Aligned needs 0.9999)', () => {
     const { brush, point } = unitBoxOnPositiveXFace();
     const looseNormal = tiltedFromPositiveX(0.99);
     expect(looseNormal.dot(new THREE.Vector3(1, 0, 0))).toBeLessThan(SOLID_NORMAL_ALIGN_EPSILON);

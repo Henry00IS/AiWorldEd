@@ -24,8 +24,8 @@ const ALIGN_MIN_FACE_DOT = 0.2;
 
 /**
  * Returns whether applying an align preset would produce a usable projection on
- * this face. Mirrors classic UnrealEd behavior: Floor/Ceiling on walls and Wall
- * on floors/ceilings do nothing instead of collapsing a UV axis.
+ * this face. Floor/Ceiling on walls and Wall on floors/ceilings do nothing
+ * instead of collapsing a UV axis.
  *
  * @param faceNormal Unit face normal in world space.
  * @param align Requested align preset.

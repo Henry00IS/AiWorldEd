@@ -10,7 +10,7 @@ import type { SolidModel } from '@/solid/model/solid_model.js';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import type { McpToolResult } from '@/ai/shared/mcp_protocol_types.js';
 
-/** One row returned by find_brushes / describe_brush. */
+/** One row returned by brush_find / brush_describe. */
 export interface FindBrushRow {
   brushId: string;
   modelId: string;
@@ -110,8 +110,8 @@ export class EditorApiFind {
   private matchesFilters(row: FindBrushRow, args: FindBrushesArgs): boolean {
     if (args.nameContains && !row.name.toLowerCase().includes(args.nameContains.toLowerCase())) return false;
     if (args.shape && !shapeMatchesFilter(row.shape, args.shape)) return false;
-    if (typeof args.minHeight === 'number' && row.height < args.minHeight) return false;
-    if (typeof args.maxHeight === 'number' && row.height > args.maxHeight) return false;
+    if (typeof args.heightMin === 'number' && row.height < args.heightMin) return false;
+    if (typeof args.heightMax === 'number' && row.height > args.heightMax) return false;
     if (args.region && !centerInRegion(row.center, args.region)) return false;
     return true;
   }

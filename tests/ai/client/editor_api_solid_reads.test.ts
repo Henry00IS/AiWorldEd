@@ -55,13 +55,13 @@ describe('EditorApi solid reads', () => {
     const size = 2;
     model.addBoxBrush(size, SolidOperation.Additive);
     stack.push(new CommandSolidModelCreate(model, world));
-    const listed = api.invokeTool('list_solid_models');
+    const listed = api.invokeTool('solid_model_list');
     expect(listed.ok).toBe(true);
     const models = (listed.data as { models: Array<{ name: string; brushCount: number }> }).models;
     expect(models.some((entry) => entry.name === 'ReadModel' && entry.brushCount === 1)).toBe(true);
   });
 
-  it('returns ordered brushes for get_solid_model', () => {
+  it('returns ordered brushes for solid_model_get', () => {
     const world = new THREE.Group();
     const stack = new CommandStack(64);
     const selection = new ManagerSelection();
@@ -70,7 +70,7 @@ describe('EditorApi solid reads', () => {
     model.addBoxBrush(1, SolidOperation.Additive);
     model.addBoxBrush(1, SolidOperation.Subtractive);
     stack.push(new CommandSolidModelCreate(model, world));
-    const result = api.invokeTool('get_solid_model', { modelId: model.root.uuid });
+    const result = api.invokeTool('solid_model_get', { modelId: model.root.uuid });
     expect(result.ok).toBe(true);
     const detail = result.data as { brushes: Array<{ operation: string; orderIndex: number }> };
     expect(detail.brushes).toHaveLength(2);
@@ -84,7 +84,7 @@ describe('EditorApi solid reads', () => {
     const stack = new CommandStack(64);
     const selection = new ManagerSelection();
     const api = new EditorApi(createTestHost(world, stack, selection));
-    const context = api.invokeTool('get_editor_context');
+    const context = api.invokeTool('editor_context_get');
     expect(context.ok).toBe(true);
     const data = context.data as {
       handedness: string;

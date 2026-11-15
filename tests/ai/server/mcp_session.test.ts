@@ -3,6 +3,7 @@ import { createMcpSessionState, listMcpPortCandidates } from '@/ai/server/sessio
 import { MCP_DEFAULT_PORT } from '@/ai/shared/mcp_constants.js';
 import { McpHost } from '@/ai/server/mcp_host.js';
 import type { McpHttpServer } from '@/ai/server/mcp_host.js';
+import { mcpEndpointFake } from './helpers_mcp_endpoint.js';
 
 /** Unit tests for MCP session ports and host lifecycle with a fake server. */
 describe('mcp_session', () => {
@@ -28,7 +29,7 @@ describe('mcp_session', () => {
       };
       return server;
     });
-    const started = host.start(async () => ({ ok: true, message: 'ok' }));
+    const started = host.start(mcpEndpointFake(async () => ({ ok: true, message: 'ok' })));
     expect(started.ok).toBe(true);
     expect(started.status.running).toBe(true);
     expect(started.status.url).toContain(String(MCP_DEFAULT_PORT));

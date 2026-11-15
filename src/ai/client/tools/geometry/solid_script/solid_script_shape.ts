@@ -1,0 +1,84 @@
+import type * as THREE from 'three';
+
+/** Boolean operation of a shape group. */
+export type SolidScriptBooleanOperation = 'union' | 'difference' | 'intersection';
+
+/** Convex 3D solid given by points in script space (Z up). */
+export interface SolidScriptShapeSolid {
+  kind: 'solid';
+  points: THREE.Vector3[];
+  label: string;
+}
+
+/** Simple 2D polygon in the local plane of a linear_extrude. */
+export interface SolidScriptShapePolygon {
+  kind: 'polygon';
+  points: [number, number][];
+  label: string;
+}
+
+/** Boolean combination of child shapes; the first child of a difference is kept. */
+export interface SolidScriptShapeBoolean {
+  kind: 'boolean';
+  operation: SolidScriptBooleanOperation;
+  children: SolidScriptShape[];
+  label: string;
+}
+
+/** Node of an evaluated shape tree. */
+export type SolidScriptShape = SolidScriptShapeSolid | SolidScriptShapePolygon | SolidScriptShapeBoolean;
+
+/**
+ * Wraps shapes into one shape: the single shape itself, or a union.
+ *
+ * @param shapes Shapes.
+ * @param label Label for a created union.
+ * @returns Shape, or null when there are none.
+ */
+export function solidScriptShapeJoin(shapes: SolidScriptShape[], label: string): SolidScriptShape | null {
+  if (shapes.length === 0) return null;
+  if (shapes.length === 1) return shapes[0] ?? null;
+  return { kind: 'boolean', operation: 'union', children: shapes, label };
+}
+
+/**
+ * Maps every leaf of a shape tree, keeping the boolean structure.
+ *
+ * @param shape Shape tree.
+ * @param map Leaf mapper.
+ * @returns Mapped tree.
+ */
+export function solidScriptShapeMapLeaves(
+  shape: SolidScriptShape,
+  map: (leaf: SolidScriptShapeSolid | SolidScriptShapePolygon) => SolidScriptShape,
+): SolidScriptShape {
+  if (shape.kind !== 'boolean') return map(shape);
+  return { ...shape, children: shape.children.map((child) => solidScriptShapeMapLeaves(child, map)) };
+}
+
+/**
+ * Lists the leaves that add material, skipping cut-away children of
+ * differences.
+ *
+ * @param shape Shape tree.
+ * @returns Leaves.
+ */
+export function solidScriptShapeLeavesPositive(
+  shape: SolidScriptShape,
+): (SolidScriptShapeSolid | SolidScriptShapePolygon)[] {
+  if (shape.kind !== 'boolean') return [shape];
+  const children = shape.operation === 'difference' ? shape.children.slice(0, 1) : shape.children;
+  return children.flatMap(solidScriptShapeLeavesPositive);
+}
+
+/**
+ * Counts the leaves of a shape tree.
+ *
+ * @param shape Shape tree.
+ * @returns Leaf count.
+ */
+export function solidScriptShapeLeafCount(shape: SolidScriptShape): number {
+  return shape.kind === 'boolean'
+    ? shape.children.reduce((sum, child) => sum + solidScriptShapeLeafCount(child), 0)
+    : 1;
+}

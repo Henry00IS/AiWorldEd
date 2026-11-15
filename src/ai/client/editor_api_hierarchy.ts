@@ -127,7 +127,7 @@ export class EditorApiHierarchy {
     if (!destination) return fail(`Parent not found: ${args.parentId}`);
     const nodes = resolveSolidHierarchyNodes(this.host.worldObject, args.nodeIds);
     if (nodes.length === 0) return fail('No matching brushes or CSG groups found');
-    const insertBefore = this.resolveInsertBefore(destination.model, args.insertBeforeId);
+    const insertBefore = this.resolveInsertBefore(destination.model, args.nodeIdBefore);
     const moves = this.buildReparentMoves(nodes, destination, insertBefore);
     if (moves.length === 0) return fail('No valid reparent moves (same solid model required)');
     this.host.commandStack.push(new CommandObjectObjectsReparent(moves));
@@ -168,7 +168,7 @@ export class EditorApiHierarchy {
   }
 
   /**
-   * Resolves hierarchy roots for create_csg_group after validation.
+   * Resolves hierarchy roots for csg_group_create after validation.
    *
    * @param args Create arguments.
    * @param model Expected solid model.
@@ -187,7 +187,7 @@ export class EditorApiHierarchy {
   }
 
   /**
-   * Parses create_csg_group operation; default additive when omitted.
+   * Parses csg_group_create operation; default additive when omitted.
    *
    * @param name Optional operation name.
    * @returns Solid operation or null when invalid.
@@ -225,7 +225,7 @@ export class EditorApiHierarchy {
   }
 
   /**
-   * Builds the success payload for create_csg_group.
+   * Builds the success payload for csg_group_create.
    *
    * @param model Owning solid model.
    * @param group Created group.
@@ -342,12 +342,12 @@ export class EditorApiHierarchy {
    * Resolves optional insert-before sibling under a destination parent.
    *
    * @param model Destination solid model.
-   * @param insertBeforeId Brush id or group uuid.
+   * @param nodeIdBefore Brush id or group uuid.
    * @returns Sibling object or null.
    */
-  private resolveInsertBefore(model: SolidModel, insertBeforeId?: string): THREE.Object3D | null {
-    if (!insertBeforeId) return null;
-    const nodes = resolveSolidHierarchyNodes(this.host.worldObject, [insertBeforeId]);
+  private resolveInsertBefore(model: SolidModel, nodeIdBefore?: string): THREE.Object3D | null {
+    if (!nodeIdBefore) return null;
+    const nodes = resolveSolidHierarchyNodes(this.host.worldObject, [nodeIdBefore]);
     const node = nodes[0];
     if (!node || node.model !== model) return null;
     return node.node;

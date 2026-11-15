@@ -1,6 +1,7 @@
 import { Theme } from '@/theme.js';
 import { PanelMenu } from '@/ui/menu/panel_menu.js';
 import { PanelMenuDropdown } from '@/ui/menu/panel_menu_dropdown.js';
+import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
 import { EditorInteractionMode, getEditorInteractionModeLabel } from '@/types/editor_interaction_mode.js';
 import { applyViewportToolOptionsTextButtonMetrics } from './viewport_tool_options_control_style.js';
 import { buildViewportToolModeMenuEntries } from './viewport_tool_mode_menu.js';
@@ -28,6 +29,7 @@ export class ViewportToolModeDropdown extends PanelMenuDropdown {
     this.buildChrome();
     parentElement.appendChild(this.wrapper);
     this.setActiveMode(EditorInteractionMode.OBJECT_MODE);
+    this.menuRegister('Mode', () => this.entries());
   }
 
   /**
@@ -66,15 +68,19 @@ export class ViewportToolModeDropdown extends PanelMenuDropdown {
     this.label.style.lineHeight = '1';
   }
 
+  /**
+   * Builds the mode menu entries with the active checkmark.
+   *
+   * @returns Entries.
+   */
+  private entries(): ToolbarMenuEntry[] {
+    return buildViewportToolModeMenuEntries(this.activeMode, (mode) => this.handleModeChosen(mode));
+  }
+
   /** Rebuilds menu entries so the active checkmark stays current. */
   protected rebuildMenuPanel(): void {
     this.menuPanel?.dispose();
-    this.menuPanel = new PanelMenu(
-      buildViewportToolModeMenuEntries(this.activeMode, (mode) => this.handleModeChosen(mode)),
-      () => this.closeMenu(),
-      false,
-      this.ownerDocument,
-    );
+    this.menuPanel = new PanelMenu(this.entries(), () => this.closeMenu(), false, this.ownerDocument);
     this.wrapper.appendChild(this.menuPanel.getElement());
   }
 

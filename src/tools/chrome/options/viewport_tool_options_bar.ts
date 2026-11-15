@@ -517,9 +517,14 @@ export class ViewportToolOptionsBar {
    * @returns Edit Mode Align dropdown.
    */
   private createEditAlignDropdown(parentElement: HTMLElement): ViewportToolNamedDropdown {
-    return new ViewportToolNamedDropdown(parentElement, 'Align', () => {
-      return buildViewportToolEditAlignMenuEntries((request) => this.handlers.onEditAlign?.(request));
-    });
+    return new ViewportToolNamedDropdown(
+      parentElement,
+      'Align',
+      () => {
+        return buildViewportToolEditAlignMenuEntries((request) => this.handlers.onEditAlign?.(request));
+      },
+      'Edit Align',
+    );
   }
 
   /**
