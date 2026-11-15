@@ -108,6 +108,8 @@ export interface ModifierStackActionTarget {
   commandStack: CommandStack | null;
   /** Shows a short status line under the button, or clears it with empty text. */
   status: (text: string) => void;
+  /** Redraws the inspector after the action changed the stack outside it. */
+  refresh?: () => void;
 }
 
 /** A named set of parameters a modifier's inspector offers to apply at once. */

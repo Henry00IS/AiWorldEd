@@ -31,17 +31,18 @@ describe('modifier stack action rows', () => {
     expect(modifierStackFieldsNormalize([field], { run: 'anything' })).toEqual({});
   });
 
-  it('run the action with the target, show its status and stay disabled until it settles', async () => {
+  it('run the action with the target, show its status, stay disabled until it settles, then redraw the panel', async () => {
     const calls: ModifierStackActionTarget[] = [];
     let release = (): void => undefined;
     const gate = new Promise<void>((resolve) => (release = resolve));
     const volume = new THREE.Object3D();
+    let refreshed = 0;
     const rows = new ModifierStackFieldRows(
       [actionRowTestField(calls, gate)],
       () => undefined,
       undefined,
       undefined,
-      (status) => ({ volume, stepId: 'step-1', commandStack: null, status }),
+      (status) => ({ volume, stepId: 'step-1', commandStack: null, status, refresh: () => refreshed++ }),
     );
     const button = rows.getElement().querySelector('button');
     button?.click();
@@ -49,10 +50,12 @@ describe('modifier stack action rows', () => {
     expect(calls[0]?.stepId).toBe('step-1');
     expect(button?.disabled).toBe(true);
     expect(rows.getElement().textContent).toContain('Working');
+    expect(refreshed).toBe(0);
     release();
     await gate;
     await Promise.resolve();
     expect(button?.disabled).toBe(false);
+    expect(refreshed).toBe(1);
   });
 
   it('keep the button disabled while the field says the action is unavailable', () => {

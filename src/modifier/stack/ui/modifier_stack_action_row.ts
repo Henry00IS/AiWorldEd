@@ -61,5 +61,6 @@ async function modifierStackActionRun(
   } finally {
     state.running = false;
     button.disabled = state.unavailable;
+    target.refresh?.();
   }
 }
