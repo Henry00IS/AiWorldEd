@@ -16,6 +16,7 @@ import {
   type ModifierStackBakeCreation,
 } from './modifier_stack_bake_plan.js';
 import { modifierStackTreeAnchor, modifierStackTreeInsert } from '@/modifier/stack/evaluate/modifier_stack_tree.js';
+import { modifierStackBakeGroupsPlace, type ModifierStackBakeGroup } from './modifier_stack_bake_groups.js';
 
 /**
  * Turns a modifier volume's result into ordinary authored brushes and removes
@@ -29,6 +30,7 @@ export class CommandModifierVolumeBake implements UndoCommand {
   private readonly plans: ModifierStackBakeModelPlan[];
   private readonly created: { model: SolidModel; instance: SolidBrushInstance }[] = [];
   private readonly instances = new Map<ModifierStackBakeCreation, SolidBrushInstance>();
+  private readonly groups = new Map<ModifierStackBakeGroup, THREE.Group>();
   private readonly detached: { node: THREE.Object3D; parent: THREE.Object3D; index: number }[] = [];
   private readonly ownerStack: ModifierStackSettings | undefined;
 
@@ -55,9 +57,9 @@ export class CommandModifierVolumeBake implements UndoCommand {
 
   /** Applies the bake. */
   execute(): void {
-    for (const plan of this.plans) this.applyPlan(plan);
     const removed = this.plans.flatMap((plan) => plan.removed);
     for (const node of this.ownerStack ? removed : [this.volume, ...removed]) this.detach(node);
+    for (const plan of this.plans) this.applyPlan(plan);
     if (this.ownerStack) modifierStackOwnerDecode(this.volume, undefined);
     modifierBevelRefreshScene(this.sceneRoot);
   }
@@ -65,6 +67,7 @@ export class CommandModifierVolumeBake implements UndoCommand {
   /** Restores the volume and the reshaped brushes, and drops created ones. */
   undo(): void {
     for (const { model, instance } of this.created.splice(0).reverse()) model.removeBrush(instance.id, false, false);
+    for (const group of this.groups.values()) group.removeFromParent();
     for (const plan of this.plans)
       for (const entry of plan.replaced) modifierStackBakeShapeApply(plan.model, entry.id, entry.before);
     for (const { node, parent, index } of this.detached.splice(0).reverse())
@@ -101,6 +104,11 @@ export class CommandModifierVolumeBake implements UndoCommand {
       return { creation, instance };
     });
     modifierStackBakePlace(plan.model, placed);
+    modifierStackBakeGroupsPlace(
+      placed.map(({ creation, instance }) => ({ instance, groups: creation.groups })),
+      this.groups,
+    );
+    plan.model.syncBrushOrderFromScene();
     plan.model.markDirty();
   }
 

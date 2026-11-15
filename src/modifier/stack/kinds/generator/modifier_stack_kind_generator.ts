@@ -63,15 +63,161 @@ const MODIFIER_STACK_GENERATOR_OUTPUT_FIELDS: readonly ModifierStackField[] = [
 
 /**
  * Base class of modifiers that build new convex brushes inside the volume box.
- * Pieces are built in the volume frame, so volume scale sizes the result
- * without distorting it.
+ * Units are built in the volume frame, so volume scale sizes the result without
+ * distorting it.
  */
-export abstract class ModifierStackKindGenerator extends ModifierStackKind {
+export abstract class ModifierStackKindGeneratorBase extends ModifierStackKind {
   readonly category: ModifierStackCategory = 'generate';
   /** Kind-specific fields shown before the shared ones. */
   protected abstract readonly specificFields: readonly ModifierStackField[];
   /** Shading fields shown after the texture, such as smooth shading. */
   protected readonly shadingFields: readonly ModifierStackField[] = [];
+
+  /**
+   * Returns kind-specific and shared fields.
+   *
+   * @returns Field list.
+   */
+  get fields(): readonly ModifierStackField[] {
+    return [
+      ...this.specificFields,
+      ...MODIFIER_STACK_GENERATOR_TEXTURE_FIELDS,
+      ...this.shadingFields,
+      ...MODIFIER_STACK_GENERATOR_OUTPUT_FIELDS,
+    ];
+  }
+
+  /**
+   * Returns whether captured brushes keep flowing down the stack.
+   *
+   * @param parameters Normalized parameters.
+   * @returns True when Keep input is on.
+   */
+  override passesAuthoredInput(parameters: Record<string, unknown>): boolean {
+    return parameters['keepInput'] === true;
+  }
+
+  /**
+   * Returns how the pieces follow a moved or turned volume. Pieces are built in
+   * the volume frame, so their shape always follows; textures stay world
+   * aligned by default.
+   *
+   * @param _parameters Normalized parameters.
+   * @returns 'translate'.
+   */
+  override volumePoseFollow(_parameters: Record<string, unknown>): ModifierStackPoseFollow {
+    return 'translate';
+  }
+
+  /**
+   * Adds the generated pieces to the working set.
+   *
+   * @param units Previous output.
+   * @param context Evaluation context.
+   * @returns Generated units, after the input when Keep input is on.
+   */
+  apply(units: readonly ModifierStackUnit[], context: ModifierStackContext): ModifierStackUnit[] {
+    const parameters = context.step.parameters;
+    const kept = this.passesAuthoredInput(parameters) ? [...units] : [];
+    if (!context.ownsGenerated) return kept;
+    const box = modifierStackVolumeBox(context.volume);
+    const size = box.getSize(new THREE.Vector3());
+    if (box.isEmpty() || Math.min(size.x, size.y, size.z) < MODIFIER_STACK_SHAPE_EPSILON) {
+      context.report.error = 'The volume is too thin to build in.';
+      return kept;
+    }
+    return [...kept, ...this.generatedUnits(parameters, box, context)];
+  }
+
+  /**
+   * Builds the generated units inside the volume box.
+   *
+   * @param parameters Normalized parameters.
+   * @param box Volume box in frame coordinates.
+   * @param context Evaluation context.
+   * @returns Generated units in CSG order.
+   */
+  protected abstract generatedUnits(
+    parameters: Record<string, unknown>,
+    box: THREE.Box3,
+    context: ModifierStackContext,
+  ): ModifierStackUnit[];
+
+  /**
+   * Returns the CSG operation of the pieces, from the stored Operation that the
+   * solid operation buttons set.
+   *
+   * @param parameters Normalized parameters.
+   * @returns Operation.
+   */
+  protected pieceOperation(parameters: Record<string, unknown>): SolidOperation {
+    return MODIFIER_STACK_GENERATOR_OPERATIONS[String(parameters['operation'])] ?? SolidOperation.Additive;
+  }
+
+  /**
+   * Turns one frame-space piece into a derived brush unit.
+   *
+   * @param piece Convex piece in frame coordinates.
+   * @param index Piece index, used in the derived id.
+   * @param context Evaluation context.
+   * @param look Parameters holding the texture slot, custom frame-space
+   *   surfaces, per-face replacement textures, the CSG operation and the
+   *   smoothing.
+   * @returns Derived single-brush unit.
+   */
+  protected pieceUnit(
+    piece: SolidBrush,
+    index: number,
+    context: ModifierStackContext,
+    look: {
+      parameters: Record<string, unknown>;
+      surfaces: ModifierStackPieceSurfaces | null;
+      textures: readonly (string | undefined)[] | null;
+      operation: SolidOperation;
+      smooth: ModifierSmoothTag | undefined;
+    },
+  ): ModifierStackUnit {
+    const id = `${context.volume.uuid}#${context.step.id}:${index}`;
+    const frame = modifierStackFrame(context.volume, 'volume');
+    const toLocal = context.solidRoot.matrixWorld.clone().invert().multiply(frame);
+    piece.transformVertices(toLocal);
+    const brush = new SolidBrushInstance(id, `${context.step.name} ${index + 1}`, piece, look.operation);
+    this.pieceSurfacesApply(brush, look.surfaces, toLocal);
+    modifierStackGeneratorTextureApply(brush, look.parameters);
+    modifierStackCapTexturesApply(brush, look.textures);
+    if (look.smooth) modifierSmoothTagSet(brush, look.smooth);
+    brush.mesh = modifierStackDerivedMesh(id, null);
+    context.staging.add(brush.mesh);
+    brush.mesh.updateMatrixWorld(true);
+    return { tree: brush.mesh, brushes: [brush], authored: false, origin: null };
+  }
+
+  /**
+   * Stores custom surfaces on a piece, moving their UV matrices from frame to
+   * brush-local coordinates.
+   *
+   * @param brush Piece brush in local coordinates.
+   * @param surfaces Frame-space surfaces, or null.
+   * @param toLocal Transform from frame to local coordinates.
+   */
+  private pieceSurfacesApply(
+    brush: SolidBrushInstance,
+    surfaces: ModifierStackPieceSurfaces | null,
+    toLocal: THREE.Matrix4,
+  ): void {
+    if (!surfaces) return;
+    const toFrame = toLocal.clone().invert();
+    surfaces.forEach((surface, index) => {
+      if (surface) brush.setFaceSurface(index, { ...surface, uv: surface.uv.multiplyMatrix4(toFrame) });
+    });
+  }
+}
+
+/**
+ * Base class of generators that build a list of convex pieces, all with the
+ * generator's operation.
+ */
+export abstract class ModifierStackKindGenerator extends ModifierStackKindGeneratorBase {
   /**
    * True when every face gets frame-space surfaces from pieceSurfaces, so
    * textures turn with the volume; false leaves faces world aligned.
@@ -137,17 +283,6 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
   }
 
   /**
-   * Returns the CSG operation of the pieces, from the stored Operation that the
-   * solid operation buttons set.
-   *
-   * @param parameters Normalized parameters.
-   * @returns Operation.
-   */
-  protected pieceOperation(parameters: Record<string, unknown>): SolidOperation {
-    return MODIFIER_STACK_GENERATOR_OPERATIONS[String(parameters['operation'])] ?? SolidOperation.Additive;
-  }
-
-  /**
    * Returns whether a subtractive generator also adds the same pieces back
    * right after cutting them, so the world gets the hole and the hole is filled
    * with loose pieces that later steps, such as Physics Shatter, can take
@@ -158,30 +293,6 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
    */
   protected fillsBack(_parameters: Record<string, unknown>): boolean {
     return false;
-  }
-
-  /**
-   * Returns kind-specific and shared fields.
-   *
-   * @returns Field list.
-   */
-  get fields(): readonly ModifierStackField[] {
-    return [
-      ...this.specificFields,
-      ...MODIFIER_STACK_GENERATOR_TEXTURE_FIELDS,
-      ...this.shadingFields,
-      ...MODIFIER_STACK_GENERATOR_OUTPUT_FIELDS,
-    ];
-  }
-
-  /**
-   * Returns whether captured brushes keep flowing down the stack.
-   *
-   * @param parameters Normalized parameters.
-   * @returns True when Keep input is on.
-   */
-  override passesAuthoredInput(parameters: Record<string, unknown>): boolean {
-    return parameters['keepInput'] === true;
   }
 
   /**
@@ -197,30 +308,27 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
   }
 
   /**
-   * Adds the generated pieces to the working set.
+   * Builds the pieces and turns them into units: filled-back copies after a
+   * subtractive cut, and one intersecting group for Intersect.
    *
-   * @param units Previous output.
+   * @param parameters Normalized parameters.
+   * @param box Volume box in frame coordinates.
    * @param context Evaluation context.
-   * @returns Generated units, after the input when Keep input is on.
+   * @returns Generated units.
    */
-  apply(units: readonly ModifierStackUnit[], context: ModifierStackContext): ModifierStackUnit[] {
-    const parameters = context.step.parameters;
-    const kept = this.passesAuthoredInput(parameters) ? [...units] : [];
-    if (!context.ownsGenerated) return kept;
-    const box = modifierStackVolumeBox(context.volume);
-    const size = box.getSize(new THREE.Vector3());
-    if (box.isEmpty() || Math.min(size.x, size.y, size.z) < MODIFIER_STACK_SHAPE_EPSILON) {
-      context.report.error = 'The volume is too thin to build in.';
-      return kept;
-    }
+  protected generatedUnits(
+    parameters: Record<string, unknown>,
+    box: THREE.Box3,
+    context: ModifierStackContext,
+  ): ModifierStackUnit[] {
     const operation = this.pieceOperation(parameters);
     const fill = operation === SolidOperation.Subtractive && this.fillsBack(parameters);
     const pieces = this.grantedPieces(this.buildPieces(parameters, box), context, fill ? 2 : 1);
     const fillPieces = fill ? pieces.map((piece) => piece.clone()) : [];
     const made = this.pieceUnits(pieces, box, context);
     if (fill) made.push(...this.pieceUnits(fillPieces, box, context, SolidOperation.Additive, pieces.length));
-    if (operation !== SolidOperation.Intersecting || made.length === 0) return [...kept, ...made];
-    return [...kept, modifierStackGeneratorIntersectUnit(made, context)];
+    if (operation !== SolidOperation.Intersecting || made.length === 0) return made;
+    return [modifierStackGeneratorIntersectUnit(made, context)];
   }
 
   /**
@@ -273,64 +381,6 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKind {
     if (granted < pieces.length)
       context.report.error = `Brush budget reached: ${granted} of ${pieces.length} pieces made.`;
     return pieces.slice(0, granted);
-  }
-
-  /**
-   * Turns one frame-space piece into a derived brush unit.
-   *
-   * @param piece Convex piece in frame coordinates.
-   * @param index Piece index, used in the derived id.
-   * @param context Evaluation context.
-   * @param look Parameters holding the texture slot, custom frame-space
-   *   surfaces, per-face replacement textures, the CSG operation and the
-   *   smoothing.
-   * @returns Derived single-brush unit.
-   */
-  private pieceUnit(
-    piece: SolidBrush,
-    index: number,
-    context: ModifierStackContext,
-    look: {
-      parameters: Record<string, unknown>;
-      surfaces: ModifierStackPieceSurfaces | null;
-      textures: readonly (string | undefined)[] | null;
-      operation: SolidOperation;
-      smooth: ModifierSmoothTag | undefined;
-    },
-  ): ModifierStackUnit {
-    const id = `${context.volume.uuid}#${context.step.id}:${index}`;
-    const frame = modifierStackFrame(context.volume, 'volume');
-    const toLocal = context.solidRoot.matrixWorld.clone().invert().multiply(frame);
-    piece.transformVertices(toLocal);
-    const brush = new SolidBrushInstance(id, `${context.step.name} ${index + 1}`, piece, look.operation);
-    this.pieceSurfacesApply(brush, look.surfaces, toLocal);
-    modifierStackGeneratorTextureApply(brush, look.parameters);
-    modifierStackCapTexturesApply(brush, look.textures);
-    if (look.smooth) modifierSmoothTagSet(brush, look.smooth);
-    brush.mesh = modifierStackDerivedMesh(id, null);
-    context.staging.add(brush.mesh);
-    brush.mesh.updateMatrixWorld(true);
-    return { tree: brush.mesh, brushes: [brush], authored: false, origin: null };
-  }
-
-  /**
-   * Stores custom surfaces on a piece, moving their UV matrices from frame to
-   * brush-local coordinates.
-   *
-   * @param brush Piece brush in local coordinates.
-   * @param surfaces Frame-space surfaces, or null.
-   * @param toLocal Transform from frame to local coordinates.
-   */
-  private pieceSurfacesApply(
-    brush: SolidBrushInstance,
-    surfaces: ModifierStackPieceSurfaces | null,
-    toLocal: THREE.Matrix4,
-  ): void {
-    if (!surfaces) return;
-    const toFrame = toLocal.clone().invert();
-    surfaces.forEach((surface, index) => {
-      if (surface) brush.setFaceSurface(index, { ...surface, uv: surface.uv.multiplyMatrix4(toFrame) });
-    });
   }
 }
 

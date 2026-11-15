@@ -20,6 +20,7 @@ import {
 import { ModifierVolume, modifierGeneratorsActive, modifierVolumeSceneRoot } from '@/modifier/stack/modifier_volume.js';
 import { ModifierStackRecords } from '@/modifier/stack/evaluate/modifier_stack_records.js';
 import type { ModifierStackUnit } from '@/modifier/stack/modifier_stack_types.js';
+import { modifierStackBakeGroupChains, type ModifierStackBakeGroup } from './modifier_stack_bake_groups.js';
 
 /** Brush geometry and surfaces, enough to restore an authored brush. */
 export interface ModifierStackBakeShape {
@@ -47,6 +48,8 @@ export interface ModifierStackBakeCreation {
   surfaces: FaceSurfaceDescription[];
   /** Scene-order anchor: the authored node or volume slot it follows. */
   anchor: Pick<ModifierStackUnit, 'origin' | 'slot'>;
+  /** CSG groups the brush sits in, outermost first. */
+  groups: readonly ModifierStackBakeGroup[];
 }
 
 /** Everything one solid needs to bake a volume. */
@@ -187,7 +190,8 @@ function modifierStackBakePieces(
 }
 
 /**
- * Turns brushes of one unit into creations anchored where the unit sits.
+ * Turns brushes of one unit into creations anchored where the unit sits, inside
+ * the same CSG groups as in the unit.
  *
  * @param unit Unit.
  * @param brushes Its brushes to create.
@@ -199,9 +203,11 @@ function modifierStackBakeUnit(
   brushes: readonly SolidBrushInstance[],
   fallbackName: string,
 ): ModifierStackBakeCreation[] {
+  const chains = modifierStackBakeGroupChains(unit);
   return brushes.map((brush) => {
     const creation = modifierStackBakeCreationOf(brush, { origin: unit.origin, slot: unit.slot });
-    return creation.name ? creation : { ...creation, name: fallbackName };
+    const groups = chains.get(brush.id) ?? [];
+    return { ...creation, name: creation.name || fallbackName, groups };
   });
 }
 
@@ -270,7 +276,7 @@ function modifierStackBakeSmoothShapeOf(instance: SolidBrushInstance): ModifierS
 function modifierStackBakeCreationOf(
   derived: SolidBrushInstance,
   anchor: ModifierStackBakeCreation['anchor'],
-): ModifierStackBakeCreation {
+): Omit<ModifierStackBakeCreation, 'groups'> {
   const center = new THREE.Vector3();
   for (const vertex of derived.brush.vertices) center.add(vertex);
   center.divideScalar(Math.max(1, derived.brush.vertices.length));
