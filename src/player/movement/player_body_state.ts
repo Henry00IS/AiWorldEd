@@ -13,6 +13,7 @@ import {
 import type { PlayerCollisionWorld } from '@/player/collision/player_collision_world.js';
 import {
   createPlayerCollisionScratch,
+  playerCollisionForgetSafeFeet,
   playerCollisionIntegrateStep,
   playerCollisionIsStandingOnGround,
   type PlayerCollisionScratch,
@@ -95,6 +96,7 @@ export class PlayerBodyState {
     this.planarSpeed = 0;
     this.facingYawRadians = facingYawRadians;
     this.wantsRun = false;
+    playerCollisionForgetSafeFeet(this.collisionScratch);
     this.isGrounded = playerCollisionIsStandingOnGround(world, this.feetPosition);
   }
 
