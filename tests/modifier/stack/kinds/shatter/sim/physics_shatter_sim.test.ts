@@ -47,6 +47,16 @@ describe('physics shatter simulation', () => {
     expect(result.stuck.some((stuck) => !stuck)).toBe(true);
   });
 
+  it('blasts bricks out of a wall even when fixed bricks hem them in on both sides', async () => {
+    const wall = { width: 3, height: 2, depth: 0.2 };
+    const setup = simTestSetup({ mode: 'bricks' }, { radius: 1.2, strength: 7 }, wall);
+    const result = await simTestRun(setup);
+    const moving = PhysicsShatterSimulation.movingPieceCount(setup);
+    const flown = result.transforms.filter((transform) => transform.translation.length() > 0.5);
+    expect(moving).toBeLessThan(setup.pieces.length - 10);
+    expect(flown.length).toBeGreaterThan(moving / 2);
+  });
+
   it('counts a piece that moved less than a centimetre and turned less than a degree as stuck', () => {
     const turn = (degrees: number): THREE.Quaternion =>
       new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), THREE.MathUtils.degToRad(degrees));

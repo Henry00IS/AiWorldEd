@@ -16,7 +16,9 @@ import {
   physicsShatterBodyAddFloor,
   physicsShatterBodyAddStaticHull,
   physicsShatterBodyColliderDesc,
+  physicsShatterBodyLaunchFriction,
   physicsShatterBodyLocalHull,
+  PHYSICS_SHATTER_BODY_LAUNCH_STEPS,
 } from './physics_shatter_sim_bodies.js';
 import type {
   PhysicsShatterSimPiece,
@@ -124,7 +126,8 @@ export class PhysicsShatterSimulation {
   }
 
   /**
-   * Advances one fixed step unless finished.
+   * Advances one fixed step unless finished; pieces slide without friction for
+   * the first launch steps.
    *
    * @returns True when a step was taken.
    */
@@ -132,7 +135,16 @@ export class PhysicsShatterSimulation {
     if (this.isFinished()) return false;
     this.world.step();
     this.stepsTaken++;
+    if (this.stepsTaken === PHYSICS_SHATTER_BODY_LAUNCH_STEPS) this.launchEnd();
     return true;
+  }
+
+  /** Gives every piece its normal friction once the launch is over. */
+  private launchEnd(): void {
+    for (const { body } of this.bodies) {
+      const collider = body && body.numColliders() > 0 ? body.collider(0) : null;
+      if (collider) physicsShatterBodyLaunchFriction(this.rapier, collider, false);
+    }
   }
 
   /**
@@ -247,7 +259,7 @@ export class PhysicsShatterSimulation {
     const spin = physicsShatterBlastSpin(seed, piece.index, velocity.length());
     const desc = this.rapier.RigidBodyDesc.dynamic().setTranslation(centre.x, centre.y, centre.z).setCcdEnabled(true);
     const body = this.world.createRigidBody(desc.setLinvel(velocity.x, velocity.y, velocity.z).setAngvel(spin));
-    this.world.createCollider(collider, body);
+    physicsShatterBodyLaunchFriction(this.rapier, this.world.createCollider(collider, body), true);
     return body;
   }
 

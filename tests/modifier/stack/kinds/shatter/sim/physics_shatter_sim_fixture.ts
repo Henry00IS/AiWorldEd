@@ -23,14 +23,16 @@ export const SIM_TEST_WALL = { width: 2, height: 2, depth: 0.2 };
  *
  * @param settings Fracture overrides.
  * @param blast Blast overrides.
+ * @param size Wall width, height and depth in metres.
  * @returns Setup in a frame placed and turned away from the world origin.
  */
 export function simTestSetup(
   settings: Partial<PhysicsShatterSettings> = {},
   blast: Partial<PhysicsShatterSimSetup['blast']> = {},
+  size: typeof SIM_TEST_WALL = SIM_TEST_WALL,
 ): PhysicsShatterSimSetup {
-  const impactPoint = new THREE.Vector3(0, SIM_TEST_WALL.height / 2, -SIM_TEST_WALL.depth / 2);
-  const wall = physicsShatterTestWall(SIM_TEST_WALL.width, SIM_TEST_WALL.height, SIM_TEST_WALL.depth);
+  const impactPoint = new THREE.Vector3(0, size.height / 2, -size.depth / 2);
+  const wall = physicsShatterTestWall(size.width, size.height, size.depth);
   const fracture = physicsShatterFracture(
     physicsShatterTestInputs(wall),
     physicsShatterTestSettings({ impactPoint, ...settings }),

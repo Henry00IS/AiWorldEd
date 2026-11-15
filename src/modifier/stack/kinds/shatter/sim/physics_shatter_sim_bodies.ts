@@ -14,6 +14,12 @@ const PHYSICS_SHATTER_BODY_INSET_MIN_SCALE = 0.9;
 /** Surface friction of pieces and fixed geometry. */
 const PHYSICS_SHATTER_BODY_FRICTION = 0.7;
 
+/**
+ * Steps after the blast during which pieces slide on each other without
+ * friction, so bricks squeezed by their neighbours still leave the wall.
+ */
+export const PHYSICS_SHATTER_BODY_LAUNCH_STEPS = 12;
+
 /** Bounciness of pieces and fixed geometry. */
 const PHYSICS_SHATTER_BODY_RESTITUTION = 0.1;
 
@@ -60,6 +66,24 @@ export function physicsShatterBodyColliderDesc(
   return desc
     ? desc.setDensity(1).setFriction(PHYSICS_SHATTER_BODY_FRICTION).setRestitution(PHYSICS_SHATTER_BODY_RESTITUTION)
     : null;
+}
+
+/**
+ * Switches a piece's collider between launch (frictionless against everything)
+ * and normal surface friction.
+ *
+ * @param rapier Rapier module.
+ * @param collider Piece collider.
+ * @param launching True while the piece leaves the wall.
+ */
+export function physicsShatterBodyLaunchFriction(
+  rapier: PhysicsRapierModule,
+  collider: RAPIER.Collider,
+  launching: boolean,
+): void {
+  const rules = rapier.CoefficientCombineRule;
+  collider.setFriction(launching ? 0 : PHYSICS_SHATTER_BODY_FRICTION);
+  collider.setFrictionCombineRule(launching ? rules.Min : rules.Average);
 }
 
 /**
