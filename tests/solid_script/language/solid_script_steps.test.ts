@@ -65,13 +65,13 @@ describe('solid script steps', () => {
       { command: 'end' },
     ]);
     expect(solidScriptProgramEvaluate(script, { stepLimit: 2 }).variables).toEqual([
-      { name: 'width', value: '2' },
-      { name: 'i', value: '1' },
+      { name: 'width', value: '2', type: 'Whole Number', items: [] },
+      { name: 'i', value: '1', type: 'Whole Number', items: [] },
     ]);
     expect(solidScriptProgramEvaluate(script, { stepLimit: 0 }).variables).toEqual([]);
     expect(solidScriptProgramEvaluate(script).variables).toEqual([
-      { name: 'width', value: '2' },
-      { name: 'i', value: '2' },
+      { name: 'width', value: '2', type: 'Whole Number', items: [] },
+      { name: 'i', value: '2', type: 'Whole Number', items: [] },
     ]);
   });
 });

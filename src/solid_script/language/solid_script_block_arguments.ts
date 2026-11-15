@@ -2,6 +2,7 @@ import {
   solidScriptValueNumber,
   solidScriptValueNumbers,
   solidScriptValueShow,
+  solidScriptValueType,
   type SolidScriptValue,
 } from './solid_script_value.js';
 
@@ -42,7 +43,7 @@ export class SolidScriptBlockArguments {
     const value = this.value(key);
     if (value === undefined) return fallback;
     const number = solidScriptValueNumber(value);
-    if (number === undefined) throw this.error(key, 'must be a number', value);
+    if (number === undefined) throw this.error(key, 'needs a number, such as 2', value);
     return number;
   }
 
@@ -72,7 +73,11 @@ export class SolidScriptBlockArguments {
     if (single !== undefined) return fallback.map(() => single);
     const list = solidScriptValueNumbers(value);
     if (list?.length === fallback.length) return list;
-    throw this.error(key, `must be a number or a list of ${fallback.length} numbers`, value);
+    throw this.error(
+      key,
+      `needs a number, or ${fallback.length} numbers separated by commas such as ${fallback.map((_, index) => index + 1).join(', ')}`,
+      value,
+    );
   }
 
   /**
@@ -84,7 +89,7 @@ export class SolidScriptBlockArguments {
   flag(key: string): boolean {
     const value = this.value(key);
     if (value === undefined) return false;
-    if (typeof value !== 'boolean') throw this.error(key, 'must be Yes or No', value);
+    if (typeof value !== 'boolean') throw this.error(key, 'needs Yes or No', value);
     return value;
   }
 
@@ -97,6 +102,8 @@ export class SolidScriptBlockArguments {
    * @returns Error.
    */
   error(key: string, rule: string, value: SolidScriptValue | number): Error {
-    return new Error(`${this.labels.get(key) ?? key} ${rule}, not ${solidScriptValueShow(value)}`);
+    const shown = solidScriptValueShow(value);
+    const kind = typeof value === 'number' ? '' : ` (${solidScriptValueType(value)})`;
+    return new Error(`${this.labels.get(key) ?? key} ${rule}, not ${shown}${kind}`);
   }
 }

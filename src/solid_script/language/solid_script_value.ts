@@ -17,13 +17,58 @@ export function solidScriptValueTruthy(value: SolidScriptValue): boolean {
 }
 
 /**
- * Returns the value as a finite number, or undefined.
+ * Returns the value as a finite number, or undefined. Text that spells a
+ * number, such as "3", counts as that number: like the reference language, a
+ * value is plain text underneath and only becomes a number where one is
+ * needed.
  *
  * @param value Value.
  * @returns Number or undefined.
  */
 export function solidScriptValueNumber(value: SolidScriptValue): number | undefined {
+  if (typeof value === 'string') {
+    const text = value.trim();
+    const number = text === '' ? NaN : Number(text);
+    return Number.isFinite(number) ? number : undefined;
+  }
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+/**
+ * Returns text that spells a number as that number and leaves every other value
+ * as it is.
+ *
+ * @param value Value.
+ * @returns Number or the value.
+ */
+export function solidScriptValueNumeric(value: SolidScriptValue): SolidScriptValue {
+  return typeof value === 'string' ? (solidScriptValueNumber(value) ?? value) : value;
+}
+
+/**
+ * Names the kind of a value in plain words for the variable explorer, help and
+ * error messages: Number, Whole Number, Text, Yes/No, Vector, List of Numbers,
+ * List of Text, List, or Nothing.
+ *
+ * @param value Value.
+ * @returns Friendly type.
+ */
+export function solidScriptValueType(value: SolidScriptValue): string {
+  if (value === undefined) return 'Nothing';
+  if (typeof value === 'boolean') return 'Yes/No';
+  if (Array.isArray(value)) {
+    if (value.length === 0) return 'List';
+    const kinds = new Set(value.map((entry) => solidScriptValueType(entry)));
+    const numbers = [...kinds].every((kind) => kind === 'Number' || kind === 'Whole Number');
+    if (numbers && (value.length === 2 || value.length === 3)) return 'Vector';
+    if (numbers) return 'List of Numbers';
+    if (kinds.size === 1 && kinds.has('Text')) return 'List of Text';
+    if (kinds.size === 1 && kinds.has('Vector')) return 'List of Vectors';
+    return 'List';
+  }
+  const number = solidScriptValueNumber(value);
+  if (number === undefined) return 'Text';
+  return Number.isInteger(number) ? 'Whole Number' : 'Number';
 }
 
 /**
@@ -50,7 +95,7 @@ export function solidScriptValueEquals(left: SolidScriptValue, right: SolidScrip
   if (Array.isArray(left) && Array.isArray(right)) {
     return left.length === right.length && left.every((entry, index) => solidScriptValueEquals(entry, right[index]));
   }
-  return left === right;
+  return solidScriptValueNumeric(left) === solidScriptValueNumeric(right);
 }
 
 /**

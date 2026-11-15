@@ -103,6 +103,27 @@ export function solidScriptConfiguratorFieldBuild(
   };
 }
 
+/** Text input of an open configurator focused last, for the variable explorer. */
+let solidScriptConfiguratorFieldLast: HTMLInputElement | null = null;
+
+/**
+ * Puts text at the cursor of the configurator field focused last, such as a
+ * [name] picked in the variable explorer, and focuses the field again.
+ *
+ * @param text Text to insert.
+ * @returns False when no configurator field is open.
+ */
+export function solidScriptConfiguratorFieldInsert(text: string): boolean {
+  const input = solidScriptConfiguratorFieldLast;
+  if (!input?.isConnected) return false;
+  const start = input.selectionStart ?? input.value.length;
+  const end = input.selectionEnd ?? start;
+  input.setRangeText(text, start, end, 'end');
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.focus();
+  return true;
+}
+
 /**
  * Adds name suggestions to the text inputs of a field, and an Insert Name
  * button listing every name by category for the input last focused.
@@ -168,6 +189,7 @@ function solidScriptConfiguratorInputs(
  */
 function solidScriptConfiguratorInput(value: string, label: string): HTMLInputElement {
   const input = document.createElement('input');
+  input.addEventListener('focus', () => (solidScriptConfiguratorFieldLast = input));
   input.type = 'text';
   input.className = SOLID_SCRIPT_EDITOR_CLASSES.input;
   input.value = value;

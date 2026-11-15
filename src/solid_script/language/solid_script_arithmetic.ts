@@ -1,7 +1,9 @@
 import {
   solidScriptValueEquals,
+  solidScriptValueNumeric,
   solidScriptValueShow,
   solidScriptValueTruthy,
+  solidScriptValueType,
   type SolidScriptValue,
 } from './solid_script_value.js';
 
@@ -15,9 +17,11 @@ import {
  */
 export function solidScriptArithmeticBinary(
   operator: string,
-  left: SolidScriptValue,
-  right: SolidScriptValue,
+  leftGiven: SolidScriptValue,
+  rightGiven: SolidScriptValue,
 ): SolidScriptValue {
+  const left = solidScriptValueNumeric(leftGiven);
+  const right = solidScriptValueNumeric(rightGiven);
   if (operator === '==') return solidScriptValueEquals(left, right);
   if (operator === '!=') return !solidScriptValueEquals(left, right);
   if (operator === '&&') return solidScriptValueTruthy(left) && solidScriptValueTruthy(right);
@@ -36,7 +40,27 @@ export function solidScriptArithmeticBinary(
     const compared = solidScriptCompare(operator, left, right);
     if (compared !== undefined) return compared;
   }
-  throw new Error(`cannot use ${operator} on ${solidScriptValueShow(left)} and ${solidScriptValueShow(right)}`);
+  throw solidScriptArithmeticError(operator, left, right);
+}
+
+/**
+ * Explains in plain words why two values cannot be combined, naming the one
+ * that is not a number.
+ *
+ * @param operator Operator symbol.
+ * @param left Left value.
+ * @param right Right value.
+ * @returns Error.
+ */
+function solidScriptArithmeticError(operator: string, left: SolidScriptValue, right: SolidScriptValue): Error {
+  const odd = [left, right].find((value) => typeof value !== 'number' && !Array.isArray(value));
+  if (odd !== undefined)
+    return new Error(
+      `${operator} needs numbers, but ${solidScriptValueShow(odd)} is ${solidScriptValueType(odd)}, not a number`,
+    );
+  return new Error(
+    `cannot use ${operator} on ${solidScriptValueShow(left)} (${solidScriptValueType(left)}) and ${solidScriptValueShow(right)} (${solidScriptValueType(right)})`,
+  );
 }
 
 /**
@@ -84,8 +108,7 @@ function solidScriptMultiply(left: SolidScriptValue, right: SolidScriptValue): S
   if (typeof left === 'number' && Array.isArray(right)) return right.map((entry) => solidScriptMultiply(left, entry));
   if (Array.isArray(left) && typeof right === 'number') return left.map((entry) => solidScriptMultiply(entry, right));
   if (typeof left === 'number' && typeof right === 'number') return left * right;
-  if (!Array.isArray(left) || !Array.isArray(right))
-    throw new Error(`cannot use * on ${solidScriptValueShow(left)} and ${solidScriptValueShow(right)}`);
+  if (!Array.isArray(left) || !Array.isArray(right)) throw solidScriptArithmeticError('*', left, right);
   if (Array.isArray(left[0])) return left.map((row) => solidScriptMultiply(row, right));
   if (Array.isArray(right[0])) return solidScriptVectorMatrix(left, right);
   return left.reduce<SolidScriptValue>(

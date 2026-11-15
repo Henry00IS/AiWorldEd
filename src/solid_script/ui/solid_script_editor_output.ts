@@ -1,15 +1,11 @@
 import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
 import type { SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
-import type { SolidScriptFrameView, SolidScriptVariable } from '@/solid_script/language/solid_script_machine.js';
 import { solidScriptErrorLine, solidScriptErrorText } from '@/solid_script/language/solid_script_error.js';
 import {
   solidScriptProgramEvaluate,
   type SolidScriptProgramOptions,
 } from '@/solid_script/language/solid_script_program.js';
-import {
-  SOLID_SCRIPT_NAME_CATEGORIES,
-  solidScriptDocumentNames,
-} from '@/solid_script/document/solid_script_document_names.js';
+import { SolidScriptEditorExplorer } from './solid_script_editor_explorer.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 
 /** Tabs of the output area. */
@@ -23,24 +19,30 @@ const SOLID_SCRIPT_EDITOR_OUTPUT_TABS: readonly [SolidScriptEditorOutputTab, str
 
 /**
  * The area under the script: the Output tab shows what the script builds, its
- * Echo lines or its first error; the Variables tab shows every variable and its
- * value at the debugger's step, or after the last solid, and below them every
- * name the script defines by category, whose line a click shows.
+ * Echo lines or its first error; the Variables tab is the variable explorer,
+ * with every name the script uses and its value at the debugger's step, or
+ * after the last solid.
  */
 export class SolidScriptEditorOutput {
   /** Output area element. */
   readonly element = document.createElement('div');
   private readonly tabs = new Map<SolidScriptEditorOutputTab, HTMLButtonElement>();
   private readonly output = document.createElement('div');
-  private readonly variables = document.createElement('div');
+  private readonly explorer = new SolidScriptEditorExplorer();
   /** Output and variables, each with the custom scrollbar. */
   private readonly outputHost: HTMLElement;
   private readonly variablesHost: HTMLElement;
   private failed: number | null = null;
+
   /** Shows a line of the script; set by the editor. */
-  reveal: (line: number) => void = () => undefined;
+  set reveal(reveal: (line: number) => void) {
+    this.explorer.reveal = reveal;
+  }
+
   /** Adds an Input line through its configurator; set by the editor. */
-  inputAdd: () => void = () => undefined;
+  set inputAdd(inputAdd: () => void) {
+    this.explorer.inputAdd = inputAdd;
+  }
 
   /** Builds the area. */
   constructor() {
@@ -52,9 +54,8 @@ export class SolidScriptEditorOutput {
     this.output.className = SOLID_SCRIPT_EDITOR_CLASSES.outputText;
     this.output.setAttribute('role', 'status');
     this.output.setAttribute('aria-live', 'polite');
-    this.variables.className = SOLID_SCRIPT_EDITOR_CLASSES.variables;
     this.outputHost = solidScriptScrollerWrap(this.output, '1 1 0', 12);
-    this.variablesHost = solidScriptScrollerWrap(this.variables, '1 1 0', 12);
+    this.variablesHost = this.explorer.element;
     this.element.append(bar, this.outputHost, this.variablesHost);
     this.tabShow('output');
   }
@@ -74,13 +75,13 @@ export class SolidScriptEditorOutput {
       this.failed = null;
       const solids = `${count} ${count === 1 ? 'solid' : 'solids'}${result.paused ? ' so far' : ''}`;
       this.text([solids, ...result.messages].join('\n'), false);
-      this.variablesShow(result.variables, caption, document, options ? result.stack : []);
+      this.explorer.show(document, result.variables, options ? result.stack : [], caption);
     } catch (error) {
       const message = solidScriptErrorText(error);
       const failed = solidScriptErrorLine(message);
       this.failed = failed === null ? null : failed - 1;
       this.text(message, true);
-      this.variablesShow([], 'The script stops with an error.', document);
+      this.explorer.show(document, [], [], 'The script stops with an error.');
     }
   }
 
@@ -133,135 +134,5 @@ export class SolidScriptEditorOutput {
     this.output.textContent = text;
     this.output.classList.toggle(SOLID_SCRIPT_EDITOR_CLASSES.outputError, error);
     this.tabs.get('output')?.classList.toggle(SOLID_SCRIPT_EDITOR_CLASSES.outputError, error);
-  }
-
-  /**
-   * Writes the variables table.
-   *
-   * @param variables Variables and values.
-   * @param caption Where in the script they were read.
-   * @param script Script, for the names it defines.
-   */
-  private variablesShow(
-    variables: readonly SolidScriptVariable[],
-    caption: string,
-    script: SolidScriptDocument,
-    stack: readonly SolidScriptFrameView[] = [],
-  ): void {
-    const heading = document.createElement('div');
-    heading.className = SOLID_SCRIPT_EDITOR_CLASSES.variablesCaption;
-    heading.textContent = variables.length > 0 ? caption : `${caption} · no variables`;
-    const rows = variables.map(({ name, value }) => {
-      const row = document.createElement('div');
-      row.className = SOLID_SCRIPT_EDITOR_CLASSES.variable;
-      const key = document.createElement('span');
-      key.className = SOLID_SCRIPT_EDITOR_CLASSES.parameterName;
-      key.textContent = name;
-      const shown = document.createElement('span');
-      shown.className = SOLID_SCRIPT_EDITOR_CLASSES.parameterValue;
-      shown.textContent = value;
-      row.append(key, shown);
-      return row;
-    });
-    this.variables.replaceChildren(heading, ...rows, ...this.stackRows(stack), this.definitions(script));
-  }
-
-  /**
-   * Lists the Functions and parts running, innermost first, each with the line
-   * that called it and its own variables.
-   *
-   * @param stack Frames, outermost first.
-   * @returns Section, or nothing outside every Function and part.
-   */
-  private stackRows(stack: readonly SolidScriptFrameView[]): HTMLElement[] {
-    if (stack.length === 0) return [];
-    const section = document.createElement('div');
-    section.className = SOLID_SCRIPT_EDITOR_CLASSES.stack;
-    const heading = document.createElement('div');
-    heading.className = SOLID_SCRIPT_EDITOR_CLASSES.variablesCaption;
-    heading.textContent = 'Call Stack · innermost first';
-    section.append(heading);
-    for (const frame of [...stack].reverse()) {
-      const row = document.createElement('div');
-      row.className = SOLID_SCRIPT_EDITOR_CLASSES.stackFrame;
-      row.title = `Called on line ${frame.line}: click to show it`;
-      const name = document.createElement('span');
-      name.textContent = frame.name;
-      const where = document.createElement('span');
-      where.className = SOLID_SCRIPT_EDITOR_CLASSES.parameterValue;
-      where.textContent = `called on line ${frame.line}`;
-      row.append(name, where);
-      row.addEventListener('click', () => this.reveal(frame.line - 1));
-      section.append(row);
-      for (const local of frame.locals) {
-        const entry = document.createElement('div');
-        entry.className = SOLID_SCRIPT_EDITOR_CLASSES.stackLocal;
-        const key = document.createElement('span');
-        key.className = SOLID_SCRIPT_EDITOR_CLASSES.parameterName;
-        key.textContent = local.name;
-        const value = document.createElement('span');
-        value.className = SOLID_SCRIPT_EDITOR_CLASSES.parameterValue;
-        value.textContent = local.value;
-        entry.append(key, value);
-        section.append(entry);
-      }
-    }
-    return [section];
-  }
-
-  /**
-   * Builds the button that adds a setting to the generator's inspector.
-   *
-   * @param first True when the script has no Input yet.
-   * @returns Button.
-   */
-  private inputAddButton(first: boolean): HTMLButtonElement {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = SOLID_SCRIPT_EDITOR_CLASSES.inputAdd;
-    button.textContent = first ? 'Add Input: a setting in the inspector' : 'Add Input';
-    button.title = 'Adds an Input line after the other inputs: a value people set in the generator inspector.';
-    button.addEventListener('click', () => this.inputAdd());
-    return button;
-  }
-
-  /**
-   * Lists the names a script defines by category, each with its line.
-   *
-   * @param script Script.
-   * @returns List element.
-   */
-  private definitions(script: SolidScriptDocument): HTMLElement {
-    const list = document.createElement('div');
-    list.className = SOLID_SCRIPT_EDITOR_CLASSES.definitions;
-    const names = solidScriptDocumentNames(script);
-    const heading = document.createElement('div');
-    heading.className = SOLID_SCRIPT_EDITOR_CLASSES.variablesCaption;
-    heading.textContent = names.length > 0 ? 'Defined In The Script' : 'Defined In The Script · nothing yet';
-    list.append(heading);
-    for (const category of SOLID_SCRIPT_NAME_CATEGORIES) {
-      const entries = names.filter((entry) => entry.category === category);
-      if (entries.length === 0 && category !== 'Inputs') continue;
-      const title = document.createElement('div');
-      title.className = SOLID_SCRIPT_EDITOR_CLASSES.suggestionHeading;
-      title.textContent = category;
-      list.append(title);
-      if (category === 'Inputs') list.append(this.inputAddButton(entries.length === 0));
-      for (const entry of entries) {
-        const row = document.createElement('div');
-        row.className = SOLID_SCRIPT_EDITOR_CLASSES.definition;
-        row.title = `Line ${entry.line + 1}: click to show it`;
-        const key = document.createElement('span');
-        key.className = SOLID_SCRIPT_EDITOR_CLASSES.parameterName;
-        key.textContent = entry.name;
-        const detail = document.createElement('span');
-        detail.className = SOLID_SCRIPT_EDITOR_CLASSES.parameterValue;
-        detail.textContent = `${entry.detail} · line ${entry.line + 1}`;
-        row.append(key, detail);
-        row.addEventListener('click', () => this.reveal(entry.line));
-        list.append(row);
-      }
-    }
-    return list;
   }
 }

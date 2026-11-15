@@ -29,7 +29,7 @@ import {
 } from './solid_script_mesh.js';
 import { SolidScriptScope } from './solid_script_scope.js';
 import { solidScriptShapeJoin, solidScriptShapeLeavesPositive, type SolidScriptShape } from './solid_script_shape.js';
-import { solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
+import { solidScriptValueText, solidScriptValueType, type SolidScriptValue } from './solid_script_value.js';
 
 /** Most solids one run may produce. */
 const SOLID_SCRIPT_SOLIDS_MAX = 2000;
@@ -304,8 +304,34 @@ export interface SolidScriptRun extends SolidScriptEvaluation {
 
 /** One variable and its value as the debugger shows it. */
 export interface SolidScriptVariable {
+  /** Name as fields read it, such as width, local.n or points(2). */
   name: string;
+  /** Value as text. */
   value: string;
+  /** Friendly type, such as Number, Text, Yes/No or List of Numbers. */
+  type: string;
+  /** Items of a list, each named like points(0); empty for other values. */
+  items: SolidScriptVariable[];
+}
+
+/** Most list items the variable explorer lists under one list. */
+export const SOLID_SCRIPT_VARIABLE_ITEMS_MAX = 256;
+
+/**
+ * Describes a variable for the debugger and the variable explorer: its value as
+ * text, its friendly type and, for a list, its items by number.
+ *
+ * @param name Name.
+ * @param value Value.
+ * @returns View.
+ */
+export function solidScriptVariableView(name: string, value: SolidScriptValue): SolidScriptVariable {
+  const items = Array.isArray(value)
+    ? value
+        .slice(0, SOLID_SCRIPT_VARIABLE_ITEMS_MAX)
+        .map((item, index) => solidScriptVariableView(`${name}(${index})`, item))
+    : [];
+  return { name, value: solidScriptValueText(value), type: solidScriptValueType(value), items };
 }
 
 /**
@@ -404,10 +430,9 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     this.useOnce();
     const context = { matrix: new THREE.Matrix4(), planar: false };
     const shapes = this.linesRun(lines, this.root, context, this.root);
-    const variables = [...(this.watched?.variablesVisible() ?? [])].map(([name, value]) => ({
-      name,
-      value: solidScriptValueText(value),
-    }));
+    const variables = [...(this.watched?.variablesVisible() ?? [])].map(([name, value]) =>
+      solidScriptVariableView(name, value),
+    );
     if (!this.failure && !this.paused && this.steps.length === 0)
       this.failure = solidScriptFailure(null, 'the script builds no shapes; add a shape such as Cube');
     return {
@@ -1160,10 +1185,9 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     this.stackSeen = this.stack.map((frame) => ({
       name: frame.kind === 'function' ? `${frame.name}()` : `part ${frame.name}`,
       line: frame.line,
-      locals: [...(frame.locals?.variablesVisible() ?? [])].map(([name, value]) => ({
-        name: `${SOLID_SCRIPT_LOCAL_PREFIX}${name}`,
-        value: solidScriptValueText(value),
-      })),
+      locals: [...(frame.locals?.variablesVisible() ?? [])].map(([name, value]) =>
+        solidScriptVariableView(`${SOLID_SCRIPT_LOCAL_PREFIX}${name}`, value),
+      ),
     }));
   }
 

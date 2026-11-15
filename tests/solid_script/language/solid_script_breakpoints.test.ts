@@ -31,8 +31,8 @@ describe('SolidScript breakpoints', () => {
     expect(run.steps).toEqual([1, 4]);
     expect(run.variables).toEqual(
       expect.arrayContaining([
-        { name: 'width', value: '2' },
-        { name: 'i', value: '1' },
+        { name: 'width', value: '2', type: 'Whole Number', items: [] },
+        { name: 'i', value: '1', type: 'Whole Number', items: [] },
       ]),
     );
   });

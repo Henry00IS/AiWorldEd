@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { solidScriptDocumentCreate } from '@/solid_script/document/solid_script_document.js';
 import {
   solidScriptDocumentNames,
+  solidScriptDocumentOrigins,
   solidScriptFieldNamesUnknown,
 } from '@/solid_script/document/solid_script_document_names.js';
 import {
@@ -88,5 +89,23 @@ describe('SolidScript names', () => {
     ]);
     const all = solidScriptSuggestions(null, names, []);
     expect(all.find((entry) => entry.label === 'area')?.insert).toBe('[=area()]');
+  });
+});
+
+describe('SolidScript origins', () => {
+  it('lists every line that sets a name, lists by their plain name', () => {
+    const origins = solidScriptDocumentOrigins(
+      solidScriptDocumentCreate([
+        { command: 'variable', values: { name: 'w', value: '1' } },
+        { command: 'variable', values: { name: 'pts()', value: '0, 0' } },
+        { command: 'variable', values: { name: 'w', value: '2' } },
+        { command: 'remove_item', values: { target: 'pts(0)' } },
+        { command: 'function', values: { name: 'f', parameters: 'a, b' } },
+        { command: 'end' },
+        { command: 'repeat', values: { variable: 'i' } },
+        { command: 'end' },
+      ]),
+    );
+    expect(Object.fromEntries(origins)).toEqual({ w: [0, 2], pts: [1, 3], 'local.a': [4], 'local.b': [4], i: [6] });
   });
 });

@@ -24,21 +24,23 @@ describe('SolidScript stops at the first mistake', () => {
 
   it('refuses values of the wrong kind instead of using a default', () => {
     expect(failure({ command: 'cube', values: { size: 'big' } })).toBe(
-      'Line 1: Size must be a number or a list of 3 numbers, not "big".',
+      'Line 1: Size needs a number, or 3 numbers separated by commas such as 1, 2, 3, not "big" (Text).',
     );
     expect(failure({ command: 'cube', values: { size: '1, 2' } })).toBe(
-      'Line 1: Size must be a number or a list of 3 numbers, not [1, 2].',
+      'Line 1: Size needs a number, or 3 numbers separated by commas such as 1, 2, 3, not [1, 2] (Vector).',
     );
-    expect(failure({ command: 'cube', values: { center: '5' } })).toBe('Line 1: Center must be Yes or No, not "5".');
+    expect(failure({ command: 'cube', values: { center: '5' } })).toBe(
+      'Line 1: Center needs Yes or No, not "5" (Whole Number).',
+    );
   });
 
   it('refuses formulas that have no meaning', () => {
     expect(failure({ command: 'cube', values: { size: '[="a" * 2]' } })).toMatch(
-      /^Line 1: Size: cannot use \* on "a" and 2\.$/,
+      /^Line 1: Size: \* needs numbers, but "a" is Text, not a number\.$/,
     );
     expect(failure({ command: 'cube', values: { size: '[=1 / 0]' } })).toBe('Line 1: Size: division by zero.');
     expect(failure({ command: 'sphere', values: { r: '[=sqrt(-1)]' } })).toBe(
-      'Line 1: Radius must be a number, not NaN.',
+      'Line 1: Radius needs a number, such as 2, not NaN.',
     );
   });
 
@@ -94,5 +96,16 @@ describe('SolidScript stops at the first mistake', () => {
     expect(() => solidScriptProgramEvaluate(solidScriptDocumentCreate(lines))).toThrow(
       /^line 5: Radius: there is no variable \[nope\]/,
     );
+  });
+
+  it('treats text that spells a number as that number, like the plain text values of the reference', () => {
+    const run = (...lines: SolidScriptLine[]) => solidScriptProgramRun(solidScriptDocumentCreate(lines), {});
+    const result = run(
+      { command: 'variable', values: { name: 'w', value: '[=str(3)]' } },
+      { command: 'echo', values: { value: '[=[w] * 2] [=[w] == 3]' } },
+      { command: 'cube', values: { size: '[w], 1, 1' } },
+    );
+    expect(result.error).toBeNull();
+    expect(result.messages).toEqual(['6 true']);
   });
 });

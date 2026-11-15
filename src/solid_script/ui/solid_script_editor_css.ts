@@ -49,9 +49,7 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
   outputTab: 'solid-script-editor-output-tab',
   outputText: 'solid-script-editor-output-text',
   outputError: 'solid-script-editor-output-error',
-  variables: 'solid-script-editor-variables',
   variablesCaption: 'solid-script-editor-variables-caption',
-  variable: 'solid-script-editor-variable',
   help: 'solid-script-editor-help',
   helpTitle: 'solid-script-editor-help-title',
   helpCategory: 'solid-script-editor-help-category',
@@ -80,11 +78,22 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
   suggestionHeading: 'solid-script-editor-suggestion-heading',
   suggestionDetail: 'solid-script-editor-suggestion-detail',
   fieldWarning: 'solid-script-editor-field-warning',
-  definitions: 'solid-script-editor-definitions',
-  definition: 'solid-script-editor-definition',
-  stack: 'solid-script-editor-stack',
   stackFrame: 'solid-script-editor-stack-frame',
-  stackLocal: 'solid-script-editor-stack-local',
+  explorer: 'solid-script-editor-explorer',
+  explorerTop: 'solid-script-editor-explorer-top',
+  explorerSearch: 'solid-script-editor-explorer-search',
+  explorerBody: 'solid-script-editor-explorer-body',
+  explorerCategories: 'solid-script-editor-explorer-categories',
+  explorerCategory: 'solid-script-editor-explorer-category',
+  explorerColumn: 'solid-script-editor-explorer-column',
+  explorerTable: 'solid-script-editor-explorer-table',
+  explorerRow: 'solid-script-editor-explorer-row',
+  explorerHeader: 'solid-script-editor-explorer-header',
+  explorerItem: 'solid-script-editor-explorer-item',
+  explorerLines: 'solid-script-editor-explorer-lines',
+  explorerLine: 'solid-script-editor-explorer-line',
+  explorerStatus: 'solid-script-editor-explorer-status',
+  explorerInsert: 'solid-script-editor-explorer-insert',
 } as const;
 
 /** Accent colour of each palette category, readable on light and dark panels. */
@@ -194,19 +203,36 @@ const SOLID_SCRIPT_EDITOR_PANES_CSS = `
 .${c.outputTab} { padding: 3px 10px; border: none; border-bottom: 2px solid transparent; background: none; color: ${ThemeCss.textColor}; font: inherit; cursor: pointer; }
 .${c.outputTab}[aria-selected="true"] { border-bottom-color: ${ThemeCss.accentColor}; font-weight: 600; }
 .${c.outputTab}.${c.outputError} { color: #e5484d; }
-.${c.outputText}, .${c.variables} { flex: 1; min-height: 0; overflow-y: auto; padding: 5px 12px; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; white-space: pre-wrap; color: ${ThemeCss.textColor}; }
+.${c.outputText} { flex: 1; min-height: 0; overflow-y: auto; padding: 5px 12px; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; white-space: pre-wrap; color: ${ThemeCss.textColor}; }
 .${c.outputText}.${c.outputError} { color: #e5484d; }
 .${c.variablesCaption} { margin-bottom: 4px; font: 11px ${Theme.uiFontFamily}; color: ${ThemeCss.mutedTextColor}; }
-.${c.definitions} { margin-top: 10px; }
-.${c.definition} { cursor: pointer; border-radius: 3px; }
-.${c.definition}:hover { background: ${ThemeCss.inkAlpha(0.06)}; }
-.${c.stack} { margin-top: 10px; }
-.${c.inputAdd} { margin: 2px 0 4px; padding: 2px 8px; font: inherit; border-radius: 4px; cursor: pointer; color: ${ThemeCss.textColor}; background: ${ThemeCss.inkAlpha(0.06)}; border: 1px solid ${ThemeCss.inkAlpha(0.16)}; }
-.${c.inputAdd}:hover { background: ${ThemeCss.inkAlpha(0.12)}; }
+.${c.inputAdd}, .${c.explorerInsert} { margin: 2px 0 4px; padding: 2px 8px; font: inherit; border-radius: 4px; cursor: pointer; color: ${ThemeCss.textColor}; background: ${ThemeCss.inkAlpha(0.06)}; border: 1px solid ${ThemeCss.inkAlpha(0.16)}; }
+.${c.inputAdd}:hover, .${c.explorerInsert}:hover:not(:disabled) { background: ${ThemeCss.inkAlpha(0.12)}; }
 .${c.stackFrame} { cursor: pointer; border-radius: 3px; font-weight: 600; }
 .${c.stackFrame}:hover { background: ${ThemeCss.inkAlpha(0.06)}; }
-.${c.stackLocal} { padding-left: 12px; }
-.${c.variable}, .${c.definition}, .${c.stackFrame}, .${c.stackLocal} { display: grid; grid-template-columns: minmax(80px, max-content) minmax(0, 1fr); gap: 12px; padding: 1px 0; }
+.${c.explorer} { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; color: ${ThemeCss.textColor}; }
+.${c.explorerTop} { display: flex; gap: 6px; align-items: center; padding: 4px 8px; }
+.${c.explorerSearch} { flex: 1; min-width: 0; height: 22px; padding: 0 8px; border-radius: 4px; border: 1px solid ${ThemeCss.inputBorderColor}; background: ${ThemeCss.inkAlpha(0.04)}; color: ${ThemeCss.textColor}; font: 12px ${Theme.uiFontFamily}; }
+.${c.explorerTop} .${c.inputAdd}, .${c.explorerTop} .${c.explorerInsert} { margin: 0; }
+.${c.explorerInsert}:disabled { opacity: 0.45; cursor: default; }
+.${c.explorerBody} { flex: 1 1 0; min-height: 0; display: flex; }
+.${c.explorerCategories} { width: 128px; padding: 2px 4px; overflow-y: auto; border-right: 1px solid ${ThemeCss.inkAlpha(0.1)}; }
+.${c.explorerCategory} { display: flex; width: 100%; justify-content: space-between; gap: 6px; padding: 2px 6px; border: 0; border-radius: 3px; background: transparent; color: ${ThemeCss.textColor}; font: 12px ${Theme.uiFontFamily}; text-align: left; cursor: pointer; }
+.${c.explorerCategory}:hover { background: ${ThemeCss.inkAlpha(0.06)}; }
+.${c.explorerCategory}[aria-selected="true"] { background: ${ThemeCss.inkAlpha(0.12)}; font-weight: 600; }
+.${c.explorerColumn} { flex: 1 1 0; min-width: 0; overflow: auto; padding: 4px 10px; }
+.${c.explorerRow} { display: grid; grid-template-columns: minmax(90px, 1.1fr) minmax(70px, 1.4fr) minmax(70px, 0.9fr) minmax(40px, 0.6fr); gap: 10px; padding: 1px 4px; border-radius: 3px; cursor: pointer; white-space: nowrap; }
+.${c.explorerRow} > span { overflow: hidden; text-overflow: ellipsis; }
+.${c.explorerRow}:hover { background: ${ThemeCss.inkAlpha(0.06)}; }
+.${c.explorerRow}.${c.selected} { background: ${ThemeCss.inkAlpha(0.14)}; }
+.${c.explorerHeader} { cursor: default; font: 600 11px ${Theme.uiFontFamily}; color: ${ThemeCss.mutedTextColor}; }
+.${c.explorerHeader}:hover { background: transparent; }
+.${c.explorerItem} { padding-left: 18px; }
+.${c.explorerLines} { display: flex; gap: 3px; }
+.${c.explorerLine} { padding: 0 4px; border: 0; border-radius: 3px; background: ${ThemeCss.inkAlpha(0.08)}; color: ${ThemeCss.textColor}; font: inherit; cursor: pointer; }
+.${c.explorerLine}:hover { background: ${ThemeCss.inkAlpha(0.18)}; }
+.${c.explorerStatus} { min-height: 16px; padding: 0 10px 3px; font: 11px ${Theme.uiFontFamily}; color: ${ThemeCss.mutedTextColor}; }
+.${c.stackFrame} { display: grid; grid-template-columns: minmax(80px, max-content) minmax(0, 1fr); gap: 12px; padding: 1px 0; }
 `;
 
 /** Configurator and file dialog rules. */

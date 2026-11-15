@@ -129,3 +129,24 @@ export function solidScriptInputsList(
   }
   return inputs;
 }
+
+/** Friendly type of each Input type, as the variable explorer and help show it. */
+const SOLID_SCRIPT_INPUT_TYPE_LABELS: Readonly<Record<string, string>> = {
+  number: 'Number',
+  count: 'Whole Number',
+  switch: 'Yes/No',
+  text: 'Text',
+  choice: 'Text (Choice)',
+  button: 'Button',
+};
+
+/**
+ * Names the value an Input type holds in plain words, such as Whole Number for
+ * count.
+ *
+ * @param type Input type as typed.
+ * @returns Friendly type.
+ */
+export function solidScriptInputTypeLabel(type: string): string {
+  return SOLID_SCRIPT_INPUT_TYPE_LABELS[type.trim() || 'number'] ?? 'Number';
+}

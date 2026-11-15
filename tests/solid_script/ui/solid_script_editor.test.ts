@@ -146,6 +146,23 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
+/**
+ * Reads the rows of the variable explorer as name|value|type|lines.
+ *
+ * @returns Rows.
+ */
+function explorerRows(): string[] {
+  return [...document.querySelectorAll<HTMLElement>('.solid-script-editor-explorer-row[data-name]')].map((row) =>
+    [...row.children]
+      .map((cell) =>
+        cell.classList.contains('solid-script-editor-explorer-lines')
+          ? [...cell.children].map((link) => link.textContent).join(',')
+          : cell.textContent,
+      )
+      .join('|'),
+  );
+}
+
 describe('SolidScript editor', () => {
   it('lists the commands by category, without the End and Blank Line lines', () => {
     const { root } = editorFixture(CUBE_SPHERE);
@@ -278,7 +295,7 @@ describe('SolidScript editor', () => {
     expect(script().blocks[2]?.values['size']).toMatch(/^\[steps\], /);
   });
 
-  it('checks Input lines while they are configured and lists what the script defines under Variables', () => {
+  it('checks Input lines while they are configured and lists what the script defines in the variable explorer', () => {
     editorFixture([
       { command: 'input', values: { name: 'steps', type: 'count', default: '3' } },
       { command: 'variable', values: { name: 'width', value: '2' } },
@@ -291,14 +308,11 @@ describe('SolidScript editor', () => {
     expect(tool('OK').disabled).toBe(true);
     press(type_, 'Escape');
     find<HTMLButtonElement>('[data-tab="variables"]').click();
-    const definitions = find('.solid-script-editor-definitions');
-    expect(definitions.textContent).toContain('Defined In The Script');
-    expect(definitions.textContent).toContain('Inputs');
-    expect(definitions.textContent).toContain('count input · line 1');
-    const width = [...definitions.querySelectorAll<HTMLElement>('.solid-script-editor-definition')].find((row) =>
-      row.textContent?.startsWith('width'),
-    );
-    width?.click();
+    expect(explorerRows()).toEqual(['steps|3|Whole Number · Read Only|1', 'width|2|Whole Number|2']);
+    find<HTMLButtonElement>('[data-category="Inputs"]').click();
+    expect(explorerRows()).toEqual(['steps|3|Whole Number · Read Only|1']);
+    find<HTMLButtonElement>('[data-category="All"]').click();
+    find<HTMLElement>('.solid-script-editor-explorer-row[data-name="width"]').click();
     expect(document.activeElement).toBe(chip(1));
   });
 
@@ -437,8 +451,9 @@ describe('SolidScript editor', () => {
       false,
     );
     expect(root.textContent).toContain('Step 2 of 2');
-    const variables = [...root.querySelectorAll('.solid-script-editor-variable')].map((row) => row.textContent);
-    expect(variables).toEqual(['width2', 'i1']);
+    find<HTMLButtonElement>('[data-tab="variables"]').click();
+    find<HTMLButtonElement>('[data-category="Current"]').click();
+    expect(explorerRows()).toEqual(['width|2|Whole Number|1', 'i|1|Whole Number|2']);
     tool('Stop').click();
     expect(solidScriptDebugStepLimit(node, stepId)).toBeUndefined();
     expect(root.querySelector('.solid-script-editor-stepped')).toBeNull();
@@ -485,12 +500,13 @@ describe('SolidScript editor', () => {
     expect(paused.classList.contains('solid-script-editor-stepped')).toBe(true);
     expect(paused.title).toMatch(/^Paused at this breakpoint/);
     expect(root.textContent).toContain('Paused at the breakpoint on line 3');
-    const variables = () => [...root.querySelectorAll('.solid-script-editor-variable')].map((row) => row.textContent);
-    expect(variables()).toEqual(['i0']);
+    find<HTMLButtonElement>('[data-category="Current"]').click();
+    const variables = () => explorerRows().map((row) => row.split('|').slice(0, 2).join('='));
+    expect(variables()).toEqual(['i=0']);
     expect(tool('Continue')).toBeTruthy();
     tool('Start').click();
     expect(solidScriptDebugStepLimit(node, stepId)).toBe(2);
-    expect(variables()).toEqual(['i1']);
+    expect(variables()).toEqual(['i=1']);
     tool('Step').click();
     expect(solidScriptDebugStepLimit(node, stepId)).toBe(3);
     expect(tool('Debug')).toBeTruthy();
@@ -506,7 +522,8 @@ describe('SolidScript editor', () => {
       '.solid-script-editor-palette-list',
       '.solid-script-editor-help',
       '.solid-script-editor-output-text',
-      '.solid-script-editor-variables',
+      '.solid-script-editor-explorer-categories',
+      '.solid-script-editor-explorer-column',
     ]) {
       const area = root.querySelector<HTMLElement>(selector);
       expect(area?.classList.contains('editor-custom-scroller'), selector).toBe(true);
@@ -524,7 +541,7 @@ describe('SolidScript editor', () => {
     const { root, commands, script } = editorFixture(CUBE_SPHERE);
     find('[data-tab="variables"]').click();
     const add = () => root.querySelector<HTMLButtonElement>('.solid-script-editor-input-add')!;
-    expect(add().textContent).toBe('Add Input: a setting in the inspector');
+    expect(add().textContent).toBe('Add Input');
     add().click();
     expect(document.querySelector('[data-solid-script-configurator]')).toBeTruthy();
     tool('OK').click();
@@ -553,8 +570,53 @@ describe('SolidScript editor', () => {
     find('[data-line="1"] .solid-script-editor-gutter').click();
     tool('Start').click();
     expect(root.textContent).toContain('Paused at the breakpoint on line 2');
-    const stack = [...root.querySelectorAll('.solid-script-editor-stack-frame, .solid-script-editor-stack-local')];
-    expect(stack.map((row) => row.textContent)).toEqual(['post()called on line 4', 'local.h3']);
+    find<HTMLButtonElement>('[data-category="Call Stack"]').click();
+    expect(find('.solid-script-editor-stack-frame').textContent).toBe('post()called on line 4');
+    expect(explorerRows()).toEqual(['local.h|3|Whole Number|1']);
+  });
+
+  it('explores variables: search, lists by index, every Set line, and Insert into the open field', () => {
+    editorFixture([
+      { command: 'variable', values: { name: 'pts()', value: '1, 2' } },
+      { command: 'variable', values: { name: 'pts()', value: '3, 4' } },
+      { command: 'variable', values: { name: 'label', value: 'Hall' } },
+      { command: 'variable', values: { name: 'label', value: 'Big Hall' } },
+      { command: 'cube' },
+      { command: 'if', values: { condition: '1 == 2' } },
+      { command: 'variable', values: { name: 'later', value: '1' } },
+      { command: 'end' },
+    ]);
+    find<HTMLButtonElement>('[data-tab="variables"]').click();
+    expect(explorerRows()).toEqual([
+      'label|Big Hall|Text|3,4',
+      'later|—|Not Set Yet|7',
+      '▸ pts()|[[1, 2], [3, 4]]|List of Vectors|1,2',
+    ]);
+    find<HTMLElement>('.solid-script-editor-explorer-row[data-name="pts"] > span').click();
+    expect(explorerRows().slice(2)).toEqual([
+      '▾ pts()|[[1, 2], [3, 4]]|List of Vectors|1,2',
+      'pts(0)|[1, 2]|Vector|1,2',
+      'pts(1)|[3, 4]|Vector|1,2',
+    ]);
+    const search = find<HTMLInputElement>('.solid-script-editor-explorer-search');
+    type(search, 'text');
+    expect(explorerRows()).toEqual(['label|Big Hall|Text|3,4']);
+    press(search, 'Escape');
+    expect(explorerRows()).toHaveLength(5);
+    find<HTMLButtonElement>(
+      '.solid-script-editor-explorer-row[data-name="label"] .solid-script-editor-explorer-line:last-child',
+    ).click();
+    expect(document.activeElement).toBe(chip(3));
+    find<HTMLElement>('.solid-script-editor-explorer-row[data-name="label"]').click();
+    find<HTMLButtonElement>('.solid-script-editor-explorer-insert').click();
+    expect(find('.solid-script-editor-explorer-status').textContent).toMatch(/^Open the settings of a line/);
+    doubleClick(chip(4));
+    const size = find<HTMLInputElement>('[data-solid-script-configurator="cube"] input[type="text"]');
+    size.focus();
+    size.value = '';
+    find<HTMLButtonElement>('.solid-script-editor-explorer-insert').click();
+    expect(size.value).toBe('[label]');
+    expect(find('.solid-script-editor-explorer-status').textContent).toBe('Inserted [label].');
   });
 
   it('keeps a breakpoint on its line when the line moves', () => {

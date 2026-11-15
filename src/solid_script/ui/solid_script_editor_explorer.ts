@@ -1,0 +1,461 @@
+import type { SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
+import {
+  SOLID_SCRIPT_NAME_CATEGORIES,
+  solidScriptDocumentNames,
+  solidScriptDocumentOrigins,
+  type SolidScriptNameCategory,
+} from '@/solid_script/document/solid_script_document_names.js';
+import { solidScriptInputTypeLabel } from '@/solid_script/language/solid_script_input.js';
+import type { SolidScriptFrameView, SolidScriptVariable } from '@/solid_script/language/solid_script_machine.js';
+import { solidScriptConfiguratorFieldInsert } from './solid_script_configurator_fields.js';
+import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
+import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
+
+/**
+ * Categories of the explorer: everything, the names with a value now, then each
+ * kind of name.
+ */
+export type SolidScriptExplorerCategory = 'All' | 'Current' | SolidScriptNameCategory | 'Call Stack';
+
+/** One name the explorer lists. */
+export interface SolidScriptExplorerEntry {
+  /** Name as fields read it, without brackets. */
+  name: string;
+  category: SolidScriptNameCategory;
+  /** Value at the step shown, or null when the run has not set it there. */
+  value: string | null;
+  /** Friendly type, such as Whole Number or List of Numbers. */
+  type: string;
+  /** 0-based lines that set it, first the defining line. */
+  lines: number[];
+  /** Items of a list, by number. */
+  items: SolidScriptVariable[];
+  /** True for inputs, which lines read but never set. */
+  readOnly: boolean;
+}
+
+/** Friendly type of a name the run has not reached yet. */
+const SOLID_SCRIPT_EXPLORER_TYPES_STATIC: Partial<Record<SolidScriptNameCategory, string>> = {
+  Lists: 'List',
+  Counters: 'Number',
+  Functions: 'Function',
+  Parts: 'Part',
+  Handlers: 'Handler',
+};
+
+/**
+ * Collects every name a script uses for the variable explorer: what the lines
+ * define, merged with the values of the step shown, the lines that set each
+ * one, and names only the run made, such as part[i].
+ *
+ * @param script Script.
+ * @param variables Variables at the step shown.
+ * @param stack Running Functions and parts, outermost first.
+ * @returns Entries in category order.
+ */
+export function solidScriptExplorerEntries(
+  script: SolidScriptDocument,
+  variables: readonly SolidScriptVariable[],
+  stack: readonly SolidScriptFrameView[],
+): SolidScriptExplorerEntry[] {
+  const origins = solidScriptDocumentOrigins(script);
+  const live = new Map(variables.map((variable) => [variable.name, variable]));
+  for (const frame of stack) for (const local of frame.locals) live.set(local.name, local);
+  const entries: SolidScriptExplorerEntry[] = [];
+  for (const known of solidScriptDocumentNames(script)) {
+    const seen =
+      SOLID_SCRIPT_EXPLORER_TYPES_STATIC[known.category] === undefined ||
+      known.category === 'Lists' ||
+      known.category === 'Counters';
+    const found = seen ? live.get(known.name) : undefined;
+    const input = known.category === 'Inputs';
+    const block = script.blocks[known.line];
+    entries.push({
+      name: known.name,
+      category: known.category,
+      value: found?.value ?? null,
+      type: input
+        ? solidScriptInputTypeLabel(block?.values['type'] ?? '')
+        : (found?.type ?? SOLID_SCRIPT_EXPLORER_TYPES_STATIC[known.category] ?? 'Not Set Yet'),
+      lines: origins.get(known.name) ?? [known.line],
+      items: found?.items ?? [],
+      readOnly: input,
+    });
+  }
+  const listed = new Set(entries.map((entry) => entry.name));
+  for (const variable of live.values()) {
+    if (listed.has(variable.name) || variable.name.startsWith('local.')) continue;
+    entries.push({
+      name: variable.name,
+      category: variable.items.length > 0 ? 'Lists' : 'Variables',
+      value: variable.value,
+      type: variable.type,
+      lines: origins.get(variable.name.replace(/\[.*$/, '')) ?? [],
+      items: variable.items,
+      readOnly: false,
+    });
+  }
+  const order = (entry: SolidScriptExplorerEntry): number => SOLID_SCRIPT_NAME_CATEGORIES.indexOf(entry.category);
+  return entries.sort((left, right) => order(left) - order(right));
+}
+
+/**
+ * Checks an entry against the search text: its name, value or type.
+ *
+ * @param entry Entry.
+ * @param query Search text.
+ * @returns True when it matches or the search is empty.
+ */
+export function solidScriptExplorerMatches(entry: SolidScriptExplorerEntry, query: string): boolean {
+  const wanted = query.trim().toLowerCase();
+  if (wanted === '') return true;
+  return [entry.name, entry.value ?? '', entry.type, entry.category].some((text) =>
+    text.toLowerCase().includes(wanted),
+  );
+}
+
+/**
+ * The variable explorer of the editor: on the left the categories, as in a
+ * browser of variables, on the right every name with its value at the step
+ * shown, its type and the lines that set it. Lists open to show their items,
+ * the call stack shows the variables of each running Function. A click shows
+ * the line that sets a name, a double-click or Insert puts [name] into the
+ * field of the open line settings.
+ */
+export class SolidScriptEditorExplorer {
+  /** Explorer element. */
+  readonly element = document.createElement('div');
+  /** Shows a line of the script; set by the editor. */
+  reveal: (line: number) => void = () => undefined;
+  /** Adds an Input line; set by the editor. */
+  inputAdd: () => void = () => undefined;
+  private readonly search = document.createElement('input');
+  private readonly categories = document.createElement('div');
+  private readonly table = document.createElement('div');
+  private readonly caption = document.createElement('div');
+  private readonly status = document.createElement('div');
+  private readonly insertButton = document.createElement('button');
+  private category: SolidScriptExplorerCategory = 'All';
+  private readonly open = new Set<string>();
+  private selected: string | null = null;
+  private entries: SolidScriptExplorerEntry[] = [];
+  private stack: readonly SolidScriptFrameView[] = [];
+  private captionText = '';
+
+  /** Builds the explorer. */
+  constructor() {
+    const c = SOLID_SCRIPT_EDITOR_CLASSES;
+    this.element.className = c.explorer;
+    this.search.type = 'search';
+    this.search.className = c.explorerSearch;
+    this.search.placeholder = 'Search Variables';
+    this.search.setAttribute('aria-label', 'Search Variables');
+    this.search.spellcheck = false;
+    this.search.addEventListener('input', () => this.render());
+    this.search.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape' || this.search.value === '') return;
+      event.stopPropagation();
+      this.search.value = '';
+      this.render();
+    });
+    this.categories.className = c.explorerCategories;
+    this.categories.setAttribute('role', 'listbox');
+    this.categories.setAttribute('aria-label', 'Variable Categories');
+    this.table.className = c.explorerTable;
+    this.table.setAttribute('role', 'grid');
+    this.caption.className = c.variablesCaption;
+    this.status.className = c.explorerStatus;
+    this.insertButton.type = 'button';
+    this.insertButton.className = c.explorerInsert;
+    this.insertButton.textContent = 'Insert';
+    this.insertButton.title = 'Puts the selected [name] into the field of the open line settings';
+    this.insertButton.addEventListener('mousedown', (event) => event.preventDefault());
+    this.insertButton.addEventListener('click', () => this.insertSelected());
+    const top = document.createElement('div');
+    top.className = c.explorerTop;
+    top.append(this.search, this.insertButton, this.inputAddButton());
+    const body = document.createElement('div');
+    body.className = c.explorerBody;
+    const tableColumn = document.createElement('div');
+    tableColumn.className = c.explorerColumn;
+    tableColumn.append(this.caption, this.table);
+    body.append(
+      solidScriptScrollerWrap(this.categories, '0 0 auto', 8),
+      solidScriptScrollerWrap(tableColumn, '1 1 0', 12),
+    );
+    this.element.append(top, body, this.status);
+  }
+
+  /**
+   * Shows the names of a script with the values of one step.
+   *
+   * @param script Script.
+   * @param variables Variables at the step shown.
+   * @param stack Running Functions and parts, outermost first.
+   * @param caption Where the values come from, such as "Paused at line 4".
+   */
+  show(
+    script: SolidScriptDocument,
+    variables: readonly SolidScriptVariable[],
+    stack: readonly SolidScriptFrameView[],
+    caption: string,
+  ): void {
+    this.entries = solidScriptExplorerEntries(script, variables, stack);
+    this.stack = stack;
+    this.captionText = caption;
+    this.render();
+  }
+
+  /** Redraws the categories and the table for the search and category chosen. */
+  private render(): void {
+    const c = SOLID_SCRIPT_EDITOR_CLASSES;
+    const query = this.search.value;
+    const counts = new Map<SolidScriptExplorerCategory, number>();
+    const matching = this.entries.filter((entry) => solidScriptExplorerMatches(entry, query));
+    counts.set('All', matching.length);
+    counts.set('Current', matching.filter((entry) => entry.value !== null).length);
+    for (const entry of matching) counts.set(entry.category, (counts.get(entry.category) ?? 0) + 1);
+    if (this.stack.length > 0) counts.set('Call Stack', this.stack.length);
+    const shown: SolidScriptExplorerCategory[] = [
+      'All',
+      'Current',
+      ...SOLID_SCRIPT_NAME_CATEGORIES.filter((category) => category === 'Inputs' || counts.has(category)),
+      ...(this.stack.length > 0 ? (['Call Stack'] as const) : []),
+    ];
+    if (!shown.includes(this.category)) this.category = 'All';
+    this.categories.replaceChildren(
+      ...shown.map((category) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = c.explorerCategory;
+        button.setAttribute('role', 'option');
+        button.setAttribute('aria-selected', String(category === this.category));
+        button.dataset['category'] = category;
+        const label = document.createElement('span');
+        label.textContent = category;
+        const count = document.createElement('span');
+        count.className = c.parameterValue;
+        count.textContent = String(counts.get(category) ?? 0);
+        button.append(label, count);
+        button.addEventListener('click', () => {
+          this.category = category;
+          this.render();
+        });
+        return button;
+      }),
+    );
+    this.caption.textContent = this.captionText;
+    const rows: HTMLElement[] = [this.headerRow()];
+    if (this.category === 'Call Stack') rows.push(...this.stackRows(query));
+    else {
+      const listed = matching.filter(
+        (entry) =>
+          this.category === 'All' ||
+          (this.category === 'Current' ? entry.value !== null : entry.category === this.category),
+      );
+      for (const entry of listed) rows.push(...this.entryRows(entry, query));
+      if (this.category === 'All' && this.stack.length > 0) rows.push(...this.stackRows(query));
+      if (listed.length === 0)
+        rows.push(this.note(query.trim() === '' ? 'Nothing here yet.' : `Nothing matches "${query.trim()}".`));
+    }
+    this.table.replaceChildren(...rows);
+    this.insertButton.disabled = this.selected === null;
+  }
+
+  /**
+   * Builds the column captions.
+   *
+   * @returns Row.
+   */
+  private headerRow(): HTMLElement {
+    const row = document.createElement('div');
+    row.className = `${SOLID_SCRIPT_EDITOR_CLASSES.explorerRow} ${SOLID_SCRIPT_EDITOR_CLASSES.explorerHeader}`;
+    for (const text of ['Name', 'Value', 'Type', 'Set On']) row.append(this.cell(text));
+    return row;
+  }
+
+  /**
+   * Builds the rows of one name, and of its items when its list is open.
+   *
+   * @param entry Entry.
+   * @param query Search text, which opens lists whose items match.
+   * @returns Rows.
+   */
+  private entryRows(entry: SolidScriptExplorerEntry, query: string): HTMLElement[] {
+    const isList = entry.items.length > 0;
+    const open = this.open.has(entry.name);
+    const label = `${isList ? (open ? '▾ ' : '▸ ') : ''}${entry.name}${isList ? '()' : ''}`;
+    const row = this.row(
+      entry.name,
+      label,
+      entry.value ?? '—',
+      entry.readOnly ? `${entry.type} · Read Only` : entry.type,
+      entry.lines,
+    );
+    row.title =
+      entry.lines.length > 0
+        ? `Click to show line ${entry.lines[0]! + 1}; double-click to insert [${entry.name}]`
+        : `Double-click to insert [${entry.name}]`;
+    if (isList)
+      row.firstElementChild?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        if (open) this.open.delete(entry.name);
+        else this.open.add(entry.name);
+        this.selected = entry.name;
+        this.render();
+      });
+    const rows = [row];
+    if (isList && (open || query.trim() !== ''))
+      for (const item of entry.items) {
+        if (
+          query.trim() !== '' &&
+          !open &&
+          !solidScriptExplorerMatches({ ...entry, name: item.name, value: item.value, type: item.type }, query)
+        )
+          continue;
+        const child = this.row(item.name, item.name, item.value, item.type, entry.lines);
+        child.classList.add(SOLID_SCRIPT_EDITOR_CLASSES.explorerItem);
+        rows.push(child);
+      }
+    return rows;
+  }
+
+  /**
+   * Lists the running Functions and parts, innermost first, each with its own
+   * variables.
+   *
+   * @param query Search text.
+   * @returns Rows.
+   */
+  private stackRows(query: string): HTMLElement[] {
+    const rows: HTMLElement[] = [];
+    if (this.stack.length === 0)
+      return [this.note('Nothing is running. Pause the script inside a Function to see its variables.')];
+    for (const frame of [...this.stack].reverse()) {
+      const head = document.createElement('div');
+      head.className = `${SOLID_SCRIPT_EDITOR_CLASSES.explorerRow} ${SOLID_SCRIPT_EDITOR_CLASSES.stackFrame}`;
+      head.title = `Called on line ${frame.line}: click to show it`;
+      head.append(this.cell(frame.name), this.cell(`called on line ${frame.line}`));
+      head.addEventListener('click', () => this.reveal(frame.line - 1));
+      rows.push(head);
+      for (const local of frame.locals) {
+        const entry: SolidScriptExplorerEntry = {
+          name: local.name,
+          category: 'Locals',
+          value: local.value,
+          type: local.type,
+          lines: [],
+          items: local.items,
+          readOnly: false,
+        };
+        if (!solidScriptExplorerMatches(entry, query)) continue;
+        const lines = this.entries.find((known) => known.name === local.name)?.lines ?? [];
+        const row = this.row(local.name, local.name, local.value, local.type, lines);
+        row.classList.add(SOLID_SCRIPT_EDITOR_CLASSES.explorerItem);
+        rows.push(row);
+      }
+    }
+    return rows;
+  }
+
+  /**
+   * Builds one row: a click selects it and shows its first line, a double-click
+   * inserts it, and each line under Set On shows that line.
+   *
+   * @param name Name to insert.
+   * @param label Name as shown.
+   * @param value Value text.
+   * @param type Type text.
+   * @param lines 0-based lines that set it.
+   * @returns Row.
+   */
+  private row(name: string, label: string, value: string, type: string, lines: readonly number[]): HTMLElement {
+    const c = SOLID_SCRIPT_EDITOR_CLASSES;
+    const row = document.createElement('div');
+    row.className = c.explorerRow;
+    row.setAttribute('role', 'row');
+    row.dataset['name'] = name;
+    if (this.selected === name) row.classList.add(c.selected);
+    const where = document.createElement('span');
+    where.className = c.explorerLines;
+    for (const line of lines) {
+      const link = document.createElement('button');
+      link.type = 'button';
+      link.className = c.explorerLine;
+      link.textContent = String(line + 1);
+      link.title = `Show line ${line + 1}`;
+      link.addEventListener('click', (event) => {
+        event.stopPropagation();
+        this.reveal(line);
+      });
+      where.append(link);
+    }
+    const valueCell = this.cell(value);
+    valueCell.classList.add(c.parameterValue);
+    row.append(this.cell(label, c.parameterName), valueCell, this.cell(type), where);
+    row.addEventListener('click', () => {
+      this.selected = name;
+      for (const other of this.table.querySelectorAll(`.${c.selected}`)) other.classList.remove(c.selected);
+      row.classList.add(c.selected);
+      this.insertButton.disabled = false;
+      if (lines.length > 0) this.reveal(lines[0]!);
+    });
+    row.addEventListener('dblclick', () => {
+      this.selected = name;
+      this.insertSelected();
+    });
+    return row;
+  }
+
+  /**
+   * Builds one cell.
+   *
+   * @param text Text.
+   * @param className Optional class.
+   * @returns Cell.
+   */
+  private cell(text: string, className = ''): HTMLElement {
+    const cell = document.createElement('span');
+    if (className !== '') cell.className = className;
+    cell.textContent = text;
+    cell.setAttribute('role', 'gridcell');
+    return cell;
+  }
+
+  /**
+   * Builds a line of help text in the table.
+   *
+   * @param text Text.
+   * @returns Element.
+   */
+  private note(text: string): HTMLElement {
+    const note = document.createElement('div');
+    note.className = SOLID_SCRIPT_EDITOR_CLASSES.variablesCaption;
+    note.textContent = text;
+    return note;
+  }
+
+  /**
+   * Builds the button that adds a setting to the generator's inspector.
+   *
+   * @returns Button.
+   */
+  private inputAddButton(): HTMLButtonElement {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = SOLID_SCRIPT_EDITOR_CLASSES.inputAdd;
+    button.textContent = 'Add Input';
+    button.title = 'Adds an Input line after the other inputs: a value people set in the generator inspector.';
+    button.addEventListener('click', () => this.inputAdd());
+    return button;
+  }
+
+  /** Puts the selected [name] into the open line settings, or says how. */
+  private insertSelected(): void {
+    if (this.selected === null) return;
+    const inserted = solidScriptConfiguratorFieldInsert(`[${this.selected}]`);
+    this.status.textContent = inserted
+      ? `Inserted [${this.selected}].`
+      : `Open the settings of a line (double-click it) and click a field, then insert [${this.selected}].`;
+  }
+}

@@ -84,6 +84,36 @@ export function solidScriptDocumentNames(document: SolidScriptDocument): SolidSc
 }
 
 /**
+ * Returns every line that gives each name a value: Input, Set (a list by its
+ * plain name, so points() and points(2) count for points), Remove Item, Call
+ * results, Repeat and For Each counters and Function inputs.
+ *
+ * @param document Script.
+ * @returns 0-based lines per name, in line order.
+ */
+export function solidScriptDocumentOrigins(document: SolidScriptDocument): Map<string, number[]> {
+  const origins = new Map<string, number[]>();
+  const add = (target: string, line: number): void => {
+    const name = target.trim().replace(/\s*\(.*\)$/, '');
+    if (!SOLID_SCRIPT_NAME_PLAIN.test(name)) return;
+    const lines = origins.get(name) ?? [];
+    if (!lines.includes(line)) lines.push(line);
+    origins.set(name, lines);
+  };
+  document.blocks.forEach((block, line) => {
+    const value = (key: string): string => block.values[key] ?? '';
+    if (block.command === 'input' || block.command === 'variable') add(value('name'), line);
+    if (block.command === 'remove_item') add(value('target'), line);
+    if (block.command === 'call' && value('result').trim() !== '') add(value('result'), line);
+    if (block.command === 'repeat' || block.command === 'for_each') add(value('variable'), line);
+    if (block.command === 'function')
+      for (const parameter of value('parameters').split(','))
+        if (parameter.trim() !== '') add(`local.${parameter.trim()}`, line);
+  });
+  return origins;
+}
+
+/**
  * Returns the [name] references of a field that no line of the script defines,
  * for a warning while configuring. Names built from other names are skipped.
  *
