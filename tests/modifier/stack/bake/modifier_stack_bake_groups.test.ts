@@ -76,4 +76,22 @@ describe('baking generators that build CSG groups', () => {
     expect(rootGroups(fixture.model.root)).toHaveLength(1);
     expectBox(fixture.bounds(), live);
   });
+
+  it('puts the generator back after the brush it followed, though baking reorders the solid root', () => {
+    const world = new THREE.Group();
+    const model = new SolidModel('Bake order');
+    world.add(model.root);
+    model.addBoxBrush(2, SolidOperation.Additive);
+    const node = modifierGeneratorNodeCreate('solidScript');
+    model.root.add(node);
+    world.updateMatrixWorld(true);
+    modifierBevelRefreshScene(world);
+    const order = () => model.root.children.filter((child) => child.name.startsWith('Brush') || child === node);
+    const before = order();
+    expect(before.at(-1)).toBe(node);
+    const bake = new CommandModifierVolumeBake(node);
+    bake.execute();
+    bake.undo();
+    expect(order()).toEqual(before);
+  });
 });
