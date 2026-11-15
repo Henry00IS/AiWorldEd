@@ -66,3 +66,33 @@ export function duplicateTopologyWorkingFaces(
   });
   return { result: topologyOperatorApplied(`Duplicated ${copies.length} face(s)`), copies };
 }
+
+/**
+ * Splits the selected faces off the rest of the mesh: every corner they share
+ * with an unselected face gets its own copy, so the faces can be moved away on
+ * their own. Corners shared between selected faces stay shared.
+ *
+ * @param geometry Working geometry mutated in place.
+ * @param faces Faces to split off.
+ * @returns Operator result.
+ */
+export function splitTopologyWorkingFaces(
+  geometry: TopologyWorkingGeometry,
+  faces: readonly number[],
+): TopologyOperatorResult {
+  const selected = new Set(faces.filter((index) => geometry.faces[index] !== undefined));
+  if (selected.size === 0) return topologyOperatorRefused('Split Faces needs selected faces');
+  const outside = new Set(geometry.faces.flatMap((face, index) => (selected.has(index) ? [] : face.vertexIndices)));
+  const copied = new Map<number, number>();
+  const copyVertex = (vertex: number) => {
+    if (!outside.has(vertex)) return vertex;
+    if (!copied.has(vertex)) copied.set(vertex, geometry.positions.push(geometry.positions[vertex]!.clone()) - 1);
+    return copied.get(vertex)!;
+  };
+  for (const index of selected) {
+    const face = geometry.faces[index]!;
+    face.vertexIndices = face.vertexIndices.map(copyVertex);
+  }
+  if (copied.size === 0) return topologyOperatorRefused('The selected faces are already apart from the rest');
+  return topologyOperatorApplied(`Split ${selected.size} face(s) off`);
+}

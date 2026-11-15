@@ -5,6 +5,7 @@ const EDIT_MESH_PLAIN_KEY_COMMANDS: Readonly<Record<string, EditMeshToolCommand>
   KeyE: 'extrude_faces',
   KeyI: 'inset_faces',
   KeyJ: 'connect_vertices',
+  KeyY: 'split_faces',
 };
 
 /**

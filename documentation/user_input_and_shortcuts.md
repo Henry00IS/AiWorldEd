@@ -56,6 +56,7 @@ Shortcuts can be changed in **Settings > Keyboard**. The table below describes t
 | `I`             | Inset faces; `Tab` depth, `I` per face (Edit Mode)        |
 | `J`             | Connect selected vertices (Edit Mode, meshes)             |
 | `Shift+D`       | Duplicate selected faces (Edit Mode, meshes)              |
+| `Y`             | Split selected faces off the mesh (Edit Mode, meshes)     |
 | `Ctrl+B`        | Bevel selected edges (Edit Mode, meshes)                  |
 | `Ctrl+D`        | Duplicate selected                                        |
 | `Alt+drag`      | Duplicate and move the selection in a viewport            |

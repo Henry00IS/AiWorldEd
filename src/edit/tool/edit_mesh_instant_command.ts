@@ -11,6 +11,7 @@ const EDIT_MESH_INSTANT_COMMANDS: Partial<
   bridge_edge_loops: (operations) => operations.bridgeSelectedEdgeLoops(),
   flip_faces: (operations) => operations.flipSelectedFaces(),
   duplicate_faces: (operations) => operations.duplicateSelectedFaces(),
+  split_faces: (operations) => operations.splitOffSelectedFaces(),
   triangulate_faces: (operations) => operations.triangulateSelectedFaces(),
   poke_faces: (operations) => operations.pokeSelectedFaces(),
   join_triangles: (operations) => operations.joinSelectedTriangles(),

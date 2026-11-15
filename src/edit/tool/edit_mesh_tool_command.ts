@@ -17,4 +17,5 @@ export type EditMeshToolCommand =
   | 'triangulate_faces'
   | 'poke_faces'
   | 'join_triangles'
-  | 'solidify_faces';
+  | 'solidify_faces'
+  | 'split_faces';

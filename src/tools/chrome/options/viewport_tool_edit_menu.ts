@@ -166,6 +166,12 @@ export function buildViewportToolFaceMenuEntries(actions: ViewportToolEditMenuAc
       'Copy the selected mesh faces onto their own vertices and select the copy, ready to move',
       tool('duplicate_faces'),
     ),
+    createAction(
+      'Split Faces',
+      'Y',
+      'Detach the selected mesh faces from the rest of the mesh so they move on their own',
+      tool('split_faces'),
+    ),
     createAction('Flip Faces', '', 'Turn the selected mesh faces to face the other way', tool('flip_faces')),
     createAction(
       'Triangulate Faces',

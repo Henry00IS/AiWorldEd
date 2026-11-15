@@ -8,6 +8,7 @@ describe('editMeshPlainKeyCommand', () => {
     );
     expect(editMeshPlainKeyCommand('KeyI', undefined, false)).toBe('inset_faces');
     expect(editMeshPlainKeyCommand('KeyJ', undefined, false)).toBe('connect_vertices');
+    expect(editMeshPlainKeyCommand('KeyY', undefined, false)).toBe('split_faces');
     expect(
       editMeshPlainKeyCommand('KeyI', new KeyboardEvent('keydown', { code: 'KeyI', ctrlKey: true }), false),
     ).toBeNull();

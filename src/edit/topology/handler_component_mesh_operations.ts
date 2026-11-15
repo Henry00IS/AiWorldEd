@@ -20,7 +20,11 @@ import {
   topologyBorderEdgeOffsets,
 } from './topology_edge_extrude.js';
 import { makeTopologyWorkingFace } from './topology_face_make.js';
-import { duplicateTopologyWorkingFaces, flipTopologyWorkingFaces } from './topology_face_copy.js';
+import {
+  duplicateTopologyWorkingFaces,
+  flipTopologyWorkingFaces,
+  splitTopologyWorkingFaces,
+} from './topology_face_copy.js';
 import { connectTopologyWorkingVertices } from './topology_vertex_connect.js';
 import { bridgeTopologyWorkingEdgeLoops } from './topology_edge_bridge.js';
 import { bevelTopologyWorkingEdges } from './topology_edge_bevel.js';
@@ -249,6 +253,18 @@ export class HandlerComponentMeshOperations {
   extrudeSelectedFaces(distance: number, grouping: TopologyFaceExtrudeGrouping): boolean {
     return this.mutateSelectedMeshFaces('Extrude Faces', (target, geometry, faces) =>
       extrudeTopologyWorkingFaces(geometry, faces, distance, grouping, meshNormalScale(target)),
+    );
+  }
+
+  /**
+   * Splits the selected mesh faces off the rest of their mesh so they can move
+   * on their own, keeping them selected.
+   *
+   * @returns True when at least one mesh changed.
+   */
+  splitOffSelectedFaces(): boolean {
+    return this.mutateSelectedMeshFaces('Split Faces', (_target, geometry, faces) =>
+      splitTopologyWorkingFaces(geometry, faces),
     );
   }
 
