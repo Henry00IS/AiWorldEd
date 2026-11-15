@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { physicsShatterBakeEncode } from '@/modifier/stack/kinds/shatter/sim/physics_shatter_bake.js';
+import {
+  physicsShatterBakeDecode,
+  physicsShatterBakeEncode,
+} from '@/modifier/stack/kinds/shatter/sim/physics_shatter_bake.js';
 import { PhysicsShatterSimulation } from '@/modifier/stack/kinds/shatter/sim/physics_shatter_sim.js';
 import { PhysicsRapierRuntime } from '@/physics/rapier/physics_rapier_runtime.js';
 import { physicsShatterTransformIsIdentity } from '@/modifier/stack/kinds/shatter/physics_shatter_transform.js';
@@ -39,15 +42,31 @@ describe('physics shatter simulation', () => {
     simulation.dispose();
   });
 
-  it('keeps every piece above the floor', async () => {
+  it('keeps every piece above a fixed floor slab', async () => {
     const setup = simTestSetup({ crackSize: 0.6 });
     const result = await simTestRun(setup);
     setup.pieces.forEach((piece, index) => {
       const transform = result.transforms[index];
       if (!transform) return;
       const centre = piece.centroid.clone().add(transform.translation).applyMatrix4(setup.frameToWorld);
-      expect(centre.y).toBeGreaterThan((setup.floorHeight ?? 0) - 0.01);
+      expect(centre.y).toBeGreaterThan(1.5 - 0.01);
     });
+  });
+
+  it('has no floor or bound: without fixed geometry pieces fall freely for the whole duration', async () => {
+    const setup = { ...simTestSetup({ crackSize: 0.6 }, { duration: 10 }), staticHulls: [] };
+    const result = await simTestRun(setup);
+    expect(result.steps).toBe(600);
+    const drops = setup.pieces.map((piece, index) => {
+      const translation = result.transforms[index]!.translation;
+      expect([translation.x, translation.y, translation.z].every(Number.isFinite)).toBe(true);
+      const start = piece.centroid.clone().applyMatrix4(setup.frameToWorld).y;
+      return start - piece.centroid.clone().add(translation).applyMatrix4(setup.frameToWorld).y;
+    });
+    expect(Math.min(...drops)).toBeGreaterThan(400);
+    expect(Math.max(...drops)).toBeLessThan(600);
+    const decoded = physicsShatterBakeDecode(physicsShatterBakeEncode(result.transforms), setup.pieces.length);
+    expect(decoded?.[0]?.translation.y).toBeCloseTo(result.transforms[0]!.translation.y, 1);
   });
 
   it('leaves bricks outside the blast radius stuck where they were cut', async () => {

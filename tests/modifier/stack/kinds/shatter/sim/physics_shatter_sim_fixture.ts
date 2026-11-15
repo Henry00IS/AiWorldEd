@@ -47,11 +47,18 @@ export function simTestSetup(
     frameToWorld,
     blast: { impactPoint, direction: new THREE.Vector3(0, 0, 1), strength: 8, radius: 1.5, duration: 3, ...blast },
     seed: 7,
-    staticHulls: [],
-    floorHeight: 1.5,
+    staticHulls: [SIM_TEST_FLOOR],
     solverIterations: 8,
   };
 }
+
+/**
+ * A 100 m square, 1 m thick fixed slab in the world whose top is the bottom of
+ * the test wall, at world height 1.5.
+ */
+export const SIM_TEST_FLOOR = new Float32Array(
+  [0, 1, 2, 3, 4, 5, 6, 7].flatMap((corner) => [corner & 1 ? 50 : -50, corner & 2 ? 1.5 : 0.5, corner & 4 ? 50 : -50]),
+);
 
 /**
  * Runs a setup to the end.

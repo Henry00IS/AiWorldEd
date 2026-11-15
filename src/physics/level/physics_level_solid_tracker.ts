@@ -32,7 +32,7 @@ export class PhysicsLevelSolidTracker extends PhysicsLevelSourceTracker {
     super(levelWorld, queue);
     this.resultMesh = resultMesh;
     this.chunkSource = chunkSource;
-    this.keyPrefix = `solid:${resultMesh.uuid}:`;
+    this.keyPrefix = physicsLevelSolidColliderKey(resultMesh, '');
     this.lastSyncedRevision = -1;
     this.seenKeys = new Set();
   }
@@ -78,4 +78,16 @@ export class PhysicsLevelSolidTracker extends PhysicsLevelSourceTracker {
       }
     }
   }
+}
+
+/**
+ * Returns the level collider key of one brush chunk of a solid model's result
+ * mesh.
+ *
+ * @param resultMesh Result mesh of the solid model.
+ * @param brushId Brush id of the chunk.
+ * @returns Collider key.
+ */
+export function physicsLevelSolidColliderKey(resultMesh: THREE.Object3D, brushId: string): string {
+  return `solid:${resultMesh.uuid}:${brushId}`;
 }

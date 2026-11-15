@@ -13,7 +13,6 @@ import {
   type PhysicsShatterSimBlastWorld,
 } from './physics_shatter_sim_blast.js';
 import {
-  physicsShatterBodyAddFloor,
   physicsShatterBodyAddStaticHull,
   physicsShatterBodyColliderDesc,
   physicsShatterBodyLaunchFriction,
@@ -67,13 +66,17 @@ export class PhysicsShatterSimulation {
    * velocity and spin.
    *
    * @param rapier Loaded Rapier module.
-   * @param setup Pieces, blast, fixed geometry and floor.
+   * @param setup Pieces, blast and fixed hulls.
+   * @param world World to simulate in, such as one already holding the level
+   *   colliders play mode builds; the simulation owns and frees it.
    */
   constructor(
     private readonly rapier: PhysicsRapierModule,
     setup: PhysicsShatterSimSetup,
+    world: RAPIER.World = new rapier.World({ x: 0, y: 0, z: 0 }),
   ) {
-    this.world = new rapier.World({ x: 0, y: -PHYSICS_SHATTER_SIM_GRAVITY, z: 0 });
+    this.world = world;
+    this.world.gravity = { x: 0, y: -PHYSICS_SHATTER_SIM_GRAVITY, z: 0 };
     this.world.timestep = PHYSICS_SHATTER_SIM_STEP_SECONDS;
     this.world.numSolverIterations = setup.solverIterations;
     this.frame = new PhysicsShatterSimFrame(setup.frameToWorld);
@@ -190,13 +193,13 @@ export class PhysicsShatterSimulation {
   }
 
   /**
-   * Adds the fixed hulls and the floor.
+   * Adds the fixed hulls. There is no floor or bound: pieces that miss every
+   * hull fall until the duration ends.
    *
    * @param setup Simulation setup.
    */
   private staticsAdd(setup: PhysicsShatterSimSetup): void {
     for (const hull of setup.staticHulls) physicsShatterBodyAddStaticHull(this.rapier, this.world, hull);
-    if (setup.floorHeight !== null) physicsShatterBodyAddFloor(this.rapier, this.world, setup.floorHeight);
   }
 
   /**

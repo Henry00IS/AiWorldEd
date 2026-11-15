@@ -1,4 +1,4 @@
-import { PhysicsRapierRuntime } from '@/physics/rapier/physics_rapier_runtime.js';
+import { PhysicsRapierRuntime, type PhysicsRapierModule } from '@/physics/rapier/physics_rapier_runtime.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 import { modifierVolumeSceneRoot } from '@/modifier/stack/modifier_volume.js';
 import type { ModifierStackActionTarget } from '@/modifier/stack/modifier_stack_types.js';
@@ -14,8 +14,9 @@ import { physicsShatterBakeEncode } from './physics_shatter_bake.js';
 import { physicsShatterBakeParameters } from '@/modifier/stack/kinds/shatter/physics_shatter_format_version.js';
 import { PHYSICS_SHATTER_SIM_MAX_MOVING_PIECES, PhysicsShatterSimulation } from './physics_shatter_sim.js';
 import type { PhysicsShatterSimResult, PhysicsShatterSimSetup } from './physics_shatter_sim_types.js';
-import { physicsShatterStaticsGather } from './physics_shatter_sim_statics.js';
+import { physicsShatterLevelWorldBuild } from './physics_shatter_sim_level.js';
 import { physicsShatterSimWarnThin } from './physics_shatter_sim_thin.js';
+import { physicsShatterSettingsRead } from '@/modifier/stack/kinds/shatter/physics_shatter_settings.js';
 import { PhysicsShatterPreview } from './physics_shatter_preview.js';
 import { physicsShatterPlaybackRun, type PhysicsShatterPlaybackTiming } from './physics_shatter_playback.js';
 import { physicsShatterCommitParameters, physicsShatterCommitParametersRead } from './physics_shatter_commit.js';
@@ -74,43 +75,73 @@ export function physicsShatterResetAction(target: ModifierStackActionTarget): vo
 async function physicsShatterSimulateRun(target: ModifierStackActionTarget, run: PhysicsShatterLastRun): Promise<void> {
   const rapier = await PhysicsRapierRuntime.ensureLoaded();
   const setup = physicsShatterSimulateSetup(target, run);
-  const crackSize = physicsShatterCommitParametersRead(target.volume, target.stepId)?.['crackSize'];
-  physicsShatterSimWarnThin(run.fracture.pieces, typeof crackSize === 'number' ? crackSize : 0.5);
+  const parameters = physicsShatterCommitParametersRead(target.volume, target.stepId) ?? {};
+  physicsShatterSimWarnThin(run.fracture.pieces, physicsShatterSettingsRead(parameters));
   const moving = PhysicsShatterSimulation.movingPieceCount(setup);
   if (moving > PHYSICS_SHATTER_SIM_MAX_MOVING_PIECES)
     return target.status(`Too Many Pieces: ${moving} would move, at most ${PHYSICS_SHATTER_SIM_MAX_MOVING_PIECES}.`);
-  const played = await physicsShatterSimulatePlay(target, run, new PhysicsShatterSimulation(rapier, setup));
+  const played = await physicsShatterSimulatePlay(target, run, (preview) =>
+    physicsShatterSimulationCreate(rapier, target, run, setup, preview),
+  );
   physicsShatterSimulateStore(target, run, played.result, played.timing);
 }
 
 /**
  * Plays a simulation in the viewport while the modifier's own pieces step
- * aside, then frees it and lets the modifier draw again.
+ * aside, then frees it and lets the modifier draw again. The simulation is
+ * created once the pieces are out of the solids, so the fixed world never
+ * depends on where a previous bake left them.
  *
  * @param target Action target.
  * @param run Last evaluation of the modifier.
- * @param simulation Simulation to play.
+ * @param create Creates the simulation while the preview is up.
  * @returns Result and playback timing.
  */
 async function physicsShatterSimulatePlay(
   target: ModifierStackActionTarget,
   run: PhysicsShatterLastRun,
-  simulation: PhysicsShatterSimulation,
+  create: (preview: PhysicsShatterPreview) => PhysicsShatterSimulation,
 ): Promise<{ result: PhysicsShatterSimResult; timing: PhysicsShatterPlaybackTiming }> {
   const sceneRoot = modifierVolumeSceneRoot(target.volume);
   const pieces = run.fracture.pieces;
   const preview = new PhysicsShatterPreview(sceneRoot, target.volume.uuid, target.stepId, pieces, run.frameToWorld);
   modifierBevelRefreshScene(sceneRoot);
+  let simulation: PhysicsShatterSimulation | undefined;
   try {
-    const timing = await physicsShatterPlaybackRun(simulation, preview, (seconds) =>
+    const playing = (simulation = create(preview));
+    const timing = await physicsShatterPlaybackRun(playing, preview, (seconds) =>
       target.status(`Simulating… ${seconds.toFixed(1)} s`),
     );
-    return { result: simulation.result(), timing };
+    return { result: playing.result(), timing };
   } finally {
-    simulation.dispose();
+    simulation?.dispose();
     preview.dispose();
     modifierBevelRefreshScene(sceneRoot);
   }
+}
+
+/**
+ * Creates the simulation in the play-mode level world of the scene, built while
+ * the preview meshes are hidden so they do not become colliders.
+ *
+ * @param rapier Loaded Rapier module.
+ * @param target Action target.
+ * @param run Last evaluation of the modifier.
+ * @param setup Simulation setup.
+ * @param preview Preview drawing the pieces.
+ * @returns Simulation that owns the level world.
+ */
+function physicsShatterSimulationCreate(
+  rapier: PhysicsRapierModule,
+  target: ModifierStackActionTarget,
+  run: PhysicsShatterLastRun,
+  setup: PhysicsShatterSimSetup,
+  preview: PhysicsShatterPreview,
+): PhysicsShatterSimulation {
+  const sceneRoot = modifierVolumeSceneRoot(target.volume);
+  const owner = { volumeUuid: target.volume.uuid, stepId: target.stepId, inputBrushIds: run.inputBrushIds };
+  const level = preview.whileHidden(() => physicsShatterLevelWorldBuild(rapier, sceneRoot, owner));
+  return new PhysicsShatterSimulation(rapier, setup, level.getRapierWorld());
 }
 
 /**
@@ -124,19 +155,12 @@ function physicsShatterSimulateSetup(
   target: ModifierStackActionTarget,
   run: PhysicsShatterLastRun,
 ): PhysicsShatterSimSetup {
-  const statics = physicsShatterStaticsGather(
-    modifierVolumeSceneRoot(target.volume),
-    run.fracture.pieces,
-    run.frameToWorld,
-    run.inputBrushIds,
-  );
   return {
     pieces: run.fracture.pieces,
     frameToWorld: run.frameToWorld,
     blast: run.blast,
     seed: run.fracture.pieces[0]?.seed ?? 0,
-    staticHulls: statics.hulls,
-    floorHeight: statics.floorHeight,
+    staticHulls: [],
     solverIterations: physicsShatterSimulateSolverIterations(target),
   };
 }

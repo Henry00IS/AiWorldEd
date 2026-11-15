@@ -23,9 +23,6 @@ export const PHYSICS_SHATTER_BODY_LAUNCH_STEPS = 12;
 /** Bounciness of pieces and fixed geometry. */
 const PHYSICS_SHATTER_BODY_RESTITUTION = 0.1;
 
-/** Half extent of the endless floor slab, in metres. */
-const PHYSICS_SHATTER_FLOOR_HALF_EXTENT = 1000;
-
 /**
  * Returns hull points relative to a centre and pulled towards it by a
  * millimetre, so pieces that share a cut face do not start in contact.
@@ -102,20 +99,4 @@ export function physicsShatterBodyAddStaticHull(
   const desc = physicsShatterBodyColliderDesc(rapier, worldPoints);
   if (desc) world.createCollider(desc);
   return desc !== null;
-}
-
-/**
- * Adds an endless floor whose top sits at a world height.
- *
- * @param rapier Rapier module.
- * @param world Simulation world.
- * @param height World height of the floor top.
- */
-export function physicsShatterBodyAddFloor(rapier: PhysicsRapierModule, world: RAPIER.World, height: number): void {
-  const extent = PHYSICS_SHATTER_FLOOR_HALF_EXTENT;
-  const desc = rapier.ColliderDesc.cuboid(extent, 1, extent)
-    .setTranslation(0, height - 1, 0)
-    .setFriction(PHYSICS_SHATTER_BODY_FRICTION)
-    .setRestitution(PHYSICS_SHATTER_BODY_RESTITUTION);
-  world.createCollider(desc);
 }

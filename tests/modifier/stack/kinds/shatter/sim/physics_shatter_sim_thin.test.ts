@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
+import type { PhysicsShatterPieceSizeSettings } from '@/modifier/stack/kinds/shatter/fracture/physics_shatter_quality.js';
 import {
-  physicsShatterSimMinThickness,
   physicsShatterSimThickness,
   physicsShatterSimWarnThin,
   type PhysicsShatterThinPiece,
@@ -27,12 +27,24 @@ function boxPiece(x: number, y: number, z: number): PhysicsShatterThinPiece {
   };
 }
 
+/**
+ * Builds glass fracture settings for the piece size the check reads.
+ *
+ * @param crackSize Crack size.
+ * @returns Settings.
+ */
+function glass(crackSize: number): PhysicsShatterPieceSizeSettings {
+  return { mode: 'glass', crackSize, brickLength: 0.25, brickHeight: 0.065 };
+}
+
 describe('physics shatter thin piece warning', () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it('uses 2 cm or a tenth of the crack size, whichever is larger', () => {
-    expect(physicsShatterSimMinThickness(0.1)).toBeCloseTo(0.02);
-    expect(physicsShatterSimMinThickness(0.5)).toBeCloseTo(0.05);
+  it('uses the fracture minimum: 2 cm or a tenth of the crack size, whichever is larger', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(physicsShatterSimWarnThin([boxPiece(1, 0.03, 1)], glass(0.1)).count).toBe(0);
+    expect(physicsShatterSimWarnThin([boxPiece(1, 0.03, 1)], glass(0.5)).count).toBe(1);
+    expect(warn).toHaveBeenCalledTimes(1);
   });
 
   it('measures the smallest width across the face normals', () => {
@@ -42,7 +54,7 @@ describe('physics shatter thin piece warning', () => {
   it('warns once with the count and the thinnest piece, leaving pieces alone', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const pieces = [boxPiece(1, 1, 1), boxPiece(1, 0.01, 1), boxPiece(0.03, 1, 1)];
-    const found = physicsShatterSimWarnThin(pieces, 0.5);
+    const found = physicsShatterSimWarnThin(pieces, glass(0.5));
     expect(found.count).toBe(2);
     expect(found.smallest).toBeCloseTo(0.01);
     expect(warn).toHaveBeenCalledTimes(1);
@@ -52,7 +64,7 @@ describe('physics shatter thin piece warning', () => {
 
   it('stays quiet when every piece is thick enough', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    expect(physicsShatterSimWarnThin([boxPiece(1, 1, 1)], 0.5).count).toBe(0);
+    expect(physicsShatterSimWarnThin([boxPiece(1, 1, 1)], glass(0.5)).count).toBe(0);
     expect(warn).not.toHaveBeenCalled();
   });
 });

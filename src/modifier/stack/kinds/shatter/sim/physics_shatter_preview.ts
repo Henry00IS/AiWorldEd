@@ -89,6 +89,22 @@ export class PhysicsShatterPreview {
     });
   }
 
+  /**
+   * Runs an action with the piece meshes hidden, such as building colliders
+   * from the visible scene.
+   *
+   * @param action Action to run.
+   * @returns What the action returned.
+   */
+  whileHidden<T>(action: () => T): T {
+    this.group.visible = false;
+    try {
+      return action();
+    } finally {
+      this.group.visible = true;
+    }
+  }
+
   /** Removes the meshes and lets the stack draw the modifier again. */
   dispose(): void {
     this.group.removeFromParent();
