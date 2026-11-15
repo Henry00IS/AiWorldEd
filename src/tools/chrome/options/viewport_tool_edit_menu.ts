@@ -56,6 +56,12 @@ export function buildViewportToolSelectMenuEntries(actions: ViewportToolEditMenu
 export function buildViewportToolMeshMenuEntries(actions: ViewportToolEditMenuActions): ToolbarMenuEntry[] {
   return [
     createAction('Knife Topology Tool', 'K', 'Insert a vertex on a hovered edge', actions.onKnife),
+    createAction(
+      'Make Face',
+      '',
+      'Fill a new mesh face through the selected vertices or edges, for example to close a hole',
+      () => actions.onMeshTool('make_face'),
+    ),
     { kind: 'separator' },
     createAction(
       'Delete',
@@ -89,7 +95,12 @@ export function buildViewportToolVertexMenuEntries(actions: ViewportToolEditMenu
  * @returns Menu entries.
  */
 export function buildViewportToolEdgeMenuEntries(actions: ViewportToolEditMenuActions): ToolbarMenuEntry[] {
-  return [createAction('Loop Cut', 'Ctrl+R', 'Cut a convex edge belt and slide it', actions.onLoopCut)];
+  return [
+    createAction('Loop Cut', 'Ctrl+R', 'Cut a convex edge belt and slide it', actions.onLoopCut),
+    createAction('Subdivide Edges', '', 'Split each selected mesh edge in half; run it again for finer cuts', () =>
+      actions.onMeshTool('subdivide_edges'),
+    ),
+  ];
 }
 
 /**

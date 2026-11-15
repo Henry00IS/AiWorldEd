@@ -1,12 +1,20 @@
 import * as THREE from 'three';
 import { EditorComponentMode } from '@/types/editor_component_mode.js';
+import { buildComponentEdgeKey, type ComponentSelectionEntry } from '@/edit/component/component_selection_entry.js';
 import type { HandlerComponentTopologyDependencies } from './handler_component_topology.js';
 import { commitTopologyWorkingMutation, loadWorkingGeometryFromTarget } from './topology_commit.js';
 import { extrudeTopologyWorkingFaces, type TopologyFaceExtrudeGrouping } from './topology_face_extrude.js';
 import { collectTopologyFaceRegions } from './topology_face_region.js';
 import { insetTopologyWorkingFaceRegions, type TopologyFaceInsetGrouping } from './topology_face_inset_region.js';
 import type { TopologyOperatorResult } from './topology_operator_result.js';
-import { collectSelectedFaceIndices, collectSelectionTargetIds } from './topology_selection_vertices.js';
+import {
+  collectSelectedEdgeEndpoints,
+  collectSelectedVertexIndices,
+  collectSelectedFaceIndices,
+  collectSelectionTargetIds,
+} from './topology_selection_vertices.js';
+import { subdivideTopologyWorkingEdges } from './topology_edge_subdivide.js';
+import { makeTopologyWorkingFace } from './topology_face_make.js';
 import { findEditDomainTargetById, resolveTopologyEditTarget } from './topology_target_resolve.js';
 import type { TopologyMeshTarget } from './topology_target.js';
 import type { TopologyWorkingGeometry } from './topology_working_geometry.js';
@@ -28,9 +36,9 @@ interface MeshFaceSelection {
 }
 
 /**
- * Runs mesh modelling operations (extrude, inset and friends) on the Edit Mode
- * selection. Brushes are left alone: these operations add faces a convex brush
- * cannot hold.
+ * Runs mesh modelling operations (extrude, inset, subdivide and friends) on the
+ * Edit Mode selection. Brushes are left alone: these operations add faces a
+ * convex brush cannot hold.
  */
 export class HandlerComponentMeshOperations {
   private readonly deps: HandlerComponentTopologyDependencies;
@@ -160,17 +168,18 @@ export class HandlerComponentMeshOperations {
       appliedAny = appliedAny || result.applied;
       lastMessage = result.message || lastMessage;
     }
-    this.finishFaceMutation(appliedAny, lastMessage);
+    this.finishMutation(appliedAny, lastMessage);
     return appliedAny;
   }
 
   /**
-   * Re-applies the face selection, refreshes the cage and reports the result.
+   * Re-applies the current selection, refreshes the cage and reports the
+   * result.
    *
    * @param appliedAny Whether any mesh changed.
    * @param message Status text.
    */
-  private finishFaceMutation(appliedAny: boolean, message: string): void {
+  private finishMutation(appliedAny: boolean, message: string): void {
     if (appliedAny) {
       const selection = this.deps.getSession().getComponentSelection();
       selection.replaceAll(selection.getSelected().slice());
@@ -180,29 +189,131 @@ export class HandlerComponentMeshOperations {
   }
 
   /**
+   * Splits every selected mesh edge into evenly spaced pieces and selects the
+   * pieces.
+   *
+   * @param cuts Number of new vertices per edge.
+   * @returns True when at least one mesh changed.
+   */
+  subdivideSelectedEdges(cuts: number): boolean {
+    const selected = this.deps.getSession().getComponentSelection().getSelected();
+    const pieces: ComponentSelectionEntry[] = [];
+    const targets = this.collectMeshTargets('Subdivide Edges', [EditorComponentMode.EDGE], 'Edge');
+    return this.commitOnMeshTargets(
+      targets,
+      (targetId, geometry) => {
+        const outcome = subdivideTopologyWorkingEdges(geometry, collectSelectedEdgeEndpoints(selected, targetId), cuts);
+        pieces.push(...outcome.pieces.map(([a, b]) => meshEdgeEntry(targetId, a, b)));
+        return outcome.result;
+      },
+      () => this.deps.getSession().getComponentSelection().replaceAll(pieces),
+    );
+  }
+
+  /**
+   * Adds one face through the selected vertices, or through the ends of the
+   * selected edges, on every edited mesh.
+   *
+   * @returns True when at least one mesh changed.
+   */
+  makeFaceFromSelection(): boolean {
+    const selected = this.deps.getSession().getComponentSelection().getSelected();
+    const modes = [EditorComponentMode.VERTEX, EditorComponentMode.EDGE];
+    const targets = this.collectMeshTargets('Make Face', modes, 'Vertex or Edge');
+    return this.commitOnMeshTargets(targets, (targetId, geometry) =>
+      makeTopologyWorkingFace(geometry, [
+        ...collectSelectedVertexIndices(selected, targetId),
+        ...collectSelectedEdgeEndpoints(selected, targetId).flatMap((edge) => [edge.vertexA, edge.vertexB]),
+      ]),
+    );
+  }
+
+  /**
+   * Commits an operator on every mesh target, one undo step per mesh, then
+   * refreshes and reports.
+   *
+   * @param targets Mesh targets.
+   * @param operate Operator run on each working geometry.
+   * @param afterApplied Runs once when any mesh changed, before the refresh.
+   * @returns True when at least one mesh changed.
+   */
+  private commitOnMeshTargets(
+    targets: ReadonlyArray<{ targetId: string; target: TopologyMeshTarget }>,
+    operate: (targetId: string, geometry: TopologyWorkingGeometry) => TopologyOperatorResult,
+    afterApplied: () => void = () => undefined,
+  ): boolean {
+    let appliedAny = false;
+    let lastMessage = '';
+    for (const { targetId, target } of targets) {
+      const refresh = () => this.deps.refreshPresentation();
+      const result = commitTopologyWorkingMutation(
+        target,
+        this.deps.getCommandStack(),
+        (g) => operate(targetId, g),
+        refresh,
+      );
+      appliedAny = appliedAny || result.applied;
+      lastMessage = result.message || lastMessage;
+    }
+    if (appliedAny) afterApplied();
+    this.finishMutation(appliedAny, lastMessage);
+    return appliedAny;
+  }
+
+  /**
    * Collects selected faces of edited meshes, reporting why nothing applies.
    *
    * @param toolLabel Tool name used in status messages.
    * @returns Mesh face selections; empty outside Face mode.
    */
   private collectMeshFaceSelections(toolLabel: string): MeshFaceSelection[] {
+    const selected = this.deps.getSession().getComponentSelection().getSelected();
+    return this.collectMeshTargets(toolLabel, [EditorComponentMode.FACE], 'Face')
+      .map(({ targetId, target }) => ({ target, faces: collectSelectedFaceIndices(selected, targetId) }))
+      .filter((entry) => entry.faces.length > 0);
+  }
+
+  /**
+   * Collects the edited meshes that have selected components in a mode,
+   * reporting why nothing applies.
+   *
+   * @param toolLabel Tool name used in status messages.
+   * @param modes Component modes the tool works in.
+   * @param modeName Title of those modes for messages.
+   * @returns Mesh targets with a selection.
+   */
+  private collectMeshTargets(
+    toolLabel: string,
+    modes: readonly EditorComponentMode[],
+    modeName: string,
+  ): Array<{ targetId: string; target: TopologyMeshTarget }> {
     const session = this.deps.getSession();
     if (!session.isActive()) return [];
-    if (session.getComponentMode() !== EditorComponentMode.FACE) {
-      this.deps.showStatusMessage(`${toolLabel} works in Face mode`);
+    if (!modes.includes(session.getComponentMode())) {
+      this.deps.showStatusMessage(`${toolLabel} works in ${modeName} mode`);
       return [];
     }
-    const selected = session.getComponentSelection().getSelected();
-    const selections: MeshFaceSelection[] = [];
-    for (const targetId of collectSelectionTargetIds(selected)) {
+    const targets: Array<{ targetId: string; target: TopologyMeshTarget }> = [];
+    for (const targetId of collectSelectionTargetIds(session.getComponentSelection().getSelected())) {
       const domain = findEditDomainTargetById(session.getDomain(), targetId);
       const target = domain ? resolveTopologyEditTarget(domain) : null;
-      const faces = collectSelectedFaceIndices(selected, targetId);
-      if (target?.kind === 'mesh' && faces.length > 0) selections.push({ target, faces });
+      if (target?.kind === 'mesh') targets.push({ targetId, target });
     }
-    if (selections.length === 0) this.deps.showStatusMessage(`${toolLabel} needs selected mesh faces`);
-    return selections;
+    if (targets.length === 0) this.deps.showStatusMessage(`${toolLabel} needs a selection on a mesh`);
+    return targets;
   }
+}
+
+/**
+ * Builds an edge selection entry.
+ *
+ * @param targetId Target id.
+ * @param vertexA First endpoint.
+ * @param vertexB Second endpoint.
+ * @returns Selection entry.
+ */
+function meshEdgeEntry(targetId: string, vertexA: number, vertexB: number): ComponentSelectionEntry {
+  return { targetId, kind: 'edge', componentKey: buildComponentEdgeKey(vertexA, vertexB) };
 }
 
 /**

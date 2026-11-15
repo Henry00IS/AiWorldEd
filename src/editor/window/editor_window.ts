@@ -18,6 +18,7 @@ import { EditSelectTool } from '@/edit/tool/edit_select_tool.js';
 import { EditEdgeCutTool } from '@/edit/tool/edit_edge_cut_tool.js';
 import { EditLoopCutTool } from '@/edit/tool/edit_loop_cut_tool.js';
 import { createEditMeshTool } from '@/edit/tool/edit_mesh_tool_factory.js';
+import { runEditMeshInstantCommand } from '@/edit/tool/edit_mesh_instant_command.js';
 import { GridTool } from '../tools/grid/grid_tool.js';
 import type { ClipTool } from '../tools/clip_tool.js';
 import { managerMouseCursor } from '@/input/manager_mouse_cursor.js';
@@ -995,11 +996,13 @@ export class EditorWindow {
   }
 
   /**
-   * Starts an Edit Mode modelling tool as a single-use tool.
+   * Runs an instant Edit Mode modelling command, or starts its interactive tool
+   * as a single-use tool.
    *
-   * @param command Tool to start.
+   * @param command Command to run.
    */
   useEditMeshTool(command: import('@/edit/tool/edit_mesh_tool_command.js').EditMeshToolCommand): void {
+    if (runEditMeshInstantCommand(command, this.services?.getEditMeshOperations?.() ?? null)) return;
     this.useTool(createEditMeshTool(command));
   }
 

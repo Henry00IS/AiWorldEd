@@ -16,14 +16,16 @@ describe('viewport_tool_edit_menu', () => {
     const calls: string[] = [];
     const entries = buildViewportToolMeshMenuEntries(createActions(calls));
     const labels = entries.map((entry) => ('label' in entry ? entry.label : 'separator'));
-    expect(labels).toEqual(['Knife Topology Tool', 'separator', 'Delete', 'Dissolve']);
+    expect(labels).toEqual(['Knife Topology Tool', 'Make Face', 'separator', 'Delete', 'Dissolve']);
     expect(shortcutForLabel(entries, 'Dissolve')).toBe('Delete');
     expect(shortcutForLabel(entries, 'Delete')).toBe('Backspace');
     const knife = entries[0];
     if (knife && isMenuAction(knife)) {
       knife.onClick();
     }
-    expect(calls).toEqual(['knife']);
+    const makeFace = entries[1];
+    if (makeFace && isMenuAction(makeFace)) makeFace.onClick();
+    expect(calls).toEqual(['knife', 'tool:make_face']);
   });
 
   it('offers Merge Vertices in the Vertex menu and Loop Cut in the Edge menu', () => {
@@ -105,6 +107,15 @@ describe('viewport_tool_edit_menu', () => {
     expect(calls).toEqual(['tool:extrude_faces', 'tool:extrude_faces_individual', 'tool:inset_faces']);
     expect(shortcutForLabel(entries, 'Extrude Faces')).toBe('E');
     expect(shortcutForLabel(entries, 'Inset Faces')).toBe('I');
+  });
+
+  it('offers Subdivide Edges in the Edge menu', () => {
+    const calls: string[] = [];
+    const entries = buildViewportToolEdgeMenuEntries(createActions(calls));
+    const subdivide = entries.find((entry) => isMenuAction(entry) && entry.label === 'Subdivide Edges');
+    expect(subdivide && isMenuAction(subdivide)).toBe(true);
+    if (subdivide && isMenuAction(subdivide)) subdivide.onClick();
+    expect(calls).toEqual(['tool:subdivide_edges']);
   });
 });
 
