@@ -30,6 +30,8 @@ export interface SolidScriptEditorRowHandlers {
   configure: (line: number) => void;
   /** The line got the keyboard focus. */
   focus: (line: number) => void;
+  /** The row was pressed; with Shift held the selection grows to it. */
+  press: (line: number, extend: boolean) => void;
   /** Sets or clears the breakpoint of the line. */
   breakpoint: (line: number) => void;
 }
@@ -46,8 +48,9 @@ export interface SolidScriptEditorRowLook {
 
 /**
  * Builds one script row across the full width: the line number and the line as
- * the listing reads. A click anywhere on the row selects the line, a
- * double-click configures it, and the whole row can be dragged.
+ * the listing reads. A click anywhere on the row selects the line (Shift+click
+ * selects every line up to it), a double-click configures it, and the whole row
+ * can be dragged.
  *
  * @param block Line.
  * @param look Line index, indent and closed block.
@@ -77,7 +80,9 @@ export function solidScriptEditorRowBuild(
   solidScriptEditorChipFill(chip, block, look.closes);
   row.append(gutter, chip);
   row.addEventListener('mousedown', (event) => {
-    if (event.target !== chip && !chip.contains(event.target as Node)) {
+    if (event.button !== 0) return;
+    handlers.press(look.line, event.shiftKey);
+    if (event.shiftKey || (event.target !== chip && !chip.contains(event.target as Node))) {
       event.preventDefault();
       chip.focus();
     }

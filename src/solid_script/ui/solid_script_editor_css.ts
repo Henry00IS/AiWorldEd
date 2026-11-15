@@ -153,6 +153,7 @@ const SOLID_SCRIPT_EDITOR_LINES_CSS = `
 .${c.gutter} { cursor: pointer; }
 .${c.gutter}:hover::after { content: ''; order: -1; width: 9px; height: 9px; margin-right: 5px; border-radius: 50%; background: ${SOLID_SCRIPT_EDITOR_BREAKPOINT_COLOR}; opacity: 0.35; flex-shrink: 0; }
 .${c.row}.${c.breakpoint} .${c.gutter}::after { content: ''; order: -1; width: 9px; height: 9px; margin-right: 5px; border-radius: 50%; background: ${SOLID_SCRIPT_EDITOR_BREAKPOINT_COLOR}; opacity: 1; flex-shrink: 0; }
+.${c.row}.${c.selected} { --solid-script-row-bg: ${ThemeCss.accentAlpha(0.2)}; }
 .${c.row}.${c.current} { --solid-script-row-bg: ${ThemeCss.accentAlpha(0.38)}; }
 .${c.row}.${c.current} .${c.gutter} { color: ${ThemeCss.textColor}; font-weight: 700; }
 .${c.row}.${c.failed} .${c.gutter} { color: #e5484d; font-weight: 700; }

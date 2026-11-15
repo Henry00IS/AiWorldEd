@@ -12,7 +12,7 @@ const SOLID_SCRIPT_EDITOR_HELP_PALETTE =
 
 /** How to use a script line. */
 const SOLID_SCRIPT_EDITOR_HELP_LINE =
-  'Double-click or press Enter to configure. Delete removes the line, Ctrl+Shift+↑/↓ moves it with its block, Shift+Enter adds a blank line below.';
+  'Double-click or press Enter to configure. Shift+click or Shift+↑/↓ selects more lines, Ctrl+A all of them. Delete removes them, Ctrl+C, Ctrl+X and Ctrl+V copy, cut and paste them with their blocks, Ctrl+Shift+↑/↓ moves the line with its block, and Space adds a blank line below.';
 
 /** How field text is read, shown under the values of every command with fields. */
 const SOLID_SCRIPT_EDITOR_HELP_FIELDS =

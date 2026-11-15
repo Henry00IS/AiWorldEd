@@ -180,3 +180,95 @@ export function solidScriptDocumentLineSet(
     document.blocks.map((current, line) => (line === index ? block : current)),
   );
 }
+
+/**
+ * Returns the line that opens the block a line sits in, or null at the top.
+ *
+ * @param document Script.
+ * @param index Line index.
+ * @returns Opener line index, or null.
+ */
+function solidScriptDocumentOpenerOf(document: SolidScriptDocument, index: number): number | null {
+  let depth = 0;
+  for (let line = index - 1; line >= 0; line--) {
+    const nesting = solidScriptBlockNesting(document.blocks[line]);
+    if (nesting === 'close') depth += 1;
+    if (nesting === 'open') {
+      if (depth === 0) return line;
+      depth -= 1;
+    }
+  }
+  return null;
+}
+
+/**
+ * Widens a range of lines to whole blocks: a block opener takes its block
+ * along, and an Else or End takes the block it belongs to, so the lines can be
+ * copied, cut or removed without breaking the structure.
+ *
+ * @param document Script.
+ * @param first First line index.
+ * @param last Last line index.
+ * @returns Widened first and last line index.
+ */
+export function solidScriptDocumentRangeWhole(
+  document: SolidScriptDocument,
+  first: number,
+  last: number,
+): [number, number] {
+  let from = Math.max(0, Math.min(first, last));
+  let to = Math.min(document.blocks.length - 1, Math.max(first, last));
+  for (let changed = true; changed;) {
+    changed = false;
+    for (let line = from; line <= to; line++) {
+      const nesting = solidScriptBlockNesting(document.blocks[line]);
+      const opener = nesting === 'close' || nesting === 'continue' ? solidScriptDocumentOpenerOf(document, line) : line;
+      const [start, end] = solidScriptDocumentBlockRange(document, opener ?? line);
+      if (start < from || end > to) {
+        [from, to, changed] = [Math.min(from, start), Math.max(to, end), true];
+        break;
+      }
+    }
+  }
+  return [from, to];
+}
+
+/**
+ * Removes a range of lines, widened to whole blocks.
+ *
+ * @param document Script.
+ * @param first First line index.
+ * @param last Last line index.
+ * @returns Edited script and the line to focus.
+ */
+export function solidScriptDocumentRangeRemove(
+  document: SolidScriptDocument,
+  first: number,
+  last: number,
+): SolidScriptInsertResult {
+  const [from, to] = solidScriptDocumentRangeWhole(document, first, last);
+  const blocks = document.blocks.filter((_, line) => line < from || line > to);
+  return { document: solidScriptDocumentWith(document, blocks), line: Math.max(0, Math.min(from, blocks.length - 1)) };
+}
+
+/**
+ * Inserts copied lines with new ids below a line, filling it when it is a blank
+ * line.
+ *
+ * @param document Script.
+ * @param index Current line.
+ * @param lines Lines to insert.
+ * @returns Edited script and the first inserted line.
+ */
+export function solidScriptDocumentLinesInsert(
+  document: SolidScriptDocument,
+  index: number,
+  lines: readonly { command: string; values?: Readonly<Record<string, string>> }[],
+): SolidScriptInsertResult {
+  const blocks = [...document.blocks];
+  const reuse = solidScriptBlockIsBlank(blocks[index]);
+  const line = blocks.length === 0 ? 0 : Math.max(0, Math.min(reuse ? index : index + 1, blocks.length));
+  const inserted = lines.map((entry) => solidScriptBlockCreate(entry.command, { ...entry.values }));
+  blocks.splice(line, reuse ? 1 : 0, ...inserted);
+  return { document: solidScriptDocumentWith(document, blocks), line };
+}

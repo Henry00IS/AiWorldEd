@@ -288,6 +288,39 @@ describe('SolidScript editor', () => {
     expect(commands()).toEqual(['union', 'sphere', 'end', 'cube']);
   });
 
+  it('selects lines with Shift, copies, cuts and pastes whole blocks, and Space adds a blank line', () => {
+    const { commands, root, commandStack } = editorFixture([
+      { command: 'cube' },
+      { command: 'union' },
+      { command: 'sphere' },
+      { command: 'end' },
+      { command: 'cylinder' },
+    ]);
+    chip(0).focus();
+    press(chip(0), 'ArrowDown', { shiftKey: true });
+    expect(document.activeElement).toBe(chip(1));
+    expect(find('[data-line="0"]').classList.contains('solid-script-editor-selected')).toBe(true);
+    expect(find('[data-line="1"]').classList.contains('solid-script-editor-current')).toBe(true);
+    expect(find('[data-line="1"]').classList.contains('solid-script-editor-selected')).toBe(false);
+    press(chip(1), 'c', { ctrlKey: true });
+    expect(root.textContent).toContain('Copied 4 lines.');
+    chip(4).focus();
+    press(chip(4), 'v', { ctrlKey: true });
+    expect(commands()).toEqual(['cube', 'union', 'sphere', 'end', 'cylinder', 'cube', 'union', 'sphere', 'end']);
+    find('[data-line="5"]').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+    find('[data-line="6"]').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0, shiftKey: true }));
+    press(chip(6), 'x', { ctrlKey: true });
+    expect(commands()).toEqual(['cube', 'union', 'sphere', 'end', 'cylinder']);
+    press(chip(4), ' ');
+    expect(commands()).toEqual(['cube', 'union', 'sphere', 'end', 'cylinder', 'blank']);
+    chip(0).focus();
+    press(chip(0), 'a', { ctrlKey: true });
+    press(document.activeElement as HTMLElement, 'Delete');
+    expect(commands()).toEqual([]);
+    commandStack.undo();
+    expect(commands()).toEqual(['cube', 'union', 'sphere', 'end', 'cylinder', 'blank']);
+  });
+
   it('explains the selected line in the help panel with every value and hint', () => {
     const { root } = editorFixture([{ command: 'cylinder', values: { h: '4' } }]);
     chip(0).focus();
