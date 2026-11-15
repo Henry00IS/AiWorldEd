@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { ViewportBase, type ViewportBaseOptions } from './viewport_base.js';
 import { Grids, GridPlane } from '@/viewports/grid/grids.js';
 import { HandlerOrthoPan } from '@/navigation/camera/handler_ortho_pan.js';
+import type { MouseSettings } from '@/settings/store/settings_types.js';
 import type { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { SelectionHighlight } from '@/selection/object/selection_highlight.js';
 import { SceneRaycaster } from '@/selection/object/scene_raycaster.js';
@@ -247,6 +248,15 @@ export class Viewport2D extends ViewportBase {
     this.panHandler = new HandlerOrthoPan(this.contentElement, this.camera, (factor, pointerU, pointerV) =>
       this.zoomTowardPointer(factor, pointerU, pointerV),
     );
+  }
+
+  /**
+   * Applies Mouse tab pan and wheel preferences to orthographic navigation.
+   *
+   * @param settings Current mouse settings snapshot.
+   */
+  applyMouseNavigationSettings(settings: MouseSettings): void {
+    this.panHandler?.applyMouseNavigationSettings(settings);
   }
 
   /**

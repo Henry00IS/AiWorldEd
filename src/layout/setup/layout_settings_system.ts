@@ -3,7 +3,7 @@ import { DialogSettings } from '@/ui/settings/dialog_settings.js';
 import { EditorSettingsStore } from '@/settings/store/editor_settings_store.js';
 import { SettingsApplicator } from '@/settings/store/settings_applicator.js';
 import { performEditorFactoryReset } from '@/settings/storage/clear_editor_storage.js';
-import type { ViewSettings } from '@/settings/store/settings_types.js';
+import type { MouseSettings, ViewSettings } from '@/settings/store/settings_types.js';
 import { getTextureMapCache } from '@/texture/library/texture_map_cache.js';
 import { createTextureFilterPolicy } from '@/texture/library/policy_texture_filter.js';
 import type { Viewport3D } from '@/viewports/core/viewport_3d.js';
@@ -24,6 +24,11 @@ export interface LayoutSettingsRendererHost {
   getRenderer(): THREE.WebGLRenderer;
 }
 
+/** Viewport that can receive Mouse tab navigation preferences. */
+export interface MouseNavigationSettingsHost {
+  applyMouseNavigationSettings(settings: MouseSettings): void;
+}
+
 /** Dependencies required to create and wire the settings subsystem. */
 export interface LayoutSettingsCreateDeps {
   /**
@@ -32,6 +37,12 @@ export interface LayoutSettingsCreateDeps {
    * settings startup.
    */
   getPerspectiveViewport: () => Viewport3D | null;
+  /**
+   * Live viewports that can apply Mouse tab navigation preferences, including
+   * detached panes. Read through a getter so later-created panes are included
+   * on the next settings update.
+   */
+  getInteractiveViewports: () => ReadonlyArray<MouseNavigationSettingsHost | null | undefined>;
   /**
    * Any live viewport that can report renderer capabilities for texture
    * filtering (2D or 3D).
@@ -65,6 +76,7 @@ export function createLayoutSettingsSystem(deps: LayoutSettingsCreateDeps): Layo
     deps.onViewportPaneCount,
   );
   applyFlyingCameraMoveSpeed(deps.getPerspectiveViewport(), settingsStore.getMouseSettings().moveSpeed);
+  applyMouseNavigationSettings(deps.getInteractiveViewports(), settingsStore.getMouseSettings());
   applyLayoutTextureFilterSettings(deps.getRendererHost(), settingsStore.getViewSettings());
   const settingsUnsubscribe = settingsStore.subscribe((snapshot) => {
     settingsApplicator.applySnapshot(snapshot);
@@ -77,6 +89,7 @@ export function createLayoutSettingsSystem(deps: LayoutSettingsCreateDeps): Layo
       deps.onViewportPaneCount,
     );
     applyFlyingCameraMoveSpeed(deps.getPerspectiveViewport(), snapshot.mouse.moveSpeed);
+    applyMouseNavigationSettings(deps.getInteractiveViewports(), snapshot.mouse);
     applyLayoutTextureFilterSettings(deps.getRendererHost(), snapshot.view);
   });
   return { settingsStore, settingsApplicator, settingsUnsubscribe };
@@ -125,6 +138,21 @@ export function runEditorFactoryResetAndReload(allowReload: () => void): void {
  */
 export function applyFlyingCameraMoveSpeed(viewport: Viewport3D | null, moveSpeed: number): void {
   viewport?.setFlyingCameraMoveSpeed(moveSpeed);
+}
+
+/**
+ * Applies Mouse tab navigation preferences to every provided viewport.
+ *
+ * @param viewports Interactive viewports, possibly including null slots.
+ * @param settings Current mouse settings snapshot.
+ */
+export function applyMouseNavigationSettings(
+  viewports: ReadonlyArray<MouseNavigationSettingsHost | null | undefined>,
+  settings: MouseSettings,
+): void {
+  for (const viewport of viewports) {
+    viewport?.applyMouseNavigationSettings(settings);
+  }
 }
 
 /**

@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import { CameraFlying } from '@/navigation/camera/camera_flying.js';
 import { ManagerInput } from '@/input/manager_input.js';
 import { managerPointerLock } from '@/input/manager_pointer_lock.js';
+import { createDefaultMouseSettings } from '@/settings/store/settings_defaults.js';
+import type { MouseSettings } from '@/settings/store/settings_types.js';
 
 /**
  * Marks right-mouse fly mode active without a pointer event.
@@ -480,5 +482,235 @@ describe('FlyingCamera', () => {
     // Looking toward -Z from +Z maps to yaw of ±π with zero pitch.
     expect(Math.abs(flyingCamera.getYaw())).toBeCloseTo(Math.PI, 2);
     expect(flyingCamera.getPitch()).toBeCloseTo(0, 2);
+  });
+});
+
+/**
+ * Builds a flying camera at the origin looking along +Z.
+ *
+ * @returns Canvas, camera, and controller.
+ */
+function createFlyingCameraHarness(): {
+  canvas: HTMLCanvasElement;
+  camera: THREE.PerspectiveCamera;
+  flyingCamera: CameraFlying;
+} {
+  const mockInputManager = {
+    isKeyDown: () => false,
+    isPhysicalKeyDown: () => false,
+    isShiftDown: () => false,
+    isAltDown: () => false,
+    reset: () => {},
+  };
+  const canvas = document.createElement('canvas');
+  Object.defineProperty(canvas, 'getBoundingClientRect', {
+    value: () => ({
+      left: 0,
+      top: 0,
+      width: 200,
+      height: 100,
+      right: 200,
+      bottom: 100,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    }),
+  });
+  const camera = new THREE.PerspectiveCamera(60, 2, 0.1, 1000);
+  camera.position.set(0, 0, 0);
+  camera.up.set(0, 1, 0);
+  camera.lookAt(0, 0, 1);
+  camera.updateProjectionMatrix();
+  camera.updateMatrixWorld();
+  const flyingCamera = new CameraFlying(canvas, camera, mockInputManager as any, 0, 0);
+  return { canvas, camera, flyingCamera };
+}
+
+/**
+ * Merges mouse-setting overrides onto the documented defaults.
+ *
+ * @param overrides Partial mouse preferences.
+ * @returns Complete mouse settings snapshot.
+ */
+function mouseSettings(overrides: Partial<MouseSettings> = {}): MouseSettings {
+  return { ...createDefaultMouseSettings(), ...overrides };
+}
+
+/**
+ * Returns yaw change after a right-mouse look of the given horizontal delta.
+ *
+ * @param overrides Mouse setting overrides applied before the look.
+ * @param movementX Horizontal pointer delta in pixels.
+ * @returns Signed yaw change in radians.
+ */
+function yawDeltaForLook(overrides: Partial<MouseSettings> = {}, movementX: number = 20): number {
+  const { canvas, flyingCamera } = createFlyingCameraHarness();
+  flyingCamera.applyMouseNavigationSettings(mouseSettings(overrides));
+  canvas.dispatchEvent(new PointerEvent('pointerdown', { button: 2, pointerId: 1 }));
+  const before = flyingCamera.getYaw();
+  canvas.dispatchEvent(new PointerEvent('pointermove', { movementX, movementY: 0, pointerId: 1 }));
+  const delta = flyingCamera.getYaw() - before;
+  flyingCamera.dispose();
+  return delta;
+}
+
+/**
+ * Returns pitch change after a right-mouse look of the given vertical delta.
+ *
+ * @param overrides Mouse setting overrides applied before the look.
+ * @param movementY Vertical pointer delta in pixels.
+ * @returns Signed pitch change in radians.
+ */
+function pitchDeltaForLook(overrides: Partial<MouseSettings> = {}, movementY: number = 20): number {
+  const { canvas, flyingCamera } = createFlyingCameraHarness();
+  flyingCamera.applyMouseNavigationSettings(mouseSettings(overrides));
+  canvas.dispatchEvent(new PointerEvent('pointerdown', { button: 2, pointerId: 1 }));
+  const before = flyingCamera.getPitch();
+  canvas.dispatchEvent(new PointerEvent('pointermove', { movementX: 0, movementY, pointerId: 1 }));
+  const delta = flyingCamera.getPitch() - before;
+  flyingCamera.dispose();
+  return delta;
+}
+
+/**
+ * Returns camera movement after a middle-mouse drag.
+ *
+ * @param overrides Mouse setting overrides applied before the drag.
+ * @param movementX Horizontal pointer delta in pixels.
+ * @param movementY Vertical pointer delta in pixels.
+ * @param altKey Whether Alt is held on the pointer events.
+ * @returns World-space position change.
+ */
+function panDeltaForMiddleDrag(
+  overrides: Partial<MouseSettings> = {},
+  movementX: number = 20,
+  movementY: number = 0,
+  altKey: boolean = false,
+): THREE.Vector3 {
+  const { canvas, camera, flyingCamera } = createFlyingCameraHarness();
+  flyingCamera.applyMouseNavigationSettings(mouseSettings(overrides));
+  canvas.dispatchEvent(new PointerEvent('pointerdown', { button: 1, pointerId: 1, altKey }));
+  const before = camera.position.clone();
+  canvas.dispatchEvent(new PointerEvent('pointermove', { movementX, movementY, pointerId: 1, altKey }));
+  const delta = camera.position.clone().sub(before);
+  flyingCamera.dispose();
+  return delta;
+}
+
+describe('FlyingCamera mouse settings', () => {
+  afterEach(() => {
+    managerPointerLock.reset();
+    Object.defineProperty(document, 'pointerLockElement', {
+      configurable: true,
+      value: null,
+    });
+  });
+
+  it('keeps the default look scale when default settings are applied', () => {
+    const { canvas, flyingCamera } = createFlyingCameraHarness();
+    canvas.dispatchEvent(new PointerEvent('pointerdown', { button: 2, pointerId: 1 }));
+    canvas.dispatchEvent(new PointerEvent('pointermove', { movementX: 20, movementY: 0, pointerId: 1 }));
+    const unsetDelta = flyingCamera.getYaw();
+    flyingCamera.dispose();
+    expect(yawDeltaForLook({})).toBeCloseTo(unsetDelta, 8);
+  });
+
+  it('scales look yaw by look sensitivity relative to the default of 50', () => {
+    const atDefault = yawDeltaForLook({ lookSensitivity: 50 });
+    const atDouble = yawDeltaForLook({ lookSensitivity: 100 });
+    expect(atDefault).not.toBe(0);
+    expect(atDouble).toBeCloseTo(atDefault * 2, 6);
+  });
+
+  it('inverts look X when lookInvertXAxis is enabled', () => {
+    const normal = yawDeltaForLook({ lookInvertXAxis: false });
+    const inverted = yawDeltaForLook({ lookInvertXAxis: true });
+    expect(inverted).toBeCloseTo(-normal, 6);
+  });
+
+  it('inverts look Y when lookInvertYAxis is enabled', () => {
+    const normal = pitchDeltaForLook({ lookInvertYAxis: false });
+    const inverted = pitchDeltaForLook({ lookInvertYAxis: true });
+    expect(inverted).toBeCloseTo(-normal, 6);
+  });
+
+  it('scales pan distance by pan sensitivity relative to the default of 50', () => {
+    const atDefault = panDeltaForMiddleDrag({ panSensitivity: 50 }, 20, 0);
+    const atDouble = panDeltaForMiddleDrag({ panSensitivity: 100 }, 20, 0);
+    expect(atDefault.length()).toBeGreaterThan(0);
+    expect(atDouble.x).toBeCloseTo(atDefault.x * 2, 5);
+    expect(atDouble.y).toBeCloseTo(atDefault.y * 2, 5);
+    expect(atDouble.z).toBeCloseTo(atDefault.z * 2, 5);
+  });
+
+  it('inverts pan X when panInvertXAxis is enabled', () => {
+    const normal = panDeltaForMiddleDrag({ panInvertXAxis: false }, 20, 0);
+    const inverted = panDeltaForMiddleDrag({ panInvertXAxis: true }, 20, 0);
+    expect(inverted.x).toBeCloseTo(-normal.x, 5);
+  });
+
+  it('inverts pan Y when panInvertYAxis is enabled', () => {
+    const normal = panDeltaForMiddleDrag({ panInvertYAxis: false }, 0, 20);
+    const inverted = panDeltaForMiddleDrag({ panInvertYAxis: true }, 0, 20);
+    expect(inverted.y).toBeCloseTo(-normal.y, 5);
+  });
+
+  it('inverts perspective wheel travel when invertMouseWheel is enabled', () => {
+    const { canvas, camera, flyingCamera } = createFlyingCameraHarness();
+    flyingCamera.applyMouseNavigationSettings(mouseSettings({ invertMouseWheel: false }));
+    const before = camera.position.clone();
+    canvas.dispatchEvent(new WheelEvent('wheel', { deltaY: 100, cancelable: true }));
+    const normal = camera.position.clone().sub(before);
+    camera.position.copy(before);
+    flyingCamera.applyMouseNavigationSettings(mouseSettings({ invertMouseWheel: true }));
+    canvas.dispatchEvent(new WheelEvent('wheel', { deltaY: 100, cancelable: true }));
+    const inverted = camera.position.clone().sub(before);
+    flyingCamera.dispose();
+    expect(normal.length()).toBeGreaterThan(0);
+    expect(inverted.distanceTo(normal.clone().negate())).toBeLessThan(1e-8);
+  });
+
+  it('moves the camera toward the cursor when moveCameraTowardsCursor is enabled', () => {
+    const { canvas, camera, flyingCamera } = createFlyingCameraHarness();
+    flyingCamera.applyMouseNavigationSettings(mouseSettings({ moveCameraTowardsCursor: false }));
+    canvas.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, clientX: 200, clientY: 50, cancelable: true }));
+    const alongForward = camera.position.clone();
+    camera.position.set(0, 0, 0);
+    flyingCamera.applyMouseNavigationSettings(mouseSettings({ moveCameraTowardsCursor: true }));
+    canvas.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, clientX: 200, clientY: 50, cancelable: true }));
+    const towardCursor = camera.position.clone();
+    flyingCamera.dispose();
+    expect(Math.abs(alongForward.x)).toBeLessThan(1e-8);
+    expect(Math.abs(towardCursor.x)).toBeGreaterThan(0.01);
+    expect(towardCursor.z).toBeGreaterThan(0);
+  });
+
+  it('keeps Alt+middle-mouse as a pan unless the alternate move setting is enabled', () => {
+    const pan = panDeltaForMiddleDrag({}, 0, 20, true);
+    expect(Math.abs(pan.z)).toBeLessThan(1e-6);
+    expect(Math.abs(pan.y)).toBeGreaterThan(0.001);
+    const dolly = panDeltaForMiddleDrag({ altMiddleMouseDragMovesCamera: true }, 0, 20, true);
+    expect(Math.abs(dolly.z)).toBeGreaterThan(0.001);
+    expect(Math.abs(dolly.x)).toBeLessThan(1e-6);
+    expect(Math.abs(dolly.y)).toBeLessThan(1e-6);
+    const stillPan = panDeltaForMiddleDrag({ altMiddleMouseDragMovesCamera: true }, 0, 20, false);
+    expect(Math.abs(stillPan.z)).toBeLessThan(1e-6);
+    expect(Math.abs(stillPan.y)).toBeGreaterThan(0.001);
+  });
+
+  it('inverts Alt+middle-mouse dolly when invertAltMiddleMouseDragZAxis is enabled', () => {
+    const normal = panDeltaForMiddleDrag(
+      { altMiddleMouseDragMovesCamera: true, invertAltMiddleMouseDragZAxis: false },
+      0,
+      20,
+      true,
+    );
+    const inverted = panDeltaForMiddleDrag(
+      { altMiddleMouseDragMovesCamera: true, invertAltMiddleMouseDragZAxis: true },
+      0,
+      20,
+      true,
+    );
+    expect(inverted.z).toBeCloseTo(-normal.z, 5);
   });
 });

@@ -4,6 +4,8 @@ import { managerPointerLock } from '@/input/manager_pointer_lock.js';
 import { blurActiveFormField } from '@/utils/dom_focus.js';
 import { SelectionClickThrough } from '@/selection/object/selection_click_through.js';
 import { EditorOrientation } from '@/navigation/orientation/editor_orientation.js';
+import type { MouseSettings } from '@/settings/store/settings_types.js';
+import { mouseNavigationSensitivityMultiplier } from '@/navigation/camera/mouse_navigation_settings.js';
 
 /**
  * First-person flying camera for the 3D viewport. Look and WASD/QE movement
@@ -27,6 +29,17 @@ export class CameraFlying {
   /** Multiplier applied to fly speed while Shift is held. */
   private readonly shiftSpeedMultiplier: number;
   private mouseSensitivity: number;
+  private lookSensitivityMultiplier: number;
+  private lookInvertXAxis: boolean;
+  private lookInvertYAxis: boolean;
+  private panSensitivityMultiplier: number;
+  private panInvertXAxis: boolean;
+  private panInvertYAxis: boolean;
+  private invertMouseWheel: boolean;
+  private altMiddleMouseDragMovesCamera: boolean;
+  private invertAltMiddleMouseDragZAxis: boolean;
+  private moveCameraTowardsCursor: boolean;
+  private isDollying: boolean;
   private panTarget: THREE.Vector3;
   private panDistance: number;
   private isDisposed: boolean;
@@ -37,6 +50,7 @@ export class CameraFlying {
   private readonly scratchWorldRight: THREE.Vector3;
   private readonly scratchWorldUp: THREE.Vector3;
   private readonly scratchInverseOrientation: THREE.Quaternion;
+  private readonly scratchWheelDirection: THREE.Vector3;
   private readonly onContextMenu: (event: Event) => void;
   private readonly onPointerDownBound: (event: PointerEvent) => void;
   private readonly onPointerMoveBound: (event: PointerEvent) => void;
@@ -68,6 +82,7 @@ export class CameraFlying {
     this.editorOrientation = editorOrientation ?? new EditorOrientation();
     this.isRotating = false;
     this.isPanning = false;
+    this.isDollying = false;
     this.isDisposed = false;
     this.isEnabled = true;
     this.holdsPointerLock = false;
@@ -77,6 +92,16 @@ export class CameraFlying {
     this.moveSpeed = 10;
     this.shiftSpeedMultiplier = 3;
     this.mouseSensitivity = 0.002;
+    this.lookSensitivityMultiplier = 1;
+    this.lookInvertXAxis = false;
+    this.lookInvertYAxis = false;
+    this.panSensitivityMultiplier = 1;
+    this.panInvertXAxis = false;
+    this.panInvertYAxis = false;
+    this.invertMouseWheel = false;
+    this.altMiddleMouseDragMovesCamera = false;
+    this.invertAltMiddleMouseDragZAxis = false;
+    this.moveCameraTowardsCursor = false;
     this.panTarget = new THREE.Vector3();
     this.panDistance = 1;
     this.scratchLocalForward = new THREE.Vector3();
@@ -84,6 +109,7 @@ export class CameraFlying {
     this.scratchWorldRight = new THREE.Vector3();
     this.scratchWorldUp = new THREE.Vector3();
     this.scratchInverseOrientation = new THREE.Quaternion();
+    this.scratchWheelDirection = new THREE.Vector3();
     this.onContextMenu = (event) => event.preventDefault();
     this.onPointerDownBound = (event) => this.onPointerDown(event);
     this.onPointerMoveBound = (event) => this.onPointerMove(event);
@@ -116,6 +142,7 @@ export class CameraFlying {
     }
     this.isRotating = false;
     this.isPanning = false;
+    this.isDollying = false;
     this.activeButtons.clear();
     this.dropPointerLock();
   }
@@ -137,7 +164,7 @@ export class CameraFlying {
     this.canvas.addEventListener('pointerup', this.onPointerUpBound);
     this.canvas.addEventListener('pointercancel', this.onPointerUpBound);
     this.canvas.addEventListener('lostpointercapture', this.onPointerUpBound);
-    this.canvas.addEventListener('wheel', this.onWheelBound);
+    this.canvas.addEventListener('wheel', this.onWheelBound, { passive: false });
     this.canvas.ownerDocument.addEventListener('pointerlockchange', this.onPointerLockChangeBound);
     const ownerWindow = this.getOwnerWindow();
     ownerWindow.addEventListener('pointerup', this.onPointerUpBound);
@@ -151,6 +178,7 @@ export class CameraFlying {
     this.isDisposed = true;
     this.isRotating = false;
     this.isPanning = false;
+    this.isDollying = false;
     this.activeButtons.clear();
     this.dropPointerLock();
     this.canvas.removeEventListener('contextmenu', this.onContextMenu);
@@ -195,7 +223,11 @@ export class CameraFlying {
     }
     if (event.button === 1) {
       blurActiveFormField();
-      this.beginPan();
+      if (this.shouldDollyWithMiddleMouse(event)) {
+        this.beginDolly();
+      } else {
+        this.beginPan();
+      }
       this.activeButtons.add(event.button);
       this.takePointerLock();
       SelectionClickThrough.resetClickThrough();
@@ -214,8 +246,36 @@ export class CameraFlying {
   private beginPan(): void {
     this.syncOrientationFromCamera();
     this.isPanning = true;
+    this.isDollying = false;
+    this.capturePanDistance();
+  }
+
+  /** Begins Alt+middle-mouse dolly along the view forward axis. */
+  private beginDolly(): void {
+    this.syncOrientationFromCamera();
+    this.isDollying = true;
+    this.isPanning = false;
+    this.capturePanDistance();
+  }
+
+  /** Stores the look-target distance used to scale pan and dolly movement. */
+  private capturePanDistance(): void {
     this.panTarget.copy(this.camera.position).add(this.getForward());
     this.panDistance = this.camera.position.distanceTo(this.panTarget);
+  }
+
+  /**
+   * Returns whether a middle-mouse press should dolly instead of pan.
+   *
+   * @param event Pointer down event that may report Alt.
+   * @returns True when the alternate middle-mouse move setting is on and Alt is
+   *   held.
+   */
+  private shouldDollyWithMiddleMouse(event: PointerEvent): boolean {
+    if (!this.altMiddleMouseDragMovesCamera) {
+      return false;
+    }
+    return event.altKey || this.inputManager.isAltDown?.() === true;
   }
 
   /**
@@ -263,6 +323,7 @@ export class CameraFlying {
     }
     this.isRotating = false;
     this.isPanning = false;
+    this.isDollying = false;
     this.activeButtons.clear();
     this.dropPointerLock();
   }
@@ -281,6 +342,9 @@ export class CameraFlying {
     }
     if (this.isPanning) {
       this.handlePan(event.movementX, event.movementY);
+    }
+    if (this.isDollying) {
+      this.handleDolly(event.movementY);
     }
   }
 
@@ -310,6 +374,7 @@ export class CameraFlying {
   private endNavigationButton(button: number): void {
     if (button === 1) {
       this.isPanning = false;
+      this.isDollying = false;
       this.activeButtons.delete(button);
     }
     if (button === 2) {
@@ -331,10 +396,41 @@ export class CameraFlying {
       return;
     }
     event.preventDefault();
-    const forward = this.getForward();
-    const zoomAmount = event.deltaY > 0 ? -1 : 1;
-    this.camera.position.addScaledVector(forward, zoomAmount * 0.5);
+    const zoomAmount = this.resolveWheelTravel(event.deltaY);
+    const direction = this.moveCameraTowardsCursor ? this.getWheelDirectionTowardCursor(event) : this.getForward();
+    this.camera.position.addScaledVector(direction, zoomAmount * 0.5);
     SelectionClickThrough.resetClickThrough();
+  }
+
+  /**
+   * Resolves signed wheel travel along the chosen zoom direction.
+   *
+   * @param deltaY Wheel event vertical delta.
+   * @returns Positive travel when the camera should move forward.
+   */
+  private resolveWheelTravel(deltaY: number): number {
+    const travel = deltaY > 0 ? -1 : 1;
+    return this.invertMouseWheel ? -travel : travel;
+  }
+
+  /**
+   * Builds a world direction from the camera through the wheel cursor.
+   *
+   * @param event Wheel event providing client coordinates.
+   * @returns Unit direction from the camera toward the cursor.
+   */
+  private getWheelDirectionTowardCursor(event: WheelEvent): THREE.Vector3 {
+    const rect = this.canvas.getBoundingClientRect();
+    const width = Math.max(rect.width, 1);
+    const height = Math.max(rect.height, 1);
+    const ndcX = ((event.clientX - rect.left) / width) * 2 - 1;
+    const ndcY = -(((event.clientY - rect.top) / height) * 2 - 1);
+    this.scratchWheelDirection.set(ndcX, ndcY, 0.5).unproject(this.camera);
+    this.scratchWheelDirection.sub(this.camera.position);
+    if (this.scratchWheelDirection.lengthSq() < 1e-12) {
+      return this.getForward();
+    }
+    return this.scratchWheelDirection.normalize();
   }
 
   /**
@@ -344,8 +440,11 @@ export class CameraFlying {
    * @param deltaY Vertical mouse movement.
    */
   private handleRotation(deltaX: number, deltaY: number): void {
-    this.yaw -= deltaX * this.mouseSensitivity;
-    this.pitch -= deltaY * this.mouseSensitivity;
+    const sensitivity = this.mouseSensitivity * this.lookSensitivityMultiplier;
+    const lookX = this.lookInvertXAxis ? -deltaX : deltaX;
+    const lookY = this.lookInvertYAxis ? -deltaY : deltaY;
+    this.yaw -= lookX * sensitivity;
+    this.pitch -= lookY * sensitivity;
     this.pitch = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, this.pitch));
   }
 
@@ -358,9 +457,22 @@ export class CameraFlying {
   private handlePan(deltaX: number, deltaY: number): void {
     const right = this.getRight();
     const up = this.getCameraUp();
-    const scale = this.panDistance * 0.002;
-    this.camera.position.addScaledVector(right, -deltaX * scale);
-    this.camera.position.addScaledVector(up, deltaY * scale);
+    const scale = this.panDistance * 0.002 * this.panSensitivityMultiplier;
+    const panX = this.panInvertXAxis ? -deltaX : deltaX;
+    const panY = this.panInvertYAxis ? -deltaY : deltaY;
+    this.camera.position.addScaledVector(right, -panX * scale);
+    this.camera.position.addScaledVector(up, panY * scale);
+  }
+
+  /**
+   * Moves the camera along the view forward axis from vertical mouse travel.
+   *
+   * @param deltaY Vertical mouse movement.
+   */
+  private handleDolly(deltaY: number): void {
+    const scale = this.panDistance * 0.002 * this.panSensitivityMultiplier;
+    const travel = this.invertAltMiddleMouseDragZAxis ? deltaY : -deltaY;
+    this.camera.position.addScaledVector(this.getForward(), travel * scale);
   }
 
   /**
@@ -520,7 +632,7 @@ export class CameraFlying {
    * @returns True if right or middle mouse navigation is active.
    */
   isNavigating(): boolean {
-    return this.isRotating || this.isPanning;
+    return this.isRotating || this.isPanning || this.isDollying;
   }
 
   /**
@@ -557,5 +669,25 @@ export class CameraFlying {
    */
   setMoveSpeed(speed: number): void {
     this.moveSpeed = Math.max(1, Math.min(20, speed));
+  }
+
+  /**
+   * Applies Mouse tab navigation preferences. Default slider values keep the
+   * historical look, pan, and wheel scales.
+   *
+   * @param settings Current mouse settings snapshot.
+   */
+  applyMouseNavigationSettings(settings: MouseSettings): void {
+    this.setMoveSpeed(settings.moveSpeed);
+    this.lookSensitivityMultiplier = mouseNavigationSensitivityMultiplier(settings.lookSensitivity);
+    this.lookInvertXAxis = settings.lookInvertXAxis;
+    this.lookInvertYAxis = settings.lookInvertYAxis;
+    this.panSensitivityMultiplier = mouseNavigationSensitivityMultiplier(settings.panSensitivity);
+    this.panInvertXAxis = settings.panInvertXAxis;
+    this.panInvertYAxis = settings.panInvertYAxis;
+    this.invertMouseWheel = settings.invertMouseWheel;
+    this.altMiddleMouseDragMovesCamera = settings.altMiddleMouseDragMovesCamera;
+    this.invertAltMiddleMouseDragZAxis = settings.invertAltMiddleMouseDragZAxis;
+    this.moveCameraTowardsCursor = settings.moveCameraTowardsCursor;
   }
 }
