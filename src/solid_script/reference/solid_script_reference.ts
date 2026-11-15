@@ -10,7 +10,7 @@ import { solidScriptDocumentListing } from '@/solid_script/document/solid_script
 export const SOLID_SCRIPT_REFERENCE_SUMMARY =
   "SolidScript is AiWorldEd's block script for CSG: a list of lines {command, values}, run top to bottom like the script editor shows them. " +
   'Field values are plain text without quotes: numbers, "x, y, z" lists, [name] for a variable, [=formula] for a calculation. The origin is the centre of the generator, and shapes are centred on it by default. ' +
-  "Commands build boxes, balls, cylinders and convex point sets, extrude flat outlines, move/turn/stretch/mirror, join, cut, overlap and wrap shapes, set variables, repeat, branch and reuse named parts. Generator blocks build the shapes of the editor's generators (Cone, Torus, Stairs, Arch and more) with their own fields, and mesh blocks build regular editable meshes. " +
+  "Commands build boxes, balls, cylinders and convex point sets, extrude flat outlines, move/turn/stretch/mirror, join, cut, overlap and wrap shapes, set variables and lists, repeat, branch, reuse named parts, define functions, react to events and offer input settings in the inspector. Generator blocks build the shapes of the editor's generators (Cone, Torus, Stairs, Arch and more) with their own fields, and mesh blocks build regular editable meshes. " +
   'Every shape becomes one convex brush; Difference becomes a CSG group whose first child adds and the rest subtract. ' +
   'Z-up, metres, degrees. Read geometry_script_reference_get once before writing a script: it lists every command, its fields and defaults, what stops it, and common mistakes.';
 
@@ -40,7 +40,7 @@ SolidScript is how AiWorldEd describes brush geometry as a script of block lines
 - Every run starts a fresh machine: no variable or setting survives from an earlier run or from another generator.
 - Before anything runs, the block structure is checked: a missing End, an End without a block, an Else outside an If, or an unknown command stops the script and builds nothing.
 - Lines then run top to bottom. A variable exists from its Set line on; a line above it cannot use it. Setting a name again changes the existing variable, so a Set inside a Repeat can count up across rounds.
-- Define Part lines are registered before the run, so Use Part may come before or after its Define Part. Use Part works like a call: the part's lines run, then the script carries on after the Use Part line. The part sees the caller's variables, and Set inside it changes a variable that already exists outside, so a part can hand back results. A part may use itself (recursion) as long as an If stops it; parts nest at most 64 deep. Use Part's name may be a variable, such as "[style]".
+- Define Part, Define Function and When Event lines are registered before the run, so Use Part, a function call or Raise Event may come before or after them. Use Part works like a call: the part's lines run, then the script carries on after the Use Part line. The part sees the caller's variables, and Set inside it changes a variable that already exists outside, so a part can hand back results. A part may use itself (recursion) as long as an If stops it; parts nest at most 64 deep. Use Part's name may be a variable, such as "[style]".
 - The first mistake stops the script at that line; the error names the line and the field, such as "line 3: Size must be greater than 0".
 - A script builds at most 2000 solids, and Repeat runs at most 10000 rounds.
 
@@ -63,7 +63,7 @@ Every field is plain text, without quotes, read like this:
 - Name fields (variable, counter, part names) take a plain name, without brackets; Set's name may also be a list item such as points([i]). Note text is used as typed.
 - An unknown [name] stops the script with "line N: ... there is no variable [name]"; a formula that cannot be read stops it with the formula and the reason.
 
-Formulas know: numbers, text in double quotes, true, false, lists in $[ $] brackets, the operators (loosest first) ? :, ||, &&, == !=, < <= > >=, + -, * / %, unary - + !, and the functions sin, cos, tan, asin, acos, atan, atan2 (degrees), abs, sign, ceil, floor, round, sqrt, exp, ln, log (base 10), pow, min, max, norm, cross, len, concat, str, is_undef, is_num, is_list, is_string, is_bool, lookup (lookup(key, table) blends between the two nearest key, value pairs of a table), rands (rands(min, max, count, seed) gives the same random numbers for the same seed), and PI. Lists add item by item and a number times a list scales it.
+Formulas know: numbers, text in double quotes, true, false, lists in $[ $] brackets, the operators (loosest first) ? :, ||, &&, == !=, < <= > >=, + -, * / %, unary - + !, and the functions sin, cos, tan, asin, acos, atan, atan2 (degrees), abs, sign, ceil, floor, round, sqrt, exp, ln, log (base 10), pow, min, max, norm, cross, len, concat, str, is_undef, is_num, is_list, is_string, is_bool, lookup (lookup(key, table) blends between the two nearest key, value pairs of a table), rands (rands(min, max, count, seed) gives the same random numbers for the same seed), and PI, plus the functions the script defines with Define Function. Lists add item by item and a number times a list scales it.
 
 ## Shapes and brushes
 
@@ -82,13 +82,21 @@ Formulas know: numbers, text in double quotes, true, false, lists in $[ $] brack
 - Subdivide, Smooth Mesh, Displace, Extrude Faces, Box UVs and Flip Faces change the mesh made from the lines inside them; solids inside are turned into a mesh first. Displace and Extrude Faces work out their distance per point or face from a formula that may use [x], [y], [z], [nx], [ny], [nz] and [index].
 - A script may mix brushes and meshes. A mesh cannot be cut: Difference and Intersection stop the script when a mesh is inside them.
 - In a SolidScript generator, meshes show as a preview that is not saved, picked or collided with; Bake turns them into mesh objects. geometry_script_build creates them as mesh objects in the same undo step as the brushes.
+
+## Inputs, functions and events
+
+- Input lines give a script settings, like the fields of a built-in generator: Input steps, Type count, Default 8, Minimum 1, Maximum 64 makes a read-only variable [steps]. In a SolidScript generator the inspector shows one control per Input (number, count, switch, text or choice) and geometry_script_generator_set takes their values as inputs; until a value is set, the Default is used. A value outside the limits stops the script.
+- Define Function names a formula: Name area, Inputs "w, d", Result "[w] * [d]" lets every formula write area(2, 3). Functions are registered before the run, see the variables set at the top of the script, and may use themselves as long as a ? : stops them (64 deep at most).
+- When Event blocks run when their event happens: start before the other lines, finish after them, and any other name when a Raise Event line names it. Every When Event of that name runs in line order, where the event was raised, and Set inside changes the variables there. Nothing happens for an event no block waits for.
+- Remove Item takes an item out of a list: "points(1)" removes item 1 and moves the later items up, "points()" removes the last one.
+- Offset grows (Distance above 0) or shrinks (below 0) the flat outlines inside it, with round or sharp corners; shrinking and sharp corners need convex outlines for now.
 `;
 
 /** Tool part of the reference: which tool takes what. */
 const SOLID_SCRIPT_REFERENCE_TOOLS = `## Tools
 
 - geometry_script_build and geometry_script_preview take lines and add the result as plain brushes (or report what they would add).
-- A SolidScript generator (modifier_generator_create kind solidScript) keeps a named script in the level and rebuilds its brushes whenever the script or its box changes. geometry_script_generator_set replaces its name, lines and placement in one undo step; geometry_script_generator_get reads them back with how the editor lists each line, the solid count and the first error. Turn the result into plain brushes with modifier_stack_bake.
+- A SolidScript generator (modifier_generator_create kind solidScript) keeps a named script in the level and rebuilds its brushes whenever the script or its box changes. geometry_script_generator_set replaces its name, lines, placement and input values in one undo step; geometry_script_generator_get reads them back with how the editor lists each line, the script's Input lines with their values, the solid count and the first error. Turn the result into plain brushes with modifier_stack_bake.
 - geometry_script_command_list returns the same commands as JSON.
 `;
 

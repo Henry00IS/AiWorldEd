@@ -4,6 +4,7 @@ import { SOLID_SCRIPT_COMMANDS_COMBINE, SOLID_SCRIPT_COMMANDS_TRANSFORMS } from 
 import { SOLID_SCRIPT_COMMANDS_LOGIC } from './solid_script_commands_logic.js';
 import { SOLID_SCRIPT_COMMANDS_MESHES } from './solid_script_commands_meshes.js';
 import { SOLID_SCRIPT_COMMANDS_GENERATORS } from './solid_script_commands_generators.js';
+import { SOLID_SCRIPT_COMMANDS_PROGRAM } from './solid_script_commands_program.js';
 
 /** Palette groups in palette order. */
 export const SOLID_SCRIPT_COMMAND_CATEGORIES: readonly SolidScriptCommandCategory[] = [
@@ -13,6 +14,7 @@ export const SOLID_SCRIPT_COMMAND_CATEGORIES: readonly SolidScriptCommandCategor
   'Transforms',
   'Combine',
   'Meshes',
+  'Inputs',
   'Logic',
   'Parts',
 ];
@@ -26,6 +28,7 @@ export const solidScriptCommands: readonly SolidScriptCommand[] = [
   ...SOLID_SCRIPT_COMMANDS_COMBINE,
   ...SOLID_SCRIPT_COMMANDS_MESHES,
   ...SOLID_SCRIPT_COMMANDS_LOGIC,
+  ...SOLID_SCRIPT_COMMANDS_PROGRAM,
 ];
 
 /**

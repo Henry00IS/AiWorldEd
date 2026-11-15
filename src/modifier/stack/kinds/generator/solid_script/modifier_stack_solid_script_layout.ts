@@ -38,6 +38,7 @@ export interface ModifierStackSolidScriptLayout {
  * @param box Generator box in frame coordinates.
  * @param operation Operation of the top-level results.
  * @param stepLimit Primitive steps to build, or undefined for all.
+ * @param inputs Values of the script's Input lines, as text by name.
  * @returns Nodes in frame coordinates, or an error.
  */
 export function modifierStackSolidScriptLayout(
@@ -46,9 +47,13 @@ export function modifierStackSolidScriptLayout(
   box: THREE.Box3,
   operation: SolidOperation,
   stepLimit: number | undefined,
+  inputs: Readonly<Record<string, string>> = {},
 ): ModifierStackSolidScriptLayout {
   try {
-    const { shapes } = solidScriptProgramEvaluate(document, stepLimit === undefined ? {} : { stepLimit });
+    const { shapes } = solidScriptProgramEvaluate(
+      document,
+      stepLimit === undefined ? { inputs } : { stepLimit, inputs },
+    );
     const placed = modifierStackSolidScriptPlacementMatrix(shapes, placement, box);
     const nodes = solidScriptSolidTreeBuild(shapes, {
       upAxis: 'z',

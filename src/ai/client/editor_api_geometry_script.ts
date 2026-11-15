@@ -4,6 +4,7 @@ import { CommandModifierStackSet } from '@/modifier/stack/command_modifier_stack
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierStackPatch } from '@/modifier/stack/modifier_stack_operations.js';
 import {
+  MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY,
   MODIFIER_STACK_SOLID_SCRIPT_KEY,
   MODIFIER_STACK_SOLID_SCRIPT_KIND,
 } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_kind_solid_script.js';
@@ -17,7 +18,9 @@ import {
 import { solidScriptDocumentListing } from '@/solid_script/document/solid_script_document_listing.js';
 import { solidScriptErrorText } from '@/solid_script/language/solid_script_error.js';
 import { solidScriptProgramEvaluate } from '@/solid_script/language/solid_script_program.js';
+import { solidScriptInputsList } from '@/solid_script/language/solid_script_input.js';
 import { solidScriptReference } from '@/solid_script/reference/solid_script_reference.js';
+import { solidScriptInspectorInputValues } from '@/solid_script/ui/solid_script_inspector_inputs.js';
 import type { EditorApiHost } from './editor_api_host.js';
 import { modifierObjectFind } from './modifier/editor_api_modifier_lookup.js';
 import { failResult, okResult } from './editor_api_result.js';
@@ -34,6 +37,7 @@ export interface GeometryScriptGeneratorSetArgs {
   name?: string;
   lines?: GeometryScriptLineArgs[];
   placement?: string;
+  inputs?: Record<string, unknown>;
 }
 
 /** Box mappings a SolidScript generator offers. */
@@ -112,9 +116,11 @@ export class EditorApiGeometryScript {
   }
 
   /**
-   * Replaces a generator's script name, lines and placement as one undo step.
+   * Replaces a generator's script name, lines, placement and input values as
+   * one undo step.
    *
-   * @param args Generator, new name, new command lines and placement.
+   * @param args Generator, new name, new command lines, placement and input
+   *   values.
    * @returns The stored script.
    */
   generatorSet(args: GeometryScriptGeneratorSetArgs): McpToolResult {
@@ -124,9 +130,12 @@ export class EditorApiGeometryScript {
       return failResult(`placement must be one of ${GEOMETRY_SCRIPT_PLACEMENTS.join(', ')}`);
     const document = this.documentFrom(args, generator);
     if (typeof document === 'string') return failResult(document);
+    const inputs = geometryScriptInputsRead(args.inputs, document, generator.parameters);
+    if (typeof inputs === 'string') return failResult(inputs);
     const before = ModifierVolume.read(generator.node);
     const patch = {
       [MODIFIER_STACK_SOLID_SCRIPT_KEY]: document,
+      [MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]: inputs,
       ...(args.placement ? { placement: args.placement } : {}),
     };
     const after = modifierStackPatch(before, generator.stepId, { parameters: { ...generator.parameters, ...patch } });
@@ -163,7 +172,13 @@ export class EditorApiGeometryScript {
    * @returns Tool data.
    */
   private describe(generator: GeometryScriptGenerator, document: SolidScriptDocument): Record<string, unknown> {
-    const { solids, error } = geometryScriptRun(document);
+    const values = solidScriptInspectorInputValues(generator.parameters[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]);
+    const { solids, error } = geometryScriptRun(document, values);
+    const inputs = solidScriptInputsList(document.blocks).map(({ fallback, ...input }) => ({
+      ...input,
+      default: fallback,
+      value: values[input.name] ?? fallback,
+    }));
     const listed = solidScriptDocumentListing(document);
     const lines = document.blocks.map((block, index) => ({
       line: index + 1,
@@ -176,6 +191,7 @@ export class EditorApiGeometryScript {
       name: document.name,
       placement: generator.parameters['placement'],
       lines,
+      inputs,
       solids,
       error,
     };
@@ -233,14 +249,49 @@ function geometryScriptLineRead(line: GeometryScriptLineArgs): SolidScriptBlock 
 }
 
 /**
+ * Merges the input values the tools write into the stored ones, keeping only
+ * inputs the script has.
+ *
+ * @param given Input values by name, or undefined to keep the stored ones.
+ * @param document New script.
+ * @param parameters Current generator parameters.
+ * @returns Input values as text by name, or an error.
+ */
+function geometryScriptInputsRead(
+  given: Record<string, unknown> | undefined,
+  document: SolidScriptDocument,
+  parameters: Record<string, unknown>,
+): Record<string, string> | string {
+  const names = new Set(solidScriptInputsList(document.blocks).map((input) => input.name));
+  const stored = solidScriptInspectorInputValues(parameters[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]);
+  const merged: Record<string, string> = {};
+  for (const [name, value] of Object.entries(stored)) if (names.has(name)) merged[name] = value;
+  if (given === undefined) return merged;
+  if (!given || typeof given !== 'object' || Array.isArray(given))
+    return 'inputs must be an object of values by input name';
+  for (const [name, value] of Object.entries(given)) {
+    if (!names.has(name))
+      return `the script has no Input ${name}; inputs: ${[...names].join(', ') || 'none, add an Input line first'}`;
+    if (!['string', 'number', 'boolean'].includes(typeof value))
+      return `input ${name} must be a number, text or true/false`;
+    merged[name] = typeof value === 'boolean' ? (value ? 'yes' : 'no') : String(value);
+  }
+  return merged;
+}
+
+/**
  * Runs a script to count its solids and find its first error.
  *
  * @param document Script.
+ * @param inputs Values of its Input lines.
  * @returns Solid count and error text, empty without an error.
  */
-function geometryScriptRun(document: SolidScriptDocument): { solids: number; error: string } {
+function geometryScriptRun(
+  document: SolidScriptDocument,
+  inputs: Readonly<Record<string, string>>,
+): { solids: number; error: string } {
   try {
-    return { solids: solidScriptProgramEvaluate(document).steps.length, error: '' };
+    return { solids: solidScriptProgramEvaluate(document, { inputs }).steps.length, error: '' };
   } catch (thrown) {
     return { solids: 0, error: solidScriptErrorText(thrown) };
   }

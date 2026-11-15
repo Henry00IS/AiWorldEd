@@ -14,6 +14,7 @@ import { solidScriptErrorText } from '@/solid_script/language/solid_script_error
 import { solidScriptProgramEvaluate } from '@/solid_script/language/solid_script_program.js';
 import { SOLID_SCRIPT_FILE_EXTENSION } from '@/solid_script/file/solid_script_file.js';
 import { solidScriptEditorIcon } from './solid_script_editor_icons.js';
+import { solidScriptInspectorInputValues } from './solid_script_inspector_inputs.js';
 import { solidScriptFileDropBind, type SolidScriptFileDropResult } from './solid_script_file_drop.js';
 
 /** Builds what the row's buttons act on, with a status line. */
@@ -29,9 +30,14 @@ const SOLID_SCRIPT_INSPECTOR_HINT = `The script this generator runs. Edit Script
  *
  * @param targetOf Builds what the row acts on.
  * @param key Parameter key of the script.
+ * @param inputsKey Parameter key of the values of its Input lines.
  * @returns Inspector row.
  */
-export function solidScriptInspectorRow(targetOf: SolidScriptInspectorTargetOf, key: string): ModifierStackWidget {
+export function solidScriptInspectorRow(
+  targetOf: SolidScriptInspectorTargetOf,
+  key: string,
+  inputsKey: string,
+): ModifierStackWidget {
   const card = solidScriptInspectorCard();
   const name = modifierStackUiText('div', '');
   Object.assign(name.style, { display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700' });
@@ -44,7 +50,7 @@ export function solidScriptInspectorRow(targetOf: SolidScriptInspectorTargetOf, 
   const write = (parameters: Record<string, unknown>): void => {
     const document = solidScriptDocumentNormalize(parameters[key]);
     name.replaceChildren(solidScriptEditorIcon('script'), document.name || 'Script');
-    solidScriptInspectorDetail(detail, document);
+    solidScriptInspectorDetail(detail, document, solidScriptInspectorInputValues(parameters[inputsKey]));
   };
   return { element: modifierStackUiRow('Script', card, SOLID_SCRIPT_INSPECTOR_HINT), write };
 }
@@ -101,11 +107,16 @@ function solidScriptInspectorButtons(
  *
  * @param element Detail line.
  * @param document Script.
+ * @param inputs Values of its Input lines.
  */
-function solidScriptInspectorDetail(element: HTMLElement, document: SolidScriptDocument): void {
+function solidScriptInspectorDetail(
+  element: HTMLElement,
+  document: SolidScriptDocument,
+  inputs: Readonly<Record<string, string>>,
+): void {
   const lines = `${document.blocks.length} ${document.blocks.length === 1 ? 'line' : 'lines'}`;
   try {
-    const solids = solidScriptProgramEvaluate(document).steps.length;
+    const solids = solidScriptProgramEvaluate(document, { inputs }).steps.length;
     element.textContent = `${lines} · ${solids} ${solids === 1 ? 'solid' : 'solids'}`;
     element.style.color = '';
   } catch (error) {

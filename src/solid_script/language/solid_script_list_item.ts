@@ -113,3 +113,25 @@ export function solidScriptListItemWrite(
   next[at] = value;
   return next;
 }
+
+/**
+ * Takes one item out of a list for Remove Item; the items after it move up.
+ *
+ * @param name List name, for messages.
+ * @param list Current value.
+ * @param index Item to remove, or null for the last item.
+ * @returns New list.
+ */
+export function solidScriptListItemRemove(
+  name: string,
+  list: SolidScriptValue,
+  index: SolidScriptValue | null,
+): SolidScriptValue[] {
+  if (!Array.isArray(list))
+    throw new Error(`[${name}] is ${solidScriptValueText(list)}, not a list, so it has no items to remove`);
+  if (list.length === 0) throw new Error(`${name} has no items to remove`);
+  const at = index === null ? list.length - 1 : solidScriptListIndex(name, index);
+  if (at >= list.length)
+    throw new Error(`${name}(${at}) is past the end: ${name} has ${list.length} items, numbered from 0`);
+  return list.filter((_, position) => position !== at);
+}

@@ -19,8 +19,16 @@ export class SolidScriptExpressionEvaluator {
    * Creates the expression evaluator.
    *
    * @param tick Counts one step of work: each loop round and function call.
+   * @param userCall Works out a function the script defines, or returns null
+   *   when it defines none of that name.
    */
-  constructor(private readonly tick: () => void = () => {}) {}
+  constructor(
+    private readonly tick: () => void = () => {},
+    private readonly userCall: (
+      name: string,
+      values: readonly SolidScriptValue[],
+    ) => { value: SolidScriptValue } | null = () => null,
+  ) {}
 
   /**
    * Evaluates an expression.
@@ -156,8 +164,12 @@ export class SolidScriptExpressionEvaluator {
    */
   private evaluateCall(name: string, args: SolidScriptArgument[], scope: SolidScriptScope): SolidScriptValue {
     const builtin = SOLID_SCRIPT_FUNCTIONS_BUILTIN[name];
-    if (!builtin) throw new Error(`unknown function ${name}()`);
     const values = args.map((arg) => this.evaluate(arg.value, scope));
+    if (!builtin) {
+      const result = this.userCall(name, values);
+      if (!result) throw new Error(`unknown function ${name}(); define it with Define Function`);
+      return result.value;
+    }
     const result = builtin(values);
     if (result === undefined && name !== 'is_undef')
       throw new Error(`${name}() cannot use ${values.map(solidScriptValueShow).join(', ') || 'no values'}`);

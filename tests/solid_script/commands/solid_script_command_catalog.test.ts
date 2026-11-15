@@ -56,6 +56,8 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
   if (command.id === 'linear_extrude') return [line, { command: 'square' }, { command: 'end' }];
   if (command.id === 'else')
     return [counter, { command: 'if' }, { command: 'cube' }, line, { command: 'sphere' }, { command: 'end' }];
+  if (command.id === 'remove_item')
+    return [{ command: 'variable', values: { name: 'points()', value: '0, 0' } }, line, { command: 'cube' }];
   if (command.id === 'end') return [{ command: 'union' }, { command: 'cube' }, line];
   if (command.id === 'part') return [line, { command: 'cube' }, { command: 'end' }, { command: 'use_part' }];
   if (command.id === 'return')

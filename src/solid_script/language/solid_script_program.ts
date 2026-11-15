@@ -6,7 +6,6 @@ import {
   solidScriptFailure,
   type SolidScriptBreakpoints,
   type SolidScriptEvaluation,
-  type SolidScriptPreset,
   type SolidScriptRun,
 } from './solid_script_machine.js';
 
@@ -15,7 +14,7 @@ export interface SolidScriptProgramOptions {
   /** Shapes to build; later shapes are only counted, for the debugger. */
   stepLimit?: number;
   /** Values defined before the first line, such as inspector inputs. */
-  presets?: readonly SolidScriptPreset[];
+  inputs?: Readonly<Record<string, string>>;
   /** Breakpoint lines to record, and the hit to pause at, for the debugger. */
   breakpoints?: SolidScriptBreakpoints;
 }
@@ -30,7 +29,7 @@ export interface SolidScriptProgram {
  * before the first mistake, with the mistake. Never throws.
  *
  * @param program Lines of the script.
- * @param options Step limit and presets.
+ * @param options Step limit, breakpoints and input values.
  * @returns Run result.
  */
 export function solidScriptProgramRun(
@@ -39,7 +38,7 @@ export function solidScriptProgramRun(
 ): SolidScriptRun {
   try {
     const lines = solidScriptBlockTree(program.blocks, solidScriptCommandFind);
-    return new SolidScriptMachine(options.stepLimit, options.breakpoints ?? null).run(lines, options.presets);
+    return new SolidScriptMachine(options.stepLimit, options.breakpoints ?? null, options.inputs).run(lines);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return {
@@ -58,7 +57,7 @@ export function solidScriptProgramRun(
  * Runs the lines of a script and throws on the first mistake.
  *
  * @param program Lines of the script.
- * @param options Step limit and presets.
+ * @param options Step limit, breakpoints and input values.
  * @returns Shapes, output and steps.
  */
 export function solidScriptProgramEvaluate(

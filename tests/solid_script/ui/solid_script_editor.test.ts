@@ -152,6 +152,7 @@ describe('SolidScript editor', () => {
       'Transforms',
       'Combine',
       'Meshes',
+      'Inputs',
       'Logic',
       'Parts',
     ]);

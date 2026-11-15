@@ -75,6 +75,30 @@ describe('SolidScript generator tools', () => {
     expect((broken.data as { error: string }).error).toMatch(/^Line 2/);
   });
 
+  it('set and read the values of the script inputs like the inspector', () => {
+    const { api, objectId } = generatorFixture();
+    const lines = [
+      { command: 'input', values: { name: 'steps', type: 'count', default: '2', min: '1', max: '20' } },
+      { command: 'repeat', values: { variable: 'i', from: '1', to: '[steps]' } },
+      { command: 'cube' },
+      { command: 'end' },
+    ];
+    const set = api.invokeTool('geometry_script_generator_set', { objectId, lines });
+    expect(set.data).toMatchObject({
+      solids: 2,
+      inputs: [{ name: 'steps', type: 'count', default: '2', min: 1, max: 20, value: '2' }],
+    });
+    const changed = api.invokeTool('geometry_script_generator_set', { objectId, inputs: { steps: 5 } });
+    expect(changed.data).toMatchObject({ solids: 5, inputs: [{ name: 'steps', value: '5' }] });
+    const kept = api.invokeTool('geometry_script_generator_set', { objectId, name: 'Steps' });
+    expect(kept.data).toMatchObject({ solids: 5 });
+    const outside = api.invokeTool('geometry_script_generator_set', { objectId, inputs: { steps: 50 } });
+    expect((outside.data as { error: string }).error).toMatch(/from 1 to 20, not 50/);
+    const unknown = api.invokeTool('geometry_script_generator_set', { objectId, inputs: { width: 3 } });
+    expect(unknown.ok).toBe(false);
+    expect(unknown.message).toMatch(/no Input width; inputs: steps/);
+  });
+
   it('accept command lines only, no free code', () => {
     const { api, objectId } = generatorFixture();
     const result = api.invokeTool('geometry_script_generator_set', { objectId, lines: [{ code: 'cube(1);' }] });

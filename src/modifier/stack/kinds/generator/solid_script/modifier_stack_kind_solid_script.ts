@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import type { ModifierStackField, ModifierStackUnit } from '@/modifier/stack/modifier_stack_types.js';
 import { solidScriptInspectorRow } from '@/solid_script/ui/solid_script_inspector_row.js';
+import {
+  solidScriptInspectorInputs,
+  solidScriptInspectorInputValues,
+} from '@/solid_script/ui/solid_script_inspector_inputs.js';
 import type { ModifierStackContext } from '@/modifier/stack/evaluate/modifier_stack_context.js';
 import { modifierStackChoices } from '@/modifier/stack/modifier_stack_fields.js';
 import type { SolidTreeNode } from '@/solid/commands/tree/solid_tree_node.js';
@@ -23,6 +27,9 @@ export const MODIFIER_STACK_SOLID_SCRIPT_KIND = 'solidScript';
 /** Parameter key of the stored script. */
 export const MODIFIER_STACK_SOLID_SCRIPT_KEY = 'script';
 
+/** Parameter key of the values of the script's Input lines, as text by name. */
+export const MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY = 'inputs';
+
 /**
  * Fields of the SolidScript generator before the shared texture and output
  * ones.
@@ -34,7 +41,17 @@ const MODIFIER_STACK_SOLID_SCRIPT_FIELDS: readonly ModifierStackField[] = [
     type: 'widget',
     default: '',
     hint: 'The script this generator runs; edit it in the script editor or drop an .aiscript file on it. Assistants use geometry_script_generator_set.',
-    widget: (targetOf) => solidScriptInspectorRow(targetOf, MODIFIER_STACK_SOLID_SCRIPT_KEY),
+    widget: (targetOf) =>
+      solidScriptInspectorRow(targetOf, MODIFIER_STACK_SOLID_SCRIPT_KEY, MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY),
+  },
+  {
+    key: 'scriptInputs',
+    label: 'Inputs',
+    type: 'widget',
+    default: '',
+    hint: 'The settings the script defines with Input lines.',
+    widget: (targetOf) =>
+      solidScriptInspectorInputs(targetOf, MODIFIER_STACK_SOLID_SCRIPT_KEY, MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY),
   },
   {
     key: 'placement',
@@ -70,7 +87,13 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
    */
   override normalizeParameters(input: Record<string, unknown>): Record<string, unknown> {
     const script = solidScriptDocumentNormalize(input[MODIFIER_STACK_SOLID_SCRIPT_KEY]);
-    return { ...super.normalizeParameters(input), [MODIFIER_STACK_SOLID_SCRIPT_KEY]: script };
+    return {
+      ...super.normalizeParameters(input),
+      [MODIFIER_STACK_SOLID_SCRIPT_KEY]: script,
+      [MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]: solidScriptInspectorInputValues(
+        input[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY],
+      ),
+    };
   }
 
   /**
@@ -113,6 +136,7 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
       box,
       this.pieceOperation(parameters),
       solidScriptDebugStepLimit(context.volume, context.step.id),
+      parameters[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY] as Record<string, string>,
     );
     if (layout.error) context.report.error = layout.error;
     const frame = modifierStackFrame(context.volume, 'volume');

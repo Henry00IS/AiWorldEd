@@ -86,7 +86,13 @@ const MCP_GEOMETRY_SCRIPT_SET_SCHEMA: McpToolSchema = {
       type: 'string',
       enum: ['origin', 'fit', 'stretch'],
       description:
-        "'origin' keeps script units at the box's bottom centre, 'fit' scales uniformly into the box, 'stretch' fills it.",
+        "'origin' keeps script units around the box's centre, 'fit' scales uniformly into the box, 'stretch' fills it.",
+    },
+    inputs: {
+      type: 'object',
+      additionalProperties: { type: ['number', 'string', 'boolean'] },
+      description:
+        'Values for the Input lines of the script, by input name, like the inspector sets them, e.g. {"steps": 12, "rails": true}; inputs left out keep their value.',
     },
   },
   required: ['objectId'],
@@ -184,7 +190,7 @@ export class McpToolsGeometry extends McpToolGroup {
       {
         name: 'geometry_script_generator_get',
         description:
-          'Reads the script of a SolidScript generator: its name, block lines with values and how the editor lists each, placement, solid count and first error.',
+          'Reads the script of a SolidScript generator: its name, block lines with values and how the editor lists each, placement, its Input lines with their values, solid count and first error.',
         inputSchema: MCP_GEOMETRY_SCRIPT_GET_SCHEMA,
         mutates: false,
         run: (args) => this.script.generatorGet(String(args['objectId'] ?? '')),
@@ -192,7 +198,7 @@ export class McpToolsGeometry extends McpToolGroup {
       {
         name: 'geometry_script_generator_set',
         description:
-          'Replaces the name, command lines and placement of a SolidScript generator in one undo step; the generator rebuilds its brushes. Turn it into plain brushes with modifier_stack_bake.',
+          'Replaces the name, command lines, placement and input values of a SolidScript generator in one undo step; the generator rebuilds its brushes. Turn it into plain brushes with modifier_stack_bake.',
         inputSchema: MCP_GEOMETRY_SCRIPT_SET_SCHEMA,
         mutates: true,
         run: (args) => this.script.generatorSet(args as unknown as GeometryScriptGeneratorSetArgs),
