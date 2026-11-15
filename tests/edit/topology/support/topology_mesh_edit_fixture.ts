@@ -21,6 +21,8 @@ export interface TopologyMeshEditFixture {
   mesh: THREE.Mesh;
   /** Target id of the mesh. */
   targetId: string;
+  /** Every status message the handlers showed, oldest first. */
+  statusMessages: string[];
 }
 
 /**
@@ -32,19 +34,20 @@ export function openTopologyMeshEditFixture(): TopologyMeshEditFixture {
   const size = 1 + Math.random();
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(size, size, size));
   const session = new EditSession();
+  const statusMessages: string[] = [];
   const commandStack = new CommandStack(16);
   const deps = {
     getSession: () => session,
     getCommandStack: () => commandStack,
     refreshPresentation: () => undefined,
-    showStatusMessage: () => undefined,
+    showStatusMessage: (message: string) => statusMessages.push(message),
   };
   const handler = new HandlerComponentTopology(deps);
   const operations = new HandlerComponentMeshOperations(deps);
   if (!session.enter([mesh])) {
     throw new Error('edit session did not open');
   }
-  return { session, handler, operations, commandStack, mesh, targetId: mesh.uuid };
+  return { session, handler, operations, commandStack, mesh, targetId: mesh.uuid, statusMessages };
 }
 
 /**

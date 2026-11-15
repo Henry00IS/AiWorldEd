@@ -453,10 +453,11 @@ export class HandlerComponentMeshOperations {
 
   /**
    * Re-applies the current selection, refreshes the cage and reports the
-   * result.
+   * result: the operator's note, or else the fresh selection count, since an
+   * operation may have cleared or replaced the selection.
    *
    * @param appliedAny Whether any mesh changed.
-   * @param message Status text.
+   * @param message Status text from the operator, or empty.
    */
   private finishMutation(appliedAny: boolean, message: string): void {
     if (appliedAny) {
@@ -464,7 +465,8 @@ export class HandlerComponentMeshOperations {
       selection.replaceAll(selection.getSelected().slice());
       this.deps.refreshPresentation();
     }
-    if (message) this.deps.showStatusMessage(message);
+    const status = message || (appliedAny ? this.deps.getSession().formatStatusLabel() : '');
+    if (status) this.deps.showStatusMessage(status);
   }
 
   /**
