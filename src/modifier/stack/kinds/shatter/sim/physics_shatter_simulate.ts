@@ -125,6 +125,7 @@ function physicsShatterSimulateSetup(
     modifierVolumeSceneRoot(target.volume),
     run.fracture.pieces,
     run.frameToWorld,
+    run.inputBrushIds,
   );
   return {
     pieces: run.fracture.pieces,
@@ -167,7 +168,7 @@ function physicsShatterSimulateStore(
   timing: PhysicsShatterPlaybackTiming,
 ): void {
   const bake = physicsShatterBakeEncode(result.transforms);
-  const patch = physicsShatterBakeParameters(bake, run.inputHash);
+  const patch = physicsShatterBakeParameters(bake, run.bakeKey);
   if (!physicsShatterCommitParameters(target.volume, target.stepId, patch, target.commandStack))
     return target.status('The modifier was removed while it simulated.');
   const stuck = result.stuck.filter(Boolean).length;

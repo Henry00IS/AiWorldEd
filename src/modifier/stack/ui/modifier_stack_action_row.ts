@@ -20,6 +20,7 @@ export function modifierStackActionRow(
   const row = document.createElement('div');
   Object.assign(row.style, { display: 'flex', flexDirection: 'column', gap: '3px', padding: '3px 0' });
   const status = modifierStackUiText('div', '', true);
+  status.title = `What the last ${field.label} did. Only you see this line.`;
   const writeStatus = (text: string): void => {
     status.textContent = text;
     status.style.display = text ? '' : 'none';

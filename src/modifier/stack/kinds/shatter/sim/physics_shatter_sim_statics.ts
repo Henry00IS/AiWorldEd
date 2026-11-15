@@ -24,22 +24,25 @@ export interface PhysicsShatterStatics {
 
 /**
  * Collects the visible additive brushes of every solid near the pieces as fixed
- * hulls, leaving out the brushes the pieces were cut from, and places a floor
- * under the lowest of them all.
+ * hulls, leaving out the modifier's inputs: the brushes the pieces were cut
+ * from and those that made none, such as brushes fully covered by later ones.
+ * Places a floor under the lowest of them all.
  *
  * @param sceneRoot Scene root.
  * @param pieces Pieces in the modifier frame.
  * @param frameToWorld Modifier frame to world matrix.
+ * @param inputBrushIds Every brush the modifier gathered as an input.
  * @returns Fixed hulls and floor height.
  */
 export function physicsShatterStaticsGather(
   sceneRoot: THREE.Object3D,
   pieces: readonly PhysicsShatterPiece[],
   frameToWorld: THREE.Matrix4,
+  inputBrushIds: readonly string[] = [],
 ): PhysicsShatterStatics {
   const pieceBounds = physicsShatterStaticsPieceBounds(pieces, frameToWorld);
   const region = pieceBounds.clone().expandByScalar(PHYSICS_SHATTER_STATICS_MARGIN);
-  const excluded = new Set(pieces.map((piece) => piece.sourceBrushId));
+  const excluded = new Set([...inputBrushIds, ...pieces.map((piece) => piece.sourceBrushId)]);
   const hulls: Float32Array[] = [];
   let floorHeight = pieceBounds.isEmpty() ? 0 : pieceBounds.min.y;
   for (const model of SolidModelRegistry.collectUnder(sceneRoot)) {

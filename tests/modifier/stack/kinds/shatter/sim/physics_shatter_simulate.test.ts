@@ -73,7 +73,7 @@ describe('physics shatter simulate action', () => {
     const parameters = simulateTestParameters(target);
     expect(String(parameters['bake']).length).toBeGreaterThan(0);
     expect(parameters['formatVersion']).toBe(PHYSICS_SHATTER_FORMAT_VERSION);
-    expect(parameters['bakeHash']).toBe(physicsShatterLastRunOf(fixture.volume.uuid, stepId)?.inputHash);
+    expect(parameters['bakeHash']).toBe(physicsShatterLastRunOf(fixture.volume.uuid, stepId)?.bakeKey);
     expect(statuses.at(-1)).toMatch(/^Simulated /);
     const landed = simulatePiecePositions(fixture.compile().instances, fixture.source.id);
     expect(landed.length).toBe(unbroken.length);
