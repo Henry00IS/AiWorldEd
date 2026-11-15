@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import type { ModifierStackField } from '@/modifier/stack/modifier_stack_types.js';
-import { ModifierStackKindGenerator } from './modifier_stack_kind_generator.js';
+import { ModifierStackKindGenerator, type ModifierStackPieceSurfaces } from './modifier_stack_kind_generator.js';
 import { modifierStackConvexFromLoops } from './modifier_stack_generator_shapes.js';
 import { BLAST_HOLE_FIELDS, blastHoleFillBackShown } from './blast_hole/modifier_stack_blast_hole_fields.js';
 import { BLAST_HOLE_WALL_TEXTURE_FIELD } from './blast_hole/modifier_stack_blast_hole_wall_texture.js';
@@ -16,6 +16,7 @@ import {
   blastHoleFormatMigrate,
 } from './blast_hole/modifier_stack_blast_hole_format.js';
 import { modifierStackFieldsNormalize } from '@/modifier/stack/modifier_stack_fields.js';
+import { BlastHoleUvWrap, blastHoleUvSurfaces } from './blast_hole/modifier_stack_blast_hole_uv.js';
 
 /**
  * Reads a number parameter.
@@ -118,6 +119,12 @@ export class ModifierStackKindBlastHole extends ModifierStackKindGenerator {
     'Builds a ragged, seeded blast hole that fills the box, extruded through it and split into convex pieces.';
   protected readonly specificFields: readonly ModifierStackField[] = BLAST_HOLE_FIELDS;
   protected override readonly shadingFields: readonly ModifierStackField[] = [BLAST_HOLE_WALL_TEXTURE_FIELD];
+  protected override readonly surfacesFollowVolume = true;
+  /**
+   * Outline wrap of the pieces the last buildPieces call made, which
+   * pieceSurfaces reads right after.
+   */
+  private wrap: BlastHoleUvWrap | null = null;
 
   /**
    * Builds the hole pieces in the box.
@@ -128,11 +135,30 @@ export class ModifierStackKindBlastHole extends ModifierStackKindGenerator {
    */
   protected buildPieces(parameters: Record<string, unknown>, box: THREE.Box3): SolidBrush[] {
     const size = box.getSize(new THREE.Vector3());
+    this.wrap = null;
     if (size.z < BLAST_HOLE_MIN_THICKNESS) return [];
     if (parameters['style'] === 'bricks') return this.buildBricks(parameters, box, size);
     const shape = blastHoleRaggedShape(blastHoleRaggedSettingsRead(parameters), size.x / 2, size.y / 2);
     if (!shape) return [];
+    this.wrap = new BlastHoleUvWrap(shape.outline);
     return shape.parts.map((part) => blastHolePrism(part, box)).filter((brush): brush is SolidBrush => !!brush);
+  }
+
+  /**
+   * Wraps the texture around the cut faces of the hole at one tile per metre,
+   * with V across the wall, so it runs on unbroken from face to face.
+   *
+   * @param piece Piece in frame coordinates.
+   * @param _parameters Normalized parameters.
+   * @param box Volume box in frame coordinates.
+   * @returns Frame-space surfaces of every face.
+   */
+  protected override pieceSurfaces(
+    piece: SolidBrush,
+    _parameters: Record<string, unknown>,
+    box: THREE.Box3,
+  ): ModifierStackPieceSurfaces {
+    return blastHoleUvSurfaces(piece, box, this.wrap);
   }
 
   /**
