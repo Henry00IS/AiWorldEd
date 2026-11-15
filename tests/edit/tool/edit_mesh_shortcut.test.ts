@@ -20,5 +20,8 @@ describe('editMeshPlainKeyCommand', () => {
       'duplicate_faces',
     );
     expect(editMeshPlainKeyCommand('KeyD', undefined, false)).toBeNull();
+    expect(editMeshPlainKeyCommand('KeyB', new KeyboardEvent('keydown', { code: 'KeyB', ctrlKey: true }), true)).toBe(
+      'bevel_edges',
+    );
   });
 });

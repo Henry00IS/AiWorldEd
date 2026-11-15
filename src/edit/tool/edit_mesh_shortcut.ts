@@ -8,7 +8,8 @@ const EDIT_MESH_PLAIN_KEY_COMMANDS: Readonly<Record<string, EditMeshToolCommand>
 };
 
 /**
- * Returns the modelling command a plain key, or Shift+D, starts in Edit Mode.
+ * Returns the modelling command a plain key, Shift+D or Ctrl+B starts in Edit
+ * Mode.
  *
  * @param keyCode Key code.
  * @param event Keyboard event, when one is known.
@@ -22,6 +23,7 @@ export function editMeshPlainKeyCommand(
   modifierPressed: boolean,
 ): EditMeshToolCommand | null {
   if (!event) return modifierPressed ? null : (EDIT_MESH_PLAIN_KEY_COMMANDS[keyCode] ?? null);
+  if (event.ctrlKey && !event.shiftKey && !event.altKey && keyCode === 'KeyB') return 'bevel_edges';
   if (event.ctrlKey || event.metaKey || event.altKey) return null;
   if (event.shiftKey) return keyCode === 'KeyD' ? 'duplicate_faces' : null;
   return EDIT_MESH_PLAIN_KEY_COMMANDS[keyCode] ?? null;

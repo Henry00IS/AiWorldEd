@@ -12,4 +12,5 @@ export type EditMeshToolCommand =
   | 'bridge_edge_loops'
   | 'extrude_edges'
   | 'flip_faces'
-  | 'duplicate_faces';
+  | 'duplicate_faces'
+  | 'bevel_edges';

@@ -138,8 +138,8 @@ export class EditSelectTool extends Tool {
 
   /**
    * Handles knife, loop cut (Ctrl+R without Shift or Alt, so Ctrl+Shift+R still
-   * hard-reloads), merge, delete, and the plain modelling keys (E extrude, I
-   * inset, J connect).
+   * hard-reloads), merge, delete, and the modelling keys (E extrude, I inset, J
+   * connect, Shift+D duplicate, Ctrl+B bevel).
    *
    * @param keyCode Key code.
    * @param event Keyboard event.
@@ -162,6 +162,7 @@ export class EditSelectTool extends Tool {
     }
     const meshCommand = editMeshPlainKeyCommand(keyCode, event, this.editor?.isModifierPressed === true);
     if (meshCommand) {
+      event?.preventDefault();
       this.editor?.useEditMeshTool(meshCommand);
       return true;
     }

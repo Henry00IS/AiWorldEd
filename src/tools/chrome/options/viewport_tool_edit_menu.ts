@@ -106,6 +106,12 @@ export function buildViewportToolEdgeMenuEntries(actions: ViewportToolEditMenuAc
       actions.onMeshTool('subdivide_edges'),
     ),
     createAction(
+      'Bevel Edges',
+      'Ctrl+B',
+      'Cut the selected mesh edges off with a flat chamfer; move away from the edges or type a width',
+      () => actions.onMeshTool('bevel_edges'),
+    ),
+    createAction(
       'Extrude Edges',
       'E',
       'Pull the selected open border edges straight out of their faces into a new strip; the new edges stay selected',

@@ -23,6 +23,7 @@ import { makeTopologyWorkingFace } from './topology_face_make.js';
 import { duplicateTopologyWorkingFaces, flipTopologyWorkingFaces } from './topology_face_copy.js';
 import { connectTopologyWorkingVertices } from './topology_vertex_connect.js';
 import { bridgeTopologyWorkingEdgeLoops } from './topology_edge_bridge.js';
+import { bevelTopologyWorkingEdges } from './topology_edge_bevel.js';
 import { findEditDomainTargetById, resolveTopologyEditTarget } from './topology_target_resolve.js';
 import type { TopologyMeshTarget } from './topology_target.js';
 import type { TopologyWorkingGeometry } from './topology_working_geometry.js';
@@ -382,6 +383,63 @@ export class HandlerComponentMeshOperations {
   }
 
   /**
+   * Returns the world centre of the selected edges, which the bevel tool
+   * measures the pointer from.
+   *
+   * @returns Centre with an unused up direction, or null without edges.
+   */
+  describeEdgeBevelCentre(): FaceSelectionAxis | null {
+    const anchor = new THREE.Vector3();
+    let count = 0;
+    for (const { target, edges } of this.collectMeshEdgeSelections('Bevel Edges')) {
+      const positions = loadWorkingGeometryFromTarget(target).positions;
+      for (const vertex of edges.flatMap((edge) => [edge.vertexA, edge.vertexB])) {
+        const point = positions[vertex];
+        if (point) anchor.add(point.clone().applyMatrix4(target.mesh.matrixWorld));
+        count += point ? 1 : 0;
+      }
+    }
+    return count > 0 ? { anchor: anchor.divideScalar(count), direction: new THREE.Vector3(0, 1, 0) } : null;
+  }
+
+  /**
+   * Builds world line segments of the chamfer faces a bevel would create.
+   *
+   * @param width World width.
+   * @returns Flat list of segment endpoints.
+   */
+  previewEdgeBevel(width: number): THREE.Vector3[] {
+    const points: THREE.Vector3[] = [];
+    for (const { target, edges } of this.collectMeshEdgeSelections('Bevel Edges')) {
+      const geometry = loadWorkingGeometryFromTarget(target);
+      const outcome = bevelTopologyWorkingEdges(geometry, edges, width / meshUniformScale(target));
+      if (outcome.result.applied) appendNewFaceSegments(geometry, outcome.faces, geometry.faces.length, target, points);
+    }
+    return points;
+  }
+
+  /**
+   * Bevels the selected mesh edges and selects the edges of the chamfers.
+   *
+   * @param width World width.
+   * @returns True when at least one mesh changed.
+   */
+  bevelSelectedEdges(width: number): boolean {
+    const selections = this.collectMeshEdgeSelections('Bevel Edges');
+    const outlines: ComponentSelectionEntry[] = [];
+    return this.commitOnMeshTargets(
+      selections,
+      (targetId, geometry) => {
+        const { target, edges } = selections.find((entry) => entry.targetId === targetId)!;
+        const outcome = bevelTopologyWorkingEdges(geometry, edges, width / meshUniformScale(target));
+        for (const face of outcome.faces) outlines.push(...faceOutlineEntries(targetId, geometry, face));
+        return outcome.result;
+      },
+      () => this.deps.getSession().getComponentSelection().replaceAll(outlines),
+    );
+  }
+
+  /**
    * Commits an operator on every mesh target, one undo step per mesh, then
    * refreshes and reports.
    *
@@ -425,11 +483,12 @@ export class HandlerComponentMeshOperations {
   /**
    * Collects selected edges of edited meshes in Edge mode.
    *
+   * @param toolLabel Tool name used in status messages.
    * @returns Mesh edge selections.
    */
-  private collectMeshEdgeSelections(): MeshEdgeSelection[] {
+  private collectMeshEdgeSelections(toolLabel = 'Extrude Edges'): MeshEdgeSelection[] {
     const selected = this.deps.getSession().getComponentSelection().getSelected();
-    return this.collectMeshTargets('Extrude Edges', [EditorComponentMode.EDGE], 'Edge').map(({ targetId, target }) => ({
+    return this.collectMeshTargets(toolLabel, [EditorComponentMode.EDGE], 'Edge').map(({ targetId, target }) => ({
       targetId,
       target,
       edges: collectSelectedEdgeEndpoints(selected, targetId),
@@ -504,6 +563,23 @@ function addBorderOffsetsToWorldSums(
     direction.add(offset.clone().applyMatrix3(linear).normalize());
   }
   return offsets.size;
+}
+
+/**
+ * Builds edge selection entries for every edge of one face.
+ *
+ * @param targetId Target id.
+ * @param geometry Working geometry.
+ * @param face Face index.
+ * @returns Selection entries.
+ */
+function faceOutlineEntries(
+  targetId: string,
+  geometry: TopologyWorkingGeometry,
+  face: number,
+): ComponentSelectionEntry[] {
+  const loop = geometry.faces[face]?.vertexIndices ?? [];
+  return loop.map((vertex, corner) => meshEdgeEntry(targetId, vertex, loop[(corner + 1) % loop.length]!));
 }
 
 /**
