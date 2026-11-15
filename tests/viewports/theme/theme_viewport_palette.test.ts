@@ -27,6 +27,14 @@ describe('theme_viewport_palette', () => {
     expect(dark.boxEdgeColor).toBe(Theme.boxEdgeColor);
     expect(dark.viewportGradientTop).toBeNull();
     expect(dark.viewportGradientBottom).toBeNull();
+    expect(dark.gridMinorFullStrengthPixels).toBe(8);
+  });
+
+  it('thins dense light-theme minor grid lines sooner than the dark theme', () => {
+    const light = getThemeViewportPalette('light');
+    expect(light.gridMinorFullStrengthPixels).toBeGreaterThan(
+      getThemeViewportPalette('dark').gridMinorFullStrengthPixels,
+    );
   });
 
   it('uses a light background gradient with darker grid lines in the light theme', () => {

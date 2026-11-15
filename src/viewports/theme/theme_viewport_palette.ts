@@ -41,6 +41,11 @@ export interface ThemeViewportPalette {
   rulerDeltaColor: number;
   /** Ruler ghost bounds color while transforming. */
   rulerGhostColor: number;
+  /**
+   * On-screen spacing in pixels at which 2D minor grid lines reach full
+   * strength; wider values thin out dense zoomed-out grids sooner.
+   */
+  gridMinorFullStrengthPixels: number;
 }
 
 /** Dark viewport palette, identical to the original editor theme tokens. */
@@ -64,6 +69,7 @@ const THEME_VIEWPORT_PALETTE_DARK: ThemeViewportPalette = Object.freeze({
   rulerExtensionColor: Theme.rulerExtensionColor,
   rulerDeltaColor: Theme.rulerDeltaColor,
   rulerGhostColor: Theme.rulerGhostColor,
+  gridMinorFullStrengthPixels: 8,
 });
 
 /** Professional light viewport palette: soft grey gradient, quiet grid. */
@@ -87,6 +93,7 @@ const THEME_VIEWPORT_PALETTE_LIGHT: ThemeViewportPalette = Object.freeze({
   rulerExtensionColor: 0x6f7d8a,
   rulerDeltaColor: 0xd45a10,
   rulerGhostColor: 0x7a8794,
+  gridMinorFullStrengthPixels: 32,
 });
 
 /**

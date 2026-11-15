@@ -20,6 +20,10 @@ describe('ViewportBackgroundGradient', () => {
     const material = mesh.material as THREE.MeshBasicMaterial;
     expect(material.depthTest).toBe(false);
     expect(material.depthWrite).toBe(false);
+    const camera = render.mock.calls[0]?.[1] as THREE.OrthographicCamera;
+    expect(camera.near).toBeLessThan(0);
+    expect(camera.far).toBeGreaterThan(0);
+    expect(mesh.frustumCulled).toBe(false);
     gradient.dispose();
   });
 });

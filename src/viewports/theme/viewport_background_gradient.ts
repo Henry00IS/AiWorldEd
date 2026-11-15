@@ -13,17 +13,22 @@ export class ViewportBackgroundGradient {
   private appliedTopColor: number | null;
   private appliedBottomColor: number | null;
 
-  /** Creates the full-pane gradient quad and its camera. */
+  /**
+   * Creates the full-pane gradient quad and its camera. The quad sits midway
+   * between near and far so no GPU clips it on the near plane.
+   */
   constructor() {
     this.scene = new THREE.Scene();
-    this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -1, 1);
     this.geometry = new THREE.PlaneGeometry(2, 2);
     this.material = this.materialCreate();
     this.scratchColor = new THREE.Color();
     this.appliedTopColor = null;
     this.appliedBottomColor = null;
     this.geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(12), 3));
-    this.scene.add(new THREE.Mesh(this.geometry, this.material));
+    const quad = new THREE.Mesh(this.geometry, this.material);
+    quad.frustumCulled = false;
+    this.scene.add(quad);
   }
 
   /**
