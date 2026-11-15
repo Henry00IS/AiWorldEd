@@ -58,6 +58,15 @@ describe('modifier tools', () => {
     expect(ModifierVolume.read(holder()!).modifiers[0]?.parameters[numeric!.key]).toEqual(before);
   });
 
+  it('accepts a number for a numeric choice such as column sides', () => {
+    const { api, objectId, modifierId, world } = columnCreate();
+    const result = api.invokeTool('modifier_parameters_set', { objectId, modifierId, parameters: { sides: 12 } });
+    expect(result.ok, result.message).toBe(true);
+    expect(ModifierVolume.read(world.getObjectByProperty('uuid', objectId)!).modifiers[0]?.parameters['sides']).toBe(
+      '12',
+    );
+  });
+
   it('adds, moves, duplicates, disables and removes entries', () => {
     const { api, objectId, world } = columnCreate();
     const stackOf = () => ModifierVolume.read(world.getObjectByProperty('uuid', objectId)!).modifiers;

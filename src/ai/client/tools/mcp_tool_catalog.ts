@@ -58,7 +58,9 @@ export class McpToolCatalog {
   }
 
   /**
-   * Runs one tool by name, turning thrown errors into failed results.
+   * Runs one tool by name, refusing arguments its schema does not list so a
+   * misspelled one is never silently ignored, and turning thrown errors into
+   * failed results.
    *
    * @param name Tool name.
    * @param args Tool arguments.
@@ -67,6 +69,13 @@ export class McpToolCatalog {
   toolRun(name: string, args: Record<string, unknown>): McpToolResult {
     const tool = this.toolFind(name);
     if (!tool) return { ok: false, message: `Unknown tool: ${name}. Call tools/list for the current tool names.` };
+    const known = Object.keys((tool.inputSchema['properties'] ?? {}) as Record<string, unknown>);
+    const unknown = Object.keys(args).filter((key) => !known.includes(key));
+    if (unknown.length > 0)
+      return {
+        ok: false,
+        message: `Unknown argument ${unknown.join(', ')} for ${name}. Arguments: ${known.join(', ') || 'none'}`,
+      };
     try {
       return tool.run(args);
     } catch (error) {

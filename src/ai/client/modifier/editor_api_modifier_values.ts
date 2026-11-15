@@ -136,7 +136,8 @@ function modifierNumberCheck(
  * @returns Value to store.
  */
 function modifierChoiceCheck(key: string, value: unknown, choices: readonly { value: string }[]): string {
-  if (typeof value === 'string' && choices.some((choice) => choice.value === value)) return value;
+  const text = typeof value === 'number' ? String(value) : value;
+  if (typeof text === 'string' && choices.some((choice) => choice.value === text)) return text;
   throw new Error(`${key} must be one of: ${choices.map((choice) => choice.value).join(', ')}`);
 }
 
