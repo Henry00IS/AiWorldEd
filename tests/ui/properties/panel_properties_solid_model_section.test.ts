@@ -35,7 +35,8 @@ describe('PropertiesPanel solid model section', () => {
     expect(section).not.toBeNull();
     expect(section!.style.display).not.toBe('none');
     expect(section!.textContent).toContain('Inverted World');
-    expect(section!.textContent).toContain('+ Box Brush');
+    expect(section!.querySelector('button[aria-label="Add Box Brush"]')).not.toBeNull();
+    expect(section!.querySelectorAll('button[data-add-generator]').length).toBeGreaterThan(0);
   });
 
   it('shows the solid model section when only the result mesh is selected', () => {

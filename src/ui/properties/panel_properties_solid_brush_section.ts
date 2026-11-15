@@ -6,8 +6,7 @@ import { getSolidGroupOperation, isSolidCsgGroup } from '@/solid/model/solid_gro
 import { SolidOperation, solidOperationLabel } from '@/solid/types/solid_operation.js';
 import { SolidCsgOperationIcons } from '@/ui/properties/solid_csg_operation_icons.js';
 import type { CommandStack } from '@/commands/command_stack.js';
-import { MODIFIER_GENERATOR_NODE_KINDS } from '@/modifier/stack/modifier_generator_node.js';
-import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
+import { PanelShapePicker } from '@/ui/properties/shape_picker/panel_shape_picker.js';
 import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierGeneratorOperationRead } from '@/modifier/stack/modifier_generator_operation.js';
@@ -192,8 +191,7 @@ export class PanelPropertiesSolidBrushSection {
     content.appendChild(this.createInvertedWorldRow());
     content.appendChild(this.createOperationButtons());
     content.appendChild(this.createOrderButtons());
-    content.appendChild(this.createAddBoxBrushButton());
-    content.appendChild(this.createAddGeneratorRow());
+    content.appendChild(this.createShapePicker());
     return content;
   }
 
@@ -455,37 +453,15 @@ export class PanelPropertiesSolidBrushSection {
   }
 
   /**
-   * Builds the row adding generator nodes: Column, Stairs, and Arch.
+   * Builds the shape picker adding a box brush or a generator node.
    *
-   * @returns Row element.
+   * @returns Picker element.
    */
-  private createAddGeneratorRow(): HTMLElement {
-    const row = document.createElement('div');
-    row.style.display = 'flex';
-    row.style.gap = '6px';
-    for (const kind of MODIFIER_GENERATOR_NODE_KINDS) {
-      const label = modifierStackKindFind(kind)?.label ?? kind;
-      const title = `Add a ${label.toLowerCase()} generator to the solid model`;
-      const button = this.createTextActionButton(`+${label}`, title, () => this.handlers?.onAddGenerator?.(kind));
-      button.dataset['addGenerator'] = kind;
-      Object.assign(button.style, { padding: '6px 0', whiteSpace: 'nowrap', minWidth: '0', overflow: 'hidden' });
-      row.appendChild(button);
-    }
-    return row;
-  }
-
-  /**
-   * Builds the add-box-brush action button.
-   *
-   * @returns Button element.
-   */
-  private createAddBoxBrushButton(): HTMLButtonElement {
-    const button = this.createTextActionButton('+ Box Brush', 'Add a box brush to the solid model', () =>
-      this.requestAddBoxBrush(),
-    );
-    button.style.flex = '';
-    button.style.width = '100%';
-    return button;
+  private createShapePicker(): HTMLElement {
+    return new PanelShapePicker({
+      onAddBoxBrush: () => this.requestAddBoxBrush(),
+      onAddGenerator: (kind) => this.handlers?.onAddGenerator?.(kind),
+    }).getElement();
   }
 
   /**
