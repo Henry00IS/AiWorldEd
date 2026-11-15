@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   PHYSICS_SHATTER_PLAYBACK_FRAME_BUDGET_MILLISECONDS,
+  PHYSICS_SHATTER_PLAYBACK_MIN_STEPS_PER_FRAME,
   physicsShatterPlaybackSteps,
 } from '@/modifier/stack/kinds/shatter/sim/physics_shatter_playback.js';
 
@@ -40,11 +41,23 @@ describe('physics shatter playback pacing', () => {
     expect(counter.steps).toBe(1);
   });
 
-  it('stops at the frame budget when slow steps fall behind', () => {
-    const { simulation, counter } = playbackTestSimulation(3);
+  it('stops at the frame budget when slow steps fall behind, after the per-frame minimum', () => {
+    const { simulation, counter } = playbackTestSimulation(1.5);
     physicsShatterPlaybackSteps(simulation, 100);
-    expect(counter.steps).toBeGreaterThanOrEqual(1);
-    expect(counter.steps).toBeLessThanOrEqual(Math.ceil(PHYSICS_SHATTER_PLAYBACK_FRAME_BUDGET_MILLISECONDS / 3) + 1);
+    expect(counter.steps).toBeGreaterThan(PHYSICS_SHATTER_PLAYBACK_MIN_STEPS_PER_FRAME);
+    expect(counter.steps).toBeLessThanOrEqual(Math.ceil(PHYSICS_SHATTER_PLAYBACK_FRAME_BUDGET_MILLISECONDS / 1.5) + 1);
+  });
+
+  it('takes the per-frame minimum even when each step exceeds the budget', () => {
+    const { simulation, counter } = playbackTestSimulation(PHYSICS_SHATTER_PLAYBACK_FRAME_BUDGET_MILLISECONDS + 1);
+    physicsShatterPlaybackSteps(simulation, 100);
+    expect(counter.steps).toBe(PHYSICS_SHATTER_PLAYBACK_MIN_STEPS_PER_FRAME);
+  });
+
+  it('takes only the due steps when fewer than the minimum are due', () => {
+    const { simulation, counter } = playbackTestSimulation(PHYSICS_SHATTER_PLAYBACK_FRAME_BUDGET_MILLISECONDS + 1);
+    physicsShatterPlaybackSteps(simulation, 2);
+    expect(counter.steps).toBe(2);
   });
 
   it('stops when the simulation finishes', () => {
