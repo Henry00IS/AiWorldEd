@@ -154,7 +154,7 @@ describe('viewport_tool_edit_menu', () => {
     const subdivide = entries.find((entry) => isMenuAction(entry) && entry.label === 'Subdivide Edges');
     expect(subdivide && isMenuAction(subdivide)).toBe(true);
     if (subdivide && isMenuAction(subdivide)) subdivide.onClick();
-    for (const label of ['Bevel Edges', 'Extrude Edges', 'Bridge Edge Loops', 'Rotate Edges']) {
+    for (const label of ['Bevel Edges', 'Extrude Edges', 'Bridge Edge Loops', 'Rotate Edges', 'Collapse Edges']) {
       const entry = entries.find((candidate) => isMenuAction(candidate) && candidate.label === label);
       if (entry && isMenuAction(entry)) entry.onClick();
     }
@@ -164,6 +164,7 @@ describe('viewport_tool_edit_menu', () => {
       'tool:extrude_edges',
       'tool:bridge_edge_loops',
       'tool:rotate_edges',
+      'tool:collapse_edges',
     ]);
     expect(shortcutForLabel(entries, 'Bevel Edges')).toBe('Ctrl+B');
     expect(shortcutForLabel(entries, 'Extrude Edges')).toBe('E');

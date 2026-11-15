@@ -32,6 +32,7 @@ describe('runEditMeshInstantCommand', () => {
       smoothSelectedVertices: () => calls.push('smooth'),
       fillSelectedHoles: () => calls.push('fill'),
       rotateSelectedEdges: () => calls.push('rotate'),
+      collapseSelectedEdges: () => calls.push('collapse'),
     } as unknown as HandlerComponentMeshOperations;
     expect(runEditMeshInstantCommand('make_face', operations)).toBe(true);
     expect(runEditMeshInstantCommand('connect_vertices', operations)).toBe(true);
@@ -45,6 +46,7 @@ describe('runEditMeshInstantCommand', () => {
     expect(runEditMeshInstantCommand('smooth_vertices', operations)).toBe(true);
     expect(runEditMeshInstantCommand('fill_holes', operations)).toBe(true);
     expect(runEditMeshInstantCommand('rotate_edges', operations)).toBe(true);
+    expect(runEditMeshInstantCommand('collapse_edges', operations)).toBe(true);
     expect(calls).toEqual([
       'make',
       'connect',
@@ -58,6 +60,7 @@ describe('runEditMeshInstantCommand', () => {
       'smooth',
       'fill',
       'rotate',
+      'collapse',
     ]);
   });
 });

@@ -141,6 +141,12 @@ export function buildViewportToolEdgeMenuEntries(actions: ViewportToolEditMenuAc
       'Turn each selected edge between two mesh faces to the next corners, such as the other diagonal of a quad',
       () => actions.onMeshTool('rotate_edges'),
     ),
+    createAction(
+      'Collapse Edges',
+      '',
+      'Merge each run of selected mesh edges into one vertex at its middle, removing faces that shrink away',
+      () => actions.onMeshTool('collapse_edges'),
+    ),
   ];
 }
 

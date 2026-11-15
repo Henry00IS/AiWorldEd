@@ -12,6 +12,7 @@ const EDIT_MESH_INSTANT_COMMANDS: Partial<
   smooth_vertices: (operations) => operations.smoothSelectedVertices(),
   bridge_edge_loops: (operations) => operations.bridgeSelectedEdgeLoops(),
   rotate_edges: (operations) => operations.rotateSelectedEdges(),
+  collapse_edges: (operations) => operations.collapseSelectedEdges(),
   flip_faces: (operations) => operations.flipSelectedFaces(),
   duplicate_faces: (operations) => operations.duplicateSelectedFaces(),
   split_faces: (operations) => operations.splitOffSelectedFaces(),

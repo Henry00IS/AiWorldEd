@@ -37,6 +37,7 @@ import { joinTopologyWorkingTriangles } from './topology_face_join_triangles.js'
 import { solidifyTopologyWorkingFaces } from './topology_face_solidify.js';
 import { fattenTopologyWorkingFaces } from './topology_face_fatten.js';
 import { rotateTopologyWorkingEdges } from './topology_edge_rotate.js';
+import { collapseTopologyWorkingEdges } from './topology_edge_collapse.js';
 import { fillTopologyWorkingHoles } from './topology_face_fill_holes.js';
 import { smoothTopologyWorkingVertices } from './topology_vertex_smooth.js';
 import { findEditDomainTargetById, resolveTopologyEditTarget } from './topology_target_resolve.js';
@@ -485,6 +486,22 @@ export class HandlerComponentMeshOperations {
         return outcome.result;
       },
       () => this.deps.getSession().getComponentSelection().replaceAll(pieces),
+    );
+  }
+
+  /**
+   * Collapses each run of selected mesh edges into one vertex at its middle and
+   * clears the selection, since vertex numbers change.
+   *
+   * @returns True when at least one mesh changed.
+   */
+  collapseSelectedEdges(): boolean {
+    const selected = this.deps.getSession().getComponentSelection().getSelected();
+    const targets = this.collectMeshTargets('Collapse Edges', [EditorComponentMode.EDGE], 'Edge');
+    return this.commitOnMeshTargets(
+      targets,
+      (targetId, geometry) => collapseTopologyWorkingEdges(geometry, collectSelectedEdgeEndpoints(selected, targetId)),
+      () => this.deps.getSession().getComponentSelection().replaceAll([]),
     );
   }
 
