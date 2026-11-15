@@ -244,6 +244,8 @@ describe('SolidScript editor', () => {
     expect(
       help.querySelector('.solid-script-editor-help-parameter .solid-script-editor-parameter-value')?.textContent,
     ).toBe('4');
+    const center = [...help.querySelectorAll('.solid-script-editor-help-parameter')].at(-1);
+    expect(center?.querySelector('.solid-script-editor-parameter-value')?.textContent).toBe('No');
     find<HTMLElement>('.solid-script-editor-palette-item[data-command="sphere"]').focus();
     expect(root.querySelector('.solid-script-editor-help-title')?.textContent).toBe('Sphere');
   });

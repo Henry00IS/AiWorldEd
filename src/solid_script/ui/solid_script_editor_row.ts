@@ -174,11 +174,23 @@ function solidScriptEditorParameterPill(entry: SolidScriptCommandEntry, command:
   name.textContent = entry.label;
   const value = document.createElement('span');
   value.className = SOLID_SCRIPT_EDITOR_CLASSES.parameterValue;
-  const boolean = command.parameters.find((parameter) => parameter.key === entry.key)?.type === 'boolean';
-  value.textContent =
-    boolean && entry.value === 'true' ? 'Yes' : boolean && entry.value === 'false' ? 'No' : entry.value;
+  value.textContent = solidScriptEditorValueText(command, entry.key, entry.value);
   pill.append(name, value);
   return pill;
+}
+
+/**
+ * Returns how a stored value reads: Yes or No for a switch, the value itself
+ * otherwise.
+ *
+ * @param command Command, for the parameter type.
+ * @param key Parameter key.
+ * @param value Stored value.
+ * @returns Shown text.
+ */
+export function solidScriptEditorValueText(command: SolidScriptCommand, key: string, value: string): string {
+  if (command.parameters.find((parameter) => parameter.key === key)?.type !== 'boolean') return value;
+  return value === 'true' ? 'Yes' : value === 'false' ? 'No' : value;
 }
 
 /**

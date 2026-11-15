@@ -1,7 +1,8 @@
-import type { SolidScriptCommand } from '@/solid_script/commands/solid_script_command.js';
+import type { SolidScriptCommand, SolidScriptCommandParameter } from '@/solid_script/commands/solid_script_command.js';
 import type { SolidScriptBlock } from '@/solid_script/document/solid_script_document.js';
 import { SOLID_SCRIPT_EDITOR_CATEGORY_COLORS, SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import { solidScriptEditorIcon } from './solid_script_editor_icons.js';
+import { solidScriptEditorValueText } from './solid_script_editor_row.js';
 
 /** What the help panel shows when nothing is selected. */
 const SOLID_SCRIPT_EDITOR_HELP_EMPTY =
@@ -79,20 +80,34 @@ export class SolidScriptEditorHelp {
     const values = new Map(
       command.entries(block?.values ?? command.valuesDefault()).map((entry) => [entry.key, entry.value]),
     );
-    return command.parameters.map((parameter) => {
-      const item = document.createElement('div');
-      item.className = SOLID_SCRIPT_EDITOR_CLASSES.helpParameter;
-      const name = document.createElement('span');
-      name.className = SOLID_SCRIPT_EDITOR_CLASSES.parameterName;
-      name.textContent = parameter.label;
-      const value = document.createElement('span');
-      value.className = SOLID_SCRIPT_EDITOR_CLASSES.parameterValue;
-      value.textContent = values.get(parameter.key) ?? parameter.default;
-      const hint = document.createElement('div');
-      hint.className = SOLID_SCRIPT_EDITOR_CLASSES.helpText;
-      hint.textContent = parameter.hint;
-      item.append(name, value, hint);
-      return item;
-    });
+    return command.parameters.map((parameter) =>
+      solidScriptEditorHelpParameter(
+        parameter,
+        solidScriptEditorValueText(command, parameter.key, values.get(parameter.key) ?? parameter.default),
+      ),
+    );
   }
+}
+
+/**
+ * Builds the help entry of one value: caption, current value and hint.
+ *
+ * @param parameter Parameter.
+ * @param shown Value as shown.
+ * @returns Entry element.
+ */
+function solidScriptEditorHelpParameter(parameter: SolidScriptCommandParameter, shown: string): HTMLElement {
+  const item = document.createElement('div');
+  item.className = SOLID_SCRIPT_EDITOR_CLASSES.helpParameter;
+  const name = document.createElement('span');
+  name.className = SOLID_SCRIPT_EDITOR_CLASSES.parameterName;
+  name.textContent = parameter.label;
+  const value = document.createElement('span');
+  value.className = SOLID_SCRIPT_EDITOR_CLASSES.parameterValue;
+  value.textContent = shown;
+  const hint = document.createElement('div');
+  hint.className = SOLID_SCRIPT_EDITOR_CLASSES.helpText;
+  hint.textContent = parameter.hint;
+  item.append(name, value, hint);
+  return item;
 }
