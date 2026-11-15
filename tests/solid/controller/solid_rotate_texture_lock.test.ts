@@ -16,7 +16,7 @@ describe('SolidModelController rotate texture locks', () => {
     const stack = new CommandStack(16);
     const selection = new ManagerSelection();
     const panelHost = document.createElement('div');
-    const panel = new SolidModelPanel(panelHost, { onAddBoxBrush: () => undefined }, panelHost);
+    const panel = new SolidModelPanel(panelHost, { onAddBrush: () => undefined }, panelHost);
     const controller = new SolidModelController(world, stack, selection, panel);
     let mode = TransformMode.SCALE;
     controller.setTransformModeProvider(() => mode);

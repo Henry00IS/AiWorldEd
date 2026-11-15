@@ -21,6 +21,14 @@ export const MCP_SCHEMA_OPERATION: McpToolSchema = {
   description: 'CSG operation: additive adds solid, subtractive carves, intersecting keeps only the overlap.',
 };
 
+/** JSON Schema of a CSG group operation name. */
+export const MCP_SCHEMA_GROUP_OPERATION: McpToolSchema = {
+  type: 'string',
+  enum: ['additive', 'subtractive', 'intersecting', 'passthrough'],
+  description:
+    'Group CSG operation: the group combines its children from empty and is then additive, subtractive or intersecting in its parent; passthrough acts like a folder and combines its children in the parent as if they were not grouped.',
+};
+
 /** Snap override arguments shared by placement tools. */
 export const MCP_SCHEMA_SNAP_PROPERTIES: Record<string, McpToolSchema> = {
   snap: {

@@ -4,6 +4,12 @@ export type McpDetailLevel = 'summary' | 'full';
 /** CSG operation labels exchanged over MCP (string form of SolidOperation). */
 export type McpSolidOperationName = 'additive' | 'subtractive' | 'intersecting';
 
+/**
+ * CSG operation labels of solid CSG groups: the brush operations plus
+ * passthrough, a group whose children combine as if they were not grouped.
+ */
+export type McpSolidGroupOperationName = McpSolidOperationName | 'passthrough';
+
 /** Brush reorder ends matching the editor command. */
 export type McpBrushOrderEnd = 'first' | 'last';
 

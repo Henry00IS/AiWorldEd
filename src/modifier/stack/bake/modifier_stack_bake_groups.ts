@@ -4,10 +4,11 @@ import { getSolidGroupOperation, isSolidCsgGroup, markAsSolidCsgGroup } from '@/
 import type { SolidOperation } from '@/solid/types/solid_operation.js';
 import type { ModifierStackUnit } from '@/modifier/stack/modifier_stack_types.js';
 import { modifierStackTreeInsert } from '@/modifier/stack/evaluate/modifier_stack_tree.js';
+import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
 
 /** CSG group a baked brush is placed in, shared by every brush of the group. */
 export interface ModifierStackBakeGroup {
-  /** Group name. */
+  /** Name the group's unique name is made from. */
   name: string;
   /** Group operation. */
   operation: SolidOperation;
@@ -102,7 +103,7 @@ export function modifierStackBakeGroupsPlace(
 }
 
 /**
- * Returns the scene group of a bake group, creating it once.
+ * Returns the scene group of a bake group, creating it once with a unique name.
  *
  * @param group Bake group.
  * @param made Scene group per bake group.
@@ -115,7 +116,7 @@ function modifierStackBakeGroupNode(
   let node = made.get(group);
   if (node) return node;
   node = new THREE.Group();
-  node.name = group.name;
+  node.name = hierarchyNameAllocator.allocateFromSourceName(group.name);
   markAsSolidCsgGroup(node, group.operation);
   made.set(group, node);
   return node;

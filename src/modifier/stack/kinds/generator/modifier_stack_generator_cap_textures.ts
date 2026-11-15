@@ -1,6 +1,14 @@
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
+import * as THREE from 'three';
 import type { ModifierStackField } from '@/modifier/stack/modifier_stack_types.js';
+import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
+import type { FaceSurfaceDescription } from '@/texture/uv_matrix/face_surface_description.js';
+import {
+  MODIFIER_STACK_GENERATOR_CAP_PREFIX,
+  modifierStackGeneratorPlacementFields,
+} from './modifier_stack_generator_texture.js';
+import { modifierStackPrimitivePlanarUv } from './primitive/modifier_stack_primitive_planar.js';
 
 /**
  * Smallest vertical normal component of a flat top or bottom face; the same
@@ -56,7 +64,14 @@ export const MODIFIER_STACK_CAP_TEXTURE_FIELDS: readonly ModifierStackField[] = 
     hint: 'Texture of flat downward faces: the bottom cap and the undersides of overhangs. Default keeps the main texture.',
     visible: modifierStackCapTexturesOn,
   },
+  ...modifierStackGeneratorPlacementFields(MODIFIER_STACK_GENERATOR_CAP_PREFIX, 'Cap ', modifierStackCapTexturesOn),
 ];
+
+/** Cap placement fields, left out of saved files while at their defaults. */
+const MODIFIER_STACK_CAP_PLACEMENT_FIELDS = modifierStackGeneratorPlacementFields(
+  MODIFIER_STACK_GENERATOR_CAP_PREFIX,
+  'Cap ',
+);
 
 /**
  * Leaves the optional top and bottom settings out while they hold their
@@ -70,6 +85,8 @@ export function modifierStackCapTexturesOmitDefaults(parameters: Record<string, 
     delete parameters[MODIFIER_STACK_CAP_TEXTURE_KEYS.toggle];
   for (const key of [MODIFIER_STACK_CAP_TEXTURE_KEYS.top, MODIFIER_STACK_CAP_TEXTURE_KEYS.bottom])
     if (parameters[key] === '') delete parameters[key];
+  for (const field of MODIFIER_STACK_CAP_PLACEMENT_FIELDS)
+    if (parameters[field.key] === field.default) delete parameters[field.key];
   return parameters;
 }
 
@@ -96,6 +113,47 @@ export function modifierStackCapTexturesPick(
     const up = piece.planes[index]?.normal.y ?? 0;
     if (up >= MODIFIER_STACK_CAP_FLAT_NORMAL) return top;
     return up <= -MODIFIER_STACK_CAP_FLAT_NORMAL ? bottom : undefined;
+  });
+}
+
+/**
+ * Returns which faces of a piece are flat caps with their own texture
+ * placement: every flat top and bottom face while cap textures are on.
+ *
+ * @param piece Piece in frame coordinates.
+ * @param parameters Normalized parameters.
+ * @returns Cap flag per face; null while cap textures are off.
+ */
+export function modifierStackCapFaces(piece: SolidBrush, parameters: Record<string, unknown>): boolean[] | null {
+  if (!modifierStackCapTexturesOn(parameters)) return null;
+  return piece.planes.map((plane) => Math.abs(plane.normal.y) >= MODIFIER_STACK_CAP_FLAT_NORMAL);
+}
+
+/**
+ * Gives cap faces a planar mapping of their own at one repeat per metre,
+ * centred on the box, so the side layout (wrap repeats, stretch) no longer
+ * sizes them. Other faces keep their surfaces.
+ *
+ * @param surfaces Frame-space surfaces of the piece, or null for defaults.
+ * @param caps Cap flag per face, or null.
+ * @param piece Piece in frame coordinates.
+ * @param box Volume box in frame coordinates.
+ * @returns Surfaces with the caps replaced; unchanged while caps are off.
+ */
+export function modifierStackCapSurfaces(
+  surfaces: readonly (FaceSurfaceDescription | undefined)[] | null,
+  caps: readonly boolean[] | null,
+  piece: SolidBrush,
+  box: THREE.Box3,
+): readonly (FaceSurfaceDescription | undefined)[] | null {
+  if (!caps?.some(Boolean)) return surfaces;
+  const centre = box.getCenter(new THREE.Vector3());
+  return piece.planes.map((plane, index) => {
+    if (!caps[index]) return surfaces?.[index];
+    const uv = modifierStackPrimitivePlanarUv(plane.normal, centre);
+    uv.u.w += 0.5;
+    uv.v.w += 0.5;
+    return { textureId: surfaces?.[index]?.textureId ?? DEFAULT_CHECKER_TEXTURE_ID, uv };
   });
 }
 

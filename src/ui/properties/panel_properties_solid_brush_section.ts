@@ -3,15 +3,19 @@ import * as THREE from 'three';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { getSolidGroupOperation, isSolidCsgGroup } from '@/solid/model/solid_group.js';
-import { SolidOperation, solidOperationLabel } from '@/solid/types/solid_operation.js';
+import {
+  SOLID_OPERATION_PASS_THROUGH_TOOLTIP,
+  SolidOperation,
+  solidOperationLabel,
+} from '@/solid/types/solid_operation.js';
 import { SolidCsgOperationIcons } from '@/ui/properties/solid_csg_operation_icons.js';
 import type { CommandStack } from '@/commands/command_stack.js';
-import { MODIFIER_GENERATOR_NODE_KINDS } from '@/modifier/stack/modifier_generator_node.js';
-import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
+import { PanelShapePicker } from '@/ui/properties/shape_picker/panel_shape_picker.js';
 import { getActiveUiThemePalette } from '@/ui/theme/theme_ui_palette.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierGeneratorOperationRead } from '@/modifier/stack/modifier_generator_operation.js';
 import { solidHierarchyReorderable } from '@/solid/commands/brushes/command_solid_brushes_reorder.js';
+import type { SolidBrushShape } from '@/solid/brush/solid_brush_shape.js';
 
 /** Handlers for solid-brush context controls in the inspector. */
 export interface SolidBrushPropertyHandlers {
@@ -29,7 +33,8 @@ export interface SolidBrushPropertyHandlers {
    * @param operation New group operation.
    */
   onSetGroupOperation?: (groups: THREE.Group[], operation: SolidOperation) => void;
-  onAddBoxBrush: () => void;
+  /** Adds a plain brush of a shape to the solid model. */
+  onAddBrush: (shape: SolidBrushShape) => void;
   /**
    * Adds a Column, Stairs, or Arch generator node inside the solid model.
    *
@@ -140,6 +145,7 @@ export class PanelPropertiesSolidBrushSection {
     }
     this.section.style.display = 'block';
     this.syncInvertedWorldCheckbox(objects);
+    this.passThroughButtonShow(solidGroups.length > 0 && brushMeshes.length === 0);
     if (brushMeshes.length === 0 && solidGroups.length === 0) {
       this.dimOperationButtons();
       return;
@@ -172,9 +178,24 @@ export class PanelPropertiesSolidBrushSection {
     this.updateFromObjects(boundObjects);
   }
 
-  /** Invokes the add-box-brush handler when configured. */
-  requestAddBoxBrush(): void {
-    this.handlers?.onAddBoxBrush();
+  /**
+   * Shows the pass-through button only while the selection holds groups and no
+   * brushes, since brushes cannot pass through.
+   *
+   * @param visible Whether the button is shown.
+   */
+  private passThroughButtonShow(visible: boolean): void {
+    const button = this.operationButtons.get(SolidOperation.PassThrough);
+    if (button) button.style.display = visible ? 'inline-flex' : 'none';
+  }
+
+  /**
+   * Invokes the add-brush handler when configured.
+   *
+   * @param shape Brush shape.
+   */
+  requestAddBrush(shape: SolidBrushShape): void {
+    this.handlers?.onAddBrush(shape);
   }
 
   /**
@@ -192,8 +213,7 @@ export class PanelPropertiesSolidBrushSection {
     content.appendChild(this.createInvertedWorldRow());
     content.appendChild(this.createOperationButtons());
     content.appendChild(this.createOrderButtons());
-    content.appendChild(this.createAddBoxBrushButton());
-    content.appendChild(this.createAddGeneratorRow());
+    content.appendChild(this.createShapePicker());
     return content;
   }
 
@@ -329,7 +349,8 @@ export class PanelPropertiesSolidBrushSection {
   }
 
   /**
-   * Builds compact icon buttons for Additive / Subtractive / Intersecting.
+   * Builds compact icon buttons for Additive / Subtractive / Intersecting and
+   * the group-only Pass-Through.
    *
    * @returns Button row element.
    */
@@ -371,6 +392,11 @@ export class PanelPropertiesSolidBrushSection {
         operation: SolidOperation.Intersecting,
         icon: SolidCsgOperationIcons.intersecting(),
         title: solidOperationLabel(SolidOperation.Intersecting),
+      },
+      {
+        operation: SolidOperation.PassThrough,
+        icon: SolidCsgOperationIcons.passThrough(),
+        title: SOLID_OPERATION_PASS_THROUGH_TOOLTIP,
       },
     ];
   }
@@ -455,37 +481,15 @@ export class PanelPropertiesSolidBrushSection {
   }
 
   /**
-   * Builds the row adding generator nodes: Column, Stairs, and Arch.
+   * Builds the shape picker adding a plain brush or a generator node.
    *
-   * @returns Row element.
+   * @returns Picker element.
    */
-  private createAddGeneratorRow(): HTMLElement {
-    const row = document.createElement('div');
-    row.style.display = 'flex';
-    row.style.gap = '6px';
-    for (const kind of MODIFIER_GENERATOR_NODE_KINDS) {
-      const label = modifierStackKindFind(kind)?.label ?? kind;
-      const title = `Add a ${label.toLowerCase()} generator to the solid model`;
-      const button = this.createTextActionButton(`+${label}`, title, () => this.handlers?.onAddGenerator?.(kind));
-      button.dataset['addGenerator'] = kind;
-      Object.assign(button.style, { padding: '6px 0', whiteSpace: 'nowrap', minWidth: '0', overflow: 'hidden' });
-      row.appendChild(button);
-    }
-    return row;
-  }
-
-  /**
-   * Builds the add-box-brush action button.
-   *
-   * @returns Button element.
-   */
-  private createAddBoxBrushButton(): HTMLButtonElement {
-    const button = this.createTextActionButton('+ Box Brush', 'Add a box brush to the solid model', () =>
-      this.requestAddBoxBrush(),
-    );
-    button.style.flex = '';
-    button.style.width = '100%';
-    return button;
+  private createShapePicker(): HTMLElement {
+    return new PanelShapePicker({
+      onAddBrush: (shape) => this.requestAddBrush(shape),
+      onAddGenerator: (kind) => this.handlers?.onAddGenerator?.(kind),
+    }).getElement();
   }
 
   /**

@@ -46,7 +46,7 @@ Keep the editor open with MCP started while Grok uses the tools.
 
 - Three.js **right-handed**, **Y-up**
 - Brush transforms are **model-local** unless a field is labeled world
-- CSG operations: `additive` | `subtractive` | `intersecting`
+- CSG operations: `additive` | `subtractive` | `intersecting`; CSG groups also take `passthrough` (a plain folder: its children combine in the parent as if they were not grouped)
 - Brush **order** is evaluation order (first → last), depth-first over the hierarchy
 
 ## Solid hierarchy (outliner / CSG groups)
@@ -63,12 +63,12 @@ solid_model
 └── brush
 ```
 
-| Concept             | Details                                                                                                                                                                      |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Solid CSG group** | Outliner folder under a solid. Combines its children as one compound, then applies the **group operation** into the parent.                                                  |
-| **Nesting**         | Groups may contain brushes and other groups. `parentGroupId` on brushes / groups is `null` when parented under the solid root.                                               |
-| **Operations**      | Brushes: `brush_operation_set`. Groups: `csg_group_operation_set`. Additive groups look like normal yellow folders; subtractive/intersecting show red/blue badges in the UI. |
-| **CSG order**       | Evaluation walks the scene depth-first. Sibling order under a parent matters (`brush_reorder` / `brush_reorder_relative` / `nodeIdBefore` on reparent).                      |
+| Concept             | Details                                                                                                                                                                                                                                |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Solid CSG group** | Outliner folder under a solid. Combines its children as one compound, then applies the **group operation** into the parent.                                                                                                            |
+| **Nesting**         | Groups may contain brushes and other groups. `parentGroupId` on brushes / groups is `null` when parented under the solid root.                                                                                                         |
+| **Operations**      | Brushes: `brush_operation_set`. Groups: `csg_group_operation_set`. Additive groups look like normal yellow folders; subtractive/intersecting show red/blue badges in the UI; passthrough groups show an open folder with a gray badge. |
+| **CSG order**       | Evaluation walks the scene depth-first. Sibling order under a parent matters (`brush_reorder` / `brush_reorder_relative` / `nodeIdBefore` on reparent).                                                                                |
 
 ### Hierarchy tools
 
@@ -119,7 +119,7 @@ Same-solid only: reparent/group never moves a brush out of its solid model root.
 
 ## Geometry language: SolidScript (`geometry_script_build`)
 
-Describing shapes beats computing clip planes. A SolidScript is a list of block lines, the same lines the script editor shows: each line is `{ "command": id, "values": { key: text } }`, and there is no code text. `geometry_script_build` takes such `lines` and adds the result as CSG brushes and groups in one undo step; `geometry_script_preview` runs the same lines and returns the tree without changing the scene. `geometry_script_reference_get` returns the full reference for assistants: coordinates and units, how lines nest, values and formulas, every command with its fields, defaults and what stops it, examples and common mistakes. Builds sync in multiplayer like any user edit.
+Describing shapes beats computing clip planes. A SolidScript is a list of block lines, the same lines the script editor shows: each line is `{ "command": id, "values": { key: text } }`, and there is no code text. `geometry_script_build` takes such `lines` and adds the result as CSG brushes and groups, plus regular mesh objects for mesh blocks, in one undo step; `geometry_script_preview` runs the same lines and returns the tree without changing the scene. `geometry_script_reference_get` returns the full reference for assistants: coordinates and units, how lines nest, values and formulas, every command with its fields, defaults and what stops it, examples and common mistakes. Builds sync in multiplayer like any user edit.
 
 License: the block machine and the formula parser are an independent implementation. No third-party source code, grammar files, tests or examples are used, and no dependency was added; the code is MIT like the rest of the editor.
 
@@ -139,10 +139,11 @@ How it maps:
 - SolidScript is Z-up. The editor is Y-up, so (x, y, z) becomes (x, z, −y) unless `upAxis: "y"`. Units are metres; Rotate turns about X, then Y, then Z.
 - The origin is the centre of the generator's box (or the build `position`), and Cube, Cylinder, Square and Linear Extrude are centred on it by default (`center: "false"` puts their corner or base there), so a shape needs no Translate to sit in the middle of the generator.
 - `operation: "subtractive"` with a `modelId` carves the result out of existing brushes.
+- Mesh blocks (`mesh` with `vertex` and `face` lines, `mesh_shapes`, and the mesh tools `subdivide`, `mesh_smooth`, `displace`, `extrude_faces`, `box_uvs`, `flip_faces`) build regular editable meshes instead of brushes. A script can mix both; a mesh cannot be cut by `difference` or `intersection`. In a SolidScript generator the meshes show as a preview until Bake turns them into mesh objects.
 
 Room with a doorway:
 
-```json
+```solid-script
 [
   { "command": "difference" },
   { "command": "cube", "values": { "size": "4, 0.2, 3" } },
@@ -155,11 +156,23 @@ Room with a doorway:
 
 Stairs:
 
-```json
+```solid-script
 [
   { "command": "repeat", "values": { "variable": "i", "from": "0", "to": "9" } },
   { "command": "translate", "values": { "v": "0, [=[i] * 0.3], [=([i] + 1) * 0.09]" } },
   { "command": "cube", "values": { "size": "1.2, 0.3, [=([i] + 1) * 0.18]" } },
+  { "command": "end" },
+  { "command": "end" }
+]
+```
+
+Rounded rock as a mesh:
+
+```solid-script
+[
+  { "command": "mesh_smooth", "values": { "rounds": "4" } },
+  { "command": "subdivide", "values": { "levels": "2" } },
+  { "command": "cube", "values": { "size": "2, 1.5, 1" } },
   { "command": "end" },
   { "command": "end" }
 ]
@@ -174,7 +187,7 @@ In the editor, the generator's first inspector row is its script: it shows the s
 ## Generators, modifiers and curves
 
 - `modifier_kind_list` with `kindId` lists every property of a kind. Each entry gives key, label, type, range, choices, default and the inspector tooltip, plus the kind's presets. The list is read from the same field descriptors the inspector draws, so new inspector fields show up in MCP by themselves.
-- `modifier_generator_create` adds a Column, Stairs, Arch or Blast Hole generator inside a solid model. `modifier_volume_create` adds a scene-level modifier volume from an Add menu template.
+- `modifier_generator_create` adds a generator inside a solid model: Cylinder, Cone, Sphere, Capsule, Torus, Pipe, Pyramid, Prism, Hollow Box, Column, Stairs, Curved Stairs, Arch, Blast Hole. `modifier_stack_bake` on the node is Convert to Brush. `modifier_volume_create` adds a scene-level modifier volume from an Add menu template.
 - `modifier_parameters_set` validates like the inspector does. Unknown keys are refused with the valid list. Numbers are clamped to their range with a warning. Objects are referenced by id, and curves are given as curve data. Bevel options use `options.<name>` keys.
 - Curve properties, such as a column `profile`, are edited with the `curve_*` tools. Coordinates run 0..1: x along the curve and y the value, y up. Segment i joins points i and i+1. `curve_get` reports handles as absolute positions, and `curve_point_set` takes them the same way.
 
@@ -305,8 +318,8 @@ Convex brushes: read, find, create boxes, transform, clip, split, order, delete.
 | `brush_validate`          | Validate convex brush topology for one brush.                                                                                                                    |
 | `brush_box_preview`       | Dry-run create: same TRS fields as brush_box_add but does not create.                                                                                            |
 | `brush_transform_preview` | Dry-run: predicted world bounds/size/center for a proposed position/rotationDegrees/scale without applying.                                                      |
-| `brush_box_add`           | Add a convex box brush.                                                                                                                                          |
-| `brush_boxes_add`         | Batch create many box brushes.                                                                                                                                   |
+| `brush_box_add`           | Add a convex box brush, or a wedge brush with `shape: wedge`.                                                                                                    |
+| `brush_boxes_add`         | Batch create many box or wedge brushes.                                                                                                                          |
 | `brush_duplicate`         | Duplicate brushes and/or solid CSG groups (groupIds clones the whole nested compound).                                                                           |
 | `brush_mirror`            | Mirror across X or Z.                                                                                                                                            |
 | `brush_operation_set`     | Set CSG operation on brushes.                                                                                                                                    |
@@ -334,7 +347,7 @@ Architectural helpers: walls, room shells, doors and windows.
 
 ### modifier
 
-Modifier stacks: kinds and parameters with tooltips, modifier volumes, Column/Stairs/Arch/Blast Hole generators, buttons, entries, parameters, presets, bake.
+Modifier stacks: kinds and parameters with tooltips, modifier volumes, generators (Cylinder, Cone, Sphere, Capsule, Torus, Pipe, Pyramid, Prism, Hollow Box, Column, Stairs, Curved Stairs, Arch, Blast Hole), buttons, entries, parameters, presets, bake.
 
 | Tool                          | Purpose                                                                                                                                          |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -342,7 +355,7 @@ Modifier stacks: kinds and parameters with tooltips, modifier volumes, Column/St
 | `modifier_holder_list`        | Lists every object with a modifier stack: modifier volumes, generator nodes, brushes and CSG groups.                                             |
 | `modifier_stack_get`          | One stack: settings, transform and every modifier with its parameter values (inactive ones listed apart) and its buttons with their last status. |
 | `modifier_volume_create`      | Creates a scene-level modifier volume from a template; it changes the brushes inside its box.                                                    |
-| `modifier_generator_create`   | Creates a generator (Column, Stairs, Arch, Blast Hole) inside a solid model; it builds brushes filling its box.                                  |
+| `modifier_generator_create`   | Creates a generator (every kind in the list above) inside a solid model; it builds brushes filling its box.                                      |
 | `modifier_entry_add`          | Adds a modifier to a stack, optionally with parameters.                                                                                          |
 | `modifier_entry_remove`       | Removes a modifier from a stack.                                                                                                                 |
 | `modifier_entry_move`         | Moves a modifier to another stack position (the generator stays first).                                                                          |

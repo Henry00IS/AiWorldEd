@@ -202,7 +202,8 @@ function modifierStackBakeShapeApply(model: SolidModel, id: string, shape: Modif
 
 /**
  * Moves baked brushes to their scene-order anchors, the place compile gave
- * them, then makes the evaluation list follow the scene.
+ * them, or the end of the solid when that is gone. Their CSG groups are made
+ * afterwards around them.
  *
  * @param model Solid model.
  * @param placed Created brushes with their plan entries, in output order.
@@ -215,12 +216,15 @@ function modifierStackBakePlace(
   model.root.traverse((node) => nodes.set(node.uuid, node));
   const offsets = new Map<string, number>();
   for (const { creation, instance } of placed) {
+    if (!instance.mesh) continue;
     const unit = { ...creation.anchor, tree: model.root, brushes: [], authored: false };
-    const anchor = modifierStackTreeAnchor(unit, nodes);
-    if (!anchor || !instance.mesh) continue;
+    const anchor = modifierStackTreeAnchor(unit, nodes) ?? {
+      parent: model.root,
+      index: model.root.children.length,
+      key: '',
+    };
     const offset = offsets.get(anchor.key) ?? 0;
     modifierStackTreeInsert(anchor.parent, instance.mesh, anchor.index + offset);
     offsets.set(anchor.key, offset + 1);
   }
-  model.syncBrushOrderFromScene();
 }

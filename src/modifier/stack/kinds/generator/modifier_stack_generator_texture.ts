@@ -10,6 +10,9 @@ import {
   MODIFIER_VOLUME_BEVEL_UV_SPACE_LOCAL,
 } from '@/modifier/volume/modifier_volume_bevel_keys.js';
 
+/** Key prefix of the cap texture placement fields. */
+export const MODIFIER_STACK_GENERATOR_CAP_PREFIX = 'capTexture';
+
 /** UV point generated textures rotate around: the middle of the tile. */
 const MODIFIER_STACK_GENERATOR_TEXTURE_PIVOT = { u: 0.5, v: 0.5 };
 
@@ -26,22 +29,41 @@ export const MODIFIER_STACK_GENERATOR_TEXTURE_FIELDS: readonly ModifierStackFiel
     group: 'Texture',
     hint: 'Texture of every generated face. Default uses the checker.',
   },
-  modifierStackGeneratorScaleField('textureScaleU', 'U Scale'),
-  modifierStackGeneratorScaleField('textureScaleV', 'V Scale'),
-  modifierStackGeneratorOffsetField('textureOffsetU', 'U Offset'),
-  modifierStackGeneratorOffsetField('textureOffsetV', 'V Offset'),
-  {
-    key: 'textureRotation',
-    label: 'Rotation',
-    type: 'number',
-    default: 0,
-    min: -360,
-    max: 360,
-    step: 15,
-    group: 'Texture',
-    hint: 'Turns the texture around the middle of the tile, in degrees.',
-  },
+  ...modifierStackGeneratorPlacementFields('texture', ''),
 ];
+
+/**
+ * Builds the scale, offset and rotation fields of one texture placement.
+ *
+ * @param prefix Key prefix, such as texture for textureScaleU.
+ * @param caption Label prefix, empty or ending in a space.
+ * @param visible Optional visibility shared by every field.
+ * @returns Fields in inspector order.
+ */
+export function modifierStackGeneratorPlacementFields(
+  prefix: string,
+  caption: string,
+  visible?: ModifierStackField['visible'],
+): ModifierStackField[] {
+  const fields: ModifierStackField[] = [
+    modifierStackGeneratorScaleField(`${prefix}ScaleU`, `${caption}U Scale`),
+    modifierStackGeneratorScaleField(`${prefix}ScaleV`, `${caption}V Scale`),
+    modifierStackGeneratorOffsetField(`${prefix}OffsetU`, `${caption}U Offset`),
+    modifierStackGeneratorOffsetField(`${prefix}OffsetV`, `${caption}V Offset`),
+    {
+      key: `${prefix}Rotation`,
+      label: `${caption}Rotation`,
+      type: 'number',
+      default: 0,
+      min: -360,
+      max: 360,
+      step: 15,
+      group: 'Texture',
+      hint: 'Turns the texture around the middle of the tile, in degrees.',
+    },
+  ];
+  return visible ? fields.map((field) => ({ ...field, visible })) : fields;
+}
 
 /**
  * Builds a meters-per-tile scale field.
@@ -68,22 +90,26 @@ function modifierStackGeneratorOffsetField(key: string, label: string): Modifier
 }
 
 /**
- * Reads the texture slot's placement from generator parameters.
+ * Reads one texture placement from generator parameters.
  *
  * @param parameters Normalized parameters.
+ * @param prefix Key prefix of the placement fields.
  * @returns Placement in the bevel's meters-per-tile convention.
  */
-export function modifierStackGeneratorPlacement(parameters: Record<string, unknown>): ModifierBevelUvPlacement {
+export function modifierStackGeneratorPlacement(
+  parameters: Record<string, unknown>,
+  prefix = 'texture',
+): ModifierBevelUvPlacement {
   const number = (key: string, fallback: number): number => {
     const value = parameters[key];
     return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
   };
   return {
-    uvScaleU: number('textureScaleU', 1),
-    uvScaleV: number('textureScaleV', 1),
-    uvOffsetU: number('textureOffsetU', 0),
-    uvOffsetV: number('textureOffsetV', 0),
-    uvRotation: number('textureRotation', 0),
+    uvScaleU: number(`${prefix}ScaleU`, 1),
+    uvScaleV: number(`${prefix}ScaleV`, 1),
+    uvOffsetU: number(`${prefix}OffsetU`, 0),
+    uvOffsetV: number(`${prefix}OffsetV`, 0),
+    uvRotation: number(`${prefix}Rotation`, 0),
     uvOwner: MODIFIER_VOLUME_BEVEL_UV_OWNER_SPLIT,
     uvPivot: MODIFIER_VOLUME_BEVEL_UV_PIVOT_TILE,
     uvSpace: MODIFIER_VOLUME_BEVEL_UV_SPACE_LOCAL,
@@ -92,20 +118,25 @@ export function modifierStackGeneratorPlacement(parameters: Record<string, unkno
 
 /**
  * Gives every face of a generated piece the slot's texture and placement. Faces
- * keep their layout (wrapped, planar, or default) underneath.
+ * keep their layout (wrapped, planar, or default) underneath. Cap faces take
+ * the cap placement instead while caps have their own.
  *
  * @param brush Generated piece.
  * @param parameters Normalized generator parameters.
+ * @param caps Whether each face is a cap with its own placement, or null.
  */
 export function modifierStackGeneratorTextureApply(
   brush: SolidBrushInstance,
   parameters: Record<string, unknown>,
+  caps: readonly boolean[] | null = null,
 ): void {
   const textureId = typeof parameters['texture'] === 'string' ? parameters['texture'] : '';
   if (textureId) brush.setAllFacesTextureId(textureId);
-  const placement = modifierStackGeneratorPlacement(parameters);
-  const indices = new Set(brush.brush.faces.map((face) => face.surfaceIndex));
-  for (const index of indices) {
+  const main = modifierStackGeneratorPlacement(parameters);
+  const cap = caps ? modifierStackGeneratorPlacement(parameters, MODIFIER_STACK_GENERATOR_CAP_PREFIX) : main;
+  const placements = new Map<number, ModifierBevelUvPlacement>();
+  brush.brush.faces.forEach((face, index) => placements.set(face.surfaceIndex, caps?.[index] ? cap : main));
+  for (const [index, placement] of placements) {
     const surface = brush.getFaceSurface(index);
     const uv = modifierBevelApplyUvPlacement(surface.uv, placement, MODIFIER_STACK_GENERATOR_TEXTURE_PIVOT);
     if (uv !== surface.uv) brush.setFaceSurface(index, { ...surface, uv });

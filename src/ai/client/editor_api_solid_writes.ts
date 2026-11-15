@@ -26,6 +26,7 @@ import {
   resolveSolidHierarchyNodes,
 } from './editor_api_lookup.js';
 import { nameToSolidOperation, parseOperationOrAdditive } from './editor_api_operations.js';
+import { isSolidBrushShape, SOLID_BRUSH_SHAPES } from '@/solid/brush/solid_brush_shape.js';
 import {
   isEditorApiSnapActive,
   meshTransformSummary,
@@ -89,7 +90,7 @@ export class EditorApiSolidWrites {
   }
 
   /**
-   * Adds a box brush under a solid model.
+   * Adds a box or wedge brush under a solid model.
    *
    * @param args Add-box arguments.
    * @returns Tool result with created brush id.
@@ -97,6 +98,9 @@ export class EditorApiSolidWrites {
   addBoxBrush(args: AddBoxBrushArgs): McpToolResult {
     const model = findSolidModel(this.host.worldObject, args.modelId);
     if (!model) return fail(`Solid model not found: ${args.modelId}`);
+    if (args.shape !== undefined && !isSolidBrushShape(args.shape)) {
+      return fail(`Unknown brush shape: ${String(args.shape)} (use ${SOLID_BRUSH_SHAPES.join(' or ')})`);
+    }
     if (args.parentGroupId) {
       const parent = this.resolveAddBrushParent(model, args.parentGroupId);
       if (!parent) return fail(`CSG group not found under model: ${args.parentGroupId}`);
@@ -168,6 +172,7 @@ export class EditorApiSolidWrites {
       rotation,
       scale,
       parent,
+      isSolidBrushShape(args.shape) ? args.shape : 'box',
     );
     this.host.commandStack.push(command);
     const brush = command.getCreatedBrush();

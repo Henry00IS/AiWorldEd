@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { isResultMesh, isSolidModelObject } from '@/solid/model/solid_model_keys.js';
-import { getSolidGroupOperation, isSolidCsgGroup } from '@/solid/model/solid_group.js';
+import { getSolidGroupOperation, isSolidCsgGroup, isSolidPassThroughGroup } from '@/solid/model/solid_group.js';
 import type { PreparedBrush } from './solid_compile_types.js';
 
 /**
@@ -74,7 +74,8 @@ export class SolidCsgTree {
   /**
    * Builds a hierarchical tree from the solid model scene graph. Brush meshes
    * are matched to prepared entries by instance id. Solid CSG groups become
-   * branch nodes with their stored operations.
+   * branch nodes with their stored operations; pass-through groups are replaced
+   * by their children.
    *
    * @param solidRoot Solid model root group.
    * @param prepared Prepared brushes in DFS evaluation order.
@@ -113,11 +114,32 @@ export class SolidCsgTree {
    */
   private static collectChildNodes(parent: THREE.Object3D, context: SolidCsgTreeBuildContext): SolidCsgTreeNode[] {
     const nodes: SolidCsgTreeNode[] = [];
+    SolidCsgTree.collectChildNodesInto(parent, context, nodes);
+    return nodes;
+  }
+
+  /**
+   * Appends the CSG tree nodes of a scene parent's direct children to a list. A
+   * pass-through group adds no node of its own: its children's nodes are
+   * appended in its place, so they join the list as if they were not grouped.
+   *
+   * @param parent Solid root or solid CSG group.
+   * @param context Prepared lookup context.
+   * @param nodes List receiving the nodes in tree order.
+   */
+  private static collectChildNodesInto(
+    parent: THREE.Object3D,
+    context: SolidCsgTreeBuildContext,
+    nodes: SolidCsgTreeNode[],
+  ): void {
     for (const child of parent.children) {
+      if (isSolidPassThroughGroup(child)) {
+        SolidCsgTree.collectChildNodesInto(child, context, nodes);
+        continue;
+      }
       const node = SolidCsgTree.tryBuildNode(child, context);
       if (node) nodes.push(node);
     }
-    return nodes;
   }
 
   /**

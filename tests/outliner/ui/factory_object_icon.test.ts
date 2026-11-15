@@ -69,6 +69,17 @@ describe('ObjectIconFactory.getIcon', () => {
     expect(FactoryObjectIcon.getIcon(subtractive).badgeCssDot).toBeUndefined();
   });
 
+  it('should show pass-through solid CSG groups as an open folder with a gray badge', () => {
+    const passThrough = new THREE.Group();
+    markAsSolidCsgGroup(passThrough, SolidOperation.PassThrough);
+    expect(FactoryObjectIcon.getIcon(passThrough)).toEqual({
+      character: '📂',
+      color: '#e67e22',
+      badgeCssDot: true,
+      badgeColor: '#95a5a6',
+    });
+  });
+
   it('should return solid model root icon', () => {
     const model = new SolidModel('IconSolid');
     const icon = FactoryObjectIcon.getIcon(model.root);

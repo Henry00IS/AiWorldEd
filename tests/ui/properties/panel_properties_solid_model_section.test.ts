@@ -3,7 +3,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { PanelProperties } from '@/ui/properties/panel_properties.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
-import { SolidOperation } from '@/solid/types/solid_operation.js';
+import * as THREE from 'three';
+import { SOLID_OPERATION_PASS_THROUGH_TOOLTIP, SolidOperation } from '@/solid/types/solid_operation.js';
+import { markAsSolidCsgGroup } from '@/solid/model/solid_group.js';
 import { modifierGeneratorNodeCreate } from '@/modifier/stack/modifier_generator_node.js';
 import { modifierGeneratorOperationCommand } from '@/modifier/stack/modifier_generator_operation.js';
 
@@ -35,7 +37,8 @@ describe('PropertiesPanel solid model section', () => {
     expect(section).not.toBeNull();
     expect(section!.style.display).not.toBe('none');
     expect(section!.textContent).toContain('Inverted World');
-    expect(section!.textContent).toContain('+ Box Brush');
+    expect(section!.querySelector('button[aria-label="Add Box Brush"]')).not.toBeNull();
+    expect(section!.querySelectorAll('button[data-add-generator]').length).toBeGreaterThan(0);
   });
 
   it('shows the solid model section when only the result mesh is selected', () => {
@@ -58,7 +61,7 @@ describe('PropertiesPanel solid model section', () => {
     const onSetInvertedWorld = vi.fn();
     panel.setSolidBrushHandlers({
       onSetOperation: vi.fn(),
-      onAddBoxBrush: vi.fn(),
+      onAddBrush: vi.fn(),
       onMoveToFirst: vi.fn(),
       onMoveToLast: vi.fn(),
       onSetInvertedWorld,
@@ -76,7 +79,7 @@ describe('PropertiesPanel solid model section', () => {
     const onSetOperation = vi.fn();
     panel.setSolidBrushHandlers({
       onSetOperation,
-      onAddBoxBrush: vi.fn(),
+      onAddBrush: vi.fn(),
       onMoveToFirst: vi.fn(),
       onMoveToLast: vi.fn(),
     });
@@ -93,6 +96,33 @@ describe('PropertiesPanel solid model section', () => {
     additive.click();
     expect(onSetOperation).toHaveBeenCalledWith([node], SolidOperation.Additive);
     expect(panel.getContainer().textContent).not.toContain('Operation');
+  });
+
+  it('offers Pass-Through for selected groups only and routes it to the group handler', () => {
+    const onSetOperation = vi.fn();
+    const onSetGroupOperation = vi.fn();
+    panel.setSolidBrushHandlers({
+      onSetOperation,
+      onSetGroupOperation,
+      onAddBrush: vi.fn(),
+      onMoveToFirst: vi.fn(),
+      onMoveToLast: vi.fn(),
+    });
+    const group = new THREE.Group();
+    markAsSolidCsgGroup(group, SolidOperation.Additive);
+    model.root.add(group);
+    panel.bindObjects([group]);
+    const section = findSolidModelSection(panel.getContainer())!;
+    const passThrough = section.querySelector(
+      `button[title="${SOLID_OPERATION_PASS_THROUGH_TOOLTIP}"]`,
+    ) as HTMLButtonElement;
+    expect(passThrough).not.toBeNull();
+    expect(passThrough.style.display).not.toBe('none');
+    passThrough.click();
+    expect(onSetGroupOperation).toHaveBeenCalledWith([group], SolidOperation.PassThrough);
+    panel.bindObjects([model.getBrushes()[0]!.mesh!]);
+    expect(passThrough.style.display).toBe('none');
+    expect(onSetOperation).not.toHaveBeenCalled();
   });
 
   it('hides the solid section after unbind', () => {

@@ -146,7 +146,14 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
     if (node.kind === 'brush') {
       const piece = node.brush.clone();
       piece.transformVertices(new THREE.Matrix4().makeTranslation(node.center.x, node.center.y, node.center.z));
-      const look = { parameters, surfaces: null, textures: null, operation: node.operation, smooth: undefined };
+      const look = {
+        parameters,
+        surfaces: null,
+        caps: null,
+        textures: null,
+        operation: node.operation,
+        smooth: undefined,
+      };
       return this.pieceUnit(piece, counter.next++, context, look);
     }
     const members = node.children.map((child) => this.nodeUnit(child, parameters, context, counter));

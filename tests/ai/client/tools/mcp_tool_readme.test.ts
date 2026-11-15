@@ -33,8 +33,9 @@ describe('MCP documentation', () => {
   it('builds every solid script example and parses every curve path example', () => {
     const examples = fencedBlocks('solid-script');
     expect(examples.length).toBeGreaterThan(0);
-    for (const source of examples) {
-      const result = editorApiFixtureCreate().api.invokeTool('geometry_script_build', { source });
+    for (const example of examples) {
+      const lines = JSON.parse(example) as unknown;
+      const result = editorApiFixtureCreate().api.invokeTool('geometry_script_build', { lines });
       expect(result.ok, result.message).toBe(true);
     }
     for (const path of fencedBlocks('svg-path')) expect(svgPathCurve(path.trim()).points.length).toBeGreaterThan(1);

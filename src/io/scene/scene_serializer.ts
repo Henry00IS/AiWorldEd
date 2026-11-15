@@ -9,7 +9,7 @@ import { CONTENT_MESH_TEXTURE_ID_USERDATA_KEY } from '@/texture/uv/content_mesh_
 import { detectGeometrySourceFromInstance, getGeometrySource } from '@/texture/uv/geometry_source.js';
 import { MeshDocumentCodec } from '@/io/geometry/mesh_document_codec.js';
 import { readPersistentMeshDocument } from '@/mesh/document/mesh_document_binding.js';
-import { isDecorativeEdge } from '@/utils/mesh_edge_sync.js';
+import { isDecorativeEdge, isEditorHelperObject } from '@/utils/mesh_edge_sync.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidModelCodec } from '@/solid/io/solid_model_codec.js';
 import { currentSharedContentMaterialList } from '@/viewports/shared/shared_content_material_store.js';
@@ -88,13 +88,15 @@ export class SceneSerializer {
 
   /**
    * Returns whether a child should appear in the scene file. Skips decorative
-   * edges, overlays, and other non-content objects.
+   * edges, overlays, and other non-content objects, such as editor helpers (the
+   * player's own character, collaborators' presence, thrown toys).
    *
    * @param child The candidate child object.
    * @returns True for meshes and groups that represent scene content.
    */
   private shouldSerializeChild(child: THREE.Object3D): boolean {
     if (child.userData['isClipPlanePreview'] === true) return false;
+    if (isEditorHelperObject(child)) return false;
     if (child instanceof THREE.Mesh) return true;
     if (child instanceof THREE.Group) return true;
     return false;

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { SolidBrush } from '@/solid/brush/solid_brush.js';
 import { SolidBrushFactory } from '@/solid/brush/solid_brush_factory.js';
-import { SolidOperation } from '@/solid/types/solid_operation.js';
+import { SolidOperation, solidOperationBrushRead } from '@/solid/types/solid_operation.js';
 import { SolidBrushEdgeMaterials, SOLID_BRUSH_EDGE_USERDATA_KEY } from './solid_brush_edge_materials.js';
 
 /** UserData key marking a mesh as a solid brush volume helper. */
@@ -576,10 +576,7 @@ export class SolidBrushVisual {
    * @returns Stored operation or Additive when unset.
    */
   static getOperation(mesh: THREE.Object3D): SolidOperation {
-    const value = mesh.userData[SOLID_BRUSH_OPERATION_USERDATA_KEY];
-    if (value === SolidOperation.Subtractive) return SolidOperation.Subtractive;
-    if (value === SolidOperation.Intersecting) return SolidOperation.Intersecting;
-    return SolidOperation.Additive;
+    return solidOperationBrushRead(mesh.userData[SOLID_BRUSH_OPERATION_USERDATA_KEY]);
   }
 
   /**

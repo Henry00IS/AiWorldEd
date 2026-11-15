@@ -8,6 +8,7 @@ import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { GridSnap } from '@/transform/snap/grid_snap.js';
 import { Viewport3D } from '@/viewports/core/viewport_3d.js';
 import { TextureLockSettings } from '@/texture/lock/texture_lock_settings.js';
+import type { SolidBrushShape } from '@/solid/brush/solid_brush_shape.js';
 
 /** Host callbacks used while wiring the solid model panel and controller. */
 export interface SolidModelLayoutHost {
@@ -49,7 +50,7 @@ export function setupSolidModelLayout(host: SolidModelLayoutHost): SolidModelLay
   const solidModelPanel = new SolidModelPanel(
     host.toolbarContainer,
     {
-      onAddBoxBrush: () => solidModelController.addBoxBrush(),
+      onAddBrush: (shape: SolidBrushShape) => solidModelController.addBrush(shape),
       onAddGenerator: (kind: string) => solidModelController.addGenerator(kind),
     },
     host.solidPanelAnchor,
@@ -94,7 +95,7 @@ function wireSolidBrushPropertyHandlers(host: SolidModelLayoutHost, controller: 
       controller.setBrushOperationForMeshes(meshes, operation),
     onSetGroupOperation: (groups: THREE.Group[], operation: SolidOperation) =>
       controller.setGroupOperationForGroups(groups, operation),
-    onAddBoxBrush: () => controller.addBoxBrush(),
+    onAddBrush: (shape: SolidBrushShape) => controller.addBrush(shape),
     onAddGenerator: (kind: string) => controller.addGenerator(kind),
     onMoveToFirst: (nodes: THREE.Object3D[]) => controller.moveBrushesInOrder(nodes, 'first'),
     onMoveToLast: (nodes: THREE.Object3D[]) => controller.moveBrushesInOrder(nodes, 'last'),

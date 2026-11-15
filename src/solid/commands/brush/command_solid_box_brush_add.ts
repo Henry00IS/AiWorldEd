@@ -3,8 +3,9 @@ import { UndoCommand } from '@/commands/command_undo.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
+import type { SolidBrushShape } from '@/solid/brush/solid_brush_shape.js';
 
-/** Undoable command that adds a box brush under a solid model. */
+/** Undoable command that adds a box or wedge brush under a solid model. */
 export class CommandSolidBoxBrushAdd implements UndoCommand {
   private readonly model: SolidModel;
   private readonly size: number;
@@ -15,6 +16,8 @@ export class CommandSolidBoxBrushAdd implements UndoCommand {
   private readonly hierarchyParent: THREE.Object3D;
   /** Child of the hierarchy parent the brush follows, or null to append. */
   private readonly after: THREE.Object3D | null;
+  /** Shape filling the cube. */
+  private readonly shape: SolidBrushShape;
   private created: SolidBrushInstance | null;
   private executed: boolean;
   private readonly scratchModelLocalQuaternion: THREE.Quaternion;
@@ -35,6 +38,7 @@ export class CommandSolidBoxBrushAdd implements UndoCommand {
    *   to identity.
    * @param after Child of the hierarchy parent the brush follows, or null to
    *   append.
+   * @param shape Brush shape filling the cube.
    */
   constructor(
     model: SolidModel,
@@ -44,6 +48,7 @@ export class CommandSolidBoxBrushAdd implements UndoCommand {
     hierarchyParent: THREE.Object3D | null = null,
     rotation: THREE.Euler | null = null,
     after: THREE.Object3D | null = null,
+    shape: SolidBrushShape = 'box',
   ) {
     this.model = model;
     this.size = size;
@@ -52,6 +57,7 @@ export class CommandSolidBoxBrushAdd implements UndoCommand {
     this.rotation = rotation ? rotation.clone() : new THREE.Euler(0, 0, 0, 'XYZ');
     this.hierarchyParent = model.resolveBrushInsertParent(hierarchyParent);
     this.after = after;
+    this.shape = shape;
     this.created = null;
     this.executed = false;
     this.scratchModelLocalQuaternion = new THREE.Quaternion();
@@ -93,11 +99,18 @@ export class CommandSolidBoxBrushAdd implements UndoCommand {
   }
 
   /**
-   * Builds a new box brush under the hierarchy parent, poses it, then runs one
+   * Builds a new brush under the hierarchy parent, poses it, then runs one
    * partial CSG rebuild at the final spawn transform.
    */
   private createBrush(): void {
-    const brush = this.model.addBoxBrush(this.size, this.operation, this.hierarchyParent, false, this.after);
+    const brush = this.model.addBoxBrush(
+      this.size,
+      this.operation,
+      this.hierarchyParent,
+      false,
+      this.after,
+      this.shape,
+    );
     this.applySpawnPose(brush);
     this.model.markBrushesDirty([brush.id]);
     this.model.rebuild();

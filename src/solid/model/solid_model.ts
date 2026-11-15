@@ -2,7 +2,7 @@ import { allocateBrushCopyIdentity } from './solid_brush_copy_identity.js';
 import * as THREE from 'three';
 import { SolidBrush } from '@/solid/brush/solid_brush.js';
 import { SolidBrushInstance } from './solid_brush_instance.js';
-import { SolidBrushFactory } from '@/solid/brush/solid_brush_factory.js';
+import { solidBrushShapeCreate, type SolidBrushShape } from '@/solid/brush/solid_brush_shape.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { NotificationGlobal } from '@/audio/notification/notification_global.js';
 import { SolidBrushVisual } from './solid_brush_visual.js';
@@ -282,7 +282,8 @@ export class SolidModel {
   }
 
   /**
-   * Adds a centered box brush as a selectable child mesh and rebuilds.
+   * Adds a centered box (or another plain brush shape) as a selectable child
+   * mesh and rebuilds.
    *
    * @param size Cube edge length.
    * @param operation CSG operation.
@@ -291,6 +292,7 @@ export class SolidModel {
    * @param rebuildAfter When false, defers CSG so the caller can pose the brush
    *   first (avoids a wasteful origin compile before spawn offset).
    * @param after Child of the parent the brush follows, or null to append.
+   * @param shape Brush shape filling the cube.
    * @returns Created brush instance.
    */
   addBoxBrush(
@@ -299,12 +301,13 @@ export class SolidModel {
     parent: THREE.Object3D | null = null,
     rebuildAfter: boolean = true,
     after: THREE.Object3D | null = null,
+    shape: SolidBrushShape = 'box',
   ): SolidBrushInstance {
     this.brushes.nextBrushCounter();
     const name = hierarchyNameAllocator.allocate('Brush');
-    const brush = SolidBrushFactory.createCenteredBox(size, size, size);
+    const brush = solidBrushShapeCreate(shape, new THREE.Vector3(size, size, size));
     const instance = new SolidBrushInstance(this.brushes.allocateBrushId(), name, brush, operation);
-    const preview = SolidBrushVisual.createBoxPreview(name, size, operation);
+    const preview = SolidBrushVisual.createHullPreview(name, brush, operation);
     instance.attachMesh(preview);
     const targetParent = this.resolveBrushInsertParent(parent);
     targetParent.add(preview);

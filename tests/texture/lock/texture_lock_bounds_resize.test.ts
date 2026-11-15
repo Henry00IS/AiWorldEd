@@ -108,7 +108,7 @@ interface LockScene {
 function buildScene(locks: { positionLock: boolean; stretchLock: boolean }): LockScene {
   const world = new THREE.Group();
   const host = document.createElement('div');
-  const panel = new SolidModelPanel(host, { onAddBoxBrush: () => undefined }, host);
+  const panel = new SolidModelPanel(host, { onAddBrush: () => undefined }, host);
   const controller = new SolidModelController(world, new CommandStack(16), new ManagerSelection(), panel);
   controller.setTransformModeProvider(() => TransformMode.BOUNDS);
   controller.setTextureLockSettings(new TextureLockSettings(locks.positionLock, locks.stretchLock));

@@ -4,7 +4,7 @@ import { SolidPlane } from '@/solid/brush/solid_plane.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { isResultMesh, isSolidModelObject } from '@/solid/model/solid_model_keys.js';
-import { getSolidGroupOperation } from '@/solid/model/solid_group.js';
+import { getSolidGroupOperation, isSolidPassThroughGroup } from '@/solid/model/solid_group.js';
 import { BrushMembership } from '@/solid/algorithm/spatial/brush_membership.js';
 import { isSolidBrushMarkedNonConvex } from '@/edit/transform/brush_edit_convexity.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
@@ -114,6 +114,7 @@ function modifierStackBuiltNodeBuild(
   if (SolidBrushVisual.isBrushObject(node)) return modifierStackBuiltLeafBuild(node, sources, generator);
   if (!(node instanceof THREE.Group)) return [];
   const children = node.children.flatMap((child) => modifierStackBuiltNodeBuild(child, sources, generator));
+  if (isSolidPassThroughGroup(node)) return children;
   return children.length > 0 ? [{ kind: 'branch', operation: getSolidGroupOperation(node), children }] : [];
 }
 

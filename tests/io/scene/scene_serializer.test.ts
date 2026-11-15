@@ -20,6 +20,19 @@ describe('SceneSerializer', () => {
     expect(result.objects.length).toBe(0);
   });
 
+  it.each(['isPlayerFigurine', 'isCollaborationPresence', 'isPlayerBall'])(
+    'leaves editor helpers flagged %s, and everything under them, out of the level',
+    (flag) => {
+      const helper = new THREE.Group();
+      helper.userData[flag] = true;
+      helper.add(new THREE.Group().add(createBoxAtPosition(0, 0, 0)));
+      worldGroup.add(helper);
+      worldGroup.add(createBoxAtPosition(1, 2, 3));
+      expect(serializer.serialize(worldGroup).objects.length).toBe(1);
+      expect(serializer.serializeObjects([helper])).toEqual([]);
+    },
+  );
+
   it('should set version number to 4', () => {
     const result = serializer.serialize(worldGroup);
     expect(result.version).toBe(4);

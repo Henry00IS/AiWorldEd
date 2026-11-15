@@ -104,7 +104,7 @@ describe('Solid model insert beside a selected group', () => {
     const scene = groupSceneCreate();
     const groupChildCount = scene.group.children.length;
     groupSelect(scene);
-    scene.controller.addBoxBrush();
+    scene.controller.addBrush();
     const created = scene.selection.getLastSelectedObject();
     expect(scene.model.getBrushCount()).toBe(4);
     expect(scene.group.children.length).toBe(groupChildCount);
@@ -115,7 +115,7 @@ describe('Solid model insert beside a selected group', () => {
   it('keeps the slot after the group through undo and redo', () => {
     const scene = groupSceneCreate();
     groupSelect(scene);
-    scene.controller.addBoxBrush();
+    scene.controller.addBrush();
     const created = scene.selection.getLastSelectedObject();
     scene.commands.undo();
     expect(scene.model.getBrushCount()).toBe(3);
@@ -131,7 +131,7 @@ describe('Solid model insert beside a selected group', () => {
     const scene = groupSceneCreate(true);
     const outer = scene.group.parent as THREE.Object3D;
     groupSelect(scene);
-    scene.controller.addBoxBrush();
+    scene.controller.addBrush();
     const created = scene.selection.getLastSelectedObject();
     expect(created?.parent).toBe(outer);
     expect(siblingAfterGroup(scene.group)).toBe(created);
@@ -154,7 +154,7 @@ describe('Solid model insert beside a selected group', () => {
     const scene = groupSceneCreate();
     const inner = scene.group.children[0] as THREE.Mesh;
     scene.selection.selectObject(inner);
-    scene.controller.addBoxBrush();
+    scene.controller.addBrush();
     const created = scene.selection.getLastSelectedObject();
     expect(created?.parent).toBe(scene.group);
   });
