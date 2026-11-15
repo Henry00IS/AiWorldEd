@@ -21,4 +21,5 @@ export type EditMeshToolCommand =
   | 'split_faces'
   | 'smooth_vertices'
   | 'fill_holes'
-  | 'rotate_edges';
+  | 'rotate_edges'
+  | 'fatten_faces';

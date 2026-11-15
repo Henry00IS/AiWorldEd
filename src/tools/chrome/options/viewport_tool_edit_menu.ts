@@ -177,6 +177,12 @@ export function buildViewportToolFaceMenuEntries(actions: ViewportToolEditMenuAc
       'Give loose mesh faces, such as a single panel, a thickness so they become a closed slab',
       tool('solidify_faces'),
     ),
+    createAction(
+      'Shrink / Fatten',
+      '',
+      'Move the selected mesh faces in or out along their normals so the surface swells or sinks without new faces',
+      tool('fatten_faces'),
+    ),
     { kind: 'separator' },
     createAction(
       'Duplicate Faces',

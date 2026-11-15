@@ -35,6 +35,7 @@ import {
 } from './topology_face_triangulate.js';
 import { joinTopologyWorkingTriangles } from './topology_face_join_triangles.js';
 import { solidifyTopologyWorkingFaces } from './topology_face_solidify.js';
+import { fattenTopologyWorkingFaces } from './topology_face_fatten.js';
 import { rotateTopologyWorkingEdges } from './topology_edge_rotate.js';
 import { fillTopologyWorkingHoles } from './topology_face_fill_holes.js';
 import { smoothTopologyWorkingVertices } from './topology_vertex_smooth.js';
@@ -54,7 +55,7 @@ export interface FaceSelectionAxis {
  * What the extrude tool builds: an extrusion grouped one way, or a solidified
  * slab.
  */
-export type MeshExtrudeMode = TopologyFaceExtrudeGrouping | 'solidify';
+export type MeshExtrudeMode = TopologyFaceExtrudeGrouping | 'solidify' | 'fatten';
 
 /** Selected edges of one edited mesh. */
 interface MeshEdgeSelection {
@@ -161,6 +162,7 @@ export class HandlerComponentMeshOperations {
    */
   previewExtrude(distance: number, grouping: MeshExtrudeMode): THREE.Vector3[] {
     if (grouping === 'solidify') return this.previewSolidify(distance);
+    if (grouping === 'fatten') return this.previewFatten(distance);
     if (!this.isEdgeMode()) return this.previewFaceExtrude(distance, grouping);
     const points: THREE.Vector3[] = [];
     for (const { target, edges } of this.collectMeshEdgeSelections()) {
@@ -182,6 +184,7 @@ export class HandlerComponentMeshOperations {
    */
   extrudeSelection(distance: number, grouping: MeshExtrudeMode): boolean {
     if (grouping === 'solidify') return this.solidifySelectedFaces(distance);
+    if (grouping === 'fatten') return this.fattenSelectedFaces(distance);
     if (!this.isEdgeMode()) return this.extrudeSelectedFaces(distance, grouping);
     const outer: ComponentSelectionEntry[] = [];
     const targets = this.collectMeshEdgeSelections();
@@ -205,6 +208,7 @@ export class HandlerComponentMeshOperations {
    */
   describeExtrudeLabel(grouping: MeshExtrudeMode): string {
     if (grouping === 'solidify') return 'Solidify';
+    if (grouping === 'fatten') return 'Shrink / Fatten';
     if (this.isEdgeMode()) return 'Extrude Edges';
     return grouping === 'individual' ? 'Extrude Faces Individually' : 'Extrude Faces';
   }
@@ -352,6 +356,36 @@ export class HandlerComponentMeshOperations {
         return outcome.result;
       },
       () => this.deps.getSession().getComponentSelection().replaceAll(pieces),
+    );
+  }
+
+  /**
+   * Builds world line segments of the selected faces after Shrink / Fatten.
+   *
+   * @param distance Signed world distance.
+   * @returns Flat list of segment endpoints.
+   */
+  previewFatten(distance: number): THREE.Vector3[] {
+    const points: THREE.Vector3[] = [];
+    for (const { target, faces } of this.collectMeshFaceSelections('Shrink / Fatten')) {
+      const geometry = loadWorkingGeometryFromTarget(target);
+      if (fattenTopologyWorkingFaces(geometry, faces, distance, meshNormalScale(target)).applied) {
+        appendNewFaceSegments(geometry, faces, geometry.faces.length, target, points);
+      }
+    }
+    return points;
+  }
+
+  /**
+   * Moves the corners of the selected mesh faces along their normals, keeping
+   * the faces selected.
+   *
+   * @param distance Signed world distance; negative shrinks.
+   * @returns True when at least one mesh changed.
+   */
+  fattenSelectedFaces(distance: number): boolean {
+    return this.mutateSelectedMeshFaces('Shrink / Fatten', (target, geometry, faces) =>
+      fattenTopologyWorkingFaces(geometry, faces, distance, meshNormalScale(target)),
     );
   }
 

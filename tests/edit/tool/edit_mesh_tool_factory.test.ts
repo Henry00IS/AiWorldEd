@@ -9,6 +9,7 @@ describe('createEditMeshTool', () => {
     expect(createEditMeshTool('extrude_faces')).toBeInstanceOf(EditFaceExtrudeTool);
     expect(createEditMeshTool('extrude_edges')).toBeInstanceOf(EditFaceExtrudeTool);
     expect(createEditMeshTool('solidify_faces')).toBeInstanceOf(EditFaceExtrudeTool);
+    expect(createEditMeshTool('fatten_faces')).toBeInstanceOf(EditFaceExtrudeTool);
     expect(createEditMeshTool('inset_faces')).toBeInstanceOf(EditFaceInsetTool);
     expect(createEditMeshTool('bevel_edges')).toBeInstanceOf(EditEdgeBevelTool);
   });
