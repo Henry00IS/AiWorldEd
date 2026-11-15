@@ -22,6 +22,8 @@ import {
 } from '@/curve/library/curve_library.js';
 import { curveFileWrite } from '@/curve/model/curve_file.js';
 import { curveFromPolyline } from '@/curve/model/curve_model.js';
+import { ProjectMockDirectoryHandle } from '../fs/project_mock_directory_handle.js';
+import type { SceneFileHandle } from '@/io/scene_file/scene_file_session.js';
 
 /**
  * Builds the editor controller over a mock project.
@@ -153,6 +155,25 @@ describe('ControllerProjectEditor', () => {
     expect(sceneSet).toHaveBeenCalledWith(null);
     await editor.levelSaved();
     expect(snapshot).toHaveBeenCalledTimes(2);
+    editor.dispose();
+  });
+
+  it('records the project path of a level just saved so later autosaves belong to it', async () => {
+    const { editor, autosave, project } = editorCreate();
+    await editor.openOrReopen();
+    const handle = await project.fileSystem()!.fileHandle('maps/start.json');
+    await editor.levelSaved(handle);
+    expect(autosave.scenePath()).toBe('maps/start.json');
+    editor.dispose();
+  });
+
+  it('clears the project path when the saved file is not in the project', async () => {
+    const { editor, autosave } = editorCreate();
+    await editor.openOrReopen();
+    autosave.sceneSet('maps/start.json');
+    const outsider = new ProjectMockDirectoryHandle('other').put('elsewhere.aiworld', '{}');
+    await editor.levelSaved(outsider as unknown as SceneFileHandle);
+    expect(autosave.scenePath()).toBeNull();
     editor.dispose();
   });
 

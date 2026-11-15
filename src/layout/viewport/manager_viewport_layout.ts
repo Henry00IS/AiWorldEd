@@ -895,7 +895,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
       this.commandStack,
       alwaysPrompt,
     );
-    if (saved) await this.projectHost?.levelSaved();
+    if (saved) await this.projectHost?.levelSaved(this.sceneIOHandler.getSceneFileSession().getCurrentHandle());
   }
 
   /** Handles the Load Scene toolbar button and Ctrl+O shortcut. */

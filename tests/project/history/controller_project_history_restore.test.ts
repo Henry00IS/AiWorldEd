@@ -121,7 +121,9 @@ describe('Level History restore and autosave', () => {
     const seeded = await autosavesSeed(fixture, 3);
     expect(seeded).toHaveLength(3);
     expect((await fixture.editor.history.restore(seeded[0]!)).message).toMatch(/^Restored /);
+    expect(fixture.host.sceneLoad).toHaveBeenLastCalledWith(expect.any(Blob), expect.any(String), null);
     expect(fixture.stack.isAtSavedPoint()).toBe(true);
+    expect(fixture.autosave.scenePath()).toBe(PATH);
     await fixture.autosave.flush();
     expect(await autosavesOf(fixture.store, PATH)).toHaveLength(3);
     expect((await fixture.store.entries()).filter((entry) => entry.kind === 'autosave')).toHaveLength(3);

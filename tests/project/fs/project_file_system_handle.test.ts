@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { SceneFileHandle } from '@/io/scene_file/scene_file_session.js';
 import { ProjectFileSystemHandle, projectFileSystemObserverPaths } from '@/project/fs/project_file_system_handle.js';
 import { ProjectMockDirectoryHandle } from './project_mock_directory_handle.js';
 
@@ -60,5 +61,14 @@ describe('ProjectFileSystemHandle', () => {
     expect(projectFileSystemObserverPaths([moved] as unknown as FileSystemChangeRecord[])).toEqual(['b.png', 'a.png']);
     const unknown = { type: 'unknown', relativePathComponents: [], relativePathMovedFrom: null };
     expect(projectFileSystemObserverPaths([unknown] as unknown as FileSystemChangeRecord[])).toBeNull();
+  });
+
+  it('returns the project path of a file handle inside the folder', async () => {
+    const root = new ProjectMockDirectoryHandle('game');
+    const file = root.put('maps/keep.aiworld', '{}');
+    const fileSystem = new ProjectFileSystemHandle(root.asHandle());
+    expect(await fileSystem.filePath(file as unknown as SceneFileHandle)).toBe('maps/keep.aiworld');
+    const stray = new ProjectMockDirectoryHandle('other').put('keep.aiworld', '{}');
+    expect(await fileSystem.filePath(stray as unknown as SceneFileHandle)).toBeNull();
   });
 });

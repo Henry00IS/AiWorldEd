@@ -119,6 +119,16 @@ export class ProjectFileSystemHandle implements ProjectFileSystem {
   }
 
   /**
+   * Returns the project path of a file handle inside this folder.
+   *
+   * @param handle File handle.
+   * @returns Path, or null when the file is not in this folder.
+   */
+  async filePath(handle: SceneFileHandle): Promise<string | null> {
+    return projectFileSystemHandlePath(this.root, handle);
+  }
+
+  /**
    * Deletes a file; a missing file is ignored.
    *
    * @param path File path.
@@ -222,4 +232,22 @@ export function projectFileSystemObserverPaths(records: readonly FileSystemChang
     if (record.relativePathMovedFrom !== null) paths.push(record.relativePathMovedFrom.join('/'));
   }
   return paths;
+}
+
+/**
+ * Resolves a file handle to a path under a folder, using the directory handle's
+ * resolve when the browser has it.
+ *
+ * @param root Project folder.
+ * @param handle File handle.
+ * @returns Path, or null when the file is not in the folder.
+ */
+async function projectFileSystemHandlePath(
+  root: FileSystemDirectoryHandle,
+  handle: SceneFileHandle,
+): Promise<string | null> {
+  const resolve = root.resolve?.bind(root);
+  if (resolve === undefined) return null;
+  const segments = await resolve(handle as unknown as FileSystemHandle);
+  return segments === null || segments.length === 0 ? null : segments.join('/');
 }

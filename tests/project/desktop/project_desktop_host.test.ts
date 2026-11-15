@@ -95,7 +95,11 @@ describe('ProjectDesktopHost', () => {
     await writable.write(new TextEncoder().encode('2}'));
     expect(await (await handle.getFile()).text()).toBe('{"a":1}');
     await writable.close();
-    expect([handle.name, await (await handle.getFile()).text()]).toEqual(['x.json', '{"a":2}']);
+    expect([handle.name, await (await handle.getFile()).text(), await fileSystem.filePath(handle)]).toEqual([
+      'x.json',
+      '{"a":2}',
+      'notes/x.json',
+    ]);
   });
 
   it('round-trips base64 for large buffers', () => {
