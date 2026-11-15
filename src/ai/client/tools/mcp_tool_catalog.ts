@@ -63,10 +63,11 @@ export class McpToolCatalog {
    * failed results.
    *
    * @param name Tool name.
-   * @param args Tool arguments.
+   * @param args Tool arguments from the client.
+   * @param internal Editor-side options added after the argument check.
    * @returns Tool result envelope.
    */
-  toolRun(name: string, args: Record<string, unknown>): McpToolResult {
+  toolRun(name: string, args: Record<string, unknown>, internal: Record<string, unknown> = {}): McpToolResult {
     const tool = this.toolFind(name);
     if (!tool) return { ok: false, message: `Unknown tool: ${name}. Call tools/list for the current tool names.` };
     const known = Object.keys((tool.inputSchema['properties'] ?? {}) as Record<string, unknown>);
@@ -77,7 +78,7 @@ export class McpToolCatalog {
         message: `Unknown argument ${unknown.join(', ')} for ${name}. Arguments: ${known.join(', ') || 'none'}`,
       };
     try {
-      return tool.run(args);
+      return tool.run({ ...args, ...internal });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return { ok: false, message: `${name} failed: ${message}` };

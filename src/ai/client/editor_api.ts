@@ -53,10 +53,12 @@ export class EditorApi {
    * Runs a tool by name with a plain argument object.
    *
    * @param name MCP tool name.
-   * @param args Tool arguments.
+   * @param args Tool arguments from the client.
+   * @param internal Editor-side options added after argument checks, such as
+   *   capture delivery.
    * @returns Tool result envelope.
    */
-  invokeTool(name: string, args: Record<string, unknown> = {}): McpToolResult {
-    return this.catalog.toolRun(name, args);
+  invokeTool(name: string, args: Record<string, unknown> = {}, internal: Record<string, unknown> = {}): McpToolResult {
+    return this.catalog.toolRun(name, args, internal);
   }
 }

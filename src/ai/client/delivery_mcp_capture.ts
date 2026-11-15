@@ -29,20 +29,18 @@ const DELIVERY_MCP_CAPTURE_NAME = 'capture.png';
  *
  * @param mode Delivery mode.
  * @param publisher Relay link publisher, or null.
- * @param args Tool arguments from the MCP client.
- * @param invoke Runs view_capture with the given arguments.
+ * @param invoke Runs view_capture, lossless PNG or size-capped JPEG.
  * @returns Tool result.
  */
 export async function deliveryMcpCapture(
   mode: McpImageDelivery,
   publisher: McpImagePublisher | null,
-  args: Record<string, unknown>,
-  invoke: (args: Record<string, unknown>) => McpToolResult,
+  invoke: (lossless: boolean) => McpToolResult,
 ): Promise<McpToolResult> {
-  const embed = (): McpToolResult => invoke({ ...args, lossless: false });
+  const embed = (): McpToolResult => invoke(false);
   if (mode === 'embed') return embed();
   if (mode === 'public' && publisher?.available() !== true) return deliveryMcpCaptureFallback(embed());
-  const result = invoke({ ...args, lossless: true });
+  const result = invoke(true);
   const image = result.images?.[0];
   if (!result.ok || image === undefined) return result;
   const { images: _images, ...rest } = result;

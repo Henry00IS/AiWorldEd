@@ -15,11 +15,11 @@ import type { McpToolResult } from '@/ai/shared/mcp_protocol_types.js';
 /**
  * Fake view_capture that reports the format it was asked for.
  *
- * @param args Tool arguments.
+ * @param lossless True asks for a PNG.
  * @returns Result with one image.
  */
-function capture(args: Record<string, unknown>): McpToolResult {
-  const mimeType = args['lossless'] === true ? 'image/png' : 'image/jpeg';
+function capture(lossless: boolean): McpToolResult {
+  const mimeType = lossless ? 'image/png' : 'image/jpeg';
   return { ok: true, message: 'Captured view', images: [{ mimeType, data: btoa('img') }] };
 }
 
@@ -35,21 +35,21 @@ function deliveryValues(select: HTMLSelectElement): string[] {
 
 /** Capture_view delivery modes, the public link fallback and the stored mode. */
 describe('delivery_mcp_capture', () => {
-  it('embeds a JPEG in embed mode even when the client asks for lossless', async () => {
-    const result = await deliveryMcpCapture('embed', null, { lossless: true }, capture);
+  it('embeds a JPEG in embed mode', async () => {
+    const result = await deliveryMcpCapture('embed', null, capture);
     expect(result.images?.[0]?.mimeType).toBe('image/jpeg');
     expect(result.files).toBeUndefined();
   });
 
   it('hands a lossless PNG to the local host in localhost mode', async () => {
-    const result = await deliveryMcpCapture('localhost', null, {}, capture);
+    const result = await deliveryMcpCapture('localhost', null, capture);
     expect(result.images).toBeUndefined();
     expect(result.files?.[0]?.mimeType).toBe('image/png');
   });
 
   it('shares a lossless PNG through the relay in public mode', async () => {
     const share = vi.fn(async () => 'https://relay.test/ws/transfer/abc');
-    const result = await deliveryMcpCapture('public', { available: () => true, share }, {}, capture);
+    const result = await deliveryMcpCapture('public', { available: () => true, share }, capture);
     expect(result.links).toEqual(['https://relay.test/ws/transfer/abc']);
     expect(result.message).toContain('https://relay.test/ws/transfer/abc');
     expect(result.images).toBeUndefined();
@@ -57,17 +57,17 @@ describe('delivery_mcp_capture', () => {
   });
 
   it('falls back to an embedded JPEG when the relay is unavailable or the share fails', async () => {
-    const offline = await deliveryMcpCapture('public', { available: () => false, share: vi.fn() }, {}, capture);
+    const offline = await deliveryMcpCapture('public', { available: () => false, share: vi.fn() }, capture);
     expect(offline.images?.[0]?.mimeType).toBe('image/jpeg');
     expect(offline.warnings?.[0]).toContain('Relay unavailable');
     const failing = { available: () => true, share: vi.fn(async () => Promise.reject(new Error('x'))) };
-    const failed = await deliveryMcpCapture('public', failing, {}, capture);
+    const failed = await deliveryMcpCapture('public', failing, capture);
     expect(failed.images?.[0]?.mimeType).toBe('image/jpeg');
-    expect(await deliveryMcpCapture('public', null, {}, capture)).toMatchObject({ ok: true });
+    expect(await deliveryMcpCapture('public', null, capture)).toMatchObject({ ok: true });
   });
 
   it('keeps failed captures unchanged', async () => {
-    const result = await deliveryMcpCapture('localhost', null, {}, () => ({ ok: false, message: 'no scene' }));
+    const result = await deliveryMcpCapture('localhost', null, () => ({ ok: false, message: 'no scene' }));
     expect(result).toEqual({ ok: false, message: 'no scene' });
   });
 

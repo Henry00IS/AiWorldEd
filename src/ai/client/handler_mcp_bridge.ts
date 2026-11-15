@@ -97,11 +97,8 @@ export class HandlerMcpBridge {
     const args = params.arguments && typeof params.arguments === 'object' ? params.arguments : {};
     const delivery = mcpImageDeliveryGet();
     if (params.name === 'view_capture')
-      return deliveryMcpCapture(
-        online && delivery === 'localhost' ? 'public' : delivery,
-        this.publisher,
-        args,
-        (next) => editorApi.invokeTool('view_capture', next),
+      return deliveryMcpCapture(online && delivery === 'localhost' ? 'public' : delivery, this.publisher, (lossless) =>
+        editorApi.invokeTool('view_capture', args, { lossless }),
       );
     const invoke = (): McpToolResult => editorApi.invokeTool(params.name, args);
     const guard = this.guard;
