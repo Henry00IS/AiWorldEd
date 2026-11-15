@@ -1,5 +1,9 @@
 import type { EditorApiParts } from '@/ai/client/editor_api_parts.js';
 import type { GeometrySolidScriptArgs } from '@/ai/client/editor_api_geometry.js';
+import {
+  EditorApiGeometryScript,
+  type GeometryScriptGeneratorSetArgs,
+} from '@/ai/client/editor_api_geometry_script.js';
 import type { McpToolSchema } from '@/ai/shared/mcp_tool_definition.js';
 import type { McpTool } from '@/ai/client/tools/mcp_tool.js';
 import { McpToolGroup } from '@/ai/client/tools/mcp_tool_group.js';
@@ -50,6 +54,44 @@ const MCP_GEOMETRY_SCAD_SCHEMA: McpToolSchema = {
   required: ['source'],
 };
 
+/** The generator argument of the script generator tools. */
+const MCP_GEOMETRY_SCRIPT_OBJECT = {
+  type: 'string',
+  description: 'SolidScript generator node id (modifier_generator_create kind solidScript).',
+};
+
+/** Input schema of geometry_script_generator_get. */
+const MCP_GEOMETRY_SCRIPT_GET_SCHEMA: McpToolSchema = {
+  type: 'object',
+  properties: { objectId: MCP_GEOMETRY_SCRIPT_OBJECT },
+  required: ['objectId'],
+};
+
+/** Input schema of geometry_script_generator_set. */
+const MCP_GEOMETRY_SCRIPT_SET_SCHEMA: McpToolSchema = {
+  type: 'object',
+  properties: {
+    objectId: MCP_GEOMETRY_SCRIPT_OBJECT,
+    source: {
+      type: 'string',
+      description: 'New script as solid script source; every source line becomes one code line. Give source or lines.',
+    },
+    lines: {
+      type: 'array',
+      description:
+        'New script as lines, like the script editor: {command, values} for a command line from geometry_script_command_list (values are code text by parameter key; block commands need a later {command: "end"}), or {code} for a line of code.',
+      items: { type: 'object' },
+    },
+    placement: {
+      type: 'string',
+      enum: ['origin', 'fit', 'stretch'],
+      description:
+        "'origin' keeps script units at the box's bottom centre, 'fit' scales uniformly into the box, 'stretch' fills it.",
+    },
+  },
+  required: ['objectId'],
+};
+
 /**
  * Geometry languages: describe solids in an existing standard instead of
  * computing brush math.
@@ -66,7 +108,11 @@ export class McpToolsGeometry extends McpToolGroup {
    */
   constructor(private readonly parts: EditorApiParts) {
     super();
+    this.script = new EditorApiGeometryScript(parts.host);
   }
+
+  /** Script generator reads and writes. */
+  private readonly script: EditorApiGeometryScript;
 
   /**
    * Returns the geometry tools.
@@ -88,6 +134,42 @@ export class McpToolsGeometry extends McpToolGroup {
         inputSchema: MCP_GEOMETRY_SCAD_SCHEMA,
         mutates: true,
         run: (args) => this.parts.geometry.solidScriptBuild(args as unknown as GeometrySolidScriptArgs),
+      },
+      ...this.generatorTools(),
+    ];
+  }
+
+  /**
+   * Returns the tools of SolidScript generators, which keep a script in the
+   * level and rebuild its brushes whenever the script or the box changes.
+   *
+   * @returns Tools.
+   */
+  private generatorTools(): McpTool[] {
+    return [
+      {
+        name: 'geometry_script_command_list',
+        description:
+          'Lists the command lines of the SolidScript editor palette: id, category, values with hints, and the code each writes.',
+        inputSchema: { type: 'object', properties: {} },
+        mutates: false,
+        run: () => this.script.commandList(),
+      },
+      {
+        name: 'geometry_script_generator_get',
+        description:
+          'Reads the script of a SolidScript generator: its command and code lines, the source, placement, solid count and first error.',
+        inputSchema: MCP_GEOMETRY_SCRIPT_GET_SCHEMA,
+        mutates: false,
+        run: (args) => this.script.generatorGet(String(args['objectId'] ?? '')),
+      },
+      {
+        name: 'geometry_script_generator_set',
+        description:
+          'Replaces the script of a SolidScript generator, as source or as editor lines, in one undo step; the generator rebuilds its brushes. Turn it into brushes with modifier_stack_bake.',
+        inputSchema: MCP_GEOMETRY_SCRIPT_SET_SCHEMA,
+        mutates: true,
+        run: (args) => this.script.generatorSet(args as unknown as GeometryScriptGeneratorSetArgs),
       },
     ];
   }

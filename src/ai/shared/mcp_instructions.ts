@@ -10,7 +10,7 @@ export const MCP_SERVER_INSTRUCTIONS = [
   'Workflow:',
   '1. editor_context_get, then scene_hierarchy_get to see what exists.',
   '2. Build shapes with geometry_script_build: a solid script in OpenSCAD-compatible syntax (cube, cylinder, sphere, polyhedron, linear_extrude of square/circle/polygon, hull, union, difference, intersection, transforms, modules, for, variables). It becomes brushes and CSG groups in one undo step, so no clipping planes or half-size math is needed. geometry_script_preview checks source first.',
-  '3. Generators and modifiers (Column, Stairs, Arch, arrays, bevel, ...): modifier_kind_list with kindId shows every property with its tooltip, range and choices; modifier_generator_create and modifier_parameters_set build and tune them.',
+  '3. Generators and modifiers (Column, Stairs, Arch, arrays, bevel, ...): modifier_kind_list with kindId shows every property with its tooltip, range and choices; modifier_generator_create and modifier_parameters_set build and tune them. A solidScript generator keeps a solid script in the level; geometry_script_generator_set writes it.',
   '4. Curves (column profiles and other curve properties): curve_get reads points and handles, curve_point_set and curve_segment_set fix single points and segments, curve_path_set accepts SVG path data.',
   '5. Textures: texture_list, texture_face_list for a brush, then texture_face_assign and texture_uv_set / texture_uv_align / texture_uv_scale / texture_uv_offset / texture_uv_rotate.',
   '6. Anything else a user clicks: editor_menu_list, then editor_menu_run.',

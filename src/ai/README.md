@@ -158,6 +158,12 @@ module arch() union() {
 difference() { translate([-2, -0.1, 0]) cube([4, 0.2, 3.5]); arch(); }
 ```
 
+## SolidScript generator
+
+A SolidScript generator keeps a solid script inside the level and rebuilds its brushes whenever the script or its box changes, like the other generators. Create one with `modifier_generator_create` and kind `solidScript`. `geometry_script_generator_set` replaces its script, either as `source` or as editor `lines`. `geometry_script_generator_get` reads it back with the first error. `geometry_script_command_list` lists the command lines of the editor palette. `placement` maps the script into the box: `origin` keeps script units with the origin at the bottom centre, `fit` scales uniformly, and `stretch` fills the box. `modifier_stack_bake` turns the result into brushes and keeps its CSG groups.
+
+In the editor, the generator's Edit Script button opens the script editor. Scripts are saved as `.aiscript` files in `AiWorldEd/Scripts`. Each file is a zip that holds `script.json` (`format: "aiworlded.solidscript"`, `version`, `name`, `blocks`, `resources`), and `resources/` is reserved for embedded files.
+
 ## Generators, modifiers and curves
 
 - `modifier_kind_list` with `kindId` lists every property of a kind. Each entry gives key, label, type, range, choices, default and the inspector tooltip, plus the kind's presets. The list is read from the same field descriptors the inspector draws, so new inspector fields show up in MCP by themselves.
@@ -245,10 +251,13 @@ The outliner hierarchy of solid models, CSG groups and brushes; reparenting.
 
 Geometry languages: describe solids as a solid script and get ordered CSG brushes and groups in one undo step.
 
-| Tool                      | Purpose                                                                                                                                                  |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `geometry_script_preview` | Dry run of geometry_script_build: evaluates solid script source and returns the brush/group tree with operations and centers without changing the scene. |
-| `geometry_script_build`   | Builds solids from solid script source as CSG brushes and groups in one undo step.                                                                       |
+| Tool                            | Purpose                                                                                                                                                  |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `geometry_script_preview`       | Dry run of geometry_script_build: evaluates solid script source and returns the brush/group tree with operations and centers without changing the scene. |
+| `geometry_script_build`         | Builds solids from solid script source as CSG brushes and groups in one undo step.                                                                       |
+| `geometry_script_command_list`  | Lists the command lines of the SolidScript editor palette: id, category, values with hints, and the code each writes.                                    |
+| `geometry_script_generator_get` | Reads the script of a SolidScript generator: its command and code lines, the source, placement, solid count and first error.                             |
+| `geometry_script_generator_set` | Replaces the script of a SolidScript generator, as source or as editor lines, in one undo step; the generator rebuilds its brushes.                      |
 
 ### solid_model
 
