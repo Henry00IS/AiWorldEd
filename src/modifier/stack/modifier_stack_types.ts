@@ -58,7 +58,7 @@ export interface ModifierStackField {
   /** Visible caption. */
   label: string;
   /** Editor type. */
-  type: 'number' | 'choice' | 'boolean' | 'object' | 'curve' | 'texture' | 'action';
+  type: 'number' | 'choice' | 'boolean' | 'object' | 'curve' | 'texture' | 'action' | 'widget';
   /** Value used when missing or invalid. */
   default: ModifierStackValue;
   /** Allowed values of a choice field. */
@@ -98,6 +98,19 @@ export interface ModifierStackField {
    * parameters.
    */
   actionDisabled?: (parameters: Record<string, unknown>) => boolean;
+  /**
+   * Builds the row of a widget field: a custom row that, like an action field,
+   * stores nothing under its key and edits the stack through its target.
+   */
+  widget?: (targetOf: (status: (text: string) => void) => ModifierStackActionTarget | null) => ModifierStackWidget;
+}
+
+/** Custom inspector row of a widget field. */
+export interface ModifierStackWidget {
+  /** Row element. */
+  element: HTMLElement;
+  /** Shows the current parameters of the step. */
+  write: (parameters: Record<string, unknown>) => void;
 }
 
 /** What an action field's button acts on. */

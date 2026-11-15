@@ -115,7 +115,7 @@ function modifierBevelChoicesDescribe(
  * its inspector is custom.
  *
  * @param kind Modifier kind.
- * @returns Parameter descriptions, hidden fields left out.
+ * @returns Parameter descriptions, hidden and widget fields left out.
  */
 export function modifierKindParametersDescribe(kind: ModifierStackKind): ModifierParameterDescription[] {
   if (kind.id === MODIFIER_STACK_KIND_BEVEL) {
@@ -124,7 +124,7 @@ export function modifierKindParametersDescribe(kind: ModifierStackKind): Modifie
       ...MODIFIER_BEVEL_OPTION_FIELDS.map(modifierBevelOptionDescribe),
     ];
   }
-  return kind.fields.filter((field) => !field.hidden).map(modifierFieldDescribe);
+  return kind.fields.filter((field) => !field.hidden && field.type !== 'widget').map(modifierFieldDescribe);
 }
 
 /**

@@ -46,7 +46,7 @@ function modifierStackTextureValue(value: unknown): string {
 
 /**
  * Normalizes a parameter record against a field list, keeping no unknown keys.
- * Action fields store nothing.
+ * Action and widget fields store nothing.
  *
  * @param fields Field contracts.
  * @param input Stored parameters.
@@ -58,7 +58,7 @@ export function modifierStackFieldsNormalize(
 ): Record<string, unknown> {
   const output: Record<string, unknown> = {};
   for (const field of fields) {
-    if (field.type !== 'action') output[field.key] = modifierStackFieldValue(field, input[field.key]);
+    if (field.type !== 'action' && field.type !== 'widget') output[field.key] = modifierStackFieldValue(field, input[field.key]);
   }
   return output;
 }

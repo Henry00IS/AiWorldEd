@@ -4,7 +4,11 @@ import type { Curve } from '@/curve/model/curve_model.js';
 import { InputSelect, type InputSelectChoice } from '@/ui/input/input_select.js';
 import type { InputNumeric } from '@/ui/input/input_numeric.js';
 import { inputNumericCreateUvField } from '@/ui/input/input_numeric_uv_field.js';
-import type { ModifierStackField, ModifierStackValue } from '@/modifier/stack/modifier_stack_types.js';
+import type {
+  ModifierStackField,
+  ModifierStackValue,
+  ModifierStackWidget,
+} from '@/modifier/stack/modifier_stack_types.js';
 import { modifierStackUiCaption, modifierStackUiRow, modifierStackUiToggleRow } from './modifier_stack_ui_style.js';
 import { modifierStackTextureRow } from './modifier_stack_texture_row.js';
 import { modifierStackCurveRow, type ModifierStackCurveHooks } from './modifier_stack_curve_row.js';
@@ -104,6 +108,7 @@ export class ModifierStackFieldRows {
     if (field.type === 'curve') return modifierStackCurveRow(field, onCommit, this.curveHooks);
     if (field.type === 'texture') return modifierStackTextureRow(field, onCommit);
     if (field.type === 'action') return modifierStackActionRow(field, this.actionTarget);
+    if (field.type === 'widget' && field.widget) return modifierStackWidgetRow(field, field.widget(this.actionTarget));
     if (field.curveHeight) return modifierStackCurveHeightRow(field, field.curveHeight, onCommit);
     return modifierStackNumberRow(field, onCommit);
   }
@@ -217,4 +222,15 @@ function modifierStackObjectRow(
     input.setSharedValues([id]);
   };
   return { field, row: modifierStackUiRow(field.label, input.getElement(), field.hint), write };
+}
+
+/**
+ * Wraps the custom row of a widget field.
+ *
+ * @param field Widget field.
+ * @param widget Row the field built.
+ * @returns Rendered field.
+ */
+function modifierStackWidgetRow(field: ModifierStackField, widget: ModifierStackWidget): ModifierStackFieldRow {
+  return { field, row: widget.element, write: (_value, parameters) => widget.write(parameters) };
 }
