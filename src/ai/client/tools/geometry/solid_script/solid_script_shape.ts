@@ -1,32 +1,32 @@
 import type * as THREE from 'three';
 
 /** Boolean operation of a shape group. */
-export type ScadBooleanOperation = 'union' | 'difference' | 'intersection';
+export type SolidScriptBooleanOperation = 'union' | 'difference' | 'intersection';
 
-/** Convex 3D solid given by points in OpenSCAD world space (Z up). */
-export interface ScadShapeSolid {
+/** Convex 3D solid given by points in script space (Z up). */
+export interface SolidScriptShapeSolid {
   kind: 'solid';
   points: THREE.Vector3[];
   label: string;
 }
 
 /** Simple 2D polygon in the local plane of a linear_extrude. */
-export interface ScadShapePolygon {
+export interface SolidScriptShapePolygon {
   kind: 'polygon';
   points: [number, number][];
   label: string;
 }
 
 /** Boolean combination of child shapes; the first child of a difference is kept. */
-export interface ScadShapeBoolean {
+export interface SolidScriptShapeBoolean {
   kind: 'boolean';
-  operation: ScadBooleanOperation;
-  children: ScadShape[];
+  operation: SolidScriptBooleanOperation;
+  children: SolidScriptShape[];
   label: string;
 }
 
-/** Node of an evaluated OpenSCAD shape tree. */
-export type ScadShape = ScadShapeSolid | ScadShapePolygon | ScadShapeBoolean;
+/** Node of an evaluated shape tree. */
+export type SolidScriptShape = SolidScriptShapeSolid | SolidScriptShapePolygon | SolidScriptShapeBoolean;
 
 /**
  * Wraps shapes into one shape: the single shape itself, or a union.
@@ -35,7 +35,7 @@ export type ScadShape = ScadShapeSolid | ScadShapePolygon | ScadShapeBoolean;
  * @param label Label for a created union.
  * @returns Shape, or null when there are none.
  */
-export function scadShapeJoin(shapes: ScadShape[], label: string): ScadShape | null {
+export function solidScriptShapeJoin(shapes: SolidScriptShape[], label: string): SolidScriptShape | null {
   if (shapes.length === 0) return null;
   if (shapes.length === 1) return shapes[0] ?? null;
   return { kind: 'boolean', operation: 'union', children: shapes, label };
@@ -48,12 +48,12 @@ export function scadShapeJoin(shapes: ScadShape[], label: string): ScadShape | n
  * @param map Leaf mapper.
  * @returns Mapped tree.
  */
-export function scadShapeMapLeaves(
-  shape: ScadShape,
-  map: (leaf: ScadShapeSolid | ScadShapePolygon) => ScadShape,
-): ScadShape {
+export function solidScriptShapeMapLeaves(
+  shape: SolidScriptShape,
+  map: (leaf: SolidScriptShapeSolid | SolidScriptShapePolygon) => SolidScriptShape,
+): SolidScriptShape {
   if (shape.kind !== 'boolean') return map(shape);
-  return { ...shape, children: shape.children.map((child) => scadShapeMapLeaves(child, map)) };
+  return { ...shape, children: shape.children.map((child) => solidScriptShapeMapLeaves(child, map)) };
 }
 
 /**
@@ -63,10 +63,12 @@ export function scadShapeMapLeaves(
  * @param shape Shape tree.
  * @returns Leaves.
  */
-export function scadShapeLeavesPositive(shape: ScadShape): (ScadShapeSolid | ScadShapePolygon)[] {
+export function solidScriptShapeLeavesPositive(
+  shape: SolidScriptShape,
+): (SolidScriptShapeSolid | SolidScriptShapePolygon)[] {
   if (shape.kind !== 'boolean') return [shape];
   const children = shape.operation === 'difference' ? shape.children.slice(0, 1) : shape.children;
-  return children.flatMap(scadShapeLeavesPositive);
+  return children.flatMap(solidScriptShapeLeavesPositive);
 }
 
 /**
@@ -75,6 +77,8 @@ export function scadShapeLeavesPositive(shape: ScadShape): (ScadShapeSolid | Sca
  * @param shape Shape tree.
  * @returns Leaf count.
  */
-export function scadShapeLeafCount(shape: ScadShape): number {
-  return shape.kind === 'boolean' ? shape.children.reduce((sum, child) => sum + scadShapeLeafCount(child), 0) : 1;
+export function solidScriptShapeLeafCount(shape: SolidScriptShape): number {
+  return shape.kind === 'boolean'
+    ? shape.children.reduce((sum, child) => sum + solidScriptShapeLeafCount(child), 0)
+    : 1;
 }

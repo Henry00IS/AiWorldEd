@@ -31,6 +31,6 @@ describe('mcpJsonRpcAnswer', () => {
     const answer = await mcpJsonRpcAnswer('{"jsonrpc":"2.0","id":1,"method":"initialize"}', endpoint);
     const result = (answer.response as { result: { instructions: string } }).result;
     expect(result.instructions).toContain('category_subject_verb');
-    expect(result.instructions).toContain('geometry_scad_build');
+    expect(result.instructions).toContain('geometry_script_build');
   });
 });

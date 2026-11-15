@@ -7,7 +7,7 @@ import { calculateExpression } from '@/ai/shared/mcp_calculate.js';
 /** Arithmetic helper. */
 export class McpToolsMath extends McpToolGroup {
   readonly category = 'math';
-  readonly summary = 'Arithmetic helper; rarely needed when shapes are described with geometry_scad_build.';
+  readonly summary = 'Arithmetic helper; rarely needed when shapes are described with geometry_script_build.';
 
   /**
    * Returns the math tools.
@@ -19,7 +19,7 @@ export class McpToolsMath extends McpToolGroup {
       {
         name: 'math_calculate',
         description:
-          'Evaluates an arithmetic expression with + - * / and parentheses, e.g. "20+(0.5*12)" returns 26. Prefer geometry_scad_build, which accepts expressions directly.',
+          'Evaluates an arithmetic expression with + - * / and parentheses, e.g. "20+(0.5*12)" returns 26. Prefer geometry_script_build, which accepts expressions directly.',
         inputSchema: mcpSchemaObject({ expression: mcpSchemaString('Arithmetic expression, e.g. "(4+2)/2".') }, [
           'expression',
         ]),

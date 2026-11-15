@@ -1,30 +1,33 @@
 /** Kind of one lexical token. */
-export type ScadTokenKind = 'number' | 'string' | 'identifier' | 'symbol' | 'end';
+export type SolidScriptTokenKind = 'number' | 'string' | 'identifier' | 'symbol' | 'end';
 
 /** One lexical token with its source line. */
-export interface ScadToken {
-  kind: ScadTokenKind;
+export interface SolidScriptToken {
+  kind: SolidScriptTokenKind;
   text: string;
   line: number;
 }
 
 /** Symbols made of two characters, matched before single characters. */
-const SCAD_SYMBOLS_DOUBLE = ['<=', '>=', '==', '!=', '&&', '||'];
+const SOLID_SCRIPT_SYMBOLS_DOUBLE = ['<=', '>=', '==', '!=', '&&', '||'];
 
 /** Single-character symbols. */
-const SCAD_SYMBOLS_SINGLE = '()[]{};,=+-*/%<>!?:.#';
+const SOLID_SCRIPT_SYMBOLS_SINGLE = '()[]{};,=+-*/%<>!?:.#';
 
-/** Splits OpenSCAD source text into tokens, skipping whitespace and comments. */
-export class ScadLexer {
+/**
+ * Splits solid script source text into tokens, skipping whitespace and
+ * comments.
+ */
+export class SolidScriptLexer {
   private readonly source: string;
   private position = 0;
   private line = 1;
-  private readonly tokens: ScadToken[] = [];
+  private readonly tokens: SolidScriptToken[] = [];
 
   /**
    * Creates a lexer.
    *
-   * @param source OpenSCAD source text.
+   * @param source Solid script source text.
    */
   constructor(source: string) {
     this.source = source;
@@ -35,7 +38,7 @@ export class ScadLexer {
    *
    * @returns Tokens ending with an end token.
    */
-  tokenize(): ScadToken[] {
+  tokenize(): SolidScriptToken[] {
     while (this.skipBlank()) {
       this.tokens.push(this.tokenNext());
     }
@@ -83,16 +86,17 @@ export class ScadLexer {
    *
    * @returns Token.
    */
-  private tokenNext(): ScadToken {
+  private tokenNext(): SolidScriptToken {
     const rest = this.source.slice(this.position);
     const number = /^(\d+\.?\d*([eE][+-]?\d+)?|\.\d+([eE][+-]?\d+)?)/.exec(rest);
     if (number) return this.tokenTake('number', number[0]);
     const identifier = /^\$?[A-Za-z_][A-Za-z0-9_]*/.exec(rest);
     if (identifier) return this.tokenTake('identifier', identifier[0]);
     if (rest[0] === '"') return this.tokenString();
-    const double = SCAD_SYMBOLS_DOUBLE.find((symbol) => rest.startsWith(symbol));
+    const double = SOLID_SCRIPT_SYMBOLS_DOUBLE.find((symbol) => rest.startsWith(symbol));
     if (double) return this.tokenTake('symbol', double);
-    if (rest[0] !== undefined && SCAD_SYMBOLS_SINGLE.includes(rest[0])) return this.tokenTake('symbol', rest[0]);
+    if (rest[0] !== undefined && SOLID_SCRIPT_SYMBOLS_SINGLE.includes(rest[0]))
+      return this.tokenTake('symbol', rest[0]);
     throw new Error(`line ${this.line}: unexpected character "${rest[0] ?? ''}"`);
   }
 
@@ -103,7 +107,7 @@ export class ScadLexer {
    * @param text Token text.
    * @returns Token.
    */
-  private tokenTake(kind: ScadTokenKind, text: string): ScadToken {
+  private tokenTake(kind: SolidScriptTokenKind, text: string): SolidScriptToken {
     this.position += text.length;
     return { kind, text, line: this.line };
   }
@@ -113,7 +117,7 @@ export class ScadLexer {
    *
    * @returns String token holding the unescaped text.
    */
-  private tokenString(): ScadToken {
+  private tokenString(): SolidScriptToken {
     let index = this.position + 1;
     let text = '';
     while (index < this.source.length && this.source[index] !== '"') {

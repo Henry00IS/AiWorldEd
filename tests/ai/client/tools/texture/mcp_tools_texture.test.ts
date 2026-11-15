@@ -18,7 +18,7 @@ type Face = {
  */
 function wallCreate() {
   const fixture = editorApiFixtureCreate();
-  const built = fixture.api.invokeTool('geometry_scad_build', { source: 'cube([4, 0.2, 3]);' });
+  const built = fixture.api.invokeTool('geometry_script_build', { source: 'cube([4, 0.2, 3]);' });
   expect(built.ok, built.message).toBe(true);
   const brushId = (built.data as { brushes: { brushId: string }[] }).brushes[0]?.brushId ?? '';
   return { ...fixture, brushId };

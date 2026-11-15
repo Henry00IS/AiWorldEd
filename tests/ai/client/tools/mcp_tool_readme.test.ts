@@ -30,13 +30,13 @@ describe('MCP documentation', () => {
       expect(names, name).toContain(name);
   });
 
-  it('builds every OpenSCAD example and parses every curve path example', () => {
-    const examples = fencedBlocks('openscad');
+  it('builds every solid script example and parses every curve path example', () => {
+    const examples = fencedBlocks('solid-script');
     expect(examples.length).toBeGreaterThan(0);
     for (const source of examples) {
-      const result = editorApiFixtureCreate().api.invokeTool('geometry_scad_build', { source });
+      const result = editorApiFixtureCreate().api.invokeTool('geometry_script_build', { source });
       expect(result.ok, result.message).toBe(true);
     }
-    for (const path of fencedBlocks('text')) expect(svgPathCurve(path.trim()).points.length).toBeGreaterThan(1);
+    for (const path of fencedBlocks('svg-path')) expect(svgPathCurve(path.trim()).points.length).toBeGreaterThan(1);
   });
 });

@@ -1,11 +1,14 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { scadProgramEvaluate } from '@/ai/client/tools/geometry/scad/scad_program.js';
-import { scadSolidTreeBuild, type ScadSolidTreeOptions } from '@/ai/client/tools/geometry/scad/scad_solid_tree.js';
+import { solidScriptProgramEvaluate } from '@/ai/client/tools/geometry/solid_script/solid_script_program.js';
+import {
+  solidScriptSolidTreeBuild,
+  type SolidScriptSolidTreeOptions,
+} from '@/ai/client/tools/geometry/solid_script/solid_script_solid_tree.js';
 import type { SolidTreeNode } from '@/solid/commands/tree/solid_tree_node.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 
-const OPTIONS: ScadSolidTreeOptions = {
+const OPTIONS: SolidScriptSolidTreeOptions = {
   upAxis: 'z',
   offset: new THREE.Vector3(),
   worldToParent: new THREE.Matrix4(),
@@ -16,12 +19,12 @@ const OPTIONS: ScadSolidTreeOptions = {
 /**
  * Builds the tree of a program.
  *
- * @param source OpenSCAD source.
+ * @param source Solid script source.
  * @param options Option overrides.
  * @returns Nodes.
  */
-function tree(source: string, options: Partial<ScadSolidTreeOptions> = {}): SolidTreeNode[] {
-  return scadSolidTreeBuild(scadProgramEvaluate(source).shapes, { ...OPTIONS, ...options });
+function tree(source: string, options: Partial<SolidScriptSolidTreeOptions> = {}): SolidTreeNode[] {
+  return solidScriptSolidTreeBuild(solidScriptProgramEvaluate(source).shapes, { ...OPTIONS, ...options });
 }
 
 /**
@@ -38,7 +41,7 @@ function summary(nodes: SolidTreeNode[]): unknown[] {
   );
 }
 
-describe('scadSolidTreeBuild', () => {
+describe('solidScriptSolidTreeBuild', () => {
   it('maps difference to a group with a subtractive tail and flattens unions', () => {
     const nodes = tree('cube(1); difference() { cube(4); union() { cube(1); sphere(1); } }');
     expect(summary(nodes)).toEqual(['cube:0', { 'difference:0': ['cube:0', 'cube:1', 'sphere:1'] }]);

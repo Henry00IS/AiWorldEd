@@ -1,16 +1,16 @@
-/** Runtime value of the supported OpenSCAD subset. */
-export type ScadValue = number | string | boolean | undefined | ScadValue[];
+/** Runtime value of the solid script language. */
+export type SolidScriptValue = number | string | boolean | undefined | SolidScriptValue[];
 
 /** Most list entries a range or comprehension may produce. */
-export const SCAD_LIST_LIMIT = 10000;
+export const SOLID_SCRIPT_LIST_LIMIT = 10000;
 
 /**
- * Returns OpenSCAD truthiness of a value.
+ * Returns truthiness of a value.
  *
  * @param value Value.
  * @returns True unless false, zero, empty, or undef.
  */
-export function scadValueTruthy(value: ScadValue): boolean {
+export function solidScriptValueTruthy(value: SolidScriptValue): boolean {
   if (Array.isArray(value)) return value.length > 0;
   if (typeof value === 'string') return value.length > 0;
   return Boolean(value);
@@ -22,7 +22,7 @@ export function scadValueTruthy(value: ScadValue): boolean {
  * @param value Value.
  * @returns Number or undefined.
  */
-export function scadValueNumber(value: ScadValue): number | undefined {
+export function solidScriptValueNumber(value: SolidScriptValue): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
@@ -33,9 +33,9 @@ export function scadValueNumber(value: ScadValue): number | undefined {
  * @param value Value.
  * @returns Numbers or undefined.
  */
-export function scadValueNumbers(value: ScadValue): number[] | undefined {
+export function solidScriptValueNumbers(value: SolidScriptValue): number[] | undefined {
   if (!Array.isArray(value)) return undefined;
-  const numbers = value.map(scadValueNumber);
+  const numbers = value.map(solidScriptValueNumber);
   return numbers.every((entry): entry is number => entry !== undefined) ? numbers : undefined;
 }
 
@@ -46,21 +46,21 @@ export function scadValueNumbers(value: ScadValue): number[] | undefined {
  * @param right Second value.
  * @returns True when equal.
  */
-export function scadValueEquals(left: ScadValue, right: ScadValue): boolean {
+export function solidScriptValueEquals(left: SolidScriptValue, right: SolidScriptValue): boolean {
   if (Array.isArray(left) && Array.isArray(right)) {
-    return left.length === right.length && left.every((entry, index) => scadValueEquals(entry, right[index]));
+    return left.length === right.length && left.every((entry, index) => solidScriptValueEquals(entry, right[index]));
   }
   return left === right;
 }
 
 /**
- * Formats a value the way OpenSCAD str() does.
+ * Formats a value the way str() does.
  *
  * @param value Value.
  * @returns Text.
  */
-export function scadValueText(value: ScadValue): string {
+export function solidScriptValueText(value: SolidScriptValue): string {
   if (value === undefined) return 'undef';
-  if (Array.isArray(value)) return `[${value.map(scadValueText).join(', ')}]`;
+  if (Array.isArray(value)) return `[${value.map(solidScriptValueText).join(', ')}]`;
   return String(value);
 }

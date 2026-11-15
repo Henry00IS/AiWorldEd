@@ -1,31 +1,31 @@
-import type { ScadExpression, ScadParameter, ScadStatement } from './scad_ast.js';
-import type { ScadValue } from './scad_value.js';
+import type { SolidScriptExpression, SolidScriptParameter, SolidScriptStatement } from './solid_script_ast.js';
+import type { SolidScriptValue } from './solid_script_value.js';
 
 /** A user module: parameters, body and the scope it was defined in. */
-export interface ScadModuleDefinition {
-  params: ScadParameter[];
-  body: ScadStatement[];
-  scope: ScadScope;
+export interface SolidScriptModuleDefinition {
+  params: SolidScriptParameter[];
+  body: SolidScriptStatement[];
+  scope: SolidScriptScope;
 }
 
 /** A user function: parameters, body and the scope it was defined in. */
-export interface ScadFunctionDefinition {
-  params: ScadParameter[];
-  body: ScadExpression;
-  scope: ScadScope;
+export interface SolidScriptFunctionDefinition {
+  params: SolidScriptParameter[];
+  body: SolidScriptExpression;
+  scope: SolidScriptScope;
 }
 
 /** The children a module call passed in, for children() inside the module. */
-export interface ScadChildren {
-  statements: ScadStatement[];
-  scope: ScadScope;
+export interface SolidScriptChildren {
+  statements: SolidScriptStatement[];
+  scope: SolidScriptScope;
 }
 
 /** Lexical scope of variables, functions and modules. */
-export class ScadScope {
-  private readonly variables = new Map<string, ScadValue>();
-  private readonly functions = new Map<string, ScadFunctionDefinition>();
-  private readonly modules = new Map<string, ScadModuleDefinition>();
+export class SolidScriptScope {
+  private readonly variables = new Map<string, SolidScriptValue>();
+  private readonly functions = new Map<string, SolidScriptFunctionDefinition>();
+  private readonly modules = new Map<string, SolidScriptModuleDefinition>();
 
   /**
    * Creates a scope.
@@ -35,8 +35,8 @@ export class ScadScope {
    * @param moduleName Name of the user module this scope runs, or empty.
    */
   constructor(
-    readonly parent: ScadScope | null,
-    readonly children: ScadChildren | null = parent?.children ?? null,
+    readonly parent: SolidScriptScope | null,
+    readonly children: SolidScriptChildren | null = parent?.children ?? null,
     readonly moduleName: string = parent?.moduleName ?? '',
   ) {}
 
@@ -46,7 +46,7 @@ export class ScadScope {
    * @param name Variable name.
    * @param value Value.
    */
-  variableSet(name: string, value: ScadValue): void {
+  variableSet(name: string, value: SolidScriptValue): void {
     this.variables.set(name, value);
   }
 
@@ -56,7 +56,7 @@ export class ScadScope {
    * @param name Variable name.
    * @returns Value, or undefined when unknown.
    */
-  variableGet(name: string): ScadValue {
+  variableGet(name: string): SolidScriptValue {
     if (this.variables.has(name)) return this.variables.get(name);
     return this.parent ? this.parent.variableGet(name) : undefined;
   }
@@ -67,7 +67,7 @@ export class ScadScope {
    * @param name Function name.
    * @param definition Definition.
    */
-  functionSet(name: string, definition: ScadFunctionDefinition): void {
+  functionSet(name: string, definition: SolidScriptFunctionDefinition): void {
     this.functions.set(name, definition);
   }
 
@@ -77,7 +77,7 @@ export class ScadScope {
    * @param name Function name.
    * @returns Definition, or undefined.
    */
-  functionGet(name: string): ScadFunctionDefinition | undefined {
+  functionGet(name: string): SolidScriptFunctionDefinition | undefined {
     return this.functions.get(name) ?? this.parent?.functionGet(name);
   }
 
@@ -87,7 +87,7 @@ export class ScadScope {
    * @param name Module name.
    * @param definition Definition.
    */
-  moduleSet(name: string, definition: ScadModuleDefinition): void {
+  moduleSet(name: string, definition: SolidScriptModuleDefinition): void {
     this.modules.set(name, definition);
   }
 
@@ -97,7 +97,7 @@ export class ScadScope {
    * @param name Module name.
    * @returns Definition, or undefined.
    */
-  moduleGet(name: string): ScadModuleDefinition | undefined {
+  moduleGet(name: string): SolidScriptModuleDefinition | undefined {
     return this.modules.get(name) ?? this.parent?.moduleGet(name);
   }
 }

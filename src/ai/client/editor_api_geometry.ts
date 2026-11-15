@@ -12,11 +12,11 @@ import { findCsgGroup, findSolidModel } from './editor_api_lookup.js';
 import { dtoToVec3 } from './editor_api_math.js';
 import { nameToSolidOperation, solidOperationToName } from './editor_api_operations.js';
 import { failResult, okResult } from './editor_api_result.js';
-import { scadProgramEvaluate } from './tools/geometry/scad/scad_program.js';
-import { scadSolidTreeBuild } from './tools/geometry/scad/scad_solid_tree.js';
+import { solidScriptProgramEvaluate } from './tools/geometry/solid_script/solid_script_program.js';
+import { solidScriptSolidTreeBuild } from './tools/geometry/solid_script/solid_script_solid_tree.js';
 
-/** Arguments of geometry_scad_build and geometry_scad_preview. */
-export interface GeometryScadArgs {
+/** Arguments of geometry_script_build and geometry_script_preview. */
+export interface GeometrySolidScriptArgs {
   source: string;
   modelId?: string;
   parentGroupId?: string;
@@ -43,12 +43,12 @@ export class EditorApiGeometry {
   constructor(private readonly host: EditorApiHost) {}
 
   /**
-   * Evaluates OpenSCAD source and reports what a build would create.
+   * Evaluates solid script source and reports what a build would create.
    *
    * @param args Build arguments.
    * @returns Outline of the brushes and groups, nothing is changed.
    */
-  scadPreview(args: GeometryScadArgs): McpToolResult {
+  solidScriptPreview(args: GeometrySolidScriptArgs): McpToolResult {
     const target = this.targetResolve(args);
     if (typeof target === 'string') return failResult(target);
     const plan = this.planBuild(args, target.parent);
@@ -60,12 +60,13 @@ export class EditorApiGeometry {
   }
 
   /**
-   * Evaluates OpenSCAD source and adds the result as CSG brushes and groups.
+   * Evaluates solid script source and adds the result as CSG brushes and
+   * groups.
    *
    * @param args Build arguments.
    * @returns Created model, group and brush ids.
    */
-  scadBuild(args: GeometryScadArgs): McpToolResult {
+  solidScriptBuild(args: GeometrySolidScriptArgs): McpToolResult {
     const target = this.targetResolve(args);
     if (typeof target === 'string') return failResult(target);
     const plan = this.planBuild(args, target.parent);
@@ -86,8 +87,8 @@ export class EditorApiGeometry {
    * @param args Build arguments.
    * @returns Target, or an error message.
    */
-  private targetResolve(args: GeometryScadArgs): GeometryTarget | string {
-    if (typeof args.source !== 'string' || !args.source.trim()) return 'source must be OpenSCAD text';
+  private targetResolve(args: GeometrySolidScriptArgs): GeometryTarget | string {
+    if (typeof args.source !== 'string' || !args.source.trim()) return 'source must be solid script text';
     if (!args.modelId) {
       if (args.parentGroupId) return 'parentGroupId needs modelId';
       const model = new SolidModel(args.name?.trim() || undefined);
@@ -109,7 +110,7 @@ export class EditorApiGeometry {
    * @returns Nodes and echo messages, or an error message.
    */
   private planBuild(
-    args: GeometryScadArgs,
+    args: GeometrySolidScriptArgs,
     parent: THREE.Object3D,
   ): { nodes: SolidTreeNode[]; messages: string[] } | string {
     const operation = args.operation === undefined ? undefined : nameToSolidOperation(args.operation);
@@ -117,8 +118,8 @@ export class EditorApiGeometry {
     if (args.upAxis !== undefined && args.upAxis !== 'z' && args.upAxis !== 'y') return "upAxis must be 'z' or 'y'";
     parent.updateWorldMatrix(true, false);
     try {
-      const { shapes, messages } = scadProgramEvaluate(args.source);
-      const nodes = scadSolidTreeBuild(shapes, {
+      const { shapes, messages } = solidScriptProgramEvaluate(args.source);
+      const nodes = solidScriptSolidTreeBuild(shapes, {
         upAxis: args.upAxis === 'y' ? 'y' : 'z',
         offset: dtoToVec3(args.position, new THREE.Vector3()),
         worldToParent: parent.matrixWorld.clone().invert(),
@@ -127,7 +128,7 @@ export class EditorApiGeometry {
       });
       return { nodes, messages };
     } catch (error) {
-      return `OpenSCAD: ${error instanceof Error ? error.message : String(error)}`;
+      return `Script: ${error instanceof Error ? error.message : String(error)}`;
     }
   }
 

@@ -1,30 +1,35 @@
 import * as THREE from 'three';
-import type { ScadArgument, ScadStatement } from './scad_ast.js';
-import { ScadCallArguments } from './scad_call_arguments.js';
-import { ScadExpressionEvaluator } from './scad_expression_evaluator.js';
-import { scadExtrude } from './scad_extrude.js';
-import { scadPolygonHull, type ScadPoint2 } from './scad_polygon.js';
+import type { SolidScriptArgument, SolidScriptStatement } from './solid_script_ast.js';
+import { SolidScriptCallArguments } from './solid_script_call_arguments.js';
+import { SolidScriptExpressionEvaluator } from './solid_script_expression_evaluator.js';
+import { solidScriptExtrude } from './solid_script_extrude.js';
+import { solidScriptPolygonHull, type SolidScriptPoint2 } from './solid_script_polygon.js';
 import {
-  scadCirclePoints,
-  scadCubePoints,
-  scadCylinderPoints,
-  scadPolygonPaths,
-  scadPolyhedronPoints,
-  scadRadius,
-  scadSpherePoints,
-  scadSquarePoints,
-  type ScadFragmentSettings,
-} from './scad_primitives.js';
-import { ScadScope } from './scad_scope.js';
-import { scadShapeJoin, scadShapeLeavesPositive, type ScadShape } from './scad_shape.js';
-import { scadTransformMatrix } from './scad_transforms.js';
-import { scadValueNumber, scadValueText, scadValueTruthy, type ScadValue } from './scad_value.js';
+  solidScriptCirclePoints,
+  solidScriptCubePoints,
+  solidScriptCylinderPoints,
+  solidScriptPolygonPaths,
+  solidScriptPolyhedronPoints,
+  solidScriptRadius,
+  solidScriptSpherePoints,
+  solidScriptSquarePoints,
+  type SolidScriptFragmentSettings,
+} from './solid_script_primitives.js';
+import { SolidScriptScope } from './solid_script_scope.js';
+import { solidScriptShapeJoin, solidScriptShapeLeavesPositive, type SolidScriptShape } from './solid_script_shape.js';
+import { solidScriptTransformMatrix } from './solid_script_transforms.js';
+import {
+  solidScriptValueNumber,
+  solidScriptValueText,
+  solidScriptValueTruthy,
+  type SolidScriptValue,
+} from './solid_script_value.js';
 
 /** Most solids one program may produce. */
-const SCAD_SOLIDS_MAX = 2000;
+const SOLID_SCRIPT_SOLIDS_MAX = 2000;
 
 /** Modules outside the subset, with the suggested alternative. */
-const SCAD_UNSUPPORTED: Readonly<Record<string, string>> = {
+const SOLID_SCRIPT_UNSUPPORTED: Readonly<Record<string, string>> = {
   rotate_extrude:
     'use the column modifier generator for turned profiles, or approximate with rotated linear_extrude slices',
   minkowski: 'grow the shapes by hand or hull() copies of them',
@@ -37,30 +42,30 @@ const SCAD_UNSUPPORTED: Readonly<Record<string, string>> = {
 };
 
 /** 3D primitives and the points of their convex solid. */
-const SCAD_SOLID_PRIMITIVES: Readonly<
-  Record<string, (args: ScadCallArguments, settings: ScadFragmentSettings) => THREE.Vector3[]>
+const SOLID_SCRIPT_SOLID_PRIMITIVES: Readonly<
+  Record<string, (args: SolidScriptCallArguments, settings: SolidScriptFragmentSettings) => THREE.Vector3[]>
 > = {
-  cube: (args) => scadCubePoints(args),
-  sphere: scadSpherePoints,
-  cylinder: scadCylinderPoints,
-  polyhedron: (args) => scadPolyhedronPoints(args),
+  cube: (args) => solidScriptCubePoints(args),
+  sphere: solidScriptSpherePoints,
+  cylinder: solidScriptCylinderPoints,
+  polyhedron: (args) => solidScriptPolyhedronPoints(args),
 };
 
 /** Where shapes are being evaluated: inside linear_extrude everything is 2D. */
-interface ScadContext {
+interface SolidScriptContext {
   matrix: THREE.Matrix4;
   planar: boolean;
 }
 
 /** Result of evaluating a program. */
-export interface ScadEvaluation {
-  shapes: ScadShape[];
+export interface SolidScriptEvaluation {
+  shapes: SolidScriptShape[];
   messages: string[];
 }
 
-/** Evaluates OpenSCAD statements into a shape tree. */
-export class ScadEvaluator {
-  private readonly expressions = new ScadExpressionEvaluator();
+/** Evaluates solid script statements into a shape tree. */
+export class SolidScriptEvaluator {
+  private readonly expressions = new SolidScriptExpressionEvaluator();
   private readonly messages: string[] = [];
   private solids = 0;
 
@@ -70,8 +75,8 @@ export class ScadEvaluator {
    * @param statements Top-level statements.
    * @returns Shapes and echo messages.
    */
-  evaluateProgram(statements: ScadStatement[]): ScadEvaluation {
-    const root = new ScadScope(null, null, '');
+  evaluateProgram(statements: SolidScriptStatement[]): SolidScriptEvaluation {
+    const root = new SolidScriptScope(null, null, '');
     root.variableSet('$fn', 0);
     root.variableSet('$fa', 12);
     root.variableSet('$fs', 2);
@@ -81,7 +86,7 @@ export class ScadEvaluator {
 
   /**
    * Evaluates statements in a new scope: definitions and assignments first,
-   * then shapes, matching OpenSCAD's per-scope variable rule.
+   * then shapes, matching the language's per-scope variable rule.
    *
    * @param statements Statements.
    * @param parent Enclosing scope.
@@ -90,11 +95,11 @@ export class ScadEvaluator {
    * @returns Shapes in statement order.
    */
   private statementsEvaluate(
-    statements: ScadStatement[],
-    parent: ScadScope,
-    context: ScadContext,
-    scope = new ScadScope(parent),
-  ): ScadShape[] {
+    statements: SolidScriptStatement[],
+    parent: SolidScriptScope,
+    context: SolidScriptContext,
+    scope = new SolidScriptScope(parent),
+  ): SolidScriptShape[] {
     for (const statement of statements) this.definitionApply(statement, scope);
     return statements.flatMap((statement) => this.statementEvaluate(statement, scope, context));
   }
@@ -105,7 +110,7 @@ export class ScadEvaluator {
    * @param statement Statement.
    * @param scope Scope.
    */
-  private definitionApply(statement: ScadStatement, scope: ScadScope): void {
+  private definitionApply(statement: SolidScriptStatement, scope: SolidScriptScope): void {
     if (statement.kind === 'module_define')
       scope.moduleSet(statement.name, { params: statement.params, body: statement.body, scope });
     if (statement.kind === 'function_define')
@@ -122,7 +127,11 @@ export class ScadEvaluator {
    * @param context Transform context.
    * @returns Shapes.
    */
-  private statementEvaluate(statement: ScadStatement, scope: ScadScope, context: ScadContext): ScadShape[] {
+  private statementEvaluate(
+    statement: SolidScriptStatement,
+    scope: SolidScriptScope,
+    context: SolidScriptContext,
+  ): SolidScriptShape[] {
     try {
       switch (statement.kind) {
         case 'block':
@@ -151,11 +160,11 @@ export class ScadEvaluator {
    * @returns Shapes.
    */
   private ifEvaluate(
-    statement: Extract<ScadStatement, { kind: 'if' }>,
-    scope: ScadScope,
-    context: ScadContext,
-  ): ScadShape[] {
-    const truthy = scadValueTruthy(this.expressions.evaluate(statement.condition, scope));
+    statement: Extract<SolidScriptStatement, { kind: 'if' }>,
+    scope: SolidScriptScope,
+    context: SolidScriptContext,
+  ): SolidScriptShape[] {
+    const truthy = solidScriptValueTruthy(this.expressions.evaluate(statement.condition, scope));
     return this.statementsEvaluate(truthy ? statement.then : statement.otherwise, scope, context);
   }
 
@@ -168,14 +177,14 @@ export class ScadEvaluator {
    * @returns Shapes.
    */
   private forEvaluate(
-    statement: Extract<ScadStatement, { kind: 'for' }>,
-    scope: ScadScope,
-    context: ScadContext,
-  ): ScadShape[] {
+    statement: Extract<SolidScriptStatement, { kind: 'for' }>,
+    scope: SolidScriptScope,
+    context: SolidScriptContext,
+  ): SolidScriptShape[] {
     const shapes = this.expressions.bindingsWalk(statement.bindings, scope, (inner) =>
       this.statementsEvaluate(statement.body, inner, context),
     );
-    const joined = scadShapeJoin(shapes, scope.moduleName || 'for');
+    const joined = solidScriptShapeJoin(shapes, scope.moduleName || 'for');
     return joined ? [joined] : [];
   }
 
@@ -188,16 +197,16 @@ export class ScadEvaluator {
    * @returns Shapes.
    */
   private callEvaluate(
-    call: Extract<ScadStatement, { kind: 'module_call' }>,
-    scope: ScadScope,
-    context: ScadContext,
-  ): ScadShape[] {
+    call: Extract<SolidScriptStatement, { kind: 'module_call' }>,
+    scope: SolidScriptScope,
+    context: SolidScriptContext,
+  ): SolidScriptShape[] {
     const user = scope.moduleGet(call.name);
     if (user) return this.userModuleEvaluate(call, user, scope, context);
     if (call.name === 'children') return this.childrenEvaluate(call.args, scope, context);
     const args = this.argumentsResolve(call.name, call.args, scope);
     const inner = this.specialsScope(call.args, args, scope);
-    const matrix = scadTransformMatrix(call.name, args);
+    const matrix = solidScriptTransformMatrix(call.name, args);
     if (matrix)
       return this.statementsEvaluate(call.children, inner, {
         ...context,
@@ -216,11 +225,11 @@ export class ScadEvaluator {
    * @returns Shapes.
    */
   private builtinEvaluate(
-    call: Extract<ScadStatement, { kind: 'module_call' }>,
-    args: ScadCallArguments,
-    scope: ScadScope,
-    context: ScadContext,
-  ): ScadShape[] {
+    call: Extract<SolidScriptStatement, { kind: 'module_call' }>,
+    args: SolidScriptCallArguments,
+    scope: SolidScriptScope,
+    context: SolidScriptContext,
+  ): SolidScriptShape[] {
     const name = call.name;
     if (name === 'color' || name === 'render' || name === 'group')
       return this.statementsEvaluate(call.children, scope, context);
@@ -230,7 +239,7 @@ export class ScadEvaluator {
     if (name === 'linear_extrude') return this.extrudeEvaluate(call.children, args, scope, context);
     if (name === 'echo') return this.echoEvaluate(call.args, scope);
     if (name === 'assert') return this.assertEvaluate(args);
-    const hint = SCAD_UNSUPPORTED[name];
+    const hint = SOLID_SCRIPT_UNSUPPORTED[name];
     if (hint) throw new Error(`${name}() is not supported: ${hint}`);
     if (call.children.length > 0) throw new Error(`${name}() takes no children; is a ";" missing after it?`);
     return this.primitiveEvaluate(name, args, scope, context);
@@ -247,17 +256,17 @@ export class ScadEvaluator {
    */
   private primitiveEvaluate(
     name: string,
-    args: ScadCallArguments,
-    scope: ScadScope,
-    context: ScadContext,
-  ): ScadShape[] {
+    args: SolidScriptCallArguments,
+    scope: SolidScriptScope,
+    context: SolidScriptContext,
+  ): SolidScriptShape[] {
     const label = scope.moduleName || name;
     const planar = name === 'square' || name === 'circle' || name === 'polygon';
     if (planar !== context.planar) {
       throw new Error(`${name}() is ${planar ? '2D and must be inside' : '3D and cannot be inside'} linear_extrude()`);
     }
     if (planar) return [this.planarShape(name, args, scope, context, label)];
-    const build = SCAD_SOLID_PRIMITIVES[name];
+    const build = SOLID_SCRIPT_SOLID_PRIMITIVES[name];
     if (!build) throw new Error(`unknown module ${name}()`);
     const points = build(args, this.fragmentSettings(scope));
     this.solidCount();
@@ -276,25 +285,30 @@ export class ScadEvaluator {
    */
   private planarShape(
     name: string,
-    args: ScadCallArguments,
-    scope: ScadScope,
-    context: ScadContext,
+    args: SolidScriptCallArguments,
+    scope: SolidScriptScope,
+    context: SolidScriptContext,
     label: string,
-  ): ScadShape {
+  ): SolidScriptShape {
     this.solidCount();
     const outlines =
       name === 'square'
-        ? [scadSquarePoints(args)]
+        ? [solidScriptSquarePoints(args)]
         : name === 'circle'
-          ? [scadCirclePoints(scadRadius(args, 'r', 'd', args.number('r', 0, 1)), this.fragmentSettings(scope))]
-          : scadPolygonPaths(args);
-    const shapes: ScadShape[] = outlines.map((outline) => ({
+          ? [
+              solidScriptCirclePoints(
+                solidScriptRadius(args, 'r', 'd', args.number('r', 0, 1)),
+                this.fragmentSettings(scope),
+              ),
+            ]
+          : solidScriptPolygonPaths(args);
+    const shapes: SolidScriptShape[] = outlines.map((outline) => ({
       kind: 'polygon',
       label,
       points: outline.map((point) => this.planarTransform(point, context.matrix)),
     }));
     return shapes.length === 1
-      ? (shapes[0] as ScadShape)
+      ? (shapes[0] as SolidScriptShape)
       : { kind: 'boolean', operation: 'difference', children: shapes, label };
   }
 
@@ -305,7 +319,7 @@ export class ScadEvaluator {
    * @param matrix Matrix.
    * @returns Transformed point.
    */
-  private planarTransform(point: ScadPoint2, matrix: THREE.Matrix4): ScadPoint2 {
+  private planarTransform(point: SolidScriptPoint2, matrix: THREE.Matrix4): SolidScriptPoint2 {
     const moved = new THREE.Vector3(point[0], point[1], 0).applyMatrix4(matrix);
     return [moved.x, moved.y];
   }
@@ -322,14 +336,17 @@ export class ScadEvaluator {
    */
   private booleanEvaluate(
     operation: 'union' | 'difference' | 'intersection',
-    children: ScadStatement[],
-    scope: ScadScope,
-    context: ScadContext,
-  ): ScadShape[] {
-    const inner = new ScadScope(scope);
+    children: SolidScriptStatement[],
+    scope: SolidScriptScope,
+    context: SolidScriptContext,
+  ): SolidScriptShape[] {
+    const inner = new SolidScriptScope(scope);
     for (const statement of children) this.definitionApply(statement, inner);
     const operands = children.flatMap((statement) => {
-      const joined = scadShapeJoin(this.statementEvaluate(statement, inner, context), scope.moduleName || operation);
+      const joined = solidScriptShapeJoin(
+        this.statementEvaluate(statement, inner, context),
+        scope.moduleName || operation,
+      );
       return joined ? [joined] : [];
     });
     if (operands.length === 0) return [];
@@ -345,8 +362,12 @@ export class ScadEvaluator {
    * @param context Transform context.
    * @returns One shape, or nothing when empty.
    */
-  private hullEvaluate(children: ScadStatement[], scope: ScadScope, context: ScadContext): ScadShape[] {
-    const leaves = this.statementsEvaluate(children, scope, context).flatMap(scadShapeLeavesPositive);
+  private hullEvaluate(
+    children: SolidScriptStatement[],
+    scope: SolidScriptScope,
+    context: SolidScriptContext,
+  ): SolidScriptShape[] {
+    const leaves = this.statementsEvaluate(children, scope, context).flatMap(solidScriptShapeLeavesPositive);
     if (leaves.length === 0) return [];
     const label = scope.moduleName || 'hull';
     if (context.planar)
@@ -354,7 +375,7 @@ export class ScadEvaluator {
         {
           kind: 'polygon',
           label,
-          points: scadPolygonHull(leaves.flatMap((leaf) => (leaf.kind === 'polygon' ? leaf.points : []))),
+          points: solidScriptPolygonHull(leaves.flatMap((leaf) => (leaf.kind === 'polygon' ? leaf.points : []))),
         },
       ];
     return [{ kind: 'solid', label, points: leaves.flatMap((leaf) => (leaf.kind === 'solid' ? leaf.points : [])) }];
@@ -370,17 +391,17 @@ export class ScadEvaluator {
    * @returns Extruded shapes.
    */
   private extrudeEvaluate(
-    children: ScadStatement[],
-    args: ScadCallArguments,
-    scope: ScadScope,
-    context: ScadContext,
-  ): ScadShape[] {
+    children: SolidScriptStatement[],
+    args: SolidScriptCallArguments,
+    scope: SolidScriptScope,
+    context: SolidScriptContext,
+  ): SolidScriptShape[] {
     if (context.planar) throw new Error('linear_extrude() cannot be nested');
-    const planar = scadShapeJoin(
+    const planar = solidScriptShapeJoin(
       this.statementsEvaluate(children, scope, { matrix: new THREE.Matrix4(), planar: true }),
       scope.moduleName || 'linear_extrude',
     );
-    return planar ? [scadExtrude(planar, args, context.matrix)] : [];
+    return planar ? [solidScriptExtrude(planar, args, context.matrix)] : [];
   }
 
   /**
@@ -393,15 +414,15 @@ export class ScadEvaluator {
    * @returns Shapes.
    */
   private userModuleEvaluate(
-    call: Extract<ScadStatement, { kind: 'module_call' }>,
-    definition: NonNullable<ReturnType<ScadScope['moduleGet']>>,
-    scope: ScadScope,
-    context: ScadContext,
-  ): ScadShape[] {
-    const inner = new ScadScope(definition.scope, { statements: call.children, scope }, call.name);
+    call: Extract<SolidScriptStatement, { kind: 'module_call' }>,
+    definition: NonNullable<ReturnType<SolidScriptScope['moduleGet']>>,
+    scope: SolidScriptScope,
+    context: SolidScriptContext,
+  ): SolidScriptShape[] {
+    const inner = new SolidScriptScope(definition.scope, { statements: call.children, scope }, call.name);
     this.expressions.argumentsBind(definition.params, call.args, scope, definition.scope, inner);
-    const joined = scadShapeJoin(
-      this.statementsEvaluate(definition.body, inner, context, new ScadScope(inner)),
+    const joined = solidScriptShapeJoin(
+      this.statementsEvaluate(definition.body, inner, context, new SolidScriptScope(inner)),
       call.name,
     );
     return joined ? [joined] : [];
@@ -415,10 +436,14 @@ export class ScadEvaluator {
    * @param context Transform context.
    * @returns Shapes.
    */
-  private childrenEvaluate(args: ScadArgument[], scope: ScadScope, context: ScadContext): ScadShape[] {
+  private childrenEvaluate(
+    args: SolidScriptArgument[],
+    scope: SolidScriptScope,
+    context: SolidScriptContext,
+  ): SolidScriptShape[] {
     const children = scope.children;
     if (!children) return [];
-    const index = args[0] ? scadValueNumber(this.expressions.evaluate(args[0].value, scope)) : undefined;
+    const index = args[0] ? solidScriptValueNumber(this.expressions.evaluate(args[0].value, scope)) : undefined;
     const statements =
       index === undefined
         ? children.statements
@@ -433,10 +458,10 @@ export class ScadEvaluator {
    * @param scope Scope.
    * @returns No shapes.
    */
-  private echoEvaluate(args: ScadArgument[], scope: ScadScope): ScadShape[] {
+  private echoEvaluate(args: SolidScriptArgument[], scope: SolidScriptScope): SolidScriptShape[] {
     const parts = args.map((arg) => {
       const value = this.expressions.evaluate(arg.value, scope);
-      return arg.name ? `${arg.name} = ${scadValueText(value)}` : scadValueText(value);
+      return arg.name ? `${arg.name} = ${solidScriptValueText(value)}` : solidScriptValueText(value);
     });
     this.messages.push(`ECHO: ${parts.join(', ')}`);
     return [];
@@ -448,9 +473,9 @@ export class ScadEvaluator {
    * @param args Resolved arguments.
    * @returns No shapes.
    */
-  private assertEvaluate(args: ScadCallArguments): ScadShape[] {
-    if (!scadValueTruthy(args.value('condition', 0)))
-      throw new Error(`assertion failed: ${scadValueText(args.value('message', 1) ?? 'condition is false')}`);
+  private assertEvaluate(args: SolidScriptCallArguments): SolidScriptShape[] {
+    if (!solidScriptValueTruthy(args.value('condition', 0)))
+      throw new Error(`assertion failed: ${solidScriptValueText(args.value('message', 1) ?? 'condition is false')}`);
     return [];
   }
 
@@ -462,15 +487,19 @@ export class ScadEvaluator {
    * @param scope Scope.
    * @returns Argument view.
    */
-  private argumentsResolve(name: string, args: ScadArgument[], scope: ScadScope): ScadCallArguments {
-    const positional: ScadValue[] = [];
-    const named = new Map<string, ScadValue>();
+  private argumentsResolve(
+    name: string,
+    args: SolidScriptArgument[],
+    scope: SolidScriptScope,
+  ): SolidScriptCallArguments {
+    const positional: SolidScriptValue[] = [];
+    const named = new Map<string, SolidScriptValue>();
     for (const arg of args) {
       const value = this.expressions.evaluate(arg.value, scope);
       if (arg.name) named.set(arg.name, value);
       else positional.push(value);
     }
-    return new ScadCallArguments(name, positional, named);
+    return new SolidScriptCallArguments(name, positional, named);
   }
 
   /**
@@ -481,10 +510,14 @@ export class ScadEvaluator {
    * @param scope Calling scope.
    * @returns Scope.
    */
-  private specialsScope(raw: ScadArgument[], args: ScadCallArguments, scope: ScadScope): ScadScope {
+  private specialsScope(
+    raw: SolidScriptArgument[],
+    args: SolidScriptCallArguments,
+    scope: SolidScriptScope,
+  ): SolidScriptScope {
     const specials = raw.filter((arg) => arg.name?.startsWith('$'));
     if (specials.length === 0) return scope;
-    const inner = new ScadScope(scope);
+    const inner = new SolidScriptScope(scope);
     for (const arg of specials) inner.variableSet(arg.name as string, args.value(arg.name as string));
     return inner;
   }
@@ -495,17 +528,18 @@ export class ScadEvaluator {
    * @param scope Scope.
    * @returns Resolution settings.
    */
-  private fragmentSettings(scope: ScadScope): ScadFragmentSettings {
+  private fragmentSettings(scope: SolidScriptScope): SolidScriptFragmentSettings {
     return {
-      fn: scadValueNumber(scope.variableGet('$fn')) ?? 0,
-      fa: Math.max(0.01, scadValueNumber(scope.variableGet('$fa')) ?? 12),
-      fs: Math.max(0.01, scadValueNumber(scope.variableGet('$fs')) ?? 2),
+      fn: solidScriptValueNumber(scope.variableGet('$fn')) ?? 0,
+      fa: Math.max(0.01, solidScriptValueNumber(scope.variableGet('$fa')) ?? 12),
+      fs: Math.max(0.01, solidScriptValueNumber(scope.variableGet('$fs')) ?? 2),
     };
   }
 
   /** Counts one more solid and stops runaway programs. */
   private solidCount(): void {
     this.solids += 1;
-    if (this.solids > SCAD_SOLIDS_MAX) throw new Error(`more than ${SCAD_SOLIDS_MAX} solids; simplify the model`);
+    if (this.solids > SOLID_SCRIPT_SOLIDS_MAX)
+      throw new Error(`more than ${SOLID_SCRIPT_SOLIDS_MAX} solids; simplify the model`);
   }
 }

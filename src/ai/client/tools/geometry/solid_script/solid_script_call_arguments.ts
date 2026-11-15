@@ -1,7 +1,7 @@
-import { scadValueNumber, scadValueNumbers, type ScadValue } from './scad_value.js';
+import { solidScriptValueNumber, solidScriptValueNumbers, type SolidScriptValue } from './solid_script_value.js';
 
 /** Evaluated arguments of a built-in module call, looked up by name or position. */
-export class ScadCallArguments {
+export class SolidScriptCallArguments {
   /**
    * Creates the argument view.
    *
@@ -11,8 +11,8 @@ export class ScadCallArguments {
    */
   constructor(
     readonly moduleName: string,
-    private readonly positional: ScadValue[],
-    private readonly named: Map<string, ScadValue>,
+    private readonly positional: SolidScriptValue[],
+    private readonly named: Map<string, SolidScriptValue>,
   ) {}
 
   /**
@@ -22,7 +22,7 @@ export class ScadCallArguments {
    * @param position Positional index, or -1 when the argument is named only.
    * @returns Value, or undefined.
    */
-  value(name: string, position = -1): ScadValue {
+  value(name: string, position = -1): SolidScriptValue {
     if (this.named.has(name)) return this.named.get(name);
     return position >= 0 ? this.positional[position] : undefined;
   }
@@ -36,7 +36,7 @@ export class ScadCallArguments {
    * @returns Number.
    */
   number(name: string, position: number, fallback: number): number {
-    return scadValueNumber(this.value(name, position)) ?? fallback;
+    return solidScriptValueNumber(this.value(name, position)) ?? fallback;
   }
 
   /**
@@ -50,9 +50,9 @@ export class ScadCallArguments {
    */
   vector(name: string, position: number, fallback: number[]): number[] {
     const value = this.value(name, position);
-    const single = scadValueNumber(value);
+    const single = solidScriptValueNumber(value);
     if (single !== undefined) return fallback.map(() => single);
-    const list = scadValueNumbers(value);
+    const list = solidScriptValueNumbers(value);
     if (value !== undefined && !list)
       throw new Error(`${this.moduleName}(): ${name} must be a number or a vector of numbers`);
     return fallback.map((entry, index) => list?.[index] ?? entry);

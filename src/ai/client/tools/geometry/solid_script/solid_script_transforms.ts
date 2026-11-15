@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import type { ScadCallArguments } from './scad_call_arguments.js';
-import { scadValueNumber, scadValueNumbers } from './scad_value.js';
+import type { SolidScriptCallArguments } from './solid_script_call_arguments.js';
+import { solidScriptValueNumber, solidScriptValueNumbers } from './solid_script_value.js';
 
 /** Degrees to radians. */
-const SCAD_DEGREES = Math.PI / 180;
+const SOLID_SCRIPT_DEGREES = Math.PI / 180;
 
 /**
  * Builds rotate(a) / rotate(a, v): Euler degrees applied X, then Y, then Z, or
@@ -12,15 +12,19 @@ const SCAD_DEGREES = Math.PI / 180;
  * @param args Call arguments.
  * @returns Matrix.
  */
-function scadRotateMatrix(args: ScadCallArguments): THREE.Matrix4 {
-  const angle = scadValueNumber(args.value('a', 0));
+function solidScriptRotateMatrix(args: SolidScriptCallArguments): THREE.Matrix4 {
+  const angle = solidScriptValueNumber(args.value('a', 0));
   if (angle !== undefined) {
     const [x, y, z] = args.vector('v', 1, [0, 0, 1]) as [number, number, number];
     const axis = new THREE.Vector3(x, y, z);
     if (axis.lengthSq() < 1e-12) return new THREE.Matrix4();
-    return new THREE.Matrix4().makeRotationAxis(axis.normalize(), angle * SCAD_DEGREES);
+    return new THREE.Matrix4().makeRotationAxis(axis.normalize(), angle * SOLID_SCRIPT_DEGREES);
   }
-  const [x, y, z] = args.vector('a', 0, [0, 0, 0]).map((degrees) => degrees * SCAD_DEGREES) as [number, number, number];
+  const [x, y, z] = args.vector('a', 0, [0, 0, 0]).map((degrees) => degrees * SOLID_SCRIPT_DEGREES) as [
+    number,
+    number,
+    number,
+  ];
   return new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(x, y, z, 'XYZ'));
 }
 
@@ -31,7 +35,7 @@ function scadRotateMatrix(args: ScadCallArguments): THREE.Matrix4 {
  * @param args Call arguments.
  * @returns Matrix.
  */
-function scadMirrorMatrix(args: ScadCallArguments): THREE.Matrix4 {
+function solidScriptMirrorMatrix(args: SolidScriptCallArguments): THREE.Matrix4 {
   const [x, y, z] = args.vector('v', 0, [1, 0, 0]) as [number, number, number];
   const normal = new THREE.Vector3(x, y, z);
   if (normal.lengthSq() < 1e-12) return new THREE.Matrix4();
@@ -49,9 +53,9 @@ function scadMirrorMatrix(args: ScadCallArguments): THREE.Matrix4 {
  * @param args Call arguments.
  * @returns Matrix.
  */
-function scadMultmatrixMatrix(args: ScadCallArguments): THREE.Matrix4 {
+function solidScriptMultmatrixMatrix(args: SolidScriptCallArguments): THREE.Matrix4 {
   const rows = args.value('m', 0);
-  const cells = Array.isArray(rows) ? rows.map((row) => scadValueNumbers(row)) : [];
+  const cells = Array.isArray(rows) ? rows.map((row) => solidScriptValueNumbers(row)) : [];
   if (cells.length < 3 || cells.some((row) => !row || row.length < 4))
     throw new Error('multmatrix(): m must be 3 or 4 rows of 4 numbers');
   const flat = [0, 1, 2, 3].flatMap((row) => cells[row] ?? [0, 0, 0, 1]);
@@ -59,18 +63,18 @@ function scadMultmatrixMatrix(args: ScadCallArguments): THREE.Matrix4 {
 }
 
 /** Transform modules and their matrix builders. */
-const SCAD_TRANSFORMS: Readonly<Record<string, (args: ScadCallArguments) => THREE.Matrix4>> = {
+const SOLID_SCRIPT_TRANSFORMS: Readonly<Record<string, (args: SolidScriptCallArguments) => THREE.Matrix4>> = {
   translate: (args) => {
     const [x, y, z] = args.vector('v', 0, [0, 0, 0]) as [number, number, number];
     return new THREE.Matrix4().makeTranslation(x, y, z);
   },
-  rotate: scadRotateMatrix,
+  rotate: solidScriptRotateMatrix,
   scale: (args) => {
     const [x, y, z] = args.vector('v', 0, [1, 1, 1]) as [number, number, number];
     return new THREE.Matrix4().makeScale(x, y, z);
   },
-  mirror: scadMirrorMatrix,
-  multmatrix: scadMultmatrixMatrix,
+  mirror: solidScriptMirrorMatrix,
+  multmatrix: solidScriptMultmatrixMatrix,
 };
 
 /**
@@ -80,7 +84,7 @@ const SCAD_TRANSFORMS: Readonly<Record<string, (args: ScadCallArguments) => THRE
  * @param args Call arguments.
  * @returns Matrix, or null when the module is not a transform.
  */
-export function scadTransformMatrix(name: string, args: ScadCallArguments): THREE.Matrix4 | null {
-  const build = SCAD_TRANSFORMS[name];
+export function solidScriptTransformMatrix(name: string, args: SolidScriptCallArguments): THREE.Matrix4 | null {
+  const build = SOLID_SCRIPT_TRANSFORMS[name];
   return build ? build(args) : null;
 }

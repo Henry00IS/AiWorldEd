@@ -9,9 +9,9 @@ difference() { wall(); doorway(); }
 `;
 
 describe('geometry tools', () => {
-  it('builds OpenSCAD into a new model with a carved group as one undo step', () => {
+  it('builds a solid script into a new model with a carved group as one undo step', () => {
     const { api, world, stack } = editorApiFixtureCreate();
-    const result = api.invokeTool('geometry_scad_build', { source: ROOM, name: 'Room' });
+    const result = api.invokeTool('geometry_script_build', { source: ROOM, name: 'Room' });
     expect(result.ok, result.message).toBe(true);
     const [model] = listSolidModels(world);
     expect(model?.root.name).toBe('Room');
@@ -29,7 +29,7 @@ describe('geometry tools', () => {
     const { api, world } = editorApiFixtureCreate();
     const created = api.invokeTool('solid_model_create', {});
     const modelId = (created.data as { modelId: string }).modelId;
-    const result = api.invokeTool('geometry_scad_build', {
+    const result = api.invokeTool('geometry_script_build', {
       source: 'cube(0.5, center = true);',
       modelId,
       operation: 'subtractive',
@@ -43,12 +43,12 @@ describe('geometry tools', () => {
 
   it('previews without changing the scene and reports source errors', () => {
     const { api, world } = editorApiFixtureCreate();
-    const preview = api.invokeTool('geometry_scad_preview', { source: ROOM });
+    const preview = api.invokeTool('geometry_script_preview', { source: ROOM });
     expect(preview.ok).toBe(true);
     expect(JSON.stringify(preview.data)).toContain('"group":"difference"');
     expect(listSolidModels(world)).toHaveLength(0);
-    const failed = api.invokeTool('geometry_scad_build', { source: 'cube(1' });
+    const failed = api.invokeTool('geometry_script_build', { source: 'cube(1' });
     expect(failed.ok).toBe(false);
-    expect(failed.message).toMatch(/OpenSCAD: line 1/);
+    expect(failed.message).toMatch(/Script: line 1/);
   });
 });

@@ -1,16 +1,21 @@
-import type { ScadArgument, ScadBinding, ScadParameter, ScadStatement } from './scad_ast.js';
-import { ScadLexer } from './scad_lexer.js';
-import { ScadParserExpression } from './scad_parser_expression.js';
+import type {
+  SolidScriptArgument,
+  SolidScriptBinding,
+  SolidScriptParameter,
+  SolidScriptStatement,
+} from './solid_script_ast.js';
+import { SolidScriptLexer } from './solid_script_lexer.js';
+import { SolidScriptParserExpression } from './solid_script_parser_expression.js';
 
-/** Parses OpenSCAD source of the supported subset into statements. */
-export class ScadParser extends ScadParserExpression {
+/** Parses solid script source of the supported subset into statements. */
+export class SolidScriptParser extends SolidScriptParserExpression {
   /**
    * Creates a parser over source text.
    *
-   * @param source OpenSCAD source text.
+   * @param source Solid script source text.
    */
   constructor(source: string) {
-    super(new ScadLexer(source).tokenize());
+    super(new SolidScriptLexer(source).tokenize());
   }
 
   /**
@@ -18,8 +23,8 @@ export class ScadParser extends ScadParserExpression {
    *
    * @returns Top-level statements.
    */
-  parseProgram(): ScadStatement[] {
-    const statements: ScadStatement[] = [];
+  parseProgram(): SolidScriptStatement[] {
+    const statements: SolidScriptStatement[] = [];
     while (this.peek().kind !== 'end') {
       const statement = this.parseStatement();
       if (statement) statements.push(statement);
@@ -32,7 +37,7 @@ export class ScadParser extends ScadParserExpression {
    *
    * @returns Statement, or null for an empty or disabled statement.
    */
-  private parseStatement(): ScadStatement | null {
+  private parseStatement(): SolidScriptStatement | null {
     const token = this.peek();
     if (this.accept(';')) return null;
     if (this.accept('{')) return { kind: 'block', body: this.parseBlockRest(), line: token.line };
@@ -52,7 +57,7 @@ export class ScadParser extends ScadParserExpression {
    * @param line Source line.
    * @returns Statement.
    */
-  private parseKeywordStatement(word: string, line: number): ScadStatement {
+  private parseKeywordStatement(word: string, line: number): SolidScriptStatement {
     if (word === 'module') return this.parseModuleDefine(line);
     if (word === 'function') return this.parseFunctionDefine(line);
     if (word === 'if') return this.parseIf(line);
@@ -82,8 +87,8 @@ export class ScadParser extends ScadParserExpression {
    *
    * @returns Statements.
    */
-  private parseBlockRest(): ScadStatement[] {
-    const body: ScadStatement[] = [];
+  private parseBlockRest(): SolidScriptStatement[] {
+    const body: SolidScriptStatement[] = [];
     while (!this.accept('}')) {
       if (this.peek().kind === 'end') throw this.error('missing "}"');
       const statement = this.parseStatement();
@@ -97,7 +102,7 @@ export class ScadParser extends ScadParserExpression {
    *
    * @returns Child statements.
    */
-  private parseChild(): ScadStatement[] {
+  private parseChild(): SolidScriptStatement[] {
     const statement = this.parseStatement();
     if (!statement) return [];
     return statement.kind === 'block' ? statement.body : [statement];
@@ -110,9 +115,9 @@ export class ScadParser extends ScadParserExpression {
    * @param line Source line.
    * @returns Module call statement.
    */
-  private parseModuleCall(name: string, line: number): ScadStatement {
+  private parseModuleCall(name: string, line: number): SolidScriptStatement {
     this.expect('(');
-    const args: ScadArgument[] = this.parseArguments();
+    const args: SolidScriptArgument[] = this.parseArguments();
     return { kind: 'module_call', name, args, children: this.parseChild(), line };
   }
 
@@ -122,7 +127,7 @@ export class ScadParser extends ScadParserExpression {
    * @param line Source line.
    * @returns Definition statement.
    */
-  private parseModuleDefine(line: number): ScadStatement {
+  private parseModuleDefine(line: number): SolidScriptStatement {
     this.next();
     const name = this.expectIdentifier();
     const params = this.parseParameters();
@@ -135,7 +140,7 @@ export class ScadParser extends ScadParserExpression {
    * @param line Source line.
    * @returns Definition statement.
    */
-  private parseFunctionDefine(line: number): ScadStatement {
+  private parseFunctionDefine(line: number): SolidScriptStatement {
     this.next();
     const name = this.expectIdentifier();
     const params = this.parseParameters();
@@ -150,9 +155,9 @@ export class ScadParser extends ScadParserExpression {
    *
    * @returns Parameters.
    */
-  private parseParameters(): ScadParameter[] {
+  private parseParameters(): SolidScriptParameter[] {
     this.expect('(');
-    const params: ScadParameter[] = [];
+    const params: SolidScriptParameter[] = [];
     while (!this.accept(')')) {
       const name = this.expectIdentifier();
       params.push({ name, fallback: this.accept('=') ? this.parseExpression() : null });
@@ -170,7 +175,7 @@ export class ScadParser extends ScadParserExpression {
    * @param line Source line.
    * @returns If statement.
    */
-  private parseIf(line: number): ScadStatement {
+  private parseIf(line: number): SolidScriptStatement {
     this.next();
     this.expect('(');
     const condition = this.parseExpression();
@@ -186,9 +191,9 @@ export class ScadParser extends ScadParserExpression {
    * @param line Source line.
    * @returns For statement.
    */
-  private parseFor(line: number): ScadStatement {
+  private parseFor(line: number): SolidScriptStatement {
     this.next();
-    const bindings: ScadBinding[] = this.parseBindings();
+    const bindings: SolidScriptBinding[] = this.parseBindings();
     return { kind: 'for', bindings, body: this.parseChild(), line };
   }
 }

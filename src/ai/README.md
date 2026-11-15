@@ -117,23 +117,25 @@ Same-solid only: reparent/group never moves a brush out of its solid model root.
 
 **Door example:** build room → `brush_find` nameContains `wall_front` → `build_opening_add` with `kind: "door"`, `targetBrushId`, `sillHeight` = floor top, `size: { width, height }`, `position` along the wall (x/z of doorway center; y ignored when sillHeight set), `snap: false`.
 
-## Geometry language: OpenSCAD subset (`geometry_scad_build`)
+## Geometry language: solid script (`geometry_script_build`)
 
-Describing shapes beats computing clip planes. `geometry_scad_build` takes a subset of [OpenSCAD](https://openscad.org/documentation.html), a widely used text format for CSG solids, parsed by the editor's own MIT parser. `geometry_scad_preview` evaluates the same source and returns the tree without changing the scene. The whole build is one undo step and syncs in multiplayer like any user edit.
+Describing shapes beats computing clip planes. `geometry_script_build` takes a solid script: a subset of the [OpenSCAD](https://openscad.org/documentation.html) language syntax, a widely used text format for CSG solids. `geometry_script_preview` evaluates the same source and returns the tree without changing the scene. The whole build is one undo step and syncs in multiplayer like any user edit.
+
+License: the lexer, parser and evaluator are an independent clean-room implementation written from the public language documentation only. No OpenSCAD source code, grammar files, tests or examples are used, and no dependency was added; the code is MIT like the rest of the editor.
 
 How it maps:
 
 - Every primitive becomes one convex brush. Spheres and cylinders are faceted hulls; `$fn` sets the facet count (at most 128).
 - `difference()` becomes a CSG group: the first child is additive and the rest are subtractive. `intersection()` becomes a group with intersecting members. `union()` flattens into its parent.
 - Module names become brush and group names, so wrap parts in modules for a readable outliner.
-- OpenSCAD is Z-up. The editor is Y-up, so (x, y, z) becomes (x, z, −y) unless `upAxis: "y"`. Units are meters.
+- Solid scripts are Z-up. The editor is Y-up, so (x, y, z) becomes (x, z, −y) unless `upAxis: "y"`. Units are meters.
 - `operation: "subtractive"` with a `modelId` carves the result out of existing brushes.
 
 Supported: `cube`, `sphere`, `cylinder`, `polyhedron` (convex hull of its points), and `linear_extrude` (height, center, scale) of `square`, `circle` and `polygon`. Concave outlines are split into convex pieces, and extra paths become holes. Also supported are `hull`, `union`, `difference`, `intersection`, `translate`, `rotate`, `scale`, `mirror`, `multmatrix` and `color` (ignored). The language parts that work are variables, `function` and `module` with `children()`, `for`, `if`/`else`, list comprehensions, ranges, math built-ins in degrees, `echo`, `assert`, `$fn`/`$fa`/`$fs`, and the `*` and `%` prefixes. Not supported: `rotate_extrude`, `minkowski`, `offset`, `text`, `import`, `resize`, and `linear_extrude` twist. Each of these fails with a hint.
 
 Room with a doorway:
 
-```openscad
+```solid-script
 module wall() cube([4, 0.2, 3]);
 module doorway() translate([1.5, -0.1, 0]) cube([1, 0.4, 2.1]);
 difference() { wall(); doorway(); }
@@ -141,14 +143,14 @@ difference() { wall(); doorway(); }
 
 Stairs:
 
-```openscad
+```solid-script
 module step(i) translate([0, i * 0.3, 0]) cube([1.2, 0.3, (i + 1) * 0.18]);
 for (i = [0 : 9]) step(i);
 ```
 
 Arch opening:
 
-```openscad
+```solid-script
 module arch() union() {
   translate([-0.6, -0.2, 0]) cube([1.2, 0.4, 2]);
   translate([0, 0.2, 2]) rotate([90, 0, 0]) cylinder(h = 0.4, r = 0.6, $fn = 24);
@@ -174,7 +176,7 @@ difference() { translate([-2, -0.1, 0]) cube([4, 0.2, 3.5]); arch(); }
 
 x must increase along the path. Arcs (`A`) are refused.
 
-```text
+```svg-path
 M 0 0.8 L 0.1 0.8 C 0.2 0.8 0.2 0.5 0.3 0.5 L 0.9 0.5 Q 1 0.5 1 0.7
 ```
 
@@ -241,12 +243,12 @@ The outliner hierarchy of solid models, CSG groups and brushes; reparenting.
 
 ### geometry
 
-Geometry languages: describe solids in OpenSCAD and get ordered CSG brushes and groups in one undo step.
+Geometry languages: describe solids as a solid script and get ordered CSG brushes and groups in one undo step.
 
-| Tool                    | Purpose                                                                                                                                            |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `geometry_scad_preview` | Dry run of geometry_scad_build: evaluates OpenSCAD source and returns the brush/group tree with operations and centers without changing the scene. |
-| `geometry_scad_build`   | Builds solids from OpenSCAD source as CSG brushes and groups in one undo step.                                                                     |
+| Tool                      | Purpose                                                                                                                                                  |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `geometry_script_preview` | Dry run of geometry_script_build: evaluates solid script source and returns the brush/group tree with operations and centers without changing the scene. |
+| `geometry_script_build`   | Builds solids from solid script source as CSG brushes and groups in one undo step.                                                                       |
 
 ### solid_model
 
@@ -392,7 +394,7 @@ Pictures of the world from any camera.
 
 ### math
 
-Arithmetic helper; rarely needed when shapes are described with geometry_scad_build.
+Arithmetic helper; rarely needed when shapes are described with geometry_script_build.
 
 | Tool             | Purpose                                                               |
 | ---------------- | --------------------------------------------------------------------- |
@@ -487,7 +489,7 @@ max_output_bytes = 200000
 - **Assemblies:** `brush_duplicate` with many `brushIds`, or `groupIds` for whole compounds; use `data.groupIds` after group clone. `brush_mirror` is brush ids only.
 - **Groups:** prefer `csg_group_create` + `csg_group_operation_set` over flattening; inspect with `scene_hierarchy_get` before reparenting.
 - **Nest under group:** `brush_box_add` with `parentGroupId`, or `scene_hierarchy_reparent` after create.
-- **Math:** prefer `geometry_scad_build`; `math_calculate` evaluates expressions like `"20+(0.5*12)"` when needed.
+- **Math:** prefer `geometry_script_build`; `math_calculate` evaluates expressions like `"20+(0.5*12)"` when needed.
 - **Half extents:** `brush_extents_get` for face centers when aligning openings or stacking props.
 - **Preview:** `brush_transform_preview` / `brush_box_preview` return predicted world bounds without mutating.
 - **Rooms:** `build_room_shell_add` then `build_opening_add` with **`targetBrushId`** on a wall brush (not bare `build_opening_cut` unless you compute midplane yourself).

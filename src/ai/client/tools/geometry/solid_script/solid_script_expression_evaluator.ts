@@ -1,17 +1,27 @@
-import type { ScadArgument, ScadBinding, ScadExpression, ScadParameter } from './scad_ast.js';
-import { scadArithmeticBinary } from './scad_arithmetic.js';
-import { SCAD_FUNCTIONS_BUILTIN } from './scad_functions_builtin.js';
-import { ScadScope } from './scad_scope.js';
-import { SCAD_LIST_LIMIT, scadValueNumber, scadValueTruthy, type ScadValue } from './scad_value.js';
+import type {
+  SolidScriptArgument,
+  SolidScriptBinding,
+  SolidScriptExpression,
+  SolidScriptParameter,
+} from './solid_script_ast.js';
+import { solidScriptArithmeticBinary } from './solid_script_arithmetic.js';
+import { SOLID_SCRIPT_FUNCTIONS_BUILTIN } from './solid_script_functions_builtin.js';
+import { SolidScriptScope } from './solid_script_scope.js';
+import {
+  SOLID_SCRIPT_LIST_LIMIT,
+  solidScriptValueNumber,
+  solidScriptValueTruthy,
+  type SolidScriptValue,
+} from './solid_script_value.js';
 
 /** Deepest allowed user function recursion. */
-const SCAD_RECURSION_LIMIT = 500;
+const SOLID_SCRIPT_RECURSION_LIMIT = 500;
 
 /** Vector member names and their indices. */
-const SCAD_MEMBERS: Readonly<Record<string, number>> = { x: 0, y: 1, z: 2 };
+const SOLID_SCRIPT_MEMBERS: Readonly<Record<string, number>> = { x: 0, y: 1, z: 2 };
 
-/** Evaluates expressions of the supported OpenSCAD subset. */
-export class ScadExpressionEvaluator {
+/** Evaluates expressions of the solid script language. */
+export class SolidScriptExpressionEvaluator {
   private depth = 0;
 
   /**
@@ -21,7 +31,7 @@ export class ScadExpressionEvaluator {
    * @param scope Scope for names.
    * @returns Value.
    */
-  evaluate(expression: ScadExpression, scope: ScadScope): ScadValue {
+  evaluate(expression: SolidScriptExpression, scope: SolidScriptScope): SolidScriptValue {
     switch (expression.kind) {
       case 'number':
       case 'string':
@@ -47,20 +57,20 @@ export class ScadExpressionEvaluator {
    * @param scope Scope.
    * @returns Value.
    */
-  private evaluateCompound(expression: ScadExpression, scope: ScadScope): ScadValue {
+  private evaluateCompound(expression: SolidScriptExpression, scope: SolidScriptScope): SolidScriptValue {
     switch (expression.kind) {
       case 'unary':
         return this.evaluateUnary(expression.operator, this.evaluate(expression.operand, scope));
       case 'binary':
         return this.evaluateBinary(expression.operator, expression.left, expression.right, scope);
       case 'ternary': {
-        const truthy = scadValueTruthy(this.evaluate(expression.condition, scope));
+        const truthy = solidScriptValueTruthy(this.evaluate(expression.condition, scope));
         return this.evaluate(truthy ? expression.whenTrue : expression.whenFalse, scope);
       }
       case 'index':
         return this.evaluateIndex(this.evaluate(expression.target, scope), this.evaluate(expression.index, scope));
       case 'member':
-        return this.evaluateIndex(this.evaluate(expression.target, scope), SCAD_MEMBERS[expression.name]);
+        return this.evaluateIndex(this.evaluate(expression.target, scope), SOLID_SCRIPT_MEMBERS[expression.name]);
       case 'range':
         return this.rangeValues(expression, scope);
       case 'comprehension':
@@ -77,10 +87,10 @@ export class ScadExpressionEvaluator {
    * @param value Operand.
    * @returns Result.
    */
-  private evaluateUnary(operator: string, value: ScadValue): ScadValue {
-    if (operator === '!') return !scadValueTruthy(value);
+  private evaluateUnary(operator: string, value: SolidScriptValue): SolidScriptValue {
+    if (operator === '!') return !solidScriptValueTruthy(value);
     if (operator === '+') return value;
-    return scadArithmeticBinary('*', -1, value);
+    return solidScriptArithmeticBinary('*', -1, value);
   }
 
   /**
@@ -92,11 +102,16 @@ export class ScadExpressionEvaluator {
    * @param scope Scope.
    * @returns Result.
    */
-  private evaluateBinary(operator: string, left: ScadExpression, right: ScadExpression, scope: ScadScope): ScadValue {
+  private evaluateBinary(
+    operator: string,
+    left: SolidScriptExpression,
+    right: SolidScriptExpression,
+    scope: SolidScriptScope,
+  ): SolidScriptValue {
     const leftValue = this.evaluate(left, scope);
-    if (operator === '&&' && !scadValueTruthy(leftValue)) return false;
-    if (operator === '||' && scadValueTruthy(leftValue)) return true;
-    return scadArithmeticBinary(operator, leftValue, this.evaluate(right, scope));
+    if (operator === '&&' && !solidScriptValueTruthy(leftValue)) return false;
+    if (operator === '||' && solidScriptValueTruthy(leftValue)) return true;
+    return solidScriptArithmeticBinary(operator, leftValue, this.evaluate(right, scope));
   }
 
   /**
@@ -106,8 +121,8 @@ export class ScadExpressionEvaluator {
    * @param index Index value.
    * @returns Entry, or undefined.
    */
-  private evaluateIndex(target: ScadValue, index: ScadValue): ScadValue {
-    const position = scadValueNumber(index);
+  private evaluateIndex(target: SolidScriptValue, index: SolidScriptValue): SolidScriptValue {
+    const position = solidScriptValueNumber(index);
     if (position === undefined) return undefined;
     if (Array.isArray(target)) return target[Math.floor(position)];
     return typeof target === 'string' ? target[Math.floor(position)] : undefined;
@@ -121,10 +136,10 @@ export class ScadExpressionEvaluator {
    * @param scope Calling scope.
    * @returns Result.
    */
-  private evaluateCall(name: string, args: ScadArgument[], scope: ScadScope): ScadValue {
+  private evaluateCall(name: string, args: SolidScriptArgument[], scope: SolidScriptScope): SolidScriptValue {
     const definition = scope.functionGet(name);
     if (definition) {
-      if (this.depth >= SCAD_RECURSION_LIMIT) throw new Error(`function ${name}: recursion too deep`);
+      if (this.depth >= SOLID_SCRIPT_RECURSION_LIMIT) throw new Error(`function ${name}: recursion too deep`);
       this.depth += 1;
       try {
         return this.evaluate(definition.body, this.argumentsBind(definition.params, args, scope, definition.scope));
@@ -132,7 +147,7 @@ export class ScadExpressionEvaluator {
         this.depth -= 1;
       }
     }
-    const builtin = SCAD_FUNCTIONS_BUILTIN[name];
+    const builtin = SOLID_SCRIPT_FUNCTIONS_BUILTIN[name];
     if (!builtin) throw new Error(`unknown function ${name}()`);
     return builtin(args.map((arg) => this.evaluate(arg.value, scope)));
   }
@@ -149,13 +164,13 @@ export class ScadExpressionEvaluator {
    * @returns Scope holding the parameters.
    */
   argumentsBind(
-    params: ScadParameter[],
-    args: ScadArgument[],
-    callScope: ScadScope,
-    definitionScope: ScadScope,
-    inner = new ScadScope(definitionScope),
-  ): ScadScope {
-    const named = new Map<string, ScadValue>();
+    params: SolidScriptParameter[],
+    args: SolidScriptArgument[],
+    callScope: SolidScriptScope,
+    definitionScope: SolidScriptScope,
+    inner = new SolidScriptScope(definitionScope),
+  ): SolidScriptScope {
+    const named = new Map<string, SolidScriptValue>();
     let positional = 0;
     for (const arg of args) {
       const value = this.evaluate(arg.value, callScope);
@@ -183,11 +198,11 @@ export class ScadExpressionEvaluator {
    * @param scope Scope.
    * @returns Values.
    */
-  private rangeValues(range: Extract<ScadExpression, { kind: 'range' }>, scope: ScadScope): number[] {
-    const start = scadValueNumber(this.evaluate(range.start, scope)) ?? 0;
-    const end = scadValueNumber(this.evaluate(range.end, scope)) ?? 0;
-    const step = range.step ? (scadValueNumber(this.evaluate(range.step, scope)) ?? 1) : 1;
-    if (step === 0 || (end - start) / step > SCAD_LIST_LIMIT) throw new Error('range too long');
+  private rangeValues(range: Extract<SolidScriptExpression, { kind: 'range' }>, scope: SolidScriptScope): number[] {
+    const start = solidScriptValueNumber(this.evaluate(range.start, scope)) ?? 0;
+    const end = solidScriptValueNumber(this.evaluate(range.end, scope)) ?? 0;
+    const step = range.step ? (solidScriptValueNumber(this.evaluate(range.step, scope)) ?? 1) : 1;
+    if (step === 0 || (end - start) / step > SOLID_SCRIPT_LIST_LIMIT) throw new Error('range too long');
     const values: number[] = [];
     for (let value = start; step > 0 ? value <= end + 1e-9 : value >= end - 1e-9; value += step) values.push(value);
     return values;
@@ -201,13 +216,17 @@ export class ScadExpressionEvaluator {
    * @param visit Called with a scope holding one combination of loop values.
    * @returns Concatenated visitor results.
    */
-  bindingsWalk<T>(bindings: ScadBinding[], scope: ScadScope, visit: (inner: ScadScope) => T[]): T[] {
+  bindingsWalk<T>(
+    bindings: SolidScriptBinding[],
+    scope: SolidScriptScope,
+    visit: (inner: SolidScriptScope) => T[],
+  ): T[] {
     const [first, ...rest] = bindings;
     if (!first) return visit(scope);
     const source = this.evaluate(first.value, scope);
     const values = Array.isArray(source) ? source : [source];
     return values.flatMap((value) => {
-      const inner = new ScadScope(scope);
+      const inner = new SolidScriptScope(scope);
       inner.variableSet(first.name, value);
       return this.bindingsWalk(rest, inner, visit);
     });

@@ -1,30 +1,30 @@
 import * as THREE from 'three';
-import type { ScadCallArguments } from './scad_call_arguments.js';
-import type { ScadPoint2 } from './scad_polygon.js';
-import { scadValueNumbers } from './scad_value.js';
+import type { SolidScriptCallArguments } from './solid_script_call_arguments.js';
+import type { SolidScriptPoint2 } from './solid_script_polygon.js';
+import { solidScriptValueNumbers } from './solid_script_value.js';
 
 /** Resolution settings of curved primitives ($fn, $fa, $fs). */
-export interface ScadFragmentSettings {
+export interface SolidScriptFragmentSettings {
   fn: number;
   fa: number;
   fs: number;
 }
 
 /** Most fragments one circle may use. */
-const SCAD_FRAGMENTS_MAX = 128;
+const SOLID_SCRIPT_FRAGMENTS_MAX = 128;
 
 /**
- * Number of circle fragments with the OpenSCAD formula.
+ * Number of circle fragments from $fn, $fa and $fs.
  *
  * @param radius Circle radius.
  * @param settings Resolution settings.
  * @returns Fragment count.
  */
-export function scadFragments(radius: number, settings: ScadFragmentSettings): number {
+export function solidScriptFragments(radius: number, settings: SolidScriptFragmentSettings): number {
   if (radius < 1e-6) return 3;
-  if (settings.fn > 0) return Math.min(SCAD_FRAGMENTS_MAX, Math.max(3, Math.floor(settings.fn)));
+  if (settings.fn > 0) return Math.min(SOLID_SCRIPT_FRAGMENTS_MAX, Math.max(3, Math.floor(settings.fn)));
   const count = Math.ceil(Math.max(Math.min(360 / settings.fa, (radius * 2 * Math.PI) / settings.fs), 5));
-  return Math.min(SCAD_FRAGMENTS_MAX, count);
+  return Math.min(SOLID_SCRIPT_FRAGMENTS_MAX, count);
 }
 
 /**
@@ -34,8 +34,8 @@ export function scadFragments(radius: number, settings: ScadFragmentSettings): n
  * @param settings Resolution settings.
  * @returns Points, counter-clockwise.
  */
-export function scadCirclePoints(radius: number, settings: ScadFragmentSettings): ScadPoint2[] {
-  const count = scadFragments(radius, settings);
+export function solidScriptCirclePoints(radius: number, settings: SolidScriptFragmentSettings): SolidScriptPoint2[] {
+  const count = solidScriptFragments(radius, settings);
   return Array.from({ length: count }, (_, index) => {
     const angle = (2 * Math.PI * index) / count;
     return [radius * Math.cos(angle), radius * Math.sin(angle)];
@@ -51,8 +51,8 @@ export function scadCirclePoints(radius: number, settings: ScadFragmentSettings)
  * @param fallback Radius when neither is given.
  * @returns Radius.
  */
-export function scadRadius(
-  args: ScadCallArguments,
+export function solidScriptRadius(
+  args: SolidScriptCallArguments,
   radiusName: string,
   diameterName: string,
   fallback: number,
@@ -67,7 +67,7 @@ export function scadRadius(
  * @param args Call arguments.
  * @returns Points.
  */
-export function scadCubePoints(args: ScadCallArguments): THREE.Vector3[] {
+export function solidScriptCubePoints(args: SolidScriptCallArguments): THREE.Vector3[] {
   const [x, y, z] = args.vector('size', 0, [1, 1, 1]) as [number, number, number];
   const shift = args.flag('center', 1) ? new THREE.Vector3(-x / 2, -y / 2, -z / 2) : new THREE.Vector3();
   const points: THREE.Vector3[] = [];
@@ -83,13 +83,16 @@ export function scadCubePoints(args: ScadCallArguments): THREE.Vector3[] {
  * @param settings Resolution settings.
  * @returns Points.
  */
-export function scadCylinderPoints(args: ScadCallArguments, settings: ScadFragmentSettings): THREE.Vector3[] {
+export function solidScriptCylinderPoints(
+  args: SolidScriptCallArguments,
+  settings: SolidScriptFragmentSettings,
+): THREE.Vector3[] {
   const height = args.number('h', 0, 1);
-  const radius = scadRadius(args, 'r', 'd', 1);
-  const bottom = scadRadius(args, 'r1', 'd1', args.number('r1', 1, radius));
-  const top = scadRadius(args, 'r2', 'd2', args.number('r2', 2, radius));
+  const radius = solidScriptRadius(args, 'r', 'd', 1);
+  const bottom = solidScriptRadius(args, 'r1', 'd1', args.number('r1', 1, radius));
+  const top = solidScriptRadius(args, 'r2', 'd2', args.number('r2', 2, radius));
   const base = args.flag('center', 3) ? -height / 2 : 0;
-  const count = scadFragments(Math.max(bottom, top), settings);
+  const count = solidScriptFragments(Math.max(bottom, top), settings);
   const ring = (ringRadius: number, z: number): THREE.Vector3[] =>
     ringRadius < 1e-9
       ? [new THREE.Vector3(0, 0, z)]
@@ -101,20 +104,23 @@ export function scadCylinderPoints(args: ScadCallArguments, settings: ScadFragme
 }
 
 /**
- * Points of sphere(r) as stacked rings like OpenSCAD builds them.
+ * Points of sphere(r) as stacked rings as stacked rings.
  *
  * @param args Call arguments.
  * @param settings Resolution settings.
  * @returns Points.
  */
-export function scadSpherePoints(args: ScadCallArguments, settings: ScadFragmentSettings): THREE.Vector3[] {
+export function solidScriptSpherePoints(
+  args: SolidScriptCallArguments,
+  settings: SolidScriptFragmentSettings,
+): THREE.Vector3[] {
   const radius = Number.isNaN(args.number('d', -1, NaN)) ? args.number('r', 0, 1) : args.number('d', -1, 2) / 2;
-  const count = scadFragments(radius, settings);
+  const count = solidScriptFragments(radius, settings);
   const rings = Math.floor((count + 1) / 2);
   const points: THREE.Vector3[] = [];
   for (let ring = 0; ring < rings; ring++) {
     const phi = (Math.PI * (ring + 0.5)) / rings;
-    for (const [x, y] of scadCirclePoints(radius * Math.sin(phi), { ...settings, fn: count }))
+    for (const [x, y] of solidScriptCirclePoints(radius * Math.sin(phi), { ...settings, fn: count }))
       points.push(new THREE.Vector3(x, y, radius * Math.cos(phi)));
   }
   return points;
@@ -126,12 +132,12 @@ export function scadSpherePoints(args: ScadCallArguments, settings: ScadFragment
  * @param args Call arguments.
  * @returns Points.
  */
-export function scadPolyhedronPoints(args: ScadCallArguments): THREE.Vector3[] {
+export function solidScriptPolyhedronPoints(args: SolidScriptCallArguments): THREE.Vector3[] {
   const list = args.value('points', 0);
   if (!Array.isArray(list) || list.length < 4)
     throw new Error('polyhedron(): points needs at least 4 [x, y, z] entries');
   return list.map((entry) => {
-    const xyz = scadValueNumbers(entry);
+    const xyz = solidScriptValueNumbers(entry);
     if (!xyz || xyz.length < 3) throw new Error('polyhedron(): every point must be [x, y, z]');
     return new THREE.Vector3(xyz[0], xyz[1], xyz[2]);
   });
@@ -143,7 +149,7 @@ export function scadPolyhedronPoints(args: ScadCallArguments): THREE.Vector3[] {
  * @param args Call arguments.
  * @returns Points, counter-clockwise.
  */
-export function scadSquarePoints(args: ScadCallArguments): ScadPoint2[] {
+export function solidScriptSquarePoints(args: SolidScriptCallArguments): SolidScriptPoint2[] {
   const [x, y] = args.vector('size', 0, [1, 1]) as [number, number];
   const [sx, sy] = args.flag('center', 1) ? [-x / 2, -y / 2] : [0, 0];
   return [
@@ -161,15 +167,15 @@ export function scadSquarePoints(args: ScadCallArguments): ScadPoint2[] {
  * @param args Call arguments.
  * @returns Outline followed by holes.
  */
-export function scadPolygonPaths(args: ScadCallArguments): ScadPoint2[][] {
+export function solidScriptPolygonPaths(args: SolidScriptCallArguments): SolidScriptPoint2[][] {
   const list = args.value('points', 0);
   if (!Array.isArray(list) || list.length < 3) throw new Error('polygon(): points needs at least 3 [x, y] entries');
   const points = list.map((entry) => {
-    const xy = scadValueNumbers(entry);
+    const xy = solidScriptValueNumbers(entry);
     if (!xy || xy.length < 2) throw new Error('polygon(): every point must be [x, y]');
-    return [xy[0], xy[1]] as ScadPoint2;
+    return [xy[0], xy[1]] as SolidScriptPoint2;
   });
   const paths = args.value('paths', 1);
   if (!Array.isArray(paths)) return [points];
-  return paths.map((path) => (scadValueNumbers(path) ?? []).map((index) => points[index] ?? [0, 0]));
+  return paths.map((path) => (solidScriptValueNumbers(path) ?? []).map((index) => points[index] ?? [0, 0]));
 }

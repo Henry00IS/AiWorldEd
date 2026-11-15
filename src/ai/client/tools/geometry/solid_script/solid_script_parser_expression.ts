@@ -1,8 +1,8 @@
-import type { ScadArgument, ScadBinding, ScadExpression } from './scad_ast.js';
-import type { ScadToken } from './scad_lexer.js';
+import type { SolidScriptArgument, SolidScriptBinding, SolidScriptExpression } from './solid_script_ast.js';
+import type { SolidScriptToken } from './solid_script_lexer.js';
 
 /** Binary operators by precedence level, loosest first. */
-const SCAD_BINARY_LEVELS: readonly (readonly string[])[] = [
+const SOLID_SCRIPT_BINARY_LEVELS: readonly (readonly string[])[] = [
   ['||'],
   ['&&'],
   ['==', '!='],
@@ -12,8 +12,8 @@ const SCAD_BINARY_LEVELS: readonly (readonly string[])[] = [
 ];
 
 /** Token cursor and expression grammar shared by the statement parser. */
-export class ScadParserExpression {
-  private readonly tokens: ScadToken[];
+export class SolidScriptParserExpression {
+  private readonly tokens: SolidScriptToken[];
   private index = 0;
 
   /**
@@ -21,7 +21,7 @@ export class ScadParserExpression {
    *
    * @param tokens Tokens ending with an end token.
    */
-  constructor(tokens: ScadToken[]) {
+  constructor(tokens: SolidScriptToken[]) {
     this.tokens = tokens;
   }
 
@@ -30,7 +30,7 @@ export class ScadParserExpression {
    *
    * @returns Token.
    */
-  protected peek(): ScadToken {
+  protected peek(): SolidScriptToken {
     return this.tokens[this.index] ?? { kind: 'end', text: '', line: 0 };
   }
 
@@ -39,7 +39,7 @@ export class ScadParserExpression {
    *
    * @returns Token.
    */
-  protected next(): ScadToken {
+  protected next(): SolidScriptToken {
     const token = this.peek();
     if (token.kind !== 'end') this.index += 1;
     return token;
@@ -93,8 +93,8 @@ export class ScadParserExpression {
    *
    * @returns Arguments.
    */
-  protected parseArguments(): ScadArgument[] {
-    const args: ScadArgument[] = [];
+  protected parseArguments(): SolidScriptArgument[] {
+    const args: SolidScriptArgument[] = [];
     while (!this.accept(')')) {
       args.push(this.parseArgument());
       if (!this.accept(',')) {
@@ -110,7 +110,7 @@ export class ScadParserExpression {
    *
    * @returns Argument.
    */
-  private parseArgument(): ScadArgument {
+  private parseArgument(): SolidScriptArgument {
     const token = this.peek();
     const following = this.tokens[this.index + 1];
     if (token.kind === 'identifier' && following?.text === '=' && following.kind === 'symbol') {
@@ -125,9 +125,9 @@ export class ScadParserExpression {
    *
    * @returns Bindings.
    */
-  protected parseBindings(): ScadBinding[] {
+  protected parseBindings(): SolidScriptBinding[] {
     this.expect('(');
-    const bindings: ScadBinding[] = [];
+    const bindings: SolidScriptBinding[] = [];
     do {
       const name = this.expectIdentifier();
       this.expect('=');
@@ -142,7 +142,7 @@ export class ScadParserExpression {
    *
    * @returns Expression.
    */
-  protected parseExpression(): ScadExpression {
+  protected parseExpression(): SolidScriptExpression {
     const condition = this.parseBinary(0);
     if (!this.accept('?')) return condition;
     const whenTrue = this.parseExpression();
@@ -156,8 +156,8 @@ export class ScadParserExpression {
    * @param level Precedence level index.
    * @returns Expression.
    */
-  private parseBinary(level: number): ScadExpression {
-    const operators = SCAD_BINARY_LEVELS[level];
+  private parseBinary(level: number): SolidScriptExpression {
+    const operators = SOLID_SCRIPT_BINARY_LEVELS[level];
     if (!operators) return this.parseUnary();
     let left = this.parseBinary(level + 1);
     for (;;) {
@@ -173,7 +173,7 @@ export class ScadParserExpression {
    *
    * @returns Expression.
    */
-  private parseUnary(): ScadExpression {
+  private parseUnary(): SolidScriptExpression {
     const token = this.peek();
     if (token.kind === 'symbol' && (token.text === '-' || token.text === '+' || token.text === '!')) {
       this.next();
@@ -188,7 +188,7 @@ export class ScadParserExpression {
    * @param target Expression the suffixes apply to.
    * @returns Expression.
    */
-  private parsePostfix(target: ScadExpression): ScadExpression {
+  private parsePostfix(target: SolidScriptExpression): SolidScriptExpression {
     for (;;) {
       if (this.accept('[')) {
         const index = this.parseExpression();
@@ -207,7 +207,7 @@ export class ScadParserExpression {
    *
    * @returns Expression.
    */
-  private parsePrimary(): ScadExpression {
+  private parsePrimary(): SolidScriptExpression {
     const token = this.next();
     if (token.kind === 'number') return { kind: 'number', value: Number(token.text) };
     if (token.kind === 'string') return { kind: 'string', value: token.text };
@@ -227,7 +227,7 @@ export class ScadParserExpression {
    * @param name Identifier text.
    * @returns Expression.
    */
-  private parseName(name: string): ScadExpression {
+  private parseName(name: string): SolidScriptExpression {
     if (name === 'true' || name === 'false') return { kind: 'boolean', value: name === 'true' };
     if (name === 'undef') return { kind: 'undef' };
     if (this.accept('(')) return { kind: 'call', name, args: this.parseArguments() };
@@ -239,7 +239,7 @@ export class ScadParserExpression {
    *
    * @returns Expression.
    */
-  private parseVector(): ScadExpression {
+  private parseVector(): SolidScriptExpression {
     if (this.accept(']')) return { kind: 'vector', items: [] };
     if (this.peek().text === 'for') return this.parseComprehension();
     const first = this.parseExpression();
@@ -256,7 +256,7 @@ export class ScadParserExpression {
    * @param start Range start.
    * @returns Range expression.
    */
-  private parseRangeRest(start: ScadExpression): ScadExpression {
+  private parseRangeRest(start: SolidScriptExpression): SolidScriptExpression {
     const second = this.parseExpression();
     if (!this.accept(':')) {
       this.expect(']');
@@ -272,7 +272,7 @@ export class ScadParserExpression {
    *
    * @returns Comprehension expression.
    */
-  private parseComprehension(): ScadExpression {
+  private parseComprehension(): SolidScriptExpression {
     this.next();
     const bindings = this.parseBindings();
     const body = this.parseExpression();
