@@ -3,12 +3,14 @@ import type { PlayerSpawnState } from '@/player/player_spawn_state.js';
 import type { PlayerFigurineMarker } from './player_figurine_marker.js';
 import { playerFigurineBuildMesh, playerFigurineDispose } from './player_figurine_builder.js';
 import { playerFigurineGroundHit } from './player_figurine_ground.js';
+import type { PlayerHelperLayer } from '@/player/player_helper_layer.js';
 
 /** Drag-and-drop figurine placement over a perspective viewport. */
 export class PlayerFigurinePlacement {
   private readonly spawnState: PlayerSpawnState;
   private readonly marker: PlayerFigurineMarker;
   private readonly worldRoot: THREE.Object3D;
+  private readonly layer: PlayerHelperLayer;
   private readonly getPerspectiveViewports: () => readonly PlayerFigurineViewport[];
   private readonly onSpawnPlaced: (() => void) | null;
   private isDragging: boolean;
@@ -30,6 +32,7 @@ export class PlayerFigurinePlacement {
    * @param spawnState Shared spawn state.
    * @param marker World marker manager.
    * @param worldRoot World root whose collidable meshes take the figurine.
+   * @param layer Overlay layer for the drag ghost, outside the level.
    * @param getPerspectiveViewports Lists every perspective pane, including the
    *   panes of detached windows.
    * @param onSpawnPlaced Optional callback after a successful drop.
@@ -38,12 +41,14 @@ export class PlayerFigurinePlacement {
     spawnState: PlayerSpawnState,
     marker: PlayerFigurineMarker,
     worldRoot: THREE.Object3D,
+    layer: PlayerHelperLayer,
     getPerspectiveViewports: () => readonly PlayerFigurineViewport[],
     onSpawnPlaced: (() => void) | null = null,
   ) {
     this.spawnState = spawnState;
     this.marker = marker;
     this.worldRoot = worldRoot;
+    this.layer = layer;
     this.getPerspectiveViewports = getPerspectiveViewports;
     this.onSpawnPlaced = onSpawnPlaced;
     this.isDragging = false;
@@ -74,7 +79,7 @@ export class PlayerFigurinePlacement {
       this.ghost = playerFigurineBuildMesh();
       this.ghost.visible = false;
     }
-    this.getPerspectiveViewports()[0]?.getWorldGroup()?.add(this.ghost);
+    this.layer.helperAdd(this.ghost);
     this.dragWindow = resolveEventWindow(event);
     this.dragWindow.addEventListener('pointermove', this.boundPointerMove);
     this.dragWindow.addEventListener('pointerup', this.boundPointerUp);
@@ -184,7 +189,7 @@ export class PlayerFigurinePlacement {
     if (!this.ghost) {
       return;
     }
-    this.ghost.parent?.remove(this.ghost);
+    this.layer.helperRemove(this.ghost);
     playerFigurineDispose(this.ghost);
     this.ghost = null;
   }
@@ -257,7 +262,6 @@ function rectContainsPoint(rect: DOMRect, clientX: number, clientY: number): boo
 export interface PlayerFigurineViewport {
   getCamera(): THREE.Camera;
   getContentElement(): HTMLElement;
-  getWorldGroup(): THREE.Group | null;
 }
 
 /**

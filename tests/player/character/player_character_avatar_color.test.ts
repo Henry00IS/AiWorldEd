@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { PLAYER_CHARACTER_ROOM_TINT } from '@/player/character/player_character_tint.js';
 import { PlayerCharacterAvatar } from '@/player/character/player_character_avatar.js';
+import type { PlayerHelperLayer } from '@/player/player_helper_layer.js';
 import {
   playerCharacterEnsureModelLoaded,
   playerCharacterGetPreparedTemplate,
@@ -20,7 +21,7 @@ describe('PlayerCharacterAvatar room color', () => {
     playerCharacterResetModelLoader();
     await playerCharacterLoadModelFromArrayBuffer(readFileSync(MODEL_PATH));
     worldRoot = new THREE.Object3D();
-    avatar = new PlayerCharacterAvatar(worldRoot);
+    avatar = new PlayerCharacterAvatar(layerOn(worldRoot));
   });
 
   afterEach(() => {
@@ -80,7 +81,7 @@ describe('PlayerCharacterAvatar room color', () => {
 
   it('applies a room color that was set before the mesh rig was ready', async () => {
     const lateRoot = new THREE.Object3D();
-    const late = new PlayerCharacterAvatar(lateRoot);
+    const late = new PlayerCharacterAvatar(layerOn(lateRoot));
     late.setRoomColor(0x00aaff);
     await ready(late);
     late.attach();
@@ -180,4 +181,14 @@ function addedMesh(root: THREE.Object3D, action: () => void): THREE.Mesh {
   const [mesh] = added;
   if (added.length !== 1 || mesh === undefined) throw new Error(`Expected one added mesh, got ${added.length}`);
   return mesh;
+}
+
+/**
+ * Overlay layer that puts the character under a test root.
+ *
+ * @param root Test root.
+ * @returns Overlay layer.
+ */
+function layerOn(root: THREE.Object3D): PlayerHelperLayer {
+  return { helperAdd: (object) => root.add(object), helperRemove: (object) => root.remove(object) };
 }

@@ -17,6 +17,7 @@ import { playerViewModeToggle, type PlayerViewMode } from '@/player/player_mode.
 import type { PlayerSpawnState } from '@/player/player_spawn_state.js';
 import type { PlayerFigurineMarker } from '@/player/figurine/player_figurine_marker.js';
 import { PlayerCharacterAvatar } from '@/player/character/player_character_avatar.js';
+import type { PlayerHelperLayer } from '@/player/player_helper_layer.js';
 import { playerMovementResolveSimulationDeltaSeconds } from '@/player/movement/player_movement_input.js';
 import { playerSpawnResolveFeetUnderCamera } from '@/player/spawn/player_spawn_ground.js';
 import type { PlayerBallSystem } from '@/player/ball/player_ball_system.js';
@@ -34,6 +35,8 @@ const PLAYER_PLAY_WHEEL_STEP = 100;
 export interface PlayerPlaySessionHost {
   inputManager: ManagerInput;
   worldRoot: THREE.Object3D;
+  /** Overlay layer for the play-mode character, outside the level. */
+  helperLayer: PlayerHelperLayer;
   spawnState: PlayerSpawnState;
   figurineMarker: PlayerFigurineMarker;
   collisionWorld: PlayerCollisionWorld;
@@ -94,7 +97,7 @@ export class PlayerPlaySession {
     this.body = new PlayerBodyState();
     this.look = new PlayerLookState();
     this.cameraApplier = new PlayerCameraPoseApplier();
-    this.avatar = new PlayerCharacterAvatar(host.worldRoot);
+    this.avatar = new PlayerCharacterAvatar(host.helperLayer);
     this.viewModel = null;
     this.pressedAt = null;
     this.carry = new PlayerBallCarry();
