@@ -20,7 +20,7 @@ import {
 } from './physics_shatter_inputs.js';
 import { physicsShatterOutputUnit, type PhysicsShatterOutputJob } from './physics_shatter_output.js';
 import { physicsShatterLastRunOf, physicsShatterLastRunStore } from './physics_shatter_last_run.js';
-import { physicsShatterBlastHelpers } from './physics_shatter_helpers.js';
+import { physicsShatterBlastHelpers } from './physics_shatter_blast_guide.js';
 import {
   PHYSICS_SHATTER_BAKE_KEY,
   PHYSICS_SHATTER_BAKE_STALE,
