@@ -27,6 +27,7 @@ Combine any two meshes with **Union**, **Subtract** and **Intersect**.
 
 ![Adding stairs](https://raw.githubusercontent.com/wiki/Henry00IS/AiWorldEd/images/stairs-generator.gif)
 ![Adding an arch](https://raw.githubusercontent.com/wiki/Henry00IS/AiWorldEd/images/arch-generator.gif)
+![Adding a column](https://raw.githubusercontent.com/wiki/Henry00IS/AiWorldEd/images/column-generator.gif)
 
 ## Shape Anything
 
@@ -43,10 +44,11 @@ Open your project folder and click a texture to paint it onto faces. Fine-tune w
 
 ## Also Included
 
-- **Play mode**: press `Space` to walk through your level as a player.
+- **Play mode**: press `Space` to walk through your level and throw tennis balls, soccer balls and paper planes.
 - **Primitives and terrain** for quick blockouts.
-- **Modifier volumes**: bevel, array, mirror, shear and more.
+- **Modifiers**: bevel, array, mirror, shear and more, on a volume or a single brush.
 - **Real-time collaboration**: build the same level together.
+- **MCP server**: let AI tools such as Grok Build look at and edit your level.
 - **Import and export**: import VMF, OBJ, FBX and GLB; export FBX, glTF, GLB and OBJ, ready for Godot, Unity, Blender and Unreal Engine.
 - **Desktop app** for Windows, Linux and macOS on the [Releases page](https://github.com/Henry00IS/AiWorldEd/releases).
 
