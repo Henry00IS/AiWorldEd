@@ -17,6 +17,7 @@ import {
 } from './modifier_stack_bake_plan.js';
 import { modifierStackTreeAnchor, modifierStackTreeInsert } from '@/modifier/stack/evaluate/modifier_stack_tree.js';
 import { modifierStackBakeGroupsPlace, type ModifierStackBakeGroup } from './modifier_stack_bake_groups.js';
+import { modifierStackBakeMeshesCreate, type ModifierStackBakeMesh } from './modifier_stack_bake_meshes.js';
 
 /** A volume or generator node the bake took out of the scene. */
 interface ModifierStackBakeDetached {
@@ -45,6 +46,11 @@ export class CommandModifierVolumeBake implements UndoCommand {
   private readonly groups = new Map<ModifierStackBakeGroup, THREE.Group>();
   private readonly detached: ModifierStackBakeDetached[] = [];
   private readonly ownerStack: ModifierStackSettings | undefined;
+  /**
+   * Regular meshes the volume's generators built, made once and re-added on
+   * redo.
+   */
+  private readonly meshes: ModifierStackBakeMesh[];
 
   /**
    * Plans the bake against the current scene.
@@ -56,6 +62,7 @@ export class CommandModifierVolumeBake implements UndoCommand {
     this.ownerStack = modifierStackOwnerEncode(volume);
     this.sceneRoot = modifierVolumeSceneRoot(volume);
     this.plans = modifierStackBakePlan(volume);
+    this.meshes = modifierStackBakeMeshesCreate(volume, this.plans[0]?.model.root.parent ?? this.sceneRoot);
   }
 
   /**
@@ -64,7 +71,7 @@ export class CommandModifierVolumeBake implements UndoCommand {
    * @returns Created brush count.
    */
   createdCount(): number {
-    return this.plans.reduce((sum, plan) => sum + plan.created.length, 0);
+    return this.plans.reduce((sum, plan) => sum + plan.created.length, 0) + this.meshes.length;
   }
 
   /** Applies the bake. */
@@ -72,12 +79,14 @@ export class CommandModifierVolumeBake implements UndoCommand {
     const removed = this.plans.flatMap((plan) => plan.removed);
     for (const node of this.ownerStack ? removed : [this.volume, ...removed]) this.detach(node);
     for (const plan of this.plans) this.applyPlan(plan);
+    for (const { mesh, parent } of this.meshes) parent.add(mesh);
     if (this.ownerStack) modifierStackOwnerDecode(this.volume, undefined);
     modifierBevelRefreshScene(this.sceneRoot);
   }
 
   /** Restores the volume and the reshaped brushes, and drops created ones. */
   undo(): void {
+    for (const { mesh } of this.meshes) mesh.removeFromParent();
     for (const { model, instance } of this.created.splice(0).reverse()) model.removeBrush(instance.id, false, false);
     for (const group of this.groups.values()) group.removeFromParent();
     for (const plan of this.plans)

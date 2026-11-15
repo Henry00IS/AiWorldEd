@@ -6,6 +6,11 @@ import { solidScriptSolidTreeBuild } from '@/solid_script/language/solid_script_
 import { solidScriptErrorText } from '@/solid_script/language/solid_script_error.js';
 import { solidScriptShapeLeavesPositive, type SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
 import type { SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
+import { solidScriptShapeMeshes } from '@/solid_script/language/solid_script_mesh.js';
+import {
+  solidScriptMeshDocumentBuild,
+  type SolidScriptMeshDocument,
+} from '@/solid_script/output/solid_script_mesh_document.js';
 
 /**
  * How script metres map into the generator box: 'origin' puts the script origin
@@ -19,6 +24,8 @@ export type ModifierStackSolidScriptPlacement = 'origin' | 'fit' | 'stretch';
 export interface ModifierStackSolidScriptLayout {
   /** Brushes and groups in frame coordinates, in CSG order. */
   nodes: SolidTreeNode[];
+  /** Meshes the script built, in frame coordinates. */
+  meshes: SolidScriptMeshDocument[];
   /** Problem description, or empty. */
   error: string;
 }
@@ -42,16 +49,18 @@ export function modifierStackSolidScriptLayout(
 ): ModifierStackSolidScriptLayout {
   try {
     const { shapes } = solidScriptProgramEvaluate(document, stepLimit === undefined ? {} : { stepLimit });
+    const placed = modifierStackSolidScriptPlacementMatrix(shapes, placement, box);
     const nodes = solidScriptSolidTreeBuild(shapes, {
       upAxis: 'z',
       offset: new THREE.Vector3(),
-      worldToParent: modifierStackSolidScriptPlacementMatrix(shapes, placement, box),
+      worldToParent: placed,
       operation,
       namePrefix: '',
     });
-    return { nodes, error: '' };
+    const meshes = solidScriptShapeMeshes(shapes).map((mesh) => solidScriptMeshDocumentBuild(mesh, 'z', placed));
+    return { nodes, meshes, error: '' };
   } catch (error) {
-    return { nodes: [], error: solidScriptErrorText(error) };
+    return { nodes: [], meshes: [], error: solidScriptErrorText(error) };
   }
 }
 
@@ -91,7 +100,7 @@ function modifierStackSolidScriptPlacementMatrix(
 function modifierStackSolidScriptBounds(shapes: readonly SolidScriptShape[]): THREE.Box3 {
   const bounds = new THREE.Box3();
   for (const leaf of shapes.flatMap(solidScriptShapeLeavesPositive))
-    if (leaf.kind === 'solid')
+    if (leaf.kind !== 'polygon')
       for (const point of leaf.points) bounds.expandByPoint(new THREE.Vector3(point.x, point.z, -point.y));
   return bounds;
 }

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import * as THREE from 'three';
 import { listSolidModels } from '@/ai/client/editor_api_lookup.js';
+import { readPersistentMeshDocument } from '@/mesh/document/mesh_document_binding.js';
 import { editorApiFixtureCreate } from '../../helpers_editor_api.js';
 
 /** A wall with a doorway, as command lines. */
@@ -63,5 +65,53 @@ describe('geometry tools', () => {
     expect(failed.ok).toBe(false);
     expect(failed.message).toMatch(/^Script: line 2: Radius: there is no variable \[size\]/);
     expect(api.invokeTool('geometry_script_build', { source: 'cube(1);' }).ok).toBe(false);
+  });
+
+  it('builds script meshes as regular mesh objects, previews them and undoes them with the brushes', () => {
+    const { api, world, stack } = editorApiFixtureCreate();
+    const lines = [
+      { command: 'mesh_shapes' },
+      { command: 'cube', values: { size: '2, 2, 2' } },
+      { command: 'end' },
+      { command: 'cube' },
+    ];
+    const preview = api.invokeTool('geometry_script_preview', { lines });
+    expect(preview.message).toBe('Would create 1 brush(es) and 1 mesh(es)');
+    expect(preview.data).toMatchObject({ meshes: [{ mesh: 'Mesh From Shapes', vertices: 8, faces: 6 }] });
+    const built = api.invokeTool('geometry_script_build', { lines, position: { x: 0, y: 0, z: 5 } });
+    expect(built.ok, built.message).toBe(true);
+    const meshId = (built.data as { meshes: { meshId: string }[] }).meshes[0]?.meshId;
+    const mesh = world.getObjectByProperty('uuid', meshId);
+    expect(mesh).toBeInstanceOf(THREE.Mesh);
+    const positions =
+      readPersistentMeshDocument(mesh as THREE.Mesh)
+        ?.getTopology()
+        .getPositions() ?? [];
+    world.updateMatrixWorld(true);
+    const box = new THREE.Box3();
+    for (let index = 0; index < positions.length; index += 3)
+      box.expandByPoint(new THREE.Vector3().fromArray(positions, index).applyMatrix4(mesh!.matrixWorld));
+    expect(box.getCenter(new THREE.Vector3()).toArray()).toEqual([0, 0, 5]);
+    expect(listSolidModels(world)[0]?.getBrushes()).toHaveLength(1);
+    stack.undo();
+    expect(world.getObjectByProperty('uuid', meshId)).toBeUndefined();
+    expect(listSolidModels(world)).toHaveLength(0);
+  });
+
+  it('builds a script of meshes only, without a solid model', () => {
+    const { api, world } = editorApiFixtureCreate();
+    const built = api.invokeTool('geometry_script_build', {
+      lines: [
+        { command: 'mesh' },
+        { command: 'vertex', values: { position: '0, 0, 0' } },
+        { command: 'vertex', values: { position: '1, 0, 0' } },
+        { command: 'vertex', values: { position: '0, 1, 0' } },
+        { command: 'face', values: { corners: '0, 1, 2' } },
+        { command: 'end' },
+      ],
+    });
+    expect(built.ok, built.message).toBe(true);
+    expect(built.message).toBe('Built 0 brush(es) and 1 mesh(es)');
+    expect(listSolidModels(world)).toHaveLength(0);
   });
 });

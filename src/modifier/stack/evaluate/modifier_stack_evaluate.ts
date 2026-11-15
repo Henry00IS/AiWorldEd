@@ -7,9 +7,13 @@ import type {
 import type { ModifierStackContext } from './modifier_stack_context.js';
 import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
 import { modifierStackValidUnits } from './modifier_stack_validity.js';
+import {
+  modifierStackMeshesShow,
+  type ModifierStackMeshOutput,
+} from '@/modifier/stack/meshes/modifier_stack_meshes.js';
 
 /** Context fields shared by every modifier of one solid's compile. */
-export type ModifierStackSharedContext = Omit<ModifierStackContext, 'volume' | 'step' | 'report'>;
+export type ModifierStackSharedContext = Omit<ModifierStackContext, 'volume' | 'step' | 'report' | 'meshes'>;
 
 /** Result of running one volume's stack. */
 export interface ModifierStackRun {
@@ -36,15 +40,17 @@ export function modifierStackEvaluateVolume(
   shared: ModifierStackSharedContext,
 ): ModifierStackRun {
   let units = captured;
+  const meshes: ModifierStackMeshOutput[] = [];
   const reports = settings.modifiers.map(() => ({ outputs: 0, error: '' }));
   settings.modifiers.forEach((step, index) => {
     const report = reports[index] ?? { outputs: 0, error: '' };
     const kind = modifierStackKindFind(step.kind);
     if (!kind) report.error = 'This modifier type is not installed; it passes its input through.';
     if (kind && step.enabled)
-      units = modifierStackValidStepUnits(kind.apply(units, { ...shared, volume, step, report }), report);
+      units = modifierStackValidStepUnits(kind.apply(units, { ...shared, volume, step, report, meshes }), report);
     report.outputs = modifierStackBrushCount(units);
   });
+  if (shared.ownsGenerated) modifierStackMeshesShow(volume, meshes);
   return { units, reports };
 }
 

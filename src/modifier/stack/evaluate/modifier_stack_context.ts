@@ -7,6 +7,7 @@ import type {
 } from '@/modifier/stack/modifier_stack_types.js';
 import type { ModifierStackBudget } from './modifier_stack_budget.js';
 import type { ModifierStackRecords } from './modifier_stack_records.js';
+import type { ModifierStackMeshOutput } from '@/modifier/stack/meshes/modifier_stack_meshes.js';
 
 /** Everything one modifier needs while it evaluates inside one volume. */
 export interface ModifierStackContext {
@@ -30,4 +31,9 @@ export interface ModifierStackContext {
   records: ModifierStackRecords;
   /** Status written by the modifier. */
   report: ModifierStackStepReport;
+  /**
+   * Regular meshes the volume's generators build, shown until baked; absent
+   * where meshes are not kept.
+   */
+  meshes?: ModifierStackMeshOutput[];
 }

@@ -11,6 +11,7 @@ import {
   solidScriptDocumentNormalize,
 } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptDebugStepLimit } from '@/solid_script/debug/solid_script_debug_steps.js';
+import { modifierStackFrame } from '@/modifier/stack/evaluate/modifier_stack_frame.js';
 import {
   modifierStackSolidScriptLayout,
   type ModifierStackSolidScriptPlacement,
@@ -58,7 +59,7 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
   readonly id = MODIFIER_STACK_SOLID_SCRIPT_KIND;
   readonly label = 'SolidScript';
   readonly description =
-    'Builds brushes from a SolidScript of command lines. Edit Script opens the editor with its command palette; .aiscript files from the project browser can be dropped on the Script row.';
+    'Builds brushes and meshes from a SolidScript of command lines. Edit Script opens the editor with its command palette; .aiscript files from the project browser can be dropped on the Script row.';
   protected readonly specificFields = MODIFIER_STACK_SOLID_SCRIPT_FIELDS;
 
   /**
@@ -114,6 +115,8 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
       solidScriptDebugStepLimit(context.volume, context.step.id),
     );
     if (layout.error) context.report.error = layout.error;
+    const frame = modifierStackFrame(context.volume, 'volume');
+    for (const mesh of layout.meshes) context.meshes?.push({ ...mesh, frame });
     const count = modifierStackSolidScriptBrushCount(layout.nodes);
     if (context.budget.takeCopies(1, count) < count) {
       context.report.error = `Brush budget reached: the script needs ${count} brushes.`;
