@@ -175,8 +175,81 @@ function settle(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+/**
+ * Returns the scroller of the saves list.
+ *
+ * @returns Scroller.
+ */
+function entriesScroller(): HTMLElement {
+  const content = find('[data-history-entries]');
+  const scroller = content.parentElement;
+  if (scroller === null) throw new Error('missing saves scroller');
+  return scroller;
+}
+
+/**
+ * Makes the saves list tall enough to scroll, then sets its scroll position.
+ *
+ * @param scrollTop Position to set.
+ */
+function entriesScrollSet(scrollTop: number): void {
+  const scroller = entriesScroller();
+  Object.defineProperty(scroller, 'scrollHeight', { configurable: true, value: 2000 });
+  Object.defineProperty(scroller, 'clientHeight', { configurable: true, value: 240 });
+  scroller.scrollTop = scrollTop;
+}
+
+/**
+ * Builds a source with many autosaves of one day, and a way to add more.
+ *
+ * @returns Source and its first saves.
+ */
+function sourceLong() {
+  const entries = Array.from({ length: 10 }, (_, index) =>
+    entryOf(`e${index}`, TODAY - index * 60_000, { kind: 'autosave' }),
+  );
+  const live = sourceLiveFrom(entries);
+  return { ...live, mid: entries[6]! };
+}
+
+/**
+ * Builds a live source over the given saves.
+ *
+ * @param start Starting saves.
+ * @returns Source and a way to change them from outside.
+ */
+function sourceLiveFrom(start: ProjectHistoryEntry[]) {
+  let list: ProjectHistoryEntry[] = start;
+  const listeners = new Set<() => void>();
+  const changed = (next: ProjectHistoryEntry[]) => {
+    list = next;
+    listeners.forEach((listener) => listener());
+  };
+  const source = {
+    entries: vi.fn(async () => list.map((entry) => ({ ...entry }))),
+    thumbnail: vi.fn(async (entry: ProjectHistoryEntry) => `blob:${entry.id}`),
+    release: vi.fn(),
+    restore: vi.fn(async () => ({ message: 'Restored.' })),
+    star: vi.fn(async () => ({ message: 'Starred.' })),
+    remove: vi.fn(async () => ({ message: 'Deleted.' })),
+    watch: vi.fn((listener: () => void) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    }),
+  } satisfies DialogProjectHistorySource;
+  return { source, changed, list: () => list };
+}
+
 beforeAll(() => {
   Element.prototype.scrollIntoView = vi.fn();
+  const focus = HTMLElement.prototype.focus;
+  HTMLElement.prototype.focus = function focusStub(options?: FocusOptions): void {
+    if (options?.preventScroll !== true) {
+      const scroller = this.closest<HTMLElement>('.editor-custom-scroller');
+      if (scroller !== null) scroller.scrollTop = 0;
+    }
+    focus.call(this, options);
+  };
 });
 
 afterEach(() => {
@@ -328,6 +401,31 @@ describe('DialogProjectHistory', () => {
     find('[data-history-star="s1"]').click();
     await vi.waitFor(() => expect(find('[data-history-day="2026-11-11"]').textContent).not.toContain('starred'));
     expect(slidesOf('2026-11-11')).toBe(today);
+  });
+
+  it('keeps the saves list scrolled and highlights the restored save after Restore', async () => {
+    const { source, changed, list, mid } = sourceLong();
+    await dialogOpen(source);
+    entriesScrollSet(420);
+    find(`[data-history-restore="${mid.id}"]`).click();
+    await vi.waitFor(() => expect(source.restore).toHaveBeenCalledWith(mid));
+    await settle();
+    expect(find(`[data-history-entry="${mid.id}"]`).getAttribute('aria-current')).toBe('true');
+    expect(entriesScroller().scrollTop).toBe(420);
+    const added = entryOf('e-new', TODAY + 60_000, { kind: 'autosave' });
+    changed([added, ...list()]);
+    await vi.waitFor(() => expect(shownIds()[0]).toBe('e-new'));
+    expect(find(`[data-history-entry="${mid.id}"]`).getAttribute('aria-current')).toBe('true');
+    expect(entriesScroller().scrollTop).toBe(420);
+  });
+
+  it('keeps the saves list scrolled when the list is redrawn', async () => {
+    const { source, changed, list } = sourceLong();
+    await dialogOpen(source);
+    entriesScrollSet(360);
+    changed(list());
+    await vi.waitFor(() => expect(source.entries).toHaveBeenCalledTimes(2));
+    expect(entriesScroller().scrollTop).toBe(360);
   });
 
   it('follows saves made and pruned while it is open', async () => {
