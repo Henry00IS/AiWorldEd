@@ -63,12 +63,14 @@ Every field is plain text, without quotes, read like this:
 - Name fields (variable, counter, part names) take a plain name, without brackets; Set's name may also be a list item such as points([i]). Note text is used as typed.
 - An unknown [name] stops the script with "line N: ... there is no variable [name]"; a formula that cannot be read stops it with the formula and the reason.
 
-Formulas know: numbers, text in double quotes, true, false, lists in $[ $] brackets, the operators (loosest first) ? :, ||, &&, == !=, < <= > >=, + -, * / %, unary - + !, and the functions sin, cos, tan, asin, acos, atan, atan2 (degrees), abs, sign, ceil, floor, round, sqrt, exp, ln, log (base 10), pow, min, max, norm, cross, len, concat, str, is_undef, is_num, is_list, is_string, is_bool, and PI. Lists add item by item and a number times a list scales it.
+Formulas know: numbers, text in double quotes, true, false, lists in $[ $] brackets, the operators (loosest first) ? :, ||, &&, == !=, < <= > >=, + -, * / %, unary - + !, and the functions sin, cos, tan, asin, acos, atan, atan2 (degrees), abs, sign, ceil, floor, round, sqrt, exp, ln, log (base 10), pow, min, max, norm, cross, len, concat, str, is_undef, is_num, is_list, is_string, is_bool, lookup (lookup(key, table) blends between the two nearest key, value pairs of a table), rands (rands(min, max, count, seed) gives the same random numbers for the same seed), and PI. Lists add item by item and a number times a list scales it.
 
 ## Shapes and brushes
 
 - Every shape line becomes exactly one convex brush. Round shapes have a Sides field (3 to 64, default 16) and Sphere a Rings field (2 to 32, default 8), set per line.
 - Polyhedron wraps its points in one convex solid; dents are filled.
+- Rotate Extrude spins flat outlines around Z (outline X is the radius, Y the height), one brush per side and convex piece. Minkowski grows the first shape by the hull of each later one (round edges with a small Sphere). Resize stretches to an exact size; Matrix applies a 3 by 4 matrix, including shear.
+- Return leaves the part it is in; the script carries on after the Use Part line.
 - Square, Circle and Polygon are flat outlines and only work inside Linear Extrude; a concave Polygon becomes several convex brushes.
 - Difference becomes a CSG group: the first shape inside adds, every later one is cut from it. Intersection becomes a group that keeps only the overlap. Union is flattened into its parent. Hull becomes one convex brush around everything inside.
 - Part names become brush and group names in the outliner, so wrap pieces in Define Part for readable names.

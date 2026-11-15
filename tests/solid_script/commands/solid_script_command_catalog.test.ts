@@ -48,6 +48,8 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
     return [counter, { command: 'if' }, { command: 'cube' }, line, { command: 'sphere' }, { command: 'end' }];
   if (command.id === 'end') return [{ command: 'union' }, { command: 'cube' }, line];
   if (command.id === 'part') return [line, { command: 'cube' }, { command: 'end' }, { command: 'use_part' }];
+  if (command.id === 'return')
+    return [{ command: 'part' }, { command: 'cube' }, line, { command: 'end' }, { command: 'use_part' }];
   if (command.id === 'use_part') return [{ command: 'part' }, { command: 'cube' }, { command: 'end' }, line];
   if (command.nesting === 'open')
     return [counter, line, { command: 'cube' }, { command: 'sphere' }, { command: 'end' }];
@@ -124,13 +126,15 @@ describe('solid script command catalog', () => {
 
   it('opens a block for transforms, combinations, loops, conditions, parts and point shapes only', () => {
     const openers = solidScriptCommands
-      .filter((command) => command.nesting === 'open' && command.starter.length === 0)
+      .filter(
+        (command) => command.nesting === 'open' && command.category !== 'Solids' && command.category !== '2D Shapes',
+      )
       .map((command) => command.category);
     expect(new Set(openers)).toEqual(new Set(['Transforms', 'Combine', 'Logic', 'Parts']));
     const pointShapes = solidScriptCommands
       .filter((command) => command.starter.length > 0)
       .map((command) => command.id);
-    expect(pointShapes).toEqual(['polyhedron', 'polygon']);
+    expect(new Set(pointShapes)).toEqual(new Set(['polyhedron', 'polygon', 'rotate_extrude']));
     expect(solidScriptCommandFind('cube')?.nesting).toBe('none');
     expect(solidScriptCommandFind('else')?.nesting).toBe('continue');
     expect(solidScriptCommandFind('end')?.nesting).toBe('close');

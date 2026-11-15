@@ -249,6 +249,18 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     execute: () => [],
   }),
   new SolidScriptCommand({
+    id: 'return',
+    label: 'Return',
+    category: 'Parts',
+    description: 'Leave the part early',
+    manual:
+      'Stops building the part this line is in, like leaving a subroutine: the lines after it in the part are skipped, and the script carries on after the Use Part line that called the part. Shapes the part built before it stay. Put it inside an If to stop early on a condition. Example: in a part that builds a stair step, If [=[n] > 20] then Return stops it at twenty steps.',
+    stops: ['Being placed outside a Define Part.'],
+    parameters: [],
+    listing: () => ['Return'],
+    execute: (run) => run.leave(),
+  }),
+  new SolidScriptCommand({
     id: 'use_part',
     label: 'Use Part',
     category: 'Parts',

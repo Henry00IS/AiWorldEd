@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import { solidScriptParameter, solidScriptParameterCenter } from './solid_script_command_parameters.js';
@@ -7,6 +8,15 @@ import {
   solidScriptScaleMatrix,
   solidScriptTranslateMatrix,
 } from '@/solid_script/language/solid_script_transforms.js';
+import {
+  solidScriptMatrixRows,
+  solidScriptMinkowski,
+  solidScriptResizeMatrix,
+  solidScriptRotateExtrude,
+  solidScriptShapeTransform,
+} from '@/solid_script/language/solid_script_reshape.js';
+import { solidScriptShapeJoin } from '@/solid_script/language/solid_script_shape.js';
+import { SOLID_SCRIPT_SIDES } from '@/solid_script/language/solid_script_primitives.js';
 
 /** What stops every block that must hold something. */
 const SOLID_SCRIPT_STOPS_EMPTY = 'Nothing between this line and its End.';
@@ -86,6 +96,71 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     execute: (run) => run.transformed(solidScriptMirrorMatrix(run.fields())),
   }),
   new SolidScriptCommand({
+    id: 'resize',
+    label: 'Resize',
+    category: 'Transforms',
+    description: 'Stretch shapes to an exact size',
+    manual:
+      'Stretches the shapes between this line and its End about the origin so that, together, they measure exactly the given width (X), depth (Y) and height (Z) in metres. A size of 0 leaves that axis alone, or with Keep Proportions scales it like the first axis that has a size. Example: a Sphere inside Resize to 4, 2, 1 gives an egg four metres long, without working out the scale yourself.',
+    stops: [
+      'A size below 0, or 0 on every axis.',
+      'Stretching shapes that are flat along an axis.',
+      SOLID_SCRIPT_STOPS_EMPTY,
+      SOLID_SCRIPT_STOPS_END,
+    ],
+    nesting: 'open',
+    parameters: [
+      solidScriptParameter(
+        'size',
+        'Size',
+        'vector3',
+        '2, 2, 2',
+        'Width (X), depth (Y) and height (Z) in metres; 0 keeps an axis.',
+      ),
+      solidScriptParameter(
+        'keep',
+        'Keep Proportions',
+        'boolean',
+        'false',
+        'Yes: axes with a size of 0 scale like the first axis that has one.',
+      ),
+    ],
+    listing: (read) => [
+      'Resize',
+      'to ',
+      read.value('size'),
+      ...solidScriptListingOptions([read.on('keep') && ['Keep Proportions']]),
+    ],
+    execute: (run) => {
+      const shapes = run.local(run.planar);
+      if (shapes.length === 0) return [];
+      const scale = solidScriptResizeMatrix(shapes, run.fields(), run.planar);
+      return run.placed(shapes.map((shape) => solidScriptShapeTransform(shape, scale)));
+    },
+  }),
+  new SolidScriptCommand({
+    id: 'matrix',
+    label: 'Matrix',
+    category: 'Transforms',
+    description: 'Move, turn, stretch and slant shapes at once',
+    manual:
+      'Moves the shapes between this line and its End by a 3 by 4 matrix, one row per axis: the new X is Row 1 times x, y, z, 1, and so on. The fourth number of a row moves along that axis. It can do everything Translate, Rotate, Scale and Mirror do, and slant (shear) too. Example: Row 1 of 1, 0, 0.5, 0 leans a Cube over, moving its top half a metre along X per metre of height.',
+    stops: [
+      'A row that is not four numbers.',
+      'A matrix that squashes shapes flat.',
+      SOLID_SCRIPT_STOPS_EMPTY,
+      SOLID_SCRIPT_STOPS_END,
+    ],
+    nesting: 'open',
+    parameters: [
+      solidScriptParameter('row1', 'Row 1', 'value', '1, 0, 0, 0', 'How X is made from x, y, z, plus a move along X.'),
+      solidScriptParameter('row2', 'Row 2', 'value', '0, 1, 0, 0', 'How Y is made from x, y, z, plus a move along Y.'),
+      solidScriptParameter('row3', 'Row 3', 'value', '0, 0, 1, 0', 'How Z is made from x, y, z, plus a move along Z.'),
+    ],
+    listing: (read) => ['Matrix', read.value('row1'), ' / ', read.value('row2'), ' / ', read.value('row3')],
+    execute: (run) => run.transformed(solidScriptMatrixRows(run.fields())),
+  }),
+  new SolidScriptCommand({
     id: 'linear_extrude',
     label: 'Linear Extrude',
     category: 'Transforms',
@@ -121,6 +196,49 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
       ]),
     ],
     execute: (run) => run.extruded(run.fields()),
+  }),
+  new SolidScriptCommand({
+    id: 'rotate_extrude',
+    label: 'Rotate Extrude',
+    category: 'Transforms',
+    description: 'Spin flat outlines around the Z axis',
+    manual:
+      "Spins the flat outlines between this line and its End (Square, Circle, Polygon) around the Z axis, like clay on a potter's wheel. The outline's X is the distance from the axis and its Y the height. Angle below 360 leaves a gap, for a partial ring or a curved wall. Each piece becomes one brush per side. Example: a Square of 0.5, 2 moved to X = 3 and spun 360 degrees gives a round tower wall.",
+    stops: [
+      'An outline with points at X below 0.',
+      'An angle of 0 or more than 360.',
+      'A solid such as Cube between this line and its End.',
+      SOLID_SCRIPT_STOPS_EMPTY,
+      SOLID_SCRIPT_STOPS_END,
+    ],
+    nesting: 'open',
+    parameters: [
+      solidScriptParameter('angle', 'Angle', 'number', '360', 'How far to spin, in degrees; 360 is a full ring.'),
+      solidScriptParameter(
+        'sides',
+        'Sides',
+        'count',
+        String(SOLID_SCRIPT_SIDES.default),
+        'Brushes per full turn, 3 to 128. More sides look rounder and cost more polygons.',
+      ),
+    ],
+    starter: [
+      { command: 'translate', values: { v: '2, 0, 0' } },
+      { command: 'square', values: { size: '0.5, 1', center: 'true' } },
+      { command: 'end', values: {} },
+    ],
+    listing: (read) => [
+      'Rotate Extrude',
+      ...solidScriptListingOptions([
+        read.changed('angle') && ['Angle ', read.value('angle')],
+        read.changed('sides') && ['Sides ', read.value('sides')],
+      ]),
+    ],
+    execute: (run) => {
+      if (run.planar) throw new Error('Rotate Extrude cannot be inside a Linear Extrude');
+      const flat = solidScriptShapeJoin(run.local(true), 'rotate_extrude');
+      return flat ? run.placed([solidScriptRotateExtrude(flat, run.fields(), new THREE.Matrix4())]) : [];
+    },
   }),
 ];
 
@@ -181,5 +299,18 @@ export const SOLID_SCRIPT_COMMANDS_COMBINE: readonly SolidScriptCommand[] = [
     parameters: [],
     listing: () => ['Hull'],
     execute: (run) => run.hulled(),
+  }),
+  new SolidScriptCommand({
+    id: 'minkowski',
+    label: 'Minkowski',
+    category: 'Combine',
+    description: 'Grow a shape by sweeping others over it',
+    manual:
+      'Grows the first shape between this line and its End by the shapes after it, as if their middle were swept over every point of the first. A small Sphere after a Cube rounds every edge and corner; a flat Cylinder after a Square inside a Linear Extrude gives rounded corners. Each later shape counts as its convex hull. Example: Cube 2, 2, 1 then Sphere radius 0.2 gives a box 2.4 by 2.4 by 1.4 with soft edges.',
+    stops: ['Too many corner points: use fewer Sides.', SOLID_SCRIPT_STOPS_EMPTY, SOLID_SCRIPT_STOPS_END],
+    nesting: 'open',
+    parameters: [],
+    listing: () => ['Minkowski'],
+    execute: (run) => run.placed(solidScriptMinkowski(run.local(run.planar), 'minkowski', run.planar)),
   }),
 ];

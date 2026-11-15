@@ -17,6 +17,7 @@ import {
   solidScriptListItemRead,
   solidScriptListItemWrite,
 } from './solid_script_list_item.js';
+import { solidScriptShapeTransform } from './solid_script_reshape.js';
 import { SolidScriptScope } from './solid_script_scope.js';
 import { solidScriptShapeJoin, solidScriptShapeLeavesPositive, type SolidScriptShape } from './solid_script_shape.js';
 import { solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
@@ -106,6 +107,18 @@ export interface SolidScriptBlockRun {
   pointsGathered(): THREE.Vector3[];
   /** Adds a point to the Polyhedron or Polygon around this line. */
   point(position: THREE.Vector3): SolidScriptShape[];
+  /**
+   * Runs the lines inside in the block's own frame, flat or solid, and returns
+   * their shapes unplaced.
+   */
+  local(planar: boolean): SolidScriptShape[];
+  /**
+   * Places shapes built in the block's own frame where the blocks around it put
+   * them.
+   */
+  placed(shapes: readonly SolidScriptShape[]): SolidScriptShape[];
+  /** Leaves the part being built; the lines after its Use Part carry on. */
+  leave(): SolidScriptShape[];
   /** Writes a line to the output. */
   print(text: string): SolidScriptShape[];
 }
@@ -218,6 +231,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
    * running line, innermost last.
    */
   private readonly gathering: THREE.Vector3[][] = [];
+  /** True from a Return line until the part it leaves has stopped. */
+  private leaving = false;
   private watched: SolidScriptScope | null = null;
   private failure: SolidScriptFailure | null = null;
   private paused: SolidScriptBreak | null = null;
@@ -361,7 +376,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
    * @returns Its result, or undefined when the run stopped.
    */
   private guarded<T>(line: number, step: () => T): T | undefined {
-    if (this.failure || this.paused) return undefined;
+    if (this.failure || this.paused || this.leaving) return undefined;
     const outer = this.line;
     this.line = line;
     try {
@@ -472,6 +487,14 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
           this.gathering.pop();
         }
         return points;
+      },
+      local: (planar) => inside({ matrix: new THREE.Matrix4(), planar }),
+      placed: (shapes) => shapes.map((shape) => solidScriptShapeTransform(shape, context.matrix)),
+      leave: () => {
+        if (this.partsActive.length === 0)
+          throw new Error('Return leaves a part, so it only works between Define Part and its End');
+        this.leaving = true;
+        return [];
       },
       point: (position) => {
         const into = this.gathering[this.gathering.length - 1];
@@ -643,7 +666,14 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     const operands: SolidScriptShape[] = [];
     node.children.forEach((child, index) => {
       const joined = solidScriptShapeJoin(this.lineRun(child, inner, context), label);
-      if (index === 0 && operation === 'difference' && this.steps.length === reached && !this.failure && !this.paused)
+      if (
+        index === 0 &&
+        operation === 'difference' &&
+        this.steps.length === reached &&
+        !this.failure &&
+        !this.paused &&
+        !this.leaving
+      )
         throw new Error('Difference has nothing to cut from: its first line builds no shape');
       if (joined) operands.push(joined);
     });
@@ -676,7 +706,9 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     this.partsActive.push(name);
     try {
       const inner = new SolidScriptScope(scope, name);
-      const joined = solidScriptShapeJoin(this.linesRun(part.node.children, inner, context, inner), name);
+      const built = this.linesRun(part.node.children, inner, context, inner);
+      this.leaving = false;
+      const joined = solidScriptShapeJoin(built, name);
       return joined ? [joined] : [];
     } finally {
       this.partsActive.pop();
