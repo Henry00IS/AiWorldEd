@@ -29,6 +29,7 @@ import {
   triangulateTopologyWorkingFaces,
   type TopologyFaceSplitOutcome,
 } from './topology_face_triangulate.js';
+import { joinTopologyWorkingTriangles } from './topology_face_join_triangles.js';
 import { findEditDomainTargetById, resolveTopologyEditTarget } from './topology_target_resolve.js';
 import type { TopologyMeshTarget } from './topology_target.js';
 import type { TopologyWorkingGeometry } from './topology_working_geometry.js';
@@ -292,7 +293,16 @@ export class HandlerComponentMeshOperations {
   }
 
   /**
-   * Runs a face splitting operator on each edited mesh and selects every
+   * Joins flat pairs of selected triangles into quads and selects the result.
+   *
+   * @returns True when at least one mesh changed.
+   */
+  joinSelectedTriangles(): boolean {
+    return this.splitSelectedFaces('Join Triangles', joinTopologyWorkingTriangles);
+  }
+
+  /**
+   * Runs an operator that reshapes faces on each edited mesh and selects every
    * resulting face.
    *
    * @param toolLabel Tool name used in status messages.

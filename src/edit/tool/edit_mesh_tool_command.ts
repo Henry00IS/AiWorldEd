@@ -15,4 +15,5 @@ export type EditMeshToolCommand =
   | 'duplicate_faces'
   | 'bevel_edges'
   | 'triangulate_faces'
-  | 'poke_faces';
+  | 'poke_faces'
+  | 'join_triangles';

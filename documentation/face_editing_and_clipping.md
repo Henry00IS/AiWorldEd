@@ -14,12 +14,12 @@ Press `Tab` to return to Object Select.
 
 Press `Tab` on a selected mesh or solid brush to enter Edit Mode. `1`, `2`, and `3` switch Vertex, Edge, and Face select. The options bar has four menus, and every tool appears in exactly one of them:
 
-| Menu       | Tools                                                                                                                                      |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Mesh**   | Knife Topology Tool (`K`), Make Face, Delete (`Backspace`), Dissolve (`Delete`)                                                            |
-| **Vertex** | Merge Vertices (`M`), Connect Vertices (`J`)                                                                                               |
-| **Edge**   | Loop Cut (`Ctrl+R`), Subdivide Edges, Bevel Edges (`Ctrl+B`), Extrude Edges (`E`), Bridge Edge Loops                                       |
-| **Face**   | Extrude Faces (`E`), Extrude Faces Individually, Inset Faces (`I`), Duplicate Faces (`Shift+D`), Flip Faces, Triangulate Faces, Poke Faces |
+| Menu       | Tools                                                                                                                                                      |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Mesh**   | Knife Topology Tool (`K`), Make Face, Delete (`Backspace`), Dissolve (`Delete`)                                                                            |
+| **Vertex** | Merge Vertices (`M`), Connect Vertices (`J`)                                                                                                               |
+| **Edge**   | Loop Cut (`Ctrl+R`), Subdivide Edges, Bevel Edges (`Ctrl+B`), Extrude Edges (`E`), Bridge Edge Loops                                                       |
+| **Face**   | Extrude Faces (`E`), Extrude Faces Individually, Inset Faces (`I`), Duplicate Faces (`Shift+D`), Flip Faces, Triangulate Faces, Poke Faces, Join Triangles |
 
 - `K` starts the knife: click an edge to insert a vertex. The new point stays on the edge, so a convex brush stays convex. Afterwards the new vertex is selected in Vertex select, or the two halves of the cut edge in Edge select, ready to move.
 - `Ctrl+R` starts Loop Cut: hover an edge, click to lock that belt, slide along the locked edge, then click or Enter to confirm. Loop cuts only insert vertices on the locked belt edges.
@@ -40,6 +40,7 @@ These tools work on meshes. A convex solid brush cannot hold the faces they add,
 - **Duplicate Faces** (`Shift+D`, Face select): copy the selected faces onto their own vertices and select the copy, ready to move, extrude or scale.
 - **Flip Faces** (Face select): turn the selected faces to face the other way, for example after building a face from the wrong side.
 - **Triangulate Faces** and **Poke Faces** (Face select): split the selected faces into triangles, along their outline or fanned around a new centre vertex. Every piece stays selected.
+- **Join Triangles** (Face select): join flat pairs of selected triangles into quads, squarest pairs first, for example to clean up an imported model before extruding or cutting loops.
 - **Connect Vertices** (`J`, Vertex select): cut the faces between the selected vertices with new edges, for example from one edge midpoint to another.
 - **Subdivide Edges** (Edge select): split each selected edge in half and select the halves. Run it again for finer cuts.
 - **Bridge Edge Loops** (Edge select): join two selected edge loops, or two open runs of edges with the same count, with a strip of faces. Corners are matched to their closest partner.

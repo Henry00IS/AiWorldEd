@@ -13,6 +13,7 @@ const EDIT_MESH_INSTANT_COMMANDS: Partial<
   duplicate_faces: (operations) => operations.duplicateSelectedFaces(),
   triangulate_faces: (operations) => operations.triangulateSelectedFaces(),
   poke_faces: (operations) => operations.pokeSelectedFaces(),
+  join_triangles: (operations) => operations.joinSelectedTriangles(),
 };
 
 /**

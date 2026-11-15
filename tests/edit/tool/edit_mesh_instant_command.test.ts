@@ -27,6 +27,7 @@ describe('runEditMeshInstantCommand', () => {
       duplicateSelectedFaces: () => calls.push('duplicate'),
       triangulateSelectedFaces: () => calls.push('triangulate'),
       pokeSelectedFaces: () => calls.push('poke'),
+      joinSelectedTriangles: () => calls.push('join'),
     } as unknown as HandlerComponentMeshOperations;
     expect(runEditMeshInstantCommand('make_face', operations)).toBe(true);
     expect(runEditMeshInstantCommand('connect_vertices', operations)).toBe(true);
@@ -35,6 +36,7 @@ describe('runEditMeshInstantCommand', () => {
     expect(runEditMeshInstantCommand('duplicate_faces', operations)).toBe(true);
     expect(runEditMeshInstantCommand('triangulate_faces', operations)).toBe(true);
     expect(runEditMeshInstantCommand('poke_faces', operations)).toBe(true);
-    expect(calls).toEqual(['make', 'connect', 'bridge', 'flip', 'duplicate', 'triangulate', 'poke']);
+    expect(runEditMeshInstantCommand('join_triangles', operations)).toBe(true);
+    expect(calls).toEqual(['make', 'connect', 'bridge', 'flip', 'duplicate', 'triangulate', 'poke', 'join']);
   });
 });

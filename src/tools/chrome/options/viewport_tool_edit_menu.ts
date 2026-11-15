@@ -173,6 +173,12 @@ export function buildViewportToolFaceMenuEntries(actions: ViewportToolEditMenuAc
       'Fan the selected mesh faces into triangles around a new centre vertex',
       tool('poke_faces'),
     ),
+    createAction(
+      'Join Triangles',
+      '',
+      'Join flat pairs of selected triangles into quads, for example after importing a triangulated model',
+      tool('join_triangles'),
+    ),
   ];
 }
 
