@@ -8,8 +8,11 @@ import type { SolidScriptCommand } from '@/solid_script/commands/solid_script_co
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 
-/** Title Case: every word starts with a capital letter or a digit. */
-const SOLID_SCRIPT_TITLE_CASE = /^([A-Z0-9][A-Za-z0-9]*)( [A-Z0-9][A-Za-z0-9]*)*$/;
+/**
+ * Title Case: every word starts with a capital letter or a digit; words may be
+ * split by a slash, as in Depth / Width, and end in a unit, as in Sweep °.
+ */
+const SOLID_SCRIPT_TITLE_CASE = /^([A-Z0-9][A-Za-z0-9]*)( (\/ )?[A-Z0-9][A-Za-z0-9]*)*( [°%])?$/;
 
 /**
  * Runs lines in a fresh machine.

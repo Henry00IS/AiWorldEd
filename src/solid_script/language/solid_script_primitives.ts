@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { SolidScriptBlockArguments } from './solid_script_block_arguments.js';
 import type { SolidScriptPoint2 } from './solid_script_polygon.js';
 import { solidScriptValueNumbers, type SolidScriptValue } from './solid_script_value.js';
+import { solidScriptGeneratorPieces } from './solid_script_generator_pieces.js';
 
 /**
  * Sides of round shapes: default, fewest and most, matching the primitive
@@ -87,7 +88,8 @@ export function solidScriptCubePoints(args: SolidScriptBlockArguments): THREE.Ve
 }
 
 /**
- * Points of a Cylinder block; a top radius of 0 makes a pointed cone.
+ * Points of a Cylinder block, built like the Cylinder and Cone generators; a
+ * top radius of 0 makes a pointed cone.
  *
  * @param args Block fields.
  * @returns Points.
@@ -99,33 +101,34 @@ export function solidScriptCylinderPoints(args: SolidScriptBlockArguments): THRE
   if (bottom < 0) throw args.error('r1', 'must be 0 or more', bottom);
   if (top < 0) throw args.error('r2', 'must be 0 or more', top);
   if (Math.max(bottom, top) <= 0) throw new Error('one of the two radii must be greater than 0');
-  const base = args.flag('center') ? -height / 2 : 0;
-  const count = solidScriptSides(args);
-  const ring = (radius: number, z: number): THREE.Vector3[] =>
-    radius < 1e-9
-      ? [new THREE.Vector3(0, 0, z)]
-      : solidScriptCirclePoints(radius, count).map(([x, y]) => new THREE.Vector3(x, y, z));
-  return [...ring(bottom, base), ...ring(top, base + height)];
+  const center = args.flag('center');
+  const sides = solidScriptSides(args);
+  const radius = Math.max(bottom, top);
+  const box = {
+    size: [radius * 2, radius * 2, height] as const,
+    min: [-radius, -radius, center ? -height / 2 : 0] as const,
+  };
+  if (bottom === top) return solidScriptGeneratorPieces('cylinder', { sides }, box)[0] ?? [];
+  const topRadius = Math.min(bottom, top) / radius;
+  const points = solidScriptGeneratorPieces('cone', { sides, topRadius }, box)[0] ?? [];
+  if (bottom > top) return points;
+  const flip = center ? 0 : height;
+  return points.map((point) => new THREE.Vector3(point.x, point.y, flip - point.z));
 }
 
 /**
- * Points of a Sphere block: rings stacked from bottom to top, each with the
- * given sides.
+ * Points of a Sphere block, built like the Sphere generator: rings stacked from
+ * bottom to top, each with the given sides.
  *
  * @param args Block fields.
  * @returns Points.
  */
 export function solidScriptSpherePoints(args: SolidScriptBlockArguments): THREE.Vector3[] {
   const radius = args.positive('r', args.number('r', 1));
-  const count = solidScriptSides(args);
+  const sides = solidScriptSides(args);
   const rings = solidScriptCount(args, 'rings', SOLID_SCRIPT_RINGS);
-  const points: THREE.Vector3[] = [];
-  for (let ring = 0; ring < rings; ring++) {
-    const phi = (Math.PI * (ring + 0.5)) / rings;
-    for (const [x, y] of solidScriptCirclePoints(radius * Math.sin(phi), count))
-      points.push(new THREE.Vector3(x, y, radius * Math.cos(phi)));
-  }
-  return points;
+  const box = { size: [radius * 2, radius * 2, radius * 2] as const, min: [-radius, -radius, -radius] as const };
+  return solidScriptGeneratorPieces('sphere', { sides, rings }, box)[0] ?? [];
 }
 
 /**

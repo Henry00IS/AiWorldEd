@@ -10,7 +10,7 @@ import { solidScriptDocumentListing } from '@/solid_script/document/solid_script
 export const SOLID_SCRIPT_REFERENCE_SUMMARY =
   "SolidScript is AiWorldEd's block script for CSG: a list of lines {command, values}, run top to bottom like the script editor shows them. " +
   'Field values are plain text without quotes: numbers, "x, y, z" lists, [name] for a variable, [=formula] for a calculation. The origin is the centre of the generator, and shapes are centred on it by default. ' +
-  'Commands build boxes, balls, cylinders and convex point sets, extrude flat outlines, move/turn/stretch/mirror, join, cut, overlap and wrap shapes, set variables, repeat, branch and reuse named parts. ' +
+  "Commands build boxes, balls, cylinders and convex point sets, extrude flat outlines, move/turn/stretch/mirror, join, cut, overlap and wrap shapes, set variables, repeat, branch and reuse named parts. Generator blocks build the shapes of the editor's generators (Cone, Torus, Stairs, Arch and more) with their own fields, and mesh blocks build regular editable meshes. " +
   'Every shape becomes one convex brush; Difference becomes a CSG group whose first child adds and the rest subtract. ' +
   'Z-up, metres, degrees. Read geometry_script_reference_get once before writing a script: it lists every command, its fields and defaults, what stops it, and common mistakes.';
 
@@ -74,6 +74,14 @@ Formulas know: numbers, text in double quotes, true, false, lists in $[ $] brack
 - Square, Circle and Polygon are flat outlines and only work inside Linear Extrude; a concave Polygon becomes several convex brushes.
 - Difference becomes a CSG group: the first shape inside adds, every later one is cut from it. Intersection becomes a group that keeps only the overlap. Union is flattened into its parent. Hull becomes one convex brush around everything inside.
 - Part names become brush and group names in the outliner, so wrap pieces in Define Part for readable names.
+- Generator blocks (Cone, Capsule, Torus, Pipe, Pyramid, Prism, Hollow Box, Curved Stairs, Column, Stairs, Arch, Blast Hole) build the same pieces as the generator of that name: they fill a box of their Size, centred on the origin unless Center is off, and their other fields have the generator's names, ranges and choices. A choice is written as its value, such as "z" for Prism's Axis, and may come from a variable. Sphere and Cylinder are built the same way as the Sphere, Cylinder and Cone generators.
+
+## Meshes
+
+- Mesh blocks build regular editable meshes instead of brushes. Mesh holds Vertex lines (a position and an optional texture coordinate) and Face lines (vertex numbers from 0, counter-clockwise seen from outside). Mesh From Shapes turns the solids inside it into one mesh.
+- Subdivide, Smooth Mesh, Displace, Extrude Faces, Box UVs and Flip Faces change the mesh made from the lines inside them; solids inside are turned into a mesh first. Displace and Extrude Faces work out their distance per point or face from a formula that may use [x], [y], [z], [nx], [ny], [nz] and [index].
+- A script may mix brushes and meshes. A mesh cannot be cut: Difference and Intersection stop the script when a mesh is inside them.
+- In a SolidScript generator, meshes show as a preview that is not saved, picked or collided with; Bake turns them into mesh objects. geometry_script_build creates them as mesh objects in the same undo step as the brushes.
 `;
 
 /** Tool part of the reference: which tool takes what. */

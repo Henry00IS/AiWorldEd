@@ -3,10 +3,12 @@ import { SOLID_SCRIPT_COMMANDS_PLANAR, SOLID_SCRIPT_COMMANDS_SOLIDS } from './so
 import { SOLID_SCRIPT_COMMANDS_COMBINE, SOLID_SCRIPT_COMMANDS_TRANSFORMS } from './solid_script_commands_blocks.js';
 import { SOLID_SCRIPT_COMMANDS_LOGIC } from './solid_script_commands_logic.js';
 import { SOLID_SCRIPT_COMMANDS_MESHES } from './solid_script_commands_meshes.js';
+import { SOLID_SCRIPT_COMMANDS_GENERATORS } from './solid_script_commands_generators.js';
 
 /** Palette groups in palette order. */
 export const SOLID_SCRIPT_COMMAND_CATEGORIES: readonly SolidScriptCommandCategory[] = [
   'Solids',
+  'Generators',
   '2D Shapes',
   'Transforms',
   'Combine',
@@ -18,6 +20,7 @@ export const SOLID_SCRIPT_COMMAND_CATEGORIES: readonly SolidScriptCommandCategor
 /** Every command of the script editor, the palette and MCP, in palette order. */
 export const solidScriptCommands: readonly SolidScriptCommand[] = [
   ...SOLID_SCRIPT_COMMANDS_SOLIDS,
+  ...SOLID_SCRIPT_COMMANDS_GENERATORS,
   ...SOLID_SCRIPT_COMMANDS_PLANAR,
   ...SOLID_SCRIPT_COMMANDS_TRANSFORMS,
   ...SOLID_SCRIPT_COMMANDS_COMBINE,

@@ -75,6 +75,7 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
 /** Accent colour of each palette category, readable on light and dark panels. */
 export const SOLID_SCRIPT_EDITOR_CATEGORY_COLORS: Readonly<Record<string, string>> = {
   Solids: '#e2762b',
+  Generators: '#c2603a',
   '2D Shapes': '#2aa198',
   Transforms: '#3d8fd6',
   Combine: '#9b6bd6',

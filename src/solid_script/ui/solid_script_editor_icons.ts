@@ -3,6 +3,7 @@ import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 /** Line-art icons of the script editor, drawn in the current text colour. */
 const SOLID_SCRIPT_EDITOR_ICON_PATHS: Readonly<Record<string, string>> = {
   Solids: '<path d="M8 1.5 14 4.75v6.5L8 14.5 2 11.25v-6.5z M2 4.75 8 8l6-3.25 M8 8v6.5"/>',
+  Generators: '<path d="M2 14h12 M3 14v-3h3v-3h3v-3h3v9 M10.5 2.5l1-1 1 1-1 1z"/>',
   '2D Shapes': '<rect x="2.5" y="2.5" width="11" height="11" rx="1"/>',
   Transforms: '<path d="M8 1.5v13 M1.5 8h13 M8 1.5 6 3.5 M8 1.5l2 2 M14.5 8l-2-2 M14.5 8l-2 2"/>',
   Combine: '<circle cx="6" cy="8" r="4.5"/><circle cx="10" cy="8" r="4.5"/>',
