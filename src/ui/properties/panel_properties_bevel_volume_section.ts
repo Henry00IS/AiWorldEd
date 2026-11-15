@@ -7,41 +7,11 @@ import { CommandModifierBevelDistanceSet } from '@/modifier/volume/command_modif
 import { ModifierVolumeBevel, type ModifierBevelVolumeSettings } from '@/modifier/volume/modifier_volume_bevel.js';
 import { modifierBevelRotationIsIdle } from '@/modifier/volume/modifier_volume_bevel_uv_placement.js';
 import {
-  MODIFIER_VOLUME_BEVEL_UV_ALIGNED,
-  MODIFIER_VOLUME_BEVEL_UV_LARGEST,
-  MODIFIER_VOLUME_BEVEL_UV_MAJORITY,
-  MODIFIER_VOLUME_BEVEL_UV_NEAREST,
-  MODIFIER_VOLUME_BEVEL_UV_NEGATIVE_X,
-  MODIFIER_VOLUME_BEVEL_UV_NEGATIVE_Y,
-  MODIFIER_VOLUME_BEVEL_UV_NEGATIVE_Z,
-  MODIFIER_VOLUME_BEVEL_UV_POSITIVE_X,
-  MODIFIER_VOLUME_BEVEL_UV_POSITIVE_Y,
-  MODIFIER_VOLUME_BEVEL_UV_POSITIVE_Z,
-  MODIFIER_VOLUME_BEVEL_UV_REVERSE,
-  MODIFIER_VOLUME_BEVEL_UV_SMALLEST,
-  MODIFIER_VOLUME_BEVEL_UV_WINDING,
-  MODIFIER_VOLUME_BEVEL_UV_LAYOUT_AXIS,
-  MODIFIER_VOLUME_BEVEL_UV_LAYOUT_CONTINUE,
-  MODIFIER_VOLUME_BEVEL_UV_LAYOUT_CUBIC,
-  MODIFIER_VOLUME_BEVEL_UV_LAYOUT_FRONT,
-  MODIFIER_VOLUME_BEVEL_UV_LAYOUT_OVERHEAD,
-  MODIFIER_VOLUME_BEVEL_UV_LAYOUT_PROJECT,
-  MODIFIER_VOLUME_BEVEL_UV_LAYOUT_SIDE,
-  MODIFIER_VOLUME_BEVEL_UV_LAYOUT_STRETCH,
-  MODIFIER_VOLUME_BEVEL_UV_LAYOUT_TILE,
-  MODIFIER_VOLUME_BEVEL_UV_LAYOUT_TRIM,
   modifierBevelClampUvFlow,
   modifierBevelClampUvLayout,
   modifierBevelClampUvOwner,
   modifierBevelClampUvPivot,
   modifierBevelClampUvSpace,
-  MODIFIER_VOLUME_BEVEL_UV_OWNER_SINGLE,
-  MODIFIER_VOLUME_BEVEL_UV_OWNER_SPLIT,
-  MODIFIER_VOLUME_BEVEL_UV_PIVOT_ANCHOR,
-  MODIFIER_VOLUME_BEVEL_UV_PIVOT_CENTER,
-  MODIFIER_VOLUME_BEVEL_UV_PIVOT_TILE,
-  MODIFIER_VOLUME_BEVEL_UV_SPACE_LOCAL,
-  MODIFIER_VOLUME_BEVEL_UV_SPACE_WORLD,
   type ModifierBevelUvFlow,
   type ModifierBevelUvLayout,
   type ModifierBevelUvOwner,
@@ -49,6 +19,14 @@ import {
   type ModifierBevelUvSpace,
 } from '@/modifier/volume/modifier_volume_bevel_keys.js';
 import { textureChoicesList } from '@/texture/library/texture_choices.js';
+import {
+  MODIFIER_BEVEL_UV_FLOW_CHOICES,
+  MODIFIER_BEVEL_UV_LAYOUT_CHOICES,
+  MODIFIER_BEVEL_UV_OWNER_CHOICES,
+  MODIFIER_BEVEL_UV_PIVOT_CHOICES,
+  MODIFIER_BEVEL_UV_SPACE_CHOICES,
+  modifierBevelField,
+} from '@/modifier/volume/modifier_volume_bevel_fields.js';
 import { InputNumeric } from '@/ui/input/input_numeric.js';
 import { inputNumericCreateUvField } from '@/ui/input/input_numeric_uv_field.js';
 import { UV_OFFSET_NUDGE } from '@/texture/uv/uv_trs_ops.js';
@@ -90,7 +68,7 @@ export class PanelPropertiesBevelVolumeSection {
     this.section = document.createElement('div');
     this.extra = this.createExtraOptions();
     this.uvInput = this.createUvInput();
-    this.layoutInput = new InputSelect(modifierBevelUvLayoutChoices(), 'Bevel layout');
+    this.layoutInput = new InputSelect([...MODIFIER_BEVEL_UV_LAYOUT_CHOICES], 'Bevel layout');
     this.textureInput = new InputSelect(modifierBevelTextureChoices(''), 'Bevel texture');
     this.distanceInput = inputNumericCreateUvField(0.01, 'Bevel distance');
     this.segmentsInput = inputNumericCreateUvField(1, 'Bevel segments');
@@ -119,9 +97,9 @@ export class PanelPropertiesBevelVolumeSection {
    */
   private createUvPlacement(): PanelPropertiesBevelVolumeSection['uvFields'] {
     return {
-      owner: new InputSelect(modifierBevelUvOwnerChoices(), 'Bevel owner'),
-      pivot: new InputSelect(modifierBevelUvPivotChoices(), 'Bevel pivot'),
-      space: new InputSelect(modifierBevelUvSpaceChoices(), 'Bevel space'),
+      owner: new InputSelect([...MODIFIER_BEVEL_UV_OWNER_CHOICES], 'Bevel owner'),
+      pivot: new InputSelect([...MODIFIER_BEVEL_UV_PIVOT_CHOICES], 'Bevel pivot'),
+      space: new InputSelect([...MODIFIER_BEVEL_UV_SPACE_CHOICES], 'Bevel space'),
       ...this.createUvNumbers(),
     };
   }
@@ -168,32 +146,32 @@ export class PanelPropertiesBevelVolumeSection {
 
   /** Adds the segment, distance, and angle rows. */
   private appendCutRows(): void {
-    this.section.appendChild(this.createRow('Segments', this.segmentsInput));
-    this.section.appendChild(this.createRow('Distance', this.distanceInput));
+    this.section.appendChild(this.createFieldRow('segments', this.segmentsInput));
+    this.section.appendChild(this.createFieldRow('distance', this.distanceInput));
     this.extra.appendLimit(this.section);
-    this.angleRow = this.createRow('Max Angle', this.angleInput);
+    this.angleRow = this.createFieldRow('angleDegrees', this.angleInput);
     this.section.appendChild(this.angleRow);
     this.extra.appendGeometry(this.section);
   }
 
   /** Adds the layout, texture, and placement rows. */
   private appendChartRows(): void {
-    this.section.appendChild(this.createRow('Layout', this.layoutInput));
-    this.section.appendChild(this.createRow('Texture', this.textureInput));
+    this.section.appendChild(this.createFieldRow('uvLayout', this.layoutInput));
+    this.section.appendChild(this.createFieldRow('textureId', this.textureInput));
     this.extra.appendCharts(this.section);
-    this.section.appendChild(this.createRow('Owner', this.uvFields.owner));
-    this.section.appendChild(this.createRow('UV', this.uvInput));
-    this.section.appendChild(this.createRow('Space', this.uvFields.space));
+    this.section.appendChild(this.createFieldRow('uvOwner', this.uvFields.owner));
+    this.section.appendChild(this.createFieldRow('uvFlow', this.uvInput));
+    this.section.appendChild(this.createFieldRow('uvSpace', this.uvFields.space));
     this.appendScaleRows();
   }
 
   /** Adds the scale, offset, and rotation rows. */
   private appendScaleRows(): void {
-    this.section.appendChild(this.createRow('U scale', this.uvFields.scaleU));
-    this.section.appendChild(this.createRow('V scale', this.uvFields.scaleV));
-    this.section.appendChild(this.createRow('U offset', this.uvFields.offsetU));
-    this.section.appendChild(this.createRow('V offset', this.uvFields.offsetV));
-    this.section.appendChild(this.createRow('Rotation', this.uvFields.rotation));
+    this.section.appendChild(this.createFieldRow('uvScaleU', this.uvFields.scaleU));
+    this.section.appendChild(this.createFieldRow('uvScaleV', this.uvFields.scaleV));
+    this.section.appendChild(this.createFieldRow('uvOffsetU', this.uvFields.offsetU));
+    this.section.appendChild(this.createFieldRow('uvOffsetV', this.uvFields.offsetV));
+    this.section.appendChild(this.createFieldRow('uvRotation', this.uvFields.rotation));
   }
 
   /**
@@ -202,7 +180,7 @@ export class PanelPropertiesBevelVolumeSection {
    * @returns Pivot row.
    */
   private appendPivotRow(): HTMLElement {
-    const pivotRow = this.createRow('Pivot', this.uvFields.pivot);
+    const pivotRow = this.createFieldRow('uvPivot', this.uvFields.pivot);
     this.section.appendChild(pivotRow);
     return pivotRow;
   }
@@ -241,7 +219,7 @@ export class PanelPropertiesBevelVolumeSection {
    * @returns Select field.
    */
   private createUvInput(): InputSelect {
-    return new InputSelect(modifierBevelUvFlowChoices(), 'Bevel UV');
+    return new InputSelect([...MODIFIER_BEVEL_UV_FLOW_CHOICES], 'Bevel UV');
   }
 
   /** Binds commit handlers for every field. */
@@ -442,6 +420,19 @@ export class PanelPropertiesBevelVolumeSection {
     return modifierStackUiRow(labelText, input.getElement());
   }
 
+  /**
+   * Builds a row whose caption and hover text come from the bevel field
+   * descriptor.
+   *
+   * @param key Bevel settings key.
+   * @param input Field widget.
+   * @returns Row element.
+   */
+  private createFieldRow(key: string, input: { getElement(): HTMLElement }): HTMLElement {
+    const field = modifierBevelField(key);
+    return modifierStackUiRow(field.label, input.getElement(), field.title);
+  }
+
   /** Writes a committed UV flow through the undo stack. */
   private commitUvFlow(): void {
     const next = modifierBevelUvFlowFromSelect(this.uvInput.getValue());
@@ -514,96 +505,6 @@ export class PanelPropertiesBevelVolumeSection {
   }
 }
 
-/** Hover text for each UV flow, in menu order. */
-const MODIFIER_BEVEL_UV_FLOW_CHOICES: InputSelectChoice[] = [
-  modifierBevelUvChoice(
-    MODIFIER_VOLUME_BEVEL_UV_WINDING,
-    'Winding',
-    'Strips follow face order. A corner takes the wall that borders it most, and every piece of that corner stays on that wall.',
-  ),
-  modifierBevelUvChoice(
-    MODIFIER_VOLUME_BEVEL_UV_REVERSE,
-    'Reverse Winding',
-    'Same corner rule as Winding. When two walls border a corner equally, the later face wins instead of the earlier one.',
-  ),
-  modifierBevelUvChoice(
-    MODIFIER_VOLUME_BEVEL_UV_LARGEST,
-    'Largest',
-    'The larger wall wins. The whole corner beside it takes that wall, not a mix of neighbors.',
-  ),
-  modifierBevelUvChoice(
-    MODIFIER_VOLUME_BEVEL_UV_SMALLEST,
-    'Smallest',
-    'The smaller wall wins. The whole corner beside it takes that wall.',
-  ),
-  modifierBevelUvChoice(
-    MODIFIER_VOLUME_BEVEL_UV_MAJORITY,
-    'Majority',
-    'Each new face follows the wall it shares the longest edge with. A corner still stays on one wall.',
-  ),
-  modifierBevelUvChoice(
-    MODIFIER_VOLUME_BEVEL_UV_NEAREST,
-    'Nearest',
-    'Each new face follows the wall plane closest to its center. A corner uses that rule once for the whole corner.',
-  ),
-  modifierBevelUvChoice(
-    MODIFIER_VOLUME_BEVEL_UV_ALIGNED,
-    'Aligned',
-    'Each new face follows the wall pointing most nearly the same way. A corner uses the wall closest to the corner direction.',
-  ),
-  modifierBevelUvChoice(
-    MODIFIER_VOLUME_BEVEL_UV_POSITIVE_Y,
-    '+Y',
-    'The wall facing world up wins. Its texture continues down the curves and across the whole corner.',
-  ),
-  modifierBevelUvChoice(
-    MODIFIER_VOLUME_BEVEL_UV_NEGATIVE_Y,
-    '-Y',
-    'The wall facing world down wins. Its texture continues onto the curves and the whole corner.',
-  ),
-  modifierBevelUvChoice(
-    MODIFIER_VOLUME_BEVEL_UV_POSITIVE_X,
-    '+X',
-    'The wall facing world +X wins. Its texture continues onto the curves and the whole corner.',
-  ),
-  modifierBevelUvChoice(
-    MODIFIER_VOLUME_BEVEL_UV_NEGATIVE_X,
-    '-X',
-    'The wall facing world -X wins. Its texture continues onto the curves and the whole corner.',
-  ),
-  modifierBevelUvChoice(
-    MODIFIER_VOLUME_BEVEL_UV_POSITIVE_Z,
-    '+Z',
-    'The wall facing world +Z wins. Its texture continues onto the curves and the whole corner.',
-  ),
-  modifierBevelUvChoice(
-    MODIFIER_VOLUME_BEVEL_UV_NEGATIVE_Z,
-    '-Z',
-    'The wall facing world -Z wins. Its texture continues onto the curves and the whole corner.',
-  ),
-];
-
-/**
- * Lists the UV flow choices.
- *
- * @returns Select entries.
- */
-function modifierBevelUvFlowChoices(): InputSelectChoice[] {
-  return MODIFIER_BEVEL_UV_FLOW_CHOICES;
-}
-
-/**
- * Builds one UV flow entry.
- *
- * @param value Stored flow.
- * @param label Menu label.
- * @param title Hover text.
- * @returns Select entry.
- */
-function modifierBevelUvChoice(value: string, label: string, title: string): InputSelectChoice {
-  return { value, label, title };
-}
-
 /**
  * Accepts a select value only when it names a UV flow.
  *
@@ -619,69 +520,6 @@ function modifierBevelUvFlowFromSelect(value: string): ModifierBevelUvFlow | nul
 /** Select value that keeps each bevel on its parent texture. */
 const MODIFIER_BEVEL_TEXTURE_INHERIT = 'inherit';
 
-/** Hover text for each UV layout, in menu order. */
-const MODIFIER_BEVEL_UV_LAYOUT_CHOICES: InputSelectChoice[] = [
-  modifierBevelUvChoice(
-    MODIFIER_VOLUME_BEVEL_UV_LAYOUT_CONTINUE,
-    'Continue',
-    'Folds the parent texture across the bevel so the pattern keeps going around the cut.',
-  ),
-  modifierBevelUvChoice(
-    MODIFIER_VOLUME_BEVEL_UV_LAYOUT_TILE,
-    'Tile',
-    'Repeats the texture in world units along the authored edge and across its whole profile. Use Continue to preserve the parent pattern at the cut.',
-  ),
-  modifierBevelUvChoice(
-    MODIFIER_VOLUME_BEVEL_UV_LAYOUT_TRIM,
-    'Trim',
-    'Fits one texture across the whole profile and repeats it along the authored edge in world units. Use Continue to preserve the parent pattern at the cut.',
-  ),
-  modifierBevelUvChoice(
-    MODIFIER_VOLUME_BEVEL_UV_LAYOUT_STRETCH,
-    'Stretch',
-    'Stretches one copy of the texture over the whole curve.',
-  ),
-  modifierBevelUvChoice(
-    MODIFIER_VOLUME_BEVEL_UV_LAYOUT_PROJECT,
-    'Project',
-    'Uses the parent face projection flat, without wrapping around the cut.',
-  ),
-  modifierBevelUvChoice(
-    MODIFIER_VOLUME_BEVEL_UV_LAYOUT_CUBIC,
-    'Cubic',
-    'Lays a world-unit grid across the whole curve so every segment shares one pattern.',
-  ),
-  modifierBevelUvChoice(
-    MODIFIER_VOLUME_BEVEL_UV_LAYOUT_OVERHEAD,
-    'Overhead',
-    'Projects from above using X and Z in the selected Space. Local follows the brush; World stays fixed to the map.',
-  ),
-  modifierBevelUvChoice(
-    MODIFIER_VOLUME_BEVEL_UV_LAYOUT_FRONT,
-    'Front',
-    'Projects from the front using X and Y in the selected Space. Local follows the brush; World stays fixed to the map.',
-  ),
-  modifierBevelUvChoice(
-    MODIFIER_VOLUME_BEVEL_UV_LAYOUT_SIDE,
-    'Side',
-    'Projects from the side using Z and Y in the selected Space. Local follows the brush; World stays fixed to the map.',
-  ),
-  modifierBevelUvChoice(
-    MODIFIER_VOLUME_BEVEL_UV_LAYOUT_AXIS,
-    'Axis',
-    'Projects from whichever of Overhead, Front, or Side is closest to each face normal.',
-  ),
-];
-
-/**
- * Lists the UV layout choices.
- *
- * @returns Select entries.
- */
-function modifierBevelUvLayoutChoices(): InputSelectChoice[] {
-  return MODIFIER_BEVEL_UV_LAYOUT_CHOICES;
-}
-
 /**
  * Accepts a select value only when it names a UV layout.
  *
@@ -692,26 +530,6 @@ function modifierBevelUvLayoutFromSelect(value: string): ModifierBevelUvLayout |
   const layout = modifierBevelClampUvLayout(value);
   if (value !== layout) return null;
   return layout;
-}
-
-/**
- * Lists the curve owner choices.
- *
- * @returns Select entries.
- */
-function modifierBevelUvOwnerChoices(): InputSelectChoice[] {
-  return [
-    modifierBevelUvChoice(
-      MODIFIER_VOLUME_BEVEL_UV_OWNER_SPLIT,
-      'Split',
-      'Each end of the curve keeps its wall. U follows the parent that owns that half.',
-    ),
-    modifierBevelUvChoice(
-      MODIFIER_VOLUME_BEVEL_UV_OWNER_SINGLE,
-      'Single',
-      'One parent owns the whole curve. U runs along the edge and V runs across it. Reverse picks the other wall.',
-    ),
-  ];
 }
 
 /**
@@ -727,23 +545,6 @@ function modifierBevelUvOwnerFromSelect(value: string): ModifierBevelUvOwner | n
 }
 
 /**
- * Lists the rotation pivot choices.
- *
- * @returns Select entries.
- */
-function modifierBevelUvPivotChoices(): InputSelectChoice[] {
-  return [
-    modifierBevelUvChoice(MODIFIER_VOLUME_BEVEL_UV_PIVOT_ANCHOR, 'Anchor', 'Rotates around the start of the curve.'),
-    modifierBevelUvChoice(MODIFIER_VOLUME_BEVEL_UV_PIVOT_CENTER, 'Center', 'Rotates around the middle of the curve.'),
-    modifierBevelUvChoice(
-      MODIFIER_VOLUME_BEVEL_UV_PIVOT_TILE,
-      'Tile',
-      'Rotates around the middle of the texture tile.',
-    ),
-  ];
-}
-
-/**
  * Accepts a select value only when it names a rotation pivot.
  *
  * @param value Select value.
@@ -753,26 +554,6 @@ function modifierBevelUvPivotFromSelect(value: string): ModifierBevelUvPivot | n
   const pivot = modifierBevelClampUvPivot(value);
   if (value !== pivot) return null;
   return pivot;
-}
-
-/**
- * Lists the UV space choices.
- *
- * @returns Select entries.
- */
-function modifierBevelUvSpaceChoices(): InputSelectChoice[] {
-  return [
-    modifierBevelUvChoice(
-      MODIFIER_VOLUME_BEVEL_UV_SPACE_LOCAL,
-      'Local',
-      'Follows the brush. Turning it keeps the texture put, and scale still changes world length.',
-    ),
-    modifierBevelUvChoice(
-      MODIFIER_VOLUME_BEVEL_UV_SPACE_WORLD,
-      'World',
-      'Follows the map. Turning a brush turns these directions.',
-    ),
-  ];
 }
 
 /**

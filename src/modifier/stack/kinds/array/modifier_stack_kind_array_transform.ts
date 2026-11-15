@@ -14,7 +14,10 @@ export class ModifierStackKindArrayTransform extends ModifierStackKindArray {
   readonly label = 'Transform Array';
   readonly description = 'Applies the same move and turn again for every copy, building spirals, fans and rising runs.';
   protected readonly specificFields: readonly ModifierStackField[] = [
-    ...modifierStackVectorFields('offset', 'Move', [0, 0.25, 0], { group: 'Per copy' }),
+    ...modifierStackVectorFields('offset', 'Move', [0, 0.25, 0], {
+      group: 'Per copy',
+      hint: 'Distance in metres each copy moves from the previous one along this axis.',
+    }),
     ...modifierStackVectorFields('relative', 'Size ×', [0, 0, 0], {
       group: 'Per copy',
       step: 0.1,
@@ -25,8 +28,13 @@ export class ModifierStackKindArrayTransform extends ModifierStackKindArray {
       group: 'Per copy',
       visible: (parameters) => modifierStackVector(parameters, 'relative').lengthSq() > 1e-12,
     },
-    ...modifierStackVectorFields('rotation', 'Turn °', [0, 15, 0], { group: 'Per copy', step: 5 }),
+    ...modifierStackVectorFields('rotation', 'Turn °', [0, 15, 0], {
+      group: 'Per copy',
+      step: 5,
+      hint: 'Degrees each copy turns from the previous one around this axis.',
+    }),
     ...modifierStackVectorFields('pivot', 'Pivot', [0, 0, 0], {
+      hint: 'Point each copy turns around, in metres from the volume centre along this axis.',
       group: 'Pivot',
       visible: (parameters) => modifierStackVector(parameters, 'rotation').lengthSq() > 1e-12,
     }),

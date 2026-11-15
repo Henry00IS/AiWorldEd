@@ -39,6 +39,7 @@ export class ModifierStackKindArrayMirror extends ModifierStackKindArray {
     {
       key: 'plane',
       label: 'Plane',
+      hint: 'Where the mirror plane sits: through the volume centre, or on its negative or positive face along the axis.',
       type: 'choice',
       default: 'center',
       choices: modifierStackChoices([

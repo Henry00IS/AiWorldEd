@@ -63,6 +63,7 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
     {
       key: 'sizing',
       label: 'Steps By',
+      hint: 'Target Rise picks the step count that keeps each step close to the target rise; Step Count uses a fixed number of steps.',
       type: 'choice',
       default: 'rise',
       choices: modifierStackChoices([
@@ -84,6 +85,7 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
     {
       key: 'count',
       label: 'Steps',
+      hint: 'Number of steps between the bottom and the top of the box.',
       type: 'number',
       default: 8,
       min: 1,
@@ -129,6 +131,7 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
     {
       key: 'thickness',
       label: 'Tread Depth',
+      hint: 'Thickness in metres of each floating tread slab.',
       type: 'number',
       default: 0.125,
       min: 0.01,

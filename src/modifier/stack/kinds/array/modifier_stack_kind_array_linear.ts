@@ -33,6 +33,7 @@ export class ModifierStackKindArrayLinear extends ModifierStackKindArray {
       hint: 'Size × plus step adds a multiple of the input size and a fixed step, like enabling both relative and constant offset.',
     },
     ...modifierStackVectorFields('offset', 'Step', [2, 0, 0], {
+      hint: 'Fixed distance in metres from one copy to the next along this axis.',
       group: 'Spacing',
       visible: modifierStackWhen('mode', 'fixed', 'both'),
     }),
@@ -42,10 +43,12 @@ export class ModifierStackKindArrayLinear extends ModifierStackKindArray {
       visible: modifierStackWhen('mode', 'relative', 'both'),
     },
     ...modifierStackVectorFields('relative', 'Size ×', [1, 0, 0], {
+      hint: 'Step as a multiple of the input size along this axis: 1 places copies edge to edge.',
       group: 'Spacing',
       visible: modifierStackWhen('mode', 'relative', 'both'),
     }),
     ...modifierStackVectorFields('endpoint', 'Distance', [8, 0, 0], {
+      hint: 'Distance in metres from the original to the last copy; the copies are spread evenly in between.',
       group: 'Spacing',
       visible: modifierStackWhen('mode', 'fit'),
     }),

@@ -21,6 +21,7 @@ const MCP_TOOL_VERBS = new Set([
   'build',
   'duplicate',
   'mirror',
+  'flip',
   'set',
   'align',
   'rotate',

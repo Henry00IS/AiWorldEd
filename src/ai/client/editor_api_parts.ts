@@ -10,6 +10,8 @@ import { EditorApiSolidReads } from './editor_api_solid_reads.js';
 import { EditorApiSolidWrites } from './editor_api_solid_writes.js';
 import { EditorApiSpatial } from './editor_api_spatial.js';
 import { EditorApiValidation } from './editor_api_validation.js';
+import { EditorApiCurve } from './modifier/editor_api_curve.js';
+import { EditorApiModifier } from './modifier/editor_api_modifier.js';
 
 /** Implementation parts the MCP tool groups call into, bound to one editor. */
 export class EditorApiParts {
@@ -25,6 +27,8 @@ export class EditorApiParts {
   readonly hierarchy: EditorApiHierarchy;
   readonly capture: EditorApiCapture;
   readonly geometry: EditorApiGeometry;
+  readonly modifier: EditorApiModifier;
+  readonly curve: EditorApiCurve;
 
   /**
    * Creates every part for one editor.
@@ -44,5 +48,7 @@ export class EditorApiParts {
     this.hierarchy = new EditorApiHierarchy(host);
     this.capture = new EditorApiCapture(host);
     this.geometry = new EditorApiGeometry(host);
+    this.modifier = new EditorApiModifier(host);
+    this.curve = new EditorApiCurve(host, this.modifier);
   }
 }

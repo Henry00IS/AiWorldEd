@@ -53,6 +53,7 @@ const MODIFIER_STACK_SHEAR_FIELDS: readonly ModifierStackField[] = [
   {
     key: 'mode',
     label: 'Amount',
+    hint: 'Angle slants the input by a tilt in degrees; Factor slides it by a ratio of distance per metre.',
     type: 'choice',
     default: 'angle',
     choices: modifierStackChoices([
@@ -108,6 +109,7 @@ const MODIFIER_STACK_SHEAR_FIELDS: readonly ModifierStackField[] = [
   {
     key: 'uv',
     label: 'Textures',
+    hint: 'Move with shape keeps textures attached to the slanted faces; World aligned re-projects them in world space.',
     type: 'choice',
     default: 'copied',
     choices: modifierStackChoices([

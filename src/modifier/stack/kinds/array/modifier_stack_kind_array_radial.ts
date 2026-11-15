@@ -47,6 +47,7 @@ export class ModifierStackKindArrayRadial extends ModifierStackKindArray {
     {
       key: 'mode',
       label: 'Distribution',
+      hint: 'Full ring spreads the copies evenly around 360°, Arc spreads them over the sweep angle, Angle step turns each copy by a fixed angle.',
       type: 'choice',
       default: 'ring',
       choices: modifierStackChoices([
@@ -58,6 +59,7 @@ export class ModifierStackKindArrayRadial extends ModifierStackKindArray {
     {
       key: 'axis',
       label: 'Axis',
+      hint: "Axis the copies turn around, in the volume's local space.",
       type: 'choice',
       default: 'y',
       choices: modifierStackChoices([
@@ -69,6 +71,7 @@ export class ModifierStackKindArrayRadial extends ModifierStackKindArray {
     {
       key: 'sweep',
       label: 'Sweep °',
+      hint: 'Angle in degrees the copies are spread over; negative turns the other way.',
       type: 'number',
       default: 90,
       min: -360,
@@ -79,6 +82,7 @@ export class ModifierStackKindArrayRadial extends ModifierStackKindArray {
     {
       key: 'step',
       label: 'Step °',
+      hint: 'Angle in degrees between neighbouring copies; negative turns the other way.',
       type: 'number',
       default: 15,
       min: -360,
@@ -115,6 +119,7 @@ export class ModifierStackKindArrayRadial extends ModifierStackKindArray {
     {
       key: 'start',
       label: 'Start °',
+      hint: 'Angle in degrees the first copy starts at around the pivot.',
       type: 'number',
       default: 0,
       min: -3600,
@@ -139,13 +144,20 @@ export class ModifierStackKindArrayRadial extends ModifierStackKindArray {
       step: 0.25,
       hint: 'Moves each copy this far along the axis, building spirals and helical stairs, like a screw offset.',
     },
-    { key: 'rotateCopies', label: 'Rotate Copies', type: 'boolean', default: true },
+    {
+      key: 'rotateCopies',
+      label: 'Rotate Copies',
+      type: 'boolean',
+      default: true,
+      hint: 'On turns each copy to face along the ring; off only moves the copies and keeps their original orientation.',
+    },
     {
       ...MODIFIER_STACK_ARRAY_BOUNDS_FIELD,
       label: 'Centre From',
       hint: 'Where the radius offset and unrotated copies are measured from: the whole input or each piece.',
     },
     ...modifierStackVectorFields('pivot', 'Pivot', [0, 0, 0], {
+      hint: 'Point the copies turn around, in metres from the volume centre along this axis.',
       group: 'Pivot',
       visible: modifierStackWhen('origin', 'centre'),
     }),
