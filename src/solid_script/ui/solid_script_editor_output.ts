@@ -39,6 +39,8 @@ export class SolidScriptEditorOutput {
   private failed: number | null = null;
   /** Shows a line of the script; set by the editor. */
   reveal: (line: number) => void = () => undefined;
+  /** Adds an Input line through its configurator; set by the editor. */
+  inputAdd: () => void = () => undefined;
 
   /** Builds the area. */
   constructor() {
@@ -208,6 +210,22 @@ export class SolidScriptEditorOutput {
   }
 
   /**
+   * Builds the button that adds a setting to the generator's inspector.
+   *
+   * @param first True when the script has no Input yet.
+   * @returns Button.
+   */
+  private inputAddButton(first: boolean): HTMLButtonElement {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = SOLID_SCRIPT_EDITOR_CLASSES.inputAdd;
+    button.textContent = first ? 'Add Input: a setting in the inspector' : 'Add Input';
+    button.title = 'Adds an Input line after the other inputs: a value people set in the generator inspector.';
+    button.addEventListener('click', () => this.inputAdd());
+    return button;
+  }
+
+  /**
    * Lists the names a script defines by category, each with its line.
    *
    * @param script Script.
@@ -223,11 +241,12 @@ export class SolidScriptEditorOutput {
     list.append(heading);
     for (const category of SOLID_SCRIPT_NAME_CATEGORIES) {
       const entries = names.filter((entry) => entry.category === category);
-      if (entries.length === 0) continue;
+      if (entries.length === 0 && category !== 'Inputs') continue;
       const title = document.createElement('div');
       title.className = SOLID_SCRIPT_EDITOR_CLASSES.suggestionHeading;
       title.textContent = category;
       list.append(title);
+      if (category === 'Inputs') list.append(this.inputAddButton(entries.length === 0));
       for (const entry of entries) {
         const row = document.createElement('div');
         row.className = SOLID_SCRIPT_EDITOR_CLASSES.definition;

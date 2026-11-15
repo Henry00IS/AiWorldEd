@@ -32,6 +32,7 @@ import { SolidScriptConfigurator } from './solid_script_configurator.js';
 import { SolidScriptEditorOutput } from './solid_script_editor_output.js';
 import { solidScriptEditorLoad, solidScriptEditorSave } from './solid_script_editor_files.js';
 import { solidScriptFileDropBind, type SolidScriptFileDropResult } from './solid_script_file_drop.js';
+import { SOLID_SCRIPT_COMMAND_INPUT } from '@/solid_script/language/solid_script_input.js';
 
 /** First size of the editor window. */
 const SOLID_SCRIPT_EDITOR_SIZE = { width: 940, height: 600 };
@@ -101,6 +102,14 @@ export class SolidScriptEditor extends PanelFloating {
       breakpoint: (line) => this.breakpointToggle(line),
     });
     this.output.reveal = (line) => this.lines.focusLine(line);
+    this.output.inputAdd = () => {
+      const blocks = this.session.document().blocks;
+      const last = blocks.map((block) => block.command).lastIndexOf(SOLID_SCRIPT_COMMAND_INPUT);
+      const used = new Set(solidScriptDocumentNames(this.session.document()).map((entry) => entry.name));
+      let name = 'width';
+      for (let index = 2; used.has(name); index++) name = `input${index}`;
+      this.insert(SOLID_SCRIPT_COMMAND_INPUT, Math.max(0, last), last >= 0 ? 'caret' : 'before', { name });
+    };
     this.toolbar = new SolidScriptEditorToolbar({
       start: () => this.debugger.start(),
       debug: () => this.debugger.play(),
@@ -424,8 +433,9 @@ export class SolidScriptEditor extends PanelFloating {
    * @param command Command id.
    * @param line Current line or drop target.
    * @param mode Below the current line, or before the drop target.
+   * @param start Values that replace the command's defaults.
    */
-  private insert(command: string, line: number, mode: SolidScriptInsertMode): void {
+  private insert(command: string, line: number, mode: SolidScriptInsertMode, start: Record<string, string> = {}): void {
     const found = solidScriptCommandFind(command);
     if (!found) return;
     const place = (values?: Record<string, string>): void => {
@@ -434,7 +444,8 @@ export class SolidScriptEditor extends PanelFloating {
     };
     if (found.parameters.length === 0) return place();
     const names = solidScriptDocumentNames(this.session.document());
-    new SolidScriptConfigurator(this.root.ownerDocument.body, found, found.valuesDefault(), place, names).show();
+    const values = { ...found.valuesDefault(), ...start };
+    new SolidScriptConfigurator(this.root.ownerDocument.body, found, values, place, names).show();
   }
 
   /**

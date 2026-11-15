@@ -75,6 +75,7 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
   suggestions: 'solid-script-editor-suggestions',
   suggestionsHost: 'solid-script-editor-suggestions-host',
   scrollHost: 'solid-script-editor-scroll-host',
+  inputAdd: 'solid-script-editor-input-add',
   suggestion: 'solid-script-editor-suggestion',
   suggestionHeading: 'solid-script-editor-suggestion-heading',
   suggestionDetail: 'solid-script-editor-suggestion-detail',
@@ -200,6 +201,8 @@ const SOLID_SCRIPT_EDITOR_PANES_CSS = `
 .${c.definition} { cursor: pointer; border-radius: 3px; }
 .${c.definition}:hover { background: ${ThemeCss.inkAlpha(0.06)}; }
 .${c.stack} { margin-top: 10px; }
+.${c.inputAdd} { margin: 2px 0 4px; padding: 2px 8px; font: inherit; border-radius: 4px; cursor: pointer; color: ${ThemeCss.textColor}; background: ${ThemeCss.inkAlpha(0.06)}; border: 1px solid ${ThemeCss.inkAlpha(0.16)}; }
+.${c.inputAdd}:hover { background: ${ThemeCss.inkAlpha(0.12)}; }
 .${c.stackFrame} { cursor: pointer; border-radius: 3px; font-weight: 600; }
 .${c.stackFrame}:hover { background: ${ThemeCss.inkAlpha(0.06)}; }
 .${c.stackLocal} { padding-left: 12px; }

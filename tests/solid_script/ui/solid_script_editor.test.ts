@@ -514,10 +514,26 @@ describe('SolidScript editor', () => {
     }
     doubleClick(chip(0));
     const field = document.querySelector<HTMLInputElement>('[data-solid-script-configurator] input[type="text"]')!;
-    const list = field.closest('[data-solid-script-configurator]')?.querySelector<HTMLElement>(
-      '.solid-script-editor-suggestions',
-    );
+    const list = field
+      .closest('[data-solid-script-configurator]')
+      ?.querySelector<HTMLElement>('.solid-script-editor-suggestions');
     expect(list?.classList.contains('editor-custom-scroller')).toBe(true);
+  });
+
+  it('adds Input lines from the Variables tab, after the other inputs', () => {
+    const { root, commands, script } = editorFixture(CUBE_SPHERE);
+    find('[data-tab="variables"]').click();
+    const add = () => root.querySelector<HTMLButtonElement>('.solid-script-editor-input-add')!;
+    expect(add().textContent).toBe('Add Input: a setting in the inspector');
+    add().click();
+    expect(document.querySelector('[data-solid-script-configurator]')).toBeTruthy();
+    tool('OK').click();
+    expect(commands()).toEqual(['input', 'cube', 'sphere']);
+    add().click();
+    tool('OK').click();
+    expect(commands()).toEqual(['input', 'input', 'cube', 'sphere']);
+    expect(script().blocks.map((block) => block.values['name'])).toEqual(['width', 'input2', undefined, undefined]);
+    expect(add().textContent).toBe('Add Input');
   });
 
   it('redraws the inspector after every edit, so new Input lines show there', () => {
