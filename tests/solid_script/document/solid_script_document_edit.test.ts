@@ -2,10 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { solidScriptDocumentCreate, type SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
 import {
   solidScriptDocumentBlankInsert,
-  solidScriptDocumentBlockRange,
   solidScriptDocumentCommandInsert,
-  solidScriptDocumentLineRemove,
-  solidScriptDocumentMove,
+  solidScriptDocumentRangeMove,
+  solidScriptDocumentRangeRemove,
 } from '@/solid_script/document/solid_script_document_edit.js';
 
 /**
@@ -57,22 +56,18 @@ describe('solid script document edits', () => {
     expect(lines(solidScriptDocumentBlankInsert(script(), 0).document)).toEqual(['blank']);
   });
 
-  it('moves and removes a block opener together with its End, keeping the lines inside', () => {
+  it('moves and removes exactly the lines asked for, End lines too', () => {
     const block = script('variable', 'translate', 'if', 'cube', 'else', 'sphere', 'end', 'end');
-    expect(solidScriptDocumentBlockRange(block, 1)).toEqual([1, 7]);
-    expect(solidScriptDocumentBlockRange(block, 2)).toEqual([2, 6]);
-    expect(solidScriptDocumentBlockRange(block, 3)).toEqual([3, 3]);
-    expect(lines(solidScriptDocumentMove(block, 1, 0))).toEqual([
-      'translate',
-      'if',
-      'cube',
-      'else',
-      'sphere',
-      'end',
-      'end',
-      'variable',
-    ]);
-    expect(lines(solidScriptDocumentLineRemove(block, 1))).toEqual(['variable', 'if', 'cube', 'else', 'sphere', 'end']);
-    expect(lines(solidScriptDocumentLineRemove(block, 2))).toEqual(['variable', 'translate', 'cube', 'sphere', 'end']);
+    const moved = solidScriptDocumentRangeMove(block, 1, 1, 0);
+    expect(lines(moved.document)).toEqual(['translate', 'variable', 'if', 'cube', 'else', 'sphere', 'end', 'end']);
+    expect(moved.line).toBe(0);
+    const down = solidScriptDocumentRangeMove(block, 6, 7, 1);
+    expect(lines(down.document)).toEqual(['variable', 'end', 'end', 'translate', 'if', 'cube', 'else', 'sphere']);
+    expect(solidScriptDocumentRangeMove(block, 2, 3, 3).document).toBe(block);
+    const removed = solidScriptDocumentRangeRemove(block, 1, 1);
+    expect(lines(removed.document)).toEqual(['variable', 'if', 'cube', 'else', 'sphere', 'end', 'end']);
+    expect(lines(solidScriptDocumentRangeRemove(block, 7, 6).document)).toEqual(
+      lines(script(...['variable', 'translate', 'if', 'cube', 'else', 'sphere'])),
+    );
   });
 });

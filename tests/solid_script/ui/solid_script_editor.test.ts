@@ -345,7 +345,7 @@ describe('SolidScript editor', () => {
     expect(commands()).toEqual(['cube', 'sphere']);
   });
 
-  it('adds blank lines, removes and moves lines with the keyboard, and keeps End with its block', () => {
+  it('adds blank lines, and removes and moves single lines with the keyboard, End lines too', () => {
     const { commands, root } = editorFixture([
       { command: 'cube' },
       { command: 'union' },
@@ -356,13 +356,13 @@ describe('SolidScript editor', () => {
     expect(commands()).toEqual(['cube', 'blank', 'union', 'sphere', 'end']);
     press(chip(1), 'Delete');
     press(chip(3), 'Delete');
-    expect(commands()).toEqual(['cube', 'union', 'sphere', 'end']);
-    expect(root.textContent).toContain('Remove the line that opens this block');
+    expect(commands()).toEqual(['cube', 'union', 'sphere']);
+    expect(root.textContent).toContain('Line 2: Union has no End');
     press(chip(1), 'ArrowUp', { ctrlKey: true, shiftKey: true });
-    expect(commands()).toEqual(['union', 'sphere', 'end', 'cube']);
+    expect(commands()).toEqual(['union', 'cube', 'sphere']);
   });
 
-  it('selects lines with Shift, copies, cuts and pastes whole blocks, and Space adds a blank line', () => {
+  it('selects lines with Shift, copies, cuts and pastes exactly those lines, and Space adds a blank line', () => {
     const { commands, root, commandStack } = editorFixture([
       { command: 'cube' },
       { command: 'union' },
@@ -377,10 +377,10 @@ describe('SolidScript editor', () => {
     expect(find('[data-line="1"]').classList.contains('solid-script-editor-current')).toBe(true);
     expect(find('[data-line="1"]').classList.contains('solid-script-editor-selected')).toBe(false);
     press(chip(1), 'c', { ctrlKey: true });
-    expect(root.textContent).toContain('Copied 4 lines.');
+    expect(root.textContent).toContain('Copied 2 lines.');
     chip(4).focus();
     press(chip(4), 'v', { ctrlKey: true });
-    expect(commands()).toEqual(['cube', 'union', 'sphere', 'end', 'cylinder', 'cube', 'union', 'sphere', 'end']);
+    expect(commands()).toEqual(['cube', 'union', 'sphere', 'end', 'cylinder', 'cube', 'union']);
     find('[data-line="5"]').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
     find('[data-line="6"]').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0, shiftKey: true }));
     press(chip(6), 'x', { ctrlKey: true });

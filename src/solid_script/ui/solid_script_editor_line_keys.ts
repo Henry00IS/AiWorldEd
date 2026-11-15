@@ -1,14 +1,10 @@
 import type { SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
 import {
   solidScriptDocumentBlankInsert,
-  solidScriptDocumentBlockRange,
-  solidScriptDocumentLineRemove,
   solidScriptDocumentLinesInsert,
-  solidScriptDocumentMove,
+  solidScriptDocumentRangeMove,
   solidScriptDocumentRangeRemove,
-  solidScriptDocumentRangeWhole,
 } from '@/solid_script/document/solid_script_document_edit.js';
-import { solidScriptBlockNesting } from '@/solid_script/document/solid_script_document_indent.js';
 import { solidScriptEditorClipboardRead, solidScriptEditorClipboardWrite } from './solid_script_editor_clipboard.js';
 
 /** What the line keys act on. */
@@ -60,16 +56,27 @@ export class SolidScriptEditorLineKeys {
   }
 
   /**
-   * Moves a line, or a block opener with its block, before another line.
+   * Moves the selected lines, or one line, before another line. Lines move on
+   * their own: an End stays where it is unless it is moved too.
    *
-   * @param from Line index.
+   * @param from Line index; the selection moves when it holds this line.
    * @param to Line index to move before.
    */
   move(from: number, to: number): void {
-    const document = this.host.document();
-    const [first, last] = solidScriptDocumentBlockRange(document, from);
-    const moved = solidScriptDocumentMove(document, from, to);
-    if (moved !== document) this.host.edit(moved, to > last ? to - (last - first + 1) : to);
+    const [first, last] = this.rangeOf(from);
+    const moved = solidScriptDocumentRangeMove(this.host.document(), first, last, to);
+    if (moved.document !== this.host.document()) this.host.edit(moved.document, moved.line + (from - first));
+  }
+
+  /**
+   * Returns the selected lines when they hold a line, or the line alone.
+   *
+   * @param line Line index.
+   * @returns First and last line index.
+   */
+  private rangeOf(line: number): [number, number] {
+    const [first, last] = this.host.selection();
+    return line >= first && line <= last ? [first, last] : [line, line];
   }
 
   /**
@@ -97,8 +104,8 @@ export class SolidScriptEditorLineKeys {
   }
 
   /**
-   * Selects all, copies, cuts or pastes. Copies and cuts take whole blocks, so
-   * an opener comes with its End; pasted lines go below the current line.
+   * Selects all, copies, cuts or pastes exactly the selected lines; pasted
+   * lines go below the current line.
    *
    * @param letter A, c, x or v.
    */
@@ -114,7 +121,7 @@ export class SolidScriptEditorLineKeys {
       return this.host.notice(`Pasted ${lines.length} ${lines.length === 1 ? 'line' : 'lines'}.`);
     }
     if (document.blocks.length === 0) return;
-    const [from, to] = solidScriptDocumentRangeWhole(document, first, last);
+    const [from, to] = [first, last];
     solidScriptEditorClipboardWrite(document.blocks.slice(from, to + 1));
     const count = to - from + 1;
     if (letter === 'x') {
@@ -125,14 +132,14 @@ export class SolidScriptEditorLineKeys {
   }
 
   /**
-   * Moves a line or block one line up or down.
+   * Moves the selected lines, or one line, one line up or down.
    *
    * @param line Line index.
    * @param up True moves up.
    */
   private moveStep(line: number, up: boolean): void {
-    const [, last] = solidScriptDocumentBlockRange(this.host.document(), line);
-    if (up ? line > 0 : last + 1 < this.host.document().blocks.length) this.move(line, up ? line - 1 : last + 2);
+    const [first, last] = this.rangeOf(line);
+    if (up ? first > 0 : last + 1 < this.host.document().blocks.length) this.move(line, up ? first - 1 : last + 2);
   }
 
   /**
@@ -146,24 +153,14 @@ export class SolidScriptEditorLineKeys {
   }
 
   /**
-   * Removes the selected lines with their whole blocks, or the current line
-   * alone; a lone End line only goes with the line that opens its block.
+   * Removes the selected lines, or the current line, exactly as selected: an
+   * End goes alone too, and the script then names the line that misses it.
    *
    * @param line Line index.
    */
   private remove(line: number): void {
-    const document = this.host.document();
-    const [first, last] = this.host.selection();
-    if (last > first) {
-      const removed = solidScriptDocumentRangeRemove(document, first, last);
-      this.host.edit(removed.document, removed.line);
-      return;
-    }
-    if (solidScriptBlockNesting(document.blocks[line]) === 'close') {
-      this.host.notice('Remove the line that opens this block to remove its End.');
-      return;
-    }
-    const removed = solidScriptDocumentLineRemove(document, line);
-    this.host.edit(removed, Math.min(line, removed.blocks.length - 1));
+    const [first, last] = this.rangeOf(line);
+    const removed = solidScriptDocumentRangeRemove(this.host.document(), first, last);
+    this.host.edit(removed.document, removed.line);
   }
 }
