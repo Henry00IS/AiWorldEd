@@ -23,6 +23,9 @@ const PROJECT_FILE_SYSTEM_DESKTOP_EXTENSIONS = [
   'fbx',
 ];
 
+/** Project path of each handle this file system minted. */
+const projectDesktopHandlePaths = new WeakMap<SceneFileHandle, string>();
+
 /**
  * Project folder reached through the desktop app's native file access; the Bun
  * side only accepts folders the user picked and paths inside them.
@@ -129,7 +132,7 @@ export class ProjectFileSystemDesktop implements ProjectFileSystem {
    */
   async fileHandle(path: string): Promise<SceneFileHandle> {
     projectPathSegments(path);
-    return {
+    const handle: SceneFileHandle = {
       name: projectPathName(path),
       getFile: () => this.fileRead(path),
       createWritable: async () => {
@@ -139,7 +142,20 @@ export class ProjectFileSystemDesktop implements ProjectFileSystem {
           close: () => this.fileWrite(path, new Blob(chunks)),
         };
       },
+      isSameEntry: async (other) => other === handle,
     };
+    projectDesktopHandlePaths.set(handle, path);
+    return handle;
+  }
+
+  /**
+   * Returns the project path of a file handle this file system minted.
+   *
+   * @param handle File handle.
+   * @returns Path, or null when the file is not in this folder.
+   */
+  async filePath(handle: SceneFileHandle): Promise<string | null> {
+    return projectDesktopHandlePaths.get(handle) ?? null;
   }
 
   /**

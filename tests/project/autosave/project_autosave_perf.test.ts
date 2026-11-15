@@ -49,7 +49,7 @@ describe('ProjectAutosave performance', () => {
     await autosave.flush();
     const metrics = autosave.metrics();
     expect(captures).toBe(1);
-    expect(metrics.skipped).toBe(1);
+    expect(metrics.skipped).toBe(0);
     autosave.dispose();
     const store = projectHistoryStoreFor(fileSystem);
     const [entry] = await store.entries();

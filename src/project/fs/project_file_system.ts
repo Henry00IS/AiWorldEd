@@ -75,6 +75,14 @@ export interface ProjectFileSystem {
    */
   fileHandle(path: string): Promise<SceneFileHandle | null>;
   /**
+   * Returns the project-relative path of a file handle that is inside this
+   * folder, or null when the file is elsewhere.
+   *
+   * @param handle File handle.
+   * @returns Path, or null.
+   */
+  filePath(handle: SceneFileHandle): Promise<string | null>;
+  /**
    * Deletes a file or an empty folder; a missing one is not an error.
    *
    * @param path File path.

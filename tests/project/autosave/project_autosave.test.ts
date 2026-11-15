@@ -220,7 +220,7 @@ describe('ProjectAutosave', () => {
     edits.state = saved;
     await autosave.flush();
     expect(capture).toHaveBeenCalledTimes(1);
-    expect(autosave.metrics().skipped).toBe(2);
+    expect(autosave.metrics().skipped).toBe(1);
   });
 
   it('does not write a state that was just loaded from the history', async () => {

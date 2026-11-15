@@ -11,6 +11,7 @@ import {
   DIALOG_PROJECT_HISTORY_DAY_ICON_PX,
   dialogProjectHistoryDaysRender,
   dialogProjectHistoryEntriesRender,
+  type DialogProjectHistoryEntriesEvents,
 } from './dialog_project_history_rows.js';
 import { DialogProjectHistorySlideshow, dialogProjectHistorySlidePhase } from './dialog_project_history_slideshow.js';
 import {
@@ -160,12 +161,20 @@ export class DialogProjectHistory extends PanelFloating {
     const entries = await this.source.entries();
     if (this.resolver === null) return;
     this.days = projectHistoryDays(entries);
+    this.selectionKeep();
+    this.render();
+  }
+
+  /**
+   * Keeps the selected day and save when they are still listed, otherwise
+   * selects the newest day and its first save.
+   */
+  private selectionKeep(): void {
     const group = this.days.find((item) => item.day === this.day) ?? this.days[0] ?? null;
     this.day = group?.day ?? null;
     if (group === null || !group.entries.some((entry) => entry.id === this.selected))
       this.selected = group?.entries[0]?.id ?? null;
     if (!this.entries().some((entry) => entry.id === this.confirming)) this.confirming = null;
-    this.render();
   }
 
   /**
@@ -186,9 +195,19 @@ export class DialogProjectHistory extends PanelFloating {
     return this.entries().find((entry) => entry.id === this.selected) ?? null;
   }
 
-  /** Redraws both lists and the slideshows. */
+  /** Redraws both lists and the slideshows, keeping each list's scroll. */
   private render(): void {
+    const scroll = this.scrollPositions();
     this.preview.hide();
+    this.daysDraw();
+    this.entriesDraw();
+    this.panes.days.sync();
+    this.panes.entries.sync();
+    this.scrollPositionsSet(scroll);
+  }
+
+  /** Redraws the day list and its slideshows. */
+  private daysDraw(): void {
     dialogProjectHistoryDaysRender(
       this.panes.days.content,
       this.days,
@@ -197,6 +216,10 @@ export class DialogProjectHistory extends PanelFloating {
       (group, index) => this.slideshowOf(group, index),
     );
     this.slideshowsPrune();
+  }
+
+  /** Redraws the saves of the selected day. */
+  private entriesDraw(): void {
     this.panes.entries.content.setAttribute(
       'aria-label',
       this.day === null ? 'Saves' : `Saves Of ${projectHistoryDayLabel(this.day)}`,
@@ -205,18 +228,44 @@ export class DialogProjectHistory extends PanelFloating {
       this.panes.entries.content,
       this.entries(),
       { selected: this.selected, confirming: this.confirming },
-      {
-        select: (entry) => this.select(entry.id),
-        restore: (entry) => void this.act(() => this.source.restore(entry)),
-        star: (entry) => void this.act(() => this.source.star(entry, !entry.starred)),
-        confirmStart: (entry) => this.confirmSet(entry.id),
-        remove: (entry) => void this.act(() => this.source.remove(entry)),
-        confirmCancel: () => this.confirmSet(null),
-        thumbnail: (entry, box) => this.thumbnail(entry, box),
-      },
+      this.entriesEvents(),
     );
-    this.panes.days.sync();
-    this.panes.entries.sync();
+  }
+
+  /**
+   * Builds the row actions of the saves list.
+   *
+   * @returns Row events.
+   */
+  private entriesEvents(): DialogProjectHistoryEntriesEvents {
+    return {
+      select: (entry: ProjectHistoryEntry) => this.select(entry.id),
+      restore: (entry: ProjectHistoryEntry) => void this.act(() => this.source.restore(entry), entry),
+      star: (entry: ProjectHistoryEntry) => void this.act(() => this.source.star(entry, !entry.starred)),
+      confirmStart: (entry: ProjectHistoryEntry) => this.confirmSet(entry.id),
+      remove: (entry: ProjectHistoryEntry) => void this.act(() => this.source.remove(entry)),
+      confirmCancel: () => this.confirmSet(null),
+      thumbnail: (entry: ProjectHistoryEntry, box: HTMLElement) => this.thumbnail(entry, box),
+    };
+  }
+
+  /**
+   * Reads the scroll position of both lists.
+   *
+   * @returns Scroll positions.
+   */
+  private scrollPositions(): { days: number; entries: number } {
+    return { days: this.panes.days.scroller.scrollTop, entries: this.panes.entries.scroller.scrollTop };
+  }
+
+  /**
+   * Restores the scroll position of both lists.
+   *
+   * @param scroll Positions to restore.
+   */
+  private scrollPositionsSet(scroll: { days: number; entries: number }): void {
+    this.panes.days.scroller.scrollTop = scroll.days;
+    this.panes.entries.scroller.scrollTop = scroll.entries;
   }
 
   /**
@@ -277,6 +326,7 @@ export class DialogProjectHistory extends PanelFloating {
     if (this.confirming !== id) this.confirming = null;
     this.render();
     this.focusSelected();
+    this.selectedReveal();
   }
 
   /**
@@ -297,13 +347,15 @@ export class DialogProjectHistory extends PanelFloating {
    * Runs an action, then shows its outcome.
    *
    * @param run Action.
+   * @param entry Save to keep highlighted afterwards, or omitted.
    */
-  private async act(run: () => Promise<DialogProjectHistoryResult>): Promise<void> {
+  private async act(run: () => Promise<DialogProjectHistoryResult>, entry?: ProjectHistoryEntry): Promise<void> {
     if (this.busy) return;
     this.busy = true;
     try {
       const result = await run();
       this.confirming = null;
+      if (entry !== undefined) this.selected = entry.id;
       this.statusShow(result.message);
       await this.refresh();
     } finally {
@@ -342,13 +394,33 @@ export class DialogProjectHistory extends PanelFloating {
     this.preview.bind(box, entry.id, url);
   }
 
-  /** Moves keyboard focus to the selected save. */
+  /** Moves keyboard focus to the selected save without moving the list. */
   private focusSelected(): void {
-    if (this.selected === null) return;
-    const row = this.panes.entries.content.querySelector<HTMLElement>(
-      `[data-history-entry="${CSS.escape(this.selected)}"]`,
-    );
-    row?.focus({ preventScroll: false });
+    this.selectedRow()?.focus({ preventScroll: true });
+  }
+
+  /**
+   * Scrolls the selected save into view when it sits outside the list, without
+   * jumping to the top of the list.
+   */
+  private selectedReveal(): void {
+    const row = this.selectedRow();
+    const scroller = this.panes.entries.scroller;
+    if (row === null) return;
+    const rowRect = row.getBoundingClientRect();
+    const scrollerRect = scroller.getBoundingClientRect();
+    if (rowRect.top < scrollerRect.top) scroller.scrollTop -= scrollerRect.top - rowRect.top;
+    else if (rowRect.bottom > scrollerRect.bottom) scroller.scrollTop += rowRect.bottom - scrollerRect.bottom;
+  }
+
+  /**
+   * Returns the selected save's row.
+   *
+   * @returns Row, or null.
+   */
+  private selectedRow(): HTMLElement | null {
+    if (this.selected === null) return null;
+    return this.panes.entries.content.querySelector(`[data-history-entry="${CSS.escape(this.selected)}"]`);
   }
 
   /**
@@ -385,7 +457,7 @@ export class DialogProjectHistory extends PanelFloating {
       if (next !== undefined) this.select(next.id);
     } else if (event.key === 'Enter' && entry !== null) {
       event.preventDefault();
-      void this.act(() => this.source.restore(entry));
+      void this.act(() => this.source.restore(entry), entry);
     } else if (event.key === 'Delete' && entry !== null) {
       event.preventDefault();
       this.confirmSet(entry.id);

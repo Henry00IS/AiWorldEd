@@ -9,6 +9,7 @@ import { ProjectAutosave } from '@/project/autosave/project_autosave.js';
 import { ControllerProjectHistory } from '@/project/history/controller_project_history.js';
 import { PanelProject, type PanelProjectState } from '@/project/ui/panel_project.js';
 import { ProjectSceneOpener } from './project_scene_opener.js';
+import type { SceneFileHandle } from '@/io/scene_file/scene_file_session.js';
 import type { HostProjectEditor, ProjectModelPlacement } from './host_project_editor.js';
 import type { ProjectFileKind } from '@/project/fs/project_file_kind.js';
 import { CurveThumbnails } from '@/curve/ui/curve_thumbnails.js';
@@ -155,9 +156,21 @@ export class ControllerProjectEditor {
     return this.project.pendingName() !== null ? this.project.reopen() : this.project.open();
   }
 
-  /** Tells the autosave which scene is now in the editor after any load. */
+  /**
+   * Tells the autosave which project scene is now in the editor. Only applies
+   * while the opener is loading that scene, so a later load notification cannot
+   * forget the path and treat the restored scene as unsaved.
+   */
   sceneLoaded(): void {
-    this.autosave.sceneSet(this.opener.loadingPath());
+    if (this.opener.sceneLoading()) this.autosave.sceneSet(this.opener.loadingPath());
+  }
+
+  /**
+   * Starts a new untitled scene for the autosave (File → New, a file opened
+   * outside the project, or the scene discarded before a room loads).
+   */
+  sceneReset(): void {
+    this.autosave.sceneSet(null);
   }
 
   /**
@@ -166,18 +179,34 @@ export class ControllerProjectEditor {
    * @returns Resolves once written.
    */
   async levelOpened(): Promise<void> {
+    this.sceneReset();
     await this.autosave.snapshot();
   }
 
   /**
    * Makes a snapshot of the level just saved to its file, and of the room when
-   * in one.
+   * in one. Autosaves then belong to that project scene, or to the untitled
+   * level when the file is outside the project.
    *
+   * @param handle Saved file, or null when Save wrote no project file.
    * @returns Resolves once written.
    */
-  async levelSaved(): Promise<void> {
+  async levelSaved(handle?: SceneFileHandle | null): Promise<void> {
+    if (handle !== undefined) this.autosave.sceneSet(await this.savedPath(handle));
     await this.autosave.snapshot();
     await this.host.historyRoom?.()?.snapshot();
+  }
+
+  /**
+   * Returns the project path of a just-saved file, or null when it is not in
+   * the open project.
+   *
+   * @param handle Saved file, or null.
+   * @returns Path, or null.
+   */
+  private async savedPath(handle: SceneFileHandle | null): Promise<string | null> {
+    const fileSystem = this.project.fileSystem();
+    return handle === null || fileSystem === null ? null : fileSystem.filePath(handle);
   }
 
   /**

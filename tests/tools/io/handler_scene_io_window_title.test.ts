@@ -82,4 +82,35 @@ describe('SceneIOHandler window title', () => {
     expect(session.getCurrentHandle()).toBe(handle);
     expect(titles.at(-1)).toBe('start - AI World Editor');
   });
+
+  it('forgets the Save target when a history state is loaded', async () => {
+    install();
+    const target = new THREE.Group();
+    const handle = {
+      name: 'start.aiworld',
+      getFile: async () => sceneFile('start.aiworld'),
+      createWritable: async () => {
+        throw new Error('unused');
+      },
+    };
+    expect(
+      await handler.loadSceneFile(sceneFile('start.aiworld'), target, () => undefined, null, 'start.aiworld', handle),
+    ).toBe(true);
+    expect(handler.getSceneFileSession().hasWritableTarget()).toBe(true);
+    expect(
+      await handler.loadSceneFile(
+        sceneFile('start.aiworld'),
+        target,
+        () => undefined,
+        null,
+        'start.aiworld (saved state)',
+        null,
+      ),
+    ).toBe(true);
+    const session = handler.getSceneFileSession();
+    expect(session.hasWritableTarget()).toBe(false);
+    expect(session.getCurrentFilename()).toBeNull();
+    expect(session.getCurrentHandle()).toBeNull();
+    expect(titles.at(-1)).toBe('AI World Editor');
+  });
 });

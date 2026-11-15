@@ -34,6 +34,8 @@ export interface LayoutCollaborationHostParts {
   sceneIo: HandlerSceneIo;
   refresh: () => void;
   sceneLoaded: () => void;
+  /** Starts an untitled autosave after the scene is discarded. */
+  sceneReset: () => void;
   operationCancel: (refused: boolean) => boolean;
   operationRunning: () => boolean;
   transformDragging: () => boolean;
@@ -96,6 +98,7 @@ function layoutCollaborationSceneDiscard(parts: LayoutCollaborationHostParts): v
   parts.sceneIo.clearScene(parts.world, parts.statusBar);
   hierarchyNameAllocator.reset();
   parts.sceneLoaded();
+  parts.sceneReset();
 }
 
 /**

@@ -89,6 +89,15 @@ export class ProjectFileSystemFileList implements ProjectFileSystem {
     return null;
   }
 
+  /**
+   * Returns null: a picked listing has no file handles.
+   *
+   * @returns Null.
+   */
+  async filePath(): Promise<null> {
+    return null;
+  }
+
   /** Rejects: a picked listing is read-only. */
   async fileRemove(): Promise<void> {
     throw new Error('This folder was opened read-only');
