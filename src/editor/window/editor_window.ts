@@ -17,6 +17,8 @@ import { FaceSelectTool } from '../tools/face_select/face_select_tool.js';
 import { EditSelectTool } from '@/edit/tool/edit_select_tool.js';
 import { EditEdgeCutTool } from '@/edit/tool/edit_edge_cut_tool.js';
 import { EditLoopCutTool } from '@/edit/tool/edit_loop_cut_tool.js';
+import { createEditMeshTool } from '@/edit/tool/edit_mesh_tool_factory.js';
+import { runEditMeshInstantCommand } from '@/edit/tool/edit_mesh_instant_command.js';
 import { GridTool } from '../tools/grid/grid_tool.js';
 import type { ClipTool } from '../tools/clip_tool.js';
 import { managerMouseCursor } from '@/input/manager_mouse_cursor.js';
@@ -990,6 +992,17 @@ export class EditorWindow {
   /** Creates a new knife tool and switches to it as a single-use tool. */
   useSingleUseEditKnifeTool(): void {
     this.useTool(new EditEdgeCutTool());
+  }
+
+  /**
+   * Runs an instant Edit Mode modelling command, or starts its interactive tool
+   * as a single-use tool.
+   *
+   * @param command Command to run.
+   */
+  useEditMeshTool(command: import('@/edit/tool/edit_mesh_tool_command.js').EditMeshToolCommand): void {
+    if (runEditMeshInstantCommand(command, this.services?.getEditMeshOperations?.() ?? null)) return;
+    this.useTool(createEditMeshTool(command));
   }
 
   /** Creates a new loop-cut tool and switches to it as a single-use tool. */

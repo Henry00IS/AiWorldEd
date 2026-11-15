@@ -351,9 +351,6 @@ export interface EditorServices {
   /** Deletes the current Edit Mode component selection. */
   deleteEditSelection?: () => boolean;
 
-  /** Insets the selected Edit Mode mesh faces by one step. */
-  insetEditSelection?: () => boolean;
-
   /** Runs a selection operation on the Edit Mode component selection. */
   selectEditComponents?: (
     operation: import('@/edit/component/component_selection_expand.js').EditSelectOperation,
@@ -363,6 +360,23 @@ export interface EditorServices {
   mergeEditSelection?: (
     mode: import('@/edit/topology/topology_vertex_merge_mode.js').TopologyVertexMergeMode,
   ) => boolean;
+
+  /** Returns the Edit Mode mesh modelling operations (extrude and friends). */
+  getEditMeshOperations?: () =>
+    import('@/edit/topology/handler_component_mesh_operations.js').HandlerComponentMeshOperations | null;
+
+  /** Returns the world pick ray under a client point in Edit Mode. */
+  readEditPointerRay?: (
+    clientX: number,
+    clientY: number,
+    ownerDocument?: Document | null,
+  ) => import('@/edit/tool/edit_loop_cut_slide_ray.js').LoopCutPointerWorldRay | null;
+
+  /**
+   * Snaps a world distance to whole grid steps for Edit Mode tools. Shift
+   * inverts the user snap setting for this sample.
+   */
+  snapEditDistance?: (distance: number, shiftHeld: boolean) => number;
 
   /** Returns the primary scene used for edit overlays. */
   getPrimaryScene?: () => import('three').Scene | null;

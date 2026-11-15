@@ -1,6 +1,7 @@
 import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
 import type { TopologyVertexMergeMode } from '@/edit/topology/topology_vertex_merge_mode.js';
 import type { EditSelectOperation } from '@/edit/component/component_selection_expand.js';
+import type { EditMeshToolCommand } from '@/edit/tool/edit_mesh_tool_command.js';
 
 /** Callbacks for Edit Mode Mesh / Vertex / Edge / Face menus. */
 export interface ViewportToolEditMenuActions {
@@ -10,7 +11,7 @@ export interface ViewportToolEditMenuActions {
   onDelete: () => void;
   onDissolve: () => void;
   onSelect: (operation: EditSelectOperation) => void;
-  onInset: () => void;
+  onMeshTool: (command: EditMeshToolCommand) => void;
 }
 
 /**
@@ -46,7 +47,8 @@ export function buildViewportToolSelectMenuEntries(actions: ViewportToolEditMenu
 }
 
 /**
- * Builds the Edit Mode Mesh menu.
+ * Builds the Edit Mode Mesh menu: tools that work in every component mode and
+ * act on whatever the current selection holds.
  *
  * @param actions Edit tool actions.
  * @returns Menu entries.
@@ -54,14 +56,29 @@ export function buildViewportToolSelectMenuEntries(actions: ViewportToolEditMenu
 export function buildViewportToolMeshMenuEntries(actions: ViewportToolEditMenuActions): ToolbarMenuEntry[] {
   return [
     createAction('Knife Topology Tool', 'K', 'Insert a vertex on a hovered edge', actions.onKnife),
-    createAction('Loop Cut', 'Ctrl+R', 'Cut a convex edge belt and slide it', actions.onLoopCut),
+    createAction(
+      'Make Face',
+      '',
+      'Fill a new mesh face through the selected vertices or edges, for example to close a hole',
+      () => actions.onMeshTool('make_face'),
+    ),
+    createAction(
+      'Fill Holes',
+      '',
+      'Close each hole whose rim touches the selected vertices or edges with a new face',
+      () => actions.onMeshTool('fill_holes'),
+    ),
     { kind: 'separator' },
-    createMergeSubmenu(actions.onMerge),
-    createAction('Delete', 'Backspace', 'Delete the current component selection', actions.onDelete),
+    createAction(
+      'Delete',
+      'Backspace',
+      'Delete the selected vertices, edges or faces; removing vertices or edges also removes the faces that use them',
+      actions.onDelete,
+    ),
     createAction(
       'Dissolve',
       'Delete',
-      'Dissolve the current component selection into the surrounding faces',
+      'Remove the selected vertices, edges or faces and join the surrounding faces',
       actions.onDissolve,
     ),
   ];
@@ -76,17 +93,14 @@ export function buildViewportToolMeshMenuEntries(actions: ViewportToolEditMenuAc
 export function buildViewportToolVertexMenuEntries(actions: ViewportToolEditMenuActions): ToolbarMenuEntry[] {
   return [
     createMergeSubmenu(actions.onMerge),
-    createAction(
-      'Delete Vertices',
-      'Backspace',
-      'Delete selected vertices and the faces that use them',
-      actions.onDelete,
+    createAction('Connect Vertices', 'J', 'Cut the faces between the selected vertices with new edges', () =>
+      actions.onMeshTool('connect_vertices'),
     ),
     createAction(
-      'Dissolve Vertices',
-      'Delete',
-      'Dissolve selected vertices into the surrounding faces',
-      actions.onDissolve,
+      'Smooth Vertices',
+      '',
+      'Relax the selected mesh vertices towards their neighbours; run it again to smooth further',
+      () => actions.onMeshTool('smooth_vertices'),
     ),
   ];
 }
@@ -100,14 +114,38 @@ export function buildViewportToolVertexMenuEntries(actions: ViewportToolEditMenu
 export function buildViewportToolEdgeMenuEntries(actions: ViewportToolEditMenuActions): ToolbarMenuEntry[] {
   return [
     createAction('Loop Cut', 'Ctrl+R', 'Cut a convex edge belt and slide it', actions.onLoopCut),
-    createAction('Knife Topology Tool', 'K', 'Insert a vertex on a hovered edge', actions.onKnife),
-    { kind: 'separator' },
-    createAction('Delete Edges', 'Backspace', 'Delete edge vertices and every face that used them', actions.onDelete),
+    createAction('Subdivide Edges', '', 'Split each selected mesh edge in half; run it again for finer cuts', () =>
+      actions.onMeshTool('subdivide_edges'),
+    ),
     createAction(
-      'Dissolve Edges',
-      'Delete',
-      'Join the faces beside the selected edges into one face',
-      actions.onDissolve,
+      'Bevel Edges',
+      'Ctrl+B',
+      'Cut the selected mesh edges off with a flat chamfer; move away from the edges or type a width',
+      () => actions.onMeshTool('bevel_edges'),
+    ),
+    createAction(
+      'Extrude Edges',
+      'E',
+      'Pull the selected open border edges straight out of their faces into a new strip; the new edges stay selected',
+      () => actions.onMeshTool('extrude_edges'),
+    ),
+    createAction(
+      'Bridge Edge Loops',
+      '',
+      'Join two selected edge loops, or two open edge runs of the same length, with a strip of faces',
+      () => actions.onMeshTool('bridge_edge_loops'),
+    ),
+    createAction(
+      'Rotate Edges',
+      '',
+      'Turn each selected edge between two mesh faces to the next corners, such as the other diagonal of a quad',
+      () => actions.onMeshTool('rotate_edges'),
+    ),
+    createAction(
+      'Collapse Edges',
+      '',
+      'Merge each run of selected mesh edges into one vertex at its middle, removing faces that shrink away',
+      () => actions.onMeshTool('collapse_edges'),
     ),
   ];
 }
@@ -119,16 +157,70 @@ export function buildViewportToolEdgeMenuEntries(actions: ViewportToolEditMenuAc
  * @returns Menu entries.
  */
 export function buildViewportToolFaceMenuEntries(actions: ViewportToolEditMenuActions): ToolbarMenuEntry[] {
+  const tool = (command: EditMeshToolCommand) => () => actions.onMeshTool(command);
   return [
-    createAction('Inset Faces', 'I', 'Shrink the selected mesh faces into a ring of new faces', actions.onInset),
+    createAction(
+      'Extrude Faces',
+      'E',
+      'Pull the selected mesh faces out along their normal, or push them in to cut a pocket; touching faces move together',
+      tool('extrude_faces'),
+    ),
+    createAction(
+      'Extrude Faces Individually',
+      '',
+      'Pull each selected mesh face out along its own normal, with walls between neighbours',
+      tool('extrude_faces_individual'),
+    ),
+    createAction(
+      'Inset Faces',
+      'I',
+      'Shrink the selected mesh faces inside their outline and ring them with new faces; Tab sets the depth, I toggles individual faces',
+      tool('inset_faces'),
+    ),
+    createAction(
+      'Solidify',
+      '',
+      'Give loose mesh faces, such as a single panel, a thickness so they become a closed slab',
+      tool('solidify_faces'),
+    ),
+    createAction(
+      'Shrink / Fatten',
+      '',
+      'Move the selected mesh faces in or out along their normals so the surface swells or sinks without new faces',
+      tool('fatten_faces'),
+    ),
     { kind: 'separator' },
     createAction(
-      'Delete Faces',
-      'Backspace',
-      'Delete the selected faces and leave the others unchanged',
-      actions.onDelete,
+      'Duplicate Faces',
+      'Shift+D',
+      'Copy the selected mesh faces onto their own vertices and select the copy, ready to move',
+      tool('duplicate_faces'),
     ),
-    createAction('Dissolve Faces', 'Delete', 'Join two adjacent selected faces into one', actions.onDissolve),
+    createAction(
+      'Split Faces',
+      'Y',
+      'Detach the selected mesh faces from the rest of the mesh so they move on their own',
+      tool('split_faces'),
+    ),
+    createAction('Flip Faces', '', 'Turn the selected mesh faces to face the other way', tool('flip_faces')),
+    createAction(
+      'Triangulate Faces',
+      '',
+      'Split the selected mesh faces into triangles along their outline',
+      tool('triangulate_faces'),
+    ),
+    createAction(
+      'Poke Faces',
+      '',
+      'Fan the selected mesh faces into triangles around a new centre vertex',
+      tool('poke_faces'),
+    ),
+    createAction(
+      'Join Triangles',
+      '',
+      'Join flat pairs of selected triangles into quads, for example after importing a triangulated model',
+      tool('join_triangles'),
+    ),
   ];
 }
 

@@ -7,6 +7,7 @@ import { ScaleWidget } from '@/editor/widgets/scale_widget.js';
 import { EditEdgeCutTool } from './edit_edge_cut_tool.js';
 import { EditLoopCutTool } from './edit_loop_cut_tool.js';
 import { openEditMergeMenu } from './edit_merge_menu.js';
+import { editMeshPlainKeyCommand } from './edit_mesh_shortcut.js';
 import type { EditSelectOperation } from '@/edit/component/component_selection_expand.js';
 
 /**
@@ -153,7 +154,8 @@ export class EditSelectTool extends Tool {
 
   /**
    * Handles knife, loop cut (Ctrl+R without Shift or Alt, so Ctrl+Shift+R still
-   * hard-reloads), merge, and dissolve keys.
+   * hard-reloads), merge, delete, and the modelling keys (E extrude, I inset, J
+   * connect, Shift+D duplicate, Ctrl+B bevel).
    *
    * @param keyCode Key code.
    * @param event Keyboard event.
@@ -174,8 +176,11 @@ export class EditSelectTool extends Tool {
     if (keyCode === 'KeyX' && !this.editor?.isModifierPressed) {
       return this.editor?.getServices()?.deleteEditSelection?.() === true;
     }
-    if (keyCode === 'KeyI' && !this.editor?.isModifierPressed && !event?.altKey) {
-      return this.editor?.getServices()?.insetEditSelection?.() === true;
+    const meshCommand = editMeshPlainKeyCommand(keyCode, event, this.editor?.isModifierPressed === true);
+    if (meshCommand) {
+      event?.preventDefault();
+      this.editor?.useEditMeshTool(meshCommand);
+      return true;
     }
     const operation = event ? editSelectShortcutOperation(keyCode, event) : null;
     if (operation) {

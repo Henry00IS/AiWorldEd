@@ -53,6 +53,8 @@ import {
 import { findPickSurfaceAtClientPoint } from '@/utils/pointer_client_hit.js';
 import { snapLoopCutParameterToGridPlanes } from '@/edit/tool/edit_loop_cut_slide_snap.js';
 import { snapKnifeParameterToGrid } from '@/edit/tool/edit_edge_cut_snap.js';
+import { editSnapDistanceToGrid } from '@/edit/tool/edit_axis_drag.js';
+import { gridSnapInvertedByShift } from '@/transform/snap/grid_snap_shift_precision.js';
 import type { LoopCutBeltParameterRange } from '@/edit/topology/topology_loop_cut_belt_range.js';
 
 /** Dependencies for building the Shape Editor-style tool stack. */
@@ -666,9 +668,17 @@ function createEditorServices(
       snapEditKnifeParameterWithShift(deps, worldA, worldB, parameter, shiftHeld),
     dissolveEditSelection: () => deps.getEditModeCoordinator?.()?.dissolveSelection() === true,
     deleteEditSelection: () => deps.getEditModeCoordinator?.()?.deleteSelection() === true,
-    insetEditSelection: () => deps.getEditModeCoordinator?.()?.insetSelection() === true,
     selectEditComponents: (operation) => deps.getEditModeCoordinator?.()?.selectComponents(operation) === true,
     mergeEditSelection: (mode) => deps.getEditModeCoordinator?.()?.mergeSelection(mode) === true,
+    getEditMeshOperations: () => deps.getEditModeCoordinator?.()?.getMeshOperations() ?? null,
+    readEditPointerRay: (clientX, clientY, ownerDocument) =>
+      deps.getEditModeCoordinator?.()?.readPointerWorldRay(clientX, clientY, ownerDocument ?? null) ?? null,
+    snapEditDistance: (distance, shiftHeld) =>
+      editSnapDistanceToGrid(
+        distance,
+        deps.gridSnap.getInterval(),
+        gridSnapInvertedByShift(deps.getUserSnapEnabled(), shiftHeld),
+      ),
     getPrimaryScene: () => deps.getEditModeCoordinator?.()?.getOverlayScene() ?? null,
     getEditSession: () => {
       const coordinator = deps.getEditModeCoordinator?.();

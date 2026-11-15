@@ -4,6 +4,7 @@ import { CommandStack } from '@/commands/command_stack.js';
 import { EditorComponentMode } from '@/types/editor_component_mode.js';
 import { EditSession } from '@/edit/session/edit_session.js';
 import { HandlerComponentTopology } from '@/edit/topology/handler_component_topology.js';
+import { HandlerComponentMeshOperations } from '@/edit/topology/handler_component_mesh_operations.js';
 import { detectTopologyCoincidentClusters } from '@/edit/topology/topology_coincident.js';
 import { TOPOLOGY_VERTEX_EQUAL_EPSILON } from '@/edit/topology/topology_epsilon.js';
 import { brushToWorkingGeometry } from '@/edit/topology/topology_working_from_brush.js';
@@ -51,23 +52,40 @@ describe('HandlerComponentTopology merge selection', () => {
   });
 });
 
-describe('HandlerComponentTopology inset selection', () => {
+describe('HandlerComponentMeshOperations on brushes', () => {
   it('leaves brush faces whole so the brush stays a valid solid', () => {
     const fixture = openBoxEditSession();
+    const operations = createMeshOperations(fixture.session);
     fixture.session.setComponentMode(EditorComponentMode.FACE, []);
     fixture.session
       .getComponentSelection()
       .replaceAll([{ targetId: fixture.brushId, kind: 'face', componentKey: '0' }]);
     const faces = fixture.brush.faces.length;
-    expect(fixture.handler.insetSelection(0.25)).toBe(false);
+    expect(operations.insetSelectedFaces(0.1, 0, 'region')).toBe(false);
+    expect(operations.extrudeSelectedFaces(0.5, 'region')).toBe(false);
     expect(readSessionBrush(fixture).faces.length).toBe(faces);
   });
 
   it('only insets in Face mode', () => {
     const fixture = openBoxEditSession();
-    expect(fixture.handler.insetSelection(0.25)).toBe(false);
+    expect(createMeshOperations(fixture.session).insetSelectedFaces(0.1, 0, 'region')).toBe(false);
   });
 });
+
+/**
+ * Builds a mesh operations handler bound to one session.
+ *
+ * @param session Edit session.
+ * @returns Handler.
+ */
+function createMeshOperations(session: EditSession): HandlerComponentMeshOperations {
+  return new HandlerComponentMeshOperations({
+    getSession: () => session,
+    getCommandStack: () => new CommandStack(8),
+    refreshPresentation: () => undefined,
+    showStatusMessage: () => undefined,
+  });
+}
 
 /**
  * Opens an edit session whose box has one vertex copied onto another.
