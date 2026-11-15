@@ -4,6 +4,11 @@ import {
   solidScriptConfiguratorFieldBuild,
   type SolidScriptConfiguratorField,
 } from './solid_script_configurator_fields.js';
+import {
+  SOLID_SCRIPT_NAMES_COMMAND,
+  type SolidScriptName,
+} from '@/solid_script/document/solid_script_document_names.js';
+import { solidScriptInputRead } from '@/solid_script/language/solid_script_input.js';
 import { SolidScriptDialog } from './solid_script_dialog.js';
 
 /**
@@ -25,12 +30,14 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
    * @param command Command of the line.
    * @param values Stored values.
    * @param apply Stores the configured values.
+   * @param names Names the script defines, for suggestions and checks.
    */
   constructor(
     host: HTMLElement,
     private readonly command: SolidScriptCommand,
     values: SolidScriptCommandValues,
     private readonly apply: (values: Record<string, string>) => void,
+    names: readonly SolidScriptName[] = [],
   ) {
     super(host, command.label, 'OK');
     this.root.dataset['solidScriptConfigurator'] = command.id;
@@ -40,8 +47,11 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
     this.manualBuild();
     this.content.append(this.note(command.description), this.manual);
     for (const parameter of command.parameters) {
-      const field = solidScriptConfiguratorFieldBuild(parameter, values[parameter.key] ?? parameter.default, () =>
-        this.refresh(),
+      const field = solidScriptConfiguratorFieldBuild(
+        parameter,
+        values[parameter.key] ?? parameter.default,
+        () => this.refresh(),
+        { names, extra: SOLID_SCRIPT_NAMES_COMMAND[command.id] ?? [] },
       );
       this.fields.set(parameter.key, field);
       this.content.append(field.element);
@@ -102,11 +112,33 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
     return Object.fromEntries([...this.fields].map(([key, field]) => [key, field.read()]));
   }
 
-  /** Shows the line as listed and whether the values can be used. */
+  /**
+   * Shows the line as listed and whether the values can be used: a mistake in
+   * red disables OK, a note on names no line sets yet is shown dimmed.
+   */
   private refresh(): void {
-    const problem = [...this.fields.values()].map((field) => field.problem()).find((text) => text !== '') ?? '';
+    const fields = [...this.fields.values()];
+    const problem = fields.map((field) => field.problem()).find((text) => text !== '') || this.commandProblem();
+    const warning = fields.map((field) => field.warning()).find((text) => text !== '') ?? '';
     this.preview.textContent = this.command.listingText(this.values());
-    this.problem.textContent = problem;
+    this.problem.textContent = problem || warning;
+    this.problem.classList.toggle(SOLID_SCRIPT_EDITOR_CLASSES.fieldWarning, problem === '' && warning !== '');
     this.confirmEnable(problem === '');
+  }
+
+  /**
+   * Checks the values together where the command reads them before running,
+   * such as the type and limits of an Input line.
+   *
+   * @returns Problem, or an empty string.
+   */
+  private commandProblem(): string {
+    if (this.command.id !== 'input') return '';
+    try {
+      solidScriptInputRead(this.values());
+      return '';
+    } catch (error) {
+      return error instanceof Error ? `${error.message.charAt(0).toUpperCase()}${error.message.slice(1)}.` : '';
+    }
   }
 }

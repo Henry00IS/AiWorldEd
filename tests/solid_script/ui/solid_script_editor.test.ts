@@ -228,6 +228,73 @@ describe('SolidScript editor', () => {
     expect(document.querySelector('[data-solid-script-configurator="cube"]')).not.toBeNull();
   });
 
+  it('suggests the names of the script while typing, inserts them and checks fields as they are typed', () => {
+    const { script } = editorFixture([
+      { command: 'input', values: { name: 'steps', type: 'count', default: '3' } },
+      { command: 'variable', values: { name: 'width', value: '2' } },
+      { command: 'cube' },
+    ]);
+    doubleClick(chip(2));
+    const [x] = document.querySelectorAll<HTMLInputElement>('[data-solid-script-configurator="cube"] input');
+    if (!x) throw new Error('Expected the Size X input');
+    x.focus();
+    x.setSelectionRange(0, x.value.length);
+    type(x, '[w');
+    x.setSelectionRange(2, 2);
+    x.dispatchEvent(new Event('input', { bubbles: true }));
+    const list = find('[data-solid-script-configurator="cube"] [role="listbox"]');
+    expect(list.hidden).toBe(false);
+    expect([...list.querySelectorAll('[role="option"]')].map((option) => option.firstChild?.textContent)).toEqual([
+      'width',
+    ]);
+    press(x, 'Enter');
+    expect(x.value).toBe('[width]');
+    expect(document.querySelector('[data-solid-script-configurator="cube"]')).not.toBeNull();
+    type(x, '[depth]');
+    const dialog = find('[data-solid-script-configurator="cube"]');
+    expect(dialog.textContent).toContain('no line sets [depth] yet');
+    expect(tool('OK').disabled).toBe(false);
+    type(x, '[=1 +');
+    expect(x.classList.contains('solid-script-editor-invalid')).toBe(true);
+    expect(tool('OK').disabled).toBe(true);
+    type(x, '');
+    x.setSelectionRange(0, 0);
+    find<HTMLButtonElement>(
+      '[data-solid-script-configurator="cube"] button[aria-label="Insert Name into Size"]',
+    ).click();
+    const options = [...list.querySelectorAll('[role="option"]')].map((option) => option.firstChild?.textContent);
+    expect(options.slice(0, 2)).toEqual(['steps', 'width']);
+    expect(list.textContent).toContain('Built-In Functions');
+    list.querySelector('[role="option"]')?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    expect(x.value).toBe('[steps]');
+    tool('OK').click();
+    expect(script().blocks[2]?.values['size']).toMatch(/^\[steps\], /);
+  });
+
+  it('checks Input lines while they are configured and lists what the script defines under Variables', () => {
+    editorFixture([
+      { command: 'input', values: { name: 'steps', type: 'count', default: '3' } },
+      { command: 'variable', values: { name: 'width', value: '2' } },
+      { command: 'cube' },
+    ]);
+    doubleClick(chip(0));
+    const type_ = find<HTMLInputElement>('[data-solid-script-configurator="input"] input[aria-label="Type"]');
+    type(type_, 'colour');
+    expect(find('[data-solid-script-configurator="input"]').textContent).toContain('Type must be one of');
+    expect(tool('OK').disabled).toBe(true);
+    press(type_, 'Escape');
+    find<HTMLButtonElement>('[data-tab="variables"]').click();
+    const definitions = find('.solid-script-editor-definitions');
+    expect(definitions.textContent).toContain('Defined In The Script');
+    expect(definitions.textContent).toContain('Inputs');
+    expect(definitions.textContent).toContain('count input · line 1');
+    const width = [...definitions.querySelectorAll<HTMLElement>('.solid-script-editor-definition')].find((row) =>
+      row.textContent?.startsWith('width'),
+    );
+    width?.click();
+    expect(document.activeElement).toBe(chip(1));
+  });
+
   it('shows the configurator as a window titled with the command, OK on the left and Cancel on the right', () => {
     const { commands } = editorFixture([{ command: 'cube' }]);
     doubleClick(chip(0));

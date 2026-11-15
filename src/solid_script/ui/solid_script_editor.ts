@@ -27,6 +27,7 @@ import {
 } from '@/solid_script/debug/solid_script_debug_breakpoints.js';
 import { SolidScriptEditorToolbar } from './solid_script_editor_toolbar.js';
 import { SolidScriptEditorHelp } from './solid_script_editor_help.js';
+import { solidScriptDocumentNames } from '@/solid_script/document/solid_script_document_names.js';
 import { SolidScriptConfigurator } from './solid_script_configurator.js';
 import { SolidScriptEditorOutput } from './solid_script_editor_output.js';
 import { solidScriptEditorLoad, solidScriptEditorSave } from './solid_script_editor_files.js';
@@ -94,6 +95,7 @@ export class SolidScriptEditor extends PanelFloating {
       notice: (text) => this.noticeShow(text),
       breakpoint: (line) => this.breakpointToggle(line),
     });
+    this.output.reveal = (line) => this.lines.focusLine(line);
     this.toolbar = new SolidScriptEditorToolbar({
       start: () => this.debugger.start(),
       debug: () => this.debugger.play(),
@@ -305,7 +307,11 @@ export class SolidScriptEditor extends PanelFloating {
   private debugChanged(): void {
     const stepped = this.debugger.line();
     const atBreak = this.debugger.atBreakpoint();
-    this.output.show(this.session.document(), this.debugger.runOptions(), this.debugCaption());
+    this.output.show(
+      this.session.document(),
+      this.debugger.runOptions() ?? { inputs: this.session.inputs() },
+      this.debugCaption(),
+    );
     const traced = new Set(this.tracing ? this.debugger.passedLines() : []);
     const breakpoints = this.breakpointLines();
     this.lines.mark({ stepped, failed: this.output.failedLine(), traced, breakpoints, atBreak });
@@ -422,7 +428,8 @@ export class SolidScriptEditor extends PanelFloating {
       this.commit(inserted.document, inserted.line);
     };
     if (found.parameters.length === 0) return place();
-    new SolidScriptConfigurator(this.root.ownerDocument.body, found, found.valuesDefault(), place).show();
+    const names = solidScriptDocumentNames(this.session.document());
+    new SolidScriptConfigurator(this.root.ownerDocument.body, found, found.valuesDefault(), place, names).show();
   }
 
   /**
@@ -440,11 +447,13 @@ export class SolidScriptEditor extends PanelFloating {
       return this.noticeShow(
         `${solidScriptBlockNesting(block) === 'close' ? 'End' : command.label} has nothing to configure.`,
       );
-    new SolidScriptConfigurator(this.root.ownerDocument.body, command, block.values, (values) => {
+    const names = solidScriptDocumentNames(this.session.document());
+    const apply = (values: Record<string, string>): void => {
       const document = this.session.document();
       const index = document.blocks.findIndex((candidate) => candidate.id === block.id);
       if (index >= 0) this.commit(solidScriptDocumentLineSet(document, index, { ...block, values }), index);
-    }).show();
+    };
+    new SolidScriptConfigurator(this.root.ownerDocument.body, command, block.values, apply, names).show();
   }
 
   /**

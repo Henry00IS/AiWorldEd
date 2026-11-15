@@ -1,6 +1,11 @@
 import type { SolidScriptCommandParameter } from '@/solid_script/commands/solid_script_command.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import { solidScriptFieldCheck, solidScriptFieldSplit } from '@/solid_script/language/solid_script_field.js';
+import {
+  solidScriptFieldNamesUnknown,
+  type SolidScriptName,
+} from '@/solid_script/document/solid_script_document_names.js';
+import { SolidScriptConfiguratorNames } from './solid_script_configurator_names.js';
 
 /** One labelled field of the configurator. */
 export interface SolidScriptConfiguratorField {
@@ -10,7 +15,23 @@ export interface SolidScriptConfiguratorField {
   read: () => string;
   /** Returns an error when the value cannot be used, or an empty string. */
   problem: () => string;
+  /** Returns a note on names no line defines, or an empty string. */
+  warning: () => string;
 }
+
+/** What a field can refer to: the names of the script around the line. */
+export interface SolidScriptConfiguratorScope {
+  /** Names the script defines. */
+  names: readonly SolidScriptName[];
+  /** Names the command fills in for its own formulas. */
+  extra: readonly string[];
+}
+
+/** Field kinds whose text is used as typed, without [name] or formulas. */
+const SOLID_SCRIPT_CONFIGURATOR_RAW = new Set(['name', 'target', 'text']);
+
+/** How a field's inputs are read and checked. */
+type SolidScriptConfiguratorFieldReader = Pick<SolidScriptConfiguratorField, 'read' | 'problem'>;
 
 /** Axis captions of vector fields. */
 const SOLID_SCRIPT_CONFIGURATOR_AXES = ['X', 'Y', 'Z'];
@@ -30,12 +51,14 @@ const SOLID_SCRIPT_CONFIGURATOR_TARGET = /^[A-Za-z_][A-Za-z0-9_]*(\s*\(.*\))?$/;
  * @param parameter Parameter.
  * @param value Stored field text.
  * @param changed Runs after every edit.
+ * @param scope Names the field may refer to.
  * @returns Field.
  */
 export function solidScriptConfiguratorFieldBuild(
   parameter: SolidScriptCommandParameter,
   value: string,
   changed: () => void,
+  scope: SolidScriptConfiguratorScope = { names: [], extra: [] },
 ): SolidScriptConfiguratorField {
   const row = document.createElement('label');
   row.className = SOLID_SCRIPT_EDITOR_CLASSES.field;
@@ -46,13 +69,71 @@ export function solidScriptConfiguratorFieldBuild(
   const inputs = document.createElement('span');
   inputs.className = SOLID_SCRIPT_EDITOR_CLASSES.fieldInputs;
   const field = solidScriptConfiguratorInputs(parameter, value, inputs);
+  if (parameter.type !== 'name' && parameter.type !== 'target')
+    solidScriptConfiguratorNamesBind(inputs, parameter, scope);
   inputs.addEventListener('input', changed);
   inputs.addEventListener('change', changed);
+  const known = new Set([
+    ...scope.names
+      .filter((entry) => !['Functions', 'Parts', 'Events'].includes(entry.category))
+      .map((entry) => entry.name),
+    ...scope.extra,
+  ]);
+  const warning = (): string => {
+    if (SOLID_SCRIPT_CONFIGURATOR_RAW.has(parameter.type)) return '';
+    const unknown = solidScriptFieldNamesUnknown(field.read(), known);
+    if (unknown.length === 0) return '';
+    const list = unknown.map((name) => `[${name}]`).join(', ');
+    return `${parameter.label}: no line sets ${list} yet; it must exist before this line runs.`;
+  };
   const hint = document.createElement('span');
   hint.className = SOLID_SCRIPT_EDITOR_CLASSES.fieldHint;
   hint.textContent = parameter.hint;
   row.append(caption, inputs, hint);
-  return { element: row, ...field };
+  return {
+    element: row,
+    read: field.read,
+    warning,
+    problem: () => {
+      const problem = field.problem();
+      for (const input of inputs.querySelectorAll('input[type="text"]'))
+        input.classList.toggle(SOLID_SCRIPT_EDITOR_CLASSES.invalid, problem !== '');
+      return problem;
+    },
+  };
+}
+
+/**
+ * Adds name suggestions to the text inputs of a field, and an Insert Name
+ * button listing every name by category for the input last focused.
+ *
+ * @param inputs Field inputs container.
+ * @param parameter Parameter.
+ * @param scope Names the field may refer to.
+ */
+function solidScriptConfiguratorNamesBind(
+  inputs: HTMLElement,
+  parameter: SolidScriptCommandParameter,
+  scope: SolidScriptConfiguratorScope,
+): void {
+  const texts = [...inputs.querySelectorAll<HTMLInputElement>('input[type="text"]')];
+  if (texts.length === 0) return;
+  const lists = texts.map((input) => new SolidScriptConfiguratorNames(input, scope.names, scope.extra));
+  let last = 0;
+  texts.forEach((input, index) => input.addEventListener('focus', () => (last = index)));
+  inputs.append(...lists.map((list) => list.element()));
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = SOLID_SCRIPT_EDITOR_CLASSES.insertName;
+  button.textContent = '[…]';
+  button.title = 'Insert Name: a variable, input, counter or function at the cursor';
+  button.setAttribute('aria-label', `Insert Name into ${parameter.label}`);
+  button.addEventListener('mousedown', (event) => event.preventDefault());
+  button.addEventListener('click', (event) => {
+    event.preventDefault();
+    lists[last]?.openAll();
+  });
+  inputs.append(button);
 }
 
 /**
@@ -67,7 +148,7 @@ function solidScriptConfiguratorInputs(
   parameter: SolidScriptCommandParameter,
   value: string,
   inputs: HTMLElement,
-): Omit<SolidScriptConfiguratorField, 'element'> {
+): SolidScriptConfiguratorFieldReader {
   const size = parameter.type === 'vector3' ? 3 : parameter.type === 'vector2' ? 2 : 0;
   const parts = size > 0 ? solidScriptConfiguratorVectorParts(value, size) : null;
   if (parts) return solidScriptConfiguratorVector(parts, parameter, inputs);
@@ -107,7 +188,7 @@ function solidScriptConfiguratorVector(
   parts: string[],
   parameter: SolidScriptCommandParameter,
   inputs: HTMLElement,
-): Omit<SolidScriptConfiguratorField, 'element'> {
+): SolidScriptConfiguratorFieldReader {
   const fields = parts.map((part, axis) => {
     const input = solidScriptConfiguratorInput(part, `${parameter.label} ${SOLID_SCRIPT_CONFIGURATOR_AXES[axis]}`);
     input.placeholder = SOLID_SCRIPT_CONFIGURATOR_AXES[axis] ?? '';
@@ -136,7 +217,7 @@ function solidScriptConfiguratorCheckbox(
   checked: boolean,
   parameter: SolidScriptCommandParameter,
   inputs: HTMLElement,
-): Omit<SolidScriptConfiguratorField, 'element'> {
+): SolidScriptConfiguratorFieldReader {
   const box = document.createElement('input');
   box.type = 'checkbox';
   box.checked = checked;

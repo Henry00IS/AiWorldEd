@@ -70,6 +70,15 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
   list: 'solid-script-editor-list',
   listItem: 'solid-script-editor-list-item',
   selected: 'solid-script-editor-selected',
+  invalid: 'solid-script-editor-invalid',
+  insertName: 'solid-script-editor-insert-name',
+  suggestions: 'solid-script-editor-suggestions',
+  suggestion: 'solid-script-editor-suggestion',
+  suggestionHeading: 'solid-script-editor-suggestion-heading',
+  suggestionDetail: 'solid-script-editor-suggestion-detail',
+  fieldWarning: 'solid-script-editor-field-warning',
+  definitions: 'solid-script-editor-definitions',
+  definition: 'solid-script-editor-definition',
 } as const;
 
 /** Accent colour of each palette category, readable on light and dark panels. */
@@ -182,7 +191,10 @@ const SOLID_SCRIPT_EDITOR_PANES_CSS = `
 .${c.outputText}, .${c.variables} { flex: 1; min-height: 0; overflow-y: auto; padding: 5px 12px; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; white-space: pre-wrap; color: ${ThemeCss.textColor}; }
 .${c.outputText}.${c.outputError} { color: #e5484d; }
 .${c.variablesCaption} { margin-bottom: 4px; font: 11px ${Theme.uiFontFamily}; color: ${ThemeCss.mutedTextColor}; }
-.${c.variable} { display: grid; grid-template-columns: minmax(80px, max-content) minmax(0, 1fr); gap: 12px; padding: 1px 0; }
+.${c.definitions} { margin-top: 10px; }
+.${c.definition} { cursor: pointer; border-radius: 3px; }
+.${c.definition}:hover { background: ${ThemeCss.inkAlpha(0.06)}; }
+.${c.variable}, .${c.definition} { display: grid; grid-template-columns: minmax(80px, max-content) minmax(0, 1fr); gap: 12px; padding: 1px 0; }
 `;
 
 /** Configurator and file dialog rules. */
@@ -190,7 +202,16 @@ const SOLID_SCRIPT_EDITOR_DIALOG_CSS = `
 .${c.field} { display: grid; grid-template-columns: 112px minmax(0, 1fr); align-items: center; gap: 8px; margin-bottom: 8px; }
 .${c.fieldLabel} { color: ${ThemeCss.textColor}; font-weight: 500; }
 .${c.fieldHint} { grid-column: 2; margin-top: -4px; font-size: 11px; line-height: 1.35; color: ${ThemeCss.textColor}; opacity: 0.8; }
-.${c.fieldInputs} { display: flex; gap: 6px; min-width: 0; }
+.${c.fieldInputs} { position: relative; display: flex; gap: 6px; min-width: 0; }
+.${c.input}.${c.invalid} { border-color: #e5484d; }
+.${c.insertName} { flex-shrink: 0; height: 26px; padding: 0 6px; border-radius: 4px; border: 1px solid ${ThemeCss.inputBorderColor}; background: transparent; color: ${ThemeCss.textColor}; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; cursor: pointer; }
+.${c.insertName}:hover { background: ${ThemeCss.inkAlpha(0.08)}; }
+.${c.suggestions} { position: absolute; z-index: 5; top: 28px; left: 0; right: 0; max-height: 220px; overflow-y: auto; padding: 4px 0; border-radius: 5px; border: 1px solid ${ThemeCss.inputBorderColor}; background: ${ThemeCss.inputBackground}; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); }
+.${c.suggestionHeading} { padding: 4px 10px 2px; font-size: 10px; font-weight: 700; color: ${ThemeCss.mutedTextColor}; }
+.${c.suggestion} { display: flex; justify-content: space-between; gap: 12px; padding: 3px 10px; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; color: ${ThemeCss.inputTextColor}; cursor: pointer; white-space: nowrap; }
+.${c.suggestion}[aria-selected="true"], .${c.suggestion}:hover { background: ${ThemeCss.accentAlpha(0.3)}; }
+.${c.suggestionDetail} { overflow: hidden; text-overflow: ellipsis; color: ${ThemeCss.mutedTextColor}; }
+.${c.fieldWarning} { color: ${ThemeCss.mutedTextColor}; }
 .${c.input} { flex: 1; min-width: 0; height: 26px; padding: 0 7px; border-radius: 4px; border: 1px solid ${ThemeCss.inputBorderColor}; background: ${ThemeCss.inputBackground}; color: ${ThemeCss.inputTextColor}; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; box-sizing: border-box; }
 .${c.input}:focus { outline: none; border-color: ${ThemeCss.accentColor}; }
 .${c.preview} { margin: 12px 0 14px; padding: 8px 10px; border-radius: 5px; background: ${ThemeCss.inputBackground}; border: 1px solid ${ThemeCss.inkAlpha(0.08)}; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; color: ${ThemeCss.inputTextColor}; white-space: pre-wrap; word-break: break-word; }
