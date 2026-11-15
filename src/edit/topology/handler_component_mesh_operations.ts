@@ -24,6 +24,11 @@ import { duplicateTopologyWorkingFaces, flipTopologyWorkingFaces } from './topol
 import { connectTopologyWorkingVertices } from './topology_vertex_connect.js';
 import { bridgeTopologyWorkingEdgeLoops } from './topology_edge_bridge.js';
 import { bevelTopologyWorkingEdges } from './topology_edge_bevel.js';
+import {
+  pokeTopologyWorkingFaces,
+  triangulateTopologyWorkingFaces,
+  type TopologyFaceSplitOutcome,
+} from './topology_face_triangulate.js';
 import { findEditDomainTargetById, resolveTopologyEditTarget } from './topology_target_resolve.js';
 import type { TopologyMeshTarget } from './topology_target.js';
 import type { TopologyWorkingGeometry } from './topology_working_geometry.js';
@@ -265,6 +270,49 @@ export class HandlerComponentMeshOperations {
         return outcome.result;
       },
       () => this.deps.getSession().getComponentSelection().replaceAll(copies),
+    );
+  }
+
+  /**
+   * Splits the selected mesh faces into triangles and selects every piece.
+   *
+   * @returns True when at least one mesh changed.
+   */
+  triangulateSelectedFaces(): boolean {
+    return this.splitSelectedFaces('Triangulate Faces', triangulateTopologyWorkingFaces);
+  }
+
+  /**
+   * Fans the selected mesh faces from their centres and selects every piece.
+   *
+   * @returns True when at least one mesh changed.
+   */
+  pokeSelectedFaces(): boolean {
+    return this.splitSelectedFaces('Poke Faces', pokeTopologyWorkingFaces);
+  }
+
+  /**
+   * Runs a face splitting operator on each edited mesh and selects every
+   * resulting face.
+   *
+   * @param toolLabel Tool name used in status messages.
+   * @param split Operator.
+   * @returns True when at least one mesh changed.
+   */
+  private splitSelectedFaces(
+    toolLabel: string,
+    split: (geometry: TopologyWorkingGeometry, faces: readonly number[]) => TopologyFaceSplitOutcome,
+  ): boolean {
+    const selections = this.collectMeshFaceSelections(toolLabel);
+    const pieces: ComponentSelectionEntry[] = [];
+    return this.commitOnMeshTargets(
+      selections,
+      (targetId, geometry) => {
+        const outcome = split(geometry, selections.find((entry) => entry.targetId === targetId)?.faces ?? []);
+        pieces.push(...outcome.faces.map((face) => ({ targetId, kind: 'face' as const, componentKey: String(face) })));
+        return outcome.result;
+      },
+      () => this.deps.getSession().getComponentSelection().replaceAll(pieces),
     );
   }
 

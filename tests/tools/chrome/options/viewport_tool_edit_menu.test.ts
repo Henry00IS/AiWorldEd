@@ -105,6 +105,8 @@ describe('viewport_tool_edit_menu', () => {
       'separator',
       'Duplicate Faces',
       'Flip Faces',
+      'Triangulate Faces',
+      'Poke Faces',
     ]);
     for (const entry of entries) if (isMenuAction(entry)) entry.onClick();
     expect(calls).toEqual([
@@ -113,6 +115,8 @@ describe('viewport_tool_edit_menu', () => {
       'tool:inset_faces',
       'tool:duplicate_faces',
       'tool:flip_faces',
+      'tool:triangulate_faces',
+      'tool:poke_faces',
     ]);
     expect(shortcutForLabel(entries, 'Duplicate Faces')).toBe('Shift+D');
     expect(shortcutForLabel(entries, 'Extrude Faces')).toBe('E');

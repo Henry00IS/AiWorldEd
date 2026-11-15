@@ -161,6 +161,18 @@ export function buildViewportToolFaceMenuEntries(actions: ViewportToolEditMenuAc
       tool('duplicate_faces'),
     ),
     createAction('Flip Faces', '', 'Turn the selected mesh faces to face the other way', tool('flip_faces')),
+    createAction(
+      'Triangulate Faces',
+      '',
+      'Split the selected mesh faces into triangles along their outline',
+      tool('triangulate_faces'),
+    ),
+    createAction(
+      'Poke Faces',
+      '',
+      'Fan the selected mesh faces into triangles around a new centre vertex',
+      tool('poke_faces'),
+    ),
   ];
 }
 

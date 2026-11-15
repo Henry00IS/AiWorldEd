@@ -13,4 +13,6 @@ export type EditMeshToolCommand =
   | 'extrude_edges'
   | 'flip_faces'
   | 'duplicate_faces'
-  | 'bevel_edges';
+  | 'bevel_edges'
+  | 'triangulate_faces'
+  | 'poke_faces';
