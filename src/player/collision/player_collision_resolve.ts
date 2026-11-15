@@ -401,6 +401,17 @@ function playerCollisionGateWallPushByHandHeight(
 }
 
 /**
+ * Forgets the last safe pose, so a body placed somewhere new (a new play
+ * session or spawn) never falls back to where it stood before.
+ *
+ * @param scratch Per-body scratch.
+ */
+export function playerCollisionForgetSafeFeet(scratch: PlayerCollisionScratch): void {
+  scratch.lastSafeFeet.set(0, 0, 0);
+  scratch.hasLastSafeFeet = false;
+}
+
+/**
  * Records the feet as the last safe pose while standing on ground.
  *
  * @param feetPosition Final feet pose.
