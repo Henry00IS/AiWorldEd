@@ -131,7 +131,10 @@ export function solidScriptDocumentNames(document: SolidScriptDocument): SolidSc
 export function solidScriptDocumentOrigins(document: SolidScriptDocument): Map<string, number[]> {
   const origins = new Map<string, number[]>();
   const add = (target: string, line: number): void => {
-    const name = target.trim().replace(/\s*\(.*\)$/, '');
+    const name = target
+      .trim()
+      .replace(/\s*\(.*\)$/, '')
+      .replace(/\.[xyzXYZ]$/, '');
     if (!SOLID_SCRIPT_NAME_PLAIN.test(name)) return;
     const lines = origins.get(name) ?? [];
     if (!lines.includes(line)) lines.push(line);

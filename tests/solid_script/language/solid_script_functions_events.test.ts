@@ -116,7 +116,7 @@ describe('Function blocks', () => {
   it('lets formulas call them before their line, with Return, also recursively', () => {
     const result = run(
       line('cube'),
-      echo('[=area(2, 3)] [=fact(5)] [=clamp(7)] [=clamp(0.5)]'),
+      echo('[=area(2, 3)] [=fact(5)] [=limit(7)] [=limit(0.5)]'),
       fn('area', 'w, d'),
       ret('[=[local.w] * [local.d]]'),
       END,
@@ -126,7 +126,7 @@ describe('Function blocks', () => {
       END,
       line('return', { value: '[=[local.n] * fact([local.n] - 1)]' }),
       END,
-      fn('clamp', 'v'),
+      fn('limit', 'v'),
       line('if', { condition: '[local.v] > 1' }),
       line('return', { value: '1' }),
       END,

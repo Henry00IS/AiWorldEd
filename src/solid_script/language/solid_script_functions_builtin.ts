@@ -1,3 +1,4 @@
+import { SOLID_SCRIPT_FUNCTIONS_EXTRA } from './solid_script_functions_extra.js';
 import {
   solidScriptValueNumber,
   solidScriptValueNumbers,
@@ -149,4 +150,5 @@ export const SOLID_SCRIPT_FUNCTIONS_BUILTIN: Readonly<Record<string, SolidScript
   is_bool: (args) => typeof args[0] === 'boolean',
   lookup: solidScriptLookup,
   rands: solidScriptRands,
+  ...SOLID_SCRIPT_FUNCTIONS_EXTRA,
 };

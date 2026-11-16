@@ -461,6 +461,62 @@ interface SolidScriptLineRun {
   busy: boolean;
 }
 
+/** One part of a vector variable, such as pos.x. */
+interface SolidScriptVectorPart {
+  /** Vector variable. */
+  name: string;
+  /** Part letter. */
+  axis: 'x' | 'y' | 'z';
+  /** Position in the vector. */
+  index: number;
+}
+
+/**
+ * Reads a name such as pos.x as a part of the vector pos.
+ *
+ * @param name Variable name.
+ * @returns Part, or null for other names.
+ */
+function solidScriptVectorComponent(name: string): SolidScriptVectorPart | null {
+  const match = /^(.+)\.([xyzXYZ])$/.exec(name);
+  if (!match) return null;
+  const axis = match[2]!.toLowerCase() as 'x' | 'y' | 'z';
+  return { name: match[1]!, axis, index: 'xyz'.indexOf(axis) };
+}
+
+/**
+ * Reads one part of a vector.
+ *
+ * @param part Part.
+ * @param vector Vector value.
+ * @returns Number.
+ */
+function solidScriptVectorComponentRead(part: SolidScriptVectorPart, vector: SolidScriptValue): SolidScriptValue {
+  if (!Array.isArray(vector) || vector[part.index] === undefined)
+    throw new Error(`[${part.name}] is ${solidScriptValueType(vector)}, not a vector with a .${part.axis}`);
+  return vector[part.index];
+}
+
+/**
+ * Changes one part of a vector, keeping the others.
+ *
+ * @param part Part.
+ * @param vector Vector value.
+ * @param value New number.
+ * @returns New vector.
+ */
+function solidScriptVectorComponentWrite(
+  part: SolidScriptVectorPart,
+  vector: SolidScriptValue,
+  value: SolidScriptValue,
+): SolidScriptValue {
+  if (!Array.isArray(vector) || vector.length < 2 || vector.length > 3 || part.index >= vector.length)
+    throw new Error(`[${part.name}] is ${solidScriptValueType(vector)}, not a vector with a .${part.axis}`);
+  const changed = [...vector];
+  changed[part.index] = value;
+  return changed;
+}
+
 /** A field of a line, read once per run. */
 interface SolidScriptLineField {
   /** Field text, or its default. */
@@ -1262,6 +1318,11 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
         const where = this.variableWhere(name, scope);
         const item = solidScriptListItemParse(where.name);
         const base = item?.name ?? where.name;
+        if (!item && !where.scope.variableHas(base)) {
+          const component = solidScriptVectorComponent(base);
+          if (component && where.scope.variableHas(component.name))
+            return solidScriptVectorComponentRead(component, where.scope.variableGet(component.name));
+        }
         if (!where.scope.variableHas(base)) {
           if (where.persistent && !item) return undefined;
           const written = where.local ? `${SOLID_SCRIPT_LOCAL_PREFIX}${base}` : base;
@@ -1340,6 +1401,18 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
    */
   private variableSet(scope: SolidScriptScope, name: string, value: SolidScriptValue): void {
     const where = this.variableWhere(name, scope);
+    const component = solidScriptVectorComponent(where.name);
+    if (component && !where.scope.variableHas(where.name)) {
+      if (!where.scope.variableHas(component.name))
+        throw new Error(
+          `there is no vector [${component.name}] to change; set it first, such as Set ${component.name} to 0, 0, 0`,
+        );
+      const vector = where.scope.variableGet(component.name);
+      if (!where.local && !where.persistent) this.writableCheck(component.name);
+      where.scope.variableSet(component.name, solidScriptVectorComponentWrite(component, vector, value));
+      if (where.persistent) this.persistentKeep(component.name);
+      return;
+    }
     const item = solidScriptListItemParse(where.name);
     if (item?.method) throw new Error(`${item.name}().${item.method} can only be read`);
     const base = item?.name ?? where.name;

@@ -1,0 +1,223 @@
+import {
+  solidScriptValueNumber,
+  solidScriptValueNumbers,
+  solidScriptValueText,
+  type SolidScriptValue,
+} from './solid_script_value.js';
+
+/** A built-in function over evaluated arguments. */
+type SolidScriptExtra = (args: SolidScriptValue[]) => SolidScriptValue;
+
+/**
+ * Reads an argument as text; numbers and lists count as their written form.
+ *
+ * @param args Arguments.
+ * @param index Argument position.
+ * @param usage How to call the function, for the message.
+ * @returns Text.
+ */
+function solidScriptExtraText(args: readonly SolidScriptValue[], index: number, usage: string): string {
+  const value = args[index];
+  if (value === undefined) throw new Error(`${usage} is missing a value`);
+  return typeof value === 'string' ? value : solidScriptValueText(value);
+}
+
+/**
+ * Reads an argument as a number.
+ *
+ * @param args Arguments.
+ * @param index Argument position.
+ * @param usage How to call the function, for the message.
+ * @returns Number.
+ */
+function solidScriptExtraNumber(args: readonly SolidScriptValue[], index: number, usage: string): number {
+  const number = solidScriptValueNumber(args[index]);
+  if (number === undefined) throw new Error(`${usage} needs a number, not ${solidScriptValueText(args[index])}`);
+  return number;
+}
+
+/**
+ * Reads an argument as a vector of numbers.
+ *
+ * @param args Arguments.
+ * @param index Argument position.
+ * @param usage How to call the function, for the message.
+ * @returns Numbers.
+ */
+function solidScriptExtraVector(args: readonly SolidScriptValue[], index: number, usage: string): number[] {
+  const numbers = Array.isArray(args[index]) ? solidScriptValueNumbers(args[index]) : undefined;
+  if (!numbers) throw new Error(`${usage} needs a vector such as [1, 2, 3], not ${solidScriptValueText(args[index])}`);
+  return numbers;
+}
+
+/**
+ * Reads two vectors of the same size.
+ *
+ * @param args Arguments.
+ * @param usage How to call the function, for the message.
+ * @returns Both vectors.
+ */
+function solidScriptExtraPair(args: readonly SolidScriptValue[], usage: string): [number[], number[]] {
+  const a = solidScriptExtraVector(args, 0, usage);
+  const b = solidScriptExtraVector(args, 1, usage);
+  if (a.length !== b.length) throw new Error(`${usage} needs two vectors of the same size`);
+  return [a, b];
+}
+
+/**
+ * Builds a pattern from text, with a plain message when it cannot be read.
+ *
+ * @param pattern Pattern text.
+ * @param usage How to call the function, for the message.
+ * @returns Pattern.
+ */
+function solidScriptExtraPattern(pattern: string, usage: string): RegExp {
+  try {
+    return new RegExp(pattern, 'g');
+  } catch {
+    throw new Error(`${usage}: the pattern "${pattern}" cannot be read`);
+  }
+}
+
+/**
+ * A number from 0 to 1 that is always the same for the same seed.
+ *
+ * @param seed Seed.
+ * @returns Number from 0 up to 1.
+ */
+function solidScriptExtraSeeded(seed: number): number {
+  let state = (Math.floor(seed * 1000) ^ 0x2545f491) >>> 0;
+  state = Math.imul(state ^ (state >>> 16), 0x7feb352d);
+  state = Math.imul(state ^ (state >>> 15), 0x846ca68b);
+  return ((state ^ (state >>> 16)) >>> 0) / 4294967296;
+}
+
+/**
+ * Text, math and vector functions: everyday helpers so a script rarely needs a
+ * long formula. Names are plain words; trigonometry elsewhere works in
+ * degrees.
+ */
+export const SOLID_SCRIPT_FUNCTIONS_EXTRA: Readonly<Record<string, SolidScriptExtra>> = {
+  uppercase: (args) => solidScriptExtraText(args, 0, 'uppercase(text)').toUpperCase(),
+  lowercase: (args) => solidScriptExtraText(args, 0, 'lowercase(text)').toLowerCase(),
+  trim: (args) => solidScriptExtraText(args, 0, 'trim(text)').trim(),
+  contains: (args) =>
+    solidScriptExtraText(args, 0, 'contains(text, part)').includes(
+      solidScriptExtraText(args, 1, 'contains(text, part)'),
+    ),
+  starts_with: (args) =>
+    solidScriptExtraText(args, 0, 'starts_with(text, part)').startsWith(
+      solidScriptExtraText(args, 1, 'starts_with(text, part)'),
+    ),
+  ends_with: (args) =>
+    solidScriptExtraText(args, 0, 'ends_with(text, part)').endsWith(
+      solidScriptExtraText(args, 1, 'ends_with(text, part)'),
+    ),
+  position: (args) =>
+    solidScriptExtraText(args, 0, 'position(text, part)').indexOf(
+      solidScriptExtraText(args, 1, 'position(text, part)'),
+    ),
+  part: (args) => {
+    const usage = 'part(text, start, count)';
+    const text = solidScriptExtraText(args, 0, usage);
+    const start = Math.max(0, Math.floor(solidScriptExtraNumber(args, 1, usage)));
+    const count = args.length > 2 ? Math.max(0, Math.floor(solidScriptExtraNumber(args, 2, usage))) : text.length;
+    return text.slice(start, start + count);
+  },
+  replace: (args) => {
+    const usage = 'replace(text, find, with)';
+    return solidScriptExtraText(args, 0, usage)
+      .split(solidScriptExtraText(args, 1, usage))
+      .join(solidScriptExtraText(args, 2, usage));
+  },
+  replace_pattern: (args) => {
+    const usage = 'replace_pattern(text, pattern, with)';
+    return solidScriptExtraText(args, 0, usage).replace(
+      solidScriptExtraPattern(solidScriptExtraText(args, 1, usage), usage),
+      solidScriptExtraText(args, 2, usage),
+    );
+  },
+  find_pattern: (args) => {
+    const usage = 'find_pattern(text, pattern)';
+    return [
+      ...solidScriptExtraText(args, 0, usage).matchAll(
+        solidScriptExtraPattern(solidScriptExtraText(args, 1, usage), usage),
+      ),
+    ].map((match) => match[0]);
+  },
+  repeat_text: (args) => {
+    const usage = 'repeat_text(text, times)';
+    const times = Math.floor(solidScriptExtraNumber(args, 1, usage));
+    if (times < 0 || times > 10000) throw new Error(`${usage} needs times from 0 to 10000`);
+    return solidScriptExtraText(args, 0, usage).repeat(times);
+  },
+  reversed: (args) => {
+    const value = args[0];
+    if (Array.isArray(value)) return [...value].reverse();
+    return [...solidScriptExtraText(args, 0, 'reversed(text or list)')].reverse().join('');
+  },
+  split: (args) => {
+    const usage = 'split(text, separator)';
+    return solidScriptExtraText(args, 0, usage)
+      .split(args.length > 1 ? solidScriptExtraText(args, 1, usage) : ',')
+      .map((item) => item.trim());
+  },
+  join: (args) => {
+    const items = Array.isArray(args[0]) ? args[0] : [args[0]];
+    const separator = args.length > 1 ? solidScriptExtraText(args, 1, 'join(list, separator)') : ', ';
+    return items.map((item) => (typeof item === 'string' ? item : solidScriptValueText(item))).join(separator);
+  },
+  number: (args) => {
+    const number = solidScriptValueNumber(args[0]);
+    if (number === undefined) throw new Error(`number(text) cannot read ${solidScriptValueText(args[0])} as a number`);
+    return number;
+  },
+  pick: (args) => {
+    const usage = 'pick(number, first, second, ...)';
+    const index = Math.floor(solidScriptExtraNumber(args, 0, usage));
+    if (index < 0 || index + 1 >= args.length)
+      throw new Error(`${usage} has ${args.length - 1} choices, numbered from 0, so ${index} is not one of them`);
+    return args[index + 1];
+  },
+  random: (args) => {
+    const usage = 'random(min, max, seed)';
+    const low = solidScriptExtraNumber(args, 0, usage);
+    const high = solidScriptExtraNumber(args, 1, usage);
+    const seed = args.length > 2 ? solidScriptExtraNumber(args, 2, usage) : 0;
+    return low + (high - low) * solidScriptExtraSeeded(seed);
+  },
+  trunc: (args) => Math.trunc(solidScriptExtraNumber(args, 0, 'trunc(number)')),
+  clamp: (args) => {
+    const usage = 'clamp(value, min, max)';
+    return Math.min(
+      Math.max(solidScriptExtraNumber(args, 0, usage), solidScriptExtraNumber(args, 1, usage)),
+      solidScriptExtraNumber(args, 2, usage),
+    );
+  },
+  lerp: (args) => {
+    const usage = 'lerp(from, to, amount)';
+    const amount = solidScriptExtraNumber(args, 2, usage);
+    if (Array.isArray(args[0]) || Array.isArray(args[1])) {
+      const [a, b] = solidScriptExtraPair(args, usage);
+      return a.map((value, index) => value + (b[index]! - value) * amount);
+    }
+    const a = solidScriptExtraNumber(args, 0, usage);
+    return a + (solidScriptExtraNumber(args, 1, usage) - a) * amount;
+  },
+  length: (args) => Math.hypot(...solidScriptExtraVector(args, 0, 'length(vector)')),
+  normalize: (args) => {
+    const vector = solidScriptExtraVector(args, 0, 'normalize(vector)');
+    const size = Math.hypot(...vector);
+    if (size === 0) throw new Error('normalize(vector) cannot turn 0, 0, 0 into a direction');
+    return vector.map((value) => value / size);
+  },
+  dot: (args) => {
+    const [a, b] = solidScriptExtraPair(args, 'dot(a, b)');
+    return a.reduce((sum, value, index) => sum + value * b[index]!, 0);
+  },
+  distance: (args) => {
+    const [a, b] = solidScriptExtraPair(args, 'distance(a, b)');
+    return Math.hypot(...a.map((value, index) => value - b[index]!));
+  },
+  vector: (args) => args.map((_, index) => solidScriptExtraNumber(args, index, 'vector(x, y, z)')),
+};
