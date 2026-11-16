@@ -161,9 +161,9 @@ describe('SolidScript inspector inputs', () => {
     expect(parameters()[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]).toEqual({ steps: '3' });
   });
 
-  it('puts the inputs of an Input Row side by side and shows Show Inputs When rows only while the condition holds', () => {
+  it('puts the inputs of an Input Row side by side and shows Show Inputs When rows only while the condition holds, whatever case it names the input in', () => {
     const { panel } = inputsFixture([
-      { command: 'input', values: { name: 'rails', type: 'switch', default: 'no', label: 'Rails' } },
+      { command: 'input', values: { name: 'Rails', type: 'switch', default: 'no', label: 'Rails' } },
       { command: 'show_inputs_when', values: { name: 'rails', value: 'yes' } },
       { command: 'input_group', values: { title: 'Railing' } },
       { command: 'input_row' },

@@ -61,12 +61,12 @@ function solidScriptCurvePath(args: readonly SolidScriptValue[], usage: string):
 /** Functions that read Curve inputs and paths. */
 export const SOLID_SCRIPT_FUNCTIONS_CURVE: Readonly<Record<string, SolidScriptCurveFunction>> = {
   curve_at: (args) => {
-    const usage = 'curve_at(curve, x)';
+    const usage = 'CurveAt(curve, x)';
     return curveEvaluate(solidScriptCurveRead(args, usage), solidScriptExtraNumber(args, 1, usage));
   },
-  path_length: (args) => solidScriptPathLength(solidScriptCurvePath(args, 'path_length(points)')),
+  path_length: (args) => solidScriptPathLength(solidScriptCurvePath(args, 'PathLength(points)')),
   resample: (args) => {
-    const usage = 'resample(points, count)';
+    const usage = 'Resample(points, count)';
     const path = solidScriptCurvePath(args, usage);
     if (path.length < 2) throw new Error(`${usage} needs at least 2 points`);
     const count = Math.round(solidScriptExtraNumber(args, 1, usage));
@@ -74,7 +74,7 @@ export const SOLID_SCRIPT_FUNCTIONS_CURVE: Readonly<Record<string, SolidScriptCu
     return solidScriptPathResample(path, count);
   },
   profile_points: (args) => {
-    const usage = 'profile_points(curve, height, radius)';
+    const usage = 'ProfilePoints(curve, height, radius)';
     const curve = solidScriptCurveRead(args, usage);
     const height = solidScriptExtraNumber(args, 1, usage);
     const radius = solidScriptExtraNumber(args, 2, usage);

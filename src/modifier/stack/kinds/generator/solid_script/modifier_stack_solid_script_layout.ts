@@ -3,6 +3,7 @@ import type { SolidTreeNode } from '@/solid/commands/tree/solid_tree_node.js';
 import type { SolidOperation } from '@/solid/types/solid_operation.js';
 import { solidScriptProgramEvaluate } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptSolidTreeBuild } from '@/solid_script/language/solid_script_solid_tree.js';
+import { SOLID_SCRIPT_USE_GENERATOR, type SolidScriptUseFacts } from '@/solid_script/language/solid_script_system.js';
 import { solidScriptErrorText } from '@/solid_script/language/solid_script_error.js';
 import { solidScriptShapeLeavesPositive, type SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
 import type { SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
@@ -39,6 +40,7 @@ export interface ModifierStackSolidScriptLayout {
  * @param operation Operation of the top-level results.
  * @param stepLimit Primitive steps to build, or undefined for all.
  * @param inputs Values of the script's Input lines, as text by name.
+ * @param use Where the script is used and what a modifier receives.
  * @returns Nodes in frame coordinates, or an error.
  */
 export function modifierStackSolidScriptLayout(
@@ -48,10 +50,11 @@ export function modifierStackSolidScriptLayout(
   operation: SolidOperation,
   stepLimit: number | undefined,
   inputs: Readonly<Record<string, string>> = {},
+  use: SolidScriptUseFacts = SOLID_SCRIPT_USE_GENERATOR,
 ): ModifierStackSolidScriptLayout {
   try {
     const size = box.getSize(new THREE.Vector3());
-    const run = { inputs, box: [size.x, size.z, size.y] as const };
+    const run = { inputs, box: [size.x, size.z, size.y] as const, use };
     const { shapes } = solidScriptProgramEvaluate(document, stepLimit === undefined ? run : { ...run, stepLimit });
     const placed = modifierStackSolidScriptPlacementMatrix(shapes, placement, box);
     const nodes = solidScriptSolidTreeBuild(shapes, {

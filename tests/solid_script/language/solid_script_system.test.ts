@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { solidScriptFunctionSpelling } from '@/solid_script/language/solid_script_name_key.js';
 import { solidScriptProgramRun, type SolidScriptProgramOptions } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 import {
@@ -125,8 +126,8 @@ describe('SolidScript text and time functions', () => {
     expect(formula('character_code("A")')).toBe('65');
     expect(formula('character(97)')).toBe('a');
     expect(formula('character(character_code("x") + 1)')).toBe('y');
-    expect(formula('character_code("")')).toMatch(/character_code\(text\) needs/);
-    expect(formula('character(-1)')).toMatch(/character\(code\) needs/);
+    expect(formula('character_code("")')).toMatch(/CharacterCode\(text\) needs/);
+    expect(formula('character(-1)')).toMatch(/Character\(code\) needs/);
   });
 
   it('formats numbers', () => {
@@ -188,7 +189,7 @@ describe('SolidScript math and list functions', () => {
     for (const name of Object.keys(SOLID_SCRIPT_FUNCTIONS_BUILTIN)) {
       const doc = SOLID_SCRIPT_FUNCTION_DOCS[name];
       expect(doc, name).toBeDefined();
-      expect(doc!.usage.startsWith(`${name}(`), name).toBe(true);
+      expect(doc!.usage.startsWith(`${solidScriptFunctionSpelling(name)}(`), name).toBe(true);
       expect(doc!.summary.length, name).toBeGreaterThan(8);
     }
     expect(Object.keys(SOLID_SCRIPT_FUNCTION_DOCS).sort()).toEqual(Object.keys(SOLID_SCRIPT_FUNCTIONS_BUILTIN).sort());

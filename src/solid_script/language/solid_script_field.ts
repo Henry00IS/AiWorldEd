@@ -3,6 +3,7 @@ import { solidScriptExpressionCompiled, type SolidScriptCompiled } from './solid
 import { solidScriptNameDotProblem } from './solid_script_name_rules.js';
 import type { SolidScriptValue } from './solid_script_value.js';
 import { solidScriptValueText } from './solid_script_value.js';
+import { solidScriptNameKey } from './solid_script_name_key.js';
 
 /**
  * How the text typed into a block field is read. Field text is plain text
@@ -261,7 +262,7 @@ function solidScriptFieldGroupCompile(pieces: readonly SolidScriptFieldPiece[]):
       .join('')
       .trim();
     if (name === '') return empty;
-    return solidScriptFieldVariableCompile(name);
+    return solidScriptFieldVariableCompile(solidScriptNameKey(name));
   }
   const item = solidScriptFieldItemCompile(pieces);
   if (item) return item;
@@ -272,7 +273,7 @@ function solidScriptFieldGroupCompile(pieces: readonly SolidScriptFieldPiece[]):
     let inner = '';
     for (const part of parts) inner += typeof part === 'string' ? part : solidScriptValueText(part(context));
     const name = inner.trim();
-    return name === '' ? empty() : context.variable(name);
+    return name === '' ? empty() : context.variable(solidScriptNameKey(name));
   };
 }
 
@@ -280,7 +281,7 @@ function solidScriptFieldGroupCompile(pieces: readonly SolidScriptFieldPiece[]):
  * Compiles the read of a variable named in brackets, picking the read that fits
  * the shape of the name once, so running it skips looking at the name again.
  *
- * @param name Variable name as written.
+ * @param name Key of the variable name, folded as stored.
  * @returns Compiled part.
  */
 function solidScriptFieldVariableCompile(name: string): SolidScriptFieldCompiled {
@@ -309,8 +310,9 @@ function solidScriptFieldVariableCompile(name: string): SolidScriptFieldCompiled
 function solidScriptFieldItemCompile(pieces: readonly SolidScriptFieldPiece[]): SolidScriptFieldCompiled | null {
   const [open, index, close] = pieces;
   if (pieces.length !== 3 || open?.kind !== 'plain' || index?.kind !== 'group' || close?.kind !== 'plain') return null;
-  const list = SOLID_SCRIPT_FIELD_ITEM_OPEN.exec(open.text)?.[1];
-  if (list === undefined || !SOLID_SCRIPT_FIELD_ITEM_CLOSE.test(close.text)) return null;
+  const written = SOLID_SCRIPT_FIELD_ITEM_OPEN.exec(open.text)?.[1];
+  if (written === undefined || !SOLID_SCRIPT_FIELD_ITEM_CLOSE.test(close.text)) return null;
+  const list = solidScriptNameKey(written);
   const position = solidScriptFieldGroupCompile(index.pieces);
   return (context) => context.variableItem(list, position(context));
 }

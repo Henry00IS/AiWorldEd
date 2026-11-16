@@ -77,7 +77,7 @@ function solidScriptLookup(args: SolidScriptValue[]): SolidScriptValue {
   const key = solidScriptValueNumber(args[0]);
   const table = Array.isArray(args[1]) ? args[1].map((row) => solidScriptValueNumbers(row)) : null;
   if (key === undefined || !table || table.length === 0 || table.some((row) => !row || row.length !== 2))
-    throw new Error('lookup needs a number and a list of key, value pairs, such as lookup([h], [table])');
+    throw new Error('lookup needs a number and a list of key, value pairs, such as Lookup([h], [table])');
   const rows = (table as [number, number][]).slice().sort((a, b) => a[0] - b[0]);
   if (key <= rows[0]![0]) return rows[0]![1];
   for (let index = 1; index < rows.length; index++) {
@@ -108,7 +108,7 @@ function solidScriptRands(args: SolidScriptValue[]): SolidScriptValue {
     count < 0 ||
     count > 10000
   )
-    throw new Error('rands needs min, max, a count from 0 to 10000 and an optional seed, such as rands(0, 1, 5, 42)');
+    throw new Error('rands needs min, max, a count from 0 to 10000 and an optional seed, such as Rands(0, 1, 5, 42)');
   let state = (Math.floor(seed ?? 0) ^ 0x9e3779b9) >>> 0;
   const next = (): number => {
     state = (state + 0x6d2b79f5) >>> 0;

@@ -115,47 +115,47 @@ function solidScriptExtraSeeded(seed: number): number {
  * degrees.
  */
 export const SOLID_SCRIPT_FUNCTIONS_EXTRA: Readonly<Record<string, SolidScriptExtra>> = {
-  uppercase: (args) => solidScriptExtraText(args, 0, 'uppercase(text)').toUpperCase(),
-  lowercase: (args) => solidScriptExtraText(args, 0, 'lowercase(text)').toLowerCase(),
-  trim: (args) => solidScriptExtraText(args, 0, 'trim(text)').trim(),
+  uppercase: (args) => solidScriptExtraText(args, 0, 'Uppercase(text)').toUpperCase(),
+  lowercase: (args) => solidScriptExtraText(args, 0, 'Lowercase(text)').toLowerCase(),
+  trim: (args) => solidScriptExtraText(args, 0, 'Trim(text)').trim(),
   contains: (args) =>
-    solidScriptExtraText(args, 0, 'contains(text, part)').includes(
-      solidScriptExtraText(args, 1, 'contains(text, part)'),
+    solidScriptExtraText(args, 0, 'Contains(text, part)').includes(
+      solidScriptExtraText(args, 1, 'Contains(text, part)'),
     ),
   starts_with: (args) =>
-    solidScriptExtraText(args, 0, 'starts_with(text, part)').startsWith(
-      solidScriptExtraText(args, 1, 'starts_with(text, part)'),
+    solidScriptExtraText(args, 0, 'StartsWith(text, part)').startsWith(
+      solidScriptExtraText(args, 1, 'StartsWith(text, part)'),
     ),
   ends_with: (args) =>
-    solidScriptExtraText(args, 0, 'ends_with(text, part)').endsWith(
-      solidScriptExtraText(args, 1, 'ends_with(text, part)'),
+    solidScriptExtraText(args, 0, 'EndsWith(text, part)').endsWith(
+      solidScriptExtraText(args, 1, 'EndsWith(text, part)'),
     ),
   position: (args) =>
-    solidScriptExtraText(args, 0, 'position(text, part)').indexOf(
-      solidScriptExtraText(args, 1, 'position(text, part)'),
+    solidScriptExtraText(args, 0, 'Position(text, part)').indexOf(
+      solidScriptExtraText(args, 1, 'Position(text, part)'),
     ),
   part: (args) => {
-    const usage = 'part(text, start, count)';
+    const usage = 'Part(text, start, count)';
     const text = solidScriptExtraText(args, 0, usage);
     const start = Math.max(0, Math.floor(solidScriptExtraNumber(args, 1, usage)));
     const count = args.length > 2 ? Math.max(0, Math.floor(solidScriptExtraNumber(args, 2, usage))) : text.length;
     return text.slice(start, start + count);
   },
   replace: (args) => {
-    const usage = 'replace(text, find, with)';
+    const usage = 'Replace(text, find, with)';
     return solidScriptExtraText(args, 0, usage)
       .split(solidScriptExtraText(args, 1, usage))
       .join(solidScriptExtraText(args, 2, usage));
   },
   replace_pattern: (args) => {
-    const usage = 'replace_pattern(text, pattern, with)';
+    const usage = 'ReplacePattern(text, pattern, with)';
     return solidScriptExtraText(args, 0, usage).replace(
       solidScriptExtraPattern(solidScriptExtraText(args, 1, usage), usage),
       solidScriptExtraText(args, 2, usage),
     );
   },
   find_pattern: (args) => {
-    const usage = 'find_pattern(text, pattern)';
+    const usage = 'FindPattern(text, pattern)';
     return [
       ...solidScriptExtraText(args, 0, usage).matchAll(
         solidScriptExtraPattern(solidScriptExtraText(args, 1, usage), usage),
@@ -163,7 +163,7 @@ export const SOLID_SCRIPT_FUNCTIONS_EXTRA: Readonly<Record<string, SolidScriptEx
     ].map((match) => match[0]);
   },
   repeat_text: (args) => {
-    const usage = 'repeat_text(text, times)';
+    const usage = 'RepeatText(text, times)';
     const times = Math.floor(solidScriptExtraNumber(args, 1, usage));
     if (times < 0 || times > 10000) throw new Error(`${usage} needs times from 0 to 10000`);
     return solidScriptExtraText(args, 0, usage).repeat(times);
@@ -171,52 +171,52 @@ export const SOLID_SCRIPT_FUNCTIONS_EXTRA: Readonly<Record<string, SolidScriptEx
   reversed: (args) => {
     const value = args[0];
     if (Array.isArray(value)) return [...value].reverse();
-    return [...solidScriptExtraText(args, 0, 'reversed(text or list)')].reverse().join('');
+    return [...solidScriptExtraText(args, 0, 'Reversed(text or list)')].reverse().join('');
   },
   split: (args) => {
-    const usage = 'split(text, separator)';
+    const usage = 'Split(text, separator)';
     return solidScriptExtraText(args, 0, usage)
       .split(args.length > 1 ? solidScriptExtraText(args, 1, usage) : ',')
       .map((item) => item.trim());
   },
   join: (args) => {
     const items = Array.isArray(args[0]) ? args[0] : [args[0]];
-    const separator = args.length > 1 ? solidScriptExtraText(args, 1, 'join(list, separator)') : ', ';
+    const separator = args.length > 1 ? solidScriptExtraText(args, 1, 'Join(list, separator)') : ', ';
     return items.map((item) => (typeof item === 'string' ? item : solidScriptValueText(item))).join(separator);
   },
-  pad_left: (args) => solidScriptExtraPad(args, 'pad_left(text, width, fill)', true),
-  pad_right: (args) => solidScriptExtraPad(args, 'pad_right(text, width, fill)', false),
-  trim_start: (args) => solidScriptExtraText(args, 0, 'trim_start(text)').trimStart(),
-  trim_end: (args) => solidScriptExtraText(args, 0, 'trim_end(text)').trimEnd(),
+  pad_left: (args) => solidScriptExtraPad(args, 'PadLeft(text, width, fill)', true),
+  pad_right: (args) => solidScriptExtraPad(args, 'PadRight(text, width, fill)', false),
+  trim_start: (args) => solidScriptExtraText(args, 0, 'TrimStart(text)').trimStart(),
+  trim_end: (args) => solidScriptExtraText(args, 0, 'TrimEnd(text)').trimEnd(),
   capitalize: (args) => {
-    const text = solidScriptExtraText(args, 0, 'capitalize(text)');
+    const text = solidScriptExtraText(args, 0, 'Capitalize(text)');
     return text.charAt(0).toUpperCase() + text.slice(1);
   },
   title_case: (args) =>
-    solidScriptExtraText(args, 0, 'title_case(text)').replace(
+    solidScriptExtraText(args, 0, 'TitleCase(text)').replace(
       /(^|\s)(\S)/g,
       (_, space, first) => space + first.toUpperCase(),
     ),
   count_text: (args) => {
-    const usage = 'count_text(text, part)';
+    const usage = 'CountText(text, part)';
     const find = solidScriptExtraText(args, 1, usage);
     return find === '' ? 0 : solidScriptExtraText(args, 0, usage).split(find).length - 1;
   },
   character_code: (args) => {
-    const code = solidScriptExtraText(args, 0, 'character_code(text)').codePointAt(0);
-    if (code === undefined) throw new Error('character_code(text) needs at least one character');
+    const code = solidScriptExtraText(args, 0, 'CharacterCode(text)').codePointAt(0);
+    if (code === undefined) throw new Error('CharacterCode(text) needs at least one character');
     return code;
   },
   character: (args) => {
-    const code = solidScriptExtraNumber(args, 0, 'character(code)');
+    const code = solidScriptExtraNumber(args, 0, 'Character(code)');
     if (!Number.isInteger(code) || code < 0 || code > 0x10ffff)
-      throw new Error('character(code) needs a whole number from 0 to 1114111');
+      throw new Error('Character(code) needs a whole number from 0 to 1114111');
     return String.fromCodePoint(code);
   },
-  characters: (args) => [...solidScriptExtraText(args, 0, 'characters(text)')],
-  lines: (args) => solidScriptExtraText(args, 0, 'lines(text)').split(/\r?\n/),
+  characters: (args) => [...solidScriptExtraText(args, 0, 'Characters(text)')],
+  lines: (args) => solidScriptExtraText(args, 0, 'Lines(text)').split(/\r?\n/),
   format_number: (args) => {
-    const usage = 'format_number(number, decimals, thousands)';
+    const usage = 'FormatNumber(number, decimals, thousands)';
     const decimals = args.length > 1 ? Math.floor(solidScriptExtraNumber(args, 1, usage)) : 2;
     if (decimals < 0 || decimals > 20) throw new Error(`${usage} needs decimals from 0 to 20`);
     const fixed = solidScriptExtraNumber(args, 0, usage).toFixed(decimals);
@@ -226,7 +226,7 @@ export const SOLID_SCRIPT_FUNCTIONS_EXTRA: Readonly<Record<string, SolidScriptEx
     return fraction === undefined ? grouped : `${grouped}.${fraction}`;
   },
   time_text: (args) => {
-    const usage = 'time_text(seconds, pattern)';
+    const usage = 'TimeText(seconds, pattern)';
     return solidScriptTimeText(
       solidScriptExtraNumber(args, 0, usage),
       args.length > 1 ? solidScriptExtraText(args, 1, usage) : 'YYYY-MM-DD HH:mm:ss',
@@ -234,33 +234,33 @@ export const SOLID_SCRIPT_FUNCTIONS_EXTRA: Readonly<Record<string, SolidScriptEx
   },
   number: (args) => {
     const number = solidScriptValueNumber(args[0]);
-    if (number === undefined) throw new Error(`number(text) cannot read ${solidScriptValueText(args[0])} as a number`);
+    if (number === undefined) throw new Error(`Number(text) cannot read ${solidScriptValueText(args[0])} as a number`);
     return number;
   },
   pick: (args) => {
-    const usage = 'pick(number, first, second, ...)';
+    const usage = 'Pick(number, first, second, ...)';
     const index = Math.floor(solidScriptExtraNumber(args, 0, usage));
     if (index < 0 || index + 1 >= args.length)
       throw new Error(`${usage} has ${args.length - 1} choices, numbered from 0, so ${index} is not one of them`);
     return args[index + 1];
   },
   random: (args) => {
-    const usage = 'random(min, max, seed)';
+    const usage = 'Random(min, max, seed)';
     const low = solidScriptExtraNumber(args, 0, usage);
     const high = solidScriptExtraNumber(args, 1, usage);
     const seed = args.length > 2 ? solidScriptExtraNumber(args, 2, usage) : 0;
     return low + (high - low) * solidScriptExtraSeeded(seed);
   },
-  trunc: (args) => Math.trunc(solidScriptExtraNumber(args, 0, 'trunc(number)')),
+  trunc: (args) => Math.trunc(solidScriptExtraNumber(args, 0, 'Trunc(number)')),
   clamp: (args) => {
-    const usage = 'clamp(value, min, max)';
+    const usage = 'Clamp(value, min, max)';
     return Math.min(
       Math.max(solidScriptExtraNumber(args, 0, usage), solidScriptExtraNumber(args, 1, usage)),
       solidScriptExtraNumber(args, 2, usage),
     );
   },
   lerp: (args) => {
-    const usage = 'lerp(from, to, amount)';
+    const usage = 'Lerp(from, to, amount)';
     const amount = solidScriptExtraNumber(args, 2, usage);
     if (Array.isArray(args[0]) || Array.isArray(args[1])) {
       const [a, b] = solidScriptExtraPair(args, usage);
@@ -269,20 +269,20 @@ export const SOLID_SCRIPT_FUNCTIONS_EXTRA: Readonly<Record<string, SolidScriptEx
     const a = solidScriptExtraNumber(args, 0, usage);
     return a + (solidScriptExtraNumber(args, 1, usage) - a) * amount;
   },
-  length: (args) => Math.hypot(...solidScriptExtraVector(args, 0, 'length(vector)')),
+  length: (args) => Math.hypot(...solidScriptExtraVector(args, 0, 'Length(vector)')),
   normalize: (args) => {
-    const vector = solidScriptExtraVector(args, 0, 'normalize(vector)');
+    const vector = solidScriptExtraVector(args, 0, 'Normalize(vector)');
     const size = Math.hypot(...vector);
-    if (size === 0) throw new Error('normalize(vector) cannot turn 0, 0, 0 into a direction');
+    if (size === 0) throw new Error('Normalize(vector) cannot turn 0, 0, 0 into a direction');
     return vector.map((value) => value / size);
   },
   dot: (args) => {
-    const [a, b] = solidScriptExtraPair(args, 'dot(a, b)');
+    const [a, b] = solidScriptExtraPair(args, 'Dot(a, b)');
     return a.reduce((sum, value, index) => sum + value * b[index]!, 0);
   },
   distance: (args) => {
-    const [a, b] = solidScriptExtraPair(args, 'distance(a, b)');
+    const [a, b] = solidScriptExtraPair(args, 'Distance(a, b)');
     return Math.hypot(...a.map((value, index) => value - b[index]!));
   },
-  vector: (args) => args.map((_, index) => solidScriptExtraNumber(args, index, 'vector(x, y, z)')),
+  vector: (args) => args.map((_, index) => solidScriptExtraNumber(args, index, 'Vector(x, y, z)')),
 };

@@ -10,6 +10,7 @@ import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_com
 import {
   SOLID_SCRIPT_DOCUMENT_NAME_DEFAULT,
   solidScriptDocumentCreate,
+  solidScriptDocumentUsesWith,
   type SolidScriptDocument,
 } from '@/solid_script/document/solid_script_document.js';
 import {
@@ -523,7 +524,8 @@ export class SolidScriptEditor extends PanelFloating {
   private async examples(): Promise<void> {
     const example = await solidScriptExamplesAsk(this.root.ownerDocument.body);
     if (!example) return;
-    this.commit(solidScriptDocumentCreate(example.lines, example.name), 0);
+    const created = solidScriptDocumentCreate(example.lines, example.name);
+    this.commit(example.uses ? solidScriptDocumentUsesWith(created, example.uses) : created, 0);
     this.noticeShow(`Opened the ${example.name} example. Undo brings your script back.`);
   }
 

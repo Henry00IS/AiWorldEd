@@ -114,12 +114,12 @@ describe('SolidScript names', () => {
     const inFormula = solidScriptSuggestions(solidScriptSuggestionContext('[=a', 3), names, []);
     expect(inFormula.map((entry) => [entry.category, entry.insert])).toEqual([
       ['Functions', 'area()'],
-      ['Built-In Functions', 'abs()'],
-      ['Built-In Functions', 'acos()'],
-      ['Built-In Functions', 'asin()'],
-      ['Built-In Functions', 'atan()'],
-      ['Built-In Functions', 'atan2()'],
-      ['Built-In Functions', 'average()'],
+      ['Built-In Functions', 'Abs()'],
+      ['Built-In Functions', 'Acos()'],
+      ['Built-In Functions', 'Asin()'],
+      ['Built-In Functions', 'Atan()'],
+      ['Built-In Functions', 'Atan2()'],
+      ['Built-In Functions', 'Average()'],
     ]);
     const all = solidScriptSuggestions(null, names, []);
     expect(all.find((entry) => entry.label === 'area')?.insert).toBe('[=area()]');
@@ -150,6 +150,6 @@ describe('SolidScript origins', () => {
     const formula = solidScriptSuggestions(solidScriptSuggestionContext('[=Math.P', 8), [], []);
     expect(formula.map((entry) => entry.insert)).toEqual(['Math.Pi']);
     const pad = solidScriptSuggestions(solidScriptSuggestionContext('[=pad_l', 7), [], []);
-    expect(pad[0]?.detail).toBe('pad_left(text, width, fill): Fills in front up to a width: 007.');
+    expect(pad[0]?.detail).toBe('PadLeft(text, width, fill): Fills in front up to a width: 007.');
   });
 });

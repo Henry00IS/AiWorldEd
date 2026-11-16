@@ -52,7 +52,7 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
   }
   if (command.starter.length > 0 && command.category === '2D Shapes')
     return [{ command: 'linear_extrude' }, ...started, { command: 'end' }, { command: 'end' }];
-  if (['input_group', 'input_row', 'show_inputs_when'].includes(command.id))
+  if (['input_group', 'input_row', 'show_inputs_when', 'if_used_as'].includes(command.id))
     return [...started, { command: 'end' }, { command: 'cube' }];
   if (command.starter.length > 0) return [...started, { command: 'end' }];
   if (command.id === 'vertex' || command.id === 'face') {

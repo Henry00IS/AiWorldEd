@@ -36,7 +36,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     category: 'Transforms',
     description: 'Move shapes',
     manual:
-      'Moves every shape between this line and its End by the given distance along X, Y and Z in metres. Blocks can be nested: a Translate inside another adds both moves. Example: by 0, 0, 2.5 lifts a lintel onto two posts 2.5 metres high. By [=[i] * 2], 0, 0 inside a Repeat moves each round two metres further.',
+      'Moves every shape between this line and its End by the given distance along X, Y and Z in metres. Blocks can be nested: a Translate inside another adds both moves. Example: by 0, 0, 2.5 lifts a lintel onto two posts 2.5 metres high. By [=[I] * 2], 0, 0 inside a Repeat moves each round two metres further.',
     stops: [
       'A value that is not one number or three numbers separated by commas.',
       SOLID_SCRIPT_STOPS_EMPTY,
@@ -85,7 +85,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     category: 'Transforms',
     description: 'Stretch or shrink shapes',
     manual:
-      'Stretches or shrinks every shape between this line and its End, measured from the origin: 1 keeps the size, 2 doubles it, 0.5 halves it. Example: by 1, 1, 2 makes a sphere twice as tall, like an egg. By [=[i] + 1], 1, 1 inside a Repeat stretches each round more.',
+      'Stretches or shrinks every shape between this line and its End, measured from the origin: 1 keeps the size, 2 doubles it, 0.5 halves it. Example: by 1, 1, 2 makes a sphere twice as tall, like an egg. By [=[I] + 1], 1, 1 inside a Repeat stretches each round more.',
     stops: [
       'A value that is not one number or three numbers separated by commas.',
       SOLID_SCRIPT_STOPS_EMPTY,

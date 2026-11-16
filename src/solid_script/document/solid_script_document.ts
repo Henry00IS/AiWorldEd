@@ -21,6 +21,20 @@ export interface SolidScriptBlock {
   off?: true;
 }
 
+/** How a script may be used: as a generator, as a modifier, or both. */
+export interface SolidScriptUses {
+  /** Builds new geometry from nothing in a generator node. */
+  generator: boolean;
+  /** Works on the brush, mesh or group it is added to, in a modifier stack. */
+  modifier: boolean;
+}
+
+/** One way a script may be used. */
+export type SolidScriptUse = keyof SolidScriptUses;
+
+/** Uses of a script that sets none: a generator only. */
+export const SOLID_SCRIPT_USES_DEFAULT: Readonly<SolidScriptUses> = { generator: true, modifier: false };
+
 /** A script: its name and its lines in order. */
 export interface SolidScriptDocument {
   /** Format version. */
@@ -29,6 +43,8 @@ export interface SolidScriptDocument {
   name: string;
   /** Lines in order. */
   blocks: SolidScriptBlock[];
+  /** Can Be Used As; absent means a generator only. */
+  uses?: SolidScriptUses;
 }
 
 /** A command line to create, by command id and the values replacing defaults. */
@@ -123,7 +139,63 @@ export function solidScriptDocumentNormalize(input: unknown): SolidScriptDocumen
     return [block];
   });
   const name = typeof record['name'] === 'string' ? record['name'] : '';
-  return { version: SOLID_SCRIPT_DOCUMENT_VERSION, name, blocks };
+  const document: SolidScriptDocument = { version: SOLID_SCRIPT_DOCUMENT_VERSION, name, blocks };
+  return solidScriptDocumentUsesWith(document, solidScriptUsesNormalize(record['uses']));
+}
+
+/**
+ * Reads stored uses. A script needs at least one, so none at all reads as a
+ * generator.
+ *
+ * @param input Stored value.
+ * @returns Uses.
+ */
+function solidScriptUsesNormalize(input: unknown): SolidScriptUses {
+  const record = typeof input === 'object' && input !== null ? (input as Record<string, unknown>) : {};
+  const generator =
+    typeof record['generator'] === 'boolean' ? record['generator'] : SOLID_SCRIPT_USES_DEFAULT.generator;
+  const modifier = typeof record['modifier'] === 'boolean' ? record['modifier'] : SOLID_SCRIPT_USES_DEFAULT.modifier;
+  return generator || modifier ? { generator, modifier } : { ...SOLID_SCRIPT_USES_DEFAULT };
+}
+
+/**
+ * Returns how a script may be used.
+ *
+ * @param document Script.
+ * @returns Uses.
+ */
+export function solidScriptDocumentUses(document: SolidScriptDocument): SolidScriptUses {
+  return document.uses ?? { ...SOLID_SCRIPT_USES_DEFAULT };
+}
+
+/**
+ * Returns a copy of a script with other uses. The default uses are not stored,
+ * so older scripts and files stay as they were.
+ *
+ * @param document Script.
+ * @param uses Uses; at least one should be on.
+ * @returns Script.
+ */
+export function solidScriptDocumentUsesWith(document: SolidScriptDocument, uses: SolidScriptUses): SolidScriptDocument {
+  const { uses: _old, ...rest } = document;
+  const fallback =
+    uses.generator === SOLID_SCRIPT_USES_DEFAULT.generator && uses.modifier === SOLID_SCRIPT_USES_DEFAULT.modifier;
+  return fallback ? rest : { ...rest, uses: { generator: uses.generator, modifier: uses.modifier } };
+}
+
+/**
+ * Says why a script may not be used in a place, in words for the user.
+ *
+ * @param document Script.
+ * @param use Where it would be used.
+ * @returns Reason, or empty when it may.
+ */
+export function solidScriptDocumentUseProblem(document: SolidScriptDocument, use: SolidScriptUse): string {
+  if (solidScriptDocumentUses(document)[use]) return '';
+  const name = document.name || 'This script';
+  return use === 'modifier'
+    ? `${name} is made to be used as a generator only. Turn on Modifier under Can Be Used As to use it on a brush, mesh or group.`
+    : `${name} is made to be used as a modifier only. Turn on Generator under Can Be Used As to use it as a generator.`;
 }
 
 /**

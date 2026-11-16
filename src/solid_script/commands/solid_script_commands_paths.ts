@@ -72,7 +72,7 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
         'Path',
         'points3',
         '0, 0, 0; 1, 0, 0; 2, 1, 0',
-        'Points the profile follows, such as a list variable [path].',
+        'Points the profile follows, such as a list variable [Path].',
       ),
       solidScriptParameter('radius', 'Radius', 'number', '0.1', 'Radius of the round profile in metres.'),
       solidScriptParameter(

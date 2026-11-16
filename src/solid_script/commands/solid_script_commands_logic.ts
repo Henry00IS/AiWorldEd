@@ -44,7 +44,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Logic',
     description: 'Set a variable to a value',
     manual:
-      'Gives a value a name, so later lines can use the name. Lines below see the new value. Lines above do not. Setting the same name again changes it, so a Set in a Repeat can count up. Read it in any field as [width], or compute with it as [=[width] * 2]. Example: Set [width] to 3, then a Cube of size [width], 1, 1. Lists: Set points() adds an item at the end. Set points(2) changes item 2. Items count from 0. [points(2)] reads one item, and [points().count] says how many there are.',
+      'Gives a value a name, so later lines can use the name. Lines below see the new value. Lines above do not. Setting the same name again changes it, so a Set in a Repeat can count up. Read it in any field as [Width], or compute with it as [=[Width] * 2]. Example: Set [Width] to 3, then a Cube of size [Width], 1, 1. Lists: Set points() adds an item at the end. Set points(2) changes item 2. Items count from 0. [points(2)] reads one item, and [points().count] says how many there are.',
     stops: [
       'A name that is not letters, digits and _, or starts with a digit.',
       'A [name] for a variable not set above this line, or a [=formula] that cannot be read.',
@@ -64,7 +64,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
         'Value',
         'value',
         '2',
-        'A number, numbers separated by commas such as 1, 2, 3, plain text, [name] for another variable, or [=formula] such as [=[width] * 2].',
+        'A number, numbers separated by commas such as 1, 2, 3, plain text, [name] for another variable, or [=formula] such as [=[Width] * 2].',
       ),
     ],
     listing: (read) => ['Set', read.variable('name'), ':  ', read.value('value')],
@@ -79,7 +79,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Logic',
     description: 'Run lines several times',
     manual:
-      'Runs the lines inside once for each counter value. The counter goes from Start to End Value, adding Step each round. The lines inside can read the counter. Example: Repeat [i] from 0 to 4 around Translate by [=[i] * 2], 0, 0 and a Cube builds five cubes in a row.',
+      'Runs the lines inside once for each counter value. The counter goes from Start to End Value, adding Step each round. The lines inside can read the counter. Example: Repeat [I] from 0 to 4 around Translate by [=[I] * 2], 0, 0 and a Cube builds five cubes in a row.',
     stops: [
       'A Step of 0, or a Step that walks away from End Value.',
       `More than ${SOLID_SCRIPT_REPEAT_ROUNDS_MAX} rounds.`,
@@ -110,7 +110,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Logic',
     description: 'Run lines once per list item',
     manual:
-      'Runs the lines inside once for each item of a list. The counter holds the current item. The list can be numbers separated by commas, or a list variable such as [points]. Example: For Each [h] in 1, 2, 4 around Translate by [h], 0, 0 and a Cube builds three cubes.',
+      'Runs the lines inside once for each item of a list. The counter holds the current item. The list can be numbers separated by commas, or a list variable such as [points]. Example: For Each [H] in 1, 2, 4 around Translate by [H], 0, 0 and a Cube builds three cubes.',
     stops: [
       `More than ${SOLID_SCRIPT_REPEAT_ROUNDS_MAX} items.`,
       'A counter name that is not letters, digits and _.',
@@ -142,7 +142,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Logic',
     description: 'Run lines only when something is true',
     manual:
-      'Runs the lines inside only when the condition is true. Write the condition like a formula, but without the =. Write variables as [name]. An Else starts the lines that run when it is false. Example: If [i] % 2 == 0 inside a Repeat builds on every second round.',
+      'Runs the lines inside only when the condition is true. Write the condition like a formula, but without the =. Write variables as [name]. An Else starts the lines that run when it is false. Example: If [I] % 2 == 0 inside a Repeat builds on every second round.',
     stops: [
       'A [name] for a variable not set above this line, or a condition that cannot be read.',
       'A missing End line.',
@@ -153,8 +153,8 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
         'condition',
         'Condition',
         'condition',
-        '[i] % 2 == 0',
-        'A comparison such as [width] > 2. Use == to test if two values are equal.',
+        '[I] % 2 == 0',
+        'A comparison such as [Width] > 2. Use == to test if two values are equal.',
       ),
     ],
     listing: (read) => ['If', read.value('condition')],
@@ -166,7 +166,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Logic',
     description: 'Start the lines an If runs otherwise',
     manual:
-      'Inside an If, ends the lines that run when the condition holds and starts the lines that run when it does not. Example: If [width] > 2, a long beam, Else, a short post, End.',
+      'Inside an If, ends the lines that run when the condition holds and starts the lines that run when it does not. Example: If [Width] > 2, a long beam, Else, a short post, End.',
     stops: ['Being outside an If, or a second Else in the same If.'],
     nesting: 'continue',
     parameters: [],
@@ -193,7 +193,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Logic',
     description: 'Write a message to the output',
     manual:
-      'Writes a message to the Output while the script runs. Use it to check a value. Write plain text, without quotes. [name] puts in a variable, and [=formula] puts in a result. Example: Width is [width], double is [=[width] * 2].',
+      'Writes a message to the Output while the script runs. Use it to check a value. Write plain text, without quotes. [name] puts in a variable, and [=formula] puts in a result. Example: Width is [Width], double is [=[Width] * 2].',
     stops: [
       'A [name] for a variable not set above this line, or a [=formula] that cannot be read.',
       'A [ without its ]. Write $[ and $] for real brackets.',
@@ -257,7 +257,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Parts',
     description: 'Leave the function or part early',
     manual:
-      'Stops a Function or a part early. The lines after it are skipped. The script goes on after the Call or Use Part that started it. In a Function, Return can give back a value. A Call line stores that value in its Result In variable. Shapes built before Return stay. Put Return inside an If to stop only sometimes. Example: Return [local.v] gives back the value v.',
+      'Stops a Function or a part early. The lines after it are skipped. The script goes on after the Call or Use Part that started it. In a Function, Return can give back a value. A Call line stores that value in its Result In variable. Shapes built before Return stay. Put Return inside an If to stop only sometimes. Example: Return [local.V] gives back the value v.',
     stops: ['Being outside a Function or a Define Part.', 'A Value inside a part. Parts hand back results with Set.'],
     parameters: [
       solidScriptParameterOptional(
@@ -276,7 +276,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Parts',
     description: 'Build a part here',
     manual:
-      'Builds a part here, then goes on with the next line. Define the part with Define Part, above or below this line. The blocks around this line move what the part builds. A part may be used many times. It shares the variables of the script, so a Set inside it can hand back a result. The name may be a variable, such as [style]. A part may use itself, but an If must stop it. Example: Use Part post inside Translate by 2, 0, 0 builds the post two metres to the right.',
+      'Builds a part here, then goes on with the next line. Define the part with Define Part, above or below this line. The blocks around this line move what the part builds. A part may be used many times. It shares the variables of the script, so a Set inside it can hand back a result. The name may be a variable, such as [Style]. A part may use itself, but an If must stop it. Example: Use Part post inside Translate by 2, 0, 0 builds the post two metres to the right.',
     stops: ['No part with this name.', `Parts using each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} levels deep.`],
     parameters: [
       solidScriptParameter(
@@ -284,7 +284,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
         'Name',
         'message',
         'part',
-        'Name of a part defined in this script, or a variable such as [style] that holds one.',
+        'Name of a part defined in this script, or a variable such as [Style] that holds one.',
       ),
     ],
     listing: (read) => ['Use Part', { kind: 'value', text: `'${read.text('name')}'` }],

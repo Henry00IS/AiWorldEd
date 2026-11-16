@@ -110,7 +110,7 @@ describe('SolidScript paths', () => {
     expect(echo(L_PATH, '[=resample([path], 5)]')).toEqual(['[[0, 0, 0], [1, 0, 0], [2, 0, 0], [2, 1, 0], [2, 2, 0]]']);
     expect(echo(points('p', '0, 0', '4, 0'), '[=resample([p], 3)]')).toEqual(['[[0, 0], [2, 0], [4, 0]]']);
     expect(echo(points('p', '0, 0, 0'), '[=resample([p], 3)]')).toMatch(
-      /resample\(points, count\) needs at least 2 points/,
+      /Resample\(points, count\) needs at least 2 points/,
     );
   });
 

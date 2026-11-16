@@ -8,7 +8,11 @@ import {
 import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import {
   solidScriptDocumentNormalize,
+  solidScriptDocumentUseProblem,
+  solidScriptDocumentUses,
+  solidScriptDocumentUsesWith,
   type SolidScriptDocument,
+  type SolidScriptUse,
 } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptErrorText } from '@/solid_script/language/solid_script_error.js';
 import { solidScriptProgramEvaluate } from '@/solid_script/language/solid_script_program.js';
@@ -31,12 +35,15 @@ const SOLID_SCRIPT_INSPECTOR_HINT = `The script this generator runs. Edit Script
  * @param targetOf Builds what the row acts on.
  * @param key Parameter key of the script.
  * @param inputsKey Parameter key of the values of its Input lines.
+ * @param use How this step uses its script; a script that does not allow it is
+ *   refused with the reason.
  * @returns Inspector row.
  */
 export function solidScriptInspectorRow(
   targetOf: SolidScriptInspectorTargetOf,
   key: string,
   inputsKey: string,
+  use: SolidScriptUse,
 ): ModifierStackWidget {
   const card = solidScriptInspectorCard();
   const name = modifierStackUiText('div', '');
@@ -44,15 +51,78 @@ export function solidScriptInspectorRow(
   const detail = modifierStackUiText('div', '', true);
   const status = modifierStackUiText('div', '', true);
   const show = (text: string): void => void (status.textContent = text);
-  const commit = (document: SolidScriptDocument): void => solidScriptInspectorCommit(targetOf(show), key, document);
-  card.append(name, detail, solidScriptInspectorButtons(targetOf, show, commit), status);
+  const commit = (document: SolidScriptDocument): void => {
+    const problem = solidScriptDocumentUseProblem(document, use);
+    if (problem) show(problem);
+    else solidScriptInspectorCommit(targetOf(show), key, document);
+  };
+  let current = solidScriptDocumentNormalize(undefined);
+  const uses = solidScriptInspectorUses(use, show, (next) => commit(solidScriptDocumentUsesWith(current, next)));
+  card.append(name, detail, solidScriptInspectorButtons(targetOf, show, commit), uses.element, status);
   solidScriptFileDropBind(card, ThemeCss.accentColor, (result) => solidScriptInspectorDropped(result, commit, show));
   const write = (parameters: Record<string, unknown>): void => {
     const document = solidScriptDocumentNormalize(parameters[key]);
+    current = document;
+    uses.write(document);
     name.replaceChildren(solidScriptEditorIcon('script'), document.name || 'Script');
     solidScriptInspectorDetail(detail, document, solidScriptInspectorInputValues(parameters[inputsKey]));
   };
   return { element: modifierStackUiRow('Script', card, SOLID_SCRIPT_INSPECTOR_HINT), write };
+}
+
+/**
+ * Builds the Can Be Used As checkboxes. The use of this step stays on, and at
+ * least one stays on, so a script is never stored where it may not run.
+ *
+ * @param use How this step uses its script.
+ * @param show Writes the status line.
+ * @param commit Stores the script with new uses.
+ * @returns Row and how to show a script's uses.
+ */
+function solidScriptInspectorUses(
+  use: SolidScriptUse,
+  show: (text: string) => void,
+  commit: (uses: { generator: boolean; modifier: boolean }) => void,
+): { element: HTMLElement; write: (document: SolidScriptDocument) => void } {
+  const element = document.createElement('div');
+  element.dataset['solidScriptUses'] = 'true';
+  Object.assign(element.style, { display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' });
+  const caption = modifierStackUiText('span', 'Can Be Used As', true);
+  element.append(caption);
+  const boxes = new Map<SolidScriptUse, HTMLInputElement>();
+  const read = (): { generator: boolean; modifier: boolean } => ({
+    generator: boxes.get('generator')!.checked,
+    modifier: boxes.get('modifier')!.checked,
+  });
+  for (const [each, label, hint] of [
+    ['generator', 'Generator', 'Makes new geometry from nothing, in a generator node'],
+    ['modifier', 'Modifier', 'Works on the brush, mesh or group it is added to'],
+  ] as const) {
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.setAttribute('aria-label', `Can Be Used As ${label}`);
+    box.dataset['solidScriptUse'] = each;
+    box.addEventListener('change', () => {
+      if (!box.checked && each === use) {
+        box.checked = true;
+        show(`This script is used as a ${use} here, so ${label} stays on.`);
+        return;
+      }
+      commit(read());
+    });
+    boxes.set(each, box);
+    const wrap = document.createElement('label');
+    wrap.title = hint;
+    Object.assign(wrap.style, { display: 'flex', gap: '4px', alignItems: 'center' });
+    wrap.append(box, label);
+    element.append(wrap);
+  }
+  const write = (script: SolidScriptDocument): void => {
+    const uses = solidScriptDocumentUses(script);
+    boxes.get('generator')!.checked = uses.generator;
+    boxes.get('modifier')!.checked = uses.modifier;
+  };
+  return { element, write };
 }
 
 /**

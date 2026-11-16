@@ -9,7 +9,8 @@ Double-click a command in the palette, or drag it in, to add it below the curren
 <details>
 <summary>More Details</summary>
 
-- Fields take plain values (`2`, `1, 0, 0`), variables in brackets (`[width]`) and formulas after an equals sign (`[=[width] / 2]`).
+- Fields take plain values (`2`, `1, 0, 0`), variables in brackets (`[Width]`) and formulas after an equals sign (`[=[Width] / 2]`).
+- Names ignore case: `[count]` and `[Count]` are one variable, and `sin(65)` is `Sin(65)`. Write them in PascalCase, such as `[StepHeight]`, `Function Staircase` and `CharacterCode("A")`, like the examples do; the explorer keeps the spelling of the first Set or Input.
 - Functions such as `sin`, `lerp`, `remap`, `split` or `time_text` work in formulas; hover one in the suggestions to see what it does.
 - Shift+click or Shift+↑/↓ selects lines, Ctrl+C, Ctrl+X and Ctrl+V copy, cut and paste them, also between scripts, and Ctrl+D duplicates them.
 - **F4** or **Ctrl+/** turns lines off and on: they stay but do not run.
@@ -39,8 +40,8 @@ The script runs on every change. **Start** builds everything, **Debug** builds o
 <details>
 <summary>More Details</summary>
 
-- A **curve** input opens the curve editor; read it with `curve_at(curve, x)` or `profile_points(curve, height, radius)`.
-- A **texture** input picks a library texture; wrap brushes in a **Texture** block, such as `Texture [wall]`, to paint every face with it. An inner Texture block wins, and brushes outside keep the generator's texture. **Texture Faces** gives the faces Select Faces picked their own texture.
+- A **curve** input opens the curve editor; read it with `CurveAt(curve, x)` or `ProfilePoints(curve, height, radius)`.
+- A **texture** input picks a library texture; wrap brushes in a **Texture** block, such as `Texture [Wall]`, to paint every face with it. An inner Texture block wins, and brushes outside keep the generator's texture. **Texture Faces** gives the faces Select Faces picked their own texture.
 - **Input Group** shows the inputs inside it under a heading, **Input Row** puts them side by side, **Show Inputs When** shows them only while another input has a value, and **Input Note** shows a line of text among them.
 - When Input Changes and When Button Pressed blocks can check and change inputs.
 - **When Baked** runs just before the generator is baked, so a light preview can bake as a detailed version; undo brings back the old inputs.
@@ -69,8 +70,23 @@ The script runs on every change. **Start** builds everything, **Debug** builds o
 <summary>More Details</summary>
 
 - Each stretch becomes one solid, cut on the mitre so the pieces meet; **As Mesh** builds one mesh instead.
-- `resample(points, count)` spaces points evenly along a path, and `path_length(points)` measures it.
+- `Resample(points, count)` spaces points evenly along a path, and `PathLength(points)` measures it.
 - **Merge By Distance** welds mesh corners that nearly touch. **Mesh From Shapes** turns shapes into a real mesh.
+
+</details>
+
+## Generator or modifier
+
+A script can be a **generator**, which builds new geometry from nothing, or a **modifier** on a brush, mesh or group, which works on what it is added to. **Can Be Used As** on the Script row says which uses a script allows, and **If Used As** lets one script do something different in each.
+
+<details>
+<summary>More Details</summary>
+
+- Generator is on for every script that sets nothing. A script that does not allow a use is refused there with a message saying which box to turn on; the use a step already has stays on.
+- Add a SolidScript modifier from **Add Modifier** on a brush, mesh, group or modifier volume. The old generators still cannot go on brushes or groups.
+- As a modifier, the brushes it receives pass on unchanged. What the script builds is added, with the script origin at the centre of what it receives; Operation picks whether it is added, cut out or intersected.
+- `[Script.Usage]` is Generator or Modifier. `[Input.Brushes]`, `[Input.Faces]`, `[Input.Min]`, `[Input.Max]`, `[Input.Size]` and `[Input.Center]` describe what a modifier receives (all zero for a generator), and **Input Shapes** builds copies of those brushes to move, mirror or cut.
+- The **Pedestal** example works both ways: as a generator it builds a box on a slab, as a modifier it puts the slab under the brush.
 
 </details>
 

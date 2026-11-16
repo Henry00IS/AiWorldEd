@@ -119,7 +119,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     category: 'Solids',
     description: 'Build a solid around Point lines',
     manual:
-      'Builds the convex solid that wraps the corner points given by the Point lines between this line and its End, like shrink wrap around pins. Points inside the wrap are ignored, so the result is never hollow or dented. The lines inside may use Repeat, For Each, If, Set and moves such as Translate, so corners can come from loops and formulas. Points From List adds the points of a list variable too, such as [corners]. Example: Points at 0, 0, 0 and 1, 0, 0 and 0, 1, 0 and 0, 0, 1 give a small three-sided pyramid.',
+      'Builds the convex solid that wraps the corner points given by the Point lines between this line and its End, like shrink wrap around pins. Points inside the wrap are ignored, so the result is never hollow or dented. The lines inside may use Repeat, For Each, If, Set and moves such as Translate, so corners can come from loops and formulas. Points From List adds the points of a list variable too, such as [Corners]. Example: Points at 0, 0, 0 and 1, 0, 0 and 0, 1, 0 and 0, 0, 1 give a small three-sided pyramid.',
     stops: [
       'Fewer than four points.',
       'Points that all lie in one plane.',
@@ -132,7 +132,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
         'points',
         'Points From List',
         'points3',
-        'Optional: a list of x, y, z points, such as a list variable [corners]. Point lines inside add more.',
+        'Optional: a list of x, y, z points, such as a list variable [Corners]. Point lines inside add more.',
       ),
     ],
     starter: SOLID_SCRIPT_POLYHEDRON_STARTER,
@@ -148,7 +148,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     category: 'Solids',
     description: 'Add a corner to a Polyhedron or Polygon',
     manual:
-      'Adds one corner point at X, Y and Z in metres to the Polyhedron or Polygon around this line, moved by any Translate, Rotate or other move between them. A Polygon uses X and Y and ignores Z. Each value may be a variable or a formula, so a Repeat around a Point can place many corners. Example: inside Repeat [i] from 0 to 5, Point [=cos([i] * 60)], [=sin([i] * 60)], 0 adds the six corners of a hexagon.',
+      'Adds one corner point at X, Y and Z in metres to the Polyhedron or Polygon around this line, moved by any Translate, Rotate or other move between them. A Polygon uses X and Y and ignores Z. Each value may be a variable or a formula, so a Repeat around a Point can place many corners. Example: inside Repeat [I] from 0 to 5, Point [=Cos([I] * 60)], [=Sin([I] * 60)], 0 adds the six corners of a hexagon.',
     stops: ['Being placed outside a Polyhedron or Polygon.', 'A position that is not x, y, z.'],
     parameters: [
       solidScriptParameter('position', 'Position', 'vector3', '0, 0, 0', 'X, Y and Z of the corner in metres.'),
@@ -208,7 +208,7 @@ export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
     category: '2D Shapes',
     description: 'Draw an outline through Point lines',
     manual:
-      'Draws a flat outline through the Point lines between this line and its End, in order around the edge. Each Point gives X and Y, and Z is ignored. Unlike the solids it may be dented (concave), such as an L or a star. It is split into convex brushes when extruded. It only works inside a Linear Extrude. The lines inside may use Repeat, For Each, If and Set, and Points From List adds the points of a list variable such as [outline]. Example: Points at 0, 0 and 2, 0 and 2, 1 and 1, 1 and 1, 2 and 0, 2 give an L.',
+      'Draws a flat outline through the Point lines between this line and its End, in order around the edge. Each Point gives X and Y, and Z is ignored. Unlike the solids it may be dented (concave), such as an L or a star. It is split into convex brushes when extruded. It only works inside a Linear Extrude. The lines inside may use Repeat, For Each, If and Set, and Points From List adds the points of a list variable such as [Outline]. Example: Points at 0, 0 and 2, 0 and 2, 1 and 1, 1 and 1, 2 and 0, 2 give an L.',
     stops: ['Fewer than three points.', 'Being placed outside a Linear Extrude.', 'A missing End line.'],
     nesting: 'open',
     parameters: [
@@ -216,7 +216,7 @@ export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
         'points',
         'Points From List',
         'points2',
-        'Optional: a list of x, y points in outline order, such as a list variable [outline]. Point lines inside add more.',
+        'Optional: a list of x, y points in outline order, such as a list variable [Outline]. Point lines inside add more.',
       ),
     ],
     starter: SOLID_SCRIPT_POLYGON_STARTER,

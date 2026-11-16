@@ -2,6 +2,7 @@ import type { SolidScriptExpression } from './solid_script_ast.js';
 import type { SolidScriptCompiled } from './solid_script_expression_compile.js';
 import type { SolidScriptFieldContext } from './solid_script_field.js';
 import type { SolidScriptScope } from './solid_script_scope.js';
+import { solidScriptNameKey } from './solid_script_name_key.js';
 import { solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
 
 /** What a field reader asks of the running script. */
@@ -120,7 +121,7 @@ export class SolidScriptFieldReader implements SolidScriptFieldContext {
   /**
    * Reads an item of a list variable such as points([i]).
    *
-   * @param list List variable name.
+   * @param list Key of the list variable name.
    * @param index Item number.
    * @returns Value.
    */
@@ -130,7 +131,9 @@ export class SolidScriptFieldReader implements SolidScriptFieldContext {
       Array.isArray(items) && typeof index === 'number' && Number.isInteger(index) && index >= 0
         ? items[index]
         : undefined;
-    return found !== undefined ? found : this.host.fieldVariable(`${list}(${solidScriptValueText(index)})`, this.scope);
+    return found !== undefined
+      ? found
+      : this.host.fieldVariable(solidScriptNameKey(`${list}(${solidScriptValueText(index)})`), this.scope);
   }
 
   /**

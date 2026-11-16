@@ -19,6 +19,7 @@ import { InputSelect } from '@/ui/input/input_select.js';
 import { inputNumericCreateUvField } from '@/ui/input/input_numeric_uv_field.js';
 import { solidScriptDocumentNormalize } from '@/solid_script/document/solid_script_document.js';
 import type { SolidScriptInput } from '@/solid_script/language/solid_script_input.js';
+import { solidScriptNameKey } from '@/solid_script/language/solid_script_name_key.js';
 import {
   solidScriptDocumentInputLayout,
   solidScriptInputRulesHold,
@@ -113,7 +114,10 @@ export function solidScriptInspectorInputs(
     }
     element.style.display = layout.length > 0 ? '' : 'none';
     inputs.forEach((input, index) => writers[index]?.(values[input.name] ?? input.fallback));
-    visibility((name) => values[name] ?? inputs.find((input) => input.name === name)?.fallback);
+    visibility((name) => {
+      const input = inputs.find((each) => solidScriptNameKey(each.name) === solidScriptNameKey(name));
+      return input ? (values[input.name] ?? input.fallback) : values[name];
+    });
   };
   return { element, write };
 }

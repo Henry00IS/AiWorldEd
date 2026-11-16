@@ -1,3 +1,6 @@
+/** Blocks an Else may split: If and If Used As. */
+const SOLID_SCRIPT_ELSE_PARENTS: ReadonlySet<string> = new Set(['if', 'if_used_as']);
+
 /** How a line shapes the block structure, as its command declares. */
 export type SolidScriptBlockNesting = 'open' | 'continue' | 'close' | 'none';
 
@@ -63,7 +66,7 @@ export function solidScriptBlockTree<Command extends SolidScriptTreeCommand>(
     }
     if (command.nesting === 'continue') {
       const parent = open[open.length - 1];
-      if (!parent || parent.id !== 'if' || parent.node.otherwise)
+      if (!parent || !SOLID_SCRIPT_ELSE_PARENTS.has(parent.id) || parent.node.otherwise)
         throw new Error(`line ${line}: ${command.label} must follow the lines of an If, before its End`);
       parent.node.otherwise = [];
       return;

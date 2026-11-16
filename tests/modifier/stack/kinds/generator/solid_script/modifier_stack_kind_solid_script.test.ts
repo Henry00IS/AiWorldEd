@@ -236,6 +236,15 @@ describe('SolidScript generator', () => {
     expect([...textures].sort()).toEqual(['brick', 'grass']);
   });
 
+  it('refuses a script made only for modifiers with a friendly message', () => {
+    const fixture = scriptFixture();
+    scriptSet(fixture.node, {
+      script: { ...script({ command: 'cube' }), uses: { generator: false, modifier: true } },
+    });
+    expect(fixture.pieces()).toHaveLength(0);
+    expect(modifierStackStatusRead(fixture.node)?.steps[0]?.error).toContain('Turn on Generator under Can Be Used As');
+  });
+
   it('runs When Baked before a bake, so the brushes are baked with the inputs it sets, and undo keeps the old ones', () => {
     const fixture = scriptFixture();
     scriptSet(fixture.node, {

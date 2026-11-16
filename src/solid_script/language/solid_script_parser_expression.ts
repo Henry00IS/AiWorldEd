@@ -240,8 +240,9 @@ export class SolidScriptParserExpression {
    * @returns Expression.
    */
   private parseName(name: string): SolidScriptExpression {
-    if (name === 'true' || name === 'false') return { kind: 'boolean', value: name === 'true' };
-    if (name === 'undef') return { kind: 'undef' };
+    const word = name.toLowerCase();
+    if (word === 'true' || word === 'false') return { kind: 'boolean', value: word === 'true' };
+    if (word === 'undef') return { kind: 'undef' };
     if (this.accept('(')) return { kind: 'call', name, args: this.parseArguments() };
     return { kind: 'variable', name };
   }
