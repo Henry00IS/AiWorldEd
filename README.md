@@ -25,13 +25,22 @@ Combine any two meshes with **Union**, **Subtract** and **Intersect**.
 
 ## Stairs, Arches and Columns in One Click
 
+Pick a shape under **Add Shape**: cylinders, spheres, pipes, stairs, curved stairs, arches, columns and more, all adjustable live.
+
 ![Adding stairs](https://raw.githubusercontent.com/wiki/Henry00IS/AiWorldEd/images/stairs-generator.gif)
 ![Adding an arch](https://raw.githubusercontent.com/wiki/Henry00IS/AiWorldEd/images/arch-generator.gif)
 ![Adding a column](https://raw.githubusercontent.com/wiki/Henry00IS/AiWorldEd/images/column-generator.gif)
 
+## Blow It Up
+
+Punch jagged or brick-edged holes through walls with **Blast Hole**, then shatter content into pieces that fly apart with real physics.
+
+![Blasting a hole into a wall](https://raw.githubusercontent.com/wiki/Henry00IS/AiWorldEd/images/blast-hole.gif)
+![Shattering with Physics Shatter](https://raw.githubusercontent.com/wiki/Henry00IS/AiWorldEd/images/physics-shatter.gif)
+
 ## Shape Anything
 
-Extrude faces, slice with a clip plane, or edit vertices, edges and faces directly.
+Extrude faces, slice with a clip plane, or model vertices, edges and faces directly with bevel, inset, loop cut, knife and more.
 
 ![Extruding a face](https://raw.githubusercontent.com/wiki/Henry00IS/AiWorldEd/images/face-extrude.gif)
 ![Clipping a cube](https://raw.githubusercontent.com/wiki/Henry00IS/AiWorldEd/images/clip-plane.gif)
@@ -46,7 +55,7 @@ Open your project folder and click a texture to paint it onto faces. Fine-tune w
 
 - **Play mode**: press `Space` to walk through your level and throw tennis balls, soccer balls and paper planes.
 - **Primitives and terrain** for quick blockouts.
-- **Modifiers**: bevel, array, mirror, shear and more, on a volume or a single brush.
+- **Modifiers**: bevel, array, mirror, shear, physics shatter and more, on a volume or a single brush.
 - **Real-time collaboration**: build the same level together.
 - **MCP server**: let AI tools such as Grok Build look at and edit your level.
 - **Import and export**: import VMF, OBJ, FBX and GLB; export FBX, glTF, GLB and OBJ, ready for Godot, Unity, Blender and Unreal Engine.
