@@ -288,4 +288,43 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     listing: (read) => ['Use Part', { kind: 'value', text: `'${read.text('name')}'` }],
     execute: (run) => run.partUse(String(run.value('name')).trim()),
   }),
+  new SolidScriptCommand({
+    id: 'label',
+    label: 'Label',
+    category: 'Logic',
+    description: 'Mark a place a Go To can jump to',
+    manual:
+      'Marks a place among the lines. It does nothing by itself; a Go To with the same name carries on from here. Names ignore case. Each Label needs its own name among the lines it stands in. Example: Label Again, then lines that build a ring, then If [Rings] < 3 around Set [Rings] to [=[Rings] + 1] and Go To Again builds three rings.',
+    stops: ['An empty name.', 'Two Labels with the same name among the same lines.'],
+    parameters: [solidScriptParameter('name', 'Name', 'name', 'Again', 'The name a Go To jumps to.')],
+    listing: (read) => ['Label', read.text('name')],
+    execute: () => [],
+  }),
+  new SolidScriptCommand({
+    id: 'go_to',
+    label: 'Go To',
+    category: 'Logic',
+    description: 'Jump to a Label and carry on from there',
+    manual:
+      'Skips the lines after it and carries on from the Label with this name, forwards or backwards. The Label may stand among the same lines or among the lines around them, so a Go To inside an If or a Repeat can leave it. It cannot leave a Function; use Return there. A Go To that keeps jumping back is stopped like any runaway loop. For work you run from many places, a Function with Call is clearer, since it comes back. Example: If [Width] <= 0 around Go To Done skips everything down to Label Done.',
+    stops: [
+      'No Label with this name among its lines or the lines around them.',
+      'A Label outside the Function it is in.',
+    ],
+    parameters: [solidScriptParameter('name', 'Label', 'name', 'Again', 'Name of the Label to carry on from.')],
+    listing: (read) => ['Go To', read.text('name')],
+    execute: (run) => run.jump(run.text('name').trim()),
+  }),
+  new SolidScriptCommand({
+    id: 'stop_script',
+    label: 'Stop Script',
+    category: 'Logic',
+    description: 'End the script here, keeping what it built',
+    manual:
+      'Ends the whole script at this line, also from inside a Repeat, a part or a Function. Shapes built before it stay; the lines after it do not run. It is not a mistake, so nothing is highlighted. Example: If [Steps] == 0 around Echo Nothing to build and Stop Script.',
+    stops: [],
+    parameters: [],
+    listing: () => ['Stop Script'],
+    execute: (run) => run.jump(null),
+  }),
 ];

@@ -68,6 +68,8 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
   }
   if (command.category === '2D Shapes') return [{ command: 'linear_extrude' }, line, { command: 'end' }];
   if (command.id === 'linear_extrude') return [line, { command: 'square' }, { command: 'end' }];
+  if (command.id === 'go_to') return [{ command: 'cube' }, line, { command: 'sphere' }, { command: 'label' }];
+  if (command.id === 'label' || command.id === 'stop_script') return [{ command: 'cube' }, line, { command: 'sphere' }];
   if (command.id === 'else')
     return [counter, { command: 'if' }, { command: 'cube' }, line, { command: 'sphere' }, { command: 'end' }];
   if (command.category === 'Lists' && command.id !== 'remove_item' && command.id !== 'add_item')

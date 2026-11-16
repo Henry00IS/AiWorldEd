@@ -111,6 +111,11 @@ export const SOLID_SCRIPT_FUNCTION_DOCS: Readonly<Record<string, SolidScriptFunc
   first: { usage: 'First(list)', summary: 'The first item.', group: 'Lists' },
   last: { usage: 'Last(list)', summary: 'The last item.', group: 'Lists' },
   slice: { usage: 'Slice(list, start, count)', summary: 'Some items, from 0.', group: 'Lists' },
+  item_or: {
+    usage: 'ItemOr(list, index, fallback)',
+    summary: 'The item at an index, from 0, or the fallback when there is none: ItemOr($[1, 2$], 5, 0) is 0.',
+    group: 'Lists',
+  },
   index_of: { usage: 'IndexOf(list, value)', summary: 'Where a value is, from 0, or -1.', group: 'Lists' },
   unique: { usage: 'Unique(list)', summary: 'The list without repeats.', group: 'Lists' },
   sorted: { usage: 'Sorted(list)', summary: 'A sorted copy: numbers small to big, words A to Z.', group: 'Lists' },
