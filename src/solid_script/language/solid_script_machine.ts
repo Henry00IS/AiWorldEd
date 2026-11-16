@@ -52,9 +52,6 @@ import { solidScriptValueText, solidScriptValueType, type SolidScriptValue } fro
 const SOLID_SCRIPT_SOLIDS_MAX = 2000;
 
 /** Most parts that may be in use inside each other at once. */
-/** Key of Stop Script among the Labels a Go To looks for; no name folds to it. */
-const SOLID_SCRIPT_STOP_KEY = '\u0000stop';
-
 export const SOLID_SCRIPT_PART_DEPTH_MAX = 64;
 
 /**
@@ -249,11 +246,8 @@ export interface SolidScriptBlockRun {
    * lines after its Call or Use Part carry on.
    */
   leave(value: SolidScriptValue | undefined): SolidScriptShape[];
-  /**
-   * Skips the lines after this one up to a Label with this name, among these
-   * lines or the lines around them; null stops the whole script instead.
-   */
-  jump(label: string | null): SolidScriptShape[];
+  /** Ends the whole run after this line, keeping what was built. */
+  stop(): SolidScriptShape[];
   /**
    * Runs a Function block with arguments, building its shapes here, and stores
    * what it returns in a variable when one is named.
@@ -714,10 +708,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
   private readonly gathering: SolidScriptGathering[] = [];
   /** True from a Return line until the part it leaves has stopped. */
   private leaving = false;
-  /** The Label a Go To looks for, or stop for Stop Script, until it is found. */
-  private jumping: { key: string; name: string } | null = null;
-  /** Line index of each Label among a list of lines, by name key. */
-  private readonly labels = new WeakMap<readonly SolidScriptBlockNode<Command>[], Map<string, number>>();
+  /** True from a Stop Script line until the run or event ends. */
+  private stopping = false;
   private watched: SolidScriptScope | null = null;
   private failure: SolidScriptFailure | null = null;
   private paused: SolidScriptBreak | null = null;
@@ -754,7 +746,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     this.useOnce();
     const context = { matrix: new THREE.Matrix4(), planar: false };
     const shapes = this.linesRun(lines, this.root, context, this.root);
-    this.jumpEnd();
+    this.stopping = false;
     const variables = [...(this.watched?.variablesVisible() ?? [])].map(([name, value]) =>
       solidScriptVariableView(this.spellings.get(name) ?? name, value),
     );
@@ -795,7 +787,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
       // A bake has no name; When Baked blocks all answer it.
       if (event.kind !== 'bake' && handler.command.valueText(handler.values, 'name').trim() !== event.name) continue;
       if (handler.children.length > 0) this.linesRun(handler.children, this.root, context);
-      this.jumpEnd();
+      this.stopping = false;
       if (this.steps.length > 0 && !this.failure)
         this.failure = solidScriptFailure(
           this.steps[0] ?? handler.line,
@@ -839,53 +831,12 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     const built: SolidScriptShape[] = [];
     this.builtStack.push(built);
     try {
-      for (let index = 0; index < lines.length; index++) {
-        built.push(...this.lineRun(lines[index]!, scope, context));
-        if (this.jumping === null) continue;
-        const target = this.labels.get(lines)?.get(this.jumping.key);
-        if (target === undefined) break;
-        this.jumping = null;
-        index = target;
-      }
+      for (const node of lines) built.push(...this.lineRun(node, scope, context));
     } finally {
       this.builtStack.pop();
     }
     return built;
   }
-
-  /**
-   * Notes where a Label stands among its lines, so a Go To can find it.
-   *
-   * @param lines Lines the Label is one of.
-   * @param node Label line.
-   */
-  private labelDefine(lines: readonly SolidScriptBlockNode<Command>[], node: SolidScriptBlockNode<Command>): void {
-    const name = (node.values['name'] ?? '').trim();
-    if (name === '') throw new Error('a Label needs a name');
-    let found = this.labels.get(lines);
-    if (!found) this.labels.set(lines, (found = new Map()));
-    const key = this.nameKey(name);
-    if (found.has(key))
-      throw new Error(`there is already a Label "${name}" among these lines; give each one its own name`);
-    found.set(key, lines.indexOf(node));
-  }
-
-  /**
-   * Ends a run or a Function: Stop Script is done, and a Go To whose Label was
-   * never found stops the script.
-   */
-  private jumpEnd(): void {
-    const jumping = this.jumping;
-    this.jumping = null;
-    if (jumping && jumping.key !== SOLID_SCRIPT_STOP_KEY && !this.failure)
-      this.failure = solidScriptFailure(
-        this.jumpLine,
-        `Go To found no Label "${jumping.name}"; it must stand among the lines of the Go To or the lines around them`,
-      );
-  }
-
-  /** Line of the last Go To, for its mistake. */
-  private jumpLine = 0;
 
   /**
    * Registers the parts, functions and event handler blocks among lines, so
@@ -899,7 +850,6 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     for (const node of lines) {
       if (node.command.id === 'part') this.guarded(node.line, () => this.partDefine(node));
       if (node.command.id === 'function') this.guarded(node.line, () => this.functionDefine(node));
-      if (node.command.id === 'label') this.guarded(node.line, () => this.labelDefine(lines, node));
       if (Object.values(SOLID_SCRIPT_HANDLERS).includes(node.command.id as never) && !this.handlers.includes(node))
         this.handlers.push(node);
     }
@@ -963,13 +913,6 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
       const scope = new SolidScriptScope(this.root, name);
       const shapes = node.children.length > 0 ? this.linesRun(node.children, scope, context, scope) : [];
       this.leaving = false;
-      if (this.jumping && this.jumping.key !== SOLID_SCRIPT_STOP_KEY) {
-        const name = this.jumping.name;
-        this.jumping = null;
-        throw new Error(
-          `Go To cannot leave a Function, and found no Label "${name}" inside ${node.values['name'] ?? 'it'}`,
-        );
-      }
       return { shapes, value: frame.returned?.value };
     } finally {
       this.stack.pop();
@@ -1147,7 +1090,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     scope: SolidScriptScope,
     context: SolidScriptContext,
   ): SolidScriptShape[] {
-    if (this.failure || this.paused || this.leaving || this.jumping) return [];
+    if (this.failure || this.paused || this.leaving || this.stopping) return [];
     let entry = this.profile.get(node.line);
     if (!entry) this.profile.set(node.line, (entry = { count: 0, ms: 0 }));
     entry.count += 1;
@@ -1172,7 +1115,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
    * @returns True when the run paused here.
    */
   private breakReached(line: number, scope: SolidScriptScope): boolean {
-    if (!this.breakpoints?.lines.has(line) || this.failure || this.paused || this.jumping) return false;
+    if (!this.breakpoints?.lines.has(line) || this.failure || this.paused || this.stopping) return false;
     const reached = { line, steps: this.steps.length };
     this.breaks.push(reached);
     if (this.breaks.length !== this.breakpoints.pauseAt) return false;
@@ -1190,7 +1133,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
    * @returns Its result, or undefined when the run stopped.
    */
   private guarded<T>(line: number, step: () => T): T | undefined {
-    if (this.failure || this.paused || this.leaving || this.jumping) return undefined;
+    if (this.failure || this.paused || this.leaving || this.stopping) return undefined;
     const outer = this.line;
     this.line = line;
     try {
@@ -1407,12 +1350,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
         state.machine.leaving = true;
         return [];
       },
-      jump: (label) => {
-        state.machine.jumpLine = node.line;
-        state.machine.jumping =
-          label === null
-            ? { key: SOLID_SCRIPT_STOP_KEY, name: '' }
-            : { key: state.machine.nameKey(label), name: label };
+      stop: () => {
+        state.machine.stopping = true;
         return [];
       },
       call: (name, values, result) => state.machine.functionCallLine(name, values, result, state.scope, state.context),
@@ -1873,7 +1812,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
         !this.failure &&
         !this.paused &&
         !this.leaving &&
-        !this.jumping
+        !this.stopping
       )
         throw new Error('Difference has nothing to cut from: its first line builds no shape');
       if (joined) operands.push(joined);

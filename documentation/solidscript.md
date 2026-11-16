@@ -12,7 +12,7 @@ Double-click a command in the palette, or drag it in, to add it below the curren
 - Fields take plain values (`2`, `1, 0, 0`), variables in brackets (`[Width]`) and formulas after an equals sign (`[=[Width] / 2]`).
 - Names ignore case: `[count]` and `[Count]` are one variable, and `sin(65)` is `Sin(65)`. Write them in PascalCase, such as `[StepHeight]`, `Function Staircase` and `CharacterCode("A")`, like the examples do; the explorer keeps the spelling of the first Set or Input.
 - Functions such as `Sin`, `Lerp`, `Remap`, `Split` or `TimeText` work in formulas; hover one in the suggestions to see what it does. `ItemOr([List], 5, 0)` reads an item with a fallback when there is none.
-- **Label** marks a place and **Go To** carries on from it, forwards or backwards, also out of an If or a Repeat (but not out of a Function). **Stop Script** ends the script there and keeps what it built. A mistake always stops the script and highlights its line; there is no error catching.
+- **Stop Script** ends the script there, also from inside a Repeat or a Function, and keeps what it built. Run shared lines from many places with a Function and Call. A mistake always stops the script and highlights its line; there is no error catching.
 - Shift+click or Shift+↑/↓ selects lines, Ctrl+C, Ctrl+X and Ctrl+V copy, cut and paste them, also between scripts, and Ctrl+D duplicates them.
 - **F4** or **Ctrl+/** turns lines off and on: they stay but do not run.
 - **New** starts an empty script and **Examples…** opens a ready one; both can be undone.
