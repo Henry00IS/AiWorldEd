@@ -599,6 +599,29 @@ const SOLID_SCRIPT_FORMULA_CONTEXT: SolidScriptContext = { matrix: new THREE.Mat
  */
 const SOLID_SCRIPT_LINE_FIELDS = new WeakMap<object, Map<string, SolidScriptLineField>>();
 
+/** Names without their local. start, by full name, so reads do not cut text. */
+const SOLID_SCRIPT_LOCAL_BARE = new Map<string, string>();
+
+/** Most names kept in SOLID_SCRIPT_LOCAL_BARE before it starts over. */
+const SOLID_SCRIPT_LOCAL_BARE_MAX = 4096;
+
+/**
+ * Returns a local name without its local. start.
+ *
+ * @param name Name starting with local.
+ * @returns Bare name.
+ */
+function solidScriptLocalBare(name: string): string {
+  let bare = SOLID_SCRIPT_LOCAL_BARE.get(name);
+  if (bare === undefined) {
+    bare = name.slice(SOLID_SCRIPT_LOCAL_PREFIX.length);
+    // Names built while running, such as local.p[i], could fill it up.
+    if (SOLID_SCRIPT_LOCAL_BARE.size >= SOLID_SCRIPT_LOCAL_BARE_MAX) SOLID_SCRIPT_LOCAL_BARE.clear();
+    SOLID_SCRIPT_LOCAL_BARE.set(name, bare);
+  }
+  return bare;
+}
+
 /**
  * Run views by line, kept across runs: building one costs about fifty closures,
  * so a script rebuilt with new inputs reuses those of the last run.
@@ -961,7 +984,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
         persistent: true,
       };
     if (!name.startsWith(SOLID_SCRIPT_LOCAL_PREFIX)) return { scope, name, local: false, persistent: false };
-    const bare = name.slice(SOLID_SCRIPT_LOCAL_PREFIX.length);
+    const bare = solidScriptLocalBare(name);
     const frame = this.frameFunction();
     if (!frame?.locals)
       throw new Error(
@@ -1468,13 +1491,12 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
       variable: (name) => {
         // Plain names, the most common read, take one walk out.
         if (!name.includes('.') && !name.includes('(')) {
-          const home = scope.variableHome(name);
-          if (home) return home.variableOwn(name);
+          const found = scope.variableGet(name);
+          if (found !== undefined) return found;
         } else if (name.startsWith(SOLID_SCRIPT_LOCAL_PREFIX)) {
           // A Function's own input or variable, the common read inside one.
-          const locals = this.frameFunction()?.locals;
-          const bare = name.slice(SOLID_SCRIPT_LOCAL_PREFIX.length);
-          if (locals?.variableHas(bare)) return locals.variableOwn(bare);
+          const found = this.frameFunction()?.locals?.variableOwn(solidScriptLocalBare(name));
+          if (found !== undefined) return found;
         } else {
           const builtIn = this.systemRead(name);
           if (builtIn !== undefined) return builtIn;
@@ -1593,7 +1615,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
       return;
     }
     const locals = name.startsWith(SOLID_SCRIPT_LOCAL_PREFIX) ? this.frameFunction()?.locals : undefined;
-    const bare = locals ? name.slice(SOLID_SCRIPT_LOCAL_PREFIX.length) : '';
+    const bare = locals ? solidScriptLocalBare(name) : '';
     if (locals && SOLID_SCRIPT_NAME.test(bare)) {
       locals.variableSet(bare, value);
       return;
