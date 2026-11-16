@@ -1,3 +1,5 @@
+import { SOLID_SCRIPT_FUNCTION_DOCS } from '@/solid_script/language/solid_script_function_docs.js';
+import { SOLID_SCRIPT_SYSTEM_GLOBALS } from '@/solid_script/language/solid_script_system.js';
 import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
 import { SOLID_SCRIPT_FUNCTIONS_BUILTIN } from '@/solid_script/language/solid_script_functions_builtin.js';
 import {
@@ -64,10 +66,10 @@ export function solidScriptSuggestionContext(text: string, caret: number): Solid
     }
   }
   formula = formulaDepths.includes(true);
-  const bracket = /\[((?:local\.)?[A-Za-z_][A-Za-z0-9_]*|local\.)?$/.exec(before);
+  const bracket = /\[((?:local\.)?[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]*)?|local\.)?$/.exec(before);
   if (bracket && before[bracket.index - 1] !== '$')
     return { from: bracket.index, prefix: bracket[1] ?? '', formula, bracket: true };
-  const word = /(^|[^A-Za-z0-9_\]])([A-Za-z_][A-Za-z0-9_]*)$/.exec(before);
+  const word = /(^|[^A-Za-z0-9_.\]])([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]*)?)$/.exec(before);
   if (formula && word) {
     const prefix = word[2] ?? '';
     return { from: caret - prefix.length, prefix, formula, bracket: false };
@@ -106,6 +108,16 @@ export function solidScriptSuggestions(
           insert: `[${entry.name}]`,
           back: 0,
         });
+    if (prefix !== '')
+      for (const value of SOLID_SCRIPT_SYSTEM_GLOBALS)
+        if (starts(value.name))
+          suggestions.push({
+            label: value.name,
+            detail: `${value.type}: ${value.detail}`,
+            category: 'System',
+            insert: `[${value.name}]`,
+            back: 0,
+          });
     for (const name of extra)
       if (starts(name))
         suggestions.push({
@@ -123,8 +135,21 @@ export function solidScriptSuggestions(
       if (starts(entry.name))
         suggestions.push({ label: entry.name, detail: entry.detail, category: 'Functions', ...call(entry.name) });
     for (const name of Object.keys(SOLID_SCRIPT_FUNCTIONS_BUILTIN).sort())
-      if (starts(name))
-        suggestions.push({ label: name, detail: 'built in', category: 'Built-In Functions', ...call(name) });
+      if (starts(name)) {
+        const doc = SOLID_SCRIPT_FUNCTION_DOCS[name];
+        const detail = doc ? `${doc.usage}: ${doc.summary}` : 'built in';
+        suggestions.push({ label: name, detail, category: 'Built-In Functions', ...call(name) });
+      }
+    if (context && prefix.includes('.'))
+      for (const value of SOLID_SCRIPT_SYSTEM_GLOBALS)
+        if (starts(value.name))
+          suggestions.push({
+            label: value.name,
+            detail: `${value.type}: ${value.detail}`,
+            category: 'System',
+            insert: value.name,
+            back: 0,
+          });
   }
   const order = [...SOLID_SCRIPT_NAME_CATEGORIES, 'This Command', 'Built-In Functions'] as string[];
   return suggestions

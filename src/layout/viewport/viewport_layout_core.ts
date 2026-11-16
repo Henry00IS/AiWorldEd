@@ -1,3 +1,4 @@
+import { solidScriptSystemHostInstall } from '@/solid_script/ui/solid_script_system_host.js';
 import { audioViewportFocus } from '@/audio/spatial/audio_viewport_focus.js';
 import { resolveViewportCreationTarget } from '@/navigation/placement/viewport_creation_target.js';
 import { faceSelectionClaimAdmission } from '@/selection/face/face_selection_claim.js';
@@ -271,6 +272,7 @@ export abstract class ViewportLayoutCore {
         setTitle: editorWindowTitleWrite,
       }),
     );
+    solidScriptSystemHostInstall();
     this.container = editorContainer;
     this.isDisposed = false;
     this.renderLoop = new LayoutRenderLoop();

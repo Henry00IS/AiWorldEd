@@ -1,3 +1,4 @@
+import { solidScriptSystemPlayersSet } from '@/solid_script/language/solid_script_system.js';
 import { CURVES_COLLABORATION_REQUEST_NAME } from '@/collaboration/session/curves_collaboration.js';
 import type { HostCollaborationEditor } from '@/collaboration/host/host_collaboration_editor.js';
 import type { SocketCollaborationMessage } from '@/collaboration/net/socket_collaboration_types.js';
@@ -134,6 +135,7 @@ export class SessionCollaborationRoom {
     locks: SessionCollaborationLockList[],
   ): void {
     this.running = true;
+    solidScriptSystemPlayersSet(() => this.roster.list().length);
     this.self = self;
     this.sync.replica.locks.selfSet(self);
     members.forEach((member) =>
@@ -157,6 +159,7 @@ export class SessionCollaborationRoom {
   stop(): void {
     if (!this.running) return;
     this.running = false;
+    solidScriptSystemPlayersSet(null);
     this.listenersRemove();
     this.locks.uninstall();
     this.host.toolGuardSet(null);

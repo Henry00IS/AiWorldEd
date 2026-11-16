@@ -70,7 +70,7 @@ export class SolidScriptEditorOutput {
    */
   show(document: SolidScriptDocument, options: SolidScriptProgramOptions | null, caption: string): void {
     try {
-      const result = solidScriptProgramEvaluate(document, options ?? {});
+      const result = solidScriptProgramEvaluate(document, { context: 'preview', ...options });
       const count = result.steps.length;
       this.failed = null;
       const solids = `${count} ${count === 1 ? 'solid' : 'solids'}${result.paused ? ' so far' : ''}`;

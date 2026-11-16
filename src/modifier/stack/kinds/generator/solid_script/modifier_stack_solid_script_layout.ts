@@ -50,10 +50,9 @@ export function modifierStackSolidScriptLayout(
   inputs: Readonly<Record<string, string>> = {},
 ): ModifierStackSolidScriptLayout {
   try {
-    const { shapes } = solidScriptProgramEvaluate(
-      document,
-      stepLimit === undefined ? { inputs } : { stepLimit, inputs },
-    );
+    const size = box.getSize(new THREE.Vector3());
+    const run = { inputs, box: [size.x, size.z, size.y] as const };
+    const { shapes } = solidScriptProgramEvaluate(document, stepLimit === undefined ? run : { ...run, stepLimit });
     const placed = modifierStackSolidScriptPlacementMatrix(shapes, placement, box);
     const nodes = solidScriptSolidTreeBuild(shapes, {
       upAxis: 'z',

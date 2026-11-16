@@ -11,6 +11,12 @@ export interface SolidScriptToken {
 /** Symbols made of two characters, matched before single characters. */
 const SOLID_SCRIPT_SYMBOLS_DOUBLE = ['<=', '>=', '==', '!=', '&&', '||'];
 
+/** Characters after a backslash in a string that stand for another character. */
+const SOLID_SCRIPT_STRING_ESCAPES: ReadonlyMap<string, string> = new Map([
+  ['n', '\n'],
+  ['t', '\t'],
+]);
+
 /** Words that read like the symbols they stand for: and, or, not. */
 const SOLID_SCRIPT_WORD_SYMBOLS: ReadonlyMap<string, string> = new Map([
   ['and', '&&'],
@@ -125,7 +131,8 @@ export class SolidScriptLexer {
   }
 
   /**
-   * Reads a double-quoted string with backslash escapes.
+   * Reads a double-quoted string with backslash escapes: \n a new line, \t a
+   * tab, and a backslash before any other character keeps that character.
    *
    * @returns String token holding the unescaped text.
    */
@@ -133,8 +140,10 @@ export class SolidScriptLexer {
     let index = this.position + 1;
     let text = '';
     while (index < this.source.length && this.source[index] !== '"') {
-      if (this.source[index] === '\\') index += 1;
-      text += this.source[index] ?? '';
+      const escaped = this.source[index] === '\\';
+      if (escaped) index += 1;
+      const character = this.source[index] ?? '';
+      text += escaped ? (SOLID_SCRIPT_STRING_ESCAPES.get(character) ?? character) : character;
       index += 1;
     }
     if (index >= this.source.length) throw new Error(`line ${this.line}: unterminated string`);

@@ -156,7 +156,7 @@ export class EditorApiGeometry {
     try {
       const blocks = geometryScriptLinesRead(args.lines);
       if (typeof blocks === 'string') return blocks;
-      const { shapes, messages } = solidScriptProgramEvaluate({ blocks });
+      const { shapes, messages } = solidScriptProgramEvaluate({ blocks }, { context: 'assistant' });
       const upAxis = args.upAxis === 'y' ? 'y' : 'z';
       const offset = dtoToVec3(args.position, new THREE.Vector3());
       const nodes = solidScriptSolidTreeBuild(shapes, {

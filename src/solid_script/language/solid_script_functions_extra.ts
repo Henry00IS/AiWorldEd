@@ -1,9 +1,26 @@
+import { solidScriptTimeText } from './solid_script_system.js';
 import {
   solidScriptValueNumber,
   solidScriptValueNumbers,
   solidScriptValueText,
   type SolidScriptValue,
 } from './solid_script_value.js';
+
+/**
+ * Pads text to a width with a fill character.
+ *
+ * @param args Text, width and fill (a space when missing).
+ * @param usage How to call the function, for the message.
+ * @param start True pads in front, false behind.
+ * @returns Text at least width characters long.
+ */
+function solidScriptExtraPad(args: readonly SolidScriptValue[], usage: string, start: boolean): string {
+  const text = solidScriptExtraText(args, 0, usage);
+  const width = Math.floor(solidScriptExtraNumber(args, 1, usage));
+  if (width > 10000) throw new Error(`${usage} needs a width up to 10000`);
+  const fill = args.length > 2 ? solidScriptExtraText(args, 2, usage) : ' ';
+  return start ? text.padStart(width, fill) : text.padEnd(width, fill);
+}
 
 /** A built-in function over evaluated arguments. */
 type SolidScriptExtra = (args: SolidScriptValue[]) => SolidScriptValue;
@@ -16,7 +33,7 @@ type SolidScriptExtra = (args: SolidScriptValue[]) => SolidScriptValue;
  * @param usage How to call the function, for the message.
  * @returns Text.
  */
-function solidScriptExtraText(args: readonly SolidScriptValue[], index: number, usage: string): string {
+export function solidScriptExtraText(args: readonly SolidScriptValue[], index: number, usage: string): string {
   const value = args[index];
   if (value === undefined) throw new Error(`${usage} is missing a value`);
   return typeof value === 'string' ? value : solidScriptValueText(value);
@@ -30,7 +47,7 @@ function solidScriptExtraText(args: readonly SolidScriptValue[], index: number, 
  * @param usage How to call the function, for the message.
  * @returns Number.
  */
-function solidScriptExtraNumber(args: readonly SolidScriptValue[], index: number, usage: string): number {
+export function solidScriptExtraNumber(args: readonly SolidScriptValue[], index: number, usage: string): number {
   const number = solidScriptValueNumber(args[index]);
   if (number === undefined) throw new Error(`${usage} needs a number, not ${solidScriptValueText(args[index])}`);
   return number;
@@ -166,6 +183,43 @@ export const SOLID_SCRIPT_FUNCTIONS_EXTRA: Readonly<Record<string, SolidScriptEx
     const items = Array.isArray(args[0]) ? args[0] : [args[0]];
     const separator = args.length > 1 ? solidScriptExtraText(args, 1, 'join(list, separator)') : ', ';
     return items.map((item) => (typeof item === 'string' ? item : solidScriptValueText(item))).join(separator);
+  },
+  pad_left: (args) => solidScriptExtraPad(args, 'pad_left(text, width, fill)', true),
+  pad_right: (args) => solidScriptExtraPad(args, 'pad_right(text, width, fill)', false),
+  trim_start: (args) => solidScriptExtraText(args, 0, 'trim_start(text)').trimStart(),
+  trim_end: (args) => solidScriptExtraText(args, 0, 'trim_end(text)').trimEnd(),
+  capitalize: (args) => {
+    const text = solidScriptExtraText(args, 0, 'capitalize(text)');
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  },
+  title_case: (args) =>
+    solidScriptExtraText(args, 0, 'title_case(text)').replace(
+      /(^|\s)(\S)/g,
+      (_, space, first) => space + first.toUpperCase(),
+    ),
+  count_text: (args) => {
+    const usage = 'count_text(text, find)';
+    const find = solidScriptExtraText(args, 1, usage);
+    return find === '' ? 0 : solidScriptExtraText(args, 0, usage).split(find).length - 1;
+  },
+  characters: (args) => [...solidScriptExtraText(args, 0, 'characters(text)')],
+  lines: (args) => solidScriptExtraText(args, 0, 'lines(text)').split(/\r?\n/),
+  format_number: (args) => {
+    const usage = 'format_number(number, decimals, thousands)';
+    const decimals = args.length > 1 ? Math.floor(solidScriptExtraNumber(args, 1, usage)) : 2;
+    if (decimals < 0 || decimals > 20) throw new Error(`${usage} needs decimals from 0 to 20`);
+    const fixed = solidScriptExtraNumber(args, 0, usage).toFixed(decimals);
+    if (args.length < 3) return fixed;
+    const [whole = '', fraction] = fixed.split('.');
+    const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, solidScriptExtraText(args, 2, usage));
+    return fraction === undefined ? grouped : `${grouped}.${fraction}`;
+  },
+  time_text: (args) => {
+    const usage = 'time_text(seconds, pattern)';
+    return solidScriptTimeText(
+      solidScriptExtraNumber(args, 0, usage),
+      args.length > 1 ? solidScriptExtraText(args, 1, usage) : 'YYYY-MM-DD HH:mm:ss',
+    );
   },
   number: (args) => {
     const number = solidScriptValueNumber(args[0]);

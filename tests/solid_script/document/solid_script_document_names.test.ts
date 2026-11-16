@@ -86,6 +86,7 @@ describe('SolidScript names', () => {
       ['Built-In Functions', 'asin()'],
       ['Built-In Functions', 'atan()'],
       ['Built-In Functions', 'atan2()'],
+      ['Built-In Functions', 'average()'],
     ]);
     const all = solidScriptSuggestions(null, names, []);
     expect(all.find((entry) => entry.label === 'area')?.insert).toBe('[=area()]');
@@ -107,5 +108,15 @@ describe('SolidScript origins', () => {
       ]),
     );
     expect(Object.fromEntries(origins)).toEqual({ w: [0, 2], pts: [1, 3], 'local.a': [4], 'local.b': [4], i: [6] });
+  });
+
+  it('suggests built-in values after a dot and explains built-in functions', () => {
+    const bracket = solidScriptSuggestions(solidScriptSuggestionContext('[Time.Y', 7), [], []);
+    expect(bracket.map((entry) => entry.insert)).toEqual(['[Time.Year]']);
+    expect(bracket[0]?.detail).toMatch(/^Number: year/);
+    const formula = solidScriptSuggestions(solidScriptSuggestionContext('[=Math.P', 8), [], []);
+    expect(formula.map((entry) => entry.insert)).toEqual(['Math.Pi']);
+    const pad = solidScriptSuggestions(solidScriptSuggestionContext('[=pad_l', 7), [], []);
+    expect(pad[0]?.detail).toBe('pad_left(text, width, fill): Fills in front up to a width: 007.');
   });
 });

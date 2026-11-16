@@ -1,3 +1,5 @@
+import { SOLID_SCRIPT_SYSTEM_GLOBALS } from './solid_script_system.js';
+
 /**
  * Which names may contain a dot. A script's own names use letters, digits and _
  * only; a dot only appears where SolidScript gives it a meaning: local. and
@@ -7,11 +9,26 @@
  */
 
 /** Read-only values the loops give, by group. */
-export const SOLID_SCRIPT_SYSTEM_VALUES: Readonly<Record<string, readonly string[]>> = {
+export const SOLID_SCRIPT_SYSTEM_VALUES: Readonly<Record<string, readonly string[]>> = solidScriptSystemGroups({
   Face: ['Index', 'Number', 'Center', 'Normal', 'Width', 'Height', 'Area', 'Tag'],
   Vertex: ['Index', 'Position', 'Normal'],
   Edge: ['Index', 'Start', 'End', 'Middle', 'Length', 'Direction'],
-};
+});
+
+/**
+ * Adds the built-in values every script can read, such as Time.Year, to the
+ * loop values.
+ *
+ * @param loops Loop values by group.
+ * @returns Every read-only value by group.
+ */
+function solidScriptSystemGroups(loops: Record<string, string[]>): Record<string, string[]> {
+  for (const { name } of SOLID_SCRIPT_SYSTEM_GLOBALS) {
+    const [group = '', member = ''] = name.split('.');
+    (loops[group] ??= []).push(member);
+  }
+  return loops;
+}
 
 /** A list item or count behind a name, such as points(2) or points().count. */
 const SOLID_SCRIPT_NAME_ITEM = /^(.*?)\s*\((.*)\)\s*(?:\.\s*([A-Za-z_]\w*))?$/s;
@@ -20,7 +37,7 @@ const SOLID_SCRIPT_NAME_ITEM = /^(.*?)\s*\((.*)\)\s*(?:\.\s*([A-Za-z_]\w*))?$/s;
 const SOLID_SCRIPT_NAME_OWN = /^(local\.|persistent\.)?[A-Za-z_]\w*(\.[xyzXYZ])?$/;
 
 /** A read-only value of a loop, with an optional vector part. */
-const SOLID_SCRIPT_NAME_SYSTEM = /^([A-Za-z]+)\.([A-Za-z]+)(\.[xyzXYZ])?$/;
+const SOLID_SCRIPT_NAME_SYSTEM = /^([A-Za-z]+)\.([A-Za-z0-9]+)(\.[xyzXYZ])?$/;
 
 /**
  * Checks a name with a dot in it, as a field reads it or a line sets it. Names

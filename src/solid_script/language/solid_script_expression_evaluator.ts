@@ -30,6 +30,7 @@ export class SolidScriptExpressionEvaluator {
       name: string,
       values: readonly SolidScriptValue[],
     ) => { value: SolidScriptValue } | null = () => null,
+    private readonly system: (name: string) => SolidScriptValue = () => undefined,
   ) {}
 
   /**
@@ -101,8 +102,11 @@ export class SolidScriptExpressionEvaluator {
       }
       case 'index':
         return this.evaluateIndex(this.evaluate(expression.target, scope), this.evaluate(expression.index, scope));
-      case 'member':
+      case 'member': {
+        const builtIn = this.evaluateSystem(expression, scope);
+        if (builtIn !== undefined) return builtIn;
         return this.evaluateIndex(this.evaluate(expression.target, scope), SOLID_SCRIPT_MEMBERS[expression.name]);
+      }
       case 'range':
         return this.rangeValues(expression, scope);
       case 'comprehension':
@@ -162,6 +166,25 @@ export class SolidScriptExpressionEvaluator {
     if (entry === undefined)
       throw new Error(`position ${position} is outside ${solidScriptValueShow(target)}; positions start at 0`);
     return entry;
+  }
+
+  /**
+   * Reads a built-in value written with dots, such as Time.Year or Box.Size.x,
+   * unless a variable of the script has the first name.
+   *
+   * @param expression Member expression.
+   * @param scope Scope.
+   * @returns Value, or undefined when it is not a built-in value.
+   */
+  private evaluateSystem(expression: SolidScriptExpression, scope: SolidScriptScope): SolidScriptValue {
+    const names: string[] = [];
+    let part = expression;
+    while (part.kind === 'member') {
+      names.unshift(part.name);
+      part = part.target;
+    }
+    if (part.kind !== 'variable' || scope.variableHas(part.name)) return undefined;
+    return this.system([part.name, ...names].join('.'));
   }
 
   /**

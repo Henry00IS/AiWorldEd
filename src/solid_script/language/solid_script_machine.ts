@@ -1,3 +1,4 @@
+import { SOLID_SCRIPT_SYSTEM_GLOBALS } from './solid_script_system.js';
 import { solidScriptGeometryLookup } from './solid_script_geometry_lookup.js';
 import * as THREE from 'three';
 import type { SolidScriptExpression } from './solid_script_ast.js';
@@ -480,11 +481,14 @@ interface SolidScriptVectorPart {
 function solidScriptVectorComponent(name: string): SolidScriptVectorPart | null {
   const known = SOLID_SCRIPT_VECTOR_PARTS.get(name);
   if (known !== undefined) return known;
-  const part = solidScriptVectorComponentRead0(name);
+  const part = solidScriptVectorComponentParse(name);
   if (SOLID_SCRIPT_VECTOR_PARTS.size >= 20000) SOLID_SCRIPT_VECTOR_PARTS.clear();
   SOLID_SCRIPT_VECTOR_PARTS.set(name, part);
   return part;
 }
+
+/** Names of the built-in values every script can read. */
+const SOLID_SCRIPT_SYSTEM_NAMES: ReadonlySet<string> = new Set(SOLID_SCRIPT_SYSTEM_GLOBALS.map((entry) => entry.name));
 
 /** Input names of Function lines, by their text, read once. */
 const SOLID_SCRIPT_FUNCTION_PARAMETERS = new Map<string, string[]>();
@@ -504,7 +508,7 @@ const SOLID_SCRIPT_VECTOR_PARTS = new Map<string, SolidScriptVectorPart | null>(
  * @param name Variable name.
  * @returns Part, or null for other names.
  */
-function solidScriptVectorComponentRead0(name: string): SolidScriptVectorPart | null {
+function solidScriptVectorComponentParse(name: string): SolidScriptVectorPart | null {
   const match = /^(.+)\.([xyzXYZ])$/.exec(name);
   if (!match) return null;
   const axis = match[2]!.toLowerCase() as 'x' | 'y' | 'z';
@@ -566,6 +570,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
   private readonly expressions = new SolidScriptExpressionEvaluator(
     () => this.workTake(),
     (name, values) => this.functionCall(name, values),
+    (name) => this.systemRead(name),
   );
   private readonly messages: string[] = [];
   private readonly steps: number[] = [];
@@ -627,6 +632,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     private readonly stepLimit = Number.POSITIVE_INFINITY,
     private readonly breakpoints: SolidScriptBreakpoints | null = null,
     private readonly inputs: Readonly<Record<string, string>> = {},
+    private readonly system: ReadonlyMap<string, SolidScriptValue> = new Map(),
   ) {}
 
   /**
@@ -1351,6 +1357,9 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
         if (!name.includes('.') && !name.includes('(')) {
           const home = scope.variableHome(name);
           if (home) return home.variableOwn(name);
+        } else {
+          const builtIn = this.systemRead(name);
+          if (builtIn !== undefined) return builtIn;
         }
         const where = this.variableWhere(name, scope);
         const item = solidScriptListItemParse(where.name);
@@ -1427,6 +1436,25 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     const value = where.scope.variableGet(where.name);
     if (!Array.isArray(value)) throw new Error(`[${name}] is ${solidScriptValueType(value)}, not a list`);
     return value;
+  }
+
+  /**
+   * Reads a built-in value such as Time.Year, or a part of one such as
+   * Box.Size.x.
+   *
+   * @param name Name as written.
+   * @returns Value, or undefined when the name is not a built-in value.
+   */
+  private systemRead(name: string): SolidScriptValue {
+    const value = this.system.get(name);
+    if (value !== undefined) return value;
+    const part = solidScriptVectorComponent(name);
+    const whole = part ? this.system.get(part.name) : undefined;
+    if (part && whole !== undefined) return solidScriptVectorComponentRead(part, whole);
+    const base = part && SOLID_SCRIPT_SYSTEM_NAMES.has(part.name) ? part.name : name;
+    if (SOLID_SCRIPT_SYSTEM_NAMES.has(base))
+      throw new Error(`[${base}] is only known when the script runs in a generator, where there is a box`);
+    return undefined;
   }
 
   /**

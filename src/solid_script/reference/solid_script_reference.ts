@@ -1,3 +1,5 @@
+import { SOLID_SCRIPT_FUNCTION_DOCS } from '@/solid_script/language/solid_script_function_docs.js';
+import { SOLID_SCRIPT_SYSTEM_GLOBALS } from '@/solid_script/language/solid_script_system.js';
 import {
   SOLID_SCRIPT_EXAMPLE_COLUMNS,
   SOLID_SCRIPT_EXAMPLE_DOORWAY,
@@ -107,13 +109,28 @@ Formulas know: numbers, text in double quotes, true, false, lists in $[ $] brack
 - The debugger shows the call stack while paused or stepping: each running Function and part, the line that called it, and its local variables. Breakpoints work inside Function and handler blocks.
 - Names use letters, digits and _. A dot only works where SolidScript gives it a meaning: local. and persistent. in front, .x, .y and .z behind a vector, ().count behind a list, and loop values such as Face.Center. Any other dot, such as chicken.soup, stops the script before it runs.
 - A vector is one value with an x, y and z, written as numbers with commas: 50, 20, 40, without quotes or brackets. Set pos to 1, 2, 3 keeps a whole position in one variable; Translate by [pos] and Cube of size [size] take it directly. [pos.x], [pos.y] and [pos.z] read one part, and Set pos.z to 5 changes one part. In formulas vectors add, subtract and scale: [=[pos] + $[0, 0, 1$]], [=[pos] * 2]; length, normalize, dot, cross, distance and lerp(a, b, amount) work on them, and vector(x, y, z) makes one. Face, corner and edge values such as [Face.Center] are vectors too.
-- Text and helper functions for formulas: uppercase, lowercase, trim, contains, starts_with, ends_with, position (where a part starts, or -1), part(text, start, count), replace(text, find, with), replace_pattern and find_pattern (patterns), repeat_text, reversed (text or list), split(text, separator), join(list, separator), number(text), pick(number, first, second, ...), random(min, max, seed) (the same seed gives the same number every rebuild), trunc and clamp(value, min, max).
+- Built-in functions for formulas, by group: ${solidScriptReferenceFunctions()}
+- Built-in values every script reads, never sets, as [Time.Year] in fields or Time.Year in formulas: ${SOLID_SCRIPT_SYSTEM_GLOBALS.map((value) => `${value.name} (${value.detail})`).join('; ')}. Box values only exist in a generator. Time and run values differ on every computer and run, so shapes built from them differ between players in a room.
+- Strings in formulas take \\n for a new line and \\t for a tab.
 - Remove Item takes an item out of a list: "points(1)" removes item 1 and moves the later items up, "points()" removes the last one.
 - List blocks change a whole list in plain words: Add Item 5 to heights (makes the list when it is new), Insert Item 4 into heights at 1, Remove Value red from colors (Every Copy takes out all of them), Find Item blue in colors, result in where (-1 when it is not there), Sort List heights (numbers small to big, then words A to Z; Biggest First turns it around) and Reverse List heights. [heights().count] is how many items there are.
 - Clear Variable empties a variable but keeps its name: a list keeps no items, anything else becomes empty text. Delete Variable forgets it, so reading it stops the script until a line sets it again.
 - [persistent.name] is a variable kept with the generator: it is saved with the level, shared in multiplayer and still there next run, stored like an input without a row in the inspector. When Button Pressed and When Input Changes blocks store what they set, such as Set persistent.presses to [=[persistent.presses] + 1]; the normal build may change it too, but only for that build, so every rebuild gives the same shape. A persistent value that was never set reads as nothing, so is_undef([persistent.presses]) checks for it. Delete Variable persistent.presses forgets it.
 - Offset grows (Distance above 0) or shrinks (below 0) the flat outlines inside it, with round or sharp corners; shrinking and sharp corners need convex outlines for now.
 `;
+
+/**
+ * Lists the built-in functions by group for the reference.
+ *
+ * @returns Groups such as "Text: pad_left(text, width, fill) fills in front up
+ *   to a width".
+ */
+function solidScriptReferenceFunctions(): string {
+  const groups = new Map<string, string[]>();
+  for (const doc of Object.values(SOLID_SCRIPT_FUNCTION_DOCS))
+    groups.set(doc.group, [...(groups.get(doc.group) ?? []), `${doc.usage}: ${doc.summary}`]);
+  return [...groups].map(([group, entries]) => `${group}: ${entries.join(' ')}`).join(' ');
+}
 
 /** Tool part of the reference: which tool takes what. */
 const SOLID_SCRIPT_REFERENCE_TOOLS = `## Tools

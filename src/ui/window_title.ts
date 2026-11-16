@@ -63,6 +63,15 @@ export class EditorWindowTitle {
     this.apply();
   }
 
+  /**
+   * Returns the shown file and room.
+   *
+   * @returns File name and room name, each null when missing.
+   */
+  names(): { fileName: string | null; roomName: string | null } {
+    return { fileName: this.fileName, roomName: this.roomName };
+  }
+
   /** Writes the current title. */
   apply(): void {
     this.options.setTitle(
@@ -87,6 +96,15 @@ let installed: EditorWindowTitle | null = null;
 export function editorWindowTitleInstall(title: EditorWindowTitle): void {
   installed = title;
   title.apply();
+}
+
+/**
+ * Returns the file and room the installed title shows.
+ *
+ * @returns File name and room name, each null when missing or not installed.
+ */
+export function editorWindowTitleNames(): { fileName: string | null; roomName: string | null } {
+  return installed?.names() ?? { fileName: null, roomName: null };
 }
 
 /** Removes the installed title, for tests. */

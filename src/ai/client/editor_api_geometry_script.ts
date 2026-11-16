@@ -291,7 +291,7 @@ function geometryScriptRun(
   inputs: Readonly<Record<string, string>>,
 ): { solids: number; error: string } {
   try {
-    return { solids: solidScriptProgramEvaluate(document, { inputs }).steps.length, error: '' };
+    return { solids: solidScriptProgramEvaluate(document, { inputs, context: 'assistant' }).steps.length, error: '' };
   } catch (thrown) {
     return { solids: 0, error: solidScriptErrorText(thrown) };
   }

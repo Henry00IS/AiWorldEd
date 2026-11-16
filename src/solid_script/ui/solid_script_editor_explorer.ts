@@ -6,6 +6,8 @@ import {
   type SolidScriptNameCategory,
 } from '@/solid_script/document/solid_script_document_names.js';
 import { solidScriptInputTypeLabel } from '@/solid_script/language/solid_script_input.js';
+import { SOLID_SCRIPT_SYSTEM_GLOBALS, solidScriptSystemValues } from '@/solid_script/language/solid_script_system.js';
+import { solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
 import type { SolidScriptFrameView, SolidScriptVariable } from '@/solid_script/language/solid_script_machine.js';
 import { solidScriptConfiguratorFieldInsert } from './solid_script_configurator_fields.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
@@ -30,8 +32,10 @@ export interface SolidScriptExplorerEntry {
   lines: number[];
   /** Items of a list, by number. */
   items: SolidScriptVariable[];
-  /** True for inputs, which lines read but never set. */
+  /** True for inputs and built-in values, which lines read but never set. */
   readOnly: boolean;
+  /** What a built-in value holds, or empty. */
+  detail: string;
 }
 
 /** Friendly type of a name the run has not reached yet. */
@@ -80,6 +84,7 @@ export function solidScriptExplorerEntries(
       lines: origins.get(known.name) ?? [known.line],
       items: found?.items ?? [],
       readOnly: input,
+      detail: '',
     });
   }
   const listed = new Set(entries.map((entry) => entry.name));
@@ -93,10 +98,37 @@ export function solidScriptExplorerEntries(
       lines: origins.get(variable.name.replace(/\[.*$/, '')) ?? [],
       items: variable.items,
       readOnly: false,
+      detail: '',
+    });
+  }
+  const system = solidScriptSystemValues('preview', null, false);
+  for (const value of SOLID_SCRIPT_SYSTEM_GLOBALS) {
+    const current = system.get(value.name);
+    entries.push({
+      name: value.name,
+      category: 'System',
+      value: current === undefined ? 'Only in a Generator' : solidScriptValueText(current),
+      type: value.type,
+      lines: [],
+      items: [],
+      readOnly: true,
+      detail: value.detail,
     });
   }
   const order = (entry: SolidScriptExplorerEntry): number => SOLID_SCRIPT_NAME_CATEGORIES.indexOf(entry.category);
   return entries.sort((left, right) => order(left) - order(right));
+}
+
+/**
+ * Checks the name and detail of an entry against the search text.
+ *
+ * @param entry Entry.
+ * @param query Search text.
+ * @returns True when the search is not empty and either holds it.
+ */
+function solidScriptExplorerNames(entry: SolidScriptExplorerEntry, query: string): boolean {
+  const needle = query.trim().toLowerCase();
+  return needle !== '' && [entry.name, entry.detail].some((text) => text.toLowerCase().includes(needle));
 }
 
 /**
@@ -109,7 +141,7 @@ export function solidScriptExplorerEntries(
 export function solidScriptExplorerMatches(entry: SolidScriptExplorerEntry, query: string): boolean {
   const wanted = query.trim().toLowerCase();
   if (wanted === '') return true;
-  return [entry.name, entry.value ?? '', entry.type, entry.category].some((text) =>
+  return [entry.name, entry.value ?? '', entry.type, entry.category, entry.detail].some((text) =>
     text.toLowerCase().includes(wanted),
   );
 }
@@ -248,11 +280,14 @@ export class SolidScriptEditorExplorer {
     const rows: HTMLElement[] = [this.headerRow()];
     if (this.category === 'Call Stack') rows.push(...this.stackRows(query));
     else {
-      const listed = matching.filter(
-        (entry) =>
-          this.category === 'All' ||
-          (this.category === 'Current' ? entry.value !== null : entry.category === this.category),
-      );
+      const listed = matching.filter((entry) => {
+        // Built-in values are the same in every script: they show under System
+        // and when a search names them, not in the plain lists.
+        const builtIn = entry.detail !== '';
+        if (this.category === 'All') return !builtIn || solidScriptExplorerNames(entry, query);
+        if (this.category === 'Current') return entry.value !== null && !builtIn;
+        return entry.category === this.category;
+      });
       for (const entry of listed) rows.push(...this.entryRows(entry, query));
       if (this.category === 'All' && this.stack.length > 0) rows.push(...this.stackRows(query));
       if (listed.length === 0)
@@ -292,10 +327,11 @@ export class SolidScriptEditorExplorer {
       entry.readOnly ? `${entry.type} · Read Only` : entry.type,
       entry.lines,
     );
+    const about = entry.detail === '' ? '' : `${entry.detail.charAt(0).toUpperCase()}${entry.detail.slice(1)}. `;
     row.title =
       entry.lines.length > 0
-        ? `Click to show line ${entry.lines[0]! + 1}; double-click to insert [${entry.name}]`
-        : `Double-click to insert [${entry.name}]`;
+        ? `${about}Click to show line ${entry.lines[0]! + 1}; double-click to insert [${entry.name}]`
+        : `${about}Double-click to insert [${entry.name}]`;
     if (isList)
       row.firstElementChild?.addEventListener('click', (event) => {
         event.stopPropagation();
@@ -347,6 +383,7 @@ export class SolidScriptEditorExplorer {
           lines: [],
           items: local.items,
           readOnly: false,
+          detail: '',
         };
         if (!solidScriptExplorerMatches(entry, query)) continue;
         const lines = this.entries.find((known) => known.name === local.name)?.lines ?? [];

@@ -116,7 +116,7 @@ function solidScriptInspectorDetail(
 ): void {
   const lines = `${document.blocks.length} ${document.blocks.length === 1 ? 'line' : 'lines'}`;
   try {
-    const solids = solidScriptProgramEvaluate(document, { inputs }).steps.length;
+    const solids = solidScriptProgramEvaluate(document, { inputs, context: 'preview' }).steps.length;
     element.textContent = `${lines} · ${solids} ${solids === 1 ? 'solid' : 'solids'}`;
     element.style.color = '';
   } catch (error) {

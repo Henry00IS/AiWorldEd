@@ -3,6 +3,7 @@ import { solidScriptFieldCheck } from './solid_script_field.js';
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
 import { solidScriptBlockTree, type SolidScriptTreeLine } from './solid_script_block_tree.js';
 import { solidScriptErrorLine } from './solid_script_error.js';
+import { solidScriptSystemValues, type SolidScriptRunContext } from './solid_script_system.js';
 import {
   SolidScriptMachine,
   solidScriptFailure,
@@ -19,6 +20,10 @@ export interface SolidScriptProgramOptions {
   stepLimit?: number;
   /** Values defined before the first line, such as inspector inputs. */
   inputs?: Readonly<Record<string, string>>;
+  /** Where the script runs, for Run.Context; a generator when not given. */
+  context?: SolidScriptRunContext;
+  /** Size of the generator box, for Box.Width and the others. */
+  box?: readonly [number, number, number];
   /** Breakpoint lines to record, and the hit to pause at, for the debugger. */
   breakpoints?: SolidScriptBreakpoints;
 }
@@ -78,7 +83,8 @@ export function solidScriptProgramRun(
   try {
     solidScriptProgramCheck(program);
     const lines = solidScriptBlockTree(program.blocks, solidScriptCommandFind);
-    return new SolidScriptMachine(options.stepLimit, options.breakpoints ?? null, options.inputs).run(lines);
+    const system = solidScriptSystemValues(options.context ?? 'generator', options.box ?? null);
+    return new SolidScriptMachine(options.stepLimit, options.breakpoints ?? null, options.inputs, system).run(lines);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return {
@@ -127,7 +133,8 @@ export function solidScriptProgramHandle(
   try {
     solidScriptProgramCheck(program);
     const lines = solidScriptBlockTree(program.blocks, solidScriptCommandFind);
-    return new SolidScriptMachine(Number.POSITIVE_INFINITY, null, inputs).handle(lines, event);
+    const system = solidScriptSystemValues('handler', null);
+    return new SolidScriptMachine(Number.POSITIVE_INFINITY, null, inputs, system).handle(lines, event);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return {
