@@ -583,7 +583,12 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     description: 'Paint picked faces with a texture',
     manual:
       'Gives faces their own library texture: the face of the For Each Selected Face round, or else every face Select Faces picked. It works on brushes and wins over a Texture block around them. The faces keep it when the brush is moved, turned or scaled. Example: Cube, Select Faces Facing Up, Texture Faces grass gives a box a grass top.',
-    stops: ['No faces picked.', 'Faces of a mesh. Texture Faces works on brushes for now.', 'An empty Texture.', 'A [name] for a variable not set above this line.'],
+    stops: [
+      'No faces picked.',
+      'Faces of a mesh. Texture Faces works on brushes for now.',
+      'An empty Texture.',
+      'A [name] for a variable not set above this line.',
+    ],
     parameters: [
       solidScriptParameter(
         'texture',
