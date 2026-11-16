@@ -133,7 +133,8 @@ export function solidScriptFieldTokens(text: string): SolidScriptFieldToken[] {
       continue;
     }
     if (mode === 'text') {
-      const word = /^[^[$\s']+/.exec(rest)?.[0] ?? char;
+      // Commas and semicolons part list items and points, so each number shows.
+      const word = /^[^[$\s',;]+/.exec(rest)?.[0] ?? char;
       push(SOLID_SCRIPT_FIELD_PLAIN_NUMBER.test(word) ? 'number' : 'text', index, index + word.length);
       index += word.length;
       continue;

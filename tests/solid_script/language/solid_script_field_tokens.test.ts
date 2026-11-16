@@ -90,4 +90,14 @@ describe('solidScriptFieldTokens', () => {
       'local.a',
     ]);
   });
+  it('colours every number of a list, of points and of a formula', () => {
+    const numbers = (text: string) =>
+      solidScriptFieldTokens(text)
+        .filter((token) => token.kind === 'number')
+        .map((token) => text.slice(token.from, token.to));
+    expect(numbers('0.1, 1, 0.1')).toEqual(['0.1', '1', '0.1']);
+    expect(numbers('0,0;1,0; 0, 1')).toEqual(['0', '0', '1', '0', '0', '1']);
+    expect(numbers('[Width], 2, -3')).toEqual(['2', '-3']);
+    expect(numbers('[=Max(1, 2) + 3.5]')).toEqual(['1', '2', '3.5']);
+  });
 });
