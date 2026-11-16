@@ -230,7 +230,7 @@ describe('solid script command catalog', () => {
     expect(solidScriptCommandFind('cube')?.nesting).toBe('none');
     expect(solidScriptCommandFind('else')?.nesting).toBe('continue');
     expect(solidScriptCommandFind('end')?.nesting).toBe('close');
-    expect(solidScriptCommandFind('end')?.inPalette).toBe(false);
+    expect(solidScriptCommandFind('end')?.inPalette).toBe(true);
     expect(solidScriptCommandFind('blank')?.inPalette).toBe(false);
   });
 

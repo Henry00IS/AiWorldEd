@@ -180,11 +180,10 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Logic',
     description: 'End a block',
     manual:
-      'Marks where a block ends. The lines between a block line, such as Repeat, and its End belong to that block. Inserting a block adds its End for you.',
+      'Marks where a block ends. The lines between a block line, such as Repeat, and its End belong to that block. Inserting a block adds its End for you; add one here when a block misses its End.',
     stops: ['Having no block above it to end.'],
     nesting: 'close',
     parameters: [],
-    inPalette: false,
     listing: () => ['End'],
     execute: () => [],
   }),

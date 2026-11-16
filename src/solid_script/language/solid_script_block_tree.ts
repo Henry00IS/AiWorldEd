@@ -59,6 +59,8 @@ export function solidScriptBlockTree<Command extends SolidScriptTreeCommand>(
     const line = index + 1;
     const command = find(stored.command);
     if (!command) throw new Error(`line ${line}: this editor does not know the command "${stored.command}"`);
+    // Off lines do not count, End and Else too: the lines inside an off block run without it.
+    if (stored.off === true) return;
     const node: SolidScriptBlockNode<Command> = { line, command, values: stored.values, children: [], otherwise: null };
     if (command.nesting === 'close') {
       if (!open.pop()) throw new Error(`line ${line}: this End has no block above it to close; remove it`);
@@ -71,8 +73,7 @@ export function solidScriptBlockTree<Command extends SolidScriptTreeCommand>(
       parent.node.otherwise = [];
       return;
     }
-    if (command.runs && !(stored.off === true && (command.nesting === 'none' || command.nesting === 'open')))
-      target().push(node);
+    if (command.runs) target().push(node);
     if (command.nesting === 'open') open.push({ node, id: stored.command });
   });
   const unclosed = open.pop();

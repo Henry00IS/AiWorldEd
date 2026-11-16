@@ -178,7 +178,7 @@ function explorerRows(): string[] {
 }
 
 describe('SolidScript editor', () => {
-  it('lists the commands by category, without the End and Blank Line lines', () => {
+  it('lists the commands by category, with End in Logic and without Blank Line', () => {
     const { root } = editorFixture(CUBE_SPHERE);
     const captions = [...root.querySelectorAll('.solid-script-editor-palette-caption')].map(
       (caption) => caption.textContent,
@@ -197,7 +197,7 @@ describe('SolidScript editor', () => {
       'Parts',
     ]);
     expect(root.querySelector('.solid-script-editor-palette-item[data-command="cylinder"]')).not.toBeNull();
-    expect(root.querySelector('.solid-script-editor-palette-item[data-command="end"]')).toBeNull();
+    expect(root.querySelector('.solid-script-editor-palette-item[data-command="end"]')).not.toBeNull();
     expect(root.querySelector('.solid-script-editor-palette-item[data-command="blank"]')).toBeNull();
   });
 
@@ -618,20 +618,22 @@ describe('SolidScript editor', () => {
     ]);
     chip(1).focus();
     press(chip(1), 'F4');
-    expect(script().blocks[1]?.off).toBe(true);
+    expect(script().blocks.map((block) => block.off === true)).toEqual([false, true, false, true]);
     expect(root.textContent).toContain('Turned 1 line off');
-    for (const line of [1, 2, 3])
+    for (const line of [1, 3])
       expect(find(`[data-line="${line}"]`).classList.contains('solid-script-editor-off'), String(line)).toBe(true);
-    expect(find('[data-line="0"]').classList.contains('solid-script-editor-off')).toBe(false);
+    for (const line of [0, 2])
+      expect(find(`[data-line="${line}"]`).classList.contains('solid-script-editor-off'), String(line)).toBe(false);
     const run = solidScriptProgramRun(script());
     expect(run.error).toBeNull();
-    expect(run.steps).toHaveLength(1);
+    expect(run.steps).toHaveLength(2);
     chip(1).dispatchEvent(new Event('copy', { bubbles: true, cancelable: true }));
     chip(3).focus();
     chip(3).dispatchEvent(new Event('paste', { bubbles: true, cancelable: true }));
     expect(script().blocks[4]).toMatchObject({ command: 'union', off: true });
     press(chip(1), '/', { ctrlKey: true });
     expect(script().blocks[1]?.off).toBeUndefined();
+    expect(script().blocks[3]?.off).toBeUndefined();
     scriptKey('z');
     expect(script().blocks[1]?.off).toBe(true);
   });

@@ -186,31 +186,69 @@ export function solidScriptDocumentLinesRemove(
 }
 
 /**
- * Turns the given lines off, or on again when all of them are off. End and Else
- * lines follow the line that opens their block, so they are left as they are.
+ * Finds the End and Else lines of the block a line opens, among the lines that
+ * are on (to turn them off with it) or among the off lines on its level (to
+ * turn them on again). Lines that are off do not count for the structure.
+ *
+ * @param document Script.
+ * @param off Off state of every line now.
+ * @param opener Index of the block line.
+ * @param on True looks for off End and Else lines to turn on.
+ * @returns Line indexes of its Else and End lines.
+ */
+function solidScriptDocumentBlockPartners(
+  document: SolidScriptDocument,
+  off: readonly boolean[],
+  opener: number,
+  on: boolean,
+): number[] {
+  const partners: number[] = [];
+  let depth = 0;
+  for (let line = opener + 1; line < document.blocks.length; line++) {
+    const nesting = solidScriptCommandFind(document.blocks[line]!.command)?.nesting ?? 'none';
+    if (off[line]) {
+      if (on && depth === 0 && nesting === 'continue') partners.push(line);
+      if (on && depth === 0 && nesting === 'close') return [...partners, line];
+      continue;
+    }
+    if (nesting === 'open') depth += 1;
+    else if (nesting === 'close' && depth > 0) depth -= 1;
+    else if (nesting === 'close') return on ? [] : [...partners, line];
+    else if (nesting === 'continue' && depth === 0 && !on) partners.push(line);
+  }
+  return on ? [] : partners;
+}
+
+/**
+ * Turns exactly the given lines off, or on again when all of them are off; the
+ * lines inside a block stay as they are and then run without it. A block line
+ * takes its End and Else along, so the script keeps working: turning it off
+ * turns them off, and turning it on turns on the off End and Else on its level
+ * when it has no End.
  *
  * @param document Script.
  * @param lines Line indexes.
- * @returns Edited script, and how many lines changed and whether they are off
- *   now.
+ * @returns Edited script, and how many picked lines changed and whether they
+ *   are off now.
  */
 export function solidScriptDocumentLinesToggle(
   document: SolidScriptDocument,
   lines: readonly number[],
 ): { document: SolidScriptDocument; count: number; off: boolean } {
-  const picked = new Set(lines);
-  const togglable = (block: SolidScriptBlock, line: number): boolean => {
-    const nesting = solidScriptCommandFind(block.command)?.nesting ?? 'none';
-    return picked.has(line) && (nesting === 'none' || nesting === 'open');
-  };
-  const chosen = document.blocks.filter(togglable);
-  const off = !chosen.every((block) => block.off === true);
+  const picked = [...new Set(lines)].filter((line) => line >= 0 && line < document.blocks.length).sort((a, b) => b - a);
+  const off = !picked.every((line) => document.blocks[line]?.off === true);
+  const flags = document.blocks.map((block) => block.off === true);
+  for (const line of picked) flags[line] = off;
+  for (const line of picked) {
+    if (solidScriptCommandFind(document.blocks[line]!.command)?.nesting !== 'open') continue;
+    for (const partner of solidScriptDocumentBlockPartners(document, flags, line, !off)) flags[partner] = off;
+  }
   const blocks = document.blocks.map((block, line) => {
-    if (!togglable(block, line)) return block;
+    if ((block.off === true) === flags[line]) return block;
     const { off: _was, ...rest } = block;
-    return off ? { ...rest, off: true as const } : rest;
+    return flags[line] ? { ...rest, off: true as const } : rest;
   });
-  return { document: solidScriptDocumentWith(document, blocks), count: chosen.length, off };
+  return { document: solidScriptDocumentWith(document, blocks), count: picked.length, off };
 }
 
 /**
