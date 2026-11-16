@@ -18,8 +18,8 @@ export function solidScriptValueTruthy(value: SolidScriptValue): boolean {
 
 /**
  * Returns the value as a finite number, or undefined. Text that spells a
- * number, such as "3", counts as that number: a value is plain text
- * underneath and only becomes a number where one is needed.
+ * number, such as "3", counts as that number: a value is plain text underneath
+ * and only becomes a number where one is needed.
  *
  * @param value Value.
  * @returns Number or undefined.
