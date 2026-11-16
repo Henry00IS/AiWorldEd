@@ -191,7 +191,8 @@ export class FloatingPanelStack {
     if (this.listContainsEventTarget(this.registeredPanels, target)) {
       return true;
     }
-    if (target instanceof Element && panelFloatingScopeOf(target) !== null) {
+    // A closed window's parts keep their scope mark, so only parts still on the page count.
+    if (target instanceof Element && target.isConnected && panelFloatingScopeOf(target) !== null) {
       return true;
     }
     return this.listContainsEventTarget(this.pointerBlockSurfaces, target);
