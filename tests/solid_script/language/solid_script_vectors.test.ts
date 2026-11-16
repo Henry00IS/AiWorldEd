@@ -133,6 +133,17 @@ describe('SolidScript formulas and the MCP calculator', () => {
       const shared = (calculateExpression(text).data as { value: number }).value;
       expect(formula(text), text).toBe(String(shared));
     }
+    for (const text of [
+      'Math.Tau / 2',
+      'remap(5, 0, 10, 0, 1)',
+      'smoothstep(0, 2, 1)',
+      'wrap(370, 0, 360)',
+      '2 ^ 10',
+      'sum([1, 2])',
+    ]) {
+      const shared = (calculateExpression(text).data as { value: number }).value;
+      expect(formula(text), text).toBe(String(shared));
+    }
     expect(calculateExpression('1/0').ok).toBe(false);
     expect(formula('1/0')).toMatch(/division by zero/);
   });
