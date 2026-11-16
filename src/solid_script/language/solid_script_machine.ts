@@ -291,6 +291,8 @@ export interface SolidScriptBlockRun {
   inputValue(name: string): string | undefined;
   /** Where the script is used, and what a modifier receives. */
   use(): SolidScriptUseFacts;
+  /** The move of the Translate, Rotate and other blocks around this line. */
+  matrix(): THREE.Matrix4;
   /** Defines a script input: a variable lines may only read. */
   inputDefine(name: string, value: SolidScriptValue): void;
   /** Removes one item of a list, or its last item for list(). */
@@ -1399,6 +1401,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
       },
       inputValue: (name) => state.machine.inputs[name] ?? state.machine.inputKeyed().get(solidScriptNameKey(name)),
       use: () => state.machine.system.use ?? SOLID_SCRIPT_USE_GENERATOR,
+      matrix: () => state.context.matrix.clone(),
       inputDefine: (name, value) => {
         state.machine.nameCheck(name, 'an input');
         const key = state.machine.nameKey(name);

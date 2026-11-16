@@ -18,6 +18,24 @@ export interface SolidScriptShapeSolid {
   texture?: string;
   /** Textures of single faces, from Texture Faces; they win over texture. */
   faceTextures?: SolidScriptFaceTexture[];
+  /**
+   * The received brush this solid passes on, from Input Brushes; none for built
+   * shapes.
+   */
+  received?: SolidScriptReceived;
+}
+
+/**
+ * A brush a modifier received, passed on by Input Brushes and moved by the
+ * blocks around it.
+ */
+export interface SolidScriptReceived {
+  /** Index of the brush among those received. */
+  index: number;
+  /** Script-space move applied to it. */
+  matrix: THREE.Matrix4;
+  /** 'copied' moves its textures with it; 'world' keeps them where they are. */
+  textures: 'copied' | 'world';
 }
 
 /** A texture given to one face of a solid, found again by its plane. */

@@ -23,6 +23,7 @@ import { solidScriptDebugStepLimit } from '@/solid_script/debug/solid_script_deb
 import { modifierStackFrame } from '@/modifier/stack/evaluate/modifier_stack_frame.js';
 import {
   modifierStackSolidScriptLayout,
+  type ModifierStackSolidScriptPassed,
   type ModifierStackSolidScriptPlacement,
 } from './modifier_stack_solid_script_layout.js';
 
@@ -194,6 +195,25 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
     context: ModifierStackContext,
     use: SolidScriptUseFacts,
   ): ModifierStackUnit[] {
+    return this.scriptResult(parameters, box, context, use).units;
+  }
+
+  /**
+   * Evaluates the script like scriptUnits, and also returns the received
+   * brushes Input Brushes passed on.
+   *
+   * @param parameters Normalized parameters.
+   * @param box Box in frame coordinates the script origin is centred in.
+   * @param context Evaluation context.
+   * @param use Where the script is used and what a modifier receives.
+   * @returns Units in CSG order, and the passed brushes.
+   */
+  protected scriptResult(
+    parameters: Record<string, unknown>,
+    box: THREE.Box3,
+    context: ModifierStackContext,
+    use: SolidScriptUseFacts,
+  ): { units: ModifierStackUnit[]; passed: ModifierStackSolidScriptPassed[] } {
     const layout = modifierStackSolidScriptLayout(
       solidScriptDocumentNormalize(parameters[MODIFIER_STACK_SOLID_SCRIPT_KEY]),
       parameters['placement'] as ModifierStackSolidScriptPlacement,
@@ -209,10 +229,13 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
     const count = modifierStackSolidScriptBrushCount(layout.nodes);
     if (context.budget.takeCopies(1, count) < count) {
       context.report.error = `Brush budget reached: the script needs ${count} brushes.`;
-      return [];
+      return { units: [], passed: layout.passed };
     }
     const counter = { next: 0 };
-    return layout.nodes.map((node) => this.nodeUnit(node, parameters, context, counter));
+    return {
+      units: layout.nodes.map((node) => this.nodeUnit(node, parameters, context, counter)),
+      passed: layout.passed,
+    };
   }
 
   /**

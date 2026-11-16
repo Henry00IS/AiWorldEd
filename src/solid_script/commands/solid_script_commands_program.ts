@@ -302,6 +302,42 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
       run.use().solids.flatMap((corners) => run.solid(corners.map(([x, y, z]) => new THREE.Vector3(x, y, z)))),
   }),
   new SolidScriptCommand({
+    id: 'input_brushes',
+    label: 'Input Brushes',
+    category: 'Inputs',
+    description: 'Pass on the brushes a modifier receives, moved',
+    manual:
+      'Passes on every brush the script receives as a modifier, moved, turned, stretched or slanted by the Translate, Rotate, Scale, Mirror or Matrix blocks around this line. Their faces keep their textures and materials. Once a script has an Input Brushes line, the received brushes no longer pass on by themselves: the first Input Brushes that runs changes them, and each later one adds a copy. So Repeat around Translate around Input Brushes repeats them in a row, and Matrix around it slants them. Textures is Move With Shape, so textures stay on their faces, or World Aligned, so they stay where they are in the world. As a generator it passes on nothing. Example: Repeat [I] from 0 to 2 around Translate by [=[I] * 2], 0, 0 around Input Brushes gives the brush and two copies two metres apart.',
+    stops: ['Textures other than Move With Shape or World Aligned.'],
+    parameters: [
+      solidScriptParameter(
+        'textures',
+        'Textures',
+        'message',
+        'Move With Shape',
+        'Move With Shape keeps textures on their faces; World Aligned keeps them where they are in the world.',
+      ),
+    ],
+    listing: (read) => ['Input Brushes', ' textures ', read.text('textures')],
+    execute: (run) => {
+      const textures = solidScriptValueText(run.value('textures')).trim().toLowerCase();
+      if (textures !== 'move with shape' && textures !== 'world aligned')
+        throw new Error(`Textures must be Move With Shape or World Aligned, not "${textures}"`);
+      const matrix = run.matrix();
+      return run
+        .use()
+        .solids.flatMap((corners, index) =>
+          run
+            .solid(corners.map(([x, y, z]) => new THREE.Vector3(x, y, z)))
+            .map((shape) =>
+              shape.kind === 'solid'
+                ? { ...shape, received: { index, matrix, textures: textures === 'world aligned' ? 'world' : 'copied' } }
+                : shape,
+            ),
+        );
+    },
+  }),
+  new SolidScriptCommand({
     id: 'set_input',
     label: 'Set Input',
     category: 'Inputs',

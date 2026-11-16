@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import type { ModifierStackField, ModifierStackUnit } from '@/modifier/stack/modifier_stack_types.js';
 import type { ModifierStackCategory, ModifierStackPoseFollow } from '@/modifier/stack/kinds/modifier_stack_kind.js';
 import type { ModifierStackContext } from '@/modifier/stack/evaluate/modifier_stack_context.js';
-import { modifierStackFrame } from '@/modifier/stack/evaluate/modifier_stack_frame.js';
+import { modifierStackFrame, modifierStackModelTransform } from '@/modifier/stack/evaluate/modifier_stack_frame.js';
+import { modifierStackReshapeTransform } from '@/modifier/stack/evaluate/modifier_stack_reshape.js';
+import { modifierStackUnitCopy } from '@/modifier/stack/evaluate/modifier_stack_unit_copy.js';
 import {
   solidScriptDocumentCreate,
   solidScriptDocumentNormalize,
@@ -16,6 +18,7 @@ import {
   ModifierStackKindSolidScript,
   modifierStackSolidScriptFields,
 } from './modifier_stack_kind_solid_script.js';
+import type { ModifierStackSolidScriptPassed } from './modifier_stack_solid_script_layout.js';
 
 /** Kind id of the SolidScript modifier. */
 export const MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND = 'solidScriptModifier';
@@ -124,6 +127,49 @@ export class ModifierStackKindSolidScriptModifier extends ModifierStackKindSolid
       ),
       faces: brushes.reduce((sum, brush) => sum + brush.brush.faces.length, 0),
     };
-    return [...units, ...this.scriptUnits(parameters, box, context, use)];
+    const result = this.scriptResult(parameters, box, context, use);
+    const document = solidScriptDocumentNormalize(parameters[MODIFIER_STACK_SOLID_SCRIPT_KEY]);
+    const takes = document.blocks.some((block) => block.command === 'input_brushes' && !block.off);
+    return [...(takes ? this.passedUnits(units, result.passed, frame, context) : units), ...result.units];
+  }
+
+  /**
+   * Turns what Input Brushes passed on into units: the first pass moves the
+   * received units in place, like Shear; each later pass adds moved copies,
+   * like an array.
+   *
+   * @param units Received units.
+   * @param passed Passed brushes in run order; a pass starts again at brush 0.
+   * @param frame Frame-to-world matrix.
+   * @param context Evaluation context.
+   * @returns Units.
+   */
+  private passedUnits(
+    units: readonly ModifierStackUnit[],
+    passed: readonly ModifierStackSolidScriptPassed[],
+    frame: THREE.Matrix4,
+    context: ModifierStackContext,
+  ): ModifierStackUnit[] {
+    const passes = passed.filter((entry) => entry.index === 0);
+    const copies = context.budget.takeCopies(
+      units.reduce((sum, unit) => sum + unit.brushes.length, 0),
+      passes.length,
+    );
+    if (copies < passes.length) context.report.error = `Brush budget reached: ${passes.length} passes wanted.`;
+    const inverse = frame.clone().invert();
+    return passes.slice(0, copies).flatMap((pass, index) => {
+      const world = frame.clone().multiply(pass.matrix).multiply(inverse);
+      const model = modifierStackModelTransform(world, context.solidRoot);
+      if (index > 0) {
+        const policy = { uv: pass.textures, readable: true, shiftU: 0, shiftV: 0 };
+        return units.map((unit) => modifierStackUnitCopy(unit, model, index, policy, context));
+      }
+      if (pass.matrix.equals(new THREE.Matrix4())) return [...units];
+      return units.map((unit) => ({
+        ...unit,
+        brushes: unit.brushes.map((brush) => modifierStackReshapeTransform(brush, model, pass.textures)),
+        reshaped: unit.authored || unit.reshaped,
+      }));
+    });
   }
 }

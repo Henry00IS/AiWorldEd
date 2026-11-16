@@ -84,12 +84,13 @@ A script can be a **generator**, which builds new geometry from nothing, or a **
 
 - Generator is on for every script that sets nothing. A script that does not allow a use is refused there with a message saying which box to turn on; the use a step already has stays on.
 - Add a SolidScript modifier from **Add Modifier** on a brush, mesh, group or modifier volume. The old generators still cannot go on brushes or groups.
-- As a modifier, the brushes it receives pass on unchanged. What the script builds is added, with the script origin at the centre of what it receives; Operation picks whether it is added, cut out or intersected.
+- As a modifier, the brushes it receives pass on unchanged unless the script has an **Input Brushes** line. What the script builds is added, with the script origin at the centre of what it receives; Operation picks whether it is added, cut out or intersected.
 - `[Script.Usage]` is Generator or Modifier. `[Input.Brushes]`, `[Input.Faces]`, `[Input.Min]`, `[Input.Max]`, `[Input.Size]` and `[Input.Center]` describe what a modifier receives (all zero for a generator), and **Input Shapes** builds copies of those brushes to move, mirror or cut.
 - The **Pedestal** example works both ways: as a generator it builds a box on a slab, as a modifier it puts the slab under the brush.
+- **Input Brushes** passes the received brushes on, moved by the Translate, Rotate, Scale, Mirror or Matrix blocks around it, with their textures and materials. The first one that runs changes them; each later one adds a copy. **Built-In Modifiers** in the Examples window rebuilds Shear and Linear Array this way, and they change brushes exactly like the built-in modifiers.
 
 </details>
 
 ## Examples
 
-The **Examples** window holds showcase scripts such as the Spiral Staircase, small lessons, and the built-in generators rebuilt line by line, so you can see how they work and change them.
+The **Examples** window holds showcase scripts such as the Spiral Staircase, small lessons, and the built-in generators and modifiers rebuilt line by line, so you can see how they work and change them.
