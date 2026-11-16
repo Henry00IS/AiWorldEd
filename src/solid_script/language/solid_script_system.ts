@@ -170,8 +170,20 @@ export function solidScriptTimeText(seconds: number, pattern: string): string {
   );
 }
 
+/** Reads the built-in values of one run. */
+export interface SolidScriptSystemReader {
+  /**
+   * Reads one value.
+   *
+   * @param name Name, such as Time.Year.
+   * @returns Value, or undefined when there is none of that name.
+   */
+  get(name: string): SolidScriptValue;
+}
+
 /**
- * Builds the built-in values of one run.
+ * Gives the built-in values of one run. Each value is worked out the first time
+ * a script reads it, so runs that read none cost nothing.
  *
  * @param context Where the script runs.
  * @param box Generator box size, or null when the run has no box.
@@ -183,53 +195,66 @@ export function solidScriptSystemValues(
   context: SolidScriptRunContext,
   box: readonly [number, number, number] | null,
   count = true,
-): Map<string, SolidScriptValue> {
-  const host = solidScriptSystemHostRead();
+): SolidScriptSystemReader {
   const now = Date.now();
   const delta = solidScriptSystemLastRun === null ? 0 : (now - solidScriptSystemLastRun) / 1000;
   if (count) {
     solidScriptSystemRuns += 1;
     solidScriptSystemLastRun = now;
   }
+  const runs = Math.max(1, solidScriptSystemRuns);
   const seconds = now / 1000;
-  const date = new Date(now);
-  const values = new Map<string, SolidScriptValue>([
-    ['Run.Context', context],
-    ['Run.Count', Math.max(1, solidScriptSystemRuns)],
-    ['Run.Seed', Math.floor(Math.random() * 1_000_000)],
-    ['Editor.Name', host.editorName],
-    ['Editor.Version', host.editorVersion],
-    ['Editor.Url', host.editorUrl],
-    ['Editor.Platform', host.platform],
-    ['Level.Name', host.levelName],
-    ['Room.Online', host.roomName !== ''],
-    ['Room.Name', host.roomName],
-    ['Room.Players', Math.max(1, solidScriptSystemPlayersRead?.() ?? 1)],
-    ['User.Name', host.userName],
-    ['Time.Now', seconds],
-    ['Time.Delta', delta],
-    ['Time.Text', solidScriptTimeText(seconds, 'YYYY-MM-DD HH:mm:ss')],
-    ['Time.Date', solidScriptTimeText(seconds, 'YYYY-MM-DD')],
-    ['Time.Clock', solidScriptTimeText(seconds, 'HH:mm')],
-    ['Time.Year', date.getFullYear()],
-    ['Time.Month', date.getMonth() + 1],
-    ['Time.Day', date.getDate()],
-    ['Time.Weekday', SOLID_SCRIPT_WEEKDAYS[date.getDay()] ?? ''],
-    ['Time.Hour', date.getHours()],
-    ['Time.Minute', date.getMinutes()],
-    ['Time.Second', date.getSeconds()],
-    ['Math.Pi', Math.PI],
-    ['Math.Tau', Math.PI * 2],
-    ['Math.E', Math.E],
-    ['Math.Golden', (1 + Math.sqrt(5)) / 2],
-    ['Math.Sqrt2', Math.SQRT2],
-    ['Math.Epsilon', 0.000001],
-  ]);
-  if (box) {
-    values.set('Box.Width', box[0]);
-    values.set('Box.Depth', box[1]);
-    values.set('Box.Height', box[2]);
-    values.set('Box.Size', [box[0], box[1], box[2]]);
-  }
-  return values;
+  let host: SolidScriptSystemHost | null = null;
+  const editor = (): SolidScriptSystemHost => (host ??= solidScriptSystemHostRead());
+  let date: Date | null = null;
+  const time = (): Date => (date ??= new Date(now));
+  const read: Readonly<Record<string, () => SolidScriptValue>> = {
+    'Run.Context': () => context,
+    'Run.Count': () => runs,
+    'Run.Seed': () => Math.floor(Math.random() * 1_000_000),
+    'Editor.Name': () => editor().editorName,
+    'Editor.Version': () => editor().editorVersion,
+    'Editor.Url': () => editor().editorUrl,
+    'Editor.Platform': () => editor().platform,
+    'Level.Name': () => editor().levelName,
+    'Room.Online': () => editor().roomName !== '',
+    'Room.Name': () => editor().roomName,
+    'Room.Players': () => Math.max(1, solidScriptSystemPlayersRead?.() ?? 1),
+    'User.Name': () => editor().userName,
+    'Time.Now': () => seconds,
+    'Time.Delta': () => delta,
+    'Time.Text': () => solidScriptTimeText(seconds, 'YYYY-MM-DD HH:mm:ss'),
+    'Time.Date': () => solidScriptTimeText(seconds, 'YYYY-MM-DD'),
+    'Time.Clock': () => solidScriptTimeText(seconds, 'HH:mm'),
+    'Time.Year': () => time().getFullYear(),
+    'Time.Month': () => time().getMonth() + 1,
+    'Time.Day': () => time().getDate(),
+    'Time.Weekday': () => SOLID_SCRIPT_WEEKDAYS[time().getDay()] ?? '',
+    'Time.Hour': () => time().getHours(),
+    'Time.Minute': () => time().getMinutes(),
+    'Time.Second': () => time().getSeconds(),
+    'Math.Pi': () => Math.PI,
+    'Math.Tau': () => Math.PI * 2,
+    'Math.E': () => Math.E,
+    'Math.Golden': () => (1 + Math.sqrt(5)) / 2,
+    'Math.Sqrt2': () => Math.SQRT2,
+    'Math.Epsilon': () => 0.000001,
+    ...(box
+      ? {
+          'Box.Width': () => box[0],
+          'Box.Depth': () => box[1],
+          'Box.Height': () => box[2],
+          'Box.Size': () => [box[0], box[1], box[2]],
+        }
+      : {}),
+  };
+  const known = new Map<string, SolidScriptValue>();
+  return {
+    get: (name) => {
+      if (known.has(name)) return known.get(name);
+      const value = Object.hasOwn(read, name) ? read[name]!() : undefined;
+      known.set(name, value);
+      return value;
+    },
+  };
 }

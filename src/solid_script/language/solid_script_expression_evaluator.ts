@@ -1,6 +1,6 @@
-import type { SolidScriptArgument, SolidScriptBinding, SolidScriptExpression } from './solid_script_ast.js';
+import type { SolidScriptBinding, SolidScriptExpression } from './solid_script_ast.js';
 import { solidScriptArithmeticBinary } from './solid_script_arithmetic.js';
-import { SOLID_SCRIPT_FUNCTIONS_BUILTIN } from './solid_script_functions_builtin.js';
+import { solidScriptExpressionCompiled } from './solid_script_expression_compile.js';
 import { SolidScriptScope } from './solid_script_scope.js';
 import {
   SOLID_SCRIPT_LIST_LIMIT,
@@ -9,9 +9,6 @@ import {
   solidScriptValueTruthy,
   type SolidScriptValue,
 } from './solid_script_value.js';
-
-/** Vector member names and their indices. */
-const SOLID_SCRIPT_MEMBERS: Readonly<Record<string, number>> = { x: 0, y: 1, z: 2 };
 
 /** Evaluates expressions of the solid script language. */
 export class SolidScriptExpressionEvaluator {
@@ -34,31 +31,15 @@ export class SolidScriptExpressionEvaluator {
   ) {}
 
   /**
-   * Evaluates an expression.
+   * Evaluates an expression. Each formula is turned into JavaScript closures
+   * once, kept with its parsed tree, and every later run calls them.
    *
    * @param expression Expression.
    * @param scope Scope for names.
    * @returns Value.
    */
   evaluate(expression: SolidScriptExpression, scope: SolidScriptScope): SolidScriptValue {
-    switch (expression.kind) {
-      case 'number':
-      case 'string':
-      case 'boolean':
-        return expression.value;
-      case 'undef':
-        return undefined;
-      case 'slot':
-        return this.slots[expression.index];
-      case 'variable':
-        return this.evaluateVariable(expression.name, scope);
-      case 'vector':
-        return expression.items.map((item) => this.evaluate(item, scope));
-      case 'call':
-        return this.evaluateCall(expression.name, expression.args, scope);
-      default:
-        return this.evaluateCompound(expression, scope);
-    }
+    return solidScriptExpressionCompiled(expression)(this, scope);
   }
 
   /**
@@ -77,43 +58,34 @@ export class SolidScriptExpressionEvaluator {
     const outer = this.slots;
     this.slots = slots;
     try {
-      return this.evaluate(expression, scope);
+      return solidScriptExpressionCompiled(expression)(this, scope);
     } finally {
       this.slots = outer;
     }
   }
 
   /**
-   * Evaluates operators, calls, ranges and comprehensions.
+   * Reads the value of a slot of the field formula being evaluated.
    *
-   * @param expression Expression.
-   * @param scope Scope.
+   * @param index Slot index.
    * @returns Value.
    */
-  private evaluateCompound(expression: SolidScriptExpression, scope: SolidScriptScope): SolidScriptValue {
-    switch (expression.kind) {
-      case 'unary':
-        return this.evaluateUnary(expression.operator, this.evaluate(expression.operand, scope));
-      case 'binary':
-        return this.evaluateBinary(expression.operator, expression.left, expression.right, scope);
-      case 'ternary': {
-        const truthy = solidScriptValueTruthy(this.evaluate(expression.condition, scope));
-        return this.evaluate(truthy ? expression.whenTrue : expression.whenFalse, scope);
-      }
-      case 'index':
-        return this.evaluateIndex(this.evaluate(expression.target, scope), this.evaluate(expression.index, scope));
-      case 'member': {
-        const builtIn = this.evaluateSystem(expression, scope);
-        if (builtIn !== undefined) return builtIn;
-        return this.evaluateIndex(this.evaluate(expression.target, scope), SOLID_SCRIPT_MEMBERS[expression.name]);
-      }
-      case 'range':
-        return this.rangeValues(expression, scope);
-      case 'comprehension':
-        return this.bindingsWalk(expression.bindings, scope, (inner) => [this.evaluate(expression.body, inner)]);
-      default:
-        return undefined;
-    }
+  slotRead(index: number): SolidScriptValue {
+    return this.slots[index];
+  }
+
+  /**
+   * Evaluates a range or comprehension, which run seldom enough to walk.
+   *
+   * @param expression Range or comprehension.
+   * @param scope Scope.
+   * @returns Values.
+   */
+  evaluateWalked(expression: SolidScriptExpression, scope: SolidScriptScope): SolidScriptValue {
+    if (expression.kind === 'range') return this.rangeValues(expression, scope);
+    if (expression.kind === 'comprehension')
+      return this.bindingsWalk(expression.bindings, scope, (inner) => [this.evaluate(expression.body, inner)]);
+    return undefined;
   }
 
   /**
@@ -123,31 +95,10 @@ export class SolidScriptExpressionEvaluator {
    * @param value Operand.
    * @returns Result.
    */
-  private evaluateUnary(operator: string, value: SolidScriptValue): SolidScriptValue {
+  evaluateUnary(operator: string, value: SolidScriptValue): SolidScriptValue {
     if (operator === '!') return !solidScriptValueTruthy(value);
     if (operator === '+') return value;
     return solidScriptArithmeticBinary('*', -1, value);
-  }
-
-  /**
-   * Applies a binary operator, short-circuiting logic operators.
-   *
-   * @param operator Operator symbol.
-   * @param left Left expression.
-   * @param right Right expression.
-   * @param scope Scope.
-   * @returns Result.
-   */
-  private evaluateBinary(
-    operator: string,
-    left: SolidScriptExpression,
-    right: SolidScriptExpression,
-    scope: SolidScriptScope,
-  ): SolidScriptValue {
-    const leftValue = this.evaluate(left, scope);
-    if (operator === '&&' && !solidScriptValueTruthy(leftValue)) return false;
-    if (operator === '||' && solidScriptValueTruthy(leftValue)) return true;
-    return solidScriptArithmeticBinary(operator, leftValue, this.evaluate(right, scope));
   }
 
   /**
@@ -157,7 +108,7 @@ export class SolidScriptExpressionEvaluator {
    * @param index Index value.
    * @returns Entry, or undefined.
    */
-  private evaluateIndex(target: SolidScriptValue, index: SolidScriptValue): SolidScriptValue {
+  evaluateIndex(target: SolidScriptValue, index: SolidScriptValue): SolidScriptValue {
     const position = solidScriptValueNumber(index);
     if (position === undefined) throw new Error(`a position must be a number, not ${solidScriptValueShow(index)}`);
     if (!Array.isArray(target) && typeof target !== 'string')
@@ -169,60 +120,38 @@ export class SolidScriptExpressionEvaluator {
   }
 
   /**
-   * Reads a built-in value written with dots, such as Time.Year or Box.Size.x,
-   * unless a variable of the script has the first name.
+   * Reads a built-in value written with dots, such as Time.Year.
    *
-   * @param expression Member expression.
-   * @param scope Scope.
+   * @param name Dotted name.
    * @returns Value, or undefined when it is not a built-in value.
    */
-  private evaluateSystem(expression: SolidScriptExpression, scope: SolidScriptScope): SolidScriptValue {
-    const names: string[] = [];
-    let part = expression;
-    while (part.kind === 'member') {
-      names.unshift(part.name);
-      part = part.target;
-    }
-    if (part.kind !== 'variable' || scope.variableHas(part.name)) return undefined;
-    return this.system([part.name, ...names].join('.'));
+  systemRead(name: string): SolidScriptValue {
+    return this.system(name);
   }
 
   /**
-   * Reads a variable; a name that is not defined is a mistake, so the error
-   * lists the names known at that point.
+   * Explains a name that is not defined, listing the names known at that point.
    *
    * @param name Variable name.
    * @param scope Scope.
-   * @returns Value.
    */
-  private evaluateVariable(name: string, scope: SolidScriptScope): SolidScriptValue {
-    if (name === 'PI') return Math.PI;
-    if (scope.variableHas(name)) return scope.variableGet(name);
+  variableMissing(name: string, scope: SolidScriptScope): never {
     const known = [...scope.variablesVisible().keys()].sort();
     const listed = known.length > 0 ? `Known here: ${known.join(', ')}` : 'No variables are known here';
     throw new Error(`"${name}" is not a variable here. ${listed}`);
   }
 
   /**
-   * Calls a built-in function.
+   * Calls a function the script defines.
    *
    * @param name Function name.
-   * @param args Call arguments.
-   * @param scope Calling scope.
+   * @param values Evaluated arguments.
    * @returns Result.
    */
-  private evaluateCall(name: string, args: SolidScriptArgument[], scope: SolidScriptScope): SolidScriptValue {
-    const builtin = SOLID_SCRIPT_FUNCTIONS_BUILTIN[name];
-    const values = args.map((arg) => this.evaluate(arg.value, scope));
-    if (!builtin) {
-      const result = this.userCall(name, values);
-      if (!result) throw new Error(`unknown function ${name}(); add a Function block with this name`);
-      return result.value;
-    }
-    const result = builtin(values);
-    if (result === undefined && name !== 'is_undef')
-      throw new Error(`${name}() cannot use ${values.map(solidScriptValueShow).join(', ') || 'no values'}`);
-    return result;
+  callUser(name: string, values: readonly SolidScriptValue[]): SolidScriptValue {
+    const result = this.userCall(name, values);
+    if (!result) throw new Error(`unknown function ${name}(); add a Function block with this name`);
+    return result.value;
   }
 
   /**
@@ -250,7 +179,7 @@ export class SolidScriptExpressionEvaluator {
    * @param visit Called with a scope holding one combination of loop values.
    * @returns Concatenated visitor results.
    */
-  bindingsWalk<T>(
+  private bindingsWalk<T>(
     bindings: SolidScriptBinding[],
     scope: SolidScriptScope,
     visit: (inner: SolidScriptScope) => T[],

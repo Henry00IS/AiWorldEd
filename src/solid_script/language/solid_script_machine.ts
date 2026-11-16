@@ -1,4 +1,4 @@
-import { SOLID_SCRIPT_SYSTEM_GLOBALS } from './solid_script_system.js';
+import { SOLID_SCRIPT_SYSTEM_GLOBALS, type SolidScriptSystemReader } from './solid_script_system.js';
 import { solidScriptGeometryLookup } from './solid_script_geometry_lookup.js';
 import * as THREE from 'three';
 import type { SolidScriptExpression } from './solid_script_ast.js';
@@ -487,6 +487,11 @@ function solidScriptVectorComponent(name: string): SolidScriptVectorPart | null 
   return part;
 }
 
+/** First names of the built-in values, such as Time. */
+const SOLID_SCRIPT_SYSTEM_GROUPS: ReadonlySet<string> = new Set(
+  SOLID_SCRIPT_SYSTEM_GLOBALS.map((entry) => entry.name.slice(0, entry.name.indexOf('.'))),
+);
+
 /** Names of the built-in values every script can read. */
 const SOLID_SCRIPT_SYSTEM_NAMES: ReadonlySet<string> = new Set(SOLID_SCRIPT_SYSTEM_GLOBALS.map((entry) => entry.name));
 
@@ -632,7 +637,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     private readonly stepLimit = Number.POSITIVE_INFINITY,
     private readonly breakpoints: SolidScriptBreakpoints | null = null,
     private readonly inputs: Readonly<Record<string, string>> = {},
-    private readonly system: ReadonlyMap<string, SolidScriptValue> = new Map(),
+    private readonly system: SolidScriptSystemReader = { get: () => undefined },
   ) {}
 
   /**
@@ -1446,6 +1451,9 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
    * @returns Value, or undefined when the name is not a built-in value.
    */
   private systemRead(name: string): SolidScriptValue {
+    const dot = name.indexOf('.');
+    const first = name.charCodeAt(0);
+    if (first < 65 || first > 90 || dot < 0 || !SOLID_SCRIPT_SYSTEM_GROUPS.has(name.slice(0, dot))) return undefined;
     const value = this.system.get(name);
     if (value !== undefined) return value;
     const part = solidScriptVectorComponent(name);

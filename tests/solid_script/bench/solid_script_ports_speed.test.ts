@@ -45,6 +45,17 @@ describe('SolidScript port speed', () => {
         `${example.id}: script ${script.toFixed(3)} ms (run ${run.toFixed(3)}), generator ${native.toFixed(3)} ms, ratio ${(script / native).toFixed(2)}`,
       );
     }
+    for (const example of SOLID_SCRIPT_EXAMPLES.filter((entry) => entry.group === 'Showcase')) {
+      const document = solidScriptDocumentCreate(example.lines);
+      const script = median(() => {
+        const result = solidScriptProgramRun(document);
+        for (const leaf of result.shapes.flatMap(solidScriptShapeLeavesPositive))
+          if (leaf.kind === 'solid') solidHullBrushFromPoints(leaf.points);
+      });
+      const run = median(() => solidScriptProgramRun(document));
+      const solids = solidScriptProgramRun(document).steps.length;
+      rows.push(`${example.id}: script ${script.toFixed(3)} ms (run ${run.toFixed(3)}), ${solids} solids`);
+    }
     process.stderr.write(`${rows.join('\n')}\n`);
     expect(rows.length).toBeGreaterThan(0);
   });
