@@ -18,6 +18,7 @@ These guides explain the editor from a user's point of view. You do not need to 
 - [Selecting and organizing objects](selecting_and_organizing.md)
 - [Creating and transforming objects](creating_and_transforming.md)
 - [Solid modeling and CSG](solid_modeling_and_csg.md)
+- [SolidScript](solidscript.md)
 - [Face editing and clipping](face_editing_and_clipping.md)
 - [Textures and UV mapping](textures_and_uvs.md)
 - [Precision tools and alignment](precision_tools.md)
