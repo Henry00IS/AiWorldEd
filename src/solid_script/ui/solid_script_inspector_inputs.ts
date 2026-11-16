@@ -275,8 +275,28 @@ function solidScriptInspectorInputRow(
     if (input.max !== null) value = Math.min(input.max, value);
     commit(String(value));
   });
-  const write = (text: string): void => number.setNumber(Number(text), integer ? 0 : 2);
-  return { element: modifierStackUiRow(input.label, number.getElement(), hint), write };
+  if (input.min === null || input.max === null) {
+    const write = (text: string): void => number.setNumber(Number(text), integer ? 0 : 2);
+    return { element: modifierStackUiRow(input.label, number.getElement(), hint), write };
+  }
+  // Both limits known: a slider beside the field, committed when let go.
+  const slider = document.createElement('input');
+  slider.type = 'range';
+  slider.min = String(input.min);
+  slider.max = String(input.max);
+  slider.step = integer ? '1' : String((input.max - input.min) / 100 || 0.01);
+  slider.setAttribute('aria-label', `${input.label} Slider`);
+  Object.assign(slider.style, { minWidth: '0', flex: '1' });
+  slider.addEventListener('input', () => number.setNumber(Number(slider.value), integer ? 0 : 2));
+  slider.addEventListener('change', () => commit(String(Number(slider.value))));
+  const pair = document.createElement('div');
+  Object.assign(pair.style, { display: 'flex', gap: '6px', alignItems: 'center' });
+  pair.append(slider, number.getElement());
+  const write = (text: string): void => {
+    number.setNumber(Number(text), integer ? 0 : 2);
+    slider.value = text.trim();
+  };
+  return { element: modifierStackUiRow(input.label, pair, hint), write };
 }
 
 /**

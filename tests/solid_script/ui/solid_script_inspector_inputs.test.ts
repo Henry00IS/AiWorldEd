@@ -109,6 +109,24 @@ describe('SolidScript inspector inputs', () => {
     expect((parameters()[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY] as Record<string, string>)['look']).toBe('');
   });
 
+  it('adds a slider to a number with both a Minimum and a Maximum, and stores where it is let go', () => {
+    const { panel, parameters } = inputsFixture([
+      { command: 'input', values: { name: 'lean', type: 'number', default: '0.5', min: '0', max: '2', label: 'Lean' } },
+      { command: 'input', values: { name: 'free', type: 'number', default: '1', min: '0', label: 'Free' } },
+      { command: 'cube' },
+    ]);
+    const sliders = panel.querySelectorAll<HTMLInputElement>('input[type="range"]');
+    expect(sliders).toHaveLength(1);
+    const slider = sliders[0]!;
+    expect(slider.getAttribute('aria-label')).toBe('Lean Slider');
+    expect([slider.min, slider.max, slider.value]).toEqual(['0', '2', '0.5']);
+    slider.value = '1.5';
+    slider.dispatchEvent(new Event('input'));
+    expect(panel.querySelector<HTMLInputElement>('input[aria-label="Lean"]')?.value).toBe('1.50');
+    slider.dispatchEvent(new Event('change'));
+    expect(parameters()[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]).toEqual({ lean: '1.5' });
+  });
+
   it('shows a vector input as X, Y and Z fields on one row and stores the three numbers', () => {
     const { panel, parameters } = inputsFixture([
       { command: 'input', values: { name: 'size', type: 'vector', default: '1, 2, 3', label: 'Size' } },
