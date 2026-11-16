@@ -1487,7 +1487,28 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
    * @returns Context.
    */
   private fieldContextBuild(scope: SolidScriptScope): SolidScriptFieldContext {
-    return {
+    const context: SolidScriptFieldContext = {
+      variablePlain: (name) => {
+        const found = scope.variableGet(name);
+        return found !== undefined ? found : context.variable(name);
+      },
+      variableLocal: (bare, name) => {
+        const found = this.frameFunction()?.locals?.variableOwn(bare);
+        return found !== undefined ? found : context.variable(name);
+      },
+      variableComponent: (base, index, name) => {
+        const vector = SOLID_SCRIPT_SYSTEM_GROUPS.has(base) ? undefined : scope.variableGet(base);
+        const found = Array.isArray(vector) ? vector[index] : undefined;
+        return found !== undefined ? found : context.variable(name);
+      },
+      variableItem: (list, index) => {
+        const items = scope.variableGet(list);
+        const found =
+          Array.isArray(items) && typeof index === 'number' && Number.isInteger(index) && index >= 0
+            ? items[index]
+            : undefined;
+        return found !== undefined ? found : context.variable(`${list}(${solidScriptValueText(index)})`);
+      },
       variable: (name) => {
         // Plain names, the most common read, take one walk out.
         if (!name.includes('.') && !name.includes('(')) {
@@ -1541,6 +1562,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
       },
       formulaRun: (expression, slots) => this.expressions.evaluateSlots(expression, slots, scope),
     };
+    return context;
   }
 
   /**

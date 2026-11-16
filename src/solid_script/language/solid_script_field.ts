@@ -29,6 +29,31 @@ export type SolidScriptFieldKind =
 export interface SolidScriptFieldContext {
   /** Returns a variable's value; throws when there is none. */
   variable(name: string): SolidScriptValue;
+  /** Returns the value of a plain name such as width, as variable() does. */
+  variablePlain(name: string): SolidScriptValue;
+  /**
+   * Returns a Function's own variable written local.name, as variable() does.
+   *
+   * @param bare Name after local.
+   * @param name Name as written.
+   */
+  variableLocal(bare: string, name: string): SolidScriptValue;
+  /**
+   * Returns one part of a vector variable such as pos.x, as variable() does.
+   *
+   * @param base Vector variable name.
+   * @param index Position of the part: 0 for x, 1 for y, 2 for z.
+   * @param name Name as written.
+   */
+  variableComponent(base: string, index: number, name: string): SolidScriptValue;
+  /**
+   * Returns an item of a list variable such as points([i]), as variable() does
+   * for the name written with the item number.
+   *
+   * @param list List variable name.
+   * @param index Item number.
+   */
+  variableItem(list: string, index: SolidScriptValue): SolidScriptValue;
   /** Computes a formula; throws when it cannot be read. */
   formula(text: string): SolidScriptValue;
   /**
@@ -54,6 +79,21 @@ const SOLID_SCRIPT_FIELD_CACHE_LIMIT = 20000;
 
 /** One piece of field text: plain characters or a bracketed part. */
 type SolidScriptFieldPiece = { kind: 'plain'; text: string } | { kind: 'group'; pieces: SolidScriptFieldPiece[] };
+
+/** A plain variable name, such as width. */
+const SOLID_SCRIPT_FIELD_NAME_PLAIN = /^[A-Za-z_]\w*$/;
+
+/** A Function's own variable, such as local.n. */
+const SOLID_SCRIPT_FIELD_NAME_LOCAL = /^local\.([A-Za-z_]\w*)$/;
+
+/** A part of a vector variable, such as pos.x. */
+const SOLID_SCRIPT_FIELD_NAME_COMPONENT = /^([A-Za-z_]\w*)\.([xyzXYZ])$/;
+
+/** Text before the item number of a list item, such as "points(". */
+const SOLID_SCRIPT_FIELD_ITEM_OPEN = /^\s*([A-Za-z_]\w*)\s*\(\s*$/;
+
+/** Text after the item number of a list item. */
+const SOLID_SCRIPT_FIELD_ITEM_CLOSE = /^\s*\)\s*$/;
 
 /** Field kinds whose text is used exactly as typed. */
 const SOLID_SCRIPT_FIELD_KINDS_RAW: ReadonlySet<SolidScriptFieldKind> = new Set(['name', 'target', 'text']);
@@ -220,8 +260,10 @@ function solidScriptFieldGroupCompile(pieces: readonly SolidScriptFieldPiece[]):
       .join('')
       .trim();
     if (name === '') return empty;
-    return (context) => context.variable(name);
+    return solidScriptFieldVariableCompile(name);
   }
+  const item = solidScriptFieldItemCompile(pieces);
+  if (item) return item;
   const parts = pieces.map((piece) =>
     piece.kind === 'plain' ? piece.text : solidScriptFieldGroupCompile(piece.pieces),
   );
@@ -231,6 +273,45 @@ function solidScriptFieldGroupCompile(pieces: readonly SolidScriptFieldPiece[]):
     const name = inner.trim();
     return name === '' ? empty() : context.variable(name);
   };
+}
+
+/**
+ * Compiles the read of a variable named in brackets, picking the read that fits
+ * the shape of the name once, so running it skips looking at the name again.
+ *
+ * @param name Variable name as written.
+ * @returns Compiled part.
+ */
+function solidScriptFieldVariableCompile(name: string): SolidScriptFieldCompiled {
+  if (SOLID_SCRIPT_FIELD_NAME_PLAIN.test(name)) return (context) => context.variablePlain(name);
+  const local = SOLID_SCRIPT_FIELD_NAME_LOCAL.exec(name);
+  if (local) {
+    const bare = local[1] ?? '';
+    return (context) => context.variableLocal(bare, name);
+  }
+  const component = SOLID_SCRIPT_FIELD_NAME_COMPONENT.exec(name);
+  if (component) {
+    const base = component[1] ?? '';
+    const index = 'xyz'.indexOf((component[2] ?? '').toLowerCase());
+    return (context) => context.variableComponent(base, index, name);
+  }
+  return (context) => context.variable(name);
+}
+
+/**
+ * Compiles a list item whose number is one bracketed part, such as points([i]),
+ * so running it reads the item without writing its name as text.
+ *
+ * @param pieces Contents of the brackets.
+ * @returns Compiled part, or null when the pieces are not such an item.
+ */
+function solidScriptFieldItemCompile(pieces: readonly SolidScriptFieldPiece[]): SolidScriptFieldCompiled | null {
+  const [open, index, close] = pieces;
+  if (pieces.length !== 3 || open?.kind !== 'plain' || index?.kind !== 'group' || close?.kind !== 'plain') return null;
+  const list = SOLID_SCRIPT_FIELD_ITEM_OPEN.exec(open.text)?.[1];
+  if (list === undefined || !SOLID_SCRIPT_FIELD_ITEM_CLOSE.test(close.text)) return null;
+  const position = solidScriptFieldGroupCompile(index.pieces);
+  return (context) => context.variableItem(list, position(context));
 }
 
 /**
