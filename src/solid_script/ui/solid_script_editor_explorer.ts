@@ -238,14 +238,31 @@ export class SolidScriptEditorExplorer {
     this.render();
   }
 
+  /**
+   * Tells whether a category lists an entry. Built-in values are the same in
+   * every script: they show under System and when a search names them, not in
+   * All or Current.
+   *
+   * @param entry Entry that matches the search.
+   * @param category Category.
+   * @param query Search text.
+   * @returns True when listed.
+   */
+  private listedIn(entry: SolidScriptExplorerEntry, category: SolidScriptExplorerCategory, query: string): boolean {
+    const builtIn = entry.detail !== '';
+    if (category === 'All') return !builtIn || solidScriptExplorerNames(entry, query);
+    if (category === 'Current') return entry.value !== null && !builtIn;
+    return entry.category === category;
+  }
+
   /** Redraws the categories and the table for the search and category chosen. */
   private render(): void {
     const c = SOLID_SCRIPT_EDITOR_CLASSES;
     const query = this.search.value;
     const counts = new Map<SolidScriptExplorerCategory, number>();
     const matching = this.entries.filter((entry) => solidScriptExplorerMatches(entry, query));
-    counts.set('All', matching.length);
-    counts.set('Current', matching.filter((entry) => entry.value !== null).length);
+    counts.set('All', matching.filter((entry) => this.listedIn(entry, 'All', query)).length);
+    counts.set('Current', matching.filter((entry) => this.listedIn(entry, 'Current', query)).length);
     for (const entry of matching) counts.set(entry.category, (counts.get(entry.category) ?? 0) + 1);
     if (this.stack.length > 0) counts.set('Call Stack', this.stack.length);
     const shown: SolidScriptExplorerCategory[] = [
@@ -280,14 +297,7 @@ export class SolidScriptEditorExplorer {
     const rows: HTMLElement[] = [this.headerRow()];
     if (this.category === 'Call Stack') rows.push(...this.stackRows(query));
     else {
-      const listed = matching.filter((entry) => {
-        // Built-in values are the same in every script: they show under System
-        // and when a search names them, not in the plain lists.
-        const builtIn = entry.detail !== '';
-        if (this.category === 'All') return !builtIn || solidScriptExplorerNames(entry, query);
-        if (this.category === 'Current') return entry.value !== null && !builtIn;
-        return entry.category === this.category;
-      });
+      const listed = matching.filter((entry) => this.listedIn(entry, this.category, query));
       for (const entry of listed) rows.push(...this.entryRows(entry, query));
       if (this.category === 'All' && this.stack.length > 0) rows.push(...this.stackRows(query));
       if (listed.length === 0)

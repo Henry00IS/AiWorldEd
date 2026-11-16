@@ -248,6 +248,7 @@ const SOLID_SCRIPT_EDITOR_DIALOG_CSS = `
 .${c.insertName}:hover { background: ${ThemeCss.inkAlpha(0.08)}; }
 .${c.scrollHost} { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .${c.scrollHost} > :first-child { flex: 1 1 auto; min-height: 0; }
+.${c.scrollHost}[hidden], .${c.explorer}[hidden] { display: none; }
 .${c.suggestionsHost} { position: absolute; z-index: 5; top: 28px; left: 0; right: 0; }
 .${c.suggestions} { max-height: 220px; overflow-y: auto; padding: 4px 0; border-radius: 5px; border: 1px solid ${ThemeCss.inputBorderColor}; background: ${ThemeCss.inputBackground}; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); }
 .${c.suggestionHeading} { padding: 4px 10px 2px; font-size: 10px; font-weight: 700; color: ${ThemeCss.mutedTextColor}; }

@@ -94,9 +94,9 @@ export class SolidScriptEditorDebugger {
    */
   runOptions(): SolidScriptProgramOptions | null {
     if (this.state === 'stopped') return null;
-    const inputs = this.session.inputs();
-    if (this.atBreak !== null) return { breakpoints: { lines: this.breakLines, pauseAt: this.atBreak + 1 }, inputs };
-    return { stepLimit: this.step, inputs };
+    const start = this.session.runStart();
+    if (this.atBreak !== null) return { breakpoints: { lines: this.breakLines, pauseAt: this.atBreak + 1 }, ...start };
+    return { stepLimit: this.step, ...start };
   }
 
   /**
@@ -194,7 +194,7 @@ export class SolidScriptEditorDebugger {
     );
     const run = solidScriptProgramRun(document, {
       breakpoints: { lines: this.breakLines, pauseAt: 0 },
-      inputs: this.session.inputs(),
+      ...this.session.runStart(),
       context: 'preview',
     });
     this.lines = run.steps.slice(0, run.error ? 0 : undefined);

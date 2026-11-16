@@ -1,4 +1,5 @@
-import type * as THREE from 'three';
+import { Vector3, type Object3D } from 'three';
+import { modifierStackVolumeBox } from '@/modifier/stack/evaluate/modifier_stack_frame.js';
 import type { CommandStack } from '@/commands/command_stack.js';
 import {
   modifierStackParametersCommit,
@@ -30,7 +31,7 @@ export class SolidScriptEditorSession {
    * @param refresh Redraws the generator's inspector after a commit, or null.
    */
   constructor(
-    readonly node: THREE.Object3D,
+    readonly node: Object3D,
     readonly stepId: string,
     private readonly commandStack: CommandStack | null,
     private readonly refresh: (() => void) | null = null,
@@ -79,6 +80,17 @@ export class SolidScriptEditorSession {
     return solidScriptInspectorInputValues(
       modifierStackParametersRead(this.node, this.stepId)?.[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY],
     );
+  }
+
+  /**
+   * Returns what a run of the script in the editor starts from: the inspector
+   * values and the size of the generator box.
+   *
+   * @returns Input values and box size in script axes (width, depth, height).
+   */
+  runStart(): { inputs: Record<string, string>; box: [number, number, number] } {
+    const size = modifierStackVolumeBox(this.node).getSize(new Vector3());
+    return { inputs: this.inputs(), box: [size.x, size.z, size.y] };
   }
 
   /**
