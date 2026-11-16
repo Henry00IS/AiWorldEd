@@ -67,7 +67,7 @@ describe('PanelProject', () => {
       'none',
     );
     expect([...root.querySelectorAll('[data-folder-path]')].map((row) => row.getAttribute('data-folder-path'))).toEqual(
-      ['', 'maps', 'textures', '//Curves'],
+      ['', 'maps', 'textures', '//Curves', '//Scripts'],
     );
     root.querySelector<HTMLElement>('[data-folder-path="textures"]')?.click();
     const tiles = root.querySelectorAll<HTMLElement>('[data-file-path]');
@@ -102,25 +102,31 @@ describe('PanelProject', () => {
     const icon = (path: string) =>
       root.querySelector<HTMLElement>(`[data-folder-path="${path}"] [data-folder-icon]`)?.dataset['folderIcon'];
     panel.render(openState(['maps/a/start.aiworld', 'textures/brick.png']));
-    expect(folders()).toEqual(['', 'maps', 'textures', '//Curves']);
+    expect(folders()).toEqual(['', 'maps', 'textures', '//Curves', '//Scripts']);
     expect(arrow('')?.textContent).toBe('▶');
     expect(arrow('')?.style.transform).toBe('rotate(90deg)');
     expect(arrow('maps')?.style.transform).toBe('none');
     // Folders without subfolders and Curves outside a room: no arrow.
-    for (const path of ['textures', '//Curves']) expect(arrow(path)?.textContent).toBe('');
+    for (const path of ['textures', '//Curves', '//Scripts']) expect(arrow(path)?.textContent).toBe('');
     // Expanded folders show an open folder icon, every other folder a closed one.
-    expect(['', 'maps', 'textures', '//Curves'].map(icon)).toEqual(['open', 'closed', 'closed', 'closed']);
+    expect(['', 'maps', 'textures', '//Curves', '//Scripts'].map(icon)).toEqual([
+      'open',
+      'closed',
+      'closed',
+      'closed',
+      'closed',
+    ]);
     arrow('maps')?.click();
-    expect(folders()).toEqual(['', 'maps', 'maps/a', 'textures', '//Curves']);
+    expect(folders()).toEqual(['', 'maps', 'maps/a', 'textures', '//Curves', '//Scripts']);
     expect(icon('maps')).toBe('open');
     expect(panel.folderSelected()).toBe('');
     panel.render(openState(['maps/a/start.aiworld', 'textures/brick.png', 'textures/stone.png']));
-    expect(folders()).toEqual(['', 'maps', 'maps/a', 'textures', '//Curves']);
+    expect(folders()).toEqual(['', 'maps', 'maps/a', 'textures', '//Curves', '//Scripts']);
     arrow('')?.click();
-    expect(folders()).toEqual(['', '//Curves']);
+    expect(folders()).toEqual(['', '//Curves', '//Scripts']);
     expect(icon('')).toBe('closed');
     arrow('')?.click();
-    expect(folders()).toEqual(['', 'maps', 'maps/a', 'textures', '//Curves']);
+    expect(folders()).toEqual(['', 'maps', 'maps/a', 'textures', '//Curves', '//Scripts']);
     // A file added in a new subfolder gives its parent an arrow right away, collapsed.
     panel.render(openState(['maps/a/start.aiworld', 'textures/brick.png', 'textures/old/rust.png']));
     expect(arrow('textures')?.textContent).toBe('▶');
@@ -181,8 +187,13 @@ describe('PanelProject', () => {
     panel.render(openState(['maps/start.aiworld', 'textures/brick.png', 'AiWorldEd/Curves/ramp.aicurve']));
     panel.folderSelect('');
     const tiles = [...root.querySelectorAll<HTMLElement>('[data-folder-tile]')];
-    expect(tiles.map((tile) => tile.textContent)).toEqual(['maps', 'textures', 'Curves']);
-    expect(tiles.map((tile) => tile.dataset['folderTile'])).toEqual(['maps', 'textures', PANEL_PROJECT_VIRTUAL_CURVES]);
+    expect(tiles.map((tile) => tile.textContent)).toEqual(['maps', 'textures', 'Curves', 'Scripts']);
+    expect(tiles.map((tile) => tile.dataset['folderTile'])).toEqual([
+      'maps',
+      'textures',
+      PANEL_PROJECT_VIRTUAL_CURVES,
+      '//Scripts',
+    ]);
     expect(root.querySelector(`[role="tree"] [data-folder-path="${PANEL_PROJECT_VIRTUAL_CURVES}"]`)).not.toBeNull();
     tiles[2]!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
     expect(root.querySelector('[data-file-path="AiWorldEd/Curves/ramp.aicurve"]')).not.toBeNull();

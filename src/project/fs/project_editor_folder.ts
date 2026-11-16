@@ -8,6 +8,7 @@ import type { ProjectFileSystem } from './project_file_system.js';
  *     AiWorldEd/
  *       .gitignore          ignores .Local/
  *       Curves/
+ *       Scripts/
  *       .Local/
  *         History/          Level History of the levels and rooms
  *           index.json      every save: kind, star, time, level or room
@@ -18,6 +19,9 @@ export const PROJECT_EDITOR_DIRECTORY = 'AiWorldEd';
 
 /** Curves saved from the curve editor. */
 export const PROJECT_EDITOR_CURVES_DIRECTORY = `${PROJECT_EDITOR_DIRECTORY}/Curves`;
+
+/** SolidScript scripts saved from the script editor. */
+export const PROJECT_EDITOR_SCRIPTS_DIRECTORY = `${PROJECT_EDITOR_DIRECTORY}/Scripts`;
 
 /** Name of the machine-local folder (git-ignored). */
 export const PROJECT_EDITOR_LOCAL_NAME = '.Local';

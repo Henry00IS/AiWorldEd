@@ -1,10 +1,7 @@
-import { PROJECT_EDITOR_DIRECTORY, projectEditorFolderPrepare } from '@/project/fs/project_editor_folder.js';
+import { PROJECT_EDITOR_SCRIPTS_DIRECTORY, projectEditorFolderPrepare } from '@/project/fs/project_editor_folder.js';
 import type { ProjectFileSystem } from '@/project/fs/project_file_system.js';
 import type { SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
 import { SOLID_SCRIPT_FILE_EXTENSION, solidScriptFileDecode, solidScriptFileEncode } from './solid_script_file.js';
-
-/** Folder of saved scripts inside a project. */
-export const SOLID_SCRIPT_PROJECT_DIRECTORY = `${PROJECT_EDITOR_DIRECTORY}/Scripts`;
 
 /**
  * Returns the file name a script is saved as.
@@ -31,7 +28,7 @@ export function solidScriptProjectFileName(name: string): string {
  * @returns File names, sorted.
  */
 export async function solidScriptProjectList(fileSystem: ProjectFileSystem): Promise<string[]> {
-  const entries = await fileSystem.directoryList(SOLID_SCRIPT_PROJECT_DIRECTORY, () => false);
+  const entries = await fileSystem.directoryList(PROJECT_EDITOR_SCRIPTS_DIRECTORY, () => false);
   return entries
     .filter((entry) => entry.kind === 'file' && entry.name.toLowerCase().endsWith(`.${SOLID_SCRIPT_FILE_EXTENSION}`))
     .map((entry) => entry.name)
@@ -55,7 +52,7 @@ export async function solidScriptProjectSave(
   await projectEditorFolderPrepare(fileSystem);
   const name = solidScriptProjectNameOf(fileName);
   await fileSystem.fileWrite(
-    `${SOLID_SCRIPT_PROJECT_DIRECTORY}/${fileName}`,
+    `${PROJECT_EDITOR_SCRIPTS_DIRECTORY}/${fileName}`,
     await solidScriptFileEncode({ ...document, name }),
   );
   return fileName;
@@ -72,7 +69,7 @@ export async function solidScriptProjectLoad(
   fileSystem: ProjectFileSystem,
   fileName: string,
 ): Promise<SolidScriptDocument> {
-  return solidScriptProjectRead(fileSystem, `${SOLID_SCRIPT_PROJECT_DIRECTORY}/${fileName}`);
+  return solidScriptProjectRead(fileSystem, `${PROJECT_EDITOR_SCRIPTS_DIRECTORY}/${fileName}`);
 }
 
 /**

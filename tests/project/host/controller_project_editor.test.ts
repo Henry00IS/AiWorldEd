@@ -307,7 +307,7 @@ describe('ControllerProjectEditor', () => {
     const rows = [...panelRoot.querySelectorAll('[data-folder-path]')].map((row) =>
       row.getAttribute('data-folder-path'),
     );
-    expect(rows.slice(-3)).toEqual(['//Curves', '//Curves/Remote', '//Curves/Local']);
+    expect(rows.slice(-4)).toEqual(['//Curves', '//Curves/Remote', '//Curves/Local', '//Scripts']);
     const notice = panelRoot.querySelector<HTMLElement>('[data-notice]');
     const shown = () =>
       [...(notice?.children ?? [])].find((text) => (text as HTMLElement).style.visibility !== 'hidden');

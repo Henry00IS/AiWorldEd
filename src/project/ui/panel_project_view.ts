@@ -1,7 +1,7 @@
 import { nameOrderCompare, nameOrderCompareWithPath } from '@/utils/utils_name_order.js';
 import type { ProjectFileRecord, ProjectSnapshot } from '@/project/scan/project_snapshot.js';
 import { projectPathName, projectPathParent } from '@/project/fs/project_path.js';
-import { PROJECT_EDITOR_DIRECTORY } from '@/project/fs/project_editor_folder.js';
+import { PROJECT_EDITOR_DIRECTORY, PROJECT_EDITOR_SCRIPTS_DIRECTORY } from '@/project/fs/project_editor_folder.js';
 import {
   CURVE_LIBRARY_PROJECT_FOLDER,
   CURVE_LIBRARY_VIRTUAL_ROOT,
@@ -20,6 +20,58 @@ const PANEL_PROJECT_VIRTUAL_CURVE_FOLDERS: readonly { path: string; name: string
   { path: curveLibraryFolder('remote'), name: 'Remote' },
   { path: curveLibraryFolder('local'), name: 'Local' },
 ];
+
+/** Folder key of the virtual "Scripts" root: the project's AiWorldEd/Scripts. */
+export const PANEL_PROJECT_VIRTUAL_SCRIPTS = '//Scripts';
+
+/**
+ * A virtual root of the tree: an editor folder shown beside the project
+ * folders.
+ */
+export interface PanelProjectVirtualRoot {
+  /** Folder key, starting with "//". */
+  path: string;
+  /** Name in the tree. */
+  name: string;
+  /** Real folder whose files it shows. */
+  directory: string;
+  /** Tooltip of its row. */
+  title: string;
+  /** Text of an empty file list. */
+  empty: string;
+  /** Virtual folders below it, shown when the snapshot has them. */
+  children: readonly { path: string; name: string }[];
+}
+
+/** Virtual roots after the project folders, in display order. */
+export const PANEL_PROJECT_VIRTUAL_ROOTS: readonly PanelProjectVirtualRoot[] = [
+  {
+    path: PANEL_PROJECT_VIRTUAL_CURVES,
+    name: 'Curves',
+    directory: CURVE_LIBRARY_PROJECT_FOLDER,
+    title: 'Saved curves (stored in AiWorldEd/Curves)',
+    empty: 'No curves saved here yet',
+    children: PANEL_PROJECT_VIRTUAL_CURVE_FOLDERS,
+  },
+  {
+    path: PANEL_PROJECT_VIRTUAL_SCRIPTS,
+    name: 'Scripts',
+    directory: PROJECT_EDITOR_SCRIPTS_DIRECTORY,
+    title: 'Saved scripts (stored in AiWorldEd/Scripts)',
+    empty: 'No scripts saved here yet',
+    children: [],
+  },
+];
+
+/**
+ * Finds the virtual root a folder key is, or lies below.
+ *
+ * @param folder Folder path.
+ * @returns Root, or undefined for a project folder.
+ */
+export function panelProjectVirtualRootOf(folder: string): PanelProjectVirtualRoot | undefined {
+  return PANEL_PROJECT_VIRTUAL_ROOTS.find((root) => folder === root.path || folder.startsWith(`${root.path}/`));
+}
 
 /** Most tiles the file grid shows at once. */
 export const PANEL_PROJECT_TILES_MAXIMUM = 600;
@@ -43,9 +95,9 @@ export interface PanelProjectFileList {
 /**
  * Lists every folder of the snapshot depth-first, root first, with the number
  * of compatible files directly inside it. The editor's own AiWorldEd folder is
- * left out of the tree; its curves appear under the virtual "Curves" root after
- * the project folders (with "Remote" and "Local" below it when the snapshot has
- * those folders, as in a room).
+ * left out of the tree; its curves and scripts appear under the virtual
+ * "Curves" and "Scripts" roots after the project folders (with "Remote" and
+ * "Local" below Curves when the snapshot has those folders, as in a room).
  *
  * @param snapshot Project snapshot.
  * @param rootName Name shown for the project root.
@@ -67,29 +119,32 @@ export function panelProjectFolderRows(snapshot: ProjectSnapshot, rootName: stri
     below.forEach((child) => visit(child, depth + 1));
   };
   visit('', 0);
-  const curveFolders = PANEL_PROJECT_VIRTUAL_CURVE_FOLDERS.filter((folder) => snapshot.directories.has(folder.path));
-  rows.push({
-    path: PANEL_PROJECT_VIRTUAL_CURVES,
-    name: 'Curves',
-    depth: 0,
-    fileCount: counts.get(CURVE_LIBRARY_PROJECT_FOLDER) ?? 0,
-    hasChildren: curveFolders.length > 0,
-  });
-  for (const folder of curveFolders)
+  for (const root of PANEL_PROJECT_VIRTUAL_ROOTS) {
+    const folders = root.children.filter((folder) => snapshot.directories.has(folder.path));
     rows.push({
-      path: folder.path,
-      name: folder.name,
-      depth: 1,
-      fileCount: counts.get(folder.path) ?? 0,
-      hasChildren: false,
+      path: root.path,
+      name: root.name,
+      depth: 0,
+      fileCount: counts.get(root.directory) ?? 0,
+      hasChildren: folders.length > 0,
     });
+    for (const folder of folders)
+      rows.push({
+        path: folder.path,
+        name: folder.name,
+        depth: 1,
+        fileCount: counts.get(folder.path) ?? 0,
+        hasChildren: false,
+      });
+  }
   return rows;
 }
 
 /**
  * Returns the direct subfolders of a folder in the order the tree lists them
  * (by name), for the folder tiles before its files. The project root also lists
- * the virtual roots the tree shows beside it (Curves), after its own folders.
+ * the virtual roots the tree shows beside it (Curves, Scripts), after its own
+ * folders.
  *
  * @param rows Folder rows from panelProjectFolderRows.
  * @param folder Folder path.
@@ -136,7 +191,11 @@ export function panelProjectFolderHoldsFiles(
  * @returns True when it exists.
  */
 export function panelProjectFolderExists(snapshot: ProjectSnapshot, folder: string): boolean {
-  return folder === '' || folder === PANEL_PROJECT_VIRTUAL_CURVES || snapshot.directories.has(folder);
+  return (
+    folder === '' ||
+    PANEL_PROJECT_VIRTUAL_ROOTS.some((root) => root.path === folder) ||
+    snapshot.directories.has(folder)
+  );
 }
 
 /**
@@ -182,7 +241,7 @@ function panelProjectFolderChildren(snapshot: ProjectSnapshot): Map<string, stri
  */
 export function panelProjectFiles(snapshot: ProjectSnapshot, folder: string, query: string): PanelProjectFileList {
   const needle = query.trim().toLowerCase();
-  const directory = folder === PANEL_PROJECT_VIRTUAL_CURVES ? CURVE_LIBRARY_PROJECT_FOLDER : folder;
+  const directory = PANEL_PROJECT_VIRTUAL_ROOTS.find((root) => root.path === folder)?.directory ?? folder;
   const matches = [...snapshot.files.values()]
     .filter((record) => (needle === '' ? record.directory === directory : record.path.toLowerCase().includes(needle)))
     .sort((left, right) => nameOrderCompareWithPath(left.name, left.path, right.name, right.path));

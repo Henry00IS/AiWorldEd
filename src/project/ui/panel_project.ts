@@ -20,13 +20,14 @@ import {
 import { FolderTree } from '@/ui/folder_tree/folder_tree.js';
 import { IconFolderTree } from '@/ui/folder_tree/icon_folder_tree.js';
 import {
-  PANEL_PROJECT_VIRTUAL_CURVES,
+  PANEL_PROJECT_VIRTUAL_ROOTS,
   panelProjectFiles,
   panelProjectFolderChildRows,
   panelProjectFolderExists,
   panelProjectFolderHoldsFiles,
   panelProjectFolderRows,
   panelProjectSizeText,
+  panelProjectVirtualRootOf,
   type PanelProjectFolderRow,
 } from './panel_project_view.js';
 
@@ -621,7 +622,8 @@ export class PanelProject extends PanelFloating {
  * @returns Tooltip.
  */
 function panelProjectFolderTitle({ path, name }: PanelProjectFolderRow): string {
-  if (path === PANEL_PROJECT_VIRTUAL_CURVES) return 'Saved curves (stored in AiWorldEd/Curves)';
+  const root = PANEL_PROJECT_VIRTUAL_ROOTS.find((entry) => entry.path === path);
+  if (root) return root.title;
   return path.startsWith('//') ? name : path || name;
 }
 
@@ -696,8 +698,8 @@ function panelProjectLabelText(state: PanelProjectState): string {
  */
 function panelProjectNoFilesText(state: PanelProjectState, folder: string, query: string): string {
   if (query.trim()) return 'No matching files';
-  if (folder === PANEL_PROJECT_VIRTUAL_CURVES || folder.startsWith(`${PANEL_PROJECT_VIRTUAL_CURVES}/`))
-    return 'No curves saved here yet';
+  const root = panelProjectVirtualRootOf(folder);
+  if (root) return root.empty;
   return state.room ? "The room owner's textures appear here as they arrive" : 'No files here';
 }
 

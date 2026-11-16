@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   PANEL_PROJECT_TILES_MAXIMUM,
   PANEL_PROJECT_VIRTUAL_CURVES,
+  PANEL_PROJECT_VIRTUAL_SCRIPTS,
   panelProjectCompare,
+  panelProjectFolderChildRows,
   panelProjectFolderExists,
   panelProjectFiles,
   panelProjectFolderRows,
@@ -26,6 +28,7 @@ describe('panel_project_view', () => {
       ['textures', 1, 1],
       ['textures/walls', 2, 1],
       [PANEL_PROJECT_VIRTUAL_CURVES, 0, 0],
+      [PANEL_PROJECT_VIRTUAL_SCRIPTS, 0, 0],
     ]);
     expect(rows[0]?.name).toBe('game');
     expect(rows[3]?.name).toBe('walls');
@@ -48,7 +51,12 @@ describe('panel_project_view', () => {
       'curves/Loose.aicurve',
     ]);
     const rows = panelProjectFolderRows(snapshot, 'game');
-    expect(rows.map((row) => row.path)).toEqual(['', 'curves', PANEL_PROJECT_VIRTUAL_CURVES]);
+    expect(rows.map((row) => row.path)).toEqual([
+      '',
+      'curves',
+      PANEL_PROJECT_VIRTUAL_CURVES,
+      PANEL_PROJECT_VIRTUAL_SCRIPTS,
+    ]);
     expect(rows[2]).toMatchObject({ name: 'Curves', fileCount: 2 });
     expect(panelProjectFiles(snapshot, PANEL_PROJECT_VIRTUAL_CURVES, '').files.map((file) => file.name)).toEqual([
       'Arch.curve',
@@ -57,6 +65,28 @@ describe('panel_project_view', () => {
     expect(panelProjectFolderExists(snapshot, PANEL_PROJECT_VIRTUAL_CURVES)).toBe(true);
     expect(panelProjectFolderExists(snapshot, '//Textures')).toBe(false);
     expect(panelProjectFolderExists(snapshot, '//Curves/Remote')).toBe(false);
+  });
+
+  it('lists the project scripts under the virtual Scripts root', () => {
+    const snapshot = panelProjectSnapshotOf([
+      'AiWorldEd/Scripts/Stairs.aiscript',
+      'AiWorldEd/Scripts/Arch.aiscript',
+      'scripts/Loose.aiscript',
+    ]);
+    const rows = panelProjectFolderRows(snapshot, 'game');
+    expect(rows.map((row) => row.path)).toEqual([
+      '',
+      'scripts',
+      PANEL_PROJECT_VIRTUAL_CURVES,
+      PANEL_PROJECT_VIRTUAL_SCRIPTS,
+    ]);
+    expect(rows[3]).toMatchObject({ name: 'Scripts', fileCount: 2, hasChildren: false });
+    expect(panelProjectFiles(snapshot, PANEL_PROJECT_VIRTUAL_SCRIPTS, '').files.map((file) => file.name)).toEqual([
+      'Arch.aiscript',
+      'Stairs.aiscript',
+    ]);
+    expect(panelProjectFolderExists(snapshot, PANEL_PROJECT_VIRTUAL_SCRIPTS)).toBe(true);
+    expect(panelProjectFolderChildRows(rows, '').map((row) => row.name)).toEqual(['scripts', 'Curves', 'Scripts']);
   });
 
   it('shows Remote and Local below Curves in a room', () => {
@@ -77,6 +107,7 @@ describe('panel_project_view', () => {
       [PANEL_PROJECT_VIRTUAL_CURVES, 'Curves', 0, 0],
       ['//Curves/Remote', 'Remote', 1, 2],
       ['//Curves/Local', 'Local', 1, 1],
+      [PANEL_PROJECT_VIRTUAL_SCRIPTS, 'Scripts', 0, 0],
     ]);
     expect(panelProjectFiles(snapshot, '//Curves/Remote', '').total).toBe(2);
     expect(panelProjectFiles(snapshot, '', 'own.ai').files.map((file) => file.path)).toEqual([

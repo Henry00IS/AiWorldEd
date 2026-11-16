@@ -1,7 +1,7 @@
+import { PROJECT_EDITOR_SCRIPTS_DIRECTORY } from '@/project/fs/project_editor_folder.js';
 import { describe, expect, it } from 'vitest';
 import { ProjectFileSystemHandle } from '@/project/fs/project_file_system_handle.js';
 import {
-  SOLID_SCRIPT_PROJECT_DIRECTORY,
   solidScriptProjectFileName,
   solidScriptProjectList,
   solidScriptProjectLoad,
@@ -15,7 +15,7 @@ import { ProjectMockDirectoryHandle } from '../../project/fs/project_mock_direct
 describe('scripts in the project folder', () => {
   it('saves into AiWorldEd/Scripts, lists saved scripts by name and loads them back', async () => {
     const root = new ProjectMockDirectoryHandle('game');
-    root.put(`${SOLID_SCRIPT_PROJECT_DIRECTORY}/notes.txt`, 'not a script');
+    root.put(`${PROJECT_EDITOR_SCRIPTS_DIRECTORY}/notes.txt`, 'not a script');
     const fileSystem = new ProjectFileSystemHandle(root.asHandle());
     const document = solidScriptDocumentCreate([{ command: 'cube', values: { size: '[1, 2, 3]' } }], 'Tall: Box');
     const fileName = await solidScriptProjectSave(fileSystem, document);
