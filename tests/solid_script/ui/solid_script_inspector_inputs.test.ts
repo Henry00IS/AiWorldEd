@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
+import { curveDecode } from '@/curve/model/curve_codec.js';
+import { curveEditorCloseActive } from '@/curve/ui/curve_editor.js';
 import { CommandStack } from '@/commands/command_stack.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierGeneratorNodeCreate } from '@/modifier/stack/modifier_generator_node.js';
@@ -73,6 +75,24 @@ function inputsFixture(lines: SolidScriptLine[]) {
 }
 
 describe('SolidScript inspector inputs', () => {
+  it('shows a curve input as a curve field and stores the edited curve as text', () => {
+    const { panel, parameters } = inputsFixture([
+      { command: 'input', values: { name: 'profile', type: 'curve', default: '', label: 'Profile' } },
+      { command: 'cube' },
+    ]);
+    const field = panel.querySelector<HTMLElement>('[data-solid-script-curve] [role="button"]');
+    if (!field) throw new Error('Expected a curve field');
+    expect(panel.textContent).toContain('Profile');
+    field.click();
+    const select = document.querySelector<HTMLSelectElement>('[data-curve-editor] select[aria-label="Curve presets"]');
+    if (!select) throw new Error('Expected the preset menu');
+    select.value = 'baluster';
+    select.dispatchEvent(new Event('change'));
+    curveEditorCloseActive();
+    const stored = (parameters()[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY] as Record<string, string>)['profile'];
+    expect(curveDecode(stored)?.points.length).toBeGreaterThan(2);
+  });
+
   it('shows one control per Input line with its default', () => {
     const { panel } = inputsFixture(SOLID_SCRIPT_INPUT_LINES);
     expect(panel.style.display).toBe('');

@@ -54,9 +54,9 @@ const SOLID_SCRIPT_INPUT_COMMAND = new SolidScriptCommand({
   category: 'Inputs',
   description: 'Add a setting to the inspector',
   manual:
-    'Adds a setting to the inspector, like the settings of a built-in generator. Lines read it as a variable, such as [width], but cannot change it. Until someone changes it, it has the Default value. Type picks the control: number, count (whole numbers), switch (Yes or No), text, choice or button. A number or count can have a Minimum and Maximum. A choice lists its Choices. A button runs When Button Pressed. Example: Input steps, count, Default 8. Then Repeat [i] from 1 to [steps] builds that many steps.',
+    'Adds a setting to the inspector, like the settings of a built-in generator. Lines read it as a variable, such as [width], but cannot change it. Until someone changes it, it has the Default value. Type picks the control: number, count (whole numbers), switch (Yes or No), text, choice, button or curve. A number or count can have a Minimum and Maximum. A choice lists its Choices. A button runs When Button Pressed. A curve opens the curve editor; read it with curve_at or profile_points, and a number Default is a flat line at that height. Example: Input steps, count, Default 8. Then Repeat [i] from 1 to [steps] builds that many steps.',
   stops: [
-    'A Type that is not number, count, switch, text, choice or button.',
+    'A Type that is not number, count, switch, text, choice, button or curve.',
     'A value outside Minimum and Maximum, a count with decimals, or a choice that is not listed.',
     'A second Input with the same name, or a name a line above already sets.',
   ],
@@ -66,7 +66,8 @@ const SOLID_SCRIPT_INPUT_COMMAND = new SolidScriptCommand({
     read.text('name'),
     ' (',
     read.text('type'),
-    ...(read.text('type').trim() === 'button'
+    // A curve's text is long and unreadable; the inspector shows it.
+    ...(['button', 'curve'].includes(read.text('type').trim())
       ? [')']
       : [') = ', { kind: 'value' as const, text: read.text('default') }]),
     ...solidScriptListingOptions([
@@ -87,7 +88,7 @@ const SOLID_SCRIPT_INPUT_COMMAND = new SolidScriptCommand({
         value = solidScriptInputValue(input, given);
       } catch (error) {
         if (!run.handling) throw error;
-        value = input.type === 'text' || input.type === 'choice' ? given : Number(given);
+        value = input.type === 'text' || input.type === 'choice' || input.type === 'curve' ? given : Number(given);
       }
     run.inputDefine(input.name, value);
     return [];

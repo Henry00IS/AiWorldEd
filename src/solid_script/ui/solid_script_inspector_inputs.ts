@@ -6,6 +6,13 @@ import {
   modifierStackUiTextButton,
   modifierStackUiToggleRow,
 } from '@/modifier/stack/ui/modifier_stack_ui_style.js';
+import { curveDecode, curveEncode } from '@/curve/model/curve_codec.js';
+import { curveFromPolyline } from '@/curve/model/curve_model.js';
+import { curvePresetCatalog } from '@/curve/model/curve_preset_catalog.js';
+import { CURVE_PRESETS_ARCHITECTURE } from '@/curve/model/curve_preset_architecture.js';
+import { CURVE_PRESETS_EXTENDED } from '@/curve/model/curve_preset_extended.js';
+import { CURVE_PRESETS_TURNERY } from '@/curve/model/curve_preset_turnery.js';
+import { CurveField } from '@/curve/ui/curve_field.js';
 import { InputSelect } from '@/ui/input/input_select.js';
 import { inputNumericCreateUvField } from '@/ui/input/input_numeric_uv_field.js';
 import { solidScriptDocumentNormalize } from '@/solid_script/document/solid_script_document.js';
@@ -145,6 +152,7 @@ function solidScriptInspectorInputRow(
       write: (text) => select.setSharedValues([text.trim()]),
     };
   }
+  if (input.type === 'curve') return solidScriptInspectorCurveRow(input, commit, hint);
   if (input.type === 'text') {
     const field = document.createElement('input');
     field.type = 'text';
@@ -165,4 +173,41 @@ function solidScriptInspectorInputRow(
   });
   const write = (text: string): void => number.setNumber(Number(text), integer ? 0 : 2);
   return { element: modifierStackUiRow(input.label, number.getElement(), hint), write };
+}
+
+/**
+ * Builds the control of a curve input: a preview strip that opens the curve
+ * editor, with the column presets. The curve is stored as text; a number or
+ * empty text shows as a flat line at that height, as the script reads it.
+ *
+ * @param input Curve input.
+ * @param commit Stores a new value as text.
+ * @param hint Row tooltip.
+ * @returns Row and how to show a value.
+ */
+function solidScriptInspectorCurveRow(
+  input: SolidScriptInput,
+  commit: (text: string) => void,
+  hint: string,
+): { element: HTMLElement; write: (text: string) => void } {
+  const field = new CurveField({
+    label: input.label,
+    presets: curvePresetCatalog([...CURVE_PRESETS_ARCHITECTURE, ...CURVE_PRESETS_TURNERY, ...CURVE_PRESETS_EXTENDED]),
+    fileName: input.label,
+    onPreview: () => undefined,
+    onCommit: (curve) => commit(curveEncode(curve)),
+  });
+  const write = (text: string): void => {
+    const height = text.trim() === '' ? 1 : Number(text);
+    field.setCurve(
+      (Number.isFinite(height) ? null : curveDecode(text)) ??
+        curveFromPolyline([
+          [0, Number.isFinite(height) ? height : 1],
+          [1, Number.isFinite(height) ? height : 1],
+        ]),
+    );
+  };
+  const row = modifierStackUiRow(input.label, field.getElement(), hint);
+  row.dataset['solidScriptCurve'] = input.name;
+  return { element: row, write };
 }

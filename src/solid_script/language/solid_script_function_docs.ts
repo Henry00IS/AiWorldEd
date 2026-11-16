@@ -5,7 +5,7 @@ export interface SolidScriptFunctionDoc {
   /** What it gives, in one short sentence. */
   summary: string;
   /** Group in the reference. */
-  group: 'Math' | 'Angles' | 'Vectors' | 'Text' | 'Lists' | 'Checks' | 'Random' | 'Time';
+  group: 'Math' | 'Angles' | 'Vectors' | 'Text' | 'Lists' | 'Checks' | 'Random' | 'Time' | 'Curves';
 }
 
 /** Every built-in function of formulas, by name. */
@@ -120,6 +120,12 @@ export const SOLID_SCRIPT_FUNCTION_DOCS: Readonly<Record<string, SolidScriptFunc
   is_list: { usage: 'is_list(value)', summary: 'Yes for a list or vector.', group: 'Checks' },
   is_string: { usage: 'is_string(value)', summary: 'Yes for text.', group: 'Checks' },
   is_bool: { usage: 'is_bool(value)', summary: 'Yes for Yes or No.', group: 'Checks' },
+  curve_at: { usage: 'curve_at(curve, x)', summary: 'Height of a curve at x, from 0 to 1.', group: 'Curves' },
+  profile_points: {
+    usage: 'profile_points(curve, height, radius)',
+    summary: 'A profile as [height, radius] points, like a column samples it.',
+    group: 'Curves',
+  },
   random: { usage: 'random(min, max, seed)', summary: 'A random number; one seed gives one number.', group: 'Random' },
   rands: { usage: 'rands(min, max, count, seed)', summary: 'A list of random numbers.', group: 'Random' },
 };
