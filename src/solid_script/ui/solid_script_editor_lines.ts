@@ -19,6 +19,7 @@ import {
   virtualListScrollbarBindStylesEnsure,
   type VirtualListScrollbarBinding,
 } from '@/ui/virtual_list/virtual_list_scrollbar_bind.js';
+import type { SolidScriptLineProfile } from '@/solid_script/language/solid_script_machine.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import { SolidScriptEditorDrop, type SolidScriptEditorDropTarget } from './solid_script_editor_drop.js';
 import { solidScriptEditorRowBuild, type SolidScriptEditorRowHandlers } from './solid_script_editor_row.js';
@@ -36,6 +37,8 @@ export interface SolidScriptEditorMarks {
   breakpoints: ReadonlySet<number>;
   /** True when the step shown is a pause at a breakpoint. */
   atBreak: boolean;
+  /** How often each 1-based line ran in the last run, and its time. */
+  runs: ReadonlyMap<number, SolidScriptLineProfile>;
 }
 
 /** What the line list asks of the editor. */
@@ -106,6 +109,7 @@ export class SolidScriptEditorLines {
     traced: new Set(),
     breakpoints: new Set(),
     atBreak: false,
+    runs: new Map(),
   };
   private readonly built = new Map<number, HTMLElement>();
   private readonly keys: SolidScriptEditorLineKeys;
@@ -394,6 +398,7 @@ export class SolidScriptEditorLines {
     else if (marks.breakpoints.has(line)) row.title = 'Breakpoint: Start and Debug pause before this line runs';
     else if (marks.traced.has(line)) row.title = 'Traced: the debugger has passed this line';
     else row.removeAttribute('title');
+    solidScriptEditorRunsShow(row, marks.runs.get(line + 1));
   }
 
   /**
@@ -445,4 +450,38 @@ export class SolidScriptEditorLines {
   private rowAt(line: number): HTMLElement | null {
     return this.built.get(line) ?? null;
   }
+}
+
+/**
+ * Shows at the end of a row how often its line ran when that was more than
+ * once, with the time of the line and the lines inside it on hover.
+ *
+ * @param row Row.
+ * @param profile Count and time of its line, or undefined when it did not run.
+ */
+function solidScriptEditorRunsShow(row: HTMLElement, profile: SolidScriptLineProfile | undefined): void {
+  let runs = row.querySelector<HTMLElement>(`.${SOLID_SCRIPT_EDITOR_CLASSES.runs}`);
+  if (!runs) {
+    runs = document.createElement('span');
+    runs.className = SOLID_SCRIPT_EDITOR_CLASSES.runs;
+    row.append(runs);
+  }
+  if (!profile) {
+    runs.textContent = '';
+    runs.removeAttribute('title');
+    return;
+  }
+  runs.textContent = profile.count > 1 ? `×${profile.count}` : '';
+  const times = profile.count === 1 ? 'once' : `${profile.count} times`;
+  runs.title = `Ran ${times} in the last run, ${solidScriptEditorRunsTime(profile.ms)} with the lines inside it`;
+}
+
+/**
+ * Writes a run time for people.
+ *
+ * @param ms Milliseconds.
+ * @returns Such as "under 0.1 ms" or "2.4 ms".
+ */
+function solidScriptEditorRunsTime(ms: number): string {
+  return ms < 0.1 ? 'under 0.1 ms' : `${ms.toFixed(ms < 10 ? 1 : 0)} ms`;
 }

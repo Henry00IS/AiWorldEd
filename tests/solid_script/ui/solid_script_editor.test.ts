@@ -472,6 +472,21 @@ describe('SolidScript editor', () => {
     expect(script().blocks[1]?.off).toBe(true);
   });
 
+  it('shows how often each line ran beside it', () => {
+    editorFixture([
+      { command: 'repeat', values: { variable: 'i', from: '1', to: '5' } },
+      { command: 'cube', values: { size: '0.2, 0.2, 0.2' } },
+      { command: 'end' },
+      { command: 'sphere' },
+    ]);
+    const runs = (line: number) => find(`[data-line="${line}"] .solid-script-editor-runs`);
+    expect(runs(1).textContent).toBe('×5');
+    expect(runs(1).title).toMatch(/^Ran 5 times/);
+    expect(runs(0).textContent).toBe('');
+    expect(runs(3).textContent).toBe('');
+    expect(runs(3).title).toMatch(/^Ran once/);
+  });
+
   it('explains the selected line in the help panel with every value and hint', () => {
     const { root } = editorFixture([{ command: 'cylinder', values: { h: '4' } }]);
     chip(0).focus();

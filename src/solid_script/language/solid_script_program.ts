@@ -26,6 +26,8 @@ export interface SolidScriptProgramOptions {
   box?: readonly [number, number, number];
   /** Breakpoint lines to record, and the hit to pause at, for the debugger. */
   breakpoints?: SolidScriptBreakpoints;
+  /** True to count and time every line, for the editor. */
+  profile?: boolean;
 }
 
 /** The lines of a script to run. */
@@ -84,7 +86,13 @@ export function solidScriptProgramRun(
     solidScriptProgramCheck(program);
     const lines = solidScriptBlockTree(program.blocks, solidScriptCommandFind);
     const system = solidScriptSystemValues(options.context ?? 'generator', options.box ?? null);
-    return new SolidScriptMachine(options.stepLimit, options.breakpoints ?? null, options.inputs, system).run(lines);
+    return new SolidScriptMachine(
+      options.stepLimit,
+      options.breakpoints ?? null,
+      options.inputs,
+      system,
+      options.profile === true,
+    ).run(lines);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return {
@@ -95,6 +103,7 @@ export function solidScriptProgramRun(
       breaks: [],
       paused: null,
       stack: [],
+      profile: new Map(),
       error: solidScriptFailure(solidScriptErrorLine(message), message),
     };
   }

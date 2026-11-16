@@ -59,6 +59,7 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
   helpStops: 'solid-script-editor-help-stops',
   helpMore: 'solid-script-editor-help-more',
   off: 'solid-script-editor-off',
+  runs: 'solid-script-editor-runs',
   icon: 'solid-script-editor-icon',
   field: 'solid-script-editor-field',
   fieldLabel: 'solid-script-editor-field-label',
@@ -204,6 +205,8 @@ const SOLID_SCRIPT_EDITOR_PANES_CSS = `
 .${c.helpMore} { margin: 10px 0 0; border-top: 1px solid ${ThemeCss.separatorColor}; padding-top: 6px; }
 .${c.helpMore} > summary { cursor: pointer; font-size: 11px; color: ${ThemeCss.mutedTextColor}; margin-bottom: 6px; user-select: none; }
 .${c.helpMore} > summary:hover { color: ${ThemeCss.textColor}; }
+.${c.runs} { position: sticky; right: 0; z-index: 1; flex: none; display: flex; align-items: center; color: ${ThemeCss.mutedTextColor}; font: 11px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; background: linear-gradient(var(--solid-script-row-bg, transparent), var(--solid-script-row-bg, transparent)), ${ThemeCss.inputBackground}; }
+.${c.runs}:not(:empty) { padding: 0 22px 0 6px; }
 .${c.off} .${c.chip} { opacity: 0.42; text-decoration: line-through; text-decoration-color: ${ThemeCss.inkAlpha(0.35)}; }
 .${c.helpUsage} { margin: 10px 0 0; padding-top: 8px; border-top: 1px solid ${ThemeCss.inkAlpha(0.08)}; font-size: 11px; line-height: 1.45; color: ${ThemeCss.mutedTextColor}; }
 .${c.output} { display: flex; flex-direction: column; flex-shrink: 0; height: 112px; border-top: 1px solid ${ThemeCss.separatorColor}; }

@@ -335,7 +335,8 @@ export class SolidScriptEditor extends PanelFloating {
     );
     const traced = new Set(this.tracing ? this.debugger.passedLines() : []);
     const breakpoints = this.breakpointLines();
-    this.lines.mark({ stepped, failed: this.output.failedLine(), traced, breakpoints, atBreak });
+    const runs = this.output.lineRuns();
+    this.lines.mark({ stepped, failed: this.output.failedLine(), traced, breakpoints, atBreak, runs });
     this.toolbar.stateShow(this.debugger.stateGet(), atBreak);
     this.statusRefresh();
   }

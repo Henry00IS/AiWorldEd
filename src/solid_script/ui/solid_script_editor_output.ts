@@ -5,6 +5,7 @@ import {
   solidScriptProgramEvaluate,
   type SolidScriptProgramOptions,
 } from '@/solid_script/language/solid_script_program.js';
+import type { SolidScriptLineProfile } from '@/solid_script/language/solid_script_machine.js';
 import { SolidScriptEditorExplorer } from './solid_script_editor_explorer.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 
@@ -33,6 +34,7 @@ export class SolidScriptEditorOutput {
   private readonly outputHost: HTMLElement;
   private readonly variablesHost: HTMLElement;
   private failed: number | null = null;
+  private runs: ReadonlyMap<number, SolidScriptLineProfile> = new Map();
 
   /** Shows a line of the script; set by the editor. */
   set reveal(reveal: (line: number) => void) {
@@ -70,9 +72,10 @@ export class SolidScriptEditorOutput {
    */
   show(document: SolidScriptDocument, options: SolidScriptProgramOptions | null, caption: string): void {
     try {
-      const result = solidScriptProgramEvaluate(document, { context: 'preview', ...options });
+      const result = solidScriptProgramEvaluate(document, { context: 'preview', ...options, profile: true });
       const count = result.steps.length;
       this.failed = null;
+      this.runs = result.profile;
       const solids = `${count} ${count === 1 ? 'solid' : 'solids'}${result.paused ? ' so far' : ''}`;
       this.text([solids, ...result.messages].join('\n'), false);
       this.explorer.show(document, result.variables, options ? result.stack : [], caption);
@@ -80,9 +83,19 @@ export class SolidScriptEditorOutput {
       const message = solidScriptErrorText(error);
       const failed = solidScriptErrorLine(message);
       this.failed = failed === null ? null : failed - 1;
+      this.runs = new Map();
       this.text(message, true);
       this.explorer.show(document, [], [], 'The script stops with an error.');
     }
+  }
+
+  /**
+   * Returns how often each line ran in the last run, and its time.
+   *
+   * @returns Count and time by 1-based line; empty after an error.
+   */
+  lineRuns(): ReadonlyMap<number, SolidScriptLineProfile> {
+    return this.runs;
   }
 
   /**

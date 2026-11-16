@@ -318,6 +318,17 @@ export interface SolidScriptEvaluation {
    * outermost first, with each Function's own variables.
    */
   stack: SolidScriptFrameView[];
+  /**
+   * How often each line ran and how long it took with the lines inside it, by
+   * 1-based line; empty unless the run was asked to profile.
+   */
+  profile: ReadonlyMap<number, SolidScriptLineProfile>;
+}
+
+/** How often one line ran and its time in milliseconds, inner lines included. */
+export interface SolidScriptLineProfile {
+  count: number;
+  ms: number;
 }
 
 /** One Function or part on the call stack, as the debugger shows it. */
@@ -625,6 +636,10 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
   private watched: SolidScriptScope | null = null;
   private failure: SolidScriptFailure | null = null;
   private paused: SolidScriptBreak | null = null;
+  /** Count and time of each line, when profiling. */
+  private readonly profile = new Map<number, SolidScriptLineProfile>();
+  /** Lines being timed now, so a line that calls itself is timed once. */
+  private readonly profiled = new Set<number>();
 
   /**
    * Creates a machine.
@@ -632,12 +647,15 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
    * @param stepLimit Shapes to build; later shapes are only counted.
    * @param breakpoints Lines to record or pause at, or null.
    * @param inputs Inspector values of the script's Input lines, by name.
+   * @param system Built-in values.
+   * @param profiling True to count and time every line.
    */
   constructor(
     private readonly stepLimit = Number.POSITIVE_INFINITY,
     private readonly breakpoints: SolidScriptBreakpoints | null = null,
     private readonly inputs: Readonly<Record<string, string>> = {},
     private readonly system: SolidScriptSystemReader = { get: () => undefined },
+    private readonly profiling = false,
   ) {}
 
   /**
@@ -664,6 +682,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
       breaks: this.breaks,
       paused: this.paused,
       stack: this.stackSeen,
+      profile: this.profile,
       error: this.failure,
     };
   }
@@ -945,6 +964,23 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     context: SolidScriptContext,
   ): SolidScriptShape[] {
     if (SOLID_SCRIPT_DEFINITIONS.has(node.command.id) || this.breakReached(node.line, scope)) return [];
+    if (this.profiling) return this.lineProfiled(node, scope, context);
+    return this.lineExecute(node, scope, context);
+  }
+
+  /**
+   * Runs one line that is not a definition and not paused at.
+   *
+   * @param node Line.
+   * @param scope Scope.
+   * @param context Matrix and flatness.
+   * @returns Shapes.
+   */
+  private lineExecute(
+    node: SolidScriptBlockNode<Command>,
+    scope: SolidScriptScope,
+    context: SolidScriptContext,
+  ): SolidScriptShape[] {
     return (
       this.guarded(node.line, () => {
         const line = this.runOf(node, scope, context);
@@ -956,6 +992,35 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
         }
       }) ?? []
     );
+  }
+
+  /**
+   * Runs one line and adds its count and time to the profile; a line that calls
+   * itself is timed once, by its outermost run.
+   *
+   * @param node Line.
+   * @param scope Scope.
+   * @param context Matrix and flatness.
+   * @returns Shapes.
+   */
+  private lineProfiled(
+    node: SolidScriptBlockNode<Command>,
+    scope: SolidScriptScope,
+    context: SolidScriptContext,
+  ): SolidScriptShape[] {
+    if (this.failure || this.paused || this.leaving) return [];
+    let entry = this.profile.get(node.line);
+    if (!entry) this.profile.set(node.line, (entry = { count: 0, ms: 0 }));
+    entry.count += 1;
+    if (this.profiled.has(node.line)) return this.lineExecute(node, scope, context);
+    this.profiled.add(node.line);
+    const started = performance.now();
+    try {
+      return this.lineExecute(node, scope, context);
+    } finally {
+      this.profiled.delete(node.line);
+      entry.ms += performance.now() - started;
+    }
   }
 
   /**
