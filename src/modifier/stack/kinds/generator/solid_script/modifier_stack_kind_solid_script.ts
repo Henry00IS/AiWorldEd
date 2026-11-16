@@ -194,7 +194,10 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
         parameters,
         surfaces: null,
         caps: null,
-        textures: node.texture ? piece.faces.map(() => node.texture) : null,
+        textures:
+          node.texture || node.faceTextures
+            ? piece.faces.map((_, index) => node.faceTextures?.[index] ?? node.texture)
+            : null,
         operation: node.operation,
         smooth: undefined,
       };

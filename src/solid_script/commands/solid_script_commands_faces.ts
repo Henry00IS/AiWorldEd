@@ -576,4 +576,33 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       );
     },
   }),
+  new SolidScriptCommand({
+    id: 'texture_faces',
+    label: 'Texture Faces',
+    category: 'Faces',
+    description: 'Paint picked faces with a texture',
+    manual:
+      'Gives faces their own library texture: the face of the For Each Selected Face round, or else every face Select Faces picked. It works on brushes and wins over a Texture block around them. The faces keep it when the brush is moved, turned or scaled. Example: Cube, Select Faces Facing Up, Texture Faces grass gives a box a grass top.',
+    stops: ['No faces picked.', 'Faces of a mesh. Texture Faces works on brushes for now.', 'An empty Texture.'],
+    parameters: [
+      solidScriptParameter(
+        'texture',
+        'Texture',
+        'text',
+        'grass',
+        'Name of a library texture, such as one picked by a texture Input.',
+      ),
+    ],
+    listing: (read) => ['Texture Faces', read.value('texture')],
+    execute: (run) => {
+      const texture = solidScriptValueText(run.value('texture')).trim();
+      if (texture === '') throw new Error('Texture Faces needs a Texture name');
+      for (const [leaf, faces] of solidScriptFaceGroups(run, solidScriptFaceTargets(run, 'Texture Faces'))) {
+        if (leaf.kind !== 'solid') throw new Error('Texture Faces works on brushes for now, not meshes');
+        const added = faces.map((face) => ({ point: face.center.clone(), normal: face.normal.clone(), texture }));
+        run.leafReplace(leaf, { ...leaf, faceTextures: [...(leaf.faceTextures ?? []), ...added] });
+      }
+      return [];
+    },
+  }),
 ];

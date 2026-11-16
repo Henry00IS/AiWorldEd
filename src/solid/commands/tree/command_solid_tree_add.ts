@@ -97,6 +97,10 @@ export class CommandSolidTreeAdd implements UndoCommand {
           node.texture,
           node.name,
         );
+        node.faceTextures?.forEach((texture, index) => {
+          const face = node.brush.faces[index];
+          if (texture && face) instance.setFaceTextureId(face.surfaceIndex, texture);
+        });
         this.inserts.push({ parent, instance });
         this.model.addBrushInstanceAfter(instance, parent, null, false);
       }

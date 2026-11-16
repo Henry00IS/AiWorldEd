@@ -101,4 +101,24 @@ describe('solidScriptSolidTreeBuild', () => {
     ]);
     expect(nodes.map((node) => (node.kind === 'brush' ? node.texture : 'group'))).toEqual(['stone', 'wood', undefined]);
   });
+
+  it('gives the faces Texture Faces picked their own texture, moved along with the brush', () => {
+    const nodes = tree([
+      { command: 'translate', values: { v: '3, 0, 1' } },
+      { command: 'rotate', values: { a: '0, 0, 90' } },
+      CUBE,
+      { command: 'select_faces', values: { which: 'Facing Up' } },
+      { command: 'texture_faces', values: { texture: 'grass' } },
+      END,
+      END,
+    ]);
+    const brush = nodes[0];
+    if (brush?.kind !== 'brush') throw new Error('Expected a brush');
+    const textured = brush.brush.faces.flatMap((_, index) =>
+      brush.faceTextures?.[index] === 'grass' ? [brush.brush.planes[index]!.normal.y] : [],
+    );
+    expect(textured).toHaveLength(1);
+    expect(textured[0]).toBeCloseTo(1, 5);
+    expect(brush.texture).toBeUndefined();
+  });
 });

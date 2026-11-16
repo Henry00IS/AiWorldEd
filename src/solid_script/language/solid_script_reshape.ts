@@ -21,6 +21,25 @@ const SOLID_SCRIPT_MINKOWSKI_POINTS_MAX = 20000;
 const SOLID_SCRIPT_ROTATE_SEGMENTS = { min: 3, max: 128 };
 
 /**
+ * Moves a solid's points and the faces given their own texture.
+ *
+ * @param leaf Solid.
+ * @param matrix Transform.
+ * @returns Moved solid.
+ */
+function solidScriptSolidTransform(leaf: SolidScriptShapeSolid, matrix: THREE.Matrix4): SolidScriptShapeSolid {
+  const moved = { ...leaf, points: leaf.points.map((point) => point.clone().applyMatrix4(matrix)) };
+  if (!leaf.faceTextures) return moved;
+  const normals = new THREE.Matrix3().getNormalMatrix(matrix);
+  moved.faceTextures = leaf.faceTextures.map((face) => ({
+    ...face,
+    point: face.point.clone().applyMatrix4(matrix),
+    normal: face.normal.clone().applyMatrix3(normals).normalize(),
+  }));
+  return moved;
+}
+
+/**
  * Moves every point of a shape tree by a matrix. Flat outlines move in their
  * plane: X and Y of the moved point.
  *
@@ -31,7 +50,7 @@ const SOLID_SCRIPT_ROTATE_SEGMENTS = { min: 3, max: 128 };
 export function solidScriptShapeTransform(shape: SolidScriptShape, matrix: THREE.Matrix4): SolidScriptShape {
   return solidScriptShapeMapLeaves(shape, (leaf) =>
     leaf.kind === 'solid'
-      ? { ...leaf, points: leaf.points.map((point) => point.clone().applyMatrix4(matrix)) }
+      ? solidScriptSolidTransform(leaf, matrix)
       : leaf.kind === 'mesh'
         ? solidScriptMeshTransform(leaf, matrix)
         : {

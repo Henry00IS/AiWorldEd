@@ -78,4 +78,20 @@ describe('CommandSolidTreeAdd', () => {
     expect(new Set(faces(brick))).toEqual(new Set(['brick']));
     expect(faces(plain)).not.toContain('brick');
   });
+
+  it('gives single faces their own texture over the brush texture', () => {
+    const model = new SolidModel('Face textures');
+    const node = box('Brick', SolidOperation.Additive, 0) as SolidTreeBrush;
+    new CommandSolidTreeAdd(model, [
+      {
+        ...node,
+        texture: 'brick',
+        faceTextures: node.brush.faces.map((_, index) => (index === 0 ? 'grass' : undefined)),
+      },
+    ]).execute();
+    const [brush] = model.getBrushes();
+    const faces = brush?.brush.faces.map((face) => brush.getSurfaceTextureId(face.surfaceIndex)) ?? [];
+    expect(faces[0]).toBe('grass');
+    expect(new Set(faces.slice(1))).toEqual(new Set(['brick']));
+  });
 });

@@ -40,7 +40,7 @@ The script runs on every change. **Start** builds everything, **Debug** builds o
 <summary>More Details</summary>
 
 - A **curve** input opens the curve editor; read it with `curve_at(curve, x)` or `profile_points(curve, height, radius)`.
-- A **texture** input picks a library texture; wrap brushes in a **Texture** block, such as `Texture [wall]`, to paint every face with it. An inner Texture block wins, and brushes outside keep the generator's texture.
+- A **texture** input picks a library texture; wrap brushes in a **Texture** block, such as `Texture [wall]`, to paint every face with it. An inner Texture block wins, and brushes outside keep the generator's texture. **Texture Faces** gives the faces Select Faces picked their own texture.
 - **Input Group** shows the inputs inside it under a heading, **Input Row** puts them side by side, **Show Inputs When** shows them only while another input has a value, and **Input Note** shows a line of text among them.
 - When Input Changes and When Button Pressed blocks can check and change inputs.
 - **When Baked** runs just before the generator is baked, so a light preview can bake as a detailed version; undo brings back the old inputs.

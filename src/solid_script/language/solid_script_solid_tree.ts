@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { SolidTreeBrush, SolidTreeNode } from '@/solid/commands/tree/solid_tree_node.js';
 import { solidHullBrushFromPoints } from '@/solid/algorithm/surface/solid_hull_brush.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
-import type { SolidScriptShape, SolidScriptShapeBoolean } from './solid_script_shape.js';
+import type { SolidScriptFaceTexture, SolidScriptShape, SolidScriptShapeBoolean } from './solid_script_shape.js';
 
 /** How evaluated script shapes are placed into a solid model. */
 export interface SolidScriptSolidTreeOptions {
@@ -56,7 +56,9 @@ function solidScriptSolidTreeNodes(
   if (shape.kind === 'polygon') throw new Error('2D shapes must be inside linear_extrude()');
   if (shape.kind === 'solid') {
     const brush = solidScriptSolidTreeBrush(shape.points, shape.label, role, options);
-    return [shape.texture ? { ...brush, texture: shape.texture } : brush];
+    if (shape.texture) brush.texture = shape.texture;
+    if (shape.faceTextures) brush.faceTextures = solidScriptSolidTreeFaceTextures(brush, shape.faceTextures, options);
+    return [brush];
   }
   if (shape.kind === 'mesh') return [];
   if (shape.operation === 'union' && role !== SolidOperation.Intersecting)
@@ -123,6 +125,45 @@ function solidScriptSolidTreeBrush(
   const brush = solidHullBrushFromPoints(points.map((point) => point.sub(center)));
   if (!brush) throw new Error(`${label} is flat or degenerate; give every solid a non-zero size on all three axes`);
   return { kind: 'brush', name: solidScriptSolidTreeName(label, options), operation, brush, center };
+}
+
+/** Farthest a textured face's point may be from a brush face, in metres. */
+const SOLID_SCRIPT_SOLID_TREE_FACE_GAP = 1e-3;
+
+/** Least alignment of a textured face's direction with a brush face. */
+const SOLID_SCRIPT_SOLID_TREE_FACE_ALIGN = 0.99;
+
+/**
+ * Finds the brush faces given their own texture: the face whose plane holds the
+ * textured face's point and looks the same way.
+ *
+ * @param brush Brush node, centred on its origin.
+ * @param faces Textured faces in script space.
+ * @param options Placement options.
+ * @returns Texture per brush face, by face index.
+ */
+function solidScriptSolidTreeFaceTextures(
+  brush: SolidTreeBrush,
+  faces: readonly SolidScriptFaceTexture[],
+  options: SolidScriptSolidTreeOptions,
+): (string | undefined)[] {
+  const textures: (string | undefined)[] = brush.brush.faces.map(() => undefined);
+  for (const face of faces) {
+    const point = solidScriptSolidTreePoint(face.point, options).sub(brush.center);
+    const tip = solidScriptSolidTreePoint(face.point.clone().add(face.normal), options).sub(brush.center);
+    const normal = tip.sub(point).normalize();
+    let best = -1;
+    let bestAlign = SOLID_SCRIPT_SOLID_TREE_FACE_ALIGN;
+    brush.brush.planes.forEach((plane, index) => {
+      const align = plane.normal.dot(normal);
+      if (align >= bestAlign && Math.abs(plane.signedDistance(point)) <= SOLID_SCRIPT_SOLID_TREE_FACE_GAP) {
+        best = index;
+        bestAlign = align;
+      }
+    });
+    if (best >= 0) textures[best] = face.texture;
+  }
+  return textures;
 }
 
 /**

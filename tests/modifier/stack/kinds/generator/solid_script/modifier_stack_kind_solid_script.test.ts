@@ -243,4 +243,19 @@ describe('SolidScript generator', () => {
     expect(ModifierVolume.read(fixture.node).modifiers[0]?.parameters['inputs'] ?? {}).toEqual({});
     expect(fixture.pieces()).toHaveLength(2);
   });
+
+  it('textures the faces Texture Faces picked and leaves the others on the main texture', () => {
+    const fixture = scriptFixture();
+    scriptSet(fixture.node, {
+      script: script(
+        { command: 'cube' },
+        { command: 'select_faces', values: { which: 'Facing Up' } },
+        { command: 'texture_faces', values: { texture: 'grass' } },
+      ),
+    });
+    const [piece] = fixture.pieces();
+    const textures = piece?.brush.faces.map((face) => piece.getSurfaceTextureId(face.surfaceIndex)) ?? [];
+    expect(textures.filter((id) => id === 'grass')).toHaveLength(1);
+    expect(textures).toHaveLength(6);
+  });
 });

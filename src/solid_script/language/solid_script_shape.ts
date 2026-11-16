@@ -16,6 +16,18 @@ export interface SolidScriptShapeSolid {
   role?: string;
   /** Texture of every face, from a Texture block; none keeps the default. */
   texture?: string;
+  /** Textures of single faces, from Texture Faces; they win over texture. */
+  faceTextures?: SolidScriptFaceTexture[];
+}
+
+/** A texture given to one face of a solid, found again by its plane. */
+export interface SolidScriptFaceTexture {
+  /** A point on the face, in script space. */
+  point: THREE.Vector3;
+  /** Unit direction the face looks, in script space. */
+  normal: THREE.Vector3;
+  /** Library texture name. */
+  texture: string;
 }
 
 /** Simple 2D polygon in the local plane of a linear_extrude. */

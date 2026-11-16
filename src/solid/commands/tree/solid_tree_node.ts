@@ -14,6 +14,8 @@ export interface SolidTreeBrush {
   center: THREE.Vector3;
   /** Texture of every face; none keeps the default. */
   texture?: string;
+  /** Textures of single faces by face index, winning over texture. */
+  faceTextures?: readonly (string | undefined)[];
 }
 
 /** A CSG group to insert with its members in evaluation order. */
