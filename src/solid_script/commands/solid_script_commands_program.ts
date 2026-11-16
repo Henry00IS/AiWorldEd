@@ -121,7 +121,6 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     stops: ['A missing End line.'],
     nesting: 'open',
     parameters: [solidScriptParameter('title', 'Title', 'text', 'Settings', 'Heading shown above the inputs inside.')],
-    starter: [{ command: SOLID_SCRIPT_COMMAND_INPUT, values: {} }],
     listing: (read) => ['Input Group', read.text('title')],
     execute: (run) => run.inPlace(),
   }),
@@ -135,10 +134,6 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     stops: ['A missing End line.'],
     nesting: 'open',
     parameters: [],
-    starter: [
-      { command: SOLID_SCRIPT_COMMAND_INPUT, values: { name: 'width' } },
-      { command: SOLID_SCRIPT_COMMAND_INPUT, values: { name: 'depth' } },
-    ],
     listing: () => ['Input Row'],
     execute: (run) => run.inPlace(),
   }),
@@ -155,7 +150,6 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
       solidScriptParameter('name', 'Input', 'name', 'Rails', 'Name of the Input it watches.'),
       solidScriptParameter('value', 'Value', 'text', 'yes', 'Value that shows the inputs inside, as plain text.'),
     ],
-    starter: [{ command: SOLID_SCRIPT_COMMAND_INPUT, values: { name: 'railHeight' } }],
     listing: (read) => ['Show Inputs When', read.text('name'), ' is ', read.text('value')],
     execute: (run) => run.inPlace(),
   }),
@@ -282,7 +276,6 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     stops: ['A Use that is not Generator or Modifier.', 'A missing End line.'],
     nesting: 'open',
     parameters: [solidScriptParameter('use', 'Use', 'text', 'Modifier', 'Generator or Modifier.')],
-    starter: [{ command: 'cube', values: {} }],
     listing: (read) => ['If Used As', read.text('use')],
     endLabel: 'If',
     execute: (run) => {
@@ -385,7 +378,6 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
       'Shrinking a concave outline or growing it with sharp corners, or shrinking an outline away completely.',
     ],
     nesting: 'open',
-    starter: [{ command: 'square', values: {} }],
     parameters: [
       solidScriptParameter(
         'distance',

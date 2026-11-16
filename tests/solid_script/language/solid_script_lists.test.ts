@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
-import { solidScriptDocumentCommandInsert } from '@/solid_script/document/solid_script_document_edit.js';
 import type { SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
 
 /**
@@ -154,31 +153,6 @@ describe('SolidScript Point lines', () => {
     );
     expect(result.error).toBeNull();
     expect(result.shapes[0]?.kind).toBe('solid');
-  });
-
-  it('fills a new Polyhedron and Polygon with starter points so they build at once', () => {
-    const polyhedron = solidScriptDocumentCommandInsert(solidScriptDocumentCreate([]), 'polyhedron', 0, 'caret');
-    expect(polyhedron.document.blocks.map((block) => block.command)).toEqual([
-      'polyhedron',
-      'point',
-      'point',
-      'point',
-      'point',
-      'end',
-    ]);
-    expect(solidScriptProgramRun(polyhedron.document).error).toBeNull();
-    const extrude = solidScriptDocumentCommandInsert(solidScriptDocumentCreate([]), 'linear_extrude', 0, 'caret');
-    const polygon = solidScriptDocumentCommandInsert(extrude.document, 'polygon', 0, 'caret');
-    expect(polygon.document.blocks.map((block) => block.command)).toEqual([
-      'linear_extrude',
-      'polygon',
-      'point',
-      'point',
-      'point',
-      'end',
-      'end',
-    ]);
-    expect(solidScriptProgramRun(polygon.document).error).toBeNull();
   });
 });
 

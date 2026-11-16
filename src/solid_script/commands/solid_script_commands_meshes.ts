@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { SolidScriptCommand, type SolidScriptCommandStarter } from './solid_script_command.js';
+import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import { solidScriptParameter, solidScriptParameterOptional } from './solid_script_command_parameters.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
@@ -36,20 +36,6 @@ const SOLID_SCRIPT_SUBDIVIDE_LEVELS_MAX = 4;
 
 /** Most rounds of Smooth Mesh. */
 const SOLID_SCRIPT_SMOOTH_ROUNDS_MAX = 100;
-
-/**
- * Starter lines of a new Mesh: a small four-sided pyramid.
- *
- * @returns Lines.
- */
-function solidScriptMeshStarter(): SolidScriptCommandStarter[] {
-  const vertices = ['-1, -1, 0', '1, -1, 0', '1, 1, 0', '-1, 1, 0', '0, 0, 1.5'];
-  const faces = ['0, 3, 2, 1', '0, 1, 4', '1, 2, 4', '2, 3, 4', '3, 0, 4'];
-  return [
-    ...vertices.map((position) => ({ command: 'vertex', values: { position } })),
-    ...faces.map((corners) => ({ command: 'face', values: { corners } })),
-  ];
-}
 
 /**
  * Runs the lines inside a mesh tool and turns them into one mesh: meshes stay
@@ -172,7 +158,6 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     ],
     nesting: 'open',
     parameters: [],
-    starter: solidScriptMeshStarter(),
     listing: () => ['Mesh'],
     execute: (run) => {
       const { points, uvs, faces } = run.gathered('mesh');
@@ -253,7 +238,6 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     ],
     nesting: 'open',
     parameters: [],
-    starter: [{ command: 'cube', values: {} }],
     listing: () => ['Mesh From Shapes'],
     execute: (run) => solidScriptMeshTool(run, 'Mesh From Shapes', (mesh) => mesh),
   }),
@@ -280,7 +264,6 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
         'Largest gap between corners that are welded, in metres.',
       ),
     ],
-    starter: [{ command: 'cube', values: {} }],
     listing: (read) => ['Merge By Distance', read.value('distance')],
     execute: (run) => {
       const distance = solidScriptMeshNumber(run.value('distance'), 'Distance');
@@ -318,7 +301,6 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
         'Yes: round the shape off. No: keep its shape exactly, only with more faces.',
       ),
     ],
-    starter: [{ command: 'cube', values: {} }],
     listing: (read) => [
       'Subdivide',
       read.value('levels'),
@@ -359,11 +341,6 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
       ),
       solidScriptParameter('strength', 'Strength', 'number', '0.5', 'How far each round moves the points, 0 to 1.'),
     ],
-    starter: [
-      { command: 'subdivide', values: { smooth: 'false' } },
-      { command: 'cube', values: {} },
-      { command: 'end', values: {} },
-    ],
     listing: (read) => ['Smooth Mesh', read.value('rounds'), ' times, strength ', read.value('strength')],
     execute: (run) => {
       const rounds = solidScriptMeshCount(run, 'rounds', 'Rounds', [1, SOLID_SCRIPT_SMOOTH_ROUNDS_MAX]);
@@ -394,11 +371,6 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
         '[=0.1 * Sin([X] * 360)]',
         'Metres to move each point outwards. May use [X], [Y], [Z], [Nx], [Ny], [Nz] and [Index].',
       ),
-    ],
-    starter: [
-      { command: 'subdivide', values: { levels: '3', smooth: 'false' } },
-      { command: 'cube', values: {} },
-      { command: 'end', values: {} },
     ],
     listing: (read) => ['Displace', 'by ', read.value('distance')],
     execute: (run) =>
@@ -449,7 +421,6 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
         'Condition for the faces to pull, such as [Nz] > 0.5 for faces pointing up. True pulls every face.',
       ),
     ],
-    starter: [{ command: 'cube', values: {} }],
     listing: (read) => ['Extrude Faces', 'by ', read.value('distance'), ' where ', read.value('which')],
     execute: (run) =>
       solidScriptMeshTool(run, 'Extrude Faces', (mesh) =>
@@ -475,7 +446,6 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     ],
     nesting: 'open',
     parameters: [solidScriptParameter('size', 'Size', 'number', '1', 'Metres covered by one texture repeat.')],
-    starter: [{ command: 'cube', values: {} }],
     listing: (read) => ['Box UVs', 'size ', read.value('size')],
     execute: (run) => {
       const size = solidScriptMeshNumber(run.value('size'), 'Size');
@@ -493,7 +463,6 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     stops: [SOLID_SCRIPT_MESH_STOPS_FLAT, SOLID_SCRIPT_MESH_STOPS_EMPTY, SOLID_SCRIPT_MESH_STOPS_END],
     nesting: 'open',
     parameters: [],
-    starter: [{ command: 'cube', values: {} }],
     listing: () => ['Flip Faces'],
     execute: (run) =>
       solidScriptMeshTool(run, 'Flip Faces', (mesh) => ({

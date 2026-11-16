@@ -238,11 +238,6 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
         'Brushes per full turn, 3 to 128. More sides look rounder and cost more polygons.',
       ),
     ],
-    starter: [
-      { command: 'translate', values: { v: '2, 0, 0' } },
-      { command: 'square', values: { size: '0.5, 1', center: 'true' } },
-      { command: 'end', values: {} },
-    ],
     listing: (read) => [
       'Rotate Extrude',
       ...solidScriptListingOptions([

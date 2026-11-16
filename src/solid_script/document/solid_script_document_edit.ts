@@ -64,11 +64,8 @@ export function solidScriptDocumentCommandInsert(
   const at = reuse || mode === 'before' || blocks.length === 0 ? index : index + 1;
   const line = Math.max(0, Math.min(at, blocks.length));
   const inserted = [solidScriptBlockCreate(command, values)];
-  const found = solidScriptCommandFind(command);
-  if (found?.nesting === 'open') {
-    for (const line of found.starter) inserted.push(solidScriptBlockCreate(line.command, { ...line.values }));
+  if (solidScriptCommandFind(command)?.nesting === 'open')
     inserted.push(solidScriptBlockCreate(SOLID_SCRIPT_COMMAND_END));
-  }
   blocks.splice(line, reuse ? 1 : 0, ...inserted);
   return { document: solidScriptDocumentWith(document, blocks), line };
 }

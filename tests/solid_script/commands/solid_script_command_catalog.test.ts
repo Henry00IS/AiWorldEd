@@ -24,6 +24,60 @@ function run(...lines: SolidScriptLine[]) {
   return solidScriptProgramRun(solidScriptDocumentCreate(lines));
 }
 
+/** Sample lines inside each block that needs some, so it runs on its own. */
+const SOLID_SCRIPT_SAMPLE_CHILDREN: Readonly<Record<string, readonly SolidScriptLine[]>> = {
+  polyhedron: [
+    { command: 'point', values: { position: '0, 0, 0' } },
+    { command: 'point', values: { position: '1, 0, 0' } },
+    { command: 'point', values: { position: '0, 1, 0' } },
+    { command: 'point', values: { position: '0, 0, 1' } },
+  ],
+  polygon: [
+    { command: 'point', values: { position: '0, 0, 0' } },
+    { command: 'point', values: { position: '2, 0, 0' } },
+    { command: 'point', values: { position: '1, 2, 0' } },
+  ],
+  rotate_extrude: [
+    { command: 'translate', values: { v: '2, 0, 0' } },
+    { command: 'square', values: { size: '0.5, 1', center: 'true' } },
+    { command: 'end' },
+  ],
+  mesh: [
+    { command: 'vertex', values: { position: '-1, -1, 0' } },
+    { command: 'vertex', values: { position: '1, -1, 0' } },
+    { command: 'vertex', values: { position: '1, 1, 0' } },
+    { command: 'vertex', values: { position: '-1, 1, 0' } },
+    { command: 'vertex', values: { position: '0, 0, 1.5' } },
+    { command: 'face', values: { corners: '0, 3, 2, 1' } },
+    { command: 'face', values: { corners: '0, 1, 4' } },
+    { command: 'face', values: { corners: '1, 2, 4' } },
+    { command: 'face', values: { corners: '2, 3, 4' } },
+    { command: 'face', values: { corners: '3, 0, 4' } },
+  ],
+  mesh_shapes: [{ command: 'cube' }],
+  merge_by_distance: [{ command: 'cube' }],
+  subdivide: [{ command: 'cube' }],
+  mesh_smooth: [{ command: 'subdivide', values: { smooth: 'false' } }, { command: 'cube' }, { command: 'end' }],
+  displace: [
+    { command: 'subdivide', values: { levels: '3', smooth: 'false' } },
+    { command: 'cube' },
+    { command: 'end' },
+  ],
+  extrude_faces: [{ command: 'cube' }],
+  box_uvs: [{ command: 'cube' }],
+  flip_faces: [{ command: 'cube' }],
+  place_on_face: [{ command: 'cube', values: { size: '0.2, 0.2, 0.2', center: 'false' } }],
+  texture: [{ command: 'cube' }],
+  input_group: [{ command: 'input' }],
+  input_row: [
+    { command: 'input', values: { name: 'width' } },
+    { command: 'input', values: { name: 'depth' } },
+  ],
+  show_inputs_when: [{ command: 'input', values: { name: 'railHeight' } }],
+  if_used_as: [{ command: 'cube' }],
+  offset: [{ command: 'square' }],
+};
+
 /**
  * Wraps one command's default line in lines that are valid on their own: blocks
  * get a child and an End, 2D shapes an extrusion, Else an If.
@@ -34,10 +88,8 @@ function run(...lines: SolidScriptLine[]) {
 function standalone(command: SolidScriptCommand): SolidScriptLine[] {
   const line: SolidScriptLine = { command: command.id };
   const counter: SolidScriptLine = { command: 'variable', values: { name: 'i', value: '0' } };
-  const started: SolidScriptLine[] = [
-    line,
-    ...command.starter.map((entry) => ({ ...entry, values: { ...entry.values } })),
-  ];
+  const children = SOLID_SCRIPT_SAMPLE_CHILDREN[command.id] ?? [];
+  const started: SolidScriptLine[] = [line, ...children.map((entry) => ({ ...entry, values: { ...entry.values } }))];
   if (command.category === 'Faces') {
     const pick: SolidScriptLine[] = [{ command: 'cube' }, { command: 'select_faces' }];
     if (command.id === 'select_faces') return [{ command: 'cube' }, line];
@@ -50,11 +102,11 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
       { command: 'end' },
     ];
   }
-  if (command.starter.length > 0 && command.category === '2D Shapes')
+  if (children.length > 0 && command.category === '2D Shapes')
     return [{ command: 'linear_extrude' }, ...started, { command: 'end' }, { command: 'end' }];
   if (['input_group', 'input_row', 'show_inputs_when', 'if_used_as'].includes(command.id))
     return [...started, { command: 'end' }, { command: 'cube' }];
-  if (command.starter.length > 0) return [...started, { command: 'end' }];
+  if (children.length > 0) return [...started, { command: 'end' }];
   if (command.id === 'vertex' || command.id === 'face') {
     const corners = ['0, 0, 0', '1, 0, 0', '0, 1, 0'].map((position) => ({ command: 'vertex', values: { position } }));
     const face: SolidScriptLine = { command: 'face', values: { corners: '0, 1, 2' } };
@@ -175,14 +227,6 @@ describe('solid script command catalog', () => {
       )
       .map((command) => command.category);
     expect(new Set(openers)).toEqual(new Set(['Transforms', 'Combine', 'Meshes', 'Faces', 'Inputs', 'Logic', 'Parts']));
-    const pointShapes = solidScriptCommands
-      .filter((command) => command.starter.length > 0)
-      .map((command) => command.id);
-    expect(pointShapes).toEqual(
-      expect.arrayContaining(['polyhedron', 'polygon', 'rotate_extrude', 'mesh', 'subdivide']),
-    );
-    for (const command of solidScriptCommands.filter((entry) => entry.starter.length > 0))
-      expect(command.nesting, command.id).toBe('open');
     expect(solidScriptCommandFind('cube')?.nesting).toBe('none');
     expect(solidScriptCommandFind('else')?.nesting).toBe('continue');
     expect(solidScriptCommandFind('end')?.nesting).toBe('close');

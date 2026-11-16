@@ -71,3 +71,17 @@ describe('solid script document edits', () => {
     );
   });
 });
+
+describe('SolidScript command insert', () => {
+  it('adds only the command line, and its End line when it opens a block', async () => {
+    const { solidScriptCommands } = await import('@/solid_script/commands/solid_script_command_catalog.js');
+    for (const command of solidScriptCommands.filter((entry) => entry.inPalette)) {
+      const inserted = solidScriptDocumentCommandInsert(solidScriptDocumentCreate([]), command.id, 0, 'caret');
+      const expected = command.nesting === 'open' ? [command.id, 'end'] : [command.id];
+      expect(
+        inserted.document.blocks.map((block) => block.command),
+        command.id,
+      ).toEqual(expected);
+    }
+  });
+});

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { SolidScriptCommand, type SolidScriptCommandStarter } from './solid_script_command.js';
+import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import {
   solidScriptParameter,
@@ -17,22 +17,6 @@ import {
   solidScriptSpherePoints,
   solidScriptSquarePoints,
 } from '@/solid_script/language/solid_script_primitives.js';
-
-/**
- * Point lines a new block starts with.
- *
- * @param positions Point positions.
- * @returns Starter lines.
- */
-function solidScriptPointStarter(positions: readonly string[]): SolidScriptCommandStarter[] {
-  return positions.map((position) => ({ command: 'point', values: { position } }));
-}
-
-/** A new Polyhedron starts as a small pyramid. */
-const SOLID_SCRIPT_POLYHEDRON_STARTER = solidScriptPointStarter(['0, 0, 0', '1, 0, 0', '0, 1, 0', '0, 0, 1']);
-
-/** A new Polygon starts as a triangle. */
-const SOLID_SCRIPT_POLYGON_STARTER = solidScriptPointStarter(['0, 0, 0', '2, 0, 0', '1, 2, 0']);
 
 /** Commands that build one convex solid each. */
 export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
@@ -135,7 +119,6 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
         'Optional: a list of x, y, z points, such as a list variable [Corners]. Point lines inside add more.',
       ),
     ],
-    starter: SOLID_SCRIPT_POLYHEDRON_STARTER,
     listing: (read) => [
       'Polyhedron',
       ...solidScriptListingOptions([read.changed('points') && ['From ', read.value('points')]]),
@@ -219,7 +202,6 @@ export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
         'Optional: a list of x, y points in outline order, such as a list variable [Outline]. Point lines inside add more.',
       ),
     ],
-    starter: SOLID_SCRIPT_POLYGON_STARTER,
     listing: (read) => [
       'Polygon',
       ...solidScriptListingOptions([read.changed('points') && ['From ', read.value('points')]]),

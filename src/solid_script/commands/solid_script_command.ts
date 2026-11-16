@@ -63,14 +63,6 @@ export interface SolidScriptCommandParameter {
   optional?: boolean;
 }
 
-/** A line a new block starts with between its opener and End. */
-export interface SolidScriptCommandStarter {
-  /** Command id. */
-  command: string;
-  /** Field values. */
-  values: Readonly<Record<string, string>>;
-}
-
 /** Stored values of one command line, as typed per field key. */
 export type SolidScriptCommandValues = Readonly<Record<string, string>>;
 
@@ -106,11 +98,6 @@ export interface SolidScriptCommandSpec {
   endLabel?: string;
   /** False hides the command from the palette, such as End. */
   inPalette?: boolean;
-  /**
-   * Lines a new block starts with, so it builds something as soon as it is
-   * dropped in.
-   */
-  starter?: readonly SolidScriptCommandStarter[];
   /** False for lines that do nothing when run, such as notes. */
   runs?: boolean;
   /** Writes the line as the script listing shows it. */
@@ -134,7 +121,6 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
   readonly nesting: SolidScriptCommandNesting;
   readonly endLabel: string;
   readonly inPalette: boolean;
-  readonly starter: readonly SolidScriptCommandStarter[];
   readonly runs: boolean;
   private readonly listingWrite: SolidScriptListingWrite;
   private readonly run: SolidScriptCommandSpec['execute'];
@@ -155,7 +141,6 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
     this.nesting = spec.nesting ?? 'none';
     this.endLabel = spec.endLabel ?? spec.label;
     this.inPalette = spec.inPalette !== false;
-    this.starter = spec.starter ?? [];
     this.runs = spec.runs !== false;
     this.listingWrite = spec.listing;
     this.run = spec.execute;

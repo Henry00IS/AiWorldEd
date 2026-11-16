@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
-import { solidScriptDocumentCommandInsert } from '@/solid_script/document/solid_script_document_edit.js';
 import {
   solidScriptMeshFromSolid,
   solidScriptMeshLoopNormal,
@@ -92,9 +91,17 @@ describe('SolidScript meshes', () => {
     ]);
   });
 
-  it('starts a new Mesh as a pyramid that builds at once with outward faces', () => {
-    const inserted = solidScriptDocumentCommandInsert(solidScriptDocumentCreate([]), 'mesh', 0, 'caret');
-    const mesh = onlyMesh(solidScriptProgramRun(inserted.document));
+  it('builds a pyramid Mesh with outward faces', () => {
+    const vertices = ['-1, -1, 0', '1, -1, 0', '1, 1, 0', '-1, 1, 0', '0, 0, 1.5'];
+    const faces = ['0, 3, 2, 1', '0, 1, 4', '1, 2, 4', '2, 3, 4', '3, 0, 4'];
+    const mesh = onlyMesh(
+      run(
+        { command: 'mesh' },
+        ...vertices.map((position) => ({ command: 'vertex', values: { position } })),
+        ...faces.map((corners) => ({ command: 'face', values: { corners } })),
+        END,
+      ),
+    );
     expect(mesh.points).toHaveLength(5);
     expect(mesh.faces).toHaveLength(5);
     expect(outwards(mesh)).toBe(true);

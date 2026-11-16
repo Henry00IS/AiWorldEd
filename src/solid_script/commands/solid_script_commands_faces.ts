@@ -440,7 +440,6 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     nesting: 'open',
     endLabel: 'Place',
     parameters: [solidScriptParameter('lift', 'Lift', 'number', '0', 'Metres to move the shapes out from the face.')],
-    starter: [{ command: 'cube', values: { size: '0.2, 0.2, 0.2', center: 'false' } }],
     listing: (read) => [
       'Place On Face',
       ...solidScriptListingOptions([read.changed('lift') && ['Lift ', read.value('lift')]]),
@@ -566,7 +565,6 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         "Name of a library texture; [Name] puts in a variable, such as a texture Input. Empty keeps the generator's texture.",
       ),
     ],
-    starter: [{ command: 'cube', values: {} }],
     listing: (read) => ['Texture', read.value('texture')],
     execute: (run) => {
       const texture = solidScriptValueText(run.value('texture')).trim();
