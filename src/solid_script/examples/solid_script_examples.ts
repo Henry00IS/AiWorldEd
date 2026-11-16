@@ -4,6 +4,7 @@ import {
   SOLID_SCRIPT_EXAMPLE_DOORWAY,
   SOLID_SCRIPT_EXAMPLE_PILLAR_RING,
   SOLID_SCRIPT_EXAMPLE_STEPPING_STONES,
+  SOLID_SCRIPT_EXAMPLE_PEBBLES,
 } from './solid_script_examples_basics.js';
 import {
   SOLID_SCRIPT_EXAMPLE_CAPSULE,
@@ -106,6 +107,14 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
     summary: 'Stones from one point to another: lerp walks between two vectors and pos.z makes a wave.',
     port: null,
     lines: SOLID_SCRIPT_EXAMPLE_STEPPING_STONES,
+  },
+  {
+    id: 'pebbles',
+    name: 'Pebbles',
+    group: 'Basics',
+    summary: 'Pebbles scattered over the top of a slab with For Each Scattered Point; the Seed picks the layout.',
+    port: null,
+    lines: SOLID_SCRIPT_EXAMPLE_PEBBLES,
   },
   solidScriptExamplePort('cylinder', 'Cylinder', SOLID_SCRIPT_EXAMPLE_CYLINDER),
   solidScriptExamplePort('cone', 'Cone', SOLID_SCRIPT_EXAMPLE_CONE),

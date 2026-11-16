@@ -61,6 +61,13 @@ const SOLID_SCRIPT_NAMES_SYSTEM: Readonly<Record<string, readonly (readonly [str
     ['Vertex.Position', 'where the corner is'],
     ['Vertex.Normal', 'way the faces around it point'],
   ],
+  for_each_scattered_point: [
+    ['Point.Index', 'number of the point, from 0'],
+    ['Point.Position', 'where the point is'],
+    ['Point.Normal', 'way its face points'],
+    ['Face.Center', 'middle of its face'],
+    ['Face.Tag', 'name of its face, such as Top'],
+  ],
   for_each_edge: [
     ['Edge.Index', 'number of the edge'],
     ['Edge.Start', 'where the edge starts'],

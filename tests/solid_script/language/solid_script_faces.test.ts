@@ -162,6 +162,49 @@ describe('SolidScript faces', () => {
     expect(edges.messages).toEqual(Array.from({ length: 12 }, () => '2'));
   });
 
+  it('scatters points over the picked faces by area, the same for the same seed', () => {
+    const scatter = (seed: string) =>
+      run(
+        CUBE,
+        select('Facing Up'),
+        { command: 'for_each_scattered_point', values: { count: '20', seed } },
+        { command: 'echo', values: { value: '[Point.Index] [Point.Position] [Point.Normal] [Face.Tag]' } },
+        END,
+      );
+    const first = scatter('7');
+    expect(first.error).toBeNull();
+    expect(first.messages).toHaveLength(20);
+    for (const message of first.messages) {
+      const [, x, y, z, nx, ny, nz] = message.match(/^\d+ \[(.+), (.+), (.+)\] \[(.+), (.+), (.+)\]/)!.map(Number);
+      expect(Math.abs(x!)).toBeLessThanOrEqual(1);
+      expect(Math.abs(y!)).toBeLessThanOrEqual(1);
+      expect(z).toBe(1);
+      expect([nx, ny, nz]).toEqual([0, 0, 1]);
+    }
+    expect(scatter('7').messages).toEqual(first.messages);
+    expect(scatter('8').messages).not.toEqual(first.messages);
+  });
+
+  it('puts more scattered points on bigger faces', () => {
+    const counts = run(
+      { command: 'cube', values: { size: '4, 1, 1', center: 'true' } },
+      select('All'),
+      { command: 'for_each_scattered_point', values: { count: '600', seed: '1' } },
+      { command: 'echo', values: { value: '[Face.Area]' } },
+      END,
+    );
+    expect(counts.error).toBeNull();
+    const big = counts.messages.filter((area) => area === '4').length;
+    const small = counts.messages.filter((area) => area === '1').length;
+    expect(big).toBeGreaterThan(small * 2.5);
+    expect(run(CUBE, { command: 'for_each_scattered_point', values: { count: '3' } }, END).error?.message).toMatch(
+      /Select Faces/,
+    );
+    expect(
+      run(CUBE, select('All'), { command: 'for_each_scattered_point', values: { count: '-1' } }, END).error?.message,
+    ).toMatch(/Count/);
+  });
+
   it('stops with plain errors', () => {
     expect(run(select('Facing Up')).error?.message).toMatch(/add a shape such as Cube first/);
     expect(run(CUBE, select('Sideways')).error?.message).toMatch(/Which must be one of/);

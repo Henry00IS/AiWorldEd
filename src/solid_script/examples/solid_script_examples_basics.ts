@@ -65,3 +65,19 @@ export const SOLID_SCRIPT_EXAMPLE_STEPPING_STONES: readonly SolidScriptLine[] = 
   { command: 'end' },
   { command: 'end' },
 ];
+
+/** Pebbles scattered over the top of a slab, more where the face is bigger. */
+export const SOLID_SCRIPT_EXAMPLE_PEBBLES: readonly SolidScriptLine[] = [
+  { command: 'note', values: { text: 'Scatter pebbles on the top of a slab; change Seed for another layout' } },
+  {
+    command: 'input',
+    values: { name: 'pebbles', type: 'count', default: '40', min: '1', max: '400', label: 'Pebbles' },
+  },
+  { command: 'cube', values: { size: '3, 3, 0.4', center: 'true' } },
+  { command: 'select_faces', values: { which: 'Facing Up' } },
+  { command: 'for_each_scattered_point', values: { count: '[pebbles]', seed: '3' } },
+  { command: 'translate', values: { v: '[Point.Position]' } },
+  { command: 'sphere', values: { r: '[=random(0.05, 0.12, [Point.Index])]' } },
+  { command: 'end' },
+  { command: 'end' },
+];

@@ -13,6 +13,7 @@ export const SOLID_SCRIPT_SYSTEM_VALUES: Readonly<Record<string, readonly string
   Face: ['Index', 'Number', 'Center', 'Normal', 'Width', 'Height', 'Area', 'Tag'],
   Vertex: ['Index', 'Position', 'Normal'],
   Edge: ['Index', 'Start', 'End', 'Middle', 'Length', 'Direction'],
+  Point: ['Index', 'Position', 'Normal'],
 });
 
 /**

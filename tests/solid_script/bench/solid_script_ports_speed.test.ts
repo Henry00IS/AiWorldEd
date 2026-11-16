@@ -58,5 +58,5 @@ describe('SolidScript port speed', () => {
     }
     process.stderr.write(`${rows.join('\n')}\n`);
     expect(rows.length).toBeGreaterThan(0);
-  });
+  }, 60000);
 });

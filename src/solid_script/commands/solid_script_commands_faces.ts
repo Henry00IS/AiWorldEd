@@ -14,6 +14,7 @@ import {
   solidScriptGeometryInset,
   solidScriptGeometryMesh,
   solidScriptGeometryPick,
+  solidScriptGeometryScatter,
   solidScriptGeometryVertices,
   type SolidScriptEdgeFacts,
   type SolidScriptFaceFacts,
@@ -345,6 +346,43 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     listing: () => ['For Each Selected Face'],
     execute: (run) =>
       run.looped(run.selection().map((face, round) => ({ variables: solidScriptFaceVariables(face, round), face }))),
+  }),
+  new SolidScriptCommand({
+    id: 'for_each_scattered_point',
+    label: 'For Each Scattered Point',
+    category: 'Faces',
+    description: 'Run lines at random points on picked faces',
+    manual:
+      'Spreads Count points at random over the faces the last Select Faces picked, more on bigger faces, and runs the lines inside once per point. Inside, [Point.Index] counts from 0, [Point.Position] is where the point is and [Point.Normal] the way its face points; the Face values describe its face. The same Seed always gives the same points. Example: Select Faces Facing Up, then For Each Scattered Point with Translate by [Point.Position] and a small Sphere scatters pebbles on the top of a box.',
+    stops: ['No faces picked.', 'A Count that is not a whole number from 0 to 10000.', 'A missing End line.'],
+    nesting: 'open',
+    endLabel: 'For Each',
+    parameters: [
+      solidScriptParameter('count', 'Count', 'number', '10', 'How many points, 0 to 10000.'),
+      solidScriptParameter('seed', 'Seed', 'number', '0', 'Any number; another seed gives other points.'),
+    ],
+    listing: (read) => ['For Each Scattered Point', ' ', read.value('count'), ' with seed ', read.value('seed')],
+    execute: (run) => {
+      const count = solidScriptValueNumber(run.value('count'));
+      if (count === undefined || !Number.isInteger(count) || count < 0 || count > 10000)
+        throw new Error('Count needs a whole number from 0 to 10000');
+      const seed = solidScriptValueNumber(run.value('seed'));
+      if (seed === undefined) throw new Error('Seed needs a number');
+      const faces = run.selection();
+      if (faces.length === 0)
+        throw new Error('For Each Scattered Point spreads points on picked faces; add a Select Faces line above it');
+      return run.looped(
+        solidScriptGeometryScatter(faces, count, seed).map((point, round) => ({
+          variables: {
+            ...solidScriptFaceVariables(point.face, round),
+            'Point.Index': round,
+            'Point.Position': solidScriptFaceVector(point.position),
+            'Point.Normal': solidScriptFaceVector(point.face.normal),
+          },
+          face: point.face,
+        })),
+      );
+    },
   }),
   new SolidScriptCommand({
     id: 'for_each_vertex',
