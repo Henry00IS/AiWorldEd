@@ -29,6 +29,7 @@ const SOLID_SCRIPT_ROTATE_SEGMENTS = { min: 3, max: 128 };
  */
 function solidScriptSolidTransform(leaf: SolidScriptShapeSolid, matrix: THREE.Matrix4): SolidScriptShapeSolid {
   const moved = { ...leaf, points: leaf.points.map((point) => point.clone().applyMatrix4(matrix)) };
+  if (leaf.received) moved.received = { ...leaf.received, matrix: matrix.clone().multiply(leaf.received.matrix) };
   if (!leaf.faceTextures) return moved;
   const normals = new THREE.Matrix3().getNormalMatrix(matrix);
   moved.faceTextures = leaf.faceTextures.map((face) => ({

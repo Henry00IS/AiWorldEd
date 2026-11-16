@@ -152,7 +152,7 @@ export class SolidScriptEditorLineKeys {
    *
    * @param line Line index.
    */
-  private toggle(line: number): void {
+  toggle(line: number): void {
     const [first, last] = this.rangeOf(line);
     const toggled = solidScriptDocumentRangeToggle(this.host.document(), first, last);
     if (toggled.count === 0) return this.host.notice('End and Else lines follow the line that opens their block.');
@@ -168,7 +168,7 @@ export class SolidScriptEditorLineKeys {
    *
    * @param line Line index.
    */
-  private duplicate(line: number): void {
+  duplicate(line: number): void {
     const [first, last] = this.rangeOf(line);
     const lines = this.host
       .document()
@@ -217,7 +217,7 @@ export class SolidScriptEditorLineKeys {
    *
    * @param line Line index.
    */
-  private remove(line: number): void {
+  remove(line: number): void {
     const [first, last] = this.rangeOf(line);
     const removed = solidScriptDocumentRangeRemove(this.host.document(), first, last);
     this.host.edit(removed.document, removed.line);

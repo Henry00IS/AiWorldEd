@@ -197,9 +197,12 @@ describe('SolidScript ports of the generators', () => {
 });
 
 describe('SolidScript examples', () => {
-  it('runs every example without a mistake', () => {
+  it('runs every example without a mistake, a modifier-only one on a received cube', () => {
+    const corners = [-1, 1].flatMap((x) => [-1, 1].flatMap((y) => [-1, 1].map((z) => [x, y, z] as const)));
+    const received = { use: { usage: 'Modifier' as const, solids: [corners], faces: 6 } };
     for (const example of SOLID_SCRIPT_EXAMPLES) {
-      const result = solidScriptProgramRun(solidScriptDocumentCreate(example.lines));
+      const options = example.uses?.generator === false ? received : {};
+      const result = solidScriptProgramRun(solidScriptDocumentCreate(example.lines), options);
       expect(result.error?.message ?? '', example.id).toBe('');
       expect(result.shapes.length, example.id).toBeGreaterThan(0);
     }

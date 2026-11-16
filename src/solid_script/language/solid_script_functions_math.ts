@@ -110,6 +110,13 @@ export const SOLID_SCRIPT_FUNCTIONS_MATH: Readonly<Record<string, SolidScriptMat
       (item) => solidScriptValueText(item) === wanted,
     );
   },
+  item_or: (args) => {
+    const usage = 'ItemOr(list, index, fallback)';
+    if (args.length !== 3) throw new Error(`${usage} takes a list, an index and a fallback value`);
+    const list = solidScriptMathList(args, 0, usage);
+    const index = solidScriptExtraNumber(args, 1, usage);
+    return Number.isInteger(index) && index >= 0 && index < list.length ? list[index] : args[2];
+  },
   unique: (args) => {
     const seen = new Set<string>();
     return solidScriptMathList(args, 0, 'Unique(list)').filter((item) => {

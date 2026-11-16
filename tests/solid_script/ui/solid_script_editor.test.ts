@@ -472,6 +472,32 @@ describe('SolidScript editor', () => {
     expect(script().blocks[1]?.off).toBe(true);
   });
 
+  it('turns selected lines off and on from the line menu and the toolbar, undoably', () => {
+    const { script, root, commandStack } = editorFixture([
+      { command: 'cube' },
+      { command: 'sphere' },
+      { command: 'cylinder' },
+    ]);
+    chip(1).dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 5, clientY: 5 }));
+    const item = (label: string) =>
+      [...document.querySelectorAll<HTMLElement>('[role="menuitem"], button')].find(
+        (entry) => entry.textContent?.trim() === label,
+      );
+    expect(item('Turn Off')).toBeDefined();
+    item('Turn Off')!.click();
+    expect(script().blocks[1]?.off).toBe(true);
+    press(chip(1), 'ArrowDown', { shiftKey: true });
+    const toolbar = [...root.querySelectorAll<HTMLButtonElement>('button')].find(
+      (button) => button.textContent === 'Off / On',
+    );
+    toolbar!.click();
+    expect(script().blocks.map((block) => block.off === true)).toEqual([false, true, true]);
+    toolbar!.click();
+    expect(script().blocks.map((block) => block.off === true)).toEqual([false, false, false]);
+    commandStack.undo();
+    expect(script().blocks.map((block) => block.off === true)).toEqual([false, true, true]);
+  });
+
   it('shows how often each line ran beside it', () => {
     editorFixture([
       { command: 'repeat', values: { variable: 'i', from: '1', to: '5' } },

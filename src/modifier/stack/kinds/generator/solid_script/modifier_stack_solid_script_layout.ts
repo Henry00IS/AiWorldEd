@@ -5,7 +5,11 @@ import { solidScriptProgramEvaluate } from '@/solid_script/language/solid_script
 import { solidScriptSolidTreeBuild } from '@/solid_script/language/solid_script_solid_tree.js';
 import { SOLID_SCRIPT_USE_GENERATOR, type SolidScriptUseFacts } from '@/solid_script/language/solid_script_system.js';
 import { solidScriptErrorText } from '@/solid_script/language/solid_script_error.js';
-import { solidScriptShapeLeavesPositive, type SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
+import {
+  solidScriptShapeLeavesPositive,
+  type SolidScriptShape,
+  type SolidScriptShapeSolid,
+} from '@/solid_script/language/solid_script_shape.js';
 import type { SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptShapeMeshes } from '@/solid_script/language/solid_script_mesh.js';
 import {
@@ -27,8 +31,23 @@ export interface ModifierStackSolidScriptLayout {
   nodes: SolidTreeNode[];
   /** Meshes the script built, in frame coordinates. */
   meshes: SolidScriptMeshDocument[];
+  /**
+   * Received brushes Input Brushes passed on, in the order they ran, with their
+   * frame-space moves.
+   */
+  passed: ModifierStackSolidScriptPassed[];
   /** Problem description, or empty. */
   error: string;
+}
+
+/** A received brush that Input Brushes passed on. */
+export interface ModifierStackSolidScriptPassed {
+  /** Index of the brush among those received. */
+  index: number;
+  /** Move in frame coordinates. */
+  matrix: THREE.Matrix4;
+  /** 'copied' moves its textures with it; 'world' keeps them where they are. */
+  textures: 'copied' | 'world';
 }
 
 /**
@@ -55,8 +74,11 @@ export function modifierStackSolidScriptLayout(
   try {
     const size = box.getSize(new THREE.Vector3());
     const run = { inputs, box: [size.x, size.z, size.y] as const, use };
-    const { shapes } = solidScriptProgramEvaluate(document, stepLimit === undefined ? run : { ...run, stepLimit });
-    const placed = modifierStackSolidScriptPlacementMatrix(shapes, placement, box);
+    const evaluated = solidScriptProgramEvaluate(document, stepLimit === undefined ? run : { ...run, stepLimit });
+    const placed = modifierStackSolidScriptPlacementMatrix(evaluated.shapes, placement, box);
+    const received: SolidScriptShapeSolid[] = [];
+    const shapes = modifierStackSolidScriptReceivedTake(evaluated.shapes, received);
+    const passed = modifierStackSolidScriptPassedOf(received, placed, box);
     const nodes = solidScriptSolidTreeBuild(shapes, {
       upAxis: 'z',
       offset: new THREE.Vector3(),
@@ -65,10 +87,64 @@ export function modifierStackSolidScriptLayout(
       namePrefix: '',
     });
     const meshes = solidScriptShapeMeshes(shapes).map((mesh) => solidScriptMeshDocumentBuild(mesh, 'z', placed));
-    return { nodes, meshes, error: '' };
+    return { nodes, meshes, passed, error: '' };
   } catch (error) {
-    return { nodes: [], meshes: [], error: solidScriptErrorText(error) };
+    return { nodes: [], meshes: [], passed: [], error: solidScriptErrorText(error) };
   }
+}
+
+/**
+ * Takes the received brushes Input Brushes passed on out of the shapes, also
+ * from inside unions; inside a cut or an intersection they stay plain shapes.
+ *
+ * @param shapes Evaluated shapes.
+ * @param received Collects the received brushes, in run order.
+ * @returns The other shapes.
+ */
+function modifierStackSolidScriptReceivedTake(
+  shapes: readonly SolidScriptShape[],
+  received: SolidScriptShapeSolid[],
+): SolidScriptShape[] {
+  const rest: SolidScriptShape[] = [];
+  for (const shape of shapes) {
+    if (shape.kind === 'solid' && shape.received) received.push(shape);
+    else if (shape.kind === 'boolean' && shape.operation === 'union') {
+      const children = modifierStackSolidScriptReceivedTake(shape.children, received);
+      if (children.length > 0) rest.push({ ...shape, children });
+    } else rest.push(shape);
+  }
+  return rest;
+}
+
+/**
+ * Returns the received brushes the script passed on, with their script-space
+ * moves turned into frame space: script points are the received points less the
+ * box centre, turned Z-up, and come back through the placement.
+ *
+ * @param shapes Received brushes.
+ * @param placed Placement of script results, already turned Y-up, in the box.
+ * @param box Box the received brushes are centred in.
+ * @returns Passed brushes.
+ */
+function modifierStackSolidScriptPassedOf(
+  shapes: readonly SolidScriptShapeSolid[],
+  placed: THREE.Matrix4,
+  box: THREE.Box3,
+): ModifierStackSolidScriptPassed[] {
+  const centre = box.getCenter(new THREE.Vector3());
+  // Script (x, y, z) is frame (x, z, -y).
+  const up = new THREE.Matrix4().set(1, 0, 0, 0, 0, 0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 1);
+  const into = up
+    .clone()
+    .invert()
+    .multiply(new THREE.Matrix4().makeTranslation(-centre.x, -centre.y, -centre.z));
+  const passed: ModifierStackSolidScriptPassed[] = [];
+  for (const shape of shapes) {
+    if (!shape.received) continue;
+    const matrix = placed.clone().multiply(up).multiply(shape.received.matrix).multiply(into);
+    passed.push({ index: shape.received.index, matrix, textures: shape.received.textures });
+  }
+  return passed;
 }
 
 /**

@@ -128,6 +128,7 @@ export class SolidScriptEditor extends PanelFloating {
       step: () => this.debugger.stepOnce(),
       stop: () => this.debugger.stop(),
       trace: (on) => this.traceSet(on),
+      toggle: () => this.lines.linesToggle(),
       create: () => this.create(),
       examples: () => void this.examples(),
       save: () => void this.save(),

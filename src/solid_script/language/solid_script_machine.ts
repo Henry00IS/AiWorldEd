@@ -248,6 +248,8 @@ export interface SolidScriptBlockRun {
    * lines after its Call or Use Part carry on.
    */
   leave(value: SolidScriptValue | undefined): SolidScriptShape[];
+  /** Ends the whole run after this line, keeping what was built. */
+  stop(): SolidScriptShape[];
   /**
    * Runs a Function block with arguments, building its shapes here, and stores
    * what it returns in a variable when one is named.
@@ -293,6 +295,8 @@ export interface SolidScriptBlockRun {
   inputValue(name: string): string | undefined;
   /** Where the script is used, and what a modifier receives. */
   use(): SolidScriptUseFacts;
+  /** The move of the Translate, Rotate and other blocks around this line. */
+  matrix(): THREE.Matrix4;
   /** Defines a script input: a variable lines may only read. */
   inputDefine(name: string, value: SolidScriptValue): void;
   /** Removes one item of a list, or its last item for list(). */
@@ -699,6 +703,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> imple
   private readonly gathering: SolidScriptGathering[] = [];
   /** True from a Return line until the part it leaves has stopped. */
   private leaving = false;
+  /** True from a Stop Script line until the run or event ends. */
+  private stopping = false;
   private watched: SolidScriptScope | null = null;
   private failure: SolidScriptFailure | null = null;
   private paused: SolidScriptBreak | null = null;
@@ -735,6 +741,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> imple
     this.useOnce();
     const context = { matrix: new THREE.Matrix4(), planar: false };
     const shapes = this.linesRun(lines, this.root, context, this.root);
+    this.stopping = false;
     const variables = [...(this.watched?.variablesVisible() ?? [])].map(([name, value]) =>
       solidScriptVariableView(this.spellings.get(name) ?? name, value),
     );
@@ -775,6 +782,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> imple
       // A bake has no name; When Baked blocks all answer it.
       if (event.kind !== 'bake' && handler.command.valueText(handler.values, 'name').trim() !== event.name) continue;
       if (handler.children.length > 0) this.linesRun(handler.children, this.root, context);
+      this.stopping = false;
       if (this.steps.length > 0 && !this.failure)
         this.failure = solidScriptFailure(
           this.steps[0] ?? handler.line,
@@ -1084,7 +1092,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> imple
     scope: SolidScriptScope,
     context: SolidScriptContext,
   ): SolidScriptShape[] {
-    if (this.failure || this.paused || this.leaving) return [];
+    if (this.failure || this.paused || this.leaving || this.stopping) return [];
     let entry = this.profile.get(node.line);
     if (!entry) this.profile.set(node.line, (entry = { count: 0, ms: 0 }));
     entry.count += 1;
@@ -1109,7 +1117,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> imple
    * @returns True when the run paused here.
    */
   private breakReached(line: number, scope: SolidScriptScope): boolean {
-    if (!this.breakpoints?.lines.has(line) || this.failure || this.paused) return false;
+    if (!this.breakpoints?.lines.has(line) || this.failure || this.paused || this.stopping) return false;
     const reached = { line, steps: this.steps.length };
     this.breaks.push(reached);
     if (this.breaks.length !== this.breakpoints.pauseAt) return false;
@@ -1127,7 +1135,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> imple
    * @returns Its result, or undefined when the run stopped.
    */
   private guarded<T>(line: number, step: () => T): T | undefined {
-    if (this.failure || this.paused || this.leaving) return undefined;
+    if (this.failure || this.paused || this.leaving || this.stopping) return undefined;
     const outer = this.line;
     this.line = line;
     try {
@@ -1358,6 +1366,10 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> imple
         state.machine.leaving = true;
         return [];
       },
+      stop: () => {
+        state.machine.stopping = true;
+        return [];
+      },
       call: (name, values, result) => state.machine.functionCallLine(name, values, result, state.scope, state.context),
       get handling() {
         return state.machine.handling;
@@ -1415,6 +1427,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> imple
       },
       inputValue: (name) => state.machine.inputs[name] ?? state.machine.inputKeyed().get(solidScriptNameKey(name)),
       use: () => state.machine.system.use ?? SOLID_SCRIPT_USE_GENERATOR,
+      matrix: () => state.context.matrix.clone(),
       inputDefine: (name, value) => {
         state.machine.nameCheck(name, 'an input');
         const key = state.machine.nameKey(name);
@@ -1881,7 +1894,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> imple
         this.steps.length === reached &&
         !this.failure &&
         !this.paused &&
-        !this.leaving
+        !this.leaving &&
+        !this.stopping
       )
         throw new Error('Difference has nothing to cut from: its first line builds no shape');
       if (joined) operands.push(joined);

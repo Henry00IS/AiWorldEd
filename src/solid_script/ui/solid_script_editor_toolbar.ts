@@ -14,6 +14,8 @@ export interface SolidScriptEditorToolbarActions {
   stop: () => void;
   /** Turns tracing of passed lines on or off. */
   trace: (on: boolean) => void;
+  /** Turns the selected lines off or on. */
+  toggle: () => void;
   /** Starts a new script. */
   create: () => void;
   /** Opens a built-in example as a new script. */
@@ -69,6 +71,12 @@ export class SolidScriptEditorToolbar {
       actions.trace(this.tracing);
     });
     this.trace.setAttribute('aria-pressed', 'false');
+    const toggle = solidScriptEditorToolButton(
+      'Off / On',
+      'off',
+      'Turn the selected lines off or on again: they stay but do not run (F4 or Ctrl+/)',
+      actions.toggle,
+    );
     const create = solidScriptEditorToolButton(
       'New',
       'new',
@@ -90,6 +98,7 @@ export class SolidScriptEditorToolbar {
       this.stop,
       this.separator(),
       this.trace,
+      toggle,
       this.separator(),
       create,
       examples,

@@ -28,9 +28,10 @@ import {
 } from './solid_script_examples_swept.js';
 import { SOLID_SCRIPT_EXAMPLE_STAIRS } from './solid_script_examples_stairs.js';
 import { SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE } from './solid_script_examples_showcase.js';
+import { SOLID_SCRIPT_EXAMPLE_LINEAR_ARRAY, SOLID_SCRIPT_EXAMPLE_SHEAR } from './solid_script_examples_modifiers.js';
 
 /** Groups of the examples, in the order the Examples window shows them. */
-export const SOLID_SCRIPT_EXAMPLE_GROUPS = ['Showcase', 'Basics', 'Built-In Generators'] as const;
+export const SOLID_SCRIPT_EXAMPLE_GROUPS = ['Showcase', 'Basics', 'Built-In Generators', 'Built-In Modifiers'] as const;
 
 /** Group of an example. */
 export type SolidScriptExampleGroup = (typeof SOLID_SCRIPT_EXAMPLE_GROUPS)[number];
@@ -51,6 +52,8 @@ export interface SolidScriptExample {
   lines: readonly SolidScriptLine[];
   /** Can Be Used As; a generator only when absent. */
   uses?: SolidScriptUses;
+  /** Modifier kind the script rebuilds line by line; none for other examples. */
+  modifier?: string;
 }
 
 /**
@@ -69,6 +72,31 @@ function solidScriptExamplePort(port: string, name: string, lines: readonly Soli
     summary: `The ${name} generator, rebuilt line by line. It builds the same pieces, so you can see how it works and change it.`,
     port,
     lines,
+  };
+}
+
+/**
+ * Builds the entry of a modifier port, usable as a modifier only.
+ *
+ * @param modifier Modifier kind id, also the example id.
+ * @param name Name shown.
+ * @param lines Lines.
+ * @returns Example.
+ */
+function solidScriptExampleModifier(
+  modifier: string,
+  name: string,
+  lines: readonly SolidScriptLine[],
+): SolidScriptExample {
+  return {
+    id: modifier,
+    name,
+    group: 'Built-In Modifiers',
+    summary: `The ${name} modifier, rebuilt line by line. Add it as a SolidScript Modifier: it changes the brushes it receives the same way.`,
+    port: null,
+    lines,
+    uses: { generator: false, modifier: true },
+    modifier,
   };
 }
 
@@ -153,6 +181,8 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
   solidScriptExamplePort('pipe', 'Pipe', SOLID_SCRIPT_EXAMPLE_PIPE),
   solidScriptExamplePort('torus', 'Torus', SOLID_SCRIPT_EXAMPLE_TORUS),
   solidScriptExamplePort('curvedStairs', 'Curved Stairs', SOLID_SCRIPT_EXAMPLE_CURVED_STAIRS),
+  solidScriptExampleModifier('shear', 'Shear', SOLID_SCRIPT_EXAMPLE_SHEAR),
+  solidScriptExampleModifier('linear', 'Linear Array', SOLID_SCRIPT_EXAMPLE_LINEAR_ARRAY),
 ];
 
 /**

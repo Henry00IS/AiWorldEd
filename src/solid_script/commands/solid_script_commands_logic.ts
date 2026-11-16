@@ -290,4 +290,16 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     listing: (read) => ['Use Part', { kind: 'value', text: `'${read.text('name')}'` }],
     execute: (run) => run.partUse(String(run.value('name')).trim()),
   }),
+  new SolidScriptCommand({
+    id: 'stop_script',
+    label: 'Stop Script',
+    category: 'Logic',
+    description: 'End the script here, keeping what it built',
+    manual:
+      'Ends the whole script at this line, also from inside a Repeat, a part or a Function. Shapes built before it stay; the lines after it do not run. It is not a mistake, so nothing is highlighted. Example: If [Steps] == 0 around Echo Nothing to build and Stop Script.',
+    stops: [],
+    parameters: [],
+    listing: () => ['Stop Script'],
+    execute: (run) => run.stop(),
+  }),
 ];

@@ -11,9 +11,10 @@ Double-click a command in the palette, or drag it in, to add it below the curren
 
 - Fields take plain values (`2`, `1, 0, 0`), variables in brackets (`[Width]`) and formulas after an equals sign (`[=[Width] / 2]`).
 - Names ignore case: `[count]` and `[Count]` are one variable, and `sin(65)` is `Sin(65)`. Write them in PascalCase, such as `[StepHeight]`, `Function Staircase` and `CharacterCode("A")`, like the examples do; the explorer keeps the spelling of the first Set or Input.
-- Functions such as `sin`, `lerp`, `remap`, `split` or `time_text` work in formulas; hover one in the suggestions to see what it does.
+- Functions such as `Sin`, `Lerp`, `Remap`, `Split` or `TimeText` work in formulas; hover one in the suggestions to see what it does. `ItemOr([List], 5, 0)` reads an item with a fallback when there is none.
+- **Stop Script** ends the script there, also from inside a Repeat or a Function, and keeps what it built. Run shared lines from many places with a Function and Call. A mistake always stops the script and highlights its line; there is no error catching.
 - Shift+click or Shift+↑/↓ selects lines, Ctrl+C, Ctrl+X and Ctrl+V copy, cut and paste them, also between scripts, and Ctrl+D duplicates them.
-- **F4** or **Ctrl+/** turns lines off and on: they stay but do not run.
+- **F4**, **Ctrl+/**, **Off / On** in the toolbar or **Turn Off** in the right-click menu turns the selected lines off and on: they stay, are saved and synced, but do not run. A **Note** line holds a comment.
 - **New** starts an empty script and **Examples…** opens a ready one; both can be undone.
 
 </details>
@@ -84,12 +85,13 @@ A script can be a **generator**, which builds new geometry from nothing, or a **
 
 - Generator is on for every script that sets nothing. A script that does not allow a use is refused there with a message saying which box to turn on; the use a step already has stays on.
 - Add a SolidScript modifier from **Add Modifier** on a brush, mesh, group or modifier volume. The old generators still cannot go on brushes or groups.
-- As a modifier, the brushes it receives pass on unchanged. What the script builds is added, with the script origin at the centre of what it receives; Operation picks whether it is added, cut out or intersected.
+- As a modifier, the brushes it receives pass on unchanged unless the script has an **Input Brushes** line. What the script builds is added, with the script origin at the centre of what it receives; Operation picks whether it is added, cut out or intersected.
 - `[Script.Usage]` is Generator or Modifier. `[Input.Brushes]`, `[Input.Faces]`, `[Input.Min]`, `[Input.Max]`, `[Input.Size]` and `[Input.Center]` describe what a modifier receives (all zero for a generator), and **Input Shapes** builds copies of those brushes to move, mirror or cut.
 - The **Pedestal** example works both ways: as a generator it builds a box on a slab, as a modifier it puts the slab under the brush.
+- **Input Brushes** passes the received brushes on, moved by the Translate, Rotate, Scale, Mirror or Matrix blocks around it, with their textures and materials. The first one that runs changes them; each later one adds a copy. **Built-In Modifiers** in the Examples window rebuilds Shear and Linear Array this way, and they change brushes exactly like the built-in modifiers.
 
 </details>
 
 ## Examples
 
-The **Examples** window holds showcase scripts such as the Spiral Staircase, small lessons, and the built-in generators rebuilt line by line, so you can see how they work and change them.
+The **Examples** window holds showcase scripts such as the Spiral Staircase, small lessons, and the built-in generators and modifiers rebuilt line by line, so you can see how they work and change them.
