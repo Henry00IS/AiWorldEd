@@ -12,7 +12,7 @@ import {
 } from './harness_collaboration_relay.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierGeneratorNodeCreate } from '@/modifier/stack/modifier_generator_node.js';
-import { MODIFIER_STACK_SOLID_SCRIPT_KIND } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_kind_solid_script.js';
+import { MODIFIER_STACK_SOLID_SCRIPT_KIND } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
 import { modifierStackParametersCommit } from '@/modifier/stack/modifier_stack_parameters_commit.js';
 import { SolidScriptEditorSession } from '@/solid_script/ui/solid_script_editor_session.js';
 import {

@@ -1,4 +1,9 @@
 import * as THREE from 'three';
+import {
+  MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY,
+  MODIFIER_STACK_SOLID_SCRIPT_KEY,
+  MODIFIER_STACK_SOLID_SCRIPT_KIND,
+} from './modifier_stack_solid_script_keys.js';
 import type { ModifierStackField, ModifierStackUnit } from '@/modifier/stack/modifier_stack_types.js';
 import { solidScriptInspectorRow } from '@/solid_script/ui/solid_script_inspector_row.js';
 import {
@@ -26,15 +31,6 @@ import {
   type ModifierStackSolidScriptPassed,
   type ModifierStackSolidScriptPlacement,
 } from './modifier_stack_solid_script_layout.js';
-
-/** Kind id of the SolidScript generator. */
-export const MODIFIER_STACK_SOLID_SCRIPT_KIND = 'solidScript';
-
-/** Parameter key of the stored script. */
-export const MODIFIER_STACK_SOLID_SCRIPT_KEY = 'script';
-
-/** Parameter key of the values of the script's Input lines, as text by name. */
-export const MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY = 'inputs';
 
 /**
  * Fields of a SolidScript step before the shared texture and output ones.

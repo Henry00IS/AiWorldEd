@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CommandStack } from '@/commands/command_stack.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierGeneratorNodeCreate } from '@/modifier/stack/modifier_generator_node.js';
-import { MODIFIER_STACK_SOLID_SCRIPT_KIND } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_kind_solid_script.js';
+import { MODIFIER_STACK_SOLID_SCRIPT_KIND } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
 import { modifierStackParametersCommit } from '@/modifier/stack/modifier_stack_parameters_commit.js';
 import type { ModifierStackActionTarget } from '@/modifier/stack/modifier_stack_types.js';
 import { projectFolderCurrentSet } from '@/project/fs/project_folder_current.js';
@@ -97,6 +97,16 @@ function doubleClick(element: HTMLElement): void {
  */
 function press(element: HTMLElement, key: string, modifiers: KeyboardEventInit = {}): void {
   element.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...modifiers }));
+}
+
+/**
+ * Presses an undo or redo key in the script editor's lines.
+ *
+ * @param key Z or Y.
+ * @param modifiers Extra modifier keys, such as Shift for Ctrl+Shift+Z.
+ */
+function scriptKey(key: 'z' | 'y', modifiers: KeyboardEventInit = {}): void {
+  press(find('[data-solid-script-editor] .solid-script-editor-lines'), key, { ctrlKey: true, ...modifiers });
 }
 
 /**
@@ -213,7 +223,7 @@ describe('SolidScript editor', () => {
   });
 
   it('inserts a double-clicked command below the current line after configuring it, as one undo step', () => {
-    const { root, commandStack, script } = editorFixture(CUBE_SPHERE);
+    const { root, script } = editorFixture(CUBE_SPHERE);
     chip(0).focus();
     doubleClick(find('.solid-script-editor-palette-item[data-command="cylinder"]'));
     type(find<HTMLInputElement>('[data-solid-script-configurator="cylinder"] input[aria-label="Height"]'), '5');
@@ -221,7 +231,7 @@ describe('SolidScript editor', () => {
     tool('OK').click();
     expect(script().blocks[1]?.values?.['h']).toBe('5');
     expect(chip(1).textContent).toContain('Cylinder');
-    commandStack.undo();
+    scriptKey('z');
     expect(root.querySelectorAll('.solid-script-editor-row')).toHaveLength(2);
   });
 
@@ -233,8 +243,60 @@ describe('SolidScript editor', () => {
     expect(chip(2).textContent).toContain('End Union');
   });
 
+  it('keeps script edits in its own undo history, apart from the scene history', () => {
+    const { commands, commandStack } = editorFixture(CUBE_SPHERE);
+    chip(0).focus();
+    doubleClick(find('.solid-script-editor-palette-item[data-command="union"]'));
+    expect(commands()).toEqual(['cube', 'union', 'end', 'sphere']);
+    expect(commandStack.getUndoCount()).toBe(0);
+    expect(commandStack.isAtSavedPoint()).toBe(false);
+    commandStack.undo();
+    expect(commands()).toEqual(['cube', 'union', 'end', 'sphere']);
+    scriptKey('z');
+    expect(commands()).toEqual(['cube', 'sphere']);
+    scriptKey('y');
+    expect(commands()).toEqual(['cube', 'union', 'end', 'sphere']);
+    scriptKey('z');
+    scriptKey('z', { shiftKey: true });
+    expect(commands()).toEqual(['cube', 'union', 'end', 'sphere']);
+  });
+
+  it('leaves the script alone on scene undo and the scene alone on script undo', () => {
+    const { commands, commandStack, node, stepId } = editorFixture(CUBE_SPHERE);
+    const inputs = () => ModifierVolume.read(node).modifiers[0]?.parameters['inputs'];
+    const start = inputs();
+    modifierStackParametersCommit(node, stepId, { inputs: { width: '2' } }, commandStack);
+    chip(0).focus();
+    doubleClick(find('.solid-script-editor-palette-item[data-command="union"]'));
+    commandStack.undo();
+    expect(inputs()).toEqual(start);
+    expect(commands()).toEqual(['cube', 'union', 'end', 'sphere']);
+    commandStack.redo();
+    expect(inputs()).toEqual({ width: '2' });
+    expect(commands()).toEqual(['cube', 'union', 'end', 'sphere']);
+    scriptKey('z');
+    expect(commands()).toEqual(['cube', 'sphere']);
+    expect(inputs()).toEqual({ width: '2' });
+    scriptKey('z');
+    expect(inputs()).toEqual({ width: '2' });
+  });
+
+  it('undoes only its own lines when someone else changed other lines since', () => {
+    const { commands, script, node, stepId } = editorFixture(CUBE_SPHERE);
+    chip(1).focus();
+    doubleClick(find('.solid-script-editor-palette-item[data-command="union"]'));
+    const theirs = script();
+    const added = solidScriptDocumentCreate([{ command: 'cylinder' }]).blocks;
+    modifierStackParametersCommit(node, stepId, { script: { ...theirs, blocks: [...theirs.blocks, ...added] } }, null);
+    expect(commands()).toEqual(['cube', 'sphere', 'union', 'end', 'cylinder']);
+    scriptKey('z');
+    expect(commands()).toEqual(['cube', 'sphere', 'cylinder']);
+    scriptKey('y');
+    expect(commands()).toEqual(['cube', 'sphere', 'union', 'end', 'cylinder']);
+  });
+
   it('wraps a selection whose blocks are whole in a double-clicked block command, as one undo step', () => {
-    const { commands, commandStack } = editorFixture([
+    const { commands } = editorFixture([
       { command: 'cube' },
       { command: 'if' },
       { command: 'sphere' },
@@ -249,7 +311,7 @@ describe('SolidScript editor', () => {
     tool('OK').click();
     expect(commands()).toEqual(['translate', 'cube', 'if', 'sphere', 'end', 'end', 'cylinder']);
     expect(parseFloat(chip(1).style.paddingLeft)).toBeGreaterThan(parseFloat(chip(0).style.paddingLeft));
-    commandStack.undo();
+    scriptKey('z');
     expect(commands()).toEqual(['cube', 'if', 'sphere', 'end', 'cylinder']);
   });
 
@@ -429,7 +491,7 @@ describe('SolidScript editor', () => {
   });
 
   it('selects lines with Shift, copies, cuts and pastes exactly those lines, and Space adds a blank line', () => {
-    const { commands, root, commandStack } = editorFixture([
+    const { commands, root } = editorFixture([
       { command: 'cube' },
       { command: 'union' },
       { command: 'sphere' },
@@ -458,7 +520,7 @@ describe('SolidScript editor', () => {
     press(chip(0), 'a', { ctrlKey: true });
     press(document.activeElement as HTMLElement, 'Delete');
     expect(commands()).toEqual([]);
-    commandStack.undo();
+    scriptKey('z');
     expect(commands()).toEqual(['cube', 'union', 'sphere', 'end', 'cylinder', 'blank']);
   });
 
@@ -495,7 +557,7 @@ describe('SolidScript editor', () => {
   });
 
   it('turns lines off and on with F4, keeps them off through copy and paste, and runs without them', () => {
-    const { script, root, commandStack } = editorFixture([
+    const { script, root } = editorFixture([
       { command: 'cube' },
       { command: 'union' },
       { command: 'sphere' },
@@ -517,16 +579,12 @@ describe('SolidScript editor', () => {
     expect(script().blocks[4]).toMatchObject({ command: 'union', off: true });
     press(chip(1), '/', { ctrlKey: true });
     expect(script().blocks[1]?.off).toBeUndefined();
-    commandStack.undo();
+    scriptKey('z');
     expect(script().blocks[1]?.off).toBe(true);
   });
 
   it('turns selected lines off and on from the line menu and the toolbar, undoably', () => {
-    const { script, root, commandStack } = editorFixture([
-      { command: 'cube' },
-      { command: 'sphere' },
-      { command: 'cylinder' },
-    ]);
+    const { script, root } = editorFixture([{ command: 'cube' }, { command: 'sphere' }, { command: 'cylinder' }]);
     chip(1).dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 5, clientY: 5 }));
     const item = (label: string) =>
       [...document.querySelectorAll<HTMLElement>('[role="menuitem"], button')].find(
@@ -543,7 +601,7 @@ describe('SolidScript editor', () => {
     expect(script().blocks.map((block) => block.off === true)).toEqual([false, true, true]);
     toolbar!.click();
     expect(script().blocks.map((block) => block.off === true)).toEqual([false, false, false]);
-    commandStack.undo();
+    scriptKey('z');
     expect(script().blocks.map((block) => block.off === true)).toEqual([false, true, true]);
   });
 
@@ -1046,11 +1104,11 @@ describe('SolidScript editor', () => {
   });
 
   it('starts a new script, and opens a searched example as a new script, both undoable', async () => {
-    const { commands, script, commandStack, root } = editorFixture(CUBE_SPHERE);
+    const { commands, script, root } = editorFixture(CUBE_SPHERE);
     tool('New').click();
     expect(commands()).toEqual(['cube']);
     expect(root.textContent).toContain('New script.');
-    commandStack.undo();
+    scriptKey('z');
     expect(commands()).toEqual(['cube', 'sphere']);
     tool('Examples…').click();
     await settle();
@@ -1065,7 +1123,7 @@ describe('SolidScript editor', () => {
     await settle();
     expect(script().name).toBe('Torus');
     expect(commands()).toContain('polyhedron');
-    commandStack.undo();
+    scriptKey('z');
     expect(commands()).toEqual(['cube', 'sphere']);
   });
 

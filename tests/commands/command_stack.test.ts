@@ -254,4 +254,45 @@ describe('CommandStack', () => {
     stack.push(new TestCommand('push'));
     expect(callback).toHaveBeenLastCalledWith(1, 0);
   });
+
+  it('runs an untracked command without an undo entry, still marking unsaved work and passing it to the observer', () => {
+    const stack = new CommandStack(10);
+    const changed = vi.fn();
+    stack.onStackChanged(changed);
+    const command = new TestCommand('script');
+    expect(stack.executeUntracked(command)).toBe(true);
+    expect(command.getExecuteCount()).toBe(1);
+    expect(stack.getUndoCount()).toBe(0);
+    expect(stack.isAtSavedPoint()).toBe(false);
+    expect(changed).toHaveBeenCalledTimes(1);
+    stack.markSavedPoint();
+    expect(stack.isAtSavedPoint()).toBe(true);
+    const order: string[] = [];
+    stack.observerSet({
+      commandAdmit: () => true,
+      commandExecuted: () => order.push('recorded'),
+      commandUntracked: (execute) => {
+        order.push('before');
+        execute();
+        order.push('after');
+      },
+      historyUndo: () => false,
+      historyRedo: () => false,
+      historyUndoCount: () => 0,
+      historyRedoCount: () => 0,
+    });
+    stack.executeUntracked(command);
+    expect(order).toEqual(['before', 'after']);
+    expect(command.getExecuteCount()).toBe(2);
+    stack.observerSet({
+      commandAdmit: () => false,
+      commandExecuted: () => {},
+      historyUndo: () => false,
+      historyRedo: () => false,
+      historyUndoCount: () => 0,
+      historyRedoCount: () => 0,
+    });
+    expect(stack.executeUntracked(command)).toBe(false);
+    expect(command.getExecuteCount()).toBe(2);
+  });
 });

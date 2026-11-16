@@ -22,6 +22,13 @@ export interface CommandStackObserver {
    */
   commandExecuted(command: UndoCommand): void;
   /**
+   * Runs a change that stays out of the undo history, such as a script edit
+   * with its own history, and shares it without recording it.
+   *
+   * @param execute Runs the change.
+   */
+  commandUntracked?(execute: () => void): void;
+  /**
    * Performs an undo step instead of the stack.
    *
    * @returns True when an entry was undone.
@@ -60,6 +67,7 @@ export class CommandStack {
   private savedPointUndoDepth: number | null;
   private historyRevision: number;
   private observer: CommandStackObserver | null;
+  private untrackedSinceSave: boolean;
 
   /**
    * Creates a new command stack with a maximum history size.
@@ -74,6 +82,7 @@ export class CommandStack {
     this.savedPointUndoDepth = 0;
     this.historyRevision = 0;
     this.observer = null;
+    this.untrackedSinceSave = false;
   }
 
   /**
@@ -98,6 +107,23 @@ export class CommandStack {
     this.discardRedoBranch();
     command.execute();
     this.undoStackAppendNewCommand(command);
+  }
+
+  /**
+   * Executes a command without an undo entry, for edits that keep their own
+   * history (the script editor). Scene undo and redo never reach it; the work
+   * still counts as unsaved.
+   *
+   * @param command The command to execute.
+   * @returns False when the observer refused the change.
+   */
+  executeUntracked(command: UndoCommand): boolean {
+    if (this.observer?.commandAdmit?.() === false) return false;
+    if (this.observer?.commandUntracked) this.observer.commandUntracked(() => command.execute());
+    else command.execute();
+    this.untrackedSinceSave = true;
+    this.notifyChanged();
+    return true;
   }
 
   /**
@@ -225,16 +251,18 @@ export class CommandStack {
    */
   markSavedPoint(): void {
     this.savedPointUndoDepth = this.undoStack.length;
+    this.untrackedSinceSave = false;
   }
 
   /**
    * Returns whether the live history sits exactly on the saved point. False
-   * once the saved state can no longer be reached by undo or redo.
+   * once the saved state can no longer be reached by undo or redo, or after an
+   * untracked edit since the last save.
    *
    * @returns True when there are no unsaved changes.
    */
   isAtSavedPoint(): boolean {
-    return this.savedPointUndoDepth === this.undoStack.length;
+    return !this.untrackedSinceSave && this.savedPointUndoDepth === this.undoStack.length;
   }
 
   /**
@@ -294,6 +322,7 @@ export class CommandStack {
     this.undoStack = [];
     this.redoStack = [];
     this.savedPointUndoDepth = null;
+    this.untrackedSinceSave = false;
     this.notifyChanged();
   }
 

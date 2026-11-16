@@ -18,7 +18,8 @@ Double-click a command in the palette, or drag it in, to add it below the curren
 - **F4**, **Ctrl+/**, **Off / On** in the toolbar or **Turn Off** in the right-click menu turns the selected lines off and on: they stay, are saved and synced, but do not run. A **Note** line holds a comment.
 - In the help panel and a line's manual, every block name is a link: clicking it selects that block in the command list, scrolls to it and shows its help. The search is cleared only when it hides that block.
 - In a shared room, script edits sync line by line: two people changing different lines both keep their change, the later write wins on the same line, and Undo only reverts your own lines. When someone else edits, your scroll position, current line, selection and an open configurator stay put. Breakpoints stay on your computer; turned-off lines are part of the script and sync.
-- **New** starts an empty script and **Examples…** opens a ready one; both can be undone.
+- The script has its own undo history, apart from the level's: while the editor has focus, Ctrl+Z undoes and Ctrl+Y or Ctrl+Shift+Z redoes script edits only (typing, inserting, deleting, moving, Off/On, a line window's OK, paste), and level undo never changes the script.
+- **New** starts an empty script and **Examples…** opens a ready one; both can be undone with the script's undo.
 
 </details>
 

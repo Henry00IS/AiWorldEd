@@ -80,6 +80,19 @@ export class HistoryCollaborationObserver implements CommandStackObserver {
   }
 
   /**
+   * Shares a change without recording it in this member's scene history:
+   * pending recorded changes go out first, then the change unrecorded.
+   *
+   * @param execute Runs the change.
+   */
+  commandUntracked(execute: () => void): void {
+    this.sync.commit();
+    execute();
+    this.sync.tracker.markDirty();
+    this.sync.commit(false);
+  }
+
+  /**
    * Undoes the user's last own step.
    *
    * @returns True when applied immediately.

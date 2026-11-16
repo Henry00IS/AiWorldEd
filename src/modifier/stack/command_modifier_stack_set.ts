@@ -3,7 +3,15 @@ import type { UndoCommand } from '@/commands/command_undo.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 import type { ModifierStackSettings } from './modifier_stack_types.js';
 import { ModifierVolume, modifierVolumeSceneRoot } from './modifier_volume.js';
-import { modifierStackOwnerCandidate, modifierStackOwnerDecode } from './owner/modifier_stack_owner.js';
+import {
+  modifierStackOwnerCandidate,
+  modifierStackOwnerDecode,
+  modifierStackOwnerEncode,
+} from './owner/modifier_stack_owner.js';
+import {
+  MODIFIER_STACK_SOLID_SCRIPT_KEY,
+  MODIFIER_STACK_SOLID_SCRIPT_KIND,
+} from './kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
 
 /**
  * Undoable edit of a modifier volume's stack, or the stack a brush or CSG group
@@ -43,9 +51,38 @@ export class CommandModifierStackSet implements UndoCommand {
    *
    * @param settings Stack to store.
    */
-  private apply(settings: ModifierStackSettings): void {
+  private apply(target: ModifierStackSettings): void {
+    const settings = this.scriptsKept(target);
     if (modifierStackOwnerCandidate(this.volume)) modifierStackOwnerDecode(this.volume, settings);
     else ModifierVolume.write(this.volume, settings);
     if (this.volume.parent) modifierBevelRefreshScene(modifierVolumeSceneRoot(this.volume));
+  }
+
+  /**
+   * Keeps the live script of every SolidScript step whose script this command
+   * did not change itself: scripts have their own undo history in the script
+   * editor, so scene undo and redo leave them alone.
+   *
+   * @param target Settings to apply.
+   * @returns Settings with the live scripts kept.
+   */
+  private scriptsKept(target: ModifierStackSettings): ModifierStackSettings {
+    const live = ModifierVolume.isVolume(this.volume)
+      ? ModifierVolume.read(this.volume)
+      : modifierStackOwnerEncode(this.volume);
+    if (!live) return target;
+    const script = (settings: ModifierStackSettings, id: string): unknown =>
+      settings.modifiers.find((entry) => entry.id === id)?.parameters[MODIFIER_STACK_SOLID_SCRIPT_KEY];
+    const modifiers = target.modifiers.map((entry) => {
+      if (entry.kind !== MODIFIER_STACK_SOLID_SCRIPT_KIND) return entry;
+      if (JSON.stringify(script(this.before, entry.id)) !== JSON.stringify(script(this.after, entry.id))) return entry;
+      const kept = script(live, entry.id);
+      if (kept === undefined) return entry;
+      return {
+        ...entry,
+        parameters: { ...entry.parameters, [MODIFIER_STACK_SOLID_SCRIPT_KEY]: structuredClone(kept) },
+      };
+    });
+    return { ...target, modifiers };
   }
 }

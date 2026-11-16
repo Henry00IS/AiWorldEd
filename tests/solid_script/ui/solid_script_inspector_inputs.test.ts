@@ -9,7 +9,7 @@ import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.j
 import {
   MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY,
   MODIFIER_STACK_SOLID_SCRIPT_KIND,
-} from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_kind_solid_script.js';
+} from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
 import { modifierStackSolidScriptLayout } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_layout.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { ModifierStackFieldRows } from '@/modifier/stack/ui/modifier_stack_field_rows.js';

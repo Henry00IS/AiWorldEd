@@ -2,13 +2,14 @@ import { Vector3, type Object3D } from 'three';
 import { modifierStackVolumeBox } from '@/modifier/stack/evaluate/modifier_stack_frame.js';
 import type { CommandStack } from '@/commands/command_stack.js';
 import {
-  modifierStackParametersCommit,
+  modifierStackParametersCommand,
   modifierStackParametersRead,
 } from '@/modifier/stack/modifier_stack_parameters_commit.js';
+import { SolidScriptEditorHistory } from './solid_script_editor_history.js';
 import {
   MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY,
   MODIFIER_STACK_SOLID_SCRIPT_KEY,
-} from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_kind_solid_script.js';
+} from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
 import { solidScriptInspectorInputValues } from './solid_script_inspector_inputs.js';
 import {
   solidScriptDocumentNormalize,
@@ -17,8 +18,9 @@ import {
 
 /**
  * Connects a script editor to one SolidScript generator in the level. The
- * script lives only in the generator's parameters, so undo, redo and edits of
- * other users show up by reading it again.
+ * script lives only in the generator's parameters, so edits of other users show
+ * up by reading it again. Script edits keep their own undo history, out of the
+ * level's.
  */
 export class SolidScriptEditorSession {
   /**
@@ -26,8 +28,8 @@ export class SolidScriptEditorSession {
    *
    * @param node Generator node.
    * @param stepId Modifier id of the script.
-   * @param commandStack Undo stack edits are recorded on, or null to apply
-   *   directly.
+   * @param commandStack Level undo stack; script edits run on it untracked so
+   *   they are shared and count as unsaved, or null to apply directly.
    * @param refresh Redraws the generator's inspector after a commit, or null.
    */
   constructor(
@@ -94,23 +96,61 @@ export class SolidScriptEditorSession {
   }
 
   /**
-   * Stores a new script as one undo step and rebuilds the generator.
+   * Stores a new script as one step of the script's own history and rebuilds
+   * the generator.
    *
    * @param document Script.
    * @returns False when the generator is gone or nothing changed.
    */
   commit(document: SolidScriptDocument): boolean {
+    const before = this.document();
+    if (!this.store(document)) return false;
+    SolidScriptEditorHistory.of(this.node, this.stepId).record(before, this.document());
+    return true;
+  }
+
+  /**
+   * Takes back the last script edit of this user.
+   *
+   * @returns False when there was nothing to undo.
+   */
+  undo(): boolean {
+    const document = SolidScriptEditorHistory.of(this.node, this.stepId).undo(this.document());
+    if (document) this.store(document);
+    return document !== null;
+  }
+
+  /**
+   * Makes the last undone script edit again.
+   *
+   * @returns False when there was nothing to redo.
+   */
+  redo(): boolean {
+    const document = SolidScriptEditorHistory.of(this.node, this.stepId).redo(this.document());
+    if (document) this.store(document);
+    return document !== null;
+  }
+
+  /**
+   * Writes a script into the generator outside the level's undo history.
+   *
+   * @param document Script.
+   * @returns False when the generator is gone, nothing changed or editing was
+   *   refused.
+   */
+  private store(document: SolidScriptDocument): boolean {
     const stored = modifierStackParametersRead(this.node, this.stepId)?.[MODIFIER_STACK_SOLID_SCRIPT_KEY];
     if (JSON.stringify(document) === JSON.stringify(stored ?? null)) return false;
-    const committed = modifierStackParametersCommit(
-      this.node,
-      this.stepId,
-      { [MODIFIER_STACK_SOLID_SCRIPT_KEY]: document },
-      this.commandStack,
-    );
+    const command = modifierStackParametersCommand(this.node, this.stepId, {
+      [MODIFIER_STACK_SOLID_SCRIPT_KEY]: document,
+    });
+    if (!command) return false;
+    if (this.commandStack) {
+      if (!this.commandStack.executeUntracked(command)) return false;
+    } else command.execute();
     // The inspector shows the script's Input lines and what it builds.
-    if (committed) this.refresh?.();
-    return committed;
+    this.refresh?.();
+    return true;
   }
 
   /**

@@ -31,6 +31,27 @@ export function modifierStackParametersRead(
 }
 
 /**
+ * Builds the command that merges a patch into one step's parameters, without
+ * running it.
+ *
+ * @param owner Volume or stack owner.
+ * @param stepId Modifier id.
+ * @param patch Parameters to set.
+ * @returns Command, or null when the step is gone.
+ */
+export function modifierStackParametersCommand(
+  owner: THREE.Object3D,
+  stepId: string,
+  patch: Record<string, unknown>,
+): CommandModifierStackSet | null {
+  const before = modifierStackParametersStackRead(owner);
+  const entry = before?.modifiers.find((candidate) => candidate.id === stepId);
+  if (!before || !entry) return null;
+  const after = modifierStackPatch(before, stepId, { parameters: { ...entry.parameters, ...patch } });
+  return new CommandModifierStackSet(owner, before, after);
+}
+
+/**
  * Changes some parameters of one modifier as a single undoable stack edit.
  *
  * @param owner Volume, brush or group owning the stack.
@@ -45,11 +66,8 @@ export function modifierStackParametersCommit(
   patch: Record<string, unknown>,
   commandStack: CommandStack | null,
 ): boolean {
-  const before = modifierStackParametersStackRead(owner);
-  const entry = before?.modifiers.find((candidate) => candidate.id === stepId);
-  if (!before || !entry) return false;
-  const after = modifierStackPatch(before, stepId, { parameters: { ...entry.parameters, ...patch } });
-  const command = new CommandModifierStackSet(owner, before, after);
+  const command = modifierStackParametersCommand(owner, stepId, patch);
+  if (!command) return false;
   if (commandStack) commandStack.push(command);
   else command.execute();
   return true;

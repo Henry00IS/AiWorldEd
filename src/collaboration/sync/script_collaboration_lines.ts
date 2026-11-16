@@ -1,5 +1,6 @@
 import type { NodeCollaborationState } from '@/collaboration/scene/node_collaboration_types.js';
 import { fieldCollaborationGet } from '@/collaboration/sync/field_collaboration_paths.js';
+import { solidScriptLinesApply, solidScriptLinesDiff } from '@/solid_script/document/solid_script_document_lines.js';
 
 /** Most lines one operation may name; larger changes replace the whole stack. */
 export const SCRIPT_COLLABORATION_LINES_MAXIMUM = 2048;
@@ -82,16 +83,7 @@ function scriptCollaborationListDiff(before: unknown, after: unknown): ScriptCol
     const left = scriptCollaborationBlocks(a);
     const right = scriptCollaborationBlocks(b);
     if (left === null || right === null) continue;
-    const old = new Map(left.map((block, line) => [block.id, { text: JSON.stringify(block), line }]));
-    const kept = new Set(right.map((block) => block.id));
-    const set: string[] = [];
-    right.forEach((block, line) => {
-      const was = old.get(block.id);
-      const previous = line === 0 ? null : (right[line - 1]?.id ?? null);
-      const wasPrevious = was === undefined || was.line === 0 ? null : (left[was.line - 1]?.id ?? null);
-      if (was === undefined || was.text !== JSON.stringify(block) || previous !== wasPrevious) set.push(block.id);
-    });
-    const gone = left.filter((block) => !kept.has(block.id)).map((block) => block.id);
+    const { set, gone } = solidScriptLinesDiff(left, right);
     if (set.length === 0 && gone.length === 0) continue;
     count += set.length + gone.length;
     if (count > SCRIPT_COLLABORATION_LINES_MAXIMUM) return null;
@@ -192,21 +184,7 @@ export function scriptCollaborationLinesApply(
     const theirs = scriptCollaborationBlocks(other);
     if (!entry || blocks === null || theirs === null) return step;
     const id = step.id as string;
-    const taken = (line: string): boolean => !skip.has(`${id}:${line}`);
-    const result = blocks.filter((block) => !(entry.gone.includes(block.id) && taken(block.id)));
-    const set = new Set(entry.set.filter(taken));
-    theirs.forEach((block, line) => {
-      if (!set.has(block.id)) return;
-      const at = result.findIndex((candidate) => candidate.id === block.id);
-      if (at >= 0) result.splice(at, 1);
-      // After the nearest line before it in the source that the base still has.
-      let after = -1;
-      for (let previous = line - 1; previous >= 0 && after < 0; previous--) {
-        const prior = theirs[previous]?.id;
-        after = result.findIndex((candidate) => candidate.id === prior);
-      }
-      result.splice(after + 1, 0, structuredClone(block));
-    });
+    const result = solidScriptLinesApply(blocks, theirs, entry, (line) => !skip.has(`${id}:${line}`));
     const script = step.parameters?.['script'] as Record<string, unknown>;
     return { ...step, parameters: { ...step.parameters, script: { ...script, blocks: result } } };
   });

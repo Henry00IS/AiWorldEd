@@ -7,7 +7,7 @@ import {
   MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY,
   MODIFIER_STACK_SOLID_SCRIPT_KEY,
   MODIFIER_STACK_SOLID_SCRIPT_KIND,
-} from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_kind_solid_script.js';
+} from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
 import { solidScriptCommandFind, solidScriptCommands } from '@/solid_script/commands/solid_script_command_catalog.js';
 import {
   solidScriptBlockCreate,

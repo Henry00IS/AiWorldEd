@@ -11,7 +11,7 @@ import { readPersistentMeshDocument } from '@/mesh/document/mesh_document_bindin
 import { SceneSerializer } from '@/io/scene/scene_serializer.js';
 import { isEditorHelperObject } from '@/utils/mesh_edge_sync.js';
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
-import { MODIFIER_STACK_SOLID_SCRIPT_KIND } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_kind_solid_script.js';
+import { MODIFIER_STACK_SOLID_SCRIPT_KIND } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
 
 const END: SolidScriptLine = { command: 'end' };
 

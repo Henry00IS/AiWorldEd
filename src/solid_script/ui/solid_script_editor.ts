@@ -239,14 +239,18 @@ export class SolidScriptEditor extends PanelFloating {
    * Ctrl+F10 runs to the line at the cursor, Shift+F5 stops, F9 sets or clears
    * the breakpoint of the current line) and keeps every other key inside the
    * editor, so Delete or Backspace never removes anything from the level. Undo
-   * and redo pass on: script edits are steps of the level's undo history.
+   * and redo step through the script's own history, never the level's.
    *
    * @param event Key event.
    */
   private key(event: KeyboardEvent): void {
     const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
-    if (!typing && (event.ctrlKey || event.metaKey) && ['z', 'y'].includes(event.key.toLowerCase())) return;
     event.stopPropagation();
+    const key = event.key.toLowerCase();
+    if (!typing && (event.ctrlKey || event.metaKey) && (key === 'z' || key === 'y')) {
+      event.preventDefault();
+      return this.historyStep(key === 'y' || event.shiftKey);
+    }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
       event.preventDefault();
       this.palette?.search.focus();
@@ -270,6 +274,19 @@ export class SolidScriptEditor extends PanelFloating {
     if (!action) return;
     event.preventDefault();
     action();
+  }
+
+  /**
+   * Undoes or redoes one script edit of this user, then shows the script.
+   *
+   * @param redo True for redo.
+   */
+  private historyStep(redo: boolean): void {
+    if (!this.session.exists()) return this.close();
+    this.debugger.stop();
+    if (!(redo ? this.session.redo() : this.session.undo())) return;
+    this.revision = this.session.revision();
+    this.render(null);
   }
 
   /**
