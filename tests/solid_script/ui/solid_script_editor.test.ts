@@ -886,6 +886,36 @@ describe('SolidScript editor', () => {
     expect(list?.classList.contains('editor-custom-scroller')).toBe(true);
   });
 
+  it('suggests the counters and loop values a line sees, and only inside their loop', () => {
+    editorFixture([
+      { command: 'repeat', values: { variable: 'Row' } },
+      { command: 'for_each_selected_face' },
+      { command: 'cube' },
+      { command: 'end' },
+      { command: 'end' },
+      { command: 'echo' },
+    ]);
+    const offered = (line: number): string[] => {
+      doubleClick(chip(line));
+      const field = document.querySelector<HTMLInputElement>('[data-solid-script-configurator] input[type="text"]')!;
+      field.focus();
+      type(field, '[');
+      const shown = [...document.querySelectorAll('body > .solid-script-editor-suggestions-host [role="option"]')].map(
+        (option) => option.firstChild?.textContent ?? '',
+      );
+      press(field, 'Escape');
+      press(document.querySelector<HTMLElement>('[data-solid-script-configurator]') ?? field, 'Escape');
+      return shown;
+    };
+    const inside = offered(2);
+    expect(inside).toContain('Row');
+    expect(inside).toContain('Face.Index');
+    expect(inside).toContain('Face.Tag');
+    const after = offered(5);
+    expect(after).not.toContain('Row');
+    expect(after).not.toContain('Face.Index');
+  });
+
   it('offers the words a field takes first, shows the call being typed and browses the words too', () => {
     editorFixture([{ command: 'cube' }, { command: 'select_faces' }]);
     doubleClick(chip(1));
