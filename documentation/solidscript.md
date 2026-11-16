@@ -4,7 +4,7 @@ SolidScript builds level geometry from a list of command lines: add a **SolidScr
 
 ## Writing a script
 
-Double-click a command in the palette, or drag it in, to add it below the current line. Double-click a line to change its values. Blocks such as Repeat, Translate or If hold the lines up to their End.
+Double-click a command in the palette, or drag it in, to add it below the current line. Double-click a line to change its values. Blocks such as Repeat, Translate or If hold the lines up to their End. With several lines selected whose blocks are whole (every If with its End), double-clicking a block command wraps them: it goes above the first line and its End below the last. When the selection cuts a block, the command goes below the current line as usual.
 
 <details>
 <summary>More Details</summary>

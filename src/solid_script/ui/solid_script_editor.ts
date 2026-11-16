@@ -16,6 +16,7 @@ import {
 import {
   solidScriptBlockIsBlank,
   solidScriptDocumentCommandInsert,
+  solidScriptDocumentCommandWrap,
   solidScriptDocumentLineSet,
   type SolidScriptInsertMode,
 } from '@/solid_script/document/solid_script_document_edit.js';
@@ -192,7 +193,7 @@ export class SolidScriptEditor extends PanelFloating {
       onClose: () => this.close(),
     });
     const palette = (this.palette = new SolidScriptEditorPalette(
-      (command) => this.insert(command, this.lines.caret(), 'caret'),
+      (command) => this.insert(command, this.lines.caret(), 'caret', {}, this.lines.selection()),
       (command) => this.help.show(command, null),
     ));
     const body = document.createElement('div');
@@ -459,22 +460,36 @@ export class SolidScriptEditor extends PanelFloating {
 
   /**
    * Configures a new command line, then inserts it; commands without values go
-   * in at once.
+   * in at once. A block command wraps selected lines whose blocks are whole;
+   * otherwise it goes in like any other.
    *
    * @param command Command id.
    * @param line Current line or drop target.
    * @param mode Below the current line, or before the drop target.
    * @param start Values that replace the command's defaults.
+   * @param selected First and last selected line, to wrap, or null.
    */
-  private insert(command: string, line: number, mode: SolidScriptInsertMode, start: Record<string, string> = {}): void {
+  private insert(
+    command: string,
+    line: number,
+    mode: SolidScriptInsertMode,
+    start: Record<string, string> = {},
+    selected: [number, number] | null = null,
+  ): void {
     const found = solidScriptCommandFind(command);
     if (!found) return;
+    const wraps =
+      selected !== null && solidScriptDocumentCommandWrap(this.session.document(), command, ...selected) !== null;
     const place = (values?: Record<string, string>): void => {
-      const inserted = solidScriptDocumentCommandInsert(this.session.document(), command, line, mode, values);
+      const document = this.session.document();
+      const inserted =
+        (wraps && selected ? solidScriptDocumentCommandWrap(document, command, ...selected, values) : null) ??
+        solidScriptDocumentCommandInsert(document, command, line, mode, values);
       this.commit(inserted.document, inserted.line);
     };
     if (found.parameters.length === 0) return place();
-    const names = solidScriptDocumentNamesAt(this.session.document(), mode === 'caret' ? line + 1 : line);
+    const at = wraps && selected ? selected[0] : mode === 'caret' ? line + 1 : line;
+    const names = solidScriptDocumentNamesAt(this.session.document(), at);
     const values = { ...found.valuesDefault(), ...start };
     new SolidScriptConfigurator(this.root.ownerDocument.body, found, values, place, names, (id) =>
       this.commandReveal(id),

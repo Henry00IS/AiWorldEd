@@ -233,6 +233,40 @@ describe('SolidScript editor', () => {
     expect(chip(2).textContent).toContain('End Union');
   });
 
+  it('wraps a selection whose blocks are whole in a double-clicked block command, as one undo step', () => {
+    const { commands, commandStack } = editorFixture([
+      { command: 'cube' },
+      { command: 'if' },
+      { command: 'sphere' },
+      { command: 'end' },
+      { command: 'cylinder' },
+    ]);
+    chip(0).focus();
+    press(chip(0), 'ArrowDown', { shiftKey: true });
+    press(chip(1), 'ArrowDown', { shiftKey: true });
+    press(chip(2), 'ArrowDown', { shiftKey: true });
+    doubleClick(find('.solid-script-editor-palette-item[data-command="translate"]'));
+    tool('OK').click();
+    expect(commands()).toEqual(['translate', 'cube', 'if', 'sphere', 'end', 'end', 'cylinder']);
+    expect(parseFloat(chip(1).style.paddingLeft)).toBeGreaterThan(parseFloat(chip(0).style.paddingLeft));
+    commandStack.undo();
+    expect(commands()).toEqual(['cube', 'if', 'sphere', 'end', 'cylinder']);
+  });
+
+  it('inserts below the current line when the selection cuts a block', () => {
+    const { commands } = editorFixture([
+      { command: 'cube' },
+      { command: 'if' },
+      { command: 'sphere' },
+      { command: 'end' },
+    ]);
+    chip(0).focus();
+    press(chip(0), 'ArrowDown', { shiftKey: true });
+    doubleClick(find('.solid-script-editor-palette-item[data-command="translate"]'));
+    tool('OK').click();
+    expect(commands()).toEqual(['cube', 'if', 'translate', 'end', 'sphere', 'end']);
+  });
+
   it('drops a dragged command where it lands, and cancelling the configurator inserts nothing', () => {
     const { commands, script } = editorFixture([{ command: 'cube' }]);
     drop(chip(0), { [SOLID_SCRIPT_EDITOR_DRAG_COMMAND]: 'sphere' });

@@ -4,6 +4,7 @@ import {
   SOLID_SCRIPT_COMMAND_END,
 } from '@/solid_script/commands/solid_script_commands_logic.js';
 import { solidScriptBlockCreate, type SolidScriptBlock, type SolidScriptDocument } from './solid_script_document.js';
+import { solidScriptBlockNesting } from './solid_script_document_indent.js';
 
 /**
  * Where a new command line goes relative to a line: 'caret' below the current
@@ -68,6 +69,44 @@ export function solidScriptDocumentCommandInsert(
     inserted.push(solidScriptBlockCreate(SOLID_SCRIPT_COMMAND_END));
   blocks.splice(line, reuse ? 1 : 0, ...inserted);
   return { document: solidScriptDocumentWith(document, blocks), line };
+}
+
+/**
+ * Wraps selected lines in a block command: the command goes above the first
+ * line and its End below the last, so the lines move one level in. Only lines
+ * whose blocks are whole are wrapped: every block opened in them ends in them,
+ * and no End or Else in them belongs to a block outside.
+ *
+ * @param document Script.
+ * @param command Command id of a block command.
+ * @param first First selected line.
+ * @param last Last selected line, after the first.
+ * @param values Configured values, or the command's defaults when omitted.
+ * @returns Edited script and the command's line, or null when the command opens
+ *   no block or the lines cannot be wrapped.
+ */
+export function solidScriptDocumentCommandWrap(
+  document: SolidScriptDocument,
+  command: string,
+  first: number,
+  last: number,
+  values?: Record<string, string>,
+): SolidScriptInsertResult | null {
+  if (solidScriptCommandFind(command)?.nesting !== 'open' || first < 0 || last <= first) return null;
+  const selected = document.blocks.slice(first, last + 1);
+  if (selected.length !== last - first + 1) return null;
+  let depth = 0;
+  for (const block of selected) {
+    const nesting = solidScriptBlockNesting(block);
+    if ((nesting === 'close' || nesting === 'continue') && depth === 0) return null;
+    if (nesting === 'open') depth += 1;
+    if (nesting === 'close') depth -= 1;
+  }
+  if (depth !== 0) return null;
+  const blocks = [...document.blocks];
+  blocks.splice(last + 1, 0, solidScriptBlockCreate(SOLID_SCRIPT_COMMAND_END));
+  blocks.splice(first, 0, solidScriptBlockCreate(command, values));
+  return { document: solidScriptDocumentWith(document, blocks), line: first };
 }
 
 /**

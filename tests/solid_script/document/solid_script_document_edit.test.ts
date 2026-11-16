@@ -3,6 +3,7 @@ import { solidScriptDocumentCreate, type SolidScriptDocument } from '@/solid_scr
 import {
   solidScriptDocumentBlankInsert,
   solidScriptDocumentCommandInsert,
+  solidScriptDocumentCommandWrap,
   solidScriptDocumentRangeMove,
   solidScriptDocumentRangeRemove,
 } from '@/solid_script/document/solid_script_document_edit.js';
@@ -47,6 +48,38 @@ describe('solid script document edits', () => {
       lines(solidScriptDocumentCommandInsert(script('variable', 'echo'), 'difference', 1, 'before').document),
     ).toEqual(['variable', 'difference', 'end', 'echo']);
     expect(lines(solidScriptDocumentCommandInsert(script(), 'cube', 0, 'caret').document)).toEqual(['cube']);
+  });
+
+  it('wraps selected lines whose blocks are whole in a block command and its End', () => {
+    const before = script('variable', 'cube', 'if', 'sphere', 'end', 'echo');
+    const wrapped = solidScriptDocumentCommandWrap(before, 'translate', 1, 4);
+    expect(wrapped && lines(wrapped.document)).toEqual([
+      'variable',
+      'translate',
+      'cube',
+      'if',
+      'sphere',
+      'end',
+      'end',
+      'echo',
+    ]);
+    expect(wrapped?.line).toBe(1);
+    expect(wrapped?.document.blocks.slice(2, 6).map((block) => block.id)).toEqual(
+      before.blocks.slice(1, 5).map((block) => block.id),
+    );
+    const values = solidScriptDocumentCommandWrap(before, 'translate', 1, 4, { v: '0, 0, 2' });
+    expect(values?.document.blocks[1]?.values['v']).toBe('0, 0, 2');
+  });
+
+  it('does not wrap a cut block, an Else without its If, one line or a plain command', () => {
+    const cut = script('cube', 'if', 'sphere', 'end');
+    expect(solidScriptDocumentCommandWrap(cut, 'translate', 0, 1)).toBeNull();
+    expect(solidScriptDocumentCommandWrap(cut, 'translate', 2, 3)).toBeNull();
+    const branches = script('if', 'cube', 'else', 'sphere', 'end');
+    expect(solidScriptDocumentCommandWrap(branches, 'translate', 1, 3)).toBeNull();
+    expect(solidScriptDocumentCommandWrap(branches, 'translate', 0, 4)).not.toBeNull();
+    expect(solidScriptDocumentCommandWrap(cut, 'translate', 0, 0)).toBeNull();
+    expect(solidScriptDocumentCommandWrap(script('cube', 'sphere'), 'cylinder', 0, 1)).toBeNull();
   });
 
   it('inserts a blank line below a line, or as the first line of an empty script', () => {
