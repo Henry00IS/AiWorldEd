@@ -157,6 +157,22 @@ describe('SolidScript examples', () => {
     }
   });
 
+  it('places the vector examples where their vectors point', () => {
+    const lines = (id: string) => SOLID_SCRIPT_EXAMPLES.find((example) => example.id === id)!.lines;
+    const ring = solidScriptProgramRun(solidScriptDocumentCreate(lines('pillarRing')));
+    expect(ring.steps).toHaveLength(8);
+    const centres = ring.shapes.flatMap(solidScriptShapeLeavesPositive).map((leaf) => {
+      const box = new THREE.Box3().setFromPoints(leaf.kind === 'solid' ? leaf.points : []);
+      return box.getCenter(new THREE.Vector3());
+    });
+    for (const centre of centres) {
+      expect(Math.hypot(centre.x, centre.y)).toBeCloseTo(3, 1);
+      expect(centre.z).toBeCloseTo(1.5, 5);
+    }
+    const stones = solidScriptProgramRun(solidScriptDocumentCreate(lines('steppingStones')));
+    expect(stones.steps).toHaveLength(9);
+  });
+
   it('finds examples by every word of a search', () => {
     expect(solidScriptExamplesFind('spiral').map((example) => example.id)).toEqual(['spiralStaircase']);
     expect(solidScriptExamplesFind('generator stairs').map((example) => example.id)).toEqual([

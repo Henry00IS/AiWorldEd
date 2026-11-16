@@ -1,5 +1,10 @@
 import type { SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
-import { SOLID_SCRIPT_EXAMPLE_COLUMNS, SOLID_SCRIPT_EXAMPLE_DOORWAY } from './solid_script_examples_basics.js';
+import {
+  SOLID_SCRIPT_EXAMPLE_COLUMNS,
+  SOLID_SCRIPT_EXAMPLE_DOORWAY,
+  SOLID_SCRIPT_EXAMPLE_PILLAR_RING,
+  SOLID_SCRIPT_EXAMPLE_STEPPING_STONES,
+} from './solid_script_examples_basics.js';
 import {
   SOLID_SCRIPT_EXAMPLE_CAPSULE,
   SOLID_SCRIPT_EXAMPLE_CONE,
@@ -85,6 +90,22 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
     summary: 'Five columns in a row, built from one named part.',
     port: null,
     lines: SOLID_SCRIPT_EXAMPLE_COLUMNS,
+  },
+  {
+    id: 'pillarRing',
+    name: 'Ring of Pillars',
+    group: 'Basics',
+    summary: 'Pillars on a circle, each placed with one position vector made from an angle.',
+    port: null,
+    lines: SOLID_SCRIPT_EXAMPLE_PILLAR_RING,
+  },
+  {
+    id: 'steppingStones',
+    name: 'Stepping Stones',
+    group: 'Basics',
+    summary: 'Stones from one point to another: lerp walks between two vectors and pos.z makes a wave.',
+    port: null,
+    lines: SOLID_SCRIPT_EXAMPLE_STEPPING_STONES,
   },
   solidScriptExamplePort('cylinder', 'Cylinder', SOLID_SCRIPT_EXAMPLE_CYLINDER),
   solidScriptExamplePort('cone', 'Cone', SOLID_SCRIPT_EXAMPLE_CONE),
