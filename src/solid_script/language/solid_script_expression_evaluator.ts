@@ -1,6 +1,6 @@
 import type { SolidScriptBinding, SolidScriptExpression } from './solid_script_ast.js';
 import { solidScriptArithmeticBinary } from './solid_script_arithmetic.js';
-import { solidScriptExpressionCompiled } from './solid_script_expression_compile.js';
+import { solidScriptExpressionCompiled, type SolidScriptCompiled } from './solid_script_expression_compile.js';
 import { SolidScriptScope } from './solid_script_scope.js';
 import {
   SOLID_SCRIPT_LIST_LIMIT,
@@ -43,22 +43,22 @@ export class SolidScriptExpressionEvaluator {
   }
 
   /**
-   * Evaluates a field formula whose slot nodes read the given values.
+   * Evaluates a compiled field formula whose slot nodes read the given values.
    *
-   * @param expression Expression.
+   * @param formula Compiled formula.
    * @param slots Slot values.
    * @param scope Scope for names.
    * @returns Value.
    */
   evaluateSlots(
-    expression: SolidScriptExpression,
+    formula: SolidScriptCompiled,
     slots: readonly SolidScriptValue[],
     scope: SolidScriptScope,
   ): SolidScriptValue {
     const outer = this.slots;
     this.slots = slots;
     try {
-      return solidScriptExpressionCompiled(expression)(this, scope);
+      return formula(this, scope);
     } finally {
       this.slots = outer;
     }

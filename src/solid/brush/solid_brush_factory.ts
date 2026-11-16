@@ -97,7 +97,8 @@ export class SolidBrushFactory {
    */
   private static buildWingEdgesFromFaces(brush: SolidBrush, faceVertexIndices: number[][]): void {
     brush.wingEdges = [];
-    const edgeKeyToIndex = new Map<string, number>();
+    const stride = this.edgeKeyStride(faceVertexIndices);
+    const edgeKeyToIndex = new Map<number, number>();
     for (const faceVerts of faceVertexIndices) {
       const count = faceVerts.length;
       for (let i = 0; i < count; i++) {
@@ -105,24 +106,39 @@ export class SolidBrushFactory {
         const to = faceVerts[(i + 1) % count]!;
         const edgeIndex = brush.wingEdges.length;
         brush.wingEdges.push(createWingEdge(to, -1));
-        edgeKeyToIndex.set(`${from}->${to}`, edgeIndex);
+        edgeKeyToIndex.set(from * stride + to, edgeIndex);
       }
     }
-    this.linkTwinEdges(brush, edgeKeyToIndex);
+    this.linkTwinEdges(brush, edgeKeyToIndex, stride);
+  }
+
+  /**
+   * Returns the number edge keys multiply a start index by: one more than the
+   * largest vertex index, so from * stride + to names each directed edge once.
+   *
+   * @param faceVertexIndices Per-face ordered vertex indices.
+   * @returns Stride.
+   */
+  private static edgeKeyStride(faceVertexIndices: readonly number[][]): number {
+    let largest = 0;
+    for (const faceVerts of faceVertexIndices) for (const index of faceVerts) if (index > largest) largest = index;
+    return largest + 1;
   }
 
   /**
    * Links each directed edge to its opposite twin.
    *
    * @param brush Brush with wing edges allocated.
-   * @param edgeKeyToIndex Map of "from->to" keys to edge indices.
+   * @param edgeKeyToIndex Map of from * stride + to keys to edge indices.
+   * @param stride Key stride.
    */
-  private static linkTwinEdges(brush: SolidBrush, edgeKeyToIndex: Map<string, number>): void {
+  private static linkTwinEdges(brush: SolidBrush, edgeKeyToIndex: Map<number, number>, stride: number): void {
     for (const [key, edgeIndex] of edgeKeyToIndex) {
-      const [fromText, toText] = key.split('->');
-      const twinIndex = edgeKeyToIndex.get(`${toText}->${fromText}`);
+      const from = Math.floor(key / stride);
+      const to = key - from * stride;
+      const twinIndex = edgeKeyToIndex.get(to * stride + from);
       if (twinIndex === undefined) {
-        throw new Error(`Missing twin edge for ${key}`);
+        throw new Error(`Missing twin edge for ${from}->${to}`);
       }
       brush.wingEdges[edgeIndex]!.twinIndex = twinIndex;
     }

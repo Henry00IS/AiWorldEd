@@ -28,6 +28,10 @@ const CONTEXT: SolidScriptFieldContext = {
     if (!(name in VARIABLES)) throw new Error(`there is no variable [${name}]`);
     return VARIABLES[name];
   },
+  variablePlain: (name) => CONTEXT.variable(name),
+  variableLocal: (_bare, name) => CONTEXT.variable(name),
+  variableComponent: (_base, _index, name) => CONTEXT.variable(name),
+  variableItem: (list, index) => CONTEXT.variable(`${list}(${String(index)})`),
   formula: (text) => {
     if (!/^[\d\s+*().[\],-]+$/.test(text)) throw new Error(`cannot read ${text}`);
     return Function(`return (${text});`)() as SolidScriptValue;

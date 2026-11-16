@@ -38,6 +38,8 @@ import {
   type SolidScriptUv,
 } from './solid_script_mesh.js';
 import { SolidScriptScope } from './solid_script_scope.js';
+import { SolidScriptFieldReader, type SolidScriptFieldHost } from './solid_script_field_reader.js';
+import type { SolidScriptCompiled } from './solid_script_expression_compile.js';
 import type { SolidScriptFaceFacts, SolidScriptGeometryLeaf } from './solid_script_geometry.js';
 import {
   solidScriptShapeJoin,
@@ -606,13 +608,6 @@ interface SolidScriptLineField {
  */
 const SOLID_SCRIPT_FORMULA_CONTEXT: SolidScriptContext = { matrix: new THREE.Matrix4(), planar: false };
 
-/**
- * Field text and compiled closures of each line, kept across runs: a line's
- * values never change (an edit makes new lines), and the closures, with the
- * formulas they parse on first use, read nothing of a run but its context.
- */
-const SOLID_SCRIPT_LINE_FIELDS = new WeakMap<object, Map<string, SolidScriptLineField>>();
-
 /** Names without their local. start, by full name, so reads do not cut text. */
 const SOLID_SCRIPT_LOCAL_BARE = new Map<string, string>();
 
@@ -650,7 +645,7 @@ class SolidScriptPause extends Error {}
  * runs one script once: every run makes a new machine, so no variable, counter,
  * part or mistake carries over to the next run or another generator.
  */
-export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
+export class SolidScriptMachine<Command extends SolidScriptMachineCommand> implements SolidScriptFieldHost {
   private readonly expressions = new SolidScriptExpressionEvaluator(
     () => this.workTake(),
     (name, values) => this.functionCall(name, values),
@@ -831,7 +826,10 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     const built: SolidScriptShape[] = [];
     this.builtStack.push(built);
     try {
-      for (const node of lines) built.push(...this.lineRun(node, scope, context));
+      for (const node of lines) {
+        const shapes = this.lineRun(node, scope, context);
+        for (const shape of shapes) built.push(shape);
+      }
     } finally {
       this.builtStack.pop();
     }
@@ -1063,17 +1061,21 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     scope: SolidScriptScope,
     context: SolidScriptContext,
   ): SolidScriptShape[] {
-    return (
-      this.guarded(node.line, () => {
-        const line = this.runOf(node, scope, context);
-        line.busy = true;
-        try {
-          return node.command.execute(line.run);
-        } finally {
-          line.busy = false;
-        }
-      }) ?? []
-    );
+    if (this.failure || this.paused || this.leaving) return [];
+    const outer = this.line;
+    this.line = node.line;
+    const line = this.runOf(node, scope, context);
+    line.busy = true;
+    try {
+      this.workTake();
+      return node.command.execute(line.run);
+    } catch (error) {
+      this.failureNote(error, node.line);
+      return [];
+    } finally {
+      line.busy = false;
+      this.line = outer;
+    }
   }
 
   /**
@@ -1140,13 +1142,24 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
       this.workTake();
       return step();
     } catch (error) {
-      if (this.paused) return undefined;
-      const message = error instanceof Error ? error.message : String(error);
-      this.failure ??= solidScriptFailure(solidScriptErrorLine(message) ?? line, message);
+      this.failureNote(error, line);
       return undefined;
     } finally {
       this.line = outer;
     }
+  }
+
+  /**
+   * Keeps the first mistake of the run, at the line it names or else the line
+   * that ran; a run that paused keeps no mistake.
+   *
+   * @param error What was thrown.
+   * @param line Line that ran.
+   */
+  private failureNote(error: unknown, line: number): void {
+    if (this.paused) return;
+    const message = error instanceof Error ? error.message : String(error);
+    this.failure ??= solidScriptFailure(solidScriptErrorLine(message) ?? line, message);
   }
 
   /**
@@ -1197,7 +1210,12 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
       if (lines.length === 0) throw new Error(`${node.command.label} has nothing inside; add a shape before its End`);
       return state.machine.linesRun(lines, state.scope, into);
     };
-    const value = (key: string): SolidScriptValue => state.machine.fieldValue(node, key, state.scope);
+    const fields = new Map<string, SolidScriptLineField>();
+    const labels = new Map(node.command.parameters.map((field) => [field.key, field.label]));
+    const evaluated = node.command.parameters
+      .filter((field) => !SOLID_SCRIPT_TEXT_FIELDS.has(field.type))
+      .map((field) => field.key);
+    const value = (key: string): SolidScriptValue => state.machine.fieldValue(fields, node, key, state.scope);
     return {
       values: (key) =>
         solidScriptArgumentsSplit(node.command.valueText(node.values, key)).map((piece, index) => {
@@ -1213,14 +1231,10 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
       },
       fields: () => {
         const values = new Map<string, SolidScriptValue>();
-        const labels = new Map<string, string>();
-        for (const field of node.command.parameters) {
-          labels.set(field.key, field.label);
-          if (!SOLID_SCRIPT_TEXT_FIELDS.has(field.type)) values.set(field.key, value(field.key));
-        }
+        for (const key of evaluated) values.set(key, value(key));
         return new SolidScriptBlockArguments(values, labels);
       },
-      text: (key) => state.machine.fieldOf(node, key).text,
+      text: (key) => SolidScriptMachine.fieldOf(fields, node, key).text,
       value,
       variableSet: (name, assigned) => state.machine.variableSet(state.scope, name, assigned),
       solid: (points) => {
@@ -1271,12 +1285,14 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
         state.machine.nameCheck(counter, 'a counter');
         state.machine.writableCheck(counter);
         const key = state.machine.nameKey(counter);
-        const shapes = values.flatMap((round) => {
+        const shapes: SolidScriptShape[] = [];
+        for (const round of values) {
           state.machine.workTake();
           const inner = new SolidScriptScope(state.scope);
           inner.variableDefine(key, round);
-          return node.children.length === 0 ? [] : state.machine.linesRun(node.children, inner, state.context, inner);
-        });
+          if (node.children.length === 0) continue;
+          for (const shape of state.machine.linesRun(node.children, inner, state.context, inner)) shapes.push(shape);
+        }
         const joined = solidScriptShapeJoin(shapes, labelOf());
         return joined ? [joined] : [];
       },
@@ -1403,7 +1419,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
         const inner = new SolidScriptScope(state.scope);
         for (const [name, assigned] of Object.entries(variables))
           inner.variableDefine(state.machine.nameKey(name), assigned);
-        return state.machine.fieldValue(node, key, inner);
+        return state.machine.fieldValue(fields, node, key, inner);
       },
       print: (text) => {
         state.machine.messages.push(text);
@@ -1464,13 +1480,19 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
   /**
    * Evaluates one field of a line.
    *
+   * @param fields Fields of the line read so far, by key.
    * @param node Line.
    * @param key Field key.
    * @param scope Scope.
    * @returns Value.
    */
-  private fieldValue(node: SolidScriptBlockNode<Command>, key: string, scope: SolidScriptScope): SolidScriptValue {
-    const field = this.fieldOf(node, key);
+  private fieldValue(
+    fields: Map<string, SolidScriptLineField>,
+    node: SolidScriptBlockNode<Command>,
+    key: string,
+    scope: SolidScriptScope,
+  ): SolidScriptValue {
+    const field = SolidScriptMachine.fieldOf(fields, node, key);
     try {
       return field.compiled(this.fieldContext(scope));
     } catch (error) {
@@ -1480,18 +1502,19 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
   }
 
   /**
-   * Returns a line's field text and compiled closure, worked out once per line.
+   * Returns a line's field text and compiled closure, worked out once per run
+   * view of the line.
    *
+   * @param fields Fields of the line read so far, by key.
    * @param node Line.
    * @param key Field key.
    * @returns Field.
    */
-  private fieldOf(node: SolidScriptBlockNode<Command>, key: string): SolidScriptLineField {
-    let fields = SOLID_SCRIPT_LINE_FIELDS.get(node);
-    if (!fields) {
-      fields = new Map();
-      SOLID_SCRIPT_LINE_FIELDS.set(node, fields);
-    }
+  private static fieldOf<Command extends SolidScriptMachineCommand>(
+    fields: Map<string, SolidScriptLineField>,
+    node: SolidScriptBlockNode<Command>,
+    key: string,
+  ): SolidScriptLineField {
     let field = fields.get(key);
     if (!field) {
       const parameter = node.command.parameters.find((entry) => entry.key === key);
@@ -1513,70 +1536,130 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
    * @returns Context.
    */
   private fieldContext(scope: SolidScriptScope): SolidScriptFieldContext {
-    return (scope.fieldContext ??= this.fieldContextBuild(scope));
+    return (scope.fieldContext ??= new SolidScriptFieldReader(this, scope));
   }
 
   /**
-   * Builds what field text reads in a scope.
+   * Reads any variable name as written in brackets, such as width, local.n,
+   * pos.x, points(2) or Box.Width; throws when there is none.
    *
-   * @param scope Scope.
-   * @returns Context.
+   * @param name Name as written.
+   * @param scope Scope of the running line.
+   * @returns Value.
    */
-  private fieldContextBuild(scope: SolidScriptScope): SolidScriptFieldContext {
-    return {
-      variable: (name) => {
-        // Plain names, the most common read, take one walk out.
-        if (!name.includes('.') && !name.includes('(')) {
-          const found = scope.variableGet(name);
-          if (found !== undefined) return found;
-        } else if (name.startsWith(SOLID_SCRIPT_LOCAL_PREFIX)) {
-          // A Function's own input or variable, the common read inside one.
-          const found = this.frameFunction()?.locals?.variableOwn(solidScriptLocalBare(name));
-          if (found !== undefined) return found;
-        } else {
-          const builtIn = this.systemRead(name);
-          if (builtIn !== undefined) return builtIn;
-        }
-        const where = this.variableWhere(name, scope);
-        const item = solidScriptListItemParse(where.name);
-        const base = item?.name ?? where.name;
-        if (!item && !where.scope.variableHas(base)) {
-          const component = solidScriptVectorComponent(base);
-          if (component && where.scope.variableHas(component.name))
-            return solidScriptVectorComponentRead(component, where.scope.variableGet(component.name));
-        }
-        if (!where.scope.variableHas(base)) {
-          if (where.persistent && !item) return undefined;
-          const written = where.local ? `${SOLID_SCRIPT_LOCAL_PREFIX}${base}` : base;
-          throw new Error(
-            where.local
-              ? `there is no local variable [${written}]; it is an input of the Function or set with Set ${written}`
-              : `there is no variable [${written}]; set it on a line above this one`,
-          );
-        }
-        if (!item) return where.scope.variableGet(base);
-        const index = item.index === '' ? null : this.indexValue(item.index, scope);
-        return solidScriptListItemRead(base, where.scope.variableGet(base), index, item.method);
-      },
-      formula: (text) => {
-        let expression: SolidScriptExpression;
-        try {
-          expression = solidScriptExpressionParse(text);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          throw new Error(`the formula "${text}" cannot be read: ${message}`);
-        }
-        return this.expressions.evaluate(expression, scope);
-      },
-      formulaParse: (text) => {
-        try {
-          return solidScriptExpressionParse(text);
-        } catch {
-          return null;
-        }
-      },
-      formulaRun: (expression, slots) => this.expressions.evaluateSlots(expression, slots, scope),
-    };
+  fieldVariable(name: string, scope: SolidScriptScope): SolidScriptValue {
+    // Plain names, the most common read, take one walk out.
+    if (!name.includes('.') && !name.includes('(')) {
+      const found = scope.variableGet(name);
+      if (found !== undefined) return found;
+    } else if (name.startsWith(SOLID_SCRIPT_LOCAL_PREFIX)) {
+      // A Function's own input or variable, the common read inside one.
+      const found = this.fieldLocal(solidScriptLocalBare(name));
+      if (found !== undefined) return found;
+    } else {
+      const builtIn = this.systemRead(name);
+      if (builtIn !== undefined) return builtIn;
+    }
+    return this.fieldVariableWhere(name, scope);
+  }
+
+  /**
+   * Reads a variable name as written from where it lives: a list item, a vector
+   * part or a whole variable; throws when there is none.
+   *
+   * @param name Name as written.
+   * @param scope Scope of the running line.
+   * @returns Value.
+   */
+  private fieldVariableWhere(name: string, scope: SolidScriptScope): SolidScriptValue {
+    const where = this.variableWhere(name, scope);
+    const item = solidScriptListItemParse(where.name);
+    const base = item?.name ?? where.name;
+    if (!item && !where.scope.variableHas(base)) {
+      const component = solidScriptVectorComponent(base);
+      if (component && where.scope.variableHas(component.name))
+        return solidScriptVectorComponentRead(component, where.scope.variableGet(component.name));
+    }
+    if (!where.scope.variableHas(base)) {
+      if (where.persistent && !item) return undefined;
+      const written = where.local ? `${SOLID_SCRIPT_LOCAL_PREFIX}${base}` : base;
+      throw new Error(
+        where.local
+          ? `there is no local variable [${written}]; it is an input of the Function or set with Set ${written}`
+          : `there is no variable [${written}]; set it on a line above this one`,
+      );
+    }
+    if (!item) return where.scope.variableGet(base);
+    const index = item.index === '' ? null : this.indexValue(item.index, scope);
+    return solidScriptListItemRead(base, where.scope.variableGet(base), index, item.method);
+  }
+
+  /**
+   * Reads a variable of the innermost Function running.
+   *
+   * @param bare Name after local.
+   * @returns Value, or undefined outside a Function or when it has none.
+   */
+  fieldLocal(bare: string): SolidScriptValue {
+    return this.frameFunction()?.locals?.variableOwn(bare);
+  }
+
+  /**
+   * Returns whether a first name starts built-in values, such as Box.
+   *
+   * @param name First name.
+   * @returns True for a built-in group.
+   */
+  fieldSystemGroup(name: string): boolean {
+    return SOLID_SCRIPT_SYSTEM_GROUPS.has(name);
+  }
+
+  /**
+   * Computes formula text.
+   *
+   * @param text Formula text.
+   * @param scope Scope of the running line.
+   * @returns Value.
+   */
+  fieldFormula(text: string, scope: SolidScriptScope): SolidScriptValue {
+    let expression: SolidScriptExpression;
+    try {
+      expression = solidScriptExpressionParse(text);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`the formula "${text}" cannot be read: ${message}`);
+    }
+    return this.expressions.evaluate(expression, scope);
+  }
+
+  /**
+   * Parses formula text.
+   *
+   * @param text Formula text.
+   * @returns Parsed formula, or null when it cannot be read.
+   */
+  fieldFormulaParse(text: string): SolidScriptExpression | null {
+    try {
+      return solidScriptExpressionParse(text);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Computes a compiled formula whose slot nodes read the given values.
+   *
+   * @param formula Compiled formula.
+   * @param slots Slot values.
+   * @param scope Scope of the running line.
+   * @returns Value.
+   */
+  fieldFormulaRun(
+    formula: SolidScriptCompiled,
+    slots: readonly SolidScriptValue[],
+    scope: SolidScriptScope,
+  ): SolidScriptValue {
+    return this.expressions.evaluateSlots(formula, slots, scope);
   }
 
   /**
