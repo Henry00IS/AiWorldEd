@@ -471,11 +471,16 @@ interface SolidScriptFrame {
 
 /** Scope and context a line runs in this time. */
 interface SolidScriptLineState {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- run views are shared by machines of any command type.
+  machine: SolidScriptMachine<any>;
   scope: SolidScriptScope;
   context: SolidScriptContext;
 }
 
-/** The run view of a line, made once and reused while the line is not running. */
+/**
+ * The run view of a line, made once per line and reused, by every machine that
+ * runs the line, while the line is not running.
+ */
 interface SolidScriptLineRun {
   run: SolidScriptBlockRun;
   state: SolidScriptLineState;
@@ -594,6 +599,12 @@ const SOLID_SCRIPT_FORMULA_CONTEXT: SolidScriptContext = { matrix: new THREE.Mat
  */
 const SOLID_SCRIPT_LINE_FIELDS = new WeakMap<object, Map<string, SolidScriptLineField>>();
 
+/**
+ * Run views by line, kept across runs: building one costs about fifty closures,
+ * so a script rebuilt with new inputs reuses those of the last run.
+ */
+const SOLID_SCRIPT_LINE_RUNS = new WeakMap<object, SolidScriptLineRun>();
+
 /** Thrown through a formula when a Function inside it reached the pause. */
 class SolidScriptPause extends Error {}
 
@@ -643,7 +654,6 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
   /** Faces of the For Each Selected Face rounds running, innermost last. */
   private readonly faceRounds: (SolidScriptFaceFacts | null)[] = [];
   /** Run views of lines, made once per line. */
-  private readonly lineRuns = new Map<SolidScriptBlockNode<Command>, SolidScriptLineRun>();
   /** Field text and compiled closures of each line, by field key. */
   /**
    * Line lists whose definitions are registered, so a Function called often
@@ -1105,44 +1115,47 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     scope: SolidScriptScope,
     context: SolidScriptContext,
   ): SolidScriptLineRun {
-    const known = this.lineRuns.get(node);
+    const known = SOLID_SCRIPT_LINE_RUNS.get(node);
     if (known && !known.busy) {
+      known.state.machine = this;
       known.state.scope = scope;
       known.state.context = context;
       return known;
     }
     const made: SolidScriptLineRun = {
       run: null as unknown as SolidScriptBlockRun,
-      state: { scope, context },
+      state: { machine: this, scope, context },
       busy: false,
     };
-    made.run = this.runBuild(node, made.state);
-    if (!known) this.lineRuns.set(node, made);
+    made.run = SolidScriptMachine.runBuild(node, made.state);
+    if (!known) SOLID_SCRIPT_LINE_RUNS.set(node, made);
     return made;
   }
 
   /**
    * Builds what a running line can read and do, once per line: its closures
-   * read the scope and context of the current run of the line from state.
+   * read the machine, scope and context of the current run of the line from
+   * state.
    *
    * @param node Line.
    * @param state Scope and context of the run, changed before every run.
    * @returns Run view of the line.
    */
-  private runBuild(node: SolidScriptBlockNode<Command>, state: SolidScriptLineState): SolidScriptBlockRun {
-    // eslint-disable-next-line @typescript-eslint/no-this-alias -- getters below need the machine.
-    const machine = this;
+  private static runBuild<Command extends SolidScriptMachineCommand>(
+    node: SolidScriptBlockNode<Command>,
+    state: SolidScriptLineState,
+  ): SolidScriptBlockRun {
     const labelOf = (): string => state.scope.partName || node.command.id;
     const inside = (into: SolidScriptContext, lines = node.children): SolidScriptShape[] => {
       if (lines.length === 0) throw new Error(`${node.command.label} has nothing inside; add a shape before its End`);
-      return this.linesRun(lines, state.scope, into);
+      return state.machine.linesRun(lines, state.scope, into);
     };
-    const value = (key: string): SolidScriptValue => this.fieldValue(node, key, state.scope);
+    const value = (key: string): SolidScriptValue => state.machine.fieldValue(node, key, state.scope);
     return {
       values: (key) =>
         solidScriptArgumentsSplit(node.command.valueText(node.values, key)).map((piece, index) => {
           try {
-            return solidScriptFieldResolve('value', piece, this.fieldContext(state.scope));
+            return solidScriptFieldResolve('value', piece, state.machine.fieldContext(state.scope));
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             throw new Error(`value ${index + 1}: ${message}`);
@@ -1160,21 +1173,21 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
         }
         return new SolidScriptBlockArguments(values, labels);
       },
-      text: (key) => this.fieldOf(node, key).text,
+      text: (key) => state.machine.fieldOf(node, key).text,
       value,
-      variableSet: (name, assigned) => this.variableSet(state.scope, name, assigned),
+      variableSet: (name, assigned) => state.machine.variableSet(state.scope, name, assigned),
       solid: (points) => {
-        this.gatherCheck(node);
-        this.flatCheck(node, state.context, false);
-        if (!this.stepTake(state.scope)) return [];
+        state.machine.gatherCheck(node);
+        state.machine.flatCheck(node, state.context, false);
+        if (!state.machine.stepTake(state.scope)) return [];
         return [
           { kind: 'solid', label: labelOf(), points: points.map((point) => point.applyMatrix4(state.context.matrix)) },
         ];
       },
       outline: (points) => {
-        this.gatherCheck(node);
-        this.flatCheck(node, state.context, true);
-        if (!this.stepTake(state.scope)) return [];
+        state.machine.gatherCheck(node);
+        state.machine.flatCheck(node, state.context, true);
+        if (!state.machine.stepTake(state.scope)) return [];
         const moved = points.map(([x, y]): SolidScriptPoint2 => {
           const point = new THREE.Vector3(x, y, 0).applyMatrix4(state.context.matrix);
           return [point.x, point.y];
@@ -1182,7 +1195,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
         return [{ kind: 'polygon', label: labelOf(), points: moved }];
       },
       transformed: (matrix) => inside({ ...state.context, matrix: state.context.matrix.clone().multiply(matrix) }),
-      combined: (operation) => this.combine(node, operation, state.scope, state.context, labelOf()),
+      combined: (operation) => state.machine.combine(node, operation, state.scope, state.context, labelOf()),
       hulled: () => {
         const leaves = inside(state.context).flatMap(solidScriptShapeLeavesPositive);
         if (leaves.length === 0) return [];
@@ -1208,39 +1221,39 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
         return flat ? [solidScriptExtrude(flat, fields, state.context.matrix)] : [];
       },
       repeated: (counter, values) => {
-        this.nameCheck(counter, 'a counter');
-        this.writableCheck(counter);
+        state.machine.nameCheck(counter, 'a counter');
+        state.machine.writableCheck(counter);
         const shapes = values.flatMap((round) => {
-          this.workTake();
+          state.machine.workTake();
           const inner = new SolidScriptScope(state.scope);
           inner.variableDefine(counter, round);
-          return node.children.length === 0 ? [] : this.linesRun(node.children, inner, state.context, inner);
+          return node.children.length === 0 ? [] : state.machine.linesRun(node.children, inner, state.context, inner);
         });
         const joined = solidScriptShapeJoin(shapes, labelOf());
         return joined ? [joined] : [];
       },
       branched: (holds) => {
         const lines = holds ? node.children : (node.otherwise ?? []);
-        return lines.length === 0 ? [] : this.linesRun(lines, state.scope, state.context);
+        return lines.length === 0 ? [] : state.machine.linesRun(lines, state.scope, state.context);
       },
-      inPlace: () => this.linesRun(node.children, state.scope, state.context, state.scope),
-      partUse: (name) => this.partUse(name, state.scope, state.context),
-      built: () => this.builtStack.flat(),
-      selection: () => [...this.faceSelection],
+      inPlace: () => state.machine.linesRun(node.children, state.scope, state.context, state.scope),
+      partUse: (name) => state.machine.partUse(name, state.scope, state.context),
+      built: () => state.machine.builtStack.flat(),
+      selection: () => [...state.machine.faceSelection],
       selectionSet: (faces) => {
-        this.faceSelection = [...faces];
+        state.machine.faceSelection = [...faces];
       },
-      faceCurrent: () => this.faceRounds.at(-1) ?? null,
+      faceCurrent: () => state.machine.faceRounds.at(-1) ?? null,
       looped: (rounds) => {
         const shapes = rounds.flatMap((round) => {
-          this.workTake();
+          state.machine.workTake();
           const inner = new SolidScriptScope(state.scope);
           for (const [name, value] of Object.entries(round.variables)) inner.variableDefine(name, value);
-          this.faceRounds.push(round.face);
+          state.machine.faceRounds.push(round.face);
           try {
-            return node.children.length === 0 ? [] : this.linesRun(node.children, inner, state.context, inner);
+            return node.children.length === 0 ? [] : state.machine.linesRun(node.children, inner, state.context, inner);
           } finally {
-            this.faceRounds.pop();
+            state.machine.faceRounds.pop();
           }
         });
         const joined = solidScriptShapeJoin(shapes, labelOf());
@@ -1249,62 +1262,66 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
       framed: (matrix) => inside({ ...state.context, matrix }),
       leafLatest: (leaf) => {
         let latest = leaf;
-        for (let next = this.leafSwaps.get(latest); next; next = this.leafSwaps.get(latest)) latest = next;
+        for (let next = state.machine.leafSwaps.get(latest); next; next = state.machine.leafSwaps.get(latest))
+          latest = next;
         return latest;
       },
       leafReplace: (leaf, by) => {
-        this.leafSwaps.set(leaf, by);
-        for (const built of this.builtStack)
+        state.machine.leafSwaps.set(leaf, by);
+        for (const built of state.machine.builtStack)
           built.forEach((shape, index) => {
             built[index] = solidScriptShapeMapLeaves(shape, (found) => (found === leaf ? by : found));
           });
       },
-      adopted: (shapes) => shapes.filter(() => this.stepTake(state.scope)),
+      adopted: (shapes) => shapes.filter(() => state.machine.stepTake(state.scope)),
       gathered: (what) => {
         const into: SolidScriptGathering = { kind: what, points: [], uvs: [], faces: [] };
-        this.gathering.push(into);
+        state.machine.gathering.push(into);
         try {
           if (node.children.length > 0)
-            this.linesRun(node.children, state.scope, { matrix: new THREE.Matrix4(), planar: state.context.planar });
+            state.machine.linesRun(node.children, state.scope, {
+              matrix: new THREE.Matrix4(),
+              planar: state.context.planar,
+            });
         } finally {
-          this.gathering.pop();
+          state.machine.gathering.pop();
         }
         return into;
       },
       local: (planar) => inside({ matrix: new THREE.Matrix4(), planar }),
       placed: (shapes) => shapes.map((shape) => solidScriptShapeTransform(shape, state.context.matrix)),
       leave: (returned) => {
-        const frame = this.stack[this.stack.length - 1];
+        const frame = state.machine.stack[state.machine.stack.length - 1];
         if (!frame) throw new Error('Return leaves a Function or a part, so it only works inside one of them');
         if (returned !== undefined) {
           if (frame.kind !== 'function')
             throw new Error('a Return with a Value only works in a Function; a part hands back results in variables');
           frame.returned = { value: returned };
         }
-        this.leaving = true;
+        state.machine.leaving = true;
         return [];
       },
-      call: (name, values, result) => this.functionCallLine(name, values, result, state.scope, state.context),
+      call: (name, values, result) => state.machine.functionCallLine(name, values, result, state.scope, state.context),
       get handling() {
-        return machine.handling;
+        return state.machine.handling;
       },
       inputSet: (name, assigned) => {
-        if (!this.handling)
+        if (!state.machine.handling)
           throw new Error(
             'Set Input only works in When Input Changes or When Button Pressed; the inspector sets inputs',
           );
-        if (this.readOnly.get(name) !== 'input')
+        if (state.machine.readOnly.get(name) !== 'input')
           throw new Error(`there is no input "${name}"; add an Input line for it`);
-        this.root.variableSet(name, assigned);
-        this.inputsChanged[name] = solidScriptValueText(assigned);
+        state.machine.root.variableSet(name, assigned);
+        state.machine.inputsChanged[name] = solidScriptValueText(assigned);
       },
       notice: (text) => {
-        if (!this.handling)
+        if (!state.machine.handling)
           throw new Error('Show Message only works in When Input Changes or When Button Pressed; use Echo here');
-        this.notices.push(text);
+        state.machine.notices.push(text);
       },
       point: (position, uv) => {
-        const into = this.gathering[this.gathering.length - 1];
+        const into = state.machine.gathering[state.machine.gathering.length - 1];
         if (!into)
           throw new Error(`a ${node.command.label} belongs between a Polyhedron, Polygon or Mesh line and its End`);
         if (node.command.id === 'vertex' && into.kind !== 'mesh')
@@ -1316,71 +1333,71 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
         return [];
       },
       face: (corners) => {
-        const into = this.gathering[this.gathering.length - 1];
+        const into = state.machine.gathering[state.machine.gathering.length - 1];
         if (into?.kind !== 'mesh') throw new Error('a Face belongs between a Mesh line and its End');
         into.faces.push([...corners]);
         return [];
       },
       mesh: (mesh) => {
-        this.gatherCheck(node);
-        this.flatCheck(node, state.context, false);
-        if (!this.stepTake(state.scope)) return [];
+        state.machine.gatherCheck(node);
+        state.machine.flatCheck(node, state.context, false);
+        if (!state.machine.stepTake(state.scope)) return [];
         return [solidScriptMeshChecked(solidScriptMeshTransform({ ...mesh, label: labelOf() }, state.context.matrix))];
       },
       valueWith: (key, variables) => {
         const inner = new SolidScriptScope(state.scope);
         for (const [name, assigned] of Object.entries(variables)) inner.variableDefine(name, assigned);
-        return this.fieldValue(node, key, inner);
+        return state.machine.fieldValue(node, key, inner);
       },
       print: (text) => {
-        this.messages.push(text);
+        state.machine.messages.push(text);
         return [];
       },
-      inputValue: (name) => this.inputs[name],
+      inputValue: (name) => state.machine.inputs[name],
       inputDefine: (name, value) => {
-        this.nameCheck(name, 'an input');
-        if (this.readOnly.has(name)) throw new Error(`an input named "${name}" is already defined`);
+        state.machine.nameCheck(name, 'an input');
+        if (state.machine.readOnly.has(name)) throw new Error(`an input named "${name}" is already defined`);
         if (state.scope.variableHas(name))
           throw new Error(`"${name}" is already a variable; inputs come before the lines that use them`);
         state.scope.variableDefine(name, value);
-        this.readOnly.set(name, 'input');
+        state.machine.readOnly.set(name, 'input');
       },
-      listRead: (name) => this.listRead(state.scope, name),
+      listRead: (name) => state.machine.listRead(state.scope, name),
       listUpdate: (name, change, create) => {
-        const where = this.variableWhere(name, state.scope);
+        const where = state.machine.variableWhere(name, state.scope);
         if (!create || where.scope.variableHas(where.name)) {
-          this.variableSet(state.scope, name, change(this.listRead(state.scope, name)));
+          state.machine.variableSet(state.scope, name, change(state.machine.listRead(state.scope, name)));
           return;
         }
-        this.variableSet(state.scope, name, change([]));
+        state.machine.variableSet(state.scope, name, change([]));
       },
       variableDelete: (name) => {
-        const where = this.variableWhere(name, state.scope);
-        if (!where.local) this.writableCheck(where.name);
+        const where = state.machine.variableWhere(name, state.scope);
+        if (!where.local) state.machine.writableCheck(where.name);
         if (!where.scope.variableDelete(where.name))
           throw new Error(`there is no variable [${name}] to delete; set it on a line above this one`);
-        if (where.persistent) this.persistentKeep(where.name);
+        if (where.persistent) state.machine.persistentKeep(where.name);
       },
       variableClear: (name) => {
-        const where = this.variableWhere(name, state.scope);
+        const where = state.machine.variableWhere(name, state.scope);
         // A name not set yet becomes an empty list, ready for Add Item.
         const old = where.scope.variableHas(where.name) ? where.scope.variableGet(where.name) : [];
-        this.variableSet(state.scope, name, Array.isArray(old) ? [] : '');
+        state.machine.variableSet(state.scope, name, Array.isArray(old) ? [] : '');
       },
       itemRemove: (target) => {
-        const where = this.variableWhere(target, state.scope);
+        const where = state.machine.variableWhere(target, state.scope);
         const item = solidScriptListItemParse(where.name);
         if (!item || item.method)
           throw new Error(`"${target}" is not a list item; write list(2), or list() for the last item`);
-        if (!where.local) this.writableCheck(item.name);
+        if (!where.local) state.machine.writableCheck(item.name);
         if (!where.scope.variableHas(item.name))
           throw new Error(`there is no variable [${target.replace(/\(.*$/, '')}]; set it on a line above this one`);
-        const index = item.index === '' ? null : this.indexValue(item.index, state.scope);
+        const index = item.index === '' ? null : state.machine.indexValue(item.index, state.scope);
         where.scope.variableSet(
           item.name,
           solidScriptListItemRemove(item.name, where.scope.variableGet(item.name), index),
         );
-        if (where.persistent) this.persistentKeep(item.name);
+        if (where.persistent) state.machine.persistentKeep(item.name);
       },
     };
   }
