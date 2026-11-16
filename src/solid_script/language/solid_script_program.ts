@@ -8,7 +8,11 @@ import {
 } from './solid_script_block_tree.js';
 import type { SolidScriptCommand } from '@/solid_script/commands/solid_script_command.js';
 import { solidScriptErrorLine } from './solid_script_error.js';
-import { solidScriptSystemValues, type SolidScriptRunContext } from './solid_script_system.js';
+import {
+  solidScriptSystemValues,
+  type SolidScriptRunContext,
+  type SolidScriptUseFacts,
+} from './solid_script_system.js';
 import {
   SolidScriptMachine,
   solidScriptFailure,
@@ -29,6 +33,11 @@ export interface SolidScriptProgramOptions {
   context?: SolidScriptRunContext;
   /** Size of the generator box, for Box.Width and the others. */
   box?: readonly [number, number, number];
+  /**
+   * Where the script is used and what a modifier receives; a generator when not
+   * given.
+   */
+  use?: SolidScriptUseFacts;
   /** Breakpoint lines to record, and the hit to pause at, for the debugger. */
   breakpoints?: SolidScriptBreakpoints;
   /** True to count and time every line, for the editor. */
@@ -102,7 +111,7 @@ export function solidScriptProgramRun(
 ): SolidScriptRun {
   try {
     const lines = solidScriptProgramLines(program);
-    const system = solidScriptSystemValues(options.context ?? 'generator', options.box ?? null);
+    const system = solidScriptSystemValues(options.context ?? 'generator', options.box ?? null, true, options.use);
     return new SolidScriptMachine(
       options.stepLimit,
       options.breakpoints ?? null,

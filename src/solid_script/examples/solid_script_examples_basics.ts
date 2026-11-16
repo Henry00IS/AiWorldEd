@@ -99,3 +99,32 @@ export const SOLID_SCRIPT_EXAMPLE_SPIKY_BALL: readonly SolidScriptLine[] = [
   { command: 'end' },
   { command: 'end' },
 ];
+
+/**
+ * A slab under a box: as a generator it builds the box too, as a modifier it
+ * puts the slab under whatever it is added to.
+ */
+export const SOLID_SCRIPT_EXAMPLE_PEDESTAL: readonly SolidScriptLine[] = [
+  { command: 'note', values: { text: 'Works as a generator and as a modifier on a brush, mesh or group' } },
+  {
+    command: 'input',
+    values: { name: 'Margin', type: 'number', default: '0.2', min: '0', max: '2', label: 'Margin' },
+  },
+  {
+    command: 'input',
+    values: { name: 'Thickness', type: 'number', default: '0.2', min: '0.05', max: '2', label: 'Thickness' },
+  },
+  { command: 'variable', values: { name: 'Low', value: '-0.5' } },
+  { command: 'variable', values: { name: 'Width', value: '1' } },
+  { command: 'variable', values: { name: 'Depth', value: '1' } },
+  { command: 'if_used_as', values: { use: 'Modifier' } },
+  { command: 'variable', values: { name: 'Low', value: '[Input.Min.z]' } },
+  { command: 'variable', values: { name: 'Width', value: '[Input.Size.x]' } },
+  { command: 'variable', values: { name: 'Depth', value: '[Input.Size.y]' } },
+  { command: 'else' },
+  { command: 'cube', values: { size: '1, 1, 1' } },
+  { command: 'end' },
+  { command: 'translate', values: { v: '0, 0, [=[Low] - [Thickness] / 2]' } },
+  { command: 'cube', values: { size: '[=[Width] + 2 * [Margin]], [=[Depth] + 2 * [Margin]], [Thickness]' } },
+  { command: 'end' },
+];

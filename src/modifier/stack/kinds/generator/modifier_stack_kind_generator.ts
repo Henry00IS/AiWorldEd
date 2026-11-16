@@ -105,7 +105,7 @@ export abstract class ModifierStackKindGeneratorBase extends ModifierStackKind {
    * @param _parameters Normalized parameters.
    * @returns 'translate'.
    */
-  override volumePoseFollow(_parameters: Record<string, unknown>): ModifierStackPoseFollow {
+  override volumePoseFollow(_parameters: Record<string, unknown>): ModifierStackPoseFollow | null {
     return 'translate';
   }
 

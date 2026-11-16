@@ -74,6 +74,21 @@ The script runs on every change. **Start** builds everything, **Debug** builds o
 
 </details>
 
+## Generator or modifier
+
+A script can be a **generator**, which builds new geometry from nothing, or a **modifier** on a brush, mesh or group, which works on what it is added to. **Can Be Used As** on the Script row says which uses a script allows, and **If Used As** lets one script do something different in each.
+
+<details>
+<summary>More Details</summary>
+
+- Generator is on for every script that sets nothing. A script that does not allow a use is refused there with a message saying which box to turn on; the use a step already has stays on.
+- Add a SolidScript modifier from **Add Modifier** on a brush, mesh, group or modifier volume. The old generators still cannot go on brushes or groups.
+- As a modifier, the brushes it receives pass on unchanged. What the script builds is added, with the script origin at the centre of what it receives; Operation picks whether it is added, cut out or intersected.
+- `[Script.Usage]` is Generator or Modifier. `[Input.Brushes]`, `[Input.Faces]`, `[Input.Min]`, `[Input.Max]`, `[Input.Size]` and `[Input.Center]` describe what a modifier receives (all zero for a generator), and **Input Shapes** builds copies of those brushes to move, mirror or cut.
+- The **Pedestal** example works both ways: as a generator it builds a box on a slab, as a modifier it puts the slab under the brush.
+
+</details>
+
 ## Examples
 
 The **Examples** window holds showcase scripts such as the Spiral Staircase, small lessons, and the built-in generators rebuilt line by line, so you can see how they work and change them.

@@ -1,7 +1,8 @@
-import type { SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
+import type { SolidScriptLine, SolidScriptUses } from '@/solid_script/document/solid_script_document.js';
 import {
   SOLID_SCRIPT_EXAMPLE_COLUMNS,
   SOLID_SCRIPT_EXAMPLE_DOORWAY,
+  SOLID_SCRIPT_EXAMPLE_PEDESTAL,
   SOLID_SCRIPT_EXAMPLE_PILLAR_RING,
   SOLID_SCRIPT_EXAMPLE_STEPPING_STONES,
   SOLID_SCRIPT_EXAMPLE_PEBBLES,
@@ -48,6 +49,8 @@ export interface SolidScriptExample {
   port: string | null;
   /** Lines of the script. */
   lines: readonly SolidScriptLine[];
+  /** Can Be Used As; a generator only when absent. */
+  uses?: SolidScriptUses;
 }
 
 /**
@@ -126,6 +129,16 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
     summary: 'Cones growing out of a ball: scattered points, with Align To turning each one to its face.',
     port: null,
     lines: SOLID_SCRIPT_EXAMPLE_SPIKY_BALL,
+  },
+  {
+    id: 'pedestal',
+    name: 'Pedestal',
+    group: 'Basics',
+    summary:
+      'A slab under a box. Used as a modifier on a brush, mesh or group, it puts the slab under that instead: If Used As picks the lines.',
+    port: null,
+    lines: SOLID_SCRIPT_EXAMPLE_PEDESTAL,
+    uses: { generator: true, modifier: true },
   },
   solidScriptExamplePort('cylinder', 'Cylinder', SOLID_SCRIPT_EXAMPLE_CYLINDER),
   solidScriptExamplePort('cone', 'Cone', SOLID_SCRIPT_EXAMPLE_CONE),

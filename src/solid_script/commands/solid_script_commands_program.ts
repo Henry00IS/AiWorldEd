@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { SolidScriptCommand, type SolidScriptCommandParameter } from './solid_script_command.js';
 import { solidScriptListingInputs, solidScriptListingOptions } from './solid_script_command_listing.js';
 import {
@@ -267,6 +268,38 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     endLabel: 'When',
     listing: () => ['When Baked'],
     execute: () => [],
+  }),
+  new SolidScriptCommand({
+    id: 'if_used_as',
+    label: 'If Used As',
+    category: 'Logic',
+    description: 'Run lines only as a generator or only as a modifier',
+    manual:
+      'Runs the lines inside only when the script is used the way Use names: Generator in a generator node, Modifier in the modifier stack of a brush, mesh or group. An Else starts the lines for the other use. Can Be Used As in the inspector picks the uses a script allows. Script.Usage holds the same word for formulas. Example: If Used As Modifier, a slab under [Input.Min], Else, a cube and a slab under it.',
+    stops: ['A Use that is not Generator or Modifier.', 'A missing End line.'],
+    nesting: 'open',
+    parameters: [solidScriptParameter('use', 'Use', 'text', 'Modifier', 'Generator or Modifier.')],
+    starter: [{ command: 'cube', values: {} }],
+    listing: (read) => ['If Used As', read.text('use')],
+    endLabel: 'If',
+    execute: (run) => {
+      const use = run.text('use').trim().toLowerCase();
+      if (use !== 'generator' && use !== 'modifier') throw new Error('Use must be Generator or Modifier');
+      return run.branched(run.use().usage.toLowerCase() === use);
+    },
+  }),
+  new SolidScriptCommand({
+    id: 'input_shapes',
+    label: 'Input Shapes',
+    category: 'Inputs',
+    description: 'Build the brushes a modifier receives',
+    manual:
+      'Builds a copy of every brush the script receives as a modifier, in script metres around the centre of what it receives, so lines can move, mirror, cut or combine them like any shape. The received brushes still pass on as they are; the copies are added. As a generator it builds nothing. Example: Translate by 0, 0, [Input.Size.z], then Input Shapes stacks a copy on top.',
+    stops: [],
+    parameters: [],
+    listing: () => ['Input Shapes'],
+    execute: (run) =>
+      run.use().solids.flatMap((corners) => run.solid(corners.map(([x, y, z]) => new THREE.Vector3(x, y, z)))),
   }),
   new SolidScriptCommand({
     id: 'set_input',

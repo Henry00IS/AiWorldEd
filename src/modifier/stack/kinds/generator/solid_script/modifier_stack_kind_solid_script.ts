@@ -13,7 +13,10 @@ import { ModifierStackKindGeneratorBase } from '@/modifier/stack/kinds/generator
 import {
   solidScriptDocumentDefault,
   solidScriptDocumentNormalize,
+  solidScriptDocumentUseProblem,
+  type SolidScriptUse,
 } from '@/solid_script/document/solid_script_document.js';
+import { SOLID_SCRIPT_USE_GENERATOR, type SolidScriptUseFacts } from '@/solid_script/language/solid_script_system.js';
 import { SOLID_SCRIPT_HANDLERS } from '@/solid_script/language/solid_script_machine.js';
 import { solidScriptProgramHandle } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptDebugStepLimit } from '@/solid_script/debug/solid_script_debug_steps.js';
@@ -33,41 +36,48 @@ export const MODIFIER_STACK_SOLID_SCRIPT_KEY = 'script';
 export const MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY = 'inputs';
 
 /**
- * Fields of the SolidScript generator before the shared texture and output
- * ones.
+ * Fields of a SolidScript step before the shared texture and output ones.
+ *
+ * @param use How the step uses its script: as a generator or a modifier.
+ * @returns Fields.
  */
-const MODIFIER_STACK_SOLID_SCRIPT_FIELDS: readonly ModifierStackField[] = [
-  {
-    key: 'scriptFile',
-    label: 'Script',
-    type: 'widget',
-    default: '',
-    hint: 'The script this generator runs; edit it in the script editor or drop an .aiscript file on it. Assistants use geometry_script_generator_set.',
-    widget: (targetOf) =>
-      solidScriptInspectorRow(targetOf, MODIFIER_STACK_SOLID_SCRIPT_KEY, MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY),
-  },
-  {
-    key: 'scriptInputs',
-    label: 'Inputs',
-    type: 'widget',
-    default: '',
-    hint: 'The settings the script defines with Input lines.',
-    widget: (targetOf) =>
-      solidScriptInspectorInputs(targetOf, MODIFIER_STACK_SOLID_SCRIPT_KEY, MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY),
-  },
-  {
-    key: 'placement',
-    label: 'Placement',
-    type: 'choice',
-    default: 'origin',
-    choices: modifierStackChoices([
-      ['origin', 'Script Units'],
-      ['fit', 'Fit Box'],
-      ['stretch', 'Stretch to Box'],
-    ]),
-    hint: 'Script Units: metres from the centre of the box, which is the script origin [0, 0, 0]. Fit Box: scaled evenly to fit. Stretch to Box: fills the box.',
-  },
-];
+export function modifierStackSolidScriptFields(use: SolidScriptUse): readonly ModifierStackField[] {
+  return [
+    {
+      key: 'scriptFile',
+      label: 'Script',
+      type: 'widget',
+      default: '',
+      hint: `The script this ${use} runs; edit it in the script editor or drop an .aiscript file on it. Assistants use geometry_script_generator_set.`,
+      widget: (targetOf) =>
+        solidScriptInspectorRow(targetOf, MODIFIER_STACK_SOLID_SCRIPT_KEY, MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY, use),
+    },
+    {
+      key: 'scriptInputs',
+      label: 'Inputs',
+      type: 'widget',
+      default: '',
+      hint: 'The settings the script defines with Input lines.',
+      widget: (targetOf) =>
+        solidScriptInspectorInputs(targetOf, MODIFIER_STACK_SOLID_SCRIPT_KEY, MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY),
+    },
+    {
+      key: 'placement',
+      label: 'Placement',
+      type: 'choice',
+      default: 'origin',
+      choices: modifierStackChoices([
+        ['origin', 'Script Units'],
+        ['fit', 'Fit Box'],
+        ['stretch', 'Stretch to Box'],
+      ]),
+      hint:
+        use === 'generator'
+          ? 'Script Units: metres from the centre of the box, which is the script origin [0, 0, 0]. Fit Box: scaled evenly to fit. Stretch to Box: fills the box.'
+          : 'Script Units: metres from the centre of what the modifier receives, the script origin [0, 0, 0]. Fit Box: scaled evenly to fit around it. Stretch to Box: fills its bounds.',
+    },
+  ];
+}
 
 /**
  * Generator that builds the result of a script of command lines and code: every
@@ -75,11 +85,11 @@ const MODIFIER_STACK_SOLID_SCRIPT_FIELDS: readonly ModifierStackField[] = [
  * group, rebuilt whenever the script changes.
  */
 export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase {
-  readonly id = MODIFIER_STACK_SOLID_SCRIPT_KIND;
-  readonly label = 'SolidScript';
-  readonly description =
+  readonly id: string = MODIFIER_STACK_SOLID_SCRIPT_KIND;
+  readonly label: string = 'SolidScript';
+  readonly description: string =
     'Builds brushes and meshes from a SolidScript of command lines. Edit Script opens the editor with its command palette; .aiscript files from the project browser can be dropped on the Script row.';
-  protected readonly specificFields = MODIFIER_STACK_SOLID_SCRIPT_FIELDS;
+  protected readonly specificFields = modifierStackSolidScriptFields('generator');
 
   /**
    * Returns valid parameters with the stored script read line by line.
@@ -137,8 +147,23 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
   }
 
   /**
-   * Evaluates the script, up to the debugger's step when it is stepped through,
-   * and turns its brushes and groups into units.
+   * Builds the script's pieces, unless the script may not be used as a
+   * generator: then it says so and builds nothing.
+   *
+   * @param units Previous output.
+   * @param context Evaluation context.
+   * @returns Generated units, after the input when Keep input is on.
+   */
+  override apply(units: readonly ModifierStackUnit[], context: ModifierStackContext): ModifierStackUnit[] {
+    const document = solidScriptDocumentNormalize(context.step.parameters[MODIFIER_STACK_SOLID_SCRIPT_KEY]);
+    const problem = solidScriptDocumentUseProblem(document, 'generator');
+    if (!problem) return super.apply(units, context);
+    context.report.error = problem;
+    return this.passesAuthoredInput(context.step.parameters) ? [...units] : [];
+  }
+
+  /**
+   * Evaluates the script as a generator.
    *
    * @param parameters Normalized parameters.
    * @param box Generator box in frame coordinates.
@@ -150,6 +175,25 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
     box: THREE.Box3,
     context: ModifierStackContext,
   ): ModifierStackUnit[] {
+    return this.scriptUnits(parameters, box, context, SOLID_SCRIPT_USE_GENERATOR);
+  }
+
+  /**
+   * Evaluates the script, up to the debugger's step when it is stepped through,
+   * and turns its brushes and groups into units.
+   *
+   * @param parameters Normalized parameters.
+   * @param box Box in frame coordinates the script origin is centred in.
+   * @param context Evaluation context.
+   * @param use Where the script is used and what a modifier receives.
+   * @returns Units in CSG order.
+   */
+  protected scriptUnits(
+    parameters: Record<string, unknown>,
+    box: THREE.Box3,
+    context: ModifierStackContext,
+    use: SolidScriptUseFacts,
+  ): ModifierStackUnit[] {
     const layout = modifierStackSolidScriptLayout(
       solidScriptDocumentNormalize(parameters[MODIFIER_STACK_SOLID_SCRIPT_KEY]),
       parameters['placement'] as ModifierStackSolidScriptPlacement,
@@ -157,10 +201,11 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
       this.pieceOperation(parameters),
       solidScriptDebugStepLimit(context.volume, context.step.id),
       parameters[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY] as Record<string, string>,
+      use,
     );
     if (layout.error) context.report.error = layout.error;
     const frame = modifierStackFrame(context.volume, 'volume');
-    for (const mesh of layout.meshes) context.meshes?.push({ ...mesh, frame });
+    if (context.ownsGenerated) for (const mesh of layout.meshes) context.meshes?.push({ ...mesh, frame });
     const count = modifierStackSolidScriptBrushCount(layout.nodes);
     if (context.budget.takeCopies(1, count) < count) {
       context.report.error = `Brush budget reached: the script needs ${count} brushes.`;

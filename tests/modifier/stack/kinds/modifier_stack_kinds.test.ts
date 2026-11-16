@@ -48,6 +48,7 @@ describe('modifier stack kinds', () => {
       'hollowBox',
       'curvedStairs',
       'solidScript',
+      'solidScriptModifier',
       'linear',
       'radial',
       'transform',

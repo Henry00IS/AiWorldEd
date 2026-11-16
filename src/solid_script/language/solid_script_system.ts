@@ -84,6 +84,13 @@ export const SOLID_SCRIPT_SYSTEM_GLOBALS: readonly SolidScriptSystemValue[] = [
   { name: 'Box.Depth', type: 'Number', detail: 'depth of the generator box in metres (Y)' },
   { name: 'Box.Height', type: 'Number', detail: 'height of the generator box in metres (Z)' },
   { name: 'Box.Size', type: 'Vector', detail: 'width, depth and height of the generator box' },
+  { name: 'Script.Usage', type: 'Text', detail: 'Generator or Modifier: how this script is used here' },
+  { name: 'Input.Brushes', type: 'Number', detail: 'brushes a modifier receives, 0 for a generator' },
+  { name: 'Input.Faces', type: 'Number', detail: 'faces of those brushes together' },
+  { name: 'Input.Min', type: 'Vector', detail: 'lowest corner of what a modifier receives' },
+  { name: 'Input.Max', type: 'Vector', detail: 'highest corner of what a modifier receives' },
+  { name: 'Input.Size', type: 'Vector', detail: 'width, depth and height of what a modifier receives' },
+  { name: 'Input.Center', type: 'Vector', detail: 'centre of what a modifier receives' },
   { name: 'Editor.Name', type: 'Text', detail: 'name of the editor' },
   { name: 'Editor.Version', type: 'Text', detail: 'version of the editor, such as 1.2.3' },
   { name: 'Editor.Url', type: 'Text', detail: 'address of the editor page' },
@@ -170,8 +177,23 @@ export function solidScriptTimeText(seconds: number, pattern: string): string {
   );
 }
 
+/** Where a script is used, and what a modifier receives, in script metres. */
+export interface SolidScriptUseFacts {
+  /** Generator or Modifier, for Script.Usage and If Used As. */
+  usage: 'Generator' | 'Modifier';
+  /** Corners of every brush the modifier receives, one list per brush. */
+  solids: readonly (readonly [number, number, number])[][];
+  /** Faces of those brushes, together. */
+  faces: number;
+}
+
+/** Use of a run that sets none: a generator, which receives nothing. */
+export const SOLID_SCRIPT_USE_GENERATOR: SolidScriptUseFacts = { usage: 'Generator', solids: [], faces: 0 };
+
 /** Reads the built-in values of one run. */
 export interface SolidScriptSystemReader {
+  /** Where the script is used; a generator when absent. */
+  use?: SolidScriptUseFacts;
   /**
    * Reads one value.
    *
@@ -189,12 +211,14 @@ export interface SolidScriptSystemReader {
  * @param box Generator box size, or null when the run has no box.
  * @param count True counts this run in Run.Count and Time.Delta; false only
  *   looks, as the variable explorer does.
+ * @param use Where the script is used and what a modifier receives.
  * @returns Values by name.
  */
 export function solidScriptSystemValues(
   context: SolidScriptRunContext,
   box: readonly [number, number, number] | null,
   count = true,
+  use: SolidScriptUseFacts = SOLID_SCRIPT_USE_GENERATOR,
 ): SolidScriptSystemReader {
   const now = Date.now();
   const delta = solidScriptSystemLastRun === null ? 0 : (now - solidScriptSystemLastRun) / 1000;
@@ -208,6 +232,8 @@ export function solidScriptSystemValues(
   const editor = (): SolidScriptSystemHost => (host ??= solidScriptSystemHostRead());
   let date: Date | null = null;
   const time = (): Date => (date ??= new Date(now));
+  let measured: { min: number[]; max: number[] } | null = null;
+  const bounds = (): { min: number[]; max: number[] } => (measured ??= solidScriptUseBounds(use));
   const read: Readonly<Record<string, () => SolidScriptValue>> = {
     'Run.Context': () => context,
     'Run.Count': () => runs,
@@ -239,6 +265,13 @@ export function solidScriptSystemValues(
     'Math.Golden': () => (1 + Math.sqrt(5)) / 2,
     'Math.Sqrt2': () => Math.SQRT2,
     'Math.Epsilon': () => 0.000001,
+    'Script.Usage': () => use.usage,
+    'Input.Brushes': () => use.solids.length,
+    'Input.Faces': () => use.faces,
+    'Input.Min': () => bounds().min,
+    'Input.Max': () => bounds().max,
+    'Input.Size': () => bounds().max.map((value, axis) => value - bounds().min[axis]!),
+    'Input.Center': () => bounds().max.map((value, axis) => (value + bounds().min[axis]!) / 2),
     ...(box
       ? {
           'Box.Width': () => box[0],
@@ -250,6 +283,7 @@ export function solidScriptSystemValues(
   };
   const known = new Map<string, SolidScriptValue>();
   return {
+    use,
     get: (name) => {
       if (known.has(name)) return known.get(name);
       const value = Object.hasOwn(read, name) ? read[name]!() : undefined;
@@ -257,4 +291,18 @@ export function solidScriptSystemValues(
       return value;
     },
   };
+}
+
+/**
+ * Measures what a modifier receives; nothing measures as zero.
+ *
+ * @param use Use of the run.
+ * @returns Lowest and highest corner.
+ */
+function solidScriptUseBounds(use: SolidScriptUseFacts): { min: number[]; max: number[] } {
+  const corners = use.solids.flat();
+  if (corners.length === 0) return { min: [0, 0, 0], max: [0, 0, 0] };
+  const min = [0, 1, 2].map((axis) => Math.min(...corners.map((corner) => corner[axis]!)));
+  const max = [0, 1, 2].map((axis) => Math.max(...corners.map((corner) => corner[axis]!)));
+  return { min, max };
 }

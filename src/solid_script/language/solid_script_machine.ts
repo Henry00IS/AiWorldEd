@@ -1,4 +1,9 @@
-import { SOLID_SCRIPT_SYSTEM_GLOBALS, type SolidScriptSystemReader } from './solid_script_system.js';
+import {
+  SOLID_SCRIPT_SYSTEM_GLOBALS,
+  SOLID_SCRIPT_USE_GENERATOR,
+  type SolidScriptSystemReader,
+  type SolidScriptUseFacts,
+} from './solid_script_system.js';
 import { solidScriptGeometryLookup } from './solid_script_geometry_lookup.js';
 import * as THREE from 'three';
 import type { SolidScriptExpression } from './solid_script_ast.js';
@@ -283,6 +288,8 @@ export interface SolidScriptBlockRun {
   notice(text: string): void;
   /** The inspector value of a script input, or undefined when none is set. */
   inputValue(name: string): string | undefined;
+  /** Where the script is used, and what a modifier receives. */
+  use(): SolidScriptUseFacts;
   /** Defines a script input: a variable lines may only read. */
   inputDefine(name: string, value: SolidScriptValue): void;
   /** Removes one item of a list, or its last item for list(). */
@@ -731,7 +738,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     const variables = [...(this.watched?.variablesVisible() ?? [])].map(([name, value]) =>
       solidScriptVariableView(name, value),
     );
-    if (!this.failure && !this.paused && this.steps.length === 0)
+    if (!this.failure && !this.paused && this.steps.length === 0 && this.system.use?.usage !== 'Modifier')
       this.failure = solidScriptFailure(null, 'the script builds no shapes; add a shape such as Cube');
     return {
       shapes,
@@ -1377,6 +1384,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
         return [];
       },
       inputValue: (name) => state.machine.inputs[name],
+      use: () => state.machine.system.use ?? SOLID_SCRIPT_USE_GENERATOR,
       inputDefine: (name, value) => {
         state.machine.nameCheck(name, 'an input');
         if (state.machine.readOnly.has(name)) throw new Error(`an input named "${name}" is already defined`);

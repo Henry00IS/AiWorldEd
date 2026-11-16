@@ -29,6 +29,7 @@ interface SolidScriptFileJson {
   version: number;
   name: string;
   blocks: SolidScriptDocument['blocks'];
+  uses?: SolidScriptDocument['uses'];
   resources: SolidScriptFileResource[];
 }
 
@@ -45,6 +46,7 @@ export async function solidScriptFileEncode(document: SolidScriptDocument): Prom
     version: SOLID_SCRIPT_DOCUMENT_VERSION,
     name: document.name,
     blocks: document.blocks,
+    ...(document.uses ? { uses: document.uses } : {}),
     resources: [],
   };
   const chunks: Uint8Array[] = [];

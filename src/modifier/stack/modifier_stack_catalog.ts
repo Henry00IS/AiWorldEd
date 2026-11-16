@@ -21,6 +21,7 @@ import { ModifierStackKindPrism } from './kinds/generator/primitive/modifier_sta
 import { ModifierStackKindHollowBox } from './kinds/generator/primitive/modifier_stack_kind_hollow_box.js';
 import { ModifierStackKindCurvedStairs } from './kinds/generator/primitive/modifier_stack_kind_curved_stairs.js';
 import { ModifierStackKindSolidScript } from './kinds/generator/solid_script/modifier_stack_kind_solid_script.js';
+import { ModifierStackKindSolidScriptModifier } from './kinds/generator/solid_script/modifier_stack_kind_solid_script_modifier.js';
 import { ModifierStackKindPhysicsShatter } from './kinds/shatter/modifier_stack_kind_physics_shatter.js';
 import { physicsShatterBakeDecode } from './kinds/shatter/sim/physics_shatter_bake.js';
 
@@ -41,6 +42,7 @@ export const modifierStackKinds: readonly ModifierStackKind[] = [
   new ModifierStackKindHollowBox(),
   new ModifierStackKindCurvedStairs(),
   new ModifierStackKindSolidScript(),
+  new ModifierStackKindSolidScriptModifier(),
   new ModifierStackKindArrayLinear(),
   new ModifierStackKindArrayRadial(),
   new ModifierStackKindArrayTransform(),
