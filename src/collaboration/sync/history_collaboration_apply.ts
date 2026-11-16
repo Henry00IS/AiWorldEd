@@ -9,6 +9,10 @@ import {
 } from '@/collaboration/sync/hierarchy_collaboration_locks.js';
 import { fieldCollaborationDiff, fieldCollaborationMerge } from '@/collaboration/sync/field_collaboration_paths.js';
 import { trackerOperation } from '@/collaboration/sync/tracker_collaboration_commit.js';
+import {
+  scriptCollaborationLinesApply,
+  scriptCollaborationLinesDiff,
+} from '@/collaboration/sync/script_collaboration_lines.js';
 
 /** Result of checking whether a history step may be applied now. */
 export type HistoryCollaborationCheck = { ok: true } | { ok: false; reason: 'locked'; id: string; holder: number };
@@ -146,7 +150,22 @@ export function historyCollaborationApply(
       continue;
     }
     const paths = from === null ? null : fieldCollaborationDiff(from, target);
-    const next = paths === null ? target : fieldCollaborationMerge(current, target, paths);
+    // Script lines revert one by one, so lines other members changed stay.
+    const lines = paths === null || from === null ? null : scriptCollaborationLinesDiff(from, target, paths);
+    const next =
+      paths === null
+        ? target
+        : lines === null
+          ? fieldCollaborationMerge(current, target, paths)
+          : scriptCollaborationLinesApply(
+              fieldCollaborationMerge(
+                current,
+                target,
+                paths.filter((path) => path !== lines.path),
+              ),
+              target,
+              lines,
+            );
     befores.set(change.id, current);
     upserts.push(next);
   }

@@ -15,6 +15,7 @@ import {
 } from '@/collaboration/sync/revert_collaboration_apply.js';
 import type { EditOperation } from '@/collaboration/shared/protocol_definitions.js';
 import { fieldCollaborationDiff } from '@/collaboration/sync/field_collaboration_paths.js';
+import { scriptCollaborationLinesDiff } from '@/collaboration/sync/script_collaboration_lines.js';
 
 /** One node change recorded for per-user undo. */
 export interface TrackerCollaborationChange {
@@ -393,7 +394,9 @@ export class TrackerCollaboration {
  * Builds the operation for one changed state; creates and moves carry the new
  * parent chain so the relay can refuse containers other members are editing.
  * Changes of existing nodes name the fields they change (`d.f`), so receivers
- * merge only those fields and concurrent edits of different fields both win.
+ * merge only those fields and concurrent edits of different fields both win. A
+ * change of script lines only also names its lines (`d.l`), so concurrent edits
+ * of different lines of one script both win.
  *
  * @param kind Operation kind.
  * @param state Changed state.
@@ -408,7 +411,13 @@ export function trackerOperation(
   before: NodeCollaborationState | null = null,
 ): EditOperation {
   const fields = kind === 'create' || before === null ? null : fieldCollaborationDiff(before, state);
-  const d = fields === null || fields.length === 0 ? { s: state } : { s: state, f: fields };
+  const lines = fields === null || before === null ? null : scriptCollaborationLinesDiff(before, state, fields);
+  const d =
+    fields === null || fields.length === 0
+      ? { s: state }
+      : lines === null
+        ? { s: state, f: fields }
+        : { s: state, f: fields, l: lines };
   const op: EditOperation = { k: kind, ids: [state.id], d };
   if (kind === 'property') return op;
   const chain = hierarchyCollaborationChain(parentOf, state.parent);
