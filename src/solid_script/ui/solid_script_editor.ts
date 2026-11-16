@@ -193,7 +193,7 @@ export class SolidScriptEditor extends PanelFloating {
       onClose: () => this.close(),
     });
     const palette = (this.palette = new SolidScriptEditorPalette(
-      (command) => this.insert(command, this.lines.caret(), 'caret', {}, this.lines.selection()),
+      (command) => this.insert(command, this.lines.caret(), 'caret', {}, this.lines.selectedRun()),
       (command) => this.help.show(command, null),
     ));
     const body = document.createElement('div');

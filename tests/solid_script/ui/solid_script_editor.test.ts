@@ -22,6 +22,7 @@ import {
 import { solidScriptFileEncode } from '@/solid_script/file/solid_script_file.js';
 import { solidScriptEditorCurrentGet, solidScriptEditorOpen } from '@/solid_script/ui/solid_script_editor_open.js';
 import { SOLID_SCRIPT_EDITOR_DRAG_COMMAND } from '@/solid_script/ui/solid_script_editor_palette.js';
+import { SOLID_SCRIPT_EDITOR_DRAG_LINE } from '@/solid_script/ui/solid_script_editor_row.js';
 import { ProjectMockDirectoryHandle } from '../../project/fs/project_mock_directory_handle.js';
 
 /** Lines of a script with a cube and a sphere. */
@@ -500,6 +501,45 @@ describe('SolidScript editor', () => {
     expect(root.textContent).toContain('Line 2: Union has no End');
     press(chip(1), 'ArrowUp', { ctrlKey: true, shiftKey: true });
     expect(commands()).toEqual(['union', 'cube', 'sphere']);
+  });
+
+  it('picks single lines with Ctrl+click, copies them squashed together and drags them all as one undo step', () => {
+    const { commands, root } = editorFixture([
+      { command: 'cube' },
+      { command: 'sphere' },
+      { command: 'cylinder' },
+      { command: 'variable', values: { name: 'a', value: '1' } },
+    ]);
+    const down = (line: number, init: MouseEventInit = {}) =>
+      chip(line).dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, ...init }));
+    const marked = (line: number) =>
+      ['solid-script-editor-selected', 'solid-script-editor-current'].some((name) =>
+        find(`[data-line="${line}"]`).classList.contains(name),
+      );
+    down(0);
+    down(2, { ctrlKey: true });
+    expect([0, 1, 2, 3].map(marked)).toEqual([true, false, true, false]);
+    chip(2).dispatchEvent(new Event('copy', { bubbles: true, cancelable: true }));
+    expect(root.textContent).toContain('Copied 2 lines.');
+    chip(3).focus();
+    chip(3).dispatchEvent(new Event('paste', { bubbles: true, cancelable: true }));
+    expect(commands()).toEqual(['cube', 'sphere', 'cylinder', 'variable', 'cube', 'cylinder']);
+    scriptKey('z');
+    down(0);
+    down(2, { ctrlKey: true });
+    // Pressing a picked line to drag it keeps the others picked.
+    down(2);
+    expect([0, 1, 2, 3].map(marked)).toEqual([true, false, true, false]);
+    drop(chip(3), { [SOLID_SCRIPT_EDITOR_DRAG_LINE]: '2' });
+    expect(commands()).toEqual(['sphere', 'cube', 'cylinder', 'variable']);
+    scriptKey('z');
+    expect(commands()).toEqual(['cube', 'sphere', 'cylinder', 'variable']);
+    // A plain click without a drag picks the line alone.
+    down(0);
+    down(2, { ctrlKey: true });
+    down(2);
+    chip(2).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect([0, 1, 2, 3].map(marked)).toEqual([false, false, true, false]);
   });
 
   it('selects lines with Shift, copies, cuts and pastes exactly those lines, and Space adds a blank line', () => {

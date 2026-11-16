@@ -102,6 +102,10 @@ export class SolidScriptEditorLines {
   private offs: boolean[] = [];
   private caretLine = 0;
   private anchor: number | null = null;
+  /** Lines picked one by one with Ctrl+click, in order, or null for a range. */
+  private picked: number[] | null = null;
+  /** True while a press on a picked line waits to see whether it drags. */
+  private pressKept = false;
   private layout = '';
   private widest = 0;
   private marks: SolidScriptEditorMarks = {
@@ -141,7 +145,8 @@ export class SolidScriptEditorLines {
       document: () => this.document,
       edit: handlers.edit,
       focus: (line, extend) => this.focusLine(line, extend),
-      selection: () => this.selection(),
+      selected: () => this.selected(),
+      select: (lines) => this.select(lines),
       selectAll: () => this.selectAll(),
       selectRange: (first, last) => this.selectRange(first, last),
       configure: handlers.configure,
@@ -176,8 +181,7 @@ export class SolidScriptEditorLines {
     if (!row) return;
     event.preventDefault();
     const line = Number(row.dataset['line']);
-    const [first, last] = this.selection();
-    if (line < first || line > last) this.focusLine(line);
+    if (!this.selected().includes(line)) this.focusLine(line);
     const off = this.offs[line] === true;
     this.menu?.dispose();
     this.menu = new MenuContext(this.element, [
@@ -202,7 +206,10 @@ export class SolidScriptEditorLines {
    */
   render(document: SolidScriptDocument, focus: number | null): void {
     const kept = focus ?? this.focused();
-    if (focus !== null) this.anchor = null;
+    if (focus !== null) {
+      this.anchor = null;
+      this.picked = null;
+    }
     this.caretLine = focus ?? this.caretLine;
     const rebuilt = this.documentSet(document);
     this.windowRender();
@@ -233,10 +240,12 @@ export class SolidScriptEditorLines {
     };
     const caret = follow(this.caretLine);
     const anchor = this.anchor === null ? null : follow(this.anchor);
+    const picked = this.picked?.map(follow) ?? null;
     const shifted = follow(top) - top;
     this.caretLine = caret;
     this.documentSet(document);
     this.anchor = anchor === null ? null : Math.max(0, Math.min(anchor, document.blocks.length - 1));
+    this.picked = picked && [...new Set(picked.filter((line) => line < document.blocks.length))].sort((a, b) => a - b);
     if (offset > 0)
       scroller.scrollTop = SOLID_SCRIPT_EDITOR_LINES_TOP_PX + (top + shifted) * SOLID_SCRIPT_EDITOR_ROW_PX + within;
     scroller.scrollLeft = left;
@@ -290,14 +299,44 @@ export class SolidScriptEditorLines {
   }
 
   /**
-   * Returns the selected lines: from the selection start to the current line,
-   * or the current line alone.
+   * Returns the selected lines in order: the lines picked with Ctrl+click, or
+   * from the selection start to the current line, or the current line alone.
    *
-   * @returns First and last line index.
+   * @returns Line indexes.
    */
-  selection(): [number, number] {
+  selected(): number[] {
+    if (this.picked) return [...this.picked];
     const anchor = this.anchor ?? this.caretLine;
-    return [Math.min(anchor, this.caretLine), Math.max(anchor, this.caretLine)];
+    const first = Math.min(anchor, this.caretLine);
+    return Array.from({ length: Math.abs(anchor - this.caretLine) + 1 }, (_, index) => first + index);
+  }
+
+  /**
+   * Returns the selection as one run of lines, or null when Ctrl-picked lines
+   * leave gaps.
+   *
+   * @returns First and last line index, or null.
+   */
+  selectedRun(): [number, number] | null {
+    const lines = this.selected();
+    const first = lines[0] ?? this.caretLine;
+    const last = lines.at(-1) ?? this.caretLine;
+    return last - first === lines.length - 1 ? [first, last] : null;
+  }
+
+  /**
+   * Selects lines: a run as a range, others as picked lines.
+   *
+   * @param lines Line indexes in order.
+   */
+  select(lines: readonly number[]): void {
+    const first = lines[0];
+    const last = lines.at(-1);
+    if (first === undefined || last === undefined) return;
+    if (last - first === lines.length - 1) return this.selectRange(first, last);
+    this.focusLine(last);
+    this.picked = [...lines];
+    this.windowRender();
   }
 
   /**
@@ -331,6 +370,7 @@ export class SolidScriptEditorLines {
   focusLine(line: number, extend = false): void {
     const clamped = Math.max(0, Math.min(line, this.document.blocks.length - 1));
     this.anchor = extend ? (this.anchor ?? this.caretLine) : null;
+    this.picked = null;
     this.caretLine = clamped;
     this.reveal(clamped);
     this.windowRender();
@@ -442,9 +482,16 @@ export class SolidScriptEditorLines {
     const handlers: SolidScriptEditorRowHandlers = {
       key: (event, at) => this.keys.key(event, at),
       configure: this.handlers.configure,
-      focus: (at) => this.caretSet(at),
-      press: (at, extend) => {
-        this.anchor = extend ? (this.anchor ?? this.caretLine) : null;
+      focus: (at) => {
+        if (this.picked && !this.picked.includes(at)) this.picked = null;
+        this.caretSet(at);
+      },
+      press: (at, extend, pick) => this.press(at, extend, pick),
+      release: (at) => {
+        if (!this.pressKept) return;
+        this.pressKept = false;
+        this.anchor = null;
+        this.picked = null;
         this.caretSet(at);
       },
       breakpoint: (at) => this.handlers.breakpoint(at),
@@ -469,11 +516,10 @@ export class SolidScriptEditorLines {
    */
   private rowMark(row: HTMLElement, line: number): void {
     const marks = this.marks;
-    const [first, last] = this.selection();
     row.classList.toggle(SOLID_SCRIPT_EDITOR_CLASSES.current, line === this.caretLine);
     row.classList.toggle(
       SOLID_SCRIPT_EDITOR_CLASSES.selected,
-      line !== this.caretLine && line >= first && line <= last,
+      line !== this.caretLine && this.selected().includes(line),
     );
     row.classList.toggle(SOLID_SCRIPT_EDITOR_CLASSES.stepped, line === marks.stepped);
     row.classList.toggle(SOLID_SCRIPT_EDITOR_CLASSES.failed, line === marks.failed);
@@ -493,6 +539,33 @@ export class SolidScriptEditorLines {
    *
    * @param line Line index.
    */
+  /**
+   * Handles a press on a row: Shift grows the selection, Ctrl picks or drops
+   * the line alone, and a plain press on a selected line keeps the selection
+   * until the press ends without a drag, so several lines can be dragged.
+   *
+   * @param line Line index.
+   * @param extend True with Shift.
+   * @param pick True with Ctrl or Cmd.
+   */
+  private press(line: number, extend: boolean, pick: boolean): void {
+    const selected = this.selected();
+    this.pressKept = false;
+    if (pick) {
+      const lines = selected.includes(line) ? selected.filter((at) => at !== line) : [...selected, line];
+      this.picked = (lines.length > 0 ? lines : [line]).sort((a, b) => a - b);
+      this.anchor = null;
+    } else if (!extend && selected.length > 1 && selected.includes(line)) {
+      this.picked = selected;
+      this.anchor = null;
+      this.pressKept = true;
+    } else {
+      this.picked = null;
+      this.anchor = extend ? (this.anchor ?? this.caretLine) : null;
+    }
+    this.caretSet(line);
+  }
+
   private caretSet(line: number): void {
     this.caretLine = line;
     for (const [at, row] of this.built) this.rowMark(row, at);

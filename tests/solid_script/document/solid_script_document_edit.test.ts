@@ -4,8 +4,8 @@ import {
   solidScriptDocumentBlankInsert,
   solidScriptDocumentCommandInsert,
   solidScriptDocumentCommandWrap,
-  solidScriptDocumentRangeMove,
-  solidScriptDocumentRangeRemove,
+  solidScriptDocumentLinesMove,
+  solidScriptDocumentLinesRemove,
 } from '@/solid_script/document/solid_script_document_edit.js';
 
 /**
@@ -91,15 +91,18 @@ describe('solid script document edits', () => {
 
   it('moves and removes exactly the lines asked for, End lines too', () => {
     const block = script('variable', 'translate', 'if', 'cube', 'else', 'sphere', 'end', 'end');
-    const moved = solidScriptDocumentRangeMove(block, 1, 1, 0);
+    const moved = solidScriptDocumentLinesMove(block, [1], 0);
     expect(lines(moved.document)).toEqual(['translate', 'variable', 'if', 'cube', 'else', 'sphere', 'end', 'end']);
     expect(moved.line).toBe(0);
-    const down = solidScriptDocumentRangeMove(block, 6, 7, 1);
+    const down = solidScriptDocumentLinesMove(block, [6, 7], 1);
     expect(lines(down.document)).toEqual(['variable', 'end', 'end', 'translate', 'if', 'cube', 'else', 'sphere']);
-    expect(solidScriptDocumentRangeMove(block, 2, 3, 3).document).toBe(block);
-    const removed = solidScriptDocumentRangeRemove(block, 1, 1);
+    expect(solidScriptDocumentLinesMove(block, [2, 3], 3).document).toBe(block);
+    const squashed = solidScriptDocumentLinesMove(block, [0, 3, 5], 7);
+    expect(lines(squashed.document)).toEqual(['translate', 'if', 'else', 'end', 'variable', 'cube', 'sphere', 'end']);
+    expect(squashed.line).toBe(4);
+    const removed = solidScriptDocumentLinesRemove(block, [1]);
     expect(lines(removed.document)).toEqual(['variable', 'if', 'cube', 'else', 'sphere', 'end', 'end']);
-    expect(lines(solidScriptDocumentRangeRemove(block, 7, 6).document)).toEqual(
+    expect(lines(solidScriptDocumentLinesRemove(block, [7, 6]).document)).toEqual(
       lines(script(...['variable', 'translate', 'if', 'cube', 'else', 'sphere'])),
     );
   });

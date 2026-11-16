@@ -30,8 +30,10 @@ export interface SolidScriptEditorRowHandlers {
   configure: (line: number) => void;
   /** The line got the keyboard focus. */
   focus: (line: number) => void;
-  /** The row was pressed; with Shift held the selection grows to it. */
-  press: (line: number, extend: boolean) => void;
+  /** The row was pressed; Shift grows the selection to it, Ctrl picks it alone. */
+  press: (line: number, extend: boolean, pick: boolean) => void;
+  /** A press on the row ended without a drag. */
+  release: (line: number) => void;
   /** Sets or clears the breakpoint of the line. */
   breakpoint: (line: number) => void;
 }
@@ -89,11 +91,14 @@ export function solidScriptEditorRowBuild(
   }
   row.addEventListener('mousedown', (event) => {
     if (event.button !== 0) return;
-    handlers.press(look.line, event.shiftKey);
+    handlers.press(look.line, event.shiftKey, event.ctrlKey || event.metaKey);
     if (event.shiftKey || (event.target !== chip && !chip.contains(event.target as Node))) {
       event.preventDefault();
       chip.focus();
     }
+  });
+  row.addEventListener('click', (event) => {
+    if (!event.shiftKey && !event.ctrlKey && !event.metaKey) handlers.release(look.line);
   });
   row.addEventListener('dblclick', () => handlers.configure(look.line));
   chip.addEventListener('keydown', (event) => handlers.key(event, look.line));

@@ -22,7 +22,7 @@ import {
 } from '@/solid_script/document/solid_script_document.js';
 import {
   solidScriptDocumentLineSet,
-  solidScriptDocumentRangeToggle,
+  solidScriptDocumentLinesToggle,
 } from '@/solid_script/document/solid_script_document_edit.js';
 
 let relayUp = false;
@@ -109,7 +109,7 @@ describe('SolidScript lines over relay', { timeout: 60000 }, () => {
     edit(owner, (document) =>
       solidScriptDocumentLineSet(document, 0, { ...document.blocks[0]!, values: { size: '2, 2, 2' } }),
     );
-    edit(peer, (document) => solidScriptDocumentRangeToggle(document, 2, 2).document);
+    edit(peer, (document) => solidScriptDocumentLinesToggle(document, [2]).document);
     edit(peer, (document) => {
       const blocks = [...document.blocks];
       blocks.splice(4, 0, solidScriptBlockCreate('torus'));

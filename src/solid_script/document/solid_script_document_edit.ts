@@ -124,27 +124,27 @@ export function solidScriptDocumentBlankInsert(document: SolidScriptDocument, in
 }
 
 /**
- * Moves lines before another line. Every line moves on its own, End and Else
- * lines too, so moving an opener out of its block leaves the rest where it was;
- * the structure check then names a missing or extra End on its line.
+ * Moves lines before another line, squashed together in their order. Every line
+ * moves on its own, End and Else lines too, so moving an opener out of its
+ * block leaves the rest where it was; the structure check then names a missing
+ * or extra End on its line.
  *
  * @param document Script.
- * @param first First line index to move.
- * @param last Last line index to move.
+ * @param lines Line indexes to move, in any order.
  * @param to Line index to move before; the line count moves to the end.
  * @returns Edited script and the new index of the first moved line.
  */
-export function solidScriptDocumentRangeMove(
+export function solidScriptDocumentLinesMove(
   document: SolidScriptDocument,
-  first: number,
-  last: number,
+  lines: readonly number[],
   to: number,
 ): SolidScriptInsertResult {
-  if (to >= first && to <= last + 1) return { document, line: first };
-  const blocks = [...document.blocks];
-  const moved = blocks.splice(first, last - first + 1);
-  const line = to > last ? to - moved.length : to;
-  blocks.splice(line, 0, ...moved);
+  const chosen = new Set(lines);
+  const moved = document.blocks.filter((_, line) => chosen.has(line));
+  const rest = document.blocks.filter((_, line) => !chosen.has(line));
+  const line = to - lines.filter((index) => index < to).length;
+  const blocks = [...rest.slice(0, line), ...moved, ...rest.slice(line)];
+  if (blocks.every((block, index) => block === document.blocks[index])) return { document, line: Math.min(...lines) };
   return { document: solidScriptDocumentWith(document, blocks), line };
 }
 
@@ -168,46 +168,40 @@ export function solidScriptDocumentLineSet(
 }
 
 /**
- * Removes exactly the lines of a range; an opener leaves its End behind, and an
- * End may go alone, like any other line.
+ * Removes exactly the given lines; an opener leaves its End behind, and an End
+ * may go alone, like any other line.
  *
  * @param document Script.
- * @param first First line index.
- * @param last Last line index.
+ * @param lines Line indexes to remove.
  * @returns Edited script and the line to focus.
  */
-export function solidScriptDocumentRangeRemove(
+export function solidScriptDocumentLinesRemove(
   document: SolidScriptDocument,
-  first: number,
-  last: number,
+  lines: readonly number[],
 ): SolidScriptInsertResult {
-  const from = Math.max(0, Math.min(first, last));
-  const to = Math.max(first, last);
-  const blocks = document.blocks.filter((_, line) => line < from || line > to);
+  const chosen = new Set(lines);
+  const blocks = document.blocks.filter((_, line) => !chosen.has(line));
+  const from = Math.max(0, Math.min(...lines));
   return { document: solidScriptDocumentWith(document, blocks), line: Math.max(0, Math.min(from, blocks.length - 1)) };
 }
 
 /**
- * Turns the lines of a range off, or on again when all of them are off. End and
- * Else lines follow the line that opens their block, so they are left as they
- * are.
+ * Turns the given lines off, or on again when all of them are off. End and Else
+ * lines follow the line that opens their block, so they are left as they are.
  *
  * @param document Script.
- * @param first First line index.
- * @param last Last line index.
+ * @param lines Line indexes.
  * @returns Edited script, and how many lines changed and whether they are off
  *   now.
  */
-export function solidScriptDocumentRangeToggle(
+export function solidScriptDocumentLinesToggle(
   document: SolidScriptDocument,
-  first: number,
-  last: number,
+  lines: readonly number[],
 ): { document: SolidScriptDocument; count: number; off: boolean } {
-  const from = Math.max(0, Math.min(first, last));
-  const to = Math.max(first, last);
+  const picked = new Set(lines);
   const togglable = (block: SolidScriptBlock, line: number): boolean => {
     const nesting = solidScriptCommandFind(block.command)?.nesting ?? 'none';
-    return line >= from && line <= to && (nesting === 'none' || nesting === 'open');
+    return picked.has(line) && (nesting === 'none' || nesting === 'open');
   };
   const chosen = document.blocks.filter(togglable);
   const off = !chosen.every((block) => block.off === true);

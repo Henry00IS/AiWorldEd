@@ -2,9 +2,9 @@ import type { SolidScriptDocument } from '@/solid_script/document/solid_script_d
 import {
   solidScriptDocumentBlankInsert,
   solidScriptDocumentLinesInsert,
-  solidScriptDocumentRangeMove,
-  solidScriptDocumentRangeRemove,
-  solidScriptDocumentRangeToggle,
+  solidScriptDocumentLinesMove,
+  solidScriptDocumentLinesRemove,
+  solidScriptDocumentLinesToggle,
 } from '@/solid_script/document/solid_script_document_edit.js';
 import { solidScriptEditorClipboardRead, solidScriptEditorClipboardWrite } from './solid_script_editor_clipboard.js';
 
@@ -16,12 +16,13 @@ export interface SolidScriptEditorLineKeysHost {
   edit: (document: SolidScriptDocument, line: number) => void;
   /** Focuses a line; true grows the selection to it. */
   focus: (line: number, extend: boolean) => void;
-  /** Selected lines, first and last. */
-  selection: () => [number, number];
+  /** Returns the selected lines in order: a Shift range or Ctrl-picked lines. */
+  selected: () => number[];
   /** Selects every line. */
   selectAll: () => void;
   /** Selects lines from the first to the last, focusing the last. */
   selectRange: (first: number, last: number) => void;
+  select: (lines: readonly number[]) => void;
   /** Opens the configurator of a line. */
   configure: (line: number) => void;
   /** Shows a short message. */
@@ -66,20 +67,20 @@ export class SolidScriptEditorLineKeys {
    * @param to Line index to move before.
    */
   move(from: number, to: number): void {
-    const [first, last] = this.rangeOf(from);
-    const moved = solidScriptDocumentRangeMove(this.host.document(), first, last, to);
-    if (moved.document !== this.host.document()) this.host.edit(moved.document, moved.line + (from - first));
+    const lines = this.linesOf(from);
+    const moved = solidScriptDocumentLinesMove(this.host.document(), lines, to);
+    if (moved.document !== this.host.document()) this.host.edit(moved.document, moved.line + lines.indexOf(from));
   }
 
   /**
    * Returns the selected lines when they hold a line, or the line alone.
    *
    * @param line Line index.
-   * @returns First and last line index.
+   * @returns Line indexes in order.
    */
-  private rangeOf(line: number): [number, number] {
-    const [first, last] = this.host.selection();
-    return line >= first && line <= last ? [first, last] : [line, line];
+  private linesOf(line: number): number[] {
+    const selected = this.host.selected();
+    return selected.includes(line) ? selected : [line];
   }
 
   /**
@@ -120,14 +121,14 @@ export class SolidScriptEditorLineKeys {
     const document = this.host.document();
     if (document.blocks.length === 0) return;
     event.preventDefault();
-    const [from, to] = this.host.selection();
+    const selected = this.host.selected();
     solidScriptEditorClipboardWrite(
-      document.blocks.slice(from, to + 1),
+      selected.map((line) => document.blocks[line]!),
       (event as ClipboardEvent).clipboardData ?? null,
     );
-    const count = to - from + 1;
+    const count = selected.length;
     if (cut) {
-      const removed = solidScriptDocumentRangeRemove(document, from, to);
+      const removed = solidScriptDocumentLinesRemove(document, selected);
       this.host.edit(removed.document, removed.line);
     }
     this.host.notice(`${cut ? 'Cut' : 'Copied'} ${count} ${count === 1 ? 'line' : 'lines'}.`);
@@ -143,7 +144,7 @@ export class SolidScriptEditorLineKeys {
     event.preventDefault();
     const lines = solidScriptEditorClipboardRead((event as ClipboardEvent).clipboardData ?? null);
     if (!lines || lines.length === 0) return this.host.notice('Copy lines with Ctrl+C first.');
-    this.insertSelected(this.host.selection()[1], lines);
+    this.insertSelected(this.host.selected().at(-1) ?? 0, lines);
     this.host.notice(`Pasted ${lines.length} ${lines.length === 1 ? 'line' : 'lines'}.`);
   }
 
@@ -153,14 +154,14 @@ export class SolidScriptEditorLineKeys {
    * @param line Line index.
    */
   toggle(line: number): void {
-    const [first, last] = this.rangeOf(line);
-    const toggled = solidScriptDocumentRangeToggle(this.host.document(), first, last);
+    const lines = this.linesOf(line);
+    const toggled = solidScriptDocumentLinesToggle(this.host.document(), lines);
     if (toggled.count === 0) return this.host.notice('End and Else lines follow the line that opens their block.');
-    const [from, to] = this.host.selection();
+    const selected = this.host.selected();
     this.host.edit(toggled.document, line);
-    if (from !== to) this.host.selectRange(from, to);
-    const lines = `${toggled.count} ${toggled.count === 1 ? 'line' : 'lines'}`;
-    this.host.notice(toggled.off ? `Turned ${lines} off; F4 turns them on again.` : `Turned ${lines} on.`);
+    if (selected.length > 1) this.host.select(selected);
+    const count = `${toggled.count} ${toggled.count === 1 ? 'line' : 'lines'}`;
+    this.host.notice(toggled.off ? `Turned ${count} off; F4 turns them on again.` : `Turned ${count} on.`);
   }
 
   /**
@@ -169,12 +170,12 @@ export class SolidScriptEditorLineKeys {
    * @param line Line index.
    */
   duplicate(line: number): void {
-    const [first, last] = this.rangeOf(line);
-    const lines = this.host
-      .document()
-      .blocks.slice(first, last + 1)
+    const picked = this.linesOf(line);
+    const blocks = this.host.document().blocks;
+    const lines = picked
+      .map((at) => blocks[at]!)
       .map(({ command, values, off }) => ({ command, values: { ...values }, ...(off ? { off } : {}) }));
-    this.insertSelected(last, lines);
+    this.insertSelected(picked.at(-1) ?? line, lines);
     this.host.notice(`Duplicated ${lines.length} ${lines.length === 1 ? 'line' : 'lines'}.`);
   }
 
@@ -197,7 +198,9 @@ export class SolidScriptEditorLineKeys {
    * @param up True moves up.
    */
   private moveStep(line: number, up: boolean): void {
-    const [first, last] = this.rangeOf(line);
+    const lines = this.linesOf(line);
+    const first = lines[0] ?? line;
+    const last = lines.at(-1) ?? line;
     if (up ? first > 0 : last + 1 < this.host.document().blocks.length) this.move(line, up ? first - 1 : last + 2);
   }
 
@@ -218,8 +221,7 @@ export class SolidScriptEditorLineKeys {
    * @param line Line index.
    */
   remove(line: number): void {
-    const [first, last] = this.rangeOf(line);
-    const removed = solidScriptDocumentRangeRemove(this.host.document(), first, last);
+    const removed = solidScriptDocumentLinesRemove(this.host.document(), this.linesOf(line));
     this.host.edit(removed.document, removed.line);
   }
 }
