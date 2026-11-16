@@ -10,6 +10,7 @@ import {
 import {
   SOLID_SCRIPT_EXAMPLE_CAPSULE,
   SOLID_SCRIPT_EXAMPLE_CONE,
+  SOLID_SCRIPT_EXAMPLE_COLUMN,
   SOLID_SCRIPT_EXAMPLE_CYLINDER,
   SOLID_SCRIPT_EXAMPLE_SPHERE,
 } from './solid_script_examples_round.js';
@@ -127,6 +128,7 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
   },
   solidScriptExamplePort('cylinder', 'Cylinder', SOLID_SCRIPT_EXAMPLE_CYLINDER),
   solidScriptExamplePort('cone', 'Cone', SOLID_SCRIPT_EXAMPLE_CONE),
+  solidScriptExamplePort('column', 'Column', SOLID_SCRIPT_EXAMPLE_COLUMN),
   solidScriptExamplePort('sphere', 'Sphere', SOLID_SCRIPT_EXAMPLE_SPHERE),
   solidScriptExamplePort('capsule', 'Capsule', SOLID_SCRIPT_EXAMPLE_CAPSULE),
   solidScriptExamplePort('pyramid', 'Pyramid', SOLID_SCRIPT_EXAMPLE_PYRAMID),

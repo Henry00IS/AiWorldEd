@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
+import { curveEncode } from '@/curve/model/curve_codec.js';
+import { curveFromPolyline } from '@/curve/model/curve_model.js';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptDocumentCreate } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptShapeLeavesPositive } from '@/solid_script/language/solid_script_shape.js';
@@ -69,6 +71,39 @@ function generatorPieces(kind: string, test: PortCase): string[] {
     .sort();
 }
 
+/** A profile that bulges out: one solid. */
+const SOLID_SCRIPT_TEST_BULGE = curveEncode(
+  curveFromPolyline([
+    [0, 0.4],
+    [0.3, 0.9],
+    [0.6, 1],
+    [1, 0.5],
+  ]),
+);
+
+/** A profile with a waist and a step: several solids. */
+const SOLID_SCRIPT_TEST_WAIST = curveEncode(
+  curveFromPolyline([
+    [0, 1],
+    [0.2, 1],
+    [0.2, 0.6],
+    [0.5, 0.4],
+    [0.8, 0.6],
+    [0.9, 0.8],
+    [1, 0.8],
+  ]),
+);
+
+/** A profile that ends in a tip, with a straight run through extra points. */
+const SOLID_SCRIPT_TEST_TIP = curveEncode(
+  curveFromPolyline([
+    [0, 1],
+    [0.25, 0.75],
+    [0.5, 0.5],
+    [1, 0],
+  ]),
+);
+
 /** Parameter sets per generator. */
 const PORT_CASES: Record<string, PortCase[]> = {
   cylinder: [
@@ -80,6 +115,12 @@ const PORT_CASES: Record<string, PortCase[]> = {
     { size: [2, 2, 2], parameters: {} },
     { size: [3, 2, 1], parameters: { sides: 9, topRadius: 0.4 } },
     { size: [1, 4, 3], parameters: { sides: 5, topRadius: 1 } },
+  ],
+  column: [
+    { size: [2, 2, 4], parameters: {} },
+    { size: [3, 2, 3], parameters: { sides: '12', aspect: 0.5, profile: SOLID_SCRIPT_TEST_BULGE } },
+    { size: [1, 1, 2], parameters: { sides: '6', profile: SOLID_SCRIPT_TEST_WAIST } },
+    { size: [2, 2, 2], parameters: { sides: '4', aspect: 2, profile: SOLID_SCRIPT_TEST_TIP } },
   ],
   sphere: [
     { size: [2, 2, 2], parameters: {} },

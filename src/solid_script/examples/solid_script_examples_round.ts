@@ -1,7 +1,12 @@
+import { curveEncode } from '@/curve/model/curve_codec.js';
+import { curvePresetBuild } from '@/curve/model/curve_preset.js';
+import { CURVE_PRESET_COLUMN_CLASSIC } from '@/curve/model/curve_preset_architecture.js';
 import type { SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 import {
   SOLID_SCRIPT_EXAMPLE_BOX_INPUTS,
+  solidScriptExampleBlock,
   solidScriptExampleIf,
+  solidScriptExampleLine,
   solidScriptExampleInput,
   solidScriptExampleNote,
   solidScriptExamplePoint,
@@ -111,4 +116,79 @@ export const SOLID_SCRIPT_EXAMPLE_CAPSULE: readonly SolidScriptLine[] = [
       ]),
     ]),
   ),
+];
+
+/**
+ * The classic column profile a new Column starts with, without its fixed
+ * heights.
+ */
+const { height: _height, ...SOLID_SCRIPT_EXAMPLE_COLUMN_CLASSIC } = CURVE_PRESET_COLUMN_CLASSIC;
+
+/** The classic profile as the text a Curve input holds. */
+const SOLID_SCRIPT_EXAMPLE_COLUMN_PROFILE = curveEncode(curvePresetBuild(SOLID_SCRIPT_EXAMPLE_COLUMN_CLASSIC));
+
+/** Port of the Column generator, for round sections. */
+export const SOLID_SCRIPT_EXAMPLE_COLUMN: readonly SolidScriptLine[] = [
+  solidScriptExampleNote(
+    'Column: the Profile curve is the radius along the height. Pieces that bulge outward join into one solid; where the curve turns inward a new solid starts.',
+  ),
+  ...SOLID_SCRIPT_EXAMPLE_BOX_INPUTS,
+  solidScriptExampleInput('profile', 'curve', SOLID_SCRIPT_EXAMPLE_COLUMN_PROFILE, { label: 'Profile' }),
+  solidScriptExampleInput('sides', 'choice', '8', { label: 'Sides', choices: '4, 6, 8, 12, 16, 24, 32' }),
+  solidScriptExampleInput('aspect', 'number', '1', { label: 'Depth / Width', min: '0.05', max: '20' }),
+  solidScriptExampleSet('radius', '[=min([width], [depth] / [aspect]) / 2]'),
+  solidScriptExampleSet('stations', '[=profile_points([profile], [height], [radius])]'),
+  solidScriptExampleNote('Sort the stations into runs: x is the height, y the radius, z the run.'),
+  solidScriptExampleLine('clear_variable', { name: 'marks' }),
+  solidScriptExampleSet('run', '-1'),
+  solidScriptExampleSet('open', 'no'),
+  solidScriptExampleSet('slope', '0'),
+  ...solidScriptExampleRepeat('k', '0', '[=len([stations]) - 2]', [
+    solidScriptExampleSet('a', '[stations([k])]'),
+    solidScriptExampleSet('b', '[stations([=[k] + 1])]'),
+    solidScriptExampleSet('rise', '[=[b.x] - [a.x]]'),
+    ...solidScriptExampleIf('abs([rise]) > 0.000001 or abs([b.y] - [a.y]) > 0.000001', [
+      ...solidScriptExampleIf(
+        '[rise] <= 0.000001 or max([a.y], [b.y]) <= 0.000001',
+        [solidScriptExampleSet('open', 'no')],
+        [
+          solidScriptExampleSet('step', '[=([b.y] - [a.y]) / [rise]]'),
+          ...solidScriptExampleIf(
+            '[open] and [step] <= [slope] + 0.000001',
+            [
+              ...solidScriptExampleIf('abs([step] - [slope]) <= 0.000000001', [
+                solidScriptExampleLine('remove_item', { target: 'marks()' }),
+              ]),
+              solidScriptExampleLine('add_item', { value: '[=vector([b.x], [b.y], [run])]', list: 'marks' }),
+            ],
+            [
+              solidScriptExampleSet('run', '[=[run] + 1]'),
+              solidScriptExampleLine('add_item', { value: '[=vector([a.x], [a.y], [run])]', list: 'marks' }),
+              solidScriptExampleLine('add_item', { value: '[=vector([b.x], [b.y], [run])]', list: 'marks' }),
+              solidScriptExampleSet('open', 'yes'),
+            ],
+          ),
+          solidScriptExampleSet('slope', '[step]'),
+        ],
+      ),
+    ]),
+  ]),
+  solidScriptExampleNote('Each run is one solid: a ring of corners per station, or a tip where the radius is zero.'),
+  ...solidScriptExampleRepeat('r', '0', '[run]', [
+    ...solidScriptExamplePolyhedron(
+      solidScriptExampleBlock('for_each', { variable: 'm', list: '[marks]' }, [
+        ...solidScriptExampleIf('[m.z] == [r]', [
+          solidScriptExampleSet('z', '[=[m.x] - [height] / 2]'),
+          ...solidScriptExampleIf(
+            '[m.y] <= 0.000001',
+            [solidScriptExamplePoint('0, 0, [z]')],
+            solidScriptExampleRepeat('i', '0', '[=[sides] - 1]', [
+              solidScriptExampleSet('angle', '[=([i] + 0.5) * 360 / [sides]]'),
+              solidScriptExamplePoint('[=cos([angle]) * [m.y]], [=-sin([angle]) * [m.y] * [aspect]], [z]'),
+            ]),
+          ),
+        ]),
+      ]),
+    ),
+  ]),
 ];
