@@ -203,8 +203,60 @@ export class SolidScriptEditorLines {
   render(document: SolidScriptDocument, focus: number | null): void {
     const kept = focus ?? this.focused();
     if (focus !== null) this.anchor = null;
+    this.caretLine = focus ?? this.caretLine;
+    const rebuilt = this.documentSet(document);
+    this.windowRender();
+    if (kept !== null && (rebuilt || focus !== null)) this.focusLine(kept);
+  }
+
+  /**
+   * Shows a script changed elsewhere, by another user, undo or redo, without
+   * moving anything for the person working here: the top line in view, the
+   * current line and the selection follow their lines by id, and the sideways
+   * scroll stays. A line that is gone hands its place to the line now there.
+   * The focus stays where it was.
+   *
+   * @param document Script.
+   */
+  renderKeeping(document: SolidScriptDocument): void {
+    const before = this.document.blocks;
+    const scroller = this.element;
+    const offset = scroller.scrollTop - SOLID_SCRIPT_EDITOR_LINES_TOP_PX;
+    const top = Math.max(0, Math.floor(offset / SOLID_SCRIPT_EDITOR_ROW_PX));
+    const within = offset - top * SOLID_SCRIPT_EDITOR_ROW_PX;
+    const left = scroller.scrollLeft;
+    const focused = this.focused() !== null;
+    const ids = new Map(document.blocks.map((block, line) => [block.id, line]));
+    const follow = (line: number): number => {
+      const id = before[line]?.id;
+      return (id === undefined ? undefined : ids.get(id)) ?? line;
+    };
+    const caret = follow(this.caretLine);
+    const anchor = this.anchor === null ? null : follow(this.anchor);
+    const shifted = follow(top) - top;
+    this.caretLine = caret;
+    this.documentSet(document);
+    this.anchor = anchor === null ? null : Math.max(0, Math.min(anchor, document.blocks.length - 1));
+    if (offset > 0)
+      scroller.scrollTop = SOLID_SCRIPT_EDITOR_LINES_TOP_PX + (top + shifted) * SOLID_SCRIPT_EDITOR_ROW_PX + within;
+    scroller.scrollLeft = left;
+    this.windowRender();
+    if (focused)
+      this.rowAt(this.caretLine)
+        ?.querySelector<HTMLElement>(`.${SOLID_SCRIPT_EDITOR_CLASSES.chip}`)
+        ?.focus({ preventScroll: true });
+  }
+
+  /**
+   * Takes a script: the line depths, closed blocks and off lines, and the rows
+   * when a line changed. The current line is kept inside the script.
+   *
+   * @param document Script.
+   * @returns True when the rows were rebuilt.
+   */
+  private documentSet(document: SolidScriptDocument): boolean {
     this.document = document;
-    this.caretLine = Math.max(0, Math.min(focus ?? this.caretLine, document.blocks.length - 1));
+    this.caretLine = Math.max(0, Math.min(this.caretLine, document.blocks.length - 1));
     const depths = solidScriptDocumentDepths(document);
     const closes = solidScriptDocumentClosedBlocks(document);
     this.offs = solidScriptDocumentOffLines(document);
@@ -212,8 +264,7 @@ export class SolidScriptEditorLines {
     const rebuilt = layout !== this.layout;
     this.layout = layout;
     if (rebuilt) this.rowsReset(depths, closes);
-    this.windowRender();
-    if (kept !== null && (rebuilt || focus !== null)) this.focusLine(kept);
+    return rebuilt;
   }
 
   /**

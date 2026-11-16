@@ -46,7 +46,12 @@ import { solidScriptEditorLoad, solidScriptEditorSave } from './solid_script_edi
 import { solidScriptFileDropBind, type SolidScriptFileDropResult } from './solid_script_file_drop.js';
 import { SOLID_SCRIPT_COMMAND_INPUT } from '@/solid_script/language/solid_script_input.js';
 
+/** Notice when another user deletes the line being configured. */
+const SOLID_SCRIPT_EDITOR_CONFIGURED_GONE =
+  'Someone else deleted the line you are changing. Your values were not stored; Cancel closes the window.';
+
 /** First size of the editor window. */
+
 const SOLID_SCRIPT_EDITOR_SIZE = { width: 940, height: 600 };
 
 /** Smallest size of the editor window. */
@@ -78,6 +83,8 @@ export class SolidScriptEditor extends PanelFloating {
   private readonly status = document.createElement('div');
   private readonly title = document.createElement('span');
   private revision = '';
+  /** Id of the line whose configurator is open, or null. */
+  private configuring: string | null = null;
   private notice = '';
   private tracing = false;
   private noticeTimer: ReturnType<typeof setTimeout> | null = null;
@@ -334,14 +341,24 @@ export class SolidScriptEditor extends PanelFloating {
     this.debugChanged();
   }
 
-  /** Follows undo, redo and edits of other users. */
+  /**
+   * Follows undo, redo and edits of other users without disturbing the view:
+   * the scroll, the current line, the selection and an open configurator stay.
+   * When someone else deletes the line being configured, a notice says so.
+   */
   private poll(): void {
     if (!this.session.exists()) return this.close();
     const revision = this.session.revision();
     if (revision === this.revision) return;
     this.revision = revision;
     this.debugger.stop();
-    this.render(null);
+    const document = this.session.document();
+    this.title.textContent = `SolidScript — ${this.session.name()}`;
+    this.lines.renderKeeping(document);
+    this.selectLine(this.lines.caret());
+    this.debugChanged();
+    if (this.configuring !== null && !document.blocks.some((block) => block.id === this.configuring))
+      this.noticeShow(SOLID_SCRIPT_EDITOR_CONFIGURED_GONE);
   }
 
   /**
@@ -508,12 +525,22 @@ export class SolidScriptEditor extends PanelFloating {
       );
     const names = solidScriptDocumentNamesAt(this.session.document(), line);
     const apply = (values: Record<string, string>): void => {
+      this.configuring = null;
       const document = this.session.document();
       const index = document.blocks.findIndex((candidate) => candidate.id === block.id);
-      if (index >= 0) this.commit(solidScriptDocumentLineSet(document, index, { ...block, values }), index);
+      if (index < 0) return this.noticeShow(SOLID_SCRIPT_EDITOR_CONFIGURED_GONE);
+      const current = document.blocks[index] ?? block;
+      this.commit(solidScriptDocumentLineSet(document, index, { ...current, values }), index);
     };
-    new SolidScriptConfigurator(this.root.ownerDocument.body, command, block.values, apply, names, (id) =>
-      this.commandReveal(id),
+    this.configuring = block.id;
+    new SolidScriptConfigurator(
+      this.root.ownerDocument.body,
+      command,
+      block.values,
+      apply,
+      names,
+      (id) => this.commandReveal(id),
+      () => (this.configuring = null),
     ).show();
   }
 

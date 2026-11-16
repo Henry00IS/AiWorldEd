@@ -498,6 +498,57 @@ describe('SolidScript editor', () => {
     expect(script().blocks.map((block) => block.off === true)).toEqual([false, true, true]);
   });
 
+  it('keeps the scroll, the current line, the selection and the focus when another user edits the script', () => {
+    vi.useFakeTimers();
+    try {
+      const { node, stepId, script } = editorFixture(Array.from({ length: 60 }, () => ({ command: 'cube' })));
+      const scroller = find('.solid-script-editor-lines');
+      scroller.scrollTop = 4 + 20 * 24 + 5;
+      chip(25).focus();
+      press(chip(25), 'ArrowDown', { shiftKey: true });
+      scroller.scrollLeft = 30;
+      const selected = () =>
+        [...document.querySelectorAll<HTMLElement>('.solid-script-editor-selected[data-line]')].map(
+          (row) => row.dataset['line'],
+        );
+      expect(selected()).toEqual(['25']);
+      const caretId = script().blocks[26]!.id;
+      const remote = script();
+      const added = solidScriptDocumentCreate([{ command: 'sphere' }, { command: 'sphere' }, { command: 'sphere' }]);
+      remote.blocks.splice(40, 1);
+      remote.blocks.unshift(...added.blocks);
+      modifierStackParametersCommit(node, stepId, { script: remote }, null);
+      vi.advanceTimersByTime(400);
+      expect(scroller.scrollTop).toBe(4 + 23 * 24 + 5);
+      expect(scroller.scrollLeft).toBe(30);
+      const focused = (document.activeElement as HTMLElement).closest<HTMLElement>('[data-line]');
+      expect(focused?.dataset['line']).toBe('29');
+      expect(script().blocks[29]!.id).toBe(caretId);
+      expect(selected()).toEqual(['28']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('tells the user when another user deletes the line they are configuring, and stores nothing', () => {
+    vi.useFakeTimers();
+    try {
+      const { node, stepId, script, root } = editorFixture([{ command: 'cube' }, { command: 'sphere' }]);
+      doubleClick(chip(0));
+      expect(document.querySelector('[data-solid-script-configurator="cube"]')).not.toBeNull();
+      const remote = script();
+      remote.blocks.splice(0, 1);
+      modifierStackParametersCommit(node, stepId, { script: remote }, null);
+      vi.advanceTimersByTime(400);
+      expect(root.textContent).toContain('Someone else deleted the line you are changing');
+      expect(document.querySelector('[data-solid-script-configurator="cube"]')).not.toBeNull();
+      tool('OK').click();
+      expect(script().blocks.map((block) => block.command)).toEqual(['sphere']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('shows how often each line ran beside it', () => {
     editorFixture([
       { command: 'repeat', values: { variable: 'i', from: '1', to: '5' } },

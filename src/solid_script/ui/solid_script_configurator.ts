@@ -33,6 +33,7 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
    * @param apply Stores the configured values.
    * @param names Names the script defines, for suggestions and checks.
    * @param open Opens a command the manual mentions in the palette, or null.
+   * @param cancelled Runs when the window closes without storing, or null.
    */
   constructor(
     host: HTMLElement,
@@ -41,6 +42,7 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
     private readonly apply: (values: Record<string, string>) => void,
     names: readonly SolidScriptName[] = [],
     private readonly open: SolidScriptEditorLinkOpen | null = null,
+    private readonly cancelled: (() => void) | null = null,
   ) {
     super(host, command.label, 'OK');
     this.root.dataset['solidScriptConfigurator'] = command.id;
@@ -102,7 +104,9 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
   }
 
   /** Leaves the line unchanged. */
-  protected cancel(): void {}
+  protected cancel(): void {
+    this.cancelled?.();
+  }
 
   /**
    * Reads every field.
