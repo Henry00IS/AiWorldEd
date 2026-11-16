@@ -346,7 +346,9 @@ describe('SolidScript editor', () => {
   it('reopens the configurator of a line on double-click or Enter and applies the change', () => {
     const { script } = editorFixture([{ command: 'translate' }, { command: 'cube' }, { command: 'end' }]);
     doubleClick(chip(0));
-    const fields = document.querySelectorAll<HTMLInputElement>('[data-solid-script-configurator="translate"] input');
+    const fields = document.querySelectorAll<HTMLInputElement>(
+      '[data-solid-script-configurator="translate"] input:not([hidden])',
+    );
     expect([...fields].map((input) => input.value)).toEqual(['0', '0', '0']);
     type(fields[2] as HTMLInputElement, '3');
     tool('OK').click();
@@ -387,12 +389,14 @@ describe('SolidScript editor', () => {
     expect(tool('OK').disabled).toBe(true);
     type(x, '');
     x.setSelectionRange(0, 0);
-    // Entering or clicking a field whose text before the caret ends with [ opens the list again; $[ is kept text.
+    // Entering a field leaves the list closed; clicking it opens the list at the caret.
     x.value = '[';
     x.setSelectionRange(1, 1);
     x.blur();
     expect(document.querySelector('[aria-label="Suggestions"]')).toBeNull();
     x.focus();
+    expect(document.querySelector('[aria-label="Suggestions"]')).toBeNull();
+    x.click();
     expect(
       [...document.querySelectorAll('[aria-label="Suggestions"] [role="option"]')].map(
         (option) => option.firstChild?.textContent,
@@ -956,6 +960,7 @@ describe('SolidScript editor', () => {
     doubleClick(chip(2));
     const of = find<HTMLInputElement>('[data-solid-script-configurator="select_faces"] input[aria-label="Of"]');
     of.focus();
+    of.click();
     const shown = [...document.querySelectorAll('body > .solid-script-editor-suggestions-host [role="option"]')].map(
       (option) => option.firstChild?.textContent,
     );
@@ -998,6 +1003,7 @@ describe('SolidScript editor', () => {
     doubleClick(chip(1));
     const which = find<HTMLInputElement>('[data-solid-script-configurator="select_faces"] input[aria-label="Which"]');
     which.focus();
+    which.click();
     const options = () =>
       [...document.querySelectorAll('body > .solid-script-editor-suggestions-host [role="option"]')].map(
         (option) => option.firstChild?.textContent,
@@ -1020,6 +1026,7 @@ describe('SolidScript editor', () => {
     expect(options()).toContain('Box.Width');
     const how = find<HTMLInputElement>('[data-solid-script-configurator="select_faces"] input[aria-label="How"]');
     how.focus();
+    how.click();
     expect(find('[aria-label="Suggestions"] .solid-script-editor-suggestion-heading').textContent).toBe('Choices');
     const add = [...document.querySelectorAll<HTMLElement>('[aria-label="Suggestions"] [role="option"]')].find(
       (option) => option.firstChild?.textContent === 'Add',

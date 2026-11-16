@@ -2,6 +2,7 @@ import { panelFloatingScopeMark } from '@/ui/floating_panel/panel_floating_scope
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
 import {
+  solidScriptSuggestionActive,
   solidScriptSuggestionContext,
   type SolidScriptSuggestionHint,
   solidScriptSuggestionHint,
@@ -14,6 +15,9 @@ import {
 
 /** Narrowest suggestion list, wider than most fields. */
 const SOLID_SCRIPT_SUGGESTIONS_WIDTH_PX = 560;
+
+/** Keys that move the caret, after which an open list follows it. */
+const SOLID_SCRIPT_SUGGESTIONS_CARET_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'Home', 'End']);
 
 /** Room the list needs below a field before it opens above it instead. */
 const SOLID_SCRIPT_SUGGESTIONS_ROOM_PX = 260;
@@ -100,10 +104,11 @@ function solidScriptSuggestionPlace(popup: HTMLElement, anchor: HTMLElement, wid
 
 /**
  * Autocomplete of a configurator text input, opened over the page so it is
- * never cut off. It follows the caret with the formula tokenizer: a field's
- * words outside brackets, names, system values and functions after [, values
- * and functions inside a [= formula with the call being typed shown on top.
- * Arrows pick, Enter or Tab insert, Escape closes.
+ * never cut off, opened by typing or clicking. It follows the caret with the
+ * formula tokenizer, starting on the suggestion the field already holds: a
+ * field's words outside brackets, names, system values and functions after [,
+ * values and functions inside a [= formula with the call being typed shown on
+ * top. Arrows pick, Enter or Tab insert, Escape closes.
  */
 export class SolidScriptConfiguratorNames {
   private readonly host = document.createElement('div');
@@ -129,9 +134,12 @@ export class SolidScriptConfiguratorNames {
     this.host.className = SOLID_SCRIPT_EDITOR_CLASSES.suggestionsHost;
     this.host.append(this.signature, solidScriptScrollerWrap(this.list, '1 1 auto', 0));
     panelFloatingScopeMark(this.host);
+    // Only the user opens the list, by typing or clicking; a field that gets the focus does not.
     input.addEventListener('input', () => this.update());
-    input.addEventListener('focus', () => this.reopen());
-    input.addEventListener('click', () => this.reopen());
+    input.addEventListener('click', () => this.update());
+    input.addEventListener('keyup', (event) => {
+      if (this.host.isConnected && SOLID_SCRIPT_SUGGESTIONS_CARET_KEYS.has(event.key)) this.update();
+    });
     input.addEventListener('keydown', (event) => this.key(event));
     input.addEventListener('blur', () => this.close());
   }
@@ -171,7 +179,7 @@ export class SolidScriptConfiguratorNames {
     const caret = this.input.selectionStart ?? this.input.value.length;
     const context = solidScriptSuggestionContext(this.input.value, caret, this.scope.words.length > 0);
     this.shown = solidScriptSuggestions(context, this.scope);
-    this.active = 0;
+    this.active = solidScriptSuggestionActive(this.shown, context);
     const hint = solidScriptSuggestionHint(context, this.scope);
     if (this.shown.length === 0 && !hint) return this.close();
     this.hintWrite(hint);
@@ -183,17 +191,6 @@ export class SolidScriptConfiguratorNames {
       Math.max(this.input.getBoundingClientRect().width, SOLID_SCRIPT_SUGGESTIONS_WIDTH_PX),
     );
     solidScriptSuggestionRowsHighlight(this.list, this.active);
-  }
-
-  /**
-   * Opens the list when the field is entered or clicked: always for a field of
-   * words, else when the text before the caret ends with an open [ (not a kept
-   * $[).
-   */
-  private reopen(): void {
-    if (this.host.isConnected) return;
-    const before = this.input.value.slice(0, this.input.selectionStart ?? this.input.value.length);
-    if (this.scope.words.length > 0 || (before.endsWith('[') && !before.endsWith('$['))) this.update();
   }
 
   /** Takes the list off the page. */
@@ -234,6 +231,7 @@ export class SolidScriptConfiguratorNames {
     this.input.value = written.text;
     this.input.setSelectionRange(written.caret, written.caret);
     this.close();
-    this.input.dispatchEvent(new Event('input', { bubbles: true }));
+    // A change, not typing, so the list stays closed until the next click or key.
+    this.input.dispatchEvent(new Event('change', { bubbles: true }));
   }
 }

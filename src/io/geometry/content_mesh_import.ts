@@ -9,6 +9,9 @@ import { extractHierarchyNameBase, hierarchyNameAllocator } from '@/utils/utils_
 import { EXPORT_SCENE_ROOT_NAME } from '@/io/scene/builder_export_scene.js';
 import { initializeMeshTextureUVs } from '@/texture/uv/face_texture_applier.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
+import { writeContentMeshTextureId } from '@/texture/uv/content_mesh_texture.js';
+import { rebuildSurfaceMaterials } from '@/texture/material/builder_surface_material.js';
+import { syncMeshDocumentTexturesFromDisplayMesh } from '@/mesh/convert/mesh_document_face_texture_sync.js';
 
 /**
  * Creates an imported content mesh that holds an editable document but no
@@ -32,19 +35,26 @@ export function contentMeshImportCreate(document: MeshDocument, baseName: string
  * Builds the display geometry of an imported mesh from its document. Every face
  * gets a world-space texture mapping fitted to its corner UVs, so the authored
  * UVs survive saving, reopening and texture lock; a mesh whose file had no
- * texture coordinates gets the editor's default checker mapping. The mesh's
- * world matrix must be final.
+ * texture coordinates gets the editor's default checker mapping. A texture
+ * paints the whole mesh with that library texture instead. The mesh's world
+ * matrix must be final.
  *
  * @param mesh Mesh made by {@link contentMeshImportCreate}.
  * @param hasAuthoredUvs Whether the document's corner UVs came from the file.
+ * @param textureId Library texture of the whole mesh; none keeps the file's or
+ *   the checker.
  */
-export function contentMeshImportFinalize(mesh: THREE.Mesh, hasAuthoredUvs: boolean): void {
+export function contentMeshImportFinalize(mesh: THREE.Mesh, hasAuthoredUvs: boolean, textureId?: string): void {
   const document = readPersistentMeshDocument(mesh);
   if (document === null) return;
   mesh.updateMatrixWorld(true);
   writeMeshDocumentDisplayGeometry(mesh, document);
   if (!hasAuthoredUvs) {
-    initializeMeshTextureUVs(mesh, DEFAULT_CHECKER_TEXTURE_ID);
+    initializeMeshTextureUVs(mesh, textureId ?? DEFAULT_CHECKER_TEXTURE_ID);
+  } else if (textureId !== undefined) {
+    writeContentMeshTextureId(mesh, textureId);
+    rebuildSurfaceMaterials(mesh);
+    syncMeshDocumentTexturesFromDisplayMesh(mesh);
   }
   enableFlatShadingOnMesh(mesh);
 }

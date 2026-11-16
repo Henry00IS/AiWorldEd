@@ -4,7 +4,9 @@ import {
   solidScriptDocumentNames,
   solidScriptDocumentNamesAt,
   solidScriptDocumentOrigins,
-  solidScriptFieldNamesUnknown,
+  solidScriptDocumentNamesUnknown,
+  solidScriptFieldKnown,
+  solidScriptFieldUnknown,
 } from '@/solid_script/document/solid_script_document_names.js';
 
 const SCRIPT = solidScriptDocumentCreate([
@@ -76,10 +78,40 @@ describe('SolidScript names', () => {
     expect(solidScriptDocumentNamesAt(scoped, 14).map((entry) => entry.name)).toEqual(['area', 'lift']);
   });
 
-  it('finds [names] no line defines, skipping escapes and built names', () => {
-    const known = new Set(['width', 'i']);
-    expect(solidScriptFieldNamesUnknown('[width], [depth], [=[i] * [h]]', known)).toEqual(['depth', 'h']);
-    expect(solidScriptFieldNamesUnknown('$[depth$] [part[i]] [points(0)]', known)).toEqual(['points']);
+  it('finds [names] and calls no line defines, skipping escapes and built names', () => {
+    const known = solidScriptFieldKnown(
+      [
+        { name: 'Width', category: 'Variables', line: 0, detail: '' },
+        { name: 'i', category: 'Counters', line: 0, detail: '' },
+        { name: 'Area', category: 'Functions', line: 0, detail: 'Area(w)' },
+      ],
+      ['x'],
+    );
+    const written = (text: string): string[] => solidScriptFieldUnknown(text, known).map((entry) => entry.written);
+    expect(written('[width], [depth], [=[i] * [h] + x]')).toEqual(['depth', 'h']);
+    expect(written('$[depth$] [part[i]] [points(0)] [Pos.x]')).toEqual(['points', 'Pos']);
+    expect(solidScriptFieldUnknown('[=Area(1) + Max(2, 3) + Spto(1) + [Local.A]]', known)).toEqual([
+      { written: 'Spto', key: 'spto()', call: true },
+      { written: 'Local.A', key: 'local.a', call: false },
+    ]);
+  });
+
+  it('marks per line the names and calls the line cannot see', () => {
+    const script = solidScriptDocumentCreate([
+      { command: 'function', values: { name: 'Spin', parameters: 'Angle' } },
+      { command: 'variable', values: { name: 'Local.Turn', value: '[=[Local.Anglex] + Local.Angle]' } },
+      { command: 'end' },
+      { command: 'variable', values: { name: 'Width', value: '[Widht]' } },
+      { command: 'variable', values: { name: 'Depth', value: '[=Spin([Width]) + Spn(1)]' } },
+      { command: 'variable', values: { name: 'Off', value: '[Local.Angle]' }, off: true },
+    ]);
+    expect(solidScriptDocumentNamesUnknown(script)).toEqual(
+      new Map([
+        [1, new Set(['local.anglex'])],
+        [3, new Set(['widht'])],
+        [4, new Set(['spn()'])],
+      ]),
+    );
   });
 });
 

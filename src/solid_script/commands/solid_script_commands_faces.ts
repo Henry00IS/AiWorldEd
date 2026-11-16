@@ -1,6 +1,14 @@
 import * as THREE from 'three';
-import { SolidScriptCommand, type SolidScriptCommandWord } from './solid_script_command.js';
-import { solidScriptListingOptions } from './solid_script_command_listing.js';
+import {
+  SolidScriptCommand,
+  type SolidScriptCommandParameter,
+  type SolidScriptCommandWord,
+} from './solid_script_command.js';
+import {
+  solidScriptListingOptions,
+  type SolidScriptListingPiece,
+  type SolidScriptListingValues,
+} from './solid_script_command_listing.js';
 import {
   solidScriptParameter,
   solidScriptParameterOptional,
@@ -11,6 +19,8 @@ import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_m
 import {
   solidScriptGeometryBevel,
   solidScriptGeometryEdges,
+  solidScriptGeometryFaceEdges,
+  solidScriptGeometryFaceVertices,
   solidScriptGeometryFaceFind,
   solidScriptGeometryFaceMatrix,
   solidScriptGeometryFacePrism,
@@ -21,7 +31,6 @@ import {
   solidScriptGeometryPick,
   solidScriptGeometryScatter,
   solidScriptGeometryVertices,
-  type SolidScriptEdgeFacts,
   type SolidScriptFaceFacts,
   type SolidScriptFacePick,
   type SolidScriptGeometryLeaf,
@@ -245,37 +254,93 @@ function solidScriptFaceDistance(run: SolidScriptBlockRun, what: string): number
   return number;
 }
 
+/** Where For Each Vertex and For Each Edge look, with what each means. */
+const SOLID_SCRIPT_FACE_IN_WORDS: readonly SolidScriptCommandWord[] = [
+  { word: 'Shapes', detail: 'Every shape built above, or those named in Of' },
+  { word: 'Selected Faces', detail: 'The faces the last Select Faces picked; shared ones once' },
+  { word: 'Current Face', detail: 'The face of the For Each Selected Face round, in order', sees: 'Face.Index' },
+];
+
 /**
- * Builds the variables of every round of a For Each Vertex or For Each Edge.
+ * Describes the In field of For Each Vertex and For Each Edge.
  *
- * @param shapes Shapes built above.
+ * @param what Corner points or edges.
+ * @returns Field.
+ */
+function solidScriptFaceParameterIn(what: string): SolidScriptCommandParameter {
+  return solidScriptParameterWords(
+    'in',
+    'In',
+    'text',
+    'Shapes',
+    `Where the ${what} come from: Shapes, Selected Faces or Current Face.`,
+    SOLID_SCRIPT_FACE_IN_WORDS,
+  );
+}
+
+/**
+ * Lists For Each Vertex or For Each Edge: In unless Shapes, then Of.
+ *
+ * @param label Command name.
+ * @param read Values.
+ * @returns Pieces.
+ */
+function solidScriptFaceInListing(label: string, read: SolidScriptListingValues): SolidScriptListingPiece[] {
+  const where = read.text('in').trim();
+  return [
+    label,
+    ...(where === '' || where === 'Shapes' ? [] : [' In ', where]),
+    ...(read.text('of') === '' ? [] : [' Of ', read.text('of')]),
+  ];
+}
+
+/**
+ * Builds the rounds of For Each Vertex or For Each Edge from where In says: the
+ * shapes above (or those named in Of), the picked faces, or the face of the For
+ * Each Selected Face round.
+ *
+ * @param run Running line.
  * @param what Vertices or edges.
  * @returns Rounds.
  */
-function solidScriptFaceRoundsOf(
-  shapes: readonly SolidScriptShape[],
-  what: 'vertex' | 'edge',
-): { variables: Record<string, SolidScriptValue>; face: null }[] {
+function solidScriptFaceCornerRounds(run: SolidScriptBlockRun, what: 'vertex' | 'edge'): SolidScriptShape[] {
+  const label = what === 'vertex' ? 'For Each Vertex' : 'For Each Edge';
+  const where = run.text('in').trim() || 'Shapes';
+  let faces: SolidScriptFaceFacts[] | null = null;
+  if (where === 'Selected Faces') {
+    faces = run.selection();
+    if (faces.length === 0) throw new Error(`${label} In Selected Faces needs a Select Faces line above it`);
+  } else if (where === 'Current Face') {
+    const current = run.faceCurrent();
+    if (!current) throw new Error(`${label} In Current Face only works inside For Each Selected Face`);
+    faces = [current];
+  } else if (where !== 'Shapes') throw new Error(`In must be Shapes, Selected Faces or Current Face, not "${where}"`);
+  if (!faces && run.pickable().length === 0)
+    throw new Error(`${label} reads the shapes built above it; add a shape such as Cube first`);
   if (what === 'vertex')
-    return solidScriptGeometryVertices(shapes).map((vertex) => ({
+    return run.looped(
+      (faces ? solidScriptGeometryFaceVertices(faces) : solidScriptGeometryVertices(run.pickable())).map((vertex) => ({
+        variables: {
+          'Vertex.Index': vertex.index,
+          'Vertex.Position': solidScriptFaceVector(vertex.position),
+          'Vertex.Normal': solidScriptFaceVector(vertex.normal),
+        },
+        face: null,
+      })),
+    );
+  return run.looped(
+    (faces ? solidScriptGeometryFaceEdges(faces) : solidScriptGeometryEdges(run.pickable())).map((edge) => ({
       variables: {
-        'Vertex.Index': vertex.index,
-        'Vertex.Position': solidScriptFaceVector(vertex.position),
-        'Vertex.Normal': solidScriptFaceVector(vertex.normal),
+        'Edge.Index': edge.index,
+        'Edge.Start': solidScriptFaceVector(edge.start),
+        'Edge.End': solidScriptFaceVector(edge.end),
+        'Edge.Middle': solidScriptFaceVector(edge.middle),
+        'Edge.Length': solidScriptFaceRound(edge.length),
+        'Edge.Direction': solidScriptFaceVector(edge.direction),
       },
       face: null,
-    }));
-  return solidScriptGeometryEdges(shapes).map((edge: SolidScriptEdgeFacts) => ({
-    variables: {
-      'Edge.Index': edge.index,
-      'Edge.Start': solidScriptFaceVector(edge.start),
-      'Edge.End': solidScriptFaceVector(edge.end),
-      'Edge.Middle': solidScriptFaceVector(edge.middle),
-      'Edge.Length': solidScriptFaceRound(edge.length),
-      'Edge.Direction': solidScriptFaceVector(edge.direction),
-    },
-    face: null,
-  }));
+    })),
+  );
 }
 
 /**
@@ -422,18 +487,18 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Run lines once per corner point',
     manual:
-      'Runs the lines inside once for every corner point of the shapes built above this line. Inside, [Vertex.Index] is its number, [Vertex.Position] where it is and [Vertex.Normal] the way the faces around it point. Example: For Each Vertex with Translate by [Vertex.Position] and a small Sphere puts a ball on every corner of a Cube.',
-    stops: [SOLID_SCRIPT_FACE_STOPS_NONE, 'A missing End line.'],
+      'Runs the lines inside once for every corner point. In says where: Shapes takes every shape built above this line (or those named in Of), Selected Faces the faces the last Select Faces picked, a corner they share counted once, and Current Face the face of the For Each Selected Face round, its corners in order around it. Inside, [Vertex.Index] is its number, [Vertex.Position] where it is and [Vertex.Normal] the way the faces around it point; for Current Face that is the way the face points. Example: For Each Vertex with Translate by [Vertex.Position] and a small Sphere puts a ball on every corner of a Cube; Select Faces Facing Up, For Each Selected Face, then For Each Vertex In Current Face puts one on each corner of the top only.',
+    stops: [
+      SOLID_SCRIPT_FACE_STOPS_NONE,
+      'In Selected Faces with no Select Faces above.',
+      'In Current Face outside For Each Selected Face.',
+      'A missing End line.',
+    ],
     nesting: 'open',
     endLabel: 'For Each',
-    parameters: [solidScriptParameterOf('corner points')],
-    listing: (read) => ['For Each Vertex', ...(read.text('of') === '' ? [] : [' Of ', read.text('of')])],
-    execute: (run) => {
-      const built = run.pickable();
-      if (built.length === 0)
-        throw new Error('For Each Vertex reads the shapes built above it; add a shape such as Cube first');
-      return run.looped(solidScriptFaceRoundsOf(built, 'vertex'));
-    },
+    parameters: [solidScriptFaceParameterIn('corner points'), solidScriptParameterOf('corner points')],
+    listing: (read) => solidScriptFaceInListing('For Each Vertex', read),
+    execute: (run) => solidScriptFaceCornerRounds(run, 'vertex'),
   }),
   new SolidScriptCommand({
     id: 'for_each_edge',
@@ -441,18 +506,18 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Run lines once per edge',
     manual:
-      'Runs the lines inside once for every edge of the shapes built above this line. Inside, [Edge.Index] is its number, [Edge.Start] and [Edge.End] its two ends, [Edge.Middle] its middle, [Edge.Length] how long it is and [Edge.Direction] the way it runs. Example: For Each Edge with Translate by [Edge.Middle] and a small Cube marks the middle of every edge.',
-    stops: [SOLID_SCRIPT_FACE_STOPS_NONE, 'A missing End line.'],
+      'Runs the lines inside once for every edge. In says where: Shapes takes every shape built above this line (or those named in Of), Selected Faces the faces the last Select Faces picked, an edge two of them share counted once, and Current Face the face of the For Each Selected Face round, its edges in order around it. Inside, [Edge.Index] is its number, [Edge.Start] and [Edge.End] its two ends, [Edge.Middle] its middle, [Edge.Length] how long it is and [Edge.Direction] the way it runs. Example: For Each Edge with Translate by [Edge.Middle] and a small Cube marks the middle of every edge; For Each Edge In Selected Faces after Select Faces Facing Up marks only the rim of the top.',
+    stops: [
+      SOLID_SCRIPT_FACE_STOPS_NONE,
+      'In Selected Faces with no Select Faces above.',
+      'In Current Face outside For Each Selected Face.',
+      'A missing End line.',
+    ],
     nesting: 'open',
     endLabel: 'For Each',
-    parameters: [solidScriptParameterOf('edges')],
-    listing: (read) => ['For Each Edge', ...(read.text('of') === '' ? [] : [' Of ', read.text('of')])],
-    execute: (run) => {
-      const built = run.pickable();
-      if (built.length === 0)
-        throw new Error('For Each Edge reads the shapes built above it; add a shape such as Cube first');
-      return run.looped(solidScriptFaceRoundsOf(built, 'edge'));
-    },
+    parameters: [solidScriptFaceParameterIn('edges'), solidScriptParameterOf('edges')],
+    listing: (read) => solidScriptFaceInListing('For Each Edge', read),
+    execute: (run) => solidScriptFaceCornerRounds(run, 'edge'),
   }),
   new SolidScriptCommand({
     id: 'place_on_face',
@@ -579,7 +644,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Paint shapes with a texture',
     manual:
-      "Gives every face of the brushes between this line and its End the texture named by Texture, the name a texture has in the texture library. Brushes outside any Texture block keep the generator's own texture, and an inner Texture block wins over an outer one. A texture Input picks the name from the library, so the inspector can change it. Meshes keep the generator's texture for now. Example: Input wall, texture, then Texture [Wall] around the walls paints them with the picked texture.",
+      "Gives every face of the brushes and meshes between this line and its End the texture named by Texture, the name a texture has in the texture library. Brushes outside any Texture block keep the generator's own texture, and an inner Texture block wins over an outer one. A texture Input picks the name from the library, so the inspector can change it. Example: Input wall, texture, then Texture [Wall] around the walls paints them with the picked texture.",
     stops: ['A missing End line.', 'A [Name] for a variable not set above this line.'],
     nesting: 'open',
     parameters: [
@@ -601,7 +666,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       return run.placed(
         shapes.map((shape) =>
           solidScriptShapeMapLeaves(shape, (leaf) =>
-            leaf.kind === 'solid' && leaf.texture === undefined ? { ...leaf, texture } : leaf,
+            (leaf.kind === 'solid' || leaf.kind === 'mesh') && leaf.texture === undefined ? { ...leaf, texture } : leaf,
           ),
         ),
       );

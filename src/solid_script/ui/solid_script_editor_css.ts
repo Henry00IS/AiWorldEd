@@ -8,6 +8,9 @@ const SOLID_SCRIPT_EDITOR_STYLE_ID = 'solid-script-editor-stylesheet';
 /** Font of script code. */
 export const SOLID_SCRIPT_EDITOR_CODE_FONT = 'Consolas, "Cascadia Mono", "SF Mono", Menlo, monospace';
 
+/** Indent per block level of a script line in pixels. */
+export const SOLID_SCRIPT_EDITOR_INDENT_PX = 20;
+
 /** Class names of the script editor. */
 export const SOLID_SCRIPT_EDITOR_CLASSES = {
   root: 'solid-script-editor',
@@ -100,6 +103,23 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
   explorerItem: 'solid-script-editor-explorer-item',
   explorerLines: 'solid-script-editor-explorer-lines',
   explorerLine: 'solid-script-editor-explorer-line',
+  tokenBracket: 'solid-script-editor-token-bracket',
+  tokenName: 'solid-script-editor-token-name',
+  tokenLocal: 'solid-script-editor-token-local',
+  tokenPersistent: 'solid-script-editor-token-persistent',
+  tokenSystem: 'solid-script-editor-token-system',
+  tokenFunction: 'solid-script-editor-token-function',
+  tokenNumber: 'solid-script-editor-token-number',
+  tokenString: 'solid-script-editor-token-string',
+  tokenOperator: 'solid-script-editor-token-operator',
+  tokenKeyword: 'solid-script-editor-token-keyword',
+  bracketAround: 'solid-script-editor-bracket-around',
+  squiggle: 'solid-script-editor-squiggle',
+  squiggleError: 'solid-script-editor-squiggle-error',
+  fieldCode: 'solid-script-editor-field-code',
+  fieldCodeLayer: 'solid-script-editor-field-code-layer',
+  guides: 'solid-script-editor-guides',
+  settingsGroup: 'solid-script-editor-settings-group',
 } as const;
 
 /** Accent colour of each palette category, readable on light and dark panels. */
@@ -177,6 +197,28 @@ const SOLID_SCRIPT_EDITOR_LINES_CSS = `
 .${c.listVariable} { color: #3d8fd6; font-weight: 700; }
 .${c.listNote} { color: #2f9e44; font-weight: 700; }
 .${c.unknown} .${c.listName} { color: #e5484d; }
+.${c.guides} { background-image: repeating-linear-gradient(to right, ${ThemeCss.inkAlpha(0.16)} 0 1px, transparent 1px ${SOLID_SCRIPT_EDITOR_INDENT_PX}px); background-repeat: no-repeat; background-position: 11px 0; }
+.${c.chip} > .${c.icon} { margin-right: 6px; }
+.${c.tokenBracket}, .${c.tokenOperator} { color: ${ThemeCss.mutedTextColor}; font-weight: 400; }
+.${c.tokenName} { color: #3d8fd6; }
+.${c.tokenLocal} { color: #2aa198; }
+.${c.tokenPersistent} { color: #9b6bd6; }
+.${c.tokenSystem} { color: #d4537e; }
+.${c.tokenFunction} { color: #c99a1e; }
+.${c.tokenNumber} { color: #4f9e6b; }
+.${c.tokenString} { color: #c2603a; }
+.${c.tokenKeyword} { color: #8a63c9; }
+.${c.bracketAround} { color: ${ThemeCss.textColor}; -webkit-text-stroke: 0.6px currentColor; }
+.${c.squiggle}, .${c.squiggleError} { text-decoration: underline wavy #d4a72c; text-decoration-skip-ink: none; text-underline-offset: 3px; }
+.${c.squiggleError} { text-decoration-color: #e5484d; }
+.${c.settingsGroup} { display: grid; gap: 4px; margin: 4px 0 0; padding: 6px 10px 8px; border: 1px solid ${ThemeCss.separatorColor}; border-radius: 5px; }
+.${c.settingsGroup} > legend { padding: 0 4px; font-weight: 600; }
+.${c.settingsGroup} > label { display: flex; gap: 6px; align-items: center; }
+.${c.fieldCode} { position: relative; display: flex; flex: 1; min-width: 0; }
+.${c.fieldCode}:has(> input[hidden]) { display: none; }
+.${c.fieldCode} > .${c.input} { color: transparent; caret-color: ${ThemeCss.inputTextColor}; }
+.${c.fieldCodeLayer} { position: absolute; inset: 0; display: flex; align-items: center; padding: 0 8px; overflow: hidden; white-space: pre; pointer-events: none; color: ${ThemeCss.inputTextColor}; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; }
+.${c.fieldCodeLayer} > span { white-space: pre; }
 .${c.row}.${c.dropBefore}::before, .${c.row}.${c.dropAfter}::after { content: ''; position: absolute; left: 44px; right: 0; height: 2px; background: ${ThemeCss.accentColor}; pointer-events: none; }
 .${c.row}.${c.dropBefore}::before { top: -1px; }
 .${c.row}.${c.dropAfter}::after { bottom: -1px; }

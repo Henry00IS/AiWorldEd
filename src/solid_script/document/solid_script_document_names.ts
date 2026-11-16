@@ -1,5 +1,9 @@
 import type { SolidScriptDocument } from './solid_script_document.js';
-import { solidScriptBlockNesting } from './solid_script_document_indent.js';
+import { solidScriptBlockNesting, solidScriptDocumentOffLines } from './solid_script_document_indent.js';
+import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
+import { solidScriptBuiltinFind } from '@/solid_script/language/solid_script_expression_compile.js';
+import { solidScriptFieldTokenKey, solidScriptFieldTokens } from '@/solid_script/language/solid_script_field_tokens.js';
+import { solidScriptFunctionKey, solidScriptNameKey } from '@/solid_script/language/solid_script_name_key.js';
 
 /** Kinds of name a script defines, in the order the editor lists them. */
 export const SOLID_SCRIPT_NAME_CATEGORIES = [
@@ -231,22 +235,100 @@ export function solidScriptDocumentOrigins(document: SolidScriptDocument): Map<s
   return origins;
 }
 
+/** Names and Functions a field may use, by key. */
+export interface SolidScriptFieldKnown {
+  /**
+   * Keys of the values: variables, inputs, counters, locals and names the
+   * command fills in.
+   */
+  names: ReadonlySet<string>;
+  /** Keys of the script's own Functions. */
+  functions: ReadonlySet<string>;
+}
+
+/** A [name] or call in a field that nothing defines. */
+export interface SolidScriptFieldUnknownName {
+  /** Name as written. */
+  written: string;
+  /** Key it is looked up by; a call ends with (). */
+  key: string;
+  /** True for a call of a Function. */
+  call: boolean;
+}
+
+/** Field kinds whose text is used as typed, without [name] or formulas. */
+export const SOLID_SCRIPT_NAMES_RAW: ReadonlySet<string> = new Set(['name', 'target', 'text']);
+
 /**
- * Returns the [name] references of a field that no line of the script defines,
- * for a warning while configuring. Names built from other names are skipped.
+ * Collects what a field may use from the names a line sees.
+ *
+ * @param names Names the line sees.
+ * @param extra Names the command fills in for its own formulas.
+ * @returns Known keys.
+ */
+export function solidScriptFieldKnown(
+  names: readonly SolidScriptName[],
+  extra: readonly string[],
+): SolidScriptFieldKnown {
+  const values = names.filter((entry) => !['Functions', 'Parts', 'Handlers'].includes(entry.category));
+  return {
+    names: new Set([...values.map((entry) => entry.name), ...extra].map(solidScriptNameKey)),
+    functions: new Set(
+      names.filter((entry) => entry.category === 'Functions').map((entry) => solidScriptFunctionKey(entry.name)),
+    ),
+  };
+}
+
+/**
+ * Returns the [name] references and calls of a field that nothing defines, each
+ * once: names no line sets, Local. names the Function does not have, and calls
+ * of functions that are neither built in nor a Function of the script. Names
+ * built from other names and Persistent. names are skipped.
  *
  * @param text Field text.
- * @param known Names a [name] may use.
- * @returns Unknown names, each once.
+ * @param known What the field may use.
+ * @returns Unknown names in field order.
  */
-export function solidScriptFieldNamesUnknown(text: string, known: ReadonlySet<string>): string[] {
-  const unknown: string[] = [];
-  const pattern = /\[([A-Za-z_][A-Za-z0-9_]*)(?=[\]()])/g;
-  for (const match of text.matchAll(pattern)) {
-    const start = match.index ?? 0;
-    if (start > 0 && text[start - 1] === '$') continue;
-    const name = match[1] ?? '';
-    if (!known.has(name) && !unknown.includes(name)) unknown.push(name);
+export function solidScriptFieldUnknown(text: string, known: SolidScriptFieldKnown): SolidScriptFieldUnknownName[] {
+  const unknown: SolidScriptFieldUnknownName[] = [];
+  for (const token of solidScriptFieldTokens(text)) {
+    const key = solidScriptFieldTokenKey(text, token);
+    if (key === null || unknown.some((entry) => entry.key === key)) continue;
+    const written = text.slice(token.from, token.to);
+    const call = token.kind === 'function';
+    const found = call
+      ? known.functions.has(key.slice(0, -2)) || solidScriptBuiltinFind(written) !== undefined
+      : known.names.has(key);
+    if (!found) unknown.push({ written: call ? written : written.replace(/\.[xyzXYZ]$/, ''), key, call });
   }
+  return unknown;
+}
+
+/**
+ * Finds, without running the script, the names and calls each line reads that
+ * it cannot see, for the editor's squiggles: what the line's fields use against
+ * the names at that line. Lines that are off are skipped.
+ *
+ * @param document Script.
+ * @returns Unknown keys per 0-based line, only for lines that have any.
+ */
+export function solidScriptDocumentNamesUnknown(document: SolidScriptDocument): Map<number, Set<string>> {
+  const unknown = new Map<number, Set<string>>();
+  const off = solidScriptDocumentOffLines(document);
+  document.blocks.forEach((block, line) => {
+    const command = solidScriptCommandFind(block.command);
+    if (!command || off[line]) return;
+    const texts = command.parameters
+      .filter((parameter) => !SOLID_SCRIPT_NAMES_RAW.has(parameter.type))
+      .map((parameter) => block.values[parameter.key] ?? '')
+      .filter((text) => /[[(]/.test(text));
+    if (texts.length === 0) return;
+    const known = solidScriptFieldKnown(
+      solidScriptDocumentNamesAt(document, line),
+      SOLID_SCRIPT_NAMES_COMMAND[command.id] ?? [],
+    );
+    const keys = new Set(texts.flatMap((text) => solidScriptFieldUnknown(text, known).map((entry) => entry.key)));
+    if (keys.size > 0) unknown.set(line, keys);
+  });
   return unknown;
 }

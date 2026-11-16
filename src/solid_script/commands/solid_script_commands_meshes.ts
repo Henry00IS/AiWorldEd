@@ -57,7 +57,7 @@ function solidScriptMeshInside(run: SolidScriptBlockRun, label: string): SolidSc
  */
 function solidScriptMeshesOf(shape: SolidScriptShape, label: string): SolidScriptShapeMesh[] {
   if (shape.kind === 'mesh') return [shape];
-  if (shape.kind === 'solid') return [solidScriptMeshFromSolid(shape.points, shape.label)];
+  if (shape.kind === 'solid') return [solidScriptMeshFromSolid(shape.points, shape.label, shape.texture)];
   if (shape.kind === 'polygon')
     throw new Error(`${label} needs solids or meshes; a flat outline becomes a solid inside Linear Extrude first`);
   if (shape.operation !== 'union')
@@ -82,7 +82,9 @@ function solidScriptMeshTool(
   change: (mesh: SolidScriptShapeMesh) => SolidScriptShapeMesh,
 ): SolidScriptShape[] {
   const mesh = solidScriptMeshInside(run, label);
-  return mesh ? run.mesh(change(mesh)) : [];
+  if (!mesh) return [];
+  const changed = change(mesh);
+  return run.mesh(mesh.texture === undefined ? changed : { ...changed, texture: mesh.texture });
 }
 
 /**

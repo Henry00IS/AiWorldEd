@@ -68,3 +68,28 @@ export function solidScriptNameDotProblem(name: string, use: 'read' | 'set'): st
   if (spelled) return use === 'set' ? `${spelled} is a built-in value and can only be read` : '';
   return `"${base}" cannot be a name: names use letters, digits and _. A dot only works in built-in names, such as Pos.x, Local.Width, Persistent.Count or Face.Center`;
 }
+
+/** Members of the built-in loop values that are vectors, such as Edge.Middle. */
+const SOLID_SCRIPT_SYSTEM_VECTOR_MEMBERS = new Set([
+  'center',
+  'normal',
+  'position',
+  'start',
+  'end',
+  'middle',
+  'direction',
+]);
+
+/**
+ * Tells whether a built-in value is a vector.
+ *
+ * @param name Name as written, such as Edge.Middle or Face.Center.x.
+ * @returns True or false for a built-in value, null for any other name.
+ */
+export function solidScriptSystemIsVector(name: string): boolean | null {
+  const [group = '', member = '', part] = name.toLowerCase().split('.');
+  if (!SOLID_SCRIPT_SYSTEM_SPELLINGS.has(`${group}.${member}`)) return null;
+  if (part !== undefined) return /^[xyz]$/.test(part) ? false : null;
+  const global = SOLID_SCRIPT_SYSTEM_GLOBALS.find((value) => value.name.toLowerCase() === `${group}.${member}`);
+  return global ? global.type === 'Vector' : SOLID_SCRIPT_SYSTEM_VECTOR_MEMBERS.has(member);
+}

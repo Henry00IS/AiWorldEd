@@ -138,3 +138,23 @@ describe('SolidScript listing', () => {
     ).toEqual(['note']);
   });
 });
+
+describe('SolidScript listing spacing', () => {
+  it('never shows two spaces in a row, with optional values empty or filled', () => {
+    const doubled: string[] = [];
+    for (const command of solidScriptCommands) {
+      const filled = Object.fromEntries(
+        command.parameters.map((parameter) => [
+          parameter.key,
+          parameter.words?.[0]?.word ?? (parameter.type === 'boolean' ? 'true' : 'A'),
+        ]),
+      );
+      const empty = Object.fromEntries(command.parameters.map((parameter) => [parameter.key, '']));
+      for (const values of [{}, empty, filled]) {
+        const text = command.listingText(values);
+        if (/ {2}/.test(text)) doubled.push(`${command.id}: ${text}`);
+      }
+    }
+    expect(doubled).toEqual([]);
+  });
+});

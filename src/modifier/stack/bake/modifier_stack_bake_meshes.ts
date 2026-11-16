@@ -38,7 +38,12 @@ export function modifierStackBakeMeshesCreate(volume: THREE.Object3D, parent: TH
     );
     toParent.clone().multiply(shown.matrixWorld).decompose(mesh.position, mesh.quaternion, mesh.scale);
     parent.add(mesh);
-    contentMeshImportFinalize(mesh, shown.userData['modifierStackMeshUvs'] === true);
+    const texture: unknown = shown.userData['modifierStackMeshTexture'];
+    contentMeshImportFinalize(
+      mesh,
+      shown.userData['modifierStackMeshUvs'] === true,
+      typeof texture === 'string' ? texture : undefined,
+    );
     parent.remove(mesh);
     return [{ mesh, parent }];
   });

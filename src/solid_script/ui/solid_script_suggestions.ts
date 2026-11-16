@@ -30,8 +30,15 @@ export interface SolidScriptSuggestionContext {
   kind: SolidScriptSuggestionKind;
   /** Index of the first character a pick replaces. */
   from: number;
-  /** Typed start of the word or name. */
+  /**
+   * Index after the last character a pick replaces: the whole word under the
+   * caret.
+   */
+  to: number;
+  /** The whole word or name under the caret, as if typed. */
   prefix: string;
+  /** False right after a value, where only the call is explained. */
+  offer: boolean;
   /** Call around the caret inside a formula, or null. */
   call: SolidScriptSuggestionCall | null;
 }
@@ -139,14 +146,31 @@ function solidScriptSuggestionCallFind(tokens: readonly SolidScriptToken[]): Sol
 }
 
 /**
- * Reads what is being typed at the caret with the formula tokenizer: a name
- * after [, a value or function inside a [= formula (and which call input it
- * is), or one of the field's words outside brackets.
+ * Finds the call around a spot of a formula.
+ *
+ * @param formula Formula text before the spot.
+ * @returns Call, or null outside calls or when the text cannot be read.
+ */
+function solidScriptSuggestionCallAt(formula: string): SolidScriptSuggestionCall | null {
+  try {
+    return solidScriptSuggestionCallFind(new SolidScriptLexer(formula).tokenize().slice(0, -1));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Reads the word under the caret with the formula tokenizer, as if it were
+ * being typed: a name in [ ], a value or function inside a [= formula (and
+ * which call input it is, also from inside a nested [name]), or the field's
+ * word outside brackets. The whole word counts, also the part after the caret,
+ * so a pick replaces all of it.
  *
  * @param text Field text.
  * @param caret Caret index.
  * @param words True when the field takes one of a few words.
- * @returns Context, or null where nothing fits, such as right after a number.
+ * @returns Context, or null where nothing fits, such as after a number outside
+ *   a call.
  */
 export function solidScriptSuggestionContext(
   text: string,
@@ -154,25 +178,38 @@ export function solidScriptSuggestionContext(
   words: boolean,
 ): SolidScriptSuggestionContext | null {
   const before = text.slice(0, caret);
-  const top = solidScriptSuggestionBrackets(before).at(-1);
-  if (!top) return words ? { kind: 'word', from: 0, prefix: before.trim(), call: null } : null;
+  const open = solidScriptSuggestionBrackets(before);
+  const top = open.at(-1);
+  if (!top)
+    return words ? { kind: 'word', from: 0, to: text.length, prefix: text.trim(), offer: true, call: null } : null;
+  const rest = /^[A-Za-z0-9_.]*/.exec(text.slice(caret))?.[0] ?? '';
   if (!top.formula) {
-    const prefix = before.slice(top.start + 1);
+    const prefix = before.slice(top.start + 1) + rest;
     if (prefix !== '' && !SOLID_SCRIPT_SUGGESTION_BRACKET.test(prefix)) return null;
-    return { kind: 'name', from: top.start, prefix, call: null };
+    const outer = open
+      .slice(0, -1)
+      .reverse()
+      .find((entry) => entry.formula);
+    const call = outer ? solidScriptSuggestionCallAt(before.slice(outer.start + 2, top.start)) : null;
+    return { kind: 'name', from: top.start, to: caret + rest.length, prefix, offer: true, call };
   }
   const formula = before.slice(top.start + 2);
-  const prefix = SOLID_SCRIPT_SUGGESTION_TAIL.exec(formula)?.[0] ?? '';
+  const typed = SOLID_SCRIPT_SUGGESTION_TAIL.exec(formula)?.[0] ?? '';
+  const prefix = typed + (typed === '' && !/^[A-Za-z_]/.test(rest) ? '' : rest);
   let tokens: SolidScriptToken[];
   try {
-    tokens = new SolidScriptLexer(formula.slice(0, formula.length - prefix.length)).tokenize().slice(0, -1);
+    tokens = new SolidScriptLexer(formula.slice(0, formula.length - typed.length)).tokenize().slice(0, -1);
   } catch {
     return null;
   }
+  const call = solidScriptSuggestionCallFind(tokens);
   const last = tokens.at(-1);
-  // After a value an operator comes, not another value.
-  if (last && (last.kind !== 'symbol' || last.text === ')' || last.text === ']' || last.text === '}')) return null;
-  return { kind: 'formula', from: caret - prefix.length, prefix, call: solidScriptSuggestionCallFind(tokens) };
+  const from = caret - typed.length;
+  const to = from + prefix.length;
+  // After a value an operator comes, not another value: only the call is explained.
+  if (last && (last.kind !== 'symbol' || last.text === ')' || last.text === ']' || last.text === '}'))
+    return call ? { kind: 'formula', from: caret, to: caret, prefix: '', offer: false, call } : null;
+  return { kind: 'formula', from, to, prefix, offer: true, call };
 }
 
 /**
@@ -271,7 +308,7 @@ export function solidScriptSuggestions(
   context: SolidScriptSuggestionContext | null,
   scope: SolidScriptSuggestionScope,
 ): SolidScriptSuggestion[] {
-  if (!context) return [];
+  if (!context?.offer) return [];
   const all = solidScriptSuggestionsAll(scope);
   const prefix = context.prefix.toLowerCase();
   if (context.kind === 'word') {
@@ -297,6 +334,25 @@ export function solidScriptSuggestions(
     )
     .map(({ entry }) => entry)
     .slice(0, SOLID_SCRIPT_SUGGESTIONS_MAX);
+}
+
+/**
+ * Picks the suggestion to start on: the one the field already holds, such as
+ * the current word of a field of words, else the first.
+ *
+ * @param suggestions Listed suggestions.
+ * @param context Typing context.
+ * @returns Index.
+ */
+export function solidScriptSuggestionActive(
+  suggestions: readonly SolidScriptSuggestion[],
+  context: SolidScriptSuggestionContext | null,
+): number {
+  const typed = context?.prefix.toLowerCase() ?? '';
+  return Math.max(
+    0,
+    suggestions.findIndex((entry) => entry.label.toLowerCase() === typed),
+  );
 }
 
 /**
@@ -406,10 +462,14 @@ export function solidScriptSuggestionWrite(
   let back = call ? 2 : 0;
   if (context?.kind === 'formula') {
     from = context.from;
-    insert = call ? `${suggestion.label}()` : suggestion.label;
-    back = call ? 1 : 0;
+    after = text.slice(context.to);
+    // A call that already has its brackets keeps them.
+    const called = call && after.startsWith('(');
+    insert = call && !called ? `${suggestion.label}()` : suggestion.label;
+    back = call && !called ? 1 : called ? -1 : 0;
   } else if (context?.kind === 'name') {
     from = context.from;
+    after = text.slice(context.to);
     if (after.startsWith(']')) after = after.slice(1);
   }
   const written = text.slice(0, from) + insert;

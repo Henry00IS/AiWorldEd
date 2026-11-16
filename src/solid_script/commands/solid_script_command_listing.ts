@@ -53,7 +53,8 @@ export function solidScriptListingValue(text: string): SolidScriptListingPart {
 }
 
 /**
- * Builds a listing from the command name and the rest of the line.
+ * Builds a listing from the command name and the rest of the line, with one
+ * space where two pieces meet.
  *
  * @param name Command name as listed.
  * @param rest Remaining pieces; strings become connecting words.
@@ -63,10 +64,20 @@ export function solidScriptListingBuild(
   name: string,
   rest: readonly SolidScriptListingPiece[],
 ): SolidScriptListingPart[] {
-  const parts = rest
-    .filter((piece): piece is SolidScriptListingPart | string => piece !== null && piece !== false && piece !== '')
-    .map((piece) => (typeof piece === 'string' ? { kind: 'word' as const, text: piece } : piece));
-  return [{ kind: 'name', text: parts.length > 0 ? `${name} ` : name }, ...parts];
+  const parts: SolidScriptListingPart[] = [{ kind: 'name', text: name }];
+  for (const piece of rest) {
+    if (piece === null || piece === false || piece === '') continue;
+    const part = typeof piece === 'string' ? { kind: 'word' as const, text: piece } : { ...piece };
+    const previous = parts[parts.length - 1]!;
+    if (previous.kind === 'name' && !/^\s/.test(part.text)) previous.text += ' ';
+    // One space where two pieces meet: a connecting word gives up its own.
+    if (previous.text.endsWith(' ') && part.text.startsWith(' ')) {
+      if (part.kind === 'word') part.text = part.text.trimStart();
+      else if (previous.kind === 'word' || previous.kind === 'name') previous.text = previous.text.trimEnd();
+    }
+    if (part.text !== '') parts.push(part);
+  }
+  return parts;
 }
 
 /**

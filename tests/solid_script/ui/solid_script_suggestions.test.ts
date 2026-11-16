@@ -8,6 +8,7 @@ import {
 } from '@/solid_script/language/solid_script_function_docs.js';
 import { solidScriptDocumentNames } from '@/solid_script/document/solid_script_document_names.js';
 import {
+  solidScriptSuggestionActive,
   solidScriptSuggestionContext,
   solidScriptSuggestionHint,
   solidScriptSuggestionHintSignature,
@@ -77,8 +78,40 @@ describe('SolidScript suggestion context', () => {
     expect(at('[=2 |')).toBeNull();
     expect(at('[="Abs|')).toBeNull();
     expect(at('Ad|', true)).toMatchObject({ kind: 'word', from: 0, prefix: 'Ad' });
-    expect(at('|New', true)).toMatchObject({ kind: 'word', prefix: '' });
+    expect(at('|New', true)).toMatchObject({ kind: 'word', prefix: 'New', to: 3 });
     expect(at('[|', true)).toMatchObject({ kind: 'name' });
+  });
+
+  it('reads the whole word under the caret and the call input it is in, like typing it', () => {
+    const text = '[=Spot([Middle], [RailAt], [Top])]';
+    const marked = (word: string, offset: number): string =>
+      text.slice(0, text.indexOf(word) + offset) + '|' + text.slice(text.indexOf(word) + offset);
+    expect(at(marked('Spot', 2))).toMatchObject({ kind: 'formula', from: 2, to: 6, prefix: 'Spot', call: null });
+    expect(at(marked('[Middle', 0))).toMatchObject({ kind: 'formula', call: { name: 'Spot', argument: 0 } });
+    expect(at(marked('[RailAt', 0))).toMatchObject({ call: { name: 'Spot', argument: 1 } });
+    expect(at(marked('Middle', 3))).toMatchObject({
+      kind: 'name',
+      from: 7,
+      to: 14,
+      prefix: 'Middle',
+      call: { name: 'Spot', argument: 0 },
+    });
+    expect(at(marked('Top', 1))).toMatchObject({ kind: 'name', prefix: 'Top', call: { name: 'Spot', argument: 2 } });
+    // Right after a value only the call is explained; nothing is offered.
+    const after = at(marked(', [RailAt', 0));
+    expect(after).toMatchObject({ offer: false, call: { name: 'Spot', argument: 0 } });
+    expect(solidScriptSuggestions(after, SCOPE)).toEqual([]);
+    expect(offered('[Wi|dth]')).toContain('Variables: Width');
+  });
+
+  it('starts on the suggestion that matches the field, such as its current word', () => {
+    const active = (marked: string): number => {
+      const context = at(marked, true);
+      return solidScriptSuggestionActive(solidScriptSuggestions(context, WORDY), context);
+    };
+    expect(active('Remove|')).toBe(2);
+    expect(active('|Add')).toBe(1);
+    expect(active('|')).toBe(0);
   });
 });
 
@@ -163,6 +196,9 @@ describe('SolidScript suggestions', () => {
     expect(pick('Abs', '[=1 + A|]')).toBe('[=1 + Abs(|)]');
     expect(pick('Box.Width', '[=|]')).toBe('[=Box.Width|]');
     expect(pick('Add', 'Ne|w', WORDY)).toBe('Add|');
+    expect(pick('Width', '[Wi|dth]')).toBe('[Width]|');
+    expect(pick('Width', '[=Abs(W|idt)]')).toBe('[=Abs(Width|)]');
+    expect(pick('Abs', '[=A|bs(1)]')).toBe('[=Abs(|1)]');
   });
 
   it('lists every value group after an open bracket', () => {

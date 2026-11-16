@@ -12,6 +12,8 @@ export interface SolidScriptMeshDocument {
   document: MeshDocument;
   /** True when the script gave texture coordinates. */
   hasUvs: boolean;
+  /** Library texture from a Texture block, or null for the default. */
+  texture: string | null;
 }
 
 /**
@@ -36,12 +38,18 @@ export function solidScriptMeshDocumentBuild(
   const faces = mesh.faces.map((face) => (flip ? [...face].reverse() : face));
   const hasUvs = mesh.uvs.some((uv) => uv !== null);
   const name = solidScriptCommandFind(mesh.label)?.label ?? mesh.label;
-  if (!hasUvs) return { name, document: meshDocumentFromPolygonList(positions, faces), hasUvs };
+  const texture = mesh.texture ?? null;
+  if (!hasUvs) return { name, document: meshDocumentFromPolygonList(positions, faces), hasUvs, texture };
   const corners: number[] = [];
   mesh.faces.forEach((face, index) => {
     const uv =
       mesh.uvs[index] ?? face.map((corner): [number, number] => [mesh.points[corner]!.x, -mesh.points[corner]!.z]);
     for (const [u, v] of flip ? [...uv].reverse() : uv) corners.push(u, v);
   });
-  return { name, document: meshDocumentFromPolygonList(positions, faces, new Float32Array(corners)), hasUvs };
+  return {
+    name,
+    document: meshDocumentFromPolygonList(positions, faces, new Float32Array(corners)),
+    hasUvs,
+    texture,
+  };
 }

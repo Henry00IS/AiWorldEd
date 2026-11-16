@@ -18,6 +18,8 @@ export interface ModifierStackMeshOutput {
   document: MeshDocument;
   /** True when the document carries texture coordinates of its own. */
   hasUvs: boolean;
+  /** Library texture of the whole mesh, or null for the default. */
+  texture: string | null;
   /** World matrix of the frame the document is in. */
   frame: THREE.Matrix4;
 }
@@ -44,10 +46,11 @@ export function modifierStackMeshesShow(volume: THREE.Object3D, meshes: readonly
     mesh.userData[MODIFIER_STACK_MESH_KEY] = true;
     mesh.userData[MODIFIER_VOLUME_BEVEL_EDGE_KEY] = true;
     mesh.userData['modifierStackMeshUvs'] = output.hasUvs;
+    mesh.userData['modifierStackMeshTexture'] = output.texture;
     toVolume.clone().multiply(output.frame).decompose(mesh.position, mesh.quaternion, mesh.scale);
     writePersistentMeshDocument(mesh, cloneMeshDocument(output.document));
     volume.add(mesh);
-    contentMeshImportFinalize(mesh, output.hasUvs);
+    contentMeshImportFinalize(mesh, output.hasUvs, output.texture ?? undefined);
     mesh.raycast = () => undefined;
     mesh.traverse((node) => {
       node.userData[MODIFIER_VOLUME_BEVEL_EDGE_KEY] = true;

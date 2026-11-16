@@ -5,7 +5,7 @@ import {
   type SolidScriptCompiled,
   type SolidScriptSlotFrame,
 } from './solid_script_expression_compile.js';
-import { solidScriptNameDotProblem } from './solid_script_name_rules.js';
+import { solidScriptNameDotProblem, solidScriptSystemIsVector } from './solid_script_name_rules.js';
 import type { SolidScriptValue } from './solid_script_value.js';
 import { solidScriptValueText } from './solid_script_value.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
@@ -615,4 +615,17 @@ export function solidScriptFieldIsVariable(text: string): boolean {
   return /^\[\s*(local\.|persistent\.)?[A-Za-z_]\w*(\.[A-Za-z_]\w*)?(\.[xyzXYZ])?(\s*\([^[\]]*\)(\s*\.\s*\w+)?)?\s*\]$/.test(
     text.trim(),
   );
+}
+
+/**
+ * Points out a vector field that reads a built-in number such as [Edge.Length]:
+ * it works, every axis gets the number, but it is often meant as a vector.
+ *
+ * @param text Field text.
+ * @returns Note, or an empty string.
+ */
+export function solidScriptFieldVectorNote(text: string): string {
+  const named = /^\[\s*([A-Za-z_][\w.]*)\s*\]$/.exec(text.trim())?.[1];
+  if (named === undefined || solidScriptSystemIsVector(named) !== false) return '';
+  return `[${named}] is a number, not a vector; every axis gets it`;
 }

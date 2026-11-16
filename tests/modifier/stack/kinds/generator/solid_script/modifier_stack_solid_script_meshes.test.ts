@@ -8,6 +8,7 @@ import { modifierStackMeshesShown } from '@/modifier/stack/meshes/modifier_stack
 import { CommandModifierVolumeBake } from '@/modifier/stack/bake/command_modifier_volume_bake.js';
 import { MODIFIER_STACK_BAKE_MESH_KEY } from '@/modifier/stack/bake/modifier_stack_bake_meshes.js';
 import { readPersistentMeshDocument } from '@/mesh/document/mesh_document_binding.js';
+import { readContentMeshTextureId } from '@/texture/uv/content_mesh_texture.js';
 import { SceneSerializer } from '@/io/scene/scene_serializer.js';
 import { isEditorHelperObject } from '@/utils/mesh_edge_sync.js';
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
@@ -105,6 +106,34 @@ describe('SolidScript generator meshes', () => {
     fixture.set({}, false);
     fixture.compile();
     expect(modifierStackMeshesShown(fixture.node)).toHaveLength(0);
+  });
+
+  it('paints a mesh with the Texture around or inside Box UVs, shown and baked', () => {
+    const texture: SolidScriptLine = { command: 'texture', values: { texture: 'Base/Blakm_d.bmp' } };
+    const uvs: SolidScriptLine = { command: 'box_uvs', values: { size: '1' } };
+    const torus: SolidScriptLine[] = [
+      { command: 'rotate_extrude', values: { angle: '360', sides: '16' } },
+      { command: 'translate', values: { v: '1, 0, 0' } },
+      { command: 'circle', values: { r: '0.5', sides: '8' } },
+      END,
+      END,
+    ];
+    for (const order of [
+      [texture, uvs],
+      [uvs, texture],
+    ]) {
+      const fixture = meshFixture(...order, ...torus, END, END);
+      fixture.compile();
+      const [shown] = modifierStackMeshesShown(fixture.node);
+      if (!shown) throw new Error('Expected a shown mesh');
+      expect(readContentMeshTextureId(shown)).toBe('Base/Blakm_d.bmp');
+      new CommandModifierVolumeBake(fixture.node).execute();
+      const baked = fixture.world.children.find(
+        (child): child is THREE.Mesh =>
+          child instanceof THREE.Mesh && child.userData[MODIFIER_STACK_BAKE_MESH_KEY] === true,
+      );
+      expect(baked && readContentMeshTextureId(baked)).toBe('Base/Blakm_d.bmp');
+    }
   });
 
   it('bakes shown meshes into regular editable meshes beside the solid, and undo takes them away', () => {

@@ -21,6 +21,11 @@ export interface SolidScriptShapeMesh {
    * automatic ones.
    */
   uvs: (SolidScriptUv[] | null)[];
+  /**
+   * Library texture of the whole mesh, from a Texture block; none keeps the
+   * default.
+   */
+  texture?: string;
 }
 
 /** Most corner points a mesh may have after an operation. */
@@ -55,9 +60,14 @@ export function solidScriptMeshChecked(mesh: SolidScriptShapeMesh): SolidScriptS
  *
  * @param points Corner points.
  * @param label Label.
+ * @param texture Texture of the solid, kept by the mesh.
  * @returns Mesh with outward faces.
  */
-export function solidScriptMeshFromSolid(points: readonly THREE.Vector3[], label: string): SolidScriptShapeMesh {
+export function solidScriptMeshFromSolid(
+  points: readonly THREE.Vector3[],
+  label: string,
+  texture?: string,
+): SolidScriptShapeMesh {
   const brush = solidHullBrushFromPoints(points.map((point) => point.clone()));
   if (!brush) throw new Error(`${label} is flat or degenerate; give it a non-zero size on all three axes`);
   const centre = brush.vertices
@@ -75,11 +85,13 @@ export function solidScriptMeshFromSolid(points: readonly THREE.Vector3[], label
     points: brush.vertices.map((point) => point.clone()),
     faces,
     uvs: faces.map(() => null),
+    ...(texture === undefined ? {} : { texture }),
   };
 }
 
 /**
- * Joins meshes into one, keeping every face.
+ * Joins meshes into one, keeping every face. A mesh holds one texture, so the
+ * result takes the first texture any of them has.
  *
  * @param meshes Meshes.
  * @param label Label of the result.
@@ -92,6 +104,7 @@ export function solidScriptMeshJoin(meshes: readonly SolidScriptShapeMesh[], lab
     joined.points.push(...mesh.points.map((point) => point.clone()));
     joined.faces.push(...mesh.faces.map((face) => face.map((corner) => corner + base)));
     joined.uvs.push(...mesh.uvs.map((uv) => (uv ? uv.map(([u, v]): SolidScriptUv => [u, v]) : null)));
+    if (joined.texture === undefined && mesh.texture !== undefined) joined.texture = mesh.texture;
   }
   return joined;
 }

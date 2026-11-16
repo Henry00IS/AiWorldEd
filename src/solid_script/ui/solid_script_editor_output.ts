@@ -7,6 +7,8 @@ import {
 } from '@/solid_script/language/solid_script_program.js';
 import type { SolidScriptLineProfile, SolidScriptWarning } from '@/solid_script/language/solid_script_machine_types.js';
 import { SolidScriptEditorExplorer } from './solid_script_editor_explorer.js';
+import { solidScriptDocumentNamesUnknown } from '@/solid_script/document/solid_script_document_names.js';
+import { solidScriptNameKey } from '@/solid_script/language/solid_script_name_key.js';
 import { solidScriptUseCheck } from '@/solid_script/language/solid_script_use_check.js';
 import type { SolidScriptEditorSettings } from './solid_script_editor_settings.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
@@ -46,6 +48,8 @@ export class SolidScriptEditorOutput {
   private readonly outputHost: HTMLElement;
   private readonly variablesHost: HTMLElement;
   private failed: number | null = null;
+  private failedKeys: ReadonlySet<string> = new Set();
+  private unknownShow: (unknown: ReadonlyMap<number, ReadonlySet<string>>) => void = () => undefined;
   private runs: ReadonlyMap<number, SolidScriptLineProfile> = new Map();
   private revealLine: (line: number) => void = () => undefined;
   private readonly settingsHost = document.createElement('div');
@@ -58,6 +62,11 @@ export class SolidScriptEditorOutput {
   set reveal(reveal: (line: number) => void) {
     this.explorer.reveal = reveal;
     this.revealLine = reveal;
+  }
+
+  /** Underlines what each line reads that nothing defines; set by the editor. */
+  set unknown(show: (unknown: ReadonlyMap<number, ReadonlySet<string>>) => void) {
+    this.unknownShow = show;
   }
 
   /** Adds an Input line through its configurator; set by the editor. */
@@ -106,6 +115,7 @@ export class SolidScriptEditorOutput {
       const result = solidScriptProgramEvaluate(document, { context: 'preview', ...options, profile: true });
       const count = result.steps.length;
       this.failed = null;
+      this.failedKeys = new Set();
       this.runs = result.profile;
       const solids = `${count} ${count === 1 ? 'solid' : 'solids'}${result.paused ? ' so far' : ''}`;
       this.text([solids, ...result.messages].join('\n'), false);
@@ -115,6 +125,9 @@ export class SolidScriptEditorOutput {
       const message = solidScriptErrorText(error);
       const failed = solidScriptErrorLine(message);
       this.failed = failed === null ? null : failed - 1;
+      // The [name] the error is about, underlined on its line.
+      const named = /\[([A-Za-z_][\w.]*)\]/.exec(message)?.[1];
+      this.failedKeys = new Set(named === undefined ? [] : [solidScriptNameKey(named)]);
       this.runs = new Map();
       this.text(message, true);
       this.output.append(this.checks);
@@ -138,6 +151,15 @@ export class SolidScriptEditorOutput {
    */
   failedLine(): number | null {
     return this.failed;
+  }
+
+  /**
+   * Returns the keys of the names the last error is about.
+   *
+   * @returns Keys.
+   */
+  failedNames(): ReadonlySet<string> {
+    return this.failedKeys;
   }
 
   /**
@@ -173,8 +195,8 @@ export class SolidScriptEditorOutput {
 
   /**
    * Checks the script once typing pauses and the page is idle, without running
-   * it, so typing never waits: lines a modifier would run that read Box
-   * values.
+   * it, so typing never waits: lines a modifier would run that read Box values,
+   * and names and calls the lines read that nothing defines.
    *
    * @param script Script.
    */
@@ -182,8 +204,10 @@ export class SolidScriptEditorOutput {
     if (this.checkTimer !== null) clearTimeout(this.checkTimer);
     this.checkTimer = setTimeout(() => {
       this.checkTimer = null;
-      const write = (): void =>
+      const write = (): void => {
         this.checks.replaceChildren(...solidScriptUseCheck(script).map((warning) => this.warningRow(warning)));
+        this.unknownShow(solidScriptDocumentNamesUnknown(script));
+      };
       const idle = this.element.ownerDocument.defaultView?.requestIdleCallback;
       if (idle) idle(write, { timeout: SOLID_SCRIPT_EDITOR_CHECK_IDLE_MS });
       else write();

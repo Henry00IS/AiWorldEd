@@ -5,13 +5,17 @@ import type { SolidScriptBlock } from '@/solid_script/document/solid_script_docu
 import { solidScriptBlockNesting } from '@/solid_script/document/solid_script_document_indent.js';
 import { solidScriptBlockIsBlank } from '@/solid_script/document/solid_script_document_edit.js';
 import { solidScriptBlockListing } from '@/solid_script/document/solid_script_document_listing.js';
-import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
+import {
+  SOLID_SCRIPT_EDITOR_CATEGORY_COLORS,
+  SOLID_SCRIPT_EDITOR_CLASSES,
+  SOLID_SCRIPT_EDITOR_INDENT_PX,
+} from './solid_script_editor_css.js';
+import { solidScriptEditorIcon } from './solid_script_editor_icons.js';
+import type { SolidScriptEditorView } from './solid_script_editor_view.js';
+import { solidScriptFieldHighlight } from './solid_script_field_highlight.js';
 
 /** Drag data type of a script line being moved. */
 export const SOLID_SCRIPT_EDITOR_DRAG_LINE = 'application/x-aiworlded-solidscript-line';
-
-/** Indent per block level in pixels. */
-const SOLID_SCRIPT_EDITOR_INDENT_PX = 20;
 
 /** Class of each kind of listing piece. */
 const SOLID_SCRIPT_EDITOR_LISTING_CLASSES: Readonly<Record<SolidScriptListingPart['kind'], string>> = {
@@ -48,6 +52,12 @@ export interface SolidScriptEditorRowLook {
   closes: string;
   /** True when the line is off, by itself or inside a block that is off. */
   off: boolean;
+  /** View switches. */
+  view: SolidScriptEditorView;
+  /** Keys of names and calls on the line nothing defines. */
+  unknown: ReadonlySet<string>;
+  /** Keys of names the error on this line points at. */
+  error: ReadonlySet<string>;
 }
 
 /**
@@ -81,7 +91,11 @@ export function solidScriptEditorRowBuild(
   chip.tabIndex = 0;
   chip.dataset['command'] = block.command;
   chip.style.paddingLeft = `${8 + look.depth * SOLID_SCRIPT_EDITOR_INDENT_PX}px`;
-  solidScriptEditorChipFill(chip, block, look.closes);
+  if (look.view.guides && look.depth > 0) {
+    chip.classList.add(SOLID_SCRIPT_EDITOR_CLASSES.guides);
+    chip.style.backgroundSize = `${look.depth * SOLID_SCRIPT_EDITOR_INDENT_PX}px 100%`;
+  }
+  solidScriptEditorChipFill(chip, block, look);
   row.append(gutter, chip);
   if (look.off) {
     row.classList.add(SOLID_SCRIPT_EDITOR_CLASSES.off);
@@ -112,13 +126,15 @@ export function solidScriptEditorRowBuild(
 
 /**
  * Fills a line with its listing: a blank line stays empty, an End names the
- * block it closes, and a command this editor does not know says so.
+ * block it closes, and a command this editor does not know says so. Values are
+ * highlighted like configurator fields, and the command's icon leads when
+ * switched on.
  *
  * @param chip Line element.
  * @param block Line.
- * @param closes Label of the block an End closes.
+ * @param look Closed block, view switches and marks.
  */
-function solidScriptEditorChipFill(chip: HTMLElement, block: SolidScriptBlock, closes: string): void {
+function solidScriptEditorChipFill(chip: HTMLElement, block: SolidScriptBlock, look: SolidScriptEditorRowLook): void {
   const command = solidScriptCommandFind(block.command);
   if (solidScriptBlockIsBlank(block)) {
     chip.classList.add(SOLID_SCRIPT_EDITOR_CLASSES.blank);
@@ -126,12 +142,17 @@ function solidScriptEditorChipFill(chip: HTMLElement, block: SolidScriptBlock, c
     chip.setAttribute('aria-label', 'Blank line');
     return;
   }
-  const parts = solidScriptBlockListing(block, closes);
+  const parts = solidScriptBlockListing(block, look.closes);
+  const marks = { view: look.view, unknown: look.unknown, error: look.error, caret: null };
+  if (look.view.icons && command)
+    chip.append(solidScriptEditorIcon(command.category, SOLID_SCRIPT_EDITOR_CATEGORY_COLORS[command.category]));
   chip.append(
     ...parts.map((part) => {
       const span = document.createElement('span');
       span.className = SOLID_SCRIPT_EDITOR_LISTING_CLASSES[part.kind];
-      span.textContent = part.text;
+      if (part.kind === 'value' || part.kind === 'variable')
+        span.append(...solidScriptFieldHighlight(part.text, marks));
+      else span.textContent = part.text;
       return span;
     }),
   );

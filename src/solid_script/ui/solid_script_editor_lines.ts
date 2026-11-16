@@ -21,10 +21,11 @@ import {
   type VirtualListScrollbarBinding,
 } from '@/ui/virtual_list/virtual_list_scrollbar_bind.js';
 import type { SolidScriptLineProfile } from '@/solid_script/language/solid_script_machine_types.js';
-import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
+import { SOLID_SCRIPT_EDITOR_CLASSES, SOLID_SCRIPT_EDITOR_INDENT_PX } from './solid_script_editor_css.js';
 import { SolidScriptEditorDrop, type SolidScriptEditorDropTarget } from './solid_script_editor_drop.js';
 import { solidScriptEditorRowBuild, type SolidScriptEditorRowHandlers } from './solid_script_editor_row.js';
 import { SolidScriptEditorLineKeys } from './solid_script_editor_line_keys.js';
+import { solidScriptEditorViewRead, type SolidScriptEditorView } from './solid_script_editor_view.js';
 
 /** Lines the debugger and the last run point at, as 0-based indices. */
 export interface SolidScriptEditorMarks {
@@ -32,6 +33,8 @@ export interface SolidScriptEditorMarks {
   stepped: number | null;
   /** Line of the error, or null. */
   failed: number | null;
+  /** Keys of the names the error points at, underlined on its line. */
+  error: ReadonlySet<string>;
   /** Lines the run has passed when tracing, empty otherwise. */
   traced: ReadonlySet<number>;
   /** Lines that hold a breakpoint. */
@@ -76,9 +79,6 @@ const SOLID_SCRIPT_EDITOR_GUTTER_PX = 44;
  */
 const SOLID_SCRIPT_EDITOR_CHAR_PX = 7.3;
 
-/** Indent per block level in pixels; matches the row indent. */
-const SOLID_SCRIPT_EDITOR_LINES_INDENT_PX = 20;
-
 /** Thickness of the custom scrollbars in pixels. */
 const SOLID_SCRIPT_EDITOR_SCROLLBAR_PX = 12;
 
@@ -111,12 +111,15 @@ export class SolidScriptEditorLines {
   private marks: SolidScriptEditorMarks = {
     stepped: null,
     failed: null,
+    error: new Set(),
     traced: new Set(),
     breakpoints: new Set(),
     atBreak: false,
     runs: new Map(),
   };
   private readonly built = new Map<number, HTMLElement>();
+  private view: SolidScriptEditorView = solidScriptEditorViewRead();
+  private unknown: ReadonlyMap<number, ReadonlySet<string>> = new Map();
   private readonly keys: SolidScriptEditorLineKeys;
   private readonly vertical: VirtualListScrollbarBinding;
   private readonly horizontal: VirtualListScrollbarBinding;
@@ -284,9 +287,48 @@ export class SolidScriptEditorLines {
    * @param marks Lines to highlight.
    */
   mark(marks: SolidScriptEditorMarks): void {
+    const before = this.marks;
+    if (before.failed !== marks.failed || [...before.error].join() !== [...marks.error].join())
+      this.rowsForget([before.failed, marks.failed]);
     this.marks = marks;
     if (marks.stepped !== null) this.reveal(marks.stepped);
     this.windowRender();
+  }
+
+  /**
+   * Shows the lines with other view switches.
+   *
+   * @param view View switches.
+   */
+  viewSet(view: SolidScriptEditorView): void {
+    this.view = view;
+    this.rowsForget([...this.built.keys()]);
+    this.windowRender();
+  }
+
+  /**
+   * Underlines the names and calls each line reads that nothing defines.
+   *
+   * @param unknown Unknown keys per line, from the idle check.
+   */
+  unknownSet(unknown: ReadonlyMap<number, ReadonlySet<string>>): void {
+    const changed = [...new Set([...this.unknown.keys(), ...unknown.keys()])];
+    this.unknown = unknown;
+    this.rowsForget(changed);
+    this.windowRender();
+  }
+
+  /**
+   * Drops built rows so they are built again with new marks.
+   *
+   * @param lines Line indexes; null entries are skipped.
+   */
+  private rowsForget(lines: readonly (number | null)[]): void {
+    for (const line of lines) {
+      if (line === null) continue;
+      this.built.get(line)?.remove();
+      this.built.delete(line);
+    }
   }
 
   /**
@@ -392,7 +434,7 @@ export class SolidScriptEditorLines {
     if (top < scroller.scrollTop) scroller.scrollTop = top;
     else if (height > 0 && top + SOLID_SCRIPT_EDITOR_ROW_PX > scroller.scrollTop + height)
       scroller.scrollTop = top + SOLID_SCRIPT_EDITOR_ROW_PX - height;
-    const text = (this.depths[line] ?? 0) * SOLID_SCRIPT_EDITOR_LINES_INDENT_PX;
+    const text = (this.depths[line] ?? 0) * SOLID_SCRIPT_EDITOR_INDENT_PX;
     const width = scroller.clientWidth - SOLID_SCRIPT_EDITOR_GUTTER_PX - SOLID_SCRIPT_EDITOR_SCROLLBAR_PX;
     if (text < scroller.scrollLeft || (width > 0 && text > scroller.scrollLeft + width - 48))
       scroller.scrollLeft = Math.max(0, text - 16);
@@ -418,7 +460,7 @@ export class SolidScriptEditorLines {
         (block, line) =>
           SOLID_SCRIPT_EDITOR_GUTTER_PX +
           32 +
-          (depths[line] ?? 0) * SOLID_SCRIPT_EDITOR_LINES_INDENT_PX +
+          (depths[line] ?? 0) * SOLID_SCRIPT_EDITOR_INDENT_PX +
           solidScriptListingText(solidScriptBlockListing(block, closes[line] ?? '')).length *
             SOLID_SCRIPT_EDITOR_CHAR_PX,
       ),
@@ -498,7 +540,15 @@ export class SolidScriptEditorLines {
     };
     const row = solidScriptEditorRowBuild(
       block,
-      { line, depth: this.depths[line] ?? 0, closes: this.closes[line] ?? '', off: this.offs[line] ?? false },
+      {
+        line,
+        depth: this.depths[line] ?? 0,
+        closes: this.closes[line] ?? '',
+        off: this.offs[line] ?? false,
+        view: this.view,
+        unknown: this.unknown.get(line) ?? new Set(),
+        error: line === this.marks.failed ? this.marks.error : new Set(),
+      },
       handlers,
     );
     row.style.top = `${SOLID_SCRIPT_EDITOR_LINES_TOP_PX + line * SOLID_SCRIPT_EDITOR_ROW_PX}px`;

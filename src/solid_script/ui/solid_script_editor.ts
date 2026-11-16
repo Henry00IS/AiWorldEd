@@ -124,11 +124,13 @@ export class SolidScriptEditor extends PanelFloating {
       breakpoint: (line) => this.breakpointToggle(line),
     });
     this.output.reveal = (line) => this.lines.focusLine(line);
+    this.output.unknown = (unknown) => this.lines.unknownSet(unknown);
     this.output.settingsSet(
       new SolidScriptEditorSettings(
         this.session.use(),
         (document) => this.commit(document, null),
         (text) => this.noticeShow(text),
+        (view) => this.lines.viewSet(view),
       ),
     );
     this.output.inputAdd = () => {
@@ -402,7 +404,8 @@ export class SolidScriptEditor extends PanelFloating {
     const traced = new Set(this.tracing ? this.debugger.passedLines() : []);
     const breakpoints = this.breakpointLines();
     const runs = this.output.lineRuns();
-    this.lines.mark({ stepped, failed: this.output.failedLine(), traced, breakpoints, atBreak, runs });
+    const failed = this.output.failedLine();
+    this.lines.mark({ stepped, failed, error: this.output.failedNames(), traced, breakpoints, atBreak, runs });
     this.toolbar.stateShow(this.debugger.stateGet(), atBreak);
     this.statusRefresh();
   }

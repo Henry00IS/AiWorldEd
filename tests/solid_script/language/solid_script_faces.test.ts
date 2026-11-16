@@ -246,6 +246,61 @@ describe('SolidScript faces', () => {
     expect(edges.messages).toEqual(Array.from({ length: 12 }, () => '2'));
   });
 
+  it('loops over the corners and edges of the shapes, the picked faces or the face of the round', () => {
+    const echo = (value: string): SolidScriptLine => ({ command: 'echo', values: { value } });
+    const vertex = (where: string): SolidScriptLine => ({ command: 'for_each_vertex', values: { in: where } });
+    const edge = (where: string): SolidScriptLine => ({ command: 'for_each_edge', values: { in: where } });
+    const messages = (...lines: SolidScriptLine[]) => {
+      const result = run(CUBE, ...lines);
+      expect(result.error).toBeNull();
+      return result.messages;
+    };
+    const round = (line: SolidScriptLine, value: string) =>
+      messages(select('Facing Up'), { command: 'for_each_selected_face' }, line, echo(value), END, END);
+    const corners = round(vertex('Current Face'), '[Vertex.Index] [Vertex.Normal]');
+    expect(corners.map((message) => message.split(' ')[0])).toEqual(['0', '1', '2', '3']);
+    expect(new Set(corners.map((message) => message.split(' ').slice(1).join(' '))).size).toBe(1);
+    expect(round(edge('Current Face'), '[Edge.Length]')).toEqual(['2', '2', '2', '2']);
+    // Shared corners and edges of the picked faces count once.
+    expect(messages(select('Facing Up'), vertex('Selected Faces'), echo('v'), END)).toHaveLength(4);
+    expect(messages(select('All'), vertex('Selected Faces'), echo('v'), END)).toHaveLength(8);
+    expect(messages(select('All'), edge('Selected Faces'), echo('e'), END)).toHaveLength(12);
+    // Shapes stays the default: a pick above does not change it.
+    expect(messages(select('Facing Up'), { command: 'for_each_vertex' }, echo('v'), END)).toHaveLength(8);
+    expect(run(CUBE, vertex('Current Face'), END).error?.message).toContain('inside For Each Selected Face');
+    expect(run(CUBE, edge('Selected Faces'), END).error?.message).toContain('Select Faces');
+    expect(
+      solidScriptDocumentListing(solidScriptDocumentCreate([vertex('Current Face'), END, edge('Shapes'), END])),
+    ).toEqual(['For Each Vertex In Current Face', 'End For Each', 'For Each Edge', 'End For Each']);
+  });
+
+  it('walks the edges and corners of whole polygons, never the diagonals that split them into triangles', () => {
+    const echo: SolidScriptLine = { command: 'echo', values: { value: 'x' } };
+    const count = (shape: SolidScriptLine, ...lines: SolidScriptLine[]) => {
+      const result = run(shape, ...lines);
+      expect(result.error).toBeNull();
+      return result.messages.length;
+    };
+    const top = (shape: SolidScriptLine) =>
+      count(
+        shape,
+        select('Facing Up'),
+        { command: 'for_each_selected_face' },
+        { command: 'for_each_edge', values: { in: 'Current Face' } },
+        echo,
+        END,
+        END,
+      );
+    expect(count(CUBE, { command: 'for_each_edge' }, echo, END)).toBe(12);
+    expect(count(CUBE, { command: 'for_each_vertex' }, echo, END)).toBe(8);
+    expect(top(CUBE)).toBe(4);
+    // An eight-sided cylinder: its caps are octagons, not fans of triangles.
+    const cylinder: SolidScriptLine = { command: 'cylinder', values: { sides: '8', center: 'true' } };
+    expect(count(cylinder, { command: 'for_each_edge' }, echo, END)).toBe(24);
+    expect(count(cylinder, { command: 'for_each_vertex' }, echo, END)).toBe(16);
+    expect(top(cylinder)).toBe(8);
+  });
+
   it('scatters points over the picked faces by area, the same for the same seed', () => {
     const scatter = (seed: string) =>
       run(

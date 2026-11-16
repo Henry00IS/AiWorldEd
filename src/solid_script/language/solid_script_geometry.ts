@@ -274,6 +274,66 @@ export function solidScriptGeometryEdges(shapes: readonly SolidScriptShape[]): S
   return edges;
 }
 
+/**
+ * Key of a corner point by where it is, so faces that share it find it once.
+ *
+ * @param point Corner.
+ * @returns Key.
+ */
+function solidScriptGeometryPointKey(point: THREE.Vector3): string {
+  return `${point.x.toFixed(5)},${point.y.toFixed(5)},${point.z.toFixed(5)}`;
+}
+
+/**
+ * Reads the corner points of faces in their order around each face, a corner
+ * that faces share once, pointing the average way of its faces.
+ *
+ * @param faces Faces.
+ * @returns Corners.
+ */
+export function solidScriptGeometryFaceVertices(faces: readonly SolidScriptFaceFacts[]): SolidScriptVertexFacts[] {
+  const found = new Map<string, SolidScriptVertexFacts>();
+  for (const face of faces)
+    for (const corner of face.corners) {
+      const key = solidScriptGeometryPointKey(corner);
+      const known = found.get(key);
+      if (known) known.normal.add(face.normal);
+      else found.set(key, { index: found.size, position: corner.clone(), normal: face.normal.clone() });
+    }
+  return [...found.values()].map((vertex) => ({ ...vertex, normal: vertex.normal.normalize() }));
+}
+
+/**
+ * Reads the edges of faces in their order around each face, an edge that two
+ * faces share once.
+ *
+ * @param faces Faces.
+ * @returns Edges.
+ */
+export function solidScriptGeometryFaceEdges(faces: readonly SolidScriptFaceFacts[]): SolidScriptEdgeFacts[] {
+  const found = new Map<string, SolidScriptEdgeFacts>();
+  for (const face of faces)
+    face.corners.forEach((corner, at) => {
+      const next = face.corners[(at + 1) % face.corners.length]!;
+      const ends = [solidScriptGeometryPointKey(corner), solidScriptGeometryPointKey(next)].sort().join('|');
+      const known = found.get(ends);
+      if (known) {
+        known.faces[1] ??= face;
+        return;
+      }
+      found.set(ends, {
+        index: found.size,
+        start: corner.clone(),
+        end: next.clone(),
+        middle: corner.clone().add(next).multiplyScalar(0.5),
+        length: corner.distanceTo(next),
+        direction: next.clone().sub(corner).normalize(),
+        faces: [face, null],
+      });
+    });
+  return [...found.values()];
+}
+
 /** Ways to pick faces. */
 export type SolidScriptFacePick =
   | { by: 'all' }
