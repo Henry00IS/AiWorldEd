@@ -31,6 +31,20 @@ export function solidScriptRotateMatrix(args: SolidScriptBlockArguments): THREE.
 }
 
 /**
+ * Matrix of an Align To block: the shortest turn that makes +Z point along the
+ * direction.
+ *
+ * @param args Block fields.
+ * @returns Matrix.
+ */
+export function solidScriptAlignMatrix(args: SolidScriptBlockArguments): THREE.Matrix4 {
+  const direction = new THREE.Vector3(...args.vector('direction', [0, 0, 1]));
+  if (direction.lengthSq() < 1e-18) throw new Error('Direction needs a direction that is not 0, 0, 0');
+  const turn = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), direction.normalize());
+  return new THREE.Matrix4().makeRotationFromQuaternion(turn);
+}
+
+/**
  * Matrix of a Scale block.
  *
  * @param args Block fields.

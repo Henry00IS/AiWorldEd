@@ -5,6 +5,7 @@ import {
   SOLID_SCRIPT_EXAMPLE_PILLAR_RING,
   SOLID_SCRIPT_EXAMPLE_STEPPING_STONES,
   SOLID_SCRIPT_EXAMPLE_PEBBLES,
+  SOLID_SCRIPT_EXAMPLE_SPIKY_BALL,
 } from './solid_script_examples_basics.js';
 import {
   SOLID_SCRIPT_EXAMPLE_CAPSULE,
@@ -115,6 +116,14 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
     summary: 'Pebbles scattered over the top of a slab with For Each Scattered Point; the Seed picks the layout.',
     port: null,
     lines: SOLID_SCRIPT_EXAMPLE_PEBBLES,
+  },
+  {
+    id: 'spikyBall',
+    name: 'Spiky Ball',
+    group: 'Basics',
+    summary: 'Cones growing out of a ball: scattered points, with Align To turning each one to its face.',
+    port: null,
+    lines: SOLID_SCRIPT_EXAMPLE_SPIKY_BALL,
   },
   solidScriptExamplePort('cylinder', 'Cylinder', SOLID_SCRIPT_EXAMPLE_CYLINDER),
   solidScriptExamplePort('cone', 'Cone', SOLID_SCRIPT_EXAMPLE_CONE),

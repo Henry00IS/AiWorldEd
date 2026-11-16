@@ -205,6 +205,18 @@ describe('SolidScript faces', () => {
     ).toMatch(/Count/);
   });
 
+  it('aligns the lines inside so their Z points along a direction', () => {
+    const tall = { command: 'cube', values: { size: '0.2, 0.2, 1', center: 'false' } };
+    const sideways = run({ command: 'align', values: { direction: '1, 0, 0' } }, tall, END);
+    expect(sideways.error).toBeNull();
+    const points = solids(sideways.shapes)[0]!;
+    const xs = points.map((point) => Math.round(point.x * 1000) / 1000);
+    expect([Math.min(...xs), Math.max(...xs)]).toEqual([0, 1]);
+    const down = run({ command: 'align', values: { direction: '0, 0, -2' } }, tall, END);
+    expect(zRange(solids(down.shapes)[0]!)).toEqual([-1, 0]);
+    expect(run({ command: 'align', values: { direction: '0, 0, 0' } }, tall, END).error?.message).toMatch(/Direction/);
+  });
+
   it('stops with plain errors', () => {
     expect(run(select('Facing Up')).error?.message).toMatch(/add a shape such as Cube first/);
     expect(run(CUBE, select('Sideways')).error?.message).toMatch(/Which must be one of/);

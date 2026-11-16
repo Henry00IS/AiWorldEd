@@ -4,6 +4,7 @@ import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import { solidScriptParameter, solidScriptParameterCenter } from './solid_script_command_parameters.js';
 import {
   solidScriptMirrorMatrix,
+  solidScriptAlignMatrix,
   solidScriptRotateMatrix,
   solidScriptScaleMatrix,
   solidScriptTranslateMatrix,
@@ -62,6 +63,21 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     parameters: [solidScriptParameter('a', 'Angles', 'vector3', '0, 0, 0', 'Degrees around X, then Y, then Z.')],
     listing: (read) => ['Rotate', 'by ', read.value('a'), ' degrees'],
     execute: (run) => run.transformed(solidScriptRotateMatrix(run.fields())),
+  }),
+  new SolidScriptCommand({
+    id: 'align',
+    label: 'Align To',
+    category: 'Transforms',
+    description: 'Turn shapes to point along a direction',
+    manual:
+      'Turns every shape between this line and its End so that its upright Z axis points along Direction, by the shortest turn around the origin. Example: inside For Each Scattered Point, Translate by [Point.Position] with Align To [Point.Normal] and a thin Cylinder grows a spike straight out of every face.',
+    stops: ['A Direction of 0, 0, 0.', SOLID_SCRIPT_STOPS_EMPTY, SOLID_SCRIPT_STOPS_END],
+    nesting: 'open',
+    parameters: [
+      solidScriptParameter('direction', 'Direction', 'vector3', '0, 0, 1', 'Where Z should point, such as 1, 0, 0.'),
+    ],
+    listing: (read) => ['Align To', ' ', read.value('direction')],
+    execute: (run) => run.transformed(solidScriptAlignMatrix(run.fields())),
   }),
   new SolidScriptCommand({
     id: 'scale',

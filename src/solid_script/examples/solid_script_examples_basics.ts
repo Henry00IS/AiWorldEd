@@ -81,3 +81,21 @@ export const SOLID_SCRIPT_EXAMPLE_PEBBLES: readonly SolidScriptLine[] = [
   { command: 'end' },
   { command: 'end' },
 ];
+
+/** Spikes growing straight out of a ball at scattered points. */
+export const SOLID_SCRIPT_EXAMPLE_SPIKY_BALL: readonly SolidScriptLine[] = [
+  { command: 'note', values: { text: 'Align To turns each spike so its Z follows the face it stands on' } },
+  {
+    command: 'input',
+    values: { name: 'spikes', type: 'count', default: '30', min: '1', max: '200', label: 'Spikes' },
+  },
+  { command: 'sphere', values: { r: '1' } },
+  { command: 'select_faces', values: { which: 'All' } },
+  { command: 'for_each_scattered_point', values: { count: '[spikes]', seed: '5' } },
+  { command: 'translate', values: { v: '[Point.Position]' } },
+  { command: 'align', values: { direction: '[Point.Normal]' } },
+  { command: 'cylinder', values: { h: '0.5', r1: '0.08', r2: '0' } },
+  { command: 'end' },
+  { command: 'end' },
+  { command: 'end' },
+];
