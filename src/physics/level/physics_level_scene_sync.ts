@@ -182,8 +182,8 @@ export class PhysicsLevelSceneSync {
   }
 
   /**
-   * Visits one visible object: solid models end the descent, collidable meshes
-   * are tracked, other objects recurse into children.
+   * Visits one visible object: solid models track their result, collidable
+   * meshes are tracked, and the descent goes on into children.
    *
    * @param object Scene object.
    */
@@ -204,7 +204,9 @@ export class PhysicsLevelSceneSync {
   }
 
   /**
-   * Tracks the result of a registered solid model when it is visible.
+   * Tracks the result of a registered solid model when it is visible, and the
+   * meshes inside the model that are not part of it, such as the meshes its
+   * generators build.
    *
    * @param root Solid model root object.
    */
@@ -214,6 +216,11 @@ export class PhysicsLevelSceneSync {
       return;
     }
     const resultMesh = model.getResultMesh();
+    for (const child of root.children) {
+      if (child !== resultMesh) {
+        this.visitObject(child);
+      }
+    }
     if (!resultMesh.visible) {
       return;
     }

@@ -1,3 +1,4 @@
+import { MODIFIER_STACK_MESH_KEY } from '@/modifier/stack/meshes/modifier_stack_meshes.js';
 import * as THREE from 'three';
 import { modifierVolumeIs } from '@/modifier/volume/modifier_volume_is.js';
 import { isEditorHelperObject } from '@/utils/mesh_edge_sync.js';
@@ -291,7 +292,8 @@ export function playerCollisionBudget(focus: readonly THREE.Vector3[], milliseco
  * Returns whether an ordinary scene mesh participates in player collision.
  *
  * @param mesh Scene mesh (solid model results are handled separately).
- * @returns True for visible meshes with triangles that are not helpers.
+ * @returns True for visible meshes with triangles that are not helpers; the
+ *   meshes generators build count as level meshes.
  */
 export function playerCollisionIsCollidableMesh(mesh: THREE.Mesh): boolean {
   if (!mesh.geometry || !playerCollisionHasUsableTriangles(mesh.geometry)) {
@@ -300,7 +302,7 @@ export function playerCollisionIsCollidableMesh(mesh: THREE.Mesh): boolean {
   if (playerCollisionIsExcludedObject(mesh)) {
     return false;
   }
-  if (isResultMesh(mesh)) {
+  if (isResultMesh(mesh) || mesh.userData[MODIFIER_STACK_MESH_KEY] === true) {
     return true;
   }
   return !isEditorHelperObject(mesh);

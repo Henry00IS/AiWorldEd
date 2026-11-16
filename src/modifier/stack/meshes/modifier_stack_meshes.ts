@@ -26,8 +26,9 @@ export interface ModifierStackMeshOutput {
 
 /**
  * Shows the meshes a volume's generators built as children of the volume,
- * replacing the ones shown before. They are editor helpers: never saved,
- * listed, picked or collided with; baking turns them into regular meshes.
+ * replacing the ones shown before. They are never saved, listed or picked, but
+ * they collide in play like other meshes; baking turns them into regular
+ * meshes.
  *
  * @param volume Modifier volume or generator node.
  * @param meshes Meshes of this evaluation.
