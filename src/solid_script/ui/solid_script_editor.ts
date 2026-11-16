@@ -508,9 +508,7 @@ export class SolidScriptEditor extends PanelFloating {
     const at = wraps && selected ? selected[0] : mode === 'caret' ? line + 1 : line;
     const names = solidScriptDocumentNamesAt(this.session.document(), at);
     const values = { ...found.valuesDefault(), ...start };
-    new SolidScriptConfigurator(this.root.ownerDocument.body, found, values, place, names, (id) =>
-      this.commandReveal(id),
-    ).show();
+    new SolidScriptConfigurator(this.root.ownerDocument.body, found, values, place, names).show();
   }
 
   /**
@@ -554,7 +552,6 @@ export class SolidScriptEditor extends PanelFloating {
       block.values,
       apply,
       names,
-      (id) => this.commandReveal(id),
       () => (this.configuring = null),
     ).show();
   }

@@ -23,7 +23,7 @@ const SOLID_SCRIPT_SUGGESTIONS_ROOM_PX = 260;
  * @param suggestions Suggestions in group order.
  * @param press Runs when a row is pressed, with its index.
  */
-export function solidScriptSuggestionRows(
+function solidScriptSuggestionRows(
   list: HTMLElement,
   suggestions: readonly SolidScriptSuggestion[],
   press: (index: number) => void,
@@ -64,7 +64,7 @@ export function solidScriptSuggestionRows(
  * @param list List element.
  * @param active Picked index.
  */
-export function solidScriptSuggestionRowsHighlight(list: HTMLElement, active: number): void {
+function solidScriptSuggestionRowsHighlight(list: HTMLElement, active: number): void {
   for (const row of list.querySelectorAll<HTMLElement>('[role="option"]')) {
     const picked = Number(row.dataset['index']) === active;
     row.setAttribute('aria-selected', String(picked));
@@ -79,19 +79,13 @@ export function solidScriptSuggestionRowsHighlight(list: HTMLElement, active: nu
  * @param popup Popup with fixed position.
  * @param anchor Element it belongs to.
  * @param width Popup width.
- * @param alignRight True to line up the right edges.
  */
-export function solidScriptSuggestionPlace(
-  popup: HTMLElement,
-  anchor: HTMLElement,
-  width: number,
-  alignRight: boolean,
-): void {
+function solidScriptSuggestionPlace(popup: HTMLElement, anchor: HTMLElement, width: number): void {
   const box = anchor.getBoundingClientRect();
   const view = anchor.ownerDocument.defaultView;
   const viewWidth = view?.innerWidth ?? width;
   const viewHeight = view?.innerHeight ?? 0;
-  const left = Math.max(4, Math.min(alignRight ? box.right - width : box.left, viewWidth - width - 4));
+  const left = Math.max(4, Math.min(box.left, viewWidth - width - 4));
   popup.style.left = `${left}px`;
   popup.style.width = `${width}px`;
   const below = viewHeight - box.bottom >= SOLID_SCRIPT_SUGGESTIONS_ROOM_PX || box.top < viewHeight - box.bottom;
@@ -131,9 +125,8 @@ export class SolidScriptConfiguratorNames {
     this.host.append(this.signature, solidScriptScrollerWrap(this.list, '1 1 auto', 0));
     panelFloatingScopeMark(this.host);
     input.addEventListener('input', () => this.update());
-    input.addEventListener('focus', () => {
-      if (scope.words.length > 0) this.update();
-    });
+    input.addEventListener('focus', () => this.reopen());
+    input.addEventListener('click', () => this.reopen());
     input.addEventListener('keydown', (event) => this.key(event));
     input.addEventListener('blur', () => this.close());
   }
@@ -154,9 +147,19 @@ export class SolidScriptConfiguratorNames {
       this.host,
       this.input,
       Math.max(this.input.getBoundingClientRect().width, SOLID_SCRIPT_SUGGESTIONS_WIDTH_PX),
-      false,
     );
     solidScriptSuggestionRowsHighlight(this.list, this.active);
+  }
+
+  /**
+   * Opens the list when the field is entered or clicked: always for a field of
+   * words, else when the text before the caret ends with an open [ (not a kept
+   * $[).
+   */
+  private reopen(): void {
+    if (this.host.isConnected) return;
+    const before = this.input.value.slice(0, this.input.selectionStart ?? this.input.value.length);
+    if (this.scope.words.length > 0 || (before.endsWith('[') && !before.endsWith('$['))) this.update();
   }
 
   /** Takes the list off the page. */

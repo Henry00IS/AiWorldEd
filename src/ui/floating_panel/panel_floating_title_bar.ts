@@ -133,48 +133,6 @@ export function styleFloatingPanelTitleLabel(title: HTMLElement, titleText: stri
   }
 }
 
-/** Space between the last title-bar button and the corner close X. */
-const TITLE_BAR_BUTTON_GAP_PX = 4;
-
-/**
- * Adds a small button to a title bar, in the flow left of the corner close X,
- * so any number of buttons line up without covering it.
- *
- * @param parts Title bar built by {@link buildFloatingPanelTitleBar}.
- * @param label Button text.
- * @param hint Hover text and accessible name.
- * @param press Runs on click.
- * @returns Button.
- */
-export function floatingPanelTitleBarButtonAdd(
-  parts: FloatingPanelTitleBarParts,
-  label: string,
-  hint: string,
-  press: () => void,
-): HTMLButtonElement {
-  const button = parts.bar.ownerDocument.createElement('button');
-  button.type = 'button';
-  button.textContent = label;
-  button.title = hint;
-  button.setAttribute('aria-label', hint);
-  styleFloatingPanelChromeButton(button);
-  Object.assign(button.style, {
-    flexShrink: '0',
-    minWidth: '24px',
-    height: '22px',
-    fontWeight: '600',
-    lineHeight: '1',
-  });
-  button.addEventListener('pointerdown', (event) => event.stopPropagation());
-  button.addEventListener('click', (event) => {
-    event.stopPropagation();
-    press();
-  });
-  parts.bar.insertBefore(button, parts.closeButton);
-  parts.bar.style.paddingRight = `${WINDOW_CLOSE_BUTTON_SIZE_PX + TITLE_BAR_BUTTON_GAP_PX}px`;
-  return button;
-}
-
 /**
  * Styles a compact chrome button used on floating tool windows.
  *

@@ -385,20 +385,33 @@ describe('SolidScript editor', () => {
     expect(tool('OK').disabled).toBe(true);
     type(x, '');
     x.setSelectionRange(0, 0);
-    find<HTMLButtonElement>('[data-solid-script-configurator="cube"] button[aria-label="Browse Values"]').click();
-    const browser = find('[role="dialog"][aria-label="Browse Values"]');
-    expect(browser.closest('[data-solid-script-configurator]')).toBeNull();
-    const browsed = () =>
-      [...browser.querySelectorAll('[role="option"]')].map((option) => option.firstChild?.textContent);
-    expect(browsed().slice(0, 2)).toEqual(['steps', 'width']);
-    expect(browser.textContent).toContain('System');
-    expect(browser.textContent).toContain('Built-In Functions');
-    const search = find<HTMLInputElement>('[aria-label="Search Values"]');
-    expect(document.activeElement).toBe(search);
-    type(search, 'box.w');
-    expect(browsed()).toEqual(['Box.Width']);
-    press(search, 'Enter');
-    expect(browser.isConnected).toBe(false);
+    // Entering or clicking a field whose text before the caret ends with [ opens the list again; $[ is kept text.
+    x.value = '[';
+    x.setSelectionRange(1, 1);
+    x.blur();
+    expect(document.querySelector('[aria-label="Suggestions"]')).toBeNull();
+    x.focus();
+    expect(
+      [...document.querySelectorAll('[aria-label="Suggestions"] [role="option"]')].map(
+        (option) => option.firstChild?.textContent,
+      ),
+    ).toContain('Box.Width');
+    const styles = [...document.querySelectorAll('style')].map((style) => style.textContent ?? '').join('\n');
+    // Group headings stick flush to the top of the list: no top padding above them to show rows through.
+    expect(styles).toMatch(/\.solid-script-editor-suggestions \{[^}]*padding: 0 0 4px;/);
+    expect(styles).toMatch(/\.solid-script-editor-suggestion-heading \{[^}]*position: sticky; top: 0;[^}]*background:/);
+    x.blur();
+    x.value = '$[';
+    x.setSelectionRange(2, 2);
+    x.focus();
+    expect(document.querySelector('[aria-label="Suggestions"]')).toBeNull();
+    x.value = '[';
+    x.setSelectionRange(1, 1);
+    x.click();
+    const pick = [...document.querySelectorAll<HTMLElement>('[aria-label="Suggestions"] [role="option"]')].find(
+      (option) => option.firstChild?.textContent === 'Box.Width',
+    )!;
+    pick.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
     expect(x.value).toBe('[Box.Width]');
     expect(document.activeElement).toBe(x);
     tool('OK').click();
@@ -433,10 +446,9 @@ describe('SolidScript editor', () => {
     expect(dialog.querySelector('[id^="solid-script-dialog-"]')?.textContent).toBe('Cube');
     const buttons = [...dialog.querySelectorAll('button')].map((button) => button.textContent);
     expect(buttons.slice(-2)).toEqual(['OK', 'Cancel']);
-    const manual = find('[data-solid-script-configurator="cube"] [aria-label="Manual"]:not(button)');
-    expect(manual.hidden).toBe(true);
-    find<HTMLButtonElement>('[data-solid-script-configurator="cube"] button[aria-label="Manual"]').click();
-    expect(manual.hidden).toBe(false);
+    // The title bar holds only the title and the X.
+    const bar = find('[data-solid-script-configurator="cube"] [id^="solid-script-dialog-"]').parentElement!;
+    expect([...bar.querySelectorAll('button')].map((button) => button.getAttribute('aria-label'))).toEqual(['Close']);
     expect(document.querySelector('.editor-message-box-backdrop')).not.toBeNull();
     find<HTMLButtonElement>('[data-solid-script-configurator="cube"] button[aria-label="Close"]').click();
     expect(document.querySelector('[data-solid-script-configurator]')).toBeNull();
@@ -856,28 +868,13 @@ describe('SolidScript editor', () => {
     expect(options()).toContain('Box.Width');
     const how = find<HTMLInputElement>('[data-solid-script-configurator="select_faces"] input[aria-label="How"]');
     how.focus();
-    find<HTMLButtonElement>(
-      '[data-solid-script-configurator="select_faces"] button[aria-label="Browse Values"]',
-    ).click();
-    const browser = find('[role="dialog"][aria-label="Browse Values"]');
-    expect(browser.querySelector('.solid-script-editor-suggestion-heading')?.textContent).toBe('Choices');
-    const add = [...browser.querySelectorAll<HTMLElement>('[role="option"]')].find(
+    expect(find('[aria-label="Suggestions"] .solid-script-editor-suggestion-heading').textContent).toBe('Choices');
+    const add = [...document.querySelectorAll<HTMLElement>('[aria-label="Suggestions"] [role="option"]')].find(
       (option) => option.firstChild?.textContent === 'Add',
     )!;
-    // A press picks the row, a second press on it inserts; the press never takes focus.
-    const pressRow = () => add.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
-    pressRow();
-    expect(add.getAttribute('aria-selected')).toBe('true');
-    expect(how.value).toBe('New');
-    pressRow();
+    add.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
     expect(how.value).toBe('Add');
-    expect(browser.isConnected).toBe(false);
-    find<HTMLButtonElement>(
-      '[data-solid-script-configurator="select_faces"] button[aria-label="Browse Values"]',
-    ).click();
-    press(find<HTMLInputElement>('[aria-label="Search Values"]'), 'Escape');
-    expect(document.querySelector('[role="dialog"][aria-label="Browse Values"]')).toBeNull();
-    expect(document.querySelector('[data-solid-script-configurator="select_faces"]')).not.toBeNull();
+    expect(document.activeElement).toBe(how);
     tool('Cancel').click();
   });
 

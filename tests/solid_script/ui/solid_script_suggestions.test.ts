@@ -6,7 +6,6 @@ import {
   solidScriptSuggestionSignature,
   solidScriptSuggestionWrite,
   solidScriptSuggestions,
-  solidScriptSuggestionsBrowse,
   type SolidScriptSuggestionScope,
 } from '@/solid_script/ui/solid_script_suggestions.js';
 
@@ -117,7 +116,8 @@ describe('SolidScript suggestions', () => {
     const pick = (label: string, marked: string, scope = SCOPE) => {
       const caret = marked.indexOf('|');
       const text = marked.replace('|', '');
-      const entry = solidScriptSuggestionsBrowse(scope, '').find((item) => item.label === label)!;
+      const kind = label === 'Abs' ? 'function' : scope === WORDY ? 'word' : 'value';
+      const entry = { label, detail: '', category: '', pick: kind } as const;
       const written = solidScriptSuggestionWrite(entry, text, caret, caret);
       return written.text.slice(0, written.caret) + '|' + written.text.slice(written.caret);
     };
@@ -130,13 +130,17 @@ describe('SolidScript suggestions', () => {
     expect(pick('Add', 'Ne|w', WORDY)).toBe('Add|');
   });
 
-  it('browses every value by group and finds them by name or description', () => {
-    const all = solidScriptSuggestionsBrowse(WORDY, '');
-    const groups = [...new Set(all.map((entry) => entry.category))];
-    expect(groups).toEqual(['Choices', 'Inputs', 'Variables', 'Locals', 'System', 'Functions', 'Built-In Functions']);
+  it('lists every value group after an open bracket', () => {
+    const all = solidScriptSuggestions(at('[|'), WORDY);
+    expect([...new Set(all.map((entry) => entry.category))]).toEqual([
+      'Inputs',
+      'Variables',
+      'Locals',
+      'System',
+      'Functions',
+      'Built-In Functions',
+    ]);
     expect(all.filter((entry) => entry.category === 'System').length).toBeGreaterThan(30);
-    expect(solidScriptSuggestionsBrowse(WORDY, 'box.w').map((entry) => entry.label)).toEqual(['Box.Width']);
-    expect(solidScriptSuggestionsBrowse(WORDY, 'minus sign').map((entry) => entry.label)).toContain('Abs');
   });
 
   it('lists the locals of a Function and explains built-in values and functions', () => {

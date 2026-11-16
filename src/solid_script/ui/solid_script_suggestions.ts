@@ -296,27 +296,6 @@ export function solidScriptSuggestions(
 }
 
 /**
- * Lists everything for the value browser, found by name or description.
- *
- * @param scope What the field may refer to.
- * @param search Searched text; empty lists everything.
- * @returns Suggestions by group.
- */
-export function solidScriptSuggestionsBrowse(
-  scope: SolidScriptSuggestionScope,
-  search: string,
-): SolidScriptSuggestion[] {
-  const query = search.trim().toLowerCase();
-  return solidScriptSuggestionsAll(scope).filter(
-    (entry) =>
-      query === '' ||
-      entry.label.toLowerCase().includes(query) ||
-      entry.detail.toLowerCase().includes(query) ||
-      (entry.alias?.includes(query) ?? false),
-  );
-}
-
-/**
  * Describes the call the caret is in: how it is called, what it gives and which
  * input is being typed.
  *

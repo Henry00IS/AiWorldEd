@@ -19,10 +19,6 @@ export interface SolidScriptConfiguratorField {
   problem: () => string;
   /** Returns a note on names no line defines, or an empty string. */
   warning: () => string;
-  /** Text inputs that take names, values and formulas, for the value browser. */
-  texts: readonly HTMLInputElement[];
-  /** What the field may refer to, with its words. */
-  scope: SolidScriptSuggestionScope;
   /** Takes its suggestion lists off the page, when the window closes. */
   close: () => void;
 }
@@ -106,8 +102,6 @@ export function solidScriptConfiguratorFieldBuild(
     element: row,
     read: field.read,
     warning,
-    texts,
-    scope: suggest,
     close: () => lists.forEach((list) => list.close()),
     problem: () => {
       const problem = field.problem();

@@ -70,7 +70,6 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
   fieldHint: 'solid-script-editor-field-hint',
   input: 'solid-script-editor-input',
   preview: 'solid-script-editor-preview',
-  configuratorManual: 'solid-script-editor-configurator-manual',
   list: 'solid-script-editor-list',
   listItem: 'solid-script-editor-list-item',
   selected: 'solid-script-editor-selected',
@@ -83,9 +82,6 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
   suggestionHeading: 'solid-script-editor-suggestion-heading',
   suggestionDetail: 'solid-script-editor-suggestion-detail',
   suggestionSignature: 'solid-script-editor-suggestion-signature',
-  browser: 'solid-script-editor-browser',
-  browserSearch: 'solid-script-editor-browser-search',
-  browserEmpty: 'solid-script-editor-browser-empty',
   fieldWarning: 'solid-script-editor-field-warning',
   stackFrame: 'solid-script-editor-stack-frame',
   explorer: 'solid-script-editor-explorer',
@@ -202,9 +198,6 @@ const SOLID_SCRIPT_EDITOR_PANES_CSS = `
 .${c.helpParameter} { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 8px; align-items: baseline; padding: 6px 0; border-top: 1px solid ${ThemeCss.inkAlpha(0.08)}; }
 .${c.helpParameter} .${c.parameterValue} { overflow: hidden; text-overflow: ellipsis; text-align: right; }
 .${c.helpParameter} .${c.helpText} { grid-column: 1 / -1; margin: 0; color: ${ThemeCss.textColor}; opacity: 0.85; font-size: 11px; }
-.${c.configuratorManual} { margin: -4px 0 12px; padding: 8px 10px; border-radius: 6px; background: rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.05); line-height: 1.45; }
-.${c.configuratorManual} p { margin: 0 0 6px; }
-.${c.configuratorManual} ul { margin: 0; padding-left: 16px; }
 .${c.helpLink} { color: inherit; font-weight: 600; text-decoration: underline dotted; text-underline-offset: 2px; cursor: pointer; }
 .${c.helpLink}:hover { text-decoration-style: solid; }
 .${c.helpStops} { margin: 0 0 8px; padding-left: 16px; font-size: 11px; line-height: 1.45; }
@@ -266,13 +259,10 @@ const SOLID_SCRIPT_EDITOR_DIALOG_CSS = `
 .${c.suggestionsHost}[hidden] { display: none; }
 .${c.suggestionSignature} { padding: 6px 12px; border-bottom: 1px solid ${ThemeCss.inkAlpha(0.1)}; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; color: ${ThemeCss.inputTextColor}; white-space: normal; }
 .${c.suggestionSignature}[hidden] { display: none; }
-.${c.suggestions} { max-height: 380px; overflow-y: auto; padding: 4px 0; }
-.${c.suggestionHeading} { position: sticky; top: 0; padding: 6px 12px 3px; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: ${ThemeCss.mutedTextColor}; background: ${ThemeCss.inputBackground}; }
+/* No top padding: a sticky heading must sit flush at the top, with nothing showing above it. */
+.${c.suggestions} { max-height: 380px; overflow-y: auto; padding: 0 0 4px; }
+.${c.suggestionHeading} { position: sticky; top: 0; z-index: 1; margin: 0; padding: 6px 12px 3px; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: ${ThemeCss.mutedTextColor}; background: ${ThemeCss.inputBackground}; }
 .${c.suggestion} { display: grid; grid-template-columns: minmax(120px, max-content) 1fr; gap: 16px; padding: 4px 12px; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; color: ${ThemeCss.inputTextColor}; cursor: pointer; white-space: nowrap; }
-.${c.browser} { width: 520px; max-height: min(560px, 80vh); }
-.${c.browser} .${c.suggestions} { max-height: none; flex: 1 1 auto; min-height: 0; }
-.${c.browserSearch} { margin: 8px; }
-.${c.browserEmpty} { padding: 10px 12px; color: ${ThemeCss.mutedTextColor}; }
 .${c.suggestion}[aria-selected="true"], .${c.suggestion}:hover { background: ${ThemeCss.accentAlpha(0.3)}; }
 .${c.suggestionDetail} { overflow: hidden; text-overflow: ellipsis; color: ${ThemeCss.mutedTextColor}; }
 .${c.fieldWarning} { color: ${ThemeCss.mutedTextColor}; }
