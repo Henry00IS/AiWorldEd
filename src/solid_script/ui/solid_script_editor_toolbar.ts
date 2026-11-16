@@ -51,7 +51,12 @@ export class SolidScriptEditorToolbar {
       'Build the script one solid at a time (F5)',
       actions.debug,
     );
-    const step = solidScriptEditorToolButton('Step', 'step', 'Build the next solid (F10)', actions.step);
+    const step = solidScriptEditorToolButton(
+      'Step',
+      'step',
+      'Build the next solid (F10). Ctrl+F10 builds up to the line at the cursor',
+      actions.step,
+    );
     this.stop = solidScriptEditorToolButton(
       'Stop',
       'stop',

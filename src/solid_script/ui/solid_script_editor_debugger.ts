@@ -155,6 +155,34 @@ export class SolidScriptEditorDebugger {
     this.apply();
   }
 
+  /**
+   * Builds up to the next solid of some lines, after the step shown or else
+   * from the top, and pauses there; breakpoints on the way are passed.
+   *
+   * @param first First 0-based line, such as the line at the cursor.
+   * @param last Last 0-based line, the end of its block.
+   * @returns False when those lines build no solid.
+   */
+  runTo(first: number, last: number): boolean {
+    const wasStopped = this.state === 'stopped';
+    if (wasStopped && !this.begin()) return false;
+    const inside = (line: number): boolean => line - 1 >= first && line - 1 <= last;
+    let index = this.lines.findIndex((line, at) => at >= this.step && inside(line));
+    if (index < 0) index = this.lines.findIndex(inside);
+    if (index < 0) {
+      if (wasStopped) this.finish();
+      return false;
+    }
+    this.timerClear();
+    this.atBreak = null;
+    this.state = 'paused';
+    this.step = index + 1;
+    this.passed = 0;
+    while ((this.breaks[this.passed]?.steps ?? Number.POSITIVE_INFINITY) < this.step) this.passed++;
+    this.apply();
+    return true;
+  }
+
   /** Stops debugging and shows the whole script again. */
   stop(): void {
     if (this.state !== 'stopped') this.finish();

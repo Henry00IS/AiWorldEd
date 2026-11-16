@@ -537,6 +537,28 @@ describe('SolidScript editor', () => {
     expect(root.querySelector('.solid-script-editor-stepped')).toBeNull();
   });
 
+  it('runs to the line at the cursor with Ctrl+F10, inside blocks too', () => {
+    const { root, node, stepId } = editorFixture([
+      { command: 'cube' },
+      { command: 'repeat', values: { variable: 'i', from: '0', to: '2', step: '1' } },
+      { command: 'sphere' },
+      { command: 'end' },
+      { command: 'cylinder' },
+      { command: 'note', values: { text: 'done' } },
+    ]);
+    chip(4).focus();
+    press(chip(4), 'F10', { ctrlKey: true });
+    expect(solidScriptDebugStepLimit(node, stepId)).toBe(5);
+    expect(root.querySelector('.solid-script-editor-stepped')?.getAttribute('data-line')).toBe('4');
+    chip(1).focus();
+    press(chip(1), 'F10', { ctrlKey: true });
+    expect(solidScriptDebugStepLimit(node, stepId)).toBe(2);
+    chip(5).focus();
+    press(chip(5), 'F10', { ctrlKey: true });
+    expect(root.textContent).toContain('Line 6 builds no solid');
+    expect(solidScriptDebugStepLimit(node, stepId)).toBe(2);
+  });
+
   it('clears the step mark when Debug finishes, and Start builds the whole script at once', () => {
     vi.useFakeTimers();
     try {

@@ -18,7 +18,10 @@ import {
   solidScriptDocumentLineSet,
   type SolidScriptInsertMode,
 } from '@/solid_script/document/solid_script_document_edit.js';
-import { solidScriptBlockNesting } from '@/solid_script/document/solid_script_document_indent.js';
+import {
+  solidScriptBlockNesting,
+  solidScriptDocumentDepths,
+} from '@/solid_script/document/solid_script_document_indent.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES, solidScriptEditorStylesheetEnsure } from './solid_script_editor_css.js';
 import { SolidScriptEditorSession } from './solid_script_editor_session.js';
 import { SolidScriptEditorPalette } from './solid_script_editor_palette.js';
@@ -237,10 +240,10 @@ export class SolidScriptEditor extends PanelFloating {
 
   /**
    * Handles the run keys (Ctrl+F5 starts, F5 debugs or continues, F10 steps,
-   * Shift+F5 stops, F9 sets or clears the breakpoint of the current line) and
-   * keeps every other key inside the editor, so Delete or Backspace never
-   * removes anything from the level. Undo and redo pass on: script edits are
-   * steps of the level's undo history.
+   * Ctrl+F10 runs to the line at the cursor, Shift+F5 stops, F9 sets or clears
+   * the breakpoint of the current line) and keeps every other key inside the
+   * editor, so Delete or Backspace never removes anything from the level. Undo
+   * and redo pass on: script edits are steps of the level's undo history.
    *
    * @param event Key event.
    */
@@ -262,13 +265,28 @@ export class SolidScriptEditor extends PanelFloating {
             ? () => this.debugger.start()
             : () => this.debugger.play()
         : event.key === 'F10'
-          ? () => this.debugger.stepOnce()
+          ? event.ctrlKey || event.metaKey
+            ? () => this.runToLine(this.keyLine(event))
+            : () => this.debugger.stepOnce()
           : event.key === 'F9'
             ? () => this.breakpointToggle(this.keyLine(event))
             : null;
     if (!action) return;
     event.preventDefault();
     action();
+  }
+
+  /**
+   * Builds up to the next solid of a line or of the lines inside its block.
+   *
+   * @param line Line index.
+   */
+  private runToLine(line: number): void {
+    const depths = solidScriptDocumentDepths(this.session.document());
+    let last = line;
+    while (last + 1 < depths.length && (depths[last + 1] ?? 0) > (depths[line] ?? 0)) last++;
+    if (!this.debugger.runTo(line, last))
+      this.noticeShow(`Line ${line + 1} builds no solid, so the debugger cannot stop there.`);
   }
 
   /**
