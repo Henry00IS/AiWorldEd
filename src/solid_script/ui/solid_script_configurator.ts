@@ -10,6 +10,7 @@ import {
 } from '@/solid_script/document/solid_script_document_names.js';
 import { solidScriptInputRead } from '@/solid_script/language/solid_script_input.js';
 import { SolidScriptDialog } from './solid_script_dialog.js';
+import { solidScriptEditorLinked, type SolidScriptEditorLinkOpen } from './solid_script_editor_links.js';
 
 /**
  * The configurator of one command line: a window titled with the command, a
@@ -31,6 +32,7 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
    * @param values Stored values.
    * @param apply Stores the configured values.
    * @param names Names the script defines, for suggestions and checks.
+   * @param open Opens a command the manual mentions in the palette, or null.
    */
   constructor(
     host: HTMLElement,
@@ -38,6 +40,7 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
     values: SolidScriptCommandValues,
     private readonly apply: (values: Record<string, string>) => void,
     names: readonly SolidScriptName[] = [],
+    private readonly open: SolidScriptEditorLinkOpen | null = null,
   ) {
     super(host, command.label, 'OK');
     this.root.dataset['solidScriptConfigurator'] = command.id;
@@ -69,16 +72,14 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
     this.manual.setAttribute('aria-label', 'Manual');
     this.manual.hidden = true;
     const text = document.createElement('p');
-    text.textContent = this.command.manual;
+    solidScriptEditorLinked(text, this.command.manual, this.open, this.command.id);
     this.manual.append(text);
     if (this.command.stops.length === 0) return;
     const caption = document.createElement('p');
     caption.textContent = 'Stops the script when';
     const list = document.createElement('ul');
     for (const stop of this.command.stops) {
-      const item = document.createElement('li');
-      item.textContent = stop;
-      list.append(item);
+      list.append(solidScriptEditorLinked(document.createElement('li'), stop, this.open, this.command.id));
     }
     this.manual.append(caption, list);
   }

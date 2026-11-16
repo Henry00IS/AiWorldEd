@@ -91,6 +91,24 @@ export class SolidScriptEditorPalette {
   }
 
   /**
+   * Selects a command, scrolls to it and shows its help. The search is cleared
+   * first only when it hides the command.
+   *
+   * @param id Command id.
+   * @returns False when the palette has no such command.
+   */
+  reveal(id: string): boolean {
+    const entry = this.entries.find((candidate) => candidate.command.id === id);
+    if (!entry) return false;
+    if (entry.element.hidden) {
+      this.search.value = '';
+      this.filter();
+    }
+    this.highlight(entry);
+    return true;
+  }
+
+  /**
    * Shows the commands matching every word of the search and highlights the
    * first.
    */

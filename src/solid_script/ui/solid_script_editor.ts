@@ -73,7 +73,7 @@ export class SolidScriptEditor extends PanelFloating {
   private readonly debugger: SolidScriptEditorDebugger;
   private palette: SolidScriptEditorPalette | null = null;
   private readonly toolbar: SolidScriptEditorToolbar;
-  private readonly help = new SolidScriptEditorHelp();
+  private readonly help = new SolidScriptEditorHelp((command) => this.commandReveal(command));
   private readonly output = new SolidScriptEditorOutput();
   private readonly status = document.createElement('div');
   private readonly title = document.createElement('span');
@@ -476,7 +476,19 @@ export class SolidScriptEditor extends PanelFloating {
     if (found.parameters.length === 0) return place();
     const names = solidScriptDocumentNamesAt(this.session.document(), mode === 'caret' ? line + 1 : line);
     const values = { ...found.valuesDefault(), ...start };
-    new SolidScriptConfigurator(this.root.ownerDocument.body, found, values, place, names).show();
+    new SolidScriptConfigurator(this.root.ownerDocument.body, found, values, place, names, (id) =>
+      this.commandReveal(id),
+    ).show();
+  }
+
+  /**
+   * Opens a command a help text mentions: selects it in the palette, scrolls to
+   * it and shows its help.
+   *
+   * @param command Command id.
+   */
+  private commandReveal(command: string): void {
+    this.palette?.reveal(command);
   }
 
   /**
@@ -500,7 +512,9 @@ export class SolidScriptEditor extends PanelFloating {
       const index = document.blocks.findIndex((candidate) => candidate.id === block.id);
       if (index >= 0) this.commit(solidScriptDocumentLineSet(document, index, { ...block, values }), index);
     };
-    new SolidScriptConfigurator(this.root.ownerDocument.body, command, block.values, apply, names).show();
+    new SolidScriptConfigurator(this.root.ownerDocument.body, command, block.values, apply, names, (id) =>
+      this.commandReveal(id),
+    ).show();
   }
 
   /**

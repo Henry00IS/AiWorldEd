@@ -2,6 +2,7 @@ import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
 import type { SolidScriptCommand, SolidScriptCommandParameter } from '@/solid_script/commands/solid_script_command.js';
 import type { SolidScriptBlock } from '@/solid_script/document/solid_script_document.js';
 import { SOLID_SCRIPT_EDITOR_CATEGORY_COLORS, SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
+import { solidScriptEditorLinked, type SolidScriptEditorLinkOpen } from './solid_script_editor_links.js';
 
 /** What the help panel shows when nothing is selected. */
 const SOLID_SCRIPT_EDITOR_HELP_EMPTY =
@@ -22,7 +23,8 @@ const SOLID_SCRIPT_EDITOR_HELP_FIELDS =
 /**
  * The help panel beside the script: a short summary of the selected palette
  * command or script line and its values with their current text, and the full
- * manual, the mistakes that stop it and how to use it under More Details.
+ * manual, the mistakes that stop it and how to use it under More Details. Every
+ * mention of another command is a link that opens it in the palette.
  */
 export class SolidScriptEditorHelp {
   /** Panel element. */
@@ -32,8 +34,13 @@ export class SolidScriptEditorHelp {
   /** True while More Details is open; it stays so for the next command. */
   private moreOpen = false;
 
-  /** Builds the panel. */
-  constructor() {
+  /**
+   * Builds the panel.
+   *
+   * @param open Opens a mentioned command in the palette, or null for plain
+   *   text.
+   */
+  constructor(private readonly open: SolidScriptEditorLinkOpen | null = null) {
     this.element.className = SOLID_SCRIPT_EDITOR_CLASSES.help;
     this.element.setAttribute('aria-label', 'Command help');
     this.host = solidScriptScrollerWrap(this.element, '0 0 auto', 12);
@@ -63,9 +70,10 @@ export class SolidScriptEditorHelp {
     category.className = SOLID_SCRIPT_EDITOR_CLASSES.helpCategory;
     category.textContent =
       command.nesting === 'open' ? `${command.category} · holds the lines up to its End` : command.category;
-    const description = solidScriptEditorHelpText(`${command.description}.`);
+    const link = (text: string): HTMLElement => solidScriptEditorHelpText(text, this.open, command.id);
+    const description = link(`${command.description}.`);
     description.style.fontWeight = '600';
-    const manual = solidScriptEditorHelpText(command.manual);
+    const manual = link(command.manual);
     const fields = command.parameters.some((parameter) => parameter.type !== 'name' && parameter.type !== 'text')
       ? [solidScriptEditorHelpText(SOLID_SCRIPT_EDITOR_HELP_FIELDS)]
       : [];
@@ -78,7 +86,7 @@ export class SolidScriptEditorHelp {
     more.addEventListener('toggle', () => (this.moreOpen = more.open));
     const moreTitle = document.createElement('summary');
     moreTitle.textContent = 'More Details';
-    more.append(moreTitle, manual, ...fields, ...solidScriptEditorHelpStops(command), usage);
+    more.append(moreTitle, manual, ...fields, ...solidScriptEditorHelpStops(command, this.open), usage);
     this.element.replaceChildren(title, category, description, ...this.parameters(command, block), more);
   }
 
@@ -98,6 +106,8 @@ export class SolidScriptEditorHelp {
     return command.parameters.map((parameter) =>
       solidScriptEditorHelpParameter(
         parameter,
+        this.open,
+        command.id,
         solidScriptEditorHelpValue(parameter, values.get(parameter.key) ?? parameter.default),
       ),
     );
@@ -108,10 +118,17 @@ export class SolidScriptEditorHelp {
  * Builds the help entry of one value: caption, current value and hint.
  *
  * @param parameter Parameter.
+ * @param open Opens a mentioned command, or null.
+ * @param self Id of the command the hint belongs to.
  * @param shown Value as shown.
  * @returns Entry element.
  */
-function solidScriptEditorHelpParameter(parameter: SolidScriptCommandParameter, shown: string): HTMLElement {
+function solidScriptEditorHelpParameter(
+  parameter: SolidScriptCommandParameter,
+  open: SolidScriptEditorLinkOpen | null,
+  self: string,
+  shown: string,
+): HTMLElement {
   const item = document.createElement('div');
   item.className = SOLID_SCRIPT_EDITOR_CLASSES.helpParameter;
   const name = document.createElement('span');
@@ -122,7 +139,7 @@ function solidScriptEditorHelpParameter(parameter: SolidScriptCommandParameter, 
   value.textContent = shown;
   const hint = document.createElement('div');
   hint.className = SOLID_SCRIPT_EDITOR_CLASSES.helpText;
-  hint.textContent = parameter.hint;
+  solidScriptEditorLinked(hint, parameter.hint, open, self);
   item.append(name, value, hint);
   return item;
 }
@@ -131,22 +148,31 @@ function solidScriptEditorHelpParameter(parameter: SolidScriptCommandParameter, 
  * Builds a help paragraph.
  *
  * @param text Text.
+ * @param open Opens a mentioned command, or null for plain text.
+ * @param self Id of the command the text describes, or null.
  * @returns Paragraph.
  */
-function solidScriptEditorHelpText(text: string): HTMLElement {
+function solidScriptEditorHelpText(
+  text: string,
+  open: SolidScriptEditorLinkOpen | null = null,
+  self: string | null = null,
+): HTMLElement {
   const paragraph = document.createElement('p');
   paragraph.className = SOLID_SCRIPT_EDITOR_CLASSES.helpText;
-  paragraph.textContent = text;
-  return paragraph;
+  return solidScriptEditorLinked(paragraph, text, open, self);
 }
 
 /**
  * Lists the mistakes that stop the script at a line of the command.
  *
  * @param command Command.
+ * @param open Opens a mentioned command, or null.
  * @returns Heading and list, or nothing.
  */
-function solidScriptEditorHelpStops(command: SolidScriptCommand): HTMLElement[] {
+function solidScriptEditorHelpStops(
+  command: SolidScriptCommand,
+  open: SolidScriptEditorLinkOpen | null,
+): HTMLElement[] {
   if (command.stops.length === 0) return [];
   const heading = document.createElement('div');
   heading.className = SOLID_SCRIPT_EDITOR_CLASSES.helpCategory;
@@ -155,9 +181,7 @@ function solidScriptEditorHelpStops(command: SolidScriptCommand): HTMLElement[] 
   list.className = SOLID_SCRIPT_EDITOR_CLASSES.helpStops;
   list.append(
     ...command.stops.map((stop) => {
-      const item = document.createElement('li');
-      item.textContent = stop;
-      return item;
+      return solidScriptEditorLinked(document.createElement('li'), stop, open, command.id);
     }),
   );
   return [heading, list];

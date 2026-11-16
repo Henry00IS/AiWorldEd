@@ -58,6 +58,7 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
   helpParameter: 'solid-script-editor-help-parameter',
   helpStops: 'solid-script-editor-help-stops',
   helpMore: 'solid-script-editor-help-more',
+  helpLink: 'solid-script-editor-help-link',
   off: 'solid-script-editor-off',
   runs: 'solid-script-editor-runs',
   icon: 'solid-script-editor-icon',
@@ -201,6 +202,8 @@ const SOLID_SCRIPT_EDITOR_PANES_CSS = `
 .${c.configuratorManual} { margin: -4px 0 12px; padding: 8px 10px; border-radius: 6px; background: rgba(var(--aiworlded-ink-rgb, 255, 255, 255), 0.05); line-height: 1.45; }
 .${c.configuratorManual} p { margin: 0 0 6px; }
 .${c.configuratorManual} ul { margin: 0; padding-left: 16px; }
+.${c.helpLink} { color: inherit; font-weight: 600; text-decoration: underline dotted; text-underline-offset: 2px; cursor: pointer; }
+.${c.helpLink}:hover { text-decoration-style: solid; }
 .${c.helpStops} { margin: 0 0 8px; padding-left: 16px; font-size: 11px; line-height: 1.45; }
 .${c.helpMore} { margin: 10px 0 0; border-top: 1px solid ${ThemeCss.separatorColor}; padding-top: 6px; }
 .${c.helpMore} > summary { cursor: pointer; font-size: 11px; color: ${ThemeCss.mutedTextColor}; margin-bottom: 6px; user-select: none; }

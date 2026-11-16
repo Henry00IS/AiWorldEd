@@ -830,6 +830,26 @@ describe('SolidScript editor', () => {
     expect(root.textContent).toContain('No command matches');
   });
 
+  it('opens a command the help mentions in the palette, clearing the search only when it hides the command', () => {
+    editorFixture([{ command: 'cube' }]);
+    const search = find<HTMLInputElement>('.solid-script-editor-palette-search');
+    const highlighted = () => find('.solid-script-editor-palette-highlighted').dataset['command'];
+    const title = () => find('.solid-script-editor-help-title').textContent;
+    type(search, 'logic');
+    find<HTMLElement>('.solid-script-editor-palette-item[data-command="if"]').focus();
+    expect(title()).toBe('If');
+    find<HTMLAnchorElement>('.solid-script-editor-help a[data-command="else"]').click();
+    expect(search.value).toBe('logic');
+    expect(highlighted()).toBe('else');
+    expect(title()).toBe('Else');
+    find<HTMLElement>('.solid-script-editor-palette-item[data-command="repeat"]').focus();
+    find<HTMLAnchorElement>('.solid-script-editor-help a[data-command="translate"]').click();
+    expect(search.value).toBe('');
+    expect(highlighted()).toBe('translate');
+    expect(title()).toBe('Translate');
+    expect(find('.solid-script-editor-palette-item[data-command="translate"]').hidden).toBe(false);
+  });
+
   it('keeps typing in the search inside the window, undo keys included', () => {
     editorFixture(CUBE_SPHERE);
     const scene = vi.fn();

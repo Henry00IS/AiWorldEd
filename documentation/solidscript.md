@@ -15,6 +15,7 @@ Double-click a command in the palette, or drag it in, to add it below the curren
 - **Stop Script** ends the script there, also from inside a Repeat or a Function, and keeps what it built. Run shared lines from many places with a Function and Call. A mistake always stops the script and highlights its line; there is no error catching.
 - Shift+click or Shift+↑/↓ selects lines, Ctrl+C, Ctrl+X and Ctrl+V copy, cut and paste them, also between scripts, and Ctrl+D duplicates them.
 - **F4**, **Ctrl+/**, **Off / On** in the toolbar or **Turn Off** in the right-click menu turns the selected lines off and on: they stay, are saved and synced, but do not run. A **Note** line holds a comment.
+- In the help panel and a line's manual, every block name is a link: clicking it selects that block in the command list, scrolls to it and shows its help. The search is cleared only when it hides that block.
 - **New** starts an empty script and **Examples…** opens a ready one; both can be undone.
 
 </details>
