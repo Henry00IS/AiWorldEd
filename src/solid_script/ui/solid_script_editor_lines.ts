@@ -1,3 +1,4 @@
+import { MenuContext } from '@/ui/menu/menu_context.js';
 import { solidScriptDocumentCreate, type SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
 import {
   solidScriptDocumentDepths,
@@ -156,7 +157,42 @@ export class SolidScriptEditorLines {
     this.element.addEventListener('copy', (event) => this.keys.copy(event, false));
     this.element.addEventListener('cut', (event) => this.keys.copy(event, true));
     this.element.addEventListener('paste', (event) => this.keys.paste(event));
+    this.element.addEventListener('contextmenu', (event) => this.menuOpen(event));
   }
+
+  /** Turns the selected lines, or the current one, off or on again. */
+  linesToggle(): void {
+    if (this.document.blocks.length > 0) this.keys.toggle(this.caretLine);
+  }
+
+  /**
+   * Opens the line menu at a row: the clicked line joins the selection unless
+   * it is already in it.
+   *
+   * @param event Context menu event.
+   */
+  private menuOpen(event: MouseEvent): void {
+    const row = (event.target as HTMLElement | null)?.closest<HTMLElement>(`.${SOLID_SCRIPT_EDITOR_CLASSES.row}`);
+    if (!row) return;
+    event.preventDefault();
+    const line = Number(row.dataset['line']);
+    const [first, last] = this.selection();
+    if (line < first || line > last) this.focusLine(line);
+    const off = this.offs[line] === true;
+    this.menu?.dispose();
+    this.menu = new MenuContext(this.element, [
+      { label: 'Change…', callback: () => this.handlers.configure(line) },
+      { label: off ? 'Turn On' : 'Turn Off', callback: () => this.keys.toggle(line) },
+      { label: 'Duplicate', callback: () => this.keys.duplicate(line) },
+      { label: 'Delete', callback: () => this.keys.remove(line) },
+      { kind: 'separator' },
+      { label: 'Toggle Breakpoint', callback: () => this.handlers.breakpoint(line) },
+    ]);
+    this.menu.show(event.clientX, event.clientY);
+  }
+
+  /** Line menu while open. */
+  private menu: MenuContext | null = null;
 
   /**
    * Shows a script; rows are rebuilt only when a line changed.

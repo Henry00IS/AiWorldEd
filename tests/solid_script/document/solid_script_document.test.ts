@@ -27,6 +27,13 @@ describe('solid script document', () => {
     expect(solidScriptDocumentNormalize(document).name).toBe('Door');
   });
 
+  it('keeps lines turned off through saving and loading', () => {
+    const document = solidScriptDocumentCreate([{ command: 'cube' }, { command: 'sphere', off: true }]);
+    const loaded = solidScriptDocumentNormalize(JSON.parse(JSON.stringify(document)));
+    expect(loaded.blocks.map((block) => block.off === true)).toEqual([false, true]);
+    expect(solidScriptProgramEvaluate(loaded).steps).toEqual([1]);
+  });
+
   it('keeps lines of unknown commands, reports them on their line and drops anything that is no command', () => {
     const document = solidScriptDocumentNormalize({
       version: SOLID_SCRIPT_DOCUMENT_VERSION,

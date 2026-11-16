@@ -14,7 +14,7 @@ Double-click a command in the palette, or drag it in, to add it below the curren
 - Functions such as `Sin`, `Lerp`, `Remap`, `Split` or `TimeText` work in formulas; hover one in the suggestions to see what it does. `ItemOr([List], 5, 0)` reads an item with a fallback when there is none.
 - **Stop Script** ends the script there, also from inside a Repeat or a Function, and keeps what it built. Run shared lines from many places with a Function and Call. A mistake always stops the script and highlights its line; there is no error catching.
 - Shift+click or Shift+↑/↓ selects lines, Ctrl+C, Ctrl+X and Ctrl+V copy, cut and paste them, also between scripts, and Ctrl+D duplicates them.
-- **F4** or **Ctrl+/** turns lines off and on: they stay but do not run.
+- **F4**, **Ctrl+/**, **Off / On** in the toolbar or **Turn Off** in the right-click menu turns the selected lines off and on: they stay, are saved and synced, but do not run. A **Note** line holds a comment.
 - **New** starts an empty script and **Examples…** opens a ready one; both can be undone.
 
 </details>

@@ -16,6 +16,7 @@ const SOLID_SCRIPT_EDITOR_ICON_PATHS: Readonly<Record<string, string>> = {
   Logic:
     '<path d="M5.5 2C3.5 2 4 5 3 6.5 2.5 7.5 1.5 8 1.5 8s1 .5 1.5 1.5C4 11 3.5 14 5.5 14 M10.5 2c2 0 1.5 3 2.5 4.5.5 1 1.5 1.5 1.5 1.5s-1 .5-1.5 1.5c-1 1.5-.5 4.5-2.5 4.5"/>',
   Parts: '<path d="M2.5 5.5h3a1.5 1.5 0 1 1 3 0h3v3a1.5 1.5 0 1 1 0 3v2h-9z"/>',
+  off: '<rect x="1.5" y="4.5" width="13" height="7" rx="3.5"/><circle cx="5" cy="8" r="2" fill="currentColor"/>',
   trace: '<path d="M2 4h7 M2 8h9 M2 12h5 M12 10.5l2 2-2 2"/>',
   script: '<path d="M4 1.5h6l3 3v10H4z M10 1.5v3h3 M6 7.5h5 M6 10h5 M6 12.5h3"/>',
   play: '<path d="M4.5 2.5v11l9-5.5z" fill="currentColor"/>',
