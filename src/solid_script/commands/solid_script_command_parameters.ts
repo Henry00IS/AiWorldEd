@@ -163,6 +163,6 @@ export function solidScriptParameterOf(what: string): SolidScriptCommandParamete
       'text',
       `Only ${what} of the shapes with this Name, in any case; empty uses every shape above.`,
     ),
-    shapeNames: true,
+    nameGroups: ['Shapes', 'Parts'],
   };
 }

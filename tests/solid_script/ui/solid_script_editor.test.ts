@@ -543,7 +543,7 @@ describe('SolidScript editor', () => {
     expect(root.textContent).toContain('Copied 2 lines.');
     chip(3).focus();
     chip(3).dispatchEvent(new Event('paste', { bubbles: true, cancelable: true }));
-    expect(commands()).toEqual(['cube', 'sphere', 'cylinder', 'variable', 'cube', 'cylinder']);
+    expect(commands()).toEqual(['cube', 'sphere', 'cylinder', 'cube', 'cylinder', 'variable']);
     scriptKey('z');
     down(0);
     down(2, { ctrlKey: true });
@@ -578,17 +578,20 @@ describe('SolidScript editor', () => {
     expect(find('[data-line="1"]').classList.contains('solid-script-editor-selected')).toBe(false);
     chip(1).dispatchEvent(new Event('copy', { bubbles: true, cancelable: true }));
     expect(root.textContent).toContain('Copied 2 lines.');
-    chip(4).focus();
+    find('[data-line="4"]').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
     chip(4).dispatchEvent(new Event('paste', { bubbles: true, cancelable: true }));
-    expect(commands()).toEqual(['cube', 'union', 'sphere', 'end', 'cylinder', 'cube', 'union']);
-    expect(find('[data-line="5"]').classList.contains('solid-script-editor-selected')).toBe(true);
-    find('[data-line="5"]').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
-    find('[data-line="6"]').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0, shiftKey: true }));
-    chip(6).dispatchEvent(new Event('cut', { bubbles: true, cancelable: true }));
+    // Pasted lines go above the selection.
+    expect(commands()).toEqual(['cube', 'union', 'sphere', 'end', 'cube', 'union', 'cylinder']);
+    expect(find('[data-line="4"]').classList.contains('solid-script-editor-selected')).toBe(true);
+    find('[data-line="4"]').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+    find('[data-line="5"]').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0, shiftKey: true }));
+    chip(5).dispatchEvent(new Event('cut', { bubbles: true, cancelable: true }));
     expect(commands()).toEqual(['cube', 'union', 'sphere', 'end', 'cylinder']);
+    // Space adds a blank line above and moves down with its own line, as
+    // Shift+Enter moves down onto the line it adds below.
     press(chip(4), ' ');
     expect(commands()).toEqual(['cube', 'union', 'sphere', 'end', 'blank', 'cylinder']);
-    expect(document.activeElement?.closest('[data-line]')?.getAttribute('data-line')).toBe('4');
+    expect(document.activeElement?.closest('[data-line]')?.getAttribute('data-line')).toBe('5');
     chip(0).focus();
     press(chip(0), 'a', { ctrlKey: true });
     press(document.activeElement as HTMLElement, 'Delete');
@@ -621,12 +624,12 @@ describe('SolidScript editor', () => {
       ]),
     );
     chip(0).dispatchEvent(clipboard('paste'));
-    expect(commands()).toEqual(['cube', 'sphere', 'cylinder']);
+    expect(commands()).toEqual(['sphere', 'cylinder', 'cube']);
     expect(root.textContent).toContain('Pasted 2 lines.');
     expect(root.textContent).toContain('Sphere');
     press(document.activeElement as HTMLElement, 'd', { ctrlKey: true });
-    expect(commands()).toEqual(['cube', 'sphere', 'cylinder', 'sphere', 'cylinder']);
-    expect(find('[data-line="3"]').textContent).toContain('3');
+    expect(commands()).toEqual(['sphere', 'cylinder', 'sphere', 'cylinder', 'cube']);
+    expect(find('[data-line="2"]').textContent).toContain('3');
   });
 
   it('turns lines off and on with F4, keeps them off through copy and paste, and runs without them', () => {
@@ -650,10 +653,10 @@ describe('SolidScript editor', () => {
     chip(1).dispatchEvent(new Event('copy', { bubbles: true, cancelable: true }));
     chip(3).focus();
     chip(3).dispatchEvent(new Event('paste', { bubbles: true, cancelable: true }));
-    expect(script().blocks[4]).toMatchObject({ command: 'union', off: true });
+    expect(script().blocks[3]).toMatchObject({ command: 'union', off: true });
     press(chip(1), '/', { ctrlKey: true });
     expect(script().blocks[1]?.off).toBeUndefined();
-    expect(script().blocks[3]?.off).toBeUndefined();
+    expect(script().blocks[4]?.off).toBeUndefined();
     scriptKey('z');
     expect(script().blocks[1]?.off).toBe(true);
   });
@@ -1323,5 +1326,96 @@ describe('SolidScript editor', () => {
     await settle();
     expect(commands()).toEqual(['sphere']);
     expect(script().name).toBe('Arch');
+  });
+});
+
+describe('SolidScript editor undo history', () => {
+  const VARIABLES: SolidScriptLine[] = ['a', 'b', 'c', 'd', 'e', 'f'].map((name) => ({
+    command: 'variable',
+    values: { name, value: '1' },
+  }));
+  const down = (line: number, init: MouseEventInit = {}) =>
+    chip(line).dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0, ...init }));
+
+  it('takes a drag of several lines back and forth in one step each', () => {
+    const { script } = editorFixture(VARIABLES);
+    const order = (): string =>
+      script()
+        .blocks.map((block) => block.values['name'])
+        .join('');
+    down(0);
+    down(1, { shiftKey: true });
+    down(1);
+    drop(chip(5), { [SOLID_SCRIPT_EDITOR_DRAG_LINE]: '1' });
+    expect(order()).toBe('cdeabf');
+    down(3);
+    down(5, { ctrlKey: true });
+    down(3);
+    drop(chip(0), { [SOLID_SCRIPT_EDITOR_DRAG_LINE]: '3' });
+    expect(order()).toBe('afcdeb');
+    scriptKey('z');
+    expect(order()).toBe('cdeabf');
+    scriptKey('z');
+    expect(order()).toBe('abcdef');
+    scriptKey('y');
+    expect(order()).toBe('cdeabf');
+    scriptKey('y');
+    expect(order()).toBe('afcdeb');
+    scriptKey('z');
+    scriptKey('z');
+    expect(order()).toBe('abcdef');
+  });
+
+  it('undoes a configurator edit from the editor and from the configurator, never the level', () => {
+    const { script, commandStack } = editorFixture(VARIABLES.slice(0, 2));
+    const levelUndo = vi.spyOn(commandStack, 'undo');
+    const reachedLevel = vi.fn();
+    window.addEventListener('keydown', reachedLevel);
+    const configure = (value: string): void => {
+      doubleClick(chip(1));
+      const inputs = [...find('[data-solid-script-configurator]').querySelectorAll<HTMLInputElement>('input')];
+      type(inputs[1]!, value);
+      tool('OK').click();
+    };
+    configure('7');
+    expect(script().blocks[1]!.values['value']).toBe('7');
+    scriptKey('z');
+    expect(script().blocks[1]!.values['value']).toBe('1');
+    scriptKey('y');
+    expect(script().blocks[1]!.values['value']).toBe('7');
+    doubleClick(chip(1));
+    const window_ = find('[data-solid-script-configurator]');
+    press(window_.querySelector('button')!, 'z', { ctrlKey: true });
+    expect(script().blocks[1]!.values['value']).toBe('1');
+    press(window_.querySelector('button')!, 'y', { ctrlKey: true });
+    expect(script().blocks[1]!.values['value']).toBe('7');
+    window.removeEventListener('keydown', reachedLevel);
+    expect(reachedLevel).not.toHaveBeenCalled();
+    expect(levelUndo).not.toHaveBeenCalled();
+  });
+
+  it('keeps the script history whole through a level undo between script edits', () => {
+    const { script, node, stepId, commandStack } = editorFixture(VARIABLES.slice(0, 3));
+    const names = (): string =>
+      script()
+        .blocks.map((block) => block.values['name'] ?? '_')
+        .join('');
+    press(chip(0), ' ');
+    expect(names()).toBe('_abc');
+    modifierStackParametersCommit(node, stepId, { inputs: { width: '3' } }, commandStack);
+    press(chip(3), 'Delete');
+    expect(names()).toBe('_ab');
+    commandStack.undo();
+    expect(names()).toBe('_ab');
+    commandStack.redo();
+    commandStack.undo();
+    expect(names()).toBe('_ab');
+    scriptKey('z');
+    expect(names()).toBe('_abc');
+    scriptKey('z');
+    expect(names()).toBe('abc');
+    scriptKey('y');
+    scriptKey('y');
+    expect(names()).toBe('_ab');
   });
 });

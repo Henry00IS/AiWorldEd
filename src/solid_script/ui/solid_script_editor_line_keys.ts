@@ -1,5 +1,6 @@
 import type { SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
 import {
+  solidScriptBlockIsBlank,
   solidScriptDocumentBlankInsert,
   solidScriptDocumentLinesInsert,
   solidScriptDocumentLinesMove,
@@ -103,7 +104,7 @@ export class SolidScriptEditorLineKeys {
     if ((command && !event.altKey && event.key === '/') || (!command && event.key === 'F4'))
       return (line) => this.toggle(line);
     if (command || event.altKey) return null;
-    if (event.key === ' ') return (line) => this.blank(line - 1);
+    if (event.key === ' ') return (line) => this.blank(line - 1, line + 1);
     if ((event.key === 'Enter' && event.shiftKey) || event.key === 'Insert') return (line) => this.blank(line);
     if (event.key === 'Enter' || event.key === 'F2') return (line) => this.host.configure(line);
     if (event.key === 'Delete' || event.key === 'Backspace') return (line) => this.remove(line);
@@ -136,8 +137,9 @@ export class SolidScriptEditorLineKeys {
   }
 
   /**
-   * Pastes lines below the selection, with every value they had, and selects
-   * them so they can be moved or copied again at once.
+   * Pastes lines above the selection, or into a selected blank line, with every
+   * value they had, and selects them so they can be moved or copied again at
+   * once.
    *
    * @param event Paste event.
    */
@@ -145,7 +147,9 @@ export class SolidScriptEditorLineKeys {
     event.preventDefault();
     const lines = solidScriptEditorClipboardRead((event as ClipboardEvent).clipboardData ?? null);
     if (!lines || lines.length === 0) return this.host.notice('Copy lines with Ctrl+C first.');
-    this.insertSelected(this.host.selected().at(-1) ?? 0, lines);
+    const first = this.host.selected()[0] ?? 0;
+    const blank = solidScriptBlockIsBlank(this.host.document().blocks[first]);
+    this.insertSelected(blank ? first : first - 1, lines, !blank);
     this.host.notice(`Pasted ${lines.length} ${lines.length === 1 ? 'line' : 'lines'}.`);
   }
 
@@ -183,11 +187,16 @@ export class SolidScriptEditorLineKeys {
   /**
    * Inserts lines below a line and selects them.
    *
-   * @param below Line index.
+   * @param below Line index; -1 inserts at the top.
    * @param lines Lines.
+   * @param keepBlank True never fills a blank line at below.
    */
-  private insertSelected(below: number, lines: readonly { command: string; values?: Record<string, string> }[]): void {
-    const inserted = solidScriptDocumentLinesInsert(this.host.document(), below, lines);
+  private insertSelected(
+    below: number,
+    lines: readonly { command: string; values?: Record<string, string> }[],
+    keepBlank = false,
+  ): void {
+    const inserted = solidScriptDocumentLinesInsert(this.host.document(), below, lines, keepBlank);
     this.host.edit(inserted.document, inserted.line + lines.length - 1);
     this.host.selectRange(inserted.line, inserted.line + lines.length - 1);
   }
@@ -206,14 +215,16 @@ export class SolidScriptEditorLineKeys {
   }
 
   /**
-   * Adds a blank line below a line and moves there; -1 adds it as the first
-   * line, so Space passes the line above its own.
+   * Adds a blank line below a line; -1 adds it as the first line, so Space
+   * passes the line above its own. Shift+Enter moves down onto the new line,
+   * Space moves down with its line, which the blank pushed one line down.
    *
    * @param line Line index.
+   * @param focus Line to focus afterwards; the new line when left out.
    */
-  private blank(line: number): void {
+  private blank(line: number, focus?: number): void {
     const inserted = solidScriptDocumentBlankInsert(this.host.document(), line);
-    this.host.edit(inserted.document, inserted.line);
+    this.host.edit(inserted.document, focus ?? inserted.line);
   }
 
   /**

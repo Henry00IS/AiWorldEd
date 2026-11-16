@@ -155,7 +155,10 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     stops: ['A missing End line.'],
     nesting: 'open',
     parameters: [
-      { ...solidScriptParameter('name', 'Input', 'name', 'Rails', 'Name of the Input it watches.'), inputNames: true },
+      {
+        ...solidScriptParameter('name', 'Input', 'name', 'Rails', 'Name of the Input it watches.'),
+        nameGroups: ['Inputs'],
+      },
       solidScriptParameter('value', 'Value', 'text', 'yes', 'Value that shows the inputs inside, as plain text.'),
     ],
     listing: (read) => ['Show Inputs When', read.text('name'), ' is ', read.text('value')],

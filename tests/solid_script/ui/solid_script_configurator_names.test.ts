@@ -83,6 +83,20 @@ describe('SolidScript configurator fields', () => {
     expect(solidScriptConfiguratorFieldBuild(target, 'Persistent.Presses', () => {}).problem()).toBe('');
   });
 
+  it('offers the parts the script defines for Use Part', () => {
+    const name = solidScriptCommandFind('use_part')!.parameters[0]!;
+    const names = [
+      { name: 'Post', category: 'Parts' as const, line: 0, detail: 'Define Part' },
+      { name: 'Rail', category: 'Parts' as const, line: 3, detail: 'Define Part' },
+      { name: 'Width', category: 'Variables' as const, line: 1, detail: '' },
+    ];
+    const field = solidScriptConfiguratorFieldBuild(name, 'Post', () => {}, { names, extra: [] });
+    document.body.append(field.element);
+    field.element.querySelector('input')!.dispatchEvent(new MouseEvent('click'));
+    const offered = [...document.querySelectorAll('[role="option"]')].map((row) => row.firstElementChild?.textContent);
+    expect(offered.slice(0, 2)).toEqual(['Post', 'Rail']);
+  });
+
   it('offers Current Face for In only inside a face round', () => {
     const where = solidScriptCommandFind('for_each_vertex')!.parameters.find((parameter) => parameter.key === 'in')!;
     const offered = (inLoop: boolean): string[] => {

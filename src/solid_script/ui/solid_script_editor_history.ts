@@ -11,8 +11,11 @@ interface SolidScriptEditorHistoryStep {
   after: SolidScriptDocument;
 }
 
-/** Histories by generator node, then by modifier id. */
-const solidScriptEditorHistories = new WeakMap<Object3D, Map<string, SolidScriptEditorHistory>>();
+/**
+ * Histories by generator node id, then by modifier id. The id outlives the node
+ * object, so a level undo that brings the generator back keeps them.
+ */
+const solidScriptEditorHistories = new Map<string, Map<string, SolidScriptEditorHistory>>();
 
 /**
  * Undo and redo of one generator's script, apart from the level's undo history.
@@ -32,10 +35,10 @@ export class SolidScriptEditorHistory {
    * @returns History.
    */
   static of(node: Object3D, stepId: string): SolidScriptEditorHistory {
-    let byStep = solidScriptEditorHistories.get(node);
+    let byStep = solidScriptEditorHistories.get(node.uuid);
     if (!byStep) {
       byStep = new Map();
-      solidScriptEditorHistories.set(node, byStep);
+      solidScriptEditorHistories.set(node.uuid, byStep);
     }
     let history = byStep.get(stepId);
     if (!history) {

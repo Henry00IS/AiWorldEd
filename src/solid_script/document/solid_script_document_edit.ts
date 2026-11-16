@@ -261,15 +261,17 @@ export function solidScriptDocumentLinesToggle(
  * @param document Script.
  * @param index Current line.
  * @param lines Lines to insert.
+ * @param keepBlank True never fills a blank current line.
  * @returns Edited script and the first inserted line.
  */
 export function solidScriptDocumentLinesInsert(
   document: SolidScriptDocument,
   index: number,
   lines: readonly { command: string; values?: Readonly<Record<string, string>>; off?: boolean }[],
+  keepBlank = false,
 ): SolidScriptInsertResult {
   const blocks = [...document.blocks];
-  const reuse = solidScriptBlockIsBlank(blocks[index]);
+  const reuse = !keepBlank && solidScriptBlockIsBlank(blocks[index]);
   const line = blocks.length === 0 ? 0 : Math.max(0, Math.min(reuse ? index : index + 1, blocks.length));
   const inserted = lines.map((entry) => solidScriptBlockCreate(entry.command, { ...entry.values }, entry.off === true));
   blocks.splice(line, reuse ? 1 : 0, ...inserted);

@@ -68,10 +68,11 @@ export interface SolidScriptCommandParameter {
   words?: readonly SolidScriptCommandWord[];
   /** True for a library texture: the window offers the texture picker or typing. */
   texture?: boolean;
-  /** True offers the shape Names the script uses, as for Of. */
-  shapeNames?: boolean;
-  /** True offers the names of the script's Input lines. */
-  inputNames?: boolean;
+  /**
+   * Name groups of the script the field offers, such as Shapes and Parts for
+   * Of, Inputs for Show Inputs When or Parts for Use Part.
+   */
+  nameGroups?: readonly string[];
   /** Axes of an Anchor field, which the window shows as one choice per axis. */
   anchor?: readonly SolidScriptAnchorAxis[];
 }

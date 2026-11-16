@@ -279,13 +279,16 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
       'Builds a part here, then goes on with the next line. Define the part with Define Part, above or below this line. The blocks around this line move what the part builds. A part may be used many times. It shares the variables of the script, so a Set inside it can hand back a result. The name may be a variable, such as [Style]. A part may use itself, but an If must stop it. Example: Use Part Post inside Translate by 2, 0, 0 builds the post two metres to the right.',
     stops: ['No part with this name.', `Parts using each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} levels deep.`],
     parameters: [
-      solidScriptParameter(
-        'name',
-        'Name',
-        'message',
-        'Part',
-        'Name of a part defined in this script, or a variable such as [Style] that holds one.',
-      ),
+      {
+        ...solidScriptParameter(
+          'name',
+          'Name',
+          'message',
+          'Part',
+          'Name of a part defined in this script, or a variable such as [Style] that holds one.',
+        ),
+        nameGroups: ['Parts'],
+      },
     ],
     listing: (read) => ['Use Part', { kind: 'value', text: `'${read.text('name')}'` }],
     execute: (run) => run.partUse(String(run.value('name')).trim()),

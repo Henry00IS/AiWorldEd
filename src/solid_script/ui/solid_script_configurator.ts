@@ -31,6 +31,8 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
    * @param apply Stores the configured values.
    * @param names Names the script defines, for suggestions and checks.
    * @param cancelled Runs when the window closes without storing, or null.
+   * @param history Undoes (false) or redoes (true) a step of the script's own
+   *   history for Ctrl+Z and Ctrl+Y outside a text field, or null.
    */
   constructor(
     host: HTMLElement,
@@ -39,9 +41,20 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
     private readonly apply: (values: Record<string, string>) => void,
     names: readonly SolidScriptName[] = [],
     private readonly cancelled: (() => void) | null = null,
+    history: ((redo: boolean) => void) | null = null,
   ) {
     super(host, command.label, 'OK');
     this.root.dataset['solidScriptConfigurator'] = command.id;
+    // Undo keys belong to the script, never to the level behind the window;
+    // inside a text field they undo typing.
+    this.root.addEventListener('keydown', (event) => {
+      const key = event.key.toLowerCase();
+      if (!(event.ctrlKey || event.metaKey) || (key !== 'z' && key !== 'y')) return;
+      event.stopPropagation();
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+      event.preventDefault();
+      history?.(key === 'y' || event.shiftKey);
+    });
     this.content.append(this.note(command.description));
     // Many fields scroll inside the window, so it never grows past the page.
     const list = document.createElement('div');

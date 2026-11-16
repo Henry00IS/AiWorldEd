@@ -51,16 +51,24 @@ export function solidScriptLinesApply<Line extends { id: string }>(
 ): Line[] {
   const result = base.filter((block) => !(change.gone.includes(block.id) && taken(block.id)));
   const set = new Set(change.set.filter(taken));
+  // A line that followed a moved line in the source moves along with it, so a
+  // run of lines moved together keeps its order.
+  const moved = new Set<string>();
   source.forEach((block, line) => {
-    if (!set.has(block.id)) return;
+    const follows = line > 0 && moved.has(source[line - 1]!.id) && taken(block.id);
+    if (!set.has(block.id) && !follows) return;
+    moved.add(block.id);
     const at = result.findIndex((candidate) => candidate.id === block.id);
+    if (at < 0 && !set.has(block.id)) return;
+    // A line that only follows keeps its own text, which others may have changed.
+    const placed = at >= 0 && !set.has(block.id) ? result[at]! : structuredClone(block);
     if (at >= 0) result.splice(at, 1);
     let after = -1;
     for (let previous = line - 1; previous >= 0 && after < 0; previous--) {
       const prior = source[previous]?.id;
       after = result.findIndex((candidate) => candidate.id === prior);
     }
-    result.splice(after + 1, 0, structuredClone(block));
+    result.splice(after + 1, 0, placed);
   });
   return result;
 }

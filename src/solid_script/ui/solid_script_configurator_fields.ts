@@ -105,18 +105,14 @@ export function solidScriptConfiguratorFieldBuild(
       .map((entry) => ({ word: entry.name, detail: entry.detail }));
   const suggest: SolidScriptSuggestionScope = {
     ...scope,
-    words: parameter.shapeNames
-      ? named(['Shapes', 'Parts'])
-      : parameter.inputNames
-        ? named(['Inputs'])
-        : parameter.type === 'boolean'
-          ? SOLID_SCRIPT_CONFIGURATOR_YES_NO
-          : (parameter.words ?? []).filter(
-              (word) => !word.sees || scope.names.some((entry) => entry.name === word.sees),
-            ),
+    words: parameter.nameGroups
+      ? named(parameter.nameGroups)
+      : parameter.type === 'boolean'
+        ? SOLID_SCRIPT_CONFIGURATOR_YES_NO
+        : (parameter.words ?? []).filter((word) => !word.sees || scope.names.some((entry) => entry.name === word.sees)),
   };
   const texts =
-    (parameter.type === 'name' || parameter.type === 'target') && !parameter.inputNames
+    (parameter.type === 'name' || parameter.type === 'target') && !parameter.nameGroups
       ? []
       : [...inputs.querySelectorAll<HTMLInputElement>('input[type="text"]')];
   const lists = texts.map((input) => new SolidScriptConfiguratorNames(input, suggest));
