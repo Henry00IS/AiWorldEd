@@ -43,6 +43,7 @@ import {
 } from '@/solid_script/document/solid_script_document_names.js';
 import { SolidScriptConfigurator } from './solid_script_configurator.js';
 import { SolidScriptEditorSettings } from './solid_script_editor_settings.js';
+import { solidScriptEditorSizesRead, solidScriptEditorSplitter } from './solid_script_editor_splitters.js';
 import { SolidScriptEditorOutput } from './solid_script_editor_output.js';
 import { solidScriptEditorLoad, solidScriptEditorSave } from './solid_script_editor_files.js';
 import { solidScriptFileDropBind, type SolidScriptFileDropResult } from './solid_script_file_drop.js';
@@ -206,10 +207,26 @@ export class SolidScriptEditor extends PanelFloating {
     ));
     const body = document.createElement('div');
     body.className = SOLID_SCRIPT_EDITOR_CLASSES.body;
-    body.append(palette.element, this.lines.host, this.help.host);
+    const sizes = solidScriptEditorSizesRead();
+    body.append(
+      palette.element,
+      solidScriptEditorSplitter(palette.element, 'palette', sizes),
+      this.lines.host,
+      solidScriptEditorSplitter(this.help.host, 'help', sizes),
+      this.help.host,
+    );
     solidScriptFileDropBind(this.lines.element, ThemeCss.accentColor, (result) => this.dropped(result));
     styleFloatingPanelStatusBar(this.status);
-    this.root.append(bar.bar, this.toolbar.element, body, this.output.element, this.status, this.grip());
+    const outputSplitter = solidScriptEditorSplitter(this.output.element, 'output', sizes);
+    this.root.append(
+      bar.bar,
+      this.toolbar.element,
+      body,
+      outputSplitter,
+      this.output.element,
+      this.status,
+      this.grip(),
+    );
     this.root.addEventListener('keydown', (event) => this.key(event));
     this.root.addEventListener('mousedown', (event) => event.stopPropagation());
   }

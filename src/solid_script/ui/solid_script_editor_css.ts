@@ -82,6 +82,8 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
   suggestionHeading: 'solid-script-editor-suggestion-heading',
   suggestionDetail: 'solid-script-editor-suggestion-detail',
   suggestionSignature: 'solid-script-editor-suggestion-signature',
+  splitterColumn: 'solid-script-editor-splitter-column',
+  splitterRow: 'solid-script-editor-splitter-row',
   fieldWarning: 'solid-script-editor-field-warning',
   fieldMode: 'solid-script-editor-field-mode',
   stackFrame: 'solid-script-editor-stack-frame',
@@ -130,6 +132,9 @@ const SOLID_SCRIPT_EDITOR_FRAME_CSS = `
 .${c.icon} { display: inline-flex; width: 14px; height: 14px; flex-shrink: 0; }
 .${c.icon} svg { width: 100%; height: 100%; }
 .${c.body} { display: flex; flex: 1; min-height: 0; }
+.${c.splitterColumn} { flex: 0 0 5px; margin: 0 -2px; cursor: col-resize; z-index: 1; }
+.${c.splitterRow} { flex: 0 0 5px; margin: -2px 0; cursor: row-resize; z-index: 1; }
+.${c.splitterColumn}:hover, .${c.splitterRow}:hover { background: ${ThemeCss.inkAlpha(0.12)}; }
 .${c.palette} { width: 176px; flex-shrink: 0; display: flex; flex-direction: column; min-height: 0; border-right: 1px solid ${ThemeCss.separatorColor}; }
 .${c.paletteSearch} { margin: 6px 6px 2px; padding: 4px 8px; border: 1px solid ${ThemeCss.separatorColor}; border-radius: 5px; background: ${ThemeCss.inputBackground}; color: ${ThemeCss.textColor}; font: inherit; outline: none; min-width: 0; }
 .${c.paletteSearch}:focus { border-color: ${ThemeCss.accentColor}; }
@@ -209,7 +214,7 @@ const SOLID_SCRIPT_EDITOR_PANES_CSS = `
 .${c.runs}:not(:empty) { padding: 0 22px 0 6px; }
 .${c.off} .${c.chip} { opacity: 0.42; text-decoration: line-through; text-decoration-color: ${ThemeCss.inkAlpha(0.35)}; }
 .${c.helpUsage} { margin: 10px 0 0; padding-top: 8px; border-top: 1px solid ${ThemeCss.inkAlpha(0.08)}; font-size: 11px; line-height: 1.45; color: ${ThemeCss.mutedTextColor}; }
-.${c.output} { display: flex; flex-direction: column; flex-shrink: 0; height: 112px; border-top: 1px solid ${ThemeCss.separatorColor}; }
+.${c.output} { display: flex; flex-direction: column; flex-shrink: 0; height: 140px; border-top: 1px solid ${ThemeCss.separatorColor}; }
 .${c.outputTabs} { display: flex; gap: 2px; padding: 4px 8px 0; }
 .${c.outputTab} { padding: 3px 10px; border: none; border-bottom: 2px solid transparent; background: none; color: ${ThemeCss.textColor}; font: inherit; cursor: pointer; }
 .${c.outputTab}[aria-selected="true"] { border-bottom-color: ${ThemeCss.accentColor}; font-weight: 600; }
