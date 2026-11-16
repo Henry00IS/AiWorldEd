@@ -32,6 +32,10 @@ const CONTEXT: SolidScriptFieldContext = {
     if (!/^[\d\s+*().[\],-]+$/.test(text)) throw new Error(`cannot read ${text}`);
     return Function(`return (${text});`)() as SolidScriptValue;
   },
+  formulaParse: () => null,
+  formulaRun: () => {
+    throw new Error('this context reads formulas as text');
+  },
 };
 
 /**

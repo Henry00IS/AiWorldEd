@@ -33,6 +33,24 @@ const SOLID_SCRIPT_LIST_METHODS = new Set(['count']);
  * @returns Reference, or null when the text is a plain name.
  */
 export function solidScriptListItemParse(text: string): SolidScriptListItemReference | null {
+  const known = solidScriptListItemKnown.get(text);
+  if (known !== undefined) return known;
+  const reference = solidScriptListItemReferenceRead(text);
+  if (solidScriptListItemKnown.size >= 20000) solidScriptListItemKnown.clear();
+  solidScriptListItemKnown.set(text, reference);
+  return reference;
+}
+
+/** Item references already read, by text; plain names map to null. */
+const solidScriptListItemKnown = new Map<string, SolidScriptListItemReference | null>();
+
+/**
+ * Reads an item reference without the cache.
+ *
+ * @param text Text inside the brackets, or a variable name.
+ * @returns Reference, or null when the text is a plain name.
+ */
+function solidScriptListItemReferenceRead(text: string): SolidScriptListItemReference | null {
   const match = SOLID_SCRIPT_LIST_ITEM.exec(text);
   if (!match) return null;
   const method = (match[3] ?? '').toLowerCase();

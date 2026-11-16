@@ -34,4 +34,6 @@ export type SolidScriptExpression =
     }
   | { kind: 'call'; name: string; args: SolidScriptArgument[] }
   | { kind: 'index'; target: SolidScriptExpression; index: SolidScriptExpression }
-  | { kind: 'member'; target: SolidScriptExpression; name: string };
+  | { kind: 'member'; target: SolidScriptExpression; name: string }
+  /** A bracketed part of a field formula, read before the formula runs. */
+  | { kind: 'slot'; index: number };

@@ -15,6 +15,8 @@ const SOLID_SCRIPT_MEMBERS: Readonly<Record<string, number>> = { x: 0, y: 1, z: 
 
 /** Evaluates expressions of the solid script language. */
 export class SolidScriptExpressionEvaluator {
+  /** Values of the slot nodes of the field formula being evaluated. */
+  private slots: readonly SolidScriptValue[] = [];
   /**
    * Creates the expression evaluator.
    *
@@ -45,6 +47,8 @@ export class SolidScriptExpressionEvaluator {
         return expression.value;
       case 'undef':
         return undefined;
+      case 'slot':
+        return this.slots[expression.index];
       case 'variable':
         return this.evaluateVariable(expression.name, scope);
       case 'vector':
@@ -53,6 +57,28 @@ export class SolidScriptExpressionEvaluator {
         return this.evaluateCall(expression.name, expression.args, scope);
       default:
         return this.evaluateCompound(expression, scope);
+    }
+  }
+
+  /**
+   * Evaluates a field formula whose slot nodes read the given values.
+   *
+   * @param expression Expression.
+   * @param slots Slot values.
+   * @param scope Scope for names.
+   * @returns Value.
+   */
+  evaluateSlots(
+    expression: SolidScriptExpression,
+    slots: readonly SolidScriptValue[],
+    scope: SolidScriptScope,
+  ): SolidScriptValue {
+    const outer = this.slots;
+    this.slots = slots;
+    try {
+      return this.evaluate(expression, scope);
+    } finally {
+      this.slots = outer;
     }
   }
 

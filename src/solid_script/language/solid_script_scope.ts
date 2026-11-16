@@ -1,3 +1,4 @@
+import type { SolidScriptFieldContext } from './solid_script_field.js';
 import type { SolidScriptValue } from './solid_script_value.js';
 
 /**
@@ -7,6 +8,8 @@ import type { SolidScriptValue } from './solid_script_value.js';
  */
 export class SolidScriptScope {
   private readonly variables = new Map<string, SolidScriptValue>();
+  /** What field text reads here, made once by the running script. */
+  fieldContext: SolidScriptFieldContext | null = null;
 
   /**
    * Creates a scope.
