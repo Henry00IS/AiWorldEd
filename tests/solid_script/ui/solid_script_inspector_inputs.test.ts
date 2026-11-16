@@ -93,6 +93,22 @@ describe('SolidScript inspector inputs', () => {
     expect(curveDecode(stored)?.points.length).toBeGreaterThan(2);
   });
 
+  it('shows a texture input as a texture picker and stores the picked id, empty for Default', () => {
+    const { panel, parameters } = inputsFixture([
+      { command: 'input', values: { name: 'look', type: 'texture', default: 'brick', label: 'Wall Texture' } },
+      { command: 'texture', values: { texture: '[look]' } },
+      { command: 'cube' },
+      { command: 'end' },
+    ]);
+    const select = panel.querySelector<HTMLSelectElement>('[data-solid-script-texture] select');
+    if (!select) throw new Error('Expected a texture picker');
+    expect(panel.textContent).toContain('Wall Texture');
+    expect(select.value).toBe('brick');
+    select.value = 'default';
+    select.dispatchEvent(new Event('change'));
+    expect((parameters()[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY] as Record<string, string>)['look']).toBe('');
+  });
+
   it('shows one control per Input line with its default', () => {
     const { panel } = inputsFixture(SOLID_SCRIPT_INPUT_LINES);
     expect(panel.style.display).toBe('');

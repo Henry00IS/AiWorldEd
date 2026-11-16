@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { SolidBrushFactory } from '@/solid/brush/solid_brush_factory.js';
 import { CommandSolidTreeAdd } from '@/solid/commands/tree/command_solid_tree_add.js';
-import type { SolidTreeNode } from '@/solid/commands/tree/solid_tree_node.js';
+import type { SolidTreeBrush, SolidTreeNode } from '@/solid/commands/tree/solid_tree_node.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { getSolidGroupOperation, isSolidCsgGroup } from '@/solid/model/solid_group.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
@@ -65,5 +65,17 @@ describe('CommandSolidTreeAdd', () => {
     command.execute();
     expect(names(model.root)).toEqual(before);
     expect(command.getRootObjects()).toHaveLength(2);
+  });
+
+  it('gives every face of a brush its texture, and leaves brushes without one on the default', () => {
+    const model = new SolidModel('Textures');
+    new CommandSolidTreeAdd(model, [
+      { ...(box('Brick', SolidOperation.Additive, 0) as SolidTreeBrush), texture: 'brick' },
+      box('Plain', SolidOperation.Additive, 2),
+    ]).execute();
+    const [brick, plain] = model.getBrushes();
+    const faces = (brush: typeof brick) => brush?.brush.faces.map((_, index) => brush.getSurfaceTextureId(index));
+    expect(new Set(faces(brick))).toEqual(new Set(['brick']));
+    expect(faces(plain)).not.toContain('brick');
   });
 });

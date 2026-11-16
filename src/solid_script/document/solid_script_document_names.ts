@@ -154,8 +154,7 @@ export function solidScriptDocumentNamesAt(document: SolidScriptDocument, positi
   const add = (name: string, category: SolidScriptNameCategory, line: number, detail: string): void => {
     const plain = name.trim();
     const valid = category === 'System' || SOLID_SCRIPT_NAME_PLAIN.test(plain);
-    if (valid && !names.some((known) => known.name === plain))
-      names.push({ name: plain, category, line, detail });
+    if (valid && !names.some((known) => known.name === plain)) names.push({ name: plain, category, line, detail });
   };
   const functionLine = open.filter((line) => document.blocks[line]?.command === 'function').pop();
   if (functionLine !== undefined) {

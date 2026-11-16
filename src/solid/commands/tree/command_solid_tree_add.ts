@@ -90,7 +90,13 @@ export class CommandSolidTreeAdd implements UndoCommand {
         parent.add(group);
         this.nodesCreate(node.children, group);
       } else {
-        const instance = this.model.prepareTopologyBrush(node.brush, node.operation, node.center, undefined, node.name);
+        const instance = this.model.prepareTopologyBrush(
+          node.brush,
+          node.operation,
+          node.center,
+          node.texture,
+          node.name,
+        );
         this.inserts.push({ parent, instance });
         this.model.addBrushInstanceAfter(instance, parent, null, false);
       }

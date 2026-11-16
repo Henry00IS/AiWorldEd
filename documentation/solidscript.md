@@ -40,6 +40,7 @@ The script runs on every change. **Start** builds everything, **Debug** builds o
 <summary>More Details</summary>
 
 - A **curve** input opens the curve editor; read it with `curve_at(curve, x)` or `profile_points(curve, height, radius)`.
+- A **texture** input picks a library texture; wrap brushes in a **Texture** block, such as `Texture [wall]`, to paint every face with it. An inner Texture block wins, and brushes outside keep the generator's texture.
 - When Input Changes and When Button Pressed blocks can check and change inputs.
 - Values stored as `persistent.name` stay between runs.
 

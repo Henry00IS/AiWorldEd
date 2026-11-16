@@ -86,4 +86,19 @@ describe('solidScriptSolidTreeBuild', () => {
       tree([{ command: 'polyhedron', values: { points: '0, 0, 0; 1, 0, 0; 0, 1, 0; 1, 1, 0' } }, END]),
     ).toThrow(/flat|plane/);
   });
+
+  it('carries the texture of a Texture block onto its brushes; an inner Texture wins', () => {
+    const nodes = tree([
+      { command: 'texture', values: { texture: 'stone' } },
+      CUBE,
+      { command: 'texture', values: { texture: 'wood' } },
+      SPHERE,
+      END,
+      END,
+      { command: 'translate', values: { v: '3, 0, 0' } },
+      CUBE,
+      END,
+    ]);
+    expect(nodes.map((node) => (node.kind === 'brush' ? node.texture : 'group'))).toEqual(['stone', 'wood', undefined]);
+  });
 });

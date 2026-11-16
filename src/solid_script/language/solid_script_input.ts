@@ -1,7 +1,16 @@
 import type { SolidScriptValue } from './solid_script_value.js';
 
 /** Kinds of value a script input takes, as the inspector edits them. */
-export const SOLID_SCRIPT_INPUT_TYPES = ['number', 'count', 'switch', 'text', 'choice', 'button', 'curve'] as const;
+export const SOLID_SCRIPT_INPUT_TYPES = [
+  'number',
+  'count',
+  'switch',
+  'text',
+  'choice',
+  'button',
+  'curve',
+  'texture',
+] as const;
 
 /** Id of the Input command. */
 export const SOLID_SCRIPT_COMMAND_INPUT = 'input';
@@ -82,7 +91,7 @@ export function solidScriptInputRead(values: SolidScriptInputValues): SolidScrip
  */
 export function solidScriptInputValue(input: SolidScriptInput, text: string): SolidScriptValue {
   const trimmed = text.trim();
-  if (input.type === 'text' || input.type === 'curve') return text;
+  if (input.type === 'text' || input.type === 'curve' || input.type === 'texture') return text;
   // A button has no value; When Button Pressed answers it.
   if (input.type === 'button') return false;
   if (input.type === 'switch') {
@@ -139,6 +148,7 @@ const SOLID_SCRIPT_INPUT_TYPE_LABELS: Readonly<Record<string, string>> = {
   choice: 'Text (Choice)',
   button: 'Button',
   curve: 'Curve',
+  texture: 'Texture',
 };
 
 /**

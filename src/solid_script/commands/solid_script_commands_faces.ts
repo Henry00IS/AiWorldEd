@@ -22,10 +22,11 @@ import {
   type SolidScriptGeometryLeaf,
 } from '@/solid_script/language/solid_script_geometry.js';
 import { solidScriptMeshExtrudeFaces, type SolidScriptShapeMesh } from '@/solid_script/language/solid_script_mesh.js';
-import type { SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
+import { solidScriptShapeMapLeaves, type SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
 import {
   solidScriptValueNumber,
   solidScriptValueNumbers,
+  solidScriptValueText,
   solidScriptValueTruthy,
   type SolidScriptValue,
 } from '@/solid_script/language/solid_script_value.js';
@@ -540,6 +541,39 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         );
       run.selectionSet([]);
       return [];
+    },
+  }),
+  new SolidScriptCommand({
+    id: 'texture',
+    label: 'Texture',
+    category: 'Faces',
+    description: 'Paint shapes with a texture',
+    manual:
+      "Gives every face of the brushes between this line and its End the texture named by Texture, the name a texture has in the texture library. Brushes outside any Texture block keep the generator's own texture, and an inner Texture block wins over an outer one. A texture Input picks the name from the library, so the inspector can change it. Meshes keep the generator's texture for now. Example: Input wall, texture, then Texture [wall] around the walls paints them with the picked texture.",
+    stops: ['A missing End line.'],
+    nesting: 'open',
+    parameters: [
+      solidScriptParameter(
+        'texture',
+        'Texture',
+        'text',
+        '',
+        "Name of a library texture, such as one picked by a texture Input. Empty keeps the generator's texture.",
+      ),
+    ],
+    starter: [{ command: 'cube', values: {} }],
+    listing: (read) => ['Texture', read.value('texture')],
+    execute: (run) => {
+      const texture = solidScriptValueText(run.value('texture')).trim();
+      const shapes = run.local(run.planar);
+      if (texture === '') return run.placed(shapes);
+      return run.placed(
+        shapes.map((shape) =>
+          solidScriptShapeMapLeaves(shape, (leaf) =>
+            leaf.kind === 'solid' && leaf.texture === undefined ? { ...leaf, texture } : leaf,
+          ),
+        ),
+      );
     },
   }),
 ];

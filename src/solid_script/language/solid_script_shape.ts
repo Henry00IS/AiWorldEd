@@ -14,6 +14,8 @@ export interface SolidScriptShapeSolid {
    * of a Stairs block; none for plain shapes.
    */
   role?: string;
+  /** Texture of every face, from a Texture block; none keeps the default. */
+  texture?: string;
 }
 
 /** Simple 2D polygon in the local plane of a linear_extrude. */

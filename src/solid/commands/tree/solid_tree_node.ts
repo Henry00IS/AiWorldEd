@@ -12,6 +12,8 @@ export interface SolidTreeBrush {
   brush: SolidBrush;
   /** Brush origin in the local space of its parent. */
   center: THREE.Vector3;
+  /** Texture of every face; none keeps the default. */
+  texture?: string;
 }
 
 /** A CSG group to insert with its members in evaluation order. */

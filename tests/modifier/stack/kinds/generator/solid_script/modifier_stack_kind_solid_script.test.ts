@@ -197,4 +197,23 @@ describe('SolidScript generator', () => {
     if (!node) throw new Error('Expected the loaded generator');
     expect(solidScriptDocumentNormalize(ModifierVolume.read(node).modifiers[0]?.parameters['script'])).toEqual(stored);
   });
+
+  it('textures every face of the brushes inside a Texture block, and the rest with the main texture', () => {
+    const fixture = scriptFixture();
+    scriptSet(fixture.node, {
+      script: script(
+        { command: 'texture', values: { texture: 'brick' } },
+        { command: 'cube' },
+        { command: 'end' },
+        { command: 'translate', values: { v: '3, 0, 0' } },
+        { command: 'cube' },
+        { command: 'end' },
+      ),
+    });
+    const textures = fixture
+      .pieces()
+      .map((piece) => [...new Set(piece.brush.faces.map((_, index) => piece.getSurfaceTextureId(index)))]);
+    expect(textures[0]).toEqual(['brick']);
+    expect(textures[1]).not.toContain('brick');
+  });
 });

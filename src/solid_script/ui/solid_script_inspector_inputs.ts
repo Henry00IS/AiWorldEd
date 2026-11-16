@@ -13,6 +13,7 @@ import { CURVE_PRESETS_ARCHITECTURE } from '@/curve/model/curve_preset_architect
 import { CURVE_PRESETS_EXTENDED } from '@/curve/model/curve_preset_extended.js';
 import { CURVE_PRESETS_TURNERY } from '@/curve/model/curve_preset_turnery.js';
 import { CurveField } from '@/curve/ui/curve_field.js';
+import { modifierStackTextureRow } from '@/modifier/stack/ui/modifier_stack_texture_row.js';
 import { InputSelect } from '@/ui/input/input_select.js';
 import { inputNumericCreateUvField } from '@/ui/input/input_numeric_uv_field.js';
 import { solidScriptDocumentNormalize } from '@/solid_script/document/solid_script_document.js';
@@ -153,6 +154,14 @@ function solidScriptInspectorInputRow(
     };
   }
   if (input.type === 'curve') return solidScriptInspectorCurveRow(input, commit, hint);
+  if (input.type === 'texture') {
+    const { row, write } = modifierStackTextureRow(
+      { key: input.name, label: input.label, type: 'texture', default: '', hint },
+      (_key, value) => commit(String(value)),
+    );
+    row.dataset['solidScriptTexture'] = input.name;
+    return { element: row, write: (text) => write(text, {}) };
+  }
   if (input.type === 'text') {
     const field = document.createElement('input');
     field.type = 'text';
