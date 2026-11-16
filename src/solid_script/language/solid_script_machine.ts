@@ -506,9 +506,6 @@ const SOLID_SCRIPT_SYSTEM_GROUPS: ReadonlySet<string> = new Set(
 /** Names of the built-in values every script can read. */
 const SOLID_SCRIPT_SYSTEM_NAMES: ReadonlySet<string> = new Set(SOLID_SCRIPT_SYSTEM_GLOBALS.map((entry) => entry.name));
 
-/** Input names of Function lines, by their text, read once. */
-const SOLID_SCRIPT_FUNCTION_PARAMETERS = new Map<string, string[]>();
-
 /**
  * Names already checked to be plain names, so setting them again skips the
  * checks.
@@ -574,6 +571,12 @@ interface SolidScriptLineField {
   compiled: SolidScriptFieldCompiled;
 }
 
+/**
+ * Matrix and flatness of a Function run inside a formula; shared, since such a
+ * run builds no shapes and every block copies a matrix before changing it.
+ */
+const SOLID_SCRIPT_FORMULA_CONTEXT: SolidScriptContext = { matrix: new THREE.Matrix4(), planar: false };
+
 /** Thrown through a formula when a Function inside it reached the pause. */
 class SolidScriptPause extends Error {}
 
@@ -594,6 +597,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
   private readonly parts = new Map<string, SolidScriptPart<Command>>();
   /** Function blocks by name. */
   private readonly functions = new Map<string, SolidScriptBlockNode<Command>>();
+  /** Input names of each Function block. */
+  private readonly functionParameters = new Map<SolidScriptBlockNode<Command>, readonly string[]>();
   /** Functions and parts running inside each other, innermost last. */
   private readonly stack: SolidScriptFrame[] = [];
   /** The stack as it was at the watched step. */
@@ -810,11 +815,10 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
   ): { shapes: SolidScriptShape[]; value: SolidScriptValue } | null {
     const node = this.functions.get(name);
     if (!node) return null;
-    const text = node.command.valueText(node.values, 'parameters');
-    let parameters = SOLID_SCRIPT_FUNCTION_PARAMETERS.get(text);
+    let parameters = this.functionParameters.get(node);
     if (!parameters) {
-      if (SOLID_SCRIPT_FUNCTION_PARAMETERS.size >= 20000) SOLID_SCRIPT_FUNCTION_PARAMETERS.clear();
-      SOLID_SCRIPT_FUNCTION_PARAMETERS.set(text, (parameters = solidScriptFunctionParameters(text)));
+      parameters = solidScriptFunctionParameters(node.command.valueText(node.values, 'parameters'));
+      this.functionParameters.set(node, parameters);
     }
     if (values.length !== parameters.length)
       throw new Error(
@@ -848,7 +852,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
    */
   private functionCall(name: string, values: readonly SolidScriptValue[]): { value: SolidScriptValue } | null {
     const before = this.steps.length;
-    const run = this.functionRun(name, values, { matrix: new THREE.Matrix4(), planar: false });
+    const run = this.functionRun(name, values, SOLID_SCRIPT_FORMULA_CONTEXT);
     if (!run) {
       const looked = solidScriptGeometryLookup(name, values, () => this.builtStack.flat());
       return looked === undefined ? null : { value: looked };

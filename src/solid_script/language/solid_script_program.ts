@@ -1,7 +1,12 @@
 import { solidScriptNameDotProblem } from './solid_script_name_rules.js';
 import { solidScriptFieldCheck } from './solid_script_field.js';
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
-import { solidScriptBlockTree, type SolidScriptTreeLine } from './solid_script_block_tree.js';
+import {
+  solidScriptBlockTree,
+  type SolidScriptBlockNode,
+  type SolidScriptTreeLine,
+} from './solid_script_block_tree.js';
+import type { SolidScriptCommand } from '@/solid_script/commands/solid_script_command.js';
 import { solidScriptErrorLine } from './solid_script_error.js';
 import { solidScriptSystemValues, type SolidScriptRunContext } from './solid_script_system.js';
 import {
@@ -60,14 +65,27 @@ export function solidScriptProgramProblem(program: SolidScriptProgram): { line: 
   return null;
 }
 
+/** Checked block trees of scripts, by their lines, which edits never change. */
+const SOLID_SCRIPT_PROGRAM_TREES = new WeakMap<
+  readonly SolidScriptTreeLine[],
+  SolidScriptBlockNode<SolidScriptCommand>[]
+>();
+
 /**
- * Throws the first problem the check before the run finds.
+ * Checks the lines of a script and builds their block tree, once per script: a
+ * generator runs the same script again whenever its box or inputs change.
  *
  * @param program Lines of the script.
+ * @returns Top-level lines.
  */
-function solidScriptProgramCheck(program: SolidScriptProgram): void {
+function solidScriptProgramLines(program: SolidScriptProgram): SolidScriptBlockNode<SolidScriptCommand>[] {
+  const known = SOLID_SCRIPT_PROGRAM_TREES.get(program.blocks);
+  if (known) return known;
   const problem = solidScriptProgramProblem(program);
   if (problem) throw new Error(`line ${problem.line}: ${problem.message}`);
+  const lines = solidScriptBlockTree(program.blocks, solidScriptCommandFind);
+  SOLID_SCRIPT_PROGRAM_TREES.set(program.blocks, lines);
+  return lines;
 }
 
 /**
@@ -83,8 +101,7 @@ export function solidScriptProgramRun(
   options: SolidScriptProgramOptions = {},
 ): SolidScriptRun {
   try {
-    solidScriptProgramCheck(program);
-    const lines = solidScriptBlockTree(program.blocks, solidScriptCommandFind);
+    const lines = solidScriptProgramLines(program);
     const system = solidScriptSystemValues(options.context ?? 'generator', options.box ?? null);
     return new SolidScriptMachine(
       options.stepLimit,
@@ -140,8 +157,7 @@ export function solidScriptProgramHandle(
   inputs: Readonly<Record<string, string>>,
 ): SolidScriptHandled {
   try {
-    solidScriptProgramCheck(program);
-    const lines = solidScriptBlockTree(program.blocks, solidScriptCommandFind);
+    const lines = solidScriptProgramLines(program);
     const system = solidScriptSystemValues('handler', null);
     return new SolidScriptMachine(Number.POSITIVE_INFINITY, null, inputs, system).handle(lines, event);
   } catch (error) {

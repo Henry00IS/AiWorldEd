@@ -13,8 +13,8 @@ import { SOLID_SCRIPT_EXAMPLES } from '@/solid_script/examples/solid_script_exam
  * @param rounds Timed runs.
  * @returns Median.
  */
-function median(task: () => void, rounds = 15): number {
-  for (let warm = 0; warm < 5; warm++) task();
+function median(task: () => void, rounds = 25): number {
+  for (let warm = 0; warm < 30; warm++) task();
   const times: number[] = [];
   for (let round = 0; round < rounds; round++) {
     const start = performance.now();

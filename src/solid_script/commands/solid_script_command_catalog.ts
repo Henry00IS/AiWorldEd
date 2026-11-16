@@ -37,6 +37,11 @@ export const solidScriptCommands: readonly SolidScriptCommand[] = [
   ...SOLID_SCRIPT_COMMANDS_PROGRAM,
 ];
 
+/** Commands by id. */
+const SOLID_SCRIPT_COMMANDS_BY_ID: ReadonlyMap<string, SolidScriptCommand> = new Map(
+  solidScriptCommands.map((command) => [command.id, command]),
+);
+
 /**
  * Finds a command.
  *
@@ -44,5 +49,5 @@ export const solidScriptCommands: readonly SolidScriptCommand[] = [
  * @returns Command, or undefined when unknown.
  */
 export function solidScriptCommandFind(id: string): SolidScriptCommand | undefined {
-  return solidScriptCommands.find((command) => command.id === id);
+  return SOLID_SCRIPT_COMMANDS_BY_ID.get(id);
 }
