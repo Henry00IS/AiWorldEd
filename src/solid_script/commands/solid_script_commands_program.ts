@@ -120,11 +120,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
         'Names of the values it takes, such as w, d. Read them as [local.w].',
       ),
     ],
-    listing: (read) => [
-      'Function',
-      read.text('name'),
-      ...solidScriptListingInputs(read.text('parameters')),
-    ],
+    listing: (read) => ['Function', read.text('name'), ...solidScriptListingInputs(read.text('parameters'))],
     execute: () => [],
   }),
   new SolidScriptCommand({
@@ -142,7 +138,12 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     parameters: [
       solidScriptParameter('name', 'Function', 'name', 'area', 'Name of the Function block to run.'),
       solidScriptParameterOptional('values', 'Values', 'text', 'Values for its Inputs, in order, such as [i], 0.2.'),
-      solidScriptParameterOptional('result', 'Result In', 'target', 'Variable that gets the value the function gives back.'),
+      solidScriptParameterOptional(
+        'result',
+        'Result In',
+        'target',
+        'Variable that gets the value the function gives back.',
+      ),
     ],
     listing: (read) => [
       'Call',

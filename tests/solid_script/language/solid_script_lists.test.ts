@@ -209,7 +209,9 @@ describe('SolidScript parts as calls', () => {
       END,
       { command: 'use_part', values: { name: 'loop' } },
     );
-    expect(result.error?.message).toMatch(/more than 64 levels deep. A part that uses itself needs an If that stops it/);
+    expect(result.error?.message).toMatch(
+      /more than 64 levels deep. A part that uses itself needs an If that stops it/,
+    );
   });
 
   it('chooses the part by a variable', () => {

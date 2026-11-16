@@ -38,6 +38,18 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
     line,
     ...command.starter.map((entry) => ({ ...entry, values: { ...entry.values } })),
   ];
+  if (command.category === 'Faces') {
+    const pick: SolidScriptLine[] = [{ command: 'cube' }, { command: 'select_faces' }];
+    if (command.id === 'select_faces') return [{ command: 'cube' }, line];
+    if (command.nesting === 'open' && command.id !== 'place_on_face') return [...pick, ...started, { command: 'end' }];
+    return [
+      ...pick,
+      { command: 'for_each_selected_face' },
+      ...started,
+      ...(command.nesting === 'open' ? [{ command: 'end' }] : []),
+      { command: 'end' },
+    ];
+  }
   if (command.starter.length > 0 && command.category === '2D Shapes')
     return [{ command: 'linear_extrude' }, ...started, { command: 'end' }, { command: 'end' }];
   if (command.starter.length > 0) return [...started, { command: 'end' }];
@@ -153,7 +165,7 @@ describe('solid script command catalog', () => {
         (command) => command.nesting === 'open' && command.category !== 'Solids' && command.category !== '2D Shapes',
       )
       .map((command) => command.category);
-    expect(new Set(openers)).toEqual(new Set(['Transforms', 'Combine', 'Meshes', 'Inputs', 'Logic', 'Parts']));
+    expect(new Set(openers)).toEqual(new Set(['Transforms', 'Combine', 'Meshes', 'Faces', 'Inputs', 'Logic', 'Parts']));
     const pointShapes = solidScriptCommands
       .filter((command) => command.starter.length > 0)
       .map((command) => command.id);

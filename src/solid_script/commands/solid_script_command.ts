@@ -15,7 +15,7 @@ export type SolidScriptCommandParameterType = SolidScriptFieldKind;
 
 /** Palette group of a command, in palette order. */
 export type SolidScriptCommandCategory =
-  'Solids' | 'Generators' | '2D Shapes' | 'Transforms' | 'Combine' | 'Meshes' | 'Inputs' | 'Logic' | 'Parts';
+  'Solids' | 'Generators' | '2D Shapes' | 'Transforms' | 'Combine' | 'Meshes' | 'Faces' | 'Inputs' | 'Logic' | 'Parts';
 
 /**
  * How a command line shapes the block structure: 'open' starts a block that an

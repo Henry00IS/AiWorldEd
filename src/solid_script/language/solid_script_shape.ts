@@ -9,6 +9,11 @@ export interface SolidScriptShapeSolid {
   kind: 'solid';
   points: THREE.Vector3[];
   label: string;
+  /**
+   * What built it, for the names its faces get, such as "stairs +x" for a step
+   * of a Stairs block; none for plain shapes.
+   */
+  role?: string;
 }
 
 /** Simple 2D polygon in the local plane of a linear_extrude. */

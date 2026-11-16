@@ -83,6 +83,17 @@ Formulas know: numbers, text in double quotes, true, false, lists in $[ $] brack
 - A script may mix brushes and meshes. A mesh cannot be cut: Difference and Intersection stop the script when a mesh is inside them.
 - In a SolidScript generator, meshes show as a preview that is not saved, picked or collided with; Bake turns them into mesh objects. geometry_script_build creates them as mesh objects in the same undo step as the brushes.
 
+## Faces
+
+- Select Faces picks faces of the shapes built above it, in plain words. Which is All, Facing Up, Facing Down, Facing Left, Facing Right, Facing Front, Facing Back (Within allows a slope in degrees), Facing (Detail gives a direction such as 0, 0, 1), Tagged (Detail gives a name), Biggest or Smallest (Detail gives how many), Number (Detail gives face numbers) or Where (Detail gives a condition such as [=[Face.Area] > 1]). How is New, Add or Remove.
+- Every face has a name: Top, Bottom or Side. Stairs add Step Tread and Riser, columns add Cap.
+- For Each Selected Face runs its lines once per picked face. Inside, the read-only values [Face.Index], [Face.Number], [Face.Center], [Face.Normal], [Face.Width], [Face.Height], [Face.Area] and [Face.Tag] describe it; [Face.Center(2)] is the height of its middle.
+- For Each Vertex gives [Vertex.Index], [Vertex.Position] and [Vertex.Normal]; For Each Edge gives [Edge.Index], [Edge.Start], [Edge.End], [Edge.Middle], [Edge.Length] and [Edge.Direction].
+- Place On Face builds the shapes inside standing on the face of the round: Z points out of the face, X runs across it, Y up it.
+- Extrude Face, Inset Face, Bevel Edges and Delete Faces work on the face of the round, or else on every picked face. Extrude Face adds a brush on a brush face and moves a mesh face. Inset Face and Delete Faces turn a brush into a mesh. Bevel Edges works on brushes.
+- Formulas can read any face, corner or edge of the shapes above: face_count(), face_center(n), face_normal(n), face_width(n), face_height(n), face_area(n), face_tag(n), vertex_count(), vertex_position(n), vertex_normal(n), edge_count(), edge_start(n), edge_end(n), edge_middle(n) and edge_length(n). Numbers count from 0.
+- Example, a trim on every stair step: Stairs; Select Faces Tagged Step Tread; For Each Selected Face; Place On Face; Cube size [Face.Width], 0.05, 0.03; End For Each.
+
 ## Inputs, functions and events
 
 - Input lines give a script settings, like the fields of a built-in generator: Input steps, Type count, Default 8, Minimum 1, Maximum 64 makes a read-only variable [steps]. In a SolidScript generator the inspector shows one control per Input (number, count, switch, text, choice, or button) and geometry_script_generator_set takes their values as inputs; until a value is set, the Default is used. A value outside the limits stops the script.

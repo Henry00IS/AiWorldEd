@@ -135,7 +135,10 @@ function solidScriptGeneratorCommand(kind: ModifierStackKindGenerator): SolidScr
       const parameters = Object.fromEntries(fields.map((field) => [field.key, solidScriptGeneratorValue(args, field)]));
       const min = args.flag('center') ? ([-x / 2, -y / 2, -z / 2] as const) : ([0, 0, 0] as const);
       const pieces = solidScriptGeneratorPieces(kind.id, parameters, { size: [x, y, z], min });
-      return pieces.flatMap((points) => run.solid(points));
+      const role = 'direction' in parameters ? `${kind.id} ${String(parameters['direction'])}` : kind.id;
+      return pieces
+        .flatMap((points) => run.solid(points))
+        .map((shape) => (shape.kind === 'solid' ? { ...shape, role } : shape));
     },
   });
 }

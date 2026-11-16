@@ -3,6 +3,7 @@ import { SOLID_SCRIPT_COMMANDS_PLANAR, SOLID_SCRIPT_COMMANDS_SOLIDS } from './so
 import { SOLID_SCRIPT_COMMANDS_COMBINE, SOLID_SCRIPT_COMMANDS_TRANSFORMS } from './solid_script_commands_blocks.js';
 import { SOLID_SCRIPT_COMMANDS_LOGIC } from './solid_script_commands_logic.js';
 import { SOLID_SCRIPT_COMMANDS_MESHES } from './solid_script_commands_meshes.js';
+import { SOLID_SCRIPT_COMMANDS_FACES } from './solid_script_commands_faces.js';
 import { SOLID_SCRIPT_COMMANDS_GENERATORS } from './solid_script_commands_generators.js';
 import { SOLID_SCRIPT_COMMANDS_PROGRAM } from './solid_script_commands_program.js';
 
@@ -14,6 +15,7 @@ export const SOLID_SCRIPT_COMMAND_CATEGORIES: readonly SolidScriptCommandCategor
   'Transforms',
   'Combine',
   'Meshes',
+  'Faces',
   'Inputs',
   'Logic',
   'Parts',
@@ -27,6 +29,7 @@ export const solidScriptCommands: readonly SolidScriptCommand[] = [
   ...SOLID_SCRIPT_COMMANDS_TRANSFORMS,
   ...SOLID_SCRIPT_COMMANDS_COMBINE,
   ...SOLID_SCRIPT_COMMANDS_MESHES,
+  ...SOLID_SCRIPT_COMMANDS_FACES,
   ...SOLID_SCRIPT_COMMANDS_LOGIC,
   ...SOLID_SCRIPT_COMMANDS_PROGRAM,
 ];

@@ -1,3 +1,4 @@
+import { solidScriptGeometryLookup } from './solid_script_geometry_lookup.js';
 import * as THREE from 'three';
 import type { SolidScriptExpression } from './solid_script_ast.js';
 import { SolidScriptBlockArguments } from './solid_script_block_arguments.js';
@@ -28,7 +29,14 @@ import {
   type SolidScriptUv,
 } from './solid_script_mesh.js';
 import { SolidScriptScope } from './solid_script_scope.js';
-import { solidScriptShapeJoin, solidScriptShapeLeavesPositive, type SolidScriptShape } from './solid_script_shape.js';
+import type { SolidScriptFaceFacts, SolidScriptGeometryLeaf } from './solid_script_geometry.js';
+import {
+  solidScriptShapeJoin,
+  solidScriptShapeLeavesPositive,
+  solidScriptShapeMapLeaves,
+  type SolidScriptShape,
+  type SolidScriptShapeLeaf,
+} from './solid_script_shape.js';
 import { solidScriptValueText, solidScriptValueType, type SolidScriptValue } from './solid_script_value.js';
 
 /** Most solids one run may produce. */
@@ -198,6 +206,36 @@ export interface SolidScriptBlockRun {
   call(name: string, values: readonly SolidScriptValue[], result: string | null): SolidScriptShape[];
   /** True while an inspector event runs its handler instead of the script. */
   readonly handling: boolean;
+  /**
+   * Every shape built so far by the lines above this one, in this block and the
+   * blocks around it, in build order.
+   */
+  built(): SolidScriptShape[];
+  /** The faces picked by the last Select Faces line. */
+  selection(): SolidScriptFaceFacts[];
+  /** Remembers the faces Select Faces picked. */
+  selectionSet(faces: readonly SolidScriptFaceFacts[]): void;
+  /** The face of the For Each Selected Face round running, or null outside one. */
+  faceCurrent(): SolidScriptFaceFacts | null;
+  /**
+   * Runs the lines inside once per round, with read-only system variables such
+   * as Face.Center set for that round, and the face of the round as the current
+   * face.
+   */
+  looped(
+    rounds: readonly { variables: Readonly<Record<string, SolidScriptValue>>; face: SolidScriptFaceFacts | null }[],
+  ): SolidScriptShape[];
+  /**
+   * Runs the lines inside placed by a matrix, ignoring the blocks around this
+   * line.
+   */
+  framed(matrix: THREE.Matrix4): SolidScriptShape[];
+  /** Swaps a built solid or mesh for another, wherever it was built. */
+  leafReplace(leaf: SolidScriptGeometryLeaf, by: SolidScriptGeometryLeaf): void;
+  /** Returns what a solid or mesh became after the swaps since it was read. */
+  leafLatest(leaf: SolidScriptGeometryLeaf): SolidScriptGeometryLeaf;
+  /** Adds shapes as built by this line, each a step for the debugger. */
+  adopted(shapes: readonly SolidScriptShapeLeaf[]): SolidScriptShape[];
   /** Changes the inspector value of an input, while handling an event. */
   inputSet(name: string, value: SolidScriptValue): void;
   /** Shows a message in the inspector, while handling an event. */
@@ -395,6 +433,14 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
   private work = 0;
   private used = false;
   private readonly breaks: SolidScriptBreak[] = [];
+  /** Shapes built by each running block so far, innermost last. */
+  private readonly builtStack: SolidScriptShape[][] = [];
+  /** Faces the last Select Faces line picked. */
+  private faceSelection: SolidScriptFaceFacts[] = [];
+  /** Faces of the For Each Selected Face rounds running, innermost last. */
+  private readonly faceRounds: (SolidScriptFaceFacts | null)[] = [];
+  /** What each swapped solid or mesh became. */
+  private readonly leafSwaps = new Map<SolidScriptGeometryLeaf, SolidScriptGeometryLeaf>();
   /**
    * Points being gathered by the Polyhedron or Polygon blocks around the
    * running line, innermost last.
@@ -500,7 +546,14 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     scope = new SolidScriptScope(parent),
   ): SolidScriptShape[] {
     this.definitionsRegister(lines);
-    return lines.flatMap((node) => this.lineRun(node, scope, context));
+    const built: SolidScriptShape[] = [];
+    this.builtStack.push(built);
+    try {
+      for (const node of lines) built.push(...this.lineRun(node, scope, context));
+    } finally {
+      this.builtStack.pop();
+    }
+    return built;
   }
 
   /**
@@ -590,13 +643,15 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
   private functionCall(name: string, values: readonly SolidScriptValue[]): { value: SolidScriptValue } | null {
     const before = this.steps.length;
     const run = this.functionRun(name, values, { matrix: new THREE.Matrix4(), planar: false });
-    if (!run) return null;
+    if (!run) {
+      const looked = solidScriptGeometryLookup(name, values, () => this.builtStack.flat());
+      return looked === undefined ? null : { value: looked };
+    }
     if (this.paused) throw new SolidScriptPause();
     if (this.failure) throw new Error(this.failure.message);
     if (this.steps.length > before)
       throw new Error(`${name}() builds shapes, so use it with a Call line, not inside a formula`);
-    if (run.value === undefined)
-      throw new Error(`${name}() gives no value; end it with a Return that has a Value, or fill in its Result`);
+    if (run.value === undefined) throw new Error(`${name}() gives no value; end it with a Return that has a Value`);
     return { value: run.value };
   }
 
@@ -840,6 +895,41 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
         return lines.length === 0 ? [] : this.linesRun(lines, scope, context);
       },
       partUse: (name) => this.partUse(name, scope, context),
+      built: () => this.builtStack.flat(),
+      selection: () => [...this.faceSelection],
+      selectionSet: (faces) => {
+        this.faceSelection = [...faces];
+      },
+      faceCurrent: () => this.faceRounds.at(-1) ?? null,
+      looped: (rounds) => {
+        const shapes = rounds.flatMap((round) => {
+          this.workTake();
+          const inner = new SolidScriptScope(scope);
+          for (const [name, value] of Object.entries(round.variables)) inner.variableDefine(name, value);
+          this.faceRounds.push(round.face);
+          try {
+            return node.children.length === 0 ? [] : this.linesRun(node.children, inner, context, inner);
+          } finally {
+            this.faceRounds.pop();
+          }
+        });
+        const joined = solidScriptShapeJoin(shapes, label);
+        return joined ? [joined] : [];
+      },
+      framed: (matrix) => inside({ ...context, matrix }),
+      leafLatest: (leaf) => {
+        let latest = leaf;
+        for (let next = this.leafSwaps.get(latest); next; next = this.leafSwaps.get(latest)) latest = next;
+        return latest;
+      },
+      leafReplace: (leaf, by) => {
+        this.leafSwaps.set(leaf, by);
+        for (const built of this.builtStack)
+          built.forEach((shape, index) => {
+            built[index] = solidScriptShapeMapLeaves(shape, (found) => (found === leaf ? by : found));
+          });
+      },
+      adopted: (shapes) => shapes.filter(() => this.stepTake(scope)),
       gathered: (what) => {
         const into: SolidScriptGathering = { kind: what, points: [], uvs: [], faces: [] };
         this.gathering.push(into);

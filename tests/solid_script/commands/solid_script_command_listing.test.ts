@@ -88,12 +88,18 @@ describe('SolidScript listing', () => {
   it('names a block in full on its first line and keeps its End line short', () => {
     const lines = (command: string, values: Record<string, string>) =>
       solidScriptDocumentListing(solidScriptDocumentCreate([{ command, values }, { command: 'end' }]));
-    expect(lines('function', { name: 'area', parameters: 'w, d' })).toEqual(['Function  area with inputs w, d', 'End Function']);
+    expect(lines('function', { name: 'area', parameters: 'w, d' })).toEqual([
+      'Function  area with inputs w, d',
+      'End Function',
+    ]);
     expect(lines('function', { name: 'area', parameters: '' })).toEqual(['Function  area', 'End Function']);
     expect(lines('when_button_pressed', { name: 'Reset' })).toEqual(['When Button Pressed  Reset', 'End When']);
     expect(lines('when_input_changes', { name: 'width' })).toEqual(['When Input Changes  width', 'End When']);
     expect(lines('part', { name: 'post' })).toEqual(['Define Part  post', 'End Part']);
-    expect(lines('repeat', { variable: 'i', from: '0', to: '3' })).toEqual(["Repeat  [i] from '0' to '3'", 'End Repeat']);
+    expect(lines('repeat', { variable: 'i', from: '0', to: '3' })).toEqual([
+      "Repeat  [i] from '0' to '3'",
+      'End Repeat',
+    ]);
     expect(lines('if', { condition: '[i] > 2' })).toEqual(["If  '[i] > 2'", 'End If']);
   });
 

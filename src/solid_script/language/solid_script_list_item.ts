@@ -18,10 +18,10 @@ export interface SolidScriptListItemReference {
 }
 
 /**
- * Shape of an item reference: a name, round brackets, and an optional
- * .function.
+ * Shape of an item reference: a name (system values such as Face.Center have
+ * one dot), round brackets, and an optional .function.
  */
-const SOLID_SCRIPT_LIST_ITEM = /^\s*([A-Za-z_]\w*)\s*\((.*)\)\s*(?:\.\s*([A-Za-z_]\w*))?\s*$/s;
+const SOLID_SCRIPT_LIST_ITEM = /^\s*([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)?)\s*\((.*)\)\s*(?:\.\s*([A-Za-z_]\w*))?\s*$/s;
 
 /** Functions that can follow a list reference. */
 const SOLID_SCRIPT_LIST_METHODS = new Set(['count']);

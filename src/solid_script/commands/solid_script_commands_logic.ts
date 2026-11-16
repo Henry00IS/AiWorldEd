@@ -256,12 +256,14 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     description: 'Leave the function or part early',
     manual:
       'Stops a Function or a part early. The lines after it are skipped. The script goes on after the Call or Use Part that started it. In a Function, Return can give back a value. A Call line stores that value in its Result In variable. Shapes built before Return stay. Put Return inside an If to stop only sometimes. Example: Return [local.v] gives back the value v.',
-    stops: [
-      'Being outside a Function or a Define Part.',
-      'A Value inside a part. Parts hand back results with Set.',
-    ],
+    stops: ['Being outside a Function or a Define Part.', 'A Value inside a part. Parts hand back results with Set.'],
     parameters: [
-      solidScriptParameterOptional('value', 'Value', 'value', 'The value a Function gives back. Leave it empty to give back nothing.'),
+      solidScriptParameterOptional(
+        'value',
+        'Value',
+        'value',
+        'The value a Function gives back. Leave it empty to give back nothing.',
+      ),
     ],
     listing: (read) => ['Return', ...(read.text('value') === '' ? [] : [read.value('value')])],
     execute: (run) => run.leave(run.text('value').trim() === '' ? undefined : run.value('value')),
