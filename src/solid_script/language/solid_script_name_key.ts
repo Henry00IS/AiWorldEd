@@ -10,6 +10,12 @@ const SOLID_SCRIPT_NAME_KEYS = new Map<string, string>();
 /** Most names kept before the cache starts over. */
 const SOLID_SCRIPT_NAME_KEYS_LIMIT = 8192;
 
+/** Starts of names as stored and as taught. */
+const SOLID_SCRIPT_NAME_PREFIXES: readonly (readonly [string, string])[] = [
+  ['local.', 'Local.'],
+  ['persistent.', 'Persistent.'],
+];
+
 /**
  * Returns the key a name is stored and looked up under.
  *
@@ -24,6 +30,38 @@ export function solidScriptNameKey(name: string): string {
     SOLID_SCRIPT_NAME_KEYS.set(name, key);
   }
   return key;
+}
+
+/**
+ * Spells a name key for a message or the debugger as it was written, with
+ * Local. and Persistent. as taught, such as Local.Width for local.width.
+ *
+ * @param key Key.
+ * @param written Finds how a key was written, or undefined.
+ * @returns Spelling.
+ */
+export function solidScriptNameSpelling(key: string, written: (key: string) => string | undefined): string {
+  const prefix = SOLID_SCRIPT_NAME_PREFIXES.find(([folded]) => key.startsWith(folded));
+  if (!prefix) return written(key) ?? key;
+  const bare = key.slice(prefix[0].length);
+  return prefix[1] + (written(bare) ?? written(key)?.slice(prefix[0].length) ?? bare);
+}
+
+/**
+ * Finds the first spelling of a name key in some texts, as a whole name: not
+ * part of a longer name or after a dot.
+ *
+ * @param key Key.
+ * @param texts Texts to search, such as the field texts of a script.
+ * @returns Spelling, or undefined when none of the texts has it.
+ */
+export function solidScriptNameFind(key: string, texts: Iterable<string>): string | undefined {
+  const pattern = new RegExp(`(?<![\\w.])${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?!\\w)`, 'i');
+  for (const text of texts) {
+    const found = pattern.exec(text);
+    if (found) return found[0];
+  }
+  return undefined;
 }
 
 /**

@@ -10,8 +10,9 @@ import {
   solidScriptListItemRead,
   solidScriptListItemWrite,
 } from './solid_script_list_item.js';
-import type { SolidScriptFrame, SolidScriptVariable } from './solid_script_machine_types.js';
-import { solidScriptNameKey } from './solid_script_name_key.js';
+import type { SolidScriptBlockNode } from './solid_script_block_tree.js';
+import type { SolidScriptFrame, SolidScriptMachineCommand, SolidScriptVariable } from './solid_script_machine_types.js';
+import { solidScriptNameFind, solidScriptNameKey, solidScriptNameSpelling } from './solid_script_name_key.js';
 import { SolidScriptScope } from './solid_script_scope.js';
 import { solidScriptValueText, solidScriptValueType, type SolidScriptValue } from './solid_script_value.js';
 
@@ -192,10 +193,22 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
     () => this.workTake(),
     (name, values) => this.functionCall(name, values),
     (name) => this.systemRead(name),
+    (key) => this.nameShown(key),
   );
   protected readonly readOnly = new Map<string, string>();
   /** First spelling of every name by its key, for the variable explorer. */
   protected readonly spellings = new Map<string, string>();
+  /** Top-level lines of the script running, whose texts spell its names. */
+  protected scriptLines: readonly SolidScriptBlockNode<SolidScriptMachineCommand>[] = [];
+  /**
+   * Spells a name key for a message or the debugger: as the run stored it, else
+   * as the script first wrote it.
+   */
+  protected readonly nameShown = (key: string): string =>
+    solidScriptNameSpelling(
+      key,
+      (found) => this.spellings.get(found) ?? solidScriptNameFind(found, this.scriptTexts()),
+    );
   /** Keys by name as written, for the names this run has seen. */
   protected readonly keys = new Map<string, string>();
   /** Functions and parts running inside each other, innermost last. */
@@ -271,9 +284,23 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
     const frame = this.frameFunction();
     if (!frame?.locals)
       throw new Error(
-        `[${name}] is a local variable, and local. only works inside a Function; outside one, write [${bare}]`,
+        `[${this.nameShown(name)}] is a local variable, and Local. only works inside a Function; outside one, write [${this.nameShown(name).slice(SOLID_SCRIPT_LOCAL_PREFIX.length)}]`,
       );
     return { scope: frame.locals, name: bare, local: true, persistent: false };
+  }
+
+  /**
+   * Lists the field texts of the script running, line by line.
+   *
+   * @param lines Lines to read.
+   * @yields Field texts.
+   */
+  private *scriptTexts(lines = this.scriptLines): Generator<string> {
+    for (const node of lines) {
+      yield* Object.values(node.values);
+      yield* this.scriptTexts(node.children);
+      if (node.otherwise) yield* this.scriptTexts(node.otherwise);
+    }
   }
 
   /**
@@ -329,7 +356,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
     }
     if (!where.scope.variableHas(base)) {
       if (where.persistent && !item) return undefined;
-      const written = where.local ? `${SOLID_SCRIPT_LOCAL_PREFIX}${base}` : base;
+      const written = this.nameShown(where.local ? `${SOLID_SCRIPT_LOCAL_PREFIX}${base}` : base);
       throw new Error(
         where.local
           ? `there is no local variable [${written}]; it is an input of the Function or set with Set ${written}`
@@ -338,7 +365,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
     }
     if (!item) return where.scope.variableGet(base);
     const index = item.index === '' ? null : this.indexValue(item.index, scope);
-    return solidScriptListItemRead(base, where.scope.variableGet(base), index, item.method);
+    return solidScriptListItemRead(base, where.scope.variableGet(base), index, item.method, this.nameShown);
   }
 
   /**
@@ -432,10 +459,13 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
    */
   protected listRead(scope: SolidScriptScope, name: string): readonly SolidScriptValue[] {
     const where = this.variableWhere(name, scope);
-    if (!where.scope.variableHas(where.name))
-      throw new Error(`there is no list [${name}]; make one with Add Item or Set ${name}()`);
+    if (!where.scope.variableHas(where.name)) {
+      const shown = this.nameShown(solidScriptNameKey(name));
+      throw new Error(`there is no list [${shown}]; make one with Add Item or Set ${shown}()`);
+    }
     const value = where.scope.variableGet(where.name);
-    if (!Array.isArray(value)) throw new Error(`[${name}] is ${solidScriptValueType(value)}, not a list`);
+    if (!Array.isArray(value))
+      throw new Error(`[${this.nameShown(solidScriptNameKey(name))}] is ${solidScriptValueType(value)}, not a list`);
     return value;
   }
 
@@ -486,10 +516,10 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
     const where = this.variableWhere(name, scope);
     const component = solidScriptVectorComponent(where.name);
     if (component && !where.scope.variableHas(where.name)) {
-      if (!where.scope.variableHas(component.name))
-        throw new Error(
-          `there is no vector [${component.name}] to change; set it first, such as Set ${component.name} to 0, 0, 0`,
-        );
+      if (!where.scope.variableHas(component.name)) {
+        const shown = this.nameShown(component.name);
+        throw new Error(`there is no vector [${shown}] to change; set it first, such as Set ${shown} to 0, 0, 0`);
+      }
       const vector = where.scope.variableGet(component.name);
       if (!where.local && !where.persistent) this.writableCheck(component.name);
       where.scope.variableSet(component.name, solidScriptVectorComponentWrite(component, vector, value));
@@ -506,7 +536,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
     if (!item) home.variableSet(base, value);
     else {
       const index = item.index === '' ? null : this.indexValue(item.index, scope);
-      home.variableSet(base, solidScriptListItemWrite(base, home.variableGet(base), index, value));
+      home.variableSet(base, solidScriptListItemWrite(base, home.variableGet(base), index, value, this.nameShown));
     }
     if (where.persistent) this.persistentKeep(base);
   }
@@ -563,7 +593,9 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
   protected nameCheck(name: string, what: string): void {
     if (SOLID_SCRIPT_NAMES_PLAIN.has(name)) return;
     if (!SOLID_SCRIPT_NAME.test(name))
-      throw new Error(`"${name}" cannot name ${what}; use letters, digits and _, not starting with a digit`);
+      throw new Error(
+        `"${this.nameShown(solidScriptNameKey(name))}" cannot name ${what}; use letters, digits and _, not starting with a digit`,
+      );
     if (SOLID_SCRIPT_NAMES_PLAIN.size < 20000) SOLID_SCRIPT_NAMES_PLAIN.add(name);
   }
 
@@ -577,7 +609,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
     const origin = this.readOnly.get(key);
     if (origin !== undefined)
       throw new Error(
-        `"${name}" is an ${origin} of this script and can only be read; change its value in the inspector`,
+        `"${this.nameShown(key)}" is an ${origin} of this script and can only be read; change its value in the inspector`,
       );
   }
 }

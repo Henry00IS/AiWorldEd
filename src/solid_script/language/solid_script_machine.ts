@@ -171,6 +171,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
    */
   run(lines: SolidScriptBlockNode<Command>[]): SolidScriptRun {
     this.useOnce();
+    this.scriptLines = lines;
     const context = { matrix: new THREE.Matrix4(), planar: false };
     const shapes = this.linesRun(lines, this.root, context, this.root);
     this.stopping = false;
@@ -204,6 +205,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
    */
   handle(lines: SolidScriptBlockNode<Command>[], event: SolidScriptEvent): SolidScriptHandled {
     this.useOnce();
+    this.scriptLines = lines;
     this.handling = true;
     const context = { matrix: new THREE.Matrix4(), planar: false };
     this.definitionsRegister(lines);
@@ -753,7 +755,9 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         const where = state.machine.variableWhere(name, state.scope);
         if (!where.local) state.machine.writableCheck(where.name);
         if (!where.scope.variableDelete(where.name))
-          throw new Error(`there is no variable [${name}] to delete; set it on a line above this one`);
+          throw new Error(
+            `there is no variable [${state.machine.nameShown(solidScriptNameKey(name))}] to delete; set it on a line above this one`,
+          );
         if (where.persistent) state.machine.persistentKeep(where.name);
       },
       variableClear: (name) => {
@@ -769,11 +773,13 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
           throw new Error(`"${target}" is not a list item; write list(2), or list() for the last item`);
         if (!where.local) state.machine.writableCheck(item.name);
         if (!where.scope.variableHas(item.name))
-          throw new Error(`there is no variable [${target.replace(/\(.*$/, '')}]; set it on a line above this one`);
+          throw new Error(
+            `there is no variable [${state.machine.nameShown(item.name)}]; set it on a line above this one`,
+          );
         const index = item.index === '' ? null : state.machine.indexValue(item.index, state.scope);
         where.scope.variableSet(
           item.name,
-          solidScriptListItemRemove(item.name, where.scope.variableGet(item.name), index),
+          solidScriptListItemRemove(item.name, where.scope.variableGet(item.name), index, state.machine.nameShown),
         );
         if (where.persistent) state.machine.persistentKeep(item.name);
       },
@@ -930,13 +936,16 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
    */
   private watch(scope: SolidScriptScope): void {
     this.watched = scope;
-    this.stackSeen = this.stack.map((frame) => ({
-      name: frame.kind === 'function' ? `${frame.name}()` : `part ${frame.name}`,
-      line: frame.line,
-      locals: [...(frame.locals?.variablesVisible() ?? [])].map(([name, value]) =>
-        solidScriptVariableView(`${SOLID_SCRIPT_LOCAL_PREFIX}${this.spellings.get(name) ?? name}`, value),
-      ),
-    }));
+    this.stackSeen = this.stack.map((frame) => {
+      const name = this.nameShown(solidScriptNameKey(frame.name));
+      return {
+        name: frame.kind === 'function' ? `${name}()` : `part ${name}`,
+        line: frame.line,
+        locals: [...(frame.locals?.variablesVisible() ?? [])].map(([key, value]) =>
+          solidScriptVariableView(this.nameShown(`${SOLID_SCRIPT_LOCAL_PREFIX}${key}`), value),
+        ),
+      };
+    });
   }
 
   /** Counts one step of work and stops a run that never ends. */

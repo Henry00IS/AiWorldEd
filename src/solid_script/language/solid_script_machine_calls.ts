@@ -1,6 +1,7 @@
 import type { SolidScriptBlockNode } from './solid_script_block_tree.js';
 import { solidScriptBuiltinFind } from './solid_script_expression_compile.js';
 import { solidScriptGeometryLookup } from './solid_script_geometry_lookup.js';
+import { solidScriptNameKey } from './solid_script_name_key.js';
 import type {
   SolidScriptBreak,
   SolidScriptContext,
@@ -167,7 +168,7 @@ export abstract class SolidScriptMachineCalls<
     values: readonly SolidScriptValue[],
     context: SolidScriptContext,
   ): { shapes: SolidScriptShape[]; value: SolidScriptValue } | null {
-    const node = this.functions.get(this.nameKey(name));
+    const node = this.functions.get(solidScriptNameKey(name));
     if (!node) return null;
     let parameters = this.functionParameters.get(node);
     if (!parameters) {
@@ -178,7 +179,7 @@ export abstract class SolidScriptMachineCalls<
     }
     if (values.length !== parameters.length)
       throw new Error(
-        `${name}() takes ${parameters.length} value(s) (${parameters.join(', ') || 'none'}), not ${values.length}`,
+        `${this.nameShown(solidScriptNameKey(name))}() takes ${parameters.length} value(s) (${parameters.map(this.nameShown).join(', ') || 'none'}), not ${values.length}`,
       );
     if (this.stack.length >= SOLID_SCRIPT_PART_DEPTH_MAX)
       throw new Error(
@@ -216,8 +217,9 @@ export abstract class SolidScriptMachineCalls<
     if (this.paused) throw new SolidScriptPause();
     if (this.failure) throw new Error(this.failure.message);
     if (this.steps.length > before)
-      throw new Error(`${name}() builds shapes, so use it with a Call line, not inside a formula`);
-    if (run.value === undefined) throw new Error(`${name}() gives no value; end it with a Return that has a Value`);
+      throw new Error(`${this.nameShown(name)}() builds shapes, so use it with a Call line, not inside a formula`);
+    if (run.value === undefined)
+      throw new Error(`${this.nameShown(name)}() gives no value; end it with a Return that has a Value`);
     return { value: run.value };
   }
 
@@ -240,7 +242,7 @@ export abstract class SolidScriptMachineCalls<
   ): SolidScriptShape[] {
     const run = this.functionRun(name, values, context);
     if (!run) {
-      const known = [...this.functions.keys()].sort();
+      const known = [...this.functions.keys()].map(this.nameShown).sort();
       throw new Error(
         `no Function is named "${name}". ${known.length > 0 ? `Functions: ${known.join(', ')}` : 'Add one with a Function block'}`,
       );
@@ -281,7 +283,7 @@ export abstract class SolidScriptMachineCalls<
   protected partUse(name: string, scope: SolidScriptScope, context: SolidScriptContext): SolidScriptShape[] {
     const part = this.parts.get(this.nameKey(name));
     if (!part) {
-      const known = [...this.parts.keys()].sort();
+      const known = [...this.parts.keys()].map(this.nameShown).sort();
       throw new Error(
         `no part is named "${name}". ${known.length > 0 ? `Parts: ${known.join(', ')}` : 'Define one with Define Part'}`,
       );

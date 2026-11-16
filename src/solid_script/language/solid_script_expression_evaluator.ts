@@ -18,6 +18,8 @@ export class SolidScriptExpressionEvaluator {
    * @param tick Counts one step of work: each loop round and function call.
    * @param userCall Works out a function the script defines, or returns null
    *   when it defines none of that name.
+   * @param system Reads a built-in value by name.
+   * @param shown Spells a name key for a message, as it was written.
    */
   constructor(
     private readonly tick: () => void = () => {},
@@ -26,6 +28,7 @@ export class SolidScriptExpressionEvaluator {
       values: readonly SolidScriptValue[],
     ) => { value: SolidScriptValue } | null = () => null,
     private readonly system: (name: string) => SolidScriptValue = () => undefined,
+    private readonly shown: (key: string) => string = (key) => key,
   ) {}
 
   /**
@@ -113,9 +116,9 @@ export class SolidScriptExpressionEvaluator {
    * @param scope Scope.
    */
   variableMissing(name: string, scope: SolidScriptScope): never {
-    const known = [...scope.variablesVisible().keys()].sort();
+    const known = [...scope.variablesVisible().keys()].map(this.shown).sort();
     const listed = known.length > 0 ? `Known here: ${known.join(', ')}` : 'No variables are known here';
-    throw new Error(`"${name}" is not a variable here. ${listed}`);
+    throw new Error(`"${this.shown(name)}" is not a variable here. ${listed}`);
   }
 
   /**
@@ -127,7 +130,7 @@ export class SolidScriptExpressionEvaluator {
    */
   callUser(name: string, values: readonly SolidScriptValue[]): SolidScriptValue {
     const result = this.userCall(name, values);
-    if (!result) throw new Error(`unknown function ${name}(); add a Function block with this name`);
+    if (!result) throw new Error(`unknown function ${this.shown(name)}(); add a Function block with this name`);
     return result.value;
   }
 

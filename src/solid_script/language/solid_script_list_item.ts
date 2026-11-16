@@ -59,16 +59,22 @@ function solidScriptListItemReferenceRead(text: string): SolidScriptListItemRefe
   return { name: match[1]!, index: match[2]!.trim(), method };
 }
 
+/** Spells a list name for a message. */
+export type SolidScriptNameShown = (name: string) => string;
+
 /**
  * Reads an index as a whole number from 0.
  *
  * @param name List name, for messages.
  * @param index Index value.
+ * @param shown Spells the name for a message.
  * @returns Index.
  */
-export function solidScriptListIndex(name: string, index: SolidScriptValue): number {
+export function solidScriptListIndex(name: string, index: SolidScriptValue, shown: SolidScriptNameShown): number {
   if (typeof index !== 'number' || !Number.isInteger(index) || index < 0)
-    throw new Error(`the item number in ${name}(…) must be a whole number from 0, not ${solidScriptValueText(index)}`);
+    throw new Error(
+      `the item number in ${shown(name)}(…) must be a whole number from 0, not ${solidScriptValueText(index)}`,
+    );
   return index;
 }
 
@@ -79,6 +85,7 @@ export function solidScriptListIndex(name: string, index: SolidScriptValue): num
  * @param list Value of the list variable.
  * @param index Index, or null for the whole list.
  * @param method Function such as "count", or empty.
+ * @param shown Spells the name for a message.
  * @returns Value.
  */
 export function solidScriptListItemRead(
@@ -86,20 +93,25 @@ export function solidScriptListItemRead(
   list: SolidScriptValue,
   index: SolidScriptValue | null,
   method: string,
+  shown: SolidScriptNameShown,
 ): SolidScriptValue {
   if (!Array.isArray(list))
-    throw new Error(`[${name}] is ${solidScriptValueText(list)}, not a list; set ${name}() to add items to a list`);
+    throw new Error(
+      `[${shown(name)}] is ${solidScriptValueText(list)}, not a list; set ${shown(name)}() to add items to a list`,
+    );
   if (method === 'count') {
-    if (index !== null) throw new Error(`write ${name}().Count for the number of items, with nothing in the brackets`);
+    if (index !== null)
+      throw new Error(`write ${shown(name)}().Count for the number of items, with nothing in the brackets`);
     return list.length;
   }
-  if (index === null) throw new Error(`write an item number in ${name}(…), such as ${name}(0) for the first item`);
-  const at = solidScriptListIndex(name, index);
+  if (index === null)
+    throw new Error(`write an item number in ${shown(name)}(…), such as ${shown(name)}(0) for the first item`);
+  const at = solidScriptListIndex(name, index, shown);
   if (at >= list.length)
     throw new Error(
       list.length === 0
-        ? `${name}(${at}) does not exist: ${name} has no items yet`
-        : `${name}(${at}) does not exist: ${name} has ${list.length} items, numbered 0 to ${list.length - 1}`,
+        ? `${shown(name)}(${at}) does not exist: ${shown(name)} has no items yet`
+        : `${shown(name)}(${at}) does not exist: ${shown(name)} has ${list.length} items, numbered 0 to ${list.length - 1}`,
     );
   return list[at];
 }
@@ -111,6 +123,7 @@ export function solidScriptListItemRead(
  * @param list Current value, or undefined for a new list.
  * @param index Index to set, or null to add at the end.
  * @param value New item.
+ * @param shown Spells the name for a message.
  * @returns New list.
  */
 export function solidScriptListItemWrite(
@@ -118,14 +131,15 @@ export function solidScriptListItemWrite(
   list: SolidScriptValue,
   index: SolidScriptValue | null,
   value: SolidScriptValue,
+  shown: SolidScriptNameShown,
 ): SolidScriptValue[] {
   const items = list === undefined ? [] : list;
   if (!Array.isArray(items))
-    throw new Error(`[${name}] is ${solidScriptValueText(items)}, not a list, so it has no items to set`);
-  const at = index === null ? items.length : solidScriptListIndex(name, index);
+    throw new Error(`[${shown(name)}] is ${solidScriptValueText(items)}, not a list, so it has no items to set`);
+  const at = index === null ? items.length : solidScriptListIndex(name, index, shown);
   if (at > items.length)
     throw new Error(
-      `${name}(${at}) is past the end: ${name} has ${items.length} items, so the next one is ${name}(${items.length})`,
+      `${shown(name)}(${at}) is past the end: ${shown(name)} has ${items.length} items, so the next one is ${shown(name)}(${items.length})`,
     );
   const next = [...items];
   next[at] = value;
@@ -138,18 +152,20 @@ export function solidScriptListItemWrite(
  * @param name List name, for messages.
  * @param list Current value.
  * @param index Item to remove, or null for the last item.
+ * @param shown Spells the name for a message.
  * @returns New list.
  */
 export function solidScriptListItemRemove(
   name: string,
   list: SolidScriptValue,
   index: SolidScriptValue | null,
+  shown: SolidScriptNameShown,
 ): SolidScriptValue[] {
   if (!Array.isArray(list))
-    throw new Error(`[${name}] is ${solidScriptValueText(list)}, not a list, so it has no items to remove`);
-  if (list.length === 0) throw new Error(`${name} has no items to remove`);
-  const at = index === null ? list.length - 1 : solidScriptListIndex(name, index);
+    throw new Error(`[${shown(name)}] is ${solidScriptValueText(list)}, not a list, so it has no items to remove`);
+  if (list.length === 0) throw new Error(`${shown(name)} has no items to remove`);
+  const at = index === null ? list.length - 1 : solidScriptListIndex(name, index, shown);
   if (at >= list.length)
-    throw new Error(`${name}(${at}) is past the end: ${name} has ${list.length} items, numbered from 0`);
+    throw new Error(`${shown(name)}(${at}) is past the end: ${shown(name)} has ${list.length} items, numbered from 0`);
   return list.filter((_, position) => position !== at);
 }

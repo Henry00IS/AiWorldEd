@@ -174,9 +174,9 @@ describe('Function blocks', () => {
 
   it('stops on misuse with plain explanations', () => {
     const outside = run(line('cube'), echo('[local.x]'));
-    expect(outside.error?.message).toMatch(/local\. only works inside a Function; outside one, write \[x\]/);
+    expect(outside.error?.message).toMatch(/Local\. only works inside a Function; outside one, write \[x\]/);
     const missing = run(line('cube'), fn('f'), echo('[local.y]'), END, line('call', { name: 'f' }));
-    expect(missing.error?.message).toMatch(/no local variable \[local\.y\]/);
+    expect(missing.error?.message).toMatch(/no local variable \[Local\.y\]/);
     const count = run(line('cube'), fn('f', 'a, b'), ret('[local.a]'), END, echo('[=f(1)]'));
     expect(count.error?.message).toMatch(/f\(\) takes 2 value\(s\).*not 1/);
     const builtin = run(line('cube'), fn('sin', 'x'), ret('[local.x]'), END);
@@ -223,8 +223,8 @@ describe('Function blocks', () => {
         name: 'step()',
         line: 6,
         locals: [
-          { name: 'local.i', value: '2', type: 'Whole Number', items: [] },
-          { name: 'local.h', value: '0.4', type: 'Number', items: [] },
+          { name: 'Local.i', value: '2', type: 'Whole Number', items: [] },
+          { name: 'Local.h', value: '0.4', type: 'Number', items: [] },
         ],
       },
     ]);

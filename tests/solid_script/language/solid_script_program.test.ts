@@ -42,7 +42,7 @@ describe('solidScriptProgramRun', () => {
     ]);
     const first = solidScriptProgramRun(document, { inputs: { n: '1' } });
     expect(first.messages).toEqual(['22']);
-    expect(first.error?.message).toMatch(/local\. only works inside a Function/);
+    expect(first.error?.message).toMatch(/Local\. only works inside a Function/);
     expect(solidScriptProgramRun(document, { inputs: { n: '4' } }).messages).toEqual(['28']);
   });
 
