@@ -20,7 +20,7 @@ import {
   virtualListScrollbarBindStylesEnsure,
   type VirtualListScrollbarBinding,
 } from '@/ui/virtual_list/virtual_list_scrollbar_bind.js';
-import type { SolidScriptLineProfile } from '@/solid_script/language/solid_script_machine.js';
+import type { SolidScriptLineProfile } from '@/solid_script/language/solid_script_machine_types.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import { SolidScriptEditorDrop, type SolidScriptEditorDropTarget } from './solid_script_editor_drop.js';
 import { solidScriptEditorRowBuild, type SolidScriptEditorRowHandlers } from './solid_script_editor_row.js';

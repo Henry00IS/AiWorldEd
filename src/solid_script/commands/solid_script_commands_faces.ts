@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import { solidScriptParameter, solidScriptParameterOptional } from './solid_script_command_parameters.js';
-import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine.js';
+import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import {
   solidScriptGeometryBevel,
   solidScriptGeometryEdges,

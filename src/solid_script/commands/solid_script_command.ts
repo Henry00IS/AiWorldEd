@@ -1,4 +1,7 @@
-import type { SolidScriptBlockRun, SolidScriptMachineCommand } from '@/solid_script/language/solid_script_machine.js';
+import type {
+  SolidScriptBlockRun,
+  SolidScriptMachineCommand,
+} from '@/solid_script/language/solid_script_machine_types.js';
 import type { SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
 import type { SolidScriptFieldKind } from '@/solid_script/language/solid_script_field.js';
 import {

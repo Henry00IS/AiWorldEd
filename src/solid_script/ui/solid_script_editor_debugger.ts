@@ -3,7 +3,7 @@ import {
   solidScriptDebugBreakpointLines,
   solidScriptDebugBreakpoints,
 } from '@/solid_script/debug/solid_script_debug_breakpoints.js';
-import type { SolidScriptBreak } from '@/solid_script/language/solid_script_machine.js';
+import type { SolidScriptBreak } from '@/solid_script/language/solid_script_machine_types.js';
 import { solidScriptProgramRun, type SolidScriptProgramOptions } from '@/solid_script/language/solid_script_program.js';
 import type { SolidScriptEditorSession } from './solid_script_editor_session.js';
 

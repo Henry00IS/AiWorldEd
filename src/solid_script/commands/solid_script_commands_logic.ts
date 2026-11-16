@@ -2,7 +2,8 @@ import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import { solidScriptParameter, solidScriptParameterOptional } from './solid_script_command_parameters.js';
 import { solidScriptValueText, solidScriptValueTruthy } from '@/solid_script/language/solid_script_value.js';
-import { SOLID_SCRIPT_PART_DEPTH_MAX, type SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine.js';
+import { SOLID_SCRIPT_PART_DEPTH_MAX } from '@/solid_script/language/solid_script_machine_calls.js';
+import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 
 /** Id of the command that closes a block. */
 export const SOLID_SCRIPT_COMMAND_END = 'end';

@@ -20,7 +20,10 @@ import {
 import { solidScriptOffset } from '@/solid_script/language/solid_script_offset.js';
 import { solidScriptSides } from '@/solid_script/language/solid_script_primitives.js';
 import { solidScriptShapeLeavesPositive, type SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
-import { SOLID_SCRIPT_HANDLERS, SOLID_SCRIPT_PART_DEPTH_MAX } from '@/solid_script/language/solid_script_machine.js';
+import {
+  SOLID_SCRIPT_HANDLERS,
+  SOLID_SCRIPT_PART_DEPTH_MAX,
+} from '@/solid_script/language/solid_script_machine_calls.js';
 import { solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
 
 /** Fields of an Input line. */

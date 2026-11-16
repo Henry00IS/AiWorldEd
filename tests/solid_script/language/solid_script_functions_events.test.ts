@@ -5,7 +5,7 @@ import {
   solidScriptProgramRun,
   type SolidScriptProgramOptions,
 } from '@/solid_script/language/solid_script_program.js';
-import { SOLID_SCRIPT_HANDLERS } from '@/solid_script/language/solid_script_machine.js';
+import { SOLID_SCRIPT_HANDLERS } from '@/solid_script/language/solid_script_machine_calls.js';
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptShapeLeavesPositive, type SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
 import { solidScriptInputsList } from '@/solid_script/language/solid_script_input.js';

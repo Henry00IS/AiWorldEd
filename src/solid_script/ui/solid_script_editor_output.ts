@@ -5,7 +5,7 @@ import {
   solidScriptProgramEvaluate,
   type SolidScriptProgramOptions,
 } from '@/solid_script/language/solid_script_program.js';
-import type { SolidScriptLineProfile } from '@/solid_script/language/solid_script_machine.js';
+import type { SolidScriptLineProfile } from '@/solid_script/language/solid_script_machine_types.js';
 import { SolidScriptEditorExplorer } from './solid_script_editor_explorer.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 

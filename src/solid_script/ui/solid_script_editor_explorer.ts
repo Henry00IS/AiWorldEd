@@ -8,7 +8,7 @@ import {
 import { solidScriptInputTypeLabel } from '@/solid_script/language/solid_script_input.js';
 import { SOLID_SCRIPT_SYSTEM_GLOBALS, solidScriptSystemValues } from '@/solid_script/language/solid_script_system.js';
 import { solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
-import type { SolidScriptFrameView, SolidScriptVariable } from '@/solid_script/language/solid_script_machine.js';
+import type { SolidScriptFrameView, SolidScriptVariable } from '@/solid_script/language/solid_script_machine_types.js';
 import { solidScriptConfiguratorFieldInsert } from './solid_script_configurator_fields.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';

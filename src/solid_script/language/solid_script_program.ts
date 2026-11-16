@@ -13,15 +13,14 @@ import {
   type SolidScriptRunContext,
   type SolidScriptUseFacts,
 } from './solid_script_system.js';
-import {
-  SolidScriptMachine,
-  solidScriptFailure,
-  type SolidScriptBreakpoints,
-  type SolidScriptEvaluation,
-  type SolidScriptEvent,
-  type SolidScriptHandled,
-  type SolidScriptRun,
-} from './solid_script_machine.js';
+import { SolidScriptMachine, solidScriptFailure } from './solid_script_machine.js';
+import type {
+  SolidScriptBreakpoints,
+  SolidScriptEvaluation,
+  SolidScriptEvent,
+  SolidScriptHandled,
+  SolidScriptRun,
+} from './solid_script_machine_types.js';
 
 /** Options of a run. */
 export interface SolidScriptProgramOptions {

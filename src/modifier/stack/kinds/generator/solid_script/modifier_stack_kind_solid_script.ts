@@ -17,7 +17,7 @@ import {
   type SolidScriptUse,
 } from '@/solid_script/document/solid_script_document.js';
 import { SOLID_SCRIPT_USE_GENERATOR, type SolidScriptUseFacts } from '@/solid_script/language/solid_script_system.js';
-import { SOLID_SCRIPT_HANDLERS } from '@/solid_script/language/solid_script_machine.js';
+import { SOLID_SCRIPT_HANDLERS } from '@/solid_script/language/solid_script_machine_calls.js';
 import { solidScriptProgramHandle } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptDebugStepLimit } from '@/solid_script/debug/solid_script_debug_steps.js';
 import { modifierStackFrame } from '@/modifier/stack/evaluate/modifier_stack_frame.js';

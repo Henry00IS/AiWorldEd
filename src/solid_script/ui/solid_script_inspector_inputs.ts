@@ -25,7 +25,7 @@ import {
   solidScriptInputRulesHold,
   type SolidScriptInputLayoutItem,
 } from '@/solid_script/document/solid_script_document_inputs.js';
-import type { SolidScriptEvent } from '@/solid_script/language/solid_script_machine.js';
+import type { SolidScriptEvent } from '@/solid_script/language/solid_script_machine_types.js';
 import { solidScriptProgramHandle } from '@/solid_script/language/solid_script_program.js';
 
 /** Builds what the rows act on, with a status line. */

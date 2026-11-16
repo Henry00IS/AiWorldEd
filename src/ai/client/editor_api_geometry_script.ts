@@ -18,7 +18,8 @@ import {
 import { solidScriptDocumentListing } from '@/solid_script/document/solid_script_document_listing.js';
 import { solidScriptErrorText } from '@/solid_script/language/solid_script_error.js';
 import { solidScriptProgramEvaluate, solidScriptProgramHandle } from '@/solid_script/language/solid_script_program.js';
-import { SOLID_SCRIPT_PERSISTENT_PREFIX, type SolidScriptEvent } from '@/solid_script/language/solid_script_machine.js';
+import { SOLID_SCRIPT_PERSISTENT_PREFIX } from '@/solid_script/language/solid_script_machine_variables.js';
+import type { SolidScriptEvent } from '@/solid_script/language/solid_script_machine_types.js';
 import { solidScriptInputsList } from '@/solid_script/language/solid_script_input.js';
 import {
   solidScriptDocumentInputLayout,
