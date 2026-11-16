@@ -3,6 +3,7 @@ import { HandlerKeyboardShortcut } from '@/input/handler_keyboard_shortcut.js';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import * as THREE from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { SOLID_SCRIPT_EDITOR_CHECK_DELAY_MS } from '@/solid_script/ui/solid_script_editor_output.js';
 import { CommandStack } from '@/commands/command_stack.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierGeneratorNodeCreate } from '@/modifier/stack/modifier_generator_node.js';
@@ -927,6 +928,23 @@ describe('SolidScript editor', () => {
       globalThis.innerWidth - 4,
     );
     expect(Number.parseFloat(host.style.width)).toBeGreaterThanOrEqual(Math.min(560, globalThis.innerWidth - 8));
+  });
+
+  it('warns after a pause, without running, where a modifier would read Box values', async () => {
+    const { root } = editorFixture(CUBE_SPHERE);
+    const output = () => root.querySelector('.solid-script-editor-output-text')?.textContent ?? '';
+    find<HTMLButtonElement>('[role="tab"][data-tab="settings"]').click();
+    const modifier = find<HTMLInputElement>('[data-solid-script-settings] [data-solid-script-use="modifier"]');
+    modifier.checked = true;
+    modifier.dispatchEvent(new Event('change'));
+    doubleClick(chip(0));
+    const size = find<HTMLInputElement>('[data-solid-script-configurator="cube"] input[type="text"]');
+    type(size, '[Box.Width], 1, 1');
+    tool('OK').click();
+    expect(output()).not.toContain('If Used As Generator');
+    await new Promise((resolve) => setTimeout(resolve, SOLID_SCRIPT_EDITOR_CHECK_DELAY_MS + 50));
+    expect(output()).toContain('Line 1');
+    expect(output()).toContain('If Used As Generator');
   });
 
   it('offers the shape Names of the script in the Of field', () => {

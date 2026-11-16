@@ -7,8 +7,18 @@ import {
 } from '@/solid_script/language/solid_script_program.js';
 import type { SolidScriptLineProfile, SolidScriptWarning } from '@/solid_script/language/solid_script_machine_types.js';
 import { SolidScriptEditorExplorer } from './solid_script_editor_explorer.js';
+import { solidScriptUseCheck } from '@/solid_script/language/solid_script_use_check.js';
 import type { SolidScriptEditorSettings } from './solid_script_editor_settings.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
+
+/** Pause after the last edit before the idle check runs, in milliseconds. */
+export const SOLID_SCRIPT_EDITOR_CHECK_DELAY_MS = 400;
+
+/**
+ * Longest wait for an idle moment before the check runs anyway, in
+ * milliseconds.
+ */
+const SOLID_SCRIPT_EDITOR_CHECK_IDLE_MS = 1000;
 
 /** Tabs of the output area. */
 type SolidScriptEditorOutputTab = 'output' | 'variables' | 'settings';
@@ -39,6 +49,9 @@ export class SolidScriptEditorOutput {
   private runs: ReadonlyMap<number, SolidScriptLineProfile> = new Map();
   private revealLine: (line: number) => void = () => undefined;
   private readonly settingsHost = document.createElement('div');
+  /** Warnings of the check that runs while the editor is idle, below the output. */
+  private readonly checks = document.createElement('div');
+  private checkTimer: ReturnType<typeof setTimeout> | null = null;
   private settings: SolidScriptEditorSettings | null = null;
 
   /** Shows a line of the script; set by the editor. */
@@ -88,6 +101,7 @@ export class SolidScriptEditorOutput {
    */
   show(document: SolidScriptDocument, options: SolidScriptProgramOptions | null, caption: string): void {
     this.settings?.write(document);
+    this.checkSchedule(document);
     try {
       const result = solidScriptProgramEvaluate(document, { context: 'preview', ...options, profile: true });
       const count = result.steps.length;
@@ -95,7 +109,7 @@ export class SolidScriptEditorOutput {
       this.runs = result.profile;
       const solids = `${count} ${count === 1 ? 'solid' : 'solids'}${result.paused ? ' so far' : ''}`;
       this.text([solids, ...result.messages].join('\n'), false);
-      this.output.append(...result.warnings.map((warning) => this.warningRow(warning)));
+      this.output.append(...result.warnings.map((warning) => this.warningRow(warning)), this.checks);
       this.explorer.show(document, result.variables, options ? result.stack : [], caption);
     } catch (error) {
       const message = solidScriptErrorText(error);
@@ -103,6 +117,7 @@ export class SolidScriptEditorOutput {
       this.failed = failed === null ? null : failed - 1;
       this.runs = new Map();
       this.text(message, true);
+      this.output.append(this.checks);
       this.explorer.show(document, [], [], 'The script stops with an error.');
     }
   }
@@ -154,6 +169,25 @@ export class SolidScriptEditorOutput {
     this.outputHost.hidden = id !== 'output';
     this.variablesHost.hidden = id !== 'variables';
     this.settingsHost.hidden = id !== 'settings';
+  }
+
+  /**
+   * Checks the script once typing pauses and the page is idle, without running
+   * it, so typing never waits: lines a modifier would run that read Box
+   * values.
+   *
+   * @param script Script.
+   */
+  private checkSchedule(script: SolidScriptDocument): void {
+    if (this.checkTimer !== null) clearTimeout(this.checkTimer);
+    this.checkTimer = setTimeout(() => {
+      this.checkTimer = null;
+      const write = (): void =>
+        this.checks.replaceChildren(...solidScriptUseCheck(script).map((warning) => this.warningRow(warning)));
+      const idle = this.element.ownerDocument.defaultView?.requestIdleCallback;
+      if (idle) idle(write, { timeout: SOLID_SCRIPT_EDITOR_CHECK_IDLE_MS });
+      else write();
+    }, SOLID_SCRIPT_EDITOR_CHECK_DELAY_MS);
   }
 
   /**
