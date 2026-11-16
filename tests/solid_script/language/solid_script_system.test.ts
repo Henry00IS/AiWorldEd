@@ -121,6 +121,14 @@ describe('SolidScript text and time functions', () => {
     expect(formula('lines("a\\nb")')).toBe('[a, b]');
   });
 
+  it('turns characters into codes and back', () => {
+    expect(formula('character_code("A")')).toBe('65');
+    expect(formula('character(97)')).toBe('a');
+    expect(formula('character(character_code("x") + 1)')).toBe('y');
+    expect(formula('character_code("")')).toMatch(/character_code\(text\) needs/);
+    expect(formula('character(-1)')).toMatch(/character\(code\) needs/);
+  });
+
   it('formats numbers', () => {
     expect(formula('format_number(3.14159, 2)')).toBe('3.14');
     expect(formula('format_number(1234567.891, 1, ",")')).toBe('1,234,567.9');

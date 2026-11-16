@@ -198,9 +198,20 @@ export const SOLID_SCRIPT_FUNCTIONS_EXTRA: Readonly<Record<string, SolidScriptEx
       (_, space, first) => space + first.toUpperCase(),
     ),
   count_text: (args) => {
-    const usage = 'count_text(text, find)';
+    const usage = 'count_text(text, part)';
     const find = solidScriptExtraText(args, 1, usage);
     return find === '' ? 0 : solidScriptExtraText(args, 0, usage).split(find).length - 1;
+  },
+  character_code: (args) => {
+    const code = solidScriptExtraText(args, 0, 'character_code(text)').codePointAt(0);
+    if (code === undefined) throw new Error('character_code(text) needs at least one character');
+    return code;
+  },
+  character: (args) => {
+    const code = solidScriptExtraNumber(args, 0, 'character(code)');
+    if (!Number.isInteger(code) || code < 0 || code > 0x10ffff)
+      throw new Error('character(code) needs a whole number from 0 to 1114111');
+    return String.fromCodePoint(code);
   },
   characters: (args) => [...solidScriptExtraText(args, 0, 'characters(text)')],
   lines: (args) => solidScriptExtraText(args, 0, 'lines(text)').split(/\r?\n/),

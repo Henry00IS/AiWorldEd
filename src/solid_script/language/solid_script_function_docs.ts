@@ -74,6 +74,12 @@ export const SOLID_SCRIPT_FUNCTION_DOCS: Readonly<Record<string, SolidScriptFunc
   ends_with: { usage: 'ends_with(text, part)', summary: 'Yes when the text ends with the part.', group: 'Text' },
   position: { usage: 'position(text, part)', summary: 'Where the part starts, from 0, or -1.', group: 'Text' },
   count_text: { usage: 'count_text(text, part)', summary: 'How often the part is in the text.', group: 'Text' },
+  character_code: {
+    usage: 'character_code(text)',
+    summary: 'The number of the first character: A is 65.',
+    group: 'Text',
+  },
+  character: { usage: 'character(code)', summary: 'The character of a number: 65 is A.', group: 'Text' },
   part: { usage: 'part(text, start, count)', summary: 'A piece of the text, from 0.', group: 'Text' },
   replace: { usage: 'replace(text, find, with)', summary: 'Replaces every copy of a part.', group: 'Text' },
   replace_pattern: {
