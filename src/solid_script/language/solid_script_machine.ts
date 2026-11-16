@@ -1260,12 +1260,14 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> imple
       repeated: (counter, values) => {
         state.machine.nameCheck(counter, 'a counter');
         state.machine.writableCheck(counter);
-        const shapes = values.flatMap((round) => {
+        const shapes: SolidScriptShape[] = [];
+        for (const round of values) {
           state.machine.workTake();
           const inner = new SolidScriptScope(state.scope);
           inner.variableDefine(counter, round);
-          return node.children.length === 0 ? [] : state.machine.linesRun(node.children, inner, state.context, inner);
-        });
+          if (node.children.length === 0) continue;
+          for (const shape of state.machine.linesRun(node.children, inner, state.context, inner)) shapes.push(shape);
+        }
         const joined = solidScriptShapeJoin(shapes, labelOf());
         return joined ? [joined] : [];
       },

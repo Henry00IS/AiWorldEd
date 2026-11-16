@@ -31,7 +31,9 @@ function solidScriptRepeatValues(run: SolidScriptBlockRun): number[] {
   const rounds = Math.floor((to - from) / step + 1e-9) + 1;
   if (rounds > SOLID_SCRIPT_REPEAT_ROUNDS_MAX)
     throw new Error(`Repeat would run ${rounds} times; at most ${SOLID_SCRIPT_REPEAT_ROUNDS_MAX} are allowed`);
-  return Array.from({ length: rounds }, (_, round) => from + round * step);
+  const values = new Array<number>(rounds);
+  for (let round = 0; round < rounds; round++) values[round] = from + round * step;
+  return values;
 }
 
 /** Commands for values, loops, conditions, parts and notes. */
