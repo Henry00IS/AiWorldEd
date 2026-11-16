@@ -577,6 +577,13 @@ interface SolidScriptLineField {
  */
 const SOLID_SCRIPT_FORMULA_CONTEXT: SolidScriptContext = { matrix: new THREE.Matrix4(), planar: false };
 
+/**
+ * Field text and compiled closures of each line, kept across runs: a line's
+ * values never change (an edit makes new lines), and the closures, with the
+ * formulas they parse on first use, read nothing of a run but its context.
+ */
+const SOLID_SCRIPT_LINE_FIELDS = new WeakMap<object, Map<string, SolidScriptLineField>>();
+
 /** Thrown through a formula when a Function inside it reached the pause. */
 class SolidScriptPause extends Error {}
 
@@ -628,7 +635,11 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
   /** Run views of lines, made once per line. */
   private readonly lineRuns = new Map<SolidScriptBlockNode<Command>, SolidScriptLineRun>();
   /** Field text and compiled closures of each line, by field key. */
-  private readonly lineFields = new Map<SolidScriptBlockNode<Command>, Map<string, SolidScriptLineField>>();
+  /**
+   * Line lists whose definitions are registered, so a Function called often
+   * registers once.
+   */
+  private readonly registered = new WeakSet<readonly SolidScriptBlockNode<Command>[]>();
   /** What each swapped solid or mesh became. */
   private readonly leafSwaps = new Map<SolidScriptGeometryLeaf, SolidScriptGeometryLeaf>();
   /**
@@ -769,6 +780,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
    * @param lines Lines.
    */
   private definitionsRegister(lines: readonly SolidScriptBlockNode<Command>[]): void {
+    if (this.registered.has(lines)) return;
+    this.registered.add(lines);
     for (const node of lines) {
       if (node.command.id === 'part') this.guarded(node.line, () => this.partDefine(node));
       if (node.command.id === 'function') this.guarded(node.line, () => this.functionDefine(node));
@@ -1382,17 +1395,17 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
   }
 
   /**
-   * Returns a line's field text and compiled closure, worked out once per run.
+   * Returns a line's field text and compiled closure, worked out once per line.
    *
    * @param node Line.
    * @param key Field key.
    * @returns Field.
    */
   private fieldOf(node: SolidScriptBlockNode<Command>, key: string): SolidScriptLineField {
-    let fields = this.lineFields.get(node);
+    let fields = SOLID_SCRIPT_LINE_FIELDS.get(node);
     if (!fields) {
       fields = new Map();
-      this.lineFields.set(node, fields);
+      SOLID_SCRIPT_LINE_FIELDS.set(node, fields);
     }
     let field = fields.get(key);
     if (!field) {
@@ -1431,6 +1444,11 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
         if (!name.includes('.') && !name.includes('(')) {
           const home = scope.variableHome(name);
           if (home) return home.variableOwn(name);
+        } else if (name.startsWith(SOLID_SCRIPT_LOCAL_PREFIX)) {
+          // A Function's own input or variable, the common read inside one.
+          const locals = this.frameFunction()?.locals;
+          const bare = name.slice(SOLID_SCRIPT_LOCAL_PREFIX.length);
+          if (locals?.variableHas(bare)) return locals.variableOwn(bare);
         } else {
           const builtIn = this.systemRead(name);
           if (builtIn !== undefined) return builtIn;
@@ -1546,6 +1564,12 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
       this.writableCheck(name);
       const home = this.frameFunction() && !scope.variableHas(name) ? this.root : scope;
       home.variableSet(name, value);
+      return;
+    }
+    const locals = name.startsWith(SOLID_SCRIPT_LOCAL_PREFIX) ? this.frameFunction()?.locals : undefined;
+    const bare = locals ? name.slice(SOLID_SCRIPT_LOCAL_PREFIX.length) : '';
+    if (locals && SOLID_SCRIPT_NAME.test(bare)) {
+      locals.variableSet(bare, value);
       return;
     }
     const where = this.variableWhere(name, scope);

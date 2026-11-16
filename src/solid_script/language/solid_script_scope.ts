@@ -33,12 +33,6 @@ export class SolidScriptScope {
   }
 
   /**
-   * Sets a variable where it already exists, or defines it here.
-   *
-   * @param name Name.
-   * @param value Value.
-   */
-  /**
    * Finds the scope that holds a variable, walking out once.
    *
    * @param name Name.
@@ -60,6 +54,12 @@ export class SolidScriptScope {
     return this.variables.get(name);
   }
 
+  /**
+   * Sets a variable where it already exists, or defines it here.
+   *
+   * @param name Name.
+   * @param value Value.
+   */
   variableSet(name: string, value: SolidScriptValue): void {
     for (let scope: SolidScriptScope | null = this; scope; scope = scope.parent) {
       if (scope.variables.has(name)) {

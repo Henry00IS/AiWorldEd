@@ -29,6 +29,23 @@ function script(...lines: SolidScriptLine[]) {
 }
 
 describe('solidScriptProgramRun', () => {
+  it('runs one script again with new inputs, and Function locals stay per call', () => {
+    const document = solidScriptDocumentCreate([
+      { command: 'input', values: { name: 'n', type: 'number', default: '1' } },
+      { command: 'function', values: { name: 'twice', parameters: 'a' } },
+      { command: 'variable', values: { name: 'local.b', value: '[=[local.a] * 2]' } },
+      { command: 'return', values: { value: '[local.b]' } },
+      { command: 'end' },
+      { command: 'echo', values: { value: '[=twice([n]) + twice(10)]' } },
+      { command: 'echo', values: { value: '[local.b]' } },
+      { command: 'cube' },
+    ]);
+    const first = solidScriptProgramRun(document, { inputs: { n: '1' } });
+    expect(first.messages).toEqual(['22']);
+    expect(first.error?.message).toMatch(/local\. only works inside a Function/);
+    expect(solidScriptProgramRun(document, { inputs: { n: '4' } }).messages).toEqual(['28']);
+  });
+
   it('runs each block directly: a translated cube, centred by default', () => {
     const { shapes } = solidScriptProgramEvaluate(
       script(
