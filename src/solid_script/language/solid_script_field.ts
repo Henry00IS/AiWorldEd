@@ -1,4 +1,5 @@
 import type { SolidScriptExpression } from './solid_script_ast.js';
+import { solidScriptExpressionCompiled, type SolidScriptCompiled } from './solid_script_expression_compile.js';
 import { solidScriptNameDotProblem } from './solid_script_name_rules.js';
 import type { SolidScriptValue } from './solid_script_value.js';
 import { solidScriptValueText } from './solid_script_value.js';
@@ -61,8 +62,8 @@ export interface SolidScriptFieldContext {
    * caller falls back to formula() for the message.
    */
   formulaParse(text: string): SolidScriptExpression | null;
-  /** Computes a parsed formula whose slot nodes read the given values. */
-  formulaRun(expression: SolidScriptExpression, slots: readonly SolidScriptValue[]): SolidScriptValue;
+  /** Computes a compiled formula whose slot nodes read the given values. */
+  formulaRun(formula: SolidScriptCompiled, slots: readonly SolidScriptValue[]): SolidScriptValue;
 }
 
 /** A field compiled once: reading it only runs the closure. */
@@ -224,11 +225,11 @@ function solidScriptFieldFormulaCompile(pieces: readonly SolidScriptFieldPiece[]
       inner += piece.kind === 'plain' ? piece.text : solidScriptFieldFormulaText(groups[slot++]!(context));
     return context.formula(inner.trimStart().slice(1).trim());
   };
-  let parsed: SolidScriptExpression | null | undefined;
+  let parsed: SolidScriptCompiled | null | undefined;
   return (context) => {
     if (parsed === undefined) {
       const tree = context.formulaParse(body);
-      parsed = tree ? solidScriptFieldSlots(tree) : null;
+      parsed = tree ? solidScriptExpressionCompiled(solidScriptFieldSlots(tree)) : null;
     }
     if (parsed === null) return slow(context);
     if (groups.length === 0) return context.formulaRun(parsed, SOLID_SCRIPT_FIELD_NO_SLOTS);

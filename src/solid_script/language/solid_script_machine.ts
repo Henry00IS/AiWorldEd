@@ -32,6 +32,8 @@ import {
   type SolidScriptUv,
 } from './solid_script_mesh.js';
 import { SolidScriptScope } from './solid_script_scope.js';
+import { SolidScriptFieldReader, type SolidScriptFieldHost } from './solid_script_field_reader.js';
+import type { SolidScriptCompiled } from './solid_script_expression_compile.js';
 import type { SolidScriptFaceFacts, SolidScriptGeometryLeaf } from './solid_script_geometry.js';
 import {
   solidScriptShapeJoin,
@@ -636,7 +638,7 @@ class SolidScriptPause extends Error {}
  * runs one script once: every run makes a new machine, so no variable, counter,
  * part or mistake carries over to the next run or another generator.
  */
-export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
+export class SolidScriptMachine<Command extends SolidScriptMachineCommand> implements SolidScriptFieldHost {
   private readonly expressions = new SolidScriptExpressionEvaluator(
     () => this.workTake(),
     (name, values) => this.functionCall(name, values),
@@ -1495,92 +1497,130 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
    * @returns Context.
    */
   private fieldContext(scope: SolidScriptScope): SolidScriptFieldContext {
-    return (scope.fieldContext ??= this.fieldContextBuild(scope));
+    return (scope.fieldContext ??= new SolidScriptFieldReader(this, scope));
   }
 
   /**
-   * Builds what field text reads in a scope.
+   * Reads any variable name as written in brackets, such as width, local.n,
+   * pos.x, points(2) or Box.Width; throws when there is none.
    *
-   * @param scope Scope.
-   * @returns Context.
+   * @param name Name as written.
+   * @param scope Scope of the running line.
+   * @returns Value.
    */
-  private fieldContextBuild(scope: SolidScriptScope): SolidScriptFieldContext {
-    const context: SolidScriptFieldContext = {
-      variablePlain: (name) => {
-        const found = scope.variableGet(name);
-        return found !== undefined ? found : context.variable(name);
-      },
-      variableLocal: (bare, name) => {
-        const found = this.frameFunction()?.locals?.variableOwn(bare);
-        return found !== undefined ? found : context.variable(name);
-      },
-      variableComponent: (base, index, name) => {
-        const vector = SOLID_SCRIPT_SYSTEM_GROUPS.has(base) ? undefined : scope.variableGet(base);
-        const found = Array.isArray(vector) ? vector[index] : undefined;
-        return found !== undefined ? found : context.variable(name);
-      },
-      variableItem: (list, index) => {
-        const items = scope.variableGet(list);
-        const found =
-          Array.isArray(items) && typeof index === 'number' && Number.isInteger(index) && index >= 0
-            ? items[index]
-            : undefined;
-        return found !== undefined ? found : context.variable(`${list}(${solidScriptValueText(index)})`);
-      },
-      variable: (name) => {
-        // Plain names, the most common read, take one walk out.
-        if (!name.includes('.') && !name.includes('(')) {
-          const found = scope.variableGet(name);
-          if (found !== undefined) return found;
-        } else if (name.startsWith(SOLID_SCRIPT_LOCAL_PREFIX)) {
-          // A Function's own input or variable, the common read inside one.
-          const found = this.frameFunction()?.locals?.variableOwn(solidScriptLocalBare(name));
-          if (found !== undefined) return found;
-        } else {
-          const builtIn = this.systemRead(name);
-          if (builtIn !== undefined) return builtIn;
-        }
-        const where = this.variableWhere(name, scope);
-        const item = solidScriptListItemParse(where.name);
-        const base = item?.name ?? where.name;
-        if (!item && !where.scope.variableHas(base)) {
-          const component = solidScriptVectorComponent(base);
-          if (component && where.scope.variableHas(component.name))
-            return solidScriptVectorComponentRead(component, where.scope.variableGet(component.name));
-        }
-        if (!where.scope.variableHas(base)) {
-          if (where.persistent && !item) return undefined;
-          const written = where.local ? `${SOLID_SCRIPT_LOCAL_PREFIX}${base}` : base;
-          throw new Error(
-            where.local
-              ? `there is no local variable [${written}]; it is an input of the Function or set with Set ${written}`
-              : `there is no variable [${written}]; set it on a line above this one`,
-          );
-        }
-        if (!item) return where.scope.variableGet(base);
-        const index = item.index === '' ? null : this.indexValue(item.index, scope);
-        return solidScriptListItemRead(base, where.scope.variableGet(base), index, item.method);
-      },
-      formula: (text) => {
-        let expression: SolidScriptExpression;
-        try {
-          expression = solidScriptExpressionParse(text);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          throw new Error(`the formula "${text}" cannot be read: ${message}`);
-        }
-        return this.expressions.evaluate(expression, scope);
-      },
-      formulaParse: (text) => {
-        try {
-          return solidScriptExpressionParse(text);
-        } catch {
-          return null;
-        }
-      },
-      formulaRun: (expression, slots) => this.expressions.evaluateSlots(expression, slots, scope),
-    };
-    return context;
+  fieldVariable(name: string, scope: SolidScriptScope): SolidScriptValue {
+    // Plain names, the most common read, take one walk out.
+    if (!name.includes('.') && !name.includes('(')) {
+      const found = scope.variableGet(name);
+      if (found !== undefined) return found;
+    } else if (name.startsWith(SOLID_SCRIPT_LOCAL_PREFIX)) {
+      // A Function's own input or variable, the common read inside one.
+      const found = this.fieldLocal(solidScriptLocalBare(name));
+      if (found !== undefined) return found;
+    } else {
+      const builtIn = this.systemRead(name);
+      if (builtIn !== undefined) return builtIn;
+    }
+    return this.fieldVariableWhere(name, scope);
+  }
+
+  /**
+   * Reads a variable name as written from where it lives: a list item, a vector
+   * part or a whole variable; throws when there is none.
+   *
+   * @param name Name as written.
+   * @param scope Scope of the running line.
+   * @returns Value.
+   */
+  private fieldVariableWhere(name: string, scope: SolidScriptScope): SolidScriptValue {
+    const where = this.variableWhere(name, scope);
+    const item = solidScriptListItemParse(where.name);
+    const base = item?.name ?? where.name;
+    if (!item && !where.scope.variableHas(base)) {
+      const component = solidScriptVectorComponent(base);
+      if (component && where.scope.variableHas(component.name))
+        return solidScriptVectorComponentRead(component, where.scope.variableGet(component.name));
+    }
+    if (!where.scope.variableHas(base)) {
+      if (where.persistent && !item) return undefined;
+      const written = where.local ? `${SOLID_SCRIPT_LOCAL_PREFIX}${base}` : base;
+      throw new Error(
+        where.local
+          ? `there is no local variable [${written}]; it is an input of the Function or set with Set ${written}`
+          : `there is no variable [${written}]; set it on a line above this one`,
+      );
+    }
+    if (!item) return where.scope.variableGet(base);
+    const index = item.index === '' ? null : this.indexValue(item.index, scope);
+    return solidScriptListItemRead(base, where.scope.variableGet(base), index, item.method);
+  }
+
+  /**
+   * Reads a variable of the innermost Function running.
+   *
+   * @param bare Name after local.
+   * @returns Value, or undefined outside a Function or when it has none.
+   */
+  fieldLocal(bare: string): SolidScriptValue {
+    return this.frameFunction()?.locals?.variableOwn(bare);
+  }
+
+  /**
+   * Returns whether a first name starts built-in values, such as Box.
+   *
+   * @param name First name.
+   * @returns True for a built-in group.
+   */
+  fieldSystemGroup(name: string): boolean {
+    return SOLID_SCRIPT_SYSTEM_GROUPS.has(name);
+  }
+
+  /**
+   * Computes formula text.
+   *
+   * @param text Formula text.
+   * @param scope Scope of the running line.
+   * @returns Value.
+   */
+  fieldFormula(text: string, scope: SolidScriptScope): SolidScriptValue {
+    let expression: SolidScriptExpression;
+    try {
+      expression = solidScriptExpressionParse(text);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`the formula "${text}" cannot be read: ${message}`);
+    }
+    return this.expressions.evaluate(expression, scope);
+  }
+
+  /**
+   * Parses formula text.
+   *
+   * @param text Formula text.
+   * @returns Parsed formula, or null when it cannot be read.
+   */
+  fieldFormulaParse(text: string): SolidScriptExpression | null {
+    try {
+      return solidScriptExpressionParse(text);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Computes a compiled formula whose slot nodes read the given values.
+   *
+   * @param formula Compiled formula.
+   * @param slots Slot values.
+   * @param scope Scope of the running line.
+   * @returns Value.
+   */
+  fieldFormulaRun(
+    formula: SolidScriptCompiled,
+    slots: readonly SolidScriptValue[],
+    scope: SolidScriptScope,
+  ): SolidScriptValue {
+    return this.expressions.evaluateSlots(formula, slots, scope);
   }
 
   /**
