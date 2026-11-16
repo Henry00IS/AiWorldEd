@@ -103,6 +103,17 @@ export abstract class ModifierStackKind {
   }
 
   /**
+   * Returns the parameters a bake builds with, such as a script's inputs after
+   * its bake event; null bakes the stored parameters.
+   *
+   * @param _parameters Normalized parameters.
+   * @returns Parameters to bake with, or null.
+   */
+  bakeParameters(_parameters: Record<string, unknown>): Record<string, unknown> | null {
+    return null;
+  }
+
+  /**
    * Returns a short header summary such as a copy count.
    *
    * @param _parameters Normalized parameters.

@@ -43,6 +43,7 @@ The script runs on every change. **Start** builds everything, **Debug** builds o
 - A **texture** input picks a library texture; wrap brushes in a **Texture** block, such as `Texture [wall]`, to paint every face with it. An inner Texture block wins, and brushes outside keep the generator's texture.
 - **Input Group** shows the inputs inside it under a heading, and **Input Note** shows a line of text among them.
 - When Input Changes and When Button Pressed blocks can check and change inputs.
+- **When Baked** runs just before the generator is baked, so a light preview can bake as a detailed version; undo brings back the old inputs.
 - Values stored as `persistent.name` stay between runs.
 
 </details>

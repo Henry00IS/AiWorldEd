@@ -7,6 +7,7 @@ import { cloneFaceSurface } from '@/texture/uv_matrix/face_surface_description.j
 import { hierarchyNameAllocator } from '@/utils/utils_hierarchy_name_allocator.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
 import { ModifierVolume, modifierVolumeSceneRoot } from '@/modifier/stack/modifier_volume.js';
+import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
 import type { ModifierStackSettings } from '@/modifier/stack/modifier_stack_types.js';
 import { modifierStackOwnerDecode, modifierStackOwnerEncode } from '@/modifier/stack/owner/modifier_stack_owner.js';
 import {
@@ -61,8 +62,13 @@ export class CommandModifierVolumeBake implements UndoCommand {
     this.volume = volume;
     this.ownerStack = modifierStackOwnerEncode(volume);
     this.sceneRoot = modifierVolumeSceneRoot(volume);
-    this.plans = modifierStackBakePlan(volume);
-    this.meshes = modifierStackBakeMeshesCreate(volume, this.plans[0]?.model.root.parent ?? this.sceneRoot);
+    const restore = modifierStackBakeParametersApply(this.sceneRoot);
+    try {
+      this.plans = modifierStackBakePlan(volume);
+      this.meshes = modifierStackBakeMeshesCreate(volume, this.plans[0]?.model.root.parent ?? this.sceneRoot);
+    } finally {
+      restore();
+    }
   }
 
   /**
@@ -227,4 +233,33 @@ function modifierStackBakePlace(
     modifierStackTreeInsert(anchor.parent, instance.mesh, anchor.index + offset);
     offsets.set(anchor.key, offset + 1);
   }
+}
+
+/**
+ * Gives every modifier under a root the parameters its kind bakes with, such as
+ * a script's inputs after its When Baked blocks, while the bake is planned.
+ *
+ * @param root Scene root.
+ * @returns Puts the stored parameters back.
+ */
+function modifierStackBakeParametersApply(root: THREE.Object3D): () => void {
+  const changed: { node: THREE.Object3D; settings: ModifierStackSettings }[] = [];
+  root.traverse((node) => {
+    if (!ModifierVolume.isVolume(node)) return;
+    const settings = ModifierVolume.read(node);
+    let touched = false;
+    const modifiers = settings.modifiers.map((entry) => {
+      const kind = modifierStackKindFind(entry.kind);
+      const baked = kind?.bakeParameters(kind.normalizeParameters(entry.parameters)) ?? null;
+      if (!baked) return entry;
+      touched = true;
+      return { ...entry, parameters: baked };
+    });
+    if (!touched) return;
+    changed.push({ node, settings });
+    ModifierVolume.write(node, { ...settings, modifiers });
+  });
+  return () => {
+    for (const { node, settings } of changed) ModifierVolume.write(node, settings);
+  };
 }

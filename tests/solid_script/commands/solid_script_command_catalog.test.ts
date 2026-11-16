@@ -83,7 +83,7 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
       { command: 'end' },
       { command: 'call', values: { name: 'area', values: '2, 3', result: 'size' } },
     ];
-  if (command.id === 'when_input_changes' || command.id === 'when_button_pressed')
+  if (['when_input_changes', 'when_button_pressed', 'when_baked'].includes(command.id))
     return [line, { command: 'end' }, { command: 'cube' }];
   if (command.id === 'set_input' || command.id === 'show_message') return [{ command: 'cube' }];
   if (command.id === 'return')

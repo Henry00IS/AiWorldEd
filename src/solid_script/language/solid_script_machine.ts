@@ -62,7 +62,11 @@ const SOLID_SCRIPT_TEXT_FIELDS: ReadonlySet<string> = new Set(['name', 'target',
 const SOLID_SCRIPT_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /** Command ids of the blocks that run when an inspector event happens. */
-export const SOLID_SCRIPT_HANDLERS = { input: 'when_input_changes', button: 'when_button_pressed' } as const;
+export const SOLID_SCRIPT_HANDLERS = {
+  input: 'when_input_changes',
+  button: 'when_button_pressed',
+  bake: 'when_baked',
+} as const;
 
 /**
  * Blocks that only define something: the script skips from them to their End,
@@ -73,6 +77,7 @@ const SOLID_SCRIPT_DEFINITIONS: ReadonlySet<string> = new Set([
   'function',
   SOLID_SCRIPT_HANDLERS.input,
   SOLID_SCRIPT_HANDLERS.button,
+  SOLID_SCRIPT_HANDLERS.bake,
 ]);
 
 /** Prefix of a variable that belongs to the Function it is used in. */
@@ -726,8 +731,9 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     for (const node of lines) if (node.command.id === 'input') this.lineRun(node, this.root, context);
     const id = SOLID_SCRIPT_HANDLERS[event.kind];
     for (const handler of this.handlers) {
-      if (handler.command.id !== id || handler.command.valueText(handler.values, 'name').trim() !== event.name)
-        continue;
+      if (handler.command.id !== id) continue;
+      // A bake has no name; When Baked blocks all answer it.
+      if (event.kind !== 'bake' && handler.command.valueText(handler.values, 'name').trim() !== event.name) continue;
       if (handler.children.length > 0) this.linesRun(handler.children, this.root, context);
       if (this.steps.length > 0 && !this.failure)
         this.failure = solidScriptFailure(
@@ -790,10 +796,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     for (const node of lines) {
       if (node.command.id === 'part') this.guarded(node.line, () => this.partDefine(node));
       if (node.command.id === 'function') this.guarded(node.line, () => this.functionDefine(node));
-      if (
-        (node.command.id === SOLID_SCRIPT_HANDLERS.input || node.command.id === SOLID_SCRIPT_HANDLERS.button) &&
-        !this.handlers.includes(node)
-      )
+      if (Object.values(SOLID_SCRIPT_HANDLERS).includes(node.command.id as never) && !this.handlers.includes(node))
         this.handlers.push(node);
     }
   }
