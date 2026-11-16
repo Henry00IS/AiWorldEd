@@ -11,6 +11,7 @@ import {
 import { solidScriptListingText } from '@/solid_script/commands/solid_script_command_listing.js';
 import {
   solidScriptBlockListing,
+  solidScriptDocumentBlockOpeners,
   solidScriptDocumentClosedBlocks,
 } from '@/solid_script/document/solid_script_document_listing.js';
 import {
@@ -98,6 +99,8 @@ export class SolidScriptEditorLines {
   private document: SolidScriptDocument = solidScriptDocumentCreate([]);
   private depths: number[] = [];
   private closes: string[] = [];
+  /** Line that opens the block, per End line; -1 for other lines. */
+  private openers: number[] = [];
   /** True per line that is off. */
   private offs: boolean[] = [];
   private caretLine = 0;
@@ -270,7 +273,8 @@ export class SolidScriptEditorLines {
     this.document = document;
     this.caretLine = Math.max(0, Math.min(this.caretLine, document.blocks.length - 1));
     const depths = solidScriptDocumentDepths(document);
-    const closes = solidScriptDocumentClosedBlocks(document);
+    this.openers = solidScriptDocumentBlockOpeners(document);
+    const closes = solidScriptDocumentClosedBlocks(document, this.openers);
     this.offs = solidScriptDocumentOffLines(document);
     const layout = JSON.stringify([document.blocks, depths, closes]);
     const rebuilt = layout !== this.layout;
@@ -524,6 +528,7 @@ export class SolidScriptEditorLines {
     const handlers: SolidScriptEditorRowHandlers = {
       key: (event, at) => this.keys.key(event, at),
       configure: this.handlers.configure,
+      jump: (at) => this.focusLine(at),
       focus: (at) => {
         if (this.picked && !this.picked.includes(at)) this.picked = null;
         this.caretSet(at);
@@ -544,6 +549,8 @@ export class SolidScriptEditorLines {
         line,
         depth: this.depths[line] ?? 0,
         closes: this.closes[line] ?? '',
+        opener: this.openers[line] ?? -1,
+        openerCommand: this.document.blocks[this.openers[line] ?? -1]?.command ?? '',
         off: this.offs[line] ?? false,
         view: this.view,
         unknown: this.unknown.get(line) ?? new Set(),

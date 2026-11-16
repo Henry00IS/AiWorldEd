@@ -1,3 +1,4 @@
+import { SOLID_SCRIPT_ANCHOR_HEIGHT, solidScriptAnchorMin } from './solid_script_anchor.js';
 import * as THREE from 'three';
 import type { SolidScriptBlockArguments } from './solid_script_block_arguments.js';
 import { solidScriptPolygonConvexPieces } from './solid_script_polygon.js';
@@ -25,7 +26,7 @@ export function solidScriptExtrude(
   matrix: THREE.Matrix4,
 ): SolidScriptShape {
   const height = args.positive('height', args.number('height', 1));
-  const base = args.flag('center') ? -height / 2 : 0;
+  const [base = 0] = solidScriptAnchorMin([height], args.anchor(SOLID_SCRIPT_ANCHOR_HEIGHT));
   const [scaleX, scaleY] = args.vector('scale', [1, 1]) as [number, number];
   const lift = matrix.clone().multiply(SOLID_SCRIPT_AXES_FLAT);
   return solidScriptShapeMapLeaves(shape, (leaf) => {

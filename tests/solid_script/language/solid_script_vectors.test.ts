@@ -54,7 +54,7 @@ describe('SolidScript vectors', () => {
         line('variable', { name: 'size', value: '2, 4, 6' }),
         line('variable', { name: 'spot', value: '10, 0, 0' }),
         line('translate', { v: '[spot]' }),
-        line('cube', { size: '[size]', center: 'false' }),
+        line('cube', { size: '[size]', anchor: 'Left, Bottom, Back' }),
         { command: 'end' },
       ]),
     );

@@ -48,7 +48,7 @@ export class SolidScriptEditorSettings {
     this.uses = solidScriptInspectorUses(use, notice, (uses) =>
       this.change((script) => solidScriptDocumentUsesWith(script, uses)),
     );
-    const row = document.createElement('label');
+    const row = document.createElement('div');
     row.title = 'Who wrote the script; saved with it';
     Object.assign(row.style, { display: 'flex', gap: '8px', alignItems: 'center' });
     this.author.type = 'text';

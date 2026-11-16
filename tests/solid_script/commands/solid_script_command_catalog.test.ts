@@ -39,7 +39,7 @@ const SOLID_SCRIPT_SAMPLE_CHILDREN: Readonly<Record<string, readonly SolidScript
   ],
   rotate_extrude: [
     { command: 'translate', values: { v: '2, 0, 0' } },
-    { command: 'square', values: { size: '0.5, 1', center: 'true' } },
+    { command: 'square', values: { size: '0.5, 1' } },
     { command: 'end' },
   ],
   mesh: [
@@ -66,7 +66,7 @@ const SOLID_SCRIPT_SAMPLE_CHILDREN: Readonly<Record<string, readonly SolidScript
   extrude_faces: [{ command: 'cube' }],
   box_uvs: [{ command: 'cube' }],
   flip_faces: [{ command: 'cube' }],
-  place_on_face: [{ command: 'cube', values: { size: '0.2, 0.2, 0.2', center: 'false' } }],
+  place_on_face: [{ command: 'cube', values: { size: '0.2, 0.2, 0.2', anchor: 'Left, Bottom, Back' } }],
   texture: [{ command: 'cube' }],
   input_group: [{ command: 'input' }],
   input_row: [
@@ -254,7 +254,7 @@ describe('solid script command catalog', () => {
   it('lists every parameter with its value, for display', () => {
     expect(solidScriptCommandFind('cube')?.entries({ size: '2, 2, 2' })).toEqual([
       { key: 'size', label: 'Size', value: '2, 2, 2' },
-      { key: 'center', label: 'Center', value: 'true' },
+      { key: 'anchor', label: 'Anchor', value: 'Center, Center, Center' },
       { key: 'label', label: 'Name', value: '' },
     ]);
   });
@@ -264,6 +264,7 @@ describe('solid script command catalog', () => {
       'r',
       'sides',
       'rings',
+      'anchor',
       'label',
     ]);
     expect(solidScriptCommandFind('cylinder')?.parameters.map((entry) => entry.key)).toContain('sides');

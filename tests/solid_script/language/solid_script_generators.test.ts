@@ -81,7 +81,7 @@ describe('SolidScript generator blocks', () => {
       );
       expect(command?.parameters.map((parameter) => parameter.key)).toEqual([
         'size',
-        'center',
+        'anchor',
         ...shaped.map((field) => field.key),
         'label',
       ]);
@@ -112,8 +112,8 @@ describe('SolidScript generator blocks', () => {
     expect(widthAt(1.5) / widthAt(-1.5)).toBeCloseTo(0.5, 5);
   });
 
-  it('puts the box corner on the origin when Center is off, and keeps generators of many pieces', () => {
-    const corner = run({ command: 'stairs', values: { size: '1, 3, 2', center: 'false', count: '6' } });
+  it('puts the box corner on the origin when anchored Left, Bottom, Back, and keeps generators of many pieces', () => {
+    const corner = run({ command: 'stairs', values: { size: '1, 3, 2', anchor: 'Left, Bottom, Back', count: '6' } });
     expect(corner.error).toBeNull();
     expect(bounds(corner.shapes)).toEqual([0, 0, 0, 1, 3, 2]);
     expect(solids(corner.shapes).length).toBeGreaterThan(1);
@@ -146,7 +146,7 @@ describe('SolidScript generator blocks', () => {
     );
     expect(bounds(cylinder.shapes)).toEqual(bounds([{ kind: 'solid', label: '', points: kindCylinder[0]!.vertices }]));
     expect(bounds(cylinder.shapes)[1]).toBe(-1);
-    const cone = run({ command: 'cylinder', values: { h: '2', r1: '0.5', r2: '1', center: 'false' } });
+    const cone = run({ command: 'cylinder', values: { h: '2', r1: '0.5', r2: '1', anchor: 'Center, Bottom, Center' } });
     const points = solids(cone.shapes).flat();
     const radiusAt = (y: number) =>
       Math.max(...points.filter((point) => Math.abs(point.y - y) < 1e-6).map((point) => Math.hypot(point.x, point.z)));

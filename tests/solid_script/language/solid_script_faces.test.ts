@@ -7,7 +7,7 @@ import { solidScriptShapeMeshes } from '@/solid_script/language/solid_script_mes
 import type { SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
 
 const END: SolidScriptLine = { command: 'end' };
-const CUBE: SolidScriptLine = { command: 'cube', values: { size: '2, 2, 2', center: 'true' } };
+const CUBE: SolidScriptLine = { command: 'cube', values: { size: '2, 2, 2' } };
 
 /**
  * Runs script lines.
@@ -66,7 +66,7 @@ describe('SolidScript faces', () => {
       select('Facing Up'),
       { command: 'for_each_selected_face' },
       { command: 'place_on_face' },
-      { command: 'cube', values: { size: '0.5, 0.1, 0.5', center: 'false' } },
+      { command: 'cube', values: { size: '0.5, 0.1, 0.5', anchor: 'Left, Bottom, Back' } },
       END,
       END,
     );
@@ -76,13 +76,40 @@ describe('SolidScript faces', () => {
     expect(heightRange(all[1]!)).toEqual([1, 1.1]);
   });
 
+  it('sits a shape flush on a face and centred on it with Anchor Center, Bottom, Center', () => {
+    const placed = (side: string, anchorText: string) => {
+      const result = run(
+        CUBE,
+        select(side),
+        { command: 'for_each_selected_face' },
+        { command: 'place_on_face' },
+        { command: 'cube', values: { size: '0.5, 0.2, 0.5', anchor: anchorText } },
+        END,
+        END,
+      );
+      expect(result.error).toBeNull();
+      const box = new THREE.Box3().setFromPoints(solids(result.shapes)[1]!);
+      const round = (vector: THREE.Vector3) => vector.toArray().map((value) => Math.round(value * 1e4) / 1e4 + 0);
+      return { min: round(box.min), max: round(box.max) };
+    };
+    // On the top: standing on it, its middle over the face middle.
+    expect(placed('Facing Up', 'Center, Bottom, Center')).toEqual({ min: [-0.25, 1, -0.25], max: [0.25, 1.2, 0.25] });
+    // On the front: flush against it, out along Z, still centred.
+    expect(placed('Facing Front', 'Center, Bottom, Center')).toEqual({
+      min: [-0.25, -0.25, 1],
+      max: [0.25, 0.25, 1.2],
+    });
+    // Centred halfway into the face.
+    expect(placed('Facing Up', 'Center, Center, Center')).toEqual({ min: [-0.25, 0.9, -0.25], max: [0.25, 1.1, 0.25] });
+  });
+
   it('nests Select Faces: a round picks faces of what it built, and the outer pick comes back after', () => {
     const result = run(
       CUBE,
       select('Facing Up'),
       { command: 'for_each_selected_face' },
       { command: 'place_on_face' },
-      { command: 'cube', values: { size: '0.5, 0.5, 0.5', center: 'false' } },
+      { command: 'cube', values: { size: '0.5, 0.5, 0.5', anchor: 'Left, Bottom, Back' } },
       select('All'),
       { command: 'for_each_selected_face' },
       { command: 'echo', values: { value: 'inner [Face.Center]' } },
@@ -107,10 +134,10 @@ describe('SolidScript faces', () => {
       select('All'),
       { command: 'for_each_selected_face' },
       { command: 'place_on_face' },
-      { command: 'cube', values: { size: '0.2, 0.2, 0.2', center: 'false' } },
+      { command: 'cube', values: { size: '0.2, 0.2, 0.2', anchor: 'Left, Bottom, Back' } },
       select('All'),
       { command: 'for_each_selected_face' },
-      { command: 'cube', values: { size: '0.2, 0.2, 0.2', center: 'true' } },
+      { command: 'cube', values: { size: '0.2, 0.2, 0.2' } },
       END,
       END,
       END,
@@ -295,7 +322,7 @@ describe('SolidScript faces', () => {
     expect(count(CUBE, { command: 'for_each_vertex' }, echo, END)).toBe(8);
     expect(top(CUBE)).toBe(4);
     // An eight-sided cylinder: its caps are octagons, not fans of triangles.
-    const cylinder: SolidScriptLine = { command: 'cylinder', values: { sides: '8', center: 'true' } };
+    const cylinder: SolidScriptLine = { command: 'cylinder', values: { sides: '8' } };
     expect(count(cylinder, { command: 'for_each_edge' }, echo, END)).toBe(24);
     expect(count(cylinder, { command: 'for_each_vertex' }, echo, END)).toBe(16);
     expect(top(cylinder)).toBe(8);
@@ -326,7 +353,7 @@ describe('SolidScript faces', () => {
 
   it('puts more scattered points on bigger faces', () => {
     const counts = run(
-      { command: 'cube', values: { size: '4, 1, 1', center: 'true' } },
+      { command: 'cube', values: { size: '4, 1, 1' } },
       select('All'),
       { command: 'for_each_scattered_point', values: { count: '600', seed: '1' } },
       { command: 'echo', values: { value: '[Face.Area]' } },
@@ -345,7 +372,7 @@ describe('SolidScript faces', () => {
   });
 
   it('aligns the lines inside so their Y (up) points along a direction', () => {
-    const tall = { command: 'cube', values: { size: '0.2, 1, 0.2', center: 'false' } };
+    const tall = { command: 'cube', values: { size: '0.2, 1, 0.2', anchor: 'Left, Bottom, Back' } };
     const sideways = run({ command: 'align', values: { direction: '1, 0, 0' } }, tall, END);
     expect(sideways.error).toBeNull();
     const points = solids(sideways.shapes)[0]!;

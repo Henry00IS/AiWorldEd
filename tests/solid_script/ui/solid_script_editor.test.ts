@@ -213,11 +213,11 @@ describe('SolidScript editor', () => {
 
   it('lists a line as its command name and values, with variables marked', () => {
     editorFixture([
-      { command: 'cube', values: { size: '2, 2, 2', center: 'false' } },
+      { command: 'cube', values: { size: '2, 2, 2', anchor: 'Left, Bottom, Back' } },
       { command: 'sphere', values: { r: '[radius]' } },
       { command: 'note', values: { text: 'Walls' } },
     ]);
-    expect(chip(0).textContent).toBe("Cube '2, 2, 2' (Not Centered)");
+    expect(chip(0).textContent).toBe("Cube '2, 2, 2' (Anchor 'Left, Bottom, Back')");
     expect(chip(0).querySelector('.solid-script-editor-list-name')?.textContent?.trim()).toBe('Cube');
     expect(chip(0).querySelector('.solid-script-editor-list-value')?.textContent).toBe("'2, 2, 2'");
     expect(chip(1).querySelector('.solid-script-editor-list-variable')?.textContent).toBe('[radius]');
@@ -355,6 +355,21 @@ describe('SolidScript editor', () => {
     expect(script().blocks[0]?.values?.['v']).toBe('0, 0, 3');
     press(chip(1), 'Enter');
     expect(document.querySelector('[data-solid-script-configurator="cube"]')).not.toBeNull();
+  });
+
+  it('selects the line that opens a block when its End line is double-clicked, without a configurator', () => {
+    editorFixture([
+      { command: 'translate' },
+      { command: 'rotate' },
+      { command: 'cube' },
+      { command: 'end' },
+      { command: 'end' },
+    ]);
+    doubleClick(chip(4));
+    expect(document.querySelector('[data-solid-script-configurator]')).toBeNull();
+    expect(document.activeElement).toBe(chip(0));
+    doubleClick(chip(3));
+    expect(document.activeElement).toBe(chip(1));
   });
 
   it('suggests the names of the script while typing, inserts them and checks fields as they are typed', () => {
@@ -740,10 +755,10 @@ describe('SolidScript editor', () => {
     expect(
       help.querySelector('.solid-script-editor-help-parameter .solid-script-editor-parameter-value')?.textContent,
     ).toBe('4');
-    const center = [...help.querySelectorAll('.solid-script-editor-help-parameter')].find((row) =>
-      row.textContent?.includes('Center'),
+    const anchor = [...help.querySelectorAll('.solid-script-editor-help-parameter')].find((row) =>
+      row.textContent?.includes('Anchor'),
     );
-    expect(center?.querySelector('.solid-script-editor-parameter-value')?.textContent).toBe('Yes');
+    expect(anchor?.querySelector('.solid-script-editor-parameter-value')?.textContent).toBe('Center, Center, Center');
     expect(help.textContent).toContain('Stops the script when');
     find<HTMLElement>('.solid-script-editor-palette-item[data-command="sphere"]').focus();
     expect(root.querySelector('.solid-script-editor-help-title')?.textContent).toBe('Sphere');

@@ -129,7 +129,7 @@ class SolidScriptFileDialog extends SolidScriptDialog {
    * @returns Row.
    */
   private nameRow(name: string): HTMLElement {
-    const row = document.createElement('label');
+    const row = document.createElement('div');
     row.className = SOLID_SCRIPT_EDITOR_CLASSES.field;
     const caption = document.createElement('span');
     caption.className = SOLID_SCRIPT_EDITOR_CLASSES.fieldLabel;

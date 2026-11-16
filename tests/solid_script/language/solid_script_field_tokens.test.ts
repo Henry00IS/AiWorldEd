@@ -18,7 +18,7 @@ function pieces(text: string): string[] {
 }
 
 describe('solidScriptFieldTokens', () => {
-  it('splits a formula into brackets, calls, names, numbers, texts and operators', () => {
+  it('splits a formula into brackets, calls, names, numbers, texts and operators, with commas as plain text', () => {
     expect(pieces('[=Spot([Middle], [RailAt], 2 * "a")]')).toEqual([
       'bracket:[=',
       'function:Spot',
@@ -26,11 +26,11 @@ describe('solidScriptFieldTokens', () => {
       'bracket:[',
       'name:Middle',
       'bracket:]',
-      'operator:,',
+      'text:, ',
       'bracket:[',
       'name:RailAt',
       'bracket:]',
-      'operator:,',
+      'text:, ',
       'number:2',
       'operator:*',
       'string:"a"',
@@ -99,5 +99,13 @@ describe('solidScriptFieldTokens', () => {
     expect(numbers('0,0;1,0; 0, 1')).toEqual(['0', '0', '1', '0', '0', '1']);
     expect(numbers('[Width], 2, -3')).toEqual(['2', '-3']);
     expect(numbers('[=Max(1, 2) + 3.5]')).toEqual(['1', '2', '3.5']);
+  });
+
+  it('marks the operators of a formula, but not the commas between values', () => {
+    const text = '[=Max([A] + 2, 3) * 4 / 5 - 6 ^ 2 % 3 >= 1]';
+    const operators = solidScriptFieldTokens(text)
+      .filter((token) => token.kind === 'operator')
+      .map((token) => text.slice(token.from, token.to));
+    expect(operators).toEqual(['+', '*', '/', '-', '^', '%', '>', '=']);
   });
 });

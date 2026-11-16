@@ -45,35 +45,70 @@ function bounds(lines: SolidScriptLine[]): { min: number[]; max: number[] } {
 
 describe('SolidScript axes', () => {
   it('uses the editor axes: X right, Y up, Z toward the front', () => {
-    expect(bounds([solidScriptExampleLine('cube', { size: '1, 2, 3', center: 'true' })])).toEqual({
+    expect(bounds([solidScriptExampleLine('cube', { size: '1, 2, 3' })])).toEqual({
       min: [-0.5, -1, -1.5],
       max: [0.5, 1, 1.5],
     });
     const raised = solidScriptExampleBlock('translate', { v: '0, 5, 0' }, [
-      solidScriptExampleLine('cube', { center: 'false' }),
+      solidScriptExampleLine('cube', { anchor: 'Left, Bottom, Back' }),
     ]);
     expect(bounds(raised)).toEqual({ min: [0, 5, 0], max: [1, 6, 1] });
   });
 
   it('stands cylinders and extrusions up along Y', () => {
     const cylinder = bounds([
-      solidScriptExampleLine('cylinder', { h: '3', r1: '0.5', r2: '0.5', sides: '4', center: 'false' }),
+      solidScriptExampleLine('cylinder', {
+        h: '3',
+        r1: '0.5',
+        r2: '0.5',
+        sides: '4',
+        anchor: 'Center, Bottom, Center',
+      }),
     ]);
     expect([cylinder.min[1], cylinder.max[1]]).toEqual([0, 3]);
-    const extruded = solidScriptExampleBlock('linear_extrude', { height: '3', center: 'false' }, [
-      solidScriptExampleLine('square', { size: '1, 2', center: 'false' }),
+    const extruded = solidScriptExampleBlock('linear_extrude', { height: '3', anchor: 'Bottom' }, [
+      solidScriptExampleLine('square', { size: '1, 2', anchor: 'Left, Front' }),
     ]);
     expect(bounds(extruded)).toEqual({ min: [0, 0, -2], max: [1, 3, 0] });
   });
 
+  it('puts the spot the Anchor names on the origin, for every shape', () => {
+    const cube = (anchor: string) => bounds([solidScriptExampleLine('cube', { size: '2, 2, 2', anchor })]);
+    expect(cube('Center, Center, Center')).toEqual({ min: [-1, -1, -1], max: [1, 1, 1] });
+    expect(cube('Center, Bottom, Back')).toEqual({ min: [-1, 0, 0], max: [1, 2, 2] });
+    expect(cube('Right, Top, Front')).toEqual({ min: [-2, -2, -2], max: [0, 0, 0] });
+    expect(cube('left, bottom, back')).toEqual({ min: [0, 0, 0], max: [2, 2, 2] });
+    expect(bounds([solidScriptExampleLine('sphere', { r: '1', anchor: 'Center, Bottom, Center' })]).min[1]).toBe(0);
+    const cylinder = bounds([
+      solidScriptExampleLine('cylinder', { h: '2', r1: '1', r2: '0.5', sides: '4', anchor: 'Left, Top, Back' }),
+    ]);
+    // Round shapes anchor on the box of their radius, so the axis sits one radius in.
+    const middle = (range: { min: number[]; max: number[] }, axis: number) => (range.min[axis]! + range.max[axis]!) / 2;
+    expect([middle(cylinder, 0), cylinder.max[1], middle(cylinder, 2)]).toEqual([1, 0, 1]);
+    const cone = bounds([
+      solidScriptExampleLine('cylinder', { h: '2', r1: '0.5', r2: '1', sides: '4', anchor: 'Center, Top, Center' }),
+    ]);
+    expect([cone.min[1], cone.max[1]]).toEqual([-2, 0]);
+    const circle = bounds(
+      solidScriptExampleBlock('linear_extrude', { height: '1', anchor: 'Top' }, [
+        solidScriptExampleLine('circle', { r: '1', sides: '4', anchor: 'Left, Back' }),
+      ]),
+    );
+    expect([middle(circle, 0), circle.max[1], middle(circle, 2)]).toEqual([1, 0, 1]);
+    expect(
+      bounds([solidScriptExampleLine('stairs', { size: '2, 2, 2', anchor: 'Center, Bottom, Center' })]).min[1],
+    ).toBe(0);
+  });
+
   it('gives the box as width (X), height (Y) and depth (Z)', () => {
-    expect(bounds([solidScriptExampleLine('cube', { size: '[Box.Size]', center: 'true' })])).toEqual({
+    expect(bounds([solidScriptExampleLine('cube', { size: '[Box.Size]' })])).toEqual({
       min: [-2, -0.5, -1],
       max: [2, 0.5, 1],
     });
-    expect(
-      bounds([solidScriptExampleLine('cube', { size: '[Box.Width], [Box.Height], [Box.Depth]', center: 'true' })]),
-    ).toEqual({ min: [-2, -0.5, -1], max: [2, 0.5, 1] });
+    expect(bounds([solidScriptExampleLine('cube', { size: '[Box.Width], [Box.Height], [Box.Depth]' })])).toEqual({
+      min: [-2, -0.5, -1],
+      max: [2, 0.5, 1],
+    });
   });
 
   it('calls faces pointing up +Y the top', () => {

@@ -32,6 +32,8 @@ export interface SolidScriptEditorRowHandlers {
   key: (event: KeyboardEvent, line: number) => void;
   /** Opens the configurator of the line. */
   configure: (line: number) => void;
+  /** Selects a line and scrolls it into view. */
+  jump: (line: number) => void;
   /** The line got the keyboard focus. */
   focus: (line: number) => void;
   /** The row was pressed; Shift grows the selection to it, Ctrl picks it alone. */
@@ -50,6 +52,10 @@ export interface SolidScriptEditorRowLook {
   depth: number;
   /** Label of the block an End line closes, or empty. */
   closes: string;
+  /** Line that opens the block an End line closes, or -1. */
+  opener: number;
+  /** Command of that line, or empty. */
+  openerCommand: string;
   /** True when the line is off, by itself or inside a block that is off. */
   off: boolean;
   /** View switches. */
@@ -63,8 +69,8 @@ export interface SolidScriptEditorRowLook {
 /**
  * Builds one script row across the full width: the line number and the line as
  * the listing reads. A click anywhere on the row selects the line (Shift+click
- * selects every line up to it), a double-click configures it, and the whole row
- * can be dragged.
+ * selects every line up to it), a double-click configures it (on an End line it
+ * selects the line that opens the block), and the whole row can be dragged.
  *
  * @param block Line.
  * @param look Line index, indent and closed block.
@@ -114,7 +120,9 @@ export function solidScriptEditorRowBuild(
   row.addEventListener('click', (event) => {
     if (!event.shiftKey && !event.ctrlKey && !event.metaKey) handlers.release(look.line);
   });
-  row.addEventListener('dblclick', () => handlers.configure(look.line));
+  row.addEventListener('dblclick', () =>
+    look.opener >= 0 ? handlers.jump(look.opener) : handlers.configure(look.line),
+  );
   chip.addEventListener('keydown', (event) => handlers.key(event, look.line));
   chip.addEventListener('focus', () => handlers.focus(look.line));
   row.addEventListener('dragstart', (event) => {
@@ -128,7 +136,7 @@ export function solidScriptEditorRowBuild(
  * Fills a line with its listing: a blank line stays empty, an End names the
  * block it closes, and a command this editor does not know says so. Values are
  * highlighted like configurator fields, and the command's icon leads when
- * switched on.
+ * switched on; an End line shows the icon of the block it closes.
  *
  * @param chip Line element.
  * @param block Line.
@@ -144,8 +152,9 @@ function solidScriptEditorChipFill(chip: HTMLElement, block: SolidScriptBlock, l
   }
   const parts = solidScriptBlockListing(block, look.closes);
   const marks = { view: look.view, unknown: look.unknown, error: look.error, caret: null };
-  if (look.view.icons && command)
-    chip.append(solidScriptEditorIcon(command.category, SOLID_SCRIPT_EDITOR_CATEGORY_COLORS[command.category]));
+  const shown = look.openerCommand ? solidScriptCommandFind(look.openerCommand) : command;
+  if (look.view.icons && shown)
+    chip.append(solidScriptEditorIcon(shown.category, SOLID_SCRIPT_EDITOR_CATEGORY_COLORS[shown.category]));
   chip.append(
     ...parts.map((part) => {
       const span = document.createElement('span');
@@ -170,6 +179,7 @@ function solidScriptEditorChipFill(chip: HTMLElement, block: SolidScriptBlock, l
  */
 function solidScriptEditorChipTitle(command: SolidScriptCommand | undefined, end: boolean): string {
   if (!command) return 'This editor does not know this command; it stops the script.';
-  if (end) return 'Closes the block above. Remove the line that opens the block to remove it.';
+  if (end)
+    return 'Closes the block above. Double-click to go to the line that opens it; remove that line to remove the block.';
   return `${command.description}.\nDouble-click or press Enter to configure.`;
 }

@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
-import { solidScriptParameter, solidScriptParameterCenter } from './solid_script_command_parameters.js';
+import { solidScriptParameter, solidScriptParameterAnchor } from './solid_script_command_parameters.js';
+import { SOLID_SCRIPT_ANCHOR_HEIGHT } from '@/solid_script/language/solid_script_anchor.js';
 import {
   solidScriptMirrorMatrix,
   solidScriptAlignMatrix,
@@ -177,7 +178,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     nesting: 'open',
     parameters: [
       solidScriptParameter('height', 'Height', 'number', '1', 'How far the outlines are pulled up along Y, in metres.'),
-      solidScriptParameterCenter(),
+      solidScriptParameterAnchor(SOLID_SCRIPT_ANCHOR_HEIGHT),
       solidScriptParameter(
         'scale',
         'Top Scale',
@@ -191,7 +192,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
       'height ',
       read.value('height'),
       ...solidScriptListingOptions([
-        !read.on('center') && ['Not Centered'],
+        read.changed('anchor') && ['Anchor ', read.value('anchor')],
         read.changed('scale') && ['Top Scale ', read.value('scale')],
       ]),
     ],

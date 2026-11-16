@@ -12,6 +12,7 @@ import {
 const HANDLERS = {
   key: () => {},
   configure: () => {},
+  jump: () => {},
   focus: () => {},
   press: () => {},
   release: () => {},
@@ -46,6 +47,8 @@ describe('SolidScript editor view', () => {
           line: 0,
           depth: 2,
           closes: '',
+          opener: -1,
+          openerCommand: '',
           off: false,
           view: { ...SOLID_SCRIPT_EDITOR_VIEW_DEFAULT, icons },
           unknown: new Set(['local.anglex']),
@@ -64,5 +67,33 @@ describe('SolidScript editor view', () => {
     expect(span(row, 'Local.Anglex').className).toContain('squiggle');
     expect(span(build(false, true), 'Local.Anglex').className).toContain('squiggle-error');
     expect(build(false, false).querySelector('svg')).toBeNull();
+  });
+
+  it('gives an End line the icon of the block it closes and jumps to that block on double-click', () => {
+    const [end] = solidScriptDocumentCreate([{ command: 'end' }]).blocks;
+    const jumps: number[] = [];
+    const row = (openerCommand: string) =>
+      solidScriptEditorRowBuild(
+        end!,
+        {
+          line: 5,
+          depth: 0,
+          closes: 'Translate',
+          opener: 2,
+          openerCommand,
+          off: false,
+          view: { ...SOLID_SCRIPT_EDITOR_VIEW_DEFAULT, icons: true },
+          unknown: new Set(),
+          error: new Set(),
+        },
+        { ...HANDLERS, jump: (line) => jumps.push(line), configure: () => jumps.push(-1) },
+      );
+    const icon = (element: HTMLElement) => element.querySelector<HTMLElement>('[data-command] > span')!;
+    const translate = row('translate');
+    expect(icon(translate).innerHTML).toBe(icon(row('translate')).innerHTML);
+    expect(icon(translate).innerHTML).not.toBe(icon(row('union')).innerHTML);
+    expect(icon(translate).style.color).not.toBe(icon(row('union')).style.color);
+    translate.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    expect(jumps).toEqual([2]);
   });
 });

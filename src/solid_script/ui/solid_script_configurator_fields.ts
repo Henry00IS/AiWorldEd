@@ -2,6 +2,12 @@ import { solidScriptNameDotProblem } from '@/solid_script/language/solid_script_
 import type { SolidScriptCommandParameter } from '@/solid_script/commands/solid_script_command.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import {
+  SOLID_SCRIPT_ANCHOR_CAPTIONS,
+  SOLID_SCRIPT_ANCHOR_WORDS,
+  solidScriptAnchorRead,
+  type SolidScriptAnchorAxis,
+} from '@/solid_script/language/solid_script_anchor.js';
+import {
   solidScriptFieldCheck,
   solidScriptFieldSplit,
   solidScriptFieldVectorNote,
@@ -15,6 +21,7 @@ import {
 import { solidScriptFieldMirrorAttach } from './solid_script_field_highlight.js';
 import { solidScriptEditorViewRead, type SolidScriptEditorView } from './solid_script_editor_view.js';
 import { SolidScriptConfiguratorNames } from './solid_script_configurator_names.js';
+import { solidScriptEditorToolButton } from './solid_script_editor_icons.js';
 import { textureSelectCreate } from '@/texture/ui/texture_select.js';
 import type { SolidScriptSuggestionScope } from './solid_script_suggestions.js';
 
@@ -71,7 +78,10 @@ export function solidScriptConfiguratorFieldBuild(
   scope: SolidScriptConfiguratorScope = { names: [], extra: [] },
   view: SolidScriptEditorView = solidScriptEditorViewRead(),
 ): SolidScriptConfiguratorField {
-  const row = document.createElement('label');
+  // Not a <label>: a click that starts in one input and ends in another lands on
+  // the row, and a label would then focus its first input. The inputs carry
+  // their own names, so a click on the caption does nothing.
+  const row = document.createElement('div');
   row.className = SOLID_SCRIPT_EDITOR_CLASSES.field;
   row.title = parameter.hint;
   const caption = document.createElement('span');
@@ -149,12 +159,49 @@ function solidScriptConfiguratorInputs(
 ): SolidScriptConfiguratorFieldReader {
   const size = solidScriptConfiguratorVectorSize(parameter);
   if (size > 0) return solidScriptConfiguratorVector(value, size, parameter, inputs);
+  if (parameter.anchor && typeof solidScriptAnchorRead(value, parameter.anchor) !== 'string')
+    return solidScriptConfiguratorAnchor(value, parameter.anchor, parameter, inputs);
   if (parameter.type === 'boolean' && (value === 'true' || value === 'false'))
     return solidScriptConfiguratorCheckbox(value === 'true', parameter, inputs);
   const input = solidScriptConfiguratorInput(value, parameter.label);
   if (parameter.texture === true) return solidScriptConfiguratorTexture(input, parameter, inputs);
   inputs.append(input);
   return { read: () => input.value.trim(), problem: () => solidScriptConfiguratorProblem(parameter, input.value) };
+}
+
+/**
+ * Builds an Anchor field: one choice per axis, such as Left, Center or Right
+ * for X.
+ *
+ * @param value Stored text, which reads as an Anchor.
+ * @param axes Axes.
+ * @param parameter Parameter.
+ * @param inputs Container.
+ * @returns Reader and check.
+ */
+function solidScriptConfiguratorAnchor(
+  value: string,
+  axes: readonly SolidScriptAnchorAxis[],
+  parameter: SolidScriptCommandParameter,
+  inputs: HTMLElement,
+): SolidScriptConfiguratorFieldReader {
+  const words = value.split(',').map((word) => word.trim().toLowerCase());
+  const selects = axes.map((axis, index) => {
+    const select = document.createElement('select');
+    select.className = SOLID_SCRIPT_EDITOR_CLASSES.fieldChoice;
+    select.setAttribute('aria-label', `${parameter.label} ${SOLID_SCRIPT_ANCHOR_CAPTIONS[axis]}`);
+    for (const word of SOLID_SCRIPT_ANCHOR_WORDS[axis]) {
+      const option = document.createElement('option');
+      option.value = word;
+      option.textContent = word;
+      option.selected = word.toLowerCase() === words[index];
+      select.append(option);
+    }
+    select.addEventListener('change', () => inputs.dispatchEvent(new Event('change', { bubbles: true })));
+    return select;
+  });
+  inputs.append(...selects);
+  return { read: () => selects.map((select) => select.value).join(', '), problem: () => '' };
 }
 
 /**
@@ -177,21 +224,20 @@ function solidScriptConfiguratorTexture(
   select.element.classList.add(SOLID_SCRIPT_EDITOR_CLASSES.input);
   let picking = !input.value.includes('[');
   const modes = (['Pick', 'Type'] as const).map((mode) => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.textContent = mode;
-    button.className = SOLID_SCRIPT_EDITOR_CLASSES.fieldMode;
+    const button = solidScriptEditorToolButton(
+      mode,
+      mode.toLowerCase(),
+      mode === 'Pick' ? 'Pick a texture from the library' : 'Type a texture name, variable or formula',
+      () => {
+        if ((mode === 'Pick') === picking) return;
+        if (picking) input.value = select.read();
+        else if (!input.value.includes('[')) select.write(input.value.trim());
+        picking = mode === 'Pick';
+        show();
+        inputs.dispatchEvent(new Event('change', { bubbles: true }));
+      },
+    );
     button.setAttribute('aria-label', `${mode} Texture`);
-    button.title = mode === 'Pick' ? 'Pick a texture from the library' : 'Type a texture name, variable or formula';
-    button.addEventListener('click', (event) => {
-      event.preventDefault();
-      if ((mode === 'Pick') === picking) return;
-      if (picking) input.value = select.read();
-      else if (!input.value.includes('[')) select.write(input.value.trim());
-      picking = mode === 'Pick';
-      show();
-      inputs.dispatchEvent(new Event('change', { bubbles: true }));
-    });
     return button;
   });
   const show = (): void => {
@@ -265,19 +311,7 @@ function solidScriptConfiguratorVector(
   const whole = solidScriptConfiguratorInput(parts ? '' : value, parameter.label);
   whole.placeholder = 'Vector, such as [Edge.Middle]';
   let single = !parts;
-  const toggle = document.createElement('button');
-  toggle.type = 'button';
-  toggle.textContent = 'Vector';
-  toggle.className = SOLID_SCRIPT_EDITOR_CLASSES.fieldMode;
-  toggle.setAttribute('aria-label', `${parameter.label} As One Vector`);
-  const show = (): void => {
-    whole.hidden = !single;
-    for (const input of axes) input.hidden = single;
-    toggle.setAttribute('aria-pressed', String(single));
-    toggle.title = single ? 'Type each axis on its own' : 'Type one vector, such as [Edge.Middle] or 1, 2, 3';
-  };
-  toggle.addEventListener('click', (event) => {
-    event.preventDefault();
+  const toggle = solidScriptEditorToolButton('Vector', 'vector', '', () => {
     if (single) {
       const split = solidScriptConfiguratorVectorSplit(whole.value, size);
       if (!split) {
@@ -290,6 +324,13 @@ function solidScriptConfiguratorVector(
     show();
     inputs.dispatchEvent(new Event('change', { bubbles: true }));
   });
+  toggle.setAttribute('aria-label', `${parameter.label} As One Vector`);
+  const show = (): void => {
+    whole.hidden = !single;
+    for (const input of axes) input.hidden = single;
+    toggle.setAttribute('aria-pressed', String(single));
+    toggle.title = single ? 'Type each axis on its own' : 'Type one vector, such as [Edge.Middle] or 1, 2, 3';
+  };
   show();
   inputs.append(...axes, whole, toggle);
   return {
@@ -380,6 +421,10 @@ function solidScriptConfiguratorProblem(parameter: SolidScriptCommandParameter, 
     return `${parameter.label} must be a name such as width, or an item such as points(0), or points() to add one.`;
   if (text === '' && parameter.optional) return '';
   if (parameter.type !== 'text' && text === '') return `${parameter.label} needs a value.`;
+  if (parameter.anchor && !text.includes('[')) {
+    const read = solidScriptAnchorRead(text, parameter.anchor);
+    return typeof read === 'string' ? `${parameter.label} ${read}.` : '';
+  }
   if (parameter.type === 'name' || parameter.type === 'text') return '';
   const problem = solidScriptFieldCheck(text);
   return problem === '' ? '' : `${parameter.label}: ${problem}.`;

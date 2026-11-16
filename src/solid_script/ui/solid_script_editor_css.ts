@@ -88,7 +88,7 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
   splitterColumn: 'solid-script-editor-splitter-column',
   splitterRow: 'solid-script-editor-splitter-row',
   fieldWarning: 'solid-script-editor-field-warning',
-  fieldMode: 'solid-script-editor-field-mode',
+  fieldChoice: 'solid-script-editor-field-choice',
   stackFrame: 'solid-script-editor-stack-frame',
   explorer: 'solid-script-editor-explorer',
   explorerTop: 'solid-script-editor-explorer-top',
@@ -199,7 +199,8 @@ const SOLID_SCRIPT_EDITOR_LINES_CSS = `
 .${c.unknown} .${c.listName} { color: #e5484d; }
 .${c.guides} { background-image: repeating-linear-gradient(to right, ${ThemeCss.inkAlpha(0.16)} 0 1px, transparent 1px ${SOLID_SCRIPT_EDITOR_INDENT_PX}px); background-repeat: no-repeat; background-position: 11px 0; }
 .${c.chip} > .${c.icon} { margin-right: 6px; }
-.${c.tokenBracket}, .${c.tokenOperator} { color: ${ThemeCss.mutedTextColor}; font-weight: 400; }
+.${c.tokenBracket} { color: ${ThemeCss.mutedTextColor}; font-weight: 400; }
+.${c.tokenOperator} { color: ${ThemeCss.codeOperatorColor}; font-weight: 400; }
 .${c.tokenName} { color: #3d8fd6; }
 .${c.tokenLocal} { color: #2aa198; }
 .${c.tokenPersistent} { color: #9b6bd6; }
@@ -313,8 +314,7 @@ const SOLID_SCRIPT_EDITOR_DIALOG_CSS = `
 .${c.suggestion} { display: grid; grid-template-columns: minmax(120px, max-content) 1fr; gap: 16px; padding: 4px 12px; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; color: ${ThemeCss.inputTextColor}; cursor: pointer; white-space: nowrap; }
 .${c.suggestion}[aria-selected="true"], .${c.suggestion}:hover { background: ${ThemeCss.accentAlpha(0.3)}; }
 .${c.suggestionDetail} { overflow: hidden; text-overflow: ellipsis; color: ${ThemeCss.mutedTextColor}; }
-.${c.fieldMode} { flex: 0 0 auto; padding: 2px 8px; border: 1px solid ${ThemeCss.inputBorderColor}; background: transparent; color: ${ThemeCss.mutedTextColor}; font: inherit; cursor: pointer; }
-.${c.fieldMode}[aria-pressed="true"] { color: ${ThemeCss.textColor}; background: ${ThemeCss.inputBackground}; }
+.${c.fieldChoice} { flex: 1 1 0; min-width: 0; padding: 2px 4px; border: 1px solid ${ThemeCss.inputBorderColor}; background: ${ThemeCss.inputBackground}; color: ${ThemeCss.textColor}; font: inherit; }
 .${c.fieldWarning} { color: ${ThemeCss.mutedTextColor}; }
 .${c.input} { flex: 1; min-width: 0; height: 26px; padding: 0 7px; border-radius: 4px; border: 1px solid ${ThemeCss.inputBorderColor}; background: ${ThemeCss.inputBackground}; color: ${ThemeCss.inputTextColor}; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; box-sizing: border-box; }
 .${c.input}:focus { outline: none; border-color: ${ThemeCss.accentColor}; }

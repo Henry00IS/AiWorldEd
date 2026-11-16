@@ -181,6 +181,7 @@ export const THEME_CSS_VARIABLE_DEFINITIONS: readonly ThemeCssVariableDefinition
   { name: '--aiworlded-shadow-strength', dark: '1', light: '0.35' },
   { name: '--aiworlded-color-scheme', dark: 'dark', light: 'light' },
   { name: '--aiworlded-link-color', dark: '#6cb6ff', light: '#0a6fb8' },
+  { name: '--aiworlded-code-operator-color', dark: '#ff79c6', light: '#c2187a' },
   { name: '--aiworlded-error-text-color', dark: '#ff6b6b', light: '#c62828' },
   { name: '--aiworlded-error-strong-text-color', dark: '#ff4444', light: '#c62828' },
   { name: '--aiworlded-error-soft-text-color', dark: '#ff8a8a', light: '#b3261e' },
@@ -249,6 +250,8 @@ function themeCssRgbaReference(channelVariableName: string, alpha: number): stri
 export const ThemeCss = Object.freeze({
   textColor: themeCssReference('--aiworlded-text-color'),
   mutedTextColor: themeCssReference('--aiworlded-muted-text-color'),
+  /** Operators such as + and * in code. */
+  codeOperatorColor: themeCssReference('--aiworlded-code-operator-color'),
   dimTextColor: themeCssReference('--aiworlded-dim-text-color'),
   strongTextColor: themeCssReference('--aiworlded-strong-text-color'),
   separatorColor: themeCssReference('--aiworlded-separator-color'),

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SOLID_SCRIPT_ANCHOR_FLAT, SOLID_SCRIPT_ANCHOR_SOLID, solidScriptAnchorMin } from './solid_script_anchor.js';
 import type { SolidScriptBlockArguments } from './solid_script_block_arguments.js';
 import type { SolidScriptPoint2 } from './solid_script_polygon.js';
 import { solidScriptValueNumbers, type SolidScriptValue } from './solid_script_value.js';
@@ -80,7 +81,7 @@ function solidScriptSizes(args: SolidScriptBlockArguments, fallback: number[]): 
  */
 export function solidScriptCubePoints(args: SolidScriptBlockArguments): THREE.Vector3[] {
   const [x, y, z] = solidScriptSizes(args, [1, 1, 1]) as [number, number, number];
-  const shift = args.flag('center') ? new THREE.Vector3(-x / 2, -y / 2, -z / 2) : new THREE.Vector3();
+  const shift = new THREE.Vector3(...solidScriptAnchorMin([x, y, z], args.anchor(SOLID_SCRIPT_ANCHOR_SOLID)));
   const points: THREE.Vector3[] = [];
   for (const px of [0, x])
     for (const py of [0, y]) for (const pz of [0, z]) points.push(new THREE.Vector3(px, py, pz).add(shift));
@@ -101,18 +102,17 @@ export function solidScriptCylinderPoints(args: SolidScriptBlockArguments): THRE
   if (bottom < 0) throw args.error('r1', 'must be 0 or more', bottom);
   if (top < 0) throw args.error('r2', 'must be 0 or more', top);
   if (Math.max(bottom, top) <= 0) throw new Error('one of the two radii must be greater than 0');
-  const center = args.flag('center');
   const sides = solidScriptSides(args);
   const radius = Math.max(bottom, top);
-  const box = {
-    size: [radius * 2, height, radius * 2] as const,
-    min: [-radius, center ? -height / 2 : 0, -radius] as const,
-  };
+  const size = [radius * 2, height, radius * 2] as const;
+  const min = solidScriptAnchorMin(size, args.anchor(SOLID_SCRIPT_ANCHOR_SOLID)) as [number, number, number];
+  const box = { size, min };
   if (bottom === top) return solidScriptGeneratorPieces('cylinder', { sides }, box)[0] ?? [];
   const topRadius = Math.min(bottom, top) / radius;
   const points = solidScriptGeneratorPieces('cone', { sides, topRadius }, box)[0] ?? [];
   if (bottom > top) return points;
-  const flip = center ? 0 : height;
+  // Upside down within the same box.
+  const flip = 2 * min[1] + height;
   return points.map((point) => new THREE.Vector3(point.x, flip - point.y, point.z));
 }
 
@@ -127,7 +127,9 @@ export function solidScriptSpherePoints(args: SolidScriptBlockArguments): THREE.
   const radius = args.positive('r', args.number('r', 1));
   const sides = solidScriptSides(args);
   const rings = solidScriptCount(args, 'rings', SOLID_SCRIPT_RINGS);
-  const box = { size: [radius * 2, radius * 2, radius * 2] as const, min: [-radius, -radius, -radius] as const };
+  const size = [radius * 2, radius * 2, radius * 2] as const;
+  const min = solidScriptAnchorMin(size, args.anchor(SOLID_SCRIPT_ANCHOR_SOLID)) as [number, number, number];
+  const box = { size, min };
   return solidScriptGeneratorPieces('sphere', { sides, rings }, box)[0] ?? [];
 }
 
@@ -176,7 +178,7 @@ function solidScriptPointList(args: SolidScriptBlockArguments): SolidScriptValue
  */
 export function solidScriptSquarePoints(args: SolidScriptBlockArguments): SolidScriptPoint2[] {
   const [x, y] = solidScriptSizes(args, [1, 1]) as [number, number];
-  const [sx, sy] = args.flag('center') ? [-x / 2, -y / 2] : [0, 0];
+  const [sx = 0, sy = 0] = solidScriptAnchorMin([x, y], args.anchor(SOLID_SCRIPT_ANCHOR_FLAT));
   return [
     [sx, sy],
     [sx + x, sy],
@@ -192,7 +194,9 @@ export function solidScriptSquarePoints(args: SolidScriptBlockArguments): SolidS
  * @returns Points, counter-clockwise.
  */
 export function solidScriptCircleOutline(args: SolidScriptBlockArguments): SolidScriptPoint2[] {
-  return solidScriptCirclePoints(args.positive('r', args.number('r', 1)), solidScriptSides(args));
+  const radius = args.positive('r', args.number('r', 1));
+  const [sx = 0, sy = 0] = solidScriptAnchorMin([radius * 2, radius * 2], args.anchor(SOLID_SCRIPT_ANCHOR_FLAT));
+  return solidScriptCirclePoints(radius, solidScriptSides(args)).map(([x, y]) => [x + sx + radius, y + sy + radius]);
 }
 
 /**

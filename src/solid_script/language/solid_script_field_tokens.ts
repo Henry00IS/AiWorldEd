@@ -177,7 +177,7 @@ export function solidScriptFieldTokens(text: string): SolidScriptFieldToken[] {
       index += word.length;
       continue;
     }
-    push(mode === 'formula' && !/\s/.test(char) ? 'operator' : 'text', index, index + 1);
+    push(mode === 'formula' && !/[\s,;]/.test(char) ? 'operator' : 'text', index, index + 1);
     index += 1;
   }
   return tokens;

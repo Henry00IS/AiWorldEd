@@ -1,9 +1,10 @@
 import * as THREE from 'three';
+import { SOLID_SCRIPT_ANCHOR_FLAT, SOLID_SCRIPT_ANCHOR_SOLID } from '@/solid_script/language/solid_script_anchor.js';
 import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import {
   solidScriptParameter,
-  solidScriptParameterCenter,
+  solidScriptParameterAnchor,
   solidScriptParameterOptional,
   solidScriptParameterRings,
   solidScriptParameterSides,
@@ -26,16 +27,16 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     category: 'Solids',
     description: 'Build a box',
     manual:
-      'Builds a box with the given width (X), height (Y) and depth (Z) in metres. Its middle sits on the origin, the centre of the generator. Switch Center off to put its corner there instead, so it grows along X, Y and Z. Example: a size of 2, 0.2, 1 gives a flat slab two metres wide.',
+      'Builds a box with the given width (X), height (Y) and depth (Z) in metres. Anchor picks the spot of the box that sits on the origin, the centre of the generator: its middle by default; Center, Bottom, Center stands it on the origin, and Left, Bottom, Back puts its corner there so it grows along X, Y and Z. Example: a size of 2, 0.2, 1 gives a flat slab two metres wide.',
     stops: ['A size of 0 or less on any axis.', 'A size that is not one number or three numbers separated by commas.'],
     parameters: [
       solidScriptParameter('size', 'Size', 'vector3', '1, 1, 1', 'Width (X), height (Y) and depth (Z) in metres.'),
-      solidScriptParameterCenter(),
+      solidScriptParameterAnchor(SOLID_SCRIPT_ANCHOR_SOLID),
     ],
     listing: (read) => [
       'Cube',
       read.value('size'),
-      ...solidScriptListingOptions([!read.on('center') && ['Not Centered']]),
+      ...solidScriptListingOptions([read.changed('anchor') && ['Anchor ', read.value('anchor')]]),
     ],
     execute: (run) => run.solid(solidScriptCubePoints(run.fields())),
   }),
@@ -45,12 +46,13 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     category: 'Solids',
     description: 'Build a ball',
     manual:
-      'Builds a faceted ball with its middle on the origin. Sides sets the faces around it, Rings the bands from bottom to top. More of either looks rounder but costs more polygons. Example: radius 0.5 with 8 sides and 4 rings gives a low-poly ball one metre across.',
+      'Builds a faceted ball with its middle on the origin; Anchor moves another spot of it there, such as Center, Bottom, Center to rest it on the origin. Sides sets the faces around it, Rings the bands from bottom to top. More of either looks rounder but costs more polygons. Example: radius 0.5 with 8 sides and 4 rings gives a low-poly ball one metre across.',
     stops: ['A radius of 0 or less.', 'Sides outside 3 to 64 or Rings outside 2 to 32, or a count with decimals.'],
     parameters: [
       solidScriptParameter('r', 'Radius', 'number', '1', 'Distance from the middle to the surface in metres.'),
       solidScriptParameterSides(),
       solidScriptParameterRings(),
+      solidScriptParameterAnchor(SOLID_SCRIPT_ANCHOR_SOLID),
     ],
     listing: (read) => [
       'Sphere',
@@ -59,6 +61,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
       ...solidScriptListingOptions([
         read.changed('sides') && ['Sides ', read.value('sides')],
         read.changed('rings') && ['Rings ', read.value('rings')],
+        read.changed('anchor') && ['Anchor ', read.value('anchor')],
       ]),
     ],
     execute: (run) => run.solid(solidScriptSpherePoints(run.fields())),
@@ -69,7 +72,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     category: 'Solids',
     description: 'Build a cylinder or cone',
     manual:
-      'Builds a faceted cylinder standing up along the Y axis, centred on the origin. Switch Center off to stand it on the origin instead. Give the top a different radius to make a tapered cone, or 0 for a point. Sides sets the faces around it. Example: height 2, bottom radius 1 and top radius 0 gives a pointed cone.',
+      'Builds a faceted cylinder standing up along the Y axis, centred on the origin. Anchor Center, Bottom, Center stands it on the origin instead. Give the top a different radius to make a tapered cone, or 0 for a point. Sides sets the faces around it. Example: height 2, bottom radius 1 and top radius 0 gives a pointed cone.',
     stops: [
       'A height of 0 or less.',
       'A negative radius, or both radii at 0.',
@@ -79,7 +82,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
       solidScriptParameter('h', 'Height', 'number', '1', 'Height along Y in metres.'),
       solidScriptParameter('r1', 'Bottom Radius', 'number', '1', 'Radius at the bottom in metres.'),
       solidScriptParameter('r2', 'Top Radius', 'number', '1', 'Radius at the top in metres. 0 makes a pointed cone.'),
-      solidScriptParameterCenter(),
+      solidScriptParameterAnchor(SOLID_SCRIPT_ANCHOR_SOLID),
       solidScriptParameterSides(),
     ],
     listing: (read) => [
@@ -91,7 +94,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
       read.text('r1') !== read.text('r2') && ' to ',
       read.text('r1') !== read.text('r2') && read.value('r2'),
       ...solidScriptListingOptions([
-        !read.on('center') && ['Not Centered'],
+        read.changed('anchor') && ['Anchor ', read.value('anchor')],
         read.changed('sides') && ['Sides ', read.value('sides')],
       ]),
     ],
@@ -152,16 +155,16 @@ export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
     category: '2D Shapes',
     description: 'Draw a rectangle outline',
     manual:
-      'Draws a flat rectangle with the given width (X) and depth (Y of the drawing, which runs to the back once extruded) in metres, centred on the origin unless Center is off. It only works inside a Linear Extrude, which pulls it up into a solid. Example: a size of 3, 0.2 extruded by 1 gives a thin wall.',
+      'Draws a flat rectangle with the given width (X) and depth (Y of the drawing, which runs to the back once extruded) in metres, centred on the origin; Anchor picks another spot of it, such as Left, Front for the corner that ends up front left. It only works inside a Linear Extrude, which pulls it up into a solid. Example: a size of 3, 0.2 extruded by 1 gives a thin wall.',
     stops: ['A size of 0 or less on either axis.', 'Being placed outside a Linear Extrude.'],
     parameters: [
       solidScriptParameter('size', 'Size', 'vector2', '1, 1', 'Width (X) and depth (drawing Y) in metres.'),
-      solidScriptParameterCenter(),
+      solidScriptParameterAnchor(SOLID_SCRIPT_ANCHOR_FLAT),
     ],
     listing: (read) => [
       'Square',
       read.value('size'),
-      ...solidScriptListingOptions([!read.on('center') && ['Not Centered']]),
+      ...solidScriptListingOptions([read.changed('anchor') && ['Anchor ', read.value('anchor')]]),
     ],
     execute: (run) => run.outline(solidScriptSquarePoints(run.fields())),
   }),
@@ -171,17 +174,21 @@ export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
     category: '2D Shapes',
     description: 'Draw a circle outline',
     manual:
-      'Draws a flat faceted circle around the origin. It only works inside a Linear Extrude. Sides sets how many straight edges go around it. Example: radius 1 with 6 sides extruded by 0.3 gives a hexagonal tile.',
+      'Draws a flat faceted circle around the origin; Anchor moves another spot of it there, such as Left, Front for its corner. It only works inside a Linear Extrude. Sides sets how many straight edges go around it. Example: radius 1 with 6 sides extruded by 0.3 gives a hexagonal tile.',
     stops: ['A radius of 0 or less.', 'Sides outside 3 to 64.', 'Being placed outside a Linear Extrude.'],
     parameters: [
       solidScriptParameter('r', 'Radius', 'number', '1', 'Distance from the middle to the edge in metres.'),
       solidScriptParameterSides(),
+      solidScriptParameterAnchor(SOLID_SCRIPT_ANCHOR_FLAT),
     ],
     listing: (read) => [
       'Circle',
       'radius ',
       read.value('r'),
-      ...solidScriptListingOptions([read.changed('sides') && ['Sides ', read.value('sides')]]),
+      ...solidScriptListingOptions([
+        read.changed('sides') && ['Sides ', read.value('sides')],
+        read.changed('anchor') && ['Anchor ', read.value('anchor')],
+      ]),
     ],
     execute: (run) => run.outline(solidScriptCircleOutline(run.fields())),
   }),

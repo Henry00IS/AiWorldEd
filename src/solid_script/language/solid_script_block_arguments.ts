@@ -1,7 +1,9 @@
+import { solidScriptAnchorRead, type SolidScriptAnchorAxis } from './solid_script_anchor.js';
 import {
   solidScriptValueNumber,
   solidScriptValueNumbers,
   solidScriptValueShow,
+  solidScriptValueText,
   solidScriptValueType,
   type SolidScriptValue,
 } from './solid_script_value.js';
@@ -78,6 +80,21 @@ export class SolidScriptBlockArguments {
       `needs a number, or ${fallback.length} numbers separated by commas such as ${fallback.map((_, index) => index + 1).join(', ')}`,
       value,
     );
+  }
+
+  /**
+   * Reads an Anchor field.
+   *
+   * @param axes Axes it sets.
+   * @returns Where the origin sits along each axis of the shape's box, 0 to 1;
+   *   the middle when the block has no Anchor.
+   */
+  anchor(axes: readonly SolidScriptAnchorAxis[]): number[] {
+    const value = this.value('anchor');
+    if (value === undefined) return axes.map(() => 0.5);
+    const read = solidScriptAnchorRead(solidScriptValueText(value), axes);
+    if (typeof read === 'string') throw this.error('anchor', read, value);
+    return read;
   }
 
   /**

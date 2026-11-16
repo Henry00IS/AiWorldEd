@@ -1,3 +1,9 @@
+import {
+  SOLID_SCRIPT_ANCHOR_CAPTIONS,
+  SOLID_SCRIPT_ANCHOR_WORDS,
+  solidScriptAnchorDefault,
+  type SolidScriptAnchorAxis,
+} from '@/solid_script/language/solid_script_anchor.js';
 import type {
   SolidScriptCommandParameter,
   SolidScriptCommandParameterType,
@@ -68,18 +74,27 @@ export function solidScriptParameterOptional(
 }
 
 /**
- * The Center switch of shapes that start at the origin.
+ * The Anchor of a shape: the spot of its box that sits on the origin, one word
+ * per axis, such as Center, Bottom, Back for a shape standing on the origin
+ * with its back on it.
  *
- * @returns Field.
+ * @param axes Axes it sets.
+ * @returns Parameter.
  */
-export function solidScriptParameterCenter(): SolidScriptCommandParameter {
-  return solidScriptParameter(
-    'center',
-    'Center',
-    'boolean',
-    'true',
-    'Yes: the shape sits centred on the origin, the centre of the generator. No: its corner sits on the origin and it grows along X, Y and Z.',
+export function solidScriptParameterAnchor(axes: readonly SolidScriptAnchorAxis[]): SolidScriptCommandParameter {
+  const words = axes.map(
+    (axis) => `${SOLID_SCRIPT_ANCHOR_CAPTIONS[axis]} ${SOLID_SCRIPT_ANCHOR_WORDS[axis].join('/')}`,
   );
+  return {
+    ...solidScriptParameter(
+      'anchor',
+      'Anchor',
+      'message',
+      solidScriptAnchorDefault(axes),
+      `The spot of the shape that sits on the origin, the centre of the generator: ${words.join(', ')}.`,
+    ),
+    anchor: axes,
+  };
 }
 
 /**

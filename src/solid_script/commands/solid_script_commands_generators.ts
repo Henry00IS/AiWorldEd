@@ -2,7 +2,8 @@
 import { solidScriptGeneratorPieces } from '@/solid_script/language/solid_script_generator_pieces.js';
 import { SolidScriptCommand, type SolidScriptCommandParameter } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
-import { solidScriptParameter, solidScriptParameterCenter } from './solid_script_command_parameters.js';
+import { solidScriptParameter, solidScriptParameterAnchor } from './solid_script_command_parameters.js';
+import { SOLID_SCRIPT_ANCHOR_SOLID, solidScriptAnchorMin } from '@/solid_script/language/solid_script_anchor.js';
 import type { SolidScriptBlockArguments } from '@/solid_script/language/solid_script_block_arguments.js';
 import { solidScriptValueNumber, solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
 import type { ModifierStackField } from '@/modifier/stack/modifier_stack_types.js';
@@ -100,7 +101,7 @@ function solidScriptGeneratorCommand(kind: ModifierStackKindGenerator): SolidScr
     label: kind.label,
     category: 'Generators',
     description: `Build a ${kind.label.toLowerCase()} like the generator`,
-    manual: `${kind.description} The script block fills a box of the given width (X), height (Y) and depth (Z) in metres, centred on the origin; switch Center off to put the box corner there instead. Its other fields are the ones the ${kind.label} generator shows in the inspector, with the same names, so a script can change them with variables and formulas. Textures come from the generator holding the script. Example: a ${kind.label} block with Size 2, 3, 2 fills a box two metres wide and three metres tall around the origin.`,
+    manual: `${kind.description} The script block fills a box of the given width (X), height (Y) and depth (Z) in metres, centred on the origin; Anchor picks another spot of the box, such as Center, Bottom, Center to stand it on the origin. Its other fields are the ones the ${kind.label} generator shows in the inspector, with the same names, so a script can change them with variables and formulas. Textures come from the generator holding the script. Example: a ${kind.label} block with Size 2, 3, 2 fills a box two metres wide and three metres tall around the origin.`,
     stops: [
       'A size of 0 or less on any axis.',
       'A number outside the range its field allows, or a count with decimals.',
@@ -114,14 +115,14 @@ function solidScriptGeneratorCommand(kind: ModifierStackKindGenerator): SolidScr
         SOLID_SCRIPT_GENERATOR_SIZE,
         'Width (X), height (Y) and depth (Z) of the box it fills, in metres.',
       ),
-      solidScriptParameterCenter(),
+      solidScriptParameterAnchor(SOLID_SCRIPT_ANCHOR_SOLID),
       ...fields.map(solidScriptGeneratorParameter),
     ],
     listing: (read) => [
       kind.label,
       read.value('size'),
       ...solidScriptListingOptions([
-        !read.on('center') && ['Not Centered'],
+        read.changed('anchor') && ['Anchor ', read.value('anchor')],
         ...fields.map((field) => read.changed(field.key) && [`${field.label} `, read.value(field.key)]),
       ]),
     ],
@@ -130,7 +131,7 @@ function solidScriptGeneratorCommand(kind: ModifierStackKindGenerator): SolidScr
       const [x, y, z] = args.vector('size', [2, 2, 2]) as [number, number, number];
       for (const value of [x, y, z]) args.positive('size', value);
       const parameters = Object.fromEntries(fields.map((field) => [field.key, solidScriptGeneratorValue(args, field)]));
-      const min = args.flag('center') ? ([-x / 2, -y / 2, -z / 2] as const) : ([0, 0, 0] as const);
+      const min = solidScriptAnchorMin([x, y, z], args.anchor(SOLID_SCRIPT_ANCHOR_SOLID)) as [number, number, number];
       const pieces = solidScriptGeneratorPieces(kind.id, parameters, { size: [x, y, z], min });
       const role = 'direction' in parameters ? `${kind.id} ${String(parameters['direction'])}` : kind.id;
       return pieces

@@ -1,3 +1,4 @@
+import type { SolidScriptAnchorAxis } from '@/solid_script/language/solid_script_anchor.js';
 import type {
   SolidScriptBlockRun,
   SolidScriptMachineCommand,
@@ -68,6 +69,8 @@ export interface SolidScriptCommandParameter {
   texture?: boolean;
   /** True offers the shape Names the script uses, as for Of. */
   shapeNames?: boolean;
+  /** Axes of an Anchor field, which the window shows as one choice per axis. */
+  anchor?: readonly SolidScriptAnchorAxis[];
 }
 
 /** One word a field takes, with what it means. */

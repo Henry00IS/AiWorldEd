@@ -31,7 +31,7 @@ SolidScript is how AiWorldEd describes brush geometry as a script of block lines
 - Scripts use the editor's axes: X is right, Y is up and Z points toward the front (toward the viewer). A script point (x, y, z) is the editor point (x, y, z).
 - Flat outlines (Square, Circle, Polygon) are drawn with their own X and Y. Linear Extrude lays the drawing on the ground, its Y running to the back (a drawing point (x, y) lands at (x, 0, -y)), and pulls it up along Y. Rotate Extrude stands it up: the outline's X is the radius and its Y the height, spun around the Y axis.
 - The origin [0, 0, 0] is the centre of the generator's box (for geometry_script_build, the build position). Shapes are centred on it by default, so a shape with no Translate sits in the middle of the generator; no Translate is needed to lift it into the box.
-- Cube, Cylinder, Square and Linear Extrude have a Center switch, on by default. Switched off, Cube and Square put their corner on the origin and grow along +X, +Y and +Z, and Cylinder and Linear Extrude stand on the origin and grow up along +Y. Sphere and Circle are always centred.
+- Cube, Sphere, Cylinder, Stairs and the other generator blocks have an Anchor: three words, one per axis, naming the spot of the shape that sits on the origin. X takes Left, Center or Right; Y takes Bottom, Center or Top; Z takes Back, Center or Front. Square and Circle take two words (X, then Left/Front/Back along the drawing), and Linear Extrude takes one (Bottom, Center or Top). The default is Center everywhere, so shapes are centred and booleans of shapes line up without moving anything. Center, Bottom, Center stands a shape on the origin while it stays centred, so after Place On Face it sits flush on the face; Left, Bottom, Back puts its corner there. Round shapes anchor on the box of their radius. Polygon and Polyhedron have no Anchor: their points are where they are.
 - In a SolidScript generator, placement decides how script metres map to the generator's box: "origin" keeps metres unchanged around the box centre, "fit" scales the whole result evenly to fit the box, "stretch" scales each axis to fill the box; both keep it centred.
 
 ## Lines
@@ -81,7 +81,7 @@ Formulas know: numbers, text in double quotes, true, false, lists in $[ $] brack
 - Square, Circle and Polygon are flat outlines and only work inside Linear Extrude; a concave Polygon becomes several convex brushes.
 - Difference becomes a CSG group: the first shape inside adds, every later one is cut from it. Intersection becomes a group that keeps only the overlap. Union is flattened into its parent. Hull becomes one convex brush around everything inside.
 - Part names become brush and group names in the outliner, so wrap pieces in Define Part for readable names.
-- Generator blocks (Cone, Capsule, Torus, Pipe, Pyramid, Prism, Hollow Box, Curved Stairs, Column, Stairs, Arch, Blast Hole) build the same pieces as the generator of that name: they fill a box of their Size, centred on the origin unless Center is off, and their other fields have the generator's names, ranges and choices. A choice is written as its value, such as "z" for Prism's Axis, and may come from a variable. Sphere and Cylinder are built the same way as the Sphere, Cylinder and Cone generators.
+- Generator blocks (Cone, Capsule, Torus, Pipe, Pyramid, Prism, Hollow Box, Curved Stairs, Column, Stairs, Arch, Blast Hole) build the same pieces as the generator of that name: they fill a box of their Size, placed on the origin by their Anchor, and their other fields have the generator's names, ranges and choices. A choice is written as its value, such as "z" for Prism's Axis, and may come from a variable. Sphere and Cylinder are built the same way as the Sphere, Cylinder and Cone generators.
 
 ## Meshes
 
@@ -183,7 +183,7 @@ ${listed}
 const SOLID_SCRIPT_REFERENCE_MISTAKES = `## Common mistakes
 
 - Height is Y, as in the editor: Cube size is [Width, height, depth], and [Box.Size] is width, height and depth.
-- Shapes are centred on the origin (the generator's centre) by default; do not add a Translate to lift them into the box. Set center to "false" to place a corner (or the base) on the origin instead.
+- Shapes are centred on the origin (the generator's centre) by default; do not add a Translate to lift them into the box. Set anchor to words such as "Center, Bottom, Center" to stand a shape on the origin, or "Left, Bottom, Back" to put its corner there.
 - Flat outlines (square, circle, polygon) only work inside linear_extrude, and solids never do.
 - Difference keeps only its first shape and cuts the rest; to keep several shapes, put them in a Union as the first line inside.
 - Every block (transforms, combinations, repeat, if, part) needs its own end line.

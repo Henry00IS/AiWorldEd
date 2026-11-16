@@ -73,7 +73,7 @@ export const SOLID_SCRIPT_EXAMPLE_PEBBLES: readonly SolidScriptLine[] = [
     command: 'input',
     values: { name: 'Pebbles', type: 'count', default: '40', min: '1', max: '400', label: 'Pebbles' },
   },
-  { command: 'cube', values: { size: '3, 0.4, 3', center: 'true' } },
+  { command: 'cube', values: { size: '3, 0.4, 3' } },
   { command: 'select_faces', values: { which: 'Facing Up' } },
   { command: 'for_each_scattered_point', values: { count: '[Pebbles]', seed: '3' } },
   { command: 'translate', values: { v: '[Point.Position]' } },
@@ -135,10 +135,10 @@ export const SOLID_SCRIPT_EXAMPLE_PEDESTAL: readonly SolidScriptLine[] = [
  */
 export const SOLID_SCRIPT_EXAMPLE_KNOBS: readonly SolidScriptLine[] = [
   { command: 'note', values: { text: 'Name shapes, then Select Faces Of that name picks only theirs' } },
-  { command: 'cube', values: { size: '4, 0.2, 1', center: 'true', label: 'Panel' } },
+  { command: 'cube', values: { size: '4, 0.2, 1', label: 'Panel' } },
   { command: 'for_each', values: { variable: 'X', list: '-1.5, -0.5, 0.5, 1.5' } },
   { command: 'translate', values: { v: '[X], 0.25, 0' } },
-  { command: 'cube', values: { size: '0.3, 0.3, 0.3', center: 'true', label: 'Knob' } },
+  { command: 'cube', values: { size: '0.3, 0.3, 0.3', label: 'Knob' } },
   { command: 'end' },
   { command: 'end' },
   { command: 'select_faces', values: { which: 'Facing Up', of: 'Knob' } },

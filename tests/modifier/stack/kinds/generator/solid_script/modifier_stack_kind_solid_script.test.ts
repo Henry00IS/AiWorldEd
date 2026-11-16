@@ -111,7 +111,9 @@ describe('SolidScript generator', () => {
   it('keeps script metres unscaled in the editor axes, with a corner-placed cube growing from the box centre', () => {
     const fixture = scriptFixture();
     const centre = new THREE.Box3().setFromObject(fixture.node).getCenter(new THREE.Vector3());
-    scriptSet(fixture.node, { script: script({ command: 'cube', values: { size: '1, 2, 3', center: 'false' } }) });
+    scriptSet(fixture.node, {
+      script: script({ command: 'cube', values: { size: '1, 2, 3', anchor: 'Left, Bottom, Back' } }),
+    });
     const expected = new THREE.Box3(
       new THREE.Vector3(centre.x, centre.y, centre.z),
       new THREE.Vector3(centre.x + 1, centre.y + 2, centre.z + 3),
