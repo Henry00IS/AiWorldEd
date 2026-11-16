@@ -412,6 +412,27 @@ function solidScriptFieldVectorCompile(text: string): SolidScriptFieldCompiled {
 }
 
 /**
+ * Keeps the first value of a field whose text has no brackets, since such text
+ * reads the same every time; a list is handed out as a copy.
+ *
+ * @param text Field text.
+ * @param compiled Closure that reads it.
+ * @returns Closure that reads it once.
+ */
+function solidScriptFieldFolded(text: string, compiled: SolidScriptFieldCompiled): SolidScriptFieldCompiled {
+  if (text.includes('[')) return compiled;
+  let known = false;
+  let value: SolidScriptValue;
+  return (context) => {
+    if (!known) {
+      value = compiled(context);
+      known = true;
+    }
+    return Array.isArray(value) ? value.slice() : value;
+  };
+}
+
+/**
  * Reads a switch: Yes or No, or true or false.
  *
  * @param value Resolved value.
@@ -436,7 +457,7 @@ function solidScriptFieldAnyCompile(text: string): SolidScriptFieldCompiled {
   const whole = solidScriptFieldTemplateCompile(text);
   const items = solidScriptFieldSplit(text, ',');
   const list = items.length > 1 ? items.map(solidScriptFieldTemplateCompile) : null;
-  return (context) => {
+  return solidScriptFieldFolded(text, (context) => {
     if (list) {
       const values = list.map((item) => solidScriptFieldNumber(item(context)));
       if (values.every((value) => typeof value === 'number')) return values;
@@ -445,7 +466,7 @@ function solidScriptFieldAnyCompile(text: string): SolidScriptFieldCompiled {
     const number = solidScriptFieldNumber(value);
     if (typeof number === 'number') return number;
     return typeof value === 'string' ? solidScriptFieldBoolean(value) : value;
-  };
+  });
 }
 
 /**
