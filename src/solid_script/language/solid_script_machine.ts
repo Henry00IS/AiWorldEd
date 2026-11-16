@@ -594,13 +594,6 @@ interface SolidScriptLineField {
  */
 const SOLID_SCRIPT_FORMULA_CONTEXT: SolidScriptContext = { matrix: new THREE.Matrix4(), planar: false };
 
-/**
- * Field text and compiled closures of each line, kept across runs: a line's
- * values never change (an edit makes new lines), and the closures, with the
- * formulas they parse on first use, read nothing of a run but its context.
- */
-const SOLID_SCRIPT_LINE_FIELDS = new WeakMap<object, Map<string, SolidScriptLineField>>();
-
 /** Names without their local. start, by full name, so reads do not cut text. */
 const SOLID_SCRIPT_LOCAL_BARE = new Map<string, string>();
 
@@ -1193,7 +1186,12 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> imple
       if (lines.length === 0) throw new Error(`${node.command.label} has nothing inside; add a shape before its End`);
       return state.machine.linesRun(lines, state.scope, into);
     };
-    const value = (key: string): SolidScriptValue => state.machine.fieldValue(node, key, state.scope);
+    const fields = new Map<string, SolidScriptLineField>();
+    const labels = new Map(node.command.parameters.map((field) => [field.key, field.label]));
+    const evaluated = node.command.parameters
+      .filter((field) => !SOLID_SCRIPT_TEXT_FIELDS.has(field.type))
+      .map((field) => field.key);
+    const value = (key: string): SolidScriptValue => state.machine.fieldValue(fields, node, key, state.scope);
     return {
       values: (key) =>
         solidScriptArgumentsSplit(node.command.valueText(node.values, key)).map((piece, index) => {
@@ -1209,14 +1207,10 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> imple
       },
       fields: () => {
         const values = new Map<string, SolidScriptValue>();
-        const labels = new Map<string, string>();
-        for (const field of node.command.parameters) {
-          labels.set(field.key, field.label);
-          if (!SOLID_SCRIPT_TEXT_FIELDS.has(field.type)) values.set(field.key, value(field.key));
-        }
+        for (const key of evaluated) values.set(key, value(key));
         return new SolidScriptBlockArguments(values, labels);
       },
-      text: (key) => state.machine.fieldOf(node, key).text,
+      text: (key) => SolidScriptMachine.fieldOf(fields, node, key).text,
       value,
       variableSet: (name, assigned) => state.machine.variableSet(state.scope, name, assigned),
       solid: (points) => {
@@ -1390,7 +1384,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> imple
       valueWith: (key, variables) => {
         const inner = new SolidScriptScope(state.scope);
         for (const [name, assigned] of Object.entries(variables)) inner.variableDefine(name, assigned);
-        return state.machine.fieldValue(node, key, inner);
+        return state.machine.fieldValue(fields, node, key, inner);
       },
       print: (text) => {
         state.machine.messages.push(text);
@@ -1448,13 +1442,19 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> imple
   /**
    * Evaluates one field of a line.
    *
+   * @param fields Fields of the line read so far, by key.
    * @param node Line.
    * @param key Field key.
    * @param scope Scope.
    * @returns Value.
    */
-  private fieldValue(node: SolidScriptBlockNode<Command>, key: string, scope: SolidScriptScope): SolidScriptValue {
-    const field = this.fieldOf(node, key);
+  private fieldValue(
+    fields: Map<string, SolidScriptLineField>,
+    node: SolidScriptBlockNode<Command>,
+    key: string,
+    scope: SolidScriptScope,
+  ): SolidScriptValue {
+    const field = SolidScriptMachine.fieldOf(fields, node, key);
     try {
       return field.compiled(this.fieldContext(scope));
     } catch (error) {
@@ -1464,18 +1464,19 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> imple
   }
 
   /**
-   * Returns a line's field text and compiled closure, worked out once per line.
+   * Returns a line's field text and compiled closure, worked out once per run
+   * view of the line.
    *
+   * @param fields Fields of the line read so far, by key.
    * @param node Line.
    * @param key Field key.
    * @returns Field.
    */
-  private fieldOf(node: SolidScriptBlockNode<Command>, key: string): SolidScriptLineField {
-    let fields = SOLID_SCRIPT_LINE_FIELDS.get(node);
-    if (!fields) {
-      fields = new Map();
-      SOLID_SCRIPT_LINE_FIELDS.set(node, fields);
-    }
+  private static fieldOf<Command extends SolidScriptMachineCommand>(
+    fields: Map<string, SolidScriptLineField>,
+    node: SolidScriptBlockNode<Command>,
+    key: string,
+  ): SolidScriptLineField {
     let field = fields.get(key);
     if (!field) {
       const parameter = node.command.parameters.find((entry) => entry.key === key);
