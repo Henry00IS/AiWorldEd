@@ -76,6 +76,31 @@ describe('SolidScript faces', () => {
     expect(zRange(all[1]!)).toEqual([1, 1.1]);
   });
 
+  it('nests Select Faces: a round picks faces of what it built, and the outer pick comes back after', () => {
+    const result = run(
+      CUBE,
+      select('Facing Up'),
+      { command: 'for_each_selected_face' },
+      { command: 'place_on_face' },
+      { command: 'cube', values: { size: '0.5, 0.5, 0.5', center: 'false' } },
+      select('All'),
+      { command: 'for_each_selected_face' },
+      { command: 'echo', values: { value: 'inner [Face.Center]' } },
+      END,
+      END,
+      END,
+      { command: 'for_each_selected_face' },
+      { command: 'echo', values: { value: 'outer [Face.Center]' } },
+      END,
+    );
+    expect(result.error).toBeNull();
+    const inner = result.messages.filter((message) => message.startsWith('inner'));
+    expect(inner).toHaveLength(6);
+    expect(inner.some((message) => message.endsWith(', 1.5]'))).toBe(true);
+    expect(inner).not.toContain('inner [0, 0, -1]');
+    expect(result.messages.filter((message) => message.startsWith('outer'))).toEqual(['outer [0, 0, 1]']);
+  });
+
   it('puts a trim on every stair step by its tag', () => {
     const result = run(
       { command: 'stairs', values: { size: '2, 2, 2' } },

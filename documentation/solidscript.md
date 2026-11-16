@@ -54,7 +54,7 @@ The script runs on every change. **Start** builds everything, **Debug** builds o
 
 ## Faces and points
 
-**Select Faces** picks faces of the shapes built above it; the face commands then work on them.
+**Select Faces** picks faces of the shapes built above it; the face commands then work on them. Inside a For Each round it picks faces of what that round built, and after the loop the outer pick comes back, so Select Faces can be nested.
 
 <details>
 <summary>More Details</summary>

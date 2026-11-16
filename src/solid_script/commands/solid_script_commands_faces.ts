@@ -268,7 +268,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Pick faces of the shapes above',
     manual:
-      'Picks faces of the shapes built above this line, so the lines after it can work on them. Which says how: All, Facing Up, Facing Down, Facing Left, Facing Right, Facing Front or Facing Back (Within allows a slope, in degrees), Facing a direction you give, Tagged with a name, the Biggest or Smallest faces, a face Number, or Where a condition is true. Every face has names: Top, Bottom or Side, and generators add more, such as Step Tread and Riser on stairs and Cap on columns. How chooses New to start again, Add to pick more or Remove to drop some. Example: Stairs, then Select Faces Tagged Step Tread picks the top of every step.',
+      'Picks faces of the shapes built above this line, so the lines after it can work on them. Inside a For Each round it picks faces of what that round built, and the lines after the loop get the outer pick back, so Select Faces can be nested. Which says how: All, Facing Up, Facing Down, Facing Left, Facing Right, Facing Front or Facing Back (Within allows a slope, in degrees), Facing a direction you give, Tagged with a name, the Biggest or Smallest faces, a face Number, or Where a condition is true. Every face has names: Top, Bottom or Side, and generators add more, such as Step Tread and Riser on stairs and Cap on columns. How chooses New to start again, Add to pick more or Remove to drop some. Example: Stairs, then Select Faces Tagged Step Tread picks the top of every step.',
     stops: [
       SOLID_SCRIPT_FACE_STOPS_NONE,
       'A Which that is not one of the choices.',
@@ -318,7 +318,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       const how = run.text('how').trim();
       if (!(SOLID_SCRIPT_FACE_HOW as readonly string[]).includes(how))
         throw new Error(`How must be New, Add or Remove, not "${how}"`);
-      const faces = solidScriptGeometryFaces(run.built());
+      const faces = solidScriptGeometryFaces(run.pickable());
       if (faces.length === 0)
         throw new Error('Select Faces picks faces of shapes built above it; add a shape such as Cube first');
       const picked = solidScriptGeometryPick(faces, solidScriptFacePickRead(run));
@@ -398,7 +398,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     parameters: [],
     listing: () => ['For Each Vertex'],
     execute: (run) => {
-      const built = run.built();
+      const built = run.pickable();
       if (built.length === 0)
         throw new Error('For Each Vertex reads the shapes built above it; add a shape such as Cube first');
       return run.looped(solidScriptFaceRoundsOf(built, 'vertex'));
@@ -417,7 +417,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     parameters: [],
     listing: () => ['For Each Edge'],
     execute: (run) => {
-      const built = run.built();
+      const built = run.pickable();
       if (built.length === 0)
         throw new Error('For Each Edge reads the shapes built above it; add a shape such as Cube first');
       return run.looped(solidScriptFaceRoundsOf(built, 'edge'));

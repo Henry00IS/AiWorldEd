@@ -128,6 +128,11 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   private faceSelection: SolidScriptFaceFacts[] = [];
   /** Faces of the For Each Selected Face rounds running, innermost last. */
   private readonly faceRounds: (SolidScriptFaceFacts | null)[] = [];
+  /**
+   * Where the built shapes of each running For Each round start, innermost
+   * last.
+   */
+  private readonly roundBuilt: number[] = [];
   /** What each swapped solid or mesh became. */
   private readonly leafSwaps = new Map<SolidScriptGeometryLeaf, SolidScriptGeometryLeaf>();
   /**
@@ -607,25 +612,35 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       inPlace: () => state.machine.linesRun(node.children, state.scope, state.context, state.scope, children()),
       partUse: (name) => state.machine.partUse(name, state.scope, state.context),
       built: () => state.machine.builtStack.flat(),
+      pickable: () => {
+        const start = state.machine.roundBuilt.at(-1);
+        const own = start === undefined ? [] : state.machine.builtStack.slice(start).flat();
+        return own.length > 0 ? own : state.machine.builtStack.flat();
+      },
       selection: () => [...state.machine.faceSelection],
       selectionSet: (faces) => {
         state.machine.faceSelection = [...faces];
       },
       faceCurrent: () => state.machine.faceRounds.at(-1) ?? null,
       looped: (rounds) => {
+        const outer = state.machine.faceSelection;
         const shapes = rounds.flatMap((round) => {
           state.machine.workTake();
           const inner = new SolidScriptScope(state.scope);
           for (const [name, value] of Object.entries(round.variables))
             inner.variableDefine(state.machine.nameKey(name), value);
           state.machine.faceRounds.push(round.face);
+          state.machine.roundBuilt.push(state.machine.builtStack.length);
+          state.machine.faceSelection = outer;
           try {
             if (node.children.length === 0) return [];
             return state.machine.linesRun(node.children, inner, state.context, inner, children());
           } finally {
+            state.machine.roundBuilt.pop();
             state.machine.faceRounds.pop();
           }
         });
+        state.machine.faceSelection = outer;
         const joined = solidScriptShapeJoin(shapes, labelOf());
         return joined ? [joined] : [];
       },
