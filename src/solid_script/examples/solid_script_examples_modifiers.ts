@@ -214,3 +214,60 @@ export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
     ]),
   ]),
 ];
+
+/** Port of the Transform Array modifier (whole input as the size). */
+export const SOLID_SCRIPT_EXAMPLE_TRANSFORM_ARRAY: readonly SolidScriptLine[] = [
+  solidScriptExampleNote('Transform Array: moves and turns every copy once more than the one before.'),
+  solidScriptExampleInput('Count', 'count', '3', { label: 'Count', min: '1', max: '256' }),
+  solidScriptExampleInput('Offset', 'vector', '0, 0, 0.25', { label: 'Move' }),
+  solidScriptExampleInput('Relative', 'vector', '0, 0, 0', { label: 'Size ×' }),
+  solidScriptExampleInput('Rotation', 'vector', '0, 0, 15', { label: 'Turn °' }),
+  solidScriptExampleInput('Pivot', 'vector', '0, 0, 0', { label: 'Pivot' }),
+  solidScriptExampleInput('UV', 'choice', 'copied', { label: 'Textures', choices: 'copied, world' }),
+  ...SOLID_SCRIPT_EXAMPLE_TEXTURES,
+  solidScriptExampleNote('One step: turn about X, Z and Y (the editor order) around Pivot, then move.'),
+  solidScriptExampleSet('Cx', '[=Cos([Rotation.x])]'),
+  solidScriptExampleSet('Sx', '[=Sin([Rotation.x])]'),
+  solidScriptExampleSet('Cy', '[=Cos([Rotation.y])]'),
+  solidScriptExampleSet('Sy', '[=Sin([Rotation.y])]'),
+  solidScriptExampleSet('Cz', '[=Cos([Rotation.z])]'),
+  solidScriptExampleSet('Sz', '[=Sin([Rotation.z])]'),
+  solidScriptExampleSet('S1', '[=Vector([Cz] * [Cy], -[Sz], [Cz] * [Sy])]'),
+  solidScriptExampleSet(
+    'S2',
+    '[=Vector([Cx] * [Sz] * [Cy] + [Sx] * [Sy], [Cx] * [Cz], [Cx] * [Sz] * [Sy] - [Sx] * [Cy])]',
+  ),
+  solidScriptExampleSet(
+    'S3',
+    '[=Vector([Sx] * [Sz] * [Cy] - [Cx] * [Sy], [Sx] * [Cz], [Sx] * [Sz] * [Sy] + [Cx] * [Cy])]',
+  ),
+  solidScriptExampleSet(
+    'Move',
+    '[=[Offset] + Vector([Relative.x] * [Input.Size.x], [Relative.y] * [Input.Size.y], [Relative.z] * [Input.Size.z]) + [Pivot] - Vector(Dot([S1], [Pivot]), Dot([S2], [Pivot]), Dot([S3], [Pivot]))]',
+  ),
+  solidScriptExampleNote('Copy 0 is the original; R1 to R3 and Shift hold the step applied I times.'),
+  solidScriptExampleLine('input_brushes', { textures: '[Textures]' }),
+  solidScriptExampleSet('R1', '[=Vector(1, 0, 0)]'),
+  solidScriptExampleSet('R2', '[=Vector(0, 1, 0)]'),
+  solidScriptExampleSet('R3', '[=Vector(0, 0, 1)]'),
+  solidScriptExampleSet('Shift', '[=Vector(0, 0, 0)]'),
+  ...solidScriptExampleIf('[Count] > 1', [
+    ...solidScriptExampleRepeat('I', '1', '[=[Count] - 1]', [
+      solidScriptExampleSet('Shift', '[=Vector(Dot([S1], [Shift]), Dot([S2], [Shift]), Dot([S3], [Shift])) + [Move]]'),
+      solidScriptExampleSet('N1', '[=[R1] * [S1.x] + [R2] * [S1.y] + [R3] * [S1.z]]'),
+      solidScriptExampleSet('N2', '[=[R1] * [S2.x] + [R2] * [S2.y] + [R3] * [S2.z]]'),
+      solidScriptExampleSet('R3', '[=[R1] * [S3.x] + [R2] * [S3.y] + [R3] * [S3.z]]'),
+      solidScriptExampleSet('R1', '[N1]'),
+      solidScriptExampleSet('R2', '[N2]'),
+      ...solidScriptExampleBlock(
+        'matrix',
+        {
+          row1: '[R1.x], [R1.y], [R1.z], [Shift.x]',
+          row2: '[R2.x], [R2.y], [R2.z], [Shift.y]',
+          row3: '[R3.x], [R3.y], [R3.z], [Shift.z]',
+        },
+        [solidScriptExampleLine('input_brushes', { textures: '[Textures]' })],
+      ),
+    ]),
+  ]),
+];

@@ -155,6 +155,40 @@ const MODIFIER_CASES: Record<string, ModifierCase[]> = {
     { parameters: { count: 4, centreSide: '+y', axis: 'y' }, inputs: { count: '4', centreside: '+y', axis: 'y' } },
     { parameters: { count: 1, origin: 'centre', start: 45 }, inputs: { count: '1', origin: 'centre', start: '45' } },
   ],
+  transform: [
+    { parameters: {}, inputs: {} },
+    {
+      parameters: { count: 5, offsetX: 0.5, offsetY: 0.25, offsetZ: -1, rotationX: 10, rotationY: 30, rotationZ: -20 },
+      inputs: { count: '5', offset: '0.5, 1, 0.25', rotation: '10, 20, 30' },
+    },
+    {
+      parameters: {
+        count: 4,
+        offsetX: 0,
+        offsetY: 0,
+        offsetZ: 0,
+        relativeX: 1,
+        relativeY: 0,
+        relativeZ: 0.5,
+        rotationX: 0,
+        rotationY: 45,
+        rotationZ: 0,
+        pivotX: 1,
+        pivotY: 0,
+        pivotZ: -2,
+        uv: 'world',
+      },
+      inputs: {
+        count: '4',
+        offset: '0, 0, 0',
+        relative: '1, -0.5, 0',
+        rotation: '0, 0, 45',
+        pivot: '1, 2, 0',
+        uv: 'world',
+      },
+    },
+    { parameters: { count: 1 }, inputs: { count: '1' } },
+  ],
 };
 
 describe('SolidScript ports of the modifiers', () => {
@@ -173,7 +207,7 @@ describe('SolidScript ports of the modifiers', () => {
 
   it('lists the modifier ports under Built-In Modifiers, usable as modifiers only', () => {
     const ports = SOLID_SCRIPT_EXAMPLES.filter((entry) => entry.group === 'Built-In Modifiers');
-    expect(ports.map((entry) => entry.name)).toEqual(['Shear', 'Linear Array', 'Radial Array']);
+    expect(ports.map((entry) => entry.name)).toEqual(['Shear', 'Linear Array', 'Radial Array', 'Transform Array']);
     for (const port of ports) expect(port.uses).toEqual({ generator: false, modifier: true });
   });
 });
