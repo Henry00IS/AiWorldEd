@@ -185,7 +185,13 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     const variables = [...(this.watched?.variablesVisible() ?? [])].map(([name, value]) =>
       solidScriptVariableView(this.spellings.get(name) ?? name, value),
     );
-    if (!this.failure && !this.paused && this.steps.length === 0 && this.system.use?.usage !== 'Modifier')
+    if (
+      !this.failure &&
+      !this.paused &&
+      this.steps.length === 0 &&
+      this.system.use?.usage !== 'Modifier' &&
+      !solidScriptLinesPassInput(lines)
+    )
       this.failure = solidScriptFailure(null, 'the script builds no shapes; add a shape such as Cube');
     return {
       shapes,
@@ -1024,4 +1030,20 @@ export function solidScriptFailure(line: number | null, message: string): SolidS
   const bare = message.replace(/^line \d+: /i, '');
   const lined = line === null ? bare : `line ${line}: ${bare}`;
   return { line, message: lined, text: solidScriptErrorText(lined) };
+}
+
+/**
+ * Returns whether lines pass on the brushes a modifier receives, which is
+ * output too.
+ *
+ * @param lines Lines.
+ * @returns True when an Input Brushes line is among them.
+ */
+function solidScriptLinesPassInput(lines: readonly SolidScriptBlockNode<SolidScriptMachineCommand>[]): boolean {
+  return lines.some(
+    (node) =>
+      node.command.id === 'input_brushes' ||
+      solidScriptLinesPassInput(node.children) ||
+      solidScriptLinesPassInput(node.otherwise ?? []),
+  );
 }

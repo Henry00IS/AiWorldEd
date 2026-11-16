@@ -68,6 +68,14 @@ describe('SolidScript vectors', () => {
     expect(formula('[1, 2, 3] + [10, 20, 30]')).toBe('[11, 22, 33]');
     expect(formula('[1, 2, 3] * 2')).toBe('[2, 4, 6]');
     expect(formula('[2, 4, 6] / 2')).toBe('[1, 2, 3]');
+    // Two vectors combine part by part; Dot and Cross are functions.
+    expect(formula('[1, 2, 3] * [4, 5, 6]')).toBe('[4, 10, 18]');
+    expect(formula('Vector(2, 4, 6) * Vector(1, 1, 1)')).toBe('[2, 4, 6]');
+    expect(formula('[4, 10, 18] / [4, 5, 6]')).toBe('[1, 2, 3]');
+    expect(formula('[5, 5, 5] - [1, 2, 3]')).toBe('[4, 3, 2]');
+    expect(formula('2 * [1, 2, 3]')).toBe('[2, 4, 6]');
+    expect(formula('12 / [1, 2, 3]')).toBe('[12, 6, 4]');
+    expect(formula('[[1, 0], [0, 2]] * [3, 4]')).toBe('[3, 8]');
     expect(formula('length([3, 4, 0])')).toBe('5');
     expect(formula('normalize([0, 0, 5])')).toBe('[0, 0, 1]');
     expect(formula('dot([1, 2, 3], [4, 5, 6])')).toBe('32');

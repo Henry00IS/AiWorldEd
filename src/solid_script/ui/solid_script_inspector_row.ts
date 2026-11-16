@@ -10,7 +10,6 @@ import {
   solidScriptDocumentNormalize,
   solidScriptDocumentUseProblem,
   solidScriptDocumentUses,
-  solidScriptDocumentUsesWith,
   type SolidScriptDocument,
   type SolidScriptUse,
 } from '@/solid_script/document/solid_script_document.js';
@@ -56,14 +55,10 @@ export function solidScriptInspectorRow(
     if (problem) show(problem);
     else solidScriptInspectorCommit(targetOf(show), key, document);
   };
-  let current = solidScriptDocumentNormalize(undefined);
-  const uses = solidScriptInspectorUses(use, show, (next) => commit(solidScriptDocumentUsesWith(current, next)));
-  card.append(name, detail, solidScriptInspectorButtons(targetOf, show, commit), uses.element, status);
+  card.append(name, detail, solidScriptInspectorButtons(targetOf, show, commit), status);
   solidScriptFileDropBind(card, ThemeCss.accentColor, (result) => solidScriptInspectorDropped(result, commit, show));
   const write = (parameters: Record<string, unknown>): void => {
     const document = solidScriptDocumentNormalize(parameters[key]);
-    current = document;
-    uses.write(document);
     name.replaceChildren(solidScriptEditorIcon('script'), document.name || 'Script');
     solidScriptInspectorDetail(detail, document, solidScriptInspectorInputValues(parameters[inputsKey]));
   };

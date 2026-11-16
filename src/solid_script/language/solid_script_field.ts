@@ -438,7 +438,7 @@ function solidScriptFieldFolded(text: string, compiled: SolidScriptFieldCompiled
  * @param value Resolved value.
  * @returns Value.
  */
-function solidScriptFieldBoolean(value: SolidScriptValue): SolidScriptValue {
+export function solidScriptFieldBoolean(value: SolidScriptValue): SolidScriptValue {
   if (typeof value !== 'string') return value;
   const text = value.trim().toLowerCase();
   if (text === 'yes' || text === 'true') return true;

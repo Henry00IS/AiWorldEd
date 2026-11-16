@@ -349,8 +349,8 @@ describe('SolidScript editor', () => {
     const fields = document.querySelectorAll<HTMLInputElement>(
       '[data-solid-script-configurator="translate"] input:not([hidden])',
     );
-    expect([...fields].map((input) => input.value)).toEqual(['0', '0', '0']);
-    type(fields[2] as HTMLInputElement, '3');
+    expect([...fields].map((input) => input.value)).toEqual(['0, 0, 0']);
+    type(fields[0] as HTMLInputElement, '0, 0, 3');
     tool('OK').click();
     expect(script().blocks[0]?.values?.['v']).toBe('0, 0, 3');
     press(chip(1), 'Enter');
@@ -436,7 +436,7 @@ describe('SolidScript editor', () => {
     expect(x.value).toBe('[Box.Width]');
     expect(document.activeElement).toBe(x);
     tool('OK').click();
-    expect(script().blocks[2]?.values['size']).toMatch(/^\[Box\.Width\], /);
+    expect(script().blocks[2]?.values['size']).toBe('[Box.Width]');
   });
 
   it('checks Input lines while they are configured and lists what the script defines in the variable explorer', () => {

@@ -244,8 +244,14 @@ describe('Vector inputs', () => {
   });
 
   it('stop on a value that is not three numbers, or a part outside Minimum and Maximum', () => {
-    expect(runWith({ inputs: { size: '4, 5' } }, size()).error?.message).toContain('three numbers');
-    expect(runWith({ inputs: { size: '1, 9, 1' } }, size({ max: '5' })).error?.message).toContain('from any to 5');
+    // A bad value falls back to the Default, and stops the script when that is bad too.
+    expect(runWith({ inputs: { size: '4, 5' } }, size({ default: '' })).error?.message).toContain('three numbers');
+    expect(runWith({ inputs: { size: '1, 9, 1' } }, size({ max: '5', default: '9, 9, 9' })).error?.message).toContain(
+      'from any to 5',
+    );
+    expect(runWith({ inputs: { size: '4, 5' } }, size(), echo('[size]')).messages).toEqual([
+      runWith({}, size(), echo('[size]')).messages[0],
+    ]);
   });
 });
 
@@ -331,11 +337,14 @@ describe('Input', () => {
   });
 
   it('checks the value against its type and limits', () => {
-    expect(runWith({ inputs: { steps: '11' } }, steps).error?.message).toMatch(/from 1 to 10, not 11/);
-    expect(runWith({ inputs: { steps: '2.5' } }, steps).error?.message).toMatch(/whole number/);
+    // A value the script no longer takes falls back to the Default.
+    expect(runWith({ inputs: { steps: '11' } }, steps, echo('[steps]')).messages).toEqual(['3']);
+    expect(runWith({ inputs: { steps: '2.5' } }, steps, echo('[steps]')).messages).toEqual(['3']);
     const choice = line('input', { name: 'look', type: 'choice', default: 'small', choices: 'small, large' });
     expect(runWith({ inputs: { look: 'large' } }, choice, echo('[look]')).messages).toEqual(['large']);
-    expect(runWith({ inputs: { look: 'huge' } }, choice).error?.message).toMatch(/one of small, large/);
+    expect(runWith({ inputs: { look: 'huge' } }, choice, echo('[look]')).messages).toEqual(['small']);
+    const loose = line('input', { name: 'look', type: 'choice', default: '', choices: 'small, large' });
+    expect(runWith({ inputs: { look: 'huge' } }, loose).error?.message).toMatch(/one of small, large/);
     const toggle = line('input', { name: 'rails', type: 'switch', default: 'yes' });
     expect(run(toggle, line('if', { condition: '[rails]' }), echo('on'), END).messages).toEqual(['on']);
     expect(run(line('input', { name: 'x', type: 'colour' })).error?.message).toMatch(/Type must be one of/);

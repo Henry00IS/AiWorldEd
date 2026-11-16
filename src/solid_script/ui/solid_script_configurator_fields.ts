@@ -1,13 +1,9 @@
 import { solidScriptNameDotProblem } from '@/solid_script/language/solid_script_name_rules.js';
 import type { SolidScriptCommandParameter } from '@/solid_script/commands/solid_script_command.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
+import { solidScriptAnchorRead } from '@/solid_script/language/solid_script_anchor.js';
 import {
-  SOLID_SCRIPT_ANCHOR_CAPTIONS,
-  SOLID_SCRIPT_ANCHOR_WORDS,
-  solidScriptAnchorRead,
-  type SolidScriptAnchorAxis,
-} from '@/solid_script/language/solid_script_anchor.js';
-import {
+  solidScriptFieldBoolean,
   solidScriptFieldCheck,
   solidScriptFieldSplit,
   solidScriptFieldVectorNote,
@@ -50,8 +46,21 @@ export interface SolidScriptConfiguratorScope {
 /** How a field's inputs are read and checked. */
 type SolidScriptConfiguratorFieldReader = Pick<SolidScriptConfiguratorField, 'read' | 'problem'>;
 
-/** Axis captions of vector fields. */
-const SOLID_SCRIPT_CONFIGURATOR_AXES = ['X', 'Y', 'Z'];
+/** Words of a Yes or No field; a variable or formula may be typed instead. */
+const SOLID_SCRIPT_CONFIGURATOR_YES_NO = [
+  { word: 'Yes', detail: 'On' },
+  { word: 'No', detail: 'Off' },
+];
+
+/**
+ * Returns how many values a vector field takes.
+ *
+ * @param parameter Parameter.
+ * @returns 3, 2, or 0 for fields that are not vectors.
+ */
+function solidScriptConfiguratorVectorSize(parameter: SolidScriptCommandParameter): number {
+  return parameter.type === 'vector3' ? 3 : parameter.type === 'vector2' ? 2 : 0;
+}
 
 /** Pattern of names a variable can have. */
 const SOLID_SCRIPT_CONFIGURATOR_NAME = /^((local|persistent)\.)?[A-Za-z_][A-Za-z0-9_]*$/i;
@@ -90,17 +99,24 @@ export function solidScriptConfiguratorFieldBuild(
   const inputs = document.createElement('span');
   inputs.className = SOLID_SCRIPT_EDITOR_CLASSES.fieldInputs;
   const field = solidScriptConfiguratorInputs(parameter, value, inputs);
-  const shapeNames = scope.names
-    .filter((entry) => entry.category === 'Shapes' || entry.category === 'Parts')
-    .map((entry) => ({ word: entry.name, detail: entry.detail }));
+  const named = (categories: readonly string[]) =>
+    scope.names
+      .filter((entry) => categories.includes(entry.category))
+      .map((entry) => ({ word: entry.name, detail: entry.detail }));
   const suggest: SolidScriptSuggestionScope = {
     ...scope,
     words: parameter.shapeNames
-      ? shapeNames
-      : (parameter.words ?? []).filter((word) => !word.sees || scope.names.some((entry) => entry.name === word.sees)),
+      ? named(['Shapes', 'Parts'])
+      : parameter.inputNames
+        ? named(['Inputs'])
+        : parameter.type === 'boolean'
+          ? SOLID_SCRIPT_CONFIGURATOR_YES_NO
+          : (parameter.words ?? []).filter(
+              (word) => !word.sees || scope.names.some((entry) => entry.name === word.sees),
+            ),
   };
   const texts =
-    parameter.type === 'name' || parameter.type === 'target'
+    (parameter.type === 'name' || parameter.type === 'target') && !parameter.inputNames
       ? []
       : [...inputs.querySelectorAll<HTMLInputElement>('input[type="text"]')];
   const lists = texts.map((input) => new SolidScriptConfiguratorNames(input, suggest));
@@ -157,51 +173,12 @@ function solidScriptConfiguratorInputs(
   value: string,
   inputs: HTMLElement,
 ): SolidScriptConfiguratorFieldReader {
-  const size = solidScriptConfiguratorVectorSize(parameter);
-  if (size > 0) return solidScriptConfiguratorVector(value, size, parameter, inputs);
-  if (parameter.anchor && typeof solidScriptAnchorRead(value, parameter.anchor) !== 'string')
-    return solidScriptConfiguratorAnchor(value, parameter.anchor, parameter, inputs);
-  if (parameter.type === 'boolean' && (value === 'true' || value === 'false'))
-    return solidScriptConfiguratorCheckbox(value === 'true', parameter, inputs);
-  const input = solidScriptConfiguratorInput(value, parameter.label);
+  const switched = parameter.type === 'boolean' ? solidScriptFieldBoolean(value) : value;
+  const shown = typeof switched === 'boolean' ? (switched ? 'Yes' : 'No') : value;
+  const input = solidScriptConfiguratorInput(shown, parameter.label);
   if (parameter.texture === true) return solidScriptConfiguratorTexture(input, parameter, inputs);
   inputs.append(input);
   return { read: () => input.value.trim(), problem: () => solidScriptConfiguratorProblem(parameter, input.value) };
-}
-
-/**
- * Builds an Anchor field: one choice per axis, such as Left, Center or Right
- * for X.
- *
- * @param value Stored text, which reads as an Anchor.
- * @param axes Axes.
- * @param parameter Parameter.
- * @param inputs Container.
- * @returns Reader and check.
- */
-function solidScriptConfiguratorAnchor(
-  value: string,
-  axes: readonly SolidScriptAnchorAxis[],
-  parameter: SolidScriptCommandParameter,
-  inputs: HTMLElement,
-): SolidScriptConfiguratorFieldReader {
-  const words = value.split(',').map((word) => word.trim().toLowerCase());
-  const selects = axes.map((axis, index) => {
-    const select = document.createElement('select');
-    select.className = SOLID_SCRIPT_EDITOR_CLASSES.fieldChoice;
-    select.setAttribute('aria-label', `${parameter.label} ${SOLID_SCRIPT_ANCHOR_CAPTIONS[axis]}`);
-    for (const word of SOLID_SCRIPT_ANCHOR_WORDS[axis]) {
-      const option = document.createElement('option');
-      option.value = word;
-      option.textContent = word;
-      option.selected = word.toLowerCase() === words[index];
-      select.append(option);
-    }
-    select.addEventListener('change', () => inputs.dispatchEvent(new Event('change', { bubbles: true })));
-    return select;
-  });
-  inputs.append(...selects);
-  return { read: () => selects.map((select) => select.value).join(', '), problem: () => '' };
 }
 
 /**
@@ -272,139 +249,6 @@ function solidScriptConfiguratorInput(value: string, label: string): HTMLInputEl
 }
 
 /**
- * Returns how many axes a field's vector has.
- *
- * @param parameter Parameter.
- * @returns 3, 2, or 0 for fields that are not vectors.
- */
-function solidScriptConfiguratorVectorSize(parameter: SolidScriptCommandParameter): number {
-  return parameter.type === 'vector3' ? 3 : parameter.type === 'vector2' ? 2 : 0;
-}
-
-/**
- * Builds a vector field: an input per axis, or one Vector input that takes a
- * vector such as [Edge.Middle], a formula or "1, 2, 3". A toggle switches,
- * keeping the value; a stored value that is not one part per axis opens as one
- * Vector.
- *
- * @param value Stored text.
- * @param size Axes.
- * @param parameter Parameter.
- * @param inputs Container.
- * @returns Reader and check.
- */
-function solidScriptConfiguratorVector(
-  value: string,
-  size: number,
-  parameter: SolidScriptCommandParameter,
-  inputs: HTMLElement,
-): SolidScriptConfiguratorFieldReader {
-  const parts = solidScriptConfiguratorVectorParts(value, size);
-  const axes = Array.from({ length: size }, (_, axis) => {
-    const input = solidScriptConfiguratorInput(
-      parts?.[axis] ?? '',
-      `${parameter.label} ${SOLID_SCRIPT_CONFIGURATOR_AXES[axis]}`,
-    );
-    input.placeholder = SOLID_SCRIPT_CONFIGURATOR_AXES[axis] ?? '';
-    return input;
-  });
-  const whole = solidScriptConfiguratorInput(parts ? '' : value, parameter.label);
-  whole.placeholder = 'Vector, such as [Edge.Middle]';
-  let single = !parts;
-  const toggle = solidScriptEditorToolButton('Vector', 'vector', '', () => {
-    if (single) {
-      const split = solidScriptConfiguratorVectorSplit(whole.value, size);
-      if (!split) {
-        toggle.title = 'This vector cannot be split into axes; write it as one value per axis first';
-        return;
-      }
-      split.forEach((part, axis) => (axes[axis]!.value = part));
-    } else whole.value = solidScriptConfiguratorVectorJoin(axes.map((input) => input.value));
-    single = !single;
-    show();
-    inputs.dispatchEvent(new Event('change', { bubbles: true }));
-  });
-  toggle.setAttribute('aria-label', `${parameter.label} As One Vector`);
-  const show = (): void => {
-    whole.hidden = !single;
-    for (const input of axes) input.hidden = single;
-    toggle.setAttribute('aria-pressed', String(single));
-    toggle.title = single ? 'Type each axis on its own' : 'Type one vector, such as [Edge.Middle] or 1, 2, 3';
-  };
-  show();
-  inputs.append(...axes, whole, toggle);
-  return {
-    read: () => (single ? whole.value.trim() : axes.map((input) => input.value.trim()).join(', ')),
-    problem: () => {
-      if (single) {
-        if (whole.value.trim() === '') return `${parameter.label} needs a vector.`;
-        const count = solidScriptFieldSplit(whole.value, ',').length;
-        const problem =
-          solidScriptFieldCheck(whole.value) ||
-          (count === 1 || count === size ? '' : `needs ${size} values, or one vector such as [Edge.Middle]`);
-        return problem === '' ? '' : `${parameter.label}: ${problem}.`;
-      }
-      if (axes.some((input) => input.value.trim() === '')) return `${parameter.label} needs every axis.`;
-      const problem = axes.map((input) => solidScriptFieldCheck(input.value)).find((text) => text !== '') ?? '';
-      return problem === '' ? '' : `${parameter.label}: ${problem}.`;
-    },
-  };
-}
-
-/**
- * Splits one vector into its axes for the axis inputs: a list with one part per
- * axis as it is, one [Name] into [Name.x], [Name.y] and [Name.z].
- *
- * @param text Vector text.
- * @param size Axes.
- * @returns Axis texts, or null when the text cannot be split.
- */
-export function solidScriptConfiguratorVectorSplit(text: string, size: number): string[] | null {
-  const parts = solidScriptConfiguratorVectorParts(text, size);
-  if (parts) return parts;
-  const named = /^\[\s*([A-Za-z_][\w.]*)\s*\]$/.exec(text.trim())?.[1];
-  return named === undefined ? null : ['x', 'y', 'z'].slice(0, size).map((axis) => `[${named}.${axis}]`);
-}
-
-/**
- * Joins axis texts into one vector: [Name.x], [Name.y], [Name.z] become [Name],
- * anything else "x, y, z".
- *
- * @param parts Axis texts.
- * @returns Vector text.
- */
-export function solidScriptConfiguratorVectorJoin(parts: readonly string[]): string {
-  const names = parts.map((part) => /^\[\s*([A-Za-z_][\w.]*)\.([xyz])\s*\]$/i.exec(part.trim()));
-  const base = names[0]?.[1];
-  const same = names.every(
-    (match, axis) =>
-      match && match[1]!.toLowerCase() === base?.toLowerCase() && match[2]!.toLowerCase() === 'xyz'[axis],
-  );
-  return same && base !== undefined ? `[${base}]` : parts.map((part) => part.trim()).join(', ');
-}
-
-/**
- * Builds a checkbox.
- *
- * @param checked Initial state.
- * @param parameter Parameter.
- * @param inputs Container.
- * @returns Reader and check.
- */
-function solidScriptConfiguratorCheckbox(
-  checked: boolean,
-  parameter: SolidScriptCommandParameter,
-  inputs: HTMLElement,
-): SolidScriptConfiguratorFieldReader {
-  const box = document.createElement('input');
-  box.type = 'checkbox';
-  box.checked = checked;
-  box.setAttribute('aria-label', parameter.label);
-  inputs.append(box);
-  return { read: () => (box.checked ? 'true' : 'false'), problem: () => '' };
-}
-
-/**
  * Checks a typed value.
  *
  * @param parameter Parameter.
@@ -426,19 +270,10 @@ function solidScriptConfiguratorProblem(parameter: SolidScriptCommandParameter, 
     return typeof read === 'string' ? `${parameter.label} ${read}.` : '';
   }
   if (parameter.type === 'name' || parameter.type === 'text') return '';
+  const size = solidScriptConfiguratorVectorSize(parameter);
+  const count = solidScriptFieldSplit(text, ',').length;
+  if (size > 0 && count !== 1 && count !== size)
+    return `${parameter.label} needs ${size} values separated by commas, or one vector such as [Edge.Middle].`;
   const problem = solidScriptFieldCheck(text);
   return problem === '' ? '' : `${parameter.label}: ${problem}.`;
-}
-
-/**
- * Splits a vector written as "x, y, z" into its axes, keeping bracketed
- * variables and formulas whole.
- *
- * @param value Field text.
- * @param size Expected axis count.
- * @returns Axis texts, or null when the value has another count.
- */
-export function solidScriptConfiguratorVectorParts(value: string, size: number): string[] | null {
-  const parts = solidScriptFieldSplit(value, ',');
-  return parts.length === size ? parts : null;
 }

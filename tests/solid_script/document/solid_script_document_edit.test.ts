@@ -148,4 +148,22 @@ describe('SolidScript command insert', () => {
       ).toEqual(expected);
     }
   });
+
+  it('turns off a picked block line and its own End together, never an End after it', () => {
+    const document = solidScriptDocumentCreate([
+      { command: 'translate' },
+      { command: 'cube' },
+      { command: 'end' },
+      { command: 'translate' },
+      { command: 'sphere' },
+      { command: 'end' },
+    ]);
+    const offs = (lines: number[]) =>
+      solidScriptDocumentLinesToggle(document, lines).document.blocks.map((block) => block.off === true);
+    expect(offs([3, 5])).toEqual([false, false, false, true, false, true]);
+    expect(offs([0, 2])).toEqual([true, false, true, false, false, false]);
+    expect(offs([3])).toEqual([false, false, false, true, false, true]);
+    const off = solidScriptDocumentLinesToggle(document, [0, 2]).document;
+    expect(solidScriptDocumentLinesToggle(off, [0, 2]).document.blocks.some((block) => block.off === true)).toBe(false);
+  });
 });

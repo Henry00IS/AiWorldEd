@@ -69,6 +69,8 @@ export interface SolidScriptInput {
   max: number | null;
   /** Values a choice offers. */
   choices: string[];
+  /** Hover text in the inspector, or empty for the default. */
+  tooltip: string;
 }
 
 /** Stored text of an Input line's fields, by field key. */
@@ -110,6 +112,7 @@ export function solidScriptInputRead(values: SolidScriptInputValues): SolidScrip
     min,
     max,
     choices,
+    tooltip: (values['tooltip'] ?? '').trim(),
   };
 }
 

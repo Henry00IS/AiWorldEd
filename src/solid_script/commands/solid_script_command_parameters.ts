@@ -94,6 +94,12 @@ export function solidScriptParameterAnchor(axes: readonly SolidScriptAnchorAxis[
       `The spot of the shape that sits on the origin, the centre of the generator: ${words.join(', ')}.`,
     ),
     anchor: axes,
+    words: axes
+      .reduce<string[][]>(
+        (combos, axis) => combos.flatMap((combo) => SOLID_SCRIPT_ANCHOR_WORDS[axis].map((word) => [...combo, word])),
+        [[]],
+      )
+      .map((combo) => ({ word: combo.join(', '), detail: 'Anchor' })),
   };
 }
 

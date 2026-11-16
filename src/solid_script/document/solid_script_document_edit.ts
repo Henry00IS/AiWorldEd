@@ -237,11 +237,14 @@ export function solidScriptDocumentLinesToggle(
 ): { document: SolidScriptDocument; count: number; off: boolean } {
   const picked = [...new Set(lines)].filter((line) => line >= 0 && line < document.blocks.length).sort((a, b) => b - a);
   const off = !picked.every((line) => document.blocks[line]?.off === true);
-  const flags = document.blocks.map((block) => block.off === true);
+  // Partners are found in the script as it was, so a picked End is not skipped
+  // over to reach an unrelated End further down.
+  const before = document.blocks.map((block) => block.off === true);
+  const flags = [...before];
   for (const line of picked) flags[line] = off;
   for (const line of picked) {
     if (solidScriptCommandFind(document.blocks[line]!.command)?.nesting !== 'open') continue;
-    for (const partner of solidScriptDocumentBlockPartners(document, flags, line, !off)) flags[partner] = off;
+    for (const partner of solidScriptDocumentBlockPartners(document, before, line, !off)) flags[partner] = off;
   }
   const blocks = document.blocks.map((block, line) => {
     if ((block.off === true) === flags[line]) return block;

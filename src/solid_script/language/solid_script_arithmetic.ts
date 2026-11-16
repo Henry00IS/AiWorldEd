@@ -27,11 +27,16 @@ export function solidScriptArithmeticBinary(
   if (operator === '&&') return solidScriptValueTruthy(left) && solidScriptValueTruthy(right);
   if (operator === '||') return solidScriptValueTruthy(left) || solidScriptValueTruthy(right);
   if (typeof left === 'number' && typeof right === 'number') return solidScriptNumberBinary(operator, left, right);
-  if (operator === '*') return solidScriptMultiply(left, right);
-  if (operator === '/' && Array.isArray(left) && typeof right === 'number') {
-    return left.map((entry) => solidScriptArithmeticBinary('/', entry, right));
-  }
-  if ((operator === '+' || operator === '-') && Array.isArray(left) && Array.isArray(right)) {
+  const nested = (value: SolidScriptValue): boolean => Array.isArray(value) && Array.isArray(value[0]);
+  // A matrix times a vector or matrix multiplies rows by columns.
+  if (operator === '*' && (nested(left) || nested(right))) return solidScriptMultiply(left, right);
+  // A vector and a number: * and / scale every part.
+  if ((operator === '*' || operator === '/') && Array.isArray(left) && typeof right === 'number')
+    return left.map((entry) => solidScriptArithmeticBinary(operator, entry, right));
+  if ((operator === '*' || operator === '/') && typeof left === 'number' && Array.isArray(right))
+    return right.map((entry) => solidScriptArithmeticBinary(operator, left, entry));
+  // Two vectors combine part by part; Dot and Cross are functions.
+  if (['+', '-', '*', '/'].includes(operator) && Array.isArray(left) && Array.isArray(right)) {
     if (left.length !== right.length)
       throw new Error(`cannot use ${operator} on lists of ${left.length} and ${right.length} numbers`);
     return left.map((entry, index) => solidScriptArithmeticBinary(operator, entry, right[index]));

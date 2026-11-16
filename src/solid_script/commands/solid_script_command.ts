@@ -1,3 +1,4 @@
+import { solidScriptFieldBoolean } from '@/solid_script/language/solid_script_field.js';
 import type { SolidScriptAnchorAxis } from '@/solid_script/language/solid_script_anchor.js';
 import type {
   SolidScriptBlockRun,
@@ -69,6 +70,8 @@ export interface SolidScriptCommandParameter {
   texture?: boolean;
   /** True offers the shape Names the script uses, as for Of. */
   shapeNames?: boolean;
+  /** True offers the names of the script's Input lines. */
+  inputNames?: boolean;
   /** Axes of an Anchor field, which the window shows as one choice per axis. */
   anchor?: readonly SolidScriptAnchorAxis[];
 }
@@ -241,9 +244,10 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
       value: (key) => solidScriptListingValue(this.valueText(values, key)),
       variable: (key) => ({ kind: 'variable', text: `[${this.valueText(values, key)}]` }),
       text: (key) => this.valueText(values, key),
-      on: (key) => this.valueText(values, key) === 'true',
+      on: (key) => solidScriptFieldBoolean(this.valueText(values, key)) === true,
       changed: (key) =>
-        this.valueText(values, key) !== (this.parameters.find((parameter) => parameter.key === key)?.default ?? ''),
+        solidScriptFieldBoolean(this.valueText(values, key)) !==
+        solidScriptFieldBoolean(this.parameters.find((parameter) => parameter.key === key)?.default ?? ''),
     };
     const [first, ...rest] = this.listingWrite(read);
     if (typeof first === 'string') return solidScriptListingBuild(first, rest);

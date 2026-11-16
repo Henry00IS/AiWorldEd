@@ -10,6 +10,7 @@ import {
 } from '@/solid_script/document/solid_script_document_names.js';
 import { solidScriptInputRead } from '@/solid_script/language/solid_script_input.js';
 import { SolidScriptDialog } from './solid_script_dialog.js';
+import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
 
 /**
  * The configurator of one command line: a window titled with the command, a
@@ -42,6 +43,10 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
     super(host, command.label, 'OK');
     this.root.dataset['solidScriptConfigurator'] = command.id;
     this.content.append(this.note(command.description));
+    // Many fields scroll inside the window, so it never grows past the page.
+    const list = document.createElement('div');
+    Object.assign(list.style, { maxHeight: 'calc(100vh - 260px)', overflowY: 'auto', paddingRight: '4px' });
+    this.content.append(solidScriptScrollerWrap(list, '0 1 auto', 0));
     for (const parameter of command.parameters) {
       const field = solidScriptConfiguratorFieldBuild(
         parameter,
@@ -50,7 +55,7 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
         { names, extra: SOLID_SCRIPT_NAMES_COMMAND[command.id] ?? [] },
       );
       this.fields.set(parameter.key, field);
-      this.content.append(field.element);
+      list.append(field.element);
     }
     this.preview.className = SOLID_SCRIPT_EDITOR_CLASSES.preview;
     this.preview.setAttribute('aria-label', 'Line');

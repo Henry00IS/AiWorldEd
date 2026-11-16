@@ -63,6 +63,9 @@ function offered(marked: string, scope = SCOPE): string[] {
 describe('SolidScript member suggestions', () => {
   const script = solidScriptDocumentCreate([
     { command: 'variable', values: { name: 'Pos', value: '1, 2, 3' } },
+    { command: 'input', values: { name: 'MyVector', type: 'vector', default: '1, 2, 3' } },
+    { command: 'variable', values: { name: 'Moved', value: '[=[Pos] + Vector(0, 1, 0)]' } },
+    { command: 'variable', values: { name: 'Alias', value: '[Pos]' } },
     { command: 'add_item', values: { value: '1', list: 'Heights' } },
     { command: 'for_each_vertex' },
     { command: 'echo', values: { value: '1' } },
@@ -74,6 +77,9 @@ describe('SolidScript member suggestions', () => {
 
   it('offers the parts of a vector, the members of a list and the values of a group after a dot', () => {
     expect(labels('[Pos.')).toEqual(['Pos.X', 'Pos.Y', 'Pos.Z']);
+    expect(labels('[MyVector.')).toEqual(['MyVector.X', 'MyVector.Y', 'MyVector.Z']);
+    expect(labels('[Moved.')).toEqual(['Moved.X', 'Moved.Y', 'Moved.Z']);
+    expect(labels('[Alias.')).toEqual(['Alias.X', 'Alias.Y', 'Alias.Z']);
     expect(labels('[Vertex.Position.')).toEqual(['Vertex.Position.X', 'Vertex.Position.Y', 'Vertex.Position.Z']);
     expect(labels('[Vertex.Position.Y')).toEqual(['Vertex.Position.Y']);
     expect(labels('[Box.Size.')).toEqual(['Box.Size.X', 'Box.Size.Y', 'Box.Size.Z']);

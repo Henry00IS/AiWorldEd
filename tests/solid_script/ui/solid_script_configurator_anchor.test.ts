@@ -3,40 +3,46 @@ import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_com
 import { solidScriptConfiguratorFieldBuild } from '@/solid_script/ui/solid_script_configurator_fields.js';
 
 /**
- * Finds the Anchor parameter of a command.
+ * Finds a parameter of a command.
  *
  * @param command Command key.
+ * @param key Parameter key.
  * @returns Parameter.
  */
-function anchorOf(command: string) {
-  return solidScriptCommandFind(command)!.parameters.find((parameter) => parameter.key === 'anchor')!;
+function parameterOf(command: string, key: string) {
+  return solidScriptCommandFind(command)!.parameters.find((parameter) => parameter.key === key)!;
 }
 
 afterEach(() => document.body.replaceChildren());
 
-describe('SolidScript anchor fields', () => {
-  it('shows one choice per axis with Title Case words and stores them as one text', () => {
-    const field = solidScriptConfiguratorFieldBuild(anchorOf('cube'), 'center, bottom, center', () => {});
-    document.body.append(field.element);
-    const selects = [...field.element.querySelectorAll('select')];
-    expect(selects.map((select) => select.getAttribute('aria-label'))).toEqual(['Anchor X', 'Anchor Y', 'Anchor Z']);
-    expect(selects.map((select) => [...select.options].map((option) => option.text))).toEqual([
-      ['Left', 'Center', 'Right'],
-      ['Bottom', 'Center', 'Top'],
-      ['Back', 'Center', 'Front'],
-    ]);
-    expect(field.read()).toBe('Center, Bottom, Center');
-    selects[2]!.value = 'Back';
-    expect(field.read()).toBe('Center, Bottom, Back');
-    expect(solidScriptConfiguratorFieldBuild(anchorOf('square'), 'Left, Front', () => {}).read()).toBe('Left, Front');
-  });
-
-  it('types a variable or a wrong value as text and points out the wrong one', () => {
-    const typed = solidScriptConfiguratorFieldBuild(anchorOf('cube'), '[Where]', () => {});
+describe('SolidScript editable choice fields', () => {
+  it('offers every Anchor as a word, and takes a variable or formula typed instead', () => {
+    const words = parameterOf('cube', 'anchor').words!.map((entry) => entry.word);
+    expect(words).toHaveLength(27);
+    expect(words).toContain('Center, Bottom, Back');
+    expect(parameterOf('square', 'anchor').words).toHaveLength(9);
+    const typed = solidScriptConfiguratorFieldBuild(parameterOf('cube', 'anchor'), '[Where]', () => {});
     expect(typed.element.querySelector('select')).toBeNull();
     expect(typed.problem()).toBe('');
-    expect(solidScriptConfiguratorFieldBuild(anchorOf('cube'), 'Up, Center', () => {}).problem()).toContain(
-      'needs 3 words',
-    );
+    expect(
+      solidScriptConfiguratorFieldBuild(parameterOf('cube', 'anchor'), 'Up, Center', () => {}).problem(),
+    ).toContain('needs 3 words');
+  });
+
+  it('shows a switch as Yes or No text, never a checkbox, and lists it like before', () => {
+    const closed = parameterOf('curve_to_mesh', 'closed');
+    const field = solidScriptConfiguratorFieldBuild(closed, 'false', () => {});
+    expect(field.element.querySelector('input[type="checkbox"]')).toBeNull();
+    expect(field.read()).toBe('No');
+    expect(solidScriptConfiguratorFieldBuild(closed, 'true', () => {}).read()).toBe('Yes');
+    expect(solidScriptConfiguratorFieldBuild(closed, '[Shut]', () => {}).read()).toBe('[Shut]');
+    const command = solidScriptCommandFind('curve_to_mesh')!;
+    const text = (closedText: string) =>
+      command
+        .listing({ closed: closedText })
+        .map((part) => part.text)
+        .join('');
+    expect(text('Yes')).toBe(text('true'));
+    expect(text('No')).toBe(text('false'));
   });
 });

@@ -151,7 +151,8 @@ describe('SolidScript generator tools', () => {
     const kept = api.invokeTool('geometry_script_generator_set', { objectId, name: 'Steps' });
     expect(kept.data).toMatchObject({ solids: 5 });
     const outside = api.invokeTool('geometry_script_generator_set', { objectId, inputs: { steps: 50 } });
-    expect((outside.data as { error: string }).error).toMatch(/from 1 to 20, not 50/);
+    expect(outside.ok).toBe(false);
+    expect(outside.message).toMatch(/from 1 to 20, not 50/);
     const unknown = api.invokeTool('geometry_script_generator_set', { objectId, inputs: { width: 3 } });
     expect(unknown.ok).toBe(false);
     expect(unknown.message).toMatch(/no Input width; inputs: steps/);

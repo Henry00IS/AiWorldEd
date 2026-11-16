@@ -1,3 +1,4 @@
+import { solidScriptInputValue } from '@/solid_script/language/solid_script_input.js';
 import type * as THREE from 'three';
 import type { McpToolResult } from '@/ai/shared/mcp_protocol_types.js';
 import { CommandModifierStackSet } from '@/modifier/stack/command_modifier_stack_set.js';
@@ -296,7 +297,8 @@ function geometryScriptInputsRead(
   document: SolidScriptDocument,
   parameters: Record<string, unknown>,
 ): Record<string, string> | string {
-  const names = new Set(solidScriptInputsList(document.blocks).map((input) => input.name));
+  const inputs = solidScriptInputsList(document.blocks);
+  const names = new Set(inputs.map((input) => input.name));
   const stored = solidScriptInspectorInputValues(parameters[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]);
   const merged: Record<string, string> = {};
   for (const [name, value] of Object.entries(stored))
@@ -310,6 +312,15 @@ function geometryScriptInputsRead(
     if (!['string', 'number', 'boolean'].includes(typeof value))
       return `input ${name} must be a number, text or true/false`;
     merged[name] = typeof value === 'boolean' ? (value ? 'yes' : 'no') : String(value);
+    // A run falls back to the Default for a value it does not take, so a set value is checked here.
+    try {
+      solidScriptInputValue(
+        inputs.find((input) => input.name === name)!,
+        merged[name],
+      );
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    }
   }
   return merged;
 }

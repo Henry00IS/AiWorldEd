@@ -146,7 +146,7 @@ export const SOLID_SCRIPT_EXAMPLE_ARCH: readonly SolidScriptLine[] = [
   solidScriptExampleInput('Span', 'choice', 'x', { label: 'Span Along', choices: 'x, z' }),
   solidScriptExampleInput('Shape', 'choice', 'round', { label: 'Shape', choices: 'round, fit' }),
   solidScriptExampleInput('Segments', 'count', '16', { label: 'Segments', min: '2', max: '128' }),
-  solidScriptExampleInput('Sweep', 'number', '180', { label: 'Sweep', min: '1', max: '180' }),
+  solidScriptExampleInput('Sweep', 'number', '180', { label: 'Sweep °', min: '1', max: '180' }),
   solidScriptExampleInput('Start', 'choice', 'centre', { label: 'Start From', choices: 'centre, left, right' }),
   solidScriptExampleInput('Thickness', 'number', '0.25', { label: 'Thickness', min: '0.01', max: '100' }),
   solidScriptExampleNote('The arch rises along Y and spans X, or Z when Span Along is z.'),

@@ -184,13 +184,35 @@ export class SolidScriptConfiguratorNames {
     if (this.shown.length === 0 && !hint) return this.close();
     this.hintWrite(hint);
     solidScriptSuggestionRows(this.list, this.shown, (index) => this.accept(index));
-    if (!this.host.isConnected) this.input.ownerDocument.body.append(this.host);
+    const opening = !this.host.isConnected;
+    if (opening) this.input.ownerDocument.body.append(this.host);
+    this.place();
+    if (opening) this.follow();
+    solidScriptSuggestionRowsHighlight(this.list, this.active);
+  }
+
+  /** Places the list at its input. */
+  private place(): void {
     solidScriptSuggestionPlace(
       this.host,
       this.input,
       Math.max(this.input.getBoundingClientRect().width, SOLID_SCRIPT_SUGGESTIONS_WIDTH_PX),
     );
-    solidScriptSuggestionRowsHighlight(this.list, this.active);
+  }
+
+  /**
+   * Keeps the open list at its input every frame, so it moves along when the
+   * window around the input changes size, such as when a message goes away.
+   */
+  private follow(): void {
+    const view = this.input.ownerDocument.defaultView;
+    if (!view?.requestAnimationFrame) return;
+    const frame = (): void => {
+      if (!this.host.isConnected) return;
+      this.place();
+      view.requestAnimationFrame(frame);
+    };
+    view.requestAnimationFrame(frame);
   }
 
   /** Takes the list off the page. */

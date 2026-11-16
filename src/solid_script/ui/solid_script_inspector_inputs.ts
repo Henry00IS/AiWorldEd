@@ -219,7 +219,7 @@ function solidScriptInspectorInputRow(
   input: SolidScriptInput,
   commit: (text: string | null) => void,
 ): { element: HTMLElement; write: (text: string) => void } {
-  const hint = `Script input [${input.name}]`;
+  const hint = input.tooltip || `Script input [${input.name}]`;
   if (input.type === 'button') {
     const button = modifierStackUiTextButton(
       input.label,

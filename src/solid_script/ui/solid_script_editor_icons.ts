@@ -27,7 +27,6 @@ const SOLID_SCRIPT_EDITOR_ICON_PATHS: Readonly<Record<string, string>> = {
   new: '<path d="M4 1.5h6l3 3v10H4z M10 1.5v3h3 M8.5 7v5 M6 9.5h5"/>',
   examples: '<path d="M2.5 3h4.5l1 1.5 1-1.5h4.5v10H9l-1 1-1-1H2.5z M8 4.5v9"/>',
   save: '<path d="M2.5 2.5h9l2 2v9h-11z M5 2.5v4h6v-4 M5 13.5v-4h6v4"/>',
-  vector: '<path d="M2.5 13.5 13 3 M8 3h5v5"/>',
   pick: '<rect x="2.5" y="2.5" width="4.5" height="4.5"/><rect x="9" y="2.5" width="4.5" height="4.5"/><rect x="2.5" y="9" width="4.5" height="4.5"/><rect x="9" y="9" width="4.5" height="4.5"/>',
   type: '<path d="M3 3.5h10 M8 3.5v9.5 M6 13h4"/>',
   load: '<path d="M1.5 4.5v8.5h13v-7H8L6.5 4.5z"/>',

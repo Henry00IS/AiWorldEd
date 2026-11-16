@@ -92,6 +92,10 @@ describe('SolidScript stops at the first mistake', () => {
     ]);
   });
 
+  it('counts Input Brushes as output, even where it passes on nothing', () => {
+    expect(failure({ command: 'input_brushes' })).toBe('');
+  });
+
   it('refuses scripts that build nothing', () => {
     expect(failure({ command: 'variable', values: { name: 'x', value: '1' } })).toBe(
       'The script builds no shapes; add a shape such as Cube.',

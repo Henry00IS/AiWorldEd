@@ -1,10 +1,7 @@
 import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
 import type { SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptErrorLine, solidScriptErrorText } from '@/solid_script/language/solid_script_error.js';
-import {
-  solidScriptProgramEvaluate,
-  type SolidScriptProgramOptions,
-} from '@/solid_script/language/solid_script_program.js';
+import { solidScriptProgramRun, type SolidScriptProgramOptions } from '@/solid_script/language/solid_script_program.js';
 import type { SolidScriptLineProfile, SolidScriptWarning } from '@/solid_script/language/solid_script_machine_types.js';
 import { SolidScriptEditorExplorer } from './solid_script_editor_explorer.js';
 import { solidScriptDocumentNamesUnknown } from '@/solid_script/document/solid_script_document_names.js';
@@ -52,7 +49,9 @@ export class SolidScriptEditorOutput {
   private unknownShow: (unknown: ReadonlyMap<number, ReadonlySet<string>>) => void = () => undefined;
   private runs: ReadonlyMap<number, SolidScriptLineProfile> = new Map();
   private revealLine: (line: number) => void = () => undefined;
-  private readonly settingsHost = document.createElement('div');
+  /** Settings, scrolling inside the area like the other tabs. */
+  private readonly settingsScroller = document.createElement('div');
+  private readonly settingsHost: HTMLElement;
   /** Warnings of the check that runs while the editor is idle, below the output. */
   private readonly checks = document.createElement('div');
   private checkTimer: ReturnType<typeof setTimeout> | null = null;
@@ -81,7 +80,7 @@ export class SolidScriptEditorOutput {
    */
   settingsSet(settings: SolidScriptEditorSettings): void {
     this.settings = settings;
-    this.settingsHost.replaceChildren(settings.element);
+    this.settingsScroller.replaceChildren(settings.element);
   }
 
   /** Builds the area. */
@@ -96,6 +95,8 @@ export class SolidScriptEditorOutput {
     this.output.setAttribute('aria-live', 'polite');
     this.outputHost = solidScriptScrollerWrap(this.output, '1 1 0', 12);
     this.variablesHost = this.explorer.element;
+    Object.assign(this.settingsScroller.style, { overflowY: 'auto', padding: '5px 12px' });
+    this.settingsHost = solidScriptScrollerWrap(this.settingsScroller, '1 1 0', 12);
     this.element.append(bar, this.outputHost, this.variablesHost, this.settingsHost);
     this.tabShow('output');
   }
@@ -111,8 +112,8 @@ export class SolidScriptEditorOutput {
   show(document: SolidScriptDocument, options: SolidScriptProgramOptions | null, caption: string): void {
     this.settings?.write(document);
     this.checkSchedule(document);
-    try {
-      const result = solidScriptProgramEvaluate(document, { context: 'preview', ...options, profile: true });
+    const result = solidScriptProgramRun(document, { context: 'preview', ...options, profile: true });
+    if (!result.error) {
       const count = result.steps.length;
       this.failed = null;
       this.failedKeys = new Set();
@@ -121,8 +122,8 @@ export class SolidScriptEditorOutput {
       this.text([solids, ...result.messages].join('\n'), false);
       this.output.append(...result.warnings.map((warning) => this.warningRow(warning)), this.checks);
       this.explorer.show(document, result.variables, options ? result.stack : [], caption);
-    } catch (error) {
-      const message = solidScriptErrorText(error);
+    } else {
+      const message = solidScriptErrorText(new Error(result.error.message));
       const failed = solidScriptErrorLine(message);
       this.failed = failed === null ? null : failed - 1;
       // The [name] the error is about, underlined on its line.
@@ -131,7 +132,7 @@ export class SolidScriptEditorOutput {
       this.runs = new Map();
       this.text(message, true);
       this.output.append(this.checks);
-      this.explorer.show(document, [], [], 'The script stops with an error.');
+      this.explorer.show(document, result.variables, options ? result.stack : [], 'The script stops with an error.');
     }
   }
 

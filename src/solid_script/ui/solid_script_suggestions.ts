@@ -309,13 +309,15 @@ const SOLID_SCRIPT_SUGGESTION_SET = new Set(['Variables', 'Locals', 'Persistent'
  *
  * @param name Name as typed.
  * @param scope What the field may refer to.
+ * @param depth How many variables deep a value naming another is followed.
  * @returns Axes, 0 for a known value that is no vector, or null for an unknown
  *   name.
  */
-function solidScriptSuggestionAxes(name: string, scope: SolidScriptSuggestionScope): number | null {
+function solidScriptSuggestionAxes(name: string, scope: SolidScriptSuggestionScope, depth = 4): number | null {
   const system = solidScriptSystemIsVector(name);
   if (system !== null) return system ? 3 : 0;
   const key = name.toLowerCase();
+  if (scope.names.some((entry) => entry.name.toLowerCase() === key && entry.detail === 'vector input')) return 3;
   const set = scope.names.find(
     (entry) => entry.name.toLowerCase() === key && SOLID_SCRIPT_SUGGESTION_SET.has(entry.category),
   );
@@ -323,8 +325,15 @@ function solidScriptSuggestionAxes(name: string, scope: SolidScriptSuggestionSco
   const value = /^set to (.*)$/s.exec(set.detail)?.[1]?.trim() ?? '';
   const parts = solidScriptFieldSplit(value, ',').length;
   if (parts === 2 || parts === 3) return parts;
+  // A formula that makes a vector, such as [=Vector(1, 2, 3)] or [=[Pos] + Vector(0, 1, 0)].
+  if (/^\[=.*\bvector\s*\(/is.test(value)) return 3;
   const named = /^\[([A-Za-z_][\w.]*)\]$/.exec(value)?.[1];
-  return named !== undefined && solidScriptSystemIsVector(named) === true ? 3 : 0;
+  if (named === undefined) return 0;
+  return solidScriptSystemIsVector(named) === true
+    ? 3
+    : depth > 0
+      ? (solidScriptSuggestionAxes(named, scope, depth - 1) ?? 0)
+      : 0;
 }
 
 /**

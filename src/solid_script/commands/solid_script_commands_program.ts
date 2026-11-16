@@ -1,3 +1,4 @@
+import type { SolidScriptValue } from '@/solid_script/language/solid_script_value.js';
 import * as THREE from 'three';
 import { SolidScriptCommand, type SolidScriptCommandParameter } from './solid_script_command.js';
 import { solidScriptListingInputs, solidScriptListingOptions } from './solid_script_command_listing.js';
@@ -56,6 +57,7 @@ const SOLID_SCRIPT_INPUT_PARAMETERS: readonly SolidScriptCommandParameter[] = [
   solidScriptParameterOptional('min', 'Minimum', 'text', 'Smallest number allowed. Leave it empty for no limit.'),
   solidScriptParameterOptional('max', 'Maximum', 'text', 'Largest number allowed. Leave it empty for no limit.'),
   solidScriptParameterOptional('choices', 'Choices', 'text', 'Values a choice offers, separated by commas.'),
+  solidScriptParameterOptional('tooltip', 'Tooltip', 'text', 'Text shown when hovering the input in the inspector.'),
 ];
 
 /** The Input command, which the inspector also reads. */
@@ -92,20 +94,23 @@ const SOLID_SCRIPT_INPUT_COMMAND = new SolidScriptCommand({
       Object.fromEntries(SOLID_SCRIPT_INPUT_PARAMETERS.map((field) => [field.key, run.text(field.key)])),
     );
     const given = run.inputValue(input.name);
-    let value = solidScriptInputValue(input, input.fallback);
-    // An event handler checks whatever was typed, so a bad value reaches it.
-    if (given !== undefined)
-      try {
-        value = solidScriptInputValue(input, given);
-      } catch (error) {
-        if (!run.handling) throw error;
+    let value: SolidScriptValue;
+    try {
+      value = solidScriptInputValue(input, given ?? input.fallback);
+    } catch (error) {
+      // An event handler checks whatever was typed, so a bad value reaches it;
+      // otherwise a value the script no longer takes falls back to the Default.
+      if (given === undefined) throw error;
+      if (run.handling)
         value =
           input.type === 'text' || input.type === 'choice' || input.type === 'curve' || input.type === 'texture'
             ? given
             : input.type === 'vector'
               ? given.split(',').map(Number)
               : Number(given);
-      }
+      else if (input.fallback.trim() !== '') value = solidScriptInputValue(input, input.fallback);
+      else throw error;
+    }
     run.inputDefine(input.name, value);
     return [];
   },
@@ -150,7 +155,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     stops: ['A missing End line.'],
     nesting: 'open',
     parameters: [
-      solidScriptParameter('name', 'Input', 'name', 'Rails', 'Name of the Input it watches.'),
+      { ...solidScriptParameter('name', 'Input', 'name', 'Rails', 'Name of the Input it watches.'), inputNames: true },
       solidScriptParameter('value', 'Value', 'text', 'yes', 'Value that shows the inputs inside, as plain text.'),
     ],
     listing: (read) => ['Show Inputs When', read.text('name'), ' is ', read.text('value')],

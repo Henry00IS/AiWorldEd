@@ -17,30 +17,22 @@ afterEach(() => document.body.replaceChildren());
 
 describe('SolidScript configurator focus', () => {
   it('keeps the focus where a drag started when it ends over another input', () => {
-    const field = solidScriptConfiguratorFieldBuild(parameterOf('translate', 'v'), '1, 2, 3', () => {});
-    document.body.append(field.element);
-    const [x, , z] = [...field.element.querySelectorAll<HTMLInputElement>('input:not([hidden])')];
-    z!.focus();
-    // Pressed in Z and let go over X: the browser clicks the row both share.
-    field.element.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    expect(document.activeElement).toBe(z);
-    expect(x).not.toBe(document.activeElement);
+    const left = solidScriptConfiguratorFieldBuild(parameterOf('curve_to_mesh', 'radius'), '1', () => {});
+    const right = solidScriptConfiguratorFieldBuild(parameterOf('curve_to_mesh', 'sides'), '8', () => {});
+    document.body.append(left.element, right.element);
+    const typed = right.element.querySelector<HTMLInputElement>('input')!;
+    typed.focus();
+    // Pressed in one input and let go over the other: the browser clicks what both share.
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(document.activeElement).toBe(typed);
   });
 
   it('does nothing when a caption is clicked', () => {
-    const field = solidScriptConfiguratorFieldBuild(parameterOf('curve_to_mesh', 'closed'), 'false', () => {});
+    const field = solidScriptConfiguratorFieldBuild(parameterOf('curve_to_mesh', 'radius'), '1', () => {});
     document.body.append(field.element);
-    const box = field.element.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+    const input = field.element.querySelector<HTMLInputElement>('input')!;
     field.element.querySelector<HTMLElement>('.solid-script-editor-field-label')!.click();
-    expect(box.checked).toBe(false);
-    expect(document.activeElement).not.toBe(box);
+    expect(document.activeElement).not.toBe(input);
     expect(field.element.tagName).toBe('DIV');
-  });
-
-  it('uses the editor toggle button for one Vector, pressed while on', () => {
-    const field = solidScriptConfiguratorFieldBuild(parameterOf('translate', 'v'), '[Edge.Middle]', () => {});
-    const toggle = field.element.querySelector<HTMLButtonElement>('button[aria-label="Offset As One Vector"]')!;
-    expect(toggle.className).toBe('solid-script-editor-tool');
-    expect(toggle.getAttribute('aria-pressed')).toBe('true');
   });
 });

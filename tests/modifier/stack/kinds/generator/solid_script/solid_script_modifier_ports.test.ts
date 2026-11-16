@@ -134,7 +134,7 @@ const MODIFIER_CASES: Record<string, ModifierCase[]> = {
     },
     {
       parameters: { count: 3, mode: 'step', step: 40, rotateCopies: false, uv: 'world' },
-      inputs: { count: '3', mode: 'step', stepangle: '40', rotatecopies: 'false', uv: 'world' },
+      inputs: { count: '3', mode: 'step', step: '40', rotatecopies: 'false', uv: 'world' },
     },
     {
       parameters: {
