@@ -129,6 +129,30 @@ describe('SolidScript inspector inputs', () => {
     expect(parameters()[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]).toEqual({ steps: '3' });
   });
 
+  it('puts the inputs of an Input Row side by side and shows Show Inputs When rows only while the condition holds', () => {
+    const { panel } = inputsFixture([
+      { command: 'input', values: { name: 'rails', type: 'switch', default: 'no', label: 'Rails' } },
+      { command: 'show_inputs_when', values: { name: 'rails', value: 'yes' } },
+      { command: 'input_group', values: { title: 'Railing' } },
+      { command: 'input_row' },
+      { command: 'input', values: { name: 'railHeight', type: 'number', default: '1', label: 'Rail Height' } },
+      { command: 'input', values: { name: 'railWidth', type: 'number', default: '0.1', label: 'Rail Width' } },
+      { command: 'end' },
+      { command: 'end' },
+      { command: 'end' },
+      { command: 'cube' },
+    ]);
+    const row = panel.querySelector<HTMLElement>('[data-solid-script-row]');
+    expect(row?.querySelectorAll('input')).toHaveLength(2);
+    expect(row?.style.display).toBe('none');
+    expect(panel.querySelector<HTMLElement>('[data-solid-script-group="Railing"]')?.style.display).toBe('none');
+    const rails = panel.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+    rails.checked = true;
+    rails.dispatchEvent(new Event('change'));
+    expect(panel.querySelector<HTMLElement>('[data-solid-script-row]')?.style.display).not.toBe('none');
+    expect(panel.querySelector<HTMLElement>('[data-solid-script-group="Railing"]')?.style.display).not.toBe('none');
+  });
+
   it('shows one control per Input line with its default', () => {
     const { panel } = inputsFixture(SOLID_SCRIPT_INPUT_LINES);
     expect(panel.style.display).toBe('');

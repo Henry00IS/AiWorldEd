@@ -21,6 +21,7 @@ import { solidScriptDocumentNormalize } from '@/solid_script/document/solid_scri
 import type { SolidScriptInput } from '@/solid_script/language/solid_script_input.js';
 import {
   solidScriptDocumentInputLayout,
+  solidScriptInputRulesHold,
   type SolidScriptInputLayoutItem,
 } from '@/solid_script/document/solid_script_document_inputs.js';
 import type { SolidScriptEvent } from '@/solid_script/language/solid_script_machine.js';
@@ -72,6 +73,7 @@ export function solidScriptInspectorInputs(
   let script: unknown = null;
   let values: Record<string, string> = {};
   let writers: ((text: string) => void)[] = [];
+  let visibility: (valueOf: (name: string) => string | undefined) => void = () => undefined;
   const noticesShow = (texts: readonly string[], error: string | null): void => {
     const lines = texts.map((text) => modifierStackUiText('div', text, true));
     if (error !== null) {
@@ -102,49 +104,104 @@ export function solidScriptInspectorInputs(
     if (next !== shape) {
       shape = next;
       notices.replaceChildren();
-      const { elements, rowWriters } = solidScriptInspectorLayoutRows(layout, (input, text) =>
+      const built = solidScriptInspectorLayoutRows(layout, (input, text) =>
         commit({ kind: input.type === 'button' ? 'button' : 'input', name: input.name }, text),
       );
-      rowsHost.replaceChildren(...elements);
-      writers = rowWriters;
+      rowsHost.replaceChildren(...built.elements);
+      writers = built.rowWriters;
+      visibility = built.visibility;
     }
     element.style.display = layout.length > 0 ? '' : 'none';
     inputs.forEach((input, index) => writers[index]?.(values[input.name] ?? input.fallback));
+    visibility((name) => values[name] ?? inputs.find((input) => input.name === name)?.fallback);
   };
   return { element, write };
 }
 
 /**
  * Builds the rows of an inspector layout: a heading where an Input Group
- * starts, a line of text per note and a control per input.
+ * starts, a line of text per note, a control per input, and the inputs of an
+ * Input Row side by side.
  *
  * @param layout Rows in line order.
  * @param commit Stores a new value of an input, or presses a button with null.
- * @returns Elements in order, and how to show each input's value.
+ * @returns Elements in order, how to show each input's value, and how to show
+ *   only the rows whose Show Inputs When conditions hold.
  */
 function solidScriptInspectorLayoutRows(
   layout: readonly SolidScriptInputLayoutItem[],
   commit: (input: SolidScriptInput, text: string | null) => void,
-): { elements: HTMLElement[]; rowWriters: ((text: string) => void)[] } {
+): {
+  elements: HTMLElement[];
+  rowWriters: ((text: string) => void)[];
+  visibility: (valueOf: (name: string) => string | undefined) => void;
+} {
   const elements: HTMLElement[] = [];
   const rowWriters: ((text: string) => void)[] = [];
+  // Elements shown under conditions; a heading shows while any row under it does.
+  const units: { element: HTMLElement; when: SolidScriptInputLayoutItem['when'][] }[] = [];
+  let caption: { element: HTMLElement; when: SolidScriptInputLayoutItem['when'][] } | null = null;
+  let row = null as { element: HTMLElement; line: number; when: SolidScriptInputLayoutItem['when'][] } | null;
   let group = '';
   for (const item of layout) {
     if (item.group !== group && item.group !== '') {
-      const caption = modifierStackUiCaption(item.group);
-      caption.dataset['solidScriptGroup'] = item.group;
-      elements.push(caption);
+      const element = modifierStackUiCaption(item.group);
+      element.dataset['solidScriptGroup'] = item.group;
+      elements.push(element);
+      caption = { element, when: [] };
+      units.push(caption);
     }
+    if (item.group === '') caption = null;
     group = item.group;
-    if (item.kind === 'note') {
-      elements.push(modifierStackUiText('div', item.text, true));
+    caption?.when.push(item.when);
+    const element =
+      item.kind === 'note'
+        ? modifierStackUiText('div', item.text, true)
+        : solidScriptInspectorInputRowWritten(item.input, commit, rowWriters);
+    if (item.row === null) {
+      row = null;
+      elements.push(element);
+      units.push({ element, when: [item.when] });
       continue;
     }
-    const row = solidScriptInspectorInputRow(item.input, (text) => commit(item.input, text));
-    elements.push(row.element);
-    rowWriters.push(row.write);
+    if (row?.line !== item.row) {
+      const host = document.createElement('div');
+      host.dataset['solidScriptRow'] = 'true';
+      Object.assign(host.style, { display: 'flex', gap: '4px' });
+      row = { element: host, line: item.row, when: [] };
+      elements.push(host);
+      units.push(row);
+    }
+    element.style.flex = '1 1 0';
+    element.style.minWidth = '0';
+    row.element.append(element);
+    row.when.push(item.when);
   }
-  return { elements, rowWriters };
+  const visibility = (valueOf: (name: string) => string | undefined): void => {
+    for (const unit of units) {
+      const shown = unit.when.some((when) => solidScriptInputRulesHold(when, valueOf));
+      unit.element.style.display = shown ? (unit.element.dataset['solidScriptRow'] ? 'flex' : '') : 'none';
+    }
+  };
+  return { elements, rowWriters, visibility };
+}
+
+/**
+ * Builds the control of one input and records how to show its value.
+ *
+ * @param input Input.
+ * @param commit Stores a new value of an input, or presses a button with null.
+ * @param writers Receives how to show the value, in input order.
+ * @returns Control element.
+ */
+function solidScriptInspectorInputRowWritten(
+  input: SolidScriptInput,
+  commit: (input: SolidScriptInput, text: string | null) => void,
+  writers: ((text: string) => void)[],
+): HTMLElement {
+  const control = solidScriptInspectorInputRow(input, (text) => commit(input, text));
+  writers.push(control.write);
+  return control.element;
 }
 
 /**

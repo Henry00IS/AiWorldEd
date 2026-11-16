@@ -21,6 +21,15 @@ export const SOLID_SCRIPT_COMMAND_INPUT_GROUP = 'input_group';
 /** Id of the Input Note command, which shows text among the inputs. */
 export const SOLID_SCRIPT_COMMAND_INPUT_NOTE = 'input_note';
 
+/** Id of the Input Row command, which puts inputs side by side. */
+export const SOLID_SCRIPT_COMMAND_INPUT_ROW = 'input_row';
+
+/**
+ * Id of the Show Inputs When command, which hides inputs unless another has a
+ * value.
+ */
+export const SOLID_SCRIPT_COMMAND_SHOW_INPUTS_WHEN = 'show_inputs_when';
+
 /** Defaults of an Input line's fields, shared by the command and the inspector. */
 export const SOLID_SCRIPT_INPUT_DEFAULTS = { name: 'width', type: 'number', default: '1' } as const;
 

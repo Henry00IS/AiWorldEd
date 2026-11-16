@@ -60,4 +60,31 @@ describe('solidScriptDocumentInputLayout', () => {
     expect(result.error).toBeNull();
     expect(result.messages).toEqual(['5']);
   });
+
+  it('marks inputs inside an Input Row with the row they share and inputs inside Show Inputs When with its condition', () => {
+    const layout = solidScriptDocumentInputLayout(
+      solidScriptDocumentCreate([
+        { command: 'input', values: { name: 'rails', type: 'switch', default: 'no' } },
+        { command: 'show_inputs_when', values: { name: 'rails', value: 'yes' } },
+        { command: 'input_row' },
+        input('railHeight'),
+        input('railWidth'),
+        END,
+        END,
+        input('loose'),
+      ]),
+    );
+    expect(
+      layout.map((item) => [
+        item.kind === 'input' ? item.input.name : '',
+        item.row,
+        item.when.map((rule) => `${rule.name}=${rule.value}`),
+      ]),
+    ).toEqual([
+      ['rails', null, []],
+      ['railHeight', 2, ['rails=yes']],
+      ['railWidth', 2, ['rails=yes']],
+      ['loose', null, []],
+    ]);
+  });
 });
