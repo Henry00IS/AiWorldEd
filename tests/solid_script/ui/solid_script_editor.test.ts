@@ -542,7 +542,7 @@ describe('SolidScript editor', () => {
     expect([0, 1, 2, 3].map(marked)).toEqual([false, false, true, false]);
   });
 
-  it('selects lines with Shift, copies, cuts and pastes exactly those lines, and Space adds a blank line', () => {
+  it('selects lines with Shift, copies, cuts and pastes exactly those lines, and Space adds a blank line above', () => {
     const { commands, root } = editorFixture([
       { command: 'cube' },
       { command: 'union' },
@@ -567,13 +567,14 @@ describe('SolidScript editor', () => {
     chip(6).dispatchEvent(new Event('cut', { bubbles: true, cancelable: true }));
     expect(commands()).toEqual(['cube', 'union', 'sphere', 'end', 'cylinder']);
     press(chip(4), ' ');
-    expect(commands()).toEqual(['cube', 'union', 'sphere', 'end', 'cylinder', 'blank']);
+    expect(commands()).toEqual(['cube', 'union', 'sphere', 'end', 'blank', 'cylinder']);
+    expect(document.activeElement?.closest('[data-line]')?.getAttribute('data-line')).toBe('4');
     chip(0).focus();
     press(chip(0), 'a', { ctrlKey: true });
     press(document.activeElement as HTMLElement, 'Delete');
     expect(commands()).toEqual([]);
     scriptKey('z');
-    expect(commands()).toEqual(['cube', 'union', 'sphere', 'end', 'cylinder', 'blank']);
+    expect(commands()).toEqual(['cube', 'union', 'sphere', 'end', 'blank', 'cylinder']);
   });
 
   it('pastes lines copied in another window from the clipboard text, keeping their values, and duplicates with Ctrl+D', () => {

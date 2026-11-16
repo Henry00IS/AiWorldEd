@@ -44,10 +44,11 @@ export class SolidScriptEditorLineKeys {
 
   /**
    * Handles a key on a line: arrows move the focus (Shift+arrows select,
-   * Ctrl+Shift+arrows move the line), Enter or F2 configure it, Space,
-   * Shift+Enter or Insert add a blank line below, Delete or Backspace remove
-   * the selection, Ctrl+A selects all and Ctrl+D duplicates the selection.
-   * Copy, cut and paste come as clipboard events, see copy and paste.
+   * Ctrl+Shift+arrows move the line), Enter or F2 configure it, Space adds a
+   * blank line above, Shift+Enter or Insert add one below, Delete or Backspace
+   * remove the selection, Ctrl+A selects all and Ctrl+D duplicates the
+   * selection. Copy, cut and paste come as clipboard events, see copy and
+   * paste.
    *
    * @param event Key event.
    * @param line Line index.
@@ -102,8 +103,8 @@ export class SolidScriptEditorLineKeys {
     if ((command && !event.altKey && event.key === '/') || (!command && event.key === 'F4'))
       return (line) => this.toggle(line);
     if (command || event.altKey) return null;
-    if ((event.key === 'Enter' && event.shiftKey) || event.key === 'Insert' || event.key === ' ')
-      return (line) => this.blank(line);
+    if (event.key === ' ') return (line) => this.blank(line - 1);
+    if ((event.key === 'Enter' && event.shiftKey) || event.key === 'Insert') return (line) => this.blank(line);
     if (event.key === 'Enter' || event.key === 'F2') return (line) => this.host.configure(line);
     if (event.key === 'Delete' || event.key === 'Backspace') return (line) => this.remove(line);
     if (event.key === 'Home' || event.key === 'End')
@@ -205,7 +206,8 @@ export class SolidScriptEditorLineKeys {
   }
 
   /**
-   * Adds a blank line below a line.
+   * Adds a blank line below a line and moves there; -1 adds it as the first
+   * line, so Space passes the line above its own.
    *
    * @param line Line index.
    */
