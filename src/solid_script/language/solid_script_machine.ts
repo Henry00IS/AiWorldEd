@@ -1061,7 +1061,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> imple
     scope: SolidScriptScope,
     context: SolidScriptContext,
   ): SolidScriptShape[] {
-    if (this.failure || this.paused || this.leaving) return [];
+    if (this.failure || this.paused || this.leaving || this.stopping) return [];
     const outer = this.line;
     this.line = node.line;
     const line = this.runOf(node, scope, context);
