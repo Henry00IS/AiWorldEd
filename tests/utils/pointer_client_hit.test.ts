@@ -5,8 +5,29 @@ import {
   findSmallestElementContainingClientPoint,
   isClientPointInsideElementBounds,
 } from '@/utils/pointer_client_hit.js';
+import { panelFloatingScopeMark } from '@/ui/floating_panel/panel_floating_scope.js';
 
 describe('pointer_client_hit', () => {
+  it('finds no viewport under a point a floating window covers, so hover stays off the scene', () => {
+    const pane = createElementWithRect(0, 0, 400, 400);
+    const window = document.createElement('div');
+    panelFloatingScopeMark(window);
+    const field = document.createElement('span');
+    window.append(field);
+    document.body.append(pane, window);
+    const original = document.elementFromPoint;
+    try {
+      document.elementFromPoint = () => field;
+      expect(findPickSurfaceAtClientPoint([pane], (surface) => surface, 40, 50)).toBeNull();
+      document.elementFromPoint = () => pane;
+      expect(findPickSurfaceAtClientPoint([pane], (surface) => surface, 40, 50)).toBe(pane);
+    } finally {
+      document.elementFromPoint = original;
+      pane.remove();
+      window.remove();
+    }
+  });
+
   it('reports whether a client point is inside element bounds', () => {
     const element = createElementWithRect(10, 20, 100, 50);
     expect(isClientPointInsideElementBounds(10, 20, element)).toBe(true);

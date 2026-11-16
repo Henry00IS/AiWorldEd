@@ -1,3 +1,5 @@
+import { panelFloatingScopeCoversPoint } from '@/ui/floating_panel/panel_floating_scope.js';
+
 /**
  * Single source of truth for window-local pointer hit tests. Client coordinates
  * from pointer events are always relative to the window that raised the event
@@ -77,7 +79,9 @@ export function findSmallestElementContainingClientPoint(
 /**
  * Finds the first pick surface whose content element contains a client point.
  * Client coordinates are window-local; when ownerDocument is set only surfaces
- * in that document are tested so detached popups never hit main-window panes.
+ * in that document are tested so detached popups never hit main-window panes. A
+ * point a floating window covers hits no surface, so viewports under the window
+ * do not react to it.
  *
  * @param surfaces Interactive panes or other pick surfaces.
  * @param getContentElement Resolves the DOM pick element for a surface.
@@ -93,6 +97,7 @@ export function findPickSurfaceAtClientPoint<T>(
   clientY: number,
   ownerDocument: Document | null = null,
 ): T | null {
+  if (panelFloatingScopeCoversPoint(ownerDocument ?? document, clientX, clientY)) return null;
   for (const surface of surfaces) {
     const pickElement = getContentElement(surface);
     if (!pickElement) {

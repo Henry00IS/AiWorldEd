@@ -1,7 +1,9 @@
+import { panelFloatingScopeOf } from '@/ui/floating_panel/panel_floating_scope.js';
+
 /**
  * Returns whether a native copy or paste belongs to the editor rather than to
- * text: not inside a text field, an editable element or an open dialog, and
- * with no page text selected.
+ * text: not inside a text field, an editable element, an open dialog or a
+ * floating window, and with no page text selected.
  *
  * @param event Copy or paste event.
  * @returns True when the editor should handle it.
@@ -10,6 +12,7 @@ export function clipboardEventForEditor(event: ClipboardEvent): boolean {
   const target = event.target instanceof Element ? event.target : null;
   if (target?.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"], [role="dialog"]'))
     return false;
+  if (panelFloatingScopeOf(target) !== null) return false;
   const selection = target?.ownerDocument.getSelection() ?? null;
   return !selection || selection.isCollapsed || selection.toString() === '';
 }

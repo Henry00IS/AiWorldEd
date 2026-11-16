@@ -1,3 +1,5 @@
+import { ManagerInput } from '@/input/manager_input.js';
+import { HandlerKeyboardShortcut } from '@/input/handler_keyboard_shortcut.js';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import * as THREE from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -341,21 +343,25 @@ describe('SolidScript editor', () => {
 
   it('keeps Delete and Backspace in the window after a click anywhere in it, so the generator stays', () => {
     const { root, node, commands } = editorFixture(CUBE_SPHERE);
+    const input = new ManagerInput();
+    const handler = new HandlerKeyboardShortcut(input);
     const scene = vi.fn();
-    window.addEventListener('keydown', scene);
+    handler.setOnDeleteSelected(scene);
+    handler.register();
     try {
       for (const selector of [
         '.solid-script-editor-help',
         '.solid-script-editor-toolbar',
         '.solid-script-editor-output',
       ]) {
-        find(selector).dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+        find(selector).dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
         expect(root.contains(document.activeElement)).toBe(true);
         press(document.activeElement as HTMLElement, 'Delete');
         press(document.activeElement as HTMLElement, 'Backspace');
       }
     } finally {
-      window.removeEventListener('keydown', scene);
+      handler.unregister();
+      input.dispose();
     }
     expect(scene).not.toHaveBeenCalled();
     expect(node.parent).not.toBeNull();

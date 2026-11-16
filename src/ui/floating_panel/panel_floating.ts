@@ -6,6 +6,11 @@ import {
   type FloatingPanelTitleBarOptions,
   type FloatingPanelTitleBarParts,
 } from './panel_floating_title_bar.js';
+import {
+  panelFloatingScopeFocus,
+  panelFloatingScopeMark,
+  type PanelFloatingScopePass,
+} from './panel_floating_scope.js';
 
 /** Diagonal step between panels opened on the same corner, in CSS pixels. */
 const PANEL_FLOATING_CASCADE_PX = 28;
@@ -49,13 +54,20 @@ export interface FloatingPanelOptions {
   backdropClassName?: string;
   /** Optional backdrop background CSS. Defaults to a dim scrim when modal. */
   backdropBackground?: string;
+  /**
+   * Scene shortcuts that still reach the scene while the window has focus:
+   * 'undo' for windows that change the scene directly, such as the UV Editor,
+   * so Ctrl+Z undoes their change. Every other key stays in the window.
+   */
+  sceneKeys?: PanelFloatingScopePass;
 }
 
 /**
  * Shared base for floating editor windows and modal dialogs. Owns show/hide,
  * optional modal backdrop, startup anchoring, optional title-bar drag, screen
- * clamping, Escape/backdrop dismiss, and stacking via
- * {@link FloatingPanelStack}.
+ * clamping, Escape/backdrop dismiss, stacking via {@link FloatingPanelStack},
+ * and the keyboard scope: a clicked window keeps its keys until a click lands
+ * outside every window.
  *
  * Lifecycle is identical for every subclass: the shell is built in memory on
  * construct, mounted into the host only while open, and removed from the DOM
@@ -114,6 +126,7 @@ export abstract class PanelFloating {
     this.boundDocumentKeyDown = (event) => this.onDocumentKeyDown(event);
     this.root = this.createShellRoot();
     this.backdrop = this.modal ? this.createModalBackdrop(options) : null;
+    panelFloatingScopeMark(this.getStackElement(), options.sceneKeys ?? 'none');
     FloatingPanelStack.register(this.getStackElement(), () => this.clampToScreenIfVisible(), this.stackLayer);
     this.bindBringToFrontOnPointer();
   }
@@ -410,6 +423,8 @@ export abstract class PanelFloating {
     root.style.display = 'none';
     root.style.flexDirection = 'column';
     root.style.userSelect = 'none';
+    root.style.outline = 'none';
+    root.tabIndex = -1;
     if (this.modal && this.centered) {
       root.style.position = 'relative';
     } else {
@@ -458,8 +473,9 @@ export abstract class PanelFloating {
 
   /** Raises this panel when the user interacts with it. */
   private bindBringToFrontOnPointer(): void {
-    this.getStackElement().addEventListener('pointerdown', () => {
+    this.getStackElement().addEventListener('pointerdown', (event) => {
       FloatingPanelStack.bringToFront(this.getStackElement(), this.stackLayer);
+      if (this.root.contains(event.target as Node | null)) panelFloatingScopeFocus(this.root, event);
     });
   }
 

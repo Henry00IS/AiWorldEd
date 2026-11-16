@@ -201,25 +201,8 @@ export class SolidScriptEditor extends PanelFloating {
     solidScriptFileDropBind(this.lines.element, ThemeCss.accentColor, (result) => this.dropped(result));
     styleFloatingPanelStatusBar(this.status);
     this.root.append(bar.bar, this.toolbar.element, body, this.output.element, this.status, this.grip());
-    this.root.tabIndex = -1;
-    this.root.style.outline = 'none';
     this.root.addEventListener('keydown', (event) => this.key(event));
-    this.root.addEventListener('mousedown', (event) => this.pointerDown(event));
-  }
-
-  /**
-   * Keeps a click anywhere in the window inside it: the keyboard focus moves to
-   * the window unless a field, button or line takes it, so Delete and other
-   * scene keys can never reach the level while the window was clicked last.
-   *
-   * @param event Pointer event.
-   */
-  private pointerDown(event: MouseEvent): void {
-    event.stopPropagation();
-    if (event.defaultPrevented) return;
-    const target = event.target instanceof HTMLElement ? event.target : null;
-    if (target?.closest('input, textarea, select, button, [tabindex]:not([tabindex="-1"])')) return;
-    this.root.focus({ preventScroll: true });
+    this.root.addEventListener('mousedown', (event) => event.stopPropagation());
   }
 
   /** Styles the window frame at its default and smallest size. */

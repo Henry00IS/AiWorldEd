@@ -107,7 +107,7 @@ export class TextureBrowser extends PanelFloating {
    */
   constructor(host: HTMLElement, handlers: TextureBrowserHandlers, defaultAnchor: HTMLElement | null = null) {
     ensureTextureBrowserStylesheet();
-    super(host, { corner: 'bottom-right' }, defaultAnchor);
+    super(host, { corner: 'bottom-right', sceneKeys: 'undo' }, defaultAnchor);
     this.handlers = handlers;
     this.selectedId = null;
     this.tileElements = new Map();

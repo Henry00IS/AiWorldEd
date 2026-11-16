@@ -1,3 +1,4 @@
+import { panelFloatingScopeOf } from '@/ui/floating_panel/panel_floating_scope.js';
 import { ManagerInput } from './manager_input.js';
 import { createDefaultKeyboardShortcutSettings } from '@/settings/store/settings_defaults.js';
 import type { KeyboardShortcutSettings } from '@/settings/store/settings_types.js';
@@ -516,13 +517,21 @@ export class HandlerKeyboardShortcut {
 
   /**
    * Processes a keydown event through the unified Shape Editor-style pipeline.
-   * Order: form-field ignore → tool event router (navigation gate, active
-   * receiver, busy exclusivity, global fallthrough) → legacy modal/global when
-   * no router is registered.
+   * Order: window scope (keys pressed in a floating window stay there, except
+   * undo and redo of windows that change the scene) → form-field ignore → tool
+   * event router (navigation gate, active receiver, busy exclusivity, global
+   * fallthrough) → legacy modal/global when no router is registered.
    *
    * @param event The keyboard event to process.
    */
   private handleKeyDown(event: KeyboardEvent): void {
+    const scope = panelFloatingScopeOf(event.target);
+    if (scope !== null) {
+      const typing = handlerKeyboardShortcutIsTypingInFormField(event);
+      if (scope === 'undo' && (!typing || handlerKeyboardShortcutFieldAllowsEditorUndo(event)))
+        handlerKeyboardShortcutHandleUndoRedoKeys(this.toActionHost(), event);
+      return;
+    }
     if (handlerKeyboardShortcutIsTypingInFormField(event)) {
       if (handlerKeyboardShortcutFieldAllowsEditorUndo(event))
         handlerKeyboardShortcutHandleUndoRedoKeys(this.toActionHost(), event);

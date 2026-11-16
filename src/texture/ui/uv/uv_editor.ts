@@ -82,7 +82,7 @@ export class UvEditor extends PanelFloating {
    *   position.
    */
   constructor(host: HTMLElement, handlers: UvEditorHandlers, defaultAnchor: HTMLElement | null = null) {
-    super(host, { corner: 'bottom-left' }, defaultAnchor);
+    super(host, { corner: 'bottom-left', sceneKeys: 'undo' }, defaultAnchor);
     this.handlers = handlers;
     this.lastAlign = 'auto';
     this.suppressFieldEmit = false;
