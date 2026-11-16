@@ -2,6 +2,7 @@ import type { SolidScriptExpression } from './solid_script_ast.js';
 import { solidScriptArithmeticBinary } from './solid_script_arithmetic.js';
 import type { SolidScriptExpressionEvaluator } from './solid_script_expression_evaluator.js';
 import { SOLID_SCRIPT_FUNCTIONS_BUILTIN } from './solid_script_functions_builtin.js';
+import { solidScriptFunctionKey, solidScriptFunctionSpelling, solidScriptNameKey } from './solid_script_name_key.js';
 import type { SolidScriptScope } from './solid_script_scope.js';
 import { solidScriptValueShow, solidScriptValueTruthy, type SolidScriptValue } from './solid_script_value.js';
 
@@ -106,8 +107,9 @@ function solidScriptExpressionCompile(expression: SolidScriptExpression): SolidS
  * @param name Variable name.
  * @returns Closure.
  */
-function solidScriptCompileVariable(name: string): SolidScriptCompiled {
-  if (name === 'PI') return () => Math.PI;
+function solidScriptCompileVariable(written: string): SolidScriptCompiled {
+  const name = solidScriptNameKey(written);
+  if (name === 'pi') return () => Math.PI;
   return (evaluator, scope) => {
     const home = scope.variableHome(name);
     return home ? home.variableOwn(name) : evaluator.variableMissing(name, scope);
@@ -121,16 +123,16 @@ function solidScriptCompileVariable(name: string): SolidScriptCompiled {
  * @param args Compiled arguments.
  * @returns Closure.
  */
-function solidScriptCompileCall(name: string, args: readonly SolidScriptCompiled[]): SolidScriptCompiled {
-  const builtin = Object.hasOwn(SOLID_SCRIPT_FUNCTIONS_BUILTIN, name)
-    ? SOLID_SCRIPT_FUNCTIONS_BUILTIN[name]
-    : undefined;
+function solidScriptCompileCall(written: string, args: readonly SolidScriptCompiled[]): SolidScriptCompiled {
+  const found = solidScriptBuiltinFind(written);
+  const builtin = found ? SOLID_SCRIPT_FUNCTIONS_BUILTIN[found] : undefined;
+  const name = found ? solidScriptFunctionSpelling(found) : solidScriptNameKey(written);
   return (evaluator, scope) => {
     const values = new Array<SolidScriptValue>(args.length);
     for (let index = 0; index < args.length; index++) values[index] = args[index]!(evaluator, scope);
     if (!builtin) return evaluator.callUser(name, values);
     const result = builtin(values);
-    if (result === undefined && name !== 'is_undef')
+    if (result === undefined && found !== 'is_undef')
       throw new Error(`${name}() cannot use ${values.map(solidScriptValueShow).join(', ') || 'no values'}`);
     return result;
   };
@@ -195,15 +197,15 @@ function solidScriptCompileBinary(
  */
 function solidScriptCompileMember(expression: Extract<SolidScriptExpression, { kind: 'member' }>): SolidScriptCompiled {
   const target = solidScriptExpressionCompiled(expression.target);
-  const index = SOLID_SCRIPT_MEMBERS[expression.name];
+  const index = SOLID_SCRIPT_MEMBERS[solidScriptNameKey(expression.name)];
   const names: string[] = [];
   let part: SolidScriptExpression = expression;
   while (part.kind === 'member') {
     names.unshift(part.name);
     part = part.target;
   }
-  const root = part.kind === 'variable' ? part.name : null;
-  const dotted = root === null ? '' : [root, ...names].join('.');
+  const root = part.kind === 'variable' ? solidScriptNameKey(part.name) : null;
+  const dotted = root === null ? '' : solidScriptNameKey([root, ...names].join('.'));
   return (evaluator, scope) => {
     if (root !== null && !scope.variableHas(root)) {
       const builtIn = evaluator.systemRead(dotted);
@@ -211,4 +213,21 @@ function solidScriptCompileMember(expression: Extract<SolidScriptExpression, { k
     }
     return evaluator.evaluateIndex(target(evaluator, scope), index);
   };
+}
+
+/** Built-in function names by key, made on first use. */
+let solidScriptBuiltinKeys: Map<string, string> | null = null;
+
+/**
+ * Finds a built-in function whatever its case and underscores, such as
+ * CharacterCode for character_code.
+ *
+ * @param name Name as written.
+ * @returns Stored name, or undefined for none.
+ */
+export function solidScriptBuiltinFind(name: string): string | undefined {
+  solidScriptBuiltinKeys ??= new Map(
+    Object.keys(SOLID_SCRIPT_FUNCTIONS_BUILTIN).map((stored) => [solidScriptFunctionKey(stored), stored]),
+  );
+  return solidScriptBuiltinKeys.get(solidScriptFunctionKey(name));
 }

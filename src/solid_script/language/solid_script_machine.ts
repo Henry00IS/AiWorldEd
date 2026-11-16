@@ -27,7 +27,8 @@ import {
   solidScriptListItemRemove,
   solidScriptListItemWrite,
 } from './solid_script_list_item.js';
-import { SOLID_SCRIPT_FUNCTIONS_BUILTIN } from './solid_script_functions_builtin.js';
+import { solidScriptBuiltinFind } from './solid_script_expression_compile.js';
+import { solidScriptNameKey } from './solid_script_name_key.js';
 import { solidScriptShapeTransform } from './solid_script_reshape.js';
 import {
   solidScriptMeshChecked,
@@ -522,11 +523,13 @@ function solidScriptVectorComponent(name: string): SolidScriptVectorPart | null 
 
 /** First names of the built-in values, such as Time. */
 const SOLID_SCRIPT_SYSTEM_GROUPS: ReadonlySet<string> = new Set(
-  SOLID_SCRIPT_SYSTEM_GLOBALS.map((entry) => entry.name.slice(0, entry.name.indexOf('.'))),
+  SOLID_SCRIPT_SYSTEM_GLOBALS.map((entry) => solidScriptNameKey(entry.name.slice(0, entry.name.indexOf('.')))),
 );
 
-/** Names of the built-in values every script can read. */
-const SOLID_SCRIPT_SYSTEM_NAMES: ReadonlySet<string> = new Set(SOLID_SCRIPT_SYSTEM_GLOBALS.map((entry) => entry.name));
+/** Spellings of the built-in values every script can read, by key. */
+const SOLID_SCRIPT_SYSTEM_NAMES: ReadonlyMap<string, string> = new Map(
+  SOLID_SCRIPT_SYSTEM_GLOBALS.map((entry) => [solidScriptNameKey(entry.name), entry.name]),
+);
 
 /**
  * Names already checked to be plain names, so setting them again skips the
@@ -652,6 +655,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
   private readonly messages: string[] = [];
   private readonly steps: number[] = [];
   private readonly readOnly = new Map<string, string>();
+  /** First spelling of every name by its key, for the variable explorer. */
+  private readonly spellings = new Map<string, string>();
   private readonly parts = new Map<string, SolidScriptPart<Command>>();
   /** Function blocks by name. */
   private readonly functions = new Map<string, SolidScriptBlockNode<Command>>();
@@ -736,7 +741,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     const context = { matrix: new THREE.Matrix4(), planar: false };
     const shapes = this.linesRun(lines, this.root, context, this.root);
     const variables = [...(this.watched?.variablesVisible() ?? [])].map(([name, value]) =>
-      solidScriptVariableView(name, value),
+      solidScriptVariableView(this.spellings.get(name) ?? name, value),
     );
     if (!this.failure && !this.paused && this.steps.length === 0 && this.system.use?.usage !== 'Modifier')
       this.failure = solidScriptFailure(null, 'the script builds no shapes; add a shape such as Cube');
@@ -794,7 +799,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
   private useOnce(): void {
     if (this.used) throw new Error('a script machine runs once; make a new one for every run');
     this.used = true;
-    for (const [name, value] of solidScriptPersistentRead(this.inputs)) this.persistent.variableDefine(name, value);
+    for (const [name, value] of solidScriptPersistentRead(this.inputs))
+      this.persistent.variableDefine(this.nameKey(name), value);
   }
 
   /**
@@ -849,13 +855,13 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
   private functionDefine(node: SolidScriptBlockNode<Command>): void {
     const name = node.command.valueText(node.values, 'name');
     this.nameCheck(name, 'a function');
-    if (SOLID_SCRIPT_FUNCTIONS_BUILTIN[name] || name === 'PI')
+    if (solidScriptBuiltinFind(name) || this.nameKey(name) === 'pi')
       throw new Error(`${name}() is a built-in function; pick another name`);
-    const known = this.functions.get(name);
+    const known = this.functions.get(this.nameKey(name));
     if (known && known !== node) throw new Error(`a function named "${name}" is already defined on line ${known.line}`);
     for (const parameter of solidScriptFunctionParameters(node.command.valueText(node.values, 'parameters')))
       this.nameCheck(parameter, 'a function input');
-    this.functions.set(name, node);
+    this.functions.set(this.nameKey(name), node);
   }
 
   /**
@@ -874,11 +880,13 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     values: readonly SolidScriptValue[],
     context: SolidScriptContext,
   ): { shapes: SolidScriptShape[]; value: SolidScriptValue } | null {
-    const node = this.functions.get(name);
+    const node = this.functions.get(this.nameKey(name));
     if (!node) return null;
     let parameters = this.functionParameters.get(node);
     if (!parameters) {
-      parameters = solidScriptFunctionParameters(node.command.valueText(node.values, 'parameters'));
+      parameters = solidScriptFunctionParameters(node.command.valueText(node.values, 'parameters')).map((parameter) =>
+        this.nameKey(parameter),
+      );
       this.functionParameters.set(node, parameters);
     }
     if (values.length !== parameters.length)
@@ -980,9 +988,10 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
    * @returns Scope and the name without the prefix.
    */
   private variableWhere(
-    name: string,
+    written: string,
     scope: SolidScriptScope,
   ): { scope: SolidScriptScope; name: string; local: boolean; persistent: boolean } {
+    const name = solidScriptNameKey(written);
     if (name.startsWith(SOLID_SCRIPT_PERSISTENT_PREFIX))
       return {
         scope: this.persistent,
@@ -1009,10 +1018,10 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     const name = node.command.valueText(node.values, 'name');
     if (!SOLID_SCRIPT_NAME.test(name))
       throw new Error(`"${name}" cannot name a part; use letters, digits and _, not starting with a digit`);
-    const known = this.parts.get(name);
+    const known = this.parts.get(this.nameKey(name));
     if (known && known.node !== node)
       throw new Error(`a part named "${name}" is already defined on line ${known.node.line}`);
-    this.parts.set(name, { node });
+    this.parts.set(this.nameKey(name), { node });
   }
 
   /**
@@ -1253,10 +1262,11 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
       repeated: (counter, values) => {
         state.machine.nameCheck(counter, 'a counter');
         state.machine.writableCheck(counter);
+        const key = state.machine.nameKey(counter);
         const shapes = values.flatMap((round) => {
           state.machine.workTake();
           const inner = new SolidScriptScope(state.scope);
-          inner.variableDefine(counter, round);
+          inner.variableDefine(key, round);
           return node.children.length === 0 ? [] : state.machine.linesRun(node.children, inner, state.context, inner);
         });
         const joined = solidScriptShapeJoin(shapes, labelOf());
@@ -1278,7 +1288,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
         const shapes = rounds.flatMap((round) => {
           state.machine.workTake();
           const inner = new SolidScriptScope(state.scope);
-          for (const [name, value] of Object.entries(round.variables)) inner.variableDefine(name, value);
+          for (const [name, value] of Object.entries(round.variables))
+            inner.variableDefine(state.machine.nameKey(name), value);
           state.machine.faceRounds.push(round.face);
           try {
             return node.children.length === 0 ? [] : state.machine.linesRun(node.children, inner, state.context, inner);
@@ -1340,10 +1351,12 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
           throw new Error(
             'Set Input only works in When Input Changes or When Button Pressed; the inspector sets inputs',
           );
-        if (state.machine.readOnly.get(name) !== 'input')
+        const key = solidScriptNameKey(name);
+        if (state.machine.readOnly.get(key) !== 'input')
           throw new Error(`there is no input "${name}"; add an Input line for it`);
-        state.machine.root.variableSet(name, assigned);
-        state.machine.inputsChanged[name] = solidScriptValueText(assigned);
+        state.machine.root.variableSet(key, assigned);
+        // The inspector keeps the value under the Input line's own spelling.
+        state.machine.inputsChanged[state.machine.spellings.get(key) ?? name] = solidScriptValueText(assigned);
       },
       notice: (text) => {
         if (!state.machine.handling)
@@ -1376,7 +1389,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
       },
       valueWith: (key, variables) => {
         const inner = new SolidScriptScope(state.scope);
-        for (const [name, assigned] of Object.entries(variables)) inner.variableDefine(name, assigned);
+        for (const [name, assigned] of Object.entries(variables))
+          inner.variableDefine(state.machine.nameKey(name), assigned);
         return state.machine.fieldValue(node, key, inner);
       },
       print: (text) => {
@@ -1387,11 +1401,12 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
       use: () => state.machine.system.use ?? SOLID_SCRIPT_USE_GENERATOR,
       inputDefine: (name, value) => {
         state.machine.nameCheck(name, 'an input');
-        if (state.machine.readOnly.has(name)) throw new Error(`an input named "${name}" is already defined`);
-        if (state.scope.variableHas(name))
+        const key = state.machine.nameKey(name);
+        if (state.machine.readOnly.has(key)) throw new Error(`an input named "${name}" is already defined`);
+        if (state.scope.variableHas(key))
           throw new Error(`"${name}" is already a variable; inputs come before the lines that use them`);
-        state.scope.variableDefine(name, value);
-        state.machine.readOnly.set(name, 'input');
+        state.scope.variableDefine(key, value);
+        state.machine.readOnly.set(key, 'input');
       },
       listRead: (name) => state.machine.listRead(state.scope, name),
       listUpdate: (name, change, create) => {
@@ -1595,8 +1610,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
    */
   private systemRead(name: string): SolidScriptValue {
     const dot = name.indexOf('.');
-    const first = name.charCodeAt(0);
-    if (first < 65 || first > 90 || dot < 0 || !SOLID_SCRIPT_SYSTEM_GROUPS.has(name.slice(0, dot))) return undefined;
+    if (dot < 0 || !SOLID_SCRIPT_SYSTEM_GROUPS.has(name.slice(0, dot))) return undefined;
     const value = this.system.get(name);
     if (value !== undefined) return value;
     const part = solidScriptVectorComponent(name);
@@ -1604,7 +1618,9 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     if (part && whole !== undefined) return solidScriptVectorComponentRead(part, whole);
     const base = part && SOLID_SCRIPT_SYSTEM_NAMES.has(part.name) ? part.name : name;
     if (SOLID_SCRIPT_SYSTEM_NAMES.has(base))
-      throw new Error(`[${base}] is only known when the script runs in a generator, where there is a box`);
+      throw new Error(
+        `[${SOLID_SCRIPT_SYSTEM_NAMES.get(base)}] is only known when the script runs in a generator, where there is a box`,
+      );
     return undefined;
   }
 
@@ -1615,7 +1631,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
    * @param name Name.
    * @param value Value.
    */
-  private variableSet(scope: SolidScriptScope, name: string, value: SolidScriptValue): void {
+  private variableSet(scope: SolidScriptScope, written: string, value: SolidScriptValue): void {
+    const name = this.nameKey(written);
     if (SOLID_SCRIPT_NAMES_PLAIN.has(name)) {
       this.writableCheck(name);
       const home = this.frameFunction() && !scope.variableHas(name) ? this.root : scope;
@@ -1669,6 +1686,18 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
   }
 
   /**
+   * Returns the key of a name and keeps its first spelling for display.
+   *
+   * @param name Name as written.
+   * @returns Key.
+   */
+  private nameKey(name: string): string {
+    const key = solidScriptNameKey(name);
+    if (!this.spellings.has(key)) this.spellings.set(key, name);
+    return key;
+  }
+
+  /**
    * Fails on a name that cannot be used for a variable or counter.
    *
    * @param name Name.
@@ -1687,7 +1716,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
    * @param name Name being set.
    */
   private writableCheck(name: string): void {
-    const origin = this.readOnly.get(name);
+    const origin = this.readOnly.get(solidScriptNameKey(name));
     if (origin !== undefined)
       throw new Error(
         `"${name}" is an ${origin} of this script and can only be read; change its value in the inspector`,
@@ -1777,7 +1806,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
    * @returns The part as one shape.
    */
   private partUse(name: string, scope: SolidScriptScope, context: SolidScriptContext): SolidScriptShape[] {
-    const part = this.parts.get(name);
+    const part = this.parts.get(this.nameKey(name));
     if (!part) {
       const known = [...this.parts.keys()].sort();
       throw new Error(
@@ -1828,7 +1857,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
       name: frame.kind === 'function' ? `${frame.name}()` : `part ${frame.name}`,
       line: frame.line,
       locals: [...(frame.locals?.variablesVisible() ?? [])].map(([name, value]) =>
-        solidScriptVariableView(`${SOLID_SCRIPT_LOCAL_PREFIX}${name}`, value),
+        solidScriptVariableView(`${SOLID_SCRIPT_LOCAL_PREFIX}${this.spellings.get(name) ?? name}`, value),
       ),
     }));
   }

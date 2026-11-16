@@ -6,6 +6,7 @@ import {
 } from './solid_script_geometry.js';
 import type { SolidScriptShape } from './solid_script_shape.js';
 import type { SolidScriptValue } from './solid_script_value.js';
+import { solidScriptFunctionKey } from './solid_script_name_key.js';
 
 /** Formula functions that read the shapes built so far, with what each needs. */
 export const SOLID_SCRIPT_GEOMETRY_LOOKUPS: Readonly<Record<string, string>> = {
@@ -46,22 +47,30 @@ function solidScriptLookupVector(vector: THREE.Vector3): SolidScriptValue {
   return vector.toArray().map(solidScriptLookupRound);
 }
 
+/** Lookup names by key, made on first use, so FaceCount finds face_count. */
+let solidScriptGeometryLookupKeys: Map<string, string> | null = null;
+
 /**
  * Works out a geometry formula function, such as face_center(2), over the
- * shapes built so far.
+ * shapes built so far. Case and underscores do not count.
  *
- * @param name Function name.
+ * @param written Function name as written.
  * @param values Values passed.
  * @param shapes Shapes built so far.
  * @returns Value, or undefined when the name is not a geometry function.
  */
 export function solidScriptGeometryLookup(
-  name: string,
+  written: string,
   values: readonly SolidScriptValue[],
   shapes: () => readonly SolidScriptShape[],
 ): SolidScriptValue | undefined {
-  const usage = SOLID_SCRIPT_GEOMETRY_LOOKUPS[name];
-  if (usage === undefined) return undefined;
+  solidScriptGeometryLookupKeys ??= new Map(
+    Object.keys(SOLID_SCRIPT_GEOMETRY_LOOKUPS).map((stored) => [solidScriptFunctionKey(stored), stored]),
+  );
+  const stored = solidScriptGeometryLookupKeys.get(solidScriptFunctionKey(written));
+  if (stored === undefined) return undefined;
+  const name = stored;
+  const usage = SOLID_SCRIPT_GEOMETRY_LOOKUPS[name]!;
   const [family, what] = name.split('_') as [string, string];
   const list =
     family === 'face'

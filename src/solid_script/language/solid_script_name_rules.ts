@@ -31,11 +31,18 @@ function solidScriptSystemGroups(loops: Record<string, string[]>): Record<string
   return loops;
 }
 
+/** Spellings of the read-only values by their key, as names ignore case. */
+const SOLID_SCRIPT_SYSTEM_SPELLINGS: ReadonlyMap<string, string> = new Map(
+  Object.entries(SOLID_SCRIPT_SYSTEM_VALUES).flatMap(([group, members]) =>
+    members.map((member) => [`${group}.${member}`.toLowerCase(), `${group}.${member}`] as const),
+  ),
+);
+
 /** A list item or count behind a name, such as points(2) or points().count. */
 const SOLID_SCRIPT_NAME_ITEM = /^(.*?)\s*\((.*)\)\s*(?:\.\s*([A-Za-z_]\w*))?$/s;
 
 /** A name of the script, with an optional prefix and vector part. */
-const SOLID_SCRIPT_NAME_OWN = /^(local\.|persistent\.)?[A-Za-z_]\w*(\.[xyzXYZ])?$/;
+const SOLID_SCRIPT_NAME_OWN = /^(local\.|persistent\.)?[A-Za-z_]\w*(\.[xyzXYZ])?$/i;
 
 /** A read-only value of a loop, with an optional vector part. */
 const SOLID_SCRIPT_NAME_SYSTEM = /^([A-Za-z]+)\.([A-Za-z0-9]+)(\.[xyzXYZ])?$/;
@@ -57,7 +64,7 @@ export function solidScriptNameDotProblem(name: string, use: 'read' | 'set'): st
     return `a list has no .${item[3]}; write ${base}().count for the number of items`;
   if (!base.includes('.') || SOLID_SCRIPT_NAME_OWN.test(base)) return '';
   const system = SOLID_SCRIPT_NAME_SYSTEM.exec(base);
-  if (system && SOLID_SCRIPT_SYSTEM_VALUES[system[1]!]?.includes(system[2]!))
-    return use === 'set' ? `${system[1]}.${system[2]} is a built-in value and can only be read` : '';
+  const spelled = system ? SOLID_SCRIPT_SYSTEM_SPELLINGS.get(`${system[1]}.${system[2]}`.toLowerCase()) : undefined;
+  if (spelled) return use === 'set' ? `${spelled} is a built-in value and can only be read` : '';
   return `"${base}" cannot be a name: names use letters, digits and _. A dot only works in built-in names, such as pos.x, local.width, persistent.count or Face.Center`;
 }

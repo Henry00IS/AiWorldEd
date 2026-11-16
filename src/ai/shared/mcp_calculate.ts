@@ -25,7 +25,7 @@ export function calculateExpression(expression: string): McpToolResult {
   try {
     const constants = solidScriptSystemValues('assistant', null, false);
     const value = new SolidScriptExpressionEvaluator(undefined, undefined, (name) =>
-      name.startsWith('Math.') ? constants.get(name) : undefined,
+      name.startsWith('math.') ? constants.get(name) : undefined,
     ).evaluate(solidScriptExpressionParse(trimmed), new SolidScriptScope(null));
     const finite = (entry: unknown): boolean => typeof entry === 'number' && Number.isFinite(entry);
     if (!finite(value) && !(Array.isArray(value) && value.length > 0 && value.every(finite)))

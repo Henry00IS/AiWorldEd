@@ -2,6 +2,7 @@ import type { SolidScriptExpression } from './solid_script_ast.js';
 import { solidScriptNameDotProblem } from './solid_script_name_rules.js';
 import type { SolidScriptValue } from './solid_script_value.js';
 import { solidScriptValueText } from './solid_script_value.js';
+import { solidScriptNameKey } from './solid_script_name_key.js';
 
 /**
  * How the text typed into a block field is read. Field text is plain text
@@ -220,7 +221,9 @@ function solidScriptFieldGroupCompile(pieces: readonly SolidScriptFieldPiece[]):
       .join('')
       .trim();
     if (name === '') return empty;
-    return (context) => context.variable(name);
+    // Folded once here, so each read only compares keys.
+    const key = solidScriptNameKey(name);
+    return (context) => context.variable(key);
   }
   const parts = pieces.map((piece) =>
     piece.kind === 'plain' ? piece.text : solidScriptFieldGroupCompile(piece.pieces),
@@ -229,7 +232,7 @@ function solidScriptFieldGroupCompile(pieces: readonly SolidScriptFieldPiece[]):
     let inner = '';
     for (const part of parts) inner += typeof part === 'string' ? part : solidScriptValueText(part(context));
     const name = inner.trim();
-    return name === '' ? empty() : context.variable(name);
+    return name === '' ? empty() : context.variable(solidScriptNameKey(name));
   };
 }
 

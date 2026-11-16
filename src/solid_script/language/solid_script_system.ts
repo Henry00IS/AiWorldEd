@@ -1,4 +1,5 @@
 import type { SolidScriptValue } from './solid_script_value.js';
+import { solidScriptNameKey } from './solid_script_name_key.js';
 
 /** Where a script runs. */
 export type SolidScriptRunContext = 'generator' | 'preview' | 'handler' | 'assistant';
@@ -282,11 +283,15 @@ export function solidScriptSystemValues(
       : {}),
   };
   const known = new Map<string, SolidScriptValue>();
+  // Names ignore case: Box.Size and box.size are one value.
+  const readers = new Map(Object.entries(read).map(([name, reader]) => [solidScriptNameKey(name), reader]));
   return {
     use,
-    get: (name) => {
+    get: (written) => {
+      const name = solidScriptNameKey(written);
       if (known.has(name)) return known.get(name);
-      const value = Object.hasOwn(read, name) ? read[name]!() : undefined;
+      const reader = readers.get(name);
+      const value = reader ? reader() : undefined;
       known.set(name, value);
       return value;
     },
