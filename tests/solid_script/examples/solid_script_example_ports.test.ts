@@ -5,7 +5,7 @@ import { solidScriptDocumentCreate } from '@/solid_script/document/solid_script_
 import { solidScriptShapeLeavesPositive } from '@/solid_script/language/solid_script_shape.js';
 import { solidScriptGeneratorPieces } from '@/solid_script/language/solid_script_generator_pieces.js';
 import { solidHullBrushFromPoints } from '@/solid/algorithm/surface/solid_hull_brush.js';
-import { SOLID_SCRIPT_EXAMPLES } from '@/solid_script/examples/solid_script_examples.js';
+import { SOLID_SCRIPT_EXAMPLES, solidScriptExamplesFind } from '@/solid_script/examples/solid_script_examples.js';
 
 /** One parameter set a port is checked with. */
 interface PortCase {
@@ -146,4 +146,23 @@ describe('SolidScript ports of the generators', () => {
       }
     });
   }
+});
+
+describe('SolidScript examples', () => {
+  it('runs every example without a mistake', () => {
+    for (const example of SOLID_SCRIPT_EXAMPLES) {
+      const result = solidScriptProgramRun(solidScriptDocumentCreate(example.lines));
+      expect(result.error?.message ?? '', example.id).toBe('');
+      expect(result.shapes.length, example.id).toBeGreaterThan(0);
+    }
+  });
+
+  it('finds examples by every word of a search', () => {
+    expect(solidScriptExamplesFind('spiral').map((example) => example.id)).toEqual(['spiralStaircase']);
+    expect(solidScriptExamplesFind('generator stairs').map((example) => example.id)).toEqual([
+      'stairs',
+      'curvedStairs',
+    ]);
+    expect(solidScriptExamplesFind('')).toHaveLength(SOLID_SCRIPT_EXAMPLES.length);
+  });
 });

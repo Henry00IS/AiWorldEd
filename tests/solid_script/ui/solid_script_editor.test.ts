@@ -392,14 +392,15 @@ describe('SolidScript editor', () => {
     expect(find('[data-line="0"]').classList.contains('solid-script-editor-selected')).toBe(true);
     expect(find('[data-line="1"]').classList.contains('solid-script-editor-current')).toBe(true);
     expect(find('[data-line="1"]').classList.contains('solid-script-editor-selected')).toBe(false);
-    press(chip(1), 'c', { ctrlKey: true });
+    chip(1).dispatchEvent(new Event('copy', { bubbles: true, cancelable: true }));
     expect(root.textContent).toContain('Copied 2 lines.');
     chip(4).focus();
-    press(chip(4), 'v', { ctrlKey: true });
+    chip(4).dispatchEvent(new Event('paste', { bubbles: true, cancelable: true }));
     expect(commands()).toEqual(['cube', 'union', 'sphere', 'end', 'cylinder', 'cube', 'union']);
+    expect(find('[data-line="5"]').classList.contains('solid-script-editor-selected')).toBe(true);
     find('[data-line="5"]').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
     find('[data-line="6"]').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0, shiftKey: true }));
-    press(chip(6), 'x', { ctrlKey: true });
+    chip(6).dispatchEvent(new Event('cut', { bubbles: true, cancelable: true }));
     expect(commands()).toEqual(['cube', 'union', 'sphere', 'end', 'cylinder']);
     press(chip(4), ' ');
     expect(commands()).toEqual(['cube', 'union', 'sphere', 'end', 'cylinder', 'blank']);
@@ -409,6 +410,38 @@ describe('SolidScript editor', () => {
     expect(commands()).toEqual([]);
     commandStack.undo();
     expect(commands()).toEqual(['cube', 'union', 'sphere', 'end', 'cylinder', 'blank']);
+  });
+
+  it('pastes lines copied in another window from the clipboard text, keeping their values, and duplicates with Ctrl+D', () => {
+    const { commands, root } = editorFixture([{ command: 'cube' }]);
+    const store = new Map<string, string>();
+    const clipboard = (type: string): Event => {
+      const event = new Event(type, { bubbles: true, cancelable: true });
+      Object.defineProperty(event, 'clipboardData', {
+        value: {
+          setData: (kind: string, text: string) => store.set(kind, text),
+          getData: (kind: string) => store.get(kind) ?? '',
+        },
+      });
+      return event;
+    };
+    chip(0).dispatchEvent(clipboard('copy'));
+    const copied = JSON.parse(store.get('text/plain') ?? '{}') as { lines: { command: string }[] };
+    expect(copied.lines.map((line) => line.command)).toEqual(['cube']);
+    store.set(
+      'text/plain',
+      JSON.stringify([
+        { command: 'sphere', values: { r: '3' } },
+        { command: 'cylinder', values: { h: '5' } },
+      ]),
+    );
+    chip(0).dispatchEvent(clipboard('paste'));
+    expect(commands()).toEqual(['cube', 'sphere', 'cylinder']);
+    expect(root.textContent).toContain('Pasted 2 lines.');
+    expect(root.textContent).toContain('Sphere');
+    press(document.activeElement as HTMLElement, 'd', { ctrlKey: true });
+    expect(commands()).toEqual(['cube', 'sphere', 'cylinder', 'sphere', 'cylinder']);
+    expect(find('[data-line="3"]').textContent).toContain('3');
   });
 
   it('explains the selected line in the help panel with every value and hint', () => {
@@ -733,6 +766,30 @@ describe('SolidScript editor', () => {
     tool('Load').click();
     await settle();
     expect(commands()).toEqual(['cube']);
+  });
+
+  it('starts a new script, and opens a searched example as a new script, both undoable', async () => {
+    const { commands, script, commandStack, root } = editorFixture(CUBE_SPHERE);
+    tool('New').click();
+    expect(commands()).toEqual(['cube']);
+    expect(root.textContent).toContain('New script.');
+    commandStack.undo();
+    expect(commands()).toEqual(['cube', 'sphere']);
+    tool('Examples…').click();
+    await settle();
+    const dialog = find('[data-solid-script-examples]');
+    expect(dialog.textContent).toContain('Showcase');
+    expect(dialog.textContent).toContain('Built-In Generators');
+    type(find<HTMLInputElement>('[data-solid-script-examples] input'), 'torus');
+    expect([...dialog.querySelectorAll('[data-solid-script-example]')].map((row) => row.textContent)).toEqual([
+      'Torus',
+    ]);
+    tool('Open').click();
+    await settle();
+    expect(script().name).toBe('Torus');
+    expect(commands()).toContain('polyhedron');
+    commandStack.undo();
+    expect(commands()).toEqual(['cube', 'sphere']);
   });
 
   it('replaces the script with an .aiscript file dropped from the project browser', async () => {

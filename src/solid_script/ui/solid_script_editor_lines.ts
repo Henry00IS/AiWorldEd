@@ -133,6 +133,7 @@ export class SolidScriptEditorLines {
       focus: (line, extend) => this.focusLine(line, extend),
       selection: () => this.selection(),
       selectAll: () => this.selectAll(),
+      selectRange: (first, last) => this.selectRange(first, last),
       configure: handlers.configure,
       notice: handlers.notice,
     });
@@ -143,6 +144,9 @@ export class SolidScriptEditorLines {
       move: (from, target) => this.keys.move(from, target.line),
     });
     this.element.addEventListener('mousedown', (event) => this.backgroundDown(event));
+    this.element.addEventListener('copy', (event) => this.keys.copy(event, false));
+    this.element.addEventListener('cut', (event) => this.keys.copy(event, true));
+    this.element.addEventListener('paste', (event) => this.keys.paste(event));
   }
 
   /**
@@ -197,6 +201,18 @@ export class SolidScriptEditorLines {
   selection(): [number, number] {
     const anchor = this.anchor ?? this.caretLine;
     return [Math.min(anchor, this.caretLine), Math.max(anchor, this.caretLine)];
+  }
+
+  /**
+   * Selects lines, keeping the focus on the last one.
+   *
+   * @param first First line index.
+   * @param last Last line index.
+   */
+  selectRange(first: number, last: number): void {
+    this.focusLine(last);
+    this.anchor = Math.max(0, Math.min(first, this.document.blocks.length - 1));
+    this.windowRender();
   }
 
   /** Selects every line, keeping the focus on the last one. */

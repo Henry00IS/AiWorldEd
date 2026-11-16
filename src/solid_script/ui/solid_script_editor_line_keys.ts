@@ -19,6 +19,8 @@ export interface SolidScriptEditorLineKeysHost {
   selection: () => [number, number];
   /** Selects every line. */
   selectAll: () => void;
+  /** Selects lines from the first to the last, focusing the last. */
+  selectRange: (first: number, last: number) => void;
   /** Opens the configurator of a line. */
   configure: (line: number) => void;
   /** Shows a short message. */
@@ -42,8 +44,8 @@ export class SolidScriptEditorLineKeys {
    * Handles a key on a line: arrows move the focus (Shift+arrows select,
    * Ctrl+Shift+arrows move the line), Enter or F2 configure it, Space,
    * Shift+Enter or Insert add a blank line below, Delete or Backspace remove
-   * the selection, Ctrl+A selects all and Ctrl+C, Ctrl+X and Ctrl+V copy, cut
-   * and paste lines.
+   * the selection, Ctrl+A selects all and Ctrl+D duplicates the selection.
+   * Copy, cut and paste come as clipboard events, see copy and paste.
    *
    * @param event Key event.
    * @param line Line index.
@@ -92,7 +94,9 @@ export class SolidScriptEditorLineKeys {
     if (arrow !== 0) return (line) => this.host.focus(line + arrow, event.shiftKey);
     const command = event.ctrlKey || event.metaKey;
     const letter = event.key.toLowerCase();
-    if (command && !event.altKey && ['a', 'c', 'x', 'v'].includes(letter)) return () => this.clipboard(letter);
+    // Copy, cut and paste arrive as clipboard events, so they reach the system clipboard.
+    if (command && !event.altKey && letter === 'a') return () => this.host.selectAll();
+    if (command && !event.altKey && letter === 'd') return (line) => this.duplicate(line);
     if (command || event.altKey) return null;
     if ((event.key === 'Enter' && event.shiftKey) || event.key === 'Insert' || event.key === ' ')
       return (line) => this.blank(line);
@@ -104,31 +108,67 @@ export class SolidScriptEditorLineKeys {
   }
 
   /**
-   * Selects all, copies, cuts or pastes exactly the selected lines; pasted
-   * lines go below the current line.
+   * Copies or cuts exactly the selected lines, onto the clipboard of the event.
    *
-   * @param letter A, c, x or v.
+   * @param event Copy or cut event.
+   * @param cut True removes the lines too.
    */
-  private clipboard(letter: string): void {
+  copy(event: ClipboardEvent | Event, cut: boolean): void {
     const document = this.host.document();
-    if (letter === 'a') return this.host.selectAll();
-    const [first, last] = this.host.selection();
-    if (letter === 'v') {
-      const lines = solidScriptEditorClipboardRead();
-      if (!lines || lines.length === 0) return this.host.notice('Copy lines with Ctrl+C first.');
-      const pasted = solidScriptDocumentLinesInsert(document, last, lines);
-      this.host.edit(pasted.document, pasted.line);
-      return this.host.notice(`Pasted ${lines.length} ${lines.length === 1 ? 'line' : 'lines'}.`);
-    }
     if (document.blocks.length === 0) return;
-    const [from, to] = [first, last];
-    solidScriptEditorClipboardWrite(document.blocks.slice(from, to + 1));
+    event.preventDefault();
+    const [from, to] = this.host.selection();
+    solidScriptEditorClipboardWrite(
+      document.blocks.slice(from, to + 1),
+      (event as ClipboardEvent).clipboardData ?? null,
+    );
     const count = to - from + 1;
-    if (letter === 'x') {
+    if (cut) {
       const removed = solidScriptDocumentRangeRemove(document, from, to);
       this.host.edit(removed.document, removed.line);
     }
-    this.host.notice(`${letter === 'x' ? 'Cut' : 'Copied'} ${count} ${count === 1 ? 'line' : 'lines'}.`);
+    this.host.notice(`${cut ? 'Cut' : 'Copied'} ${count} ${count === 1 ? 'line' : 'lines'}.`);
+  }
+
+  /**
+   * Pastes lines below the selection, with every value they had, and selects
+   * them so they can be moved or copied again at once.
+   *
+   * @param event Paste event.
+   */
+  paste(event: ClipboardEvent | Event): void {
+    event.preventDefault();
+    const lines = solidScriptEditorClipboardRead((event as ClipboardEvent).clipboardData ?? null);
+    if (!lines || lines.length === 0) return this.host.notice('Copy lines with Ctrl+C first.');
+    this.insertSelected(this.host.selection()[1], lines);
+    this.host.notice(`Pasted ${lines.length} ${lines.length === 1 ? 'line' : 'lines'}.`);
+  }
+
+  /**
+   * Copies the selected lines, or one line, right below themselves.
+   *
+   * @param line Line index.
+   */
+  private duplicate(line: number): void {
+    const [first, last] = this.rangeOf(line);
+    const lines = this.host
+      .document()
+      .blocks.slice(first, last + 1)
+      .map(({ command, values }) => ({ command, values: { ...values } }));
+    this.insertSelected(last, lines);
+    this.host.notice(`Duplicated ${lines.length} ${lines.length === 1 ? 'line' : 'lines'}.`);
+  }
+
+  /**
+   * Inserts lines below a line and selects them.
+   *
+   * @param below Line index.
+   * @param lines Lines.
+   */
+  private insertSelected(below: number, lines: readonly { command: string; values?: Record<string, string> }[]): void {
+    const inserted = solidScriptDocumentLinesInsert(this.host.document(), below, lines);
+    this.host.edit(inserted.document, inserted.line + lines.length - 1);
+    this.host.selectRange(inserted.line, inserted.line + lines.length - 1);
   }
 
   /**

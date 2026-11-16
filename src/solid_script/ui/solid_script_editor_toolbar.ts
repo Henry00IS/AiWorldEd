@@ -14,6 +14,10 @@ export interface SolidScriptEditorToolbarActions {
   stop: () => void;
   /** Turns tracing of passed lines on or off. */
   trace: (on: boolean) => void;
+  /** Starts a new script. */
+  create: () => void;
+  /** Opens a built-in example as a new script. */
+  examples: () => void;
   /** Saves the script. */
   save: () => void;
   /** Replaces the script with a saved one. */
@@ -60,9 +64,33 @@ export class SolidScriptEditorToolbar {
       actions.trace(this.tracing);
     });
     this.trace.setAttribute('aria-pressed', 'false');
+    const create = solidScriptEditorToolButton(
+      'New',
+      'new',
+      'Start a new script (Undo brings this one back)',
+      actions.create,
+    );
+    const examples = solidScriptEditorToolButton(
+      'Examples…',
+      'examples',
+      'Open a built-in example as a new script',
+      actions.examples,
+    );
     const save = solidScriptEditorToolButton('Save…', 'save', 'Save the script as an .aiscript file', actions.save);
     const load = solidScriptEditorToolButton('Load…', 'load', 'Replace the script with a saved one', actions.load);
-    this.element.append(start, this.debug, step, this.stop, this.separator(), this.trace, this.separator(), save, load);
+    this.element.append(
+      start,
+      this.debug,
+      step,
+      this.stop,
+      this.separator(),
+      this.trace,
+      this.separator(),
+      create,
+      examples,
+      save,
+      load,
+    );
   }
 
   /**

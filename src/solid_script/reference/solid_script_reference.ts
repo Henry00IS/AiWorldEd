@@ -1,4 +1,8 @@
 import {
+  SOLID_SCRIPT_EXAMPLE_COLUMNS,
+  SOLID_SCRIPT_EXAMPLE_DOORWAY,
+} from '@/solid_script/examples/solid_script_examples_basics.js';
+import {
   SOLID_SCRIPT_COMMAND_CATEGORIES,
   solidScriptCommands,
 } from '@/solid_script/commands/solid_script_command_catalog.js';
@@ -119,29 +123,6 @@ const SOLID_SCRIPT_REFERENCE_TOOLS = `## Tools
 - geometry_script_command_list returns the same commands as JSON.
 `;
 
-/** Example and pitfall part of the reference. */
-/** Lines of the wall with a doorway example. */
-const SOLID_SCRIPT_REFERENCE_DOORWAY: SolidScriptLine[] = [
-  { command: 'difference' },
-  { command: 'cube', values: { size: '4, 0.2, 3' } },
-  { command: 'translate', values: { v: '0, 0, -0.45' } },
-  { command: 'cube', values: { size: '1, 0.4, 2.1' } },
-  { command: 'end' },
-  { command: 'end' },
-];
-
-/** Lines of the row of columns example. */
-const SOLID_SCRIPT_REFERENCE_COLUMNS: SolidScriptLine[] = [
-  { command: 'part', values: { name: 'column' } },
-  { command: 'cylinder', values: { h: '3', r1: '0.2', r2: '0.2', sides: '12' } },
-  { command: 'end' },
-  { command: 'repeat', values: { variable: 'i', from: '0', to: '4' } },
-  { command: 'translate', values: { v: '[=[i] * 1.5 - 3], 0, 0' } },
-  { command: 'use_part', values: { name: 'column' } },
-  { command: 'end' },
-  { command: 'end' },
-];
-
 /**
  * Writes example lines as the JSON a tool takes, one line per row.
  *
@@ -160,16 +141,16 @@ function solidScriptReferenceJson(lines: readonly SolidScriptLine[]): string {
  * @returns Section text.
  */
 function solidScriptReferenceExamples(): string {
-  const listed = solidScriptDocumentListing(solidScriptDocumentCreate(SOLID_SCRIPT_REFERENCE_COLUMNS)).join('\n');
+  const listed = solidScriptDocumentListing(solidScriptDocumentCreate(SOLID_SCRIPT_EXAMPLE_COLUMNS)).join('\n');
   return `## Examples
 
 A wall with a doorway:
 
-${solidScriptReferenceJson(SOLID_SCRIPT_REFERENCE_DOORWAY)}
+${solidScriptReferenceJson(SOLID_SCRIPT_EXAMPLE_DOORWAY)}
 
 A row of five columns from one named part, centred on the origin:
 
-${solidScriptReferenceJson(SOLID_SCRIPT_REFERENCE_COLUMNS)}
+${solidScriptReferenceJson(SOLID_SCRIPT_EXAMPLE_COLUMNS)}
 
 The editor lists these lines as:
 

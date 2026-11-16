@@ -1,4 +1,5 @@
 import type { SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
+import { SOLID_SCRIPT_EXAMPLE_COLUMNS, SOLID_SCRIPT_EXAMPLE_DOORWAY } from './solid_script_examples_basics.js';
 import {
   SOLID_SCRIPT_EXAMPLE_CAPSULE,
   SOLID_SCRIPT_EXAMPLE_CONE,
@@ -16,13 +17,24 @@ import {
   SOLID_SCRIPT_EXAMPLE_TORUS,
 } from './solid_script_examples_swept.js';
 import { SOLID_SCRIPT_EXAMPLE_STAIRS } from './solid_script_examples_stairs.js';
+import { SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE } from './solid_script_examples_showcase.js';
+
+/** Groups of the examples, in the order the Examples window shows them. */
+export const SOLID_SCRIPT_EXAMPLE_GROUPS = ['Showcase', 'Basics', 'Built-In Generators'] as const;
+
+/** Group of an example. */
+export type SolidScriptExampleGroup = (typeof SOLID_SCRIPT_EXAMPLE_GROUPS)[number];
 
 /** A built-in example script. */
 export interface SolidScriptExample {
   /** Stable id. */
   id: string;
-  /** Name shown in the Load Script window. */
+  /** Name shown in the Examples window, and of the new script. */
   name: string;
+  /** Group it is listed under. */
+  group: SolidScriptExampleGroup;
+  /** One sentence on what it builds. */
+  summary: string;
   /** Generator kind the script rebuilds line by line, or null. */
   port: string | null;
   /** Lines of the script. */
@@ -38,11 +50,42 @@ export interface SolidScriptExample {
  * @returns Example.
  */
 function solidScriptExamplePort(port: string, name: string, lines: readonly SolidScriptLine[]): SolidScriptExample {
-  return { id: port, name, port, lines };
+  return {
+    id: port,
+    name,
+    group: 'Built-In Generators',
+    summary: `The ${name} generator, rebuilt line by line. It builds the same pieces, so you can see how it works and change it.`,
+    port,
+    lines,
+  };
 }
 
-/** Built-in example scripts, in the order the Load Script window lists them. */
+/** Built-in example scripts, in the order the Examples window lists them. */
 export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
+  {
+    id: 'spiralStaircase',
+    name: 'Spiral Staircase',
+    group: 'Showcase',
+    summary: 'A spiral staircase around a column, with a smooth sloped underside, posts and a handrail.',
+    port: null,
+    lines: SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE,
+  },
+  {
+    id: 'doorway',
+    name: 'Wall With a Doorway',
+    group: 'Basics',
+    summary: 'A wall with a doorway cut out of it.',
+    port: null,
+    lines: SOLID_SCRIPT_EXAMPLE_DOORWAY,
+  },
+  {
+    id: 'columns',
+    name: 'Row of Columns',
+    group: 'Basics',
+    summary: 'Five columns in a row, built from one named part.',
+    port: null,
+    lines: SOLID_SCRIPT_EXAMPLE_COLUMNS,
+  },
   solidScriptExamplePort('cylinder', 'Cylinder', SOLID_SCRIPT_EXAMPLE_CYLINDER),
   solidScriptExamplePort('cone', 'Cone', SOLID_SCRIPT_EXAMPLE_CONE),
   solidScriptExamplePort('sphere', 'Sphere', SOLID_SCRIPT_EXAMPLE_SPHERE),
@@ -55,3 +98,17 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
   solidScriptExamplePort('torus', 'Torus', SOLID_SCRIPT_EXAMPLE_TORUS),
   solidScriptExamplePort('curvedStairs', 'Curved Stairs', SOLID_SCRIPT_EXAMPLE_CURVED_STAIRS),
 ];
+
+/**
+ * Finds the examples whose name, group or summary holds every word of a search.
+ *
+ * @param search Search text.
+ * @returns Matching examples in list order.
+ */
+export function solidScriptExamplesFind(search: string): SolidScriptExample[] {
+  const words = search.toLowerCase().split(/\s+/).filter(Boolean);
+  return SOLID_SCRIPT_EXAMPLES.filter((example) => {
+    const text = `${example.name} ${example.group} ${example.summary}`.toLowerCase();
+    return words.every((word) => text.includes(word));
+  });
+}

@@ -1,3 +1,4 @@
+import { solidScriptExamplesAsk } from './solid_script_examples_dialog.js';
 import type * as THREE from 'three';
 import type { ModifierStackActionTarget } from '@/modifier/stack/modifier_stack_types.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
@@ -6,7 +7,11 @@ import { createFloatingPanelResizeGrip } from '@/ui/floating_panel/panel_floatin
 import { styleFloatingPanelStatusBar } from '@/ui/floating_panel/panel_floating_status_bar.js';
 import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
-import type { SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
+import {
+  SOLID_SCRIPT_DOCUMENT_NAME_DEFAULT,
+  solidScriptDocumentCreate,
+  type SolidScriptDocument,
+} from '@/solid_script/document/solid_script_document.js';
 import {
   solidScriptBlockIsBlank,
   solidScriptDocumentCommandInsert,
@@ -116,6 +121,8 @@ export class SolidScriptEditor extends PanelFloating {
       step: () => this.debugger.stepOnce(),
       stop: () => this.debugger.stop(),
       trace: (on) => this.traceSet(on),
+      create: () => this.create(),
+      examples: () => void this.examples(),
       save: () => void this.save(),
       load: () => void this.load(),
     });
@@ -482,6 +489,20 @@ export class SolidScriptEditor extends PanelFloating {
     if ('error' in result) return this.noticeShow(result.error);
     this.commit(result.document, 0);
     this.noticeShow(`Loaded ${result.document.name}`);
+  }
+
+  /** Starts a new script with one Cube; Undo brings the old one back. */
+  private create(): void {
+    this.commit(solidScriptDocumentCreate([{ command: 'cube' }], SOLID_SCRIPT_DOCUMENT_NAME_DEFAULT), 0);
+    this.noticeShow('New script. Undo brings the old one back.');
+  }
+
+  /** Opens a built-in example as a new script. */
+  private async examples(): Promise<void> {
+    const example = await solidScriptExamplesAsk(this.root.ownerDocument.body);
+    if (!example) return;
+    this.commit(solidScriptDocumentCreate(example.lines, example.name), 0);
+    this.noticeShow(`Opened the ${example.name} example. Undo brings your script back.`);
   }
 
   /** Saves the script and keeps the name it was saved under. */
