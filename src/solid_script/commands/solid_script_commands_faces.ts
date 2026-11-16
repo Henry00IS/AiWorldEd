@@ -550,15 +550,15 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     description: 'Paint shapes with a texture',
     manual:
       "Gives every face of the brushes between this line and its End the texture named by Texture, the name a texture has in the texture library. Brushes outside any Texture block keep the generator's own texture, and an inner Texture block wins over an outer one. A texture Input picks the name from the library, so the inspector can change it. Meshes keep the generator's texture for now. Example: Input wall, texture, then Texture [wall] around the walls paints them with the picked texture.",
-    stops: ['A missing End line.'],
+    stops: ['A missing End line.', 'A [name] for a variable not set above this line.'],
     nesting: 'open',
     parameters: [
       solidScriptParameter(
         'texture',
         'Texture',
-        'text',
+        'message',
         '',
-        "Name of a library texture, such as one picked by a texture Input. Empty keeps the generator's texture.",
+        "Name of a library texture; [name] puts in a variable, such as a texture Input. Empty keeps the generator's texture.",
       ),
     ],
     starter: [{ command: 'cube', values: {} }],
@@ -583,14 +583,14 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     description: 'Paint picked faces with a texture',
     manual:
       'Gives faces their own library texture: the face of the For Each Selected Face round, or else every face Select Faces picked. It works on brushes and wins over a Texture block around them. The faces keep it when the brush is moved, turned or scaled. Example: Cube, Select Faces Facing Up, Texture Faces grass gives a box a grass top.',
-    stops: ['No faces picked.', 'Faces of a mesh. Texture Faces works on brushes for now.', 'An empty Texture.'],
+    stops: ['No faces picked.', 'Faces of a mesh. Texture Faces works on brushes for now.', 'An empty Texture.', 'A [name] for a variable not set above this line.'],
     parameters: [
       solidScriptParameter(
         'texture',
         'Texture',
-        'text',
+        'message',
         'grass',
-        'Name of a library texture, such as one picked by a texture Input.',
+        'Name of a library texture; [name] puts in a variable, such as a texture Input.',
       ),
     ],
     listing: (read) => ['Texture Faces', read.value('texture')],

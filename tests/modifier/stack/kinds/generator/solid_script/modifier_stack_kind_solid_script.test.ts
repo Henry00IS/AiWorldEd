@@ -218,6 +218,24 @@ describe('SolidScript generator', () => {
     expect(textures[1]).not.toContain('brick');
   });
 
+  it('textures brushes with the texture a texture Input picked, and the top faces with Texture Faces', () => {
+    const fixture = scriptFixture();
+    scriptSet(fixture.node, {
+      script: script(
+        { command: 'input', values: { name: 'wall', type: 'texture', default: 'brick' } },
+        { command: 'input', values: { name: 'top', type: 'texture', default: 'grass' } },
+        { command: 'texture', values: { texture: '[wall]' } },
+        { command: 'cube' },
+        { command: 'end' },
+        { command: 'select_faces', values: { which: 'Facing Up' } },
+        { command: 'texture_faces', values: { texture: '[top]' } },
+      ),
+    });
+    const [piece] = fixture.pieces();
+    const textures = new Set(piece?.brush.faces.map((_, index) => piece.getSurfaceTextureId(index)));
+    expect([...textures].sort()).toEqual(['brick', 'grass']);
+  });
+
   it('runs When Baked before a bake, so the brushes are baked with the inputs it sets, and undo keeps the old ones', () => {
     const fixture = scriptFixture();
     scriptSet(fixture.node, {
