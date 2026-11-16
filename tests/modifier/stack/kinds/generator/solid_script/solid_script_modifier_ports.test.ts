@@ -189,6 +189,15 @@ const MODIFIER_CASES: Record<string, ModifierCase[]> = {
     },
     { parameters: { count: 1 }, inputs: { count: '1' } },
   ],
+  mirror: [
+    { parameters: {}, inputs: {} },
+    {
+      parameters: { axis: 'y', plane: 'min', planeOffset: -0.5 },
+      inputs: { axis: 'y', plane: 'min', planeoffset: '-0.5' },
+    },
+    { parameters: { axis: 'z', plane: 'max', uv: 'world' }, inputs: { axis: 'z', plane: 'max', uv: 'world' } },
+    { parameters: { axis: 'x', plane: 'max', planeOffset: 1 }, inputs: { axis: 'x', plane: 'max', planeoffset: '1' } },
+  ],
 };
 
 describe('SolidScript ports of the modifiers', () => {
@@ -207,7 +216,13 @@ describe('SolidScript ports of the modifiers', () => {
 
   it('lists the modifier ports under Built-In Modifiers, usable as modifiers only', () => {
     const ports = SOLID_SCRIPT_EXAMPLES.filter((entry) => entry.group === 'Built-In Modifiers');
-    expect(ports.map((entry) => entry.name)).toEqual(['Shear', 'Linear Array', 'Radial Array', 'Transform Array']);
+    expect(ports.map((entry) => entry.name)).toEqual([
+      'Shear',
+      'Linear Array',
+      'Radial Array',
+      'Transform Array',
+      'Mirror',
+    ]);
     for (const port of ports) expect(port.uses).toEqual({ generator: false, modifier: true });
   });
 });

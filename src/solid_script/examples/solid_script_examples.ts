@@ -32,6 +32,7 @@ import {
   SOLID_SCRIPT_EXAMPLE_LINEAR_ARRAY,
   SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY,
   SOLID_SCRIPT_EXAMPLE_TRANSFORM_ARRAY,
+  SOLID_SCRIPT_EXAMPLE_MIRROR,
   SOLID_SCRIPT_EXAMPLE_SHEAR,
 } from './solid_script_examples_modifiers.js';
 
@@ -190,6 +191,7 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
   solidScriptExampleModifier('linear', 'Linear Array', SOLID_SCRIPT_EXAMPLE_LINEAR_ARRAY),
   solidScriptExampleModifier('radial', 'Radial Array', SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY),
   solidScriptExampleModifier('transform', 'Transform Array', SOLID_SCRIPT_EXAMPLE_TRANSFORM_ARRAY),
+  solidScriptExampleModifier('mirror', 'Mirror', SOLID_SCRIPT_EXAMPLE_MIRROR),
 ];
 
 /**

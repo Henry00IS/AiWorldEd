@@ -271,3 +271,30 @@ export const SOLID_SCRIPT_EXAMPLE_TRANSFORM_ARRAY: readonly SolidScriptLine[] = 
     ]),
   ]),
 ];
+
+/** Port of the Mirror modifier without Bisect. */
+export const SOLID_SCRIPT_EXAMPLE_MIRROR: readonly SolidScriptLine[] = [
+  solidScriptExampleNote('Mirror: adds a reflected copy of the brushes it receives across a plane.'),
+  solidScriptExampleInput('Axis', 'choice', 'x', { label: 'Axis', choices: 'x, y, z' }),
+  solidScriptExampleInput('Plane', 'choice', 'center', { label: 'Plane', choices: 'center, min, max' }),
+  solidScriptExampleInput('PlaneOffset', 'number', '0', { label: 'Offset' }),
+  solidScriptExampleInput('UV', 'choice', 'copied', { label: 'Textures', choices: 'copied, world' }),
+  ...SOLID_SCRIPT_EXAMPLE_TEXTURES,
+  solidScriptExampleSet('K', solidScriptExampleAxis('Axis')),
+  solidScriptExampleNote('The plane runs through the centre or touches a side, then moves by Offset along its axis.'),
+  solidScriptExampleSet('D', '[=Dot([Input.Center], [K]) + [PlaneOffset]]'),
+  solidScriptExampleSet('Half', '[=Abs(Dot([Input.Size], [K])) / 2]'),
+  ...solidScriptExampleIf('[Plane] == "min"', [solidScriptExampleSet('D', '[=[D] - [Half]]')]),
+  ...solidScriptExampleIf('[Plane] == "max"', [solidScriptExampleSet('D', '[=[D] + [Half]]')]),
+  solidScriptExampleNote('Copy 0 is the original; the copy is reflected: p - 2 (p · K - D) K.'),
+  solidScriptExampleLine('input_brushes', { textures: '[Textures]' }),
+  ...solidScriptExampleBlock(
+    'matrix',
+    {
+      row1: '[=1 - 2 * [K.x] * [K.x]], [=-2 * [K.x] * [K.y]], [=-2 * [K.x] * [K.z]], [=2 * [D] * [K.x]]',
+      row2: '[=-2 * [K.y] * [K.x]], [=1 - 2 * [K.y] * [K.y]], [=-2 * [K.y] * [K.z]], [=2 * [D] * [K.y]]',
+      row3: '[=-2 * [K.z] * [K.x]], [=-2 * [K.z] * [K.y]], [=1 - 2 * [K.z] * [K.z]], [=2 * [D] * [K.z]]',
+    },
+    [solidScriptExampleLine('input_brushes', { textures: '[Textures]' })],
+  ),
+];
