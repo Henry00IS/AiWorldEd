@@ -10,14 +10,13 @@ import {
 } from './solid_script_example_lines.js';
 
 /**
- * Turns an editor axis name into a script direction. The editor is Y up and
- * scripts are Z up, so x is X, y is Z and z is -Y.
+ * Turns an axis name into a direction.
  *
  * @param name Variable holding x, y or z.
  * @returns Formula.
  */
 function solidScriptExampleAxis(name: string): string {
-  return `[=[${name}] == "x" ? Vector(1, 0, 0) : [${name}] == "y" ? Vector(0, 0, 1) : Vector(0, -1, 0)]`;
+  return `[=[${name}] == "x" ? Vector(1, 0, 0) : [${name}] == "y" ? Vector(0, 1, 0) : Vector(0, 0, 1)]`;
 }
 
 /** Sets Textures from the UV input, for Input Brushes. */
@@ -100,7 +99,7 @@ export const SOLID_SCRIPT_EXAMPLE_LINEAR_ARRAY: readonly SolidScriptLine[] = [
 function solidScriptExampleSide(name: string): string {
   const axis = `Part([${name}], 1, 1)`;
   const sign = `(Part([${name}], 0, 1) == "-" ? -1 : 1)`;
-  return `[=(${axis} == "x" ? Vector(1, 0, 0) : ${axis} == "y" ? Vector(0, 0, 1) : Vector(0, -1, 0)) * ${sign}]`;
+  return `[=(${axis} == "x" ? Vector(1, 0, 0) : ${axis} == "y" ? Vector(0, 1, 0) : Vector(0, 0, 1)) * ${sign}]`;
 }
 
 /** Port of the Radial Array modifier (whole input as the centre). */
@@ -144,7 +143,7 @@ export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
       solidScriptExampleSet('Side', solidScriptExampleSide('CentreSide')),
       solidScriptExampleSet('Side', '[=[Side] - [K] * Dot([Side], [K])]'),
       ...solidScriptExampleIf('[=Dot([Side], [Side]) < 1e-12]', [
-        solidScriptExampleSet('Side', '[=[Axis] == "z" ? Vector(0, 0, -1) : Vector(0, 1, 0)]'),
+        solidScriptExampleSet('Side', '[=[Axis] == "z" ? Vector(0, -1, 0) : Vector(0, 0, -1)]'),
       ]),
       solidScriptExampleSet('Around', '[=[Centre] + Normalize([Side]) * [Radius]]'),
     ],
@@ -154,7 +153,7 @@ export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
       solidScriptExampleSet('Out', '[=[Centre] - [Around]]'),
       solidScriptExampleSet('Out', '[=[Out] - [K] * Dot([Out], [K])]'),
       ...solidScriptExampleIf('[=Dot([Out], [Out]) < 1e-12]', [
-        solidScriptExampleSet('Out', '[=[Axis] == "y" ? Vector(1, 0, 0) : Vector(0, 0, 1)]'),
+        solidScriptExampleSet('Out', '[=[Axis] == "y" ? Vector(1, 0, 0) : Vector(0, 1, 0)]'),
       ]),
       solidScriptExampleSet('Push', '[=Normalize([Out]) * [RadiusOffset]]'),
       solidScriptExampleSet('First', '[Start]'),
@@ -219,27 +218,27 @@ export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
 export const SOLID_SCRIPT_EXAMPLE_TRANSFORM_ARRAY: readonly SolidScriptLine[] = [
   solidScriptExampleNote('Transform Array: moves and turns every copy once more than the one before.'),
   solidScriptExampleInput('Count', 'count', '3', { label: 'Count', min: '1', max: '256' }),
-  solidScriptExampleInput('Offset', 'vector', '0, 0, 0.25', { label: 'Move' }),
+  solidScriptExampleInput('Offset', 'vector', '0, 0.25, 0', { label: 'Move' }),
   solidScriptExampleInput('Relative', 'vector', '0, 0, 0', { label: 'Size ×' }),
-  solidScriptExampleInput('Rotation', 'vector', '0, 0, 15', { label: 'Turn °' }),
+  solidScriptExampleInput('Rotation', 'vector', '0, 15, 0', { label: 'Turn °' }),
   solidScriptExampleInput('Pivot', 'vector', '0, 0, 0', { label: 'Pivot' }),
   solidScriptExampleInput('UV', 'choice', 'copied', { label: 'Textures', choices: 'copied, world' }),
   ...SOLID_SCRIPT_EXAMPLE_TEXTURES,
-  solidScriptExampleNote('One step: turn about X, Z and Y (the editor order) around Pivot, then move.'),
+  solidScriptExampleNote('One step: turn by the X, Y and Z angles the way the editor does, around Pivot, then move.'),
   solidScriptExampleSet('Cx', '[=Cos([Rotation.x])]'),
   solidScriptExampleSet('Sx', '[=Sin([Rotation.x])]'),
   solidScriptExampleSet('Cy', '[=Cos([Rotation.y])]'),
   solidScriptExampleSet('Sy', '[=Sin([Rotation.y])]'),
   solidScriptExampleSet('Cz', '[=Cos([Rotation.z])]'),
   solidScriptExampleSet('Sz', '[=Sin([Rotation.z])]'),
-  solidScriptExampleSet('S1', '[=Vector([Cz] * [Cy], -[Sz], [Cz] * [Sy])]'),
+  solidScriptExampleSet('S1', '[=Vector([Cy] * [Cz], -[Cy] * [Sz], [Sy])]'),
   solidScriptExampleSet(
     'S2',
-    '[=Vector([Cx] * [Sz] * [Cy] + [Sx] * [Sy], [Cx] * [Cz], [Cx] * [Sz] * [Sy] - [Sx] * [Cy])]',
+    '[=Vector([Cx] * [Sz] + [Sx] * [Sy] * [Cz], [Cx] * [Cz] - [Sx] * [Sy] * [Sz], -[Sx] * [Cy])]',
   ),
   solidScriptExampleSet(
     'S3',
-    '[=Vector([Sx] * [Sz] * [Cy] - [Cx] * [Sy], [Sx] * [Cz], [Sx] * [Sz] * [Sy] + [Cx] * [Cy])]',
+    '[=Vector([Sx] * [Sz] - [Cx] * [Sy] * [Cz], [Sx] * [Cz] + [Cx] * [Sy] * [Sz], [Cx] * [Cy])]',
   ),
   solidScriptExampleSet(
     'Move',

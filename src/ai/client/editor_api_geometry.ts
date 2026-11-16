@@ -41,7 +41,6 @@ export interface GeometrySolidScriptArgs {
   name?: string;
   position?: McpVec3;
   operation?: string;
-  upAxis?: string;
 }
 
 /** Where a build lands: an existing model and parent, or a new model. */
@@ -151,16 +150,13 @@ export class EditorApiGeometry {
   private planBuild(args: GeometrySolidScriptArgs, parent: THREE.Object3D): GeometryBuildPlan | string {
     const operation = args.operation === undefined ? undefined : nameToSolidOperation(args.operation);
     if (operation === null) return 'operation must be additive, subtractive or intersecting';
-    if (args.upAxis !== undefined && args.upAxis !== 'z' && args.upAxis !== 'y') return "upAxis must be 'z' or 'y'";
     parent.updateWorldMatrix(true, false);
     try {
       const blocks = geometryScriptLinesRead(args.lines);
       if (typeof blocks === 'string') return blocks;
       const { shapes, messages } = solidScriptProgramEvaluate({ blocks }, { context: 'assistant' });
-      const upAxis = args.upAxis === 'y' ? 'y' : 'z';
       const offset = dtoToVec3(args.position, new THREE.Vector3());
       const nodes = solidScriptSolidTreeBuild(shapes, {
-        upAxis,
         offset,
         worldToParent: parent.matrixWorld.clone().invert(),
         operation: operation ?? SolidOperation.Additive,
@@ -171,7 +167,7 @@ export class EditorApiGeometry {
         .clone()
         .invert()
         .multiply(new THREE.Matrix4().makeTranslation(offset.x, offset.y, offset.z));
-      const meshes = solidScriptShapeMeshes(shapes).map((mesh) => solidScriptMeshDocumentBuild(mesh, upAxis, toWorld));
+      const meshes = solidScriptShapeMeshes(shapes).map((mesh) => solidScriptMeshDocumentBuild(mesh, toWorld));
       return { nodes, meshes, messages };
     } catch (error) {
       return `Script: ${error instanceof Error ? error.message : String(error)}`;

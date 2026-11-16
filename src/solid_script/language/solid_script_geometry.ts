@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SOLID_SCRIPT_AXES_FACING, SOLID_SCRIPT_AXES_UP, solidScriptAxesHeight } from './solid_script_axes.js';
 import {
   solidScriptMeshChecked,
   solidScriptMeshFromSolid,
@@ -99,23 +100,25 @@ export function solidScriptGeometryMesh(leaf: SolidScriptGeometryLeaf): SolidScr
  * @returns Across and up.
  */
 export function solidScriptGeometryFrame(normal: THREE.Vector3): { across: THREE.Vector3; up: THREE.Vector3 } {
-  const world = Math.abs(normal.z) > 0.999 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(0, 0, 1);
+  const height = solidScriptAxesHeight(normal);
+  const world = Math.abs(height) > 0.999 ? SOLID_SCRIPT_AXES_FACING['Back']! : SOLID_SCRIPT_AXES_UP;
   const across = new THREE.Vector3().crossVectors(world, normal).normalize();
-  if (normal.z > 0.999) across.set(1, 0, 0);
-  if (normal.z < -0.999) across.set(-1, 0, 0);
+  if (height > 0.999) across.set(1, 0, 0);
+  if (height < -0.999) across.set(-1, 0, 0);
   const up = new THREE.Vector3().crossVectors(normal, across).normalize();
   return { across, up };
 }
 
 /**
- * Returns the matrix that puts a shape on a face: its origin at the face
- * centre, X across, Y up the face and Z out of it.
+ * Returns the matrix that stands a shape on a face the way it stands on the
+ * ground: its origin at the face centre, X across, Y out of the face and Z down
+ * the face (toward its front).
  *
  * @param face Face.
  * @returns Matrix.
  */
 export function solidScriptGeometryFaceMatrix(face: SolidScriptFaceFacts): THREE.Matrix4 {
-  return new THREE.Matrix4().makeBasis(face.across, face.up, face.normal).setPosition(face.center);
+  return new THREE.Matrix4().makeBasis(face.across, face.normal, face.up.clone().negate()).setPosition(face.center);
 }
 
 /**
@@ -126,8 +129,9 @@ export function solidScriptGeometryFaceMatrix(face: SolidScriptFaceFacts): THREE
  * @returns Names, plainest first.
  */
 export function solidScriptGeometryTags(normal: THREE.Vector3, role: string | undefined): string[] {
+  const height = solidScriptAxesHeight(normal);
   const level =
-    normal.z > SOLID_SCRIPT_GEOMETRY_LEVEL ? 'Top' : normal.z < -SOLID_SCRIPT_GEOMETRY_LEVEL ? 'Bottom' : 'Side';
+    height > SOLID_SCRIPT_GEOMETRY_LEVEL ? 'Top' : height < -SOLID_SCRIPT_GEOMETRY_LEVEL ? 'Bottom' : 'Side';
   const tags = [level];
   const [kind, direction] = (role ?? '').split(' ');
   if (kind === 'stairs' || kind === 'curvedStairs') {
@@ -139,12 +143,12 @@ export function solidScriptGeometryTags(normal: THREE.Vector3, role: string | un
   return tags;
 }
 
-/** Direction each Stairs Ascend value climbs, in script space (Z up). */
+/** Direction each Stairs Ascend value climbs, in script space. */
 const SOLID_SCRIPT_GEOMETRY_CLIMB: Readonly<Record<string, THREE.Vector3>> = {
   '+x': new THREE.Vector3(1, 0, 0),
   '-x': new THREE.Vector3(-1, 0, 0),
-  '+z': new THREE.Vector3(0, 1, 0),
-  '-z': new THREE.Vector3(0, -1, 0),
+  '+z': new THREE.Vector3(0, 0, 1),
+  '-z': new THREE.Vector3(0, 0, -1),
 };
 
 /**

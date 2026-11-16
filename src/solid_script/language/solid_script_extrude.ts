@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { SolidScriptBlockArguments } from './solid_script_block_arguments.js';
 import { solidScriptPolygonConvexPieces } from './solid_script_polygon.js';
+import { SOLID_SCRIPT_AXES_FLAT } from './solid_script_axes.js';
 import {
   solidScriptShapeJoin,
   solidScriptShapeMapLeaves,
@@ -9,8 +10,9 @@ import {
 } from './solid_script_shape.js';
 
 /**
- * Extrudes the 2D polygons of a shape tree along Z the way linear_extrude does;
- * booleans between 2D shapes become booleans between the extruded solids.
+ * Extrudes the 2D polygons of a shape tree the way linear_extrude does: the
+ * drawing lies on the ground and is pulled up along Y; booleans between 2D
+ * shapes become booleans between the extruded solids.
  *
  * @param shape 2D shape tree in the extrusion plane.
  * @param args Linear_extrude arguments (height, center, scale, twist).
@@ -25,14 +27,15 @@ export function solidScriptExtrude(
   const height = args.positive('height', args.number('height', 1));
   const base = args.flag('center') ? -height / 2 : 0;
   const [scaleX, scaleY] = args.vector('scale', [1, 1]) as [number, number];
+  const lift = matrix.clone().multiply(SOLID_SCRIPT_AXES_FLAT);
   return solidScriptShapeMapLeaves(shape, (leaf) => {
     if (leaf.kind !== 'polygon') throw new Error('only flat shapes (Square, Circle, Polygon) can be extruded');
     const pieces = solidScriptPolygonConvexPieces(leaf.points).map((piece): SolidScriptShapeSolid => ({
       kind: 'solid',
       label: leaf.label,
       points: piece.flatMap(([x, y]) => [
-        new THREE.Vector3(x, y, base).applyMatrix4(matrix),
-        new THREE.Vector3(x * scaleX, y * scaleY, base + height).applyMatrix4(matrix),
+        new THREE.Vector3(x, y, base).applyMatrix4(lift),
+        new THREE.Vector3(x * scaleX, y * scaleY, base + height).applyMatrix4(lift),
       ]),
     }));
     return solidScriptShapeJoin(pieces, leaf.label) as SolidScriptShape;

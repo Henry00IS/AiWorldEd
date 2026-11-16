@@ -76,7 +76,7 @@ describe('names ignore case', () => {
         { command: 'cube', values: { size: '2, 2, 2' } },
         { command: 'select_faces', values: { which: 'Facing Up' } },
         { command: 'for_each_selected_face' },
-        echo('[face.center.z] [FACE.CENTER.Z]'),
+        echo('[face.center.y] [FACE.CENTER.Y]'),
         { command: 'end' },
       ]),
     );

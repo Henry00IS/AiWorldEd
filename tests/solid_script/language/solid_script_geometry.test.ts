@@ -32,13 +32,13 @@ function box(x: number, y: number, z: number, role?: string): SolidScriptShapeSo
 
 describe('SolidScript geometry lookups', () => {
   it('reads the faces of a box with centre, direction, size, area and names', () => {
-    const faces = solidScriptGeometryFaces([box(2, 1, 4)]);
+    const faces = solidScriptGeometryFaces([box(2, 4, 1)]);
     expect(faces).toHaveLength(6);
-    const top = faces.find((face) => face.normal.z > 0.9)!;
-    expect(top.center.toArray()).toEqual([0, 0, 2]);
+    const top = faces.find((face) => face.normal.y > 0.9)!;
+    expect(top.center.toArray()).toEqual([0, 2, 0]);
     expect([top.width, top.height, top.area]).toEqual([2, 1, 2]);
     expect(top.tags).toEqual(['Top']);
-    const front = faces.find((face) => face.normal.y < -0.9)!;
+    const front = faces.find((face) => face.normal.z > 0.9)!;
     expect([front.width, front.height]).toEqual([2, 4]);
     expect(front.tags).toEqual(['Side']);
     expect(solidScriptGeometryVertices([box(1, 1, 1)])).toHaveLength(8);
@@ -48,15 +48,15 @@ describe('SolidScript geometry lookups', () => {
   });
 
   it('names the treads and risers of stairs and the caps of columns', () => {
-    expect(solidScriptGeometryTags(new THREE.Vector3(0, 0, 1), 'stairs +x')).toEqual(['Top', 'Step Tread']);
+    expect(solidScriptGeometryTags(new THREE.Vector3(0, 1, 0), 'stairs +x')).toEqual(['Top', 'Step Tread']);
     expect(solidScriptGeometryTags(new THREE.Vector3(-1, 0, 0), 'stairs +x')).toEqual(['Side', 'Riser']);
     expect(solidScriptGeometryTags(new THREE.Vector3(1, 0, 0), 'stairs +x')).toEqual(['Side']);
-    expect(solidScriptGeometryTags(new THREE.Vector3(0, 0, -1), 'column')).toEqual(['Bottom', 'Cap']);
+    expect(solidScriptGeometryTags(new THREE.Vector3(0, -1, 0), 'column')).toEqual(['Bottom', 'Cap']);
   });
 
   it('picks faces by direction, name, size and number', () => {
-    const faces = solidScriptGeometryFaces([box(2, 1, 4), box(1, 1, 1, 'stairs +x')]);
-    const up = solidScriptGeometryPick(faces, { by: 'facing', direction: new THREE.Vector3(0, 0, 1), within: 10 });
+    const faces = solidScriptGeometryFaces([box(2, 4, 1), box(1, 1, 1, 'stairs +x')]);
+    const up = solidScriptGeometryPick(faces, { by: 'facing', direction: new THREE.Vector3(0, 1, 0), within: 10 });
     expect(up).toHaveLength(2);
     expect(solidScriptGeometryPick(faces, { by: 'tag', tag: 'step tread' })).toHaveLength(1);
     expect(solidScriptGeometryPick(faces, { by: 'biggest', count: 2 }).map((face) => face.area)).toEqual([8, 8]);
@@ -65,10 +65,12 @@ describe('SolidScript geometry lookups', () => {
     ]);
   });
 
-  it('places shapes on a face with Z out of it', () => {
-    const front = solidScriptGeometryFaces([box(2, 2, 2)]).find((face) => face.normal.y < -0.9)!;
-    const placed = new THREE.Vector3(0, 0, 1).applyMatrix4(solidScriptGeometryFaceMatrix(front));
-    expect(placed.toArray().map((value) => Math.round(value * 1000) / 1000)).toEqual([0, -2, 0]);
+  it('stands shapes on a face with Y out of it and Z down it', () => {
+    const front = solidScriptGeometryFaces([box(2, 2, 2)]).find((face) => face.normal.z > 0.9)!;
+    const matrix = solidScriptGeometryFaceMatrix(front);
+    const round = (vector: THREE.Vector3) => vector.toArray().map((value) => Math.round(value * 1000) / 1000 + 0);
+    expect(round(new THREE.Vector3(0, 1, 0).applyMatrix4(matrix))).toEqual([0, 0, 2]);
+    expect(round(new THREE.Vector3(0, 0, 1).applyMatrix4(matrix))).toEqual([0, -1, 1]);
   });
 
   it('bevels the edges of a box into a convex solid with flat cuts', () => {

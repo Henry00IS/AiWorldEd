@@ -4,7 +4,7 @@ import type { SolidScriptShapeMesh } from './solid_script_mesh.js';
 /** Boolean operation of a shape group. */
 export type SolidScriptBooleanOperation = 'union' | 'difference' | 'intersection';
 
-/** Convex 3D solid given by points in script space (Z up). */
+/** Convex 3D solid given by points in script space (the editor's axes, Y up). */
 export interface SolidScriptShapeSolid {
   kind: 'solid';
   points: THREE.Vector3[];

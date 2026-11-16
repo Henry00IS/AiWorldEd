@@ -14,7 +14,7 @@ import {
 /** Half the box as one vector: [half.x], [half.y] and [half.z]. */
 const SOLID_SCRIPT_EXAMPLE_HALF = solidScriptExampleSet(
   'Half',
-  '[=[Box.Width] / 2], [=[Box.Depth] / 2], [=[Box.Height] / 2]',
+  '[=[Box.Width] / 2], [=[Box.Height] / 2], [=[Box.Depth] / 2]',
 );
 
 /** Port of the Pyramid generator. */
@@ -24,9 +24,9 @@ export const SOLID_SCRIPT_EXAMPLE_PYRAMID: readonly SolidScriptLine[] = [
   SOLID_SCRIPT_EXAMPLE_HALF,
   ...solidScriptExamplePolyhedron(
     solidScriptExampleRepeat('Corner', '0', '3', [
-      solidScriptExampleSet('Side', '[=([Corner] % 2) * 2 - 1], [=Floor([Corner] / 2) * 2 - 1], 0'),
-      solidScriptExamplePoint('[=[Side.x] * [Half.x]], [=[Side.y] * [Half.y]], [=-[Half.z]]'),
-      solidScriptExamplePoint('[=[Side.x] * [Half.x] * [TopSize]], [=[Side.y] * [Half.y] * [TopSize]], [Half.z]'),
+      solidScriptExampleSet('Side', '[=([Corner] % 2) * 2 - 1], 0, [=Floor([Corner] / 2) * 2 - 1]'),
+      solidScriptExamplePoint('[=[Side.x] * [Half.x]], [=-[Half.y]], [=[Side.z] * [Half.z]]'),
+      solidScriptExamplePoint('[=[Side.x] * [Half.x] * [TopSize]], [Half.y], [=[Side.z] * [Half.z] * [TopSize]]'),
     ]),
   ),
 ];
@@ -56,17 +56,17 @@ export const SOLID_SCRIPT_EXAMPLE_PRISM: readonly SolidScriptLine[] = [
         ...solidScriptExampleIf('[End] != 0', [
           ...solidScriptExampleIf('[Axis] == "x"', [
             solidScriptExamplePoint(
-              '[=[End] * [Half.x]], [=[Half.y] - [Box.Depth] * [U.x]], [=-[Half.z] + [Box.Height] * [U.y]]',
+              '[=[End] * [Half.x]], [=-[Half.y] + [Box.Height] * [U.y]], [=[Box.Depth] * [U.x] - [Half.z]]',
             ),
           ]),
           ...solidScriptExampleIf('[Axis] == "y"', [
             solidScriptExamplePoint(
-              '[=-[Half.x] + [Box.Width] * [U.x]], [=[Half.y] - [Box.Depth] * [U.y]], [=[End] * [Half.z]]',
+              '[=-[Half.x] + [Box.Width] * [U.x]], [=[End] * [Half.y]], [=[Box.Depth] * [U.y] - [Half.z]]',
             ),
           ]),
           ...solidScriptExampleIf('[Axis] == "z"', [
             solidScriptExamplePoint(
-              '[=-[Half.x] + [Box.Width] * [U.x]], [=[End] * [Half.y]], [=-[Half.z] + [Box.Height] * [U.y]]',
+              '[=-[Half.x] + [Box.Width] * [U.x]], [=-[Half.y] + [Box.Height] * [U.y]], [=[End] * [Half.z]]',
             ),
           ]),
         ]),
@@ -111,18 +111,18 @@ export const SOLID_SCRIPT_EXAMPLE_HOLLOW_BOX: readonly SolidScriptLine[] = [
     '[T] * 2 >= Min([Box.Width], [Box.Depth], [Box.Height])',
     [solidScriptExampleSlab('-[Half.x], -[Half.y], -[Half.z]', '[Half.x], [Half.y], [Half.z]')],
     [
-      solidScriptExampleSet('Top', '[=[Half.z] - [T]]'),
-      ...solidScriptExampleIf('[OpenTop]', [solidScriptExampleSet('Top', '[Half.z]')]),
-      solidScriptExampleSet('Floor', '[=-[Half.z] + [T]]'),
-      solidScriptExampleSet('Inner', '[=[Half.x] - [T]], [=[Half.y] - [T]], 0'),
-      solidScriptExampleSlab('-[Half.x], -[Half.y], -[Half.z]', '[Half.x], [Half.y], [Floor]'),
+      solidScriptExampleSet('Top', '[=[Half.y] - [T]]'),
+      ...solidScriptExampleIf('[OpenTop]', [solidScriptExampleSet('Top', '[Half.y]')]),
+      solidScriptExampleSet('Floor', '[=-[Half.y] + [T]]'),
+      solidScriptExampleSet('Inner', '[=[Half.x] - [T]], 0, [=[Half.z] - [T]]'),
+      solidScriptExampleSlab('-[Half.x], -[Half.y], -[Half.z]', '[Half.x], [Floor], [Half.z]'),
       ...solidScriptExampleIf('not [OpenTop]', [
-        solidScriptExampleSlab('-[Half.x], -[Half.y], [=[Half.z] - [T]]', '[Half.x], [Half.y], [Half.z]'),
+        solidScriptExampleSlab('-[Half.x], [=[Half.y] - [T]], -[Half.z]', '[Half.x], [Half.y], [Half.z]'),
       ]),
-      solidScriptExampleSlab('-[Half.x], -[Half.y], [Floor]', '-[Inner.x], [Half.y], [Top]'),
-      solidScriptExampleSlab('[Inner.x], -[Half.y], [Floor]', '[Half.x], [Half.y], [Top]'),
-      solidScriptExampleSlab('-[Inner.x], [Inner.y], [Floor]', '[Inner.x], [Half.y], [Top]'),
-      solidScriptExampleSlab('-[Inner.x], -[Half.y], [Floor]', '[Inner.x], -[Inner.y], [Top]'),
+      solidScriptExampleSlab('-[Half.x], [Floor], -[Half.z]', '-[Inner.x], [Top], [Half.z]'),
+      solidScriptExampleSlab('[Inner.x], [Floor], -[Half.z]', '[Half.x], [Top], [Half.z]'),
+      solidScriptExampleSlab('-[Inner.x], [Floor], [Inner.z]', '[Inner.x], [Top], [Half.z]'),
+      solidScriptExampleSlab('-[Inner.x], [Floor], -[Half.z]', '[Inner.x], [Top], -[Inner.z]'),
     ],
   ),
 ];
@@ -149,7 +149,7 @@ export const SOLID_SCRIPT_EXAMPLE_ARCH: readonly SolidScriptLine[] = [
   solidScriptExampleInput('Sweep', 'number', '180', { label: 'Sweep', min: '1', max: '180' }),
   solidScriptExampleInput('Start', 'choice', 'centre', { label: 'Start From', choices: 'centre, left, right' }),
   solidScriptExampleInput('Thickness', 'number', '0.25', { label: 'Thickness', min: '0.01', max: '100' }),
-  solidScriptExampleNote('The editor’s Z span runs along -Y here; the arch rises along Z.'),
+  solidScriptExampleNote('The arch rises along Y and spans X, or Z when Span Along is z.'),
   solidScriptExampleSet('AlongX', '[=[Span] != "z"]'),
   solidScriptExampleSet('Half', '[=([AlongX] ? [Box.Width] : [Box.Depth]) / 2]'),
   solidScriptExampleSet('Across', '[=([AlongX] ? [Box.Depth] : [Box.Width]) / 2]'),
@@ -172,11 +172,8 @@ export const SOLID_SCRIPT_EXAMPLE_ARCH: readonly SolidScriptLine[] = [
       solidScriptExampleBlock('for_each', { variable: 'P', list: '[Outline]' }, [
         ...solidScriptExampleIf(
           '[AlongX]',
-          [solidScriptExamplePoint('[P.x], [=-[Across]], [P.y]'), solidScriptExamplePoint('[P.x], [Across], [P.y]')],
-          [
-            solidScriptExamplePoint('[=-[Across]], [=-[P.x]], [P.y]'),
-            solidScriptExamplePoint('[Across], [=-[P.x]], [P.y]'),
-          ],
+          [solidScriptExamplePoint('[P.x], [P.y], [=-[Across]]'), solidScriptExamplePoint('[P.x], [P.y], [Across]')],
+          [solidScriptExamplePoint('[=-[Across]], [P.y], [P.x]'), solidScriptExamplePoint('[Across], [P.y], [P.x]')],
         ),
       ]),
     ),

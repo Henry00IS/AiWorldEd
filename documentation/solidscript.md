@@ -9,6 +9,7 @@ Double-click a command in the palette, or drag it in, to add it below the curren
 <details>
 <summary>More Details</summary>
 
+- Scripts use the editor's axes: X right, Y up and Z toward the front, so a Cube of `1, 2, 3` is 2 metres tall and `[Box.Size]` is width, height and depth. Flat outlines are drawn with their own X and Y: Linear Extrude lays them on the ground (their Y running to the back) and pulls them up, Rotate Extrude spins them around the upright Y axis with their Y as the height.
 - Fields take plain values (`2`, `1, 0, 0`), variables in brackets (`[Width]`) and formulas after an equals sign (`[=[Width] / 2]`). Text inside a formula takes double quotes, such as `[=IsString("3e")]`; bare words there are names, so `3e` or `hello` get an error that shows the quoted form. Single quotes are kept for later use.
 - Names ignore case: `[count]` and `[Count]` are one variable, and `sin(65)` is `Sin(65)`. Write them in PascalCase, such as `[StepHeight]`, `[Local.Width]`, `[Persistent.Presses]`, `Function Staircase` and `CharacterCode("A")`, like the examples do; the explorer keeps the spelling of the first Set or Input.
 - Functions such as `Sin`, `Lerp`, `Remap`, `Split` or `TimeText` work in formulas; hover one in the suggestions to see what it does. `ItemOr([List], 5, 0)` reads an item with a fallback when there is none.
@@ -64,9 +65,9 @@ The script runs on every change. **Start** builds everything, **Debug** builds o
 <details>
 <summary>More Details</summary>
 
-- **For Each Selected Face** runs lines once per picked face, and the shapes built inside stand on that face; **Place On Face** adds a Lift, and **Extrude Face**, **Inset Face** and **Bevel Edges** work on its face.
+- **For Each Selected Face** runs lines once per picked face, and the shapes built inside stand on that face the way they stand on the ground (Y out of the face); **Place On Face** adds a Lift, and **Extrude Face**, **Inset Face** and **Bevel Edges** work on its face.
 - **For Each Scattered Point** spreads points over the picked faces, more on bigger ones; the same Seed always gives the same points.
-- **Align To** turns the lines inside so their Z points along a direction, such as `[Point.Normal]`.
+- **Align To** turns the lines inside so their up (Y) points along a direction, such as `[Point.Normal]`.
 
 </details>
 

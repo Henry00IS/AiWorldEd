@@ -6,7 +6,7 @@ import { ModifierStackKindGenerator } from '@/modifier/stack/kinds/generator/mod
 
 /** Where a generator's box sits in script coordinates. */
 export interface SolidScriptGeneratorBox {
-  /** Width (X), depth (Y) and height (Z) in metres. */
+  /** Width (X), height (Y) and depth (Z) in metres. */
   size: readonly [number, number, number];
   /** Lowest corner in metres. */
   min: readonly [number, number, number];
@@ -14,8 +14,7 @@ export interface SolidScriptGeneratorBox {
 
 /**
  * Builds a generator's pieces in a box of the script, the way the generator
- * fills its own box. Script coordinates are Z-up; the generator works Y-up, so
- * the box is turned in and the corners are turned back.
+ * fills its own box. Scripts and generators share the editor's axes.
  *
  * @param kindId Box generator kind id.
  * @param parameters Generator parameters under its own field names.
@@ -29,13 +28,7 @@ export function solidScriptGeneratorPieces(
 ): THREE.Vector3[][] {
   const kind = modifierStackKindFind(kindId);
   if (!(kind instanceof ModifierStackKindGenerator)) throw new Error(`there is no ${kindId} generator`);
-  const [x, y, z] = box.size;
-  const [minX, minY, minZ] = box.min;
-  const frame = new THREE.Box3(
-    new THREE.Vector3(minX, minZ, -(minY + y)),
-    new THREE.Vector3(minX + x, minZ + z, -minY),
-  );
-  return kind
-    .previewPieces(parameters, frame)
-    .map((piece) => piece.vertices.map((point) => new THREE.Vector3(point.x, -point.z, point.y)));
+  const min = new THREE.Vector3(...box.min);
+  const frame = new THREE.Box3(min, min.clone().add(new THREE.Vector3(...box.size)));
+  return kind.previewPieces(parameters, frame).map((piece) => piece.vertices.map((point) => point.clone()));
 }

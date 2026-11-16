@@ -18,7 +18,7 @@ export const SOLID_SCRIPT_REFERENCE_SUMMARY =
   'Field values are plain text without quotes: numbers, "x, y, z" lists, [Name] for a variable, [=formula] for a calculation. The origin is the centre of the generator, and shapes are centred on it by default. ' +
   "Commands build boxes, balls, cylinders and convex point sets, extrude flat outlines, move/turn/stretch/mirror, join, cut, overlap and wrap shapes, set variables and lists, repeat, branch, reuse named parts, call functions with values and results, offer input settings and buttons in the inspector and check them as they change. Generator blocks build the shapes of the editor's generators (Cone, Torus, Stairs, Arch and more) with their own fields, and mesh blocks build regular editable meshes. " +
   'Every shape becomes one convex brush; Difference becomes a CSG group whose first child adds and the rest subtract. ' +
-  'Z-up, metres, degrees. Read geometry_script_reference_get once before writing a script: it lists every command, its fields and defaults, what stops it, and common mistakes.';
+  'Y-up like the editor (X right, Z toward the front), metres, degrees. Read geometry_script_reference_get once before writing a script: it lists every command, its fields and defaults, what stops it, and common mistakes.';
 
 /** Model part of the reference: coordinates, lines, values and running. */
 const SOLID_SCRIPT_REFERENCE_MODEL = `# SolidScript reference
@@ -28,9 +28,10 @@ SolidScript is how AiWorldEd describes brush geometry as a script of block lines
 ## Coordinates and units
 
 - Units are metres. Angles are degrees.
-- Scripts are Z-up: X is right, Y is forward (away from the viewer), Z is up. The editor is Y-up, so a script point (x, y, z) lands at editor (x, z, -y). geometry_script_build with upAxis "y" keeps the editor's axes as written instead.
+- Scripts use the editor's axes: X is right, Y is up and Z points toward the front (toward the viewer). A script point (x, y, z) is the editor point (x, y, z).
+- Flat outlines (Square, Circle, Polygon) are drawn with their own X and Y. Linear Extrude lays the drawing on the ground, its Y running to the back (a drawing point (x, y) lands at (x, 0, -y)), and pulls it up along Y. Rotate Extrude stands it up: the outline's X is the radius and its Y the height, spun around the Y axis.
 - The origin [0, 0, 0] is the centre of the generator's box (for geometry_script_build, the build position). Shapes are centred on it by default, so a shape with no Translate sits in the middle of the generator; no Translate is needed to lift it into the box.
-- Cube, Cylinder, Square and Linear Extrude have a Center switch, on by default. Switched off, Cube and Square put their corner on the origin and grow along +X, +Y (+Z), and Cylinder and Linear Extrude stand on the origin and grow along +Z. Sphere and Circle are always centred.
+- Cube, Cylinder, Square and Linear Extrude have a Center switch, on by default. Switched off, Cube and Square put their corner on the origin and grow along +X, +Y and +Z, and Cylinder and Linear Extrude stand on the origin and grow up along +Y. Sphere and Circle are always centred.
 - In a SolidScript generator, placement decides how script metres map to the generator's box: "origin" keeps metres unchanged around the box centre, "fit" scales the whole result evenly to fit the box, "stretch" scales each axis to fill the box; both keep it centred.
 
 ## Lines
@@ -75,7 +76,7 @@ Formulas know: numbers, text in double quotes, true, false, lists in $[ $] brack
 
 - Every shape line becomes exactly one convex brush. Round shapes have a Sides field (3 to 64, default 16) and Sphere a Rings field (2 to 32, default 8), set per line.
 - Polyhedron wraps its points in one convex solid; dents are filled.
-- Rotate Extrude spins flat outlines around Z (outline X is the radius, Y the height), one brush per side and convex piece. Minkowski grows the first shape by the hull of each later one (round edges with a small Sphere). Resize stretches to an exact size; Matrix applies a 3 by 4 matrix, including shear.
+- Rotate Extrude spins flat outlines around Y (outline X is the radius, Y the height), one brush per side and convex piece. Minkowski grows the first shape by the hull of each later one (round edges with a small Sphere). Resize stretches to an exact size; Matrix applies a 3 by 4 matrix, including shear.
 - Return leaves the part it is in; the script carries on after the Use Part line.
 - Square, Circle and Polygon are flat outlines and only work inside Linear Extrude; a concave Polygon becomes several convex brushes.
 - Difference becomes a CSG group: the first shape inside adds, every later one is cut from it. Intersection becomes a group that keeps only the overlap. Union is flattened into its parent. Hull becomes one convex brush around everything inside.
@@ -91,11 +92,11 @@ Formulas know: numbers, text in double quotes, true, false, lists in $[ $] brack
 
 ## Faces
 
-- Select Faces picks faces of the shapes built above it, in plain words. Which is All, Facing Up, Facing Down, Facing Left, Facing Right, Facing Front, Facing Back (Within allows a slope in degrees), Facing (Detail gives a direction such as 0, 0, 1), Tagged (Detail gives a name), Biggest or Smallest (Detail gives how many), Number (Detail gives face numbers) or Where (Detail gives a condition such as [=[Face.Area] > 1]). How is New, Add or Remove.
+- Select Faces picks faces of the shapes built above it, in plain words. Which is All, Facing Up, Facing Down, Facing Left, Facing Right, Facing Front, Facing Back (Within allows a slope in degrees), Facing (Detail gives a direction such as 0, 1, 0 for up), Tagged (Detail gives a name), Biggest or Smallest (Detail gives how many), Number (Detail gives face numbers) or Where (Detail gives a condition such as [=[Face.Area] > 1]). How is New, Add or Remove.
 - Every face has a name: Top, Bottom or Side. Stairs add Step Tread and Riser, columns add Cap.
 - For Each Selected Face runs its lines once per picked face. Inside, the read-only values [Face.Index], [Face.Number], [Face.Center], [Face.Normal], [Face.Width], [Face.Height], [Face.Area] and [Face.Tag] describe it; [Face.Center(2)] is the height of its middle.
 - For Each Vertex gives [Vertex.Index], [Vertex.Position] and [Vertex.Normal]; For Each Edge gives [Edge.Index], [Edge.Start], [Edge.End], [Edge.Middle], [Edge.Length] and [Edge.Direction].
-- Place On Face builds the shapes inside standing on the face of the round: Z points out of the face, X runs across it, Y up it.
+- Place On Face builds the shapes inside standing on the face of the round the way shapes stand on the ground: Y points out of the face, X runs across it and Z down it.
 - Extrude Face, Inset Face, Bevel Edges and Delete Faces work on the face of the round, or else on every picked face. Extrude Face adds a brush on a brush face and moves a mesh face. Inset Face and Delete Faces turn a brush into a mesh. Bevel Edges works on brushes.
 - Formulas can read any face, corner or edge of the shapes above: FaceCount(), FaceCenter(n), FaceNormal(n), FaceWidth(n), FaceHeight(n), FaceArea(n), FaceTag(n), VertexCount(), VertexPosition(n), VertexNormal(n), EdgeCount(), EdgeStart(n), EdgeEnd(n), EdgeMiddle(n) and EdgeLength(n). Numbers count from 0.
 - Example, a trim on every stair step: Stairs; Select Faces Tagged Step Tread; For Each Selected Face; Place On Face; Cube size [Face.Width], 0.05, 0.03; End For Each.
@@ -110,7 +111,7 @@ Formulas know: numbers, text in double quotes, true, false, lists in $[ $] brack
 - When Input Changes Steps and When Button Pressed reset blocks run when someone changes the input or presses a button Input in the inspector, before the shape is rebuilt, and never during the normal run. They read every input, check it, change it with Set Input Steps to [=Min([Steps], 64)] and explain with Show Message; they may call Functions but may not build shapes. Set Input and Show Message only work inside them.
 - The debugger shows the call stack while paused or stepping: each running Function and part, the line that called it, and its local variables. Breakpoints work inside Function and handler blocks.
 - Names use letters, digits and _. A dot only works where SolidScript gives it a meaning: Local. and Persistent. in front, .x, .y and .z behind a vector, ().Count behind a list, and loop values such as Face.Center. Any other dot, such as chicken.soup, stops the script before it runs.
-- A vector is one value with an x, y and z, written as numbers with commas: 50, 20, 40, without quotes or brackets. Set Pos to 1, 2, 3 keeps a whole position in one variable; Translate by [Pos] and Cube of size [Size] take it directly. [Pos.x], [Pos.y] and [Pos.z] read one part, and Set Pos.z to 5 changes one part. In formulas vectors add, subtract and scale: [=[Pos] + $[0, 0, 1$]], [=[Pos] * 2]; length, normalize, dot, cross, distance and Lerp(a, b, amount) work on them, and Vector(x, y, z) makes one. Face, corner and edge values such as [Face.Center] are vectors too.
+- A vector is one value with an x, y and z, written as numbers with commas: 50, 20, 40, without quotes or brackets. Set Pos to 1, 2, 3 keeps a whole position in one variable; Translate by [Pos] and Cube of size [Size] take it directly. [Pos.x], [Pos.y] and [Pos.z] read one part, and Set Pos.z to 5 changes one part. In formulas vectors add, subtract and scale: [=[Pos] + $[0, 1, 0$]], [=[Pos] * 2]; length, normalize, dot, cross, distance and Lerp(a, b, amount) work on them, and Vector(x, y, z) makes one. Face, corner and edge values such as [Face.Center] are vectors too.
 - Built-in functions for formulas, by group: ${solidScriptReferenceFunctions()}
 - Built-in values every script reads, never sets, as [Time.Year] in fields or Time.Year in formulas: ${SOLID_SCRIPT_SYSTEM_GLOBALS.map((value) => `${value.name} (${value.detail})`).join('; ')}. Box values only exist in a generator; elsewhere they read as 1 with a warning. Time and run values differ on every computer and run, so shapes built from them differ between players in a room.
 - Strings in formulas take \\n for a new line and \\t for a tab.
@@ -181,7 +182,7 @@ ${listed}
 /** Mistakes assistants make most. */
 const SOLID_SCRIPT_REFERENCE_MISTAKES = `## Common mistakes
 
-- Height is Z, not Y: Cube size is [Width, depth, height].
+- Height is Y, as in the editor: Cube size is [Width, height, depth], and [Box.Size] is width, height and depth.
 - Shapes are centred on the origin (the generator's centre) by default; do not add a Translate to lift them into the box. Set center to "false" to place a corner (or the base) on the origin instead.
 - Flat outlines (square, circle, polygon) only work inside linear_extrude, and solids never do.
 - Difference keeps only its first shape and cuts the rest; to keep several shapes, put them in a Union as the first line inside.
@@ -190,7 +191,7 @@ const SOLID_SCRIPT_REFERENCE_MISTAKES = `## Common mistakes
 - Values are strings, even numbers: "2", not 2. Never put quotes or [ ] around a list: "1, 2, 3", not "[1, 2, 3]".
 - Variables need brackets everywhere: "[Width]", and "[=[Width] * 2]" inside a formula; Echo text needs no quotes.
 - A concave solid cannot be one shape: build it from several convex parts or cut it with Difference.
-- Rotate turns about X first, then Y, then Z; for one turn about a single axis use "0, 0, 90".
+- Rotate turns about X first, then Y, then Z; for one turn about the upright axis use "0, 90, 0".
 - Keep Sides moderate (12 to 32): more sides cost more planes per brush but never more brushes.
 `;
 

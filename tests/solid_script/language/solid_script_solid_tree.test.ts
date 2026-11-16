@@ -10,7 +10,6 @@ import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 
 const OPTIONS: SolidScriptSolidTreeOptions = {
-  upAxis: 'z',
   offset: new THREE.Vector3(),
   worldToParent: new THREE.Matrix4(),
   operation: SolidOperation.Additive,
@@ -65,13 +64,9 @@ describe('solidScriptSolidTreeBuild', () => {
     ]);
   });
 
-  it('converts Z-up to Y-up, adds the offset and centers brushes', () => {
+  it('keeps the editor axes, adds the offset and centers brushes', () => {
     const [node] = tree(
-      [
-        { command: 'translate', values: { v: '0.5, -2.5, 1.5' } },
-        { command: 'cube', values: { size: '1, 1, 3' } },
-        END,
-      ],
+      [{ command: 'translate', values: { v: '0.5, 1.5, 2.5' } }, { command: 'cube', values: { size: '1, 1, 3' } }, END],
       { offset: new THREE.Vector3(10, 0, 0), operation: SolidOperation.Subtractive, namePrefix: 'Hall' },
     );
     expect(node?.kind).toBe('brush');

@@ -15,25 +15,21 @@ export interface SolidScriptMeshDocument {
 }
 
 /**
- * Turns a script mesh into an editable mesh document in editor coordinates (Y
- * up), placed by a matrix like the brushes. When the script gave texture
- * coordinates to some faces, the others get theirs from X and Y, so every
- * corner has one.
+ * Turns a script mesh into an editable mesh document, placed by a matrix like
+ * the brushes. When the script gave texture coordinates to some faces, the
+ * others get theirs as seen from above (X and -Z), so every corner has one.
  *
  * @param mesh Script mesh.
- * @param upAxis Up axis of the script: 'z' turns Z up into Y up.
- * @param placed Placement after the axis turn.
+ * @param placed Placement.
  * @returns Mesh document and its name.
  */
 export function solidScriptMeshDocumentBuild(
   mesh: SolidScriptShapeMesh,
-  upAxis: 'z' | 'y',
   placed: THREE.Matrix4,
 ): SolidScriptMeshDocument {
   const positions = new Float32Array(mesh.points.length * 3);
   mesh.points.forEach((point, index) => {
-    const editor = upAxis === 'z' ? new THREE.Vector3(point.x, point.z, -point.y) : point.clone();
-    const moved = editor.applyMatrix4(placed);
+    const moved = point.clone().applyMatrix4(placed);
     positions.set([moved.x, moved.y, moved.z], index * 3);
   });
   const flip = placed.determinant() < 0;
@@ -44,7 +40,7 @@ export function solidScriptMeshDocumentBuild(
   const corners: number[] = [];
   mesh.faces.forEach((face, index) => {
     const uv =
-      mesh.uvs[index] ?? face.map((corner): [number, number] => [mesh.points[corner]!.x, mesh.points[corner]!.y]);
+      mesh.uvs[index] ?? face.map((corner): [number, number] => [mesh.points[corner]!.x, -mesh.points[corner]!.z]);
     for (const [u, v] of flip ? [...uv].reverse() : uv) corners.push(u, v);
   });
   return { name, document: meshDocumentFromPolygonList(positions, faces, new Float32Array(corners)), hasUvs };

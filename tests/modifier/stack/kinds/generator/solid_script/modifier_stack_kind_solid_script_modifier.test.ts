@@ -74,7 +74,7 @@ describe('SolidScript as a modifier', () => {
     const fixture = modifierFixture(
       both(
         { command: 'if', values: { condition: '[Script.Usage] == "Modifier" and [Input.Brushes] == 1' } },
-        { command: 'translate', values: { v: '0, 0, [Input.Size.z]' } },
+        { command: 'translate', values: { v: '0, [Input.Size.y], 0' } },
         { command: 'input_shapes' },
         { command: 'end' },
         { command: 'end' },

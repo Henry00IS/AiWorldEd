@@ -116,11 +116,10 @@ export class ModifierStackKindSolidScriptModifier extends ModifierStackKindSolid
       return [...units];
     }
     const centre = box.getCenter(new THREE.Vector3());
-    // Frame space is Y up; script space is Z up.
     const use: SolidScriptUseFacts = {
       usage: 'Modifier',
       solids: corners.map((list) =>
-        list.map((point) => [point.x - centre.x, -(point.z - centre.z), point.y - centre.y] as const),
+        list.map((point) => [point.x - centre.x, point.y - centre.y, point.z - centre.z] as const),
       ),
       faces: brushes.reduce((sum, brush) => sum + brush.brush.faces.length, 0),
     };

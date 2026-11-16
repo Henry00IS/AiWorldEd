@@ -46,7 +46,7 @@ export function solidScriptSides(args: SolidScriptBlockArguments): number {
 }
 
 /**
- * Points of a circle in the XY plane.
+ * Points of a circle in a flat drawing.
  *
  * @param radius Radius.
  * @param count Side count.
@@ -105,15 +105,15 @@ export function solidScriptCylinderPoints(args: SolidScriptBlockArguments): THRE
   const sides = solidScriptSides(args);
   const radius = Math.max(bottom, top);
   const box = {
-    size: [radius * 2, radius * 2, height] as const,
-    min: [-radius, -radius, center ? -height / 2 : 0] as const,
+    size: [radius * 2, height, radius * 2] as const,
+    min: [-radius, center ? -height / 2 : 0, -radius] as const,
   };
   if (bottom === top) return solidScriptGeneratorPieces('cylinder', { sides }, box)[0] ?? [];
   const topRadius = Math.min(bottom, top) / radius;
   const points = solidScriptGeneratorPieces('cone', { sides, topRadius }, box)[0] ?? [];
   if (bottom > top) return points;
   const flip = center ? 0 : height;
-  return points.map((point) => new THREE.Vector3(point.x, point.y, flip - point.z));
+  return points.map((point) => new THREE.Vector3(point.x, flip - point.y, point.z));
 }
 
 /**

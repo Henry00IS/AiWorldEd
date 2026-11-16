@@ -93,22 +93,22 @@ describe('SolidScript generator blocks', () => {
     }
   });
 
-  it('builds the same pieces as the generator, filling a centred box in script Z-up metres', () => {
-    const result = run({ command: 'cone', values: { size: '2, 4, 3', sides: '12', topRadius: '0.5' } });
+  it('builds the same pieces as the generator, filling a centred box of width, height and depth', () => {
+    const result = run({ command: 'cone', values: { size: '2, 3, 4', sides: '12', topRadius: '0.5' } });
     expect(result.error).toBeNull();
     const [minX, minY, minZ, maxX, maxY, maxZ] = bounds(result.shapes);
-    expect([minZ, maxZ]).toEqual([-1.5, 1.5]);
-    expect(maxY).toBeGreaterThan(1.9);
-    expect(maxY).toBeLessThanOrEqual(2);
-    expect([minX, minY]).toEqual([-maxX!, -maxY!]);
+    expect([minY, maxY]).toEqual([-1.5, 1.5]);
+    expect(maxZ).toBeGreaterThan(1.9);
+    expect(maxZ).toBeLessThanOrEqual(2);
+    expect([minX, minZ]).toEqual([-maxX!, -maxZ!]);
     const pieces = generator('cone').previewPieces(
       { sides: 12, topRadius: 0.5 },
       new THREE.Box3(new THREE.Vector3(-1, -1.5, -2), new THREE.Vector3(1, 1.5, 2)),
     );
-    expect(solids(result.shapes).map((points) => points.length)).toEqual(pieces.map((piece) => piece.vertices.length));
+    expect(solids(result.shapes)).toEqual(pieces.map((piece) => piece.vertices));
     const points = solids(result.shapes)[0]!;
-    const widthAt = (z: number) =>
-      Math.max(...points.filter((point) => Math.abs(point.z - z) < 1e-6).map((point) => Math.hypot(point.x, point.y)));
+    const widthAt = (y: number) =>
+      Math.max(...points.filter((point) => Math.abs(point.y - y) < 1e-6).map((point) => Math.hypot(point.x, point.z)));
     expect(widthAt(1.5) / widthAt(-1.5)).toBeCloseTo(0.5, 5);
   });
 
@@ -138,23 +138,18 @@ describe('SolidScript generator blocks', () => {
     expect(solids(sphere.shapes).map((points) => points.length)).toEqual(
       kindSphere.map((piece) => piece.vertices.length),
     );
-    const frameToScript = (point: THREE.Vector3) => new THREE.Vector3(point.x, -point.z, point.y);
-    expect(bounds(sphere.shapes)).toEqual(
-      bounds([{ kind: 'solid', label: '', points: kindSphere[0]!.vertices.map(frameToScript) }]),
-    );
+    expect(bounds(sphere.shapes)).toEqual(bounds([{ kind: 'solid', label: '', points: kindSphere[0]!.vertices }]));
     const cylinder = run({ command: 'cylinder', values: { h: '2', r1: '1', r2: '1', sides: '10' } });
     const kindCylinder = generator('cylinder').previewPieces(
       { sides: 10 },
       new THREE.Box3(new THREE.Vector3(-1, -1, -1), new THREE.Vector3(1, 1, 1)),
     );
-    expect(bounds(cylinder.shapes)).toEqual(
-      bounds([{ kind: 'solid', label: '', points: kindCylinder[0]!.vertices.map(frameToScript) }]),
-    );
-    expect(bounds(cylinder.shapes)[2]).toBe(-1);
+    expect(bounds(cylinder.shapes)).toEqual(bounds([{ kind: 'solid', label: '', points: kindCylinder[0]!.vertices }]));
+    expect(bounds(cylinder.shapes)[1]).toBe(-1);
     const cone = run({ command: 'cylinder', values: { h: '2', r1: '0.5', r2: '1', center: 'false' } });
     const points = solids(cone.shapes).flat();
-    const radiusAt = (z: number) =>
-      Math.max(...points.filter((point) => Math.abs(point.z - z) < 1e-6).map((point) => Math.hypot(point.x, point.y)));
+    const radiusAt = (y: number) =>
+      Math.max(...points.filter((point) => Math.abs(point.y - y) < 1e-6).map((point) => Math.hypot(point.x, point.z)));
     expect(radiusAt(0)).toBeCloseTo(0.5, 5);
     expect(radiusAt(2)).toBeCloseTo(1, 5);
   });

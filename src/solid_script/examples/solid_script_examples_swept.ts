@@ -12,7 +12,7 @@ import {
 } from './solid_script_example_lines.js';
 
 /**
- * Lines that size the ring of the box: [Rx] and [Ry] are half the width and
+ * Lines that size the ring of the box: [Rx] and [Rz] are half the width and
  * depth, [TurnSign] is 1 for counter-clockwise and [Limit] is the deepest a
  * wall can reach in before the ring closes.
  *
@@ -22,9 +22,9 @@ import {
 function solidScriptExampleRingSize(turnSign = '1'): SolidScriptLine[] {
   return [
     solidScriptExampleSet('Rx', '[=[Box.Width] / 2]'),
-    solidScriptExampleSet('Ry', '[=[Box.Depth] / 2]'),
+    solidScriptExampleSet('Rz', '[=[Box.Depth] / 2]'),
     solidScriptExampleSet('TurnSign', turnSign),
-    solidScriptExampleSet('Limit', '[=Min([Rx], [Ry]) ^ 2 / Max([Rx], [Ry])]'),
+    solidScriptExampleSet('Limit', '[=Min([Rx], [Rz]) ^ 2 / Max([Rx], [Rz])]'),
   ];
 }
 
@@ -34,14 +34,14 @@ function solidScriptExampleRingSize(turnSign = '1'): SolidScriptLine[] {
  */
 const SOLID_SCRIPT_EXAMPLE_RING_POINT: readonly SolidScriptLine[] = solidScriptExampleBlock(
   'function',
-  { name: 'RingPoint', parameters: 'Angle, Inset, Z' },
+  { name: 'RingPoint', parameters: 'Angle, Inset, Height' },
   [
     solidScriptExampleSet('Local.C', '[=Cos([Local.Angle])]'),
     solidScriptExampleSet('Local.S', '[=Sin([Local.Angle]) * [TurnSign]]'),
-    solidScriptExampleSet('Local.Inward', '[=Normalize(Vector([Local.C] / [Rx], [Local.S] / [Ry]))]'),
+    solidScriptExampleSet('Local.Inward', '[=Normalize(Vector([Local.C] / [Rx], [Local.S] / [Rz]))]'),
     solidScriptExampleLine('return', {
       value:
-        '[=Vector([Rx] * [Local.C] - [Local.Inset] * [Local.Inward.x], [Ry] * [Local.S] - [Local.Inset] * [Local.Inward.y], [Local.Z])]',
+        '[=Vector([Rx] * [Local.C] - [Local.Inset] * [Local.Inward.x], [Local.Height], [Local.Inset] * [Local.Inward.y] - [Rz] * [Local.S])]',
     }),
   ],
 );
@@ -88,7 +88,7 @@ export const SOLID_SCRIPT_EXAMPLE_TORUS: readonly SolidScriptLine[] = [
   solidScriptExampleInput('Sweep', 'number', '360', { label: 'Sweep Angle', min: '1', max: '360' }),
   ...solidScriptExampleRingSize(),
   ...SOLID_SCRIPT_EXAMPLE_RING_POINT,
-  solidScriptExampleSet('Tube', '[=Min([Thickness] * Min([Rx], [Ry]), [Limit] / 2)]'),
+  solidScriptExampleSet('Tube', '[=Min([Thickness] * Min([Rx], [Rz]), [Limit] / 2)]'),
   solidScriptExampleNote('The tube outline, stretched so it reaches from -1 to 1 both ways.'),
   solidScriptExampleSet('Low', '1, 1'),
   solidScriptExampleSet('High', '-1, -1'),
@@ -140,12 +140,12 @@ export const SOLID_SCRIPT_EXAMPLE_CURVED_STAIRS: readonly SolidScriptLine[] = [
           solidScriptExampleSet('Angle', '[=[Turn] * ([Step] + ([Part] + [Edge]) / [StepDetail])]'),
           solidScriptExampleSet(
             'Out',
-            '[=[Box.Width] / 2 * Cos([Angle])], [=[Box.Depth] / 2 * Sin([Angle]) * [TurnSign]], 0',
+            '[=[Box.Width] / 2 * Cos([Angle])], 0, [=-[Box.Depth] / 2 * Sin([Angle]) * [TurnSign]]',
           ),
-          solidScriptExamplePoint('[=[Out.x] * [InnerRadius]], [=[Out.y] * [InnerRadius]], [Bottom]'),
-          solidScriptExamplePoint('[Out.x], [Out.y], [Bottom]'),
-          solidScriptExamplePoint('[Out.x], [Out.y], [Top]'),
-          solidScriptExamplePoint('[=[Out.x] * [InnerRadius]], [=[Out.y] * [InnerRadius]], [Top]'),
+          solidScriptExamplePoint('[=[Out.x] * [InnerRadius]], [Bottom], [=[Out.z] * [InnerRadius]]'),
+          solidScriptExamplePoint('[Out.x], [Bottom], [Out.z]'),
+          solidScriptExamplePoint('[Out.x], [Top], [Out.z]'),
+          solidScriptExamplePoint('[=[Out.x] * [InnerRadius]], [Top], [=[Out.z] * [InnerRadius]]'),
         ]),
       ),
     ]),

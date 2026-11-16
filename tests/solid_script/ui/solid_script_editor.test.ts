@@ -732,7 +732,7 @@ describe('SolidScript editor', () => {
     chip(0).focus();
     const help = find('.solid-script-editor-help');
     expect(help.textContent).toContain('Cylinder');
-    expect(help.textContent).toContain('Height along Z in metres.');
+    expect(help.textContent).toContain('Height along Y in metres.');
     expect(
       help.querySelector('.solid-script-editor-help-parameter .solid-script-editor-parameter-value')?.textContent,
     ).toBe('4');

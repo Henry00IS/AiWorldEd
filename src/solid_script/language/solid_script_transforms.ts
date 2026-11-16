@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { SolidScriptBlockArguments } from './solid_script_block_arguments.js';
+import { SOLID_SCRIPT_AXES_UP } from './solid_script_axes.js';
 
 /** Radians per degree. */
 const SOLID_SCRIPT_DEGREES = Math.PI / 180;
@@ -31,16 +32,16 @@ export function solidScriptRotateMatrix(args: SolidScriptBlockArguments): THREE.
 }
 
 /**
- * Matrix of an Align To block: the shortest turn that makes +Z point along the
- * direction.
+ * Matrix of an Align To block: the shortest turn that makes up (+Y) point along
+ * the direction.
  *
  * @param args Block fields.
  * @returns Matrix.
  */
 export function solidScriptAlignMatrix(args: SolidScriptBlockArguments): THREE.Matrix4 {
-  const direction = new THREE.Vector3(...args.vector('direction', [0, 0, 1]));
+  const direction = new THREE.Vector3(...args.vector('direction', [0, 1, 0]));
   if (direction.lengthSq() < 1e-18) throw new Error('Direction needs a direction that is not 0, 0, 0');
-  const turn = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), direction.normalize());
+  const turn = new THREE.Quaternion().setFromUnitVectors(SOLID_SCRIPT_AXES_UP, direction.normalize());
   return new THREE.Matrix4().makeRotationFromQuaternion(turn);
 }
 

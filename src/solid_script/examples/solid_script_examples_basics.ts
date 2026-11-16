@@ -3,9 +3,9 @@ import type { SolidScriptLine } from '@/solid_script/document/solid_script_docum
 /** A wall with a doorway cut out of it. */
 export const SOLID_SCRIPT_EXAMPLE_DOORWAY: readonly SolidScriptLine[] = [
   { command: 'difference' },
-  { command: 'cube', values: { size: '4, 0.2, 3' } },
-  { command: 'translate', values: { v: '0, 0, -0.45' } },
-  { command: 'cube', values: { size: '1, 0.4, 2.1' } },
+  { command: 'cube', values: { size: '4, 3, 0.2' } },
+  { command: 'translate', values: { v: '0, -0.45, 0' } },
+  { command: 'cube', values: { size: '1, 2.1, 0.4' } },
   { command: 'end' },
   { command: 'end' },
 ];
@@ -33,12 +33,12 @@ export const SOLID_SCRIPT_EXAMPLE_PILLAR_RING: readonly SolidScriptLine[] = [
     command: 'input',
     values: { name: 'Radius', type: 'number', default: '3', min: '0.5', max: '20', label: 'Radius' },
   },
-  { command: 'variable', values: { name: 'Center', value: '0, 0, 1.5' } },
+  { command: 'variable', values: { name: 'Center', value: '0, 1.5, 0' } },
   { command: 'repeat', values: { variable: 'I', from: '1', to: '[Count]' } },
   { command: 'variable', values: { name: 'Angle', value: '[=360 / [Count] * [I]]' } },
   {
     command: 'variable',
-    values: { name: 'Pos', value: '[=[Center] + Vector(Cos([Angle]), Sin([Angle]), 0) * [Radius]]' },
+    values: { name: 'Pos', value: '[=[Center] + Vector(Cos([Angle]), 0, -Sin([Angle])) * [Radius]]' },
   },
   { command: 'translate', values: { v: '[Pos]' } },
   { command: 'cylinder', values: { h: '3', r1: '0.25', r2: '0.2', sides: '12' } },
@@ -48,19 +48,19 @@ export const SOLID_SCRIPT_EXAMPLE_PILLAR_RING: readonly SolidScriptLine[] = [
 
 /** Stepping stones from one point to another, along a gentle wave. */
 export const SOLID_SCRIPT_EXAMPLE_STEPPING_STONES: readonly SolidScriptLine[] = [
-  { command: 'note', values: { text: 'lerp walks from one vector to another; pos.z changes one part' } },
+  { command: 'note', values: { text: 'lerp walks from one vector to another; pos.y changes one part' } },
   {
     command: 'input',
     values: { name: 'Stones', type: 'count', default: '9', min: '2', max: '40', label: 'Stones' },
   },
-  { command: 'variable', values: { name: 'Start', value: '-4, -1, 0' } },
-  { command: 'variable', values: { name: 'Finish', value: '4, 2, 0' } },
+  { command: 'variable', values: { name: 'Start', value: '-4, 0, 1' } },
+  { command: 'variable', values: { name: 'Finish', value: '4, 0, -2' } },
   { command: 'repeat', values: { variable: 'I', from: '0', to: '[=[Stones] - 1]' } },
   { command: 'variable', values: { name: 'Pos', value: '[=Lerp([Start], [Finish], [I] / ([Stones] - 1))]' } },
-  { command: 'variable', values: { name: 'Pos.z', value: '[=Sin([I] * 40) * 0.15]' } },
+  { command: 'variable', values: { name: 'Pos.y', value: '[=Sin([I] * 40) * 0.15]' } },
   { command: 'translate', values: { v: '[Pos]' } },
-  { command: 'rotate', values: { a: '0, 0, [=[I] * 23]' } },
-  { command: 'cube', values: { size: '0.7, 0.5, 0.15' } },
+  { command: 'rotate', values: { a: '0, [=[I] * 23], 0' } },
+  { command: 'cube', values: { size: '0.7, 0.15, 0.5' } },
   { command: 'end' },
   { command: 'end' },
   { command: 'end' },
@@ -73,7 +73,7 @@ export const SOLID_SCRIPT_EXAMPLE_PEBBLES: readonly SolidScriptLine[] = [
     command: 'input',
     values: { name: 'Pebbles', type: 'count', default: '40', min: '1', max: '400', label: 'Pebbles' },
   },
-  { command: 'cube', values: { size: '3, 3, 0.4', center: 'true' } },
+  { command: 'cube', values: { size: '3, 0.4, 3', center: 'true' } },
   { command: 'select_faces', values: { which: 'Facing Up' } },
   { command: 'for_each_scattered_point', values: { count: '[Pebbles]', seed: '3' } },
   { command: 'translate', values: { v: '[Point.Position]' } },
@@ -84,7 +84,7 @@ export const SOLID_SCRIPT_EXAMPLE_PEBBLES: readonly SolidScriptLine[] = [
 
 /** Spikes growing straight out of a ball at scattered points. */
 export const SOLID_SCRIPT_EXAMPLE_SPIKY_BALL: readonly SolidScriptLine[] = [
-  { command: 'note', values: { text: 'Align To turns each spike so its Z follows the face it stands on' } },
+  { command: 'note', values: { text: 'Align To turns each spike so its Y follows the face it stands on' } },
   {
     command: 'input',
     values: { name: 'Spikes', type: 'count', default: '30', min: '1', max: '200', label: 'Spikes' },
@@ -118,14 +118,14 @@ export const SOLID_SCRIPT_EXAMPLE_PEDESTAL: readonly SolidScriptLine[] = [
   { command: 'variable', values: { name: 'Width', value: '1' } },
   { command: 'variable', values: { name: 'Depth', value: '1' } },
   { command: 'if_used_as', values: { use: 'Modifier' } },
-  { command: 'variable', values: { name: 'Low', value: '[Input.Min.z]' } },
+  { command: 'variable', values: { name: 'Low', value: '[Input.Min.y]' } },
   { command: 'variable', values: { name: 'Width', value: '[Input.Size.x]' } },
-  { command: 'variable', values: { name: 'Depth', value: '[Input.Size.y]' } },
+  { command: 'variable', values: { name: 'Depth', value: '[Input.Size.z]' } },
   { command: 'else' },
   { command: 'cube', values: { size: '1, 1, 1' } },
   { command: 'end' },
-  { command: 'translate', values: { v: '0, 0, [=[Low] - [Thickness] / 2]' } },
-  { command: 'cube', values: { size: '[=[Width] + 2 * [Margin]], [=[Depth] + 2 * [Margin]], [Thickness]' } },
+  { command: 'translate', values: { v: '0, [=[Low] - [Thickness] / 2], 0' } },
+  { command: 'cube', values: { size: '[=[Width] + 2 * [Margin]], [Thickness], [=[Depth] + 2 * [Margin]]' } },
   { command: 'end' },
 ];
 
@@ -135,9 +135,9 @@ export const SOLID_SCRIPT_EXAMPLE_PEDESTAL: readonly SolidScriptLine[] = [
  */
 export const SOLID_SCRIPT_EXAMPLE_KNOBS: readonly SolidScriptLine[] = [
   { command: 'note', values: { text: 'Name shapes, then Select Faces Of that name picks only theirs' } },
-  { command: 'cube', values: { size: '4, 1, 0.2', center: 'true', label: 'Panel' } },
+  { command: 'cube', values: { size: '4, 0.2, 1', center: 'true', label: 'Panel' } },
   { command: 'for_each', values: { variable: 'X', list: '-1.5, -0.5, 0.5, 1.5' } },
-  { command: 'translate', values: { v: '[X], 0, 0.25' } },
+  { command: 'translate', values: { v: '[X], 0.25, 0' } },
   { command: 'cube', values: { size: '0.3, 0.3, 0.3', center: 'true', label: 'Knob' } },
   { command: 'end' },
   { command: 'end' },

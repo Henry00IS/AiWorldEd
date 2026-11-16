@@ -92,10 +92,7 @@ function both(id: string, test: ModifierCase) {
   return { port, builtIn };
 }
 
-/**
- * Settings each port is checked with. Editor vectors (x, y, z) are script (x,
- * -z, y).
- */
+/** Settings each port is checked with; scripts share the editor's axes. */
 const MODIFIER_CASES: Record<string, ModifierCase[]> = {
   shear: [
     { parameters: {}, inputs: {} },
@@ -109,7 +106,7 @@ const MODIFIER_CASES: Record<string, ModifierCase[]> = {
     { parameters: {}, inputs: {} },
     {
       parameters: { count: 4, mode: 'fixed', offsetX: 0, offsetY: 1.5, offsetZ: 2 },
-      inputs: { count: '4', mode: 'fixed', offset: '0, -2, 1.5' },
+      inputs: { count: '4', mode: 'fixed', offset: '0, 1.5, 2' },
     },
     {
       parameters: {
@@ -122,11 +119,11 @@ const MODIFIER_CASES: Record<string, ModifierCase[]> = {
         relativeY: 1,
         relativeZ: 1,
       },
-      inputs: { count: '3', mode: 'both', offset: '0.5, 0, 0', relative: '0, -1, 1' },
+      inputs: { count: '3', mode: 'both', offset: '0.5, 0, 0', relative: '0, 1, 1' },
     },
     {
       parameters: { count: 5, mode: 'fit', endpointX: 0, endpointY: 0, endpointZ: -6, uv: 'world' },
-      inputs: { count: '5', mode: 'fit', endpoint: '0, 6, 0', uv: 'world' },
+      inputs: { count: '5', mode: 'fit', endpoint: '0, 0, -6', uv: 'world' },
     },
   ],
   radial: [
@@ -150,7 +147,7 @@ const MODIFIER_CASES: Record<string, ModifierCase[]> = {
         pivotZ: 1,
         axis: 'x',
       },
-      inputs: { count: '6', origin: 'centre', start: '30', radiusoffset: '1', pivot: '0.5, -1, 0', axis: 'x' },
+      inputs: { count: '6', origin: 'centre', start: '30', radiusoffset: '1', pivot: '0.5, 0, 1', axis: 'x' },
     },
     { parameters: { count: 4, centreSide: '+y', axis: 'y' }, inputs: { count: '4', centreside: '+y', axis: 'y' } },
     { parameters: { count: 1, origin: 'centre', start: 45 }, inputs: { count: '1', origin: 'centre', start: '45' } },
@@ -159,7 +156,7 @@ const MODIFIER_CASES: Record<string, ModifierCase[]> = {
     { parameters: {}, inputs: {} },
     {
       parameters: { count: 5, offsetX: 0.5, offsetY: 0.25, offsetZ: -1, rotationX: 10, rotationY: 30, rotationZ: -20 },
-      inputs: { count: '5', offset: '0.5, 1, 0.25', rotation: '10, 20, 30' },
+      inputs: { count: '5', offset: '0.5, 0.25, -1', rotation: '10, 30, -20' },
     },
     {
       parameters: {
@@ -181,9 +178,9 @@ const MODIFIER_CASES: Record<string, ModifierCase[]> = {
       inputs: {
         count: '4',
         offset: '0, 0, 0',
-        relative: '1, -0.5, 0',
-        rotation: '0, 0, 45',
-        pivot: '1, 2, 0',
+        relative: '1, 0, 0.5',
+        rotation: '0, 45, 0',
+        pivot: '1, 0, -2',
         uv: 'world',
       },
     },

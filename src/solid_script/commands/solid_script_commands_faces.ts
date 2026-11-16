@@ -27,6 +27,7 @@ import {
   type SolidScriptGeometryLeaf,
 } from '@/solid_script/language/solid_script_geometry.js';
 import { solidScriptMeshExtrudeFaces, type SolidScriptShapeMesh } from '@/solid_script/language/solid_script_mesh.js';
+import { SOLID_SCRIPT_AXES_FACING } from '@/solid_script/language/solid_script_axes.js';
 import { solidScriptShapeMapLeaves, type SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
 import {
   solidScriptValueNumber,
@@ -37,14 +38,9 @@ import {
 } from '@/solid_script/language/solid_script_value.js';
 
 /** Ways Select Faces picks, with the direction of each Facing choice. */
-const SOLID_SCRIPT_FACE_DIRECTIONS: Readonly<Record<string, THREE.Vector3>> = {
-  'Facing Up': new THREE.Vector3(0, 0, 1),
-  'Facing Down': new THREE.Vector3(0, 0, -1),
-  'Facing Left': new THREE.Vector3(-1, 0, 0),
-  'Facing Right': new THREE.Vector3(1, 0, 0),
-  'Facing Front': new THREE.Vector3(0, -1, 0),
-  'Facing Back': new THREE.Vector3(0, 1, 0),
-};
+const SOLID_SCRIPT_FACE_DIRECTIONS: Readonly<Record<string, THREE.Vector3>> = Object.fromEntries(
+  Object.entries(SOLID_SCRIPT_AXES_FACING).map(([word, direction]) => [`Facing ${word}`, direction]),
+);
 
 /**
  * Every choice of Select Faces' Which field with what it picks, in the order
@@ -147,7 +143,7 @@ function solidScriptFacePickRead(run: SolidScriptBlockRun): SolidScriptFacePick 
     case 'Facing': {
       const numbers = solidScriptValueNumbers(run.value('detail'));
       if (numbers?.length !== 3)
-        throw new Error('Facing needs a direction in Detail, three numbers such as 0, 0, 1 for up');
+        throw new Error('Facing needs a direction in Detail, three numbers such as 0, 1, 0 for up');
       return { by: 'facing', direction: new THREE.Vector3(...numbers).normalize(), within: within() };
     }
     case 'Tagged': {
@@ -368,7 +364,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Run lines once per picked face',
     manual:
-      'Runs the lines inside once for every face the last Select Faces picked. Inside, these read-only values describe the face: [Face.Index] counts the rounds from 0, [Face.Center] is its middle, [Face.Normal] the way it points, [Face.Width] and [Face.Height] its size, [Face.Area] its area, [Face.Tag] its name and [Face.Number] its number among all faces. Shapes built inside stand on the face of the round, like Place On Face: centred on its middle with Z pointing out. Place On Face adds a Lift, and Extrude Face, Inset Face and Bevel Edges work on the face of the round. Example: Select Faces Tagged Step Tread, then For Each Selected Face with Place On Face and a thin Cube puts a trim on every step.',
+      'Runs the lines inside once for every face the last Select Faces picked. Inside, these read-only values describe the face: [Face.Index] counts the rounds from 0, [Face.Center] is its middle, [Face.Normal] the way it points, [Face.Width] and [Face.Height] its size, [Face.Area] its area, [Face.Tag] its name and [Face.Number] its number among all faces. Shapes built inside stand on the face of the round, like Place On Face: centred on its middle with Y pointing out, the way shapes stand on the ground. Place On Face adds a Lift, and Extrude Face, Inset Face and Bevel Edges work on the face of the round. Example: Select Faces Tagged Step Tread, then For Each Selected Face with Place On Face and a thin Cube puts a trim on every step.',
     stops: ['A missing End line.'],
     nesting: 'open',
     endLabel: 'For Each',
@@ -464,7 +460,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Build shapes standing on the face',
     manual:
-      'Builds the shapes inside standing on the face of the For Each Selected Face round: their origin sits on the middle of the face, Z points out of it, X runs across it and Y up it. Lift moves them further out. The blocks around this line do not move them. Example: Place On Face with a Cube of size [Face.Width], [Face.Height], 0.05 not centred covers the face with a thin plate.',
+      'Builds the shapes inside standing on the face of the For Each Selected Face round: they stand on it the way shapes stand on the ground: their origin sits on the middle of the face, Y points out of it, X runs across it and Z down it. Lift moves them further out. The blocks around this line do not move them. Example: Place On Face with a centred Cube of size [Face.Width], 0.05, [Face.Height] covers the face with a thin plate.',
     stops: ['Being outside For Each Selected Face.', 'Nothing between this line and its End.', 'A missing End line.'],
     nesting: 'open',
     endLabel: 'Place',
@@ -478,7 +474,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       if (!face) throw new Error('Place On Face only works inside For Each Selected Face');
       const lift = solidScriptValueNumber(run.value('lift'));
       if (lift === undefined) throw new Error('Lift needs a number of metres, such as 0');
-      const matrix = solidScriptGeometryFaceMatrix(face).multiply(new THREE.Matrix4().makeTranslation(0, 0, lift));
+      const matrix = solidScriptGeometryFaceMatrix(face).multiply(new THREE.Matrix4().makeTranslation(0, lift, 0));
       return run.framed(matrix);
     },
   }),

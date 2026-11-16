@@ -56,17 +56,17 @@ function echo(value: string): SolidScriptLine {
 }
 
 /**
- * Rounded XY bounds of all solids, as min x, y then max x, y.
+ * Rounded floor bounds of all solids, as min x, z then max x, z.
  *
  * @param shapes Shapes.
  * @returns Bounds.
  */
-function boundsXY(shapes: readonly SolidScriptShape[]): number[] {
+function boundsFloor(shapes: readonly SolidScriptShape[]): number[] {
   const points = shapes
     .flatMap(solidScriptShapeLeavesPositive)
     .flatMap((leaf) => (leaf.kind === 'solid' ? leaf.points : []));
   const box = new THREE.Box3().setFromPoints(points);
-  return [box.min.x, box.min.y, box.max.x, box.max.y].map((value) => Math.round(value * 1000) / 1000 + 0);
+  return [box.min.x, box.min.z, box.max.x, box.max.z].map((value) => Math.round(value * 1000) / 1000 + 0);
 }
 
 /**
@@ -141,7 +141,7 @@ describe('Function blocks', () => {
     const result = run(
       fn('post', 'x, h'),
       line('translate', { v: '[local.x], 0, 0' }),
-      line('cube', { size: `1, 1, [local.h]` }),
+      line('cube', { size: `1, [local.h], 1` }),
       END,
       line('return', { value: '[=[local.x] + 1]' }),
       END,
@@ -150,7 +150,7 @@ describe('Function blocks', () => {
     );
     expect(result.error).toBeNull();
     expect(result.messages).toEqual(['5']);
-    expect(boundsXY(result.shapes)).toEqual([3.5, -0.5, 4.5, 0.5]);
+    expect(boundsFloor(result.shapes)).toEqual([3.5, -0.5, 4.5, 0.5]);
   });
 
   it('keeps local variables to their call, while plain names are the script variables', () => {
@@ -418,7 +418,7 @@ describe('Offset', () => {
       END,
     );
     expect(result.error).toBeNull();
-    expect(boundsXY(result.shapes)).toEqual([-1.5, -1.5, 1.5, 1.5]);
+    expect(boundsFloor(result.shapes)).toEqual([-1.5, -1.5, 1.5, 1.5]);
     expect(run(line('offset'), line('square'), END).error?.message).toMatch(/inside Linear Extrude/);
     const concave = run(
       line('linear_extrude'),

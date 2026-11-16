@@ -73,7 +73,7 @@ describe('SolidScript Resize, Matrix, Minkowski and Rotate Extrude', () => {
     expect(bounds(result.shapes)).toEqual([-1.2, -1.2, -0.7, 1.2, 1.2, 0.7]);
   });
 
-  it('spins a flat outline around Z into one brush per side, and starts with a ring that builds at once', () => {
+  it('spins a flat outline around Y into one brush per side, and starts with a ring that builds at once', () => {
     const result = run(
       { command: 'rotate_extrude', values: { sides: '8' } },
       { command: 'translate', values: { v: '2, 0, 0' } },
@@ -83,7 +83,7 @@ describe('SolidScript Resize, Matrix, Minkowski and Rotate Extrude', () => {
     );
     expect(result.error).toBeNull();
     expect(solids(result.shapes)).toBe(8);
-    expect(bounds(result.shapes)).toEqual([-2.25, -2.25, -0.5, 2.25, 2.25, 0.5]);
+    expect(bounds(result.shapes)).toEqual([-2.25, -0.5, -2.25, 2.25, 0.5, 2.25]);
     const half = run(
       { command: 'rotate_extrude', values: { sides: '8', angle: '180' } },
       { command: 'translate', values: { v: '2, 0, 0' } },

@@ -26,10 +26,10 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     category: 'Solids',
     description: 'Build a box',
     manual:
-      'Builds a box with the given width (X), depth (Y) and height (Z) in metres. Its middle sits on the origin, the centre of the generator. Switch Center off to put its corner there instead, so it grows along X, Y and Z. Example: a size of 2, 1, 0.2 gives a flat slab two metres wide.',
+      'Builds a box with the given width (X), height (Y) and depth (Z) in metres. Its middle sits on the origin, the centre of the generator. Switch Center off to put its corner there instead, so it grows along X, Y and Z. Example: a size of 2, 0.2, 1 gives a flat slab two metres wide.',
     stops: ['A size of 0 or less on any axis.', 'A size that is not one number or three numbers separated by commas.'],
     parameters: [
-      solidScriptParameter('size', 'Size', 'vector3', '1, 1, 1', 'Width (X), depth (Y) and height (Z) in metres.'),
+      solidScriptParameter('size', 'Size', 'vector3', '1, 1, 1', 'Width (X), height (Y) and depth (Z) in metres.'),
       solidScriptParameterCenter(),
     ],
     listing: (read) => [
@@ -69,14 +69,14 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     category: 'Solids',
     description: 'Build a cylinder or cone',
     manual:
-      'Builds a faceted cylinder around the Z axis, centred on the origin. Switch Center off to stand it on the origin instead. Give the top a different radius to make a tapered cone, or 0 for a point. Sides sets the faces around it. Example: height 2, bottom radius 1 and top radius 0 gives a pointed cone.',
+      'Builds a faceted cylinder standing up along the Y axis, centred on the origin. Switch Center off to stand it on the origin instead. Give the top a different radius to make a tapered cone, or 0 for a point. Sides sets the faces around it. Example: height 2, bottom radius 1 and top radius 0 gives a pointed cone.',
     stops: [
       'A height of 0 or less.',
       'A negative radius, or both radii at 0.',
       'Sides outside 3 to 64, or a count with decimals.',
     ],
     parameters: [
-      solidScriptParameter('h', 'Height', 'number', '1', 'Height along Z in metres.'),
+      solidScriptParameter('h', 'Height', 'number', '1', 'Height along Y in metres.'),
       solidScriptParameter('r1', 'Bottom Radius', 'number', '1', 'Radius at the bottom in metres.'),
       solidScriptParameter('r2', 'Top Radius', 'number', '1', 'Radius at the top in metres. 0 makes a pointed cone.'),
       solidScriptParameterCenter(),
@@ -131,7 +131,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     category: 'Solids',
     description: 'Add a corner to a Polyhedron or Polygon',
     manual:
-      'Adds one corner point at X, Y and Z in metres to the Polyhedron or Polygon around this line, moved by any Translate, Rotate or other move between them. A Polygon uses X and Y and ignores Z. Each value may be a variable or a formula, so a Repeat around a Point can place many corners. Example: inside Repeat [I] from 0 to 5, Point [=Cos([I] * 60)], [=Sin([I] * 60)], 0 adds the six corners of a hexagon.',
+      'Adds one corner point at X, Y and Z in metres to the Polyhedron or Polygon around this line, moved by any Translate, Rotate or other move between them. A Polygon uses X and Y of its drawing and ignores Z. Each value may be a variable or a formula, so a Repeat around a Point can place many corners. Example: inside Repeat [I] from 0 to 5, Point [=Cos([I] * 60)], [=Sin([I] * 60)], 0 adds the six corners of a hexagon.',
     stops: ['Being placed outside a Polyhedron or Polygon.', 'A position that is not x, y, z.'],
     parameters: [
       solidScriptParameter('position', 'Position', 'vector3', '0, 0, 0', 'X, Y and Z of the corner in metres.'),
@@ -152,10 +152,10 @@ export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
     category: '2D Shapes',
     description: 'Draw a rectangle outline',
     manual:
-      'Draws a flat rectangle with the given width (X) and depth (Y) in metres, centred on the origin unless Center is off. It only works inside a Linear Extrude, which pulls it up into a solid. Example: a size of 3, 0.2 extruded by 1 gives a thin wall.',
+      'Draws a flat rectangle with the given width (X) and depth (Y of the drawing, which runs to the back once extruded) in metres, centred on the origin unless Center is off. It only works inside a Linear Extrude, which pulls it up into a solid. Example: a size of 3, 0.2 extruded by 1 gives a thin wall.',
     stops: ['A size of 0 or less on either axis.', 'Being placed outside a Linear Extrude.'],
     parameters: [
-      solidScriptParameter('size', 'Size', 'vector2', '1, 1', 'Width (X) and depth (Y) in metres.'),
+      solidScriptParameter('size', 'Size', 'vector2', '1, 1', 'Width (X) and depth (drawing Y) in metres.'),
       solidScriptParameterCenter(),
     ],
     listing: (read) => [

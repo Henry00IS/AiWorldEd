@@ -17,12 +17,12 @@ import {
  */
 const SOLID_SCRIPT_EXAMPLE_SPOT: readonly SolidScriptLine[] = solidScriptExampleBlock(
   'function',
-  { name: 'Spot', parameters: 'Along, Z, Side' },
+  { name: 'Spot', parameters: 'Along, Height, Side' },
   [
     solidScriptExampleSet('Local.Run', '[=[Start] + [Forward] * [Local.Along]]'),
     solidScriptExampleLine('return', {
       value:
-        '[=[AlongX] ? Vector([Local.Run], [Local.Side] * [Across], [Local.Z]) : Vector([Local.Side] * [Across], [Local.Run], [Local.Z])]',
+        '[=[AlongX] ? Vector([Local.Run], [Local.Height], [Local.Side] * [Across]) : Vector([Local.Side] * [Across], [Local.Height], [Local.Run])]',
     }),
   ],
 );
@@ -89,9 +89,8 @@ export const SOLID_SCRIPT_EXAMPLE_STAIRS: readonly SolidScriptLine[] = [
   solidScriptExampleInput('Fill', 'choice', 'slab', { label: 'Underside', choices: 'slab, solid, floating' }),
   solidScriptExampleInput('Waist', 'number', '0.2', { label: 'Thickness', min: '0.01', max: '100' }),
   solidScriptExampleInput('Thickness', 'number', '0.125', { label: 'Tread Depth', min: '0.01', max: '100' }),
-  solidScriptExampleNote('Which way the flight climbs, as seen in the editor: +Z climbs toward -Y here.'),
   solidScriptExampleSet('AlongX', '[=EndsWith([Direction], "x")]'),
-  solidScriptExampleSet('Forward', '[=StartsWith([Direction], "+") == [AlongX] ? 1 : -1]'),
+  solidScriptExampleSet('Forward', '[=StartsWith([Direction], "+") ? 1 : -1]'),
   solidScriptExampleSet('Length', '[=[AlongX] ? [Box.Width] : [Box.Depth]]'),
   solidScriptExampleSet('Across', '[=[AlongX] ? [Box.Depth] / 2 : [Box.Width] / 2]'),
   solidScriptExampleSet('Start', '[=-[Forward] * [Length] / 2]'),

@@ -50,11 +50,6 @@ const MCP_GEOMETRY_SCRIPT_BUILD_SCHEMA: McpToolSchema = {
       description:
         'Operation of every top-level result; subtractive carves the result out of existing brushes. Default additive.',
     },
-    upAxis: {
-      type: 'string',
-      enum: ['z', 'y'],
-      description: "'z' (default) treats the script as Z-up; 'y' keeps the editor's Y-up axes as written.",
-    },
   },
   required: ['lines'],
 };

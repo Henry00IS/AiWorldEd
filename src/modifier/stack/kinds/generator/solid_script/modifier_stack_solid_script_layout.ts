@@ -73,20 +73,19 @@ export function modifierStackSolidScriptLayout(
 ): ModifierStackSolidScriptLayout {
   try {
     const size = box.getSize(new THREE.Vector3());
-    const run = { inputs, box: [size.x, size.z, size.y] as const, use };
+    const run = { inputs, box: [size.x, size.y, size.z] as const, use };
     const evaluated = solidScriptProgramEvaluate(document, stepLimit === undefined ? run : { ...run, stepLimit });
     const placed = modifierStackSolidScriptPlacementMatrix(evaluated.shapes, placement, box);
     const received: SolidScriptShapeSolid[] = [];
     const shapes = modifierStackSolidScriptReceivedTake(evaluated.shapes, received);
     const passed = modifierStackSolidScriptPassedOf(received, placed, box);
     const nodes = solidScriptSolidTreeBuild(shapes, {
-      upAxis: 'z',
       offset: new THREE.Vector3(),
       worldToParent: placed,
       operation,
       namePrefix: '',
     });
-    const meshes = solidScriptShapeMeshes(shapes).map((mesh) => solidScriptMeshDocumentBuild(mesh, 'z', placed));
+    const meshes = solidScriptShapeMeshes(shapes).map((mesh) => solidScriptMeshDocumentBuild(mesh, placed));
     return { nodes, meshes, passed, error: '' };
   } catch (error) {
     return { nodes: [], meshes: [], passed: [], error: solidScriptErrorText(error) };
@@ -119,10 +118,10 @@ function modifierStackSolidScriptReceivedTake(
 /**
  * Returns the received brushes the script passed on, with their script-space
  * moves turned into frame space: script points are the received points less the
- * box centre, turned Z-up, and come back through the placement.
+ * box centre, and come back through the placement.
  *
  * @param shapes Received brushes.
- * @param placed Placement of script results, already turned Y-up, in the box.
+ * @param placed Placement of script results in the box.
  * @param box Box the received brushes are centred in.
  * @returns Passed brushes.
  */
@@ -132,24 +131,18 @@ function modifierStackSolidScriptPassedOf(
   box: THREE.Box3,
 ): ModifierStackSolidScriptPassed[] {
   const centre = box.getCenter(new THREE.Vector3());
-  // Script (x, y, z) is frame (x, z, -y).
-  const up = new THREE.Matrix4().set(1, 0, 0, 0, 0, 0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 1);
-  const into = up
-    .clone()
-    .invert()
-    .multiply(new THREE.Matrix4().makeTranslation(-centre.x, -centre.y, -centre.z));
+  const into = new THREE.Matrix4().makeTranslation(-centre.x, -centre.y, -centre.z);
   const passed: ModifierStackSolidScriptPassed[] = [];
   for (const shape of shapes) {
     if (!shape.received) continue;
-    const matrix = placed.clone().multiply(up).multiply(shape.received.matrix).multiply(into);
+    const matrix = placed.clone().multiply(shape.received.matrix).multiply(into);
     passed.push({ index: shape.received.index, matrix, textures: shape.received.textures });
   }
   return passed;
 }
 
 /**
- * Returns the matrix that moves script results, already turned Y-up, into the
- * box, centred.
+ * Returns the matrix that moves script results into the box, centred.
  *
  * @param shapes Evaluated shapes.
  * @param placement Box mapping.
@@ -174,8 +167,7 @@ function modifierStackSolidScriptPlacementMatrix(
 }
 
 /**
- * Measures the solid parts of a result in Y-up coordinates; cut-away parts do
- * not count.
+ * Measures the solid parts of a result; cut-away parts do not count.
  *
  * @param shapes Evaluated shapes.
  * @returns Bounds.
@@ -183,8 +175,7 @@ function modifierStackSolidScriptPlacementMatrix(
 function modifierStackSolidScriptBounds(shapes: readonly SolidScriptShape[]): THREE.Box3 {
   const bounds = new THREE.Box3();
   for (const leaf of shapes.flatMap(solidScriptShapeLeavesPositive))
-    if (leaf.kind !== 'polygon')
-      for (const point of leaf.points) bounds.expandByPoint(new THREE.Vector3(point.x, point.z, -point.y));
+    if (leaf.kind !== 'polygon') for (const point of leaf.points) bounds.expandByPoint(point);
   return bounds;
 }
 

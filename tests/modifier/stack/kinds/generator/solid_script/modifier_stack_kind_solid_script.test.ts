@@ -104,17 +104,17 @@ describe('SolidScript generator', () => {
     const box = new THREE.Box3().setFromObject(fixture.node);
     const centre = box.getCenter(new THREE.Vector3());
     scriptSet(fixture.node, { script: script({ command: 'cube', values: { size: '1, 2, 3' } }) });
-    const half = new THREE.Vector3(0.5, 1.5, 1);
+    const half = new THREE.Vector3(0.5, 1, 1.5);
     expectBox(bounds(fixture.pieces()), new THREE.Box3(centre.clone().sub(half), centre.clone().add(half)));
   });
 
-  it('keeps script metres unscaled, Z up, with a corner-placed cube growing from the box centre', () => {
+  it('keeps script metres unscaled in the editor axes, with a corner-placed cube growing from the box centre', () => {
     const fixture = scriptFixture();
     const centre = new THREE.Box3().setFromObject(fixture.node).getCenter(new THREE.Vector3());
     scriptSet(fixture.node, { script: script({ command: 'cube', values: { size: '1, 2, 3', center: 'false' } }) });
     const expected = new THREE.Box3(
-      new THREE.Vector3(centre.x, centre.y, centre.z - 2),
-      new THREE.Vector3(centre.x + 1, centre.y + 3, centre.z),
+      new THREE.Vector3(centre.x, centre.y, centre.z),
+      new THREE.Vector3(centre.x + 1, centre.y + 2, centre.z + 3),
     );
     expectBox(bounds(fixture.pieces()), expected);
   });

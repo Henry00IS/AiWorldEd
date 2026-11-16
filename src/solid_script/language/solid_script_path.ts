@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { SolidScriptShapeMesh } from './solid_script_mesh.js';
+import { SOLID_SCRIPT_AXES_UP, solidScriptAxesHeight } from './solid_script_axes.js';
 
 /** Shortest stretch of a path that counts, in metres. */
 const SOLID_SCRIPT_PATH_EPSILON = 1e-9;
@@ -28,7 +29,8 @@ function solidScriptPathDistinct(path: readonly THREE.Vector3[], closed: boolean
  * @returns Unit side.
  */
 function solidScriptPathSide(direction: THREE.Vector3): THREE.Vector3 {
-  const up = Math.abs(direction.z) < 0.9 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(1, 0, 0);
+  const up =
+    Math.abs(solidScriptAxesHeight(direction)) < 0.9 ? SOLID_SCRIPT_AXES_UP.clone() : new THREE.Vector3(1, 0, 0);
   return new THREE.Vector3().crossVectors(up, direction).normalize();
 }
 

@@ -5,7 +5,11 @@ import { curveFromPolyline } from '@/curve/model/curve_model.js';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptDocumentCreate } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptShapeLeavesPositive } from '@/solid_script/language/solid_script_shape.js';
-import { solidScriptGeneratorPieces } from '@/solid_script/language/solid_script_generator_pieces.js';
+import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
+import { ModifierStackKindGenerator } from '@/modifier/stack/kinds/generator/modifier_stack_kind_generator.js';
+import { modifierStackSolidScriptLayout } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_layout.js';
+import type { SolidTreeNode } from '@/solid/commands/tree/solid_tree_node.js';
+import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { solidHullBrushFromPoints } from '@/solid/algorithm/surface/solid_hull_brush.js';
 import { SOLID_SCRIPT_EXAMPLES, solidScriptExamplesFind } from '@/solid_script/examples/solid_script_examples.js';
 import { solidScriptBuiltinFind } from '@/solid_script/language/solid_script_expression_compile.js';
@@ -35,7 +39,34 @@ function pieceKey(points: readonly THREE.Vector3[]): string {
 }
 
 /**
- * Pieces a port builds, as keys.
+ * The editor box of a case: width (X), height (Y) and depth (Z), off the origin
+ * so a port that ignores the box centre shows.
+ *
+ * @param test Parameters.
+ * @returns Box in editor space.
+ */
+function portBox(test: PortCase): THREE.Box3 {
+  const min = new THREE.Vector3(1, 2, 3);
+  return new THREE.Box3(min, min.clone().add(new THREE.Vector3(...test.size)));
+}
+
+/**
+ * Corners of brush nodes in editor space.
+ *
+ * @param nodes Nodes.
+ * @returns Corners of each brush.
+ */
+function nodeCorners(nodes: readonly SolidTreeNode[]): THREE.Vector3[][] {
+  return nodes.flatMap((node) =>
+    node.kind === 'group'
+      ? nodeCorners(node.children)
+      : [node.brush.vertices.map((vertex) => vertex.clone().add(node.center))],
+  );
+}
+
+/**
+ * Pieces a port builds in the editor, as a SolidScript generator in the box, as
+ * keys in editor space.
  *
  * @param id Example id.
  * @param test Parameters.
@@ -46,26 +77,32 @@ function portPieces(id: string, test: PortCase): string[] {
   if (!example) throw new Error(`no example ${id}`);
   const inputs: Record<string, string> = {};
   for (const [key, value] of Object.entries(test.parameters)) inputs[key] = String(value);
-  const box = [test.size[0], test.size[1], test.size[2]] as const;
-  const result = solidScriptProgramRun(solidScriptDocumentCreate(example.lines), { inputs, box });
-  if (result.error) throw new Error(result.error.message);
-  return result.shapes
-    .flatMap(solidScriptShapeLeavesPositive)
-    .flatMap((leaf) => (leaf.kind === 'solid' ? [pieceKey(leaf.points)] : []))
-    .sort();
+  const document = solidScriptDocumentCreate(example.lines);
+  const layout = modifierStackSolidScriptLayout(
+    document,
+    'origin',
+    portBox(test),
+    SolidOperation.Additive,
+    undefined,
+    inputs,
+  );
+  if (layout.error) throw new Error(layout.error);
+  return nodeCorners(layout.nodes).map(pieceKey).sort();
 }
 
 /**
- * Pieces the generator builds in the same box, as keys.
+ * Pieces the generator builds in the same editor box, as keys.
  *
  * @param kind Generator kind id.
  * @param test Parameters.
  * @returns Sorted keys.
  */
 function generatorPieces(kind: string, test: PortCase): string[] {
-  const [x, y, z] = test.size;
-  return solidScriptGeneratorPieces(kind, test.parameters, { size: test.size, min: [-x / 2, -y / 2, -z / 2] })
-    .map(pieceKey)
+  const generator = modifierStackKindFind(kind);
+  if (!(generator instanceof ModifierStackKindGenerator)) throw new Error(`no generator ${kind}`);
+  return generator
+    .previewPieces(test.parameters, portBox(test))
+    .map((piece) => pieceKey(piece.vertices))
     .sort();
 }
 
@@ -215,8 +252,8 @@ describe('SolidScript examples', () => {
       return box.getCenter(new THREE.Vector3());
     });
     for (const centre of centres) {
-      expect(Math.hypot(centre.x, centre.y)).toBeCloseTo(3, 1);
-      expect(centre.z).toBeCloseTo(1.5, 5);
+      expect(Math.hypot(centre.x, centre.z)).toBeCloseTo(3, 1);
+      expect(centre.y).toBeCloseTo(1.5, 5);
     }
     const stones = solidScriptProgramRun(solidScriptDocumentCreate(lines('steppingStones')));
     expect(stones.steps).toHaveLength(9);
@@ -227,14 +264,14 @@ describe('SolidScript examples', () => {
     const run = solidScriptProgramRun(solidScriptDocumentCreate(lines));
     expect(run.error).toBeNull();
     expect(run.steps).toHaveLength(1 + 18 * 4 + 18 + 3 * 18 * 4);
-    const radius = (point: THREE.Vector3) => Math.hypot(point.x, point.y);
+    const radius = (point: THREE.Vector3) => Math.hypot(point.x, point.z);
     const stringer = run.shapes
       .flatMap(solidScriptShapeLeavesPositive)
       .flatMap((leaf) => (leaf.kind === 'solid' ? [leaf.points] : []))
       .filter((points) => points.every((point) => radius(point) >= 1.8 - 1e-6));
     expect(stringer).toHaveLength(72);
     for (const [index, piece] of stringer.entries()) {
-      const outside = [...piece].sort((a, b) => b.z - a.z).slice(0, 4);
+      const outside = [...piece].sort((a, b) => b.y - a.y).slice(0, 4);
       const plane = new THREE.Plane().setFromCoplanarPoints(outside[0]!, outside[1]!, outside[2]!);
       expect(Math.abs(plane.distanceToPoint(outside[3]!)), `top of piece ${index} is twisted`).toBeGreaterThan(1e-4);
       const next = stringer[index + 1];

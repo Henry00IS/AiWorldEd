@@ -116,7 +116,7 @@ describe('solidScriptProgramRun', () => {
     );
     const shape = shapes[0];
     expect(shape?.kind === 'solid' && shape.points.length).toBe(16);
-    expect(bounds(shape).min.y).toBeCloseTo(-2);
+    expect(bounds(shape).max.z).toBeCloseTo(2);
   });
 
   it('rotates about X first, then Y, then Z, around the fixed axes', () => {

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SOLID_SCRIPT_AXES_FLAT } from './solid_script_axes.js';
 import type { SolidScriptBlockArguments } from './solid_script_block_arguments.js';
 import {
   solidScriptPolygonConvexPieces,
@@ -184,9 +185,9 @@ export function solidScriptMinkowski(
 }
 
 /**
- * Rotate Extrude: spins flat outlines around the Z axis. The outline's X is the
- * distance from the axis and its Y the height; every convex piece becomes one
- * brush per segment.
+ * Rotate Extrude: spins flat outlines around the upright Y axis. The outline's
+ * X is the distance from the axis and its Y the height; every convex piece
+ * becomes one brush per segment.
  *
  * @param shape Flat outlines.
  * @param args Block fields: angle and sides.
@@ -209,11 +210,12 @@ export function solidScriptRotateExtrude(
     );
   const segments = Math.max(1, Math.round((sides * Math.abs(angle)) / 360));
   const step = ((angle / segments) * Math.PI) / 180;
+  const lift = matrix.clone().multiply(SOLID_SCRIPT_AXES_FLAT);
   return solidScriptShapeMapLeaves(shape, (leaf) => {
     if (leaf.kind !== 'polygon') throw new Error('only flat shapes (Square, Circle, Polygon) can be spun');
     if (leaf.points.some(([x]) => x < -1e-9))
       throw new Error(
-        'Rotate Extrude spins around the Z axis, so its outlines must lie at X 0 or more; move them with Translate',
+        'Rotate Extrude spins around the Y axis (up), so its outlines must lie at X 0 or more; move them with Translate',
       );
     const pieces: SolidScriptShapeSolid[] = [];
     for (const piece of solidScriptPolygonConvexPieces(leaf.points))
@@ -224,7 +226,7 @@ export function solidScriptRotateExtrude(
           label: leaf.label,
           points: piece.flatMap(([radius, height]) =>
             turns.map((turn) =>
-              new THREE.Vector3(radius * Math.cos(turn), radius * Math.sin(turn), height).applyMatrix4(matrix),
+              new THREE.Vector3(radius * Math.cos(turn), radius * Math.sin(turn), height).applyMatrix4(lift),
             ),
           ),
         });

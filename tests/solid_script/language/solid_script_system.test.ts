@@ -74,7 +74,7 @@ describe('SolidScript system values', () => {
   });
 
   it('reads the generator box, and warns without one, using 1 so the script still runs', () => {
-    expect(echo('[Box.Width] [Box.Depth] [Box.Height] [Box.Size.y]', { box: [4, 2, 3] })).toBe('4 2 3 2');
+    expect(echo('[Box.Width] [Box.Depth] [Box.Height] [Box.Size.y]', { box: [4, 2, 3] })).toBe('4 3 2 2');
     const run = solidScriptProgramRun(
       solidScriptDocumentCreate([
         { command: 'echo', values: { value: 'start' } },

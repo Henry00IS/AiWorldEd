@@ -136,7 +136,7 @@ How it maps:
 - Every shape line becomes one convex brush. Spheres, cylinders and circles are faceted; each has its own `sides` field (and `rings` for spheres).
 - `difference` becomes a CSG group: the first shape inside adds and the rest subtract. `intersection` becomes a group with intersecting members. `union` flattens into its parent. `hull` becomes one convex brush.
 - Part names (`part` / `use_part`) become brush and group names, so wrap pieces in parts for a readable outliner.
-- SolidScript is Z-up. The editor is Y-up, so (x, y, z) becomes (x, z, −y) unless `upAxis: "y"`. Units are metres; Rotate turns about X, then Y, then Z.
+- SolidScript uses the editor's axes: X right, Y up, Z toward the front. Units are metres; Rotate turns about X, then Y, then Z.
 - The origin is the centre of the generator's box (or the build `position`), and Cube, Cylinder, Square and Linear Extrude are centred on it by default (`center: "false"` puts their corner or base there), so a shape needs no Translate to sit in the middle of the generator.
 - `operation: "subtractive"` with a `modelId` carves the result out of existing brushes.
 - Mesh blocks (`mesh` with `vertex` and `face` lines, `mesh_shapes`, and the mesh tools `subdivide`, `mesh_smooth`, `displace`, `extrude_faces`, `box_uvs`, `flip_faces`) build regular editable meshes instead of brushes. A script can mix both; a mesh cannot be cut by `difference` or `intersection`. In a SolidScript generator the meshes show as a preview until Bake turns them into mesh objects.

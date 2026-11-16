@@ -49,14 +49,14 @@ function solids(shapes: readonly SolidScriptShape[]): THREE.Vector3[][] {
 }
 
 /**
- * Lowest and highest Z of points.
+ * Lowest and highest Y (height) of points.
  *
  * @param points Points.
  * @returns Rounded range.
  */
-function zRange(points: readonly THREE.Vector3[]): [number, number] {
-  const zs = points.map((point) => Math.round(point.z * 1000) / 1000);
-  return [Math.min(...zs), Math.max(...zs)];
+function heightRange(points: readonly THREE.Vector3[]): [number, number] {
+  const heights = points.map((point) => Math.round(point.y * 1000) / 1000);
+  return [Math.min(...heights), Math.max(...heights)];
 }
 
 describe('SolidScript faces', () => {
@@ -66,14 +66,14 @@ describe('SolidScript faces', () => {
       select('Facing Up'),
       { command: 'for_each_selected_face' },
       { command: 'place_on_face' },
-      { command: 'cube', values: { size: '0.5, 0.5, 0.1', center: 'false' } },
+      { command: 'cube', values: { size: '0.5, 0.1, 0.5', center: 'false' } },
       END,
       END,
     );
     expect(result.error).toBeNull();
     const all = solids(result.shapes);
     expect(all).toHaveLength(2);
-    expect(zRange(all[1]!)).toEqual([1, 1.1]);
+    expect(heightRange(all[1]!)).toEqual([1, 1.1]);
   });
 
   it('nests Select Faces: a round picks faces of what it built, and the outer pick comes back after', () => {
@@ -96,9 +96,9 @@ describe('SolidScript faces', () => {
     expect(result.error).toBeNull();
     const inner = result.messages.filter((message) => message.startsWith('inner'));
     expect(inner).toHaveLength(6);
-    expect(inner.some((message) => message.endsWith(', 1.5]'))).toBe(true);
-    expect(inner).not.toContain('inner [0, 0, -1]');
-    expect(result.messages.filter((message) => message.startsWith('outer'))).toEqual(['outer [0, 0, 1]']);
+    expect(inner.some((message) => message.includes(', 1.5, '))).toBe(true);
+    expect(inner).not.toContain('inner [0, -1, 0]');
+    expect(result.messages.filter((message) => message.startsWith('outer'))).toEqual(['outer [0, 1, 0]']);
   });
 
   it('builds the shapes of a For Each Selected Face round standing on its face, also in a nested round', () => {
@@ -182,7 +182,7 @@ describe('SolidScript faces', () => {
       END,
     );
     expect(result.error).toBeNull();
-    expect(result.messages).toEqual(['4 [0, 0, 1] [0, 0, 1]']);
+    expect(result.messages).toEqual(['4 [0, 1, 0] [0, 1, 0]']);
   });
 
   it('adds, removes and picks faces in plain words', () => {
@@ -211,7 +211,7 @@ describe('SolidScript faces', () => {
     expect(result.error).toBeNull();
     const all = solids(result.shapes);
     expect(all).toHaveLength(2);
-    expect(zRange(all[1]!)).toEqual([1, 1.5]);
+    expect(heightRange(all[1]!)).toEqual([1, 1.5]);
   });
 
   it('insets and deletes faces by turning the brush into a mesh', () => {
@@ -229,7 +229,7 @@ describe('SolidScript faces', () => {
     const all = solids(result.shapes);
     expect(all).toHaveLength(1);
     expect(all[0]!.length).toBeGreaterThan(8);
-    expect(zRange(all[0]!)).toEqual([-1, 1]);
+    expect(heightRange(all[0]!)).toEqual([-1, 1]);
   });
 
   it('loops over corners and edges', () => {
@@ -261,9 +261,9 @@ describe('SolidScript faces', () => {
     for (const message of first.messages) {
       const [, x, y, z, nx, ny, nz] = message.match(/^\d+ \[(.+), (.+), (.+)\] \[(.+), (.+), (.+)\]/)!.map(Number);
       expect(Math.abs(x!)).toBeLessThanOrEqual(1);
-      expect(Math.abs(y!)).toBeLessThanOrEqual(1);
-      expect(z).toBe(1);
-      expect([nx, ny, nz]).toEqual([0, 0, 1]);
+      expect(Math.abs(z!)).toBeLessThanOrEqual(1);
+      expect(y).toBe(1);
+      expect([nx, ny, nz]).toEqual([0, 1, 0]);
     }
     expect(scatter('7').messages).toEqual(first.messages);
     expect(scatter('8').messages).not.toEqual(first.messages);
@@ -289,15 +289,15 @@ describe('SolidScript faces', () => {
     ).toMatch(/Count/);
   });
 
-  it('aligns the lines inside so their Z points along a direction', () => {
-    const tall = { command: 'cube', values: { size: '0.2, 0.2, 1', center: 'false' } };
+  it('aligns the lines inside so their Y (up) points along a direction', () => {
+    const tall = { command: 'cube', values: { size: '0.2, 1, 0.2', center: 'false' } };
     const sideways = run({ command: 'align', values: { direction: '1, 0, 0' } }, tall, END);
     expect(sideways.error).toBeNull();
     const points = solids(sideways.shapes)[0]!;
     const xs = points.map((point) => Math.round(point.x * 1000) / 1000);
     expect([Math.min(...xs), Math.max(...xs)]).toEqual([0, 1]);
-    const down = run({ command: 'align', values: { direction: '0, 0, -2' } }, tall, END);
-    expect(zRange(solids(down.shapes)[0]!)).toEqual([-1, 0]);
+    const down = run({ command: 'align', values: { direction: '0, -2, 0' } }, tall, END);
+    expect(heightRange(solids(down.shapes)[0]!)).toEqual([-1, 0]);
     expect(run({ command: 'align', values: { direction: '0, 0, 0' } }, tall, END).error?.message).toMatch(/Direction/);
   });
 

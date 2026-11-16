@@ -6,11 +6,6 @@ import type { SolidScriptFaceTexture, SolidScriptShape, SolidScriptShapeBoolean 
 
 /** How evaluated script shapes are placed into a solid model. */
 export interface SolidScriptSolidTreeOptions {
-  /**
-   * 'z' converts the script's Z-up to the editor's Y-up; 'y' keeps axes as
-   * written.
-   */
-  upAxis: 'z' | 'y';
   /** Editor world offset added to every point. */
   offset: THREE.Vector3;
   /** World to parent-local transform of the insertion parent. */
@@ -167,15 +162,14 @@ function solidScriptSolidTreeFaceTextures(
 }
 
 /**
- * Converts an script point to parent-local editor space.
+ * Moves a script point, already in editor axes, to parent-local space.
  *
  * @param point Script point.
  * @param options Placement options.
  * @returns Converted point.
  */
 function solidScriptSolidTreePoint(point: THREE.Vector3, options: SolidScriptSolidTreeOptions): THREE.Vector3 {
-  const editor = options.upAxis === 'z' ? new THREE.Vector3(point.x, point.z, -point.y) : point.clone();
-  return editor.add(options.offset).applyMatrix4(options.worldToParent);
+  return point.clone().add(options.offset).applyMatrix4(options.worldToParent);
 }
 
 /**

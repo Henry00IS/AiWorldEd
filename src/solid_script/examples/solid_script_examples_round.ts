@@ -25,14 +25,14 @@ const SOLID_SCRIPT_EXAMPLE_SIDES = solidScriptExampleInput('Sides', 'count', '16
  * Lines that add one ring of corners around the middle.
  *
  * @param scale Ring size compared to the widest ring, as field text.
- * @param z Height of the ring, as field text.
+ * @param height Height of the ring, as field text.
  * @returns Lines.
  */
-function solidScriptExampleRing(scale: string, z: string): SolidScriptLine[] {
+function solidScriptExampleRing(scale: string, height: string): SolidScriptLine[] {
   return solidScriptExampleRepeat('I', '0', '[=[Sides] - 1]', [
     solidScriptExampleSet('Angle', '[=([I] + 0.5) * 360 / [Sides]]'),
     solidScriptExamplePoint(
-      `[=Cos([Angle]) * [Box.Width] / 2 * ${scale}], [=-Sin([Angle]) * [Box.Depth] / 2 * ${scale}], ${z}`,
+      `[=Cos([Angle]) * [Box.Width] / 2 * ${scale}], ${height}, [=Sin([Angle]) * [Box.Depth] / 2 * ${scale}]`,
     ),
   ]);
 }
@@ -42,14 +42,14 @@ function solidScriptExampleRing(scale: string, z: string): SolidScriptLine[] {
  * nothing, such as the tip of a cone.
  *
  * @param scale Ring size compared to the widest ring, as field text.
- * @param z Height of the ring, as field text.
+ * @param height Height of the ring, as field text.
  * @returns Lines.
  */
-function solidScriptExampleRingOrTip(scale: string, z: string): SolidScriptLine[] {
+function solidScriptExampleRingOrTip(scale: string, height: string): SolidScriptLine[] {
   return solidScriptExampleIf(
     `${scale} <= 0.000000001`,
-    [solidScriptExamplePoint(`0, 0, ${z}`)],
-    solidScriptExampleRing(scale, z),
+    [solidScriptExamplePoint(`0, ${height}, 0`)],
+    solidScriptExampleRing(scale, height),
   );
 }
 
@@ -172,13 +172,13 @@ export const SOLID_SCRIPT_EXAMPLE_COLUMN: readonly SolidScriptLine[] = [
     ...solidScriptExamplePolyhedron(
       solidScriptExampleBlock('for_each', { variable: 'M', list: '[Marks]' }, [
         ...solidScriptExampleIf('[M.z] == [R]', [
-          solidScriptExampleSet('Z', '[=[M.x] - [Box.Height] / 2]'),
+          solidScriptExampleSet('Y', '[=[M.x] - [Box.Height] / 2]'),
           ...solidScriptExampleIf(
             '[M.y] <= 0.000001',
-            [solidScriptExamplePoint('0, 0, [Z]')],
+            [solidScriptExamplePoint('0, [Y], 0')],
             solidScriptExampleRepeat('I', '0', '[=[Sides] - 1]', [
               solidScriptExampleSet('Angle', '[=([I] + 0.5) * 360 / [Sides]]'),
-              solidScriptExamplePoint('[=Cos([Angle]) * [M.y]], [=-Sin([Angle]) * [M.y] * [Aspect]], [Z]'),
+              solidScriptExamplePoint('[=Cos([Angle]) * [M.y]], [Y], [=Sin([Angle]) * [M.y] * [Aspect]]'),
             ]),
           ),
         ]),

@@ -33,7 +33,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     category: 'Transforms',
     description: 'Move shapes',
     manual:
-      'Moves every shape between this line and its End by the given distance along X, Y and Z in metres. Blocks can be nested: a Translate inside another adds both moves. Example: by 0, 0, 2.5 lifts a lintel onto two posts 2.5 metres high. By [=[I] * 2], 0, 0 inside a Repeat moves each round two metres further.',
+      'Moves every shape between this line and its End by the given distance along X, Y and Z in metres. Blocks can be nested: a Translate inside another adds both moves. Example: by 0, 2.5, 0 lifts a lintel onto two posts 2.5 metres high. By [=[I] * 2], 0, 0 inside a Repeat moves each round two metres further.',
     stops: ['A value that is not one number or three numbers separated by commas.', SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [solidScriptParameter('v', 'Offset', 'vector3', '0, 0, 0', 'Distance along X, Y and Z in metres.')],
@@ -46,7 +46,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     category: 'Transforms',
     description: 'Turn shapes',
     manual:
-      'Turns every shape between this line and its End around the origin, first around X, then Y, then Z, in degrees. To turn a shape around its own middle, build it centred, or move it after turning it. Example: by 0, 0, 90 turns a box a quarter turn around the upright Z axis.',
+      'Turns every shape between this line and its End around the origin, first around X, then Y, then Z, in degrees. To turn a shape around its own middle, build it centred, or move it after turning it. Example: by 0, 90, 0 turns a box a quarter turn around the upright Y axis.',
     stops: ['A value that is not one number or three numbers separated by commas.', SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [solidScriptParameter('a', 'Angles', 'vector3', '0, 0, 0', 'Degrees around X, then Y, then Z.')],
@@ -59,11 +59,17 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     category: 'Transforms',
     description: 'Turn shapes to point along a direction',
     manual:
-      'Turns every shape between this line and its End so that its upright Z axis points along Direction, by the shortest turn around the origin. Example: inside For Each Scattered Point, Translate by [Point.Position] with Align To [Point.Normal] and a thin Cylinder grows a spike straight out of every face.',
+      'Turns every shape between this line and its End so that its upright Y axis points along Direction, by the shortest turn around the origin. Example: inside For Each Scattered Point, Translate by [Point.Position] with Align To [Point.Normal] and a thin Cylinder grows a spike straight out of every face.',
     stops: ['A Direction of 0, 0, 0.', SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [
-      solidScriptParameter('direction', 'Direction', 'vector3', '0, 0, 1', 'Where Z should point, such as 1, 0, 0.'),
+      solidScriptParameter(
+        'direction',
+        'Direction',
+        'vector3',
+        '0, 1, 0',
+        'Where up (Y) should point, such as 1, 0, 0.',
+      ),
     ],
     listing: (read) => ['Align To', ' ', read.value('direction')],
     execute: (run) => run.transformed(solidScriptAlignMatrix(run.fields())),
@@ -102,7 +108,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     category: 'Transforms',
     description: 'Stretch shapes to an exact size',
     manual:
-      'Stretches the shapes between this line and its End about the origin so that, together, they measure exactly the given width (X), depth (Y) and height (Z) in metres. A size of 0 leaves that axis alone, or with Keep Proportions scales it like the first axis that has a size. Example: a Sphere inside Resize to 4, 2, 1 gives an egg four metres long, without working out the scale yourself.',
+      'Stretches the shapes between this line and its End about the origin so that, together, they measure exactly the given width (X), height (Y) and depth (Z) in metres. A size of 0 leaves that axis alone, or with Keep Proportions scales it like the first axis that has a size. Example: a Sphere inside Resize to 4, 2, 1 gives an egg four metres long, without working out the scale yourself.',
     stops: [
       'A size below 0, or 0 on every axis.',
       'Stretching shapes that are flat along an axis.',
@@ -115,7 +121,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
         'Size',
         'vector3',
         '2, 2, 2',
-        'Width (X), depth (Y) and height (Z) in metres. 0 keeps an axis.',
+        'Width (X), height (Y) and depth (Z) in metres. 0 keeps an axis.',
       ),
       solidScriptParameter(
         'keep',
@@ -161,7 +167,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     category: 'Transforms',
     description: 'Pull flat outlines up into solids',
     manual:
-      'Pulls the flat outlines between this line and its End (Square, Circle, Polygon) straight up along Z into solids. Top Scale below 1 narrows the top, for a tapered shape. Example: a Polygon star with height 0.2 gives a star-shaped tile.',
+      'Lays the flat outlines between this line and its End (Square, Circle, Polygon) on the ground, their Y running to the back, and pulls them straight up along Y into solids. Top Scale below 1 narrows the top, for a tapered shape. Example: a Polygon star with height 0.2 gives a star-shaped tile.',
     stops: [
       'A height of 0 or less.',
       'A solid such as Cube between this line and its End. Only flat outlines can be extruded.',
@@ -170,7 +176,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     ],
     nesting: 'open',
     parameters: [
-      solidScriptParameter('height', 'Height', 'number', '1', 'How far the outlines are pulled up along Z, in metres.'),
+      solidScriptParameter('height', 'Height', 'number', '1', 'How far the outlines are pulled up along Y, in metres.'),
       solidScriptParameterCenter(),
       solidScriptParameter(
         'scale',
@@ -195,9 +201,9 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     id: 'rotate_extrude',
     label: 'Rotate Extrude',
     category: 'Transforms',
-    description: 'Spin flat outlines around the Z axis',
+    description: 'Spin flat outlines around the Y axis',
     manual:
-      "Spins the flat outlines between this line and its End (Square, Circle, Polygon) around the Z axis, like clay on a potter's wheel. The outline's X is the distance from the axis and its Y the height. Angle below 360 leaves a gap, for a partial ring or a curved wall. Each piece becomes one brush per side. Example: a Square of 0.5, 2 moved to X = 3 and spun 360 degrees gives a round tower wall.",
+      "Spins the flat outlines between this line and its End (Square, Circle, Polygon) around the upright Y axis, like clay on a potter's wheel. The outline's X is the distance from the axis and its Y the height. Angle below 360 leaves a gap, for a partial ring or a curved wall. Each piece becomes one brush per side. Example: a Square of 0.5, 2 moved to X = 3 and spun 360 degrees gives a round tower wall.",
     stops: [
       'An outline with points at X below 0.',
       'An angle of 0 or more than 360.',
