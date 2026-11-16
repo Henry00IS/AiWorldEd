@@ -3,7 +3,9 @@ import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
 import {
   solidScriptSuggestionContext,
-  solidScriptSuggestionSignature,
+  type SolidScriptSuggestionHint,
+  solidScriptSuggestionHint,
+  solidScriptSuggestionHintInput,
   solidScriptSuggestionWrite,
   solidScriptSuggestions,
   type SolidScriptSuggestion,
@@ -131,16 +133,45 @@ export class SolidScriptConfiguratorNames {
     input.addEventListener('blur', () => this.close());
   }
 
+  /**
+   * Shows the call the caret is in under the field: its signature with the
+   * current input bold, that input's meaning and what the function does.
+   *
+   * @param hint Call, or null to hide.
+   */
+  private hintWrite(hint: SolidScriptSuggestionHint | null): void {
+    this.signature.replaceChildren();
+    this.signature.hidden = !hint;
+    if (!hint) return;
+    const line = (...parts: (string | Node)[]): void => {
+      const row = document.createElement('div');
+      row.append(...parts);
+      this.signature.append(row);
+    };
+    const parts: (string | Node)[] = [`${hint.name}(`];
+    hint.inputs.forEach((input, index) => {
+      if (index > 0) parts.push(', ');
+      const text = solidScriptSuggestionHintInput(input);
+      const strong = document.createElement('strong');
+      strong.textContent = text;
+      parts.push(index === hint.current ? strong : text);
+    });
+    parts.push(`) -> ${hint.gives}`);
+    line(...parts);
+    const current = hint.inputs[hint.current];
+    if (current) line(`${solidScriptSuggestionHintInput(current)}. ${current.about}`);
+    line(hint.summary);
+  }
+
   /** Lists what fits at the caret, with the call being typed on top. */
   private update(): void {
     const caret = this.input.selectionStart ?? this.input.value.length;
     const context = solidScriptSuggestionContext(this.input.value, caret, this.scope.words.length > 0);
     this.shown = solidScriptSuggestions(context, this.scope);
     this.active = 0;
-    const signature = solidScriptSuggestionSignature(context, this.scope);
-    if (this.shown.length === 0 && signature === '') return this.close();
-    this.signature.textContent = signature;
-    this.signature.hidden = signature === '';
+    const hint = solidScriptSuggestionHint(context, this.scope);
+    if (this.shown.length === 0 && !hint) return this.close();
+    this.hintWrite(hint);
     solidScriptSuggestionRows(this.list, this.shown, (index) => this.accept(index));
     if (!this.host.isConnected) this.input.ownerDocument.body.append(this.host);
     solidScriptSuggestionPlace(

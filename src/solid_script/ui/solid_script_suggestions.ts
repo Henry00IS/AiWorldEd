@@ -1,6 +1,10 @@
 import type { SolidScriptCommandWord } from '@/solid_script/commands/solid_script_command.js';
 import type { SolidScriptName } from '@/solid_script/document/solid_script_document_names.js';
-import { SOLID_SCRIPT_FUNCTION_DOCS } from '@/solid_script/language/solid_script_function_docs.js';
+import {
+  SOLID_SCRIPT_FUNCTION_DOCS,
+  type SolidScriptFunctionArgument,
+  solidScriptFunctionArguments,
+} from '@/solid_script/language/solid_script_function_docs.js';
 import { SOLID_SCRIPT_FUNCTIONS_BUILTIN } from '@/solid_script/language/solid_script_functions_builtin.js';
 import { SolidScriptLexer, type SolidScriptToken } from '@/solid_script/language/solid_script_lexer.js';
 import { solidScriptFunctionSpelling } from '@/solid_script/language/solid_script_name_key.js';
@@ -296,28 +300,84 @@ export function solidScriptSuggestions(
 }
 
 /**
- * Describes the call the caret is in: how it is called, what it gives and which
- * input is being typed.
+ * The call the caret is in: the function, its inputs and which one is being
+ * typed.
+ */
+export interface SolidScriptSuggestionHint {
+  /** Name as the reference writes it, such as Clamp. */
+  name: string;
+  /** Inputs with display names, such as FromLow. */
+  inputs: SolidScriptFunctionArgument[];
+  /** Kind of value it gives. */
+  gives: string;
+  /** What it does, in one sentence. */
+  summary: string;
+  /** Index into inputs of the one being typed. */
+  current: number;
+}
+
+/**
+ * Finds the call the caret is in, built-in or a Function of this script, and
+ * which input the caret is on.
  *
  * @param context Typing context.
  * @param scope What the field may refer to.
- * @returns Description, or an empty string outside a known call.
+ * @returns Hint, or null outside a known call.
  */
-export function solidScriptSuggestionSignature(
+export function solidScriptSuggestionHint(
   context: SolidScriptSuggestionContext | null,
   scope: SolidScriptSuggestionScope,
-): string {
+): SolidScriptSuggestionHint | null {
   const call = context?.call;
-  if (!call) return '';
+  if (!call) return null;
   const name = call.name.toLowerCase();
-  const input = ` Input ${call.argument + 1}.`;
+  const at = (inputs: SolidScriptFunctionArgument[]): number => Math.max(0, Math.min(call.argument, inputs.length - 1));
   const own = scope.names.find((entry) => entry.category === 'Functions' && entry.name.toLowerCase() === name);
-  if (own) return `${own.detail}: Function of this script.${input}`;
+  if (own) {
+    const inside = /\((.*)\)/.exec(own.detail)?.[1]?.trim() ?? '';
+    const inputs = (inside === '' ? [] : inside.split(',')).map((piece) => ({
+      name: piece.trim(),
+      type: 'Any',
+      about: 'Input of this Function.',
+    }));
+    return { name: own.name, inputs, gives: 'Any', summary: 'Function of this script.', current: at(inputs) };
+  }
   const key = Object.keys(SOLID_SCRIPT_FUNCTION_DOCS).find(
     (entry) => entry === name || solidScriptFunctionSpelling(entry).toLowerCase() === name,
   );
   const doc = key ? SOLID_SCRIPT_FUNCTION_DOCS[key] : undefined;
-  return doc ? `${doc.usage}: ${doc.summary}${input}` : '';
+  if (!key || !doc) return null;
+  const inputs = solidScriptFunctionArguments(key).map((input) => ({
+    ...input,
+    name: input.name === '...' ? input.name : solidScriptFunctionSpelling(input.name.replace(/ /g, '_')),
+  }));
+  return {
+    name: solidScriptFunctionSpelling(key),
+    inputs,
+    gives: doc.gives,
+    summary: doc.summary,
+    current: at(inputs),
+  };
+}
+
+/**
+ * Writes one input of a hint as Name: Type.
+ *
+ * @param input Input.
+ * @returns Text.
+ */
+export function solidScriptSuggestionHintInput(input: SolidScriptFunctionArgument): string {
+  return `${input.name}: ${input.type}`;
+}
+
+/**
+ * Writes the full signature of a hint, such as Clamp(Value: Number) -> Number.
+ *
+ * @param hint Hint.
+ * @returns Signature text.
+ */
+export function solidScriptSuggestionHintSignature(hint: SolidScriptSuggestionHint): string {
+  return `${hint.name}(${hint.inputs.map(solidScriptSuggestionHintInput).join(', ')}) -> ${hint.gives}`;
 }
 
 /**

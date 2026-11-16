@@ -902,8 +902,12 @@ describe('SolidScript editor', () => {
     const detail = find<HTMLInputElement>('[data-solid-script-configurator="select_faces"] input[aria-label="Detail"]');
     detail.focus();
     type(detail, '[=Max(2, ');
-    expect(find('.solid-script-editor-suggestion-signature').textContent).toBe(
-      'Max(a, b, ...): The biggest number, of the inputs or of one list. Input 2.',
+    const hint = find('.solid-script-editor-suggestion-signature');
+    expect(hint.querySelector('strong')?.textContent).toBe('B: Number');
+    expect(hint.textContent).toBe(
+      'Max(A: Number or List, B: Number, ...: Number) -> Number' +
+        'B: Number. Another number.' +
+        'The biggest number, of the inputs or of one list.',
     );
     expect(options()).toContain('Box.Width');
     const how = find<HTMLInputElement>('[data-solid-script-configurator="select_faces"] input[aria-label="How"]');

@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { solidScriptDocumentCreate } from '@/solid_script/document/solid_script_document.js';
+import {
+  SOLID_SCRIPT_FUNCTION_DOCS,
+  solidScriptFunctionArguments,
+} from '@/solid_script/language/solid_script_function_docs.js';
 import { solidScriptDocumentNames } from '@/solid_script/document/solid_script_document_names.js';
 import {
   solidScriptSuggestionContext,
-  solidScriptSuggestionSignature,
+  solidScriptSuggestionHint,
+  solidScriptSuggestionHintSignature,
   solidScriptSuggestionWrite,
   solidScriptSuggestions,
   type SolidScriptSuggestionScope,
@@ -102,14 +107,42 @@ describe('SolidScript suggestions', () => {
     expect(offered('New|', WORDY)).toEqual(['Choices: New', 'Choices: Add', 'Choices: Remove']);
   });
 
-  it('shows how to call the function the caret is in', () => {
-    expect(solidScriptSuggestionSignature(at('[=Abs(|'), SCOPE)).toBe(
-      'Abs(number): The number without its minus sign. Input 1.',
-    );
-    expect(solidScriptSuggestionSignature(at('[=Area(1, |'), SCOPE)).toBe(
-      'Area(W, D): Function of this script. Input 2.',
-    );
-    expect(solidScriptSuggestionSignature(at('[=|'), SCOPE)).toBe('');
+  it('finds the function and the input the caret is in, nested calls and commas included', () => {
+    const clamp = solidScriptSuggestionHint(at('[=Clamp(1, |'), SCOPE)!;
+    expect(clamp.name).toBe('Clamp');
+    expect(clamp.current).toBe(1);
+    expect(clamp.inputs.map((input) => `${input.name}: ${input.type}`)).toEqual([
+      'Value: Number',
+      'Min: Number',
+      'Max: Number',
+    ]);
+    expect(solidScriptSuggestionHintSignature(clamp)).toBe('Clamp(Value: Number, Min: Number, Max: Number) -> Number');
+    expect(clamp.summary).toBe('Keeps a number between min and max.');
+    expect(solidScriptSuggestionHint(at('[=Clamp(|'), SCOPE)?.current).toBe(0);
+    expect(solidScriptSuggestionHint(at('[=Clamp([Width], Pow(2, |'), SCOPE)).toMatchObject({
+      name: 'Pow',
+      current: 1,
+    });
+    expect(solidScriptSuggestionHint(at('[=Clamp(Pow(2, 3), |'), SCOPE)).toMatchObject({ name: 'Clamp', current: 1 });
+    expect(solidScriptSuggestionHint(at('[=Clamp(Str("a, b"), |'), SCOPE)).toMatchObject({ name: 'Clamp', current: 1 });
+    // Past the last named input of a function that takes more, the "..." input stays current.
+    const max = solidScriptSuggestionHint(at('[=Max(1, 2, 3, |'), SCOPE)!;
+    expect(max.inputs[max.current]?.name).toBe('...');
+    const own = solidScriptSuggestionHint(at('[=Area(1, |'), SCOPE)!;
+    expect(own).toMatchObject({ name: 'Area', current: 1, summary: 'Function of this script.' });
+    expect(own.inputs.map((input) => input.name)).toEqual(['W', 'D']);
+    expect(solidScriptSuggestionHint(at('[=|'), SCOPE)).toBeNull();
+  });
+
+  it('knows the inputs, their kind and meaning, and the result of every built-in function', () => {
+    for (const key of Object.keys(SOLID_SCRIPT_FUNCTION_DOCS)) {
+      const doc = SOLID_SCRIPT_FUNCTION_DOCS[key]!;
+      expect(doc.gives, key).not.toBe('');
+      for (const input of solidScriptFunctionArguments(key)) {
+        expect(input.type, `${key} ${input.name}`).not.toBe('');
+        expect(input.about, `${key} ${input.name}`).not.toBe('');
+      }
+    }
   });
 
   it('writes a pick the way the caret position needs it', () => {
