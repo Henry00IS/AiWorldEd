@@ -179,6 +179,7 @@ describe('SolidScript editor', () => {
       'Faces',
       'Inputs',
       'Logic',
+      'Lists',
       'Parts',
     ]);
     expect(root.querySelector('.solid-script-editor-palette-item[data-command="cylinder"]')).not.toBeNull();

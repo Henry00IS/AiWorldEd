@@ -254,12 +254,13 @@ describe('Inspector event handlers', () => {
     const clamped = solidScriptProgramHandle(program, { kind: 'input', name: 'steps' }, { steps: '99', height: '2' });
     expect(clamped).toEqual({
       inputs: { steps: '16' },
+      removed: [],
       notices: ['At most 16 steps for 2 m'],
       messages: [],
       error: null,
     });
     const fine = solidScriptProgramHandle(program, { kind: 'input', name: 'steps' }, { steps: '4', height: '2' });
-    expect(fine).toEqual({ inputs: {}, notices: [], messages: [], error: null });
+    expect(fine).toEqual({ inputs: {}, removed: [], notices: [], messages: [], error: null });
     const other = solidScriptProgramHandle(program, { kind: 'input', name: 'height' }, { steps: '99', height: '2' });
     expect(other.inputs).toEqual({});
   });

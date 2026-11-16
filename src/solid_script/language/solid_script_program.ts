@@ -91,6 +91,12 @@ export function solidScriptProgramHandle(
     return new SolidScriptMachine(Number.POSITIVE_INFINITY, null, inputs).handle(lines, event);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return { inputs: {}, notices: [], messages: [], error: solidScriptFailure(solidScriptErrorLine(message), message) };
+    return {
+      inputs: {},
+      removed: [],
+      notices: [],
+      messages: [],
+      error: solidScriptFailure(solidScriptErrorLine(message), message),
+    };
   }
 }

@@ -74,7 +74,8 @@ export function solidScriptInspectorInputs(
     const typed = text === null ? { ...values } : { ...values, [event.name]: text };
     const handled = solidScriptProgramHandle(solidScriptDocumentNormalize(script), event, typed);
     noticesShow(handled.notices, handled.error?.message ?? null);
-    const next = { ...typed, ...handled.inputs };
+    const next: Record<string, string> = { ...typed, ...handled.inputs };
+    for (const key of handled.removed) delete next[key];
     if (JSON.stringify(next) === JSON.stringify(values)) return;
     modifierStackParametersCommit(target.volume, target.stepId, { [inputsKey]: next }, target.commandStack);
     target.refresh?.();

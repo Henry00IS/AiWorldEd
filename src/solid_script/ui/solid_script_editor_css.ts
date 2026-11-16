@@ -107,6 +107,7 @@ export const SOLID_SCRIPT_EDITOR_CATEGORY_COLORS: Readonly<Record<string, string
   Faces: '#d0703c',
   Inputs: '#4f9e6b',
   Logic: '#8a9a3c',
+  Lists: '#3ca7a0',
   Parts: '#d4537e',
 };
 

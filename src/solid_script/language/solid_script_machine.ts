@@ -76,6 +76,34 @@ const SOLID_SCRIPT_DEFINITIONS: ReadonlySet<string> = new Set([
 export const SOLID_SCRIPT_LOCAL_PREFIX = 'local.';
 
 /**
+ * Start of a variable kept with the generator between runs, such as
+ * [persistent.presses]. Its value is stored, saved and shared like an input
+ * that has no row in the inspector.
+ */
+export const SOLID_SCRIPT_PERSISTENT_PREFIX = 'persistent.';
+
+/**
+ * Reads the persistent values stored among a generator's input values.
+ *
+ * @param inputs Stored input values by name.
+ * @returns Persistent values by bare name.
+ */
+export function solidScriptPersistentRead(inputs: Readonly<Record<string, string>>): Map<string, SolidScriptValue> {
+  const values = new Map<string, SolidScriptValue>();
+  for (const [key, text] of Object.entries(inputs)) {
+    if (!key.startsWith(SOLID_SCRIPT_PERSISTENT_PREFIX)) continue;
+    let value: SolidScriptValue = text;
+    try {
+      value = JSON.parse(text) as SolidScriptValue;
+    } catch {
+      value = text;
+    }
+    values.set(key.slice(SOLID_SCRIPT_PERSISTENT_PREFIX.length), value);
+  }
+  return values;
+}
+
+/**
  * Reads the input names of a Define Function line, such as "width, depth".
  *
  * @param text Field text.
@@ -246,6 +274,20 @@ export interface SolidScriptBlockRun {
   inputDefine(name: string, value: SolidScriptValue): void;
   /** Removes one item of a list, or its last item for list(). */
   itemRemove(target: string): void;
+  /**
+   * Changes a whole list in place. With create, a missing name starts as an
+   * empty list.
+   */
+  listUpdate(name: string, change: (items: readonly SolidScriptValue[]) => SolidScriptValue[], create: boolean): void;
+  /** Reads a list, failing with a plain message when the name is not a list. */
+  listRead(name: string): readonly SolidScriptValue[];
+  /** Forgets a variable. */
+  variableDelete(name: string): void;
+  /**
+   * Empties a variable: a list keeps no items, anything else becomes empty
+   * text.
+   */
+  variableClear(name: string): void;
   /** Writes a line to the output. */
   print(text: string): SolidScriptShape[];
 }
@@ -295,8 +337,13 @@ export interface SolidScriptEvent {
 
 /** What the handlers of an inspector event did. */
 export interface SolidScriptHandled {
-  /** Input values the handlers changed with Set Input, as text by name. */
+  /**
+   * Input values the handlers changed with Set Input, and persistent values
+   * they set (as persistent.name with JSON text), by name.
+   */
   inputs: Record<string, string>;
+  /** Stored names to forget: persistent values the handlers deleted. */
+  removed: string[];
   /** Show Message texts, in order. */
   notices: string[];
   /** Echo lines, in order. */
@@ -426,6 +473,10 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
   /** True while an inspector event runs its handlers. */
   private handling = false;
   private readonly inputsChanged: Record<string, string> = {};
+  /** Stored persistent names the handlers deleted. */
+  private readonly inputsRemoved = new Set<string>();
+  /** Variables kept with the generator between runs, by bare name. */
+  private readonly persistent = new SolidScriptScope(null);
   private readonly notices: string[] = [];
   private root = new SolidScriptScope(null);
   private solids = 0;
@@ -520,13 +571,20 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
           `line ${this.steps[0] ?? handler.line}: ${handler.command.label} blocks only check and change inputs; shapes are built by the script from the top`,
         );
     }
-    return { inputs: this.inputsChanged, notices: this.notices, messages: this.messages, error: this.failure };
+    return {
+      inputs: this.inputsChanged,
+      removed: [...this.inputsRemoved],
+      notices: this.notices,
+      messages: this.messages,
+      error: this.failure,
+    };
   }
 
   /** Marks the machine used; a machine runs once. */
   private useOnce(): void {
     if (this.used) throw new Error('a script machine runs once; make a new one for every run');
     this.used = true;
+    for (const [name, value] of solidScriptPersistentRead(this.inputs)) this.persistent.variableDefine(name, value);
   }
 
   /**
@@ -711,15 +769,22 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
   private variableWhere(
     name: string,
     scope: SolidScriptScope,
-  ): { scope: SolidScriptScope; name: string; local: boolean } {
-    if (!name.startsWith(SOLID_SCRIPT_LOCAL_PREFIX)) return { scope, name, local: false };
+  ): { scope: SolidScriptScope; name: string; local: boolean; persistent: boolean } {
+    if (name.startsWith(SOLID_SCRIPT_PERSISTENT_PREFIX))
+      return {
+        scope: this.persistent,
+        name: name.slice(SOLID_SCRIPT_PERSISTENT_PREFIX.length),
+        local: false,
+        persistent: true,
+      };
+    if (!name.startsWith(SOLID_SCRIPT_LOCAL_PREFIX)) return { scope, name, local: false, persistent: false };
     const bare = name.slice(SOLID_SCRIPT_LOCAL_PREFIX.length);
     const frame = this.frameFunction();
     if (!frame?.locals)
       throw new Error(
         `[${name}] is a local variable, and local. only works inside a Function; outside one, write [${bare}]`,
       );
-    return { scope: frame.locals, name: bare, local: true };
+    return { scope: frame.locals, name: bare, local: true, persistent: false };
   }
 
   /**
@@ -1013,6 +1078,28 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
         scope.variableDefine(name, value);
         this.readOnly.set(name, 'input');
       },
+      listRead: (name) => this.listRead(scope, name),
+      listUpdate: (name, change, create) => {
+        const where = this.variableWhere(name, scope);
+        if (!create || where.scope.variableHas(where.name)) {
+          this.variableSet(scope, name, change(this.listRead(scope, name)));
+          return;
+        }
+        this.variableSet(scope, name, change([]));
+      },
+      variableDelete: (name) => {
+        const where = this.variableWhere(name, scope);
+        if (!where.local) this.writableCheck(where.name);
+        if (!where.scope.variableDelete(where.name))
+          throw new Error(`there is no variable [${name}] to delete; set it on a line above this one`);
+        if (where.persistent) this.persistentKeep(where.name);
+      },
+      variableClear: (name) => {
+        const where = this.variableWhere(name, scope);
+        if (!where.scope.variableHas(where.name))
+          throw new Error(`there is no variable [${name}] to clear; set it on a line above this one`);
+        this.variableSet(scope, name, Array.isArray(where.scope.variableGet(where.name)) ? [] : '');
+      },
       itemRemove: (target) => {
         const where = this.variableWhere(target, scope);
         const item = solidScriptListItemParse(where.name);
@@ -1026,6 +1113,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
           item.name,
           solidScriptListItemRemove(item.name, where.scope.variableGet(item.name), index),
         );
+        if (where.persistent) this.persistentKeep(item.name);
       },
     };
   }
@@ -1062,6 +1150,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
         const item = solidScriptListItemParse(where.name);
         const base = item?.name ?? where.name;
         if (!where.scope.variableHas(base)) {
+          if (where.persistent && !item) return undefined;
           const written = where.local ? `${SOLID_SCRIPT_LOCAL_PREFIX}${base}` : base;
           throw new Error(
             where.local
@@ -1087,6 +1176,41 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
   }
 
   /**
+   * Notes a changed persistent value so the inspector stores it. Only When
+   * Button Pressed and When Input Changes blocks store values; the normal build
+   * may change them for its own run, so every rebuild gives the same shape.
+   *
+   * @param name Bare name.
+   */
+  private persistentKeep(name: string): void {
+    if (!this.handling) return;
+    const key = `${SOLID_SCRIPT_PERSISTENT_PREFIX}${name}`;
+    if (!this.persistent.variableHas(name)) {
+      delete this.inputsChanged[key];
+      this.inputsRemoved.add(key);
+      return;
+    }
+    this.inputsRemoved.delete(key);
+    this.inputsChanged[key] = JSON.stringify(this.persistent.variableGet(name));
+  }
+
+  /**
+   * Reads a list variable.
+   *
+   * @param scope Scope of the line.
+   * @param name Name.
+   * @returns Items.
+   */
+  private listRead(scope: SolidScriptScope, name: string): readonly SolidScriptValue[] {
+    const where = this.variableWhere(name, scope);
+    if (!where.scope.variableHas(where.name))
+      throw new Error(`there is no list [${name}]; make one with Add Item or Set ${name}()`);
+    const value = where.scope.variableGet(where.name);
+    if (!Array.isArray(value)) throw new Error(`[${name}] is ${solidScriptValueType(value)}, not a list`);
+    return value;
+  }
+
+  /**
    * Sets a variable after checking its name and that lines may change it.
    *
    * @param scope Scope of the line.
@@ -1100,10 +1224,14 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     const base = item?.name ?? where.name;
     this.nameCheck(base, 'a variable');
     if (!where.local) this.writableCheck(base);
-    const home = !where.local && this.frameFunction() && !scope.variableHas(base) ? this.root : where.scope;
-    if (!item) return home.variableSet(base, value);
-    const index = item.index === '' ? null : this.indexValue(item.index, scope);
-    home.variableSet(base, solidScriptListItemWrite(base, home.variableGet(base), index, value));
+    const home =
+      !where.local && !where.persistent && this.frameFunction() && !scope.variableHas(base) ? this.root : where.scope;
+    if (!item) home.variableSet(base, value);
+    else {
+      const index = item.index === '' ? null : this.indexValue(item.index, scope);
+      home.variableSet(base, solidScriptListItemWrite(base, home.variableGet(base), index, value));
+    }
+    if (where.persistent) this.persistentKeep(base);
   }
 
   /**

@@ -10,6 +10,8 @@ const SOLID_SCRIPT_EDITOR_ICON_PATHS: Readonly<Record<string, string>> = {
   Meshes: '<path d="M2 13.5 8 2.5l6 11z M5 8h6 M8 2.5 5 8l3 5.5 3-5.5z"/>',
   Faces:
     '<path d="M2 5.5 8 2.5l6 3v6l-6 3-6-3z M2 5.5l6 3 6-3 M8 8.5v6"/><path d="M4 5.5 8 3.5l4 2-4 2z" fill="currentColor"/>',
+  Lists:
+    '<path d="M5.5 3.5h9 M5.5 8h9 M5.5 12.5h9"/><circle cx="2.5" cy="3.5" r="1"/><circle cx="2.5" cy="8" r="1"/><circle cx="2.5" cy="12.5" r="1"/>',
   Inputs: '<path d="M2 4.5h12 M2 11.5h12"/><circle cx="5.5" cy="4.5" r="1.8"/><circle cx="10.5" cy="11.5" r="1.8"/>',
   Logic:
     '<path d="M5.5 2C3.5 2 4 5 3 6.5 2.5 7.5 1.5 8 1.5 8s1 .5 1.5 1.5C4 11 3.5 14 5.5 14 M10.5 2c2 0 1.5 3 2.5 4.5.5 1 1.5 1.5 1.5 1.5s-1 .5-1.5 1.5c-1 1.5-.5 4.5-2.5 4.5"/>',

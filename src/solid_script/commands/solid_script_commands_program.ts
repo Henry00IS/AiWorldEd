@@ -218,32 +218,6 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     },
   }),
   new SolidScriptCommand({
-    id: 'remove_item',
-    label: 'Remove Item',
-    category: 'Logic',
-    description: 'Take an item out of a list',
-    manual:
-      'Takes one item out of a list. points(2) removes item 2, and the items after it move up. points() removes the last item. Items count from 0. Example: points holds a, b, c. Remove Item points(0) leaves b, c.',
-    stops: [
-      'A variable that is not a list, an empty list, or an item past the end.',
-      'An input. Inputs can only be read.',
-    ],
-    parameters: [
-      solidScriptParameter(
-        'target',
-        'Item',
-        'target',
-        'points()',
-        'List item to remove, such as points(2), or points() for the last.',
-      ),
-    ],
-    listing: (read) => ['Remove Item', read.variable('target')],
-    execute: (run) => {
-      run.itemRemove(run.text('target'));
-      return [];
-    },
-  }),
-  new SolidScriptCommand({
     id: 'offset',
     label: 'Offset',
     category: '2D Shapes',

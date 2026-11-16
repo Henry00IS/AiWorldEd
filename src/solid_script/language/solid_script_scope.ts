@@ -46,6 +46,18 @@ export class SolidScriptScope {
   }
 
   /**
+   * Forgets a variable where it was set, so reading it stops the script.
+   *
+   * @param name Name.
+   * @returns True when it existed.
+   */
+  variableDelete(name: string): boolean {
+    for (let scope: SolidScriptScope | null = this; scope; scope = scope.parent)
+      if (scope.variables.delete(name)) return true;
+    return false;
+  }
+
+  /**
    * Reads a variable from this scope or an enclosing one.
    *
    * @param name Name.

@@ -1,6 +1,7 @@
 import type { SolidScriptCommand, SolidScriptCommandCategory } from './solid_script_command.js';
 import { SOLID_SCRIPT_COMMANDS_PLANAR, SOLID_SCRIPT_COMMANDS_SOLIDS } from './solid_script_commands_shapes.js';
 import { SOLID_SCRIPT_COMMANDS_COMBINE, SOLID_SCRIPT_COMMANDS_TRANSFORMS } from './solid_script_commands_blocks.js';
+import { SOLID_SCRIPT_COMMANDS_LISTS } from './solid_script_commands_lists.js';
 import { SOLID_SCRIPT_COMMANDS_LOGIC } from './solid_script_commands_logic.js';
 import { SOLID_SCRIPT_COMMANDS_MESHES } from './solid_script_commands_meshes.js';
 import { SOLID_SCRIPT_COMMANDS_FACES } from './solid_script_commands_faces.js';
@@ -18,6 +19,7 @@ export const SOLID_SCRIPT_COMMAND_CATEGORIES: readonly SolidScriptCommandCategor
   'Faces',
   'Inputs',
   'Logic',
+  'Lists',
   'Parts',
 ];
 
@@ -31,6 +33,7 @@ export const solidScriptCommands: readonly SolidScriptCommand[] = [
   ...SOLID_SCRIPT_COMMANDS_MESHES,
   ...SOLID_SCRIPT_COMMANDS_FACES,
   ...SOLID_SCRIPT_COMMANDS_LOGIC,
+  ...SOLID_SCRIPT_COMMANDS_LISTS,
   ...SOLID_SCRIPT_COMMANDS_PROGRAM,
 ];
 
