@@ -1,5 +1,6 @@
 import { UiStackLayers } from '@/ui/stack/ui_stack_layers.js';
 import { doesElementContainEventTarget } from '@/utils/dom_node_realm.js';
+import { panelFloatingScopeOf } from '@/ui/floating_panel/panel_floating_scope.js';
 
 /** Stacking band for floating tool windows versus modal/confirm dialogs. */
 export type FloatingPanelStackLayer = 'tool' | 'modal' | 'confirm';
@@ -176,16 +177,21 @@ export class FloatingPanelStack {
 
   /**
    * Returns whether a DOM event target lies inside any registered floating
-   * window root (panel card or modal backdrop) or an open menu / chrome
-   * pointer-block surface. Used so viewport tools do not treat coordinate hits
-   * under open windows or menus as scene picks. Uses structural node checks so
-   * detached popup chrome (separate JS realm) still blocks viewport routing.
+   * window root (panel card or modal backdrop), an open menu / chrome
+   * pointer-block surface, or a popup a window marked as its own (such as a
+   * suggestion list hung on the page body). Used so viewport tools do not treat
+   * coordinate hits under open windows or menus as scene picks. Uses structural
+   * node checks so detached popup chrome (separate JS realm) still blocks
+   * viewport routing.
    *
    * @param target Event target from a browser pointer event.
    * @returns True when the target is inside a registered overlay surface.
    */
   static containsEventTarget(target: EventTarget | null): boolean {
     if (this.listContainsEventTarget(this.registeredPanels, target)) {
+      return true;
+    }
+    if (target instanceof Element && panelFloatingScopeOf(target) !== null) {
       return true;
     }
     return this.listContainsEventTarget(this.pointerBlockSurfaces, target);

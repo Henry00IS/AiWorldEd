@@ -27,8 +27,8 @@ export interface SolidScriptConfiguratorBrowserTarget {
 /**
  * Value browser of a configurator window, opened over the page from its title
  * bar: the words of the field edited last, then every variable, input, system
- * value and function by group with what each is, and a search. Double-click or
- * Enter writes the pick at the caret of that field.
+ * value and function by group with what each is, and a search. A second press
+ * on a row, or Enter, writes the pick at the caret of that field.
  */
 export class SolidScriptConfiguratorBrowser {
   private readonly host = document.createElement('div');
@@ -37,6 +37,8 @@ export class SolidScriptConfiguratorBrowser {
   private readonly empty = document.createElement('div');
   private shown: SolidScriptSuggestion[] = [];
   private active = 0;
+  /** Row pressed last with the mouse; a second press on it inserts. */
+  private pressed = -1;
   private target: SolidScriptConfiguratorBrowserTarget | null = null;
   private selection: [number, number] = [0, 0];
 
@@ -94,16 +96,14 @@ export class SolidScriptConfiguratorBrowser {
     const scope = this.target?.scope ?? { names: [], extra: [], words: [] };
     this.shown = solidScriptSuggestionsBrowse(scope, this.search.value);
     this.active = 0;
+    this.pressed = -1;
     this.empty.hidden = this.shown.length > 0;
-    solidScriptSuggestionRows(
-      this.list,
-      this.shown,
-      (index) => {
-        this.active = index;
-        solidScriptSuggestionRowsHighlight(this.list, index);
-      },
-      (index) => this.insert(index),
-    );
+    solidScriptSuggestionRows(this.list, this.shown, (index) => {
+      if (this.pressed === index) return this.insert(index);
+      this.pressed = index;
+      this.active = index;
+      solidScriptSuggestionRowsHighlight(this.list, index);
+    });
     solidScriptSuggestionRowsHighlight(this.list, this.active);
   }
 

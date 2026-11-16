@@ -22,13 +22,11 @@ const SOLID_SCRIPT_SUGGESTIONS_ROOM_PX = 260;
  * @param list List element.
  * @param suggestions Suggestions in group order.
  * @param press Runs when a row is pressed, with its index.
- * @param pick Runs when a row is picked with a double click, or null.
  */
 export function solidScriptSuggestionRows(
   list: HTMLElement,
   suggestions: readonly SolidScriptSuggestion[],
   press: (index: number) => void,
-  pick: ((index: number) => void) | null,
 ): void {
   const rows: HTMLElement[] = [];
   let category = '';
@@ -55,7 +53,6 @@ export function solidScriptSuggestionRows(
       event.preventDefault();
       press(index);
     });
-    if (pick) row.addEventListener('dblclick', () => pick(index));
     rows.push(row);
   });
   list.replaceChildren(...rows);
@@ -151,7 +148,7 @@ export class SolidScriptConfiguratorNames {
     if (this.shown.length === 0 && signature === '') return this.close();
     this.signature.textContent = signature;
     this.signature.hidden = signature === '';
-    solidScriptSuggestionRows(this.list, this.shown, (index) => this.accept(index), null);
+    solidScriptSuggestionRows(this.list, this.shown, (index) => this.accept(index));
     if (!this.host.isConnected) this.input.ownerDocument.body.append(this.host);
     solidScriptSuggestionPlace(
       this.host,

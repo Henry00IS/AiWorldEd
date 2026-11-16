@@ -300,6 +300,9 @@ export abstract class PanelFloating {
       ownerDocument: this.root.ownerDocument,
       onClose: options.onClose ?? (() => this.hide(true)),
     });
+    if (!this.draggable) {
+      parts.bar.style.cursor = '';
+    }
     this.bindTitleBarDrag(parts.bar);
     return parts;
   }

@@ -794,8 +794,14 @@ describe('SolidScript editor', () => {
     const add = [...browser.querySelectorAll<HTMLElement>('[role="option"]')].find(
       (option) => option.firstChild?.textContent === 'Add',
     )!;
-    add.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    // A press picks the row, a second press on it inserts; the press never takes focus.
+    const pressRow = () => add.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+    pressRow();
+    expect(add.getAttribute('aria-selected')).toBe('true');
+    expect(how.value).toBe('New');
+    pressRow();
     expect(how.value).toBe('Add');
+    expect(browser.isConnected).toBe(false);
     find<HTMLButtonElement>(
       '[data-solid-script-configurator="select_faces"] button[aria-label="Browse Values"]',
     ).click();

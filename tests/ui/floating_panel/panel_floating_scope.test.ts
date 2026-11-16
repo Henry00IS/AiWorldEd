@@ -7,6 +7,7 @@ import { TextureBrowser } from '@/texture/ui/browser/texture_browser.js';
 import { UvEditor } from '@/texture/ui/uv/uv_editor.js';
 import { DialogAbout } from '@/ui/about/dialog_about.js';
 import { panelFloatingScopeMark } from '@/ui/floating_panel/panel_floating_scope.js';
+import { FloatingPanelStack } from '@/ui/floating_panel/panel_floating_stack.js';
 import * as fetcher from '@/ui/about/about_contributor_fetcher.js';
 
 /** Scene-side shortcut and clipboard spies, wired like the editor wires them. */
@@ -165,5 +166,16 @@ describe('floating window keyboard scope', () => {
     popup.remove();
     expect(spies.deleted).not.toHaveBeenCalled();
     expect(spies.copied).not.toHaveBeenCalled();
+  });
+
+  it('counts a popup a window hangs on the page as part of the window, so viewports do not take the click', () => {
+    const popup = document.createElement('div');
+    const row = document.createElement('span');
+    popup.append(row);
+    document.body.append(popup);
+    expect(FloatingPanelStack.containsEventTarget(row)).toBe(false);
+    panelFloatingScopeMark(popup);
+    expect(FloatingPanelStack.containsEventTarget(row)).toBe(true);
+    popup.remove();
   });
 });

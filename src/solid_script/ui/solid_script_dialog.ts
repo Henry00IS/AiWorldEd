@@ -1,4 +1,8 @@
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
+import {
+  type FloatingPanelTitleBarParts,
+  floatingPanelTitleBarButtonAdd,
+} from '@/ui/floating_panel/panel_floating_title_bar.js';
 import { dialogCardButton, dialogCardStyle } from '@/ui/dialog/dialog_card.js';
 import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { solidScriptEditorStylesheetEnsure } from './solid_script_editor_css.js';
@@ -18,10 +22,8 @@ export abstract class SolidScriptDialog extends PanelFloating {
   protected readonly confirmButton: HTMLButtonElement;
   /** Area below the title bar the dialog content goes in. */
   protected readonly content = document.createElement('div');
-  /** Title bar. */
-  private readonly titleBar: HTMLElement;
-  /** Close control of the title bar. */
-  private readonly titleClose: HTMLButtonElement;
+  /** Title bar parts. */
+  private readonly titleBar: FloatingPanelTitleBarParts;
   private settled = false;
 
   /**
@@ -49,8 +51,7 @@ export abstract class SolidScriptDialog extends PanelFloating {
     bar.title.id = titleId;
     bar.closeButton.setAttribute('aria-label', 'Close');
     bar.closeButton.title = 'Close (Escape)';
-    this.titleBar = bar.bar;
-    this.titleClose = bar.closeButton;
+    this.titleBar = bar;
     this.content.style.padding = '14px 16px 14px';
     this.root.append(bar.bar, this.content);
     this.confirmButton = dialogCardButton(confirmLabel, true, () => this.confirmRequest());
@@ -70,16 +71,7 @@ export abstract class SolidScriptDialog extends PanelFloating {
    * @returns Button.
    */
   protected titleButton(label: string, hint: string, press: () => void): HTMLButtonElement {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.textContent = label;
-    button.title = hint;
-    button.setAttribute('aria-label', hint);
-    button.className = this.titleClose.className;
-    button.style.cssText = this.titleClose.style.cssText;
-    button.addEventListener('click', press);
-    this.titleBar.insertBefore(button, this.titleClose);
-    return button;
+    return floatingPanelTitleBarButtonAdd(this.titleBar, label, hint, press);
   }
 
   /** Confirms the dialog; returns false to keep it open. */

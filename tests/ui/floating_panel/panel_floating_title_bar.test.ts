@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildFloatingPanelTitleBar,
+  floatingPanelTitleBarButtonAdd,
   styleFloatingPanelChromeButton,
 } from '@/ui/floating_panel/panel_floating_title_bar.js';
 import {
@@ -81,5 +82,37 @@ describe('panel_floating_tool_chrome', () => {
     expect(root.style.boxSizing).toBe('border-box');
     expect(root.style.borderRadius).toBe('6px');
     expect(root.style.fontFamily.length).toBeGreaterThan(0);
+  });
+
+  it('lays out extra title-bar buttons in the flow left of the close X, never on top of it', () => {
+    const parts = buildFloatingPanelTitleBar({ titleText: 'Title', onClose: () => {} });
+    let pressed = 0;
+    const browse = floatingPanelTitleBarButtonAdd(parts, 'V', 'Browse Values', () => void pressed++);
+    const manual = floatingPanelTitleBarButtonAdd(parts, '?', 'Manual', () => {});
+    const controls = [...parts.bar.children];
+    expect(controls).toEqual([parts.title, browse, manual, parts.closeButton]);
+    // Only the X sits in the corner; the bar keeps its width free for it.
+    expect(controls.filter((element) => (element as HTMLElement).style.position === 'absolute')).toEqual([
+      parts.closeButton,
+    ]);
+    expect(parseFloat(parts.bar.style.paddingRight)).toBeGreaterThan(WINDOW_CLOSE_BUTTON_SIZE_PX);
+    expect(browse.classList.contains('aiworlded-window-close')).toBe(false);
+    expect(browse.getAttribute('aria-label')).toBe('Browse Values');
+    expect(browse.title).toBe('Browse Values');
+    expect(browse.style.flexShrink).toBe('0');
+    browse.click();
+    expect(pressed).toBe(1);
+  });
+
+  it('shows the move cursor on the title bar only when the window can be dragged', () => {
+    class FixedPanel extends PanelFloating {
+      bar: HTMLElement;
+      constructor(host: HTMLElement, draggable: boolean) {
+        super(host, { corner: 'top-left', draggable });
+        this.bar = this.createStandardTitleBar({ titleText: 'Fixed' }).bar;
+      }
+    }
+    expect(new FixedPanel(document.body, true).bar.style.cursor).toBe('move');
+    expect(new FixedPanel(document.body, false).bar.style.cursor).toBe('');
   });
 });
