@@ -446,6 +446,24 @@ export function solidScriptFieldCompiled(kind: SolidScriptFieldKind, text: strin
  * @returns Problem, or an empty string.
  */
 export function solidScriptFieldCheck(text: string): string {
+  const known = SOLID_SCRIPT_FIELD_CHECKED.get(text);
+  if (known !== undefined) return known;
+  const problem = solidScriptFieldCheckRead(text);
+  if (SOLID_SCRIPT_FIELD_CHECKED.size >= 20000) SOLID_SCRIPT_FIELD_CHECKED.clear();
+  SOLID_SCRIPT_FIELD_CHECKED.set(text, problem);
+  return problem;
+}
+
+/** Problems of field texts already checked, by text. */
+const SOLID_SCRIPT_FIELD_CHECKED = new Map<string, string>();
+
+/**
+ * Checks a field text without the cache.
+ *
+ * @param text Field text.
+ * @returns Problem, or an empty string.
+ */
+function solidScriptFieldCheckRead(text: string): string {
   let pieces: SolidScriptFieldPiece[];
   try {
     pieces = solidScriptFieldPieces(text);

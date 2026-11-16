@@ -38,6 +38,28 @@ export class SolidScriptScope {
    * @param name Name.
    * @param value Value.
    */
+  /**
+   * Finds the scope that holds a variable, walking out once.
+   *
+   * @param name Name.
+   * @returns Scope, or null when unknown.
+   */
+  variableHome(name: string): SolidScriptScope | null {
+    for (let scope: SolidScriptScope | null = this; scope; scope = scope.parent)
+      if (scope.variables.has(name)) return scope;
+    return null;
+  }
+
+  /**
+   * Reads a variable of this scope only.
+   *
+   * @param name Name.
+   * @returns Value, or undefined.
+   */
+  variableOwn(name: string): SolidScriptValue {
+    return this.variables.get(name);
+  }
+
   variableSet(name: string, value: SolidScriptValue): void {
     for (let scope: SolidScriptScope | null = this; scope; scope = scope.parent) {
       if (scope.variables.has(name)) {

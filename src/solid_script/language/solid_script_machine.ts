@@ -478,6 +478,33 @@ interface SolidScriptVectorPart {
  * @returns Part, or null for other names.
  */
 function solidScriptVectorComponent(name: string): SolidScriptVectorPart | null {
+  const known = SOLID_SCRIPT_VECTOR_PARTS.get(name);
+  if (known !== undefined) return known;
+  const part = solidScriptVectorComponentRead0(name);
+  if (SOLID_SCRIPT_VECTOR_PARTS.size >= 20000) SOLID_SCRIPT_VECTOR_PARTS.clear();
+  SOLID_SCRIPT_VECTOR_PARTS.set(name, part);
+  return part;
+}
+
+/** Input names of Function lines, by their text, read once. */
+const SOLID_SCRIPT_FUNCTION_PARAMETERS = new Map<string, string[]>();
+
+/**
+ * Names already checked to be plain names, so setting them again skips the
+ * checks.
+ */
+const SOLID_SCRIPT_NAMES_PLAIN = new Set<string>();
+
+/** Vector parts by name, read once. */
+const SOLID_SCRIPT_VECTOR_PARTS = new Map<string, SolidScriptVectorPart | null>();
+
+/**
+ * Reads a name such as pos.x without the cache.
+ *
+ * @param name Variable name.
+ * @returns Part, or null for other names.
+ */
+function solidScriptVectorComponentRead0(name: string): SolidScriptVectorPart | null {
   const match = /^(.+)\.([xyzXYZ])$/.exec(name);
   if (!match) return null;
   const axis = match[2]!.toLowerCase() as 'x' | 'y' | 'z';
@@ -753,7 +780,12 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
   ): { shapes: SolidScriptShape[]; value: SolidScriptValue } | null {
     const node = this.functions.get(name);
     if (!node) return null;
-    const parameters = solidScriptFunctionParameters(node.command.valueText(node.values, 'parameters'));
+    const text = node.command.valueText(node.values, 'parameters');
+    let parameters = SOLID_SCRIPT_FUNCTION_PARAMETERS.get(text);
+    if (!parameters) {
+      if (SOLID_SCRIPT_FUNCTION_PARAMETERS.size >= 20000) SOLID_SCRIPT_FUNCTION_PARAMETERS.clear();
+      SOLID_SCRIPT_FUNCTION_PARAMETERS.set(text, (parameters = solidScriptFunctionParameters(text)));
+    }
     if (values.length !== parameters.length)
       throw new Error(
         `${name}() takes ${parameters.length} value(s) (${parameters.join(', ') || 'none'}), not ${values.length}`,
@@ -1315,6 +1347,11 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
   private fieldContextBuild(scope: SolidScriptScope): SolidScriptFieldContext {
     return {
       variable: (name) => {
+        // Plain names, the most common read, take one walk out.
+        if (!name.includes('.') && !name.includes('(')) {
+          const home = scope.variableHome(name);
+          if (home) return home.variableOwn(name);
+        }
         const where = this.variableWhere(name, scope);
         const item = solidScriptListItemParse(where.name);
         const base = item?.name ?? where.name;
@@ -1400,6 +1437,12 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
    * @param value Value.
    */
   private variableSet(scope: SolidScriptScope, name: string, value: SolidScriptValue): void {
+    if (SOLID_SCRIPT_NAMES_PLAIN.has(name)) {
+      this.writableCheck(name);
+      const home = this.frameFunction() && !scope.variableHas(name) ? this.root : scope;
+      home.variableSet(name, value);
+      return;
+    }
     const where = this.variableWhere(name, scope);
     const component = solidScriptVectorComponent(where.name);
     if (component && !where.scope.variableHas(where.name)) {
@@ -1447,8 +1490,10 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
    * @param what What it names, for the message.
    */
   private nameCheck(name: string, what: string): void {
+    if (SOLID_SCRIPT_NAMES_PLAIN.has(name)) return;
     if (!SOLID_SCRIPT_NAME.test(name))
       throw new Error(`"${name}" cannot name ${what}; use letters, digits and _, not starting with a digit`);
+    if (SOLID_SCRIPT_NAMES_PLAIN.size < 20000) SOLID_SCRIPT_NAMES_PLAIN.add(name);
   }
 
   /**
