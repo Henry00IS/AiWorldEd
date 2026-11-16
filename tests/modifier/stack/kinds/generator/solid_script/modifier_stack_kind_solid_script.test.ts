@@ -218,6 +218,25 @@ describe('SolidScript generator', () => {
     expect(textures[1]).not.toContain('brick');
   });
 
+  it('keeps the main texture for the brushes inside a Texture block left empty', () => {
+    const fixture = scriptFixture();
+    scriptSet(fixture.node, {
+      script: script(
+        { command: 'texture', values: { texture: '' } },
+        { command: 'cube' },
+        { command: 'end' },
+        { command: 'translate', values: { v: '3, 0, 0' } },
+        { command: 'cube' },
+        { command: 'end' },
+      ),
+    });
+    const textures = fixture
+      .pieces()
+      .map((piece) => [...new Set(piece.brush.faces.map((_, index) => piece.getSurfaceTextureId(index)))]);
+    expect(textures).toHaveLength(2);
+    expect(textures[0]).toEqual(textures[1]);
+  });
+
   it('textures brushes with the texture a texture Input picked, and the top faces with Texture Faces', () => {
     const fixture = scriptFixture();
     scriptSet(fixture.node, {

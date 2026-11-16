@@ -223,4 +223,13 @@ describe('solid script command catalog', () => {
     expect(low?.kind === 'solid' && high?.kind === 'solid' && low.points.length < high.points.length).toBe(true);
     expect(run({ command: 'sphere', values: { sides: '2' } }).error?.message).toMatch(/Sides/);
   });
+
+  it('lets every field whose hint allows it stay empty', () => {
+    const strict = solidScriptCommands.flatMap((command) =>
+      command.parameters
+        .filter((parameter) => /\b(empty|blank)\b/i.test(parameter.hint) && parameter.optional !== true)
+        .map((parameter) => `${command.label}: ${parameter.label}`),
+    );
+    expect(strict).toEqual([]);
+  });
 });

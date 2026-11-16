@@ -553,11 +553,10 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     stops: ['A missing End line.', 'A [Name] for a variable not set above this line.'],
     nesting: 'open',
     parameters: [
-      solidScriptParameter(
+      solidScriptParameterOptional(
         'texture',
         'Texture',
         'message',
-        '',
         "Name of a library texture; [Name] puts in a variable, such as a texture Input. Empty keeps the generator's texture.",
       ),
     ],
