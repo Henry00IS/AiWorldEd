@@ -550,7 +550,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     description: 'Paint shapes with a texture',
     manual:
       "Gives every face of the brushes between this line and its End the texture named by Texture, the name a texture has in the texture library. Brushes outside any Texture block keep the generator's own texture, and an inner Texture block wins over an outer one. A texture Input picks the name from the library, so the inspector can change it. Meshes keep the generator's texture for now. Example: Input wall, texture, then Texture [Wall] around the walls paints them with the picked texture.",
-    stops: ['A missing End line.', 'A [name] for a variable not set above this line.'],
+    stops: ['A missing End line.', 'A [Name] for a variable not set above this line.'],
     nesting: 'open',
     parameters: [
       solidScriptParameter(
@@ -558,7 +558,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         'Texture',
         'message',
         '',
-        "Name of a library texture; [name] puts in a variable, such as a texture Input. Empty keeps the generator's texture.",
+        "Name of a library texture; [Name] puts in a variable, such as a texture Input. Empty keeps the generator's texture.",
       ),
     ],
     starter: [{ command: 'cube', values: {} }],
@@ -587,7 +587,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       'No faces picked.',
       'Faces of a mesh. Texture Faces works on brushes for now.',
       'An empty Texture.',
-      'A [name] for a variable not set above this line.',
+      'A [Name] for a variable not set above this line.',
     ],
     parameters: [
       solidScriptParameter(
@@ -595,7 +595,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         'Texture',
         'message',
         'grass',
-        'Name of a library texture; [name] puts in a variable, such as a texture Input.',
+        'Name of a library texture; [Name] puts in a variable, such as a texture Input.',
       ),
     ],
     listing: (read) => ['Texture Faces', read.value('texture')],

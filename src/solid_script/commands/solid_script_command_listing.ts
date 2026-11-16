@@ -41,7 +41,7 @@ export type SolidScriptListingPiece = SolidScriptListingPart | string | null | f
 export type SolidScriptListingWrite = (read: SolidScriptListingValues) => SolidScriptListingPiece[];
 
 /**
- * Formats a configured value as typed: a lone variable as [name], anything else
+ * Formats a configured value as typed: a lone variable as [Name], anything else
  * in single quotes.
  *
  * @param text Field text.

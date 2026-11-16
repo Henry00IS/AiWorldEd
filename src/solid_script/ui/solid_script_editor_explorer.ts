@@ -2,6 +2,7 @@ import type { SolidScriptDocument } from '@/solid_script/document/solid_script_d
 import {
   SOLID_SCRIPT_NAME_CATEGORIES,
   solidScriptDocumentNames,
+  solidScriptNameShown,
   solidScriptDocumentOrigins,
   type SolidScriptNameCategory,
 } from '@/solid_script/document/solid_script_document_names.js';
@@ -63,8 +64,8 @@ export function solidScriptExplorerEntries(
   stack: readonly SolidScriptFrameView[],
 ): SolidScriptExplorerEntry[] {
   const origins = solidScriptDocumentOrigins(script);
-  const live = new Map(variables.map((variable) => [variable.name, variable]));
-  for (const frame of stack) for (const local of frame.locals) live.set(local.name, local);
+  const live = new Map(variables.map((variable) => [solidScriptNameShown(variable.name), variable]));
+  for (const frame of stack) for (const local of frame.locals) live.set(solidScriptNameShown(local.name), local);
   const entries: SolidScriptExplorerEntry[] = [];
   for (const known of solidScriptDocumentNames(script)) {
     const seen =
@@ -88,10 +89,10 @@ export function solidScriptExplorerEntries(
     });
   }
   const listed = new Set(entries.map((entry) => entry.name));
-  for (const variable of live.values()) {
-    if (listed.has(variable.name) || variable.name.startsWith('local.')) continue;
+  for (const [name, variable] of live) {
+    if (listed.has(name) || name.startsWith('Local.')) continue;
     entries.push({
-      name: variable.name,
+      name,
       category: variable.items.length > 0 ? 'Lists' : 'Variables',
       value: variable.value,
       type: variable.type,
@@ -385,8 +386,9 @@ export class SolidScriptEditorExplorer {
       head.addEventListener('click', () => this.reveal(frame.line - 1));
       rows.push(head);
       for (const local of frame.locals) {
+        const name = solidScriptNameShown(local.name);
         const entry: SolidScriptExplorerEntry = {
-          name: local.name,
+          name,
           category: 'Locals',
           value: local.value,
           type: local.type,
@@ -396,8 +398,8 @@ export class SolidScriptEditorExplorer {
           detail: '',
         };
         if (!solidScriptExplorerMatches(entry, query)) continue;
-        const lines = this.entries.find((known) => known.name === local.name)?.lines ?? [];
-        const row = this.row(local.name, local.name, local.value, local.type, lines);
+        const lines = this.entries.find((known) => known.name === name)?.lines ?? [];
+        const row = this.row(name, name, local.value, local.type, lines);
         row.classList.add(SOLID_SCRIPT_EDITOR_CLASSES.explorerItem);
         rows.push(row);
       }

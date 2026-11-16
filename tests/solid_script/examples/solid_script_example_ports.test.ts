@@ -8,6 +8,7 @@ import { solidScriptShapeLeavesPositive } from '@/solid_script/language/solid_sc
 import { solidScriptGeneratorPieces } from '@/solid_script/language/solid_script_generator_pieces.js';
 import { solidHullBrushFromPoints } from '@/solid/algorithm/surface/solid_hull_brush.js';
 import { SOLID_SCRIPT_EXAMPLES, solidScriptExamplesFind } from '@/solid_script/examples/solid_script_examples.js';
+import { solidScriptBuiltinFind } from '@/solid_script/language/solid_script_expression_compile.js';
 
 /** One parameter set a port is checked with. */
 interface PortCase {
@@ -254,5 +255,17 @@ describe('SolidScript examples', () => {
       'curvedStairs',
     ]);
     expect(solidScriptExamplesFind('')).toHaveLength(SOLID_SCRIPT_EXAMPLES.length);
+  });
+
+  it('writes Local., Persistent. and built-in functions in PascalCase in every example', () => {
+    const lowercase: string[] = [];
+    for (const example of SOLID_SCRIPT_EXAMPLES)
+      for (const line of example.lines)
+        for (const text of Object.values(line.values ?? {})) {
+          for (const match of text.matchAll(/\b(local|persistent)\./g)) lowercase.push(`${example.id}: ${match[0]}`);
+          for (const match of text.matchAll(/(?<![.\w])([a-z]\w*)\(/g))
+            if (solidScriptBuiltinFind(match[1]!) !== undefined) lowercase.push(`${example.id}: ${match[1]}(`);
+        }
+    expect(lowercase).toEqual([]);
   });
 });

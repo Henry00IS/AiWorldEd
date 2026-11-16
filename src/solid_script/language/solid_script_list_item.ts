@@ -4,9 +4,9 @@ import { solidScriptValueText, type SolidScriptValue } from './solid_script_valu
  * A reference to a list variable or one of its items, as written inside a
  * field's brackets or in Set's variable name:
  *
- * - `points(2)` is item 2 of the list `points`, counting from 0;
- * - `points()` in Set adds an item at the end;
- * - `points().count` is how many items the list has.
+ * - `Points(2)` is item 2 of the list `Points`, counting from 0;
+ * - `Points()` in Set adds an item at the end;
+ * - `Points().Count` is how many items the list has.
  */
 export interface SolidScriptListItemReference {
   /** Name of the list variable. */
@@ -55,7 +55,7 @@ function solidScriptListItemReferenceRead(text: string): SolidScriptListItemRefe
   if (!match) return null;
   const method = (match[3] ?? '').toLowerCase();
   if (method && !SOLID_SCRIPT_LIST_METHODS.has(method))
-    throw new Error(`a list has no .${method}; use ${match[1]}().count for the number of items`);
+    throw new Error(`a list has no .${method}; use ${match[1]}().Count for the number of items`);
   return { name: match[1]!, index: match[2]!.trim(), method };
 }
 
@@ -90,7 +90,7 @@ export function solidScriptListItemRead(
   if (!Array.isArray(list))
     throw new Error(`[${name}] is ${solidScriptValueText(list)}, not a list; set ${name}() to add items to a list`);
   if (method === 'count') {
-    if (index !== null) throw new Error(`write ${name}().count for the number of items, with nothing in the brackets`);
+    if (index !== null) throw new Error(`write ${name}().Count for the number of items, with nothing in the brackets`);
     return list.length;
   }
   if (index === null) throw new Error(`write an item number in ${name}(…), such as ${name}(0) for the first item`);

@@ -23,7 +23,7 @@ export const SOLID_SCRIPT_EXAMPLE_PYRAMID: readonly SolidScriptLine[] = [
   SOLID_SCRIPT_EXAMPLE_HALF,
   ...solidScriptExamplePolyhedron(
     solidScriptExampleRepeat('Corner', '0', '3', [
-      solidScriptExampleSet('Side', '[=([Corner] % 2) * 2 - 1], [=floor([Corner] / 2) * 2 - 1], 0'),
+      solidScriptExampleSet('Side', '[=([Corner] % 2) * 2 - 1], [=Floor([Corner] / 2) * 2 - 1], 0'),
       solidScriptExamplePoint('[=[Side.x] * [Half.x]], [=[Side.y] * [Half.y]], [=-[Half.z]]'),
       solidScriptExamplePoint('[=[Side.x] * [Half.x] * [TopSize]], [=[Side.y] * [Half.y] * [TopSize]], [Half.z]'),
     ]),
@@ -41,8 +41,8 @@ export const SOLID_SCRIPT_EXAMPLE_PRISM: readonly SolidScriptLine[] = [
   solidScriptExampleSet('High', '-1, -1'),
   ...solidScriptExampleRepeat('I', '0', '[=[Sides] - 1]', [
     solidScriptExampleSet('Turn', '[=-90 + 180 / [Sides] + 360 * [I] / [Sides]]'),
-    solidScriptExampleSet('Low', '[=min([Low.x], cos([Turn]))], [=min([Low.y], sin([Turn]))]'),
-    solidScriptExampleSet('High', '[=max([High.x], cos([Turn]))], [=max([High.y], sin([Turn]))]'),
+    solidScriptExampleSet('Low', '[=Min([Low.x], Cos([Turn]))], [=Min([Low.y], Sin([Turn]))]'),
+    solidScriptExampleSet('High', '[=Max([High.x], Cos([Turn]))], [=Max([High.y], Sin([Turn]))]'),
   ]),
   SOLID_SCRIPT_EXAMPLE_HALF,
   ...solidScriptExamplePolyhedron(
@@ -50,7 +50,7 @@ export const SOLID_SCRIPT_EXAMPLE_PRISM: readonly SolidScriptLine[] = [
       solidScriptExampleSet('Turn', '[=-90 + 180 / [Sides] + 360 * [I] / [Sides]]'),
       solidScriptExampleSet(
         'U',
-        '[=(cos([Turn]) - [Low.x]) / ([High.x] - [Low.x])], [=(sin([Turn]) - [Low.y]) / ([High.y] - [Low.y])]',
+        '[=(Cos([Turn]) - [Low.x]) / ([High.x] - [Low.x])], [=(Sin([Turn]) - [Low.y]) / ([High.y] - [Low.y])]',
       ),
       ...solidScriptExampleRepeat('End', '-1', '1', [
         ...solidScriptExampleIf('[End] != 0', [
@@ -82,8 +82,8 @@ export const SOLID_SCRIPT_EXAMPLE_PRISM: readonly SolidScriptLine[] = [
  */
 function solidScriptExampleSlabFunction(): SolidScriptLine[] {
   return solidScriptExampleBlock('function', { name: 'Slab', parameters: 'From, To' }, [
-    ...solidScriptExampleBlock('translate', { v: '[local.From]' }, [
-      solidScriptExampleLine('cube', { size: '[=[local.To] - [local.From]]', center: 'false' }),
+    ...solidScriptExampleBlock('translate', { v: '[Local.From]' }, [
+      solidScriptExampleLine('cube', { size: '[=[Local.To] - [Local.From]]', center: 'false' }),
     ]),
   ]);
 }
@@ -96,7 +96,7 @@ function solidScriptExampleSlabFunction(): SolidScriptLine[] {
  * @returns Line.
  */
 function solidScriptExampleSlab(from: string, to: string): SolidScriptLine {
-  return solidScriptExampleLine('call', { name: 'Slab', values: `[=vector(${from})], [=vector(${to})]` });
+  return solidScriptExampleLine('call', { name: 'Slab', values: `[=Vector(${from})], [=Vector(${to})]` });
 }
 
 /** Port of the Hollow Box generator. */
@@ -109,7 +109,7 @@ export const SOLID_SCRIPT_EXAMPLE_HOLLOW_BOX: readonly SolidScriptLine[] = [
   SOLID_SCRIPT_EXAMPLE_HALF,
   solidScriptExampleSet('T', '[WallThickness]'),
   ...solidScriptExampleIf(
-    '[T] * 2 >= min([Width], [Depth], [Height])',
+    '[T] * 2 >= Min([Width], [Depth], [Height])',
     [solidScriptExampleSlab('-[Half.x], -[Half.y], -[Half.z]', '[Half.x], [Half.y], [Half.z]')],
     [
       solidScriptExampleSet('Top', '[=[Half.z] - [T]]'),
@@ -157,16 +157,16 @@ export const SOLID_SCRIPT_EXAMPLE_ARCH: readonly SolidScriptLine[] = [
   solidScriptExampleSet('Across', '[=([AlongX] ? [Depth] : [Width]) / 2]'),
   solidScriptExampleSet('Thick', '[=[Style] == "tunnel" ? 0 : [Thickness]]'),
   solidScriptExampleSet('Rx', '[=[Half] - [Thick]]'),
-  solidScriptExampleSet('Ry', '[=[Shape] == "fit" ? [Height] - [Thick] : min([Rx], [Height] - [Thick])]'),
+  solidScriptExampleSet('Ry', '[=[Shape] == "fit" ? [Height] - [Thick] : Min([Rx], [Height] - [Thick])]'),
   solidScriptExampleSet('Arc', '[=[Style] == "ring" ? [Sweep] : 180]'),
   solidScriptExampleSet('First', '[=[Start] == "right" ? 0 : ([Start] == "left" ? 180 - [Arc] : (180 - [Arc]) / 2)]'),
   solidScriptExampleSet('Floor', '[=-[Height] / 2]'),
   solidScriptExampleSet('Top', '[=[Height] / 2]'),
   ...solidScriptExampleBlock('function', { name: 'Corner', parameters: 'Index, Grow' }, [
-    solidScriptExampleSet('local.angle', '[=[First] + [Arc] * [local.Index] / [Segments]]'),
+    solidScriptExampleSet('Local.Angle', '[=[First] + [Arc] * [Local.Index] / [Segments]]'),
     solidScriptExampleLine('return', {
       value:
-        '[=vector(cos([local.Angle]) * ([Rx] + [local.Grow]), [Floor] + sin([local.Angle]) * ([Ry] + [local.Grow]))]',
+        '[=Vector(Cos([Local.Angle]) * ([Rx] + [Local.Grow]), [Floor] + Sin([Local.Angle]) * ([Ry] + [Local.Grow]))]',
     }),
   ]),
   ...solidScriptExampleBlock('part', { name: 'Prism' }, [
@@ -190,10 +190,10 @@ export const SOLID_SCRIPT_EXAMPLE_ARCH: readonly SolidScriptLine[] = [
         solidScriptExampleSet('Inner', '[=[Side] == 0 ? -[Rx] : [Rx]]'),
         solidScriptExampleSet('Outer', '[=[Side] == 0 ? -[Half] : [Half]]'),
         solidScriptExampleLine('clear_variable', { name: 'Outline' }),
-        solidScriptExampleArchCorner('[=vector([Outer], [Floor])]'),
-        solidScriptExampleArchCorner('[=vector([Inner], [Floor])]'),
-        solidScriptExampleArchCorner('[=vector([Inner], [Top])]'),
-        solidScriptExampleArchCorner('[=vector([Outer], [Top])]'),
+        solidScriptExampleArchCorner('[=Vector([Outer], [Floor])]'),
+        solidScriptExampleArchCorner('[=Vector([Inner], [Floor])]'),
+        solidScriptExampleArchCorner('[=Vector([Inner], [Top])]'),
+        solidScriptExampleArchCorner('[=Vector([Outer], [Top])]'),
         solidScriptExampleLine('use_part', { name: 'Prism' }),
       ]),
     ]),
@@ -214,12 +214,12 @@ export const SOLID_SCRIPT_EXAMPLE_ARCH: readonly SolidScriptLine[] = [
           [
             solidScriptExampleArchCorner('[A]'),
             solidScriptExampleArchCorner('[B]'),
-            solidScriptExampleArchCorner('[=vector([B.x], [Top])]'),
-            solidScriptExampleArchCorner('[=vector([A.x], [Top])]'),
+            solidScriptExampleArchCorner('[=Vector([B.x], [Top])]'),
+            solidScriptExampleArchCorner('[=Vector([A.x], [Top])]'),
           ],
           [
-            solidScriptExampleArchCorner('[=vector([A.x], [Floor])]'),
-            solidScriptExampleArchCorner('[=vector([B.x], [Floor])]'),
+            solidScriptExampleArchCorner('[=Vector([A.x], [Floor])]'),
+            solidScriptExampleArchCorner('[=Vector([B.x], [Floor])]'),
             solidScriptExampleArchCorner('[B]'),
             solidScriptExampleArchCorner('[A]'),
           ],

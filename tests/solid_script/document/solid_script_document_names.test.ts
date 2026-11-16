@@ -38,9 +38,9 @@ describe('SolidScript names', () => {
       ['points', 'Lists', 2],
       ['i', 'Counters', 4],
       ['area', 'Functions', 6],
-      ['local.w', 'Locals', 6],
-      ['local.d', 'Locals', 6],
-      ['local.sum', 'Locals', 8],
+      ['Local.w', 'Locals', 6],
+      ['Local.d', 'Locals', 6],
+      ['Local.sum', 'Locals', 8],
       ['column', 'Parts', 10],
       ['steps', 'Handlers', 12],
       ['size', 'Variables', 14],
@@ -70,9 +70,9 @@ describe('SolidScript names', () => {
       solidScriptDocumentNamesAt(scoped, line)
         .filter((entry) => ['Locals', 'Counters', 'System'].includes(entry.category))
         .map((entry) => entry.name);
-    expect(at(2)).toEqual(['local.w', 'local.d', 'local.sum']);
-    expect(at(5)).toEqual(['local.h']);
-    expect(at(6)).toEqual(['local.h', 'local.sum']);
+    expect(at(2)).toEqual(['Local.w', 'Local.d', 'Local.sum']);
+    expect(at(5)).toEqual(['Local.h']);
+    expect(at(6)).toEqual(['Local.h', 'Local.sum']);
     expect(at(8)).toEqual(['i']);
     expect(at(9)).toEqual(['i', 'Point.Index', 'Point.Position', 'Point.Normal', 'Face.Center', 'Face.Tag']);
     expect(at(13)).toEqual(['i']);
@@ -103,14 +103,14 @@ describe('SolidScript names', () => {
       '[size]',
       '[points]',
       '[i]',
-      '[local.w]',
-      '[local.d]',
-      '[local.sum]',
+      '[Local.w]',
+      '[Local.d]',
+      '[Local.sum]',
       '[x]',
     ]);
     expect(solidScriptSuggestionContext('[local.', 7)).toMatchObject({ from: 0, prefix: 'local.', bracket: true });
     const local = solidScriptSuggestions(solidScriptSuggestionContext('[local.', 7), names, []);
-    expect(local.map((entry) => entry.insert)).toEqual(['[local.w]', '[local.d]', '[local.sum]']);
+    expect(local.map((entry) => entry.insert)).toEqual(['[Local.w]', '[Local.d]', '[Local.sum]']);
     const inFormula = solidScriptSuggestions(solidScriptSuggestionContext('[=a', 3), names, []);
     expect(inFormula.map((entry) => [entry.category, entry.insert])).toEqual([
       ['Functions', 'area()'],
@@ -140,7 +140,7 @@ describe('SolidScript origins', () => {
         { command: 'end' },
       ]),
     );
-    expect(Object.fromEntries(origins)).toEqual({ w: [0, 2], pts: [1, 3], 'local.a': [4], 'local.b': [4], i: [6] });
+    expect(Object.fromEntries(origins)).toEqual({ w: [0, 2], pts: [1, 3], 'Local.a': [4], 'Local.b': [4], i: [6] });
   });
 
   it('suggests built-in values after a dot and explains built-in functions', () => {

@@ -40,7 +40,7 @@ export const SOLID_SCRIPT_NAMES_COMMAND: Readonly<Record<string, readonly string
 };
 
 /** Pattern of a plain name, or of a Function's own variable. */
-const SOLID_SCRIPT_NAME_PLAIN = /^(local\.|persistent\.)?[A-Za-z_][A-Za-z0-9_]*$/;
+const SOLID_SCRIPT_NAME_PLAIN = /^(Local\.|Persistent\.)?[A-Za-z_][A-Za-z0-9_]*$/;
 
 /**
  * Read-only values each loop line gives the lines inside it, with what they
@@ -80,9 +80,20 @@ const SOLID_SCRIPT_NAMES_SYSTEM: Readonly<Record<string, readonly (readonly [str
 };
 
 /**
+ * Spells the Local. and Persistent. starts the way they are taught, whatever
+ * case a line wrote them in, such as Local.Angle for local.Angle.
+ *
+ * @param name Name as written.
+ * @returns Name with its start in PascalCase.
+ */
+export function solidScriptNameShown(name: string): string {
+  return name.replace(/^local\./i, 'Local.').replace(/^persistent\./i, 'Persistent.');
+}
+
+/**
  * Lists the names a script defines, in line order, each once per kind: Input,
  * Set, Call results, Repeat and For Each counters, Function inputs as
- * local.name, Define Part, When Input Changes and When Button Pressed lines.
+ * Local.Name, Define Part, When Input Changes and When Button Pressed lines.
  * Names built from other names, such as part[i], are left out.
  *
  * @param document Script.
@@ -91,7 +102,7 @@ const SOLID_SCRIPT_NAMES_SYSTEM: Readonly<Record<string, readonly (readonly [str
 export function solidScriptDocumentNames(document: SolidScriptDocument): SolidScriptName[] {
   const names: SolidScriptName[] = [];
   const add = (name: string, category: SolidScriptNameCategory, line: number, detail: string): void => {
-    const plain = name.trim();
+    const plain = solidScriptNameShown(name.trim());
     if (!SOLID_SCRIPT_NAME_PLAIN.test(plain)) return;
     if (names.some((known) => known.name === plain && known.category === category)) return;
     names.push({ name: plain, category, line, detail });
@@ -103,8 +114,8 @@ export function solidScriptDocumentNames(document: SolidScriptDocument): SolidSc
       const target = value('name').trim();
       const list = /^([A-Za-z_][A-Za-z0-9_]*)\s*\(.*\)$/.exec(target);
       if (list) add(list[1] ?? '', 'Lists', line, 'list');
-      else if (target.startsWith('local.')) add(target, 'Locals', line, `set to ${value('value')} in a Function`);
-      else if (target.startsWith('persistent.')) add(target, 'Persistent', line, 'kept between runs');
+      else if (/^local\./i.test(target)) add(target, 'Locals', line, `set to ${value('value')} in a Function`);
+      else if (/^persistent\./i.test(target)) add(target, 'Persistent', line, 'kept between runs');
       else add(target, 'Variables', line, `set to ${value('value')}`);
     }
     if (block.command === 'call' && value('result').trim() !== '')
@@ -119,7 +130,7 @@ export function solidScriptDocumentNames(document: SolidScriptDocument): SolidSc
       add(value('name'), 'Functions', line, `${value('name').trim()}(${value('parameters').trim()})`);
       for (const parameter of value('parameters').split(','))
         if (parameter.trim() !== '')
-          add(`local.${parameter.trim()}`, 'Locals', line, `input of ${value('name').trim()}()`);
+          add(`Local.${parameter.trim()}`, 'Locals', line, `input of ${value('name').trim()}()`);
     }
     if (block.command === 'part') add(value('name'), 'Parts', line, 'Define Part');
     if (block.command === 'when_input_changes') add(value('name'), 'Handlers', line, 'When Input Changes');
@@ -152,7 +163,7 @@ export function solidScriptDocumentNamesAt(document: SolidScriptDocument, positi
     (entry) => !SOLID_SCRIPT_NAMES_SCOPED.includes(entry.category),
   );
   const add = (name: string, category: SolidScriptNameCategory, line: number, detail: string): void => {
-    const plain = name.trim();
+    const plain = solidScriptNameShown(name.trim());
     const valid = category === 'System' || SOLID_SCRIPT_NAME_PLAIN.test(plain);
     if (valid && !names.some((known) => known.name === plain)) names.push({ name: plain, category, line, detail });
   };
@@ -161,10 +172,10 @@ export function solidScriptDocumentNamesAt(document: SolidScriptDocument, positi
     const block = document.blocks[functionLine]!;
     const name = (block.values['name'] ?? '').trim();
     for (const parameter of (block.values['parameters'] ?? '').split(','))
-      if (parameter.trim() !== '') add(`local.${parameter.trim()}`, 'Locals', functionLine, `input of ${name}()`);
+      if (parameter.trim() !== '') add(`Local.${parameter.trim()}`, 'Locals', functionLine, `input of ${name}()`);
     document.blocks.slice(functionLine + 1, position).forEach((inner, offset) => {
       const target = (inner.values['name'] ?? '').trim();
-      if (inner.command === 'variable' && target.startsWith('local.'))
+      if (inner.command === 'variable' && /^local\./i.test(target))
         add(target, 'Locals', functionLine + 1 + offset, `set to ${inner.values['value'] ?? ''} in ${name}()`);
     });
   }
@@ -193,8 +204,7 @@ export function solidScriptDocumentNamesAt(document: SolidScriptDocument, positi
 export function solidScriptDocumentOrigins(document: SolidScriptDocument): Map<string, number[]> {
   const origins = new Map<string, number[]>();
   const add = (target: string, line: number): void => {
-    const name = target
-      .trim()
+    const name = solidScriptNameShown(target.trim())
       .replace(/\s*\(.*\)$/, '')
       .replace(/\.[xyzXYZ]$/, '');
     if (!SOLID_SCRIPT_NAME_PLAIN.test(name)) return;
@@ -214,7 +224,7 @@ export function solidScriptDocumentOrigins(document: SolidScriptDocument): Map<s
     if (block.command === 'repeat' || block.command === 'for_each') add(value('variable'), line);
     if (block.command === 'function')
       for (const parameter of value('parameters').split(','))
-        if (parameter.trim() !== '') add(`local.${parameter.trim()}`, line);
+        if (parameter.trim() !== '') add(`Local.${parameter.trim()}`, line);
   });
   return origins;
 }

@@ -166,7 +166,7 @@ describe('SolidScript dotted names', () => {
     expect(echoed(line('variable', { name: 'Face.Area', value: '1' }))).toMatch(
       /Face\.Area is a built-in value and can only be read/,
     );
-    expect(echoed(line('echo', { value: '[items().size]' }))).toMatch(/a list has no \.size; write items\(\)\.count/);
+    expect(echoed(line('echo', { value: '[items().size]' }))).toMatch(/a list has no \.size; write items\(\)\.Count/);
   });
 
   it('allows the dotted forms SolidScript gives a meaning', () => {
