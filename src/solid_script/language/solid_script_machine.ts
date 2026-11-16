@@ -634,7 +634,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
           state.machine.faceSelection = outer;
           try {
             if (node.children.length === 0) return [];
-            return state.machine.linesRun(node.children, inner, state.context, inner, children());
+            const context = round.matrix ? { ...state.context, matrix: round.matrix } : state.context;
+            return state.machine.linesRun(node.children, inner, context, inner, children());
           } finally {
             state.machine.roundBuilt.pop();
             state.machine.faceRounds.pop();

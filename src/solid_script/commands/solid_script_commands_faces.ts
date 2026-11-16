@@ -339,14 +339,20 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Run lines once per picked face',
     manual:
-      'Runs the lines inside once for every face the last Select Faces picked. Inside, these read-only values describe the face: [Face.Index] counts the rounds from 0, [Face.Center] is its middle, [Face.Normal] the way it points, [Face.Width] and [Face.Height] its size, [Face.Area] its area, [Face.Tag] its name and [Face.Number] its number among all faces. Place On Face, Extrude Face, Inset Face and Bevel Edges work on the face of the round. Example: Select Faces Tagged Step Tread, then For Each Selected Face with Place On Face and a thin Cube puts a trim on every step.',
+      'Runs the lines inside once for every face the last Select Faces picked. Inside, these read-only values describe the face: [Face.Index] counts the rounds from 0, [Face.Center] is its middle, [Face.Normal] the way it points, [Face.Width] and [Face.Height] its size, [Face.Area] its area, [Face.Tag] its name and [Face.Number] its number among all faces. Shapes built inside stand on the face of the round, like Place On Face: centred on its middle with Z pointing out. Place On Face adds a Lift, and Extrude Face, Inset Face and Bevel Edges work on the face of the round. Example: Select Faces Tagged Step Tread, then For Each Selected Face with Place On Face and a thin Cube puts a trim on every step.',
     stops: ['A missing End line.'],
     nesting: 'open',
     endLabel: 'For Each',
     parameters: [],
     listing: () => ['For Each Selected Face'],
     execute: (run) =>
-      run.looped(run.selection().map((face, round) => ({ variables: solidScriptFaceVariables(face, round), face }))),
+      run.looped(
+        run.selection().map((face, round) => ({
+          variables: solidScriptFaceVariables(face, round),
+          face,
+          matrix: solidScriptGeometryFaceMatrix(face),
+        })),
+      ),
   }),
   new SolidScriptCommand({
     id: 'for_each_scattered_point',

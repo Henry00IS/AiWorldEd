@@ -156,10 +156,15 @@ export interface SolidScriptBlockRun {
   /**
    * Runs the lines inside once per round, with read-only system variables such
    * as Face.Center set for that round, and the face of the round as the current
-   * face.
+   * face. A round with a matrix builds its shapes placed by it, ignoring the
+   * blocks around this line.
    */
   looped(
-    rounds: readonly { variables: Readonly<Record<string, SolidScriptValue>>; face: SolidScriptFaceFacts | null }[],
+    rounds: readonly {
+      variables: Readonly<Record<string, SolidScriptValue>>;
+      face: SolidScriptFaceFacts | null;
+      matrix?: THREE.Matrix4;
+    }[],
   ): SolidScriptShape[];
   /**
    * Runs the lines inside placed by a matrix, ignoring the blocks around this

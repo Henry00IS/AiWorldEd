@@ -59,7 +59,7 @@ The script runs on every change. **Start** builds everything, **Debug** builds o
 <details>
 <summary>More Details</summary>
 
-- **For Each Selected Face** runs lines once per picked face; **Place On Face**, **Extrude Face**, **Inset Face** and **Bevel Edges** work on its face.
+- **For Each Selected Face** runs lines once per picked face, and the shapes built inside stand on that face; **Place On Face** adds a Lift, and **Extrude Face**, **Inset Face** and **Bevel Edges** work on its face.
 - **For Each Scattered Point** spreads points over the picked faces, more on bigger ones; the same Seed always gives the same points.
 - **Align To** turns the lines inside so their Z points along a direction, such as `[Point.Normal]`.
 

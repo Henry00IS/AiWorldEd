@@ -101,6 +101,33 @@ describe('SolidScript faces', () => {
     expect(result.messages.filter((message) => message.startsWith('outer'))).toEqual(['outer [0, 0, 1]']);
   });
 
+  it('builds the shapes of a For Each Selected Face round standing on its face, also in a nested round', () => {
+    const result = run(
+      CUBE,
+      select('All'),
+      { command: 'for_each_selected_face' },
+      { command: 'place_on_face' },
+      { command: 'cube', values: { size: '0.2, 0.2, 0.2', center: 'false' } },
+      select('All'),
+      { command: 'for_each_selected_face' },
+      { command: 'cube', values: { size: '0.2, 0.2, 0.2', center: 'true' } },
+      END,
+      END,
+      END,
+    );
+    expect(result.error).toBeNull();
+    const centres = solids(result.shapes).map((points) =>
+      points
+        .reduce((sum, point) => sum.add(point), new THREE.Vector3())
+        .divideScalar(points.length)
+        .toArray()
+        .map((axis) => axis.toFixed(2))
+        .join(' '),
+    );
+    expect(centres).toHaveLength(1 + 6 + 36);
+    expect(new Set(centres).size).toBe(1 + 6 + 36);
+  });
+
   it('puts a trim on every stair step by its tag', () => {
     const result = run(
       { command: 'stairs', values: { size: '2, 2, 2' } },
