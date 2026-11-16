@@ -14,11 +14,11 @@ import {
 import { SOLID_SCRIPT_EXAMPLE_PEDESTAL } from '@/solid_script/examples/solid_script_examples_basics.js';
 import type { SolidScriptUseFacts } from '@/solid_script/language/solid_script_system.js';
 import { ModifierStackKindSolidScript, modifierStackSolidScriptFields } from './modifier_stack_kind_solid_script.js';
-import { MODIFIER_STACK_SOLID_SCRIPT_KEY } from './modifier_stack_solid_script_keys.js';
+import {
+  MODIFIER_STACK_SOLID_SCRIPT_KEY,
+  MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND,
+} from './modifier_stack_solid_script_keys.js';
 import type { ModifierStackSolidScriptPassed } from './modifier_stack_solid_script_layout.js';
-
-/** Kind id of the SolidScript modifier. */
-export const MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND = 'solidScriptModifier';
 
 /**
  * Modifier that runs a SolidScript on the brushes it receives, from the brush,

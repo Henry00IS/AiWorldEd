@@ -79,7 +79,7 @@ export function solidScriptInspectorRow(
  * @param commit Stores the script with new uses.
  * @returns Row and how to show a script's uses.
  */
-function solidScriptInspectorUses(
+export function solidScriptInspectorUses(
   use: SolidScriptUse,
   show: (text: string) => void,
   commit: (uses: { generator: boolean; modifier: boolean }) => void,

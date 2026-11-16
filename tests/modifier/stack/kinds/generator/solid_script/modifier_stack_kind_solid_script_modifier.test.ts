@@ -12,7 +12,7 @@ import {
   solidScriptDocumentUsesWith,
 } from '@/solid_script/document/solid_script_document.js';
 import type { SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
-import { MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_kind_solid_script_modifier.js';
+import { MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
 
 /**
  * Builds a solid with one box brush whose own stack holds a SolidScript

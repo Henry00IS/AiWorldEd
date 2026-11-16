@@ -45,6 +45,8 @@ export interface SolidScriptDocument {
   blocks: SolidScriptBlock[];
   /** Can Be Used As; absent means a generator only. */
   uses?: SolidScriptUses;
+  /** Who wrote it, shown in the editor's Settings; absent when not given. */
+  author?: string;
 }
 
 /** A command line to create, by command id and the values replacing defaults. */
@@ -140,7 +142,24 @@ export function solidScriptDocumentNormalize(input: unknown): SolidScriptDocumen
   });
   const name = typeof record['name'] === 'string' ? record['name'] : '';
   const document: SolidScriptDocument = { version: SOLID_SCRIPT_DOCUMENT_VERSION, name, blocks };
-  return solidScriptDocumentUsesWith(document, solidScriptUsesNormalize(record['uses']));
+  const author = typeof record['author'] === 'string' ? record['author'] : '';
+  return solidScriptDocumentAuthorWith(
+    solidScriptDocumentUsesWith(document, solidScriptUsesNormalize(record['uses'])),
+    author,
+  );
+}
+
+/**
+ * Sets who wrote a script; an empty author is left out.
+ *
+ * @param document Script.
+ * @param author Author, such as a name.
+ * @returns Script.
+ */
+export function solidScriptDocumentAuthorWith(document: SolidScriptDocument, author: string): SolidScriptDocument {
+  const { author: _old, ...rest } = document;
+  const text = author.trim();
+  return text === '' ? rest : { ...rest, author: text };
 }
 
 /**

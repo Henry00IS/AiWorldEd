@@ -6,6 +6,9 @@
 /** Kind id of the SolidScript generator. */
 export const MODIFIER_STACK_SOLID_SCRIPT_KIND = 'solidScript';
 
+/** Kind id of the SolidScript modifier. */
+export const MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND = 'solidScriptModifier';
+
 /** Parameter key of the stored script. */
 export const MODIFIER_STACK_SOLID_SCRIPT_KEY = 'script';
 

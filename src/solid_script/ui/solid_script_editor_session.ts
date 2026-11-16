@@ -2,6 +2,7 @@ import { Vector3, type Object3D } from 'three';
 import { modifierStackVolumeBox } from '@/modifier/stack/evaluate/modifier_stack_frame.js';
 import type { CommandStack } from '@/commands/command_stack.js';
 import {
+  modifierStackEntryRead,
   modifierStackParametersCommand,
   modifierStackParametersRead,
 } from '@/modifier/stack/modifier_stack_parameters_commit.js';
@@ -9,11 +10,13 @@ import { SolidScriptEditorHistory } from './solid_script_editor_history.js';
 import {
   MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY,
   MODIFIER_STACK_SOLID_SCRIPT_KEY,
+  MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND,
 } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
 import { solidScriptInspectorInputValues } from './solid_script_inspector_inputs.js';
 import {
   solidScriptDocumentNormalize,
   type SolidScriptDocument,
+  type SolidScriptUse,
 } from '@/solid_script/document/solid_script_document.js';
 
 /**
@@ -161,5 +164,16 @@ export class SolidScriptEditorSession {
    */
   name(): string {
     return this.document().name.trim() || this.node.name.trim() || 'Script';
+  }
+
+  /**
+   * Returns how this step uses its script.
+   *
+   * @returns Modifier for a SolidScript modifier step, else generator.
+   */
+  use(): SolidScriptUse {
+    return modifierStackEntryRead(this.node, this.stepId)?.kind === MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND
+      ? 'modifier'
+      : 'generator';
   }
 }

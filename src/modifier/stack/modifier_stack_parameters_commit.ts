@@ -2,7 +2,7 @@ import type * as THREE from 'three';
 import type { CommandStack } from '@/commands/command_stack.js';
 import { CommandModifierStackSet } from '@/modifier/stack/command_modifier_stack_set.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
-import type { ModifierStackSettings } from '@/modifier/stack/modifier_stack_types.js';
+import type { ModifierStackEntry, ModifierStackSettings } from '@/modifier/stack/modifier_stack_types.js';
 import { modifierStackPatch } from '@/modifier/stack/modifier_stack_operations.js';
 import { modifierStackOwnerEncode } from '@/modifier/stack/owner/modifier_stack_owner.js';
 
@@ -27,7 +27,18 @@ export function modifierStackParametersRead(
   owner: THREE.Object3D,
   stepId: string,
 ): Record<string, unknown> | undefined {
-  return modifierStackParametersStackRead(owner)?.modifiers.find((candidate) => candidate.id === stepId)?.parameters;
+  return modifierStackEntryRead(owner, stepId)?.parameters;
+}
+
+/**
+ * Reads one modifier of a stack.
+ *
+ * @param owner Volume, brush or group owning the stack.
+ * @param stepId Modifier id.
+ * @returns Modifier, or undefined when it no longer exists.
+ */
+export function modifierStackEntryRead(owner: THREE.Object3D, stepId: string): ModifierStackEntry | undefined {
+  return modifierStackParametersStackRead(owner)?.modifiers.find((candidate) => candidate.id === stepId);
 }
 
 /**

@@ -886,6 +886,29 @@ describe('SolidScript editor', () => {
     expect(list?.classList.contains('editor-custom-scroller')).toBe(true);
   });
 
+  it('sets Can Be Used As and the author in the Settings tab, undone with the script', () => {
+    const { script } = editorFixture(CUBE_SPHERE);
+    find<HTMLButtonElement>('[role="tab"][data-tab="settings"]').click();
+    const settings = find<HTMLElement>('[data-solid-script-settings]');
+    expect(settings.closest('[hidden]')).toBeNull();
+    const generator = find<HTMLInputElement>('[data-solid-script-settings] [data-solid-script-use="generator"]');
+    const modifier = find<HTMLInputElement>('[data-solid-script-settings] [data-solid-script-use="modifier"]');
+    expect([generator.checked, modifier.checked]).toEqual([true, false]);
+    modifier.checked = true;
+    modifier.dispatchEvent(new Event('change'));
+    expect(script().uses).toEqual({ generator: true, modifier: true });
+    generator.checked = false;
+    generator.dispatchEvent(new Event('change'));
+    expect(generator.checked).toBe(true);
+    const author = find<HTMLInputElement>('[data-solid-script-settings] input[aria-label="Author"]');
+    author.value = ' Ada ';
+    author.dispatchEvent(new Event('change'));
+    expect(script().author).toBe('Ada');
+    scriptKey('z');
+    expect(script().author).toBeUndefined();
+    expect(author.value).toBe('');
+  });
+
   it('offers the shape Names of the script in the Of field', () => {
     editorFixture([
       { command: 'cube', values: { label: 'Knob' } },

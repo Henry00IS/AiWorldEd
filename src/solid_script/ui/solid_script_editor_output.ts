@@ -7,22 +7,24 @@ import {
 } from '@/solid_script/language/solid_script_program.js';
 import type { SolidScriptLineProfile, SolidScriptWarning } from '@/solid_script/language/solid_script_machine_types.js';
 import { SolidScriptEditorExplorer } from './solid_script_editor_explorer.js';
+import type { SolidScriptEditorSettings } from './solid_script_editor_settings.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 
 /** Tabs of the output area. */
-type SolidScriptEditorOutputTab = 'output' | 'variables';
+type SolidScriptEditorOutputTab = 'output' | 'variables' | 'settings';
 
 /** Captions of the output tabs. */
 const SOLID_SCRIPT_EDITOR_OUTPUT_TABS: readonly [SolidScriptEditorOutputTab, string][] = [
   ['output', 'Output'],
   ['variables', 'Variables'],
+  ['settings', 'Settings'],
 ];
 
 /**
  * The area under the script: the Output tab shows what the script builds, its
  * Echo lines or its first error; the Variables tab is the variable explorer,
  * with every name the script uses and its value at the debugger's step, or
- * after the last solid.
+ * after the last solid; the Settings tab holds Can Be Used As and the author.
  */
 export class SolidScriptEditorOutput {
   /** Output area element. */
@@ -36,6 +38,8 @@ export class SolidScriptEditorOutput {
   private failed: number | null = null;
   private runs: ReadonlyMap<number, SolidScriptLineProfile> = new Map();
   private revealLine: (line: number) => void = () => undefined;
+  private readonly settingsHost = document.createElement('div');
+  private settings: SolidScriptEditorSettings | null = null;
 
   /** Shows a line of the script; set by the editor. */
   set reveal(reveal: (line: number) => void) {
@@ -46,6 +50,16 @@ export class SolidScriptEditorOutput {
   /** Adds an Input line through its configurator; set by the editor. */
   set inputAdd(inputAdd: () => void) {
     this.explorer.inputAdd = inputAdd;
+  }
+
+  /**
+   * Fills the Settings tab; set by the editor.
+   *
+   * @param settings Settings tab.
+   */
+  settingsSet(settings: SolidScriptEditorSettings): void {
+    this.settings = settings;
+    this.settingsHost.replaceChildren(settings.element);
   }
 
   /** Builds the area. */
@@ -60,7 +74,7 @@ export class SolidScriptEditorOutput {
     this.output.setAttribute('aria-live', 'polite');
     this.outputHost = solidScriptScrollerWrap(this.output, '1 1 0', 12);
     this.variablesHost = this.explorer.element;
-    this.element.append(bar, this.outputHost, this.variablesHost);
+    this.element.append(bar, this.outputHost, this.variablesHost, this.settingsHost);
     this.tabShow('output');
   }
 
@@ -73,6 +87,7 @@ export class SolidScriptEditorOutput {
    * @param caption What the variables show, such as "At step 2, line 4".
    */
   show(document: SolidScriptDocument, options: SolidScriptProgramOptions | null, caption: string): void {
+    this.settings?.write(document);
     try {
       const result = solidScriptProgramEvaluate(document, { context: 'preview', ...options, profile: true });
       const count = result.steps.length;
@@ -138,6 +153,7 @@ export class SolidScriptEditorOutput {
     for (const [tab, button] of this.tabs) button.setAttribute('aria-selected', String(tab === id));
     this.outputHost.hidden = id !== 'output';
     this.variablesHost.hidden = id !== 'variables';
+    this.settingsHost.hidden = id !== 'settings';
   }
 
   /**

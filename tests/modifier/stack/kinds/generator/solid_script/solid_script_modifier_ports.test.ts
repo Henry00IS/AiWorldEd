@@ -12,7 +12,7 @@ import {
   solidScriptDocumentUsesWith,
 } from '@/solid_script/document/solid_script_document.js';
 import { SOLID_SCRIPT_EXAMPLES } from '@/solid_script/examples/solid_script_examples.js';
-import { MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_kind_solid_script_modifier.js';
+import { MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
 
 /** Parameters of the built-in modifier, and the matching inputs of its port. */
 interface ModifierCase {

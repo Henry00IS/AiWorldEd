@@ -42,6 +42,7 @@ import {
   solidScriptDocumentNamesAt,
 } from '@/solid_script/document/solid_script_document_names.js';
 import { SolidScriptConfigurator } from './solid_script_configurator.js';
+import { SolidScriptEditorSettings } from './solid_script_editor_settings.js';
 import { SolidScriptEditorOutput } from './solid_script_editor_output.js';
 import { solidScriptEditorLoad, solidScriptEditorSave } from './solid_script_editor_files.js';
 import { solidScriptFileDropBind, type SolidScriptFileDropResult } from './solid_script_file_drop.js';
@@ -122,6 +123,13 @@ export class SolidScriptEditor extends PanelFloating {
       breakpoint: (line) => this.breakpointToggle(line),
     });
     this.output.reveal = (line) => this.lines.focusLine(line);
+    this.output.settingsSet(
+      new SolidScriptEditorSettings(
+        this.session.use(),
+        (document) => this.commit(document, null),
+        (text) => this.noticeShow(text),
+      ),
+    );
     this.output.inputAdd = () => {
       const blocks = this.session.document().blocks;
       const last = blocks.map((block) => block.command).lastIndexOf(SOLID_SCRIPT_COMMAND_INPUT);
