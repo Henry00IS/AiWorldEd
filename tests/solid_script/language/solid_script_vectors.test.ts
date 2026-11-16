@@ -169,3 +169,21 @@ describe('SolidScript dotted names', () => {
     ).toEqual(['50 20 40 20 1 41']);
   });
 });
+
+describe('SolidScript formula words', () => {
+  it('reads ^ as a power and and, or, not as logic words', () => {
+    expect(
+      echoed(line('echo', { value: '[=2 ^ 3] [=-2 ^ 2] [=2 ^ 3 ^ 2] [=1 < 2 and not (3 < 2)] [=false or 1 == 1]' })),
+    ).toEqual(['8 -4 512 true true']);
+  });
+
+  it('clears a name not set yet into an empty list for Add Item', () => {
+    expect(
+      echoed(
+        line('clear_variable', { name: 'outline' }),
+        line('add_item', { value: '[=vector(1, 2)]', list: 'outline' }),
+        line('echo', { value: '[outline().count] [outline(0)]' }),
+      ),
+    ).toEqual(['1 [1, 2]']);
+  });
+});

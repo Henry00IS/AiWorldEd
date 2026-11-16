@@ -179,7 +179,19 @@ export class SolidScriptParserExpression {
       this.next();
       return { kind: 'unary', operator: token.text, operand: this.parseUnary() };
     }
-    return this.parsePostfix(this.parsePrimary());
+    return this.parsePower();
+  }
+
+  /**
+   * Parses a power such as 2 ^ 3, which binds tighter than * and groups from
+   * the right, so 2 ^ 3 ^ 2 is 2 ^ 9.
+   *
+   * @returns Expression.
+   */
+  private parsePower(): SolidScriptExpression {
+    const base = this.parsePostfix(this.parsePrimary());
+    if (!this.accept('^')) return base;
+    return { kind: 'binary', operator: '^', left: base, right: this.parseUnary() };
   }
 
   /**

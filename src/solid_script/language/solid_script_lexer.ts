@@ -11,8 +11,15 @@ export interface SolidScriptToken {
 /** Symbols made of two characters, matched before single characters. */
 const SOLID_SCRIPT_SYMBOLS_DOUBLE = ['<=', '>=', '==', '!=', '&&', '||'];
 
+/** Words that read like the symbols they stand for: and, or, not. */
+const SOLID_SCRIPT_WORD_SYMBOLS: ReadonlyMap<string, string> = new Map([
+  ['and', '&&'],
+  ['or', '||'],
+  ['not', '!'],
+]);
+
 /** Single-character symbols. */
-const SOLID_SCRIPT_SYMBOLS_SINGLE = '()[]{};,=+-*/%<>!?:.#';
+const SOLID_SCRIPT_SYMBOLS_SINGLE = '()[]{};,=+-*/%^<>!?:.#';
 
 /**
  * Splits solid script source text into tokens, skipping whitespace and
@@ -91,7 +98,12 @@ export class SolidScriptLexer {
     const number = /^(\d+\.?\d*([eE][+-]?\d+)?|\.\d+([eE][+-]?\d+)?)/.exec(rest);
     if (number) return this.tokenTake('number', number[0]);
     const identifier = /^[A-Za-z_][A-Za-z0-9_]*/.exec(rest);
-    if (identifier) return this.tokenTake('identifier', identifier[0]);
+    if (identifier) {
+      const word = SOLID_SCRIPT_WORD_SYMBOLS.get(identifier[0].toLowerCase());
+      if (word === undefined) return this.tokenTake('identifier', identifier[0]);
+      this.position += identifier[0].length;
+      return { kind: 'symbol', text: word, line: this.line };
+    }
     if (rest[0] === '"') return this.tokenString();
     const double = SOLID_SCRIPT_SYMBOLS_DOUBLE.find((symbol) => rest.startsWith(symbol));
     if (double) return this.tokenTake('symbol', double);

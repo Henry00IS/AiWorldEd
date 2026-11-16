@@ -1229,9 +1229,9 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
       },
       variableClear: (name) => {
         const where = this.variableWhere(name, state.scope);
-        if (!where.scope.variableHas(where.name))
-          throw new Error(`there is no variable [${name}] to clear; set it on a line above this one`);
-        this.variableSet(state.scope, name, Array.isArray(where.scope.variableGet(where.name)) ? [] : '');
+        // A name not set yet becomes an empty list, ready for Add Item.
+        const old = where.scope.variableHas(where.name) ? where.scope.variableGet(where.name) : [];
+        this.variableSet(state.scope, name, Array.isArray(old) ? [] : '');
       },
       itemRemove: (target) => {
         const where = this.variableWhere(target, state.scope);

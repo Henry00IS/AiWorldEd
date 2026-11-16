@@ -78,6 +78,7 @@ function solidScriptNumberBinary(operator: string, left: number, right: number):
   if ((operator === '/' || operator === '%') && right === 0) throw new Error('division by zero');
   if (operator === '/') return left / right;
   if (operator === '%') return left % right;
+  if (operator === '^') return left ** right;
   return solidScriptCompare(operator, left, right);
 }
 
