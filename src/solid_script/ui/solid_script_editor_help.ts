@@ -20,15 +20,17 @@ const SOLID_SCRIPT_EDITOR_HELP_FIELDS =
   'Fields are plain text without quotes. [name] puts in a variable, [=formula] a calculation such as [=[i] * 2]. Write $[ and $] for brackets, $$ for a dollar sign.';
 
 /**
- * The help panel beside the script: the manual of the selected palette command
- * or script line, with every value explained and, for a line, its current
- * value.
+ * The help panel beside the script: a short summary of the selected palette
+ * command or script line and its values with their current text, and the full
+ * manual, the mistakes that stop it and how to use it under More Details.
  */
 export class SolidScriptEditorHelp {
   /** Panel element. */
   readonly element = document.createElement('aside');
   /** Host with the custom scrollbar, placed in the window. */
   readonly host: HTMLElement;
+  /** True while More Details is open; it stays so for the next command. */
+  private moreOpen = false;
 
   /** Builds the panel. */
   constructor() {
@@ -70,16 +72,14 @@ export class SolidScriptEditorHelp {
     const usage = document.createElement('p');
     usage.className = SOLID_SCRIPT_EDITOR_CLASSES.helpUsage;
     usage.textContent = block ? SOLID_SCRIPT_EDITOR_HELP_LINE : SOLID_SCRIPT_EDITOR_HELP_PALETTE;
-    this.element.replaceChildren(
-      title,
-      category,
-      description,
-      manual,
-      ...this.parameters(command, block),
-      ...fields,
-      ...solidScriptEditorHelpStops(command),
-      usage,
-    );
+    const more = document.createElement('details');
+    more.className = SOLID_SCRIPT_EDITOR_CLASSES.helpMore;
+    more.open = this.moreOpen;
+    more.addEventListener('toggle', () => (this.moreOpen = more.open));
+    const moreTitle = document.createElement('summary');
+    moreTitle.textContent = 'More Details';
+    more.append(moreTitle, manual, ...fields, ...solidScriptEditorHelpStops(command), usage);
+    this.element.replaceChildren(title, category, description, ...this.parameters(command, block), more);
   }
 
   /**
