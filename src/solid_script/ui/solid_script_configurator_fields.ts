@@ -1,3 +1,4 @@
+import { solidScriptNameDotProblem } from '@/solid_script/language/solid_script_name_rules.js';
 import type { SolidScriptCommandParameter } from '@/solid_script/commands/solid_script_command.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import { solidScriptFieldCheck, solidScriptFieldSplit } from '@/solid_script/language/solid_script_field.js';
@@ -37,13 +38,13 @@ type SolidScriptConfiguratorFieldReader = Pick<SolidScriptConfiguratorField, 're
 const SOLID_SCRIPT_CONFIGURATOR_AXES = ['X', 'Y', 'Z'];
 
 /** Pattern of names a variable can have. */
-const SOLID_SCRIPT_CONFIGURATOR_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const SOLID_SCRIPT_CONFIGURATOR_NAME = /^((local|persistent)\.)?[A-Za-z_][A-Za-z0-9_]*$/;
 
 /**
  * Pattern of what Set can change: a variable, or an item of a list such as
  * points(2) or points().
  */
-const SOLID_SCRIPT_CONFIGURATOR_TARGET = /^(local\.)?[A-Za-z_][A-Za-z0-9_]*(\s*\(.*\))?$/;
+const SOLID_SCRIPT_CONFIGURATOR_TARGET = /^((local|persistent)\.)?[A-Za-z_][A-Za-z0-9_]*(\.[xyzXYZ]|\s*\(.*\))?$/;
 
 /**
  * Builds the field of one command parameter.
@@ -257,6 +258,8 @@ function solidScriptConfiguratorCheckbox(
  */
 function solidScriptConfiguratorProblem(parameter: SolidScriptCommandParameter, value: string): string {
   const text = value.trim();
+  const dotted = parameter.type === 'name' || parameter.type === 'target' ? solidScriptNameDotProblem(text, 'set') : '';
+  if (dotted) return `${parameter.label}: ${dotted}.`;
   if (parameter.type === 'name' && !SOLID_SCRIPT_CONFIGURATOR_NAME.test(text))
     return `${parameter.label} must start with a letter and use only letters, digits and _.`;
   if (parameter.type === 'target' && !SOLID_SCRIPT_CONFIGURATOR_TARGET.test(text))

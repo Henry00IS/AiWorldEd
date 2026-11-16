@@ -1,4 +1,5 @@
 import type { SolidScriptExpression } from './solid_script_ast.js';
+import { solidScriptNameDotProblem } from './solid_script_name_rules.js';
 import type { SolidScriptValue } from './solid_script_value.js';
 import { solidScriptValueText } from './solid_script_value.js';
 
@@ -445,12 +446,30 @@ export function solidScriptFieldCompiled(kind: SolidScriptFieldKind, text: strin
  * @returns Problem, or an empty string.
  */
 export function solidScriptFieldCheck(text: string): string {
+  let pieces: SolidScriptFieldPiece[];
   try {
-    solidScriptFieldPieces(text);
-    return '';
+    pieces = solidScriptFieldPieces(text);
   } catch (error) {
     return error instanceof Error ? error.message : String(error);
   }
+  const walk = (list: readonly SolidScriptFieldPiece[]): string => {
+    for (const piece of list) {
+      if (piece.kind === 'plain') continue;
+      const first = piece.pieces[0];
+      const formula = first?.kind === 'plain' && first.text.trimStart().startsWith('=');
+      if (!formula && piece.pieces.every((inner) => inner.kind === 'plain')) {
+        const problem = solidScriptNameDotProblem(
+          piece.pieces.map((inner) => (inner.kind === 'plain' ? inner.text : '')).join(''),
+          'read',
+        );
+        if (problem) return problem;
+      }
+      const inner = walk(piece.pieces);
+      if (inner) return inner;
+    }
+    return '';
+  };
+  return walk(pieces);
 }
 
 /**

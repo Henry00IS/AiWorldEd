@@ -137,3 +137,35 @@ describe('SolidScript formulas and the MCP calculator', () => {
     expect(formula('1/0')).toMatch(/division by zero/);
   });
 });
+
+describe('SolidScript dotted names', () => {
+  it('stops a script with a made-up dotted name before any line runs', () => {
+    const result = solidScriptProgramRun(
+      solidScriptDocumentCreate([line('cube'), line('variable', { name: 'chicken.soup', value: '1' })]),
+    );
+    expect(result.shapes).toEqual([]);
+    expect(result.error?.message).toMatch(
+      /^line 2: Variable: "chicken\.soup" cannot be a name: names use letters, digits and _/,
+    );
+    const read = solidScriptProgramRun(
+      solidScriptDocumentCreate([line('echo', { value: '[chicken.soup]' }), line('cube')]),
+    );
+    expect(read.error?.message).toMatch(/^line 1: Message: "chicken\.soup" cannot be a name/);
+    expect(echoed(line('echo', { value: '[Face.Area]' }))).not.toMatch(/cannot be a name/);
+    expect(echoed(line('variable', { name: 'Face.Area', value: '1' }))).toMatch(
+      /Face\.Area is a built-in value and can only be read/,
+    );
+    expect(echoed(line('echo', { value: '[items().size]' }))).toMatch(/a list has no \.size; write items\(\)\.count/);
+  });
+
+  it('allows the dotted forms SolidScript gives a meaning', () => {
+    expect(
+      echoed(
+        line('variable', { name: 'v', value: '50, 20, 40' }),
+        line('variable', { name: 'persistent.best', value: '[v.y]' }),
+        line('add_item', { value: '1', list: 'items' }),
+        line('echo', { value: '[v.x] [v.y] [v.z] [persistent.best] [items().count] [=[v].z + 1]' }),
+      ),
+    ).toEqual(['50 20 40 20 1 41']);
+  });
+});

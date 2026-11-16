@@ -1,3 +1,5 @@
+import { solidScriptNameDotProblem } from './solid_script_name_rules.js';
+import { solidScriptFieldCheck } from './solid_script_field.js';
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
 import { solidScriptBlockTree, type SolidScriptTreeLine } from './solid_script_block_tree.js';
 import { solidScriptErrorLine } from './solid_script_error.js';
@@ -27,6 +29,41 @@ export interface SolidScriptProgram {
 }
 
 /**
+ * Checks every line before anything runs, so a mistake such as a name with a
+ * stray dot stops the script at once, at its line.
+ *
+ * @param program Lines of the script.
+ * @returns Problem with its 1-based line, or null.
+ */
+export function solidScriptProgramProblem(program: SolidScriptProgram): { line: number; message: string } | null {
+  for (const [index, block] of program.blocks.entries()) {
+    const command = solidScriptCommandFind(block.command);
+    if (!command) continue;
+    for (const parameter of command.parameters) {
+      const text = command.valueText(block.values, parameter.key);
+      const problem =
+        parameter.type === 'name' || parameter.type === 'target'
+          ? solidScriptNameDotProblem(text, 'set')
+          : parameter.type === 'text'
+            ? ''
+            : solidScriptFieldCheck(text);
+      if (problem) return { line: index + 1, message: `${parameter.label}: ${problem}` };
+    }
+  }
+  return null;
+}
+
+/**
+ * Throws the first problem the check before the run finds.
+ *
+ * @param program Lines of the script.
+ */
+function solidScriptProgramCheck(program: SolidScriptProgram): void {
+  const problem = solidScriptProgramProblem(program);
+  if (problem) throw new Error(`line ${problem.line}: ${problem.message}`);
+}
+
+/**
  * Runs the lines of a script in a new machine and returns everything built
  * before the first mistake, with the mistake. Never throws.
  *
@@ -39,6 +76,7 @@ export function solidScriptProgramRun(
   options: SolidScriptProgramOptions = {},
 ): SolidScriptRun {
   try {
+    solidScriptProgramCheck(program);
     const lines = solidScriptBlockTree(program.blocks, solidScriptCommandFind);
     return new SolidScriptMachine(options.stepLimit, options.breakpoints ?? null, options.inputs).run(lines);
   } catch (error) {
@@ -87,6 +125,7 @@ export function solidScriptProgramHandle(
   inputs: Readonly<Record<string, string>>,
 ): SolidScriptHandled {
   try {
+    solidScriptProgramCheck(program);
     const lines = solidScriptBlockTree(program.blocks, solidScriptCommandFind);
     return new SolidScriptMachine(Number.POSITIVE_INFINITY, null, inputs).handle(lines, event);
   } catch (error) {
