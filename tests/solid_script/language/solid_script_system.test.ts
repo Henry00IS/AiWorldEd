@@ -73,9 +73,20 @@ describe('SolidScript system values', () => {
     expect(Number(echo('[Time.Delta]'))).toBeGreaterThanOrEqual(0);
   });
 
-  it('reads the generator box, and explains its absence elsewhere', () => {
+  it('reads the generator box, and warns without one, using 1 so the script still runs', () => {
     expect(echo('[Box.Width] [Box.Depth] [Box.Height] [Box.Size.y]', { box: [4, 2, 3] })).toBe('4 2 3 2');
-    expect(echo('[Box.Width]')).toMatch(/only known when the script runs in a generator/);
+    const run = solidScriptProgramRun(
+      solidScriptDocumentCreate([
+        { command: 'echo', values: { value: 'start' } },
+        { command: 'echo', values: { value: '[Box.Width] [Box.Size]' } },
+        { command: 'cube' },
+      ]),
+    );
+    expect(run.error).toBeNull();
+    expect(run.messages).toEqual(['start', '1 [1, 1, 1]']);
+    expect(run.warnings).toEqual([
+      { line: 2, text: '[Box.Size] is only known in a generator, where there is a box; 1 is used here.' },
+    ]);
   });
 
   it('reads the time and constants', () => {

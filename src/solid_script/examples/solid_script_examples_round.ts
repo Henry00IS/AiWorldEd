@@ -3,7 +3,6 @@ import { curvePresetBuild } from '@/curve/model/curve_preset.js';
 import { CURVE_PRESET_COLUMN_CLASSIC } from '@/curve/model/curve_preset_architecture.js';
 import type { SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 import {
-  SOLID_SCRIPT_EXAMPLE_BOX_INPUTS,
   solidScriptExampleBlock,
   solidScriptExampleIf,
   solidScriptExampleLine,
@@ -33,7 +32,7 @@ function solidScriptExampleRing(scale: string, z: string): SolidScriptLine[] {
   return solidScriptExampleRepeat('I', '0', '[=[Sides] - 1]', [
     solidScriptExampleSet('Angle', '[=([I] + 0.5) * 360 / [Sides]]'),
     solidScriptExamplePoint(
-      `[=Cos([Angle]) * [Width] / 2 * ${scale}], [=-Sin([Angle]) * [Depth] / 2 * ${scale}], ${z}`,
+      `[=Cos([Angle]) * [Box.Width] / 2 * ${scale}], [=-Sin([Angle]) * [Box.Depth] / 2 * ${scale}], ${z}`,
     ),
   ]);
 }
@@ -57,40 +56,37 @@ function solidScriptExampleRingOrTip(scale: string, z: string): SolidScriptLine[
 /** Port of the Cylinder generator. */
 export const SOLID_SCRIPT_EXAMPLE_CYLINDER: readonly SolidScriptLine[] = [
   solidScriptExampleNote('Cylinder: a ring of corners at the bottom and one at the top, wrapped into one solid.'),
-  ...SOLID_SCRIPT_EXAMPLE_BOX_INPUTS,
   SOLID_SCRIPT_EXAMPLE_SIDES,
   ...solidScriptExamplePolyhedron([
-    ...solidScriptExampleRing('1', '[=-[Height] / 2]'),
-    ...solidScriptExampleRing('1', '[=[Height] / 2]'),
+    ...solidScriptExampleRing('1', '[=-[Box.Height] / 2]'),
+    ...solidScriptExampleRing('1', '[=[Box.Height] / 2]'),
   ]),
 ];
 
 /** Port of the Cone generator. */
 export const SOLID_SCRIPT_EXAMPLE_CONE: readonly SolidScriptLine[] = [
   solidScriptExampleNote('Cone: a ring at the bottom and a smaller ring, or a tip, at the top.'),
-  ...SOLID_SCRIPT_EXAMPLE_BOX_INPUTS,
   SOLID_SCRIPT_EXAMPLE_SIDES,
   solidScriptExampleInput('TopRadius', 'number', '0', { label: 'Top Radius', min: '0', max: '1' }),
   ...solidScriptExamplePolyhedron([
-    ...solidScriptExampleRing('1', '[=-[Height] / 2]'),
-    ...solidScriptExampleRingOrTip('[TopRadius]', '[=[Height] / 2]'),
+    ...solidScriptExampleRing('1', '[=-[Box.Height] / 2]'),
+    ...solidScriptExampleRingOrTip('[TopRadius]', '[=[Box.Height] / 2]'),
   ]),
 ];
 
 /** Port of the Sphere generator. */
 export const SOLID_SCRIPT_EXAMPLE_SPHERE: readonly SolidScriptLine[] = [
   solidScriptExampleNote('Sphere: rings from the bottom pole to the top pole, each sized by how far round it is.'),
-  ...SOLID_SCRIPT_EXAMPLE_BOX_INPUTS,
   SOLID_SCRIPT_EXAMPLE_SIDES,
   solidScriptExampleInput('Coverage', 'choice', 'full', { label: 'Shape', choices: 'full, dome' }),
   solidScriptExampleInput('Rings', 'count', '8', { label: 'Rings', min: '2', max: '32' }),
   solidScriptExampleSet('From', '-90'),
   solidScriptExampleSet('Equator', '0'),
-  solidScriptExampleSet('Rise', '[=[Height] / 2]'),
+  solidScriptExampleSet('Rise', '[=[Box.Height] / 2]'),
   ...solidScriptExampleIf('[Coverage] == "dome"', [
     solidScriptExampleSet('From', '0'),
-    solidScriptExampleSet('Equator', '[=-[Height] / 2]'),
-    solidScriptExampleSet('Rise', '[Height]'),
+    solidScriptExampleSet('Equator', '[=-[Box.Height] / 2]'),
+    solidScriptExampleSet('Rise', '[Box.Height]'),
   ]),
   ...solidScriptExamplePolyhedron(
     solidScriptExampleRepeat('Ring', '0', '[Rings]', [
@@ -103,13 +99,12 @@ export const SOLID_SCRIPT_EXAMPLE_SPHERE: readonly SolidScriptLine[] = [
 /** Port of the Capsule generator. */
 export const SOLID_SCRIPT_EXAMPLE_CAPSULE: readonly SolidScriptLine[] = [
   solidScriptExampleNote('Capsule: a round end at the bottom and at the top, joined by straight sides.'),
-  ...SOLID_SCRIPT_EXAMPLE_BOX_INPUTS,
   SOLID_SCRIPT_EXAMPLE_SIDES,
   solidScriptExampleInput('CapRings', 'count', '4', { label: 'Cap Rings', min: '1', max: '16' }),
-  solidScriptExampleSet('Cap', '[=Min([Width] / 2, [Height] / 2)]'),
+  solidScriptExampleSet('Cap', '[=Min([Box.Width] / 2, [Box.Height] / 2)]'),
   ...solidScriptExamplePolyhedron(
     solidScriptExampleRepeat('End', '0', '1', [
-      solidScriptExampleSet('Middle', '[=-[Height] / 2 + [Cap] + [End] * ([Height] - 2 * [Cap])]'),
+      solidScriptExampleSet('Middle', '[=-[Box.Height] / 2 + [Cap] + [End] * ([Box.Height] - 2 * [Cap])]'),
       ...solidScriptExampleRepeat('Ring', '0', '[CapRings]', [
         solidScriptExampleSet('Latitude', '[=-90 + 90 * [End] + 90 * [Ring] / [CapRings]]'),
         ...solidScriptExampleRingOrTip('[=Cos([Latitude])]', '[=[Middle] + [Cap] * Sin([Latitude])]'),
@@ -132,12 +127,11 @@ export const SOLID_SCRIPT_EXAMPLE_COLUMN: readonly SolidScriptLine[] = [
   solidScriptExampleNote(
     'Column: the Profile curve is the radius along the height. Pieces that bulge outward join into one solid; where the curve turns inward a new solid starts.',
   ),
-  ...SOLID_SCRIPT_EXAMPLE_BOX_INPUTS,
   solidScriptExampleInput('Profile', 'curve', SOLID_SCRIPT_EXAMPLE_COLUMN_PROFILE, { label: 'Profile' }),
   solidScriptExampleInput('Sides', 'choice', '8', { label: 'Sides', choices: '4, 6, 8, 12, 16, 24, 32' }),
   solidScriptExampleInput('Aspect', 'number', '1', { label: 'Depth / Width', min: '0.05', max: '20' }),
-  solidScriptExampleSet('Radius', '[=Min([Width], [Depth] / [Aspect]) / 2]'),
-  solidScriptExampleSet('Stations', '[=ProfilePoints([Profile], [Height], [Radius])]'),
+  solidScriptExampleSet('Radius', '[=Min([Box.Width], [Box.Depth] / [Aspect]) / 2]'),
+  solidScriptExampleSet('Stations', '[=ProfilePoints([Profile], [Box.Height], [Radius])]'),
   solidScriptExampleNote('Sort the stations into runs: x is the height, y the radius, z the run.'),
   solidScriptExampleLine('clear_variable', { name: 'Marks' }),
   solidScriptExampleSet('Run', '-1'),
@@ -178,7 +172,7 @@ export const SOLID_SCRIPT_EXAMPLE_COLUMN: readonly SolidScriptLine[] = [
     ...solidScriptExamplePolyhedron(
       solidScriptExampleBlock('for_each', { variable: 'M', list: '[Marks]' }, [
         ...solidScriptExampleIf('[M.z] == [R]', [
-          solidScriptExampleSet('Z', '[=[M.x] - [Height] / 2]'),
+          solidScriptExampleSet('Z', '[=[M.x] - [Box.Height] / 2]'),
           ...solidScriptExampleIf(
             '[M.y] <= 0.000001',
             [solidScriptExamplePoint('0, 0, [Z]')],

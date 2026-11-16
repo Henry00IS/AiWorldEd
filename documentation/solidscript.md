@@ -35,7 +35,7 @@ The script runs on every change. **Start** builds everything, **Debug** builds o
 - **Ctrl+F10** builds up to the line at the cursor.
 - **Trace** marks the lines the debugger has passed.
 - A small **×N** at the end of a line says how often it ran; hover it for its time.
-- The **Variables** tab lists every name with its value at the step shown, and the **System** values such as `Time.Year`, `Editor.Version` or `Box.Width`.
+- The **Variables** tab lists every name with its value at the step shown, and the **System** values such as `Time.Year`, `Editor.Version` or `Box.Width`. The generator examples size themselves from `[Box.Width]`, `[Box.Depth]` and `[Box.Height]`; where a script runs without a box, such as a modifier, those values read as 1 and the Output shows a ⚠️ warning on the line instead of stopping.
 
 </details>
 

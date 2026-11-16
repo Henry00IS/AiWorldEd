@@ -485,12 +485,18 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
     const whole = part ? this.system.get(part.name) : undefined;
     if (part && whole !== undefined) return solidScriptVectorComponentRead(part, whole);
     const base = part && SOLID_SCRIPT_SYSTEM_NAMES.has(part.name) ? part.name : name;
-    if (SOLID_SCRIPT_SYSTEM_NAMES.has(base))
-      throw new Error(
-        `[${SOLID_SCRIPT_SYSTEM_NAMES.get(base)}] is only known when the script runs in a generator, where there is a box`,
-      );
+    if (SOLID_SCRIPT_SYSTEM_NAMES.has(base)) return this.systemMissing(SOLID_SCRIPT_SYSTEM_NAMES.get(base) ?? base);
     return undefined;
   }
+
+  /**
+   * Stands in for a built-in value this run does not have, such as a Box value
+   * outside a generator, and warns on the line reading it.
+   *
+   * @param name Value name as taught, such as Box.Width.
+   * @returns Stand-in value.
+   */
+  protected abstract systemMissing(name: string): SolidScriptValue;
 
   /**
    * Sets a variable after checking its name and that lines may change it.

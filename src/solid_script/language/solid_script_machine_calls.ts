@@ -75,6 +75,18 @@ export abstract class SolidScriptMachineCalls<
   protected readonly steps: number[] = [];
   /** Warnings of the run by 1-based line, such as a block with nothing inside. */
   protected readonly warnings = new Map<number, string>();
+
+  /**
+   * Uses 1, or 1, 1, 1 for a size, for a Box value outside a generator, and
+   * warns on the line, so the script still runs.
+   *
+   * @param name Value name as taught, such as Box.Width.
+   * @returns Stand-in value.
+   */
+  protected systemMissing(name: string): SolidScriptValue {
+    this.warnings.set(this.line, `[${name}] is only known in a generator, where there is a box; 1 is used here.`);
+    return /\.Size$/i.test(name) ? [1, 1, 1] : 1;
+  }
   protected readonly parts = new Map<string, SolidScriptPart<Command>>();
   /** Function blocks by name. */
   protected readonly functions = new Map<string, SolidScriptBlockNode<Command>>();

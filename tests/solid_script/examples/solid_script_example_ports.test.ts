@@ -44,13 +44,10 @@ function pieceKey(points: readonly THREE.Vector3[]): string {
 function portPieces(id: string, test: PortCase): string[] {
   const example = SOLID_SCRIPT_EXAMPLES.find((entry) => entry.id === id);
   if (!example) throw new Error(`no example ${id}`);
-  const inputs: Record<string, string> = {
-    width: String(test.size[0]),
-    depth: String(test.size[1]),
-    height: String(test.size[2]),
-  };
+  const inputs: Record<string, string> = {};
   for (const [key, value] of Object.entries(test.parameters)) inputs[key] = String(value);
-  const result = solidScriptProgramRun(solidScriptDocumentCreate(example.lines), { inputs });
+  const box = [test.size[0], test.size[1], test.size[2]] as const;
+  const result = solidScriptProgramRun(solidScriptDocumentCreate(example.lines), { inputs, box });
   if (result.error) throw new Error(result.error.message);
   return result.shapes
     .flatMap(solidScriptShapeLeavesPositive)

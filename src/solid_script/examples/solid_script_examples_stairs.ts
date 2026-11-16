@@ -1,6 +1,5 @@
 import type { SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 import {
-  SOLID_SCRIPT_EXAMPLE_BOX_INPUTS,
   solidScriptExampleBlock,
   solidScriptExampleIf,
   solidScriptExampleInput,
@@ -78,7 +77,6 @@ const SOLID_SCRIPT_EXAMPLE_SLAB_CLIP: readonly SolidScriptLine[] = [
 /** Port of the Stairs generator. */
 export const SOLID_SCRIPT_EXAMPLE_STAIRS: readonly SolidScriptLine[] = [
   solidScriptExampleNote('Stairs: a row of steps, each one a box or a slice of a sloped slab, with an optional nose.'),
-  ...SOLID_SCRIPT_EXAMPLE_BOX_INPUTS,
   solidScriptExampleInput('Direction', 'choice', '+z', { label: 'Ascend', choices: '+x, -x, +z, -z' }),
   solidScriptExampleInput('Sizing', 'choice', 'rise', { label: 'Steps By', choices: 'rise, count' }),
   solidScriptExampleInput('Rise', 'number', '0.125', { label: 'Target Rise', min: '0.01', max: '10' }),
@@ -94,16 +92,16 @@ export const SOLID_SCRIPT_EXAMPLE_STAIRS: readonly SolidScriptLine[] = [
   solidScriptExampleNote('Which way the flight climbs, as seen in the editor: +Z climbs toward -Y here.'),
   solidScriptExampleSet('AlongX', '[=EndsWith([Direction], "x")]'),
   solidScriptExampleSet('Forward', '[=StartsWith([Direction], "+") == [AlongX] ? 1 : -1]'),
-  solidScriptExampleSet('Length', '[=[AlongX] ? [Width] : [Depth]]'),
-  solidScriptExampleSet('Across', '[=[AlongX] ? [Depth] / 2 : [Width] / 2]'),
+  solidScriptExampleSet('Length', '[=[AlongX] ? [Box.Width] : [Box.Depth]]'),
+  solidScriptExampleSet('Across', '[=[AlongX] ? [Box.Depth] / 2 : [Box.Width] / 2]'),
   solidScriptExampleSet('Start', '[=-[Forward] * [Length] / 2]'),
-  solidScriptExampleSet('Floor', '[=-[Height] / 2]'),
+  solidScriptExampleSet('Floor', '[=-[Box.Height] / 2]'),
   ...SOLID_SCRIPT_EXAMPLE_SPOT,
-  solidScriptExampleSet('Steps', '[=Round([Height] / [Rise])]'),
+  solidScriptExampleSet('Steps', '[=Round([Box.Height] / [Rise])]'),
   ...solidScriptExampleIf('[Sizing] == "count"', [solidScriptExampleSet('Steps', '[Count]')]),
   solidScriptExampleSet('Steps', '[=Max(1, Min(256, Round([Steps])))]'),
   solidScriptExampleSet('Flat', '[=Min([Landing], [Length] * 0.9)]'),
-  solidScriptExampleSet('Up', '[=[Height] / [Steps]]'),
+  solidScriptExampleSet('Up', '[=[Box.Height] / [Steps]]'),
   solidScriptExampleSet('Run', '[=([Length] - [Flat]) / [Steps]]'),
   solidScriptExampleSet('Tread', '[Up]'),
   ...solidScriptExampleIf('[Fill] == "floating"', [solidScriptExampleSet('Tread', '[Thickness]')]),
