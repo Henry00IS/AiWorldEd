@@ -61,6 +61,16 @@ export interface SolidScriptCommandParameter {
   hint: string;
   /** True when the field may stay empty. */
   optional?: boolean;
+  /** The few words the field takes, offered first while it is typed. */
+  words?: readonly SolidScriptCommandWord[];
+}
+
+/** One word a field takes, with what it means. */
+export interface SolidScriptCommandWord {
+  /** Word as typed. */
+  word: string;
+  /** Short meaning shown beside it. */
+  detail: string;
 }
 
 /** Stored values of one command line, as typed per field key. */

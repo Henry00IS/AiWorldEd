@@ -7,6 +7,7 @@ import {
   type SolidScriptName,
 } from '@/solid_script/document/solid_script_document_names.js';
 import { SolidScriptConfiguratorNames } from './solid_script_configurator_names.js';
+import type { SolidScriptSuggestionScope } from './solid_script_suggestions.js';
 
 /** One labelled field of the configurator. */
 export interface SolidScriptConfiguratorField {
@@ -18,6 +19,12 @@ export interface SolidScriptConfiguratorField {
   problem: () => string;
   /** Returns a note on names no line defines, or an empty string. */
   warning: () => string;
+  /** Text inputs that take names, values and formulas, for the value browser. */
+  texts: readonly HTMLInputElement[];
+  /** What the field may refer to, with its words. */
+  scope: SolidScriptSuggestionScope;
+  /** Takes its suggestion lists off the page, when the window closes. */
+  close: () => void;
 }
 
 /** What a field can refer to: the names of the script around the line. */
@@ -70,8 +77,12 @@ export function solidScriptConfiguratorFieldBuild(
   const inputs = document.createElement('span');
   inputs.className = SOLID_SCRIPT_EDITOR_CLASSES.fieldInputs;
   const field = solidScriptConfiguratorInputs(parameter, value, inputs);
-  if (parameter.type !== 'name' && parameter.type !== 'target')
-    solidScriptConfiguratorNamesBind(inputs, parameter, scope);
+  const suggest: SolidScriptSuggestionScope = { ...scope, words: parameter.words ?? [] };
+  const texts =
+    parameter.type === 'name' || parameter.type === 'target'
+      ? []
+      : [...inputs.querySelectorAll<HTMLInputElement>('input[type="text"]')];
+  const lists = texts.map((input) => new SolidScriptConfiguratorNames(input, suggest));
   inputs.addEventListener('input', changed);
   inputs.addEventListener('change', changed);
   const known = new Set([
@@ -95,6 +106,9 @@ export function solidScriptConfiguratorFieldBuild(
     element: row,
     read: field.read,
     warning,
+    texts,
+    scope: suggest,
+    close: () => lists.forEach((list) => list.close()),
     problem: () => {
       const problem = field.problem();
       for (const input of inputs.querySelectorAll('input[type="text"]'))
@@ -102,60 +116,6 @@ export function solidScriptConfiguratorFieldBuild(
       return problem;
     },
   };
-}
-
-/** Text input of an open configurator focused last, for the variable explorer. */
-let solidScriptConfiguratorFieldLast: HTMLInputElement | null = null;
-
-/**
- * Puts text at the cursor of the configurator field focused last, such as a
- * [name] picked in the variable explorer, and focuses the field again.
- *
- * @param text Text to insert.
- * @returns False when no configurator field is open.
- */
-export function solidScriptConfiguratorFieldInsert(text: string): boolean {
-  const input = solidScriptConfiguratorFieldLast;
-  if (!input?.isConnected) return false;
-  const start = input.selectionStart ?? input.value.length;
-  const end = input.selectionEnd ?? start;
-  input.setRangeText(text, start, end, 'end');
-  input.dispatchEvent(new Event('input', { bubbles: true }));
-  input.focus();
-  return true;
-}
-
-/**
- * Adds name suggestions to the text inputs of a field, and an Insert Name
- * button listing every name by category for the input last focused.
- *
- * @param inputs Field inputs container.
- * @param parameter Parameter.
- * @param scope Names the field may refer to.
- */
-function solidScriptConfiguratorNamesBind(
-  inputs: HTMLElement,
-  parameter: SolidScriptCommandParameter,
-  scope: SolidScriptConfiguratorScope,
-): void {
-  const texts = [...inputs.querySelectorAll<HTMLInputElement>('input[type="text"]')];
-  if (texts.length === 0) return;
-  const lists = texts.map((input) => new SolidScriptConfiguratorNames(input, scope.names, scope.extra));
-  let last = 0;
-  texts.forEach((input, index) => input.addEventListener('focus', () => (last = index)));
-  inputs.append(...lists.map((list) => list.element()));
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = SOLID_SCRIPT_EDITOR_CLASSES.insertName;
-  button.textContent = '[…]';
-  button.title = 'Insert Name: a variable, input, counter or function at the cursor';
-  button.setAttribute('aria-label', `Insert Name into ${parameter.label}`);
-  button.addEventListener('mousedown', (event) => event.preventDefault());
-  button.addEventListener('click', (event) => {
-    event.preventDefault();
-    lists[last]?.openAll();
-  });
-  inputs.append(button);
 }
 
 /**
@@ -190,7 +150,6 @@ function solidScriptConfiguratorInputs(
  */
 function solidScriptConfiguratorInput(value: string, label: string): HTMLInputElement {
   const input = document.createElement('input');
-  input.addEventListener('focus', () => (solidScriptConfiguratorFieldLast = input));
   input.type = 'text';
   input.className = SOLID_SCRIPT_EDITOR_CLASSES.input;
   input.value = value;

@@ -1,4 +1,8 @@
-import type { SolidScriptCommandParameter, SolidScriptCommandParameterType } from './solid_script_command.js';
+import type {
+  SolidScriptCommandParameter,
+  SolidScriptCommandParameterType,
+  SolidScriptCommandWord,
+} from './solid_script_command.js';
 import { SOLID_SCRIPT_RINGS, SOLID_SCRIPT_SIDES } from '@/solid_script/language/solid_script_primitives.js';
 
 /**
@@ -19,6 +23,29 @@ export function solidScriptParameter(
   hint: string,
 ): SolidScriptCommandParameter {
   return { key, label, type, default: fallback, hint };
+}
+
+/**
+ * Describes a field that takes one of a few words.
+ *
+ * @param key Key of the stored value.
+ * @param label Visible caption.
+ * @param type Editor the configurator shows: text as typed, or message for
+ *   words a variable may hold.
+ * @param fallback Value of a new command line.
+ * @param hint Hover text.
+ * @param words The words, each with its meaning.
+ * @returns Field.
+ */
+export function solidScriptParameterWords(
+  key: string,
+  label: string,
+  type: 'text' | 'message',
+  fallback: string,
+  hint: string,
+  words: readonly SolidScriptCommandWord[],
+): SolidScriptCommandParameter {
+  return { key, label, type, default: fallback, hint, words };
 }
 
 /**

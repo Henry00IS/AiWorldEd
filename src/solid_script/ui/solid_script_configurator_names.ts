@@ -1,285 +1,171 @@
-import { SOLID_SCRIPT_FUNCTION_DOCS } from '@/solid_script/language/solid_script_function_docs.js';
-import { solidScriptFunctionSpelling } from '@/solid_script/language/solid_script_name_key.js';
-import { SOLID_SCRIPT_SYSTEM_GLOBALS } from '@/solid_script/language/solid_script_system.js';
-import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
-import { SOLID_SCRIPT_FUNCTIONS_BUILTIN } from '@/solid_script/language/solid_script_functions_builtin.js';
-import {
-  SOLID_SCRIPT_NAME_CATEGORIES,
-  type SolidScriptName,
-} from '@/solid_script/document/solid_script_document_names.js';
+import { panelFloatingScopeMark } from '@/ui/floating_panel/panel_floating_scope.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
+import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
+import {
+  solidScriptSuggestionContext,
+  solidScriptSuggestionSignature,
+  solidScriptSuggestionWrite,
+  solidScriptSuggestions,
+  type SolidScriptSuggestion,
+  type SolidScriptSuggestionScope,
+} from './solid_script_suggestions.js';
 
-/** One suggestion: what it shows and what it writes. */
-interface SolidScriptSuggestion {
-  /** Shown name. */
-  label: string;
-  /** Kind and description, shown dimmed. */
-  detail: string;
-  /** Category heading it is listed under. */
-  category: string;
-  /** Text written in place of the typed start. */
-  insert: string;
-  /** Characters from the end of the inserted text to leave the caret at. */
-  back: number;
-}
+/** Narrowest suggestion list, wider than most fields. */
+const SOLID_SCRIPT_SUGGESTIONS_WIDTH_PX = 480;
 
-/** What is being typed at the caret, and where it starts. */
-interface SolidScriptSuggestionContext {
-  /** Index of the first character replaced. */
-  from: number;
-  /** Typed start of the name. */
-  prefix: string;
-  /** True inside a [= formula, where functions are offered. */
-  formula: boolean;
-  /** True right after an opening [, where names are offered. */
-  bracket: boolean;
-}
-
-/** Most suggestions listed at once. */
-const SOLID_SCRIPT_SUGGESTIONS_MAX = 40;
+/** Room the list needs below a field before it opens above it instead. */
+const SOLID_SCRIPT_SUGGESTIONS_ROOM_PX = 260;
 
 /**
- * Reads what is being typed before the caret: a name after [ or, inside a
- * formula, the start of a function name.
+ * Fills a list with suggestions under group headings.
  *
- * @param text Field text.
- * @param caret Caret index.
- * @returns Context, or null where nothing is suggested.
+ * @param list List element.
+ * @param suggestions Suggestions in group order.
+ * @param press Runs when a row is pressed, with its index.
+ * @param pick Runs when a row is picked with a double click, or null.
  */
-export function solidScriptSuggestionContext(text: string, caret: number): SolidScriptSuggestionContext | null {
-  const before = text.slice(0, caret);
-  let depth = 0;
-  let formula = false;
-  const formulaDepths: boolean[] = [];
-  for (let index = 0; index < before.length; index++) {
-    const char = before[index];
-    if (char === '$') {
-      index += 1;
-      continue;
+export function solidScriptSuggestionRows(
+  list: HTMLElement,
+  suggestions: readonly SolidScriptSuggestion[],
+  press: (index: number) => void,
+  pick: ((index: number) => void) | null,
+): void {
+  const rows: HTMLElement[] = [];
+  let category = '';
+  suggestions.forEach((suggestion, index) => {
+    if (suggestion.category !== category) {
+      category = suggestion.category;
+      const heading = document.createElement('div');
+      heading.className = SOLID_SCRIPT_EDITOR_CLASSES.suggestionHeading;
+      heading.textContent = category;
+      rows.push(heading);
     }
-    if (char === '[') {
-      depth += 1;
-      formulaDepths.push(before[index + 1] === '=');
-    }
-    if (char === ']' && depth > 0) {
-      depth -= 1;
-      formulaDepths.pop();
-    }
-  }
-  formula = formulaDepths.includes(true);
-  const bracket = /\[((?:local\.)?[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]*)?|local\.)?$/.exec(before);
-  if (bracket && before[bracket.index - 1] !== '$')
-    return { from: bracket.index, prefix: bracket[1] ?? '', formula, bracket: true };
-  const word = /(^|[^A-Za-z0-9_.\]])([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]*)?)$/.exec(before);
-  if (formula && word) {
-    const prefix = word[2] ?? '';
-    return { from: caret - prefix.length, prefix, formula, bracket: false };
-  }
-  return null;
+    const row = document.createElement('div');
+    row.className = SOLID_SCRIPT_EDITOR_CLASSES.suggestion;
+    row.setAttribute('role', 'option');
+    row.dataset['index'] = String(index);
+    row.title = `${suggestion.label}: ${suggestion.detail}`;
+    const name = document.createElement('span');
+    name.textContent = suggestion.label;
+    const detail = document.createElement('span');
+    detail.className = SOLID_SCRIPT_EDITOR_CLASSES.suggestionDetail;
+    detail.textContent = suggestion.detail;
+    row.append(name, detail);
+    row.addEventListener('mousedown', (event) => {
+      event.preventDefault();
+      press(index);
+    });
+    if (pick) row.addEventListener('dblclick', () => pick(index));
+    rows.push(row);
+  });
+  list.replaceChildren(...rows);
 }
 
 /**
- * Lists the suggestions for a context: names after [, functions inside a
- * formula, or everything by category when nothing is typed yet.
+ * Marks the picked row of a suggestion list and scrolls it into view.
  *
- * @param context Typing context, or null for the full list of the Insert Name
- *   button.
- * @param names Names the script defines.
- * @param extra Names the command fills in itself, such as x for Displace.
- * @returns Suggestions in category order.
+ * @param list List element.
+ * @param active Picked index.
  */
-export function solidScriptSuggestions(
-  context: SolidScriptSuggestionContext | null,
-  names: readonly SolidScriptName[],
-  extra: readonly string[],
-): SolidScriptSuggestion[] {
-  const prefix = context?.prefix.toLowerCase() ?? '';
-  const starts = (label: string): boolean => label.toLowerCase().startsWith(prefix);
-  const values = names.filter((entry) => !['Functions', 'Parts', 'Handlers'].includes(entry.category));
-  const functions = names.filter((entry) => entry.category === 'Functions');
-  const suggestions: SolidScriptSuggestion[] = [];
-  const inFormula = context?.formula ?? false;
-  if (!context || context.bracket) {
-    for (const entry of values)
-      if (starts(entry.name))
-        suggestions.push({
-          label: entry.name,
-          detail: entry.detail,
-          category: entry.category,
-          insert: `[${entry.name}]`,
-          back: 0,
-        });
-    if (prefix !== '')
-      for (const value of SOLID_SCRIPT_SYSTEM_GLOBALS)
-        if (starts(value.name))
-          suggestions.push({
-            label: value.name,
-            detail: `${value.type}: ${value.detail}`,
-            category: 'System',
-            insert: `[${value.name}]`,
-            back: 0,
-          });
-    for (const name of extra)
-      if (starts(name))
-        suggestions.push({
-          label: name,
-          detail: 'filled in per point',
-          category: 'This Command',
-          insert: `[${name}]`,
-          back: 0,
-        });
+export function solidScriptSuggestionRowsHighlight(list: HTMLElement, active: number): void {
+  for (const row of list.querySelectorAll<HTMLElement>('[role="option"]')) {
+    const picked = Number(row.dataset['index']) === active;
+    row.setAttribute('aria-selected', String(picked));
+    if (picked) row.scrollIntoView?.({ block: 'nearest' });
   }
-  if (!context || (!context.bracket && inFormula)) {
-    const call = (name: string): Pick<SolidScriptSuggestion, 'insert' | 'back'> =>
-      context ? { insert: `${name}()`, back: 1 } : { insert: `[=${name}()]`, back: 2 };
-    for (const entry of functions)
-      if (starts(entry.name))
-        suggestions.push({ label: entry.name, detail: entry.detail, category: 'Functions', ...call(entry.name) });
-    // Taught in Start Case, such as CharacterCode; any case still works.
-    for (const name of Object.keys(SOLID_SCRIPT_FUNCTIONS_BUILTIN).sort()) {
-      const spelled = solidScriptFunctionSpelling(name);
-      if (starts(spelled) || starts(name)) {
-        const doc = SOLID_SCRIPT_FUNCTION_DOCS[name];
-        const detail = doc ? `${doc.usage}: ${doc.summary}` : 'built in';
-        suggestions.push({ label: spelled, detail, category: 'Built-In Functions', ...call(spelled) });
-      }
-    }
-    if (context && prefix.includes('.'))
-      for (const value of SOLID_SCRIPT_SYSTEM_GLOBALS)
-        if (starts(value.name))
-          suggestions.push({
-            label: value.name,
-            detail: `${value.type}: ${value.detail}`,
-            category: 'System',
-            insert: value.name,
-            back: 0,
-          });
-  }
-  const order = [...SOLID_SCRIPT_NAME_CATEGORIES, 'This Command', 'Built-In Functions'] as string[];
-  return suggestions
-    .map((suggestion, index) => ({ suggestion, index }))
-    .sort((a, b) => order.indexOf(a.suggestion.category) - order.indexOf(b.suggestion.category) || a.index - b.index)
-    .map(({ suggestion }) => suggestion)
-    .slice(0, SOLID_SCRIPT_SUGGESTIONS_MAX);
 }
 
 /**
- * Suggestions under a configurator text input: typing [ lists the names the
- * script defines, a name inside a [= formula lists functions, and the Insert
- * Name button lists everything by category. Arrows pick, Enter or Tab insert,
- * Escape closes.
+ * Places a popup over the page next to an anchor, opening above it when there
+ * is no room below.
+ *
+ * @param popup Popup with fixed position.
+ * @param anchor Element it belongs to.
+ * @param width Popup width.
+ * @param alignRight True to line up the right edges.
+ */
+export function solidScriptSuggestionPlace(
+  popup: HTMLElement,
+  anchor: HTMLElement,
+  width: number,
+  alignRight: boolean,
+): void {
+  const box = anchor.getBoundingClientRect();
+  const view = anchor.ownerDocument.defaultView;
+  const viewWidth = view?.innerWidth ?? width;
+  const viewHeight = view?.innerHeight ?? 0;
+  const left = Math.max(4, Math.min(alignRight ? box.right - width : box.left, viewWidth - width - 4));
+  popup.style.left = `${left}px`;
+  popup.style.width = `${width}px`;
+  const below = viewHeight - box.bottom >= SOLID_SCRIPT_SUGGESTIONS_ROOM_PX || box.top < viewHeight - box.bottom;
+  popup.style.top = below ? `${box.bottom + 2}px` : '';
+  popup.style.bottom = below ? '' : `${viewHeight - box.top + 2}px`;
+}
+
+/**
+ * Autocomplete of a configurator text input, opened over the page so it is
+ * never cut off. It follows the caret with the formula tokenizer: a field's
+ * words outside brackets, names, system values and functions after [, values
+ * and functions inside a [= formula with the call being typed shown on top.
+ * Arrows pick, Enter or Tab insert, Escape closes.
  */
 export class SolidScriptConfiguratorNames {
+  private readonly host = document.createElement('div');
+  private readonly signature = document.createElement('div');
   private readonly list = document.createElement('div');
-  /** List with the custom scrollbar, placed after the input. */
-  private readonly host: HTMLElement;
   private shown: SolidScriptSuggestion[] = [];
-  private from = 0;
   private active = 0;
 
   /**
    * Binds suggestions to an input.
    *
    * @param input Text input.
-   * @param names Names the script defines.
-   * @param extra Names the command fills in itself.
+   * @param scope What the field may refer to.
    */
   constructor(
     private readonly input: HTMLInputElement,
-    private readonly names: readonly SolidScriptName[],
-    private readonly extra: readonly string[],
+    private readonly scope: SolidScriptSuggestionScope,
   ) {
     this.list.className = SOLID_SCRIPT_EDITOR_CLASSES.suggestions;
     this.list.setAttribute('role', 'listbox');
-    this.list.setAttribute('aria-label', 'Names');
-    this.list.hidden = true;
-    this.host = solidScriptScrollerWrap(this.list, '0 0 auto', 0);
-    this.host.classList.add(SOLID_SCRIPT_EDITOR_CLASSES.suggestionsHost);
+    this.list.setAttribute('aria-label', 'Suggestions');
+    this.signature.className = SOLID_SCRIPT_EDITOR_CLASSES.suggestionSignature;
+    this.host.className = SOLID_SCRIPT_EDITOR_CLASSES.suggestionsHost;
+    this.host.append(this.signature, solidScriptScrollerWrap(this.list, '1 1 auto', 0));
+    panelFloatingScopeMark(this.host);
     input.addEventListener('input', () => this.update());
+    input.addEventListener('focus', () => {
+      if (scope.words.length > 0) this.update();
+    });
     input.addEventListener('keydown', (event) => this.key(event));
     input.addEventListener('blur', () => this.close());
   }
 
-  /**
-   * Returns the list element, to place after the input.
-   *
-   * @returns List.
-   */
-  element(): HTMLElement {
-    return this.host;
-  }
-
-  /** Lists every name and function by category, for the Insert Name button. */
-  openAll(): void {
-    this.input.focus();
-    const caret = this.input.selectionStart ?? this.input.value.length;
-    const context = solidScriptSuggestionContext(this.input.value, caret);
-    this.from = context?.bracket ? context.from : caret;
-    this.open(solidScriptSuggestions(context?.bracket ? context : null, this.names, this.extra));
-  }
-
-  /** Lists the suggestions for what is typed at the caret. */
+  /** Lists what fits at the caret, with the call being typed on top. */
   private update(): void {
     const caret = this.input.selectionStart ?? this.input.value.length;
-    const context = solidScriptSuggestionContext(this.input.value, caret);
-    if (!context) return this.close();
-    this.from = context.from;
-    this.open(solidScriptSuggestions(context, this.names, this.extra));
-  }
-
-  /**
-   * Shows suggestions.
-   *
-   * @param suggestions Suggestions; none closes the list.
-   */
-  private open(suggestions: SolidScriptSuggestion[]): void {
-    this.shown = suggestions;
+    const context = solidScriptSuggestionContext(this.input.value, caret, this.scope.words.length > 0);
+    this.shown = solidScriptSuggestions(context, this.scope);
     this.active = 0;
-    if (suggestions.length === 0) return this.close();
-    const rows: HTMLElement[] = [];
-    let category = '';
-    suggestions.forEach((suggestion, index) => {
-      if (suggestion.category !== category) {
-        category = suggestion.category;
-        const heading = document.createElement('div');
-        heading.className = SOLID_SCRIPT_EDITOR_CLASSES.suggestionHeading;
-        heading.textContent = category;
-        rows.push(heading);
-      }
-      const row = document.createElement('div');
-      row.className = SOLID_SCRIPT_EDITOR_CLASSES.suggestion;
-      row.setAttribute('role', 'option');
-      row.dataset['index'] = String(index);
-      const name = document.createElement('span');
-      name.textContent = suggestion.label;
-      const detail = document.createElement('span');
-      detail.className = SOLID_SCRIPT_EDITOR_CLASSES.suggestionDetail;
-      detail.textContent = suggestion.detail;
-      row.append(name, detail);
-      row.addEventListener('mousedown', (event) => {
-        event.preventDefault();
-        this.accept(index);
-      });
-      rows.push(row);
-    });
-    this.list.replaceChildren(...rows);
-    this.list.hidden = false;
-    this.highlight();
+    const signature = solidScriptSuggestionSignature(context, this.scope);
+    if (this.shown.length === 0 && signature === '') return this.close();
+    this.signature.textContent = signature;
+    this.signature.hidden = signature === '';
+    solidScriptSuggestionRows(this.list, this.shown, (index) => this.accept(index), null);
+    if (!this.host.isConnected) this.input.ownerDocument.body.append(this.host);
+    solidScriptSuggestionPlace(
+      this.host,
+      this.input,
+      Math.max(this.input.getBoundingClientRect().width, SOLID_SCRIPT_SUGGESTIONS_WIDTH_PX),
+      false,
+    );
+    solidScriptSuggestionRowsHighlight(this.list, this.active);
   }
 
-  /** Hides the list. */
-  private close(): void {
-    this.list.hidden = true;
+  /** Takes the list off the page. */
+  close(): void {
+    this.host.remove();
     this.shown = [];
-  }
-
-  /** Marks the picked suggestion. */
-  private highlight(): void {
-    for (const row of this.list.querySelectorAll<HTMLElement>('[role="option"]')) {
-      const picked = Number(row.dataset['index']) === this.active;
-      row.setAttribute('aria-selected', String(picked));
-      if (picked) row.scrollIntoView?.({ block: 'nearest' });
-    }
   }
 
   /**
@@ -288,7 +174,7 @@ export class SolidScriptConfiguratorNames {
    * @param event Key event.
    */
   private key(event: KeyboardEvent): void {
-    if (this.list.hidden || this.shown.length === 0) return;
+    if (!this.host.isConnected || this.shown.length === 0) return;
     const step = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0;
     if (step === 0 && !['Enter', 'Tab', 'Escape'].includes(event.key)) return;
     event.preventDefault();
@@ -296,7 +182,7 @@ export class SolidScriptConfiguratorNames {
     if (event.key === 'Escape') return this.close();
     if (step !== 0) {
       this.active = (this.active + step + this.shown.length) % this.shown.length;
-      return this.highlight();
+      return solidScriptSuggestionRowsHighlight(this.list, this.active);
     }
     this.accept(this.active);
   }
@@ -309,15 +195,11 @@ export class SolidScriptConfiguratorNames {
   private accept(index: number): void {
     const suggestion = this.shown[index];
     if (!suggestion) return;
-    const value = this.input.value;
-    const caret = this.input.selectionStart ?? value.length;
-    let after = value.slice(caret);
-    if (suggestion.insert.endsWith(']') && after.startsWith(']')) after = after.slice(1);
-    const text = value.slice(0, this.from) + suggestion.insert;
-    this.input.value = text + after;
-    const at = text.length - suggestion.back;
-    this.input.setSelectionRange(at, at);
-    this.input.dispatchEvent(new Event('input', { bubbles: true }));
+    const caret = this.input.selectionStart ?? this.input.value.length;
+    const written = solidScriptSuggestionWrite(suggestion, this.input.value, caret, caret);
+    this.input.value = written.text;
+    this.input.setSelectionRange(written.caret, written.caret);
     this.close();
+    this.input.dispatchEvent(new Event('input', { bubbles: true }));
   }
 }

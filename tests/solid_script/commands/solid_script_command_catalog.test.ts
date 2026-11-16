@@ -276,4 +276,23 @@ describe('solid script command catalog', () => {
     );
     expect(strict).toEqual([]);
   });
+
+  it('lists the allowed words of every field that takes one of a few words', () => {
+    const word = (id: string, key: string): string[] =>
+      (solidScriptCommandFind(id)?.parameters.find((parameter) => parameter.key === key)?.words ?? []).map(
+        (entry) => entry.word,
+      );
+    expect(word('select_faces', 'which')).toEqual(expect.arrayContaining(['All', 'Facing Up', 'Tagged', 'Where']));
+    expect(word('select_faces', 'how')).toEqual(['New', 'Add', 'Remove']);
+    expect(word('if_used_as', 'use')).toEqual(['Generator', 'Modifier']);
+    expect(word('input_brushes', 'textures')).toEqual(['Move With Shape', 'World Aligned']);
+    expect(word('input', 'type')).toContain('texture');
+    expect(word('stairs', 'direction')).toEqual(['+x', '-x', '+z', '-z']);
+    const missing = solidScriptCommands.flatMap((command) =>
+      command.parameters
+        .filter((parameter) => /One of:/.test(parameter.hint) && (parameter.words?.length ?? 0) === 0)
+        .map((parameter) => `${command.id}.${parameter.key}`),
+    );
+    expect(missing).toEqual([]);
+  });
 });

@@ -6,10 +6,6 @@ import {
   solidScriptDocumentOrigins,
   solidScriptFieldNamesUnknown,
 } from '@/solid_script/document/solid_script_document_names.js';
-import {
-  solidScriptSuggestionContext,
-  solidScriptSuggestions,
-} from '@/solid_script/ui/solid_script_configurator_names.js';
 
 const SCRIPT = solidScriptDocumentCreate([
   { command: 'input', values: { name: 'steps', type: 'count' } },
@@ -85,45 +81,6 @@ describe('SolidScript names', () => {
     expect(solidScriptFieldNamesUnknown('[width], [depth], [=[i] * [h]]', known)).toEqual(['depth', 'h']);
     expect(solidScriptFieldNamesUnknown('$[depth$] [part[i]] [points(0)]', known)).toEqual(['points']);
   });
-
-  it('suggests names after [ and functions inside formulas', () => {
-    const names = solidScriptDocumentNames(SCRIPT);
-    expect(solidScriptSuggestionContext('[wi', 3)).toMatchObject({ from: 0, prefix: 'wi', bracket: true });
-    expect(solidScriptSuggestionContext('1, [=[i] + ar', 13)).toMatchObject({
-      prefix: 'ar',
-      formula: true,
-      bracket: false,
-    });
-    expect(solidScriptSuggestionContext('plain text', 10)).toBeNull();
-    expect(solidScriptSuggestionContext('$[wi', 4)).toBeNull();
-    const after = solidScriptSuggestions(solidScriptSuggestionContext('[', 1), names, ['x']);
-    expect(after.map((entry) => entry.insert)).toEqual([
-      '[steps]',
-      '[width]',
-      '[size]',
-      '[points]',
-      '[i]',
-      '[Local.w]',
-      '[Local.d]',
-      '[Local.sum]',
-      '[x]',
-    ]);
-    expect(solidScriptSuggestionContext('[local.', 7)).toMatchObject({ from: 0, prefix: 'local.', bracket: true });
-    const local = solidScriptSuggestions(solidScriptSuggestionContext('[local.', 7), names, []);
-    expect(local.map((entry) => entry.insert)).toEqual(['[Local.w]', '[Local.d]', '[Local.sum]']);
-    const inFormula = solidScriptSuggestions(solidScriptSuggestionContext('[=a', 3), names, []);
-    expect(inFormula.map((entry) => [entry.category, entry.insert])).toEqual([
-      ['Functions', 'area()'],
-      ['Built-In Functions', 'Abs()'],
-      ['Built-In Functions', 'Acos()'],
-      ['Built-In Functions', 'Asin()'],
-      ['Built-In Functions', 'Atan()'],
-      ['Built-In Functions', 'Atan2()'],
-      ['Built-In Functions', 'Average()'],
-    ]);
-    const all = solidScriptSuggestions(null, names, []);
-    expect(all.find((entry) => entry.label === 'area')?.insert).toBe('[=area()]');
-  });
 });
 
 describe('SolidScript origins', () => {
@@ -141,15 +98,5 @@ describe('SolidScript origins', () => {
       ]),
     );
     expect(Object.fromEntries(origins)).toEqual({ w: [0, 2], pts: [1, 3], 'Local.a': [4], 'Local.b': [4], i: [6] });
-  });
-
-  it('suggests built-in values after a dot and explains built-in functions', () => {
-    const bracket = solidScriptSuggestions(solidScriptSuggestionContext('[Time.Y', 7), [], []);
-    expect(bracket.map((entry) => entry.insert)).toEqual(['[Time.Year]']);
-    expect(bracket[0]?.detail).toMatch(/^Number: year/);
-    const formula = solidScriptSuggestions(solidScriptSuggestionContext('[=Math.P', 8), [], []);
-    expect(formula.map((entry) => entry.insert)).toEqual(['Math.Pi']);
-    const pad = solidScriptSuggestions(solidScriptSuggestionContext('[=pad_l', 7), [], []);
-    expect(pad[0]?.detail).toBe('PadLeft(text, width, fill): Fills in front up to a width: 007.');
   });
 });

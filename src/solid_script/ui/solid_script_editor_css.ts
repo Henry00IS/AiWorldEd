@@ -1,4 +1,5 @@
 import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
+import { UiStackLayers } from '@/ui/stack/ui_stack_layers.js';
 import { Theme } from '@/theme.js';
 
 /** DOM id of the style element holding the script editor rules. */
@@ -73,7 +74,6 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
   listItem: 'solid-script-editor-list-item',
   selected: 'solid-script-editor-selected',
   invalid: 'solid-script-editor-invalid',
-  insertName: 'solid-script-editor-insert-name',
   suggestions: 'solid-script-editor-suggestions',
   suggestionsHost: 'solid-script-editor-suggestions-host',
   scrollHost: 'solid-script-editor-scroll-host',
@@ -81,6 +81,10 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
   suggestion: 'solid-script-editor-suggestion',
   suggestionHeading: 'solid-script-editor-suggestion-heading',
   suggestionDetail: 'solid-script-editor-suggestion-detail',
+  suggestionSignature: 'solid-script-editor-suggestion-signature',
+  browser: 'solid-script-editor-browser',
+  browserSearch: 'solid-script-editor-browser-search',
+  browserEmpty: 'solid-script-editor-browser-empty',
   fieldWarning: 'solid-script-editor-field-warning',
   stackFrame: 'solid-script-editor-stack-frame',
   explorer: 'solid-script-editor-explorer',
@@ -96,8 +100,6 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
   explorerItem: 'solid-script-editor-explorer-item',
   explorerLines: 'solid-script-editor-explorer-lines',
   explorerLine: 'solid-script-editor-explorer-line',
-  explorerStatus: 'solid-script-editor-explorer-status',
-  explorerInsert: 'solid-script-editor-explorer-insert',
 } as const;
 
 /** Accent colour of each palette category, readable on light and dark panels. */
@@ -220,15 +222,14 @@ const SOLID_SCRIPT_EDITOR_PANES_CSS = `
 .${c.outputText} { flex: 1; min-height: 0; overflow-y: auto; padding: 5px 12px; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; white-space: pre-wrap; color: ${ThemeCss.textColor}; }
 .${c.outputText}.${c.outputError} { color: #e5484d; }
 .${c.variablesCaption} { margin-bottom: 4px; font: 11px ${Theme.uiFontFamily}; color: ${ThemeCss.mutedTextColor}; }
-.${c.inputAdd}, .${c.explorerInsert} { margin: 2px 0 4px; padding: 2px 8px; font: inherit; border-radius: 4px; cursor: pointer; color: ${ThemeCss.textColor}; background: ${ThemeCss.inkAlpha(0.06)}; border: 1px solid ${ThemeCss.inkAlpha(0.16)}; }
-.${c.inputAdd}:hover, .${c.explorerInsert}:hover:not(:disabled) { background: ${ThemeCss.inkAlpha(0.12)}; }
+.${c.inputAdd} { margin: 2px 0 4px; padding: 2px 8px; font: inherit; border-radius: 4px; cursor: pointer; color: ${ThemeCss.textColor}; background: ${ThemeCss.inkAlpha(0.06)}; border: 1px solid ${ThemeCss.inkAlpha(0.16)}; }
+.${c.inputAdd}:hover { background: ${ThemeCss.inkAlpha(0.12)}; }
 .${c.stackFrame} { cursor: pointer; border-radius: 3px; font-weight: 600; }
 .${c.stackFrame}:hover { background: ${ThemeCss.inkAlpha(0.06)}; }
 .${c.explorer} { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; color: ${ThemeCss.textColor}; }
 .${c.explorerTop} { display: flex; gap: 6px; align-items: center; padding: 4px 8px; }
 .${c.explorerSearch} { flex: 1; min-width: 0; height: 22px; padding: 0 8px; border-radius: 4px; border: 1px solid ${ThemeCss.inputBorderColor}; background: ${ThemeCss.inkAlpha(0.04)}; color: ${ThemeCss.textColor}; font: 12px ${Theme.uiFontFamily}; }
-.${c.explorerTop} .${c.inputAdd}, .${c.explorerTop} .${c.explorerInsert} { margin: 0; }
-.${c.explorerInsert}:disabled { opacity: 0.45; cursor: default; }
+.${c.explorerTop} .${c.inputAdd} { margin: 0; }
 .${c.explorerBody} { flex: 1 1 0; min-height: 0; display: flex; }
 .${c.explorerCategories} { width: 128px; padding: 2px 4px; overflow-y: auto; border-right: 1px solid ${ThemeCss.inkAlpha(0.1)}; }
 .${c.explorerCategory} { display: flex; width: 100%; justify-content: space-between; gap: 6px; padding: 2px 6px; border: 0; border-radius: 3px; background: transparent; color: ${ThemeCss.textColor}; font: 12px ${Theme.uiFontFamily}; text-align: left; cursor: pointer; }
@@ -245,7 +246,6 @@ const SOLID_SCRIPT_EDITOR_PANES_CSS = `
 .${c.explorerLines} { display: flex; gap: 3px; }
 .${c.explorerLine} { padding: 0 4px; border: 0; border-radius: 3px; background: ${ThemeCss.inkAlpha(0.08)}; color: ${ThemeCss.textColor}; font: inherit; cursor: pointer; }
 .${c.explorerLine}:hover { background: ${ThemeCss.inkAlpha(0.18)}; }
-.${c.explorerStatus} { min-height: 16px; padding: 0 10px 3px; font: 11px ${Theme.uiFontFamily}; color: ${ThemeCss.mutedTextColor}; }
 .${c.stackFrame} { display: grid; grid-template-columns: minmax(80px, max-content) minmax(0, 1fr); gap: 12px; padding: 1px 0; }
 `;
 
@@ -256,15 +256,20 @@ const SOLID_SCRIPT_EDITOR_DIALOG_CSS = `
 .${c.fieldHint} { grid-column: 2; margin-top: -4px; font-size: 11px; line-height: 1.35; color: ${ThemeCss.textColor}; opacity: 0.8; }
 .${c.fieldInputs} { position: relative; display: flex; gap: 6px; min-width: 0; }
 .${c.input}.${c.invalid} { border-color: #e5484d; }
-.${c.insertName} { flex-shrink: 0; height: 26px; padding: 0 6px; border-radius: 4px; border: 1px solid ${ThemeCss.inputBorderColor}; background: transparent; color: ${ThemeCss.textColor}; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; cursor: pointer; }
-.${c.insertName}:hover { background: ${ThemeCss.inkAlpha(0.08)}; }
 .${c.scrollHost} { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .${c.scrollHost} > :first-child { flex: 1 1 auto; min-height: 0; }
 .${c.scrollHost}[hidden], .${c.explorer}[hidden] { display: none; }
-.${c.suggestionsHost} { position: absolute; z-index: 5; top: 28px; left: 0; right: 0; }
-.${c.suggestions} { max-height: 220px; overflow-y: auto; padding: 4px 0; border-radius: 5px; border: 1px solid ${ThemeCss.inputBorderColor}; background: ${ThemeCss.inputBackground}; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); }
-.${c.suggestionHeading} { padding: 4px 10px 2px; font-size: 10px; font-weight: 700; color: ${ThemeCss.mutedTextColor}; }
-.${c.suggestion} { display: flex; justify-content: space-between; gap: 12px; padding: 3px 10px; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; color: ${ThemeCss.inputTextColor}; cursor: pointer; white-space: nowrap; }
+.${c.suggestionsHost} { position: fixed; z-index: ${UiStackLayers.modalPopup}; display: flex; flex-direction: column; border-radius: 6px; border: 1px solid ${ThemeCss.inputBorderColor}; background: ${ThemeCss.inputBackground}; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); overflow: hidden; }
+.${c.suggestionsHost}[hidden] { display: none; }
+.${c.suggestionSignature} { padding: 6px 12px; border-bottom: 1px solid ${ThemeCss.inkAlpha(0.1)}; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; color: ${ThemeCss.inputTextColor}; white-space: normal; }
+.${c.suggestionSignature}[hidden] { display: none; }
+.${c.suggestions} { max-height: 380px; overflow-y: auto; padding: 4px 0; }
+.${c.suggestionHeading} { position: sticky; top: 0; padding: 6px 12px 3px; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: ${ThemeCss.mutedTextColor}; background: ${ThemeCss.inputBackground}; }
+.${c.suggestion} { display: grid; grid-template-columns: minmax(120px, max-content) 1fr; gap: 16px; padding: 4px 12px; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; color: ${ThemeCss.inputTextColor}; cursor: pointer; white-space: nowrap; }
+.${c.browser} { width: 520px; max-height: min(560px, 80vh); }
+.${c.browser} .${c.suggestions} { max-height: none; flex: 1 1 auto; min-height: 0; }
+.${c.browserSearch} { margin: 8px; }
+.${c.browserEmpty} { padding: 10px 12px; color: ${ThemeCss.mutedTextColor}; }
 .${c.suggestion}[aria-selected="true"], .${c.suggestion}:hover { background: ${ThemeCss.accentAlpha(0.3)}; }
 .${c.suggestionDetail} { overflow: hidden; text-overflow: ellipsis; color: ${ThemeCss.mutedTextColor}; }
 .${c.fieldWarning} { color: ${ThemeCss.mutedTextColor}; }

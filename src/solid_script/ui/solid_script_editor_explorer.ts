@@ -10,7 +10,6 @@ import { solidScriptInputTypeLabel } from '@/solid_script/language/solid_script_
 import { SOLID_SCRIPT_SYSTEM_GLOBALS, solidScriptSystemValues } from '@/solid_script/language/solid_script_system.js';
 import { solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
 import type { SolidScriptFrameView, SolidScriptVariable } from '@/solid_script/language/solid_script_machine_types.js';
-import { solidScriptConfiguratorFieldInsert } from './solid_script_configurator_fields.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
 
@@ -151,9 +150,9 @@ export function solidScriptExplorerMatches(entry: SolidScriptExplorerEntry, quer
  * The variable explorer of the editor: on the left the categories, as in a
  * browser of variables, on the right every name with its value at the step
  * shown, its type and the lines that set it. Lists open to show their items,
- * the call stack shows the variables of each running Function. A click shows
- * the line that sets a name, a double-click or Insert puts [name] into the
- * field of the open line settings.
+ * the call stack shows the variables of each running Function. It watches
+ * values while a script runs or waits in Debug; a click shows the line that
+ * sets a name.
  */
 export class SolidScriptEditorExplorer {
   /** Explorer element. */
@@ -166,8 +165,6 @@ export class SolidScriptEditorExplorer {
   private readonly categories = document.createElement('div');
   private readonly table = document.createElement('div');
   private readonly caption = document.createElement('div');
-  private readonly status = document.createElement('div');
-  private readonly insertButton = document.createElement('button');
   private category: SolidScriptExplorerCategory = 'All';
   private readonly open = new Set<string>();
   private selected: string | null = null;
@@ -197,16 +194,9 @@ export class SolidScriptEditorExplorer {
     this.table.className = c.explorerTable;
     this.table.setAttribute('role', 'grid');
     this.caption.className = c.variablesCaption;
-    this.status.className = c.explorerStatus;
-    this.insertButton.type = 'button';
-    this.insertButton.className = c.explorerInsert;
-    this.insertButton.textContent = 'Insert';
-    this.insertButton.title = 'Puts the selected [name] into the field of the open line settings';
-    this.insertButton.addEventListener('mousedown', (event) => event.preventDefault());
-    this.insertButton.addEventListener('click', () => this.insertSelected());
     const top = document.createElement('div');
     top.className = c.explorerTop;
-    top.append(this.search, this.insertButton, this.inputAddButton());
+    top.append(this.search, this.inputAddButton());
     const body = document.createElement('div');
     body.className = c.explorerBody;
     const tableColumn = document.createElement('div');
@@ -216,7 +206,7 @@ export class SolidScriptEditorExplorer {
       solidScriptScrollerWrap(this.categories, '0 0 auto', 8),
       solidScriptScrollerWrap(tableColumn, '1 1 0', 12),
     );
-    this.element.append(top, body, this.status);
+    this.element.append(top, body);
   }
 
   /**
@@ -305,7 +295,6 @@ export class SolidScriptEditorExplorer {
         rows.push(this.note(query.trim() === '' ? 'Nothing here yet.' : `Nothing matches "${query.trim()}".`));
     }
     this.table.replaceChildren(...rows);
-    this.insertButton.disabled = this.selected === null;
   }
 
   /**
@@ -339,10 +328,7 @@ export class SolidScriptEditorExplorer {
       entry.lines,
     );
     const about = entry.detail === '' ? '' : `${entry.detail.charAt(0).toUpperCase()}${entry.detail.slice(1)}. `;
-    row.title =
-      entry.lines.length > 0
-        ? `${about}Click to show line ${entry.lines[0]! + 1}; double-click to insert [${entry.name}]`
-        : `${about}Double-click to insert [${entry.name}]`;
+    row.title = entry.lines.length > 0 ? `${about}Click to show line ${entry.lines[0]! + 1}` : about.trim();
     if (isList)
       row.firstElementChild?.addEventListener('click', (event) => {
         event.stopPropagation();
@@ -408,10 +394,10 @@ export class SolidScriptEditorExplorer {
   }
 
   /**
-   * Builds one row: a click selects it and shows its first line, a double-click
-   * inserts it, and each line under Set On shows that line.
+   * Builds one row: a click selects it and shows its first line, and each line
+   * under Set On shows that line.
    *
-   * @param name Name to insert.
+   * @param name Name of the row.
    * @param label Name as shown.
    * @param value Value text.
    * @param type Type text.
@@ -446,12 +432,7 @@ export class SolidScriptEditorExplorer {
       this.selected = name;
       for (const other of this.table.querySelectorAll(`.${c.selected}`)) other.classList.remove(c.selected);
       row.classList.add(c.selected);
-      this.insertButton.disabled = false;
       if (lines.length > 0) this.reveal(lines[0]!);
-    });
-    row.addEventListener('dblclick', () => {
-      this.selected = name;
-      this.insertSelected();
     });
     return row;
   }
@@ -497,14 +478,5 @@ export class SolidScriptEditorExplorer {
     button.title = 'Adds an Input line after the other inputs: a value people set in the generator inspector.';
     button.addEventListener('click', () => this.inputAdd());
     return button;
-  }
-
-  /** Puts the selected [name] into the open line settings, or says how. */
-  private insertSelected(): void {
-    if (this.selected === null) return;
-    const inserted = solidScriptConfiguratorFieldInsert(`[${this.selected}]`);
-    this.status.textContent = inserted
-      ? `Inserted [${this.selected}].`
-      : `Open the settings of a line (double-click it) and click a field, then insert [${this.selected}].`;
   }
 }

@@ -25,6 +25,8 @@ export const UiStackLayers = Object.freeze({
   contextMenu: 10050,
   /** About / settings style modal backdrops. */
   modal: 12000,
+  /** Suggestion lists and pickers that open over a modal dialog. */
+  modalPopup: 12500,
   /** Blocking confirm dialogs. */
   confirm: 20000,
   /**

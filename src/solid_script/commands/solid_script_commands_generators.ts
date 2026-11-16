@@ -52,13 +52,10 @@ function solidScriptGeneratorParameter(field: ModifierStackField): SolidScriptCo
     return solidScriptParameter(field.key, field.label, 'boolean', String(field.default), hint);
   if (field.type === 'choice') {
     const choices = (field.choices ?? []).map((choice) => `${choice.value} (${choice.label})`).join(', ');
-    return solidScriptParameter(
-      field.key,
-      field.label,
-      'message',
-      String(field.default),
-      `${hint} One of: ${choices}.`,
-    );
+    return {
+      ...solidScriptParameter(field.key, field.label, 'message', String(field.default), `${hint} One of: ${choices}.`),
+      words: (field.choices ?? []).map((choice) => ({ word: choice.value, detail: choice.label })),
+    };
   }
   const range = field.min !== undefined && field.max !== undefined ? ` From ${field.min} to ${field.max}.` : '';
   const type = field.integer ? 'count' : 'number';

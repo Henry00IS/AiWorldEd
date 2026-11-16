@@ -271,11 +271,12 @@ describe('SolidScript editor', () => {
     type(x, '[w');
     x.setSelectionRange(2, 2);
     x.dispatchEvent(new Event('input', { bubbles: true }));
-    const list = find('[data-solid-script-configurator="cube"] [role="listbox"]');
-    expect(list.hidden).toBe(false);
-    expect([...list.querySelectorAll('[role="option"]')].map((option) => option.firstChild?.textContent)).toEqual([
-      'width',
-    ]);
+    // The list opens over the page, never inside the window where it gets cut off.
+    const list = find('body > .solid-script-editor-suggestions-host [role="listbox"]');
+    expect(list.closest('[data-solid-script-configurator]')).toBeNull();
+    const typed = [...list.querySelectorAll('[role="option"]')].map((option) => option.firstChild?.textContent);
+    expect(typed[0]).toBe('width');
+    expect(typed).toContain('Box.Width');
     press(x, 'Enter');
     expect(x.value).toBe('[width]');
     expect(document.querySelector('[data-solid-script-configurator="cube"]')).not.toBeNull();
@@ -288,16 +289,24 @@ describe('SolidScript editor', () => {
     expect(tool('OK').disabled).toBe(true);
     type(x, '');
     x.setSelectionRange(0, 0);
-    find<HTMLButtonElement>(
-      '[data-solid-script-configurator="cube"] button[aria-label="Insert Name into Size"]',
-    ).click();
-    const options = [...list.querySelectorAll('[role="option"]')].map((option) => option.firstChild?.textContent);
-    expect(options.slice(0, 2)).toEqual(['steps', 'width']);
-    expect(list.textContent).toContain('Built-In Functions');
-    list.querySelector('[role="option"]')?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-    expect(x.value).toBe('[steps]');
+    find<HTMLButtonElement>('[data-solid-script-configurator="cube"] button[aria-label="Browse Values"]').click();
+    const browser = find('[role="dialog"][aria-label="Browse Values"]');
+    expect(browser.closest('[data-solid-script-configurator]')).toBeNull();
+    const browsed = () =>
+      [...browser.querySelectorAll('[role="option"]')].map((option) => option.firstChild?.textContent);
+    expect(browsed().slice(0, 2)).toEqual(['steps', 'width']);
+    expect(browser.textContent).toContain('System');
+    expect(browser.textContent).toContain('Built-In Functions');
+    const search = find<HTMLInputElement>('[aria-label="Search Values"]');
+    expect(document.activeElement).toBe(search);
+    type(search, 'box.w');
+    expect(browsed()).toEqual(['Box.Width']);
+    press(search, 'Enter');
+    expect(browser.isConnected).toBe(false);
+    expect(x.value).toBe('[Box.Width]');
+    expect(document.activeElement).toBe(x);
     tool('OK').click();
-    expect(script().blocks[2]?.values['size']).toMatch(/^\[steps\], /);
+    expect(script().blocks[2]?.values['size']).toMatch(/^\[Box\.Width\], /);
   });
 
   it('checks Input lines while they are configured and lists what the script defines in the variable explorer', () => {
@@ -714,10 +723,52 @@ describe('SolidScript editor', () => {
     }
     doubleClick(chip(0));
     const field = document.querySelector<HTMLInputElement>('[data-solid-script-configurator] input[type="text"]')!;
-    const list = field
-      .closest('[data-solid-script-configurator]')
-      ?.querySelector<HTMLElement>('.solid-script-editor-suggestions');
+    field.focus();
+    type(field, '[');
+    const list = document.querySelector<HTMLElement>('.solid-script-editor-suggestions');
     expect(list?.classList.contains('editor-custom-scroller')).toBe(true);
+  });
+
+  it('offers the words a field takes first, shows the call being typed and browses the words too', () => {
+    editorFixture([{ command: 'cube' }, { command: 'select_faces' }]);
+    doubleClick(chip(1));
+    const which = find<HTMLInputElement>('[data-solid-script-configurator="select_faces"] input[aria-label="Which"]');
+    which.focus();
+    const options = () =>
+      [...document.querySelectorAll('body > .solid-script-editor-suggestions-host [role="option"]')].map(
+        (option) => option.firstChild?.textContent,
+      );
+    expect(options().slice(0, 3)).toEqual(['All', 'Facing Up', 'Facing Down']);
+    type(which, 'Bi');
+    expect(options()).toEqual(['Biggest']);
+    press(which, 'Enter');
+    expect(which.value).toBe('Biggest');
+    const detail = find<HTMLInputElement>('[data-solid-script-configurator="select_faces"] input[aria-label="Detail"]');
+    detail.focus();
+    type(detail, '[=Max(2, ');
+    expect(find('.solid-script-editor-suggestion-signature').textContent).toBe(
+      'Max(a, b, ...): The biggest number, of the inputs or of one list. Input 2.',
+    );
+    expect(options()).toContain('Box.Width');
+    const how = find<HTMLInputElement>('[data-solid-script-configurator="select_faces"] input[aria-label="How"]');
+    how.focus();
+    find<HTMLButtonElement>(
+      '[data-solid-script-configurator="select_faces"] button[aria-label="Browse Values"]',
+    ).click();
+    const browser = find('[role="dialog"][aria-label="Browse Values"]');
+    expect(browser.querySelector('.solid-script-editor-suggestion-heading')?.textContent).toBe('Choices');
+    const add = [...browser.querySelectorAll<HTMLElement>('[role="option"]')].find(
+      (option) => option.firstChild?.textContent === 'Add',
+    )!;
+    add.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    expect(how.value).toBe('Add');
+    find<HTMLButtonElement>(
+      '[data-solid-script-configurator="select_faces"] button[aria-label="Browse Values"]',
+    ).click();
+    press(find<HTMLInputElement>('[aria-label="Search Values"]'), 'Escape');
+    expect(document.querySelector('[role="dialog"][aria-label="Browse Values"]')).toBeNull();
+    expect(document.querySelector('[data-solid-script-configurator="select_faces"]')).not.toBeNull();
+    tool('Cancel').click();
   });
 
   it('suggests a Function its own locals, and no locals outside it', () => {
@@ -733,7 +784,7 @@ describe('SolidScript editor', () => {
       field.value = '[';
       field.setSelectionRange(1, 1);
       field.dispatchEvent(new Event('input'));
-      const names = [...document.querySelectorAll<HTMLElement>('[data-solid-script-configurator] [role="option"]')].map(
+      const names = [...document.querySelectorAll<HTMLElement>('.solid-script-editor-suggestions [role="option"]')].map(
         (row) => row.firstElementChild?.textContent ?? '',
       );
       tool('Cancel').click();
@@ -815,16 +866,9 @@ describe('SolidScript editor', () => {
       '.solid-script-editor-explorer-row[data-name="label"] .solid-script-editor-explorer-line:last-child',
     ).click();
     expect(document.activeElement).toBe(chip(3));
-    find<HTMLElement>('.solid-script-editor-explorer-row[data-name="label"]').click();
-    find<HTMLButtonElement>('.solid-script-editor-explorer-insert').click();
-    expect(find('.solid-script-editor-explorer-status').textContent).toMatch(/^Open the settings of a line/);
-    doubleClick(chip(4));
-    const size = find<HTMLInputElement>('[data-solid-script-configurator="cube"] input[type="text"]');
-    size.focus();
-    size.value = '';
-    find<HTMLButtonElement>('.solid-script-editor-explorer-insert').click();
-    expect(size.value).toBe('[label]');
-    expect(find('.solid-script-editor-explorer-status').textContent).toBe('Inserted [label].');
+    // The explorer only watches values; picking them happens in the windows of the lines.
+    expect(document.querySelector('.solid-script-editor-explorer button[aria-label^="Insert"]')).toBeNull();
+    expect(find('.solid-script-editor-explorer').innerHTML).not.toMatch(/insert/i);
   });
 
   it('keeps a breakpoint on its line when the line moves', () => {

@@ -1,7 +1,11 @@
 import * as THREE from 'three';
-import { SolidScriptCommand } from './solid_script_command.js';
+import { SolidScriptCommand, type SolidScriptCommandWord } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
-import { solidScriptParameter, solidScriptParameterOptional } from './solid_script_command_parameters.js';
+import {
+  solidScriptParameter,
+  solidScriptParameterOptional,
+  solidScriptParameterWords,
+} from './solid_script_command_parameters.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import {
   solidScriptGeometryBevel,
@@ -41,20 +45,40 @@ const SOLID_SCRIPT_FACE_DIRECTIONS: Readonly<Record<string, THREE.Vector3>> = {
   'Facing Back': new THREE.Vector3(0, 1, 0),
 };
 
-/** Every choice of Select Faces' Which field, in the order the help lists them. */
-const SOLID_SCRIPT_FACE_WHICH = [
-  'All',
-  ...Object.keys(SOLID_SCRIPT_FACE_DIRECTIONS),
-  'Facing',
-  'Tagged',
-  'Biggest',
-  'Smallest',
-  'Number',
-  'Where',
-] as const;
+/**
+ * Every choice of Select Faces' Which field with what it picks, in the order
+ * the help lists them.
+ */
+const SOLID_SCRIPT_FACE_WHICH_WORDS: readonly SolidScriptCommandWord[] = [
+  { word: 'All', detail: 'Every face' },
+  ...Object.entries(SOLID_SCRIPT_FACE_DIRECTIONS).map(([word, direction]) => {
+    const axis = (['x', 'y', 'z'] as const).find((key) => direction[key] !== 0) ?? 'z';
+    const sign = direction[axis] > 0 ? '+' : '−';
+    return {
+      word,
+      detail: `Faces pointing ${word.slice('Facing '.length).toLowerCase()} (${sign}${axis.toUpperCase()})`,
+    };
+  }),
+  { word: 'Facing', detail: 'Faces pointing along Detail' },
+  { word: 'Tagged', detail: 'Faces tagged with the name in Detail' },
+  { word: 'Biggest', detail: 'The largest faces; Detail says how many' },
+  { word: 'Smallest', detail: 'The smallest faces; Detail says how many' },
+  { word: 'Number', detail: 'Faces by number; Detail lists them' },
+  { word: 'Where', detail: 'Faces where the condition in Detail holds' },
+];
+
+/** Every choice of Select Faces' Which field. */
+const SOLID_SCRIPT_FACE_WHICH = SOLID_SCRIPT_FACE_WHICH_WORDS.map((entry) => entry.word);
 
 /** How a Select Faces line changes the faces already picked. */
 const SOLID_SCRIPT_FACE_HOW = ['New', 'Add', 'Remove'] as const;
+
+/** What each How choice does, shown beside it while the field is typed. */
+const SOLID_SCRIPT_FACE_HOW_DETAILS: Readonly<Record<(typeof SOLID_SCRIPT_FACE_HOW)[number], string>> = {
+  New: 'Start a new pick',
+  Add: 'Pick more faces',
+  Remove: 'Drop faces from the pick',
+};
 
 /** Stop of the lines that act on picked faces. */
 const SOLID_SCRIPT_FACE_STOPS_NONE = 'No shapes built above it, so there are no faces to pick.';
@@ -275,12 +299,13 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       'A Detail that does not fit the Which.',
     ],
     parameters: [
-      solidScriptParameter(
+      solidScriptParameterWords(
         'which',
         'Which',
         'text',
         'Facing Up',
         `How to pick. One of: ${SOLID_SCRIPT_FACE_WHICH.join(', ')}.`,
+        SOLID_SCRIPT_FACE_WHICH_WORDS,
       ),
       solidScriptParameterOptional(
         'detail',
@@ -295,12 +320,13 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         '30',
         'Degrees a face may lean and still count as facing that way.',
       ),
-      solidScriptParameter(
+      solidScriptParameterWords(
         'how',
         'How',
         'text',
         'New',
         'New starts again, Add picks more, Remove drops faces. One of: New, Add, Remove.',
+        SOLID_SCRIPT_FACE_HOW.map((word) => ({ word, detail: SOLID_SCRIPT_FACE_HOW_DETAILS[word] })),
       ),
     ],
     listing: (read) => {

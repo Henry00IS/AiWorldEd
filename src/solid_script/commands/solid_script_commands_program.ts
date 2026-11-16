@@ -5,6 +5,7 @@ import {
   solidScriptParameter,
   solidScriptParameterOptional,
   solidScriptParameterSides,
+  solidScriptParameterWords,
 } from './solid_script_command_parameters.js';
 import {
   SOLID_SCRIPT_COMMAND_INPUT,
@@ -13,6 +14,7 @@ import {
   SOLID_SCRIPT_COMMAND_INPUT_ROW,
   SOLID_SCRIPT_COMMAND_SHOW_INPUTS_WHEN,
   SOLID_SCRIPT_INPUT_DEFAULTS,
+  SOLID_SCRIPT_INPUT_TYPE_DETAILS,
   SOLID_SCRIPT_INPUT_TYPES,
   solidScriptInputRead,
   solidScriptInputValue,
@@ -35,12 +37,13 @@ const SOLID_SCRIPT_INPUT_PARAMETERS: readonly SolidScriptCommandParameter[] = [
     SOLID_SCRIPT_INPUT_DEFAULTS.name,
     'Variable the lines below read, such as [Width].',
   ),
-  solidScriptParameter(
+  solidScriptParameterWords(
     'type',
     'Type',
     'text',
     SOLID_SCRIPT_INPUT_DEFAULTS.type,
     `Kind of value: ${SOLID_SCRIPT_INPUT_TYPES.join(', ')}. The inspector shows a matching control.`,
+    SOLID_SCRIPT_INPUT_TYPES.map((word) => ({ word, detail: SOLID_SCRIPT_INPUT_TYPE_DETAILS[word] })),
   ),
   solidScriptParameter(
     'default',
@@ -275,7 +278,12 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
       'Runs the lines inside only when the script is used the way Use names: Generator in a generator node, Modifier in the modifier stack of a brush, mesh or group. An Else starts the lines for the other use. Can Be Used As in the inspector picks the uses a script allows. Script.Usage holds the same word for formulas. Example: If Used As Modifier, a slab under [Input.Min], Else, a cube and a slab under it.',
     stops: ['A Use that is not Generator or Modifier.', 'A missing End line.'],
     nesting: 'open',
-    parameters: [solidScriptParameter('use', 'Use', 'text', 'Modifier', 'Generator or Modifier.')],
+    parameters: [
+      solidScriptParameterWords('use', 'Use', 'text', 'Modifier', 'Generator or Modifier.', [
+        { word: 'Generator', detail: 'Placed as a generator node' },
+        { word: 'Modifier', detail: 'In the modifier stack of a brush, mesh or group' },
+      ]),
+    ],
     listing: (read) => ['If Used As', read.text('use')],
     endLabel: 'If',
     execute: (run) => {
@@ -306,12 +314,16 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
       'Passes on every brush the script receives as a modifier, moved, turned, stretched or slanted by the Translate, Rotate, Scale, Mirror or Matrix blocks around this line. Their faces keep their textures and materials. Once a script has an Input Brushes line, the received brushes no longer pass on by themselves: the first Input Brushes that runs changes them, and each later one adds a copy. So Repeat around Translate around Input Brushes repeats them in a row, and Matrix around it slants them. Textures is Move With Shape, so textures stay on their faces, or World Aligned, so they stay where they are in the world. As a generator it passes on nothing. Example: Repeat [I] from 0 to 2 around Translate by [=[I] * 2], 0, 0 around Input Brushes gives the brush and two copies two metres apart.',
     stops: ['Textures other than Move With Shape or World Aligned.'],
     parameters: [
-      solidScriptParameter(
+      solidScriptParameterWords(
         'textures',
         'Textures',
         'message',
         'Move With Shape',
         'Move With Shape keeps textures on their faces; World Aligned keeps them where they are in the world.',
+        [
+          { word: 'Move With Shape', detail: 'Textures stay on their faces' },
+          { word: 'World Aligned', detail: 'Textures stay where they are in the world' },
+        ],
       ),
     ],
     listing: (read) => ['Input Brushes', ' textures ', read.text('textures')],

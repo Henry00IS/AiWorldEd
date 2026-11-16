@@ -1,0 +1,151 @@
+import { describe, expect, it } from 'vitest';
+import { solidScriptDocumentCreate } from '@/solid_script/document/solid_script_document.js';
+import { solidScriptDocumentNames } from '@/solid_script/document/solid_script_document_names.js';
+import {
+  solidScriptSuggestionContext,
+  solidScriptSuggestionSignature,
+  solidScriptSuggestionWrite,
+  solidScriptSuggestions,
+  solidScriptSuggestionsBrowse,
+  type SolidScriptSuggestionScope,
+} from '@/solid_script/ui/solid_script_suggestions.js';
+
+const SCRIPT = solidScriptDocumentCreate([
+  { command: 'input', values: { name: 'Steps', type: 'count' } },
+  { command: 'variable', values: { name: 'Width', value: '2' } },
+  { command: 'variable', values: { name: 'Angle', value: '30' } },
+  { command: 'function', values: { name: 'Area', parameters: 'W, D' } },
+  { command: 'return', values: { value: '[=[Local.W] * [Local.D]]' } },
+  { command: 'end' },
+]);
+
+const WORDS = [
+  { word: 'New', detail: 'Start a new pick' },
+  { word: 'Add', detail: 'Pick more faces' },
+  { word: 'Remove', detail: 'Drop faces from the pick' },
+];
+
+const SCOPE: SolidScriptSuggestionScope = { names: solidScriptDocumentNames(SCRIPT), extra: [], words: [] };
+const WORDY: SolidScriptSuggestionScope = { ...SCOPE, words: WORDS };
+
+/**
+ * Reads the context at the | in a field text.
+ *
+ * @param marked Field text with | at the caret.
+ * @param words True when the field takes a few words.
+ * @returns Context.
+ */
+function at(marked: string, words = false) {
+  const caret = marked.indexOf('|');
+  return solidScriptSuggestionContext(marked.replace('|', ''), caret, words);
+}
+
+/**
+ * Lists the suggestions at the | as category: label.
+ *
+ * @param marked Field text with | at the caret.
+ * @param scope What the field may refer to.
+ * @returns Suggestions.
+ */
+function offered(marked: string, scope = SCOPE): string[] {
+  return solidScriptSuggestions(at(marked, scope.words.length > 0), scope).map(
+    (entry) => `${entry.category}: ${entry.label}`,
+  );
+}
+
+describe('SolidScript suggestion context', () => {
+  it('knows what is typed at the caret', () => {
+    expect(at('[A|')).toMatchObject({ kind: 'name', from: 0, prefix: 'A' });
+    expect(at('1, [|')).toMatchObject({ kind: 'name', from: 3, prefix: '' });
+    expect(at('[Local.|')).toMatchObject({ kind: 'name', prefix: 'Local.' });
+    expect(at('[Box.W|')).toMatchObject({ kind: 'name', prefix: 'Box.W' });
+    expect(at('[=|')).toMatchObject({ kind: 'formula', from: 2, prefix: '', call: null });
+    expect(at('[=[Width] * A|')).toMatchObject({ kind: 'formula', from: 12, prefix: 'A', call: null });
+    expect(at('[=Abs(|')).toMatchObject({ kind: 'formula', prefix: '', call: { name: 'Abs', argument: 0 } });
+    expect(at('[=Lerp(1, W|')).toMatchObject({ kind: 'formula', prefix: 'W', call: { name: 'Lerp', argument: 1 } });
+    expect(at('[=Max(Abs(1), |')).toMatchObject({ call: { name: 'Max', argument: 1 } });
+    expect(at('[=Abs([St|')).toMatchObject({ kind: 'name', prefix: 'St' });
+    expect(at('[Width]|')).toBeNull();
+    expect(at('plain text|')).toBeNull();
+    expect(at('$[Wi|')).toBeNull();
+    expect(at('[=2 |')).toBeNull();
+    expect(at('[="Abs|')).toBeNull();
+    expect(at('Ad|', true)).toMatchObject({ kind: 'word', from: 0, prefix: 'Ad' });
+    expect(at('|New', true)).toMatchObject({ kind: 'word', prefix: '' });
+    expect(at('[|', true)).toMatchObject({ kind: 'name' });
+  });
+});
+
+describe('SolidScript suggestions', () => {
+  it('suggests matching names, system values and functions after [', () => {
+    const list = offered('[A|');
+    expect(list.slice(0, 2)).toEqual(['Variables: Angle', 'Functions: Area']);
+    expect(list).toContain('Built-In Functions: Abs');
+    expect(list.every((entry) => /: .*a/i.test(entry))).toBe(true);
+    expect(offered('[W|')).toContain('System: Box.Width');
+    expect(offered('[|')).toContain('System: Time.Year');
+  });
+
+  it('lists the best matches of a group first', () => {
+    const list = offered('[=Le|').filter((entry) => entry.startsWith('Built-In'));
+    expect(list.slice(0, 3)).toEqual([
+      'Built-In Functions: Len',
+      'Built-In Functions: Length',
+      'Built-In Functions: Lerp',
+    ]);
+    expect(list).toContain('Built-In Functions: PadLeft');
+    expect(list.indexOf('Built-In Functions: Lerp')).toBeLessThan(list.indexOf('Built-In Functions: PadLeft'));
+  });
+
+  it('offers the words of a field first and only them while one is typed', () => {
+    expect(offered('|', WORDY)).toEqual(['Choices: New', 'Choices: Add', 'Choices: Remove']);
+    expect(offered('Re|', WORDY)).toEqual(['Choices: Remove']);
+    expect(offered('New|', WORDY)).toEqual(['Choices: New', 'Choices: Add', 'Choices: Remove']);
+  });
+
+  it('shows how to call the function the caret is in', () => {
+    expect(solidScriptSuggestionSignature(at('[=Abs(|'), SCOPE)).toBe(
+      'Abs(number): The number without its minus sign. Input 1.',
+    );
+    expect(solidScriptSuggestionSignature(at('[=Area(1, |'), SCOPE)).toBe(
+      'Area(W, D): Function of this script. Input 2.',
+    );
+    expect(solidScriptSuggestionSignature(at('[=|'), SCOPE)).toBe('');
+  });
+
+  it('writes a pick the way the caret position needs it', () => {
+    const pick = (label: string, marked: string, scope = SCOPE) => {
+      const caret = marked.indexOf('|');
+      const text = marked.replace('|', '');
+      const entry = solidScriptSuggestionsBrowse(scope, '').find((item) => item.label === label)!;
+      const written = solidScriptSuggestionWrite(entry, text, caret, caret);
+      return written.text.slice(0, written.caret) + '|' + written.text.slice(written.caret);
+    };
+    expect(pick('Width', '[Wi|]')).toBe('[Width]|');
+    expect(pick('Width', '1, |')).toBe('1, [Width]|');
+    expect(pick('Width', '[=Abs(Wi|)]')).toBe('[=Abs(Width|)]');
+    expect(pick('Abs', '[A|')).toBe('[=Abs(|)]');
+    expect(pick('Abs', '[=1 + A|]')).toBe('[=1 + Abs(|)]');
+    expect(pick('Box.Width', '[=|]')).toBe('[=Box.Width|]');
+    expect(pick('Add', 'Ne|w', WORDY)).toBe('Add|');
+  });
+
+  it('browses every value by group and finds them by name or description', () => {
+    const all = solidScriptSuggestionsBrowse(WORDY, '');
+    const groups = [...new Set(all.map((entry) => entry.category))];
+    expect(groups).toEqual(['Choices', 'Inputs', 'Variables', 'Locals', 'System', 'Functions', 'Built-In Functions']);
+    expect(all.filter((entry) => entry.category === 'System').length).toBeGreaterThan(30);
+    expect(solidScriptSuggestionsBrowse(WORDY, 'box.w').map((entry) => entry.label)).toEqual(['Box.Width']);
+    expect(solidScriptSuggestionsBrowse(WORDY, 'minus sign').map((entry) => entry.label)).toContain('Abs');
+  });
+
+  it('lists the locals of a Function and explains built-in values and functions', () => {
+    const locals = solidScriptSuggestions(at('[Local.|'), SCOPE).map((entry) => entry.label);
+    expect(locals).toEqual(['Local.W', 'Local.D']);
+    const year = solidScriptSuggestions(at('[Time.Y|'), SCOPE);
+    expect(year.map((entry) => entry.label)).toEqual(['Time.Year']);
+    expect(year[0]?.detail).toMatch(/^Number: year/);
+    const pad = solidScriptSuggestions(at('[=pad_l|'), SCOPE);
+    expect(pad[0]?.detail).toBe('PadLeft(text, width, fill): Fills in front up to a width: 007.');
+  });
+});

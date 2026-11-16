@@ -13,6 +13,22 @@ export const SOLID_SCRIPT_INPUT_TYPES = [
   'vector',
 ] as const;
 
+/**
+ * What each kind of input shows in the inspector, beside it while Type is
+ * typed.
+ */
+export const SOLID_SCRIPT_INPUT_TYPE_DETAILS: Readonly<Record<SolidScriptInputType, string>> = {
+  number: 'A number field',
+  count: 'A whole number field',
+  switch: 'A Yes/No switch',
+  text: 'A text field',
+  choice: 'A dropdown of Choices',
+  button: 'A button that runs the script',
+  curve: 'A curve editor',
+  texture: 'A texture picker',
+  vector: 'An X, Y, Z field',
+};
+
 /** Id of the Input command. */
 export const SOLID_SCRIPT_COMMAND_INPUT = 'input';
 
