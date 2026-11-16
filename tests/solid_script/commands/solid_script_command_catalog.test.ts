@@ -52,6 +52,7 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
   }
   if (command.starter.length > 0 && command.category === '2D Shapes')
     return [{ command: 'linear_extrude' }, ...started, { command: 'end' }, { command: 'end' }];
+  if (command.id === 'input_group') return [...started, { command: 'end' }, { command: 'cube' }];
   if (command.starter.length > 0) return [...started, { command: 'end' }];
   if (command.id === 'vertex' || command.id === 'face') {
     const corners = ['0, 0, 0', '1, 0, 0', '0, 1, 0'].map((position) => ({ command: 'vertex', values: { position } }));
@@ -112,7 +113,11 @@ describe('solid script command catalog', () => {
   });
 
   it('documents with an example and the mistakes that stop every command with values', () => {
-    for (const command of solidScriptCommands.filter((entry) => entry.parameters.length > 0 && entry.id !== 'note')) {
+    // Notes never run, so nothing stops them.
+    const notes = ['note', 'input_note'];
+    for (const command of solidScriptCommands.filter(
+      (entry) => entry.parameters.length > 0 && !notes.includes(entry.id),
+    )) {
       expect(command.manual, command.id).toMatch(/Example|example/);
       expect(command.stops.length, command.id).toBeGreaterThan(0);
     }

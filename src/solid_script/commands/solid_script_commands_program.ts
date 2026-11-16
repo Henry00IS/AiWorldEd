@@ -7,6 +7,8 @@ import {
 } from './solid_script_command_parameters.js';
 import {
   SOLID_SCRIPT_COMMAND_INPUT,
+  SOLID_SCRIPT_COMMAND_INPUT_GROUP,
+  SOLID_SCRIPT_COMMAND_INPUT_NOTE,
   SOLID_SCRIPT_INPUT_DEFAULTS,
   SOLID_SCRIPT_INPUT_TYPES,
   solidScriptInputRead,
@@ -101,6 +103,32 @@ const SOLID_SCRIPT_INPUT_COMMAND = new SolidScriptCommand({
 /** Commands for inputs, functions, inspector events, list items and outlines. */
 export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
   SOLID_SCRIPT_INPUT_COMMAND,
+  new SolidScriptCommand({
+    id: SOLID_SCRIPT_COMMAND_INPUT_GROUP,
+    label: 'Input Group',
+    category: 'Inputs',
+    description: 'Show inputs under a heading',
+    manual:
+      'Shows the Input lines between this line and its End under Title in the inspector, so a script with many settings reads like a built-in generator. The lines inside run where they stand, so the variables of its inputs are read after its End as usual. Example: Input Group Railing around Input rail, switch and Input height shows both under Railing.',
+    stops: ['A missing End line.'],
+    nesting: 'open',
+    parameters: [solidScriptParameter('title', 'Title', 'text', 'Settings', 'Heading shown above the inputs inside.')],
+    starter: [{ command: SOLID_SCRIPT_COMMAND_INPUT, values: {} }],
+    listing: (read) => ['Input Group', read.text('title')],
+    execute: (run) => run.inPlace(),
+  }),
+  new SolidScriptCommand({
+    id: SOLID_SCRIPT_COMMAND_INPUT_NOTE,
+    label: 'Input Note',
+    category: 'Inputs',
+    description: 'Show a line of text among the inputs',
+    manual:
+      'Shows Text in the inspector among the inputs, where this line stands between the Input lines, such as a hint about units or what a setting does. It builds nothing. Example: Input Note Sizes are in metres above Input width.',
+    parameters: [solidScriptParameter('text', 'Text', 'text', 'Sizes are in metres.', 'Text shown in the inspector.')],
+    runs: false,
+    listing: (read) => ['Input Note', read.text('text')],
+    execute: () => [],
+  }),
   new SolidScriptCommand({
     id: 'function',
     label: 'Function',

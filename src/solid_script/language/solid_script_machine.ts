@@ -194,6 +194,11 @@ export interface SolidScriptBlockRun {
   repeated(counter: string, values: readonly SolidScriptValue[]): SolidScriptShape[];
   /** Runs the lines inside, or the lines after Else, depending on a condition. */
   branched(holds: boolean): SolidScriptShape[];
+  /**
+   * Runs the lines inside as if they stood in place of the block, sharing its
+   * variables, so names they define are read after its End.
+   */
+  inPlace(): SolidScriptShape[];
   /** Builds the lines of a part defined in the script. */
   partUse(name: string): SolidScriptShape[];
   /**
@@ -1215,6 +1220,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
         const lines = holds ? node.children : (node.otherwise ?? []);
         return lines.length === 0 ? [] : this.linesRun(lines, state.scope, state.context);
       },
+      inPlace: () => this.linesRun(node.children, state.scope, state.context, state.scope),
       partUse: (name) => this.partUse(name, state.scope, state.context),
       built: () => this.builtStack.flat(),
       selection: () => [...this.faceSelection],

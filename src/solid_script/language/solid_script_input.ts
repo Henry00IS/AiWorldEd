@@ -15,6 +15,12 @@ export const SOLID_SCRIPT_INPUT_TYPES = [
 /** Id of the Input command. */
 export const SOLID_SCRIPT_COMMAND_INPUT = 'input';
 
+/** Id of the Input Group command, which shows inputs under a heading. */
+export const SOLID_SCRIPT_COMMAND_INPUT_GROUP = 'input_group';
+
+/** Id of the Input Note command, which shows text among the inputs. */
+export const SOLID_SCRIPT_COMMAND_INPUT_NOTE = 'input_note';
+
 /** Defaults of an Input line's fields, shared by the command and the inspector. */
 export const SOLID_SCRIPT_INPUT_DEFAULTS = { name: 'width', type: 'number', default: '1' } as const;
 

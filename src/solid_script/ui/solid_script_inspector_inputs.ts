@@ -1,6 +1,7 @@
 import { modifierStackParametersCommit } from '@/modifier/stack/modifier_stack_parameters_commit.js';
 import type { ModifierStackActionTarget, ModifierStackWidget } from '@/modifier/stack/modifier_stack_types.js';
 import {
+  modifierStackUiCaption,
   modifierStackUiRow,
   modifierStackUiText,
   modifierStackUiTextButton,
@@ -17,7 +18,11 @@ import { modifierStackTextureRow } from '@/modifier/stack/ui/modifier_stack_text
 import { InputSelect } from '@/ui/input/input_select.js';
 import { inputNumericCreateUvField } from '@/ui/input/input_numeric_uv_field.js';
 import { solidScriptDocumentNormalize } from '@/solid_script/document/solid_script_document.js';
-import { solidScriptInputsList, type SolidScriptInput } from '@/solid_script/language/solid_script_input.js';
+import type { SolidScriptInput } from '@/solid_script/language/solid_script_input.js';
+import {
+  solidScriptDocumentInputLayout,
+  type SolidScriptInputLayoutItem,
+} from '@/solid_script/document/solid_script_document_inputs.js';
 import type { SolidScriptEvent } from '@/solid_script/language/solid_script_machine.js';
 import { solidScriptProgramHandle } from '@/solid_script/language/solid_script_program.js';
 
@@ -90,24 +95,56 @@ export function solidScriptInspectorInputs(
   };
   const write = (parameters: Record<string, unknown>): void => {
     script = parameters[scriptKey];
-    const inputs = solidScriptInputsList(solidScriptDocumentNormalize(script).blocks);
+    const layout = solidScriptDocumentInputLayout(solidScriptDocumentNormalize(script));
+    const inputs = layout.flatMap((item) => (item.kind === 'input' ? [item.input] : []));
     values = solidScriptInspectorInputValues(parameters[inputsKey]);
-    const next = JSON.stringify(inputs);
+    const next = JSON.stringify(layout);
     if (next !== shape) {
       shape = next;
       notices.replaceChildren();
-      const rows = inputs.map((input) =>
-        solidScriptInspectorInputRow(input, (text) =>
-          commit({ kind: input.type === 'button' ? 'button' : 'input', name: input.name }, text),
-        ),
+      const { elements, rowWriters } = solidScriptInspectorLayoutRows(layout, (input, text) =>
+        commit({ kind: input.type === 'button' ? 'button' : 'input', name: input.name }, text),
       );
-      rowsHost.replaceChildren(...rows.map((row) => row.element));
-      writers = rows.map((row) => row.write);
+      rowsHost.replaceChildren(...elements);
+      writers = rowWriters;
     }
-    element.style.display = inputs.length > 0 ? '' : 'none';
+    element.style.display = layout.length > 0 ? '' : 'none';
     inputs.forEach((input, index) => writers[index]?.(values[input.name] ?? input.fallback));
   };
   return { element, write };
+}
+
+/**
+ * Builds the rows of an inspector layout: a heading where an Input Group
+ * starts, a line of text per note and a control per input.
+ *
+ * @param layout Rows in line order.
+ * @param commit Stores a new value of an input, or presses a button with null.
+ * @returns Elements in order, and how to show each input's value.
+ */
+function solidScriptInspectorLayoutRows(
+  layout: readonly SolidScriptInputLayoutItem[],
+  commit: (input: SolidScriptInput, text: string | null) => void,
+): { elements: HTMLElement[]; rowWriters: ((text: string) => void)[] } {
+  const elements: HTMLElement[] = [];
+  const rowWriters: ((text: string) => void)[] = [];
+  let group = '';
+  for (const item of layout) {
+    if (item.group !== group && item.group !== '') {
+      const caption = modifierStackUiCaption(item.group);
+      caption.dataset['solidScriptGroup'] = item.group;
+      elements.push(caption);
+    }
+    group = item.group;
+    if (item.kind === 'note') {
+      elements.push(modifierStackUiText('div', item.text, true));
+      continue;
+    }
+    const row = solidScriptInspectorInputRow(item.input, (text) => commit(item.input, text));
+    elements.push(row.element);
+    rowWriters.push(row.write);
+  }
+  return { elements, rowWriters };
 }
 
 /**

@@ -109,6 +109,26 @@ describe('SolidScript inspector inputs', () => {
     expect((parameters()[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY] as Record<string, string>)['look']).toBe('');
   });
 
+  it('shows the title of an Input Group above its rows and an Input Note as a line of text', () => {
+    const { panel, parameters } = inputsFixture([
+      { command: 'input_note', values: { text: 'Sizes are in metres.' } },
+      { command: 'input_group', values: { title: 'Steps' } },
+      { command: 'input', values: { name: 'steps', type: 'count', default: '2', label: 'Steps Count' } },
+      { command: 'end' },
+      { command: 'cube' },
+    ]);
+    const text = panel.textContent ?? '';
+    expect(text.indexOf('Sizes are in metres.')).toBeGreaterThanOrEqual(0);
+    expect(text.indexOf('Sizes are in metres.')).toBeLessThan(text.indexOf('Steps'));
+    expect(text.indexOf('Steps')).toBeLessThan(text.indexOf('Steps Count'));
+    expect(panel.querySelector('[data-solid-script-group="Steps"]')).not.toBeNull();
+    const steps = panel.querySelector<HTMLInputElement>('input[aria-label="Steps Count"]')!;
+    expect(steps.value).toBe('2');
+    steps.value = '3';
+    steps.dispatchEvent(new Event('change'));
+    expect(parameters()[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]).toEqual({ steps: '3' });
+  });
+
   it('shows one control per Input line with its default', () => {
     const { panel } = inputsFixture(SOLID_SCRIPT_INPUT_LINES);
     expect(panel.style.display).toBe('');
