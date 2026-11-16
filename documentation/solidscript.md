@@ -9,7 +9,7 @@ Double-click a command in the palette, or drag it in, to add it below the curren
 <details>
 <summary>More Details</summary>
 
-- Fields take plain values (`2`, `1, 0, 0`), variables in brackets (`[Width]`) and formulas after an equals sign (`[=[Width] / 2]`).
+- Fields take plain values (`2`, `1, 0, 0`), variables in brackets (`[Width]`) and formulas after an equals sign (`[=[Width] / 2]`). Text inside a formula takes double quotes, such as `[=IsString("3e")]`; bare words there are names, so `3e` or `hello` get an error that shows the quoted form. Single quotes are kept for later use.
 - Names ignore case: `[count]` and `[Count]` are one variable, and `sin(65)` is `Sin(65)`. Write them in PascalCase, such as `[StepHeight]`, `[Local.Width]`, `[Persistent.Presses]`, `Function Staircase` and `CharacterCode("A")`, like the examples do; the explorer keeps the spelling of the first Set or Input.
 - Functions such as `Sin`, `Lerp`, `Remap`, `Split` or `TimeText` work in formulas; hover one in the suggestions to see what it does. `ItemOr([List], 5, 0)` reads an item with a fallback when there is none.
 - A Texture field in a line's window has **Pick** and **Type**: Pick uses the same texture picker as the inspector and stores the texture's full library path; Type takes a name, a variable such as `[Wall]` or a formula. A field whose text uses `[` opens on Type.

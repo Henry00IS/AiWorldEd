@@ -102,7 +102,12 @@ export class SolidScriptLexer {
   private tokenNext(): SolidScriptToken {
     const rest = this.source.slice(this.position);
     const number = /^(\d+\.?\d*([eE][+-]?\d+)?|\.\d+([eE][+-]?\d+)?)/.exec(rest);
-    if (number) return this.tokenTake('number', number[0]);
+    if (number) {
+      const glued = /^[A-Za-z0-9_.]+/.exec(rest.slice(number[0].length))?.[0] ?? '';
+      const word = number[0] + glued;
+      if (glued !== '') throw new Error(`line ${this.line}: ${word} isn't a number; for text write "${word}"`);
+      return this.tokenTake('number', number[0]);
+    }
     const identifier = /^[A-Za-z_][A-Za-z0-9_]*/.exec(rest);
     if (identifier) {
       const word = SOLID_SCRIPT_WORD_SYMBOLS.get(identifier[0].toLowerCase());
@@ -115,6 +120,10 @@ export class SolidScriptLexer {
     if (double) return this.tokenTake('symbol', double);
     if (rest[0] !== undefined && SOLID_SCRIPT_SYMBOLS_SINGLE.includes(rest[0]))
       return this.tokenTake('symbol', rest[0]);
+    if (rest[0] === "'") {
+      const text = /^'([^']*)'?/.exec(rest)?.[1] ?? '';
+      throw new Error(`line ${this.line}: text in a formula takes double quotes; write "${text}"`);
+    }
     throw new Error(`line ${this.line}: unexpected character "${rest[0] ?? ''}"`);
   }
 

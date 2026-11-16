@@ -118,7 +118,7 @@ export class SolidScriptExpressionEvaluator {
   variableMissing(name: string, scope: SolidScriptScope): never {
     const known = [...scope.variablesVisible().keys()].map(this.shown).sort();
     const listed = known.length > 0 ? `Known here: ${known.join(', ')}` : 'No variables are known here';
-    throw new Error(`"${this.shown(name)}" is not a variable here. ${listed}`);
+    throw new Error(`"${this.shown(name)}" is not a variable here; for text write "${this.shown(name)}". ${listed}`);
   }
 
   /**

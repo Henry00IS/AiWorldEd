@@ -46,7 +46,7 @@ describe('SolidScript messages spell names as they were written', () => {
       line('variable', { name: 'StepHeight', value: '2' }),
       line('echo', { value: '[=Nope + 1]' }),
     );
-    expect(message).toMatch(/"Nope" is not a variable here\. Known here: .*StepHeight/);
+    expect(message).toMatch(/"Nope" is not a variable here; for text write "Nope"\. Known here: .*StepHeight/);
   });
 
   it('teaches Local. in PascalCase outside a Function', () => {

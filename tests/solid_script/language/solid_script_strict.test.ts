@@ -22,6 +22,16 @@ describe('SolidScript stops at the first mistake', () => {
     ).toBe('Line 2: Size: there is no variable [wdth]; set it on a line above this one.');
   });
 
+  it('explains text in a formula that needs double quotes', () => {
+    const formula = (text: string) =>
+      failure({ command: 'variable', values: { name: 'a', value: `[=${text}]` } }, { command: 'cube' });
+    expect(formula('IsString(3e)')).toContain(`3e isn't a number; for text write "3e"`);
+    expect(formula('1.2.3')).toContain(`1.2.3 isn't a number; for text write "1.2.3"`);
+    expect(formula("IsString('3e')")).toContain(`text in a formula takes double quotes; write "3e"`);
+    expect(formula('IsString(hello)')).toContain(`for text write "hello"`);
+    expect(formula('IsString("3e")')).toBe('');
+  });
+
   it('refuses values of the wrong kind instead of using a default', () => {
     expect(failure({ command: 'cube', values: { size: 'big' } })).toBe(
       'Line 1: Size needs a number, or 3 numbers separated by commas such as 1, 2, 3, not "big" (Text).',
