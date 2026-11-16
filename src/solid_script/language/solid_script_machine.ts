@@ -246,6 +246,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
    * @param parent Enclosing scope.
    * @param context Matrix and flatness.
    * @param scope Scope to run in; a new child of the parent by default.
+   * @param known Kept run views of the lines.
    * @returns Shapes in line order.
    */
   protected linesRun(
@@ -253,8 +254,9 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     parent: SolidScriptScope,
     context: SolidScriptContext,
     scope = new SolidScriptScope(parent),
+    known = SolidScriptMachine.runsKnown(lines),
   ): SolidScriptShape[] {
-    const { runs, defines } = SolidScriptMachine.runsKnown(lines);
+    const { runs, defines } = known;
     if (defines) this.definitionsRegister(lines);
     const built: SolidScriptShape[] = [];
     this.builtStack.push(built);
@@ -500,9 +502,12 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     state: SolidScriptLineState,
   ): SolidScriptBlockRun {
     const labelOf = (): string => state.scope.partName || node.command.id;
-    const inside = (into: SolidScriptContext, lines = node.children): SolidScriptShape[] => {
-      if (lines.length === 0) throw new Error(`${node.command.label} has nothing inside; add a shape before its End`);
-      return state.machine.linesRun(lines, state.scope, into);
+    let kept: SolidScriptBlockRuns | undefined;
+    const children = (): SolidScriptBlockRuns => (kept ??= SolidScriptMachine.runsKnown(node.children));
+    const inside = (into: SolidScriptContext): SolidScriptShape[] => {
+      if (node.children.length === 0)
+        throw new Error(`${node.command.label} has nothing inside; add a shape before its End`);
+      return state.machine.linesRun(node.children, state.scope, into, new SolidScriptScope(state.scope), children());
     };
     const fields = new Map<string, SolidScriptLineField>();
     const labels = new Map(node.command.parameters.map((field) => [field.key, field.label]));
@@ -585,16 +590,19 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
           const inner = new SolidScriptScope(state.scope);
           inner.variableDefine(key, round);
           if (node.children.length === 0) continue;
-          for (const shape of state.machine.linesRun(node.children, inner, state.context, inner)) shapes.push(shape);
+          for (const shape of state.machine.linesRun(node.children, inner, state.context, inner, children()))
+            shapes.push(shape);
         }
         const joined = solidScriptShapeJoin(shapes, labelOf());
         return joined ? [joined] : [];
       },
       branched: (holds) => {
         const lines = holds ? node.children : (node.otherwise ?? []);
-        return lines.length === 0 ? [] : state.machine.linesRun(lines, state.scope, state.context);
+        if (lines.length === 0) return [];
+        const known = holds ? children() : SolidScriptMachine.runsKnown(lines);
+        return state.machine.linesRun(lines, state.scope, state.context, new SolidScriptScope(state.scope), known);
       },
-      inPlace: () => state.machine.linesRun(node.children, state.scope, state.context, state.scope),
+      inPlace: () => state.machine.linesRun(node.children, state.scope, state.context, state.scope, children()),
       partUse: (name) => state.machine.partUse(name, state.scope, state.context),
       built: () => state.machine.builtStack.flat(),
       selection: () => [...state.machine.faceSelection],
@@ -610,7 +618,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
             inner.variableDefine(state.machine.nameKey(name), value);
           state.machine.faceRounds.push(round.face);
           try {
-            return node.children.length === 0 ? [] : state.machine.linesRun(node.children, inner, state.context, inner);
+            if (node.children.length === 0) return [];
+            return state.machine.linesRun(node.children, inner, state.context, inner, children());
           } finally {
             state.machine.faceRounds.pop();
           }
