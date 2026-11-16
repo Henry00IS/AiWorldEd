@@ -262,10 +262,10 @@ describe('SolidScript faces', () => {
       ]),
     );
     expect(listing).toEqual([
-      "Select Faces  Tagged 'Step Tread'",
-      "Select Faces  Facing Up within '45'° (Add)",
+      "Select Faces Tagged 'Step Tread'",
+      "Select Faces Facing Up within '45'° (Add)",
       'For Each Selected Face',
-      "    Extrude Face  by '0.1'",
+      "    Extrude Face by '0.1'",
       'End For Each',
     ]);
   });

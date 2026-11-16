@@ -66,7 +66,7 @@ export function solidScriptListingBuild(
   const parts = rest
     .filter((piece): piece is SolidScriptListingPart | string => piece !== null && piece !== false && piece !== '')
     .map((piece) => (typeof piece === 'string' ? { kind: 'word' as const, text: piece } : piece));
-  return [{ kind: 'name', text: parts.length > 0 ? `${name}  ` : name }, ...parts];
+  return [{ kind: 'name', text: parts.length > 0 ? `${name} ` : name }, ...parts];
 }
 
 /**

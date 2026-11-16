@@ -27,7 +27,7 @@ describe('SolidScript generator tools', () => {
       }
     ).commands;
     const cylinder = commands.find((command) => command.id === 'cylinder');
-    expect(cylinder?.example).toMatchObject({ command: 'cylinder', listed: "Cylinder  height '1', radius '1'" });
+    expect(cylinder?.example).toMatchObject({ command: 'cylinder', listed: "Cylinder height '1', radius '1'" });
     expect(cylinder?.manual).not.toBe('');
     expect(commands.find((command) => command.id === 'difference')?.parameters).toEqual([]);
   });
@@ -57,8 +57,8 @@ describe('SolidScript generator tools', () => {
     expect(set.data).not.toHaveProperty('source');
     expect((set.data as { lines: { listed: string }[] }).lines.map((line) => line.listed)).toEqual([
       'Difference',
-      "    Cube  '2, 2, 2'",
-      "    Sphere  radius '1.2'",
+      "    Cube '2, 2, 2'",
+      "    Sphere radius '1.2'",
       'End Difference',
     ]);
     expect((set.data as { lines: unknown[] }).lines[2]).toMatchObject({
@@ -195,7 +195,7 @@ describe('SolidScript generator tools', () => {
     const columns = [...text.matchAll(/```\n(\[[\s\S]*?)```/g)][1]?.[1] ?? '';
     const set = api.invokeTool('geometry_script_generator_set', { objectId, lines: JSON.parse(columns) as unknown[] });
     const listed = (set.data as { lines: { listed: string }[] }).lines.map((line) => line.listed);
-    expect(listed[0]).toBe('Define Part  Column');
+    expect(listed[0]).toBe('Define Part Column');
     expect(listed.at(-1)).toBe('End Repeat');
     expect(text).toContain(listed.join('\n'));
   });

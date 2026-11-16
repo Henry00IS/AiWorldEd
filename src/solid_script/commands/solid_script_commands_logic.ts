@@ -68,7 +68,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
         'A number, numbers separated by commas such as 1, 2, 3, plain text, [Name] for another variable, or [=formula] such as [=[Width] * 2].',
       ),
     ],
-    listing: (read) => ['Set', read.variable('name'), ':  ', read.value('value')],
+    listing: (read) => ['Set', read.variable('name'), ': ', read.value('value')],
     execute: (run) => {
       run.variableSet(run.text('name'), run.value('value'));
       return [];
@@ -220,7 +220,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
       'A note for people reading the script, such as what the next lines build. It does nothing when the script runs.',
     parameters: [solidScriptParameter('text', 'Text', 'text', 'Describe this part', 'Any text.')],
     runs: false,
-    listing: (read) => [{ kind: 'note', text: `***  ${read.text('text')}` }],
+    listing: (read) => [{ kind: 'note', text: `*** ${read.text('text')}` }],
     execute: () => [],
   }),
   new SolidScriptCommand({

@@ -203,11 +203,11 @@ describe('SolidScript editor', () => {
       { command: 'sphere', values: { r: '[radius]' } },
       { command: 'note', values: { text: 'Walls' } },
     ]);
-    expect(chip(0).textContent).toBe("Cube  '2, 2, 2' (Not Centered)");
+    expect(chip(0).textContent).toBe("Cube '2, 2, 2' (Not Centered)");
     expect(chip(0).querySelector('.solid-script-editor-list-name')?.textContent?.trim()).toBe('Cube');
     expect(chip(0).querySelector('.solid-script-editor-list-value')?.textContent).toBe("'2, 2, 2'");
     expect(chip(1).querySelector('.solid-script-editor-list-variable')?.textContent).toBe('[radius]');
-    expect(chip(2).textContent).toBe('***  Walls');
+    expect(chip(2).textContent).toBe('*** Walls');
   });
 
   it('inserts a double-clicked command below the current line after configuring it, as one undo step', () => {
