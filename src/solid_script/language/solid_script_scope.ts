@@ -7,7 +7,17 @@ import type { SolidScriptValue } from './solid_script_value.js';
  * a counter kept outside a Repeat keeps counting across its rounds.
  */
 export class SolidScriptScope {
-  /** Variables set here; made on the first one, since most blocks set none. */
+  /**
+   * Name of the only variable set here while there is one, such as the counter
+   * of a Repeat round; empty when none is, or when there are more.
+   */
+  private soloName = '';
+  /** Value of the only variable. */
+  private soloValue: SolidScriptValue = undefined;
+  /**
+   * Variables set here once there are two or more, in the order they were first
+   * set; null before that.
+   */
   private variables: Map<string, SolidScriptValue> | null = null;
   /** What field text reads here, made once by the running script. */
   fieldContext: SolidScriptFieldContext | null = null;
@@ -30,7 +40,36 @@ export class SolidScriptScope {
    * @param value Value.
    */
   variableDefine(name: string, value: SolidScriptValue): void {
-    (this.variables ??= new Map()).set(name, value);
+    if (this.variables !== null) this.variables.set(name, value);
+    else if (this.soloName === '' || this.soloName === name) {
+      this.soloName = name;
+      this.soloValue = value;
+    } else this.variablesSpread(name, value);
+  }
+
+  /**
+   * Moves the only variable into a map with a second one after it.
+   *
+   * @param name Second name.
+   * @param value Its value.
+   */
+  private variablesSpread(name: string, value: SolidScriptValue): void {
+    this.variables = new Map([
+      [this.soloName, this.soloValue],
+      [name, value],
+    ]);
+    this.soloName = '';
+    this.soloValue = undefined;
+  }
+
+  /**
+   * Returns whether this scope itself sets a variable.
+   *
+   * @param name Name.
+   * @returns True when it does.
+   */
+  private variableIsOwn(name: string): boolean {
+    return this.variables !== null ? this.variables.has(name) : this.soloName === name && name !== '';
   }
 
   /**
@@ -41,7 +80,7 @@ export class SolidScriptScope {
    */
   variableHome(name: string): SolidScriptScope | null {
     for (let scope: SolidScriptScope | null = this; scope; scope = scope.parent)
-      if (scope.variables?.has(name)) return scope;
+      if (scope.variableIsOwn(name)) return scope;
     return null;
   }
 
@@ -52,7 +91,8 @@ export class SolidScriptScope {
    * @returns Value, or undefined.
    */
   variableOwn(name: string): SolidScriptValue {
-    return this.variables?.get(name);
+    if (this.variables !== null) return this.variables.get(name);
+    return this.soloName === name ? this.soloValue : undefined;
   }
 
   /**
@@ -62,13 +102,8 @@ export class SolidScriptScope {
    * @param value Value.
    */
   variableSet(name: string, value: SolidScriptValue): void {
-    for (let scope: SolidScriptScope | null = this; scope; scope = scope.parent) {
-      if (scope.variables?.has(name)) {
-        scope.variables.set(name, value);
-        return;
-      }
-    }
-    (this.variables ??= new Map()).set(name, value);
+    const home = this.variableHome(name) ?? this;
+    home.variableDefine(name, value);
   }
 
   /**
@@ -78,9 +113,14 @@ export class SolidScriptScope {
    * @returns True when it existed.
    */
   variableDelete(name: string): boolean {
-    for (let scope: SolidScriptScope | null = this; scope; scope = scope.parent)
-      if (scope.variables?.delete(name)) return true;
-    return false;
+    const home = this.variableHome(name);
+    if (!home) return false;
+    if (home.variables !== null) home.variables.delete(name);
+    else {
+      home.soloName = '';
+      home.soloValue = undefined;
+    }
+    return true;
   }
 
   /**
@@ -92,7 +132,10 @@ export class SolidScriptScope {
   variableGet(name: string): SolidScriptValue {
     for (let scope: SolidScriptScope | null = this; scope; scope = scope.parent) {
       const variables = scope.variables;
-      if (variables === null) continue;
+      if (variables === null) {
+        if (scope.soloName === name) return scope.soloValue;
+        continue;
+      }
       const value = variables.get(name);
       if (value !== undefined || variables.has(name)) return value;
     }
@@ -106,9 +149,7 @@ export class SolidScriptScope {
    * @returns True when it is.
    */
   variableHas(name: string): boolean {
-    for (let scope: SolidScriptScope | null = this; scope; scope = scope.parent)
-      if (scope.variables?.has(name)) return true;
-    return false;
+    return this.variableHome(name) !== null;
   }
 
   /**
@@ -118,7 +159,9 @@ export class SolidScriptScope {
    */
   variablesVisible(): Map<string, SolidScriptValue> {
     const visible = this.parent ? this.parent.variablesVisible() : new Map<string, SolidScriptValue>();
-    for (const [name, value] of this.variables ?? []) {
+    const own: Iterable<[string, SolidScriptValue]> =
+      this.variables ?? (this.soloName === '' ? [] : [[this.soloName, this.soloValue]]);
+    for (const [name, value] of own) {
       visible.delete(name);
       visible.set(name, value);
     }
