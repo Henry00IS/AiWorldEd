@@ -105,11 +105,11 @@ describe('Function blocks', () => {
       echo('button'),
       END,
       echo('middle'),
-      line('call', { name: 'greet', values: 'Henry' }),
+      line('call', { name: 'greet', values: 'World' }),
       echo('bottom'),
     );
     expect(result.error).toBeNull();
-    expect(result.messages).toEqual(['top', 'middle', 'hello Henry', 'bottom']);
+    expect(result.messages).toEqual(['top', 'middle', 'hello World', 'bottom']);
     expect(result.shapes).toHaveLength(1);
   });
 

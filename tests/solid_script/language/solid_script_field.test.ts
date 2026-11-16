@@ -133,7 +133,7 @@ describe('SolidScript field text', () => {
 });
 
 describe('SolidScript fields in a running script', () => {
-  it('runs Henry-style fields end to end: Set, Repeat with [=formula], Echo without quotes', () => {
+  it('runs plain fields end to end: Set, Repeat with [=formula], Echo without quotes', () => {
     const result = run(
       { command: 'variable', values: { name: 'width', value: '2' } },
       { command: 'repeat', values: { variable: 'i', from: '0', to: '2' } },
