@@ -128,7 +128,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Inputs',
     description: 'Show inputs side by side',
     manual:
-      'Shows the Input lines between this line and its End next to each other on one row of the inspector, such as Width, Depth and Height. The lines inside run where they stand, so their variables are read after its End. Example: Input Row around Input width and Input depth shows both on one row.',
+      'Shows the Input lines between this line and its End next to each other on one row of the inspector, such as Width, Depth and Height. The lines inside run where they stand, so their variables are read after its End. Example: Input Row around Input Width and Input Depth shows both on one row.',
     stops: ['A missing End line.'],
     nesting: 'open',
     parameters: [],
@@ -149,7 +149,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     stops: ['A missing End line.'],
     nesting: 'open',
     parameters: [
-      solidScriptParameter('name', 'Input', 'name', 'rails', 'Name of the Input it watches.'),
+      solidScriptParameter('name', 'Input', 'name', 'Rails', 'Name of the Input it watches.'),
       solidScriptParameter('value', 'Value', 'text', 'yes', 'Value that shows the inputs inside, as plain text.'),
     ],
     starter: [{ command: SOLID_SCRIPT_COMMAND_INPUT, values: { name: 'railHeight' } }],
@@ -174,7 +174,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Parts',
     description: 'Group lines to run from elsewhere',
     manual:
-      'Names a group of lines so you can run them from other places. The script skips these lines where they stand. They only run when a Call line, or a formula such as [=Area(2, 3)], calls the function. Inputs names the values it takes, such as w, d. Inside the function, read them as [local.W] and [local.D]. Names with local. belong to this one call. Names without it, such as [Width], are shared by the whole script. A Return line gives a value back. A function may call itself, but an If must stop it. Example: Function Area with inputs w, d holds Return [=[local.W] * [local.D]]. Then Call Area with 2, 3 gives 6.',
+      'Names a group of lines so you can run them from other places. The script skips these lines where they stand. They only run when a Call line, or a formula such as [=Area(2, 3)], calls the function. Inputs names the values it takes, such as W, D. Inside the function, read them as [Local.W] and [Local.D]. Names with Local. belong to this one call. Names without it, such as [Width], are shared by the whole script. A Return line gives a value back. A function may call itself, but an If must stop it. Example: Function Area with inputs W, D holds Return [=[Local.W] * [Local.D]]. Then Call Area with 2, 3 gives 6.',
     stops: [
       'A name another function, or a built-in one, already uses.',
       'A call with more or fewer values than the function has Inputs.',
@@ -183,12 +183,12 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     ],
     nesting: 'open',
     parameters: [
-      solidScriptParameter('name', 'Name', 'name', 'area', 'The name Call lines and formulas use, such as Area(2, 3).'),
+      solidScriptParameter('name', 'Name', 'name', 'Area', 'The name Call lines and formulas use, such as Area(2, 3).'),
       solidScriptParameterOptional(
         'parameters',
         'Inputs',
         'text',
-        'Names of the values it takes, such as w, d. Read them as [local.W].',
+        'Names of the values it takes, such as W, D. Read them as [Local.W].',
       ),
     ],
     listing: (read) => ['Function', read.text('name'), ...solidScriptListingInputs(read.text('parameters'))],
@@ -207,7 +207,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
       'A Result In, but the function gives nothing back.',
     ],
     parameters: [
-      solidScriptParameter('name', 'Function', 'name', 'area', 'Name of the Function block to run.'),
+      solidScriptParameter('name', 'Function', 'name', 'Area', 'Name of the Function block to run.'),
       solidScriptParameterOptional('values', 'Values', 'text', 'Values for its Inputs, in order, such as [I], 0.2.'),
       solidScriptParameterOptional(
         'result',
@@ -233,10 +233,10 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Inputs',
     description: 'Check an input when it changes',
     manual:
-      'Runs these lines when someone changes the input in the inspector, before the shape is rebuilt. The script skips them where they stand. They cannot build shapes. Use them to check the new value. Set Input can fix it, and Show Message can say why. Read any input as [name]. Example: When Input Changes Steps, then If [Steps] > 64, Set Input Steps to 64 and Show Message At most 64 steps.',
+      'Runs these lines when someone changes the input in the inspector, before the shape is rebuilt. The script skips them where they stand. They cannot build shapes. Use them to check the new value. Set Input can fix it, and Show Message can say why. Read any input as [Name]. Example: When Input Changes Steps, then If [Steps] > 64, Set Input Steps to 64 and Show Message At most 64 steps.',
     stops: ['A name that is not an Input of the script.', 'Building a shape.'],
     nesting: 'open',
-    parameters: [solidScriptParameter('name', 'Input', 'name', 'width', 'Name of the Input it watches.')],
+    parameters: [solidScriptParameter('name', 'Input', 'name', 'Width', 'Name of the Input it watches.')],
     endLabel: 'When',
     listing: (read) => ['When Input Changes', read.text('name')],
     execute: () => [],
@@ -250,7 +250,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
       'Runs these lines when someone presses a button in the inspector. The button comes from an Input with Type button. The script skips these lines where they stand. They cannot build shapes. Use Set Input to change inputs, and Show Message to explain. The shape is then rebuilt. Example: Input reset with Type button, then When Button Pressed reset holds Set Input Width to 2.',
     stops: ['A name that is not a button Input of the script.', 'Building a shape.'],
     nesting: 'open',
-    parameters: [solidScriptParameter('name', 'Button', 'name', 'reset', 'Name of the button Input.')],
+    parameters: [solidScriptParameter('name', 'Button', 'name', 'Reset', 'Name of the button Input.')],
     endLabel: 'When',
     listing: (read) => ['When Button Pressed', read.text('name')],
     execute: () => [],
@@ -346,7 +346,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
       'Changes an input in the inspector. It only works inside When Input Changes or When Button Pressed. Lines after it read the new value, and the shape is rebuilt with it. The value must fit the input, such as a whole number for a count. Example: Set Input Width to [=Max([Width], 0.5)] keeps the width at 0.5 metres or more.',
     stops: ['Being placed outside When Input Changes or When Button Pressed.', 'A name that is not an Input.'],
     parameters: [
-      solidScriptParameter('name', 'Input', 'name', 'width', 'Name of the Input to change.'),
+      solidScriptParameter('name', 'Input', 'name', 'Width', 'Name of the Input to change.'),
       solidScriptParameter('value', 'Value', 'value', '1', 'New value: a number, text, [Variable] or [=formula].'),
     ],
     listing: (read) => ['Set Input', read.text('name'), ' to ', read.value('value')],
@@ -361,7 +361,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Inputs',
     description: 'Explain something in the inspector',
     manual:
-      'Shows a message under the inputs in the inspector, until the next change. It only works inside When Input Changes or When Button Pressed. Write plain text. [name] and [=formula] are filled in, like in Echo. Example: Show Message Width is limited to [Max_width] m.',
+      'Shows a message under the inputs in the inspector, until the next change. It only works inside When Input Changes or When Button Pressed. Write plain text. [Name] and [=formula] are filled in, like in Echo. Example: Show Message Width is limited to [Max_width] m.',
     stops: ['Being placed outside When Input Changes or When Button Pressed.'],
     parameters: [solidScriptParameter('text', 'Message', 'message', 'Checked', 'Text to show, as plain words.')],
     listing: (read) => ['Show Message', read.value('text')],

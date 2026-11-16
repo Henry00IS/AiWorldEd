@@ -38,7 +38,7 @@ export const SOLID_SCRIPT_EXAMPLE_PILLAR_RING: readonly SolidScriptLine[] = [
   { command: 'variable', values: { name: 'Angle', value: '[=360 / [Count] * [I]]' } },
   {
     command: 'variable',
-    values: { name: 'Pos', value: '[=[Center] + vector(cos([Angle]), sin([Angle]), 0) * [Radius]]' },
+    values: { name: 'Pos', value: '[=[Center] + Vector(Cos([Angle]), Sin([Angle]), 0) * [Radius]]' },
   },
   { command: 'translate', values: { v: '[Pos]' } },
   { command: 'cylinder', values: { h: '3', r1: '0.25', r2: '0.2', sides: '12' } },
@@ -56,8 +56,8 @@ export const SOLID_SCRIPT_EXAMPLE_STEPPING_STONES: readonly SolidScriptLine[] = 
   { command: 'variable', values: { name: 'Start', value: '-4, -1, 0' } },
   { command: 'variable', values: { name: 'Finish', value: '4, 2, 0' } },
   { command: 'repeat', values: { variable: 'I', from: '0', to: '[=[Stones] - 1]' } },
-  { command: 'variable', values: { name: 'Pos', value: '[=lerp([Start], [Finish], [I] / ([Stones] - 1))]' } },
-  { command: 'variable', values: { name: 'Pos.z', value: '[=sin([I] * 40) * 0.15]' } },
+  { command: 'variable', values: { name: 'Pos', value: '[=Lerp([Start], [Finish], [I] / ([Stones] - 1))]' } },
+  { command: 'variable', values: { name: 'Pos.z', value: '[=Sin([I] * 40) * 0.15]' } },
   { command: 'translate', values: { v: '[Pos]' } },
   { command: 'rotate', values: { a: '0, 0, [=[I] * 23]' } },
   { command: 'cube', values: { size: '0.7, 0.5, 0.15' } },
@@ -77,7 +77,7 @@ export const SOLID_SCRIPT_EXAMPLE_PEBBLES: readonly SolidScriptLine[] = [
   { command: 'select_faces', values: { which: 'Facing Up' } },
   { command: 'for_each_scattered_point', values: { count: '[Pebbles]', seed: '3' } },
   { command: 'translate', values: { v: '[Point.Position]' } },
-  { command: 'sphere', values: { r: '[=random(0.05, 0.12, [Point.Index])]' } },
+  { command: 'sphere', values: { r: '[=Random(0.05, 0.12, [Point.Index])]' } },
   { command: 'end' },
   { command: 'end' },
 ];

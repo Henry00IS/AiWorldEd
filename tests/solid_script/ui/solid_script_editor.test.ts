@@ -733,8 +733,8 @@ describe('SolidScript editor', () => {
       tool('Cancel').click();
       return names;
     };
-    expect(offered(1)).toContain('local.h');
-    expect(offered(3)).not.toContain('local.h');
+    expect(offered(1)).toContain('Local.h');
+    expect(offered(3)).not.toContain('Local.h');
   });
 
   it('adds Input lines from the Variables tab, after the other inputs', () => {
@@ -772,7 +772,7 @@ describe('SolidScript editor', () => {
     expect(root.textContent).toContain('Paused at the breakpoint on line 2');
     find<HTMLButtonElement>('[data-category="Call Stack"]').click();
     expect(find('.solid-script-editor-stack-frame').textContent).toBe('post()called on line 4');
-    expect(explorerRows()).toEqual(['local.h|3|Whole Number|1']);
+    expect(explorerRows()).toEqual(['Local.h|3|Whole Number|1']);
   });
 
   it('explores variables: search, lists by index, every Set line, and Insert into the open field', () => {

@@ -14,7 +14,7 @@ const SOLID_SCRIPT_LIST_NAME = solidScriptParameter(
   'list',
   'List',
   'name',
-  'items',
+  'Items',
   'Name of the list, without brackets.',
 );
 
@@ -67,7 +67,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     category: 'Lists',
     description: 'Put a value at the end of a list',
     manual:
-      'Puts a value at the end of a list. A list that does not exist yet is made. Example: Add Item 3 to heights, then Add Item 5 to heights, and heights holds 3, 5.',
+      'Puts a value at the end of a list. A list that does not exist yet is made. Example: Add Item 3 to Heights, then Add Item 5 to Heights, and heights holds 3, 5.',
     stops: ['A name that is set but is not a list.'],
     parameters: [
       solidScriptParameter('value', 'Value', 'value', '1', 'What to put in the list.'),
@@ -86,7 +86,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     category: 'Lists',
     description: 'Put a value at a position in a list',
     manual:
-      'Puts a value into a list at a position; the items from there on move one place up. Positions count from 0, so 0 is the front. Example: heights holds 3, 5. Insert Item 4 into heights at 1 leaves 3, 4, 5.',
+      'Puts a value into a list at a position; the items from there on move one place up. Positions count from 0, so 0 is the front. Example: Heights holds 3, 5. Insert Item 4 into Heights at 1 leaves 3, 4, 5.',
     stops: [SOLID_SCRIPT_LIST_STOP, 'A position below 0 or past the end of the list.'],
     parameters: [
       solidScriptParameter('value', 'Value', 'value', '1', 'What to put in the list.'),
@@ -113,7 +113,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     category: 'Lists',
     description: 'Take an item out of a list',
     manual:
-      'Takes one item out of a list. points(2) removes item 2, and the items after it move up. points() removes the last item. Items count from 0. Example: points holds a, b, c. Remove Item points(0) leaves b, c.',
+      'Takes one item out of a list. Points(2) removes item 2, and the items after it move up. Points() removes the last item. Items count from 0. Example: Points holds a, b, c. Remove Item Points(0) leaves b, c.',
     stops: [
       'A variable that is not a list, an empty list, or an item past the end.',
       'An input. Inputs can only be read.',
@@ -123,8 +123,8 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
         'target',
         'Item',
         'target',
-        'points()',
-        'List item to remove, such as points(2), or points() for the last.',
+        'Points()',
+        'List item to remove, such as Points(2), or Points() for the last.',
       ),
     ],
     listing: (read) => ['Remove Item', read.variable('target')],
@@ -179,7 +179,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     parameters: [
       solidScriptParameter('value', 'Value', 'value', '1', 'What to look for.'),
       SOLID_SCRIPT_LIST_NAME,
-      solidScriptParameter('result', 'Result In', 'name', 'found', 'Variable that gets the position, or -1.'),
+      solidScriptParameter('result', 'Result In', 'name', 'Found', 'Variable that gets the position, or -1.'),
     ],
     listing: (read) => [
       'Find Item',
@@ -205,7 +205,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     category: 'Lists',
     description: 'Put a list in order',
     manual:
-      'Puts the items of a list in order: numbers from small to big, words from A to Z, numbers before words. Switch on Biggest First to turn the order around. Example: heights holds 5, 2, 9. Sort List heights leaves 2, 5, 9.',
+      'Puts the items of a list in order: numbers from small to big, words from A to Z, numbers before words. Switch on Biggest First to turn the order around. Example: Heights holds 5, 2, 9. Sort List Heights leaves 2, 5, 9.',
     stops: [SOLID_SCRIPT_LIST_STOP],
     parameters: [
       SOLID_SCRIPT_LIST_NAME,
@@ -238,7 +238,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     category: 'Lists',
     description: 'Turn a list back to front',
     manual:
-      'Turns a list around, so the last item comes first. Example: heights holds 1, 2, 3. Reverse List heights leaves 3, 2, 1.',
+      'Turns a list around, so the last item comes first. Example: Heights holds 1, 2, 3. Reverse List Heights leaves 3, 2, 1.',
     stops: [SOLID_SCRIPT_LIST_STOP],
     parameters: [SOLID_SCRIPT_LIST_NAME],
     listing: (read) => ['Reverse List', read.text('list')],
@@ -253,10 +253,10 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     category: 'Lists',
     description: 'Empty a variable or a list',
     manual:
-      'Empties a variable but keeps its name: a list keeps no items, and anything else becomes empty text. Example: Clear Variable heights empties the list heights, so [Heights().count] is 0. A name not set yet becomes an empty list, ready for Add Item.',
+      'Empties a variable but keeps its name: a list keeps no items, and anything else becomes empty text. Example: Clear Variable Heights empties the list Heights, so [Heights().Count] is 0. A name not set yet becomes an empty list, ready for Add Item.',
     stops: ['An input. Inputs can only be read.'],
     parameters: [
-      solidScriptParameter('name', 'Variable', 'name', 'items', 'Name of the variable or list, without brackets.'),
+      solidScriptParameter('name', 'Variable', 'name', 'Items', 'Name of the variable or list, without brackets.'),
     ],
     listing: (read) => ['Clear Variable', read.variable('name')],
     execute: (run) => {
@@ -270,10 +270,10 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     category: 'Lists',
     description: 'Forget a variable',
     manual:
-      'Forgets a variable, as if it was never set. Reading it afterwards stops the script, until a line sets it again. With a persistent. name, it is no longer kept between runs. Example: Delete Variable step forgets step.',
+      'Forgets a variable, as if it was never set. Reading it afterwards stops the script, until a line sets it again. With a Persistent. name, it is no longer kept between runs. Example: Delete Variable Step forgets Step.',
     stops: ['A name that is not set.', 'An input. Inputs can only be read.'],
     parameters: [
-      solidScriptParameter('name', 'Variable', 'name', 'items', 'Name of the variable or list, without brackets.'),
+      solidScriptParameter('name', 'Variable', 'name', 'Items', 'Name of the variable or list, without brackets.'),
     ],
     listing: (read) => ['Delete Variable', read.variable('name')],
     execute: (run) => {

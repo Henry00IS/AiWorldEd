@@ -53,12 +53,12 @@ export const SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE: readonly SolidScriptLine[] =
   solidScriptExampleNote('A point at an angle, a distance from the middle and a height.'),
   ...solidScriptExampleBlock('function', { name: 'Spot', parameters: 'Angle, Radius, Z' }, [
     solidScriptExampleLine('return', {
-      value: '[=vector([local.Radius] * cos([local.Angle]), [local.Radius] * sin([local.Angle]), [local.Z])]',
+      value: '[=Vector([Local.Radius] * Cos([Local.Angle]), [Local.Radius] * Sin([Local.Angle]), [Local.Z])]',
     }),
   ]),
   solidScriptExampleNote('The slope rises evenly with the angle, through the front edge of every tread.'),
   ...solidScriptExampleBlock('function', { name: 'Slope', parameters: 'Angle' }, [
-    solidScriptExampleLine('return', { value: '[=[Base] + [Rise] * [local.Angle] / [Per]]' }),
+    solidScriptExampleLine('return', { value: '[=[Base] + [Rise] * [Local.Angle] / [Per]]' }),
   ]),
   ...solidScriptExampleBlock('translate', { v: '0, 0, [Base]' }, [
     solidScriptExampleLine('cylinder', {

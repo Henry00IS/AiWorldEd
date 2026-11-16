@@ -2,8 +2,8 @@ import { SOLID_SCRIPT_SYSTEM_GLOBALS } from './solid_script_system.js';
 
 /**
  * Which names may contain a dot. A script's own names use letters, digits and _
- * only; a dot only appears where SolidScript gives it a meaning: local. and
- * persistent. in front of a name, .x, .y and .z behind a vector, ().count
+ * only; a dot only appears where SolidScript gives it a meaning: Local. and
+ * Persistent. in front of a name, .x, .y and .z behind a vector, ().Count
  * behind a list, and the read-only values of face, corner and edge loops such
  * as Face.Center.
  */
@@ -38,7 +38,7 @@ const SOLID_SCRIPT_SYSTEM_SPELLINGS: ReadonlyMap<string, string> = new Map(
   ),
 );
 
-/** A list item or count behind a name, such as points(2) or points().count. */
+/** A list item or count behind a name, such as points(2) or points().Count. */
 const SOLID_SCRIPT_NAME_ITEM = /^(.*?)\s*\((.*)\)\s*(?:\.\s*([A-Za-z_]\w*))?$/s;
 
 /** A name of the script, with an optional prefix and vector part. */
@@ -61,10 +61,10 @@ export function solidScriptNameDotProblem(name: string, use: 'read' | 'set'): st
   const item = SOLID_SCRIPT_NAME_ITEM.exec(text);
   const base = item ? item[1]!.trim() : text;
   if (item?.[3] !== undefined && item[3].toLowerCase() !== 'count')
-    return `a list has no .${item[3]}; write ${base}().count for the number of items`;
+    return `a list has no .${item[3]}; write ${base}().Count for the number of items`;
   if (!base.includes('.') || SOLID_SCRIPT_NAME_OWN.test(base)) return '';
   const system = SOLID_SCRIPT_NAME_SYSTEM.exec(base);
   const spelled = system ? SOLID_SCRIPT_SYSTEM_SPELLINGS.get(`${system[1]}.${system[2]}`.toLowerCase()) : undefined;
   if (spelled) return use === 'set' ? `${spelled} is a built-in value and can only be read` : '';
-  return `"${base}" cannot be a name: names use letters, digits and _. A dot only works in built-in names, such as pos.x, local.width, persistent.count or Face.Center`;
+  return `"${base}" cannot be a name: names use letters, digits and _. A dot only works in built-in names, such as Pos.x, Local.Width, Persistent.Count or Face.Center`;
 }
