@@ -911,6 +911,24 @@ describe('SolidScript editor', () => {
     expect(author.value).toBe('');
   });
 
+  it('opens the suggestions on the page above every window, inside the page edges', () => {
+    editorFixture(CUBE_SPHERE);
+    doubleClick(chip(0));
+    const field = document.querySelector<HTMLInputElement>('[data-solid-script-configurator] input[type="text"]')!;
+    const window = field.closest<HTMLElement>('[data-solid-script-configurator]')!;
+    field.getBoundingClientRect = () => new DOMRect(900, globalThis.innerHeight - 40, 120, 24);
+    field.focus();
+    type(field, '[');
+    const host = document.querySelector<HTMLElement>('body > .solid-script-editor-suggestions-host')!;
+    expect(window.contains(host)).toBe(false);
+    expect(host.style.top).toBe('');
+    expect(host.style.maxHeight).toBe(`${globalThis.innerHeight - 40 - 8}px`);
+    expect(Number.parseFloat(host.style.left) + Number.parseFloat(host.style.width)).toBeLessThanOrEqual(
+      globalThis.innerWidth - 4,
+    );
+    expect(Number.parseFloat(host.style.width)).toBeGreaterThanOrEqual(Math.min(560, globalThis.innerWidth - 8));
+  });
+
   it('offers the shape Names of the script in the Of field', () => {
     editorFixture([
       { command: 'cube', values: { label: 'Knob' } },

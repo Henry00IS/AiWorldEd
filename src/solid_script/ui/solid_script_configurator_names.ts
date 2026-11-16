@@ -13,7 +13,7 @@ import {
 } from './solid_script_suggestions.js';
 
 /** Narrowest suggestion list, wider than most fields. */
-const SOLID_SCRIPT_SUGGESTIONS_WIDTH_PX = 480;
+const SOLID_SCRIPT_SUGGESTIONS_WIDTH_PX = 560;
 
 /** Room the list needs below a field before it opens above it instead. */
 const SOLID_SCRIPT_SUGGESTIONS_ROOM_PX = 260;
@@ -87,12 +87,15 @@ function solidScriptSuggestionPlace(popup: HTMLElement, anchor: HTMLElement, wid
   const view = anchor.ownerDocument.defaultView;
   const viewWidth = view?.innerWidth ?? width;
   const viewHeight = view?.innerHeight ?? 0;
-  const left = Math.max(4, Math.min(box.left, viewWidth - width - 4));
+  const fitted = Math.min(width, viewWidth - 8);
+  const left = Math.max(4, Math.min(box.left, viewWidth - fitted - 4));
   popup.style.left = `${left}px`;
-  popup.style.width = `${width}px`;
+  popup.style.width = `${fitted}px`;
   const below = viewHeight - box.bottom >= SOLID_SCRIPT_SUGGESTIONS_ROOM_PX || box.top < viewHeight - box.bottom;
   popup.style.top = below ? `${box.bottom + 2}px` : '';
   popup.style.bottom = below ? '' : `${viewHeight - box.top + 2}px`;
+  // Never past the edge of the page: the list scrolls inside instead.
+  popup.style.maxHeight = `${Math.max(0, (below ? viewHeight - box.bottom : box.top) - 8)}px`;
 }
 
 /**

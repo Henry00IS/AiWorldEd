@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { SOLID_SCRIPT_SYSTEM_GLOBALS } from '@/solid_script/language/solid_script_system.js';
+import { solidScriptFunctionSpelling } from '@/solid_script/language/solid_script_name_key.js';
 import { solidScriptDocumentCreate } from '@/solid_script/document/solid_script_document.js';
 import {
   SOLID_SCRIPT_FUNCTION_DOCS,
@@ -174,6 +176,10 @@ describe('SolidScript suggestions', () => {
       'Built-In Functions',
     ]);
     expect(all.filter((entry) => entry.category === 'System').length).toBeGreaterThan(30);
+    const labels = new Set(all.map((entry) => entry.label));
+    for (const value of SOLID_SCRIPT_SYSTEM_GLOBALS) expect(labels.has(value.name), value.name).toBe(true);
+    for (const key of Object.keys(SOLID_SCRIPT_FUNCTION_DOCS))
+      expect(labels.has(solidScriptFunctionSpelling(key)), key).toBe(true);
   });
 
   it('lists the locals of a Function and explains built-in values and functions', () => {
