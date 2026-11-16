@@ -7,6 +7,7 @@ import {
   type SolidScriptName,
 } from '@/solid_script/document/solid_script_document_names.js';
 import { SolidScriptConfiguratorNames } from './solid_script_configurator_names.js';
+import { textureSelectCreate } from '@/texture/ui/texture_select.js';
 import type { SolidScriptSuggestionScope } from './solid_script_suggestions.js';
 
 /** One labelled field of the configurator. */
@@ -131,8 +132,60 @@ function solidScriptConfiguratorInputs(
   if (parameter.type === 'boolean' && (value === 'true' || value === 'false'))
     return solidScriptConfiguratorCheckbox(value === 'true', parameter, inputs);
   const input = solidScriptConfiguratorInput(value, parameter.label);
+  if (parameter.texture === true) return solidScriptConfiguratorTexture(input, parameter, inputs);
   inputs.append(input);
   return { read: () => input.value.trim(), problem: () => solidScriptConfiguratorProblem(parameter, input.value) };
+}
+
+/**
+ * Builds a texture field: the shared texture picker, or typing for a variable
+ * or formula. It opens typed when the text uses [ ].
+ *
+ * @param input Text input with the stored text.
+ * @param parameter Parameter.
+ * @param inputs Container.
+ * @returns Reader and check.
+ */
+function solidScriptConfiguratorTexture(
+  input: HTMLInputElement,
+  parameter: SolidScriptCommandParameter,
+  inputs: HTMLElement,
+): SolidScriptConfiguratorFieldReader {
+  const select = textureSelectCreate(parameter.label, () =>
+    inputs.dispatchEvent(new Event('change', { bubbles: true })),
+  );
+  select.element.classList.add(SOLID_SCRIPT_EDITOR_CLASSES.input);
+  let picking = !input.value.includes('[');
+  const modes = (['Pick', 'Type'] as const).map((mode) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = mode;
+    button.className = SOLID_SCRIPT_EDITOR_CLASSES.fieldMode;
+    button.setAttribute('aria-label', `${mode} Texture`);
+    button.title = mode === 'Pick' ? 'Pick a texture from the library' : 'Type a texture name, variable or formula';
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      if ((mode === 'Pick') === picking) return;
+      if (picking) input.value = select.read();
+      else if (!input.value.includes('[')) select.write(input.value.trim());
+      picking = mode === 'Pick';
+      show();
+      inputs.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    return button;
+  });
+  const show = (): void => {
+    select.element.hidden = !picking;
+    input.hidden = picking;
+    modes.forEach((button, index) => button.setAttribute('aria-pressed', String((index === 0) === picking)));
+  };
+  select.write(picking ? input.value.trim() : '');
+  show();
+  inputs.append(...modes, select.element, input);
+  return {
+    read: () => (picking ? select.read() : input.value.trim()),
+    problem: () => (picking ? '' : solidScriptConfiguratorProblem(parameter, input.value)),
+  };
 }
 
 /**

@@ -63,6 +63,8 @@ export interface SolidScriptCommandParameter {
   optional?: boolean;
   /** The few words the field takes, offered first while it is typed. */
   words?: readonly SolidScriptCommandWord[];
+  /** True for a library texture: the window offers the texture picker or typing. */
+  texture?: boolean;
 }
 
 /** One word a field takes, with what it means. */

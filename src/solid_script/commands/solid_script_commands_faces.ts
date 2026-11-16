@@ -584,12 +584,15 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     stops: ['A missing End line.', 'A [Name] for a variable not set above this line.'],
     nesting: 'open',
     parameters: [
-      solidScriptParameterOptional(
-        'texture',
-        'Texture',
-        'message',
-        "Name of a library texture; [Name] puts in a variable, such as a texture Input. Empty keeps the generator's texture.",
-      ),
+      {
+        ...solidScriptParameterOptional(
+          'texture',
+          'Texture',
+          'message',
+          "Name of a library texture; [Name] puts in a variable, such as a texture Input. Empty keeps the generator's texture.",
+        ),
+        texture: true,
+      },
     ],
     listing: (read) => ['Texture', read.value('texture')],
     execute: (run) => {
@@ -619,13 +622,16 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       'A [Name] for a variable not set above this line.',
     ],
     parameters: [
-      solidScriptParameter(
-        'texture',
-        'Texture',
-        'message',
-        'grass',
-        'Name of a library texture; [Name] puts in a variable, such as a texture Input.',
-      ),
+      {
+        ...solidScriptParameter(
+          'texture',
+          'Texture',
+          'message',
+          'grass',
+          'Name of a library texture; [Name] puts in a variable, such as a texture Input.',
+        ),
+        texture: true,
+      },
     ],
     listing: (read) => ['Texture Faces', read.value('texture')],
     execute: (run) => {
