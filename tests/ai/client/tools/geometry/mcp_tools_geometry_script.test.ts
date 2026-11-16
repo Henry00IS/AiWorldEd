@@ -109,6 +109,30 @@ describe('SolidScript generator tools', () => {
     expect(notButton.message).toMatch(/steps is not a button input; buttons: reset/);
   });
 
+  it('reads where each input sits in the inspector: its group, whether it is shown, and the notes', () => {
+    const { api, objectId } = generatorFixture();
+    const lines = [
+      { command: 'input_note', values: { text: 'Sizes are in metres.' } },
+      { command: 'input', values: { name: 'rails', type: 'switch', default: 'no' } },
+      { command: 'show_inputs_when', values: { name: 'rails', value: 'yes' } },
+      { command: 'input_group', values: { title: 'Railing' } },
+      { command: 'input', values: { name: 'railHeight', type: 'number', default: '1' } },
+      { command: 'end' },
+      { command: 'end' },
+      { command: 'cube' },
+    ];
+    const set = api.invokeTool('geometry_script_generator_set', { objectId, lines });
+    expect(set.data).toMatchObject({
+      notes: ['Sizes are in metres.'],
+      inputs: [
+        { name: 'rails', group: '', shown: true },
+        { name: 'railHeight', group: 'Railing', shown: false },
+      ],
+    });
+    const on = api.invokeTool('geometry_script_generator_set', { objectId, inputs: { rails: 'yes' } });
+    expect(on.data).toMatchObject({ inputs: [{ name: 'rails' }, { name: 'railHeight', shown: true }] });
+  });
+
   it('set and read the values of the script inputs like the inspector', () => {
     const { api, objectId } = generatorFixture();
     const lines = [

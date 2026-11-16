@@ -136,7 +136,7 @@ function solidScriptReferenceFunctions(): string {
 const SOLID_SCRIPT_REFERENCE_TOOLS = `## Tools
 
 - geometry_script_build and geometry_script_preview take lines and add the result as plain brushes (or report what they would add).
-- A SolidScript generator (modifier_generator_create kind solidScript) keeps a named script in the level and rebuilds its brushes whenever the script or its box changes. geometry_script_generator_set replaces its name, lines, placement and input values in one undo step; geometry_script_generator_get reads them back with how the editor lists each line, the script's Input lines with their values, the solid count and the first error. Turn the result into plain brushes with modifier_stack_bake.
+- A SolidScript generator (modifier_generator_create kind solidScript) keeps a named script in the level and rebuilds its brushes whenever the script or its box changes. geometry_script_generator_set replaces its name, lines, placement and input values in one undo step; geometry_script_generator_get reads them back with how the editor lists each line, the script's Input lines with their values, Input Group (group) and whether Show Inputs When shows them (shown), the Input Note texts (notes), the solid count and the first error. Turn the result into plain brushes with modifier_stack_bake.
 - geometry_script_command_list returns the same commands as JSON.
 `;
 

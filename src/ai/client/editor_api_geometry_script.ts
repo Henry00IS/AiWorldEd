@@ -20,6 +20,10 @@ import { solidScriptErrorText } from '@/solid_script/language/solid_script_error
 import { solidScriptProgramEvaluate, solidScriptProgramHandle } from '@/solid_script/language/solid_script_program.js';
 import { SOLID_SCRIPT_PERSISTENT_PREFIX, type SolidScriptEvent } from '@/solid_script/language/solid_script_machine.js';
 import { solidScriptInputsList } from '@/solid_script/language/solid_script_input.js';
+import {
+  solidScriptDocumentInputLayout,
+  solidScriptInputRulesHold,
+} from '@/solid_script/document/solid_script_document_inputs.js';
 import { solidScriptReference } from '@/solid_script/reference/solid_script_reference.js';
 import { solidScriptInspectorInputValues } from '@/solid_script/ui/solid_script_inspector_inputs.js';
 import type { EditorApiHost } from './editor_api_host.js';
@@ -188,11 +192,25 @@ export class EditorApiGeometryScript {
   private describe(generator: GeometryScriptGenerator, document: SolidScriptDocument): Record<string, unknown> {
     const values = solidScriptInspectorInputValues(generator.parameters[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]);
     const { solids, error } = geometryScriptRun(document, values);
-    const inputs = solidScriptInputsList(document.blocks).map(({ fallback, ...input }) => ({
-      ...input,
-      default: fallback,
-      value: values[input.name] ?? fallback,
-    }));
+    const layout = solidScriptDocumentInputLayout(document);
+    const fallbacks = new Map(
+      layout.flatMap((item) => (item.kind === 'input' ? [[item.input.name, item.input.fallback] as const] : [])),
+    );
+    const valueOf = (name: string): string | undefined => values[name] ?? fallbacks.get(name);
+    const inputs = layout.flatMap((item) => {
+      if (item.kind !== 'input') return [];
+      const { fallback, ...input } = item.input;
+      return [
+        {
+          ...input,
+          default: fallback,
+          value: values[input.name] ?? fallback,
+          group: item.group,
+          shown: solidScriptInputRulesHold(item.when, valueOf),
+        },
+      ];
+    });
+    const notes = layout.flatMap((item) => (item.kind === 'note' ? [item.text] : []));
     const listed = solidScriptDocumentListing(document);
     const lines = document.blocks.map((block, index) => ({
       line: index + 1,
@@ -206,6 +224,7 @@ export class EditorApiGeometryScript {
       placement: generator.parameters['placement'],
       lines,
       inputs,
+      notes,
       solids,
       error,
     };

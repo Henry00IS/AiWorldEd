@@ -195,7 +195,7 @@ export class McpToolsGeometry extends McpToolGroup {
       {
         name: 'geometry_script_generator_get',
         description:
-          'Reads the script of a SolidScript generator: its name, block lines with values and how the editor lists each, placement, its Input lines with their values, solid count and first error.',
+          'Reads the script of a SolidScript generator: its name, block lines with values and how the editor lists each, placement, its Input lines with their values, group and whether they are shown, Input Note texts, solid count and first error.',
         inputSchema: MCP_GEOMETRY_SCRIPT_GET_SCHEMA,
         mutates: false,
         run: (args) => this.script.generatorGet(String(args['objectId'] ?? '')),
