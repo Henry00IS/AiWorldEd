@@ -101,7 +101,7 @@ export const SOLID_SCRIPT_SYSTEM_GLOBALS: readonly SolidScriptSystemValue[] = [
   { name: 'Room.Name', type: 'Text', detail: 'name of the room, or empty offline' },
   { name: 'Room.Players', type: 'Number', detail: 'people in the room, 1 offline' },
   { name: 'User.Name', type: 'Text', detail: 'your display name, or empty' },
-  { name: 'Time.Now', type: 'Number', detail: 'seconds since 1 January 1970, for time_text()' },
+  { name: 'Time.Now', type: 'Number', detail: 'seconds since 1 January 1970, for TimeText()' },
   { name: 'Time.Delta', type: 'Number', detail: 'seconds since the run before this one' },
   { name: 'Time.Text', type: 'Text', detail: 'date and time now, such as 2026-11-16 09:30:00' },
   { name: 'Time.Date', type: 'Text', detail: 'date now, such as 2026-11-16' },

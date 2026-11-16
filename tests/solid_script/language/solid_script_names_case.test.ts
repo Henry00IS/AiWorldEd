@@ -35,6 +35,15 @@ describe('names ignore case', () => {
     expect(result.variables.map((variable) => variable.name)).not.toContain('count');
   });
 
+  it('give an Input the value stored under another spelling of its name', () => {
+    const lines = solidScriptDocumentCreate([
+      { command: 'input', values: { name: 'TopSize', type: 'number', default: '1' } },
+      echo('[TopSize]'),
+      { command: 'cube' },
+    ]);
+    expect(solidScriptProgramRun(lines, { inputs: { topSize: '0.5' } }).messages).toEqual(['0.5']);
+  });
+
   it('match inputs, counters, Function names, local. and persistent. whatever their case', () => {
     const result = run(
       { command: 'input', values: { name: 'Steps', type: 'count', default: '2' } },

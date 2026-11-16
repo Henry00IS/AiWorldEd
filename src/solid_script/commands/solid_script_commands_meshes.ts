@@ -189,7 +189,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Add a corner point to a Mesh',
     manual:
-      'Adds one corner point at X, Y and Z in metres to the Mesh around this line, moved by any Translate, Rotate or other move between them. Vertex lines are numbered from 0 in the order they run, and Face lines join them by number. UV, when given, is the texture coordinate of the point. Leave it empty for coordinates made automatically. Example: inside Repeat [i] from 0 to 7, Vertex [=cos([i] * 45) * 2], [=sin([i] * 45) * 2], 0 adds the eight points of a ring.',
+      'Adds one corner point at X, Y and Z in metres to the Mesh around this line, moved by any Translate, Rotate or other move between them. Vertex lines are numbered from 0 in the order they run, and Face lines join them by number. UV, when given, is the texture coordinate of the point. Leave it empty for coordinates made automatically. Example: inside Repeat [I] from 0 to 7, Vertex [=Cos([I] * 45) * 2], [=Sin([I] * 45) * 2], 0 adds the eight points of a ring.',
     stops: ['Being placed outside a Mesh.', 'A position that is not x, y, z.'],
     parameters: [
       solidScriptParameter('position', 'Position', 'vector3', '0, 0, 0', 'X, Y and Z of the point in metres.'),
@@ -378,7 +378,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Push mesh points in or out by a formula',
     manual:
-      'Moves every point of the mesh made from the shapes between this line and its End outwards along its surface by Distance in metres. A negative distance pulls it in. Distance is worked out for each point, and may use [x], [y] and [z] (where the point is), [nx], [ny] and [nz] (which way the surface faces there) and [index] (the point number), so waves, noise and bulges come from one formula. Subdivide first for a smooth result. Example: Distance [=0.1 * sin([x] * 180)] around a subdivided Cube gives a wavy surface.',
+      'Moves every point of the mesh made from the shapes between this line and its End outwards along its surface by Distance in metres. A negative distance pulls it in. Distance is worked out for each point, and may use [X], [Y] and [Z] (where the point is), [Nx], [Ny] and [Nz] (which way the surface faces there) and [Index] (the point number), so waves, noise and bulges come from one formula. Subdivide first for a smooth result. Example: Distance [=0.1 * Sin([X] * 180)] around a subdivided Cube gives a wavy surface.',
     stops: [
       'A Distance that does not give a number.',
       SOLID_SCRIPT_MESH_STOPS_FLAT,
@@ -391,8 +391,8 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
         'distance',
         'Distance',
         'number',
-        '[=0.1 * sin([x] * 360)]',
-        'Metres to move each point outwards. May use [x], [y], [z], [nx], [ny], [nz] and [index].',
+        '[=0.1 * Sin([X] * 360)]',
+        'Metres to move each point outwards. May use [X], [Y], [Z], [Nx], [Ny], [Nz] and [Index].',
       ),
     ],
     starter: [
@@ -425,7 +425,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Pull chosen mesh faces out',
     manual:
-      'Pulls the faces of the mesh made from the shapes between this line and its End out along the way they face, each on its own, with new side faces joining them to the rest. A negative distance pushes them in for a dent. Which Faces is a condition checked for every face, and both fields may use [nx], [ny] and [nz] (which way the face points), [cx], [cy] and [cz] (its middle) and [index] (its number). Example: Which Faces [nz] > 0.5 with Distance 0.5 lifts the top of a Cube half a metre.',
+      'Pulls the faces of the mesh made from the shapes between this line and its End out along the way they face, each on its own, with new side faces joining them to the rest. A negative distance pushes them in for a dent. Which Faces is a condition checked for every face, and both fields may use [Nx], [Ny] and [Nz] (which way the face points), [Cx], [Cy] and [Cz] (its middle) and [Index] (its number). Example: Which Faces [Nz] > 0.5 with Distance 0.5 lifts the top of a Cube half a metre.',
     stops: [
       'A Distance that does not give a number.',
       SOLID_SCRIPT_MESH_STOPS_FLAT,
@@ -445,8 +445,8 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
         'which',
         'Which Faces',
         'condition',
-        '[nz] > 0.5',
-        'Condition for the faces to pull, such as [nz] > 0.5 for faces pointing up. True pulls every face.',
+        '[Nz] > 0.5',
+        'Condition for the faces to pull, such as [Nz] > 0.5 for faces pointing up. True pulls every face.',
       ),
     ],
     starter: [{ command: 'cube', values: {} }],

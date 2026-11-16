@@ -50,6 +50,6 @@ describe('SolidScript curve inputs', () => {
   });
 
   it('says plainly when the text is not a curve', () => {
-    expect(echo({ profile: 'zigzag' }, '[=curve_at([profile], 0)]')).toMatch(/curve_at\(curve, x\) needs a curve/);
+    expect(echo({ profile: 'zigzag' }, '[=curve_at([profile], 0)]')).toMatch(/CurveAt\(curve, x\) needs a curve/);
   });
 });

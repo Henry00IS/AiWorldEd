@@ -1,4 +1,5 @@
 import { SOLID_SCRIPT_FUNCTION_DOCS } from '@/solid_script/language/solid_script_function_docs.js';
+import { solidScriptFunctionSpelling } from '@/solid_script/language/solid_script_name_key.js';
 import { SOLID_SCRIPT_SYSTEM_GLOBALS } from '@/solid_script/language/solid_script_system.js';
 import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
 import { SOLID_SCRIPT_FUNCTIONS_BUILTIN } from '@/solid_script/language/solid_script_functions_builtin.js';
@@ -134,12 +135,15 @@ export function solidScriptSuggestions(
     for (const entry of functions)
       if (starts(entry.name))
         suggestions.push({ label: entry.name, detail: entry.detail, category: 'Functions', ...call(entry.name) });
-    for (const name of Object.keys(SOLID_SCRIPT_FUNCTIONS_BUILTIN).sort())
-      if (starts(name)) {
+    // Taught in Start Case, such as CharacterCode; any case still works.
+    for (const name of Object.keys(SOLID_SCRIPT_FUNCTIONS_BUILTIN).sort()) {
+      const spelled = solidScriptFunctionSpelling(name);
+      if (starts(spelled) || starts(name)) {
         const doc = SOLID_SCRIPT_FUNCTION_DOCS[name];
         const detail = doc ? `${doc.usage}: ${doc.summary}` : 'built in';
-        suggestions.push({ label: name, detail, category: 'Built-In Functions', ...call(name) });
+        suggestions.push({ label: spelled, detail, category: 'Built-In Functions', ...call(spelled) });
       }
+    }
     if (context && prefix.includes('.'))
       for (const value of SOLID_SCRIPT_SYSTEM_GLOBALS)
         if (starts(value.name))

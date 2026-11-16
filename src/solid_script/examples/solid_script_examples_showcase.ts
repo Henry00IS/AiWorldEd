@@ -25,7 +25,7 @@ function solidScriptExampleSweepPiece(from: string, to: string, corners: readonl
   return solidScriptExamplePolyhedron(
     solidScriptExampleBlock(
       'for_each',
-      { variable: 'a', list: `${from}, ${to}` },
+      { variable: 'A', list: `${from}, ${to}` },
       corners.map(solidScriptExamplePoint),
     ),
   );
@@ -39,50 +39,50 @@ export const SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE: readonly SolidScriptLine[] =
   solidScriptExampleNote(
     'Spiral Staircase: treads around a centre column, a smooth slope below, a stringer and a handrail.',
   ),
-  solidScriptExampleInput('steps', 'count', '18', { label: 'Steps', min: '3', max: '128' }),
-  solidScriptExampleInput('turn', 'number', '360', { label: 'Turn', min: '30', max: '1440' }),
-  solidScriptExampleInput('height', 'number', '3.2', { label: 'Height', min: '0.5' }),
-  solidScriptExampleInput('outer', 'number', '1.8', { label: 'Outer Radius', min: '0.3' }),
-  solidScriptExampleInput('inner', 'number', '0.3', { label: 'Column Radius', min: '0.05' }),
-  solidScriptExampleInput('railHeight', 'number', '0.95', { label: 'Railing Height', min: '0.3' }),
-  solidScriptExampleInput('smooth', 'count', '4', { label: 'Smoothness', min: '1', max: '16' }),
-  solidScriptExampleSet('rise', '[=[height] / [steps]]'),
-  solidScriptExampleSet('per', '[=[turn] / [steps]]'),
-  solidScriptExampleSet('base', '[=-[height] / 2]'),
-  solidScriptExampleSet('railAt', '[=[outer] - 0.1]'),
+  solidScriptExampleInput('Steps', 'count', '18', { label: 'Steps', min: '3', max: '128' }),
+  solidScriptExampleInput('Turn', 'number', '360', { label: 'Turn', min: '30', max: '1440' }),
+  solidScriptExampleInput('Height', 'number', '3.2', { label: 'Height', min: '0.5' }),
+  solidScriptExampleInput('Outer', 'number', '1.8', { label: 'Outer Radius', min: '0.3' }),
+  solidScriptExampleInput('Inner', 'number', '0.3', { label: 'Column Radius', min: '0.05' }),
+  solidScriptExampleInput('RailHeight', 'number', '0.95', { label: 'Railing Height', min: '0.3' }),
+  solidScriptExampleInput('Smooth', 'count', '4', { label: 'Smoothness', min: '1', max: '16' }),
+  solidScriptExampleSet('Rise', '[=[Height] / [Steps]]'),
+  solidScriptExampleSet('Per', '[=[Turn] / [Steps]]'),
+  solidScriptExampleSet('Base', '[=-[Height] / 2]'),
+  solidScriptExampleSet('RailAt', '[=[Outer] - 0.1]'),
   solidScriptExampleNote('A point at an angle, a distance from the middle and a height.'),
-  ...solidScriptExampleBlock('function', { name: 'spot', parameters: 'angle, radius, z' }, [
+  ...solidScriptExampleBlock('function', { name: 'Spot', parameters: 'Angle, Radius, Z' }, [
     solidScriptExampleLine('return', {
-      value: '[=vector([local.radius] * cos([local.angle]), [local.radius] * sin([local.angle]), [local.z])]',
+      value: '[=vector([local.Radius] * cos([local.Angle]), [local.Radius] * sin([local.Angle]), [local.Z])]',
     }),
   ]),
   solidScriptExampleNote('The slope rises evenly with the angle, through the front edge of every tread.'),
-  ...solidScriptExampleBlock('function', { name: 'slope', parameters: 'angle' }, [
-    solidScriptExampleLine('return', { value: '[=[base] + [rise] * [local.angle] / [per]]' }),
+  ...solidScriptExampleBlock('function', { name: 'Slope', parameters: 'Angle' }, [
+    solidScriptExampleLine('return', { value: '[=[Base] + [Rise] * [local.Angle] / [Per]]' }),
   ]),
-  ...solidScriptExampleBlock('translate', { v: '0, 0, [base]' }, [
+  ...solidScriptExampleBlock('translate', { v: '0, 0, [Base]' }, [
     solidScriptExampleLine('cylinder', {
-      h: '[=[height] + [railHeight]]',
-      r1: '[inner]',
-      r2: '[inner]',
+      h: '[=[Height] + [RailHeight]]',
+      r1: '[Inner]',
+      r2: '[Inner]',
       sides: '24',
       center: 'false',
     }),
   ]),
-  ...solidScriptExampleRepeat('s', '0', '[=[steps] - 1]', [
-    solidScriptExampleSet('top', '[=[base] + [rise] * ([s] + 1)]'),
-    ...solidScriptExampleRepeat('p', '0', '[=[smooth] - 1]', [
-      ...solidScriptExampleSweepPiece('[=[per] * ([s] + [p] / [smooth])]', '[=[per] * ([s] + ([p] + 1) / [smooth])]', [
-        '[=spot([a], [inner], [top] - 0.06)]',
-        '[=spot([a], [outer], [top] - 0.06)]',
-        '[=spot([a], [outer], [top])]',
-        '[=spot([a], [inner], [top])]',
+  ...solidScriptExampleRepeat('S', '0', '[=[Steps] - 1]', [
+    solidScriptExampleSet('Top', '[=[Base] + [Rise] * ([S] + 1)]'),
+    ...solidScriptExampleRepeat('P', '0', '[=[Smooth] - 1]', [
+      ...solidScriptExampleSweepPiece('[=[Per] * ([S] + [P] / [Smooth])]', '[=[Per] * ([S] + ([P] + 1) / [Smooth])]', [
+        '[=Spot([A], [Inner], [Top] - 0.06)]',
+        '[=Spot([A], [Outer], [Top] - 0.06)]',
+        '[=Spot([A], [Outer], [Top])]',
+        '[=Spot([A], [Inner], [Top])]',
       ]),
     ]),
-    solidScriptExampleSet('middle', '[=[per] * ([s] + 0.5)]'),
-    ...solidScriptExampleBlock('translate', { v: '[=spot([middle], [railAt], [top])]' }, [
+    solidScriptExampleSet('Middle', '[=[Per] * ([S] + 0.5)]'),
+    ...solidScriptExampleBlock('translate', { v: '[=Spot([Middle], [RailAt], [Top])]' }, [
       solidScriptExampleLine('cylinder', {
-        h: '[railHeight]',
+        h: '[RailHeight]',
         r1: '0.02',
         r2: '0.02',
         sides: '8',
@@ -93,27 +93,27 @@ export const SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE: readonly SolidScriptLine[] =
   solidScriptExampleNote(
     'The slope, the outer stringer and the handrail follow the turn in small twisted pieces, so they look smooth.',
   ),
-  solidScriptExampleSet('pieces', '[=[steps] * [smooth]]'),
-  ...solidScriptExampleRepeat('k', '0', '[=[pieces] - 1]', [
-    solidScriptExampleSet('from', '[=[turn] * [k] / [pieces]]'),
-    solidScriptExampleSet('to', '[=[turn] * ([k] + 1) / [pieces]]'),
-    ...solidScriptExampleSweepPiece('[from]', '[to]', [
-      '[=spot([a], [inner], slope([a]) - 0.06)]',
-      '[=spot([a], [outer], slope([a]) - 0.06)]',
-      '[=spot([a], [outer], slope([a]) - 0.26)]',
-      '[=spot([a], [inner], slope([a]) - 0.26)]',
+  solidScriptExampleSet('Pieces', '[=[Steps] * [Smooth]]'),
+  ...solidScriptExampleRepeat('K', '0', '[=[Pieces] - 1]', [
+    solidScriptExampleSet('From', '[=[Turn] * [K] / [Pieces]]'),
+    solidScriptExampleSet('To', '[=[Turn] * ([K] + 1) / [Pieces]]'),
+    ...solidScriptExampleSweepPiece('[From]', '[To]', [
+      '[=Spot([A], [Inner], Slope([A]) - 0.06)]',
+      '[=Spot([A], [Outer], Slope([A]) - 0.06)]',
+      '[=Spot([A], [Outer], Slope([A]) - 0.26)]',
+      '[=Spot([A], [Inner], Slope([A]) - 0.26)]',
     ]),
-    ...solidScriptExampleSweepPiece('[from]', '[to]', [
-      '[=spot([a], [outer], slope([a]) - 0.26)]',
-      '[=spot([a], [outer] + 0.04, slope([a]) - 0.26)]',
-      '[=spot([a], [outer] + 0.04, slope([a]) + [rise] + 0.04)]',
-      '[=spot([a], [outer], slope([a]) + [rise] + 0.04)]',
+    ...solidScriptExampleSweepPiece('[From]', '[To]', [
+      '[=Spot([A], [Outer], Slope([A]) - 0.26)]',
+      '[=Spot([A], [Outer] + 0.04, Slope([A]) - 0.26)]',
+      '[=Spot([A], [Outer] + 0.04, Slope([A]) + [Rise] + 0.04)]',
+      '[=Spot([A], [Outer], Slope([A]) + [Rise] + 0.04)]',
     ]),
-    ...solidScriptExampleSweepPiece('[from]', '[to]', [
-      '[=spot([a], [railAt] - 0.035, slope([a]) + [rise] * 1.5 + [railHeight] - 0.03)]',
-      '[=spot([a], [railAt] + 0.035, slope([a]) + [rise] * 1.5 + [railHeight] - 0.03)]',
-      '[=spot([a], [railAt] + 0.035, slope([a]) + [rise] * 1.5 + [railHeight] + 0.03)]',
-      '[=spot([a], [railAt] - 0.035, slope([a]) + [rise] * 1.5 + [railHeight] + 0.03)]',
+    ...solidScriptExampleSweepPiece('[From]', '[To]', [
+      '[=Spot([A], [RailAt] - 0.035, Slope([A]) + [Rise] * 1.5 + [RailHeight] - 0.03)]',
+      '[=Spot([A], [RailAt] + 0.035, Slope([A]) + [Rise] * 1.5 + [RailHeight] - 0.03)]',
+      '[=Spot([A], [RailAt] + 0.035, Slope([A]) + [Rise] * 1.5 + [RailHeight] + 0.03)]',
+      '[=Spot([A], [RailAt] - 0.035, Slope([A]) + [Rise] * 1.5 + [RailHeight] + 0.03)]',
     ]),
   ]),
 ];

@@ -129,7 +129,7 @@ export function solidScriptExamplePolyhedron(inside: readonly SolidScriptLine[],
 
 /** Width, depth and height Inputs every generator port starts with. */
 export const SOLID_SCRIPT_EXAMPLE_BOX_INPUTS: readonly SolidScriptLine[] = [
-  solidScriptExampleInput('width', 'number', '2', { label: 'Width', min: '0.01' }),
-  solidScriptExampleInput('depth', 'number', '2', { label: 'Depth', min: '0.01' }),
-  solidScriptExampleInput('height', 'number', '2', { label: 'Height', min: '0.01' }),
+  solidScriptExampleInput('Width', 'number', '2', { label: 'Width', min: '0.01' }),
+  solidScriptExampleInput('Depth', 'number', '2', { label: 'Depth', min: '0.01' }),
+  solidScriptExampleInput('Height', 'number', '2', { label: 'Height', min: '0.01' }),
 ];

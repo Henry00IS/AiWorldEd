@@ -47,7 +47,7 @@ function solidScriptMathWrap(value: number, low: number, high: number): number {
 /** Math and list functions: ranges, smoothing, angles and list picks. */
 export const SOLID_SCRIPT_FUNCTIONS_MATH: Readonly<Record<string, SolidScriptMath>> = {
   remap: (args) => {
-    const usage = 'remap(value, from_low, from_high, to_low, to_high)';
+    const usage = 'Remap(value, from_low, from_high, to_low, to_high)';
     const [value, fromLow, fromHigh, toLow, toHigh] = [0, 1, 2, 3, 4].map((index) =>
       solidScriptExtraNumber(args, index, usage),
     ) as [number, number, number, number, number];
@@ -55,14 +55,14 @@ export const SOLID_SCRIPT_FUNCTIONS_MATH: Readonly<Record<string, SolidScriptMat
     return toLow + ((value - fromLow) / (fromHigh - fromLow)) * (toHigh - toLow);
   },
   smoothstep: (args) => {
-    const usage = 'smoothstep(edge_low, edge_high, value)';
+    const usage = 'Smoothstep(edge_low, edge_high, value)';
     const low = solidScriptExtraNumber(args, 0, usage);
     const high = solidScriptExtraNumber(args, 1, usage);
     const t = Math.min(1, Math.max(0, (solidScriptExtraNumber(args, 2, usage) - low) / (high - low || 1)));
     return t * t * (3 - 2 * t);
   },
   wrap: (args) => {
-    const usage = 'wrap(value, min, max)';
+    const usage = 'Wrap(value, min, max)';
     return solidScriptMathWrap(
       solidScriptExtraNumber(args, 0, usage),
       solidScriptExtraNumber(args, 1, usage),
@@ -70,35 +70,35 @@ export const SOLID_SCRIPT_FUNCTIONS_MATH: Readonly<Record<string, SolidScriptMat
     );
   },
   mod: (args) =>
-    solidScriptMathWrap(solidScriptExtraNumber(args, 0, 'mod(a, b)'), 0, solidScriptExtraNumber(args, 1, 'mod(a, b)')),
+    solidScriptMathWrap(solidScriptExtraNumber(args, 0, 'Mod(a, b)'), 0, solidScriptExtraNumber(args, 1, 'Mod(a, b)')),
   snap: (args) => {
-    const usage = 'snap(value, step)';
+    const usage = 'Snap(value, step)';
     const step = solidScriptExtraNumber(args, 1, usage);
     if (step <= 0) throw new Error(`${usage} needs a step above 0`);
     return Math.round(solidScriptExtraNumber(args, 0, usage) / step) * step;
   },
   fract: (args) => {
-    const value = solidScriptExtraNumber(args, 0, 'fract(value)');
+    const value = solidScriptExtraNumber(args, 0, 'Fract(value)');
     return value - Math.floor(value);
   },
-  radians: (args) => (solidScriptExtraNumber(args, 0, 'radians(degrees)') * Math.PI) / 180,
-  degrees: (args) => (solidScriptExtraNumber(args, 0, 'degrees(radians)') * 180) / Math.PI,
-  hypot: (args) => Math.hypot(...args.map((_, index) => solidScriptExtraNumber(args, index, 'hypot(a, b, ...)'))),
+  radians: (args) => (solidScriptExtraNumber(args, 0, 'Radians(degrees)') * Math.PI) / 180,
+  degrees: (args) => (solidScriptExtraNumber(args, 0, 'Degrees(radians)') * 180) / Math.PI,
+  hypot: (args) => Math.hypot(...args.map((_, index) => solidScriptExtraNumber(args, index, 'Hypot(a, b, ...)'))),
   between: (args) => {
-    const usage = 'between(value, min, max)';
+    const usage = 'Between(value, min, max)';
     const value = solidScriptExtraNumber(args, 0, usage);
     return value >= solidScriptExtraNumber(args, 1, usage) && value <= solidScriptExtraNumber(args, 2, usage);
   },
-  sum: (args) => solidScriptMathNumbers(args, 'sum(list)').reduce((total, value) => total + value, 0),
+  sum: (args) => solidScriptMathNumbers(args, 'Sum(list)').reduce((total, value) => total + value, 0),
   average: (args) => {
-    const numbers = solidScriptMathNumbers(args, 'average(list)');
-    if (numbers.length === 0) throw new Error('average(list) needs at least one number');
+    const numbers = solidScriptMathNumbers(args, 'Average(list)');
+    if (numbers.length === 0) throw new Error('Average(list) needs at least one number');
     return numbers.reduce((total, value) => total + value, 0) / numbers.length;
   },
-  first: (args) => solidScriptMathList(args, 0, 'first(list)')[0],
-  last: (args) => solidScriptMathList(args, 0, 'last(list)').at(-1),
+  first: (args) => solidScriptMathList(args, 0, 'First(list)')[0],
+  last: (args) => solidScriptMathList(args, 0, 'Last(list)').at(-1),
   slice: (args) => {
-    const usage = 'slice(list, start, count)';
+    const usage = 'Slice(list, start, count)';
     const list = solidScriptMathList(args, 0, usage);
     const start = Math.floor(solidScriptExtraNumber(args, 1, usage));
     const count = args.length > 2 ? Math.floor(solidScriptExtraNumber(args, 2, usage)) : list.length;
@@ -106,13 +106,13 @@ export const SOLID_SCRIPT_FUNCTIONS_MATH: Readonly<Record<string, SolidScriptMat
   },
   index_of: (args) => {
     const wanted = solidScriptValueText(args[1]);
-    return solidScriptMathList(args, 0, 'index_of(list, value)').findIndex(
+    return solidScriptMathList(args, 0, 'IndexOf(list, value)').findIndex(
       (item) => solidScriptValueText(item) === wanted,
     );
   },
   unique: (args) => {
     const seen = new Set<string>();
-    return solidScriptMathList(args, 0, 'unique(list)').filter((item) => {
+    return solidScriptMathList(args, 0, 'Unique(list)').filter((item) => {
       const key = solidScriptValueText(item);
       if (seen.has(key)) return false;
       seen.add(key);
@@ -120,7 +120,7 @@ export const SOLID_SCRIPT_FUNCTIONS_MATH: Readonly<Record<string, SolidScriptMat
     });
   },
   sorted: (args) =>
-    [...solidScriptMathList(args, 0, 'sorted(list)')].sort((a, b) =>
+    [...solidScriptMathList(args, 0, 'Sorted(list)')].sort((a, b) =>
       typeof a === 'number' && typeof b === 'number'
         ? a - b
         : solidScriptValueText(a).localeCompare(solidScriptValueText(b)),

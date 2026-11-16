@@ -1397,7 +1397,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
         state.machine.messages.push(text);
         return [];
       },
-      inputValue: (name) => state.machine.inputs[name],
+      inputValue: (name) => state.machine.inputs[name] ?? state.machine.inputKeyed().get(solidScriptNameKey(name)),
       use: () => state.machine.system.use ?? SOLID_SCRIPT_USE_GENERATOR,
       inputDefine: (name, value) => {
         state.machine.nameCheck(name, 'an input');
@@ -1683,6 +1683,21 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
    */
   private indexValue(text: string, scope: SolidScriptScope): SolidScriptValue {
     return solidScriptFieldResolve('number', text, this.fieldContext(scope));
+  }
+
+  /** Inspector values by name key, made on first use. */
+  private inputsKeyed: Map<string, string> | null = null;
+
+  /**
+   * Returns the inspector values by name key, so an input finds its value
+   * whatever case the inspector stored it under.
+   *
+   * @returns Values by key.
+   */
+  private inputKeyed(): Map<string, string> {
+    return (this.inputsKeyed ??= new Map(
+      Object.entries(this.inputs).map(([name, value]) => [solidScriptNameKey(name), value]),
+    ));
   }
 
   /**
