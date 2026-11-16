@@ -860,7 +860,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
         `functions and parts run inside each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} levels deep. A function that calls itself needs an If that stops it`,
       );
     const locals = new SolidScriptScope(null);
-    parameters.forEach((parameter, index) => locals.variableDefine(parameter, values[index]));
+    for (let index = 0; index < parameters.length; index++) locals.variableDefine(parameters[index]!, values[index]);
     const frame: SolidScriptFrame = { kind: 'function', name, line: this.line, locals, returned: null };
     this.stack.push(frame);
     try {
