@@ -10,6 +10,7 @@ export const SOLID_SCRIPT_INPUT_TYPES = [
   'button',
   'curve',
   'texture',
+  'vector',
 ] as const;
 
 /** Id of the Input command. */
@@ -120,9 +121,35 @@ export function solidScriptInputValue(input: SolidScriptInput, text: string): So
       throw new Error(`input "${input.name}" must be one of ${input.choices.join(', ')}, not "${text}"`);
     return trimmed;
   }
+  if (input.type === 'vector') return solidScriptInputVector(input, text);
+  return solidScriptInputNumber(input, trimmed);
+}
+
+/**
+ * Reads a vector input: three numbers with commas, each inside the limits.
+ *
+ * @param input Vector input.
+ * @param text Value as typed.
+ * @returns X, Y and Z.
+ */
+function solidScriptInputVector(input: SolidScriptInput, text: string): number[] {
+  const parts = text.split(',').map((part) => part.trim());
+  if (parts.length !== 3 || parts.some((part) => part === '' || !Number.isFinite(Number(part))))
+    throw new Error(`input "${input.name}" must be three numbers with commas, such as 1, 2, 3, not "${text}"`);
+  return parts.map((part) => solidScriptInputNumber(input, part));
+}
+
+/**
+ * Reads one number of an input and checks its limits.
+ *
+ * @param input Number, count or vector input.
+ * @param trimmed Number as typed, trimmed.
+ * @returns Number.
+ */
+function solidScriptInputNumber(input: SolidScriptInput, trimmed: string): number {
   const number = Number(trimmed);
   if (trimmed === '' || !Number.isFinite(number))
-    throw new Error(`input "${input.name}" must be a number, not "${text}"`);
+    throw new Error(`input "${input.name}" must be a number, not "${trimmed}"`);
   if (input.type === 'count' && !Number.isInteger(number))
     throw new Error(`input "${input.name}" must be a whole number, not ${number}`);
   if ((input.min !== null && number < input.min) || (input.max !== null && number > input.max))

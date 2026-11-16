@@ -109,6 +109,20 @@ describe('SolidScript inspector inputs', () => {
     expect((parameters()[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY] as Record<string, string>)['look']).toBe('');
   });
 
+  it('shows a vector input as X, Y and Z fields on one row and stores the three numbers', () => {
+    const { panel, parameters } = inputsFixture([
+      { command: 'input', values: { name: 'size', type: 'vector', default: '1, 2, 3', label: 'Size' } },
+      { command: 'cube', values: { size: '[size]' } },
+    ]);
+    const fields = ['X', 'Y', 'Z'].map((axis) =>
+      panel.querySelector<HTMLInputElement>(`input[aria-label="Size ${axis}"]`),
+    );
+    expect(fields.map((field) => field?.value)).toEqual(['1.00', '2.00', '3.00']);
+    fields[1]!.value = '5';
+    fields[1]!.dispatchEvent(new Event('change'));
+    expect(parameters()[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]).toEqual({ size: '1, 5, 3' });
+  });
+
   it('shows the title of an Input Group above its rows and an Input Note as a line of text', () => {
     const { panel, parameters } = inputsFixture([
       { command: 'input_note', values: { text: 'Sizes are in metres.' } },

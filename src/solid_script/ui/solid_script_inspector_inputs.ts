@@ -264,6 +264,7 @@ function solidScriptInspectorInputRow(
     field.addEventListener('change', () => commit(field.value));
     return { element: modifierStackUiRow(input.label, field, hint), write: (text) => void (field.value = text) };
   }
+  if (input.type === 'vector') return solidScriptInspectorVectorRow(input, commit, hint);
   const integer = input.type === 'count';
   const number = inputNumericCreateUvField(integer ? 1 : 0.25, input.label);
   number.bindCommit(() => {
@@ -276,6 +277,48 @@ function solidScriptInspectorInputRow(
   });
   const write = (text: string): void => number.setNumber(Number(text), integer ? 0 : 2);
   return { element: modifierStackUiRow(input.label, number.getElement(), hint), write };
+}
+
+/**
+ * Builds the control of a vector input: X, Y and Z number fields on one row,
+ * stored together as three numbers with commas.
+ *
+ * @param input Vector input.
+ * @param commit Stores a new value as text.
+ * @param hint Row tooltip.
+ * @returns Row and how to show a value.
+ */
+function solidScriptInspectorVectorRow(
+  input: SolidScriptInput,
+  commit: (text: string) => void,
+  hint: string,
+): { element: HTMLElement; write: (text: string) => void } {
+  const shown = [0, 0, 0];
+  const fields = ['X', 'Y', 'Z'].map((axis, index) => {
+    const field = inputNumericCreateUvField(0.25, `${input.label} ${axis}`);
+    field.bindCommit(() => {
+      const parsed = field.parseNumberOrNull();
+      if (parsed === null || !Number.isFinite(parsed)) return;
+      let value = parsed;
+      if (input.min !== null) value = Math.max(input.min, value);
+      if (input.max !== null) value = Math.min(input.max, value);
+      shown[index] = value;
+      commit(shown.join(', '));
+    });
+    return field;
+  });
+  const row = document.createElement('div');
+  row.dataset['solidScriptVector'] = input.name;
+  Object.assign(row.style, { display: 'flex', gap: '4px' });
+  row.append(...fields.map((field) => field.getElement()));
+  const write = (text: string): void => {
+    const parts = text.split(',').map((part) => Number(part.trim()));
+    fields.forEach((field, index) => {
+      shown[index] = Number.isFinite(parts[index]) ? parts[index]! : 0;
+      field.setNumber(shown[index]!, 2);
+    });
+  };
+  return { element: modifierStackUiRow(input.label, row, hint), write };
 }
 
 /**

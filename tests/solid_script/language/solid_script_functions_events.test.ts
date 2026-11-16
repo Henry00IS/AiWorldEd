@@ -231,6 +231,24 @@ describe('Function blocks', () => {
   });
 });
 
+describe('Vector inputs', () => {
+  const size = (values: Record<string, string> = {}) =>
+    line('input', { name: 'size', type: 'vector', default: '1, 2, 3', ...values });
+
+  it('give the variable a vector with an x, y and z, from the inspector or the Default', () => {
+    const fallback = run(size(), echo('[size.y]'), line('cube', { size: '[size]' }));
+    expect(fallback.error).toBeNull();
+    expect(fallback.messages).toEqual(['2']);
+    const given = runWith({ inputs: { size: '4, 5, 6' } }, size(), echo('[size.x] [size.z]'));
+    expect(given.messages).toEqual(['4 6']);
+  });
+
+  it('stop on a value that is not three numbers, or a part outside Minimum and Maximum', () => {
+    expect(runWith({ inputs: { size: '4, 5' } }, size()).error?.message).toContain('three numbers');
+    expect(runWith({ inputs: { size: '1, 9, 1' } }, size({ max: '5' })).error?.message).toContain('from any to 5');
+  });
+});
+
 describe('Inspector event handlers', () => {
   const lines = [
     line('input', { name: 'steps', type: 'count', default: '8', min: '1', max: '64' }),
