@@ -810,7 +810,10 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     const built: SolidScriptShape[] = [];
     this.builtStack.push(built);
     try {
-      for (const node of lines) built.push(...this.lineRun(node, scope, context));
+      for (const node of lines) {
+        const shapes = this.lineRun(node, scope, context);
+        for (const shape of shapes) built.push(shape);
+      }
     } finally {
       this.builtStack.pop();
     }
@@ -1039,17 +1042,21 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
     scope: SolidScriptScope,
     context: SolidScriptContext,
   ): SolidScriptShape[] {
-    return (
-      this.guarded(node.line, () => {
-        const line = this.runOf(node, scope, context);
-        line.busy = true;
-        try {
-          return node.command.execute(line.run);
-        } finally {
-          line.busy = false;
-        }
-      }) ?? []
-    );
+    if (this.failure || this.paused || this.leaving) return [];
+    const outer = this.line;
+    this.line = node.line;
+    const line = this.runOf(node, scope, context);
+    line.busy = true;
+    try {
+      this.workTake();
+      return node.command.execute(line.run);
+    } catch (error) {
+      this.failureNote(error, node.line);
+      return [];
+    } finally {
+      line.busy = false;
+      this.line = outer;
+    }
   }
 
   /**
@@ -1116,13 +1123,24 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> {
       this.workTake();
       return step();
     } catch (error) {
-      if (this.paused) return undefined;
-      const message = error instanceof Error ? error.message : String(error);
-      this.failure ??= solidScriptFailure(solidScriptErrorLine(message) ?? line, message);
+      this.failureNote(error, line);
       return undefined;
     } finally {
       this.line = outer;
     }
+  }
+
+  /**
+   * Keeps the first mistake of the run, at the line it names or else the line
+   * that ran; a run that paused keeps no mistake.
+   *
+   * @param error What was thrown.
+   * @param line Line that ran.
+   */
+  private failureNote(error: unknown, line: number): void {
+    if (this.paused) return;
+    const message = error instanceof Error ? error.message : String(error);
+    this.failure ??= solidScriptFailure(solidScriptErrorLine(message) ?? line, message);
   }
 
   /**
