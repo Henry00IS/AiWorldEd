@@ -21,3 +21,15 @@ export function mouseNavigationReferenceSensitivity(): number {
 export function mouseNavigationSensitivityMultiplier(sensitivity: number): number {
   return sensitivity / mouseNavigationReferenceSensitivity();
 }
+
+/**
+ * Converts a 1–100 Mouse Move sensitivity slider into a scale factor. The
+ * default Mouse Move slider value (30) yields 1, so wheel and Alt+middle-mouse
+ * dolly travel stay at their historical scale until the user changes it.
+ *
+ * @param sensitivity Slider value from mouse settings.
+ * @returns Multiplier applied to wheel and dolly travel.
+ */
+export function mouseMoveSensitivityMultiplier(sensitivity: number): number {
+  return sensitivity / createDefaultMouseSettings().moveSensitivity;
+}

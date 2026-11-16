@@ -597,6 +597,22 @@ function panDeltaForMiddleDrag(
   return delta;
 }
 
+/**
+ * Returns camera travel after one scroll-forward wheel notch.
+ *
+ * @param overrides Mouse setting overrides applied before the wheel event.
+ * @returns World-space position change.
+ */
+function wheelDeltaForMove(overrides: Partial<MouseSettings> = {}): THREE.Vector3 {
+  const { canvas, camera, flyingCamera } = createFlyingCameraHarness();
+  flyingCamera.applyMouseNavigationSettings(mouseSettings(overrides));
+  const before = camera.position.clone();
+  canvas.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, cancelable: true }));
+  const delta = camera.position.clone().sub(before);
+  flyingCamera.dispose();
+  return delta;
+}
+
 describe('FlyingCamera mouse settings', () => {
   afterEach(() => {
     managerPointerLock.reset();
@@ -712,5 +728,21 @@ describe('FlyingCamera mouse settings', () => {
       true,
     );
     expect(inverted.z).toBeCloseTo(-normal.z, 5);
+  });
+
+  it('scales wheel travel by move sensitivity relative to the default of 30', () => {
+    const atDefault = wheelDeltaForMove({ moveSensitivity: 30 });
+    const atDouble = wheelDeltaForMove({ moveSensitivity: 60 });
+    expect(atDefault.length()).toBeGreaterThan(0);
+    expect(atDouble.x).toBeCloseTo(atDefault.x * 2, 5);
+    expect(atDouble.y).toBeCloseTo(atDefault.y * 2, 5);
+    expect(atDouble.z).toBeCloseTo(atDefault.z * 2, 5);
+  });
+
+  it('scales Alt+middle-mouse dolly by move sensitivity relative to the default of 30', () => {
+    const atDefault = panDeltaForMiddleDrag({ altMiddleMouseDragMovesCamera: true, moveSensitivity: 30 }, 0, 20, true);
+    const atDouble = panDeltaForMiddleDrag({ altMiddleMouseDragMovesCamera: true, moveSensitivity: 60 }, 0, 20, true);
+    expect(atDefault.length()).toBeGreaterThan(0);
+    expect(atDouble.z).toBeCloseTo(atDefault.z * 2, 5);
   });
 });

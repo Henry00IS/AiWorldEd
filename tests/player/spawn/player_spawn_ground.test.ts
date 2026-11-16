@@ -205,3 +205,36 @@ describe('playerSpawnRaycastSupportY', () => {
     expect(playerSpawnRaycastSupportY(getDefaultPerspectiveCameraPosition(), world)).toBeNull();
   });
 });
+
+describe('playerSpawnResolveFeetUnderCamera inverted-world solid', () => {
+  beforeAll(async () => {
+    await PhysicsRapierRuntime.ensureLoaded();
+  });
+
+  it('finds an open pose inside the room when the camera is just outside a wall', () => {
+    const roomWidth = 6;
+    const roomHeight = 3;
+    const roomDepth = 5;
+    const world = createInvertedRoomWorld(roomWidth, roomHeight, roomDepth);
+    const camera = new THREE.PerspectiveCamera();
+    camera.position.set(roomWidth * 0.5 + 0.4, 0, 0);
+    camera.lookAt(0, 0, 0);
+    camera.updateMatrixWorld(true);
+    const feet = new THREE.Vector3();
+    expect(playerSpawnResolveFeetUnderCamera(camera, world, feet)).toBe(true);
+    expect(Math.abs(feet.x)).toBeLessThan(roomWidth * 0.5 - 0.05);
+    expect(Math.abs(feet.z)).toBeLessThan(roomDepth * 0.5 - 0.05);
+    expect(feet.y).toBeGreaterThanOrEqual(-roomHeight * 0.5 - 0.05);
+    expect(feet.y).toBeLessThan(roomHeight * 0.5 - PLAYER_COLLIDER_HEIGHT_METERS);
+  });
+
+  it('returns false when the camera is far inside the solid with no nearby opening', () => {
+    const world = createInvertedRoomWorld(6, 3, 5);
+    const camera = new THREE.PerspectiveCamera();
+    camera.position.set(40, 0, 0);
+    camera.lookAt(41, 0, 0);
+    camera.updateMatrixWorld(true);
+    const feet = new THREE.Vector3();
+    expect(playerSpawnResolveFeetUnderCamera(camera, world, feet)).toBe(false);
+  });
+});

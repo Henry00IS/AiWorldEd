@@ -11,11 +11,13 @@ export type ListenerPolicyEditorOverlay = () => void;
  */
 export class PolicyEditorOverlay {
   private readonly enablers: Map<EditorOverlayId, Set<string>>;
+  private readonly suppressions: Set<string>;
   private readonly listeners: ListenerPolicyEditorOverlay[];
 
   /** Creates an empty policy (all overlays denied until enabled). */
   constructor() {
     this.enablers = new Map();
+    this.suppressions = new Set();
     this.listeners = [];
   }
 
@@ -61,8 +63,39 @@ export class PolicyEditorOverlay {
    * @returns True when a tool has opted into the overlay.
    */
   isAllowed(overlayId: EditorOverlayId): boolean {
+    if (this.suppressions.size > 0) {
+      return false;
+    }
     const reasons = this.enablers.get(overlayId);
     return !!reasons && reasons.size > 0;
+  }
+
+  /**
+   * Hides every overlay while this reason is held, even when tools have opted
+   * in. Used for Play Mode so bounds labels and gizmos do not stay on screen.
+   *
+   * @param reasonKey Stable session id (e.g. `play_mode`).
+   */
+  suppress(reasonKey: string): void {
+    if (this.suppressions.has(reasonKey)) {
+      return;
+    }
+    this.suppressions.add(reasonKey);
+    this.notifyListeners();
+  }
+
+  /**
+   * Releases one suppress reason. Overlays return to their enabled state when
+   * no suppress reasons remain.
+   *
+   * @param reasonKey Reason previously passed to {@link suppress}.
+   */
+  releaseSuppress(reasonKey: string): void {
+    if (!this.suppressions.has(reasonKey)) {
+      return;
+    }
+    this.suppressions.delete(reasonKey);
+    this.notifyListeners();
   }
 
   /**

@@ -25,6 +25,8 @@ export interface PlayerSystemHost {
   showStatusMessage: (message: string) => void;
   helperAdd: (object: THREE.Object3D) => void;
   helperRemove: (object: THREE.Object3D) => void;
+  /** Optional layout hook fired after play mode starts or ends. */
+  onPlayModeChanged?: (isPlaying: boolean) => void;
 }
 
 /** Status shown after the figurine set a spawn; replaces the drag hint. */
@@ -91,6 +93,7 @@ export class PlayerSystem {
       ballSystem: this.ballSystem,
       getPerspectiveViewports: () => host.getPerspectiveViewports(),
       showStatusMessage: (message) => host.showStatusMessage(message),
+      onPlayModeChanged: (isPlaying) => host.onPlayModeChanged?.(isPlaying),
     });
     this.playTool = new PlayerPlayTool(this.session);
     this.toolbarButtons = [];

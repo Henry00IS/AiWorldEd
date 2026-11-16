@@ -262,6 +262,16 @@ export class ControllerViewportToolChrome {
   }
 
   /**
+   * Hides hover-owned viewport tool chrome while Play Mode is active, then
+   * restores the remembered hover owner when play ends.
+   *
+   * @param suspended True while playing.
+   */
+  setHoverChromeSuspended(suspended: boolean): void {
+    this.hoverOwner.setSuspended(suspended);
+  }
+
+  /**
    * Sets Object Mode or Edit Mode and updates all pane chrome.
    *
    * @param mode Interaction mode to activate.

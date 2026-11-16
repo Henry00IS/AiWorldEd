@@ -1,6 +1,7 @@
 import type { EditorSettingsStore } from '@/settings/store/editor_settings_store.js';
 import { formatKeyboardShortcut } from '@/settings/keyboard/keyboard_shortcut_format.js';
 import type { KeyboardShortcutAction, KeyboardShortcutSettings } from '@/settings/store/settings_types.js';
+import { EDIT_MESH_SHORTCUT_REMINDERS } from '@/edit/tool/edit_mesh_shortcut.js';
 import { createSettingsCategory, createSettingsControlRow, createSettingsTextInput } from './settings_form_controls.js';
 import { keyboardShortcutCodeFromEvent } from '@/input/keyboard_event_match.js';
 
@@ -59,15 +60,15 @@ const CLIP_SHORTCUT_ROWS: ReadonlyArray<readonly [KeyboardShortcutAction, string
   ['clip_split', 'Split Clip'],
 ];
 
-/** Fixed keyboard reminders for face editing and 3D fly navigation. */
-const KEYBOARD_REMINDER_ROWS: ReadonlyArray<readonly [string, string, string]> = [
+/** Fixed reminders that sit above the Edit Mode modelling registry. */
+const KEYBOARD_REMINDER_PREFIX_ROWS: ReadonlyArray<readonly [string, string, string]> = [
   ['edit-knife', 'Knife (add vertex on edge, Edit Mode)', 'K'],
   ['edit-loop-cut', 'Loop Cut (Edit Mode)', 'Ctrl+R'],
   ['edit-merge', 'Merge Vertices (Edit Mode)', 'M'],
-  ['edit-extrude', 'Extrude Faces (Edit Mode)', 'E'],
-  ['edit-inset', 'Inset Faces (Edit Mode)', 'I'],
-  ['edit-connect', 'Connect Vertices (Edit Mode)', 'J'],
-  ['edit-split', 'Split Faces (Edit Mode)', 'Y'],
+];
+
+/** Fixed reminders that sit below the Edit Mode modelling registry. */
+const KEYBOARD_REMINDER_SUFFIX_ROWS: ReadonlyArray<readonly [string, string, string]> = [
   ['edit-select-all', 'Select All / None (Edit Mode)', 'Ctrl+A / Alt+A'],
   ['edit-select-invert', 'Invert Selection (Edit Mode)', 'Ctrl+I'],
   ['edit-select-more-less', 'Select More / Less (Edit Mode)', 'Ctrl+] / Ctrl+['],
@@ -80,6 +81,13 @@ const KEYBOARD_REMINDER_ROWS: ReadonlyArray<readonly [string, string, string]> =
   ['fly-left-right', '3D Fly Left / Right (hold RMB)', 'A / D'],
   ['fly-down-up', '3D Fly Down / Up (hold RMB)', 'Q / E'],
   ['fly-speed-boost', '3D Fly Speed Boost (hold RMB)', 'Shift'],
+];
+
+/** Fixed keyboard reminders for face editing and 3D fly navigation. */
+const KEYBOARD_REMINDER_ROWS: ReadonlyArray<readonly [string, string, string]> = [
+  ...KEYBOARD_REMINDER_PREFIX_ROWS,
+  ...EDIT_MESH_SHORTCUT_REMINDERS.map((row) => [row.id, row.label, row.shortcut] as const),
+  ...KEYBOARD_REMINDER_SUFFIX_ROWS,
 ];
 
 /** Keyboard tab content for rebinding primary editor actions. */

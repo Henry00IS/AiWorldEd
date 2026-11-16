@@ -6,3 +6,6 @@ export const OBJECT_TOOL_SESSION_KEY = 'object_tool';
 
 /** Overlay owner while Edit Mode needs component gizmos. */
 export const EDIT_MODE_SESSION_KEY = 'edit_mode';
+
+/** Overlay suppress reason while Play Mode is hiding editor chrome. */
+export const PLAY_MODE_SESSION_KEY = 'play_mode';

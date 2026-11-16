@@ -203,6 +203,8 @@ describe('SettingsDialog', () => {
       { id: 'keyboard-reminder-edit-inset', value: 'I', readOnly: true },
       { id: 'keyboard-reminder-edit-connect', value: 'J', readOnly: true },
       { id: 'keyboard-reminder-edit-split', value: 'Y', readOnly: true },
+      { id: 'keyboard-reminder-edit-bevel', value: 'Ctrl+B', readOnly: true },
+      { id: 'keyboard-reminder-edit-duplicate-faces', value: 'Shift+D', readOnly: true },
       { id: 'keyboard-reminder-edit-select-all', value: 'Ctrl+A / Alt+A', readOnly: true },
       { id: 'keyboard-reminder-edit-select-invert', value: 'Ctrl+I', readOnly: true },
       { id: 'keyboard-reminder-edit-select-more-less', value: 'Ctrl+] / Ctrl+[', readOnly: true },

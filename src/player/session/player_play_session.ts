@@ -19,7 +19,11 @@ import type { PlayerFigurineMarker } from '@/player/figurine/player_figurine_mar
 import { PlayerCharacterAvatar } from '@/player/character/player_character_avatar.js';
 import type { PlayerHelperLayer } from '@/player/player_helper_layer.js';
 import { playerMovementResolveSimulationDeltaSeconds } from '@/player/movement/player_movement_input.js';
-import { playerSpawnResolveFeetUnderCamera } from '@/player/spawn/player_spawn_ground.js';
+import {
+  PLAYER_SPAWN_INSIDE_SOLID_STATUS,
+  playerSpawnEnsureOpenStandingFeet,
+  playerSpawnResolveFeetUnderCamera,
+} from '@/player/spawn/player_spawn_ground.js';
 import type { PlayerBallSystem } from '@/player/ball/player_ball_system.js';
 import { playerEyePositionFromFeet } from '@/player/collision/player_capsule_collider.js';
 import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
@@ -43,6 +47,8 @@ export interface PlayerPlaySessionHost {
   ballSystem: PlayerBallSystem;
   getPerspectiveViewports: () => readonly Viewport3D[];
   showStatusMessage: (message: string) => void;
+  /** Optional layout hook fired after play mode starts or ends. */
+  onPlayModeChanged?: (isPlaying: boolean) => void;
 }
 
 /** Play-mode pose shared with collaborators. */
@@ -202,7 +208,14 @@ export class PlayerPlaySession {
     audioViewportFocus.record(viewport);
     this.host.collisionWorld.setWorldRoot(this.host.worldRoot);
     this.host.collisionWorld.activate();
-    this.prepareSpawn(camera);
+    if (!this.prepareSpawn(camera)) {
+      this.host.collisionWorld.release();
+      this.activeViewport = null;
+      this.activeCamera = null;
+      this.cameraSnapshot = null;
+      this.host.showStatusMessage(PLAYER_SPAWN_INSIDE_SOLID_STATUS);
+      return false;
+    }
     this.viewMode = 'first_person';
     this.lastFrameTimeMs = performance.now();
     this.isActive = true;
@@ -210,6 +223,7 @@ export class PlayerPlaySession {
     this.host.figurineMarker.hide();
     this.avatar.attach();
     this.showToys(viewport);
+    this.host.onPlayModeChanged?.(true);
     this.host.showStatusMessage('Play mode — ESC exit, LMB throw, wheel pick toy, RMB third-person, Ctrl slow-mo');
     return true;
   }
@@ -288,6 +302,7 @@ export class PlayerPlaySession {
     this.activeViewport = null;
     this.activeCamera = null;
     this.cameraSnapshot = null;
+    this.host.onPlayModeChanged?.(false);
     this.host.showStatusMessage('Exited play mode');
   }
 
@@ -468,17 +483,25 @@ export class PlayerPlaySession {
    * camera.
    *
    * @param camera Active perspective camera.
+   * @returns False when the spawn is buried in a solid and no nearby opening
+   *   was found.
    */
-  private prepareSpawn(camera: THREE.PerspectiveCamera): void {
+  private prepareSpawn(camera: THREE.PerspectiveCamera): boolean {
     const jumpHeld = this.host.inputManager.isKeyDown('Space');
     if (this.host.spawnState.copySpawnFeetPositionTo(this.scratchSpawn)) {
+      if (!playerSpawnEnsureOpenStandingFeet(this.scratchSpawn, this.host.collisionWorld, this.scratchSpawn)) {
+        return false;
+      }
       const spawnYaw = this.host.spawnState.getSpawnYawRadians();
       this.body.resetAt(this.scratchSpawn, this.host.collisionWorld, jumpHeld, spawnYaw);
       this.look.setAngles(spawnYaw, 0);
-      return;
+      return true;
     }
-    playerSpawnResolveFeetUnderCamera(camera, this.host.collisionWorld, this.scratchSpawn);
+    if (!playerSpawnResolveFeetUnderCamera(camera, this.host.collisionWorld, this.scratchSpawn)) {
+      return false;
+    }
     this.look.syncFromCamera(camera);
     this.body.resetAt(this.scratchSpawn, this.host.collisionWorld, jumpHeld, this.look.getYawRadians());
+    return true;
   }
 }

@@ -4,11 +4,13 @@ import type { ViewportToolChromeHost } from '@/tools/chrome/host/viewport_tool_c
 export class ViewportToolChromeHoverOwner {
   private readonly hosts: Set<ViewportToolChromeHost>;
   private owner: ViewportToolChromeHost | null;
+  private suspended: boolean;
 
   /** Creates an empty hover owner tracker. */
   constructor() {
     this.hosts = new Set();
     this.owner = null;
+    this.suspended = false;
   }
 
   /**
@@ -18,7 +20,7 @@ export class ViewportToolChromeHoverOwner {
    */
   register(host: ViewportToolChromeHost): void {
     this.hosts.add(host);
-    host.setHoverOwned(this.owner === host);
+    host.setHoverOwned(!this.suspended && this.owner === host);
   }
 
   /**
@@ -45,9 +47,21 @@ export class ViewportToolChromeHoverOwner {
    */
   setOwner(host: ViewportToolChromeHost): void {
     this.owner = host;
-    this.hosts.forEach((candidate) => {
-      candidate.setHoverOwned(candidate === host);
-    });
+    this.applyHoverOwnership();
+  }
+
+  /**
+   * Hides every pane's tool chrome while suspended (Play Mode), remembering the
+   * hover owner so it can return when play ends.
+   *
+   * @param suspended True to hide hover-owned tool chrome.
+   */
+  setSuspended(suspended: boolean): void {
+    if (this.suspended === suspended) {
+      return;
+    }
+    this.suspended = suspended;
+    this.applyHoverOwnership();
   }
 
   /**
@@ -57,6 +71,13 @@ export class ViewportToolChromeHoverOwner {
    */
   getOwner(): ViewportToolChromeHost | null {
     return this.owner;
+  }
+
+  /** Applies current ownership, hiding every host while play mode is suspended. */
+  private applyHoverOwnership(): void {
+    this.hosts.forEach((candidate) => {
+      candidate.setHoverOwned(!this.suspended && candidate === this.owner);
+    });
   }
 
   /** Clears all hosts. */

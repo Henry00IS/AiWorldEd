@@ -56,6 +56,7 @@ import { findPickSurfaceAtClientPoint } from '@/utils/pointer_client_hit.js';
 import { ViewportSceneBootstrap } from './viewport_scene_bootstrap.js';
 import { BridgeTransformInteraction } from '@/tools/bridge/bridge_transform_interaction.js';
 import type { LayoutToolEditorSystem } from '@/layout/setup/layout_tool_editor_setup.js';
+import { applyPlayModeEditorChrome } from '@/layout/setup/layout_play_mode_chrome.js';
 import { CoordinatorFaceMode } from '@/tools/face/coordinator_face_mode.js';
 import { ControllerSnapSettings } from '@/tools/snap/controller_snap_settings.js';
 import { CoordinatorCameraFit } from '@/navigation/camera/coordinator_camera_fit.js';
@@ -1291,6 +1292,18 @@ export abstract class ViewportLayoutCore {
       showStatusMessage: (message) => this.showStatusMessage(message),
       helperAdd: (object) => this.sharedWorldScene.addHelper(object),
       helperRemove: (object) => this.sharedWorldScene.removeHelper(object),
+      onPlayModeChanged: (isPlaying) =>
+        applyPlayModeEditorChrome(isPlaying, {
+          editorOverlayPolicy: this.editorOverlayPolicy,
+          selectionVisualController: this.selectionVisualController,
+          toolsPaletteController: this.toolsPaletteController,
+          isEditModeActive: () => this.isEditModeActive(),
+          refreshOverlays: () => {
+            this.updateGizmoVisibility();
+            this.updateGizmoPivot();
+            this.refreshCadRulersFromSelection();
+          },
+        }),
     });
   }
 

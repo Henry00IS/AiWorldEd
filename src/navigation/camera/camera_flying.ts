@@ -5,7 +5,10 @@ import { blurActiveFormField } from '@/utils/dom_focus.js';
 import { SelectionClickThrough } from '@/selection/object/selection_click_through.js';
 import { EditorOrientation } from '@/navigation/orientation/editor_orientation.js';
 import type { MouseSettings } from '@/settings/store/settings_types.js';
-import { mouseNavigationSensitivityMultiplier } from '@/navigation/camera/mouse_navigation_settings.js';
+import {
+  mouseMoveSensitivityMultiplier,
+  mouseNavigationSensitivityMultiplier,
+} from '@/navigation/camera/mouse_navigation_settings.js';
 
 /**
  * First-person flying camera for the 3D viewport. Look and WASD/QE movement
@@ -33,6 +36,7 @@ export class CameraFlying {
   private lookInvertXAxis: boolean;
   private lookInvertYAxis: boolean;
   private panSensitivityMultiplier: number;
+  private moveSensitivityMultiplier: number;
   private panInvertXAxis: boolean;
   private panInvertYAxis: boolean;
   private invertMouseWheel: boolean;
@@ -96,6 +100,7 @@ export class CameraFlying {
     this.lookInvertXAxis = false;
     this.lookInvertYAxis = false;
     this.panSensitivityMultiplier = 1;
+    this.moveSensitivityMultiplier = 1;
     this.panInvertXAxis = false;
     this.panInvertYAxis = false;
     this.invertMouseWheel = false;
@@ -398,7 +403,7 @@ export class CameraFlying {
     event.preventDefault();
     const zoomAmount = this.resolveWheelTravel(event.deltaY);
     const direction = this.moveCameraTowardsCursor ? this.getWheelDirectionTowardCursor(event) : this.getForward();
-    this.camera.position.addScaledVector(direction, zoomAmount * 0.5);
+    this.camera.position.addScaledVector(direction, zoomAmount * 0.5 * this.moveSensitivityMultiplier);
     SelectionClickThrough.resetClickThrough();
   }
 
@@ -470,7 +475,7 @@ export class CameraFlying {
    * @param deltaY Vertical mouse movement.
    */
   private handleDolly(deltaY: number): void {
-    const scale = this.panDistance * 0.002 * this.panSensitivityMultiplier;
+    const scale = this.panDistance * 0.002 * this.moveSensitivityMultiplier;
     const travel = this.invertAltMiddleMouseDragZAxis ? deltaY : -deltaY;
     this.camera.position.addScaledVector(this.getForward(), travel * scale);
   }
@@ -673,7 +678,7 @@ export class CameraFlying {
 
   /**
    * Applies Mouse tab navigation preferences. Default slider values keep the
-   * historical look, pan, and wheel scales.
+   * historical look, pan, wheel, and dolly scales.
    *
    * @param settings Current mouse settings snapshot.
    */
@@ -683,6 +688,7 @@ export class CameraFlying {
     this.lookInvertXAxis = settings.lookInvertXAxis;
     this.lookInvertYAxis = settings.lookInvertYAxis;
     this.panSensitivityMultiplier = mouseNavigationSensitivityMultiplier(settings.panSensitivity);
+    this.moveSensitivityMultiplier = mouseMoveSensitivityMultiplier(settings.moveSensitivity);
     this.panInvertXAxis = settings.panInvertXAxis;
     this.panInvertYAxis = settings.panInvertYAxis;
     this.invertMouseWheel = settings.invertMouseWheel;
