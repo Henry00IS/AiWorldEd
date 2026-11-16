@@ -8,11 +8,23 @@ type DualHullFace = {
   c: number;
   outside: number[];
   alive: boolean;
+  /** False when a corner is missing, so every volume against it is 0. */
+  whole: boolean;
+  /** Unnormalised normal, a-b cross a-c. */
+  nx: number;
+  ny: number;
+  nz: number;
+  /** First corner. */
+  ox: number;
+  oy: number;
+  oz: number;
 };
 
 type DualHullWork = {
   points: readonly THREE.Vector3[];
   faces: DualHullFace[];
+  /** Indices of the alive faces, ascending. */
+  live: number[];
   epsilon: number;
   interior: THREE.Vector3;
 };
@@ -47,9 +59,11 @@ export class SolidDualHull {
     const seed = this.seedIndices(points);
     if (!seed) return null;
     const interior = this.centroid(points, seed);
+    const faces = this.seedFaces(points, seed, interior);
     const work: DualHullWork = {
       points,
-      faces: this.seedFaces(points, seed, interior),
+      faces,
+      live: faces.map((_, index) => index),
       epsilon: this.outsideEpsilon(points),
       interior,
     };
@@ -219,10 +233,11 @@ export class SolidDualHull {
    */
   private static addPoint(work: DualHullWork, point: number): void {
     const visible = this.visibleFaces(work, point);
-    const horizon = this.horizonEdges(work.faces, visible);
+    const horizon = this.horizonEdges(work.faces, visible, work.points.length);
     const pool = this.takeOutside(work.faces, visible, point);
     this.killFaces(work.faces, visible);
     const created = this.facesFromHorizon(work, horizon, point);
+    work.live = work.live.filter((index) => work.faces[index]?.alive === true).concat(created);
     for (const candidate of pool) this.storeOutside(work, created, candidate);
   }
 
@@ -235,7 +250,7 @@ export class SolidDualHull {
   private static furthestOutside(work: DualHullWork): { face: number; point: number } | null {
     let best = work.epsilon;
     let found: { face: number; point: number } | null = null;
-    for (let face = 0; face < work.faces.length; face += 1) {
+    for (const face of work.live) {
       found = this.furthestOnFace(work, face, best, found);
       const current = work.faces[face];
       if (current && found && found.face === face) best = this.faceDistance(work, face, found.point);
@@ -280,9 +295,7 @@ export class SolidDualHull {
    */
   private static visibleFaces(work: DualHullWork, point: number): number[] {
     const visible: number[] = [];
-    for (let index = 0; index < work.faces.length; index += 1) {
-      const face = work.faces[index];
-      if (!face || !face.alive) continue;
+    for (const index of work.live) {
       if (this.faceDistance(work, index, point) > work.epsilon) visible.push(index);
     }
     return visible;
@@ -293,16 +306,21 @@ export class SolidDualHull {
    *
    * @param faces All faces.
    * @param visible Visible face indices.
+   * @param stride One more than the largest point index.
    * @returns Edges that belong to one visible face.
    */
-  private static horizonEdges(faces: readonly DualHullFace[], visible: readonly number[]): DualHullEdge[] {
-    const counts = new Map<string, { edge: DualHullEdge; count: number }>();
+  private static horizonEdges(
+    faces: readonly DualHullFace[],
+    visible: readonly number[],
+    stride: number,
+  ): DualHullEdge[] {
+    const counts = new Map<number, { edge: DualHullEdge; count: number }>();
     for (const index of visible) {
       const face = faces[index];
       if (!face) continue;
-      this.countEdge(counts, face.a, face.b);
-      this.countEdge(counts, face.b, face.c);
-      this.countEdge(counts, face.c, face.a);
+      this.countEdge(counts, stride, face.a, face.b);
+      this.countEdge(counts, stride, face.b, face.c);
+      this.countEdge(counts, stride, face.c, face.a);
     }
     const horizon: DualHullEdge[] = [];
     for (const entry of counts.values()) {
@@ -315,11 +333,17 @@ export class SolidDualHull {
    * Counts one directed edge, keeping the first direction.
    *
    * @param counts Edge counts.
+   * @param stride One more than the largest point index.
    * @param from Edge start.
    * @param to Edge end.
    */
-  private static countEdge(counts: Map<string, { edge: DualHullEdge; count: number }>, from: number, to: number): void {
-    const key = from < to ? `${from}-${to}` : `${to}-${from}`;
+  private static countEdge(
+    counts: Map<number, { edge: DualHullEdge; count: number }>,
+    stride: number,
+    from: number,
+    to: number,
+  ): void {
+    const key = from < to ? from * stride + to : to * stride + from;
     const existing = counts.get(key);
     if (existing) {
       existing.count += 1;
@@ -410,8 +434,9 @@ export class SolidDualHull {
    */
   private static faceDistance(work: DualHullWork, face: number, point: number): number {
     const record = work.faces[face];
-    if (!record) return 0;
-    return this.signedVolume(work.points, record.a, record.b, record.c, point);
+    const sample = work.points[point];
+    if (!record || !record.whole || !sample) return 0;
+    return record.nx * (sample.x - record.ox) + record.ny * (sample.y - record.oy) + record.nz * (sample.z - record.oz);
   }
 
   /**
@@ -431,10 +456,71 @@ export class SolidDualHull {
     third: number,
     interior: THREE.Vector3,
   ): DualHullFace {
-    if (this.volumeAgainst(points[first], points[second], points[third], interior) > 0) {
-      return { a: first, b: third, c: second, outside: [], alive: true };
-    }
-    return { a: first, b: second, c: third, outside: [], alive: true };
+    if (this.volumeAgainst(points[first], points[second], points[third], interior) > 0)
+      return this.faceMake(points, first, third, second);
+    return this.faceMake(points, first, second, third);
+  }
+
+  /**
+   * Builds an alive face with its normal worked out once, the same way
+   * volumeAgainst() works it out.
+   *
+   * @param points Hull points.
+   * @param a First corner index.
+   * @param b Second corner index.
+   * @param c Third corner index.
+   * @returns Face.
+   */
+  private static faceMake(points: readonly THREE.Vector3[], a: number, b: number, c: number): DualHullFace {
+    const first = points[a];
+    const second = points[b];
+    const third = points[c];
+    const face: DualHullFace = {
+      a,
+      b,
+      c,
+      outside: [],
+      alive: true,
+      whole: false,
+      nx: 0,
+      ny: 0,
+      nz: 0,
+      ox: 0,
+      oy: 0,
+      oz: 0,
+    };
+    if (first && second && third) this.faceNormalStore(face, first, second, third);
+    return face;
+  }
+
+  /**
+   * Stores the unnormalised normal and first corner of a face, worked out as
+   * volumeAgainst() works them out.
+   *
+   * @param face Face.
+   * @param first First corner.
+   * @param second Second corner.
+   * @param third Third corner.
+   */
+  private static faceNormalStore(
+    face: DualHullFace,
+    first: THREE.Vector3,
+    second: THREE.Vector3,
+    third: THREE.Vector3,
+  ): void {
+    const abx = second.x - first.x;
+    const aby = second.y - first.y;
+    const abz = second.z - first.z;
+    const acx = third.x - first.x;
+    const acy = third.y - first.y;
+    const acz = third.z - first.z;
+    face.whole = true;
+    face.nx = aby * acz - abz * acy;
+    face.ny = abz * acx - abx * acz;
+    face.nz = abx * acy - aby * acx;
+    face.ox = first.x;
+    face.oy = first.y;
+    face.oz = first.z;
   }
 
   /**
