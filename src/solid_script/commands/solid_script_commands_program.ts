@@ -120,7 +120,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Inputs',
     description: 'Show inputs under a heading',
     manual:
-      'Shows the Input lines between this line and its End under Title in the inspector, so a script with many settings reads like a built-in generator. The lines inside run where they stand, so the variables of its inputs are read after its End as usual. Example: Input Group Railing around Input rail, switch and Input height shows both under Railing.',
+      'Shows the Input lines between this line and its End under Title in the inspector, so a script with many settings reads like a built-in generator. The lines inside run where they stand, so the variables of its inputs are read after its End as usual. Example: Input Group Railing around Input Rail, switch and Input Height shows both under Railing.',
     stops: ['A missing End line.'],
     nesting: 'open',
     parameters: [solidScriptParameter('title', 'Title', 'text', 'Settings', 'Heading shown above the inputs inside.')],
@@ -146,7 +146,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Inputs',
     description: 'Show inputs only for a setting',
     manual:
-      'Shows the Input lines between this line and its End in the inspector only while the input named by Input has Value, such as rail settings only while Rails is Yes. Yes, True and 1 count as the same, as do No, False and 0. The lines inside still run, so their variables always exist. Example: Input rails, switch, then Show Inputs When rails is yes around Input railHeight.',
+      'Shows the Input lines between this line and its End in the inspector only while the input named by Input has Value, such as rail settings only while Rails is Yes. Yes, True and 1 count as the same, as do No, False and 0. The lines inside still run, so their variables always exist. Example: Input Rails, switch, then Show Inputs When Rails is yes around Input RailHeight.',
     stops: ['A missing End line.'],
     nesting: 'open',
     parameters: [
@@ -162,7 +162,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Inputs',
     description: 'Show a line of text among the inputs',
     manual:
-      'Shows Text in the inspector among the inputs, where this line stands between the Input lines, such as a hint about units or what a setting does. It builds nothing. Example: Input Note Sizes are in metres above Input width.',
+      'Shows Text in the inspector among the inputs, where this line stands between the Input lines, such as a hint about units or what a setting does. It builds nothing. Example: Input Note Sizes are in metres above Input Width.',
     parameters: [solidScriptParameter('text', 'Text', 'text', 'Sizes are in metres.', 'Text shown in the inspector.')],
     runs: false,
     listing: (read) => ['Input Note', read.text('text')],
@@ -247,7 +247,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Inputs',
     description: 'Run lines when a button is pressed',
     manual:
-      'Runs these lines when someone presses a button in the inspector. The button comes from an Input with Type button. The script skips these lines where they stand. They cannot build shapes. Use Set Input to change inputs, and Show Message to explain. The shape is then rebuilt. Example: Input reset with Type button, then When Button Pressed reset holds Set Input Width to 2.',
+      'Runs these lines when someone presses a button in the inspector. The button comes from an Input with Type button. The script skips these lines where they stand. They cannot build shapes. Use Set Input to change inputs, and Show Message to explain. The shape is then rebuilt. Example: Input Reset with Type button, then When Button Pressed Reset holds Set Input Width to 2.',
     stops: ['A name that is not a button Input of the script.', 'Building a shape.'],
     nesting: 'open',
     parameters: [solidScriptParameter('name', 'Button', 'name', 'Reset', 'Name of the button Input.')],
@@ -261,7 +261,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Inputs',
     description: 'Change inputs just before a bake',
     manual:
-      'Runs these lines when the generator is baked into plain brushes, just before they are made. The script skips them where they stand. They cannot build shapes. Set Input changes inputs for the bake only, so a script can show a light preview while you edit and bake a detailed version. Undoing the bake brings back the generator with its old inputs. Example: When Baked holds Set Input sides to 32, so the editor shows 8 sides and the baked brushes have 32.',
+      'Runs these lines when the generator is baked into plain brushes, just before they are made. The script skips them where they stand. They cannot build shapes. Set Input changes inputs for the bake only, so a script can show a light preview while you edit and bake a detailed version. Undoing the bake brings back the generator with its old inputs. Example: When Baked holds Set Input Sides to 32, so the editor shows 8 sides and the baked brushes have 32.',
     stops: ['Building a shape.'],
     nesting: 'open',
     parameters: [],

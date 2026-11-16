@@ -129,7 +129,7 @@ How it runs:
 - The block structure is checked first; a missing `end`, a stray `end` or `else`, or an unknown command builds nothing.
 - Lines then run top to bottom, each with its own step. A variable exists from its `variable` (Set) line on. Errors say `line N: ...`, with N the position in `lines`, counting from 1.
 
-Field values are plain text without quotes: a number `"2"`, a list `"1, 2, 3"`, points `"0, 0; 2, 0; 1, 2"`, `"true"`/`"false"`, `[name]` for a variable (`"[width], 1, 1"`), `[=formula]` for a calculation (`"[=[i] * 2], 0, 0"`), and text mixing them (`"Width is [width]"`). Brackets nest, `$[`, `$]` and `$$` write literal characters, and If's condition is a formula without the `=` (`"[i] % 2 == 0"`). An unknown variable or unreadable formula stops the script at its line.
+Field values are plain text without quotes: a number `"2"`, a list `"1, 2, 3"`, points `"0, 0; 2, 0; 1, 2"`, `"true"`/`"false"`, `[Name]` for a variable (`"[Width], 1, 1"`), `[=formula]` for a calculation (`"[=[I] * 2], 0, 0"`), and text mixing them (`"Width is [Width]"`). Brackets nest, `$[`, `$]` and `$$` write literal characters, and If's condition is a formula without the `=` (`"[I] % 2 == 0"`). An unknown variable or unreadable formula stops the script at its line.
 
 How it maps:
 
@@ -158,9 +158,9 @@ Stairs:
 
 ```solid-script
 [
-  { "command": "repeat", "values": { "variable": "i", "from": "0", "to": "9" } },
-  { "command": "translate", "values": { "v": "0, [=[i] * 0.3], [=([i] + 1) * 0.09]" } },
-  { "command": "cube", "values": { "size": "1.2, 0.3, [=([i] + 1) * 0.18]" } },
+  { "command": "repeat", "values": { "variable": "I", "from": "0", "to": "9" } },
+  { "command": "translate", "values": { "v": "0, [=[I] * 0.3], [=([I] + 1) * 0.09]" } },
+  { "command": "cube", "values": { "size": "1.2, 0.3, [=([I] + 1) * 0.18]" } },
   { "command": "end" },
   { "command": "end" }
 ]

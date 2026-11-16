@@ -60,6 +60,41 @@ function offered(marked: string, scope = SCOPE): string[] {
   );
 }
 
+describe('SolidScript member suggestions', () => {
+  const script = solidScriptDocumentCreate([
+    { command: 'variable', values: { name: 'Pos', value: '1, 2, 3' } },
+    { command: 'add_item', values: { value: '1', list: 'Heights' } },
+    { command: 'for_each_vertex' },
+    { command: 'echo', values: { value: '1' } },
+    { command: 'end' },
+  ]);
+  const scope: SolidScriptSuggestionScope = { names: solidScriptDocumentNames(script), extra: [], words: [] };
+  const labels = (text: string) =>
+    solidScriptSuggestions(solidScriptSuggestionContext(text, text.length, false), scope).map((entry) => entry.label);
+
+  it('offers the parts of a vector, the members of a list and the values of a group after a dot', () => {
+    expect(labels('[Pos.')).toEqual(['Pos.X', 'Pos.Y', 'Pos.Z']);
+    expect(labels('[Vertex.Position.')).toEqual(['Vertex.Position.X', 'Vertex.Position.Y', 'Vertex.Position.Z']);
+    expect(labels('[Vertex.Position.Y')).toEqual(['Vertex.Position.Y']);
+    expect(labels('[Box.Size.')).toEqual(['Box.Size.X', 'Box.Size.Y', 'Box.Size.Z']);
+    expect(labels('[Heights().')).toEqual(['Heights().Count']);
+    expect(labels('[=[Heights().C')).toEqual(['Heights().Count']);
+    expect(labels('[=[Pos.')).toEqual(['Pos.X', 'Pos.Y', 'Pos.Z']);
+    expect(labels('[Vertex.')).toEqual(['Vertex.Index', 'Vertex.Position', 'Vertex.Normal']);
+    expect(labels('[Box.')).toContain('Box.Width');
+    // A number has no parts.
+    expect(labels('[Vertex.Index.')).toEqual([]);
+  });
+
+  it('writes a member over the whole name', () => {
+    const text = '[Heights().]';
+    const context = solidScriptSuggestionContext(text, 11, false)!;
+    const [count] = solidScriptSuggestions(context, scope);
+    expect(context.prefix).toBe('Heights().');
+    expect(solidScriptSuggestionWrite(count!, text, 11, 11).text).toBe('[Heights().Count]');
+  });
+});
+
 describe('SolidScript suggestion context', () => {
   it('knows what is typed at the caret', () => {
     expect(at('[A|')).toMatchObject({ kind: 'name', from: 0, prefix: 'A' });

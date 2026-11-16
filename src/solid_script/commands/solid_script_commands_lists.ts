@@ -67,7 +67,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     category: 'Lists',
     description: 'Put a value at the end of a list',
     manual:
-      'Puts a value at the end of a list. A list that does not exist yet is made. Example: Add Item 3 to Heights, then Add Item 5 to Heights, and heights holds 3, 5.',
+      'Puts a value at the end of a list. A list that does not exist yet is made. Example: Add Item 3 to Heights, then Add Item 5 to Heights, and Heights holds 3, 5.',
     stops: ['A name that is set but is not a list.'],
     parameters: [
       solidScriptParameter('value', 'Value', 'value', '1', 'What to put in the list.'),
@@ -139,7 +139,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     category: 'Lists',
     description: 'Take a value out of a list',
     manual:
-      'Takes a value out of a list wherever it is. It removes the first copy, or every copy with Every Copy switched on. A value that is not in the list changes nothing. Example: colors holds red, blue, red. Remove Value red from colors leaves blue, red.',
+      'Takes a value out of a list wherever it is. It removes the first copy, or every copy with Every Copy switched on. A value that is not in the list changes nothing. Example: Colors holds red, blue, red. Remove Value red from Colors leaves blue, red.',
     stops: [SOLID_SCRIPT_LIST_STOP],
     parameters: [
       solidScriptParameter('value', 'Value', 'value', '1', 'What to take out.'),
@@ -174,7 +174,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     category: 'Lists',
     description: 'Find where a value is in a list',
     manual:
-      'Looks for a value in a list and stores its position, counting from 0, in the Result variable. When the value is not there, Result is -1. Example: colors holds red, blue. Find Item blue in colors, result in where, sets where to 1.',
+      'Looks for a value in a list and stores its position, counting from 0, in the Result variable. When the value is not there, Result is -1. Example: Colors holds red, blue. Find Item blue in Colors, result in Where, sets Where to 1.',
     stops: [SOLID_SCRIPT_LIST_STOP],
     parameters: [
       solidScriptParameter('value', 'Value', 'value', '1', 'What to look for.'),

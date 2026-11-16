@@ -9,6 +9,8 @@ import { SOLID_SCRIPT_FUNCTIONS_BUILTIN } from '@/solid_script/language/solid_sc
 import { SolidScriptLexer, type SolidScriptToken } from '@/solid_script/language/solid_script_lexer.js';
 import { solidScriptFunctionSpelling } from '@/solid_script/language/solid_script_name_key.js';
 import { SOLID_SCRIPT_SYSTEM_GLOBALS } from '@/solid_script/language/solid_script_system.js';
+import { solidScriptFieldSplit } from '@/solid_script/language/solid_script_field.js';
+import { solidScriptSystemIsVector } from '@/solid_script/language/solid_script_name_rules.js';
 
 /**
  * What the caret is in: one of a field's words, a [name], or a [= formula where
@@ -81,6 +83,7 @@ export interface SolidScriptSuggestionWritten {
 /** Groups in listing order: words first, then values, then functions. */
 const SOLID_SCRIPT_SUGGESTION_GROUPS = [
   'Choices',
+  'Members',
   'Inputs',
   'Variables',
   'Lists',
@@ -100,11 +103,10 @@ const SOLID_SCRIPT_SUGGESTION_NOT_VALUES = new Set(['Functions', 'Parts', 'Shape
 const SOLID_SCRIPT_SUGGESTIONS_MAX = 200;
 
 /** What may follow [ while a name is typed. */
-const SOLID_SCRIPT_SUGGESTION_BRACKET =
-  /^(?:(?:Local|Persistent)\.)?[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]*)?$|^(?:Local|Persistent)\.$/i;
+const SOLID_SCRIPT_SUGGESTION_BRACKET = /^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]*)*(?:\(\)(?:\.[A-Za-z0-9_]*)?)?$/;
 
 /** Name being typed at the end of a formula. */
-const SOLID_SCRIPT_SUGGESTION_TAIL = /[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]*)?$/;
+const SOLID_SCRIPT_SUGGESTION_TAIL = /[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]*)*$/;
 
 /**
  * Finds the brackets still open before the caret, skipping $ escapes.
@@ -296,6 +298,63 @@ function solidScriptSuggestionsAll(scope: SolidScriptSuggestionScope): SolidScri
 }
 
 /**
+ * Categories of names that hold a value set by a line, whose kind its text
+ * tells.
+ */
+const SOLID_SCRIPT_SUGGESTION_SET = new Set(['Variables', 'Locals', 'Persistent']);
+
+/**
+ * Tells how many axes a name's value has: a built-in vector, or a variable set
+ * to a list of two or three parts or to a built-in vector.
+ *
+ * @param name Name as typed.
+ * @param scope What the field may refer to.
+ * @returns Axes, 0 for a known value that is no vector, or null for an unknown
+ *   name.
+ */
+function solidScriptSuggestionAxes(name: string, scope: SolidScriptSuggestionScope): number | null {
+  const system = solidScriptSystemIsVector(name);
+  if (system !== null) return system ? 3 : 0;
+  const key = name.toLowerCase();
+  const set = scope.names.find(
+    (entry) => entry.name.toLowerCase() === key && SOLID_SCRIPT_SUGGESTION_SET.has(entry.category),
+  );
+  if (!set) return scope.names.some((entry) => entry.name.toLowerCase() === key) ? 0 : null;
+  const value = /^set to (.*)$/s.exec(set.detail)?.[1]?.trim() ?? '';
+  const parts = solidScriptFieldSplit(value, ',').length;
+  if (parts === 2 || parts === 3) return parts;
+  const named = /^\[([A-Za-z_][\w.]*)\]$/.exec(value)?.[1];
+  return named !== undefined && solidScriptSystemIsVector(named) === true ? 3 : 0;
+}
+
+/**
+ * Lists the members of what is typed before its last dot: Count after a list's
+ * (), the axes of a vector, nothing for another known value.
+ *
+ * @param prefix Typed name.
+ * @param scope What the field may refer to.
+ * @returns Members, or null when the start is no known value, such as Face.
+ */
+function solidScriptSuggestionMembers(
+  prefix: string,
+  scope: SolidScriptSuggestionScope,
+): SolidScriptSuggestion[] | null {
+  const dot = prefix.lastIndexOf('.');
+  if (dot < 0) return null;
+  const base = prefix.slice(0, dot);
+  const member = (name: string, detail: string): SolidScriptSuggestion => ({
+    label: `${base}.${name}`,
+    detail,
+    category: 'Members',
+    pick: 'value',
+  });
+  if (base.endsWith('()')) return [member('Count', 'Number: how many items the list has')];
+  const axes = solidScriptSuggestionAxes(base, scope);
+  if (axes === null) return null;
+  return ['X', 'Y', 'Z'].slice(0, axes).map((axis) => member(axis, `Number: the ${axis} part of the vector`));
+}
+
+/**
  * Lists what fits at the caret: a field's words while one is typed, otherwise
  * the matching values and then functions, each group with its best matches
  * first.
@@ -309,8 +368,10 @@ export function solidScriptSuggestions(
   scope: SolidScriptSuggestionScope,
 ): SolidScriptSuggestion[] {
   if (!context?.offer) return [];
-  const all = solidScriptSuggestionsAll(scope);
   const prefix = context.prefix.toLowerCase();
+  const members = context.kind === 'word' ? null : solidScriptSuggestionMembers(context.prefix, scope);
+  if (members) return members.filter((entry) => entry.label.toLowerCase().startsWith(prefix));
+  const all = solidScriptSuggestionsAll(scope);
   if (context.kind === 'word') {
     const words = all.filter((entry) => entry.pick === 'word');
     // A word typed out in full still lists the others to switch to.

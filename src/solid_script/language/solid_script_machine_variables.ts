@@ -509,7 +509,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
     const name = this.nameKey(written);
     if (SOLID_SCRIPT_NAMES_PLAIN.has(name)) {
       this.writableCheck(name, name);
-      const home = this.frameFunction() && !scope.variableHas(name) ? this.root : scope;
+      const home = scope.variableHas(name) ? scope : this.root;
       home.variableSet(name, value);
       return;
     }
@@ -537,8 +537,8 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
     const base = item?.name ?? where.name;
     this.nameCheck(base, 'a variable');
     if (!where.local) this.writableCheck(base);
-    const home =
-      !where.local && !where.persistent && this.frameFunction() && !scope.variableHas(base) ? this.root : where.scope;
+    // A plain name not set yet is the script's: it lives on after the block that set it.
+    const home = !where.local && !where.persistent && !scope.variableHas(base) ? this.root : where.scope;
     if (!item) home.variableSet(base, value);
     else {
       const index = item.index === '' ? null : this.indexValue(item.index, scope);

@@ -46,6 +46,20 @@ describe('SolidScript configurator suggestions', () => {
     expect(document.querySelector('[role="listbox"]')).not.toBeNull();
   });
 
+  it('reopens on a typed dot with the members of what is before it', () => {
+    const input = document.createElement('input');
+    input.type = 'text';
+    document.body.append(input);
+    const names = [{ name: 'Vertex.Position', category: 'System' as const, line: 0, detail: '' }];
+    new SolidScriptConfiguratorNames(input, { names, extra: [], words: [] });
+    input.focus();
+    input.value = '[Vertex.Position.';
+    input.setSelectionRange(input.value.length, input.value.length);
+    input.dispatchEvent(new Event('input'));
+    const shown = [...document.querySelectorAll('[role="option"]')].map((row) => row.firstElementChild?.textContent);
+    expect(shown).toEqual(['Vertex.Position.X', 'Vertex.Position.Y', 'Vertex.Position.Z']);
+  });
+
   it('starts on the current value, also after another one is picked', () => {
     const input = wordField('Modifier');
     input.dispatchEvent(new MouseEvent('click'));

@@ -46,7 +46,7 @@ SolidScript is how AiWorldEd describes brush geometry as a script of block lines
 
 - Every run starts a fresh machine: no variable or setting survives from an earlier run or from another generator.
 - Before anything runs, the block structure is checked: a missing End, an End without a block, an Else outside an If, or an unknown command stops the script and builds nothing.
-- Lines then run top to bottom. A variable exists from its Set line on; a line above it cannot use it. Setting a name again changes the existing variable, so a Set inside a Repeat can count up across rounds.
+- Lines then run top to bottom. A variable exists from its Set line on; a line above it cannot use it. Setting a name again changes the existing variable, so a Set inside a Repeat can count up across rounds. A variable first set inside a Repeat, For Each or If, by Set or Add Item, stays after its End.
 - The script runs from the top. Define Part, Function, When Input Changes and When Button Pressed blocks are skipped to their End where they stand, and registered before the run, so Use Part or a Call may come before or after them. Use Part works like a call: the part's lines run, then the script carries on after the Use Part line. The part sees the caller's variables, and Set inside it changes a variable that already exists outside, so a part can hand back results. A part may use itself (recursion) as long as an If stops it; parts nest at most 64 deep. Use Part's name may be a variable, such as "[Style]".
 - The first mistake stops the script at that line; the error names the line and the field, such as "line 3: Size must be greater than 0".
 - A script builds at most 2000 solids, and Repeat runs at most 10000 rounds.

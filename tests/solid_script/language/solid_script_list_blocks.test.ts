@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { solidScriptProgramHandle, solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptDocumentListing } from '@/solid_script/document/solid_script_document_listing.js';
+import { solidScriptDocumentNamesUnknown } from '@/solid_script/document/solid_script_document_names.js';
 
 const CUBE: SolidScriptLine = { command: 'cube' };
 
@@ -28,6 +29,30 @@ function echoed(...lines: SolidScriptLine[]): string[] | string {
 }
 
 describe('SolidScript list blocks', () => {
+  it('keeps a list that Add Item makes inside a loop for the lines after it', () => {
+    const lines: SolidScriptLine[] = [
+      line('cube', { size: '2, 2, 2', label: 'Boing' }),
+      line('for_each_vertex', { of: 'Boing' }),
+      line('add_item', { value: '[Vertex.Position]', list: 'Vertices' }),
+      line('translate', { v: '[Vertex.Position.X], 0.5, [Vertex.Position.Z]' }),
+      line('cube', { size: '0.1, 1, 0.1', label: '' }),
+      line('end'),
+      line('end'),
+      line('echo', { value: '[Vertices().Count]' }),
+    ];
+    expect(echoed(...lines)).toEqual(['8']);
+    expect(solidScriptDocumentNamesUnknown(solidScriptDocumentCreate(lines)).size).toBe(0);
+    // The same for Set inside an If.
+    expect(
+      echoed(
+        line('if', { condition: 'true' }),
+        line('variable', { name: 'Late', value: '3' }),
+        line('end'),
+        line('echo', { value: '[Late]' }),
+      ),
+    ).toEqual(['3']);
+  });
+
   it('adds, inserts, removes, finds, sorts and reverses items', () => {
     expect(
       echoed(

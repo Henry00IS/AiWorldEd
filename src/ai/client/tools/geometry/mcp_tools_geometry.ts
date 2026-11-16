@@ -22,7 +22,7 @@ const MCP_GEOMETRY_SCRIPT_LINES = {
       values: {
         type: 'object',
         description:
-          'Field values by key, always plain-text strings without quotes: a number "2", a list "1, 2, 3", points "0, 0; 1, 0; 0, 1", "true"/"false", a variable "[width]", a formula "[=[width] * 2]", or text mixing them "Width is [width]"; $[ $] $$ write literal brackets and dollars; name fields take a plain name; missing keys keep their defaults.',
+          'Field values by key, always plain-text strings without quotes: a number "2", a list "1, 2, 3", points "0, 0; 1, 0; 0, 1", "true"/"false", a variable "[Width]", a formula "[=[Width] * 2]", or text mixing them "Width is [Width]"; $[ $] $$ write literal brackets and dollars; name fields take a plain name; missing keys keep their defaults.',
         additionalProperties: { type: 'string' },
       },
     },
