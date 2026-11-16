@@ -1,4 +1,5 @@
 import type { SolidScriptDocument } from './solid_script_document.js';
+import { solidScriptBlockNesting } from './solid_script_document_indent.js';
 
 /** Kinds of name a script defines, in the order the editor lists them. */
 export const SOLID_SCRIPT_NAME_CATEGORIES = [
@@ -124,6 +125,61 @@ export function solidScriptDocumentNames(document: SolidScriptDocument): SolidSc
     if (block.command === 'when_input_changes') add(value('name'), 'Handlers', line, 'When Input Changes');
     if (block.command === 'when_button_pressed') add(value('name'), 'Handlers', line, 'When Button Pressed');
   });
+  return names;
+}
+
+/** Categories whose names only some lines see: Function locals and loop values. */
+const SOLID_SCRIPT_NAMES_SCOPED: readonly SolidScriptNameCategory[] = ['Locals', 'Counters', 'System'];
+
+/**
+ * Lists the names a line at a position sees: every name the script defines,
+ * except that a Function's locals show only inside that Function, from its
+ * inputs and the Set local lines above, and a loop's counter and values show
+ * only inside that loop.
+ *
+ * @param document Script.
+ * @param position Index of the line, or where a new line goes.
+ * @returns Names.
+ */
+export function solidScriptDocumentNamesAt(document: SolidScriptDocument, position: number): SolidScriptName[] {
+  const open: number[] = [];
+  document.blocks.slice(0, position).forEach((block, line) => {
+    const nesting = solidScriptBlockNesting(block);
+    if (nesting === 'open') open.push(line);
+    if (nesting === 'close') open.pop();
+  });
+  const names = solidScriptDocumentNames(document).filter(
+    (entry) => !SOLID_SCRIPT_NAMES_SCOPED.includes(entry.category),
+  );
+  const add = (name: string, category: SolidScriptNameCategory, line: number, detail: string): void => {
+    const plain = name.trim();
+    const valid = category === 'System' || SOLID_SCRIPT_NAME_PLAIN.test(plain);
+    if (valid && !names.some((known) => known.name === plain))
+      names.push({ name: plain, category, line, detail });
+  };
+  const functionLine = open.filter((line) => document.blocks[line]?.command === 'function').pop();
+  if (functionLine !== undefined) {
+    const block = document.blocks[functionLine]!;
+    const name = (block.values['name'] ?? '').trim();
+    for (const parameter of (block.values['parameters'] ?? '').split(','))
+      if (parameter.trim() !== '') add(`local.${parameter.trim()}`, 'Locals', functionLine, `input of ${name}()`);
+    document.blocks.slice(functionLine + 1, position).forEach((inner, offset) => {
+      const target = (inner.values['name'] ?? '').trim();
+      if (inner.command === 'variable' && target.startsWith('local.'))
+        add(target, 'Locals', functionLine + 1 + offset, `set to ${inner.values['value'] ?? ''} in ${name}()`);
+    });
+  }
+  for (const line of open) {
+    const block = document.blocks[line]!;
+    if (block.command === 'repeat' || block.command === 'for_each')
+      add(
+        block.values['variable'] ?? '',
+        'Counters',
+        line,
+        block.command === 'repeat' ? 'Repeat counter' : 'For Each item',
+      );
+    for (const [system, detail] of SOLID_SCRIPT_NAMES_SYSTEM[block.command] ?? []) add(system, 'System', line, detail);
+  }
   return names;
 }
 

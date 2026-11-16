@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { solidScriptDocumentCreate } from '@/solid_script/document/solid_script_document.js';
 import {
   solidScriptDocumentNames,
+  solidScriptDocumentNamesAt,
   solidScriptDocumentOrigins,
   solidScriptFieldNamesUnknown,
 } from '@/solid_script/document/solid_script_document_names.js';
@@ -45,6 +46,38 @@ describe('SolidScript names', () => {
       ['size', 'Variables', 14],
     ]);
     expect(solidScriptDocumentNames(SCRIPT).find((entry) => entry.name === 'area')?.detail).toBe('area(w, d)');
+  });
+
+  it('offers a Function its own locals and a loop its counter only on the lines inside them', () => {
+    const scoped = solidScriptDocumentCreate([
+      { command: 'function', values: { name: 'area', parameters: 'w, d' } },
+      { command: 'variable', values: { name: 'local.sum', value: '1' } },
+      { command: 'return', values: { value: '[local.sum]' } },
+      { command: 'end' },
+      { command: 'function', values: { name: 'lift', parameters: 'h' } },
+      { command: 'variable', values: { name: 'local.sum', value: '2' } },
+      { command: 'end' },
+      { command: 'repeat', values: { variable: 'i' } },
+      { command: 'for_each_scattered_point', values: {} },
+      { command: 'cube' },
+      { command: 'end' },
+      { command: 'end' },
+      { command: 'repeat', values: { variable: 'i' } },
+      { command: 'end' },
+      { command: 'cube' },
+    ]);
+    const at = (line: number) =>
+      solidScriptDocumentNamesAt(scoped, line)
+        .filter((entry) => ['Locals', 'Counters', 'System'].includes(entry.category))
+        .map((entry) => entry.name);
+    expect(at(2)).toEqual(['local.w', 'local.d', 'local.sum']);
+    expect(at(5)).toEqual(['local.h']);
+    expect(at(6)).toEqual(['local.h', 'local.sum']);
+    expect(at(8)).toEqual(['i']);
+    expect(at(9)).toEqual(['i', 'Point.Index', 'Point.Position', 'Point.Normal', 'Face.Center', 'Face.Tag']);
+    expect(at(13)).toEqual(['i']);
+    expect(at(14)).toEqual([]);
+    expect(solidScriptDocumentNamesAt(scoped, 14).map((entry) => entry.name)).toEqual(['area', 'lift']);
   });
 
   it('finds [names] no line defines, skipping escapes and built names', () => {

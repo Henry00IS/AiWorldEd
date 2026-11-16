@@ -35,7 +35,10 @@ import {
 } from '@/solid_script/debug/solid_script_debug_breakpoints.js';
 import { SolidScriptEditorToolbar } from './solid_script_editor_toolbar.js';
 import { SolidScriptEditorHelp } from './solid_script_editor_help.js';
-import { solidScriptDocumentNames } from '@/solid_script/document/solid_script_document_names.js';
+import {
+  solidScriptDocumentNames,
+  solidScriptDocumentNamesAt,
+} from '@/solid_script/document/solid_script_document_names.js';
 import { SolidScriptConfigurator } from './solid_script_configurator.js';
 import { SolidScriptEditorOutput } from './solid_script_editor_output.js';
 import { solidScriptEditorLoad, solidScriptEditorSave } from './solid_script_editor_files.js';
@@ -469,7 +472,7 @@ export class SolidScriptEditor extends PanelFloating {
       this.commit(inserted.document, inserted.line);
     };
     if (found.parameters.length === 0) return place();
-    const names = solidScriptDocumentNames(this.session.document());
+    const names = solidScriptDocumentNamesAt(this.session.document(), mode === 'caret' ? line + 1 : line);
     const values = { ...found.valuesDefault(), ...start };
     new SolidScriptConfigurator(this.root.ownerDocument.body, found, values, place, names).show();
   }
@@ -489,7 +492,7 @@ export class SolidScriptEditor extends PanelFloating {
       return this.noticeShow(
         `${solidScriptBlockNesting(block) === 'close' ? 'End' : command.label} has nothing to configure.`,
       );
-    const names = solidScriptDocumentNames(this.session.document());
+    const names = solidScriptDocumentNamesAt(this.session.document(), line);
     const apply = (values: Record<string, string>): void => {
       const document = this.session.document();
       const index = document.blocks.findIndex((candidate) => candidate.id === block.id);

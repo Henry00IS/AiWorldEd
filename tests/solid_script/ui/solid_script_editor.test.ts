@@ -637,6 +637,29 @@ describe('SolidScript editor', () => {
     expect(list?.classList.contains('editor-custom-scroller')).toBe(true);
   });
 
+  it('suggests a Function its own locals, and no locals outside it', () => {
+    editorFixture([
+      { command: 'function', values: { name: 'lift', parameters: 'h' } },
+      { command: 'return', values: { value: '1' } },
+      { command: 'end' },
+      { command: 'cube' },
+    ]);
+    const offered = (line: number): string[] => {
+      doubleClick(chip(line));
+      const field = document.querySelector<HTMLInputElement>('[data-solid-script-configurator] input[type="text"]')!;
+      field.value = '[';
+      field.setSelectionRange(1, 1);
+      field.dispatchEvent(new Event('input'));
+      const names = [...document.querySelectorAll<HTMLElement>('[data-solid-script-configurator] [role="option"]')].map(
+        (row) => row.firstElementChild?.textContent ?? '',
+      );
+      tool('Cancel').click();
+      return names;
+    };
+    expect(offered(1)).toContain('local.h');
+    expect(offered(3)).not.toContain('local.h');
+  });
+
   it('adds Input lines from the Variables tab, after the other inputs', () => {
     const { root, commands, script } = editorFixture(CUBE_SPHERE);
     find('[data-tab="variables"]').click();
