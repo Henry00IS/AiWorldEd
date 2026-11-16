@@ -127,3 +127,105 @@ export const SOLID_SCRIPT_EXAMPLE_HOLLOW_BOX: readonly SolidScriptLine[] = [
     ],
   ),
 ];
+
+/**
+ * Lines that add one corner of the arch outline to the outline list.
+ *
+ * @param value Corner as field text.
+ * @returns Line.
+ */
+function solidScriptExampleArchCorner(value: string): SolidScriptLine {
+  return solidScriptExampleLine('add_item', { value, list: 'outline' });
+}
+
+/** Port of the Arch generator. */
+export const SOLID_SCRIPT_EXAMPLE_ARCH: readonly SolidScriptLine[] = [
+  solidScriptExampleNote(
+    'Arch: a half ellipse cut into segments. A ring makes one stone per segment, a wall fills up to the top beside two piers, and a tunnel fills the opening.',
+  ),
+  ...SOLID_SCRIPT_EXAMPLE_BOX_INPUTS,
+  solidScriptExampleInput('style', 'choice', 'ring', { label: 'Style', choices: 'ring, wall, tunnel' }),
+  solidScriptExampleInput('span', 'choice', 'x', { label: 'Span Along', choices: 'x, z' }),
+  solidScriptExampleInput('shape', 'choice', 'round', { label: 'Shape', choices: 'round, fit' }),
+  solidScriptExampleInput('segments', 'count', '16', { label: 'Segments', min: '2', max: '128' }),
+  solidScriptExampleInput('sweep', 'number', '180', { label: 'Sweep', min: '1', max: '180' }),
+  solidScriptExampleInput('start', 'choice', 'centre', { label: 'Start From', choices: 'centre, left, right' }),
+  solidScriptExampleInput('thickness', 'number', '0.25', { label: 'Thickness', min: '0.01', max: '100' }),
+  solidScriptExampleNote('The editor’s Z span runs along -Y here; the arch rises along Z.'),
+  solidScriptExampleSet('alongX', '[=[span] != "z"]'),
+  solidScriptExampleSet('half', '[=([alongX] ? [width] : [depth]) / 2]'),
+  solidScriptExampleSet('across', '[=([alongX] ? [depth] : [width]) / 2]'),
+  solidScriptExampleSet('thick', '[=[style] == "tunnel" ? 0 : [thickness]]'),
+  solidScriptExampleSet('rx', '[=[half] - [thick]]'),
+  solidScriptExampleSet('ry', '[=[shape] == "fit" ? [height] - [thick] : min([rx], [height] - [thick])]'),
+  solidScriptExampleSet('arc', '[=[style] == "ring" ? [sweep] : 180]'),
+  solidScriptExampleSet('first', '[=[start] == "right" ? 0 : ([start] == "left" ? 180 - [arc] : (180 - [arc]) / 2)]'),
+  solidScriptExampleSet('floor', '[=-[height] / 2]'),
+  solidScriptExampleSet('top', '[=[height] / 2]'),
+  ...solidScriptExampleBlock('function', { name: 'corner', parameters: 'index, grow' }, [
+    solidScriptExampleSet('local.angle', '[=[first] + [arc] * [local.index] / [segments]]'),
+    solidScriptExampleLine('return', {
+      value:
+        '[=vector(cos([local.angle]) * ([rx] + [local.grow]), [floor] + sin([local.angle]) * ([ry] + [local.grow]))]',
+    }),
+  ]),
+  ...solidScriptExampleBlock('part', { name: 'prism' }, [
+    ...solidScriptExamplePolyhedron(
+      solidScriptExampleBlock('for_each', { variable: 'p', list: '[outline]' }, [
+        ...solidScriptExampleIf(
+          '[alongX]',
+          [solidScriptExamplePoint('[p.x], [=-[across]], [p.y]'), solidScriptExamplePoint('[p.x], [across], [p.y]')],
+          [
+            solidScriptExamplePoint('[=-[across]], [=-[p.x]], [p.y]'),
+            solidScriptExamplePoint('[across], [=-[p.x]], [p.y]'),
+          ],
+        ),
+      ]),
+    ),
+  ]),
+  ...solidScriptExampleIf('[rx] >= 0.0001 and [ry] >= 0.0001', [
+    ...solidScriptExampleIf('[style] == "wall"', [
+      solidScriptExampleNote('The piers beside the opening.'),
+      ...solidScriptExampleRepeat('side', '0', '1', [
+        solidScriptExampleSet('inner', '[=[side] == 0 ? -[rx] : [rx]]'),
+        solidScriptExampleSet('outer', '[=[side] == 0 ? -[half] : [half]]'),
+        solidScriptExampleLine('clear_variable', { name: 'outline' }),
+        solidScriptExampleArchCorner('[=vector([outer], [floor])]'),
+        solidScriptExampleArchCorner('[=vector([inner], [floor])]'),
+        solidScriptExampleArchCorner('[=vector([inner], [top])]'),
+        solidScriptExampleArchCorner('[=vector([outer], [top])]'),
+        solidScriptExampleLine('use_part', { name: 'prism' }),
+      ]),
+    ]),
+    ...solidScriptExampleRepeat('i', '0', '[=[segments] - 1]', [
+      solidScriptExampleSet('a', '[=corner([i], 0)]'),
+      solidScriptExampleSet('b', '[=corner([i] + 1, 0)]'),
+      solidScriptExampleLine('clear_variable', { name: 'outline' }),
+      ...solidScriptExampleIf(
+        '[style] == "ring"',
+        [
+          solidScriptExampleArchCorner('[a]'),
+          solidScriptExampleArchCorner('[=corner([i], [thick])]'),
+          solidScriptExampleArchCorner('[=corner([i] + 1, [thick])]'),
+          solidScriptExampleArchCorner('[b]'),
+        ],
+        solidScriptExampleIf(
+          '[style] == "wall"',
+          [
+            solidScriptExampleArchCorner('[a]'),
+            solidScriptExampleArchCorner('[b]'),
+            solidScriptExampleArchCorner('[=vector([b.x], [top])]'),
+            solidScriptExampleArchCorner('[=vector([a.x], [top])]'),
+          ],
+          [
+            solidScriptExampleArchCorner('[=vector([a.x], [floor])]'),
+            solidScriptExampleArchCorner('[=vector([b.x], [floor])]'),
+            solidScriptExampleArchCorner('[b]'),
+            solidScriptExampleArchCorner('[a]'),
+          ],
+        ),
+      ),
+      solidScriptExampleLine('use_part', { name: 'prism' }),
+    ]),
+  ]),
+];

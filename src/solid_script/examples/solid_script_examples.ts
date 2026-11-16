@@ -15,6 +15,7 @@ import {
   SOLID_SCRIPT_EXAMPLE_SPHERE,
 } from './solid_script_examples_round.js';
 import {
+  SOLID_SCRIPT_EXAMPLE_ARCH,
   SOLID_SCRIPT_EXAMPLE_HOLLOW_BOX,
   SOLID_SCRIPT_EXAMPLE_PRISM,
   SOLID_SCRIPT_EXAMPLE_PYRAMID,
@@ -134,6 +135,7 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
   solidScriptExamplePort('pyramid', 'Pyramid', SOLID_SCRIPT_EXAMPLE_PYRAMID),
   solidScriptExamplePort('prism', 'Prism', SOLID_SCRIPT_EXAMPLE_PRISM),
   solidScriptExamplePort('hollowBox', 'Hollow Box', SOLID_SCRIPT_EXAMPLE_HOLLOW_BOX),
+  solidScriptExamplePort('arch', 'Arch', SOLID_SCRIPT_EXAMPLE_ARCH),
   solidScriptExamplePort('stairs', 'Stairs', SOLID_SCRIPT_EXAMPLE_STAIRS),
   solidScriptExamplePort('pipe', 'Pipe', SOLID_SCRIPT_EXAMPLE_PIPE),
   solidScriptExamplePort('torus', 'Torus', SOLID_SCRIPT_EXAMPLE_TORUS),

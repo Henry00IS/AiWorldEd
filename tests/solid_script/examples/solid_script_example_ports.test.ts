@@ -148,6 +148,13 @@ const PORT_CASES: Record<string, PortCase[]> = {
     { size: [4, 3, 2], parameters: { wallThickness: 0.5, openTop: true } },
     { size: [1, 1, 1], parameters: { wallThickness: 0.6 } },
   ],
+  arch: [
+    { size: [4, 1, 3], parameters: {} },
+    { size: [4, 1, 3], parameters: { style: 'wall', shape: 'fit', segments: 8, thickness: 0.5 } },
+    { size: [1, 5, 2], parameters: { style: 'tunnel', span: 'z', segments: 6 } },
+    { size: [3, 2, 1], parameters: { sweep: 90, start: 'left', segments: 5, thickness: 0.3, span: 'z' } },
+    { size: [3, 2, 4], parameters: { sweep: 120, start: 'right', shape: 'fit' } },
+  ],
   pipe: [
     { size: [4, 4, 2], parameters: {} },
     { size: [4, 2, 3], parameters: { sides: 9, wallThickness: 0.4, sweep: 180 } },
