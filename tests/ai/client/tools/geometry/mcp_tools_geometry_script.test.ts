@@ -75,6 +75,40 @@ describe('SolidScript generator tools', () => {
     expect((broken.data as { error: string }).error).toMatch(/^Line 2/);
   });
 
+  it('run When Input Changes and When Button Pressed like the inspector does', () => {
+    const { api, stack, objectId } = generatorFixture();
+    const lines = [
+      { command: 'input', values: { name: 'steps', type: 'count', default: '8', min: '1', max: '64' } },
+      { command: 'input', values: { name: 'reset', type: 'button', default: '' } },
+      { command: 'when_input_changes', values: { name: 'steps' } },
+      { command: 'if', values: { condition: '[steps] > 16' } },
+      { command: 'set_input', values: { name: 'steps', value: '16' } },
+      { command: 'show_message', values: { text: 'At most 16 steps' } },
+      { command: 'end' },
+      { command: 'end' },
+      { command: 'when_button_pressed', values: { name: 'reset' } },
+      { command: 'set_input', values: { name: 'steps', value: '8' } },
+      { command: 'end' },
+      { command: 'repeat', values: { variable: 'i', from: '1', to: '[steps]' } },
+      { command: 'cube' },
+      { command: 'end' },
+    ];
+    expect(api.invokeTool('geometry_script_generator_set', { objectId, lines }).ok).toBe(true);
+    const clamped = api.invokeTool('geometry_script_generator_set', { objectId, inputs: { steps: 40 } });
+    expect(clamped.data).toMatchObject({
+      solids: 16,
+      notices: ['At most 16 steps'],
+      inputs: [{ value: '16' }, { name: 'reset' }],
+    });
+    const pressed = api.invokeTool('geometry_script_generator_set', { objectId, press: 'reset' });
+    expect(pressed.data).toMatchObject({ solids: 8, inputs: [{ value: '8' }, { name: 'reset' }] });
+    stack.undo();
+    expect(api.invokeTool('geometry_script_generator_get', { objectId }).data).toMatchObject({ solids: 16 });
+    const notButton = api.invokeTool('geometry_script_generator_set', { objectId, press: 'steps' });
+    expect(notButton.ok).toBe(false);
+    expect(notButton.message).toMatch(/steps is not a button input; buttons: reset/);
+  });
+
   it('set and read the values of the script inputs like the inspector', () => {
     const { api, objectId } = generatorFixture();
     const lines = [

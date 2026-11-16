@@ -92,7 +92,12 @@ const MCP_GEOMETRY_SCRIPT_SET_SCHEMA: McpToolSchema = {
       type: 'object',
       additionalProperties: { type: ['number', 'string', 'boolean'] },
       description:
-        'Values for the Input lines of the script, by input name, like the inspector sets them, e.g. {"steps": 12, "rails": true}; inputs left out keep their value.',
+        'Values for the Input lines of the script, by input name, like the inspector sets them, e.g. {"steps": 12, "rails": true}; inputs left out keep their value. Each runs the script\'s When Input Changes blocks, which may change values; their messages come back as notices.',
+    },
+    press: {
+      type: 'string',
+      description:
+        'Name of a button Input to press after the inputs, running its When Button Pressed blocks like a click in the inspector.',
     },
   },
   required: ['objectId'],

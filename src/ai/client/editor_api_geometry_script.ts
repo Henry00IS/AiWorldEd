@@ -17,7 +17,8 @@ import {
 } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptDocumentListing } from '@/solid_script/document/solid_script_document_listing.js';
 import { solidScriptErrorText } from '@/solid_script/language/solid_script_error.js';
-import { solidScriptProgramEvaluate } from '@/solid_script/language/solid_script_program.js';
+import { solidScriptProgramEvaluate, solidScriptProgramHandle } from '@/solid_script/language/solid_script_program.js';
+import { SOLID_SCRIPT_PERSISTENT_PREFIX, type SolidScriptEvent } from '@/solid_script/language/solid_script_machine.js';
 import { solidScriptInputsList } from '@/solid_script/language/solid_script_input.js';
 import { solidScriptReference } from '@/solid_script/reference/solid_script_reference.js';
 import { solidScriptInspectorInputValues } from '@/solid_script/ui/solid_script_inspector_inputs.js';
@@ -38,6 +39,14 @@ export interface GeometryScriptGeneratorSetArgs {
   lines?: GeometryScriptLineArgs[];
   placement?: string;
   inputs?: Record<string, unknown>;
+  press?: string;
+}
+
+/** What the inspector event handlers of one set answered. */
+interface GeometryScriptHandled {
+  inputs: Record<string, string>;
+  notices: string[];
+  errors: string[];
 }
 
 /** Box mappings a SolidScript generator offers. */
@@ -130,19 +139,24 @@ export class EditorApiGeometryScript {
       return failResult(`placement must be one of ${GEOMETRY_SCRIPT_PLACEMENTS.join(', ')}`);
     const document = this.documentFrom(args, generator);
     if (typeof document === 'string') return failResult(document);
-    const inputs = geometryScriptInputsRead(args.inputs, document, generator.parameters);
-    if (typeof inputs === 'string') return failResult(inputs);
+    const typed = geometryScriptInputsRead(args.inputs, document, generator.parameters);
+    if (typeof typed === 'string') return failResult(typed);
+    const events = geometryScriptEvents(args, document);
+    if (typeof events === 'string') return failResult(events);
+    const handled = geometryScriptHandle(document, events, typed);
     const before = ModifierVolume.read(generator.node);
     const patch = {
       [MODIFIER_STACK_SOLID_SCRIPT_KEY]: document,
-      [MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]: inputs,
+      [MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]: handled.inputs,
       ...(args.placement ? { placement: args.placement } : {}),
     };
     const after = modifierStackPatch(before, generator.stepId, { parameters: { ...generator.parameters, ...patch } });
     this.host.commandStack.push(new CommandModifierStackSet(generator.node, before, after));
     this.host.refreshAfterWorldMutation();
     this.host.showStatus(`Edited the script of ${generator.node.name}`);
-    return this.generatorGet(args.objectId);
+    const result = this.generatorGet(args.objectId);
+    if (events.length === 0) return result;
+    return { ...result, data: { ...(result.data as object), notices: handled.notices, handlerErrors: handled.errors } };
   }
 
   /**
@@ -250,7 +264,7 @@ function geometryScriptLineRead(line: GeometryScriptLineArgs): SolidScriptBlock 
 
 /**
  * Merges the input values the tools write into the stored ones, keeping only
- * inputs the script has.
+ * inputs the script has and the persistent values its handlers stored.
  *
  * @param given Input values by name, or undefined to keep the stored ones.
  * @param document New script.
@@ -265,7 +279,8 @@ function geometryScriptInputsRead(
   const names = new Set(solidScriptInputsList(document.blocks).map((input) => input.name));
   const stored = solidScriptInspectorInputValues(parameters[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]);
   const merged: Record<string, string> = {};
-  for (const [name, value] of Object.entries(stored)) if (names.has(name)) merged[name] = value;
+  for (const [name, value] of Object.entries(stored))
+    if (names.has(name) || name.startsWith(SOLID_SCRIPT_PERSISTENT_PREFIX)) merged[name] = value;
   if (given === undefined) return merged;
   if (!given || typeof given !== 'object' || Array.isArray(given))
     return 'inputs must be an object of values by input name';
@@ -277,6 +292,53 @@ function geometryScriptInputsRead(
     merged[name] = typeof value === 'boolean' ? (value ? 'yes' : 'no') : String(value);
   }
   return merged;
+}
+
+/**
+ * Lists the inspector events a set causes: a change of each given input, then
+ * the press of a button input.
+ *
+ * @param args Set arguments.
+ * @param document New script.
+ * @returns Events in order, or an error.
+ */
+function geometryScriptEvents(
+  args: GeometryScriptGeneratorSetArgs,
+  document: SolidScriptDocument,
+): SolidScriptEvent[] | string {
+  const events: SolidScriptEvent[] = Object.keys(args.inputs ?? {}).map((name) => ({ kind: 'input', name }));
+  if (args.press === undefined) return events;
+  const buttons = solidScriptInputsList(document.blocks)
+    .filter((input) => input.type === 'button')
+    .map((input) => input.name);
+  if (!buttons.includes(args.press))
+    return `${args.press} is not a button input; buttons: ${buttons.join(', ') || 'none, add an Input of type button'}`;
+  return [...events, { kind: 'button', name: args.press }];
+}
+
+/**
+ * Runs the When Input Changes and When Button Pressed blocks of each event,
+ * like the inspector: each may change inputs and show messages.
+ *
+ * @param document Script.
+ * @param events Events in order.
+ * @param typed Input values with the new ones.
+ * @returns Final values, messages and handler mistakes.
+ */
+function geometryScriptHandle(
+  document: SolidScriptDocument,
+  events: readonly SolidScriptEvent[],
+  typed: Readonly<Record<string, string>>,
+): GeometryScriptHandled {
+  const result: GeometryScriptHandled = { inputs: { ...typed }, notices: [], errors: [] };
+  for (const event of events) {
+    const handled = solidScriptProgramHandle(document, event, result.inputs);
+    Object.assign(result.inputs, handled.inputs);
+    for (const key of handled.removed) delete result.inputs[key];
+    result.notices.push(...handled.notices);
+    if (handled.error) result.errors.push(handled.error.message);
+  }
+  return result;
 }
 
 /**
