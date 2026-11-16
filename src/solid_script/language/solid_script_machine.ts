@@ -639,8 +639,16 @@ function solidScriptLocalBare(name: string): string {
  */
 const SOLID_SCRIPT_LINE_RUNS = new WeakMap<object, SolidScriptLineRun>();
 
-/** Run views of the lines of a block, in line order, by block, kept across runs. */
-const SOLID_SCRIPT_LINES_RUNS = new WeakMap<object, readonly SolidScriptLineRun[]>();
+/** The kept run views of the lines of a block. */
+interface SolidScriptBlockRuns {
+  /** Run views in line order. */
+  runs: readonly SolidScriptLineRun[];
+  /** True when a line defines a part, Function or event handler. */
+  defines: boolean;
+}
+
+/** Run views of the lines of a block, by block, kept across runs. */
+const SOLID_SCRIPT_LINES_RUNS = new WeakMap<object, SolidScriptBlockRuns>();
 
 /** Thrown through a formula when a Function inside it reached the pause. */
 class SolidScriptPause extends Error {}
@@ -829,9 +837,9 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> imple
     context: SolidScriptContext,
     scope = new SolidScriptScope(parent),
   ): SolidScriptShape[] {
-    this.definitionsRegister(lines);
+    const { runs, defines } = SolidScriptMachine.runsKnown(lines);
+    if (defines) this.definitionsRegister(lines);
     const built: SolidScriptShape[] = [];
-    const runs = SolidScriptMachine.runsKnown(lines);
     this.builtStack.push(built);
     try {
       for (let index = 0; index < lines.length; index++) {
@@ -1214,16 +1222,21 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> imple
   }
 
   /**
-   * Returns the kept run views of the lines of a block, in line order.
+   * Returns the kept run views of the lines of a block, in line order, and
+   * whether any of them defines something.
    *
    * @param lines Lines.
    * @returns Run views.
    */
   private static runsKnown<Command extends SolidScriptMachineCommand>(
     lines: readonly SolidScriptBlockNode<Command>[],
-  ): readonly SolidScriptLineRun[] {
+  ): SolidScriptBlockRuns {
     let known = SOLID_SCRIPT_LINES_RUNS.get(lines);
-    if (!known) SOLID_SCRIPT_LINES_RUNS.set(lines, (known = lines.map((node) => SolidScriptMachine.runKnown(node))));
+    if (!known) {
+      const runs = lines.map((node) => SolidScriptMachine.runKnown(node));
+      known = { runs, defines: runs.some((run) => run.definition) };
+      SOLID_SCRIPT_LINES_RUNS.set(lines, known);
+    }
     return known;
   }
 
@@ -1783,7 +1796,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> imple
   private variableSet(scope: SolidScriptScope, written: string, value: SolidScriptValue): void {
     const name = this.nameKey(written);
     if (SOLID_SCRIPT_NAMES_PLAIN.has(name)) {
-      this.writableCheck(name);
+      this.writableCheck(name, name);
       const home = this.frameFunction() && !scope.variableHas(name) ? this.root : scope;
       home.variableSet(name, value);
       return;
@@ -1882,9 +1895,10 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> imple
    * Fails when a line sets a name that may only be read.
    *
    * @param name Name being set.
+   * @param key Its key, when the caller has it.
    */
-  private writableCheck(name: string): void {
-    const origin = this.readOnly.get(solidScriptNameKey(name));
+  private writableCheck(name: string, key = solidScriptNameKey(name)): void {
+    const origin = this.readOnly.get(key);
     if (origin !== undefined)
       throw new Error(
         `"${name}" is an ${origin} of this script and can only be read; change its value in the inspector`,
