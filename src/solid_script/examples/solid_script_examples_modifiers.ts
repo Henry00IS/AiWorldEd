@@ -90,3 +90,127 @@ export const SOLID_SCRIPT_EXAMPLE_LINEAR_ARRAY: readonly SolidScriptLine[] = [
     ]),
   ]),
 ];
+
+/**
+ * Turns an editor side name such as -z into a script direction.
+ *
+ * @param name Variable holding the side.
+ * @returns Formula.
+ */
+function solidScriptExampleSide(name: string): string {
+  const axis = `Part([${name}], 1, 1)`;
+  const sign = `(Part([${name}], 0, 1) == "-" ? -1 : 1)`;
+  return `[=(${axis} == "x" ? Vector(1, 0, 0) : ${axis} == "y" ? Vector(0, 0, 1) : Vector(0, -1, 0)) * ${sign}]`;
+}
+
+/** Port of the Radial Array modifier (whole input as the centre). */
+export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
+  solidScriptExampleNote(
+    'Radial Array: repeats the brushes it receives around an axis, measured from the whole input.',
+  ),
+  solidScriptExampleInput('Count', 'count', '3', { label: 'Count', min: '1', max: '256' }),
+  solidScriptExampleInput('Origin', 'choice', 'ring', { label: 'Original', choices: 'ring, centre' }),
+  solidScriptExampleInput('Mode', 'choice', 'ring', { label: 'Distribution', choices: 'ring, arc, step' }),
+  solidScriptExampleInput('Axis', 'choice', 'y', { label: 'Axis', choices: 'x, y, z' }),
+  solidScriptExampleInput('Sweep', 'number', '90', { label: 'Sweep °', min: '-360', max: '360' }),
+  solidScriptExampleInput('StepAngle', 'number', '15', { label: 'Step °', min: '-360', max: '360' }),
+  solidScriptExampleInput('Radius', 'number', '2', { label: 'Radius', min: '0' }),
+  solidScriptExampleInput('CentreSide', 'choice', '-z', { label: 'Ring Centre', choices: '-z, +z, -x, +x, -y, +y' }),
+  solidScriptExampleInput('Start', 'number', '0', { label: 'Start °' }),
+  solidScriptExampleInput('RadiusOffset', 'number', '0', { label: 'Radius Offset' }),
+  solidScriptExampleInput('Rise', 'number', '0', { label: 'Rise per Step' }),
+  solidScriptExampleInput('RotateCopies', 'switch', 'true', { label: 'Rotate Copies' }),
+  solidScriptExampleInput('Pivot', 'vector', '0, 0, 0', { label: 'Pivot' }),
+  solidScriptExampleInput('UV', 'choice', 'copied', { label: 'Textures', choices: 'copied, world' }),
+  ...SOLID_SCRIPT_EXAMPLE_TEXTURES,
+  solidScriptExampleSet('K', solidScriptExampleAxis('Axis')),
+  solidScriptExampleSet('Centre', '[Input.Center]'),
+  solidScriptExampleNote('The angle between copies: a full ring, an arc or a fixed step.'),
+  solidScriptExampleSet('Turn', '[=360 / [Count]]'),
+  ...solidScriptExampleIf('[Mode] == "step"', [solidScriptExampleSet('Turn', '[StepAngle]')]),
+  ...solidScriptExampleIf('[Mode] == "arc"', [solidScriptExampleSet('Turn', '[=[Sweep] / Max(1, [Count] - 1)]')]),
+  solidScriptExampleNote(
+    'Around is the point the copies turn about, Push moves them off the axis, First is the first angle.',
+  ),
+  solidScriptExampleSet('Around', '[Centre]'),
+  solidScriptExampleSet('Push', '[=Vector(0, 0, 0)]'),
+  solidScriptExampleSet('First', '0'),
+  solidScriptExampleSet('Side', '[K]'),
+  solidScriptExampleSet('Out', '[K]'),
+  ...solidScriptExampleIf(
+    '[Origin] == "ring"',
+    [
+      solidScriptExampleNote('The ring centre lies Radius away on the chosen side, across the axis.'),
+      solidScriptExampleSet('Side', solidScriptExampleSide('CentreSide')),
+      solidScriptExampleSet('Side', '[=[Side] - [K] * Dot([Side], [K])]'),
+      ...solidScriptExampleIf('[=Dot([Side], [Side]) < 1e-12]', [
+        solidScriptExampleSet('Side', '[=[Axis] == "z" ? Vector(0, 0, -1) : Vector(0, 1, 0)]'),
+      ]),
+      solidScriptExampleSet('Around', '[=[Centre] + Normalize([Side]) * [Radius]]'),
+    ],
+    [
+      solidScriptExampleNote('Around the pivot: copies start at Start ° and move Radius Offset away from the axis.'),
+      solidScriptExampleSet('Around', '[Pivot]'),
+      solidScriptExampleSet('Out', '[=[Centre] - [Around]]'),
+      solidScriptExampleSet('Out', '[=[Out] - [K] * Dot([Out], [K])]'),
+      ...solidScriptExampleIf('[=Dot([Out], [Out]) < 1e-12]', [
+        solidScriptExampleSet('Out', '[=[Axis] == "y" ? Vector(1, 0, 0) : Vector(0, 0, 1)]'),
+      ]),
+      solidScriptExampleSet('Push', '[=Normalize([Out]) * [RadiusOffset]]'),
+      solidScriptExampleSet('First', '[Start]'),
+    ],
+  ),
+  solidScriptExampleNote('Copy I turns by First + I × Turn around K through Around, then rises along K.'),
+  solidScriptExampleNote('Copy 0 is the original.'),
+  solidScriptExampleLine('input_brushes', { textures: '[Textures]' }),
+  ...solidScriptExampleIf('[Count] > 1', [
+    ...solidScriptExampleRepeat('I', '1', '[=[Count] - 1]', [
+      solidScriptExampleSet('A', '[=[First] + [I] * [Turn]]'),
+      solidScriptExampleSet('C', '[=Cos([A])]'),
+      solidScriptExampleSet('S', '[=Sin([A])]'),
+      solidScriptExampleSet('T', '[=1 - [C]]'),
+      solidScriptExampleSet(
+        'R1',
+        '[=Vector([C] + [T] * [K.x] * [K.x], [T] * [K.x] * [K.y] - [S] * [K.z], [T] * [K.x] * [K.z] + [S] * [K.y])]',
+      ),
+      solidScriptExampleSet(
+        'R2',
+        '[=Vector([T] * [K.x] * [K.y] + [S] * [K.z], [C] + [T] * [K.y] * [K.y], [T] * [K.y] * [K.z] - [S] * [K.x])]',
+      ),
+      solidScriptExampleSet(
+        'R3',
+        '[=Vector([T] * [K.x] * [K.z] - [S] * [K.y], [T] * [K.y] * [K.z] + [S] * [K.x], [C] + [T] * [K.z] * [K.z])]',
+      ),
+      solidScriptExampleNote('Where the pushed pivot point lands: the turned offset plus the rise.'),
+      solidScriptExampleSet('P', '[=[Around] + [Push]]'),
+      solidScriptExampleSet(
+        'Move',
+        '[=[Around] - Vector(Dot([R1], [Around]), Dot([R2], [Around]), Dot([R3], [Around])) + Vector(Dot([R1], [Push]), Dot([R2], [Push]), Dot([R3], [Push])) + [K] * [Rise] * [I]]',
+      ),
+      ...solidScriptExampleIf(
+        '[RotateCopies]',
+        [
+          ...solidScriptExampleBlock(
+            'matrix',
+            {
+              row1: '[R1.x], [R1.y], [R1.z], [Move.x]',
+              row2: '[R2.x], [R2.y], [R2.z], [Move.y]',
+              row3: '[R3.x], [R3.y], [R3.z], [Move.z]',
+            },
+            [solidScriptExampleLine('input_brushes', { textures: '[Textures]' })],
+          ),
+        ],
+        [
+          solidScriptExampleNote('Rotate Copies off: only the centre moves, the brushes keep their turn.'),
+          solidScriptExampleSet(
+            'Delta',
+            '[=Vector(Dot([R1], [Centre]), Dot([R2], [Centre]), Dot([R3], [Centre])) + [Move] - [Centre]]',
+          ),
+          ...solidScriptExampleBlock('translate', { v: '[Delta]' }, [
+            solidScriptExampleLine('input_brushes', { textures: '[Textures]' }),
+          ]),
+        ],
+      ),
+    ]),
+  ]),
+];
