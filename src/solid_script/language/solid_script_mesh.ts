@@ -423,3 +423,51 @@ export function solidScriptShapeMeshes(shapes: readonly SolidScriptShape[]): Sol
     shape.kind === 'mesh' ? [shape] : shape.kind === 'boolean' ? solidScriptShapeMeshes(shape.children) : [],
   );
 }
+
+/**
+ * Welds corners closer than a distance into one, at their first corner, and
+ * drops the faces that fold to fewer than three corners. Nearby corners are
+ * found through a grid of cells one distance wide.
+ *
+ * @param mesh Mesh.
+ * @param distance Largest gap that is welded, in metres.
+ * @returns Mesh with fewer corners.
+ */
+export function solidScriptMeshMerge(mesh: SolidScriptShapeMesh, distance: number): SolidScriptShapeMesh {
+  const cell = Math.max(distance, 1e-9);
+  const cells = new Map<string, number[]>();
+  const kept: THREE.Vector3[] = [];
+  const target = mesh.points.map((point) => {
+    const [x, y, z] = [point.x, point.y, point.z].map((value) => Math.floor(value / cell));
+    for (let dx = -1; dx <= 1; dx++)
+      for (let dy = -1; dy <= 1; dy++)
+        for (let dz = -1; dz <= 1; dz++)
+          for (const index of cells.get(`${x! + dx},${y! + dy},${z! + dz}`) ?? [])
+            if (kept[index]!.distanceTo(point) <= distance) return index;
+    const key = `${x},${y},${z}`;
+    cells.set(key, [...(cells.get(key) ?? []), kept.length]);
+    kept.push(point.clone());
+    return kept.length - 1;
+  });
+  const faces: number[][] = [];
+  const uvs: (SolidScriptUv[] | null)[] = [];
+  mesh.faces.forEach((face, at) => {
+    const uv = mesh.uvs[at] ?? null;
+    const corners: number[] = [];
+    const cornerUvs: SolidScriptUv[] = [];
+    face.forEach((corner, index) => {
+      const welded = target[corner]!;
+      if (corners[corners.length - 1] === welded) return;
+      corners.push(welded);
+      if (uv?.[index]) cornerUvs.push(uv[index]);
+    });
+    if (corners.length > 1 && corners[0] === corners[corners.length - 1]) {
+      corners.pop();
+      if (uv) cornerUvs.pop();
+    }
+    if (new Set(corners).size < 3) return;
+    faces.push(corners);
+    uvs.push(uv ? cornerUvs : null);
+  });
+  return { ...mesh, points: kept, faces, uvs };
+}

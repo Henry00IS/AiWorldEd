@@ -3,7 +3,8 @@ import { curveFromPolyline, type Curve } from '@/curve/model/curve_model.js';
 import { curveEvaluate } from '@/curve/model/curve_sample.js';
 import { generatorRevolveStationsFromCurve } from '@/generator/revolve/generator_revolve_curve.js';
 import { solidScriptExtraNumber } from './solid_script_functions_extra.js';
-import { solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
+import { solidScriptPathLength, solidScriptPathResample } from './solid_script_path.js';
+import { solidScriptValueNumbers, solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
 
 /** A built-in function over evaluated arguments. */
 type SolidScriptCurveFunction = (args: SolidScriptValue[]) => SolidScriptValue;
@@ -40,11 +41,37 @@ function solidScriptCurveRead(args: readonly SolidScriptValue[], usage: string):
   return curve;
 }
 
-/** Functions that read Curve inputs. */
+/**
+ * Reads an argument as a path: a list of points of one size.
+ *
+ * @param args Arguments.
+ * @param usage How to call the function, for the message.
+ * @returns Points.
+ */
+function solidScriptCurvePath(args: readonly SolidScriptValue[], usage: string): number[][] {
+  const list = args[0];
+  if (!Array.isArray(list)) throw new Error(`${usage} needs a list of points, not ${solidScriptValueText(list)}`);
+  const points = list.map((entry) => solidScriptValueNumbers(entry));
+  const size = points[0]?.length ?? 0;
+  if (points.some((point) => !point || point.length !== size || size < 2))
+    throw new Error(`${usage} needs points that all have the same number of values, such as x, y, z`);
+  return points as number[][];
+}
+
+/** Functions that read Curve inputs and paths. */
 export const SOLID_SCRIPT_FUNCTIONS_CURVE: Readonly<Record<string, SolidScriptCurveFunction>> = {
   curve_at: (args) => {
     const usage = 'curve_at(curve, x)';
     return curveEvaluate(solidScriptCurveRead(args, usage), solidScriptExtraNumber(args, 1, usage));
+  },
+  path_length: (args) => solidScriptPathLength(solidScriptCurvePath(args, 'path_length(points)')),
+  resample: (args) => {
+    const usage = 'resample(points, count)';
+    const path = solidScriptCurvePath(args, usage);
+    if (path.length < 2) throw new Error(`${usage} needs at least 2 points`);
+    const count = Math.round(solidScriptExtraNumber(args, 1, usage));
+    if (count < 2 || count > 10000) throw new Error(`${usage} needs a count from 2 to 10000, not ${count}`);
+    return solidScriptPathResample(path, count);
   },
   profile_points: (args) => {
     const usage = 'profile_points(curve, height, radius)';

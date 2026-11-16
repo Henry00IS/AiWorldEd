@@ -121,6 +121,12 @@ export const SOLID_SCRIPT_FUNCTION_DOCS: Readonly<Record<string, SolidScriptFunc
   is_string: { usage: 'is_string(value)', summary: 'Yes for text.', group: 'Checks' },
   is_bool: { usage: 'is_bool(value)', summary: 'Yes for Yes or No.', group: 'Checks' },
   curve_at: { usage: 'curve_at(curve, x)', summary: 'Height of a curve at x, from 0 to 1.', group: 'Curves' },
+  path_length: { usage: 'path_length(points)', summary: 'Length of a path through points.', group: 'Curves' },
+  resample: {
+    usage: 'resample(points, count)',
+    summary: 'Count points evenly spaced along a path, from its start to its end.',
+    group: 'Curves',
+  },
   profile_points: {
     usage: 'profile_points(curve, height, radius)',
     summary: 'A profile as [height, radius] points, like a column samples it.',

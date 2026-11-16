@@ -39,6 +39,7 @@ The script runs on every change. **Start** builds everything, **Debug** builds o
 <details>
 <summary>More Details</summary>
 
+- A **curve** input opens the curve editor; read it with `curve_at(curve, x)` or `profile_points(curve, height, radius)`.
 - When Input Changes and When Button Pressed blocks can check and change inputs.
 - Values stored as `persistent.name` stay between runs.
 
@@ -54,6 +55,19 @@ The script runs on every change. **Start** builds everything, **Debug** builds o
 - **For Each Selected Face** runs lines once per picked face; **Place On Face**, **Extrude Face**, **Inset Face** and **Bevel Edges** work on its face.
 - **For Each Scattered Point** spreads points over the picked faces, more on bigger ones; the same Seed always gives the same points.
 - **Align To** turns the lines inside so their Z points along a direction, such as `[Point.Normal]`.
+
+</details>
+
+## Paths and meshes
+
+**Curve To Mesh** sweeps a circle or your own outline along a list of points, such as a rail or a pipe.
+
+<details>
+<summary>More Details</summary>
+
+- Each stretch becomes one solid, cut on the mitre so the pieces meet; **As Mesh** builds one mesh instead.
+- `resample(points, count)` spaces points evenly along a path, and `path_length(points)` measures it.
+- **Merge By Distance** welds mesh corners that nearly touch. **Mesh From Shapes** turns shapes into a real mesh.
 
 </details>
 

@@ -9,6 +9,7 @@ import {
   solidScriptMeshFromSolid,
   solidScriptMeshJoin,
   solidScriptMeshLoopNormal,
+  solidScriptMeshMerge,
   solidScriptMeshSmooth,
   solidScriptMeshSubdivide,
   type SolidScriptShapeMesh,
@@ -255,6 +256,37 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     starter: [{ command: 'cube', values: {} }],
     listing: () => ['Mesh From Shapes'],
     execute: (run) => solidScriptMeshTool(run, 'Mesh From Shapes', (mesh) => mesh),
+  }),
+  new SolidScriptCommand({
+    id: 'merge_by_distance',
+    label: 'Merge By Distance',
+    category: 'Meshes',
+    description: 'Weld corners that nearly touch',
+    manual:
+      'Turns the shapes between this line and its End into one mesh and welds corners closer than Distance into one, so pieces that touch share their corners and smooth as one surface. Faces that fold away are dropped. Example: Merge By Distance 0.001 around two Cubes side by side gives one mesh whose touching corners are shared.',
+    stops: [
+      'A Distance below 0.',
+      SOLID_SCRIPT_MESH_STOPS_FLAT,
+      SOLID_SCRIPT_MESH_STOPS_EMPTY,
+      SOLID_SCRIPT_MESH_STOPS_END,
+    ],
+    nesting: 'open',
+    parameters: [
+      solidScriptParameter(
+        'distance',
+        'Distance',
+        'number',
+        '0.001',
+        'Largest gap between corners that are welded, in metres.',
+      ),
+    ],
+    starter: [{ command: 'cube', values: {} }],
+    listing: (read) => ['Merge By Distance', read.value('distance')],
+    execute: (run) => {
+      const distance = solidScriptMeshNumber(run.value('distance'), 'Distance');
+      if (distance < 0) throw new Error(`Distance must be 0 or more, not ${distance}`);
+      return solidScriptMeshTool(run, 'Merge By Distance', (mesh) => solidScriptMeshMerge(mesh, distance));
+    },
   }),
   new SolidScriptCommand({
     id: 'subdivide',
