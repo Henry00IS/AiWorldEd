@@ -9,7 +9,7 @@ Build game levels fast with brushes, Constructive Solid Geometry and precision t
 
 ### [▶ OPEN THE EDITOR ONLINE](https://Henry00IS.github.io/AiWorldEd/)
 
-[![Screenshot of the editor](https://raw.githubusercontent.com/wiki/Henry00IS/AiWorldEd/images/home.png)](https://Henry00IS.github.io/AiWorldEd/)
+[![From an empty editor to a playable room](https://raw.githubusercontent.com/wiki/Henry00IS/AiWorldEd/images/getting-started.gif)](https://Henry00IS.github.io/AiWorldEd/)
 
 > AiWorldEd is created and maintained entirely by AI (Grok 4.5 and Qwen 3.6) under human guidance. No human has manually edited the source code.
 
