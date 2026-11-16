@@ -58,6 +58,7 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
   helpParameter: 'solid-script-editor-help-parameter',
   helpStops: 'solid-script-editor-help-stops',
   helpMore: 'solid-script-editor-help-more',
+  off: 'solid-script-editor-off',
   icon: 'solid-script-editor-icon',
   field: 'solid-script-editor-field',
   fieldLabel: 'solid-script-editor-field-label',
@@ -203,6 +204,7 @@ const SOLID_SCRIPT_EDITOR_PANES_CSS = `
 .${c.helpMore} { margin: 10px 0 0; border-top: 1px solid ${ThemeCss.separatorColor}; padding-top: 6px; }
 .${c.helpMore} > summary { cursor: pointer; font-size: 11px; color: ${ThemeCss.mutedTextColor}; margin-bottom: 6px; user-select: none; }
 .${c.helpMore} > summary:hover { color: ${ThemeCss.textColor}; }
+.${c.off} .${c.chip} { opacity: 0.42; text-decoration: line-through; text-decoration-color: ${ThemeCss.inkAlpha(0.35)}; }
 .${c.helpUsage} { margin: 10px 0 0; padding-top: 8px; border-top: 1px solid ${ThemeCss.inkAlpha(0.08)}; font-size: 11px; line-height: 1.45; color: ${ThemeCss.mutedTextColor}; }
 .${c.output} { display: flex; flex-direction: column; flex-shrink: 0; height: 112px; border-top: 1px solid ${ThemeCss.separatorColor}; }
 .${c.outputTabs} { display: flex; gap: 2px; padding: 4px 8px 0; }

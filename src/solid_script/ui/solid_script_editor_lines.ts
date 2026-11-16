@@ -1,5 +1,8 @@
 import { solidScriptDocumentCreate, type SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
-import { solidScriptDocumentDepths } from '@/solid_script/document/solid_script_document_indent.js';
+import {
+  solidScriptDocumentDepths,
+  solidScriptDocumentOffLines,
+} from '@/solid_script/document/solid_script_document_indent.js';
 import {
   solidScriptBlockIsBlank,
   solidScriptDocumentBlankInsert,
@@ -91,6 +94,8 @@ export class SolidScriptEditorLines {
   private document: SolidScriptDocument = solidScriptDocumentCreate([]);
   private depths: number[] = [];
   private closes: string[] = [];
+  /** True per line that is off. */
+  private offs: boolean[] = [];
   private caretLine = 0;
   private anchor: number | null = null;
   private layout = '';
@@ -162,6 +167,7 @@ export class SolidScriptEditorLines {
     this.caretLine = Math.max(0, Math.min(focus ?? this.caretLine, document.blocks.length - 1));
     const depths = solidScriptDocumentDepths(document);
     const closes = solidScriptDocumentClosedBlocks(document);
+    this.offs = solidScriptDocumentOffLines(document);
     const layout = JSON.stringify([document.blocks, depths, closes]);
     const rebuilt = layout !== this.layout;
     this.layout = layout;
@@ -354,7 +360,7 @@ export class SolidScriptEditorLines {
     };
     const row = solidScriptEditorRowBuild(
       block,
-      { line, depth: this.depths[line] ?? 0, closes: this.closes[line] ?? '' },
+      { line, depth: this.depths[line] ?? 0, closes: this.closes[line] ?? '', off: this.offs[line] ?? false },
       handlers,
     );
     row.style.top = `${SOLID_SCRIPT_EDITOR_LINES_TOP_PX + line * SOLID_SCRIPT_EDITOR_ROW_PX}px`;

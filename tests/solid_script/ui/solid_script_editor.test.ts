@@ -1,3 +1,4 @@
+import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import * as THREE from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CommandStack } from '@/commands/command_stack.js';
@@ -442,6 +443,33 @@ describe('SolidScript editor', () => {
     press(document.activeElement as HTMLElement, 'd', { ctrlKey: true });
     expect(commands()).toEqual(['cube', 'sphere', 'cylinder', 'sphere', 'cylinder']);
     expect(find('[data-line="3"]').textContent).toContain('3');
+  });
+
+  it('turns lines off and on with F4, keeps them off through copy and paste, and runs without them', () => {
+    const { script, root, commandStack } = editorFixture([
+      { command: 'cube' },
+      { command: 'union' },
+      { command: 'sphere' },
+      { command: 'end' },
+    ]);
+    chip(1).focus();
+    press(chip(1), 'F4');
+    expect(script().blocks[1]?.off).toBe(true);
+    expect(root.textContent).toContain('Turned 1 line off');
+    for (const line of [1, 2, 3])
+      expect(find(`[data-line="${line}"]`).classList.contains('solid-script-editor-off'), String(line)).toBe(true);
+    expect(find('[data-line="0"]').classList.contains('solid-script-editor-off')).toBe(false);
+    const run = solidScriptProgramRun(script());
+    expect(run.error).toBeNull();
+    expect(run.steps).toHaveLength(1);
+    chip(1).dispatchEvent(new Event('copy', { bubbles: true, cancelable: true }));
+    chip(3).focus();
+    chip(3).dispatchEvent(new Event('paste', { bubbles: true, cancelable: true }));
+    expect(script().blocks[4]).toMatchObject({ command: 'union', off: true });
+    press(chip(1), '/', { ctrlKey: true });
+    expect(script().blocks[1]?.off).toBeUndefined();
+    commandStack.undo();
+    expect(script().blocks[1]?.off).toBe(true);
   });
 
   it('explains the selected line in the help panel with every value and hint', () => {

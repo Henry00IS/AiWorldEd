@@ -152,6 +152,38 @@ export function solidScriptDocumentRangeRemove(
 }
 
 /**
+ * Turns the lines of a range off, or on again when all of them are off. End and
+ * Else lines follow the line that opens their block, so they are left as they
+ * are.
+ *
+ * @param document Script.
+ * @param first First line index.
+ * @param last Last line index.
+ * @returns Edited script, and how many lines changed and whether they are off
+ *   now.
+ */
+export function solidScriptDocumentRangeToggle(
+  document: SolidScriptDocument,
+  first: number,
+  last: number,
+): { document: SolidScriptDocument; count: number; off: boolean } {
+  const from = Math.max(0, Math.min(first, last));
+  const to = Math.max(first, last);
+  const togglable = (block: SolidScriptBlock, line: number): boolean => {
+    const nesting = solidScriptCommandFind(block.command)?.nesting ?? 'none';
+    return line >= from && line <= to && (nesting === 'none' || nesting === 'open');
+  };
+  const chosen = document.blocks.filter(togglable);
+  const off = !chosen.every((block) => block.off === true);
+  const blocks = document.blocks.map((block, line) => {
+    if (!togglable(block, line)) return block;
+    const { off: _was, ...rest } = block;
+    return off ? { ...rest, off: true as const } : rest;
+  });
+  return { document: solidScriptDocumentWith(document, blocks), count: chosen.length, off };
+}
+
+/**
  * Inserts copied lines with new ids below a line, filling it when it is a blank
  * line.
  *
@@ -163,12 +195,12 @@ export function solidScriptDocumentRangeRemove(
 export function solidScriptDocumentLinesInsert(
   document: SolidScriptDocument,
   index: number,
-  lines: readonly { command: string; values?: Readonly<Record<string, string>> }[],
+  lines: readonly { command: string; values?: Readonly<Record<string, string>>; off?: boolean }[],
 ): SolidScriptInsertResult {
   const blocks = [...document.blocks];
   const reuse = solidScriptBlockIsBlank(blocks[index]);
   const line = blocks.length === 0 ? 0 : Math.max(0, Math.min(reuse ? index : index + 1, blocks.length));
-  const inserted = lines.map((entry) => solidScriptBlockCreate(entry.command, { ...entry.values }));
+  const inserted = lines.map((entry) => solidScriptBlockCreate(entry.command, { ...entry.values }, entry.off === true));
   blocks.splice(line, reuse ? 1 : 0, ...inserted);
   return { document: solidScriptDocumentWith(document, blocks), line };
 }

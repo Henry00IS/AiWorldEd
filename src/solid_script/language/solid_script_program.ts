@@ -43,7 +43,7 @@ export interface SolidScriptProgram {
 export function solidScriptProgramProblem(program: SolidScriptProgram): { line: number; message: string } | null {
   for (const [index, block] of program.blocks.entries()) {
     const command = solidScriptCommandFind(block.command);
-    if (!command) continue;
+    if (!command || block.off === true) continue;
     for (const parameter of command.parameters) {
       const text = command.valueText(block.values, parameter.key);
       const problem =

@@ -29,7 +29,7 @@ export function solidScriptEditorClipboardWrite(
   blocks: readonly SolidScriptBlock[],
   data: DataTransfer | null = null,
 ): void {
-  const lines = blocks.map(({ command, values }) => ({ command, values: { ...values } }));
+  const lines = blocks.map(({ command, values, off }) => ({ command, values: { ...values }, ...(off ? { off } : {}) }));
   solidScriptEditorClipboardHeld = lines;
   const text = solidScriptEditorClipboardText(lines);
   if (data) data.setData('text/plain', text);
@@ -59,13 +59,13 @@ export function solidScriptEditorClipboardParse(text: string): SolidScriptLine[]
   if (!Array.isArray(list) || list.length === 0) return null;
   const lines: SolidScriptLine[] = [];
   for (const entry of list as unknown[]) {
-    const line = entry as { command?: unknown; values?: unknown } | null;
+    const line = entry as { command?: unknown; values?: unknown; off?: unknown } | null;
     if (typeof line?.command !== 'string') return null;
     const values: Record<string, string> = {};
     if (line.values && typeof line.values === 'object')
       for (const [key, value] of Object.entries(line.values as Record<string, unknown>))
         if (typeof value === 'string') values[key] = value;
-    lines.push({ command: line.command, values });
+    lines.push({ command: line.command, values, ...(line.off === true ? { off: true } : {}) });
   }
   return lines;
 }
@@ -80,5 +80,5 @@ export function solidScriptEditorClipboardParse(text: string): SolidScriptLine[]
 export function solidScriptEditorClipboardRead(data: DataTransfer | null = null): SolidScriptLine[] | null {
   const pasted = data ? solidScriptEditorClipboardParse(data.getData('text/plain')) : null;
   if (pasted) return pasted;
-  return solidScriptEditorClipboardHeld?.map((line) => ({ command: line.command, values: { ...line.values } })) ?? null;
+  return solidScriptEditorClipboardHeld?.map((line) => ({ ...line, values: { ...line.values } })) ?? null;
 }

@@ -4,6 +4,7 @@ import {
   solidScriptDocumentLinesInsert,
   solidScriptDocumentRangeMove,
   solidScriptDocumentRangeRemove,
+  solidScriptDocumentRangeToggle,
 } from '@/solid_script/document/solid_script_document_edit.js';
 import { solidScriptEditorClipboardRead, solidScriptEditorClipboardWrite } from './solid_script_editor_clipboard.js';
 
@@ -97,6 +98,8 @@ export class SolidScriptEditorLineKeys {
     // Copy, cut and paste arrive as clipboard events, so they reach the system clipboard.
     if (command && !event.altKey && letter === 'a') return () => this.host.selectAll();
     if (command && !event.altKey && letter === 'd') return (line) => this.duplicate(line);
+    if ((command && !event.altKey && event.key === '/') || (!command && event.key === 'F4'))
+      return (line) => this.toggle(line);
     if (command || event.altKey) return null;
     if ((event.key === 'Enter' && event.shiftKey) || event.key === 'Insert' || event.key === ' ')
       return (line) => this.blank(line);
@@ -145,6 +148,22 @@ export class SolidScriptEditorLineKeys {
   }
 
   /**
+   * Turns the selected lines, or one line, off or on again.
+   *
+   * @param line Line index.
+   */
+  private toggle(line: number): void {
+    const [first, last] = this.rangeOf(line);
+    const toggled = solidScriptDocumentRangeToggle(this.host.document(), first, last);
+    if (toggled.count === 0) return this.host.notice('End and Else lines follow the line that opens their block.');
+    const [from, to] = this.host.selection();
+    this.host.edit(toggled.document, line);
+    if (from !== to) this.host.selectRange(from, to);
+    const lines = `${toggled.count} ${toggled.count === 1 ? 'line' : 'lines'}`;
+    this.host.notice(toggled.off ? `Turned ${lines} off; F4 turns them on again.` : `Turned ${lines} on.`);
+  }
+
+  /**
    * Copies the selected lines, or one line, right below themselves.
    *
    * @param line Line index.
@@ -154,7 +173,7 @@ export class SolidScriptEditorLineKeys {
     const lines = this.host
       .document()
       .blocks.slice(first, last + 1)
-      .map(({ command, values }) => ({ command, values: { ...values } }));
+      .map(({ command, values, off }) => ({ command, values: { ...values }, ...(off ? { off } : {}) }));
     this.insertSelected(last, lines);
     this.host.notice(`Duplicated ${lines.length} ${lines.length === 1 ? 'line' : 'lines'}.`);
   }

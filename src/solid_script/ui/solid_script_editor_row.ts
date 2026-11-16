@@ -44,6 +44,8 @@ export interface SolidScriptEditorRowLook {
   depth: number;
   /** Label of the block an End line closes, or empty. */
   closes: string;
+  /** True when the line is off, by itself or inside a block that is off. */
+  off: boolean;
 }
 
 /**
@@ -79,6 +81,12 @@ export function solidScriptEditorRowBuild(
   chip.style.paddingLeft = `${8 + look.depth * SOLID_SCRIPT_EDITOR_INDENT_PX}px`;
   solidScriptEditorChipFill(chip, block, look.closes);
   row.append(gutter, chip);
+  if (look.off) {
+    row.classList.add(SOLID_SCRIPT_EDITOR_CLASSES.off);
+    chip.title = block.off
+      ? 'Turned off: it does not run. F4 turns it on again.'
+      : 'Inside a block that is turned off.';
+  }
   row.addEventListener('mousedown', (event) => {
     if (event.button !== 0) return;
     handlers.press(look.line, event.shiftKey);

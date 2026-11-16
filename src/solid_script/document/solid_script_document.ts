@@ -17,6 +17,8 @@ export interface SolidScriptBlock {
   command: string;
   /** Code text per parameter key. */
   values: Record<string, string>;
+  /** True for a line turned off: it stays in the script but does not run. */
+  off?: true;
 }
 
 /** A script: its name and its lines in order. */
@@ -35,6 +37,8 @@ export interface SolidScriptLine {
   command: string;
   /** Values replacing the command's defaults. */
   values?: Record<string, string>;
+  /** True for a line turned off. */
+  off?: boolean;
 }
 
 /**
@@ -53,11 +57,18 @@ export function solidScriptBlockId(): string {
  *
  * @param command Command id.
  * @param values Values replacing defaults.
+ * @param off True makes a line that is turned off.
  * @returns Line.
  */
-export function solidScriptBlockCreate(command: string, values: Record<string, string> = {}): SolidScriptBlock {
+export function solidScriptBlockCreate(
+  command: string,
+  values: Record<string, string> = {},
+  off = false,
+): SolidScriptBlock {
   const defaults = solidScriptCommandFind(command)?.valuesDefault() ?? {};
-  return { id: solidScriptBlockId(), command, values: { ...defaults, ...values } };
+  const block: SolidScriptBlock = { id: solidScriptBlockId(), command, values: { ...defaults, ...values } };
+  if (off) block.off = true;
+  return block;
 }
 
 /**
@@ -71,7 +82,7 @@ export function solidScriptDocumentCreate(lines: readonly SolidScriptLine[], nam
   return {
     version: SOLID_SCRIPT_DOCUMENT_VERSION,
     name,
-    blocks: lines.map((line) => solidScriptBlockCreate(line.command, line.values)),
+    blocks: lines.map((line) => solidScriptBlockCreate(line.command, line.values, line.off === true)),
   };
 }
 
@@ -126,7 +137,9 @@ function solidScriptBlockNormalize(entry: unknown): SolidScriptBlock | null {
   const record = entry as Record<string, unknown>;
   if (typeof record['command'] !== 'string' || !record['command']) return null;
   const id = typeof record['id'] === 'string' && record['id'] ? record['id'] : solidScriptBlockId();
-  return { id, command: record['command'], values: solidScriptBlockValues(record['values']) };
+  const block: SolidScriptBlock = { id, command: record['command'], values: solidScriptBlockValues(record['values']) };
+  if (record['off'] === true) block.off = true;
+  return block;
 }
 
 /**

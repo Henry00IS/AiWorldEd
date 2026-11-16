@@ -29,6 +29,8 @@ export interface SolidScriptBlockNode<Command extends SolidScriptTreeCommand> {
 export interface SolidScriptTreeLine {
   command: string;
   values: Readonly<Record<string, string>>;
+  /** True for a line turned off: it and the lines of its block do not run. */
+  off?: boolean;
 }
 
 /**
@@ -66,7 +68,8 @@ export function solidScriptBlockTree<Command extends SolidScriptTreeCommand>(
       parent.node.otherwise = [];
       return;
     }
-    if (command.runs) target().push(node);
+    if (command.runs && !(stored.off === true && (command.nesting === 'none' || command.nesting === 'open')))
+      target().push(node);
     if (command.nesting === 'open') open.push({ node, id: stored.command });
   });
   const unclosed = open.pop();

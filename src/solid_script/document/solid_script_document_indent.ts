@@ -31,3 +31,23 @@ export function solidScriptDocumentDepths(document: SolidScriptDocument): number
     return shown;
   });
 }
+
+/**
+ * Tells for every line whether it is off: turned off itself, or inside a block
+ * whose opening line is off, End and Else included.
+ *
+ * @param document Script.
+ * @returns True per line that does not run because it is off.
+ */
+export function solidScriptDocumentOffLines(document: SolidScriptDocument): boolean[] {
+  const open: boolean[] = [];
+  return document.blocks.map((block) => {
+    const nesting = solidScriptBlockNesting(block);
+    const inside = open.includes(true);
+    if (nesting === 'close') return open.pop() === true || open.includes(true);
+    if (nesting === 'continue') return inside;
+    const off = inside || block.off === true;
+    if (nesting === 'open') open.push(block.off === true);
+    return off;
+  });
+}
