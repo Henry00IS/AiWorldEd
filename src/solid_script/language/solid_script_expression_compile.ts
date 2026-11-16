@@ -12,6 +12,27 @@ export type SolidScriptCompiled = (
   scope: SolidScriptScope,
 ) => SolidScriptValue;
 
+/** Values of the bracketed parts of one field formula while it runs. */
+export interface SolidScriptSlotFrame {
+  values: readonly SolidScriptValue[];
+}
+
+/** Frames of slot nodes, so a compiled slot reads its formula's values. */
+const SOLID_SCRIPT_SLOT_FRAMES = new WeakMap<SolidScriptExpression, SolidScriptSlotFrame>();
+
+/**
+ * Makes a slot node that reads one value of a field formula's frame.
+ *
+ * @param index Slot index.
+ * @param frame Frame holding the values while the formula runs.
+ * @returns Slot node.
+ */
+export function solidScriptSlotNode(index: number, frame: SolidScriptSlotFrame): SolidScriptExpression {
+  const node: SolidScriptExpression = { kind: 'slot', index };
+  SOLID_SCRIPT_SLOT_FRAMES.set(node, frame);
+  return node;
+}
+
 /** Vector member names and their indices. */
 const SOLID_SCRIPT_MEMBERS: Readonly<Record<string, number>> = { x: 0, y: 1, z: 2 };
 
@@ -52,10 +73,8 @@ function solidScriptExpressionCompile(expression: SolidScriptExpression): SolidS
     }
     case 'undef':
       return () => undefined;
-    case 'slot': {
-      const index = expression.index;
-      return (evaluator) => evaluator.slotRead(index);
-    }
+    case 'slot':
+      return solidScriptCompileSlot(expression);
     case 'variable':
       return solidScriptCompileVariable(expression.name);
     case 'vector': {
@@ -99,6 +118,19 @@ function solidScriptExpressionCompile(expression: SolidScriptExpression): SolidS
     default:
       return (evaluator, scope) => evaluator.evaluateWalked(expression, scope);
   }
+}
+
+/**
+ * Compiles a slot read: the value its formula put in its frame.
+ *
+ * @param expression Slot node.
+ * @returns Closure.
+ */
+function solidScriptCompileSlot(expression: Extract<SolidScriptExpression, { kind: 'slot' }>): SolidScriptCompiled {
+  const frame = SOLID_SCRIPT_SLOT_FRAMES.get(expression);
+  if (!frame) throw new Error('a bracketed part of a formula was read outside its field');
+  const index = expression.index;
+  return () => frame.values[index];
 }
 
 /**

@@ -1,5 +1,10 @@
 import type { SolidScriptExpression } from './solid_script_ast.js';
-import { solidScriptExpressionCompiled, type SolidScriptCompiled } from './solid_script_expression_compile.js';
+import {
+  solidScriptExpressionCompiled,
+  solidScriptSlotNode,
+  type SolidScriptCompiled,
+  type SolidScriptSlotFrame,
+} from './solid_script_expression_compile.js';
 import { solidScriptNameDotProblem } from './solid_script_name_rules.js';
 import type { SolidScriptValue } from './solid_script_value.js';
 import { solidScriptValueText } from './solid_script_value.js';
@@ -63,8 +68,8 @@ export interface SolidScriptFieldContext {
    * caller falls back to formula() for the message.
    */
   formulaParse(text: string): SolidScriptExpression | null;
-  /** Computes a compiled formula whose slot nodes read the given values. */
-  formulaRun(formula: SolidScriptCompiled, slots: readonly SolidScriptValue[]): SolidScriptValue;
+  /** Computes a compiled formula. */
+  formulaRun(formula: SolidScriptCompiled): SolidScriptValue;
 }
 
 /** A field compiled once: reading it only runs the closure. */
@@ -152,14 +157,15 @@ function solidScriptFieldFormulaText(value: SolidScriptValue): string {
  * Puts slot nodes in place of the names that stand for bracketed parts.
  *
  * @param expression Parsed formula.
+ * @param frame Frame the slots read their values from.
  * @returns Formula reading slots.
  */
-function solidScriptFieldSlots(expression: SolidScriptExpression): SolidScriptExpression {
+function solidScriptFieldSlots(expression: SolidScriptExpression, frame: SolidScriptSlotFrame): SolidScriptExpression {
   const walk = (node: SolidScriptExpression): SolidScriptExpression => {
     switch (node.kind) {
       case 'variable':
         return node.name.startsWith(SOLID_SCRIPT_FIELD_SLOT)
-          ? { kind: 'slot', index: Number(node.name.slice(SOLID_SCRIPT_FIELD_SLOT.length)) }
+          ? solidScriptSlotNode(Number(node.name.slice(SOLID_SCRIPT_FIELD_SLOT.length)), frame)
           : node;
       case 'vector':
         return { ...node, items: node.items.map(walk) };
@@ -226,22 +232,26 @@ function solidScriptFieldFormulaCompile(pieces: readonly SolidScriptFieldPiece[]
       inner += piece.kind === 'plain' ? piece.text : solidScriptFieldFormulaText(groups[slot++]!(context));
     return context.formula(inner.trimStart().slice(1).trim());
   };
+  const frame: SolidScriptSlotFrame = { values: [] };
   let parsed: SolidScriptCompiled | null | undefined;
   return (context) => {
     if (parsed === undefined) {
       const tree = context.formulaParse(body);
-      parsed = tree ? solidScriptExpressionCompiled(solidScriptFieldSlots(tree)) : null;
+      parsed = tree ? solidScriptExpressionCompiled(solidScriptFieldSlots(tree, frame)) : null;
     }
     if (parsed === null) return slow(context);
-    if (groups.length === 0) return context.formulaRun(parsed, SOLID_SCRIPT_FIELD_NO_SLOTS);
+    if (groups.length === 0) return context.formulaRun(parsed);
     const slots = new Array<SolidScriptValue>(groups.length);
     for (let index = 0; index < groups.length; index++) slots[index] = groups[index]!(context);
-    return context.formulaRun(parsed, slots);
+    const outer = frame.values;
+    frame.values = slots;
+    try {
+      return context.formulaRun(parsed);
+    } finally {
+      frame.values = outer;
+    }
   };
 }
-
-/** Slots of a formula without bracketed parts. */
-const SOLID_SCRIPT_FIELD_NO_SLOTS: readonly SolidScriptValue[] = [];
 
 /**
  * Compiles a bracketed part: a formula after =, otherwise a variable name.

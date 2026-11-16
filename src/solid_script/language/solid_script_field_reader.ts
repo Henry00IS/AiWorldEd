@@ -36,17 +36,12 @@ export interface SolidScriptFieldHost {
    */
   fieldFormula(text: string, scope: SolidScriptScope): SolidScriptValue;
   /**
-   * Computes a compiled formula whose slot nodes read the given values.
+   * Computes a compiled formula.
    *
    * @param formula Compiled formula.
-   * @param slots Slot values.
    * @param scope Scope of the running line.
    */
-  fieldFormulaRun(
-    formula: SolidScriptCompiled,
-    slots: readonly SolidScriptValue[],
-    scope: SolidScriptScope,
-  ): SolidScriptValue;
+  fieldFormulaRun(formula: SolidScriptCompiled, scope: SolidScriptScope): SolidScriptValue;
   /**
    * Parses formula text, or returns null when it cannot be read.
    *
@@ -157,13 +152,12 @@ export class SolidScriptFieldReader implements SolidScriptFieldContext {
   }
 
   /**
-   * Computes a compiled formula whose slot nodes read the given values.
+   * Computes a compiled formula.
    *
    * @param formula Compiled formula.
-   * @param slots Slot values.
    * @returns Value.
    */
-  formulaRun(formula: SolidScriptCompiled, slots: readonly SolidScriptValue[]): SolidScriptValue {
-    return this.host.fieldFormulaRun(formula, slots, this.scope);
+  formulaRun(formula: SolidScriptCompiled): SolidScriptValue {
+    return this.host.fieldFormulaRun(formula, this.scope);
   }
 }

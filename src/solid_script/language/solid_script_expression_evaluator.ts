@@ -12,8 +12,6 @@ import {
 
 /** Evaluates expressions of the solid script language. */
 export class SolidScriptExpressionEvaluator {
-  /** Values of the slot nodes of the field formula being evaluated. */
-  private slots: readonly SolidScriptValue[] = [];
   /**
    * Creates the expression evaluator.
    *
@@ -43,35 +41,14 @@ export class SolidScriptExpressionEvaluator {
   }
 
   /**
-   * Evaluates a compiled field formula whose slot nodes read the given values.
+   * Evaluates a compiled formula.
    *
    * @param formula Compiled formula.
-   * @param slots Slot values.
    * @param scope Scope for names.
    * @returns Value.
    */
-  evaluateSlots(
-    formula: SolidScriptCompiled,
-    slots: readonly SolidScriptValue[],
-    scope: SolidScriptScope,
-  ): SolidScriptValue {
-    const outer = this.slots;
-    this.slots = slots;
-    try {
-      return formula(this, scope);
-    } finally {
-      this.slots = outer;
-    }
-  }
-
-  /**
-   * Reads the value of a slot of the field formula being evaluated.
-   *
-   * @param index Slot index.
-   * @returns Value.
-   */
-  slotRead(index: number): SolidScriptValue {
-    return this.slots[index];
+  evaluateCompiled(formula: SolidScriptCompiled, scope: SolidScriptScope): SolidScriptValue {
+    return formula(this, scope);
   }
 
   /**

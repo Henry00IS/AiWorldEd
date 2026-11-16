@@ -500,6 +500,8 @@ interface SolidScriptLineRun {
   state: SolidScriptLineState;
   /** True while the line runs, so a Function calling itself gets its own view. */
   busy: boolean;
+  /** True for a definition line, which is skipped where it stands. */
+  definition: boolean;
 }
 
 /** One part of a vector variable, such as pos.x. */
@@ -637,6 +639,9 @@ function solidScriptLocalBare(name: string): string {
  */
 const SOLID_SCRIPT_LINE_RUNS = new WeakMap<object, SolidScriptLineRun>();
 
+/** Run views of the lines of a block, in line order, by block, kept across runs. */
+const SOLID_SCRIPT_LINES_RUNS = new WeakMap<object, readonly SolidScriptLineRun[]>();
+
 /** Thrown through a formula when a Function inside it reached the pause. */
 class SolidScriptPause extends Error {}
 
@@ -656,6 +661,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> imple
   private readonly readOnly = new Map<string, string>();
   /** First spelling of every name by its key, for the variable explorer. */
   private readonly spellings = new Map<string, string>();
+  /** Keys by name as written, for the names this run has seen. */
+  private readonly keys = new Map<string, string>();
   private readonly parts = new Map<string, SolidScriptPart<Command>>();
   /** Function blocks by name. */
   private readonly functions = new Map<string, SolidScriptBlockNode<Command>>();
@@ -824,10 +831,11 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> imple
   ): SolidScriptShape[] {
     this.definitionsRegister(lines);
     const built: SolidScriptShape[] = [];
+    const runs = SolidScriptMachine.runsKnown(lines);
     this.builtStack.push(built);
     try {
-      for (const node of lines) {
-        const shapes = this.lineRun(node, scope, context);
+      for (let index = 0; index < lines.length; index++) {
+        const shapes = this.lineRun(lines[index]!, scope, context, runs[index]!);
         for (const shape of shapes) built.push(shape);
       }
     } finally {
@@ -1036,16 +1044,18 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> imple
    * @param node Line.
    * @param scope Scope.
    * @param context Matrix and flatness.
+   * @param known Kept run view of the line.
    * @returns Shapes.
    */
   private lineRun(
     node: SolidScriptBlockNode<Command>,
     scope: SolidScriptScope,
     context: SolidScriptContext,
+    known = SolidScriptMachine.runKnown(node),
   ): SolidScriptShape[] {
-    if (SOLID_SCRIPT_DEFINITIONS.has(node.command.id) || this.breakReached(node.line, scope)) return [];
-    if (this.profiling) return this.lineProfiled(node, scope, context);
-    return this.lineExecute(node, scope, context);
+    if (known.definition || this.breakReached(node.line, scope)) return [];
+    if (this.profiling) return this.lineProfiled(node, scope, context, known);
+    return this.lineExecute(node, scope, context, known);
   }
 
   /**
@@ -1054,17 +1064,19 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> imple
    * @param node Line.
    * @param scope Scope.
    * @param context Matrix and flatness.
+   * @param known Kept run view of the line.
    * @returns Shapes.
    */
   private lineExecute(
     node: SolidScriptBlockNode<Command>,
     scope: SolidScriptScope,
     context: SolidScriptContext,
+    known: SolidScriptLineRun,
   ): SolidScriptShape[] {
     if (this.failure || this.paused || this.leaving || this.stopping) return [];
     const outer = this.line;
     this.line = node.line;
-    const line = this.runOf(node, scope, context);
+    const line = this.runOf(node, scope, context, known);
     line.busy = true;
     try {
       this.workTake();
@@ -1085,22 +1097,24 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> imple
    * @param node Line.
    * @param scope Scope.
    * @param context Matrix and flatness.
+   * @param known Kept run view of the line.
    * @returns Shapes.
    */
   private lineProfiled(
     node: SolidScriptBlockNode<Command>,
     scope: SolidScriptScope,
     context: SolidScriptContext,
+    known: SolidScriptLineRun,
   ): SolidScriptShape[] {
     if (this.failure || this.paused || this.leaving || this.stopping) return [];
     let entry = this.profile.get(node.line);
     if (!entry) this.profile.set(node.line, (entry = { count: 0, ms: 0 }));
     entry.count += 1;
-    if (this.profiled.has(node.line)) return this.lineExecute(node, scope, context);
+    if (this.profiled.has(node.line)) return this.lineExecute(node, scope, context, known);
     this.profiled.add(node.line);
     const started = performance.now();
     try {
-      return this.lineExecute(node, scope, context);
+      return this.lineExecute(node, scope, context, known);
     } finally {
       this.profiled.delete(node.line);
       entry.ms += performance.now() - started;
@@ -1163,32 +1177,76 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> imple
   }
 
   /**
-   * Builds what a running line can read and do.
+   * Ties the kept run view of a line to this run, or a new one while the kept
+   * one is running, such as in a Function that calls itself.
    *
    * @param node Line.
    * @param scope Scope.
    * @param context Matrix and flatness.
+   * @param known Kept run view of the line.
    * @returns Run view of the line.
    */
   private runOf(
     node: SolidScriptBlockNode<Command>,
     scope: SolidScriptScope,
     context: SolidScriptContext,
+    known: SolidScriptLineRun,
   ): SolidScriptLineRun {
-    const known = SOLID_SCRIPT_LINE_RUNS.get(node);
-    if (known && !known.busy) {
-      known.state.machine = this;
-      known.state.scope = scope;
-      known.state.context = context;
-      return known;
-    }
+    const line = known.busy ? SolidScriptMachine.runMake(node) : known;
+    line.state.machine = this;
+    line.state.scope = scope;
+    line.state.context = context;
+    return line;
+  }
+
+  /**
+   * Returns the kept run view of a line, making it the first time.
+   *
+   * @param node Line.
+   * @returns Run view.
+   */
+  private static runKnown<Command extends SolidScriptMachineCommand>(
+    node: SolidScriptBlockNode<Command>,
+  ): SolidScriptLineRun {
+    let known = SOLID_SCRIPT_LINE_RUNS.get(node);
+    if (!known) SOLID_SCRIPT_LINE_RUNS.set(node, (known = SolidScriptMachine.runMake(node)));
+    return known;
+  }
+
+  /**
+   * Returns the kept run views of the lines of a block, in line order.
+   *
+   * @param lines Lines.
+   * @returns Run views.
+   */
+  private static runsKnown<Command extends SolidScriptMachineCommand>(
+    lines: readonly SolidScriptBlockNode<Command>[],
+  ): readonly SolidScriptLineRun[] {
+    let known = SOLID_SCRIPT_LINES_RUNS.get(lines);
+    if (!known) SOLID_SCRIPT_LINES_RUNS.set(lines, (known = lines.map((node) => SolidScriptMachine.runKnown(node))));
+    return known;
+  }
+
+  /**
+   * Makes a run view of a line, not yet tied to a run.
+   *
+   * @param node Line.
+   * @returns Run view.
+   */
+  private static runMake<Command extends SolidScriptMachineCommand>(
+    node: SolidScriptBlockNode<Command>,
+  ): SolidScriptLineRun {
     const made: SolidScriptLineRun = {
       run: null as unknown as SolidScriptBlockRun,
-      state: { machine: this, scope, context },
+      state: {
+        machine: null as unknown as SolidScriptLineState['machine'],
+        scope: null as unknown as SolidScriptScope,
+        context: SOLID_SCRIPT_FORMULA_CONTEXT,
+      },
       busy: false,
+      definition: SOLID_SCRIPT_DEFINITIONS.has(node.command.id),
     };
     made.run = SolidScriptMachine.runBuild(node, made.state);
-    if (!known) SOLID_SCRIPT_LINE_RUNS.set(node, made);
     return made;
   }
 
@@ -1647,19 +1705,14 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> imple
   }
 
   /**
-   * Computes a compiled formula whose slot nodes read the given values.
+   * Computes a compiled formula.
    *
    * @param formula Compiled formula.
-   * @param slots Slot values.
    * @param scope Scope of the running line.
    * @returns Value.
    */
-  fieldFormulaRun(
-    formula: SolidScriptCompiled,
-    slots: readonly SolidScriptValue[],
-    scope: SolidScriptScope,
-  ): SolidScriptValue {
-    return this.expressions.evaluateSlots(formula, slots, scope);
+  fieldFormulaRun(formula: SolidScriptCompiled, scope: SolidScriptScope): SolidScriptValue {
+    return this.expressions.evaluateCompiled(formula, scope);
   }
 
   /**
@@ -1803,8 +1856,12 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> imple
    * @returns Key.
    */
   private nameKey(name: string): string {
-    const key = solidScriptNameKey(name);
-    if (!this.spellings.has(key)) this.spellings.set(key, name);
+    let key = this.keys.get(name);
+    if (key === undefined) {
+      key = solidScriptNameKey(name);
+      if (!this.spellings.has(key)) this.spellings.set(key, name);
+      this.keys.set(name, key);
+    }
     return key;
   }
 
