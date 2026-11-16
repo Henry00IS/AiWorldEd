@@ -18,6 +18,11 @@ import {
   fieldCollaborationParse,
 } from '@/collaboration/sync/field_collaboration_paths.js';
 import { LockCollaborationTable } from '@/collaboration/sync/lock_collaboration_table.js';
+import {
+  scriptCollaborationLinesApply,
+  scriptCollaborationLinesKeys,
+  scriptCollaborationLinesParse,
+} from '@/collaboration/sync/script_collaboration_lines.js';
 import { stateCollaborationParse } from '@/collaboration/sync/state_collaboration_parse.js';
 import type { TextureLockFlags } from '@/texture/lock/texture_lock_transform.js';
 import type { EditOperation } from '@/collaboration/shared/protocol_definitions.js';
@@ -55,6 +60,12 @@ export class ReplicaCollaborationScene {
   private readonly previewed: Set<string>;
   private readonly pending: Map<number, Map<string, string[] | null>>;
   /**
+   * Script lines of own unacknowledged edits per sequence number and node, as
+   * `modifier:line` keys; null when an own edit replaced a whole modifier
+   * list.
+   */
+  private readonly pendingLines: Map<number, Map<string, string[] | null>>;
+  /**
    * Names of nodes with unacknowledged own changes that the last remote batch
    * deleted.
    */
@@ -75,6 +86,7 @@ export class ReplicaCollaborationScene {
     this.locks = new LockCollaborationTable();
     this.previewed = new Set();
     this.pending = new Map();
+    this.pendingLines = new Map();
     this.droppedOwn = [];
     this.revision = 0;
   }
@@ -89,6 +101,7 @@ export class ReplicaCollaborationScene {
    */
   pendingAdd(seq: number, ops: readonly EditOperation[]): void {
     const fields = new Map<string, string[] | null>();
+    const lines = new Map<string, string[] | null>();
     ops.forEach((op) => {
       if (op.k === 'delete') return;
       const id = op.ids[0];
@@ -96,8 +109,14 @@ export class ReplicaCollaborationScene {
       const parsed = op.k === 'create' ? null : fieldCollaborationParse((op.d as { f?: unknown } | undefined)?.f);
       const previous = fields.get(id);
       fields.set(id, previous === null || parsed === null ? null : [...(previous ?? []), ...parsed]);
+      const named = scriptCollaborationLinesParse((op.d as { l?: unknown } | undefined)?.l);
+      const before = lines.get(id);
+      if (named !== null && before !== null) lines.set(id, [...(before ?? []), ...scriptCollaborationLinesKeys(named)]);
+      else if (named === null && (parsed === null || parsed.some((path) => path.endsWith('.modifiers'))))
+        lines.set(id, null);
     });
     if (fields.size > 0) this.pending.set(seq, fields);
+    if (lines.size > 0) this.pendingLines.set(seq, lines);
   }
 
   /**
@@ -108,6 +127,9 @@ export class ReplicaCollaborationScene {
   pendingAck(seq: number): void {
     this.pending.forEach((_fields, pendingSeq) => {
       if (pendingSeq <= seq) this.pending.delete(pendingSeq);
+    });
+    this.pendingLines.forEach((_lines, pendingSeq) => {
+      if (pendingSeq <= seq) this.pendingLines.delete(pendingSeq);
     });
   }
 
@@ -126,6 +148,24 @@ export class ReplicaCollaborationScene {
       paths.push(...own);
     }
     return paths;
+  }
+
+  /**
+   * Returns the script lines of a node's own unacknowledged edits.
+   *
+   * @param id Wire id.
+   * @returns `modifier:line` keys, or null when an own edit replaced a whole
+   *   modifier list.
+   */
+  private pendingLineKeys(id: string): Set<string> | null {
+    const keys = new Set<string>();
+    for (const lines of this.pendingLines.values()) {
+      if (!lines.has(id)) continue;
+      const own = lines.get(id) ?? null;
+      if (own === null) return null;
+      own.forEach((key) => keys.add(key));
+    }
+    return keys;
   }
 
   /**
@@ -270,10 +310,21 @@ export class ReplicaCollaborationScene {
     if (own === null) return null;
     const fields = named ?? fieldCollaborationDiff(baseline.state, state);
     if (fields === null) return state;
-    const taken = fields.filter((path) => !own.some((mine) => path === mine || path.startsWith(`${mine}.`)));
-    if (taken.length === 0) return null;
+    // A change of script lines only merges line by line, also over own lines
+    // not acknowledged yet: those stay, every other line takes the change.
+    const lines = named === null ? null : scriptCollaborationLinesParse((op.d as { l?: unknown } | undefined)?.l);
+    const ownLines = lines === null ? null : this.pendingLineKeys(state.id);
+    const linesPath = lines !== null && ownLines !== null && fields.includes(lines.path) ? lines.path : null;
+    const taken = fields.filter(
+      (path) => path !== linesPath && !own.some((mine) => path === mine || path.startsWith(`${mine}.`)),
+    );
+    if (taken.length === 0 && linesPath === null) return null;
+    const kept = own.filter((path) => path !== linesPath);
     const merged = fieldCollaborationMerge(baseline.state, state, taken);
-    return own.length === 0 ? merged : fieldCollaborationMerge(merged, baseline.state, own);
+    const settled = kept.length === 0 ? merged : fieldCollaborationMerge(merged, baseline.state, kept);
+    return lines === null || linesPath === null
+      ? settled
+      : scriptCollaborationLinesApply(settled, state, lines, ownLines ?? new Set());
   }
 
   /**
