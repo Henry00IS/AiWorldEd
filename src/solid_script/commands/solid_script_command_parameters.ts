@@ -3,6 +3,7 @@ import type {
   SolidScriptCommandParameterType,
   SolidScriptCommandWord,
 } from './solid_script_command.js';
+import { SOLID_SCRIPT_SHAPE_NAME_KEY } from '@/solid_script/language/solid_script_shape.js';
 import { SOLID_SCRIPT_RINGS, SOLID_SCRIPT_SIDES } from '@/solid_script/language/solid_script_primitives.js';
 
 /**
@@ -110,4 +111,37 @@ export function solidScriptParameterRings(): SolidScriptCommandParameter {
     String(SOLID_SCRIPT_RINGS.default),
     `Bands from the bottom to the top, ${SOLID_SCRIPT_RINGS.min} to ${SOLID_SCRIPT_RINGS.max}. More rings look rounder and cost more polygons.`,
   );
+}
+
+/**
+ * The optional Name of a shape line.
+ *
+ * @returns Field.
+ */
+export function solidScriptParameterShapeName(): SolidScriptCommandParameter {
+  return solidScriptParameterOptional(
+    SOLID_SCRIPT_SHAPE_NAME_KEY,
+    'Name',
+    'text',
+    'Optional name, such as Knob, so Select Faces, For Each Vertex and For Each Edge can pick this shape by it. Shapes may share a name; case does not matter.',
+  );
+}
+
+/**
+ * The optional Of field of lines that work on the shapes above: only shapes
+ * with that Name, offered from the names the script uses.
+ *
+ * @param what What the line picks, such as faces.
+ * @returns Field.
+ */
+export function solidScriptParameterOf(what: string): SolidScriptCommandParameter {
+  return {
+    ...solidScriptParameterOptional(
+      'of',
+      'Of',
+      'text',
+      `Only ${what} of the shapes with this Name, in any case; empty uses every shape above.`,
+    ),
+    shapeNames: true,
+  };
 }

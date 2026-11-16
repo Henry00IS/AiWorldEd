@@ -87,7 +87,7 @@ const SOLID_SCRIPT_SUGGESTION_GROUPS = [
 ];
 
 /** Name categories that are not values a field reads. */
-const SOLID_SCRIPT_SUGGESTION_NOT_VALUES = new Set(['Functions', 'Parts', 'Handlers']);
+const SOLID_SCRIPT_SUGGESTION_NOT_VALUES = new Set(['Functions', 'Parts', 'Shapes', 'Handlers']);
 
 /** Most suggestions listed at the caret at once. */
 const SOLID_SCRIPT_SUGGESTIONS_MAX = 200;

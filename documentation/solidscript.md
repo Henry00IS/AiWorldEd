@@ -57,7 +57,7 @@ The script runs on every change. **Start** builds everything, **Debug** builds o
 
 ## Faces and points
 
-**Select Faces** picks faces of the shapes built above it; the face commands then work on them. Inside a For Each round it picks faces of what that round built, and after the loop the outer pick comes back, so Select Faces can be nested.
+**Select Faces** picks faces of the shapes built above it; the face commands then work on them. Inside a For Each round it picks faces of what that round built, and after the loop the outer pick comes back, so Select Faces can be nested. Solids, 2D shapes, generators and Mesh take an optional **Name**, such as Knob; Select Faces, For Each Vertex and For Each Edge then take **Of** to work only on the shapes with that Name (in any case, also the shapes of a Part by its name), and the Of field suggests the Names the script uses. See the Panel With Knobs example.
 
 <details>
 <summary>More Details</summary>

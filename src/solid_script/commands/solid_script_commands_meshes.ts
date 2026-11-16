@@ -142,6 +142,7 @@ function solidScriptMeshBoxUvs(mesh: SolidScriptShapeMesh, size: number): SolidS
 export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'mesh',
+    named: true,
     label: 'Mesh',
     category: 'Meshes',
     description: 'Build a mesh from Vertex and Face lines',

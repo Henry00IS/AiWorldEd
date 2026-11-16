@@ -2,7 +2,7 @@ import type {
   SolidScriptBlockRun,
   SolidScriptMachineCommand,
 } from '@/solid_script/language/solid_script_machine_types.js';
-import type { SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
+import { SOLID_SCRIPT_SHAPE_NAME_KEY, type SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
 import type { SolidScriptFieldKind } from '@/solid_script/language/solid_script_field.js';
 import {
   solidScriptListingBuild,
@@ -12,6 +12,7 @@ import {
   type SolidScriptListingValues,
   type SolidScriptListingWrite,
 } from './solid_script_command_listing.js';
+import { solidScriptParameterShapeName } from './solid_script_command_parameters.js';
 
 /** How a command field reads its text, which also picks its configurator editor. */
 export type SolidScriptCommandParameterType = SolidScriptFieldKind;
@@ -65,6 +66,8 @@ export interface SolidScriptCommandParameter {
   words?: readonly SolidScriptCommandWord[];
   /** True for a library texture: the window offers the texture picker or typing. */
   texture?: boolean;
+  /** True offers the shape Names the script uses, as for Of. */
+  shapeNames?: boolean;
 }
 
 /** One word a field takes, with what it means. */
@@ -110,6 +113,11 @@ export interface SolidScriptCommandSpec {
   endLabel?: string;
   /** False hides the command from the palette, such as End. */
   inPalette?: boolean;
+  /**
+   * True adds the optional Name field of shapes; on by default for solids, 2D
+   * shapes and generators.
+   */
+  named?: boolean;
   /** False for lines that do nothing when run, such as notes. */
   runs?: boolean;
   /** Writes the line as the script listing shows it. */
@@ -117,6 +125,9 @@ export interface SolidScriptCommandSpec {
   /** Runs the line. */
   execute: (run: SolidScriptBlockRun) => SolidScriptShape[];
 }
+
+/** Palette groups whose lines build shapes, which get the optional Name field. */
+const SOLID_SCRIPT_COMMAND_NAMED: readonly SolidScriptCommandCategory[] = ['Solids', '2D Shapes', 'Generators'];
 
 /**
  * One command of the script editor: how its line looks in the listing, what its
@@ -149,12 +160,19 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
     this.description = spec.description;
     this.manual = spec.manual;
     this.stops = spec.stops ?? [];
-    this.parameters = spec.parameters;
+    const named = spec.named ?? SOLID_SCRIPT_COMMAND_NAMED.includes(spec.category);
+    this.parameters = named ? [...spec.parameters, solidScriptParameterShapeName()] : spec.parameters;
     this.nesting = spec.nesting ?? 'none';
     this.endLabel = spec.endLabel ?? spec.label;
     this.inPalette = spec.inPalette !== false;
     this.runs = spec.runs !== false;
-    this.listingWrite = spec.listing;
+    this.listingWrite = named
+      ? (read) => {
+          const pieces = spec.listing(read);
+          const name = read.text(SOLID_SCRIPT_SHAPE_NAME_KEY);
+          return name === '' ? pieces : [...pieces, ' Named ', name];
+        }
+      : spec.listing;
     this.run = spec.execute;
   }
 

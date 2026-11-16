@@ -886,6 +886,22 @@ describe('SolidScript editor', () => {
     expect(list?.classList.contains('editor-custom-scroller')).toBe(true);
   });
 
+  it('offers the shape Names of the script in the Of field', () => {
+    editorFixture([
+      { command: 'cube', values: { label: 'Knob' } },
+      { command: 'sphere', values: { label: 'Handle' } },
+      { command: 'select_faces' },
+    ]);
+    doubleClick(chip(2));
+    const of = find<HTMLInputElement>('[data-solid-script-configurator="select_faces"] input[aria-label="Of"]');
+    of.focus();
+    const shown = [...document.querySelectorAll('body > .solid-script-editor-suggestions-host [role="option"]')].map(
+      (option) => option.firstChild?.textContent,
+    );
+    expect(shown.slice(0, 2)).toEqual(['Knob', 'Handle']);
+    expect(chip(0).textContent).toContain('Named Knob');
+  });
+
   it('suggests the counters and loop values a line sees, and only inside their loop', () => {
     editorFixture([
       { command: 'repeat', values: { variable: 'Row' } },

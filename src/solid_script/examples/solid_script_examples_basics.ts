@@ -128,3 +128,21 @@ export const SOLID_SCRIPT_EXAMPLE_PEDESTAL: readonly SolidScriptLine[] = [
   { command: 'cube', values: { size: '[=[Width] + 2 * [Margin]], [=[Depth] + 2 * [Margin]], [Thickness]' } },
   { command: 'end' },
 ];
+
+/**
+ * A panel with knobs: only the shapes named Knob get a ball on top, picked with
+ * Of.
+ */
+export const SOLID_SCRIPT_EXAMPLE_KNOBS: readonly SolidScriptLine[] = [
+  { command: 'note', values: { text: 'Name shapes, then Select Faces Of that name picks only theirs' } },
+  { command: 'cube', values: { size: '4, 1, 0.2', center: 'true', label: 'Panel' } },
+  { command: 'for_each', values: { variable: 'X', list: '-1.5, -0.5, 0.5, 1.5' } },
+  { command: 'translate', values: { v: '[X], 0, 0.25' } },
+  { command: 'cube', values: { size: '0.3, 0.3, 0.3', center: 'true', label: 'Knob' } },
+  { command: 'end' },
+  { command: 'end' },
+  { command: 'select_faces', values: { which: 'Facing Up', of: 'Knob' } },
+  { command: 'for_each_selected_face' },
+  { command: 'sphere', values: { r: '0.1' } },
+  { command: 'end' },
+];

@@ -255,11 +255,17 @@ describe('solid script command catalog', () => {
     expect(solidScriptCommandFind('cube')?.entries({ size: '2, 2, 2' })).toEqual([
       { key: 'size', label: 'Size', value: '2, 2, 2' },
       { key: 'center', label: 'Center', value: 'true' },
+      { key: 'label', label: 'Name', value: '' },
     ]);
   });
 
   it('gives round shapes their own sides and rings, named like the primitive generators', () => {
-    expect(solidScriptCommandFind('sphere')?.parameters.map((entry) => entry.key)).toEqual(['r', 'sides', 'rings']);
+    expect(solidScriptCommandFind('sphere')?.parameters.map((entry) => entry.key)).toEqual([
+      'r',
+      'sides',
+      'rings',
+      'label',
+    ]);
     expect(solidScriptCommandFind('cylinder')?.parameters.map((entry) => entry.key)).toContain('sides');
     expect(solidScriptCommandFind('circle')?.parameters.map((entry) => entry.key)).toContain('sides');
     const low = run({ command: 'sphere', values: { sides: '4', rings: '2' } }).shapes[0];

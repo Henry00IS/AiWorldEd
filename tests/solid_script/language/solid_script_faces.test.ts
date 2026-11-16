@@ -128,6 +128,38 @@ describe('SolidScript faces', () => {
     expect(new Set(centres).size).toBe(1 + 6 + 36);
   });
 
+  it('names shapes and picks faces, corners and edges Of a name, in any case', () => {
+    const knob = (x: number): SolidScriptLine => ({
+      command: 'translate',
+      values: { v: `${x}, 0, 0` },
+    });
+    const lines: SolidScriptLine[] = [
+      { command: 'cube', values: { size: '4, 4, 1', label: 'Base' } },
+      knob(5),
+      { command: 'cube', values: { size: '1, 1, 1', label: 'Knob' } },
+      END,
+      knob(-5),
+      { command: 'cube', values: { size: '1, 1, 1', label: 'knob' } },
+      END,
+    ];
+    const count = (...more: SolidScriptLine[]): number => {
+      const result = run(...lines, ...more, { command: 'echo', values: { value: 'round' } }, END);
+      expect(result.error).toBeNull();
+      return result.messages.filter((message) => message === 'round').length;
+    };
+    expect(count(select('All', { of: 'KNOB' }), { command: 'for_each_selected_face' })).toBe(12);
+    expect(count(select('All', { of: 'Base' }), { command: 'for_each_selected_face' })).toBe(6);
+    expect(count(select('All'), { command: 'for_each_selected_face' })).toBe(18);
+    expect(count({ command: 'for_each_vertex', values: { of: 'Knob' } })).toBe(16);
+    expect(count({ command: 'for_each_edge', values: { of: 'base' } })).toBe(12);
+    const missing = run(...lines, select('All', { of: 'Handle' }));
+    expect(missing.error?.message).toContain('No shape above is named "Handle"');
+    expect(solidScriptDocumentListing(solidScriptDocumentCreate([lines[0]!, select('All', { of: 'Knob' })]))).toEqual([
+      "Cube '4, 4, 1' Named Base",
+      'Select Faces All Of Knob',
+    ]);
+  });
+
   it('puts a trim on every stair step by its tag', () => {
     const result = run(
       { command: 'stairs', values: { size: '2, 2, 2' } },

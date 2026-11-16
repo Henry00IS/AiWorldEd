@@ -5,6 +5,7 @@ import {
   solidScriptParameter,
   solidScriptParameterOptional,
   solidScriptParameterWords,
+  solidScriptParameterOf,
 } from './solid_script_command_parameters.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import {
@@ -313,6 +314,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         'value',
         'The name for Tagged, how many for Biggest or Smallest, numbers for Number, a direction for Facing, a condition for Where such as [Face.Area] > 1.',
       ),
+      solidScriptParameterOf('faces'),
       solidScriptParameter(
         'within',
         'Within',
@@ -336,6 +338,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         'Select Faces',
         which,
         ...(read.text('detail').trim() === '' ? [] : [' ', read.value('detail')]),
+        ...(read.text('of') === '' ? [] : [' Of ', read.text('of')]),
         ...(facing && read.changed('within') ? [' within ', read.value('within'), '°'] : []),
         ...solidScriptListingOptions([read.text('how').trim() !== 'New' && [read.text('how').trim()]]),
       ];
@@ -427,8 +430,8 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     stops: [SOLID_SCRIPT_FACE_STOPS_NONE, 'A missing End line.'],
     nesting: 'open',
     endLabel: 'For Each',
-    parameters: [],
-    listing: () => ['For Each Vertex'],
+    parameters: [solidScriptParameterOf('corner points')],
+    listing: (read) => ['For Each Vertex', ...(read.text('of') === '' ? [] : [' Of ', read.text('of')])],
     execute: (run) => {
       const built = run.pickable();
       if (built.length === 0)
@@ -446,8 +449,8 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     stops: [SOLID_SCRIPT_FACE_STOPS_NONE, 'A missing End line.'],
     nesting: 'open',
     endLabel: 'For Each',
-    parameters: [],
-    listing: () => ['For Each Edge'],
+    parameters: [solidScriptParameterOf('edges')],
+    listing: (read) => ['For Each Edge', ...(read.text('of') === '' ? [] : [' Of ', read.text('of')])],
     execute: (run) => {
       const built = run.pickable();
       if (built.length === 0)

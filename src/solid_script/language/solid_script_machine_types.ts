@@ -144,7 +144,8 @@ export interface SolidScriptBlockRun {
   /**
    * The shapes Select Faces and the For Each Vertex or Edge lines work on:
    * inside a For Each round, what that round built above this line, or
-   * everything built above when the round built nothing yet.
+   * everything built above when the round built nothing yet; only the shapes
+   * with the Name of the line's Of field when it has one.
    */
   pickable(): SolidScriptShape[];
   /** The faces picked by the last Select Faces line. */

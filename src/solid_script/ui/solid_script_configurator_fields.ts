@@ -74,7 +74,13 @@ export function solidScriptConfiguratorFieldBuild(
   const inputs = document.createElement('span');
   inputs.className = SOLID_SCRIPT_EDITOR_CLASSES.fieldInputs;
   const field = solidScriptConfiguratorInputs(parameter, value, inputs);
-  const suggest: SolidScriptSuggestionScope = { ...scope, words: parameter.words ?? [] };
+  const shapeNames = scope.names
+    .filter((entry) => entry.category === 'Shapes' || entry.category === 'Parts')
+    .map((entry) => ({ word: entry.name, detail: entry.detail }));
+  const suggest: SolidScriptSuggestionScope = {
+    ...scope,
+    words: parameter.shapeNames ? shapeNames : (parameter.words ?? []),
+  };
   const texts =
     parameter.type === 'name' || parameter.type === 'target'
       ? []

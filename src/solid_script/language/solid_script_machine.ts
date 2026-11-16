@@ -21,6 +21,8 @@ import {
   solidScriptShapeLeavesPositive,
   solidScriptShapeMapLeaves,
   type SolidScriptShape,
+  SOLID_SCRIPT_SHAPE_NAME_KEY,
+  solidScriptShapesNamed,
 } from './solid_script_shape.js';
 import { solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
 import {
@@ -511,7 +513,11 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     node: SolidScriptBlockNode<Command>,
     state: SolidScriptLineState,
   ): SolidScriptBlockRun {
-    const labelOf = (): string => state.scope.partName || node.command.id;
+    const named = node.command.parameters.some((field) => field.key === SOLID_SCRIPT_SHAPE_NAME_KEY);
+    const labelOf = (): string =>
+      (named ? solidScriptValueText(value(SOLID_SCRIPT_SHAPE_NAME_KEY)).trim() : '') ||
+      state.scope.partName ||
+      node.command.id;
     let kept: SolidScriptBlockRuns | undefined;
     const children = (): SolidScriptBlockRuns => (kept ??= SolidScriptMachine.runsKnown(node.children));
     const inside = (into: SolidScriptContext): SolidScriptShape[] => {
@@ -617,7 +623,13 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       pickable: () => {
         const start = state.machine.roundBuilt.at(-1);
         const own = start === undefined ? [] : state.machine.builtStack.slice(start).flat();
-        return own.length > 0 ? own : state.machine.builtStack.flat();
+        const built = own.length > 0 ? own : state.machine.builtStack.flat();
+        const of = node.command.parameters.some((field) => field.key === 'of') ? value('of') : '';
+        const name = solidScriptValueText(of).trim();
+        if (name === '') return built;
+        const found = solidScriptShapesNamed(built, name);
+        if (found.length === 0) throw new Error(`No shape above is named "${name}"; give one a Name first`);
+        return found;
       },
       selection: () => [...state.machine.faceSelection],
       selectionSet: (faces) => {

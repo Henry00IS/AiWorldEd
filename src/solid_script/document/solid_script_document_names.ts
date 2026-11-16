@@ -10,6 +10,7 @@ export const SOLID_SCRIPT_NAME_CATEGORIES = [
   'Functions',
   'Locals',
   'Parts',
+  'Shapes',
   'Handlers',
   'Persistent',
   'System',
@@ -93,8 +94,8 @@ export function solidScriptNameShown(name: string): string {
 /**
  * Lists the names a script defines, in line order, each once per kind: Input,
  * Set, Call results, Repeat and For Each counters, Function inputs as
- * Local.Name, Define Part, When Input Changes and When Button Pressed lines.
- * Names built from other names, such as part[i], are left out.
+ * Local.Name, Define Part, shape Names, When Input Changes and When Button
+ * Pressed lines. Names built from other names, such as part[i], are left out.
  *
  * @param document Script.
  * @returns Names.
@@ -133,6 +134,7 @@ export function solidScriptDocumentNames(document: SolidScriptDocument): SolidSc
           add(`Local.${parameter.trim()}`, 'Locals', line, `input of ${value('name').trim()}()`);
     }
     if (block.command === 'part') add(value('name'), 'Parts', line, 'Define Part');
+    if (value('label').trim() !== '') add(value('label'), 'Shapes', line, `Name of a ${block.command} line`);
     if (block.command === 'when_input_changes') add(value('name'), 'Handlers', line, 'When Input Changes');
     if (block.command === 'when_button_pressed') add(value('name'), 'Handlers', line, 'When Button Pressed');
   });

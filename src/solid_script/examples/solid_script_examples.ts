@@ -2,6 +2,7 @@ import type { SolidScriptLine, SolidScriptUses } from '@/solid_script/document/s
 import {
   SOLID_SCRIPT_EXAMPLE_COLUMNS,
   SOLID_SCRIPT_EXAMPLE_DOORWAY,
+  SOLID_SCRIPT_EXAMPLE_KNOBS,
   SOLID_SCRIPT_EXAMPLE_PEDESTAL,
   SOLID_SCRIPT_EXAMPLE_PILLAR_RING,
   SOLID_SCRIPT_EXAMPLE_STEPPING_STONES,
@@ -163,6 +164,14 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
     summary: 'Cones growing out of a ball: scattered points, with Align To turning each one to its face.',
     port: null,
     lines: SOLID_SCRIPT_EXAMPLE_SPIKY_BALL,
+  },
+  {
+    id: 'knobs',
+    name: 'Panel With Knobs',
+    group: 'Basics',
+    summary: 'Shapes get a Name; Select Faces Of Knob puts a ball only on the knobs, not on the panel.',
+    port: null,
+    lines: SOLID_SCRIPT_EXAMPLE_KNOBS,
   },
   {
     id: 'pedestal',

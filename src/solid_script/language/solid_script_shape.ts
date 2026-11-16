@@ -122,3 +122,22 @@ export function solidScriptShapeLeafCount(shape: SolidScriptShape): number {
     ? shape.children.reduce((sum, child) => sum + solidScriptShapeLeafCount(child), 0)
     : 1;
 }
+
+/** Key of the optional Name of a shape line, which the Of fields find it by. */
+export const SOLID_SCRIPT_SHAPE_NAME_KEY = 'label';
+
+/**
+ * Finds the shapes with a Name, in any case: a named group counts whole,
+ * otherwise its children are searched.
+ *
+ * @param shapes Shapes.
+ * @param name Name to find.
+ * @returns Shapes with that name, in order.
+ */
+export function solidScriptShapesNamed(shapes: readonly SolidScriptShape[], name: string): SolidScriptShape[] {
+  const wanted = name.trim().toLowerCase();
+  return shapes.flatMap((shape): SolidScriptShape[] => {
+    if (shape.label.toLowerCase() === wanted) return [shape];
+    return shape.kind === 'boolean' ? solidScriptShapesNamed(shape.children, name) : [];
+  });
+}
