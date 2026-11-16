@@ -173,6 +173,29 @@ describe('SolidScript examples', () => {
     expect(stones.steps).toHaveLength(9);
   });
 
+  it('sweeps the spiral staircase stringer as one smooth slope of twisted convex pieces', () => {
+    const lines = SOLID_SCRIPT_EXAMPLES.find((example) => example.id === 'spiralStaircase')!.lines;
+    const run = solidScriptProgramRun(solidScriptDocumentCreate(lines));
+    expect(run.error).toBeNull();
+    expect(run.steps).toHaveLength(1 + 18 * 4 + 18 + 3 * 18 * 4);
+    const radius = (point: THREE.Vector3) => Math.hypot(point.x, point.y);
+    const stringer = run.shapes
+      .flatMap(solidScriptShapeLeavesPositive)
+      .flatMap((leaf) => (leaf.kind === 'solid' ? [leaf.points] : []))
+      .filter((points) => points.every((point) => radius(point) >= 1.8 - 1e-6));
+    expect(stringer).toHaveLength(72);
+    for (const [index, piece] of stringer.entries()) {
+      const outside = [...piece].sort((a, b) => b.z - a.z).slice(0, 4);
+      const plane = new THREE.Plane().setFromCoplanarPoints(outside[0]!, outside[1]!, outside[2]!);
+      expect(Math.abs(plane.distanceToPoint(outside[3]!)), `top of piece ${index} is twisted`).toBeGreaterThan(1e-4);
+      const next = stringer[index + 1];
+      if (next)
+        expect(next.some((point) => point.distanceTo(piece[0]!) < 1e-9 || point.distanceTo(piece.at(-1)!) < 1e-9)).toBe(
+          true,
+        );
+    }
+  });
+
   it('finds examples by every word of a search', () => {
     expect(solidScriptExamplesFind('spiral').map((example) => example.id)).toEqual(['spiralStaircase']);
     expect(solidScriptExamplesFind('generator stairs').map((example) => example.id)).toEqual([

@@ -31,9 +31,14 @@ function solidScriptExampleSweepPiece(from: string, to: string, corners: readonl
   );
 }
 
-/** A spiral staircase with a smooth sloped underside, posts and a handrail. */
+/**
+ * A spiral staircase with a smooth sloped underside, an outer stringer, posts
+ * and a handrail.
+ */
 export const SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE: readonly SolidScriptLine[] = [
-  solidScriptExampleNote('Spiral Staircase: treads around a centre column, a smooth slope below and a handrail.'),
+  solidScriptExampleNote(
+    'Spiral Staircase: treads around a centre column, a smooth slope below, a stringer and a handrail.',
+  ),
   solidScriptExampleInput('steps', 'count', '18', { label: 'Steps', min: '3', max: '128' }),
   solidScriptExampleInput('turn', 'number', '360', { label: 'Turn', min: '30', max: '1440' }),
   solidScriptExampleInput('height', 'number', '3.2', { label: 'Height', min: '0.5' }),
@@ -85,7 +90,9 @@ export const SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE: readonly SolidScriptLine[] =
       }),
     ]),
   ]),
-  solidScriptExampleNote('The slope and the handrail follow the turn in small pieces, so they look smooth.'),
+  solidScriptExampleNote(
+    'The slope, the outer stringer and the handrail follow the turn in small twisted pieces, so they look smooth.',
+  ),
   solidScriptExampleSet('pieces', '[=[steps] * [smooth]]'),
   ...solidScriptExampleRepeat('k', '0', '[=[pieces] - 1]', [
     solidScriptExampleSet('from', '[=[turn] * [k] / [pieces]]'),
@@ -95,6 +102,12 @@ export const SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE: readonly SolidScriptLine[] =
       '[=spot([a], [outer], slope([a]) - 0.06)]',
       '[=spot([a], [outer], slope([a]) - 0.26)]',
       '[=spot([a], [inner], slope([a]) - 0.26)]',
+    ]),
+    ...solidScriptExampleSweepPiece('[from]', '[to]', [
+      '[=spot([a], [outer], slope([a]) - 0.26)]',
+      '[=spot([a], [outer] + 0.04, slope([a]) - 0.26)]',
+      '[=spot([a], [outer] + 0.04, slope([a]) + [rise] + 0.04)]',
+      '[=spot([a], [outer], slope([a]) + [rise] + 0.04)]',
     ]),
     ...solidScriptExampleSweepPiece('[from]', '[to]', [
       '[=spot([a], [railAt] - 0.035, slope([a]) + [rise] * 1.5 + [railHeight] - 0.03)]',
