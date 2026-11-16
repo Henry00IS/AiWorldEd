@@ -50,6 +50,7 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
   outputTab: 'solid-script-editor-output-tab',
   outputText: 'solid-script-editor-output-text',
   outputError: 'solid-script-editor-output-error',
+  outputWarning: 'solid-script-editor-output-warning',
   variablesCaption: 'solid-script-editor-variables-caption',
   help: 'solid-script-editor-help',
   helpTitle: 'solid-script-editor-help-title',
@@ -221,6 +222,8 @@ const SOLID_SCRIPT_EDITOR_PANES_CSS = `
 .${c.outputTab}.${c.outputError} { color: #e5484d; }
 .${c.outputText} { flex: 1; min-height: 0; overflow-y: auto; padding: 5px 12px; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; white-space: pre-wrap; color: ${ThemeCss.textColor}; }
 .${c.outputText}.${c.outputError} { color: #e5484d; }
+.${c.outputWarning} { color: #f5a524; }
+.${c.outputWarning} > button { background: none; border: none; padding: 0; font: inherit; color: inherit; }
 .${c.variablesCaption} { margin-bottom: 4px; font: 11px ${Theme.uiFontFamily}; color: ${ThemeCss.mutedTextColor}; }
 .${c.inputAdd} { margin: 2px 0 4px; padding: 2px 8px; font: inherit; border-radius: 4px; cursor: pointer; color: ${ThemeCss.textColor}; background: ${ThemeCss.inkAlpha(0.06)}; border: 1px solid ${ThemeCss.inkAlpha(0.16)}; }
 .${c.inputAdd}:hover { background: ${ThemeCss.inkAlpha(0.12)}; }

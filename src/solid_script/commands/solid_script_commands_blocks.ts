@@ -19,9 +19,6 @@ import {
 import { solidScriptShapeJoin } from '@/solid_script/language/solid_script_shape.js';
 import { SOLID_SCRIPT_SIDES } from '@/solid_script/language/solid_script_primitives.js';
 
-/** What stops every block that must hold something. */
-const SOLID_SCRIPT_STOPS_EMPTY = 'Nothing between this line and its End.';
-
 /** What stops every block without its End. */
 const SOLID_SCRIPT_STOPS_END = 'A missing End line.';
 
@@ -37,11 +34,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     description: 'Move shapes',
     manual:
       'Moves every shape between this line and its End by the given distance along X, Y and Z in metres. Blocks can be nested: a Translate inside another adds both moves. Example: by 0, 0, 2.5 lifts a lintel onto two posts 2.5 metres high. By [=[I] * 2], 0, 0 inside a Repeat moves each round two metres further.',
-    stops: [
-      'A value that is not one number or three numbers separated by commas.',
-      SOLID_SCRIPT_STOPS_EMPTY,
-      SOLID_SCRIPT_STOPS_END,
-    ],
+    stops: ['A value that is not one number or three numbers separated by commas.', SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [solidScriptParameter('v', 'Offset', 'vector3', '0, 0, 0', 'Distance along X, Y and Z in metres.')],
     listing: (read) => ['Translate', 'by ', read.value('v')],
@@ -54,11 +47,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     description: 'Turn shapes',
     manual:
       'Turns every shape between this line and its End around the origin, first around X, then Y, then Z, in degrees. To turn a shape around its own middle, build it centred, or move it after turning it. Example: by 0, 0, 90 turns a box a quarter turn around the upright Z axis.',
-    stops: [
-      'A value that is not one number or three numbers separated by commas.',
-      SOLID_SCRIPT_STOPS_EMPTY,
-      SOLID_SCRIPT_STOPS_END,
-    ],
+    stops: ['A value that is not one number or three numbers separated by commas.', SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [solidScriptParameter('a', 'Angles', 'vector3', '0, 0, 0', 'Degrees around X, then Y, then Z.')],
     listing: (read) => ['Rotate', 'by ', read.value('a'), ' degrees'],
@@ -71,7 +60,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     description: 'Turn shapes to point along a direction',
     manual:
       'Turns every shape between this line and its End so that its upright Z axis points along Direction, by the shortest turn around the origin. Example: inside For Each Scattered Point, Translate by [Point.Position] with Align To [Point.Normal] and a thin Cylinder grows a spike straight out of every face.',
-    stops: ['A Direction of 0, 0, 0.', SOLID_SCRIPT_STOPS_EMPTY, SOLID_SCRIPT_STOPS_END],
+    stops: ['A Direction of 0, 0, 0.', SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [
       solidScriptParameter('direction', 'Direction', 'vector3', '0, 0, 1', 'Where Z should point, such as 1, 0, 0.'),
@@ -86,11 +75,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     description: 'Stretch or shrink shapes',
     manual:
       'Stretches or shrinks every shape between this line and its End, measured from the origin: 1 keeps the size, 2 doubles it, 0.5 halves it. Example: by 1, 1, 2 makes a sphere twice as tall, like an egg. By [=[I] + 1], 1, 1 inside a Repeat stretches each round more.',
-    stops: [
-      'A value that is not one number or three numbers separated by commas.',
-      SOLID_SCRIPT_STOPS_EMPTY,
-      SOLID_SCRIPT_STOPS_END,
-    ],
+    stops: ['A value that is not one number or three numbers separated by commas.', SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [
       solidScriptParameter('v', 'Factors', 'vector3', '1, 1, 1', 'Stretch factor along X, Y and Z. 1 keeps the size.'),
@@ -105,7 +90,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     description: 'Flip shapes to the other side',
     manual:
       'Flips every shape between this line and its End to the other side of a mirror through the origin. The direction says which way the mirror faces: 1, 0, 0 flips left and right. Example: build one post at X = 2, then the same post inside Mirror across 1, 0, 0 to get its twin at X = -2.',
-    stops: ['A direction of 0, 0, 0.', SOLID_SCRIPT_STOPS_EMPTY, SOLID_SCRIPT_STOPS_END],
+    stops: ['A direction of 0, 0, 0.', SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [solidScriptParameter('v', 'Plane Normal', 'vector3', '1, 0, 0', 'Direction the mirror faces.')],
     listing: (read) => ['Mirror', 'across ', read.value('v')],
@@ -121,7 +106,6 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     stops: [
       'A size below 0, or 0 on every axis.',
       'Stretching shapes that are flat along an axis.',
-      SOLID_SCRIPT_STOPS_EMPTY,
       SOLID_SCRIPT_STOPS_END,
     ],
     nesting: 'open',
@@ -161,12 +145,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     description: 'Move, turn, stretch and slant shapes at once',
     manual:
       'Moves the shapes between this line and its End by a 3 by 4 matrix, one row per axis: the new X is Row 1 times x, y, z, 1, and so on. The fourth number of a row moves along that axis. It can do everything Translate, Rotate, Scale and Mirror do, and slant (shear) too. Example: Row 1 of 1, 0, 0.5, 0 leans a Cube over, moving its top half a metre along X per metre of height.',
-    stops: [
-      'A row that is not four numbers.',
-      'A matrix that squashes shapes flat.',
-      SOLID_SCRIPT_STOPS_EMPTY,
-      SOLID_SCRIPT_STOPS_END,
-    ],
+    stops: ['A row that is not four numbers.', 'A matrix that squashes shapes flat.', SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [
       solidScriptParameter('row1', 'Row 1', 'value', '1, 0, 0, 0', 'How X is made from x, y, z, plus a move along X.'),
@@ -187,7 +166,6 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
       'A height of 0 or less.',
       'A solid such as Cube between this line and its End. Only flat outlines can be extruded.',
       'A Linear Extrude inside another one.',
-      SOLID_SCRIPT_STOPS_EMPTY,
       SOLID_SCRIPT_STOPS_END,
     ],
     nesting: 'open',
@@ -224,7 +202,6 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
       'An outline with points at X below 0.',
       'An angle of 0 or more than 360.',
       'A solid such as Cube between this line and its End.',
-      SOLID_SCRIPT_STOPS_EMPTY,
       SOLID_SCRIPT_STOPS_END,
     ],
     nesting: 'open',
@@ -262,7 +239,7 @@ export const SOLID_SCRIPT_COMMANDS_COMBINE: readonly SolidScriptCommand[] = [
     description: 'Join shapes into one',
     manual:
       'Joins the shapes between this line and its End into one object, so later blocks treat them as a whole. Example: put two crossing boxes in a Union, then cut a hole through both with Difference.',
-    stops: [SOLID_SCRIPT_STOPS_EMPTY, SOLID_SCRIPT_STOPS_END],
+    stops: [SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [],
     listing: () => ['Union'],
@@ -275,11 +252,7 @@ export const SOLID_SCRIPT_COMMANDS_COMBINE: readonly SolidScriptCommand[] = [
     description: 'Cut shapes out of the first one',
     manual:
       'Keeps the first shape between this line and its End and cuts every later shape out of it. Example: a Cube followed by a Cylinder gives a block with a round hole where the cylinder was.',
-    stops: [
-      'A first line that builds no shape, so there is nothing to cut from.',
-      SOLID_SCRIPT_STOPS_EMPTY,
-      SOLID_SCRIPT_STOPS_END,
-    ],
+    stops: ['A first line that builds no shape, so there is nothing to cut from.', SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [],
     listing: () => ['Difference'],
@@ -292,7 +265,7 @@ export const SOLID_SCRIPT_COMMANDS_COMBINE: readonly SolidScriptCommand[] = [
     description: 'Keep only where shapes overlap',
     manual:
       'Keeps only the space that every shape between this line and its End fills at the same time. Example: a Cube and a slightly larger Sphere, both centred, give a box with rounded corners.',
-    stops: [SOLID_SCRIPT_STOPS_EMPTY, SOLID_SCRIPT_STOPS_END],
+    stops: [SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [],
     listing: () => ['Intersection'],
@@ -305,7 +278,7 @@ export const SOLID_SCRIPT_COMMANDS_COMBINE: readonly SolidScriptCommand[] = [
     description: 'Wrap shapes in one solid',
     manual:
       'Wraps all shapes between this line and its End in one convex solid, like shrink wrap stretched around them. Example: two small spheres far apart give a capsule. Four thin cylinders at the corners give a table top with round edges.',
-    stops: [SOLID_SCRIPT_STOPS_EMPTY, SOLID_SCRIPT_STOPS_END],
+    stops: [SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [],
     listing: () => ['Hull'],
@@ -318,7 +291,7 @@ export const SOLID_SCRIPT_COMMANDS_COMBINE: readonly SolidScriptCommand[] = [
     description: 'Grow a shape by sweeping others over it',
     manual:
       'Grows the first shape between this line and its End by the shapes after it, as if their middle were swept over every point of the first. A small Sphere after a Cube rounds every edge and corner. A flat Cylinder after a Square inside a Linear Extrude gives rounded corners. Each later shape counts as its convex hull. Example: Cube 2, 2, 1 then Sphere radius 0.2 gives a box 2.4 by 2.4 by 1.4 with soft edges.',
-    stops: ['Too many corner points: use fewer Sides.', SOLID_SCRIPT_STOPS_EMPTY, SOLID_SCRIPT_STOPS_END],
+    stops: ['Too many corner points: use fewer Sides.', SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [],
     listing: () => ['Minkowski'],

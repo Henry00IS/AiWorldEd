@@ -695,6 +695,18 @@ describe('SolidScript editor', () => {
     expect(root.querySelector('[data-line="1"]')?.classList.contains('solid-script-editor-failed')).toBe(true);
   });
 
+  it('runs an empty block and shows a warning in the output that leads to its line', () => {
+    const { root } = editorFixture([{ command: 'cube' }, { command: 'texture' }, { command: 'end' }]);
+    const output = find('.solid-script-editor-output-text');
+    expect(output.classList.contains('solid-script-editor-output-error')).toBe(false);
+    expect(output.textContent).toMatch(/^1 solid/);
+    const warning = find('.solid-script-editor-output-warning');
+    expect(warning.textContent).toBe('⚠️ Line 2: Texture has nothing inside, so it does nothing.');
+    expect(root.querySelector('[data-line="1"]')?.classList.contains('solid-script-editor-failed')).toBe(false);
+    warning.querySelector<HTMLButtonElement>('button')!.click();
+    expect(document.activeElement).toBe(chip(1));
+  });
+
   it('steps through the solids, shows the variables of the step, traces passed lines and stops', () => {
     const { root, node, stepId } = editorFixture([
       { command: 'variable', values: { name: 'width', value: '2' } },

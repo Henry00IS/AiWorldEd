@@ -209,10 +209,20 @@ export interface SolidScriptBlockRun {
   print(text: string): SolidScriptShape[];
 }
 
+/** A warning of a run: the script still runs. */
+export interface SolidScriptWarning {
+  /** 1-based line. */
+  line: number;
+  /** What is wrong. */
+  text: string;
+}
+
 /** Result of a run. */
 export interface SolidScriptEvaluation {
   shapes: SolidScriptShape[];
   messages: string[];
+  /** Warnings by line in line order, such as a block with nothing inside. */
+  warnings: SolidScriptWarning[];
   /** Line of every shape in run order, built or not. */
   steps: number[];
   /**

@@ -56,10 +56,30 @@ describe('SolidScript stops at the first mistake', () => {
     expect(failure({ command: 'cylinder', values: { sides: '100' } })).toMatch(/^Line 1: Sides /);
   });
 
-  it('refuses empty blocks and scripts that build nothing', () => {
-    expect(failure({ command: 'union' }, { command: 'end' })).toBe(
-      'Line 1: Union has nothing inside; add a shape before its End.',
-    );
+  it('runs empty blocks as nothing, with a warning on their line', () => {
+    const lines: SolidScriptLine[] = [
+      { command: 'cube' },
+      { command: 'union' },
+      { command: 'end' },
+      { command: 'translate', values: { offset: '1, 0, 0' } },
+      { command: 'end' },
+      { command: 'texture', values: { texture: '' } },
+      { command: 'end' },
+      { command: 'repeat', values: { name: 'i', from: '1', to: '2' } },
+      { command: 'end' },
+    ];
+    expect(failure(...lines)).toBe('');
+    const result = solidScriptProgramEvaluate(solidScriptDocumentCreate(lines));
+    expect(result.steps).toEqual([1]);
+    expect(result.warnings).toEqual([
+      { line: 2, text: 'Union has nothing inside, so it does nothing.' },
+      { line: 4, text: 'Translate has nothing inside, so it does nothing.' },
+      { line: 6, text: 'Texture has nothing inside, so it does nothing.' },
+      { line: 8, text: 'Repeat has nothing inside, so it does nothing.' },
+    ]);
+  });
+
+  it('refuses scripts that build nothing', () => {
     expect(failure({ command: 'variable', values: { name: 'x', value: '1' } })).toBe(
       'The script builds no shapes; add a shape such as Cube.',
     );

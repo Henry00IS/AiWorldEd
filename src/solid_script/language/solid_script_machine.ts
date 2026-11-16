@@ -188,6 +188,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     return {
       shapes,
       messages: this.messages,
+      warnings: [...this.warnings].sort(([left], [right]) => left - right).map(([line, text]) => ({ line, text })),
       steps: this.steps,
       variables,
       breaks: this.breaks,
@@ -316,6 +317,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     if (this.failure || this.paused || this.leaving || this.stopping) return [];
     const outer = this.line;
     this.line = node.line;
+    if (node.command.nesting === 'open' && node.children.length === 0 && (node.otherwise?.length ?? 0) === 0)
+      this.emptyWarn(node);
     const line = this.runOf(node, scope, context, known);
     line.busy = true;
     try {
@@ -512,8 +515,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     let kept: SolidScriptBlockRuns | undefined;
     const children = (): SolidScriptBlockRuns => (kept ??= SolidScriptMachine.runsKnown(node.children));
     const inside = (into: SolidScriptContext): SolidScriptShape[] => {
-      if (node.children.length === 0)
-        throw new Error(`${node.command.label} has nothing inside; add a shape before its End`);
+      if (node.children.length === 0) return [];
       return state.machine.linesRun(node.children, state.scope, into, new SolidScriptScope(state.scope), children());
     };
     const fields = new Map<string, SolidScriptLineField>();
@@ -899,8 +901,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     context: SolidScriptContext,
     label: string,
   ): SolidScriptShape[] {
-    if (node.children.length === 0)
-      throw new Error(`${node.command.label} has nothing inside; add a shape before its End`);
+    if (node.children.length === 0) return [];
     const inner = new SolidScriptScope(scope);
     for (const child of node.children)
       if (child.command.id === 'part') this.guarded(child.line, () => this.partDefine(child));

@@ -73,6 +73,8 @@ export abstract class SolidScriptMachineCalls<
   Command extends SolidScriptMachineCommand,
 > extends SolidScriptMachineVariables {
   protected readonly steps: number[] = [];
+  /** Warnings of the run by 1-based line, such as a block with nothing inside. */
+  protected readonly warnings = new Map<number, string>();
   protected readonly parts = new Map<string, SolidScriptPart<Command>>();
   /** Function blocks by name. */
   protected readonly functions = new Map<string, SolidScriptBlockNode<Command>>();
@@ -292,7 +294,10 @@ export abstract class SolidScriptMachineCalls<
       throw new Error(
         `functions and parts run inside each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} levels deep. A part that uses itself needs an If that stops it`,
       );
-    if (part.node.children.length === 0) throw new Error(`part "${name}" has nothing inside`);
+    if (part.node.children.length === 0) {
+      this.emptyWarn(part.node);
+      return [];
+    }
     this.stack.push({ kind: 'part', name, line: this.line, locals: null, returned: null });
     try {
       const inner = new SolidScriptScope(scope, name);
@@ -303,5 +308,15 @@ export abstract class SolidScriptMachineCalls<
     } finally {
       this.stack.pop();
     }
+  }
+
+  /**
+   * Notes that a block has nothing inside: it runs as nothing, which is no
+   * mistake but likely unfinished.
+   *
+   * @param node Block line.
+   */
+  protected emptyWarn(node: SolidScriptBlockNode<Command>): void {
+    this.warnings.set(node.line, `${node.command.label} has nothing inside, so it does nothing.`);
   }
 }

@@ -5,7 +5,7 @@ import {
   solidScriptProgramEvaluate,
   type SolidScriptProgramOptions,
 } from '@/solid_script/language/solid_script_program.js';
-import type { SolidScriptLineProfile } from '@/solid_script/language/solid_script_machine_types.js';
+import type { SolidScriptLineProfile, SolidScriptWarning } from '@/solid_script/language/solid_script_machine_types.js';
 import { SolidScriptEditorExplorer } from './solid_script_editor_explorer.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 
@@ -35,10 +35,12 @@ export class SolidScriptEditorOutput {
   private readonly variablesHost: HTMLElement;
   private failed: number | null = null;
   private runs: ReadonlyMap<number, SolidScriptLineProfile> = new Map();
+  private revealLine: (line: number) => void = () => undefined;
 
   /** Shows a line of the script; set by the editor. */
   set reveal(reveal: (line: number) => void) {
     this.explorer.reveal = reveal;
+    this.revealLine = reveal;
   }
 
   /** Adds an Input line through its configurator; set by the editor. */
@@ -78,6 +80,7 @@ export class SolidScriptEditorOutput {
       this.runs = result.profile;
       const solids = `${count} ${count === 1 ? 'solid' : 'solids'}${result.paused ? ' so far' : ''}`;
       this.text([solids, ...result.messages].join('\n'), false);
+      this.output.append(...result.warnings.map((warning) => this.warningRow(warning)));
       this.explorer.show(document, result.variables, options ? result.stack : [], caption);
     } catch (error) {
       const message = solidScriptErrorText(error);
@@ -135,6 +138,26 @@ export class SolidScriptEditorOutput {
     for (const [tab, button] of this.tabs) button.setAttribute('aria-selected', String(tab === id));
     this.outputHost.hidden = id !== 'output';
     this.variablesHost.hidden = id !== 'variables';
+  }
+
+  /**
+   * Builds the row of a warning: the script still runs, the line link goes to
+   * the line.
+   *
+   * @param warning Warning.
+   * @returns Row.
+   */
+  private warningRow(warning: SolidScriptWarning): HTMLElement {
+    const row = document.createElement('div');
+    row.className = SOLID_SCRIPT_EDITOR_CLASSES.outputWarning;
+    const link = document.createElement('button');
+    link.type = 'button';
+    link.className = SOLID_SCRIPT_EDITOR_CLASSES.helpLink;
+    link.textContent = `Line ${warning.line}`;
+    link.title = `Go To Line ${warning.line}`;
+    link.addEventListener('click', () => this.revealLine(warning.line - 1));
+    row.append('⚠️ ', link, `: ${warning.text}`);
+    return row;
   }
 
   /**

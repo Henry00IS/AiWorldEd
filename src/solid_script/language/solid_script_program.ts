@@ -123,6 +123,7 @@ export function solidScriptProgramRun(
     return {
       shapes: [],
       messages: [],
+      warnings: [],
       steps: [],
       variables: [],
       breaks: [],

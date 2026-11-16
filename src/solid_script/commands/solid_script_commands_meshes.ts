@@ -25,9 +25,6 @@ import {
 /** What stops every mesh block without its End. */
 const SOLID_SCRIPT_MESH_STOPS_END = 'A missing End line.';
 
-/** What stops every mesh tool with nothing inside. */
-const SOLID_SCRIPT_MESH_STOPS_EMPTY = 'Nothing between this line and its End.';
-
 /** What stops every mesh tool given a flat outline. */
 const SOLID_SCRIPT_MESH_STOPS_FLAT = 'A flat outline such as Square between this line and its End. Extrude it first.';
 
@@ -233,7 +230,6 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     stops: [
       'A Difference or Intersection inside. They only work on brushes.',
       SOLID_SCRIPT_MESH_STOPS_FLAT,
-      SOLID_SCRIPT_MESH_STOPS_EMPTY,
       SOLID_SCRIPT_MESH_STOPS_END,
     ],
     nesting: 'open',
@@ -248,12 +244,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     description: 'Weld corners that nearly touch',
     manual:
       'Turns the shapes between this line and its End into one mesh and welds corners closer than Distance into one, so pieces that touch share their corners and smooth as one surface. Faces that fold away are dropped. Example: Merge By Distance 0.001 around two Cubes side by side gives one mesh whose touching corners are shared.',
-    stops: [
-      'A Distance below 0.',
-      SOLID_SCRIPT_MESH_STOPS_FLAT,
-      SOLID_SCRIPT_MESH_STOPS_EMPTY,
-      SOLID_SCRIPT_MESH_STOPS_END,
-    ],
+    stops: ['A Distance below 0.', SOLID_SCRIPT_MESH_STOPS_FLAT, SOLID_SCRIPT_MESH_STOPS_END],
     nesting: 'open',
     parameters: [
       solidScriptParameter(
@@ -281,7 +272,6 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     stops: [
       `Levels below 1 or above ${SOLID_SCRIPT_SUBDIVIDE_LEVELS_MAX}.`,
       SOLID_SCRIPT_MESH_STOPS_FLAT,
-      SOLID_SCRIPT_MESH_STOPS_EMPTY,
       SOLID_SCRIPT_MESH_STOPS_END,
     ],
     nesting: 'open',
@@ -327,7 +317,6 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     stops: [
       `Rounds below 1 or above ${SOLID_SCRIPT_SMOOTH_ROUNDS_MAX}.`,
       'A Strength below 0 or above 1.',
-      SOLID_SCRIPT_MESH_STOPS_EMPTY,
       SOLID_SCRIPT_MESH_STOPS_END,
     ],
     nesting: 'open',
@@ -356,12 +345,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     description: 'Push mesh points in or out by a formula',
     manual:
       'Moves every point of the mesh made from the shapes between this line and its End outwards along its surface by Distance in metres. A negative distance pulls it in. Distance is worked out for each point, and may use [X], [Y] and [Z] (where the point is), [Nx], [Ny] and [Nz] (which way the surface faces there) and [Index] (the point number), so waves, noise and bulges come from one formula. Subdivide first for a smooth result. Example: Distance [=0.1 * Sin([X] * 180)] around a subdivided Cube gives a wavy surface.',
-    stops: [
-      'A Distance that does not give a number.',
-      SOLID_SCRIPT_MESH_STOPS_FLAT,
-      SOLID_SCRIPT_MESH_STOPS_EMPTY,
-      SOLID_SCRIPT_MESH_STOPS_END,
-    ],
+    stops: ['A Distance that does not give a number.', SOLID_SCRIPT_MESH_STOPS_FLAT, SOLID_SCRIPT_MESH_STOPS_END],
     nesting: 'open',
     parameters: [
       solidScriptParameter(
@@ -398,12 +382,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     description: 'Pull chosen mesh faces out',
     manual:
       'Pulls the faces of the mesh made from the shapes between this line and its End out along the way they face, each on its own, with new side faces joining them to the rest. A negative distance pushes them in for a dent. Which Faces is a condition checked for every face, and both fields may use [Nx], [Ny] and [Nz] (which way the face points), [Cx], [Cy] and [Cz] (its middle) and [Index] (its number). Example: Which Faces [Nz] > 0.5 with Distance 0.5 lifts the top of a Cube half a metre.',
-    stops: [
-      'A Distance that does not give a number.',
-      SOLID_SCRIPT_MESH_STOPS_FLAT,
-      SOLID_SCRIPT_MESH_STOPS_EMPTY,
-      SOLID_SCRIPT_MESH_STOPS_END,
-    ],
+    stops: ['A Distance that does not give a number.', SOLID_SCRIPT_MESH_STOPS_FLAT, SOLID_SCRIPT_MESH_STOPS_END],
     nesting: 'open',
     parameters: [
       solidScriptParameter(
@@ -438,12 +417,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     description: 'Give mesh faces even texture coordinates',
     manual:
       'Gives every face of the mesh made from the shapes between this line and its End texture coordinates projected from the side it faces most, like wrapping it in a box of texture, so the texture keeps one size everywhere. Size is how many metres one texture repeat covers. Example: Box UVs with size 2 around a displaced rock shows the texture every two metres.',
-    stops: [
-      'A Size of 0 or less.',
-      SOLID_SCRIPT_MESH_STOPS_FLAT,
-      SOLID_SCRIPT_MESH_STOPS_EMPTY,
-      SOLID_SCRIPT_MESH_STOPS_END,
-    ],
+    stops: ['A Size of 0 or less.', SOLID_SCRIPT_MESH_STOPS_FLAT, SOLID_SCRIPT_MESH_STOPS_END],
     nesting: 'open',
     parameters: [solidScriptParameter('size', 'Size', 'number', '1', 'Metres covered by one texture repeat.')],
     listing: (read) => ['Box UVs', 'size ', read.value('size')],
@@ -460,7 +434,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     description: 'Turn mesh faces to show the other side',
     manual:
       'Turns every face of the mesh made from the shapes between this line and its End around, so it shows its other side. Use it when a mesh looks inside out, or to see a box from the inside, such as a sky box or a cave. Example: a large Cube inside Flip Faces is a room seen from within.',
-    stops: [SOLID_SCRIPT_MESH_STOPS_FLAT, SOLID_SCRIPT_MESH_STOPS_EMPTY, SOLID_SCRIPT_MESH_STOPS_END],
+    stops: [SOLID_SCRIPT_MESH_STOPS_FLAT, SOLID_SCRIPT_MESH_STOPS_END],
     nesting: 'open',
     parameters: [],
     listing: () => ['Flip Faces'],
