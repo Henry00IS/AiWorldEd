@@ -129,6 +129,75 @@ const MODIFIER_CASES: Record<string, ModifierCase[]> = {
       inputs: { count: '5', mode: 'fit', endpoint: '0, 6, 0', uv: 'world' },
     },
   ],
+  radial: [
+    { parameters: {}, inputs: {} },
+    {
+      parameters: { count: 5, mode: 'arc', sweep: 120, axis: 'z', rise: 0.5, centreSide: '+x', radius: 3 },
+      inputs: { count: '5', mode: 'arc', sweep: '120', axis: 'z', rise: '0.5', centreside: '+x', radius: '3' },
+    },
+    {
+      parameters: { count: 3, mode: 'step', step: 40, rotateCopies: false, uv: 'world' },
+      inputs: { count: '3', mode: 'step', stepangle: '40', rotatecopies: 'false', uv: 'world' },
+    },
+    {
+      parameters: {
+        count: 6,
+        origin: 'centre',
+        start: 30,
+        radiusOffset: 1,
+        pivotX: 0.5,
+        pivotY: 0,
+        pivotZ: 1,
+        axis: 'x',
+      },
+      inputs: { count: '6', origin: 'centre', start: '30', radiusoffset: '1', pivot: '0.5, -1, 0', axis: 'x' },
+    },
+    { parameters: { count: 4, centreSide: '+y', axis: 'y' }, inputs: { count: '4', centreside: '+y', axis: 'y' } },
+    { parameters: { count: 1, origin: 'centre', start: 45 }, inputs: { count: '1', origin: 'centre', start: '45' } },
+  ],
+  transform: [
+    { parameters: {}, inputs: {} },
+    {
+      parameters: { count: 5, offsetX: 0.5, offsetY: 0.25, offsetZ: -1, rotationX: 10, rotationY: 30, rotationZ: -20 },
+      inputs: { count: '5', offset: '0.5, 1, 0.25', rotation: '10, 20, 30' },
+    },
+    {
+      parameters: {
+        count: 4,
+        offsetX: 0,
+        offsetY: 0,
+        offsetZ: 0,
+        relativeX: 1,
+        relativeY: 0,
+        relativeZ: 0.5,
+        rotationX: 0,
+        rotationY: 45,
+        rotationZ: 0,
+        pivotX: 1,
+        pivotY: 0,
+        pivotZ: -2,
+        uv: 'world',
+      },
+      inputs: {
+        count: '4',
+        offset: '0, 0, 0',
+        relative: '1, -0.5, 0',
+        rotation: '0, 0, 45',
+        pivot: '1, 2, 0',
+        uv: 'world',
+      },
+    },
+    { parameters: { count: 1 }, inputs: { count: '1' } },
+  ],
+  mirror: [
+    { parameters: {}, inputs: {} },
+    {
+      parameters: { axis: 'y', plane: 'min', planeOffset: -0.5 },
+      inputs: { axis: 'y', plane: 'min', planeoffset: '-0.5' },
+    },
+    { parameters: { axis: 'z', plane: 'max', uv: 'world' }, inputs: { axis: 'z', plane: 'max', uv: 'world' } },
+    { parameters: { axis: 'x', plane: 'max', planeOffset: 1 }, inputs: { axis: 'x', plane: 'max', planeoffset: '1' } },
+  ],
 };
 
 describe('SolidScript ports of the modifiers', () => {
@@ -147,7 +216,13 @@ describe('SolidScript ports of the modifiers', () => {
 
   it('lists the modifier ports under Built-In Modifiers, usable as modifiers only', () => {
     const ports = SOLID_SCRIPT_EXAMPLES.filter((entry) => entry.group === 'Built-In Modifiers');
-    expect(ports.map((entry) => entry.name)).toEqual(['Shear', 'Linear Array']);
+    expect(ports.map((entry) => entry.name)).toEqual([
+      'Shear',
+      'Linear Array',
+      'Radial Array',
+      'Transform Array',
+      'Mirror',
+    ]);
     for (const port of ports) expect(port.uses).toEqual({ generator: false, modifier: true });
   });
 });

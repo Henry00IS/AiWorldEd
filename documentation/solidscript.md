@@ -90,7 +90,7 @@ A script can be a **generator**, which builds new geometry from nothing, or a **
 - As a modifier, the brushes it receives pass on unchanged unless the script has an **Input Brushes** line. What the script builds is added, with the script origin at the centre of what it receives; Operation picks whether it is added, cut out or intersected.
 - `[Script.Usage]` is Generator or Modifier. `[Input.Brushes]`, `[Input.Faces]`, `[Input.Min]`, `[Input.Max]`, `[Input.Size]` and `[Input.Center]` describe what a modifier receives (all zero for a generator), and **Input Shapes** builds copies of those brushes to move, mirror or cut.
 - The **Pedestal** example works both ways: as a generator it builds a box on a slab, as a modifier it puts the slab under the brush.
-- **Input Brushes** passes the received brushes on, moved by the Translate, Rotate, Scale, Mirror or Matrix blocks around it, with their textures and materials. The first one that runs changes them; each later one adds a copy. **Built-In Modifiers** in the Examples window rebuilds Shear and Linear Array this way, and they change brushes exactly like the built-in modifiers.
+- **Input Brushes** passes the received brushes on, moved by the Translate, Rotate, Scale, Mirror or Matrix blocks around it, with their textures and materials. The first one that runs changes them; each later one adds a copy. **Built-In Modifiers** in the Examples window rebuilds Shear, Linear Array, Radial Array, Transform Array and Mirror this way, and they change brushes exactly like the built-in modifiers (the arrays measure the whole input, not each piece; Mirror places its plane on the received brushes and has no Bisect).
 
 </details>
 

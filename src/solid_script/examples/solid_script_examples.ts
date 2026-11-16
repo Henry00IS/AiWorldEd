@@ -28,7 +28,13 @@ import {
 } from './solid_script_examples_swept.js';
 import { SOLID_SCRIPT_EXAMPLE_STAIRS } from './solid_script_examples_stairs.js';
 import { SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE } from './solid_script_examples_showcase.js';
-import { SOLID_SCRIPT_EXAMPLE_LINEAR_ARRAY, SOLID_SCRIPT_EXAMPLE_SHEAR } from './solid_script_examples_modifiers.js';
+import {
+  SOLID_SCRIPT_EXAMPLE_LINEAR_ARRAY,
+  SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY,
+  SOLID_SCRIPT_EXAMPLE_TRANSFORM_ARRAY,
+  SOLID_SCRIPT_EXAMPLE_MIRROR,
+  SOLID_SCRIPT_EXAMPLE_SHEAR,
+} from './solid_script_examples_modifiers.js';
 
 /** Groups of the examples, in the order the Examples window shows them. */
 export const SOLID_SCRIPT_EXAMPLE_GROUPS = ['Showcase', 'Basics', 'Built-In Generators', 'Built-In Modifiers'] as const;
@@ -183,6 +189,9 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
   solidScriptExamplePort('curvedStairs', 'Curved Stairs', SOLID_SCRIPT_EXAMPLE_CURVED_STAIRS),
   solidScriptExampleModifier('shear', 'Shear', SOLID_SCRIPT_EXAMPLE_SHEAR),
   solidScriptExampleModifier('linear', 'Linear Array', SOLID_SCRIPT_EXAMPLE_LINEAR_ARRAY),
+  solidScriptExampleModifier('radial', 'Radial Array', SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY),
+  solidScriptExampleModifier('transform', 'Transform Array', SOLID_SCRIPT_EXAMPLE_TRANSFORM_ARRAY),
+  solidScriptExampleModifier('mirror', 'Mirror', SOLID_SCRIPT_EXAMPLE_MIRROR),
 ];
 
 /**
