@@ -25,6 +25,7 @@ import {
   solidScriptShapeLeavesPositive,
   solidScriptShapeMapLeaves,
   type SolidScriptShape,
+  type SolidScriptShapeSolid,
   SOLID_SCRIPT_SHAPE_NAME_KEY,
   solidScriptShapesNamed,
 } from './solid_script_shape.js';
@@ -710,7 +711,9 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
           latest = next;
         return latest;
       },
-      leafReplace: (leaf, by) => {
+      leafReplace: (leaf, found) => {
+        // A changed received brush is built anew, so it no longer passes the original on.
+        const by = found.kind === 'solid' && found.received ? solidScriptLeafUnreceived(found) : found;
         state.machine.leafSwaps.set(leaf, by);
         for (const built of state.machine.builtStack)
           built.forEach((shape, index) => {
@@ -1083,4 +1086,15 @@ function solidScriptLinesPassInput(lines: readonly SolidScriptBlockNode<SolidScr
       solidScriptLinesPassInput(node.children) ||
       solidScriptLinesPassInput(node.otherwise ?? []),
   );
+}
+
+/**
+ * Returns a received brush as a plain built one, once a line changed it.
+ *
+ * @param leaf Received brush.
+ * @returns The same brush without its received mark.
+ */
+function solidScriptLeafUnreceived(leaf: SolidScriptShapeSolid): SolidScriptShapeSolid {
+  const { received: _received, ...built } = leaf;
+  return built;
 }

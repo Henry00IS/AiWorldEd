@@ -13,6 +13,9 @@ import {
 } from '@/solid_script/document/solid_script_document.js';
 import type { SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 import { MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
+import { modifierStackSolidScriptRunStart } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_received.js';
+import { ModifierStackFieldRows } from '@/modifier/stack/ui/modifier_stack_field_rows.js';
+import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 
 /**
  * Builds a solid with one box brush whose own stack holds a SolidScript
@@ -99,6 +102,31 @@ describe('SolidScript as a modifier', () => {
     const size = shown[0]!.getModelSpaceBounds().getSize(new THREE.Vector3());
     expect(size.y).toBeCloseTo(0.3, 4);
     expect(size.x).toBeLessThan(0.25);
+  });
+
+  it('bevels the received brush, and the inspector and the editor run it like the stack does', () => {
+    const script = both(
+      { command: 'input_brushes', values: { textures: 'Move With Shape' } },
+      { command: 'select_faces', values: { which: 'All', detail: '', of: '', within: '30', how: 'New' } },
+      { command: 'bevel_edges', values: { distance: '0.1' } },
+    );
+    const fixture = modifierFixture(script);
+    const shown = fixture.compile().instances.filter((brush) => brush.constructor.name !== 'ModifierStackHiddenBrush');
+    expect(shown).toHaveLength(1);
+    expect(shown[0]!.brush.faces.length).toBeGreaterThan(6);
+    const stepId = modifierStackOwnerEncode(fixture.mesh)!.modifiers[0]!.id;
+    const start = modifierStackSolidScriptRunStart(fixture.mesh, stepId, 'modifier');
+    expect(solidScriptProgramRun(solidScriptDocumentCreate(script.blocks), { ...start, inputs: {} }).error).toBeNull();
+    const kind = modifierStackKindFind(MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND)!;
+    const rows = new ModifierStackFieldRows(
+      kind.fields,
+      () => undefined,
+      () => [],
+      {},
+      (status) => ({ volume: fixture.mesh, stepId, commandStack: null, status }),
+    );
+    rows.update(kind.normalizeParameters({ script }));
+    expect(rows.getElement().textContent).toContain('3 lines · 1 solid');
   });
 
   it('cuts the received brush like any brush and keeps its face textures', () => {

@@ -1,5 +1,4 @@
-import { Vector3, type Object3D } from 'three';
-import { modifierStackVolumeBox } from '@/modifier/stack/evaluate/modifier_stack_frame.js';
+import type { Object3D } from 'three';
 import type { CommandStack } from '@/commands/command_stack.js';
 import {
   modifierStackEntryRead,
@@ -7,7 +6,7 @@ import {
   modifierStackParametersRead,
 } from '@/modifier/stack/modifier_stack_parameters_commit.js';
 import { SolidScriptEditorHistory } from './solid_script_editor_history.js';
-import { modifierStackSolidScriptReceivedRead } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_received.js';
+import { modifierStackSolidScriptRunStart } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_received.js';
 import type { SolidScriptUseFacts } from '@/solid_script/language/solid_script_system.js';
 import {
   MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY,
@@ -99,16 +98,7 @@ export class SolidScriptEditorSession {
    *   for a modifier, what it receives.
    */
   runStart(): { inputs: Record<string, string>; box: [number, number, number]; use?: SolidScriptUseFacts } {
-    if (this.use() === 'modifier') {
-      const received = modifierStackSolidScriptReceivedRead(this.node, this.stepId);
-      return {
-        inputs: this.inputs(),
-        box: received?.box ?? [1, 1, 1],
-        use: received?.use ?? { usage: 'Modifier', solids: [], faces: 0 },
-      };
-    }
-    const size = modifierStackVolumeBox(this.node).getSize(new Vector3());
-    return { inputs: this.inputs(), box: [size.x, size.y, size.z] };
+    return { inputs: this.inputs(), ...modifierStackSolidScriptRunStart(this.node, this.stepId, this.use()) };
   }
 
   /**

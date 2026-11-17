@@ -1,4 +1,6 @@
-import type * as THREE from 'three';
+import { Vector3, type Object3D } from 'three';
+import { modifierStackVolumeBox } from '@/modifier/stack/evaluate/modifier_stack_frame.js';
+import type { SolidScriptUse } from '@/solid_script/document/solid_script_document.js';
 import type { SolidScriptUseFacts } from '@/solid_script/language/solid_script_system.js';
 
 /** What a SolidScript modifier received at its last evaluation. */
@@ -10,10 +12,7 @@ export interface ModifierStackSolidScriptReceived {
 }
 
 /** Last received brushes by owner, then by modifier id. */
-const modifierStackSolidScriptReceivedByOwner = new WeakMap<
-  THREE.Object3D,
-  Map<string, ModifierStackSolidScriptReceived>
->();
+const modifierStackSolidScriptReceivedByOwner = new WeakMap<Object3D, Map<string, ModifierStackSolidScriptReceived>>();
 
 /**
  * Remembers what a SolidScript modifier received, so its editor runs the script
@@ -24,7 +23,7 @@ const modifierStackSolidScriptReceivedByOwner = new WeakMap<
  * @param received What it received.
  */
 export function modifierStackSolidScriptReceivedWrite(
-  owner: THREE.Object3D,
+  owner: Object3D,
   stepId: string,
   received: ModifierStackSolidScriptReceived,
 ): void {
@@ -37,15 +36,29 @@ export function modifierStackSolidScriptReceivedWrite(
 }
 
 /**
- * Returns what a SolidScript modifier received at its last evaluation.
+ * Returns what a run of a step's script starts from, the same for the stack,
+ * the editor and the inspector: for a generator, the size of its box; for a
+ * modifier, the brushes it received at its last evaluation and the size of
+ * their bounds.
  *
  * @param owner Volume, brush or group owning the stack.
- * @param stepId Modifier id.
- * @returns What it received, or undefined before it was evaluated.
+ * @param stepId Step id.
+ * @param use How the step uses its script.
+ * @returns Box size in script axes (width, height, depth) and, for a modifier,
+ *   what it receives.
  */
-export function modifierStackSolidScriptReceivedRead(
-  owner: THREE.Object3D,
+export function modifierStackSolidScriptRunStart(
+  owner: Object3D,
   stepId: string,
-): ModifierStackSolidScriptReceived | undefined {
-  return modifierStackSolidScriptReceivedByOwner.get(owner)?.get(stepId);
+  use: SolidScriptUse,
+): { box: [number, number, number]; use?: SolidScriptUseFacts } {
+  if (use === 'modifier') {
+    const received = modifierStackSolidScriptReceivedByOwner.get(owner)?.get(stepId);
+    return {
+      box: received?.box ?? [1, 1, 1],
+      use: received?.use ?? { usage: 'Modifier', solids: [], faces: 0 },
+    };
+  }
+  const size = modifierStackVolumeBox(owner).getSize(new Vector3());
+  return { box: [size.x, size.y, size.z] };
 }

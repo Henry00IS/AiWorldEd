@@ -14,7 +14,11 @@ import {
   type SolidScriptUse,
 } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptErrorText } from '@/solid_script/language/solid_script_error.js';
-import { solidScriptProgramEvaluate } from '@/solid_script/language/solid_script_program.js';
+import {
+  solidScriptProgramEvaluate,
+  type SolidScriptProgramOptions,
+} from '@/solid_script/language/solid_script_program.js';
+import { modifierStackSolidScriptRunStart } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_received.js';
 import { SOLID_SCRIPT_FILE_EXTENSION } from '@/solid_script/file/solid_script_file.js';
 import { solidScriptEditorIcon } from './solid_script_editor_icons.js';
 import { solidScriptInspectorInputValues } from './solid_script_inspector_inputs.js';
@@ -60,7 +64,12 @@ export function solidScriptInspectorRow(
   const write = (parameters: Record<string, unknown>): void => {
     const document = solidScriptDocumentNormalize(parameters[key]);
     name.replaceChildren(solidScriptEditorIcon('script'), document.name || 'Script');
-    solidScriptInspectorDetail(detail, document, solidScriptInspectorInputValues(parameters[inputsKey]));
+    const target = targetOf(() => {});
+    const start = target ? modifierStackSolidScriptRunStart(target.volume, target.stepId, use) : {};
+    solidScriptInspectorDetail(detail, document, {
+      ...start,
+      inputs: solidScriptInspectorInputValues(parameters[inputsKey]),
+    });
   };
   return { element: modifierStackUiRow('Script', card, SOLID_SCRIPT_INSPECTOR_HINT), write };
 }
@@ -172,16 +181,16 @@ function solidScriptInspectorButtons(
  *
  * @param element Detail line.
  * @param document Script.
- * @param inputs Values of its Input lines.
+ * @param options Values of its Input lines and what the step's run starts from.
  */
 function solidScriptInspectorDetail(
   element: HTMLElement,
   document: SolidScriptDocument,
-  inputs: Readonly<Record<string, string>>,
+  options: SolidScriptProgramOptions,
 ): void {
   const lines = `${document.blocks.length} ${document.blocks.length === 1 ? 'line' : 'lines'}`;
   try {
-    const solids = solidScriptProgramEvaluate(document, { inputs, context: 'preview' }).steps.length;
+    const solids = solidScriptProgramEvaluate(document, { ...options, context: 'preview' }).steps.length;
     element.textContent = `${lines} · ${solids} ${solids === 1 ? 'solid' : 'solids'}`;
     element.style.color = '';
   } catch (error) {
