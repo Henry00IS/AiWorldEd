@@ -92,6 +92,15 @@ describe('SolidScript as a modifier', () => {
     expect(copy.max.x - copy.min.x).toBeCloseTo(box.max.x - box.min.x, 4);
   });
 
+  it("outputs only the script's Cylinder: the received brush is gone without Input Brushes", () => {
+    const fixture = modifierFixture(both({ command: 'cylinder', values: { h: '0.3', r1: '0.1', r2: '0.1' } }));
+    const shown = fixture.compile().instances.filter((brush) => brush.constructor.name !== 'ModifierStackHiddenBrush');
+    expect(shown).toHaveLength(1);
+    const size = shown[0]!.getModelSpaceBounds().getSize(new THREE.Vector3());
+    expect(size.y).toBeCloseTo(0.3, 4);
+    expect(size.x).toBeLessThan(0.25);
+  });
+
   it('cuts the received brush like any brush and keeps its face textures', () => {
     const fixture = modifierFixture(
       both(
@@ -103,7 +112,9 @@ describe('SolidScript as a modifier', () => {
     );
     for (const face of fixture.source.brush.faces) fixture.source.setFaceTextureId(face.surfaceIndex, 'Brick');
     const result = fixture.compile();
-    const cut = result.instances.filter((brush) => brush !== fixture.source);
+    const cut = result.instances.filter(
+      (brush) => brush !== fixture.source && brush.constructor.name !== 'ModifierStackHiddenBrush',
+    );
     expect(cut).toHaveLength(2);
     const kept = cut.find(
       (brush) => brush.brush.faces.length === 6 && brush.getModelSpaceBounds().getSize(new THREE.Vector3()).x > 0.5,

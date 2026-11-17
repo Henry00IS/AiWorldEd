@@ -167,6 +167,10 @@ export class ModifierStackKindSolidScriptModifier extends ModifierStackKindSolid
       passes.length,
     );
     if (copies < passes.length) context.report.error = `Brush budget reached: ${passes.length} passes wanted.`;
+    // Without a pass the received brushes are gone; the stack keeps authored ones unless told.
+    if (Math.min(copies, passes.length) === 0)
+      for (const unit of units)
+        if (unit.authored) for (const brush of unit.brushes) context.records.hiddenAdd(brush.id);
     const inverse = frame.clone().invert();
     return passes.slice(0, copies).flatMap((pass, index) => {
       const world = frame.clone().multiply(pass.matrix).multiply(inverse);
