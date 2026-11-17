@@ -5,8 +5,8 @@
   "type": "module",
   "packageManager": "bun@1.4.4",
   "scripts": {
-    "test": "vitest",
-    "testrun": "vitest run",
+    "test": "vitest --reporter=minimal --silent",
+    "testrun": "vitest run --reporter=minimal --silent",
     "dev": "vite --host",
     "build": "prettier --write --log-level silent . && vite build",
     "preview": "vite preview",
@@ -22,7 +22,7 @@
     "desktop:run": "electrobun run",
     "collab:shared:sync": "bun scripts/collaboration_shared_sync.ts",
     "collab:shared:check": "bun scripts/collaboration_shared_sync.ts --check",
-    "test:collab": "AIWORLDED_COLLAB_REQUIRED=1 vitest run tests/collaboration"
+    "test:collab": "AIWORLDED_COLLAB_REQUIRED=1 vitest run tests/collaboration --reporter=minimal --silent"
   },
   "devDependencies": {
     "@types/bun": "1.4.4",

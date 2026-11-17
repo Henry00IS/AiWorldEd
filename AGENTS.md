@@ -10,6 +10,8 @@ Every new feature MUST have a properly documented unit test. This test must be
 robust enough to stand the test of time (no hardcoded positions, rotations, they
 must create what they need, test the result, check the result).
 
+When unit tests are executed, ensure only errors and a final summary are output. NEVER allow successful unit tests to be listed (e.g. vitest run --reporter=minimal --silent).
+
 ## After making changes
 
 `bun run testrun` (vitest is used) must pass all checks.
