@@ -35,6 +35,7 @@ import {
   SOLID_SCRIPT_EXAMPLE_TRANSFORM_ARRAY,
   SOLID_SCRIPT_EXAMPLE_MIRROR,
   SOLID_SCRIPT_EXAMPLE_SHEAR,
+  SOLID_SCRIPT_EXAMPLE_PUSH_OUT_FACES,
 } from './solid_script_examples_modifiers.js';
 
 /** Groups of the examples, in the order the Examples window shows them. */
@@ -182,6 +183,16 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
     port: null,
     lines: SOLID_SCRIPT_EXAMPLE_PEDESTAL,
     uses: { generator: true, modifier: true },
+  },
+  {
+    id: 'pushOutFaces',
+    name: 'Push Out Faces',
+    group: 'Basics',
+    summary:
+      'A modifier: For Each Shape over [Input.Shapes] lays a slab off every face of every brush it receives, and Hide Input Brushes takes the brushes away.',
+    port: null,
+    lines: SOLID_SCRIPT_EXAMPLE_PUSH_OUT_FACES,
+    uses: { generator: false, modifier: true },
   },
   solidScriptExamplePort('cylinder', 'Cylinder', SOLID_SCRIPT_EXAMPLE_CYLINDER),
   solidScriptExamplePort('cone', 'Cone', SOLID_SCRIPT_EXAMPLE_CONE),

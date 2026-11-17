@@ -76,6 +76,17 @@ export interface SolidScriptSystemValue {
   detail: string;
 }
 
+/**
+ * Names the brush a modifier receives at a place, as [Input.Shapes] lists it
+ * and Of fields find it.
+ *
+ * @param index Place among the received brushes, from 0.
+ * @returns Name, such as Input 1.
+ */
+export function solidScriptInputShapeName(index: number): string {
+  return `Input ${index + 1}`;
+}
+
 /** Every built-in value, by group. */
 export const SOLID_SCRIPT_SYSTEM_GLOBALS: readonly SolidScriptSystemValue[] = [
   { name: 'Run.Context', type: 'Text', detail: 'where the script runs: generator, preview, handler or assistant' },
@@ -85,6 +96,7 @@ export const SOLID_SCRIPT_SYSTEM_GLOBALS: readonly SolidScriptSystemValue[] = [
   { name: 'Box.Height', type: 'Number', detail: 'height of the generator box in metres (Y, up)' },
   { name: 'Box.Depth', type: 'Number', detail: 'depth of the generator box in metres (Z)' },
   { name: 'Box.Size', type: 'Vector', detail: 'width, height and depth of the generator box' },
+  { name: 'Box.Extents', type: 'Vector', detail: 'half the box size: from its centre to its sides' },
   { name: 'Script.Usage', type: 'Text', detail: 'Generator or Modifier: how this script is used here' },
   { name: 'Input.Brushes', type: 'Number', detail: 'brushes a modifier receives, 0 for a generator' },
   { name: 'Input.Faces', type: 'Number', detail: 'faces of those brushes together' },
@@ -92,6 +104,12 @@ export const SOLID_SCRIPT_SYSTEM_GLOBALS: readonly SolidScriptSystemValue[] = [
   { name: 'Input.Max', type: 'Vector', detail: 'highest corner of what a modifier receives' },
   { name: 'Input.Size', type: 'Vector', detail: 'width, height and depth of what a modifier receives' },
   { name: 'Input.Center', type: 'Vector', detail: 'centre of what a modifier receives' },
+  { name: 'Input.Extents', type: 'Vector', detail: 'half of Input.Size: from the centre to the sides' },
+  {
+    name: 'Input.Shapes',
+    type: 'List',
+    detail: 'the brushes a modifier receives as shapes, Input 1, Input 2…, for Of and For Each Shape',
+  },
   { name: 'Editor.Name', type: 'Text', detail: 'name of the editor' },
   { name: 'Editor.Version', type: 'Text', detail: 'version of the editor, such as 1.2.3' },
   { name: 'Editor.Url', type: 'Text', detail: 'address of the editor page' },
@@ -273,12 +291,15 @@ export function solidScriptSystemValues(
     'Input.Max': () => bounds().max,
     'Input.Size': () => bounds().max.map((value, axis) => value - bounds().min[axis]!),
     'Input.Center': () => bounds().max.map((value, axis) => (value + bounds().min[axis]!) / 2),
+    'Input.Extents': () => bounds().max.map((value, axis) => (value - bounds().min[axis]!) / 2),
+    'Input.Shapes': () => use.solids.map((_, index) => solidScriptInputShapeName(index)),
     ...(box
       ? {
           'Box.Width': () => box[0],
           'Box.Height': () => box[1],
           'Box.Depth': () => box[2],
           'Box.Size': () => [box[0], box[1], box[2]],
+          'Box.Extents': () => [box[0] / 2, box[1] / 2, box[2] / 2],
         }
       : {}),
   };

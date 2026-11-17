@@ -7,6 +7,8 @@ import {
   modifierStackParametersRead,
 } from '@/modifier/stack/modifier_stack_parameters_commit.js';
 import { SolidScriptEditorHistory } from './solid_script_editor_history.js';
+import { modifierStackSolidScriptReceivedRead } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_received.js';
+import type { SolidScriptUseFacts } from '@/solid_script/language/solid_script_system.js';
 import {
   MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY,
   MODIFIER_STACK_SOLID_SCRIPT_KEY,
@@ -89,13 +91,24 @@ export class SolidScriptEditorSession {
 
   /**
    * Returns what a run of the script in the editor starts from: the inspector
-   * values and the size of the generator box.
+   * values and the size of the generator box; for a modifier, the brushes it
+   * received at its last evaluation and the size of their bounds, so the editor
+   * shows what the modifier builds.
    *
-   * @returns Input values and box size in script axes (width, depth, height).
+   * @returns Input values, box size in script axes (width, height, depth) and,
+   *   for a modifier, what it receives.
    */
-  runStart(): { inputs: Record<string, string>; box: [number, number, number] } {
+  runStart(): { inputs: Record<string, string>; box: [number, number, number]; use?: SolidScriptUseFacts } {
+    if (this.use() === 'modifier') {
+      const received = modifierStackSolidScriptReceivedRead(this.node, this.stepId);
+      return {
+        inputs: this.inputs(),
+        box: received?.box ?? [1, 1, 1],
+        use: received?.use ?? { usage: 'Modifier', solids: [], faces: 0 },
+      };
+    }
     const size = modifierStackVolumeBox(this.node).getSize(new Vector3());
-    return { inputs: this.inputs(), box: [size.x, size.z, size.y] };
+    return { inputs: this.inputs(), box: [size.x, size.y, size.z] };
   }
 
   /**

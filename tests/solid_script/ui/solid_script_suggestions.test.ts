@@ -70,6 +70,8 @@ describe('SolidScript member suggestions', () => {
     { command: 'for_each_vertex' },
     { command: 'echo', values: { value: '1' } },
     { command: 'end' },
+    { command: 'for_each_shape' },
+    { command: 'end' },
   ]);
   const scope: SolidScriptSuggestionScope = { names: solidScriptDocumentNames(script), extra: [], words: [] };
   const labels = (text: string) =>
@@ -88,6 +90,19 @@ describe('SolidScript member suggestions', () => {
     expect(labels('[=[Pos.')).toEqual(['Pos.X', 'Pos.Y', 'Pos.Z']);
     expect(labels('[Vertex.')).toEqual(['Vertex.Index', 'Vertex.Position', 'Vertex.Normal']);
     expect(labels('[Box.')).toContain('Box.Width');
+    expect(labels('[Box.E')).toEqual(['Box.Extents']);
+    expect(labels('[Box.Extents.')).toEqual(['Box.Extents.X', 'Box.Extents.Y', 'Box.Extents.Z']);
+    expect(labels('[Input.Sh')).toEqual(['Input.Shapes']);
+    expect(labels('[Shape.')).toEqual([
+      'Shape.Index',
+      'Shape.Name',
+      'Shape.Center',
+      'Shape.Size',
+      'Shape.Extents',
+      'Shape.Min',
+      'Shape.Max',
+    ]);
+    expect(labels('[Shape.Extents.')).toEqual(['Shape.Extents.X', 'Shape.Extents.Y', 'Shape.Extents.Z']);
     // A number has no parts.
     expect(labels('[Vertex.Index.')).toEqual([]);
   });

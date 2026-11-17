@@ -19,6 +19,7 @@ import {
   MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND,
 } from './modifier_stack_solid_script_keys.js';
 import type { ModifierStackSolidScriptPassed } from './modifier_stack_solid_script_layout.js';
+import { modifierStackSolidScriptReceivedWrite } from './modifier_stack_solid_script_received.js';
 
 /**
  * Modifier that runs a SolidScript on the brushes it receives, from the brush,
@@ -123,9 +124,14 @@ export class ModifierStackKindSolidScriptModifier extends ModifierStackKindSolid
       ),
       faces: brushes.reduce((sum, brush) => sum + brush.brush.faces.length, 0),
     };
+    const size = box.getSize(new THREE.Vector3());
+    modifierStackSolidScriptReceivedWrite(context.volume, context.step.id, { use, box: [size.x, size.y, size.z] });
     const result = this.scriptResult(parameters, box, context, use);
     const document = solidScriptDocumentNormalize(parameters[MODIFIER_STACK_SOLID_SCRIPT_KEY]);
-    const takes = document.blocks.some((block) => block.command === 'input_brushes' && !block.off);
+    // Input Brushes passes the received brushes on itself; Hide Input Brushes drops them.
+    const takes = document.blocks.some(
+      (block) => (block.command === 'input_brushes' || block.command === 'hide_input_brushes') && !block.off,
+    );
     return [...(takes ? this.passedUnits(units, result.passed, frame, context) : units), ...result.units];
   }
 

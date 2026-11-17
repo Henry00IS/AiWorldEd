@@ -74,6 +74,15 @@ const SOLID_SCRIPT_NAMES_SYSTEM: Readonly<Record<string, readonly (readonly [str
     ['Face.Center', 'middle of its face'],
     ['Face.Tag', 'name of its face, such as Top'],
   ],
+  for_each_shape: [
+    ['Shape.Index', 'round number, from 0'],
+    ['Shape.Name', 'name of the shape, for Of fields'],
+    ['Shape.Center', 'middle of the shape'],
+    ['Shape.Size', 'width, height and depth of the shape'],
+    ['Shape.Extents', 'half the size: from the middle to the sides'],
+    ['Shape.Min', 'lowest corner of the shape'],
+    ['Shape.Max', 'highest corner of the shape'],
+  ],
   for_each_edge: [
     ['Edge.Index', 'number of the edge'],
     ['Edge.Start', 'where the edge starts'],

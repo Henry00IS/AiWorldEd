@@ -142,10 +142,11 @@ export interface SolidScriptBlockRun {
    */
   built(): SolidScriptShape[];
   /**
-   * The shapes Select Faces and the For Each Vertex or Edge lines work on:
-   * inside a For Each round, what that round built above this line, or
-   * everything built above when the round built nothing yet; only the shapes
-   * with the Name of the line's Of field when it has one.
+   * The shapes Select Faces and the For Each Vertex, Edge or Shape lines work
+   * on: inside a For Each round, what that round built above this line, else
+   * the shape of the For Each Shape round, else everything built above, else
+   * the brushes a modifier receives. With an Of field, only the shapes it
+   * names: a Name, a shape of [Input.Shapes] such as Input 1, or a list.
    */
   pickable(): SolidScriptShape[];
   /** The faces picked by the last Select Faces line. */
@@ -165,6 +166,8 @@ export interface SolidScriptBlockRun {
       variables: Readonly<Record<string, SolidScriptValue>>;
       face: SolidScriptFaceFacts | null;
       matrix?: THREE.Matrix4;
+      /** Shape of a For Each Shape round, which the lines inside work on. */
+      shape?: SolidScriptShape;
     }[],
   ): SolidScriptShape[];
   /**

@@ -4,8 +4,8 @@ import { SOLID_SCRIPT_SYSTEM_GLOBALS } from './solid_script_system.js';
  * Which names may contain a dot. A script's own names use letters, digits and _
  * only; a dot only appears where SolidScript gives it a meaning: Local. and
  * Persistent. in front of a name, .x, .y and .z behind a vector, ().Count
- * behind a list, and the read-only values of face, corner and edge loops such
- * as Face.Center.
+ * behind a list, and the read-only values of face, corner, edge and shape loops
+ * such as Face.Center.
  */
 
 /** Read-only values the loops give, by group. */
@@ -14,6 +14,7 @@ export const SOLID_SCRIPT_SYSTEM_VALUES: Readonly<Record<string, readonly string
   Vertex: ['Index', 'Position', 'Normal'],
   Edge: ['Index', 'Start', 'End', 'Middle', 'Length', 'Direction'],
   Point: ['Index', 'Position', 'Normal'],
+  Shape: ['Index', 'Name', 'Center', 'Size', 'Extents', 'Min', 'Max'],
 });
 
 /**
@@ -78,6 +79,10 @@ const SOLID_SCRIPT_SYSTEM_VECTOR_MEMBERS = new Set([
   'end',
   'middle',
   'direction',
+  'size',
+  'extents',
+  'min',
+  'max',
 ]);
 
 /**

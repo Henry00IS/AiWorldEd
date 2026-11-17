@@ -160,8 +160,8 @@ export function solidScriptParameterOf(what: string): SolidScriptCommandParamete
     ...solidScriptParameterOptional(
       'of',
       'Of',
-      'text',
-      `Only ${what} of the shapes with this Name, in any case; empty uses every shape above.`,
+      'value',
+      `Only ${what} of the shapes with this Name, in any case, a shape of [Input.Shapes] such as Input 1, or a list of them; empty uses every shape above, or else the brushes a modifier receives.`,
     ),
     nameGroups: ['Shapes', 'Parts'],
   };

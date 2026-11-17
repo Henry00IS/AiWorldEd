@@ -410,7 +410,9 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         throw new Error(`How must be New, Add or Remove, not "${how}"`);
       const faces = solidScriptGeometryFaces(run.pickable());
       if (faces.length === 0)
-        throw new Error('Select Faces picks faces of shapes built above it; add a shape such as Cube first');
+        throw new Error(
+          'Select Faces picks faces of shapes built above it, or of the brushes a modifier receives; add a shape such as Cube first',
+        );
       const picked = solidScriptGeometryPick(faces, solidScriptFacePickRead(run));
       const before = how === 'New' ? [] : run.selection();
       if (how === 'Remove')
@@ -520,6 +522,45 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     execute: (run) => solidScriptFaceCornerRounds(run, 'edge'),
   }),
   new SolidScriptCommand({
+    id: 'for_each_shape',
+    label: 'For Each Shape',
+    category: 'Faces',
+    description: 'Run lines once per shape',
+    manual:
+      'Runs the lines inside once for every shape: those named in Of, or else every shape built above this line, or else, in a modifier that built nothing yet, every brush it receives. Of takes a Name, a shape of [Input.Shapes] such as Input 1, or a list of them, such as [Input.Shapes] or a list made with Add Item [Shape.Name] To Picked. Inside, [Shape.Index] counts the rounds from 0, [Shape.Name] names the shape for Of fields, [Shape.Center] is the middle of its bounds, [Shape.Size] their width, height and depth, [Shape.Extents] half of that, and [Shape.Min] and [Shape.Max] their lowest and highest corners. Select Faces and For Each Vertex or Edge without an Of work on the shape of the round. Example: Hide Input Brushes, then For Each Shape with Select Faces All and Extrude Face by 0.1 Lift 0.25 lays a slab off every face of every brush it receives.',
+    stops: [SOLID_SCRIPT_FACE_STOPS_NONE, 'A Name in Of that no shape has.', 'A missing End line.'],
+    nesting: 'open',
+    endLabel: 'For Each',
+    parameters: [solidScriptParameterOf('shapes')],
+    listing: (read) => ['For Each Shape', ...(read.text('of') === '' ? [] : [' Of ', read.text('of')])],
+    execute: (run) => {
+      const shapes = run.pickable();
+      if (shapes.length === 0)
+        throw new Error('For Each Shape has no shapes; build one above it, or use it in a modifier');
+      return run.looped(
+        shapes.map((shape, index) => {
+          const bounds = new THREE.Box3().setFromPoints(
+            solidScriptGeometryVertices([shape]).map((vertex) => vertex.position),
+          );
+          const size = bounds.getSize(new THREE.Vector3());
+          return {
+            variables: {
+              'Shape.Index': index,
+              'Shape.Name': shape.label,
+              'Shape.Center': solidScriptFaceVector(bounds.getCenter(new THREE.Vector3())),
+              'Shape.Size': solidScriptFaceVector(size),
+              'Shape.Extents': solidScriptFaceVector(size.clone().multiplyScalar(0.5)),
+              'Shape.Min': solidScriptFaceVector(bounds.min),
+              'Shape.Max': solidScriptFaceVector(bounds.max),
+            },
+            face: null,
+            shape,
+          };
+        }),
+      );
+    },
+  }),
+  new SolidScriptCommand({
     id: 'place_on_face',
     label: 'Place On Face',
     category: 'Faces',
@@ -549,20 +590,44 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Pull picked faces out',
     manual:
-      'Pulls faces out along the way they point: the face of the For Each Selected Face round, or else every face Select Faces picked. On a brush it adds a new brush on the face, so brushes stay brushes. On a mesh it moves the face and adds side faces, and a negative Distance pushes it in. Example: Select Faces Facing Up, then Extrude Face by 0.5 makes a box half a metre taller.',
-    stops: ['No faces picked.', 'A negative Distance on a brush. Use Difference to cut into brushes.'],
-    parameters: [solidScriptParameter('distance', 'Distance', 'number', '0.2', 'Metres to pull out.')],
-    listing: (read) => ['Extrude Face', 'by ', read.value('distance')],
+      'Pulls faces out along the way they point: the face of the For Each Selected Face round, or else every face Select Faces picked. On a brush it adds a new brush on the face, so brushes stay brushes; Lift starts that brush further out, so it floats off the face. On a mesh it moves the face and adds side faces, and a negative Distance pushes it in. Example: Select Faces Facing Up, then Extrude Face by 0.5 makes a box half a metre taller; Extrude Face by 0.1 Lift 0.25 lays a slab a quarter metre above it.',
+    stops: [
+      'No faces picked.',
+      'A negative Distance on a brush. Use Difference to cut into brushes.',
+      'A Lift on a mesh.',
+    ],
+    parameters: [
+      solidScriptParameter('distance', 'Distance', 'number', '0.2', 'Metres to pull out.'),
+      solidScriptParameterOptional(
+        'lift',
+        'Lift',
+        'number',
+        'Metres the new brush starts away from the face, on brushes only; empty is 0.',
+      ),
+    ],
+    listing: (read) => [
+      'Extrude Face',
+      'by ',
+      read.value('distance'),
+      ...(read.text('lift').trim() === '' ? [] : [' lift ', read.value('lift')]),
+    ],
     execute: (run) => {
       const distance = solidScriptFaceDistance(run, 'Distance');
+      const lift = run.text('lift').trim() === '' ? 0 : solidScriptValueNumber(run.value('lift'));
+      if (lift === undefined) throw new Error('Lift needs a number of metres, such as 0.25');
       const added: SolidScriptShape[] = [];
       for (const [leaf, faces] of solidScriptFaceGroups(run, solidScriptFaceTargets(run, 'Extrude Face'))) {
         if (leaf.kind === 'solid') {
           if (distance < 0) throw new Error('Extrude Face cannot push into a brush; use Difference to cut into it');
           for (const face of faces)
-            added.push({ kind: 'solid', label: 'Extrude Face', points: solidScriptGeometryFacePrism(face, distance) });
+            added.push({
+              kind: 'solid',
+              label: 'Extrude Face',
+              points: solidScriptGeometryFacePrism(face, distance, lift),
+            });
           continue;
         }
+        if (lift !== 0) throw new Error('Lift only works on brushes; on a mesh, Extrude Face moves the face itself');
         const numbers = solidScriptFaceNumbers(leaf, faces);
         run.leafReplace(
           leaf,

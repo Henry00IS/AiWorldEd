@@ -354,6 +354,18 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     },
   }),
   new SolidScriptCommand({
+    id: 'hide_input_brushes',
+    label: 'Hide Input Brushes',
+    category: 'Inputs',
+    description: 'Stop the brushes a modifier receives from passing on',
+    manual:
+      'The brushes a modifier receives pass on unchanged unless the script has an Input Brushes line. A Hide Input Brushes line anywhere in the script stops that too, so only what the script builds and what Input Brushes passes on comes out. Lines can still read the received brushes: Select Faces, For Each Shape and [Input.Shapes] see them. Like Input Brushes it counts wherever it stands, even inside an If that does not hold; turn the line off to keep the brushes. As a generator it does nothing. Example: Hide Input Brushes, then For Each Shape with Select Faces All and Extrude Face by 0.1 Lift 0.25 swaps every brush for slabs off its faces.',
+    stops: [],
+    parameters: [],
+    listing: () => ['Hide Input Brushes'],
+    execute: () => [],
+  }),
+  new SolidScriptCommand({
     id: 'set_input',
     label: 'Set Input',
     category: 'Inputs',

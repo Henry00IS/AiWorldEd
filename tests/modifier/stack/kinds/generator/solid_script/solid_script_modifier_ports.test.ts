@@ -42,7 +42,8 @@ function compiled(kind: string, parameters: Record<string, unknown>) {
   modifierStackOwnerDecode(mesh, { modifiers: [entry] });
   world.updateMatrixWorld(true);
   const result = modifierStackCompile(model.getBrushes(), model.root);
-  return { brushes: result.instances, error: modifierStackStatusRead(mesh)?.steps?.[0]?.error ?? '' };
+  const step = modifierStackStatusRead(mesh)?.steps?.[0];
+  return { brushes: result.instances, error: step?.error ?? '', outputs: step?.outputs, source: mesh };
 }
 
 /**
@@ -221,5 +222,44 @@ describe('SolidScript ports of the modifiers', () => {
       'Mirror',
     ]);
     for (const port of ports) expect(port.uses).toEqual({ generator: false, modifier: true });
+  });
+});
+
+describe('SolidScript modifiers that read the brushes they receive', () => {
+  it('Push Out Faces swaps the brush for six slabs pushed out from its faces', () => {
+    const example = SOLID_SCRIPT_EXAMPLES.find((entry) => entry.id === 'pushOutFaces')!;
+    const script = solidScriptDocumentUsesWith(solidScriptDocumentCreate(example.lines, example.name), example.uses!);
+    const { brushes, error, outputs, source } = compiled(MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND, {
+      script,
+      inputs: {},
+    });
+    expect(error).toBe('');
+    // Six slabs come out; the received brush does not.
+    expect(outputs).toBe(6);
+    const slabs = brushes.filter((brush) => brush.mesh !== source);
+    expect(slabs).toHaveLength(6);
+    // The received brush spans 0..2, 0..1 and -2.25..-1.75; every slab is 0.1 thick and 0.25 off it.
+    const received = new THREE.Box3(new THREE.Vector3(0, 0, -2.25), new THREE.Vector3(2, 1, -1.75));
+    for (const slab of slabs) {
+      const bounds = new THREE.Box3().setFromPoints(
+        slab
+          .getModelSpaceBrush()
+          .vertices.map((vertex) => vertex.clone().applyMatrix4(slab.mesh?.matrixWorld ?? new THREE.Matrix4())),
+      );
+      expect(bounds.intersectsBox(received.clone().expandByScalar(0.2))).toBe(false);
+      expect(bounds.intersectsBox(received.clone().expandByScalar(0.3))).toBe(true);
+      const size = bounds.getSize(new THREE.Vector3());
+      expect(Math.min(size.x, size.y, size.z)).toBeCloseTo(0.1);
+    }
+  });
+
+  it('Hide Input Brushes keeps the received brushes from passing on', () => {
+    const uses = { generator: false, modifier: true };
+    const outputs = (lines: { command: string }[]) =>
+      compiled(MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND, {
+        script: solidScriptDocumentUsesWith(solidScriptDocumentCreate(lines, 'Hide'), uses),
+      }).outputs;
+    expect(outputs([{ command: 'cube' }])).toBe(2);
+    expect(outputs([{ command: 'hide_input_brushes' }, { command: 'cube' }])).toBe(1);
   });
 });

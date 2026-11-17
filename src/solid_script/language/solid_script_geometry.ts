@@ -401,10 +401,12 @@ export function solidScriptGeometryFaceFind(leaf: SolidScriptGeometryLeaf, face:
  *
  * @param face Face.
  * @param distance Metres, above 0.
+ * @param lift Metres the block starts away from the face, along its direction.
  * @returns Points.
  */
-export function solidScriptGeometryFacePrism(face: SolidScriptFaceFacts, distance: number): THREE.Vector3[] {
-  return [...face.corners, ...face.corners.map((corner) => corner.clone().addScaledVector(face.normal, distance))];
+export function solidScriptGeometryFacePrism(face: SolidScriptFaceFacts, distance: number, lift = 0): THREE.Vector3[] {
+  const along = (metres: number) => face.corners.map((corner) => corner.clone().addScaledVector(face.normal, metres));
+  return [...along(lift), ...along(lift + distance)];
 }
 
 /**
