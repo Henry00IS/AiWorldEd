@@ -44,7 +44,7 @@ const SOLID_SCRIPT_EXPLORER_TYPES_STATIC: Partial<Record<SolidScriptNameCategory
   Counters: 'Number',
   Functions: 'Function',
   Parts: 'Part',
-  Shapes: 'Shape Name',
+  Brushes: 'Brush Name',
   Handlers: 'Handler',
 };
 

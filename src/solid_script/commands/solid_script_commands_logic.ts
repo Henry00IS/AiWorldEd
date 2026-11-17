@@ -257,7 +257,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Parts',
     description: 'Leave the function or part early',
     manual:
-      'Stops a Function or a part early. The lines after it are skipped. The script goes on after the Call or Use Part that started it. In a Function, Return can give back a value. A Call line stores that value in its Result In variable. Shapes built before Return stay. Put Return inside an If to stop only sometimes. Example: Return [Local.V] gives back the value V.',
+      'Stops a Function or a part early. The lines after it are skipped. The script goes on after the Call or Use Part that started it. In a Function, Return can give back a value. A Call line stores that value in its Result In variable. Brushes built before Return stay. Put Return inside an If to stop only sometimes. Example: Return [Local.V] gives back the value V.',
     stops: ['Being outside a Function or a Define Part.', 'A Value inside a part. Parts hand back results with Set.'],
     parameters: [
       solidScriptParameterOptional(
@@ -299,7 +299,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Logic',
     description: 'End the script here, keeping what it built',
     manual:
-      'Ends the whole script at this line, also from inside a Repeat, a part or a Function. Shapes built before it stay; the lines after it do not run. It is not a mistake, so nothing is highlighted. Example: If [Steps] == 0 around Echo Nothing to build and Stop Script.',
+      'Ends the whole script at this line, also from inside a Repeat, a part or a Function. Brushes built before it stay; the lines after it do not run. It is not a mistake, so nothing is highlighted. Example: If [Steps] == 0 around Echo Nothing to build and Stop Script.',
     stops: [],
     parameters: [],
     listing: () => ['Stop Script'],

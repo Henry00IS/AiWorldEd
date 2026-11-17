@@ -98,7 +98,7 @@ describe('SolidScript stops at the first mistake', () => {
 
   it('refuses scripts that build nothing', () => {
     expect(failure({ command: 'variable', values: { name: 'x', value: '1' } })).toBe(
-      'The script builds no shapes; add a shape such as Cube.',
+      'The script builds no brushes or meshes; add one such as Cube.',
     );
   });
 

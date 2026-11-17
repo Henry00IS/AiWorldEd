@@ -77,13 +77,13 @@ export interface SolidScriptSystemValue {
 }
 
 /**
- * Names the brush a modifier receives at a place, as [Input.Shapes] lists it
+ * Names the brush a modifier receives at a place, as [Input.Brushes] lists it
  * and Of fields find it.
  *
  * @param index Place among the received brushes, from 0.
  * @returns Name, such as Input 1.
  */
-export function solidScriptInputShapeName(index: number): string {
+export function solidScriptInputBrushName(index: number): string {
   return `Input ${index + 1}`;
 }
 
@@ -98,18 +98,17 @@ export const SOLID_SCRIPT_SYSTEM_GLOBALS: readonly SolidScriptSystemValue[] = [
   { name: 'Box.Size', type: 'Vector', detail: 'width, height and depth of the generator box' },
   { name: 'Box.Extents', type: 'Vector', detail: 'half the box size: from its centre to its sides' },
   { name: 'Script.Usage', type: 'Text', detail: 'Generator or Modifier: how this script is used here' },
-  { name: 'Input.Brushes', type: 'Number', detail: 'brushes a modifier receives, 0 for a generator' },
+  {
+    name: 'Input.Brushes',
+    type: 'List',
+    detail: 'the brushes a modifier receives, Input 1, Input 2…, for Of and For Each Brush; empty for a generator',
+  },
   { name: 'Input.Faces', type: 'Number', detail: 'faces of those brushes together' },
   { name: 'Input.Min', type: 'Vector', detail: 'lowest corner of what a modifier receives' },
   { name: 'Input.Max', type: 'Vector', detail: 'highest corner of what a modifier receives' },
   { name: 'Input.Size', type: 'Vector', detail: 'width, height and depth of what a modifier receives' },
   { name: 'Input.Center', type: 'Vector', detail: 'centre of what a modifier receives' },
   { name: 'Input.Extents', type: 'Vector', detail: 'half of Input.Size: from the centre to the sides' },
-  {
-    name: 'Input.Shapes',
-    type: 'List',
-    detail: 'the brushes a modifier receives as shapes, Input 1, Input 2…, for Of and For Each Shape',
-  },
   { name: 'Editor.Name', type: 'Text', detail: 'name of the editor' },
   { name: 'Editor.Version', type: 'Text', detail: 'version of the editor, such as 1.2.3' },
   { name: 'Editor.Url', type: 'Text', detail: 'address of the editor page' },
@@ -204,6 +203,21 @@ export interface SolidScriptUseFacts {
   solids: readonly (readonly [number, number, number])[][];
   /** Faces of those brushes, together. */
   faces: number;
+  /**
+   * Texture of every face of those brushes, one list per brush, so built copies
+   * keep them.
+   */
+  textures?: readonly (readonly SolidScriptUseFaceTexture[])[];
+}
+
+/** Texture of one face a modifier receives, centred like the corners. */
+export interface SolidScriptUseFaceTexture {
+  /** Middle of the face. */
+  point: readonly [number, number, number];
+  /** Unit direction the face looks. */
+  normal: readonly [number, number, number];
+  /** Texture identity. */
+  texture: string;
 }
 
 /** Use of a run that sets none: a generator, which receives nothing. */
@@ -285,14 +299,13 @@ export function solidScriptSystemValues(
     'Math.Sqrt2': () => Math.SQRT2,
     'Math.Epsilon': () => 0.000001,
     'Script.Usage': () => use.usage,
-    'Input.Brushes': () => use.solids.length,
+    'Input.Brushes': () => use.solids.map((_, index) => solidScriptInputBrushName(index)),
     'Input.Faces': () => use.faces,
     'Input.Min': () => bounds().min,
     'Input.Max': () => bounds().max,
     'Input.Size': () => bounds().max.map((value, axis) => value - bounds().min[axis]!),
     'Input.Center': () => bounds().max.map((value, axis) => (value + bounds().min[axis]!) / 2),
     'Input.Extents': () => bounds().max.map((value, axis) => (value - bounds().min[axis]!) / 2),
-    'Input.Shapes': () => use.solids.map((_, index) => solidScriptInputShapeName(index)),
     ...(box
       ? {
           'Box.Width': () => box[0],

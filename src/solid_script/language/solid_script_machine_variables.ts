@@ -354,6 +354,14 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
       if (component && where.scope.variableHas(component.name))
         return solidScriptVectorComponentRead(component, where.scope.variableGet(component.name));
     }
+    if (item && !where.scope.variableHas(base)) {
+      // A built-in list, such as Input.Brushes().Count.
+      const builtIn = this.systemRead(base);
+      if (builtIn !== undefined) {
+        const index = item.index === '' ? null : this.indexValue(item.index, scope);
+        return solidScriptListItemRead(base, builtIn, index, item.method, this.nameShown);
+      }
+    }
     if (!where.scope.variableHas(base)) {
       if (where.persistent && !item) return undefined;
       const written = this.nameShown(where.local ? `${SOLID_SCRIPT_LOCAL_PREFIX}${base}` : base);

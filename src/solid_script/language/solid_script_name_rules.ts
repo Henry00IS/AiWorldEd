@@ -14,7 +14,7 @@ export const SOLID_SCRIPT_SYSTEM_VALUES: Readonly<Record<string, readonly string
   Vertex: ['Index', 'Position', 'Normal'],
   Edge: ['Index', 'Start', 'End', 'Middle', 'Length', 'Direction'],
   Point: ['Index', 'Position', 'Normal'],
-  Shape: ['Index', 'Name', 'Center', 'Size', 'Extents', 'Min', 'Max'],
+  Brush: ['Index', 'Name', 'Center', 'Size', 'Extents', 'Min', 'Max'],
 });
 
 /**

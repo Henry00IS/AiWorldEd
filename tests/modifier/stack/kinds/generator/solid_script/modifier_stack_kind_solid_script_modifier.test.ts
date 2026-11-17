@@ -70,12 +70,16 @@ describe('SolidScript as a modifier', () => {
     expect(slab.min.y).toBeCloseTo(box.min.y - 0.2, 4);
   });
 
-  it('gives Script.Usage, Input.Brushes and Input Shapes copies of what it receives', () => {
+  it('gives Script.Usage and Input.Brushes, and Input Brushes copies what it receives', () => {
     const fixture = modifierFixture(
       both(
-        { command: 'if', values: { condition: '[Script.Usage] == "Modifier" and [Input.Brushes] == 1' } },
+        { command: 'input_brushes' },
+        {
+          command: 'if',
+          values: { condition: '[Script.Usage] == "Modifier" and [Input.Brushes().Count] == 1' },
+        },
         { command: 'translate', values: { v: '0, [Input.Size.y], 0' } },
-        { command: 'input_shapes' },
+        { command: 'input_brushes' },
         { command: 'end' },
         { command: 'end' },
       ),
@@ -86,6 +90,25 @@ describe('SolidScript as a modifier', () => {
     const copy = result.instances[1]!.getModelSpaceBounds();
     expect(copy.min.y).toBeCloseTo(box.max.y, 4);
     expect(copy.max.x - copy.min.x).toBeCloseTo(box.max.x - box.min.x, 4);
+  });
+
+  it('cuts the received brush like any brush and keeps its face textures', () => {
+    const fixture = modifierFixture(
+      both(
+        { command: 'difference' },
+        { command: 'input_brushes' },
+        { command: 'cube', values: { size: '0.2, 2, 0.2' } },
+        { command: 'end' },
+      ),
+    );
+    for (const face of fixture.source.brush.faces) fixture.source.setFaceTextureId(face.surfaceIndex, 'Brick');
+    const result = fixture.compile();
+    const cut = result.instances.filter((brush) => brush !== fixture.source);
+    expect(cut).toHaveLength(2);
+    const kept = cut.find(
+      (brush) => brush.brush.faces.length === 6 && brush.getModelSpaceBounds().getSize(new THREE.Vector3()).x > 0.5,
+    )!;
+    expect(kept.brush.faces.every((face) => kept.getSurfaceTextureId(face.surfaceIndex) === 'Brick')).toBe(true);
   });
 
   it('refuses a script made only for generators with a friendly message and passes the brush on', () => {

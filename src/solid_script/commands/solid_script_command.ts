@@ -69,7 +69,7 @@ export interface SolidScriptCommandParameter {
   /** True for a library texture: the window offers the texture picker or typing. */
   texture?: boolean;
   /**
-   * Name groups of the script the field offers, such as Shapes and Parts for
+   * Name groups of the script the field offers, such as Brushes and Parts for
    * Of, Inputs for Show Inputs When or Parts for Use Part.
    */
   nameGroups?: readonly string[];

@@ -187,7 +187,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
       'A name another function, or a built-in one, already uses.',
       'A call with more or fewer values than the function has Inputs.',
       `Functions and parts calling each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} levels deep.`,
-      'Building shapes from inside a formula. Use a Call line for that.',
+      'Building brushes from inside a formula. Use a Call line for that.',
     ],
     nesting: 'open',
     parameters: [
@@ -241,8 +241,8 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Inputs',
     description: 'Check an input when it changes',
     manual:
-      'Runs these lines when someone changes the input in the inspector, before the shape is rebuilt. The script skips them where they stand. They cannot build shapes. Use them to check the new value. Set Input can fix it, and Show Message can say why. Read any input as [Name]. Example: When Input Changes Steps, then If [Steps] > 64, Set Input Steps to 64 and Show Message At most 64 steps.',
-    stops: ['A name that is not an Input of the script.', 'Building a shape.'],
+      'Runs these lines when someone changes the input in the inspector, before the output is rebuilt. The script skips them where they stand. They cannot build brushes. Use them to check the new value. Set Input can fix it, and Show Message can say why. Read any input as [Name]. Example: When Input Changes Steps, then If [Steps] > 64, Set Input Steps to 64 and Show Message At most 64 steps.',
+    stops: ['A name that is not an Input of the script.', 'Building a brush.'],
     nesting: 'open',
     parameters: [solidScriptParameter('name', 'Input', 'name', 'Width', 'Name of the Input it watches.')],
     endLabel: 'When',
@@ -255,8 +255,8 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Inputs',
     description: 'Run lines when a button is pressed',
     manual:
-      'Runs these lines when someone presses a button in the inspector. The button comes from an Input with Type button. The script skips these lines where they stand. They cannot build shapes. Use Set Input to change inputs, and Show Message to explain. The shape is then rebuilt. Example: Input Reset with Type button, then When Button Pressed Reset holds Set Input Width to 2.',
-    stops: ['A name that is not a button Input of the script.', 'Building a shape.'],
+      'Runs these lines when someone presses a button in the inspector. The button comes from an Input with Type button. The script skips these lines where they stand. They cannot build brushes. Use Set Input to change inputs, and Show Message to explain. The brush is then rebuilt. Example: Input Reset with Type button, then When Button Pressed Reset holds Set Input Width to 2.',
+    stops: ['A name that is not a button Input of the script.', 'Building a brush.'],
     nesting: 'open',
     parameters: [solidScriptParameter('name', 'Button', 'name', 'Reset', 'Name of the button Input.')],
     endLabel: 'When',
@@ -269,8 +269,8 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Inputs',
     description: 'Change inputs just before a bake',
     manual:
-      'Runs these lines when the generator is baked into plain brushes, just before they are made. The script skips them where they stand. They cannot build shapes. Set Input changes inputs for the bake only, so a script can show a light preview while you edit and bake a detailed version. Undoing the bake brings back the generator with its old inputs. Example: When Baked holds Set Input Sides to 32, so the editor shows 8 sides and the baked brushes have 32.',
-    stops: ['Building a shape.'],
+      'Runs these lines when the generator is baked into plain brushes, just before they are made. The script skips them where they stand. They cannot build brushes. Set Input changes inputs for the bake only, so a script can show a light preview while you edit and bake a detailed version. Undoing the bake brings back the generator with its old inputs. Example: When Baked holds Set Input Sides to 32, so the editor shows 8 sides and the baked brushes have 32.',
+    stops: ['Building a brush.'],
     nesting: 'open',
     parameters: [],
     endLabel: 'When',
@@ -301,25 +301,12 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     },
   }),
   new SolidScriptCommand({
-    id: 'input_shapes',
-    label: 'Input Shapes',
-    category: 'Inputs',
-    description: 'Build the brushes a modifier receives',
-    manual:
-      'Builds a copy of every brush the script receives as a modifier, in script metres around the centre of what it receives, so lines can move, mirror, cut or combine them like any shape. The received brushes still pass on as they are; the copies are added. As a generator it builds nothing. Example: Translate by 0, 0, [Input.Size.z], then Input Shapes stacks a copy on top.',
-    stops: [],
-    parameters: [],
-    listing: () => ['Input Shapes'],
-    execute: (run) =>
-      run.use().solids.flatMap((corners) => run.solid(corners.map(([x, y, z]) => new THREE.Vector3(x, y, z)))),
-  }),
-  new SolidScriptCommand({
     id: 'input_brushes',
     label: 'Input Brushes',
     category: 'Inputs',
-    description: 'Pass on the brushes a modifier receives, moved',
+    description: 'Output the brushes a modifier receives',
     manual:
-      'Passes on every brush the script receives as a modifier, moved, turned, stretched or slanted by the Translate, Rotate, Scale, Mirror or Matrix blocks around this line. Their faces keep their textures and materials. Once a script has an Input Brushes line, the received brushes no longer pass on by themselves: the first Input Brushes that runs changes them, and each later one adds a copy. So Repeat around Translate around Input Brushes repeats them in a row, and Matrix around it slants them. Textures is Move With Shape, so textures stay on their faces, or World Aligned, so they stay where they are in the world. As a generator it passes on nothing. Example: Repeat [I] from 0 to 2 around Translate by [=[I] * 2], 0, 0 around Input Brushes gives the brush and two copies two metres apart.',
+      'Outputs every brush the script receives as a modifier. Like a generator, a modifier outputs nothing by itself: without an Input Brushes line the received brushes are gone and only what the script builds comes out. The brushes act like any brush built here: the Translate, Rotate, Scale, Mirror or Matrix blocks around this line move them, Repeat makes copies, Union, Difference and Intersection cut them, and Select Faces finds their faces. Their faces keep their textures and materials. Textures is Move With Shape, so textures stay on their faces, or World Aligned, so they stay where they are in the world; a cut brush keeps its textures but they are laid out again. As a generator it outputs nothing. Example: Repeat [I] from 0 to 2 around Translate by [=[I] * 2], 0, 0 around Input Brushes gives the brush and two copies two metres apart.',
     stops: ['Textures other than Move With Shape or World Aligned.'],
     parameters: [
       solidScriptParameterWords(
@@ -340,30 +327,26 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
       if (textures !== 'move with shape' && textures !== 'world aligned')
         throw new Error(`Textures must be Move With Shape or World Aligned, not "${textures}"`);
       const matrix = run.matrix();
-      return run
-        .use()
-        .solids.flatMap((corners, index) =>
-          run
-            .solid(corners.map(([x, y, z]) => new THREE.Vector3(x, y, z)))
-            .map((shape) =>
-              shape.kind === 'solid'
-                ? { ...shape, received: { index, matrix, textures: textures === 'world aligned' ? 'world' : 'copied' } }
-                : shape,
-            ),
+      const turn = new THREE.Matrix3().getNormalMatrix(matrix);
+      const use = run.use();
+      return use.solids.flatMap((corners, index) => {
+        // Cut brushes are built again, so their faces take the received textures.
+        const faceTextures = use.textures?.[index]?.map((face) => ({
+          point: new THREE.Vector3(...face.point).applyMatrix4(matrix),
+          normal: new THREE.Vector3(...face.normal).applyMatrix3(turn).normalize(),
+          texture: face.texture,
+        }));
+        return run.solid(corners.map(([x, y, z]) => new THREE.Vector3(x, y, z))).map((shape) =>
+          shape.kind === 'solid'
+            ? {
+                ...shape,
+                ...(faceTextures ? { faceTextures } : {}),
+                received: { index, matrix, textures: textures === 'world aligned' ? 'world' : 'copied' },
+              }
+            : shape,
         );
+      });
     },
-  }),
-  new SolidScriptCommand({
-    id: 'hide_input_brushes',
-    label: 'Hide Input Brushes',
-    category: 'Inputs',
-    description: 'Stop the brushes a modifier receives from passing on',
-    manual:
-      'The brushes a modifier receives pass on unchanged unless the script has an Input Brushes line. A Hide Input Brushes line anywhere in the script stops that too, so only what the script builds and what Input Brushes passes on comes out. Lines can still read the received brushes: Select Faces, For Each Shape and [Input.Shapes] see them. Like Input Brushes it counts wherever it stands, even inside an If that does not hold; turn the line off to keep the brushes. As a generator it does nothing. Example: Hide Input Brushes, then For Each Shape with Select Faces All and Extrude Face by 0.1 Lift 0.25 swaps every brush for slabs off its faces.',
-    stops: [],
-    parameters: [],
-    listing: () => ['Hide Input Brushes'],
-    execute: () => [],
   }),
   new SolidScriptCommand({
     id: 'set_input',
@@ -371,7 +354,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Inputs',
     description: 'Change an input in the inspector',
     manual:
-      'Changes an input in the inspector. It only works inside When Input Changes or When Button Pressed. Lines after it read the new value, and the shape is rebuilt with it. The value must fit the input, such as a whole number for a count. Example: Set Input Width to [=Max([Width], 0.5)] keeps the width at 0.5 metres or more.',
+      'Changes an input in the inspector. It only works inside When Input Changes or When Button Pressed. Lines after it read the new value, and the output is rebuilt with it. The value must fit the input, such as a whole number for a count. Example: Set Input Width to [=Max([Width], 0.5)] keeps the width at 0.5 metres or more.',
     stops: ['Being placed outside When Input Changes or When Button Pressed.', 'A name that is not an Input.'],
     parameters: [
       solidScriptParameter('name', 'Input', 'name', 'Width', 'Name of the Input to change.'),

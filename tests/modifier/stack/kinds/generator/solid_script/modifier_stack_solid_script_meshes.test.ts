@@ -66,7 +66,7 @@ function worldBounds(mesh: THREE.Mesh): THREE.Box3 {
 
 describe('SolidScript generator meshes', () => {
   it('shows a mesh the script builds at the generator, as an unsaved helper, next to its brushes', () => {
-    const fixture = meshFixture({ command: 'mesh_shapes' }, { command: 'cube', values: { size: '2, 2, 2' } }, END, {
+    const fixture = meshFixture({ command: 'mesh_brushes' }, { command: 'cube', values: { size: '2, 2, 2' } }, END, {
       command: 'sphere',
     });
     const compiled = fixture.compile();
@@ -74,7 +74,7 @@ describe('SolidScript generator meshes', () => {
     const [shown, ...others] = modifierStackMeshesShown(fixture.node);
     expect(others).toHaveLength(0);
     if (!shown) throw new Error('Expected a shown mesh');
-    expect(shown.name).toBe('Mesh From Shapes');
+    expect(shown.name).toBe('Mesh From Brushes');
     expect(isEditorHelperObject(shown)).toBe(true);
     expect(readPersistentMeshDocument(shown)?.getTopology().getFaceCount()).toBe(6);
     const box = worldBounds(shown);
@@ -90,7 +90,7 @@ describe('SolidScript generator meshes', () => {
         .map((value) => Math.round(value * 1000) / 1000),
     ).toEqual([2, 2, 2]);
     const saved = JSON.stringify(new SceneSerializer().serialize(fixture.world));
-    expect(saved).not.toContain('Mesh From Shapes');
+    expect(saved).not.toContain('Mesh From Brushes');
   });
 
   it('replaces the shown mesh on every rebuild and removes it when the generator is off', () => {

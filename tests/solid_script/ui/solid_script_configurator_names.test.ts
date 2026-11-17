@@ -102,14 +102,14 @@ describe('SolidScript configurator fields', () => {
     const offered = (inLoop: boolean): string[] => {
       document.body.replaceChildren();
       const names = inLoop ? [{ name: 'Face.Index', category: 'System' as const, line: 0, detail: '' }] : [];
-      const field = solidScriptConfiguratorFieldBuild(where, 'Shapes', () => {}, { names, extra: [] });
+      const field = solidScriptConfiguratorFieldBuild(where, 'Brushes', () => {}, { names, extra: [] });
       document.body.append(field.element);
       field.element.querySelector('input')!.dispatchEvent(new MouseEvent('click'));
       return [...document.querySelectorAll('[role="option"]')].map((row) => row.firstElementChild?.textContent ?? '');
     };
-    expect(offered(true)).toEqual(['Shapes', 'Selected Faces', 'Current Face']);
-    expect(offered(false)).toEqual(['Shapes', 'Selected Faces']);
-    expect(picked()).toBe('Shapes');
+    expect(offered(true)).toEqual(['Brushes', 'Selected Faces', 'Current Face']);
+    expect(offered(false)).toEqual(['Brushes', 'Selected Faces']);
+    expect(picked()).toBe('Brushes');
   });
 
   it('draws a formula highlighted with unknown names underlined', () => {

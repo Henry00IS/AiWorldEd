@@ -23,17 +23,17 @@ import { modifierStackSolidScriptReceivedWrite } from './modifier_stack_solid_sc
 
 /**
  * Modifier that runs a SolidScript on the brushes it receives, from the brush,
- * mesh or group it is added to. They pass on as they are; what the script
- * builds is added, placed around their centre. The script reads them as
- * Input.Brushes, Input.Size and the other Input values, copies them with Input
- * Shapes, and Script.Usage is Modifier.
+ * mesh or group it is added to. Like a generator, only what the script outputs
+ * comes out, placed around their centre: Input Brushes passes the received
+ * brushes on. The script reads them as Input.Brushes, Input.Size and the other
+ * Input values, and Script.Usage is Modifier.
  */
 export class ModifierStackKindSolidScriptModifier extends ModifierStackKindSolidScript {
   override readonly id: string = MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND;
   override readonly label: string = 'SolidScript Modifier';
   override readonly category: ModifierStackCategory = 'shape';
   override readonly description: string =
-    'Runs a SolidScript on what it is added to: the brushes pass on, and what the script builds around them is added. The script must allow Modifier under Can Be Used As.';
+    'Runs a SolidScript on what it is added to: only what the script outputs comes out, and Input Brushes passes the received brushes on. The script must allow Modifier under Can Be Used As.';
   protected override readonly specificFields = modifierStackSolidScriptFields('modifier');
 
   /**
@@ -88,12 +88,12 @@ export class ModifierStackKindSolidScriptModifier extends ModifierStackKindSolid
   }
 
   /**
-   * Passes the received brushes on and adds what the script builds around them,
-   * or says why the script may not be used here.
+   * Outputs what the script builds around the received brushes, which pass on
+   * only through Input Brushes, or says why the script may not be used here.
    *
    * @param units Previous output.
    * @param context Evaluation context.
-   * @returns Received units, then the script's.
+   * @returns Units Input Brushes passed on, then the script's.
    */
   override apply(units: readonly ModifierStackUnit[], context: ModifierStackContext): ModifierStackUnit[] {
     const parameters = context.step.parameters;
@@ -117,22 +117,31 @@ export class ModifierStackKindSolidScriptModifier extends ModifierStackKindSolid
       return [...units];
     }
     const centre = box.getCenter(new THREE.Vector3());
+    const centred = (point: THREE.Vector3) => [point.x - centre.x, point.y - centre.y, point.z - centre.z] as const;
     const use: SolidScriptUseFacts = {
       usage: 'Modifier',
-      solids: corners.map((list) =>
-        list.map((point) => [point.x - centre.x, point.y - centre.y, point.z - centre.z] as const),
-      ),
+      solids: corners.map((list) => list.map(centred)),
       faces: brushes.reduce((sum, brush) => sum + brush.brush.faces.length, 0),
+      textures: brushes.map((brush) => {
+        const placed = brush.getModelSpaceBrush();
+        placed.transformVertices(toFrame);
+        return placed.faces.map((face, index) => {
+          const points = placed.getFaceVertices(face);
+          const middle = points.reduce((sum, point) => sum.add(point), new THREE.Vector3()).divideScalar(points.length);
+          const normal = placed.planes[index]!.normal;
+          return {
+            point: centred(middle),
+            normal: [normal.x, normal.y, normal.z] as const,
+            texture: brush.getSurfaceTextureId(face.surfaceIndex),
+          };
+        });
+      }),
     };
     const size = box.getSize(new THREE.Vector3());
     modifierStackSolidScriptReceivedWrite(context.volume, context.step.id, { use, box: [size.x, size.y, size.z] });
     const result = this.scriptResult(parameters, box, context, use);
-    const document = solidScriptDocumentNormalize(parameters[MODIFIER_STACK_SOLID_SCRIPT_KEY]);
-    // Input Brushes passes the received brushes on itself; Hide Input Brushes drops them.
-    const takes = document.blocks.some(
-      (block) => (block.command === 'input_brushes' || block.command === 'hide_input_brushes') && !block.off,
-    );
-    return [...(takes ? this.passedUnits(units, result.passed, frame, context) : units), ...result.units];
+    // Like a generator, only what the script outputs comes out: Input Brushes passes the received brushes on.
+    return [...this.passedUnits(units, result.passed, frame, context), ...result.units];
   }
 
   /**

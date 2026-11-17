@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
-import type { SolidScriptUseFacts } from '@/solid_script/language/solid_script_system.js';
+import type { SolidScriptUseFaceTexture, SolidScriptUseFacts } from '@/solid_script/language/solid_script_system.js';
 import { solidScriptShapeLeavesPositive } from '@/solid_script/language/solid_script_shape.js';
 import { SOLID_SCRIPT_EXAMPLES } from '@/solid_script/examples/solid_script_examples.js';
 
@@ -26,26 +26,43 @@ function run(lines: SolidScriptLine[], use: SolidScriptUseFacts | undefined = US
   return solidScriptProgramRun(solidScriptDocumentCreate(lines), { box: [2, 4, 6], ...(use ? { use } : {}) });
 }
 
-describe('SolidScript input shapes', () => {
-  it('counts Input Shapes as output, like Input Brushes', () => {
-    const document = solidScriptDocumentCreate([line('input_shapes')]);
+/** Face textures of a received box, one name per side. */
+function textured(size: [number, number, number]): SolidScriptUseFaceTexture[] {
+  return (['x', 'y', 'z'] as const).flatMap((axis, index) =>
+    [-1, 1].map((sign) => {
+      const normal: [number, number, number] = [0, 0, 0];
+      normal[index] = sign;
+      return {
+        point: normal.map((value, at) => (value * size[at]!) / 2) as [number, number, number],
+        normal,
+        texture: `${sign < 0 ? 'Low' : 'High'} ${axis}`,
+      };
+    }),
+  );
+}
+
+describe('SolidScript input brushes', () => {
+  it('counts Input Brushes as output, also as a generator', () => {
+    const document = solidScriptDocumentCreate([line('input_brushes')]);
     expect(solidScriptProgramRun(document, {}).error).toBeNull();
-    expect(run([line('input_shapes')], undefined).error).toBeNull();
+    expect(run([line('input_brushes')], undefined).error).toBeNull();
   });
 
-  it('gives Box.Extents, Input.Extents and the received brushes as a list of shapes', () => {
+  it('gives Box.Extents, Input.Extents and the received brushes as a list', () => {
     const result = run([
       line('echo', { value: '[Box.Extents]' }),
       line('echo', { value: '[Input.Extents]' }),
-      line('echo', { value: '[Input.Shapes]' }),
-      line('input_shapes'),
+      line('echo', { value: '[Input.Brushes]' }),
+      line('echo', { value: '[Input.Brushes().Count]' }),
+      line('input_brushes'),
     ]);
     expect(result.error?.message ?? null).toBeNull();
     expect(result.messages.slice(0, 2)).toEqual(['[1, 2, 3]', '[3.25, 1, 1]']);
     expect(result.messages[2]).toContain('Input 2');
+    expect(result.messages[3]).toBe('2');
   });
 
-  it('picks faces of received brushes without building a shape first, by handle or list', () => {
+  it('picks faces of received brushes without outputting them, by handle or list', () => {
     const result = run([
       line('select_faces', { which: 'All', how: 'New' }),
       line('for_each_selected_face'),
@@ -57,23 +74,22 @@ describe('SolidScript input shapes', () => {
       line('add_item', { value: '[Face.Index]', list: 'Second' }),
       line('end'),
       line('echo', { value: '[=Len([All])], [=Len([Second])]' }),
-      line('input_shapes'),
     ]);
     expect(result.error?.message ?? null).toBeNull();
     expect(result.messages).toEqual(['12, 6']);
+    expect(result.shapes).toEqual([]);
   });
 
-  it('loops over shapes with For Each Shape and their values', () => {
+  it('loops over brushes with For Each Brush and their values', () => {
     const result = run([
-      line('for_each_shape', { of: '[Input.Shapes]' }),
-      line('echo', { value: '[Shape.Index] [Shape.Name] [Shape.Center] [Shape.Size] [Shape.Extents]' }),
+      line('for_each_brush', { of: '[Input.Brushes]' }),
+      line('echo', { value: '[Brush.Index] [Brush.Name] [Brush.Center] [Brush.Size] [Brush.Extents]' }),
       line('select_faces', { which: 'All', how: 'New' }),
       line('for_each_vertex', { in: 'Selected Faces' }),
       line('add_item', { value: '[Vertex.Index]', list: 'Corners' }),
       line('end'),
       line('end'),
       line('echo', { value: '[=Len([Corners])]' }),
-      line('input_shapes'),
     ]);
     expect(result.error?.message ?? null).toBeNull();
     expect(result.messages).toEqual([
@@ -83,10 +99,40 @@ describe('SolidScript input shapes', () => {
     ]);
   });
 
+  it('cuts received brushes like any brush and keeps their face textures, moved along', () => {
+    const use: SolidScriptUseFacts = {
+      usage: 'Modifier',
+      solids: [box([2, 2, 2])],
+      faces: 6,
+      textures: [textured([2, 2, 2])],
+    };
+    const result = run(
+      [
+        line('difference'),
+        line('translate', { v: '10, 0, 0' }),
+        line('input_brushes'),
+        line('end'),
+        line('cube', { size: '1, 3, 1', anchor: 'Center, Center, Center' }),
+        line('end'),
+      ],
+      use,
+    );
+    expect(result.error?.message ?? null).toBeNull();
+    const cut = result.shapes[0]!;
+    expect(cut.kind === 'boolean' && cut.operation).toBe('difference');
+    const kept = cut.kind === 'boolean' ? cut.children[0]! : cut;
+    expect(kept.kind).toBe('solid');
+    const faces = kept.kind === 'solid' ? (kept.faceTextures ?? []) : [];
+    expect(faces).toHaveLength(6);
+    const right = faces.find((face) => face.texture === 'High x')!;
+    expect(right.point.toArray()).toEqual([11, 0, 0]);
+    expect(right.normal.toArray()).toEqual([1, 0, 0]);
+  });
+
   it('builds Push Out Faces: every face of every received brush as a slab pushed outwards', () => {
     const example = SOLID_SCRIPT_EXAMPLES.find((entry) => entry.id === 'pushOutFaces')!;
     expect(example.uses).toEqual({ generator: false, modifier: true });
-    expect(example.lines.some((entry) => entry.command === 'hide_input_brushes')).toBe(true);
+    expect(example.lines.some((entry) => entry.command === 'input_brushes')).toBe(false);
     const cube: SolidScriptUseFacts = { usage: 'Modifier', solids: [box([2, 2, 2])], faces: 6 };
     const result = run([...example.lines], cube);
     expect(result.error?.message ?? null).toBeNull();

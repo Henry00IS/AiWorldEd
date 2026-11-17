@@ -300,14 +300,13 @@ export const SOLID_SCRIPT_EXAMPLE_MIRROR: readonly SolidScriptLine[] = [
 
 /**
  * Lays a slab off every face of every brush a modifier receives, pushed out
- * from the brush, and hides the brushes themselves.
+ * from the brush; without Input Brushes the brushes themselves are gone.
  */
 export const SOLID_SCRIPT_EXAMPLE_PUSH_OUT_FACES: readonly SolidScriptLine[] = [
   solidScriptExampleNote('Push Out Faces: a slab off every face of every brush it receives; the brushes go.'),
   solidScriptExampleInput('Distance', 'number', '0.25', { label: 'Distance', min: '0', max: '10' }),
   solidScriptExampleInput('Thickness', 'number', '0.1', { label: 'Thickness', min: '0.001', max: '10' }),
-  solidScriptExampleLine('hide_input_brushes'),
-  ...solidScriptExampleBlock('for_each_shape', { of: '[Input.Shapes]' }, [
+  ...solidScriptExampleBlock('for_each_brush', { of: '[Input.Brushes]' }, [
     solidScriptExampleLine('select_faces', { which: 'All', how: 'New' }),
     solidScriptExampleNote('Each face moves out along the way it points, then gets its thickness.'),
     solidScriptExampleLine('extrude_face', { distance: '[Thickness]', lift: '[Distance]' }),

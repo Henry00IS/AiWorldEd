@@ -121,6 +121,7 @@ export const SOLID_SCRIPT_EXAMPLE_PEDESTAL: readonly SolidScriptLine[] = [
   { command: 'variable', values: { name: 'Low', value: '[Input.Min.y]' } },
   { command: 'variable', values: { name: 'Width', value: '[Input.Size.x]' } },
   { command: 'variable', values: { name: 'Depth', value: '[Input.Size.z]' } },
+  { command: 'input_brushes', values: { textures: 'Move With Shape' } },
   { command: 'else' },
   { command: 'cube', values: { size: '1, 1, 1' } },
   { command: 'end' },

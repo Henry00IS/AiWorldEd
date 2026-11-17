@@ -1,6 +1,6 @@
 import {
   SOLID_SCRIPT_USE_GENERATOR,
-  solidScriptInputShapeName,
+  solidScriptInputBrushName,
   type SolidScriptSystemReader,
 } from './solid_script_system.js';
 import * as THREE from 'three';
@@ -139,7 +139,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
    * last.
    */
   private readonly roundBuilt: number[] = [];
-  /** Shapes of the For Each Shape rounds running, innermost last. */
+  /** Shapes of the For Each Brush rounds running, innermost last. */
   private readonly shapeRounds: (SolidScriptShape | null)[] = [];
   /**
    * The brushes a modifier receives as shapes named Input 1, Input 2 and so on,
@@ -181,15 +181,15 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   }
 
   /**
-   * Returns the brushes a modifier receives as shapes, each named after its
-   * place in [Input.Shapes].
+   * Returns the brushes a modifier receives, each named after its place in
+   * [Input.Brushes].
    *
    * @returns Shapes, none for a generator.
    */
   private receivedShapes(): SolidScriptShape[] {
     this.received ??= (this.system.use?.solids ?? []).map((corners, index) => ({
       kind: 'solid',
-      label: solidScriptInputShapeName(index),
+      label: solidScriptInputBrushName(index),
       points: corners.map(([x, y, z]) => new THREE.Vector3(x, y, z)),
     }));
     return this.received;
@@ -218,7 +218,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       this.system.use?.usage !== 'Modifier' &&
       !solidScriptLinesPassInput(lines)
     )
-      this.failure = solidScriptFailure(null, 'the script builds no shapes; add a shape such as Cube');
+      this.failure = solidScriptFailure(null, 'the script builds no brushes or meshes; add one such as Cube');
     return {
       shapes,
       messages: this.messages,
@@ -260,7 +260,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       if (this.steps.length > 0 && !this.failure)
         this.failure = solidScriptFailure(
           this.steps[0] ?? handler.line,
-          `line ${this.steps[0] ?? handler.line}: ${handler.command.label} blocks only check and change inputs; shapes are built by the script from the top`,
+          `line ${this.steps[0] ?? handler.line}: ${handler.command.label} blocks only check and change inputs; brushes and meshes are built by the script from the top`,
         );
     }
     return {
@@ -658,7 +658,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         const built = own.length > 0 ? own : state.machine.builtStack.flat();
         const round = own.length > 0 ? null : (state.machine.shapeRounds.at(-1) ?? null);
         const of = node.command.parameters.some((field) => field.key === 'of') ? value('of') : '';
-        // Of takes a Name, a shape from a list such as [Input.Shapes], or a list of them.
+        // Of takes a Name, a brush from a list such as [Input.Brushes], or a list of them.
         const flat = (entry: SolidScriptValue): SolidScriptValue[] =>
           Array.isArray(entry) ? entry.flatMap(flat) : [entry];
         const names = flat(of)
@@ -669,7 +669,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         return names.flatMap((name) => {
           const found = solidScriptShapesNamed(built, name);
           const shapes = found.length > 0 ? found : solidScriptShapesNamed(received, name);
-          if (shapes.length === 0) throw new Error(`No shape above is named "${name}"; give one a Name first`);
+          if (shapes.length === 0) throw new Error(`No brush or mesh above is named "${name}"; give one a Name first`);
           return shapes;
         });
       },
@@ -974,13 +974,13 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         !this.leaving &&
         !this.stopping
       )
-        throw new Error('Difference has nothing to cut from: its first line builds no shape');
+        throw new Error('Difference has nothing to cut from: its first line builds no brush');
       if (joined) operands.push(joined);
     });
     if (operands.length === 0) return [];
     if (operation !== 'union' && operands.some(solidScriptShapeHasMesh))
       throw new Error(
-        `${node.command.label} cuts brushes, and a mesh cannot be cut; keep meshes outside it, or build the cut from brushes and wrap it in Mesh From Shapes`,
+        `${node.command.label} cuts brushes, and a mesh cannot be cut; keep meshes outside it, or build the cut from brushes and wrap it in Mesh From Brushes`,
       );
     if (operands.length === 1 && operation !== 'difference') return operands;
     return [{ kind: 'boolean', operation, children: operands, label }];
@@ -998,7 +998,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     this.watch(scope);
     this.solids += 1;
     if (this.solids > SOLID_SCRIPT_SOLIDS_MAX)
-      throw new Error(`the script builds more than ${SOLID_SCRIPT_SOLIDS_MAX} shapes`);
+      throw new Error(`the script builds more than ${SOLID_SCRIPT_SOLIDS_MAX} brushes and meshes`);
     return true;
   }
 
@@ -1071,17 +1071,15 @@ export function solidScriptFailure(line: number | null, message: string): SolidS
 }
 
 /**
- * Returns whether lines pass on or copy the brushes a modifier receives, which
- * is output too.
+ * Returns whether lines output the brushes a modifier receives.
  *
  * @param lines Lines.
- * @returns True when an Input Brushes or Input Shapes line is among them.
+ * @returns True when an Input Brushes line is among them.
  */
 function solidScriptLinesPassInput(lines: readonly SolidScriptBlockNode<SolidScriptMachineCommand>[]): boolean {
   return lines.some(
     (node) =>
       node.command.id === 'input_brushes' ||
-      node.command.id === 'input_shapes' ||
       solidScriptLinesPassInput(node.children) ||
       solidScriptLinesPassInput(node.otherwise ?? []),
   );

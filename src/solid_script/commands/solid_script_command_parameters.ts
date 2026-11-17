@@ -91,7 +91,7 @@ export function solidScriptParameterAnchor(axes: readonly SolidScriptAnchorAxis[
       'Anchor',
       'message',
       solidScriptAnchorDefault(axes),
-      `The spot of the shape that sits on the origin, the centre of the generator: ${words.join(', ')}.`,
+      `The spot of the brush that sits on the origin, the centre of the generator: ${words.join(', ')}.`,
     ),
     anchor: axes,
     words: axes
@@ -144,7 +144,7 @@ export function solidScriptParameterShapeName(): SolidScriptCommandParameter {
     SOLID_SCRIPT_SHAPE_NAME_KEY,
     'Name',
     'text',
-    'Optional name, such as Knob, so Select Faces, For Each Vertex and For Each Edge can pick this shape by it. Shapes may share a name; case does not matter.',
+    'Optional name, such as Knob, so Select Faces, For Each Vertex and For Each Edge can pick this brush by it. Brushes may share a name; case does not matter.',
   );
 }
 
@@ -161,8 +161,8 @@ export function solidScriptParameterOf(what: string): SolidScriptCommandParamete
       'of',
       'Of',
       'value',
-      `Only ${what} of the shapes with this Name, in any case, a shape of [Input.Shapes] such as Input 1, or a list of them; empty uses every shape above, or else the brushes a modifier receives.`,
+      `Only ${what} of the brushes with this Name, in any case, a brush of [Input.Brushes] such as Input 1, or a list of them; empty uses every brush above, or else the brushes a modifier receives.`,
     ),
-    nameGroups: ['Shapes', 'Parts'],
+    nameGroups: ['Brushes', 'Parts'],
   };
 }

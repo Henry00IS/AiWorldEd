@@ -87,7 +87,7 @@ const SOLID_SCRIPT_FACE_HOW_DETAILS: Readonly<Record<(typeof SOLID_SCRIPT_FACE_H
 };
 
 /** Stop of the lines that act on picked faces. */
-const SOLID_SCRIPT_FACE_STOPS_NONE = 'No shapes built above it, so there are no faces to pick.';
+const SOLID_SCRIPT_FACE_STOPS_NONE = 'No brushes built above it, so there are no faces to pick.';
 
 /**
  * Rounds a number so small errors do not show, such as 0.30000000000000004.
@@ -256,7 +256,7 @@ function solidScriptFaceDistance(run: SolidScriptBlockRun, what: string): number
 
 /** Where For Each Vertex and For Each Edge look, with what each means. */
 const SOLID_SCRIPT_FACE_IN_WORDS: readonly SolidScriptCommandWord[] = [
-  { word: 'Shapes', detail: 'Every shape built above, or those named in Of' },
+  { word: 'Brushes', detail: 'Every brush built above, or those named in Of' },
   { word: 'Selected Faces', detail: 'The faces the last Select Faces picked; shared ones once' },
   { word: 'Current Face', detail: 'The face of the For Each Selected Face round, in order', sees: 'Face.Index' },
 ];
@@ -272,14 +272,14 @@ function solidScriptFaceParameterIn(what: string): SolidScriptCommandParameter {
     'in',
     'In',
     'text',
-    'Shapes',
-    `Where the ${what} come from: Shapes, Selected Faces or Current Face.`,
+    'Brushes',
+    `Where the ${what} come from: Brushes, Selected Faces or Current Face.`,
     SOLID_SCRIPT_FACE_IN_WORDS,
   );
 }
 
 /**
- * Lists For Each Vertex or For Each Edge: In unless Shapes, then Of.
+ * Lists For Each Vertex or For Each Edge: In unless Brushes, then Of.
  *
  * @param label Command name.
  * @param read Values.
@@ -289,7 +289,7 @@ function solidScriptFaceInListing(label: string, read: SolidScriptListingValues)
   const where = read.text('in').trim();
   return [
     label,
-    ...(where === '' || where === 'Shapes' ? [] : [' In ', where]),
+    ...(where === '' || where === 'Brushes' ? [] : [' In ', where]),
     ...(read.text('of') === '' ? [] : [' Of ', read.text('of')]),
   ];
 }
@@ -305,7 +305,7 @@ function solidScriptFaceInListing(label: string, read: SolidScriptListingValues)
  */
 function solidScriptFaceCornerRounds(run: SolidScriptBlockRun, what: 'vertex' | 'edge'): SolidScriptShape[] {
   const label = what === 'vertex' ? 'For Each Vertex' : 'For Each Edge';
-  const where = run.text('in').trim() || 'Shapes';
+  const where = run.text('in').trim() || 'Brushes';
   let faces: SolidScriptFaceFacts[] | null = null;
   if (where === 'Selected Faces') {
     faces = run.selection();
@@ -314,9 +314,9 @@ function solidScriptFaceCornerRounds(run: SolidScriptBlockRun, what: 'vertex' | 
     const current = run.faceCurrent();
     if (!current) throw new Error(`${label} In Current Face only works inside For Each Selected Face`);
     faces = [current];
-  } else if (where !== 'Shapes') throw new Error(`In must be Shapes, Selected Faces or Current Face, not "${where}"`);
+  } else if (where !== 'Brushes') throw new Error(`In must be Brushes, Selected Faces or Current Face, not "${where}"`);
   if (!faces && run.pickable().length === 0)
-    throw new Error(`${label} reads the shapes built above it; add a shape such as Cube first`);
+    throw new Error(`${label} reads the brushes built above it; add a brush such as Cube first`);
   if (what === 'vertex')
     return run.looped(
       (faces ? solidScriptGeometryFaceVertices(faces) : solidScriptGeometryVertices(run.pickable())).map((vertex) => ({
@@ -352,9 +352,9 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     id: 'select_faces',
     label: 'Select Faces',
     category: 'Faces',
-    description: 'Pick faces of the shapes above',
+    description: 'Pick faces of the brushes above',
     manual:
-      'Picks faces of the shapes built above this line, so the lines after it can work on them. Inside a For Each round it picks faces of what that round built, and the lines after the loop get the outer pick back, so Select Faces can be nested. Which says how: All, Facing Up, Facing Down, Facing Left, Facing Right, Facing Front or Facing Back (Within allows a slope, in degrees), Facing a direction you give, Tagged with a name, the Biggest or Smallest faces, a face Number, or Where a condition is true. Every face has names: Top, Bottom or Side, and generators add more, such as Step Tread and Riser on stairs and Cap on columns. How chooses New to start again, Add to pick more or Remove to drop some. Example: Stairs, then Select Faces Tagged Step Tread picks the top of every step.',
+      'Picks faces of the brushes built above this line, so the lines after it can work on them. Inside a For Each round it picks faces of what that round built, and the lines after the loop get the outer pick back, so Select Faces can be nested. Which says how: All, Facing Up, Facing Down, Facing Left, Facing Right, Facing Front or Facing Back (Within allows a slope, in degrees), Facing a direction you give, Tagged with a name, the Biggest or Smallest faces, a face Number, or Where a condition is true. Every face has names: Top, Bottom or Side, and generators add more, such as Step Tread and Riser on stairs and Cap on columns. How chooses New to start again, Add to pick more or Remove to drop some. Example: Stairs, then Select Faces Tagged Step Tread picks the top of every step.',
     stops: [
       SOLID_SCRIPT_FACE_STOPS_NONE,
       'A Which that is not one of the choices.',
@@ -411,7 +411,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       const faces = solidScriptGeometryFaces(run.pickable());
       if (faces.length === 0)
         throw new Error(
-          'Select Faces picks faces of shapes built above it, or of the brushes a modifier receives; add a shape such as Cube first',
+          'Select Faces picks faces of brushes built above it, or of the brushes a modifier receives; add a brush such as Cube first',
         );
       const picked = solidScriptGeometryPick(faces, solidScriptFacePickRead(run));
       const before = how === 'New' ? [] : run.selection();
@@ -431,7 +431,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Run lines once per picked face',
     manual:
-      'Runs the lines inside once for every face the last Select Faces picked. Inside, these read-only values describe the face: [Face.Index] counts the rounds from 0, [Face.Center] is its middle, [Face.Normal] the way it points, [Face.Width] and [Face.Height] its size, [Face.Area] its area, [Face.Tag] its name and [Face.Number] its number among all faces. Shapes built inside stand on the face of the round, like Place On Face: centred on its middle with Y pointing out, the way shapes stand on the ground. Place On Face adds a Lift, and Extrude Face, Inset Face and Bevel Edges work on the face of the round. Example: Select Faces Tagged Step Tread, then For Each Selected Face with Place On Face and a thin Cube puts a trim on every step.',
+      'Runs the lines inside once for every face the last Select Faces picked. Inside, these read-only values describe the face: [Face.Index] counts the rounds from 0, [Face.Center] is its middle, [Face.Normal] the way it points, [Face.Width] and [Face.Height] its size, [Face.Area] its area, [Face.Tag] its name and [Face.Number] its number among all faces. Brushes built inside stand on the face of the round, like Place On Face: centred on its middle with Y pointing out, the way brushes stand on the ground. Place On Face adds a Lift, and Extrude Face, Inset Face and Bevel Edges work on the face of the round. Example: Select Faces Tagged Step Tread, then For Each Selected Face with Place On Face and a thin Cube puts a trim on every step.',
     stops: ['A missing End line.'],
     nesting: 'open',
     endLabel: 'For Each',
@@ -489,7 +489,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Run lines once per corner point',
     manual:
-      'Runs the lines inside once for every corner point. In says where: Shapes takes every shape built above this line (or those named in Of), Selected Faces the faces the last Select Faces picked, a corner they share counted once, and Current Face the face of the For Each Selected Face round, its corners in order around it. Inside, [Vertex.Index] is its number, [Vertex.Position] where it is and [Vertex.Normal] the way the faces around it point; for Current Face that is the way the face points. Example: For Each Vertex with Translate by [Vertex.Position] and a small Sphere puts a ball on every corner of a Cube; Select Faces Facing Up, For Each Selected Face, then For Each Vertex In Current Face puts one on each corner of the top only.',
+      'Runs the lines inside once for every corner point. In says where: Brushes takes every brush built above this line (or those named in Of), Selected Faces the faces the last Select Faces picked, a corner they share counted once, and Current Face the face of the For Each Selected Face round, its corners in order around it. Inside, [Vertex.Index] is its number, [Vertex.Position] where it is and [Vertex.Normal] the way the faces around it point; for Current Face that is the way the face points. Example: For Each Vertex with Translate by [Vertex.Position] and a small Sphere puts a ball on every corner of a Cube; Select Faces Facing Up, For Each Selected Face, then For Each Vertex In Current Face puts one on each corner of the top only.',
     stops: [
       SOLID_SCRIPT_FACE_STOPS_NONE,
       'In Selected Faces with no Select Faces above.',
@@ -508,7 +508,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Run lines once per edge',
     manual:
-      'Runs the lines inside once for every edge. In says where: Shapes takes every shape built above this line (or those named in Of), Selected Faces the faces the last Select Faces picked, an edge two of them share counted once, and Current Face the face of the For Each Selected Face round, its edges in order around it. Inside, [Edge.Index] is its number, [Edge.Start] and [Edge.End] its two ends, [Edge.Middle] its middle, [Edge.Length] how long it is and [Edge.Direction] the way it runs. Example: For Each Edge with Translate by [Edge.Middle] and a small Cube marks the middle of every edge; For Each Edge In Selected Faces after Select Faces Facing Up marks only the rim of the top.',
+      'Runs the lines inside once for every edge. In says where: Brushes takes every brush built above this line (or those named in Of), Selected Faces the faces the last Select Faces picked, an edge two of them share counted once, and Current Face the face of the For Each Selected Face round, its edges in order around it. Inside, [Edge.Index] is its number, [Edge.Start] and [Edge.End] its two ends, [Edge.Middle] its middle, [Edge.Length] how long it is and [Edge.Direction] the way it runs. Example: For Each Edge with Translate by [Edge.Middle] and a small Cube marks the middle of every edge; For Each Edge In Selected Faces after Select Faces Facing Up marks only the rim of the top.',
     stops: [
       SOLID_SCRIPT_FACE_STOPS_NONE,
       'In Selected Faces with no Select Faces above.',
@@ -522,21 +522,21 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     execute: (run) => solidScriptFaceCornerRounds(run, 'edge'),
   }),
   new SolidScriptCommand({
-    id: 'for_each_shape',
-    label: 'For Each Shape',
+    id: 'for_each_brush',
+    label: 'For Each Brush',
     category: 'Faces',
-    description: 'Run lines once per shape',
+    description: 'Run lines once per brush',
     manual:
-      'Runs the lines inside once for every shape: those named in Of, or else every shape built above this line, or else, in a modifier that built nothing yet, every brush it receives. Of takes a Name, a shape of [Input.Shapes] such as Input 1, or a list of them, such as [Input.Shapes] or a list made with Add Item [Shape.Name] To Picked. Inside, [Shape.Index] counts the rounds from 0, [Shape.Name] names the shape for Of fields, [Shape.Center] is the middle of its bounds, [Shape.Size] their width, height and depth, [Shape.Extents] half of that, and [Shape.Min] and [Shape.Max] their lowest and highest corners. Select Faces and For Each Vertex or Edge without an Of work on the shape of the round. Example: Hide Input Brushes, then For Each Shape with Select Faces All and Extrude Face by 0.1 Lift 0.25 lays a slab off every face of every brush it receives.',
-    stops: [SOLID_SCRIPT_FACE_STOPS_NONE, 'A Name in Of that no shape has.', 'A missing End line.'],
+      'Runs the lines inside once for every brush: those named in Of, or else every brush or mesh built above this line, or else, in a modifier that built nothing yet, every brush it receives. Of takes a Name, a brush of [Input.Brushes] such as Input 1, or a list of them, such as [Input.Brushes] or a list made with Add Item [Brush.Name] To Picked. Inside, [Brush.Index] counts the rounds from 0, [Brush.Name] names the brush for Of fields, [Brush.Center] is the middle of its bounds, [Brush.Size] their width, height and depth, [Brush.Extents] half of that, and [Brush.Min] and [Brush.Max] their lowest and highest corners. Select Faces and For Each Vertex or Edge without an Of work on the brush of the round. Example: in a modifier, For Each Brush Of [Input.Brushes] with Select Faces All and Extrude Face by 0.1 Lift 0.25 lays a slab off every face of every brush it receives.',
+    stops: [SOLID_SCRIPT_FACE_STOPS_NONE, 'A Name in Of that no brush has.', 'A missing End line.'],
     nesting: 'open',
     endLabel: 'For Each',
-    parameters: [solidScriptParameterOf('shapes')],
-    listing: (read) => ['For Each Shape', ...(read.text('of') === '' ? [] : [' Of ', read.text('of')])],
+    parameters: [solidScriptParameterOf('brushes')],
+    listing: (read) => ['For Each Brush', ...(read.text('of') === '' ? [] : [' Of ', read.text('of')])],
     execute: (run) => {
       const shapes = run.pickable();
       if (shapes.length === 0)
-        throw new Error('For Each Shape has no shapes; build one above it, or use it in a modifier');
+        throw new Error('For Each Brush has no brushes; build one above it, or use it in a modifier');
       return run.looped(
         shapes.map((shape, index) => {
           const bounds = new THREE.Box3().setFromPoints(
@@ -545,13 +545,13 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
           const size = bounds.getSize(new THREE.Vector3());
           return {
             variables: {
-              'Shape.Index': index,
-              'Shape.Name': shape.label,
-              'Shape.Center': solidScriptFaceVector(bounds.getCenter(new THREE.Vector3())),
-              'Shape.Size': solidScriptFaceVector(size),
-              'Shape.Extents': solidScriptFaceVector(size.clone().multiplyScalar(0.5)),
-              'Shape.Min': solidScriptFaceVector(bounds.min),
-              'Shape.Max': solidScriptFaceVector(bounds.max),
+              'Brush.Index': index,
+              'Brush.Name': shape.label,
+              'Brush.Center': solidScriptFaceVector(bounds.getCenter(new THREE.Vector3())),
+              'Brush.Size': solidScriptFaceVector(size),
+              'Brush.Extents': solidScriptFaceVector(size.clone().multiplyScalar(0.5)),
+              'Brush.Min': solidScriptFaceVector(bounds.min),
+              'Brush.Max': solidScriptFaceVector(bounds.max),
             },
             face: null,
             shape,
@@ -564,13 +564,13 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     id: 'place_on_face',
     label: 'Place On Face',
     category: 'Faces',
-    description: 'Build shapes standing on the face',
+    description: 'Build brushes standing on the face',
     manual:
-      'Builds the shapes inside standing on the face of the For Each Selected Face round: they stand on it the way shapes stand on the ground: their origin sits on the middle of the face, Y points out of it, X runs across it and Z down it. Lift moves them further out. The blocks around this line do not move them. Example: Place On Face with a centred Cube of size [Face.Width], 0.05, [Face.Height] covers the face with a thin plate.',
+      'Builds the brushes inside standing on the face of the For Each Selected Face round: they stand on it the way brushes stand on the ground: their origin sits on the middle of the face, Y points out of it, X runs across it and Z down it. Lift moves them further out. The blocks around this line do not move them. Example: Place On Face with a centred Cube of size [Face.Width], 0.05, [Face.Height] covers the face with a thin plate.',
     stops: ['Being outside For Each Selected Face.', 'Nothing between this line and its End.', 'A missing End line.'],
     nesting: 'open',
     endLabel: 'Place',
-    parameters: [solidScriptParameter('lift', 'Lift', 'number', '0', 'Metres to move the shapes out from the face.')],
+    parameters: [solidScriptParameter('lift', 'Lift', 'number', '0', 'Metres to move the brushes out from the face.')],
     listing: (read) => [
       'Place On Face',
       ...solidScriptListingOptions([read.changed('lift') && ['Lift ', read.value('lift')]]),
@@ -707,7 +707,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     id: 'texture',
     label: 'Texture',
     category: 'Faces',
-    description: 'Paint shapes with a texture',
+    description: 'Paint brushes with a texture',
     manual:
       "Gives every face of the brushes and meshes between this line and its End the texture named by Texture, the name a texture has in the texture library. Brushes outside any Texture block keep the generator's own texture, and an inner Texture block wins over an outer one. A texture Input picks the name from the library, so the inspector can change it. Example: Input Wall, texture, then Texture [Wall] around the walls paints them with the picked texture.",
     stops: ['A missing End line.', 'A [Name] for a variable not set above this line.'],

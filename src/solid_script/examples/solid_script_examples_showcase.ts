@@ -109,11 +109,12 @@ export const SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE: readonly SolidScriptLine[] =
       '[=Spot([A], [Outer] + 0.04, Slope([A]) + [Rise] + 0.04)]',
       '[=Spot([A], [Outer], Slope([A]) + [Rise] + 0.04)]',
     ]),
+    solidScriptExampleNote('The handrail runs through the post tops: a post stands half a step past the front edge.'),
     ...solidScriptExampleSweepPiece('[From]', '[To]', [
-      '[=Spot([A], [RailAt] - 0.035, Slope([A]) + [Rise] * 1.5 + [RailHeight] - 0.03)]',
-      '[=Spot([A], [RailAt] + 0.035, Slope([A]) + [Rise] * 1.5 + [RailHeight] - 0.03)]',
-      '[=Spot([A], [RailAt] + 0.035, Slope([A]) + [Rise] * 1.5 + [RailHeight] + 0.03)]',
-      '[=Spot([A], [RailAt] - 0.035, Slope([A]) + [Rise] * 1.5 + [RailHeight] + 0.03)]',
+      '[=Spot([A], [RailAt] - 0.035, Slope([A]) + [Rise] * 0.5 + [RailHeight] - 0.03)]',
+      '[=Spot([A], [RailAt] + 0.035, Slope([A]) + [Rise] * 0.5 + [RailHeight] - 0.03)]',
+      '[=Spot([A], [RailAt] + 0.035, Slope([A]) + [Rise] * 0.5 + [RailHeight] + 0.03)]',
+      '[=Spot([A], [RailAt] - 0.035, Slope([A]) + [Rise] * 0.5 + [RailHeight] + 0.03)]',
     ]),
   ]),
 ];

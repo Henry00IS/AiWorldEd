@@ -70,7 +70,7 @@ describe('SolidScript member suggestions', () => {
     { command: 'for_each_vertex' },
     { command: 'echo', values: { value: '1' } },
     { command: 'end' },
-    { command: 'for_each_shape' },
+    { command: 'for_each_brush' },
     { command: 'end' },
   ]);
   const scope: SolidScriptSuggestionScope = { names: solidScriptDocumentNames(script), extra: [], words: [] };
@@ -92,17 +92,18 @@ describe('SolidScript member suggestions', () => {
     expect(labels('[Box.')).toContain('Box.Width');
     expect(labels('[Box.E')).toEqual(['Box.Extents']);
     expect(labels('[Box.Extents.')).toEqual(['Box.Extents.X', 'Box.Extents.Y', 'Box.Extents.Z']);
-    expect(labels('[Input.Sh')).toEqual(['Input.Shapes']);
-    expect(labels('[Shape.')).toEqual([
-      'Shape.Index',
-      'Shape.Name',
-      'Shape.Center',
-      'Shape.Size',
-      'Shape.Extents',
-      'Shape.Min',
-      'Shape.Max',
+    expect(labels('[Input.Br')).toEqual(['Input.Brushes']);
+    expect(labels('[Input.Brushes().')).toEqual(['Input.Brushes().Count']);
+    expect(labels('[Brush.')).toEqual([
+      'Brush.Index',
+      'Brush.Name',
+      'Brush.Center',
+      'Brush.Size',
+      'Brush.Extents',
+      'Brush.Min',
+      'Brush.Max',
     ]);
-    expect(labels('[Shape.Extents.')).toEqual(['Shape.Extents.X', 'Shape.Extents.Y', 'Shape.Extents.Z']);
+    expect(labels('[Brush.Extents.')).toEqual(['Brush.Extents.X', 'Brush.Extents.Y', 'Brush.Extents.Z']);
     // A number has no parts.
     expect(labels('[Vertex.Index.')).toEqual([]);
   });

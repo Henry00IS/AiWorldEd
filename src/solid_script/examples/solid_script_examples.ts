@@ -179,7 +179,7 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
     name: 'Pedestal',
     group: 'Basics',
     summary:
-      'A slab under a box. Used as a modifier on a brush, mesh or group, it puts the slab under that instead: If Used As picks the lines.',
+      'A slab under a box. Used as a modifier on a brush, mesh or group, it puts the slab under that instead and Input Brushes keeps it: If Used As picks the lines.',
     port: null,
     lines: SOLID_SCRIPT_EXAMPLE_PEDESTAL,
     uses: { generator: true, modifier: true },
@@ -189,7 +189,7 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
     name: 'Push Out Faces',
     group: 'Basics',
     summary:
-      'A modifier: For Each Shape over [Input.Shapes] lays a slab off every face of every brush it receives, and Hide Input Brushes takes the brushes away.',
+      'A modifier: For Each Brush over [Input.Brushes] lays a slab off every face of every brush it receives. It has no Input Brushes line, so the brushes themselves are gone.',
     port: null,
     lines: SOLID_SCRIPT_EXAMPLE_PUSH_OUT_FACES,
     uses: { generator: false, modifier: true },

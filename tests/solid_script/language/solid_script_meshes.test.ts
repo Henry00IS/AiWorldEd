@@ -121,7 +121,7 @@ describe('SolidScript meshes', () => {
     const cut = run(
       { command: 'difference' },
       { command: 'cube' },
-      { command: 'mesh_shapes' },
+      { command: 'mesh_brushes' },
       { command: 'sphere' },
       END,
       END,
@@ -130,7 +130,7 @@ describe('SolidScript meshes', () => {
   });
 
   it('turns shapes into closed outward meshes and keeps brushes for the rest', () => {
-    const result = run({ command: 'mesh_shapes' }, { command: 'cube', values: { size: '2, 2, 2' } }, END, {
+    const result = run({ command: 'mesh_brushes' }, { command: 'cube', values: { size: '2, 2, 2' } }, END, {
       command: 'sphere',
     });
     const mesh = onlyMesh(result);
@@ -186,7 +186,7 @@ describe('SolidScript meshes', () => {
   });
 
   it('mirrors meshes without turning them inside out', () => {
-    const mesh = onlyMesh(run({ command: 'mirror' }, { command: 'mesh_shapes' }, { command: 'cube' }, END, END));
+    const mesh = onlyMesh(run({ command: 'mirror' }, { command: 'mesh_brushes' }, { command: 'cube' }, END, END));
     expect(outwards(mesh)).toBe(true);
     expect(
       outwards(

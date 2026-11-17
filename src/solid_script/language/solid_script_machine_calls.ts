@@ -231,7 +231,9 @@ export abstract class SolidScriptMachineCalls<
     if (this.paused) throw new SolidScriptPause();
     if (this.failure) throw new Error(this.failure.message);
     if (this.steps.length > before)
-      throw new Error(`${this.nameShown(name)}() builds shapes, so use it with a Call line, not inside a formula`);
+      throw new Error(
+        `${this.nameShown(name)}() builds brushes or meshes, so use it with a Call line, not inside a formula`,
+      );
     if (run.value === undefined)
       throw new Error(`${this.nameShown(name)}() gives no value; end it with a Return that has a Value`);
     return { value: run.value };

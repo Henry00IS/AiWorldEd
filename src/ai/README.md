@@ -119,7 +119,7 @@ Same-solid only: reparent/group never moves a brush out of its solid model root.
 
 ## Geometry language: SolidScript (`geometry_script_build`)
 
-Describing shapes beats computing clip planes. A SolidScript is a list of block lines, the same lines the script editor shows: each line is `{ "command": id, "values": { key: text } }`, and there is no code text. `geometry_script_build` takes such `lines` and adds the result as CSG brushes and groups, plus regular mesh objects for mesh blocks, in one undo step; `geometry_script_preview` runs the same lines and returns the tree without changing the scene. `geometry_script_reference_get` returns the full reference for assistants: coordinates and units, how lines nest, values and formulas, every command with its fields, defaults and what stops it, examples and common mistakes. Builds sync in multiplayer like any user edit.
+Describing brushes beats computing clip planes. A SolidScript is a list of block lines, the same lines the script editor shows: each line is `{ "command": id, "values": { key: text } }`, and there is no code text. `geometry_script_build` takes such `lines` and adds the result as CSG brushes and groups, plus regular mesh objects for mesh blocks, in one undo step; `geometry_script_preview` runs the same lines and returns the tree without changing the scene. `geometry_script_reference_get` returns the full reference for assistants: coordinates and units, how lines nest, values and formulas, every command with its fields, defaults and what stops it, examples and common mistakes. Builds sync in multiplayer like any user edit.
 
 License: the block machine and the formula parser are an independent implementation. No third-party source code, grammar files, tests or examples are used, and no dependency was added; the code is MIT like the rest of the editor.
 
@@ -133,14 +133,14 @@ Field values are plain text without quotes: a number `"2"`, a list `"1, 2, 3"`, 
 
 How it maps:
 
-- Every shape line becomes one convex brush. Spheres, cylinders and circles are faceted; each has its own `sides` field (and `rings` for spheres).
-- `difference` becomes a CSG group: the first shape inside adds and the rest subtract. `intersection` becomes a group with intersecting members. `union` flattens into its parent. `hull` becomes one convex brush.
+- Every solid line such as `cube` becomes one convex brush. Spheres, cylinders and circles are faceted; each has its own `sides` field (and `rings` for spheres).
+- `difference` becomes a CSG group: the first brush inside adds and the rest subtract. `intersection` becomes a group with intersecting members. `union` flattens into its parent. `hull` becomes one convex brush.
 - Part names (`part` / `use_part`) become brush and group names, so wrap pieces in parts for a readable outliner.
-- As a modifier (kind `solidScriptModifier`), a script reads the brushes it receives without building them first: `[Input.Shapes]` lists them as shapes `Input 1`, `Input 2`…, the `of` field of `select_faces`, `for_each_vertex`, `for_each_edge` and `for_each_shape` takes a shape name, one of those or a list, and `for_each_shape` gives `[Shape.Name]`, `[Shape.Center]`, `[Shape.Size]`, `[Shape.Extents]`, `[Shape.Min]` and `[Shape.Max]`. `hide_input_brushes` keeps the received brushes from passing on; `extrude_face` with `lift` floats the new brush off the face. `[Box.Extents]` and `[Input.Extents]` are half of `[Box.Size]` and `[Input.Size]`.
+- As a modifier (kind `solidScriptModifier`), a script outputs only what it builds, like a generator: an `input_brushes` line outputs the received brushes, which then act like any brush (blocks around it move and repeat them, `union`, `difference` and `intersection` cut them, faces keep their textures). The script reads them without outputting them: `[Input.Brushes]` lists them as `Input 1`, `Input 2`…, the `of` field of `select_faces`, `for_each_vertex`, `for_each_edge` and `for_each_brush` takes a brush name, one of those or a list, and `for_each_brush` gives `[Brush.Name]`, `[Brush.Center]`, `[Brush.Size]`, `[Brush.Extents]`, `[Brush.Min]` and `[Brush.Max]`. `extrude_face` with `lift` floats the new brush off the face. `[Box.Extents]` and `[Input.Extents]` are half of `[Box.Size]` and `[Input.Size]`.
 - SolidScript uses the editor's axes: X right, Y up, Z toward the front. Units are metres; Rotate turns about X, then Y, then Z.
-- The origin is the centre of the generator's box (or the build `position`), and shapes are centred on it by default (`anchor: "Center, Bottom, Center"` stands a shape on it, `anchor: "Left, Bottom, Back"` puts its corner there), so a shape needs no Translate to sit in the middle of the generator.
+- The origin is the centre of the generator's box (or the build `position`), and brushes are centred on it by default (`anchor: "Center, Bottom, Center"` stands a brush on it, `anchor: "Left, Bottom, Back"` puts its corner there), so a brush needs no Translate to sit in the middle of the generator.
 - `operation: "subtractive"` with a `modelId` carves the result out of existing brushes.
-- Mesh blocks (`mesh` with `vertex` and `face` lines, `mesh_shapes`, and the mesh tools `subdivide`, `mesh_smooth`, `displace`, `extrude_faces`, `box_uvs`, `flip_faces`) build regular editable meshes instead of brushes. A script can mix both; a mesh cannot be cut by `difference` or `intersection`. In a SolidScript generator the meshes show as a preview until Bake turns them into mesh objects.
+- Mesh blocks (`mesh` with `vertex` and `face` lines, `mesh_brushes`, and the mesh tools `subdivide`, `mesh_smooth`, `displace`, `extrude_faces`, `box_uvs`, `flip_faces`) build regular editable meshes instead of brushes. A script can mix both; a mesh cannot be cut by `difference` or `intersection`. In a SolidScript generator the meshes show as a preview until Bake turns them into mesh objects.
 
 Room with a doorway:
 
@@ -426,7 +426,7 @@ Pictures of the world from any camera.
 
 ### math
 
-Arithmetic helper; rarely needed when shapes are described with geometry_script_build.
+Arithmetic helper; rarely needed when brushes are described with geometry_script_build.
 
 | Tool             | Purpose                                                               |
 | ---------------- | --------------------------------------------------------------------- |

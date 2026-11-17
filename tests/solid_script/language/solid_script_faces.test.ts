@@ -180,7 +180,7 @@ describe('SolidScript faces', () => {
     expect(count({ command: 'for_each_vertex', values: { of: 'Knob' } })).toBe(16);
     expect(count({ command: 'for_each_edge', values: { of: 'base' } })).toBe(12);
     const missing = run(...lines, select('All', { of: 'Handle' }));
-    expect(missing.error?.message).toContain('No shape above is named "Handle"');
+    expect(missing.error?.message).toContain('No brush or mesh above is named "Handle"');
     expect(solidScriptDocumentListing(solidScriptDocumentCreate([lines[0]!, select('All', { of: 'Knob' })]))).toEqual([
       "Cube '4, 4, 1' Named Base",
       'Select Faces All Of Knob',
@@ -292,12 +292,12 @@ describe('SolidScript faces', () => {
     expect(messages(select('Facing Up'), vertex('Selected Faces'), echo('v'), END)).toHaveLength(4);
     expect(messages(select('All'), vertex('Selected Faces'), echo('v'), END)).toHaveLength(8);
     expect(messages(select('All'), edge('Selected Faces'), echo('e'), END)).toHaveLength(12);
-    // Shapes stays the default: a pick above does not change it.
+    // Brushes stays the default: a pick above does not change it.
     expect(messages(select('Facing Up'), { command: 'for_each_vertex' }, echo('v'), END)).toHaveLength(8);
     expect(run(CUBE, vertex('Current Face'), END).error?.message).toContain('inside For Each Selected Face');
     expect(run(CUBE, edge('Selected Faces'), END).error?.message).toContain('Select Faces');
     expect(
-      solidScriptDocumentListing(solidScriptDocumentCreate([vertex('Current Face'), END, edge('Shapes'), END])),
+      solidScriptDocumentListing(solidScriptDocumentCreate([vertex('Current Face'), END, edge('Brushes'), END])),
     ).toEqual(['For Each Vertex In Current Face', 'End For Each', 'For Each Edge', 'End For Each']);
   });
 
@@ -384,7 +384,7 @@ describe('SolidScript faces', () => {
   });
 
   it('stops with plain errors', () => {
-    expect(run(select('Facing Up')).error?.message).toMatch(/add a shape such as Cube first/);
+    expect(run(select('Facing Up')).error?.message).toMatch(/add a brush such as Cube first/);
     expect(run(CUBE, select('Sideways')).error?.message).toMatch(/Which must be one of/);
     expect(run(CUBE, { command: 'place_on_face' }, { command: 'cube' }, END).error?.message).toMatch(
       /only works inside For Each Selected Face/,

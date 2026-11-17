@@ -32,9 +32,9 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     id: 'translate',
     label: 'Translate',
     category: 'Transforms',
-    description: 'Move shapes',
+    description: 'Move brushes',
     manual:
-      'Moves every shape between this line and its End by the given distance along X, Y and Z in metres. Blocks can be nested: a Translate inside another adds both moves. Example: by 0, 2.5, 0 lifts a lintel onto two posts 2.5 metres high. By [=[I] * 2], 0, 0 inside a Repeat moves each round two metres further.',
+      'Moves every brush between this line and its End by the given distance along X, Y and Z in metres. Blocks can be nested: a Translate inside another adds both moves. Example: by 0, 2.5, 0 lifts a lintel onto two posts 2.5 metres high. By [=[I] * 2], 0, 0 inside a Repeat moves each round two metres further.',
     stops: ['A value that is not one number or three numbers separated by commas.', SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [solidScriptParameter('v', 'Offset', 'vector3', '0, 0, 0', 'Distance along X, Y and Z in metres.')],
@@ -45,9 +45,9 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     id: 'rotate',
     label: 'Rotate',
     category: 'Transforms',
-    description: 'Turn shapes',
+    description: 'Turn brushes',
     manual:
-      'Turns every shape between this line and its End around the origin, first around X, then Y, then Z, in degrees. To turn a shape around its own middle, build it centred, or move it after turning it. Example: by 0, 90, 0 turns a box a quarter turn around the upright Y axis.',
+      'Turns every brush between this line and its End around the origin, first around X, then Y, then Z, in degrees. To turn a brush around its own middle, build it centred, or move it after turning it. Example: by 0, 90, 0 turns a box a quarter turn around the upright Y axis.',
     stops: ['A value that is not one number or three numbers separated by commas.', SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [solidScriptParameter('a', 'Angles', 'vector3', '0, 0, 0', 'Degrees around X, then Y, then Z.')],
@@ -58,9 +58,9 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     id: 'align',
     label: 'Align To',
     category: 'Transforms',
-    description: 'Turn shapes to point along a direction',
+    description: 'Turn brushes to point along a direction',
     manual:
-      'Turns every shape between this line and its End so that its upright Y axis points along Direction, by the shortest turn around the origin. Example: inside For Each Scattered Point, Translate by [Point.Position] with Align To [Point.Normal] and a thin Cylinder grows a spike straight out of every face.',
+      'Turns every brush between this line and its End so that its upright Y axis points along Direction, by the shortest turn around the origin. Example: inside For Each Scattered Point, Translate by [Point.Position] with Align To [Point.Normal] and a thin Cylinder grows a spike straight out of every face.',
     stops: ['A Direction of 0, 0, 0.', SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [
@@ -79,9 +79,9 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     id: 'scale',
     label: 'Scale',
     category: 'Transforms',
-    description: 'Stretch or shrink shapes',
+    description: 'Stretch or shrink brushes',
     manual:
-      'Stretches or shrinks every shape between this line and its End, measured from the origin: 1 keeps the size, 2 doubles it, 0.5 halves it. Example: by 1, 1, 2 makes a sphere twice as tall, like an egg. By [=[I] + 1], 1, 1 inside a Repeat stretches each round more.',
+      'Stretches or shrinks every brush between this line and its End, measured from the origin: 1 keeps the size, 2 doubles it, 0.5 halves it. Example: by 1, 1, 2 makes a sphere twice as tall, like an egg. By [=[I] + 1], 1, 1 inside a Repeat stretches each round more.',
     stops: ['A value that is not one number or three numbers separated by commas.', SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [
@@ -94,9 +94,9 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     id: 'mirror',
     label: 'Mirror',
     category: 'Transforms',
-    description: 'Flip shapes to the other side',
+    description: 'Flip brushes to the other side',
     manual:
-      'Flips every shape between this line and its End to the other side of a mirror through the origin. The direction says which way the mirror faces: 1, 0, 0 flips left and right. Example: build one post at X = 2, then the same post inside Mirror across 1, 0, 0 to get its twin at X = -2.',
+      'Flips every brush between this line and its End to the other side of a mirror through the origin. The direction says which way the mirror faces: 1, 0, 0 flips left and right. Example: build one post at X = 2, then the same post inside Mirror across 1, 0, 0 to get its twin at X = -2.',
     stops: ['A direction of 0, 0, 0.', SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [solidScriptParameter('v', 'Plane Normal', 'vector3', '1, 0, 0', 'Direction the mirror faces.')],
@@ -107,9 +107,9 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     id: 'resize',
     label: 'Resize',
     category: 'Transforms',
-    description: 'Stretch shapes to an exact size',
+    description: 'Stretch brushes to an exact size',
     manual:
-      'Stretches the shapes between this line and its End about the origin so that, together, they measure exactly the given width (X), height (Y) and depth (Z) in metres. A size of 0 leaves that axis alone, or with Keep Proportions scales it like the first axis that has a size. Example: a Sphere inside Resize to 4, 2, 1 gives an egg four metres long, without working out the scale yourself.',
+      'Stretches the brushes between this line and its End about the origin so that, together, they measure exactly the given width (X), height (Y) and depth (Z) in metres. A size of 0 leaves that axis alone, or with Keep Proportions scales it like the first axis that has a size. Example: a Sphere inside Resize to 4, 2, 1 gives an egg four metres long, without working out the scale yourself.',
     stops: [
       'A size below 0, or 0 on every axis.',
       'Stretching shapes that are flat along an axis.',
@@ -149,9 +149,9 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     id: 'matrix',
     label: 'Matrix',
     category: 'Transforms',
-    description: 'Move, turn, stretch and slant shapes at once',
+    description: 'Move, turn, stretch and slant brushes at once',
     manual:
-      'Moves the shapes between this line and its End by a 3 by 4 matrix, one row per axis: the new X is Row 1 times x, y, z, 1, and so on. The fourth number of a row moves along that axis. It can do everything Translate, Rotate, Scale and Mirror do, and slant (shear) too. Example: Row 1 of 1, 0, 0.5, 0 leans a Cube over, moving its top half a metre along X per metre of height.',
+      'Moves the brushes between this line and its End by a 3 by 4 matrix, one row per axis: the new X is Row 1 times x, y, z, 1, and so on. The fourth number of a row moves along that axis. It can do everything Translate, Rotate, Scale and Mirror do, and slant (shear) too. Example: Row 1 of 1, 0, 0.5, 0 leans a Cube over, moving its top half a metre along X per metre of height.',
     stops: ['A row that is not four numbers.', 'A matrix that squashes shapes flat.', SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [
@@ -243,9 +243,9 @@ export const SOLID_SCRIPT_COMMANDS_COMBINE: readonly SolidScriptCommand[] = [
     id: 'union',
     label: 'Union',
     category: 'Combine',
-    description: 'Join shapes into one',
+    description: 'Join brushes into one',
     manual:
-      'Joins the shapes between this line and its End into one object, so later blocks treat them as a whole. Example: put two crossing boxes in a Union, then cut a hole through both with Difference.',
+      'Joins the brushes between this line and its End into one object, so later blocks treat them as a whole. Example: put two crossing boxes in a Union, then cut a hole through both with Difference.',
     stops: [SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [],
@@ -256,10 +256,10 @@ export const SOLID_SCRIPT_COMMANDS_COMBINE: readonly SolidScriptCommand[] = [
     id: 'difference',
     label: 'Difference',
     category: 'Combine',
-    description: 'Cut shapes out of the first one',
+    description: 'Cut brushes out of the first one',
     manual:
-      'Keeps the first shape between this line and its End and cuts every later shape out of it. Example: a Cube followed by a Cylinder gives a block with a round hole where the cylinder was.',
-    stops: ['A first line that builds no shape, so there is nothing to cut from.', SOLID_SCRIPT_STOPS_END],
+      'Keeps the first brush between this line and its End and cuts every later brush out of it. Example: a Cube followed by a Cylinder gives a block with a round hole where the cylinder was.',
+    stops: ['A first line that builds no brush, so there is nothing to cut from.', SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [],
     listing: () => ['Difference'],
@@ -269,9 +269,9 @@ export const SOLID_SCRIPT_COMMANDS_COMBINE: readonly SolidScriptCommand[] = [
     id: 'intersection',
     label: 'Intersection',
     category: 'Combine',
-    description: 'Keep only where shapes overlap',
+    description: 'Keep only where brushes overlap',
     manual:
-      'Keeps only the space that every shape between this line and its End fills at the same time. Example: a Cube and a slightly larger Sphere, both centred, give a box with rounded corners.',
+      'Keeps only the space that every brush between this line and its End fills at the same time. Example: a Cube and a slightly larger Sphere, both centred, give a box with rounded corners.',
     stops: [SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [],
@@ -282,9 +282,9 @@ export const SOLID_SCRIPT_COMMANDS_COMBINE: readonly SolidScriptCommand[] = [
     id: 'hull',
     label: 'Hull',
     category: 'Combine',
-    description: 'Wrap shapes in one solid',
+    description: 'Wrap brushes in one solid',
     manual:
-      'Wraps all shapes between this line and its End in one convex solid, like shrink wrap stretched around them. Example: two small spheres far apart give a capsule. Four thin cylinders at the corners give a table top with round edges.',
+      'Wraps all brushes between this line and its End in one convex solid, like shrink wrap stretched around them. Example: two small spheres far apart give a capsule. Four thin cylinders at the corners give a table top with round edges.',
     stops: [SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [],
@@ -295,7 +295,7 @@ export const SOLID_SCRIPT_COMMANDS_COMBINE: readonly SolidScriptCommand[] = [
     id: 'minkowski',
     label: 'Minkowski',
     category: 'Combine',
-    description: 'Grow a shape by sweeping others over it',
+    description: 'Grow a brush by sweeping others over it',
     manual:
       'Grows the first shape between this line and its End by the shapes after it, as if their middle were swept over every point of the first. A small Sphere after a Cube rounds every edge and corner. A flat Cylinder after a Square inside a Linear Extrude gives rounded corners. Each later shape counts as its convex hull. Example: Cube 2, 2, 1 then Sphere radius 0.2 gives a box 2.4 by 2.4 by 1.4 with soft edges.',
     stops: ['Too many corner points: use fewer Sides.', SOLID_SCRIPT_STOPS_END],

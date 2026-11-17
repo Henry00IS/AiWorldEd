@@ -54,7 +54,7 @@ const SOLID_SCRIPT_SAMPLE_CHILDREN: Readonly<Record<string, readonly SolidScript
     { command: 'face', values: { corners: '2, 3, 4' } },
     { command: 'face', values: { corners: '3, 0, 4' } },
   ],
-  mesh_shapes: [{ command: 'cube' }],
+  mesh_brushes: [{ command: 'cube' }],
   merge_by_distance: [{ command: 'cube' }],
   subdivide: [{ command: 'cube' }],
   mesh_smooth: [{ command: 'subdivide', values: { smooth: 'false' } }, { command: 'cube' }, { command: 'end' }],

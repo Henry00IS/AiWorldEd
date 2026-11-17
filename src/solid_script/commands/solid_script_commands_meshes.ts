@@ -62,7 +62,7 @@ function solidScriptMeshesOf(shape: SolidScriptShape, label: string): SolidScrip
     throw new Error(`${label} needs solids or meshes; a flat outline becomes a solid inside Linear Extrude first`);
   if (shape.operation !== 'union')
     throw new Error(
-      `${label} cannot turn a ${shape.operation === 'difference' ? 'Difference' : 'Intersection'} into a mesh yet; only shapes and Unions can be`,
+      `${label} cannot turn a ${shape.operation === 'difference' ? 'Difference' : 'Intersection'} into a mesh yet; only brushes and Unions can be`,
     );
   return shape.children.flatMap((child) => solidScriptMeshesOf(child, label));
 }
@@ -149,7 +149,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Build a mesh from Vertex and Face lines',
     manual:
-      'Builds a mesh, a regular model made of faces instead of brushes, from the Vertex and Face lines between this line and its End. Each Vertex adds a corner point. They are numbered from 0 in order. Each Face joins corner numbers, listed counter-clockwise as seen from outside. Unlike brushes, a mesh may be open, dented or any shape at all, but it does not cut or get cut. The lines inside may use Repeat, For Each, If, Set and moves, so a grid or a terrain can come from loops. Example: Vertex lines at -1, -1, 0 and 1, -1, 0 and 0, 1, 0, then Face 0, 1, 2 give one triangle.',
+      'Builds a mesh, a regular model made of faces instead of brushes, from the Vertex and Face lines between this line and its End. Each Vertex adds a corner point. They are numbered from 0 in order. Each Face joins corner numbers, listed counter-clockwise as seen from outside. Unlike brushes, a mesh may be open, dented or any brush at all, but it does not cut or get cut. The lines inside may use Repeat, For Each, If, Set and moves, so a grid or a terrain can come from loops. Example: Vertex lines at -1, -1, 0 and 1, -1, 0 and 0, 1, 0, then Face 0, 1, 2 give one triangle.',
     stops: [
       'A Face with fewer than three corners, or a corner number with no Vertex.',
       'No Face lines.',
@@ -224,12 +224,12 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     },
   }),
   new SolidScriptCommand({
-    id: 'mesh_shapes',
-    label: 'Mesh From Shapes',
+    id: 'mesh_brushes',
+    label: 'Mesh From Brushes',
     category: 'Meshes',
-    description: 'Turn shapes into a mesh instead of brushes',
+    description: 'Turn brushes into one mesh',
     manual:
-      'Turns the shapes between this line and its End into one mesh instead of brushes: every Cube, Sphere, Cylinder, Polyhedron, Hull or extrusion inside becomes faces of a regular mesh object. Use it when a shape should be a model rather than level geometry, or to change it with the other mesh tools. Shapes inside are joined, not cut. Example: a Sphere inside Mesh From Shapes becomes a round mesh ball.',
+      'Turns the brushes between this line and its End into one mesh: every Cube, Sphere, Cylinder, Polyhedron, Hull or extrusion inside becomes faces of a regular mesh object. Use it when a brush should be a model rather than level geometry, or to change it with the other mesh tools. Brushes inside are joined, not cut. Example: a Sphere inside Mesh From Brushes becomes a round mesh ball.',
     stops: [
       'A Difference or Intersection inside. They only work on brushes.',
       SOLID_SCRIPT_MESH_STOPS_FLAT,
@@ -237,8 +237,8 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     ],
     nesting: 'open',
     parameters: [],
-    listing: () => ['Mesh From Shapes'],
-    execute: (run) => solidScriptMeshTool(run, 'Mesh From Shapes', (mesh) => mesh),
+    listing: () => ['Mesh From Brushes'],
+    execute: (run) => solidScriptMeshTool(run, 'Mesh From Brushes', (mesh) => mesh),
   }),
   new SolidScriptCommand({
     id: 'merge_by_distance',
@@ -246,7 +246,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Weld corners that nearly touch',
     manual:
-      'Turns the shapes between this line and its End into one mesh and welds corners closer than Distance into one, so pieces that touch share their corners and smooth as one surface. Faces that fold away are dropped. Example: Merge By Distance 0.001 around two Cubes side by side gives one mesh whose touching corners are shared.',
+      'Turns the brushes between this line and its End into one mesh and welds corners closer than Distance into one, so pieces that touch share their corners and smooth as one surface. Faces that fold away are dropped. Example: Merge By Distance 0.001 around two Cubes side by side gives one mesh whose touching corners are shared.',
     stops: ['A Distance below 0.', SOLID_SCRIPT_MESH_STOPS_FLAT, SOLID_SCRIPT_MESH_STOPS_END],
     nesting: 'open',
     parameters: [
@@ -271,7 +271,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Split mesh faces into smaller ones',
     manual:
-      'Splits every face of the shapes between this line and its End into four-sided faces, Levels times. Each level makes about four times as many faces. With Smooth on, the corners are rounded off as well, so a Cube turns into a soft rounded ball after a few levels. Shapes inside become a mesh. Example: Subdivide with 2 levels around a Cube gives a smooth blob. With Smooth off it stays a cube with a finer grid for Displace.',
+      'Splits every face of the brushes between this line and its End into four-sided faces, Levels times. Each level makes about four times as many faces. With Smooth on, the corners are rounded off as well, so a Cube turns into a soft rounded ball after a few levels. Brushes inside become a mesh. Example: Subdivide with 2 levels around a Cube gives a smooth blob. With Smooth off it stays a cube with a finer grid for Displace.',
     stops: [
       `Levels below 1 or above ${SOLID_SCRIPT_SUBDIVIDE_LEVELS_MAX}.`,
       SOLID_SCRIPT_MESH_STOPS_FLAT,
@@ -347,7 +347,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Push mesh points in or out by a formula',
     manual:
-      'Moves every point of the mesh made from the shapes between this line and its End outwards along its surface by Distance in metres. A negative distance pulls it in. Distance is worked out for each point, and may use [X], [Y] and [Z] (where the point is), [Nx], [Ny] and [Nz] (which way the surface faces there) and [Index] (the point number), so waves, noise and bulges come from one formula. Subdivide first for a smooth result. Example: Distance [=0.1 * Sin([X] * 180)] around a subdivided Cube gives a wavy surface.',
+      'Moves every point of the mesh made from the brushes between this line and its End outwards along its surface by Distance in metres. A negative distance pulls it in. Distance is worked out for each point, and may use [X], [Y] and [Z] (where the point is), [Nx], [Ny] and [Nz] (which way the surface faces there) and [Index] (the point number), so waves, noise and bulges come from one formula. Subdivide first for a smooth result. Example: Distance [=0.1 * Sin([X] * 180)] around a subdivided Cube gives a wavy surface.',
     stops: ['A Distance that does not give a number.', SOLID_SCRIPT_MESH_STOPS_FLAT, SOLID_SCRIPT_MESH_STOPS_END],
     nesting: 'open',
     parameters: [
@@ -384,7 +384,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Pull chosen mesh faces out',
     manual:
-      'Pulls the faces of the mesh made from the shapes between this line and its End out along the way they face, each on its own, with new side faces joining them to the rest. A negative distance pushes them in for a dent. Which Faces is a condition checked for every face, and both fields may use [Nx], [Ny] and [Nz] (which way the face points), [Cx], [Cy] and [Cz] (its middle) and [Index] (its number). Example: Which Faces [Nz] > 0.5 with Distance 0.5 lifts the top of a Cube half a metre.',
+      'Pulls the faces of the mesh made from the brushes between this line and its End out along the way they face, each on its own, with new side faces joining them to the rest. A negative distance pushes them in for a dent. Which Faces is a condition checked for every face, and both fields may use [Nx], [Ny] and [Nz] (which way the face points), [Cx], [Cy] and [Cz] (its middle) and [Index] (its number). Example: Which Faces [Nz] > 0.5 with Distance 0.5 lifts the top of a Cube half a metre.',
     stops: ['A Distance that does not give a number.', SOLID_SCRIPT_MESH_STOPS_FLAT, SOLID_SCRIPT_MESH_STOPS_END],
     nesting: 'open',
     parameters: [
@@ -419,7 +419,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Give mesh faces even texture coordinates',
     manual:
-      'Gives every face of the mesh made from the shapes between this line and its End texture coordinates projected from the side it faces most, like wrapping it in a box of texture, so the texture keeps one size everywhere. Size is how many metres one texture repeat covers. Example: Box UVs with size 2 around a displaced rock shows the texture every two metres.',
+      'Gives every face of the mesh made from the brushes between this line and its End texture coordinates projected from the side it faces most, like wrapping it in a box of texture, so the texture keeps one size everywhere. Size is how many metres one texture repeat covers. Example: Box UVs with size 2 around a displaced rock shows the texture every two metres.',
     stops: ['A Size of 0 or less.', SOLID_SCRIPT_MESH_STOPS_FLAT, SOLID_SCRIPT_MESH_STOPS_END],
     nesting: 'open',
     parameters: [solidScriptParameter('size', 'Size', 'number', '1', 'Metres covered by one texture repeat.')],
@@ -436,7 +436,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Turn mesh faces to show the other side',
     manual:
-      'Turns every face of the mesh made from the shapes between this line and its End around, so it shows its other side. Use it when a mesh looks inside out, or to see a box from the inside, such as a sky box or a cave. Example: a large Cube inside Flip Faces is a room seen from within.',
+      'Turns every face of the mesh made from the brushes between this line and its End around, so it shows its other side. Use it when a mesh looks inside out, or to see a box from the inside, such as a sky box or a cave. Example: a large Cube inside Flip Faces is a room seen from within.',
     stops: [SOLID_SCRIPT_MESH_STOPS_FLAT, SOLID_SCRIPT_MESH_STOPS_END],
     nesting: 'open',
     parameters: [],

@@ -253,13 +253,13 @@ describe('SolidScript modifiers that read the brushes they receive', () => {
     }
   });
 
-  it('Hide Input Brushes keeps the received brushes from passing on', () => {
+  it('outputs only what the script builds, like a generator, unless Input Brushes passes the brushes on', () => {
     const uses = { generator: false, modifier: true };
     const outputs = (lines: { command: string }[]) =>
       compiled(MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND, {
-        script: solidScriptDocumentUsesWith(solidScriptDocumentCreate(lines, 'Hide'), uses),
+        script: solidScriptDocumentUsesWith(solidScriptDocumentCreate(lines, 'Output'), uses),
       }).outputs;
-    expect(outputs([{ command: 'cube' }])).toBe(2);
-    expect(outputs([{ command: 'hide_input_brushes' }, { command: 'cube' }])).toBe(1);
+    expect(outputs([{ command: 'cube' }])).toBe(1);
+    expect(outputs([{ command: 'input_brushes' }, { command: 'cube' }])).toBe(2);
   });
 });
