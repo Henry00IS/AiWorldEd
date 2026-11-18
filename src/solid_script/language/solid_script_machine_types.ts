@@ -56,8 +56,11 @@ export interface SolidScriptMachineCommand extends SolidScriptTreeCommand {
   execute(run: SolidScriptBlockRun): SolidScriptShape[];
 }
 
-/** Which block gathers: corner points only, or a mesh's vertices and faces. */
-export type SolidScriptGatherKind = 'points' | 'mesh';
+/**
+ * Which block gathers: corner points only, a mesh's vertices and faces, or a
+ * Hull that also wraps brushes.
+ */
+export type SolidScriptGatherKind = 'points' | 'mesh' | 'hull';
 
 /** What the Point, Vertex and Face lines inside a block added. */
 export interface SolidScriptGathered {
@@ -110,8 +113,11 @@ export interface SolidScriptBlockRun {
   transformed(matrix: THREE.Matrix4): SolidScriptShape[];
   /** Runs the lines inside and combines their results. */
   combined(operation: 'union' | 'difference' | 'intersection'): SolidScriptShape[];
-  /** Runs the lines inside and wraps their results in one convex shape. */
-  hulled(): SolidScriptShape[];
+  /**
+   * Runs the lines inside and wraps their results and extra corners in one
+   * convex shape.
+   */
+  hulled(extra?: readonly THREE.Vector3[]): SolidScriptShape[];
   /** Runs the flat lines inside and pulls them up into solids. */
   extruded(fields: SolidScriptBlockArguments): SolidScriptShape[];
   /** Runs the lines inside once per value, with the counter set to it. */
@@ -131,8 +137,8 @@ export interface SolidScriptBlockRun {
    */
   gathered(what: SolidScriptGatherKind): SolidScriptGathered;
   /**
-   * Adds a point to the Polyhedron, Polygon or Mesh around this line, with its
-   * texture coordinate in a Mesh.
+   * Adds a point to the Polyhedron, Polygon, Hull or Mesh around this line,
+   * with its texture coordinate in a Mesh.
    */
   point(position: THREE.Vector3, uv: SolidScriptUv | null): SolidScriptShape[];
   /** Adds a face to the Mesh around this line. */

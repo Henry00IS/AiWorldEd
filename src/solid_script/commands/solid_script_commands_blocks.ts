@@ -1,7 +1,11 @@
 import * as THREE from 'three';
 import { SolidScriptCommand, type SolidScriptCommandParameter } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
-import { solidScriptParameter, solidScriptParameterAnchor } from './solid_script_command_parameters.js';
+import {
+  solidScriptParameter,
+  solidScriptParameterAnchor,
+  solidScriptParameterOptional,
+} from './solid_script_command_parameters.js';
 import { SOLID_SCRIPT_ANCHOR_HEIGHT } from '@/solid_script/language/solid_script_anchor.js';
 import {
   solidScriptMirrorMatrix,
@@ -22,6 +26,7 @@ import {
   solidScriptShapeJoin,
   solidScriptShapeNamed,
 } from '@/solid_script/language/solid_script_shape.js';
+import { solidScriptHullListed } from '@/solid_script/language/solid_script_hull.js';
 import { SOLID_SCRIPT_SIDES } from '@/solid_script/language/solid_script_primitives.js';
 
 /** What stops every block without its End. */
@@ -311,14 +316,24 @@ export const SOLID_SCRIPT_COMMANDS_COMBINE: readonly SolidScriptCommand[] = [
     named: true,
     label: 'Hull',
     category: 'Combine',
-    description: 'Wrap brushes in one solid',
+    description: 'Wrap brushes or points in one solid',
     manual:
-      'Wraps all brushes between this line and its End in one convex solid, like shrink wrap stretched around them. Example: two small spheres far apart give a capsule. Four thin cylinders at the corners give a table top with round edges.',
-    stops: [SOLID_SCRIPT_STOPS_END],
+      'Wraps the brushes, Point lines and the optional Points From List between this line and its End in one convex solid, like shrink wrap stretched around them. A list of vectors such as the points Scatter Points writes can be handed over in Points From List, so Hull (From [Spots]) wraps those points. Points inside the wrap are ignored, so the result is never hollow or dented. Example: two small spheres far apart give a capsule. Scatter Points on a Cube, then Hull From the points, gives an irregular rock.',
+    stops: ['Fewer than four corners, or corners that all lie in one plane.', 'A missing End line.'],
     nesting: 'open',
-    parameters: [],
-    listing: () => ['Hull'],
-    execute: (run) => run.hulled(),
+    parameters: [
+      solidScriptParameterOptional(
+        'points',
+        'Points From List',
+        'points3',
+        'Optional: a list of x, y, z points, such as a list variable [Spots] from Scatter Points, or vectors written [0, 0, 0], [2, 0, 0], [0, 2, 0], [0, 0, 2]. Point lines and brushes inside add more.',
+      ),
+    ],
+    listing: (read) => [
+      'Hull',
+      ...solidScriptListingOptions([read.changed('points') && ['From ', read.value('points')]]),
+    ],
+    execute: (run) => run.hulled(solidScriptHullListed(run)),
   }),
   new SolidScriptCommand({
     id: 'minkowski',

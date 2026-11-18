@@ -17,7 +17,13 @@ import {
   solidScriptFieldSplit,
 } from './solid_script_field.js';
 import { solidScriptExtrude } from './solid_script_extrude.js';
-import { solidScriptPolygonHull, type SolidScriptPoint2 } from './solid_script_polygon.js';
+import { solidScriptHullMoved, solidScriptHullShapes } from './solid_script_hull.js';
+import {
+  solidScriptMachineFlatCheck,
+  solidScriptMachineGatherCheck,
+  solidScriptMachineGatherWhile,
+} from './solid_script_machine_gather.js';
+import { type SolidScriptPoint2 } from './solid_script_polygon.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
 import { solidScriptShapeTransform } from './solid_script_reshape.js';
 import { solidScriptMeshChecked, solidScriptMeshTransform, solidScriptShapeHasMesh } from './solid_script_mesh.js';
@@ -38,7 +44,6 @@ import { solidScriptGeometryLeaves, type SolidScriptGeometryLeaf } from './solid
 import {
   solidScriptShapeJoin,
   solidScriptShapeNamed,
-  solidScriptShapeLeavesPositive,
   solidScriptShapeMapLeaves,
   type SolidScriptShape,
   SOLID_SCRIPT_SHAPE_NAME_KEY,
@@ -630,25 +635,15 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       },
       transformed: (matrix) => inside({ ...state.context, matrix: state.context.matrix.clone().multiply(matrix) }),
       combined: (operation) => state.machine.combine(node, operation, state.scope, state.context, labelOf()),
-      hulled: () => {
-        const leaves = inside(state.context).flatMap(solidScriptShapeLeavesPositive);
-        if (leaves.length === 0) return [];
-        if (state.context.planar)
-          return [
-            {
-              kind: 'polygon',
-              label: labelOf(),
-              points: solidScriptPolygonHull(leaves.flatMap((leaf) => (leaf.kind === 'polygon' ? leaf.points : []))),
-            },
-          ];
-        return [
-          {
-            kind: 'solid',
-            label: labelOf(),
-            points: leaves.flatMap((leaf) => (leaf.kind === 'polygon' ? [] : leaf.points)),
-          },
-        ];
-      },
+      hulled: (extra = []) =>
+        solidScriptMachineGatherWhile(state.machine.gathering, 'hull', (into) =>
+          solidScriptHullShapes(
+            inside(state.context),
+            [...into.points, ...solidScriptHullMoved(extra, state.context.matrix)],
+            labelOf(),
+            state.context.planar,
+          ),
+        ),
       extruded: (fields) => {
         if (state.context.planar) throw new Error('Linear Extrude cannot be inside another Linear Extrude');
         const flat = solidScriptShapeJoin(inside({ matrix: new THREE.Matrix4(), planar: true }), labelOf());
@@ -768,7 +763,9 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       point: (position, uv) => {
         const into = state.machine.gathering[state.machine.gathering.length - 1];
         if (!into)
-          throw new Error(`a ${node.command.label} belongs between a Polyhedron, Polygon or Mesh line and its End`);
+          throw new Error(
+            `a ${node.command.label} belongs between a Polyhedron, Polygon, Hull or Mesh line and its End`,
+          );
         if (node.command.id === 'vertex' && into.kind !== 'mesh')
           throw new Error('a Vertex belongs in a Mesh; use Point lines in a Polyhedron or Polygon');
         if (node.command.id !== 'vertex' && into.kind === 'mesh')
@@ -868,10 +865,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
    * @param node Line.
    */
   private gatherCheck(node: SolidScriptBlockNode<Command>): void {
-    if (this.gathering.length > 0)
-      throw new Error(
-        `${node.command.label} cannot be inside a Polyhedron or Polygon; only Point lines, logic and moves go there`,
-      );
+    solidScriptMachineGatherCheck(this.gathering, node.command.label);
   }
 
   /**
@@ -883,10 +877,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
    * @param flat True for a flat shape.
    */
   private flatCheck(node: SolidScriptBlockNode<Command>, context: SolidScriptContext, flat: boolean): void {
-    if (flat && !context.planar)
-      throw new Error(`${node.command.label} is a flat outline; place it inside a Linear Extrude`);
-    if (!flat && context.planar)
-      throw new Error(`${node.command.label} is a solid and cannot be inside Linear Extrude`);
+    solidScriptMachineFlatCheck(node.command.label, context.planar, flat);
   }
 
   /**

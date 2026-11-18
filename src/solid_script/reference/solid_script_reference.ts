@@ -63,7 +63,7 @@ Every field is plain text, without quotes, read like this:
 
 - A number: "2", "0.5", "-1".
 - A list for positions, sizes and angles: numbers separated by commas, "1, 2, 3". One number fills every axis: "2" means 2, 2, 2.
-- Polyhedron and Polygon are blocks: each Point line between them and their End adds one corner (x, y, z; a Polygon ignores z). Point lines may sit inside Repeat, For Each, If and moves such as Translate, so corners can come from loops and formulas. Their optional Points From List field adds the points of a list variable, such as "[Corners]"; written out, points are vectors in brackets separated by commas: "[0, 0, 0], [1, 0, 0]" (a Polygon ignores z).
+- Polyhedron, Hull and Polygon are blocks: each Point line between them and their End adds one corner (x, y, z; a Polygon ignores z). Point lines may sit inside Repeat, For Each, If and moves such as Translate, so corners can come from loops and formulas. Their optional Points From List field adds the points of a list variable, such as "[Corners]" or the points Scatter Points writes; written out, points are vectors in brackets separated by commas: "[0, 0, 0], [1, 0, 0]" (a Polygon ignores z). Hull also wraps any brushes inside the same way.
 - Lists: Set "Points()" adds an item at the end of the list Points (creating it), Set "Points(2)" changes item 2 (items count from 0, and the next free number appends), "[Points(2)]" reads it, "[Points.Count]" is the number of items and "[Points]" is the whole list. An item number past the end stops the script. For Each runs its lines once per item of a list.
 - Switches: Yes or No (True or False also work).
 - [Name] puts in the value of a variable: "[Width]", or "[Width], 1, 1" for one axis.
@@ -91,7 +91,7 @@ Formulas know: numbers, text in double quotes, true, false, lists in $[ $] brack
 - Rotate Extrude spins flat outlines around Y (outline X is the radius, Y the height), one brush per side and convex piece. Minkowski grows the first shape by the hull of each later one (round edges with a small Sphere). Resize stretches to an exact size; Matrix applies a 3 by 4 matrix, including shear.
 - Return leaves the part it is in; the script carries on after the Use Part line.
 - Square, Circle and Polygon are flat outlines and only work inside Linear Extrude; a concave Polygon becomes several convex brushes.
-- Difference becomes a CSG group: the first brush inside adds, every later one is cut from it. Intersection becomes a group that keeps only the overlap. Union is flattened into its parent. Hull becomes one convex brush around everything inside.
+- Difference becomes a CSG group: the first brush inside adds, every later one is cut from it. Intersection becomes a group that keeps only the overlap. Union is flattened into its parent. Hull becomes one convex brush around the brushes, Point lines and optional Points From List inside.
 - Part names become brush and group names in the outliner, so wrap pieces in Define Part for readable names.
 - Generator blocks (Cone, Capsule, Torus, Pipe, Pyramid, Prism, Hollow Box, Curved Stairs, Column, Stairs, Arch, Blast Hole) build the same pieces as the generator of that name: they fill a box of their Size, placed on the origin by their Anchor, and their other fields have the generator's names, ranges and choices. A choice is written as its value, such as "z" for Prism's Axis, and may come from a variable. Sphere and Cylinder are built the same way as the Sphere, Cylinder and Cone generators.
 
