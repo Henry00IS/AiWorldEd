@@ -96,7 +96,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
           'Type',
           'text',
           '',
-          `Optional kind the variable always holds; empty or Any lets it hold anything. One of: ${SOLID_SCRIPT_TYPES.join(', ')}.`,
+          `Optional kind the variable holds from here on, until a Set with another Type starts it over; empty keeps the Type set before, and Any lets it hold anything. One of: ${SOLID_SCRIPT_TYPES.join(', ')}.`,
           SOLID_SCRIPT_TYPES.map((word) => ({
             word,
             detail: word === 'Any' ? 'Anything, also another kind later' : `Always a ${word}`,

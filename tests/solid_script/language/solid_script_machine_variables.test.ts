@@ -305,3 +305,37 @@ describe('SolidScript declared Types on every write', () => {
     expect(warned([setTyped('Made', '', 'Brush List'), line('cube', { into: 'Made' })])).toEqual([]);
   });
 });
+
+describe('SolidScript Set with a new Type starts the variable over', () => {
+  /**
+   * Lines that declare Width a Number, then a Text, then write it without a
+   * Type.
+   */
+  const REDECLARED: SolidScriptLine[] = [
+    setTyped('Width', '4', 'Number'),
+    setTyped('Width', 'oak', 'Text'),
+    setTyped('Width', '5'),
+    line('echo', { value: '[Width.Length]' }),
+  ];
+
+  it('keeps the new Type when running, with no stop when the kind changes', () => {
+    expect(printed([...REDECLARED, line('cube')])).toEqual(['1']);
+    expect(
+      printed([
+        setTyped('Size', '4', 'Number'),
+        setTyped('Size', 'oak', 'Any'),
+        setTyped('Size', '[=Vector(1, 2, 3)]'),
+        line('echo', { value: '[Size.y]' }),
+        line('cube'),
+      ]),
+    ).toEqual(['2']);
+  });
+
+  it('agrees in the editor checks before running', () => {
+    expect(solidScriptTypeCheck(solidScriptDocumentCreate(REDECLARED))).toEqual([]);
+    const after = solidScriptTypeCheck(solidScriptDocumentCreate([...REDECLARED, line('cube', { into: 'Width' })])).map(
+      (warning) => warning.text,
+    );
+    expect(after).toEqual(['[Width] is declared Text, so it cannot hold a Brush.']);
+  });
+});
