@@ -6,6 +6,7 @@ import { solidScriptProgramRun } from '@/solid_script/language/solid_script_prog
 import {
   SOLID_SCRIPT_AUDIT_COMMANDS,
   SOLID_SCRIPT_AUDIT_PRELUDE,
+  solidScriptAuditFieldValues,
   solidScriptAuditScript,
 } from './solid_script_audit_lines.js';
 
@@ -36,7 +37,7 @@ const fields = SOLID_SCRIPT_AUDIT_COMMANDS.flatMap(([id, command]) =>
 describe('every field takes exactly the kinds it declares, at runtime and in the editor', () => {
   it.each(fields)('%s', (_name, command, parameter) => {
     for (const [kind, value] of SOLID_SCRIPT_AUDIT_SAMPLES) {
-      const script = solidScriptAuditScript(command, { [parameter.key]: '[V]' });
+      const script = solidScriptAuditScript(command, solidScriptAuditFieldValues(parameter, '[V]'));
       script.lines.splice(SOLID_SCRIPT_AUDIT_PRELUDE.length, 0, { command: 'variable', values: { name: 'V', value } });
       const line = script.at + 2;
       const document = solidScriptDocumentCreate(script.lines);

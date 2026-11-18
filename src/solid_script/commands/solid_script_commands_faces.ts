@@ -1,16 +1,22 @@
 import { solidScriptKindNamed } from '@/solid_script/language/solid_script_kinds.js';
 import * as THREE from 'three';
 import { SolidScriptCommand, type SolidScriptCommandWord } from './solid_script_command.js';
-import { solidScriptListingOptions } from './solid_script_command_listing.js';
+import {
+  solidScriptListingOptions,
+  type SolidScriptListingPiece,
+  type SolidScriptListingValues,
+} from './solid_script_command_listing.js';
 import {
   solidScriptParameter,
   solidScriptParameterInto,
   solidScriptParameterOptional,
   solidScriptParameterWords,
   solidScriptParameterOf,
+  solidScriptParameterWhen,
 } from './solid_script_command_parameters.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import { solidScriptPlaceMatrices } from '@/solid_script/language/solid_script_place.js';
+import { solidScriptScatterRun } from '@/solid_script/language/solid_script_scatter.js';
 import {
   solidScriptGeometryBevel,
   solidScriptGeometryFaceMatrix,
@@ -20,7 +26,6 @@ import {
   solidScriptGeometryInset,
   solidScriptGeometryMesh,
   solidScriptGeometryPick,
-  solidScriptGeometryScatter,
   type SolidScriptEdgeFacts,
   type SolidScriptFaceFacts,
   type SolidScriptFacePick,
@@ -138,6 +143,63 @@ function solidScriptFacePickRead(run: SolidScriptBlockRun): SolidScriptFacePick 
     default:
       throw new Error(`Which must be one of ${SOLID_SCRIPT_FACE_WHICH.join(', ')}, not "${which}"`);
   }
+}
+
+/**
+ * Lists a Scatter Points line: the On Faces form stays as it was, so existing
+ * scripts look the same, and other Where values show only the fields they use.
+ *
+ * @param read Line values.
+ * @returns Listing parts.
+ */
+function solidScriptScatterListing(read: SolidScriptListingValues): SolidScriptListingPiece[] {
+  const where = read.text('where').trim();
+  if (where === '' || where.toLowerCase() === 'on faces') return solidScriptScatterListingFaces(read);
+  return solidScriptScatterListingOther(read, where);
+}
+
+/**
+ * Lists a Scatter Points line whose Where is On Faces, or empty (the default).
+ *
+ * @param read Line values.
+ * @returns Listing parts.
+ */
+function solidScriptScatterListingFaces(read: SolidScriptListingValues): SolidScriptListingPiece[] {
+  return [
+    'Scatter Points',
+    ' ',
+    read.value('count'),
+    ' with seed ',
+    read.value('seed'),
+    ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+    ' Into ',
+    read.variable('into'),
+    ...(read.text('normals') === '' ? [] : [' Normals ', read.variable('normals')]),
+  ];
+}
+
+/**
+ * Lists a Scatter Points line whose Where is not On Faces.
+ *
+ * @param read Line values.
+ * @param where Where word or variable.
+ * @returns Listing parts.
+ */
+function solidScriptScatterListingOther(read: SolidScriptListingValues, where: string): SolidScriptListingPiece[] {
+  const folded = where.toLowerCase();
+  const grid = folded === 'grid';
+  const box = grid || folded === 'in box';
+  return [
+    'Scatter Points',
+    ' ',
+    read.value('where'),
+    ...(grid ? [' ', read.value('counts'), ' in ', read.value('size')] : [' ', read.value('count')]),
+    ...(!grid && box ? [' in ', read.value('size')] : []),
+    ...(grid ? [] : [' with seed ', read.value('seed')]),
+    ...(read.text('of') === '' || box ? [] : [' Of ', read.value('of')]),
+    ' Into ',
+    read.variable('into'),
+  ];
 }
 
 /**
@@ -383,59 +445,99 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     id: 'scatter_points',
     label: 'Scatter Points',
     category: 'Faces',
-    description: 'Spread random points on faces',
+    description: 'Spread points on faces, inside a shape, in a box, or on a grid',
     manual:
-      'Spreads points at random over faces, more on bigger faces, and writes their positions to the Into variable as a list of vectors, and the way the face under each one looks to Normals. Of gives the faces or brushes; empty uses [$Selected.Faces]. The same Seed gives the same points. Example: Select Faces Facing Up, Scatter Points 20 Into [Spots], then For Each [P] In [Spots] around Translate by [P] and a Sphere.',
-    stops: ['No faces.', 'A Count that is not a whole number from 0 to 10000.', 'An empty Into.'],
+      'Spreads points and writes their positions to Into as a list of vectors. Where chooses how: On Faces (the default) spreads them over faces, more on bigger ones, and writes the way each face looks to Normals; Inside fills the volume of a brush or mesh; In Box fills a box of Size, centred on the origin; Grid lays Counts points along that box. Of gives the faces, brushes or meshes for On Faces and Inside; empty uses [$Selected.Faces]. The same Seed gives the same points for the random modes. Example: Select Faces Facing Up, Scatter Points 20 Into [Spots], then Place At Points At [Spots], Sphere, End.',
+    stops: [
+      'No faces, when Where is On Faces or Inside.',
+      'A Count that is not a whole number from 0 to 10000.',
+      'An empty Into.',
+      'A Size below 0, or Counts that are not whole numbers from 1 to 100 with at most 10000 points in all.',
+    ],
     parameters: [
-      solidScriptParameter('count', 'Count', 'number', '10', 'How many points, 0 to 10000.'),
-      solidScriptParameter('seed', 'Seed', 'number', '0', 'Any number; another seed gives other points.'),
-      solidScriptParameterOf('faces or brushes', '$Selected.Faces'),
+      solidScriptParameterWords(
+        'where',
+        'Where',
+        'text',
+        'On Faces',
+        'Where to put the points: On Faces, Inside, In Box or Grid.',
+        [
+          { word: 'On Faces', detail: 'Spread over faces, more on bigger ones' },
+          { word: 'Inside', detail: 'Fill the volume of a brush or mesh' },
+          { word: 'In Box', detail: 'Fill a box of Size, centred on the origin' },
+          { word: 'Grid', detail: 'A regular grid of Counts in a box of Size' },
+        ],
+      ),
+      solidScriptParameterWhen(
+        solidScriptParameter('count', 'Count', 'number', '10', 'How many points, 0 to 10000.'),
+        'where',
+        ['On Faces', 'Inside', 'In Box'],
+      ),
+      solidScriptParameterWhen(
+        solidScriptParameter('seed', 'Seed', 'number', '0', 'Any number; another seed gives other points.'),
+        'where',
+        ['On Faces', 'Inside', 'In Box'],
+      ),
+      solidScriptParameterWhen(solidScriptParameterOf('faces, brushes or meshes', '$Selected.Faces'), 'where', [
+        'On Faces',
+        'Inside',
+      ]),
       {
         ...solidScriptParameterInto('the points, a list of vectors', 'Vector List', 'what is made'),
         hint: 'Variable to write the points to, a list of vectors.',
         optional: false,
         default: 'Points',
       },
-      {
-        ...solidScriptParameterInto(
-          'the way the face under each point looks, a list of vectors',
-          'Vector List',
-          'face directions',
+      solidScriptParameterWhen(
+        {
+          ...solidScriptParameterInto(
+            'the way the face under each point looks, a list of vectors',
+            'Vector List',
+            'face directions',
+          ),
+          key: 'normals',
+          label: 'Normals',
+        },
+        'where',
+        ['On Faces'],
+      ),
+      solidScriptParameterWhen(
+        solidScriptParameter(
+          'size',
+          'Size',
+          'vector3',
+          '1, 1, 1',
+          'Width, height and depth of the box, in metres, for In Box and Grid.',
         ),
-        key: 'normals',
-        label: 'Normals',
-      },
+        'where',
+        ['In Box', 'Grid'],
+      ),
+      solidScriptParameterWhen(
+        solidScriptParameter(
+          'counts',
+          'Counts',
+          'vector3',
+          '3, 3, 3',
+          'How many grid points stand along width, height and depth.',
+        ),
+        'where',
+        ['Grid'],
+      ),
     ],
-    listing: (read) => [
-      'Scatter Points',
-      ' ',
-      read.value('count'),
-      ' with seed ',
-      read.value('seed'),
-      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
-      ' Into ',
-      read.variable('into'),
-      ...(read.text('normals') === '' ? [] : [' Normals ', read.variable('normals')]),
-    ],
+    listing: (read) => solidScriptScatterListing(read),
     execute: (run) => {
-      const count = solidScriptValueNumber(run.value('count'));
-      if (count === undefined || !Number.isInteger(count) || count < 0 || count > 10000)
-        throw new Error('Count needs a whole number from 0 to 10000');
-      const seed = solidScriptValueNumber(run.value('seed'));
-      if (seed === undefined) throw new Error('Seed needs a number');
-      if (run.text('into').trim() === '') throw new Error('Scatter Points needs a variable in Into for the points');
-      const points = solidScriptGeometryScatter(solidScriptFaceTargets(run, 'Scatter Points'), count, seed);
+      const found = solidScriptScatterRun(run, () => solidScriptFaceTargets(run, 'Scatter Points'));
       solidScriptFaceWrite(
         run,
         'into',
-        points.map((point) => solidScriptMemberVector(point.position)),
+        found.positions.map((point) => solidScriptMemberVector(point)),
       );
-      solidScriptFaceWrite(
-        run,
-        'normals',
-        points.map((point) => solidScriptMemberVector(point.face.normal)),
-      );
+      if (found.normals)
+        solidScriptFaceWrite(
+          run,
+          'normals',
+          found.normals.map((point) => solidScriptMemberVector(point)),
+        );
       return [];
     },
   }),

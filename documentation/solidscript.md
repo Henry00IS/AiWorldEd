@@ -77,7 +77,7 @@ Brushes, faces, edges and corners are values, like numbers and text. A dot reads
 - **Place On Face** builds the shapes inside standing on its face the way they stand on the ground (Y out of the face), with a Lift.
 - **Place At Points** builds the shapes inside at each point in At, a list of vectors such as `[Spots]` from Scatter Points. Optional Directions (one per point, such as the Normals list) turns up along that way, and Lift moves them out along up.
 - **Extrude Face** names its new brushes (**Into**), their end faces (**Top**) and side faces (**Sides**); **Inset Face** names **Inner** and **Ring**; **Bevel Edges** names its new faces and skips edges of faces it made itself.
-- **Scatter Points** spreads points over faces, more on bigger ones, into a list of positions and a list of **Normals**; the same Seed always gives the same points.
+- **Scatter Points** spreads points into a list of positions. **Where** chooses how: **On Faces** (the default) spreads them over faces, more on bigger ones, and writes **Normals**; **Inside** fills a brush or mesh; **In Box** fills a box of Size; **Grid** lays Counts points in that box. Unused fields stay hidden. Of empty uses [$Selected.Faces]. The same Seed gives the same points for the random modes.
 - **Hull** wraps the brushes, Point lines and optional **Points From List** between it and its End in one convex solid. Hand it the list Scatter Points writes, such as `Hull` From `[Spots]`, to wrap those points; they must not all lie in one plane, so scatter on more than one face. **Polyhedron** also wraps a point list, when you are listing corners yourself.
 - **Align To** turns the lines inside so their up (Y) points along a direction, such as a face's `[Face.Normal]`.
 

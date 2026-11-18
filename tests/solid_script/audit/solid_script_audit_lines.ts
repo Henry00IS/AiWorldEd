@@ -132,4 +132,22 @@ export function solidScriptAuditScript(
 }
 
 /** Every registered command. */
+/**
+ * Values that open a field for an audit: the field itself, and, when it is
+ * shown only for some words of another field, the first of those words so the
+ * line actually uses it.
+ *
+ * @param parameter Field under test.
+ * @param value Text to put in that field.
+ * @returns Values for the command line.
+ */
+export function solidScriptAuditFieldValues(
+  parameter: { readonly key: string; readonly when?: { readonly field: string; readonly words: readonly string[] } },
+  value: string,
+): Record<string, string> {
+  const rule = parameter.when;
+  const word = rule?.words[0];
+  return !rule || word === undefined ? { [parameter.key]: value } : { [rule.field]: word, [parameter.key]: value };
+}
+
 export const SOLID_SCRIPT_AUDIT_COMMANDS = solidScriptCommands.map((command) => [command.id, command] as const);

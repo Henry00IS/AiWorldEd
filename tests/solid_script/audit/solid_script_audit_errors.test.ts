@@ -7,6 +7,7 @@ import { SOLID_SCRIPT_AUDIT_SAMPLES } from './solid_script_audit_accepts.test.js
 import {
   SOLID_SCRIPT_AUDIT_COMMANDS,
   SOLID_SCRIPT_AUDIT_PRELUDE,
+  solidScriptAuditFieldValues,
   solidScriptAuditScript,
 } from './solid_script_audit_lines.js';
 import { solidScriptAuditFuzz } from './solid_script_audit_fuzz.js';
@@ -93,11 +94,13 @@ describe('every mistake is told in plain words, at a line, with what to do', () 
     const found = new Set<string>();
     for (const parameter of command.parameters) {
       for (const value of ODD)
-        for (const problem of told(solidScriptAuditScript(command, { [parameter.key]: value }).lines).flatMap(wording))
+        for (const problem of told(
+          solidScriptAuditScript(command, solidScriptAuditFieldValues(parameter, value)).lines,
+        ).flatMap(wording))
           found.add(`${parameter.key}=${JSON.stringify(value)}: ${problem}`);
       if (parameter.writes) continue;
       for (const [kind, value] of SOLID_SCRIPT_AUDIT_SAMPLES) {
-        const script = solidScriptAuditScript(command, { [parameter.key]: '[V]' });
+        const script = solidScriptAuditScript(command, solidScriptAuditFieldValues(parameter, '[V]'));
         script.lines.splice(SOLID_SCRIPT_AUDIT_PRELUDE.length, 0, {
           command: 'variable',
           values: { name: 'V', value },

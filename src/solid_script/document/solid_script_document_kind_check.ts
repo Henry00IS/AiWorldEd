@@ -9,6 +9,7 @@ import {
   type SolidScriptFlowHead,
 } from './solid_script_document_flow_kinds.js';
 import type { SolidScriptCommandParameter } from '@/solid_script/commands/solid_script_command.js';
+import { solidScriptParameterApplies } from '@/solid_script/commands/solid_script_command_parameters.js';
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
 import { solidScriptFieldSplit } from '@/solid_script/language/solid_script_field.js';
 import { solidScriptKindAccepted, solidScriptKindMismatch } from '@/solid_script/language/solid_script_kinds.js';
@@ -35,6 +36,7 @@ export function solidScriptKindCheck(document: SolidScriptDocument): SolidScript
     for (const parameter of command.parameters) {
       const text = block.values[parameter.key] ?? '';
       if (text.trim() === '' || parameter.writes) continue;
+      if (!solidScriptParameterApplies(parameter, block.values, command.parameters)) continue;
       for (const problem of solidScriptKindProblems(parameter, text, head))
         warnings.push({ line: line + 1, text: problem });
     }
