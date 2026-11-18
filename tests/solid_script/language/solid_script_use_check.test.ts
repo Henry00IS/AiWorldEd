@@ -4,7 +4,12 @@ import {
   solidScriptDocumentUsesWith,
   type SolidScriptLine,
 } from '@/solid_script/document/solid_script_document.js';
-import { solidScriptUseCheck } from '@/solid_script/language/solid_script_use_check.js';
+import {
+  solidScriptMistakeCheck,
+  solidScriptTypeCheck,
+  solidScriptUseCheck,
+} from '@/solid_script/language/solid_script_use_check.js';
+import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 
 const BOXED: SolidScriptLine = { command: 'cube', values: { size: '[$Box.Width], 1, [=box.height / 2]' } };
 
@@ -39,5 +44,37 @@ describe('solid script use check', () => {
     expect(warned(modifier, { command: 'sphere' }, { command: 'else' }, BOXED, end)).toEqual([]);
     expect(warned({ ...BOXED, off: true })).toEqual([]);
     expect(solidScriptUseCheck(solidScriptDocumentCreate([BOXED]))).toEqual([]);
+  });
+});
+
+describe('solid script checks skip lines turned off', () => {
+  it('reads no Box value, Type or mistake from an off line', () => {
+    expect(warned({ ...BOXED, off: true }, { command: 'cube' })).toEqual([]);
+    const lines: SolidScriptLine[] = [
+      { command: 'variable', values: { name: 'Width', value: '5,3,7', type: 'Number List' }, off: true },
+      { command: 'add_item', values: { value: '78o', list: 'Width' } },
+      { command: 'variable', values: { name: 'Size', value: 'oak', type: 'Number' }, off: true },
+    ];
+    expect(solidScriptTypeCheck(solidScriptDocumentCreate(lines))).toEqual([]);
+    expect(
+      solidScriptMistakeCheck(solidScriptDocumentCreate([{ command: 'cube', values: { size: '[K]*2' }, off: true }])),
+    ).toEqual([]);
+  });
+
+  it('registers no Function or Part of an off line when the script runs', () => {
+    const run = (lines: SolidScriptLine[]) =>
+      solidScriptProgramRun(solidScriptDocumentCreate([...lines, { command: 'cube' }])).error?.message ?? '';
+    const fat: SolidScriptLine[] = [
+      { command: 'function', values: { name: 'Fat', parameters: 'Thickness' }, off: true },
+      { command: 'return', values: { value: '[Local.Thickness]' }, off: true },
+      { command: 'end', off: true },
+    ];
+    expect(run([...fat, { command: 'call', values: { name: 'Fat', values: '2' } }])).toMatch(/Fat/);
+    expect(run([...fat, { command: 'echo', values: { value: '[=Fat(2)]' } }])).toMatch(/Fat/);
+    const part: SolidScriptLine[] = [
+      { command: 'part', values: { name: 'Post' }, off: true },
+      { command: 'end', off: true },
+    ];
+    expect(run([...part, { command: 'use_part', values: { name: 'Post' } }])).toMatch(/Post/);
   });
 });

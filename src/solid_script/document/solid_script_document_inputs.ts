@@ -1,3 +1,4 @@
+import { solidScriptDocumentActiveLines } from './solid_script_document_active.js';
 import {
   SOLID_SCRIPT_COMMAND_INPUT,
   SOLID_SCRIPT_COMMAND_INPUT_GROUP,
@@ -40,8 +41,9 @@ type SolidScriptInputOpen =
 /**
  * Lists the inspector rows of a script in line order, read without running it:
  * one per Input line and one per Input Note, each with the Input Group, Input
- * Row and Show Inputs When blocks around it. Inputs whose fields cannot be read
- * are left out; they show their error when the script runs.
+ * Row and Show Inputs When blocks around it. Lines turned off are left out, as
+ * the script skips them. Inputs whose fields cannot be read are left out; they
+ * show their error when the script runs.
  *
  * @param document Script.
  * @returns Rows.
@@ -50,7 +52,7 @@ export function solidScriptDocumentInputLayout(document: SolidScriptDocument): S
   const items: SolidScriptInputLayoutItem[] = [];
   const names = new Set<string>();
   const open: SolidScriptInputOpen[] = [];
-  document.blocks.forEach((block, line) => {
+  for (const { block, line } of solidScriptDocumentActiveLines(document.blocks)) {
     const nesting = solidScriptBlockNesting(block);
     if (block.command === SOLID_SCRIPT_COMMAND_INPUT_NOTE) {
       const text = (block.values['text'] ?? '').trim();
@@ -68,7 +70,7 @@ export function solidScriptDocumentInputLayout(document: SolidScriptDocument): S
     }
     if (nesting === 'open') open.push(solidScriptInputOpenOf(block.command, block.values, line));
     if (nesting === 'close') open.pop();
-  });
+  }
   return items;
 }
 

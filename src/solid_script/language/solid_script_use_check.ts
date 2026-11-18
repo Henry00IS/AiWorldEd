@@ -3,6 +3,7 @@ import {
   type SolidScriptDocument,
   type SolidScriptBlock,
 } from '@/solid_script/document/solid_script_document.js';
+import { solidScriptDocumentActiveLines } from '@/solid_script/document/solid_script_document_active.js';
 import { solidScriptBlockNesting } from '@/solid_script/document/solid_script_document_indent.js';
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
 import type { SolidScriptWarning } from './solid_script_machine_types.js';
@@ -45,14 +46,16 @@ export function solidScriptUseCheck(document: SolidScriptDocument): SolidScriptW
   // Per open block: whether a modifier runs its lines, and what it runs after an Else.
   const open: { runs: boolean; otherwise: boolean }[] = [];
   const runs = (): boolean => open.every((block) => block.runs);
-  document.blocks.forEach((block, index) => {
-    if (block.off === true) return;
+  for (const { block, line: index } of solidScriptDocumentActiveLines(document.blocks)) {
     const nesting = solidScriptBlockNesting(block);
-    if (nesting === 'close') return void open.pop();
+    if (nesting === 'close') {
+      open.pop();
+      continue;
+    }
     if (nesting === 'continue') {
       const top = open[open.length - 1];
       if (top) top.runs = top.otherwise;
-      return;
+      continue;
     }
     if (runs()) {
       const found = Object.values(block.values)
@@ -66,13 +69,13 @@ export function solidScriptUseCheck(document: SolidScriptDocument): SolidScriptW
         });
       }
     }
-    if (nesting !== 'open') return;
+    if (nesting !== 'open') continue;
     if (block.command === 'if_used_as') {
       const use = solidScriptCommandFind(block.command)?.valueText(block.values, 'use') ?? '';
       const modifier = use.toLowerCase() === 'modifier';
       open.push({ runs: modifier, otherwise: !modifier });
     } else open.push({ runs: true, otherwise: true });
-  });
+  }
   return warnings;
 }
 
@@ -89,15 +92,15 @@ export function solidScriptMistakeCheck(
   known: (name: string) => boolean = () => false,
 ): SolidScriptWarning[] {
   const warnings: SolidScriptWarning[] = [];
-  document.blocks.forEach((block, index) => {
-    const command = block.off === true ? undefined : solidScriptCommandFind(block.command);
+  for (const { block, line: index } of solidScriptDocumentActiveLines(document.blocks)) {
+    const command = solidScriptCommandFind(block.command);
     for (const parameter of command?.parameters ?? []) {
       const text = block.values?.[parameter.key] ?? '';
       if (SOLID_SCRIPT_MISTAKE_NAMES.has(parameter.type) || text.trim() === '') continue;
       const note = solidScriptFieldMistakeNote(text, SOLID_SCRIPT_MISTAKE_NUMERIC.has(parameter.type), known);
       if (note !== '') warnings.push({ line: index + 1, text: `${parameter.label}: ${note}` });
     }
-  });
+  }
   return warnings;
 }
 
@@ -117,14 +120,13 @@ type SolidScriptTypeDeclared = Map<string, string>;
 export function solidScriptTypeCheck(document: SolidScriptDocument): SolidScriptWarning[] {
   const warnings: SolidScriptWarning[] = [];
   const declared: SolidScriptTypeDeclared = new Map();
-  document.blocks.forEach((block, index) => {
-    if (block.off === true) return;
+  for (const { block, line: index } of solidScriptDocumentActiveLines(document.blocks)) {
     const problem =
       block.command === 'variable'
         ? solidScriptTypeCheckSet(block, declared)
         : solidScriptTypeCheckItem(block, declared) || solidScriptTypeCheckWritten(block, declared);
     if (problem) warnings.push({ line: index + 1, text: problem.endsWith('.') ? problem : `${problem}.` });
-  });
+  }
   return warnings;
 }
 

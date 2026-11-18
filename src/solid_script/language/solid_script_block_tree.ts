@@ -1,3 +1,5 @@
+import { solidScriptDocumentActiveLines } from '@/solid_script/document/solid_script_document_active.js';
+
 /** Blocks an Else may split: If and If Used As. */
 const SOLID_SCRIPT_ELSE_PARENTS: ReadonlySet<string> = new Set(['if', 'if_used_as']);
 
@@ -39,7 +41,9 @@ export interface SolidScriptTreeLine {
 /**
  * Arranges the lines of a script into blocks by their End and Else lines. A
  * stray End, an Else outside an If, a missing End or an unknown command stops
- * the script before anything runs, at the line in question.
+ * the script before anything runs, at the line in question. Lines turned off,
+ * End and Else too, are left out, so the lines inside an off block run without
+ * it and an off Function or Part is never defined.
  *
  * @param lines Stored lines.
  * @param find Looks up the command of a line.
@@ -55,27 +59,25 @@ export function solidScriptBlockTree<Command extends SolidScriptTreeCommand>(
     const parent = open[open.length - 1]?.node;
     return parent ? (parent.otherwise ?? parent.children) : top;
   };
-  lines.forEach((stored, index) => {
+  for (const { block: stored, line: index } of solidScriptDocumentActiveLines(lines)) {
     const line = index + 1;
     const command = find(stored.command);
     if (!command) throw new Error(`line ${line}: this editor does not know the command "${stored.command}"`);
-    // Off lines do not count, End and Else too: the lines inside an off block run without it.
-    if (stored.off === true) return;
     const node: SolidScriptBlockNode<Command> = { line, command, values: stored.values, children: [], otherwise: null };
     if (command.nesting === 'close') {
       if (!open.pop()) throw new Error(`line ${line}: this End has no block above it to close; remove it`);
-      return;
+      continue;
     }
     if (command.nesting === 'continue') {
       const parent = open[open.length - 1];
       if (!parent || !SOLID_SCRIPT_ELSE_PARENTS.has(parent.id) || parent.node.otherwise)
         throw new Error(`line ${line}: ${command.label} must follow the lines of an If, before its End`);
       parent.node.otherwise = [];
-      return;
+      continue;
     }
     if (command.runs) target().push(node);
     if (command.nesting === 'open') open.push({ node, id: stored.command });
-  });
+  }
   const unclosed = open.pop();
   if (unclosed)
     throw new Error(

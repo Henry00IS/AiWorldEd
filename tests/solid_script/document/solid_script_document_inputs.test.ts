@@ -88,3 +88,14 @@ describe('solidScriptDocumentInputLayout', () => {
     ]);
   });
 });
+
+describe('SolidScript inspector rows skip lines turned off', () => {
+  it('shows no input for an off Input line', () => {
+    const lines: SolidScriptLine[] = [
+      { command: 'input', values: { name: 'width', type: 'number', default: '2' }, off: true },
+      { command: 'input', values: { name: 'depth', type: 'number', default: '3' } },
+    ];
+    const layout = solidScriptDocumentInputLayout(solidScriptDocumentCreate(lines));
+    expect(layout.map((item) => (item.kind === 'input' ? item.input.name : item.text))).toEqual(['depth']);
+  });
+});

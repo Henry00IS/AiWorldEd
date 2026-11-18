@@ -1,3 +1,4 @@
+import { solidScriptDocumentActiveLines } from '@/solid_script/document/solid_script_document_active.js';
 import { solidScriptNameDotProblem } from './solid_script_name_rules.js';
 import { solidScriptFieldCheck } from './solid_script_field.js';
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
@@ -56,9 +57,9 @@ export interface SolidScriptProgram {
  * @returns Problem with its 1-based line, or null.
  */
 export function solidScriptProgramProblem(program: SolidScriptProgram): { line: number; message: string } | null {
-  for (const [index, block] of program.blocks.entries()) {
+  for (const { block, line: index } of solidScriptDocumentActiveLines(program.blocks)) {
     const command = solidScriptCommandFind(block.command);
-    if (!command || block.off === true) continue;
+    if (!command) continue;
     for (const parameter of command.parameters) {
       const text = command.valueText(block.values, parameter.key);
       const problem =
