@@ -27,6 +27,11 @@ export interface SolidScriptMachineCommand extends SolidScriptTreeCommand {
   /** Fields of the line. */
   readonly parameters: readonly SolidScriptMachineField[];
   /**
+   * True for blocks that build brushes or meshes and write them Into a
+   * variable.
+   */
+  readonly builds?: boolean;
+  /**
    * Returns the stored text of a field, or its default when empty.
    *
    * @param values Stored values.

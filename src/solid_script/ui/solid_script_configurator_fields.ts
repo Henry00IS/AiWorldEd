@@ -254,13 +254,13 @@ function solidScriptConfiguratorInput(value: string, label: string): HTMLInputEl
  */
 function solidScriptConfiguratorProblem(parameter: SolidScriptCommandParameter, value: string): string {
   const text = value.trim();
+  if (text === '' && parameter.optional) return '';
   const dotted = parameter.type === 'name' || parameter.type === 'target' ? solidScriptNameDotProblem(text, 'set') : '';
   if (dotted) return `${parameter.label}: ${dotted}.`;
   if (parameter.type === 'name' && !SOLID_SCRIPT_CONFIGURATOR_NAME.test(text))
     return `${parameter.label} must start with a letter and use only letters, digits and _.`;
   if (parameter.type === 'target' && !SOLID_SCRIPT_CONFIGURATOR_TARGET.test(text))
     return `${parameter.label} must be a name such as width, or an item such as points(0), or points() to add one.`;
-  if (text === '' && parameter.optional) return '';
   if (parameter.type !== 'text' && text === '') return `${parameter.label} needs a value.`;
   if (parameter.anchor && !text.includes('[')) {
     const read = solidScriptAnchorRead(text, parameter.anchor);
@@ -270,7 +270,7 @@ function solidScriptConfiguratorProblem(parameter: SolidScriptCommandParameter, 
   const size = solidScriptConfiguratorVectorSize(parameter);
   const count = solidScriptFieldSplit(text, ',').length;
   if (size > 0 && count !== 1 && count !== size)
-    return `${parameter.label} needs ${size} values separated by commas, or one vector such as [Edge.Middle].`;
+    return `${parameter.label} needs ${size} values separated by commas, or one vector such as [$Box.Size].`;
   const problem = solidScriptFieldCheck(text);
   return problem === '' ? '' : `${parameter.label}: ${problem}.`;
 }

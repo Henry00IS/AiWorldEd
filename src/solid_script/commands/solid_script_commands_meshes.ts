@@ -225,6 +225,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
   }),
   new SolidScriptCommand({
     id: 'mesh_brushes',
+    named: true,
     label: 'Mesh From Brushes',
     category: 'Meshes',
     description: 'Turn brushes into one mesh',

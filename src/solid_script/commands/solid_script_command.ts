@@ -14,7 +14,7 @@ import {
   type SolidScriptListingValues,
   type SolidScriptListingWrite,
 } from './solid_script_command_listing.js';
-import { solidScriptParameterShapeName } from './solid_script_command_parameters.js';
+import { solidScriptParameterInto, solidScriptParameterShapeName } from './solid_script_command_parameters.js';
 
 /** How a command field reads its text, which also picks its configurator editor. */
 export type SolidScriptCommandParameterType = SolidScriptFieldKind;
@@ -154,6 +154,8 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
   readonly endLabel: string;
   readonly inPalette: boolean;
   readonly runs: boolean;
+  /** True for blocks that build brushes or meshes, with Name and Into. */
+  readonly builds: boolean;
   private readonly listingWrite: SolidScriptListingWrite;
   private readonly run: SolidScriptCommandSpec['execute'];
 
@@ -170,7 +172,15 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
     this.manual = spec.manual;
     this.stops = spec.stops ?? [];
     const named = spec.named ?? SOLID_SCRIPT_COMMAND_NAMED.includes(spec.category);
-    this.parameters = named ? [...spec.parameters, solidScriptParameterShapeName()] : spec.parameters;
+    // Blocks that build brushes or meshes also write them Into a variable; flat outlines do not.
+    this.builds = named && spec.category !== '2D Shapes';
+    this.parameters = named
+      ? [
+          ...spec.parameters,
+          solidScriptParameterShapeName(),
+          ...(this.builds ? [solidScriptParameterInto('the brushes or meshes it builds')] : []),
+        ]
+      : spec.parameters;
     this.nesting = spec.nesting ?? 'none';
     this.endLabel = spec.endLabel ?? spec.label;
     this.inPalette = spec.inPalette !== false;
@@ -179,7 +189,8 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
       ? (read) => {
           const pieces = spec.listing(read);
           const name = read.text(SOLID_SCRIPT_SHAPE_NAME_KEY);
-          return name === '' ? pieces : [...pieces, ' Named ', name];
+          const into = this.builds ? read.text('into') : '';
+          return [...pieces, ...(name === '' ? [] : [' Named ', name]), ...(into === '' ? [] : [' Into ', into])];
         }
       : spec.listing;
     this.run = spec.execute;

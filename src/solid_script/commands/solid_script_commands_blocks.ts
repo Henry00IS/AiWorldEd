@@ -164,6 +164,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
   }),
   new SolidScriptCommand({
     id: 'linear_extrude',
+    named: true,
     label: 'Linear Extrude',
     category: 'Transforms',
     description: 'Pull flat outlines up into solids',
@@ -200,6 +201,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
   }),
   new SolidScriptCommand({
     id: 'rotate_extrude',
+    named: true,
     label: 'Rotate Extrude',
     category: 'Transforms',
     description: 'Spin flat outlines around the Y axis',
@@ -280,6 +282,7 @@ export const SOLID_SCRIPT_COMMANDS_COMBINE: readonly SolidScriptCommand[] = [
   }),
   new SolidScriptCommand({
     id: 'hull',
+    named: true,
     label: 'Hull',
     category: 'Combine',
     description: 'Wrap brushes in one solid',

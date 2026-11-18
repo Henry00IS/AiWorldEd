@@ -243,6 +243,30 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   }
 
   /**
+   * Writes what a building block built Into its variable, and adds it to
+   * [$Selected.Brushes] when a Set narrowed that list.
+   *
+   * @param node Line.
+   * @param scope Scope of the line.
+   * @param shapes What it built.
+   */
+  private builtNote(
+    node: SolidScriptBlockNode<Command>,
+    scope: SolidScriptScope,
+    shapes: readonly SolidScriptShape[],
+  ): void {
+    if (this.failure) return;
+    const brushes = solidScriptGeometryLeaves([...shapes]).map((leaf) => this.elements.brush(leaf));
+    if (this.selected.brushes) this.selected.brushes = [...this.selected.brushes, ...brushes];
+    const into = node.command
+      .valueText(node.values, 'into')
+      .trim()
+      .replace(/^\[(.*)\]$/s, '$1')
+      .trim();
+    if (into !== '') this.variableSet(scope, into, brushes.length === 1 ? brushes[0]! : brushes);
+  }
+
+  /**
    * Runs lines of a round with the outer [$Selected.*] lists, and brings them
    * back after it.
    *
@@ -423,7 +447,9 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     line.busy = true;
     try {
       this.workTake();
-      return node.command.execute(line.run);
+      const shapes = node.command.execute(line.run);
+      if (node.command.builds) this.builtNote(node, scope, shapes);
+      return shapes;
     } catch (error) {
       this.failureNote(error, node.line);
       return [];

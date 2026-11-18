@@ -249,6 +249,7 @@ describe('solid script command catalog', () => {
       { key: 'size', label: 'Size', value: '2, 2, 2' },
       { key: 'anchor', label: 'Anchor', value: 'Center, Center, Center' },
       { key: 'label', label: 'Name', value: '' },
+      { key: 'into', label: 'Into', value: '' },
     ]);
   });
 
@@ -259,6 +260,7 @@ describe('solid script command catalog', () => {
       'rings',
       'anchor',
       'label',
+      'into',
     ]);
     expect(solidScriptCommandFind('cylinder')?.parameters.map((entry) => entry.key)).toContain('sides');
     expect(solidScriptCommandFind('circle')?.parameters.map((entry) => entry.key)).toContain('sides');

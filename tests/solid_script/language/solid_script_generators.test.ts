@@ -84,6 +84,7 @@ describe('SolidScript generator blocks', () => {
         'anchor',
         ...shaped.map((field) => field.key),
         'label',
+        'into',
       ]);
       for (const field of shaped) {
         const parameter = command?.parameters.find((entry) => entry.key === field.key);

@@ -56,6 +56,7 @@ function solidScriptSweepProfile(run: SolidScriptBlockRun): THREE.Vector2[] {
 export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'curve_to_mesh',
+    named: true,
     label: 'Curve To Mesh',
     category: 'Meshes',
     description: 'Sweep a profile along a path',
