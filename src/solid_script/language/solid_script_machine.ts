@@ -9,6 +9,7 @@ import type { SolidScriptBlockNode } from './solid_script_block_tree.js';
 import { solidScriptErrorLine, solidScriptErrorText } from './solid_script_error.js';
 import {
   solidScriptFieldCompiled,
+  solidScriptFieldEscapes,
   solidScriptFieldResolve,
   type SolidScriptFieldCompiled,
 } from './solid_script_field.js';
@@ -19,7 +20,7 @@ import { solidScriptNameKey } from './solid_script_name_key.js';
 import { solidScriptShapeTransform } from './solid_script_reshape.js';
 import { solidScriptMeshChecked, solidScriptMeshTransform, solidScriptShapeHasMesh } from './solid_script_mesh.js';
 import { SolidScriptScope } from './solid_script_scope.js';
-import type { SolidScriptFaceFacts, SolidScriptGeometryLeaf } from './solid_script_geometry.js';
+import { solidScriptGeometryLeaves, type SolidScriptGeometryLeaf } from './solid_script_geometry.js';
 import {
   solidScriptShapeJoin,
   solidScriptShapeLeavesPositive,
@@ -29,7 +30,7 @@ import {
   SOLID_SCRIPT_SHAPE_NAME_KEY,
   solidScriptShapesNamed,
 } from './solid_script_shape.js';
-import { solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
+import { SolidScriptElement, solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
 import {
   SOLID_SCRIPT_DEFINITIONS,
   SOLID_SCRIPT_FORMULA_CONTEXT,
@@ -131,22 +132,13 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   private work = 0;
   private used = false;
   private readonly breaks: SolidScriptBreak[] = [];
-  /** Faces the last Select Faces line picked. */
-  private faceSelection: SolidScriptFaceFacts[] = [];
-  /** Faces of the For Each Selected Face rounds running, innermost last. */
-  private readonly faceRounds: (SolidScriptFaceFacts | null)[] = [];
-  /**
-   * Where the built shapes of each running For Each round start, innermost
-   * last.
-   */
-  private readonly roundBuilt: number[] = [];
-  /** Shapes of the For Each Brush rounds running, innermost last. */
-  private readonly shapeRounds: (SolidScriptShape | null)[] = [];
   /**
    * The brushes a modifier receives as shapes named Input 1, Input 2 and so on,
-   * made on first use; lines read their faces without building them.
+   * made on first use, until an Input Brushes line builds them.
    */
-  private received: SolidScriptShape[] | null = null;
+  private received: SolidScriptGeometryLeaf[] | null = null;
+  /** Where the built shapes of each running round start, innermost last. */
+  private readonly roundStarts: number[] = [];
   /** What each swapped solid or mesh became. */
   private readonly leafSwaps = new Map<SolidScriptGeometryLeaf, SolidScriptGeometryLeaf>();
   /**
@@ -182,18 +174,91 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   }
 
   /**
-   * Returns the brushes a modifier receives, each named after its place in
-   * [Input.Brushes].
+   * Lists the brushes a modifier receives, as [$Input.Brushes]: those the Input
+   * Brushes line built, else the received brushes as they came.
    *
-   * @returns Shapes, none for a generator.
+   * @returns Brush elements, none for a generator.
    */
-  private receivedShapes(): SolidScriptShape[] {
+  protected brushesReceived(): SolidScriptValue[] {
     this.received ??= (this.system.use?.solids ?? []).map((corners, index) => ({
       kind: 'solid',
       label: solidScriptInputBrushName(index),
       points: corners.map(([x, y, z]) => new THREE.Vector3(x, y, z)),
     }));
-    return this.received;
+    return this.received.map((leaf) => this.elements.brush(leaf));
+  }
+
+  /**
+   * Lists every brush and mesh built so far, as [$Selected.Brushes] starts.
+   *
+   * @returns Brush elements.
+   */
+  protected brushesBuilt(): SolidScriptValue[] {
+    // Inside a round, what the round built so far; before it builds anything, everything above.
+    const start = this.roundStarts.at(-1);
+    const own = start === undefined ? [] : this.builtStack.slice(start).flat();
+    const built = own.length > 0 ? own : this.builtStack.flat();
+    return solidScriptGeometryLeaves(built).map((leaf) => this.elements.brush(leaf));
+  }
+
+  /**
+   * Returns what a solid or mesh became after the swaps since it was read.
+   *
+   * @param leaf Solid or mesh.
+   * @returns Latest version.
+   */
+  protected leafLatestOf(leaf: SolidScriptGeometryLeaf): SolidScriptGeometryLeaf {
+    let latest = leaf;
+    for (let next = this.leafSwaps.get(latest); next; next = this.leafSwaps.get(latest)) latest = next;
+    return latest;
+  }
+
+  /**
+   * Reads the Of field of a line as one flat list of values: brushes, faces,
+   * edges or corners, with Name tags read as the brushes that have them.
+   *
+   * @param node Line.
+   * @param value Reads a field of the line.
+   * @returns Values, or null when the line has no Of or it is empty.
+   */
+  private ofRead(
+    node: SolidScriptBlockNode<Command>,
+    value: (key: string) => SolidScriptValue,
+  ): SolidScriptValue[] | null {
+    if (!node.command.parameters.some((field) => field.key === 'of') || (node.values['of'] ?? '').trim() === '')
+      return null;
+    const flat = (entry: SolidScriptValue): SolidScriptValue[] =>
+      Array.isArray(entry) ? entry.flatMap(flat) : [entry];
+    return flat(value('of')).flatMap((entry) => {
+      if (entry instanceof SolidScriptElement) return [entry];
+      const name = solidScriptValueText(entry).trim();
+      if (name === '') return [];
+      this.brushesReceived();
+      const leaves = solidScriptGeometryLeaves(
+        solidScriptShapesNamed([...this.builtStack.flat(), ...(this.received ?? [])], name),
+      );
+      if (leaves.length === 0) throw new Error(`No brush or mesh above is named "${name}"; give one a Name first`);
+      return leaves.map((leaf) => this.elements.brush(leaf));
+    });
+  }
+
+  /**
+   * Runs lines of a round with the outer [$Selected.*] lists, and brings them
+   * back after it.
+   *
+   * @param round Runs the round.
+   * @returns What the round returns.
+   */
+  private selectedKept<Result>(round: () => Result): Result {
+    const outer = this.selected;
+    this.selected = { ...outer };
+    this.roundStarts.push(this.builtStack.length);
+    try {
+      return round();
+    } finally {
+      this.roundStarts.pop();
+      this.selected = outer;
+    }
   }
 
   /**
@@ -628,19 +693,27 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         const flat = solidScriptShapeJoin(inside({ matrix: new THREE.Matrix4(), planar: true }), labelOf());
         return flat ? [solidScriptExtrude(flat, fields, state.context.matrix)] : [];
       },
-      repeated: (counter, values) => {
+      repeated: (counter, values, keyed) => {
         state.machine.nameCheck(counter, 'a counter');
         state.machine.writableCheck(counter);
         const key = state.machine.nameKey(counter);
+        if (keyed) {
+          state.machine.nameCheck(keyed.name, 'a key');
+          state.machine.writableCheck(keyed.name);
+        }
+        const keyName = keyed ? state.machine.nameKey(keyed.name) : '';
         const shapes: SolidScriptShape[] = [];
-        for (const round of values) {
+        values.forEach((round, index) => {
           state.machine.workTake();
           const inner = new SolidScriptScope(state.scope);
           inner.variableDefine(key, round);
-          if (node.children.length === 0) continue;
-          for (const shape of state.machine.linesRun(node.children, inner, state.context, inner, children()))
-            shapes.push(shape);
-        }
+          if (keyed) inner.variableDefine(keyName, keyed.keys[index]);
+          if (node.children.length === 0) return;
+          const built = state.machine.selectedKept(() =>
+            state.machine.linesRun(node.children, inner, state.context, inner, children()),
+          );
+          for (const shape of built) shapes.push(shape);
+        });
         const joined = solidScriptShapeJoin(shapes, labelOf());
         return joined ? [joined] : [];
       },
@@ -653,64 +726,22 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       inPlace: () => state.machine.linesRun(node.children, state.scope, state.context, state.scope, children()),
       partUse: (name) => state.machine.partUse(name, state.scope, state.context),
       built: () => state.machine.builtStack.flat(),
-      pickable: () => {
-        const start = state.machine.roundBuilt.at(-1);
-        const own = start === undefined ? [] : state.machine.builtStack.slice(start).flat();
-        const built = own.length > 0 ? own : state.machine.builtStack.flat();
-        const round = own.length > 0 ? null : (state.machine.shapeRounds.at(-1) ?? null);
-        const of = node.command.parameters.some((field) => field.key === 'of') ? value('of') : '';
-        // Of takes a Name, a brush from a list such as [Input.Brushes], or a list of them.
-        const flat = (entry: SolidScriptValue): SolidScriptValue[] =>
-          Array.isArray(entry) ? entry.flatMap(flat) : [entry];
-        const names = flat(of)
-          .map((entry) => solidScriptValueText(entry).trim())
-          .filter((name) => name !== '');
-        const received = state.machine.receivedShapes();
-        if (names.length === 0) return round ? [round] : built.length > 0 ? built : received;
-        return names.flatMap((name) => {
-          const found = solidScriptShapesNamed(built, name);
-          const shapes = found.length > 0 ? found : solidScriptShapesNamed(received, name);
-          if (shapes.length === 0) throw new Error(`No brush or mesh above is named "${name}"; give one a Name first`);
-          return shapes;
-        });
+      get elements() {
+        return state.machine.elements;
       },
-      selection: () => [...state.machine.faceSelection],
-      selectionSet: (faces) => {
-        state.machine.faceSelection = [...faces];
+      selectedGet: (kind) => {
+        const list = state.machine.systemList(`selected.${kind}`);
+        return Array.isArray(list) ? [...list] : [];
       },
-      faceCurrent: () => state.machine.faceRounds.at(-1) ?? null,
-      looped: (rounds) => {
-        const outer = state.machine.faceSelection;
-        const shapes = rounds.flatMap((round) => {
-          state.machine.workTake();
-          const inner = new SolidScriptScope(state.scope);
-          for (const [name, value] of Object.entries(round.variables))
-            inner.variableDefine(state.machine.nameKey(name), value);
-          state.machine.faceRounds.push(round.face);
-          state.machine.shapeRounds.push(round.shape ?? null);
-          state.machine.roundBuilt.push(state.machine.builtStack.length);
-          state.machine.faceSelection = outer;
-          try {
-            if (node.children.length === 0) return [];
-            const context = round.matrix ? { ...state.context, matrix: round.matrix } : state.context;
-            return state.machine.linesRun(node.children, inner, context, inner, children());
-          } finally {
-            state.machine.roundBuilt.pop();
-            state.machine.shapeRounds.pop();
-            state.machine.faceRounds.pop();
-          }
-        });
-        state.machine.faceSelection = outer;
-        const joined = solidScriptShapeJoin(shapes, labelOf());
-        return joined ? [joined] : [];
+      selectedSet: (kind, values) => {
+        state.machine.selected[kind] = [...values];
+      },
+      ofValues: () => state.machine.ofRead(node, value),
+      inputsBuilt: (shapes) => {
+        state.machine.received = solidScriptGeometryLeaves([...shapes]);
       },
       framed: (matrix) => inside({ ...state.context, matrix }),
-      leafLatest: (leaf) => {
-        let latest = leaf;
-        for (let next = state.machine.leafSwaps.get(latest); next; next = state.machine.leafSwaps.get(latest))
-          latest = next;
-        return latest;
-      },
+      leafLatest: (leaf) => state.machine.leafLatestOf(leaf),
       leafReplace: (leaf, found) => {
         // A changed received brush is built anew, so it no longer passes the original on.
         const by = found.kind === 'solid' && found.received ? solidScriptLeafUnreceived(found) : found;
@@ -846,8 +877,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       itemRemove: (target) => {
         const where = state.machine.variableWhere(target, state.scope);
         const item = solidScriptListItemParse(where.name);
-        if (!item || item.method)
-          throw new Error(`"${target}" is not a list item; write list(2), or list() for the last item`);
+        if (!item) throw new Error(`"${target}" is not a list item; write list(2), or list() for the last item`);
         if (!where.local) state.machine.writableCheck(item.name);
         if (!where.scope.variableHas(item.name))
           throw new Error(
@@ -1048,7 +1078,7 @@ export function solidScriptArgumentsSplit(text: string): string[] {
   let start = 0;
   for (let index = 0; index < text.length; index++) {
     const character = text[index];
-    if (character === '$') index++;
+    if (solidScriptFieldEscapes(text, index)) index++;
     else if (character === '[' || character === '(') depth++;
     else if (character === ']' || character === ')') depth = Math.max(0, depth - 1);
     else if (character === ',' && depth === 0) {

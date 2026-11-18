@@ -67,53 +67,55 @@ describe('SolidScript member suggestions', () => {
     { command: 'variable', values: { name: 'Moved', value: '[=[Pos] + Vector(0, 1, 0)]' } },
     { command: 'variable', values: { name: 'Alias', value: '[Pos]' } },
     { command: 'add_item', values: { value: '1', list: 'Heights' } },
-    { command: 'for_each_vertex' },
-    { command: 'echo', values: { value: '1' } },
-    { command: 'end' },
-    { command: 'for_each_brush' },
-    { command: 'end' },
   ]);
   const scope: SolidScriptSuggestionScope = { names: solidScriptDocumentNames(script), extra: [], words: [] };
   const labels = (text: string) =>
     solidScriptSuggestions(solidScriptSuggestionContext(text, text.length, false), scope).map((entry) => entry.label);
 
   it('offers the parts of a vector, the members of a list and the values of a group after a dot', () => {
-    expect(labels('[Pos.')).toEqual(['Pos.X', 'Pos.Y', 'Pos.Z']);
-    expect(labels('[MyVector.')).toEqual(['MyVector.X', 'MyVector.Y', 'MyVector.Z']);
-    expect(labels('[Moved.')).toEqual(['Moved.X', 'Moved.Y', 'Moved.Z']);
-    expect(labels('[Alias.')).toEqual(['Alias.X', 'Alias.Y', 'Alias.Z']);
-    expect(labels('[Vertex.Position.')).toEqual(['Vertex.Position.X', 'Vertex.Position.Y', 'Vertex.Position.Z']);
-    expect(labels('[Vertex.Position.Y')).toEqual(['Vertex.Position.Y']);
-    expect(labels('[Box.Size.')).toEqual(['Box.Size.X', 'Box.Size.Y', 'Box.Size.Z']);
-    expect(labels('[Heights().')).toEqual(['Heights().Count']);
-    expect(labels('[=[Heights().C')).toEqual(['Heights().Count']);
-    expect(labels('[=[Pos.')).toEqual(['Pos.X', 'Pos.Y', 'Pos.Z']);
-    expect(labels('[Vertex.')).toEqual(['Vertex.Index', 'Vertex.Position', 'Vertex.Normal']);
-    expect(labels('[Box.')).toContain('Box.Width');
-    expect(labels('[Box.E')).toEqual(['Box.Extents']);
-    expect(labels('[Box.Extents.')).toEqual(['Box.Extents.X', 'Box.Extents.Y', 'Box.Extents.Z']);
-    expect(labels('[Input.Br')).toEqual(['Input.Brushes']);
-    expect(labels('[Input.Brushes().')).toEqual(['Input.Brushes().Count']);
-    expect(labels('[Brush.')).toEqual([
-      'Brush.Index',
-      'Brush.Name',
-      'Brush.Center',
-      'Brush.Size',
-      'Brush.Extents',
-      'Brush.Min',
-      'Brush.Max',
+    const vector = (name: string) => [`${name}.x`, `${name}.y`, `${name}.z`, `${name}.Length`];
+    expect(labels('[Pos.')).toEqual(vector('Pos'));
+    expect(labels('[MyVector.')).toEqual(vector('MyVector'));
+    expect(labels('[Moved.')).toEqual(vector('Moved'));
+    expect(labels('[Alias.')).toEqual(vector('Alias'));
+    expect(labels('[$Box.Size.')).toEqual(vector('$Box.Size'));
+    expect(labels('[=[Pos.')).toEqual(vector('Pos'));
+    expect(labels('[Heights.')).toEqual(['Heights.Count', 'Heights.First', 'Heights.Last']);
+    expect(labels('[=[Heights.C')).toEqual(['Heights.Count']);
+    expect(labels('[$Box.E')).toEqual(['$Box.Extents']);
+    expect(labels('[$Input.Br')).toEqual(['$Input.Brushes']);
+    expect(labels('[$Selected.')).toEqual([
+      '$Selected.Brushes',
+      '$Selected.Faces',
+      '$Selected.Edges',
+      '$Selected.Vertices',
     ]);
-    expect(labels('[Brush.Extents.')).toEqual(['Brush.Extents.X', 'Brush.Extents.Y', 'Brush.Extents.Z']);
+    expect(labels('[$Selected.Faces.First.')).toEqual([
+      '$Selected.Faces.First.Center',
+      '$Selected.Faces.First.Normal',
+      '$Selected.Faces.First.Area',
+      '$Selected.Faces.First.Width',
+      '$Selected.Faces.First.Height',
+      '$Selected.Faces.First.Tag',
+      '$Selected.Faces.First.Tags',
+      '$Selected.Faces.First.Edges',
+      '$Selected.Faces.First.Vertices',
+      '$Selected.Faces.First.Parent',
+      '$Selected.Faces.First.Data',
+    ]);
+    expect(labels('[$Selected.Faces.C')).toEqual(['$Selected.Faces.Count', '$Selected.Faces.Center']);
+    expect(labels('[$Input.Brushes(0).Faces(1).Normal.')).toEqual(vector('$Input.Brushes(0).Faces(1).Normal'));
+    expect(labels('[$Selected.Edges.First.Parent.N')).toEqual(['$Selected.Edges.First.Parent.Name']);
     // A number has no parts.
-    expect(labels('[Vertex.Index.')).toEqual([]);
+    expect(labels('[$Selected.Faces.Count.')).toEqual([]);
   });
 
   it('writes a member over the whole name', () => {
-    const text = '[Heights().]';
-    const context = solidScriptSuggestionContext(text, 11, false)!;
+    const text = '[Heights.]';
+    const context = solidScriptSuggestionContext(text, 9, false)!;
     const [count] = solidScriptSuggestions(context, scope);
-    expect(context.prefix).toBe('Heights().');
-    expect(solidScriptSuggestionWrite(count!, text, 11, 11).text).toBe('[Heights().Count]');
+    expect(context.prefix).toBe('Heights.');
+    expect(solidScriptSuggestionWrite(count!, text, 9, 9).text).toBe('[Heights.Count]');
   });
 });
 
@@ -122,7 +124,7 @@ describe('SolidScript suggestion context', () => {
     expect(at('[A|')).toMatchObject({ kind: 'name', from: 0, prefix: 'A' });
     expect(at('1, [|')).toMatchObject({ kind: 'name', from: 3, prefix: '' });
     expect(at('[Local.|')).toMatchObject({ kind: 'name', prefix: 'Local.' });
-    expect(at('[Box.W|')).toMatchObject({ kind: 'name', prefix: 'Box.W' });
+    expect(at('[$Box.W|')).toMatchObject({ kind: 'name', prefix: '$Box.W' });
     expect(at('[=|')).toMatchObject({ kind: 'formula', from: 2, prefix: '', call: null });
     expect(at('[=[Width] * A|')).toMatchObject({ kind: 'formula', from: 12, prefix: 'A', call: null });
     expect(at('[=Abs(|')).toMatchObject({ kind: 'formula', prefix: '', call: { name: 'Abs', argument: 0 } });
@@ -178,8 +180,8 @@ describe('SolidScript suggestions', () => {
     expect(list.slice(0, 2)).toEqual(['Variables: Angle', 'Functions: Area']);
     expect(list).toContain('Built-In Functions: Abs');
     expect(list.every((entry) => /: .*a/i.test(entry))).toBe(true);
-    expect(offered('[W|')).toContain('System: Box.Width');
-    expect(offered('[|')).toContain('System: Time.Year');
+    expect(offered('[W|')).toContain('System: $Box.Width');
+    expect(offered('[|')).toContain('System: $Time.Year');
   });
 
   it('lists the best matches of a group first', () => {
@@ -270,7 +272,7 @@ describe('SolidScript suggestions', () => {
     ]);
     expect(all.filter((entry) => entry.category === 'System').length).toBeGreaterThan(30);
     const labels = new Set(all.map((entry) => entry.label));
-    for (const value of SOLID_SCRIPT_SYSTEM_GLOBALS) expect(labels.has(value.name), value.name).toBe(true);
+    for (const value of SOLID_SCRIPT_SYSTEM_GLOBALS) expect(labels.has(`$${value.name}`), value.name).toBe(true);
     for (const key of Object.keys(SOLID_SCRIPT_FUNCTION_DOCS))
       expect(labels.has(solidScriptFunctionSpelling(key)), key).toBe(true);
   });
@@ -278,8 +280,8 @@ describe('SolidScript suggestions', () => {
   it('lists the locals of a Function and explains built-in values and functions', () => {
     const locals = solidScriptSuggestions(at('[Local.|'), SCOPE).map((entry) => entry.label);
     expect(locals).toEqual(['Local.W', 'Local.D']);
-    const year = solidScriptSuggestions(at('[Time.Y|'), SCOPE);
-    expect(year.map((entry) => entry.label)).toEqual(['Time.Year']);
+    const year = solidScriptSuggestions(at('[$Time.Y|'), SCOPE);
+    expect(year.map((entry) => entry.label)).toEqual(['$Time.Year']);
     expect(year[0]?.detail).toMatch(/^Number: year/);
     const pad = solidScriptSuggestions(at('[=pad_l|'), SCOPE);
     expect(pad[0]?.detail).toBe('PadLeft(text, width, fill): Fills in front up to a width: 007.');

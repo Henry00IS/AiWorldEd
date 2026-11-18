@@ -36,9 +36,9 @@ describe('Can Be Used As', () => {
   it('runs the lines of If Used As for the use, an Else for the other, and reads Script.Usage', () => {
     const script = solidScriptDocumentCreate([
       { command: 'if_used_as', values: { use: 'Modifier' } },
-      { command: 'echo', values: { value: 'modifier [Script.Usage] [Input.Brushes().Count]' } },
+      { command: 'echo', values: { value: 'modifier [$Script.Usage] [$Input.Brushes.Count]' } },
       { command: 'else' },
-      { command: 'echo', values: { value: 'generator [Script.Usage] [Input.Brushes().Count]' } },
+      { command: 'echo', values: { value: 'generator [$Script.Usage] [$Input.Brushes.Count]' } },
       { command: 'cube' },
       { command: 'end' },
     ]);

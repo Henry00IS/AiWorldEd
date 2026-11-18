@@ -18,6 +18,8 @@ export interface SolidScriptShapeSolid {
   texture?: string;
   /** Textures of single faces, from Texture Faces; they win over texture. */
   faceTextures?: SolidScriptFaceTexture[];
+  /** Tags the operations that built faces gave them, such as Bevel. */
+  faceTags?: SolidScriptFaceTag[];
   /**
    * The received brush this solid passes on, from Input Brushes; none for built
    * shapes.
@@ -46,6 +48,19 @@ export interface SolidScriptFaceTexture {
   normal: THREE.Vector3;
   /** Library texture name. */
   texture: string;
+}
+
+/**
+ * A tag an operation gave the face it built, found again as the face on its
+ * plane that holds the point.
+ */
+export interface SolidScriptFaceTag {
+  /** A point inside the face, in script space. */
+  point: THREE.Vector3;
+  /** Unit direction the face looks, in script space. */
+  normal: THREE.Vector3;
+  /** Tag, such as Bevel. */
+  tag: string;
 }
 
 /** Simple 2D polygon in the local plane of a linear_extrude. */

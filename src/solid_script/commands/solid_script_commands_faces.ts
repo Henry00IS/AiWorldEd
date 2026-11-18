@@ -1,16 +1,9 @@
 import * as THREE from 'three';
-import {
-  SolidScriptCommand,
-  type SolidScriptCommandParameter,
-  type SolidScriptCommandWord,
-} from './solid_script_command.js';
-import {
-  solidScriptListingOptions,
-  type SolidScriptListingPiece,
-  type SolidScriptListingValues,
-} from './solid_script_command_listing.js';
+import { SolidScriptCommand, type SolidScriptCommandWord } from './solid_script_command.js';
+import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import {
   solidScriptParameter,
+  solidScriptParameterInto,
   solidScriptParameterOptional,
   solidScriptParameterWords,
   solidScriptParameterOf,
@@ -18,10 +11,6 @@ import {
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import {
   solidScriptGeometryBevel,
-  solidScriptGeometryEdges,
-  solidScriptGeometryFaceEdges,
-  solidScriptGeometryFaceVertices,
-  solidScriptGeometryFaceFind,
   solidScriptGeometryFaceMatrix,
   solidScriptGeometryFacePrism,
   solidScriptGeometryFaces,
@@ -30,19 +19,26 @@ import {
   solidScriptGeometryMesh,
   solidScriptGeometryPick,
   solidScriptGeometryScatter,
-  solidScriptGeometryVertices,
+  type SolidScriptEdgeFacts,
   type SolidScriptFaceFacts,
   type SolidScriptFacePick,
   type SolidScriptGeometryLeaf,
 } from '@/solid_script/language/solid_script_geometry.js';
 import { solidScriptMeshExtrudeFaces, type SolidScriptShapeMesh } from '@/solid_script/language/solid_script_mesh.js';
 import { SOLID_SCRIPT_AXES_FACING } from '@/solid_script/language/solid_script_axes.js';
-import { solidScriptShapeMapLeaves, type SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
+import { solidScriptMemberVector } from '@/solid_script/language/solid_script_members.js';
 import {
+  solidScriptShapeMapLeaves,
+  type SolidScriptFaceTag,
+  type SolidScriptShapeSolid,
+} from '@/solid_script/language/solid_script_shape.js';
+import {
+  SolidScriptElement,
   solidScriptValueNumber,
   solidScriptValueNumbers,
   solidScriptValueText,
   solidScriptValueTruthy,
+  solidScriptValueType,
   type SolidScriptValue,
 } from '@/solid_script/language/solid_script_value.js';
 
@@ -86,49 +82,8 @@ const SOLID_SCRIPT_FACE_HOW_DETAILS: Readonly<Record<(typeof SOLID_SCRIPT_FACE_H
   Remove: 'Drop faces from the pick',
 };
 
-/** Stop of the lines that act on picked faces. */
-const SOLID_SCRIPT_FACE_STOPS_NONE = 'No brushes built above it, so there are no faces to pick.';
-
-/**
- * Rounds a number so small errors do not show, such as 0.30000000000000004.
- *
- * @param value Number.
- * @returns Rounded number.
- */
-function solidScriptFaceRound(value: number): number {
-  return Math.round(value * 1e9) / 1e9;
-}
-
-/**
- * Writes a vector as a list value.
- *
- * @param vector Vector.
- * @returns List of three numbers.
- */
-function solidScriptFaceVector(vector: THREE.Vector3): SolidScriptValue {
-  return vector.toArray().map(solidScriptFaceRound);
-}
-
-/**
- * The read-only system variables of a face, as For Each Selected Face and Where
- * see them.
- *
- * @param face Face.
- * @param round Number of the round, from 0.
- * @returns Variables by name.
- */
-export function solidScriptFaceVariables(face: SolidScriptFaceFacts, round: number): Record<string, SolidScriptValue> {
-  return {
-    'Face.Index': round,
-    'Face.Number': face.index,
-    'Face.Center': solidScriptFaceVector(face.center),
-    'Face.Normal': solidScriptFaceVector(face.normal),
-    'Face.Width': solidScriptFaceRound(face.width),
-    'Face.Height': solidScriptFaceRound(face.height),
-    'Face.Area': solidScriptFaceRound(face.area),
-    'Face.Tag': face.tags.at(-1) ?? '',
-  };
-}
+/** The tag Bevel Edges gives the faces it cuts, so it never cuts them again. */
+const SOLID_SCRIPT_FACE_BEVEL_TAG = 'Bevel';
 
 /**
  * Reads how Select Faces picks.
@@ -177,7 +132,7 @@ function solidScriptFacePickRead(run: SolidScriptBlockRun): SolidScriptFacePick 
     case 'Where':
       return {
         by: 'where',
-        holds: (face) => solidScriptValueTruthy(run.valueWith('detail', solidScriptFaceVariables(face, face.index))),
+        holds: (face) => solidScriptValueTruthy(run.valueWith('detail', { Face: run.elements.face(face) })),
       };
     default:
       throw new Error(`Which must be one of ${SOLID_SCRIPT_FACE_WHICH.join(', ')}, not "${which}"`);
@@ -185,60 +140,78 @@ function solidScriptFacePickRead(run: SolidScriptBlockRun): SolidScriptFacePick 
 }
 
 /**
- * Tells two readings of a face apart: the same solid or mesh, centre and
- * direction.
- *
- * @param a First face.
- * @param b Second face.
- * @returns True for the same face.
- */
-function solidScriptFaceSame(a: SolidScriptFaceFacts, b: SolidScriptFaceFacts): boolean {
-  return a.leaf === b.leaf && a.center.distanceTo(b.center) < 1e-6 && a.normal.dot(b.normal) > 0.9999;
-}
-
-/**
- * Returns the faces an action works on: the face of the For Each Selected Face
- * round, or else every selected face.
+ * Reads the faces a line works on now: those its Of gives (faces, or every face
+ * of the brushes it gives), else [$Selected.Faces]. A face a list held that was
+ * cut away has left it; a single face that was cut away stops the line.
  *
  * @param run Running line.
- * @param label Command, for the error.
- * @returns Faces.
+ * @param label Command, for messages.
+ * @returns Faces read from the latest geometry, each piece of a split face.
  */
 function solidScriptFaceTargets(run: SolidScriptBlockRun, label: string): SolidScriptFaceFacts[] {
-  const current = run.faceCurrent();
-  const faces = current ? [current] : run.selection();
-  if (faces.length === 0) throw new Error(`${label} has no faces to work on; add a Select Faces line above it`);
+  const given = run.ofValues();
+  const values = given ?? run.selectedGet('faces');
+  if (values.length === 0)
+    throw new Error(
+      given
+        ? `${label} has no faces in Of`
+        : `${label} has no faces to work on; pick some with Select Faces above it, or give them in Of`,
+    );
+  const faces: SolidScriptFaceFacts[] = [];
+  for (const value of values) {
+    if (!(value instanceof SolidScriptElement) || (value.kind !== 'face' && value.kind !== 'brush'))
+      throw new Error(`${label} takes faces or brushes, not ${solidScriptValueType(value)}`);
+    const read = run.elements.faces(value);
+    if (read.length === 0 && values.length === 1) throw new Error(`${String(value)} was cut away by a line above`);
+    for (const face of read)
+      if (!faces.some((known) => known.leaf === face.leaf && known.index === face.index)) faces.push(face);
+  }
   return faces;
 }
 
 /**
- * Groups faces by the solid or mesh they belong to now.
+ * Reads the edges a line works on now: those its Of gives (edges, the edges of
+ * faces, or every edge of brushes), else [$Selected.Edges], else the edges of
+ * [$Selected.Faces].
  *
  * @param run Running line.
- * @param faces Faces.
- * @returns Faces per solid or mesh.
+ * @param label Command, for messages.
+ * @returns Edges read from the latest geometry.
  */
-function solidScriptFaceGroups(
-  run: SolidScriptBlockRun,
-  faces: readonly SolidScriptFaceFacts[],
-): Map<SolidScriptGeometryLeaf, SolidScriptFaceFacts[]> {
-  const groups = new Map<SolidScriptGeometryLeaf, SolidScriptFaceFacts[]>();
-  for (const face of faces) {
-    const leaf = run.leafLatest(face.leaf);
-    groups.set(leaf, [...(groups.get(leaf) ?? []), face]);
+function solidScriptFaceEdgeTargets(run: SolidScriptBlockRun, label: string): SolidScriptEdgeFacts[] {
+  const given = run.ofValues();
+  const picked = run.selectedGet('edges');
+  const values = given ?? (picked.length > 0 ? picked : run.selectedGet('faces'));
+  if (values.length === 0)
+    throw new Error(`${label} has no edges to work on; pick faces with Select Faces above it, or give edges in Of`);
+  const edges: SolidScriptEdgeFacts[] = [];
+  for (const value of values) {
+    if (!(value instanceof SolidScriptElement) || value.kind === 'vertex' || value.kind === 'data')
+      throw new Error(`${label} takes edges, faces or brushes, not ${solidScriptValueType(value)}`);
+    for (const edge of run.elements.edges(value))
+      if (!edges.some((known) => known.faces[0].leaf === edge.faces[0].leaf && known.index === edge.index))
+        edges.push(edge);
   }
-  return groups;
+  return edges;
 }
 
 /**
- * Finds the numbers of faces in the mesh of a solid or mesh.
+ * Groups items by the solid or mesh they belong to.
  *
- * @param leaf Solid or mesh.
- * @param faces Faces.
- * @returns Face numbers.
+ * @param items Faces or edges.
+ * @param leafOf Solid or mesh of an item.
+ * @returns Items per solid or mesh.
  */
-function solidScriptFaceNumbers(leaf: SolidScriptGeometryLeaf, faces: readonly SolidScriptFaceFacts[]): Set<number> {
-  return new Set(faces.map((face) => solidScriptGeometryFaceFind(leaf, face)).filter((index) => index >= 0));
+function solidScriptFaceGroups<Item>(
+  items: readonly Item[],
+  leafOf: (item: Item) => SolidScriptGeometryLeaf,
+): Map<SolidScriptGeometryLeaf, Item[]> {
+  const groups = new Map<SolidScriptGeometryLeaf, Item[]>();
+  for (const item of items) {
+    const leaf = leafOf(item);
+    groups.set(leaf, [...(groups.get(leaf) ?? []), item]);
+  }
+  return groups;
 }
 
 /**
@@ -254,111 +227,83 @@ function solidScriptFaceDistance(run: SolidScriptBlockRun, what: string): number
   return number;
 }
 
-/** Where For Each Vertex and For Each Edge look, with what each means. */
-const SOLID_SCRIPT_FACE_IN_WORDS: readonly SolidScriptCommandWord[] = [
-  { word: 'Brushes', detail: 'Every brush built above, or those named in Of' },
-  { word: 'Selected Faces', detail: 'The faces the last Select Faces picked; shared ones once' },
-  { word: 'Current Face', detail: 'The face of the For Each Selected Face round, in order', sees: 'Face.Index' },
-];
-
 /**
- * Describes the In field of For Each Vertex and For Each Edge.
- *
- * @param what Corner points or edges.
- * @returns Field.
- */
-function solidScriptFaceParameterIn(what: string): SolidScriptCommandParameter {
-  return solidScriptParameterWords(
-    'in',
-    'In',
-    'text',
-    'Brushes',
-    `Where the ${what} come from: Brushes, Selected Faces or Current Face.`,
-    SOLID_SCRIPT_FACE_IN_WORDS,
-  );
-}
-
-/**
- * Lists For Each Vertex or For Each Edge: In unless Brushes, then Of.
- *
- * @param label Command name.
- * @param read Values.
- * @returns Pieces.
- */
-function solidScriptFaceInListing(label: string, read: SolidScriptListingValues): SolidScriptListingPiece[] {
-  const where = read.text('in').trim();
-  return [
-    label,
-    ...(where === '' || where === 'Brushes' ? [] : [' In ', where]),
-    ...(read.text('of') === '' ? [] : [' Of ', read.text('of')]),
-  ];
-}
-
-/**
- * Builds the rounds of For Each Vertex or For Each Edge from where In says: the
- * shapes above (or those named in Of), the picked faces, or the face of the For
- * Each Selected Face round.
+ * Writes a list to the variable a field names, when it names one.
  *
  * @param run Running line.
- * @param what Vertices or edges.
- * @returns Rounds.
+ * @param key Field key.
+ * @param values Values.
  */
-function solidScriptFaceCornerRounds(run: SolidScriptBlockRun, what: 'vertex' | 'edge'): SolidScriptShape[] {
-  const label = what === 'vertex' ? 'For Each Vertex' : 'For Each Edge';
-  const where = run.text('in').trim() || 'Brushes';
-  let faces: SolidScriptFaceFacts[] | null = null;
-  if (where === 'Selected Faces') {
-    faces = run.selection();
-    if (faces.length === 0) throw new Error(`${label} In Selected Faces needs a Select Faces line above it`);
-  } else if (where === 'Current Face') {
-    const current = run.faceCurrent();
-    if (!current) throw new Error(`${label} In Current Face only works inside For Each Selected Face`);
-    faces = [current];
-  } else if (where !== 'Brushes') throw new Error(`In must be Brushes, Selected Faces or Current Face, not "${where}"`);
-  if (!faces && run.pickable().length === 0)
-    throw new Error(`${label} reads the brushes built above it; add a brush such as Cube first`);
-  if (what === 'vertex')
-    return run.looped(
-      (faces ? solidScriptGeometryFaceVertices(faces) : solidScriptGeometryVertices(run.pickable())).map((vertex) => ({
-        variables: {
-          'Vertex.Index': vertex.index,
-          'Vertex.Position': solidScriptFaceVector(vertex.position),
-          'Vertex.Normal': solidScriptFaceVector(vertex.normal),
-        },
-        face: null,
-      })),
-    );
-  return run.looped(
-    (faces ? solidScriptGeometryFaceEdges(faces) : solidScriptGeometryEdges(run.pickable())).map((edge) => ({
-      variables: {
-        'Edge.Index': edge.index,
-        'Edge.Start': solidScriptFaceVector(edge.start),
-        'Edge.End': solidScriptFaceVector(edge.end),
-        'Edge.Middle': solidScriptFaceVector(edge.middle),
-        'Edge.Length': solidScriptFaceRound(edge.length),
-        'Edge.Direction': solidScriptFaceVector(edge.direction),
-      },
-      face: null,
-    })),
-  );
+function solidScriptFaceWrite(run: SolidScriptBlockRun, key: string, values: readonly SolidScriptValue[]): void {
+  const name = run.text(key).trim();
+  if (name !== '') run.variableSet(name.replace(/^\[(.*)\]$/s, '$1'), [...values]);
 }
 
 /**
- * Commands that pick faces of the shapes built so far, loop over them and
- * detail them.
+ * Numbers the faces an Extrude or Inset of a mesh made: for every chosen face
+ * the ring of new side faces and then the moved or inner face, in the order the
+ * operation writes them.
+ *
+ * @param before Mesh before the operation.
+ * @param chosen Face numbers worked on.
+ * @returns Numbers of the moved or inner faces and of the side or ring faces.
+ */
+function solidScriptFaceOutputs(
+  before: SolidScriptShapeMesh,
+  chosen: ReadonlySet<number>,
+): { tops: number[]; sides: number[] } {
+  const tops: number[] = [];
+  const sides: number[] = [];
+  let at = 0;
+  before.faces.forEach((loop, index) => {
+    if (!chosen.has(index)) {
+      at++;
+      return;
+    }
+    for (let corner = 0; corner < loop.length; corner++) sides.push(at++);
+    tops.push(at++);
+  });
+  return { tops, sides };
+}
+
+/**
+ * Tags faces of a mesh by number, so later lines and [Face.Tag] can tell them.
+ *
+ * @param mesh Mesh.
+ * @param numbers Face numbers.
+ * @param tag Tag.
+ * @returns Tags to add.
+ */
+function solidScriptFaceTagsOf(
+  mesh: SolidScriptShapeMesh,
+  numbers: readonly number[],
+  tag: string,
+): SolidScriptFaceTag[] {
+  const faces = solidScriptGeometryFaces([mesh]);
+  return numbers.map((number) => ({
+    point: faces[number]!.center.clone(),
+    normal: faces[number]!.normal.clone(),
+    tag,
+  }));
+}
+
+/**
+ * Commands that pick faces of the shapes built so far and work on faces and
+ * edges given as values.
  */
 export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'select_faces',
     label: 'Select Faces',
     category: 'Faces',
-    description: 'Pick faces of the brushes above',
+    description: 'Pick faces of brushes',
     manual:
-      'Picks faces of the brushes built above this line, so the lines after it can work on them. Inside a For Each round it picks faces of what that round built, and the lines after the loop get the outer pick back, so Select Faces can be nested. Which says how: All, Facing Up, Facing Down, Facing Left, Facing Right, Facing Front or Facing Back (Within allows a slope, in degrees), Facing a direction you give, Tagged with a name, the Biggest or Smallest faces, a face Number, or Where a condition is true. Every face has names: Top, Bottom or Side, and generators add more, such as Step Tread and Riser on stairs and Cap on columns. How chooses New to start again, Add to pick more or Remove to drop some. Example: Stairs, then Select Faces Tagged Step Tread picks the top of every step.',
+      'Picks faces and puts them in [$Selected.Faces], where Extrude Face, Inset Face, Bevel Edges, Delete Faces and Texture Faces find them when their Of is empty. Of says where to pick from: brushes (all their faces) or faces (a list to narrow down); empty uses [$Selected.Brushes], every brush built above. Into also writes the faces to a variable, a Face list. How adds to or removes from the faces picked before. Inside a For Each round the pick stays in that round. Example: Cube, then Select Faces Facing Up and Extrude Face by 1 pulls the top up.',
     stops: [
-      SOLID_SCRIPT_FACE_STOPS_NONE,
+      'No brushes to pick from.',
       'A Which that is not one of the choices.',
       'A Detail that does not fit the Which.',
+      'An Of that is not brushes or faces.',
     ],
     parameters: [
       solidScriptParameterWords(
@@ -375,7 +320,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         'value',
         'The name for Tagged, how many for Biggest or Smallest, numbers for Number, a direction for Facing, a condition for Where such as [Face.Area] > 1.',
       ),
-      solidScriptParameterOf('faces'),
+      solidScriptParameterOf('brushes or faces to pick from', '$Selected.Brushes'),
       solidScriptParameter(
         'within',
         'Within',
@@ -391,6 +336,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         'New starts again, Add picks more, Remove drops faces. One of: New, Add, Remove.',
         SOLID_SCRIPT_FACE_HOW.map((word) => ({ word, detail: SOLID_SCRIPT_FACE_HOW_DETAILS[word] })),
       ),
+      solidScriptParameterInto('the picked faces, a Face list'),
     ],
     listing: (read) => {
       const which = read.text('which').trim();
@@ -399,262 +345,248 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         'Select Faces',
         which,
         ...(read.text('detail').trim() === '' ? [] : [' ', read.value('detail')]),
-        ...(read.text('of') === '' ? [] : [' Of ', read.text('of')]),
+        ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
         ...(facing && read.changed('within') ? [' within ', read.value('within'), '°'] : []),
         ...solidScriptListingOptions([read.text('how').trim() !== 'New' && [read.text('how').trim()]]),
+        ...(read.text('into') === '' ? [] : [' Into ', read.variable('into')]),
       ];
     },
     execute: (run) => {
       const how = run.text('how').trim();
       if (!(SOLID_SCRIPT_FACE_HOW as readonly string[]).includes(how))
         throw new Error(`How must be New, Add or Remove, not "${how}"`);
-      const faces = solidScriptGeometryFaces(run.pickable());
+      const given = run.ofValues();
+      const from = given ?? run.selectedGet('brushes');
+      const faces: SolidScriptFaceFacts[] = [];
+      for (const value of from) {
+        if (!(value instanceof SolidScriptElement) || (value.kind !== 'face' && value.kind !== 'brush'))
+          throw new Error(`Select Faces picks from brushes or faces, not ${solidScriptValueType(value)}`);
+        faces.push(...run.elements.faces(value));
+      }
       if (faces.length === 0)
-        throw new Error(
-          'Select Faces picks faces of brushes built above it, or of the brushes a modifier receives; add a brush such as Cube first',
-        );
-      const picked = solidScriptGeometryPick(faces, solidScriptFacePickRead(run));
-      const before = how === 'New' ? [] : run.selection();
-      if (how === 'Remove')
-        run.selectionSet(before.filter((face) => !picked.some((drop) => solidScriptFaceSame(face, drop))));
-      else
-        run.selectionSet([
-          ...before,
-          ...picked.filter((face) => !before.some((kept) => solidScriptFaceSame(face, kept))),
-        ]);
+        throw new Error('Select Faces has no faces to pick from; add a brush such as Cube or Input Brushes above it');
+      const picked = solidScriptGeometryPick(faces, solidScriptFacePickRead(run)).map((face) =>
+        run.elements.face(face),
+      );
+      const before = how === 'New' ? [] : run.selectedGet('faces');
+      const after =
+        how === 'Remove'
+          ? before.filter((face) => !picked.includes(face as SolidScriptElement))
+          : [...before, ...picked.filter((face) => !before.includes(face))];
+      run.selectedSet('faces', after);
+      solidScriptFaceWrite(run, 'into', after);
       return [];
     },
   }),
   new SolidScriptCommand({
-    id: 'for_each_selected_face',
-    label: 'For Each Selected Face',
+    id: 'scatter_points',
+    label: 'Scatter Points',
     category: 'Faces',
-    description: 'Run lines once per picked face',
+    description: 'Spread random points on faces',
     manual:
-      'Runs the lines inside once for every face the last Select Faces picked. Inside, these read-only values describe the face: [Face.Index] counts the rounds from 0, [Face.Center] is its middle, [Face.Normal] the way it points, [Face.Width] and [Face.Height] its size, [Face.Area] its area, [Face.Tag] its name and [Face.Number] its number among all faces. Brushes built inside stand on the face of the round, like Place On Face: centred on its middle with Y pointing out, the way brushes stand on the ground. Place On Face adds a Lift, and Extrude Face, Inset Face and Bevel Edges work on the face of the round. Example: Select Faces Tagged Step Tread, then For Each Selected Face with Place On Face and a thin Cube puts a trim on every step.',
-    stops: ['A missing End line.'],
-    nesting: 'open',
-    endLabel: 'For Each',
-    parameters: [],
-    listing: () => ['For Each Selected Face'],
-    execute: (run) =>
-      run.looped(
-        run.selection().map((face, round) => ({
-          variables: solidScriptFaceVariables(face, round),
-          face,
-          matrix: solidScriptGeometryFaceMatrix(face),
-        })),
-      ),
-  }),
-  new SolidScriptCommand({
-    id: 'for_each_scattered_point',
-    label: 'For Each Scattered Point',
-    category: 'Faces',
-    description: 'Run lines at random points on picked faces',
-    manual:
-      'Spreads Count points at random over the faces the last Select Faces picked, more on bigger faces, and runs the lines inside once per point. Inside, [Point.Index] counts from 0, [Point.Position] is where the point is and [Point.Normal] the way its face points; the Face values describe its face. The same Seed always gives the same points. Example: Select Faces Facing Up, then For Each Scattered Point with Translate by [Point.Position] and a small Sphere scatters pebbles on the top of a box.',
-    stops: ['No faces picked.', 'A Count that is not a whole number from 0 to 10000.', 'A missing End line.'],
-    nesting: 'open',
-    endLabel: 'For Each',
+      'Spreads points at random over faces, more on bigger faces, and writes their positions to the Into variable as a list of vectors, and the way the face under each one looks to Normals. Of gives the faces or brushes; empty uses [$Selected.Faces]. The same Seed gives the same points. Example: Select Faces Facing Up, Scatter Points 20 Into [Spots], then For Each [P] In [Spots] around Translate by [P] and a Sphere.',
+    stops: ['No faces.', 'A Count that is not a whole number from 0 to 10000.', 'An empty Into.'],
     parameters: [
       solidScriptParameter('count', 'Count', 'number', '10', 'How many points, 0 to 10000.'),
       solidScriptParameter('seed', 'Seed', 'number', '0', 'Any number; another seed gives other points.'),
+      solidScriptParameterOf('faces or brushes', '$Selected.Faces'),
+      {
+        ...solidScriptParameterInto('the points, a list of vectors'),
+        hint: 'Variable to write the points to, a list of vectors.',
+        optional: false,
+        default: 'Points',
+      },
+      {
+        ...solidScriptParameterInto('the way the face under each point looks, a list of vectors'),
+        key: 'normals',
+        label: 'Normals',
+      },
     ],
-    listing: (read) => ['For Each Scattered Point', ' ', read.value('count'), ' with seed ', read.value('seed')],
+    listing: (read) => [
+      'Scatter Points',
+      ' ',
+      read.value('count'),
+      ' with seed ',
+      read.value('seed'),
+      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+      ' Into ',
+      read.variable('into'),
+      ...(read.text('normals') === '' ? [] : [' Normals ', read.variable('normals')]),
+    ],
     execute: (run) => {
       const count = solidScriptValueNumber(run.value('count'));
       if (count === undefined || !Number.isInteger(count) || count < 0 || count > 10000)
         throw new Error('Count needs a whole number from 0 to 10000');
       const seed = solidScriptValueNumber(run.value('seed'));
       if (seed === undefined) throw new Error('Seed needs a number');
-      const faces = run.selection();
-      if (faces.length === 0)
-        throw new Error('For Each Scattered Point spreads points on picked faces; add a Select Faces line above it');
-      return run.looped(
-        solidScriptGeometryScatter(faces, count, seed).map((point, round) => ({
-          variables: {
-            ...solidScriptFaceVariables(point.face, round),
-            'Point.Index': round,
-            'Point.Position': solidScriptFaceVector(point.position),
-            'Point.Normal': solidScriptFaceVector(point.face.normal),
-          },
-          face: point.face,
-        })),
+      if (run.text('into').trim() === '') throw new Error('Scatter Points needs a variable in Into for the points');
+      const points = solidScriptGeometryScatter(solidScriptFaceTargets(run, 'Scatter Points'), count, seed);
+      solidScriptFaceWrite(
+        run,
+        'into',
+        points.map((point) => solidScriptMemberVector(point.position)),
       );
-    },
-  }),
-  new SolidScriptCommand({
-    id: 'for_each_vertex',
-    label: 'For Each Vertex',
-    category: 'Faces',
-    description: 'Run lines once per corner point',
-    manual:
-      'Runs the lines inside once for every corner point. In says where: Brushes takes every brush built above this line (or those named in Of), Selected Faces the faces the last Select Faces picked, a corner they share counted once, and Current Face the face of the For Each Selected Face round, its corners in order around it. Inside, [Vertex.Index] is its number, [Vertex.Position] where it is and [Vertex.Normal] the way the faces around it point; for Current Face that is the way the face points. Example: For Each Vertex with Translate by [Vertex.Position] and a small Sphere puts a ball on every corner of a Cube; Select Faces Facing Up, For Each Selected Face, then For Each Vertex In Current Face puts one on each corner of the top only.',
-    stops: [
-      SOLID_SCRIPT_FACE_STOPS_NONE,
-      'In Selected Faces with no Select Faces above.',
-      'In Current Face outside For Each Selected Face.',
-      'A missing End line.',
-    ],
-    nesting: 'open',
-    endLabel: 'For Each',
-    parameters: [solidScriptFaceParameterIn('corner points'), solidScriptParameterOf('corner points')],
-    listing: (read) => solidScriptFaceInListing('For Each Vertex', read),
-    execute: (run) => solidScriptFaceCornerRounds(run, 'vertex'),
-  }),
-  new SolidScriptCommand({
-    id: 'for_each_edge',
-    label: 'For Each Edge',
-    category: 'Faces',
-    description: 'Run lines once per edge',
-    manual:
-      'Runs the lines inside once for every edge. In says where: Brushes takes every brush built above this line (or those named in Of), Selected Faces the faces the last Select Faces picked, an edge two of them share counted once, and Current Face the face of the For Each Selected Face round, its edges in order around it. Inside, [Edge.Index] is its number, [Edge.Start] and [Edge.End] its two ends, [Edge.Middle] its middle, [Edge.Length] how long it is and [Edge.Direction] the way it runs. Example: For Each Edge with Translate by [Edge.Middle] and a small Cube marks the middle of every edge; For Each Edge In Selected Faces after Select Faces Facing Up marks only the rim of the top.',
-    stops: [
-      SOLID_SCRIPT_FACE_STOPS_NONE,
-      'In Selected Faces with no Select Faces above.',
-      'In Current Face outside For Each Selected Face.',
-      'A missing End line.',
-    ],
-    nesting: 'open',
-    endLabel: 'For Each',
-    parameters: [solidScriptFaceParameterIn('edges'), solidScriptParameterOf('edges')],
-    listing: (read) => solidScriptFaceInListing('For Each Edge', read),
-    execute: (run) => solidScriptFaceCornerRounds(run, 'edge'),
-  }),
-  new SolidScriptCommand({
-    id: 'for_each_brush',
-    label: 'For Each Brush',
-    category: 'Faces',
-    description: 'Run lines once per brush',
-    manual:
-      'Runs the lines inside once for every brush: those named in Of, or else every brush or mesh built above this line, or else, in a modifier that built nothing yet, every brush it receives. Of takes a Name, a brush of [Input.Brushes] such as Input 1, or a list of them, such as [Input.Brushes] or a list made with Add Item [Brush.Name] To Picked. Inside, [Brush.Index] counts the rounds from 0, [Brush.Name] names the brush for Of fields, [Brush.Center] is the middle of its bounds, [Brush.Size] their width, height and depth, [Brush.Extents] half of that, and [Brush.Min] and [Brush.Max] their lowest and highest corners. Select Faces and For Each Vertex or Edge without an Of work on the brush of the round. Example: in a modifier, For Each Brush Of [Input.Brushes] with Select Faces All and Extrude Face by 0.1 Lift 0.25 lays a slab off every face of every brush it receives.',
-    stops: [SOLID_SCRIPT_FACE_STOPS_NONE, 'A Name in Of that no brush has.', 'A missing End line.'],
-    nesting: 'open',
-    endLabel: 'For Each',
-    parameters: [solidScriptParameterOf('brushes')],
-    listing: (read) => ['For Each Brush', ...(read.text('of') === '' ? [] : [' Of ', read.text('of')])],
-    execute: (run) => {
-      const shapes = run.pickable();
-      if (shapes.length === 0)
-        throw new Error('For Each Brush has no brushes; build one above it, or use it in a modifier');
-      return run.looped(
-        shapes.map((shape, index) => {
-          const bounds = new THREE.Box3().setFromPoints(
-            solidScriptGeometryVertices([shape]).map((vertex) => vertex.position),
-          );
-          const size = bounds.getSize(new THREE.Vector3());
-          return {
-            variables: {
-              'Brush.Index': index,
-              'Brush.Name': shape.label,
-              'Brush.Center': solidScriptFaceVector(bounds.getCenter(new THREE.Vector3())),
-              'Brush.Size': solidScriptFaceVector(size),
-              'Brush.Extents': solidScriptFaceVector(size.clone().multiplyScalar(0.5)),
-              'Brush.Min': solidScriptFaceVector(bounds.min),
-              'Brush.Max': solidScriptFaceVector(bounds.max),
-            },
-            face: null,
-            shape,
-          };
-        }),
+      solidScriptFaceWrite(
+        run,
+        'normals',
+        points.map((point) => solidScriptMemberVector(point.face.normal)),
       );
+      return [];
     },
   }),
   new SolidScriptCommand({
     id: 'place_on_face',
     label: 'Place On Face',
     category: 'Faces',
-    description: 'Build brushes standing on the face',
+    description: 'Stand brushes on faces',
     manual:
-      'Builds the brushes inside standing on the face of the For Each Selected Face round: they stand on it the way brushes stand on the ground: their origin sits on the middle of the face, Y points out of it, X runs across it and Z down it. Lift moves them further out. The blocks around this line do not move them. Example: Place On Face with a centred Cube of size [Face.Width], 0.05, [Face.Height] covers the face with a thin plate.',
-    stops: ['Being outside For Each Selected Face.', 'Nothing between this line and its End.', 'A missing End line.'],
+      'Builds the brushes between this line and its End standing on a face: up is the way the face points and the centre is the middle of the face. Of gives the face, such as [Face] in For Each [Face] In [$Selected.Faces]; given several faces it builds them on each. Empty Of uses [$Selected.Faces]. Lift moves them out from the face. Example: For Each [Face] In [$Selected.Faces], Place On Face Of [Face], Cylinder, End, End puts a post on every picked face.',
+    stops: ['No faces.', 'Nothing between this line and its End.', 'A missing End line.'],
     nesting: 'open',
     endLabel: 'Place',
-    parameters: [solidScriptParameter('lift', 'Lift', 'number', '0', 'Metres to move the brushes out from the face.')],
+    parameters: [
+      solidScriptParameterOf('faces', '$Selected.Faces'),
+      solidScriptParameter('lift', 'Lift', 'number', '0', 'Metres to move the brushes out from the face.'),
+    ],
     listing: (read) => [
       'Place On Face',
+      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
       ...solidScriptListingOptions([read.changed('lift') && ['Lift ', read.value('lift')]]),
     ],
     execute: (run) => {
-      const face = run.faceCurrent();
-      if (!face) throw new Error('Place On Face only works inside For Each Selected Face');
       const lift = solidScriptValueNumber(run.value('lift'));
       if (lift === undefined) throw new Error('Lift needs a number of metres, such as 0');
-      const matrix = solidScriptGeometryFaceMatrix(face).multiply(new THREE.Matrix4().makeTranslation(0, lift, 0));
-      return run.framed(matrix);
+      return solidScriptFaceTargets(run, 'Place On Face').flatMap((face) =>
+        run.framed(solidScriptGeometryFaceMatrix(face).multiply(new THREE.Matrix4().makeTranslation(0, lift, 0))),
+      );
     },
   }),
   new SolidScriptCommand({
     id: 'extrude_face',
     label: 'Extrude Face',
     category: 'Faces',
-    description: 'Pull picked faces out',
+    description: 'Pull faces out',
     manual:
-      'Pulls faces out along the way they point: the face of the For Each Selected Face round, or else every face Select Faces picked. On a brush it adds a new brush on the face, so brushes stay brushes; Lift starts that brush further out, so it floats off the face. On a mesh it moves the face and adds side faces, and a negative Distance pushes it in. Example: Select Faces Facing Up, then Extrude Face by 0.5 makes a box half a metre taller; Extrude Face by 0.1 Lift 0.25 lays a slab a quarter metre above it.',
-    stops: [
-      'No faces picked.',
-      'A negative Distance on a brush. Use Difference to cut into brushes.',
-      'A Lift on a mesh.',
-    ],
+      'Pulls faces out along the way they point. On a brush each face becomes a new brush, a slab standing on it, and Into gets those brushes; on a mesh the face itself moves out. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. Top and Sides name variables for the new faces: Top the moved or capping faces and Sides the new side faces, as the operation builds them. Afterwards [$Selected.Faces] holds the top faces. Lift moves a slab away from its face. Example: Select Faces Facing Up, Extrude Face by 1, Top [Roof].',
+    stops: ['No faces.', 'A negative Distance on a brush.', 'A Lift on a mesh.'],
     parameters: [
       solidScriptParameter('distance', 'Distance', 'number', '0.2', 'Metres to pull out.'),
       solidScriptParameterOptional(
         'lift',
         'Lift',
         'number',
-        'Metres the new brush starts away from the face, on brushes only; empty is 0.',
+        'Metres between a brush face and its slab; empty is 0. Brushes only.',
       ),
+      solidScriptParameterOf('faces or brushes', '$Selected.Faces'),
+      solidScriptParameterInto('the new brushes, a Brush list'),
+      { ...solidScriptParameterInto('the top faces, a Face list'), key: 'top', label: 'Top' },
+      { ...solidScriptParameterInto('the new side faces, a Face list'), key: 'sides', label: 'Sides' },
     ],
     listing: (read) => [
       'Extrude Face',
       'by ',
       read.value('distance'),
       ...(read.text('lift').trim() === '' ? [] : [' lift ', read.value('lift')]),
+      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+      ...(read.text('into') === '' ? [] : [' Into ', read.variable('into')]),
+      ...(read.text('top') === '' ? [] : [' Top ', read.variable('top')]),
+      ...(read.text('sides') === '' ? [] : [' Sides ', read.variable('sides')]),
     ],
     execute: (run) => {
       const distance = solidScriptFaceDistance(run, 'Distance');
       const lift = run.text('lift').trim() === '' ? 0 : solidScriptValueNumber(run.value('lift'));
       if (lift === undefined) throw new Error('Lift needs a number of metres, such as 0.25');
-      const added: SolidScriptShape[] = [];
-      for (const [leaf, faces] of solidScriptFaceGroups(run, solidScriptFaceTargets(run, 'Extrude Face'))) {
+      const added: { slab: SolidScriptShapeSolid; normal: THREE.Vector3 }[] = [];
+      const tops: SolidScriptValue[] = [];
+      const sides: SolidScriptValue[] = [];
+      const brushes: SolidScriptValue[] = [];
+      const targets = solidScriptFaceTargets(run, 'Extrude Face');
+      for (const [leaf, faces] of solidScriptFaceGroups(targets, (face) => face.leaf)) {
         if (leaf.kind === 'solid') {
           if (distance < 0) throw new Error('Extrude Face cannot push into a brush; use Difference to cut into it');
           for (const face of faces)
             added.push({
-              kind: 'solid',
-              label: 'Extrude Face',
-              points: solidScriptGeometryFacePrism(face, distance, lift),
+              slab: { kind: 'solid', label: 'Slab', points: solidScriptGeometryFacePrism(face, distance, lift) },
+              normal: face.normal,
             });
           continue;
         }
         if (lift !== 0) throw new Error('Lift only works on brushes; on a mesh, Extrude Face moves the face itself');
-        const numbers = solidScriptFaceNumbers(leaf, faces);
+        const numbers = new Set(faces.map((face) => face.index));
         run.leafReplace(
           leaf,
           solidScriptMeshExtrudeFaces(leaf, (_, __, index) => (numbers.has(index) ? distance : null)),
         );
+        const outputs = solidScriptFaceOutputs(leaf, numbers);
+        const read = solidScriptGeometryFaces([run.leafLatest(leaf)]);
+        tops.push(...outputs.tops.map((number) => run.elements.face(read[number]!)));
+        sides.push(...outputs.sides.map((number) => run.elements.face(read[number]!)));
+        brushes.push(run.elements.brush(leaf));
       }
-      return run.adopted(added.filter((shape) => shape.kind === 'solid'));
+      const adopted = run.adopted(added.map((entry) => entry.slab));
+      // A slab is built from its face: the cap looks the way the face does, the sides across it.
+      for (const { slab, normal } of added) {
+        if (!adopted.includes(slab)) continue;
+        brushes.push(run.elements.brush(slab));
+        for (const face of solidScriptGeometryFaces([slab])) {
+          const along = face.normal.dot(normal);
+          if (along > 0.9999) tops.push(run.elements.face(face));
+          else if (Math.abs(along) < 1e-6) sides.push(run.elements.face(face));
+        }
+      }
+      run.selectedSet('faces', tops);
+      solidScriptFaceWrite(run, 'into', brushes);
+      solidScriptFaceWrite(run, 'top', tops);
+      solidScriptFaceWrite(run, 'sides', sides);
+      return adopted;
     },
   }),
   new SolidScriptCommand({
     id: 'inset_face',
     label: 'Inset Face',
     category: 'Faces',
-    description: 'Put a smaller face inside picked faces',
+    description: 'Shrink faces inside a ring',
     manual:
-      'Puts a smaller copy of each face inside it, joined to the old edge by a ring of faces: the face of the For Each Selected Face round, or else every face Select Faces picked. A brush it touches becomes a mesh, because brushes cannot have faces inside faces. Follow it with Extrude Face to raise or sink the middle. Example: Select Faces Facing Up, Inset Face by 0.1, then Extrude Face by -0.05 sinks a tray into a mesh box.',
-    stops: ['No faces picked.'],
+      'Gives each face a smaller copy of itself inside, joined to the old outline by a ring of faces; a brush turns into a mesh for it. Of gives the faces; empty uses [$Selected.Faces]. Inner and Ring name variables for the new faces, as the operation builds them. Afterwards [$Selected.Faces] holds the inner faces. Example: Select Faces Facing Up, Inset Face by 0.1, Extrude Face by -0.2 sinks a tray.',
+    stops: ['No faces.'],
     parameters: [
       solidScriptParameter('distance', 'Distance', 'number', '0.1', 'Metres from the old edge to the new one.'),
+      solidScriptParameterOf('faces', '$Selected.Faces'),
+      { ...solidScriptParameterInto('the inner faces, a Face list'), key: 'inner', label: 'Inner' },
+      { ...solidScriptParameterInto('the ring faces, a Face list'), key: 'ring', label: 'Ring' },
     ],
-    listing: (read) => ['Inset Face', 'by ', read.value('distance')],
+    listing: (read) => [
+      'Inset Face',
+      'by ',
+      read.value('distance'),
+      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+      ...(read.text('inner') === '' ? [] : [' Inner ', read.variable('inner')]),
+      ...(read.text('ring') === '' ? [] : [' Ring ', read.variable('ring')]),
+    ],
     execute: (run) => {
       const distance = solidScriptFaceDistance(run, 'Distance');
-      for (const [leaf, faces] of solidScriptFaceGroups(run, solidScriptFaceTargets(run, 'Inset Face'))) {
+      const inner: SolidScriptValue[] = [];
+      const ring: SolidScriptValue[] = [];
+      for (const [leaf, faces] of solidScriptFaceGroups(
+        solidScriptFaceTargets(run, 'Inset Face'),
+        (face) => face.leaf,
+      )) {
         const mesh: SolidScriptShapeMesh = solidScriptGeometryMesh(leaf);
-        run.leafReplace(leaf, solidScriptGeometryInset(mesh, solidScriptFaceNumbers(leaf, faces), distance));
+        const numbers = new Set(faces.map((face) => face.index));
+        const inset = solidScriptGeometryInset(mesh, numbers, distance);
+        const outputs = solidScriptFaceOutputs(mesh, numbers);
+        const tags = [
+          ...solidScriptFaceTagsOf(inset, outputs.tops, 'Inner'),
+          ...solidScriptFaceTagsOf(inset, outputs.sides, 'Ring'),
+        ];
+        run.leafReplace(leaf, { ...inset, faceTags: [...(inset.faceTags ?? []), ...tags] });
+        const read = solidScriptGeometryFaces([run.leafLatest(leaf)]);
+        inner.push(...outputs.tops.map((number) => run.elements.face(read[number]!)));
+        ring.push(...outputs.sides.map((number) => run.elements.face(read[number]!)));
       }
+      run.selectedSet('faces', inner);
+      solidScriptFaceWrite(run, 'inner', inner);
+      solidScriptFaceWrite(run, 'ring', ring);
       return [];
     },
   }),
@@ -662,24 +594,61 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     id: 'bevel_edges',
     label: 'Bevel Edges',
     category: 'Faces',
-    description: 'Cut the edges of picked faces flat',
+    description: 'Cut edges off flat',
     manual:
-      'Cuts the edges around faces off at a slant, Distance along each side: the face of the For Each Selected Face round, or else every face Select Faces picked. It works on brushes and keeps them brushes. Example: Cube, Select Faces Facing Up, Bevel Edges by 0.1 softens the top edges of a box.',
-    stops: ['No faces picked.', 'Faces of a mesh. Bevel Edges works on brushes for now.', 'A Distance of 0 or less.'],
-    parameters: [solidScriptParameter('distance', 'Distance', 'number', '0.1', 'Metres to cut back along each side.')],
-    listing: (read) => ['Bevel Edges', 'by ', read.value('distance')],
+      'Cuts edges of brushes off flat, Distance back along each face. Of gives edges, faces (their edges) or brushes (all their edges); empty uses [$Selected.Edges], else the edges of [$Selected.Faces]. Edges already bevelled are skipped, so bevelling face by face ends the same as bevelling all at once. Into names a variable for the new faces, and [$Selected.Faces] holds them afterwards. Example: Cube, Select Faces All, Bevel Edges by 0.1.',
+    stops: ['No edges.', 'Edges of a mesh. Bevel Edges works on brushes for now.', 'A Distance of 0 or less.'],
+    parameters: [
+      solidScriptParameter('distance', 'Distance', 'number', '0.1', 'Metres to cut back along each side.'),
+      solidScriptParameterOf('edges, faces or brushes', '$Selected.Edges'),
+      solidScriptParameterInto('the new faces, a Face list'),
+    ],
+    listing: (read) => [
+      'Bevel Edges',
+      'by ',
+      read.value('distance'),
+      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+      ...(read.text('into') === '' ? [] : [' Into ', read.variable('into')]),
+    ],
     execute: (run) => {
       const distance = solidScriptFaceDistance(run, 'Distance');
       if (distance <= 0) throw new Error('Bevel Edges needs a Distance above 0');
-      for (const [leaf, faces] of solidScriptFaceGroups(run, solidScriptFaceTargets(run, 'Bevel Edges'))) {
+      const made: SolidScriptValue[] = [];
+      const groups = solidScriptFaceGroups(
+        solidScriptFaceEdgeTargets(run, 'Bevel Edges'),
+        (edge) => edge.faces[0].leaf,
+      );
+      for (const [leaf, all] of groups) {
         if (leaf.kind !== 'solid') throw new Error('Bevel Edges works on brushes for now, not meshes');
-        const edges = solidScriptGeometryEdges([leaf]).filter((edge) =>
-          faces.some((face) =>
-            edge.faces.some((side) => side && solidScriptFaceSame({ ...side, leaf }, { ...face, leaf })),
+        const edges = all.filter(
+          (edge) => !edge.faces.some((face) => face?.tags.includes(SOLID_SCRIPT_FACE_BEVEL_TAG)),
+        );
+        if (edges.length === 0) continue;
+        const { points, cuts } = solidScriptGeometryBevel(leaf, edges, distance);
+        const bevelled: SolidScriptShapeSolid = { ...leaf, points };
+        const faces = solidScriptGeometryFaces([bevelled]).filter((face) =>
+          cuts.some(
+            (cut) =>
+              cut.normal.dot(face.normal) > 0.9999 &&
+              Math.abs(face.center.clone().sub(cut.point).dot(cut.normal)) < 1e-5,
           ),
         );
-        run.leafReplace(leaf, { ...leaf, points: solidScriptGeometryBevel(leaf, edges, distance) });
+        const tags = faces.map((face) => ({
+          point: face.center.clone(),
+          normal: face.normal.clone(),
+          tag: SOLID_SCRIPT_FACE_BEVEL_TAG,
+        }));
+        run.leafReplace(leaf, { ...bevelled, faceTags: [...(leaf.faceTags ?? []), ...tags] });
+        const read = solidScriptGeometryFaces([run.leafLatest(leaf)]);
+        for (const face of read)
+          if (
+            face.tags.includes(SOLID_SCRIPT_FACE_BEVEL_TAG) &&
+            faces.some((cut) => cut.center.distanceTo(face.center) < 1e-6)
+          )
+            made.push(run.elements.face(face));
       }
+      run.selectedSet('faces', made);
+      solidScriptFaceWrite(run, 'into', made);
       return [];
     },
   }),
@@ -687,19 +656,21 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     id: 'delete_faces',
     label: 'Delete Faces',
     category: 'Faces',
-    description: 'Take picked faces away',
+    description: 'Take faces out',
     manual:
-      'Takes faces away and leaves a hole: the face of the For Each Selected Face round, or else every face Select Faces picked. A brush it touches becomes a mesh, because a brush must be closed. Example: Cube, Select Faces Facing Up, Delete Faces leaves an open box.',
-    stops: ['No faces picked.'],
-    parameters: [],
-    listing: () => ['Delete Faces'],
+      'Takes faces out, leaving an open mesh; a brush turns into a mesh for it. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. The faces leave every list that held them. Example: Cube, Select Faces Facing Up, Delete Faces leaves an open box.',
+    stops: ['No faces.'],
+    parameters: [solidScriptParameterOf('faces or brushes', '$Selected.Faces')],
+    listing: (read) => ['Delete Faces', ...(read.text('of') === '' ? [] : [' Of ', read.value('of')])],
     execute: (run) => {
-      for (const [leaf, faces] of solidScriptFaceGroups(run, solidScriptFaceTargets(run, 'Delete Faces')))
+      for (const [leaf, faces] of solidScriptFaceGroups(
+        solidScriptFaceTargets(run, 'Delete Faces'),
+        (face) => face.leaf,
+      ))
         run.leafReplace(
           leaf,
-          solidScriptGeometryFacesDelete(solidScriptGeometryMesh(leaf), solidScriptFaceNumbers(leaf, faces)),
+          solidScriptGeometryFacesDelete(solidScriptGeometryMesh(leaf), new Set(faces.map((face) => face.index))),
         );
-      run.selectionSet([]);
       return [];
     },
   }),
@@ -741,11 +712,11 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     id: 'texture_faces',
     label: 'Texture Faces',
     category: 'Faces',
-    description: 'Paint picked faces with a texture',
+    description: 'Paint faces with a texture',
     manual:
-      'Gives faces their own library texture: the face of the For Each Selected Face round, or else every face Select Faces picked. It works on brushes and wins over a Texture block around them. The faces keep it when the brush is moved, turned or scaled. Example: Cube, Select Faces Facing Up, Texture Faces grass gives a box a grass top.',
+      'Gives faces their own library texture. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. It works on brushes and wins over a Texture block around them. The faces keep it when the brush is moved, turned or scaled. Example: Cube, Select Faces Facing Up, Texture Faces grass gives a box a grass top.',
     stops: [
-      'No faces picked.',
+      'No faces.',
       'Faces of a mesh. Texture Faces works on brushes for now.',
       'An empty Texture.',
       'A [Name] for a variable not set above this line.',
@@ -761,12 +732,20 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         ),
         texture: true,
       },
+      solidScriptParameterOf('faces or brushes', '$Selected.Faces'),
     ],
-    listing: (read) => ['Texture Faces', read.value('texture')],
+    listing: (read) => [
+      'Texture Faces',
+      read.value('texture'),
+      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+    ],
     execute: (run) => {
       const texture = solidScriptValueText(run.value('texture')).trim();
       if (texture === '') throw new Error('Texture Faces needs a Texture name');
-      for (const [leaf, faces] of solidScriptFaceGroups(run, solidScriptFaceTargets(run, 'Texture Faces'))) {
+      for (const [leaf, faces] of solidScriptFaceGroups(
+        solidScriptFaceTargets(run, 'Texture Faces'),
+        (face) => face.leaf,
+      )) {
         if (leaf.kind !== 'solid') throw new Error('Texture Faces works on brushes for now, not meshes');
         const added = faces.map((face) => ({ point: face.center.clone(), normal: face.normal.clone(), texture }));
         run.leafReplace(leaf, { ...leaf, faceTextures: [...(leaf.faceTextures ?? []), ...added] });

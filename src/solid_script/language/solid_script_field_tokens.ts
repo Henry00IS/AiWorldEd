@@ -1,5 +1,5 @@
+import { solidScriptFieldEscapes } from './solid_script_field.js';
 import { solidScriptFunctionKey, solidScriptNameKey } from './solid_script_name_key.js';
-import { SOLID_SCRIPT_SYSTEM_VALUES } from './solid_script_name_rules.js';
 
 /**
  * What one piece of field text is, for its colour: plain text, a bracket, a
@@ -40,15 +40,8 @@ export interface SolidScriptFieldToken {
 /** Words a formula reads as values or operators, not as names. */
 const SOLID_SCRIPT_FIELD_KEYWORDS = new Set(['true', 'false', 'undef', 'pi', 'and', 'or', 'not', 'for']);
 
-/** Built-in value names such as face.center, in lower case. */
-const SOLID_SCRIPT_FIELD_SYSTEM = new Set(
-  Object.entries(SOLID_SCRIPT_SYSTEM_VALUES).flatMap(([group, members]) =>
-    members.map((member) => `${group}.${member}`.toLowerCase()),
-  ),
-);
-
 /** A name, with dotted parts such as Local.Width or Pos.x. */
-const SOLID_SCRIPT_FIELD_WORD = /^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]+)*/;
+const SOLID_SCRIPT_FIELD_WORD = /^\$?[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]+)*/;
 
 /** A number in a formula. */
 const SOLID_SCRIPT_FIELD_NUMBER = /^(?:\d+\.?\d*(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?)/;
@@ -77,13 +70,13 @@ function solidScriptFieldWordKind(word: string): SolidScriptFieldTokenKind {
   const lower = word.toLowerCase();
   if (lower.startsWith('local.')) return 'local';
   if (lower.startsWith('persistent.')) return 'persistent';
-  if (SOLID_SCRIPT_FIELD_SYSTEM.has(lower.replace(/\.[xyz]$/, ''))) return 'system';
+  if (lower.startsWith('$')) return 'system';
   return 'name';
 }
 
 /**
  * Splits field text into pieces the way fields read it: [name] and [=formula]
- * brackets that nest, $ keeping the next character as typed, and inside a
+ * brackets that nest, $ keeping a following $, [ or ] as typed, and inside a
  * formula numbers, "texts", names, calls and operators. Each bracket knows its
  * partner, so the editor can show which ones the caret is inside. Broken text
  * still splits; what cannot be read stays plain.
@@ -115,7 +108,7 @@ export function solidScriptFieldTokens(text: string): SolidScriptFieldToken[] {
     const char = text[index]!;
     const mode = open.at(-1)?.mode ?? 'text';
     const rest = text.slice(index);
-    if (char === '$') {
+    if (solidScriptFieldEscapes(text, index)) {
       const end = Math.min(text.length, index + 2);
       push('text', index, end);
       index = end;
@@ -213,7 +206,7 @@ export function solidScriptFieldTokenKey(text: string, token: SolidScriptFieldTo
   if (!token.checked) return null;
   const written = text.slice(token.from, token.to);
   if (token.kind === 'function') return `${solidScriptFunctionKey(written)}()`;
-  return token.kind === 'name' || token.kind === 'local'
-    ? solidScriptNameKey(written.replace(/\.[xyzXYZ]$/, ''))
-    : null;
+  // A member such as Face.Center or Points.Count is checked by the name it starts with.
+  if (token.kind === 'local') return solidScriptNameKey(written.split('.').slice(0, 2).join('.'));
+  return token.kind === 'name' ? solidScriptNameKey(written.split('.')[0]!) : null;
 }

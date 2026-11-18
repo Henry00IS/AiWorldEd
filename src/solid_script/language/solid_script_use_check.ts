@@ -3,7 +3,10 @@ import { solidScriptBlockNesting } from '@/solid_script/document/solid_script_do
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
 import type { SolidScriptWarning } from './solid_script_machine_types.js';
 
-/** A Box value written in a field or formula, such as [Box.Width] or box.size.x. */
+/**
+ * A Box value written in a field or formula, such as [$Box.Width] or
+ * box.size.x.
+ */
 const SOLID_SCRIPT_USE_CHECK_BOX = /\bBox\.(Width|Depth|Height|Size)\b/i;
 
 /**
@@ -38,7 +41,7 @@ export function solidScriptUseCheck(document: SolidScriptDocument): SolidScriptW
         const name = `Box.${found.slice(4, 5).toUpperCase()}${found.slice(5).toLowerCase()}`;
         warnings.push({
           line: index + 1,
-          text: `Used As Modifier this line reads [${name}], which only a generator has, so it reads 1; put it inside If Used As Generator.`,
+          text: `Used As Modifier this line reads [$${name}], which only a generator has, so it reads 1; put it inside If Used As Generator.`,
         });
       }
     }

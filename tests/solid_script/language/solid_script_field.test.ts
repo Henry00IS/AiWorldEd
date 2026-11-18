@@ -111,10 +111,10 @@ describe('SolidScript field text', () => {
     expect(solidScriptFieldResolve('text', 'A [note] $ here', CONTEXT)).toBe('A [note] $ here');
   });
 
-  it('explains unbalanced brackets, empty brackets and a lone $', () => {
+  it('explains unbalanced brackets, empty brackets and a lone $ that is just a dollar', () => {
     expect(solidScriptFieldCheck('[width')).toMatch(/\[ has no \]/);
     expect(solidScriptFieldCheck('width]')).toMatch(/\] has no \[/);
-    expect(solidScriptFieldCheck('cost $')).toMatch(/\$\$/);
+    expect(solidScriptFieldCheck('cost $')).toBe('');
     expect(() => solidScriptFieldResolve('number', '[]', CONTEXT)).toThrow(/empty/);
     expect(() => solidScriptFieldResolve('number', '[=]', CONTEXT)).toThrow(/no formula/);
     expect(solidScriptFieldCheck('[=[i] * 2], 0, 0')).toBe('');
@@ -122,7 +122,7 @@ describe('SolidScript field text', () => {
 
   it('splits at separators outside brackets only', () => {
     expect(solidScriptFieldSplit('[=max([a], [b])], 2', ',')).toEqual(['[=max([a], [b])]', '2']);
-    expect(solidScriptFieldSplit('a $, b, c', ',')).toEqual(['a $, b', 'c']);
+    expect(solidScriptFieldSplit('a $[, b, c', ',')).toEqual(['a $[', 'b', 'c']);
   });
 
   it('recognises a lone variable for the listing', () => {

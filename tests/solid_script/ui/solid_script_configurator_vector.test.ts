@@ -10,8 +10,8 @@ afterEach(() => document.body.replaceChildren());
 describe('SolidScript vector fields', () => {
   it('points out a built-in number in a vector field', () => {
     // A number in a vector field is allowed, every axis gets it, but it is pointed out.
-    expect(solidScriptFieldVectorNote('[Edge.Length]')).toContain('not a vector');
-    expect(solidScriptFieldVectorNote('[Edge.Middle]')).toBe('');
+    expect(solidScriptFieldVectorNote('[$Box.Width]')).toContain('not a vector');
+    expect(solidScriptFieldVectorNote('[$Box.Size]')).toBe('');
     expect(solidScriptFieldVectorNote('[Width]')).toBe('');
   });
 
@@ -21,8 +21,8 @@ describe('SolidScript vector fields', () => {
     expect(field.element.querySelector('button')).toBeNull();
     expect(field.read()).toBe('4, 1, 2');
     expect(field.problem()).toBe('');
-    expect(solidScriptConfiguratorFieldBuild(OFFSET, '[Edge.Middle]', () => {}).problem()).toBe('');
+    expect(solidScriptConfiguratorFieldBuild(OFFSET, '[$Box.Size]', () => {}).problem()).toBe('');
     expect(solidScriptConfiguratorFieldBuild(OFFSET, '1, 2', () => {}).problem()).toContain('needs 3 values');
-    expect(solidScriptConfiguratorFieldBuild(OFFSET, '[Edge.Length]', () => {}).warning()).toContain('not a vector');
+    expect(solidScriptConfiguratorFieldBuild(OFFSET, '[$Box.Width]', () => {}).warning()).toContain('not a vector');
   });
 });

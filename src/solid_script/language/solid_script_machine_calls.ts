@@ -84,7 +84,7 @@ export abstract class SolidScriptMachineCalls<
    * @returns Stand-in value.
    */
   protected systemMissing(name: string): SolidScriptValue {
-    this.warnings.set(this.line, `[${name}] is only known in a generator, where there is a box; 1 is used here.`);
+    this.warnings.set(this.line, `[$${name}] is only known in a generator, where there is a box; 1 is used here.`);
     return /\.Size$/i.test(name) ? [1, 1, 1] : 1;
   }
   protected readonly parts = new Map<string, SolidScriptPart<Command>>();

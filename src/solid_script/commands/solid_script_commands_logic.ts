@@ -1,7 +1,11 @@
 import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import { solidScriptParameter, solidScriptParameterOptional } from './solid_script_command_parameters.js';
-import { solidScriptValueText, solidScriptValueTruthy } from '@/solid_script/language/solid_script_value.js';
+import {
+  SolidScriptElement,
+  solidScriptValueText,
+  solidScriptValueTruthy,
+} from '@/solid_script/language/solid_script_value.js';
 import { SOLID_SCRIPT_PART_DEPTH_MAX } from '@/solid_script/language/solid_script_machine_calls.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 
@@ -45,7 +49,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Logic',
     description: 'Set a variable to a value',
     manual:
-      'Gives a value a name, so later lines can use the name. Lines below see the new value. Lines above do not. Setting the same name again changes it, so a Set in a Repeat can count up. Read it in any field as [Width], or compute with it as [=[Width] * 2]. Example: Set [Width] to 3, then a Cube of size [Width], 1, 1. Lists: Set Points() adds an item at the end. Set Points(2) changes item 2. Items count from 0. [Points(2)] reads one item, and [Points().Count] says how many there are.',
+      'Gives a value a name, so later lines can use the name. Lines below see the new value. Lines above do not. Setting the same name again changes it, so a Set in a Repeat can count up. Read it in any field as [Width], or compute with it as [=[Width] * 2]. Example: Set [Width] to 3, then a Cube of size [Width], 1, 1. Lists: Set Points() adds an item at the end. Set Points(2) changes item 2. Items count from 0. [Points(2)] reads one item, and [Points.Count] says how many there are.',
     stops: [
       'A name that is not letters, digits and _, or starts with a digit.',
       'A [Name] for a variable not set above this line, or a [=formula] that cannot be read.',
@@ -109,32 +113,52 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     id: 'for_each',
     label: 'For Each',
     category: 'Logic',
-    description: 'Run lines once per list item',
+    description: 'Run lines once per item of a list',
     manual:
-      'Runs the lines inside once for each item of a list. The counter holds the current item. The list can be numbers separated by commas, or a list variable such as [Points]. Example: For Each [H] in 1, 2, 4 around Translate by [H], 0, 0 and a Cube builds three cubes.',
+      'Runs the lines inside once for each item of a list, with Item holding the current one. The list can be numbers separated by commas, a list variable such as [Points], or geometry such as [$Selected.Faces], [Top.Edges] or [$Input.Brushes]; over [Face.Data] it runs once per user value. Key, when given, holds the item number from 0, or the key name over Data. Inside a round the [$Selected.*] lists start as they were and come back after End. Example: For Each [Face] In [$Selected.Faces], Extrude Face Of [Face] by 0.2, End.',
     stops: [
       `More than ${SOLID_SCRIPT_REPEAT_ROUNDS_MAX} items.`,
-      'A counter name that is not letters, digits and _.',
+      'An Item or Key name that is not letters, digits and _.',
       'A missing End line.',
     ],
     nesting: 'open',
     parameters: [
-      solidScriptParameter('variable', 'Counter', 'name', 'Item', 'Name the lines inside use for the current item.'),
+      solidScriptParameter('variable', 'Item', 'name', 'Item', 'Name the lines inside use for the current item.'),
       solidScriptParameter(
         'list',
-        'List',
+        'In',
         'value',
         '1, 2, 3',
-        'Items separated by commas, or a list variable such as [Points].',
+        'Items separated by commas, or a list such as [Points], [$Selected.Faces] or [Face.Data].',
+      ),
+      solidScriptParameterOptional(
+        'key',
+        'Key',
+        'name',
+        'Name for the item number from 0, or the key name over Data; empty gives none.',
       ),
     ],
-    listing: (read) => ['For Each', read.variable('variable'), ' in ', read.value('list')],
+    listing: (read) => [
+      'For Each',
+      read.variable('variable'),
+      ' In ',
+      read.value('list'),
+      ...(read.text('key').trim() === '' ? [] : [' Key ', read.variable('key')]),
+    ],
     execute: (run) => {
       const list = run.value('list');
-      const items = Array.isArray(list) ? list : [list];
+      const entries =
+        list instanceof SolidScriptElement && list.kind === 'data' ? run.elements.dataEntries(list) : null;
+      const items = entries ? entries.map((entry) => entry.value) : Array.isArray(list) ? list : [list];
       if (items.length > SOLID_SCRIPT_REPEAT_ROUNDS_MAX)
         throw new Error(`For Each would run ${items.length} times, more than ${SOLID_SCRIPT_REPEAT_ROUNDS_MAX}`);
-      return run.repeated(run.text('variable'), items);
+      const key = run
+        .text('key')
+        .trim()
+        .replace(/^\[(.*)\]$/s, '$1');
+      if (key === '') return run.repeated(run.text('variable'), items);
+      const keys = entries ? entries.map((entry) => entry.name) : items.map((_, index) => index);
+      return run.repeated(run.text('variable'), items, { name: key, keys });
     },
   }),
   new SolidScriptCommand({

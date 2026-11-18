@@ -14,7 +14,15 @@ import type { SolidScriptBlockNode } from './solid_script_block_tree.js';
 import type { SolidScriptFrame, SolidScriptMachineCommand, SolidScriptVariable } from './solid_script_machine_types.js';
 import { solidScriptNameFind, solidScriptNameKey, solidScriptNameSpelling } from './solid_script_name_key.js';
 import { SolidScriptScope } from './solid_script_scope.js';
-import { solidScriptValueText, solidScriptValueType, type SolidScriptValue } from './solid_script_value.js';
+import {
+  SolidScriptElement,
+  solidScriptValueText,
+  solidScriptValueType,
+  type SolidScriptValue,
+} from './solid_script_value.js';
+import { SolidScriptElements } from './solid_script_elements.js';
+import { solidScriptMemberRead } from './solid_script_members.js';
+import type { SolidScriptGeometryLeaf } from './solid_script_geometry.js';
 
 /** Pattern of a variable or part name. */
 export const SOLID_SCRIPT_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -95,10 +103,39 @@ function solidScriptVectorComponent(name: string): SolidScriptVectorPart | null 
   return part;
 }
 
-/** First names of the built-in values, such as Time. */
-const SOLID_SCRIPT_SYSTEM_GROUPS: ReadonlySet<string> = new Set(
-  SOLID_SCRIPT_SYSTEM_GLOBALS.map((entry) => solidScriptNameKey(entry.name.slice(0, entry.name.indexOf('.')))),
-);
+/** What the [$Selected.*] lists hold. */
+export type SolidScriptSelectedKind = 'brushes' | 'faces' | 'edges' | 'vertices';
+
+/** The [$Selected.*] lists of a round; brushes is null until a script sets it. */
+export type SolidScriptSelected = Record<Exclude<SolidScriptSelectedKind, 'brushes'>, SolidScriptValue[]> & {
+  brushes: SolidScriptValue[] | null;
+};
+
+/** Start of a system value, such as $Selected.Faces. */
+export const SOLID_SCRIPT_SYSTEM_PREFIX = '$';
+
+/**
+ * Splits a name at the dots outside brackets, such as Face.Edges(0).Center.
+ *
+ * @param name Name.
+ * @returns Parts.
+ */
+function solidScriptMemberParts(name: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let index = 0; index < name.length; index++) {
+    const character = name[index];
+    if (character === '(') depth++;
+    else if (character === ')') depth--;
+    else if (character === '.' && depth === 0) {
+      parts.push(name.slice(start, index).trim());
+      start = index + 1;
+    }
+  }
+  parts.push(name.slice(start).trim());
+  return parts;
+}
 
 /** Spellings of the built-in values every script can read, by key. */
 const SOLID_SCRIPT_SYSTEM_NAMES: ReadonlyMap<string, string> = new Map(
@@ -221,6 +258,10 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
   /** Variables kept with the generator between runs, by bare name. */
   protected readonly persistent = new SolidScriptScope(null);
   protected root = new SolidScriptScope(null);
+  /** Brushes, faces, edges and corners the script holds. */
+  protected readonly elements = new SolidScriptElements({ leafLatest: (leaf) => this.leafLatestOf(leaf) });
+  /** The [$Selected.*] lists of the round running. */
+  protected selected: SolidScriptSelected = { brushes: null, faces: [], edges: [], vertices: [] };
 
   /**
    * Creates the variables of a run.
@@ -235,6 +276,134 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
 
   /** Counts one step of work and stops a run that never ends. */
   protected abstract workTake(): void;
+
+  /**
+   * Returns the latest version of a solid or mesh after later changes.
+   *
+   * @param leaf Solid or mesh.
+   * @returns Latest version.
+   */
+  protected abstract leafLatestOf(leaf: SolidScriptGeometryLeaf): SolidScriptGeometryLeaf;
+
+  /**
+   * Lists every brush and mesh built so far in the round running, and those the
+   * modifier receives, as [$Selected.Brushes] starts.
+   *
+   * @returns Brush elements.
+   */
+  protected abstract brushesBuilt(): SolidScriptValue[];
+
+  /**
+   * Lists the brushes a modifier receives, as [$Input.Brushes].
+   *
+   * @returns Brush elements.
+   */
+  protected abstract brushesReceived(): SolidScriptValue[];
+
+  /**
+   * Reads a system list such as $Selected.Faces.
+   *
+   * @param key Name key after the $.
+   * @returns Value, or undefined when it is not a system list.
+   */
+  protected systemList(key: string): SolidScriptValue {
+    switch (key) {
+      case 'selected.brushes':
+        return this.selected.brushes ?? this.brushesBuilt();
+      case 'selected.faces':
+        return this.selected.faces;
+      case 'selected.edges':
+        return this.selected.edges;
+      case 'selected.vertices':
+        return this.selected.vertices;
+      case 'input.brushes':
+        return this.brushesReceived();
+      default:
+        return undefined;
+    }
+  }
+
+  /**
+   * Reads a name starting with $: a system list, a built-in value such as
+   * $Box.Width, or a member of one such as $Selected.Faces.Count.
+   *
+   * @param name Name key.
+   * @param scope Scope of the running line.
+   * @returns Value.
+   */
+  protected systemVariable(name: string, scope: SolidScriptScope): SolidScriptValue {
+    const bare = name.slice(SOLID_SCRIPT_SYSTEM_PREFIX.length);
+    const list = this.systemList(bare);
+    if (list !== undefined) return list;
+    const builtIn = this.systemRead(bare);
+    if (builtIn !== undefined) return builtIn;
+    const members = this.memberPath(name, scope);
+    if (members) return members.value;
+    throw new Error(`there is no system value [${this.nameShown(name)}]`);
+  }
+
+  /**
+   * Reads a name that is a value followed by members, such as Face.Center,
+   * Faces.Count or Face.Data.Height.
+   *
+   * @param name Name key.
+   * @param scope Scope of the running line.
+   * @returns Value, or null when no start of the name is a value.
+   */
+  protected memberPath(name: string, scope: SolidScriptScope): { value: SolidScriptValue } | null {
+    const parts = solidScriptMemberParts(name);
+    if (parts.length < 2) return null;
+    const written = solidScriptMemberParts(this.nameShown(name));
+    for (let split = parts.length - 1; split >= 1; split--) {
+      const base = parts.slice(0, split).join('.');
+      let value: SolidScriptValue;
+      try {
+        value = this.fieldVariable(base, scope);
+      } catch {
+        continue;
+      }
+      for (let index = split; index < parts.length; index++)
+        value = solidScriptMemberRead(value, parts[index]!, this.elements, written[index] ?? parts[index]!);
+      return { value };
+    }
+    return null;
+  }
+
+  /**
+   * Writes a user value under .Data, such as Face.Data.Height, to one element
+   * or every element of a list.
+   *
+   * @param written Name as written.
+   * @param scope Scope of the line.
+   * @param value Value.
+   * @returns True when the name was such a value.
+   */
+  protected dataSet(written: string, scope: SolidScriptScope, value: SolidScriptValue): boolean {
+    const parts = solidScriptMemberParts(written);
+    const at = parts.length - 2;
+    if (at < 1 || parts[at]!.toLowerCase() !== 'data') return false;
+    const owner = this.fieldVariable(solidScriptNameKey(parts.slice(0, at).join('.')), scope);
+    const last = parts[parts.length - 1]!;
+    const name = last.includes('[')
+      ? solidScriptValueText(solidScriptFieldResolve('value', last, this.fieldContext(scope))).trim()
+      : last;
+    if (!SOLID_SCRIPT_NAME.test(name))
+      throw new Error(`"${name}" cannot be a Data key; keys use letters, digits and _, not starting with a digit`);
+    const items = Array.isArray(owner) ? owner : [owner];
+    for (const item of items) {
+      if (!(item instanceof SolidScriptElement))
+        throw new Error(
+          `only brushes, faces, edges and corners have .Data; ${parts.slice(0, at).join('.')} is ${solidScriptValueType(item)}`,
+        );
+      this.elements.dataWrite(
+        item.kind === 'data' ? item : this.elements.data(item),
+        solidScriptNameKey(name),
+        name,
+        value,
+      );
+    }
+    return true;
+  }
 
   /**
    * Works out a Function used in a formula.
@@ -330,10 +499,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
       // A Function's own input or variable, the common read inside one.
       const found = this.fieldLocal(solidScriptLocalBare(name));
       if (found !== undefined) return found;
-    } else {
-      const builtIn = this.systemRead(name);
-      if (builtIn !== undefined) return builtIn;
-    }
+    } else if (name.startsWith(SOLID_SCRIPT_SYSTEM_PREFIX)) return this.systemVariable(name, scope);
     return this.fieldVariableWhere(name, scope);
   }
 
@@ -354,15 +520,15 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
       if (component && where.scope.variableHas(component.name))
         return solidScriptVectorComponentRead(component, where.scope.variableGet(component.name));
     }
-    if (item && !where.scope.variableHas(base)) {
-      // A built-in list, such as Input.Brushes().Count.
-      const builtIn = this.systemRead(base);
-      if (builtIn !== undefined) {
-        const index = item.index === '' ? null : this.indexValue(item.index, scope);
-        return solidScriptListItemRead(base, builtIn, index, item.method, this.nameShown);
-      }
+    if (item && !where.scope.variableHas(base) && (base.includes('.') || base.startsWith(SOLID_SCRIPT_SYSTEM_PREFIX))) {
+      // An item of a system list or a member, such as $Input.Brushes(0) or Top.Edges(1).
+      const list = this.fieldVariable(base, scope);
+      const index = item.index === '' ? null : this.indexValue(item.index, scope);
+      return solidScriptListItemRead(base, list, index, this.nameShown);
     }
     if (!where.scope.variableHas(base)) {
+      const members = this.memberPath(name, scope);
+      if (members) return members.value;
       if (where.persistent && !item) return undefined;
       const written = this.nameShown(where.local ? `${SOLID_SCRIPT_LOCAL_PREFIX}${base}` : base);
       throw new Error(
@@ -373,7 +539,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
     }
     if (!item) return where.scope.variableGet(base);
     const index = item.index === '' ? null : this.indexValue(item.index, scope);
-    return solidScriptListItemRead(base, where.scope.variableGet(base), index, item.method, this.nameShown);
+    return solidScriptListItemRead(base, where.scope.variableGet(base), index, this.nameShown);
   }
 
   /**
@@ -384,16 +550,6 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
    */
   fieldLocal(bare: string): SolidScriptValue {
     return this.frameFunction()?.locals?.variableOwn(bare);
-  }
-
-  /**
-   * Returns whether a first name starts built-in values, such as Box.
-   *
-   * @param name First name.
-   * @returns True for a built-in group.
-   */
-  fieldSystemGroup(name: string): boolean {
-    return SOLID_SCRIPT_SYSTEM_GROUPS.has(name);
   }
 
   /**
@@ -485,8 +641,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
    * @returns Value, or undefined when the name is not a built-in value.
    */
   protected systemRead(name: string): SolidScriptValue {
-    const dot = name.indexOf('.');
-    if (dot < 0 || !SOLID_SCRIPT_SYSTEM_GROUPS.has(name.slice(0, dot))) return undefined;
+    if (!name.includes('.')) return undefined;
     const value = this.system.get(name);
     if (value !== undefined) return value;
     const part = solidScriptVectorComponent(name);
@@ -521,6 +676,15 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
       home.variableSet(name, value);
       return;
     }
+    if (name.startsWith(SOLID_SCRIPT_SYSTEM_PREFIX)) {
+      const kind = /^\$selected\.(brushes|faces|edges|vertices)$/.exec(name)?.[1] as
+        SolidScriptSelectedKind | undefined;
+      if (!kind)
+        throw new Error(`[${written}] is a system value and can only be read; only the $Selected lists can be set`);
+      this.selected[kind] = Array.isArray(value) ? [...value] : value === undefined ? [] : [value];
+      return;
+    }
+    if (this.dataSet(written, scope, value)) return;
     const locals = name.startsWith(SOLID_SCRIPT_LOCAL_PREFIX) ? this.frameFunction()?.locals : undefined;
     const bare = locals ? solidScriptLocalBare(name) : '';
     if (locals && SOLID_SCRIPT_NAME.test(bare)) {
@@ -541,7 +705,6 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
       return;
     }
     const item = solidScriptListItemParse(where.name);
-    if (item?.method) throw new Error(`${item.name}().${item.method} can only be read`);
     const base = item?.name ?? where.name;
     this.nameCheck(base, 'a variable');
     if (!where.local) this.writableCheck(base);

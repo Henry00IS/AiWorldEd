@@ -14,7 +14,7 @@ import {
 /** Half the box as one vector: [half.x], [half.y] and [half.z]. */
 const SOLID_SCRIPT_EXAMPLE_HALF = solidScriptExampleSet(
   'Half',
-  '[=[Box.Width] / 2], [=[Box.Height] / 2], [=[Box.Depth] / 2]',
+  '[=[$Box.Width] / 2], [=[$Box.Height] / 2], [=[$Box.Depth] / 2]',
 );
 
 /** Port of the Pyramid generator. */
@@ -56,17 +56,17 @@ export const SOLID_SCRIPT_EXAMPLE_PRISM: readonly SolidScriptLine[] = [
         ...solidScriptExampleIf('[End] != 0', [
           ...solidScriptExampleIf('[Axis] == "x"', [
             solidScriptExamplePoint(
-              '[=[End] * [Half.x]], [=-[Half.y] + [Box.Height] * [U.y]], [=[Box.Depth] * [U.x] - [Half.z]]',
+              '[=[End] * [Half.x]], [=-[Half.y] + [$Box.Height] * [U.y]], [=[$Box.Depth] * [U.x] - [Half.z]]',
             ),
           ]),
           ...solidScriptExampleIf('[Axis] == "y"', [
             solidScriptExamplePoint(
-              '[=-[Half.x] + [Box.Width] * [U.x]], [=[End] * [Half.y]], [=[Box.Depth] * [U.y] - [Half.z]]',
+              '[=-[Half.x] + [$Box.Width] * [U.x]], [=[End] * [Half.y]], [=[$Box.Depth] * [U.y] - [Half.z]]',
             ),
           ]),
           ...solidScriptExampleIf('[Axis] == "z"', [
             solidScriptExamplePoint(
-              '[=-[Half.x] + [Box.Width] * [U.x]], [=-[Half.y] + [Box.Height] * [U.y]], [=[End] * [Half.z]]',
+              '[=-[Half.x] + [$Box.Width] * [U.x]], [=-[Half.y] + [$Box.Height] * [U.y]], [=[End] * [Half.z]]',
             ),
           ]),
         ]),
@@ -108,7 +108,7 @@ export const SOLID_SCRIPT_EXAMPLE_HOLLOW_BOX: readonly SolidScriptLine[] = [
   SOLID_SCRIPT_EXAMPLE_HALF,
   solidScriptExampleSet('T', '[WallThickness]'),
   ...solidScriptExampleIf(
-    '[T] * 2 >= Min([Box.Width], [Box.Depth], [Box.Height])',
+    '[T] * 2 >= Min([$Box.Width], [$Box.Depth], [$Box.Height])',
     [solidScriptExampleSlab('-[Half.x], -[Half.y], -[Half.z]', '[Half.x], [Half.y], [Half.z]')],
     [
       solidScriptExampleSet('Top', '[=[Half.y] - [T]]'),
@@ -151,15 +151,15 @@ export const SOLID_SCRIPT_EXAMPLE_ARCH: readonly SolidScriptLine[] = [
   solidScriptExampleInput('Thickness', 'number', '0.25', { label: 'Thickness', min: '0.01', max: '100' }),
   solidScriptExampleNote('The arch rises along Y and spans X, or Z when Span Along is z.'),
   solidScriptExampleSet('AlongX', '[=[Span] != "z"]'),
-  solidScriptExampleSet('Half', '[=([AlongX] ? [Box.Width] : [Box.Depth]) / 2]'),
-  solidScriptExampleSet('Across', '[=([AlongX] ? [Box.Depth] : [Box.Width]) / 2]'),
+  solidScriptExampleSet('Half', '[=([AlongX] ? [$Box.Width] : [$Box.Depth]) / 2]'),
+  solidScriptExampleSet('Across', '[=([AlongX] ? [$Box.Depth] : [$Box.Width]) / 2]'),
   solidScriptExampleSet('Thick', '[=[Style] == "tunnel" ? 0 : [Thickness]]'),
   solidScriptExampleSet('Rx', '[=[Half] - [Thick]]'),
-  solidScriptExampleSet('Ry', '[=[Shape] == "fit" ? [Box.Height] - [Thick] : Min([Rx], [Box.Height] - [Thick])]'),
+  solidScriptExampleSet('Ry', '[=[Shape] == "fit" ? [$Box.Height] - [Thick] : Min([Rx], [$Box.Height] - [Thick])]'),
   solidScriptExampleSet('Arc', '[=[Style] == "ring" ? [Sweep] : 180]'),
   solidScriptExampleSet('First', '[=[Start] == "right" ? 0 : ([Start] == "left" ? 180 - [Arc] : (180 - [Arc]) / 2)]'),
-  solidScriptExampleSet('Floor', '[=-[Box.Height] / 2]'),
-  solidScriptExampleSet('Top', '[=[Box.Height] / 2]'),
+  solidScriptExampleSet('Floor', '[=-[$Box.Height] / 2]'),
+  solidScriptExampleSet('Top', '[=[$Box.Height] / 2]'),
   ...solidScriptExampleBlock('function', { name: 'Corner', parameters: 'Index, Grow' }, [
     solidScriptExampleSet('Local.Angle', '[=[First] + [Arc] * [Local.Index] / [Segments]]'),
     solidScriptExampleLine('return', {

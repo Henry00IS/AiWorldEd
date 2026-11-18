@@ -6,7 +6,7 @@ import {
 } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptUseCheck } from '@/solid_script/language/solid_script_use_check.js';
 
-const BOXED: SolidScriptLine = { command: 'cube', values: { size: '[Box.Width], 1, [=box.height / 2]' } };
+const BOXED: SolidScriptLine = { command: 'cube', values: { size: '[$Box.Width], 1, [=box.height / 2]' } };
 
 /**
  * Checks a script that may be used as a modifier.
@@ -25,7 +25,7 @@ describe('solid script use check', () => {
     const [warning] = solidScriptUseCheck(
       solidScriptDocumentUsesWith(solidScriptDocumentCreate([BOXED]), { generator: true, modifier: true }),
     );
-    expect(warning?.text).toContain('[Box.Width]');
+    expect(warning?.text).toContain('[$Box.Width]');
     expect(warning?.text).toContain('If Used As Generator');
   });
 

@@ -89,8 +89,51 @@ export function solidScriptGeometryLeaves(shapes: readonly SolidScriptShape[]): 
  * @returns Mesh with the same faces.
  */
 export function solidScriptGeometryMesh(leaf: SolidScriptGeometryLeaf): SolidScriptShapeMesh {
-  return leaf.kind === 'mesh' ? leaf : solidScriptMeshFromSolid(leaf.points, leaf.label);
+  if (leaf.kind === 'mesh') return leaf;
+  const mesh = solidScriptMeshFromSolid(leaf.points, leaf.label);
+  return leaf.faceTags ? { ...mesh, faceTags: leaf.faceTags } : mesh;
 }
+
+/**
+ * Tells whether a point lies on a face: on its plane and inside its outline,
+ * edges included.
+ *
+ * @param corners Corners of the face in order.
+ * @param normal Unit direction of the face.
+ * @param point Point.
+ * @returns True when the face holds the point.
+ */
+export function solidScriptGeometryFaceHolds(
+  corners: readonly THREE.Vector3[],
+  normal: THREE.Vector3,
+  point: THREE.Vector3,
+): boolean {
+  const first = corners[0];
+  if (!first || Math.abs(point.clone().sub(first).dot(normal)) > SOLID_SCRIPT_GEOMETRY_PLANE) return false;
+  const { across, up } = solidScriptGeometryFrame(normal);
+  const flat = corners.map((corner) => [corner.dot(across), corner.dot(up)] as const);
+  const x = point.dot(across);
+  const y = point.dot(up);
+  let inside = false;
+  for (let at = 0, before = flat.length - 1; at < flat.length; before = at++) {
+    const [ax, ay] = flat[at]!;
+    const [bx, by] = flat[before]!;
+    const along = (x - ax) * (by - ay) - (y - ay) * (bx - ax);
+    const length = Math.hypot(bx - ax, by - ay);
+    const onEdge =
+      Math.abs(along) <= SOLID_SCRIPT_GEOMETRY_PLANE * Math.max(length, 1) &&
+      x >= Math.min(ax, bx) - SOLID_SCRIPT_GEOMETRY_PLANE &&
+      x <= Math.max(ax, bx) + SOLID_SCRIPT_GEOMETRY_PLANE &&
+      y >= Math.min(ay, by) - SOLID_SCRIPT_GEOMETRY_PLANE &&
+      y <= Math.max(ay, by) + SOLID_SCRIPT_GEOMETRY_PLANE;
+    if (onEdge) return true;
+    if (ay > y !== by > y && x < ((bx - ax) * (y - ay)) / (by - ay) + ax) inside = !inside;
+  }
+  return inside;
+}
+
+/** How far off its plane a point may be and still count as on a face, in metres. */
+const SOLID_SCRIPT_GEOMETRY_PLANE = 1e-5;
 
 /**
  * Works out the two directions along a face: across is level with the ground
@@ -196,6 +239,14 @@ function solidScriptGeometryFace(
         .crossVectors(corners[corner]!.clone().sub(corners[0]!), corners[corner + 1]!.clone().sub(corners[0]!))
         .length() / 2;
   const role = leaf.kind === 'solid' ? leaf.role : undefined;
+  const tags = solidScriptGeometryTags(normal, role);
+  for (const tag of leaf.faceTags ?? [])
+    if (
+      tag.normal.dot(normal) > 0.9999 &&
+      !tags.includes(tag.tag) &&
+      solidScriptGeometryFaceHolds(corners, normal, tag.point)
+    )
+      tags.push(tag.tag);
   return {
     index,
     leaf,
@@ -207,7 +258,7 @@ function solidScriptGeometryFace(
     width: spans(across),
     height: spans(up),
     area,
-    tags: solidScriptGeometryTags(normal, role),
+    tags,
   };
 }
 
@@ -456,14 +507,16 @@ export function solidScriptGeometryClip(
  * @param solid Solid.
  * @param edges Edges to bevel, read from this solid.
  * @param distance Metres along each face.
- * @returns Corner points of the bevelled solid.
+ * @returns Corner points of the bevelled solid, and the direction and a point
+ *   of every new face.
  */
 export function solidScriptGeometryBevel(
   solid: SolidScriptShapeSolid,
   edges: readonly SolidScriptEdgeFacts[],
   distance: number,
-): THREE.Vector3[] {
+): { points: THREE.Vector3[]; cuts: { normal: THREE.Vector3; point: THREE.Vector3 }[] } {
   let points = solid.points.map((point) => point.clone());
+  const cuts: { normal: THREE.Vector3; point: THREE.Vector3 }[] = [];
   for (const edge of edges) {
     const [first, second] = edge.faces;
     if (!second || first.normal.dot(second.normal) > 0.999) continue;
@@ -475,8 +528,9 @@ export function solidScriptGeometryBevel(
       .negate();
     const through = edge.start.clone().addScaledVector(inward, distance);
     points = solidScriptGeometryClip(points, bisector, bisector.dot(through), solid.label);
+    cuts.push({ normal: bisector, point: through });
   }
-  return points;
+  return { points, cuts };
 }
 
 /**

@@ -101,11 +101,11 @@ describe('SolidScript axes', () => {
   });
 
   it('gives the box as width (X), height (Y) and depth (Z)', () => {
-    expect(bounds([solidScriptExampleLine('cube', { size: '[Box.Size]' })])).toEqual({
+    expect(bounds([solidScriptExampleLine('cube', { size: '[$Box.Size]' })])).toEqual({
       min: [-2, -0.5, -1],
       max: [2, 0.5, 1],
     });
-    expect(bounds([solidScriptExampleLine('cube', { size: '[Box.Width], [Box.Height], [Box.Depth]' })])).toEqual({
+    expect(bounds([solidScriptExampleLine('cube', { size: '[$Box.Width], [$Box.Height], [$Box.Depth]' })])).toEqual({
       min: [-2, -0.5, -1],
       max: [2, 0.5, 1],
     });

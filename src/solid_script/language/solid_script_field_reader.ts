@@ -23,12 +23,6 @@ export interface SolidScriptFieldHost {
    */
   fieldLocal(bare: string): SolidScriptValue;
   /**
-   * Returns whether a first name starts built-in values, such as Box.
-   *
-   * @param name First name.
-   */
-  fieldSystemGroup(name: string): boolean;
-  /**
    * Computes formula text; throws when it cannot be read.
    *
    * @param text Formula text.
@@ -108,7 +102,7 @@ export class SolidScriptFieldReader implements SolidScriptFieldContext {
    * @returns Value.
    */
   variableComponent(base: string, index: number, name: string): SolidScriptValue {
-    const vector = this.host.fieldSystemGroup(base) ? undefined : this.scope.variableGet(base);
+    const vector = this.scope.variableGet(base);
     const found = Array.isArray(vector) ? vector[index] : undefined;
     return found !== undefined ? found : this.host.fieldVariable(name, this.scope);
   }

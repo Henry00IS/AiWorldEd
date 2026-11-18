@@ -9,8 +9,13 @@ import { SOLID_SCRIPT_FUNCTIONS_BUILTIN } from '@/solid_script/language/solid_sc
 import { SolidScriptLexer, type SolidScriptToken } from '@/solid_script/language/solid_script_lexer.js';
 import { solidScriptFunctionSpelling } from '@/solid_script/language/solid_script_name_key.js';
 import { SOLID_SCRIPT_SYSTEM_GLOBALS } from '@/solid_script/language/solid_script_system.js';
-import { solidScriptFieldSplit } from '@/solid_script/language/solid_script_field.js';
+import { solidScriptFieldEscapes, solidScriptFieldSplit } from '@/solid_script/language/solid_script_field.js';
 import { solidScriptSystemIsVector } from '@/solid_script/language/solid_script_name_rules.js';
+import {
+  SOLID_SCRIPT_MEMBER_TYPES,
+  solidScriptMemberNames,
+  solidScriptMemberType,
+} from '@/solid_script/language/solid_script_members.js';
 
 /**
  * What the caret is in: one of a field's words, a [name], or a [= formula where
@@ -99,14 +104,24 @@ const SOLID_SCRIPT_SUGGESTION_GROUPS = [
 /** Name categories that are not values a field reads. */
 const SOLID_SCRIPT_SUGGESTION_NOT_VALUES = new Set(['Functions', 'Parts', 'Brushes', 'Handlers']);
 
+/** The system values as suggested: name, kind and what it holds. */
+const SOLID_SCRIPT_SUGGESTION_SYSTEM: readonly (readonly [string, string, string])[] = [
+  ['$Selected.Brushes', 'Brush List', 'the brushes lines below work on; every brush built so far until set'],
+  ['$Selected.Faces', 'Face List', 'the faces the last Select Faces picked'],
+  ['$Selected.Edges', 'Edge List', 'the edges set as selected'],
+  ['$Selected.Vertices', 'Vertex List', 'the corners set as selected'],
+  ...SOLID_SCRIPT_SYSTEM_GLOBALS.map((value) => [`$${value.name}`, value.type, value.detail] as const),
+];
+
 /** Most suggestions listed at the caret at once. */
 const SOLID_SCRIPT_SUGGESTIONS_MAX = 200;
 
 /** What may follow [ while a name is typed. */
-const SOLID_SCRIPT_SUGGESTION_BRACKET = /^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]*)*(?:\(\)(?:\.[A-Za-z0-9_]*)?)?$/;
+const SOLID_SCRIPT_SUGGESTION_BRACKET =
+  /^\$?(?:[A-Za-z_][A-Za-z0-9_]*(?:\([^()]*\))?(?:\.[A-Za-z0-9_]*(?:\([^()]*\))?)*)?$/;
 
 /** Name being typed at the end of a formula. */
-const SOLID_SCRIPT_SUGGESTION_TAIL = /[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]*)*$/;
+const SOLID_SCRIPT_SUGGESTION_TAIL = /\$?[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]*)*$/;
 
 /**
  * Finds the brackets still open before the caret, skipping $ escapes.
@@ -118,7 +133,7 @@ function solidScriptSuggestionBrackets(before: string): { start: number; formula
   const open: { start: number; formula: boolean }[] = [];
   for (let index = 0; index < before.length; index++) {
     const char = before[index];
-    if (char === '$') index += 1;
+    if (solidScriptFieldEscapes(before, index)) index += 1;
     else if (char === '[') open.push({ start: index, formula: before[index + 1] === '=' });
     else if (char === ']') open.pop();
   }
@@ -253,9 +268,9 @@ function solidScriptSuggestionsAll(scope: SolidScriptSuggestionScope): SolidScri
         category: entry.category,
         pick: 'value',
       })),
-    ...SOLID_SCRIPT_SYSTEM_GLOBALS.map((value): SolidScriptSuggestion => ({
-      label: value.name,
-      detail: `${value.type}: ${value.detail}`,
+    ...SOLID_SCRIPT_SUGGESTION_SYSTEM.map(([label, type, detail]): SolidScriptSuggestion => ({
+      label,
+      detail: `${type}: ${detail}`,
       category: 'System',
       pick: 'value',
     })),
@@ -337,12 +352,53 @@ function solidScriptSuggestionAxes(name: string, scope: SolidScriptSuggestionSco
 }
 
 /**
- * Lists the members of what is typed before its last dot: Count after a list's
- * (), the axes of a vector, nothing for another known value.
+ * Tells the kind of value a typed name holds: a system value, a vector or a
+ * list of the script, then each member after it, such as Face List for
+ * $Selected.Faces and Vector for $Selected.Faces.First.Normal.
+ *
+ * @param name Name as typed, without a trailing dot.
+ * @param scope What the field may refer to.
+ * @returns Kind, or null when it is not known, such as for a variable a command
+ *   writes.
+ */
+function solidScriptSuggestionType(name: string, scope: SolidScriptSuggestionScope): string | null {
+  const parts = name.split('.');
+  const item = (part: string) => /\(.*\)$/.test(part);
+  const word = (part: string) => part.replace(/\s*\(.*\)$/, '');
+  let type: string | null = null;
+  let used = 1;
+  if (name.startsWith('$')) {
+    const two = `${word(parts[0]!)}.${word(parts[1] ?? '')}`.toLowerCase();
+    type = SOLID_SCRIPT_SUGGESTION_SYSTEM.find(([label]) => label.toLowerCase() === two)?.[1] ?? null;
+    used = 2;
+    if (type && item(parts[1] ?? '')) type = type.endsWith(' List') ? type.slice(0, -' List'.length) : null;
+  } else {
+    const first = word(parts[0]!);
+    const key = first.toLowerCase();
+    const axes = solidScriptSuggestionAxes(first, scope);
+    if (axes !== null && axes > 0) type = 'Vector';
+    else if (scope.names.some((entry) => entry.name.toLowerCase() === key && entry.category === 'Lists')) type = 'List';
+    if (type && item(parts[0]!)) type = type === 'List' ? 'Item' : null;
+  }
+  for (const part of parts.slice(used)) {
+    if (type === null) return null;
+    type =
+      type === 'List'
+        ? (SOLID_SCRIPT_MEMBER_TYPES['List']![word(part)] ?? null)
+        : solidScriptMemberType(type, word(part));
+    if (type === 'Item') type = null;
+    if (type && item(part)) type = type.endsWith(' List') ? type.slice(0, -' List'.length) : null;
+  }
+  return type;
+}
+
+/**
+ * Lists the members of what is typed before its last dot, such as the axes of a
+ * vector, Count of a list or Normal of a face.
  *
  * @param prefix Typed name.
  * @param scope What the field may refer to.
- * @returns Members, or null when the start is no known value, such as Face.
+ * @returns Members, or null when the start is no known value.
  */
 function solidScriptSuggestionMembers(
   prefix: string,
@@ -351,16 +407,31 @@ function solidScriptSuggestionMembers(
   const dot = prefix.lastIndexOf('.');
   if (dot < 0) return null;
   const base = prefix.slice(0, dot);
-  const member = (name: string, detail: string): SolidScriptSuggestion => ({
-    label: `${base}.${name}`,
-    detail,
-    category: 'Members',
-    pick: 'value',
+  // The values of a group of system values, such as $Selected.Faces.
+  if (base.startsWith('$') && !base.includes('.')) {
+    const group = SOLID_SCRIPT_SUGGESTION_SYSTEM.filter(([label]) =>
+      label.toLowerCase().startsWith(`${base.toLowerCase()}.`),
+    );
+    if (group.length > 0)
+      return group.map(([label, type, detail]) => ({
+        label,
+        detail: `${type}: ${detail}`,
+        category: 'Members',
+        pick: 'value',
+      }));
+  }
+  const type = solidScriptSuggestionType(base, scope);
+  if (type === null) return null;
+  const names = type === 'List' ? Object.keys(SOLID_SCRIPT_MEMBER_TYPES['List']!) : solidScriptMemberNames(type);
+  return names.map((name) => {
+    const gives = type === 'List' ? (name === 'Count' ? 'Number' : 'Item') : solidScriptMemberType(type, name);
+    return {
+      label: `${base}.${name}`,
+      detail: gives === 'Item' || gives === null ? `the ${name.toLowerCase()} item` : gives,
+      category: 'Members',
+      pick: 'value',
+    };
   });
-  if (base.endsWith('()')) return [member('Count', 'Number: how many items the list has')];
-  const axes = solidScriptSuggestionAxes(base, scope);
-  if (axes === null) return null;
-  return ['X', 'Y', 'Z'].slice(0, axes).map((axis) => member(axis, `Number: the ${axis} part of the vector`));
 }
 
 /**

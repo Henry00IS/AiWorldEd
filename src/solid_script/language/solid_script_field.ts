@@ -102,6 +102,24 @@ const SOLID_SCRIPT_FIELD_ITEM_OPEN = /^\s*([A-Za-z_]\w*)\s*\(\s*$/;
 /** Text after the item number of a list item. */
 const SOLID_SCRIPT_FIELD_ITEM_CLOSE = /^\s*\)\s*$/;
 
+/**
+ * Characters a $ keeps as typed: $$, $[ and $]. A $ before anything else is
+ * itself, as in [$Selected.Faces].
+ */
+const SOLID_SCRIPT_FIELD_ESCAPED: ReadonlySet<string> = new Set(['$', '[', ']']);
+
+/**
+ * Tells whether the character at a place is a $ that keeps the next one as
+ * typed: $$, $[ or $].
+ *
+ * @param text Field text.
+ * @param index Place.
+ * @returns True for such a $.
+ */
+export function solidScriptFieldEscapes(text: string, index: number): boolean {
+  return text[index] === '$' && SOLID_SCRIPT_FIELD_ESCAPED.has(text[index + 1] ?? '');
+}
+
 /** Field kinds whose text is used exactly as typed. */
 const SOLID_SCRIPT_FIELD_KINDS_RAW: ReadonlySet<SolidScriptFieldKind> = new Set(['name', 'target', 'text']);
 
@@ -122,10 +140,8 @@ function solidScriptFieldPieces(text: string): SolidScriptFieldPiece[] {
   };
   for (let index = 0; index < text.length; index++) {
     const character = text[index]!;
-    if (character === '$') {
-      const next = text[index + 1];
-      if (next === undefined) throw new Error('a $ at the end has nothing to keep; write $$ for a dollar sign');
-      plain(next);
+    if (solidScriptFieldEscapes(text, index)) {
+      plain(text[index + 1]!);
       index++;
     } else if (character === '[') {
       const group: SolidScriptFieldPiece = { kind: 'group', pieces: [] };
@@ -366,7 +382,7 @@ export function solidScriptFieldSplit(text: string, separator: string): string[]
   let start = 0;
   for (let index = 0; index < text.length; index++) {
     const character = text[index];
-    if (character === '$') index++;
+    if (solidScriptFieldEscapes(text, index)) index++;
     else if (character === '[') depth++;
     else if (character === ']') depth--;
     else if (character === separator && depth === 0) {
@@ -625,7 +641,7 @@ export function solidScriptFieldIsVariable(text: string): boolean {
  * @returns Note, or an empty string.
  */
 export function solidScriptFieldVectorNote(text: string): string {
-  const named = /^\[\s*([A-Za-z_][\w.]*)\s*\]$/.exec(text.trim())?.[1];
+  const named = /^\[\s*(\$?[A-Za-z_][\w.]*)\s*\]$/.exec(text.trim())?.[1];
   if (named === undefined || solidScriptSystemIsVector(named) !== false) return '';
   return `[${named}] is a number, not a vector; every axis gets it`;
 }

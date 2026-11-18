@@ -6,25 +6,20 @@ import { solidScriptValueText, type SolidScriptValue } from './solid_script_valu
  *
  * - `Points(2)` is item 2 of the list `Points`, counting from 0;
  * - `Points()` in Set adds an item at the end;
- * - `Points().Count` is how many items the list has.
+ * - `Points.Count` (a member, not an item) is how many items the list has.
  */
 export interface SolidScriptListItemReference {
   /** Name of the list variable. */
   name: string;
   /** Index text between the round brackets, possibly empty. */
   index: string;
-  /** Lower-case function after the brackets, such as "count", or empty. */
-  method: string;
 }
 
 /**
- * Shape of an item reference: a name (system values such as Face.Center have
- * one dot), round brackets, and an optional .function.
+ * Shape of an item reference: a name, possibly a system list such as
+ * $Input.Brushes or a member such as Top.Edges, then round brackets.
  */
-const SOLID_SCRIPT_LIST_ITEM = /^\s*([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)?)\s*\((.*)\)\s*(?:\.\s*([A-Za-z_]\w*))?\s*$/s;
-
-/** Functions that can follow a list reference. */
-const SOLID_SCRIPT_LIST_METHODS = new Set(['count']);
+const SOLID_SCRIPT_LIST_ITEM = /^\s*(\$?[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*\((.*)\)\s*$/s;
 
 /**
  * Reads an item reference.
@@ -53,10 +48,7 @@ const solidScriptListItemKnown = new Map<string, SolidScriptListItemReference | 
 function solidScriptListItemReferenceRead(text: string): SolidScriptListItemReference | null {
   const match = SOLID_SCRIPT_LIST_ITEM.exec(text);
   if (!match) return null;
-  const method = (match[3] ?? '').toLowerCase();
-  if (method && !SOLID_SCRIPT_LIST_METHODS.has(method))
-    throw new Error(`a list has no .${method}; use ${match[1]}().Count for the number of items`);
-  return { name: match[1]!, index: match[2]!.trim(), method };
+  return { name: match[1]!, index: match[2]!.trim() };
 }
 
 /** Spells a list name for a message. */
@@ -79,12 +71,11 @@ export function solidScriptListIndex(name: string, index: SolidScriptValue, show
 }
 
 /**
- * Reads an item or the count of a list.
+ * Reads an item of a list.
  *
  * @param name List name.
  * @param list Value of the list variable.
  * @param index Index, or null for the whole list.
- * @param method Function such as "count", or empty.
  * @param shown Spells the name for a message.
  * @returns Value.
  */
@@ -92,18 +83,12 @@ export function solidScriptListItemRead(
   name: string,
   list: SolidScriptValue,
   index: SolidScriptValue | null,
-  method: string,
   shown: SolidScriptNameShown,
 ): SolidScriptValue {
   if (!Array.isArray(list))
     throw new Error(
       `[${shown(name)}] is ${solidScriptValueText(list)}, not a list; set ${shown(name)}() to add items to a list`,
     );
-  if (method === 'count') {
-    if (index !== null)
-      throw new Error(`write ${shown(name)}().Count for the number of items, with nothing in the brackets`);
-    return list.length;
-  }
   if (index === null)
     throw new Error(`write an item number in ${shown(name)}(…), such as ${shown(name)}(0) for the first item`);
   const at = solidScriptListIndex(name, index, shown);

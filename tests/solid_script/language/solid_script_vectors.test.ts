@@ -163,18 +163,16 @@ describe('SolidScript dotted names', () => {
       solidScriptDocumentCreate([line('cube'), line('variable', { name: 'chicken.soup', value: '1' })]),
     );
     expect(result.shapes).toEqual([]);
-    expect(result.error?.message).toMatch(
-      /^line 2: Variable: "chicken\.soup" cannot be a name: names use letters, digits and _/,
-    );
+    expect(result.error?.message).toMatch(/^line 2: Variable: chicken\.soup can only be read; a line sets whole names/);
     const read = solidScriptProgramRun(
       solidScriptDocumentCreate([line('echo', { value: '[chicken.soup]' }), line('cube')]),
     );
-    expect(read.error?.message).toMatch(/^line 1: Message: "chicken\.soup" cannot be a name/);
+    expect(read.error?.message).toMatch(/^line 1: Message: there is no variable/);
     expect(echoed(line('echo', { value: '[Face.Area]' }))).not.toMatch(/cannot be a name/);
-    expect(echoed(line('variable', { name: 'Face.Area', value: '1' }))).toMatch(
-      /Face\.Area is a built-in value and can only be read/,
-    );
-    expect(echoed(line('echo', { value: '[items().size]' }))).toMatch(/a list has no \.size; write items\(\)\.Count/);
+    expect(echoed(line('variable', { name: 'Face.Area', value: '1' }))).toMatch(/Face\.Area can only be read/);
+    expect(
+      echoed(line('variable', { name: 'Items', value: '1, 2, 3, 4' }), line('echo', { value: '[Items.size]' })),
+    ).toMatch(/List of Numbers has no \.size; it has \.Count, \.First, \.Last/);
   });
 
   it('allows the dotted forms SolidScript gives a meaning', () => {
@@ -183,7 +181,7 @@ describe('SolidScript dotted names', () => {
         line('variable', { name: 'v', value: '50, 20, 40' }),
         line('variable', { name: 'persistent.best', value: '[v.y]' }),
         line('add_item', { value: '1', list: 'items' }),
-        line('echo', { value: '[v.x] [v.y] [v.z] [persistent.best] [items().count] [=[v].z + 1]' }),
+        line('echo', { value: '[v.x] [v.y] [v.z] [persistent.best] [items.count] [=[v].z + 1]' }),
       ),
     ).toEqual(['50 20 40 20 1 41']);
   });
@@ -201,7 +199,7 @@ describe('SolidScript formula words', () => {
       echoed(
         line('clear_variable', { name: 'outline' }),
         line('add_item', { value: '[=vector(1, 2)]', list: 'outline' }),
-        line('echo', { value: '[outline().count] [outline(0)]' }),
+        line('echo', { value: '[outline.count] [outline(0)]' }),
       ),
     ).toEqual(['1 [1, 2]']);
   });

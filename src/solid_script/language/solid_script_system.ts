@@ -77,7 +77,7 @@ export interface SolidScriptSystemValue {
 }
 
 /**
- * Names the brush a modifier receives at a place, as [Input.Brushes] lists it
+ * Names the brush a modifier receives at a place, as [$Input.Brushes] lists it
  * and Of fields find it.
  *
  * @param index Place among the received brushes, from 0.
@@ -100,8 +100,9 @@ export const SOLID_SCRIPT_SYSTEM_GLOBALS: readonly SolidScriptSystemValue[] = [
   { name: 'Script.Usage', type: 'Text', detail: 'Generator or Modifier: how this script is used here' },
   {
     name: 'Input.Brushes',
-    type: 'List',
-    detail: 'the brushes a modifier receives, Input 1, Input 2…, for Of and For Each Brush; empty for a generator',
+    type: 'Brush List',
+    detail:
+      'the brushes a modifier receives, named Input 1, Input 2…, or those Input Brushes built; empty for a generator',
   },
   { name: 'Input.Faces', type: 'Number', detail: 'faces of those brushes together' },
   { name: 'Input.Min', type: 'Vector', detail: 'lowest corner of what a modifier receives' },

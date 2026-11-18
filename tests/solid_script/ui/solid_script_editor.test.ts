@@ -391,7 +391,7 @@ describe('SolidScript editor', () => {
     expect(list.closest('[data-solid-script-configurator]')).toBeNull();
     const typed = [...list.querySelectorAll('[role="option"]')].map((option) => option.firstChild?.textContent);
     expect(typed[0]).toBe('width');
-    expect(typed).toContain('Box.Width');
+    expect(typed).toContain('$Box.Width');
     press(x, 'Enter');
     expect(x.value).toBe('[width]');
     expect(document.querySelector('[data-solid-script-configurator="cube"]')).not.toBeNull();
@@ -416,7 +416,7 @@ describe('SolidScript editor', () => {
       [...document.querySelectorAll('[aria-label="Suggestions"] [role="option"]')].map(
         (option) => option.firstChild?.textContent,
       ),
-    ).toContain('Box.Width');
+    ).toContain('$Box.Width');
     const styles = [...document.querySelectorAll('style')].map((style) => style.textContent ?? '').join('\n');
     // Group headings stick flush to the top of the list: no top padding above them to show rows through.
     expect(styles).toMatch(/\.solid-script-editor-suggestions \{[^}]*padding: 0 0 4px;/);
@@ -430,13 +430,13 @@ describe('SolidScript editor', () => {
     x.setSelectionRange(1, 1);
     x.click();
     const pick = [...document.querySelectorAll<HTMLElement>('[aria-label="Suggestions"] [role="option"]')].find(
-      (option) => option.firstChild?.textContent === 'Box.Width',
+      (option) => option.firstChild?.textContent === '$Box.Width',
     )!;
     pick.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
-    expect(x.value).toBe('[Box.Width]');
+    expect(x.value).toBe('[$Box.Width]');
     expect(document.activeElement).toBe(x);
     tool('OK').click();
-    expect(script().blocks[2]?.values['size']).toBe('[Box.Width]');
+    expect(script().blocks[2]?.values['size']).toBe('[$Box.Width]');
   });
 
   it('checks Input lines while they are configured and lists what the script defines in the variable explorer', () => {
@@ -961,7 +961,7 @@ describe('SolidScript editor', () => {
     modifier.dispatchEvent(new Event('change'));
     doubleClick(chip(0));
     const size = find<HTMLInputElement>('[data-solid-script-configurator="cube"] input[type="text"]');
-    type(size, '[Box.Width], 1, 1');
+    type(size, '[$Box.Width], 1, 1');
     tool('OK').click();
     expect(output()).not.toContain('If Used As Generator');
     await new Promise((resolve) => setTimeout(resolve, SOLID_SCRIPT_EDITOR_CHECK_DELAY_MS + 50));
@@ -989,7 +989,7 @@ describe('SolidScript editor', () => {
   it('suggests the counters and loop values a line sees, and only inside their loop', () => {
     editorFixture([
       { command: 'repeat', values: { variable: 'Row' } },
-      { command: 'for_each_selected_face' },
+      { command: 'for_each', values: { variable: 'Face', list: '[$Selected.Faces]', key: 'Spot' } },
       { command: 'cube' },
       { command: 'end' },
       { command: 'end' },
@@ -1009,11 +1009,11 @@ describe('SolidScript editor', () => {
     };
     const inside = offered(2);
     expect(inside).toContain('Row');
-    expect(inside).toContain('Face.Index');
-    expect(inside).toContain('Face.Tag');
+    expect(inside).toContain('Face');
+    expect(inside).toContain('Spot');
     const after = offered(5);
     expect(after).not.toContain('Row');
-    expect(after).not.toContain('Face.Index');
+    expect(after).not.toContain('Spot');
   });
 
   it('offers the words a field takes first, shows the call being typed and browses the words too', () => {
@@ -1041,7 +1041,7 @@ describe('SolidScript editor', () => {
         'B: Number. Another number.' +
         'The biggest number, of the inputs or of one list.',
     );
-    expect(options()).toContain('Box.Width');
+    expect(options()).toContain('$Box.Width');
     const how = find<HTMLInputElement>('[data-solid-script-configurator="select_faces"] input[aria-label="How"]');
     how.focus();
     how.click();

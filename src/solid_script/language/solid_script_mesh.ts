@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { solidHullBrushFromPoints } from '@/solid/algorithm/surface/solid_hull_brush.js';
-import type { SolidScriptShape } from './solid_script_shape.js';
+import type { SolidScriptFaceTag, SolidScriptShape } from './solid_script_shape.js';
 
 /** Texture coordinate of one face corner. */
 export type SolidScriptUv = [number, number];
@@ -26,6 +26,8 @@ export interface SolidScriptShapeMesh {
    * default.
    */
   texture?: string;
+  /** Tags the operations that built faces gave them, such as Inner. */
+  faceTags?: SolidScriptFaceTag[];
 }
 
 /** Most corner points a mesh may have after an operation. */
@@ -124,7 +126,27 @@ export function solidScriptMeshTransform(mesh: SolidScriptShapeMesh, matrix: THR
     points: mesh.points.map((point) => point.clone().applyMatrix4(matrix)),
     faces: flip ? mesh.faces.map((face) => [...face].reverse()) : mesh.faces.map((face) => [...face]),
     uvs: flip ? mesh.uvs.map((uv) => (uv ? [...uv].reverse() : null)) : mesh.uvs,
+    ...(mesh.faceTags ? { faceTags: solidScriptFaceTagsTransform(mesh.faceTags, matrix) } : {}),
   };
+}
+
+/**
+ * Moves face tags with their shape.
+ *
+ * @param tags Face tags.
+ * @param matrix Transform.
+ * @returns Moved tags.
+ */
+export function solidScriptFaceTagsTransform(
+  tags: readonly SolidScriptFaceTag[],
+  matrix: THREE.Matrix4,
+): SolidScriptFaceTag[] {
+  const normals = new THREE.Matrix3().getNormalMatrix(matrix);
+  return tags.map((face) => ({
+    ...face,
+    point: face.point.clone().applyMatrix4(matrix),
+    normal: face.normal.clone().applyMatrix3(normals).normalize(),
+  }));
 }
 
 /**

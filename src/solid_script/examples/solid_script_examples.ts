@@ -189,7 +189,7 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
     name: 'Push Out Faces',
     group: 'Basics',
     summary:
-      'A modifier: For Each Brush over [Input.Brushes] lays a slab off every face of every brush it receives. It has no Input Brushes line, so the brushes themselves are gone.',
+      'A modifier: For Each Brush over [$Input.Brushes] lays a slab off every face of every brush it receives. It has no Input Brushes line, so the brushes themselves are gone.',
     port: null,
     lines: SOLID_SCRIPT_EXAMPLE_PUSH_OUT_FACES,
     uses: { generator: false, modifier: true },

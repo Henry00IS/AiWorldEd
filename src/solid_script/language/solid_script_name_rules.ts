@@ -2,51 +2,75 @@ import { SOLID_SCRIPT_SYSTEM_GLOBALS } from './solid_script_system.js';
 
 /**
  * Which names may contain a dot. A script's own names use letters, digits and _
- * only; a dot only appears where SolidScript gives it a meaning: Local. and
- * Persistent. in front of a name, .x, .y and .z behind a vector, ().Count
- * behind a list, and the read-only values of face, corner, edge and shape loops
- * such as Face.Center.
+ * only; a dot reads a member, such as Face.Center, Faces.Count, Pos.x or
+ * Face.Data.Height, and Local. and Persistent. go in front of a name. System
+ * values start with $, such as $Selected.Faces or $Box.Width.
  */
 
-/** Read-only values the loops give, by group. */
+/** System values by group, without the $, such as Box: Width. */
 export const SOLID_SCRIPT_SYSTEM_VALUES: Readonly<Record<string, readonly string[]>> = solidScriptSystemGroups({
-  Face: ['Index', 'Number', 'Center', 'Normal', 'Width', 'Height', 'Area', 'Tag'],
-  Vertex: ['Index', 'Position', 'Normal'],
-  Edge: ['Index', 'Start', 'End', 'Middle', 'Length', 'Direction'],
-  Point: ['Index', 'Position', 'Normal'],
-  Brush: ['Index', 'Name', 'Center', 'Size', 'Extents', 'Min', 'Max'],
+  Selected: ['Brushes', 'Faces', 'Edges', 'Vertices'],
 });
 
 /**
  * Adds the built-in values every script can read, such as Time.Year, to the
- * loop values.
+ * system lists.
  *
- * @param loops Loop values by group.
- * @returns Every read-only value by group.
+ * @param lists System lists by group.
+ * @returns Every system value by group.
  */
-function solidScriptSystemGroups(loops: Record<string, string[]>): Record<string, string[]> {
+function solidScriptSystemGroups(lists: Record<string, string[]>): Record<string, string[]> {
   for (const { name } of SOLID_SCRIPT_SYSTEM_GLOBALS) {
     const [group = '', member = ''] = name.split('.');
-    (loops[group] ??= []).push(member);
+    (lists[group] ??= []).push(member);
   }
-  return loops;
+  return lists;
 }
 
-/** Spellings of the read-only values by their key, as names ignore case. */
+/**
+ * Spellings of the system values by their key without the $, as names ignore
+ * case.
+ */
 const SOLID_SCRIPT_SYSTEM_SPELLINGS: ReadonlyMap<string, string> = new Map(
   Object.entries(SOLID_SCRIPT_SYSTEM_VALUES).flatMap(([group, members]) =>
     members.map((member) => [`${group}.${member}`.toLowerCase(), `${group}.${member}`] as const),
   ),
 );
 
-/** A list item or count behind a name, such as points(2) or points().Count. */
-const SOLID_SCRIPT_NAME_ITEM = /^(.*?)\s*\((.*)\)\s*(?:\.\s*([A-Za-z_]\w*))?$/s;
+/**
+ * One part of a dotted name: a name, maybe with an item number such as
+ * Edges(0).
+ */
+const SOLID_SCRIPT_NAME_PART = /^[A-Za-z_]\w*\s*(\(.*\))?$/s;
 
-/** A name of the script, with an optional prefix and vector part. */
-const SOLID_SCRIPT_NAME_OWN = /^(local\.|persistent\.)?[A-Za-z_]\w*(\.[xyzXYZ])?$/i;
+/** A name of the script set as a whole, with an optional prefix and vector part. */
+const SOLID_SCRIPT_NAME_OWN = /^(local\.|persistent\.)?[A-Za-z_]\w*\s*(\(.*\))?(\.[xyzXYZ])?$/is;
 
-/** A read-only value of a loop, with an optional vector part. */
-const SOLID_SCRIPT_NAME_SYSTEM = /^([A-Za-z]+)\.([A-Za-z0-9]+)(\.[xyzXYZ])?$/;
+/** The [$Selected.*] lists, the only system values a line may set. */
+const SOLID_SCRIPT_NAME_SELECTED = /^\$selected\.(brushes|faces|edges|vertices)$/i;
+
+/**
+ * Splits a name at its dots outside brackets.
+ *
+ * @param name Name.
+ * @returns Parts.
+ */
+function solidScriptNameParts(name: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let index = 0; index < name.length; index++) {
+    const character = name[index];
+    if (character === '(' || character === '[') depth++;
+    else if (character === ')' || character === ']') depth--;
+    else if (character === '.' && depth === 0) {
+      parts.push(name.slice(start, index).trim());
+      start = index + 1;
+    }
+  }
+  parts.push(name.slice(start).trim());
+  return parts;
+}
 
 /**
  * Checks a name with a dot in it, as a field reads it or a line sets it. Names
@@ -59,42 +83,34 @@ const SOLID_SCRIPT_NAME_SYSTEM = /^([A-Za-z]+)\.([A-Za-z0-9]+)(\.[xyzXYZ])?$/;
 export function solidScriptNameDotProblem(name: string, use: 'read' | 'set'): string {
   const text = name.trim();
   if (!text.includes('.')) return '';
-  const item = SOLID_SCRIPT_NAME_ITEM.exec(text);
-  const base = item ? item[1]!.trim() : text;
-  if (item?.[3] !== undefined && item[3].toLowerCase() !== 'count')
-    return `a list has no .${item[3]}; write ${base}().Count for the number of items`;
-  if (!base.includes('.') || SOLID_SCRIPT_NAME_OWN.test(base)) return '';
-  const system = SOLID_SCRIPT_NAME_SYSTEM.exec(base);
-  const spelled = system ? SOLID_SCRIPT_SYSTEM_SPELLINGS.get(`${system[1]}.${system[2]}`.toLowerCase()) : undefined;
-  if (spelled) return use === 'set' ? `${spelled} is a built-in value and can only be read` : '';
-  return `"${base}" cannot be a name: names use letters, digits and _. A dot only works in built-in names, such as Pos.x, Local.Width, Persistent.Count or Face.Center`;
+  if (text.startsWith('$')) {
+    if (use === 'set' && !SOLID_SCRIPT_NAME_SELECTED.test(text))
+      return `${text} is a system value and can only be read; only the $Selected lists can be set`;
+    return '';
+  }
+  const parts = solidScriptNameParts(text);
+  const last = parts.length - 1;
+  const bad = parts.find(
+    (part, index) => !SOLID_SCRIPT_NAME_PART.test(part) && !(index === last && /^\[.*\]$/s.test(part)),
+  );
+  if (bad !== undefined)
+    return `"${text}" cannot be a name: names use letters, digits and _, and a dot reads a member such as Face.Center, Pos.x or Face.Data.Height`;
+  if (use === 'read' || SOLID_SCRIPT_NAME_OWN.test(text)) return '';
+  if (parts.length >= 3 && parts[last - 1]!.toLowerCase() === 'data') return '';
+  return `${text} can only be read; a line sets whole names, .x, .y and .z of a vector, or a value under .Data such as Face.Data.Height`;
 }
 
-/** Members of the built-in loop values that are vectors, such as Edge.Middle. */
-const SOLID_SCRIPT_SYSTEM_VECTOR_MEMBERS = new Set([
-  'center',
-  'normal',
-  'position',
-  'start',
-  'end',
-  'middle',
-  'direction',
-  'size',
-  'extents',
-  'min',
-  'max',
-]);
-
 /**
- * Tells whether a built-in value is a vector.
+ * Tells whether a system value is a vector.
  *
- * @param name Name as written, such as Edge.Middle or Face.Center.x.
- * @returns True or false for a built-in value, null for any other name.
+ * @param name Name as written, such as $Box.Size or $Box.Size.x.
+ * @returns True or false for a system value, null for any other name.
  */
 export function solidScriptSystemIsVector(name: string): boolean | null {
-  const [group = '', member = '', part] = name.toLowerCase().split('.');
+  if (!name.startsWith('$')) return null;
+  const [group = '', member = '', part] = name.slice(1).toLowerCase().split('.');
   if (!SOLID_SCRIPT_SYSTEM_SPELLINGS.has(`${group}.${member}`)) return null;
   if (part !== undefined) return /^[xyz]$/.test(part) ? false : null;
   const global = SOLID_SCRIPT_SYSTEM_GLOBALS.find((value) => value.name.toLowerCase() === `${group}.${member}`);
-  return global ? global.type === 'Vector' : SOLID_SCRIPT_SYSTEM_VECTOR_MEMBERS.has(member);
+  return global ? global.type === 'Vector' : false;
 }

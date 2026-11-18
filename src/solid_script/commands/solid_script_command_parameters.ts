@@ -149,20 +149,34 @@ export function solidScriptParameterShapeName(): SolidScriptCommandParameter {
 }
 
 /**
- * The optional Of field of lines that work on the shapes above: only shapes
- * with that Name, offered from the names the script uses.
+ * The Of field of lines that work on geometry: a value such as [Face] or [Top],
+ * a list of them, or a Name tag; empty uses a [$Selected.*] list, shown greyed
+ * in the empty field.
  *
- * @param what What the line picks, such as faces.
+ * @param what What the line takes, such as faces or brushes.
+ * @param fallback The system list an empty Of uses, such as $Selected.Faces.
  * @returns Field.
  */
-export function solidScriptParameterOf(what: string): SolidScriptCommandParameter {
+export function solidScriptParameterOf(what: string, fallback: string): SolidScriptCommandParameter {
   return {
     ...solidScriptParameterOptional(
       'of',
       'Of',
       'value',
-      `Only ${what} of the brushes with this Name, in any case, a brush of [Input.Brushes] such as Input 1, or a list of them; empty uses every brush above, or else the brushes a modifier receives.`,
+      `The ${what} to work on: a variable such as [Face], a list, or a Name given to brushes; empty uses [${fallback}].`,
     ),
+    placeholder: `[${fallback}]`,
     nameGroups: ['Brushes', 'Parts'],
   };
+}
+
+/**
+ * The optional Into field of lines that make something: the variable it is
+ * written to.
+ *
+ * @param what What is written, such as the new brushes, a Brush list.
+ * @returns Field.
+ */
+export function solidScriptParameterInto(what: string): SolidScriptCommandParameter {
+  return solidScriptParameterOptional('into', 'Into', 'name', `Variable to write ${what} to; empty writes none.`);
 }

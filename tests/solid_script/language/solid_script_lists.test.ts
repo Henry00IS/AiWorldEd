@@ -56,7 +56,7 @@ describe('SolidScript lists', () => {
       set('names()', 'column'),
       set('names(1)', 'stairs'),
       set('names(2)', 'hole'),
-      echo('[names(0)] [names(1)] [names(2)] [names().count]'),
+      echo('[names(0)] [names(1)] [names(2)] [names.count]'),
       { command: 'cube' },
     );
     expect(result.error).toBeNull();

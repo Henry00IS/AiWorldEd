@@ -50,14 +50,13 @@ describe('SolidScript configurator suggestions', () => {
     const input = document.createElement('input');
     input.type = 'text';
     document.body.append(input);
-    const names = [{ name: 'Vertex.Position', category: 'System' as const, line: 0, detail: '' }];
-    new SolidScriptConfiguratorNames(input, { names, extra: [], words: [] });
+    new SolidScriptConfiguratorNames(input, { names: [], extra: [], words: [] });
     input.focus();
-    input.value = '[Vertex.Position.';
+    input.value = '[$Box.Size.';
     input.setSelectionRange(input.value.length, input.value.length);
     input.dispatchEvent(new Event('input'));
     const shown = [...document.querySelectorAll('[role="option"]')].map((row) => row.firstElementChild?.textContent);
-    expect(shown).toEqual(['Vertex.Position.X', 'Vertex.Position.Y', 'Vertex.Position.Z']);
+    expect(shown).toEqual(['$Box.Size.x', '$Box.Size.y', '$Box.Size.z', '$Box.Size.Length']);
   });
 
   it('starts on the current value, also after another one is picked', () => {
@@ -95,21 +94,6 @@ describe('SolidScript configurator fields', () => {
     field.element.querySelector('input')!.dispatchEvent(new MouseEvent('click'));
     const offered = [...document.querySelectorAll('[role="option"]')].map((row) => row.firstElementChild?.textContent);
     expect(offered.slice(0, 2)).toEqual(['Post', 'Rail']);
-  });
-
-  it('offers Current Face for In only inside a face round', () => {
-    const where = solidScriptCommandFind('for_each_vertex')!.parameters.find((parameter) => parameter.key === 'in')!;
-    const offered = (inLoop: boolean): string[] => {
-      document.body.replaceChildren();
-      const names = inLoop ? [{ name: 'Face.Index', category: 'System' as const, line: 0, detail: '' }] : [];
-      const field = solidScriptConfiguratorFieldBuild(where, 'Brushes', () => {}, { names, extra: [] });
-      document.body.append(field.element);
-      field.element.querySelector('input')!.dispatchEvent(new MouseEvent('click'));
-      return [...document.querySelectorAll('[role="option"]')].map((row) => row.firstElementChild?.textContent ?? '');
-    };
-    expect(offered(true)).toEqual(['Brushes', 'Selected Faces', 'Current Face']);
-    expect(offered(false)).toEqual(['Brushes', 'Selected Faces']);
-    expect(picked()).toBe('Brushes');
   });
 
   it('draws a formula highlighted with unknown names underlined', () => {

@@ -93,14 +93,7 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
   if (command.category === 'Faces') {
     const pick: SolidScriptLine[] = [{ command: 'cube' }, { command: 'select_faces' }];
     if (command.id === 'select_faces') return [{ command: 'cube' }, line];
-    if (command.nesting === 'open' && command.id !== 'place_on_face') return [...pick, ...started, { command: 'end' }];
-    return [
-      ...pick,
-      { command: 'for_each_selected_face' },
-      ...started,
-      ...(command.nesting === 'open' ? [{ command: 'end' }] : []),
-      { command: 'end' },
-    ];
+    return [...pick, ...started, ...(command.nesting === 'open' ? [{ command: 'end' }] : [])];
   }
   if (children.length > 0 && command.category === '2D Shapes')
     return [{ command: 'linear_extrude' }, ...started, { command: 'end' }, { command: 'end' }];

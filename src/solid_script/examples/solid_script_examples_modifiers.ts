@@ -49,7 +49,7 @@ export const SOLID_SCRIPT_EXAMPLE_SHEAR: readonly SolidScriptLine[] = [
       solidScriptExampleSet('Slide', `[=(${solidScriptExampleAxis('Axis').slice(2, -1)}) * [Shear]]`),
       solidScriptExampleSet('Measure', solidScriptExampleAxis('Along')),
       solidScriptExampleNote('Each point moves by Slide times its distance from the centre along Measure.'),
-      solidScriptExampleSet('Shift', '[=[Slide] * -Dot([Measure], [Input.Center])]'),
+      solidScriptExampleSet('Shift', '[=[Slide] * -Dot([Measure], [$Input.Center])]'),
       ...solidScriptExampleBlock(
         'matrix',
         {
@@ -76,7 +76,7 @@ export const SOLID_SCRIPT_EXAMPLE_LINEAR_ARRAY: readonly SolidScriptLine[] = [
   solidScriptExampleNote('Size × is a multiple of the size of what comes in: 1 places copies edge to edge.'),
   solidScriptExampleSet(
     'BySize',
-    '[=Vector([Relative.x] * [Input.Size.x], [Relative.y] * [Input.Size.y], [Relative.z] * [Input.Size.z])]',
+    '[=Vector([Relative.x] * [$Input.Size.x], [Relative.y] * [$Input.Size.y], [Relative.z] * [$Input.Size.z])]',
   ),
   solidScriptExampleSet('Step', '[Offset]'),
   ...solidScriptExampleIf('[Mode] == "relative"', [solidScriptExampleSet('Step', '[BySize]')]),
@@ -123,7 +123,7 @@ export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
   solidScriptExampleInput('UV', 'choice', 'copied', { label: 'Textures', choices: 'copied, world' }),
   ...SOLID_SCRIPT_EXAMPLE_TEXTURES,
   solidScriptExampleSet('K', solidScriptExampleAxis('Axis')),
-  solidScriptExampleSet('Centre', '[Input.Center]'),
+  solidScriptExampleSet('Centre', '[$Input.Center]'),
   solidScriptExampleNote('The angle between copies: a full ring, an arc or a fixed step.'),
   solidScriptExampleSet('Turn', '[=360 / [Count]]'),
   ...solidScriptExampleIf('[Mode] == "step"', [solidScriptExampleSet('Turn', '[Step]')]),
@@ -242,7 +242,7 @@ export const SOLID_SCRIPT_EXAMPLE_TRANSFORM_ARRAY: readonly SolidScriptLine[] = 
   ),
   solidScriptExampleSet(
     'Move',
-    '[=[Offset] + Vector([Relative.x] * [Input.Size.x], [Relative.y] * [Input.Size.y], [Relative.z] * [Input.Size.z]) + [Pivot] - Vector(Dot([S1], [Pivot]), Dot([S2], [Pivot]), Dot([S3], [Pivot]))]',
+    '[=[Offset] + Vector([Relative.x] * [$Input.Size.x], [Relative.y] * [$Input.Size.y], [Relative.z] * [$Input.Size.z]) + [Pivot] - Vector(Dot([S1], [Pivot]), Dot([S2], [Pivot]), Dot([S3], [Pivot]))]',
   ),
   solidScriptExampleNote('Copy 0 is the original; R1 to R3 and Shift hold the step applied I times.'),
   solidScriptExampleLine('input_brushes', { textures: '[Textures]' }),
@@ -281,8 +281,8 @@ export const SOLID_SCRIPT_EXAMPLE_MIRROR: readonly SolidScriptLine[] = [
   ...SOLID_SCRIPT_EXAMPLE_TEXTURES,
   solidScriptExampleSet('K', solidScriptExampleAxis('Axis')),
   solidScriptExampleNote('The plane runs through the centre or touches a side, then moves by Offset along its axis.'),
-  solidScriptExampleSet('D', '[=Dot([Input.Center], [K]) + [PlaneOffset]]'),
-  solidScriptExampleSet('Half', '[=Abs(Dot([Input.Size], [K])) / 2]'),
+  solidScriptExampleSet('D', '[=Dot([$Input.Center], [K]) + [PlaneOffset]]'),
+  solidScriptExampleSet('Half', '[=Abs(Dot([$Input.Size], [K])) / 2]'),
   ...solidScriptExampleIf('[Plane] == "min"', [solidScriptExampleSet('D', '[=[D] - [Half]]')]),
   ...solidScriptExampleIf('[Plane] == "max"', [solidScriptExampleSet('D', '[=[D] + [Half]]')]),
   solidScriptExampleNote('Copy 0 is the original; the copy is reflected: p - 2 (p · K - D) K.'),
@@ -306,8 +306,8 @@ export const SOLID_SCRIPT_EXAMPLE_PUSH_OUT_FACES: readonly SolidScriptLine[] = [
   solidScriptExampleNote('Push Out Faces: a slab off every face of every brush it receives; the brushes go.'),
   solidScriptExampleInput('Distance', 'number', '0.25', { label: 'Distance', min: '0', max: '10' }),
   solidScriptExampleInput('Thickness', 'number', '0.1', { label: 'Thickness', min: '0.001', max: '10' }),
-  ...solidScriptExampleBlock('for_each_brush', { of: '[Input.Brushes]' }, [
-    solidScriptExampleLine('select_faces', { which: 'All', how: 'New' }),
+  ...solidScriptExampleBlock('for_each', { variable: 'Brush', list: '[$Input.Brushes]' }, [
+    solidScriptExampleLine('select_faces', { which: 'All', of: '[Brush]' }),
     solidScriptExampleNote('Each face moves out along the way it points, then gets its thickness.'),
     solidScriptExampleLine('extrude_face', { distance: '[Thickness]', lift: '[Distance]' }),
   ]),

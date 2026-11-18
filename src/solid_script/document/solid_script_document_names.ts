@@ -47,50 +47,14 @@ export const SOLID_SCRIPT_NAMES_COMMAND: Readonly<Record<string, readonly string
 /** Pattern of a plain name, or of a Function's own variable. */
 const SOLID_SCRIPT_NAME_PLAIN = /^(Local\.|Persistent\.)?[A-Za-z_][A-Za-z0-9_]*$/;
 
-/**
- * Read-only values each loop line gives the lines inside it, with what they
- * hold.
- */
-const SOLID_SCRIPT_NAMES_SYSTEM: Readonly<Record<string, readonly (readonly [string, string])[]>> = {
-  for_each_selected_face: [
-    ['Face.Index', 'round number, from 0'],
-    ['Face.Number', 'number of the face among all faces'],
-    ['Face.Center', 'middle of the face'],
-    ['Face.Normal', 'way the face points'],
-    ['Face.Width', 'width of the face'],
-    ['Face.Height', 'height of the face'],
-    ['Face.Area', 'area of the face'],
-    ['Face.Tag', 'name of the face, such as Top'],
-  ],
-  for_each_vertex: [
-    ['Vertex.Index', 'number of the corner'],
-    ['Vertex.Position', 'where the corner is'],
-    ['Vertex.Normal', 'way the faces around it point'],
-  ],
-  for_each_scattered_point: [
-    ['Point.Index', 'number of the point, from 0'],
-    ['Point.Position', 'where the point is'],
-    ['Point.Normal', 'way its face points'],
-    ['Face.Center', 'middle of its face'],
-    ['Face.Tag', 'name of its face, such as Top'],
-  ],
-  for_each_brush: [
-    ['Brush.Index', 'round number, from 0'],
-    ['Brush.Name', 'name of the brush, for Of fields'],
-    ['Brush.Center', 'middle of the brush'],
-    ['Brush.Size', 'width, height and depth of the brush'],
-    ['Brush.Extents', 'half the size: from the middle to the sides'],
-    ['Brush.Min', 'lowest corner of the brush'],
-    ['Brush.Max', 'highest corner of the brush'],
-  ],
-  for_each_edge: [
-    ['Edge.Index', 'number of the edge'],
-    ['Edge.Start', 'where the edge starts'],
-    ['Edge.End', 'where the edge ends'],
-    ['Edge.Middle', 'middle of the edge'],
-    ['Edge.Length', 'length of the edge'],
-    ['Edge.Direction', 'way the edge runs'],
-  ],
+/** Fields that write a variable, with what it then holds. */
+const SOLID_SCRIPT_NAMES_WRITTEN: Readonly<Record<string, string>> = {
+  into: 'what it made',
+  top: 'top faces',
+  sides: 'side faces',
+  inner: 'inner faces',
+  ring: 'ring faces',
+  normals: 'face directions',
 };
 
 /**
@@ -136,10 +100,12 @@ export function solidScriptDocumentNames(document: SolidScriptDocument): SolidSc
       add(value('result'), 'Variables', line, `returned by ${value('name').trim()}()`);
     if (block.command === 'add_item' || block.command === 'insert_item') add(value('list'), 'Lists', line, 'list');
     if (block.command === 'find_item') add(value('result'), 'Variables', line, `position in ${value('list').trim()}`);
-    for (const [system, detail] of SOLID_SCRIPT_NAMES_SYSTEM[block.command] ?? [])
-      if (!names.some((known) => known.name === system)) names.push({ name: system, category: 'System', line, detail });
+    for (const [key, detail] of Object.entries(SOLID_SCRIPT_NAMES_WRITTEN))
+      if (value(key).trim() !== '')
+        add(value(key).replace(/^\[(.*)\]$/s, '$1'), 'Variables', line, `${detail} of ${block.command}`);
     if (block.command === 'repeat' || block.command === 'for_each')
       add(value('variable'), 'Counters', line, block.command === 'repeat' ? 'Repeat counter' : 'For Each item');
+    if (block.command === 'for_each' && value('key').trim() !== '') add(value('key'), 'Counters', line, 'For Each key');
     if (block.command === 'function') {
       add(value('name'), 'Functions', line, `${value('name').trim()}(${value('parameters').trim()})`);
       for (const parameter of value('parameters').split(','))
@@ -203,7 +169,8 @@ export function solidScriptDocumentNamesAt(document: SolidScriptDocument, positi
         line,
         block.command === 'repeat' ? 'Repeat counter' : 'For Each item',
       );
-    for (const [system, detail] of SOLID_SCRIPT_NAMES_SYSTEM[block.command] ?? []) add(system, 'System', line, detail);
+    if (block.command === 'for_each' && (block.values['key'] ?? '').trim() !== '')
+      add(block.values['key'] ?? '', 'Counters', line, 'For Each key');
   }
   return names;
 }
@@ -308,7 +275,17 @@ export function solidScriptFieldUnknown(text: string, known: SolidScriptFieldKno
     const found = call
       ? known.functions.has(key.slice(0, -2)) || solidScriptBuiltinFind(written) !== undefined
       : known.names.has(key);
-    if (!found) unknown.push({ written: call ? written : written.replace(/\.[xyzXYZ]$/, ''), key, call });
+    if (!found)
+      unknown.push({
+        written: call
+          ? written
+          : written
+              .split('.')
+              .slice(0, /^local\./i.test(written) ? 2 : 1)
+              .join('.'),
+        key,
+        call,
+      });
   }
   return unknown;
 }

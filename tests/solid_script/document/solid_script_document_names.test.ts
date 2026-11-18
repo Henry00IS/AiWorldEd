@@ -56,7 +56,7 @@ describe('SolidScript names', () => {
       { command: 'variable', values: { name: 'local.sum', value: '2' } },
       { command: 'end' },
       { command: 'repeat', values: { variable: 'i' } },
-      { command: 'for_each_scattered_point', values: {} },
+      { command: 'for_each', values: { variable: 'P', list: '1, 2', key: 'N' } },
       { command: 'cube' },
       { command: 'end' },
       { command: 'end' },
@@ -72,7 +72,7 @@ describe('SolidScript names', () => {
     expect(at(5)).toEqual(['Local.h']);
     expect(at(6)).toEqual(['Local.h', 'Local.sum']);
     expect(at(8)).toEqual(['i']);
-    expect(at(9)).toEqual(['i', 'Point.Index', 'Point.Position', 'Point.Normal', 'Face.Center', 'Face.Tag']);
+    expect(at(9)).toEqual(['i', 'P', 'N']);
     expect(at(13)).toEqual(['i']);
     expect(at(14)).toEqual([]);
     expect(solidScriptDocumentNamesAt(scoped, 14).map((entry) => entry.name)).toEqual(['area', 'lift']);

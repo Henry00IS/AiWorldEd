@@ -50,10 +50,10 @@ describe('SolidScript input brushes', () => {
 
   it('gives Box.Extents, Input.Extents and the received brushes as a list', () => {
     const result = run([
-      line('echo', { value: '[Box.Extents]' }),
-      line('echo', { value: '[Input.Extents]' }),
-      line('echo', { value: '[Input.Brushes]' }),
-      line('echo', { value: '[Input.Brushes().Count]' }),
+      line('echo', { value: '[$Box.Extents]' }),
+      line('echo', { value: '[$Input.Extents]' }),
+      line('echo', { value: '[$Input.Brushes]' }),
+      line('echo', { value: '[$Input.Brushes.Count]' }),
       line('input_brushes'),
     ]);
     expect(result.error?.message ?? null).toBeNull();
@@ -62,31 +62,24 @@ describe('SolidScript input brushes', () => {
     expect(result.messages[3]).toBe('2');
   });
 
-  it('picks faces of received brushes without outputting them, by handle or list', () => {
+  it('picks faces of received brushes without outputting them, by value or Name', () => {
     const result = run([
-      line('select_faces', { which: 'All', how: 'New' }),
-      line('for_each_selected_face'),
-      line('add_item', { value: '[Face.Index]', list: 'All' }),
-      line('end'),
-      line('add_item', { value: 'Input 2', list: 'Mine' }),
-      line('select_faces', { which: 'All', how: 'New', of: '[Mine]' }),
-      line('for_each_selected_face'),
-      line('add_item', { value: '[Face.Index]', list: 'Second' }),
-      line('end'),
-      line('echo', { value: '[=Len([All])], [=Len([Second])]' }),
+      line('select_faces', { which: 'All', of: '[$Input.Brushes]', into: 'All' }),
+      line('select_faces', { which: 'All', of: 'Input 2' }),
+      line('echo', { value: '[All.Count], [$Selected.Faces.Count]' }),
     ]);
     expect(result.error?.message ?? null).toBeNull();
     expect(result.messages).toEqual(['12, 6']);
     expect(result.shapes).toEqual([]);
   });
 
-  it('loops over brushes with For Each Brush and their values', () => {
+  it('loops over brushes with For Each and reads their members', () => {
     const result = run([
-      line('for_each_brush', { of: '[Input.Brushes]' }),
-      line('echo', { value: '[Brush.Index] [Brush.Name] [Brush.Center] [Brush.Size] [Brush.Extents]' }),
-      line('select_faces', { which: 'All', how: 'New' }),
-      line('for_each_vertex', { in: 'Selected Faces' }),
-      line('add_item', { value: '[Vertex.Index]', list: 'Corners' }),
+      line('for_each', { variable: 'Brush', list: '[$Input.Brushes]', key: 'I' }),
+      line('echo', { value: '[I] [Brush.Name] [Brush.Center] [Brush.Size] [Brush.Extents]' }),
+      line('select_faces', { which: 'All', of: '[Brush]' }),
+      line('for_each', { variable: 'Corner', list: '[$Selected.Faces.Vertices]' }),
+      line('add_item', { value: '[Corner.Position]', list: 'Corners' }),
       line('end'),
       line('end'),
       line('echo', { value: '[=Len([Corners])]' }),

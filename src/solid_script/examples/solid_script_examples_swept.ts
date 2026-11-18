@@ -21,8 +21,8 @@ import {
  */
 function solidScriptExampleRingSize(turnSign = '1'): SolidScriptLine[] {
   return [
-    solidScriptExampleSet('Rx', '[=[Box.Width] / 2]'),
-    solidScriptExampleSet('Rz', '[=[Box.Depth] / 2]'),
+    solidScriptExampleSet('Rx', '[=[$Box.Width] / 2]'),
+    solidScriptExampleSet('Rz', '[=[$Box.Depth] / 2]'),
     solidScriptExampleSet('TurnSign', turnSign),
     solidScriptExampleSet('Limit', '[=Min([Rx], [Rz]) ^ 2 / Max([Rx], [Rz])]'),
   ];
@@ -70,10 +70,10 @@ export const SOLID_SCRIPT_EXAMPLE_PIPE: readonly SolidScriptLine[] = [
     ...solidScriptExamplePolyhedron(
       solidScriptExampleRepeat('Edge', '0', '1', [
         solidScriptExampleSet('Angle', '[=[Sweep] * ([Piece] + [Edge]) / [Segments]]'),
-        solidScriptExamplePoint('[=RingPoint([Angle], 0, -[Box.Height] / 2)]'),
-        solidScriptExamplePoint('[=RingPoint([Angle], [Wall], -[Box.Height] / 2)]'),
-        solidScriptExamplePoint('[=RingPoint([Angle], [Wall], [Box.Height] / 2)]'),
-        solidScriptExamplePoint('[=RingPoint([Angle], 0, [Box.Height] / 2)]'),
+        solidScriptExamplePoint('[=RingPoint([Angle], 0, -[$Box.Height] / 2)]'),
+        solidScriptExamplePoint('[=RingPoint([Angle], [Wall], -[$Box.Height] / 2)]'),
+        solidScriptExamplePoint('[=RingPoint([Angle], [Wall], [$Box.Height] / 2)]'),
+        solidScriptExamplePoint('[=RingPoint([Angle], 0, [$Box.Height] / 2)]'),
       ]),
     ),
   ]),
@@ -106,7 +106,7 @@ export const SOLID_SCRIPT_EXAMPLE_TORUS: readonly SolidScriptLine[] = [
           solidScriptExampleSet('Turn', '[=360 * ([I] + 0.5) / [TubeSides]]'),
           solidScriptExampleSet('U', '[=(Cos([Turn]) - [Low.x]) / ([High.x] - [Low.x]) * 2 - 1]'),
           solidScriptExampleSet('V', '[=(Sin([Turn]) - [Low.y]) / ([High.y] - [Low.y]) * 2 - 1]'),
-          solidScriptExamplePoint('[=RingPoint([Angle], [Tube] * (1 - [U]), [Box.Height] / 2 * [V])]'),
+          solidScriptExamplePoint('[=RingPoint([Angle], [Tube] * (1 - [U]), [$Box.Height] / 2 * [V])]'),
         ]),
       ]),
     ),
@@ -126,21 +126,21 @@ export const SOLID_SCRIPT_EXAMPLE_CURVED_STAIRS: readonly SolidScriptLine[] = [
   solidScriptExampleSet('TurnSign', '1'),
   ...solidScriptExampleIf('[Direction] == "cw"', [solidScriptExampleSet('TurnSign', '-1')]),
   solidScriptExampleSet('Turn', '[=[Sweep] / [Steps]]'),
-  solidScriptExampleSet('Rise', '[=[Box.Height] / [Steps]]'),
+  solidScriptExampleSet('Rise', '[=[$Box.Height] / [Steps]]'),
   solidScriptExampleSet('Thick', '[StepThickness]'),
   ...solidScriptExampleIf('[FillToFloor]', [
     solidScriptExampleSet('Thick', '[=[Rise] * Min([Steps], [Steps] * 360 / [Sweep])]'),
   ]),
   ...solidScriptExampleRepeat('Step', '0', '[=[Steps] - 1]', [
-    solidScriptExampleSet('Top', '[=-[Box.Height] / 2 + [Rise] * ([Step] + 1)]'),
-    solidScriptExampleSet('Bottom', '[=Max(-[Box.Height] / 2, [Top] - [Thick])]'),
+    solidScriptExampleSet('Top', '[=-[$Box.Height] / 2 + [Rise] * ([Step] + 1)]'),
+    solidScriptExampleSet('Bottom', '[=Max(-[$Box.Height] / 2, [Top] - [Thick])]'),
     ...solidScriptExampleRepeat('Part', '0', '[=[StepDetail] - 1]', [
       ...solidScriptExamplePolyhedron(
         solidScriptExampleRepeat('Edge', '0', '1', [
           solidScriptExampleSet('Angle', '[=[Turn] * ([Step] + ([Part] + [Edge]) / [StepDetail])]'),
           solidScriptExampleSet(
             'Out',
-            '[=[Box.Width] / 2 * Cos([Angle])], 0, [=-[Box.Depth] / 2 * Sin([Angle]) * [TurnSign]]',
+            '[=[$Box.Width] / 2 * Cos([Angle])], 0, [=-[$Box.Depth] / 2 * Sin([Angle]) * [TurnSign]]',
           ),
           solidScriptExamplePoint('[=[Out.x] * [InnerRadius]], [Bottom], [=[Out.z] * [InnerRadius]]'),
           solidScriptExamplePoint('[Out.x], [Bottom], [Out.z]'),

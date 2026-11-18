@@ -372,7 +372,7 @@ describe('Remove Item', () => {
       ...['a', 'b', 'c', 'd'].map((value) => line('variable', { name: 'names()', value })),
       line('remove_item', { target: 'names(1)' }),
       line('remove_item', { target: 'names()' }),
-      echo('[names(0)] [names(1)] [names().count]'),
+      echo('[names(0)] [names(1)] [names.count]'),
     );
     expect(result.error).toBeNull();
     expect(result.messages).toEqual(['a c 2']);

@@ -253,7 +253,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     category: 'Lists',
     description: 'Empty a variable or a list',
     manual:
-      'Empties a variable but keeps its name: a list keeps no items, and anything else becomes empty text. Example: Clear Variable Heights empties the list Heights, so [Heights().Count] is 0. A name not set yet becomes an empty list, ready for Add Item.',
+      'Empties a variable but keeps its name: a list keeps no items, and anything else becomes empty text. Example: Clear Variable Heights empties the list Heights, so [Heights.Count] is 0. A name not set yet becomes an empty list, ready for Add Item.',
     stops: ['An input. Inputs can only be read.'],
     parameters: [
       solidScriptParameter('name', 'Variable', 'name', 'Items', 'Name of the variable or list, without brackets.'),

@@ -1,5 +1,48 @@
 /** Runtime value of the solid script language. */
-export type SolidScriptValue = number | string | boolean | undefined | SolidScriptValue[];
+export type SolidScriptValue = number | string | boolean | undefined | SolidScriptElement | SolidScriptValue[];
+
+/**
+ * What a geometry value stands for: a brush or mesh, one of its faces, edges or
+ * corners, or the Data of one.
+ */
+export type SolidScriptElementKind = 'brush' | 'face' | 'edge' | 'vertex' | 'data';
+
+/**
+ * A geometry value: a stable id the run looks up when it is read, so it follows
+ * the geometry through later changes. The same element is always the same
+ * object.
+ */
+export class SolidScriptElement {
+  /**
+   * @param kind What it stands for.
+   * @param id Number of the element in its run.
+   * @param name Name it shows, such as a brush's Name; empty shows the kind and
+   *   id.
+   */
+  constructor(
+    readonly kind: SolidScriptElementKind,
+    readonly id: number,
+    readonly name = '',
+  ) {}
+
+  /**
+   * Names the element for messages and text, such as Face 3.
+   *
+   * @returns Name.
+   */
+  toString(): string {
+    return this.name || `${SOLID_SCRIPT_ELEMENT_TYPES[this.kind]} ${this.id}`;
+  }
+}
+
+/** Friendly type of each element kind. */
+export const SOLID_SCRIPT_ELEMENT_TYPES: Readonly<Record<SolidScriptElementKind, string>> = {
+  brush: 'Brush',
+  face: 'Face',
+  edge: 'Edge',
+  vertex: 'Vertex',
+  data: 'Data',
+};
 
 /** Most list entries a range or comprehension may produce. */
 export const SOLID_SCRIPT_LIST_LIMIT = 10000;
@@ -55,6 +98,7 @@ export function solidScriptValueNumeric(value: SolidScriptValue): SolidScriptVal
 export function solidScriptValueType(value: SolidScriptValue): string {
   if (value === undefined) return 'Nothing';
   if (typeof value === 'boolean') return 'Yes/No';
+  if (value instanceof SolidScriptElement) return SOLID_SCRIPT_ELEMENT_TYPES[value.kind];
   if (Array.isArray(value)) {
     if (value.length === 0) return 'List';
     const kinds = new Set(value.map((entry) => solidScriptValueType(entry)));
@@ -63,6 +107,8 @@ export function solidScriptValueType(value: SolidScriptValue): string {
     if (numbers) return 'List of Numbers';
     if (kinds.size === 1 && kinds.has('Text')) return 'List of Text';
     if (kinds.size === 1 && kinds.has('Vector')) return 'List of Vectors';
+    const [only] = kinds;
+    if (kinds.size === 1 && only && Object.values(SOLID_SCRIPT_ELEMENT_TYPES).includes(only)) return `${only} List`;
     return 'List';
   }
   const number = solidScriptValueNumber(value);

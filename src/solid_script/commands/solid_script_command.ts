@@ -73,6 +73,8 @@ export interface SolidScriptCommandParameter {
    * Of, Inputs for Show Inputs When or Parts for Use Part.
    */
   nameGroups?: readonly string[];
+  /** Greyed text an empty field shows, such as the list an empty Of uses. */
+  placeholder?: string;
   /** Axes of an Anchor field, which the window shows as one choice per axis. */
   anchor?: readonly SolidScriptAnchorAxis[];
 }

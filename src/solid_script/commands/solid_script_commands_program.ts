@@ -4,6 +4,7 @@ import { SolidScriptCommand, type SolidScriptCommandParameter } from './solid_sc
 import { solidScriptListingInputs, solidScriptListingOptions } from './solid_script_command_listing.js';
 import {
   solidScriptParameter,
+  solidScriptParameterInto,
   solidScriptParameterOptional,
   solidScriptParameterSides,
   solidScriptParameterWords,
@@ -283,7 +284,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Logic',
     description: 'Run lines only as a generator or only as a modifier',
     manual:
-      'Runs the lines inside only when the script is used the way Use names: Generator in a generator node, Modifier in the modifier stack of a brush, mesh or group. An Else starts the lines for the other use. Can Be Used As in the inspector picks the uses a script allows. Script.Usage holds the same word for formulas. Example: If Used As Modifier, a slab under [Input.Min], Else, a cube and a slab under it.',
+      'Runs the lines inside only when the script is used the way Use names: Generator in a generator node, Modifier in the modifier stack of a brush, mesh or group. An Else starts the lines for the other use. Can Be Used As in the inspector picks the uses a script allows. Script.Usage holds the same word for formulas. Example: If Used As Modifier, a slab under [$Input.Min], Else, a cube and a slab under it.',
     stops: ['A Use that is not Generator or Modifier.', 'A missing End line.'],
     nesting: 'open',
     parameters: [
@@ -320,8 +321,14 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
           { word: 'World Aligned', detail: 'Textures stay where they are in the world' },
         ],
       ),
+      solidScriptParameterInto('the brushes, a Brush list'),
     ],
-    listing: (read) => ['Input Brushes', ' textures ', read.text('textures')],
+    listing: (read) => [
+      'Input Brushes',
+      ' textures ',
+      read.text('textures'),
+      ...(read.text('into') === '' ? [] : [' Into ', read.variable('into')]),
+    ],
     execute: (run) => {
       const textures = solidScriptValueText(run.value('textures')).trim().toLowerCase();
       if (textures !== 'move with shape' && textures !== 'world aligned')
@@ -329,7 +336,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
       const matrix = run.matrix();
       const turn = new THREE.Matrix3().getNormalMatrix(matrix);
       const use = run.use();
-      return use.solids.flatMap((corners, index) => {
+      const built: SolidScriptShape[] = use.solids.flatMap((corners, index): SolidScriptShape[] => {
         // Cut brushes are built again, so their faces take the received textures.
         const faceTextures = use.textures?.[index]?.map((face) => ({
           point: new THREE.Vector3(...face.point).applyMatrix4(matrix),
@@ -346,6 +353,14 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
             : shape,
         );
       });
+      run.inputsBuilt(built);
+      const into = run.text('into').trim();
+      if (into !== '')
+        run.variableSet(
+          into,
+          built.flatMap((shape) => (shape.kind === 'solid' ? [run.elements.brush(shape)] : [])),
+        );
+      return built;
     },
   }),
   new SolidScriptCommand({

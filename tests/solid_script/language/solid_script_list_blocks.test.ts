@@ -32,13 +32,13 @@ describe('SolidScript list blocks', () => {
   it('keeps a list that Add Item makes inside a loop for the lines after it', () => {
     const lines: SolidScriptLine[] = [
       line('cube', { size: '2, 2, 2', label: 'Boing' }),
-      line('for_each_vertex', { of: 'Boing' }),
+      line('for_each', { variable: 'Vertex', list: '[$Selected.Brushes.First.Vertices]' }),
       line('add_item', { value: '[Vertex.Position]', list: 'Vertices' }),
       line('translate', { v: '[Vertex.Position.X], 0.5, [Vertex.Position.Z]' }),
       line('cube', { size: '0.1, 1, 0.1', label: '' }),
       line('end'),
       line('end'),
-      line('echo', { value: '[Vertices().Count]' }),
+      line('echo', { value: '[Vertices.Count]' }),
     ];
     expect(echoed(...lines)).toEqual(['8']);
     expect(solidScriptDocumentNamesUnknown(solidScriptDocumentCreate(lines)).size).toBe(0);
@@ -67,7 +67,7 @@ describe('SolidScript list blocks', () => {
         line('echo', { value: '[h]' }),
         line('reverse_list', { list: 'h' }),
         line('find_item', { value: '7', list: 'h', result: 'at' }),
-        line('echo', { value: '[at] [h().count]' }),
+        line('echo', { value: '[at] [h.count]' }),
         line('remove_value', { value: '7', list: 'h' }),
         line('find_item', { value: '7', list: 'h', result: 'at' }),
         line('echo', { value: '[at] [h]' }),
@@ -98,7 +98,7 @@ describe('SolidScript list blocks', () => {
         line('variable', { name: 'n', value: '4' }),
         line('clear_variable', { name: 'l' }),
         line('clear_variable', { name: 'n' }),
-        line('echo', { value: '[l().count] <[n]>' }),
+        line('echo', { value: '[l.count] <[n]>' }),
         line('delete_variable', { name: 'n' }),
         line('echo', { value: '[n]' }),
       ),

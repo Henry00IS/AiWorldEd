@@ -48,7 +48,7 @@ describe('solidScriptFieldTokens', () => {
       'persistent:Persistent.Presses',
       'bracket:]',
       'bracket:[',
-      'system:Face.Center.x',
+      'name:Face.Center.x',
       'bracket:]',
       'text: $[x$] ',
       'number:12',

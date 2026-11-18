@@ -12,7 +12,7 @@ import {
 /**
  * Echoes one field value and returns the text or the error.
  *
- * @param value Field value, such as [Editor.Version].
+ * @param value Field value, such as [$Editor.Version].
  * @param options Run options.
  * @returns Echoed text, or the error.
  */
@@ -54,45 +54,45 @@ describe('SolidScript system values', () => {
   it('reads the editor, level, room and user', () => {
     solidScriptSystemHostSet(() => HOST);
     solidScriptSystemPlayersSet(() => 3);
-    expect(echo('[Editor.Name] [Editor.Version] on [Editor.Platform]')).toBe('AI World Editor 9.8.7 on desktop');
-    expect(echo('[Editor.Url]')).toBe('https://example.test/editor/');
-    expect(echo('[Level.Name] in [Room.Name] with [Room.Players], online [Room.Online], by [User.Name]')).toBe(
+    expect(echo('[$Editor.Name] [$Editor.Version] on [$Editor.Platform]')).toBe('AI World Editor 9.8.7 on desktop');
+    expect(echo('[$Editor.Url]')).toBe('https://example.test/editor/');
+    expect(echo('[$Level.Name] in [$Room.Name] with [$Room.Players], online [$Room.Online], by [$User.Name]')).toBe(
       'castle.aiw in Build Night with 3, online true, by Ada',
     );
     solidScriptSystemHostSet(() => ({ ...HOST, roomName: '' }));
     solidScriptSystemPlayersSet(null);
-    expect(echo('[Room.Online] [Room.Players]')).toBe('false 1');
+    expect(echo('[$Room.Online] [$Room.Players]')).toBe('false 1');
   });
 
   it('tells where the script runs and counts runs', () => {
-    expect(echo('[Run.Context]')).toBe('generator');
-    expect(echo('[Run.Context]', { context: 'preview' })).toBe('preview');
-    const first = Number(echo('[Run.Count]'));
-    expect(Number(echo('[Run.Count]'))).toBe(first + 1);
-    expect(Number(echo('[Run.Seed]'))).toBeGreaterThanOrEqual(0);
-    expect(Number(echo('[Time.Delta]'))).toBeGreaterThanOrEqual(0);
+    expect(echo('[$Run.Context]')).toBe('generator');
+    expect(echo('[$Run.Context]', { context: 'preview' })).toBe('preview');
+    const first = Number(echo('[$Run.Count]'));
+    expect(Number(echo('[$Run.Count]'))).toBe(first + 1);
+    expect(Number(echo('[$Run.Seed]'))).toBeGreaterThanOrEqual(0);
+    expect(Number(echo('[$Time.Delta]'))).toBeGreaterThanOrEqual(0);
   });
 
   it('reads the generator box, and warns without one, using 1 so the script still runs', () => {
-    expect(echo('[Box.Width] [Box.Depth] [Box.Height] [Box.Size.y]', { box: [4, 2, 3] })).toBe('4 3 2 2');
+    expect(echo('[$Box.Width] [$Box.Depth] [$Box.Height] [$Box.Size.y]', { box: [4, 2, 3] })).toBe('4 3 2 2');
     const run = solidScriptProgramRun(
       solidScriptDocumentCreate([
         { command: 'echo', values: { value: 'start' } },
-        { command: 'echo', values: { value: '[Box.Width] [Box.Size]' } },
+        { command: 'echo', values: { value: '[$Box.Width] [$Box.Size]' } },
         { command: 'cube' },
       ]),
     );
     expect(run.error).toBeNull();
     expect(run.messages).toEqual(['start', '1 [1, 1, 1]']);
     expect(run.warnings).toEqual([
-      { line: 2, text: '[Box.Size] is only known in a generator, where there is a box; 1 is used here.' },
+      { line: 2, text: '[$Box.Size] is only known in a generator, where there is a box; 1 is used here.' },
     ]);
   });
 
   it('reads the time and constants', () => {
-    expect(Number(echo('[Time.Year]'))).toBe(new Date().getFullYear());
-    expect(echo('[Time.Date]')).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(Number(echo('[Math.Pi]'))).toBeCloseTo(Math.PI, 4);
+    expect(Number(echo('[$Time.Year]'))).toBe(new Date().getFullYear());
+    expect(echo('[$Time.Date]')).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(Number(echo('[$Math.Pi]'))).toBeCloseTo(Math.PI, 4);
     expect(Number(formula('Math.Tau / 2'))).toBeCloseTo(Math.PI, 4);
   });
 

@@ -2,7 +2,9 @@ import type * as THREE from 'three';
 import type { SolidScriptBlockArguments } from './solid_script_block_arguments.js';
 import type { SolidScriptTreeCommand } from './solid_script_block_tree.js';
 import type { SolidScriptFieldKind } from './solid_script_field.js';
-import type { SolidScriptFaceFacts, SolidScriptGeometryLeaf } from './solid_script_geometry.js';
+import type { SolidScriptElements } from './solid_script_elements.js';
+import type { SolidScriptGeometryLeaf } from './solid_script_geometry.js';
+import type { SolidScriptSelectedKind } from './solid_script_machine_variables.js';
 import type { SOLID_SCRIPT_HANDLERS } from './solid_script_machine_calls.js';
 import type { SolidScriptShapeMesh, SolidScriptUv } from './solid_script_mesh.js';
 import type { SolidScriptPoint2 } from './solid_script_polygon.js';
@@ -56,6 +58,12 @@ export interface SolidScriptGathering extends SolidScriptGathered {
   kind: SolidScriptGatherKind;
 }
 
+/** The Key variable of a For Each round: its name and the key of every round. */
+export interface SolidScriptRoundKey {
+  name: string;
+  keys: readonly SolidScriptValue[];
+}
+
 /** What a running line can read and do. */
 export interface SolidScriptBlockRun {
   /** True inside Linear Extrude, where only flat shapes may be drawn. */
@@ -83,7 +91,7 @@ export interface SolidScriptBlockRun {
   /** Runs the flat lines inside and pulls them up into solids. */
   extruded(fields: SolidScriptBlockArguments): SolidScriptShape[];
   /** Runs the lines inside once per value, with the counter set to it. */
-  repeated(counter: string, values: readonly SolidScriptValue[]): SolidScriptShape[];
+  repeated(counter: string, values: readonly SolidScriptValue[], key?: SolidScriptRoundKey): SolidScriptShape[];
   /** Runs the lines inside, or the lines after Else, depending on a condition. */
   branched(holds: boolean): SolidScriptShape[];
   /**
@@ -142,34 +150,21 @@ export interface SolidScriptBlockRun {
    */
   built(): SolidScriptShape[];
   /**
-   * The shapes Select Faces and the For Each Vertex, Edge or Brush lines work
-   * on: inside a For Each round, what that round built above this line, else
-   * the brush of the For Each Brush round, else everything built above, else
-   * the brushes a modifier receives. With an Of field, only the shapes it
-   * names: a Name, a brush of [Input.Brushes] such as Input 1, or a list.
+   * Brushes, faces, edges and corners of the run, read from the latest
+   * geometry.
    */
-  pickable(): SolidScriptShape[];
-  /** The faces picked by the last Select Faces line. */
-  selection(): SolidScriptFaceFacts[];
-  /** Remembers the faces Select Faces picked. */
-  selectionSet(faces: readonly SolidScriptFaceFacts[]): void;
-  /** The face of the For Each Selected Face round running, or null outside one. */
-  faceCurrent(): SolidScriptFaceFacts | null;
+  readonly elements: SolidScriptElements;
+  /** Reads a [$Selected.*] list. */
+  selectedGet(kind: SolidScriptSelectedKind): SolidScriptValue[];
+  /** Sets a [$Selected.*] list for the rest of the round. */
+  selectedSet(kind: SolidScriptSelectedKind, values: readonly SolidScriptValue[]): void;
   /**
-   * Runs the lines inside once per round, with read-only system variables such
-   * as Face.Center set for that round, and the face of the round as the current
-   * face. A round with a matrix builds its shapes placed by it, ignoring the
-   * blocks around this line.
+   * The values of the line's Of field as one flat list, with Name tags read as
+   * the brushes that have them; null when Of is empty.
    */
-  looped(
-    rounds: readonly {
-      variables: Readonly<Record<string, SolidScriptValue>>;
-      face: SolidScriptFaceFacts | null;
-      matrix?: THREE.Matrix4;
-      /** Brush of a For Each Brush round, which the lines inside work on. */
-      shape?: SolidScriptShape;
-    }[],
-  ): SolidScriptShape[];
+  ofValues(): SolidScriptValue[] | null;
+  /** Remembers the brushes an Input Brushes line built, as [$Input.Brushes]. */
+  inputsBuilt(shapes: readonly SolidScriptShape[]): void;
   /**
    * Runs the lines inside placed by a matrix, ignoring the blocks around this
    * line.
