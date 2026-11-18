@@ -17,6 +17,7 @@ import {
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import { solidScriptPlaceMatrices } from '@/solid_script/language/solid_script_place.js';
 import { solidScriptFaceGroups, solidScriptFaceTargets, solidScriptFaceWrite } from './solid_script_face_of.js';
+import { solidScriptScaleFaces } from '@/solid_script/language/solid_script_scale_faces.js';
 import { solidScriptScatterRun } from '@/solid_script/language/solid_script_scatter.js';
 import {
   solidScriptGeometryBevel,
@@ -857,6 +858,42 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         const added = faces.map((face) => ({ point: face.center.clone(), normal: face.normal.clone(), texture }));
         run.leafReplace(leaf, { ...leaf, faceTextures: [...(leaf.faceTextures ?? []), ...added] });
       }
+      return [];
+    },
+  }),
+  new SolidScriptCommand({
+    id: 'scale_faces',
+    label: 'Scale Faces',
+    category: 'Faces',
+    description: 'Scale faces about their centres',
+    manual:
+      'Scales each face about its centre, in the plane of the face. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. A brush stays a brush, and a mesh stays a mesh. Factor 1 leaves the face as it is; 0.5 shrinks it toward its centre, and 2 grows it. If several picked faces share a corner, the corner takes the average of those moves. A Factor that would fold a brush so it is no longer convex stops the line. Example: Select Faces Facing Up, Scale Faces by 0.5 turns the top of a Cube into a smaller roof.',
+    stops: [
+      'No faces.',
+      'A Factor that is not a number.',
+      'A Factor that would fold a brush so it is no longer convex.',
+    ],
+    parameters: [
+      solidScriptParameter(
+        'factor',
+        'Factor',
+        'number',
+        '1',
+        'How much to scale each face about its centre; 1 leaves it as it is.',
+      ),
+      solidScriptParameterOf('faces or brushes', '$Selected.Faces'),
+    ],
+    listing: (read) => [
+      'Scale Faces',
+      'by ',
+      read.value('factor'),
+      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+    ],
+    execute: (run) => {
+      const factor = run.fields().number('factor', 1);
+      const targets = solidScriptFaceTargets(run, 'Scale Faces');
+      for (const [leaf, faces] of solidScriptFaceGroups(targets, (face) => face.leaf))
+        run.leafReplace(leaf, solidScriptScaleFaces(leaf, faces, factor, 'Scale Faces'));
       return [];
     },
   }),

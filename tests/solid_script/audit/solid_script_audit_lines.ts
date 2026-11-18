@@ -96,6 +96,7 @@ const SOLID_SCRIPT_AUDIT_FACES = new Set([
   'texture_faces',
   'find_on',
   'box_uvs',
+  'scale_faces',
 ]);
 
 /** Commands that work on a mesh, which the prelude's mesh feeds. */
