@@ -5,6 +5,7 @@ import { SOLID_SCRIPT_COMMANDS_LISTS } from './solid_script_commands_lists.js';
 import { SOLID_SCRIPT_COMMANDS_LOGIC } from './solid_script_commands_logic.js';
 import { SOLID_SCRIPT_COMMANDS_MESHES } from './solid_script_commands_meshes.js';
 import { SOLID_SCRIPT_COMMANDS_FACES } from './solid_script_commands_faces.js';
+import { SOLID_SCRIPT_COMMANDS_SELECT } from './solid_script_commands_select.js';
 import { SOLID_SCRIPT_COMMANDS_PATHS } from './solid_script_commands_paths.js';
 import { SOLID_SCRIPT_COMMANDS_GENERATORS } from './solid_script_commands_generators.js';
 import { SOLID_SCRIPT_COMMANDS_PROGRAM } from './solid_script_commands_program.js';
@@ -33,7 +34,9 @@ export const solidScriptCommands: readonly SolidScriptCommand[] = [
   ...SOLID_SCRIPT_COMMANDS_COMBINE,
   ...SOLID_SCRIPT_COMMANDS_MESHES,
   ...SOLID_SCRIPT_COMMANDS_PATHS,
-  ...SOLID_SCRIPT_COMMANDS_FACES,
+  ...SOLID_SCRIPT_COMMANDS_FACES.slice(0, 1),
+  ...SOLID_SCRIPT_COMMANDS_SELECT,
+  ...SOLID_SCRIPT_COMMANDS_FACES.slice(1),
   ...SOLID_SCRIPT_COMMANDS_LOGIC,
   ...SOLID_SCRIPT_COMMANDS_LISTS,
   ...SOLID_SCRIPT_COMMANDS_PROGRAM,
