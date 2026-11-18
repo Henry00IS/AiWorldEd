@@ -7,7 +7,13 @@ import {
   SOLID_SCRIPT_MISTAKE_NUMERIC,
   solidScriptFieldMistakeNote,
 } from './solid_script_field_mistakes.js';
-import { SOLID_SCRIPT_TYPES, solidScriptTypeLiteral, solidScriptTypeProblem } from './solid_script_types.js';
+import {
+  SOLID_SCRIPT_TYPES,
+  solidScriptTypeLiteral,
+  solidScriptTypeProblem,
+  solidScriptTypeValue,
+} from './solid_script_types.js';
+import { solidScriptFieldSplit } from './solid_script_field.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
 
 /**
@@ -109,8 +115,16 @@ export function solidScriptTypeCheck(document: SolidScriptDocument): SolidScript
     const kept = type || declared.get(solidScriptNameKey(name));
     if (type === 'Any') declared.delete(solidScriptNameKey(name));
     else if (type !== '') declared.set(solidScriptNameKey(name), type);
-    const value = solidScriptTypeLiteral(block.values['value'] ?? '');
-    const problem = kept && value !== undefined ? solidScriptTypeProblem(name, kept, value) : '';
+    const text = block.values['value'] ?? '';
+    // Read the way the line runs it, only from what is written without brackets.
+    const value = solidScriptTypeValue(
+      type,
+      text,
+      () => solidScriptTypeLiteral(text),
+      () => solidScriptFieldSplit(text, ',').map(solidScriptTypeLiteral),
+    );
+    const unknown = value === undefined || (Array.isArray(value) && value.includes(undefined));
+    const problem = kept && !unknown ? solidScriptTypeProblem(name, kept, value) : '';
     if (problem) warn(`${problem}.`);
   });
   return warnings;

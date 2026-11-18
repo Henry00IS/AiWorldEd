@@ -288,6 +288,13 @@ function solidScriptFieldGroupCompile(pieces: readonly SolidScriptFieldPiece[]):
       .join('')
       .trim();
     if (name === '') return empty;
+    const vector = solidScriptFieldVectorRead(name);
+    if (vector) return () => vector.slice();
+    const problem = solidScriptFieldVectorProblem(name);
+    if (problem)
+      return () => {
+        throw new Error(problem);
+      };
     return solidScriptFieldVariableCompile(solidScriptNameKey(name));
   }
   const item = solidScriptFieldItemCompile(pieces);
@@ -298,9 +305,72 @@ function solidScriptFieldGroupCompile(pieces: readonly SolidScriptFieldPiece[]):
   return (context) => {
     let inner = '';
     for (const part of parts) inner += typeof part === 'string' ? part : solidScriptValueText(part(context));
-    const name = inner.trim();
-    return name === '' ? empty() : context.variable(solidScriptNameKey(name));
+    return solidScriptFieldBracketRead(inner, context);
   };
+}
+
+/** Three items separated by commas, such as 20, 30, 10: a vector in brackets. */
+const SOLID_SCRIPT_FIELD_VECTOR = /^([^,]+),([^,]+),([^,]+)$/;
+
+/** Start of bracket text no name has: a digit, a minus or a dot. */
+const SOLID_SCRIPT_FIELD_NUMBER_START = /^\s*[-.\d]/;
+
+/**
+ * Reads the text of a bracket, with its inner brackets already put in, as a
+ * vector when it is exactly three numbers, such as [20, 30, 10].
+ *
+ * @param text Bracket text.
+ * @returns Vector, or null when it is not three numbers.
+ */
+function solidScriptFieldVectorRead(text: string): number[] | null {
+  const parts = SOLID_SCRIPT_FIELD_VECTOR.exec(text);
+  if (!parts) return null;
+  const vector = parts.slice(1).map((part) => (part.trim() === '' ? NaN : Number(part)));
+  return vector.every(Number.isFinite) ? vector : null;
+}
+
+/**
+ * Explains bracket text that starts like a number, so it is no name, but is not
+ * a vector either, with what was likely meant.
+ *
+ * @param text Bracket text.
+ * @returns Problem, or an empty string when the text is a vector or may be a
+ *   name.
+ */
+function solidScriptFieldVectorProblem(text: string): string {
+  const inner = text.trim();
+  if (!SOLID_SCRIPT_FIELD_NUMBER_START.test(inner) || solidScriptFieldVectorRead(inner)) return '';
+  const items = inner.split(',').map((item) => item.trim());
+  const numbers = items.every((item) => item !== '' && Number.isFinite(Number(item)));
+  const meant =
+    items.length === 1
+      ? numbers
+        ? inner
+        : `[=${inner}]`
+      : numbers && items.length === 2
+        ? `[${items.join(', ')}, 0]`
+        : numbers
+          ? items.join(', ')
+          : `[=Vector(${items.join(', ')})]`;
+  return `[${inner}] is not a vector: a vector in brackets needs exactly 3 numbers, such as [1, 2, 3]. Did you mean to write ${meant}?`;
+}
+
+/**
+ * Reads bracket text once its inner brackets are put in: three numbers are a
+ * vector, anything else names a variable.
+ *
+ * @param inner Bracket text.
+ * @param context Running script.
+ * @returns Value.
+ */
+function solidScriptFieldBracketRead(inner: string, context: SolidScriptFieldContext): SolidScriptValue {
+  const vector = solidScriptFieldVectorRead(inner);
+  if (vector) return vector;
+  const problem = solidScriptFieldVectorProblem(inner);
+  if (problem) throw new Error(problem);
+  const name = inner.trim();
+  if (name === '') throw new Error('[] is empty; put a variable name inside, or write $[$] for brackets');
+  return context.variable(solidScriptNameKey(name));
 }
 
 /**
@@ -476,7 +546,10 @@ function solidScriptFieldAnyCompile(text: string): SolidScriptFieldCompiled {
   return solidScriptFieldFolded(text, (context) => {
     if (list) {
       const values = list.map((item) => solidScriptFieldNumber(item(context)));
-      if (values.every((value) => typeof value === 'number')) return values;
+      // Numbers, or vectors such as [1, 2, 3], [4, 5, 6], make a list.
+      const numeric = (value: SolidScriptValue): boolean =>
+        typeof value === 'number' || (Array.isArray(value) && value.every((entry) => typeof entry === 'number'));
+      if (values.every(numeric)) return values;
     }
     const value = whole(context);
     const number = solidScriptFieldNumber(value);
@@ -607,10 +680,9 @@ function solidScriptFieldCheckRead(text: string): string {
       const first = piece.pieces[0];
       const formula = first?.kind === 'plain' && first.text.trimStart().startsWith('=');
       if (!formula && piece.pieces.every((inner) => inner.kind === 'plain')) {
-        const problem = solidScriptNameDotProblem(
-          piece.pieces.map((inner) => (inner.kind === 'plain' ? inner.text : '')).join(''),
-          'read',
-        );
+        const text = piece.pieces.map((inner) => (inner.kind === 'plain' ? inner.text : '')).join('');
+        if (solidScriptFieldVectorRead(text)) continue;
+        const problem = solidScriptFieldVectorProblem(text) || solidScriptNameDotProblem(text, 'read');
         if (problem) return problem;
       }
       const inner = walk(piece.pieces);

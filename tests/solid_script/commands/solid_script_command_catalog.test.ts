@@ -170,10 +170,11 @@ describe('solid script command catalog', () => {
     }
   });
 
-  it('writes help in plain field text: no double-quoted text and no bracketed lists', () => {
+  it('writes help in plain field text: no double-quoted text, and numbers in brackets only as vectors', () => {
     for (const command of solidScriptCommands) {
       const help = [command.manual, ...command.stops, ...command.parameters.map((entry) => entry.hint)].join(' ');
-      expect(help, command.id).not.toMatch(/\[\s*-?\d/);
+      for (const bracket of help.match(/\[\s*-?\d[^\]]*\]/g) ?? [])
+        expect(bracket.split(',').length, `${command.id}: ${bracket}`).toBe(3);
       expect(help, command.id).not.toMatch(/"/);
       for (const parameter of command.parameters) expect(parameter.default, command.id).not.toMatch(/^\[\s*-?\d|"/);
     }

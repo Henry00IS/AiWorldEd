@@ -79,6 +79,11 @@ export interface SolidScriptBlockRun {
   text(key: string): string;
   /** Evaluates one field. */
   value(key: string): SolidScriptValue;
+  /**
+   * Reads a field as a declared kind: a blank gives the kind's empty value and
+   * a list kind splits the text on commas.
+   */
+  valueTyped(key: string, type: string): SolidScriptValue;
   /** Works out a field of values separated by commas, such as [i], 0.2. */
   values(key: string): SolidScriptValue[];
   /** Sets a variable, where it already exists or else in the current block. */

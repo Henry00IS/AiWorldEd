@@ -119,7 +119,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
         'points',
         'Points From List',
         'points3',
-        'Optional: a list of x, y, z points, such as a list variable [Corners]. Point lines inside add more.',
+        'Optional: a list of x, y, z points, such as a list variable [Corners] or vectors written [0, 0, 0], [2, 0, 0], [0, 2, 0], [0, 0, 2]. Point lines inside add more.',
       ),
     ],
     listing: (read) => [

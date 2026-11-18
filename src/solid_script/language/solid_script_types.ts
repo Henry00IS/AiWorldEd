@@ -90,3 +90,71 @@ export function solidScriptTypeLiteral(text: string): SolidScriptValue {
     return pieces.map((piece) => solidScriptValueNumber(piece)!);
   return solidScriptValueNumber(trimmed) ?? trimmed;
 }
+
+/**
+ * Gives the value a blank Set of a kind holds: 0, empty text, 0, 0, 0, No or a
+ * new empty list. Any keeps the blank as empty text.
+ *
+ * @param type Kind, one of the Type words.
+ * @returns Value.
+ */
+export function solidScriptTypeDefault(type: string): SolidScriptValue {
+  if (type.endsWith('List')) return [];
+  if (type === 'Number') return 0;
+  if (type === 'Vector') return [0, 0, 0];
+  if (type === 'Yes/No') return false;
+  return type === 'Any' || type === '' || type === 'Text' ? '' : undefined;
+}
+
+/**
+ * Reads the value of a Set line for its declared kind: a blank gives the
+ * default, a list kind splits the text on commas (one bracket alone may give
+ * the whole list), and Text keeps numbers as text.
+ *
+ * @param type Declared kind, empty for none.
+ * @param text Value as written.
+ * @param whole Reads the value as written.
+ * @param items Reads each comma-separated item.
+ * @returns Value.
+ */
+export function solidScriptTypeValue(
+  type: string,
+  text: string,
+  whole: () => SolidScriptValue,
+  items: () => SolidScriptValue[],
+): SolidScriptValue {
+  if (type === '' || type === 'Any') return whole();
+  if (text.trim() === '') return solidScriptTypeDefault(type);
+  if (type.endsWith('List')) {
+    const item = type.slice(0, -'List'.length).trim();
+    let list: SolidScriptValue[];
+    if (solidScriptFieldSplit(text, ',').length === 1) {
+      const value = whole();
+      const vector = item === 'Vector' && solidScriptTypeFits('Vector', value);
+      list = Array.isArray(value) && !vector ? value : [value];
+    } else list = items();
+    return item === 'Text'
+      ? list.map((entry) => (typeof entry === 'string' ? entry : solidScriptValueText(entry)))
+      : list;
+  }
+  const value = whole();
+  return type === 'Text' && (typeof value === 'number' || typeof value === 'boolean')
+    ? solidScriptValueText(value)
+    : value;
+}
+
+/**
+ * Lists the words a value of a kind may be written as, offered in its field:
+ * Yes and No for Yes/No.
+ *
+ * @param type Kind, one of the Type words.
+ * @returns Words with their meaning.
+ */
+export function solidScriptTypeWords(type: string): { word: string; detail: string }[] {
+  return type.trim().toLowerCase() === 'yes/no'
+    ? [
+        { word: 'Yes', detail: 'On' },
+        { word: 'No', detail: 'Off; also what an empty Value gives' },
+      ]
+    : [];
+}

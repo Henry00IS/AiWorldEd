@@ -1,3 +1,4 @@
+import { solidScriptTypeValue } from './solid_script_types.js';
 import {
   SOLID_SCRIPT_USE_GENERATOR,
   solidScriptInputBrushName,
@@ -675,6 +676,14 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       },
       text: (key) => SolidScriptMachine.fieldOf(fields, node, key).text,
       value,
+      valueTyped(key, type) {
+        return solidScriptTypeValue(
+          type,
+          this.text(key),
+          () => value(key),
+          () => this.values(key),
+        );
+      },
       variableSet: (name, assigned) => state.machine.variableSet(state.scope, name, assigned),
       typeKeep: (name, type, assigned) => state.machine.typeKeep(name, type, assigned),
       solid: (points) => {

@@ -47,6 +47,8 @@ export interface SolidScriptConfiguratorScope {
   names: readonly SolidScriptName[];
   /** Names the command fills in for its own formulas. */
   extra: readonly string[];
+  /** Reads another field of the line as it is typed now. */
+  other?: (key: string) => string;
 }
 
 /** How a field's inputs are read and checked. */
@@ -109,13 +111,18 @@ export function solidScriptConfiguratorFieldBuild(
     scope.names
       .filter((entry) => categories.includes(entry.category))
       .map((entry) => ({ word: entry.name, detail: entry.detail }));
+  const words = parameter.nameGroups
+    ? named(parameter.nameGroups)
+    : parameter.type === 'boolean'
+      ? SOLID_SCRIPT_CONFIGURATOR_YES_NO
+      : (parameter.words ?? []);
+  const from = parameter.wordsOf;
   const suggest: SolidScriptSuggestionScope = {
-    ...scope,
-    words: parameter.nameGroups
-      ? named(parameter.nameGroups)
-      : parameter.type === 'boolean'
-        ? SOLID_SCRIPT_CONFIGURATOR_YES_NO
-        : (parameter.words ?? []),
+    names: scope.names,
+    extra: scope.extra,
+    get words() {
+      return from ? [...words, ...from.words(scope.other?.(from.key) ?? '')] : words;
+    },
   };
   const texts =
     (parameter.type === 'name' || parameter.type === 'target') && !parameter.nameGroups

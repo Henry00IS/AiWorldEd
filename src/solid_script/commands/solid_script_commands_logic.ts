@@ -5,7 +5,7 @@ import {
   solidScriptParameterOptional,
   solidScriptParameterWords,
 } from './solid_script_command_parameters.js';
-import { SOLID_SCRIPT_TYPES } from '@/solid_script/language/solid_script_types.js';
+import { SOLID_SCRIPT_TYPES, solidScriptTypeWords } from '@/solid_script/language/solid_script_types.js';
 import {
   SolidScriptElement,
   solidScriptValueText,
@@ -69,13 +69,18 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
         'Width',
         'Letters, digits and _, not starting with a digit. For a list, Points() adds an item and Points(2) changes item 2.',
       ),
-      solidScriptParameter(
-        'value',
-        'Value',
-        'value',
-        '2',
-        'A number, numbers separated by commas such as 1, 2, 3, plain text, [Name] for another variable, or [=formula] such as [=[Width] * 2].',
-      ),
+      {
+        ...solidScriptParameter(
+          'value',
+          'Value',
+          'value',
+          '',
+          'A number, numbers separated by commas such as 1, 2, 3, a vector such as [1, 2, 3], plain text, [Name] for another variable, or [=formula] such as [=[Width] * 2]. Left empty it is the empty value of the Type: 0, no text, 0, 0, 0, No or a new empty list.',
+        ),
+        placeholder: '2',
+        optional: true,
+        wordsOf: { key: 'type', words: solidScriptTypeWords },
+      },
       {
         ...solidScriptParameterWords(
           'type',
@@ -99,8 +104,9 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
       read.value('value'),
     ],
     execute: (run) => {
-      const value = run.value('value');
-      run.typeKeep(run.text('name'), run.text('type').trim(), value);
+      const type = run.text('type').trim();
+      const value = run.valueTyped('value', type);
+      run.typeKeep(run.text('name'), type, value);
       run.variableSet(run.text('name'), value);
       return [];
     },

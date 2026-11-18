@@ -65,7 +65,11 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
         parameter,
         values[parameter.key] ?? parameter.default,
         () => this.refresh(),
-        { names, extra: SOLID_SCRIPT_NAMES_COMMAND[command.id] ?? [] },
+        {
+          names,
+          extra: SOLID_SCRIPT_NAMES_COMMAND[command.id] ?? [],
+          other: (key) => this.fields.get(key)?.read() ?? values[key] ?? '',
+        },
       );
       this.fields.set(parameter.key, field);
       list.append(field.element);

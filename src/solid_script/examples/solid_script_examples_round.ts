@@ -153,7 +153,7 @@ export const SOLID_SCRIPT_EXAMPLE_COLUMN: readonly SolidScriptLine[] = [
               ...solidScriptExampleIf('Abs([Step] - [Slope]) <= 0.000000001', [
                 solidScriptExampleLine('remove_item', { target: 'Marks()' }),
               ]),
-              solidScriptExampleLine('add_item', { value: '[=Vector([B.x], [B.y], [Run])]', list: 'Marks' }),
+              solidScriptExampleLine('add_item', { value: '[[B.x], [B.y], [Run]]', list: 'Marks' }),
             ],
             [
               solidScriptExampleSet('Run', '[=[Run] + 1]'),

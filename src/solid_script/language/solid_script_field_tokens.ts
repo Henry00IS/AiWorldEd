@@ -144,7 +144,10 @@ export function solidScriptFieldTokens(text: string): SolidScriptFieldToken[] {
       index = Math.min(text.length, end + 1);
       continue;
     }
-    const number = SOLID_SCRIPT_FIELD_NUMBER.exec(rest)?.[0];
+    // In a [name] bracket a minus is part of a number, as in the vector [1, -2, 3].
+    const sign = mode === 'name' && char === '-' ? '-' : '';
+    const unsigned = SOLID_SCRIPT_FIELD_NUMBER.exec(rest.slice(sign.length))?.[0];
+    const number = unsigned === undefined ? undefined : sign + unsigned;
     if (number && !/^[A-Za-z_]/.test(rest.slice(number.length))) {
       push('number', index, index + number.length);
       index += number.length;

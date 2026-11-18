@@ -439,6 +439,24 @@ describe('SolidScript editor', () => {
     expect(script().blocks[2]?.values['size']).toBe('[$Box.Width]');
   });
 
+  it('suggests the words of the Type of a Set line when its Value is clicked', () => {
+    editorFixture([{ command: 'variable', values: { name: 'Open', value: '', type: 'Yes/No' } }, { command: 'cube' }]);
+    doubleClick(chip(0));
+    const value = find<HTMLInputElement>('[data-solid-script-configurator="variable"] input[aria-label="Value"]');
+    value.focus();
+    value.click();
+    const options = () =>
+      [...document.querySelectorAll('[aria-label="Suggestions"] [role="option"]')].map(
+        (option) => option.firstChild?.textContent,
+      );
+    expect(options()).toEqual(['Yes', 'No']);
+    value.blur();
+    type(find<HTMLInputElement>('[data-solid-script-configurator="variable"] input[aria-label="Type"]'), 'Number');
+    value.focus();
+    value.click();
+    expect(options()).not.toContain('Yes');
+  });
+
   it('checks Input lines while they are configured and lists what the script defines in the variable explorer', () => {
     editorFixture([
       { command: 'input', values: { name: 'steps', type: 'count', default: '3' } },
