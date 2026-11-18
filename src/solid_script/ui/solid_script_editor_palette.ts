@@ -2,7 +2,7 @@ import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
 import type { SolidScriptCommand } from '@/solid_script/commands/solid_script_command.js';
 import {
   SOLID_SCRIPT_COMMAND_CATEGORIES,
-  solidScriptCommands,
+  solidScriptCommandsOfCategory,
 } from '@/solid_script/commands/solid_script_command_catalog.js';
 import { SOLID_SCRIPT_EDITOR_CATEGORY_COLORS, SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import { solidScriptEditorIcon } from './solid_script_editor_icons.js';
@@ -66,7 +66,7 @@ export class SolidScriptEditorPalette {
     this.empty.textContent = 'No command matches. Try another word, or press Escape.';
     this.empty.hidden = true;
     for (const category of SOLID_SCRIPT_COMMAND_CATEGORIES) {
-      const commands = solidScriptCommands.filter((command) => command.inPalette && command.category === category);
+      const commands = solidScriptCommandsOfCategory(category);
       if (commands.length === 0) continue;
       const caption = this.caption(category);
       this.list.append(caption);

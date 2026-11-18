@@ -56,3 +56,17 @@ const SOLID_SCRIPT_COMMANDS_BY_ID: ReadonlyMap<string, SolidScriptCommand> = new
 export function solidScriptCommandFind(id: string): SolidScriptCommand | undefined {
   return SOLID_SCRIPT_COMMANDS_BY_ID.get(id);
 }
+
+/**
+ * Palette commands of one group, sorted by their display name so a new command
+ * appears in order without hand-sorting the registry.
+ *
+ * @param category Palette group.
+ * @returns Commands of that group, sorted by label.
+ */
+export function solidScriptCommandsOfCategory(category: SolidScriptCommandCategory): SolidScriptCommand[] {
+  return solidScriptCommands
+    .filter((command) => command.inPalette && command.category === category)
+    .slice()
+    .sort((left, right) => left.label.localeCompare(right.label));
+}
