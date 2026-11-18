@@ -110,6 +110,148 @@ function solidScriptExtraSeeded(seed: number): number {
 }
 
 /**
+ * A random number or vector. One seed always gives the same result; for a
+ * vector the first component uses that seed, the next uses seed + 1, and so
+ * on.
+ *
+ * @param args Min, max and optional seed.
+ * @returns Number or vector.
+ */
+function solidScriptExtraRandom(args: readonly SolidScriptValue[]): SolidScriptValue {
+  const usage = 'Random(min, max, seed)';
+  const seed = args.length > 2 ? solidScriptExtraNumber(args, 2, usage) : 0;
+  if (Array.isArray(args[0]) || Array.isArray(args[1])) return solidScriptExtraRandomVector(args, seed, usage);
+  const low = solidScriptExtraNumber(args, 0, usage);
+  return low + (solidScriptExtraNumber(args, 1, usage) - low) * solidScriptExtraSeeded(seed);
+}
+
+/**
+ * A random vector whose first component matches Random of those two numbers and
+ * the same seed.
+ *
+ * @param args Min, max and optional seed.
+ * @param seed Seed of the first component.
+ * @param usage How to call the function, for the message.
+ * @returns Vector.
+ */
+function solidScriptExtraRandomVector(args: readonly SolidScriptValue[], seed: number, usage: string): number[] {
+  const low = solidScriptValueNumbers(args[0]);
+  const high = solidScriptValueNumbers(args[1]);
+  if (!low || !high || low.length !== high.length || low.length === 0)
+    throw new Error(`${usage} needs two numbers, or two vectors of the same size`);
+  return low.map((start, axis) => start + ((high[axis] ?? start) - start) * solidScriptExtraSeeded(seed + axis));
+}
+
+/**
+ * Turns a value into a number so Hash can seed from it.
+ *
+ * @param value Value.
+ * @returns Number.
+ */
+function solidScriptExtraHashKey(value: SolidScriptValue): number {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'boolean') return value ? 1 : 0;
+  const text = solidScriptValueText(value);
+  let hash = 0;
+  for (const char of text) hash = Math.imul(hash, 31) + (char.codePointAt(0) ?? 0);
+  return hash;
+}
+
+/**
+ * Smooth noise from 0 to 1 at a point, always the same for the same seed.
+ *
+ * @param x Lattice x.
+ * @param y Lattice y.
+ * @param z Lattice z.
+ * @param seed Seed.
+ * @returns Number from 0 to 1.
+ */
+function solidScriptExtraNoise(x: number, y: number, z: number, seed: number): number {
+  const ix = Math.floor(x);
+  const iy = Math.floor(y);
+  const iz = Math.floor(z);
+  const fx = solidScriptExtraFade(x - ix);
+  const fy = solidScriptExtraFade(y - iy);
+  const fz = solidScriptExtraFade(z - iz);
+  const at = (cx: number, cy: number, cz: number) =>
+    solidScriptExtraSeeded(seed + cx * 73856093 + cy * 19349663 + cz * 83492791);
+  const x0 = solidScriptExtraLerp(at(ix, iy, iz), at(ix + 1, iy, iz), fx);
+  const x1 = solidScriptExtraLerp(at(ix, iy + 1, iz), at(ix + 1, iy + 1, iz), fx);
+  const x2 = solidScriptExtraLerp(at(ix, iy, iz + 1), at(ix + 1, iy, iz + 1), fx);
+  const x3 = solidScriptExtraLerp(at(ix, iy + 1, iz + 1), at(ix + 1, iy + 1, iz + 1), fx);
+  return solidScriptExtraLerp(solidScriptExtraLerp(x0, x1, fy), solidScriptExtraLerp(x2, x3, fy), fz);
+}
+
+/**
+ * Smooth fade from 0 to 1.
+ *
+ * @param value Fraction.
+ * @returns Smoothed fraction.
+ */
+function solidScriptExtraFade(value: number): number {
+  return value * value * (3 - 2 * value);
+}
+
+/**
+ * Linear blend.
+ *
+ * @param from Start.
+ * @param to End.
+ * @param amount How far along, from 0 to 1.
+ * @returns Blended value.
+ */
+function solidScriptExtraLerp(from: number, to: number, amount: number): number {
+  return from + (to - from) * amount;
+}
+
+/**
+ * Shuffles a list. One seed always gives the same order.
+ *
+ * @param list Items.
+ * @param seed Seed.
+ * @returns A new list in the shuffled order.
+ */
+function solidScriptExtraShuffle(list: readonly SolidScriptValue[], seed: number): SolidScriptValue[] {
+  const items = [...list];
+  for (let index = items.length - 1; index > 0; index--) {
+    const swap = Math.floor(solidScriptExtraSeeded(seed + index) * (index + 1));
+    const left = items[index];
+    const right = items[swap];
+    if (left === undefined || right === undefined) continue;
+    items[index] = right;
+    items[swap] = left;
+  }
+  return items;
+}
+
+/**
+ * Index of the closest point in a list.
+ *
+ * @param args Points and the point to measure from.
+ * @returns Index from 0.
+ */
+function solidScriptExtraNearest(args: readonly SolidScriptValue[]): number {
+  const usage = 'Nearest(points, point)';
+  const list = args[0];
+  if (!Array.isArray(list) || list.length === 0)
+    throw new Error(`${usage} needs a list of points, not ${solidScriptValueText(list)}`);
+  const from = solidScriptExtraVector(args, 1, usage);
+  let best = 0;
+  let nearest = Number.POSITIVE_INFINITY;
+  list.forEach((entry, index) => {
+    const point = solidScriptValueNumbers(entry);
+    if (!point || point.length !== from.length)
+      throw new Error(`${usage} needs points that all have the same number of values as the point`);
+    const distance = Math.hypot(...point.map((value, axis) => value - (from[axis] ?? 0)));
+    if (distance < nearest) {
+      nearest = distance;
+      best = index;
+    }
+  });
+  return best;
+}
+
+/**
  * Text, math and vector functions: everyday helpers so a script rarely needs a
  * long formula. Names are plain words; trigonometry elsewhere works in
  * degrees.
@@ -244,13 +386,33 @@ export const SOLID_SCRIPT_FUNCTIONS_EXTRA = {
       throw new Error(`${usage} has ${args.length - 1} choices, numbered from 0, so ${index} is not one of them`);
     return args[index + 1];
   },
-  random: (args) => {
-    const usage = 'Random(min, max, seed)';
-    const low = solidScriptExtraNumber(args, 0, usage);
-    const high = solidScriptExtraNumber(args, 1, usage);
-    const seed = args.length > 2 ? solidScriptExtraNumber(args, 2, usage) : 0;
-    return low + (high - low) * solidScriptExtraSeeded(seed);
+  random: (args) => solidScriptExtraRandom(args),
+  hash: (args) => {
+    const usage = 'Hash(value, seed)';
+    if (args.length < 1) throw new Error(`${usage} needs a value`);
+    const seed = args.length > 1 ? solidScriptExtraNumber(args, 1, usage) : 0;
+    return solidScriptExtraSeeded(solidScriptExtraHashKey(args[0]) + seed);
   },
+  noise: (args) => {
+    const usage = 'Noise(x, y, z, scale, seed)';
+    const scale = args.length > 3 ? solidScriptExtraNumber(args, 3, usage) : 1;
+    if (!(scale > 0)) throw new Error(`${usage} needs a scale greater than 0`);
+    const seed = args.length > 4 ? solidScriptExtraNumber(args, 4, usage) : 0;
+    return solidScriptExtraNoise(
+      solidScriptExtraNumber(args, 0, usage) / scale,
+      solidScriptExtraNumber(args, 1, usage) / scale,
+      solidScriptExtraNumber(args, 2, usage) / scale,
+      seed,
+    );
+  },
+  shuffle: (args) => {
+    const usage = 'Shuffle(list, seed)';
+    const value = args[0];
+    if (!Array.isArray(value)) throw new Error(`${usage} needs a list, not ${solidScriptValueText(value)}`);
+    const seed = args.length > 1 ? solidScriptExtraNumber(args, 1, usage) : 0;
+    return solidScriptExtraShuffle(value, seed);
+  },
+  nearest: (args) => solidScriptExtraNearest(args),
   trunc: (args) => Math.trunc(solidScriptExtraNumber(args, 0, 'Trunc(number)')),
   clamp: (args) => {
     const usage = 'Clamp(value, min, max)';

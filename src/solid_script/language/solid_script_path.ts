@@ -174,3 +174,123 @@ export function solidScriptPathResample(path: readonly number[][], count: number
   }
   return result;
 }
+
+/** A point on a path and the way the path faces there. */
+export interface SolidScriptPathSample {
+  /** Point at that distance along the path. */
+  position: number[];
+  /** Unit direction of the stretch that holds it. */
+  direction: number[];
+}
+
+/**
+ * Finds the point at a fraction of a path's length, and the way the path faces
+ * there. 0 is the first point, 1 is the last.
+ *
+ * @param path Points, at least 2.
+ * @param amount How far along, from 0 to 1.
+ * @returns Point and direction.
+ */
+export function solidScriptPathSample(path: readonly number[][], amount: number, usage: string): SolidScriptPathSample {
+  if (path.length < 2) throw new Error(`${usage} needs at least 2 points`);
+  const total = solidScriptPathLength(path);
+  const target = Math.min(1, Math.max(0, amount)) * total;
+  const at = solidScriptPathWalk(path, target);
+  const direction = solidScriptPathStretch(path, at.stretch, usage);
+  return { position: at.position, direction };
+}
+
+/**
+ * The point at a fraction of a path's length.
+ *
+ * @param path Points, at least 2.
+ * @param amount How far along, from 0 to 1.
+ * @returns Point.
+ */
+export function solidScriptPathAt(path: readonly number[][], amount: number, usage: string): number[] {
+  return solidScriptPathSample(path, amount, usage).position;
+}
+
+/**
+ * The way a path faces at a fraction of its length.
+ *
+ * @param path Points, at least 2.
+ * @param amount How far along, from 0 to 1.
+ * @returns Unit direction.
+ */
+export function solidScriptPathDirection(path: readonly number[][], amount: number, usage: string): number[] {
+  return solidScriptPathSample(path, amount, usage).direction;
+}
+
+/**
+ * Keeps the part of a path from one fraction of its length to another.
+ *
+ * @param path Points, at least 2.
+ * @param start Where the kept part starts, from 0 to 1.
+ * @param end Where the kept part ends, from 0 to 1.
+ * @returns Points of the kept part.
+ */
+export function solidScriptPathTrim(path: readonly number[][], start: number, end: number, usage: string): number[][] {
+  if (path.length < 2) throw new Error(`${usage} needs at least 2 points`);
+  const low = Math.min(1, Math.max(0, Math.min(start, end)));
+  const high = Math.min(1, Math.max(0, Math.max(start, end)));
+  const total = solidScriptPathLength(path);
+  if (total <= SOLID_SCRIPT_PATH_EPSILON || high - low <= SOLID_SCRIPT_PATH_EPSILON)
+    throw new Error(`${usage} needs a stretch with some length, so start and end must differ`);
+  const from = solidScriptPathWalk(path, low * total);
+  const to = solidScriptPathWalk(path, high * total);
+  const middle = path.slice(from.stretch, to.stretch);
+  const points = [from.position, ...middle, to.position];
+  return start <= end ? points : [...points].reverse();
+}
+
+/** A walk along a path to a target length. */
+interface SolidScriptPathWalked {
+  position: number[];
+  stretch: number;
+}
+
+/**
+ * Walks a path up to a length and returns the point and the stretch that holds
+ * it, numbered from 1.
+ *
+ * @param path Points, at least 2.
+ * @param target Length from the start, in metres.
+ * @returns Point and stretch.
+ */
+function solidScriptPathWalk(path: readonly number[][], target: number): SolidScriptPathWalked {
+  let walked = 0;
+  for (let stretch = 1; stretch < path.length; stretch++) {
+    const a = path[stretch - 1];
+    const b = path[stretch];
+    if (!a || !b) continue;
+    const gap = solidScriptPathGap(a, b);
+    if (walked + gap >= target || stretch === path.length - 1) {
+      const t = gap > 0 ? Math.min(1, Math.max(0, (target - walked) / gap)) : 0;
+      return { position: a.map((value, axis) => value + ((b[axis] ?? 0) - value) * t), stretch };
+    }
+    walked += gap;
+  }
+  const last = path[path.length - 1];
+  return { position: last ? [...last] : [], stretch: Math.max(1, path.length - 1) };
+}
+
+/**
+ * Unit direction of one stretch, or a neighbour when that stretch has no
+ * length.
+ *
+ * @param path Points.
+ * @param stretch Stretch number, from 1.
+ * @returns Unit direction.
+ */
+function solidScriptPathStretch(path: readonly number[][], stretch: number, usage: string): number[] {
+  for (const at of [stretch, stretch - 1, ...Array.from({ length: path.length - 1 }, (_, index) => index + 1)]) {
+    const a = path[at - 1];
+    const b = path[at];
+    if (!a || !b) continue;
+    const direction = a.map((value, axis) => (b[axis] ?? 0) - value);
+    const size = Math.hypot(...direction);
+    if (size > SOLID_SCRIPT_PATH_EPSILON) return direction.map((value) => value / size);
+  }
+  throw new Error(`${usage} needs a length, so its points must not all sit in the same place`);
+}

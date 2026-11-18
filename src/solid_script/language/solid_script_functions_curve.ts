@@ -3,7 +3,13 @@ import { curveFromPolyline, type Curve } from '@/curve/model/curve_model.js';
 import { curveEvaluate } from '@/curve/model/curve_sample.js';
 import { generatorRevolveStationsFromCurve } from '@/generator/revolve/generator_revolve_curve.js';
 import { solidScriptExtraNumber } from './solid_script_functions_extra.js';
-import { solidScriptPathLength, solidScriptPathResample } from './solid_script_path.js';
+import {
+  solidScriptPathAt,
+  solidScriptPathDirection,
+  solidScriptPathLength,
+  solidScriptPathResample,
+  solidScriptPathTrim,
+} from './solid_script_path.js';
 import { solidScriptValueNumbers, solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
 
 /** A built-in function over evaluated arguments. */
@@ -72,6 +78,23 @@ export const SOLID_SCRIPT_FUNCTIONS_CURVE = {
     const count = Math.round(solidScriptExtraNumber(args, 1, usage));
     if (count < 2 || count > 10000) throw new Error(`${usage} needs a count from 2 to 10000, not ${count}`);
     return solidScriptPathResample(path, count);
+  },
+  path_at: (args) => {
+    const usage = 'PathAt(points, amount)';
+    return solidScriptPathAt(solidScriptCurvePath(args, usage), solidScriptExtraNumber(args, 1, usage), usage);
+  },
+  path_direction: (args) => {
+    const usage = 'PathDirection(points, amount)';
+    return solidScriptPathDirection(solidScriptCurvePath(args, usage), solidScriptExtraNumber(args, 1, usage), usage);
+  },
+  trim_path: (args) => {
+    const usage = 'TrimPath(points, start, end)';
+    return solidScriptPathTrim(
+      solidScriptCurvePath(args, usage),
+      solidScriptExtraNumber(args, 1, usage),
+      solidScriptExtraNumber(args, 2, usage),
+      usage,
+    );
   },
   profile_points: (args) => {
     const usage = 'ProfilePoints(curve, height, radius)';

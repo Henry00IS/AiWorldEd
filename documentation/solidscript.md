@@ -93,7 +93,8 @@ Brushes, faces, edges and corners are values, like numbers and text. A dot reads
 <summary>More Details</summary>
 
 - Each stretch becomes one solid, cut on the mitre so the pieces meet; **As Mesh** builds one mesh instead.
-- `Resample(points, count)` spaces points evenly along a path, and `PathLength(points)` measures it.
+- `Resample(points, count)` spaces points evenly along a path, and `PathLength(points)` measures it. `PathAt(points, amount)` and `PathDirection(points, amount)` give the point and the way the path faces at a fraction of its length, and `TrimPath(points, start, end)` keeps one stretch.
+- `Noise(x, y, z, scale, seed)` is a smooth random field from 0 to 1, and `Hash(value, seed)` is a number from 0 to 1 from any value. `Random(min, max, seed)` can be two vectors, `Shuffle(list, seed)` shuffles a list, and `Nearest(points, point)` is the index of the closest point. `RotateVector(vector, axis, degrees)`, `Angle(a, b)`, `Project(point, through, normal)` and `Reflect(vector, normal)` work on vectors. For a yes-or-no chance, write `Random(0, 1, seed) < 0.3`.
 - **Merge By Distance** welds mesh corners that nearly touch. **Mesh From Shapes** turns shapes into a real mesh.
 
 </details>
