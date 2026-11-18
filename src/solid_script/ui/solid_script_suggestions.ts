@@ -411,10 +411,14 @@ function solidScriptSuggestionType(name: string, scope: SolidScriptSuggestionSco
   } else {
     const first = word(parts[0]!);
     const key = first.toLowerCase();
-    const axes = solidScriptSuggestionAxes(first, scope);
-    if (axes !== null && axes > 0) type = 'Vector';
-    else if (scope.names.some((entry) => entry.name.toLowerCase() === key && entry.category === 'Lists')) type = 'List';
-    else type = solidScriptSuggestionNamed(key, scope, depth);
+    // A declared Type or the list a For Each walks wins over guessing a vector from commas.
+    type = solidScriptSuggestionNamed(key, scope, depth);
+    if (type === null) {
+      const axes = solidScriptSuggestionAxes(first, scope);
+      if (axes !== null && axes > 0) type = 'Vector';
+      else if (scope.names.some((entry) => entry.name.toLowerCase() === key && entry.category === 'Lists'))
+        type = 'List';
+    }
     if (type && item(parts[0]!)) type = type === 'List' ? 'Item' : null;
   }
   for (const part of parts.slice(used)) {

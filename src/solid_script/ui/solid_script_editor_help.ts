@@ -18,7 +18,7 @@ const SOLID_SCRIPT_EDITOR_HELP_LINE =
 
 /** How field text is read, shown under the values of every command with fields. */
 const SOLID_SCRIPT_EDITOR_HELP_FIELDS =
-  'Fields are plain text without quotes. [Name] puts in a variable, [=formula] a calculation such as [=[I] * 2]. Write $[ and $] for brackets, $$ for a dollar sign.';
+  'Fields are plain text without quotes. [Name] puts in a variable, [=formula] a calculation such as [=[I] * 2]. Write $[ and $] for brackets, $$ for a dollar sign, $, for a comma inside a list item.';
 
 /**
  * The help panel beside the script: a short summary of the selected palette

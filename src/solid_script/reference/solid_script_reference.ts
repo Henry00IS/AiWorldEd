@@ -64,7 +64,8 @@ Every field is plain text, without quotes, read like this:
 - [=formula] puts in the result of a formula; inside it, write variables as [Name] too: "[=[I] * 2]", "[=[Width] / 2], 0, [=Sin([Angle]) * 3]".
 - Brackets nest, so a variable name can itself come from variables: "[Part[I]]" reads the variable whose name is part followed by the value of i.
 - Text fields such as Echo's message mix plain text with them: "Width is [Width], area [=[Width] * [Depth]]".
-- $ keeps the next character as typed: $[ and $] write brackets, $$ a dollar sign.
+- $ keeps the next character as typed: $[ and $] write brackets, $$ a dollar sign, $, a comma inside a list item.
+- A list is read item by item, then the text a bracket gives is split at its commas: For Each In [Text], 23 with Text set to Hello, World walks Hello, World and 23.
 - If's condition is a formula without the leading =: "[I] % 2 == 0", "[Width] > 2 && [Open]".
 - Set's value is a number, a comma list of numbers, true/false, or else plain text.
 - Name fields (variable, counter, part names) take a plain name, without brackets; Set's name may also be a list item such as Points([I]). Note text is used as typed. Names ignore case everywhere (variables, Local. and Persistent., system values such as Face.Center, and functions, so CharacterCode is character_code); write them in PascalCase, such as [StepHeight], Function Staircase and Sin(65).

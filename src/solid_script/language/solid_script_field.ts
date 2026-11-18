@@ -14,8 +14,8 @@ import { solidScriptNameKey } from './solid_script_name_key.js';
  * How the text typed into a block field is read. Field text is plain text
  * without quotes: [name] puts in the value of a variable, [=formula] the result
  * of a formula, and $ before a character keeps it as typed, so $[ and $] write
- * brackets and $$ a dollar sign. Brackets may nest, so a variable name or a
- * formula can itself be built from variables.
+ * brackets, $$ a dollar sign and $, a comma inside a list item. Brackets may
+ * nest, so a variable name or a formula can itself be built from variables.
  */
 export type SolidScriptFieldKind =
   | 'number'
@@ -103,14 +103,14 @@ const SOLID_SCRIPT_FIELD_ITEM_OPEN = /^\s*([A-Za-z_]\w*)\s*\(\s*$/;
 const SOLID_SCRIPT_FIELD_ITEM_CLOSE = /^\s*\)\s*$/;
 
 /**
- * Characters a $ keeps as typed: $$, $[ and $]. A $ before anything else is
- * itself, as in [$Selected.Faces].
+ * Characters a $ keeps as typed: $$, $[, $] and $, for a comma inside a list
+ * item. A $ before anything else is itself, as in [$Selected.Faces].
  */
-const SOLID_SCRIPT_FIELD_ESCAPED: ReadonlySet<string> = new Set(['$', '[', ']']);
+const SOLID_SCRIPT_FIELD_ESCAPED: ReadonlySet<string> = new Set(['$', '[', ']', ',']);
 
 /**
  * Tells whether the character at a place is a $ that keeps the next one as
- * typed: $$, $[ or $].
+ * typed: $$, $[, $] or $,.
  *
  * @param text Field text.
  * @param index Place.
@@ -469,6 +469,32 @@ export function solidScriptFieldSplit(text: string, separator: string): string[]
   }
   items.push(text.slice(start).trim());
   return items;
+}
+
+/**
+ * Reads the items of a list field: each item between commas is read first, and
+ * the text a bracket gives is then split at its own commas, so [Text], 23 with
+ * Text set to Hello, World gives Hello, World and 23. A $, keeps a comma inside
+ * an item. A single bracket that gives a list gives its items.
+ *
+ * @param text Field text.
+ * @param read Reads one item.
+ * @returns Items.
+ */
+export function solidScriptFieldList(text: string, read: (item: string) => SolidScriptValue): SolidScriptValue[] {
+  if (text.trim() === '') return [];
+  const items = solidScriptFieldSplit(text, ',');
+  const list: SolidScriptValue[] = [];
+  for (const item of items) {
+    const value = read(item);
+    const bracketed = solidScriptFieldPieces(item).some((piece) => piece.kind !== 'plain');
+    if (Array.isArray(value) && items.length === 1) list.push(...value);
+    else if (typeof value === 'string' && bracketed)
+      for (const part of solidScriptFieldSplit(value, ','))
+        list.push(solidScriptFieldNumber(part.replace(/\$,/g, ',')));
+    else list.push(value);
+  }
+  return list;
 }
 
 /**

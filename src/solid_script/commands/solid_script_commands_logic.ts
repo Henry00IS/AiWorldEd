@@ -182,10 +182,11 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
       ...(read.text('key').trim() === '' ? [] : [' Key ', read.variable('key')]),
     ],
     execute: (run) => {
-      const list = run.value('list');
+      const list = run.list('list');
+      const only = list.length === 1 ? list[0] : undefined;
       const entries =
-        list instanceof SolidScriptElement && list.kind === 'data' ? run.elements.dataEntries(list) : null;
-      const items = entries ? entries.map((entry) => entry.value) : Array.isArray(list) ? list : [list];
+        only instanceof SolidScriptElement && only.kind === 'data' ? run.elements.dataEntries(only) : null;
+      const items = entries ? entries.map((entry) => entry.value) : list;
       if (items.length > SOLID_SCRIPT_REPEAT_ROUNDS_MAX)
         throw new Error(`For Each would run ${items.length} times, more than ${SOLID_SCRIPT_REPEAT_ROUNDS_MAX}`);
       const key = run

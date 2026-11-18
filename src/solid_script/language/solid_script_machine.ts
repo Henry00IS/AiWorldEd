@@ -12,6 +12,7 @@ import { solidScriptErrorLine, solidScriptErrorText } from './solid_script_error
 import {
   solidScriptFieldCompiled,
   solidScriptFieldEscapes,
+  solidScriptFieldList,
   solidScriptFieldResolve,
   type SolidScriptFieldCompiled,
 } from './solid_script_field.js';
@@ -676,12 +677,16 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       },
       text: (key) => SolidScriptMachine.fieldOf(fields, node, key).text,
       value,
+      list: (key) =>
+        solidScriptFieldList(SolidScriptMachine.fieldOf(fields, node, key).text, (item) =>
+          solidScriptFieldResolve('value', item, state.machine.fieldContext(state.scope)),
+        ),
       valueTyped(key, type) {
         return solidScriptTypeValue(
           type,
           this.text(key),
           () => value(key),
-          () => this.values(key),
+          () => this.list(key),
         );
       },
       variableSet: (name, assigned) => state.machine.variableSet(state.scope, name, assigned),

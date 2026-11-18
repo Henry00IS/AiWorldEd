@@ -127,12 +127,10 @@ export function solidScriptTypeValue(
   if (text.trim() === '') return solidScriptTypeDefault(type);
   if (type.endsWith('List')) {
     const item = type.slice(0, -'List'.length).trim();
-    let list: SolidScriptValue[];
-    if (solidScriptFieldSplit(text, ',').length === 1) {
-      const value = whole();
-      const vector = item === 'Vector' && solidScriptTypeFits('Vector', value);
-      list = Array.isArray(value) && !vector ? value : [value];
-    } else list = items();
+    let list = items();
+    // One vector, such as [1, 2, 3] or [Pos], is a list holding that vector.
+    if (item === 'Vector' && solidScriptFieldSplit(text, ',').length === 1 && solidScriptTypeFits('Vector', list))
+      list = [list];
     return item === 'Text'
       ? list.map((entry) => (typeof entry === 'string' ? entry : solidScriptValueText(entry)))
       : list;

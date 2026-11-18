@@ -84,6 +84,11 @@ export interface SolidScriptBlockRun {
    * a list kind splits the text on commas.
    */
   valueTyped(key: string, type: string): SolidScriptValue;
+  /**
+   * Reads a list field: each item is read, then the text a bracket gives is
+   * split at its commas, so [Text], 23 walks every word of Text and 23.
+   */
+  list(key: string): SolidScriptValue[];
   /** Works out a field of values separated by commas, such as [i], 0.2. */
   values(key: string): SolidScriptValue[];
   /** Sets a variable, where it already exists or else in the current block. */
