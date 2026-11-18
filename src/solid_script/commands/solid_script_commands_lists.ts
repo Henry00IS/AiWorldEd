@@ -69,7 +69,10 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     description: 'Put a value at the end of a list',
     manual:
       'Puts a value at the end of a list. A list that does not exist yet is made. Example: Add Item 3 to Heights, then Add Item 5 to Heights, and Heights holds 3, 5.',
-    stops: ['A name that is set but is not a list.'],
+    stops: [
+      'A name that is set but is not a list.',
+      'A value that does not fit the Type declared for the list, such as 78o for a Number List.',
+    ],
     parameters: [
       solidScriptParameter('value', 'Value', 'value', '1', 'What to put in the list.'),
       SOLID_SCRIPT_LIST_NAME,
@@ -88,7 +91,11 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     description: 'Put a value at a position in a list',
     manual:
       'Puts a value into a list at a position; the items from there on move one place up. Positions count from 0, so 0 is the front. Example: Heights holds 3, 5. Insert Item 4 into Heights at 1 leaves 3, 4, 5.',
-    stops: [SOLID_SCRIPT_LIST_STOP, 'A position below 0 or past the end of the list.'],
+    stops: [
+      SOLID_SCRIPT_LIST_STOP,
+      'A position below 0 or past the end of the list.',
+      'A value that does not fit the Type declared for the list.',
+    ],
     parameters: [
       solidScriptParameter('value', 'Value', 'value', '1', 'What to put in the list.'),
       SOLID_SCRIPT_LIST_NAME,

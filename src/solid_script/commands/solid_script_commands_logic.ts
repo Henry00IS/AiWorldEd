@@ -64,6 +64,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
       'A name that is not letters, digits and _, or starts with a digit.',
       'A [Name] for a variable not set above this line, or a [=formula] that cannot be read.',
       'Setting an input of the script, which can only be read.',
+      'A value that does not fit the Type declared for the variable, here or on a Set above; every other line writing it, such as Add Item or Into, stops the same way.',
       'Setting a member such as Face.Center or Brush.Edges, which can only be read; only the values under .Data can be set.',
       'An item number past the end of a list, such as Points(5) when Points has 3 items.',
     ],
@@ -114,7 +115,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     execute: (run) => {
       const type = run.text('type').trim();
       const value = run.valueTyped('value', type);
-      run.typeKeep(run.text('name'), type, value);
+      run.typeKeep(run.text('name'), type);
       run.variableSet(run.text('name'), value);
       return [];
     },

@@ -98,6 +98,23 @@ function solidScriptNameWrittenType(command: string, key: string): { type?: stri
 }
 
 /**
+ * Lists the variables a line's fields surely write with the kind each gets,
+ * such as the Brush a Cube writes to Into or the Face List of Select Faces.
+ *
+ * @param block Line.
+ * @returns Variable names as written, without brackets, and their kinds.
+ */
+export function solidScriptNameWrittenKinds(
+  block: SolidScriptDocument['blocks'][number],
+): { name: string; kind: string }[] {
+  return Object.keys(SOLID_SCRIPT_NAMES_WRITTEN).flatMap((key) => {
+    const name = (block.values[key] ?? '').trim().replace(/^\[(.*)\]$/s, '$1');
+    const kind = solidScriptNameWrittenType(block.command, key).type;
+    return name !== '' && kind !== undefined ? [{ name, kind }] : [];
+  });
+}
+
+/**
  * Names a block for a description, in bold, such as **Cube**.
  *
  * @param command Command id.
@@ -146,7 +163,8 @@ export function solidScriptNameShown(name: string): string {
  * Lists the names a script defines, in line order, each once per kind: Input,
  * Set, Call results, Repeat and For Each counters, Function inputs as
  * Local.Name, Define Part, shape Names, When Input Changes and When Button
- * Pressed lines. Names built from other names, such as part[i], are left out.
+ * Pressed lines. Names built from other names, such as part[i], are left out. A
+ * Type a Set declares wins over the kind another line writing the name gives.
  *
  * @param document Script.
  * @returns Names.
@@ -162,8 +180,9 @@ export function solidScriptDocumentNames(document: SolidScriptDocument): SolidSc
   ): void => {
     const plain = solidScriptNameShown(name.trim());
     if (!SOLID_SCRIPT_NAME_PLAIN.test(plain)) return;
-    if (names.some((known) => known.name === plain && known.category === category)) return;
-    names.push({ name: plain, category, line, detail, ...kind });
+    const known = names.find((entry) => entry.name === plain && entry.category === category);
+    if (known === undefined) names.push({ name: plain, category, line, detail, ...kind });
+    else if (kind.type && kind.from && !(known.type && known.from)) Object.assign(known, kind);
   };
   document.blocks.forEach((block, line) => {
     const value = (key: string): string => block.values[key] ?? '';

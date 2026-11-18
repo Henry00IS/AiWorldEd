@@ -377,9 +377,10 @@ function solidScriptSuggestionAxes(name: string, scope: SolidScriptSuggestionSco
 }
 
 /**
- * Tells the kind a name of the script holds: the Type its Set declares, what
- * the line writing it gives, or a guess from the value it is set to or the list
- * a For Each walks. Guesses only drive suggestions, never results.
+ * Tells the kind a name of the script holds: the Type a Set declares for it,
+ * which every later write keeps, else what the line writing it gives, or a
+ * guess from the value it is set to or the list a For Each walks. Guesses only
+ * drive suggestions, never results.
  *
  * @param key Name, lower case.
  * @param scope What the field may refer to.
@@ -387,7 +388,8 @@ function solidScriptSuggestionAxes(name: string, scope: SolidScriptSuggestionSco
  * @returns Kind, or null when unknown.
  */
 function solidScriptSuggestionNamed(key: string, scope: SolidScriptSuggestionScope, depth: number): string | null {
-  const entry = scope.names.find((known) => known.name.toLowerCase() === key && (known.type || known.from));
+  const named = scope.names.filter((known) => known.name.toLowerCase() === key);
+  const entry = named.find((known) => known.type && known.from) ?? named.find((known) => known.type || known.from);
   if (!entry) return null;
   if (entry.type) return entry.type;
   const path = /^\[([^=\]][^\]]*)\]$/.exec(entry.from?.text.trim() ?? '')?.[1];

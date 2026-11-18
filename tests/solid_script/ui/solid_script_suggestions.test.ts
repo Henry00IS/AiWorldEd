@@ -287,3 +287,42 @@ describe('SolidScript suggestions', () => {
     expect(pad[0]?.detail).toBe('PadLeft(text, width, fill): Fills in front up to a width: 007.');
   });
 });
+
+describe('SolidScript suggestions follow a declared Type', () => {
+  /**
+   * Lists the member suggestions after a typed name in a script.
+   *
+   * @param lines Script lines.
+   * @param text Field text up to the caret.
+   * @returns Labels.
+   */
+  function membersOf(lines: Parameters<typeof solidScriptDocumentCreate>[0], text: string): string[] {
+    const scope = { names: solidScriptDocumentNames(solidScriptDocumentCreate(lines)), extra: [], words: [] };
+    return solidScriptSuggestions(solidScriptSuggestionContext(text, text.length, false), scope).map(
+      (entry) => entry.label,
+    );
+  }
+
+  it('keeps the declared Type over what another line writes, as running does', () => {
+    const shown = membersOf(
+      [
+        { command: 'cube', values: { into: 'Made' } },
+        { command: 'variable', values: { name: 'Made', value: 'oak', type: 'Text' } },
+      ],
+      '[Made.',
+    );
+    expect(shown).toContain('Made.Length');
+    expect(shown).not.toContain('Made.Faces');
+  });
+
+  it('keeps a Number List a Number List after Add Item', () => {
+    const shown = membersOf(
+      [
+        { command: 'variable', values: { name: 'Width', value: '5,3,7', type: 'Number List' } },
+        { command: 'add_item', values: { value: '78', list: 'Width' } },
+      ],
+      '[Width.',
+    );
+    expect(shown).toEqual(expect.arrayContaining(['Width.Count', 'Width.First', 'Width.Last']));
+  });
+});

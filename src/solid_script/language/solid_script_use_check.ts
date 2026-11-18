@@ -1,4 +1,8 @@
-import { solidScriptDocumentUses, type SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
+import {
+  solidScriptDocumentUses,
+  type SolidScriptDocument,
+  type SolidScriptBlock,
+} from '@/solid_script/document/solid_script_document.js';
 import { solidScriptBlockNesting } from '@/solid_script/document/solid_script_document_indent.js';
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
 import type { SolidScriptWarning } from './solid_script_machine_types.js';
@@ -9,10 +13,14 @@ import {
 } from './solid_script_field_mistakes.js';
 import {
   SOLID_SCRIPT_TYPES,
+  solidScriptTypeConvert,
+  solidScriptTypeKindProblem,
   solidScriptTypeLiteral,
   solidScriptTypeProblem,
   solidScriptTypeValue,
 } from './solid_script_types.js';
+import type { SolidScriptValue } from './solid_script_value.js';
+import { solidScriptNameWrittenKinds } from '@/solid_script/document/solid_script_document_names.js';
 import { solidScriptFieldSplit } from './solid_script_field.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
 
@@ -93,39 +101,101 @@ export function solidScriptMistakeCheck(
   return warnings;
 }
 
+/** Declared Types by name key, as the lines above a line leave them. */
+type SolidScriptTypeDeclared = Map<string, string>;
+
 /**
- * Finds, without running the script, the Set lines whose value surely does not
- * fit the Type the variable was declared as, and Types that are no kind. Only
- * certain mismatches count: a value from [Name] or a formula is checked when it
- * runs.
+ * Finds, without running the script, the lines that surely write a value of
+ * another kind to a variable declared with a Type, and Types that are no kind:
+ * Set values written without brackets, the items Add Item and Insert Item put
+ * in a typed list, and what fields such as Into write. Only certain mismatches
+ * count: a value from [Name] or a formula is checked when it runs.
  *
  * @param document Script.
  * @returns One warning per such line, in line order.
  */
 export function solidScriptTypeCheck(document: SolidScriptDocument): SolidScriptWarning[] {
   const warnings: SolidScriptWarning[] = [];
-  const declared = new Map<string, string>();
+  const declared: SolidScriptTypeDeclared = new Map();
   document.blocks.forEach((block, index) => {
-    if (block.off === true || block.command !== 'variable') return;
-    const name = (block.values['name'] ?? '').trim();
-    const type = (block.values['type'] ?? '').trim();
-    const warn = (text: string): number => warnings.push({ line: index + 1, text });
-    if (type !== '' && !SOLID_SCRIPT_TYPES.includes(type))
-      return void warn(`Type must be one of ${SOLID_SCRIPT_TYPES.join(', ')}, not "${type}".`);
-    const kept = type || declared.get(solidScriptNameKey(name));
-    if (type === 'Any') declared.delete(solidScriptNameKey(name));
-    else if (type !== '') declared.set(solidScriptNameKey(name), type);
-    const text = block.values['value'] ?? '';
-    // Read the way the line runs it, only from what is written without brackets.
-    const value = solidScriptTypeValue(
-      type,
-      text,
-      () => solidScriptTypeLiteral(text),
-      () => solidScriptFieldSplit(text, ',').map(solidScriptTypeLiteral),
-    );
-    const unknown = value === undefined || (Array.isArray(value) && value.includes(undefined));
-    const problem = kept && !unknown ? solidScriptTypeProblem(name, kept, value) : '';
-    if (problem) warn(`${problem}.`);
+    if (block.off === true) return;
+    const problem =
+      block.command === 'variable'
+        ? solidScriptTypeCheckSet(block, declared)
+        : solidScriptTypeCheckItem(block, declared) || solidScriptTypeCheckWritten(block, declared);
+    if (problem) warnings.push({ line: index + 1, text: problem.endsWith('.') ? problem : `${problem}.` });
   });
   return warnings;
+}
+
+/**
+ * Checks a Set line: its Type word, and its value against the Type it declares
+ * or the one declared before; keeps the declaration for the lines below.
+ *
+ * @param block Set line.
+ * @param declared Declared Types so far, changed by the line.
+ * @returns Problem, or an empty string.
+ */
+function solidScriptTypeCheckSet(block: SolidScriptBlock, declared: SolidScriptTypeDeclared): string {
+  const name = (block.values['name'] ?? '').trim();
+  const type = (block.values['type'] ?? '').trim();
+  if (type !== '' && !SOLID_SCRIPT_TYPES.includes(type))
+    return `Type must be one of ${SOLID_SCRIPT_TYPES.join(', ')}, not "${type}".`;
+  const kept = type || declared.get(solidScriptNameKey(name));
+  if (type === 'Any') declared.delete(solidScriptNameKey(name));
+  else if (type !== '') declared.set(solidScriptNameKey(name), type);
+  const text = block.values['value'] ?? '';
+  const value = solidScriptTypeValue(
+    type,
+    text,
+    () => solidScriptTypeLiteral(text),
+    () => solidScriptFieldSplit(text, ',').map(solidScriptTypeLiteral),
+  );
+  return solidScriptTypeCheckValue(name, kept, value);
+}
+
+/**
+ * Checks a value read from text without brackets against a declared Type, after
+ * turning it the way a running line does.
+ *
+ * @param name Variable as written.
+ * @param type Declared Type, or undefined for none.
+ * @param value Value, undefined where only running tells.
+ * @returns Problem, or an empty string.
+ */
+function solidScriptTypeCheckValue(name: string, type: string | undefined, value: SolidScriptValue): string {
+  const unknown = value === undefined || (Array.isArray(value) && value.includes(undefined));
+  return type && !unknown ? solidScriptTypeProblem(name, type, solidScriptTypeConvert(type, value)) : '';
+}
+
+/**
+ * Checks the item an Add Item or Insert Item line puts in a list declared with
+ * a Type.
+ *
+ * @param block Line.
+ * @param declared Declared Types so far.
+ * @returns Problem, or an empty string.
+ */
+function solidScriptTypeCheckItem(block: SolidScriptBlock, declared: SolidScriptTypeDeclared): string {
+  if (block.command !== 'add_item' && block.command !== 'insert_item') return '';
+  const list = (block.values['list'] ?? '').trim();
+  const type = declared.get(solidScriptNameKey(list));
+  return solidScriptTypeCheckValue(list, type, [solidScriptTypeLiteral(block.values['value'] ?? '')]);
+}
+
+/**
+ * Checks what the fields of a line surely write, such as the Brush of Into,
+ * against the Types declared for those variables.
+ *
+ * @param block Line.
+ * @param declared Declared Types so far.
+ * @returns Problem, or an empty string.
+ */
+function solidScriptTypeCheckWritten(block: SolidScriptBlock, declared: SolidScriptTypeDeclared): string {
+  for (const { name, kind } of solidScriptNameWrittenKinds(block)) {
+    const type = declared.get(solidScriptNameKey(name));
+    const problem = type === undefined ? '' : solidScriptTypeKindProblem(name, type, kind);
+    if (problem) return problem;
+  }
+  return '';
 }

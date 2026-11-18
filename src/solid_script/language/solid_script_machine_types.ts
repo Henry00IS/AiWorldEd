@@ -94,15 +94,13 @@ export interface SolidScriptBlockRun {
   /** Sets a variable, where it already exists or else in the current block. */
   variableSet(name: string, value: SolidScriptValue): void;
   /**
-   * Checks a value against the Type a Set line declares, or the one declared
-   * for the variable before, and keeps a new declaration; throws on a
-   * mismatch.
+   * Keeps the Type a Set line declares for its variable, or forgets it for Any;
+   * every later write to the variable is checked against it.
    *
    * @param name Variable as written.
    * @param type Declared kind, empty for none.
-   * @param value Value being set.
    */
-  typeKeep(name: string, type: string, value: SolidScriptValue): void;
+  typeKeep(name: string, type: string): void;
   /** Builds one convex solid from its corner points. */
   solid(points: THREE.Vector3[]): SolidScriptShape[];
   /** Draws one flat outline for Linear Extrude. */
@@ -222,11 +220,11 @@ export interface SolidScriptBlockRun {
   listUpdate(name: string, change: (items: readonly SolidScriptValue[]) => SolidScriptValue[], create: boolean): void;
   /** Reads a list, failing with a plain message when the name is not a list. */
   listRead(name: string): readonly SolidScriptValue[];
-  /** Forgets a variable. */
+  /** Forgets a variable and the Type declared for it. */
   variableDelete(name: string): void;
   /**
-   * Empties a variable: a list keeps no items, anything else becomes empty
-   * text.
+   * Empties a variable: a declared Type gives its empty value, else a list
+   * keeps no items and anything else becomes empty text.
    */
   variableClear(name: string): void;
   /** Writes a line to the output. */

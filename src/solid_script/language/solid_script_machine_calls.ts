@@ -8,7 +8,8 @@ import type {
   SolidScriptFrame,
   SolidScriptMachineCommand,
 } from './solid_script_machine_types.js';
-import { SOLID_SCRIPT_NAME, SolidScriptMachineVariables } from './solid_script_machine_variables.js';
+import { SOLID_SCRIPT_NAME } from './solid_script_machine_variables.js';
+import { SolidScriptMachineWrites } from './solid_script_machine_writes.js';
 import { SolidScriptScope } from './solid_script_scope.js';
 import { solidScriptShapeJoin, type SolidScriptShape } from './solid_script_shape.js';
 import type { SolidScriptValue } from './solid_script_value.js';
@@ -70,7 +71,7 @@ class SolidScriptPause extends Error {}
  */
 export abstract class SolidScriptMachineCalls<
   Command extends SolidScriptMachineCommand,
-> extends SolidScriptMachineVariables {
+> extends SolidScriptMachineWrites {
   protected readonly steps: number[] = [];
   /** Warnings of the run by 1-based line, such as a block with nothing inside. */
   protected readonly warnings = new Map<number, string>();

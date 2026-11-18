@@ -18,7 +18,6 @@ import {
 } from './solid_script_field.js';
 import { solidScriptExtrude } from './solid_script_extrude.js';
 import { solidScriptPolygonHull, type SolidScriptPoint2 } from './solid_script_polygon.js';
-import { solidScriptListItemParse, solidScriptListItemRemove } from './solid_script_list_item.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
 import { solidScriptShapeTransform } from './solid_script_reshape.js';
 import { solidScriptMeshChecked, solidScriptMeshTransform, solidScriptShapeHasMesh } from './solid_script_mesh.js';
@@ -697,7 +696,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         );
       },
       variableSet: (name, assigned) => state.machine.variableSet(state.scope, name, assigned),
-      typeKeep: (name, type, assigned) => state.machine.typeKeep(name, type, assigned),
+      typeKeep: (name, type) => state.machine.typeKeep(name, type),
       solid: (points) => {
         state.machine.gatherCheck(node);
         state.machine.flatCheck(node, state.context, false);
@@ -755,8 +754,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         values.forEach((round, index) => {
           state.machine.workTake();
           const inner = new SolidScriptScope(state.scope);
-          inner.variableDefine(key, round);
-          if (keyed) inner.variableDefine(keyName, keyed.keys[index]);
+          inner.variableDefine(key, state.machine.declaredFit(key, round));
+          if (keyed) inner.variableDefine(keyName, state.machine.declaredFit(keyName, keyed.keys[index]));
           if (node.children.length === 0) return;
           const built = state.machine.selectedKept(() =>
             state.machine.linesRun(node.children, inner, state.context, inner, children()),
@@ -908,37 +907,9 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         }
         state.machine.variableSet(state.scope, name, change([]));
       },
-      variableDelete: (name) => {
-        const where = state.machine.variableWhere(name, state.scope);
-        if (!where.local) state.machine.writableCheck(where.name);
-        if (!where.scope.variableDelete(where.name))
-          throw new Error(
-            `there is no variable [${state.machine.nameShown(solidScriptNameKey(name))}] to delete; set it on a line above this one`,
-          );
-        if (where.persistent) state.machine.persistentKeep(where.name);
-      },
-      variableClear: (name) => {
-        const where = state.machine.variableWhere(name, state.scope);
-        // A name not set yet becomes an empty list, ready for Add Item.
-        const old = where.scope.variableHas(where.name) ? where.scope.variableGet(where.name) : [];
-        state.machine.variableSet(state.scope, name, Array.isArray(old) ? [] : '');
-      },
-      itemRemove: (target) => {
-        const where = state.machine.variableWhere(target, state.scope);
-        const item = solidScriptListItemParse(where.name);
-        if (!item) throw new Error(`"${target}" is not a list item; write list(2), or list() for the last item`);
-        if (!where.local) state.machine.writableCheck(item.name);
-        if (!where.scope.variableHas(item.name))
-          throw new Error(
-            `there is no variable [${state.machine.nameShown(item.name)}]; set it on a line above this one`,
-          );
-        const index = item.index === '' ? null : state.machine.indexValue(item.index, state.scope);
-        where.scope.variableSet(
-          item.name,
-          solidScriptListItemRemove(item.name, where.scope.variableGet(item.name), index, state.machine.nameShown),
-        );
-        if (where.persistent) state.machine.persistentKeep(item.name);
-      },
+      variableDelete: (name) => state.machine.variableDeleteLine(state.scope, name),
+      variableClear: (name) => state.machine.variableClearLine(state.scope, name),
+      itemRemove: (target) => state.machine.variableItemRemove(state.scope, target),
     };
   }
 

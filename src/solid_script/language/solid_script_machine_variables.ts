@@ -1,26 +1,16 @@
 import { SOLID_SCRIPT_SYSTEM_GLOBALS, type SolidScriptSystemReader } from './solid_script_system.js';
-import { SOLID_SCRIPT_TYPES, solidScriptTypeProblem } from './solid_script_types.js';
 import type { SolidScriptExpression } from './solid_script_ast.js';
 import { SolidScriptExpressionEvaluator } from './solid_script_expression_evaluator.js';
 import { solidScriptExpressionParse } from './solid_script_expression_parse.js';
 import type { SolidScriptCompiled } from './solid_script_expression_compile.js';
 import { solidScriptFieldResolve, type SolidScriptFieldContext } from './solid_script_field.js';
 import { SolidScriptFieldReader, type SolidScriptFieldHost } from './solid_script_field_reader.js';
-import {
-  solidScriptListItemParse,
-  solidScriptListItemRead,
-  solidScriptListItemWrite,
-} from './solid_script_list_item.js';
+import { solidScriptListItemParse, solidScriptListItemRead } from './solid_script_list_item.js';
 import type { SolidScriptBlockNode } from './solid_script_block_tree.js';
 import type { SolidScriptFrame, SolidScriptMachineCommand, SolidScriptVariable } from './solid_script_machine_types.js';
 import { solidScriptNameFind, solidScriptNameKey, solidScriptNameSpelling } from './solid_script_name_key.js';
 import { SolidScriptScope } from './solid_script_scope.js';
-import {
-  SolidScriptElement,
-  solidScriptValueText,
-  solidScriptValueType,
-  type SolidScriptValue,
-} from './solid_script_value.js';
+import { solidScriptValueText, solidScriptValueType, type SolidScriptValue } from './solid_script_value.js';
 import { SolidScriptElements } from './solid_script_elements.js';
 import { solidScriptMemberRead } from './solid_script_members.js';
 import type { SolidScriptGeometryLeaf } from './solid_script_geometry.js';
@@ -95,7 +85,7 @@ interface SolidScriptVectorPart {
  * @param name Variable name.
  * @returns Part, or null for other names.
  */
-function solidScriptVectorComponent(name: string): SolidScriptVectorPart | null {
+export function solidScriptVectorComponent(name: string): SolidScriptVectorPart | null {
   const known = SOLID_SCRIPT_VECTOR_PARTS.get(name);
   if (known !== undefined) return known;
   const part = solidScriptVectorComponentParse(name);
@@ -121,7 +111,7 @@ export const SOLID_SCRIPT_SYSTEM_PREFIX = '$';
  * @param name Name.
  * @returns Parts.
  */
-function solidScriptMemberParts(name: string): string[] {
+export function solidScriptMemberParts(name: string): string[] {
   const parts: string[] = [];
   let depth = 0;
   let start = 0;
@@ -147,7 +137,7 @@ const SOLID_SCRIPT_SYSTEM_NAMES: ReadonlyMap<string, string> = new Map(
  * Names already checked to be plain names, so setting them again skips the
  * checks.
  */
-const SOLID_SCRIPT_NAMES_PLAIN = new Set<string>();
+export const SOLID_SCRIPT_NAMES_PLAIN = new Set<string>();
 
 /** Vector parts by name, read once. */
 const SOLID_SCRIPT_VECTOR_PARTS = new Map<string, SolidScriptVectorPart | null>();
@@ -186,7 +176,7 @@ function solidScriptVectorComponentRead(part: SolidScriptVectorPart, vector: Sol
  * @param value New number.
  * @returns New vector.
  */
-function solidScriptVectorComponentWrite(
+export function solidScriptVectorComponentWrite(
   part: SolidScriptVectorPart,
   vector: SolidScriptValue,
   value: SolidScriptValue,
@@ -210,7 +200,7 @@ const SOLID_SCRIPT_LOCAL_BARE_MAX = 4096;
  * @param name Name starting with local.
  * @returns Bare name.
  */
-function solidScriptLocalBare(name: string): string {
+export function solidScriptLocalBare(name: string): string {
   let bare = SOLID_SCRIPT_LOCAL_BARE.get(name);
   if (bare === undefined) {
     bare = name.slice(SOLID_SCRIPT_LOCAL_PREFIX.length);
@@ -223,6 +213,18 @@ function solidScriptLocalBare(name: string): string {
 
 /** How deep Parse() may read text that holds Parse() again. */
 const SOLID_SCRIPT_PARSE_DEPTH = 8;
+
+/** Where a variable name lives, found by its Local. or Persistent. start. */
+export interface SolidScriptVariableWhere {
+  /** Scope that holds it. */
+  scope: SolidScriptScope;
+  /** Name key without the Local. or Persistent. start. */
+  name: string;
+  /** True for a variable of the running Function. */
+  local: boolean;
+  /** True for a value kept between runs. */
+  persistent: boolean;
+}
 
 /**
  * What a script machine knows about names: its variables, inputs and persistent
@@ -269,8 +271,6 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
   protected readonly elements = new SolidScriptElements({ leafLatest: (leaf) => this.leafLatestOf(leaf) });
   /** The [$Selected.*] lists of the round running. */
   protected selected: SolidScriptSelected = { brushes: null, faces: [], edges: [], vertices: [] };
-  /** Kinds variables were declared as with a Set Type, by name key. */
-  private readonly declared = new Map<string, string>();
 
   /**
    * Creates the variables of a run.
@@ -394,62 +394,6 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
   }
 
   /**
-   * Checks a value against the Type a Set line declares, or the one declared
-   * for the variable before, and keeps a new declaration; Any drops it.
-   *
-   * @param name Variable as written.
-   * @param type Declared kind, empty for none.
-   * @param value Value being set.
-   */
-  typeKeep(name: string, type: string, value: SolidScriptValue): void {
-    const key = solidScriptNameKey(name.replace(/^\[(.*)\]$/s, '$1'));
-    if (type !== '' && !SOLID_SCRIPT_TYPES.includes(type))
-      throw new Error(`Type must be one of ${SOLID_SCRIPT_TYPES.join(', ')}, not "${type}"`);
-    const kept = type || this.declared.get(key);
-    if (!kept) return;
-    const problem = solidScriptTypeProblem(this.nameShown(key), kept, value);
-    if (problem) throw new Error(problem);
-    if (type === 'Any') this.declared.delete(key);
-    else if (type !== '') this.declared.set(key, type);
-  }
-
-  /**
-   * Writes a user value under .Data, such as Face.Data.Height, to one element
-   * or every element of a list.
-   *
-   * @param written Name as written.
-   * @param scope Scope of the line.
-   * @param value Value.
-   * @returns True when the name was such a value.
-   */
-  protected dataSet(written: string, scope: SolidScriptScope, value: SolidScriptValue): boolean {
-    const parts = solidScriptMemberParts(written);
-    const at = parts.length - 2;
-    if (at < 1 || parts[at]!.toLowerCase() !== 'data') return false;
-    const owner = this.fieldVariable(solidScriptNameKey(parts.slice(0, at).join('.')), scope);
-    const last = parts[parts.length - 1]!;
-    const name = last.includes('[')
-      ? solidScriptValueText(solidScriptFieldResolve('value', last, this.fieldContext(scope))).trim()
-      : last;
-    if (!SOLID_SCRIPT_NAME.test(name))
-      throw new Error(`"${name}" cannot be a Data key; keys use letters, digits and _, not starting with a digit`);
-    const items = Array.isArray(owner) ? owner : [owner];
-    for (const item of items) {
-      if (!(item instanceof SolidScriptElement))
-        throw new Error(
-          `only brushes, faces, edges and corners have .Data; ${parts.slice(0, at).join('.')} is ${solidScriptValueType(item)}`,
-        );
-      this.elements.dataWrite(
-        item.kind === 'data' ? item : this.elements.data(item),
-        solidScriptNameKey(name),
-        name,
-        value,
-      );
-    }
-    return true;
-  }
-
-  /**
    * Works out a Function used in a formula.
    *
    * @param name Function name.
@@ -480,10 +424,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
    * @param scope Scope of the running line.
    * @returns Scope and the name without the prefix.
    */
-  protected variableWhere(
-    written: string,
-    scope: SolidScriptScope,
-  ): { scope: SolidScriptScope; name: string; local: boolean; persistent: boolean } {
+  protected variableWhere(written: string, scope: SolidScriptScope): SolidScriptVariableWhere {
     const name = solidScriptNameKey(written);
     if (name.startsWith(SOLID_SCRIPT_PERSISTENT_PREFIX))
       return {
@@ -735,63 +676,6 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
    * @returns Stand-in value.
    */
   protected abstract systemMissing(name: string): SolidScriptValue;
-
-  /**
-   * Sets a variable after checking its name and that lines may change it.
-   *
-   * @param scope Scope of the line.
-   * @param name Name.
-   * @param value Value.
-   */
-  protected variableSet(scope: SolidScriptScope, written: string, value: SolidScriptValue): void {
-    const name = this.nameKey(written);
-    if (SOLID_SCRIPT_NAMES_PLAIN.has(name)) {
-      this.writableCheck(name, name);
-      const home = scope.variableHas(name) ? scope : this.root;
-      home.variableSet(name, value);
-      return;
-    }
-    if (name.startsWith(SOLID_SCRIPT_SYSTEM_PREFIX)) {
-      const kind = /^\$selected\.(brushes|faces|edges|vertices)$/.exec(name)?.[1] as
-        SolidScriptSelectedKind | undefined;
-      if (!kind)
-        throw new Error(`[${written}] is a system value and can only be read; only the $Selected lists can be set`);
-      this.selected[kind] = Array.isArray(value) ? [...value] : value === undefined ? [] : [value];
-      return;
-    }
-    if (this.dataSet(written, scope, value)) return;
-    const locals = name.startsWith(SOLID_SCRIPT_LOCAL_PREFIX) ? this.frameFunction()?.locals : undefined;
-    const bare = locals ? solidScriptLocalBare(name) : '';
-    if (locals && SOLID_SCRIPT_NAME.test(bare)) {
-      locals.variableSet(bare, value);
-      return;
-    }
-    const where = this.variableWhere(name, scope);
-    const component = solidScriptVectorComponent(where.name);
-    if (component && !where.scope.variableHas(where.name)) {
-      if (!where.scope.variableHas(component.name)) {
-        const shown = this.nameShown(component.name);
-        throw new Error(`there is no vector [${shown}] to change; set it first, such as Set ${shown} to 0, 0, 0`);
-      }
-      const vector = where.scope.variableGet(component.name);
-      if (!where.local && !where.persistent) this.writableCheck(component.name);
-      where.scope.variableSet(component.name, solidScriptVectorComponentWrite(component, vector, value));
-      if (where.persistent) this.persistentKeep(component.name);
-      return;
-    }
-    const item = solidScriptListItemParse(where.name);
-    const base = item?.name ?? where.name;
-    this.nameCheck(base, 'a variable');
-    if (!where.local) this.writableCheck(base);
-    // A plain name not set yet is the script's: it lives on after the block that set it.
-    const home = !where.local && !where.persistent && !scope.variableHas(base) ? this.root : where.scope;
-    if (!item) home.variableSet(base, value);
-    else {
-      const index = item.index === '' ? null : this.indexValue(item.index, scope);
-      home.variableSet(base, solidScriptListItemWrite(base, home.variableGet(base), index, value, this.nameShown));
-    }
-    if (where.persistent) this.persistentKeep(base);
-  }
 
   /**
    * Reads the item number of a list reference, which may use variables and

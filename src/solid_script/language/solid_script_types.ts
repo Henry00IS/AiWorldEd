@@ -1,4 +1,4 @@
-import { solidScriptFieldSplit } from './solid_script_field.js';
+import { solidScriptFieldBoolean, solidScriptFieldSplit } from './solid_script_field.js';
 import {
   SolidScriptElement,
   SOLID_SCRIPT_ELEMENT_TYPES,
@@ -58,7 +58,9 @@ export function solidScriptTypeFits(type: string, value: SolidScriptValue): bool
 }
 
 /**
- * Explains why a value does not fit the kind a variable was declared as.
+ * Explains why a value does not fit the kind a variable was declared as; for a
+ * list kind it names the first item that does not fit, and a number typed with
+ * extra letters gets a hint such as (Did you mean 78?).
  *
  * @param name Variable as written.
  * @param type Declared kind.
@@ -67,12 +69,100 @@ export function solidScriptTypeFits(type: string, value: SolidScriptValue): bool
  */
 export function solidScriptTypeProblem(name: string, type: string, value: SolidScriptValue): string {
   if (solidScriptTypeFits(type, value)) return '';
+  const item = solidScriptTypeListItem(type);
+  const wrong =
+    item !== '' && Array.isArray(value) ? value.find((entry) => !solidScriptTypeFits(item, entry)) : undefined;
+  const shown = wrong === undefined ? value : wrong;
+  const suffix = wrong === undefined ? '' : ' as an item';
+  const hint = solidScriptTypeHint(wrong === undefined ? type : item, shown);
+  return `[${name}] is declared ${type}, so it cannot hold ${solidScriptTypeShown(shown)}${suffix}${hint}`;
+}
+
+/**
+ * Gives the kind of the items of a list kind, such as Number for Number List.
+ *
+ * @param type Kind, one of the Type words.
+ * @returns Item kind, or an empty string for List and every kind that is no
+ *   list.
+ */
+function solidScriptTypeListItem(type: string): string {
+  return type.endsWith('List') ? type.slice(0, -'List'.length).trim() : '';
+}
+
+/**
+ * Writes a value for a message: Text "oak" or Number "2" with the value, else a
+ * kind such as a Brush.
+ *
+ * @param value Value.
+ * @returns Words for the message.
+ */
+function solidScriptTypeShown(value: SolidScriptValue): string {
   const found = solidScriptValueType(value);
-  const shown =
-    found === 'Text' || found === 'Number' || found === 'Whole Number'
-      ? `${found === 'Text' ? 'Text' : 'Number'} "${solidScriptValueText(value)}"`
-      : `a ${found}`;
-  return `[${name}] is declared ${type}, so it cannot hold ${shown}`;
+  return found === 'Text' || found === 'Number' || found === 'Whole Number'
+    ? `${found === 'Text' ? 'Text' : 'Number'} "${solidScriptValueText(value)}"`
+    : `a ${found}`;
+}
+
+/**
+ * Suggests the number a text that starts with one probably meant, for a Number.
+ *
+ * @param type Kind the value should be.
+ * @param value Value that does not fit.
+ * @returns Hint such as " (Did you mean 78?)", or an empty string.
+ */
+function solidScriptTypeHint(type: string, value: SolidScriptValue): string {
+  if (type !== 'Number' || typeof value !== 'string') return '';
+  const meant = /^\s*(-?\d+(?:\.\d+)?)\s*[^\d\s.]/.exec(value)?.[1];
+  return meant === undefined ? '' : ` (Did you mean ${meant}?)`;
+}
+
+/**
+ * Turns a value written to a variable into the kind it was declared as where
+ * the meaning is plain: numbers typed as text become numbers, numbers and
+ * Yes/No become text for Text, yes and no become Yes/No, one item becomes a
+ * list of it for a list kind, and the items of a list are turned the same way.
+ * Anything else is left as it is for the check.
+ *
+ * @param type Declared kind.
+ * @param value Value written.
+ * @returns Value of that kind when it could be turned.
+ */
+export function solidScriptTypeConvert(type: string, value: SolidScriptValue): SolidScriptValue {
+  if (!type.endsWith('List')) return solidScriptTypeConvertOne(type, value);
+  const item = solidScriptTypeListItem(type);
+  if (item === '') return Array.isArray(value) ? value : [value];
+  if (!Array.isArray(value)) return solidScriptTypeFits(item, value) ? [solidScriptTypeConvertOne(item, value)] : value;
+  if (item === 'Text') return value.map((entry) => (typeof entry === 'string' ? entry : solidScriptValueText(entry)));
+  return value.map((entry) => solidScriptTypeConvertOne(item, entry));
+}
+
+/**
+ * Turns one value into a kind that is no list where the meaning is plain.
+ *
+ * @param type Kind.
+ * @param value Value.
+ * @returns Value of that kind when it could be turned.
+ */
+function solidScriptTypeConvertOne(type: string, value: SolidScriptValue): SolidScriptValue {
+  if (type === 'Number' && typeof value === 'string') return solidScriptValueNumber(value) ?? value;
+  if (type === 'Text' && (typeof value === 'number' || typeof value === 'boolean')) return solidScriptValueText(value);
+  if (type === 'Yes/No' && typeof value === 'string') return solidScriptFieldBoolean(value);
+  return value;
+}
+
+/**
+ * Explains, without running, why a variable declared as a kind cannot get what
+ * a line surely writes to it, such as a Brush from Into: the kind itself, or a
+ * list of it, fits.
+ *
+ * @param name Variable as written.
+ * @param type Declared kind.
+ * @param kind Kind the line writes, such as Brush or Face List.
+ * @returns Problem, or an empty string when it fits.
+ */
+export function solidScriptTypeKindProblem(name: string, type: string, kind: string): string {
+  const fits = [kind, `${kind} List`, 'Any', 'List'];
+  return fits.includes(type) ? '' : `[${name}] is declared ${type}, so it cannot hold a ${kind}`;
 }
 
 /**
@@ -110,8 +200,9 @@ export function solidScriptTypeDefault(type: string): SolidScriptValue {
  * Reads the value of a Set line for its declared kind: without a kind, commas
  * typed outside brackets make a list of the items, each read the way a list
  * item is, and one item stays one value; a blank gives the default, a list kind
- * splits the text on commas (one bracket alone may give the whole list), and
- * Text keeps numbers as text.
+ * splits the text on commas (one bracket alone may give the whole list, one
+ * vector a Vector List of it), and the value is turned into the kind where the
+ * meaning is plain.
  *
  * @param type Declared kind, empty for none.
  * @param text Value as written.
@@ -125,22 +216,13 @@ export function solidScriptTypeValue(
   whole: () => SolidScriptValue,
   items: () => SolidScriptValue[],
 ): SolidScriptValue {
-  if (type === '' || type === 'Any') return solidScriptFieldSplit(text, ',').length > 1 ? items() : whole();
+  const typed = solidScriptFieldSplit(text, ',').length;
+  if (type === '' || type === 'Any') return typed > 1 ? items() : whole();
   if (text.trim() === '') return solidScriptTypeDefault(type);
-  if (type.endsWith('List')) {
-    const item = type.slice(0, -'List'.length).trim();
-    let list = items();
-    // One vector, such as [1, 2, 3] or [Pos], is a list holding that vector.
-    if (item === 'Vector' && solidScriptFieldSplit(text, ',').length === 1 && solidScriptTypeFits('Vector', list))
-      list = [list];
-    return item === 'Text'
-      ? list.map((entry) => (typeof entry === 'string' ? entry : solidScriptValueText(entry)))
-      : list;
-  }
-  const value = whole();
-  return type === 'Text' && (typeof value === 'number' || typeof value === 'boolean')
-    ? solidScriptValueText(value)
-    : value;
+  if (!type.endsWith('List')) return solidScriptTypeConvert(type, whole());
+  const list = items();
+  const vectorAlone = type === 'Vector List' && typed === 1 && solidScriptTypeFits('Vector', list);
+  return solidScriptTypeConvert(type, vectorAlone ? [list] : list);
 }
 
 /**
