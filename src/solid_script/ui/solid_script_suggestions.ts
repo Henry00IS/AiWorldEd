@@ -14,6 +14,7 @@ import { SOLID_SCRIPT_FUNCTIONS_BUILTIN } from '@/solid_script/language/solid_sc
 import { SolidScriptLexer, type SolidScriptToken } from '@/solid_script/language/solid_script_lexer.js';
 import { solidScriptFunctionSpelling } from '@/solid_script/language/solid_script_name_key.js';
 import { SOLID_SCRIPT_SYSTEM_LISTED } from '@/solid_script/language/solid_script_system.js';
+import { solidScriptSystemFill } from '@/solid_script/language/solid_script_system_names.js';
 import { solidScriptSentence, solidScriptSentenceTyped } from '@/solid_script/language/solid_script_sentence.js';
 import { solidScriptFieldEscapes } from '@/solid_script/language/solid_script_field.js';
 import {
@@ -63,7 +64,7 @@ export interface SolidScriptSuggestionContext {
 export interface SolidScriptSuggestionScope {
   /** Names the script defines. */
   names: readonly SolidScriptName[];
-  /** Names the command fills in itself, such as x for Displace. */
+  /** Names the command fills in itself, such as $X for Displace. */
   extra: readonly string[];
   /** Words the field takes, offered first. */
   words: readonly SolidScriptCommandWord[];
@@ -273,6 +274,23 @@ function solidScriptSuggestionNameDetail(entry: SolidScriptName, scope: SolidScr
  * @param scope What the field may refer to.
  * @returns Suggestions in group order.
  */
+/**
+ * Describes a name the command fills in, such as $NZ, with its kind and
+ * meaning.
+ *
+ * @param name Fill name as declared.
+ * @returns Suggestion.
+ */
+function solidScriptSuggestionFill(name: string): SolidScriptSuggestion {
+  const fill = solidScriptSystemFill(name);
+  return {
+    label: fill?.name ?? name,
+    detail: fill ? solidScriptSentenceTyped(fill.type, fill.detail) : 'Filled in for this command.',
+    category: 'This Command',
+    pick: 'value',
+  };
+}
+
 function solidScriptSuggestionsAll(scope: SolidScriptSuggestionScope): SolidScriptSuggestion[] {
   const all: SolidScriptSuggestion[] = [
     ...scope.words.map((word): SolidScriptSuggestion => ({
@@ -296,12 +314,7 @@ function solidScriptSuggestionsAll(scope: SolidScriptSuggestionScope): SolidScri
       category: 'System',
       pick: 'value',
     })),
-    ...scope.extra.map((name): SolidScriptSuggestion => ({
-      label: name,
-      detail: 'Filled in per point.',
-      category: 'This Command',
-      pick: 'value',
-    })),
+    ...scope.extra.map((name): SolidScriptSuggestion => solidScriptSuggestionFill(name)),
     ...scope.names
       .filter((entry) => entry.category === 'Functions')
       .map((entry): SolidScriptSuggestion => ({

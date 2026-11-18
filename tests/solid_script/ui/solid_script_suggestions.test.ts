@@ -257,7 +257,7 @@ describe('SolidScript suggestions', () => {
     expect(pick('Width', '[=Abs(Wi|)]')).toBe('[=Abs(Width|)]');
     expect(pick('Abs', '[A|')).toBe('[=Abs(|)]');
     expect(pick('Abs', '[=1 + A|]')).toBe('[=1 + Abs(|)]');
-    expect(pick('Box.Width', '[=|]')).toBe('[=Box.Width|]');
+    expect(pick('$Box.Width', '[=|]')).toBe('[=$Box.Width|]');
     expect(pick('Add', 'Ne|w', WORDY)).toBe('Add|');
     expect(pick('Width', '[Wi|dth]')).toBe('[Width]|');
     expect(pick('Width', '[=Abs(W|idt)]')).toBe('[=Abs(Width|)]');

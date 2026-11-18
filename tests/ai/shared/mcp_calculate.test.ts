@@ -32,7 +32,7 @@ describe('calculateExpression', () => {
   it('shares the SolidScript formula language: functions, constants, comparisons and vectors', () => {
     const value = (text: string) => (calculateExpression(text).data as { value: unknown } | undefined)?.value;
     expect(value('sqrt(16) + abs(-2)')).toBe(6);
-    expect(value('round(PI * 100) / 100')).toBe(3.14);
+    expect(value('round($Math.Pi * 100) / 100')).toBe(3.14);
     expect(value('7 % 4')).toBe(3);
     expect(value('max(2, 9, 4)')).toBe(9);
     expect(value('[1, 2, 3] * 2')).toEqual([2, 4, 6]);

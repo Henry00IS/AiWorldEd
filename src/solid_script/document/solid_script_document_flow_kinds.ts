@@ -2,6 +2,7 @@ import { solidScriptFlowFormulaKinds } from './solid_script_document_flow_formul
 import { solidScriptFieldSplit } from '@/solid_script/language/solid_script_field.js';
 import { solidScriptMemberType } from '@/solid_script/language/solid_script_members.js';
 import { SOLID_SCRIPT_SYSTEM_LISTED } from '@/solid_script/language/solid_script_system.js';
+import { solidScriptSystemFill } from '@/solid_script/language/solid_script_system_names.js';
 import { solidScriptValueNumber } from '@/solid_script/language/solid_script_value.js';
 
 /**
@@ -91,6 +92,10 @@ export function solidScriptFlowMember(kinds: readonly string[], part: string): s
  * @returns Kinds, the unknown kind for one not listed.
  */
 function solidScriptFlowSystem(parts: readonly string[]): string[] {
+  if (parts.length === 1) {
+    const fill = solidScriptSystemFill(parts[0] ?? '');
+    return fill ? [fill.type] : [SOLID_SCRIPT_FLOW_UNKNOWN];
+  }
   const two = `${solidScriptFlowWord(parts[0] ?? '')}.${solidScriptFlowWord(parts[1] ?? '')}`.toLowerCase();
   const kind = SOLID_SCRIPT_SYSTEM_LISTED.find(([label]) => label.toLowerCase() === two)?.[1];
   if (kind === undefined) return [SOLID_SCRIPT_FLOW_UNKNOWN];

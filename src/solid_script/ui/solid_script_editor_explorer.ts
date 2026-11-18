@@ -122,7 +122,7 @@ export function solidScriptExplorerEntries(
   for (const value of SOLID_SCRIPT_SYSTEM_GLOBALS) {
     const current = system.get(value.name);
     entries.push({
-      name: value.name,
+      name: `$${value.name}`,
       category: 'System',
       value: current === undefined ? 'Only in a Generator' : solidScriptValueText(current),
       type: value.type,

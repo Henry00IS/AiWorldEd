@@ -5,6 +5,7 @@ import type {
   SolidScriptMachineCommand,
 } from '@/solid_script/language/solid_script_machine_types.js';
 import { SOLID_SCRIPT_SHAPE_NAME_KEY, type SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
+import type { SolidScriptSystemFillName } from '@/solid_script/language/solid_script_system_names.js';
 import type { SolidScriptFieldKind } from '@/solid_script/language/solid_script_field.js';
 import {
   solidScriptListingBuild,
@@ -193,8 +194,8 @@ export interface SolidScriptCommandSpec {
   nesting?: SolidScriptCommandNesting;
   /** What the line means for the order lines run in; a plain line when omitted. */
   flow?: SolidScriptCommandFlow;
-  /** Names the line fills in for its own formulas, such as nx for each point. */
-  fills?: readonly string[];
+  /** Names the line fills in for its own formulas, such as $NZ for each face. */
+  fills?: readonly SolidScriptSystemFillName[];
   /**
    * Word the End line of an open block shows after "End", such as "When" for
    * "End When"; the label when omitted. The opening line names the block in
@@ -233,7 +234,7 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
   readonly parameters: readonly SolidScriptCommandParameter[];
   readonly nesting: SolidScriptCommandNesting;
   readonly flow: SolidScriptCommandFlow | undefined;
-  readonly fills: readonly string[];
+  readonly fills: readonly SolidScriptSystemFillName[];
   readonly endLabel: string;
   readonly inPalette: boolean;
   readonly runs: boolean;

@@ -351,17 +351,17 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Push mesh points in or out by a formula',
     manual:
-      'Moves every point of the mesh made from the brushes between this line and its End outwards along its surface by Distance in metres. A negative distance pulls it in. Distance is worked out for each point, and may use [X], [Y] and [Z] (where the point is), [Nx], [Ny] and [Nz] (which way the surface faces there) and [Index] (the point number), so waves, noise and bulges come from one formula. Subdivide first for a smooth result. Example: Distance [=0.1 * Sin([X] * 180)] around a subdivided Cube gives a wavy surface.',
+      'Moves every point of the mesh made from the brushes between this line and its End outwards along its surface by Distance in metres. A negative distance pulls it in. Distance is worked out for each point, and may use [$X], [$Y] and [$Z] (where the point is), [$NX], [$NY] and [$NZ] (which way the surface faces there) and [$Index] (the point number), so waves, noise and bulges come from one formula. Subdivide first for a smooth result. Example: Distance [=0.1 * Sin([$X] * 180)] around a subdivided Cube gives a wavy surface.',
     stops: ['A Distance that does not give a number.', SOLID_SCRIPT_MESH_STOPS_FLAT, SOLID_SCRIPT_MESH_STOPS_END],
     nesting: 'open',
-    fills: ['x', 'y', 'z', 'nx', 'ny', 'nz', 'index'],
+    fills: ['$X', '$Y', '$Z', '$NX', '$NY', '$NZ', '$Index'],
     parameters: [
       solidScriptParameter(
         'distance',
         'Distance',
         'number',
-        '[=0.1 * Sin([X] * 360)]',
-        'Metres to move each point outwards. May use [X], [Y], [Z], [Nx], [Ny], [Nz] and [Index].',
+        '[=0.1 * Sin([$X] * 360)]',
+        'Metres to move each point outwards. May use [$X], [$Y], [$Z], [$NX], [$NY], [$NZ] and [$Index].',
       ),
     ],
     listing: (read) => ['Displace', 'by ', read.value('distance')],
@@ -370,13 +370,13 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
         solidScriptMeshDisplace(mesh, (point, normal, index) =>
           solidScriptMeshNumber(
             run.valueWith('distance', {
-              x: point.x,
-              y: point.y,
-              z: point.z,
-              nx: normal.x,
-              ny: normal.y,
-              nz: normal.z,
-              index,
+              $X: point.x,
+              $Y: point.y,
+              $Z: point.z,
+              $NX: normal.x,
+              $NY: normal.y,
+              $NZ: normal.z,
+              $Index: index,
             }),
             'Distance',
           ),
@@ -389,10 +389,10 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Pull chosen mesh faces out',
     manual:
-      'Pulls the faces of the mesh made from the brushes between this line and its End out along the way they face, each on its own, with new side faces joining them to the rest. A negative distance pushes them in for a dent. Which Faces is a condition checked for every face, and both fields may use [Nx], [Ny] and [Nz] (which way the face points), [Cx], [Cy] and [Cz] (its middle) and [Index] (its number). Example: Which Faces [Nz] > 0.5 with Distance 0.5 lifts the top of a Cube half a metre.',
+      'Pulls the faces of the mesh made from the brushes between this line and its End out along the way they face, each on its own, with new side faces joining them to the rest. A negative distance pushes them in for a dent. Which Faces is a condition checked for every face, and both fields may use [$NX], [$NY] and [$NZ] (which way the face points), [$CX], [$CY] and [$CZ] (its middle) and [$Index] (its number). Example: Which Faces [$NZ] > 0.5 with Distance 0.5 lifts the top of a Cube half a metre.',
     stops: ['A Distance that does not give a number.', SOLID_SCRIPT_MESH_STOPS_FLAT, SOLID_SCRIPT_MESH_STOPS_END],
     nesting: 'open',
-    fills: ['nx', 'ny', 'nz', 'cx', 'cy', 'cz', 'index'],
+    fills: ['$NX', '$NY', '$NZ', '$CX', '$CY', '$CZ', '$Index'],
     parameters: [
       solidScriptParameter(
         'distance',
@@ -405,15 +405,23 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
         'which',
         'Which Faces',
         'condition',
-        '[Nz] > 0.5',
-        'Condition for the faces to pull, such as [Nz] > 0.5 for faces pointing up. True pulls every face.',
+        '[$NZ] > 0.5',
+        'Condition for the faces to pull, such as [$NZ] > 0.5 for faces pointing up. True pulls every face.',
       ),
     ],
     listing: (read) => ['Extrude Faces', 'by ', read.value('distance'), ' where ', read.value('which')],
     execute: (run) =>
       solidScriptMeshTool(run, 'Extrude Faces', (mesh) =>
         solidScriptMeshExtrudeFaces(mesh, (centre, normal, index) => {
-          const facts = { nx: normal.x, ny: normal.y, nz: normal.z, cx: centre.x, cy: centre.y, cz: centre.z, index };
+          const facts = {
+            $NX: normal.x,
+            $NY: normal.y,
+            $NZ: normal.z,
+            $CX: centre.x,
+            $CY: centre.y,
+            $CZ: centre.z,
+            $Index: index,
+          };
           if (!solidScriptValueTruthy(run.valueWith('which', facts))) return null;
           return solidScriptMeshNumber(run.valueWith('distance', facts), 'Distance');
         }),

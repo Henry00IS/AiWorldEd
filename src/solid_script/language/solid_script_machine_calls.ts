@@ -157,8 +157,7 @@ export abstract class SolidScriptMachineCalls<
   protected functionDefine(node: SolidScriptBlockNode<Command>): void {
     const name = node.command.valueText(node.values, 'name');
     this.nameCheck(name, 'a function');
-    if (solidScriptBuiltinFind(name) || this.nameKey(name) === 'pi')
-      throw new Error(`${name}() is a built-in function; pick another name`);
+    if (solidScriptBuiltinFind(name)) throw new Error(`${name}() is a built-in function; pick another name`);
     const known = this.functions.get(this.nameKey(name));
     if (known && known !== node) throw new Error(`a function named "${name}" is already defined on line ${known.line}`);
     for (const parameter of solidScriptFunctionParameters(node.command.valueText(node.values, 'parameters')))

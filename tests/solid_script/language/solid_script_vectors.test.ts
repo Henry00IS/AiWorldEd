@@ -136,13 +136,13 @@ describe('SolidScript formulas and the MCP calculator', () => {
       '+5',
       '1.25*4',
       'sqrt(81)',
-      'PI',
+      '$Math.Pi',
     ]) {
       const shared = (calculateExpression(text).data as { value: number }).value;
       expect(formula(text), text).toBe(String(shared));
     }
     for (const text of [
-      'Math.Tau / 2',
+      '$Math.Tau / 2',
       'remap(5, 0, 10, 0, 1)',
       'smoothstep(0, 2, 1)',
       'wrap(370, 0, 360)',

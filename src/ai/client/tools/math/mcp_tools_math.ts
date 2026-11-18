@@ -20,10 +20,10 @@ export class McpToolsMath extends McpToolGroup {
     return [
       {
         name: 'math_calculate',
-        description: `Evaluates a formula in the SolidScript formula language, exactly as script fields do: + - * / % ^, comparisons, and/or/not, parentheses, PI and ${SOLID_SCRIPT_SYSTEM_GLOBALS.filter(
+        description: `Evaluates a formula in the SolidScript formula language, exactly as script fields do: + - * / % ^, comparisons, and/or/not, parentheses, ${SOLID_SCRIPT_SYSTEM_GLOBALS.filter(
           (value) => value.name.startsWith('Math.'),
         )
-          .map((value) => value.name)
+          .map((value) => `$${value.name}`)
           .join(', ')}, vectors such as [1, 2, 3] * 2, and the functions ${Object.values(SOLID_SCRIPT_FUNCTION_DOCS)
           .filter((doc) => ['Math', 'Angles', 'Vectors', 'Lists'].includes(doc.group))
           .map((doc) => doc.usage)

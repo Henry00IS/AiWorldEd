@@ -108,7 +108,7 @@ export class SolidScriptLexer {
       if (glued !== '') throw new Error(`line ${this.line}: ${word} isn't a number; for text write "${word}"`);
       return this.tokenTake('number', number[0]);
     }
-    const identifier = /^[A-Za-z_][A-Za-z0-9_]*/.exec(rest);
+    const identifier = /^\$?[A-Za-z_][A-Za-z0-9_]*/.exec(rest);
     if (identifier) {
       const word = SOLID_SCRIPT_WORD_SYMBOLS.get(identifier[0].toLowerCase());
       if (word === undefined) return this.tokenTake('identifier', identifier[0]);

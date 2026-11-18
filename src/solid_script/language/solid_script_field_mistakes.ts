@@ -1,5 +1,7 @@
 import { solidScriptFieldArguments, type SolidScriptFieldKind } from './solid_script_field.js';
 import { SOLID_SCRIPT_SYSTEM_VALUES } from './solid_script_name_rules.js';
+import { solidScriptSystemFill } from './solid_script_system_names.js';
+import { solidScriptNameKey } from './solid_script_name_key.js';
 
 /**
  * Fields that take numbers, where math outside a formula is surely a mistake.
@@ -95,7 +97,26 @@ function solidScriptMistakeMath(piece: string): string {
 }
 
 /**
- * Adds the $ a system value needs, such as [Box.Width] to [$Box.Width].
+ * Gives the official $ spelling a system value written without it should use,
+ * such as $Box.Width for Box.Width or $NZ for Nz, keeping any members after
+ * it.
+ *
+ * @param name Name as written, without a leading $.
+ * @returns Official spelling, or undefined when it is not a system value.
+ */
+function solidScriptMistakeOfficial(name: string): string | undefined {
+  if (name.startsWith('$') || name === '') return undefined;
+  if (solidScriptNameKey(name) === 'pi') return '$Math.Pi';
+  const fill = solidScriptSystemFill(name);
+  if (fill) return fill.name;
+  const parts = name.split('.');
+  const head = parts.length >= 2 ? `${parts[0]}.${parts[1]}`.toLowerCase() : '';
+  return head && SOLID_SCRIPT_MISTAKE_SYSTEM.has(head) ? `$${name}` : undefined;
+}
+
+/**
+ * Adds the $ a system value needs, such as [Box.Width] to [$Box.Width] or Nz to
+ * $NZ, unless the script already defines that name.
  *
  * @param text Text.
  * @param known Tells whether the script defines a name, so it is no system
@@ -103,11 +124,13 @@ function solidScriptMistakeMath(piece: string): string {
  * @returns Rewritten text.
  */
 function solidScriptMistakeSystem(text: string, known: (name: string) => boolean): string {
-  return text.replace(/\[(?![=$])([A-Za-z_]\w*)\.([A-Za-z_]\w*)/g, (found: string, group: string, member: string) =>
-    SOLID_SCRIPT_MISTAKE_SYSTEM.has(`${group}.${member}`.toLowerCase()) && !known(group)
-      ? `[$${group}.${member}`
-      : found,
-  );
+  return text.replace(SOLID_SCRIPT_MISTAKE_NAME, (name: string, at: number) => {
+    const official = solidScriptMistakeOfficial(name);
+    const group = name.split('.')[0] ?? name;
+    const before = text[at - 1] ?? '';
+    if (!official || known(group) || /[\d.]/.test(before) || /^\s*\(/.test(text.slice(at + name.length))) return name;
+    return official;
+  });
 }
 
 /**

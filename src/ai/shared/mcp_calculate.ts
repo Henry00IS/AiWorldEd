@@ -10,9 +10,10 @@ const MCP_CALCULATE_LENGTH_MAX = 200;
 /**
  * Evaluates a formula safely (no eval) with the SolidScript formula language,
  * the same one script fields use: + - * / %, comparisons, brackets, decimals,
- * ^, PI and Math.Tau, Math.E and the other Math values, every number and vector
- * function of formulas (sqrt, sin in degrees, remap, smoothstep, wrap, snap,
- * lerp, ...), and vectors such as [1, 2, 3] * 2. E.g. "20+(0.5*12)" gives 26.
+ * ^, $Math.Pi, $Math.Tau, $Math.E and the other $Math values, every number and
+ * vector function of formulas (sqrt, sin in degrees, remap, smoothstep, wrap,
+ * snap, lerp, ...), and vectors such as [1, 2, 3] * 2. E.g. "20+(0.5*12)" gives
+ * 26.
  *
  * @param expression User expression string.
  * @returns Tool result with the number or vector.

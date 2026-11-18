@@ -9,6 +9,7 @@ import { solidScriptArithmeticBinary } from './solid_script_arithmetic.js';
 import type { SolidScriptExpressionEvaluator } from './solid_script_expression_evaluator.js';
 import { SOLID_SCRIPT_FUNCTIONS_BUILTIN } from './solid_script_functions_builtin.js';
 import { solidScriptFunctionKey, solidScriptFunctionSpelling, solidScriptNameKey } from './solid_script_name_key.js';
+import { solidScriptSystemBareHint } from './solid_script_system_names.js';
 import type { SolidScriptScope } from './solid_script_scope.js';
 import { solidScriptValueShow, solidScriptValueTruthy, type SolidScriptValue } from './solid_script_value.js';
 
@@ -147,10 +148,12 @@ function solidScriptCompileSlot(expression: Extract<SolidScriptExpression, { kin
  */
 function solidScriptCompileVariable(written: string): SolidScriptCompiled {
   const name = solidScriptNameKey(written);
-  if (name === 'pi') return () => Math.PI;
+  const hinted = solidScriptSystemBareHint(written);
   return (evaluator, scope) => {
     const home = scope.variableHome(name);
-    return home ? home.variableOwn(name) : evaluator.variableMissing(name, scope);
+    if (home) return home.variableOwn(name);
+    if (hinted) throw new Error(hinted);
+    return evaluator.variableMissing(name, scope);
   };
 }
 
@@ -273,7 +276,7 @@ function solidScriptCompileBinary(
 }
 
 /**
- * Compiles a member read: a built-in value such as Time.Year when the first
+ * Compiles a member read: a built-in value such as $Time.Year when the first
  * name is not a variable, otherwise .x, .y or .z of a vector.
  *
  * @param expression Member node.
@@ -282,21 +285,54 @@ function solidScriptCompileBinary(
 function solidScriptCompileMember(expression: Extract<SolidScriptExpression, { kind: 'member' }>): SolidScriptCompiled {
   const target = solidScriptExpressionCompiled(expression.target);
   const index = SOLID_SCRIPT_MEMBERS[solidScriptNameKey(expression.name)];
+  const path = solidScriptCompileMemberPath(expression);
+  return (evaluator, scope) => {
+    const builtIn = path ? solidScriptCompileSystemRead(evaluator, scope, path.root, path.dotted) : undefined;
+    return builtIn !== undefined ? builtIn : evaluator.evaluateIndex(target(evaluator, scope), index);
+  };
+}
+
+/**
+ * Reads the dotted name of a member chain, such as $Math.Pi.
+ *
+ * @param expression Member node.
+ * @returns Root and dotted keys, or null when the start is not a name.
+ */
+function solidScriptCompileMemberPath(
+  expression: Extract<SolidScriptExpression, { kind: 'member' }>,
+): { root: string; dotted: string } | null {
   const names: string[] = [];
   let part: SolidScriptExpression = expression;
   while (part.kind === 'member') {
     names.unshift(part.name);
     part = part.target;
   }
-  const root = part.kind === 'variable' ? solidScriptNameKey(part.name) : null;
-  const dotted = root === null ? '' : solidScriptNameKey([root, ...names].join('.'));
-  return (evaluator, scope) => {
-    if (root !== null && !scope.variableHas(root)) {
-      const builtIn = evaluator.systemRead(dotted);
-      if (builtIn !== undefined) return builtIn;
-    }
-    return evaluator.evaluateIndex(target(evaluator, scope), index);
-  };
+  if (part.kind !== 'variable') return null;
+  const root = solidScriptNameKey(part.name);
+  return { root, dotted: solidScriptNameKey([root, ...names].join('.')) };
+}
+
+/**
+ * Reads a built-in value written as $Math.Pi, or tells the user to add the $
+ * when the same name is written without it.
+ *
+ * @param evaluator Formula evaluator.
+ * @param scope Scope of the running formula.
+ * @param root First name, folded, such as $math or math.
+ * @param dotted Whole name, folded, such as $math.pi.
+ * @returns Built-in value, or undefined when this is not a built-in value.
+ */
+function solidScriptCompileSystemRead(
+  evaluator: SolidScriptExpressionEvaluator,
+  scope: SolidScriptScope,
+  root: string,
+  dotted: string,
+): SolidScriptValue | undefined {
+  if (scope.variableHas(root)) return undefined;
+  if (root.startsWith('$')) return evaluator.systemRead(dotted.slice(1));
+  const hinted = solidScriptSystemBareHint(dotted);
+  if (hinted) throw new Error(hinted);
+  return undefined;
 }
 
 /** Built-in function names by key, made on first use. */

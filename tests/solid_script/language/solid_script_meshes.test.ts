@@ -153,7 +153,7 @@ describe('SolidScript meshes', () => {
 
   it('displaces points by a formula of their position and normal', () => {
     const mesh = onlyMesh(
-      run({ command: 'displace', values: { distance: '[=[nz] > 0.5 ? 1 : 0]' } }, { command: 'cube' }, END),
+      run({ command: 'displace', values: { distance: '[=[$NZ] > 0.5 ? 1 : 0]' } }, { command: 'cube' }, END),
     );
     const out = Math.round((0.5 + 1 / Math.sqrt(3)) * 100) / 100;
     expect(bounds(mesh)).toEqual([-out, -out, -0.5, out, out, out]);

@@ -2,6 +2,7 @@ import {
   solidScriptFlowItemOf,
   solidScriptFlowMember,
   solidScriptFlowNameKinds,
+  solidScriptFlowPathKinds,
   solidScriptFlowUnique,
   SOLID_SCRIPT_FLOW_UNKNOWN,
   type SolidScriptFlowHead,
@@ -137,8 +138,8 @@ export function solidScriptFlowFormulaTree(formula: SolidScriptFlowFormula, head
 }
 
 /**
- * Tells the kinds of the names a read formula uses: its bracketed parts, Pi and
- * the script's names.
+ * Tells the kinds of the names a read formula uses: its bracketed parts, system
+ * values and the script's names.
  *
  * @param formula Formula.
  * @param head Kinds the script's names may hold.
@@ -148,7 +149,7 @@ function solidScriptFlowFormulaNames(formula: SolidScriptFlowFormula, head: Soli
   const parts = formula.parts.map((part) => solidScriptFlowPartKinds(part, head));
   return (name) => {
     if (name.startsWith(SOLID_SCRIPT_FLOW_PART)) return parts[Number(name.slice(SOLID_SCRIPT_FLOW_PART.length))] ?? [];
-    if (solidScriptNameKey(name) === 'pi') return ['Number'];
+    if (name.startsWith('$')) return solidScriptFlowPathKinds(name, head);
     const kinds = head(solidScriptNameKey(name));
     return kinds.length > 0 ? [...kinds] : [SOLID_SCRIPT_FLOW_UNKNOWN];
   };
@@ -167,6 +168,42 @@ type SolidScriptFlowExpressionOf<Kind extends SolidScriptExpression['kind']> = E
 type SolidScriptFlowInner = (inner: SolidScriptExpression) => string[];
 
 /** What each kind of expression gives, from the kinds of its parts. */
+/**
+ * Joins a member chain into a dotted name, such as $Math.Pi.
+ *
+ * @param node Member or variable expression.
+ * @returns Dotted name, or null when the start is not a name.
+ */
+function solidScriptFlowDotted(node: SolidScriptExpression): string | null {
+  const names: string[] = [];
+  let part: SolidScriptExpression = node;
+  while (part.kind === 'member') {
+    names.unshift(part.name);
+    part = part.target;
+  }
+  return part.kind === 'variable' ? [part.name, ...names].join('.') : null;
+}
+
+/**
+ * Tells the kinds of a member: a system value such as $Math.Pi, otherwise the
+ * member of the kinds of its target.
+ *
+ * @param node Member expression.
+ * @param kinds Kinds of a nested expression.
+ * @param head Kinds the script's names may hold.
+ * @returns Kinds.
+ */
+function solidScriptFlowSystemMember(
+  node: SolidScriptFlowExpressionOf<'member'>,
+  kinds: SolidScriptFlowInner,
+  head: SolidScriptFlowHead,
+): string[] {
+  const path = solidScriptFlowDotted(node);
+  return path?.startsWith('$')
+    ? solidScriptFlowPathKinds(path, head)
+    : solidScriptFlowMember(kinds(node.target), node.name);
+}
+
 const SOLID_SCRIPT_FLOW_EXPRESSION_KINDS: {
   readonly [Kind in SolidScriptExpression['kind']]?: (
     node: SolidScriptFlowExpressionOf<Kind>,
@@ -193,7 +230,7 @@ const SOLID_SCRIPT_FLOW_EXPRESSION_KINDS: {
       head,
     ),
   index: (node, kinds) => solidScriptFlowUnique(kinds(node.target).map(solidScriptFlowItemOf)),
-  member: (node, kinds) => solidScriptFlowMember(kinds(node.target), node.name),
+  member: (node, kinds, head) => solidScriptFlowSystemMember(node, kinds, head),
 };
 
 /**

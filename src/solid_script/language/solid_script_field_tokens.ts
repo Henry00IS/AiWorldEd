@@ -38,7 +38,7 @@ export interface SolidScriptFieldToken {
 }
 
 /** Words a formula reads as values or operators, not as names. */
-const SOLID_SCRIPT_FIELD_KEYWORDS = new Set(['true', 'false', 'undef', 'pi', 'and', 'or', 'not', 'for']);
+const SOLID_SCRIPT_FIELD_KEYWORDS = new Set(['true', 'false', 'undef', 'and', 'or', 'not', 'for']);
 
 /** A name, with dotted parts such as Local.Width or Pos.x. */
 const SOLID_SCRIPT_FIELD_WORD = /^\$?[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]+)*/;
