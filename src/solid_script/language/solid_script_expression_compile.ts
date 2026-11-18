@@ -1,5 +1,9 @@
 import type { SolidScriptExpression } from './solid_script_ast.js';
-import { solidScriptFunctionArguments, type SolidScriptFunctionArgument } from './solid_script_function_docs.js';
+import {
+  SOLID_SCRIPT_FUNCTION_DOCS,
+  solidScriptFunctionArguments,
+  type SolidScriptFunctionArgument,
+} from './solid_script_function_docs.js';
 import { solidScriptKindFits, solidScriptKindOf, solidScriptKindsWords } from './solid_script_kinds.js';
 import { solidScriptArithmeticBinary } from './solid_script_arithmetic.js';
 import type { SolidScriptExpressionEvaluator } from './solid_script_expression_evaluator.js';
@@ -151,6 +155,21 @@ function solidScriptCompileVariable(written: string): SolidScriptCompiled {
 }
 
 /**
+ * Tells that a built-in function cannot work with the values it was given, and
+ * how it is written.
+ *
+ * @param name Function name as shown.
+ * @param key Built-in function key.
+ * @param values Values it was given.
+ * @returns Error.
+ */
+function solidScriptCompileCallMistake(name: string, key: string, values: readonly SolidScriptValue[]): Error {
+  const usage = SOLID_SCRIPT_FUNCTION_DOCS[key]?.usage;
+  const given = values.map(solidScriptValueShow).join(', ') || 'no values';
+  return new Error(`${name}() cannot use ${given}${usage ? `; write it as ${usage}` : ''}`);
+}
+
+/**
  * Compiles a call; built-in functions are looked up once.
  *
  * @param name Function name.
@@ -173,8 +192,7 @@ function solidScriptCompileCall(written: string, args: readonly SolidScriptCompi
     if (!builtin) return evaluator.callUser(name, values);
     solidScriptCompileInputsCheck(name, inputs, values);
     const result = builtin(values);
-    if (result === undefined && found !== 'is_undef')
-      throw new Error(`${name}() cannot use ${values.map(solidScriptValueShow).join(', ') || 'no values'}`);
+    if (result === undefined && found !== 'is_undef') throw solidScriptCompileCallMistake(name, found!, values);
     return result;
   };
 }

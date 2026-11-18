@@ -1,3 +1,4 @@
+import { solidScriptKindNamed } from '@/solid_script/language/solid_script_kinds.js';
 import * as THREE from 'three';
 import { SolidScriptCommand, type SolidScriptCommandWord } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
@@ -38,7 +39,6 @@ import {
   solidScriptValueNumbers,
   solidScriptValueText,
   solidScriptValueTruthy,
-  solidScriptValueType,
   type SolidScriptValue,
 } from '@/solid_script/language/solid_script_value.js';
 
@@ -154,13 +154,13 @@ function solidScriptFaceTargets(run: SolidScriptBlockRun, label: string): SolidS
   if (values.length === 0)
     throw new Error(
       given
-        ? `${label} has no faces in Of`
+        ? `${label} has no faces in Of; check that Of holds faces or brushes`
         : `${label} has no faces to work on; pick some with Select Faces above it, or give them in Of`,
     );
   const faces: SolidScriptFaceFacts[] = [];
   for (const value of values) {
     if (!(value instanceof SolidScriptElement) || (value.kind !== 'face' && value.kind !== 'brush'))
-      throw new Error(`${label} takes faces or brushes, not ${solidScriptValueType(value)}`);
+      throw new Error(`${label} takes faces or brushes, not ${solidScriptKindNamed(value)}`);
     const read = run.elements.faces(value);
     if (read.length === 0 && values.length === 1) throw new Error(`${String(value)} was cut away by a line above`);
     for (const face of read)
@@ -187,7 +187,7 @@ function solidScriptFaceEdgeTargets(run: SolidScriptBlockRun, label: string): So
   const edges: SolidScriptEdgeFacts[] = [];
   for (const value of values) {
     if (!(value instanceof SolidScriptElement) || value.kind === 'vertex' || value.kind === 'data')
-      throw new Error(`${label} takes edges, faces or brushes, not ${solidScriptValueType(value)}`);
+      throw new Error(`${label} takes edges, faces or brushes, not ${solidScriptKindNamed(value)}`);
     for (const edge of run.elements.edges(value))
       if (!edges.some((known) => known.faces[0].leaf === edge.faces[0].leaf && known.index === edge.index))
         edges.push(edge);
@@ -360,7 +360,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       const faces: SolidScriptFaceFacts[] = [];
       for (const value of from) {
         if (!(value instanceof SolidScriptElement) || (value.kind !== 'face' && value.kind !== 'brush'))
-          throw new Error(`Select Faces picks from brushes or faces, not ${solidScriptValueType(value)}`);
+          throw new Error(`Select Faces picks from brushes or faces, not ${solidScriptKindNamed(value)}`);
         faces.push(...run.elements.faces(value));
       }
       if (faces.length === 0)
@@ -620,7 +620,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     stops: ['No edges.', 'Edges of a mesh. Bevel Edges works on brushes for now.', 'A Distance of 0 or less.'],
     parameters: [
       solidScriptParameter('distance', 'Distance', 'number', '0.1', 'Metres to cut back along each side.'),
-      solidScriptParameterOf('edges, faces or brushes', '$Selected.Edges'),
+      solidScriptParameterOf('edges, faces or brushes', '$Selected.Edges', ['Brush', 'Face', 'Edge']),
       solidScriptParameterInto('the new faces, a Face list', 'Face List', 'what is made'),
     ],
     listing: (read) => [
@@ -712,6 +712,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
           "Name of a library texture; [Name] puts in a variable, such as a texture Input. Empty keeps the generator's texture.",
         ),
         texture: true,
+        accepts: ['Text'],
       },
     ],
     listing: (read) => ['Texture', read.value('texture')],
@@ -751,6 +752,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
           'Name of a library texture; [Name] puts in a variable, such as a texture Input.',
         ),
         texture: true,
+        accepts: ['Text'],
       },
       solidScriptParameterOf('faces or brushes', '$Selected.Faces'),
     ],

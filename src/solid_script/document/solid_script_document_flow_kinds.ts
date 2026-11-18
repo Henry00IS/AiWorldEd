@@ -169,15 +169,23 @@ export function solidScriptFlowNameKinds(text: string, head: SolidScriptFlowHead
 }
 
 /**
- * Tells the kind of numbers or items typed between commas: a Vector for two or
- * three numbers, else a List.
+ * Tells the kind of items typed between commas the way a running value is
+ * kinded: a Vector for two or three numbers, a list of one kind when every item
+ * is that kind, such as Number List or Text List, else a List; unknown when an
+ * item's kind is only known by running.
  *
  * @param pieces Items as typed.
+ * @param head Kinds the script's names may hold.
  * @returns Kind.
  */
-function solidScriptFlowListKind(pieces: readonly string[]): string {
-  const numbers = pieces.every((piece) => solidScriptValueNumber(piece.trim()) !== undefined);
-  return numbers && pieces.length <= 3 ? 'Vector' : 'List';
+function solidScriptFlowListKind(pieces: readonly string[], head: SolidScriptFlowHead): string {
+  const kinds = pieces.map((piece) => solidScriptFlowPieceKinds(piece, head));
+  if (kinds.some((each) => each.length !== 1 || each[0] === SOLID_SCRIPT_FLOW_UNKNOWN))
+    return SOLID_SCRIPT_FLOW_UNKNOWN;
+  const unique = new Set(kinds.map((each) => each[0]!));
+  const [only] = unique;
+  if (unique.size !== 1 || only === undefined || only.endsWith('List')) return 'List';
+  return only === 'Number' && pieces.length <= 3 ? 'Vector' : `${only} List`;
 }
 
 /**
@@ -194,9 +202,10 @@ function solidScriptFlowPieceKinds(piece: string, head: SolidScriptFlowHead): st
   const inner = /^\[(.*)\]$/s.exec(text)?.[1];
   if (inner !== undefined && inner.trimStart().startsWith('=')) return solidScriptFlowFormulaKinds(inner, head);
   const items = inner === undefined ? [] : solidScriptFieldSplit(inner, ',');
-  if (items.length > 1) return [solidScriptFlowListKind(items)];
+  if (items.length > 1) return [solidScriptFlowListKind(items, head)];
   if (inner !== undefined && solidScriptFlowBalanced(inner)) return solidScriptFlowNameKinds(inner, head);
-  return [solidScriptValueNumber(text) !== undefined ? 'Number' : 'Text'];
+  if (solidScriptValueNumber(text) !== undefined) return ['Number'];
+  return /^(yes|no|true|false)$/i.test(text) ? ['Yes/No'] : ['Text'];
 }
 
 /**
@@ -210,7 +219,7 @@ function solidScriptFlowPieceKinds(piece: string, head: SolidScriptFlowHead): st
  */
 export function solidScriptFlowValueKinds(text: string, head: SolidScriptFlowHead): string[] {
   const pieces = solidScriptFieldSplit(text.trim(), ',');
-  if (pieces.length > 1) return [solidScriptFlowListKind(pieces)];
+  if (pieces.length > 1) return [solidScriptFlowListKind(pieces, head)];
   return solidScriptFlowPieceKinds(pieces[0] ?? '', head);
 }
 
@@ -239,4 +248,29 @@ export function solidScriptFlowItemKinds(text: string, head: SolidScriptFlowHead
 export function solidScriptFlowKeyKinds(text: string, head: SolidScriptFlowHead): string[] {
   const kinds = solidScriptFlowValueKinds(text, head);
   return solidScriptFlowUnique(kinds.map((kind) => (kind === 'Data' ? 'Text' : 'Number')));
+}
+
+/**
+ * Tells the kinds a variable holds after a line empties it or takes items out:
+ * Clear Variable leaves a list [] (a List), a number 0, a Yes/No No and any
+ * other value empty text; taking items out of a list may leave it empty, and
+ * two or three numbers left make a Vector.
+ *
+ * @param rule Emptied or shrunk.
+ * @param kinds Kinds it held.
+ * @returns Kinds after the line.
+ */
+export function solidScriptFlowChanged(rule: 'emptied' | 'shrunk', kinds: readonly string[]): string[] {
+  const listed = (kind: string): boolean => kind.endsWith('List') || kind === 'Vector';
+  if (rule === 'shrunk')
+    return solidScriptFlowUnique([...kinds, ...(kinds.some(listed) ? ['List', 'Vector', 'Number List'] : [])]);
+  return solidScriptFlowUnique(
+    kinds.map((kind) =>
+      kind === SOLID_SCRIPT_FLOW_UNKNOWN || kind === 'Number' || kind === 'Yes/No'
+        ? kind
+        : listed(kind)
+          ? 'List'
+          : 'Text',
+    ),
+  );
 }

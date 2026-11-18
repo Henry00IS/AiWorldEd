@@ -108,7 +108,7 @@ describe('SolidScript list blocks', () => {
   it('stops with plain words', () => {
     expect(echoed(line('sort_list', { list: 'nope' }))).toMatch(/there is no list \[nope\]; make one with Add Item/);
     expect(echoed(line('variable', { name: 'n', value: '4' }), line('reverse_list', { list: 'n' }))).toMatch(
-      /\[n\] is Whole Number, not a list/,
+      /\[n\] is a Number, not a list/,
     );
     expect(echoed(line('add_item', { value: '1', list: 'l' }), line('insert_item', { list: 'l', at: '5' }))).toMatch(
       /Position needs a whole number from 0 to 1/,

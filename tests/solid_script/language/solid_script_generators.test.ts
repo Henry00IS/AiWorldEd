@@ -89,7 +89,9 @@ describe('SolidScript generator blocks', () => {
       for (const field of shaped) {
         const parameter = command?.parameters.find((entry) => entry.key === field.key);
         expect(parameter?.label).toBe(field.label);
-        expect(parameter?.default).toBe(String(field.default));
+        expect(parameter?.default).toBe(
+          field.type === 'boolean' ? (field.default === true ? 'Yes' : 'No') : String(field.default),
+        );
       }
     }
   });

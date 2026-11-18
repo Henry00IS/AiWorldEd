@@ -339,6 +339,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
           'Name of a part defined in this script, or a variable such as [Style] that holds one.',
         ),
         nameGroups: ['Parts'],
+        accepts: ['Text'],
       },
     ],
     listing: (read) => ['Use Part', { kind: 'value', text: `'${read.text('name')}'` }],

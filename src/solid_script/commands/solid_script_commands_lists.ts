@@ -152,7 +152,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
           'Points()',
           'List item to remove, such as Points(2), or Points() for the last.',
         ),
-        { rule: 'kept' },
+        { rule: 'shrunk' },
       ),
     ],
     listing: (read) => ['Remove Item', read.variable('target')],
@@ -171,7 +171,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     stops: [SOLID_SCRIPT_LIST_STOP],
     parameters: [
       solidScriptParameter('value', 'Value', 'value', '1', 'What to take out.'),
-      SOLID_SCRIPT_LIST_NAME,
+      solidScriptParameterWrites(SOLID_SCRIPT_LIST_FIELD, { rule: 'shrunk' }),
       solidScriptParameter('every', 'Every Copy', 'boolean', 'No', 'Take out every copy, not just the first.'),
     ],
     listing: (read) => [
@@ -286,7 +286,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     manual:
       'Empties a variable but keeps its name: a list keeps no items, and anything else becomes empty text. Example: Clear Variable Heights empties the list Heights, so [Heights.Count] is 0. A name not set yet becomes an empty list, ready for Add Item.',
     stops: ['An input. Inputs can only be read.'],
-    parameters: [solidScriptParameterWrites(SOLID_SCRIPT_LIST_VARIABLE_FIELD, { rule: 'kept' })],
+    parameters: [solidScriptParameterWrites(SOLID_SCRIPT_LIST_VARIABLE_FIELD, { rule: 'emptied' })],
     listing: (read) => ['Clear Variable', read.variable('name')],
     execute: (run) => {
       run.variableClear(run.text('name'));

@@ -31,11 +31,18 @@ describe('SolidScript builders', () => {
     const missing = solidScriptCommands
       .filter(
         (command) =>
-          command.category === 'Solids' || command.category === 'Generators' || BUILDERS.includes(command.id),
+          // A Point is a corner of a Polyhedron or Polygon and builds nothing itself.
+          command.id !== 'point' &&
+          (command.category === 'Solids' || command.category === 'Generators' || BUILDERS.includes(command.id)),
       )
       .filter((command) => !['label', 'into'].every((key) => command.parameters.some((field) => field.key === key)))
       .map((command) => command.id);
     expect(missing).toEqual([]);
+  });
+
+  it('gives a Point, which builds nothing, no Name or Into', () => {
+    const point = solidScriptCommands.find((command) => command.id === 'point');
+    expect(point?.parameters.map((field) => field.key)).toEqual(['position']);
   });
 
   it('writes what a block builds Into a variable, with its Name', () => {

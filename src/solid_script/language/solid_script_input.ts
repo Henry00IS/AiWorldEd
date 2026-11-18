@@ -39,8 +39,8 @@ export const SOLID_SCRIPT_INPUT_KINDS: Readonly<Record<SolidScriptInputType, str
   switch: 'Yes/No',
   text: 'Text',
   choice: 'Text',
-  button: undefined,
-  curve: undefined,
+  button: 'Yes/No',
+  curve: 'Text',
   texture: 'Text',
   vector: 'Vector',
 };

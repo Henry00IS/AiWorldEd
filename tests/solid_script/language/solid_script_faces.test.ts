@@ -376,7 +376,7 @@ describe('SolidScript faces', () => {
         command: 'bevel_edges',
         values: { of: '[$Selected.Brushes.First.Vertices]' },
       }).error?.message,
-    ).toMatch(/takes edges, faces or brushes, not Vertex/);
+    ).toMatch(/Of needs a Brush, Face, Edge or Text, or a list of them, not a Vertex List/);
   });
 
   it('writes face lines in plain words', () => {

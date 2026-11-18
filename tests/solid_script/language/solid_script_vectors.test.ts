@@ -87,7 +87,7 @@ describe('SolidScript vectors', () => {
 
   it('explains vector mistakes in plain words', () => {
     expect(echoed(line('variable', { name: 'n', value: '4' }), line('echo', { value: '[n.x]' }))).toMatch(
-      /\[n\] is Whole Number, not a vector with a \.x/,
+      /\[n\] is a Number, not a vector with a \.x/,
     );
     expect(echoed(line('variable', { name: 'ghost.x', value: '1' }))).toMatch(/there is no vector \[ghost\] to change/);
     expect(formula('normalize([0, 0, 0])')).toMatch(/cannot turn 0, 0, 0 into a direction/);
@@ -172,7 +172,7 @@ describe('SolidScript dotted names', () => {
     expect(echoed(line('variable', { name: 'Face.Area', value: '1' }))).toMatch(/Face\.Area can only be read/);
     expect(
       echoed(line('variable', { name: 'Items', value: '1, 2, 3, 4' }), line('echo', { value: '[Items.size]' })),
-    ).toMatch(/List of Numbers has no \.size; it has \.Count, \.First, \.Last/);
+    ).toMatch(/a Number List has no \.size; it has \.Count, \.First, \.Last/);
   });
 
   it('allows the dotted forms SolidScript gives a meaning', () => {

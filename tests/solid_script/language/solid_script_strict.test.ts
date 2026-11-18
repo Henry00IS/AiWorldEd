@@ -49,9 +49,11 @@ describe('SolidScript stops at the first mistake', () => {
 
   it('refuses formulas that have no meaning', () => {
     expect(failure({ command: 'cube', values: { size: '[="a" * 2]' } })).toMatch(
-      /^Line 1: Size: \* needs numbers, but "a" is Text, not a number\.$/,
+      /^Line 1: Size: \* needs numbers, but "a" is a Text, not a number\.$/,
     );
-    expect(failure({ command: 'cube', values: { size: '[=1 / 0]' } })).toBe('Line 1: Size: division by zero.');
+    expect(failure({ command: 'cube', values: { size: '[=1 / 0]' } })).toBe(
+      'Line 1: Size: division by zero; check that what is divided by cannot be 0.',
+    );
     expect(failure({ command: 'sphere', values: { r: '[=sqrt(-1)]' } })).toBe(
       'Line 1: Radius needs a number, such as 2, not NaN.',
     );

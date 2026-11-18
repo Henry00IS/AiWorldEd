@@ -174,18 +174,55 @@ interface SolidScriptMistakeField {
  */
 export function solidScriptMistakeHinted(
   error: unknown,
-  node: { command: { parameters: readonly SolidScriptMistakeField[] }; values: Readonly<Record<string, string>> },
+  node: {
+    command: { label: string; parameters: readonly SolidScriptMistakeField[] };
+    values: Readonly<Record<string, string>>;
+  },
 ): unknown {
   if (!(error instanceof Error)) return error;
-  const notes = node.command.parameters
-    .filter((field) => !SOLID_SCRIPT_MISTAKE_NAMES.has(field.type))
-    .map((field) => ({ field, note: solidScriptFieldMistakeNote(node.values[field.key] ?? '') }))
+  if (solidScriptMistakeEngine(error))
+    return new Error(`${node.command.label} cannot be built with these values; try smaller sizes or counts`);
+  const fields = node.command.parameters;
+  const notes = fields
+    .map((field) => ({ field, note: solidScriptFieldMistakeOf(field, node.values[field.key] ?? '') }))
     .filter((entry) => entry.note !== '');
-  const named =
-    notes.find((entry) => error.message.startsWith(entry.field.label)) ?? (notes.length === 1 ? notes[0] : undefined);
+  const names = (field: SolidScriptMistakeField): boolean => error.message.startsWith(field.label);
+  // An error about one field never gets the hint of another.
+  const named = fields.some(names)
+    ? notes.find((entry) => names(entry.field))
+    : notes.length === 1
+      ? notes[0]
+      : undefined;
   if (!named) return error;
-  const hinted = new Error(
-    `${error.message.replace(/\.?\s*$/, '')}. ${named.note.slice(named.note.indexOf('Did you mean'))}`,
-  );
-  return hinted;
+  return new Error(`${error.message.replace(/\.?\s*$/, '')}. ${named.note.slice(named.note.indexOf('Did you mean'))}`);
+}
+
+/**
+ * Tells whether an error is a fault of the engine itself, such as running out
+ * of room for a huge count, rather than a mistake a line tells in words.
+ *
+ * @param error Error.
+ * @returns True for a fault of the engine.
+ */
+function solidScriptMistakeEngine(error: Error): boolean {
+  return error instanceof RangeError || error instanceof TypeError || error instanceof ReferenceError;
+}
+
+/**
+ * Explains a mistake in the text of one field, by the same rule in the editor
+ * and in a run: names are never checked, and math outside a formula only in
+ * fields that are read as numbers.
+ *
+ * @param field Field.
+ * @param text Field text as written.
+ * @param known Tells whether the script defines a name.
+ * @returns Explanation, or an empty string when nothing looks wrong.
+ */
+export function solidScriptFieldMistakeOf(
+  field: Pick<SolidScriptMistakeField, 'type'>,
+  text: string,
+  known: (name: string) => boolean = () => false,
+): string {
+  if (SOLID_SCRIPT_MISTAKE_NAMES.has(field.type) || text.trim() === '') return '';
+  return solidScriptFieldMistakeNote(text, SOLID_SCRIPT_MISTAKE_NUMERIC.has(field.type), known);
 }

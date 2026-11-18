@@ -64,7 +64,11 @@ export class SolidScriptParserExpression {
    * @param symbol Symbol text.
    */
   protected expect(symbol: string): void {
-    if (!this.accept(symbol)) throw this.error(`expected "${symbol}" but found "${this.peek().text || 'end'}"`);
+    if (this.accept(symbol)) return;
+    const found = this.peek().text;
+    throw this.error(
+      found ? `a "${symbol}" is needed before "${found}"` : `a closing "${symbol}" is missing at the end`,
+    );
   }
 
   /**
@@ -74,7 +78,8 @@ export class SolidScriptParserExpression {
    */
   protected expectIdentifier(): string {
     const token = this.next();
-    if (token.kind !== 'identifier') throw this.error(`expected a name but found "${token.text}"`);
+    if (token.kind !== 'identifier')
+      throw this.error(`a name is needed here, not "${token.text || 'the end'}"; names use letters, digits and _`);
     return token.text;
   }
 
@@ -230,7 +235,11 @@ export class SolidScriptParserExpression {
       return inner;
     }
     if (token.text === '[') return this.parseVector();
-    throw new Error(`line ${token.line}: unexpected "${token.text || 'end'}" in expression`);
+    throw new Error(
+      token.text
+        ? `line ${token.line}: "${token.text}" cannot stand here; a number, "text", [Name] or Function() was expected`
+        : `line ${token.line}: the formula stops where a value is still missing, such as after an operator or a comma`,
+    );
   }
 
   /**

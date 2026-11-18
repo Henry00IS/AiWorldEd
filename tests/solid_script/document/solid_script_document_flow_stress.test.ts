@@ -368,7 +368,8 @@ describe('SolidScript kinds stress: If conditions narrow', () => {
     expect(kindsAt(lines, 6, 'h')).toEqual(['Number']);
     expect(kindsAt(lines, 8, 'h')).toEqual(['Text']);
     expect(kindsAt(lines, 11, 'h')).toEqual(['Number']);
-    expect(kindsAt(lines, 11, 'k')).toEqual(['Number']);
+    // No line sets K, so the If may not make it up: the run stops at [K].
+    expect(kindsAt(lines, 11, 'k')).toEqual([]);
     expect(kindsAt(lines, 14, 'h')).toEqual(['Number']);
     expect(kindsAt(lines, 16, 'h')).toEqual(['Text']);
   });
@@ -427,8 +428,8 @@ describe('SolidScript kind checks squiggle only what no run can use', () => {
       line('cube', { size: '[Box], 1, 1' }),
     ];
     expect(check(lines)).toEqual([
-      '4: Of needs a Brush, Face, Edge, Vertex or Text, or a list of them, not a Yes/No',
-      '5: [Word] holds Text, which has no .Faces',
+      '4: Of needs a Brush, Face or Text, or a list of them, not a Yes/No',
+      '5: [Word] holds Text, which has no .Faces; it has .Length, .Words',
       '6: Abs() needs a Number for Number, not a Brush',
     ]);
   });

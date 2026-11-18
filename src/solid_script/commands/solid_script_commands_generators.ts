@@ -2,7 +2,11 @@
 import { solidScriptGeneratorPieces } from '@/solid_script/language/solid_script_generator_pieces.js';
 import { SolidScriptCommand, type SolidScriptCommandParameter } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
-import { solidScriptParameter, solidScriptParameterAnchor } from './solid_script_command_parameters.js';
+import {
+  SOLID_SCRIPT_WORDS_ACCEPTS,
+  solidScriptParameter,
+  solidScriptParameterAnchor,
+} from './solid_script_command_parameters.js';
 import { SOLID_SCRIPT_ANCHOR_SOLID, solidScriptAnchorMin } from '@/solid_script/language/solid_script_anchor.js';
 import type { SolidScriptBlockArguments } from '@/solid_script/language/solid_script_block_arguments.js';
 import { solidScriptValueNumber, solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
@@ -50,12 +54,13 @@ function solidScriptGeneratorFields(kind: ModifierStackKindGenerator): ModifierS
 function solidScriptGeneratorParameter(field: ModifierStackField): SolidScriptCommandParameter {
   const hint = field.hint ?? field.label;
   if (field.type === 'boolean')
-    return solidScriptParameter(field.key, field.label, 'boolean', String(field.default), hint);
+    return solidScriptParameter(field.key, field.label, 'boolean', field.default === true ? 'Yes' : 'No', hint);
   if (field.type === 'choice') {
     const choices = (field.choices ?? []).map((choice) => `${choice.value} (${choice.label})`).join(', ');
     return {
       ...solidScriptParameter(field.key, field.label, 'message', String(field.default), `${hint} One of: ${choices}.`),
       words: (field.choices ?? []).map((choice) => ({ word: choice.value, detail: choice.label })),
+      accepts: SOLID_SCRIPT_WORDS_ACCEPTS,
     };
   }
   const range = field.min !== undefined && field.max !== undefined ? ` From ${field.min} to ${field.max}.` : '';

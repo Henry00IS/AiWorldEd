@@ -167,3 +167,17 @@ export function solidScriptLeafUnreceived(leaf: SolidScriptShapeSolid): SolidScr
   const { received: _received, ...built } = leaf;
   return built;
 }
+
+/**
+ * Gives every piece of a shape the name a line was given, so an Extrude named
+ * Wall builds pieces named Wall; without a name each keeps its own.
+ *
+ * @param shape Shape.
+ * @param name Name given on the line, or an empty string.
+ * @returns Shape.
+ */
+export function solidScriptShapeNamed(shape: SolidScriptShape, name: string): SolidScriptShape {
+  if (name === '') return shape;
+  if (shape.kind !== 'boolean') return { ...shape, label: name };
+  return { ...shape, label: name, children: shape.children.map((child) => solidScriptShapeNamed(child, name)) };
+}

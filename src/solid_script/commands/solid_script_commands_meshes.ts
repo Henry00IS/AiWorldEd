@@ -208,13 +208,16 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
       'Fewer than three corners, the same corner twice, or a number with no Vertex.',
     ],
     parameters: [
-      solidScriptParameter(
-        'corners',
-        'Corners',
-        'value',
-        '0, 1, 2',
-        'Vertex numbers from 0, in order around the face, separated by commas, or a list variable.',
-      ),
+      {
+        ...solidScriptParameter(
+          'corners',
+          'Corners',
+          'value',
+          '0, 1, 2',
+          'Vertex numbers from 0, in order around the face, separated by commas, or a list variable.',
+        ),
+        accepts: ['Vector', 'Number List', 'Text'],
+      },
     ],
     listing: (read) => ['Face', read.value('corners')],
     execute: (run) => {

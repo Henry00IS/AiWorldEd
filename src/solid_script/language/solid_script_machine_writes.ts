@@ -1,3 +1,4 @@
+import { solidScriptKindNamed } from './solid_script_kinds.js';
 import { solidScriptFieldResolve } from './solid_script_field.js';
 import {
   solidScriptListItemParse,
@@ -6,12 +7,7 @@ import {
 } from './solid_script_list_item.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
 import type { SolidScriptScope } from './solid_script_scope.js';
-import {
-  SolidScriptElement,
-  solidScriptValueText,
-  solidScriptValueType,
-  type SolidScriptValue,
-} from './solid_script_value.js';
+import { SolidScriptElement, solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
 import {
   SOLID_SCRIPT_LOCAL_PREFIX,
   SOLID_SCRIPT_NAME,
@@ -57,7 +53,7 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
     for (const item of items) {
       if (!(item instanceof SolidScriptElement))
         throw new Error(
-          `only brushes, faces, edges and corners have .Data; ${parts.slice(0, at).join('.')} is ${solidScriptValueType(item)}`,
+          `only brushes, faces, edges and corners have .Data; ${parts.slice(0, at).join('.')} is ${solidScriptKindNamed(item)}`,
         );
       this.elements.dataWrite(
         item.kind === 'data' ? item : this.elements.data(item),
@@ -159,6 +155,7 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
    */
   variableDeleteLine(scope: SolidScriptScope, name: string): void {
     const where = this.variableWhere(name, scope);
+    this.nameCheck(where.name, 'a variable');
     if (!where.local) this.writableCheck(where.name);
     if (!where.scope.variableDelete(where.name))
       throw new Error(

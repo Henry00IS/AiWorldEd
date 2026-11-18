@@ -51,7 +51,7 @@ describe('SolidScript Select Edges and Select Vertices', () => {
     ).toEqual(['2']);
     expect(printed(line('select_edges'))[0]).toMatch(/no brushes|add a brush/i);
     expect(printed(CUBE, line('select_vertices', { into: 'V' }), line('select_edges', { of: '[V]' }))[0]).toMatch(
-      /Select Edges picks from brushes, faces or edges, not Vertex/,
+      /Of needs a Brush, Face, Edge or Text, or a list of them, not a Vertex List/,
     );
   });
 

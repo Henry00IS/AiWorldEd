@@ -1,9 +1,9 @@
+import { solidScriptKindNamed, solidScriptKindOf } from './solid_script_kinds.js';
 import {
   solidScriptValueEquals,
   solidScriptValueNumeric,
   solidScriptValueShow,
   solidScriptValueTruthy,
-  solidScriptValueType,
   type SolidScriptValue,
 } from './solid_script_value.js';
 
@@ -38,7 +38,9 @@ export function solidScriptArithmeticBinary(
   // Two vectors combine part by part; Dot and Cross are functions.
   if (['+', '-', '*', '/'].includes(operator) && Array.isArray(left) && Array.isArray(right)) {
     if (left.length !== right.length)
-      throw new Error(`cannot use ${operator} on lists of ${left.length} and ${right.length} numbers`);
+      throw new Error(
+        `cannot use ${operator} on lists of ${left.length} and ${right.length} numbers; both sides need as many numbers`,
+      );
     return left.map((entry, index) => solidScriptArithmeticBinary(operator, entry, right[index]));
   }
   if (typeof left === 'string' && typeof right === 'string') {
@@ -61,10 +63,10 @@ function solidScriptArithmeticError(operator: string, left: SolidScriptValue, ri
   const odd = [left, right].find((value) => typeof value !== 'number' && !Array.isArray(value));
   if (odd !== undefined)
     return new Error(
-      `${operator} needs numbers, but ${solidScriptValueShow(odd)} is ${solidScriptValueType(odd)}, not a number`,
+      `${operator} needs numbers, but ${solidScriptValueShow(odd)} is ${solidScriptKindNamed(odd)}, not a number`,
     );
   return new Error(
-    `cannot use ${operator} on ${solidScriptValueShow(left)} (${solidScriptValueType(left)}) and ${solidScriptValueShow(right)} (${solidScriptValueType(right)})`,
+    `cannot use ${operator} on ${solidScriptValueShow(left)} (${solidScriptKindOf(left)}) and ${solidScriptValueShow(right)} (${solidScriptKindOf(right)}); math works on numbers, and on vectors or number lists of the same length`,
   );
 }
 
@@ -80,7 +82,8 @@ function solidScriptNumberBinary(operator: string, left: number, right: number):
   if (operator === '+') return left + right;
   if (operator === '-') return left - right;
   if (operator === '*') return left * right;
-  if ((operator === '/' || operator === '%') && right === 0) throw new Error('division by zero');
+  if ((operator === '/' || operator === '%') && right === 0)
+    throw new Error('division by zero; check that what is divided by cannot be 0');
   if (operator === '/') return left / right;
   if (operator === '%') return left % right;
   if (operator === '^') return left ** right;

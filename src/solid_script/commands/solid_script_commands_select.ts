@@ -1,3 +1,4 @@
+import { solidScriptKindNamed } from '@/solid_script/language/solid_script_kinds.js';
 import { SolidScriptCommand, type SolidScriptCommandWord } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import {
@@ -12,7 +13,6 @@ import {
   SolidScriptElement,
   solidScriptValueNumber,
   solidScriptValueTruthy,
-  solidScriptValueType,
   type SolidScriptValue,
 } from '@/solid_script/language/solid_script_value.js';
 
@@ -58,7 +58,7 @@ function solidScriptSelectFrom(run: SolidScriptBlockRun, kind: SolidScriptSelect
     throw new Error(`${kind.label} has no brushes to pick from; add a brush such as Cube above it`);
   return from.map((value) => {
     if (!(value instanceof SolidScriptElement) || !kind.from.includes(value.kind))
-      throw new Error(`${kind.label} picks from brushes, faces or edges, not ${solidScriptValueType(value)}`);
+      throw new Error(`${kind.label} picks from brushes, faces or edges, not ${solidScriptKindNamed(value)}`);
     return value;
   });
 }
@@ -163,7 +163,11 @@ function solidScriptSelectCommand(kind: SolidScriptSelectKind): SolidScriptComma
         'value',
         kind.size ? 'How many for Longest or Shortest, a condition for Where.' : 'A condition for Where.',
       ),
-      solidScriptParameterOf(`brushes, faces or edges to pick ${kind.many} of`, '$Selected.Faces'),
+      solidScriptParameterOf(`brushes, faces or edges to pick ${kind.many} of`, '$Selected.Faces', [
+        'Brush',
+        'Face',
+        'Edge',
+      ]),
       solidScriptParameterWords(
         'how',
         'How',

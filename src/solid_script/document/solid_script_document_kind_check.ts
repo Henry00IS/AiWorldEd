@@ -13,6 +13,7 @@ import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_com
 import { solidScriptFieldSplit } from '@/solid_script/language/solid_script_field.js';
 import { solidScriptKindAccepted, solidScriptKindMismatch } from '@/solid_script/language/solid_script_kinds.js';
 import type { SolidScriptWarning } from '@/solid_script/language/solid_script_machine_types.js';
+import { solidScriptMemberNames } from '@/solid_script/language/solid_script_members.js';
 
 /**
  * Finds, without running the script, the values no run can use, from what each
@@ -81,6 +82,17 @@ function solidScriptKindMembers(text: string, head: SolidScriptFlowHead): string
 }
 
 /**
+ * Tells the members values of some kinds have, as a run tells them.
+ *
+ * @param kinds Kinds.
+ * @returns Words, such as "it has .Count, .First".
+ */
+function solidScriptKindMembersTold(kinds: readonly string[]): string {
+  const names = [...new Set(kinds.flatMap((kind) => solidScriptMemberNames(kind === 'List' ? 'Any List' : kind)))];
+  return names.length === 0 ? 'it has no members' : `it has ${names.map((name) => `.${name}`).join(', ')}`;
+}
+
+/**
  * Follows a name through its members and tells the first member no kind the
  * value may hold has.
  *
@@ -98,7 +110,7 @@ function solidScriptKindMemberMissing(path: string, head: SolidScriptFlowHead): 
     const next = solidScriptFlowMember(kinds, part);
     const member = part.replace(/\s*\(.*\)$/, '');
     if (next.length === 0)
-      return `[${parts.slice(0, index + 1).join('.')}] holds ${kinds.join(' or ')}, which has no .${member}`;
+      return `[${parts.slice(0, index + 1).join('.')}] holds ${kinds.join(' or ')}, which has no .${member}; ${solidScriptKindMembersTold(kinds)}`;
     kinds = next;
   }
   return undefined;

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { SolidScriptElements } from './solid_script_elements.js';
 import type { SolidScriptFaceFacts } from './solid_script_geometry.js';
+import { solidScriptKindNamed } from './solid_script_kinds.js';
 import {
   SolidScriptElement,
   solidScriptValueNumbers,
@@ -157,10 +158,11 @@ export function solidScriptMemberRead(
   const type = solidScriptValueType(value);
   // The same members the editor suggests after the dot.
   const known = solidScriptMemberNames(type.startsWith('List') ? 'List' : type);
+  const named = solidScriptKindNamed(value);
   throw new Error(
     known.length === 0
-      ? `${type} has no .${written}`
-      : `${type} has no .${written}; it has ${known.map((name) => `.${name}`).join(', ')}`,
+      ? `${named} has no .${written}; numbers and Yes/No values have no members`
+      : `${named} has no .${written}; it has ${known.map((name) => `.${name}`).join(', ')}`,
   );
 }
 
@@ -184,7 +186,7 @@ function solidScriptMemberList(
       return list.length;
     case 'first':
     case 'last':
-      if (list.length === 0) throw new Error(`the list is empty, so it has no .${written}`);
+      if (list.length === 0) throw new Error(`the list is empty, so it has no .${written}; check its .Length first`);
       return member === 'first' ? list[0] : list[list.length - 1];
   }
   const numbers = solidScriptValueNumbers([...list]);

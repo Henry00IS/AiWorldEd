@@ -20,7 +20,10 @@ class SolidScriptValueParser extends SolidScriptParserExpression {
    */
   parseValue(): SolidScriptExpression {
     const value = this.parseExpression();
-    if (this.peek().kind !== 'end') throw new Error(`unexpected "${this.peek().text}" after the value`);
+    if (this.peek().kind !== 'end')
+      throw new Error(
+        `"${this.peek().text}" follows a complete value; join values with an operator such as +, or put them in a list such as [1, 2, 3]`,
+      );
     return value;
   }
 }

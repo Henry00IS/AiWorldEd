@@ -132,6 +132,8 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     id: 'point',
     label: 'Point',
     category: 'Solids',
+    // A corner builds nothing on its own, so it has no Name or Into.
+    named: false,
     description: 'Add a corner to a Polyhedron or Polygon',
     manual:
       'Adds one corner point at X, Y and Z in metres to the Polyhedron or Polygon around this line, moved by any Translate, Rotate or other move between them. A Polygon uses X and Y of its drawing and ignores Z. Each value may be a variable or a formula, so a Repeat around a Point can place many corners. Example: inside Repeat [I] from 0 to 5, Point [=Cos([I] * 60)], [=Sin([I] * 60)], 0 adds the six corners of a hexagon.',

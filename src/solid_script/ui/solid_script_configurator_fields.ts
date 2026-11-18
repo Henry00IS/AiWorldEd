@@ -3,11 +3,7 @@ import {
   solidScriptNameDotProblem,
   solidScriptNameIsDataWrite,
 } from '@/solid_script/language/solid_script_name_rules.js';
-import {
-  SOLID_SCRIPT_MISTAKE_NAMES,
-  SOLID_SCRIPT_MISTAKE_NUMERIC,
-  solidScriptFieldMistakeNote,
-} from '@/solid_script/language/solid_script_field_mistakes.js';
+import { solidScriptFieldMistakeOf } from '@/solid_script/language/solid_script_field_mistakes.js';
 import type {
   SolidScriptCommandParameter,
   SolidScriptCommandWord,
@@ -166,10 +162,9 @@ export function solidScriptConfiguratorFieldBuild(
     paths: parameter.writes?.offers === 'path',
     words,
   };
-  const texts =
-    solidScriptFieldAsTyped(parameter) && solidScriptConfiguratorNameGroups(parameter) === undefined
-      ? []
-      : [...inputs.querySelectorAll<HTMLInputElement>('input[type="text"]')];
+  const texts = solidScriptConfiguratorSuggests(parameter)
+    ? [...inputs.querySelectorAll<HTMLInputElement>('input[type="text"]')]
+    : [];
   const lists = texts.map((input) => new SolidScriptConfiguratorNames(input, suggest));
   inputs.addEventListener('input', changed);
   inputs.addEventListener('change', changed);
@@ -184,11 +179,9 @@ export function solidScriptConfiguratorFieldBuild(
       );
   const warning = (): string => {
     if (raw) return '';
-    const mistake = SOLID_SCRIPT_MISTAKE_NAMES.has(parameter.type)
-      ? ''
-      : solidScriptFieldMistakeNote(field.read(), SOLID_SCRIPT_MISTAKE_NUMERIC.has(parameter.type), (name) =>
-          known.names.has(solidScriptNameKey(name)),
-        );
+    const mistake = solidScriptFieldMistakeOf(parameter, field.read(), (name) =>
+      known.names.has(solidScriptNameKey(name)),
+    );
     if (mistake) return `${parameter.label}: ${mistake}`;
     const note = solidScriptConfiguratorVectorSize(parameter) > 0 ? solidScriptFieldVectorNote(field.read()) : '';
     if (note) return `${parameter.label}: ${note}.`;
@@ -325,6 +318,18 @@ function solidScriptConfiguratorNameProblem(parameter: SolidScriptCommandParamet
   if (parameter.type === 'target' && !SOLID_SCRIPT_CONFIGURATOR_TARGET.test(text) && !solidScriptNameIsDataWrite(text))
     return `${parameter.label} must be a name such as width, an item such as points(0), points() to add one, or a value under .Data such as face.data.height.`;
   return '';
+}
+
+/**
+ * Tells whether a field offers suggestions as it is typed: every field that
+ * reads [names] and [=formulas], and a field used as typed that offers name
+ * groups, such as Set's Variable or Use Part's Name.
+ *
+ * @param parameter Field.
+ * @returns True when it offers them.
+ */
+export function solidScriptConfiguratorSuggests(parameter: SolidScriptCommandParameter): boolean {
+  return !solidScriptFieldAsTyped(parameter) || solidScriptConfiguratorNameGroups(parameter) !== undefined;
 }
 
 /**

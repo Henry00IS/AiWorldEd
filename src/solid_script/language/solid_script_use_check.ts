@@ -7,11 +7,7 @@ import { solidScriptDocumentActiveLines } from '@/solid_script/document/solid_sc
 import { solidScriptBlockNesting } from '@/solid_script/document/solid_script_document_indent.js';
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
 import type { SolidScriptWarning } from './solid_script_machine_types.js';
-import {
-  SOLID_SCRIPT_MISTAKE_NAMES,
-  SOLID_SCRIPT_MISTAKE_NUMERIC,
-  solidScriptFieldMistakeNote,
-} from './solid_script_field_mistakes.js';
+import { solidScriptFieldMistakeOf } from './solid_script_field_mistakes.js';
 
 /**
  * A Box value written in a field or formula, such as [$Box.Width] or
@@ -105,8 +101,7 @@ export function solidScriptMistakeCheck(
     const command = solidScriptCommandFind(block.command);
     for (const parameter of command?.parameters ?? []) {
       const text = block.values?.[parameter.key] ?? '';
-      if (SOLID_SCRIPT_MISTAKE_NAMES.has(parameter.type) || text.trim() === '') continue;
-      const note = solidScriptFieldMistakeNote(text, SOLID_SCRIPT_MISTAKE_NUMERIC.has(parameter.type), known);
+      const note = solidScriptFieldMistakeOf(parameter, text, known);
       if (note !== '') warnings.push({ line: index + 1, text: `${parameter.label}: ${note}` });
     }
   }

@@ -1,10 +1,10 @@
+import { solidScriptKindOf } from './solid_script_kinds.js';
 import { solidScriptAnchorRead, type SolidScriptAnchorAxis } from './solid_script_anchor.js';
 import {
   solidScriptValueNumber,
   solidScriptValueNumbers,
   solidScriptValueShow,
   solidScriptValueText,
-  solidScriptValueType,
   type SolidScriptValue,
 } from './solid_script_value.js';
 
@@ -120,7 +120,7 @@ export class SolidScriptBlockArguments {
    */
   error(key: string, rule: string, value: SolidScriptValue | number): Error {
     const shown = solidScriptValueShow(value);
-    const kind = typeof value === 'number' ? '' : ` (${solidScriptValueType(value)})`;
+    const kind = typeof value === 'number' ? '' : ` (${solidScriptKindOf(value)})`;
     return new Error(`${this.labels.get(key) ?? key} ${rule}, not ${shown}${kind}`);
   }
 }

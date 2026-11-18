@@ -26,7 +26,11 @@ import {
 } from '@/solid_script/language/solid_script_input.js';
 import { solidScriptOffset } from '@/solid_script/language/solid_script_offset.js';
 import { solidScriptSides } from '@/solid_script/language/solid_script_primitives.js';
-import { solidScriptShapeLeavesPositive, type SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
+import {
+  SOLID_SCRIPT_SHAPE_NAME_KEY,
+  solidScriptShapeLeavesPositive,
+  type SolidScriptShape,
+} from '@/solid_script/language/solid_script_shape.js';
 import {
   SOLID_SCRIPT_HANDLERS,
   SOLID_SCRIPT_PART_DEPTH_MAX,
@@ -249,7 +253,10 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     ],
     flow: { kind: 'call', name: 'name', values: 'values' },
     parameters: [
-      solidScriptParameter('name', 'Function', 'name', 'Area', 'Name of the Function block to run.'),
+      {
+        ...solidScriptParameter('name', 'Function', 'name', 'Area', 'Name of the Function block to run.'),
+        accepts: ['Text'],
+      },
       solidScriptParameterOptional('values', 'Values', 'text', 'Values for its Inputs, in order, such as [I], 0.2.'),
       solidScriptParameterWrites(
         solidScriptParameterOptional(
@@ -489,11 +496,19 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
         round: fields.flag('round'),
         sides: solidScriptSides(fields),
       };
+      const name = run.text(SOLID_SCRIPT_SHAPE_NAME_KEY).trim();
       const outlines: SolidScriptShape[] = run
         .local(true)
         .flatMap(solidScriptShapeLeavesPositive)
-        .flatMap((leaf) => (leaf.kind === 'polygon' ? solidScriptOffset(leaf.points, options) : []))
-        .map((points) => ({ kind: 'polygon', label: 'Offset', points }));
+        .flatMap((leaf) =>
+          leaf.kind === 'polygon'
+            ? solidScriptOffset(leaf.points, options).map((points) => ({
+                kind: 'polygon' as const,
+                label: name || leaf.label,
+                points,
+              }))
+            : [],
+        );
       return run.placed(outlines);
     },
   }),

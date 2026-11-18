@@ -38,22 +38,21 @@ export const SOLID_SCRIPT_FIELD_ACCEPTS: Readonly<Record<SolidScriptCommandParam
   };
 
 /**
- * Kinds the Of field of lines that work on geometry accepts: elements, lists of
- * them, and text naming brushes.
+ * Kinds a field that takes one of a few words accepts: the word, or a number
+ * for numbered words.
  */
-export const SOLID_SCRIPT_OF_ACCEPTS: SolidScriptCommandAccepts = [
-  'Brush',
-  'Face',
-  'Edge',
-  'Vertex',
-  'Text',
-  'List',
-  'Brush List',
-  'Face List',
-  'Edge List',
-  'Vertex List',
-  'Text List',
-];
+export const SOLID_SCRIPT_WORDS_ACCEPTS: SolidScriptCommandAccepts = ['Text', 'Number'];
+
+/**
+ * Kinds an Of field accepts: the elements its line works on, lists of them, and
+ * text naming brushes.
+ *
+ * @param elements Element kinds the line works on, such as Face and Brush.
+ * @returns Kinds.
+ */
+export function solidScriptOfAccepts(elements: readonly string[]): SolidScriptCommandAccepts {
+  return [...elements, 'Text', 'List', ...elements.map((kind) => `${kind} List`), 'Text List'];
+}
 
 /**
  * Describes one field of a command.
@@ -95,7 +94,7 @@ export function solidScriptParameterWords(
   hint: string,
   words: readonly SolidScriptCommandWord[],
 ): SolidScriptCommandParameter {
-  return { key, label, type, default: fallback, hint, words, accepts: SOLID_SCRIPT_FIELD_ACCEPTS[type] };
+  return { key, label, type, default: fallback, hint, words, accepts: SOLID_SCRIPT_WORDS_ACCEPTS };
 }
 
 /**
@@ -137,6 +136,7 @@ export function solidScriptParameterAnchor(axes: readonly SolidScriptAnchorAxis[
       `The spot of the brush that sits on the origin, the centre of the generator: ${words.join(', ')}.`,
     ),
     anchor: axes,
+    accepts: ['Text', 'Text List'],
     words: axes
       .reduce<string[][]>(
         (combos, axis) => combos.flatMap((combo) => SOLID_SCRIPT_ANCHOR_WORDS[axis].map((word) => [...combo, word])),
@@ -201,9 +201,14 @@ export function solidScriptParameterShapeName(): SolidScriptCommandParameter {
  *
  * @param what What the line takes, such as faces or brushes.
  * @param fallback The system list an empty Of uses, such as $Selected.Faces.
+ * @param elements Element kinds the line works on, the ones its runtime takes.
  * @returns Field.
  */
-export function solidScriptParameterOf(what: string, fallback: string): SolidScriptCommandParameter {
+export function solidScriptParameterOf(
+  what: string,
+  fallback: string,
+  elements: readonly string[] = ['Brush', 'Face'],
+): SolidScriptCommandParameter {
   return {
     ...solidScriptParameterOptional(
       'of',
@@ -213,7 +218,7 @@ export function solidScriptParameterOf(what: string, fallback: string): SolidScr
     ),
     placeholder: `[${fallback}]`,
     nameGroups: ['Brushes', 'Parts'],
-    accepts: SOLID_SCRIPT_OF_ACCEPTS,
+    accepts: solidScriptOfAccepts(elements),
   };
 }
 

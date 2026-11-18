@@ -237,7 +237,9 @@ function solidScriptNameReaches(
  * @returns Description, with the command in bold.
  */
 function solidScriptNameWriteText(block: SolidScriptBlock, key: string): string {
-  const given = solidScriptGivenFields(block).find((entry) => solidScriptNameKey(entry.name) === key);
+  const given = solidScriptGivenFields(block).find(
+    (entry) => solidScriptNameKey(entry.name.replace(/\s*\(.*\)$/s, '')) === key,
+  );
   const label = solidScriptCommandFind(block.command)?.label ?? block.command;
   if (!given) return `passed in by **${label}**`;
   return 'what' in given.gives ? solidScriptGivenDetail(block, given.gives.what) : `from **${label}**`;

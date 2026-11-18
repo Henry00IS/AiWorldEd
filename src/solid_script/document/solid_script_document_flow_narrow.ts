@@ -240,7 +240,7 @@ function solidScriptNarrowCheck(
   const checks = builtin === undefined ? undefined : SOLID_SCRIPT_FUNCTION_DOCS[builtin]?.checks;
   const value = node.args[0]?.value;
   const key = value ? solidScriptNarrowName(context, value) : undefined;
-  if (!checks || key === undefined) return state;
+  if (!checks || key === undefined || !solidScriptNarrowKnown(state, key)) return state;
   const matches = (kind: string): boolean =>
     checks.includes(kind as never) || (checks.includes('List') && kind.endsWith('List'));
   const current = [...(state.get(key)?.kinds ?? [SOLID_SCRIPT_FLOW_UNKNOWN])];
@@ -252,6 +252,19 @@ function solidScriptNarrowCheck(
     );
   const left = current.filter((kind) => kind === SOLID_SCRIPT_FLOW_UNKNOWN || !matches(kind));
   return left.length === 0 ? null : new Map(state).set(key, solidScriptFlowVariableKeep(state.get(key), left));
+}
+
+/**
+ * Tells whether a test may narrow a name: one a line set, or a Persistent.
+ * value an earlier run may have kept. A test of a name nothing set stops the
+ * run, so it makes no variable.
+ *
+ * @param state Variables before.
+ * @param key Name key.
+ * @returns True when the name may be narrowed.
+ */
+function solidScriptNarrowKnown(state: SolidScriptFlowState, key: string): boolean {
+  return state.has(key) || key.startsWith('persistent.');
 }
 
 /**
@@ -270,6 +283,7 @@ function solidScriptNarrowKeep(
 ): SolidScriptFlowState | null {
   if (state === null) return null;
   if (kinds.length === 0) return null;
+  if (!solidScriptNarrowKnown(state, key)) return state;
   const current = [...(state.get(key)?.kinds ?? [SOLID_SCRIPT_FLOW_UNKNOWN])];
   const kept = current.includes(SOLID_SCRIPT_FLOW_UNKNOWN)
     ? [...kinds]

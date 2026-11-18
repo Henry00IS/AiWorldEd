@@ -1,5 +1,7 @@
 import type { SolidScriptBlock, SolidScriptDocument } from './solid_script_document.js';
 import {
+  solidScriptFlowChanged,
+  solidScriptFlowUnique,
   solidScriptFlowItemKinds,
   solidScriptFlowKeyKinds,
   solidScriptFlowValueKinds,
@@ -11,6 +13,8 @@ import {
   solidScriptFlowEqual,
   solidScriptFlowJoin,
   solidScriptFlowLocalsBack,
+  solidScriptFlowVariableJoin,
+  type SolidScriptFlowVariable,
   solidScriptFlowWrite,
   type SolidScriptFlowState,
 } from './solid_script_document_flow_state.js';
@@ -92,6 +96,12 @@ class SolidScriptFlowAnalysis {
   private readonly inputNames = new Set<string>();
   /** Function and part lines some line ran. */
   private readonly ran = new Set<SolidScriptFlowNode>();
+  /**
+   * Counters of the loops being followed, each with the variable of the same
+   * name outside the loop: a counter lives in its loop, so a Function, which
+   * sees only the script's own variables, still sees the one outside.
+   */
+  private readonly counters: { key: string; outer: SolidScriptFlowVariable | undefined }[] = [];
   /** 0-based line of each line of the script. */
   private readonly lineOf: ReadonlyMap<SolidScriptBlock, number>;
   /** 0-based line being followed, which passes the values of a Call it makes. */
@@ -314,14 +324,20 @@ class SolidScriptFlowAnalysis {
     state: SolidScriptFlowState,
     frame: SolidScriptFlowFrame,
   ): SolidScriptFlowState {
+    const counters = solidScriptGivenFields(node.block).map(({ name }) => solidScriptNameKey(name));
+    this.counters.push(...counters.map((key) => ({ key, outer: state.get(key) })));
     let current = state;
-    for (let round = 0; round < SOLID_SCRIPT_FLOW_ROUNDS; round++) {
-      const next =
-        solidScriptNarrowJoin(state, this.body(node, this.writes(node.block, current, [], frame), frame)) ?? state;
-      if (solidScriptFlowEqual(next, current)) return next;
-      current = next;
+    try {
+      for (let round = 0; round < SOLID_SCRIPT_FLOW_ROUNDS; round++) {
+        const next =
+          solidScriptNarrowJoin(state, this.body(node, this.writes(node.block, current, [], frame), frame)) ?? state;
+        if (solidScriptFlowEqual(next, current)) return next;
+        current = next;
+      }
+      return current;
+    } finally {
+      this.counters.splice(this.counters.length - counters.length);
     }
-    return current;
   }
 
   /**
@@ -400,11 +416,35 @@ class SolidScriptFlowAnalysis {
     else if (this.inputNames.has(solidScriptNameKey(name))) return state;
     if (gives.rule === 'forgotten') return solidScriptFlowDelete(state, solidScriptNameKey(name));
     if (gives.rule === 'kept' || gives.rule === 'read' || gives.rule === 'defines') return state;
+    if (gives.rule === 'emptied' || gives.rule === 'shrunk') return this.change(state, name, gives.rule, block);
     const item = /^((?:local\.|persistent\.)?[A-Za-z_]\w*)\s*\(.*\)$/i.exec(name)?.[1];
     const line = this.lineOf.get(block) ?? -1;
     if (item !== undefined || gives.rule === 'list') return this.listWrite(item ?? name, state, line);
     if (/\./.test(name.replace(/^(local|persistent)\./i, ''))) return state;
     return this.write(state, name, this.kindsGiven(block, gives, state, returns, frame), line);
+  }
+
+  /**
+   * Follows a line that empties a variable or takes items out of it.
+   *
+   * @param state Variables before it.
+   * @param name Name typed, maybe an item such as Points(2).
+   * @param rule Emptied or shrunk.
+   * @param block Line.
+   * @returns Variables after it.
+   */
+  private change(
+    state: SolidScriptFlowState,
+    name: string,
+    rule: 'emptied' | 'shrunk',
+    block: SolidScriptBlock,
+  ): SolidScriptFlowState {
+    const key = solidScriptNameKey(name.replace(/\s*\(.*\)$/s, ''));
+    const held = state.get(key);
+    // Clear Variable makes an empty list of a name no line set yet; taking items out of one stops the run.
+    if (!held && rule === 'shrunk') return state;
+    const kinds = held ? solidScriptFlowChanged(rule, [...held.kinds]) : ['List'];
+    return this.write(state, key, kinds, this.lineOf.get(block) ?? -1);
   }
 
   /**
@@ -435,16 +475,18 @@ class SolidScriptFlowAnalysis {
   }
 
   /**
-   * Follows a line that puts an item in a list: a name not set yet becomes a
-   * list, a set one keeps its kind.
+   * Follows a line that adds or sets an item of a list: a name no line set
+   * becomes a List, and a list of one kind may now hold items of another, so it
+   * may be a List of anything.
    *
-   * @param name List name as written.
-   * @param state Variables before it.
-   * @param line 0-based line.
-   * @returns Variables after it.
+   * @param name List name.
+   * @param state Variables before.
+   * @param line 0-based line that writes it.
+   * @returns Variables after.
    */
   private listWrite(name: string, state: SolidScriptFlowState, line: number): SolidScriptFlowState {
-    return state.has(solidScriptNameKey(name)) ? state : this.write(state, name, ['List'], line);
+    const held = state.get(solidScriptNameKey(name));
+    return this.write(state, name, held ? solidScriptFlowUnique([...held.kinds, 'List']) : ['List'], line);
   }
 
   /**
@@ -491,7 +533,24 @@ class SolidScriptFlowAnalysis {
     const values = solidScriptFieldSplit(block.values[flow.values] ?? '', ',').map((text) =>
       solidScriptFlowValueKinds(text, head),
     );
-    return this.invoke(node, values, state, frame);
+    return this.invoke(node, values, this.outside(state), frame);
+  }
+
+  /**
+   * Gives the variables a Function sees from where it is called: a loop counter
+   * that hides a variable of the same name may also be that variable.
+   *
+   * @param state Variables of the caller.
+   * @returns Variables the Function sees.
+   */
+  private outside(state: SolidScriptFlowState): SolidScriptFlowState {
+    if (this.counters.every(({ outer }) => outer === undefined)) return state;
+    const seen = new Map(state);
+    for (const { key, outer } of this.counters) {
+      const held = seen.get(key);
+      if (outer) seen.set(key, held ? solidScriptFlowVariableJoin(held, outer) : outer);
+    }
+    return seen;
   }
 
   /**

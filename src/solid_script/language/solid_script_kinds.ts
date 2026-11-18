@@ -57,6 +57,18 @@ export function solidScriptKindOf(value: SolidScriptValue): string {
 }
 
 /**
+ * Names the kind of a running value with its article, as mistakes tell it, such
+ * as "a Number", "an Edge" or "a Face List".
+ *
+ * @param value Value.
+ * @returns Words.
+ */
+export function solidScriptKindNamed(value: SolidScriptValue): string {
+  const kind = solidScriptKindOf(value);
+  return `${/^[AEIOU]/.test(kind) ? 'an' : 'a'} ${kind}`;
+}
+
+/**
  * Tells whether a field accepts a value of a kind.
  *
  * @param accepts What the field accepts.
@@ -80,7 +92,8 @@ export function solidScriptKindsWords(accepts: SolidScriptCommandAccepts): strin
   const lists = single.length < accepts.length;
   const named =
     single.length > 1 ? `${single.slice(0, -1).join(', ')} or ${single.at(-1) ?? ''}` : (single[0] ?? 'List');
-  return `a ${named}${lists && single.length > 0 ? ', or a list of them' : ''}`;
+  const article = /^[AEIOU]/.test(named) ? 'an' : 'a';
+  return `${article} ${named}${lists && single.length > 0 ? ', or a list of them' : ''}`;
 }
 
 /**

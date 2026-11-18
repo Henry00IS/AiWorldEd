@@ -237,7 +237,7 @@ function solidScriptFieldFormulaCompile(pieces: readonly SolidScriptFieldPiece[]
   const body = written.trimStart().slice(1).trim();
   if (body === '')
     return () => {
-      throw new Error('[=] has no formula after the =');
+      throw new Error('[=] has no formula after the =; write one, such as [=1 + 2], or leave the field empty');
     };
   const slow: SolidScriptFieldCompiled = (context) => {
     let inner = '';
@@ -651,6 +651,7 @@ function solidScriptFieldAnyCompile(text: string): SolidScriptFieldCompiled {
  */
 function solidScriptFieldCompile(kind: SolidScriptFieldKind, text: string): SolidScriptFieldCompiled {
   try {
+    if (text.startsWith('\u0001')) return solidScriptFieldTemplateCompile(text.slice(1));
     switch (kind) {
       case 'number':
       case 'count': {
@@ -727,6 +728,34 @@ export function solidScriptFieldCompiled(kind: SolidScriptFieldKind, text: strin
     solidScriptFieldCache.set(key, compiled);
   }
   return compiled;
+}
+
+/**
+ * Compiles field text the way a lone bracketed part keeps its value and any
+ * other text becomes text, before a field kind turns it into a number, a text
+ * or points; cached like solidScriptFieldCompiled.
+ *
+ * @param text Field text.
+ * @returns Compiled field.
+ */
+export function solidScriptFieldTemplate(text: string): SolidScriptFieldCompiled {
+  return solidScriptFieldCompiled('value', `\u0001${text}`);
+}
+
+/**
+ * Tells whether field text is one bracketed part alone, such as [Width] or
+ * [=[A] + 1], whose value a field reads whole.
+ *
+ * @param text Field text.
+ * @returns True when it is.
+ */
+export function solidScriptFieldLone(text: string): boolean {
+  try {
+    const pieces = solidScriptFieldPieces(text).filter((piece) => piece.kind === 'group' || piece.text.trim() !== '');
+    return pieces.length === 1 && pieces[0]!.kind === 'group';
+  } catch {
+    return false;
+  }
 }
 
 /**

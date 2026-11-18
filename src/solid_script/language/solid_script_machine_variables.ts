@@ -1,3 +1,4 @@
+import { solidScriptKindNamed } from './solid_script_kinds.js';
 import { SOLID_SCRIPT_SYSTEM_GLOBALS, type SolidScriptSystemReader } from './solid_script_system.js';
 import type { SolidScriptExpression } from './solid_script_ast.js';
 import { SolidScriptExpressionEvaluator } from './solid_script_expression_evaluator.js';
@@ -164,7 +165,7 @@ function solidScriptVectorComponentParse(name: string): SolidScriptVectorPart | 
  */
 function solidScriptVectorComponentRead(part: SolidScriptVectorPart, vector: SolidScriptValue): SolidScriptValue {
   if (!Array.isArray(vector) || vector[part.index] === undefined)
-    throw new Error(`[${part.name}] is ${solidScriptValueType(vector)}, not a vector with a .${part.axis}`);
+    throw new Error(`[${part.name}] is ${solidScriptKindNamed(vector)}, not a vector with a .${part.axis}`);
   return vector[part.index];
 }
 
@@ -182,7 +183,7 @@ export function solidScriptVectorComponentWrite(
   value: SolidScriptValue,
 ): SolidScriptValue {
   if (!Array.isArray(vector) || vector.length < 2 || vector.length > 3 || part.index >= vector.length)
-    throw new Error(`[${part.name}] is ${solidScriptValueType(vector)}, not a vector with a .${part.axis}`);
+    throw new Error(`[${part.name}] is ${solidScriptKindNamed(vector)}, not a vector with a .${part.axis}`);
   const changed = [...vector];
   changed[part.index] = value;
   return changed;
@@ -639,13 +640,16 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
    */
   protected listRead(scope: SolidScriptScope, name: string): readonly SolidScriptValue[] {
     const where = this.variableWhere(name, scope);
+    this.nameCheck(where.name, 'a list');
     if (!where.scope.variableHas(where.name)) {
       const shown = this.nameShown(solidScriptNameKey(name));
       throw new Error(`there is no list [${shown}]; make one with Add Item or Set ${shown}()`);
     }
     const value = where.scope.variableGet(where.name);
     if (!Array.isArray(value))
-      throw new Error(`[${this.nameShown(solidScriptNameKey(name))}] is ${solidScriptValueType(value)}, not a list`);
+      throw new Error(
+        `[${this.nameShown(solidScriptNameKey(name))}] is ${solidScriptKindNamed(value)}, not a list; Set it to a list first, such as 1, 2, 3`,
+      );
     return value;
   }
 
@@ -728,10 +732,14 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
    */
   protected nameCheck(name: string, what: string): void {
     if (SOLID_SCRIPT_NAMES_PLAIN.has(name)) return;
-    if (!SOLID_SCRIPT_NAME.test(name))
-      throw new Error(
-        `"${this.nameShown(solidScriptNameKey(name))}" cannot name ${what}; use letters, digits and _, not starting with a digit`,
-      );
+    if (!SOLID_SCRIPT_NAME.test(name)) {
+      const shown = this.nameShown(solidScriptNameKey(name));
+      const bare = /^\[\s*([A-Za-z_]\w*)\s*\]$/.exec(shown)?.[1];
+      const how = bare
+        ? `write the name without brackets, such as ${bare}`
+        : 'use letters, digits and _, not starting with a digit';
+      throw new Error(`"${shown}" cannot name ${what}; ${how}`);
+    }
     if (SOLID_SCRIPT_NAMES_PLAIN.size < 20000) SOLID_SCRIPT_NAMES_PLAIN.add(name);
   }
 

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { SolidScriptCommand } from './solid_script_command.js';
+import { SolidScriptCommand, type SolidScriptCommandParameter } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import { solidScriptParameter, solidScriptParameterAnchor } from './solid_script_command_parameters.js';
 import { SOLID_SCRIPT_ANCHOR_HEIGHT } from '@/solid_script/language/solid_script_anchor.js';
@@ -17,7 +17,11 @@ import {
   solidScriptRotateExtrude,
   solidScriptShapeTransform,
 } from '@/solid_script/language/solid_script_reshape.js';
-import { solidScriptShapeJoin } from '@/solid_script/language/solid_script_shape.js';
+import {
+  SOLID_SCRIPT_SHAPE_NAME_KEY,
+  solidScriptShapeJoin,
+  solidScriptShapeNamed,
+} from '@/solid_script/language/solid_script_shape.js';
 import { SOLID_SCRIPT_SIDES } from '@/solid_script/language/solid_script_primitives.js';
 
 /** What stops every block without its End. */
@@ -27,6 +31,25 @@ const SOLID_SCRIPT_STOPS_END = 'A missing End line.';
  * Commands that move, turn, stretch or mirror the shapes between them and their
  * End.
  */
+
+/**
+ * A row of the Matrix block: four numbers, or one number for all four.
+ *
+ * @param key Key of the stored value.
+ * @param label Visible caption.
+ * @param fallback Value of a new line.
+ * @param hint Hover text.
+ * @returns Field.
+ */
+function solidScriptParameterRow(
+  key: string,
+  label: string,
+  fallback: string,
+  hint: string,
+): SolidScriptCommandParameter {
+  return { ...solidScriptParameter(key, label, 'value', fallback, hint), accepts: ['Number', 'Number List', 'Text'] };
+}
+
 export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'translate',
@@ -155,9 +178,9 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     stops: ['A row that is not four numbers.', 'A matrix that squashes shapes flat.', SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [
-      solidScriptParameter('row1', 'Row 1', 'value', '1, 0, 0, 0', 'How X is made from x, y, z, plus a move along X.'),
-      solidScriptParameter('row2', 'Row 2', 'value', '0, 1, 0, 0', 'How Y is made from x, y, z, plus a move along Y.'),
-      solidScriptParameter('row3', 'Row 3', 'value', '0, 0, 1, 0', 'How Z is made from x, y, z, plus a move along Z.'),
+      solidScriptParameterRow('row1', 'Row 1', '1, 0, 0, 0', 'How X is made from x, y, z, plus a move along X.'),
+      solidScriptParameterRow('row2', 'Row 2', '0, 1, 0, 0', 'How Y is made from x, y, z, plus a move along Y.'),
+      solidScriptParameterRow('row3', 'Row 3', '0, 0, 1, 0', 'How Z is made from x, y, z, plus a move along Z.'),
     ],
     listing: (read) => ['Matrix', read.value('row1'), ' / ', read.value('row2'), ' / ', read.value('row3')],
     execute: (run) => run.transformed(solidScriptMatrixRows(run.fields())),
@@ -234,7 +257,10 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     execute: (run) => {
       if (run.planar) throw new Error('Rotate Extrude cannot be inside a Linear Extrude');
       const flat = solidScriptShapeJoin(run.local(true), 'rotate_extrude');
-      return flat ? run.placed([solidScriptRotateExtrude(flat, run.fields(), new THREE.Matrix4())]) : [];
+      const name = run.text(SOLID_SCRIPT_SHAPE_NAME_KEY).trim();
+      return flat
+        ? run.placed([solidScriptShapeNamed(solidScriptRotateExtrude(flat, run.fields(), new THREE.Matrix4()), name)])
+        : [];
     },
   }),
 ];

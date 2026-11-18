@@ -37,6 +37,7 @@ import {
 import { solidScriptGeometryLeaves, type SolidScriptGeometryLeaf } from './solid_script_geometry.js';
 import {
   solidScriptShapeJoin,
+  solidScriptShapeNamed,
   solidScriptShapeLeavesPositive,
   solidScriptShapeMapLeaves,
   type SolidScriptShape,
@@ -562,10 +563,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     state: SolidScriptLineState,
   ): SolidScriptBlockRun {
     const named = node.command.parameters.some((field) => field.key === SOLID_SCRIPT_SHAPE_NAME_KEY);
-    const labelOf = (): string =>
-      (named ? solidScriptValueText(value(SOLID_SCRIPT_SHAPE_NAME_KEY)).trim() : '') ||
-      state.scope.partName ||
-      node.command.id;
+    const ownName = (): string => (named ? solidScriptValueText(value(SOLID_SCRIPT_SHAPE_NAME_KEY)).trim() : '');
+    const labelOf = (): string => ownName() || state.scope.partName || node.command.id;
     let kept: SolidScriptBlockRuns | undefined;
     const children = (): SolidScriptBlockRuns =>
       (kept ??= solidScriptRunsKnown(node.children, SolidScriptMachine.build));
@@ -653,7 +652,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       extruded: (fields) => {
         if (state.context.planar) throw new Error('Linear Extrude cannot be inside another Linear Extrude');
         const flat = solidScriptShapeJoin(inside({ matrix: new THREE.Matrix4(), planar: true }), labelOf());
-        return flat ? [solidScriptExtrude(flat, fields, state.context.matrix)] : [];
+        return flat ? [solidScriptShapeNamed(solidScriptExtrude(flat, fields, state.context.matrix), ownName())] : [];
       },
       repeated: (counter, values, keyed) => {
         state.machine.nameCheck(counter, 'a counter');

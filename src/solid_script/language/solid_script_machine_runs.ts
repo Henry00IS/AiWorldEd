@@ -2,10 +2,12 @@ import type { SolidScriptBlockNode } from './solid_script_block_tree.js';
 import {
   solidScriptFieldAsTyped,
   solidScriptFieldCompiled,
+  solidScriptFieldLone,
+  solidScriptFieldTemplate,
   type SolidScriptFieldCompiled,
 } from './solid_script_field.js';
 import { solidScriptKindAccepted, solidScriptKindMismatch, solidScriptKindOf } from './solid_script_kinds.js';
-import { solidScriptValueText } from './solid_script_value.js';
+import { solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
 import type { SolidScriptMachine } from './solid_script_machine.js';
 import { SOLID_SCRIPT_DEFINITIONS, SOLID_SCRIPT_FORMULA_CONTEXT } from './solid_script_machine_calls.js';
 import type {
@@ -161,16 +163,40 @@ export function solidScriptLineFieldMake(field: SolidScriptMachineField, text: s
   if (solidScriptFieldAsTyped(field)) return { text, label: field.label, compiled: () => text };
   const compiled = solidScriptFieldCompiled(field.type, text);
   if (field.accepts === 'Any') return { text, label: field.label, compiled };
-  const accepts = field.accepts;
+  const check = solidScriptLineFieldKind(field.label, field.accepts);
+  if (!SOLID_SCRIPT_FIELD_KINDS_CONVERTED.has(field.type) || !solidScriptFieldLone(text))
+    return { text, label: field.label, compiled: (context) => check(compiled(context)) };
+  // A lone [value] is checked as it is, before the field kind turns it into text or points.
+  const whole = solidScriptFieldTemplate(text);
+  const message = field.type === 'message';
   return {
     text,
     label: field.label,
     compiled: (context) => {
-      const value = compiled(context);
-      const kind = solidScriptKindOf(value);
-      if (solidScriptKindAccepted(accepts, kind)) return value;
-      throw new Error(`${solidScriptKindMismatch(field.label, accepts, kind)}: ${solidScriptValueText(value)}`);
+      const value = check(whole(context));
+      return message ? solidScriptValueText(value) : compiled(context);
     },
+  };
+}
+
+/** Field kinds that turn a value into text or points as they read it. */
+const SOLID_SCRIPT_FIELD_KINDS_CONVERTED: ReadonlySet<string> = new Set(['message', 'points2', 'points3']);
+
+/**
+ * Makes the check that a field got a kind of value it accepts.
+ *
+ * @param label Field caption.
+ * @param accepts Kinds it accepts.
+ * @returns Check that gives the value back or stops with a plain message.
+ */
+function solidScriptLineFieldKind(
+  label: string,
+  accepts: Exclude<SolidScriptMachineField['accepts'], 'Any'>,
+): (value: SolidScriptValue) => SolidScriptValue {
+  return (value) => {
+    const kind = solidScriptKindOf(value);
+    if (solidScriptKindAccepted(accepts, kind)) return value;
+    throw new Error(`${solidScriptKindMismatch(label, accepts, kind)}: ${solidScriptValueText(value)}`);
   };
 }
 
