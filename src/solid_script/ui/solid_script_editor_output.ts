@@ -4,9 +4,12 @@ import { solidScriptErrorLine, solidScriptErrorText } from '@/solid_script/langu
 import { solidScriptProgramRun, type SolidScriptProgramOptions } from '@/solid_script/language/solid_script_program.js';
 import type { SolidScriptLineProfile, SolidScriptWarning } from '@/solid_script/language/solid_script_machine_types.js';
 import { SolidScriptEditorExplorer } from './solid_script_editor_explorer.js';
-import { solidScriptDocumentNamesUnknown } from '@/solid_script/document/solid_script_document_names.js';
+import {
+  solidScriptDocumentDefines,
+  solidScriptDocumentNamesUnknown,
+} from '@/solid_script/document/solid_script_document_names.js';
 import { solidScriptNameKey } from '@/solid_script/language/solid_script_name_key.js';
-import { solidScriptUseCheck } from '@/solid_script/language/solid_script_use_check.js';
+import { solidScriptMistakeCheck, solidScriptUseCheck } from '@/solid_script/language/solid_script_use_check.js';
 import type { SolidScriptEditorSettings } from './solid_script_editor_settings.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 
@@ -206,7 +209,12 @@ export class SolidScriptEditorOutput {
     this.checkTimer = setTimeout(() => {
       this.checkTimer = null;
       const write = (): void => {
-        this.checks.replaceChildren(...solidScriptUseCheck(script).map((warning) => this.warningRow(warning)));
+        const checks = [
+          ...solidScriptUseCheck(script),
+          ...solidScriptMistakeCheck(script, solidScriptDocumentDefines(script)),
+        ];
+        checks.sort((a, b) => a.line - b.line);
+        this.checks.replaceChildren(...checks.map((warning) => this.warningRow(warning)));
         this.unknownShow(solidScriptDocumentNamesUnknown(script));
       };
       const idle = this.element.ownerDocument.defaultView?.requestIdleCallback;

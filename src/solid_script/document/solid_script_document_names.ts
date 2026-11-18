@@ -318,3 +318,15 @@ export function solidScriptDocumentNamesUnknown(document: SolidScriptDocument): 
   });
   return unknown;
 }
+
+/**
+ * Tells whether a script defines a name anywhere, such as a variable Box, so a
+ * bracket name starting with it is no system value missing its $.
+ *
+ * @param document Script.
+ * @returns Test by name, in any case.
+ */
+export function solidScriptDocumentDefines(document: SolidScriptDocument): (name: string) => boolean {
+  const names = new Set(solidScriptDocumentNames(document).map((entry) => solidScriptNameKey(entry.name)));
+  return (name) => names.has(solidScriptNameKey(name));
+}

@@ -2,6 +2,11 @@ import { solidScriptDocumentUses, type SolidScriptDocument } from '@/solid_scrip
 import { solidScriptBlockNesting } from '@/solid_script/document/solid_script_document_indent.js';
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
 import type { SolidScriptWarning } from './solid_script_machine_types.js';
+import {
+  SOLID_SCRIPT_MISTAKE_NAMES,
+  SOLID_SCRIPT_MISTAKE_NUMERIC,
+  solidScriptFieldMistakeNote,
+} from './solid_script_field_mistakes.js';
 
 /**
  * A Box value written in a field or formula, such as [$Box.Width] or
@@ -51,6 +56,31 @@ export function solidScriptUseCheck(document: SolidScriptDocument): SolidScriptW
       const modifier = use.toLowerCase() === 'modifier';
       open.push({ runs: modifier, otherwise: !modifier });
     } else open.push({ runs: true, otherwise: true });
+  });
+  return warnings;
+}
+
+/**
+ * Finds, without running the script, the fields with a common mistake, for the
+ * editor. Lines that are off are skipped.
+ *
+ * @param document Script.
+ * @param known Tells whether the script defines a name.
+ * @returns One warning per field, in line order.
+ */
+export function solidScriptMistakeCheck(
+  document: SolidScriptDocument,
+  known: (name: string) => boolean = () => false,
+): SolidScriptWarning[] {
+  const warnings: SolidScriptWarning[] = [];
+  document.blocks.forEach((block, index) => {
+    const command = block.off === true ? undefined : solidScriptCommandFind(block.command);
+    for (const parameter of command?.parameters ?? []) {
+      const text = block.values?.[parameter.key] ?? '';
+      if (SOLID_SCRIPT_MISTAKE_NAMES.has(parameter.type) || text.trim() === '') continue;
+      const note = solidScriptFieldMistakeNote(text, SOLID_SCRIPT_MISTAKE_NUMERIC.has(parameter.type), known);
+      if (note !== '') warnings.push({ line: index + 1, text: `${parameter.label}: ${note}` });
+    }
   });
   return warnings;
 }

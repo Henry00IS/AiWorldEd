@@ -1,4 +1,10 @@
+import { solidScriptNameKey } from '@/solid_script/language/solid_script_name_key.js';
 import { solidScriptNameDotProblem } from '@/solid_script/language/solid_script_name_rules.js';
+import {
+  SOLID_SCRIPT_MISTAKE_NAMES,
+  SOLID_SCRIPT_MISTAKE_NUMERIC,
+  solidScriptFieldMistakeNote,
+} from '@/solid_script/language/solid_script_field_mistakes.js';
 import type { SolidScriptCommandParameter } from '@/solid_script/commands/solid_script_command.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import { solidScriptAnchorRead } from '@/solid_script/language/solid_script_anchor.js';
@@ -129,6 +135,12 @@ export function solidScriptConfiguratorFieldBuild(
       );
   const warning = (): string => {
     if (raw) return '';
+    const mistake = SOLID_SCRIPT_MISTAKE_NAMES.has(parameter.type)
+      ? ''
+      : solidScriptFieldMistakeNote(field.read(), SOLID_SCRIPT_MISTAKE_NUMERIC.has(parameter.type), (name) =>
+          known.names.has(solidScriptNameKey(name)),
+        );
+    if (mistake) return `${parameter.label}: ${mistake}`;
     const note = solidScriptConfiguratorVectorSize(parameter) > 0 ? solidScriptFieldVectorNote(field.read()) : '';
     if (note) return `${parameter.label}: ${note}.`;
     const unknown = solidScriptFieldUnknown(field.read(), known);

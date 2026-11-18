@@ -4,6 +4,7 @@ import {
   type SolidScriptSystemReader,
 } from './solid_script_system.js';
 import * as THREE from 'three';
+import { solidScriptMistakeHinted } from './solid_script_field_mistakes.js';
 import { SolidScriptBlockArguments } from './solid_script_block_arguments.js';
 import type { SolidScriptBlockNode } from './solid_script_block_tree.js';
 import { solidScriptErrorLine, solidScriptErrorText } from './solid_script_error.js';
@@ -451,7 +452,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       if (node.command.builds) this.builtNote(node, scope, shapes);
       return shapes;
     } catch (error) {
-      this.failureNote(error, node.line);
+      this.failureNote(solidScriptMistakeHinted(error, node), node.line);
       return [];
     } finally {
       line.busy = false;
