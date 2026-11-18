@@ -21,6 +21,12 @@ export interface SolidScriptMachineField {
   type: SolidScriptFieldKind;
   /** Kinds of value the field accepts; a running line stops on any other. */
   accepts: SolidScriptCommandAccepts;
+  /**
+   * Set when the field names a variable or another name the line writes or
+   * defines: only such a field is used as typed; every other field reads its
+   * [names] and [=formulas].
+   */
+  writes?: object;
 }
 
 /** What the machine needs from a command: its structure and its own run step. */

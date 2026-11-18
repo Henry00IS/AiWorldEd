@@ -4,7 +4,11 @@ import {
   type SolidScriptFlowFormula,
 } from './solid_script_document_flow_formula.js';
 import { SOLID_SCRIPT_FLOW_UNKNOWN, type SolidScriptFlowHead } from './solid_script_document_flow_kinds.js';
-import type { SolidScriptFlowState } from './solid_script_document_flow_state.js';
+import {
+  solidScriptFlowVariableJoin,
+  solidScriptFlowVariableKeep,
+  type SolidScriptFlowState,
+} from './solid_script_document_flow_state.js';
 import type { SolidScriptExpression } from '@/solid_script/language/solid_script_ast.js';
 import { solidScriptBuiltinFind } from '@/solid_script/language/solid_script_expression_compile.js';
 import { SOLID_SCRIPT_FUNCTION_DOCS } from '@/solid_script/language/solid_script_function_docs.js';
@@ -124,7 +128,7 @@ export function solidScriptNarrowJoin(
   const joined = new Map(left);
   for (const [key, variable] of right) {
     const known = joined.get(key);
-    joined.set(key, known ? { kinds: new Set([...known.kinds, ...variable.kinds]) } : variable);
+    joined.set(key, known ? solidScriptFlowVariableJoin(known, variable) : variable);
   }
   return joined;
 }
@@ -247,7 +251,7 @@ function solidScriptNarrowCheck(
       current.includes(SOLID_SCRIPT_FLOW_UNKNOWN) ? [...checks] : current.filter(matches),
     );
   const left = current.filter((kind) => kind === SOLID_SCRIPT_FLOW_UNKNOWN || !matches(kind));
-  return left.length === 0 ? null : new Map(state).set(key, { kinds: new Set(left) });
+  return left.length === 0 ? null : new Map(state).set(key, solidScriptFlowVariableKeep(state.get(key), left));
 }
 
 /**
@@ -270,5 +274,5 @@ function solidScriptNarrowKeep(
   const kept = current.includes(SOLID_SCRIPT_FLOW_UNKNOWN)
     ? [...kinds]
     : current.filter((kind) => kinds.includes(kind));
-  return kept.length === 0 ? null : new Map(state).set(key, { kinds: new Set(kept) });
+  return kept.length === 0 ? null : new Map(state).set(key, solidScriptFlowVariableKeep(state.get(key), kept));
 }

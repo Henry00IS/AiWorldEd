@@ -2,6 +2,7 @@ import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import {
   solidScriptParameter,
+  solidScriptParameterDefines,
   solidScriptParameterOptional,
   solidScriptParameterWrites,
 } from './solid_script_command_parameters.js';
@@ -291,7 +292,9 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     nesting: 'open',
     flow: { kind: 'part', name: 'name' },
     parameters: [
-      solidScriptParameter('name', 'Name', 'name', 'Part', 'The name Use Part uses. It also names the brushes.'),
+      solidScriptParameterDefines(
+        solidScriptParameter('name', 'Name', 'name', 'Part', 'The name Use Part uses. It also names the brushes.'),
+      ),
     ],
     endLabel: 'Part',
     listing: (read) => ['Define Part', read.text('name')],

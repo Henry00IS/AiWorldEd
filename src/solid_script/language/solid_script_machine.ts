@@ -10,7 +10,7 @@ import { SolidScriptBlockArguments } from './solid_script_block_arguments.js';
 import type { SolidScriptBlockNode } from './solid_script_block_tree.js';
 import { solidScriptErrorLine, solidScriptFailure } from './solid_script_error.js';
 import {
-  solidScriptFieldCompiled,
+  solidScriptFieldAsTyped,
   solidScriptFieldArguments,
   solidScriptFieldList,
   solidScriptFieldResolve,
@@ -23,7 +23,7 @@ import { solidScriptShapeTransform } from './solid_script_reshape.js';
 import { solidScriptMeshChecked, solidScriptMeshTransform, solidScriptShapeHasMesh } from './solid_script_mesh.js';
 import { SolidScriptScope } from './solid_script_scope.js';
 import {
-  SOLID_SCRIPT_TEXT_FIELDS,
+  solidScriptLineFieldOf,
   solidScriptLinesPassInput,
   solidScriptRunKnown,
   solidScriptRunMake,
@@ -576,7 +576,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     const fields = new Map<string, SolidScriptLineField>();
     const labels = new Map(node.command.parameters.map((field) => [field.key, field.label]));
     const evaluated = node.command.parameters
-      .filter((field) => !SOLID_SCRIPT_TEXT_FIELDS.has(field.type))
+      .filter((field) => !solidScriptFieldAsTyped(field))
       .map((field) => field.key);
     const value = (key: string): SolidScriptValue => state.machine.fieldValue(fields, node, key, state.scope);
     return {
@@ -597,14 +597,18 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         for (const key of evaluated) values.set(key, value(key));
         return new SolidScriptBlockArguments(values, labels);
       },
-      text: (key) => SolidScriptMachine.fieldOf(fields, node, key).text,
+      text: (key) => {
+        const field = solidScriptLineFieldOf(fields, node, key);
+        return field.text.includes('[') ? solidScriptValueText(value(key)) : field.text;
+      },
       value,
       list: (key) =>
-        solidScriptFieldList(SolidScriptMachine.fieldOf(fields, node, key).text, (item) =>
+        solidScriptFieldList(solidScriptLineFieldOf(fields, node, key).text, (item) =>
           solidScriptFieldResolve('value', item, state.machine.fieldContext(state.scope)),
         ),
       valueItems(key) {
-        return solidScriptFieldSplit(this.text(key), ',').length > 1 ? this.list(key) : value(key);
+        const typed = solidScriptLineFieldOf(fields, node, key).text;
+        return solidScriptFieldSplit(typed, ',').length > 1 ? this.list(key) : value(key);
       },
       variableSet: (name, assigned) => state.machine.variableSet(state.scope, name, assigned),
       solid: (points) => {
@@ -838,41 +842,24 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     key: string,
     scope: SolidScriptScope,
   ): SolidScriptValue {
-    const field = SolidScriptMachine.fieldOf(fields, node, key);
+    return this.fieldRead(solidScriptLineFieldOf(fields, node, key), scope);
+  }
+
+  /**
+   * Reads a field of a line in a scope, the one way every field is read; a
+   * mistake names the field unless the message already starts with it.
+   *
+   * @param field Field, from solidScriptLineFieldMake.
+   * @param scope Scope.
+   * @returns Value.
+   */
+  fieldRead(field: SolidScriptLineField, scope: SolidScriptScope): SolidScriptValue {
     try {
       return field.compiled(this.fieldContext(scope));
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`${field.label}: ${message}`);
+      throw new Error(message.startsWith(`${field.label} `) ? message : `${field.label}: ${message}`);
     }
-  }
-
-  /**
-   * Returns a line's field text and compiled closure, worked out once per run
-   * view of the line.
-   *
-   * @param fields Fields of the line read so far, by key.
-   * @param node Line.
-   * @param key Field key.
-   * @returns Field.
-   */
-  private static fieldOf<Command extends SolidScriptMachineCommand>(
-    fields: Map<string, SolidScriptLineField>,
-    node: SolidScriptBlockNode<Command>,
-    key: string,
-  ): SolidScriptLineField {
-    let field = fields.get(key);
-    if (!field) {
-      const parameter = node.command.parameters.find((entry) => entry.key === key);
-      const text = node.command.valueText(node.values, key);
-      field = {
-        text,
-        label: parameter?.label ?? key,
-        compiled: solidScriptFieldCompiled(parameter?.type ?? 'value', text),
-      };
-      fields.set(key, field);
-    }
-    return field;
   }
 
   /**

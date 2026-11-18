@@ -1,6 +1,12 @@
 import type { SolidScriptBlock, SolidScriptDocument } from './solid_script_document.js';
 import { solidScriptDocumentFlowAt, solidScriptDocumentFlowEnd } from './solid_script_document_flow.js';
-import { solidScriptFlowKinds, type SolidScriptFlowState } from './solid_script_document_flow_state.js';
+import {
+  solidScriptFlowKinds,
+  solidScriptFlowSources,
+  type SolidScriptFlowSource,
+  type SolidScriptFlowState,
+} from './solid_script_document_flow_state.js';
+import { solidScriptSentenceTyped } from '@/solid_script/language/solid_script_sentence.js';
 import {
   solidScriptGivenDetail,
   solidScriptGivenFields,
@@ -16,6 +22,7 @@ import { solidScriptBlockNesting } from './solid_script_document_indent.js';
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
 import { solidScriptBuiltinFind } from '@/solid_script/language/solid_script_expression_compile.js';
 import { solidScriptFieldTokenKey, solidScriptFieldTokens } from '@/solid_script/language/solid_script_field_tokens.js';
+import { solidScriptFieldAsTyped } from '@/solid_script/language/solid_script_field.js';
 import { solidScriptFunctionKey, solidScriptNameKey } from '@/solid_script/language/solid_script_name_key.js';
 
 /** Kinds of name a script defines, in the order the editor lists them. */
@@ -52,6 +59,14 @@ export interface SolidScriptName {
    * tells.
    */
   kinds?: readonly string[];
+  /**
+   * The writes that may reach where the line stands, each as a sentence after
+   * the kinds it gives, such as "Brush: What is made of **Cube** (line 3).";
+   * missing when no write is known there.
+   */
+  reaches?: string;
+  /** 0-based lines of the writes that may reach where the line stands, in order. */
+  reachLines?: readonly number[];
 }
 
 /** Pattern of a plain name, or of a Function's own variable. */
@@ -166,14 +181,66 @@ export function solidScriptNameShown(name: string): string {
  * @param state Variables at that point.
  * @returns Names with their kinds.
  */
-function solidScriptNamesKinds(names: readonly SolidScriptName[], state: SolidScriptFlowState): SolidScriptName[] {
+function solidScriptNamesKinds(
+  names: readonly SolidScriptName[],
+  state: SolidScriptFlowState,
+  blocks: readonly SolidScriptBlock[],
+): SolidScriptName[] {
   return names.map((entry) => {
     const { name, category, line, detail } = entry;
-    const kinds = SOLID_SCRIPT_NAMES_KINDED.has(category)
-      ? solidScriptFlowKinds(state, solidScriptNameKey(name))
-      : undefined;
-    return { name, category, line, detail, ...(kinds && kinds.length > 0 ? { kinds } : {}) };
+    if (!SOLID_SCRIPT_NAMES_KINDED.has(category)) return { name, category, line, detail };
+    const key = solidScriptNameKey(name);
+    const kinds = solidScriptFlowKinds(state, key);
+    const sources = solidScriptFlowSources(state, key).filter((source) => source.kinds.length > 0);
+    const reaches = solidScriptNameReaches(sources, key, blocks);
+    return {
+      name,
+      category,
+      line,
+      detail,
+      ...(kinds && kinds.length > 0 ? { kinds } : {}),
+      ...(reaches !== '' ? { reaches, reachLines: sources.map((source) => source.line) } : {}),
+    };
   });
+}
+
+/**
+ * Describes the writes that may reach a point, each by its own line: what the
+ * field that writes the name gives, or the line that passes it in, such as the
+ * Call of a Function, with the kinds it gives there.
+ *
+ * @param sources Writes, in line order.
+ * @param key Name key.
+ * @param blocks Lines of the script.
+ * @returns Sentences; empty when no write gives a known kind.
+ */
+function solidScriptNameReaches(
+  sources: readonly SolidScriptFlowSource[],
+  key: string,
+  blocks: readonly SolidScriptBlock[],
+): string {
+  return sources
+    .filter((source) => source.kinds.length > 0 && blocks[source.line] !== undefined)
+    .map((source) => {
+      const what = solidScriptNameWriteText(blocks[source.line] as SolidScriptBlock, key);
+      return solidScriptSentenceTyped(source.kinds.join(' or '), `${what} (line ${source.line + 1})`);
+    })
+    .join(' ');
+}
+
+/**
+ * Tells what one line does to a name: what its field naming it gives, or that
+ * it passes the name in, as a Call passes a Function's inputs.
+ *
+ * @param block Line.
+ * @param key Name key.
+ * @returns Description, with the command in bold.
+ */
+function solidScriptNameWriteText(block: SolidScriptBlock, key: string): string {
+  const given = solidScriptGivenFields(block).find((entry) => solidScriptNameKey(entry.name) === key);
+  const label = solidScriptCommandFind(block.command)?.label ?? block.command;
+  if (!given) return `passed in by **${label}**`;
+  return 'what' in given.gives ? solidScriptGivenDetail(block, given.gives.what) : `from **${label}**`;
 }
 
 /**
@@ -193,7 +260,7 @@ export function solidScriptDocumentNames(document: SolidScriptDocument): SolidSc
     solidScriptNamesOfValues(list, block, line);
     solidScriptNamesOfBlocks(list, block, line);
   }
-  return solidScriptNamesKinds(list.names, solidScriptDocumentFlowEnd(document));
+  return solidScriptNamesKinds(list.names, solidScriptDocumentFlowEnd(document), document.blocks);
 }
 
 /**
@@ -312,7 +379,7 @@ export function solidScriptDocumentNamesAt(document: SolidScriptDocument, positi
     if (block)
       for (const counter of solidScriptNameCounters(block)) list.add(counter.name, 'Counters', line, counter.detail);
   }
-  return solidScriptNamesKinds(list.names, solidScriptDocumentFlowAt(document, position));
+  return solidScriptNamesKinds(list.names, solidScriptDocumentFlowAt(document, position), document.blocks);
 }
 
 /**
@@ -381,7 +448,7 @@ export function solidScriptDocumentOrigins(document: SolidScriptDocument): Map<s
  */
 function solidScriptOriginTargets(block: SolidScriptBlock): string[] {
   const written = solidScriptGivenFields(block)
-    .filter(({ gives }) => gives.rule !== 'read' && gives.rule !== 'forgotten')
+    .filter(({ gives }) => gives.rule !== 'read' && gives.rule !== 'forgotten' && gives.rule !== 'defines')
     .map(({ name }) => name);
   return [...written, ...solidScriptNameInputs(block).map((input) => `Local.${input}`)];
 }
@@ -423,9 +490,6 @@ export interface SolidScriptFieldUnknownName {
   /** True for a call of a Function. */
   call: boolean;
 }
-
-/** Field kinds whose text is used as typed, without [name] or formulas. */
-export const SOLID_SCRIPT_NAMES_RAW: ReadonlySet<string> = new Set(['name', 'target', 'text']);
 
 /**
  * Collects what a field may use from the names a line sees.
@@ -500,7 +564,7 @@ export function solidScriptDocumentNamesUnknown(document: SolidScriptDocument): 
     const command = solidScriptCommandFind(block.command);
     if (!command) continue;
     const texts = command.parameters
-      .filter((parameter) => !SOLID_SCRIPT_NAMES_RAW.has(parameter.type))
+      .filter((parameter) => !solidScriptFieldAsTyped(parameter))
       .map((parameter) => block.values[parameter.key] ?? '')
       .filter((text) => /[[(]/.test(text));
     if (texts.length === 0) continue;

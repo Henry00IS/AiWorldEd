@@ -1,13 +1,13 @@
 import { solidScriptDocumentActiveLines } from '@/solid_script/document/solid_script_document_active.js';
 import { solidScriptNameDotProblem } from './solid_script_name_rules.js';
-import { solidScriptFieldCheck } from './solid_script_field.js';
+import { solidScriptFieldAsTyped, solidScriptFieldCheck } from './solid_script_field.js';
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
 import {
   solidScriptBlockTree,
   type SolidScriptBlockNode,
   type SolidScriptTreeLine,
 } from './solid_script_block_tree.js';
-import type { SolidScriptCommand } from '@/solid_script/commands/solid_script_command.js';
+import type { SolidScriptCommand, SolidScriptCommandParameter } from '@/solid_script/commands/solid_script_command.js';
 import { solidScriptErrorLine, solidScriptFailure } from './solid_script_error.js';
 import {
   solidScriptSystemValues,
@@ -62,16 +62,26 @@ export function solidScriptProgramProblem(program: SolidScriptProgram): { line: 
     if (!command) continue;
     for (const parameter of command.parameters) {
       const text = command.valueText(block.values, parameter.key);
-      const problem =
-        parameter.type === 'name' || parameter.type === 'target'
-          ? solidScriptNameDotProblem(text, 'set')
-          : parameter.type === 'text'
-            ? ''
-            : solidScriptFieldCheck(text);
+      const problem = solidScriptProgramFieldProblem(parameter, text);
       if (problem) return { line: index + 1, message: `${parameter.label}: ${problem}` };
     }
   }
   return null;
+}
+
+/**
+ * Checks one field before the run: a field used as typed that names something
+ * must be a plain name, other text used as typed is free, and every other field
+ * must be readable as names and formulas.
+ *
+ * @param parameter Field as its command declares it.
+ * @param text Field text.
+ * @returns Problem, or an empty string.
+ */
+function solidScriptProgramFieldProblem(parameter: SolidScriptCommandParameter, text: string): string {
+  if (!solidScriptFieldAsTyped(parameter)) return solidScriptFieldCheck(text);
+  if (parameter.type === 'name' || parameter.type === 'target') return solidScriptNameDotProblem(text, 'set');
+  return parameter.type === 'text' ? '' : solidScriptFieldCheck(text);
 }
 
 /** Checked block trees of scripts, by their lines, which edits never change. */

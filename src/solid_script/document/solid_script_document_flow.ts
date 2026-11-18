@@ -92,6 +92,10 @@ class SolidScriptFlowAnalysis {
   private readonly inputNames = new Set<string>();
   /** Function and part lines some line ran. */
   private readonly ran = new Set<SolidScriptFlowNode>();
+  /** 0-based line of each line of the script. */
+  private readonly lineOf: ReadonlyMap<SolidScriptBlock, number>;
+  /** 0-based line being followed, which passes the values of a Call it makes. */
+  private current = -1;
   /** Variables when the script's own lines are done. */
   readonly end: SolidScriptFlowState;
 
@@ -101,6 +105,7 @@ class SolidScriptFlowAnalysis {
    * @param blocks Lines of the script.
    */
   constructor(private readonly blocks: readonly SolidScriptBlock[]) {
+    this.lineOf = new Map(blocks.map((block, line) => [block, line]));
     const top = solidScriptFlowTree(blocks);
     this.register(top);
     const frame: SolidScriptFlowFrame = { returns: new Set(), depth: 0, exits: null };
@@ -147,7 +152,10 @@ class SolidScriptFlowAnalysis {
   private unreached(): void {
     const frame = (): SolidScriptFlowFrame => ({ returns: new Set(), depth: 1, exits: null });
     for (const node of [...this.functions.values(), ...this.parts.values()])
-      if (!this.ran.has(node)) this.body(node, this.inputs(node, this.end, []), frame());
+      if (!this.ran.has(node)) {
+        this.current = node.line;
+        this.body(node, this.inputs(node, this.end, []), frame());
+      }
     for (const node of this.handlers) this.body(node, this.end, frame());
   }
 
@@ -185,6 +193,7 @@ class SolidScriptFlowAnalysis {
         continue;
       }
       this.record(node.line, current);
+      this.current = node.line;
       last = current;
       current = this.step(node, current, frame);
     }
@@ -390,11 +399,12 @@ class SolidScriptFlowAnalysis {
     if (gives.rule === 'word') this.inputNames.add(solidScriptNameKey(name));
     else if (this.inputNames.has(solidScriptNameKey(name))) return state;
     if (gives.rule === 'forgotten') return solidScriptFlowDelete(state, solidScriptNameKey(name));
-    if (gives.rule === 'kept' || gives.rule === 'read') return state;
+    if (gives.rule === 'kept' || gives.rule === 'read' || gives.rule === 'defines') return state;
     const item = /^((?:local\.|persistent\.)?[A-Za-z_]\w*)\s*\(.*\)$/i.exec(name)?.[1];
-    if (item !== undefined || gives.rule === 'list') return this.listWrite(item ?? name, state);
+    const line = this.lineOf.get(block) ?? -1;
+    if (item !== undefined || gives.rule === 'list') return this.listWrite(item ?? name, state, line);
     if (/\./.test(name.replace(/^(local|persistent)\./i, ''))) return state;
-    return this.write(state, name, this.kindsGiven(block, gives, state, returns, frame));
+    return this.write(state, name, this.kindsGiven(block, gives, state, returns, frame), line);
   }
 
   /**
@@ -430,10 +440,11 @@ class SolidScriptFlowAnalysis {
    *
    * @param name List name as written.
    * @param state Variables before it.
+   * @param line 0-based line.
    * @returns Variables after it.
    */
-  private listWrite(name: string, state: SolidScriptFlowState): SolidScriptFlowState {
-    return state.has(solidScriptNameKey(name)) ? state : this.write(state, name, ['List']);
+  private listWrite(name: string, state: SolidScriptFlowState, line: number): SolidScriptFlowState {
+    return state.has(solidScriptNameKey(name)) ? state : this.write(state, name, ['List'], line);
   }
 
   /**
@@ -442,14 +453,20 @@ class SolidScriptFlowAnalysis {
    * @param state Variables before.
    * @param name Name as written, maybe in brackets.
    * @param kinds Kinds written.
+   * @param line 0-based line that writes it.
    * @returns Variables after.
    */
-  private write(state: SolidScriptFlowState, name: string, kinds: readonly string[]): SolidScriptFlowState {
+  private write(
+    state: SolidScriptFlowState,
+    name: string,
+    kinds: readonly string[],
+    line: number,
+  ): SolidScriptFlowState {
     const bare = name
       .trim()
       .replace(/^\[(.*)\]$/s, '$1')
       .trim();
-    return bare === '' ? state : solidScriptFlowWrite(state, solidScriptNameKey(bare), kinds);
+    return bare === '' ? state : solidScriptFlowWrite(state, solidScriptNameKey(bare), kinds, line);
   }
 
   /**
@@ -500,12 +517,14 @@ class SolidScriptFlowAnalysis {
     const call: SolidScriptFlowCall = { node, values, state, frame, key: solidScriptFlowCallKey(node, values) };
     const running = this.running.get(call.key);
     if (running) return this.guess(call.key, running, state);
-    const memo = `${call.key}#${solidScriptFlowGlobals(state)}`;
+    const memo = `${call.key}@${this.current}#${solidScriptFlowGlobals(state)}`;
     const known = this.summaries.get(memo) ?? this.guessed.get(memo);
     if (known) return known;
     if (frame.depth >= SOLID_SCRIPT_FLOW_DEPTH) return { after: state, returns: [SOLID_SCRIPT_FLOW_UNKNOWN] };
     const guesses = this.guesses;
+    const caller = this.current;
     const result = this.invokeRounds(call);
+    this.current = caller;
     (this.guesses === guesses ? this.summaries : this.guessed).set(memo, result);
     return result;
   }
@@ -618,7 +637,7 @@ class SolidScriptFlowAnalysis {
     const parameters = (node.block.values[field] ?? '').split(',').map((parameter) => parameter.trim());
     parameters.forEach((parameter, index) => {
       if (parameter !== '')
-        entry = this.write(entry, `Local.${parameter}`, values[index] ?? [SOLID_SCRIPT_FLOW_UNKNOWN]);
+        entry = this.write(entry, `Local.${parameter}`, values[index] ?? [SOLID_SCRIPT_FLOW_UNKNOWN], this.current);
     });
     return entry;
   }
@@ -668,7 +687,10 @@ function solidScriptFlowCallKey(node: SolidScriptFlowNode, values: readonly (rea
 function solidScriptFlowGlobals(state: SolidScriptFlowState): string {
   return [...state]
     .filter(([key]) => !key.startsWith('local.'))
-    .map(([key, variable]) => `${key}=${[...variable.kinds].sort().join('|')}`)
+    .map(
+      ([key, variable]) =>
+        `${key}=${[...variable.kinds].sort().join('|')}@${[...variable.from.keys()].sort().join('|')}`,
+    )
     .sort()
     .join(';');
 }

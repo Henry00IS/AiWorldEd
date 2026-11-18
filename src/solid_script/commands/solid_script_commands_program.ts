@@ -4,6 +4,7 @@ import { SolidScriptCommand, type SolidScriptCommandParameter } from './solid_sc
 import { solidScriptListingInputs, solidScriptListingOptions } from './solid_script_command_listing.js';
 import {
   solidScriptParameter,
+  solidScriptParameterDefines,
   solidScriptParameterInto,
   solidScriptParameterOptional,
   solidScriptParameterSides,
@@ -69,7 +70,7 @@ const SOLID_SCRIPT_INPUT_PARAMETERS: readonly SolidScriptCommandParameter[] = [
   solidScriptParameterOptional('max', 'Maximum', 'text', 'Largest number allowed. Leave it empty for no limit.'),
   solidScriptParameterOptional('choices', 'Choices', 'text', 'Values a choice offers, separated by commas.'),
   solidScriptParameterOptional('tooltip', 'Tooltip', 'text', 'Text shown when hovering the input in the inspector.'),
-];
+].map((parameter) => (parameter.writes ? parameter : solidScriptParameterDefines(parameter)));
 
 /** The Input command, which the inspector also reads. */
 const SOLID_SCRIPT_INPUT_COMMAND = new SolidScriptCommand({
@@ -139,7 +140,11 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
       'Shows the Input lines between this line and its End under Title in the inspector, so a script with many settings reads like a built-in generator. The lines inside run where they stand, so the variables of its inputs are read after its End as usual. Example: Input Group Railing around Input Rail, switch and Input Height shows both under Railing.',
     stops: ['A missing End line.'],
     nesting: 'open',
-    parameters: [solidScriptParameter('title', 'Title', 'text', 'Settings', 'Heading shown above the inputs inside.')],
+    parameters: [
+      solidScriptParameterDefines(
+        solidScriptParameter('title', 'Title', 'text', 'Settings', 'Heading shown above the inputs inside.'),
+      ),
+    ],
     listing: (read) => ['Input Group', read.text('title')],
     execute: (run) => run.inPlace(),
   }),
@@ -166,11 +171,13 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     stops: ['A missing End line.'],
     nesting: 'open',
     parameters: [
-      {
-        ...solidScriptParameter('name', 'Input', 'name', 'Rails', 'Name of the Input it watches.'),
-        nameGroups: ['Inputs'],
-      },
-      solidScriptParameter('value', 'Value', 'text', 'yes', 'Value that shows the inputs inside, as plain text.'),
+      solidScriptParameterDefines(
+        solidScriptParameter('name', 'Input', 'name', 'Rails', 'Name of the Input it watches.'),
+        ['Inputs'],
+      ),
+      solidScriptParameterDefines(
+        solidScriptParameter('value', 'Value', 'text', 'yes', 'Value that shows the inputs inside, as plain text.'),
+      ),
     ],
     listing: (read) => ['Show Inputs When', read.text('name'), ' is ', read.text('value')],
     execute: (run) => run.inPlace(),
@@ -182,7 +189,11 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     description: 'Show a line of text among the inputs',
     manual:
       'Shows Text in the inspector among the inputs, where this line stands between the Input lines, such as a hint about units or what a setting does. It builds nothing. Example: Input Note Sizes are in metres above Input Width.',
-    parameters: [solidScriptParameter('text', 'Text', 'text', 'Sizes are in metres.', 'Text shown in the inspector.')],
+    parameters: [
+      solidScriptParameterDefines(
+        solidScriptParameter('text', 'Text', 'text', 'Sizes are in metres.', 'Text shown in the inspector.'),
+      ),
+    ],
     runs: false,
     listing: (read) => ['Input Note', read.text('text')],
     execute: () => [],
@@ -203,12 +214,22 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     nesting: 'open',
     flow: { kind: 'function', name: 'name', inputs: 'parameters' },
     parameters: [
-      solidScriptParameter('name', 'Name', 'name', 'Area', 'The name Call lines and formulas use, such as Area(2, 3).'),
-      solidScriptParameterOptional(
-        'parameters',
-        'Inputs',
-        'text',
-        'Names of the values it takes, such as W, D. Read them as [Local.W].',
+      solidScriptParameterDefines(
+        solidScriptParameter(
+          'name',
+          'Name',
+          'name',
+          'Area',
+          'The name Call lines and formulas use, such as Area(2, 3).',
+        ),
+      ),
+      solidScriptParameterDefines(
+        solidScriptParameterOptional(
+          'parameters',
+          'Inputs',
+          'text',
+          'Names of the values it takes, such as W, D. Read them as [Local.W].',
+        ),
       ),
     ],
     listing: (read) => ['Function', read.text('name'), ...solidScriptListingInputs(read.text('parameters'))],
@@ -261,7 +282,12 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     stops: ['A name that is not an Input of the script.', 'Building a brush.'],
     nesting: 'open',
     flow: { kind: 'handler', name: 'name' },
-    parameters: [solidScriptParameter('name', 'Input', 'name', 'Width', 'Name of the Input it watches.')],
+    parameters: [
+      solidScriptParameterDefines(
+        solidScriptParameter('name', 'Input', 'name', 'Width', 'Name of the Input it watches.'),
+        ['Inputs'],
+      ),
+    ],
     endLabel: 'When',
     listing: (read) => ['When Input Changes', read.text('name')],
     execute: () => [],
@@ -276,7 +302,12 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     stops: ['A name that is not a button Input of the script.', 'Building a brush.'],
     nesting: 'open',
     flow: { kind: 'handler', name: 'name' },
-    parameters: [solidScriptParameter('name', 'Button', 'name', 'Reset', 'Name of the button Input.')],
+    parameters: [
+      solidScriptParameterDefines(
+        solidScriptParameter('name', 'Button', 'name', 'Reset', 'Name of the button Input.'),
+        ['Inputs'],
+      ),
+    ],
     endLabel: 'When',
     listing: (read) => ['When Button Pressed', read.text('name')],
     execute: () => [],
@@ -391,7 +422,10 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
       'Changes an input in the inspector. It only works inside When Input Changes or When Button Pressed. Lines after it read the new value, and the output is rebuilt with it. The value must fit the input, such as a whole number for a count. Example: Set Input Width to [=Max([Width], 0.5)] keeps the width at 0.5 metres or more.',
     stops: ['Being placed outside When Input Changes or When Button Pressed.', 'A name that is not an Input.'],
     parameters: [
-      solidScriptParameter('name', 'Input', 'name', 'Width', 'Name of the Input to change.'),
+      solidScriptParameterDefines(
+        solidScriptParameter('name', 'Input', 'name', 'Width', 'Name of the Input to change.'),
+        ['Inputs'],
+      ),
       solidScriptParameter('value', 'Value', 'value', '1', 'New value: a number, text, [Variable] or [=formula].'),
     ],
     listing: (read) => ['Set Input', read.text('name'), ' to ', read.value('value')],

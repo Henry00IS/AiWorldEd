@@ -15,13 +15,13 @@ import type {
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import { solidScriptAnchorRead } from '@/solid_script/language/solid_script_anchor.js';
 import {
+  solidScriptFieldAsTyped,
   solidScriptFieldBoolean,
   solidScriptFieldCheck,
   solidScriptFieldSplit,
   solidScriptFieldVectorNote,
 } from '@/solid_script/language/solid_script_field.js';
 import {
-  SOLID_SCRIPT_NAMES_RAW,
   solidScriptFieldKnown,
   solidScriptFieldUnknown,
   type SolidScriptName,
@@ -103,7 +103,8 @@ const SOLID_SCRIPT_CONFIGURATOR_WRITABLE_GROUPS: readonly string[] = [
  * @returns Groups, or undefined when the field offers no names of the script.
  */
 function solidScriptConfiguratorNameGroups(parameter: SolidScriptCommandParameter): readonly string[] | undefined {
-  return parameter.nameGroups ?? (parameter.writes ? SOLID_SCRIPT_CONFIGURATOR_WRITABLE_GROUPS : undefined);
+  const variable = parameter.writes && parameter.writes.gives.rule !== 'defines';
+  return parameter.nameGroups ?? (variable ? SOLID_SCRIPT_CONFIGURATOR_WRITABLE_GROUPS : undefined);
 }
 
 /**
@@ -125,7 +126,7 @@ function solidScriptConfiguratorWords(
   const words = new Map<string, SolidScriptCommandWord>();
   for (const entry of names)
     if (groups.includes(entry.category) && !words.has(entry.name.toLowerCase()))
-      words.set(entry.name.toLowerCase(), { word: entry.name, detail: entry.detail });
+      words.set(entry.name.toLowerCase(), { word: entry.name, detail: entry.reaches ?? entry.detail });
   const selected = parameter.writes?.offers === 'path' ? solidScriptSuggestionSelectedWords() : [];
   return [...words.values(), ...selected];
 }
@@ -166,15 +167,14 @@ export function solidScriptConfiguratorFieldBuild(
     words,
   };
   const texts =
-    (parameter.type === 'name' || parameter.type === 'target') &&
-    solidScriptConfiguratorNameGroups(parameter) === undefined
+    solidScriptFieldAsTyped(parameter) && solidScriptConfiguratorNameGroups(parameter) === undefined
       ? []
       : [...inputs.querySelectorAll<HTMLInputElement>('input[type="text"]')];
   const lists = texts.map((input) => new SolidScriptConfiguratorNames(input, suggest));
   inputs.addEventListener('input', changed);
   inputs.addEventListener('change', changed);
   const known = solidScriptFieldKnown(scope.names, scope.extra);
-  const raw = SOLID_SCRIPT_NAMES_RAW.has(parameter.type);
+  const raw = solidScriptFieldAsTyped(parameter);
   if (!raw)
     for (const input of texts)
       solidScriptFieldMirrorAttach(
@@ -317,6 +317,7 @@ function solidScriptConfiguratorInput(value: string, label: string): HTMLInputEl
  */
 function solidScriptConfiguratorNameProblem(parameter: SolidScriptCommandParameter, text: string): string {
   if (parameter.type !== 'name' && parameter.type !== 'target') return '';
+  if (!solidScriptFieldAsTyped(parameter) && text.includes('[')) return '';
   const dotted = solidScriptNameDotProblem(text, 'set');
   if (dotted) return `${parameter.label}: ${dotted}.`;
   if (parameter.type === 'name' && !SOLID_SCRIPT_CONFIGURATOR_NAME.test(text))
@@ -343,7 +344,7 @@ function solidScriptConfiguratorProblem(parameter: SolidScriptCommandParameter, 
     const read = solidScriptAnchorRead(text, parameter.anchor);
     return typeof read === 'string' ? `${parameter.label} ${read}.` : '';
   }
-  if (parameter.type === 'name' || parameter.type === 'text') return '';
+  if (solidScriptFieldAsTyped(parameter) && (parameter.type === 'name' || parameter.type === 'text')) return '';
   const size = solidScriptConfiguratorVectorSize(parameter);
   const count = solidScriptFieldSplit(text, ',').length;
   if (size > 0 && count !== 1 && count !== size)

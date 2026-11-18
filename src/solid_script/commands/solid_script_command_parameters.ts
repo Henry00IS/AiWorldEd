@@ -183,12 +183,15 @@ export function solidScriptParameterRings(): SolidScriptCommandParameter {
  * @returns Field.
  */
 export function solidScriptParameterShapeName(): SolidScriptCommandParameter {
-  return solidScriptParameterOptional(
-    SOLID_SCRIPT_SHAPE_NAME_KEY,
-    'Name',
-    'text',
-    'Optional name, such as Knob, so Of fields can pick this brush by it. Brushes may share a name; case does not matter.',
-  );
+  return {
+    ...solidScriptParameterOptional(
+      SOLID_SCRIPT_SHAPE_NAME_KEY,
+      'Name',
+      'text',
+      'Optional name, such as Knob or Post [I], so Of fields can pick this brush by it. Brushes may share a name; case does not matter.',
+    ),
+    accepts: ['Text', 'Number'],
+  };
 }
 
 /**
@@ -229,6 +232,24 @@ export function solidScriptParameterInto(what: string, kind: string, detail: str
     solidScriptParameterOptional('into', 'Into', 'name', `Variable to write ${what} to; empty writes none.`),
     { rule: 'kind', kind, what: `${detail} of **{command}**` },
   );
+}
+
+/**
+ * Marks a field as defining a name or a setting the editor reads before the
+ * script runs: a Function and its inputs, a part, the settings of an Input, or
+ * the input a handler or Set Input works on. Like a field naming a variable it
+ * is used as typed, and it gives no variable a value.
+ *
+ * @param parameter Field.
+ * @param groups Name groups it offers, if any.
+ * @returns The field, marked.
+ */
+export function solidScriptParameterDefines(
+  parameter: SolidScriptCommandParameter,
+  groups?: readonly string[],
+): SolidScriptCommandParameter {
+  const marked = solidScriptParameterWrites(parameter, { rule: 'defines' }, 'none');
+  return groups ? { ...marked, nameGroups: groups } : marked;
 }
 
 /**

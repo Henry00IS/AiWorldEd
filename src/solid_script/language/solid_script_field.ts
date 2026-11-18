@@ -120,9 +120,6 @@ export function solidScriptFieldEscapes(text: string, index: number): boolean {
   return text[index] === '$' && SOLID_SCRIPT_FIELD_ESCAPED.has(text[index + 1] ?? '');
 }
 
-/** Field kinds whose text is used exactly as typed. */
-const SOLID_SCRIPT_FIELD_KINDS_RAW: ReadonlySet<SolidScriptFieldKind> = new Set(['name', 'target', 'text']);
-
 /**
  * Splits field text into plain characters and bracketed parts.
  *
@@ -653,7 +650,6 @@ function solidScriptFieldAnyCompile(text: string): SolidScriptFieldCompiled {
  * @returns Compiled field.
  */
 function solidScriptFieldCompile(kind: SolidScriptFieldKind, text: string): SolidScriptFieldCompiled {
-  if (SOLID_SCRIPT_FIELD_KINDS_RAW.has(kind)) return () => text;
   try {
     switch (kind) {
       case 'number':
@@ -806,4 +802,18 @@ export function solidScriptFieldVectorNote(text: string): string {
   const named = /^\[\s*(\$?[A-Za-z_][\w.]*)\s*\]$/.exec(text.trim())?.[1];
   if (named === undefined || solidScriptSystemIsVector(named) !== false) return '';
   return `[${named}] is a number, not a vector; every axis gets it`;
+}
+
+/**
+ * Tells whether a field is used exactly as typed: only a field that declares
+ * `writes`, because it names a variable a line writes or defines a name or a
+ * setting read before the run. Every other field reads its [names] and
+ * [=formulas]; the runtime, the checks, the squiggles and the suggestions all
+ * ask this one question, so no field can skip resolution by its type.
+ *
+ * @param field Field as its command declares it.
+ * @returns True when the field is used as typed.
+ */
+export function solidScriptFieldAsTyped(field: { readonly writes?: object }): boolean {
+  return field.writes !== undefined;
 }

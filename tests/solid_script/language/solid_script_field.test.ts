@@ -106,9 +106,10 @@ describe('SolidScript field text', () => {
     expect(solidScriptFieldResolve('value', 'North Gate', CONTEXT)).toBe('North Gate');
   });
 
-  it('uses name and note text exactly as typed', () => {
+  it('reads names and formulas in name and text fields too, with $ escapes', () => {
     expect(solidScriptFieldResolve('name', 'width', CONTEXT)).toBe('width');
-    expect(solidScriptFieldResolve('text', 'A [note] $ here', CONTEXT)).toBe('A [note] $ here');
+    expect(solidScriptFieldResolve('text', 'A $[note$] $ here', CONTEXT)).toBe('A [note] $ here');
+    expect(() => solidScriptFieldResolve('text', 'A [note]', CONTEXT)).toThrow(/note/);
   });
 
   it('explains unbalanced brackets, empty brackets and a lone $ that is just a dollar', () => {

@@ -31,13 +31,23 @@ export interface SolidScriptExplorerEntry {
   /** Friendly type, such as Whole Number or List of Numbers. */
   type: string;
   /** 0-based lines that set it, first the defining line. */
-  lines: number[];
+  lines: readonly number[];
+  /**
+   * 0-based lines of the writes that may reach the end of the script, when the
+   * checks know them.
+   */
+  reachLines?: readonly number[];
   /** Items of a list, by number. */
   items: SolidScriptVariable[];
   /** True for inputs and built-in values, which lines read but never set. */
   readOnly: boolean;
   /** What a built-in value holds, or empty. */
   detail: string;
+  /**
+   * The writes that may reach the end of the script, each after its kinds;
+   * empty when none is known.
+   */
+  reaches?: string;
 }
 
 /** Friendly type of a name the run has not reached yet. */
@@ -87,9 +97,11 @@ export function solidScriptExplorerEntries(
           (solidScriptNameKindsText(known.kinds) ||
             (SOLID_SCRIPT_EXPLORER_TYPES_STATIC[known.category] ?? 'Not Set Yet'))),
       lines: origins.get(known.name) ?? [known.line],
+      ...(known.reachLines ? { reachLines: known.reachLines } : {}),
       items: found?.items ?? [],
       readOnly: input,
       detail: '',
+      reaches: known.reaches ?? '',
     });
   }
   const listed = new Set(entries.map((entry) => entry.name));
@@ -331,9 +343,12 @@ export class SolidScriptEditorExplorer {
       entry.value ?? '—',
       entry.readOnly ? `${entry.type} · Read Only` : entry.type,
       entry.lines,
+      entry.reachLines?.at(-1),
     );
-    const about = entry.detail === '' ? '' : `${solidScriptSentencePlain(solidScriptSentence(entry.detail))} `;
-    row.title = entry.lines.length > 0 ? `${about}Click to show line ${entry.lines[0]! + 1}` : about.trim();
+    const told = entry.reaches || entry.detail;
+    const about = told === '' ? '' : `${solidScriptSentencePlain(solidScriptSentence(told))} `;
+    const target = entry.reachLines?.at(-1) ?? entry.lines[0];
+    row.title = target !== undefined ? `${about}Click to show line ${target + 1}` : about.trim();
     if (isList)
       row.firstElementChild?.addEventListener('click', (event) => {
         event.stopPropagation();
@@ -407,9 +422,18 @@ export class SolidScriptEditorExplorer {
    * @param value Value text.
    * @param type Type text.
    * @param lines 0-based lines that set it.
+   * @param target 0-based line a click on the row shows; the first line when
+   *   missing.
    * @returns Row.
    */
-  private row(name: string, label: string, value: string, type: string, lines: readonly number[]): HTMLElement {
+  private row(
+    name: string,
+    label: string,
+    value: string,
+    type: string,
+    lines: readonly number[],
+    target = lines[0],
+  ): HTMLElement {
     const c = SOLID_SCRIPT_EDITOR_CLASSES;
     const row = document.createElement('div');
     row.className = c.explorerRow;
@@ -437,7 +461,7 @@ export class SolidScriptEditorExplorer {
       this.selected = name;
       for (const other of this.table.querySelectorAll(`.${c.selected}`)) other.classList.remove(c.selected);
       row.classList.add(c.selected);
-      if (lines.length > 0) this.reveal(lines[0]!);
+      if (target !== undefined) this.reveal(target);
     });
     return row;
   }

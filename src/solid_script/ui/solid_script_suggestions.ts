@@ -252,15 +252,17 @@ function solidScriptSuggestionRank(suggestion: SolidScriptSuggestion, prefix: st
 }
 
 /**
- * Describes a name of the script as a sentence, after the kinds it may hold
- * where the line stands when they are known, such as "Brush: What is made of
- * **Cube**." or "Text or Brush: …".
+ * Describes a name of the script by the writes that may reach where the line
+ * stands, each after its kinds, such as "Brush: What is made of **Cube** (line
+ * 3)."; else as a sentence after the kinds it may hold when they are known,
+ * such as "Brush: What is made of **Cube**." or "Text or Brush: …".
  *
  * @param entry Name.
  * @param scope What the field may refer to.
  * @returns Description.
  */
 function solidScriptSuggestionNameDetail(entry: SolidScriptName, scope: SolidScriptSuggestionScope): string {
+  if (entry.reaches !== undefined) return entry.reaches;
   const kinds = solidScriptSuggestionKinds(entry.name, scope).filter((kind) => kind !== 'List');
   return solidScriptSentenceTyped(kinds.join(' or '), entry.detail);
 }

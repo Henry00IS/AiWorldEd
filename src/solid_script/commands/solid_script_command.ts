@@ -45,7 +45,7 @@ export type SolidScriptCommandGives =
   | { readonly rule: 'kind'; readonly kind: string; readonly what: string }
   | { readonly rule: 'value' | 'item' | 'key' | 'word'; readonly field: string; readonly what: string }
   | { readonly rule: 'returned' | 'list'; readonly what: string }
-  | { readonly rule: 'kept' | 'forgotten' | 'read' };
+  | { readonly rule: 'kept' | 'forgotten' | 'read' | 'defines' };
 
 /**
  * A field naming a variable the line writes: how it offers names and what it

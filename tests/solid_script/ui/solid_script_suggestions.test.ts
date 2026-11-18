@@ -338,8 +338,8 @@ describe('SolidScript suggestions follow the kinds a name may hold where the lin
     ]);
     const shown = shownAt(document, 4, '[Henry.');
     expect(shown.map((entry) => entry.label)).toEqual(expect.arrayContaining(['Henry.Words', 'Henry.Faces']));
-    expect(shownAt(document, 4, '[Hen').find((entry) => entry.label === 'Henry')?.detail).toMatch(
-      /Text or Brush|Brush or Text/,
+    expect(shownAt(document, 4, '[Hen').find((entry) => entry.label === 'Henry')?.detail).toBe(
+      'Text: Set to Henry (line 1). Brush: What is made of **Cube** (line 3).',
     );
   });
 

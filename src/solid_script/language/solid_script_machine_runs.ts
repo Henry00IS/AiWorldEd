@@ -1,11 +1,18 @@
 import type { SolidScriptBlockNode } from './solid_script_block_tree.js';
-import type { SolidScriptFieldCompiled } from './solid_script_field.js';
+import {
+  solidScriptFieldAsTyped,
+  solidScriptFieldCompiled,
+  type SolidScriptFieldCompiled,
+} from './solid_script_field.js';
+import { solidScriptKindAccepted, solidScriptKindMismatch, solidScriptKindOf } from './solid_script_kinds.js';
+import { solidScriptValueText } from './solid_script_value.js';
 import type { SolidScriptMachine } from './solid_script_machine.js';
 import { SOLID_SCRIPT_DEFINITIONS, SOLID_SCRIPT_FORMULA_CONTEXT } from './solid_script_machine_calls.js';
 import type {
   SolidScriptBlockRun,
   SolidScriptContext,
   SolidScriptMachineCommand,
+  SolidScriptMachineField,
 } from './solid_script_machine_types.js';
 import type { SolidScriptScope } from './solid_script_scope.js';
 
@@ -14,9 +21,6 @@ export type SolidScriptRunBuild = (
   node: SolidScriptBlockNode<SolidScriptMachineCommand>,
   state: SolidScriptLineState,
 ) => SolidScriptBlockRun;
-
-/** Field types whose stored text is used as typed instead of evaluated. */
-export const SOLID_SCRIPT_TEXT_FIELDS: ReadonlySet<string> = new Set(['name', 'target', 'text']);
 
 /** Scope and context a line runs in this time. */
 export interface SolidScriptLineState {
@@ -141,4 +145,54 @@ export function solidScriptLinesPassInput(lines: readonly SolidScriptBlockNode<S
       solidScriptLinesPassInput(node.children) ||
       solidScriptLinesPassInput(node.otherwise ?? []),
   );
+}
+
+/**
+ * Makes the reader of one field of a line, the one path every field is read
+ * through: a field that names what the line writes or defines is used as typed;
+ * every other field reads its [names] and [=formulas] and stops on a kind it
+ * does not accept, such as a Brush in a Name.
+ *
+ * @param field The field as its command declares it.
+ * @param text Field text, or its default.
+ * @returns Field.
+ */
+export function solidScriptLineFieldMake(field: SolidScriptMachineField, text: string): SolidScriptLineField {
+  if (solidScriptFieldAsTyped(field)) return { text, label: field.label, compiled: () => text };
+  const compiled = solidScriptFieldCompiled(field.type, text);
+  if (field.accepts === 'Any') return { text, label: field.label, compiled };
+  const accepts = field.accepts;
+  return {
+    text,
+    label: field.label,
+    compiled: (context) => {
+      const value = compiled(context);
+      const kind = solidScriptKindOf(value);
+      if (solidScriptKindAccepted(accepts, kind)) return value;
+      throw new Error(`${solidScriptKindMismatch(field.label, accepts, kind)}: ${solidScriptValueText(value)}`);
+    },
+  };
+}
+
+/**
+ * Returns a line's field reader, made once per run view of the line.
+ *
+ * @param fields Fields of the line read so far, by key.
+ * @param node Line.
+ * @param key Field key.
+ * @returns Field.
+ */
+export function solidScriptLineFieldOf<Command extends SolidScriptMachineCommand>(
+  fields: Map<string, SolidScriptLineField>,
+  node: SolidScriptBlockNode<Command>,
+  key: string,
+): SolidScriptLineField {
+  let field = fields.get(key);
+  if (!field) {
+    const parameter = node.command.parameters.find((entry) => entry.key === key);
+    const declared = parameter ?? { key, label: key, type: 'value' as const, accepts: 'Any' as const };
+    field = solidScriptLineFieldMake(declared, node.command.valueText(node.values, key));
+    fields.set(key, field);
+  }
+  return field;
 }

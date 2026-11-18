@@ -50,15 +50,15 @@ describe('SolidScript suggestion details', () => {
     const scope = { names: solidScriptDocumentNamesAt(SCRIPT, 7), extra: [], words: [] };
     const all = [...offered('[', scope), ...offered('[=', scope), ...offered('[$Selected.', scope)];
     const details = new Map(all.map((entry) => [entry.label, entry.detail]));
-    expect(details.get('Box1')).toBe('Brush: What is made of **Cube**.');
-    expect(details.get('Tops')).toBe('Face List: Top faces of **Extrude Face**.');
+    expect(details.get('Box1')).toBe('Brush: What is made of **Cube** (line 2).');
+    expect(details.get('Tops')).toBe('Face List: Top faces of **Extrude Face** (line 4).');
     expect(details.get('$Editor.Name')).toBe('Text: Name of the editor.');
-    expect(details.get('Steps')).toBe('Number: Count input.');
-    expect(details.get('I')).toBe('Number: Counter of **Repeat**.');
+    expect(details.get('Steps')).toBe('Number: Count input (line 1).');
+    expect(details.get('I')).toBe('Number: Counter of **Repeat** (line 6).');
     const scoped = { names: solidScriptDocumentNamesAt(SCRIPT, 3), extra: [], words: [] };
     const inside = new Map(offered('[', scoped).map((entry) => [entry.label, entry.detail]));
-    expect(inside.get('Brush')).toBe('Brush: Item of **For Each**.');
-    expect(inside.get('K')).toBe('Number: Key of **For Each**.');
+    expect(inside.get('Brush')).toBe('Brush: Item of **For Each** (line 3).');
+    expect(inside.get('K')).toBe('Number: Key of **For Each** (line 3).');
     for (const entry of [...all, ...offered('[Box1.', scope), ...offered('[Steps.', scope)]) {
       const sentence = entry.detail.replace(/^[A-Z][A-Za-z/]*(?: List)?: /, '');
       if (/^[A-Za-z]+\(.*\)( -> \w+)?$/.test(sentence)) continue;
