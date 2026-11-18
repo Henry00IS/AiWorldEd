@@ -155,7 +155,8 @@ export function solidScriptMemberRead(
     if (member === 'words') return value.split(/\s+/).filter((word) => word !== '');
   }
   const type = solidScriptValueType(value);
-  const known = SOLID_SCRIPT_MEMBERS[type.endsWith(' List') || type.startsWith('List') ? 'List' : type] ?? [];
+  // The same members the editor suggests after the dot.
+  const known = solidScriptMemberNames(type.startsWith('List') ? 'List' : type);
   throw new Error(
     known.length === 0
       ? `${type} has no .${written}`

@@ -1,4 +1,5 @@
 import { panelFloatingScopeMark } from '@/ui/floating_panel/panel_floating_scope.js';
+import { solidScriptSentenceParts, solidScriptSentencePlain } from '@/solid_script/language/solid_script_sentence.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
 import {
@@ -48,12 +49,15 @@ function solidScriptSuggestionRows(
     row.className = SOLID_SCRIPT_EDITOR_CLASSES.suggestion;
     row.setAttribute('role', 'option');
     row.dataset['index'] = String(index);
-    row.title = `${suggestion.label}: ${suggestion.detail}`;
+    row.title = `${suggestion.label}: ${solidScriptSentencePlain(suggestion.detail)}`;
     const name = document.createElement('span');
     name.textContent = suggestion.label;
     const detail = document.createElement('span');
     detail.className = SOLID_SCRIPT_EDITOR_CLASSES.suggestionDetail;
-    detail.textContent = suggestion.detail;
+    for (const part of solidScriptSentenceParts(suggestion.detail))
+      detail.append(
+        part.bold ? Object.assign(document.createElement('strong'), { textContent: part.text }) : part.text,
+      );
     row.append(name, detail);
     row.addEventListener('mousedown', (event) => {
       event.preventDefault();

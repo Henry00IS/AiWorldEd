@@ -282,7 +282,7 @@ describe('SolidScript suggestions', () => {
     expect(locals).toEqual(['Local.W', 'Local.D']);
     const year = solidScriptSuggestions(at('[$Time.Y|'), SCOPE);
     expect(year.map((entry) => entry.label)).toEqual(['$Time.Year']);
-    expect(year[0]?.detail).toMatch(/^Number: year/);
+    expect(year[0]?.detail).toMatch(/^Number: Year now\.$/);
     const pad = solidScriptSuggestions(at('[=pad_l|'), SCOPE);
     expect(pad[0]?.detail).toBe('PadLeft(text, width, fill): Fills in front up to a width: 007.');
   });

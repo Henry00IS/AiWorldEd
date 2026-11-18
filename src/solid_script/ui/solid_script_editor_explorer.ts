@@ -1,4 +1,5 @@
 import type { SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
+import { solidScriptSentence, solidScriptSentencePlain } from '@/solid_script/language/solid_script_sentence.js';
 import {
   SOLID_SCRIPT_NAME_CATEGORIES,
   solidScriptDocumentNames,
@@ -328,7 +329,7 @@ export class SolidScriptEditorExplorer {
       entry.readOnly ? `${entry.type} · Read Only` : entry.type,
       entry.lines,
     );
-    const about = entry.detail === '' ? '' : `${entry.detail.charAt(0).toUpperCase()}${entry.detail.slice(1)}. `;
+    const about = entry.detail === '' ? '' : `${solidScriptSentencePlain(solidScriptSentence(entry.detail))} `;
     row.title = entry.lines.length > 0 ? `${about}Click to show line ${entry.lines[0]! + 1}` : about.trim();
     if (isList)
       row.firstElementChild?.addEventListener('click', (event) => {

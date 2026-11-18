@@ -37,6 +37,24 @@ function picked(): string | null {
 afterEach(() => document.body.replaceChildren());
 
 describe('SolidScript configurator suggestions', () => {
+  it('shows the names of blocks in a description in bold, and plain in its tooltip', () => {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = '[';
+    document.body.append(input);
+    const names = [{ name: 'Lid', category: 'Variables' as const, line: 0, detail: 'what is made of **Cube**' }];
+    new SolidScriptConfiguratorNames(input, { names, extra: [], words: [] });
+    input.focus();
+    input.setSelectionRange(1, 1);
+    input.click();
+    const row = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(
+      (option) => option.firstElementChild?.textContent === 'Lid',
+    );
+    expect(row?.querySelector('strong')?.textContent).toBe('Cube');
+    expect(row?.lastElementChild?.textContent).toBe('What is made of Cube.');
+    expect(row?.title).toBe('Lid: What is made of Cube.');
+  });
+
   it('opens only on a click or typing, never when the field gets the focus', () => {
     const input = wordField('Modifier');
     input.focus();

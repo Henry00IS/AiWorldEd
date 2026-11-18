@@ -9,6 +9,7 @@ import { SOLID_SCRIPT_FUNCTIONS_BUILTIN } from '@/solid_script/language/solid_sc
 import { SolidScriptLexer, type SolidScriptToken } from '@/solid_script/language/solid_script_lexer.js';
 import { solidScriptFunctionSpelling } from '@/solid_script/language/solid_script_name_key.js';
 import { SOLID_SCRIPT_SYSTEM_GLOBALS } from '@/solid_script/language/solid_script_system.js';
+import { solidScriptSentence, solidScriptSentenceTyped } from '@/solid_script/language/solid_script_sentence.js';
 import { solidScriptFieldEscapes, solidScriptFieldSplit } from '@/solid_script/language/solid_script_field.js';
 import { solidScriptSystemIsVector } from '@/solid_script/language/solid_script_name_rules.js';
 import {
@@ -247,6 +248,20 @@ function solidScriptSuggestionRank(suggestion: SolidScriptSuggestion, prefix: st
 }
 
 /**
+ * Describes a name of the script as a sentence, after its kind when that is
+ * known, such as "Brush: What is made of **Cube**.".
+ *
+ * @param entry Name.
+ * @param scope What the field may refer to.
+ * @returns Description.
+ */
+function solidScriptSuggestionNameDetail(entry: SolidScriptName, scope: SolidScriptSuggestionScope): string {
+  const typed = entry.category === 'Variables' || entry.category === 'Counters';
+  const type = typed ? solidScriptSuggestionType(entry.name, scope) : null;
+  return solidScriptSentenceTyped(type === null || type === 'List' ? '' : type, entry.detail);
+}
+
+/**
  * Lists everything a field may be filled with, by group.
  *
  * @param scope What the field may refer to.
@@ -256,6 +271,7 @@ function solidScriptSuggestionsAll(scope: SolidScriptSuggestionScope): SolidScri
   const all: SolidScriptSuggestion[] = [
     ...scope.words.map((word): SolidScriptSuggestion => ({
       ...word,
+      detail: solidScriptSentence(word.detail),
       label: word.word,
       category: 'Choices',
       pick: 'word',
@@ -264,19 +280,19 @@ function solidScriptSuggestionsAll(scope: SolidScriptSuggestionScope): SolidScri
       .filter((entry) => !SOLID_SCRIPT_SUGGESTION_NOT_VALUES.has(entry.category))
       .map((entry): SolidScriptSuggestion => ({
         label: entry.name,
-        detail: entry.detail,
+        detail: solidScriptSuggestionNameDetail(entry, scope),
         category: entry.category,
         pick: 'value',
       })),
     ...SOLID_SCRIPT_SUGGESTION_SYSTEM.map(([label, type, detail]): SolidScriptSuggestion => ({
       label,
-      detail: `${type}: ${detail}`,
+      detail: solidScriptSentenceTyped(type, detail),
       category: 'System',
       pick: 'value',
     })),
     ...scope.extra.map((name): SolidScriptSuggestion => ({
       label: name,
-      detail: 'Filled in per point',
+      detail: 'Filled in per point.',
       category: 'This Command',
       pick: 'value',
     })),
@@ -295,7 +311,7 @@ function solidScriptSuggestionsAll(scope: SolidScriptSuggestionScope): SolidScri
         const doc = SOLID_SCRIPT_FUNCTION_DOCS[name];
         return {
           label: solidScriptFunctionSpelling(name),
-          detail: doc ? `${doc.usage}: ${doc.summary}` : 'Built in',
+          detail: doc ? `${doc.usage}: ${solidScriptSentence(doc.summary)}` : 'Built in.',
           category: 'Built-In Functions',
           pick: 'function',
           alias: name,
@@ -436,7 +452,7 @@ function solidScriptSuggestionMembers(
     if (group.length > 0)
       return group.map(([label, type, detail]) => ({
         label,
-        detail: `${type}: ${detail}`,
+        detail: solidScriptSentenceTyped(type, detail),
         category: 'Members',
         pick: 'value',
       }));
@@ -448,7 +464,10 @@ function solidScriptSuggestionMembers(
     const gives = type === 'List' ? (name === 'Count' ? 'Number' : 'Item') : solidScriptMemberType(type, name);
     return {
       label: `${base}.${name}`,
-      detail: gives === 'Item' || gives === null ? `the ${name.toLowerCase()} item` : gives,
+      detail:
+        gives === 'Item' || gives === null
+          ? `The ${name.toLowerCase()} item of ${base}.`
+          : solidScriptSentenceTyped(gives, `the .${name} of ${base}`),
       category: 'Members',
       pick: 'value',
     };

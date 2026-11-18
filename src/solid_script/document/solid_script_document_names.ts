@@ -59,7 +59,7 @@ const SOLID_SCRIPT_NAME_PLAIN = /^(Local\.|Persistent\.)?[A-Za-z_][A-Za-z0-9_]*$
 
 /** Fields that write a variable, with what it then holds. */
 const SOLID_SCRIPT_NAMES_WRITTEN: Readonly<Record<string, string>> = {
-  into: 'what it made',
+  into: 'what is made',
   top: 'top faces',
   sides: 'side faces',
   inner: 'inner faces',
@@ -95,6 +95,40 @@ function solidScriptNameWrittenType(command: string, key: string): { type?: stri
   const known = SOLID_SCRIPT_NAMES_WRITTEN_TYPES[`${command}.${key}`];
   if (known) return { type: known };
   return key === 'into' && solidScriptCommandFind(command)?.builds === true ? { type: 'Brush' } : {};
+}
+
+/**
+ * Names a block for a description, in bold, such as **Cube**.
+ *
+ * @param command Command id.
+ * @returns Its label in bold.
+ */
+function solidScriptNameBlock(command: string): string {
+  return `**${solidScriptCommandFind(command)?.label ?? command}**`;
+}
+
+/**
+ * Lists the counters a Repeat or For Each line gives the lines inside it: the
+ * counter or item, and the For Each Key, with their kinds.
+ *
+ * @param block Repeat or For Each line.
+ * @returns Counters.
+ */
+function solidScriptNameCounters(
+  block: SolidScriptDocument['blocks'][number],
+): { name: string; detail: string; kind: Pick<SolidScriptName, 'type' | 'from'> }[] {
+  const value = (key: string): string => block.values[key] ?? '';
+  const loop = solidScriptNameBlock(block.command);
+  if (block.command === 'repeat')
+    return [{ name: value('variable'), detail: `counter of ${loop}`, kind: { type: 'Number' } }];
+  // The Key is a number for a list and a text for a Data value, so its kind stays open.
+  const item = {
+    name: value('variable'),
+    detail: `item of ${loop}`,
+    kind: { from: { text: value('list'), item: true } },
+  };
+  const key = { name: value('key'), detail: `key of ${loop}`, kind: {} };
+  return value('key').trim() === '' ? [item] : [item, key];
 }
 
 /**
@@ -138,7 +172,8 @@ export function solidScriptDocumentNames(document: SolidScriptDocument): SolidSc
       const target = value('name').trim();
       const list = /^([A-Za-z_][A-Za-z0-9_]*)\s*\(.*\)$/.exec(target);
       if (list) add(list[1] ?? '', 'Lists', line, 'list');
-      else if (/^local\./i.test(target)) add(target, 'Locals', line, `set to ${value('value')} in a Function`);
+      else if (/^local\./i.test(target))
+        add(target, 'Locals', line, `set to ${value('value')} in a ${solidScriptNameBlock('function')}`);
       else if (/^persistent\./i.test(target)) add(target, 'Persistent', line, 'kept between runs');
       else
         add(target, 'Variables', line, `set to ${value('value')}`, {
@@ -152,28 +187,31 @@ export function solidScriptDocumentNames(document: SolidScriptDocument): SolidSc
     if (block.command === 'find_item') add(value('result'), 'Variables', line, `position in ${value('list').trim()}`);
     for (const [key, detail] of Object.entries(SOLID_SCRIPT_NAMES_WRITTEN))
       if (value(key).trim() !== '')
-        add(value(key).replace(/^\[(.*)\]$/s, '$1'), 'Variables', line, `${detail} of ${block.command}`, {
-          ...solidScriptNameWrittenType(block.command, key),
-        });
+        add(
+          value(key).replace(/^\[(.*)\]$/s, '$1'),
+          'Variables',
+          line,
+          `${detail} of ${solidScriptNameBlock(block.command)}`,
+          {
+            ...solidScriptNameWrittenType(block.command, key),
+          },
+        );
     if (block.command === 'repeat' || block.command === 'for_each')
-      add(
-        value('variable'),
-        'Counters',
-        line,
-        block.command === 'repeat' ? 'Repeat counter' : 'For Each item',
-        block.command === 'repeat' ? { type: 'Number' } : { from: { text: value('list'), item: true } },
-      );
-    if (block.command === 'for_each' && value('key').trim() !== '') add(value('key'), 'Counters', line, 'For Each key');
+      for (const counter of solidScriptNameCounters(block))
+        add(counter.name, 'Counters', line, counter.detail, counter.kind);
     if (block.command === 'function') {
       add(value('name'), 'Functions', line, `${value('name').trim()}(${value('parameters').trim()})`);
       for (const parameter of value('parameters').split(','))
         if (parameter.trim() !== '')
           add(`Local.${parameter.trim()}`, 'Locals', line, `input of ${value('name').trim()}()`);
     }
-    if (block.command === 'part') add(value('name'), 'Parts', line, 'Define Part');
-    if (value('label').trim() !== '') add(value('label'), 'Brushes', line, `Name of a ${block.command} line`);
-    if (block.command === 'when_input_changes') add(value('name'), 'Handlers', line, 'When Input Changes');
-    if (block.command === 'when_button_pressed') add(value('name'), 'Handlers', line, 'When Button Pressed');
+    if (block.command === 'part') add(value('name'), 'Parts', line, solidScriptNameBlock('part'));
+    if (value('label').trim() !== '')
+      add(value('label'), 'Brushes', line, `Name of a ${solidScriptNameBlock(block.command)} line`);
+    if (block.command === 'when_input_changes')
+      add(value('name'), 'Handlers', line, solidScriptNameBlock(block.command));
+    if (block.command === 'when_button_pressed')
+      add(value('name'), 'Handlers', line, solidScriptNameBlock(block.command));
   });
   return names;
 }
@@ -201,10 +239,17 @@ export function solidScriptDocumentNamesAt(document: SolidScriptDocument, positi
   const names = solidScriptDocumentNames(document).filter(
     (entry) => !SOLID_SCRIPT_NAMES_SCOPED.includes(entry.category),
   );
-  const add = (name: string, category: SolidScriptNameCategory, line: number, detail: string): void => {
+  const add = (
+    name: string,
+    category: SolidScriptNameCategory,
+    line: number,
+    detail: string,
+    kind: Pick<SolidScriptName, 'type' | 'from'> = {},
+  ): void => {
     const plain = solidScriptNameShown(name.trim());
     const valid = category === 'System' || SOLID_SCRIPT_NAME_PLAIN.test(plain);
-    if (valid && !names.some((known) => known.name === plain)) names.push({ name: plain, category, line, detail });
+    if (valid && !names.some((known) => known.name === plain))
+      names.push({ name: plain, category, line, detail, ...kind });
   };
   const functionLine = open.filter((line) => document.blocks[line]?.command === 'function').pop();
   if (functionLine !== undefined) {
@@ -221,14 +266,8 @@ export function solidScriptDocumentNamesAt(document: SolidScriptDocument, positi
   for (const line of open) {
     const block = document.blocks[line]!;
     if (block.command === 'repeat' || block.command === 'for_each')
-      add(
-        block.values['variable'] ?? '',
-        'Counters',
-        line,
-        block.command === 'repeat' ? 'Repeat counter' : 'For Each item',
-      );
-    if (block.command === 'for_each' && (block.values['key'] ?? '').trim() !== '')
-      add(block.values['key'] ?? '', 'Counters', line, 'For Each key');
+      for (const counter of solidScriptNameCounters(block))
+        add(counter.name, 'Counters', line, counter.detail, counter.kind);
   }
   return names;
 }
