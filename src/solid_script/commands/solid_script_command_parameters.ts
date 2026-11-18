@@ -144,7 +144,7 @@ export function solidScriptParameterShapeName(): SolidScriptCommandParameter {
     SOLID_SCRIPT_SHAPE_NAME_KEY,
     'Name',
     'text',
-    'Optional name, such as Knob, so Select Faces, For Each Vertex and For Each Edge can pick this brush by it. Brushes may share a name; case does not matter.',
+    'Optional name, such as Knob, so Of fields can pick this brush by it. Brushes may share a name; case does not matter.',
   );
 }
 

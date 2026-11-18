@@ -634,7 +634,7 @@ export function solidScriptFieldIsVariable(text: string): boolean {
 }
 
 /**
- * Points out a vector field that reads a built-in number such as [Edge.Length]:
+ * Points out a vector field that reads a built-in number such as [$Box.Width]:
  * it works, every axis gets the number, but it is often meant as a vector.
  *
  * @param text Field text.

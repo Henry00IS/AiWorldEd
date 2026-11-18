@@ -1,6 +1,5 @@
 import type { SolidScriptBlockNode } from './solid_script_block_tree.js';
 import { solidScriptBuiltinFind } from './solid_script_expression_compile.js';
-import { solidScriptGeometryLookup } from './solid_script_geometry_lookup.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
 import type {
   SolidScriptBreak,
@@ -224,10 +223,7 @@ export abstract class SolidScriptMachineCalls<
   protected functionCall(name: string, values: readonly SolidScriptValue[]): { value: SolidScriptValue } | null {
     const before = this.steps.length;
     const run = this.functionRun(name, values, SOLID_SCRIPT_FORMULA_CONTEXT);
-    if (!run) {
-      const looked = solidScriptGeometryLookup(name, values, () => this.builtStack.flat());
-      return looked === undefined ? null : { value: looked };
-    }
+    if (!run) return null;
     if (this.paused) throw new SolidScriptPause();
     if (this.failure) throw new Error(this.failure.message);
     if (this.steps.length > before)

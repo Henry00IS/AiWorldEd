@@ -109,7 +109,7 @@ export function solidScriptConfiguratorFieldBuild(
       ? named(parameter.nameGroups)
       : parameter.type === 'boolean'
         ? SOLID_SCRIPT_CONFIGURATOR_YES_NO
-        : (parameter.words ?? []).filter((word) => !word.sees || scope.names.some((entry) => entry.name === word.sees)),
+        : (parameter.words ?? []),
   };
   const texts =
     (parameter.type === 'name' || parameter.type === 'target') && !parameter.nameGroups
@@ -172,6 +172,7 @@ function solidScriptConfiguratorInputs(
   const switched = parameter.type === 'boolean' ? solidScriptFieldBoolean(value) : value;
   const shown = typeof switched === 'boolean' ? (switched ? 'Yes' : 'No') : value;
   const input = solidScriptConfiguratorInput(shown, parameter.label);
+  if (parameter.placeholder) input.placeholder = parameter.placeholder;
   if (parameter.texture === true) return solidScriptConfiguratorTexture(input, parameter, inputs);
   inputs.append(input);
   return { read: () => input.value.trim(), problem: () => solidScriptConfiguratorProblem(parameter, input.value) };

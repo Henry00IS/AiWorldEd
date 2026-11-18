@@ -60,7 +60,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     category: 'Transforms',
     description: 'Turn brushes to point along a direction',
     manual:
-      'Turns every brush between this line and its End so that its upright Y axis points along Direction, by the shortest turn around the origin. Example: inside For Each Scattered Point, Translate by [Point.Position] with Align To [Point.Normal] and a thin Cylinder grows a spike straight out of every face.',
+      'Turns every brush between this line and its End so that its upright Y axis points along Direction, by the shortest turn around the origin. Example: after Scatter Points Into Spots Normals Ways, For Each [Spot] In [Spots] Key I; Translate by [Spot]; Align To [Ways([I])] and a thin Cylinder grows a spike straight out of every face.',
     stops: ['A Direction of 0, 0, 0.', SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [

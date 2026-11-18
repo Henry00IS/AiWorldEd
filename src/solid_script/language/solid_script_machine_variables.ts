@@ -337,6 +337,12 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
     if (list !== undefined) return list;
     const builtIn = this.systemRead(bare);
     if (builtIn !== undefined) return builtIn;
+    const item = solidScriptListItemParse(name);
+    if (item) {
+      // An item of a system list, such as $Input.Brushes(0).
+      const index = item.index === '' ? null : this.indexValue(item.index, scope);
+      return solidScriptListItemRead(item.name, this.systemVariable(item.name, scope), index, this.nameShown);
+    }
     const members = this.memberPath(name, scope);
     if (members) return members.value;
     throw new Error(`there is no system value [${this.nameShown(name)}]`);
@@ -362,8 +368,17 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
       } catch {
         continue;
       }
-      for (let index = split; index < parts.length; index++)
-        value = solidScriptMemberRead(value, parts[index]!, this.elements, written[index] ?? parts[index]!);
+      for (let index = split; index < parts.length; index++) {
+        // A member with an item number, such as Faces(0).
+        const item = solidScriptListItemParse(parts[index]!);
+        const member = item?.name ?? parts[index]!;
+        const shown = solidScriptListItemParse(written[index] ?? '')?.name ?? written[index] ?? member;
+        value = solidScriptMemberRead(value, member, this.elements, shown);
+        if (item) {
+          const at = item.index === '' ? null : this.indexValue(item.index, scope);
+          value = solidScriptListItemRead(written.slice(0, index + 1).join('.'), value, at, this.nameShown);
+        }
+      }
       return { value };
     }
     return null;

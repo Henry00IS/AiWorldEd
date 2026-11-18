@@ -85,11 +85,6 @@ export interface SolidScriptCommandWord {
   word: string;
   /** Short meaning shown beside it. */
   detail: string;
-  /**
-   * A value the line must see for the word to fit, such as Face.Index inside
-   * For Each Selected Face; it is only offered there.
-   */
-  sees?: string;
 }
 
 /** Stored values of one command line, as typed per field key. */

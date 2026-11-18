@@ -25,4 +25,10 @@ describe('SolidScript vector fields', () => {
     expect(solidScriptConfiguratorFieldBuild(OFFSET, '1, 2', () => {}).problem()).toContain('needs 3 values');
     expect(solidScriptConfiguratorFieldBuild(OFFSET, '[$Box.Width]', () => {}).warning()).toContain('not a vector');
   });
+
+  it('shows what an empty Of reads as a grey hint', () => {
+    const of = solidScriptCommandFind('extrude_face')!.parameters.find((parameter) => parameter.key === 'of')!;
+    const input = solidScriptConfiguratorFieldBuild(of, '', () => {}).element.querySelector('input')!;
+    expect(input.placeholder).toBe('[$Selected.Faces]');
+  });
 });

@@ -653,7 +653,7 @@ export function solidScriptGeometryHasFaces(leaf: SolidScriptShapeLeaf): leaf is
   return leaf.kind !== 'polygon';
 }
 
-/** One point For Each Scattered Point gives, on its face. */
+/** One point Scatter Points gives, on its face. */
 export interface SolidScriptScatterPoint {
   position: THREE.Vector3;
   face: SolidScriptFaceFacts;

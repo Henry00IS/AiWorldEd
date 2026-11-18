@@ -9,7 +9,7 @@ Double-click a command in the palette, or drag it in, to add it below the curren
 <details>
 <summary>More Details</summary>
 
-- Scripts use the editor's axes: X right, Y up and Z toward the front, so a Cube of `1, 2, 3` is 2 metres tall and `[Box.Size]` is width, height and depth. Flat outlines are drawn with their own X and Y: Linear Extrude lays them on the ground (their Y running to the back) and pulls them up, Rotate Extrude spins them around the upright Y axis with their Y as the height.
+- Scripts use the editor's axes: X right, Y up and Z toward the front, so a Cube of `1, 2, 3` is 2 metres tall and `[$Box.Size]` is width, height and depth. Flat outlines are drawn with their own X and Y: Linear Extrude lays them on the ground (their Y running to the back) and pulls them up, Rotate Extrude spins them around the upright Y axis with their Y as the height.
 - Fields take plain values (`2`, `1, 0, 0`), variables in brackets (`[Width]`) and formulas after an equals sign (`[=[Width] / 2]`). Text inside a formula takes double quotes, such as `[=IsString("3e")]`; bare words there are names, so `3e` or `hello` get an error that shows the quoted form. Single quotes are kept for later use.
 - Names ignore case: `[count]` and `[Count]` are one variable, and `sin(65)` is `Sin(65)`. Write them in PascalCase, such as `[StepHeight]`, `[Local.Width]`, `[Persistent.Presses]`, `Function Staircase` and `CharacterCode("A")`, like the examples do; the explorer keeps the spelling of the first Set or Input.
 - Functions such as `Sin`, `Lerp`, `Remap`, `Split` or `TimeText` work in formulas; hover one in the suggestions to see what it does. `ItemOr([List], 5, 0)` reads an item with a fallback when there is none.
@@ -38,7 +38,7 @@ The script runs on every change. **Start** builds everything, **Debug** builds o
 - A small **×N** at the end of a line says how often it ran; hover it for its time.
 - Drag the splitters beside the palette, beside the help column and above the output to resize them; the editor keeps the sizes for next time.
 - The **Settings** tab holds **Can Be Used As** (Generator, Modifier; the use of the step you opened stays on, as in the inspector) and an **Author** line saved with the script. Both are script edits, so Ctrl+Z in the editor undoes them.
-- The **Variables** tab lists every name with its value at the step shown, and the **System** values such as `Time.Year`, `Editor.Version` or `Box.Width`. The generator examples size themselves from `[Box.Width]`, `[Box.Depth]` and `[Box.Height]`; where a script runs without a box, such as a modifier, those values read as 1 and the Output shows a ⚠️ warning on the line instead of stopping. While you edit a script that Can Be Used As Modifier, a check that does not run the script looks for lines a modifier would run that read Box values (it follows If Used As and its Else and skips off lines) and lists them as ⚠️ warnings in the Output; it waits until typing pauses and the page is idle.
+- The **Variables** tab lists every name with its value at the step shown, and the **System** values such as `$Time.Year`, `$Editor.Version` or `$Box.Width`. The generator examples size themselves from `[$Box.Width]`, `[Box.Depth]` and `[Box.Height]`; where a script runs without a box, such as a modifier, those values read as 1 and the Output shows a ⚠️ warning on the line instead of stopping. While you edit a script that Can Be Used As Modifier, a check that does not run the script looks for lines a modifier would run that read Box values (it follows If Used As and its Else and skips off lines) and lists them as ⚠️ warnings in the Output; it waits until typing pauses and the page is idle.
 
 </details>
 
@@ -58,16 +58,20 @@ The script runs on every change. **Start** builds everything, **Debug** builds o
 
 </details>
 
-## Faces and points
+## Brushes, faces and points
 
-**Select Faces** picks faces of the shapes built above it; the face commands then work on them. Inside a For Each round it picks faces of what that round built, and after the loop the outer pick comes back, so Select Faces can be nested. Solids, 2D shapes, generators and Mesh take an optional **Name**, such as Knob; Select Faces, For Each Vertex and For Each Edge then take **Of** to work only on the shapes with that Name (in any case, also the shapes of a Part by its name), and the Of field suggests the Names the script uses. See the Panel With Knobs example.
+Brushes, faces, edges and corners are values, like numbers and text. A dot reads their parts: `[Top.Normal]`, `[Brush.Faces.Count]`, `[Edge.Length]`, `[Faces.Center]` of a whole list. `[Face.Data.Height]` keeps your own values on one. System values start with `$`: `[$Selected.Faces]` is what the last **Select Faces** picked, `[$Selected.Brushes]` what the lines below work on, `[$Input.Brushes]` what a modifier receives.
 
 <details>
 <summary>More Details</summary>
 
-- **For Each Selected Face** runs lines once per picked face, and the shapes built inside stand on that face the way they stand on the ground (Y out of the face); **Place On Face** adds a Lift, and **Extrude Face**, **Inset Face** and **Bevel Edges** work on its face.
-- **For Each Scattered Point** spreads points over the picked faces, more on bigger ones; the same Seed always gives the same points.
-- **Align To** turns the lines inside so their up (Y) points along a direction, such as `[Point.Normal]`.
+- **Select Faces** picks faces into `[$Selected.Faces]` and into its **Into** variable. Inside a For Each round it picks faces of what that round built, and after the round the outer pick comes back, so Select Faces can be nested.
+- **For Each** walks any list: For Each `[Face]` In `[$Selected.Faces]`, with an optional **Key** for its number. In a Data value it walks the keys.
+- Every face command takes **Of**: a face, edge, brush, a list of them, or a brush **Name** such as Knob (in any case, also the shapes of a Part by its name). Empty takes `[$Selected.Faces]`. See the Panel With Knobs example.
+- **Place On Face** builds the shapes inside standing on its face the way they stand on the ground (Y out of the face), with a Lift.
+- **Extrude Face** names its new brushes (**Into**), their end faces (**Top**) and side faces (**Sides**); **Inset Face** names **Inner** and **Ring**; **Bevel Edges** names its new faces and skips edges of faces it made itself.
+- **Scatter Points** spreads points over faces, more on bigger ones, into a list of positions and a list of **Normals**; the same Seed always gives the same points.
+- **Align To** turns the lines inside so their up (Y) points along a direction, such as a face's `[Face.Normal]`.
 
 </details>
 
@@ -94,7 +98,7 @@ A script can be a **generator**, which builds new geometry from nothing, or a **
 - Generator is on for every script that sets nothing. A script that does not allow a use is refused there with a message saying which box to turn on; the use a step already has stays on.
 - Add a SolidScript modifier from **Add Modifier** on a brush, mesh, group or modifier volume. The old generators still cannot go on brushes or groups.
 - As a modifier, the brushes it receives pass on unchanged unless the script has an **Input Brushes** line. What the script builds is added, with the script origin at the centre of what it receives; Operation picks whether it is added, cut out or intersected.
-- `[Script.Usage]` is Generator or Modifier. `[Input.Brushes]`, `[Input.Faces]`, `[Input.Min]`, `[Input.Max]`, `[Input.Size]` and `[Input.Center]` describe what a modifier receives (all zero for a generator), and **Input Shapes** builds copies of those brushes to move, mirror or cut.
+- `[$Script.Usage]` is Generator or Modifier. `[$Input.Brushes]`, `[$Input.Faces]`, `[$Input.Min]`, `[$Input.Max]`, `[$Input.Size]` and `[$Input.Center]` describe what a modifier receives (all zero for a generator), and **Input Shapes** builds copies of those brushes to move, mirror or cut.
 - The **Pedestal** example works both ways: as a generator it builds a box on a slab, as a modifier it puts the slab under the brush.
 - **Input Brushes** passes the received brushes on, moved by the Translate, Rotate, Scale, Mirror or Matrix blocks around it, with their textures and materials. The first one that runs changes them; each later one adds a copy. **Built-In Modifiers** in the Examples window rebuilds Shear, Linear Array, Radial Array, Transform Array and Mirror this way, and they change brushes exactly like the built-in modifiers (the arrays measure the whole input, not each piece; Mirror places its plane on the received brushes and has no Bisect).
 

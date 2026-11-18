@@ -399,19 +399,17 @@ describe('SolidScript faces', () => {
   });
 });
 
-describe('SolidScript geometry lookups', () => {
-  it('reads any face, corner or edge of the shapes above in a formula', () => {
+describe('SolidScript geometry members', () => {
+  it('reads any face, corner or edge of a brush through its members, not through formula functions', () => {
     const result = run(CUBE, {
       command: 'echo',
       values: {
         value:
-          '[=face_count()] [=vertex_count()] [=edge_count()] [=face_area(0)] [=edge_length(3)] [=len(vertex_position(7))]',
+          '[$Selected.Brushes(0).Faces.Count] [$Selected.Brushes(0).Vertices.Count] [$Selected.Brushes(0).Edges.Count] [$Selected.Brushes(0).Faces(0).Area] [$Selected.Brushes(0).Edges(3).Length] [=Len([$Selected.Brushes(0).Vertices(7).Position])]',
       },
     });
     expect(result.error).toBeNull();
     expect(result.messages).toEqual(['6 8 12 4 2 3']);
-    expect(run(CUBE, { command: 'echo', values: { value: '[=face_area(9)]' } }).error?.message).toMatch(
-      /there is no face 9; the shapes above have 6/,
-    );
+    expect(run(CUBE, { command: 'echo', values: { value: '[=FaceCount()]' } }).error?.message).toMatch(/FaceCount/);
   });
 });

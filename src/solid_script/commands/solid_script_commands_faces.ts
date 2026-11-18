@@ -318,7 +318,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         'detail',
         'Detail',
         'value',
-        'The name for Tagged, how many for Biggest or Smallest, numbers for Number, a direction for Facing, a condition for Where such as [Face.Area] > 1.',
+        'The name for Tagged, how many for Biggest or Smallest, numbers for Number, a direction for Facing, a condition for Where such as [=[Face.Area] > 1], with [Face] the face being tested.',
       ),
       solidScriptParameterOf('brushes or faces to pick from', '$Selected.Brushes'),
       solidScriptParameter(
