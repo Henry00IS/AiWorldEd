@@ -2,7 +2,7 @@ import { SOLID_SCRIPT_SYSTEM_GLOBALS } from './solid_script_system.js';
 
 /**
  * Which names may contain a dot. A script's own names use letters, digits and _
- * only; a dot reads a member, such as Face.Center, Faces.Count, Pos.x or
+ * only; a dot reads a member, such as Face.Center, Faces.Count, Pos.X or
  * Face.Data.Height, and Local. and Persistent. go in front of a name. System
  * values start with $, such as $Selected.Faces or $Box.Width.
  */
@@ -94,7 +94,7 @@ export function solidScriptNameDotProblem(name: string, use: 'read' | 'set'): st
     (part, index) => !SOLID_SCRIPT_NAME_PART.test(part) && !(index === last && /^\[.*\]$/s.test(part)),
   );
   if (bad !== undefined)
-    return `"${text}" cannot be a name: names use letters, digits and _, and a dot reads a member such as Face.Center, Pos.x or Face.Data.Height`;
+    return `"${text}" cannot be a name: names use letters, digits and _, and a dot reads a member such as Face.Center, Pos.X or Face.Data.Height`;
   if (
     use === 'read' ||
     SOLID_SCRIPT_NAME_OWN.test(text) ||
@@ -104,7 +104,7 @@ export function solidScriptNameDotProblem(name: string, use: 'read' | 'set'): st
     return '';
   if (parts.length >= 2 && parts[last]?.toLowerCase() === 'data')
     return `${text} needs a key to set, such as ${text}.Height; a line sets a value under .Data, not .Data itself`;
-  return `${text} can only be read; a line sets whole names, .x, .y and .z of a vector, Face.UVs, or a value under .Data such as Face.Data.Height or Brush.Edges.Data.Kind`;
+  return `${text} can only be read; a line sets whole names, .X, .Y and .Z of a vector, Face.UVs, or a value under .Data such as Face.Data.Height or Brush.Edges.Data.Kind`;
 }
 
 /**
@@ -123,7 +123,7 @@ export function solidScriptNameIsDataWrite(name: string): boolean {
 /**
  * Tells whether a system value is a vector.
  *
- * @param name Name as written, such as $Box.Size or $Box.Size.x.
+ * @param name Name as written, such as $Box.Size or $Box.Size.X.
  * @returns True or false for a system value, null for any other name.
  */
 export function solidScriptSystemIsVector(name: string): boolean | null {

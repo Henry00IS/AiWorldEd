@@ -77,7 +77,8 @@ export function solidScriptFlowUnique(kinds: readonly string[]): string[] {
  */
 export function solidScriptFlowMember(kinds: readonly string[], part: string): string[] {
   const gives = kinds.flatMap((kind) => {
-    if (kind === SOLID_SCRIPT_FLOW_UNKNOWN || kind === 'Data') return [SOLID_SCRIPT_FLOW_UNKNOWN];
+    if (kind === SOLID_SCRIPT_FLOW_UNKNOWN || kind === 'Data' || kind === 'Data List')
+      return [SOLID_SCRIPT_FLOW_UNKNOWN];
     const member = solidScriptMemberType(kind, solidScriptFlowWord(part));
     if (member === null && kind === 'List') return [SOLID_SCRIPT_FLOW_UNKNOWN];
     return member === null ? [] : [member === 'Item' ? SOLID_SCRIPT_FLOW_UNKNOWN : member];

@@ -18,6 +18,6 @@ describe('radial array rise', () => {
       { kind: 'radial', parameters: { count: 3, radius: 2, rise: 1, rotateCopies: false } },
     ]);
     expect(centres[2]?.y).toBeCloseTo(2, 6);
-    expect(modifierStackKindFind('radial')?.normalizeParameters({ mode: 'ring' })['rise']).toBe(0);
+    expect(modifierStackKindFind('radial')?.normalizeParameters({ mode: 'Full Ring' })['rise']).toBe(0);
   });
 });

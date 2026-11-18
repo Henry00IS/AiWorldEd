@@ -6,7 +6,10 @@ import { modifierStackParameterSet } from '@/modifier/stack/modifier_stack_opera
 import { CommandModifierStackSet } from '@/modifier/stack/command_modifier_stack_set.js';
 import { modifierGeneratorNodeCreate } from '@/modifier/stack/modifier_generator_node.js';
 import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_scene_refresh.js';
-import { modifierStackStairsFaceRole } from '@/modifier/stack/kinds/generator/modifier_stack_stairs_textures.js';
+import {
+  modifierStackStairsClimb,
+  modifierStackStairsFaceRole,
+} from '@/modifier/stack/kinds/generator/modifier_stack_stairs_textures.js';
 import { getFaceTextureMapsLive } from '@/texture/uv/face_texture_storage.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
@@ -31,7 +34,7 @@ const ROLE_TEXTURE: Record<string, string> = { top: 'tread', side: 'wall', botto
  * @returns Expected texture.
  */
 function expectedTexture(normal: THREE.Vector3): string {
-  return ROLE_TEXTURE[modifierStackStairsFaceRole(normal, '+z')] ?? '';
+  return ROLE_TEXTURE[modifierStackStairsFaceRole(normal, 'Front')] ?? '';
 }
 
 /**
@@ -79,17 +82,21 @@ function resultMismatches(model: SolidModel): { wrong: number; triangles: number
 }
 
 describe('stairs face textures', () => {
-  it.each(['slab', 'solid', 'floating'])('textures treads, side walls, underside and risers by role (%s)', (fill) => {
-    const pieces = stackFixture([{ kind: 'stairs', parameters: { fill, landing: 0.5, ...ROLE_TEXTURES } }], 2)
-      .compile()
-      .instances.slice(1);
-    const list = faces(pieces);
-    for (const face of list) expect(face.texture).toBe(expectedTexture(face.normal));
-    for (const texture of Object.values(ROLE_TEXTURE)) expect(list.some((face) => face.texture === texture)).toBe(true);
-  });
+  it.each(['Sloped Slab', 'Solid To Floor', 'Floating Treads'])(
+    'textures treads, side walls, underside and risers by role (%s)',
+    (fill) => {
+      const pieces = stackFixture([{ kind: 'stairs', parameters: { fill, landing: 0.5, ...ROLE_TEXTURES } }], 2)
+        .compile()
+        .instances.slice(1);
+      const list = faces(pieces);
+      for (const face of list) expect(face.texture).toBe(expectedTexture(face.normal));
+      for (const texture of Object.values(ROLE_TEXTURE))
+        expect(list.some((face) => face.texture === texture)).toBe(true);
+    },
+  );
 
   it('gives the sloped slab underside the bottom texture', () => {
-    const pieces = stackFixture([{ kind: 'stairs', parameters: { fill: 'slab', ...ROLE_TEXTURES } }], 2)
+    const pieces = stackFixture([{ kind: 'stairs', parameters: { fill: 'Sloped Slab', ...ROLE_TEXTURES } }], 2)
       .compile()
       .instances.slice(1);
     const sloped = faces(pieces).filter((face) => face.normal.y < -1e-6 && Math.abs(face.normal.z) > 1e-6);
@@ -98,14 +105,15 @@ describe('stairs face textures', () => {
   });
 
   it('names the side walls across the flight for every climb direction', () => {
-    for (const direction of ['+x', '-x', '+z', '-z']) {
+    for (const direction of ['Right', 'Left', 'Front', 'Back']) {
       const pieces = stackFixture([{ kind: 'stairs', parameters: { direction, ...ROLE_TEXTURES } }], 2)
         .compile()
         .instances.slice(1);
-      const across = direction.endsWith('x') ? 'z' : 'x';
+      const climb = modifierStackStairsClimb(direction);
+      const across = climb.axis === 'x' ? 'z' : 'x';
       for (const face of faces(pieces))
         if (Math.abs(face.normal[across]) > 0.5) expect(face.texture).toBe('wall');
-        else if (Math.abs(face.normal[direction.endsWith('x') ? 'x' : 'z']) > 0.999) expect(face.texture).toBe('riser');
+        else if (Math.abs(face.normal[climb.axis]) > 0.999) expect(face.texture).toBe('riser');
     }
   });
 
@@ -147,7 +155,7 @@ describe('stairs undo and redo', () => {
       const settings = ModifierVolume.read(node);
       const entry = settings.modifiers[0];
       if (!entry) throw new Error('Missing stairs step');
-      entry.parameters = { ...entry.parameters, sizing: 'count', count: 8, ...ROLE_TEXTURES };
+      entry.parameters = { ...entry.parameters, sizing: 'Step Count', count: 8, ...ROLE_TEXTURES };
       ModifierVolume.write(node, settings);
       model.root.add(node);
       return node;

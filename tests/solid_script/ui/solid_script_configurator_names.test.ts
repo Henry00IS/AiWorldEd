@@ -74,7 +74,7 @@ describe('SolidScript configurator suggestions', () => {
     input.setSelectionRange(input.value.length, input.value.length);
     input.dispatchEvent(new Event('input'));
     const shown = [...document.querySelectorAll('[role="option"]')].map((row) => row.firstElementChild?.textContent);
-    expect(shown).toEqual(['$Box.Size.x', '$Box.Size.y', '$Box.Size.z', '$Box.Size.Length']);
+    expect(shown).toEqual(['$Box.Size.X', '$Box.Size.Y', '$Box.Size.Z', '$Box.Size.Length']);
   });
 
   it('starts on the current value, also after another one is picked', () => {

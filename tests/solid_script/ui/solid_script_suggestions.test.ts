@@ -22,7 +22,7 @@ import {
 } from '@/solid_script/ui/solid_script_suggestions.js';
 
 const SCRIPT = solidScriptDocumentCreate([
-  { command: 'input', values: { name: 'Steps', type: 'count' } },
+  { command: 'input', values: { name: 'Steps', type: 'Count' } },
   { command: 'variable', values: { name: 'Width', value: '2' } },
   { command: 'variable', values: { name: 'Angle', value: '30' } },
   { command: 'function', values: { name: 'Area', parameters: 'W, D' } },
@@ -67,7 +67,7 @@ function offered(marked: string, scope = SCOPE): string[] {
 describe('SolidScript member suggestions', () => {
   const script = solidScriptDocumentCreate([
     { command: 'variable', values: { name: 'Pos', value: '1, 2, 3' } },
-    { command: 'input', values: { name: 'MyVector', type: 'vector', default: '1, 2, 3' } },
+    { command: 'input', values: { name: 'MyVector', type: 'Vector', default: '1, 2, 3' } },
     { command: 'variable', values: { name: 'Moved', value: '[=[Pos] + Vector(0, 1, 0)]' } },
     { command: 'variable', values: { name: 'Alias', value: '[Pos]' } },
     { command: 'add_item', values: { value: '1', list: 'Heights' } },
@@ -77,7 +77,7 @@ describe('SolidScript member suggestions', () => {
     solidScriptSuggestions(solidScriptSuggestionContext(text, text.length, false), scope).map((entry) => entry.label);
 
   it('offers the parts of a vector, the members of a list and the values of a group after a dot', () => {
-    const vector = (name: string) => [`${name}.x`, `${name}.y`, `${name}.z`, `${name}.Length`];
+    const vector = (name: string) => [`${name}.X`, `${name}.Y`, `${name}.Z`, `${name}.Length`];
     expect(labels('[Pos.')).toEqual(vector('Pos'));
     expect(labels('[MyVector.')).toEqual(vector('MyVector'));
     expect(labels('[Moved.')).toEqual(vector('Moved'));
@@ -108,7 +108,11 @@ describe('SolidScript member suggestions', () => {
       '$Selected.Faces.First.UVs',
       '$Selected.Faces.First.Data',
     ]);
-    expect(labels('[$Selected.Faces.C')).toEqual(['$Selected.Faces.Count', '$Selected.Faces.Center']);
+    expect(labels('[$Selected.Faces.C')).toEqual([
+      '$Selected.Faces.Count',
+      '$Selected.Faces.Center',
+      '$Selected.Faces.Centers',
+    ]);
     expect(labels('[$Input.Brushes(0).Faces(1).Normal.')).toEqual(vector('$Input.Brushes(0).Faces(1).Normal'));
     expect(labels('[$Selected.Edges.First.Parent.N')).toEqual(['$Selected.Edges.First.Parent.Name']);
     // A number has no parts.

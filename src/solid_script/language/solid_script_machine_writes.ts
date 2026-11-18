@@ -173,7 +173,7 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
   }
 
   /**
-   * Sets one part of a vector variable, such as Pos.y.
+   * Sets one part of a vector variable, such as Pos.Y.
    *
    * @param where Where the name lives.
    * @param component Vector and part.

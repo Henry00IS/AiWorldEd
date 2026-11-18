@@ -10,7 +10,7 @@ import {
 } from '@/solid_script/document/solid_script_document_names.js';
 
 const SCRIPT = solidScriptDocumentCreate([
-  { command: 'input', values: { name: 'steps', type: 'count' } },
+  { command: 'input', values: { name: 'steps', type: 'Count' } },
   { command: 'variable', values: { name: 'width', value: '2' } },
   { command: 'variable', values: { name: 'points()', value: '0, 0' } },
   { command: 'variable', values: { name: 'part[i]', value: '1' } },

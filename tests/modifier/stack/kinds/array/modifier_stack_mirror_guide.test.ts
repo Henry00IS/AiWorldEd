@@ -34,9 +34,9 @@ function points(guide: THREE.LineSegments | undefined): THREE.Vector3[] {
 describe('mirror plane guide', () => {
   it('draws each enabled mirror plane, and an arrow at the kept side when bisecting', () => {
     const fixture = stackFixture([
-      { kind: 'mirror', parameters: { axis: 'x', plane: 'max', bisect: true } },
-      { kind: 'mirror', parameters: { axis: 'y' } },
-      { kind: 'mirror', parameters: { axis: 'z' }, enabled: false },
+      { kind: 'mirror', parameters: { axis: 'X', plane: 'Positive Side', bisect: true } },
+      { kind: 'mirror', parameters: { axis: 'Y' } },
+      { kind: 'mirror', parameters: { axis: 'Z' }, enabled: false },
     ]);
     modifierStackHelpersSync(fixture.volume, true);
     const [bisect, plain] = guides(fixture.volume);
@@ -52,7 +52,7 @@ describe('mirror plane guide', () => {
   });
 
   it('replaces old guides, clears them, and never saves them', () => {
-    const fixture = stackFixture([{ kind: 'mirror', parameters: { axis: 'x' } }]);
+    const fixture = stackFixture([{ kind: 'mirror', parameters: { axis: 'X' } }]);
     const children = fixture.volume.children.length;
     modifierStackHelpersSync(fixture.volume, true);
     modifierStackHelpersSync(fixture.volume, true);
@@ -64,10 +64,10 @@ describe('mirror plane guide', () => {
   });
 
   it('follows stack changes made outside the inspector, while shown', () => {
-    const fixture = stackFixture([{ kind: 'mirror', parameters: { axis: 'x' } }]);
+    const fixture = stackFixture([{ kind: 'mirror', parameters: { axis: 'X' } }]);
     modifierStackHelpersSync(fixture.volume, true);
     const settings = ModifierVolume.read(fixture.volume);
-    settings.modifiers[0]!.parameters['plane'] = 'max';
+    settings.modifiers[0]!.parameters['plane'] = 'Positive Side';
     ModifierVolume.write(fixture.volume, settings);
     modifierBevelRefreshScene(fixture.world);
     expect(points(guides(fixture.volume)[0]).every((point) => Math.abs(point.x - 0.5) < 1e-9)).toBe(true);
@@ -77,7 +77,9 @@ describe('mirror plane guide', () => {
   });
 
   it('draws a world-axes plane at the world bounds of a rotated volume', () => {
-    const fixture = stackFixture([{ kind: 'mirror', parameters: { axis: 'x', plane: 'max', space: 'world' } }]);
+    const fixture = stackFixture([
+      { kind: 'mirror', parameters: { axis: 'X', plane: 'Positive Side', space: 'World' } },
+    ]);
     fixture.volume.rotation.y = Math.PI / 4;
     fixture.world.updateMatrixWorld(true);
     modifierStackHelpersSync(fixture.volume, true);

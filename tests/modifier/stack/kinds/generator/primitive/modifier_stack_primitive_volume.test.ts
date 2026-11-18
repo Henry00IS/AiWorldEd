@@ -31,7 +31,7 @@ describe('primitive generator volumes', () => {
     expectVolume(volume('cone', [2, 3, 2], fine), Math.PI, 0.01);
     expectVolume(volume('cone', [2, 3, 2], { ...fine, topRadius: 0.5 }), (Math.PI * 3 * (1 + 0.25 + 0.5)) / 3, 0.01);
     expectVolume(volume('sphere', [2, 2, 2], { ...fine, rings: 32 }), (4 / 3) * Math.PI, 0.01);
-    expectVolume(volume('sphere', [2, 1, 2], { ...fine, rings: 32, coverage: 'dome' }), (2 / 3) * Math.PI, 0.01);
+    expectVolume(volume('sphere', [2, 1, 2], { ...fine, rings: 32, coverage: 'Dome' }), (2 / 3) * Math.PI, 0.01);
     expectVolume(volume('capsule', [2, 4, 2], { ...fine, capRings: 16 }), Math.PI * 2 + (4 / 3) * Math.PI, 0.01);
   });
 
@@ -63,7 +63,7 @@ describe('primitive generator volumes', () => {
     expect(volume('pyramid', [2, 3, 2])).toBeCloseTo(4, 6);
     expect(volume('pyramid', [2, 3, 2], { topSize: 0.5 })).toBeCloseTo((3 * (4 + 1 + 2)) / 3, 6);
     expect(volume('prism', [2, 1, 3])).toBeCloseTo(3, 6);
-    expect(volume('prism', [2, 3, 1], { axis: 'y', sides: 4 })).toBeCloseTo(6, 6);
+    expect(volume('prism', [2, 3, 1], { axis: 'Upright', sides: 4 })).toBeCloseTo(6, 6);
     expect(volume('hollowBox', [4, 3, 4], { wallThickness: 0.5 })).toBeCloseTo(48 - 3 * 3 * 2, 6);
     expect(volume('hollowBox', [4, 3, 4], { wallThickness: 0.5, openTop: true })).toBeCloseTo(48 - 3 * 3 * 2.5, 6);
     expect(volume('hollowBox', [1, 1, 1], { wallThickness: 2 })).toBeCloseTo(1, 6);

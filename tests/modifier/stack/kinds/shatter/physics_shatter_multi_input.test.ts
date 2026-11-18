@@ -259,7 +259,7 @@ describe('physics shatter with several input brushes', () => {
   it('shatters the copies of an Array step before it in the same stack', () => {
     const scene = multiScene();
     multiBox(scene, 1, [0, 0, 0]);
-    const array = { kind: 'linear', parameters: { mode: 'fixed', offsetX: 2, count: 3 } };
+    const array = { kind: 'linear', parameters: { mode: 'Fixed Step', offsetX: 2, count: 3 } };
     const volume = multiVolume([array, MULTI_SHATTER], 12);
     scene.world.add(volume);
     const pieces = multiCompile(scene);
@@ -273,7 +273,7 @@ describe('physics shatter with several input brushes', () => {
   it('shatters the copies of an Array step in a brush\u2019s own stack', () => {
     const scene = multiScene();
     const brush = multiBox(scene, 1, [0, 0, 0]);
-    const array = { kind: 'linear', parameters: { mode: 'fixed', offsetX: 2, count: 3 } };
+    const array = { kind: 'linear', parameters: { mode: 'Fixed Step', offsetX: 2, count: 3 } };
     modifierStackOwnerDecode(brush.mesh as THREE.Object3D, { modifiers: stackFixtureEntries([array, MULTI_SHATTER]) });
     const pieces = multiCompile(scene);
     expect(pieces.length).toBe(24);

@@ -40,7 +40,7 @@ export interface SolidScriptFieldToken {
 /** Words a formula reads as values or operators, not as names. */
 const SOLID_SCRIPT_FIELD_KEYWORDS = new Set(['true', 'false', 'undef', 'and', 'or', 'not', 'for']);
 
-/** A name, with dotted parts such as Local.Width or Pos.x. */
+/** A name, with dotted parts such as Local.Width or Pos.X. */
 const SOLID_SCRIPT_FIELD_WORD = /^\$?[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]+)*/;
 
 /** A number in a formula. */
@@ -61,7 +61,7 @@ interface SolidScriptFieldOpen {
 
 /**
  * Names the kind of a word: Local. and Persistent. names, built-in values such
- * as Face.Center (with an optional .x part), or a name of the script.
+ * as Face.Center (with an optional .X part), or a name of the script.
  *
  * @param word Word as written.
  * @returns Kind.
@@ -157,7 +157,7 @@ export function solidScriptFieldTokens(text: string): SolidScriptFieldToken[] {
     if (word) {
       const after = text.slice(index + word.length).trimStart();
       const previous = tokens.at(-1);
-      // A whole [Name], [Name(2)] or [Pos.x]; names built from other names are not checked.
+      // A whole [Name], [Name(2)] or [Pos.X]; names built from other names are not checked.
       const first =
         previous?.kind === 'bracket' &&
         previous.to === index &&
@@ -199,7 +199,7 @@ export function solidScriptFieldBracketsAround(tokens: readonly SolidScriptField
 
 /**
  * Returns what a checked name or call is looked up by: the name's key without a
- * vector part such as .x, or a Function's key followed by ().
+ * vector part such as .X, or a Function's key followed by ().
  *
  * @param text Field text.
  * @param token Piece of it.

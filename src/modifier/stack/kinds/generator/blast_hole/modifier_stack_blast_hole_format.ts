@@ -38,7 +38,7 @@ export function blastHoleFormatVersionOf(parameters: Record<string, unknown>): n
 export function blastHoleFormatMigrate(parameters: Record<string, unknown>): Record<string, unknown> {
   let current = parameters;
   for (let version = blastHoleFormatVersionOf(current); version < BLAST_HOLE_FORMAT_VERSION; version++) {
-    if (version === 1 && current['style'] !== 'bricks') current = blastHoleFormatJaggedFromStar(current);
+    if (version === 1 && current['style'] !== 'Bricks') current = blastHoleFormatJaggedFromStar(current);
     current = { ...current, [BLAST_HOLE_FORMAT_VERSION_KEY]: version + 1 };
   }
   return current['style'] === 'star' ? blastHoleFormatJaggedFromStar(current) : current;
@@ -53,5 +53,5 @@ export function blastHoleFormatMigrate(parameters: Record<string, unknown>): Rec
  */
 function blastHoleFormatJaggedFromStar(parameters: Record<string, unknown>): Record<string, unknown> {
   const { spikes: _spikes, spikeLength: _spikeLength, ...rest } = parameters;
-  return { ...rest, style: 'jagged' };
+  return { ...rest, style: 'Jagged' };
 }

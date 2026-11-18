@@ -12,7 +12,7 @@ import {
 } from '@/solid_script/ui/solid_script_suggestions.js';
 
 const SCRIPT = solidScriptDocumentCreate([
-  { command: 'input', values: { name: 'Steps', type: 'count' } },
+  { command: 'input', values: { name: 'Steps', type: 'Count' } },
   { command: 'cube', values: { into: 'Box1', label: 'Knob' } },
   { command: 'for_each', values: { variable: 'Brush', list: '[$Input.Brushes]', key: 'K' } },
   { command: 'extrude_face', values: { top: 'Tops' } },

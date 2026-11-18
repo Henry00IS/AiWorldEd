@@ -13,7 +13,7 @@ import { arrayTestCentre } from './modifier_stack_array_test_helpers.js';
  * @returns Fixture and cap brush.
  */
 function capFixture(caps: (capId: string) => Record<string, unknown>) {
-  const fixture = stackFixture([{ kind: 'linear', parameters: { mode: 'fixed', count: 3, offsetX: 2 } }], 40);
+  const fixture = stackFixture([{ kind: 'linear', parameters: { mode: 'Fixed Step', count: 3, offsetX: 2 } }], 40);
   const cap = fixture.model.addBoxBrush(1, SolidOperation.Additive);
   cap.mesh?.position.set(0, 3, 0);
   cap.mesh?.scale.set(0.5, 0.5, 0.5);

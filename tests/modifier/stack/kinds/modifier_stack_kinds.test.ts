@@ -66,20 +66,23 @@ describe('modifier stack kinds', () => {
   });
 
   it('spaces linear copies by fixed step, by size multiple, or to fit a distance', () => {
-    const fixed = stackFixture([{ kind: 'linear', parameters: { mode: 'fixed', count: 3, offsetX: 2 } }]).compile()
+    const fixed = stackFixture([{ kind: 'linear', parameters: { mode: 'Fixed Step', count: 3, offsetX: 2 } }]).compile()
       .instances;
     expect(boundsOf(fixed).max.x).toBeCloseTo(4.5);
     const relative = stackFixture([
-      { kind: 'linear', parameters: { mode: 'relative', count: 3, relativeX: 1.5 } },
+      { kind: 'linear', parameters: { mode: 'Relative To Size', count: 3, relativeX: 1.5 } },
     ]).compile().instances;
     expect(boundsOf(relative).max.x).toBeCloseTo(3.5);
-    const fit = stackFixture([{ kind: 'linear', parameters: { mode: 'fit', count: 5, endpointX: 8 } }]).compile()
-      .instances;
+    const fit = stackFixture([
+      { kind: 'linear', parameters: { mode: 'Fit Distance', count: 5, endpointX: 8 } },
+    ]).compile().instances;
     expect(boundsOf(fit).max.x).toBeCloseTo(8.5);
   });
 
   it('places radial copies on a ring around the volume axis', () => {
-    const fixture = stackFixture([{ kind: 'radial', parameters: { origin: 'centre', count: 4, radiusOffset: 2 } }]);
+    const fixture = stackFixture([
+      { kind: 'radial', parameters: { origin: 'Around Pivot', count: 4, radiusOffset: 2 } },
+    ]);
     const result = fixture.compile().instances;
     expect(result).toHaveLength(4);
     const box = boundsOf(result.slice(1));
@@ -100,17 +103,17 @@ describe('modifier stack kinds', () => {
   });
 
   it('moves the radial ring centre across the axis when the chosen side lies along it', () => {
-    const parameters = { count: 4, radius: 3, centreSide: '+y' };
+    const parameters = { count: 4, radius: 3, centreSide: 'Up' };
     const result = stackFixture([{ kind: 'radial', parameters }]).compile().instances;
     expect(boundsOf([result[2]!]).getCenter(new THREE.Vector3()).z).toBeCloseTo(-6);
   });
 
   it('keeps radial stacks saved before the ring placement around their pivot', () => {
     const radial = modifierStackKindFind('radial')!;
-    expect(radial.normalizeParameters({ mode: 'ring', radiusOffset: 1 })['origin']).toBe('centre');
-    expect(radial.normalizeParameters({})['origin']).toBe('ring');
-    expect(radial.normalizeParameters({ count: 8 })['origin']).toBe('ring');
-    expect(radial.normalizeParameters({ mode: 'arc', origin: 'ring' })['origin']).toBe('ring');
+    expect(radial.normalizeParameters({ mode: 'Full Ring', radiusOffset: 1 })['origin']).toBe('Around Pivot');
+    expect(radial.normalizeParameters({})['origin']).toBe('On The Ring');
+    expect(radial.normalizeParameters({ count: 8 })['origin']).toBe('On The Ring');
+    expect(radial.normalizeParameters({ mode: 'Arc', origin: 'On The Ring' })['origin']).toBe('On The Ring');
   });
 
   it('accumulates transform-array steps', () => {
@@ -121,7 +124,7 @@ describe('modifier stack kinds', () => {
   });
 
   it('mirrors across the chosen side of the volume and keeps faces outward', () => {
-    const fixture = stackFixture([{ kind: 'mirror', parameters: { axis: 'x', plane: 'max' } }], 4);
+    const fixture = stackFixture([{ kind: 'mirror', parameters: { axis: 'X', plane: 'Positive Side' } }], 4);
     const result = fixture.compile().instances;
     expect(result).toHaveLength(2);
     expect(boundsOf(result.slice(1)).min.x).toBeCloseTo(3.5);
@@ -137,7 +140,7 @@ describe('modifier stack kinds', () => {
       const fixture = stackFixture([{ kind: 'stairs', parameters: { rise } }], 1);
       expect(fixture.compile().instances.slice(1)).toHaveLength(steps);
     }
-    const counted = stackFixture([{ kind: 'stairs', parameters: { sizing: 'count', count: 4 } }], 2)
+    const counted = stackFixture([{ kind: 'stairs', parameters: { sizing: 'Step Count', count: 4 } }], 2)
       .compile()
       .instances.slice(1);
     expect(tops(counted)).toEqual([-0.5, 0, 0.5, 1].map((value) => expect.closeTo(value, 5)));
@@ -146,13 +149,13 @@ describe('modifier stack kinds', () => {
 
   it('builds floating treads and caps the step count', () => {
     const floating = stackFixture(
-      [{ kind: 'stairs', parameters: { sizing: 'count', count: 4, fill: 'floating', thickness: 0.1 } }],
+      [{ kind: 'stairs', parameters: { sizing: 'Step Count', count: 4, fill: 'Floating Treads', thickness: 0.1 } }],
       2,
     )
       .compile()
       .instances.slice(1);
     for (const tread of floating) expect(boundsOf([tread]).getSize(new THREE.Vector3()).y).toBeCloseTo(0.1);
-    const capped = stackFixture([{ kind: 'stairs', parameters: { sizing: 'count', count: 99999 } }], 2);
+    const capped = stackFixture([{ kind: 'stairs', parameters: { sizing: 'Step Count', count: 99999 } }], 2);
     expect(capped.compile().instances.slice(1)).toHaveLength(256);
   });
 
@@ -162,7 +165,7 @@ describe('modifier stack kinds', () => {
       .instances.slice(1);
     expect(ring).toHaveLength(12);
     for (const piece of ring) expectStackConvex(piece);
-    const wall = stackFixture([{ kind: 'arch', parameters: { style: 'wall', segments: 8 } }], 4)
+    const wall = stackFixture([{ kind: 'arch', parameters: { style: 'Wall With Opening', segments: 8 } }], 4)
       .compile()
       .instances.slice(1);
     expect(wall.length).toBeGreaterThan(8);
@@ -181,7 +184,7 @@ describe('modifier stack kinds', () => {
 
   it('summarizes each modifier for its collapsed header', () => {
     expect(modifierStackKindFind('linear')?.summary({ count: 4 })).toContain('4');
-    expect(modifierStackKindFind('stairs')?.summary({ sizing: 'count', count: 5 })).toBe('5 steps');
+    expect(modifierStackKindFind('stairs')?.summary({ sizing: 'Step Count', count: 5 })).toBe('5 steps');
     expect(
       modifierStackKindFind('bevel')?.summary(modifierStackKindFind('bevel')?.normalizeParameters({}) ?? {}),
     ).toContain('seg');

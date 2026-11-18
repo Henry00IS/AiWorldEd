@@ -27,11 +27,11 @@ export const SOLID_SCRIPT_EXAMPLE_PILLAR_RING: readonly SolidScriptLine[] = [
   { command: 'note', values: { text: 'Each pillar has one position: a vector with x, y and z' } },
   {
     command: 'input',
-    values: { name: 'Count', type: 'count', default: '8', min: '3', max: '32', label: 'Pillars' },
+    values: { name: 'Count', type: 'Count', default: '8', min: '3', max: '32', label: 'Pillars' },
   },
   {
     command: 'input',
-    values: { name: 'Radius', type: 'number', default: '3', min: '0.5', max: '20', label: 'Radius' },
+    values: { name: 'Radius', type: 'Number', default: '3', min: '0.5', max: '20', label: 'Radius' },
   },
   { command: 'variable', values: { name: 'Center', value: '0, 1.5, 0' } },
   { command: 'repeat', values: { variable: 'I', from: '1', to: '[Count]' } },
@@ -48,16 +48,16 @@ export const SOLID_SCRIPT_EXAMPLE_PILLAR_RING: readonly SolidScriptLine[] = [
 
 /** Stepping stones from one point to another, along a gentle wave. */
 export const SOLID_SCRIPT_EXAMPLE_STEPPING_STONES: readonly SolidScriptLine[] = [
-  { command: 'note', values: { text: 'lerp walks from one vector to another; pos.y changes one part' } },
+  { command: 'note', values: { text: 'lerp walks from one vector to another; pos.Y changes one part' } },
   {
     command: 'input',
-    values: { name: 'Stones', type: 'count', default: '9', min: '2', max: '40', label: 'Stones' },
+    values: { name: 'Stones', type: 'Count', default: '9', min: '2', max: '40', label: 'Stones' },
   },
   { command: 'variable', values: { name: 'Start', value: '-4, 0, 1' } },
   { command: 'variable', values: { name: 'Finish', value: '4, 0, -2' } },
   { command: 'repeat', values: { variable: 'I', from: '0', to: '[=[Stones] - 1]' } },
   { command: 'variable', values: { name: 'Pos', value: '[=Lerp([Start], [Finish], [I] / ([Stones] - 1))]' } },
-  { command: 'variable', values: { name: 'Pos.y', value: '[=Sin([I] * 40) * 0.15]' } },
+  { command: 'variable', values: { name: 'Pos.Y', value: '[=Sin([I] * 40) * 0.15]' } },
   { command: 'translate', values: { v: '[Pos]' } },
   { command: 'rotate', values: { a: '0, [=[I] * 23], 0' } },
   { command: 'cube', values: { size: '0.7, 0.15, 0.5' } },
@@ -71,7 +71,7 @@ export const SOLID_SCRIPT_EXAMPLE_PEBBLES: readonly SolidScriptLine[] = [
   { command: 'note', values: { text: 'Scatter pebbles on the top of a slab; change Seed for another layout' } },
   {
     command: 'input',
-    values: { name: 'Pebbles', type: 'count', default: '40', min: '1', max: '400', label: 'Pebbles' },
+    values: { name: 'Pebbles', type: 'Count', default: '40', min: '1', max: '400', label: 'Pebbles' },
   },
   { command: 'cube', values: { size: '3, 0.4, 3' } },
   { command: 'select_faces', values: { which: 'Facing Up' } },
@@ -88,7 +88,7 @@ export const SOLID_SCRIPT_EXAMPLE_SPIKY_BALL: readonly SolidScriptLine[] = [
   { command: 'note', values: { text: 'Align To turns each spike so its Y follows the face it stands on' } },
   {
     command: 'input',
-    values: { name: 'Spikes', type: 'count', default: '30', min: '1', max: '200', label: 'Spikes' },
+    values: { name: 'Spikes', type: 'Count', default: '30', min: '1', max: '200', label: 'Spikes' },
   },
   { command: 'sphere', values: { r: '1' } },
   { command: 'select_faces', values: { which: 'All' } },
@@ -110,19 +110,19 @@ export const SOLID_SCRIPT_EXAMPLE_PEDESTAL: readonly SolidScriptLine[] = [
   { command: 'note', values: { text: 'Works as a generator and as a modifier on a brush, mesh or group' } },
   {
     command: 'input',
-    values: { name: 'Margin', type: 'number', default: '0.2', min: '0', max: '2', label: 'Margin' },
+    values: { name: 'Margin', type: 'Number', default: '0.2', min: '0', max: '2', label: 'Margin' },
   },
   {
     command: 'input',
-    values: { name: 'Thickness', type: 'number', default: '0.2', min: '0.05', max: '2', label: 'Thickness' },
+    values: { name: 'Thickness', type: 'Number', default: '0.2', min: '0.05', max: '2', label: 'Thickness' },
   },
   { command: 'variable', values: { name: 'Low', value: '-0.5' } },
   { command: 'variable', values: { name: 'Width', value: '1' } },
   { command: 'variable', values: { name: 'Depth', value: '1' } },
   { command: 'if_used_as', values: { use: 'Modifier' } },
-  { command: 'variable', values: { name: 'Low', value: '[$Input.Min.y]' } },
-  { command: 'variable', values: { name: 'Width', value: '[$Input.Size.x]' } },
-  { command: 'variable', values: { name: 'Depth', value: '[$Input.Size.z]' } },
+  { command: 'variable', values: { name: 'Low', value: '[$Input.Min.Y]' } },
+  { command: 'variable', values: { name: 'Width', value: '[$Input.Size.X]' } },
+  { command: 'variable', values: { name: 'Depth', value: '[$Input.Size.Z]' } },
   { command: 'input_brushes', values: { textures: 'Move With Shape' } },
   { command: 'else' },
   { command: 'cube', values: { size: '1, 1, 1' } },

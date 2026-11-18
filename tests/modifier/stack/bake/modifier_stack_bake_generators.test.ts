@@ -83,7 +83,7 @@ describe('baking generator pieces', () => {
   it('bakes a volume together with the generator pieces it changes, and undoes both', () => {
     const fixture = columnFixture();
     const volume = ModifierVolume.create({
-      modifiers: stackFixtureEntries([{ kind: 'mirror', parameters: { axis: 'x', plane: 'max' } }]),
+      modifiers: stackFixtureEntries([{ kind: 'mirror', parameters: { axis: 'X', plane: 'Positive Side' } }]),
     });
     volume.scale.set(4, 8, 4);
     fixture.world.add(volume);
@@ -114,7 +114,7 @@ describe('baking generator pieces', () => {
   it('keeps the smoothing of reshaped authored brushes and new copies', () => {
     const fixture = stackFixture([
       'bevel',
-      { kind: 'mirror', parameters: { axis: 'x', planeOffset: 1 } },
+      { kind: 'mirror', parameters: { axis: 'X', planeOffset: 1 } },
       { kind: 'smooth', parameters: { maxAngle: 50 } },
     ]);
     const live = shade(fixture.world, fixture.model);

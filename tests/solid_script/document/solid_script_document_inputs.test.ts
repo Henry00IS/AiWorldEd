@@ -11,7 +11,7 @@ import { solidScriptProgramRun } from '@/solid_script/language/solid_script_prog
  * @returns Line.
  */
 function input(name: string, fallback = '1'): SolidScriptLine {
-  return { command: 'input', values: { name, type: 'number', default: fallback } };
+  return { command: 'input', values: { name, type: 'Number', default: fallback } };
 }
 
 const END: SolidScriptLine = { command: 'end' };
@@ -64,7 +64,7 @@ describe('solidScriptDocumentInputLayout', () => {
   it('marks inputs inside an Input Row with the row they share and inputs inside Show Inputs When with its condition', () => {
     const layout = solidScriptDocumentInputLayout(
       solidScriptDocumentCreate([
-        { command: 'input', values: { name: 'rails', type: 'switch', default: 'no' } },
+        { command: 'input', values: { name: 'rails', type: 'Switch', default: 'no' } },
         { command: 'show_inputs_when', values: { name: 'rails', value: 'yes' } },
         { command: 'input_row' },
         input('railHeight'),
@@ -92,8 +92,8 @@ describe('solidScriptDocumentInputLayout', () => {
 describe('SolidScript inspector rows skip lines turned off', () => {
   it('shows no input for an off Input line', () => {
     const lines: SolidScriptLine[] = [
-      { command: 'input', values: { name: 'width', type: 'number', default: '2' }, off: true },
-      { command: 'input', values: { name: 'depth', type: 'number', default: '3' } },
+      { command: 'input', values: { name: 'width', type: 'Number', default: '2' }, off: true },
+      { command: 'input', values: { name: 'depth', type: 'Number', default: '3' } },
     ];
     const layout = solidScriptDocumentInputLayout(solidScriptDocumentCreate(lines));
     expect(layout.map((item) => (item.kind === 'input' ? item.input.name : item.text))).toEqual(['depth']);

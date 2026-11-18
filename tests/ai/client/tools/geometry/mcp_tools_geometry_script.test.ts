@@ -78,8 +78,8 @@ describe('SolidScript generator tools', () => {
   it('run When Input Changes and When Button Pressed like the inspector does', () => {
     const { api, stack, objectId } = generatorFixture();
     const lines = [
-      { command: 'input', values: { name: 'steps', type: 'count', default: '8', min: '1', max: '64' } },
-      { command: 'input', values: { name: 'reset', type: 'button', default: '' } },
+      { command: 'input', values: { name: 'steps', type: 'Count', default: '8', min: '1', max: '64' } },
+      { command: 'input', values: { name: 'reset', type: 'Button', default: '' } },
       { command: 'when_input_changes', values: { name: 'steps' } },
       { command: 'if', values: { condition: '[steps] > 16' } },
       { command: 'set_input', values: { name: 'steps', value: '16' } },
@@ -113,10 +113,10 @@ describe('SolidScript generator tools', () => {
     const { api, objectId } = generatorFixture();
     const lines = [
       { command: 'input_note', values: { text: 'Sizes are in metres.' } },
-      { command: 'input', values: { name: 'rails', type: 'switch', default: 'no' } },
+      { command: 'input', values: { name: 'rails', type: 'Switch', default: 'no' } },
       { command: 'show_inputs_when', values: { name: 'rails', value: 'yes' } },
       { command: 'input_group', values: { title: 'Railing' } },
-      { command: 'input', values: { name: 'railHeight', type: 'number', default: '1' } },
+      { command: 'input', values: { name: 'railHeight', type: 'Number', default: '1' } },
       { command: 'end' },
       { command: 'end' },
       { command: 'cube' },
@@ -136,7 +136,7 @@ describe('SolidScript generator tools', () => {
   it('set and read the values of the script inputs like the inspector', () => {
     const { api, objectId } = generatorFixture();
     const lines = [
-      { command: 'input', values: { name: 'steps', type: 'count', default: '2', min: '1', max: '20' } },
+      { command: 'input', values: { name: 'steps', type: 'Count', default: '2', min: '1', max: '20' } },
       { command: 'repeat', values: { variable: 'i', from: '1', to: '[steps]' } },
       { command: 'cube' },
       { command: 'end' },
@@ -144,7 +144,7 @@ describe('SolidScript generator tools', () => {
     const set = api.invokeTool('geometry_script_generator_set', { objectId, lines });
     expect(set.data).toMatchObject({
       solids: 2,
-      inputs: [{ name: 'steps', type: 'count', default: '2', min: 1, max: 20, value: '2' }],
+      inputs: [{ name: 'steps', type: 'Count', default: '2', min: 1, max: 20, value: '2' }],
     });
     const changed = api.invokeTool('geometry_script_generator_set', { objectId, inputs: { steps: 5 } });
     expect(changed.data).toMatchObject({ solids: 5, inputs: [{ name: 'steps', value: '5' }] });

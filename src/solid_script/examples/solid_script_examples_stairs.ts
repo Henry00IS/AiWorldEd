@@ -37,8 +37,8 @@ const SOLID_SCRIPT_EXAMPLE_SPOT: readonly SolidScriptLine[] = solidScriptExample
 function solidScriptExampleOutlineSolid(list: string): SolidScriptLine[] {
   return solidScriptExamplePolyhedron(
     solidScriptExampleBlock('for_each', { variable: 'P', list: `[${list}]` }, [
-      solidScriptExamplePoint('[=Spot([P.x], [P.y], -1)]'),
-      solidScriptExamplePoint('[=Spot([P.x], [P.y], 1)]'),
+      solidScriptExamplePoint('[=Spot([P.X], [P.Y], -1)]'),
+      solidScriptExamplePoint('[=Spot([P.X], [P.Y], 1)]'),
     ]),
   );
 }
@@ -65,8 +65,8 @@ const SOLID_SCRIPT_EXAMPLE_SLAB_CLIP: readonly SolidScriptLine[] = [
     solidScriptExampleSet('N', '[=([C] + 1) % 4]'),
     solidScriptExampleSet('Here', '[Corners([C])]'),
     solidScriptExampleSet('Next', '[Corners([N])]'),
-    solidScriptExampleSet('A', '[=[Here.y] - Underside([Here.x])]'),
-    solidScriptExampleSet('B', '[=[Next.y] - Underside([Next.x])]'),
+    solidScriptExampleSet('A', '[=[Here.Y] - Underside([Here.X])]'),
+    solidScriptExampleSet('B', '[=[Next.Y] - Underside([Next.X])]'),
     ...solidScriptExampleIf('[A] >= 0', [solidScriptExampleLine('add_item', { value: '[Here]', list: 'Outline' })]),
     ...solidScriptExampleIf('([A] > 0 and [B] < 0) or ([A] < 0 and [B] > 0)', [
       solidScriptExampleLine('add_item', { value: '[=Lerp([Here], [Next], [A] / ([A] - [B]))]', list: 'Outline' }),
@@ -77,33 +77,36 @@ const SOLID_SCRIPT_EXAMPLE_SLAB_CLIP: readonly SolidScriptLine[] = [
 /** Port of the Stairs generator. */
 export const SOLID_SCRIPT_EXAMPLE_STAIRS: readonly SolidScriptLine[] = [
   solidScriptExampleNote('Stairs: a row of steps, each one a box or a slice of a sloped slab, with an optional nose.'),
-  solidScriptExampleInput('Direction', 'choice', '+z', { label: 'Ascend', choices: '+x, -x, +z, -z' }),
-  solidScriptExampleInput('Sizing', 'choice', 'rise', { label: 'Steps By', choices: 'rise, count' }),
-  solidScriptExampleInput('Rise', 'number', '0.125', { label: 'Target Rise', min: '0.01', max: '10' }),
-  solidScriptExampleInput('Count', 'count', '8', { label: 'Steps', min: '1', max: '256' }),
-  solidScriptExampleInput('Landing', 'number', '0', { label: 'Landing', min: '0', max: '1000' }),
-  solidScriptExampleInput('Nosing', 'number', '0', { label: 'Nosing', min: '0', max: '10' }),
-  solidScriptExampleInput('NoseHeight', 'number', '0.025', { label: 'Nose Height', min: '0', max: '10' }),
-  solidScriptExampleInput('NoseBevel', 'number', '0.025', { label: 'Nose Bevel', min: '0', max: '10' }),
-  solidScriptExampleInput('NoseEdge', 'number', '0', { label: 'Edge Chamfer', min: '0', max: '10' }),
-  solidScriptExampleInput('Fill', 'choice', 'slab', { label: 'Underside', choices: 'slab, solid, floating' }),
-  solidScriptExampleInput('Waist', 'number', '0.2', { label: 'Thickness', min: '0.01', max: '100' }),
-  solidScriptExampleInput('Thickness', 'number', '0.125', { label: 'Tread Depth', min: '0.01', max: '100' }),
-  solidScriptExampleSet('AlongX', '[=EndsWith([Direction], "x")]'),
-  solidScriptExampleSet('Forward', '[=StartsWith([Direction], "+") ? 1 : -1]'),
+  solidScriptExampleInput('Direction', 'Choice', 'Front', { label: 'Ascend', choices: 'Right, Left, Front, Back' }),
+  solidScriptExampleInput('Sizing', 'Choice', 'Target Rise', { label: 'Steps By', choices: 'Target Rise, Step Count' }),
+  solidScriptExampleInput('Rise', 'Number', '0.125', { label: 'Target Rise', min: '0.01', max: '10' }),
+  solidScriptExampleInput('Count', 'Count', '8', { label: 'Steps', min: '1', max: '256' }),
+  solidScriptExampleInput('Landing', 'Number', '0', { label: 'Landing', min: '0', max: '1000' }),
+  solidScriptExampleInput('Nosing', 'Number', '0', { label: 'Nosing', min: '0', max: '10' }),
+  solidScriptExampleInput('NoseHeight', 'Number', '0.025', { label: 'Nose Height', min: '0', max: '10' }),
+  solidScriptExampleInput('NoseBevel', 'Number', '0.025', { label: 'Nose Bevel', min: '0', max: '10' }),
+  solidScriptExampleInput('NoseEdge', 'Number', '0', { label: 'Edge Chamfer', min: '0', max: '10' }),
+  solidScriptExampleInput('Fill', 'Choice', 'Sloped Slab', {
+    label: 'Underside',
+    choices: 'Sloped Slab, Solid To Floor, Floating Treads',
+  }),
+  solidScriptExampleInput('Waist', 'Number', '0.2', { label: 'Thickness', min: '0.01', max: '100' }),
+  solidScriptExampleInput('Thickness', 'Number', '0.125', { label: 'Tread Depth', min: '0.01', max: '100' }),
+  solidScriptExampleSet('AlongX', '[=[Direction] == "Right" or [Direction] == "Left"]'),
+  solidScriptExampleSet('Forward', '[=[Direction] == "Right" or [Direction] == "Front" ? 1 : -1]'),
   solidScriptExampleSet('Length', '[=[AlongX] ? [$Box.Width] : [$Box.Depth]]'),
   solidScriptExampleSet('Across', '[=[AlongX] ? [$Box.Depth] / 2 : [$Box.Width] / 2]'),
   solidScriptExampleSet('Start', '[=-[Forward] * [Length] / 2]'),
   solidScriptExampleSet('Floor', '[=-[$Box.Height] / 2]'),
   ...SOLID_SCRIPT_EXAMPLE_SPOT,
   solidScriptExampleSet('Steps', '[=Round([$Box.Height] / [Rise])]'),
-  ...solidScriptExampleIf('[Sizing] == "count"', [solidScriptExampleSet('Steps', '[Count]')]),
+  ...solidScriptExampleIf('[Sizing] == "Step Count"', [solidScriptExampleSet('Steps', '[Count]')]),
   solidScriptExampleSet('Steps', '[=Max(1, Min(256, Round([Steps])))]'),
   solidScriptExampleSet('Flat', '[=Min([Landing], [Length] * 0.9)]'),
   solidScriptExampleSet('Up', '[=[$Box.Height] / [Steps]]'),
   solidScriptExampleSet('Run', '[=([Length] - [Flat]) / [Steps]]'),
   solidScriptExampleSet('Tread', '[Up]'),
-  ...solidScriptExampleIf('[Fill] == "floating"', [solidScriptExampleSet('Tread', '[Thickness]')]),
+  ...solidScriptExampleIf('[Fill] == "Floating Treads"', [solidScriptExampleSet('Tread', '[Thickness]')]),
   solidScriptExampleNote('The nose: how far it sticks out and how tall it is, kept inside the step.'),
   solidScriptExampleSet('NoseDepth', '[=Min([Nosing], [Run] * 0.5)]'),
   solidScriptExampleSet('NoseLimit', '[=Min([Up], [Tread])]'),
@@ -126,7 +129,7 @@ export const SOLID_SCRIPT_EXAMPLE_STAIRS: readonly SolidScriptLine[] = [
     solidScriptExampleSet('To', '[=[Last] ? [Length] : ([I] + 1) * [Run] + [NoseDepth]]'),
     solidScriptExampleSet('Top', '[=[Floor] + ([I] + 1) * [Up]]'),
     ...solidScriptExampleIf(
-      '[Fill] == "slab"',
+      '[Fill] == "Sloped Slab"',
       [
         solidScriptExampleSet('LandingStep', '[=[Last] and [Length] > [Steps] * [Run]]'),
         ...SOLID_SCRIPT_EXAMPLE_SLAB_CLIP,
@@ -134,7 +137,7 @@ export const SOLID_SCRIPT_EXAMPLE_STAIRS: readonly SolidScriptLine[] = [
       ],
       [
         solidScriptExampleSet('Bottom', '[Floor]'),
-        ...solidScriptExampleIf('[Fill] == "floating"', [
+        ...solidScriptExampleIf('[Fill] == "Floating Treads"', [
           solidScriptExampleSet('Bottom', '[=Max([Floor], [Top] - [Thickness])]'),
         ]),
         ...solidScriptExampleOutline('outline', ['[From], [Bottom]', '[To], [Bottom]', '[To], [Top]', '[From], [Top]']),

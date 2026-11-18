@@ -47,10 +47,10 @@ const MODIFIER_STACK_CURVED_STAIRS_DIRECTION_FIELD: ModifierStackField = {
   key: 'direction',
   label: 'Direction',
   type: 'choice',
-  default: 'ccw',
+  default: 'Counter Clockwise',
   choices: modifierStackChoices([
-    ['ccw', 'Counter-Clockwise'],
-    ['cw', 'Clockwise'],
+    ['Counter Clockwise', 'Counter Clockwise'],
+    ['Clockwise', 'Clockwise'],
   ]),
   hint: 'Which way the flight turns going up, seen from above. The first step starts on the +X side.',
 };
@@ -134,7 +134,7 @@ export class ModifierStackKindCurvedStairs extends ModifierStackKindPrimitiveSwe
    * @returns Cells in sweep order.
    */
   protected cells(parameters: Record<string, unknown>, box: THREE.Box3): ModifierStackSweepCell[] {
-    const frame = modifierStackRingFrame(box, parameters['direction'] === 'cw' ? -1 : 1);
+    const frame = modifierStackRingFrame(box, parameters['direction'] === 'Clockwise' ? -1 : 1);
     const inner = modifierStackPrimitiveValue(parameters, MODIFIER_STACK_CURVED_STAIRS_INNER_FIELD);
     const detail = modifierStackPrimitiveCount(parameters, MODIFIER_STACK_CURVED_STAIRS_DETAIL_FIELD);
     return this.steps(parameters, box).flatMap((step) =>

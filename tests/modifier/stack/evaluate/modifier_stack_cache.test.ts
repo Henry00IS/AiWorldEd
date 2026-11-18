@@ -9,7 +9,7 @@ import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { stackFixture, stackFixtureEntries, stackResultBounds } from '../modifier_stack_fixture.js';
 
 /** Linear array along x with fixed spacing. */
-const LINEAR_X = { kind: 'linear', parameters: { mode: 'fixed', count: 3, offsetX: 2, offsetY: 0, offsetZ: 0 } };
+const LINEAR_X = { kind: 'linear', parameters: { mode: 'Fixed Step', count: 3, offsetX: 2, offsetY: 0, offsetZ: 0 } };
 
 /**
  * Builds a fixture with a second source and a second volume around it, far from
@@ -98,8 +98,8 @@ describe('modifier stack evaluation cache', () => {
 
   it('skips re-evaluating thousands of copies when nothing changed', () => {
     const grid = [
-      { kind: 'linear', parameters: { mode: 'fixed', count: 50, offsetX: 2, offsetY: 0, offsetZ: 0 } },
-      { kind: 'linear', parameters: { mode: 'fixed', count: 50, offsetX: 0, offsetY: 0, offsetZ: 2 } },
+      { kind: 'linear', parameters: { mode: 'Fixed Step', count: 50, offsetX: 2, offsetY: 0, offsetZ: 0 } },
+      { kind: 'linear', parameters: { mode: 'Fixed Step', count: 50, offsetX: 0, offsetY: 0, offsetZ: 2 } },
     ];
     const fixture = stackFixture(grid, 400);
     const first = fixture.compile();
@@ -111,8 +111,8 @@ describe('modifier stack evaluation cache', () => {
 
   it('refreshes a solid with thousands of unchanged copies without recompiling them', () => {
     const grid = [
-      { kind: 'linear', parameters: { mode: 'fixed', count: 40, offsetX: 2, offsetY: 0, offsetZ: 0 } },
-      { kind: 'linear', parameters: { mode: 'fixed', count: 50, offsetX: 0, offsetY: 0, offsetZ: 2 } },
+      { kind: 'linear', parameters: { mode: 'Fixed Step', count: 40, offsetX: 2, offsetY: 0, offsetZ: 0 } },
+      { kind: 'linear', parameters: { mode: 'Fixed Step', count: 50, offsetX: 0, offsetY: 0, offsetZ: 2 } },
     ];
     const fixture = stackFixture(grid, 400);
     fixture.refresh();

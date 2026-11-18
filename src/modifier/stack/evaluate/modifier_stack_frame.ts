@@ -10,7 +10,7 @@ import {
  * world basis is requested, its rotation. Scale never distorts placement.
  *
  * @param volume Scene modifier volume.
- * @param space 'world' keeps world axes; anything else follows the volume.
+ * @param space World keeps world axes; anything else follows the volume.
  * @returns Frame-to-world matrix.
  */
 export function modifierStackFrame(volume: THREE.Object3D, space: unknown): THREE.Matrix4 {
@@ -18,7 +18,7 @@ export function modifierStackFrame(volume: THREE.Object3D, space: unknown): THRE
   const rotation = new THREE.Quaternion();
   volume.matrixWorld.decompose(position, rotation, new THREE.Vector3());
   rotation.normalize();
-  if (space === 'world') rotation.identity();
+  if (space === 'World') rotation.identity();
   return new THREE.Matrix4().compose(position, rotation, new THREE.Vector3(1, 1, 1));
 }
 

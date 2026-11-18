@@ -160,7 +160,9 @@ describe('SolidScript values', () => {
   it('follows a face through an inset: the face is all its pieces, outputs are exact', () => {
     expect(
       printed([
+        line('mesh_brushes'),
         CUBE,
+        line('end'),
         line('select_faces', { which: 'Facing Up', into: 'Top' }),
         line('variable', { name: 'Top.Data.Kind', value: 'roof' }),
         line('inset_face', { distance: '0.5', inner: 'Inner', ring: 'Ring' }),
@@ -184,7 +186,9 @@ describe('SolidScript values', () => {
 
   it('stops a line using a face that was cut away', () => {
     const result = run([
+      line('mesh_brushes'),
       CUBE,
+      line('end'),
       line('select_faces', { which: 'Facing Up', into: 'Top' }),
       line('variable', { name: 'Face', value: '[Top(0)]' }),
       line('delete_faces'),

@@ -233,7 +233,7 @@ describe('Function blocks', () => {
 
 describe('Vector inputs', () => {
   const size = (values: Record<string, string> = {}) =>
-    line('input', { name: 'size', type: 'vector', default: '1, 2, 3', ...values });
+    line('input', { name: 'size', type: 'Vector', default: '1, 2, 3', ...values });
 
   it('give the variable a vector with an x, y and z, from the inspector or the Default', () => {
     const fallback = run(size(), echo('[size.y]'), line('cube', { size: '[size]' }));
@@ -257,9 +257,9 @@ describe('Vector inputs', () => {
 
 describe('Inspector event handlers', () => {
   const lines = [
-    line('input', { name: 'steps', type: 'count', default: '8', min: '1', max: '64' }),
-    line('input', { name: 'height', type: 'number', default: '2' }),
-    line('input', { name: 'reset', type: 'button', default: '' }),
+    line('input', { name: 'steps', type: 'Count', default: '8', min: '1', max: '64' }),
+    line('input', { name: 'height', type: 'Number', default: '2' }),
+    line('input', { name: 'reset', type: 'Button', default: '' }),
     line(SOLID_SCRIPT_HANDLERS.input, { name: 'steps' }),
     line('if', { condition: '[steps] > [height] * 8' }),
     line('set_input', { name: 'steps', value: '[=floor([height] * 8)]' }),
@@ -300,7 +300,7 @@ describe('Inspector event handlers', () => {
   it('stop when a handler builds, and on Set Input or Show Message outside one', () => {
     const building = solidScriptProgramHandle(
       solidScriptDocumentCreate([
-        line('input', { name: 'w', type: 'number', default: '1' }),
+        line('input', { name: 'w', type: 'Number', default: '1' }),
         line(SOLID_SCRIPT_HANDLERS.input, { name: 'w' }),
         line('cube'),
         END,
@@ -309,7 +309,7 @@ describe('Inspector event handlers', () => {
       {},
     );
     expect(building.error?.message).toMatch(/only check and change inputs/);
-    const set = run(line('input', { name: 'w', type: 'number', default: '1' }), line('set_input', { name: 'w' }));
+    const set = run(line('input', { name: 'w', type: 'Number', default: '1' }), line('set_input', { name: 'w' }));
     expect(set.error?.message).toMatch(/Set Input only works in When Input Changes or When Button Pressed/);
     const show = run(line('cube'), line('show_message'));
     expect(show.error?.message).toMatch(/use Echo here/);
@@ -327,7 +327,7 @@ describe('Inspector event handlers', () => {
 });
 
 describe('Input', () => {
-  const steps = line('input', { name: 'steps', type: 'count', default: '3', min: '1', max: '10' });
+  const steps = line('input', { name: 'steps', type: 'Count', default: '3', min: '1', max: '10' });
 
   it('uses the default, or the inspector value, as a read-only variable', () => {
     expect(run(steps, echo('[steps]')).messages).toEqual(['3']);
@@ -340,12 +340,12 @@ describe('Input', () => {
     // A value the script no longer takes falls back to the Default.
     expect(runWith({ inputs: { steps: '11' } }, steps, echo('[steps]')).messages).toEqual(['3']);
     expect(runWith({ inputs: { steps: '2.5' } }, steps, echo('[steps]')).messages).toEqual(['3']);
-    const choice = line('input', { name: 'look', type: 'choice', default: 'small', choices: 'small, large' });
+    const choice = line('input', { name: 'look', type: 'Choice', default: 'small', choices: 'small, large' });
     expect(runWith({ inputs: { look: 'large' } }, choice, echo('[look]')).messages).toEqual(['large']);
     expect(runWith({ inputs: { look: 'huge' } }, choice, echo('[look]')).messages).toEqual(['small']);
-    const loose = line('input', { name: 'look', type: 'choice', default: '', choices: 'small, large' });
+    const loose = line('input', { name: 'look', type: 'Choice', default: '', choices: 'small, large' });
     expect(runWith({ inputs: { look: 'huge' } }, loose).error?.message).toMatch(/one of small, large/);
-    const toggle = line('input', { name: 'rails', type: 'switch', default: 'yes' });
+    const toggle = line('input', { name: 'rails', type: 'Switch', default: 'yes' });
     expect(run(toggle, line('if', { condition: '[rails]' }), echo('on'), END).messages).toEqual(['on']);
     expect(run(line('input', { name: 'x', type: 'colour' })).error?.message).toMatch(/Type must be one of/);
     expect(run(steps, steps).error?.message).toMatch(/steps/);
@@ -355,12 +355,12 @@ describe('Input', () => {
     const inputs = solidScriptInputsList(
       solidScriptDocumentCreate([
         steps,
-        line('input', { name: 'look', type: 'choice', choices: 'a, b', label: 'Look' }),
+        line('input', { name: 'look', type: 'Choice', choices: 'a, b', label: 'Look' }),
       ]).blocks,
     );
     expect(inputs.map((input) => [input.name, input.label, input.type, input.fallback, input.min, input.max])).toEqual([
-      ['steps', 'steps', 'count', '3', 1, 10],
-      ['look', 'Look', 'choice', '1', null, null],
+      ['steps', 'steps', 'Count', '3', 1, 10],
+      ['look', 'Look', 'Choice', '1', null, null],
     ]);
   });
 });

@@ -21,9 +21,9 @@ import {
 
 /** A script with a count, a switch and a choice input. */
 const SOLID_SCRIPT_INPUT_LINES: SolidScriptLine[] = [
-  { command: 'input', values: { name: 'steps', type: 'count', default: '2', min: '1', max: '8', label: 'Steps' } },
-  { command: 'input', values: { name: 'rails', type: 'switch', default: 'no', label: 'Rails' } },
-  { command: 'input', values: { name: 'look', type: 'choice', default: 'plain', choices: 'plain, fancy' } },
+  { command: 'input', values: { name: 'steps', type: 'Count', default: '2', min: '1', max: '8', label: 'Steps' } },
+  { command: 'input', values: { name: 'rails', type: 'Switch', default: 'no', label: 'Rails' } },
+  { command: 'input', values: { name: 'look', type: 'Choice', default: 'plain', choices: 'plain, fancy' } },
   { command: 'repeat', values: { variable: 'i', from: '1', to: '[steps]' } },
   { command: 'cube' },
   { command: 'end' },
@@ -77,7 +77,7 @@ function inputsFixture(lines: SolidScriptLine[]) {
 describe('SolidScript inspector inputs', () => {
   it('shows a curve input as a curve field and stores the edited curve as text', () => {
     const { panel, parameters } = inputsFixture([
-      { command: 'input', values: { name: 'profile', type: 'curve', default: '', label: 'Profile' } },
+      { command: 'input', values: { name: 'profile', type: 'Curve', default: '', label: 'Profile' } },
       { command: 'cube' },
     ]);
     const field = panel.querySelector<HTMLElement>('[data-solid-script-curve] [role="button"]');
@@ -95,7 +95,7 @@ describe('SolidScript inspector inputs', () => {
 
   it('shows a texture input as a texture picker and stores the picked id, empty for Default', () => {
     const { panel, parameters } = inputsFixture([
-      { command: 'input', values: { name: 'look', type: 'texture', default: 'brick', label: 'Wall Texture' } },
+      { command: 'input', values: { name: 'look', type: 'Texture', default: 'brick', label: 'Wall Texture' } },
       { command: 'texture', values: { texture: '[look]' } },
       { command: 'cube' },
       { command: 'end' },
@@ -111,8 +111,8 @@ describe('SolidScript inspector inputs', () => {
 
   it('adds a slider to a number with both a Minimum and a Maximum, and stores where it is let go', () => {
     const { panel, parameters } = inputsFixture([
-      { command: 'input', values: { name: 'lean', type: 'number', default: '0.5', min: '0', max: '2', label: 'Lean' } },
-      { command: 'input', values: { name: 'free', type: 'number', default: '1', min: '0', label: 'Free' } },
+      { command: 'input', values: { name: 'lean', type: 'Number', default: '0.5', min: '0', max: '2', label: 'Lean' } },
+      { command: 'input', values: { name: 'free', type: 'Number', default: '1', min: '0', label: 'Free' } },
       { command: 'cube' },
     ]);
     const sliders = panel.querySelectorAll<HTMLInputElement>('input[type="range"]');
@@ -129,7 +129,7 @@ describe('SolidScript inspector inputs', () => {
 
   it('shows a vector input as X, Y and Z fields on one row and stores the three numbers', () => {
     const { panel, parameters } = inputsFixture([
-      { command: 'input', values: { name: 'size', type: 'vector', default: '1, 2, 3', label: 'Size' } },
+      { command: 'input', values: { name: 'size', type: 'Vector', default: '1, 2, 3', label: 'Size' } },
       { command: 'cube', values: { size: '[size]' } },
     ]);
     const fields = ['X', 'Y', 'Z'].map((axis) =>
@@ -145,7 +145,7 @@ describe('SolidScript inspector inputs', () => {
     const { panel, parameters } = inputsFixture([
       { command: 'input_note', values: { text: 'Sizes are in metres.' } },
       { command: 'input_group', values: { title: 'Steps' } },
-      { command: 'input', values: { name: 'steps', type: 'count', default: '2', label: 'Steps Count' } },
+      { command: 'input', values: { name: 'steps', type: 'Count', default: '2', label: 'Steps Count' } },
       { command: 'end' },
       { command: 'cube' },
     ]);
@@ -163,12 +163,12 @@ describe('SolidScript inspector inputs', () => {
 
   it('puts the inputs of an Input Row side by side and shows Show Inputs When rows only while the condition holds, whatever case it names the input in', () => {
     const { panel } = inputsFixture([
-      { command: 'input', values: { name: 'Rails', type: 'switch', default: 'no', label: 'Rails' } },
+      { command: 'input', values: { name: 'Rails', type: 'Switch', default: 'no', label: 'Rails' } },
       { command: 'show_inputs_when', values: { name: 'rails', value: 'yes' } },
       { command: 'input_group', values: { title: 'Railing' } },
       { command: 'input_row' },
-      { command: 'input', values: { name: 'railHeight', type: 'number', default: '1', label: 'Rail Height' } },
-      { command: 'input', values: { name: 'railWidth', type: 'number', default: '0.1', label: 'Rail Width' } },
+      { command: 'input', values: { name: 'railHeight', type: 'Number', default: '1', label: 'Rail Height' } },
+      { command: 'input', values: { name: 'railWidth', type: 'Number', default: '0.1', label: 'Rail Width' } },
       { command: 'end' },
       { command: 'end' },
       { command: 'end' },
@@ -223,8 +223,8 @@ describe('SolidScript inspector inputs', () => {
 
   it('runs When Input Changes and When Button Pressed, shows their messages and stores one undo step', () => {
     const { panel, commandStack, parameters } = inputsFixture([
-      { command: 'input', values: { name: 'steps', type: 'count', default: '4' } },
-      { command: 'input', values: { name: 'reset', type: 'button', label: 'Reset Steps' } },
+      { command: 'input', values: { name: 'steps', type: 'Count', default: '4' } },
+      { command: 'input', values: { name: 'reset', type: 'Button', label: 'Reset Steps' } },
       { command: 'when_input_changes', values: { name: 'steps' } },
       { command: 'if', values: { condition: '[steps] > 6' } },
       { command: 'set_input', values: { name: 'steps', value: '6' } },

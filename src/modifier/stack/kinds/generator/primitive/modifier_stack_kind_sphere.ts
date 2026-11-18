@@ -18,10 +18,10 @@ const MODIFIER_STACK_SPHERE_COVERAGE_FIELD: ModifierStackField = {
   key: 'coverage',
   label: 'Shape',
   type: 'choice',
-  default: 'full',
+  default: 'Full Sphere',
   choices: modifierStackChoices([
-    ['full', 'Full Sphere'],
-    ['dome', 'Dome'],
+    ['Full Sphere', 'Full Sphere'],
+    ['Dome', 'Dome'],
   ]),
   hint: 'Full Sphere fills the volume with a ball; Dome builds the upper half with a flat base, for domes and cupolas.',
 };
@@ -49,7 +49,7 @@ export class ModifierStackKindSphere extends ModifierStackKindPrimitiveRevolved 
    */
   protected profile(parameters: Record<string, unknown>, height: number, radius: number): GeneratorRevolveStation[] {
     const segments = modifierStackPrimitiveCount(parameters, MODIFIER_STACK_SPHERE_RINGS_FIELD);
-    if (parameters['coverage'] === 'dome')
+    if (parameters['coverage'] === 'Dome')
       return modifierStackPrimitiveArcStations({
         from: 0,
         to: Math.PI / 2,

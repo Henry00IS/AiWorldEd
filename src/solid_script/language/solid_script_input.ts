@@ -2,15 +2,15 @@ import type { SolidScriptValue } from './solid_script_value.js';
 
 /** Kinds of value a script input takes, as the inspector edits them. */
 export const SOLID_SCRIPT_INPUT_TYPES = [
-  'number',
-  'count',
-  'switch',
-  'text',
-  'choice',
-  'button',
-  'curve',
-  'texture',
-  'vector',
+  'Number',
+  'Count',
+  'Switch',
+  'Text',
+  'Choice',
+  'Button',
+  'Curve',
+  'Texture',
+  'Vector',
 ] as const;
 
 /**
@@ -18,15 +18,15 @@ export const SOLID_SCRIPT_INPUT_TYPES = [
  * typed.
  */
 export const SOLID_SCRIPT_INPUT_TYPE_DETAILS: Readonly<Record<SolidScriptInputType, string>> = {
-  number: 'A number field',
-  count: 'A whole number field',
-  switch: 'A Yes/No switch',
-  text: 'A text field',
-  choice: 'A dropdown of Choices',
-  button: 'A button that runs the script',
-  curve: 'A curve editor',
-  texture: 'A texture picker',
-  vector: 'An X, Y, Z field',
+  Number: 'A number field',
+  Count: 'A whole number field',
+  Switch: 'A Yes/No switch',
+  Text: 'A text field',
+  Choice: 'A dropdown of Choices',
+  Button: 'A button that runs the script',
+  Curve: 'A curve editor',
+  Texture: 'A texture picker',
+  Vector: 'An X, Y, Z field',
 };
 
 /**
@@ -34,15 +34,15 @@ export const SOLID_SCRIPT_INPUT_TYPE_DETAILS: Readonly<Record<SolidScriptInputTy
  * where only running tells.
  */
 export const SOLID_SCRIPT_INPUT_KINDS: Readonly<Record<SolidScriptInputType, string | undefined>> = {
-  number: 'Number',
-  count: 'Number',
-  switch: 'Yes/No',
-  text: 'Text',
-  choice: 'Text',
-  button: 'Yes/No',
-  curve: 'Text',
-  texture: 'Text',
-  vector: 'Vector',
+  Number: 'Number',
+  Count: 'Number',
+  Switch: 'Yes/No',
+  Text: 'Text',
+  Choice: 'Text',
+  Button: 'Yes/No',
+  Curve: 'Text',
+  Texture: 'Text',
+  Vector: 'Vector',
 };
 
 /** Id of the Input command. */
@@ -64,7 +64,7 @@ export const SOLID_SCRIPT_COMMAND_INPUT_ROW = 'input_row';
 export const SOLID_SCRIPT_COMMAND_SHOW_INPUTS_WHEN = 'show_inputs_when';
 
 /** Defaults of an Input line's fields, shared by the command and the inspector. */
-export const SOLID_SCRIPT_INPUT_DEFAULTS = { name: 'width', type: 'number', default: '1' } as const;
+export const SOLID_SCRIPT_INPUT_DEFAULTS = { name: 'width', type: 'Number', default: '1' } as const;
 
 /** Kind of value a script input takes. */
 export type SolidScriptInputType = (typeof SOLID_SCRIPT_INPUT_TYPES)[number];
@@ -118,7 +118,7 @@ export function solidScriptInputRead(values: SolidScriptInputValues): SolidScrip
     .split(',')
     .map((choice) => choice.trim())
     .filter((choice) => choice !== '');
-  if (type === 'choice' && choices.length === 0)
+  if (type === 'Choice' && choices.length === 0)
     throw new Error('a choice input needs Choices, such as "small, large"');
   return {
     name,
@@ -142,21 +142,21 @@ export function solidScriptInputRead(values: SolidScriptInputValues): SolidScrip
  */
 export function solidScriptInputValue(input: SolidScriptInput, text: string): SolidScriptValue {
   const trimmed = text.trim();
-  if (input.type === 'text' || input.type === 'curve' || input.type === 'texture') return text;
+  if (input.type === 'Text' || input.type === 'Curve' || input.type === 'Texture') return text;
   // A button has no value; When Button Pressed answers it.
-  if (input.type === 'button') return false;
-  if (input.type === 'switch') {
+  if (input.type === 'Button') return false;
+  if (input.type === 'Switch') {
     const lower = trimmed.toLowerCase();
     if (['true', 'yes', '1'].includes(lower)) return true;
     if (['false', 'no', '0'].includes(lower)) return false;
     throw new Error(`input "${input.name}" must be Yes or No, not "${text}"`);
   }
-  if (input.type === 'choice') {
+  if (input.type === 'Choice') {
     if (!input.choices.includes(trimmed))
       throw new Error(`input "${input.name}" must be one of ${input.choices.join(', ')}, not "${text}"`);
     return trimmed;
   }
-  if (input.type === 'vector') return solidScriptInputVector(input, text);
+  if (input.type === 'Vector') return solidScriptInputVector(input, text);
   return solidScriptInputNumber(input, trimmed);
 }
 
@@ -185,7 +185,7 @@ function solidScriptInputNumber(input: SolidScriptInput, trimmed: string): numbe
   const number = Number(trimmed);
   if (trimmed === '' || !Number.isFinite(number))
     throw new Error(`input "${input.name}" must be a number, not "${trimmed}"`);
-  if (input.type === 'count' && !Number.isInteger(number))
+  if (input.type === 'Count' && !Number.isInteger(number))
     throw new Error(`input "${input.name}" must be a whole number, not ${number}`);
   if ((input.min !== null && number < input.min) || (input.max !== null && number > input.max))
     throw new Error(`input "${input.name}" must be from ${input.min ?? 'any'} to ${input.max ?? 'any'}, not ${number}`);
@@ -218,23 +218,23 @@ export function solidScriptInputsList(
 
 /** Friendly type of each Input type, as the variable explorer and help show it. */
 const SOLID_SCRIPT_INPUT_TYPE_LABELS: Readonly<Record<string, string>> = {
-  number: 'Number',
-  count: 'Whole Number',
-  switch: 'Yes/No',
-  text: 'Text',
-  choice: 'Text (Choice)',
-  button: 'Button',
-  curve: 'Curve',
-  texture: 'Texture',
+  Number: 'Number',
+  Count: 'Whole Number',
+  Switch: 'Yes/No',
+  Text: 'Text',
+  Choice: 'Text (Choice)',
+  Button: 'Button',
+  Curve: 'Curve',
+  Texture: 'Texture',
 };
 
 /**
  * Names the value an Input type holds in plain words, such as Whole Number for
- * count.
+ * Count.
  *
  * @param type Input type as typed.
  * @returns Friendly type.
  */
 export function solidScriptInputTypeLabel(type: string): string {
-  return SOLID_SCRIPT_INPUT_TYPE_LABELS[type.trim() || 'number'] ?? 'Number';
+  return SOLID_SCRIPT_INPUT_TYPE_LABELS[type.trim() || 'Number'] ?? 'Number';
 }

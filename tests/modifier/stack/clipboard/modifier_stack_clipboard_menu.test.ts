@@ -61,7 +61,7 @@ describe('modifier card Copy and Paste settings', () => {
   it('pastes a copied modifier onto another of the same kind as one edit, keeping its id and name', async () => {
     const source = host(
       modifierStackSettingsNormalize({
-        modifiers: stackFixtureEntries([{ kind: 'mirror', parameters: { axis: 'z' } }]),
+        modifiers: stackFixtureEntries([{ kind: 'mirror', parameters: { axis: 'Z' } }]),
       }),
     );
     const target = host(modifierStackSettingsNormalize({ modifiers: stackFixtureEntries(['bevel', 'mirror']) }));
@@ -73,7 +73,7 @@ describe('modifier card Copy and Paste settings', () => {
     await run(modifierStackClipboardCardItems(target.host, mirror), 'Paste Settings');
     expect(target.edits).toHaveLength(1);
     const pasted = target.stack().modifiers[1];
-    expect(pasted?.parameters['axis']).toBe('z');
+    expect(pasted?.parameters['axis']).toBe('Z');
     expect(pasted?.id).toBe(mirror.id);
     expect(pasted?.name).toBe(mirror.name);
     expect(target.stack().modifiers[0]).toEqual(bevel);

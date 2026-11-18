@@ -124,12 +124,12 @@ describe('SolidScript generator blocks', () => {
 
   it('reads choices as plain text or variables and names the choices when one is wrong', () => {
     const chosen = run(
-      { command: 'variable', values: { name: 'axis', value: 'x' } },
+      { command: 'variable', values: { name: 'axis', value: 'Along X' } },
       { command: 'prism', values: { axis: '[axis]' } },
     );
     expect(chosen.error).toBeNull();
     const wrong = run({ command: 'prism', values: { axis: 'w' } });
-    expect(wrong.error?.message).toMatch(/Axis must be one of z, x, y, not/);
+    expect(wrong.error?.message).toMatch(/Axis must be one of Along Z, Along X, Upright, not/);
   });
 
   it('builds Sphere and Cylinder with the primitive generators, under their field names', () => {

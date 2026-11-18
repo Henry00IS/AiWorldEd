@@ -374,7 +374,7 @@ describe('SolidScript editor', () => {
 
   it('suggests the names of the script while typing, inserts them and checks fields as they are typed', () => {
     const { script } = editorFixture([
-      { command: 'input', values: { name: 'steps', type: 'count', default: '3' } },
+      { command: 'input', values: { name: 'steps', type: 'Count', default: '3' } },
       { command: 'variable', values: { name: 'width', value: '2' } },
       { command: 'cube' },
     ]);
@@ -441,7 +441,7 @@ describe('SolidScript editor', () => {
 
   it('checks Input lines while they are configured and lists what the script defines in the variable explorer', () => {
     editorFixture([
-      { command: 'input', values: { name: 'steps', type: 'count', default: '3' } },
+      { command: 'input', values: { name: 'steps', type: 'Count', default: '3' } },
       { command: 'variable', values: { name: 'width', value: '2' } },
       { command: 'cube' },
     ]);

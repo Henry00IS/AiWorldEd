@@ -340,7 +340,7 @@ function geometryScriptEvents(
   const events: SolidScriptEvent[] = Object.keys(args.inputs ?? {}).map((name) => ({ kind: 'input', name }));
   if (args.press === undefined) return events;
   const buttons = solidScriptInputsList(document.blocks)
-    .filter((input) => input.type === 'button')
+    .filter((input) => input.type === 'Button')
     .map((input) => input.name);
   if (!buttons.includes(args.press))
     return `${args.press} is not a button input; buttons: ${buttons.join(', ') || 'none, add an Input of type button'}`;

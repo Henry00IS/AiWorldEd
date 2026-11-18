@@ -22,7 +22,10 @@ const INTACT_STEP: StackFixtureStep = {
 };
 
 /** Three copies of whatever comes before, two metres apart. */
-const INTACT_ARRAY_STEP: StackFixtureStep = { kind: 'linear', parameters: { mode: 'fixed', offsetX: 2, count: 3 } };
+const INTACT_ARRAY_STEP: StackFixtureStep = {
+  kind: 'linear',
+  parameters: { mode: 'Fixed Step', offsetX: 2, count: 3 },
+};
 
 /** A solid in its own world. */
 interface IntactScene {

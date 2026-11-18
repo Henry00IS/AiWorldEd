@@ -19,21 +19,21 @@ const MODIFIER_STACK_PRISM_AXIS_FIELD: ModifierStackField = {
   key: 'axis',
   label: 'Axis',
   type: 'choice',
-  default: 'z',
+  default: 'Along Z',
   choices: modifierStackChoices([
-    ['z', 'Along Z'],
-    ['x', 'Along X'],
-    ['y', 'Upright'],
+    ['Along Z', 'Along Z'],
+    ['Along X', 'Along X'],
+    ['Upright', 'Upright'],
   ]),
   hint: 'Direction the prism runs. Lying prisms have a flat face on the floor; upright prisms have a flat face toward -Z.',
 };
 
 /** Axes of the cross-section plane for each prism axis: right, then up. */
-const MODIFIER_STACK_PRISM_PLANES: Readonly<Record<string, readonly ['x' | 'y' | 'z', 'x' | 'y' | 'z']>> = {
-  x: ['z', 'y'],
-  y: ['x', 'z'],
-  z: ['x', 'y'],
-};
+const MODIFIER_STACK_PRISM_PLANES = {
+  'Along X': ['z', 'y'],
+  Upright: ['x', 'z'],
+  'Along Z': ['x', 'y'],
+} as const;
 
 /**
  * Builds a straight prism with a regular cross-section stretched to fill its
@@ -67,9 +67,13 @@ export class ModifierStackKindPrism extends ModifierStackKindPrimitiveFlat {
    * @returns The prism.
    */
   protected buildPieces(parameters: Record<string, unknown>, box: THREE.Box3): SolidBrush[] {
-    const axis = String(parameters['axis'] ?? 'z');
-    const [right, up] = MODIFIER_STACK_PRISM_PLANES[axis] ?? ['x', 'y'];
-    const run = axis === 'x' || axis === 'y' ? axis : 'z';
+    const axis = String(parameters['axis'] ?? 'Along Z');
+    const planes =
+      axis === 'Along X' || axis === 'Upright' || axis === 'Along Z'
+        ? MODIFIER_STACK_PRISM_PLANES[axis]
+        : MODIFIER_STACK_PRISM_PLANES['Along Z'];
+    const [right, up] = planes;
+    const run = axis === 'Along X' ? 'x' : axis === 'Upright' ? 'y' : 'z';
     const outline = modifierStackPrismUnitOutline(
       modifierStackPrimitiveCount(parameters, MODIFIER_STACK_PRISM_SIDES_FIELD),
     );

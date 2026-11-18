@@ -3,6 +3,8 @@ import type { SolidScriptElements } from './solid_script_elements.js';
 import type { SolidScriptFaceFacts } from './solid_script_geometry.js';
 import { solidScriptKindNamed } from './solid_script_kinds.js';
 import { solidScriptFaceCornerUvs } from './solid_script_uvs.js';
+import { solidScriptNameKey } from './solid_script_name_key.js';
+import { solidScriptMemberForm } from './solid_script_shown_names.js';
 import {
   SolidScriptElement,
   solidScriptValueNumbers,
@@ -14,100 +16,234 @@ import {
  * Members of a list of brushes, faces, edges or corners that read all of it at
  * once.
  */
-const SOLID_SCRIPT_MEMBERS_BOUNDS = ['Center', 'Min', 'Max', 'Size', 'Extents'];
+const SOLID_SCRIPT_MEMBERS_BOUNDS = ['Center', 'Min', 'Max', 'Size', 'Extents'] as const;
 
-/**
- * What each member of each kind of value gives, by kind; lists also have the
- * members of their items.
- */
-export const SOLID_SCRIPT_MEMBER_TYPES: Readonly<Record<string, Readonly<Record<string, string>>>> = {
-  List: { Count: 'Number', First: 'Item', Last: 'Item' },
-  Bounds: { Center: 'Vector', Min: 'Vector', Max: 'Vector', Size: 'Vector', Extents: 'Vector' },
-  Vector: { x: 'Number', y: 'Number', z: 'Number', Length: 'Number' },
-  Text: { Length: 'Number', Words: 'Text List' },
-  Brush: {
-    Name: 'Text',
-    Faces: 'Face List',
-    Edges: 'Edge List',
-    Vertices: 'Vertex List',
-    Center: 'Vector',
-    Min: 'Vector',
-    Max: 'Vector',
-    Size: 'Vector',
-    Extents: 'Vector',
-    Data: 'Data',
-  },
-  Face: {
-    Center: 'Vector',
-    Normal: 'Vector',
-    Area: 'Number',
-    Width: 'Number',
-    Height: 'Number',
-    Tag: 'Text',
-    Tags: 'Text List',
-    Edges: 'Edge List',
-    Vertices: 'Vertex List',
-    Parent: 'Brush',
-    UVs: 'Vector List',
-    Data: 'Data',
-  },
-  Edge: {
-    Start: 'Vector',
-    End: 'Vector',
-    Middle: 'Vector',
-    Length: 'Number',
-    Direction: 'Vector',
-    Faces: 'Face List',
-    Parent: 'Brush',
-    Data: 'Data',
-  },
-  Vertex: { Position: 'Vector', Normal: 'Vector', Parent: 'Brush', Data: 'Data' },
+/** Kinds whose lists also have bounds of the whole list. */
+const SOLID_SCRIPT_MEMBERS_GEOMETRY = ['Brush', 'Face', 'Edge', 'Vertex'] as const;
+
+/** Official Vector axis members, in X, Y, Z order. */
+export const SOLID_SCRIPT_VECTOR_AXES = ['X', 'Y', 'Z'] as const;
+
+/** How a geometry list is named in messages, such as Vertices for a Vertex List. */
+const SOLID_SCRIPT_MEMBER_LIST_WORDS: Readonly<Record<string, string>> = {
+  'Brush List': 'Brushes',
+  'Face List': 'Faces',
+  'Edge List': 'Edges',
+  'Vertex List': 'Vertices',
 };
 
-/** Members of each kind of value, as written in messages and suggestions. */
+/** One declared member, with the name used through a list. */
+interface SolidScriptMemberDecl {
+  singular: string;
+  plural: string;
+  type: string;
+}
+
+const form = solidScriptMemberForm;
+
+/**
+ * Every member of every kind, each with the name used on one value and the name
+ * used through a list.
+ */
+export const SOLID_SCRIPT_MEMBER_DECLS = {
+  List: {
+    Count: form('Count', 'Number'),
+    First: form('First', 'Item'),
+    Last: form('Last', 'Item'),
+  },
+  Bounds: {
+    Center: form('Centers', 'Vector'),
+    Min: form('Mins', 'Vector'),
+    Max: form('Maxes', 'Vector'),
+    Size: form('Sizes', 'Vector'),
+    Extents: form('Extents', 'Vector'),
+  },
+  Vector: {
+    X: form('Xs', 'Number'),
+    Y: form('Ys', 'Number'),
+    Z: form('Zs', 'Number'),
+    Length: form('Lengths', 'Number'),
+  },
+  Text: {
+    Length: form('Lengths', 'Number'),
+    Words: form('Words', 'Text List'),
+  },
+  Brush: {
+    Name: form('Names', 'Text'),
+    Faces: form('Faces', 'Face List'),
+    Edges: form('Edges', 'Edge List'),
+    Vertices: form('Vertices', 'Vertex List'),
+    Center: form('Centers', 'Vector'),
+    Min: form('Mins', 'Vector'),
+    Max: form('Maxes', 'Vector'),
+    Size: form('Sizes', 'Vector'),
+    Extents: form('Extents', 'Vector'),
+    Data: form('Data', 'Data'),
+  },
+  Face: {
+    Center: form('Centers', 'Vector'),
+    Normal: form('Normals', 'Vector'),
+    Area: form('Areas', 'Number'),
+    Width: form('Widths', 'Number'),
+    Height: form('Heights', 'Number'),
+    Tag: form('Tags', 'Text'),
+    Tags: form('Tags', 'Text List'),
+    Edges: form('Edges', 'Edge List'),
+    Vertices: form('Vertices', 'Vertex List'),
+    Parent: form('Parents', 'Brush'),
+    UVs: form('UVs', 'Vector List'),
+    Data: form('Data', 'Data'),
+  },
+  Edge: {
+    Start: form('Starts', 'Vector'),
+    End: form('Ends', 'Vector'),
+    Middle: form('Middles', 'Vector'),
+    Length: form('Lengths', 'Number'),
+    Direction: form('Directions', 'Vector'),
+    Faces: form('Faces', 'Face List'),
+    Parent: form('Parents', 'Brush'),
+    Data: form('Data', 'Data'),
+  },
+  Vertex: {
+    Position: form('Positions', 'Vector'),
+    Normal: form('Normals', 'Vector'),
+    Parent: form('Parents', 'Brush'),
+    Data: form('Data', 'Data'),
+  },
+} as const;
+
+/** What each member of each kind gives on one value, by its singular name. */
+export const SOLID_SCRIPT_MEMBER_TYPES: Readonly<Record<string, Readonly<Record<string, string>>>> = Object.fromEntries(
+  Object.entries(SOLID_SCRIPT_MEMBER_DECLS).map(([kind, members]) => [
+    kind,
+    Object.fromEntries(Object.entries(members).map(([singular, decl]) => [singular, decl.type])),
+  ]),
+);
+
+/** Members of each kind of value, as written on one value. */
 export const SOLID_SCRIPT_MEMBERS: Readonly<Record<string, readonly string[]>> = Object.fromEntries(
   Object.entries(SOLID_SCRIPT_MEMBER_TYPES).map(([kind, members]) => [kind, Object.keys(members)]),
 );
 
 /**
+ * Finds a declared member of a kind by either of its names, in any case.
+ *
+ * @param kind Kind, such as Face or List.
+ * @param member Name as typed.
+ * @returns The declaration, or undefined when that kind has no such member.
+ */
+
+/**
+ * Spells a runtime list kind the way members are declared, such as Vector List
+ * for List of Vectors.
+ *
+ * @param type Kind from a value.
+ * @returns Kind used in the member tables.
+ */
+function solidScriptMemberKind(type: string): string {
+  if (type === 'List of Vectors') return 'Vector List';
+  if (type === 'List of Text') return 'Text List';
+  if (type === 'List of Numbers') return 'Number List';
+  return type;
+}
+
+function solidScriptMemberDecl(kind: string, member: string): SolidScriptMemberDecl | undefined {
+  const members = SOLID_SCRIPT_MEMBER_DECLS[kind as keyof typeof SOLID_SCRIPT_MEMBER_DECLS];
+  if (!members) return undefined;
+  const key = solidScriptNameKey(member);
+  let plural: SolidScriptMemberDecl | undefined;
+  for (const [singular, decl] of Object.entries(members)) {
+    if (solidScriptNameKey(singular) === key) return { singular, plural: decl.plural, type: decl.type };
+    if (solidScriptNameKey(decl.plural) === key) plural = { singular, plural: decl.plural, type: decl.type };
+  }
+  return plural;
+}
+
+/**
  * Tells the kind of value a member gives, such as Vector for Face.Normal or
- * Face List for Brush.Faces. A member of a list of brushes, faces, edges or
- * corners reads its bounds or the member of every item.
+ * Vector List for Brush.Vertices.Positions. A list of geometry also has bounds
+ * of the whole list under the singular names, such as Faces.Center.
  *
  * @param type Kind of the value, such as Face or Face List.
  * @param member Member as typed, in any case.
  * @returns Kind it gives, or null when the value has no such member.
  */
 export function solidScriptMemberType(type: string, member: string): string | null {
-  const find = (members: Readonly<Record<string, string>> | undefined): string | undefined =>
-    Object.entries(members ?? {}).find(([name]) => name.toLowerCase() === member.toLowerCase())?.[1];
-  if (!type.endsWith(' List')) return find(SOLID_SCRIPT_MEMBER_TYPES[type]) ?? null;
-  const item = type.slice(0, -' List'.length);
-  const listed = find(SOLID_SCRIPT_MEMBER_TYPES['List']);
-  if (listed) return listed === 'Item' ? item : listed;
-  if (!(item in SOLID_SCRIPT_MEMBER_TYPES) || ['Vector', 'Text'].includes(item)) return null;
-  const bounds = find(SOLID_SCRIPT_MEMBER_TYPES['Bounds']);
-  if (bounds) return bounds;
-  const each = find(SOLID_SCRIPT_MEMBER_TYPES[item]);
-  if (!each) return null;
-  return each.endsWith(' List') ? each : `${each} List`;
+  if (!type.endsWith(' List')) {
+    const decl = solidScriptMemberDecl(type, member);
+    return decl && solidScriptNameKey(decl.singular) === solidScriptNameKey(member) ? decl.type : null;
+  }
+  return solidScriptMemberTypeOfList(type.slice(0, -' List'.length), member);
 }
 
 /**
- * Lists the members of a kind of value, lists with those of their items.
+ * Tells the kind a member of a list gives: a list's own members, the bounds of
+ * a geometry list, or the plural of an item member as a list of those values.
+ *
+ * @param item Kind of one item, such as Face.
+ * @param member Member as typed.
+ * @returns Kind it gives, or null when the list has no such member.
+ */
+function solidScriptMemberTypeOfList(item: string, member: string): string | null {
+  const key = solidScriptNameKey(member);
+  const listed = solidScriptMemberDecl('List', member);
+  if (listed && solidScriptNameKey(listed.singular) === key) return listed.type === 'Item' ? item : listed.type;
+  if (SOLID_SCRIPT_MEMBERS_GEOMETRY.includes(item as (typeof SOLID_SCRIPT_MEMBERS_GEOMETRY)[number])) {
+    const bounds = solidScriptMemberDecl('Bounds', member);
+    if (bounds && solidScriptNameKey(bounds.singular) === key) return bounds.type;
+  }
+  const decl = solidScriptMemberDecl(item, member);
+  if (!decl || solidScriptNameKey(decl.plural) !== key) return null;
+  return decl.type.endsWith(' List') ? decl.type : `${decl.type} List`;
+}
+
+/**
+ * Lists the members of a kind of value: singular names on one value, and on a
+ * list its own members, bounds, and the plural names of its items.
  *
  * @param type Kind, such as Face List.
  * @returns Members as written.
  */
 export function solidScriptMemberNames(type: string): string[] {
-  const names = type.endsWith(' List')
+  const listed = type.endsWith(' List');
+  const item = listed ? type.slice(0, -' List'.length) : type;
+  const names = listed
     ? [
-        ...Object.keys(SOLID_SCRIPT_MEMBER_TYPES['List']!),
-        ...Object.keys(SOLID_SCRIPT_MEMBER_TYPES['Bounds']!),
-        ...Object.keys(SOLID_SCRIPT_MEMBER_TYPES[type.slice(0, -' List'.length)] ?? {}),
+        ...Object.keys(SOLID_SCRIPT_MEMBER_DECLS.List),
+        ...(SOLID_SCRIPT_MEMBERS_GEOMETRY.includes(item as (typeof SOLID_SCRIPT_MEMBERS_GEOMETRY)[number])
+          ? Object.keys(SOLID_SCRIPT_MEMBER_DECLS.Bounds)
+          : []),
+        ...Object.values(SOLID_SCRIPT_MEMBER_DECLS[item as keyof typeof SOLID_SCRIPT_MEMBER_DECLS] ?? {}).map(
+          (decl) => decl.plural,
+        ),
       ]
-    : Object.keys(SOLID_SCRIPT_MEMBER_TYPES[type] ?? {});
+    : Object.keys(SOLID_SCRIPT_MEMBER_DECLS[item as keyof typeof SOLID_SCRIPT_MEMBER_DECLS] ?? {});
   return [...new Set(names)].filter((name) => solidScriptMemberType(type, name) !== null);
+}
+
+/**
+ * Suggests the other form of a member when the written name belongs to the
+ * other number, such as Position on a Vertex List.
+ *
+ * @param type Kind of the value, such as Vertex List.
+ * @param member Member as typed.
+ * @returns A Did-you-mean hint, or undefined when the name is not the other
+ *   form.
+ */
+export function solidScriptMemberHint(type: string, member: string): string | undefined {
+  const key = solidScriptNameKey(member);
+  if (type.endsWith(' List')) {
+    const decl = solidScriptMemberDecl(type.slice(0, -' List'.length), member);
+    if (decl && decl.singular !== decl.plural && solidScriptNameKey(decl.singular) === key) {
+      const list = SOLID_SCRIPT_MEMBER_LIST_WORDS[type] ?? 'This';
+      return `Did you mean ${decl.plural}? ${list} is a list`;
+    }
+    return undefined;
+  }
+  const decl = solidScriptMemberDecl(type, member);
+  if (decl && decl.singular !== decl.plural && solidScriptNameKey(decl.plural) === key)
+    return `Did you mean ${decl.singular}?`;
+  return undefined;
 }
 
 /**
@@ -146,21 +282,23 @@ export function solidScriptMemberRead(
   elements: SolidScriptElements,
   written = member,
 ): SolidScriptValue {
+  const key = solidScriptNameKey(member);
   if (value instanceof SolidScriptElement) {
     if (value.kind === 'data') return elements.dataRead(value, member);
-    const read = solidScriptMemberElement(value, member, elements);
+    const read = solidScriptMemberElement(value, key, elements);
     if (read !== undefined) return read;
   } else if (Array.isArray(value)) {
-    const read = solidScriptMemberList(value, member, elements, written);
+    const read = solidScriptMemberList(value, key, elements, written);
     if (read !== undefined) return read;
   } else if (typeof value === 'string') {
-    if (member === 'length') return value.length;
-    if (member === 'words') return value.split(/\s+/).filter((word) => word !== '');
+    if (key === 'length') return value.length;
+    if (key === 'words') return value.split(/\s+/).filter((word) => word !== '');
   }
-  const type = solidScriptValueType(value);
-  // The same members the editor suggests after the dot.
-  const known = solidScriptMemberNames(type.startsWith('List') ? 'List' : type);
+  const type = solidScriptMemberKind(solidScriptValueType(value));
   const named = solidScriptKindNamed(value);
+  const hint = solidScriptMemberHint(type, written);
+  if (hint) throw new Error(`${named} has no .${written}. ${hint}`);
+  const known = solidScriptMemberNames(type.startsWith('List') ? 'List' : type);
   throw new Error(
     known.length === 0
       ? `${named} has no .${written}; numbers and Yes/No values have no members`
@@ -183,26 +321,33 @@ function solidScriptMemberList(
   elements: SolidScriptElements,
   written: string,
 ): SolidScriptValue {
-  switch (member) {
+  const key = solidScriptNameKey(member);
+  switch (key) {
     case 'count':
       return list.length;
     case 'first':
     case 'last':
-      if (list.length === 0) throw new Error(`the list is empty, so it has no .${written}; check its .Length first`);
-      return member === 'first' ? list[0] : list[list.length - 1];
+      if (list.length === 0) throw new Error(`the list is empty, so it has no .${written}; check its .Count first`);
+      return key === 'first' ? list[0] : list[list.length - 1];
   }
   const numbers = solidScriptValueNumbers([...list]);
   if (numbers && numbers.length === 3) {
-    const axis = 'xyz'.indexOf(member);
-    if (axis >= 0 && member.length === 1) return numbers[axis];
-    if (member === 'length') return solidScriptMemberRound(Math.hypot(...numbers));
+    const axis = SOLID_SCRIPT_VECTOR_AXES.findIndex((name) => solidScriptNameKey(name) === key);
+    if (axis >= 0) return numbers[axis];
+    if (key === 'length') return solidScriptMemberRound(Math.hypot(...numbers));
   }
   const geometry = list.length > 0 && list.every((item) => item instanceof SolidScriptElement && item.kind !== 'data');
-  if (geometry && SOLID_SCRIPT_MEMBERS_BOUNDS.some((name) => name.toLowerCase() === member))
-    return solidScriptMemberBounds(elements.bounds(list as SolidScriptElement[]), member);
-  if (!list.every((item) => item instanceof SolidScriptElement)) return undefined;
-  // Any other member is read from every item, such as [Sides.Data.Height] or [Top.Edges].
-  const read = list.map((item) => solidScriptMemberRead(item, member, elements, written));
+  if (geometry && SOLID_SCRIPT_MEMBERS_BOUNDS.some((name) => solidScriptNameKey(name) === key))
+    return solidScriptMemberBounds(elements.bounds(list as SolidScriptElement[]), key);
+  if (list.length === 0) return [];
+  const itemType = solidScriptMemberKind(solidScriptValueType(list[0]));
+  if (itemType === 'Data') return list.map((item) => solidScriptMemberRead(item, member, elements, written));
+  const decl = itemType ? solidScriptMemberDecl(itemType, member) : undefined;
+  if (!decl || solidScriptNameKey(decl.plural) !== key) return undefined;
+  if (!list.every((item) => item instanceof SolidScriptElement)) {
+    return list.map((item) => solidScriptMemberRead(item, decl.singular, elements, written));
+  }
+  const read = list.map((item) => solidScriptMemberRead(item, decl.singular, elements, written));
   if (!read.every((item) => Array.isArray(item) && item.every((inner) => inner instanceof SolidScriptElement)))
     return read;
   const joined: SolidScriptValue[] = [];
@@ -218,7 +363,7 @@ function solidScriptMemberList(
  * @returns Vector.
  */
 function solidScriptMemberBounds(bounds: THREE.Box3, member: string): SolidScriptValue {
-  switch (member) {
+  switch (solidScriptNameKey(member)) {
     case 'center':
       return solidScriptMemberVector(bounds.getCenter(new THREE.Vector3()));
     case 'min':
@@ -272,7 +417,7 @@ function solidScriptMemberElement(
       if (member === 'faces') return faceList(elements.faces(element));
       if (member === 'edges') return edgeList();
       if (member === 'vertices') return vertexList();
-      if (SOLID_SCRIPT_MEMBERS_BOUNDS.some((name) => name.toLowerCase() === member))
+      if (SOLID_SCRIPT_MEMBERS_BOUNDS.some((name) => solidScriptNameKey(name) === solidScriptNameKey(member)))
         return solidScriptMemberBounds(elements.bounds([element]), member);
       return undefined;
     case 'face':

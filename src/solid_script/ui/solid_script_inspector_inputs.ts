@@ -106,7 +106,7 @@ export function solidScriptInspectorInputs(
       shape = next;
       notices.replaceChildren();
       const built = solidScriptInspectorLayoutRows(layout, (input, text) =>
-        commit({ kind: input.type === 'button' ? 'button' : 'input', name: input.name }, text),
+        commit({ kind: input.type === 'Button' ? 'button' : 'input', name: input.name }, text),
       );
       rowsHost.replaceChildren(...built.elements);
       writers = built.rowWriters;
@@ -220,7 +220,7 @@ function solidScriptInspectorInputRow(
   commit: (text: string | null) => void,
 ): { element: HTMLElement; write: (text: string) => void } {
   const hint = input.tooltip || `Script input [${input.name}]`;
-  if (input.type === 'button') {
+  if (input.type === 'Button') {
     const button = modifierStackUiTextButton(
       input.label,
       `${input.label}: runs When Button Pressed ${input.name}`,
@@ -232,7 +232,7 @@ function solidScriptInspectorInputRow(
     row.append(button);
     return { element: row, write: () => undefined };
   }
-  if (input.type === 'switch') {
+  if (input.type === 'Switch') {
     const box = document.createElement('input');
     box.type = 'checkbox';
     box.setAttribute('aria-label', input.label);
@@ -240,7 +240,7 @@ function solidScriptInspectorInputRow(
     const write = (text: string): void => void (box.checked = ['true', 'yes', '1'].includes(text.trim().toLowerCase()));
     return { element: modifierStackUiToggleRow(input.label, box, hint), write };
   }
-  if (input.type === 'choice') {
+  if (input.type === 'Choice') {
     const select = new InputSelect(
       input.choices.map((choice) => ({ value: choice, label: choice })),
       input.label,
@@ -251,8 +251,8 @@ function solidScriptInspectorInputRow(
       write: (text) => select.setSharedValues([text.trim()]),
     };
   }
-  if (input.type === 'curve') return solidScriptInspectorCurveRow(input, commit, hint);
-  if (input.type === 'texture') {
+  if (input.type === 'Curve') return solidScriptInspectorCurveRow(input, commit, hint);
+  if (input.type === 'Texture') {
     const { row, write } = modifierStackTextureRow(
       { key: input.name, label: input.label, type: 'texture', default: '', hint },
       (_key, value) => commit(String(value)),
@@ -260,7 +260,7 @@ function solidScriptInspectorInputRow(
     row.dataset['solidScriptTexture'] = input.name;
     return { element: row, write: (text) => write(text, {}) };
   }
-  if (input.type === 'text') {
+  if (input.type === 'Text') {
     const field = document.createElement('input');
     field.type = 'text';
     field.setAttribute('aria-label', input.label);
@@ -268,8 +268,8 @@ function solidScriptInspectorInputRow(
     field.addEventListener('change', () => commit(field.value));
     return { element: modifierStackUiRow(input.label, field, hint), write: (text) => void (field.value = text) };
   }
-  if (input.type === 'vector') return solidScriptInspectorVectorRow(input, commit, hint);
-  const integer = input.type === 'count';
+  if (input.type === 'Vector') return solidScriptInspectorVectorRow(input, commit, hint);
+  const integer = input.type === 'Count';
   const number = inputNumericCreateUvField(integer ? 1 : 0.25, input.label);
   number.bindCommit(() => {
     const parsed = number.parseNumberOrNull();

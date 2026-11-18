@@ -61,7 +61,7 @@ describe('content_wireframe_visibility', () => {
     const generator = modifierGeneratorNodeCreate('column');
     root.add(volume, generator);
     const outlines = [volume, generator].map((node) => node.children.find(isContentBrushWireframeHelper)!);
-    const guide = modifierStackMirrorGuide(volume, { axis: 'x', space: 'volume' });
+    const guide = modifierStackMirrorGuide(volume, { axis: 'X', space: 'Volume' });
     volume.add(guide);
     expect(outlines.every((outline) => outline instanceof THREE.LineSegments)).toBe(true);
     applyContentWireframeVisibilityForRenderPass(root, false);

@@ -14,6 +14,31 @@ export type ModifierStackStairsFaceRole = 'top' | 'side' | 'bottom' | 'main';
 /** Smallest normal component that counts as pointing along an axis. */
 const MODIFIER_STACK_STAIRS_ROLE_EPSILON = 1e-6;
 
+/** Climb directions a Stairs flight can take. */
+export const MODIFIER_STACK_STAIRS_CLIMB = {
+  Right: { axis: 'x', positive: true },
+  Left: { axis: 'x', positive: false },
+  Front: { axis: 'z', positive: true },
+  Back: { axis: 'z', positive: false },
+} as const;
+
+/** One of the Stairs climb directions. */
+export type ModifierStackStairsClimbName = keyof typeof MODIFIER_STACK_STAIRS_CLIMB;
+
+/**
+ * Returns the axis and sign of a Stairs climb direction.
+ *
+ * @param value Climb word: Right, Left, Front or Back.
+ * @returns Axis the flight runs along, and whether it climbs toward the plus
+ *   end.
+ */
+export function modifierStackStairsClimb(
+  value: unknown,
+): (typeof MODIFIER_STACK_STAIRS_CLIMB)[ModifierStackStairsClimbName] {
+  const found = MODIFIER_STACK_STAIRS_CLIMB[String(value) as ModifierStackStairsClimbName];
+  return found ?? MODIFIER_STACK_STAIRS_CLIMB.Front;
+}
+
 /**
  * Returns whether separate stair textures are switched on.
  *
@@ -89,20 +114,21 @@ export function modifierStackStairsTexturesOmitDefaults(parameters: Record<strin
  * the sloped slab) are the underside.
  *
  * @param normal Face normal in the generator frame, +Y up.
- * @param direction Climb direction of the flight: +x, -x, +z or -z.
+ * @param direction Climb direction of the flight: Right, Left, Front or Back.
  * @returns Face role.
  */
 export function modifierStackStairsFaceRole(
   normal: { x: number; y: number; z: number },
   direction: string,
 ): ModifierStackStairsFaceRole {
-  const along = direction.endsWith('x') ? 'x' : 'z';
+  const climb = modifierStackStairsClimb(direction);
+  const along = climb.axis;
   const across = along === 'x' ? 'z' : 'x';
   if (Math.abs(normal[across]) > MODIFIER_STACK_STAIRS_ROLE_EPSILON) return 'side';
   if (normal.y > MODIFIER_STACK_STAIRS_ROLE_EPSILON) return 'top';
   if (normal.y >= -MODIFIER_STACK_STAIRS_ROLE_EPSILON) return 'main';
-  const climb = direction.startsWith('-') ? -normal[along] : normal[along];
-  return climb < -MODIFIER_STACK_STAIRS_ROLE_EPSILON ? 'main' : 'bottom';
+  const signed = climb.positive ? normal[along] : -normal[along];
+  return signed < -MODIFIER_STACK_STAIRS_ROLE_EPSILON ? 'main' : 'bottom';
 }
 
 /**

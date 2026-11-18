@@ -37,7 +37,7 @@ function cardFold(volume: THREE.Object3D, index: number, expanded: boolean): voi
 
 describe('modifier helper visibility', () => {
   it('shows a modifier helper only while it is enabled and its card is unfolded', () => {
-    const fixture = stackFixture([{ kind: 'mirror', parameters: { axis: 'x' } }]);
+    const fixture = stackFixture([{ kind: 'mirror', parameters: { axis: 'X' } }]);
     const entry = ModifierVolume.read(fixture.volume).modifiers[0];
     if (!entry) throw new Error('Expected a mirror entry');
     expect(modifierStackHelpersVisible(entry)).toBe(true);
@@ -47,8 +47,8 @@ describe('modifier helper visibility', () => {
 
   it('hides the mirror plane when its card collapses and restores it when unfolded', () => {
     const fixture = stackFixture([
-      { kind: 'mirror', parameters: { axis: 'x' } },
-      { kind: 'mirror', parameters: { axis: 'y' } },
+      { kind: 'mirror', parameters: { axis: 'X' } },
+      { kind: 'mirror', parameters: { axis: 'Y' } },
     ]);
     modifierStackHelpersSync(fixture.volume, true);
     expect(helpers(fixture.volume)).toHaveLength(2);

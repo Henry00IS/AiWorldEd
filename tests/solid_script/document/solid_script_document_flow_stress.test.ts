@@ -256,7 +256,7 @@ describe('SolidScript kinds stress: blocks', () => {
       line('cube', { into: 'B' }),
       set('D', '[B.Data.Height]'),
       set('E', '[B.Faces(0).Edges]'),
-      set('F', '[B.Faces.Area]'),
+      set('F', '[B.Faces.Areas]'),
       set('G', '[B.Faces.Count]'),
       set('H', '[$Selected.Faces]'),
       set('L', '1, oak'),
@@ -313,7 +313,7 @@ describe('SolidScript kinds stress: blocks', () => {
 
   it('is not fooled by brackets, case, deletes, Inputs written by Set or stray lines', () => {
     const lines = [
-      line('input', { name: 'Steps', type: 'count' }),
+      line('input', { name: 'Steps', type: 'Count' }),
       set('[Henry]', '1'),
       set('HENRY', '[henry]'),
       set('Steps', 'oak'),
@@ -382,8 +382,8 @@ describe('SolidScript kinds stress: If conditions narrow', () => {
 
   it('drops a branch no run can take: Inputs keep their declared kind, and constants', () => {
     const lines = [
-      line('input', { name: 'Mode', type: 'number' }),
-      line('input', { name: 'Fancy', type: 'switch' }),
+      line('input', { name: 'Mode', type: 'Number' }),
+      line('input', { name: 'Fancy', type: 'Switch' }),
       line('if', { condition: '[Mode] == "Wide"' }),
       set('Z', '1'),
       END,

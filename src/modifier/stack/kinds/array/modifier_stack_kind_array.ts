@@ -13,7 +13,10 @@ import { modifierStackUnitCopy } from '@/modifier/stack/evaluate/modifier_stack_
 import type { ModifierStackUvPolicy } from '@/modifier/stack/evaluate/modifier_stack_copy.js';
 import { MODIFIER_STACK_ARRAY_CAP_FIELDS, modifierStackArrayCapsPlace } from './modifier_stack_array_caps.js';
 import { MODIFIER_STACK_ARRAY_RANDOM_FIELDS, modifierStackRandomTransform } from './modifier_stack_array_random.js';
-import { modifierStackReshapeTransform } from '@/modifier/stack/evaluate/modifier_stack_reshape.js';
+import {
+  modifierStackReshapeTransform,
+  modifierStackReshapeUv,
+} from '@/modifier/stack/evaluate/modifier_stack_reshape.js';
 
 /** Largest copy count, including the original, of one duplicate modifier. */
 export const MODIFIER_STACK_ARRAY_MAX_COUNT = 256;
@@ -64,10 +67,10 @@ export const MODIFIER_STACK_ARRAY_BOUNDS_FIELD: ModifierStackField = {
   key: 'bounds',
   label: 'Size From',
   type: 'choice',
-  default: 'whole',
+  default: 'Whole Input',
   choices: modifierStackChoices([
-    ['whole', 'Whole input'],
-    ['piece', 'Each piece'],
+    ['Whole Input', 'Whole Input'],
+    ['Each Piece', 'Each Piece'],
   ]),
   hint: 'Whole input spaces copies by the size of everything entering this modifier. Each piece uses every brush group on its own.',
 };
@@ -78,10 +81,10 @@ const MODIFIER_STACK_ARRAY_SHARED_FIELDS: readonly ModifierStackField[] = [
     key: 'space',
     label: 'Axes',
     type: 'choice',
-    default: 'volume',
+    default: 'Volume',
     choices: modifierStackChoices([
-      ['volume', 'Volume'],
-      ['world', 'World'],
+      ['Volume', 'Volume'],
+      ['World', 'World'],
     ]),
     hint: 'Follow the volume rotation or the world axes.',
   },
@@ -90,10 +93,10 @@ const MODIFIER_STACK_ARRAY_SHARED_FIELDS: readonly ModifierStackField[] = [
     label: 'Textures',
     hint: "Move with copy keeps each copy's textures attached to it; World aligned re-projects textures in world space so they run seamlessly across copies.",
     type: 'choice',
-    default: 'copied',
+    default: 'Move With Copy',
     choices: modifierStackChoices([
-      ['copied', 'Move with copy'],
-      ['world', 'World aligned'],
+      ['Move With Copy', 'Move With Copy'],
+      ['World Aligned', 'World Aligned'],
     ]),
   },
   {
@@ -206,7 +209,7 @@ export abstract class ModifierStackKindArray extends ModifierStackKind {
    */
   apply(units: readonly ModifierStackUnit[], context: ModifierStackContext): ModifierStackUnit[] {
     const plan = this.planOf(units, context);
-    const piece = plan.parameters['bounds'] === 'piece';
+    const piece = plan.parameters['bounds'] === 'Each Piece';
     const whole = piece ? null : this.placementOf(plan, units, 0);
     const output: ModifierStackUnit[] = [];
     units.forEach((unit, index) => {
@@ -237,7 +240,7 @@ export abstract class ModifierStackKindArray extends ModifierStackKind {
   ): ModifierStackUnit {
     if (!this.randomizesFirst(plan.parameters)) return unit;
     const model = this.modelTransformOf(plan.frame, this.randomOf(0, placement), plan.solidRoot);
-    const uv = String(plan.parameters['uv']);
+    const uv = modifierStackReshapeUv(plan.parameters['uv']);
     const brushes = unit.brushes.map((brush) => modifierStackReshapeTransform(brush, model, uv));
     return { ...unit, brushes, reshaped: unit.authored || unit.reshaped };
   }
@@ -324,7 +327,7 @@ export abstract class ModifierStackKindArray extends ModifierStackKind {
    */
   protected copyPolicy(parameters: Record<string, unknown>, steps: number): ModifierStackUvPolicy {
     return {
-      uv: String(parameters['uv']),
+      uv: modifierStackReshapeUv(parameters['uv']),
       readable: parameters['readable'] !== false,
       shiftU: Number(parameters['uvShiftU'] ?? 0) * steps,
       shiftV: Number(parameters['uvShiftV'] ?? 0) * steps,

@@ -202,4 +202,13 @@ describe('SolidScript parts as calls', () => {
     expect(result.error).toBeNull();
     expect(result.messages).toEqual(['post']);
   });
+
+  it('reads Positions through a vertex list, and hints when the singular is used', () => {
+    const cube = { command: 'cube', values: { into: 'Brush' } };
+    const counted = run(cube, echo('[Brush.Vertices.Positions.Count]'));
+    expect(counted.error).toBeNull();
+    expect(counted.messages).toEqual(['8']);
+    const wrong = run(cube, echo('[Brush.Vertices.Position]'));
+    expect(wrong.error?.message ?? '').toMatch(/Did you mean Positions\? Vertices is a list/);
+  });
 });

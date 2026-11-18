@@ -113,7 +113,7 @@ describe('CommandObjectVisibilityToggle', () => {
  * @returns Fixture and reference bounds.
  */
 function arrayed() {
-  const fixture = stackFixture([{ kind: 'linear', parameters: { mode: 'fixed', count: 3, offsetX: 2 } }]);
+  const fixture = stackFixture([{ kind: 'linear', parameters: { mode: 'Fixed Step', count: 3, offsetX: 2 } }]);
   const plain = stackResultBounds(fixture.model).clone();
   fixture.refresh();
   const withVolume = stackResultBounds(fixture.model).clone();
@@ -174,7 +174,9 @@ describe('modifier volume visibility', () => {
   });
 
   it('re-evaluates the array when its cap object is hidden or shown', () => {
-    const fixture = stackFixture([{ kind: 'linear', parameters: { mode: 'fixed', count: 3, offsetX: 2, endCap: '' } }]);
+    const fixture = stackFixture([
+      { kind: 'linear', parameters: { mode: 'Fixed Step', count: 3, offsetX: 2, endCap: '' } },
+    ]);
     const cap = fixture.model.addBoxBrush(1, SolidOperation.Additive);
     cap.mesh?.position.set(0, 3, 0);
     const stack = ModifierVolume.read(fixture.volume);

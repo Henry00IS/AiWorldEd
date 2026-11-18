@@ -11,7 +11,7 @@ const flight = { steps: 4, rise: 0.25, run: 0.5, length: 2 };
 
 describe('sloped slab stairs', () => {
   it('is the default under-steps fill', () => {
-    expect(modifierStackKindFind('stairs')?.normalizeParameters({})['fill']).toBe('slab');
+    expect(modifierStackKindFind('stairs')?.normalizeParameters({})['fill']).toBe('Sloped Slab');
   });
 
   it('keeps the first step on the floor and lifts later undersides along the pitch', () => {
@@ -35,8 +35,8 @@ describe('sloped slab stairs', () => {
   });
 
   it('builds convex steps for every climb direction', () => {
-    for (const direction of ['+x', '-x', '+z', '-z']) {
-      const fixture = stackFixture([{ kind: 'stairs', parameters: { sizing: 'count', count: 5, direction } }], 4);
+    for (const direction of ['Right', 'Left', 'Front', 'Back']) {
+      const fixture = stackFixture([{ kind: 'stairs', parameters: { sizing: 'Step Count', count: 5, direction } }], 4);
       const steps = fixture.compile().instances.slice(1);
       expect(steps).toHaveLength(5);
       steps.forEach(expectStackConvex);

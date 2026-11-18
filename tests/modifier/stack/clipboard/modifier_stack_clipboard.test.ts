@@ -15,7 +15,7 @@ describe('modifier stack clipboard', () => {
   it('copies modifiers without generators and appends them with fresh ids', () => {
     const source = modifierStackSettingsNormalize({
       role: 'generator',
-      modifiers: stackFixtureEntries(['column', { kind: 'mirror', parameters: { axis: 'z' } }, 'bevel']),
+      modifiers: stackFixtureEntries(['column', { kind: 'mirror', parameters: { axis: 'Z' } }, 'bevel']),
     });
     const copied = modifierStackClipboardCopy(source);
     expect(copied.modifiers.map((entry) => entry.kind)).toEqual(['mirror', 'bevel']);
@@ -25,7 +25,7 @@ describe('modifier stack clipboard', () => {
     expect(stack.modifiers.map((entry) => entry.kind)).toEqual(['mirror', 'mirror', 'bevel']);
     expect(new Set(stack.modifiers.map((entry) => entry.id)).size).toBe(3);
     expect(stack.modifiers[1]?.name).toBe('Mirror 2');
-    expect(stack.modifiers[1]?.parameters['axis']).toBe('z');
+    expect(stack.modifiers[1]?.parameters['axis']).toBe('Z');
   });
 
   it('leaves out generators, unknown kinds and entries past the limit', () => {

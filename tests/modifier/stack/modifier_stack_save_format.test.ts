@@ -23,7 +23,7 @@ function loadVolume(json: unknown): THREE.Object3D {
 describe('modifier stack save format', () => {
   it('round-trips the whole stack as format 4', () => {
     const fixture = stackFixture([
-      { kind: 'stairs', parameters: { sizing: 'count', count: 5 } },
+      { kind: 'stairs', parameters: { sizing: 'Step Count', count: 5 } },
       'bevel',
       { kind: 'mirror', enabled: false },
     ]);

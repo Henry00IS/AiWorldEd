@@ -13,7 +13,10 @@ import {
   modifierStackUnitsBounds,
   modifierStackVolumeBox,
 } from '@/modifier/stack/evaluate/modifier_stack_frame.js';
-import { modifierStackReshapeTransform } from '@/modifier/stack/evaluate/modifier_stack_reshape.js';
+import {
+  modifierStackReshapeTransform,
+  modifierStackReshapeUv,
+} from '@/modifier/stack/evaluate/modifier_stack_reshape.js';
 import { modifierStackAxis } from '@/modifier/stack/kinds/array/modifier_stack_array_math.js';
 
 /** Persisted kind id of the shear modifier. */
@@ -27,9 +30,9 @@ export const MODIFIER_STACK_SHEAR_SAME_AXIS = 'Shear axis and Along must differ;
 
 /** X, Y and Z axis choices. */
 const MODIFIER_STACK_SHEAR_AXES = modifierStackChoices([
-  ['x', 'X'],
-  ['y', 'Y'],
-  ['z', 'Z'],
+  ['X', 'X'],
+  ['Y', 'Y'],
+  ['Z', 'Z'],
 ]);
 
 /** Fields of the shear modifier. */
@@ -38,7 +41,7 @@ const MODIFIER_STACK_SHEAR_FIELDS: readonly ModifierStackField[] = [
     key: 'axis',
     label: 'Shear Axis',
     type: 'choice',
-    default: 'x',
+    default: 'X',
     choices: MODIFIER_STACK_SHEAR_AXES,
     hint: 'Direction the brushes slide.',
   },
@@ -46,7 +49,7 @@ const MODIFIER_STACK_SHEAR_FIELDS: readonly ModifierStackField[] = [
     key: 'along',
     label: 'Along',
     type: 'choice',
-    default: 'y',
+    default: 'Y',
     choices: MODIFIER_STACK_SHEAR_AXES,
     hint: 'The slide grows with the distance from the pivot along this axis.',
   },
@@ -55,10 +58,10 @@ const MODIFIER_STACK_SHEAR_FIELDS: readonly ModifierStackField[] = [
     label: 'Amount',
     hint: 'Angle slants the input by a tilt in degrees; Factor slides it by a ratio of distance per metre.',
     type: 'choice',
-    default: 'angle',
+    default: 'Angle',
     choices: modifierStackChoices([
-      ['angle', 'Angle'],
-      ['factor', 'Factor'],
+      ['Angle', 'Angle'],
+      ['Factor', 'Factor'],
     ]),
   },
   {
@@ -69,7 +72,7 @@ const MODIFIER_STACK_SHEAR_FIELDS: readonly ModifierStackField[] = [
     min: -MODIFIER_STACK_SHEAR_MAX_ANGLE,
     max: MODIFIER_STACK_SHEAR_MAX_ANGLE,
     step: 1,
-    visible: modifierStackWhen('mode', 'angle'),
+    visible: modifierStackWhen('mode', 'Angle'),
     hint: 'Lean of lines that ran along the Along axis.',
   },
   {
@@ -80,18 +83,18 @@ const MODIFIER_STACK_SHEAR_FIELDS: readonly ModifierStackField[] = [
     min: -10,
     max: 10,
     step: 0.05,
-    visible: modifierStackWhen('mode', 'factor'),
+    visible: modifierStackWhen('mode', 'Factor'),
     hint: 'Metres of slide per metre along the Along axis.',
   },
   {
     key: 'pivot',
     label: 'Pivot',
     type: 'choice',
-    default: 'whole',
+    default: 'Centre Of Whole Input',
     choices: modifierStackChoices([
-      ['whole', 'Centre of whole input'],
-      ['piece', 'Centre of each piece'],
-      ['volume', 'Volume centre'],
+      ['Centre Of Whole Input', 'Centre Of Whole Input'],
+      ['Centre Of Each Piece', 'Centre Of Each Piece'],
+      ['Volume Centre', 'Volume Centre'],
     ]),
     hint: 'Where the slide is zero.',
   },
@@ -99,10 +102,10 @@ const MODIFIER_STACK_SHEAR_FIELDS: readonly ModifierStackField[] = [
     key: 'space',
     label: 'Axes',
     type: 'choice',
-    default: 'volume',
+    default: 'Volume',
     choices: modifierStackChoices([
-      ['volume', 'Volume'],
-      ['world', 'World'],
+      ['Volume', 'Volume'],
+      ['World', 'World'],
     ]),
     hint: 'Follow the volume rotation or the world axes.',
   },
@@ -111,10 +114,10 @@ const MODIFIER_STACK_SHEAR_FIELDS: readonly ModifierStackField[] = [
     label: 'Textures',
     hint: 'Move with shape keeps textures attached to the slanted faces; World aligned re-projects them in world space.',
     type: 'choice',
-    default: 'copied',
+    default: 'Move With Shape',
     choices: modifierStackChoices([
-      ['copied', 'Move with shape'],
-      ['world', 'World aligned'],
+      ['Move With Shape', 'Move With Shape'],
+      ['World Aligned', 'World Aligned'],
     ]),
   },
 ];
@@ -149,7 +152,7 @@ export class ModifierStackKindShear extends ModifierStackKind {
    */
   override summary(parameters: Record<string, unknown>): string {
     const amount =
-      parameters['mode'] === 'factor' ? `×${String(parameters['factor'])}` : `${String(parameters['angle'])}°`;
+      parameters['mode'] === 'Factor' ? `×${String(parameters['factor'])}` : `${String(parameters['angle'])}°`;
     return `${String(parameters['axis']).toUpperCase()} by ${String(parameters['along']).toUpperCase()} · ${amount}`;
   }
 
@@ -169,10 +172,10 @@ export class ModifierStackKindShear extends ModifierStackKind {
     const frame = modifierStackFrame(context.volume, parameters['space']);
     const whole = this.pivotOf(units, frame, context);
     return units.map((unit) => {
-      const pivot = parameters['pivot'] === 'piece' ? this.pivotOf([unit], frame, context) : whole;
+      const pivot = parameters['pivot'] === 'Centre Of Each Piece' ? this.pivotOf([unit], frame, context) : whole;
       const model = modifierStackModelTransform(this.worldShear(parameters, frame, pivot), context.solidRoot);
       const brushes = unit.brushes.map((brush) =>
-        modifierStackReshapeTransform(brush, model, String(parameters['uv'])),
+        modifierStackReshapeTransform(brush, model, modifierStackReshapeUv(parameters['uv'])),
       );
       return { ...unit, brushes, reshaped: unit.authored || unit.reshaped };
     });
@@ -192,7 +195,7 @@ export class ModifierStackKindShear extends ModifierStackKind {
     context: ModifierStackContext,
   ): THREE.Vector3 {
     const box =
-      context.step.parameters['pivot'] === 'volume'
+      context.step.parameters['pivot'] === 'Volume Centre'
         ? modifierStackVolumeBox(context.volume)
         : modifierStackUnitsBounds(units, frame);
     return box.isEmpty() ? new THREE.Vector3() : box.getCenter(new THREE.Vector3());
@@ -224,7 +227,7 @@ export class ModifierStackKindShear extends ModifierStackKind {
  * @returns Factor; an angle becomes its tangent.
  */
 export function modifierStackShearFactor(parameters: Record<string, unknown>): number {
-  if (parameters['mode'] === 'factor') return modifierStackNumber(parameters['factor'], 0.5, -10, 10);
+  if (parameters['mode'] === 'Factor') return modifierStackNumber(parameters['factor'], 0.5, -10, 10);
   const limit = MODIFIER_STACK_SHEAR_MAX_ANGLE;
   return Math.tan((modifierStackNumber(parameters['angle'], 20, -limit, limit) * Math.PI) / 180);
 }

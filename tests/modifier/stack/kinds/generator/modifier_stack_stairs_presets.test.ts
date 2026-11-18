@@ -76,8 +76,8 @@ describe('stairs presets', () => {
   it('keeps the climb, the step sizing and the textures', () => {
     const kind = stairs();
     const custom = kind.normalizeParameters({
-      direction: '-x',
-      sizing: 'count',
+      direction: 'Left',
+      sizing: 'Step Count',
       count: 9,
       texture: 'riser',
       capTextures: true,
@@ -95,7 +95,11 @@ describe('stairs presets', () => {
     const kind = stairs();
     const preset = kind.presets.find((entry) => entry.id === id);
     if (!preset) throw new Error('Missing preset');
-    const parameters = modifierStackPresetApply(kind, kind.normalizeParameters({ sizing: 'count', count: 8 }), preset);
+    const parameters = modifierStackPresetApply(
+      kind,
+      kind.normalizeParameters({ sizing: 'Step Count', count: 8 }),
+      preset,
+    );
     const pieces = stackFixture([{ kind: 'stairs', parameters }], 4)
       .compile()
       .instances.slice(1);

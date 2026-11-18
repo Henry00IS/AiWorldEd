@@ -46,9 +46,9 @@ describe('modifier stack compile', () => {
   it('runs Stairs, then Bevel on every step, then Mirror on the bevelled steps', () => {
     const fixture = stackFixture(
       [
-        { kind: 'stairs', parameters: { sizing: 'count', count: 4 } },
+        { kind: 'stairs', parameters: { sizing: 'Step Count', count: 4 } },
         'bevel',
-        { kind: 'mirror', parameters: { axis: 'z' } },
+        { kind: 'mirror', parameters: { axis: 'Z' } },
       ],
       2,
     );
@@ -64,8 +64,8 @@ describe('modifier stack compile', () => {
   });
 
   it('gives different results for array then bevel and bevel then array', () => {
-    const arrayFirst = stackFixture([{ kind: 'linear', parameters: { mode: 'fixed', offsetX: 1 } }, 'bevel'], 3);
-    const bevelFirst = stackFixture(['bevel', { kind: 'linear', parameters: { mode: 'fixed', offsetX: 1 } }], 3);
+    const arrayFirst = stackFixture([{ kind: 'linear', parameters: { mode: 'Fixed Step', offsetX: 1 } }, 'bevel'], 3);
+    const bevelFirst = stackFixture(['bevel', { kind: 'linear', parameters: { mode: 'Fixed Step', offsetX: 1 } }], 3);
     const a = arrayFirst.compile().instances;
     const b = bevelFirst.compile().instances;
     expect(a).toHaveLength(3);
@@ -76,7 +76,7 @@ describe('modifier stack compile', () => {
 
   it('passes input through muted modifiers and evaluates the stack in its new order', () => {
     const fixture = stackFixture([
-      { kind: 'linear', parameters: { mode: 'fixed', offsetX: 2 }, enabled: false },
+      { kind: 'linear', parameters: { mode: 'Fixed Step', offsetX: 2 }, enabled: false },
       'mirror',
     ]);
     expect(fixture.compile().instances).toHaveLength(2);
@@ -125,7 +125,7 @@ describe('modifier stack compile', () => {
   });
 
   it('emits generated pieces once, into the solid the volume belongs to', () => {
-    const fixture = stackFixture([{ kind: 'stairs', parameters: { sizing: 'count', count: 3 } }]);
+    const fixture = stackFixture([{ kind: 'stairs', parameters: { sizing: 'Step Count', count: 3 } }]);
     const other = new SolidModel('Other');
     fixture.world.add(other.root);
     other.addBoxBrush(1);
@@ -136,7 +136,7 @@ describe('modifier stack compile', () => {
   });
 
   it('compiles derived brushes into the visible result and drops them when the volume is hidden', () => {
-    const fixture = stackFixture([{ kind: 'linear', parameters: { mode: 'fixed', offsetX: 2 } }]);
+    const fixture = stackFixture([{ kind: 'linear', parameters: { mode: 'Fixed Step', offsetX: 2 } }]);
     fixture.refresh();
     expect(stackResultBounds(fixture.model).max.x).toBeCloseTo(4.5);
     fixture.volume.visible = false;

@@ -153,9 +153,9 @@ describe('modifier stack inspector', () => {
     expect(offset?.style.display).toBe('none');
     const mode = root.querySelector<HTMLSelectElement>('select[aria-label="Spacing"]');
     if (!mode) throw new Error('No spacing select');
-    mode.value = 'fixed';
+    mode.value = 'Fixed Step';
     mode.dispatchEvent(new Event('change'));
-    expect(ModifierVolume.read(fixture.volume).modifiers[0]?.parameters['mode']).toBe('fixed');
+    expect(ModifierVolume.read(fixture.volume).modifiers[0]?.parameters['mode']).toBe('Fixed Step');
     expect(root.querySelector<HTMLElement>('[aria-label="Step X"]')?.closest('div')?.style.display).toBe('');
     const distance = root.querySelector<HTMLInputElement>('[aria-label="Bevel distance"]');
     if (!distance) throw new Error('No distance');
@@ -204,7 +204,7 @@ describe('modifier stack inspector', () => {
   });
 
   it('keeps the header to the name and shows the summary only while folded', () => {
-    const fixture = stackFixture([{ kind: 'stairs', parameters: { sizing: 'count', count: 5 } }]);
+    const fixture = stackFixture([{ kind: 'stairs', parameters: { sizing: 'Step Count', count: 5 } }]);
     const { section, root } = inspector();
     section.updateFromObjects([fixture.volume]);
     const summary = [...root.querySelectorAll<HTMLElement>('div')].find((node) => node.textContent === '5 steps');

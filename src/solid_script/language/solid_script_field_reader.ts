@@ -94,7 +94,7 @@ export class SolidScriptFieldReader implements SolidScriptFieldContext {
   }
 
   /**
-   * Reads one part of a vector variable such as pos.x.
+   * Reads one part of a vector variable such as Pos.X.
    *
    * @param base Vector variable name.
    * @param index Position of the part.

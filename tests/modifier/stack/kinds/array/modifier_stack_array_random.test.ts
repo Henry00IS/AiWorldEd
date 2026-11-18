@@ -12,7 +12,7 @@ import { expectStackConvex, stackFixture } from '../../modifier_stack_fixture.js
 import { arrayTestCentre } from './modifier_stack_array_test_helpers.js';
 
 /** Linear array of five unit cubes two metres apart with randomize on. */
-const LINEAR = { kind: 'linear', parameters: { mode: 'fixed', count: 5, offsetX: 2, randomize: true } };
+const LINEAR = { kind: 'linear', parameters: { mode: 'Fixed Step', count: 5, offsetX: 2, randomize: true } };
 
 /**
  * Compiles a linear array with extra parameters.
@@ -170,7 +170,7 @@ describe('array randomize', () => {
 
   it('changes nothing for old saves and shows its fields only when on', () => {
     const linear = modifierStackKindFind('linear');
-    const old = linear?.normalizeParameters({ mode: 'fixed', count: 3 }) ?? {};
+    const old = linear?.normalizeParameters({ mode: 'Fixed Step', count: 3 }) ?? {};
     expect(old).toMatchObject({ randomize: false, randomSeed: 0, randomExcludeFirst: true, randomExcludeLast: false });
     const plain = shapes(stackFixture([{ kind: 'linear', parameters: { count: 3 } }]).compile().instances);
     const off = shapes(

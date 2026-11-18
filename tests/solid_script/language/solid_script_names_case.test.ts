@@ -37,7 +37,7 @@ describe('names ignore case', () => {
 
   it('give an Input the value stored under another spelling of its name', () => {
     const lines = solidScriptDocumentCreate([
-      { command: 'input', values: { name: 'TopSize', type: 'number', default: '1' } },
+      { command: 'input', values: { name: 'TopSize', type: 'Number', default: '1' } },
       echo('[TopSize]'),
       { command: 'cube' },
     ]);
@@ -46,7 +46,7 @@ describe('names ignore case', () => {
 
   it('match inputs, counters, Function names, local. and persistent. whatever their case', () => {
     const result = run(
-      { command: 'input', values: { name: 'Steps', type: 'count', default: '2' } },
+      { command: 'input', values: { name: 'Steps', type: 'Count', default: '2' } },
       { command: 'function', values: { name: 'Twice', parameters: 'Value' } },
       { command: 'return', values: { value: '[=[LOCAL.value] * 2]' } },
       { command: 'end' },

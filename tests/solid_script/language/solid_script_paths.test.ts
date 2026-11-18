@@ -173,12 +173,13 @@ describe('SolidScript paths', () => {
   it('welds mesh corners closer than a distance into one', () => {
     const cubes = (distance: string) =>
       run(
-        { command: 'merge_by_distance', values: { distance } },
+        { command: 'mesh_brushes' },
         { command: 'cube', values: { size: '1, 1, 1' } },
         { command: 'translate', values: { v: '1.0005, 0, 0' } },
         { command: 'cube', values: { size: '1, 1, 1' } },
         END,
         END,
+        { command: 'merge_by_distance', values: { distance } },
       );
     const [merged] = solidScriptShapeMeshes(cubes('0.001').shapes);
     expect(merged?.points).toHaveLength(12);

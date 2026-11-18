@@ -160,7 +160,7 @@ const PORT_CASES: Record<string, PortCase[]> = {
   sphere: [
     { size: [2, 2, 2], parameters: {} },
     { size: [3, 2, 1.5], parameters: { sides: 10, rings: 5 } },
-    { size: [2, 2, 1], parameters: { coverage: 'dome', rings: 4, sides: 12 } },
+    { size: [2, 2, 1], parameters: { coverage: 'Dome', rings: 4, sides: 12 } },
   ],
   capsule: [
     { size: [1, 1, 3], parameters: {} },
@@ -174,9 +174,9 @@ const PORT_CASES: Record<string, PortCase[]> = {
   ],
   prism: [
     { size: [2, 2, 2], parameters: {} },
-    { size: [3, 1, 2], parameters: { sides: 6, axis: 'x' } },
-    { size: [1, 2, 4], parameters: { sides: 5, axis: 'y' } },
-    { size: [2, 3, 1], parameters: { sides: 4, axis: 'z' } },
+    { size: [3, 1, 2], parameters: { sides: 6, axis: 'X' } },
+    { size: [1, 2, 4], parameters: { sides: 5, axis: 'Upright' } },
+    { size: [2, 3, 1], parameters: { sides: 4, axis: 'Z' } },
   ],
   hollowBox: [
     { size: [4, 3, 2], parameters: {} },
@@ -185,10 +185,13 @@ const PORT_CASES: Record<string, PortCase[]> = {
   ],
   arch: [
     { size: [4, 1, 3], parameters: {} },
-    { size: [4, 1, 3], parameters: { style: 'wall', shape: 'fit', segments: 8, thickness: 0.5 } },
-    { size: [1, 5, 2], parameters: { style: 'tunnel', span: 'z', segments: 6 } },
-    { size: [3, 2, 1], parameters: { sweep: 90, start: 'left', segments: 5, thickness: 0.3, span: 'z' } },
-    { size: [3, 2, 4], parameters: { sweep: 120, start: 'right', shape: 'fit' } },
+    {
+      size: [4, 1, 3],
+      parameters: { style: 'Wall With Opening', shape: 'Stretch To Top', segments: 8, thickness: 0.5 },
+    },
+    { size: [1, 5, 2], parameters: { style: 'Tunnel', span: 'Along Z', segments: 6 } },
+    { size: [3, 2, 1], parameters: { sweep: 90, start: 'Left', segments: 5, thickness: 0.3, span: 'Along Z' } },
+    { size: [3, 2, 4], parameters: { sweep: 120, start: 'Right', shape: 'Stretch To Top' } },
   ],
   pipe: [
     { size: [4, 4, 2], parameters: {} },
@@ -202,18 +205,18 @@ const PORT_CASES: Record<string, PortCase[]> = {
   ],
   curvedStairs: [
     { size: [4, 4, 3], parameters: {} },
-    { size: [4, 3, 5], parameters: { steps: 20, sweep: 720, innerRadius: 0, direction: 'cw', stepDetail: 1 } },
+    { size: [4, 3, 5], parameters: { steps: 20, sweep: 720, innerRadius: 0, direction: 'Clockwise', stepDetail: 1 } },
     { size: [3, 3, 2], parameters: { steps: 6, sweep: 90, fillToFloor: false, stepThickness: 0.1, stepDetail: 3 } },
   ],
   stairs: [
     { size: [2, 4, 2], parameters: {} },
     {
       size: [4, 2, 2],
-      parameters: { direction: '-x', sizing: 'count', count: 6, landing: 1, nosing: 0.05, noseEdge: 0.01 },
+      parameters: { direction: 'Left', sizing: 'Step Count', count: 6, landing: 1, nosing: 0.05, noseEdge: 0.01 },
     },
-    { size: [3, 3, 1.5], parameters: { direction: '+x', fill: 'solid', rise: 0.25 } },
-    { size: [2, 3, 2], parameters: { direction: '-z', fill: 'floating', thickness: 0.05, nosing: 0.04 } },
-    { size: [2, 5, 3], parameters: { sizing: 'count', count: 10, waist: 0.3, landing: 1.5 } },
+    { size: [3, 3, 1.5], parameters: { direction: 'Right', fill: 'Solid To Floor', rise: 0.25 } },
+    { size: [2, 3, 2], parameters: { direction: 'Back', fill: 'Floating Treads', thickness: 0.05, nosing: 0.04 } },
+    { size: [2, 5, 3], parameters: { sizing: 'Step Count', count: 10, waist: 0.3, landing: 1.5 } },
   ],
 };
 

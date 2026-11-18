@@ -70,18 +70,18 @@ export function solidScriptVariableView(name: string, value: SolidScriptValue): 
   return { name, value: solidScriptValueText(value), type: solidScriptValueType(value), items };
 }
 
-/** One part of a vector variable, such as pos.x. */
+/** One part of a vector variable, such as Pos.X. */
 interface SolidScriptVectorPart {
   /** Vector variable. */
   name: string;
-  /** Part letter. */
-  axis: 'x' | 'y' | 'z';
+  /** Official axis member, such as X. */
+  axis: 'X' | 'Y' | 'Z';
   /** Position in the vector. */
   index: number;
 }
 
 /**
- * Reads a name such as pos.x as a part of the vector pos.
+ * Reads a name such as Pos.X as a part of the vector Pos.
  *
  * @param name Variable name.
  * @returns Part, or null for other names.
@@ -144,16 +144,19 @@ export const SOLID_SCRIPT_NAMES_PLAIN = new Set<string>();
 const SOLID_SCRIPT_VECTOR_PARTS = new Map<string, SolidScriptVectorPart | null>();
 
 /**
- * Reads a name such as pos.x without the cache.
+ * Reads a name such as Pos.X without the cache.
  *
  * @param name Variable name.
  * @returns Part, or null for other names.
  */
 function solidScriptVectorComponentParse(name: string): SolidScriptVectorPart | null {
   const match = /^(.+)\.([xyzXYZ])$/.exec(name);
-  if (!match) return null;
-  const axis = match[2]!.toLowerCase() as 'x' | 'y' | 'z';
-  return { name: match[1]!, axis, index: 'xyz'.indexOf(axis) };
+  const letter = match?.[2];
+  const root = match?.[1];
+  if (!letter || !root) return null;
+  const axis = letter.toUpperCase();
+  if (axis !== 'X' && axis !== 'Y' && axis !== 'Z') return null;
+  return { name: root, axis, index: 'XYZ'.indexOf(axis) };
 }
 
 /**
@@ -418,7 +421,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
   }
 
   /**
-   * Finds where a variable name lives: [local.x] in the innermost Function's
+   * Finds where a variable name lives: [Local.X] in the innermost Function's
    * own variables, any other name in the scopes of the running line.
    *
    * @param name Name as written.
@@ -501,7 +504,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
 
   /**
    * Reads any variable name as written in brackets, such as width, local.n,
-   * pos.x, points(2) or Box.Width; throws when there is none.
+   * Pos.X, points(2) or Box.Width; throws when there is none.
    *
    * @param name Name as written.
    * @param scope Scope of the running line.
@@ -655,7 +658,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
 
   /**
    * Reads a built-in value such as Time.Year, or a part of one such as
-   * Box.Size.x.
+   * Box.Size.X.
    *
    * @param name Name as written.
    * @returns Value, or undefined when the name is not a built-in value.

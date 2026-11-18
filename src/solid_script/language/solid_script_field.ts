@@ -46,7 +46,7 @@ export interface SolidScriptFieldContext {
    */
   variableLocal(bare: string, name: string): SolidScriptValue;
   /**
-   * Returns one part of a vector variable such as pos.x, as variable() does.
+   * Returns one part of a vector variable such as Pos.X, as variable() does.
    *
    * @param base Vector variable name.
    * @param index Position of the part: 0 for x, 1 for y, 2 for z.
@@ -93,7 +93,7 @@ const SOLID_SCRIPT_FIELD_NAME_PLAIN = /^[A-Za-z_]\w*$/;
 /** A Function's own variable, such as local.n. */
 const SOLID_SCRIPT_FIELD_NAME_LOCAL = /^local\.([A-Za-z_]\w*)$/;
 
-/** A part of a vector variable, such as pos.x. */
+/** A part of a vector variable, such as Pos.X. */
 const SOLID_SCRIPT_FIELD_NAME_COMPONENT = /^([A-Za-z_]\w*)\.([xyzXYZ])$/;
 
 /** Text before the item number of a list item, such as "points(". */

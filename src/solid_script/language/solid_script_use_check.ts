@@ -11,7 +11,7 @@ import { solidScriptFieldMistakeOf } from './solid_script_field_mistakes.js';
 
 /**
  * A Box value written in a field or formula, such as [$Box.Width] or
- * box.size.x.
+ * Box.Size.X.
  */
 const SOLID_SCRIPT_USE_CHECK_BOX = /\bBox\.(Width|Depth|Height|Size)\b/i;
 

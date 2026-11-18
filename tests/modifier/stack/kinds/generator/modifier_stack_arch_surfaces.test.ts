@@ -81,7 +81,7 @@ function expectSeamless(list: readonly ArchCorner[], bend: number, pick: (corner
  * @returns True for front and back faces.
  */
 function isFront(normal: THREE.Vector3, spanAxis: string): boolean {
-  return Math.abs(spanAxis === 'z' ? normal.x : normal.z) > 0.999;
+  return Math.abs(spanAxis === 'Along Z' ? normal.x : normal.z) > 0.999;
 }
 
 /**
@@ -100,17 +100,17 @@ function onCurve(corner: ArchCorner, radii: readonly number[]): boolean {
 }
 
 describe('arch texture mapping', () => {
-  for (const span of ['x', 'z']) {
+  for (const span of ['Along X', 'Along Z']) {
     it(`runs one seamless mapping across ring pieces (span ${span})`, () => {
-      const list = corners(arch({ style: 'ring', segments: 8, span, thickness: 0.4 }));
+      const list = corners(arch({ style: 'Voussoir Ring', segments: 8, span, thickness: 0.4 }));
       expect(expectSeamless(list, 0.999, (corner) => isFront(corner.normal, span))).toBeGreaterThan(20);
       expect(expectSeamless(list, 0.8, (corner) => !isFront(corner.normal, span))).toBeGreaterThan(20);
     });
   }
 
   it('measures U along the inner curve and keeps one texture repeat per metre', () => {
-    const pieces = arch({ style: 'ring', segments: 12, thickness: 0.4, shape: 'round' });
-    const inner = corners(pieces).filter((corner) => !isFront(corner.normal, 'x') && onCurve(corner, [1.6]));
+    const pieces = arch({ style: 'Voussoir Ring', segments: 12, thickness: 0.4, shape: 'Round' });
+    const inner = corners(pieces).filter((corner) => !isFront(corner.normal, 'Along X') && onCurve(corner, [1.6]));
     const us = inner.map((corner) => corner.uv.u);
     expect(Math.min(...us)).toBeCloseTo(0, 5);
     const radius = 2 - 0.4;
@@ -120,25 +120,25 @@ describe('arch texture mapping', () => {
 
   it('lines up wall and tunnel pieces too, from any start and sweep', () => {
     for (const parameters of [
-      { style: 'wall', segments: 6, shape: 'round' },
-      { style: 'tunnel', segments: 6, shape: 'round' },
-      { style: 'ring', segments: 5, sweep: 90, start: 'left', shape: 'round' },
+      { style: 'Wall With Opening', segments: 6, shape: 'Round' },
+      { style: 'Tunnel', segments: 6, shape: 'Round' },
+      { style: 'Voussoir Ring', segments: 5, sweep: 90, start: 'Left', shape: 'Round' },
     ]) {
       const list = corners(arch(parameters));
-      const radii = parameters.style === 'tunnel' ? [2] : [1.75, 2];
-      expect(expectSeamless(list, 0.999, (corner) => isFront(corner.normal, 'x'))).toBeGreaterThan(4);
+      const radii = parameters.style === 'Tunnel' ? [2] : [1.75, 2];
+      expect(expectSeamless(list, 0.999, (corner) => isFront(corner.normal, 'Along X'))).toBeGreaterThan(4);
       expect(
         expectSeamless(
           list,
           0.7,
-          (corner) => !isFront(corner.normal, 'x') && Math.abs(corner.normal.x) < 0.999 && onCurve(corner, radii),
+          (corner) => !isFront(corner.normal, 'Along X') && Math.abs(corner.normal.x) < 0.999 && onCurve(corner, radii),
         ),
       ).toBeGreaterThan(4);
     }
   });
 
   it('never mirrors the texture compared with the standard face mapping', () => {
-    for (const instance of arch({ style: 'ring', segments: 6 })) {
+    for (const instance of arch({ style: 'Voussoir Ring', segments: 6 })) {
       instance.brush.faces.forEach((_face, index) => {
         const normal = instance.brush.planes[index]?.normal ?? new THREE.Vector3();
         const uv = instance.getFaceSurface(index).uv;

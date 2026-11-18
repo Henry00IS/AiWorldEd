@@ -27,7 +27,7 @@ function spanX(instance: SolidBrushInstance | undefined): [number, number] {
  * @returns Fixture and compiled instances.
  */
 function bisected(parameters: Record<string, unknown>) {
-  const fixture = stackFixture([{ kind: 'mirror', parameters: { axis: 'x', bisect: true, ...parameters } }]);
+  const fixture = stackFixture([{ kind: 'mirror', parameters: { axis: 'X', bisect: true, ...parameters } }]);
   return { fixture, instances: fixture.compile().instances };
 }
 
@@ -61,8 +61,8 @@ describe('mirror bisect', () => {
 
   it('cuts copies made earlier in the stack', () => {
     const fixture = stackFixture([
-      { kind: 'linear', parameters: { mode: 'fixed', count: 2, offsetX: 0.25 } },
-      { kind: 'mirror', parameters: { axis: 'x', bisect: true } },
+      { kind: 'linear', parameters: { mode: 'Fixed Step', count: 2, offsetX: 0.25 } },
+      { kind: 'mirror', parameters: { axis: 'X', bisect: true } },
     ]);
     const spans = fixture.compile().instances.map(spanX);
     expect(spans).toEqual([
@@ -79,7 +79,7 @@ describe('mirror bisect', () => {
     expect(stackResultBounds(fixture.model).max.x).toBeCloseTo(0.5);
     expect(stackResultBounds(fixture.model).min.x).toBeCloseTo(0);
     const mirror = modifierStackKindFind('mirror');
-    expect(mirror?.normalizeParameters({ axis: 'z' })).toMatchObject({ bisect: false, flip: false });
+    expect(mirror?.normalizeParameters({ axis: 'Z' })).toMatchObject({ bisect: false, flip: false });
     expect(mirror?.passesAuthoredInput({ bisect: false })).toBe(true);
     expect(mirror?.passesAuthoredInput({ bisect: true })).toBe(false);
   });
@@ -102,8 +102,8 @@ describe('mirror bisect', () => {
 
   it('keeps the inside of the volume when the plane is a side', () => {
     for (const [plane, copy] of [
-      ['max', [7.5, 8.5]],
-      ['min', [-8.5, -7.5]],
+      ['Positive Side', [7.5, 8.5]],
+      ['Negative Side', [-8.5, -7.5]],
     ] as const) {
       const { instances } = bisected({ plane });
       expect(instances.map(spanX)).toEqual([
@@ -114,7 +114,7 @@ describe('mirror bisect', () => {
   });
 
   it('warns instead of silently emptying the volume when nothing is kept', () => {
-    const { fixture, instances } = bisected({ plane: 'max', flip: true });
+    const { fixture, instances } = bisected({ plane: 'Positive Side', flip: true });
     expect(instances.map((instance) => instance.constructor.name)).toEqual(['ModifierStackHiddenBrush']);
     expect(modifierStackStatusRead(fixture.volume)?.steps[0]?.error).toBe(MODIFIER_STACK_MIRROR_BISECT_EMPTY);
     const kept = bisected({ planeOffset: 0.25 });
@@ -122,7 +122,7 @@ describe('mirror bisect', () => {
   });
 
   it('cuts at the plane of a moved, rotated volume in a moved model', () => {
-    const fixture = stackFixture([{ kind: 'mirror', parameters: { axis: 'x', bisect: true } }]);
+    const fixture = stackFixture([{ kind: 'mirror', parameters: { axis: 'X', bisect: true } }]);
     fixture.model.root.position.set(5, 0, 0);
     fixture.volume.position.set(5.25, 0, 0);
     fixture.volume.rotation.y = Math.PI;
@@ -137,14 +137,14 @@ describe('mirror bisect', () => {
     const half = 4 * Math.SQRT2;
     for (const [plane, expected] of [
       [
-        'center',
+        'Volume Centre',
         [
           [0, 0.75],
           [-0.75, 0],
         ],
       ],
       [
-        'max',
+        'Positive Side',
         [
           [-0.25, 0.75],
           [2 * half - 0.75, 2 * half + 0.25],
@@ -152,7 +152,7 @@ describe('mirror bisect', () => {
       ],
     ] as const) {
       const fixture = stackFixture([
-        { kind: 'mirror', parameters: { axis: 'x', bisect: true, space: 'world', plane } },
+        { kind: 'mirror', parameters: { axis: 'X', bisect: true, space: 'World', plane } },
       ]);
       fixture.source.mesh?.position.set(0.25, 0, 0);
       fixture.volume.rotation.y = Math.PI / 4;

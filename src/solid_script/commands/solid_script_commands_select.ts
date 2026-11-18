@@ -142,7 +142,7 @@ function solidScriptSelectCommand(kind: SolidScriptSelectKind): SolidScriptComma
     label: kind.label,
     category: 'Faces',
     description: `Pick ${kind.many} of brushes or faces`,
-    manual: `Picks ${kind.many} and puts them in [$Selected.${kind.item === 'Edge' ? 'Edges' : 'Vertices'}], where lines with an empty Of find them. Of says where to pick from: brushes, faces or edges; empty uses [$Selected.Faces], or [$Selected.Brushes] when no faces are picked. Into also writes them to a variable, a ${kind.item} list. Where tests each one as [${kind.item}], such as [=[${kind.item}.${kind.item === 'Edge' ? 'Length' : 'Position.y'}] > 1]. How adds to or removes from the ${kind.many} picked before. Example: ${kind.example}`,
+    manual: `Picks ${kind.many} and puts them in [$Selected.${kind.item === 'Edge' ? 'Edges' : 'Vertices'}], where lines with an empty Of find them. Of says where to pick from: brushes, faces or edges; empty uses [$Selected.Faces], or [$Selected.Brushes] when no faces are picked. Into also writes them to a variable, a ${kind.item} list. Where tests each one as [${kind.item}], such as [=[${kind.item}.${kind.item === 'Edge' ? 'Length' : 'Position.Y'}] > 1]. How adds to or removes from the ${kind.many} picked before. Example: ${kind.example}`,
     stops: [
       'No brushes to pick from.',
       'A Which that is not one of the choices.',
@@ -217,7 +217,7 @@ export const SOLID_SCRIPT_COMMANDS_SELECT: readonly SolidScriptCommand[] = [
     id: 'select_vertices',
     label: 'Select Vertices',
     many: 'corners',
-    example: 'Cube, then Select Vertices Where [=[Vertex.Position.y] > 0] Into Up, and Print [Up.Count] shows 4.',
+    example: 'Cube, then Select Vertices Where [=[Vertex.Position.Y] > 0] Into Up, and Print [Up.Count] shows 4.',
     item: 'Vertex',
     selected: 'vertices',
     from: ['brush', 'face', 'edge'],

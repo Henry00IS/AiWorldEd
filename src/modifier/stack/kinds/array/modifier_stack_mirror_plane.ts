@@ -16,10 +16,10 @@ import {
  * @returns Box in the placement frame.
  */
 export function modifierStackMirrorBox(volume: Object3D, space: unknown): Box3 {
-  if (space !== 'world') return modifierStackVolumeBox(volume);
+  if (space !== 'World') return modifierStackVolumeBox(volume);
   const local = modifierStackVolumeLocalBox(volume);
   if (local.isEmpty()) return new Box3();
-  const toFrame = modifierStackFrame(volume, 'world').invert().multiply(volume.matrixWorld);
+  const toFrame = modifierStackFrame(volume, 'World').invert().multiply(volume.matrixWorld);
   return local.applyMatrix4(toFrame);
 }
 
@@ -35,8 +35,8 @@ export function modifierStackMirrorDistance(axis: Vector3, parameters: Record<st
   const offset = Number(parameters['planeOffset']);
   const plane = parameters['plane'];
   if (box.isEmpty()) return offset;
-  if (plane === 'min') return offset + box.min.dot(axis);
-  if (plane === 'max') return offset + box.max.dot(axis);
+  if (plane === 'Negative Side') return offset + box.min.dot(axis);
+  if (plane === 'Positive Side') return offset + box.max.dot(axis);
   return offset + box.getCenter(new Vector3()).dot(axis);
 }
 
@@ -49,6 +49,6 @@ export function modifierStackMirrorDistance(axis: Vector3, parameters: Record<st
  * @returns 1 for the positive side, -1 for the negative side.
  */
 export function modifierStackMirrorKeptSign(parameters: Record<string, unknown>): 1 | -1 {
-  const inside = parameters['plane'] === 'max' ? -1 : 1;
+  const inside = parameters['plane'] === 'Positive Side' ? -1 : 1;
   return parameters['flip'] === true ? (-inside as 1 | -1) : inside;
 }

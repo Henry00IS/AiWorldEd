@@ -29,7 +29,7 @@ function blastHoleBricks(depth: number) {
   modifierGeneratorOperationCommand(node, SolidOperation.Subtractive)?.execute();
   const settings = ModifierVolume.read(node);
   const [hole, ...rest] = settings.modifiers;
-  const bricks = { style: 'bricks', seed: 9, brickLength: 0.4, brickHeight: 0.2, jut: 0.5, fillBack: true };
+  const bricks = { style: 'Bricks', seed: 9, brickLength: 0.4, brickHeight: 0.2, jut: 0.5, fillBack: true };
   const shatter = modifierStackEntryCreate('physicsShatter', settings.modifiers);
   shatter.parameters = { ...shatter.parameters, material: 'brick', brickLength: 0.4, brickHeight: 0.2, mortarGap: 0 };
   ModifierVolume.write(node, {

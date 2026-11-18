@@ -9,6 +9,7 @@ import { solidScriptArithmeticBinary } from './solid_script_arithmetic.js';
 import type { SolidScriptExpressionEvaluator } from './solid_script_expression_evaluator.js';
 import { SOLID_SCRIPT_FUNCTIONS_BUILTIN } from './solid_script_functions_builtin.js';
 import { solidScriptFunctionKey, solidScriptFunctionSpelling, solidScriptNameKey } from './solid_script_name_key.js';
+import { SOLID_SCRIPT_VECTOR_AXES } from './solid_script_members.js';
 import { solidScriptSystemBareHint } from './solid_script_system_names.js';
 import type { SolidScriptScope } from './solid_script_scope.js';
 import { solidScriptValueShow, solidScriptValueTruthy, type SolidScriptValue } from './solid_script_value.js';
@@ -40,8 +41,10 @@ export function solidScriptSlotNode(index: number, frame: SolidScriptSlotFrame):
   return node;
 }
 
-/** Vector member names and their indices. */
-const SOLID_SCRIPT_MEMBERS: Readonly<Record<string, number>> = { x: 0, y: 1, z: 2 };
+/** Official Vector axis members by name key, in X, Y, Z order. */
+const SOLID_SCRIPT_MEMBERS: Readonly<Record<string, number>> = Object.fromEntries(
+  SOLID_SCRIPT_VECTOR_AXES.map((axis, index) => [solidScriptNameKey(axis), index]),
+);
 
 /**
  * Closures by parsed formula; parsed formulas are kept with their fields, so
@@ -277,7 +280,7 @@ function solidScriptCompileBinary(
 
 /**
  * Compiles a member read: a built-in value such as $Time.Year when the first
- * name is not a variable, otherwise .x, .y or .z of a vector.
+ * name is not a variable, otherwise .X, .Y or .Z of a vector.
  *
  * @param expression Member node.
  * @returns Closure.

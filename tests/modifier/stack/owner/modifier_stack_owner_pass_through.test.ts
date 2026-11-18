@@ -25,7 +25,7 @@ function arrayedWindowsVolume(operation: SolidOperation): number {
   const world = new THREE.Group();
   world.add(model.root);
   modifierStackOwnerDecode(groups[0]!, {
-    modifiers: stackFixtureEntries([{ kind: 'linear', parameters: { mode: 'fixed', offsetX: 3, count: 3 } }]),
+    modifiers: stackFixtureEntries([{ kind: 'linear', parameters: { mode: 'Fixed Step', offsetX: 3, count: 3 } }]),
   });
   world.updateMatrixWorld(true);
   model.markDirty();

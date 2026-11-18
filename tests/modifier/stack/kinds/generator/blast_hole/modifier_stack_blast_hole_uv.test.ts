@@ -54,7 +54,7 @@ function henryWall(patch: Record<string, unknown> = {}): SolidBrushInstance[] {
   const settings = ModifierVolume.read(node);
   const [hole] = settings.modifiers;
   if (!hole) throw new Error('no Blast Hole step');
-  hole.parameters = { ...hole.parameters, style: 'jagged', seed: 1, ...patch };
+  hole.parameters = { ...hole.parameters, style: 'Jagged', seed: 1, ...patch };
   ModifierVolume.write(node, settings);
   world.updateMatrixWorld(true);
   return modifierStackCompile(model.getBrushes(), model.root).instances.filter((b) => b.id.startsWith(`${node.uuid}#`));
@@ -257,7 +257,7 @@ describe('Blast Hole cut face UVs', () => {
   });
 
   it('runs bricks along their length with V across the wall', () => {
-    for (const face of cutFaces(henryWall({ style: 'bricks' }))) {
+    for (const face of cutFaces(henryWall({ style: 'Bricks' }))) {
       const [along, across] = density(face);
       expect([along, across].map((value) => +value.toFixed(9))).toEqual([1, 1]);
       expect(Math.abs(face.uv.v.z)).toBeCloseTo(1, 9);

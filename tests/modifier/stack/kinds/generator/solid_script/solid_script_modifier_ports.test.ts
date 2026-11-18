@@ -98,21 +98,21 @@ const MODIFIER_CASES: Record<string, ModifierCase[]> = {
   shear: [
     { parameters: {}, inputs: {} },
     {
-      parameters: { axis: 'z', along: 'x', mode: 'factor', factor: 0.7, uv: 'world' },
-      inputs: { axis: 'z', along: 'x', mode: 'factor', factor: '0.7', uv: 'world' },
+      parameters: { axis: 'Z', along: 'X', mode: 'Factor', factor: 0.7, uv: 'World Aligned' },
+      inputs: { axis: 'Z', along: 'X', mode: 'Factor', factor: '0.7', uv: 'World Aligned' },
     },
-    { parameters: { axis: 'y', along: 'z', angle: -35 }, inputs: { axis: 'y', along: 'z', angle: '-35' } },
+    { parameters: { axis: 'Y', along: 'Z', angle: -35 }, inputs: { axis: 'Y', along: 'Z', angle: '-35' } },
   ],
   linear: [
     { parameters: {}, inputs: {} },
     {
-      parameters: { count: 4, mode: 'fixed', offsetX: 0, offsetY: 1.5, offsetZ: 2 },
-      inputs: { count: '4', mode: 'fixed', offset: '0, 1.5, 2' },
+      parameters: { count: 4, mode: 'Fixed Step', offsetX: 0, offsetY: 1.5, offsetZ: 2 },
+      inputs: { count: '4', mode: 'Fixed Step', offset: '0, 1.5, 2' },
     },
     {
       parameters: {
         count: 3,
-        mode: 'both',
+        mode: 'Size × Plus Step',
         offsetX: 0.5,
         offsetY: 0,
         offsetZ: 0,
@@ -120,38 +120,41 @@ const MODIFIER_CASES: Record<string, ModifierCase[]> = {
         relativeY: 1,
         relativeZ: 1,
       },
-      inputs: { count: '3', mode: 'both', offset: '0.5, 0, 0', relative: '0, 1, 1' },
+      inputs: { count: '3', mode: 'Size × Plus Step', offset: '0.5, 0, 0', relative: '0, 1, 1' },
     },
     {
-      parameters: { count: 5, mode: 'fit', endpointX: 0, endpointY: 0, endpointZ: -6, uv: 'world' },
-      inputs: { count: '5', mode: 'fit', endpoint: '0, 0, -6', uv: 'world' },
+      parameters: { count: 5, mode: 'Fit Distance', endpointX: 0, endpointY: 0, endpointZ: -6, uv: 'World Aligned' },
+      inputs: { count: '5', mode: 'Fit Distance', endpoint: '0, 0, -6', uv: 'World Aligned' },
     },
   ],
   radial: [
     { parameters: {}, inputs: {} },
     {
-      parameters: { count: 5, mode: 'arc', sweep: 120, axis: 'z', rise: 0.5, centreSide: '+x', radius: 3 },
-      inputs: { count: '5', mode: 'arc', sweep: '120', axis: 'z', rise: '0.5', centreside: '+x', radius: '3' },
+      parameters: { count: 5, mode: 'Arc', sweep: 120, axis: 'Z', rise: 0.5, centreSide: 'Right', radius: 3 },
+      inputs: { count: '5', mode: 'Arc', sweep: '120', axis: 'Z', rise: '0.5', centreside: 'Right', radius: '3' },
     },
     {
-      parameters: { count: 3, mode: 'step', step: 40, rotateCopies: false, uv: 'world' },
-      inputs: { count: '3', mode: 'step', step: '40', rotatecopies: 'false', uv: 'world' },
+      parameters: { count: 3, mode: 'Angle Step', step: 40, rotateCopies: false, uv: 'World Aligned' },
+      inputs: { count: '3', mode: 'Angle Step', step: '40', rotatecopies: 'false', uv: 'World Aligned' },
     },
     {
       parameters: {
         count: 6,
-        origin: 'centre',
+        origin: 'Around Pivot',
         start: 30,
         radiusOffset: 1,
         pivotX: 0.5,
         pivotY: 0,
         pivotZ: 1,
-        axis: 'x',
+        axis: 'X',
       },
-      inputs: { count: '6', origin: 'centre', start: '30', radiusoffset: '1', pivot: '0.5, 0, 1', axis: 'x' },
+      inputs: { count: '6', origin: 'Around Pivot', start: '30', radiusoffset: '1', pivot: '0.5, 0, 1', axis: 'X' },
     },
-    { parameters: { count: 4, centreSide: '+y', axis: 'y' }, inputs: { count: '4', centreside: '+y', axis: 'y' } },
-    { parameters: { count: 1, origin: 'centre', start: 45 }, inputs: { count: '1', origin: 'centre', start: '45' } },
+    { parameters: { count: 4, centreSide: 'Up', axis: 'Y' }, inputs: { count: '4', centreside: 'Up', axis: 'Y' } },
+    {
+      parameters: { count: 1, origin: 'Around Pivot', start: 45 },
+      inputs: { count: '1', origin: 'Around Pivot', start: '45' },
+    },
   ],
   transform: [
     { parameters: {}, inputs: {} },
@@ -174,7 +177,7 @@ const MODIFIER_CASES: Record<string, ModifierCase[]> = {
         pivotX: 1,
         pivotY: 0,
         pivotZ: -2,
-        uv: 'world',
+        uv: 'World Aligned',
       },
       inputs: {
         count: '4',
@@ -182,7 +185,7 @@ const MODIFIER_CASES: Record<string, ModifierCase[]> = {
         relative: '1, 0, 0.5',
         rotation: '0, 45, 0',
         pivot: '1, 0, -2',
-        uv: 'world',
+        uv: 'World Aligned',
       },
     },
     { parameters: { count: 1 }, inputs: { count: '1' } },
@@ -190,11 +193,17 @@ const MODIFIER_CASES: Record<string, ModifierCase[]> = {
   mirror: [
     { parameters: {}, inputs: {} },
     {
-      parameters: { axis: 'y', plane: 'min', planeOffset: -0.5 },
-      inputs: { axis: 'y', plane: 'min', planeoffset: '-0.5' },
+      parameters: { axis: 'Y', plane: 'Negative Side', planeOffset: -0.5 },
+      inputs: { axis: 'Y', plane: 'Negative Side', planeoffset: '-0.5' },
     },
-    { parameters: { axis: 'z', plane: 'max', uv: 'world' }, inputs: { axis: 'z', plane: 'max', uv: 'world' } },
-    { parameters: { axis: 'x', plane: 'max', planeOffset: 1 }, inputs: { axis: 'x', plane: 'max', planeoffset: '1' } },
+    {
+      parameters: { axis: 'Z', plane: 'Positive Side', uv: 'World Aligned' },
+      inputs: { axis: 'Z', plane: 'Positive Side', uv: 'World Aligned' },
+    },
+    {
+      parameters: { axis: 'X', plane: 'Positive Side', planeOffset: 1 },
+      inputs: { axis: 'X', plane: 'Positive Side', planeoffset: '1' },
+    },
   ],
 };
 

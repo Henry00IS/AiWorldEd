@@ -42,7 +42,7 @@ describe('SolidScript Set', () => {
     expect(members([CUBE, line('select_faces', { into: 'Picked' })], '[Picked.First.')).toContain(
       'Picked.First.Normal',
     );
-    expect(members([set('Top', '[$Selected.Faces]')], '[Top.')).toContain('Top.Normal');
+    expect(members([set('Top', '[$Selected.Faces]')], '[Top.')).toContain('Top.Normals');
     expect(members([line('for_each', { variable: 'E', list: '[$Selected.Edges]' })], '[E.')).toContain('E.Length');
     expect(members([line('cube', { into: 'Box' })], '[Box.')).toContain('Box.Faces');
     expect(members([line('extrude_face', { top: 'Roof' })], '[Roof.First.')).toContain('Roof.First.Area');

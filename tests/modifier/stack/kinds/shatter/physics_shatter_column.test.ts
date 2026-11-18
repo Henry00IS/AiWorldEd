@@ -19,7 +19,10 @@ import { physicsShatterTestExpectSound, physicsShatterTestWorst } from './fractu
 const COLUMN_STEP: StackFixtureStep = { kind: 'column', parameters: { sides: '8' } };
 
 /** Two copies of whatever comes before, side by side. */
-const COLUMN_ARRAY_STEP: StackFixtureStep = { kind: 'linear', parameters: { mode: 'fixed', offsetX: 3, count: 2 } };
+const COLUMN_ARRAY_STEP: StackFixtureStep = {
+  kind: 'linear',
+  parameters: { mode: 'Fixed Step', offsetX: 3, count: 2 },
+};
 
 /** Glass shatter with a short simulation. */
 const COLUMN_SHATTER_STEP: StackFixtureStep = {

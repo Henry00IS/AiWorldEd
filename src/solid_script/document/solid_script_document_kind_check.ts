@@ -14,7 +14,7 @@ import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_com
 import { solidScriptFieldSplit } from '@/solid_script/language/solid_script_field.js';
 import { solidScriptKindAccepted, solidScriptKindMismatch } from '@/solid_script/language/solid_script_kinds.js';
 import type { SolidScriptWarning } from '@/solid_script/language/solid_script_machine_types.js';
-import { solidScriptMemberNames } from '@/solid_script/language/solid_script_members.js';
+import { solidScriptMemberHint, solidScriptMemberNames } from '@/solid_script/language/solid_script_members.js';
 
 /**
  * Finds, without running the script, the values no run can use, from what each
@@ -111,8 +111,11 @@ function solidScriptKindMemberMissing(path: string, head: SolidScriptFlowHead): 
     if (kinds.length === 0 || kinds.includes(SOLID_SCRIPT_FLOW_UNKNOWN)) return undefined;
     const next = solidScriptFlowMember(kinds, part);
     const member = part.replace(/\s*\(.*\)$/, '');
-    if (next.length === 0)
-      return `[${parts.slice(0, index + 1).join('.')}] holds ${kinds.join(' or ')}, which has no .${member}; ${solidScriptKindMembersTold(kinds)}`;
+    if (next.length === 0) {
+      const hint = kinds.map((kind) => solidScriptMemberHint(kind, member)).find((text) => text !== undefined);
+      const where = `[${parts.slice(0, index + 1).join('.')}] holds ${kinds.join(' or ')}, which has no .${member}`;
+      return hint ? `${where}. ${hint}` : `${where}; ${solidScriptKindMembersTold(kinds)}`;
+    }
     kinds = next;
   }
   return undefined;

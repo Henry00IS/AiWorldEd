@@ -500,7 +500,7 @@ function solidScriptSuggestionPathElement(type: string | null): boolean {
 /**
  * Lists, for a field holding a whole path a Set writes, the members after the
  * last dot that lead to a value a line can set: Data and the members that give
- * brushes, faces, edges or corners, or .x, .y and .z of a vector variable.
+ * brushes, faces, edges or corners, or .X, .Y and .Z of a vector variable.
  * Members a line can only read, such as Center, are left out.
  *
  * @param prefix Typed path.
@@ -523,7 +523,7 @@ function solidScriptSuggestionPaths(prefix: string, scope: SolidScriptSuggestion
 
 /**
  * Tells whether a member leads to a value a line can set: Data, a member that
- * gives brushes, faces, edges or corners, or a part a Set may write, such as .x
+ * gives brushes, faces, edges or corners, or a part a Set may write, such as .X
  * of a vector.
  *
  * @param base Typed value before the dot.

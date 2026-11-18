@@ -1,5 +1,6 @@
 import {
   MODIFIER_STACK_STAIRS_TEXTURE_FIELDS,
+  modifierStackStairsClimb,
   modifierStackStairsTexturesOmitDefaults,
   modifierStackStairsTexturesPick,
 } from './modifier_stack_stairs_textures.js';
@@ -51,12 +52,12 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
       key: 'direction',
       label: 'Ascend',
       type: 'choice',
-      default: '+z',
+      default: 'Front',
       choices: modifierStackChoices([
-        ['+x', '+X'],
-        ['-x', '−X'],
-        ['+z', '+Z'],
-        ['-z', '−Z'],
+        ['Right', 'Right'],
+        ['Left', 'Left'],
+        ['Front', 'Front'],
+        ['Back', 'Back'],
       ]),
       hint: 'Direction the flight climbs.',
     },
@@ -65,10 +66,10 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
       label: 'Steps By',
       hint: 'Target Rise picks the step count that keeps each step close to the target rise; Step Count uses a fixed number of steps.',
       type: 'choice',
-      default: 'rise',
+      default: 'Target Rise',
       choices: modifierStackChoices([
-        ['rise', 'Target Rise'],
-        ['count', 'Step Count'],
+        ['Target Rise', 'Target Rise'],
+        ['Step Count', 'Step Count'],
       ]),
     },
     {
@@ -79,7 +80,7 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
       min: 0.01,
       max: 10,
       step: 0.0625,
-      visible: modifierStackWhen('sizing', 'rise'),
+      visible: modifierStackWhen('sizing', 'Target Rise'),
       hint: 'Step height the flight rounds to, in metres.',
     },
     {
@@ -92,7 +93,7 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
       max: MODIFIER_STACK_STAIRS_MAX_STEPS,
       integer: true,
       step: 1,
-      visible: modifierStackWhen('sizing', 'count'),
+      visible: modifierStackWhen('sizing', 'Step Count'),
     },
     {
       key: 'landing',
@@ -109,11 +110,11 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
       key: 'fill',
       label: 'Underside',
       type: 'choice',
-      default: 'slab',
+      default: 'Sloped Slab',
       choices: modifierStackChoices([
-        ['slab', 'Sloped Slab'],
-        ['solid', 'Solid to Floor'],
-        ['floating', 'Floating Treads'],
+        ['Sloped Slab', 'Sloped Slab'],
+        ['Solid To Floor', 'Solid To Floor'],
+        ['Floating Treads', 'Floating Treads'],
       ]),
       hint: 'Sloped Slab keeps a clean underside that follows the pitch.',
     },
@@ -125,7 +126,7 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
       min: 0.01,
       max: 100,
       step: 0.05,
-      visible: modifierStackWhen('fill', 'slab'),
+      visible: modifierStackWhen('fill', 'Sloped Slab'),
       hint: 'Thickness of the slab under the steps, measured square to the pitch.',
     },
     {
@@ -137,7 +138,7 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
       min: 0.01,
       max: 100,
       step: 0.0625,
-      visible: modifierStackWhen('fill', 'floating'),
+      visible: modifierStackWhen('fill', 'Floating Treads'),
     },
   ];
 
@@ -176,7 +177,7 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
    * @returns Summary text.
    */
   override summary(parameters: Record<string, unknown>): string {
-    return parameters['sizing'] === 'count' ? `${parameters['count']} steps` : `rise ${parameters['rise']} m`;
+    return parameters['sizing'] === 'Step Count' ? `${parameters['count']} steps` : `rise ${parameters['rise']} m`;
   }
 
   /**
@@ -188,7 +189,7 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
    */
   protected buildPieces(parameters: Record<string, unknown>, box: THREE.Box3): SolidBrush[] {
     const flight = this.flightOf(parameters, box);
-    const floating = parameters['fill'] === 'floating';
+    const floating = parameters['fill'] === 'Floating Treads';
     const tread = floating ? modifierStackNumber(parameters['thickness'], flight.rise, 0.01, 100) : flight.rise;
     const nosing = modifierStackStairsNosingOf(parameters, flight, tread);
     const pieces: SolidBrush[] = [];
@@ -209,9 +210,9 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
    */
   private flightOf(parameters: Record<string, unknown>, box: THREE.Box3): ModifierStackStairsFlight {
     const size = box.getSize(new THREE.Vector3());
-    const length = String(parameters['direction']).endsWith('x') ? size.x : size.z;
+    const length = modifierStackStairsClimb(parameters['direction']).axis === 'x' ? size.x : size.z;
     const target = modifierStackNumber(parameters['rise'], 0.125, 0.01, 10);
-    const wanted = parameters['sizing'] === 'count' ? Number(parameters['count']) : Math.round(size.y / target);
+    const wanted = parameters['sizing'] === 'Step Count' ? Number(parameters['count']) : Math.round(size.y / target);
     const steps = Math.max(1, Math.min(MODIFIER_STACK_STAIRS_MAX_STEPS, Math.round(wanted)));
     const landing = Math.min(modifierStackNumber(parameters['landing'], 0, 0, 1000), length * 0.9);
     return { steps, rise: size.y / steps, run: (length - landing) / steps, length };
@@ -234,13 +235,13 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
     parameters: Record<string, unknown>,
     box: THREE.Box3,
   ): SolidBrush {
-    if (parameters['fill'] === 'slab') {
+    if (parameters['fill'] === 'Sloped Slab') {
       const slab = this.slabBrush(index, flight, recess, parameters, box);
       if (slab) return slab;
     }
     const top = box.min.y + (index + 1) * flight.rise;
     const thickness = modifierStackNumber(parameters['thickness'], flight.rise, 0.01, 100);
-    const bottom = parameters['fill'] === 'floating' ? Math.max(box.min.y, top - thickness) : box.min.y;
+    const bottom = parameters['fill'] === 'Floating Treads' ? Math.max(box.min.y, top - thickness) : box.min.y;
     const start = index * flight.run + recess;
     const end = index === flight.steps - 1 ? flight.length : (index + 1) * flight.run + recess;
     const min = box.min.clone().setY(bottom);
@@ -305,11 +306,11 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
     parameters: Record<string, unknown>,
     box: THREE.Box3,
   ): SolidBrush | null {
-    const direction = String(parameters['direction']);
-    const axis = direction.endsWith('x') ? 'x' : 'z';
+    const climb = modifierStackStairsClimb(parameters['direction']);
+    const axis = climb.axis;
     const center = box.getCenter(new THREE.Vector3())[axis];
     const span = (along: number): number =>
-      direction.startsWith('+') ? box.min[axis] + along - center : box.max[axis] - along - center;
+      climb.positive ? box.min[axis] + along - center : box.max[axis] - along - center;
     return modifierStackPrism(
       profile.map((point) => new THREE.Vector2(span(point.x), point.y)),
       axis,
@@ -335,8 +336,9 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
     min: THREE.Vector3,
     max: THREE.Vector3,
   ): void {
-    const axis = direction.endsWith('x') ? 'x' : 'z';
-    if (direction.startsWith('+')) {
+    const climb = modifierStackStairsClimb(direction);
+    const axis = climb.axis;
+    if (climb.positive) {
       min[axis] = box.min[axis] + start;
       max[axis] = box.min[axis] + end;
       return;

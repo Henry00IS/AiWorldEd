@@ -18,14 +18,14 @@ export const MODIFIER_STACK_STAIRS_PRESETS: readonly ModifierStackPreset[] = [
     label: 'Solid with Landing',
     group: 'Basic',
     tooltip: 'Steps filled down to the floor with a 1 m landing on top, for stoops and platforms.',
-    parameters: { fill: 'solid', landing: 1 },
+    parameters: { fill: 'Solid To Floor', landing: 1 },
   },
   {
     id: 'floating',
     label: 'Floating Treads',
     group: 'Basic',
     tooltip: 'Open stairs of separate treads with nothing underneath, for cantilevered or stringer stairs.',
-    parameters: { fill: 'floating', thickness: 0.06 },
+    parameters: { fill: 'Floating Treads', thickness: 0.06 },
   },
   {
     id: 'concrete-nosed',
@@ -46,7 +46,7 @@ export const MODIFIER_STACK_STAIRS_PRESETS: readonly ModifierStackPreset[] = [
     label: 'Stone Steps',
     group: 'Nosing',
     tooltip: 'Solid stone blocks with a thick square overhang and an eased top edge, for terraces and entrances.',
-    parameters: { fill: 'solid', nosing: 0.03, noseHeight: 0.05, noseBevel: 0, noseEdge: 0.01 },
+    parameters: { fill: 'Solid To Floor', nosing: 0.03, noseHeight: 0.05, noseBevel: 0, noseEdge: 0.01 },
   },
   {
     id: 'thin-slab',
@@ -61,6 +61,6 @@ export const MODIFIER_STACK_STAIRS_PRESETS: readonly ModifierStackPreset[] = [
     group: 'Light',
     tooltip:
       'Thin open treads with a small square nose, for loft and service stairs. Fill a tall, short box for the steep pitch.',
-    parameters: { fill: 'floating', thickness: 0.04, nosing: 0.02, noseHeight: 0.04, noseBevel: 0 },
+    parameters: { fill: 'Floating Treads', thickness: 0.04, nosing: 0.02, noseHeight: 0.04, noseBevel: 0 },
   },
 ];

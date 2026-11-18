@@ -28,13 +28,13 @@ export function blastHoleFillBackShown(parameters: Record<string, unknown>): boo
 }
 
 /** Shared shape of the Bricks style rows. */
-const BLAST_HOLE_BRICK_ROW = { group: 'Bricks', visible: modifierStackWhen('style', 'bricks') };
+const BLAST_HOLE_BRICK_ROW = { group: 'Bricks', visible: modifierStackWhen('style', 'Bricks') };
 
 /** Rows only the Jagged style uses. */
-const BLAST_HOLE_JAGGED_ROW = { visible: modifierStackWhen('style', 'jagged') };
+const BLAST_HOLE_JAGGED_ROW = { visible: modifierStackWhen('style', 'Jagged') };
 
 /** Rows of the star-shaped outline the Bricks style knocks bricks out of. */
-const BLAST_HOLE_BRICK_OUTLINE_ROW = { visible: modifierStackWhen('style', 'bricks') };
+const BLAST_HOLE_BRICK_OUTLINE_ROW = { visible: modifierStackWhen('style', 'Bricks') };
 
 /** Blast Hole rows, most used first. */
 export const BLAST_HOLE_FIELDS: readonly ModifierStackField[] = [
@@ -42,10 +42,10 @@ export const BLAST_HOLE_FIELDS: readonly ModifierStackField[] = [
     key: 'style',
     label: 'Style',
     type: 'choice',
-    default: 'jagged',
+    default: 'Jagged',
     choices: [
-      { value: 'jagged', label: 'Jagged', title: 'A ragged hole that fills the box, leaving a broken rim of wall.' },
-      { value: 'bricks', label: 'Bricks', title: 'Knocks out whole bricks inside a star-shaped blast outline.' },
+      { value: 'Jagged', label: 'Jagged', title: 'A ragged hole that fills the box, leaving a broken rim of wall.' },
+      { value: 'Bricks', label: 'Bricks', title: 'Knocks out whole bricks inside a star-shaped blast outline.' },
     ],
     hint: 'Jagged cuts a ragged hole that fills the box; Bricks knocks out whole bricks.',
   },

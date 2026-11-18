@@ -31,7 +31,7 @@ function script(...lines: SolidScriptLine[]) {
 describe('solidScriptProgramRun', () => {
   it('runs one script again with new inputs, and Function locals stay per call', () => {
     const document = solidScriptDocumentCreate([
-      { command: 'input', values: { name: 'n', type: 'number', default: '1' } },
+      { command: 'input', values: { name: 'n', type: 'Number', default: '1' } },
       { command: 'function', values: { name: 'twice', parameters: 'a' } },
       { command: 'variable', values: { name: 'local.b', value: '[=[local.a] * 2]' } },
       { command: 'return', values: { value: '[local.b]' } },

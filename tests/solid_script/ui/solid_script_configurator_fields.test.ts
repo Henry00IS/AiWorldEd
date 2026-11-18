@@ -97,7 +97,7 @@ const CUBE_INTO_BRUSH = { command: 'cube', values: { size: '2, 2, 2', into: 'Bru
 
 /** Lines setting a few variables of the script, an Input and a Function. */
 const SCRIPT_WITH_NAMES: SolidScriptLine[] = [
-  { command: 'input', values: { name: 'Wide', type: 'number', value: '1' } },
+  { command: 'input', values: { name: 'Wide', type: 'Number', value: '1' } },
   { command: 'variable', values: { name: 'Width', value: '3' } },
   { command: 'variable', values: { name: 'Window', value: '2' } },
   CUBE_INTO_BRUSH,
@@ -138,13 +138,13 @@ describe('SolidScript configurator suggestions in fields naming a variable', () 
     expect(edges).not.toContain('Brush.Edges.Count');
   });
 
-  it('offers .x, .y and .z of a vector variable, and no keys under .Data the script does not know', () => {
+  it('offers .X, .Y and .Z of a vector variable, and no keys under .Data the script does not know', () => {
     const lines: SolidScriptLine[] = [
       { command: 'variable', values: { name: 'Pos', value: '1, 2, 3' } },
       CUBE_INTO_BRUSH,
     ];
     const names = namesAt(lines, lines.length);
-    expect(typedSuggestions('variable', 'name', names, 'Pos.').shown).toEqual(['Pos.x', 'Pos.y', 'Pos.z']);
+    expect(typedSuggestions('variable', 'name', names, 'Pos.').shown).toEqual(['Pos.X', 'Pos.Y', 'Pos.Z']);
     document.body.replaceChildren();
     expect(typedSuggestions('variable', 'name', names, 'Brush.Data.').shown).toEqual([]);
   });

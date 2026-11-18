@@ -146,7 +146,7 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
     id: 'steppingStones',
     name: 'Stepping Stones',
     group: 'Basics',
-    summary: 'Stones from one point to another: lerp walks between two vectors and pos.z makes a wave.',
+    summary: 'Stones from one point to another: lerp walks between two vectors and pos.Z makes a wave.',
     port: null,
     lines: SOLID_SCRIPT_EXAMPLE_STEPPING_STONES,
   },

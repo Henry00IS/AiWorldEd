@@ -10,7 +10,7 @@ import { stackFixture } from '../modifier_stack_fixture.js';
  * @returns Fixture, undo stack and inspector root.
  */
 function stairsInspector() {
-  const fixture = stackFixture([{ kind: 'stairs', parameters: { direction: '-x', texture: 'riser' } }]);
+  const fixture = stackFixture([{ kind: 'stairs', parameters: { direction: 'Left', texture: 'riser' } }]);
   const section = new PanelPropertiesModifierStackSection(
     () => document.createElement('section'),
     (title) => Object.assign(document.createElement('header'), { textContent: title }),
@@ -48,10 +48,10 @@ describe('modifier preset row', () => {
     pick(root, 'Preset', 'raked');
     const parameters = () => ModifierVolume.read(fixture.volume).modifiers[0]?.parameters ?? {};
     expect(parameters()['noseBevel']).toBe(1);
-    expect(parameters()['direction']).toBe('-x');
+    expect(parameters()['direction']).toBe('Left');
     expect(parameters()['texture']).toBe('riser');
     expect(root.querySelector<HTMLSelectElement>('select[aria-label="Preset"]')?.value).toBe('raked');
-    pick(root, 'Underside', 'solid');
+    pick(root, 'Underside', 'Solid To Floor');
     expect(root.querySelector<HTMLSelectElement>('select[aria-label="Preset"]')?.value).toBe('');
     expect(stack.undo()).toBe(true);
     expect(stack.undo()).toBe(true);

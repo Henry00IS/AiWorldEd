@@ -137,7 +137,7 @@ export class ModifierStackKindBlastHole extends ModifierStackKindGenerator {
     const size = box.getSize(new THREE.Vector3());
     this.wrap = null;
     if (size.z < BLAST_HOLE_MIN_THICKNESS) return [];
-    if (parameters['style'] === 'bricks') return this.buildBricks(parameters, box, size);
+    if (parameters['style'] === 'Bricks') return this.buildBricks(parameters, box, size);
     const shape = blastHoleRaggedShape(blastHoleRaggedSettingsRead(parameters), size.x / 2, size.y / 2);
     if (!shape) return [];
     this.wrap = new BlastHoleUvWrap(shape.outline);

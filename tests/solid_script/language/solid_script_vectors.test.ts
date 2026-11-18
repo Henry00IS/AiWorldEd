@@ -86,10 +86,10 @@ describe('SolidScript vectors', () => {
   });
 
   it('explains vector mistakes in plain words', () => {
-    expect(echoed(line('variable', { name: 'n', value: '4' }), line('echo', { value: '[n.x]' }))).toMatch(
-      /\[n\] is a Number, not a vector with a \.x/,
+    expect(echoed(line('variable', { name: 'n', value: '4' }), line('echo', { value: '[n.X]' }))).toMatch(
+      /\[n\] is a Number, not a vector with a \.X/,
     );
-    expect(echoed(line('variable', { name: 'ghost.x', value: '1' }))).toMatch(/there is no vector \[ghost\] to change/);
+    expect(echoed(line('variable', { name: 'ghost.X', value: '1' }))).toMatch(/there is no vector \[ghost\] to change/);
     expect(formula('normalize([0, 0, 0])')).toMatch(/cannot turn 0, 0, 0 into a direction/);
   });
 });

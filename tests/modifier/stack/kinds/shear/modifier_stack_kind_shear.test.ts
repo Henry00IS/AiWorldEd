@@ -49,7 +49,7 @@ function expectValid(instance: SolidBrushInstance): void {
 
 describe('shear modifier', () => {
   it('leans an authored brush in place, keeping its id, mesh and convexity', () => {
-    const fixture = stackFixture([{ kind: 'shear', parameters: { mode: 'angle', angle: 45 } }]);
+    const fixture = stackFixture([{ kind: 'shear', parameters: { mode: 'Angle', angle: 45 } }]);
     const result = fixture.compile();
     expect(result.instances).toHaveLength(1);
     const sheared = result.instances[0];
@@ -64,10 +64,10 @@ describe('shear modifier', () => {
   });
 
   it('reads the amount as a factor or as the tangent of an angle', () => {
-    expect(modifierStackShearFactor({ mode: 'factor', factor: 0.25 })).toBeCloseTo(0.25);
-    expect(modifierStackShearFactor({ mode: 'angle', angle: 30 })).toBeCloseTo(Math.tan(Math.PI / 6));
-    expect(modifierStackShearFactor({ mode: 'angle', angle: 89.9 })).toBeCloseTo(Math.tan((85 * Math.PI) / 180));
-    const fixture = stackFixture([{ kind: 'shear', parameters: { mode: 'factor', factor: 2, axis: 'z' } }]);
+    expect(modifierStackShearFactor({ mode: 'Factor', factor: 0.25 })).toBeCloseTo(0.25);
+    expect(modifierStackShearFactor({ mode: 'Angle', angle: 30 })).toBeCloseTo(Math.tan(Math.PI / 6));
+    expect(modifierStackShearFactor({ mode: 'Angle', angle: 89.9 })).toBeCloseTo(Math.tan((85 * Math.PI) / 180));
+    const fixture = stackFixture([{ kind: 'shear', parameters: { mode: 'Factor', factor: 2, axis: 'Z' } }]);
     const sheared = fixture.compile().instances[0];
     if (!sheared) throw new Error('Expected the sheared brush');
     const top = modelVertices(sheared).filter((vertex) => vertex.y > 0.4);
@@ -75,52 +75,52 @@ describe('shear modifier', () => {
   });
 
   it('keeps the pivot fixed and leaves other axes alone', () => {
-    const matrix = modifierStackShearMatrix('x', 'y', 0.5, new THREE.Vector3(3, 2, 1));
+    const matrix = modifierStackShearMatrix('X', 'Y', 0.5, new THREE.Vector3(3, 2, 1));
     expect(new THREE.Vector3(7, 2, 9).applyMatrix4(matrix).toArray()).toEqual([7, 2, 9]);
     expect(new THREE.Vector3(0, 4, 0).applyMatrix4(matrix).toArray()).toEqual([1, 4, 0]);
   });
 
   it('passes the input through and explains why when both axes match', () => {
-    const fixture = stackFixture([{ kind: 'shear', parameters: { axis: 'y', along: 'y' } }]);
+    const fixture = stackFixture([{ kind: 'shear', parameters: { axis: 'Y', along: 'Y' } }]);
     expect(fixture.compile().instances[0]).toBe(fixture.source);
     expect(modifierStackStatusRead(fixture.volume)?.steps[0]?.error).toBe(MODIFIER_STACK_SHEAR_SAME_AXIS);
   });
 
   it('moves textures with the shape, or keeps them world aligned', () => {
     const point = new THREE.Vector3(0.5, 0.5, 0.5);
-    for (const uv of ['copied', 'world']) {
-      const fixture = stackFixture([{ kind: 'shear', parameters: { mode: 'factor', factor: 1, uv } }]);
+    for (const uv of ['Move With Shape', 'World Aligned']) {
+      const fixture = stackFixture([{ kind: 'shear', parameters: { mode: 'Factor', factor: 1, uv } }]);
       const sheared = fixture.compile().instances[0];
       if (!sheared) throw new Error('Expected the sheared brush');
       const face = sheared.brush.planes.findIndex((plane) => plane.normal.z > 0.99);
       const moved = sheared.getFaceSurface(face).uv.project(point.clone().add(new THREE.Vector3(0.5, 0, 0)));
       const before = fixture.source.getFaceSurface(face).uv.project(point);
       const fixed = fixture.source.getFaceSurface(face).uv.project(point.clone().add(new THREE.Vector3(0.5, 0, 0)));
-      expect(moved.u).toBeCloseTo(uv === 'copied' ? before.u : fixed.u);
-      expect(moved.v).toBeCloseTo(uv === 'copied' ? before.v : fixed.v);
+      expect(moved.u).toBeCloseTo(uv === 'Move With Shape' ? before.u : fixed.u);
+      expect(moved.v).toBeCloseTo(uv === 'Move With Shape' ? before.v : fixed.v);
     }
   });
 
   it('shears copies about the whole input or about each piece', () => {
     const steps = (pivot: string) => [
-      { kind: 'linear', parameters: { mode: 'fixed', count: 2, offsetX: 4 } },
-      { kind: 'shear', parameters: { axis: 'y', along: 'x', mode: 'factor', factor: 1, pivot } },
+      { kind: 'linear', parameters: { mode: 'Fixed Step', count: 2, offsetX: 4 } },
+      { kind: 'shear', parameters: { axis: 'Y', along: 'X', mode: 'Factor', factor: 1, pivot } },
     ];
     const centreY = (instance: SolidBrushInstance) => {
       const ys = modelVertices(instance).map((vertex) => vertex.y);
       return (Math.max(...ys) + Math.min(...ys)) / 2;
     };
-    const whole = stackFixture(steps('whole')).compile().instances;
+    const whole = stackFixture(steps('Centre Of Whole Input')).compile().instances;
     expect(whole.map(centreY)).toEqual([expect.closeTo(-2), expect.closeTo(2)]);
-    const piece = stackFixture(steps('piece')).compile().instances;
+    const piece = stackFixture(steps('Centre Of Each Piece')).compile().instances;
     expect(piece.map(centreY)).toEqual([expect.closeTo(0), expect.closeTo(0)]);
     for (const instance of [...whole, ...piece]) expectValid(instance);
   });
 
   it('feeds sheared brushes to later array copies and bevels', () => {
     const fixture = stackFixture([
-      { kind: 'shear', parameters: { mode: 'factor', factor: 1 } },
-      { kind: 'linear', parameters: { mode: 'fixed', count: 2, offsetZ: 3 } },
+      { kind: 'shear', parameters: { mode: 'Factor', factor: 1 } },
+      { kind: 'linear', parameters: { mode: 'Fixed Step', count: 2, offsetZ: 3 } },
       'bevel',
     ]);
     const instances = fixture.compile().instances;
@@ -133,7 +133,7 @@ describe('shear modifier', () => {
   });
 
   it('shears the chamfer of a bevel placed before it', () => {
-    const fixture = stackFixture(['bevel', { kind: 'shear', parameters: { mode: 'factor', factor: 1 } }]);
+    const fixture = stackFixture(['bevel', { kind: 'shear', parameters: { mode: 'Factor', factor: 1 } }]);
     const sheared = fixture.compile().instances[0];
     if (!sheared) throw new Error('Expected the sheared brush');
     expect(sheared.brush.faces.length).toBeGreaterThan(6);
@@ -166,7 +166,7 @@ describe('shear modifier', () => {
   });
 
   it('bakes the lean into the authored brush and restores it on undo', () => {
-    const fixture = stackFixture([{ kind: 'shear', parameters: { mode: 'factor', factor: 1 } }]);
+    const fixture = stackFixture([{ kind: 'shear', parameters: { mode: 'Factor', factor: 1 } }]);
     fixture.refresh();
     const bake = new CommandModifierVolumeBake(fixture.volume);
     bake.execute();
@@ -177,7 +177,7 @@ describe('shear modifier', () => {
   });
 
   it('shows the lean in the compiled solid and drops it when muted', () => {
-    const fixture = stackFixture([{ kind: 'shear', parameters: { mode: 'factor', factor: 1 } }]);
+    const fixture = stackFixture([{ kind: 'shear', parameters: { mode: 'Factor', factor: 1 } }]);
     fixture.refresh();
     expect(stackResultBounds(fixture.model).max.x).toBeCloseTo(1);
     const settings = ModifierVolume.read(fixture.volume);

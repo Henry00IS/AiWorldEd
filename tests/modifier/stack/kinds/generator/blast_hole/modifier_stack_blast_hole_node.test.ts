@@ -192,7 +192,7 @@ describe('blast hole node', () => {
   it('knocks out whole bricks that stay one brick each through Physics Shatter', () => {
     // Physics Shatter runs bricks along the longer of X and Z, so the wall is
     // thinner than a brick is long, as with real brick walls.
-    const bricks = { style: 'bricks', seed: 9, brickLength: 0.4, brickHeight: 0.2, jut: 0.5, fillBack: true };
+    const bricks = { style: 'Bricks', seed: 9, brickLength: 0.4, brickHeight: 0.2, jut: 0.5, fillBack: true };
     const plain = holeFixture(bricks, true, 0.3).pieces();
     const fill = plain.filter((p) => p.operation === SolidOperation.Additive);
     expect(fill.length).toBeGreaterThan(10);
@@ -207,7 +207,7 @@ describe('blast hole node', () => {
   });
 
   it('saves, reloads and undoes its settings', () => {
-    const fixture = holeFixture({ style: 'bricks', seed: 11, bond: 'third', fillBack: true });
+    const fixture = holeFixture({ style: 'Bricks', seed: 11, bond: 'third', fillBack: true });
     const saved = ModifierVolume.read(fixture.node);
     const world = new THREE.Group();
     new SceneDeserializer().deserialize(new SceneSerializer().serialize(fixture.world), world);

@@ -68,7 +68,7 @@ function ownerGroupFixture(steps: readonly StackFixtureStep[]) {
 
 describe('modifier stacks owned by brushes and groups', () => {
   it('copies a brush with its own array stack, without any volume in the scene', () => {
-    const fixture = ownerBrushFixture([{ kind: 'linear', parameters: { mode: 'fixed', offsetX: 2, count: 3 } }]);
+    const fixture = ownerBrushFixture([{ kind: 'linear', parameters: { mode: 'Fixed Step', offsetX: 2, count: 3 } }]);
     const result = fixture.compile();
     expect(result.instances).toHaveLength(3);
     expect(result.instances[1]?.id).toBe(`${fixture.source.id}#${fixture.mesh.uuid}:m1:1`);
@@ -78,7 +78,7 @@ describe('modifier stacks owned by brushes and groups', () => {
   });
 
   it('never captures brushes outside the owner', () => {
-    const fixture = ownerBrushFixture([{ kind: 'linear', parameters: { mode: 'fixed', offsetX: 2, count: 2 } }]);
+    const fixture = ownerBrushFixture([{ kind: 'linear', parameters: { mode: 'Fixed Step', offsetX: 2, count: 2 } }]);
     const neighbour = fixture.model.addBoxBrush(1, SolidOperation.Additive);
     neighbour.mesh?.position.set(0, 0, 0.5);
     expect(fixture.compile().instances).toHaveLength(3);
@@ -86,7 +86,7 @@ describe('modifier stacks owned by brushes and groups', () => {
   });
 
   it('copies a whole CSG group as one operand', () => {
-    const fixture = ownerGroupFixture([{ kind: 'linear', parameters: { mode: 'fixed', offsetZ: 3, count: 2 } }]);
+    const fixture = ownerGroupFixture([{ kind: 'linear', parameters: { mode: 'Fixed Step', offsetZ: 3, count: 2 } }]);
     const result = fixture.compile();
     expect(result.instances).toHaveLength(4);
     expect(modifierStackStatusRead(fixture.group)?.captured).toBe(2);
@@ -103,7 +103,7 @@ describe('modifier stacks owned by brushes and groups', () => {
 
   it('bevels the copies an earlier array made, far outside the brush', () => {
     const fixture = ownerBrushFixture([
-      { kind: 'linear', parameters: { mode: 'fixed', offsetX: 4, count: 3 } },
+      { kind: 'linear', parameters: { mode: 'Fixed Step', offsetX: 4, count: 3 } },
       'bevel',
     ]);
     const result = fixture.compile();
@@ -115,7 +115,7 @@ describe('modifier stacks owned by brushes and groups', () => {
   });
 
   it('mirrors around the owner itself, so moving the brush moves the mirror', () => {
-    const fixture = ownerBrushFixture([{ kind: 'mirror', parameters: { axis: 'x' } }]);
+    const fixture = ownerBrushFixture([{ kind: 'mirror', parameters: { axis: 'X' } }]);
     fixture.mesh.position.set(5, 0, 0);
     const result = fixture.compile();
     expect(result.instances).toHaveLength(2);
@@ -123,7 +123,7 @@ describe('modifier stacks owned by brushes and groups', () => {
   });
 
   it('builds the result through a scene refresh and drops copies when the stack is muted', () => {
-    const fixture = ownerBrushFixture([{ kind: 'linear', parameters: { mode: 'fixed', offsetX: 2, count: 2 } }]);
+    const fixture = ownerBrushFixture([{ kind: 'linear', parameters: { mode: 'Fixed Step', offsetX: 2, count: 2 } }]);
     modifierBevelRefreshScene(fixture.world);
     expect(stackResultBounds(fixture.model).max.x).toBeCloseTo(2.5);
     const before = ModifierVolume.read(fixture.mesh);

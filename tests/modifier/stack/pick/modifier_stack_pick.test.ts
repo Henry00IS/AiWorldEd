@@ -42,14 +42,14 @@ describe('picking modifier output', () => {
   });
 
   it('puts the owning volume first and the source brush next in the click-through stack', () => {
-    const fixture = stackFixture([{ kind: 'linear', parameters: { mode: 'fixed', offsetX: 3, count: 2 } }], 2);
+    const fixture = stackFixture([{ kind: 'linear', parameters: { mode: 'Fixed Step', offsetX: 3, count: 2 } }], 2);
     fixture.refresh();
     const stack = SelectionClickThrough.uniqueMeshesFromHits([derivedHit(fixture)], (mesh) => mesh);
     expect(stack).toEqual([fixture.volume, fixture.source.mesh]);
   });
 
   it('selects only the volume for generated pieces and outlines the modifier that made them', () => {
-    const fixture = stackFixture([{ kind: 'stairs', parameters: { sizing: 'count', count: 3 } }], 2);
+    const fixture = stackFixture([{ kind: 'stairs', parameters: { sizing: 'Step Count', count: 3 } }], 2);
     fixture.refresh();
     expect(modifierStackPickTargets(derivedHit(fixture))).toEqual([fixture.volume]);
     const section = new PanelPropertiesModifierStackSection(

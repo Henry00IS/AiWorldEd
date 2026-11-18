@@ -129,7 +129,7 @@ function expectWatertight(brushes: readonly SolidBrush[], seed: number): void {
  * @param seed Blast Hole seed.
  * @returns Piece brushes.
  */
-function blastHolePieces(style: 'jagged' | 'bricks', seed: number): SolidBrush[] {
+function blastHolePieces(style: 'Jagged' | 'Bricks', seed: number): SolidBrush[] {
   const model = new SolidModel('Watertight blast hole');
   const wall = model.addBoxBrush(1, SolidOperation.Additive, null, false);
   wall.mesh?.scale.set(4, 3, 0.3);
@@ -140,7 +140,7 @@ function blastHolePieces(style: 'jagged' | 'bricks', seed: number): SolidBrush[]
   const settings = ModifierVolume.read(node);
   const [hole, ...rest] = settings.modifiers;
   const shatter = modifierStackEntryCreate('physicsShatter', settings.modifiers);
-  shatter.parameters = { ...shatter.parameters, material: style === 'bricks' ? 'brick' : 'concrete', seed };
+  shatter.parameters = { ...shatter.parameters, material: style === 'Bricks' ? 'brick' : 'concrete', seed };
   const holeParameters = { ...hole!.parameters, style, seed, fillBack: true };
   ModifierVolume.write(node, { ...settings, modifiers: [{ ...hole!, parameters: holeParameters }, ...rest, shatter] });
   model.root.updateMatrixWorld(true);
@@ -162,12 +162,12 @@ describe('physics shatter pieces stay watertight through CSG', () => {
   );
 
   it.each([
-    ['jagged', 3],
-    ['jagged', 7],
-    ['jagged', 11],
-    ['bricks', 3],
-    ['bricks', 7],
-    ['bricks', 11],
+    ['Jagged', 3],
+    ['Jagged', 7],
+    ['Jagged', 11],
+    ['Bricks', 3],
+    ['Bricks', 7],
+    ['Bricks', 11],
   ] as const)('Blast Hole %s seed %s: fill pieces closed, no missing or buried faces', (style, seed) => {
     expectWatertight(blastHolePieces(style, seed), seed);
   });

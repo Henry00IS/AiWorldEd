@@ -43,20 +43,30 @@ function modifierStackArchDistinct(profile: readonly THREE.Vector2[]): THREE.Vec
  * @returns True for a ring sweeping less than a half circle.
  */
 function modifierStackArchPartial(parameters: Record<string, unknown>): boolean {
-  return parameters['style'] === 'ring' && Number(parameters['sweep']) < 180;
+  return parameters['style'] === 'Voussoir Ring' && Number(parameters['sweep']) < 180;
+}
+
+/**
+ * Returns the box axis an arch spans across.
+ *
+ * @param value Span word: Along X or Along Z.
+ * @returns Axis letter for geometry helpers.
+ */
+function modifierStackArchSpanAxis(value: unknown): 'x' | 'z' {
+  return value === 'Along Z' ? 'z' : 'x';
 }
 
 /**
  * Returns the first angle of a sweep: centred on the crown, or rising from the
  * left or right springing on the ground.
  *
- * @param from 'centre', 'left' or 'right'.
+ * @param from Centre, Left or Right.
  * @param sweep Sweep in degrees.
  * @returns Start angle in degrees.
  */
 export function modifierStackArchStartAngle(from: unknown, sweep: number): number {
-  if (from === 'right') return 0;
-  if (from === 'left') return 180 - sweep;
+  if (from === 'Right') return 0;
+  if (from === 'Left') return 180 - sweep;
   return (180 - sweep) / 2;
 }
 
@@ -75,11 +85,11 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
       key: 'style',
       label: 'Style',
       type: 'choice',
-      default: 'ring',
+      default: 'Voussoir Ring',
       choices: modifierStackChoices([
-        ['ring', 'Voussoir ring'],
-        ['wall', 'Wall with opening'],
-        ['tunnel', 'Tunnel'],
+        ['Voussoir Ring', 'Voussoir Ring'],
+        ['Wall With Opening', 'Wall With Opening'],
+        ['Tunnel', 'Tunnel'],
       ]),
       hint: 'Tunnel builds the arched opening filling the volume; set it Subtractive to cut it through what is there.',
     },
@@ -88,20 +98,20 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
       label: 'Span Along',
       hint: 'Box axis the arch spans across; the other horizontal axis is its depth.',
       type: 'choice',
-      default: 'x',
+      default: 'Along X',
       choices: modifierStackChoices([
-        ['x', 'X'],
-        ['z', 'Z'],
+        ['Along X', 'Along X'],
+        ['Along Z', 'Along Z'],
       ]),
     },
     {
       key: 'shape',
       label: 'Shape',
       type: 'choice',
-      default: 'round',
+      default: 'Round',
       choices: modifierStackChoices([
-        ['round', 'Round'],
-        ['fit', 'Stretch to top'],
+        ['Round', 'Round'],
+        ['Stretch To Top', 'Stretch To Top'],
       ]),
       hint:
         'Round keeps a half circle, flattened only when the volume is too low for it. Stretch to top makes an ellipse that reaches the volume top; it only differs when the volume is taller than ' +
@@ -127,17 +137,17 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
       min: 1,
       max: 180,
       step: 15,
-      visible: modifierStackWhen('style', 'ring'),
+      visible: modifierStackWhen('style', 'Voussoir Ring'),
     },
     {
       key: 'start',
       label: 'Start From',
       type: 'choice',
-      default: 'centre',
+      default: 'Centre',
       choices: modifierStackChoices([
-        ['centre', 'Centre'],
-        ['left', 'Left (on the ground)'],
-        ['right', 'Right (on the ground)'],
+        ['Centre', 'Centre'],
+        ['Left', 'Left (on the ground)'],
+        ['Right', 'Right (on the ground)'],
       ]),
       hint: 'Where a sweep under 180° sits: centred on the crown, or rising from the left or right springing.',
       visible: modifierStackArchPartial,
@@ -151,7 +161,7 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
       max: 100,
       step: 0.125,
       hint: 'Ring depth, or pier width for a wall.',
-      visible: modifierStackWhen('style', 'ring', 'wall'),
+      visible: modifierStackWhen('style', 'Voussoir Ring', 'Wall With Opening'),
     },
   ];
   protected override readonly shadingFields = [MODIFIER_STACK_GENERATOR_SMOOTH_FIELD];
@@ -178,11 +188,11 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
     const curve = this.curveOf(parameters, box);
     if (!curve) return [];
     const thickness = modifierStackNumber(parameters['thickness'], 0.25, 0.01, 100);
-    const spanAxis = String(parameters['span']);
+    const spanAxis = modifierStackArchSpanAxis(parameters['span']);
     const pieces =
-      style === 'tunnel'
+      style === 'Tunnel'
         ? this.openingPieces(curve, box, spanAxis)
-        : style === 'wall'
+        : style === 'Wall With Opening'
           ? this.wallPieces(curve, box, spanAxis)
           : this.ringPieces(curve, thickness, box, spanAxis);
     return pieces.filter((piece): piece is SolidBrush => piece !== null);
@@ -199,13 +209,13 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
    */
   private curveOf(parameters: Record<string, unknown>, box: THREE.Box3): ModifierStackArchCurve | null {
     const size = box.getSize(new THREE.Vector3());
-    const half = (parameters['span'] === 'z' ? size.z : size.x) / 2;
-    const ring = parameters['style'] === 'ring';
+    const half = (modifierStackArchSpanAxis(parameters['span']) === 'z' ? size.z : size.x) / 2;
+    const ring = parameters['style'] === 'Voussoir Ring';
     const thickness =
-      parameters['style'] === 'tunnel' ? 0 : modifierStackNumber(parameters['thickness'], 0.25, 0.01, 100);
+      parameters['style'] === 'Tunnel' ? 0 : modifierStackNumber(parameters['thickness'], 0.25, 0.01, 100);
     const radiusSpan = half - thickness;
     const fitRise = size.y - thickness;
-    const radiusRise = parameters['shape'] === 'fit' ? fitRise : Math.min(radiusSpan, fitRise);
+    const radiusRise = parameters['shape'] === 'Stretch To Top' ? fitRise : Math.min(radiusSpan, fitRise);
     if (radiusSpan < MODIFIER_STACK_SHAPE_EPSILON || radiusRise < MODIFIER_STACK_SHAPE_EPSILON) return null;
     const segments = Math.round(
       modifierStackNumber(
@@ -249,8 +259,13 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
     const curve = this.curveOf(parameters, box);
     if (!curve) return null;
     const thickness = modifierStackNumber(parameters['thickness'], 0.25, 0.01, 100);
-    const grows = parameters['style'] === 'ring' ? [0, thickness] : [0];
-    return modifierStackArchSurfaces(piece, { box, spanAxis: String(parameters['span']), curve, grows });
+    const grows = parameters['style'] === 'Voussoir Ring' ? [0, thickness] : [0];
+    return modifierStackArchSurfaces(piece, {
+      box,
+      spanAxis: modifierStackArchSpanAxis(parameters['span']),
+      curve,
+      grows,
+    });
   }
 
   /**

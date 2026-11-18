@@ -48,6 +48,16 @@ export function modifierStackReshapeStandIn(
 }
 
 /**
+ * Maps a Textures choice to the reshape follow mode.
+ *
+ * @param uv Move With Shape, Move With Copy, or World Aligned.
+ * @returns Internal follow mode.
+ */
+export function modifierStackReshapeUv(uv: unknown): 'copied' | 'world' {
+  return uv === 'World Aligned' ? 'world' : 'copied';
+}
+
+/**
  * Applies an affine model-space operator to a brush in its own local space.
  * Affine maps keep convex brushes convex.
  *

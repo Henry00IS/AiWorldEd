@@ -144,7 +144,7 @@ describe('SolidScript list blocks', () => {
 
 describe('SolidScript persistent values', () => {
   const script = solidScriptDocumentCreate([
-    line('input', { name: 'Add', type: 'button' }),
+    line('input', { name: 'Add', type: 'Button' }),
     line('when_button_pressed', { name: 'Add' }),
     line('if', { condition: 'is_undef([persistent.count])' }),
     line('variable', { name: 'persistent.count', value: '0' }),
@@ -182,7 +182,7 @@ describe('SolidScript persistent values', () => {
 
   it('forgets a stored value a handler deletes', () => {
     const forget = solidScriptDocumentCreate([
-      line('input', { name: 'Reset', type: 'button' }),
+      line('input', { name: 'Reset', type: 'Button' }),
       line('when_button_pressed', { name: 'Reset' }),
       line('delete_variable', { name: 'persistent.count' }),
       { command: 'end' },

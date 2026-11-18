@@ -123,7 +123,9 @@ describe('generator nodes', () => {
     const alone = fixture.pieces().length;
     const settings = ModifierVolume.read(fixture.node);
     const array = { ...modifierStackEntryCreate('linear', settings.modifiers), parameters: {} };
-    const [linear] = stackFixtureEntries([{ kind: 'linear', parameters: { mode: 'fixed', offsetX: 2, count: 3 } }]);
+    const [linear] = stackFixtureEntries([
+      { kind: 'linear', parameters: { mode: 'Fixed Step', offsetX: 2, count: 3 } },
+    ]);
     ModifierVolume.write(fixture.node, {
       ...settings,
       modifiers: [...settings.modifiers, { ...array, ...linear!, id: array.id }],
@@ -135,7 +137,7 @@ describe('generator nodes', () => {
     const fixture = nodeFixture('column');
     const alone = fixture.pieces().length;
     const volume = ModifierVolume.create({
-      modifiers: stackFixtureEntries([{ kind: 'linear', parameters: { mode: 'fixed', offsetX: 3, count: 2 } }]),
+      modifiers: stackFixtureEntries([{ kind: 'linear', parameters: { mode: 'Fixed Step', offsetX: 3, count: 2 } }]),
     });
     volume.scale.set(1.5, 4, 1.5);
     volume.position.set(0, 0, 0);

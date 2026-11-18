@@ -11,7 +11,7 @@ import type { ModifierStackKind } from '@/modifier/stack/kinds/modifier_stack_ki
 import type { SolidModel } from '@/solid/model/solid_model.js';
 import { stackFixture, stackResultBounds, type StackFixtureStep } from '../modifier_stack_fixture.js';
 
-const LINEAR: StackFixtureStep = { kind: 'linear', parameters: { mode: 'fixed', offsetX: 2, count: 3 } };
+const LINEAR: StackFixtureStep = { kind: 'linear', parameters: { mode: 'Fixed Step', offsetX: 2, count: 3 } };
 
 /**
  * Returns the compiled result's vertex positions, rounded and sorted, so two
@@ -125,7 +125,10 @@ describe('modifier stack brush validity', () => {
       copies[0]?.forEach((vertex) => vertex.setX(0));
       copies[1]?.[0]?.set(Number.NaN, 0, 0);
     });
-    const fixture = stackFixture([{ kind: 'linear', parameters: { mode: 'fixed', offsetX: 2, count: 4 } }, 'bevel']);
+    const fixture = stackFixture([
+      { kind: 'linear', parameters: { mode: 'Fixed Step', offsetX: 2, count: 4 } },
+      'bevel',
+    ]);
     const instances = fixture.compile().instances;
     expect(instances).toHaveLength(1 + 1);
     for (const instance of instances) expect(modifierStackBrushGeometryValid(instance.brush)).toBe(true);

@@ -20,7 +20,7 @@ import { expectStackConvex, stackFixture } from '../../modifier_stack_fixture.js
 const flight = { steps: 4, rise: 0.2, run: 0.3, length: 1.2 };
 
 /** Nosing used by the build tests. */
-const NOSING = { sizing: 'count', count: 6, nosing: 0.04, noseHeight: 0.03, noseBevel: 0.04 };
+const NOSING = { sizing: 'Step Count', count: 6, nosing: 0.04, noseHeight: 0.03, noseBevel: 0.04 };
 
 /**
  * Compiles a stairs fixture and returns its generated pieces.
@@ -90,8 +90,8 @@ describe('stairs nosing', () => {
   });
 
   it('builds exactly the plain flight while off', () => {
-    for (const fill of ['slab', 'solid', 'floating']) {
-      const plain = pieces({ sizing: 'count', count: 6, fill });
+    for (const fill of ['Sloped Slab', 'Solid To Floor', 'Floating Treads']) {
+      const plain = pieces({ sizing: 'Step Count', count: 6, fill });
       const zero = pieces({ ...NOSING, fill, nosing: 0 });
       expect(zero).toHaveLength(6);
       expect(zero.map((piece) => piece.brush.vertices.map((v) => v.toArray()))).toEqual(
@@ -179,16 +179,19 @@ describe('stairs nosing', () => {
     expect(Math.max(...last.map((point) => point.x))).toBeCloseTo(flight.length);
   });
 
-  it.each(['slab', 'solid', 'floating'])('adds one convex nose per step inside the volume (%s)', (fill) => {
-    for (const direction of ['+x', '-x', '+z', '-z']) {
-      const built = pieces({ ...NOSING, fill, direction, landing: 0.5, thickness: 0.08 });
-      expect(built).toHaveLength(12);
-      built.forEach(expectStackConvex);
-      const bounds = new THREE.Box3(new THREE.Vector3(-1, -1, -1), new THREE.Vector3(1, 1, 1)).expandByScalar(1e-6);
-      for (const piece of built)
-        for (const vertex of piece.brush.vertices) expect(bounds.containsPoint(vertex)).toBe(true);
-    }
-  });
+  it.each(['Sloped Slab', 'Solid To Floor', 'Floating Treads'])(
+    'adds one convex nose per step inside the volume (%s)',
+    (fill) => {
+      for (const direction of ['Right', 'Left', 'Front', 'Back']) {
+        const built = pieces({ ...NOSING, fill, direction, landing: 0.5, thickness: 0.08 });
+        expect(built).toHaveLength(12);
+        built.forEach(expectStackConvex);
+        const bounds = new THREE.Box3(new THREE.Vector3(-1, -1, -1), new THREE.Vector3(1, 1, 1)).expandByScalar(1e-6);
+        for (const piece of built)
+          for (const vertex of piece.brush.vertices) expect(bounds.containsPoint(vertex)).toBe(true);
+      }
+    },
+  );
 
   it('gives the nose top the tread texture and its front and bevel the riser texture', () => {
     const built = pieces({

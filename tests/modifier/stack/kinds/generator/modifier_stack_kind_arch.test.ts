@@ -79,11 +79,11 @@ function boundsOf(pieces: readonly SolidBrushInstance[]): THREE.Box3 {
 
 describe('arch sweep start', () => {
   it('keeps old saves centred and starts a partial sweep on the ground at either side', () => {
-    expect(modifierStackKindFind('arch')?.normalizeParameters({})['start']).toBe('centre');
+    expect(modifierStackKindFind('arch')?.normalizeParameters({})['start']).toBe('Centre');
     const full = boundsOf(arch({ segments: 8 }));
     const centre = boundsOf(arch({ segments: 8, sweep: 90 }));
-    const left = boundsOf(arch({ segments: 8, sweep: 90, start: 'left' }));
-    const right = boundsOf(arch({ segments: 8, sweep: 90, start: 'right' }));
+    const left = boundsOf(arch({ segments: 8, sweep: 90, start: 'Left' }));
+    const right = boundsOf(arch({ segments: 8, sweep: 90, start: 'Right' }));
     expect(centre.min.y).toBeGreaterThan(full.min.y + 0.1);
     expect(left.min.y).toBeCloseTo(full.min.y, 5);
     expect(right.min.y).toBeCloseTo(full.min.y, 5);
@@ -91,21 +91,21 @@ describe('arch sweep start', () => {
     expect(left.max.x).toBeLessThan(full.max.x - 0.5);
     expect(right.max.x).toBeCloseTo(full.max.x, 5);
     expect(right.min.x).toBeGreaterThan(full.min.x + 0.5);
-    expectValid(arch({ segments: 8, sweep: 90, start: 'left' }));
+    expectValid(arch({ segments: 8, sweep: 90, start: 'Left' }));
   });
 
   it('offers the start only for a ring sweeping less than a half circle', () => {
     const field = modifierStackKindFind('arch')?.fields.find((entry) => entry.key === 'start');
-    expect(field?.visible?.({ style: 'ring', sweep: 90 })).toBe(true);
-    expect(field?.visible?.({ style: 'ring', sweep: 180 })).toBe(false);
-    expect(field?.visible?.({ style: 'wall', sweep: 90 })).toBe(false);
+    expect(field?.visible?.({ style: 'Voussoir Ring', sweep: 90 })).toBe(true);
+    expect(field?.visible?.({ style: 'Voussoir Ring', sweep: 180 })).toBe(false);
+    expect(field?.visible?.({ style: 'Wall With Opening', sweep: 90 })).toBe(false);
   });
 });
 
 describe('arch tunnel', () => {
   it('builds the arched opening filling the volume as valid convex strips', () => {
     const ring = boundsOf(arch({ segments: 12 }));
-    const tunnel = arch({ segments: 12, style: 'tunnel' });
+    const tunnel = arch({ segments: 12, style: 'Tunnel' });
     expect(tunnel).toHaveLength(12);
     expectValid(tunnel);
     const box = boundsOf(tunnel);
@@ -115,17 +115,17 @@ describe('arch tunnel', () => {
   });
 
   it('uses the generator operation like any other generator, adding by default', () => {
-    expect(arch({ segments: 6, style: 'tunnel' }).every((piece) => piece.operation === SolidOperation.Additive)).toBe(
+    expect(arch({ segments: 6, style: 'Tunnel' }).every((piece) => piece.operation === SolidOperation.Additive)).toBe(
       true,
     );
-    const cut = arch({ segments: 6, style: 'tunnel', operation: 'subtract' });
+    const cut = arch({ segments: 6, style: 'Tunnel', operation: 'subtract' });
     expect(cut.every((piece) => piece.operation === SolidOperation.Subtractive)).toBe(true);
   });
 
   it('builds valid tunnels stretched to the top or spanning Z', () => {
     for (const parameters of [
-      { style: 'tunnel', shape: 'fit', segments: 8 },
-      { style: 'tunnel', span: 'z', segments: 6 },
+      { style: 'Tunnel', shape: 'Stretch To Top', segments: 8 },
+      { style: 'Tunnel', span: 'Along Z', segments: 6 },
     ]) {
       const pieces = arch(parameters);
       expect(pieces.length).toBeGreaterThan(0);
@@ -135,15 +135,15 @@ describe('arch tunnel', () => {
 
   it('starts as a ring and offers no Output setting', () => {
     const kind = modifierStackKindFind('arch');
-    expect(kind?.normalizeParameters({})['style']).toBe('ring');
+    expect(kind?.normalizeParameters({})['style']).toBe('Voussoir Ring');
     expect(kind?.fields.some((field) => field.key === 'output')).toBe(false);
   });
 
   it('stretches to the top only when the volume is taller than half its span', () => {
-    const tall = boundsOf(arch({ shape: 'fit', segments: 8 }));
-    expect(tall.max.y).toBeGreaterThan(boundsOf(arch({ shape: 'round', segments: 8 })).max.y + 0.5);
-    const low = boundsOf(arch({ shape: 'fit', segments: 8 }, 4, 1.5));
-    const lowRound = boundsOf(arch({ shape: 'round', segments: 8 }, 4, 1.5));
+    const tall = boundsOf(arch({ shape: 'Stretch To Top', segments: 8 }));
+    expect(tall.max.y).toBeGreaterThan(boundsOf(arch({ shape: 'Round', segments: 8 })).max.y + 0.5);
+    const low = boundsOf(arch({ shape: 'Stretch To Top', segments: 8 }, 4, 1.5));
+    const lowRound = boundsOf(arch({ shape: 'Round', segments: 8 }, 4, 1.5));
     expect(low.max.y).toBeCloseTo(lowRound.max.y, 5);
     expect(low.min.y).toBeCloseTo(lowRound.min.y, 5);
   });

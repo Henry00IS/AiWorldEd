@@ -7,7 +7,7 @@ import { stackFixture, stackResultBounds } from '../modifier_stack_fixture.js';
 
 describe('modifier volume bake', () => {
   it('turns array copies into authored brushes, removes the volume and undoes cleanly', () => {
-    const fixture = stackFixture([{ kind: 'linear', parameters: { mode: 'fixed', offsetX: 2 } }]);
+    const fixture = stackFixture([{ kind: 'linear', parameters: { mode: 'Fixed Step', offsetX: 2 } }]);
     fixture.refresh();
     const bake = new CommandModifierVolumeBake(fixture.volume);
     expect(bake.createdCount()).toBe(2);
@@ -35,7 +35,7 @@ describe('modifier volume bake', () => {
   });
 
   it('bakes generated stairs into separate convex brushes', () => {
-    const fixture = stackFixture([{ kind: 'stairs', parameters: { sizing: 'count', count: 3 } }, 'bevel'], 2);
+    const fixture = stackFixture([{ kind: 'stairs', parameters: { sizing: 'Step Count', count: 3 } }, 'bevel'], 2);
     fixture.refresh();
     const bake = new CommandModifierVolumeBake(fixture.volume);
     bake.execute();
@@ -48,7 +48,7 @@ describe('modifier volume bake', () => {
 
 describe('modifier volume bake scene order', () => {
   it('inserts copies right after their source and keeps ids across undo and redo', () => {
-    const fixture = stackFixture([{ kind: 'linear', parameters: { mode: 'fixed', offsetX: 2, count: 3 } }], 2);
+    const fixture = stackFixture([{ kind: 'linear', parameters: { mode: 'Fixed Step', offsetX: 2, count: 3 } }], 2);
     const outside = fixture.model.addBoxBrush(1, SolidOperation.Subtractive);
     outside.mesh?.position.set(20, 0, 0);
     fixture.refresh();
@@ -64,7 +64,7 @@ describe('modifier volume bake scene order', () => {
   });
 
   it('places generated pieces at the volume position in the solid, in compile and in bake', () => {
-    const fixture = stackFixture([{ kind: 'stairs', parameters: { sizing: 'count', count: 3 } }], 2);
+    const fixture = stackFixture([{ kind: 'stairs', parameters: { sizing: 'Step Count', count: 3 } }], 2);
     const later = fixture.model.addBoxBrush(1, SolidOperation.Subtractive);
     later.mesh?.position.set(20, 0, 0);
     fixture.model.root.add(fixture.volume);

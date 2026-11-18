@@ -72,7 +72,7 @@ export function solidScriptGivenText(block: SolidScriptBlock, key: string): stri
 
 /**
  * Reads the kind the word typed in a field stands for, such as Number for an
- * Input of Type count.
+ * Input of Type Count.
  *
  * @param block Line.
  * @param key Field key.

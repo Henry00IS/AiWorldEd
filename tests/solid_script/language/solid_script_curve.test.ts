@@ -21,7 +21,7 @@ const RAMP = curveEncode(
  */
 function echo(inputs: Record<string, string>, ...values: string[]): string[] | string {
   const lines: SolidScriptLine[] = [
-    { command: 'input', values: { name: 'profile', type: 'curve', default: '' } },
+    { command: 'input', values: { name: 'profile', type: 'Curve', default: '' } },
     ...values.map((value) => ({ command: 'echo', values: { value } })),
     { command: 'cube' },
   ];
@@ -32,9 +32,9 @@ function echo(inputs: Record<string, string>, ...values: string[]): string[] | s
 describe('SolidScript curve inputs', () => {
   it('lists a curve input for the inspector', () => {
     const inputs = solidScriptInputsList([
-      { command: 'input', values: { name: 'profile', type: 'curve', label: 'Profile', default: '' } },
+      { command: 'input', values: { name: 'profile', type: 'Curve', label: 'Profile', default: '' } },
     ]);
-    expect(inputs).toMatchObject([{ name: 'profile', type: 'curve', label: 'Profile' }]);
+    expect(inputs).toMatchObject([{ name: 'profile', type: 'Curve', label: 'Profile' }]);
   });
 
   it('reads a curve at a place along it, a number as a flat line, and empty text as one at 1', () => {

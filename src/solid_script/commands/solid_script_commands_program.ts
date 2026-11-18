@@ -83,10 +83,10 @@ const SOLID_SCRIPT_INPUT_COMMAND = new SolidScriptCommand({
   category: 'Inputs',
   description: 'Add a setting to the inspector',
   manual:
-    "Adds a setting to the inspector, like the settings of a built-in generator. Lines read it as a variable, such as [Width], but cannot change it. Until someone changes it, it has the Default value. Type picks the control: number, count (whole numbers), switch (Yes or No), text, choice, button, curve, texture or vector. A number, count or vector can have a Minimum and Maximum; a vector's apply to each of its x, y and z. A number or count with both gets a slider beside its field. A choice lists its Choices. A button runs When Button Pressed. A curve opens the curve editor; read it with curve_at or profile_points, and a number Default is a flat line at that height. A texture picks a library texture by name for a Texture block; an empty Default keeps the generator's texture. A vector shows X, Y and Z fields on one row and gives one value, such as 1, 2, 3 for a Cube of size [Size]. Example: Input Steps, count, Default 8. Then Repeat [I] from 1 to [Steps] builds that many steps.",
+    "Adds a setting to the inspector, like the settings of a built-in generator. Lines read it as a variable, such as [Width], but cannot change it. Until someone changes it, it has the Default value. Type picks the control: Number, Count (whole numbers), Switch (Yes or No), Text, Choice, Button, Curve, Texture or Vector. A Number, Count or Vector can have a Minimum and Maximum; a Vector's apply to each of its x, y and z. A Number or Count with both gets a slider beside its field. A Choice lists its Choices. A Button runs When Button Pressed. A Curve opens the curve editor; read it with curve_at or profile_points, and a Number Default is a flat line at that height. A Texture picks a library texture by name for a Texture block; an empty Default keeps the generator's texture. A Vector shows X, Y and Z fields on one row and gives one value, such as 1, 2, 3 for a Cube of size [Size]. Example: Input Steps, Count, Default 8. Then Repeat [I] from 1 to [Steps] builds that many steps.",
   stops: [
-    'A Type that is not number, count, switch, text, choice, button, curve, texture or vector.',
-    'A value outside Minimum and Maximum, a count with decimals, a vector that is not three numbers, or a choice that is not listed.',
+    'A Type that is not Number, Count, Switch, Text, Choice, Button, Curve, Texture or Vector.',
+    'A value outside Minimum and Maximum, a Count with decimals, a Vector that is not three numbers, or a Choice that is not listed.',
     'A second Input with the same name, or a name a line above already sets.',
   ],
   parameters: SOLID_SCRIPT_INPUT_PARAMETERS,
@@ -96,7 +96,7 @@ const SOLID_SCRIPT_INPUT_COMMAND = new SolidScriptCommand({
     ' (',
     read.text('type'),
     // A curve's text is long and unreadable; the inspector shows it.
-    ...(['button', 'curve'].includes(read.text('type').trim())
+    ...(['Button', 'Curve'].includes(read.text('type').trim())
       ? [')']
       : [') = ', { kind: 'value' as const, text: read.text('default') }]),
     ...solidScriptListingOptions([
@@ -119,9 +119,9 @@ const SOLID_SCRIPT_INPUT_COMMAND = new SolidScriptCommand({
       if (given === undefined) throw error;
       if (run.handling)
         value =
-          input.type === 'text' || input.type === 'choice' || input.type === 'curve' || input.type === 'texture'
+          input.type === 'Text' || input.type === 'Choice' || input.type === 'Curve' || input.type === 'Texture'
             ? given
-            : input.type === 'vector'
+            : input.type === 'Vector'
               ? given.split(',').map(Number)
               : Number(given);
       else if (input.fallback.trim() !== '') value = solidScriptInputValue(input, input.fallback);
@@ -305,7 +305,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Inputs',
     description: 'Run lines when a button is pressed',
     manual:
-      'Runs these lines when someone presses a button in the inspector. The button comes from an Input with Type button. The script skips these lines where they stand. They cannot build brushes. Use Set Input to change inputs, and Show Message to explain. The brush is then rebuilt. Example: Input Reset with Type button, then When Button Pressed Reset holds Set Input Width to 2.',
+      'Runs these lines when someone presses a button in the inspector. The button comes from an Input with Type Button. The script skips these lines where they stand. They cannot build brushes. Use Set Input to change inputs, and Show Message to explain. The brush is then rebuilt. Example: Input Reset with Type Button, then When Button Pressed Reset holds Set Input Width to 2.',
     stops: ['A name that is not a button Input of the script.', 'Building a brush.'],
     nesting: 'open',
     flow: { kind: 'handler', name: 'name' },

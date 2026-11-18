@@ -16,15 +16,18 @@ import { modifierStackAroundPivot, modifierStackAxis, modifierStackVector } from
 const MODIFIER_STACK_RADIAL_LEGACY_KEYS = ['mode', 'radiusOffset', 'pivotX'];
 
 /**
- * Returns the unit direction of a ring centre side such as `-z`.
+ * Returns the unit direction of a ring centre side such as Back.
  *
  * @param side Stored side.
  * @returns Direction in the array frame.
  */
 function modifierStackRadialSide(side: unknown): Vector3 {
-  const text = typeof side === 'string' && /^[+-][xyz]$/.test(side) ? side : '-z';
-  const direction = modifierStackAxis(text[1]);
-  return text[0] === '-' ? direction.negate() : direction;
+  if (side === 'Right') return new Vector3(1, 0, 0);
+  if (side === 'Left') return new Vector3(-1, 0, 0);
+  if (side === 'Up') return new Vector3(0, 1, 0);
+  if (side === 'Down') return new Vector3(0, -1, 0);
+  if (side === 'Front') return new Vector3(0, 0, 1);
+  return new Vector3(0, 0, -1);
 }
 
 /** Repeats the working set around an axis: rings, arcs, or fixed angle steps. */
@@ -37,10 +40,10 @@ export class ModifierStackKindArrayRadial extends ModifierStackKindArray {
       key: 'origin',
       label: 'Original',
       type: 'choice',
-      default: 'ring',
+      default: 'On The Ring',
       choices: modifierStackChoices([
-        ['ring', 'On the ring'],
-        ['centre', 'Around pivot'],
+        ['On The Ring', 'On The Ring'],
+        ['Around Pivot', 'Around Pivot'],
       ]),
       hint: 'On the ring keeps the original in place as the first ring item. Around pivot rotates copies about the pivot (older volumes).',
     },
@@ -49,11 +52,11 @@ export class ModifierStackKindArrayRadial extends ModifierStackKindArray {
       label: 'Distribution',
       hint: 'Full ring spreads the copies evenly around 360°, Arc spreads them over the sweep angle, Angle step turns each copy by a fixed angle.',
       type: 'choice',
-      default: 'ring',
+      default: 'Full Ring',
       choices: modifierStackChoices([
-        ['ring', 'Full ring'],
-        ['arc', 'Arc'],
-        ['step', 'Angle step'],
+        ['Full Ring', 'Full Ring'],
+        ['Arc', 'Arc'],
+        ['Angle Step', 'Angle Step'],
       ]),
     },
     {
@@ -61,11 +64,11 @@ export class ModifierStackKindArrayRadial extends ModifierStackKindArray {
       label: 'Axis',
       hint: "Axis the copies turn around, in the volume's local space.",
       type: 'choice',
-      default: 'y',
+      default: 'Y',
       choices: modifierStackChoices([
-        ['x', 'X'],
-        ['y', 'Y'],
-        ['z', 'Z'],
+        ['X', 'X'],
+        ['Y', 'Y'],
+        ['Z', 'Z'],
       ]),
     },
     {
@@ -77,7 +80,7 @@ export class ModifierStackKindArrayRadial extends ModifierStackKindArray {
       min: -360,
       max: 360,
       step: 15,
-      visible: modifierStackWhen('mode', 'arc'),
+      visible: modifierStackWhen('mode', 'Arc'),
     },
     {
       key: 'step',
@@ -88,7 +91,7 @@ export class ModifierStackKindArrayRadial extends ModifierStackKindArray {
       min: -360,
       max: 360,
       step: 5.625,
-      visible: modifierStackWhen('mode', 'step'),
+      visible: modifierStackWhen('mode', 'Angle Step'),
     },
     {
       key: 'radius',
@@ -98,23 +101,23 @@ export class ModifierStackKindArrayRadial extends ModifierStackKindArray {
       min: 0,
       step: 0.25,
       hint: 'Distance from the original to the ring centre, in metres.',
-      visible: modifierStackWhen('origin', 'ring'),
+      visible: modifierStackWhen('origin', 'On The Ring'),
     },
     {
       key: 'centreSide',
       label: 'Ring Centre',
       type: 'choice',
-      default: '-z',
+      default: 'Back',
       choices: modifierStackChoices([
-        ['-z', 'Behind (−Z)'],
-        ['+z', 'In front (+Z)'],
-        ['-x', 'Left (−X)'],
-        ['+x', 'Right (+X)'],
-        ['-y', 'Below (−Y)'],
-        ['+y', 'Above (+Y)'],
+        ['Back', 'Back'],
+        ['Front', 'Front'],
+        ['Left', 'Left'],
+        ['Right', 'Right'],
+        ['Down', 'Down'],
+        ['Up', 'Up'],
       ]),
       hint: 'Side of the original the ring centre lies on. A side along the axis uses the next one across it.',
-      visible: modifierStackWhen('origin', 'ring'),
+      visible: modifierStackWhen('origin', 'On The Ring'),
     },
     {
       key: 'start',
@@ -125,7 +128,7 @@ export class ModifierStackKindArrayRadial extends ModifierStackKindArray {
       min: -3600,
       max: 3600,
       step: 15,
-      visible: modifierStackWhen('origin', 'centre'),
+      visible: modifierStackWhen('origin', 'Around Pivot'),
     },
     {
       key: 'radiusOffset',
@@ -134,7 +137,7 @@ export class ModifierStackKindArrayRadial extends ModifierStackKindArray {
       default: 0,
       step: 0.25,
       hint: 'Pushes copies away from the axis, in metres.',
-      visible: modifierStackWhen('origin', 'centre'),
+      visible: modifierStackWhen('origin', 'Around Pivot'),
     },
     {
       key: 'rise',
@@ -159,7 +162,7 @@ export class ModifierStackKindArrayRadial extends ModifierStackKindArray {
     ...modifierStackVectorFields('pivot', 'Pivot', [0, 0, 0], {
       hint: 'Point the copies turn around, in metres from the volume centre along this axis.',
       group: 'Pivot',
-      visible: modifierStackWhen('origin', 'centre'),
+      visible: modifierStackWhen('origin', 'Around Pivot'),
     }),
   ];
 
@@ -172,7 +175,7 @@ export class ModifierStackKindArrayRadial extends ModifierStackKindArray {
    */
   override normalizeParameters(input: Record<string, unknown>): Record<string, unknown> {
     const legacy = !('origin' in input) && MODIFIER_STACK_RADIAL_LEGACY_KEYS.some((key) => key in input);
-    return super.normalizeParameters(legacy ? { ...input, origin: 'centre' } : input);
+    return super.normalizeParameters(legacy ? { ...input, origin: 'Around Pivot' } : input);
   }
 
   /**
@@ -215,7 +218,7 @@ export class ModifierStackKindArrayRadial extends ModifierStackKindArray {
    */
   private ringTransform(index: number, placement: ModifierStackArrayPlacement, axis: Vector3): Matrix4 {
     const rotation = new Matrix4().makeRotationAxis(axis, this.angleOf(index, placement));
-    if (placement.parameters['origin'] === 'ring')
+    if (placement.parameters['origin'] === 'On The Ring')
       return modifierStackAroundPivot(rotation, this.ringCentre(placement, axis));
     const pivot = modifierStackVector(placement.parameters, 'pivot');
     const offset = this.radiusOffsetOf(placement, pivot, axis);
@@ -251,9 +254,9 @@ export class ModifierStackKindArrayRadial extends ModifierStackKindArray {
     const parameters = placement.parameters;
     const mode = parameters['mode'];
     let step = 360 / placement.count;
-    if (mode === 'step') step = Number(parameters['step']);
-    if (mode === 'arc') step = Number(parameters['sweep']) / Math.max(1, placement.count - 1);
-    const start = parameters['origin'] === 'ring' ? 0 : Number(parameters['start']);
+    if (mode === 'Angle Step') step = Number(parameters['step']);
+    if (mode === 'Arc') step = Number(parameters['sweep']) / Math.max(1, placement.count - 1);
+    const start = parameters['origin'] === 'On The Ring' ? 0 : Number(parameters['start']);
     return ((start + index * step) * Math.PI) / 180;
   }
 

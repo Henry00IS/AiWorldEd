@@ -15,12 +15,12 @@ export function modifierStackVector(parameters: Record<string, unknown>, prefix:
 /**
  * Resolves an axis name.
  *
- * @param axis 'x', 'y' or 'z'.
+ * @param axis X, Y or Z.
  * @returns Unit axis; Y for anything else.
  */
 export function modifierStackAxis(axis: unknown): Vector3 {
-  if (axis === 'x') return new Vector3(1, 0, 0);
-  if (axis === 'z') return new Vector3(0, 0, 1);
+  if (axis === 'X') return new Vector3(1, 0, 0);
+  if (axis === 'Z') return new Vector3(0, 0, 1);
   return new Vector3(0, 1, 0);
 }
 
