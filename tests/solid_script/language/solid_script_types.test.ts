@@ -86,3 +86,48 @@ describe('SolidScript types', () => {
     expect(members([line('extrude_face', { top: 'Roof' })], '[Roof.First.')).toContain('Roof.First.Area');
   });
 });
+
+describe('SolidScript Set without a Type reads typed commas as a list', () => {
+  it('makes a list of mixed items, each read the way a list item is', () => {
+    expect(
+      outcome(
+        set('Mixed', '[5,3,4],zu,45,[4,5,6]'),
+        line('echo', { value: '[Mixed.Count]|[Mixed(0).y]|[Mixed(1)]|[=[Mixed(2)] + 1]|[Mixed(3).z]' }),
+      ),
+    ).toEqual(['4|3|zu|46|6']);
+    expect(outcome(set('Mixed', '[5,3,4],zu,45,[4,5,6]', 'Any'), line('echo', { value: '[Mixed.Count]' }))).toEqual([
+      '4',
+    ]);
+  });
+
+  it('keeps a comma written $, inside one text', () => {
+    expect(outcome(set('Greeting', 'Hello$, World'), line('echo', { value: '[Greeting]|[Greeting.Length]' }))).toEqual([
+      'Hello, World|12',
+    ]);
+    expect(
+      outcome(
+        set('Name', 'Ann'),
+        set('Greeting', 'Hello, [Name]'),
+        line('echo', { value: '[Greeting.Count]|[Greeting(1)]' }),
+      ),
+    ).toEqual(['2|Ann']);
+  });
+
+  it('never splits a value read from a variable again', () => {
+    expect(
+      outcome(
+        set('Greeting', 'Hello$, World'),
+        set('Copy', '[Greeting]'),
+        line('echo', { value: '[Copy]|[Copy.Length]' }),
+      ),
+    ).toEqual(['Hello, World|12']);
+  });
+
+  it('still reads three numbers as a vector and one item as one value', () => {
+    expect(outcome(set('Pos', '2,3,4'), line('echo', { value: '[Pos.y]|[Pos.Length]' }))).toEqual([
+      `3|${Math.round(Math.hypot(2, 3, 4) * 1e9) / 1e9}`,
+    ]);
+    expect(outcome(set('Pos', '[2,3,4]'), line('echo', { value: '[Pos.z]' }))).toEqual(['4']);
+    expect(outcome(set('Word', 'zu'), line('echo', { value: '[Word.Length]' }))).toEqual(['2']);
+  });
+});

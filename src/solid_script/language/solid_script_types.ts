@@ -107,9 +107,11 @@ export function solidScriptTypeDefault(type: string): SolidScriptValue {
 }
 
 /**
- * Reads the value of a Set line for its declared kind: a blank gives the
- * default, a list kind splits the text on commas (one bracket alone may give
- * the whole list), and Text keeps numbers as text.
+ * Reads the value of a Set line for its declared kind: without a kind, commas
+ * typed outside brackets make a list of the items, each read the way a list
+ * item is, and one item stays one value; a blank gives the default, a list kind
+ * splits the text on commas (one bracket alone may give the whole list), and
+ * Text keeps numbers as text.
  *
  * @param type Declared kind, empty for none.
  * @param text Value as written.
@@ -123,7 +125,7 @@ export function solidScriptTypeValue(
   whole: () => SolidScriptValue,
   items: () => SolidScriptValue[],
 ): SolidScriptValue {
-  if (type === '' || type === 'Any') return whole();
+  if (type === '' || type === 'Any') return solidScriptFieldSplit(text, ',').length > 1 ? items() : whole();
   if (text.trim() === '') return solidScriptTypeDefault(type);
   if (type.endsWith('List')) {
     const item = type.slice(0, -'List'.length).trim();

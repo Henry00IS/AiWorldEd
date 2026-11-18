@@ -59,7 +59,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Logic',
     description: 'Set a variable to a value',
     manual:
-      'Gives a value a name, so later lines can use the name. Lines below see the new value. Lines above do not. Setting the same name again changes it, so a Set in a Repeat can count up. Read it in any field as [Width], or compute with it as [=[Width] * 2]. Example: Set [Width] to 3, then a Cube of size [Width], 1, 1. Lists: Set Points() adds an item at the end. Set Points(2) changes item 2. Items count from 0. [Points(2)] reads one item, and [Points.Count] says how many there are. Data: Set Face.Data.Height keeps your own value on a face, brush, edge or corner. Through a list it sets every item, so Set Brush.Edges.Data.Kind to trim marks every edge of [Brush], and Brush.Faces(0).Edges.Data.Kind only the edges of its first face. The key may come from a variable, such as Brush.Data.[Key].',
+      'Gives a value a name, so later lines can use the name. Lines below see the new value. Lines above do not. Setting the same name again changes it, so a Set in a Repeat can count up. Read it in any field as [Width], or compute with it as [=[Width] * 2]. Example: Set [Width] to 3, then a Cube of size [Width], 1, 1. Commas typed outside brackets make a list, each item read on its own: [5, 3, 4], zu, 45 is a vector, a text and a number, three plain numbers such as 1, 2, 3 are a vector, and $, keeps a comma in a text such as Hello$, World. Lists: Set Points() adds an item at the end. Set Points(2) changes item 2. Items count from 0. [Points(2)] reads one item, and [Points.Count] says how many there are. Data: Set Face.Data.Height keeps your own value on a face, brush, edge or corner. Through a list it sets every item, so Set Brush.Edges.Data.Kind to trim marks every edge of [Brush], and Brush.Faces(0).Edges.Data.Kind only the edges of its first face. The key may come from a variable, such as Brush.Data.[Key].',
     stops: [
       'A name that is not letters, digits and _, or starts with a digit.',
       'A [Name] for a variable not set above this line, or a [=formula] that cannot be read.',
@@ -84,7 +84,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
           'Value',
           'value',
           '',
-          'A number, numbers separated by commas such as 1, 2, 3, a vector such as [1, 2, 3], plain text, [Name] for another variable, or [=formula] such as [=[Width] * 2]. Left empty it is the empty value of the Type: 0, no text, 0, 0, 0, No or a new empty list.',
+          'A number, numbers separated by commas such as 1, 2, 3, a vector such as [1, 2, 3], a list of any items separated by commas such as [1, 2, 3], zu, 45, plain text ($, for a comma in it), [Name] for another variable, or [=formula] such as [=[Width] * 2]. Left empty it is the empty value of the Type: 0, no text, 0, 0, 0, No or a new empty list.',
         ),
         optional: true,
         follows: { key: 'type', words: solidScriptTypeWords, placeholder: solidScriptTypePlaceholder },

@@ -39,7 +39,8 @@ describe('SolidScript Set with a Type', () => {
     expect(outcome(set('A', '1, oak, 3', 'List'), echo('[A.Count] [=[A(0)] + 1]'))).toEqual(['3 2']);
     expect(outcome(set('A', 'oak', 'List'), echo('[A.Count]'))).toEqual(['1']);
     expect(outcome(set('A', '1, oak', 'Number List'))[0]).toMatch(/\[A\] is declared Number List/);
-    expect(outcome(set('A', 't,6mv,$[4, 5, 6$]'), echo('[A]'))).toEqual(['t,6mv,[4, 5, 6]']);
+    expect(outcome(set('A', 't,6mv,$[4, 5, 6$]'), echo('[A.Count] [A]'))).toEqual(['5 [t, 6mv, [4, 5, 6]]']);
+    expect(outcome(set('A', 't$,6mv'), echo('[A]'))).toEqual(['t,6mv']);
     const check = (...lines: SolidScriptLine[]) =>
       solidScriptTypeCheck(solidScriptDocumentCreate(lines)).map((w) => w.text);
     expect(check(set('A', 't,6mv', 'Text List'), set('B', '', 'Number'), set('C', '[1, 2, 3]', 'Vector'))).toEqual([]);
