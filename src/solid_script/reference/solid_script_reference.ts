@@ -1,4 +1,10 @@
-import { SOLID_SCRIPT_FUNCTION_DOCS } from '@/solid_script/language/solid_script_function_docs.js';
+import {
+  SOLID_SCRIPT_FUNCTION_DOCS,
+  solidScriptFunctionArguments,
+  solidScriptFunctionKindsText,
+  type SolidScriptFunctionDoc,
+} from '@/solid_script/language/solid_script_function_docs.js';
+import { solidScriptKindsWords } from '@/solid_script/language/solid_script_kinds.js';
 import { SOLID_SCRIPT_SYSTEM_GLOBALS } from '@/solid_script/language/solid_script_system.js';
 import {
   SOLID_SCRIPT_EXAMPLE_COLUMNS,
@@ -8,7 +14,7 @@ import {
   SOLID_SCRIPT_COMMAND_CATEGORIES,
   solidScriptCommands,
 } from '@/solid_script/commands/solid_script_command_catalog.js';
-import type { SolidScriptCommand } from '@/solid_script/commands/solid_script_command.js';
+import type { SolidScriptCommand, SolidScriptCommandParameter } from '@/solid_script/commands/solid_script_command.js';
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptDocumentListing } from '@/solid_script/document/solid_script_document_listing.js';
 
@@ -68,8 +74,9 @@ Every field is plain text, without quotes, read like this:
 - Only the commas typed in a field separate list items; a value is never split again, so For Each In [Text], 23 with Text set to Hello, World walks Hello, World and 23. [=Split([Text], ",")] splits text, and [=Parse([Text])] reads text like a typed field: 4,5,5 gives a vector and 5+5 gives 10.
 - A script that builds nothing still runs and only warns; an error keeps the output and variables from before it.
 - If's condition is a formula without the leading =: "[I] % 2 == 0", "[Width] > 2 && [Open]".
-- A Type a Set declares sticks: every line that writes the variable, such as Add Item, Insert Item, Into, Top, Sides, a For Each or Repeat name, Find Item or a Call result, gives that kind or stops. A value whose meaning is plain is turned into it: 78 added to a Number List is a number, a number added to a Text List is text, one brush Into a Brush List is a list of it; 78o added to a Number List stops and suggests 78. Clear Variable gives the empty value of the Type and keeps it; Delete Variable forgets it. A later Set with another Type starts the variable over with that Type, Any lets it hold anything again, and the editor does not warn when the kind changes.
-- Set's value without a Type is a number, true/false or plain text, or, when commas are typed outside brackets, a list of the items, each read the same way: [5, 3, 4], zu, 45, [4, 5, 6] is a list of a vector, a text, a number and a vector, and three plain numbers such as 2, 3, 4 are a vector. $, keeps a comma in a text, so Hello$, World is one text, and Hello, [Name] is a list of two items; a value read from a variable is never split again.
+- Variables have no declared type: like a var in other languages, any line may give a variable any kind of value, and a later line may give it another kind. Clear Variable empties it the way that fits what it holds: a list becomes an empty list, a number 0, a Yes/No No, anything else empty text; Delete Variable forgets it. A line that gets a kind it cannot use stops in plain words, such as "Of needs a Brush, Face, Edge, Vertex or Text, or a list of them, not a Yes/No", and a formula function such as Abs() given a Brush stops the same way. Every field says which kinds it takes and every variable field says what it gives (listed with the commands below), and the same declarations drive the editor's checks.
+- Set's value is a number, true/false or plain text, or, when commas are typed outside brackets, a list of the items, each read the same way: [5, 3, 4], zu, 45, [4, 5, 6] is a list of a vector, a text, a number and a vector, and three plain numbers such as 2, 3, 4 are a vector. $, keeps a comma in a text, so Hello$, World is one text, and Hello, [Name] is a list of two items; a value read from a variable is never split again.
+- The editor follows the script without running it to tell what kinds each name may hold at each line: through If and Else (joining both at End), loops (until nothing changes), Functions (per Call, with the kinds of its values, and what each Return gives back) and Parts. An If narrows: inside If [Henry] > 3 (and its Else) Henry is a number, inside If IsNum([V]) V is a Number, inside If [Mode] == "wide" Mode is that text, and a branch no run can take, such as If 1 == 2 or a comparison an Input's declared kind rules out, is skipped. Hover, the Variables tab and autocomplete show every kind a name may hold, such as Number or Text; a wavy underline only marks a value no way through the script can make usable.
 - Name fields (variable, counter, part names) take a plain name, without brackets; Set's name may also be a list item such as Points([I]). Note text is used as typed. Names ignore case everywhere (variables, Local. and Persistent., system values such as Face.Center, and functions, so CharacterCode is character_code); write them in PascalCase, such as [StepHeight], Function Staircase and Sin(65).
 - Common mistakes get a hint with what was probably meant, built from the text as written, in the error and in the editor before running: math outside a formula such as [K]*2, [[K]*2] or [K*2] (Did you mean to write [=[K]*2]?), =[K]*2 without brackets, and a system value without its $ such as [Box.Width].
 - An unknown [Name] stops the script with "line N: ... there is no variable [Name]"; a formula that cannot be read stops it with the formula and the reason.
@@ -139,9 +146,25 @@ Formulas know: numbers, text in double quotes, true, false, lists in $[ $] brack
  */
 function solidScriptReferenceFunctions(): string {
   const groups = new Map<string, string[]>();
-  for (const doc of Object.values(SOLID_SCRIPT_FUNCTION_DOCS))
-    groups.set(doc.group, [...(groups.get(doc.group) ?? []), `${doc.usage}: ${doc.summary}`]);
+  for (const [key, doc] of Object.entries(SOLID_SCRIPT_FUNCTION_DOCS))
+    groups.set(doc.group, [...(groups.get(doc.group) ?? []), solidScriptReferenceFunction(key, doc)]);
   return [...groups].map(([group, entries]) => `${group}: ${entries.join(' ')}`).join(' ');
+}
+
+/**
+ * Describes one built-in function with the kinds its definition declares.
+ *
+ * @param key Function key, such as abs.
+ * @param doc Its definition.
+ * @returns Text such as "Abs(number: Number) gives Number: The number without
+ *   its minus sign."
+ */
+function solidScriptReferenceFunction(key: string, doc: SolidScriptFunctionDoc): string {
+  const name = doc.usage.replace(/\(.*$/, '');
+  const inputs = solidScriptFunctionArguments(key).map(
+    (argument) => `${argument.name}: ${solidScriptFunctionKindsText(argument.type)}`,
+  );
+  return `${name}(${inputs.join(', ')}) gives ${solidScriptFunctionKindsText(doc.gives)}: ${doc.summary}`;
 }
 
 /** Tool part of the reference: which tool takes what. */
@@ -205,6 +228,34 @@ const SOLID_SCRIPT_REFERENCE_MISTAKES = `## Common mistakes
 `;
 
 /**
+ * Says what kinds a field takes and, for a field naming a variable, what the
+ * variable gets, read from the command's declarations.
+ *
+ * @param command Command.
+ * @param parameter Field.
+ * @returns Text starting with a space, empty for a field taking any value.
+ */
+function solidScriptReferenceKinds(command: SolidScriptCommand, parameter: SolidScriptCommandParameter): string {
+  const takes = parameter.accepts === 'Any' ? '' : ` Takes ${solidScriptKindsWords(parameter.accepts)}.`;
+  const gives = parameter.writes?.gives;
+  if (!gives) return takes;
+  const kind = gives.rule === 'kind' ? `${gives.kind}: ` : '';
+  const what = 'what' in gives ? gives.what : SOLID_SCRIPT_REFERENCE_GIVES[gives.rule];
+  const plain = what
+    .replace(/\*\*/g, '')
+    .replace(/\{command\}/g, command.label)
+    .replace(/\{(\w+)\}/g, 'its $1');
+  return `${takes} The variable it names gives ${kind}${plain}.`;
+}
+
+/** What a variable field does to a variable that no kind describes. */
+const SOLID_SCRIPT_REFERENCE_GIVES: Readonly<Record<'kept' | 'forgotten' | 'read', string>> = {
+  kept: 'the kinds it held, changed in place',
+  forgotten: 'nothing: the variable is forgotten',
+  read: 'nothing new: the variable is only read',
+};
+
+/**
  * Describes one command for the reference, with the same help the editor shows.
  *
  * @param command Command.
@@ -214,7 +265,7 @@ function solidScriptReferenceCommand(command: SolidScriptCommand): string {
   const block = command.nesting === 'open' ? ' Opens a block.' : '';
   const values = command.parameters.map(
     (parameter) =>
-      `  - ${parameter.key} (${parameter.label}, ${parameter.type}, default ${parameter.default}): ${parameter.hint}`,
+      `  - ${parameter.key} (${parameter.label}, ${parameter.type}, default ${parameter.default}): ${parameter.hint}${solidScriptReferenceKinds(command, parameter)}`,
   );
   const stops = command.stops.length > 0 ? [`  - Stops on: ${command.stops.join(' ')}`] : [];
   const listed = command.listingText(command.valuesDefault()) || '(empty line)';
