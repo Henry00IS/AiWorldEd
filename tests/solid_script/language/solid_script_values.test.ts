@@ -192,4 +192,18 @@ describe('SolidScript values', () => {
     ]);
     expect(result.error?.message).toMatch(/cut away/);
   });
+
+  it('keeps a face of a mesh when Extrude Face moves it, with its Data', () => {
+    expect(
+      printed([
+        line('mesh_brushes'),
+        CUBE,
+        END,
+        line('select_faces', { which: 'Facing Up', into: 'Top' }),
+        line('variable', { name: 'Top.Data.Mark', value: 'roof' }),
+        line('extrude_face', { distance: '1', of: '[Top]', top: 'Roof' }),
+        line('echo', { value: '[Top.Count] [Top.First.Center] [Top.First.Data.Mark] [Roof.First.Data.Mark]' }),
+      ]),
+    ).toEqual(['1 [0, 2, 0] roof roof']);
+  });
 });

@@ -519,6 +519,10 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         );
         const outputs = solidScriptFaceOutputs(leaf, numbers);
         const read = solidScriptGeometryFaces([run.leafLatest(leaf)]);
+        // The moved faces stay the same faces, in the order of their numbers.
+        [...faces]
+          .sort((a, b) => a.index - b.index)
+          .forEach((face, at) => run.elements.faceMoved(face, read[outputs.tops[at]!]!));
         tops.push(...outputs.tops.map((number) => run.elements.face(read[number]!)));
         sides.push(...outputs.sides.map((number) => run.elements.face(read[number]!)));
         brushes.push(run.elements.brush(leaf));

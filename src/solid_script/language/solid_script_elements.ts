@@ -143,6 +143,24 @@ export class SolidScriptElements {
   }
 
   /**
+   * Moves the faces a change moved without splitting them, such as Extrude Face
+   * on a mesh, so their values stay the same faces and keep their Data.
+   *
+   * @param from The face before the change.
+   * @param to The same face after it.
+   */
+  faceMoved(from: SolidScriptFaceFacts, to: SolidScriptFaceFacts): void {
+    const offset = to.center.clone().sub(from.center);
+    for (const entry of this.entries) {
+      if (entry.element.kind !== 'face' || !entry.plane || !SolidScriptElements.pieceOf(entry.plane, from)) continue;
+      entry.plane = {
+        normal: to.normal.clone(),
+        corners: entry.plane.corners.map((corner) => corner.clone().add(offset)),
+      };
+    }
+  }
+
+  /**
    * Returns the edge element of an edge read now.
    *
    * @param edge Edge.
