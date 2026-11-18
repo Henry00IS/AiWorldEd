@@ -20,6 +20,7 @@ export class SolidScriptExpressionEvaluator {
    *   when it defines none of that name.
    * @param system Reads a built-in value by name.
    * @param shown Spells a name key for a message, as it was written.
+   * @param parse Reads text like a typed field, for Parse().
    */
   constructor(
     private readonly tick: () => void = () => {},
@@ -29,7 +30,21 @@ export class SolidScriptExpressionEvaluator {
     ) => { value: SolidScriptValue } | null = () => null,
     private readonly system: (name: string) => SolidScriptValue = () => undefined,
     private readonly shown: (key: string) => string = (key) => key,
+    private readonly parse: (value: SolidScriptValue, scope: SolidScriptScope) => SolidScriptValue = () => {
+      throw new Error('Parse() works only in a running script');
+    },
   ) {}
+
+  /**
+   * Reads text like a typed field, for Parse().
+   *
+   * @param value Text.
+   * @param scope Scope for names.
+   * @returns Value.
+   */
+  parseText(value: SolidScriptValue, scope: SolidScriptScope): SolidScriptValue {
+    return this.parse(value, scope);
+  }
 
   /**
    * Evaluates an expression. Each formula is turned into JavaScript closures

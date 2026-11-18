@@ -96,10 +96,32 @@ describe('SolidScript stops at the first mistake', () => {
     expect(failure({ command: 'input_brushes' })).toBe('');
   });
 
-  it('refuses scripts that build nothing', () => {
-    expect(failure({ command: 'variable', values: { name: 'x', value: '1' } })).toBe(
-      'The script builds no brushes or meshes; add one such as Cube.',
+  it('only warns about scripts that build nothing, after they ran', () => {
+    const lines = [
+      { command: 'variable', values: { name: 'x', value: '1' } },
+      { command: 'echo', values: { value: '[x]' } },
+    ];
+    expect(failure(...lines)).toBe('');
+    const result = solidScriptProgramRun(solidScriptDocumentCreate(lines));
+    expect(result.messages).toEqual(['1']);
+    expect(result.warnings).toEqual([
+      { line: null, text: 'The script builds no brushes or meshes; add one such as Cube.' },
+    ]);
+  });
+
+  it('keeps the output and variables from before an error', () => {
+    const result = solidScriptProgramRun(
+      solidScriptDocumentCreate([
+        { command: 'echo', values: { value: '5+5' } },
+        { command: 'variable', values: { name: 'Width', value: '45$,8', type: 'Text' } },
+        { command: 'cube', values: { size: '1,[=Number(Width)],3' } },
+      ]),
     );
+    expect(result.error?.line).toBe(3);
+    expect(result.messages).toEqual(['5+5']);
+    expect(result.variables.map((variable) => [variable.name, variable.value, variable.type])).toEqual([
+      ['Width', '45,8', 'Text'],
+    ]);
   });
 
   it('stops runaway loops before the editor freezes', () => {

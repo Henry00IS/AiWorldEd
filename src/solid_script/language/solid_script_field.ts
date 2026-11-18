@@ -498,10 +498,10 @@ export function solidScriptFieldArguments(text: string): string[] {
 }
 
 /**
- * Reads the items of a list field: each item between commas is read first, and
- * the text a bracket gives is then split at its own commas, so [Text], 23 with
- * Text set to Hello, World gives Hello, World and 23. A $, keeps a comma inside
- * an item. A single bracket that gives a list gives its items.
+ * Reads the items of a list field: only the commas typed in the field separate
+ * items, and $, keeps a comma inside one. A value is never split again, so
+ * [Text], 23 is two items whatever Text holds. A single bracket that gives a
+ * list gives its items.
  *
  * @param text Field text.
  * @param read Reads one item.
@@ -510,17 +510,11 @@ export function solidScriptFieldArguments(text: string): string[] {
 export function solidScriptFieldList(text: string, read: (item: string) => SolidScriptValue): SolidScriptValue[] {
   if (text.trim() === '') return [];
   const items = solidScriptFieldSplit(text, ',');
-  const list: SolidScriptValue[] = [];
-  for (const item of items) {
-    const value = read(item);
-    const bracketed = solidScriptFieldPieces(item).some((piece) => piece.kind !== 'plain');
-    if (Array.isArray(value) && items.length === 1) list.push(...value);
-    else if (typeof value === 'string' && bracketed)
-      for (const part of solidScriptFieldSplit(value, ','))
-        list.push(solidScriptFieldNumber(part.replace(/\$,/g, ',')));
-    else list.push(value);
+  if (items.length === 1) {
+    const value = read(items[0]!);
+    return Array.isArray(value) ? [...value] : [value];
   }
-  return list;
+  return items.map((item) => read(item));
 }
 
 /**

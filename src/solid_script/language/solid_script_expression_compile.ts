@@ -159,6 +159,11 @@ function solidScriptCompileCall(written: string, args: readonly SolidScriptCompi
   const found = solidScriptBuiltinFind(written);
   const builtin = found ? SOLID_SCRIPT_FUNCTIONS_BUILTIN[found] : undefined;
   const name = found ? solidScriptFunctionSpelling(found) : solidScriptNameKey(written);
+  if (found === 'parse')
+    return (evaluator, scope) => {
+      if (args.length !== 1) throw new Error('Parse(text) takes one text');
+      return evaluator.parseText(args[0]!(evaluator, scope), scope);
+    };
   return (evaluator, scope) => {
     const values = new Array<SolidScriptValue>(args.length);
     for (let index = 0; index < args.length; index++) values[index] = args[index]!(evaluator, scope);

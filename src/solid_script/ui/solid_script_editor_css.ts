@@ -53,6 +53,7 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
   outputTab: 'solid-script-editor-output-tab',
   outputText: 'solid-script-editor-output-text',
   outputError: 'solid-script-editor-output-error',
+  outputFailure: 'solid-script-editor-output-failure',
   outputWarning: 'solid-script-editor-output-warning',
   variablesCaption: 'solid-script-editor-variables-caption',
   help: 'solid-script-editor-help',
@@ -261,8 +262,8 @@ const SOLID_SCRIPT_EDITOR_PANES_CSS = `
 .${c.outputTab} { padding: 3px 10px; border: none; border-bottom: 2px solid transparent; background: none; color: ${ThemeCss.textColor}; font: inherit; cursor: pointer; }
 .${c.outputTab}[aria-selected="true"] { border-bottom-color: ${ThemeCss.accentColor}; font-weight: 600; }
 .${c.outputTab}.${c.outputError} { color: #e5484d; }
-.${c.outputText} { flex: 1; min-height: 0; overflow-y: auto; padding: 5px 12px; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; white-space: pre-wrap; color: ${ThemeCss.textColor}; user-select: text; cursor: text; caret-color: currentColor; }
-.${c.outputText}.${c.outputError} { color: #e5484d; }
+.${c.outputText} { flex: 1; min-height: 0; overflow-y: auto; padding: 5px 12px; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; white-space: pre-wrap; color: ${ThemeCss.textColor}; user-select: text; cursor: text; caret-color: currentColor; outline: none; }
+.${c.outputFailure} { color: #e5484d; }
 .${c.outputWarning} { color: #f5a524; }
 .${c.outputWarning} > button { background: none; border: none; padding: 0; font: inherit; color: inherit; }
 .${c.variablesCaption} { margin-bottom: 4px; font: 11px ${Theme.uiFontFamily}; color: ${ThemeCss.mutedTextColor}; }

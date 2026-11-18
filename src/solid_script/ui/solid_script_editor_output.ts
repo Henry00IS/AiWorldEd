@@ -110,6 +110,16 @@ export class SolidScriptEditorOutput {
     this.output.spellcheck = false;
     this.output.addEventListener('beforeinput', (event) => event.preventDefault());
     this.output.addEventListener('keydown', (event) => this.outputKey(event));
+    // A selection left behind would keep Ctrl+C on the output once focus moves on.
+    this.output.addEventListener('blur', () => {
+      const selection = this.output.ownerDocument.getSelection();
+      if (
+        selection &&
+        selection.rangeCount > 0 &&
+        this.output.contains(selection.getRangeAt(0).commonAncestorContainer)
+      )
+        selection.removeAllRanges();
+    });
     this.outputHost = solidScriptScrollerWrap(this.output, '1 1 0', 12);
     this.variablesHost = this.explorer.element;
     Object.assign(this.settingsScroller.style, { overflowY: 'auto', padding: '5px 12px' });
@@ -136,7 +146,7 @@ export class SolidScriptEditorOutput {
       this.failedKeys = new Set();
       this.runs = result.profile;
       const solids = `${count} ${count === 1 ? 'solid' : 'solids'}${result.paused ? ' so far' : ''}`;
-      this.text([solids, ...result.messages].join('\n'), false);
+      this.text([solids, ...result.messages].join('\n'), '');
       this.output.append(...result.warnings.map((warning) => this.warningRow(warning)), this.checks);
       this.explorer.show(document, result.variables, options ? result.stack : [], caption);
     } else {
@@ -147,8 +157,9 @@ export class SolidScriptEditorOutput {
       const named = /\[([A-Za-z_][\w.]*)\]/.exec(message)?.[1];
       this.failedKeys = new Set(named === undefined ? [] : [solidScriptNameKey(named)]);
       this.runs = new Map();
-      this.text(message, true);
-      this.output.append(this.checks);
+      // What ran before the error stays, to help find it.
+      this.text(result.messages.join('\n'), message);
+      this.output.append(...result.warnings.map((warning) => this.warningRow(warning)), this.checks);
       this.explorer.show(document, result.variables, options ? result.stack : [], 'The script stops with an error.');
     }
   }
@@ -244,7 +255,7 @@ export class SolidScriptEditorOutput {
           ...solidScriptMistakeCheck(script, solidScriptDocumentDefines(script)),
           ...solidScriptTypeCheck(script),
         ];
-        checks.sort((a, b) => a.line - b.line);
+        checks.sort((a, b) => (a.line ?? 0) - (b.line ?? 0));
         this.checks.replaceChildren(...checks.map((warning) => this.warningRow(warning)));
         this.unknownShow(solidScriptDocumentNamesUnknown(script));
       };
@@ -264,12 +275,17 @@ export class SolidScriptEditorOutput {
   private warningRow(warning: SolidScriptWarning): HTMLElement {
     const row = document.createElement('div');
     row.className = SOLID_SCRIPT_EDITOR_CLASSES.outputWarning;
+    const line = warning.line;
+    if (line === null) {
+      row.append(`⚠️ ${warning.text}`);
+      return row;
+    }
     const link = document.createElement('button');
     link.type = 'button';
     link.className = SOLID_SCRIPT_EDITOR_CLASSES.helpLink;
-    link.textContent = `Line ${warning.line}`;
-    link.title = `Go To Line ${warning.line}`;
-    link.addEventListener('click', () => this.revealLine(warning.line - 1));
+    link.textContent = `Line ${line}`;
+    link.title = `Go To Line ${line}`;
+    link.addEventListener('click', () => this.revealLine(line - 1));
     row.append('⚠️ ', link, `: ${warning.text}`);
     return row;
   }
@@ -278,11 +294,17 @@ export class SolidScriptEditorOutput {
    * Writes the output text.
    *
    * @param text Text.
-   * @param error True marks it as an error.
+   * @param failure Error the run stopped with, written after the text in red;
+   *   empty when it ran through.
    */
-  private text(text: string, error: boolean): void {
+  private text(text: string, failure: string): void {
     this.output.textContent = text;
-    this.output.classList.toggle(SOLID_SCRIPT_EDITOR_CLASSES.outputError, error);
-    this.tabs.get('output')?.classList.toggle(SOLID_SCRIPT_EDITOR_CLASSES.outputError, error);
+    if (failure !== '') {
+      const row = document.createElement('div');
+      row.className = SOLID_SCRIPT_EDITOR_CLASSES.outputFailure;
+      row.textContent = failure;
+      this.output.append(row);
+    }
+    this.tabs.get('output')?.classList.toggle(SOLID_SCRIPT_EDITOR_CLASSES.outputError, failure !== '');
   }
 }

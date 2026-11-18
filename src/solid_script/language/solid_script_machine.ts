@@ -53,6 +53,7 @@ import type {
   SolidScriptLineProfile,
   SolidScriptMachineCommand,
   SolidScriptRun,
+  SolidScriptWarning,
 } from './solid_script_machine_types.js';
 import {
   SOLID_SCRIPT_LOCAL_PREFIX,
@@ -304,6 +305,10 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     const variables = [...(this.watched?.variablesVisible() ?? [])].map(([name, value]) =>
       solidScriptVariableView(this.spellings.get(name) ?? name, value),
     );
+    const warnings: SolidScriptWarning[] = [...this.warnings]
+      .sort(([left], [right]) => left - right)
+      .map(([line, text]) => ({ line, text }));
+    // Building nothing is allowed, for trying out lines or stopping early; it only warns.
     if (
       !this.failure &&
       !this.paused &&
@@ -311,11 +316,11 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       this.system.use?.usage !== 'Modifier' &&
       !solidScriptLinesPassInput(lines)
     )
-      this.failure = solidScriptFailure(null, 'the script builds no brushes or meshes; add one such as Cube');
+      warnings.push({ line: null, text: 'The script builds no brushes or meshes; add one such as Cube.' });
     return {
       shapes,
       messages: this.messages,
-      warnings: [...this.warnings].sort(([left], [right]) => left - right).map(([line, text]) => ({ line, text })),
+      warnings,
       steps: this.steps,
       variables,
       breaks: this.breaks,
@@ -454,6 +459,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       if (node.command.builds) this.builtNote(node, scope, shapes);
       return shapes;
     } catch (error) {
+      // The variables as they were when the line stopped, for the variable explorer.
+      if (!this.failure && !this.paused) this.watch(scope);
       this.failureNote(solidScriptMistakeHinted(error, node), node.line);
       return [];
     } finally {

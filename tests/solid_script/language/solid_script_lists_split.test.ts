@@ -26,12 +26,26 @@ describe('SolidScript lists split after their brackets are read', () => {
     expect(solidScriptFieldTokens(text).map((token) => text.slice(token.from, token.to))).toEqual(['a$, b']);
   });
 
-  it('splits the text a bracket gives at its commas, so For Each walks every item', () => {
+  it('keeps a value whole: only the commas typed in the field separate items', () => {
     const hello = set('Text', 'Hello, World', 'Text');
-    expect(outcome(hello, each('[Text],23'), echo('[Item]'), line('end'))).toEqual(['Hello', 'World', '23']);
+    expect(outcome(hello, each('[Text],23'), echo('[Item]'), line('end'))).toEqual(['Hello, World', '23']);
+    expect(outcome(set('Henry', 'Hello$, World'), each('[Henry]'), echo('[Item]'), line('end'))).toEqual([
+      'Hello, World',
+    ]);
     expect(outcome(hello, each('[Text.Words]'), echo('[Item]'), line('end'))).toEqual(['Hello,', 'World']);
     expect(outcome(set('L', '1, 2, 3', 'List'), each('[L]'), echo('[Item]'), line('end'))).toEqual(['1', '2', '3']);
-    expect(outcome(hello, set('A', '[Text],23', 'List'), echo('[A.Count]'))).toEqual(['3']);
+    expect(outcome(hello, set('A', '[Text],23', 'List'), echo('[A.Count]'))).toEqual(['2']);
+  });
+
+  it('reads text like a typed field with Parse', () => {
+    expect(outcome(set('Width', '4$,5$,5', 'Text'), echo('[=Parse([Width])]'))).toEqual(['[4, 5, 5]']);
+    expect(outcome(set('Width', '4$,5$,5', 'Text'), line('cube', { size: '[=Parse([Width])]' }))).toEqual([]);
+    expect(outcome(set('Sum', '5+5', 'Text'), echo('[=Parse([Sum]) * 2]'))).toEqual(['20']);
+    expect(outcome(set('N', '7'), set('T', '$[N$], 1', 'Text'), echo('[=Parse([T])]'))).toEqual(['[7, 1]']);
+    expect(outcome(echo('[=Parse("Hello")]'))).toEqual(['Hello']);
+    // Text that parses itself stops at the depth limit instead of running forever.
+    const bomb = outcome(set('A', '$[=Parse($[A$])$]', 'Text'), echo('[=Parse([A])]'));
+    expect(bomb[0]).toMatch(/Parse\(\) is nested more than \d+ deep/);
   });
 
   it('suggests after the dot of a For Each item the members of what its list holds', () => {

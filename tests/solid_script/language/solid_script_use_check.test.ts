@@ -16,7 +16,7 @@ const BOXED: SolidScriptLine = { command: 'cube', values: { size: '[$Box.Width],
  */
 function warned(...lines: SolidScriptLine[]): number[] {
   const document = solidScriptDocumentUsesWith(solidScriptDocumentCreate(lines), { generator: true, modifier: true });
-  return solidScriptUseCheck(document).map((warning) => warning.line);
+  return solidScriptUseCheck(document).map((warning) => warning.line ?? 0);
 }
 
 describe('solid script use check', () => {

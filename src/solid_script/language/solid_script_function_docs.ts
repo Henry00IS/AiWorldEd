@@ -220,6 +220,13 @@ export const SOLID_SCRIPT_FUNCTION_DOCS: Readonly<Record<string, SolidScriptFunc
   join: { usage: 'Join(list, separator)', summary: 'One text from the items of a list.', group: 'Text', gives: 'Text' },
   characters: { usage: 'Characters(text)', summary: 'List of the single letters.', group: 'Text', gives: 'List' },
   lines: { usage: 'Lines(text)', summary: 'List of the lines of a text.', group: 'Text', gives: 'List' },
+  parse: {
+    usage: 'Parse(text)',
+    summary:
+      'Reads text like a typed field, with its brackets, vectors, lists and math: Parse("4, 5, 5") is a vector and Parse("5+5") is 10.',
+    group: 'Text',
+    gives: 'Any',
+  },
   number: { usage: 'Number(text)', summary: 'Reads text as a number.', group: 'Text', gives: 'Number' },
   format_number: {
     usage: 'FormatNumber(number, decimals, thousands)',

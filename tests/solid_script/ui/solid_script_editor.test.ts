@@ -535,6 +535,37 @@ describe('SolidScript editor', () => {
     expect(commands()).toEqual(['echo', 'cube', 'sphere']);
   });
 
+  it('shows what was echoed before an error, with the error after it', () => {
+    editorFixture([
+      { command: 'echo', values: { value: '5+5' } },
+      { command: 'cube', values: { size: '1,[=Number("a")],3' } },
+    ]);
+    const output = find('.solid-script-editor-output-text');
+    expect(output.textContent).toMatch(/^5\+5\n?Line 2: /);
+    expect(find('.solid-script-editor-output-failure').textContent).toMatch(/^Line 2: /);
+  });
+
+  it('hands focus back to the script when a line is clicked, dropping the output selection', () => {
+    editorFixture([{ command: 'echo', values: { value: 'hello' } }, ...CUBE_SPHERE]);
+    const output = find('.solid-script-editor-output-text');
+    const styles = [...document.querySelectorAll('style')].map((style) => style.textContent ?? '').join('\n');
+    expect(styles).toMatch(/\.solid-script-editor-output-text \{[^}]*outline: none;/);
+    output.focus();
+    output.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', ctrlKey: true, bubbles: true, cancelable: true }));
+    expect(document.getSelection()!.rangeCount).toBe(1);
+    expect(document.activeElement).toBe(output);
+    chip(1).dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true, cancelable: true }));
+    expect(document.activeElement).toBe(chip(1));
+    const selection = document.getSelection()!;
+    const kept = () => selection.rangeCount > 0 && output.contains(selection.getRangeAt(0).commonAncestorContainer);
+    expect(kept()).toBe(false);
+    output.focus();
+    output.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', ctrlKey: true, bubbles: true, cancelable: true }));
+    expect(kept()).toBe(true);
+    output.blur();
+    expect(kept()).toBe(false);
+  });
+
   it('gives the output its own caret, Ctrl+A selecting only its text, and keeps it read-only', () => {
     editorFixture([{ command: 'echo', values: { value: 'hello' } }, ...CUBE_SPHERE]);
     const output = find('.solid-script-editor-output-text');

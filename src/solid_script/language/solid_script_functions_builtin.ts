@@ -144,6 +144,10 @@ export const SOLID_SCRIPT_FUNCTIONS_BUILTIN: Readonly<Record<string, SolidScript
   cross: solidScriptCross,
   len: solidScriptLen,
   concat: (args) => args.flatMap((value) => (Array.isArray(value) ? value : [value])),
+  // Parse reads names of the running script, so the formula hands it to the machine.
+  parse: () => {
+    throw new Error('Parse() works only in a running script');
+  },
   str: (args) => args.map((value) => (typeof value === 'string' ? value : solidScriptValueText(value))).join(''),
   is_undef: (args) => args[0] === undefined,
   is_num: (args) => typeof args[0] === 'number',

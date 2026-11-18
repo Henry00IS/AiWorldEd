@@ -85,8 +85,8 @@ export interface SolidScriptBlockRun {
    */
   valueTyped(key: string, type: string): SolidScriptValue;
   /**
-   * Reads a list field: each item is read, then the text a bracket gives is
-   * split at its commas, so [Text], 23 walks every word of Text and 23.
+   * Reads a list field: only the commas typed in the field separate items, so
+   * [Text], 23 is two items whatever Text holds.
    */
   list(key: string): SolidScriptValue[];
   /** Works out a field of values separated by commas, such as [i], 0.2. */
@@ -235,8 +235,8 @@ export interface SolidScriptBlockRun {
 
 /** A warning of a run: the script still runs. */
 export interface SolidScriptWarning {
-  /** 1-based line. */
-  line: number;
+  /** 1-based line, or null for the whole script. */
+  line: number | null;
   /** What is wrong. */
   text: string;
 }

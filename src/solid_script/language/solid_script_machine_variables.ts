@@ -221,6 +221,9 @@ function solidScriptLocalBare(name: string): string {
   return bare;
 }
 
+/** How deep Parse() may read text that holds Parse() again. */
+const SOLID_SCRIPT_PARSE_DEPTH = 8;
+
 /**
  * What a script machine knows about names: its variables, inputs and persistent
  * values, the Functions running, and how field text reads them. The machine
@@ -232,7 +235,10 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
     (name, values) => this.functionCall(name, values),
     (name) => this.systemRead(name),
     (key) => this.nameShown(key),
+    (value, scope) => this.fieldParse(value, scope),
   );
+  /** How many Parse() calls are running inside each other. */
+  private parseDepth = 0;
   protected readonly readOnly = new Map<string, string>();
   /** First spelling of every name by its key, for the variable explorer. */
   protected readonly spellings = new Map<string, string>();
@@ -516,6 +522,37 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
    * @param scope Scope.
    * @returns Context.
    */
+  /**
+   * Reads text like a typed field, for Parse(): escapes, brackets, vectors and
+   * lists, and then math such as 5+5. Text that reads as neither stays text.
+   *
+   * @param value Text; other values are written as text first.
+   * @param scope Scope of the running line.
+   * @returns Value.
+   */
+  private fieldParse(value: SolidScriptValue, scope: SolidScriptScope): SolidScriptValue {
+    if (this.parseDepth >= SOLID_SCRIPT_PARSE_DEPTH)
+      throw new Error(
+        `Parse() is nested more than ${SOLID_SCRIPT_PARSE_DEPTH} deep; text that parses itself never ends`,
+      );
+    this.parseDepth += 1;
+    try {
+      this.workTake();
+      const context = this.fieldContext(scope);
+      const read = solidScriptFieldResolve(
+        'value',
+        typeof value === 'string' ? value : solidScriptValueText(value),
+        context,
+      );
+      // A lone word stays text, as in a typed field; only math is worked out.
+      if (typeof read !== 'string' || /^\s*([A-Za-z_]\w*)?\s*$/.test(read)) return read;
+      if (context.formulaParse(read) === null) return read;
+      return context.formula(read);
+    } finally {
+      this.parseDepth -= 1;
+    }
+  }
+
   protected fieldContext(scope: SolidScriptScope): SolidScriptFieldContext {
     return (scope.fieldContext ??= new SolidScriptFieldReader(this, scope));
   }

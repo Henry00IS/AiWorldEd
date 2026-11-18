@@ -112,10 +112,9 @@ export function solidScriptEditorRowBuild(
   row.addEventListener('mousedown', (event) => {
     if (event.button !== 0) return;
     handlers.press(look.line, event.shiftKey, event.ctrlKey || event.metaKey);
-    if (event.shiftKey || (event.target !== chip && !chip.contains(event.target as Node))) {
-      event.preventDefault();
-      chip.focus();
-    }
+    if (event.shiftKey || (event.target !== chip && !chip.contains(event.target as Node))) event.preventDefault();
+    // Focus comes back to the script from anywhere, such as the output, so Ctrl+C copies lines.
+    chip.focus();
   });
   row.addEventListener('click', (event) => {
     if (!event.shiftKey && !event.ctrlKey && !event.metaKey) handlers.release(look.line);
