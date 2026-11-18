@@ -80,13 +80,13 @@ export function solidScriptCommandsOfCategory(category: SolidScriptCommandCatego
 }
 
 /**
- * Returns whether a command must keep brushes as brushes. Only Mesh and Mesh
- * From Brushes may turn brushes into a mesh; every other command either keeps a
+ * Returns whether a command must keep brushes as brushes. Only Mesh, Mesh From
+ * Brushes and Grid Mesh may emit a mesh; every other command either keeps a
  * brush or stops with a plain error.
  *
  * @param command Command.
  * @returns True when the command must not emit a mesh from a brush.
  */
 export function solidScriptCommandPreservesBrushes(command: SolidScriptCommand): boolean {
-  return command.id !== 'mesh' && command.id !== 'mesh_brushes';
+  return command.id !== 'mesh' && command.id !== 'mesh_brushes' && command.id !== 'grid_mesh';
 }

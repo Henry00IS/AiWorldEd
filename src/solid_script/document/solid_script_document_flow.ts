@@ -326,18 +326,63 @@ class SolidScriptFlowAnalysis {
   ): SolidScriptFlowState {
     const counters = solidScriptGivenFields(node.block).map(({ name }) => solidScriptNameKey(name));
     this.counters.push(...counters.map((key) => ({ key, outer: state.get(key) })));
-    let current = state;
     try {
-      for (let round = 0; round < SOLID_SCRIPT_FLOW_ROUNDS; round++) {
-        const next =
-          solidScriptNarrowJoin(state, this.body(node, this.writes(node.block, current, [], frame), frame)) ?? state;
-        if (solidScriptFlowEqual(next, current)) return next;
-        current = next;
-      }
-      return current;
+      return this.loopJoin(node, state, frame, counters.length);
     } finally {
       this.counters.splice(this.counters.length - counters.length);
     }
+  }
+
+  /**
+   * Follows a loop's body until what it leaves stops changing.
+   *
+   * @param node Loop line.
+   * @param state Variables before the loop.
+   * @param frame Function or part it runs in.
+   * @param count How many counters this loop pushed.
+   * @returns Variables after its End.
+   */
+  private loopJoin(
+    node: SolidScriptFlowNode,
+    state: SolidScriptFlowState,
+    frame: SolidScriptFlowFrame,
+    count: number,
+  ): SolidScriptFlowState {
+    let current = state;
+    for (let round = 0; round < SOLID_SCRIPT_FLOW_ROUNDS; round++) {
+      this.loopReveal(current, count);
+      const next =
+        solidScriptNarrowJoin(state, this.body(node, this.writes(node.block, current, [], frame), frame)) ?? state;
+      if (solidScriptFlowEqual(next, current)) return next;
+      current = next;
+    }
+    return current;
+  }
+
+  /**
+   * Remembers, for each of this loop's counters, the value the name had at the
+   * start of the round, so Delete Variable can bring it back.
+   *
+   * @param current Variables at the start of the round.
+   * @param count How many counters this loop pushed.
+   */
+  private loopReveal(current: SolidScriptFlowState, count: number): void {
+    for (const counter of this.counters.slice(-count)) counter.outer = current.get(counter.key);
+  }
+
+  /**
+   * Forgets a name, or brings back the value a loop counter of that name hid.
+   *
+   * @param state Variables before the line.
+   * @param name Name as written.
+   * @returns Variables after it.
+   */
+  private forget(state: SolidScriptFlowState, name: string): SolidScriptFlowState {
+    const key = solidScriptNameKey(name);
+    const after = new Map(solidScriptFlowDelete(state, key));
+    const hidden = [...this.counters].reverse().find((counter) => counter.key === key)?.outer;
+    if (hidden) after.set(key, hidden);
+    return after;
   }
 
   /**
@@ -414,7 +459,7 @@ class SolidScriptFlowAnalysis {
     const { gives, name } = given;
     if (gives.rule === 'word') this.inputNames.add(solidScriptNameKey(name));
     else if (this.inputNames.has(solidScriptNameKey(name))) return state;
-    if (gives.rule === 'forgotten') return solidScriptFlowDelete(state, solidScriptNameKey(name));
+    if (gives.rule === 'forgotten') return this.forget(state, name);
     if (gives.rule === 'kept' || gives.rule === 'read' || gives.rule === 'defines') return state;
     if (gives.rule === 'emptied' || gives.rule === 'shrunk') return this.change(state, name, gives.rule, block);
     const item = /^((?:local\.|persistent\.)?[A-Za-z_]\w*)\s*\(.*\)$/i.exec(name)?.[1];

@@ -126,4 +126,15 @@ describe('SolidScript kinds followed through the script', () => {
     expect(kindsAt(lines, 4, 'i')).toEqual(['Face']);
     expect(kindsAt(lines, 6, 'i')).toEqual(['Face', 'Number']);
   });
+
+  it('brings back the kind a loop counter hid once Delete Variable forgets the counter', () => {
+    const lines = [
+      line('repeat', { variable: 'A', from: '0', to: '2' }),
+      line('delete_variable', { name: 'A' }),
+      set('A', 'Yes'),
+      line('cube'),
+      line('end'),
+    ];
+    expect(kindsAt(lines, 3, 'a')).toEqual(['Yes/No']);
+  });
 });

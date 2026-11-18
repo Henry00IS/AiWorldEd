@@ -319,7 +319,7 @@ describe('solid script command catalog', () => {
 
   it('never turns a brush into a mesh when the command is declared as keeping brushes', () => {
     const converters = solidScriptCommands.filter((command) => !solidScriptCommandPreservesBrushes(command));
-    expect(converters.map((command) => command.id).sort()).toEqual(['mesh', 'mesh_brushes']);
+    expect(converters.map((command) => command.id).sort()).toEqual(['grid_mesh', 'mesh', 'mesh_brushes']);
     const projectUvs = solidScriptCommandFind('project_uvs');
     expect(projectUvs && projectUvs.category === 'Faces').toBe(true);
     const boxUvs = solidScriptCommandFind('box_uvs');

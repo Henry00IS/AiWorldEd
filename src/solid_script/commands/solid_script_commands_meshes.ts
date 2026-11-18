@@ -2,8 +2,10 @@ import * as THREE from 'three';
 import { solidScriptKindNamed } from '@/solid_script/language/solid_script_kinds.js';
 import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
+import { SOLID_SCRIPT_ANCHOR_SOLID } from '@/solid_script/language/solid_script_anchor.js';
 import {
   solidScriptParameter,
+  solidScriptParameterAnchor,
   solidScriptParameterOf,
   solidScriptParameterOptional,
 } from './solid_script_command_parameters.js';
@@ -19,6 +21,11 @@ import {
   type SolidScriptShapeMesh,
   type SolidScriptUv,
 } from '@/solid_script/language/solid_script_mesh.js';
+import {
+  SOLID_SCRIPT_GRID_MESH_COUNT_MAX,
+  SOLID_SCRIPT_GRID_MESH_COUNT_MIN,
+  solidScriptGridMesh,
+} from '@/solid_script/language/solid_script_grid_mesh.js';
 import type { SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
 import {
   SolidScriptElement,
@@ -267,6 +274,53 @@ function solidScriptMeshFlipRun(run: SolidScriptBlockRun, mesh: SolidScriptShape
 
 /** Commands that build and change meshes, which become regular mesh objects. */
 export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
+  new SolidScriptCommand({
+    id: 'grid_mesh',
+    label: 'Grid Mesh',
+    category: 'Meshes',
+    description: 'Build a flat grid of faces',
+    manual:
+      'Builds a mesh of quads in a plane, for a floor, a wall or a terrain to Displace. Size is width (X), height (Y) and depth (Z) in metres; set one of them to 0 so the grid lies in that plane, such as 2, 0, 2 for a grid on the ground, or 2, 2, 0 for a wall facing the front. Columns is how many faces across, Rows how many the other way. Anchor picks the spot of the box that sits on the origin, the same as on a Cube. Texture coordinates run from 0 to 1 across the grid. Example: Grid Mesh Size 8, 0, 8 Columns 16 Rows 16, then Displace with a Noise formula, gives a hilly floor.',
+    stops: [
+      'A Size with a negative length, or that is not one number or three numbers separated by commas.',
+      'A Size that is not flat: set Width, Height or Depth to 0, such as 2, 0, 2.',
+      `Columns or Rows outside ${SOLID_SCRIPT_GRID_MESH_COUNT_MIN} to ${SOLID_SCRIPT_GRID_MESH_COUNT_MAX}, or a count with decimals.`,
+    ],
+    parameters: [
+      solidScriptParameter(
+        'size',
+        'Size',
+        'vector3',
+        '2, 0, 2',
+        'Width (X), height (Y) and depth (Z) in metres. Set one length to 0 so the grid is flat.',
+      ),
+      solidScriptParameter(
+        'columns',
+        'Columns',
+        'count',
+        '4',
+        `Faces across, ${SOLID_SCRIPT_GRID_MESH_COUNT_MIN} to ${SOLID_SCRIPT_GRID_MESH_COUNT_MAX}.`,
+      ),
+      solidScriptParameter(
+        'rows',
+        'Rows',
+        'count',
+        '4',
+        `Faces the other way, ${SOLID_SCRIPT_GRID_MESH_COUNT_MIN} to ${SOLID_SCRIPT_GRID_MESH_COUNT_MAX}.`,
+      ),
+      solidScriptParameterAnchor(SOLID_SCRIPT_ANCHOR_SOLID),
+    ],
+    listing: (read) => [
+      'Grid Mesh',
+      read.value('size'),
+      ...solidScriptListingOptions([
+        read.changed('columns') && ['Columns ', read.value('columns')],
+        read.changed('rows') && ['Rows ', read.value('rows')],
+        read.changed('anchor') && ['Anchor ', read.value('anchor')],
+      ]),
+    ],
+    execute: (run) => run.mesh(solidScriptGridMesh(run.fields())),
+  }),
   new SolidScriptCommand({
     id: 'mesh',
     named: true,
