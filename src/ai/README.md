@@ -141,7 +141,7 @@ How it maps:
 - SolidScript uses the editor's axes: X right, Y up, Z toward the front. Units are metres; Rotate turns about X, then Y, then Z.
 - The origin is the centre of the generator's box (or the build `position`), and brushes are centred on it by default (`anchor: "Center, Bottom, Center"` stands a brush on it, `anchor: "Left, Bottom, Back"` puts its corner there), so a brush needs no Translate to sit in the middle of the generator.
 - `operation: "subtractive"` with a `modelId` carves the result out of existing brushes.
-- Mesh blocks (`mesh` with `vertex` and `face` lines, `mesh_brushes`, and the mesh tools `subdivide`, `mesh_smooth`, `displace`, `extrude_faces`, `box_uvs`, `flip_faces`) build regular editable meshes instead of brushes. A script can mix both; a mesh cannot be cut by `difference` or `intersection`. In a SolidScript generator the meshes show as a preview until Bake turns them into mesh objects.
+- Mesh blocks (`mesh` with `vertex` and `face` lines, `mesh_brushes`, and the mesh tools `subdivide`, `mesh_smooth`, `displace`, `extrude_faces`, `flip_faces`) build regular editable meshes instead of brushes. A script can mix both; a mesh cannot be cut by `difference` or `intersection`. Box UVs is a face block: it gives brushes and meshes even, box-projected texture coordinates and keeps brushes as brushes. In a SolidScript generator the meshes show as a preview until Bake turns them into mesh objects.
 
 Room with a doorway:
 

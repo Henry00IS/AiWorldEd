@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest';
 import {
   SOLID_SCRIPT_COMMAND_CATEGORIES,
   solidScriptCommandFind,
+  solidScriptCommandPreservesBrushes,
   solidScriptCommands,
   solidScriptCommandsOfCategory,
 } from '@/solid_script/commands/solid_script_command_catalog.js';
 import type { SolidScriptCommand } from '@/solid_script/commands/solid_script_command.js';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
+import { solidScriptShapeMeshes } from '@/solid_script/language/solid_script_mesh.js';
 
 /**
  * Title Case: every word starts with a capital letter or a digit; words may be
@@ -307,6 +309,19 @@ describe('solid script command catalog', () => {
     for (const category of SOLID_SCRIPT_COMMAND_CATEGORIES) {
       const labels = solidScriptCommandsOfCategory(category).map((command) => command.label);
       expect(labels, category).toEqual([...labels].sort((left, right) => left.localeCompare(right)));
+    }
+  });
+
+  it('never turns a brush into a mesh when the command is declared as keeping brushes', () => {
+    const converters = solidScriptCommands.filter((command) => !solidScriptCommandPreservesBrushes(command));
+    expect(converters.some((command) => command.id === 'mesh_brushes')).toBe(true);
+    expect(converters.some((command) => command.id === 'subdivide')).toBe(true);
+    const boxUvs = solidScriptCommandFind('box_uvs');
+    expect(boxUvs && solidScriptCommandPreservesBrushes(boxUvs)).toBe(true);
+    for (const command of solidScriptCommands.filter(solidScriptCommandPreservesBrushes)) {
+      const result = run(...standalone(command));
+      expect(result.error?.message ?? null, command.id).toBeNull();
+      expect(solidScriptShapeMeshes(result.shapes), command.id).toHaveLength(0);
     }
   });
 });

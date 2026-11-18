@@ -70,3 +70,15 @@ export function solidScriptCommandsOfCategory(category: SolidScriptCommandCatego
     .slice()
     .sort((left, right) => left.label.localeCompare(right.label));
 }
+
+/**
+ * Returns whether a command must keep brushes as brushes: it builds or wraps
+ * shapes and is not a mesh block, which may turn brushes into a mesh.
+ *
+ * @param command Command.
+ * @returns True when a brush put into or built by the command must stay a
+ *   brush.
+ */
+export function solidScriptCommandPreservesBrushes(command: SolidScriptCommand): boolean {
+  return command.category !== 'Meshes' && (command.builds || command.nesting === 'open');
+}

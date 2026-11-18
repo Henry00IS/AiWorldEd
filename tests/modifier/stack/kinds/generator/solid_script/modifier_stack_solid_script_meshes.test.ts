@@ -111,6 +111,7 @@ describe('SolidScript generator meshes', () => {
   it('paints a mesh with the Texture around or inside Box UVs, shown and baked', () => {
     const texture: SolidScriptLine = { command: 'texture', values: { texture: 'Base/Blakm_d.bmp' } };
     const uvs: SolidScriptLine = { command: 'box_uvs', values: { size: '1' } };
+    const fromBrushes: SolidScriptLine = { command: 'mesh_brushes' };
     const torus: SolidScriptLine[] = [
       { command: 'rotate_extrude', values: { angle: '360', sides: '16' } },
       { command: 'translate', values: { v: '1, 0, 0' } },
@@ -122,7 +123,7 @@ describe('SolidScript generator meshes', () => {
       [texture, uvs],
       [uvs, texture],
     ]) {
-      const fixture = meshFixture(...order, ...torus, END, END);
+      const fixture = meshFixture(...order, fromBrushes, ...torus, END, END, END);
       fixture.compile();
       const [shown] = modifierStackMeshesShown(fixture.node);
       if (!shown) throw new Error('Expected a shown mesh');

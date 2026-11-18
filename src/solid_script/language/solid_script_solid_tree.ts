@@ -53,6 +53,7 @@ function solidScriptSolidTreeNodes(
     const brush = solidScriptSolidTreeBrush(shape.points, shape.label, role, options);
     if (shape.texture) brush.texture = shape.texture;
     if (shape.faceTextures) brush.faceTextures = solidScriptSolidTreeFaceTextures(brush, shape.faceTextures, options);
+    if (shape.boxUvSize !== undefined) brush.boxUvSize = shape.boxUvSize;
     return [brush];
   }
   if (shape.kind === 'mesh') return [];

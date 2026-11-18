@@ -16,6 +16,11 @@ export interface SolidTreeBrush {
   texture?: string;
   /** Textures of single faces by face index, winning over texture. */
   faceTextures?: readonly (string | undefined)[];
+  /**
+   * Metres of one Box UVs repeat; when set, faces use a box projection in the
+   * centred brush's space.
+   */
+  boxUvSize?: number;
 }
 
 /** A CSG group to insert with its members in evaluation order. */

@@ -15,7 +15,7 @@ import {
   type SolidScriptShapeMesh,
   type SolidScriptUv,
 } from '@/solid_script/language/solid_script_mesh.js';
-import type { SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
+import { solidScriptShapeMapLeaves, type SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
 import {
   solidScriptValueNumber,
   solidScriptValueNumbers,
@@ -138,6 +138,26 @@ function solidScriptMeshBoxUvs(mesh: SolidScriptShapeMesh, size: number): SolidS
       });
     }),
   };
+}
+
+/**
+ * Gives Box UVs to one shape tree: brushes stay brushes and keep a box
+ * projection; meshes get texture coordinates on every face.
+ *
+ * @param shape Shape tree.
+ * @param size Metres per texture repeat.
+ * @param label Command label, for messages.
+ * @returns Mapped tree.
+ */
+function solidScriptBoxUvsShape(shape: SolidScriptShape, size: number, label: string): SolidScriptShape {
+  return solidScriptShapeMapLeaves(shape, (leaf) => {
+    if (leaf.kind === 'polygon') {
+      throw new Error(`${label} needs solids or meshes; a flat outline becomes a solid inside Linear Extrude first`);
+    }
+    if (leaf.kind === 'solid') return { ...leaf, boxUvSize: size };
+    if (leaf.kind === 'mesh') return solidScriptMeshBoxUvs(leaf, size);
+    return leaf;
+  });
 }
 
 /** Commands that build and change meshes, which become regular mesh objects. */
@@ -430,18 +450,19 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'box_uvs',
     label: 'Box UVs',
-    category: 'Meshes',
-    description: 'Give mesh faces even texture coordinates',
+    category: 'Faces',
+    description: 'Give faces even texture coordinates, as if wrapped in a box',
     manual:
-      'Gives every face of the mesh made from the brushes between this line and its End texture coordinates projected from the side it faces most, like wrapping it in a box of texture, so the texture keeps one size everywhere. Size is how many metres one texture repeat covers. Example: Box UVs with size 2 around a displaced rock shows the texture every two metres.',
+      'Gives every face of the brushes and meshes between this line and its End texture coordinates projected from the side it faces most, like wrapping it in a box of texture, so the texture keeps one size everywhere. Brushes stay convex brushes; meshes stay meshes. Size is how many metres one texture repeat covers. Example: Box UVs with size 2 around a Cube shows the texture every two metres on each side.',
     stops: ['A Size of 0 or less.', SOLID_SCRIPT_MESH_STOPS_FLAT, SOLID_SCRIPT_MESH_STOPS_END],
     nesting: 'open',
     parameters: [solidScriptParameter('size', 'Size', 'number', '1', 'Metres covered by one texture repeat.')],
     listing: (read) => ['Box UVs', 'size ', read.value('size')],
     execute: (run) => {
+      if (run.planar) throw new Error('Box UVs cannot be inside a Linear Extrude; put it around the extrusion');
       const size = solidScriptMeshNumber(run.value('size'), 'Size');
       if (!(size > 0)) throw new Error(`Size must be greater than 0, not ${size}`);
-      return solidScriptMeshTool(run, 'Box UVs', (mesh) => solidScriptMeshBoxUvs(mesh, size));
+      return run.placed(run.local(false).map((shape) => solidScriptBoxUvsShape(shape, size, 'Box UVs')));
     },
   }),
   new SolidScriptCommand({

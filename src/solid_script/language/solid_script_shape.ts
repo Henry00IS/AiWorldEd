@@ -18,6 +18,11 @@ export interface SolidScriptShapeSolid {
   texture?: string;
   /** Textures of single faces, from Texture Faces; they win over texture. */
   faceTextures?: SolidScriptFaceTexture[];
+  /**
+   * Metres of one Box UVs repeat; when set, faces keep a box projection and the
+   * solid stays a brush.
+   */
+  boxUvSize?: number;
   /** Tags the operations that built faces gave them, such as Bevel. */
   faceTags?: SolidScriptFaceTag[];
   /**
