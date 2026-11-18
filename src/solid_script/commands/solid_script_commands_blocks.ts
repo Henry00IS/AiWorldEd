@@ -128,7 +128,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
         'keep',
         'Keep Proportions',
         'boolean',
-        'false',
+        'No',
         'Yes: axes with a size of 0 scale like the first axis that has one.',
       ),
     ],

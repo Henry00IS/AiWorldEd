@@ -118,7 +118,7 @@ export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
   solidScriptExampleInput('Start', 'number', '0', { label: 'Start °' }),
   solidScriptExampleInput('RadiusOffset', 'number', '0', { label: 'Radius Offset' }),
   solidScriptExampleInput('Rise', 'number', '0', { label: 'Rise per Step' }),
-  solidScriptExampleInput('RotateCopies', 'switch', 'true', { label: 'Rotate Copies' }),
+  solidScriptExampleInput('RotateCopies', 'switch', 'Yes', { label: 'Rotate Copies' }),
   solidScriptExampleInput('Pivot', 'vector', '0, 0, 0', { label: 'Pivot' }),
   solidScriptExampleInput('UV', 'choice', 'copied', { label: 'Textures', choices: 'copied, world' }),
   ...SOLID_SCRIPT_EXAMPLE_TEXTURES,

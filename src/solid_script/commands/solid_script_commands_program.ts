@@ -416,7 +416,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
         '0.1',
         'How far the edges move, in metres. Below 0 shrinks.',
       ),
-      solidScriptParameter('round', 'Round', 'boolean', 'true', 'Yes: grown corners are curved. No: they stay sharp.'),
+      solidScriptParameter('round', 'Round', 'boolean', 'Yes', 'Yes: grown corners are curved. No: they stay sharp.'),
       solidScriptParameterSides(),
     ],
     listing: (read) => [

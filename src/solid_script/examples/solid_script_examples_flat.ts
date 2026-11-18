@@ -103,7 +103,7 @@ function solidScriptExampleSlab(from: string, to: string): SolidScriptLine {
 export const SOLID_SCRIPT_EXAMPLE_HOLLOW_BOX: readonly SolidScriptLine[] = [
   solidScriptExampleNote('Hollow Box: a floor, a ceiling and four walls, each one box.'),
   solidScriptExampleInput('WallThickness', 'number', '0.25', { label: 'Wall Thickness', min: '0.01', max: '100' }),
-  solidScriptExampleInput('OpenTop', 'switch', 'false', { label: 'Open Top' }),
+  solidScriptExampleInput('OpenTop', 'switch', 'No', { label: 'Open Top' }),
   ...solidScriptExampleSlabFunction(),
   SOLID_SCRIPT_EXAMPLE_HALF,
   solidScriptExampleSet('T', '[WallThickness]'),

@@ -120,6 +120,6 @@ describe('SolidScript Resize, Matrix, Minkowski and Rotate Extrude', () => {
       { command: 'cube' },
     );
     expect(result.error).toBeNull();
-    expect(result.messages).toEqual(['25 0 100', 'true 3']);
+    expect(result.messages).toEqual(['25 0 100', 'Yes 3']);
   });
 });

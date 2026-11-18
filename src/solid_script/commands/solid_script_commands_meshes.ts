@@ -291,7 +291,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
         'smooth',
         'Smooth',
         'boolean',
-        'true',
+        'Yes',
         'Yes: round the shape off. No: keep its shape exactly, only with more faces.',
       ),
     ],

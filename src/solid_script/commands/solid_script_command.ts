@@ -76,10 +76,15 @@ export interface SolidScriptCommandParameter {
   /** Greyed text an empty field shows, such as the list an empty Of uses. */
   placeholder?: string;
   /**
-   * Words that follow from another field of the line, such as Yes and No for
-   * the Value of a Set whose Type is Yes/No.
+   * Words and greyed text that follow from another field of the line, such as
+   * Yes and No, and No when empty, for the Value of a Set whose Type is
+   * Yes/No.
    */
-  wordsOf?: { key: string; words: (other: string) => readonly SolidScriptCommandWord[] };
+  follows?: {
+    key: string;
+    words: (other: string) => readonly SolidScriptCommandWord[];
+    placeholder: (other: string) => string;
+  };
   /** Axes of an Anchor field, which the window shows as one choice per axis. */
   anchor?: readonly SolidScriptAnchorAxis[];
 }

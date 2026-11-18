@@ -57,9 +57,9 @@ Every field is plain text, without quotes, read like this:
 
 - A number: "2", "0.5", "-1".
 - A list for positions, sizes and angles: numbers separated by commas, "1, 2, 3". One number fills every axis: "2" means 2, 2, 2.
-- Polyhedron and Polygon are blocks: each Point line between them and their End adds one corner (x, y, z; a Polygon ignores z). Point lines may sit inside Repeat, For Each, If and moves such as Translate, so corners can come from loops and formulas. Their optional Points From List field adds the points of a list variable, such as "[Corners]"; written out, points are separated by semicolons: "0, 0, 0; 1, 0, 0".
+- Polyhedron and Polygon are blocks: each Point line between them and their End adds one corner (x, y, z; a Polygon ignores z). Point lines may sit inside Repeat, For Each, If and moves such as Translate, so corners can come from loops and formulas. Their optional Points From List field adds the points of a list variable, such as "[Corners]"; written out, points are vectors in brackets separated by commas: "[0, 0, 0], [1, 0, 0]" (a Polygon ignores z).
 - Lists: Set "Points()" adds an item at the end of the list Points (creating it), Set "Points(2)" changes item 2 (items count from 0, and the next free number appends), "[Points(2)]" reads it, "[Points.Count]" is the number of items and "[Points]" is the whole list. An item number past the end stops the script. For Each runs its lines once per item of a list.
-- Switches: "true" or "false" (Yes or No also work).
+- Switches: Yes or No (True or False also work).
 - [Name] puts in the value of a variable: "[Width]", or "[Width], 1, 1" for one axis.
 - [=formula] puts in the result of a formula; inside it, write variables as [Name] too: "[=[I] * 2]", "[=[Width] / 2], 0, [=Sin([Angle]) * 3]".
 - Brackets nest, so a variable name can itself come from variables: "[Part[I]]" reads the variable whose name is part followed by the value of i.

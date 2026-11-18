@@ -158,3 +158,18 @@ export function solidScriptTypeWords(type: string): { word: string; detail: stri
       ]
     : [];
 }
+
+/**
+ * Writes the value a blank Set of a kind gives, as its Value field shows it
+ * greyed: nothing for Any, Text and lists, 0, No or 0, 0, 0.
+ *
+ * @param type Kind, one of the Type words, or empty.
+ * @returns Text.
+ */
+export function solidScriptTypePlaceholder(type: string): string {
+  const known = SOLID_SCRIPT_TYPES.find((entry) => entry.toLowerCase() === type.trim().toLowerCase()) ?? '';
+  const value = solidScriptTypeDefault(known);
+  if (Array.isArray(value)) return value.length === 0 ? '' : value.join(', ');
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  return value === undefined ? '' : String(value);
+}

@@ -78,7 +78,7 @@ Brushes, faces, edges and corners are values, like numbers and text. A dot reads
 
 ## Paths and meshes
 
-**Curve To Mesh** sweeps a circle or your own outline along a list of points, such as a rail or a pipe.
+**Curve To Mesh** sweeps a circle or your own outline along a list of points, such as a rail or a pipe. Points are vectors in brackets separated by commas, such as `[0, 0, 0], [1, 0, 0], [2, 1, 0]`, or a list variable such as `[Path]`; a Profile outline ignores z.
 
 <details>
 <summary>More Details</summary>

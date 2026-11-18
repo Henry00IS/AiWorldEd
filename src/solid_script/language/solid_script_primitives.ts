@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { SOLID_SCRIPT_ANCHOR_FLAT, SOLID_SCRIPT_ANCHOR_SOLID, solidScriptAnchorMin } from './solid_script_anchor.js';
 import type { SolidScriptBlockArguments } from './solid_script_block_arguments.js';
 import type { SolidScriptPoint2 } from './solid_script_polygon.js';
-import { solidScriptValueNumbers, type SolidScriptValue } from './solid_script_value.js';
 import { solidScriptGeneratorPieces } from './solid_script_generator_pieces.js';
 
 /**
@@ -143,31 +142,14 @@ export function solidScriptPolyhedronPoints(
   args: SolidScriptBlockArguments,
   gathered: readonly THREE.Vector3[],
 ): THREE.Vector3[] {
-  const listed = solidScriptPointList(args).map((entry) => {
-    const xyz = solidScriptValueNumbers(entry);
-    if (!xyz || xyz.length !== 3) throw args.error('points', 'must list x, y, z corners', entry);
-    return new THREE.Vector3(xyz[0], xyz[1], xyz[2]);
-  });
+  // The points field already reads x, y, z points.
+  const listed = (args.value('points') as number[][]).map(([x, y, z]) => new THREE.Vector3(x, y, z));
   const points = [...listed, ...gathered];
   if (points.length < 4)
     throw new Error(
       `Polyhedron needs at least 4 corners and has ${points.length}; add Point lines inside it or a list in Points From List`,
     );
   return points;
-}
-
-/**
- * Reads the optional Points From List field: empty, one point, or a list of
- * points such as a list variable.
- *
- * @param args Block fields.
- * @returns Point values.
- */
-function solidScriptPointList(args: SolidScriptBlockArguments): SolidScriptValue[] {
-  const list = args.value('points');
-  if (!Array.isArray(list)) throw args.error('points', 'must be a list of points', list ?? 'nothing');
-  if (list.length > 0 && typeof list[0] === 'number') return [list];
-  return list;
 }
 
 /**
@@ -209,11 +191,8 @@ export function solidScriptPolygonOutline(
   args: SolidScriptBlockArguments,
   gathered: readonly THREE.Vector3[],
 ): SolidScriptPoint2[] {
-  const listed = solidScriptPointList(args).map((entry) => {
-    const xy = solidScriptValueNumbers(entry);
-    if (!xy || xy.length < 2 || xy.length > 3) throw args.error('points', 'must list x, y points', entry);
-    return [xy[0], xy[1]] as SolidScriptPoint2;
-  });
+  // The points field already reads x, y points.
+  const listed = (args.value('points') as number[][]).map(([x, y]) => [x, y] as SolidScriptPoint2);
   const points = [...listed, ...gathered.map((point) => [point.x, point.y] as SolidScriptPoint2)];
   if (points.length < 3)
     throw new Error(

@@ -432,7 +432,7 @@ describe('Offset', () => {
     const concave = run(
       line('linear_extrude'),
       line('offset', { distance: '-0.1' }),
-      line('polygon', { points: '0, 0; 3, 0; 3, 1; 1, 1; 1, 3; 0, 3' }),
+      line('polygon', { points: '[0, 0, 0], [3, 0, 0], [3, 1, 0], [1, 1, 0], [1, 3, 0], [0, 3, 0]' }),
       END,
       END,
       END,

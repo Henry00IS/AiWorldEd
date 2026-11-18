@@ -132,7 +132,7 @@ describe('SolidScript paths', () => {
   it('sweeps a listed outline as a profile, and builds one closed mesh with outward faces', () => {
     const result = run(...L_PATH, {
       command: 'curve_to_mesh',
-      values: { path: '[path]', profile: '0, 0; 0.4, 0; 0.4, 0.2; 0, 0.2', mesh: 'true' },
+      values: { path: '[path]', profile: '[0, 0, 0], [0.4, 0, 0], [0.4, 0.2, 0], [0, 0.2, 0]', mesh: 'true' },
     });
     expect(result.error).toBeNull();
     const [mesh] = solidScriptShapeMeshes(result.shapes);

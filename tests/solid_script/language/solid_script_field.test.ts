@@ -57,7 +57,7 @@ describe('SolidScript field text', () => {
     expect(solidScriptFieldResolve('number', '2.5', CONTEXT)).toBe(2.5);
     expect(solidScriptFieldResolve('vector3', '1, 2, 3', CONTEXT)).toEqual([1, 2, 3]);
     expect(solidScriptFieldResolve('vector3', '2', CONTEXT)).toBe(2);
-    expect(solidScriptFieldResolve('points2', '0, 0; 2, 0; 1, 2', CONTEXT)).toEqual([
+    expect(solidScriptFieldResolve('points2', '[0, 0, 0], [2, 0, 0], [1, 2, 0]', CONTEXT)).toEqual([
       [0, 0],
       [2, 0],
       [1, 2],

@@ -439,6 +439,24 @@ describe('SolidScript editor', () => {
     expect(script().blocks[2]?.values['size']).toBe('[$Box.Width]');
   });
 
+  it('shows the empty value of the Type of a Set line as the greyed Value', () => {
+    editorFixture([{ command: 'variable', values: { name: 'Open', value: '', type: 'Yes/No' } }, { command: 'cube' }]);
+    doubleClick(chip(0));
+    const value = find<HTMLInputElement>('[data-solid-script-configurator="variable"] input[aria-label="Value"]');
+    const kind = find<HTMLInputElement>('[data-solid-script-configurator="variable"] input[aria-label="Type"]');
+    expect(value.placeholder).toBe('No');
+    for (const [declared, shown] of [
+      ['Number', '0'],
+      ['Vector', '0, 0, 0'],
+      ['Text List', ''],
+      ['Any', ''],
+      ['', ''],
+    ]) {
+      type(kind, declared!);
+      expect(value.placeholder, declared).toBe(shown);
+    }
+  });
+
   it('suggests the words of the Type of a Set line when its Value is clicked', () => {
     editorFixture([{ command: 'variable', values: { name: 'Open', value: '', type: 'Yes/No' } }, { command: 'cube' }]);
     doubleClick(chip(0));
@@ -495,6 +513,26 @@ describe('SolidScript editor', () => {
     press(find<HTMLInputElement>('[data-solid-script-configurator="cube"] input'), 'Escape');
     expect(document.querySelector('[data-solid-script-configurator]')).toBeNull();
     expect(commands()).toEqual(['cube']);
+  });
+
+  it('lets the output be selected and copied like a read-only text box, keeping the editor shortcuts', () => {
+    const { root, commands } = editorFixture([{ command: 'echo', values: { value: 'hello' } }, ...CUBE_SPHERE]);
+    const output = find('.solid-script-editor-output-text');
+    expect(output.textContent).toContain('hello');
+    expect(output.getAttribute('aria-readonly')).toBe('true');
+    const styles = [...document.querySelectorAll('style')].map((style) => style.textContent ?? '').join('\n');
+    expect(styles).toMatch(/\.solid-script-editor-output-text \{[^}]*user-select: text;[^}]*cursor: text;/);
+    output.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+    expect(root.contains(document.activeElement)).toBe(true);
+    const copy = new KeyboardEvent('keydown', { key: 'c', ctrlKey: true, bubbles: true, cancelable: true });
+    output.dispatchEvent(copy);
+    expect(copy.defaultPrevented).toBe(false);
+    press(chip(0), 'Delete');
+    expect(commands()).toEqual(['cube', 'sphere']);
+    (document.activeElement as HTMLElement).dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true }),
+    );
+    expect(commands()).toEqual(['echo', 'cube', 'sphere']);
   });
 
   it('keeps Delete and Backspace in the window after a click anywhere in it, so the generator stays', () => {

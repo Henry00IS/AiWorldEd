@@ -78,7 +78,7 @@ describe('solidScriptSolidTreeBuild', () => {
 
   it('rejects flat solids', () => {
     expect(() =>
-      tree([{ command: 'polyhedron', values: { points: '0, 0, 0; 1, 0, 0; 0, 1, 0; 1, 1, 0' } }, END]),
+      tree([{ command: 'polyhedron', values: { points: '[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0]' } }, END]),
     ).toThrow(/flat|plane/);
   });
 

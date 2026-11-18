@@ -176,7 +176,10 @@ describe('solid script command catalog', () => {
       for (const bracket of help.match(/\[\s*-?\d[^\]]*\]/g) ?? [])
         expect(bracket.split(',').length, `${command.id}: ${bracket}`).toBe(3);
       expect(help, command.id).not.toMatch(/"/);
-      for (const parameter of command.parameters) expect(parameter.default, command.id).not.toMatch(/^\[\s*-?\d|"/);
+      for (const parameter of command.parameters) expect(parameter.default, command.id).not.toMatch(/"/);
+      // Points are vectors in brackets separated by commas, never semicolons.
+      expect(help, command.id).not.toMatch(/\d\s*;\s*-?\d/);
+      for (const parameter of command.parameters) expect(parameter.default, command.id).not.toMatch(/;/);
     }
   });
 

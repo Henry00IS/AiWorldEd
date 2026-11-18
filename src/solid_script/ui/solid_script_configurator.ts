@@ -123,6 +123,7 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
    */
   private refresh(): void {
     const fields = [...this.fields.values()];
+    for (const field of fields) field.sync();
     const problem = fields.map((field) => field.problem()).find((text) => text !== '') || this.commandProblem();
     const warning = fields.map((field) => field.warning()).find((text) => text !== '') ?? '';
     this.preview.textContent = this.command.listingText(this.values());

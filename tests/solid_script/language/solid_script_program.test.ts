@@ -138,7 +138,7 @@ describe('solidScriptProgramRun', () => {
     const outline = solidScriptProgramEvaluate(
       script(
         { command: 'linear_extrude' },
-        { command: 'polygon', values: { points: '0, 0; 2, 0; 2, 1; 1, 1; 1, 2; 0, 2' } },
+        { command: 'polygon', values: { points: '[0, 0, 0], [2, 0, 0], [2, 1, 0], [1, 1, 0], [1, 2, 0], [0, 2, 0]' } },
         { command: 'end' },
         { command: 'end' },
       ),

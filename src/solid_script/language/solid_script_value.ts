@@ -152,6 +152,7 @@ export function solidScriptValueEquals(left: SolidScriptValue, right: SolidScrip
 export function solidScriptValueText(value: SolidScriptValue): string {
   if (value === undefined) return 'undef';
   if (Array.isArray(value)) return `[${value.map(solidScriptValueText).join(', ')}]`;
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
   return String(value);
 }
 

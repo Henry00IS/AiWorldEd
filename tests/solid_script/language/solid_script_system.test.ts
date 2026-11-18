@@ -57,11 +57,11 @@ describe('SolidScript system values', () => {
     expect(echo('[$Editor.Name] [$Editor.Version] on [$Editor.Platform]')).toBe('AI World Editor 9.8.7 on desktop');
     expect(echo('[$Editor.Url]')).toBe('https://example.test/editor/');
     expect(echo('[$Level.Name] in [$Room.Name] with [$Room.Players], online [$Room.Online], by [$User.Name]')).toBe(
-      'castle.aiw in Build Night with 3, online true, by Ada',
+      'castle.aiw in Build Night with 3, online Yes, by Ada',
     );
     solidScriptSystemHostSet(() => ({ ...HOST, roomName: '' }));
     solidScriptSystemPlayersSet(null);
-    expect(echo('[$Room.Online] [$Room.Players]')).toBe('false 1');
+    expect(echo('[$Room.Online] [$Room.Players]')).toBe('No 1');
   });
 
   it('tells where the script runs and counts runs', () => {
@@ -177,7 +177,7 @@ describe('SolidScript math and list functions', () => {
     expect(Number(formula('radians(180)'))).toBeCloseTo(Math.PI, 5);
     expect(formula('degrees(Math.Pi)')).toBe('180');
     expect(formula('hypot(3, 4)')).toBe('5');
-    expect(formula('between(5, 1, 9)')).toBe('true');
+    expect(formula('between(5, 1, 9)')).toBe('Yes');
   });
 
   it('sums, averages and picks from lists', () => {

@@ -143,6 +143,6 @@ describe('SolidScript stops at the first mistake', () => {
       { command: 'cube', values: { size: '[w], 1, 1' } },
     );
     expect(result.error).toBeNull();
-    expect(result.messages).toEqual(['6 true']);
+    expect(result.messages).toEqual(['6 Yes']);
   });
 });

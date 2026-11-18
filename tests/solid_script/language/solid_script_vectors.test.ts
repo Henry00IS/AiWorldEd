@@ -99,9 +99,9 @@ describe('SolidScript text and helper functions', () => {
     expect(formula('uppercase("door")')).toBe('DOOR');
     expect(formula('lowercase("Door")')).toBe('door');
     expect(formula('trim("  hi  ")')).toBe('hi');
-    expect(formula('contains("big door", "door")')).toBe('true');
-    expect(formula('starts_with("door_1", "door")')).toBe('true');
-    expect(formula('ends_with("door_1", "_2")')).toBe('false');
+    expect(formula('contains("big door", "door")')).toBe('Yes');
+    expect(formula('starts_with("door_1", "door")')).toBe('Yes');
+    expect(formula('ends_with("door_1", "_2")')).toBe('No');
     expect(formula('position("abcabc", "c")')).toBe('2');
     expect(formula('part("window", 0, 3)')).toBe('win');
     expect(formula('replace("a-b-c", "-", "+")')).toBe('a+b+c');
@@ -119,7 +119,7 @@ describe('SolidScript text and helper functions', () => {
     expect(formula('pick(1, "red", "green", "blue")')).toBe('green');
     expect(formula('clamp(12, 0, 10)')).toBe('10');
     expect(formula('trunc(-2.7)')).toBe('-2');
-    expect(formula('random(0, 10, 4) == random(0, 10, 4)')).toBe('true');
+    expect(formula('random(0, 10, 4) == random(0, 10, 4)')).toBe('Yes');
     expect(formula('pick(5, "a")')).toMatch(/has 1 choices, numbered from 0, so 5 is not one of them/);
   });
 });
@@ -191,7 +191,7 @@ describe('SolidScript formula words', () => {
   it('reads ^ as a power and and, or, not as logic words', () => {
     expect(
       echoed(line('echo', { value: '[=2 ^ 3] [=-2 ^ 2] [=2 ^ 3 ^ 2] [=1 < 2 and not (3 < 2)] [=false or 1 == 1]' })),
-    ).toEqual(['8 -4 512 true true']);
+    ).toEqual(['8 -4 512 Yes Yes']);
   });
 
   it('clears a name not set yet into an empty list for Add Item', () => {

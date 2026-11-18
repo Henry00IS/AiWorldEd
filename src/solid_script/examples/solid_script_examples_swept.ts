@@ -121,7 +121,7 @@ export const SOLID_SCRIPT_EXAMPLE_CURVED_STAIRS: readonly SolidScriptLine[] = [
   solidScriptExampleInput('InnerRadius', 'number', '0.3', { label: 'Inner Radius', min: '0', max: '0.95' }),
   solidScriptExampleInput('Direction', 'choice', 'ccw', { label: 'Direction', choices: 'ccw, cw' }),
   solidScriptExampleInput('StepDetail', 'count', '2', { label: 'Step Detail', min: '1', max: '16' }),
-  solidScriptExampleInput('FillToFloor', 'switch', 'true', { label: 'Fill To Floor' }),
+  solidScriptExampleInput('FillToFloor', 'switch', 'Yes', { label: 'Fill To Floor' }),
   solidScriptExampleInput('StepThickness', 'number', '0.2', { label: 'Step Thickness', min: '0.01', max: '100' }),
   solidScriptExampleSet('TurnSign', '1'),
   ...solidScriptExampleIf('[Direction] == "cw"', [solidScriptExampleSet('TurnSign', '-1')]),

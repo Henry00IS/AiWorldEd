@@ -39,6 +39,8 @@ export interface SolidScriptConfiguratorField {
   warning: () => string;
   /** Takes its suggestion lists off the page, when the window closes. */
   close: () => void;
+  /** Follows the fields it depends on, such as the greyed text of a Set Value. */
+  sync: () => void;
 }
 
 /** What a field can refer to: the names of the script around the line. */
@@ -116,7 +118,7 @@ export function solidScriptConfiguratorFieldBuild(
     : parameter.type === 'boolean'
       ? SOLID_SCRIPT_CONFIGURATOR_YES_NO
       : (parameter.words ?? []);
-  const from = parameter.wordsOf;
+  const from = parameter.follows;
   const suggest: SolidScriptSuggestionScope = {
     names: scope.names,
     extra: scope.extra,
@@ -129,6 +131,12 @@ export function solidScriptConfiguratorFieldBuild(
       ? []
       : [...inputs.querySelectorAll<HTMLInputElement>('input[type="text"]')];
   const lists = texts.map((input) => new SolidScriptConfiguratorNames(input, suggest));
+  const sync = (): void => {
+    if (!from) return;
+    const shown = from.placeholder(scope.other?.(from.key) ?? '');
+    for (const input of texts) input.placeholder = shown;
+  };
+  sync();
   inputs.addEventListener('input', changed);
   inputs.addEventListener('change', changed);
   const known = solidScriptFieldKnown(scope.names, scope.extra);
@@ -166,6 +174,7 @@ export function solidScriptConfiguratorFieldBuild(
     read: field.read,
     warning,
     close: () => lists.forEach((list) => list.close()),
+    sync,
     problem: () => {
       const problem = field.problem();
       for (const input of inputs.querySelectorAll('input[type="text"]'))

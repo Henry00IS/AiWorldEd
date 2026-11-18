@@ -4,29 +4,9 @@ import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import { solidScriptParameter, solidScriptParameterOptional } from './solid_script_command_parameters.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import { solidScriptPathMesh, solidScriptPathSweep } from '@/solid_script/language/solid_script_path.js';
-import { solidScriptValueNumbers, type SolidScriptValue } from '@/solid_script/language/solid_script_value.js';
 
 /** Most sides of a round Curve To Mesh profile. */
 const SOLID_SCRIPT_SWEEP_SIDES_MAX = 64;
-
-/**
- * Reads a field as a list of points of a size; one point counts as a list.
- *
- * @param value Field value.
- * @param size Values per point.
- * @param what Field label, for the message.
- * @returns Points.
- */
-function solidScriptSweepPoints(value: SolidScriptValue, size: number, what: string): number[][] {
-  if (!Array.isArray(value) || value.length === 0) return [];
-  const list = typeof value[0] === 'number' ? [value] : value;
-  return list.map((entry) => {
-    const numbers = solidScriptValueNumbers(entry);
-    if (!numbers || numbers.length !== size)
-      throw new Error(`${what} must list points of ${size === 3 ? 'x, y, z' : 'x, y'}`);
-    return numbers;
-  });
-}
 
 /**
  * Reads the profile: the listed outline, or a round one of Radius and Sides.
@@ -35,7 +15,8 @@ function solidScriptSweepPoints(value: SolidScriptValue, size: number, what: str
  * @returns Profile corners, counter-clockwise.
  */
 function solidScriptSweepProfile(run: SolidScriptBlockRun): THREE.Vector2[] {
-  const listed = solidScriptSweepPoints(run.value('profile'), 2, 'Profile');
+  // The points fields already read x, y and x, y, z points.
+  const listed = run.value('profile') as number[][];
   if (listed.length > 0) {
     if (listed.length < 3) throw new Error(`Profile needs at least 3 points, not ${listed.length}`);
     const corners = listed.map(([x, y]) => new THREE.Vector2(x, y));
@@ -72,7 +53,7 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
         'path',
         'Path',
         'points3',
-        '0, 0, 0; 1, 0, 0; 2, 1, 0',
+        '[0, 0, 0], [1, 0, 0], [2, 1, 0]',
         'Points the profile follows, such as a list variable [Path].',
       ),
       solidScriptParameter('radius', 'Radius', 'number', '0.1', 'Radius of the round profile in metres.'),
@@ -87,10 +68,10 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
         'profile',
         'Profile',
         'points2',
-        'Optional: an x, y outline swept instead of the circle, such as 0, 0; 0.2, 0; 0.2, 0.1.',
+        'Optional: an x, y outline swept instead of the circle, written as vectors whose z is ignored, such as [0, 0, 0], [0.2, 0, 0], [0.2, 0.1, 0].',
       ),
-      solidScriptParameter('closed', 'Closed', 'boolean', 'false', 'Yes: join the last point back to the first.'),
-      solidScriptParameter('mesh', 'As Mesh', 'boolean', 'false', 'Yes: build one mesh. No: one solid per stretch.'),
+      solidScriptParameter('closed', 'Closed', 'boolean', 'No', 'Yes: join the last point back to the first.'),
+      solidScriptParameter('mesh', 'As Mesh', 'boolean', 'No', 'Yes: build one mesh. No: one solid per stretch.'),
     ],
     listing: (read) => [
       'Curve To Mesh',
@@ -103,7 +84,7 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
       ]),
     ],
     execute: (run) => {
-      const path = solidScriptSweepPoints(run.value('path'), 3, 'Path').map(([x, y, z]) => new THREE.Vector3(x, y, z));
+      const path = (run.value('path') as number[][]).map(([x, y, z]) => new THREE.Vector3(x, y, z));
       const profile = solidScriptSweepProfile(run);
       const fields = run.fields();
       const closed = fields.flag('closed');

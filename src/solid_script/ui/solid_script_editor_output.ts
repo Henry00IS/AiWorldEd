@@ -98,7 +98,11 @@ export class SolidScriptEditorOutput {
     bar.setAttribute('role', 'tablist');
     for (const [id, label] of SOLID_SCRIPT_EDITOR_OUTPUT_TABS) bar.append(this.tabButton(id, label));
     this.output.className = SOLID_SCRIPT_EDITOR_CLASSES.outputText;
-    this.output.setAttribute('role', 'status');
+    // A read-only text box: what Echo printed and errors can be selected and copied.
+    this.output.setAttribute('role', 'textbox');
+    this.output.setAttribute('aria-readonly', 'true');
+    this.output.setAttribute('aria-multiline', 'true');
+    this.output.setAttribute('aria-label', 'Output');
     this.output.setAttribute('aria-live', 'polite');
     this.outputHost = solidScriptScrollerWrap(this.output, '1 1 0', 12);
     this.variablesHost = this.explorer.element;

@@ -119,7 +119,7 @@ export const SOLID_SCRIPT_EXAMPLE_STAIRS: readonly SolidScriptLine[] = [
   ]),
   solidScriptExampleNote('Set here, so the underside function can read them for each step.'),
   solidScriptExampleSet('From', '0'),
-  solidScriptExampleSet('LandingStep', 'false'),
+  solidScriptExampleSet('LandingStep', 'No'),
   ...solidScriptExampleRepeat('I', '0', '[=[Steps] - 1]', [
     solidScriptExampleSet('Last', '[=[I] == [Steps] - 1]'),
     solidScriptExampleSet('From', '[=[I] * [Run] + [NoseDepth]]'),

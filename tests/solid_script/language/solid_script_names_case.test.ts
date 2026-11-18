@@ -67,7 +67,7 @@ describe('names ignore case', () => {
       echo('[=True] [=TRUE] [=Pi > 3]'),
     );
     expect(result.error).toBeNull();
-    expect(result.messages).toEqual(['10 10 3 3', '65 65', 'true true true']);
+    expect(result.messages).toEqual(['10 10 3 3', '65 65', 'Yes Yes Yes']);
   });
 
   it('reads members such as Face.Center in any case', () => {

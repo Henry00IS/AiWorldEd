@@ -26,7 +26,8 @@ describe('SolidScript Set with a Type', () => {
     expect(solidScriptTypeDefault('Yes/No')).toBe(false);
     expect(solidScriptTypeDefault('Face List')).toEqual([]);
     expect(outcome(set('N', '', 'Number'), echo('[N]'))).toEqual(['0']);
-    expect(outcome(set('B', '', 'Yes/No'), echo('[B]'))).toEqual(['false']);
+    expect(outcome(set('B', '', 'Yes/No'), echo('[B]'))).toEqual(['No']);
+    expect(outcome(echo('[=1 < 2] [=True and False]'))).toEqual(['Yes No']);
     expect(outcome(set('V', '', 'Vector'), echo('[V]'))).toEqual(['[0, 0, 0]']);
     expect(outcome(set('L', '', 'List'), echo('[L.Count]'))).toEqual(['0']);
     expect(outcome(set('L', '', 'Text List'), set('L()', 'oak'), echo('[L.Count]'))).toEqual(['1']);
@@ -51,7 +52,7 @@ describe('SolidScript vector literals', () => {
     expect(outcome(set('V', '[20, 30, 10]'), echo('[V.y]'))).toEqual(['30']);
     expect(outcome(set('V', '[-1.5, .5, 0]'), echo('[V]'))).toEqual(['[-1.5, 0.5, 0]']);
     expect(outcome(set('V', '[20, 30, 10]'), set('W', '[=Vector(20, 30, 10)]'), echo('[=[V] == [W]]'))).toEqual([
-      'true',
+      'Yes',
     ]);
     expect(outcome(set('X', '7'), set('V', '[1, [X], 3]'), echo('[V]'))).toEqual(['[1, 7, 3]']);
   });
@@ -102,6 +103,11 @@ describe('SolidScript vector literals', () => {
     expect(outcome(set('V', '[0*2]'))[0]).toMatch(/Did you mean to write \[=0\*2\]\?/);
     expect(outcome(set('V', '[1, 2, 3, 4]'))[0]).toMatch(/Did you mean to write 1, 2, 3, 4\?/);
     expect(solidScriptFieldCheck('[1, 2]')).toMatch(/Did you mean to write \[1, 2, 0\]\?/);
+    expect(solidScriptFieldCheck('[3,]')).toMatch(/Did you mean to write \[3, 0, 0\]\?/);
+    expect(solidScriptFieldCheck('[3,2]')).toMatch(/Did you mean to write \[3, 2, 0\]\?/);
+    expect(outcome(set('L', '[2,5,[3, 2, 3],[3,2,0]]'))[0]).toMatch(
+      /is not a vector.*Did you mean to write 2, 5, \[3, 2, 3\], \[3, 2, 0\]\?/,
+    );
     expect(solidScriptFieldCheck('[1, 2, 3]')).toBe('');
     expect(solidScriptFieldCheck('[[X], 2, 3]')).toBe('');
   });
@@ -114,5 +120,33 @@ describe('SolidScript vector literal colours', () => {
       .filter((token) => token.kind === 'number')
       .map((token) => text.slice(token.from, token.to));
     expect(numbers).toEqual(['20', '-3', '.5']);
+  });
+});
+
+describe('SolidScript point lists', () => {
+  /** The error of a run, or null. */
+  const fails = (...lines: SolidScriptLine[]) =>
+    solidScriptProgramRun(solidScriptDocumentCreate(lines), {}).error?.message ?? null;
+
+  it('sweeps Curve To Mesh along vectors in brackets, with a profile of vectors whose z is ignored', () => {
+    expect(fails(line('curve_to_mesh', { path: '[0, 0, 0], [1, 0, 0], [2, 1, 0]' }))).toBeNull();
+    expect(
+      fails(
+        set('Path', '[0, 0, 0], [1, 0, 0]'),
+        line('curve_to_mesh', { path: '[Path]', profile: '[0, 0, 0], [0.2, 0, 0], [0.2, 0.1, 0]' }),
+      ),
+    ).toBeNull();
+    expect(fails(line('curve_to_mesh', { path: '0, 0, 0; 1, 0, 0' }))).toMatch(/\[0, 0, 0\], \[1, 0, 0\]/);
+  });
+
+  it('takes Polygon corners from vectors in brackets', () => {
+    expect(
+      fails(
+        line('linear_extrude', { height: '1' }),
+        line('polygon', { points: '[0, 0, 0], [2, 0, 0], [0, 2, 0]' }),
+        line('end'),
+        line('end'),
+      ),
+    ).toBeNull();
   });
 });

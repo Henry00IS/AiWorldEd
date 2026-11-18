@@ -166,6 +166,7 @@ function solidScriptFieldFormulaText(value: SolidScriptValue): string {
   if (typeof value === 'string') return JSON.stringify(value);
   if (typeof value === 'number') return value < 0 ? `(${value})` : String(value);
   if (Array.isArray(value)) return `[${value.map(solidScriptFieldFormulaText).join(', ')}]`;
+  if (typeof value === 'boolean') return value ? 'True' : 'False';
   return solidScriptValueText(value);
 }
 
@@ -340,18 +341,24 @@ function solidScriptFieldVectorRead(text: string): number[] | null {
 function solidScriptFieldVectorProblem(text: string): string {
   const inner = text.trim();
   if (!SOLID_SCRIPT_FIELD_NUMBER_START.test(inner) || solidScriptFieldVectorRead(inner)) return '';
-  const items = inner.split(',').map((item) => item.trim());
-  const numbers = items.every((item) => item !== '' && Number.isFinite(Number(item)));
+  const items = solidScriptFieldSplit(inner, ',');
+  // More than three items or brackets inside: a list written in brackets, such as pasted Echo output.
+  if (items.length > 3 || items.some((item) => item.includes('[')))
+    return `[${inner}] is not a vector: a vector in brackets needs exactly 3 numbers, such as [1, 2, 3]. Did you mean to write ${items.filter((item) => item !== '').join(', ')}?`;
+  const written = items.filter((item) => item !== '');
+  const numbers = written.every((item) => Number.isFinite(Number(item)));
+  // Missing numbers are filled in with 0, so [3,] means [3, 0, 0].
+  const padded = [...written, '0', '0', '0'].slice(0, 3);
   const meant =
     items.length === 1
       ? numbers
         ? inner
         : `[=${inner}]`
-      : numbers && items.length === 2
-        ? `[${items.join(', ')}, 0]`
-        : numbers
-          ? items.join(', ')
-          : `[=Vector(${items.join(', ')})]`;
+      : !numbers
+        ? `[=Vector(${written.join(', ')})]`
+        : written.length <= 3
+          ? `[${padded.join(', ')}]`
+          : written.join(', ');
   return `[${inner}] is not a vector: a vector in brackets needs exactly 3 numbers, such as [1, 2, 3]. Did you mean to write ${meant}?`;
 }
 
@@ -519,6 +526,39 @@ function solidScriptFieldFolded(text: string, compiled: SolidScriptFieldCompiled
 }
 
 /**
+ * Reads the points of a points field: vectors in brackets separated by commas,
+ * a list of them such as [Path], or one point as plain numbers. Flat outlines
+ * take x and y and ignore z.
+ *
+ * @param values Items of the field, each read.
+ * @param size 2 for x, y outlines, 3 for x, y, z points.
+ * @returns Points.
+ */
+export function solidScriptFieldPoints(values: readonly SolidScriptValue[], size: 2 | 3): number[][] {
+  const example = size === 3 ? '[0, 0, 0], [1, 0, 0]' : '[0, 0, 0], [1, 0, 0] (z is ignored)';
+  const wrong = (found: SolidScriptValue): Error =>
+    new Error(`${solidScriptValueText(found)} is no point; write points as vectors in brackets, such as ${example}`);
+  const fit = (numbers: readonly number[], found: SolidScriptValue): number[] => {
+    if (numbers.length === size || (size === 2 && numbers.length === 3)) return numbers.slice(0, size);
+    throw wrong(found);
+  };
+  const numeric = (value: SolidScriptValue): value is number[] =>
+    Array.isArray(value) && value.length > 0 && value.every((entry) => typeof entry === 'number');
+  if (values.every((value) => typeof value === 'number')) return [fit(values as number[], [...values])];
+  const points: number[][] = [];
+  for (const value of values) {
+    if (numeric(value)) points.push(fit(value, value));
+    else if (Array.isArray(value))
+      for (const entry of value) {
+        if (!numeric(entry)) throw wrong(entry);
+        points.push(fit(entry, entry));
+      }
+    else throw wrong(value);
+  }
+  return points;
+}
+
+/**
  * Reads a switch: Yes or No, or true or false.
  *
  * @param value Resolved value.
@@ -583,9 +623,13 @@ function solidScriptFieldCompile(kind: SolidScriptFieldKind, text: string): Soli
       case 'points2':
       case 'points3': {
         if (text.trim() === '') return () => [];
-        const points = solidScriptFieldSplit(text, ';').map(solidScriptFieldVectorCompile);
-        if (points.length === 1) return points[0]!;
-        return (context) => points.map((point) => point(context));
+        const size = kind === 'points2' ? 2 : 3;
+        const items = solidScriptFieldSplit(text, ',').map(solidScriptFieldTemplateCompile);
+        return (context) =>
+          solidScriptFieldPoints(
+            items.map((item) => solidScriptFieldNumber(item(context))),
+            size,
+          );
       }
       case 'boolean': {
         const template = solidScriptFieldTemplateCompile(text);

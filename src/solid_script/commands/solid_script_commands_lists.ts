@@ -144,7 +144,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     parameters: [
       solidScriptParameter('value', 'Value', 'value', '1', 'What to take out.'),
       SOLID_SCRIPT_LIST_NAME,
-      solidScriptParameter('every', 'Every Copy', 'boolean', 'false', 'Take out every copy, not just the first.'),
+      solidScriptParameter('every', 'Every Copy', 'boolean', 'No', 'Take out every copy, not just the first.'),
     ],
     listing: (read) => [
       'Remove Value',
@@ -213,7 +213,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
         'descending',
         'Biggest First',
         'boolean',
-        'false',
+        'No',
         'Put the biggest number or last word first.',
       ),
     ],

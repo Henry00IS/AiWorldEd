@@ -5,7 +5,11 @@ import {
   solidScriptParameterOptional,
   solidScriptParameterWords,
 } from './solid_script_command_parameters.js';
-import { SOLID_SCRIPT_TYPES, solidScriptTypeWords } from '@/solid_script/language/solid_script_types.js';
+import {
+  SOLID_SCRIPT_TYPES,
+  solidScriptTypePlaceholder,
+  solidScriptTypeWords,
+} from '@/solid_script/language/solid_script_types.js';
 import {
   SolidScriptElement,
   solidScriptValueText,
@@ -77,9 +81,8 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
           '',
           'A number, numbers separated by commas such as 1, 2, 3, a vector such as [1, 2, 3], plain text, [Name] for another variable, or [=formula] such as [=[Width] * 2]. Left empty it is the empty value of the Type: 0, no text, 0, 0, 0, No or a new empty list.',
         ),
-        placeholder: '2',
         optional: true,
-        wordsOf: { key: 'type', words: solidScriptTypeWords },
+        follows: { key: 'type', words: solidScriptTypeWords, placeholder: solidScriptTypePlaceholder },
       },
       {
         ...solidScriptParameterWords(
@@ -198,9 +201,9 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     id: 'if',
     label: 'If',
     category: 'Logic',
-    description: 'Run lines only when something is true',
+    description: 'Run lines only when something is True',
     manual:
-      'Runs the lines inside only when the condition is true. Write the condition like a formula, but without the =. Write variables as [Name]. An Else starts the lines that run when it is false. Example: If [I] % 2 == 0 inside a Repeat builds on every second round.',
+      'Runs the lines inside only when the condition is True. Write the condition like a formula, but without the =. Write variables as [Name]. An Else starts the lines that run when it is false. Example: If [I] % 2 == 0 inside a Repeat builds on every second round.',
     stops: [
       'A [Name] for a variable not set above this line, or a condition that cannot be read.',
       'A missing End line.',
