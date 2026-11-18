@@ -15,7 +15,7 @@ import {
 } from './solid_script_shape.js';
 
 /** Closest two points may be to count as the same, in metres. */
-const SOLID_SCRIPT_GEOMETRY_EPSILON = 1e-5;
+export const SOLID_SCRIPT_GEOMETRY_EPSILON = 1e-5;
 
 /**
  * How far, as a cosine, a face may lean from straight up and still count as a

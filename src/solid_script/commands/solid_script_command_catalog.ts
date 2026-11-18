@@ -11,6 +11,7 @@ import { SOLID_SCRIPT_COMMANDS_PATHS } from './solid_script_commands_paths.js';
 import { SOLID_SCRIPT_COMMANDS_GENERATORS } from './solid_script_commands_generators.js';
 import { SOLID_SCRIPT_COMMANDS_PROGRAM } from './solid_script_commands_program.js';
 import { SOLID_SCRIPT_COMMANDS_QUERY } from './solid_script_commands_query.js';
+import { SOLID_SCRIPT_COMMANDS_CLIP } from './solid_script_commands_clip.js';
 
 /** Palette groups in palette order. */
 export const SOLID_SCRIPT_COMMAND_CATEGORIES: readonly SolidScriptCommandCategory[] = [
@@ -33,6 +34,7 @@ export const solidScriptCommands: readonly SolidScriptCommand[] = [
   ...SOLID_SCRIPT_COMMANDS_GENERATORS,
   ...SOLID_SCRIPT_COMMANDS_PLANAR,
   ...SOLID_SCRIPT_COMMANDS_TRANSFORMS,
+  ...SOLID_SCRIPT_COMMANDS_CLIP,
   ...SOLID_SCRIPT_COMMANDS_COMBINE,
   ...SOLID_SCRIPT_COMMANDS_MESHES,
   ...SOLID_SCRIPT_COMMANDS_PATHS,

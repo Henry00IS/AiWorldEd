@@ -80,6 +80,7 @@ Brushes, faces, edges and corners are values, like numbers and text. A dot reads
 - **Scatter Points** spreads points into a list of positions. **Where** chooses how: **On Faces** (the default) spreads them over faces, more on bigger ones, and writes **Normals**; **Inside** fills a brush or mesh; **In Box** fills a box of Size; **Grid** lays Counts points in that box. Unused fields stay hidden. Of empty uses [$Selected.Faces]. The same Seed gives the same points for the random modes.
 - **Hull** wraps the brushes, Point lines and optional **Points From List** between it and its End in one convex solid. Hand it the list Scatter Points writes, such as `Hull` From `[Spots]`, to wrap those points; they must not all lie in one plane, so scatter on more than one face. **Polyhedron** also wraps a point list, when you are listing corners yourself.
 - **Find On** looks at the faces in Of, or [$Selected.Faces] when Of is empty: **Closest** (the default) picks the nearest point to From, **Along Ray** follows Direction and picks the first face it meets. It can write the point, Distance, Normal, Face and Hit.
+- **Clip** cuts the brushes and meshes in Of, or [$Selected.Brushes] when Of is empty, with a plane. Through is a point on the plane. Normal is the way the part you cut away faces; the other side stays. A brush stays a brush, a mesh stays a mesh, and a closed mesh gets a new face over the cut.
 - **Align To** turns the lines inside so their up (Y) points along a direction, such as a face's `[Face.Normal]`.
 
 </details>
