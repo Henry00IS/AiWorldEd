@@ -8,7 +8,10 @@ import {
   SOLID_SCRIPT_MISTAKE_NUMERIC,
   solidScriptFieldMistakeNote,
 } from '@/solid_script/language/solid_script_field_mistakes.js';
-import type { SolidScriptCommandParameter } from '@/solid_script/commands/solid_script_command.js';
+import type {
+  SolidScriptCommandParameter,
+  SolidScriptCommandWord,
+} from '@/solid_script/commands/solid_script_command.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import { solidScriptAnchorRead } from '@/solid_script/language/solid_script_anchor.js';
 import {
@@ -28,7 +31,7 @@ import { solidScriptEditorViewRead, type SolidScriptEditorView } from './solid_s
 import { SolidScriptConfiguratorNames } from './solid_script_configurator_names.js';
 import { solidScriptEditorToolButton } from './solid_script_editor_icons.js';
 import { textureSelectCreate } from '@/texture/ui/texture_select.js';
-import type { SolidScriptSuggestionScope } from './solid_script_suggestions.js';
+import { solidScriptSuggestionSelectedWords, type SolidScriptSuggestionScope } from './solid_script_suggestions.js';
 
 /** One labelled field of the configurator. */
 export interface SolidScriptConfiguratorField {
@@ -85,6 +88,53 @@ const SOLID_SCRIPT_CONFIGURATOR_NAME = /^((local|persistent)\.)?[A-Za-z_][A-Za-z
 const SOLID_SCRIPT_CONFIGURATOR_TARGET = /^((local|persistent)\.)?[A-Za-z_][A-Za-z0-9_]*(\.[xyz]|\s*\(.*\))?$/i;
 
 /**
+ * Name groups a field naming a variable the line writes offers. Inputs are left
+ * out, as lines only read them.
+ */
+const SOLID_SCRIPT_CONFIGURATOR_WRITABLE_GROUPS: readonly string[] = [
+  'Variables',
+  'Lists',
+  'Counters',
+  'Locals',
+  'Persistent',
+];
+
+/**
+ * Tells which name groups of the script a field offers: the ones it asks for,
+ * or the writable ones for a field naming a variable the line writes.
+ *
+ * @param parameter Parameter.
+ * @returns Groups, or undefined when the field offers no names of the script.
+ */
+function solidScriptConfiguratorNameGroups(parameter: SolidScriptCommandParameter): readonly string[] | undefined {
+  return parameter.nameGroups ?? (parameter.writes ? SOLID_SCRIPT_CONFIGURATOR_WRITABLE_GROUPS : undefined);
+}
+
+/**
+ * Lists the words a field offers first: names of the script from its groups,
+ * each once, with the [$Selected.*] lists for a whole path a Set writes; Yes
+ * and No for a switch; or the field's own words.
+ *
+ * @param parameter Parameter.
+ * @param names Names the line sees.
+ * @returns Words.
+ */
+function solidScriptConfiguratorWords(
+  parameter: SolidScriptCommandParameter,
+  names: readonly SolidScriptName[],
+): readonly SolidScriptCommandWord[] {
+  const groups = solidScriptConfiguratorNameGroups(parameter);
+  if (groups === undefined)
+    return parameter.type === 'boolean' ? SOLID_SCRIPT_CONFIGURATOR_YES_NO : (parameter.words ?? []);
+  const words = new Map<string, SolidScriptCommandWord>();
+  for (const entry of names)
+    if (groups.includes(entry.category) && !words.has(entry.name.toLowerCase()))
+      words.set(entry.name.toLowerCase(), { word: entry.name, detail: entry.detail });
+  const selected = parameter.writes === 'path' ? solidScriptSuggestionSelectedWords() : [];
+  return [...words.values(), ...selected];
+}
+
+/**
  * Builds the field of one command parameter.
  *
  * @param parameter Parameter.
@@ -112,25 +162,19 @@ export function solidScriptConfiguratorFieldBuild(
   const inputs = document.createElement('span');
   inputs.className = SOLID_SCRIPT_EDITOR_CLASSES.fieldInputs;
   const field = solidScriptConfiguratorInputs(parameter, value, inputs);
-  const named = (categories: readonly string[]) =>
-    scope.names
-      .filter((entry) => categories.includes(entry.category))
-      .map((entry) => ({ word: entry.name, detail: entry.detail }));
-  const words = parameter.nameGroups
-    ? named(parameter.nameGroups)
-    : parameter.type === 'boolean'
-      ? SOLID_SCRIPT_CONFIGURATOR_YES_NO
-      : (parameter.words ?? []);
+  const words = solidScriptConfiguratorWords(parameter, scope.names);
   const from = parameter.follows;
   const suggest: SolidScriptSuggestionScope = {
     names: scope.names,
     extra: scope.extra,
+    paths: parameter.writes === 'path',
     get words() {
       return from ? [...words, ...from.words(scope.other?.(from.key) ?? '')] : words;
     },
   };
   const texts =
-    (parameter.type === 'name' || parameter.type === 'target') && !parameter.nameGroups
+    (parameter.type === 'name' || parameter.type === 'target') &&
+    solidScriptConfiguratorNameGroups(parameter) === undefined
       ? []
       : [...inputs.querySelectorAll<HTMLInputElement>('input[type="text"]')];
   const lists = texts.map((input) => new SolidScriptConfiguratorNames(input, suggest));

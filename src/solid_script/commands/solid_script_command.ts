@@ -19,6 +19,12 @@ import { solidScriptParameterInto, solidScriptParameterShapeName } from './solid
 /** How a command field reads its text, which also picks its configurator editor. */
 export type SolidScriptCommandParameterType = SolidScriptFieldKind;
 
+/**
+ * How a field that names a variable offers names: plain names, or whole paths a
+ * Set can write.
+ */
+export type SolidScriptCommandParameterWrites = 'name' | 'path';
+
 /** Palette group of a command, in palette order. */
 export type SolidScriptCommandCategory =
   | 'Solids'
@@ -73,6 +79,13 @@ export interface SolidScriptCommandParameter {
    * Of, Inputs for Show Inputs When or Parts for Use Part.
    */
   nameGroups?: readonly string[];
+  /**
+   * Set for a field naming a variable the line writes or changes: name offers
+   * the script's variables as they are typed, path also the writable
+   * [$Selected.*] lists and, after a dot, the members that lead to a value a
+   * line can set, such as Brush.Edges.Data.
+   */
+  writes?: SolidScriptCommandParameterWrites;
   /** Greyed text an empty field shows, such as the list an empty Of uses. */
   placeholder?: string;
   /**

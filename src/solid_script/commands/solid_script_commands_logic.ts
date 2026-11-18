@@ -4,6 +4,7 @@ import {
   solidScriptParameter,
   solidScriptParameterOptional,
   solidScriptParameterWords,
+  solidScriptParameterWrites,
 } from './solid_script_command_parameters.js';
 import {
   SOLID_SCRIPT_TYPES,
@@ -67,12 +68,15 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
       'An item number past the end of a list, such as Points(5) when Points has 3 items.',
     ],
     parameters: [
-      solidScriptParameter(
-        'name',
-        'Variable',
-        'target',
-        'Width',
-        'Letters, digits and _, not starting with a digit. For a list, Points() adds an item and Points(2) changes item 2. Face.Data.Height sets a value under .Data, on every item of a list such as Brush.Edges.Data.Kind.',
+      solidScriptParameterWrites(
+        solidScriptParameter(
+          'name',
+          'Variable',
+          'target',
+          'Width',
+          'Letters, digits and _, not starting with a digit. For a list, Points() adds an item and Points(2) changes item 2. Face.Data.Height sets a value under .Data, on every item of a list such as Brush.Edges.Data.Kind.',
+        ),
+        'path',
       ),
       {
         ...solidScriptParameter(
@@ -130,7 +134,9 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     ],
     nesting: 'open',
     parameters: [
-      solidScriptParameter('variable', 'Counter', 'name', 'I', 'Name the lines inside use for the current round.'),
+      solidScriptParameterWrites(
+        solidScriptParameter('variable', 'Counter', 'name', 'I', 'Name the lines inside use for the current round.'),
+      ),
       solidScriptParameter('from', 'Start', 'number', '0', 'Counter value of the first round.'),
       solidScriptParameter('to', 'End Value', 'number', '3', 'Counter value of the last round.'),
       solidScriptParameter('step', 'Step', 'number', '1', 'Added to the counter after each round.'),
@@ -160,7 +166,9 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     ],
     nesting: 'open',
     parameters: [
-      solidScriptParameter('variable', 'Item', 'name', 'Item', 'Name the lines inside use for the current item.'),
+      solidScriptParameterWrites(
+        solidScriptParameter('variable', 'Item', 'name', 'Item', 'Name the lines inside use for the current item.'),
+      ),
       solidScriptParameter(
         'list',
         'In',
@@ -168,11 +176,13 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
         '1, 2, 3',
         'Items separated by commas, or a list such as [Points], [$Selected.Faces] or [Face.Data].',
       ),
-      solidScriptParameterOptional(
-        'key',
-        'Key',
-        'name',
-        'Name for the item number from 0, or the key name over Data; empty gives none.',
+      solidScriptParameterWrites(
+        solidScriptParameterOptional(
+          'key',
+          'Key',
+          'name',
+          'Name for the item number from 0, or the key name over Data; empty gives none.',
+        ),
       ),
     ],
     listing: (read) => [

@@ -11,7 +11,11 @@ import { solidScriptFunctionSpelling } from '@/solid_script/language/solid_scrip
 import { SOLID_SCRIPT_SYSTEM_GLOBALS } from '@/solid_script/language/solid_script_system.js';
 import { solidScriptSentence, solidScriptSentenceTyped } from '@/solid_script/language/solid_script_sentence.js';
 import { solidScriptFieldEscapes, solidScriptFieldSplit } from '@/solid_script/language/solid_script_field.js';
-import { solidScriptSystemIsVector } from '@/solid_script/language/solid_script_name_rules.js';
+import {
+  SOLID_SCRIPT_SYSTEM_VALUES,
+  solidScriptNameDotProblem,
+  solidScriptSystemIsVector,
+} from '@/solid_script/language/solid_script_name_rules.js';
 import {
   SOLID_SCRIPT_MEMBER_TYPES,
   solidScriptMemberNames,
@@ -59,6 +63,11 @@ export interface SolidScriptSuggestionScope {
   extra: readonly string[];
   /** Words the field takes, offered first. */
   words: readonly SolidScriptCommandWord[];
+  /**
+   * True for a field holding a whole path a Set writes: after a dot it offers
+   * the members that lead to a value a line can set.
+   */
+  paths?: boolean;
 }
 
 /** How a suggestion is written: as the whole field, as a value or as a call. */
@@ -464,18 +473,98 @@ function solidScriptSuggestionMembers(
   const type = solidScriptSuggestionType(base, scope);
   if (type === null) return null;
   const names = type === 'List' ? Object.keys(SOLID_SCRIPT_MEMBER_TYPES['List']!) : solidScriptMemberNames(type);
-  return names.map((name) => {
-    const gives = type === 'List' ? (name === 'Count' ? 'Number' : 'Item') : solidScriptMemberType(type, name);
-    return {
-      label: `${base}.${name}`,
-      detail:
-        gives === 'Item' || gives === null
-          ? `The ${name.toLowerCase()} item of ${base}.`
-          : solidScriptSentenceTyped(gives, `the .${name} of ${base}`),
-      category: 'Members',
-      pick: 'value',
-    };
-  });
+  return names.map((name) => solidScriptSuggestionMember(base, type, name, 'value'));
+}
+
+/**
+ * Describes one member of a typed value as a suggestion, such as Brush.Edges
+ * with what it gives.
+ *
+ * @param base Typed value before the dot.
+ * @param type Kind of that value.
+ * @param name Member as written.
+ * @param pick How the suggestion is written.
+ * @returns Suggestion.
+ */
+function solidScriptSuggestionMember(
+  base: string,
+  type: string,
+  name: string,
+  pick: SolidScriptSuggestionPick,
+): SolidScriptSuggestion {
+  const gives = solidScriptSuggestionMemberGives(type, name);
+  return {
+    label: `${base}.${name}`,
+    detail:
+      gives === 'Item' || gives === null
+        ? `The ${name.toLowerCase()} item of ${base}.`
+        : solidScriptSentenceTyped(gives, `the .${name} of ${base}`),
+    category: 'Members',
+    pick,
+  };
+}
+
+/**
+ * Tells the kind a member of a kind of value gives; an item of a list of
+ * unknown kind is Item.
+ *
+ * @param type Kind of the value.
+ * @param name Member as written.
+ * @returns Kind, or null when the value has no such member.
+ */
+function solidScriptSuggestionMemberGives(type: string, name: string): string | null {
+  return type === 'List' ? (name === 'Count' ? 'Number' : 'Item') : solidScriptMemberType(type, name);
+}
+
+/**
+ * Tells whether a kind holds brushes, faces, edges or corners, alone or as a
+ * list, whose values under .Data a line can set.
+ *
+ * @param type Kind, such as Face or Edge List.
+ * @returns True for such a kind.
+ */
+function solidScriptSuggestionPathElement(type: string | null): boolean {
+  const item = type?.replace(/ List$/, '') ?? '';
+  return solidScriptMemberType(item, 'Data') !== null;
+}
+
+/**
+ * Lists, for a field holding a whole path a Set writes, the members after the
+ * last dot that lead to a value a line can set: Data and the members that give
+ * brushes, faces, edges or corners, or .x, .y and .z of a vector variable.
+ * Members a line can only read, such as Center, are left out.
+ *
+ * @param prefix Typed path.
+ * @param scope What the field may refer to.
+ * @returns Members, or null when nothing before a dot is typed or it is a
+ *   system value.
+ */
+function solidScriptSuggestionPaths(prefix: string, scope: SolidScriptSuggestionScope): SolidScriptSuggestion[] | null {
+  const dot = prefix.lastIndexOf('.');
+  if (dot < 0 || prefix.startsWith('$')) return null;
+  const base = prefix.slice(0, dot);
+  const type = solidScriptSuggestionType(base, scope);
+  if (type === null || type === 'List') return [];
+  return solidScriptMemberNames(type)
+    .filter((name) => {
+      const gives = solidScriptSuggestionMemberGives(type, name);
+      if (gives?.replace(/ List$/, '') === 'Data' || solidScriptSuggestionPathElement(gives)) return true;
+      return solidScriptNameDotProblem(`${base}.${name}`, 'set') === '';
+    })
+    .map((name) => solidScriptSuggestionMember(base, type, name, 'word'));
+}
+
+/**
+ * Lists the system values a line may set, the [$Selected.*] lists, as words a
+ * field holding a whole path offers.
+ *
+ * @returns Words with their kind and meaning.
+ */
+export function solidScriptSuggestionSelectedWords(): SolidScriptCommandWord[] {
+  const selected = (SOLID_SCRIPT_SYSTEM_VALUES['Selected'] ?? []).map((member) => `$Selected.${member}`.toLowerCase());
+  return SOLID_SCRIPT_SUGGESTION_SYSTEM.filter(([label]) => selected.includes(label.toLowerCase())).map(
+    ([word, type, detail]) => ({ word, detail: `${type}: ${detail}` }),
+  );
 }
 
 /**
@@ -493,6 +582,9 @@ export function solidScriptSuggestions(
 ): SolidScriptSuggestion[] {
   if (!context?.offer) return [];
   const prefix = context.prefix.toLowerCase();
+  const paths =
+    context.kind === 'word' && scope.paths === true ? solidScriptSuggestionPaths(context.prefix, scope) : null;
+  if (paths) return paths.filter((entry) => entry.label.toLowerCase().startsWith(prefix));
   const members = context.kind === 'word' ? null : solidScriptSuggestionMembers(context.prefix, scope);
   if (members) return members.filter((entry) => entry.label.toLowerCase().startsWith(prefix));
   const all = solidScriptSuggestionsAll(scope);

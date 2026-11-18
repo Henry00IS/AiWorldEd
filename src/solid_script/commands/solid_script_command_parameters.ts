@@ -7,6 +7,7 @@ import {
 import type {
   SolidScriptCommandParameter,
   SolidScriptCommandParameterType,
+  SolidScriptCommandParameterWrites,
   SolidScriptCommandWord,
 } from './solid_script_command.js';
 import { SOLID_SCRIPT_SHAPE_NAME_KEY } from '@/solid_script/language/solid_script_shape.js';
@@ -178,5 +179,22 @@ export function solidScriptParameterOf(what: string, fallback: string): SolidScr
  * @returns Field.
  */
 export function solidScriptParameterInto(what: string): SolidScriptCommandParameter {
-  return solidScriptParameterOptional('into', 'Into', 'name', `Variable to write ${what} to; empty writes none.`);
+  return solidScriptParameterWrites(
+    solidScriptParameterOptional('into', 'Into', 'name', `Variable to write ${what} to; empty writes none.`),
+  );
+}
+
+/**
+ * Marks a field as naming a variable the line writes or changes, so it offers
+ * the script's variables as they are typed.
+ *
+ * @param parameter Field.
+ * @param writes Plain names, or whole paths a Set can write.
+ * @returns Field that offers them.
+ */
+export function solidScriptParameterWrites(
+  parameter: SolidScriptCommandParameter,
+  writes: SolidScriptCommandParameterWrites = 'name',
+): SolidScriptCommandParameter {
+  return { ...parameter, writes };
 }

@@ -8,6 +8,7 @@ import {
   solidScriptParameterOptional,
   solidScriptParameterSides,
   solidScriptParameterWords,
+  solidScriptParameterWrites,
 } from './solid_script_command_parameters.js';
 import {
   SOLID_SCRIPT_COMMAND_INPUT,
@@ -218,11 +219,13 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     parameters: [
       solidScriptParameter('name', 'Function', 'name', 'Area', 'Name of the Function block to run.'),
       solidScriptParameterOptional('values', 'Values', 'text', 'Values for its Inputs, in order, such as [I], 0.2.'),
-      solidScriptParameterOptional(
-        'result',
-        'Result In',
-        'target',
-        'Variable that gets the value the function gives back.',
+      solidScriptParameterWrites(
+        solidScriptParameterOptional(
+          'result',
+          'Result In',
+          'target',
+          'Variable that gets the value the function gives back.',
+        ),
       ),
     ],
     listing: (read) => [
