@@ -26,6 +26,7 @@ import { SOLID_SCRIPT_HANDLERS } from '@/solid_script/language/solid_script_mach
 import { solidScriptProgramHandle } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptDebugStepLimit } from '@/solid_script/debug/solid_script_debug_steps.js';
 import { modifierStackFrame } from '@/modifier/stack/evaluate/modifier_stack_frame.js';
+import { modifierStackSolidScriptSurfaces } from './modifier_stack_solid_script_surfaces.js';
 import {
   modifierStackSolidScriptLayout,
   type ModifierStackSolidScriptPassed,
@@ -256,7 +257,7 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
       piece.transformVertices(new THREE.Matrix4().makeTranslation(node.center.x, node.center.y, node.center.z));
       const look = {
         parameters,
-        surfaces: null,
+        surfaces: modifierStackSolidScriptSurfaces(node, modifierStackSolidScriptToModel(context)),
         caps: null,
         textures:
           node.texture || node.faceTextures
@@ -276,6 +277,18 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
     group.updateMatrixWorld(true);
     return { tree: group, brushes: members.flatMap((member) => member.brushes), authored: false, origin: null };
   }
+}
+
+/**
+ * Builds the frame-to-model matrix pieceUnit will apply to a piece, so script
+ * UV mappings can pre-multiply it and stay in frame space after that invert.
+ *
+ * @param context Evaluation context.
+ * @returns Transform from the volume frame to solid-local coordinates.
+ */
+function modifierStackSolidScriptToModel(context: ModifierStackContext): THREE.Matrix4 {
+  const frame = modifierStackFrame(context.volume, 'volume');
+  return context.solidRoot.matrixWorld.clone().invert().multiply(frame);
 }
 
 /**
