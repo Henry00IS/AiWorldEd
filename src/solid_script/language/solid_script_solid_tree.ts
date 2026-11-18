@@ -2,7 +2,13 @@ import * as THREE from 'three';
 import type { SolidTreeBrush, SolidTreeNode } from '@/solid/commands/tree/solid_tree_node.js';
 import { solidHullBrushFromPoints } from '@/solid/algorithm/surface/solid_hull_brush.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
-import type { SolidScriptFaceTexture, SolidScriptShape, SolidScriptShapeBoolean } from './solid_script_shape.js';
+import type {
+  SolidScriptFaceTexture,
+  SolidScriptFaceUv,
+  SolidScriptShape,
+  SolidScriptShapeBoolean,
+} from './solid_script_shape.js';
+import type { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
 
 /** How evaluated script shapes are placed into a solid model. */
 export interface SolidScriptSolidTreeOptions {
@@ -54,6 +60,7 @@ function solidScriptSolidTreeNodes(
     if (shape.texture) brush.texture = shape.texture;
     if (shape.faceTextures) brush.faceTextures = solidScriptSolidTreeFaceTextures(brush, shape.faceTextures, options);
     if (shape.boxUvSize !== undefined) brush.boxUvSize = shape.boxUvSize;
+    if (shape.faceUvs) brush.faceUvs = solidScriptSolidTreeFaceUvs(brush, shape.faceUvs, options);
     return [brush];
   }
   if (shape.kind === 'mesh') return [];
@@ -160,6 +167,72 @@ function solidScriptSolidTreeFaceTextures(
     if (best >= 0) textures[best] = face.texture;
   }
   return textures;
+}
+
+/**
+ * Finds the brush faces given their own UV mapping, converts each matrix from
+ * script space into the centred brush's space, and lists them by face index.
+ *
+ * @param brush Brush node, centred on its origin.
+ * @param faces Mapped faces in script space.
+ * @param options Placement options.
+ * @returns UV matrix per brush face, by face index.
+ */
+function solidScriptSolidTreeFaceUvs(
+  brush: SolidTreeBrush,
+  faces: readonly SolidScriptFaceUv[],
+  options: SolidScriptSolidTreeOptions,
+): (SurfaceUvMatrix | undefined)[] {
+  const maps: (SurfaceUvMatrix | undefined)[] = brush.brush.faces.map(() => undefined);
+  const toLocal = solidScriptSolidTreeFaceUvToLocal(brush, options);
+  for (const face of faces) {
+    const index = solidScriptSolidTreeFaceUvIndex(brush, face, options);
+    if (index >= 0) maps[index] = face.uv.multiplyMatrix4(toLocal);
+  }
+  return maps;
+}
+
+/**
+ * Converts a script-space UV matrix into the centred brush's local space.
+ *
+ * @param brush Centred brush.
+ * @param options Placement options.
+ * @returns Script-to-local matrix.
+ */
+function solidScriptSolidTreeFaceUvToLocal(brush: SolidTreeBrush, options: SolidScriptSolidTreeOptions): THREE.Matrix4 {
+  const toParent = options.worldToParent
+    .clone()
+    .multiply(new THREE.Matrix4().makeTranslation(options.offset.x, options.offset.y, options.offset.z));
+  const toCentered = new THREE.Matrix4().makeTranslation(brush.center.x, brush.center.y, brush.center.z);
+  return toParent.clone().invert().multiply(toCentered);
+}
+
+/**
+ * Finds the centred-brush face that a stored UV record belongs to.
+ *
+ * @param brush Centred brush.
+ * @param face Record in script space.
+ * @param options Placement options.
+ * @returns Face index, or -1 when none matches.
+ */
+function solidScriptSolidTreeFaceUvIndex(
+  brush: SolidTreeBrush,
+  face: SolidScriptFaceUv,
+  options: SolidScriptSolidTreeOptions,
+): number {
+  const point = solidScriptSolidTreePoint(face.point, options).sub(brush.center);
+  const tip = solidScriptSolidTreePoint(face.point.clone().add(face.normal), options).sub(brush.center);
+  const normal = tip.sub(point).normalize();
+  let best = -1;
+  let bestAlign = SOLID_SCRIPT_SOLID_TREE_FACE_ALIGN;
+  brush.brush.planes.forEach((plane, index) => {
+    const align = plane.normal.dot(normal);
+    if (align >= bestAlign && Math.abs(plane.signedDistance(point)) <= SOLID_SCRIPT_SOLID_TREE_FACE_GAP) {
+      best = index;
+      bestAlign = align;
+    }
+  });
+  return best;
 }
 
 /**

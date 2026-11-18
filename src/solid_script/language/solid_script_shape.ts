@@ -1,5 +1,6 @@
 import type * as THREE from 'three';
 import type { SolidScriptShapeMesh } from './solid_script_mesh.js';
+import type { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
 
 /** Boolean operation of a shape group. */
 export type SolidScriptBooleanOperation = 'union' | 'difference' | 'intersection';
@@ -19,10 +20,15 @@ export interface SolidScriptShapeSolid {
   /** Textures of single faces, from Texture Faces; they win over texture. */
   faceTextures?: SolidScriptFaceTexture[];
   /**
-   * Metres of one Box UVs repeat; when set, faces keep a box projection and the
-   * solid stays a brush.
+   * Metres of one box-projection repeat; when set and faceUvs is absent, faces
+   * keep a box projection and the solid stays a brush.
    */
   boxUvSize?: number;
+  /**
+   * Texture coordinates of single faces, stored as a mapping in script space so
+   * a move, turn or scale keeps them on the face.
+   */
+  faceUvs?: SolidScriptFaceUv[];
   /** Tags the operations that built faces gave them, such as Bevel. */
   faceTags?: SolidScriptFaceTag[];
   /**
@@ -43,6 +49,16 @@ export interface SolidScriptReceived {
   matrix: THREE.Matrix4;
   /** 'copied' moves its textures with it; 'world' keeps them where they are. */
   textures: 'copied' | 'world';
+}
+
+/** A UV mapping given to one face of a solid, found again by its plane. */
+export interface SolidScriptFaceUv {
+  /** A point on the face, in script space. */
+  point: THREE.Vector3;
+  /** Unit direction the face looks, in script space. */
+  normal: THREE.Vector3;
+  /** UV matrix in script space. */
+  uv: SurfaceUvMatrix;
 }
 
 /** A texture given to one face of a solid, found again by its plane. */

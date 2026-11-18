@@ -7,6 +7,7 @@ import {
   type SolidScriptPoint2,
 } from './solid_script_polygon.js';
 import { solidScriptFaceTagsTransform, solidScriptMeshTransform } from './solid_script_mesh.js';
+import { solidScriptFaceUvsTransform } from './solid_script_uvs.js';
 import {
   solidScriptShapeJoin,
   solidScriptShapeLeavesPositive,
@@ -32,13 +33,15 @@ function solidScriptSolidTransform(leaf: SolidScriptShapeSolid, matrix: THREE.Ma
   const moved = { ...leaf, points: leaf.points.map((point) => point.clone().applyMatrix4(matrix)) };
   if (leaf.received) moved.received = { ...leaf.received, matrix: matrix.clone().multiply(leaf.received.matrix) };
   if (leaf.faceTags) moved.faceTags = solidScriptFaceTagsTransform(leaf.faceTags, matrix);
-  if (!leaf.faceTextures) return moved;
-  const normals = new THREE.Matrix3().getNormalMatrix(matrix);
-  moved.faceTextures = leaf.faceTextures.map((face) => ({
-    ...face,
-    point: face.point.clone().applyMatrix4(matrix),
-    normal: face.normal.clone().applyMatrix3(normals).normalize(),
-  }));
+  if (leaf.faceTextures) {
+    const normals = new THREE.Matrix3().getNormalMatrix(matrix);
+    moved.faceTextures = leaf.faceTextures.map((face) => ({
+      ...face,
+      point: face.point.clone().applyMatrix4(matrix),
+      normal: face.normal.clone().applyMatrix3(normals).normalize(),
+    }));
+  }
+  if (leaf.faceUvs) moved.faceUvs = solidScriptFaceUvsTransform(leaf.faceUvs, matrix);
   return moved;
 }
 

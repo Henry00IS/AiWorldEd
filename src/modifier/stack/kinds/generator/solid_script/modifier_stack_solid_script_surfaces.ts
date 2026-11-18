@@ -6,7 +6,8 @@ import {
   orientDefaultFaceSurface,
   type FaceSurfaceDescription,
 } from '@/texture/uv_matrix/face_surface_description.js';
-import { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
+import { textureUvProjectAxis } from '@/texture/uv_project/texture_uv_project_view.js';
+import type { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
 
 /**
@@ -42,6 +43,8 @@ export function modifierStackSolidScriptSurfaces(
  */
 function modifierStackSolidScriptFaceSurface(node: SolidTreeBrush, index: number): FaceSurfaceDescription {
   const textureId = node.faceTextures?.[index] ?? node.texture ?? DEFAULT_CHECKER_TEXTURE_ID;
+  const stored = node.faceUvs?.[index];
+  if (stored) return { textureId, uv: stored };
   const normal = node.brush.planes[index]?.normal.clone().normalize() ?? new THREE.Vector3(0, 1, 0);
   const size = node.boxUvSize;
   if (size !== undefined && size > 0) return { textureId, uv: modifierStackSolidScriptBoxUv(normal, size) };
@@ -57,13 +60,5 @@ function modifierStackSolidScriptFaceSurface(node: SolidTreeBrush, index: number
  * @returns UV matrix in that space.
  */
 export function modifierStackSolidScriptBoxUv(normal: THREE.Vector3, size: number): SurfaceUvMatrix {
-  const scale = 1 / size;
-  const [ax, ay, az] = [Math.abs(normal.x), Math.abs(normal.y), Math.abs(normal.z)];
-  if (az >= ax && az >= ay) {
-    return new SurfaceUvMatrix(new THREE.Vector4(scale, 0, 0, 0), new THREE.Vector4(0, scale, 0, 0));
-  }
-  if (ax >= ay) {
-    return new SurfaceUvMatrix(new THREE.Vector4(0, scale, 0, 0), new THREE.Vector4(0, 0, scale, 0));
-  }
-  return new SurfaceUvMatrix(new THREE.Vector4(scale, 0, 0, 0), new THREE.Vector4(0, 0, scale, 0));
+  return textureUvProjectAxis(normal, size);
 }
