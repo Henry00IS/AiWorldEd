@@ -183,6 +183,25 @@ export class SolidScriptEditorDebugger {
     return true;
   }
 
+  /**
+   * Takes up breakpoints set or cleared while debugging: the hits are found
+   * again, the ones before the step shown count as passed, and the hit paused
+   * at stays while its breakpoint does.
+   */
+  breakpointsChanged(): void {
+    if (this.state === 'stopped') return;
+    const at = this.atBreak === null ? undefined : this.breaks[this.atBreak];
+    this.breaksFind();
+    const kept = at ? this.breaks.findIndex((hit) => hit.line === at.line && hit.steps === at.steps) : -1;
+    this.atBreak = kept >= 0 ? kept : null;
+    this.passed = this.breaks.filter((hit) => hit.steps < this.step).length;
+    if (this.atBreak === null && at)
+      // The breakpoint paused at is gone: the hits at this step up to it count as passed.
+      this.passed = this.breaks.filter(
+        (hit) => hit.steps < this.step || (hit.steps === this.step && hit.line <= at.line),
+      ).length;
+  }
+
   /** Stops debugging and shows the whole script again. */
   stop(): void {
     if (this.state !== 'stopped') this.finish();
@@ -215,6 +234,22 @@ export class SolidScriptEditorDebugger {
    *   anything.
    */
   private begin(): boolean {
+    const run = this.breaksFind();
+    this.lines = run.steps.slice(0, run.error ? 0 : undefined);
+    this.step = 0;
+    this.passed = 0;
+    this.atBreak = null;
+    const found = this.lines.length > 0 || this.breaks.length > 0;
+    if (found) this.state = 'paused';
+    return found;
+  }
+
+  /**
+   * Runs the script once with the breakpoints set now, to find their hits.
+   *
+   * @returns The run.
+   */
+  private breaksFind(): ReturnType<typeof solidScriptProgramRun> {
     const document = this.session.document();
     this.breakLines = solidScriptDebugBreakpointLines(
       document,
@@ -225,14 +260,8 @@ export class SolidScriptEditorDebugger {
       ...this.session.runStart(),
       context: 'preview',
     });
-    this.lines = run.steps.slice(0, run.error ? 0 : undefined);
     this.breaks = run.error ? [] : run.breaks;
-    this.step = 0;
-    this.passed = 0;
-    this.atBreak = null;
-    const found = this.lines.length > 0 || this.breaks.length > 0;
-    if (found) this.state = 'paused';
-    return found;
+    return run;
   }
 
   /**

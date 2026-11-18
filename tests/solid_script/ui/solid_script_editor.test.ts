@@ -984,6 +984,31 @@ describe('SolidScript editor', () => {
     }
   });
 
+  it('uses breakpoints set or cleared while paused right away', () => {
+    const { root, node, stepId } = editorFixture([
+      { command: 'sphere' },
+      { command: 'repeat', values: { variable: 'i', from: '0', to: '2' } },
+      { command: 'cube', values: { size: '[=[i] + 1], 1, 1' } },
+      { command: 'end' },
+      { command: 'sphere' },
+    ]);
+    const gutter = (line: number) => find(`[data-line="${line}"] .solid-script-editor-gutter`).click();
+    gutter(2);
+    tool('Start').click();
+    expect(root.textContent).toContain('Paused at the breakpoint on line 3');
+    gutter(2);
+    tool('Start').click();
+    expect(solidScriptDebugStepLimit(node, stepId)).toBeUndefined();
+    gutter(2);
+    tool('Start').click();
+    expect(solidScriptDebugStepLimit(node, stepId)).toBe(1);
+    gutter(4);
+    gutter(2);
+    tool('Start').click();
+    expect(root.textContent).toContain('Paused at the breakpoint on line 5');
+    expect(solidScriptDebugStepLimit(node, stepId)).toBe(4);
+  });
+
   it('sets a breakpoint from the gutter or F9; Start pauses before that line with its variables, then continues', () => {
     const { root, node, stepId } = editorFixture([
       { command: 'sphere' },

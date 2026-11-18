@@ -447,6 +447,7 @@ export class SolidScriptEditor extends PanelFloating {
     const { node, stepId } = this.session;
     const on = !solidScriptDebugBreakpoints(node, stepId).has(block.id);
     solidScriptDebugBreakpointSet(node, stepId, block.id, on);
+    this.debugger.breakpointsChanged();
     this.debugChanged();
     this.noticeShow(
       on
