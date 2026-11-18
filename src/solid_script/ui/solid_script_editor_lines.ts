@@ -121,6 +121,11 @@ export class SolidScriptEditorLines {
     runs: new Map(),
   };
   private readonly built = new Map<number, HTMLElement>();
+  /**
+   * Line whose focused row was dropped to be built again; its new row takes the
+   * focus.
+   */
+  private refocus: number | null = null;
   private view: SolidScriptEditorView = solidScriptEditorViewRead();
   private unknown: ReadonlyMap<number, ReadonlySet<string>> = new Map();
   private readonly keys: SolidScriptEditorLineKeys;
@@ -328,10 +333,12 @@ export class SolidScriptEditorLines {
    * @param lines Line indexes; null entries are skipped.
    */
   private rowsForget(lines: readonly (number | null)[]): void {
+    const focused = this.focused();
     for (const line of lines) {
       if (line === null) continue;
       this.built.get(line)?.remove();
       this.built.delete(line);
+      if (line === focused) this.refocus = line;
     }
   }
 
@@ -499,10 +506,17 @@ export class SolidScriptEditorLines {
         row.remove();
         this.built.delete(line);
       }
+    if (this.refocus !== null) wanted.add(this.refocus);
     for (const line of [...wanted].sort((a, b) => a - b)) {
       const row = this.built.get(line) ?? this.rowBuild(line);
       if (!row) continue;
       this.rowMark(row, line);
+    }
+    if (this.refocus !== null) {
+      this.rowAt(this.refocus)
+        ?.querySelector<HTMLElement>(`.${SOLID_SCRIPT_EDITOR_CLASSES.chip}`)
+        ?.focus({ preventScroll: true });
+      this.refocus = null;
     }
     let measured = this.widest;
     for (const row of this.built.values()) measured = Math.max(measured, row.scrollWidth);

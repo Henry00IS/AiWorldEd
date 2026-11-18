@@ -506,6 +506,24 @@ describe('SolidScript editor', () => {
     expect(commands()).toEqual(['cube', 'sphere']);
   });
 
+  it('keeps the focus on a neighbour line after deleting the line that opens a block, when the check underlines it', async () => {
+    const { root, commands } = editorFixture([
+      { command: 'for_each', values: { variable: 'Item', list: '1, 2, 3', key: 'K' } },
+      { command: 'echo', values: { value: '[K] = [Item]' } },
+      { command: 'translate', values: { v: '[=[K]*2], 0, 0' } },
+      { command: 'cube', values: { size: '[$Box.Width], [$Box.Height], [$Box.Depth]' } },
+      { command: 'end' },
+      { command: 'end' },
+    ]);
+    chip(0).focus();
+    press(chip(0), 'Delete');
+    expect(commands()).toEqual(['echo', 'translate', 'cube', 'end', 'end']);
+    // The idle check then underlines [K] and [Item] on the focused line, which builds its row again.
+    await new Promise((resolve) => setTimeout(resolve, SOLID_SCRIPT_EDITOR_CHECK_DELAY_MS + 50));
+    expect(root.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement).toBe(chip(0));
+  });
+
   it('adds blank lines, and removes and moves single lines with the keyboard, End lines too', () => {
     const { commands, root } = editorFixture([
       { command: 'cube' },
