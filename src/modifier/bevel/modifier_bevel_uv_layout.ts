@@ -24,6 +24,7 @@ import {
   modifierBevelWorldLayoutFrame,
 } from './modifier_bevel_uv_layout_world.js';
 import { modifierBevelGirderSurface } from './modifier_bevel_uv_girder_matrix.js';
+import { textureUvProjectViewFromFrame } from '@/texture/uv_project/texture_uv_project_view.js';
 
 /**
  * Builds the UV placement for one generated face.
@@ -187,64 +188,7 @@ function modifierBevelViewMatrix(
   vRow: number,
   local: boolean,
 ): SurfaceUvMatrix {
-  const matrix = modifierBevelLocalToWorld(source);
-  if (local)
-    return new SurfaceUvMatrix(modifierBevelLocalAxisRow(matrix, uRow), modifierBevelLocalAxisRow(matrix, vRow));
-  const elements = matrix.elements;
-  return new SurfaceUvMatrix(modifierBevelMatrixRow(elements, uRow), modifierBevelMatrixRow(elements, vRow));
-}
-
-/**
- * Builds a UV row along one brush axis, in world meters from the brush origin.
- *
- * @param matrix Brush local-to-world matrix.
- * @param column Column index. 0 is X, 1 is Y, and 2 is Z.
- * @returns UV row in brush-local coordinates.
- */
-function modifierBevelLocalAxisRow(matrix: Matrix4, column: number): Vector4 {
-  const offset = column * 4;
-  const elements = matrix.elements;
-  const direction = new Vector3(elements[offset] ?? 0, elements[offset + 1] ?? 0, elements[offset + 2] ?? 0);
-  if (direction.lengthSq() <= 1e-16) direction.set(column === 0 ? 1 : 0, column === 1 ? 1 : 0, column === 2 ? 1 : 0);
-  else direction.normalize();
-  return new Vector4(
-    modifierBevelColumnDot(elements, 0, direction),
-    modifierBevelColumnDot(elements, 1, direction),
-    modifierBevelColumnDot(elements, 2, direction),
-    0,
-  );
-}
-
-/**
- * Dots one matrix column with a direction.
- *
- * @param elements Column-major matrix elements.
- * @param column Column index.
- * @param direction Unit direction.
- * @returns Dot product.
- */
-function modifierBevelColumnDot(elements: ArrayLike<number>, column: number, direction: Vector3): number {
-  const offset = column * 4;
-  return (
-    (elements[offset] ?? 0) * direction.x +
-    (elements[offset + 1] ?? 0) * direction.y +
-    (elements[offset + 2] ?? 0) * direction.z
-  );
-}
-
-/**
- * Reads one row of a column-major matrix.
- *
- * @param elements Column-major matrix elements.
- * @param row Row index.
- * @returns Row as a UV vector.
- */
-function modifierBevelMatrixRow(elements: ArrayLike<number>, row: number): Vector4 {
-  const x = elements[row];
-  const y = elements[row + 4];
-  const z = elements[row + 8];
-  const w = elements[row + 12];
-  return new Vector4(x ?? 0, y ?? 0, z ?? 0, w ?? 0);
+  return textureUvProjectViewFromFrame(modifierBevelLocalToWorld(source), [uRow, vRow], local, 1);
 }
 
 /**
