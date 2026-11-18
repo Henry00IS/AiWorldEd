@@ -9,7 +9,11 @@ import {
   solidScriptDocumentNamesUnknown,
 } from '@/solid_script/document/solid_script_document_names.js';
 import { solidScriptNameKey } from '@/solid_script/language/solid_script_name_key.js';
-import { solidScriptMistakeCheck, solidScriptUseCheck } from '@/solid_script/language/solid_script_use_check.js';
+import {
+  solidScriptMistakeCheck,
+  solidScriptTypeCheck,
+  solidScriptUseCheck,
+} from '@/solid_script/language/solid_script_use_check.js';
 import type { SolidScriptEditorSettings } from './solid_script_editor_settings.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 
@@ -212,6 +216,7 @@ export class SolidScriptEditorOutput {
         const checks = [
           ...solidScriptUseCheck(script),
           ...solidScriptMistakeCheck(script, solidScriptDocumentDefines(script)),
+          ...solidScriptTypeCheck(script),
         ];
         checks.sort((a, b) => a.line - b.line);
         this.checks.replaceChildren(...checks.map((warning) => this.warningRow(warning)));

@@ -33,6 +33,16 @@ export interface SolidScriptName {
   line: number;
   /** Short description, such as "count input" or "area(w, d)". */
   detail: string;
+  /**
+   * Kind it holds when a Type declares it or the line that writes it tells,
+   * such as Face List.
+   */
+  type?: string;
+  /**
+   * Text it is read from, for a guess at its kind: a Set value, or the list a
+   * For Each walks.
+   */
+  from?: { text: string; item: boolean };
 }
 
 /**
@@ -57,6 +67,36 @@ const SOLID_SCRIPT_NAMES_WRITTEN: Readonly<Record<string, string>> = {
   normals: 'face directions',
 };
 
+/** Kinds the variables that face lines write hold, by command and field. */
+const SOLID_SCRIPT_NAMES_WRITTEN_TYPES: Readonly<Record<string, string>> = {
+  'select_faces.into': 'Face List',
+  'select_edges.into': 'Edge List',
+  'select_vertices.into': 'Vertex List',
+  'extrude_face.into': 'Brush List',
+  'extrude_face.top': 'Face List',
+  'extrude_face.sides': 'Face List',
+  'inset_face.inner': 'Face List',
+  'inset_face.ring': 'Face List',
+  'bevel_edges.into': 'Face List',
+  'scatter_points.into': 'Vector List',
+  'scatter_points.normals': 'Vector List',
+  'input_brushes.into': 'Brush List',
+};
+
+/**
+ * Tells the kind a field that writes a variable gives it: what a face line
+ * writes, or the brush a building block built.
+ *
+ * @param command Command id.
+ * @param key Field key.
+ * @returns The kind, or nothing when unknown.
+ */
+function solidScriptNameWrittenType(command: string, key: string): { type?: string } {
+  const known = SOLID_SCRIPT_NAMES_WRITTEN_TYPES[`${command}.${key}`];
+  if (known) return { type: known };
+  return key === 'into' && solidScriptCommandFind(command)?.builds === true ? { type: 'Brush' } : {};
+}
+
 /**
  * Spells the Local. and Persistent. starts the way they are taught, whatever
  * case a line wrote them in, such as Local.Angle for local.Angle.
@@ -79,11 +119,17 @@ export function solidScriptNameShown(name: string): string {
  */
 export function solidScriptDocumentNames(document: SolidScriptDocument): SolidScriptName[] {
   const names: SolidScriptName[] = [];
-  const add = (name: string, category: SolidScriptNameCategory, line: number, detail: string): void => {
+  const add = (
+    name: string,
+    category: SolidScriptNameCategory,
+    line: number,
+    detail: string,
+    kind: Pick<SolidScriptName, 'type' | 'from'> = {},
+  ): void => {
     const plain = solidScriptNameShown(name.trim());
     if (!SOLID_SCRIPT_NAME_PLAIN.test(plain)) return;
     if (names.some((known) => known.name === plain && known.category === category)) return;
-    names.push({ name: plain, category, line, detail });
+    names.push({ name: plain, category, line, detail, ...kind });
   };
   document.blocks.forEach((block, line) => {
     const value = (key: string): string => block.values[key] ?? '';
@@ -94,7 +140,11 @@ export function solidScriptDocumentNames(document: SolidScriptDocument): SolidSc
       if (list) add(list[1] ?? '', 'Lists', line, 'list');
       else if (/^local\./i.test(target)) add(target, 'Locals', line, `set to ${value('value')} in a Function`);
       else if (/^persistent\./i.test(target)) add(target, 'Persistent', line, 'kept between runs');
-      else add(target, 'Variables', line, `set to ${value('value')}`);
+      else
+        add(target, 'Variables', line, `set to ${value('value')}`, {
+          ...(['', 'Any'].includes(value('type').trim()) ? {} : { type: value('type').trim() }),
+          from: { text: value('value'), item: false },
+        });
     }
     if (block.command === 'call' && value('result').trim() !== '')
       add(value('result'), 'Variables', line, `returned by ${value('name').trim()}()`);
@@ -102,9 +152,17 @@ export function solidScriptDocumentNames(document: SolidScriptDocument): SolidSc
     if (block.command === 'find_item') add(value('result'), 'Variables', line, `position in ${value('list').trim()}`);
     for (const [key, detail] of Object.entries(SOLID_SCRIPT_NAMES_WRITTEN))
       if (value(key).trim() !== '')
-        add(value(key).replace(/^\[(.*)\]$/s, '$1'), 'Variables', line, `${detail} of ${block.command}`);
+        add(value(key).replace(/^\[(.*)\]$/s, '$1'), 'Variables', line, `${detail} of ${block.command}`, {
+          ...solidScriptNameWrittenType(block.command, key),
+        });
     if (block.command === 'repeat' || block.command === 'for_each')
-      add(value('variable'), 'Counters', line, block.command === 'repeat' ? 'Repeat counter' : 'For Each item');
+      add(
+        value('variable'),
+        'Counters',
+        line,
+        block.command === 'repeat' ? 'Repeat counter' : 'For Each item',
+        block.command === 'repeat' ? { type: 'Number' } : { from: { text: value('list'), item: true } },
+      );
     if (block.command === 'for_each' && value('key').trim() !== '') add(value('key'), 'Counters', line, 'For Each key');
     if (block.command === 'function') {
       add(value('name'), 'Functions', line, `${value('name').trim()}(${value('parameters').trim()})`);

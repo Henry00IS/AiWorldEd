@@ -352,6 +352,26 @@ function solidScriptSuggestionAxes(name: string, scope: SolidScriptSuggestionSco
 }
 
 /**
+ * Tells the kind a name of the script holds: the Type its Set declares, what
+ * the line writing it gives, or a guess from the value it is set to or the list
+ * a For Each walks. Guesses only drive suggestions, never results.
+ *
+ * @param key Name, lower case.
+ * @param scope What the field may refer to.
+ * @param depth How many names deep a value naming another is followed.
+ * @returns Kind, or null when unknown.
+ */
+function solidScriptSuggestionNamed(key: string, scope: SolidScriptSuggestionScope, depth: number): string | null {
+  const entry = scope.names.find((known) => known.name.toLowerCase() === key && (known.type || known.from));
+  if (!entry) return null;
+  if (entry.type) return entry.type;
+  const path = /^\[([^=\]][^\]]*)\]$/.exec(entry.from?.text.trim() ?? '')?.[1];
+  const type = path && depth > 0 ? solidScriptSuggestionType(path, scope, depth - 1) : null;
+  if (!type || !entry.from?.item) return type;
+  return type.endsWith(' List') ? type.slice(0, -' List'.length) : null;
+}
+
+/**
  * Tells the kind of value a typed name holds: a system value, a vector or a
  * list of the script, then each member after it, such as Face List for
  * $Selected.Faces and Vector for $Selected.Faces.First.Normal.
@@ -361,7 +381,7 @@ function solidScriptSuggestionAxes(name: string, scope: SolidScriptSuggestionSco
  * @returns Kind, or null when it is not known, such as for a variable a command
  *   writes.
  */
-function solidScriptSuggestionType(name: string, scope: SolidScriptSuggestionScope): string | null {
+function solidScriptSuggestionType(name: string, scope: SolidScriptSuggestionScope, depth = 4): string | null {
   const parts = name.split('.');
   const item = (part: string) => /\(.*\)$/.test(part);
   const word = (part: string) => part.replace(/\s*\(.*\)$/, '');
@@ -378,6 +398,7 @@ function solidScriptSuggestionType(name: string, scope: SolidScriptSuggestionSco
     const axes = solidScriptSuggestionAxes(first, scope);
     if (axes !== null && axes > 0) type = 'Vector';
     else if (scope.names.some((entry) => entry.name.toLowerCase() === key && entry.category === 'Lists')) type = 'List';
+    else type = solidScriptSuggestionNamed(key, scope, depth);
     if (type && item(parts[0]!)) type = type === 'List' ? 'Item' : null;
   }
   for (const part of parts.slice(used)) {

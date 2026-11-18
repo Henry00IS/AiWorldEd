@@ -676,6 +676,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       text: (key) => SolidScriptMachine.fieldOf(fields, node, key).text,
       value,
       variableSet: (name, assigned) => state.machine.variableSet(state.scope, name, assigned),
+      typeKeep: (name, type, assigned) => state.machine.typeKeep(name, type, assigned),
       solid: (points) => {
         state.machine.gatherCheck(node);
         state.machine.flatCheck(node, state.context, false);

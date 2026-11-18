@@ -83,6 +83,16 @@ export interface SolidScriptBlockRun {
   values(key: string): SolidScriptValue[];
   /** Sets a variable, where it already exists or else in the current block. */
   variableSet(name: string, value: SolidScriptValue): void;
+  /**
+   * Checks a value against the Type a Set line declares, or the one declared
+   * for the variable before, and keeps a new declaration; throws on a
+   * mismatch.
+   *
+   * @param name Variable as written.
+   * @param type Declared kind, empty for none.
+   * @param value Value being set.
+   */
+  typeKeep(name: string, type: string, value: SolidScriptValue): void;
   /** Builds one convex solid from its corner points. */
   solid(points: THREE.Vector3[]): SolidScriptShape[];
   /** Draws one flat outline for Linear Extrude. */

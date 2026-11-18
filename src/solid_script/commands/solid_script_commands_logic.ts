@@ -1,6 +1,11 @@
 import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
-import { solidScriptParameter, solidScriptParameterOptional } from './solid_script_command_parameters.js';
+import {
+  solidScriptParameter,
+  solidScriptParameterOptional,
+  solidScriptParameterWords,
+} from './solid_script_command_parameters.js';
+import { SOLID_SCRIPT_TYPES } from '@/solid_script/language/solid_script_types.js';
 import {
   SolidScriptElement,
   solidScriptValueText,
@@ -71,10 +76,32 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
         '2',
         'A number, numbers separated by commas such as 1, 2, 3, plain text, [Name] for another variable, or [=formula] such as [=[Width] * 2].',
       ),
+      {
+        ...solidScriptParameterWords(
+          'type',
+          'Type',
+          'text',
+          '',
+          `Optional kind the variable always holds; empty or Any lets it hold anything. One of: ${SOLID_SCRIPT_TYPES.join(', ')}.`,
+          SOLID_SCRIPT_TYPES.map((word) => ({
+            word,
+            detail: word === 'Any' ? 'Anything, also another kind later' : `Always a ${word}`,
+          })),
+        ),
+        optional: true,
+      },
     ],
-    listing: (read) => ['Set', read.variable('name'), ': ', read.value('value')],
+    listing: (read) => [
+      'Set',
+      read.variable('name'),
+      ...(read.text('type').trim() === '' ? [] : [' as ', read.text('type').trim()]),
+      ': ',
+      read.value('value'),
+    ],
     execute: (run) => {
-      run.variableSet(run.text('name'), run.value('value'));
+      const value = run.value('value');
+      run.typeKeep(run.text('name'), run.text('type').trim(), value);
+      run.variableSet(run.text('name'), value);
       return [];
     },
   }),

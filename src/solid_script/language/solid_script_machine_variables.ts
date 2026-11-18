@@ -1,4 +1,5 @@
 import { SOLID_SCRIPT_SYSTEM_GLOBALS, type SolidScriptSystemReader } from './solid_script_system.js';
+import { SOLID_SCRIPT_TYPES, solidScriptTypeProblem } from './solid_script_types.js';
 import type { SolidScriptExpression } from './solid_script_ast.js';
 import { SolidScriptExpressionEvaluator } from './solid_script_expression_evaluator.js';
 import { solidScriptExpressionParse } from './solid_script_expression_parse.js';
@@ -262,6 +263,8 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
   protected readonly elements = new SolidScriptElements({ leafLatest: (leaf) => this.leafLatestOf(leaf) });
   /** The [$Selected.*] lists of the round running. */
   protected selected: SolidScriptSelected = { brushes: null, faces: [], edges: [], vertices: [] };
+  /** Kinds variables were declared as with a Set Type, by name key. */
+  private readonly declared = new Map<string, string>();
 
   /**
    * Creates the variables of a run.
@@ -382,6 +385,26 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
       return { value };
     }
     return null;
+  }
+
+  /**
+   * Checks a value against the Type a Set line declares, or the one declared
+   * for the variable before, and keeps a new declaration; Any drops it.
+   *
+   * @param name Variable as written.
+   * @param type Declared kind, empty for none.
+   * @param value Value being set.
+   */
+  typeKeep(name: string, type: string, value: SolidScriptValue): void {
+    const key = solidScriptNameKey(name.replace(/^\[(.*)\]$/s, '$1'));
+    if (type !== '' && !SOLID_SCRIPT_TYPES.includes(type))
+      throw new Error(`Type must be one of ${SOLID_SCRIPT_TYPES.join(', ')}, not "${type}"`);
+    const kept = type || this.declared.get(key);
+    if (!kept) return;
+    const problem = solidScriptTypeProblem(this.nameShown(key), kept, value);
+    if (problem) throw new Error(problem);
+    if (type === 'Any') this.declared.delete(key);
+    else if (type !== '') this.declared.set(key, type);
   }
 
   /**

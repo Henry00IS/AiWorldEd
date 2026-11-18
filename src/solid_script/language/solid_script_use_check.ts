@@ -7,6 +7,8 @@ import {
   SOLID_SCRIPT_MISTAKE_NUMERIC,
   solidScriptFieldMistakeNote,
 } from './solid_script_field_mistakes.js';
+import { SOLID_SCRIPT_TYPES, solidScriptTypeLiteral, solidScriptTypeProblem } from './solid_script_types.js';
+import { solidScriptNameKey } from './solid_script_name_key.js';
 
 /**
  * A Box value written in a field or formula, such as [$Box.Width] or
@@ -81,6 +83,35 @@ export function solidScriptMistakeCheck(
       const note = solidScriptFieldMistakeNote(text, SOLID_SCRIPT_MISTAKE_NUMERIC.has(parameter.type), known);
       if (note !== '') warnings.push({ line: index + 1, text: `${parameter.label}: ${note}` });
     }
+  });
+  return warnings;
+}
+
+/**
+ * Finds, without running the script, the Set lines whose value surely does not
+ * fit the Type the variable was declared as, and Types that are no kind. Only
+ * certain mismatches count: a value from [Name] or a formula is checked when it
+ * runs.
+ *
+ * @param document Script.
+ * @returns One warning per such line, in line order.
+ */
+export function solidScriptTypeCheck(document: SolidScriptDocument): SolidScriptWarning[] {
+  const warnings: SolidScriptWarning[] = [];
+  const declared = new Map<string, string>();
+  document.blocks.forEach((block, index) => {
+    if (block.off === true || block.command !== 'variable') return;
+    const name = (block.values['name'] ?? '').trim();
+    const type = (block.values['type'] ?? '').trim();
+    const warn = (text: string): number => warnings.push({ line: index + 1, text });
+    if (type !== '' && !SOLID_SCRIPT_TYPES.includes(type))
+      return void warn(`Type must be one of ${SOLID_SCRIPT_TYPES.join(', ')}, not "${type}".`);
+    const kept = type || declared.get(solidScriptNameKey(name));
+    if (type === 'Any') declared.delete(solidScriptNameKey(name));
+    else if (type !== '') declared.set(solidScriptNameKey(name), type);
+    const value = solidScriptTypeLiteral(block.values['value'] ?? '');
+    const problem = kept && value !== undefined ? solidScriptTypeProblem(name, kept, value) : '';
+    if (problem) warn(`${problem}.`);
   });
   return warnings;
 }
