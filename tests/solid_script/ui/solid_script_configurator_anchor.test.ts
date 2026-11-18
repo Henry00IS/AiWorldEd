@@ -19,13 +19,13 @@ describe('SolidScript editable choice fields', () => {
   it('offers every Anchor as a word, and takes a variable or formula typed instead', () => {
     const words = parameterOf('cube', 'anchor').words!.map((entry) => entry.word);
     expect(words).toHaveLength(27);
-    expect(words).toContain('Center, Bottom, Back');
+    expect(words).toContain('Centre, Bottom, Back');
     expect(parameterOf('square', 'anchor').words).toHaveLength(9);
     const typed = solidScriptConfiguratorFieldBuild(parameterOf('cube', 'anchor'), '[Where]', () => {});
     expect(typed.element.querySelector('select')).toBeNull();
     expect(typed.problem()).toBe('');
     expect(
-      solidScriptConfiguratorFieldBuild(parameterOf('cube', 'anchor'), 'Up, Center', () => {}).problem(),
+      solidScriptConfiguratorFieldBuild(parameterOf('cube', 'anchor'), 'Up, Centre', () => {}).problem(),
     ).toContain('needs 3 words');
   });
 

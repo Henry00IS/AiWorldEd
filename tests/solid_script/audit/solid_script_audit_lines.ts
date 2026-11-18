@@ -51,7 +51,7 @@ const SOLID_SCRIPT_AUDIT_PLACES: Readonly<Record<string, (self: SolidScriptLine)
   offset: (self) => [[line('linear_extrude')], [self, line('square'), line('end'), line('end')]],
   polygon: (self) => [[line('linear_extrude')], [self, ...CORNERS.slice(0, 3), line('end'), line('end')]],
   linear_extrude: (self) => [[], [self, line('square'), line('end')]],
-  rotate_extrude: (self) => [[], [self, line('square', { anchor: 'Left, Center' }), line('end')]],
+  rotate_extrude: (self) => [[], [self, line('square', { anchor: 'Left, Centre' }), line('end')]],
   mesh: (self) => [[], [self, ...MESH, line('end')]],
   vertex: (self) => [
     [line('mesh'), ...MESH.slice(1, 3)],

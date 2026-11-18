@@ -259,7 +259,7 @@ describe('solid script command catalog', () => {
   it('lists every parameter with its value, for display', () => {
     expect(solidScriptCommandFind('cube')?.entries({ size: '2, 2, 2' })).toEqual([
       { key: 'size', label: 'Size', value: '2, 2, 2' },
-      { key: 'anchor', label: 'Anchor', value: 'Center, Center, Center' },
+      { key: 'anchor', label: 'Anchor', value: 'Centre, Centre, Centre' },
       { key: 'label', label: 'Name', value: '' },
       { key: 'into', label: 'Into', value: '' },
     ]);

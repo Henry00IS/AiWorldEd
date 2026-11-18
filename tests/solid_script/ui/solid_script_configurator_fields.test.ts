@@ -44,7 +44,7 @@ describe('SolidScript configurator Set Variable field', () => {
   it('still refuses members that can only be read', () => {
     expect(setVariableProblem('Face.UVs')).toBe('');
     expect(setVariableProblem('Brush.Edges')).toMatch(/Brush\.Edges can only be read/);
-    expect(setVariableProblem('Face.Center')).toMatch(/Face\.Center can only be read/);
+    expect(setVariableProblem('Face.Centre')).toMatch(/Face\.Centre can only be read/);
     expect(setVariableProblem('Brush.Edges.Data')).toMatch(/Brush\.Edges\.Data needs a key to set/);
   });
 });
@@ -131,7 +131,7 @@ describe('SolidScript configurator suggestions in fields naming a variable', () 
     const names = namesAt([CUBE_INTO_BRUSH], 1);
     const brush = typedSuggestions('variable', 'name', names, 'Brush.').shown;
     expect(brush).toEqual(expect.arrayContaining(['Brush.Edges', 'Brush.Faces', 'Brush.Data']));
-    expect(brush).not.toContain('Brush.Center');
+    expect(brush).not.toContain('Brush.Centre');
     document.body.replaceChildren();
     const edges = typedSuggestions('variable', 'name', names, 'Brush.Edges.').shown;
     expect(edges).toContain('Brush.Edges.Data');

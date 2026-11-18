@@ -108,7 +108,7 @@ export const SOLID_SCRIPT_SYSTEM_GLOBALS: readonly SolidScriptSystemValue[] = [
   { name: 'Input.Min', type: 'Vector', detail: 'lowest corner of what a modifier receives' },
   { name: 'Input.Max', type: 'Vector', detail: 'highest corner of what a modifier receives' },
   { name: 'Input.Size', type: 'Vector', detail: 'width, height and depth of what a modifier receives' },
-  { name: 'Input.Center', type: 'Vector', detail: 'centre of what a modifier receives' },
+  { name: 'Input.Centre', type: 'Vector', detail: 'centre of what a modifier receives' },
   { name: 'Input.Extents', type: 'Vector', detail: 'half of Input.Size: from the centre to the sides' },
   { name: 'Editor.Name', type: 'Text', detail: 'name of the editor' },
   { name: 'Editor.Version', type: 'Text', detail: 'version of the editor, such as 1.2.3' },
@@ -305,7 +305,7 @@ export function solidScriptSystemValues(
     'Input.Min': () => bounds().min,
     'Input.Max': () => bounds().max,
     'Input.Size': () => bounds().max.map((value, axis) => value - bounds().min[axis]!),
-    'Input.Center': () => bounds().max.map((value, axis) => (value + bounds().min[axis]!) / 2),
+    'Input.Centre': () => bounds().max.map((value, axis) => (value + bounds().min[axis]!) / 2),
     'Input.Extents': () => bounds().max.map((value, axis) => (value - bounds().min[axis]!) / 2),
     ...(box
       ? {

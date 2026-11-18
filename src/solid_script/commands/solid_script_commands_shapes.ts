@@ -27,7 +27,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     category: 'Solids',
     description: 'Build a box',
     manual:
-      'Builds a box with the given width (X), height (Y) and depth (Z) in metres. Anchor picks the spot of the box that sits on the origin, the centre of the generator: its middle by default; Center, Bottom, Center stands it on the origin, and Left, Bottom, Back puts its corner there so it grows along X, Y and Z. Example: a size of 2, 0.2, 1 gives a flat slab two metres wide.',
+      'Builds a box with the given width (X), height (Y) and depth (Z) in metres. Anchor picks the spot of the box that sits on the origin, the centre of the generator: its middle by default; Centre, Bottom, Centre stands it on the origin, and Left, Bottom, Back puts its corner there so it grows along X, Y and Z. Example: a size of 2, 0.2, 1 gives a flat slab two metres wide.',
     stops: ['A size of 0 or less on any axis.', 'A size that is not one number or three numbers separated by commas.'],
     parameters: [
       solidScriptParameter('size', 'Size', 'vector3', '1, 1, 1', 'Width (X), height (Y) and depth (Z) in metres.'),
@@ -46,7 +46,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     category: 'Solids',
     description: 'Build a ball',
     manual:
-      'Builds a faceted ball with its middle on the origin; Anchor moves another spot of it there, such as Center, Bottom, Center to rest it on the origin. Sides sets the faces around it, Rings the bands from bottom to top. More of either looks rounder but costs more polygons. Example: radius 0.5 with 8 sides and 4 rings gives a low-poly ball one metre across.',
+      'Builds a faceted ball with its middle on the origin; Anchor moves another spot of it there, such as Centre, Bottom, Centre to rest it on the origin. Sides sets the faces around it, Rings the bands from bottom to top. More of either looks rounder but costs more polygons. Example: radius 0.5 with 8 sides and 4 rings gives a low-poly ball one metre across.',
     stops: ['A radius of 0 or less.', 'Sides outside 3 to 64 or Rings outside 2 to 32, or a count with decimals.'],
     parameters: [
       solidScriptParameter('r', 'Radius', 'number', '1', 'Distance from the middle to the surface in metres.'),
@@ -72,7 +72,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     category: 'Solids',
     description: 'Build a cylinder or cone',
     manual:
-      'Builds a faceted cylinder standing up along the Y axis, centred on the origin. Anchor Center, Bottom, Center stands it on the origin instead. Give the top a different radius to make a tapered cone, or 0 for a point. Sides sets the faces around it. Example: height 2, bottom radius 1 and top radius 0 gives a pointed cone.',
+      'Builds a faceted cylinder standing up along the Y axis, centred on the origin. Anchor Centre, Bottom, Centre stands it on the origin instead. Give the top a different radius to make a tapered cone, or 0 for a point. Sides sets the faces around it. Example: height 2, bottom radius 1 and top radius 0 gives a pointed cone.',
     stops: [
       'A height of 0 or less.',
       'A negative radius, or both radii at 0.',

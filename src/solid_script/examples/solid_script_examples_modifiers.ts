@@ -56,7 +56,7 @@ export const SOLID_SCRIPT_EXAMPLE_SHEAR: readonly SolidScriptLine[] = [
       solidScriptExampleSet('Slide', `[=(${solidScriptExampleAxis('Axis').slice(2, -1)}) * [Shear]]`),
       solidScriptExampleSet('Measure', solidScriptExampleAxis('Along')),
       solidScriptExampleNote('Each point moves by Slide times its distance from the centre along Measure.'),
-      solidScriptExampleSet('Shift', '[=[Slide] * -Dot([Measure], [$Input.Center])]'),
+      solidScriptExampleSet('Shift', '[=[Slide] * -Dot([Measure], [$Input.Centre])]'),
       ...solidScriptExampleBlock(
         'matrix',
         {
@@ -141,7 +141,7 @@ export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
   solidScriptExampleInput('Pivot', 'Vector', '0, 0, 0', { label: 'Pivot' }),
   ...solidScriptExampleTextures('Move With Copy'),
   solidScriptExampleSet('K', solidScriptExampleAxis('Axis')),
-  solidScriptExampleSet('Centre', '[$Input.Center]'),
+  solidScriptExampleSet('Centre', '[$Input.Centre]'),
   solidScriptExampleNote('The angle between copies: a full ring, an arc or a fixed step.'),
   solidScriptExampleSet('Turn', '[=360 / [Count]]'),
   ...solidScriptExampleIf('[Mode] == "Angle Step"', [solidScriptExampleSet('Turn', '[Step]')]),
@@ -300,7 +300,7 @@ export const SOLID_SCRIPT_EXAMPLE_MIRROR: readonly SolidScriptLine[] = [
   ...solidScriptExampleTextures('Move With Copy'),
   solidScriptExampleSet('K', solidScriptExampleAxis('Axis')),
   solidScriptExampleNote('The plane runs through the centre or touches a side, then moves by Offset along its axis.'),
-  solidScriptExampleSet('D', '[=Dot([$Input.Center], [K]) + [PlaneOffset]]'),
+  solidScriptExampleSet('D', '[=Dot([$Input.Centre], [K]) + [PlaneOffset]]'),
   solidScriptExampleSet('Half', '[=Abs(Dot([$Input.Size], [K])) / 2]'),
   ...solidScriptExampleIf('[Plane] == "Negative Side"', [solidScriptExampleSet('D', '[=[D] - [Half]]')]),
   ...solidScriptExampleIf('[Plane] == "Positive Side"', [solidScriptExampleSet('D', '[=[D] + [Half]]')]),

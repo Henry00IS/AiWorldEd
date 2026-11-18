@@ -95,7 +95,7 @@ describe('SolidScript member suggestions', () => {
       '$Selected.Vertices',
     ]);
     expect(labels('[$Selected.Faces.First.')).toEqual([
-      '$Selected.Faces.First.Center',
+      '$Selected.Faces.First.Centre',
       '$Selected.Faces.First.Normal',
       '$Selected.Faces.First.Area',
       '$Selected.Faces.First.Width',
@@ -110,8 +110,8 @@ describe('SolidScript member suggestions', () => {
     ]);
     expect(labels('[$Selected.Faces.C')).toEqual([
       '$Selected.Faces.Count',
-      '$Selected.Faces.Center',
-      '$Selected.Faces.Centers',
+      '$Selected.Faces.Centre',
+      '$Selected.Faces.Centres',
     ]);
     expect(labels('[$Input.Brushes(0).Faces(1).Normal.')).toEqual(vector('$Input.Brushes(0).Faces(1).Normal'));
     expect(labels('[$Selected.Edges.First.Parent.N')).toEqual(['$Selected.Edges.First.Parent.Name']);

@@ -1,6 +1,6 @@
 /**
  * Names in SolidScript ignore case: [Count], [count] and [COUNT] are one
- * variable, and Face.Center is face.center. Every name is folded to its key
+ * variable, and Face.Centre is face.centre. Every name is folded to its key
  * once, where it is compiled or first stored, so reads compare keys only.
  */
 

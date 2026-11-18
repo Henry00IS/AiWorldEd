@@ -149,7 +149,7 @@ describe('SolidScript generator blocks', () => {
     );
     expect(bounds(cylinder.shapes)).toEqual(bounds([{ kind: 'solid', label: '', points: kindCylinder[0]!.vertices }]));
     expect(bounds(cylinder.shapes)[1]).toBe(-1);
-    const cone = run({ command: 'cylinder', values: { h: '2', r1: '0.5', r2: '1', anchor: 'Center, Bottom, Center' } });
+    const cone = run({ command: 'cylinder', values: { h: '2', r1: '0.5', r2: '1', anchor: 'Centre, Bottom, Centre' } });
     const points = solids(cone.shapes).flat();
     const radiusAt = (y: number) =>
       Math.max(...points.filter((point) => Math.abs(point.y - y) < 1e-6).map((point) => Math.hypot(point.x, point.z)));

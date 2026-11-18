@@ -77,7 +77,7 @@ describe('SolidScript Grid Mesh', () => {
   });
 
   it('stands a wall on the origin and subdivides it', () => {
-    const mesh = grid({ size: '2, 2, 0', columns: '2', rows: '1', anchor: 'Left, Bottom, Center' });
+    const mesh = grid({ size: '2, 2, 0', columns: '2', rows: '1', anchor: 'Left, Bottom, Centre' });
     if (typeof mesh === 'string') throw new Error(mesh);
     expect(mesh.points).toHaveLength(6);
     expect(mesh.faces).toHaveLength(2);

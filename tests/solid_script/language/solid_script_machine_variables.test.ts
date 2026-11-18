@@ -114,8 +114,8 @@ describe('SolidScript Set of Data through list members', () => {
     expect(stopped([CUBE_INTO_BRUSH, line('variable', { name: 'Brush.Edges', value: '1' })])).toMatch(
       /Brush\.Edges can only be read/,
     );
-    expect(stopped([CUBE_INTO_BRUSH, line('variable', { name: 'Brush.Faces(0).Center', value: '1' })])).toMatch(
-      /Brush\.Faces\(0\)\.Center can only be read/,
+    expect(stopped([CUBE_INTO_BRUSH, line('variable', { name: 'Brush.Faces(0).Centre', value: '1' })])).toMatch(
+      /Brush\.Faces\(0\)\.Centre can only be read/,
     );
     expect(stopped([CUBE_INTO_BRUSH, line('variable', { name: 'Brush.Edges.Data', value: '1' })])).toMatch(
       /Brush\.Edges\.Data needs a key to set/,

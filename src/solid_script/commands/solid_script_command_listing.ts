@@ -81,8 +81,8 @@ export function solidScriptListingBuild(
 }
 
 /**
- * Joins the options of a line in brackets, such as "(Anchor 'Center, Bottom,
- * Center', Top Scale '[1, 1]')", or nothing when every option is at its
+ * Joins the options of a line in brackets, such as "(Anchor 'Centre, Bottom,
+ * Centre', Top Scale '[1, 1]')", or nothing when every option is at its
  * default.
  *
  * @param options Option pieces; empty entries are skipped.

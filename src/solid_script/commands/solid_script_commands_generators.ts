@@ -106,7 +106,7 @@ function solidScriptGeneratorCommand(kind: ModifierStackKindGenerator): SolidScr
     label: kind.label,
     category: 'Generators',
     description: `Build a ${kind.label.toLowerCase()} like the generator`,
-    manual: `${kind.description} The script block fills a box of the given width (X), height (Y) and depth (Z) in metres, centred on the origin; Anchor picks another spot of the box, such as Center, Bottom, Center to stand it on the origin. Its other fields are the ones the ${kind.label} generator shows in the inspector, with the same names, so a script can change them with variables and formulas. Textures come from the generator holding the script. Example: a ${kind.label} block with Size 2, 3, 2 fills a box two metres wide and three metres tall around the origin.`,
+    manual: `${kind.description} The script block fills a box of the given width (X), height (Y) and depth (Z) in metres, centred on the origin; Anchor picks another spot of the box, such as Centre, Bottom, Centre to stand it on the origin. Its other fields are the ones the ${kind.label} generator shows in the inspector, with the same names, so a script can change them with variables and formulas. Textures come from the generator holding the script. Example: a ${kind.label} block with Size 2, 3, 2 fills a box two metres wide and three metres tall around the origin.`,
     stops: [
       'A size of 0 or less on any axis.',
       'A number outside the range its field allows, or a count with decimals.',

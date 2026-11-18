@@ -66,7 +66,7 @@ export const SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE: readonly SolidScriptLine[] =
       r1: '[Inner]',
       r2: '[Inner]',
       sides: '24',
-      anchor: 'Center, Bottom, Center',
+      anchor: 'Centre, Bottom, Centre',
     }),
   ]),
   ...solidScriptExampleRepeat('S', '0', '[=[Steps] - 1]', [
@@ -86,7 +86,7 @@ export const SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE: readonly SolidScriptLine[] =
         r1: '0.02',
         r2: '0.02',
         sides: '8',
-        anchor: 'Center, Bottom, Center',
+        anchor: 'Centre, Bottom, Centre',
       }),
     ]),
   ]),

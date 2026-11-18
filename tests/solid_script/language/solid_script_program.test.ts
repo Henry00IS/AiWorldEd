@@ -110,7 +110,7 @@ describe('solidScriptProgramRun', () => {
     const { shapes } = solidScriptProgramEvaluate(
       script(
         { command: 'rotate', values: { a: '90, 0, 0' } },
-        { command: 'cylinder', values: { h: '2', r1: '1', r2: '1', anchor: 'Center, Bottom, Center', sides: '8' } },
+        { command: 'cylinder', values: { h: '2', r1: '1', r2: '1', anchor: 'Centre, Bottom, Centre', sides: '8' } },
         { command: 'end' },
       ),
     );

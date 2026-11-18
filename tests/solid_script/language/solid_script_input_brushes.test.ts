@@ -76,7 +76,7 @@ describe('SolidScript input brushes', () => {
   it('loops over brushes with For Each and reads their members', () => {
     const result = run([
       line('for_each', { variable: 'Brush', list: '[$Input.Brushes]', key: 'I' }),
-      line('echo', { value: '[I] [Brush.Name] [Brush.Center] [Brush.Size] [Brush.Extents]' }),
+      line('echo', { value: '[I] [Brush.Name] [Brush.Centre] [Brush.Size] [Brush.Extents]' }),
       line('select_faces', { which: 'All', of: '[Brush]' }),
       line('for_each', { variable: 'Corner', list: '[$Selected.Faces.Vertices]' }),
       line('add_item', { value: '[Corner.Position]', list: 'Corners' }),
@@ -105,7 +105,7 @@ describe('SolidScript input brushes', () => {
         line('translate', { v: '10, 0, 0' }),
         line('input_brushes'),
         line('end'),
-        line('cube', { size: '1, 3, 1', anchor: 'Center, Center, Center' }),
+        line('cube', { size: '1, 3, 1', anchor: 'Centre, Centre, Centre' }),
         line('end'),
       ],
       use,

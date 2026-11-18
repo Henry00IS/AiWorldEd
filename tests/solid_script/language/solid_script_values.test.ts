@@ -179,7 +179,7 @@ describe('SolidScript values', () => {
         CUBE,
         line('select_faces', { which: 'Facing Up' }),
         line('extrude_face', { distance: '0.5', into: 'Slabs', top: 'Roof', sides: 'Walls' }),
-        line('echo', { value: '[Slabs.Count] [Roof.Count] [Walls.Count] [Roof(0).Center] [$Selected.Faces.Count]' }),
+        line('echo', { value: '[Slabs.Count] [Roof.Count] [Walls.Count] [Roof(0).Centre] [$Selected.Faces.Count]' }),
       ]),
     ).toEqual(['1 1 4 [0, 1.5, 0] 1']);
   });
@@ -206,7 +206,7 @@ describe('SolidScript values', () => {
         line('select_faces', { which: 'Facing Up', into: 'Top' }),
         line('variable', { name: 'Top.Data.Mark', value: 'roof' }),
         line('extrude_face', { distance: '1', of: '[Top]', top: 'Roof' }),
-        line('echo', { value: '[Top.Count] [Top.First.Center] [Top.First.Data.Mark] [Roof.First.Data.Mark]' }),
+        line('echo', { value: '[Top.Count] [Top.First.Centre] [Top.First.Data.Mark] [Roof.First.Data.Mark]' }),
       ]),
     ).toEqual(['1 [0, 2, 0] roof roof']);
   });

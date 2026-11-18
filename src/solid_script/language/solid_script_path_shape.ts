@@ -37,7 +37,7 @@ export function solidScriptPathLine(
 }
 
 /**
- * Points along a circular arc around Center, in the plane facing Normal.
+ * Points along a circular arc around Centre, in the plane facing Normal.
  *
  * @param center Middle of the arc.
  * @param radius Metres, above 0.
@@ -69,7 +69,7 @@ export function solidScriptPathArc(
 }
 
 /**
- * Points along a spiral or helix around Center: the radius moves from Radius to
+ * Points along a spiral or helix around Centre: the radius moves from Radius to
  * End Radius, and Height climbs along Normal.
  *
  * @param center Middle at the start.

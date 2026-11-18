@@ -18,10 +18,10 @@ export const SOLID_SCRIPT_ANCHOR_HEIGHT: readonly SolidScriptAnchorAxis[] = ['y'
  * axes: X runs right, Y up, Z to the front; a drawing's Y runs to the back.
  */
 export const SOLID_SCRIPT_ANCHOR_WORDS: Readonly<Record<SolidScriptAnchorAxis, readonly string[]>> = {
-  x: ['Left', 'Center', 'Right'],
-  y: ['Bottom', 'Center', 'Top'],
-  z: ['Back', 'Center', 'Front'],
-  depth: ['Front', 'Center', 'Back'],
+  x: ['Left', 'Centre', 'Right'],
+  y: ['Bottom', 'Centre', 'Top'],
+  z: ['Back', 'Centre', 'Front'],
+  depth: ['Front', 'Centre', 'Back'],
 };
 
 /** Caption of each axis in the configurator. */
@@ -36,16 +36,16 @@ export const SOLID_SCRIPT_ANCHOR_CAPTIONS: Readonly<Record<SolidScriptAnchorAxis
  * The Anchor every shape starts with: its middle on the origin.
  *
  * @param axes Axes.
- * @returns Text, such as "Center, Center, Center".
+ * @returns Text, such as "Centre, Centre, Centre".
  */
 export function solidScriptAnchorDefault(axes: readonly SolidScriptAnchorAxis[]): string {
-  return axes.map(() => 'Center').join(', ');
+  return axes.map(() => 'Centre').join(', ');
 }
 
 /**
  * Reads an Anchor: one word per axis, separated by commas, in any case.
  *
- * @param text Text, such as "Center, Bottom, Back".
+ * @param text Text, such as "Centre, Bottom, Back".
  * @param axes Axes.
  * @returns How far along each axis of the shape's box the origin sits, 0 at its
  *   lowest side, 0.5 in the middle and 1 at its highest; or the problem.

@@ -71,7 +71,7 @@ describe('SolidScript builders', () => {
         line('translate', { v: '0, 5, 0' }),
         line('cube', { into: 'C' }),
         END,
-        line('echo', { value: '[C.Center]' }),
+        line('echo', { value: '[C.Centre]' }),
       ),
     ).toEqual(['[0, 5, 0]']);
   });
