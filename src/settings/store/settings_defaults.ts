@@ -1,4 +1,10 @@
-import type { KeyboardShortcutSettings, MouseSettings, UpdateSettings, ViewSettings } from './settings_types.js';
+import type {
+  DiscordSettings,
+  KeyboardShortcutSettings,
+  MouseSettings,
+  UpdateSettings,
+  ViewSettings,
+} from './settings_types.js';
 
 /**
  * Returns default View tab settings.
@@ -42,6 +48,15 @@ export function createDefaultMouseSettings(): MouseSettings {
 /** Returns default standalone updater preferences. */
 export function createDefaultUpdateSettings(): UpdateSettings {
   return { automaticChecks: false };
+}
+
+/**
+ * Returns default Discord Rich Presence preferences.
+ *
+ * @returns Fresh Discord settings snapshot.
+ */
+export function createDefaultDiscordSettings(): DiscordSettings {
+  return { richPresenceEnabled: true, hideProjectName: false };
 }
 
 /**

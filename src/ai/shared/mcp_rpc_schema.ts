@@ -1,6 +1,7 @@
 import type { StandaloneHostUpdateCheck, UpdateInstallProgress } from '@/updater/update_types.js';
 import type { ProjectDesktopRequests } from '@/project/desktop/project_desktop_protocol.js';
 import type { DesktopFullscreenRequests } from '@/desktop/fullscreen/desktop_fullscreen_protocol.js';
+import type { DiscordRichPresenceRequests } from '@/desktop/discord/discord_rich_presence_protocol.js';
 import type { McpToolDefinition } from './mcp_tool_definition.js';
 import type {
   McpHostStartResult,
@@ -13,7 +14,8 @@ import type {
 export interface ElectrobunDesktopRpcSchema {
   bun: {
     requests: ProjectDesktopRequests &
-      DesktopFullscreenRequests & {
+      DesktopFullscreenRequests &
+      DiscordRichPresenceRequests & {
         checkForUpdate: { params: undefined; response: StandaloneHostUpdateCheck };
         downloadUpdate: { params: undefined; response: void };
         applyUpdate: { params: undefined; response: void };

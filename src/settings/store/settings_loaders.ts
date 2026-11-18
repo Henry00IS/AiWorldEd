@@ -1,4 +1,5 @@
 import {
+  createDefaultDiscordSettings,
   createDefaultKeyboardShortcutSettings,
   createDefaultMouseSettings,
   createDefaultUpdateSettings,
@@ -7,12 +8,19 @@ import {
 import { mergeKeyboardShortcutSettings } from '@/settings/keyboard/helpers_settings_keyboard.js';
 import type { SettingsStorage } from '@/settings/storage/settings_storage.js';
 import {
+  DISCORD_SETTINGS_STORAGE_KEY,
   KEYBOARD_SHORTCUTS_STORAGE_KEY,
   MOUSE_SETTINGS_STORAGE_KEY,
   UPDATE_SETTINGS_STORAGE_KEY,
   VIEW_SETTINGS_STORAGE_KEY,
 } from '@/settings/storage/settings_storage_keys.js';
-import type { KeyboardShortcutSettings, MouseSettings, UpdateSettings, ViewSettings } from './settings_types.js';
+import type {
+  DiscordSettings,
+  KeyboardShortcutSettings,
+  MouseSettings,
+  UpdateSettings,
+  ViewSettings,
+} from './settings_types.js';
 import { mergeMouseSettings, mergeViewSettings, sanitizeBoolean } from './settings_value_sanitizers.js';
 
 /**
@@ -61,6 +69,27 @@ export function loadUpdateSettings(storage: SettingsStorage): UpdateSettings {
     const parsed = JSON.parse(raw) as Partial<UpdateSettings>;
     return {
       automaticChecks: sanitizeBoolean(parsed.automaticChecks, defaults.automaticChecks),
+    };
+  } catch {
+    return defaults;
+  }
+}
+
+/**
+ * Loads desktop Discord Rich Presence preferences with safe defaults.
+ *
+ * @param storage Settings storage backend.
+ * @returns Valid Discord settings.
+ */
+export function loadDiscordSettings(storage: SettingsStorage): DiscordSettings {
+  const defaults = createDefaultDiscordSettings();
+  const raw = storage.getItem(DISCORD_SETTINGS_STORAGE_KEY);
+  if (!raw) return defaults;
+  try {
+    const parsed = JSON.parse(raw) as Partial<DiscordSettings>;
+    return {
+      richPresenceEnabled: sanitizeBoolean(parsed.richPresenceEnabled, defaults.richPresenceEnabled),
+      hideProjectName: sanitizeBoolean(parsed.hideProjectName, defaults.hideProjectName),
     };
   } catch {
     return defaults;

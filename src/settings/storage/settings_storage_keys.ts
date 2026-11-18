@@ -12,6 +12,9 @@ export const MOUSE_SETTINGS_STORAGE_KEY = 'aiworlded.settings.mouse';
 /** Storage key for standalone updater preferences JSON. */
 export const UPDATE_SETTINGS_STORAGE_KEY = 'aiworlded.settings.update';
 
+/** Storage key for desktop Discord Rich Presence preferences JSON. */
+export const DISCORD_SETTINGS_STORAGE_KEY = 'aiworlded.settings.discord';
+
 /** Storage key for the Export dialog's choices JSON. */
 export const EXPORT_SETTINGS_STORAGE_KEY = 'aiworlded.settings.export';
 

@@ -65,6 +65,7 @@ import { runLayoutFbxImportPicked } from '@/layout/setup/layout_fbx_import.js';
 import { layoutSceneRecentEntries } from '@/layout/setup/layout_scene_recent.js';
 import { installLayoutSceneDrop } from '@/layout/setup/layout_scene_drop.js';
 import type { ToolbarMenuEntry } from '@/ui/menu/menu_types.js';
+import { desktopPresenceAttach, type DesktopPresenceSnapshot } from '@/desktop/presence/desktop_presence_source.js';
 
 /** Builds the UI shell and dynamic viewports and wires their layout systems. */
 export class ManagerViewportLayout extends ViewportLayoutCore {
@@ -1183,6 +1184,28 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
   start(): void {
     if (this.isDisposed) return;
     this.renderLoop.start();
+    this.desktopPresencePublish();
+  }
+
+  /** Hands the editor presence source to the desktop reporter, if any. */
+  private desktopPresencePublish(): void {
+    desktopPresenceAttach({
+      capture: () => this.desktopPresenceCapture(),
+      settingsStore: () => this.settingsStore,
+    });
+  }
+
+  /**
+   * Reads the current level name, project name, and brush count.
+   *
+   * @returns Presence snapshot.
+   */
+  private desktopPresenceCapture(): DesktopPresenceSnapshot {
+    return {
+      levelName: this.sceneIOHandler.getSceneFileSession().getCurrentFilename(),
+      projectName: this.projectHost?.project.fileSystem()?.name ?? null,
+      brushCount: this.solidModelController?.getActiveModel()?.getBrushCount() ?? 0,
+    };
   }
 
   /**

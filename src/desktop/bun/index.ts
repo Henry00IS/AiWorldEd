@@ -1,6 +1,9 @@
 import { APPLICATION_VERSION, buildWindowTitle } from '@/application_identity.js';
 import type { ElectrobunDesktopRpcSchema, ElectrobunDesktopWebviewCaller } from '@/ai/shared/mcp_rpc_schema.js';
 import { McpHost } from '@/ai/server/mcp_host.js';
+import { DiscordRichPresenceHost } from '@/desktop/discord/discord_rich_presence_host.js';
+import { discordRichPresenceQuitInstall } from '@/desktop/discord/discord_rich_presence_quit.js';
+import type { DiscordRichPresenceEditorState } from '@/desktop/discord/discord_rich_presence_protocol.js';
 import { ElectrobunUpdateHost } from '@/updater/electrobun_update_host.js';
 import { buildDesktopWindowFrame } from '@/desktop/desktop_window_maximize.js';
 import { showMaximizedWhenReady } from '@/desktop/desktop_window_startup.js';
@@ -17,6 +20,7 @@ const { BrowserView, BrowserWindow, Screen, Updater, Utils } = await import('ele
 
 const mcpHost = new McpHost();
 const projectHost = new ProjectDesktopHost(`${Utils.paths.userData}/project_folders.json`, pickProjectFolder);
+const discordHost = new DiscordRichPresenceHost({ pid: process.pid });
 let desktopRpc: ElectrobunDesktopWebviewCaller | null = null;
 let desktopWindow: InstanceType<typeof BrowserWindow> | null = null;
 let appVersion = APPLICATION_VERSION;
@@ -42,6 +46,9 @@ const desktopRpcBinding = BrowserView.defineRPC<ElectrobunDesktopRpcSchema>({
         desktopWindow?.setTitle(params.title);
       },
       windowFullscreenToggle: () => (desktopWindow ? desktopFullscreenToggle(desktopWindow) : false),
+      discordRichPresenceUpdate: (params: DiscordRichPresenceEditorState) => {
+        discordHost.update(params);
+      },
     },
   },
 });
@@ -74,6 +81,7 @@ showMaximizedWhenReady(shownWindow, async () => {
   await applyWindowsWindowIcon(windowTitle);
   await applyLinuxWindowIcon(shownWindow);
 });
+discordRichPresenceQuitInstall(discordHost, shownWindow, process);
 
 /**
  * Returns whether Electrobun has downloaded, verified and staged the bundle.

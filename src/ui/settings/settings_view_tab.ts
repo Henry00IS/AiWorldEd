@@ -12,6 +12,7 @@ import {
   type TextureFilterMode,
   type UiThemePreference,
 } from '@/settings/store/settings_types.js';
+import { discordRichPresenceSettingsCategory } from '@/desktop/discord/discord_rich_presence_settings.js';
 import { createSettingsCategory, createSettingsControlRow, createSettingsSelect } from './settings_form_controls.js';
 
 /**
@@ -51,6 +52,13 @@ export class SettingsViewTab {
     this.root.appendChild(this.buildTexturesCategory());
     this.root.appendChild(this.buildMaterialBrowserCategory());
     this.root.appendChild(this.buildFontsCategory());
+    this.appendDiscordCategory();
+  }
+
+  /** Appends the Discord category when the desktop presence bridge is present. */
+  private appendDiscordCategory(): void {
+    const category = discordRichPresenceSettingsCategory(this.store);
+    if (category !== null) this.root.appendChild(category);
   }
 
   /**

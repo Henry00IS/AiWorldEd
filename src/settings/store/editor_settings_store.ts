@@ -6,6 +6,7 @@ import {
 } from '@/io/export/model_export_options.js';
 import { areShortcutsEqual, isValidKeyboardShortcut } from '@/settings/keyboard/helpers_settings_keyboard.js';
 import {
+  loadDiscordSettings,
   loadKeyboardShortcutSettings,
   loadMouseSettings,
   loadUpdateSettings,
@@ -14,6 +15,7 @@ import {
 import type { SettingsStorage } from '@/settings/storage/settings_storage.js';
 import { LocalSettingsStorage } from '@/settings/storage/settings_storage.js';
 import {
+  DISCORD_SETTINGS_STORAGE_KEY,
   EXPORT_SETTINGS_STORAGE_KEY,
   IMPORT_SETTINGS_STORAGE_KEY,
   KEYBOARD_SHORTCUTS_STORAGE_KEY,
@@ -24,6 +26,7 @@ import {
 } from '@/settings/storage/settings_storage_keys.js';
 import type {
   AnisotropyPreference,
+  DiscordSettings,
   EditorSettingsSnapshot,
   ImportSettings,
   KeyboardShortcutAction,
@@ -43,6 +46,7 @@ export {
   VIEW_SETTINGS_STORAGE_KEY,
   KEYBOARD_SHORTCUTS_STORAGE_KEY,
   MOUSE_SETTINGS_STORAGE_KEY,
+  DISCORD_SETTINGS_STORAGE_KEY,
   UPDATE_SETTINGS_STORAGE_KEY,
   type EditorSettingsListener,
 } from '@/settings/storage/settings_storage_keys.js';
@@ -57,6 +61,7 @@ export class EditorSettingsStore {
   private view: ViewSettings;
   private mouse: MouseSettings;
   private update: UpdateSettings;
+  private discord: DiscordSettings;
   private keyboard: KeyboardShortcutSettings;
   private exportSettings: ModelExportSettings;
   private importSettings: ImportSettings;
@@ -72,6 +77,7 @@ export class EditorSettingsStore {
     this.view = loadViewSettings(storage);
     this.mouse = loadMouseSettings(storage);
     this.update = loadUpdateSettings(storage);
+    this.discord = loadDiscordSettings(storage);
     this.keyboard = loadKeyboardShortcutSettings(storage);
     this.exportSettings = modelExportSettingsParse(
       storage.getItem(EXPORT_SETTINGS_STORAGE_KEY),
@@ -90,6 +96,7 @@ export class EditorSettingsStore {
       view: { ...this.view },
       mouse: { ...this.mouse },
       update: { ...this.update },
+      discord: { ...this.discord },
       keyboard: { ...this.keyboard },
     };
   }
@@ -153,6 +160,15 @@ export class EditorSettingsStore {
   /** Returns standalone updater preferences. */
   getUpdateSettings(): UpdateSettings {
     return { ...this.update };
+  }
+
+  /**
+   * Returns desktop Discord Rich Presence preferences.
+   *
+   * @returns Cloned Discord settings.
+   */
+  getDiscordSettings(): DiscordSettings {
+    return { ...this.discord };
   }
 
   /**
@@ -316,6 +332,30 @@ export class EditorSettingsStore {
     this.notifyListeners();
   }
 
+  /**
+   * Enables or disables desktop Discord Rich Presence.
+   *
+   * @param enabled Whether activity should be reported to Discord.
+   */
+  setDiscordRichPresenceEnabled(enabled: boolean): void {
+    if (this.discord.richPresenceEnabled === enabled) return;
+    this.discord = { ...this.discord, richPresenceEnabled: enabled };
+    this.persistDiscordSettings();
+    this.notifyListeners();
+  }
+
+  /**
+   * Sets whether Discord activity hides the project and level name.
+   *
+   * @param hidden Whether the project and level name should be hidden.
+   */
+  setDiscordHideProjectName(hidden: boolean): void {
+    if (this.discord.hideProjectName === hidden) return;
+    this.discord = { ...this.discord, hideProjectName: hidden };
+    this.persistDiscordSettings();
+    this.notifyListeners();
+  }
+
   /** Writes view settings to storage. */
   private persistViewSettings(): void {
     this.storage.setItem(VIEW_SETTINGS_STORAGE_KEY, JSON.stringify(this.view));
@@ -329,6 +369,11 @@ export class EditorSettingsStore {
   /** Writes standalone updater preferences to storage. */
   private persistUpdateSettings(): void {
     this.storage.setItem(UPDATE_SETTINGS_STORAGE_KEY, JSON.stringify(this.update));
+  }
+
+  /** Writes desktop Discord Rich Presence preferences to storage. */
+  private persistDiscordSettings(): void {
+    this.storage.setItem(DISCORD_SETTINGS_STORAGE_KEY, JSON.stringify(this.discord));
   }
 
   /** Writes keyboard shortcut settings to storage. */

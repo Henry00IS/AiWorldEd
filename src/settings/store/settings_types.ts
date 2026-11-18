@@ -115,6 +115,14 @@ export interface UpdateSettings {
   automaticChecks: boolean;
 }
 
+/** Desktop Discord Rich Presence preferences. */
+export interface DiscordSettings {
+  /** When true, the desktop app reports activity to Discord. */
+  richPresenceEnabled: boolean;
+  /** When true, the activity hides the project and level name. */
+  hideProjectName: boolean;
+}
+
 /** Actions whose primary keyboard shortcut can be configured by the user. */
 export type KeyboardShortcutAction =
   | 'move'
@@ -180,6 +188,7 @@ export interface EditorSettingsSnapshot {
   view: ViewSettings;
   mouse: MouseSettings;
   update: UpdateSettings;
+  discord: DiscordSettings;
   keyboard: KeyboardShortcutSettings;
 }
 

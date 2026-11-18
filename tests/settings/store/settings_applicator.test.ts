@@ -32,6 +32,7 @@ describe('SettingsApplicator', () => {
       },
       mouse: createDefaultMouseSettings(),
       update: { automaticChecks: true },
+      discord: { richPresenceEnabled: true, hideProjectName: false },
       keyboard: createDefaultKeyboardShortcutSettings(),
     };
     applicator.applySnapshot(snapshot);
@@ -50,6 +51,7 @@ describe('SettingsApplicator', () => {
       view: { ...createDefaultViewSettings(), theme: 'light' },
       mouse: createDefaultMouseSettings(),
       update: { automaticChecks: true },
+      discord: { richPresenceEnabled: true, hideProjectName: false },
       keyboard: createDefaultKeyboardShortcutSettings(),
     });
     const style = document.getElementById('aiworlded-view-settings-styles');

@@ -97,6 +97,17 @@ describe('EditorSettingsStore', () => {
     expect(new EditorSettingsStore(storage).getUpdateSettings().automaticChecks).toBe(true);
   });
 
+  it('should default Discord Rich Presence On with the project name visible and persist changes', () => {
+    expect(store.getDiscordSettings()).toEqual({ richPresenceEnabled: true, hideProjectName: false });
+    store.setDiscordRichPresenceEnabled(false);
+    store.setDiscordHideProjectName(true);
+    expect(store.getSnapshot().discord).toEqual({ richPresenceEnabled: false, hideProjectName: true });
+    expect(new EditorSettingsStore(storage).getDiscordSettings()).toEqual({
+      richPresenceEnabled: false,
+      hideProjectName: true,
+    });
+  });
+
   it('should persist rebindable keyboard shortcuts across reloads', () => {
     expect(store.getKeyboardShortcutSettings().move.code).toBe('KeyW');
     expect(store.getKeyboardShortcutSettings().rotate.code).toBe('KeyE');
@@ -123,7 +134,7 @@ describe('EditorSettingsStore', () => {
 
     const reloaded = new EditorSettingsStore(storage);
     const snapshot = reloaded.getSnapshot();
-    expect(Object.keys(snapshot).sort()).toEqual(['keyboard', 'mouse', 'update', 'view']);
+    expect(Object.keys(snapshot).sort()).toEqual(['discord', 'keyboard', 'mouse', 'update', 'view']);
     expect(snapshot.view.theme).toBe('system');
     expect(snapshot.view.rendererFontSize).toBe(20);
     expect(snapshot.view.viewportPaneCount).toBe(3);

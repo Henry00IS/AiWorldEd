@@ -15,6 +15,11 @@ import {
   type DesktopFullscreenRpcClient,
 } from '@/desktop/fullscreen/desktop_fullscreen_protocol.js';
 import { desktopFullscreenShortcutInstall } from '@/desktop/fullscreen/desktop_fullscreen_shortcut.js';
+import {
+  createDiscordRichPresenceBridge,
+  type DiscordRichPresenceRpcClient,
+} from '@/desktop/discord/discord_rich_presence_protocol.js';
+import { discordRichPresenceReporterStart } from '@/desktop/discord/discord_rich_presence_reporter.js';
 
 let updaterBridge: ElectrobunUpdaterBridge | null = null;
 
@@ -32,13 +37,16 @@ const desktopRpc = Electroview.defineRPC<ElectrobunDesktopRpcSchema>({
 }) as unknown as ElectrobunDesktopBunRpcClient &
   ElectrobunUpdaterRpcClient &
   ProjectDesktopRpcClient &
-  DesktopFullscreenRpcClient;
+  DesktopFullscreenRpcClient &
+  DiscordRichPresenceRpcClient;
 
 new Electroview({ rpc: desktopRpc as never });
 updaterBridge = new ElectrobunUpdaterBridge(desktopRpc);
 window.aiworldedStandaloneUpdater = updaterBridge;
 window.aiworldedMcpBridge = createMcpDesktopBridge(desktopRpc);
 window.aiworldedProjectBridge = createProjectDesktopBridge(desktopRpc);
+window.aiworldedDiscordPresence = createDiscordRichPresenceBridge(desktopRpc);
+discordRichPresenceReporterStart(window.aiworldedDiscordPresence);
 const appVersion = await desktopRpc.request.getAppVersion();
 window.aiworldedAppVersion = appVersion;
 window.aiworldedSetWindowTitle = (title) => {
