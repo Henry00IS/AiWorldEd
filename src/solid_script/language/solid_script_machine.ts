@@ -98,9 +98,11 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   private used = false;
   private readonly breaks: SolidScriptBreak[] = [];
   /**
-   * The brushes a modifier receives as shapes named Input 1, Input 2 and so on,
-   * made on first use, until an Input Brushes line builds them.
+   * Received brushes as they arrived, made on first use, and kept after Input
+   * Brushes.
    */
+  private incoming: SolidScriptGeometryLeaf[] | null = null;
+  /** Received brushes, made on first use, until Input Brushes builds them. */
   private received: SolidScriptGeometryLeaf[] | null = null;
   /** Where the built shapes of each running round start, innermost last. */
   private readonly roundStarts: number[] = [];
@@ -145,19 +147,23 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
    * @returns Brush elements, none for a generator.
    */
   protected brushesReceived(): SolidScriptValue[] {
-    this.received ??= (this.system.use?.solids ?? []).map((corners, index) => ({
+    if (this.received) return this.received.map((leaf) => this.elements.brush(leaf));
+    this.incoming ??= (this.system.use?.solids ?? []).map((corners, index) => ({
       kind: 'solid',
       label: solidScriptInputBrushName(index),
       points: corners.map(([x, y, z]) => new THREE.Vector3(x, y, z)),
     }));
-    return this.received.map((leaf) => this.elements.brush(leaf));
+    this.received = this.incoming;
+    return this.incoming.map((leaf) => this.elements.brush(leaf));
   }
 
-  /**
-   * Lists every brush and mesh built so far, as [$Selected.Brushes] starts.
-   *
-   * @returns Brush elements.
-   */
+  /** Latest incoming solids or meshes, after Clip and other writes. */
+  protected receivedLatest(): SolidScriptGeometryLeaf[] {
+    this.brushesReceived();
+    return (this.incoming ?? []).map((leaf) => this.leafLatestOf(leaf));
+  }
+
+  /** Lists every brush and mesh built so far, as [$Selected.Brushes] starts. */
   protected brushesBuilt(): SolidScriptValue[] {
     // Inside a round, what the round built so far; before it builds anything, everything above.
     const start = this.roundStarts.at(-1);
@@ -721,6 +727,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       inputsBuilt: (shapes) => {
         state.machine.received = solidScriptGeometryLeaves([...shapes]);
       },
+      receivedLatest: () => state.machine.receivedLatest(),
       framed: (matrix) => inside({ ...state.context, matrix }),
       leafLatest: (leaf) => state.machine.leafLatestOf(leaf),
       leafReplace: (leaf, found) => {

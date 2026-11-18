@@ -1,5 +1,4 @@
 import type { SolidScriptValue } from '@/solid_script/language/solid_script_value.js';
-import * as THREE from 'three';
 import { SolidScriptCommand, type SolidScriptCommandParameter } from './solid_script_command.js';
 import { solidScriptListingInputs, solidScriptListingOptions } from './solid_script_command_listing.js';
 import {
@@ -35,6 +34,7 @@ import {
   SOLID_SCRIPT_HANDLERS,
   SOLID_SCRIPT_PART_DEPTH_MAX,
 } from '@/solid_script/language/solid_script_machine_calls.js';
+import { solidScriptInputBrushesBuild } from '@/solid_script/language/solid_script_input_brushes.js';
 import { solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
 
 /** Fields of an Input line. */
@@ -171,7 +171,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Inputs',
     description: 'Show inputs only for a setting',
     manual:
-      'Shows the Input lines between this line and its End in the inspector only while the input named by Input has Value, such as rail settings only while Rails is Yes. Yes, True and 1 count as the same, as do No, False and 0. The lines inside still run, so their variables always exist. Example: Input Rails, switch, then Show Inputs When Rails is yes around Input RailHeight.',
+      'Shows the Input lines between this line and its End in the inspector only while the input named by Input has Value, such as rail settings only while Rails is Yes. Value may list several words separated by commas; any one of them shows the inputs. Yes, True and 1 count as the same, as do No, False and 0. The lines inside still run, so their variables always exist. Example: Input Rails, switch, then Show Inputs When Rails is yes around Input RailHeight.',
     stops: ['A missing End line.'],
     nesting: 'open',
     parameters: [
@@ -364,7 +364,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Inputs',
     description: 'Output the brushes a modifier receives',
     manual:
-      'Outputs every brush the script receives as a modifier. Like a generator, a modifier outputs nothing by itself: without an Input Brushes line the received brushes are gone and only what the script builds comes out. The brushes act like any brush built here: the Translate, Rotate, Scale, Mirror or Matrix blocks around this line move them, Repeat makes copies, Union, Difference and Intersection cut them, and Select Faces finds their faces. Their faces keep their textures and materials. Textures is Move With Shape, so textures stay on their faces, or World Aligned, so they stay where they are in the world; a cut brush keeps its textures but they are laid out again. As a generator it outputs nothing. Example: Repeat [I] from 0 to 2 around Translate by [=[I] * 2], 0, 0 around Input Brushes gives the brush and two copies two metres apart.',
+      'Outputs every brush the script receives as a modifier. Like a generator, a modifier outputs nothing by itself: without an Input Brushes line the received brushes are gone and only what the script builds comes out. The brushes act like any brush built here: the Translate, Rotate, Scale, Mirror or Matrix blocks around this line move them, Repeat makes copies, Union, Difference and Intersection cut them, Select Faces finds their faces, and Clip cuts them, including when Of is [$Input.Brushes] above this line. Their faces keep their textures and materials. Textures is Move With Shape, so textures stay on their faces, or World Aligned, so they stay where they are in the world; a cut brush keeps its textures but they are laid out again. Readable Text flips U on a mirrored copy so lettering is not reversed. UV Shift U and V move the texture of this pass by that many tiles. As a generator it outputs nothing. Example: Repeat [I] from 0 to 2 around Translate by [=[I] * 2], 0, 0 around Input Brushes gives the brush and two copies two metres apart.',
     stops: ['Textures other than Move With Shape or World Aligned.'],
     parameters: [
       solidScriptParameterWords(
@@ -378,47 +378,41 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
           { word: 'World Aligned', detail: 'Textures stay where they are in the world' },
         ],
       ),
+      solidScriptParameter(
+        'readable',
+        'Readable Text',
+        'boolean',
+        'Yes',
+        'Yes: flips U on a mirrored copy so lettering is not reversed. No: leaves it as the reflection made it.',
+      ),
+      solidScriptParameter(
+        'uv_shift_u',
+        'UV Shift U',
+        'number',
+        '0',
+        'Tiles to move the texture of this pass along U.',
+      ),
+      solidScriptParameter(
+        'uv_shift_v',
+        'UV Shift V',
+        'number',
+        '0',
+        'Tiles to move the texture of this pass along V.',
+      ),
       solidScriptParameterInto('the brushes, a Brush list', 'Brush List', 'what is made'),
     ],
     listing: (read) => [
       'Input Brushes',
       ' textures ',
       read.text('textures'),
-      ...(read.text('into') === '' ? [] : [' Into ', read.variable('into')]),
+      ...solidScriptListingOptions([
+        !read.on('readable') && ['Readable Text No'],
+        read.text('uv_shift_u') !== '' && read.text('uv_shift_u') !== '0' && [' UV Shift U ', read.value('uv_shift_u')],
+        read.text('uv_shift_v') !== '' && read.text('uv_shift_v') !== '0' && [' UV Shift V ', read.value('uv_shift_v')],
+        read.text('into') !== '' && [' Into ', read.variable('into')],
+      ]),
     ],
-    execute: (run) => {
-      const textures = solidScriptValueText(run.value('textures')).trim().toLowerCase();
-      if (textures !== 'move with shape' && textures !== 'world aligned')
-        throw new Error(`Textures must be Move With Shape or World Aligned, not "${textures}"`);
-      const matrix = run.matrix();
-      const turn = new THREE.Matrix3().getNormalMatrix(matrix);
-      const use = run.use();
-      const built: SolidScriptShape[] = use.solids.flatMap((corners, index): SolidScriptShape[] => {
-        // Cut brushes are built again, so their faces take the received textures.
-        const faceTextures = use.textures?.[index]?.map((face) => ({
-          point: new THREE.Vector3(...face.point).applyMatrix4(matrix),
-          normal: new THREE.Vector3(...face.normal).applyMatrix3(turn).normalize(),
-          texture: face.texture,
-        }));
-        return run.solid(corners.map(([x, y, z]) => new THREE.Vector3(x, y, z))).map((shape) =>
-          shape.kind === 'solid'
-            ? {
-                ...shape,
-                ...(faceTextures ? { faceTextures } : {}),
-                received: { index, matrix, textures: textures === 'world aligned' ? 'world' : 'copied' },
-              }
-            : shape,
-        );
-      });
-      run.inputsBuilt(built);
-      const into = run.text('into').trim();
-      if (into !== '')
-        run.variableSet(
-          into,
-          built.flatMap((shape) => (shape.kind === 'solid' ? [run.elements.brush(shape)] : [])),
-        );
-      return built;
-    },
+    execute: (run) => solidScriptInputBrushesBuild(run),
   }),
   new SolidScriptCommand({
     id: 'set_input',

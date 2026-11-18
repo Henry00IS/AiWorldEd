@@ -1,12 +1,15 @@
 import type { SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 import {
   solidScriptExampleBlock,
+  solidScriptExampleComponents,
   solidScriptExampleIf,
   solidScriptExampleInput,
+  solidScriptExampleInputGroup,
   solidScriptExampleLine,
   solidScriptExampleNote,
   solidScriptExampleRepeat,
   solidScriptExampleSet,
+  solidScriptExampleShowWhen,
 } from './solid_script_example_lines.js';
 
 /**
@@ -27,10 +30,45 @@ function solidScriptExampleAxis(name: string): string {
  */
 function solidScriptExampleTextures(follow: string): SolidScriptLine[] {
   return [
-    solidScriptExampleInput('UV', 'Choice', follow, { label: 'Textures', choices: `${follow}, World Aligned` }),
+    solidScriptExampleInput('Uv', 'Choice', follow, { label: 'Textures', choices: `${follow}, World Aligned` }),
     solidScriptExampleSet('Textures', 'Move With Shape'),
-    ...solidScriptExampleIf('[UV] == "World Aligned"', [solidScriptExampleSet('Textures', 'World Aligned')]),
+    ...solidScriptExampleIf('[Uv] == "World Aligned"', [solidScriptExampleSet('Textures', 'World Aligned')]),
   ];
+}
+
+/**
+ * Builds Count, Axes, Textures and the per-copy UV shifts of an array port.
+ *
+ * @param follow Move With Copy, or empty when the port has no Count.
+ * @param count True to include Count.
+ * @returns Lines.
+ */
+function solidScriptExampleArrayInputs(follow: string, count = true): SolidScriptLine[] {
+  return [
+    ...(count ? [solidScriptExampleInput('Count', 'Count', '3', { label: 'Count', min: '1', max: '256' })] : []),
+    solidScriptExampleInput('Space', 'Choice', 'Volume', { label: 'Axes', choices: 'Volume, World' }),
+    ...solidScriptExampleTextures(follow),
+    ...solidScriptExampleInputGroup('Per copy texture', [
+      solidScriptExampleInput('UvShiftU', 'Number', '0', { label: 'UV Shift U', min: '-100', max: '100' }),
+      solidScriptExampleInput('UvShiftV', 'Number', '0', { label: 'UV Shift V', min: '-100', max: '100' }),
+    ]),
+  ];
+}
+
+/**
+ * Builds an Input Brushes line for copy Index, with the port's texture policy.
+ *
+ * @param index Copy index as text or a formula field such as [I].
+ * @param readable True to pass Readable Text through.
+ * @returns Line.
+ */
+function solidScriptExampleInputBrushes(index: string, readable = false): SolidScriptLine {
+  return solidScriptExampleLine('input_brushes', {
+    textures: '[Textures]',
+    ...(readable ? { readable: '[Readable]' } : {}),
+    uv_shift_u: `[=[UvShiftU] * ${index}]`,
+    uv_shift_v: `[=[UvShiftV] * ${index}]`,
+  });
 }
 
 /** Port of the Shear modifier. */
@@ -41,8 +79,17 @@ export const SOLID_SCRIPT_EXAMPLE_SHEAR: readonly SolidScriptLine[] = [
   solidScriptExampleInput('Axis', 'Choice', 'X', { label: 'Shear Axis', choices: 'X, Y, Z' }),
   solidScriptExampleInput('Along', 'Choice', 'Y', { label: 'Along', choices: 'X, Y, Z' }),
   solidScriptExampleInput('Mode', 'Choice', 'Angle', { label: 'Amount', choices: 'Angle, Factor' }),
-  solidScriptExampleInput('Angle', 'Number', '20', { label: 'Angle °', min: '-85', max: '85' }),
-  solidScriptExampleInput('Factor', 'Number', '0.5', { label: 'Factor', min: '-10', max: '10' }),
+  ...solidScriptExampleShowWhen('Mode', 'Angle', [
+    solidScriptExampleInput('Angle', 'Number', '20', { label: 'Angle °', min: '-85', max: '85' }),
+  ]),
+  ...solidScriptExampleShowWhen('Mode', 'Factor', [
+    solidScriptExampleInput('Factor', 'Number', '0.5', { label: 'Factor', min: '-10', max: '10' }),
+  ]),
+  solidScriptExampleInput('Pivot', 'Choice', 'Centre Of Whole Input', {
+    label: 'Pivot',
+    choices: 'Centre Of Whole Input, Centre Of Each Piece, Volume Centre',
+  }),
+  solidScriptExampleInput('Space', 'Choice', 'Volume', { label: 'Axes', choices: 'Volume, World' }),
   ...solidScriptExampleTextures('Move With Shape'),
   ...solidScriptExampleIf(
     '[Axis] == [Along]',
@@ -73,15 +120,29 @@ export const SOLID_SCRIPT_EXAMPLE_SHEAR: readonly SolidScriptLine[] = [
 /** Port of the Linear Array modifier. */
 export const SOLID_SCRIPT_EXAMPLE_LINEAR_ARRAY: readonly SolidScriptLine[] = [
   solidScriptExampleNote('Linear Array: repeats the brushes it receives along a line.'),
-  solidScriptExampleInput('Count', 'Count', '3', { label: 'Count', min: '1', max: '256' }),
+  ...solidScriptExampleArrayInputs('Move With Copy'),
   solidScriptExampleInput('Mode', 'Choice', 'Relative To Size', {
     label: 'Spacing',
     choices: 'Fixed Step, Relative To Size, Fit Distance, Size × Plus Step',
   }),
-  solidScriptExampleInput('Offset', 'Vector', '2, 0, 0', { label: 'Step' }),
-  solidScriptExampleInput('Relative', 'Vector', '1, 0, 0', { label: 'Size ×' }),
-  solidScriptExampleInput('Endpoint', 'Vector', '8, 0, 0', { label: 'Distance' }),
-  ...solidScriptExampleTextures('Move With Copy'),
+  ...solidScriptExampleInputGroup('Spacing', [
+    ...solidScriptExampleShowWhen('Mode', 'Fixed Step, Size × Plus Step', [
+      ...solidScriptExampleComponents('Offset', ['2', '0', '0'], 'Step'),
+    ]),
+    ...solidScriptExampleShowWhen('Mode', 'Relative To Size, Size × Plus Step', [
+      solidScriptExampleInput('Bounds', 'Choice', 'Whole Input', {
+        label: 'Size From',
+        choices: 'Whole Input, Each Piece',
+      }),
+      ...solidScriptExampleComponents('Relative', ['1', '0', '0'], 'Size ×'),
+    ]),
+    ...solidScriptExampleShowWhen('Mode', 'Fit Distance', [
+      ...solidScriptExampleComponents('Endpoint', ['8', '0', '0'], 'Distance'),
+    ]),
+  ]),
+  solidScriptExampleSet('Offset', '[=Vector([OffsetX], [OffsetY], [OffsetZ])]'),
+  solidScriptExampleSet('Relative', '[=Vector([RelativeX], [RelativeY], [RelativeZ])]'),
+  solidScriptExampleSet('Endpoint', '[=Vector([EndpointX], [EndpointY], [EndpointZ])]'),
   solidScriptExampleNote('Size × is a multiple of the size of what comes in: 1 places copies edge to edge.'),
   solidScriptExampleSet(
     'BySize',
@@ -95,9 +156,7 @@ export const SOLID_SCRIPT_EXAMPLE_LINEAR_ARRAY: readonly SolidScriptLine[] = [
   ]),
   solidScriptExampleNote('Copy 0 is the original; each next copy moves one more Step.'),
   ...solidScriptExampleRepeat('I', '0', '[=[Count] - 1]', [
-    ...solidScriptExampleBlock('translate', { v: '[=[Step] * [I]]' }, [
-      solidScriptExampleLine('input_brushes', { textures: '[Textures]' }),
-    ]),
+    ...solidScriptExampleBlock('translate', { v: '[=[Step] * [I]]' }, [solidScriptExampleInputBrushes('[I]')]),
   ]),
 ];
 
@@ -117,7 +176,7 @@ export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
   solidScriptExampleNote(
     'Radial Array: repeats the brushes it receives around an axis, measured from the whole input.',
   ),
-  solidScriptExampleInput('Count', 'Count', '3', { label: 'Count', min: '1', max: '256' }),
+  ...solidScriptExampleArrayInputs('Move With Copy'),
   solidScriptExampleInput('Origin', 'Choice', 'On The Ring', {
     label: 'Original',
     choices: 'On The Ring, Around Pivot',
@@ -127,19 +186,35 @@ export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
     choices: 'Full Ring, Arc, Angle Step',
   }),
   solidScriptExampleInput('Axis', 'Choice', 'Y', { label: 'Axis', choices: 'X, Y, Z' }),
-  solidScriptExampleInput('Sweep', 'Number', '90', { label: 'Sweep °', min: '-360', max: '360' }),
-  solidScriptExampleInput('Step', 'Number', '15', { label: 'Step °', min: '-360', max: '360' }),
-  solidScriptExampleInput('Radius', 'Number', '2', { label: 'Radius', min: '0' }),
-  solidScriptExampleInput('CentreSide', 'Choice', 'Back', {
-    label: 'Ring Centre',
-    choices: 'Back, Front, Left, Right, Down, Up',
-  }),
-  solidScriptExampleInput('Start', 'Number', '0', { label: 'Start °' }),
-  solidScriptExampleInput('RadiusOffset', 'Number', '0', { label: 'Radius Offset' }),
+  ...solidScriptExampleShowWhen('Mode', 'Arc', [
+    solidScriptExampleInput('Sweep', 'Number', '90', { label: 'Sweep °', min: '-360', max: '360' }),
+  ]),
+  ...solidScriptExampleShowWhen('Mode', 'Angle Step', [
+    solidScriptExampleInput('Step', 'Number', '15', { label: 'Step °', min: '-360', max: '360' }),
+  ]),
+  ...solidScriptExampleShowWhen('Origin', 'On The Ring', [
+    solidScriptExampleInput('Radius', 'Number', '2', { label: 'Radius', min: '0' }),
+    solidScriptExampleInput('CentreSide', 'Choice', 'Back', {
+      label: 'Ring Centre',
+      choices: 'Back, Front, Left, Right, Down, Up',
+    }),
+  ]),
+  ...solidScriptExampleShowWhen('Origin', 'Around Pivot', [
+    solidScriptExampleInput('Start', 'Number', '0', { label: 'Start °', min: '-3600', max: '3600' }),
+    solidScriptExampleInput('RadiusOffset', 'Number', '0', { label: 'Radius Offset' }),
+  ]),
   solidScriptExampleInput('Rise', 'Number', '0', { label: 'Rise per Step' }),
   solidScriptExampleInput('RotateCopies', 'Switch', 'Yes', { label: 'Rotate Copies' }),
-  solidScriptExampleInput('Pivot', 'Vector', '0, 0, 0', { label: 'Pivot' }),
-  ...solidScriptExampleTextures('Move With Copy'),
+  solidScriptExampleInput('Bounds', 'Choice', 'Whole Input', {
+    label: 'Centre From',
+    choices: 'Whole Input, Each Piece',
+  }),
+  ...solidScriptExampleInputGroup('Pivot', [
+    ...solidScriptExampleShowWhen('Origin', 'Around Pivot', [
+      ...solidScriptExampleComponents('Pivot', ['0', '0', '0'], 'Pivot'),
+    ]),
+  ]),
+  solidScriptExampleSet('Pivot', '[=Vector([PivotX], [PivotY], [PivotZ])]'),
   solidScriptExampleSet('K', solidScriptExampleAxis('Axis')),
   solidScriptExampleSet('Centre', '[$Input.Centre]'),
   solidScriptExampleNote('The angle between copies: a full ring, an arc or a fixed step.'),
@@ -179,7 +254,7 @@ export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
   ),
   solidScriptExampleNote('Copy I turns by First + I × Turn around K through Around, then rises along K.'),
   solidScriptExampleNote('Copy 0 is the original.'),
-  solidScriptExampleLine('input_brushes', { textures: '[Textures]' }),
+  solidScriptExampleInputBrushes('0'),
   ...solidScriptExampleIf('[Count] > 1', [
     ...solidScriptExampleRepeat('I', '1', '[=[Count] - 1]', [
       solidScriptExampleSet('A', '[=[First] + [I] * [Turn]]'),
@@ -214,7 +289,7 @@ export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
               row2: '[R2.X], [R2.Y], [R2.Z], [Move.Y]',
               row3: '[R3.X], [R3.Y], [R3.Z], [Move.Z]',
             },
-            [solidScriptExampleLine('input_brushes', { textures: '[Textures]' })],
+            [solidScriptExampleInputBrushes('[I]')],
           ),
         ],
         [
@@ -223,9 +298,7 @@ export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
             'Delta',
             '[=Vector(Dot([R1], [Centre]), Dot([R2], [Centre]), Dot([R3], [Centre])) + [Move] - [Centre]]',
           ),
-          ...solidScriptExampleBlock('translate', { v: '[Delta]' }, [
-            solidScriptExampleLine('input_brushes', { textures: '[Textures]' }),
-          ]),
+          ...solidScriptExampleBlock('translate', { v: '[Delta]' }, [solidScriptExampleInputBrushes('[I]')]),
         ],
       ),
     ]),
@@ -235,12 +308,21 @@ export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
 /** Port of the Transform Array modifier (whole input as the size). */
 export const SOLID_SCRIPT_EXAMPLE_TRANSFORM_ARRAY: readonly SolidScriptLine[] = [
   solidScriptExampleNote('Transform Array: moves and turns every copy once more than the one before.'),
-  solidScriptExampleInput('Count', 'Count', '3', { label: 'Count', min: '1', max: '256' }),
-  solidScriptExampleInput('Offset', 'Vector', '0, 0.25, 0', { label: 'Move' }),
-  solidScriptExampleInput('Relative', 'Vector', '0, 0, 0', { label: 'Size ×' }),
-  solidScriptExampleInput('Rotation', 'Vector', '0, 15, 0', { label: 'Turn °' }),
-  solidScriptExampleInput('Pivot', 'Vector', '0, 0, 0', { label: 'Pivot' }),
-  ...solidScriptExampleTextures('Move With Copy'),
+  ...solidScriptExampleArrayInputs('Move With Copy'),
+  ...solidScriptExampleInputGroup('Per copy', [
+    ...solidScriptExampleComponents('Offset', ['0', '0.25', '0'], 'Move'),
+    ...solidScriptExampleComponents('Relative', ['0', '0', '0'], 'Size ×'),
+    solidScriptExampleInput('Bounds', 'Choice', 'Whole Input', {
+      label: 'Size From',
+      choices: 'Whole Input, Each Piece',
+    }),
+    ...solidScriptExampleComponents('Rotation', ['0', '15', '0'], 'Turn °'),
+  ]),
+  ...solidScriptExampleInputGroup('Pivot', [...solidScriptExampleComponents('Pivot', ['0', '0', '0'], 'Pivot')]),
+  solidScriptExampleSet('Offset', '[=Vector([OffsetX], [OffsetY], [OffsetZ])]'),
+  solidScriptExampleSet('Relative', '[=Vector([RelativeX], [RelativeY], [RelativeZ])]'),
+  solidScriptExampleSet('Rotation', '[=Vector([RotationX], [RotationY], [RotationZ])]'),
+  solidScriptExampleSet('Pivot', '[=Vector([PivotX], [PivotY], [PivotZ])]'),
   solidScriptExampleNote('One step: turn by the X, Y and Z angles the way the editor does, around Pivot, then move.'),
   solidScriptExampleSet('Cx', '[=Cos([Rotation.X])]'),
   solidScriptExampleSet('Sx', '[=Sin([Rotation.X])]'),
@@ -262,7 +344,7 @@ export const SOLID_SCRIPT_EXAMPLE_TRANSFORM_ARRAY: readonly SolidScriptLine[] = 
     '[=[Offset] + Vector([Relative.X] * [$Input.Size.X], [Relative.Y] * [$Input.Size.Y], [Relative.Z] * [$Input.Size.Z]) + [Pivot] - Vector(Dot([S1], [Pivot]), Dot([S2], [Pivot]), Dot([S3], [Pivot]))]',
   ),
   solidScriptExampleNote('Copy 0 is the original; R1 to R3 and Shift hold the step applied I times.'),
-  solidScriptExampleLine('input_brushes', { textures: '[Textures]' }),
+  solidScriptExampleInputBrushes('0'),
   solidScriptExampleSet('R1', '[=Vector(1, 0, 0)]'),
   solidScriptExampleSet('R2', '[=Vector(0, 1, 0)]'),
   solidScriptExampleSet('R3', '[=Vector(0, 0, 1)]'),
@@ -282,30 +364,42 @@ export const SOLID_SCRIPT_EXAMPLE_TRANSFORM_ARRAY: readonly SolidScriptLine[] = 
           row2: '[R2.X], [R2.Y], [R2.Z], [Shift.Y]',
           row3: '[R3.X], [R3.Y], [R3.Z], [Shift.Z]',
         },
-        [solidScriptExampleLine('input_brushes', { textures: '[Textures]' })],
+        [solidScriptExampleInputBrushes('[I]')],
       ),
     ]),
   ]),
 ];
 
-/** Port of the Mirror modifier without Bisect. */
+/** Port of the Mirror modifier, including Bisect through Clip. */
 export const SOLID_SCRIPT_EXAMPLE_MIRROR: readonly SolidScriptLine[] = [
   solidScriptExampleNote('Mirror: adds a reflected copy of the brushes it receives across a plane.'),
+  ...solidScriptExampleArrayInputs('Move With Copy', false),
   solidScriptExampleInput('Axis', 'Choice', 'X', { label: 'Axis', choices: 'X, Y, Z' }),
   solidScriptExampleInput('Plane', 'Choice', 'Volume Centre', {
     label: 'Plane',
     choices: 'Volume Centre, Negative Side, Positive Side',
   }),
   solidScriptExampleInput('PlaneOffset', 'Number', '0', { label: 'Offset' }),
-  ...solidScriptExampleTextures('Move With Copy'),
+  solidScriptExampleInput('Bisect', 'Switch', 'No', { label: 'Bisect' }),
+  ...solidScriptExampleShowWhen('Bisect', 'Yes', [solidScriptExampleInput('Flip', 'Switch', 'No', { label: 'Flip' })]),
+  ...solidScriptExampleShowWhen('Uv', 'Move With Copy', [
+    solidScriptExampleInput('Readable', 'Switch', 'Yes', { label: 'Readable Text' }),
+  ]),
   solidScriptExampleSet('K', solidScriptExampleAxis('Axis')),
   solidScriptExampleNote('The plane runs through the centre or touches a side, then moves by Offset along its axis.'),
   solidScriptExampleSet('D', '[=Dot([$Input.Centre], [K]) + [PlaneOffset]]'),
   solidScriptExampleSet('Half', '[=Abs(Dot([$Input.Size], [K])) / 2]'),
   ...solidScriptExampleIf('[Plane] == "Negative Side"', [solidScriptExampleSet('D', '[=[D] - [Half]]')]),
   ...solidScriptExampleIf('[Plane] == "Positive Side"', [solidScriptExampleSet('D', '[=[D] + [Half]]')]),
+  solidScriptExampleSet('Drop', '[=-[K]]'),
+  ...solidScriptExampleIf('[Plane] == "Positive Side"', [solidScriptExampleSet('Drop', '[K]')]),
+  ...solidScriptExampleIf('[Flip]', [solidScriptExampleSet('Drop', '[=-[Drop]]')]),
+  ...solidScriptExampleIf('[Bisect]', [
+    solidScriptExampleNote('Bisect cuts the received brushes at the plane and drops the side Drop points toward.'),
+    solidScriptExampleLine('clip', { through: '[=[K] * [D]]', normal: '[Drop]', of: '[$Input.Brushes]' }),
+  ]),
   solidScriptExampleNote('Copy 0 is the original; the copy is reflected: p - 2 (p · K - D) K.'),
-  solidScriptExampleLine('input_brushes', { textures: '[Textures]' }),
+  solidScriptExampleInputBrushes('0', true),
   ...solidScriptExampleBlock(
     'matrix',
     {
@@ -313,7 +407,7 @@ export const SOLID_SCRIPT_EXAMPLE_MIRROR: readonly SolidScriptLine[] = [
       row2: '[=-2 * [K.Y] * [K.X]], [=1 - 2 * [K.Y] * [K.Y]], [=-2 * [K.Y] * [K.Z]], [=2 * [D] * [K.Y]]',
       row3: '[=-2 * [K.Z] * [K.X]], [=-2 * [K.Z] * [K.Y]], [=1 - 2 * [K.Z] * [K.Z]], [=2 * [D] * [K.Z]]',
     },
-    [solidScriptExampleLine('input_brushes', { textures: '[Textures]' })],
+    [solidScriptExampleInputBrushes('1', true)],
   ),
 ];
 

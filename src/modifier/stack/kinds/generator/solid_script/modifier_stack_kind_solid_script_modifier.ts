@@ -4,6 +4,7 @@ import type { ModifierStackCategory, ModifierStackPoseFollow } from '@/modifier/
 import type { ModifierStackContext } from '@/modifier/stack/evaluate/modifier_stack_context.js';
 import { modifierStackFrame, modifierStackModelTransform } from '@/modifier/stack/evaluate/modifier_stack_frame.js';
 import { modifierStackReshapeTransform } from '@/modifier/stack/evaluate/modifier_stack_reshape.js';
+import { modifierStackSolidScriptClipUnits } from './modifier_stack_solid_script_clip.js';
 import { modifierStackUnitCopy } from '@/modifier/stack/evaluate/modifier_stack_unit_copy.js';
 import {
   solidScriptDocumentCreate,
@@ -141,7 +142,7 @@ export class ModifierStackKindSolidScriptModifier extends ModifierStackKindSolid
     modifierStackSolidScriptReceivedWrite(context.volume, context.step.id, { use, box: [size.x, size.y, size.z] });
     const result = this.scriptResult(parameters, box, context, use);
     // Like a generator, only what the script outputs comes out: Input Brushes passes the received brushes on.
-    return [...this.passedUnits(units, result.passed, frame, context), ...result.units];
+    return [...this.passedUnits(units, result.passed, frame, centre, context), ...result.units];
   }
 
   /**
@@ -159,28 +160,34 @@ export class ModifierStackKindSolidScriptModifier extends ModifierStackKindSolid
     units: readonly ModifierStackUnit[],
     passed: readonly ModifierStackSolidScriptPassed[],
     frame: THREE.Matrix4,
+    origin: THREE.Vector3,
     context: ModifierStackContext,
   ): ModifierStackUnit[] {
     const passes = passed.filter((entry) => entry.index === 0);
+    const kept = modifierStackSolidScriptClipUnits(units, passes, frame, origin, context);
     const copies = context.budget.takeCopies(
-      units.reduce((sum, unit) => sum + unit.brushes.length, 0),
+      kept.reduce((sum, unit) => sum + unit.brushes.length, 0),
       passes.length,
     );
     if (copies < passes.length) context.report.error = `Brush budget reached: ${passes.length} passes wanted.`;
     // Without a pass the received brushes are gone; the stack keeps authored ones unless told.
     if (Math.min(copies, passes.length) === 0)
-      for (const unit of units)
-        if (unit.authored) for (const brush of unit.brushes) context.records.hiddenAdd(brush.id);
+      for (const unit of units) for (const brush of unit.brushes) context.records.hiddenAdd(brush.id);
     const inverse = frame.clone().invert();
     return passes.slice(0, copies).flatMap((pass, index) => {
       const world = frame.clone().multiply(pass.matrix).multiply(inverse);
       const model = modifierStackModelTransform(world, context.solidRoot);
       if (index > 0) {
-        const policy = { uv: pass.textures, readable: true, shiftU: 0, shiftV: 0 };
-        return units.map((unit) => modifierStackUnitCopy(unit, model, index, policy, context));
+        const policy = {
+          uv: pass.textures,
+          readable: pass.readable !== false,
+          shiftU: pass.shiftU ?? 0,
+          shiftV: pass.shiftV ?? 0,
+        };
+        return kept.map((unit) => modifierStackUnitCopy(unit, model, index, policy, context));
       }
-      if (pass.matrix.equals(new THREE.Matrix4())) return [...units];
-      return units.map((unit) => ({
+      if (pass.matrix.equals(new THREE.Matrix4())) return [...kept];
+      return kept.map((unit) => ({
         ...unit,
         brushes: unit.brushes.map((brush) => modifierStackReshapeTransform(brush, model, pass.textures)),
         reshaped: unit.authored || unit.reshaped,

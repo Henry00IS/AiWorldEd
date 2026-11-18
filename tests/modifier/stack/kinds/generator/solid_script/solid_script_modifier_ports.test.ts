@@ -93,6 +93,18 @@ function both(id: string, test: ModifierCase) {
   return { port, builtIn };
 }
 
+/**
+ * Splits a three-number text into the X, Y and Z inputs of a modifier port.
+ *
+ * @param prefix Input name stem, already lower case.
+ * @param text X, Y and Z with commas.
+ * @returns Input values.
+ */
+function components(prefix: string, text: string): Record<string, string> {
+  const [x, y, z] = text.split(',').map((part) => part.trim());
+  return { [`${prefix}x`]: x ?? '0', [`${prefix}y`]: y ?? '0', [`${prefix}z`]: z ?? '0' };
+}
+
 /** Settings each port is checked with; scripts share the editor's axes. */
 const MODIFIER_CASES: Record<string, ModifierCase[]> = {
   shear: [
@@ -107,7 +119,7 @@ const MODIFIER_CASES: Record<string, ModifierCase[]> = {
     { parameters: {}, inputs: {} },
     {
       parameters: { count: 4, mode: 'Fixed Step', offsetX: 0, offsetY: 1.5, offsetZ: 2 },
-      inputs: { count: '4', mode: 'Fixed Step', offset: '0, 1.5, 2' },
+      inputs: { count: '4', mode: 'Fixed Step', ...components('offset', '0, 1.5, 2') },
     },
     {
       parameters: {
@@ -120,11 +132,20 @@ const MODIFIER_CASES: Record<string, ModifierCase[]> = {
         relativeY: 1,
         relativeZ: 1,
       },
-      inputs: { count: '3', mode: 'Size × Plus Step', offset: '0.5, 0, 0', relative: '0, 1, 1' },
+      inputs: {
+        count: '3',
+        mode: 'Size × Plus Step',
+        ...components('offset', '0.5, 0, 0'),
+        ...components('relative', '0, 1, 1'),
+      },
     },
     {
       parameters: { count: 5, mode: 'Fit Distance', endpointX: 0, endpointY: 0, endpointZ: -6, uv: 'World Aligned' },
-      inputs: { count: '5', mode: 'Fit Distance', endpoint: '0, 0, -6', uv: 'World Aligned' },
+      inputs: { count: '5', mode: 'Fit Distance', ...components('endpoint', '0, 0, -6'), uv: 'World Aligned' },
+    },
+    {
+      parameters: { count: 3, uvShiftU: 0.5, uvShiftV: -0.25 },
+      inputs: { count: '3', uvshiftu: '0.5', uvshiftv: '-0.25' },
     },
   ],
   radial: [
@@ -148,7 +169,14 @@ const MODIFIER_CASES: Record<string, ModifierCase[]> = {
         pivotZ: 1,
         axis: 'X',
       },
-      inputs: { count: '6', origin: 'Around Pivot', start: '30', radiusoffset: '1', pivot: '0.5, 0, 1', axis: 'X' },
+      inputs: {
+        count: '6',
+        origin: 'Around Pivot',
+        start: '30',
+        radiusoffset: '1',
+        ...components('pivot', '0.5, 0, 1'),
+        axis: 'X',
+      },
     },
     { parameters: { count: 4, centreSide: 'Up', axis: 'Y' }, inputs: { count: '4', centreside: 'Up', axis: 'Y' } },
     {
@@ -160,7 +188,7 @@ const MODIFIER_CASES: Record<string, ModifierCase[]> = {
     { parameters: {}, inputs: {} },
     {
       parameters: { count: 5, offsetX: 0.5, offsetY: 0.25, offsetZ: -1, rotationX: 10, rotationY: 30, rotationZ: -20 },
-      inputs: { count: '5', offset: '0.5, 0.25, -1', rotation: '10, 30, -20' },
+      inputs: { count: '5', ...components('offset', '0.5, 0.25, -1'), ...components('rotation', '10, 30, -20') },
     },
     {
       parameters: {
@@ -181,10 +209,10 @@ const MODIFIER_CASES: Record<string, ModifierCase[]> = {
       },
       inputs: {
         count: '4',
-        offset: '0, 0, 0',
-        relative: '1, 0, 0.5',
-        rotation: '0, 45, 0',
-        pivot: '1, 0, -2',
+        ...components('offset', '0, 0, 0'),
+        ...components('relative', '1, 0, 0.5'),
+        ...components('rotation', '0, 45, 0'),
+        ...components('pivot', '1, 0, -2'),
         uv: 'World Aligned',
       },
     },
@@ -204,6 +232,26 @@ const MODIFIER_CASES: Record<string, ModifierCase[]> = {
       parameters: { axis: 'X', plane: 'Positive Side', planeOffset: 1 },
       inputs: { axis: 'X', plane: 'Positive Side', planeoffset: '1' },
     },
+    {
+      parameters: { bisect: true },
+      inputs: { bisect: 'Yes' },
+    },
+    {
+      parameters: { bisect: true, flip: true, axis: 'Y' },
+      inputs: { bisect: 'Yes', flip: 'Yes', axis: 'Y' },
+    },
+    {
+      parameters: { bisect: true, plane: 'Negative Side', planeOffset: 0.25 },
+      inputs: { bisect: 'Yes', plane: 'Negative Side', planeoffset: '0.25' },
+    },
+    {
+      parameters: { readable: false },
+      inputs: { readable: 'No' },
+    },
+    {
+      parameters: { uvShiftU: 0.25, uvShiftV: 0.5 },
+      inputs: { uvshiftu: '0.25', uvshiftv: '0.5' },
+    },
   ],
 };
 
@@ -216,7 +264,7 @@ describe('SolidScript ports of the modifiers', () => {
         const { port, builtIn } = both(example.modifier ?? '', test);
         expect(port.error, rounded(test)).toBe('');
         expect(port.brushes.length, rounded(test)).toBe(builtIn.brushes.length);
-        expect(brushKeys(port.brushes)).toEqual(brushKeys(builtIn.brushes));
+        expect(brushKeys(port.brushes), rounded(test)).toEqual(brushKeys(builtIn.brushes));
       }
     });
   }

@@ -36,6 +36,8 @@ export interface SolidScriptShapeSolid {
    * shapes.
    */
   received?: SolidScriptReceived;
+  /** Plane that last clipped this solid, in script space; none if uncut. */
+  clippedBy?: { normal: THREE.Vector3; constant: number };
 }
 
 /**
@@ -49,6 +51,17 @@ export interface SolidScriptReceived {
   matrix: THREE.Matrix4;
   /** 'copied' moves its textures with it; 'world' keeps them where they are. */
   textures: 'copied' | 'world';
+  /** False leaves lettering reversed on a mirrored copy; missing means true. */
+  readable?: boolean;
+  /** UV tiles added along U for this pass. */
+  shiftU?: number;
+  /** UV tiles added along V for this pass. */
+  shiftV?: number;
+  /**
+   * Script-space clip plane applied before this pass, when Clip rewrote the
+   * brush.
+   */
+  clip?: { normal: readonly [number, number, number]; constant: number };
 }
 
 /** A UV mapping given to one face of a solid, found again by its plane. */

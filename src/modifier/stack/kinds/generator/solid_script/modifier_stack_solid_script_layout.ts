@@ -48,6 +48,17 @@ export interface ModifierStackSolidScriptPassed {
   matrix: THREE.Matrix4;
   /** 'copied' moves its textures with it; 'world' keeps them where they are. */
   textures: 'copied' | 'world';
+  /** False leaves lettering reversed on a mirrored copy; missing means true. */
+  readable?: boolean;
+  /** UV tiles added along U for this pass. */
+  shiftU?: number;
+  /** UV tiles added along V for this pass. */
+  shiftV?: number;
+  /**
+   * Script-space clip plane applied before this pass, when Clip rewrote the
+   * brush.
+   */
+  clip?: { normal: readonly [number, number, number]; constant: number };
 }
 
 /**
@@ -136,7 +147,15 @@ function modifierStackSolidScriptPassedOf(
   for (const shape of shapes) {
     if (!shape.received) continue;
     const matrix = placed.clone().multiply(shape.received.matrix).multiply(into);
-    passed.push({ index: shape.received.index, matrix, textures: shape.received.textures });
+    passed.push({
+      index: shape.received.index,
+      matrix,
+      textures: shape.received.textures,
+      ...(shape.received.readable === undefined ? {} : { readable: shape.received.readable }),
+      ...(shape.received.shiftU === undefined ? {} : { shiftU: shape.received.shiftU }),
+      ...(shape.received.shiftV === undefined ? {} : { shiftV: shape.received.shiftV }),
+      ...(shape.received.clip === undefined ? {} : { clip: shape.received.clip }),
+    });
   }
   return passed;
 }

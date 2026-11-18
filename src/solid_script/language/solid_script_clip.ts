@@ -88,7 +88,7 @@ function solidScriptClipSolid(
   if (fate === 'gone') throw new Error(solidScriptClipGone(label, solid.label, 'brush'));
   const points = solidScriptGeometryClip(solid.points, plane.normal, plane.constant, label);
   if (!solidHullBrushFromPoints(points)) throw new Error(solidScriptClipFlat(label, solid.label, 'brush'));
-  return { ...solid, points };
+  return { ...solid, points, clippedBy: plane };
 }
 
 /**

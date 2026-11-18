@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
-import { solidScriptDocumentInputLayout } from '@/solid_script/document/solid_script_document_inputs.js';
+import {
+  solidScriptDocumentInputLayout,
+  solidScriptInputRulesHold,
+} from '@/solid_script/document/solid_script_document_inputs.js';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 
 /**
@@ -97,5 +100,14 @@ describe('SolidScript inspector rows skip lines turned off', () => {
     ];
     const layout = solidScriptDocumentInputLayout(solidScriptDocumentCreate(lines));
     expect(layout.map((item) => (item.kind === 'input' ? item.input.name : item.text))).toEqual(['depth']);
+  });
+});
+
+describe('solidScriptInputRulesHold', () => {
+  it('treats a comma-separated Value as any one of those words', () => {
+    const when = [{ name: 'Mode', value: 'Fixed Step, Size × Plus Step' }];
+    expect(solidScriptInputRulesHold(when, () => 'Fixed Step')).toBe(true);
+    expect(solidScriptInputRulesHold(when, () => 'Size × Plus Step')).toBe(true);
+    expect(solidScriptInputRulesHold(when, () => 'Fit Distance')).toBe(false);
   });
 });

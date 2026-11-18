@@ -195,6 +195,8 @@ export interface SolidScriptBlockRun {
   ofValues(): SolidScriptValue[] | null;
   /** Remembers the brushes an Input Brushes line built, as [$Input.Brushes]. */
   inputsBuilt(shapes: readonly SolidScriptShape[]): void;
+  /** Latest received solids or meshes, after Clip and other writes. */
+  receivedLatest(): SolidScriptGeometryLeaf[];
   /**
    * Runs the lines inside placed by a matrix, ignoring the blocks around this
    * line.

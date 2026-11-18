@@ -140,4 +140,19 @@ describe('SolidScript input brushes', () => {
       expect(Math.abs(bounds.min[thin] + bounds.max[thin]) / 2).toBeCloseTo(1.3);
     }
   });
+
+  it('outputs the clipped received brush when Clip runs on $Input.Brushes first', () => {
+    const cube: SolidScriptUseFacts = { usage: 'Modifier', solids: [box([2, 2, 2])], faces: 6 };
+    const result = run(
+      [line('clip', { through: '0, 0, 0', normal: '0, 1, 0', of: '[$Input.Brushes]' }), line('input_brushes')],
+      cube,
+    );
+    expect(result.error?.message ?? null).toBeNull();
+    const solids = result.shapes.flatMap(solidScriptShapeLeavesPositive);
+    expect(solids).toHaveLength(1);
+    const points = solids[0] && solids[0].kind === 'solid' ? solids[0].points : [];
+    expect(points.length).toBeGreaterThan(0);
+    expect(Math.max(...points.map((point) => point.y))).toBeCloseTo(0);
+    expect(Math.min(...points.map((point) => point.y))).toBeCloseTo(-1);
+  });
 });

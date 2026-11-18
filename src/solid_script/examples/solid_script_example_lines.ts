@@ -126,3 +126,54 @@ export function solidScriptExamplePoint(position: string): SolidScriptLine {
 export function solidScriptExamplePolyhedron(inside: readonly SolidScriptLine[], points = ''): SolidScriptLine[] {
   return solidScriptExampleBlock('polyhedron', points ? { points } : {}, inside);
 }
+
+/**
+ * Builds an Input Group around the inputs that sit under Title.
+ *
+ * @param title Heading.
+ * @param inside Input lines and nested input blocks.
+ * @returns Lines.
+ */
+export function solidScriptExampleInputGroup(title: string, inside: readonly SolidScriptLine[]): SolidScriptLine[] {
+  return solidScriptExampleBlock('input_group', { title }, inside);
+}
+
+/**
+ * Builds a Show Inputs When block around the inputs shown for a value.
+ *
+ * @param name Input it watches.
+ * @param value Value, or several values separated by commas.
+ * @param inside Input lines shown then.
+ * @returns Lines.
+ */
+export function solidScriptExampleShowWhen(
+  name: string,
+  value: string,
+  inside: readonly SolidScriptLine[],
+): SolidScriptLine[] {
+  return solidScriptExampleBlock('show_inputs_when', { name, value }, inside);
+}
+
+/**
+ * Builds three Number inputs, one per axis, as the inspector of a modifier
+ * shows them.
+ *
+ * @param prefix Variable stem; X, Y and Z are appended.
+ * @param values Default X, Y and Z as text.
+ * @param label Caption stem; the axis letter is appended.
+ * @param limits Minimum and maximum, when the modifier has them.
+ * @returns Lines.
+ */
+export function solidScriptExampleComponents(
+  prefix: string,
+  values: readonly [string, string, string],
+  label: string,
+  limits: { min?: string; max?: string } = {},
+): SolidScriptLine[] {
+  return (['X', 'Y', 'Z'] as const).map((axis, index) =>
+    solidScriptExampleInput(`${prefix}${axis}`, 'Number', values[index] ?? '0', {
+      label: `${label} ${axis}`,
+      ...limits,
+    }),
+  );
+}

@@ -117,8 +117,9 @@ function solidScriptInputPlace(open: readonly SolidScriptInputOpen[]): SolidScri
 
 /**
  * Tells whether the rows under some Show Inputs When conditions are shown:
- * every named input must have the value, where Yes, True and 1 match each
- * other, as do No, False and 0, and case does not matter.
+ * every named input must have the value, or one of the values when the rule
+ * lists several words separated by commas. Yes, True and 1 match each other, as
+ * do No, False and 0, and case does not matter.
  *
  * @param when Conditions.
  * @param valueOf Current text of an input by name.
@@ -134,5 +135,10 @@ export function solidScriptInputRulesHold(
     if (['no', 'false', '0'].includes(lower)) return 'no';
     return lower;
   };
-  return when.every((rule) => plain(valueOf(rule.name) ?? '') === plain(rule.value));
+  return when.every((rule) =>
+    rule.value
+      .split(',')
+      .map(plain)
+      .includes(plain(valueOf(rule.name) ?? '')),
+  );
 }
