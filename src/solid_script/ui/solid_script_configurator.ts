@@ -1,4 +1,5 @@
 import type { SolidScriptCommand, SolidScriptCommandValues } from '@/solid_script/commands/solid_script_command.js';
+import { solidScriptParameterApplies } from '@/solid_script/commands/solid_script_command_parameters.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import {
   solidScriptConfiguratorFieldBuild,
@@ -76,7 +77,9 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
 
   /** Focuses the first field. */
   protected override onAfterShow(): void {
-    const first = this.content.querySelector<HTMLInputElement>('input');
+    const first = this.visibleFields()
+      .map((field) => field.element.querySelector<HTMLInputElement>('input'))
+      .find((input) => input !== null);
     first?.focus();
     if (first?.type === 'text') first.select();
   }
@@ -111,11 +114,29 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
   }
 
   /**
+   * Lists the fields the current values make use of, and hides the rest.
+   *
+   * @returns Visible fields, in command order.
+   */
+  private visibleFields(): SolidScriptConfiguratorField[] {
+    const values = this.values();
+    const shown: SolidScriptConfiguratorField[] = [];
+    for (const parameter of this.command.parameters) {
+      const field = this.fields.get(parameter.key);
+      if (!field) continue;
+      const applies = solidScriptParameterApplies(parameter, values, this.command.parameters);
+      field.element.hidden = !applies;
+      if (applies) shown.push(field);
+    }
+    return shown;
+  }
+
+  /**
    * Shows the line as listed and whether the values can be used: a mistake in
    * red disables OK, a note on names no line sets yet is shown dimmed.
    */
   private refresh(): void {
-    const fields = [...this.fields.values()];
+    const fields = this.visibleFields();
     const problem = fields.map((field) => field.problem()).find((text) => text !== '') || this.commandProblem();
     const warning = fields.map((field) => field.warning()).find((text) => text !== '') ?? '';
     this.preview.textContent = this.command.listingText(this.values());
