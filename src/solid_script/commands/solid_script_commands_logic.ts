@@ -58,11 +58,12 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Logic',
     description: 'Set a variable to a value',
     manual:
-      'Gives a value a name, so later lines can use the name. Lines below see the new value. Lines above do not. Setting the same name again changes it, so a Set in a Repeat can count up. Read it in any field as [Width], or compute with it as [=[Width] * 2]. Example: Set [Width] to 3, then a Cube of size [Width], 1, 1. Lists: Set Points() adds an item at the end. Set Points(2) changes item 2. Items count from 0. [Points(2)] reads one item, and [Points.Count] says how many there are.',
+      'Gives a value a name, so later lines can use the name. Lines below see the new value. Lines above do not. Setting the same name again changes it, so a Set in a Repeat can count up. Read it in any field as [Width], or compute with it as [=[Width] * 2]. Example: Set [Width] to 3, then a Cube of size [Width], 1, 1. Lists: Set Points() adds an item at the end. Set Points(2) changes item 2. Items count from 0. [Points(2)] reads one item, and [Points.Count] says how many there are. Data: Set Face.Data.Height keeps your own value on a face, brush, edge or corner. Through a list it sets every item, so Set Brush.Edges.Data.Kind to trim marks every edge of [Brush], and Brush.Faces(0).Edges.Data.Kind only the edges of its first face. The key may come from a variable, such as Brush.Data.[Key].',
     stops: [
       'A name that is not letters, digits and _, or starts with a digit.',
       'A [Name] for a variable not set above this line, or a [=formula] that cannot be read.',
       'Setting an input of the script, which can only be read.',
+      'Setting a member such as Face.Center or Brush.Edges, which can only be read; only the values under .Data can be set.',
       'An item number past the end of a list, such as Points(5) when Points has 3 items.',
     ],
     parameters: [
@@ -71,7 +72,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
         'Variable',
         'target',
         'Width',
-        'Letters, digits and _, not starting with a digit. For a list, Points() adds an item and Points(2) changes item 2.',
+        'Letters, digits and _, not starting with a digit. For a list, Points() adds an item and Points(2) changes item 2. Face.Data.Height sets a value under .Data, on every item of a list such as Brush.Edges.Data.Kind.',
       ),
       {
         ...solidScriptParameter(

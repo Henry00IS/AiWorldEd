@@ -95,9 +95,23 @@ export function solidScriptNameDotProblem(name: string, use: 'read' | 'set'): st
   );
   if (bad !== undefined)
     return `"${text}" cannot be a name: names use letters, digits and _, and a dot reads a member such as Face.Center, Pos.x or Face.Data.Height`;
-  if (use === 'read' || SOLID_SCRIPT_NAME_OWN.test(text)) return '';
-  if (parts.length >= 3 && parts[last - 1]!.toLowerCase() === 'data') return '';
-  return `${text} can only be read; a line sets whole names, .x, .y and .z of a vector, or a value under .Data such as Face.Data.Height`;
+  if (use === 'read' || SOLID_SCRIPT_NAME_OWN.test(text) || solidScriptNameIsDataWrite(text)) return '';
+  if (parts.length >= 2 && parts[last]?.toLowerCase() === 'data')
+    return `${text} needs a key to set, such as ${text}.Height; a line sets a value under .Data, not .Data itself`;
+  return `${text} can only be read; a line sets whole names, .x, .y and .z of a vector, or a value under .Data such as Face.Data.Height or Brush.Edges.Data.Kind`;
+}
+
+/**
+ * Tells whether a name sets a value under .Data, such as Face.Data.Height,
+ * Brush.Edges.Data.Kind or Sides(0).Data.[Key]: a value or member path, then
+ * Data, then one key.
+ *
+ * @param name Name as written, without brackets.
+ * @returns True for such a name.
+ */
+export function solidScriptNameIsDataWrite(name: string): boolean {
+  const parts = solidScriptNameParts(name.trim());
+  return parts.length >= 3 && parts[parts.length - 2]?.toLowerCase() === 'data';
 }
 
 /**

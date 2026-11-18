@@ -63,7 +63,7 @@ The script runs on every change. **Start** builds everything, **Debug** builds o
 
 ## Brushes, faces and points
 
-Brushes, faces, edges and corners are values, like numbers and text. A dot reads their parts: `[Top.Normal]`, `[Brush.Faces.Count]`, `[Edge.Length]`, `[Faces.Center]` of a whole list. `[Face.Data.Height]` keeps your own values on one. System values start with `$`: `[$Selected.Faces]` is what the last **Select Faces** picked, `[$Selected.Brushes]` what the lines below work on, `[$Input.Brushes]` what a modifier receives.
+Brushes, faces, edges and corners are values, like numbers and text. A dot reads their parts: `[Top.Normal]`, `[Brush.Faces.Count]`, `[Edge.Length]`, `[Faces.Center]` of a whole list. `[Face.Data.Height]` keeps your own values on one. Set through a list writes every item, so Set `Brush.Edges.Data.Kind` to `trim` marks every edge of a brush, and `[Brush.Edges.Data.Kind]` reads one value per edge. System values start with `$`: `[$Selected.Faces]` is what the last **Select Faces** picked, `[$Selected.Brushes]` what the lines below work on, `[$Input.Brushes]` what a modifier receives.
 
 <details>
 <summary>More Details</summary>

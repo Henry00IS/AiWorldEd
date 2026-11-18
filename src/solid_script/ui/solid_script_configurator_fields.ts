@@ -1,5 +1,8 @@
 import { solidScriptNameKey } from '@/solid_script/language/solid_script_name_key.js';
-import { solidScriptNameDotProblem } from '@/solid_script/language/solid_script_name_rules.js';
+import {
+  solidScriptNameDotProblem,
+  solidScriptNameIsDataWrite,
+} from '@/solid_script/language/solid_script_name_rules.js';
 import {
   SOLID_SCRIPT_MISTAKE_NAMES,
   SOLID_SCRIPT_MISTAKE_NUMERIC,
@@ -274,6 +277,26 @@ function solidScriptConfiguratorInput(value: string, label: string): HTMLInputEl
 }
 
 /**
+ * Checks the typed name of a field that names a variable or what a line sets: a
+ * stray dot, a name that is no name, or a target Set cannot change. Other
+ * fields have no such problem.
+ *
+ * @param parameter Parameter.
+ * @param text Typed text, trimmed.
+ * @returns Problem, or an empty string.
+ */
+function solidScriptConfiguratorNameProblem(parameter: SolidScriptCommandParameter, text: string): string {
+  if (parameter.type !== 'name' && parameter.type !== 'target') return '';
+  const dotted = solidScriptNameDotProblem(text, 'set');
+  if (dotted) return `${parameter.label}: ${dotted}.`;
+  if (parameter.type === 'name' && !SOLID_SCRIPT_CONFIGURATOR_NAME.test(text))
+    return `${parameter.label} must start with a letter and use only letters, digits and _.`;
+  if (parameter.type === 'target' && !SOLID_SCRIPT_CONFIGURATOR_TARGET.test(text) && !solidScriptNameIsDataWrite(text))
+    return `${parameter.label} must be a name such as width, an item such as points(0), points() to add one, or a value under .Data such as face.data.height.`;
+  return '';
+}
+
+/**
  * Checks a typed value.
  *
  * @param parameter Parameter.
@@ -283,12 +306,8 @@ function solidScriptConfiguratorInput(value: string, label: string): HTMLInputEl
 function solidScriptConfiguratorProblem(parameter: SolidScriptCommandParameter, value: string): string {
   const text = value.trim();
   if (text === '' && parameter.optional) return '';
-  const dotted = parameter.type === 'name' || parameter.type === 'target' ? solidScriptNameDotProblem(text, 'set') : '';
-  if (dotted) return `${parameter.label}: ${dotted}.`;
-  if (parameter.type === 'name' && !SOLID_SCRIPT_CONFIGURATOR_NAME.test(text))
-    return `${parameter.label} must start with a letter and use only letters, digits and _.`;
-  if (parameter.type === 'target' && !SOLID_SCRIPT_CONFIGURATOR_TARGET.test(text))
-    return `${parameter.label} must be a name such as width, or an item such as points(0), or points() to add one.`;
+  const named = solidScriptConfiguratorNameProblem(parameter, text);
+  if (named) return named;
   if (parameter.type !== 'text' && text === '') return `${parameter.label} needs a value.`;
   if (parameter.anchor && !text.includes('[')) {
     const read = solidScriptAnchorRead(text, parameter.anchor);
