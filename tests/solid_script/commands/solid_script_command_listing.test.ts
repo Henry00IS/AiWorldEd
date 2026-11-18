@@ -118,7 +118,7 @@ describe('SolidScript listing', () => {
     expect(listed('return', { value: '[local.x]' })).toBe('Return [local.x]');
     expect(listed('set_input', { name: 'width', value: '2' })).toBe("Set Input width to '2'");
     expect(listed('show_message', { text: 'Too thin' })).toBe("Show Message 'Too thin'");
-    expect(listed('input', { name: 'width', type: 'number', default: '1' })).toBe('Input width (number) = 1');
+    expect(listed('input', { name: 'width', type: 'Number', default: '1' })).toBe('Input width (Number) = 1');
     expect(listed('remove_item', { target: 'points(1)' })).toBe('Remove Item [points(1)]');
   });
 

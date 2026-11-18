@@ -19,6 +19,11 @@ export const SOLID_SCRIPT_AUDIT_PRELUDE: readonly SolidScriptLine[] = [
   line('select_faces', { which: 'All', of: '[B]', into: 'F' }),
   line('select_edges', { which: 'All', of: '[B]', into: 'E' }),
   line('select_vertices', { which: 'All', of: '[B]', into: 'P' }),
+  line('mesh_brushes', { into: 'M' }),
+  line('cube'),
+  line('end'),
+  line('select_faces', { which: 'All', of: '[M]', into: 'MF' }),
+  line('select_vertices', { which: 'All', of: '[M]', into: 'MP' }),
   line('variable', { name: 'Items', value: '1, 2, 3' }),
   line('variable', { name: 'Points', value: '[0, 0, 0], [1, 0, 0]' }),
   line('variable', { name: 'I', value: '2' }),
@@ -76,8 +81,8 @@ const SOLID_SCRIPT_AUDIT_PLACES: Readonly<Record<string, (self: SolidScriptLine)
     [self, line('end')],
   ],
   when_input_changes: (self) => [[line('input', { name: 'Width' })], [self, line('end')]],
-  when_button_pressed: (self) => [[line('input', { name: 'Reset', type: 'button' })], [self, line('end')]],
-  show_inputs_when: (self) => [[line('input', { name: 'Rails', type: 'switch' })], [self, line('end')]],
+  when_button_pressed: (self) => [[line('input', { name: 'Reset', type: 'Button' })], [self, line('end')]],
+  show_inputs_when: (self) => [[line('input', { name: 'Rails', type: 'Switch' })], [self, line('end')]],
   find_item: (self) => [[], [self]],
   delete_variable: (self) => [[], [self]],
 };
@@ -87,11 +92,21 @@ const SOLID_SCRIPT_AUDIT_FACES = new Set([
   'scatter_points',
   'place_on_face',
   'extrude_face',
-  'inset_face',
   'bevel_edges',
-  'delete_faces',
   'texture_faces',
   'find_on',
+  'box_uvs',
+]);
+
+/** Commands that work on a mesh, which the prelude's mesh feeds. */
+const SOLID_SCRIPT_AUDIT_MESHES = new Set([
+  'inset_face',
+  'delete_faces',
+  'merge_by_distance',
+  'subdivide',
+  'mesh_smooth',
+  'displace',
+  'flip_faces',
 ]);
 
 /**
@@ -108,6 +123,8 @@ export function solidScriptAuditLine(
   const filled: Record<string, string> = {};
   for (const parameter of command.parameters) filled[parameter.key] = parameter.default;
   if (SOLID_SCRIPT_AUDIT_FACES.has(command.id) && 'of' in filled) filled['of'] = '[F]';
+  if (SOLID_SCRIPT_AUDIT_MESHES.has(command.id) && 'of' in filled)
+    filled['of'] = command.id === 'inset_face' || command.id === 'delete_faces' ? '[MF]' : '[M]';
   if (command.id === 'remove_item') filled['target'] = 'Points()';
   return line(command.id, { ...filled, ...values });
 }

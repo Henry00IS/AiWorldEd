@@ -13,6 +13,17 @@ import {
 const END: SolidScriptLine = { command: 'end' };
 
 /**
+ * Wraps lines in Mesh From Brushes, the explicit way to turn a brush into a
+ * mesh.
+ *
+ * @param lines Lines inside the wrapper.
+ * @returns Wrapper lines.
+ */
+function fromBrushes(...lines: SolidScriptLine[]): SolidScriptLine[] {
+  return [{ command: 'mesh_brushes' }, ...lines, END];
+}
+
+/**
  * Runs script lines.
  *
  * @param lines Lines.
@@ -141,10 +152,12 @@ describe('SolidScript meshes', () => {
   });
 
   it('subdivides smoothly into a rounded mesh, or keeps the shape when not smooth', () => {
-    const flat = onlyMesh(run({ command: 'subdivide', values: { smooth: 'false' } }, { command: 'cube' }, END));
+    const flat = onlyMesh(
+      run(...fromBrushes({ command: 'cube' }), { command: 'subdivide', values: { smooth: 'false' } }),
+    );
     expect(flat.faces).toHaveLength(24);
     expect(bounds(flat)).toEqual([-0.5, -0.5, -0.5, 0.5, 0.5, 0.5]);
-    const round = onlyMesh(run({ command: 'subdivide', values: { levels: '2' } }, { command: 'cube' }, END));
+    const round = onlyMesh(run(...fromBrushes({ command: 'cube' }), { command: 'subdivide', values: { levels: '2' } }));
     expect(round.faces).toHaveLength(96);
     expect(outwards(round)).toBe(true);
     const corner = Math.max(...round.points.map((point) => point.length()));
@@ -153,14 +166,23 @@ describe('SolidScript meshes', () => {
 
   it('displaces points by a formula of their position and normal', () => {
     const mesh = onlyMesh(
-      run({ command: 'displace', values: { distance: '[=[$NZ] > 0.5 ? 1 : 0]' } }, { command: 'cube' }, END),
+      run(...fromBrushes({ command: 'cube' }), {
+        command: 'displace',
+        values: { distance: '[=[$NZ] > 0.5 ? 1 : 0]' },
+      }),
     );
     const out = Math.round((0.5 + 1 / Math.sqrt(3)) * 100) / 100;
     expect(bounds(mesh)).toEqual([-out, -out, -0.5, out, out, out]);
   });
 
-  it('extrudes only the faces the condition picks', () => {
-    const mesh = onlyMesh(run({ command: 'extrude_faces' }, { command: 'cube' }, END));
+  it('extrudes only the faces Select Faces picked', () => {
+    const mesh = onlyMesh(
+      run(
+        ...fromBrushes({ command: 'cube' }),
+        { command: 'select_faces', values: { which: 'Facing Front' } },
+        { command: 'extrude_face', values: { distance: '0.5' } },
+      ),
+    );
     expect(mesh.faces).toHaveLength(6 + 4);
     expect(bounds(mesh)).toEqual([-0.5, -0.5, -0.5, 0.5, 0.5, 1]);
     expect(outwards(mesh)).toBe(true);
@@ -169,23 +191,19 @@ describe('SolidScript meshes', () => {
   it('smooths, flips and maps texture coordinates', () => {
     const smooth = onlyMesh(
       run(
-        { command: 'mesh_smooth', values: { rounds: '3' } },
+        ...fromBrushes({ command: 'cube' }),
         { command: 'subdivide', values: { smooth: 'false' } },
-        { command: 'cube' },
-        END,
-        END,
+        { command: 'mesh_smooth', values: { rounds: '3' } },
       ),
     );
     expect(Math.max(...smooth.points.map((point) => point.length()))).toBeLessThan(0.85);
-    const flipped = onlyMesh(run({ command: 'flip_faces' }, { command: 'cube' }, END));
+    const flipped = onlyMesh(run(...fromBrushes({ command: 'cube' }), { command: 'flip_faces' }));
     expect(outwards(flipped)).toBe(false);
     const mapped = onlyMesh(
       run(
-        { command: 'mesh_brushes' },
-        { command: 'cube' },
-        END,
+        ...fromBrushes({ command: 'cube' }),
         { command: 'select_faces', values: { which: 'All' } },
-        { command: 'project_uvs', values: { size: '0.5' } },
+        { command: 'box_uvs', values: { size: '0.5' } },
       ),
     );
     expect(mapped.uvs.every((uv) => uv !== null && uv.every(([u, v]) => Math.abs(u) === 1 && Math.abs(v) === 1))).toBe(
@@ -204,8 +222,51 @@ describe('SolidScript meshes', () => {
     const [shape] = result.shapes;
     expect(shape?.kind).toBe('solid');
     if (shape?.kind !== 'solid') throw new Error('Expected a solid');
+    expect(shape.faceUvs).toHaveLength(6);
+  });
+
+  it('keeps a brush as a brush when Box UVs maps the faces Select Faces picked', () => {
+    const result = run(
+      { command: 'cube' },
+      { command: 'select_faces', values: { which: 'All' } },
+      { command: 'box_uvs', values: { size: '0.5' } },
+    );
+    expect(result.error).toBeNull();
+    expect(solidScriptShapeMeshes(result.shapes)).toHaveLength(0);
+    const [shape] = result.shapes;
+    expect(shape?.kind).toBe('solid');
+    if (shape?.kind !== 'solid') throw new Error('Expected a solid');
     expect(shape.boxUvSize).toBeUndefined();
     expect(shape.faceUvs).toHaveLength(6);
+  });
+
+  it('displaces only the vertices Select Vertices picked, or every point when none are picked', () => {
+    const all = onlyMesh(run(...fromBrushes({ command: 'cube' }), { command: 'displace', values: { distance: '1' } }));
+    expect(bounds(all)[4]).toBeGreaterThan(0.5);
+    const picked = onlyMesh(
+      run(
+        ...fromBrushes({ command: 'cube' }),
+        { command: 'select_vertices', values: { which: 'Where', detail: '[=[Vertex.Position.z] > 0]' } },
+        { command: 'displace', values: { distance: '1' } },
+      ),
+    );
+    const box = bounds(picked);
+    expect(box[2]).toBe(-0.5);
+    expect(box[5]).toBeGreaterThan(0.5);
+  });
+
+  it('stops on a brush with a plain hint to wrap it in Mesh From Brushes first', () => {
+    const hint = /no longer be a convex brush.+Mesh From Brushes first/;
+    const cube: SolidScriptLine = { command: 'cube' };
+    const select: SolidScriptLine = { command: 'select_faces', values: { which: 'Facing Up' } };
+    expect(run(cube, { command: 'subdivide' }).error?.message ?? '').toMatch(hint);
+    expect(run(cube, { command: 'displace' }).error?.message ?? '').toMatch(hint);
+    expect(run(cube, { command: 'flip_faces' }).error?.message ?? '').toMatch(hint);
+    expect(run(cube, { command: 'merge_by_distance' }).error?.message ?? '').toMatch(hint);
+    expect(run(cube, { command: 'mesh_smooth' }).error?.message ?? '').toMatch(hint);
+    expect(run(cube, select, { command: 'inset_face' }).error?.message ?? '').toMatch(hint);
+    expect(run(cube, select, { command: 'delete_faces' }).error?.message ?? '').toMatch(hint);
+    expect(run(cube, { command: 'subdivide' }).shapes.some((shape) => shape.kind === 'mesh')).toBe(false);
   });
 
   it('mirrors meshes without turning them inside out', () => {

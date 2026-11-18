@@ -251,11 +251,13 @@ describe('SolidScript faces', () => {
     expect(heightRange(all[1]!)).toEqual([1, 1.5]);
   });
 
-  it('insets and deletes faces by turning the brush into a mesh', () => {
-    const inset = run(CUBE, select('Facing Up'), { command: 'inset_face', values: { distance: '0.2' } });
+  it('insets and deletes faces of a mesh made with Mesh From Brushes', () => {
+    const mesh = (extra: SolidScriptLine) =>
+      run({ command: 'mesh_brushes' }, CUBE, { command: 'end' }, select('Facing Up'), extra);
+    const inset = mesh({ command: 'inset_face', values: { distance: '0.2' } });
     expect(inset.error).toBeNull();
     expect(solidScriptShapeMeshes(inset.shapes)[0]!.faces).toHaveLength(10);
-    const deleted = run(CUBE, select('Facing Up'), { command: 'delete_faces' });
+    const deleted = mesh({ command: 'delete_faces' });
     expect(deleted.error).toBeNull();
     expect(solidScriptShapeMeshes(deleted.shapes)[0]!.faces).toHaveLength(5);
   });

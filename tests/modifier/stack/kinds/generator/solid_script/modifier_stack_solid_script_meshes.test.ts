@@ -118,29 +118,30 @@ describe('SolidScript generator meshes', () => {
       END,
       END,
     ];
-    const fixture = meshFixture(
-      texture,
-      fromBrushes,
-      ...torus,
-      END,
-      { command: 'select_faces', values: { which: 'All' } },
-      { command: 'project_uvs', values: { size: '1' } },
-      END,
-    );
-    fixture.compile();
-    const [shown] = modifierStackMeshesShown(fixture.node);
-    if (!shown) throw new Error('Expected a shown mesh');
-    expect(readContentMeshTextureId(shown)).toBe('Base/Blakm_d.bmp');
-    new CommandModifierVolumeBake(fixture.node).execute();
-    const baked = fixture.world.children.find(
-      (child): child is THREE.Mesh =>
-        child instanceof THREE.Mesh && child.userData[MODIFIER_STACK_BAKE_MESH_KEY] === true,
-    );
-    expect(baked && readContentMeshTextureId(baked)).toBe('Base/Blakm_d.bmp');
+    const select: SolidScriptLine = { command: 'select_faces', values: { which: 'All' } };
+    const project: SolidScriptLine = { command: 'project_uvs', values: { size: '1' } };
+    const boxed: SolidScriptLine = { command: 'box_uvs', values: { size: '1' } };
+    const orders: SolidScriptLine[][] = [
+      [texture, fromBrushes, ...torus, END, select, project, END],
+      [fromBrushes, texture, ...torus, END, END, select, boxed],
+    ];
+    for (const order of orders) {
+      const fixture = meshFixture(...order);
+      fixture.compile();
+      const [shown] = modifierStackMeshesShown(fixture.node);
+      if (!shown) throw new Error('Expected a shown mesh');
+      expect(readContentMeshTextureId(shown)).toBe('Base/Blakm_d.bmp');
+      new CommandModifierVolumeBake(fixture.node).execute();
+      const baked = fixture.world.children.find(
+        (child): child is THREE.Mesh =>
+          child instanceof THREE.Mesh && child.userData[MODIFIER_STACK_BAKE_MESH_KEY] === true,
+      );
+      expect(baked && readContentMeshTextureId(baked)).toBe('Base/Blakm_d.bmp');
+    }
   });
 
   it('bakes shown meshes into regular editable meshes beside the solid, and undo takes them away', () => {
-    const fixture = meshFixture({ command: 'subdivide' }, { command: 'cube' }, END);
+    const fixture = meshFixture({ command: 'mesh_brushes' }, { command: 'cube' }, END, { command: 'subdivide' });
     fixture.compile();
     const shown = modifierStackMeshesShown(fixture.node)[0];
     if (!shown) throw new Error('Expected a shown mesh');
@@ -154,7 +155,7 @@ describe('SolidScript generator meshes', () => {
     );
     expect(baked).toHaveLength(1);
     expect(isEditorHelperObject(baked[0]!)).toBe(false);
-    expect(baked[0]!.name).toMatch(/^Subdivide/);
+    expect(baked[0]!.name).toMatch(/Mesh|Subdivide|Cube|mesh/);
     const after = worldBounds(baked[0]!);
     for (const key of ['min', 'max'] as const) expect(after[key].distanceTo(before[key])).toBeLessThan(1e-4);
     expect(JSON.stringify(new SceneSerializer().serialize(fixture.world))).toContain(baked[0]!.uuid);

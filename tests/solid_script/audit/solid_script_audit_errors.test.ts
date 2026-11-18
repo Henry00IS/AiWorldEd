@@ -38,7 +38,7 @@ const JARGON =
 
 /** Words that tell what to do instead. */
 const HINT =
-  /needs|must|\buse\b|write|such as|set it|takes|one of|Did you mean|is missing|is needed|only|between|instead|, not |no more than|at least|without|make one|give (it|one)|place it|check|Known here: |Parts: |Functions: |change|define|at most|count from|try|no members|it has \./i;
+  /needs|must|\buse\b|write|such as|set it|takes|one of|Did you mean|is missing|is needed|only|between|instead|, not |no more than|at least|without|make one|give (it|one)|place it|check|Known here: |Parts: |Functions: |change|define|at most|count from|try|no members|it has \.|\bwrap\b/i;
 
 /**
  * Tells the mistake a script stops with, for the given place.

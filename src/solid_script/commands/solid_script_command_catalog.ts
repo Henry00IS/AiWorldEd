@@ -6,6 +6,7 @@ import { SOLID_SCRIPT_COMMANDS_LOGIC } from './solid_script_commands_logic.js';
 import { SOLID_SCRIPT_COMMANDS_MESHES } from './solid_script_commands_meshes.js';
 import { SOLID_SCRIPT_COMMANDS_FACES } from './solid_script_commands_faces.js';
 import { SOLID_SCRIPT_COMMANDS_UVS } from './solid_script_commands_uvs.js';
+import { SOLID_SCRIPT_COMMANDS_BOX_UVS } from './solid_script_commands_box_uvs.js';
 import { SOLID_SCRIPT_COMMANDS_SELECT } from './solid_script_commands_select.js';
 import { SOLID_SCRIPT_COMMANDS_PATHS } from './solid_script_commands_paths.js';
 import { SOLID_SCRIPT_COMMANDS_GENERATORS } from './solid_script_commands_generators.js';
@@ -43,6 +44,7 @@ export const solidScriptCommands: readonly SolidScriptCommand[] = [
   ...SOLID_SCRIPT_COMMANDS_FACES.slice(1),
   ...SOLID_SCRIPT_COMMANDS_QUERY,
   ...SOLID_SCRIPT_COMMANDS_UVS,
+  ...SOLID_SCRIPT_COMMANDS_BOX_UVS,
   ...SOLID_SCRIPT_COMMANDS_LOGIC,
   ...SOLID_SCRIPT_COMMANDS_LISTS,
   ...SOLID_SCRIPT_COMMANDS_PROGRAM,
@@ -78,13 +80,13 @@ export function solidScriptCommandsOfCategory(category: SolidScriptCommandCatego
 }
 
 /**
- * Returns whether a command must keep brushes as brushes: it builds or wraps
- * shapes and is not a mesh block, which may turn brushes into a mesh.
+ * Returns whether a command must keep brushes as brushes. Only Mesh and Mesh
+ * From Brushes may turn brushes into a mesh; every other command either keeps a
+ * brush or stops with a plain error.
  *
  * @param command Command.
- * @returns True when a brush put into or built by the command must stay a
- *   brush.
+ * @returns True when the command must not emit a mesh from a brush.
  */
 export function solidScriptCommandPreservesBrushes(command: SolidScriptCommand): boolean {
-  return command.category !== 'Meshes' && (command.builds || command.nesting === 'open');
+  return command.id !== 'mesh' && command.id !== 'mesh_brushes';
 }

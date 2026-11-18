@@ -33,6 +33,10 @@ export interface SolidScriptShapeMesh {
 /** Most corner points a mesh may have after an operation. */
 export const SOLID_SCRIPT_MESH_POINTS_MAX = 200000;
 
+/** Told when a tool would turn a brush into a mesh. */
+export const SOLID_SCRIPT_MESH_NEEDS_WRAP =
+  'This would no longer be a convex brush. Wrap it in Mesh From Brushes first.';
+
 /**
  * Checks a mesh's size and its faces' point numbers.
  *

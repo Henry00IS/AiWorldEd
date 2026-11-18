@@ -1,11 +1,16 @@
 import * as THREE from 'three';
+import { solidScriptKindNamed } from '@/solid_script/language/solid_script_kinds.js';
 import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
-import { solidScriptParameter, solidScriptParameterOptional } from './solid_script_command_parameters.js';
+import {
+  solidScriptParameter,
+  solidScriptParameterOf,
+  solidScriptParameterOptional,
+} from './solid_script_command_parameters.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import {
+  SOLID_SCRIPT_MESH_NEEDS_WRAP,
   solidScriptMeshDisplace,
-  solidScriptMeshExtrudeFaces,
   solidScriptMeshFromSolid,
   solidScriptMeshJoin,
   solidScriptMeshMerge,
@@ -16,9 +21,10 @@ import {
 } from '@/solid_script/language/solid_script_mesh.js';
 import type { SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
 import {
+  SolidScriptElement,
   solidScriptValueNumber,
   solidScriptValueNumbers,
-  solidScriptValueTruthy,
+  type SolidScriptValue,
 } from '@/solid_script/language/solid_script_value.js';
 
 /** What stops every mesh block without its End. */
@@ -113,6 +119,150 @@ function solidScriptMeshCount(run: SolidScriptBlockRun, key: string, label: stri
   if (value < range[0] || value > range[1])
     throw new Error(`${label} must be ${range[0]} to ${range[1]}, not ${value}`);
   return value;
+}
+
+/**
+ * Reads the mesh a value stands for, and stops when it is still a brush.
+ *
+ * @param run Running line.
+ * @param value Brush or mesh element.
+ * @param label Command, for messages.
+ * @returns Mesh.
+ */
+function solidScriptMeshLeaf(run: SolidScriptBlockRun, value: SolidScriptValue, label: string): SolidScriptShapeMesh {
+  if (!(value instanceof SolidScriptElement) || value.kind !== 'brush')
+    throw new Error(`${label} takes a mesh, not ${solidScriptKindNamed(value)}`);
+  const leaf = run.elements.leaf(value);
+  if (leaf.kind !== 'mesh') throw new Error(SOLID_SCRIPT_MESH_NEEDS_WRAP);
+  return leaf;
+}
+
+/**
+ * Reads the meshes a line works on: those its Of gives, else
+ * [$Selected.Brushes].
+ *
+ * @param run Running line.
+ * @param label Command, for messages.
+ * @returns Meshes, each once.
+ */
+function solidScriptMeshTargets(run: SolidScriptBlockRun, label: string): SolidScriptShapeMesh[] {
+  const given = run.ofValues();
+  const values = given ?? run.selectedGet('brushes');
+  if (values.length === 0) throw new Error(`${label} has no mesh to work on. Wrap a brush in Mesh From Brushes first.`);
+  const leaves: SolidScriptShapeMesh[] = [];
+  for (const value of values) {
+    const leaf = solidScriptMeshLeaf(run, value, label);
+    if (!leaves.includes(leaf)) leaves.push(leaf);
+  }
+  return leaves;
+}
+
+/**
+ * Replaces each mesh a line works on with a changed copy.
+ *
+ * @param run Running line.
+ * @param label Command, for messages.
+ * @param change What the tool does.
+ * @returns Nothing; the meshes are replaced in place.
+ */
+function solidScriptMeshApply(
+  run: SolidScriptBlockRun,
+  label: string,
+  change: (mesh: SolidScriptShapeMesh) => SolidScriptShapeMesh,
+): SolidScriptShape[] {
+  for (const leaf of solidScriptMeshTargets(run, label)) run.leafReplace(leaf, change(leaf));
+  return [];
+}
+
+/**
+ * Point or face numbers Select Vertices or Select Faces picked on one mesh, or
+ * null when nothing is picked, meaning every one.
+ *
+ * @param run Running line.
+ * @param leaf Mesh.
+ * @param kind Vertices or faces.
+ * @returns Numbers, or null for all.
+ */
+function solidScriptMeshPicked(
+  run: SolidScriptBlockRun,
+  leaf: SolidScriptShapeMesh,
+  kind: 'vertices' | 'faces',
+): Set<number> | null {
+  const values = run.selectedGet(kind);
+  if (values.length === 0) return null;
+  const indexes = new Set<number>();
+  for (const value of values) solidScriptMeshPickedAdd(run, leaf, kind, value, indexes);
+  return indexes;
+}
+
+/**
+ * Adds the point or face numbers of one picked element when it belongs to the
+ * mesh. A picked element on a brush stops the line.
+ *
+ * @param run Running line.
+ * @param leaf Mesh.
+ * @param kind Vertices or faces.
+ * @param value Picked element.
+ * @param indexes Numbers already found.
+ */
+function solidScriptMeshPickedAdd(
+  run: SolidScriptBlockRun,
+  leaf: SolidScriptShapeMesh,
+  kind: 'vertices' | 'faces',
+  value: SolidScriptValue,
+  indexes: Set<number>,
+): void {
+  if (!(value instanceof SolidScriptElement)) return;
+  const latest = run.elements.leaf(value);
+  if (latest.kind !== 'mesh') throw new Error(SOLID_SCRIPT_MESH_NEEDS_WRAP);
+  if (latest !== leaf) return;
+  if (kind === 'vertices') for (const vertex of run.elements.vertices(value)) indexes.add(vertex.index);
+  else for (const face of run.elements.faces(value)) indexes.add(face.index);
+}
+
+/**
+ * Displaces the selected vertices of a mesh, or every point when none are
+ * picked, using the Distance formula and its $ fills.
+ *
+ * @param run Running line.
+ * @param mesh Mesh.
+ * @returns Displaced mesh.
+ */
+function solidScriptMeshDisplaceRun(run: SolidScriptBlockRun, mesh: SolidScriptShapeMesh): SolidScriptShapeMesh {
+  const picked = solidScriptMeshPicked(run, mesh, 'vertices');
+  return solidScriptMeshDisplace(mesh, (point, normal, index) => {
+    if (picked && !picked.has(index)) return 0;
+    return solidScriptMeshNumber(
+      run.valueWith('distance', {
+        $X: point.x,
+        $Y: point.y,
+        $Z: point.z,
+        $NX: normal.x,
+        $NY: normal.y,
+        $NZ: normal.z,
+        $Index: index,
+      }),
+      'Distance',
+    );
+  });
+}
+
+/**
+ * Turns the selected faces of a mesh around, or every face when none are
+ * picked.
+ *
+ * @param run Running line.
+ * @param mesh Mesh.
+ * @returns Flipped mesh.
+ */
+function solidScriptMeshFlipRun(run: SolidScriptBlockRun, mesh: SolidScriptShapeMesh): SolidScriptShapeMesh {
+  const picked = solidScriptMeshPicked(run, mesh, 'faces');
+  const keep = (index: number): boolean => Boolean(picked && !picked.has(index));
+  return {
+    ...mesh,
+    faces: mesh.faces.map((face, index) => (keep(index) ? face : [...face].reverse())),
+    uvs: mesh.uvs.map((uv, index) => (!uv || keep(index) ? uv : [...uv].reverse())),
+  };
 }
 
 /** Commands that build and change meshes, which become regular mesh objects. */
@@ -225,9 +375,8 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Weld corners that nearly touch',
     manual:
-      'Turns the brushes between this line and its End into one mesh and welds corners closer than Distance into one, so pieces that touch share their corners and smooth as one surface. Faces that fold away are dropped. Example: Merge By Distance 0.001 around two Cubes side by side gives one mesh whose touching corners are shared.',
-    stops: ['A Distance below 0.', SOLID_SCRIPT_MESH_STOPS_FLAT, SOLID_SCRIPT_MESH_STOPS_END],
-    nesting: 'open',
+      'Welds corners of a mesh that are closer than Distance into one, so pieces that touch share their corners and smooth as one surface. Faces that fold away are dropped. Of is the mesh to weld; empty uses [$Selected.Brushes]. A brush stops the line: wrap it in Mesh From Brushes first, which also joins several brushes into one mesh. Example: Mesh From Brushes around two Cubes side by side, then Merge By Distance 0.001, gives one mesh whose touching corners are shared.',
+    stops: ['A Distance below 0.', 'A brush. Wrap it in Mesh From Brushes first.', 'No mesh to work on.'],
     parameters: [
       solidScriptParameter(
         'distance',
@@ -236,12 +385,17 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
         '0.001',
         'Largest gap between corners that are welded, in metres.',
       ),
+      solidScriptParameterOf('meshes', '$Selected.Brushes', ['Brush']),
     ],
-    listing: (read) => ['Merge By Distance', read.value('distance')],
+    listing: (read) => [
+      'Merge By Distance',
+      read.value('distance'),
+      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+    ],
     execute: (run) => {
       const distance = solidScriptMeshNumber(run.value('distance'), 'Distance');
       if (distance < 0) throw new Error(`Distance must be 0 or more, not ${distance}`);
-      return solidScriptMeshTool(run, 'Merge By Distance', (mesh) => solidScriptMeshMerge(mesh, distance));
+      return solidScriptMeshApply(run, 'Merge By Distance', (mesh) => solidScriptMeshMerge(mesh, distance));
     },
   }),
   new SolidScriptCommand({
@@ -250,13 +404,12 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Split mesh faces into smaller ones',
     manual:
-      'Splits every face of the brushes between this line and its End into four-sided faces, Levels times. Each level makes about four times as many faces. With Smooth on, the corners are rounded off as well, so a Cube turns into a soft rounded ball after a few levels. Brushes inside become a mesh. Example: Subdivide with 2 levels around a Cube gives a smooth blob. With Smooth off it stays a cube with a finer grid for Displace.',
+      'Splits every face of a mesh into four-sided faces, Levels times. Each level makes about four times as many faces. With Smooth on, the corners are rounded off as well, so a Cube becomes a soft rounded ball after a few levels. Of is the mesh; empty uses [$Selected.Brushes]. A brush stops the line: wrap it in Mesh From Brushes first. Example: Mesh From Brushes around a Cube, then Subdivide 2 times, gives a smooth blob. With Smooth off it stays a cube with a finer grid for Displace.',
     stops: [
       `Levels below 1 or above ${SOLID_SCRIPT_SUBDIVIDE_LEVELS_MAX}.`,
-      SOLID_SCRIPT_MESH_STOPS_FLAT,
-      SOLID_SCRIPT_MESH_STOPS_END,
+      'A brush. Wrap it in Mesh From Brushes first.',
+      'No mesh to work on.',
     ],
-    nesting: 'open',
     parameters: [
       solidScriptParameter(
         'levels',
@@ -272,17 +425,19 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
         'Yes',
         'Yes: round the shape off. No: keep its shape exactly, only with more faces.',
       ),
+      solidScriptParameterOf('meshes', '$Selected.Brushes', ['Brush']),
     ],
     listing: (read) => [
       'Subdivide',
       read.value('levels'),
       ' times',
       ...solidScriptListingOptions([!read.on('smooth') && ['Not Smooth']]),
+      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
     ],
     execute: (run) => {
       const levels = solidScriptMeshCount(run, 'levels', 'Levels', [1, SOLID_SCRIPT_SUBDIVIDE_LEVELS_MAX]);
       const smooth = run.fields().flag('smooth');
-      return solidScriptMeshTool(run, 'Subdivide', (mesh) => {
+      return solidScriptMeshApply(run, 'Subdivide', (mesh) => {
         let result = mesh;
         for (let level = 0; level < levels; level++) result = solidScriptMeshSubdivide(result, smooth);
         return result;
@@ -295,13 +450,13 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Relax a mesh so it looks softer',
     manual:
-      'Moves every point of the mesh made from the shapes between this line and its End part of the way towards its neighbours, Rounds times, which softens bumps and sharp corners. The outline of an open mesh stays where it is. Strength is how far each round moves, from 0 (not at all) to 1 (all the way). Example: Smooth Mesh 10 rounds at 0.5 around a Displace takes the harsh edges off a rocky surface.',
+      'Moves every point of a mesh part of the way towards its neighbours, Rounds times, which softens bumps and sharp corners. The outline of an open mesh stays where it is. Strength is how far each round moves, from 0 (not at all) to 1 (all the way). Of is the mesh; empty uses [$Selected.Brushes]. A brush stops the line: wrap it in Mesh From Brushes first. Example: Mesh From Brushes, Subdivide, then Smooth Mesh 10 rounds at 0.5 takes the harsh edges off a rocky surface.',
     stops: [
       `Rounds below 1 or above ${SOLID_SCRIPT_SMOOTH_ROUNDS_MAX}.`,
       'A Strength below 0 or above 1.',
-      SOLID_SCRIPT_MESH_STOPS_END,
+      'A brush. Wrap it in Mesh From Brushes first.',
+      'No mesh to work on.',
     ],
-    nesting: 'open',
     parameters: [
       solidScriptParameter(
         'rounds',
@@ -311,13 +466,20 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
         `How many times to relax, 1 to ${SOLID_SCRIPT_SMOOTH_ROUNDS_MAX}.`,
       ),
       solidScriptParameter('strength', 'Strength', 'number', '0.5', 'How far each round moves the points, 0 to 1.'),
+      solidScriptParameterOf('meshes', '$Selected.Brushes', ['Brush']),
     ],
-    listing: (read) => ['Smooth Mesh', read.value('rounds'), ' times, strength ', read.value('strength')],
+    listing: (read) => [
+      'Smooth Mesh',
+      read.value('rounds'),
+      ' times, strength ',
+      read.value('strength'),
+      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+    ],
     execute: (run) => {
       const rounds = solidScriptMeshCount(run, 'rounds', 'Rounds', [1, SOLID_SCRIPT_SMOOTH_ROUNDS_MAX]);
       const strength = solidScriptMeshNumber(run.value('strength'), 'Strength');
       if (strength < 0 || strength > 1) throw new Error(`Strength must be 0 to 1, not ${strength}`);
-      return solidScriptMeshTool(run, 'Smooth Mesh', (mesh) => solidScriptMeshSmooth(mesh, rounds, strength));
+      return solidScriptMeshApply(run, 'Smooth Mesh', (mesh) => solidScriptMeshSmooth(mesh, rounds, strength));
     },
   }),
   new SolidScriptCommand({
@@ -326,9 +488,12 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Push mesh points in or out by a formula',
     manual:
-      'Moves every point of the mesh made from the brushes between this line and its End outwards along its surface by Distance in metres. A negative distance pulls it in. Distance is worked out for each point, and may use [$X], [$Y] and [$Z] (where the point is), [$NX], [$NY] and [$NZ] (which way the surface faces there) and [$Index] (the point number), so waves, noise and bulges come from one formula. Subdivide first for a smooth result. Example: Distance [=0.1 * Sin([$X] * 180)] around a subdivided Cube gives a wavy surface.',
-    stops: ['A Distance that does not give a number.', SOLID_SCRIPT_MESH_STOPS_FLAT, SOLID_SCRIPT_MESH_STOPS_END],
-    nesting: 'open',
+      'Moves points of a mesh outwards along the surface by Distance in metres. A negative distance pulls them in. It moves the vertices Select Vertices picked, or every point when none are picked. Distance is worked out for each point, and may use [$X], [$Y] and [$Z] (where the point is), [$NX], [$NY] and [$NZ] (which way the surface faces there) and [$Index] (the point number), so waves, noise and bulges come from one formula. Of is the mesh; empty uses [$Selected.Brushes]. A brush stops the line: wrap it in Mesh From Brushes first. Subdivide first for a smooth result. Example: Mesh From Brushes around a subdivided Cube, then Distance [=0.1 * Sin([$X] * 180)], gives a wavy surface.',
+    stops: [
+      'A Distance that does not give a number.',
+      'A brush. Wrap it in Mesh From Brushes first.',
+      'No mesh to work on.',
+    ],
     fills: ['$X', '$Y', '$Z', '$NX', '$NY', '$NZ', '$Index'],
     parameters: [
       solidScriptParameter(
@@ -338,69 +503,15 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
         '[=0.1 * Sin([$X] * 360)]',
         'Metres to move each point outwards. May use [$X], [$Y], [$Z], [$NX], [$NY], [$NZ] and [$Index].',
       ),
+      solidScriptParameterOf('meshes', '$Selected.Brushes', ['Brush']),
     ],
-    listing: (read) => ['Displace', 'by ', read.value('distance')],
-    execute: (run) =>
-      solidScriptMeshTool(run, 'Displace', (mesh) =>
-        solidScriptMeshDisplace(mesh, (point, normal, index) =>
-          solidScriptMeshNumber(
-            run.valueWith('distance', {
-              $X: point.x,
-              $Y: point.y,
-              $Z: point.z,
-              $NX: normal.x,
-              $NY: normal.y,
-              $NZ: normal.z,
-              $Index: index,
-            }),
-            'Distance',
-          ),
-        ),
-      ),
-  }),
-  new SolidScriptCommand({
-    id: 'extrude_faces',
-    label: 'Extrude Faces',
-    category: 'Meshes',
-    description: 'Pull chosen mesh faces out',
-    manual:
-      'Pulls the faces of the mesh made from the brushes between this line and its End out along the way they face, each on its own, with new side faces joining them to the rest. A negative distance pushes them in for a dent. Which Faces is a condition checked for every face, and both fields may use [$NX], [$NY] and [$NZ] (which way the face points), [$CX], [$CY] and [$CZ] (its middle) and [$Index] (its number). Example: Which Faces [$NZ] > 0.5 with Distance 0.5 lifts the top of a Cube half a metre.',
-    stops: ['A Distance that does not give a number.', SOLID_SCRIPT_MESH_STOPS_FLAT, SOLID_SCRIPT_MESH_STOPS_END],
-    nesting: 'open',
-    fills: ['$NX', '$NY', '$NZ', '$CX', '$CY', '$CZ', '$Index'],
-    parameters: [
-      solidScriptParameter(
-        'distance',
-        'Distance',
-        'number',
-        '0.5',
-        'Metres to pull each chosen face out. Below 0 pushes it in.',
-      ),
-      solidScriptParameter(
-        'which',
-        'Which Faces',
-        'condition',
-        '[$NZ] > 0.5',
-        'Condition for the faces to pull, such as [$NZ] > 0.5 for faces pointing up. True pulls every face.',
-      ),
+    listing: (read) => [
+      'Displace',
+      'by ',
+      read.value('distance'),
+      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
     ],
-    listing: (read) => ['Extrude Faces', 'by ', read.value('distance'), ' where ', read.value('which')],
-    execute: (run) =>
-      solidScriptMeshTool(run, 'Extrude Faces', (mesh) =>
-        solidScriptMeshExtrudeFaces(mesh, (centre, normal, index) => {
-          const facts = {
-            $NX: normal.x,
-            $NY: normal.y,
-            $NZ: normal.z,
-            $CX: centre.x,
-            $CY: centre.y,
-            $CZ: centre.z,
-            $Index: index,
-          };
-          if (!solidScriptValueTruthy(run.valueWith('which', facts))) return null;
-          return solidScriptMeshNumber(run.valueWith('distance', facts), 'Distance');
-        }),
-      ),
+    execute: (run) => solidScriptMeshApply(run, 'Displace', (mesh) => solidScriptMeshDisplaceRun(run, mesh)),
   }),
   new SolidScriptCommand({
     id: 'flip_faces',
@@ -408,16 +519,10 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Turn mesh faces to show the other side',
     manual:
-      'Turns every face of the mesh made from the brushes between this line and its End around, so it shows its other side. Use it when a mesh looks inside out, or to see a box from the inside, such as a sky box or a cave. Example: a large Cube inside Flip Faces is a room seen from within.',
-    stops: [SOLID_SCRIPT_MESH_STOPS_FLAT, SOLID_SCRIPT_MESH_STOPS_END],
-    nesting: 'open',
-    parameters: [],
-    listing: () => ['Flip Faces'],
-    execute: (run) =>
-      solidScriptMeshTool(run, 'Flip Faces', (mesh) => ({
-        ...mesh,
-        faces: mesh.faces.map((face) => [...face].reverse()),
-        uvs: mesh.uvs.map((uv) => (uv ? [...uv].reverse() : null)),
-      })),
+      'Turns faces of a mesh around, so they show the other side. It flips the faces Select Faces picked, or every face when none are picked. Use it when a mesh looks inside out, or to see a box from the inside, such as a sky box or a cave. Of is the mesh; empty uses [$Selected.Brushes]. A brush stops the line: wrap it in Mesh From Brushes first. Example: Mesh From Brushes around a large Cube, then Flip Faces, is a room seen from within.',
+    stops: ['A brush. Wrap it in Mesh From Brushes first.', 'No mesh to work on.'],
+    parameters: [solidScriptParameterOf('meshes', '$Selected.Brushes', ['Brush'])],
+    listing: (read) => ['Flip Faces', ...(read.text('of') === '' ? [] : [' Of ', read.value('of')])],
+    execute: (run) => solidScriptMeshApply(run, 'Flip Faces', (mesh) => solidScriptMeshFlipRun(run, mesh)),
   }),
 ];

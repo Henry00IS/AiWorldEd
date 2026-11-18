@@ -67,14 +67,26 @@ const PLAIN: readonly ((random: () => number, name: string) => SolidScriptLine)[
   (random, name) => line('call', { name: 'F', values: VALUES(random), result: name }),
   (random, name) => line('extrude_face', { of: `[${pick(random, NAMES)}]`, top: name }),
   (random, name) => line('scatter_points', { of: '[B]', count: '3', into: name, normals: pick(random, NAMES) }),
-  (random, name) => line('inset_face', { of: `[${pick(random, NAMES)}]`, inner: name }),
+  (_random, name) => line('inset_face', { of: '[MF]', inner: name }),
   (random, name) => line('variable', { name: `${name}(0)`, value: VALUES(random) }),
   (random) => line('variable', { name: `${pick(random, NAMES)}.Data.K`, value: VALUES(random) }),
   (random) =>
     solidScriptAuditLine(
       pick(
         random,
-        solidScriptCommands.filter((command) => !command.nesting || command.nesting === 'none'),
+        solidScriptCommands.filter(
+          (command) =>
+            (!command.nesting || command.nesting === 'none') &&
+            ![
+              'inset_face',
+              'delete_faces',
+              'merge_by_distance',
+              'subdivide',
+              'mesh_smooth',
+              'displace',
+              'flip_faces',
+            ].includes(command.id),
+        ),
       ),
     ),
 ];
@@ -147,6 +159,10 @@ export function solidScriptAuditFuzz(seed: number): SolidScriptLine[] {
   ]);
   return [
     line('cube', { into: 'B' }),
+    line('mesh_brushes', { into: 'M' }),
+    line('cube'),
+    line('end'),
+    line('select_faces', { which: 'All', of: '[M]', into: 'MF' }),
     line('function', { name: 'F', parameters: 'P' }),
     ...body,
     line('end'),

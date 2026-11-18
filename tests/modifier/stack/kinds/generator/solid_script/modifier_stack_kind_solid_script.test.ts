@@ -243,8 +243,8 @@ describe('SolidScript generator', () => {
     const fixture = scriptFixture();
     scriptSet(fixture.node, {
       script: script(
-        { command: 'input', values: { name: 'wall', type: 'texture', default: 'brick' } },
-        { command: 'input', values: { name: 'top', type: 'texture', default: 'grass' } },
+        { command: 'input', values: { name: 'wall', type: 'Texture', default: 'brick' } },
+        { command: 'input', values: { name: 'top', type: 'Texture', default: 'grass' } },
         { command: 'texture', values: { texture: '[wall]' } },
         { command: 'cube' },
         { command: 'end' },
@@ -270,7 +270,7 @@ describe('SolidScript generator', () => {
     const fixture = scriptFixture();
     scriptSet(fixture.node, {
       script: script(
-        { command: 'input', values: { name: 'count', type: 'count', default: '2' } },
+        { command: 'input', values: { name: 'count', type: 'Count', default: '2' } },
         { command: 'when_baked' },
         { command: 'set_input', values: { name: 'count', value: '5' } },
         { command: 'end' },

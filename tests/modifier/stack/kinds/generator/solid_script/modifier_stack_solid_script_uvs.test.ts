@@ -116,6 +116,22 @@ describe('SolidScript generator UVs', () => {
     expect(localUvChart(moved[0])).toBe(localUvChart(origin[0]));
   });
 
+  it('keeps a cube as a brush after Box UVs, with the same local UVs after a move', () => {
+    const boxed = (offset: string): SolidScriptLine[] => [
+      { command: 'translate', values: { v: offset } },
+      { command: 'cube', values: { size: '2, 2, 2' } },
+      END,
+      { command: 'select_faces', values: { which: 'All' } },
+      { command: 'box_uvs', values: { size: '1' } },
+    ];
+    const origin = compiled(boxed('0, 0, 0'));
+    const moved = compiled(boxed('4, 0, 0'));
+    expect(origin).toHaveLength(1);
+    expect(moved).toHaveLength(1);
+    if (!origin[0] || !moved[0]) throw new Error('Expected a boxed cube');
+    expect(localUvChart(moved[0])).toBe(localUvChart(origin[0]));
+  });
+
   it('gives every column in the Row of Columns example the same local UVs', () => {
     const brushes = compiled(SOLID_SCRIPT_EXAMPLE_COLUMNS);
     expect(brushes).toHaveLength(5);

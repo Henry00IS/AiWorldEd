@@ -25,13 +25,16 @@ import {
   solidScriptGeometryFaces,
   solidScriptGeometryFacesDelete,
   solidScriptGeometryInset,
-  solidScriptGeometryMesh,
   solidScriptGeometryPick,
   type SolidScriptEdgeFacts,
   type SolidScriptFaceFacts,
   type SolidScriptFacePick,
 } from '@/solid_script/language/solid_script_geometry.js';
-import { solidScriptMeshExtrudeFaces, type SolidScriptShapeMesh } from '@/solid_script/language/solid_script_mesh.js';
+import {
+  SOLID_SCRIPT_MESH_NEEDS_WRAP,
+  solidScriptMeshExtrudeFaces,
+  type SolidScriptShapeMesh,
+} from '@/solid_script/language/solid_script_mesh.js';
 import { SOLID_SCRIPT_AXES_FACING } from '@/solid_script/language/solid_script_axes.js';
 import { solidScriptMemberVector } from '@/solid_script/language/solid_script_members.js';
 import {
@@ -641,8 +644,8 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Shrink faces inside a ring',
     manual:
-      'Gives each face a smaller copy of itself inside, joined to the old outline by a ring of faces; a brush turns into a mesh for it. Of gives the faces; empty uses [$Selected.Faces]. Inner and Ring name variables for the new faces, as the operation builds them. Afterwards [$Selected.Faces] holds the inner faces. Example: Select Faces Facing Up, Inset Face by 0.1, Extrude Face by -0.2 sinks a tray.',
-    stops: ['No faces.'],
+      'Gives each face of a mesh a smaller copy of itself inside, joined to the old outline by a ring of faces. Of gives the faces; empty uses [$Selected.Faces]. A brush stops the line: wrap it in Mesh From Brushes first. Inner and Ring name variables for the new faces, as the operation builds them. Afterwards [$Selected.Faces] holds the inner faces. Example: Mesh From Brushes around a Cube, Select Faces Facing Up, Inset Face by 0.1, Extrude Face by -0.2 sinks a tray.',
+    stops: ['No faces.', 'A brush. Wrap it in Mesh From Brushes first.'],
     parameters: [
       solidScriptParameter('distance', 'Distance', 'number', '0.1', 'Metres from the old edge to the new one.'),
       solidScriptParameterOf('faces', '$Selected.Faces'),
@@ -673,7 +676,8 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         solidScriptFaceTargets(run, 'Inset Face'),
         (face) => face.leaf,
       )) {
-        const mesh: SolidScriptShapeMesh = solidScriptGeometryMesh(leaf);
+        if (leaf.kind !== 'mesh') throw new Error(SOLID_SCRIPT_MESH_NEEDS_WRAP);
+        const mesh: SolidScriptShapeMesh = leaf;
         const numbers = new Set(faces.map((face) => face.index));
         const inset = solidScriptGeometryInset(mesh, numbers, distance);
         const outputs = solidScriptFaceOutputs(mesh, numbers);
@@ -760,19 +764,18 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Take faces out',
     manual:
-      'Takes faces out, leaving an open mesh; a brush turns into a mesh for it. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. The faces leave every list that held them. Example: Cube, Select Faces Facing Up, Delete Faces leaves an open box.',
-    stops: ['No faces.'],
-    parameters: [solidScriptParameterOf('faces or brushes', '$Selected.Faces')],
+      'Takes faces out of a mesh, leaving an opening. Of gives the faces, or a mesh for all its faces; empty uses [$Selected.Faces]. A brush stops the line: wrap it in Mesh From Brushes first. The faces leave every list that held them. Example: Mesh From Brushes around a Cube, Select Faces Facing Up, Delete Faces leaves an open box.',
+    stops: ['No faces.', 'A brush. Wrap it in Mesh From Brushes first.'],
+    parameters: [solidScriptParameterOf('faces or meshes', '$Selected.Faces')],
     listing: (read) => ['Delete Faces', ...(read.text('of') === '' ? [] : [' Of ', read.value('of')])],
     execute: (run) => {
       for (const [leaf, faces] of solidScriptFaceGroups(
         solidScriptFaceTargets(run, 'Delete Faces'),
         (face) => face.leaf,
-      ))
-        run.leafReplace(
-          leaf,
-          solidScriptGeometryFacesDelete(solidScriptGeometryMesh(leaf), new Set(faces.map((face) => face.index))),
-        );
+      )) {
+        if (leaf.kind !== 'mesh') throw new Error(SOLID_SCRIPT_MESH_NEEDS_WRAP);
+        run.leafReplace(leaf, solidScriptGeometryFacesDelete(leaf, new Set(faces.map((face) => face.index))));
+      }
       return [];
     },
   }),
