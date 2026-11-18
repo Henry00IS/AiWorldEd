@@ -261,7 +261,7 @@ const SOLID_SCRIPT_EDITOR_PANES_CSS = `
 .${c.outputTab} { padding: 3px 10px; border: none; border-bottom: 2px solid transparent; background: none; color: ${ThemeCss.textColor}; font: inherit; cursor: pointer; }
 .${c.outputTab}[aria-selected="true"] { border-bottom-color: ${ThemeCss.accentColor}; font-weight: 600; }
 .${c.outputTab}.${c.outputError} { color: #e5484d; }
-.${c.outputText} { flex: 1; min-height: 0; overflow-y: auto; padding: 5px 12px; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; white-space: pre-wrap; color: ${ThemeCss.textColor}; user-select: text; cursor: text; }
+.${c.outputText} { flex: 1; min-height: 0; overflow-y: auto; padding: 5px 12px; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; white-space: pre-wrap; color: ${ThemeCss.textColor}; user-select: text; cursor: text; caret-color: currentColor; }
 .${c.outputText}.${c.outputError} { color: #e5484d; }
 .${c.outputWarning} { color: #f5a524; }
 .${c.outputWarning} > button { background: none; border: none; padding: 0; font: inherit; color: inherit; }

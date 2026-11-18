@@ -1,7 +1,10 @@
-import { solidScriptFieldSplit, type SolidScriptFieldKind } from './solid_script_field.js';
+import { solidScriptFieldArguments, type SolidScriptFieldKind } from './solid_script_field.js';
 import { SOLID_SCRIPT_SYSTEM_VALUES } from './solid_script_name_rules.js';
 
-/** Fields that take numbers, where math outside a formula is surely a mistake. */
+/**
+ * Fields that take numbers, where math outside a formula is surely a mistake.
+ * Conditions are worked out like formulas already, so they are not here.
+ */
 export const SOLID_SCRIPT_MISTAKE_NUMERIC: ReadonlySet<SolidScriptFieldKind> = new Set([
   'number',
   'count',
@@ -9,7 +12,6 @@ export const SOLID_SCRIPT_MISTAKE_NUMERIC: ReadonlySet<SolidScriptFieldKind> = n
   'vector3',
   'points2',
   'points3',
-  'condition',
 ]);
 
 /** Fields whose text is a name, never read as a value. */
@@ -125,7 +127,8 @@ export function solidScriptFieldMistake(
   known: (name: string) => boolean = () => false,
 ): string {
   const trimmed = text.trim();
-  const pieces = solidScriptFieldSplit(trimmed, ',').map((piece) => piece.trim());
+  // Commas inside a call such as Max([A], [B]) stay in their piece.
+  const pieces = solidScriptFieldArguments(trimmed);
   const rewritten = math ? pieces.map(solidScriptMistakeMath).join(', ') : trimmed;
   const meant = solidScriptMistakeSystem(math && rewritten === pieces.join(', ') ? trimmed : rewritten, known);
   return meant === trimmed ? '' : meant;

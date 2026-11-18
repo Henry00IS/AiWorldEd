@@ -11,7 +11,7 @@ import type { SolidScriptBlockNode } from './solid_script_block_tree.js';
 import { solidScriptErrorLine, solidScriptErrorText } from './solid_script_error.js';
 import {
   solidScriptFieldCompiled,
-  solidScriptFieldEscapes,
+  solidScriptFieldArguments,
   solidScriptFieldList,
   solidScriptFieldResolve,
   type SolidScriptFieldCompiled,
@@ -659,7 +659,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     const value = (key: string): SolidScriptValue => state.machine.fieldValue(fields, node, key, state.scope);
     return {
       values: (key) =>
-        solidScriptArgumentsSplit(node.command.valueText(node.values, key)).map((piece, index) => {
+        solidScriptFieldArguments(node.command.valueText(node.values, key)).map((piece, index) => {
           try {
             return solidScriptFieldResolve('value', piece, state.machine.fieldContext(state.scope));
           } catch (error) {
@@ -1104,32 +1104,6 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         `the script stopped after ${SOLID_SCRIPT_WORK_LIMIT.toLocaleString('en-US')} steps of work; check Repeat ranges and parts that use each other`,
       );
   }
-}
-
-/**
- * Splits a field of values at the commas outside brackets and parentheses, so
- * [=max(1, 2)], 3 is two values.
- *
- * @param text Field text.
- * @returns Trimmed pieces; none for an empty field.
- */
-export function solidScriptArgumentsSplit(text: string): string[] {
-  if (text.trim() === '') return [];
-  const pieces: string[] = [];
-  let depth = 0;
-  let start = 0;
-  for (let index = 0; index < text.length; index++) {
-    const character = text[index];
-    if (solidScriptFieldEscapes(text, index)) index++;
-    else if (character === '[' || character === '(') depth++;
-    else if (character === ']' || character === ')') depth = Math.max(0, depth - 1);
-    else if (character === ',' && depth === 0) {
-      pieces.push(text.slice(start, index).trim());
-      start = index + 1;
-    }
-  }
-  pieces.push(text.slice(start).trim());
-  return pieces;
 }
 
 /**

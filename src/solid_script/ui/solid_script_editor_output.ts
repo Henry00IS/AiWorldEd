@@ -104,6 +104,12 @@ export class SolidScriptEditorOutput {
     this.output.setAttribute('aria-multiline', 'true');
     this.output.setAttribute('aria-label', 'Output');
     this.output.setAttribute('aria-live', 'polite');
+    // Editable only so it shows a caret; every change is refused.
+    this.output.tabIndex = 0;
+    this.output.setAttribute('contenteditable', 'true');
+    this.output.spellcheck = false;
+    this.output.addEventListener('beforeinput', (event) => event.preventDefault());
+    this.output.addEventListener('keydown', (event) => this.outputKey(event));
     this.outputHost = solidScriptScrollerWrap(this.output, '1 1 0', 12);
     this.variablesHost = this.explorer.element;
     Object.assign(this.settingsScroller.style, { overflowY: 'auto', padding: '5px 12px' });
@@ -145,6 +151,22 @@ export class SolidScriptEditorOutput {
       this.output.append(this.checks);
       this.explorer.show(document, result.variables, options ? result.stack : [], 'The script stops with an error.');
     }
+  }
+
+  /**
+   * Keeps Ctrl+A inside the output: it selects only the output's text.
+   *
+   * @param event Key event.
+   */
+  private outputKey(event: KeyboardEvent): void {
+    if (!(event.ctrlKey || event.metaKey) || event.altKey || event.key.toLowerCase() !== 'a') return;
+    event.preventDefault();
+    const selection = this.output.ownerDocument.getSelection();
+    if (!selection) return;
+    const range = this.output.ownerDocument.createRange();
+    range.selectNodeContents(this.output);
+    selection.removeAllRanges();
+    selection.addRange(range);
   }
 
   /**

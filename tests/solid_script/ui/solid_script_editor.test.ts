@@ -535,6 +535,30 @@ describe('SolidScript editor', () => {
     expect(commands()).toEqual(['echo', 'cube', 'sphere']);
   });
 
+  it('gives the output its own caret, Ctrl+A selecting only its text, and keeps it read-only', () => {
+    editorFixture([{ command: 'echo', values: { value: 'hello' } }, ...CUBE_SPHERE]);
+    const output = find('.solid-script-editor-output-text');
+    expect(output.tabIndex).toBe(0);
+    expect(output.getAttribute('contenteditable')).toBe('true');
+    const styles = [...document.querySelectorAll('style')].map((style) => style.textContent ?? '').join('\n');
+    expect(styles).toMatch(/\.solid-script-editor-output-text \{[^}]*caret-color: currentColor;/);
+    output.focus();
+    const all = new KeyboardEvent('keydown', { key: 'a', ctrlKey: true, bubbles: true, cancelable: true });
+    output.dispatchEvent(all);
+    expect(all.defaultPrevented).toBe(true);
+    const range = document.getSelection()!.getRangeAt(0);
+    expect(range.commonAncestorContainer).toBe(output);
+    expect(range.toString()).toBe(output.textContent);
+    const typed = new InputEvent('beforeinput', {
+      inputType: 'insertText',
+      data: 'x',
+      bubbles: true,
+      cancelable: true,
+    });
+    output.dispatchEvent(typed);
+    expect(typed.defaultPrevented).toBe(true);
+  });
+
   it('keeps Delete and Backspace in the window after a click anywhere in it, so the generator stays', () => {
     const { root, node, commands } = editorFixture(CUBE_SPHERE);
     const input = new ManagerInput();

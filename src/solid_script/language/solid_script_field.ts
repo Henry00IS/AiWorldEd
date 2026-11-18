@@ -472,6 +472,32 @@ export function solidScriptFieldSplit(text: string, separator: string): string[]
 }
 
 /**
+ * Splits a field of values at the commas outside brackets and parentheses, so
+ * [=max(1, 2)], 3 is two values.
+ *
+ * @param text Field text.
+ * @returns Trimmed pieces; none for an empty field.
+ */
+export function solidScriptFieldArguments(text: string): string[] {
+  if (text.trim() === '') return [];
+  const pieces: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let index = 0; index < text.length; index++) {
+    const character = text[index];
+    if (solidScriptFieldEscapes(text, index)) index++;
+    else if (character === '[' || character === '(') depth++;
+    else if (character === ']' || character === ')') depth = Math.max(0, depth - 1);
+    else if (character === ',' && depth === 0) {
+      pieces.push(text.slice(start, index).trim());
+      start = index + 1;
+    }
+  }
+  pieces.push(text.slice(start).trim());
+  return pieces;
+}
+
+/**
  * Reads the items of a list field: each item between commas is read first, and
  * the text a bracket gives is then split at its own commas, so [Text], 23 with
  * Text set to Hello, World gives Hello, World and 23. A $, keeps a comma inside
