@@ -66,6 +66,13 @@ const SOLID_SCRIPT_ELEMENTS_SAME = 0.9999;
 export class SolidScriptElements {
   private readonly entries: SolidScriptElementEntry[] = [];
   private readonly brushes = new Map<SolidScriptGeometryLeaf, SolidScriptElement>();
+  /**
+   * Bounds already read, by the ids of the elements, with the brushes they were
+   * read from.
+   */
+  private readonly boundsKept = new Map<string, { leaves: SolidScriptGeometryLeaf[]; box: THREE.Box3 }>();
+  /** How many times bounds were worked out rather than read from what is kept. */
+  boundsPasses = 0;
 
   /** @param host Run the elements belong to. */
   constructor(private readonly host: SolidScriptElementsHost) {}
@@ -158,6 +165,27 @@ export class SolidScriptElements {
         corners: entry.plane.corners.map((corner) => corner.clone().add(offset)),
       };
     }
+  }
+
+  /**
+   * Reads the box around every corner of some elements in one pass, kept until
+   * the list or a brush in it changes.
+   *
+   * @param items Brushes, faces, edges or corners.
+   * @returns Box; do not change it.
+   */
+  bounds(items: readonly SolidScriptElement[]): THREE.Box3 {
+    const key = items.map((item) => item.id).join(',');
+    const leaves = items.map((item) => this.leaf(item));
+    const kept = this.boundsKept.get(key);
+    if (kept && kept.leaves.every((leaf, index) => leaf === leaves[index])) return kept.box;
+    this.boundsPasses++;
+    const box = new THREE.Box3().setFromPoints(
+      items.flatMap((item) => this.vertices(item).map((vertex) => vertex.position)),
+    );
+    if (this.boundsKept.size >= 1000) this.boundsKept.clear();
+    this.boundsKept.set(key, { leaves, box });
+    return box;
   }
 
   /**

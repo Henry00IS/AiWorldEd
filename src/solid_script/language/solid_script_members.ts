@@ -194,10 +194,7 @@ function solidScriptMemberList(
   }
   const geometry = list.length > 0 && list.every((item) => item instanceof SolidScriptElement && item.kind !== 'data');
   if (geometry && SOLID_SCRIPT_MEMBERS_BOUNDS.some((name) => name.toLowerCase() === member))
-    return solidScriptMemberBounds(
-      list.flatMap((item) => elements.vertices(item as SolidScriptElement).map((vertex) => vertex.position)),
-      member,
-    );
+    return solidScriptMemberBounds(elements.bounds(list as SolidScriptElement[]), member);
   if (!list.every((item) => item instanceof SolidScriptElement)) return undefined;
   // Any other member is read from every item, such as [Sides.Data.Height] or [Top.Edges].
   const read = list.map((item) => solidScriptMemberRead(item, member, elements, written));
@@ -209,14 +206,13 @@ function solidScriptMemberList(
 }
 
 /**
- * Reads a bounds member of points.
+ * Reads a bounds member of a box.
  *
- * @param points Points.
+ * @param bounds Box around the points.
  * @param member Center, Min, Max, Size or Extents, folded.
  * @returns Vector.
  */
-function solidScriptMemberBounds(points: readonly THREE.Vector3[], member: string): SolidScriptValue {
-  const bounds = new THREE.Box3().setFromPoints([...points]);
+function solidScriptMemberBounds(bounds: THREE.Box3, member: string): SolidScriptValue {
   switch (member) {
     case 'center':
       return solidScriptMemberVector(bounds.getCenter(new THREE.Vector3()));
@@ -272,10 +268,7 @@ function solidScriptMemberElement(
       if (member === 'edges') return edgeList();
       if (member === 'vertices') return vertexList();
       if (SOLID_SCRIPT_MEMBERS_BOUNDS.some((name) => name.toLowerCase() === member))
-        return solidScriptMemberBounds(
-          elements.vertices(element).map((vertex) => vertex.position),
-          member,
-        );
+        return solidScriptMemberBounds(elements.bounds([element]), member);
       return undefined;
     case 'face':
       return solidScriptMemberFace(element, member, elements, edgeList, vertexList);
