@@ -59,7 +59,7 @@ function solidScriptCurvePath(args: readonly SolidScriptValue[], usage: string):
 }
 
 /** Functions that read Curve inputs and paths. */
-export const SOLID_SCRIPT_FUNCTIONS_CURVE: Readonly<Record<string, SolidScriptCurveFunction>> = {
+export const SOLID_SCRIPT_FUNCTIONS_CURVE = {
   curve_at: (args) => {
     const usage = 'CurveAt(curve, x)';
     return curveEvaluate(solidScriptCurveRead(args, usage), solidScriptExtraNumber(args, 1, usage));
@@ -83,4 +83,4 @@ export const SOLID_SCRIPT_FUNCTIONS_CURVE: Readonly<Record<string, SolidScriptCu
       station.radius,
     ]);
   },
-};
+} satisfies Readonly<Record<string, SolidScriptCurveFunction>>;

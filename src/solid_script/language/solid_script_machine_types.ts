@@ -1,3 +1,4 @@
+import type { SolidScriptCommandAccepts } from '@/solid_script/commands/solid_script_command.js';
 import type * as THREE from 'three';
 import type { SolidScriptBlockArguments } from './solid_script_block_arguments.js';
 import type { SolidScriptTreeCommand } from './solid_script_block_tree.js';
@@ -18,6 +19,8 @@ export interface SolidScriptMachineField {
   key: string;
   label: string;
   type: SolidScriptFieldKind;
+  /** Kinds of value the field accepts; a running line stops on any other. */
+  accepts: SolidScriptCommandAccepts;
 }
 
 /** What the machine needs from a command: its structure and its own run step. */
@@ -80,10 +83,10 @@ export interface SolidScriptBlockRun {
   /** Evaluates one field. */
   value(key: string): SolidScriptValue;
   /**
-   * Reads a field as a declared kind: a blank gives the kind's empty value and
-   * a list kind splits the text on commas.
+   * Reads a field the way Set does: commas typed outside brackets make a list
+   * of the items, each read on its own; one item stays one value.
    */
-  valueTyped(key: string, type: string): SolidScriptValue;
+  valueItems(key: string): SolidScriptValue;
   /**
    * Reads a list field: only the commas typed in the field separate items, so
    * [Text], 23 is two items whatever Text holds.
@@ -93,14 +96,6 @@ export interface SolidScriptBlockRun {
   values(key: string): SolidScriptValue[];
   /** Sets a variable, where it already exists or else in the current block. */
   variableSet(name: string, value: SolidScriptValue): void;
-  /**
-   * Keeps the Type a Set line declares for its variable, or forgets it for Any;
-   * every later write to the variable is checked against it.
-   *
-   * @param name Variable as written.
-   * @param type Declared kind, empty for none.
-   */
-  typeKeep(name: string, type: string): void;
   /** Builds one convex solid from its corner points. */
   solid(points: THREE.Vector3[]): SolidScriptShape[];
   /** Draws one flat outline for Linear Extrude. */
@@ -220,11 +215,11 @@ export interface SolidScriptBlockRun {
   listUpdate(name: string, change: (items: readonly SolidScriptValue[]) => SolidScriptValue[], create: boolean): void;
   /** Reads a list, failing with a plain message when the name is not a list. */
   listRead(name: string): readonly SolidScriptValue[];
-  /** Forgets a variable and the Type declared for it. */
+  /** Forgets a variable. */
   variableDelete(name: string): void;
   /**
-   * Empties a variable: a declared Type gives its empty value, else a list
-   * keeps no items and anything else becomes empty text.
+   * Empties a variable with the empty value of the kind it holds: a list keeps
+   * no items, a number becomes 0, a Yes/No No and anything else empty text.
    */
   variableClear(name: string): void;
   /** Writes a line to the output. */

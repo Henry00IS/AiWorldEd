@@ -156,3 +156,14 @@ export function solidScriptShapesNamed(shapes: readonly SolidScriptShape[], name
     return shape.kind === 'boolean' ? solidScriptShapesNamed(shape.children, name) : [];
   });
 }
+
+/**
+ * Returns a received brush as a plain built one, once a line changed it.
+ *
+ * @param leaf Received brush.
+ * @returns The same brush without its received mark.
+ */
+export function solidScriptLeafUnreceived(leaf: SolidScriptShapeSolid): SolidScriptShapeSolid {
+  const { received: _received, ...built } = leaf;
+  return built;
+}

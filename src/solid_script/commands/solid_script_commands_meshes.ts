@@ -351,6 +351,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
       'Moves every point of the mesh made from the brushes between this line and its End outwards along its surface by Distance in metres. A negative distance pulls it in. Distance is worked out for each point, and may use [X], [Y] and [Z] (where the point is), [Nx], [Ny] and [Nz] (which way the surface faces there) and [Index] (the point number), so waves, noise and bulges come from one formula. Subdivide first for a smooth result. Example: Distance [=0.1 * Sin([X] * 180)] around a subdivided Cube gives a wavy surface.',
     stops: ['A Distance that does not give a number.', SOLID_SCRIPT_MESH_STOPS_FLAT, SOLID_SCRIPT_MESH_STOPS_END],
     nesting: 'open',
+    fills: ['x', 'y', 'z', 'nx', 'ny', 'nz', 'index'],
     parameters: [
       solidScriptParameter(
         'distance',
@@ -388,6 +389,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
       'Pulls the faces of the mesh made from the brushes between this line and its End out along the way they face, each on its own, with new side faces joining them to the rest. A negative distance pushes them in for a dent. Which Faces is a condition checked for every face, and both fields may use [Nx], [Ny] and [Nz] (which way the face points), [Cx], [Cy] and [Cz] (its middle) and [Index] (its number). Example: Which Faces [Nz] > 0.5 with Distance 0.5 lifts the top of a Cube half a metre.',
     stops: ['A Distance that does not give a number.', SOLID_SCRIPT_MESH_STOPS_FLAT, SOLID_SCRIPT_MESH_STOPS_END],
     nesting: 'open',
+    fills: ['nx', 'ny', 'nz', 'cx', 'cy', 'cz', 'index'],
     parameters: [
       solidScriptParameter(
         'distance',

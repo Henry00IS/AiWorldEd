@@ -1,4 +1,16 @@
-import type { SolidScriptDocument } from './solid_script_document.js';
+import type { SolidScriptBlock, SolidScriptDocument } from './solid_script_document.js';
+import { solidScriptDocumentFlowAt, solidScriptDocumentFlowEnd } from './solid_script_document_flow.js';
+import { solidScriptFlowKinds, type SolidScriptFlowState } from './solid_script_document_flow_state.js';
+import {
+  solidScriptGivenDetail,
+  solidScriptGivenFields,
+  solidScriptGivenFlow,
+  solidScriptGivenFlowLabel,
+  solidScriptGivenFlowName,
+  type SolidScriptGiven,
+} from './solid_script_document_gives.js';
+import type { SolidScriptCommandGives } from '@/solid_script/commands/solid_script_command.js';
+import { SOLID_SCRIPT_SHAPE_NAME_KEY } from '@/solid_script/language/solid_script_shape.js';
 import { solidScriptDocumentActiveLines } from './solid_script_document_active.js';
 import { solidScriptBlockNesting } from './solid_script_document_indent.js';
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
@@ -35,84 +47,57 @@ export interface SolidScriptName {
   /** Short description, such as "count input" or "area(w, d)". */
   detail: string;
   /**
-   * Kind it holds when a Type declares it or the line that writes it tells,
-   * such as Face List.
+   * Kinds it may hold where the line stands, found by following the script
+   * without running it, such as Brush or Face List; missing when only running
+   * tells.
    */
-  type?: string;
-  /**
-   * Text it is read from, for a guess at its kind: a Set value, or the list a
-   * For Each walks.
-   */
-  from?: { text: string; item: boolean };
+  kinds?: readonly string[];
 }
-
-/**
- * Names that commands make for their own formulas: what Displace and Extrude
- * Faces fill in for every point or face.
- */
-export const SOLID_SCRIPT_NAMES_COMMAND: Readonly<Record<string, readonly string[]>> = {
-  displace: ['x', 'y', 'z', 'nx', 'ny', 'nz', 'index'],
-  extrude_faces: ['nx', 'ny', 'nz', 'cx', 'cy', 'cz', 'index'],
-};
 
 /** Pattern of a plain name, or of a Function's own variable. */
 const SOLID_SCRIPT_NAME_PLAIN = /^(Local\.|Persistent\.)?[A-Za-z_][A-Za-z0-9_]*$/;
 
-/** Fields that write a variable, with what it then holds. */
-const SOLID_SCRIPT_NAMES_WRITTEN: Readonly<Record<string, string>> = {
-  into: 'what is made',
-  top: 'top faces',
-  sides: 'side faces',
-  inner: 'inner faces',
-  ring: 'ring faces',
-  normals: 'face directions',
-};
+/** Name categories whose names hold a value whose kind the checks follow. */
+const SOLID_SCRIPT_NAMES_KINDED: ReadonlySet<SolidScriptNameCategory> = new Set([
+  'Inputs',
+  'Variables',
+  'Lists',
+  'Counters',
+  'Locals',
+  'Persistent',
+]);
 
-/** Kinds the variables that face lines write hold, by command and field. */
-const SOLID_SCRIPT_NAMES_WRITTEN_TYPES: Readonly<Record<string, string>> = {
-  'select_faces.into': 'Face List',
-  'select_edges.into': 'Edge List',
-  'select_vertices.into': 'Vertex List',
-  'extrude_face.into': 'Brush List',
-  'extrude_face.top': 'Face List',
-  'extrude_face.sides': 'Face List',
-  'inset_face.inner': 'Face List',
-  'inset_face.ring': 'Face List',
-  'bevel_edges.into': 'Face List',
-  'scatter_points.into': 'Vector List',
-  'scatter_points.normals': 'Vector List',
-  'input_brushes.into': 'Brush List',
-};
+/** Categories whose names only some lines see: Function locals and loop values. */
+const SOLID_SCRIPT_NAMES_SCOPED: readonly SolidScriptNameCategory[] = ['Locals', 'Counters', 'System'];
 
-/**
- * Tells the kind a field that writes a variable gives it: what a face line
- * writes, or the brush a building block built.
- *
- * @param command Command id.
- * @param key Field key.
- * @returns The kind, or nothing when unknown.
- */
-function solidScriptNameWrittenType(command: string, key: string): { type?: string } {
-  const known = SOLID_SCRIPT_NAMES_WRITTEN_TYPES[`${command}.${key}`];
-  if (known) return { type: known };
-  return key === 'into' && solidScriptCommandFind(command)?.builds === true ? { type: 'Brush' } : {};
-}
+/** Names collected in line order, each once per kind or once at all. */
+class SolidScriptNameList {
+  /** Names so far. */
+  readonly names: SolidScriptName[] = [];
 
-/**
- * Lists the variables a line's fields surely write with the kind each gets,
- * such as the Brush a Cube writes to Into or the Face List of Select Faces.
- *
- * @param block Line.
- * @returns Variable names as written, without brackets, and their kinds.
- */
-export function solidScriptNameWrittenKinds(
-  block: SolidScriptDocument['blocks'][number],
-): { name: string; kind: string }[] {
-  return Object.keys(SOLID_SCRIPT_NAMES_WRITTEN).flatMap((key) => {
-    const name = (block.values[key] ?? '').trim().replace(/^\[(.*)\]$/s, '$1');
-    const kind = solidScriptNameWrittenType(block.command, key).type;
-    return name !== '' && kind !== undefined ? [{ name, kind }] : [];
-  });
+  /**
+   * Starts an empty list.
+   *
+   * @param once True to keep a name once whatever its kind, false for once per
+   *   kind.
+   */
+  constructor(private readonly once: boolean) {}
+
+  /**
+   * Adds a name unless it is no plain name or already listed.
+   *
+   * @param name Name as written.
+   * @param category Kind of name.
+   * @param line 0-based line that defines it.
+   * @param detail Short description.
+   */
+  add(name: string, category: SolidScriptNameCategory, line: number, detail: string): void {
+    const plain = solidScriptNameShown(name.trim());
+    if (category !== 'System' && !SOLID_SCRIPT_NAME_PLAIN.test(plain)) return;
+    const same = (entry: SolidScriptName): boolean =>
+      entry.name === plain && (this.once || entry.category === category);
+    if (!this.names.some(same)) this.names.push({ name: plain, category, line, detail });
+  }
 }
 
 /**
@@ -126,27 +111,40 @@ function solidScriptNameBlock(command: string): string {
 }
 
 /**
- * Lists the counters a Repeat or For Each line gives the lines inside it: the
- * counter or item, and the For Each Key, with their kinds.
+ * Lists the counters a loop line gives the lines inside it, such as the counter
+ * of a Repeat or the item and key of a For Each: the variables its fields
+ * write.
  *
- * @param block Repeat or For Each line.
- * @returns Counters.
+ * @param block Loop line.
+ * @returns Counters with their descriptions.
  */
-function solidScriptNameCounters(
-  block: SolidScriptDocument['blocks'][number],
-): { name: string; detail: string; kind: Pick<SolidScriptName, 'type' | 'from'> }[] {
-  const value = (key: string): string => block.values[key] ?? '';
-  const loop = solidScriptNameBlock(block.command);
-  if (block.command === 'repeat')
-    return [{ name: value('variable'), detail: `counter of ${loop}`, kind: { type: 'Number' } }];
-  // The Key is a number for a list and a text for a Data value, so its kind stays open.
-  const item = {
-    name: value('variable'),
-    detail: `item of ${loop}`,
-    kind: { from: { text: value('list'), item: true } },
-  };
-  const key = { name: value('key'), detail: `key of ${loop}`, kind: {} };
-  return value('key').trim() === '' ? [item] : [item, key];
+function solidScriptNameCounters(block: SolidScriptBlock): { name: string; detail: string }[] {
+  if (solidScriptGivenFlow(block)?.kind !== 'loop') return [];
+  return solidScriptGivenFields(block).flatMap(({ gives, name }) =>
+    'what' in gives ? [{ name, detail: solidScriptGivenDetail(block, gives.what) }] : [],
+  );
+}
+
+/**
+ * Tells what kind of name a field gives when its name is plain: an Input for a
+ * word such as an Input Type, a list for a list line, else a variable.
+ *
+ * @param gives What the field gives.
+ * @returns Category.
+ */
+function solidScriptNameCategoryOf(gives: SolidScriptCommandGives): SolidScriptNameCategory {
+  if (gives.rule === 'word') return 'Inputs';
+  return gives.rule === 'list' ? 'Lists' : 'Variables';
+}
+
+/**
+ * Names the kinds a name may hold for people, such as Text or Brush.
+ *
+ * @param kinds Kinds, the unknown kind among them left out.
+ * @returns Kinds joined by or; empty when none is known.
+ */
+export function solidScriptNameKindsText(kinds: readonly string[] | undefined): string {
+  return (kinds ?? []).filter((kind) => kind !== '').join(' or ');
 }
 
 /**
@@ -161,173 +159,248 @@ export function solidScriptNameShown(name: string): string {
 }
 
 /**
+ * Gives each name that holds a value the kinds it may hold at a point of the
+ * script; a name not set there gets none.
+ *
+ * @param names Names.
+ * @param state Variables at that point.
+ * @returns Names with their kinds.
+ */
+function solidScriptNamesKinds(names: readonly SolidScriptName[], state: SolidScriptFlowState): SolidScriptName[] {
+  return names.map((entry) => {
+    const { name, category, line, detail } = entry;
+    const kinds = SOLID_SCRIPT_NAMES_KINDED.has(category)
+      ? solidScriptFlowKinds(state, solidScriptNameKey(name))
+      : undefined;
+    return { name, category, line, detail, ...(kinds && kinds.length > 0 ? { kinds } : {}) };
+  });
+}
+
+/**
  * Lists the names a script defines, in line order, each once per kind: Input,
  * Set, Call results, Repeat and For Each counters, Function inputs as
  * Local.Name, Define Part, shape Names, When Input Changes and When Button
- * Pressed lines. Names built from other names, such as part[i], are left out. A
- * Type a Set declares wins over the kind another line writing the name gives.
- * Lines turned off give none.
+ * Pressed lines, each with the kinds it may hold when the script's own lines
+ * are done. Names built from other names, such as part[i], are left out. Lines
+ * turned off give none.
  *
  * @param document Script.
  * @returns Names.
  */
 export function solidScriptDocumentNames(document: SolidScriptDocument): SolidScriptName[] {
-  const names: SolidScriptName[] = [];
-  const add = (
-    name: string,
-    category: SolidScriptNameCategory,
-    line: number,
-    detail: string,
-    kind: Pick<SolidScriptName, 'type' | 'from'> = {},
-  ): void => {
-    const plain = solidScriptNameShown(name.trim());
-    if (!SOLID_SCRIPT_NAME_PLAIN.test(plain)) return;
-    const known = names.find((entry) => entry.name === plain && entry.category === category);
-    if (known === undefined) names.push({ name: plain, category, line, detail, ...kind });
-    else if (kind.type && kind.from && !(known.type && known.from)) Object.assign(known, kind);
-  };
+  const list = new SolidScriptNameList(false);
   for (const { block, line } of solidScriptDocumentActiveLines(document.blocks)) {
-    const value = (key: string): string => block.values[key] ?? '';
-    if (block.command === 'input') add(value('name'), 'Inputs', line, `${value('type') || 'number'} input`);
-    if (block.command === 'variable') {
-      const target = value('name').trim();
-      const list = /^([A-Za-z_][A-Za-z0-9_]*)\s*\(.*\)$/.exec(target);
-      if (list) add(list[1] ?? '', 'Lists', line, 'list');
-      else if (/^local\./i.test(target))
-        add(target, 'Locals', line, `set to ${value('value')} in a ${solidScriptNameBlock('function')}`);
-      else if (/^persistent\./i.test(target)) add(target, 'Persistent', line, 'kept between runs');
-      else
-        add(target, 'Variables', line, `set to ${value('value')}`, {
-          ...(['', 'Any'].includes(value('type').trim()) ? {} : { type: value('type').trim() }),
-          from: { text: value('value'), item: false },
-        });
-    }
-    if (block.command === 'call' && value('result').trim() !== '')
-      add(value('result'), 'Variables', line, `returned by ${value('name').trim()}()`);
-    if (block.command === 'add_item' || block.command === 'insert_item') add(value('list'), 'Lists', line, 'list');
-    if (block.command === 'find_item') add(value('result'), 'Variables', line, `position in ${value('list').trim()}`);
-    for (const [key, detail] of Object.entries(SOLID_SCRIPT_NAMES_WRITTEN))
-      if (value(key).trim() !== '')
-        add(
-          value(key).replace(/^\[(.*)\]$/s, '$1'),
-          'Variables',
-          line,
-          `${detail} of ${solidScriptNameBlock(block.command)}`,
-          {
-            ...solidScriptNameWrittenType(block.command, key),
-          },
-        );
-    if (block.command === 'repeat' || block.command === 'for_each')
-      for (const counter of solidScriptNameCounters(block))
-        add(counter.name, 'Counters', line, counter.detail, counter.kind);
-    if (block.command === 'function') {
-      add(value('name'), 'Functions', line, `${value('name').trim()}(${value('parameters').trim()})`);
-      for (const parameter of value('parameters').split(','))
-        if (parameter.trim() !== '')
-          add(`Local.${parameter.trim()}`, 'Locals', line, `input of ${value('name').trim()}()`);
-    }
-    if (block.command === 'part') add(value('name'), 'Parts', line, solidScriptNameBlock('part'));
-    if (value('label').trim() !== '')
-      add(value('label'), 'Brushes', line, `Name of a ${solidScriptNameBlock(block.command)} line`);
-    if (block.command === 'when_input_changes')
-      add(value('name'), 'Handlers', line, solidScriptNameBlock(block.command));
-    if (block.command === 'when_button_pressed')
-      add(value('name'), 'Handlers', line, solidScriptNameBlock(block.command));
+    solidScriptNamesOfValues(list, block, line);
+    solidScriptNamesOfBlocks(list, block, line);
   }
-  return names;
+  return solidScriptNamesKinds(list.names, solidScriptDocumentFlowEnd(document));
 }
 
-/** Categories whose names only some lines see: Function locals and loop values. */
-const SOLID_SCRIPT_NAMES_SCOPED: readonly SolidScriptNameCategory[] = ['Locals', 'Counters', 'System'];
+/**
+ * Adds the names a line's fields give a value, as its command declares them: a
+ * list by its plain name for an item such as Points(2), a Function local, a
+ * Persistent value, or a name of the field's category. Loop counters are added
+ * where the loop is open.
+ *
+ * @param list Names so far.
+ * @param block Line.
+ * @param line 0-based line.
+ */
+function solidScriptNamesOfValues(list: SolidScriptNameList, block: SolidScriptBlock, line: number): void {
+  if (solidScriptGivenFlow(block)?.kind === 'loop') return;
+  for (const given of solidScriptGivenFields(block)) solidScriptNamesOfGiven(list, block, line, given);
+}
 
 /**
- * Lists the names a line at a position sees: every name the script defines,
- * except that a Function's locals show only inside that Function, from its
- * inputs and the Set local lines above, and a loop's counter and values show
- * only inside that loop. Lines turned off give none.
+ * Adds the name one field gives a value.
+ *
+ * @param list Names so far.
+ * @param block Line.
+ * @param line 0-based line.
+ * @param given Field and the name typed in it.
+ */
+function solidScriptNamesOfGiven(
+  list: SolidScriptNameList,
+  block: SolidScriptBlock,
+  line: number,
+  given: SolidScriptGiven,
+): void {
+  const { gives, name } = given;
+  if (!('what' in gives)) return;
+  const detail = solidScriptGivenDetail(block, gives.what);
+  const item = /^([A-Za-z_][A-Za-z0-9_]*)\s*\(.*\)$/.exec(name);
+  if (item) list.add(item[1] ?? '', 'Lists', line, 'list');
+  else if (/^local\./i.test(name))
+    list.add(name, 'Locals', line, `${detail} in a **${solidScriptGivenFlowLabel('function')}**`);
+  else if (/^persistent\./i.test(name)) list.add(name, 'Persistent', line, 'kept between runs');
+  else list.add(name, solidScriptNameCategoryOf(gives), line, detail);
+}
+
+/**
+ * Adds the names a block line defines: loop counters, a Function and its
+ * inputs, a part, a shape Name and the name a When line watches.
+ *
+ * @param list Names so far.
+ * @param block Line.
+ * @param line 0-based line.
+ */
+function solidScriptNamesOfBlocks(list: SolidScriptNameList, block: SolidScriptBlock, line: number): void {
+  const kind = solidScriptGivenFlow(block)?.kind;
+  const name = solidScriptGivenFlowName(block);
+  for (const counter of solidScriptNameCounters(block)) list.add(counter.name, 'Counters', line, counter.detail);
+  if (kind === 'function') solidScriptNamesOfFunction(list, block, line);
+  if (kind === 'part') list.add(name, 'Parts', line, solidScriptNameBlock(block.command));
+  const label = block.values[SOLID_SCRIPT_SHAPE_NAME_KEY] ?? '';
+  if (label.trim() !== '') list.add(label, 'Brushes', line, `Name of a ${solidScriptNameBlock(block.command)} line`);
+  if (kind === 'handler' && name !== '') list.add(name, 'Handlers', line, solidScriptNameBlock(block.command));
+}
+
+/**
+ * Reads the inputs a Function line names, from the field its flow declares.
+ *
+ * @param block Function line.
+ * @returns Input names, trimmed, without empty ones.
+ */
+function solidScriptNameInputs(block: SolidScriptBlock | undefined): string[] {
+  const flow = block ? solidScriptGivenFlow(block) : undefined;
+  if (!block || flow?.kind !== 'function') return [];
+  return (block.values[flow.inputs] ?? '')
+    .split(',')
+    .map((input) => input.trim())
+    .filter((input) => input !== '');
+}
+
+/**
+ * Adds a Function and its inputs as Local. names.
+ *
+ * @param list Names so far.
+ * @param block Function line.
+ * @param line 0-based line.
+ */
+function solidScriptNamesOfFunction(list: SolidScriptNameList, block: SolidScriptBlock, line: number): void {
+  const name = solidScriptGivenFlowName(block);
+  const inputs = solidScriptNameInputs(block);
+  list.add(name, 'Functions', line, `${name}(${(block.values['parameters'] ?? '').trim()})`);
+  for (const input of inputs) list.add(`Local.${input}`, 'Locals', line, `input of ${name}()`);
+}
+
+/**
+ * Lists the names a line at a position sees, each with the kinds it may hold
+ * there: every name the script defines, except that a Function's locals show
+ * only inside that Function, from its inputs and the Set local lines above, and
+ * a loop's counter and values show only inside that loop. Lines turned off give
+ * none.
  *
  * @param document Script.
  * @param position Index of the line, or where a new line goes.
  * @returns Names.
  */
 export function solidScriptDocumentNamesAt(document: SolidScriptDocument, position: number): SolidScriptName[] {
+  const open = solidScriptNamesOpen(document, position);
+  const list = new SolidScriptNameList(true);
+  for (const entry of solidScriptDocumentNames(document))
+    if (!SOLID_SCRIPT_NAMES_SCOPED.includes(entry.category)) list.names.push(entry);
+  const functionLine = open
+    .filter((line) => {
+      const block = document.blocks[line];
+      return block !== undefined && solidScriptGivenFlow(block)?.kind === 'function';
+    })
+    .pop();
+  if (functionLine !== undefined) solidScriptNamesLocals(list, document, functionLine, position);
+  for (const line of open) {
+    const block = document.blocks[line];
+    if (block)
+      for (const counter of solidScriptNameCounters(block)) list.add(counter.name, 'Counters', line, counter.detail);
+  }
+  return solidScriptNamesKinds(list.names, solidScriptDocumentFlowAt(document, position));
+}
+
+/**
+ * Lists the block lines still open at a position, outermost first.
+ *
+ * @param document Script.
+ * @param position Index of the line, or where a new line goes.
+ * @returns 0-based lines.
+ */
+function solidScriptNamesOpen(document: SolidScriptDocument, position: number): number[] {
   const open: number[] = [];
   for (const { block, line } of solidScriptDocumentActiveLines(document.blocks, 0, position)) {
     const nesting = solidScriptBlockNesting(block);
     if (nesting === 'open') open.push(line);
     if (nesting === 'close') open.pop();
   }
-  const names = solidScriptDocumentNames(document).filter(
-    (entry) => !SOLID_SCRIPT_NAMES_SCOPED.includes(entry.category),
-  );
-  const add = (
-    name: string,
-    category: SolidScriptNameCategory,
-    line: number,
-    detail: string,
-    kind: Pick<SolidScriptName, 'type' | 'from'> = {},
-  ): void => {
-    const plain = solidScriptNameShown(name.trim());
-    const valid = category === 'System' || SOLID_SCRIPT_NAME_PLAIN.test(plain);
-    if (valid && !names.some((known) => known.name === plain))
-      names.push({ name: plain, category, line, detail, ...kind });
-  };
-  const functionLine = open.filter((line) => document.blocks[line]?.command === 'function').pop();
-  if (functionLine !== undefined) {
-    const block = document.blocks[functionLine]!;
-    const name = (block.values['name'] ?? '').trim();
-    for (const parameter of (block.values['parameters'] ?? '').split(','))
-      if (parameter.trim() !== '') add(`Local.${parameter.trim()}`, 'Locals', functionLine, `input of ${name}()`);
-    for (const { block: inner, line } of solidScriptDocumentActiveLines(document.blocks, functionLine + 1, position)) {
-      const target = (inner.values['name'] ?? '').trim();
-      if (inner.command === 'variable' && /^local\./i.test(target))
-        add(target, 'Locals', line, `set to ${inner.values['value'] ?? ''} in ${name}()`);
-    }
-  }
-  for (const line of open) {
-    const block = document.blocks[line]!;
-    if (block.command === 'repeat' || block.command === 'for_each')
-      for (const counter of solidScriptNameCounters(block))
-        add(counter.name, 'Counters', line, counter.detail, counter.kind);
-  }
-  return names;
+  return open;
 }
 
 /**
- * Returns every line that gives each name a value: Input, Set (a list by its
- * plain name, so points() and points(2) count for points), Remove Item, Call
- * results, Repeat and For Each counters and Function inputs. Lines turned off
- * give none.
+ * Adds the locals a line inside a Function sees: its inputs and the Local.
+ * names the lines above it write.
+ *
+ * @param list Names so far.
+ * @param document Script.
+ * @param functionLine 0-based line of the Function.
+ * @param position Index of the line.
+ */
+function solidScriptNamesLocals(
+  list: SolidScriptNameList,
+  document: SolidScriptDocument,
+  functionLine: number,
+  position: number,
+): void {
+  const block = document.blocks[functionLine];
+  const name = block ? solidScriptGivenFlowName(block) : '';
+  for (const input of solidScriptNameInputs(block))
+    list.add(`Local.${input}`, 'Locals', functionLine, `input of ${name}()`);
+  for (const { block: inner, line } of solidScriptDocumentActiveLines(document.blocks, functionLine + 1, position))
+    for (const { gives, name: target } of solidScriptGivenFields(inner))
+      if ('what' in gives && /^local\./i.test(target))
+        list.add(target, 'Locals', line, `${solidScriptGivenDetail(inner, gives.what)} in ${name}()`);
+}
+
+/**
+ * Returns every line that gives each name a value, as the commands declare
+ * their fields (a list by its plain name, so points() and points(2) count for
+ * points), and Function inputs. Lines turned off give none.
  *
  * @param document Script.
  * @returns 0-based lines per name, in line order.
  */
 export function solidScriptDocumentOrigins(document: SolidScriptDocument): Map<string, number[]> {
   const origins = new Map<string, number[]>();
-  const add = (target: string, line: number): void => {
-    const name = solidScriptNameShown(target.trim())
-      .replace(/\s*\(.*\)$/, '')
-      .replace(/\.[xyzXYZ]$/, '');
-    if (!SOLID_SCRIPT_NAME_PLAIN.test(name)) return;
-    const lines = origins.get(name) ?? [];
-    if (!lines.includes(line)) lines.push(line);
-    origins.set(name, lines);
-  };
-  for (const { block, line } of solidScriptDocumentActiveLines(document.blocks)) {
-    const value = (key: string): string => block.values[key] ?? '';
-    if (block.command === 'input' || block.command === 'variable') add(value('name'), line);
-    if (block.command === 'remove_item') add(value('target'), line);
-    if (['add_item', 'insert_item', 'remove_value', 'sort_list', 'reverse_list'].includes(block.command))
-      add(value('list'), line);
-    if (block.command === 'find_item') add(value('result'), line);
-    if (block.command === 'clear_variable') add(value('name'), line);
-    if (block.command === 'call' && value('result').trim() !== '') add(value('result'), line);
-    if (block.command === 'repeat' || block.command === 'for_each') add(value('variable'), line);
-    if (block.command === 'function')
-      for (const parameter of value('parameters').split(','))
-        if (parameter.trim() !== '') add(`Local.${parameter.trim()}`, line);
-  }
+  for (const { block, line } of solidScriptDocumentActiveLines(document.blocks))
+    for (const target of solidScriptOriginTargets(block)) solidScriptOriginAdd(origins, target, line);
   return origins;
+}
+
+/**
+ * Lists the names a line gives a value, as written: every field that writes one
+ * except those that only read or forget it, and a Function's inputs.
+ *
+ * @param block Line.
+ * @returns Names.
+ */
+function solidScriptOriginTargets(block: SolidScriptBlock): string[] {
+  const written = solidScriptGivenFields(block)
+    .filter(({ gives }) => gives.rule !== 'read' && gives.rule !== 'forgotten')
+    .map(({ name }) => name);
+  return [...written, ...solidScriptNameInputs(block).map((input) => `Local.${input}`)];
+}
+
+/**
+ * Adds a line to the lines of a name, by its plain name.
+ *
+ * @param origins Lines per name.
+ * @param target Name as written.
+ * @param line 0-based line.
+ */
+function solidScriptOriginAdd(origins: Map<string, number[]>, target: string, line: number): void {
+  const name = solidScriptNameShown(target.trim())
+    .replace(/\s*\(.*\)$/, '')
+    .replace(/\.[xyzXYZ]$/, '');
+  if (!SOLID_SCRIPT_NAME_PLAIN.test(name)) return;
+  const lines = origins.get(name) ?? [];
+  if (!lines.includes(line)) lines.push(line);
+  origins.set(name, lines);
 }
 
 /** Names and Functions a field may use, by key. */
@@ -394,19 +467,23 @@ export function solidScriptFieldUnknown(text: string, known: SolidScriptFieldKno
     const found = call
       ? known.functions.has(key.slice(0, -2)) || solidScriptBuiltinFind(written) !== undefined
       : known.names.has(key);
-    if (!found)
-      unknown.push({
-        written: call
-          ? written
-          : written
-              .split('.')
-              .slice(0, /^local\./i.test(written) ? 2 : 1)
-              .join('.'),
-        key,
-        call,
-      });
+    if (!found) unknown.push({ written: call ? written : solidScriptFieldUnknownWritten(written), key, call });
   }
   return unknown;
+}
+
+/**
+ * Gives the part of a name as written that names the variable, without its
+ * members: Local.X for Local.X.Faces, Henry for Henry.Faces.
+ *
+ * @param written Name as written.
+ * @returns Variable name.
+ */
+function solidScriptFieldUnknownWritten(written: string): string {
+  return written
+    .split('.')
+    .slice(0, /^local\./i.test(written) ? 2 : 1)
+    .join('.');
 }
 
 /**
@@ -427,10 +504,7 @@ export function solidScriptDocumentNamesUnknown(document: SolidScriptDocument): 
       .map((parameter) => block.values[parameter.key] ?? '')
       .filter((text) => /[[(]/.test(text));
     if (texts.length === 0) continue;
-    const known = solidScriptFieldKnown(
-      solidScriptDocumentNamesAt(document, line),
-      SOLID_SCRIPT_NAMES_COMMAND[command.id] ?? [],
-    );
+    const known = solidScriptFieldKnown(solidScriptDocumentNamesAt(document, line), command.fills);
     const keys = new Set(texts.flatMap((text) => solidScriptFieldUnknown(text, known).map((entry) => entry.key)));
     if (keys.size > 0) unknown.set(line, keys);
   }

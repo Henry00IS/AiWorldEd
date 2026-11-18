@@ -17,6 +17,7 @@ import {
   SOLID_SCRIPT_COMMAND_INPUT_ROW,
   SOLID_SCRIPT_COMMAND_SHOW_INPUTS_WHEN,
   SOLID_SCRIPT_INPUT_DEFAULTS,
+  SOLID_SCRIPT_INPUT_KINDS,
   SOLID_SCRIPT_INPUT_TYPE_DETAILS,
   SOLID_SCRIPT_INPUT_TYPES,
   solidScriptInputRead,
@@ -33,12 +34,16 @@ import { solidScriptValueText } from '@/solid_script/language/solid_script_value
 
 /** Fields of an Input line. */
 const SOLID_SCRIPT_INPUT_PARAMETERS: readonly SolidScriptCommandParameter[] = [
-  solidScriptParameter(
-    'name',
-    'Name',
-    'name',
-    SOLID_SCRIPT_INPUT_DEFAULTS.name,
-    'Variable the lines below read, such as [Width].',
+  solidScriptParameterWrites(
+    solidScriptParameter(
+      'name',
+      'Name',
+      'name',
+      SOLID_SCRIPT_INPUT_DEFAULTS.name,
+      'Variable the lines below read, such as [Width].',
+    ),
+    { rule: 'word', field: 'type', what: '{type} input' },
+    'none',
   ),
   solidScriptParameterWords(
     'type',
@@ -46,7 +51,11 @@ const SOLID_SCRIPT_INPUT_PARAMETERS: readonly SolidScriptCommandParameter[] = [
     'text',
     SOLID_SCRIPT_INPUT_DEFAULTS.type,
     `Kind of value: ${SOLID_SCRIPT_INPUT_TYPES.join(', ')}. The inspector shows a matching control.`,
-    SOLID_SCRIPT_INPUT_TYPES.map((word) => ({ word, detail: SOLID_SCRIPT_INPUT_TYPE_DETAILS[word] })),
+    SOLID_SCRIPT_INPUT_TYPES.map((word) => ({
+      word,
+      detail: SOLID_SCRIPT_INPUT_TYPE_DETAILS[word],
+      ...(SOLID_SCRIPT_INPUT_KINDS[word] === undefined ? {} : { gives: SOLID_SCRIPT_INPUT_KINDS[word] }),
+    })),
   ),
   solidScriptParameter(
     'default',
@@ -192,6 +201,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
       'Building brushes from inside a formula. Use a Call line for that.',
     ],
     nesting: 'open',
+    flow: { kind: 'function', name: 'name', inputs: 'parameters' },
     parameters: [
       solidScriptParameter('name', 'Name', 'name', 'Area', 'The name Call lines and formulas use, such as Area(2, 3).'),
       solidScriptParameterOptional(
@@ -216,6 +226,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
       'More or fewer values than the function has Inputs.',
       'A Result In, but the function gives nothing back.',
     ],
+    flow: { kind: 'call', name: 'name', values: 'values' },
     parameters: [
       solidScriptParameter('name', 'Function', 'name', 'Area', 'Name of the Function block to run.'),
       solidScriptParameterOptional('values', 'Values', 'text', 'Values for its Inputs, in order, such as [I], 0.2.'),
@@ -226,6 +237,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
           'target',
           'Variable that gets the value the function gives back.',
         ),
+        { rule: 'returned', what: 'returned by {name}()' },
       ),
     ],
     listing: (read) => [
@@ -248,6 +260,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
       'Runs these lines when someone changes the input in the inspector, before the output is rebuilt. The script skips them where they stand. They cannot build brushes. Use them to check the new value. Set Input can fix it, and Show Message can say why. Read any input as [Name]. Example: When Input Changes Steps, then If [Steps] > 64, Set Input Steps to 64 and Show Message At most 64 steps.',
     stops: ['A name that is not an Input of the script.', 'Building a brush.'],
     nesting: 'open',
+    flow: { kind: 'handler', name: 'name' },
     parameters: [solidScriptParameter('name', 'Input', 'name', 'Width', 'Name of the Input it watches.')],
     endLabel: 'When',
     listing: (read) => ['When Input Changes', read.text('name')],
@@ -262,6 +275,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
       'Runs these lines when someone presses a button in the inspector. The button comes from an Input with Type button. The script skips these lines where they stand. They cannot build brushes. Use Set Input to change inputs, and Show Message to explain. The brush is then rebuilt. Example: Input Reset with Type button, then When Button Pressed Reset holds Set Input Width to 2.',
     stops: ['A name that is not a button Input of the script.', 'Building a brush.'],
     nesting: 'open',
+    flow: { kind: 'handler', name: 'name' },
     parameters: [solidScriptParameter('name', 'Button', 'name', 'Reset', 'Name of the button Input.')],
     endLabel: 'When',
     listing: (read) => ['When Button Pressed', read.text('name')],
@@ -276,6 +290,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
       'Runs these lines when the generator is baked into plain brushes, just before they are made. The script skips them where they stand. They cannot build brushes. Set Input changes inputs for the bake only, so a script can show a light preview while you edit and bake a detailed version. Undoing the bake brings back the generator with its old inputs. Example: When Baked holds Set Input Sides to 32, so the editor shows 8 sides and the baked brushes have 32.',
     stops: ['Building a brush.'],
     nesting: 'open',
+    flow: { kind: 'handler' },
     parameters: [],
     endLabel: 'When',
     listing: () => ['When Baked'],
@@ -290,6 +305,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
       'Runs the lines inside only when the script is used the way Use names: Generator in a generator node, Modifier in the modifier stack of a brush, mesh or group. An Else starts the lines for the other use. Can Be Used As in the inspector picks the uses a script allows. Script.Usage holds the same word for formulas. Example: If Used As Modifier, a slab under [$Input.Min], Else, a cube and a slab under it.',
     stops: ['A Use that is not Generator or Modifier.', 'A missing End line.'],
     nesting: 'open',
+    flow: { kind: 'choice' },
     parameters: [
       solidScriptParameterWords('use', 'Use', 'text', 'Modifier', 'Generator or Modifier.', [
         { word: 'Generator', detail: 'Placed as a generator node' },
@@ -324,7 +340,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
           { word: 'World Aligned', detail: 'Textures stay where they are in the world' },
         ],
       ),
-      solidScriptParameterInto('the brushes, a Brush list'),
+      solidScriptParameterInto('the brushes, a Brush list', 'Brush List', 'what is made'),
     ],
     listing: (read) => [
       'Input Brushes',

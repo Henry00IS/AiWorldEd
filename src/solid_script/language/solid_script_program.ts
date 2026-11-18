@@ -8,13 +8,13 @@ import {
   type SolidScriptTreeLine,
 } from './solid_script_block_tree.js';
 import type { SolidScriptCommand } from '@/solid_script/commands/solid_script_command.js';
-import { solidScriptErrorLine } from './solid_script_error.js';
+import { solidScriptErrorLine, solidScriptFailure } from './solid_script_error.js';
 import {
   solidScriptSystemValues,
   type SolidScriptRunContext,
   type SolidScriptUseFacts,
 } from './solid_script_system.js';
-import { SolidScriptMachine, solidScriptFailure } from './solid_script_machine.js';
+import { SolidScriptMachine } from './solid_script_machine.js';
 import type {
   SolidScriptBreakpoints,
   SolidScriptEvaluation,

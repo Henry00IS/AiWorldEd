@@ -54,7 +54,7 @@ describe('SolidScript lines turned off in the static checks', () => {
     );
     expect(names).toContain('Henry');
     for (const name of HENRY_OFF_NAMES) expect(names).not.toContain(name);
-    expect([...solidScriptDocumentOrigins(document).keys()]).toEqual([]);
+    expect([...solidScriptDocumentOrigins(document).keys()]).toEqual(['Henry']);
   });
 
   it('suggests Henry, system values and functions after [, but nothing only off lines define', () => {

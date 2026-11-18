@@ -114,7 +114,7 @@ function solidScriptExtraSeeded(seed: number): number {
  * long formula. Names are plain words; trigonometry elsewhere works in
  * degrees.
  */
-export const SOLID_SCRIPT_FUNCTIONS_EXTRA: Readonly<Record<string, SolidScriptExtra>> = {
+export const SOLID_SCRIPT_FUNCTIONS_EXTRA = {
   uppercase: (args) => solidScriptExtraText(args, 0, 'Uppercase(text)').toUpperCase(),
   lowercase: (args) => solidScriptExtraText(args, 0, 'Lowercase(text)').toLowerCase(),
   trim: (args) => solidScriptExtraText(args, 0, 'Trim(text)').trim(),
@@ -285,4 +285,4 @@ export const SOLID_SCRIPT_FUNCTIONS_EXTRA: Readonly<Record<string, SolidScriptEx
     return Math.hypot(...a.map((value, index) => value - b[index]!));
   },
   vector: (args) => args.map((_, index) => solidScriptExtraNumber(args, index, 'Vector(x, y, z)')),
-};
+} satisfies Readonly<Record<string, SolidScriptExtra>>;

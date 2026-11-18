@@ -5,6 +5,8 @@ import {
   type SolidScriptAnchorAxis,
 } from '@/solid_script/language/solid_script_anchor.js';
 import type {
+  SolidScriptCommandAccepts,
+  SolidScriptCommandGives,
   SolidScriptCommandParameter,
   SolidScriptCommandParameterType,
   SolidScriptCommandParameterWrites,
@@ -12,6 +14,46 @@ import type {
 } from './solid_script_command.js';
 import { SOLID_SCRIPT_SHAPE_NAME_KEY } from '@/solid_script/language/solid_script_shape.js';
 import { SOLID_SCRIPT_RINGS, SOLID_SCRIPT_SIDES } from '@/solid_script/language/solid_script_primitives.js';
+
+/**
+ * Kinds of value each kind of field accepts unless the field says otherwise:
+ * number fields take numbers or text that reads as one, vector and point fields
+ * numbers, vectors and lists, and the rest any value.
+ */
+export const SOLID_SCRIPT_FIELD_ACCEPTS: Readonly<Record<SolidScriptCommandParameterType, SolidScriptCommandAccepts>> =
+  {
+    number: ['Number', 'Text'],
+    count: ['Number', 'Text'],
+    vector2: ['Vector', 'Number', 'Text', 'List', 'Number List'],
+    vector3: ['Vector', 'Number', 'Text', 'List', 'Number List'],
+    points2: ['Vector', 'Number', 'Text', 'List', 'Number List', 'Vector List'],
+    points3: ['Vector', 'Number', 'Text', 'List', 'Number List', 'Vector List'],
+    boolean: ['Yes/No', 'Number', 'Text'],
+    value: 'Any',
+    condition: 'Any',
+    message: 'Any',
+    name: 'Any',
+    target: 'Any',
+    text: 'Any',
+  };
+
+/**
+ * Kinds the Of field of lines that work on geometry accepts: elements, lists of
+ * them, and text naming brushes.
+ */
+export const SOLID_SCRIPT_OF_ACCEPTS: SolidScriptCommandAccepts = [
+  'Brush',
+  'Face',
+  'Edge',
+  'Vertex',
+  'Text',
+  'List',
+  'Brush List',
+  'Face List',
+  'Edge List',
+  'Vertex List',
+  'Text List',
+];
 
 /**
  * Describes one field of a command.
@@ -30,7 +72,7 @@ export function solidScriptParameter(
   fallback: string,
   hint: string,
 ): SolidScriptCommandParameter {
-  return { key, label, type, default: fallback, hint };
+  return { key, label, type, default: fallback, hint, accepts: SOLID_SCRIPT_FIELD_ACCEPTS[type] };
 }
 
 /**
@@ -53,7 +95,7 @@ export function solidScriptParameterWords(
   hint: string,
   words: readonly SolidScriptCommandWord[],
 ): SolidScriptCommandParameter {
-  return { key, label, type, default: fallback, hint, words };
+  return { key, label, type, default: fallback, hint, words, accepts: SOLID_SCRIPT_FIELD_ACCEPTS[type] };
 }
 
 /**
@@ -71,7 +113,7 @@ export function solidScriptParameterOptional(
   type: SolidScriptCommandParameterType,
   hint: string,
 ): SolidScriptCommandParameter {
-  return { key, label, type, default: '', hint, optional: true };
+  return { key, label, type, default: '', hint, optional: true, accepts: SOLID_SCRIPT_FIELD_ACCEPTS[type] };
 }
 
 /**
@@ -168,6 +210,7 @@ export function solidScriptParameterOf(what: string, fallback: string): SolidScr
     ),
     placeholder: `[${fallback}]`,
     nameGroups: ['Brushes', 'Parts'],
+    accepts: SOLID_SCRIPT_OF_ACCEPTS,
   };
 }
 
@@ -176,25 +219,32 @@ export function solidScriptParameterOf(what: string, fallback: string): SolidScr
  * written to.
  *
  * @param what What is written, such as the new brushes, a Brush list.
+ * @param kind Kind written, such as Brush List.
+ * @param detail Short description of the variable in the names list, such as
+ *   top faces, followed by of and the block.
  * @returns Field.
  */
-export function solidScriptParameterInto(what: string): SolidScriptCommandParameter {
+export function solidScriptParameterInto(what: string, kind: string, detail: string): SolidScriptCommandParameter {
   return solidScriptParameterWrites(
     solidScriptParameterOptional('into', 'Into', 'name', `Variable to write ${what} to; empty writes none.`),
+    { rule: 'kind', kind, what: `${detail} of **{command}**` },
   );
 }
 
 /**
  * Marks a field as naming a variable the line writes or changes, so it offers
- * the script's variables as they are typed.
+ * the script's variables as they are typed and the checks know what it holds
+ * after the line.
  *
  * @param parameter Field.
- * @param writes Plain names, or whole paths a Set can write.
- * @returns Field that offers them.
+ * @param gives What the variable holds after the line.
+ * @param offers Plain names, whole paths a Set can write, or none.
+ * @returns Field that writes it.
  */
 export function solidScriptParameterWrites(
   parameter: SolidScriptCommandParameter,
-  writes: SolidScriptCommandParameterWrites = 'name',
+  gives: SolidScriptCommandGives,
+  offers: SolidScriptCommandParameterWrites = 'name',
 ): SolidScriptCommandParameter {
-  return { ...parameter, writes };
+  return { ...parameter, writes: { offers, gives } };
 }

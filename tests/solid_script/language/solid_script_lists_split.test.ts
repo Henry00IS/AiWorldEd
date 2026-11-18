@@ -6,8 +6,7 @@ import { solidScriptFieldTokens } from '@/solid_script/language/solid_script_fie
 import { solidScriptSuggestionContext, solidScriptSuggestions } from '@/solid_script/ui/solid_script_suggestions.js';
 
 const line = (command: string, values: Record<string, string> = {}): SolidScriptLine => ({ command, values });
-const set = (name: string, value: string, type = ''): SolidScriptLine =>
-  line('variable', type === '' ? { name, value } : { name, value, type });
+const set = (name: string, value: string): SolidScriptLine => line('variable', { name, value });
 const echo = (value: string): SolidScriptLine => line('echo', { value });
 const each = (list: string): SolidScriptLine => line('for_each', { variable: 'Item', list });
 const CUBE = line('cube', { size: '2, 2, 2' });
@@ -20,37 +19,37 @@ function outcome(...lines: SolidScriptLine[]): string[] {
 
 describe('SolidScript lists split after their brackets are read', () => {
   it('writes a comma inside an item as $,', () => {
-    expect(outcome(set('A', 'a$, b, c', 'Text List'), echo('[A.Count]|[A.First]|[A.Last]'))).toEqual(['2|a, b|c']);
+    expect(outcome(set('A', 'a$, b, c'), echo('[A.Count]|[A.First]|[A.Last]'))).toEqual(['2|a, b|c']);
     expect(outcome(set('T', 'x$, y'), echo('[T]'))).toEqual(['x, y']);
     const text = 'a$, b';
     expect(solidScriptFieldTokens(text).map((token) => text.slice(token.from, token.to))).toEqual(['a$, b']);
   });
 
   it('keeps a value whole: only the commas typed in the field separate items', () => {
-    const hello = set('Text', 'Hello, World', 'Text');
+    const hello = set('Text', 'Hello$, World');
     expect(outcome(hello, each('[Text],23'), echo('[Item]'), line('end'))).toEqual(['Hello, World', '23']);
     expect(outcome(set('Henry', 'Hello$, World'), each('[Henry]'), echo('[Item]'), line('end'))).toEqual([
       'Hello, World',
     ]);
     expect(outcome(hello, each('[Text.Words]'), echo('[Item]'), line('end'))).toEqual(['Hello,', 'World']);
-    expect(outcome(set('L', '1, 2, 3', 'List'), each('[L]'), echo('[Item]'), line('end'))).toEqual(['1', '2', '3']);
-    expect(outcome(hello, set('A', '[Text],23', 'List'), echo('[A.Count]'))).toEqual(['2']);
+    expect(outcome(set('L', '[1, 2, 3]'), each('[L]'), echo('[Item]'), line('end'))).toEqual(['1', '2', '3']);
+    expect(outcome(hello, set('A', '[Text],23'), echo('[A.Count]'))).toEqual(['2']);
   });
 
   it('reads text like a typed field with Parse', () => {
-    expect(outcome(set('Width', '4$,5$,5', 'Text'), echo('[=Parse([Width])]'))).toEqual(['[4, 5, 5]']);
-    expect(outcome(set('Width', '4$,5$,5', 'Text'), line('cube', { size: '[=Parse([Width])]' }))).toEqual([]);
-    expect(outcome(set('Sum', '5+5', 'Text'), echo('[=Parse([Sum]) * 2]'))).toEqual(['20']);
-    expect(outcome(set('N', '7'), set('T', '$[N$], 1', 'Text'), echo('[=Parse([T])]'))).toEqual(['[7, 1]']);
+    expect(outcome(set('Width', '4$,5$,5'), echo('[=Parse([Width])]'))).toEqual(['[4, 5, 5]']);
+    expect(outcome(set('Width', '4$,5$,5'), line('cube', { size: '[=Parse([Width])]' }))).toEqual([]);
+    expect(outcome(set('Sum', '5+5'), echo('[=Parse([Sum]) * 2]'))).toEqual(['20']);
+    expect(outcome(set('N', '7'), set('T', '$[N$]$, 1'), echo('[=Parse([T])]'))).toEqual(['[7, 1]']);
     expect(outcome(echo('[=Parse("Hello")]'))).toEqual(['Hello']);
     // Text that parses itself stops at the depth limit instead of running forever.
-    const bomb = outcome(set('A', '$[=Parse($[A$])$]', 'Text'), echo('[=Parse([A])]'));
+    const bomb = outcome(set('A', '$[=Parse($[A$])$]'), echo('[=Parse([A])]'));
     expect(bomb[0]).toMatch(/Parse\(\) is nested more than \d+ deep/);
   });
 
   it('suggests after the dot of a For Each item the members of what its list holds', () => {
     const script = solidScriptDocumentCreate([
-      set('Text', 'Hello, World', 'Text'),
+      set('Text', 'Hello$, World'),
       each('[Text.Words]'),
       echo('[Item]'),
       line('end'),

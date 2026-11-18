@@ -336,7 +336,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         'New starts again, Add picks more, Remove drops faces. One of: New, Add, Remove.',
         SOLID_SCRIPT_FACE_HOW.map((word) => ({ word, detail: SOLID_SCRIPT_FACE_HOW_DETAILS[word] })),
       ),
-      solidScriptParameterInto('the picked faces, a Face list'),
+      solidScriptParameterInto('the picked faces, a Face list', 'Face List', 'what is made'),
     ],
     listing: (read) => {
       const which = read.text('which').trim();
@@ -391,13 +391,17 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       solidScriptParameter('seed', 'Seed', 'number', '0', 'Any number; another seed gives other points.'),
       solidScriptParameterOf('faces or brushes', '$Selected.Faces'),
       {
-        ...solidScriptParameterInto('the points, a list of vectors'),
+        ...solidScriptParameterInto('the points, a list of vectors', 'Vector List', 'what is made'),
         hint: 'Variable to write the points to, a list of vectors.',
         optional: false,
         default: 'Points',
       },
       {
-        ...solidScriptParameterInto('the way the face under each point looks, a list of vectors'),
+        ...solidScriptParameterInto(
+          'the way the face under each point looks, a list of vectors',
+          'Vector List',
+          'face directions',
+        ),
         key: 'normals',
         label: 'Normals',
       },
@@ -478,9 +482,13 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         'Metres between a brush face and its slab; empty is 0. Brushes only.',
       ),
       solidScriptParameterOf('faces or brushes', '$Selected.Faces'),
-      solidScriptParameterInto('the new brushes, a Brush list'),
-      { ...solidScriptParameterInto('the top faces, a Face list'), key: 'top', label: 'Top' },
-      { ...solidScriptParameterInto('the new side faces, a Face list'), key: 'sides', label: 'Sides' },
+      solidScriptParameterInto('the new brushes, a Brush list', 'Brush List', 'what is made'),
+      { ...solidScriptParameterInto('the top faces, a Face list', 'Face List', 'top faces'), key: 'top', label: 'Top' },
+      {
+        ...solidScriptParameterInto('the new side faces, a Face list', 'Face List', 'side faces'),
+        key: 'sides',
+        label: 'Sides',
+      },
     ],
     listing: (read) => [
       'Extrude Face',
@@ -556,8 +564,16 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     parameters: [
       solidScriptParameter('distance', 'Distance', 'number', '0.1', 'Metres from the old edge to the new one.'),
       solidScriptParameterOf('faces', '$Selected.Faces'),
-      { ...solidScriptParameterInto('the inner faces, a Face list'), key: 'inner', label: 'Inner' },
-      { ...solidScriptParameterInto('the ring faces, a Face list'), key: 'ring', label: 'Ring' },
+      {
+        ...solidScriptParameterInto('the inner faces, a Face list', 'Face List', 'inner faces'),
+        key: 'inner',
+        label: 'Inner',
+      },
+      {
+        ...solidScriptParameterInto('the ring faces, a Face list', 'Face List', 'ring faces'),
+        key: 'ring',
+        label: 'Ring',
+      },
     ],
     listing: (read) => [
       'Inset Face',
@@ -605,7 +621,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     parameters: [
       solidScriptParameter('distance', 'Distance', 'number', '0.1', 'Metres to cut back along each side.'),
       solidScriptParameterOf('edges, faces or brushes', '$Selected.Edges'),
-      solidScriptParameterInto('the new faces, a Face list'),
+      solidScriptParameterInto('the new faces, a Face list', 'Face List', 'what is made'),
     ],
     listing: (read) => [
       'Bevel Edges',

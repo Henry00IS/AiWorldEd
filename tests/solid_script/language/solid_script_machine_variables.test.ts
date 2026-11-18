@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
-import { solidScriptTypeCheck } from '@/solid_script/language/solid_script_use_check.js';
 
 /**
  * Builds one script line.
@@ -125,217 +124,60 @@ describe('SolidScript Set of Data through list members', () => {
 });
 
 /**
- * Builds a Set line, with a Type when one is given.
+ * Builds a Set line.
  *
  * @param name Variable.
- * @param value Value text.
- * @param type Declared Type, empty for none.
+ * @param value Value.
  * @returns Line.
  */
-const setTyped = (name: string, value: string, type = ''): SolidScriptLine =>
-  line('variable', type === '' ? { name, value } : { name, value, type });
+const set = (name: string, value: string): SolidScriptLine => line('variable', { name, value });
 
-/** Declares Width a Number List holding 5, 3 and 7. */
-const WIDTH_NUMBERS = setTyped('Width', '5,3,7', 'Number List');
-
-describe('SolidScript declared Types on every write', () => {
-  it('stops Add Item of a value that is no number into a Number List, as Henry found', () => {
-    expect(stopped([WIDTH_NUMBERS, line('add_item', { value: '78o', list: 'Width' }), line('cube')])).toMatch(
-      /^line 2: \[Width\] is declared Number List, so it cannot hold Text "78o" as an item \(Did you mean 78\?\)/,
-    );
-  });
-
-  it('turns an added item into the kind of the list', () => {
+describe('SolidScript variables hold any kind, like a script variable', () => {
+  it('lets Add Item put any item in a list of numbers, as Henry found', () => {
     expect(
       printed([
-        WIDTH_NUMBERS,
+        set('Width', '5,3,7'),
+        line('add_item', { value: '78o', list: 'Width' }),
         line('add_item', { value: '78', list: 'Width' }),
-        line('insert_item', { value: '1', list: 'Width', at: '0' }),
-        setTyped('Names', 'a, b', 'Text List'),
-        line('add_item', { value: '45', list: 'Names' }),
-        line('echo', { value: '[=[Width(4)] + 1]|[Width(0)]|[Names(2).Length]' }),
+        line('echo', { value: '[Width(3)]|[=[Width(4)] + 1]' }),
         line('cube'),
       ]),
-    ).toEqual(['79|1|2']);
+    ).toEqual(['78o|79']);
   });
 
-  it('stops Insert Item, Set of an item and Set of a vector part with the wrong kind', () => {
-    expect(
-      stopped([WIDTH_NUMBERS, line('insert_item', { value: 'oak', list: 'Width', at: '1' }), line('cube')]),
-    ).toMatch(/^line 2: \[Width\] is declared Number List/);
-    expect(stopped([WIDTH_NUMBERS, setTyped('Width(0)', 'oak'), line('cube')])).toMatch(
-      /^line 2: \[Width\] is declared Number List/,
-    );
-    expect(stopped([setTyped('Label', 'door', 'Text'), setTyped('Label', '[=Vector(1, 2, 3)]'), line('cube')])).toMatch(
-      /^line 2: \[Label\] is declared Text/,
-    );
-  });
-
-  it('gives Clear Variable the empty value of the Type and keeps the Type', () => {
+  it('lets any line give a variable a value of another kind', () => {
     expect(
       printed([
-        WIDTH_NUMBERS,
-        line('clear_variable', { name: 'Width' }),
-        line('echo', { value: '[Width.Count]' }),
-        line('cube'),
-      ]),
-    ).toEqual(['0']);
-    expect(
-      printed([
-        setTyped('Size', '4', 'Number'),
-        line('clear_variable', { name: 'Size' }),
-        line('echo', { value: '[=[Size] + 1]' }),
-        line('cube'),
-      ]),
-    ).toEqual(['1']);
-    expect(
-      stopped([
-        setTyped('Size', '4', 'Number'),
-        line('clear_variable', { name: 'Size' }),
-        setTyped('Size', 'oak'),
-        line('cube'),
-      ]),
-    ).toMatch(/^line 3: \[Size\] is declared Number/);
-  });
-
-  it('drops the Type with Delete Variable, so the name starts over', () => {
-    expect(
-      printed([
-        setTyped('Size', '4', 'Number'),
-        line('delete_variable', { name: 'Size' }),
-        setTyped('Size', 'oak'),
-        line('echo', { value: '[Size]' }),
-        line('cube'),
-      ]),
-    ).toEqual(['oak']);
-  });
-
-  it('checks what building blocks write to Into: a brush fits Brush and Brush List, not Number', () => {
-    expect(stopped([setTyped('Made', '0', 'Number'), line('cube', { into: 'Made' })])).toMatch(
-      /^line 2: \[Made\] is declared Number, so it cannot hold a Brush/,
-    );
-    expect(stopped([setTyped('Made', '', 'Text'), line('sphere', { into: 'Made' })])).toMatch(
-      /^line 2: \[Made\] is declared Text/,
-    );
-    expect(
-      printed([
-        setTyped('Made', '', 'Brush List'),
-        line('cube', { into: 'Made' }),
-        line('echo', { value: '[Made.Count]' }),
-      ]),
-    ).toEqual(['1']);
-    expect(
-      printed([
-        line('cube', { into: 'Made' }),
-        setTyped('Made', '[Made]', 'Brush'),
-        line('cube', { into: 'Made' }),
-        line('echo', { value: '[Made.Faces.Count]' }),
+        set('Henry', 'Henry'),
+        set('Henry', '4'),
+        line('cube', { into: 'Henry' }),
+        line('echo', { value: '[Henry.Faces.Count]' }),
       ]),
     ).toEqual(['6']);
   });
 
-  it('checks the lists face lines write, the loop names and Find Item results', () => {
-    expect(
-      stopped([
-        setTyped('Top', '0', 'Number'),
-        line('cube'),
-        line('select_faces', { which: 'Facing Up', into: 'Top' }),
-      ]),
-    ).toMatch(/^line 3: \[Top\] is declared Number/);
-    expect(
-      stopped([
-        setTyped('Item', '0', 'Number'),
-        line('for_each', { variable: 'Item', list: 'a, b' }),
-        line('end'),
-        line('cube'),
-      ]),
-    ).toMatch(/^line 2: \[Item\] is declared Number, so it cannot hold Text "a"/);
-    expect(
-      stopped([
-        setTyped('I', 'No', 'Yes/No'),
-        line('repeat', { variable: 'I', from: '0', to: '2' }),
-        line('end'),
-        line('cube'),
-      ]),
-    ).toMatch(/^line 2: \[I\] is declared Yes\/No/);
-    expect(
-      stopped([
-        WIDTH_NUMBERS,
-        setTyped('Where', 'No', 'Yes/No'),
-        line('find_item', { value: '3', list: 'Width', result: 'Where' }),
-        line('cube'),
-      ]),
-    ).toMatch(/^line 3: \[Where\] is declared Yes\/No/);
-  });
-
-  it('checks the result a Call writes into a typed variable', () => {
-    expect(
-      stopped([
-        setTyped('Area', '0', 'Number'),
-        line('function', { name: 'Word', parameters: '' }),
-        line('return', { value: 'oak' }),
-        line('end'),
-        line('call', { name: 'Word', values: '', result: 'Area' }),
-        line('cube'),
-      ]),
-    ).toMatch(/\[Area\] is declared Number, so it cannot hold Text "oak"/);
-  });
-
-  it('leaves variables without a Type free to hold anything', () => {
+  it('gives Clear Variable the empty value of the kind the variable holds', () => {
     expect(
       printed([
-        setTyped('Width', '5,3,7'),
-        line('add_item', { value: '78o', list: 'Width' }),
-        line('echo', { value: '[Width(3)]' }),
+        set('List', '1, 2, 3, 4'),
+        set('Count', '7'),
+        set('Word', 'oak'),
+        set('On', '[=1 == 1]'),
+        ...['List', 'Count', 'Word', 'On', 'Fresh'].map((name) => line('clear_variable', { name })),
+        line('echo', { value: '[List.Count]|[Count]|[Word.Length]|[On]|[Fresh.Count]' }),
         line('cube'),
       ]),
-    ).toEqual(['78o']);
+    ).toEqual(['0|0|0|No|0']);
   });
 
-  it('agrees in the editor checks before running when the wrong kind is certain', () => {
-    const warned = (lines: SolidScriptLine[]): string[] =>
-      solidScriptTypeCheck(solidScriptDocumentCreate(lines)).map((warning) => `${warning.line}: ${warning.text}`);
-    expect(warned([WIDTH_NUMBERS, line('add_item', { value: '78o', list: 'Width' })])).toEqual([
-      '2: [Width] is declared Number List, so it cannot hold Text "78o" as an item (Did you mean 78?).',
-    ]);
-    expect(warned([WIDTH_NUMBERS, line('add_item', { value: '78', list: 'Width' })])).toEqual([]);
-    expect(warned([setTyped('Made', '0', 'Number'), line('cube', { into: 'Made' })])).toEqual([
-      '2: [Made] is declared Number, so it cannot hold a Brush.',
-    ]);
-    expect(warned([setTyped('Made', '', 'Brush List'), line('cube', { into: 'Made' })])).toEqual([]);
-  });
-});
-
-describe('SolidScript Set with a new Type starts the variable over', () => {
-  /**
-   * Lines that declare Width a Number, then a Text, then write it without a
-   * Type.
-   */
-  const REDECLARED: SolidScriptLine[] = [
-    setTyped('Width', '4', 'Number'),
-    setTyped('Width', 'oak', 'Text'),
-    setTyped('Width', '5'),
-    line('echo', { value: '[Width.Length]' }),
-  ];
-
-  it('keeps the new Type when running, with no stop when the kind changes', () => {
-    expect(printed([...REDECLARED, line('cube')])).toEqual(['1']);
+  it('forgets a variable with Delete Variable', () => {
     expect(
-      printed([
-        setTyped('Size', '4', 'Number'),
-        setTyped('Size', 'oak', 'Any'),
-        setTyped('Size', '[=Vector(1, 2, 3)]'),
-        line('echo', { value: '[Size.y]' }),
+      stopped([
+        set('Width', '3'),
+        line('delete_variable', { name: 'Width' }),
+        line('echo', { value: '[Width]' }),
         line('cube'),
       ]),
-    ).toEqual(['2']);
-  });
-
-  it('agrees in the editor checks before running', () => {
-    expect(solidScriptTypeCheck(solidScriptDocumentCreate(REDECLARED))).toEqual([]);
-    const after = solidScriptTypeCheck(solidScriptDocumentCreate([...REDECLARED, line('cube', { into: 'Width' })])).map(
-      (warning) => warning.text,
-    );
-    expect(after).toEqual(['[Width] is declared Text, so it cannot hold a Brush.']);
+    ).toMatch(/Width/);
   });
 });

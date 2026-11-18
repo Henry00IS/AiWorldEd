@@ -45,7 +45,7 @@ function solidScriptMathWrap(value: number, low: number, high: number): number {
 }
 
 /** Math and list functions: ranges, smoothing, angles and list picks. */
-export const SOLID_SCRIPT_FUNCTIONS_MATH: Readonly<Record<string, SolidScriptMath>> = {
+export const SOLID_SCRIPT_FUNCTIONS_MATH = {
   remap: (args) => {
     const usage = 'Remap(value, from_low, from_high, to_low, to_high)';
     const [value, fromLow, fromHigh, toLow, toHigh] = [0, 1, 2, 3, 4].map((index) =>
@@ -132,4 +132,4 @@ export const SOLID_SCRIPT_FUNCTIONS_MATH: Readonly<Record<string, SolidScriptMat
         ? a - b
         : solidScriptValueText(a).localeCompare(solidScriptValueText(b)),
     ),
-};
+} satisfies Readonly<Record<string, SolidScriptMath>>;

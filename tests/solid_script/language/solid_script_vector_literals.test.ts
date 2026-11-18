@@ -3,12 +3,9 @@ import { solidScriptProgramRun } from '@/solid_script/language/solid_script_prog
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptFieldCheck } from '@/solid_script/language/solid_script_field.js';
 import { solidScriptFieldTokens } from '@/solid_script/language/solid_script_field_tokens.js';
-import { solidScriptTypeDefault } from '@/solid_script/language/solid_script_types.js';
-import { solidScriptTypeCheck } from '@/solid_script/language/solid_script_use_check.js';
 
 const line = (command: string, values: Record<string, string> = {}): SolidScriptLine => ({ command, values });
-const set = (name: string, value: string, type = ''): SolidScriptLine =>
-  line('variable', type === '' ? { name, value } : { name, value, type });
+const set = (name: string, value: string): SolidScriptLine => line('variable', { name, value });
 const echo = (value: string): SolidScriptLine => line('echo', { value });
 const CUBE = line('cube', { size: '2, 2, 2' });
 
@@ -18,33 +15,17 @@ function outcome(...lines: SolidScriptLine[]): string[] {
   return result.error ? [result.error.message] : result.messages;
 }
 
-describe('SolidScript Set with a Type', () => {
-  it('gives a blank value the default of its Type, and keeps a blank Any as empty text', () => {
-    expect(solidScriptTypeDefault('Number')).toBe(0);
-    expect(solidScriptTypeDefault('Text')).toBe('');
-    expect(solidScriptTypeDefault('Vector')).toEqual([0, 0, 0]);
-    expect(solidScriptTypeDefault('Yes/No')).toBe(false);
-    expect(solidScriptTypeDefault('Face List')).toEqual([]);
-    expect(outcome(set('N', '', 'Number'), echo('[N]'))).toEqual(['0']);
-    expect(outcome(set('B', '', 'Yes/No'), echo('[B]'))).toEqual(['No']);
-    expect(outcome(echo('[=1 < 2] [=True and False]'))).toEqual(['Yes No']);
-    expect(outcome(set('V', '', 'Vector'), echo('[V]'))).toEqual(['[0, 0, 0]']);
-    expect(outcome(set('L', '', 'List'), echo('[L.Count]'))).toEqual(['0']);
-    expect(outcome(set('L', '', 'Text List'), set('L()', 'oak'), echo('[L.Count]'))).toEqual(['1']);
+describe('SolidScript Set values', () => {
+  it('keeps a blank value as empty text and reads Yes and No from comparisons', () => {
     expect(outcome(set('A', ''), echo('<[A]>'))).toEqual(['<>']);
+    expect(outcome(echo('[=1 < 2] [=True and False]'))).toEqual(['Yes No']);
   });
 
-  it('splits a list Type on commas, and lets a plain List hold items of any kind', () => {
-    expect(outcome(set('A', 't,6mv', 'Text List'), echo('[A.Count] [A.First] [A.Last]'))).toEqual(['2 t 6mv']);
-    expect(outcome(set('A', '1, oak, 3', 'List'), echo('[A.Count] [=[A(0)] + 1]'))).toEqual(['3 2']);
-    expect(outcome(set('A', 'oak', 'List'), echo('[A.Count]'))).toEqual(['1']);
-    expect(outcome(set('A', '1, oak', 'Number List'))[0]).toMatch(/\[A\] is declared Number List/);
+  it('splits typed commas into items, keeping escaped commas and brackets as text', () => {
+    expect(outcome(set('A', 't,6mv'), echo('[A.Count] [A.First] [A.Last]'))).toEqual(['2 t 6mv']);
+    expect(outcome(set('A', '1, oak, 3'), echo('[A.Count] [=[A(0)] + 1]'))).toEqual(['3 2']);
     expect(outcome(set('A', 't,6mv,$[4, 5, 6$]'), echo('[A.Count] [A]'))).toEqual(['5 [t, 6mv, [4, 5, 6]]']);
     expect(outcome(set('A', 't$,6mv'), echo('[A]'))).toEqual(['t,6mv']);
-    const check = (...lines: SolidScriptLine[]) =>
-      solidScriptTypeCheck(solidScriptDocumentCreate(lines)).map((w) => w.text);
-    expect(check(set('A', 't,6mv', 'Text List'), set('B', '', 'Number'), set('C', '[1, 2, 3]', 'Vector'))).toEqual([]);
-    expect(check(set('A', '1, oak', 'Number List'))[0]).toMatch(/declared Number List/);
   });
 });
 

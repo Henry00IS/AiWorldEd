@@ -6,7 +6,11 @@ import {
   SOLID_SCRIPT_FUNCTION_DOCS,
   solidScriptFunctionArguments,
 } from '@/solid_script/language/solid_script_function_docs.js';
-import { solidScriptDocumentNames } from '@/solid_script/document/solid_script_document_names.js';
+import {
+  solidScriptDocumentNames,
+  solidScriptDocumentNamesAt,
+} from '@/solid_script/document/solid_script_document_names.js';
+import { solidScriptExplorerEntries } from '@/solid_script/ui/solid_script_editor_explorer.js';
 import {
   solidScriptSuggestionActive,
   solidScriptSuggestionContext,
@@ -288,41 +292,70 @@ describe('SolidScript suggestions', () => {
   });
 });
 
-describe('SolidScript suggestions follow a declared Type', () => {
+describe('SolidScript suggestions follow the kinds a name may hold where the line stands', () => {
+  /** Henry's script: Henry is a Text, then a Number, then a Brush. */
+  const HENRY = solidScriptDocumentCreate([
+    { command: 'variable', values: { name: 'Henry', value: 'Henry' } },
+    { command: 'variable', values: { name: 'Henry', value: '4' } },
+    { command: 'cube', values: { into: 'Henry' } },
+  ]);
+
   /**
-   * Lists the member suggestions after a typed name in a script.
+   * Lists the suggestions for a typed text where a line stands.
    *
-   * @param lines Script lines.
+   * @param document Script.
+   * @param position 0-based line.
    * @param text Field text up to the caret.
-   * @returns Labels.
+   * @returns Suggestions.
    */
-  function membersOf(lines: Parameters<typeof solidScriptDocumentCreate>[0], text: string): string[] {
-    const scope = { names: solidScriptDocumentNames(solidScriptDocumentCreate(lines)), extra: [], words: [] };
-    return solidScriptSuggestions(solidScriptSuggestionContext(text, text.length, false), scope).map(
-      (entry) => entry.label,
-    );
+  function shownAt(document: ReturnType<typeof solidScriptDocumentCreate>, position: number, text: string) {
+    const scope = { names: solidScriptDocumentNamesAt(document, position), extra: [], words: [] };
+    return solidScriptSuggestions(solidScriptSuggestionContext(text, text.length, false), scope);
   }
 
-  it('keeps the declared Type over what another line writes, as running does', () => {
-    const shown = membersOf(
-      [
-        { command: 'cube', values: { into: 'Made' } },
-        { command: 'variable', values: { name: 'Made', value: 'oak', type: 'Text' } },
-      ],
-      '[Made.',
-    );
-    expect(shown).toContain('Made.Length');
-    expect(shown).not.toContain('Made.Faces');
+  it('offers the members of the kind Henry holds after each line, as Henry asked', () => {
+    const labels = (position: number) => shownAt(HENRY, position, '[Henry.').map((entry) => entry.label);
+    expect(labels(1)).toContain('Henry.Words');
+    expect(labels(1)).not.toContain('Henry.Faces');
+    expect(labels(2)).toEqual([]);
+    expect(labels(3)).toContain('Henry.Faces');
+    expect(labels(3)).not.toContain('Henry.Words');
   });
 
-  it('keeps a Number List a Number List after Add Item', () => {
-    const shown = membersOf(
-      [
-        { command: 'variable', values: { name: 'Width', value: '5,3,7', type: 'Number List' } },
-        { command: 'add_item', values: { value: '78', list: 'Width' } },
-      ],
-      '[Width.',
+  it('says the kind in the detail of the name', () => {
+    const detail = (position: number) =>
+      shownAt(HENRY, position, '[Hen').find((entry) => entry.label === 'Henry')?.detail;
+    expect(detail(1)).toMatch(/^Text\b/);
+    expect(detail(3)).toMatch(/^Brush\b/);
+  });
+
+  it('offers the members of every kind a name may hold after an If', () => {
+    const document = solidScriptDocumentCreate([
+      { command: 'variable', values: { name: 'Henry', value: 'Henry' } },
+      { command: 'if', values: { condition: '[Coin] == 1' } },
+      { command: 'cube', values: { into: 'Henry' } },
+      { command: 'end', values: {} },
+    ]);
+    const shown = shownAt(document, 4, '[Henry.');
+    expect(shown.map((entry) => entry.label)).toEqual(expect.arrayContaining(['Henry.Words', 'Henry.Faces']));
+    expect(shownAt(document, 4, '[Hen').find((entry) => entry.label === 'Henry')?.detail).toMatch(
+      /Text or Brush|Brush or Text/,
     );
-    expect(shown).toEqual(expect.arrayContaining(['Width.Count', 'Width.First', 'Width.Last']));
+  });
+
+  it('gives a Function input the kind its Call passes', () => {
+    const document = solidScriptDocumentCreate([
+      { command: 'cube', values: { into: 'Henry' } },
+      { command: 'function', values: { name: 'F', parameters: 'B' } },
+      { command: 'echo', values: { value: '' } },
+      { command: 'end', values: {} },
+      { command: 'call', values: { name: 'F', values: '[Henry]' } },
+    ]);
+    expect(shownAt(document, 2, '[Local.B.').map((entry) => entry.label)).toContain('Local.B.Faces');
+  });
+
+  it('shows the kind in the Variables tab before running', () => {
+    const entry = solidScriptExplorerEntries(HENRY, [], []).find((known) => known.name === 'Henry');
+    expect(entry?.type).toBe('Brush');
   });
 });

@@ -29,6 +29,22 @@ export const SOLID_SCRIPT_INPUT_TYPE_DETAILS: Readonly<Record<SolidScriptInputTy
   vector: 'An X, Y, Z field',
 };
 
+/**
+ * Kind of value each kind of input holds, as the editor checks name kinds; none
+ * where only running tells.
+ */
+export const SOLID_SCRIPT_INPUT_KINDS: Readonly<Record<SolidScriptInputType, string | undefined>> = {
+  number: 'Number',
+  count: 'Number',
+  switch: 'Yes/No',
+  text: 'Text',
+  choice: 'Text',
+  button: undefined,
+  curve: undefined,
+  texture: 'Text',
+  vector: 'Vector',
+};
+
 /** Id of the Input command. */
 export const SOLID_SCRIPT_COMMAND_INPUT = 'input';
 

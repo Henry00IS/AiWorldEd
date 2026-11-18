@@ -1,0 +1,714 @@
+import type { SolidScriptBlock, SolidScriptDocument } from './solid_script_document.js';
+import {
+  solidScriptFlowItemKinds,
+  solidScriptFlowKeyKinds,
+  solidScriptFlowValueKinds,
+  SOLID_SCRIPT_FLOW_UNKNOWN,
+  type SolidScriptFlowHead,
+} from './solid_script_document_flow_kinds.js';
+import {
+  solidScriptFlowDelete,
+  solidScriptFlowEqual,
+  solidScriptFlowJoin,
+  solidScriptFlowLocalsBack,
+  solidScriptFlowWrite,
+  type SolidScriptFlowState,
+} from './solid_script_document_flow_state.js';
+import { solidScriptBlockNesting } from './solid_script_document_indent.js';
+import { solidScriptFlowNarrow, solidScriptNarrowJoin } from './solid_script_document_flow_narrow.js';
+import { solidScriptFlowTree, type SolidScriptFlowNode } from './solid_script_document_flow_tree.js';
+import {
+  solidScriptGivenFields,
+  solidScriptGivenFlow,
+  solidScriptGivenFlowName,
+  solidScriptGivenWordKind,
+  type SolidScriptGiven,
+} from './solid_script_document_gives.js';
+import type { SolidScriptCommandFlow, SolidScriptCommandGives } from '@/solid_script/commands/solid_script_command.js';
+import { solidScriptFieldSplit } from '@/solid_script/language/solid_script_field.js';
+import { solidScriptFunctionKey, solidScriptNameKey } from '@/solid_script/language/solid_script_name_key.js';
+
+/** Most rounds a loop is followed until what it leaves stops changing. */
+const SOLID_SCRIPT_FLOW_ROUNDS = 4;
+
+/** Most Functions and parts deep a call is followed. */
+const SOLID_SCRIPT_FLOW_DEPTH = 16;
+
+/** The Function or part a line runs in while it is followed. */
+interface SolidScriptFlowFrame {
+  /** Kinds its Return lines give. */
+  readonly returns: Set<string>;
+  /** How many calls deep it is. */
+  readonly depth: number;
+  /** Variables where its Return lines leave it; null while none did. */
+  exits: SolidScriptFlowState | null;
+}
+
+/** Variables at a point of the script; null where no run gets. */
+type SolidScriptFlowMaybe = SolidScriptFlowState | null;
+
+/**
+ * Follows a script without running it, from top to bottom through its blocks,
+ * and keeps for every line the kinds each variable may hold when it is reached:
+ * a write replaces them, both sides of an If join at its End, a loop joins what
+ * it leaves after any number of rounds, and a Function's lines see the kinds
+ * every Call gives its inputs.
+ */
+class SolidScriptFlowAnalysis {
+  /** Variables when each line is reached, by 0-based line. */
+  private readonly before = new Map<number, SolidScriptFlowState>();
+  /** Function lines by name key. */
+  private readonly functions = new Map<string, SolidScriptFlowNode>();
+  /** Define Part lines by name key. */
+  private readonly parts = new Map<string, SolidScriptFlowNode>();
+  /** When lines. */
+  private readonly handlers: SolidScriptFlowNode[] = [];
+  /**
+   * Function calls being followed, by Function line and kinds of values, with
+   * what they give so far.
+   */
+  private readonly running = new Map<string, Set<string>>();
+  /**
+   * What each Function gives, by Function line, kinds of values and the
+   * variables it starts with.
+   */
+  private readonly summaries = new Map<string, SolidScriptFlowCalled>();
+  /**
+   * What each Function gives while built on what a Function still being
+   * followed gives so far.
+   */
+  private readonly guessed = new Map<string, SolidScriptFlowCalled>();
+  /**
+   * Functions, by line and kinds of values, a call used while they were still
+   * being followed.
+   */
+  private readonly guessedOn = new Set<string>();
+  /**
+   * How many times a call used what a Function still being followed gives so
+   * far.
+   */
+  private guesses = 0;
+  /** Name keys of the script's Inputs, which no line can change. */
+  private readonly inputNames = new Set<string>();
+  /** Function and part lines some line ran. */
+  private readonly ran = new Set<SolidScriptFlowNode>();
+  /** Variables when the script's own lines are done. */
+  readonly end: SolidScriptFlowState;
+
+  /**
+   * Follows the script.
+   *
+   * @param blocks Lines of the script.
+   */
+  constructor(private readonly blocks: readonly SolidScriptBlock[]) {
+    const top = solidScriptFlowTree(blocks);
+    this.register(top);
+    const frame: SolidScriptFlowFrame = { returns: new Set(), depth: 0, exits: null };
+    this.end = solidScriptNarrowJoin(this.sequence(top, new Map(), frame), frame.exits) ?? new Map();
+    this.unreached();
+  }
+
+  /**
+   * Gives the variables a line sees: those when it is reached, or for a line
+   * that is off or after the last, those of the next line that is on.
+   *
+   * @param position 0-based line, or where a new line goes.
+   * @returns Variables.
+   */
+  at(position: number): SolidScriptFlowState {
+    for (let line = Math.max(0, position); line < this.blocks.length; line++) {
+      const known = this.before.get(line);
+      if (known) return known;
+    }
+    return this.end;
+  }
+
+  /**
+   * Finds the Functions, parts and When lines among lines and their blocks.
+   *
+   * @param nodes Lines.
+   */
+  private register(nodes: readonly SolidScriptFlowNode[]): void {
+    for (const node of nodes) {
+      const kind = solidScriptGivenFlow(node.block)?.kind;
+      const name = solidScriptGivenFlowName(node.block);
+      if (kind === 'function') this.functions.set(solidScriptFunctionKey(name), node);
+      if (kind === 'part') this.parts.set(solidScriptNameKey(name), node);
+      if (kind === 'handler') this.handlers.push(node);
+      this.register(node.children);
+      this.register(node.otherwise ?? []);
+    }
+  }
+
+  /**
+   * Follows the Functions and parts no line ran, and the When lines, from the
+   * variables the script leaves, so their lines get kinds too.
+   */
+  private unreached(): void {
+    const frame = (): SolidScriptFlowFrame => ({ returns: new Set(), depth: 1, exits: null });
+    for (const node of [...this.functions.values(), ...this.parts.values()])
+      if (!this.ran.has(node)) this.body(node, this.inputs(node, this.end, []), frame());
+    for (const node of this.handlers) this.body(node, this.end, frame());
+  }
+
+  /**
+   * Keeps what a line sees, joined with what it saw on other ways to it.
+   *
+   * @param line 0-based line.
+   * @param state Variables.
+   */
+  private record(line: number, state: SolidScriptFlowState): void {
+    const known = this.before.get(line);
+    this.before.set(line, known ? solidScriptFlowJoin(known, state) : state);
+  }
+
+  /**
+   * Follows lines one after another. Lines after a Return no run reaches; they
+   * still get the variables the Return saw, so they can be edited.
+   *
+   * @param nodes Lines.
+   * @param state Variables before the first.
+   * @param frame Function or part they run in.
+   * @returns Variables after the last; null when every way ended in a Return.
+   */
+  private sequence(
+    nodes: readonly SolidScriptFlowNode[],
+    state: SolidScriptFlowState,
+    frame: SolidScriptFlowFrame,
+  ): SolidScriptFlowMaybe {
+    let current: SolidScriptFlowMaybe = state;
+    let last = state;
+    for (const node of nodes) {
+      if (current === null) {
+        this.record(node.line, last);
+        this.step(node, last, this.dead(frame));
+        continue;
+      }
+      this.record(node.line, current);
+      last = current;
+      current = this.step(node, current, frame);
+    }
+    return current;
+  }
+
+  /**
+   * Gives lines no run reaches a frame of their own, so what they give changes
+   * nothing.
+   *
+   * @param frame Frame of the lines around them.
+   * @returns Frame that keeps nothing.
+   */
+  private dead(frame: SolidScriptFlowFrame): SolidScriptFlowFrame {
+    return { returns: new Set(), depth: frame.depth, exits: null };
+  }
+
+  /**
+   * Follows one line with its block.
+   *
+   * @param node Line.
+   * @param state Variables before it.
+   * @param frame Function or part it runs in.
+   * @returns Variables after it.
+   */
+  private step(
+    node: SolidScriptFlowNode,
+    state: SolidScriptFlowState,
+    frame: SolidScriptFlowFrame,
+  ): SolidScriptFlowMaybe {
+    const kind = solidScriptGivenFlow(node.block)?.kind;
+    if (kind === 'function' || kind === 'part' || kind === 'handler') return state;
+    if (kind === 'choice') return this.choice(node, state, frame);
+    if (kind === 'loop') return this.loop(node, state, frame);
+    const after = this.line(node.block, state, frame);
+    if (after === null || solidScriptBlockNesting(node.block) !== 'open') return after;
+    return this.body(node, after, frame);
+  }
+
+  /**
+   * Follows the lines of a block once, and keeps what its End line sees.
+   *
+   * @param node Block line.
+   * @param state Variables before its first line.
+   * @param frame Function or part it runs in.
+   * @returns Variables after its last line.
+   */
+  private body(
+    node: SolidScriptFlowNode,
+    state: SolidScriptFlowState,
+    frame: SolidScriptFlowFrame,
+  ): SolidScriptFlowMaybe {
+    const after = this.sequence(node.children, state, frame);
+    this.record(node.end, after ?? state);
+    return after;
+  }
+
+  /**
+   * Follows both sides of an If and joins them.
+   *
+   * @param node If line.
+   * @param state Variables before it.
+   * @param frame Function or part it runs in.
+   * @returns Variables after its End.
+   */
+  private choice(
+    node: SolidScriptFlowNode,
+    state: SolidScriptFlowState,
+    frame: SolidScriptFlowFrame,
+  ): SolidScriptFlowMaybe {
+    const flow = solidScriptGivenFlow(node.block);
+    const condition = flow?.kind === 'choice' && flow.condition ? (node.block.values[flow.condition] ?? '') : '';
+    const sides = solidScriptFlowNarrow(condition, state, this.headOf(state, frame));
+    const then = this.side(node.children, sides.then, state, frame);
+    if (node.otherwise === null) {
+      this.record(node.end, then ?? state);
+      return solidScriptNarrowJoin(then, sides.otherwise);
+    }
+    this.record(node.elseLine, then ?? state);
+    const otherwise = this.side(node.otherwise, sides.otherwise, state, frame);
+    this.record(node.end, otherwise ?? state);
+    return solidScriptNarrowJoin(then, otherwise);
+  }
+
+  /**
+   * Follows one side of an If. A side no run can take still gets the variables
+   * before the If for its lines, but leaves nothing.
+   *
+   * @param nodes Lines of the side.
+   * @param state Variables where it starts; null when no run takes it.
+   * @param before Variables before the If.
+   * @param frame Function or part it runs in.
+   * @returns Variables after its last line; null when no run takes it.
+   */
+  private side(
+    nodes: readonly SolidScriptFlowNode[],
+    state: SolidScriptFlowState | null,
+    before: SolidScriptFlowState,
+    frame: SolidScriptFlowFrame,
+  ): SolidScriptFlowState | null {
+    if (state !== null) return this.sequence(nodes, state, frame);
+    this.sequence(nodes, before, this.dead(frame));
+    return null;
+  }
+
+  /**
+   * Follows a loop until what any number of rounds leaves stops changing, or a
+   * few rounds passed.
+   *
+   * @param node Loop line.
+   * @param state Variables before it.
+   * @param frame Function or part it runs in.
+   * @returns Variables after its End: those of no round joined with those of
+   *   the last.
+   */
+  private loop(
+    node: SolidScriptFlowNode,
+    state: SolidScriptFlowState,
+    frame: SolidScriptFlowFrame,
+  ): SolidScriptFlowState {
+    let current = state;
+    for (let round = 0; round < SOLID_SCRIPT_FLOW_ROUNDS; round++) {
+      const next =
+        solidScriptNarrowJoin(state, this.body(node, this.writes(node.block, current, [], frame), frame)) ?? state;
+      if (solidScriptFlowEqual(next, current)) return next;
+      current = next;
+    }
+    return current;
+  }
+
+  /**
+   * Follows one line that opens no block, or the line of a block before its
+   * lines: a Call or Use Part runs its lines, a Return gives its value, then
+   * every field that names a variable writes it the way the command declares.
+   *
+   * @param block Line.
+   * @param state Variables before it.
+   * @param frame Function or part it runs in.
+   * @returns Variables after it.
+   */
+  private line(
+    block: SolidScriptBlock,
+    state: SolidScriptFlowState,
+    frame: SolidScriptFlowFrame,
+  ): SolidScriptFlowMaybe {
+    const flow = solidScriptGivenFlow(block);
+    if (flow?.kind === 'call') {
+      const { after, returns } = this.call(block, flow, state, frame);
+      return this.writes(block, after, returns, frame);
+    }
+    if (flow?.kind === 'use_part')
+      return this.writes(block, this.partUse(solidScriptGivenFlowName(block), state, frame), [], frame);
+    if (flow?.kind !== 'return') return this.writes(block, state, [], frame);
+    if ((block.values[flow.value] ?? '').trim() !== '')
+      for (const kind of solidScriptFlowValueKinds(block.values[flow.value] ?? '', this.headOf(state, frame)))
+        frame.returns.add(kind);
+    frame.exits = solidScriptNarrowJoin(frame.exits, state);
+    return null;
+  }
+
+  /**
+   * Follows the fields of a line that name a variable it writes, as its command
+   * declares them; a loop's fields write before each round.
+   *
+   * @param block Line.
+   * @param state Variables before it.
+   * @param returns Kinds the Function a Call ran gives back.
+   * @param frame Function or part it runs in.
+   * @returns Variables after it.
+   */
+  private writes(
+    block: SolidScriptBlock,
+    state: SolidScriptFlowState,
+    returns: readonly string[],
+    frame: SolidScriptFlowFrame,
+  ): SolidScriptFlowState {
+    return solidScriptGivenFields(block).reduce(
+      (after, given) => this.give(block, given, after, returns, frame),
+      state,
+    );
+  }
+
+  /**
+   * Follows one field that names a variable: a name not set yet that a list
+   * line adds to, or an item such as Points(2), becomes a list; a part such as
+   * Face.Data.Height leaves the kind; a forgotten name is gone.
+   *
+   * @param block Line.
+   * @param given Field and the name typed in it.
+   * @param state Variables before it.
+   * @param returns Kinds the Function a Call ran gives back.
+   * @param frame Function or part it runs in.
+   * @returns Variables after it.
+   */
+  private give(
+    block: SolidScriptBlock,
+    given: SolidScriptGiven,
+    state: SolidScriptFlowState,
+    returns: readonly string[],
+    frame: SolidScriptFlowFrame,
+  ): SolidScriptFlowState {
+    const { gives, name } = given;
+    if (gives.rule === 'word') this.inputNames.add(solidScriptNameKey(name));
+    else if (this.inputNames.has(solidScriptNameKey(name))) return state;
+    if (gives.rule === 'forgotten') return solidScriptFlowDelete(state, solidScriptNameKey(name));
+    if (gives.rule === 'kept' || gives.rule === 'read') return state;
+    const item = /^((?:local\.|persistent\.)?[A-Za-z_]\w*)\s*\(.*\)$/i.exec(name)?.[1];
+    if (item !== undefined || gives.rule === 'list') return this.listWrite(item ?? name, state);
+    if (/\./.test(name.replace(/^(local|persistent)\./i, ''))) return state;
+    return this.write(state, name, this.kindsGiven(block, gives, state, returns, frame));
+  }
+
+  /**
+   * Tells the kinds a field gives its variable, as its command declares.
+   *
+   * @param block Line.
+   * @param gives What the field gives.
+   * @param state Variables before the line.
+   * @param returns Kinds the Function a Call ran gives back.
+   * @param frame Function or part it runs in.
+   * @returns Kinds; none for a kind only running tells.
+   */
+  private kindsGiven(
+    block: SolidScriptBlock,
+    gives: SolidScriptCommandGives,
+    state: SolidScriptFlowState,
+    returns: readonly string[],
+    frame: SolidScriptFlowFrame,
+  ): readonly string[] {
+    const head = this.headOf(state, frame);
+    const field = 'field' in gives ? (block.values[gives.field] ?? '') : '';
+    if (gives.rule === 'kind') return [gives.kind];
+    if (gives.rule === 'value') return solidScriptFlowValueKinds(field, head);
+    if (gives.rule === 'item') return solidScriptFlowItemKinds(field, head);
+    if (gives.rule === 'key') return solidScriptFlowKeyKinds(field, head);
+    if (gives.rule === 'word') return [solidScriptGivenWordKind(block, gives.field) ?? SOLID_SCRIPT_FLOW_UNKNOWN];
+    return gives.rule === 'returned' ? returns : [];
+  }
+
+  /**
+   * Follows a line that puts an item in a list: a name not set yet becomes a
+   * list, a set one keeps its kind.
+   *
+   * @param name List name as written.
+   * @param state Variables before it.
+   * @returns Variables after it.
+   */
+  private listWrite(name: string, state: SolidScriptFlowState): SolidScriptFlowState {
+    return state.has(solidScriptNameKey(name)) ? state : this.write(state, name, ['List']);
+  }
+
+  /**
+   * Writes the kinds of a variable by its name as written.
+   *
+   * @param state Variables before.
+   * @param name Name as written, maybe in brackets.
+   * @param kinds Kinds written.
+   * @returns Variables after.
+   */
+  private write(state: SolidScriptFlowState, name: string, kinds: readonly string[]): SolidScriptFlowState {
+    const bare = name
+      .trim()
+      .replace(/^\[(.*)\]$/s, '$1')
+      .trim();
+    return bare === '' ? state : solidScriptFlowWrite(state, solidScriptNameKey(bare), kinds);
+  }
+
+  /**
+   * Follows a Call: the Function's lines run with the kinds of the values as
+   * its inputs.
+   *
+   * @param block Call line.
+   * @param flow Fields of the Call.
+   * @param state Variables before it.
+   * @param frame Function or part it runs in.
+   * @returns Variables after it, and the kinds the Function gives back.
+   */
+  private call(
+    block: SolidScriptBlock,
+    flow: Extract<SolidScriptCommandFlow, { kind: 'call' }>,
+    state: SolidScriptFlowState,
+    frame: SolidScriptFlowFrame,
+  ): SolidScriptFlowCalled {
+    const node = this.functions.get(solidScriptFunctionKey((block.values[flow.name] ?? '').trim()));
+    if (!node) return { after: state, returns: [] };
+    const head = this.headOf(state, frame);
+    const values = solidScriptFieldSplit(block.values[flow.values] ?? '', ',').map((text) =>
+      solidScriptFlowValueKinds(text, head),
+    );
+    return this.invoke(node, values, state, frame);
+  }
+
+  /**
+   * Runs a Function's lines with the kinds of its values. A Function that calls
+   * itself with the same kinds, directly or through others, gives what it is
+   * known to give so far, and its lines are followed again until that stops
+   * growing, so recursion ends with everything it can give. What a call gives
+   * is kept for the same kinds and variables, so a Function called again the
+   * same way is not followed again.
+   *
+   * @param node Function line.
+   * @param values Kinds of the values, in order.
+   * @param state Variables of the caller.
+   * @param frame Function or part the call runs in.
+   * @returns Variables after the call, and the kinds the Function gives back.
+   */
+  private invoke(
+    node: SolidScriptFlowNode,
+    values: readonly (readonly string[])[],
+    state: SolidScriptFlowState,
+    frame: SolidScriptFlowFrame,
+  ): SolidScriptFlowCalled {
+    const call: SolidScriptFlowCall = { node, values, state, frame, key: solidScriptFlowCallKey(node, values) };
+    const running = this.running.get(call.key);
+    if (running) return this.guess(call.key, running, state);
+    const memo = `${call.key}#${solidScriptFlowGlobals(state)}`;
+    const known = this.summaries.get(memo) ?? this.guessed.get(memo);
+    if (known) return known;
+    if (frame.depth >= SOLID_SCRIPT_FLOW_DEPTH) return { after: state, returns: [SOLID_SCRIPT_FLOW_UNKNOWN] };
+    const guesses = this.guesses;
+    const result = this.invokeRounds(call);
+    (this.guesses === guesses ? this.summaries : this.guessed).set(memo, result);
+    return result;
+  }
+
+  /**
+   * Gives what a Function still being followed is known to give so far, and
+   * marks it to be followed again.
+   *
+   * @param key Function line and kinds of values.
+   * @param running Kinds it gives so far.
+   * @param state Variables of the caller.
+   * @returns Variables after the call, and the kinds so far.
+   */
+  private guess(key: string, running: ReadonlySet<string>, state: SolidScriptFlowState): SolidScriptFlowCalled {
+    this.guesses++;
+    this.guessedOn.add(key);
+    return { after: state, returns: [...running] };
+  }
+
+  /**
+   * Follows a Function's lines until what it gives stops growing: again only
+   * while a call inside used what it gave so far.
+   *
+   * @param call The call.
+   * @returns Variables after the call, and the kinds the Function gives back.
+   */
+  private invokeRounds(call: SolidScriptFlowCall): SolidScriptFlowCalled {
+    this.ran.add(call.node);
+    let known = new Set<string>();
+    let after = call.state;
+    for (let round = 0; round < SOLID_SCRIPT_FLOW_ROUNDS; round++) {
+      const ran = this.invokeRound(call, known);
+      after = ran.after;
+      const grown = ran.returns.some((kind) => !known.has(kind));
+      known = new Set([...known, ...ran.returns]);
+      if (!grown || !ran.again) break;
+      this.guessed.clear();
+    }
+    return { after, returns: [...known] };
+  }
+
+  /**
+   * Follows a Function's lines once, calls of itself giving what it gave so
+   * far.
+   *
+   * @param call The call.
+   * @param known Kinds it gave so far.
+   * @returns Variables after the call, kinds given, and whether a call used the
+   *   guess.
+   */
+  private invokeRound(call: SolidScriptFlowCall, known: Set<string>): SolidScriptFlowCalled & { again: boolean } {
+    this.running.set(call.key, known);
+    const called: SolidScriptFlowFrame = { returns: new Set(), depth: call.frame.depth + 1, exits: null };
+    const start = this.inputs(call.node, call.state, call.values);
+    const ended = solidScriptNarrowJoin(this.body(call.node, start, called), called.exits);
+    this.running.delete(call.key);
+    const again = this.guessedOn.delete(call.key);
+    return { after: solidScriptFlowLocalsBack(ended ?? call.state, call.state), returns: [...called.returns], again };
+  }
+
+  /**
+   * Gives the kinds the names of a state may hold, and what a Function of the
+   * script gives when a formula calls it.
+   *
+   * @param state Variables.
+   * @param frame Function or part the formula runs in.
+   * @returns Kinds by lower-case name key, with calls.
+   */
+  private headOf(state: SolidScriptFlowState, frame: SolidScriptFlowFrame): SolidScriptFlowHead {
+    const head: SolidScriptFlowHead = (key) => [...(state.get(key)?.kinds ?? [])];
+    head.call = (name, values) => {
+      const node = this.functions.get(solidScriptFunctionKey(name));
+      return node ? this.invoke(node, values, state, frame).returns : undefined;
+    };
+    return head;
+  }
+
+  /**
+   * Follows a Use Part: the part's lines run where it is used.
+   *
+   * @param name Part name as written.
+   * @param state Variables before it.
+   * @param frame Function or part it runs in.
+   * @returns Variables after it.
+   */
+  private partUse(name: string, state: SolidScriptFlowState, frame: SolidScriptFlowFrame): SolidScriptFlowState {
+    const node = this.parts.get(solidScriptNameKey(name.replace(/^'(.*)'$/s, '$1').trim()));
+    if (!node || frame.depth >= SOLID_SCRIPT_FLOW_DEPTH) return state;
+    this.ran.add(node);
+    const part: SolidScriptFlowFrame = { returns: new Set(), depth: frame.depth + 1, exits: null };
+    return solidScriptNarrowJoin(this.body(node, state, part), part.exits) ?? state;
+  }
+
+  /**
+   * Gives a Function's lines its inputs as Local. names, with no other locals.
+   *
+   * @param node Function line.
+   * @param state Variables of the caller.
+   * @param values Kinds of the values given, in order.
+   * @returns Variables its first line sees.
+   */
+  private inputs(
+    node: SolidScriptFlowNode,
+    state: SolidScriptFlowState,
+    values: readonly (readonly string[])[],
+  ): SolidScriptFlowState {
+    let entry: SolidScriptFlowState = new Map([...state].filter(([key]) => !key.startsWith('local.')));
+    const flow = solidScriptGivenFlow(node.block);
+    const field = flow?.kind === 'function' ? flow.inputs : '';
+    const parameters = (node.block.values[field] ?? '').split(',').map((parameter) => parameter.trim());
+    parameters.forEach((parameter, index) => {
+      if (parameter !== '')
+        entry = this.write(entry, `Local.${parameter}`, values[index] ?? [SOLID_SCRIPT_FLOW_UNKNOWN]);
+    });
+    return entry;
+  }
+}
+
+/**
+ * What a call leaves: the variables after it and the kinds the Function gives
+ * back.
+ */
+interface SolidScriptFlowCalled {
+  readonly after: SolidScriptFlowState;
+  readonly returns: string[];
+}
+
+/** One call of a Function being followed. */
+interface SolidScriptFlowCall {
+  /** Function line. */
+  readonly node: SolidScriptFlowNode;
+  /** Kinds of the values, in order. */
+  readonly values: readonly (readonly string[])[];
+  /** Variables of the caller. */
+  readonly state: SolidScriptFlowState;
+  /** Function or part the call runs in. */
+  readonly frame: SolidScriptFlowFrame;
+  /** Function line and kinds of values. */
+  readonly key: string;
+}
+
+/**
+ * Names a call by its Function line and the kinds of its values.
+ *
+ * @param node Function line.
+ * @param values Kinds of the values, in order.
+ * @returns Key.
+ */
+function solidScriptFlowCallKey(node: SolidScriptFlowNode, values: readonly (readonly string[])[]): string {
+  return `${node.line}:${values.map((kinds) => [...kinds].sort().join('|')).join(',')}`;
+}
+
+/**
+ * Writes the variables a Function can see from its caller as text, the same for
+ * the same kinds.
+ *
+ * @param state Variables of the caller.
+ * @returns Text.
+ */
+function solidScriptFlowGlobals(state: SolidScriptFlowState): string {
+  return [...state]
+    .filter(([key]) => !key.startsWith('local.'))
+    .map(([key, variable]) => `${key}=${[...variable.kinds].sort().join('|')}`)
+    .sort()
+    .join(';');
+}
+
+/** Analyses already made, by the lines of the script. */
+const SOLID_SCRIPT_FLOW_MADE = new WeakMap<readonly SolidScriptBlock[], SolidScriptFlowAnalysis>();
+
+/**
+ * Follows a script once per version of its lines.
+ *
+ * @param document Script.
+ * @returns Analysis.
+ */
+function solidScriptFlowOf(document: SolidScriptDocument): SolidScriptFlowAnalysis {
+  const made = SOLID_SCRIPT_FLOW_MADE.get(document.blocks);
+  if (made) return made;
+  const analysis = new SolidScriptFlowAnalysis(document.blocks);
+  SOLID_SCRIPT_FLOW_MADE.set(document.blocks, analysis);
+  return analysis;
+}
+
+/**
+ * Tells, without running the script, the kinds each variable may hold where a
+ * line stands, and the Types Sets may have declared for it.
+ *
+ * @param document Script.
+ * @param position 0-based line, or where a new line goes.
+ * @returns Variables by name key.
+ */
+export function solidScriptDocumentFlowAt(document: SolidScriptDocument, position: number): SolidScriptFlowState {
+  return solidScriptFlowOf(document).at(position);
+}
+
+/**
+ * Tells, without running the script, the kinds each variable may hold when the
+ * script's own lines are done.
+ *
+ * @param document Script.
+ * @returns Variables by name key.
+ */
+export function solidScriptDocumentFlowEnd(document: SolidScriptDocument): SolidScriptFlowState {
+  return solidScriptFlowOf(document).end;
+}

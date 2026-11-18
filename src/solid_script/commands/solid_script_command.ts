@@ -20,10 +20,58 @@ import { solidScriptParameterInto, solidScriptParameterShapeName } from './solid
 export type SolidScriptCommandParameterType = SolidScriptFieldKind;
 
 /**
- * How a field that names a variable offers names: plain names, or whole paths a
- * Set can write.
+ * How a field that names a variable offers names: plain names, whole paths a
+ * Set can write, or none for a name the line defines but no line may write,
+ * such as an Input.
  */
-export type SolidScriptCommandParameterWrites = 'name' | 'path';
+export type SolidScriptCommandParameterWrites = 'name' | 'path' | 'none';
+
+/**
+ * Kinds of value a field accepts, read by the editor checks, the help and the
+ * errors of a running line; Any for a field that takes any value.
+ */
+export type SolidScriptCommandAccepts = 'Any' | readonly string[];
+
+/**
+ * What kind a field gives the variable it names, read by the editor checks and
+ * the names list: a fixed kind, the kinds of another field's value, its items
+ * or its keys, the kind the word typed in another field gives, what the called
+ * Function returns, a list for a name not set yet, the kind the variable
+ * already holds, nothing because the line forgets it, or the kind it holds
+ * because the line only reads it. What describes it, with {key} for the text of
+ * another field and {command} for the line's block.
+ */
+export type SolidScriptCommandGives =
+  | { readonly rule: 'kind'; readonly kind: string; readonly what: string }
+  | { readonly rule: 'value' | 'item' | 'key' | 'word'; readonly field: string; readonly what: string }
+  | { readonly rule: 'returned' | 'list'; readonly what: string }
+  | { readonly rule: 'kept' | 'forgotten' | 'read' };
+
+/**
+ * A field naming a variable the line writes: how it offers names and what it
+ * gives.
+ */
+export interface SolidScriptCommandWrites {
+  /** How the field offers names as they are typed. */
+  readonly offers: SolidScriptCommandParameterWrites;
+  /** What the variable holds after the line. */
+  readonly gives: SolidScriptCommandGives;
+}
+
+/**
+ * What a line means for the order lines run in, read by the editor checks: a
+ * choice of its lines (If), a loop, a Function, a part or a When block whose
+ * lines run elsewhere, a Call or Use Part that runs them, or a Return. Each
+ * names the fields it reads.
+ */
+export type SolidScriptCommandFlow =
+  | { readonly kind: 'choice'; readonly condition?: string }
+  | { readonly kind: 'loop' }
+  | { readonly kind: 'handler'; readonly name?: string }
+  | { readonly kind: 'function'; readonly name: string; readonly inputs: string }
+  | { readonly kind: 'part' | 'use_part'; readonly name: string }
+  | { readonly kind: 'call'; readonly name: string; readonly values: string }
+  | { readonly kind: 'return'; readonly value: string };
 
 /** Palette group of a command, in palette order. */
 export type SolidScriptCommandCategory =
@@ -79,25 +127,18 @@ export interface SolidScriptCommandParameter {
    * Of, Inputs for Show Inputs When or Parts for Use Part.
    */
   nameGroups?: readonly string[];
+  /** Kinds of value the field accepts. */
+  accepts: SolidScriptCommandAccepts;
   /**
-   * Set for a field naming a variable the line writes or changes: name offers
-   * the script's variables as they are typed, path also the writable
-   * [$Selected.*] lists and, after a dot, the members that lead to a value a
-   * line can set, such as Brush.Edges.Data.
+   * Set for a field naming a variable the line writes or changes: what it gives
+   * the variable, and how it offers names: name offers the script's variables
+   * as they are typed, path also the writable [$Selected.*] lists and, after a
+   * dot, the members that lead to a value a line can set, such as
+   * Brush.Edges.Data.
    */
-  writes?: SolidScriptCommandParameterWrites;
+  writes?: SolidScriptCommandWrites;
   /** Greyed text an empty field shows, such as the list an empty Of uses. */
   placeholder?: string;
-  /**
-   * Words and greyed text that follow from another field of the line, such as
-   * Yes and No, and No when empty, for the Value of a Set whose Type is
-   * Yes/No.
-   */
-  follows?: {
-    key: string;
-    words: (other: string) => readonly SolidScriptCommandWord[];
-    placeholder: (other: string) => string;
-  };
   /** Axes of an Anchor field, which the window shows as one choice per axis. */
   anchor?: readonly SolidScriptAnchorAxis[];
 }
@@ -108,6 +149,11 @@ export interface SolidScriptCommandWord {
   word: string;
   /** Short meaning shown beside it. */
   detail: string;
+  /**
+   * Kind of value the word stands for, such as Number for an Input of Type
+   * number.
+   */
+  gives?: string;
 }
 
 /** Stored values of one command line, as typed per field key. */
@@ -137,6 +183,10 @@ export interface SolidScriptCommandSpec {
   parameters: readonly SolidScriptCommandParameter[];
   /** How the line shapes the block structure; a plain line when omitted. */
   nesting?: SolidScriptCommandNesting;
+  /** What the line means for the order lines run in; a plain line when omitted. */
+  flow?: SolidScriptCommandFlow;
+  /** Names the line fills in for its own formulas, such as nx for each point. */
+  fills?: readonly string[];
   /**
    * Word the End line of an open block shows after "End", such as "When" for
    * "End When"; the label when omitted. The opening line names the block in
@@ -174,6 +224,8 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
   readonly stops: readonly string[];
   readonly parameters: readonly SolidScriptCommandParameter[];
   readonly nesting: SolidScriptCommandNesting;
+  readonly flow: SolidScriptCommandFlow | undefined;
+  readonly fills: readonly string[];
   readonly endLabel: string;
   readonly inPalette: boolean;
   readonly runs: boolean;
@@ -201,10 +253,14 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
       ? [
           ...spec.parameters,
           solidScriptParameterShapeName(),
-          ...(this.builds ? [solidScriptParameterInto('the brushes or meshes it builds')] : []),
+          ...(this.builds
+            ? [solidScriptParameterInto('the brushes or meshes it builds', 'Brush', 'what is made')]
+            : []),
         ]
       : spec.parameters;
     this.nesting = spec.nesting ?? 'none';
+    this.flow = spec.flow;
+    this.fills = spec.fills ?? [];
     this.endLabel = spec.endLabel ?? spec.label;
     this.inPalette = spec.inPalette !== false;
     this.runs = spec.runs !== false;

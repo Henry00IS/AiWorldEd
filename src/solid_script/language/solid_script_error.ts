@@ -1,3 +1,4 @@
+import type { SolidScriptFailure } from './solid_script_machine_types.js';
 /**
  * Formats a script error for people, starting with a capital letter and ending
  * with a full stop, such as "Line 2: unexpected ...".
@@ -20,4 +21,17 @@ export function solidScriptErrorText(error: unknown): string {
 export function solidScriptErrorLine(message: string): number | null {
   const match = /^line (\d+)\b/i.exec(message);
   return match ? Number(match[1]) : null;
+}
+
+/**
+ * Describes a mistake for every place that shows it.
+ *
+ * @param line 1-based line, or null.
+ * @param message Message as thrown.
+ * @returns Failure.
+ */
+export function solidScriptFailure(line: number | null, message: string): SolidScriptFailure {
+  const bare = message.replace(/^line \d+: /i, '');
+  const lined = line === null ? bare : `line ${line}: ${bare}`;
+  return { line, message: lined, text: solidScriptErrorText(lined) };
 }

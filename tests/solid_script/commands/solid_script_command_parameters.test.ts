@@ -12,7 +12,7 @@ describe('SolidScript fields naming a variable the line writes', () => {
           (parameter) =>
             SOLID_SCRIPT_TEST_WRITTEN_KEYS.has(parameter.key) && ['name', 'target'].includes(parameter.type),
         )
-        .map((parameter) => ({ field: `${command.id}.${parameter.key}`, writes: parameter.writes })),
+        .map((parameter) => ({ field: `${command.id}.${parameter.key}`, writes: parameter.writes?.offers })),
     );
     expect(written.length).toBeGreaterThan(SOLID_SCRIPT_TEST_WRITTEN_KEYS.size);
     for (const { field, writes } of written) expect(writes, field).toBe('name');
@@ -21,7 +21,7 @@ describe('SolidScript fields naming a variable the line writes', () => {
   it('marks the Set Variable field for whole paths, and the loop names for plain names', () => {
     const writes = (command: string, key: string) =>
       solidScriptCommands.find((entry) => entry.id === command)?.parameters.find((parameter) => parameter.key === key)
-        ?.writes;
+        ?.writes?.offers;
     expect(writes('variable', 'name')).toBe('path');
     expect(writes('repeat', 'variable')).toBe('name');
     expect(writes('for_each', 'variable')).toBe('name');

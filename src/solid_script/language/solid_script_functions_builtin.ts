@@ -65,7 +65,6 @@ function solidScriptLen(args: SolidScriptValue[]): SolidScriptValue {
   return Array.isArray(value) || typeof value === 'string' ? value.length : undefined;
 }
 
-/** Built-in functions by name; trigonometry works in degrees . */
 /**
  * Lookup(key, table): reads a value from a table of key, value pairs sorted by
  * key, blending linearly between the two nearest keys and holding the ends.
@@ -119,7 +118,8 @@ function solidScriptRands(args: SolidScriptValue[]): SolidScriptValue {
   return Array.from({ length: count }, () => low + (high - low) * next());
 }
 
-export const SOLID_SCRIPT_FUNCTIONS_BUILTIN: Readonly<Record<string, SolidScriptBuiltin>> = {
+/** Built-in functions by name, with their names as a type. */
+const SOLID_SCRIPT_FUNCTIONS_NAMED = {
   sin: solidScriptUnary((value) => Math.sin(value * SOLID_SCRIPT_DEGREES)),
   cos: solidScriptUnary((value) => Math.cos(value * SOLID_SCRIPT_DEGREES)),
   tan: solidScriptUnary((value) => Math.tan(value * SOLID_SCRIPT_DEGREES)),
@@ -159,4 +159,11 @@ export const SOLID_SCRIPT_FUNCTIONS_BUILTIN: Readonly<Record<string, SolidScript
   ...SOLID_SCRIPT_FUNCTIONS_EXTRA,
   ...SOLID_SCRIPT_FUNCTIONS_MATH,
   ...SOLID_SCRIPT_FUNCTIONS_CURVE,
-};
+} satisfies Readonly<Record<string, SolidScriptBuiltin>>;
+
+/** Name of a built-in function; its kinds must be declared for each. */
+export type SolidScriptBuiltinName = keyof typeof SOLID_SCRIPT_FUNCTIONS_NAMED;
+
+/** Built-in functions by name; trigonometry works in degrees. */
+export const SOLID_SCRIPT_FUNCTIONS_BUILTIN: Readonly<Record<string, SolidScriptBuiltin>> =
+  SOLID_SCRIPT_FUNCTIONS_NAMED;

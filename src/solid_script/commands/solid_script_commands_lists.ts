@@ -9,14 +9,31 @@ import {
   type SolidScriptValue,
 } from '@/solid_script/language/solid_script_value.js';
 
-/** Name field of the list a line changes. */
-const SOLID_SCRIPT_LIST_NAME = solidScriptParameterWrites(
-  solidScriptParameter('list', 'List', 'name', 'Items', 'Name of the list, without brackets.'),
+/** Name field of a list. */
+const SOLID_SCRIPT_LIST_FIELD = solidScriptParameter(
+  'list',
+  'List',
+  'name',
+  'Items',
+  'Name of the list, without brackets.',
 );
 
-/** Name field of the variable or list a line clears or deletes. */
-const SOLID_SCRIPT_LIST_VARIABLE = solidScriptParameterWrites(
-  solidScriptParameter('name', 'Variable', 'name', 'Items', 'Name of the variable or list, without brackets.'),
+/** Name field of the list a line adds to: a name not set yet becomes a list. */
+const SOLID_SCRIPT_LIST_ADD = solidScriptParameterWrites(SOLID_SCRIPT_LIST_FIELD, { rule: 'list', what: 'list' });
+
+/** Name field of the list a line changes, which stays a list. */
+const SOLID_SCRIPT_LIST_NAME = solidScriptParameterWrites(SOLID_SCRIPT_LIST_FIELD, { rule: 'kept' });
+
+/** Name field of the list a line only reads. */
+const SOLID_SCRIPT_LIST_READ = solidScriptParameterWrites(SOLID_SCRIPT_LIST_FIELD, { rule: 'read' });
+
+/** Name field of a variable or list. */
+const SOLID_SCRIPT_LIST_VARIABLE_FIELD = solidScriptParameter(
+  'name',
+  'Variable',
+  'name',
+  'Items',
+  'Name of the variable or list, without brackets.',
 );
 
 /** Stop shared by lines that need an existing list. */
@@ -75,7 +92,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     ],
     parameters: [
       solidScriptParameter('value', 'Value', 'value', '1', 'What to put in the list.'),
-      SOLID_SCRIPT_LIST_NAME,
+      SOLID_SCRIPT_LIST_ADD,
     ],
     listing: (read) => ['Add Item', read.value('value'), ' to ', read.text('list')],
     execute: (run) => {
@@ -98,7 +115,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     ],
     parameters: [
       solidScriptParameter('value', 'Value', 'value', '1', 'What to put in the list.'),
-      SOLID_SCRIPT_LIST_NAME,
+      SOLID_SCRIPT_LIST_ADD,
       solidScriptParameter('at', 'Position', 'count', '0', 'Where to put it, counting from 0.'),
     ],
     listing: (read) => ['Insert Item', read.value('value'), ' into ', read.text('list'), ' at ', read.value('at')],
@@ -135,6 +152,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
           'Points()',
           'List item to remove, such as Points(2), or Points() for the last.',
         ),
+        { rule: 'kept' },
       ),
     ],
     listing: (read) => ['Remove Item', read.variable('target')],
@@ -188,9 +206,10 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     stops: [SOLID_SCRIPT_LIST_STOP],
     parameters: [
       solidScriptParameter('value', 'Value', 'value', '1', 'What to look for.'),
-      SOLID_SCRIPT_LIST_NAME,
+      SOLID_SCRIPT_LIST_READ,
       solidScriptParameterWrites(
         solidScriptParameter('result', 'Result In', 'name', 'Found', 'Variable that gets the position, or -1.'),
+        { rule: 'kind', kind: 'Number', what: 'position in {list}' },
       ),
     ],
     listing: (read) => [
@@ -267,7 +286,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     manual:
       'Empties a variable but keeps its name: a list keeps no items, and anything else becomes empty text. Example: Clear Variable Heights empties the list Heights, so [Heights.Count] is 0. A name not set yet becomes an empty list, ready for Add Item.',
     stops: ['An input. Inputs can only be read.'],
-    parameters: [SOLID_SCRIPT_LIST_VARIABLE],
+    parameters: [solidScriptParameterWrites(SOLID_SCRIPT_LIST_VARIABLE_FIELD, { rule: 'kept' })],
     listing: (read) => ['Clear Variable', read.variable('name')],
     execute: (run) => {
       run.variableClear(run.text('name'));
@@ -282,7 +301,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     manual:
       'Forgets a variable, as if it was never set. Reading it afterwards stops the script, until a line sets it again. With a Persistent. name, it is no longer kept between runs. Example: Delete Variable Step forgets Step.',
     stops: ['A name that is not set.', 'An input. Inputs can only be read.'],
-    parameters: [SOLID_SCRIPT_LIST_VARIABLE],
+    parameters: [solidScriptParameterWrites(SOLID_SCRIPT_LIST_VARIABLE_FIELD, { rule: 'forgotten' })],
     listing: (read) => ['Delete Variable', read.variable('name')],
     execute: (run) => {
       run.variableDelete(run.text('name'));

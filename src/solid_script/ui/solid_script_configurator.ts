@@ -4,10 +4,7 @@ import {
   solidScriptConfiguratorFieldBuild,
   type SolidScriptConfiguratorField,
 } from './solid_script_configurator_fields.js';
-import {
-  SOLID_SCRIPT_NAMES_COMMAND,
-  type SolidScriptName,
-} from '@/solid_script/document/solid_script_document_names.js';
+import { type SolidScriptName } from '@/solid_script/document/solid_script_document_names.js';
 import { solidScriptInputRead } from '@/solid_script/language/solid_script_input.js';
 import { SolidScriptDialog } from './solid_script_dialog.js';
 import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
@@ -65,11 +62,7 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
         parameter,
         values[parameter.key] ?? parameter.default,
         () => this.refresh(),
-        {
-          names,
-          extra: SOLID_SCRIPT_NAMES_COMMAND[command.id] ?? [],
-          other: (key) => this.fields.get(key)?.read() ?? values[key] ?? '',
-        },
+        { names, extra: command.fills },
       );
       this.fields.set(parameter.key, field);
       list.append(field.element);
@@ -123,7 +116,6 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
    */
   private refresh(): void {
     const fields = [...this.fields.values()];
-    for (const field of fields) field.sync();
     const problem = fields.map((field) => field.problem()).find((text) => text !== '') || this.commandProblem();
     const warning = fields.map((field) => field.warning()).find((text) => text !== '') ?? '';
     this.preview.textContent = this.command.listingText(this.values());

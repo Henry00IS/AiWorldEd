@@ -3,14 +3,8 @@ import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import {
   solidScriptParameter,
   solidScriptParameterOptional,
-  solidScriptParameterWords,
   solidScriptParameterWrites,
 } from './solid_script_command_parameters.js';
-import {
-  SOLID_SCRIPT_TYPES,
-  solidScriptTypePlaceholder,
-  solidScriptTypeWords,
-} from '@/solid_script/language/solid_script_types.js';
 import {
   SolidScriptElement,
   solidScriptValueText,
@@ -64,7 +58,6 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
       'A name that is not letters, digits and _, or starts with a digit.',
       'A [Name] for a variable not set above this line, or a [=formula] that cannot be read.',
       'Setting an input of the script, which can only be read.',
-      'A value that does not fit the Type declared for the variable, here or on a Set above; every other line writing it, such as Add Item or Into, stops the same way.',
       'Setting a member such as Face.Center or Brush.Edges, which can only be read; only the values under .Data can be set.',
       'An item number past the end of a list, such as Points(5) when Points has 3 items.',
     ],
@@ -77,46 +70,19 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
           'Width',
           'Letters, digits and _, not starting with a digit. For a list, Points() adds an item and Points(2) changes item 2. Face.Data.Height sets a value under .Data, on every item of a list such as Brush.Edges.Data.Kind.',
         ),
+        { rule: 'value', field: 'value', what: 'set to {value}' },
         'path',
       ),
-      {
-        ...solidScriptParameter(
-          'value',
-          'Value',
-          'value',
-          '',
-          'A number, numbers separated by commas such as 1, 2, 3, a vector such as [1, 2, 3], a list of any items separated by commas such as [1, 2, 3], zu, 45, plain text ($, for a comma in it), [Name] for another variable, or [=formula] such as [=[Width] * 2]. Left empty it is the empty value of the Type: 0, no text, 0, 0, 0, No or a new empty list.',
-        ),
-        optional: true,
-        follows: { key: 'type', words: solidScriptTypeWords, placeholder: solidScriptTypePlaceholder },
-      },
-      {
-        ...solidScriptParameterWords(
-          'type',
-          'Type',
-          'text',
-          '',
-          `Optional kind the variable holds from here on, until a Set with another Type starts it over; empty keeps the Type set before, and Any lets it hold anything. One of: ${SOLID_SCRIPT_TYPES.join(', ')}.`,
-          SOLID_SCRIPT_TYPES.map((word) => ({
-            word,
-            detail: word === 'Any' ? 'Anything, also another kind later' : `Always a ${word}`,
-          })),
-        ),
-        optional: true,
-      },
+      solidScriptParameterOptional(
+        'value',
+        'Value',
+        'value',
+        'A number, numbers separated by commas such as 1, 2, 3, a vector such as [1, 2, 3], a list of any items separated by commas such as [1, 2, 3], zu, 45, plain text ($, for a comma in it), [Name] for another variable, or [=formula] such as [=[Width] * 2]. Left empty it is empty text.',
+      ),
     ],
-    listing: (read) => [
-      'Set',
-      read.variable('name'),
-      ...(read.text('type').trim() === '' ? [] : [' as ', read.text('type').trim()]),
-      ': ',
-      read.value('value'),
-    ],
+    listing: (read) => ['Set', read.variable('name'), ': ', read.value('value')],
     execute: (run) => {
-      const type = run.text('type').trim();
-      const value = run.valueTyped('value', type);
-      run.typeKeep(run.text('name'), type);
-      run.variableSet(run.text('name'), value);
+      run.variableSet(run.text('name'), run.valueItems('value'));
       return [];
     },
   }),
@@ -134,9 +100,11 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
       'A missing End line.',
     ],
     nesting: 'open',
+    flow: { kind: 'loop' },
     parameters: [
       solidScriptParameterWrites(
         solidScriptParameter('variable', 'Counter', 'name', 'I', 'Name the lines inside use for the current round.'),
+        { rule: 'kind', kind: 'Number', what: 'counter of **{command}**' },
       ),
       solidScriptParameter('from', 'Start', 'number', '0', 'Counter value of the first round.'),
       solidScriptParameter('to', 'End Value', 'number', '3', 'Counter value of the last round.'),
@@ -166,9 +134,11 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
       'A missing End line.',
     ],
     nesting: 'open',
+    flow: { kind: 'loop' },
     parameters: [
       solidScriptParameterWrites(
         solidScriptParameter('variable', 'Item', 'name', 'Item', 'Name the lines inside use for the current item.'),
+        { rule: 'item', field: 'list', what: 'item of **{command}**' },
       ),
       solidScriptParameter(
         'list',
@@ -184,6 +154,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
           'name',
           'Name for the item number from 0, or the key name over Data; empty gives none.',
         ),
+        { rule: 'key', field: 'list', what: 'key of **{command}**' },
       ),
     ],
     listing: (read) => [
@@ -222,6 +193,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
       'A missing End line.',
     ],
     nesting: 'open',
+    flow: { kind: 'choice', condition: 'condition' },
     parameters: [
       solidScriptParameter(
         'condition',
@@ -317,6 +289,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
       'Names a group of lines as a part. They build nothing where they stand. They build wherever a Use Part line asks for them. The part name also names the brushes it builds. Example: Define Part Post holds one tall Cube. Two Use Part Post lines inside two Translates build two posts.',
     stops: ['A name already used by another part.', 'A name that is not letters, digits and _.', 'A missing End line.'],
     nesting: 'open',
+    flow: { kind: 'part', name: 'name' },
     parameters: [
       solidScriptParameter('name', 'Name', 'name', 'Part', 'The name Use Part uses. It also names the brushes.'),
     ],
@@ -332,6 +305,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     manual:
       'Stops a Function or a part early. The lines after it are skipped. The script goes on after the Call or Use Part that started it. In a Function, Return can give back a value. A Call line stores that value in its Result In variable. Brushes built before Return stay. Put Return inside an If to stop only sometimes. Example: Return [Local.V] gives back the value V.',
     stops: ['Being outside a Function or a Define Part.', 'A Value inside a part. Parts hand back results with Set.'],
+    flow: { kind: 'return', value: 'value' },
     parameters: [
       solidScriptParameterOptional(
         'value',
@@ -351,6 +325,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     manual:
       'Builds a part here, then goes on with the next line. Define the part with Define Part, above or below this line. The blocks around this line move what the part builds. A part may be used many times. It shares the variables of the script, so a Set inside it can hand back a result. The name may be a variable, such as [Style]. A part may use itself, but an If must stop it. Example: Use Part Post inside Translate by 2, 0, 0 builds the post two metres to the right.',
     stops: ['No part with this name.', `Parts using each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} levels deep.`],
+    flow: { kind: 'use_part', name: 'name' },
     parameters: [
       {
         ...solidScriptParameter(

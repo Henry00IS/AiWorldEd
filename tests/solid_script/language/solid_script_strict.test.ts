@@ -97,7 +97,7 @@ describe('SolidScript stops at the first mistake', () => {
   });
 
   it('only warns about scripts that build nothing, after they ran', () => {
-    const lines = [
+    const lines: SolidScriptLine[] = [
       { command: 'variable', values: { name: 'x', value: '1' } },
       { command: 'echo', values: { value: '[x]' } },
     ];
@@ -113,7 +113,7 @@ describe('SolidScript stops at the first mistake', () => {
     const result = solidScriptProgramRun(
       solidScriptDocumentCreate([
         { command: 'echo', values: { value: '5+5' } },
-        { command: 'variable', values: { name: 'Width', value: '45$,8', type: 'Text' } },
+        { command: 'variable', values: { name: 'Width', value: '45$,8' } },
         { command: 'cube', values: { size: '1,[=Number(Width)],3' } },
       ]),
     );

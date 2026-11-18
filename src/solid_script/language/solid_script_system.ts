@@ -346,3 +346,15 @@ function solidScriptUseBounds(use: SolidScriptUseFacts): { min: number[]; max: n
   const max = [0, 1, 2].map((axis) => Math.max(...corners.map((corner) => corner[axis]!)));
   return { min, max };
 }
+
+/**
+ * The system values a field may read, as suggested and as the editor checks
+ * read their kinds: name with its $, kind and what it holds.
+ */
+export const SOLID_SCRIPT_SYSTEM_LISTED: readonly (readonly [string, string, string])[] = [
+  ['$Selected.Brushes', 'Brush List', 'the brushes lines below work on; every brush built so far until set'],
+  ['$Selected.Faces', 'Face List', 'the faces the last Select Faces picked'],
+  ['$Selected.Edges', 'Edge List', 'the edges set as selected'],
+  ['$Selected.Vertices', 'Vertex List', 'the corners set as selected'],
+  ...SOLID_SCRIPT_SYSTEM_GLOBALS.map((value) => [`$${value.name}`, value.type, value.detail] as const),
+];

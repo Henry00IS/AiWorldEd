@@ -5,6 +5,7 @@ import {
   solidScriptDocumentNames,
   solidScriptNameShown,
   solidScriptDocumentOrigins,
+  solidScriptNameKindsText,
   type SolidScriptNameCategory,
 } from '@/solid_script/document/solid_script_document_names.js';
 import { solidScriptInputTypeLabel } from '@/solid_script/language/solid_script_input.js';
@@ -82,7 +83,9 @@ export function solidScriptExplorerEntries(
       value: found?.value ?? null,
       type: input
         ? solidScriptInputTypeLabel(block?.values['type'] ?? '')
-        : (found?.type ?? SOLID_SCRIPT_EXPLORER_TYPES_STATIC[known.category] ?? 'Not Set Yet'),
+        : (found?.type ??
+          (solidScriptNameKindsText(known.kinds) ||
+            (SOLID_SCRIPT_EXPLORER_TYPES_STATIC[known.category] ?? 'Not Set Yet'))),
       lines: origins.get(known.name) ?? [known.line],
       items: found?.items ?? [],
       readOnly: input,

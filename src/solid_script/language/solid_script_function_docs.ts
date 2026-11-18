@@ -1,225 +1,279 @@
+import type { SOLID_SCRIPT_KINDS } from './solid_script_kinds.js';
+import type { SolidScriptBuiltinName } from './solid_script_functions_builtin.js';
+/** A kind of value the editor checks name, such as Face or Face List. */
+export type SolidScriptKindName = (typeof SOLID_SCRIPT_KINDS)[number] | `${(typeof SOLID_SCRIPT_KINDS)[number]} List`;
+
+/** Kinds of value a function takes or gives; Any for any value. */
+export type SolidScriptFunctionKinds = 'Any' | readonly SolidScriptKindName[];
+
+/**
+ * Names kinds for people, such as Number or Vector.
+ *
+ * @param kinds Kinds.
+ * @returns Kinds in words.
+ */
+export function solidScriptFunctionKindsText(kinds: SolidScriptFunctionKinds): string {
+  return kinds === 'Any' ? 'Any' : kinds.join(' or ');
+}
+
 /** How to call one built-in function and what it gives. */
 export interface SolidScriptFunctionDoc {
   /** Call with its inputs, such as pad_left(text, width, fill). */
   usage: string;
   /** What it gives, in one short sentence. */
   summary: string;
-  /** Kind of value it gives. */
-  gives: string;
+  /**
+   * Kinds of value it gives, read by the editor checks; Any when only running
+   * tells.
+   */
+  gives: SolidScriptFunctionKinds;
+  /**
+   * For a check such as IsNum: the kinds it says Yes for, so the editor checks
+   * know them inside an If that asks it; List stands for every list.
+   */
+  checks?: readonly SolidScriptKindName[];
   /** Group in the reference. */
   group: 'Math' | 'Angles' | 'Vectors' | 'Text' | 'Lists' | 'Checks' | 'Random' | 'Time' | 'Curves';
 }
 
-/** Every built-in function of formulas, by name. */
-export const SOLID_SCRIPT_FUNCTION_DOCS: Readonly<Record<string, SolidScriptFunctionDoc>> = {
-  sin: { usage: 'Sin(degrees)', summary: 'Sine of an angle in degrees.', group: 'Angles', gives: 'Number' },
-  cos: { usage: 'Cos(degrees)', summary: 'Cosine of an angle in degrees.', group: 'Angles', gives: 'Number' },
-  tan: { usage: 'Tan(degrees)', summary: 'Tangent of an angle in degrees.', group: 'Angles', gives: 'Number' },
+/**
+ * Every built-in function of formulas, by name: the TypeScript type makes a
+ * function without its kinds fail to build.
+ */
+const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, SolidScriptFunctionDoc>> = {
+  sin: { usage: 'Sin(degrees)', summary: 'Sine of an angle in degrees.', group: 'Angles', gives: ['Number'] },
+  cos: { usage: 'Cos(degrees)', summary: 'Cosine of an angle in degrees.', group: 'Angles', gives: ['Number'] },
+  tan: { usage: 'Tan(degrees)', summary: 'Tangent of an angle in degrees.', group: 'Angles', gives: ['Number'] },
   asin: {
     usage: 'Asin(value)',
     summary: 'Angle in degrees whose sine is the value.',
     group: 'Angles',
-    gives: 'Number',
+    gives: ['Number'],
   },
   acos: {
     usage: 'Acos(value)',
     summary: 'Angle in degrees whose cosine is the value.',
     group: 'Angles',
-    gives: 'Number',
+    gives: ['Number'],
   },
   atan: {
     usage: 'Atan(value)',
     summary: 'Angle in degrees whose tangent is the value.',
     group: 'Angles',
-    gives: 'Number',
+    gives: ['Number'],
   },
   atan2: {
     usage: 'Atan2(y, x)',
     summary: 'Angle in degrees from the X axis to the point x, y.',
     group: 'Angles',
-    gives: 'Number',
+    gives: ['Number'],
   },
-  radians: { usage: 'Radians(degrees)', summary: 'Turns degrees into radians.', group: 'Angles', gives: 'Number' },
-  degrees: { usage: 'Degrees(radians)', summary: 'Turns radians into degrees.', group: 'Angles', gives: 'Number' },
-  abs: { usage: 'Abs(number)', summary: 'The number without its minus sign.', group: 'Math', gives: 'Number' },
-  sign: { usage: 'Sign(number)', summary: '-1, 0 or 1 for below, at or above 0.', group: 'Math', gives: 'Number' },
-  ceil: { usage: 'Ceil(number)', summary: 'Rounds up to a whole number.', group: 'Math', gives: 'Number' },
-  floor: { usage: 'Floor(number)', summary: 'Rounds down to a whole number.', group: 'Math', gives: 'Number' },
-  round: { usage: 'Round(number)', summary: 'Rounds to the nearest whole number.', group: 'Math', gives: 'Number' },
-  trunc: { usage: 'Trunc(number)', summary: 'Drops what is after the decimal point.', group: 'Math', gives: 'Number' },
+  radians: { usage: 'Radians(degrees)', summary: 'Turns degrees into radians.', group: 'Angles', gives: ['Number'] },
+  degrees: { usage: 'Degrees(radians)', summary: 'Turns radians into degrees.', group: 'Angles', gives: ['Number'] },
+  abs: { usage: 'Abs(number)', summary: 'The number without its minus sign.', group: 'Math', gives: ['Number'] },
+  sign: { usage: 'Sign(number)', summary: '-1, 0 or 1 for below, at or above 0.', group: 'Math', gives: ['Number'] },
+  ceil: { usage: 'Ceil(number)', summary: 'Rounds up to a whole number.', group: 'Math', gives: ['Number'] },
+  floor: { usage: 'Floor(number)', summary: 'Rounds down to a whole number.', group: 'Math', gives: ['Number'] },
+  round: { usage: 'Round(number)', summary: 'Rounds to the nearest whole number.', group: 'Math', gives: ['Number'] },
+  trunc: {
+    usage: 'Trunc(number)',
+    summary: 'Drops what is after the decimal point.',
+    group: 'Math',
+    gives: ['Number'],
+  },
   fract: {
     usage: 'Fract(number)',
     summary: 'Only what is after the decimal point, 0 to 1.',
     group: 'Math',
-    gives: 'Number',
+    gives: ['Number'],
   },
-  sqrt: { usage: 'Sqrt(number)', summary: 'Square root.', group: 'Math', gives: 'Number' },
+  sqrt: { usage: 'Sqrt(number)', summary: 'Square root.', group: 'Math', gives: ['Number'] },
   pow: {
     usage: 'Pow(number, power)',
     summary: 'The number to a power; a ^ b does the same.',
     group: 'Math',
-    gives: 'Number',
+    gives: ['Number'],
   },
-  exp: { usage: 'Exp(number)', summary: 'e to the power of the number.', group: 'Math', gives: 'Number' },
-  ln: { usage: 'Ln(number)', summary: 'Natural logarithm.', group: 'Math', gives: 'Number' },
-  log: { usage: 'Log(number)', summary: 'Logarithm with base 10.', group: 'Math', gives: 'Number' },
+  exp: { usage: 'Exp(number)', summary: 'e to the power of the number.', group: 'Math', gives: ['Number'] },
+  ln: { usage: 'Ln(number)', summary: 'Natural logarithm.', group: 'Math', gives: ['Number'] },
+  log: { usage: 'Log(number)', summary: 'Logarithm with base 10.', group: 'Math', gives: ['Number'] },
   min: {
     usage: 'Min(a, b, ...)',
     summary: 'The smallest number, of the inputs or of one list.',
     group: 'Math',
-    gives: 'Number',
+    gives: ['Number'],
   },
   max: {
     usage: 'Max(a, b, ...)',
     summary: 'The biggest number, of the inputs or of one list.',
     group: 'Math',
-    gives: 'Number',
+    gives: ['Number'],
   },
   clamp: {
     usage: 'Clamp(value, min, max)',
     summary: 'Keeps a number between min and max.',
     group: 'Math',
-    gives: 'Number',
+    gives: ['Number'],
   },
   between: {
     usage: 'Between(value, min, max)',
     summary: 'Yes when the number is from min to max.',
     group: 'Math',
-    gives: 'Yes or No',
+    gives: ['Yes/No'],
   },
   lerp: {
     usage: 'Lerp(from, to, amount)',
     summary: 'The way from one number or vector to another.',
     group: 'Math',
-    gives: 'Number or Vector',
+    gives: ['Number', 'Vector'],
   },
   remap: {
     usage: 'Remap(value, from_low, from_high, to_low, to_high)',
     summary: 'Moves a number from one range into another.',
     group: 'Math',
-    gives: 'Number',
+    gives: ['Number'],
   },
   smoothstep: {
     usage: 'Smoothstep(edge_low, edge_high, value)',
     summary: 'Eases from 0 to 1 between the edges.',
     group: 'Math',
-    gives: 'Number',
+    gives: ['Number'],
   },
   wrap: {
     usage: 'Wrap(value, min, max)',
     summary: 'Goes round within a range, like 370° to 10°.',
     group: 'Math',
-    gives: 'Number',
+    gives: ['Number'],
   },
-  mod: { usage: 'Mod(a, b)', summary: 'Rest after dividing, never below 0.', group: 'Math', gives: 'Number' },
+  mod: { usage: 'Mod(a, b)', summary: 'Rest after dividing, never below 0.', group: 'Math', gives: ['Number'] },
   snap: {
     usage: 'Snap(value, step)',
     summary: 'Rounds to the nearest step, such as 0.25.',
     group: 'Math',
-    gives: 'Number',
+    gives: ['Number'],
   },
-  hypot: { usage: 'Hypot(a, b, ...)', summary: 'Length of the line with these sides.', group: 'Math', gives: 'Number' },
-  sum: { usage: 'Sum(list)', summary: 'All numbers of a list added up.', group: 'Math', gives: 'Number' },
-  average: { usage: 'Average(list)', summary: 'The mean of the numbers of a list.', group: 'Math', gives: 'Number' },
-  norm: { usage: 'Norm(vector)', summary: 'Length of a vector.', group: 'Vectors', gives: 'Number' },
-  length: { usage: 'Length(vector)', summary: 'Length of a vector.', group: 'Vectors', gives: 'Number' },
+  hypot: {
+    usage: 'Hypot(a, b, ...)',
+    summary: 'Length of the line with these sides.',
+    group: 'Math',
+    gives: ['Number'],
+  },
+  sum: { usage: 'Sum(list)', summary: 'All numbers of a list added up.', group: 'Math', gives: ['Number'] },
+  average: { usage: 'Average(list)', summary: 'The mean of the numbers of a list.', group: 'Math', gives: ['Number'] },
+  norm: { usage: 'Norm(vector)', summary: 'Length of a vector.', group: 'Vectors', gives: ['Number'] },
+  length: { usage: 'Length(vector)', summary: 'Length of a vector.', group: 'Vectors', gives: ['Number'] },
   normalize: {
     usage: 'Normalize(vector)',
     summary: 'The direction of a vector, with length 1.',
     group: 'Vectors',
-    gives: 'Vector',
+    gives: ['Vector'],
   },
-  dot: { usage: 'Dot(a, b)', summary: 'Dot product of two vectors.', group: 'Vectors', gives: 'Number' },
-  cross: { usage: 'Cross(a, b)', summary: 'Vector at right angles to both.', group: 'Vectors', gives: 'Vector' },
-  distance: { usage: 'Distance(a, b)', summary: 'How far apart two points are.', group: 'Vectors', gives: 'Number' },
-  vector: { usage: 'Vector(x, y, z)', summary: 'Makes a vector from numbers.', group: 'Vectors', gives: 'Vector' },
-  str: { usage: 'Str(a, b, ...)', summary: 'Joins values into one text.', group: 'Text', gives: 'Text' },
-  uppercase: { usage: 'Uppercase(text)', summary: 'TEXT IN CAPITALS.', group: 'Text', gives: 'Text' },
-  lowercase: { usage: 'Lowercase(text)', summary: 'text in small letters.', group: 'Text', gives: 'Text' },
-  capitalize: { usage: 'Capitalize(text)', summary: 'First letter as a capital.', group: 'Text', gives: 'Text' },
-  title_case: { usage: 'TitleCase(text)', summary: 'Every Word Starts With A Capital.', group: 'Text', gives: 'Text' },
-  trim: { usage: 'Trim(text)', summary: 'Drops spaces at both ends.', group: 'Text', gives: 'Text' },
-  trim_start: { usage: 'TrimStart(text)', summary: 'Drops spaces at the start.', group: 'Text', gives: 'Text' },
-  trim_end: { usage: 'TrimEnd(text)', summary: 'Drops spaces at the end.', group: 'Text', gives: 'Text' },
+  dot: { usage: 'Dot(a, b)', summary: 'Dot product of two vectors.', group: 'Vectors', gives: ['Number'] },
+  cross: { usage: 'Cross(a, b)', summary: 'Vector at right angles to both.', group: 'Vectors', gives: ['Vector'] },
+  distance: { usage: 'Distance(a, b)', summary: 'How far apart two points are.', group: 'Vectors', gives: ['Number'] },
+  vector: { usage: 'Vector(x, y, z)', summary: 'Makes a vector from numbers.', group: 'Vectors', gives: ['Vector'] },
+  str: { usage: 'Str(a, b, ...)', summary: 'Joins values into one text.', group: 'Text', gives: ['Text'] },
+  uppercase: { usage: 'Uppercase(text)', summary: 'TEXT IN CAPITALS.', group: 'Text', gives: ['Text'] },
+  lowercase: { usage: 'Lowercase(text)', summary: 'text in small letters.', group: 'Text', gives: ['Text'] },
+  capitalize: { usage: 'Capitalize(text)', summary: 'First letter as a capital.', group: 'Text', gives: ['Text'] },
+  title_case: {
+    usage: 'TitleCase(text)',
+    summary: 'Every Word Starts With A Capital.',
+    group: 'Text',
+    gives: ['Text'],
+  },
+  trim: { usage: 'Trim(text)', summary: 'Drops spaces at both ends.', group: 'Text', gives: ['Text'] },
+  trim_start: { usage: 'TrimStart(text)', summary: 'Drops spaces at the start.', group: 'Text', gives: ['Text'] },
+  trim_end: { usage: 'TrimEnd(text)', summary: 'Drops spaces at the end.', group: 'Text', gives: ['Text'] },
   pad_left: {
     usage: 'PadLeft(text, width, fill)',
     summary: 'Fills in front up to a width: 007.',
     group: 'Text',
-    gives: 'Text',
+    gives: ['Text'],
   },
   pad_right: {
     usage: 'PadRight(text, width, fill)',
     summary: 'Fills behind up to a width.',
     group: 'Text',
-    gives: 'Text',
+    gives: ['Text'],
   },
   contains: {
     usage: 'Contains(text, part)',
     summary: 'Yes when the text holds the part.',
     group: 'Text',
-    gives: 'Yes or No',
+    gives: ['Yes/No'],
   },
   starts_with: {
     usage: 'StartsWith(text, part)',
     summary: 'Yes when the text starts with the part.',
     group: 'Text',
-    gives: 'Yes or No',
+    gives: ['Yes/No'],
   },
   ends_with: {
     usage: 'EndsWith(text, part)',
     summary: 'Yes when the text ends with the part.',
     group: 'Text',
-    gives: 'Yes or No',
+    gives: ['Yes/No'],
   },
   position: {
     usage: 'Position(text, part)',
     summary: 'Where the part starts, from 0, or -1.',
     group: 'Text',
-    gives: 'Number',
+    gives: ['Number'],
   },
   count_text: {
     usage: 'CountText(text, part)',
     summary: 'How often the part is in the text.',
     group: 'Text',
-    gives: 'Number',
+    gives: ['Number'],
   },
   character_code: {
     usage: 'CharacterCode(text)',
     summary: 'The number of the first character: A is 65.',
     group: 'Text',
-    gives: 'Number',
+    gives: ['Number'],
   },
-  character: { usage: 'Character(code)', summary: 'The character of a number: 65 is A.', group: 'Text', gives: 'Text' },
-  part: { usage: 'Part(text, start, count)', summary: 'A piece of the text, from 0.', group: 'Text', gives: 'Text' },
+  character: {
+    usage: 'Character(code)',
+    summary: 'The character of a number: 65 is A.',
+    group: 'Text',
+    gives: ['Text'],
+  },
+  part: { usage: 'Part(text, start, count)', summary: 'A piece of the text, from 0.', group: 'Text', gives: ['Text'] },
   replace: {
     usage: 'Replace(text, find, with)',
     summary: 'Replaces every copy of a part.',
     group: 'Text',
-    gives: 'Text',
+    gives: ['Text'],
   },
   replace_pattern: {
     usage: 'ReplacePattern(text, pattern, with)',
     summary: 'Replaces what matches a pattern.',
     group: 'Text',
-    gives: 'Text',
+    gives: ['Text'],
   },
   find_pattern: {
     usage: 'FindPattern(text, pattern)',
     summary: 'List of what matches a pattern.',
     group: 'Text',
-    gives: 'List',
+    gives: ['List'],
   },
-  repeat_text: { usage: 'RepeatText(text, times)', summary: 'The text several times.', group: 'Text', gives: 'Text' },
-  reversed: { usage: 'Reversed(text or list)', summary: 'Back to front.', group: 'Text', gives: 'Text or List' },
+  repeat_text: { usage: 'RepeatText(text, times)', summary: 'The text several times.', group: 'Text', gives: ['Text'] },
+  reversed: { usage: 'Reversed(text or list)', summary: 'Back to front.', group: 'Text', gives: ['Text', 'List'] },
   split: {
     usage: 'Split(text, separator)',
     summary: 'List of the pieces between separators.',
     group: 'Text',
-    gives: 'List',
+    gives: ['List'],
   },
-  join: { usage: 'Join(list, separator)', summary: 'One text from the items of a list.', group: 'Text', gives: 'Text' },
-  characters: { usage: 'Characters(text)', summary: 'List of the single letters.', group: 'Text', gives: 'List' },
-  lines: { usage: 'Lines(text)', summary: 'List of the lines of a text.', group: 'Text', gives: 'List' },
+  join: {
+    usage: 'Join(list, separator)',
+    summary: 'One text from the items of a list.',
+    group: 'Text',
+    gives: ['Text'],
+  },
+  characters: { usage: 'Characters(text)', summary: 'List of the single letters.', group: 'Text', gives: ['List'] },
+  lines: { usage: 'Lines(text)', summary: 'List of the lines of a text.', group: 'Text', gives: ['List'] },
   parse: {
     usage: 'Parse(text)',
     summary:
@@ -227,30 +281,30 @@ export const SOLID_SCRIPT_FUNCTION_DOCS: Readonly<Record<string, SolidScriptFunc
     group: 'Text',
     gives: 'Any',
   },
-  number: { usage: 'Number(text)', summary: 'Reads text as a number.', group: 'Text', gives: 'Number' },
+  number: { usage: 'Number(text)', summary: 'Reads text as a number.', group: 'Text', gives: ['Number'] },
   format_number: {
     usage: 'FormatNumber(number, decimals, thousands)',
     summary: 'Writes a number with decimals and a thousands mark: 1,234.50.',
     group: 'Text',
-    gives: 'Text',
+    gives: ['Text'],
   },
   time_text: {
     usage: 'TimeText(seconds, pattern)',
     summary: 'Writes a time with YYYY MM DD HH mm ss, such as Time.Now.',
     group: 'Time',
-    gives: 'Text',
+    gives: ['Text'],
   },
-  len: { usage: 'Len(list or text)', summary: 'How many items or letters.', group: 'Lists', gives: 'Number' },
-  concat: { usage: 'Concat(a, b, ...)', summary: 'One list from lists and values.', group: 'Lists', gives: 'List' },
+  len: { usage: 'Len(list or text)', summary: 'How many items or letters.', group: 'Lists', gives: ['Number'] },
+  concat: { usage: 'Concat(a, b, ...)', summary: 'One list from lists and values.', group: 'Lists', gives: ['List'] },
   lookup: {
     usage: 'Lookup(key, table)',
     summary: 'Value between the rows of a key table.',
     group: 'Lists',
-    gives: 'Number',
+    gives: ['Number'],
   },
   first: { usage: 'First(list)', summary: 'The first item.', group: 'Lists', gives: 'Any' },
   last: { usage: 'Last(list)', summary: 'The last item.', group: 'Lists', gives: 'Any' },
-  slice: { usage: 'Slice(list, start, count)', summary: 'Some items, from 0.', group: 'Lists', gives: 'List' },
+  slice: { usage: 'Slice(list, start, count)', summary: 'Some items, from 0.', group: 'Lists', gives: ['List'] },
   item_or: {
     usage: 'ItemOr(list, index, fallback)',
     summary: 'The item at an index, from 0, or the fallback when there is none: ItemOr($[1, 2$], 5, 0) is 0.',
@@ -261,14 +315,14 @@ export const SOLID_SCRIPT_FUNCTION_DOCS: Readonly<Record<string, SolidScriptFunc
     usage: 'IndexOf(list, value)',
     summary: 'Where a value is, from 0, or -1.',
     group: 'Lists',
-    gives: 'Number',
+    gives: ['Number'],
   },
-  unique: { usage: 'Unique(list)', summary: 'The list without repeats.', group: 'Lists', gives: 'List' },
+  unique: { usage: 'Unique(list)', summary: 'The list without repeats.', group: 'Lists', gives: ['List'] },
   sorted: {
     usage: 'Sorted(list)',
     summary: 'A sorted copy: numbers small to big, words A to Z.',
     group: 'Lists',
-    gives: 'List',
+    gives: ['List'],
   },
   pick: {
     usage: 'Pick(number, first, second, ...)',
@@ -276,55 +330,83 @@ export const SOLID_SCRIPT_FUNCTION_DOCS: Readonly<Record<string, SolidScriptFunc
     group: 'Lists',
     gives: 'Any',
   },
-  is_undef: { usage: 'IsUndef(value)', summary: 'Yes when there is no value.', group: 'Checks', gives: 'Yes or No' },
-  is_num: { usage: 'IsNum(value)', summary: 'Yes for a number.', group: 'Checks', gives: 'Yes or No' },
-  is_list: { usage: 'IsList(value)', summary: 'Yes for a list or vector.', group: 'Checks', gives: 'Yes or No' },
-  is_string: { usage: 'IsString(value)', summary: 'Yes for text.', group: 'Checks', gives: 'Yes or No' },
-  is_bool: { usage: 'IsBool(value)', summary: 'Yes for Yes or No.', group: 'Checks', gives: 'Yes or No' },
+  is_undef: { usage: 'IsUndef(value)', summary: 'Yes when there is no value.', group: 'Checks', gives: ['Yes/No'] },
+  is_num: {
+    usage: 'IsNum(value)',
+    summary: 'Yes for a number.',
+    group: 'Checks',
+    gives: ['Yes/No'],
+    checks: ['Number'],
+  },
+  is_list: {
+    usage: 'IsList(value)',
+    summary: 'Yes for a list or vector.',
+    group: 'Checks',
+    gives: ['Yes/No'],
+    checks: ['List', 'Vector'],
+  },
+  is_string: {
+    usage: 'IsString(value)',
+    summary: 'Yes for text.',
+    group: 'Checks',
+    gives: ['Yes/No'],
+    checks: ['Text'],
+  },
+  is_bool: {
+    usage: 'IsBool(value)',
+    summary: 'Yes for Yes or No.',
+    group: 'Checks',
+    gives: ['Yes/No'],
+    checks: ['Yes/No'],
+  },
   curve_at: {
     usage: 'CurveAt(curve, x)',
     summary: 'Height of a curve at x, from 0 to 1.',
     group: 'Curves',
-    gives: 'Number',
+    gives: ['Number'],
   },
   path_length: {
     usage: 'PathLength(points)',
     summary: 'Length of a path through points.',
     group: 'Curves',
-    gives: 'Number',
+    gives: ['Number'],
   },
   resample: {
     usage: 'Resample(points, count)',
     summary: 'Count points evenly spaced along a path, from its start to its end.',
     group: 'Curves',
-    gives: 'List',
+    gives: ['List'],
   },
   profile_points: {
     usage: 'ProfilePoints(curve, height, radius)',
     summary: 'A profile as [height, radius] points, like a column samples it.',
     group: 'Curves',
-    gives: 'List',
+    gives: ['List'],
   },
   random: {
     usage: 'Random(min, max, seed)',
     summary: 'A random number; one seed gives one number.',
     group: 'Random',
-    gives: 'Number',
+    gives: ['Number'],
   },
   rands: {
     usage: 'Rands(min, max, count, seed)',
     summary: 'A list of random numbers.',
     group: 'Random',
-    gives: 'List',
+    gives: ['List'],
   },
 };
+
+/** Every built-in function of formulas with its kinds, by name. */
+export const SOLID_SCRIPT_FUNCTION_DOCS: Readonly<Record<string, SolidScriptFunctionDoc>> =
+  SOLID_SCRIPT_FUNCTION_DOCS_NAMED;
 
 /** One input of a function: its name, the kind of value and what it is for. */
 export interface SolidScriptFunctionArgument {
   /** Name as the usage writes it, such as from_low or "...". */
   name: string;
-  /** Kind of value, such as Number or Text. */
-  type: string;
+  /** Kinds of value it takes, read by the editor checks and a running formula. */
+  type: SolidScriptFunctionKinds;
   /** What it is for, in one short sentence. */
   about: string;
 }
@@ -332,87 +414,90 @@ export interface SolidScriptFunctionArgument {
 /** Kind and meaning of the inputs by name, shared by the functions using it. */
 const SOLID_SCRIPT_FUNCTION_ARGUMENTS: Readonly<Record<string, Omit<SolidScriptFunctionArgument, 'name'>>> = {
   '...': { type: 'Any', about: 'More values, as many as needed.' },
-  a: { type: 'Number', about: 'The first number.' },
-  b: { type: 'Number', about: 'The second number.' },
-  amount: { type: 'Number', about: 'How far along: 0 is From, 1 is To.' },
-  code: { type: 'Number', about: 'Character number, such as 65 for A.' },
-  count: { type: 'Number', about: 'How many.' },
-  curve: { type: 'Curve', about: 'A curve, such as a curve Input.' },
-  decimals: { type: 'Number', about: 'Digits after the decimal point.' },
-  degrees: { type: 'Number', about: 'Angle in degrees.' },
-  edge_high: { type: 'Number', about: 'Where the result reaches 1.' },
-  edge_low: { type: 'Number', about: 'Where the result starts to rise above 0.' },
+  a: { type: ['Number'], about: 'The first number.' },
+  b: { type: ['Number'], about: 'The second number.' },
+  amount: { type: ['Number'], about: 'How far along: 0 is From, 1 is To.' },
+  code: { type: ['Number'], about: 'Character number, such as 65 for A.' },
+  count: { type: ['Number'], about: 'How many.' },
+  curve: { type: 'Any', about: 'A curve, such as a curve Input.' },
+  decimals: { type: ['Number'], about: 'Digits after the decimal point.' },
+  degrees: { type: ['Number'], about: 'Angle in degrees.' },
+  edge_high: { type: ['Number'], about: 'Where the result reaches 1.' },
+  edge_low: { type: ['Number'], about: 'Where the result starts to rise above 0.' },
   fallback: { type: 'Any', about: 'What it gives when there is no such item.' },
-  fill: { type: 'Text', about: 'Character to fill with, such as "0".' },
-  find: { type: 'Text', about: 'The part to replace.' },
+  fill: { type: ['Text'], about: 'Character to fill with, such as "0".' },
+  find: { type: ['Text'], about: 'The part to replace.' },
   first: { type: 'Any', about: 'Value at position 0.' },
-  from: { type: 'Number or Vector', about: 'Where the way starts.' },
-  from_high: { type: 'Number', about: 'High end of the range the value is in.' },
-  from_low: { type: 'Number', about: 'Low end of the range the value is in.' },
-  height: { type: 'Number', about: 'Height of the profile.' },
-  index: { type: 'Number', about: 'Position, from 0.' },
-  key: { type: 'Number', about: 'The value to look up.' },
-  list: { type: 'List', about: 'A list.' },
-  'list or text': { type: 'List or Text', about: 'A list or a text.' },
-  max: { type: 'Number', about: 'The highest value.' },
-  min: { type: 'Number', about: 'The lowest value.' },
-  number: { type: 'Number', about: 'A number.' },
-  part: { type: 'Text', about: 'The piece of text to look for.' },
-  pattern: { type: 'Text', about: 'Pattern the text is matched against.' },
-  points: { type: 'List', about: 'The points of a path.' },
-  power: { type: 'Number', about: 'The power to raise to.' },
-  radians: { type: 'Number', about: 'Angle in radians.' },
-  radius: { type: 'Number', about: 'Radius of the profile.' },
+  from: { type: ['Number', 'Vector'], about: 'Where the way starts.' },
+  from_high: { type: ['Number'], about: 'High end of the range the value is in.' },
+  from_low: { type: ['Number'], about: 'Low end of the range the value is in.' },
+  height: { type: ['Number'], about: 'Height of the profile.' },
+  index: { type: ['Number'], about: 'Position, from 0.' },
+  key: { type: ['Number'], about: 'The value to look up.' },
+  list: { type: ['List'], about: 'A list.' },
+  'list or text': { type: ['List', 'Text'], about: 'A list or a text.' },
+  max: { type: ['Number'], about: 'The highest value.' },
+  min: { type: ['Number'], about: 'The lowest value.' },
+  number: { type: ['Number'], about: 'A number.' },
+  part: { type: ['Text'], about: 'The piece of text to look for.' },
+  pattern: { type: ['Text'], about: 'Pattern the text is matched against.' },
+  points: { type: ['List'], about: 'The points of a path.' },
+  power: { type: ['Number'], about: 'The power to raise to.' },
+  radians: { type: ['Number'], about: 'Angle in radians.' },
+  radius: { type: ['Number'], about: 'Radius of the profile.' },
   second: { type: 'Any', about: 'Value at position 1.' },
-  seconds: { type: 'Number', about: 'A time in seconds, such as Time.Now.' },
-  seed: { type: 'Number', about: 'One seed always gives the same result.' },
-  separator: { type: 'Text', about: 'Text between the pieces, such as ",".' },
-  start: { type: 'Number', about: 'Where it starts, from 0.' },
-  step: { type: 'Number', about: 'Step size, such as 0.25.' },
-  table: { type: 'List', about: 'Rows of a key and its value.' },
-  text: { type: 'Text', about: 'A text.' },
-  'text or list': { type: 'Text or List', about: 'A text or a list.' },
-  thousands: { type: 'Text', about: 'Mark between thousands, such as ",".' },
-  times: { type: 'Number', about: 'How many times.' },
-  to: { type: 'Number or Vector', about: 'Where the way ends.' },
-  to_high: { type: 'Number', about: 'High end of the new range.' },
-  to_low: { type: 'Number', about: 'Low end of the new range.' },
-  value: { type: 'Number', about: 'The number to work on.' },
-  vector: { type: 'Vector', about: 'A vector.' },
-  width: { type: 'Number', about: 'Length to fill up to.' },
-  with: { type: 'Text', about: 'Text to put in instead.' },
-  x: { type: 'Number', about: 'The X value.' },
-  y: { type: 'Number', about: 'The Y value.' },
-  z: { type: 'Number', about: 'The Z value.' },
+  seconds: { type: ['Number'], about: 'A time in seconds, such as Time.Now.' },
+  seed: { type: ['Number'], about: 'One seed always gives the same result.' },
+  separator: { type: ['Text'], about: 'Text between the pieces, such as ",".' },
+  start: { type: ['Number'], about: 'Where it starts, from 0.' },
+  step: { type: ['Number'], about: 'Step size, such as 0.25.' },
+  table: { type: ['List'], about: 'Rows of a key and its value.' },
+  text: { type: ['Text'], about: 'A text.' },
+  'text or list': { type: ['Text', 'List'], about: 'A text or a list.' },
+  thousands: { type: ['Text'], about: 'Mark between thousands, such as ",".' },
+  times: { type: ['Number'], about: 'How many times.' },
+  to: { type: ['Number', 'Vector'], about: 'Where the way ends.' },
+  to_high: { type: ['Number'], about: 'High end of the new range.' },
+  to_low: { type: ['Number'], about: 'Low end of the new range.' },
+  value: { type: ['Number'], about: 'The number to work on.' },
+  vector: { type: ['Vector'], about: 'A vector.' },
+  width: { type: ['Number'], about: 'Length to fill up to.' },
+  with: { type: ['Text'], about: 'Text to put in instead.' },
+  x: { type: ['Number'], about: 'The X value.' },
+  y: { type: ['Number'], about: 'The Y value.' },
+  z: { type: ['Number'], about: 'The Z value.' },
 };
 
 /** Inputs whose meaning differs in one function, by function, then name. */
 const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
   Record<string, Readonly<Record<string, Omit<SolidScriptFunctionArgument, 'name'>>>>
 > = {
-  asin: { value: { type: 'Number', about: 'A sine, from -1 to 1.' } },
-  acos: { value: { type: 'Number', about: 'A cosine, from -1 to 1.' } },
-  atan: { value: { type: 'Number', about: 'A tangent.' } },
-  atan2: { y: { type: 'Number', about: 'Y of the point.' }, x: { type: 'Number', about: 'X of the point.' } },
+  asin: { value: { type: ['Number'], about: 'A sine, from -1 to 1.' } },
+  acos: { value: { type: ['Number'], about: 'A cosine, from -1 to 1.' } },
+  atan: { value: { type: ['Number'], about: 'A tangent.' } },
+  atan2: { y: { type: ['Number'], about: 'Y of the point.' }, x: { type: ['Number'], about: 'X of the point.' } },
   min: {
-    a: { type: 'Number or List', about: 'A number, or one list of numbers.' },
-    b: { type: 'Number', about: 'Another number.' },
-    '...': { type: 'Number', about: 'More numbers.' },
+    a: { type: ['Number', 'List'], about: 'A number, or one list of numbers.' },
+    b: { type: ['Number'], about: 'Another number.' },
+    '...': { type: ['Number'], about: 'More numbers.' },
   },
   max: {
-    a: { type: 'Number or List', about: 'A number, or one list of numbers.' },
-    b: { type: 'Number', about: 'Another number.' },
-    '...': { type: 'Number', about: 'More numbers.' },
+    a: { type: ['Number', 'List'], about: 'A number, or one list of numbers.' },
+    b: { type: ['Number'], about: 'Another number.' },
+    '...': { type: ['Number'], about: 'More numbers.' },
   },
   hypot: {
-    a: { type: 'Number', about: 'One side.' },
-    b: { type: 'Number', about: 'Another side.' },
-    '...': { type: 'Number', about: 'More sides.' },
+    a: { type: ['Number'], about: 'One side.' },
+    b: { type: ['Number'], about: 'Another side.' },
+    '...': { type: ['Number'], about: 'More sides.' },
   },
-  mod: { a: { type: 'Number', about: 'The number to divide.' }, b: { type: 'Number', about: 'What to divide by.' } },
-  dot: { a: { type: 'Vector', about: 'The first vector.' }, b: { type: 'Vector', about: 'The second vector.' } },
-  cross: { a: { type: 'Vector', about: 'The first vector.' }, b: { type: 'Vector', about: 'The second vector.' } },
-  distance: { a: { type: 'Vector', about: 'The first point.' }, b: { type: 'Vector', about: 'The second point.' } },
+  mod: {
+    a: { type: ['Number'], about: 'The number to divide.' },
+    b: { type: ['Number'], about: 'What to divide by.' },
+  },
+  dot: { a: { type: ['Vector'], about: 'The first vector.' }, b: { type: ['Vector'], about: 'The second vector.' } },
+  cross: { a: { type: ['Vector'], about: 'The first vector.' }, b: { type: ['Vector'], about: 'The second vector.' } },
+  distance: { a: { type: ['Vector'], about: 'The first point.' }, b: { type: ['Vector'], about: 'The second point.' } },
   str: {
     a: { type: 'Any', about: 'A value to join.' },
     b: { type: 'Any', about: 'Another value.' },
@@ -423,18 +508,18 @@ const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
     b: { type: 'Any', about: 'Another list or value.' },
     '...': { type: 'Any', about: 'More lists or values.' },
   },
-  pick: { number: { type: 'Number', about: 'Position of the value to give, from 0.' } },
+  pick: { number: { type: ['Number'], about: 'Position of the value to give, from 0.' } },
   index_of: { value: { type: 'Any', about: 'The value to find.' } },
   is_undef: { value: { type: 'Any', about: 'The value to check.' } },
   is_num: { value: { type: 'Any', about: 'The value to check.' } },
   is_list: { value: { type: 'Any', about: 'The value to check.' } },
   is_string: { value: { type: 'Any', about: 'The value to check.' } },
   is_bool: { value: { type: 'Any', about: 'The value to check.' } },
-  curve_at: { x: { type: 'Number', about: 'Where on the curve, from 0 to 1.' } },
-  resample: { count: { type: 'Number', about: 'How many points to give.' } },
-  time_text: { pattern: { type: 'Text', about: 'Layout with YYYY, MM, DD, HH, mm and ss, such as "HH:mm".' } },
-  slice: { start: { type: 'Number', about: 'Position of the first item, from 0.' } },
-  replace_pattern: { with: { type: 'Text', about: 'Text to put in instead of every match.' } },
+  curve_at: { x: { type: ['Number'], about: 'Where on the curve, from 0 to 1.' } },
+  resample: { count: { type: ['Number'], about: 'How many points to give.' } },
+  time_text: { pattern: { type: ['Text'], about: 'Layout with YYYY, MM, DD, HH, mm and ss, such as "HH:mm".' } },
+  slice: { start: { type: ['Number'], about: 'Position of the first item, from 0.' } },
+  replace_pattern: { with: { type: ['Text'], about: 'Text to put in instead of every match.' } },
 };
 
 /**
@@ -451,7 +536,7 @@ export function solidScriptFunctionArguments(key: string): SolidScriptFunctionAr
   return inside.split(',').map((piece) => {
     const name = piece.trim();
     const known = SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN[key]?.[name] ??
-      SOLID_SCRIPT_FUNCTION_ARGUMENTS[name] ?? { type: '', about: '' };
+      SOLID_SCRIPT_FUNCTION_ARGUMENTS[name] ?? { type: 'Any', about: '' };
     return { name, ...known };
   });
 }

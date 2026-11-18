@@ -1,4 +1,6 @@
 import type { SolidScriptExpression } from './solid_script_ast.js';
+import { solidScriptFunctionArguments, type SolidScriptFunctionArgument } from './solid_script_function_docs.js';
+import { solidScriptKindFits, solidScriptKindOf, solidScriptKindsWords } from './solid_script_kinds.js';
 import { solidScriptArithmeticBinary } from './solid_script_arithmetic.js';
 import type { SolidScriptExpressionEvaluator } from './solid_script_expression_evaluator.js';
 import { SOLID_SCRIPT_FUNCTIONS_BUILTIN } from './solid_script_functions_builtin.js';
@@ -164,15 +166,42 @@ function solidScriptCompileCall(written: string, args: readonly SolidScriptCompi
       if (args.length !== 1) throw new Error('Parse(text) takes one text');
       return evaluator.parseText(args[0]!(evaluator, scope), scope);
     };
+  const inputs = found ? solidScriptFunctionArguments(found) : [];
   return (evaluator, scope) => {
     const values = new Array<SolidScriptValue>(args.length);
     for (let index = 0; index < args.length; index++) values[index] = args[index]!(evaluator, scope);
     if (!builtin) return evaluator.callUser(name, values);
+    solidScriptCompileInputsCheck(name, inputs, values);
     const result = builtin(values);
     if (result === undefined && found !== 'is_undef')
       throw new Error(`${name}() cannot use ${values.map(solidScriptValueShow).join(', ') || 'no values'}`);
     return result;
   };
+}
+
+/**
+ * Stops a call of a built-in function given a value of a kind one of its inputs
+ * does not take, in the words its declared kinds give.
+ *
+ * @param name Function name as shown.
+ * @param inputs Its inputs with their kinds.
+ * @param values Values given.
+ */
+function solidScriptCompileInputsCheck(
+  name: string,
+  inputs: readonly SolidScriptFunctionArgument[],
+  values: readonly SolidScriptValue[],
+): void {
+  const more = inputs.find((input) => input.name === '...');
+  for (let index = 0; index < values.length; index++) {
+    const input = inputs[index] ?? more;
+    if (!input || input.type === 'Any') continue;
+    const kind = solidScriptKindOf(values[index]);
+    if (!solidScriptKindFits(input.type, kind))
+      throw new Error(
+        `${name}() needs ${solidScriptKindsWords(input.type)} for ${solidScriptFunctionSpelling(input.name)}, not ${/^[AEIOU]/.test(kind) ? 'an' : 'a'} ${kind}: ${solidScriptValueShow(values[index])}`,
+      );
+  }
 }
 
 /**

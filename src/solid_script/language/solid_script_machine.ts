@@ -1,20 +1,20 @@
-import { solidScriptTypeValue } from './solid_script_types.js';
 import {
   SOLID_SCRIPT_USE_GENERATOR,
   solidScriptInputBrushName,
   type SolidScriptSystemReader,
 } from './solid_script_system.js';
+import { solidScriptKindAccepted, solidScriptKindMismatch, solidScriptKindOf } from './solid_script_kinds.js';
 import * as THREE from 'three';
 import { solidScriptMistakeHinted } from './solid_script_field_mistakes.js';
 import { SolidScriptBlockArguments } from './solid_script_block_arguments.js';
 import type { SolidScriptBlockNode } from './solid_script_block_tree.js';
-import { solidScriptErrorLine, solidScriptErrorText } from './solid_script_error.js';
+import { solidScriptErrorLine, solidScriptFailure } from './solid_script_error.js';
 import {
   solidScriptFieldCompiled,
   solidScriptFieldArguments,
   solidScriptFieldList,
   solidScriptFieldResolve,
-  type SolidScriptFieldCompiled,
+  solidScriptFieldSplit,
 } from './solid_script_field.js';
 import { solidScriptExtrude } from './solid_script_extrude.js';
 import { solidScriptPolygonHull, type SolidScriptPoint2 } from './solid_script_polygon.js';
@@ -22,35 +22,42 @@ import { solidScriptNameKey } from './solid_script_name_key.js';
 import { solidScriptShapeTransform } from './solid_script_reshape.js';
 import { solidScriptMeshChecked, solidScriptMeshTransform, solidScriptShapeHasMesh } from './solid_script_mesh.js';
 import { SolidScriptScope } from './solid_script_scope.js';
+import {
+  SOLID_SCRIPT_TEXT_FIELDS,
+  solidScriptLinesPassInput,
+  solidScriptRunKnown,
+  solidScriptRunMake,
+  solidScriptRunsKnown,
+  type SolidScriptBlockRuns,
+  type SolidScriptLineField,
+  type SolidScriptLineRun,
+  type SolidScriptLineState,
+  type SolidScriptRunBuild,
+} from './solid_script_machine_runs.js';
 import { solidScriptGeometryLeaves, type SolidScriptGeometryLeaf } from './solid_script_geometry.js';
 import {
   solidScriptShapeJoin,
   solidScriptShapeLeavesPositive,
   solidScriptShapeMapLeaves,
   type SolidScriptShape,
-  type SolidScriptShapeSolid,
   SOLID_SCRIPT_SHAPE_NAME_KEY,
   solidScriptShapesNamed,
+  solidScriptLeafUnreceived,
 } from './solid_script_shape.js';
 import { SolidScriptElement, solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
-import {
-  SOLID_SCRIPT_DEFINITIONS,
-  SOLID_SCRIPT_FORMULA_CONTEXT,
-  SOLID_SCRIPT_HANDLERS,
-  SolidScriptMachineCalls,
-} from './solid_script_machine_calls.js';
+import { SOLID_SCRIPT_HANDLERS, SolidScriptMachineCalls } from './solid_script_machine_calls.js';
 import type {
   SolidScriptBlockRun,
   SolidScriptBreak,
   SolidScriptBreakpoints,
   SolidScriptContext,
   SolidScriptEvent,
-  SolidScriptFailure,
   SolidScriptFrameView,
   SolidScriptGathering,
   SolidScriptHandled,
   SolidScriptLineProfile,
   SolidScriptMachineCommand,
+  SolidScriptMachineField,
   SolidScriptRun,
   SolidScriptWarning,
 } from './solid_script_machine_types.js';
@@ -69,57 +76,6 @@ const SOLID_SCRIPT_SOLIDS_MAX = 2000;
  * room while no script can freeze the editor.
  */
 export const SOLID_SCRIPT_WORK_LIMIT = 10_000_000;
-
-/** Field types whose stored text is used as typed instead of evaluated. */
-const SOLID_SCRIPT_TEXT_FIELDS: ReadonlySet<string> = new Set(['name', 'target', 'text']);
-
-/** Scope and context a line runs in this time. */
-interface SolidScriptLineState {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- run views are shared by machines of any command type.
-  machine: SolidScriptMachine<any>;
-  scope: SolidScriptScope;
-  context: SolidScriptContext;
-}
-
-/**
- * The run view of a line, made once per line and reused, by every machine that
- * runs the line, while the line is not running.
- */
-interface SolidScriptLineRun {
-  run: SolidScriptBlockRun;
-  state: SolidScriptLineState;
-  /** True while the line runs, so a Function calling itself gets its own view. */
-  busy: boolean;
-  /** True for a definition line, which is skipped where it stands. */
-  definition: boolean;
-}
-
-/** A field of a line, read once per run. */
-interface SolidScriptLineField {
-  /** Field text, or its default. */
-  text: string;
-  /** Caption, for messages. */
-  label: string;
-  /** Closure that reads its value. */
-  compiled: SolidScriptFieldCompiled;
-}
-
-/**
- * Run views by line, kept across runs: building one costs about fifty closures,
- * so a script rebuilt with new inputs reuses those of the last run.
- */
-const SOLID_SCRIPT_LINE_RUNS = new WeakMap<object, SolidScriptLineRun>();
-
-/** The kept run views of the lines of a block. */
-interface SolidScriptBlockRuns {
-  /** Run views in line order. */
-  runs: readonly SolidScriptLineRun[];
-  /** True when a line defines a part, Function or event handler. */
-  defines: boolean;
-}
-
-/** Run views of the lines of a block, by block, kept across runs. */
-const SOLID_SCRIPT_LINES_RUNS = new WeakMap<object, SolidScriptBlockRuns>();
 
 /**
  * Runs the lines of a script directly, one block after the other. A machine
@@ -228,21 +184,33 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     node: SolidScriptBlockNode<Command>,
     value: (key: string) => SolidScriptValue,
   ): SolidScriptValue[] | null {
-    if (!node.command.parameters.some((field) => field.key === 'of') || (node.values['of'] ?? '').trim() === '')
-      return null;
+    const field = node.command.parameters.find((parameter) => parameter.key === 'of');
+    if (!field || (node.values['of'] ?? '').trim() === '') return null;
     const flat = (entry: SolidScriptValue): SolidScriptValue[] =>
       Array.isArray(entry) ? entry.flatMap(flat) : [entry];
-    return flat(value('of')).flatMap((entry) => {
-      if (entry instanceof SolidScriptElement) return [entry];
-      const name = solidScriptValueText(entry).trim();
-      if (name === '') return [];
-      this.brushesReceived();
-      const leaves = solidScriptGeometryLeaves(
-        solidScriptShapesNamed([...this.builtStack.flat(), ...(this.received ?? [])], name),
-      );
-      if (leaves.length === 0) throw new Error(`No brush or mesh above is named "${name}"; give one a Name first`);
-      return leaves.map((leaf) => this.elements.brush(leaf));
-    });
+    return flat(value('of')).flatMap((entry) => this.ofEntry(field, entry));
+  }
+
+  /**
+   * Reads one value of an Of field: an element as it is, a name as the brushes
+   * that have it, and any other kind stops with what the field takes.
+   *
+   * @param field The Of field, with the kinds it accepts.
+   * @param entry Value.
+   * @returns Elements.
+   */
+  private ofEntry(field: SolidScriptMachineField, entry: SolidScriptValue): SolidScriptValue[] {
+    const kind = solidScriptKindOf(entry);
+    if (!solidScriptKindAccepted(field.accepts, kind))
+      throw new Error(`${solidScriptKindMismatch(field.label, field.accepts, kind)}: ${solidScriptValueText(entry)}`);
+    if (entry instanceof SolidScriptElement) return [entry];
+    const name = solidScriptValueText(entry).trim();
+    if (name === '') return [];
+    this.brushesReceived();
+    const built = [...this.builtStack.flat(), ...(this.received ?? [])];
+    const leaves = solidScriptGeometryLeaves(solidScriptShapesNamed(built, name));
+    if (leaves.length === 0) throw new Error(`No brush or mesh above is named "${name}"; give one a Name first`);
+    return leaves.map((leaf) => this.elements.brush(leaf));
   }
 
   /**
@@ -393,7 +361,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     parent: SolidScriptScope,
     context: SolidScriptContext,
     scope = new SolidScriptScope(parent),
-    known = SolidScriptMachine.runsKnown(lines),
+    known = solidScriptRunsKnown(lines, SolidScriptMachine.build),
   ): SolidScriptShape[] {
     const { runs, defines } = known;
     if (defines) this.definitionsRegister(lines);
@@ -423,7 +391,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     node: SolidScriptBlockNode<Command>,
     scope: SolidScriptScope,
     context: SolidScriptContext,
-    known = SolidScriptMachine.runKnown(node),
+    known = solidScriptRunKnown(node, SolidScriptMachine.build),
   ): SolidScriptShape[] {
     if (known.definition || this.breakReached(node.line, scope)) return [];
     if (this.profiling) return this.lineProfiled(node, scope, context, known);
@@ -570,68 +538,15 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     context: SolidScriptContext,
     known: SolidScriptLineRun,
   ): SolidScriptLineRun {
-    const line = known.busy ? SolidScriptMachine.runMake(node) : known;
+    const line = known.busy ? solidScriptRunMake(node, SolidScriptMachine.build) : known;
     line.state.machine = this;
     line.state.scope = scope;
     line.state.context = context;
     return line;
   }
 
-  /**
-   * Returns the kept run view of a line, making it the first time.
-   *
-   * @param node Line.
-   * @returns Run view.
-   */
-  private static runKnown<Command extends SolidScriptMachineCommand>(
-    node: SolidScriptBlockNode<Command>,
-  ): SolidScriptLineRun {
-    let known = SOLID_SCRIPT_LINE_RUNS.get(node);
-    if (!known) SOLID_SCRIPT_LINE_RUNS.set(node, (known = SolidScriptMachine.runMake(node)));
-    return known;
-  }
-
-  /**
-   * Returns the kept run views of the lines of a block, in line order, and
-   * whether any of them defines something.
-   *
-   * @param lines Lines.
-   * @returns Run views.
-   */
-  private static runsKnown<Command extends SolidScriptMachineCommand>(
-    lines: readonly SolidScriptBlockNode<Command>[],
-  ): SolidScriptBlockRuns {
-    let known = SOLID_SCRIPT_LINES_RUNS.get(lines);
-    if (!known) {
-      const runs = lines.map((node) => SolidScriptMachine.runKnown(node));
-      known = { runs, defines: runs.some((run) => run.definition) };
-      SOLID_SCRIPT_LINES_RUNS.set(lines, known);
-    }
-    return known;
-  }
-
-  /**
-   * Makes a run view of a line, not yet tied to a run.
-   *
-   * @param node Line.
-   * @returns Run view.
-   */
-  private static runMake<Command extends SolidScriptMachineCommand>(
-    node: SolidScriptBlockNode<Command>,
-  ): SolidScriptLineRun {
-    const made: SolidScriptLineRun = {
-      run: null as unknown as SolidScriptBlockRun,
-      state: {
-        machine: null as unknown as SolidScriptLineState['machine'],
-        scope: null as unknown as SolidScriptScope,
-        context: SOLID_SCRIPT_FORMULA_CONTEXT,
-      },
-      busy: false,
-      definition: SOLID_SCRIPT_DEFINITIONS.has(node.command.id),
-    };
-    made.run = SolidScriptMachine.runBuild(node, made.state);
-    return made;
-  }
+  /** Builds the run view of a line, for the kept run views. */
+  private static readonly build: SolidScriptRunBuild = (node, state) => SolidScriptMachine.runBuild(node, state);
 
   /**
    * Builds what a running line can read and do, once per line: its closures
@@ -652,7 +567,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       state.scope.partName ||
       node.command.id;
     let kept: SolidScriptBlockRuns | undefined;
-    const children = (): SolidScriptBlockRuns => (kept ??= SolidScriptMachine.runsKnown(node.children));
+    const children = (): SolidScriptBlockRuns =>
+      (kept ??= solidScriptRunsKnown(node.children, SolidScriptMachine.build));
     const inside = (into: SolidScriptContext): SolidScriptShape[] => {
       if (node.children.length === 0) return [];
       return state.machine.linesRun(node.children, state.scope, into, new SolidScriptScope(state.scope), children());
@@ -687,16 +603,10 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         solidScriptFieldList(SolidScriptMachine.fieldOf(fields, node, key).text, (item) =>
           solidScriptFieldResolve('value', item, state.machine.fieldContext(state.scope)),
         ),
-      valueTyped(key, type) {
-        return solidScriptTypeValue(
-          type,
-          this.text(key),
-          () => value(key),
-          () => this.list(key),
-        );
+      valueItems(key) {
+        return solidScriptFieldSplit(this.text(key), ',').length > 1 ? this.list(key) : value(key);
       },
       variableSet: (name, assigned) => state.machine.variableSet(state.scope, name, assigned),
-      typeKeep: (name, type) => state.machine.typeKeep(name, type),
       solid: (points) => {
         state.machine.gatherCheck(node);
         state.machine.flatCheck(node, state.context, false);
@@ -754,8 +664,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         values.forEach((round, index) => {
           state.machine.workTake();
           const inner = new SolidScriptScope(state.scope);
-          inner.variableDefine(key, state.machine.declaredFit(key, round));
-          if (keyed) inner.variableDefine(keyName, state.machine.declaredFit(keyName, keyed.keys[index]));
+          inner.variableDefine(key, round);
+          if (keyed) inner.variableDefine(keyName, keyed.keys[index]);
           if (node.children.length === 0) return;
           const built = state.machine.selectedKept(() =>
             state.machine.linesRun(node.children, inner, state.context, inner, children()),
@@ -768,7 +678,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       branched: (holds) => {
         const lines = holds ? node.children : (node.otherwise ?? []);
         if (lines.length === 0) return [];
-        const known = holds ? children() : SolidScriptMachine.runsKnown(lines);
+        const known = holds ? children() : solidScriptRunsKnown(lines, SolidScriptMachine.build);
         return state.machine.linesRun(lines, state.scope, state.context, new SolidScriptScope(state.scope), known);
       },
       inPlace: () => state.machine.linesRun(node.children, state.scope, state.context, state.scope, children()),
@@ -1082,43 +992,4 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         `the script stopped after ${SOLID_SCRIPT_WORK_LIMIT.toLocaleString('en-US')} steps of work; check Repeat ranges and parts that use each other`,
       );
   }
-}
-
-/**
- * Describes a mistake for every place that shows it.
- *
- * @param line 1-based line, or null.
- * @param message Message as thrown.
- * @returns Failure.
- */
-export function solidScriptFailure(line: number | null, message: string): SolidScriptFailure {
-  const bare = message.replace(/^line \d+: /i, '');
-  const lined = line === null ? bare : `line ${line}: ${bare}`;
-  return { line, message: lined, text: solidScriptErrorText(lined) };
-}
-
-/**
- * Returns whether lines output the brushes a modifier receives.
- *
- * @param lines Lines.
- * @returns True when an Input Brushes line is among them.
- */
-function solidScriptLinesPassInput(lines: readonly SolidScriptBlockNode<SolidScriptMachineCommand>[]): boolean {
-  return lines.some(
-    (node) =>
-      node.command.id === 'input_brushes' ||
-      solidScriptLinesPassInput(node.children) ||
-      solidScriptLinesPassInput(node.otherwise ?? []),
-  );
-}
-
-/**
- * Returns a received brush as a plain built one, once a line changed it.
- *
- * @param leaf Received brush.
- * @returns The same brush without its received mark.
- */
-function solidScriptLeafUnreceived(leaf: SolidScriptShapeSolid): SolidScriptShapeSolid {
-  const { received: _received, ...built } = leaf;
-  return built;
 }

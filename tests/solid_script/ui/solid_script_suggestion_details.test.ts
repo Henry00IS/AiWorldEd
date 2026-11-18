@@ -53,12 +53,12 @@ describe('SolidScript suggestion details', () => {
     expect(details.get('Box1')).toBe('Brush: What is made of **Cube**.');
     expect(details.get('Tops')).toBe('Face List: Top faces of **Extrude Face**.');
     expect(details.get('$Editor.Name')).toBe('Text: Name of the editor.');
-    expect(details.get('Steps')).toBe('Count input.');
+    expect(details.get('Steps')).toBe('Number: Count input.');
     expect(details.get('I')).toBe('Number: Counter of **Repeat**.');
     const scoped = { names: solidScriptDocumentNamesAt(SCRIPT, 3), extra: [], words: [] };
     const inside = new Map(offered('[', scoped).map((entry) => [entry.label, entry.detail]));
     expect(inside.get('Brush')).toBe('Brush: Item of **For Each**.');
-    expect(inside.get('K')).toBe('Key of **For Each**.');
+    expect(inside.get('K')).toBe('Number: Key of **For Each**.');
     for (const entry of [...all, ...offered('[Box1.', scope), ...offered('[Steps.', scope)]) {
       const sentence = entry.detail.replace(/^[A-Z][A-Za-z/]*(?: List)?: /, '');
       if (/^[A-Za-z]+\(.*\)( -> \w+)?$/.test(sentence)) continue;

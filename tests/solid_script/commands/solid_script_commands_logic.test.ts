@@ -3,12 +3,10 @@ import { solidScriptProgramRun } from '@/solid_script/language/solid_script_prog
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptDocumentNames } from '@/solid_script/document/solid_script_document_names.js';
 import { solidScriptDocumentListing } from '@/solid_script/document/solid_script_document_listing.js';
-import { solidScriptTypeCheck } from '@/solid_script/language/solid_script_use_check.js';
 import { solidScriptSuggestionContext, solidScriptSuggestions } from '@/solid_script/ui/solid_script_suggestions.js';
 
 const line = (command: string, values: Record<string, string> = {}): SolidScriptLine => ({ command, values });
-const set = (name: string, value: string, type = ''): SolidScriptLine =>
-  line('variable', type === '' ? { name, value } : { name, value, type });
+const set = (name: string, value: string): SolidScriptLine => line('variable', { name, value });
 const CUBE = line('cube', { size: '2, 2, 2' });
 
 /** What a run printed, or the error it stopped with. */
@@ -26,57 +24,21 @@ function members(lines: SolidScriptLine[], text: string): string[] {
   );
 }
 
-describe('SolidScript types', () => {
-  it('lets a variable without a Type hold anything, and keeps a declared Type', () => {
+describe('SolidScript Set', () => {
+  it('lets a variable hold any kind, and another kind later', () => {
     expect(outcome(set('X', '2'), set('X', 'oak'), line('echo', { value: '[X]' }))).toEqual(['oak']);
-    expect(outcome(set('X', '2', 'Number'), set('X', '3'), line('echo', { value: '[X]' }))).toEqual(['3']);
-    expect(outcome(set('X', '2', 'Number'), set('X', 'oak'))[0]).toMatch(
-      /\[X\] is declared Number, so it cannot hold Text "oak"/,
-    );
-    expect(outcome(set('P', '1, 2, 3', 'Vector'), line('echo', { value: '[P.y]' }))).toEqual(['2']);
-    expect(outcome(set('T', 'Yes', 'Text'), set('N', '1', 'Yes/No'))[0]).toMatch(/\[N\] is declared Yes\/No/);
-  });
-
-  it('checks brushes, faces and lists against their Type when the line runs', () => {
     const top = line('select_faces', { which: 'Facing Up' });
-    expect(
-      outcome(CUBE, top, set('F', '[$Selected.Faces]', 'Face List'), line('echo', { value: '[F.Count]' })),
-    ).toEqual(['1']);
-    expect(
-      outcome(CUBE, top, set('F', '[$Selected.Faces.First]', 'Face'), line('echo', { value: '[F.Area]' })),
-    ).toEqual(['4']);
-    expect(outcome(CUBE, top, set('F', '[$Selected.Faces]', 'Face'))[0]).toMatch(
-      /\[F\] is declared Face, so it cannot hold a Face List/,
-    );
-    expect(outcome(CUBE, set('B', '[$Selected.Faces]', 'Brush List'))).toEqual([]);
-    expect(outcome(set('L', '1, 2, 3, 4', 'Number List'), line('echo', { value: '[L.Count]' }))).toEqual(['4']);
+    expect(outcome(CUBE, top, set('F', '[$Selected.Faces]'), line('echo', { value: '[F.Count]' }))).toEqual(['1']);
+    expect(outcome(CUBE, top, set('F', '[$Selected.Faces.First]'), line('echo', { value: '[F.Area]' }))).toEqual(['4']);
   });
 
-  it('writes the Type in the line and squiggles a mismatch that is certain', () => {
-    expect(solidScriptDocumentListing(solidScriptDocumentCreate([set('X', '2', 'Number')]))).toEqual([
-      "Set [X] as Number: '2'",
-    ]);
-    expect(
-      solidScriptTypeCheck(
-        solidScriptDocumentCreate([
-          set('X', 'oak', 'Number'),
-          set('Y', '2', 'Text'),
-          set('Y', '[Z]'),
-          set('Y', 'pine'),
-          set('Z', 'tall', 'Any'),
-        ]),
-      ),
-    ).toEqual([{ line: 1, text: '[X] is declared Number, so it cannot hold Text "oak".' }]);
-    expect(solidScriptTypeCheck(solidScriptDocumentCreate([set('X', '2', 'Number'), set('X', 'oak')]))).toEqual([
-      { line: 2, text: '[X] is declared Number, so it cannot hold Text "oak".' },
-    ]);
-    expect(solidScriptTypeCheck(solidScriptDocumentCreate([set('X', '2', 'Colour')]))).toEqual([
-      { line: 1, text: expect.stringContaining('Type must be one of') },
-    ]);
+  it('writes the variable and the value in the line, and ignores a saved Type', () => {
+    expect(solidScriptDocumentListing(solidScriptDocumentCreate([set('X', '2')]))).toEqual(["Set [X]: '2'"]);
+    const saved = line('variable', { name: 'X', value: 'oak', type: 'Number' });
+    expect(outcome(saved, line('echo', { value: '[X]' }))).toEqual(['oak']);
   });
 
-  it('suggests the members of a declared or likely type', () => {
-    expect(members([set('P', '', 'Face')], '[P.')).toContain('P.Normal');
+  it('suggests the members of the kind a variable holds', () => {
     expect(members([CUBE, line('select_faces', { into: 'Picked' })], '[Picked.First.')).toContain(
       'Picked.First.Normal',
     );
@@ -87,7 +49,7 @@ describe('SolidScript types', () => {
   });
 });
 
-describe('SolidScript Set without a Type reads typed commas as a list', () => {
+describe('SolidScript Set reads typed commas as a list', () => {
   it('makes a list of mixed items, each read the way a list item is', () => {
     expect(
       outcome(
@@ -95,9 +57,6 @@ describe('SolidScript Set without a Type reads typed commas as a list', () => {
         line('echo', { value: '[Mixed.Count]|[Mixed(0).y]|[Mixed(1)]|[=[Mixed(2)] + 1]|[Mixed(3).z]' }),
       ),
     ).toEqual(['4|3|zu|46|6']);
-    expect(outcome(set('Mixed', '[5,3,4],zu,45,[4,5,6]', 'Any'), line('echo', { value: '[Mixed.Count]' }))).toEqual([
-      '4',
-    ]);
   });
 
   it('keeps a comma written $, inside one text', () => {

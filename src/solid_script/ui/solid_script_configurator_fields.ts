@@ -45,8 +45,6 @@ export interface SolidScriptConfiguratorField {
   warning: () => string;
   /** Takes its suggestion lists off the page, when the window closes. */
   close: () => void;
-  /** Follows the fields it depends on, such as the greyed text of a Set Value. */
-  sync: () => void;
 }
 
 /** What a field can refer to: the names of the script around the line. */
@@ -55,8 +53,6 @@ export interface SolidScriptConfiguratorScope {
   names: readonly SolidScriptName[];
   /** Names the command fills in for its own formulas. */
   extra: readonly string[];
-  /** Reads another field of the line as it is typed now. */
-  other?: (key: string) => string;
 }
 
 /** How a field's inputs are read and checked. */
@@ -130,7 +126,7 @@ function solidScriptConfiguratorWords(
   for (const entry of names)
     if (groups.includes(entry.category) && !words.has(entry.name.toLowerCase()))
       words.set(entry.name.toLowerCase(), { word: entry.name, detail: entry.detail });
-  const selected = parameter.writes === 'path' ? solidScriptSuggestionSelectedWords() : [];
+  const selected = parameter.writes?.offers === 'path' ? solidScriptSuggestionSelectedWords() : [];
   return [...words.values(), ...selected];
 }
 
@@ -163,14 +159,11 @@ export function solidScriptConfiguratorFieldBuild(
   inputs.className = SOLID_SCRIPT_EDITOR_CLASSES.fieldInputs;
   const field = solidScriptConfiguratorInputs(parameter, value, inputs);
   const words = solidScriptConfiguratorWords(parameter, scope.names);
-  const from = parameter.follows;
   const suggest: SolidScriptSuggestionScope = {
     names: scope.names,
     extra: scope.extra,
-    paths: parameter.writes === 'path',
-    get words() {
-      return from ? [...words, ...from.words(scope.other?.(from.key) ?? '')] : words;
-    },
+    paths: parameter.writes?.offers === 'path',
+    words,
   };
   const texts =
     (parameter.type === 'name' || parameter.type === 'target') &&
@@ -178,12 +171,6 @@ export function solidScriptConfiguratorFieldBuild(
       ? []
       : [...inputs.querySelectorAll<HTMLInputElement>('input[type="text"]')];
   const lists = texts.map((input) => new SolidScriptConfiguratorNames(input, suggest));
-  const sync = (): void => {
-    if (!from) return;
-    const shown = from.placeholder(scope.other?.(from.key) ?? '');
-    for (const input of texts) input.placeholder = shown;
-  };
-  sync();
   inputs.addEventListener('input', changed);
   inputs.addEventListener('change', changed);
   const known = solidScriptFieldKnown(scope.names, scope.extra);
@@ -221,7 +208,6 @@ export function solidScriptConfiguratorFieldBuild(
     read: field.read,
     warning,
     close: () => lists.forEach((list) => list.close()),
-    sync,
     problem: () => {
       const problem = field.problem();
       for (const input of inputs.querySelectorAll('input[type="text"]'))

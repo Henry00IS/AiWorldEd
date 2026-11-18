@@ -1,20 +1,24 @@
 import type { SolidScriptCommandWord } from '@/solid_script/commands/solid_script_command.js';
 import type { SolidScriptName } from '@/solid_script/document/solid_script_document_names.js';
 import {
+  SOLID_SCRIPT_FLOW_UNKNOWN,
+  solidScriptFlowPathKinds,
+} from '@/solid_script/document/solid_script_document_flow_kinds.js';
+import {
   SOLID_SCRIPT_FUNCTION_DOCS,
   type SolidScriptFunctionArgument,
   solidScriptFunctionArguments,
+  solidScriptFunctionKindsText,
 } from '@/solid_script/language/solid_script_function_docs.js';
 import { SOLID_SCRIPT_FUNCTIONS_BUILTIN } from '@/solid_script/language/solid_script_functions_builtin.js';
 import { SolidScriptLexer, type SolidScriptToken } from '@/solid_script/language/solid_script_lexer.js';
 import { solidScriptFunctionSpelling } from '@/solid_script/language/solid_script_name_key.js';
-import { SOLID_SCRIPT_SYSTEM_GLOBALS } from '@/solid_script/language/solid_script_system.js';
+import { SOLID_SCRIPT_SYSTEM_LISTED } from '@/solid_script/language/solid_script_system.js';
 import { solidScriptSentence, solidScriptSentenceTyped } from '@/solid_script/language/solid_script_sentence.js';
-import { solidScriptFieldEscapes, solidScriptFieldSplit } from '@/solid_script/language/solid_script_field.js';
+import { solidScriptFieldEscapes } from '@/solid_script/language/solid_script_field.js';
 import {
   SOLID_SCRIPT_SYSTEM_VALUES,
   solidScriptNameDotProblem,
-  solidScriptSystemIsVector,
 } from '@/solid_script/language/solid_script_name_rules.js';
 import {
   SOLID_SCRIPT_MEMBER_TYPES,
@@ -113,15 +117,6 @@ const SOLID_SCRIPT_SUGGESTION_GROUPS = [
 
 /** Name categories that are not values a field reads. */
 const SOLID_SCRIPT_SUGGESTION_NOT_VALUES = new Set(['Functions', 'Parts', 'Brushes', 'Handlers']);
-
-/** The system values as suggested: name, kind and what it holds. */
-const SOLID_SCRIPT_SUGGESTION_SYSTEM: readonly (readonly [string, string, string])[] = [
-  ['$Selected.Brushes', 'Brush List', 'the brushes lines below work on; every brush built so far until set'],
-  ['$Selected.Faces', 'Face List', 'the faces the last Select Faces picked'],
-  ['$Selected.Edges', 'Edge List', 'the edges set as selected'],
-  ['$Selected.Vertices', 'Vertex List', 'the corners set as selected'],
-  ...SOLID_SCRIPT_SYSTEM_GLOBALS.map((value) => [`$${value.name}`, value.type, value.detail] as const),
-];
 
 /** Most suggestions listed at the caret at once. */
 const SOLID_SCRIPT_SUGGESTIONS_MAX = 200;
@@ -257,17 +252,17 @@ function solidScriptSuggestionRank(suggestion: SolidScriptSuggestion, prefix: st
 }
 
 /**
- * Describes a name of the script as a sentence, after its kind when that is
- * known, such as "Brush: What is made of **Cube**.".
+ * Describes a name of the script as a sentence, after the kinds it may hold
+ * where the line stands when they are known, such as "Brush: What is made of
+ * **Cube**." or "Text or Brush: …".
  *
  * @param entry Name.
  * @param scope What the field may refer to.
  * @returns Description.
  */
 function solidScriptSuggestionNameDetail(entry: SolidScriptName, scope: SolidScriptSuggestionScope): string {
-  const typed = entry.category === 'Variables' || entry.category === 'Counters';
-  const type = typed ? solidScriptSuggestionType(entry.name, scope) : null;
-  return solidScriptSentenceTyped(type === null || type === 'List' ? '' : type, entry.detail);
+  const kinds = solidScriptSuggestionKinds(entry.name, scope).filter((kind) => kind !== 'List');
+  return solidScriptSentenceTyped(kinds.join(' or '), entry.detail);
 }
 
 /**
@@ -293,7 +288,7 @@ function solidScriptSuggestionsAll(scope: SolidScriptSuggestionScope): SolidScri
         category: entry.category,
         pick: 'value',
       })),
-    ...SOLID_SCRIPT_SUGGESTION_SYSTEM.map(([label, type, detail]): SolidScriptSuggestion => ({
+    ...SOLID_SCRIPT_SYSTEM_LISTED.map(([label, type, detail]): SolidScriptSuggestion => ({
       label,
       detail: solidScriptSentenceTyped(type, detail),
       category: 'System',
@@ -338,110 +333,68 @@ function solidScriptSuggestionsAll(scope: SolidScriptSuggestionScope): SolidScri
 }
 
 /**
- * Categories of names that hold a value set by a line, whose kind its text
- * tells.
- */
-const SOLID_SCRIPT_SUGGESTION_SET = new Set(['Variables', 'Locals', 'Persistent']);
-
-/**
- * Tells how many axes a name's value has: a built-in vector, or a variable set
- * to a list of two or three parts or to a built-in vector.
- *
- * @param name Name as typed.
- * @param scope What the field may refer to.
- * @param depth How many variables deep a value naming another is followed.
- * @returns Axes, 0 for a known value that is no vector, or null for an unknown
- *   name.
- */
-function solidScriptSuggestionAxes(name: string, scope: SolidScriptSuggestionScope, depth = 4): number | null {
-  const system = solidScriptSystemIsVector(name);
-  if (system !== null) return system ? 3 : 0;
-  const key = name.toLowerCase();
-  if (scope.names.some((entry) => entry.name.toLowerCase() === key && entry.detail === 'vector input')) return 3;
-  const set = scope.names.find(
-    (entry) => entry.name.toLowerCase() === key && SOLID_SCRIPT_SUGGESTION_SET.has(entry.category),
-  );
-  if (!set) return scope.names.some((entry) => entry.name.toLowerCase() === key) ? 0 : null;
-  const value = /^set to (.*)$/s.exec(set.detail)?.[1]?.trim() ?? '';
-  const parts = solidScriptFieldSplit(value, ',').length;
-  if (parts === 2 || parts === 3) return parts;
-  // A formula that makes a vector, such as [=Vector(1, 2, 3)] or [=[Pos] + Vector(0, 1, 0)].
-  if (/^\[=.*\bvector\s*\(/is.test(value)) return 3;
-  const named = /^\[([A-Za-z_][\w.]*)\]$/.exec(value)?.[1];
-  if (named === undefined) return 0;
-  return solidScriptSystemIsVector(named) === true
-    ? 3
-    : depth > 0
-      ? (solidScriptSuggestionAxes(named, scope, depth - 1) ?? 0)
-      : 0;
-}
-
-/**
- * Tells the kind a name of the script holds: the Type a Set declares for it,
- * which every later write keeps, else what the line writing it gives, or a
- * guess from the value it is set to or the list a For Each walks. Guesses only
- * drive suggestions, never results.
+ * Tells the kinds the start of a typed name may hold where the line stands:
+ * those the script's names with that name may hold, or a List for a name only
+ * list lines write.
  *
  * @param key Name, lower case.
  * @param scope What the field may refer to.
- * @param depth How many names deep a value naming another is followed.
- * @returns Kind, or null when unknown.
+ * @returns Kinds, empty when unknown.
  */
-function solidScriptSuggestionNamed(key: string, scope: SolidScriptSuggestionScope, depth: number): string | null {
+function solidScriptSuggestionHead(key: string, scope: SolidScriptSuggestionScope): string[] {
   const named = scope.names.filter((known) => known.name.toLowerCase() === key);
-  const entry = named.find((known) => known.type && known.from) ?? named.find((known) => known.type || known.from);
-  if (!entry) return null;
-  if (entry.type) return entry.type;
-  const path = /^\[([^=\]][^\]]*)\]$/.exec(entry.from?.text.trim() ?? '')?.[1];
-  const type = path && depth > 0 ? solidScriptSuggestionType(path, scope, depth - 1) : null;
-  if (!type || !entry.from?.item) return type;
-  return type.endsWith(' List') ? type.slice(0, -' List'.length) : null;
+  const kinds = named.flatMap((known) => known.kinds ?? []);
+  if (kinds.length > 0) return [...new Set(kinds)];
+  return named.some((known) => known.category === 'Lists') ? ['List'] : [];
 }
 
 /**
- * Tells the kind of value a typed name holds: a system value, a vector or a
- * list of the script, then each member after it, such as Face List for
- * $Selected.Faces and Vector for $Selected.Faces.First.Normal.
+ * Tells the kinds of value a typed name may hold: a system value, or a name of
+ * the script with the kinds it may hold where the line stands, then each member
+ * after it, such as Face List for $Selected.Faces and Vector for
+ * $Selected.Faces.First.Normal.
  *
  * @param name Name as typed, without a trailing dot.
  * @param scope What the field may refer to.
- * @returns Kind, or null when it is not known, such as for a variable a command
- *   writes.
+ * @returns Kinds, empty when none is known.
  */
-function solidScriptSuggestionType(name: string, scope: SolidScriptSuggestionScope, depth = 4): string | null {
-  const parts = name.split('.');
-  const item = (part: string) => /\(.*\)$/.test(part);
-  const word = (part: string) => part.replace(/\s*\(.*\)$/, '');
-  let type: string | null = null;
-  let used = 1;
-  if (name.startsWith('$')) {
-    const two = `${word(parts[0]!)}.${word(parts[1] ?? '')}`.toLowerCase();
-    type = SOLID_SCRIPT_SUGGESTION_SYSTEM.find(([label]) => label.toLowerCase() === two)?.[1] ?? null;
-    used = 2;
-    if (type && item(parts[1] ?? '')) type = type.endsWith(' List') ? type.slice(0, -' List'.length) : null;
-  } else {
-    const first = word(parts[0]!);
-    const key = first.toLowerCase();
-    // A declared Type or the list a For Each walks wins over guessing a vector from commas.
-    type = solidScriptSuggestionNamed(key, scope, depth);
-    if (type === null) {
-      const axes = solidScriptSuggestionAxes(first, scope);
-      if (axes !== null && axes > 0) type = 'Vector';
-      else if (scope.names.some((entry) => entry.name.toLowerCase() === key && entry.category === 'Lists'))
-        type = 'List';
-    }
-    if (type && item(parts[0]!)) type = type === 'List' ? 'Item' : null;
-  }
-  for (const part of parts.slice(used)) {
-    if (type === null) return null;
-    type =
-      type === 'List'
-        ? (SOLID_SCRIPT_MEMBER_TYPES['List']![word(part)] ?? null)
-        : solidScriptMemberType(type, word(part));
-    if (type === 'Item') type = null;
-    if (type && item(part)) type = type.endsWith(' List') ? type.slice(0, -' List'.length) : null;
-  }
-  return type;
+function solidScriptSuggestionKinds(name: string, scope: SolidScriptSuggestionScope): string[] {
+  return solidScriptFlowPathKinds(name, (key) => solidScriptSuggestionHead(key, scope)).filter(
+    (kind) => kind !== SOLID_SCRIPT_FLOW_UNKNOWN,
+  );
+}
+
+/**
+ * Lists the members of every kind a value may hold, each once, so no member
+ * that may be right is hidden.
+ *
+ * @param base Typed value before the dot.
+ * @param kinds Kinds it may hold.
+ * @param keep Tells whether a member of a kind is listed.
+ * @param pick How the suggestions are written.
+ * @returns Members.
+ */
+function solidScriptSuggestionMembersOf(
+  base: string,
+  kinds: readonly string[],
+  keep: (kind: string, name: string) => boolean,
+  pick: SolidScriptSuggestionPick,
+): SolidScriptSuggestion[] {
+  const listed = new Map<string, SolidScriptSuggestion>();
+  for (const kind of kinds)
+    for (const name of solidScriptSuggestionMemberNames(kind))
+      if (!listed.has(name) && keep(kind, name)) listed.set(name, solidScriptSuggestionMember(base, kind, name, pick));
+  return [...listed.values()];
+}
+
+/**
+ * Lists the members of a kind, those of List for a list of anything.
+ *
+ * @param kind Kind.
+ * @returns Members as written.
+ */
+function solidScriptSuggestionMemberNames(kind: string): string[] {
+  return kind === 'List' ? Object.keys(SOLID_SCRIPT_MEMBER_TYPES['List'] ?? {}) : solidScriptMemberNames(kind);
 }
 
 /**
@@ -461,7 +414,7 @@ function solidScriptSuggestionMembers(
   const base = prefix.slice(0, dot);
   // The values of a group of system values, such as $Selected.Faces.
   if (base.startsWith('$') && !base.includes('.')) {
-    const group = SOLID_SCRIPT_SUGGESTION_SYSTEM.filter(([label]) =>
+    const group = SOLID_SCRIPT_SYSTEM_LISTED.filter(([label]) =>
       label.toLowerCase().startsWith(`${base.toLowerCase()}.`),
     );
     if (group.length > 0)
@@ -472,10 +425,9 @@ function solidScriptSuggestionMembers(
         pick: 'value',
       }));
   }
-  const type = solidScriptSuggestionType(base, scope);
-  if (type === null) return null;
-  const names = type === 'List' ? Object.keys(SOLID_SCRIPT_MEMBER_TYPES['List']!) : solidScriptMemberNames(type);
-  return names.map((name) => solidScriptSuggestionMember(base, type, name, 'value'));
+  const kinds = solidScriptSuggestionKinds(base, scope);
+  if (kinds.length === 0) return null;
+  return solidScriptSuggestionMembersOf(base, kinds, () => true, 'value');
 }
 
 /**
@@ -545,15 +497,29 @@ function solidScriptSuggestionPaths(prefix: string, scope: SolidScriptSuggestion
   const dot = prefix.lastIndexOf('.');
   if (dot < 0 || prefix.startsWith('$')) return null;
   const base = prefix.slice(0, dot);
-  const type = solidScriptSuggestionType(base, scope);
-  if (type === null || type === 'List') return [];
-  return solidScriptMemberNames(type)
-    .filter((name) => {
-      const gives = solidScriptSuggestionMemberGives(type, name);
-      if (gives?.replace(/ List$/, '') === 'Data' || solidScriptSuggestionPathElement(gives)) return true;
-      return solidScriptNameDotProblem(`${base}.${name}`, 'set') === '';
-    })
-    .map((name) => solidScriptSuggestionMember(base, type, name, 'word'));
+  const kinds = solidScriptSuggestionKinds(base, scope).filter((kind) => kind !== 'List');
+  return solidScriptSuggestionMembersOf(
+    base,
+    kinds,
+    (kind, name) => solidScriptSuggestionWritable(base, kind, name),
+    'word',
+  );
+}
+
+/**
+ * Tells whether a member leads to a value a line can set: Data, a member that
+ * gives brushes, faces, edges or corners, or a part a Set may write, such as .x
+ * of a vector.
+ *
+ * @param base Typed value before the dot.
+ * @param kind Kind of that value.
+ * @param name Member as written.
+ * @returns True when a Set may write through it.
+ */
+function solidScriptSuggestionWritable(base: string, kind: string, name: string): boolean {
+  const gives = solidScriptSuggestionMemberGives(kind, name);
+  if (gives?.replace(/ List$/, '') === 'Data' || solidScriptSuggestionPathElement(gives)) return true;
+  return solidScriptNameDotProblem(`${base}.${name}`, 'set') === '';
 }
 
 /**
@@ -564,7 +530,7 @@ function solidScriptSuggestionPaths(prefix: string, scope: SolidScriptSuggestion
  */
 export function solidScriptSuggestionSelectedWords(): SolidScriptCommandWord[] {
   const selected = (SOLID_SCRIPT_SYSTEM_VALUES['Selected'] ?? []).map((member) => `$Selected.${member}`.toLowerCase());
-  return SOLID_SCRIPT_SUGGESTION_SYSTEM.filter(([label]) => selected.includes(label.toLowerCase())).map(
+  return SOLID_SCRIPT_SYSTEM_LISTED.filter(([label]) => selected.includes(label.toLowerCase())).map(
     ([word, type, detail]) => ({ word, detail: `${type}: ${detail}` }),
   );
 }
@@ -672,7 +638,7 @@ export function solidScriptSuggestionHint(
     const inside = /\((.*)\)/.exec(own.detail)?.[1]?.trim() ?? '';
     const inputs = (inside === '' ? [] : inside.split(',')).map((piece) => ({
       name: piece.trim(),
-      type: 'Any',
+      type: 'Any' as const,
       about: 'Input of this Function.',
     }));
     return { name: own.name, inputs, gives: 'Any', summary: 'Function of this script.', current: at(inputs) };
@@ -689,7 +655,7 @@ export function solidScriptSuggestionHint(
   return {
     name: solidScriptFunctionSpelling(key),
     inputs,
-    gives: doc.gives,
+    gives: solidScriptFunctionKindsText(doc.gives),
     summary: doc.summary,
     current: at(inputs),
   };
@@ -702,7 +668,7 @@ export function solidScriptSuggestionHint(
  * @returns Text.
  */
 export function solidScriptSuggestionHintInput(input: SolidScriptFunctionArgument): string {
-  return `${input.name}: ${input.type}`;
+  return `${input.name}: ${solidScriptFunctionKindsText(input.type)}`;
 }
 
 /**
