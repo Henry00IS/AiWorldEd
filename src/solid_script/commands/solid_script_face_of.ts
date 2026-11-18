@@ -19,7 +19,7 @@ export function solidScriptFaceTargets(run: SolidScriptBlockRun, label: string):
     throw new Error(
       given
         ? `${label} has no faces in Of; check that Of holds faces or brushes`
-        : `${label} has no faces to work on; pick some with Select Faces above it, or give them in Of`,
+        : `${label} has no faces to work on; use Select Faces above it to pick some, or give them in Of`,
     );
   const faces: SolidScriptFaceFacts[] = [];
   for (const value of values) {

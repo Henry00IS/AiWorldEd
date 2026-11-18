@@ -179,6 +179,31 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   }
 
   /**
+   * Returns what a solid or mesh became after later writes.
+   *
+   * @param leaf Solid or mesh.
+   * @returns Latest version.
+   */
+  protected leafLatest(leaf: SolidScriptGeometryLeaf): SolidScriptGeometryLeaf {
+    return this.leafLatestOf(leaf);
+  }
+
+  /**
+   * Replaces a solid or mesh in the built stack with a later version.
+   *
+   * @param leaf Solid or mesh to replace.
+   * @param found Replacement.
+   */
+  protected leafRewrite(leaf: SolidScriptGeometryLeaf, found: SolidScriptGeometryLeaf): void {
+    const by = found.kind === 'solid' && found.received ? solidScriptLeafUnreceived(found) : found;
+    this.leafSwaps.set(leaf, by);
+    for (const built of this.builtStack)
+      built.forEach((shape, index) => {
+        built[index] = solidScriptShapeMapLeaves(shape, (entry) => (entry === leaf ? by : entry));
+      });
+  }
+
+  /**
    * Reads the Of field of a line as one flat list of values: brushes, faces,
    * edges or corners, with Name tags read as the brushes that have them.
    *
@@ -699,13 +724,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       framed: (matrix) => inside({ ...state.context, matrix }),
       leafLatest: (leaf) => state.machine.leafLatestOf(leaf),
       leafReplace: (leaf, found) => {
-        // A changed received brush is built anew, so it no longer passes the original on.
-        const by = found.kind === 'solid' && found.received ? solidScriptLeafUnreceived(found) : found;
-        state.machine.leafSwaps.set(leaf, by);
-        for (const built of state.machine.builtStack)
-          built.forEach((shape, index) => {
-            built[index] = solidScriptShapeMapLeaves(shape, (found) => (found === leaf ? by : found));
-          });
+        state.machine.leafRewrite(leaf, found);
       },
       adopted: (shapes) => shapes.filter(() => state.machine.stepTake(state.scope)),
       gathered: (what) => {

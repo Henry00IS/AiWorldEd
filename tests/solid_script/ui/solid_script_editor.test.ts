@@ -1323,6 +1323,7 @@ describe('SolidScript editor', () => {
     expect(find('.solid-script-editor-palette-highlighted').dataset['command']).toBe(shown()[0]);
     type(search, 'cyl');
     press(search, 'ArrowDown');
+    press(search, 'ArrowUp');
     press(search, 'Enter');
     tool('OK').click();
     expect(commands()).toEqual(['cube', 'cylinder']);

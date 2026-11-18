@@ -108,9 +108,8 @@ describe('SolidScript generator meshes', () => {
     expect(modifierStackMeshesShown(fixture.node)).toHaveLength(0);
   });
 
-  it('paints a mesh with the Texture around or inside Box UVs, shown and baked', () => {
+  it('paints a mesh with the Texture around Project UVs, shown and baked', () => {
     const texture: SolidScriptLine = { command: 'texture', values: { texture: 'Base/Blakm_d.bmp' } };
-    const uvs: SolidScriptLine = { command: 'box_uvs', values: { size: '1' } };
     const fromBrushes: SolidScriptLine = { command: 'mesh_brushes' };
     const torus: SolidScriptLine[] = [
       { command: 'rotate_extrude', values: { angle: '360', sides: '16' } },
@@ -119,22 +118,25 @@ describe('SolidScript generator meshes', () => {
       END,
       END,
     ];
-    for (const order of [
-      [texture, uvs],
-      [uvs, texture],
-    ]) {
-      const fixture = meshFixture(...order, fromBrushes, ...torus, END, END, END);
-      fixture.compile();
-      const [shown] = modifierStackMeshesShown(fixture.node);
-      if (!shown) throw new Error('Expected a shown mesh');
-      expect(readContentMeshTextureId(shown)).toBe('Base/Blakm_d.bmp');
-      new CommandModifierVolumeBake(fixture.node).execute();
-      const baked = fixture.world.children.find(
-        (child): child is THREE.Mesh =>
-          child instanceof THREE.Mesh && child.userData[MODIFIER_STACK_BAKE_MESH_KEY] === true,
-      );
-      expect(baked && readContentMeshTextureId(baked)).toBe('Base/Blakm_d.bmp');
-    }
+    const fixture = meshFixture(
+      texture,
+      fromBrushes,
+      ...torus,
+      END,
+      { command: 'select_faces', values: { which: 'All' } },
+      { command: 'project_uvs', values: { size: '1' } },
+      END,
+    );
+    fixture.compile();
+    const [shown] = modifierStackMeshesShown(fixture.node);
+    if (!shown) throw new Error('Expected a shown mesh');
+    expect(readContentMeshTextureId(shown)).toBe('Base/Blakm_d.bmp');
+    new CommandModifierVolumeBake(fixture.node).execute();
+    const baked = fixture.world.children.find(
+      (child): child is THREE.Mesh =>
+        child instanceof THREE.Mesh && child.userData[MODIFIER_STACK_BAKE_MESH_KEY] === true,
+    );
+    expect(baked && readContentMeshTextureId(baked)).toBe('Base/Blakm_d.bmp');
   });
 
   it('bakes shown meshes into regular editable meshes beside the solid, and undo takes them away', () => {

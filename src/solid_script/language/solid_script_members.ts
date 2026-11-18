@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { SolidScriptElements } from './solid_script_elements.js';
 import type { SolidScriptFaceFacts } from './solid_script_geometry.js';
 import { solidScriptKindNamed } from './solid_script_kinds.js';
+import { solidScriptFaceCornerUvs } from './solid_script_uvs.js';
 import {
   SolidScriptElement,
   solidScriptValueNumbers,
@@ -47,6 +48,7 @@ export const SOLID_SCRIPT_MEMBER_TYPES: Readonly<Record<string, Readonly<Record<
     Edges: 'Edge List',
     Vertices: 'Vertex List',
     Parent: 'Brush',
+    UVs: 'Vector List',
     Data: 'Data',
   },
   Edge: {
@@ -359,6 +361,8 @@ function solidScriptMemberFace(
       return edgeList();
     case 'vertices':
       return vertexList();
+    case 'uvs':
+      return solidScriptFaceCornerUvs(first).map(([u, v]) => [solidScriptMemberRound(u), solidScriptMemberRound(v), 0]);
     default:
       return undefined;
   }

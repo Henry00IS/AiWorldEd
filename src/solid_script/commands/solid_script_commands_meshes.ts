@@ -8,14 +8,13 @@ import {
   solidScriptMeshExtrudeFaces,
   solidScriptMeshFromSolid,
   solidScriptMeshJoin,
-  solidScriptMeshLoopNormal,
   solidScriptMeshMerge,
   solidScriptMeshSmooth,
   solidScriptMeshSubdivide,
   type SolidScriptShapeMesh,
   type SolidScriptUv,
 } from '@/solid_script/language/solid_script_mesh.js';
-import { solidScriptShapeMapLeaves, type SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
+import type { SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
 import {
   solidScriptValueNumber,
   solidScriptValueNumbers,
@@ -114,50 +113,6 @@ function solidScriptMeshCount(run: SolidScriptBlockRun, key: string, label: stri
   if (value < range[0] || value > range[1])
     throw new Error(`${label} must be ${range[0]} to ${range[1]}, not ${value}`);
   return value;
-}
-
-/**
- * Box-projected texture coordinates: each face is mapped from the side it faces
- * most, so textures do not stretch.
- *
- * @param mesh Mesh.
- * @param size Metres per texture repeat.
- * @returns Mesh with coordinates on every face.
- */
-function solidScriptMeshBoxUvs(mesh: SolidScriptShapeMesh, size: number): SolidScriptShapeMesh {
-  return {
-    ...mesh,
-    uvs: mesh.faces.map((face) => {
-      const normal = solidScriptMeshLoopNormal(mesh.points, face);
-      const [ax, ay, az] = [Math.abs(normal.x), Math.abs(normal.y), Math.abs(normal.z)];
-      return face.map((index): SolidScriptUv => {
-        const point = mesh.points[index]!;
-        if (az >= ax && az >= ay) return [point.x / size, point.y / size];
-        if (ax >= ay) return [point.y / size, point.z / size];
-        return [point.x / size, point.z / size];
-      });
-    }),
-  };
-}
-
-/**
- * Gives Box UVs to one shape tree: brushes stay brushes and keep a box
- * projection; meshes get texture coordinates on every face.
- *
- * @param shape Shape tree.
- * @param size Metres per texture repeat.
- * @param label Command label, for messages.
- * @returns Mapped tree.
- */
-function solidScriptBoxUvsShape(shape: SolidScriptShape, size: number, label: string): SolidScriptShape {
-  return solidScriptShapeMapLeaves(shape, (leaf) => {
-    if (leaf.kind === 'polygon') {
-      throw new Error(`${label} needs solids or meshes; a flat outline becomes a solid inside Linear Extrude first`);
-    }
-    if (leaf.kind === 'solid') return { ...leaf, boxUvSize: size };
-    if (leaf.kind === 'mesh') return solidScriptMeshBoxUvs(leaf, size);
-    return leaf;
-  });
 }
 
 /** Commands that build and change meshes, which become regular mesh objects. */
@@ -446,24 +401,6 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
           return solidScriptMeshNumber(run.valueWith('distance', facts), 'Distance');
         }),
       ),
-  }),
-  new SolidScriptCommand({
-    id: 'box_uvs',
-    label: 'Box UVs',
-    category: 'Faces',
-    description: 'Give faces even texture coordinates, as if wrapped in a box',
-    manual:
-      'Gives every face of the brushes and meshes between this line and its End texture coordinates projected from the side it faces most, like wrapping it in a box of texture, so the texture keeps one size everywhere. Brushes stay convex brushes; meshes stay meshes. Size is how many metres one texture repeat covers. Example: Box UVs with size 2 around a Cube shows the texture every two metres on each side.',
-    stops: ['A Size of 0 or less.', SOLID_SCRIPT_MESH_STOPS_FLAT, SOLID_SCRIPT_MESH_STOPS_END],
-    nesting: 'open',
-    parameters: [solidScriptParameter('size', 'Size', 'number', '1', 'Metres covered by one texture repeat.')],
-    listing: (read) => ['Box UVs', 'size ', read.value('size')],
-    execute: (run) => {
-      if (run.planar) throw new Error('Box UVs cannot be inside a Linear Extrude; put it around the extrusion');
-      const size = solidScriptMeshNumber(run.value('size'), 'Size');
-      if (!(size > 0)) throw new Error(`Size must be greater than 0, not ${size}`);
-      return run.placed(run.local(false).map((shape) => solidScriptBoxUvsShape(shape, size, 'Box UVs')));
-    },
   }),
   new SolidScriptCommand({
     id: 'flip_faces',

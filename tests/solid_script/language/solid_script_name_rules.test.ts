@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   solidScriptNameDotProblem,
   solidScriptNameIsDataWrite,
+  solidScriptNameIsUvWrite,
 } from '@/solid_script/language/solid_script_name_rules.js';
 
 describe('SolidScript name rules for values under .Data', () => {
@@ -23,6 +24,15 @@ describe('SolidScript name rules for values under .Data', () => {
     expect(solidScriptNameDotProblem('Brush.Faces(0).Edges.Data.[Key]', 'set')).toBe('');
     expect(solidScriptNameDotProblem('Brush.Edges', 'set')).toMatch(/^Brush\.Edges can only be read/);
     expect(solidScriptNameDotProblem('Face.Center', 'set')).toMatch(/^Face\.Center can only be read/);
+  });
+
+  it('lets a line set Face.UVs, also through a list of faces', () => {
+    expect(solidScriptNameIsUvWrite('Face.UVs')).toBe(true);
+    expect(solidScriptNameIsUvWrite('Brush.Faces.UVs')).toBe(true);
+    expect(solidScriptNameIsUvWrite('Sides.UVs')).toBe(true);
+    expect(solidScriptNameIsUvWrite('Face.Normal')).toBe(false);
+    expect(solidScriptNameDotProblem('Face.UVs', 'set')).toBe('');
+    expect(solidScriptNameDotProblem('Brush.Faces.UVs', 'set')).toBe('');
   });
 
   it('asks for a key when a line sets .Data itself', () => {

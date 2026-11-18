@@ -56,7 +56,7 @@ The script runs on every change. **Start** builds everything, **Debug** builds o
 <summary>More Details</summary>
 
 - A **curve** input opens the curve editor; read it with `CurveAt(curve, x)` or `ProfilePoints(curve, height, radius)`.
-- A **texture** input picks a library texture; wrap brushes in a **Texture** block, such as `Texture [Wall]`, to paint every face with it. An inner Texture block wins, and brushes outside keep the generator's texture. **Texture Faces** gives the faces Select Faces picked their own texture. **Box UVs** wraps brushes or meshes and gives every face texture coordinates projected from the side it faces most, keeping brushes as brushes.
+- A **texture** input picks a library texture; wrap brushes in a **Texture** block, such as `Texture [Wall]`, to paint every face with it. An inner Texture block wins, and brushes outside keep the generator's texture. **Texture Faces** gives the faces Select Faces picked their own texture. **Project UVs** gives the faces Select Faces picked texture coordinates from a Box, Planar, Cylinder or Sphere projection (Box uses the same Overhead, Front and Side views as Bevel, from the way each face looks). **Unwrap**, **Pack Islands** and **Transform UVs** lay those islands flat, pack them into 0 to 1, or move, scale and rotate them. Brushes stay brushes; meshes stay meshes.
 - **Input Group** shows the inputs inside it under a heading, **Input Row** puts them side by side, **Show Inputs When** shows them only while another input has a value, and **Input Note** shows a line of text among them.
 - When Input Changes and When Button Pressed blocks can check and change inputs.
 - **When Baked** runs just before the generator is baked, so a light preview can bake as a detailed version; undo brings back the old inputs.
@@ -66,7 +66,7 @@ The script runs on every change. **Start** builds everything, **Debug** builds o
 
 ## Brushes, faces and points
 
-Brushes, faces, edges and corners are values, like numbers and text. A dot reads their parts: `[Top.Normal]`, `[Brush.Faces.Count]`, `[Edge.Length]`, `[Faces.Center]` of a whole list. `[Face.Data.Height]` keeps your own values on one. Set through a list writes every item, so Set `Brush.Edges.Data.Kind` to `trim` marks every edge of a brush, and `[Brush.Edges.Data.Kind]` reads one value per edge. System values start with `$`: `[$Selected.Faces]` is what the last **Select Faces** picked, `[$Selected.Brushes]` what the lines below work on, `[$Input.Brushes]` what a modifier receives.
+Brushes, faces, edges and corners are values, like numbers and text. A dot reads their parts: `[Top.Normal]`, `[Face.UVs]`, `[Brush.Faces.Count]`, `[Edge.Length]`, `[Faces.Center]` of a whole list. Set `[Face.UVs]` to a list of U and V pairs, one per corner; a brush face must have a planar mapping or the line stops. `[Face.Data.Height]` keeps your own values on one. Set through a list writes every item, so Set `Brush.Edges.Data.Kind` to `trim` marks every edge of a brush, and `[Brush.Edges.Data.Kind]` reads one value per edge. System values start with `$`: `[$Selected.Faces]` is what the last **Select Faces** picked, `[$Selected.Brushes]` what the lines below work on, `[$Input.Brushes]` what a modifier receives.
 
 <details>
 <summary>More Details</summary>

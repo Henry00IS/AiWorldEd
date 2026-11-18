@@ -180,21 +180,32 @@ describe('SolidScript meshes', () => {
     const flipped = onlyMesh(run({ command: 'flip_faces' }, { command: 'cube' }, END));
     expect(outwards(flipped)).toBe(false);
     const mapped = onlyMesh(
-      run({ command: 'box_uvs', values: { size: '0.5' } }, { command: 'mesh_brushes' }, { command: 'cube' }, END, END),
+      run(
+        { command: 'mesh_brushes' },
+        { command: 'cube' },
+        END,
+        { command: 'select_faces', values: { which: 'All' } },
+        { command: 'project_uvs', values: { size: '0.5' } },
+      ),
     );
     expect(mapped.uvs.every((uv) => uv !== null && uv.every(([u, v]) => Math.abs(u) === 1 && Math.abs(v) === 1))).toBe(
       true,
     );
   });
 
-  it('keeps a brush inside Box UVs as a brush, with a box projection size', () => {
-    const result = run({ command: 'box_uvs', values: { size: '0.5' } }, { command: 'cube' }, END);
+  it('keeps a brush after Project UVs as a brush, with stored UV records', () => {
+    const result = run(
+      { command: 'cube' },
+      { command: 'select_faces', values: { which: 'All' } },
+      { command: 'project_uvs', values: { size: '0.5' } },
+    );
     expect(result.error).toBeNull();
     expect(solidScriptShapeMeshes(result.shapes)).toHaveLength(0);
     const [shape] = result.shapes;
     expect(shape?.kind).toBe('solid');
     if (shape?.kind !== 'solid') throw new Error('Expected a solid');
-    expect(shape.boxUvSize).toBe(0.5);
+    expect(shape.boxUvSize).toBeUndefined();
+    expect(shape.faceUvs).toHaveLength(6);
   });
 
   it('mirrors meshes without turning them inside out', () => {

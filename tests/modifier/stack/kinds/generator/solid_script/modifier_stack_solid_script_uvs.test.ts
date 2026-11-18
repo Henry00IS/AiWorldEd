@@ -140,13 +140,13 @@ describe('SolidScript generator UVs', () => {
     expect(new Set(brushes.map(localUvChart)).size).toBe(1);
   });
 
-  it('keeps a cube inside Box UVs as a brush, with the same local UVs after a move', () => {
+  it('keeps a cube after Project UVs as a brush, with the same local UVs after a move', () => {
     const boxed = (offset: string): SolidScriptLine[] => [
-      { command: 'box_uvs', values: { size: '1' } },
       { command: 'translate', values: { v: offset } },
       { command: 'cube', values: { size: '2, 2, 2' } },
       END,
-      END,
+      { command: 'select_faces', values: { which: 'All' } },
+      { command: 'project_uvs', values: { mode: 'Box', size: '1', space: 'Local' } },
     ];
     const origin = compiled(boxed('0, 0, 0'));
     const moved = compiled(boxed('4, 0, 0'));
@@ -155,4 +155,61 @@ describe('SolidScript generator UVs', () => {
     if (!origin[0] || !moved[0]) throw new Error('Expected a boxed cube');
     expect(localUvChart(moved[0])).toBe(localUvChart(origin[0]));
   });
+
+  it('carries stored Project UVs through Rotate instead of re-projecting', () => {
+    const projectThenRotate = compiled([
+      { command: 'rotate', values: { a: '0, 90, 0' } },
+      { command: 'texture' },
+      { command: 'cube', values: { size: '2, 1, 3' } },
+      { command: 'select_faces', values: { which: 'All' } },
+      { command: 'project_uvs', values: { mode: 'Planar', from: 'Overhead', size: '1' } },
+      END,
+      END,
+    ]);
+    const rotateThenProject = compiled([
+      { command: 'rotate', values: { a: '0, 90, 0' } },
+      { command: 'cube', values: { size: '2, 1, 3' } },
+      END,
+      { command: 'select_faces', values: { which: 'All' } },
+      { command: 'project_uvs', values: { mode: 'Planar', from: 'Overhead', size: '1' } },
+    ]);
+    expect(projectThenRotate).toHaveLength(1);
+    expect(rotateThenProject).toHaveLength(1);
+    if (!projectThenRotate[0] || !rotateThenProject[0]) throw new Error('Expected a rotated cube');
+    expect(localUvChart(projectThenRotate[0])).not.toBe(localUvChart(rotateThenProject[0]));
+  });
+
+  it('carries stored Project UVs through Repeat, Use Part and Place On Face', () => {
+    const brushes = compiled([
+      { command: 'part', values: { name: 'Block' } },
+      { command: 'cube', values: { size: '0.4, 0.4, 0.4' } },
+      { command: 'select_faces', values: { which: 'All' } },
+      { command: 'project_uvs', values: { mode: 'Box', size: '1' } },
+      END,
+      { command: 'cube', values: { size: '2, 2, 2' } },
+      { command: 'select_faces', values: { which: 'All' } },
+      { command: 'for_each', values: { variable: 'Face', list: '[$Selected.Faces]' } },
+      { command: 'place_on_face', values: { of: '[Face]' } },
+      { command: 'use_part', values: { name: 'Block' } },
+      END,
+      END,
+    ]);
+    const placed = brushes.filter((brush) => brush.brush.vertices.length <= 8 && meanSize(brush) < 1);
+    expect(placed.length).toBeGreaterThan(1);
+    expect(new Set(placed.map(localUvChart)).size).toBe(1);
+  });
 });
+
+/**
+ * Mean edge length of a brush's bounding box, for telling a small placed copy
+ * from the host cube.
+ *
+ * @param brush Compiled brush.
+ * @returns Mean size.
+ */
+function meanSize(brush: SolidBrushInstance): number {
+  const vertices = brush.brush.vertices;
+  const min = vertices.reduce((bound, vertex) => bound.min(vertex), new THREE.Vector3(Infinity, Infinity, Infinity));
+  const max = vertices.reduce((bound, vertex) => bound.max(vertex), new THREE.Vector3(-Infinity, -Infinity, -Infinity));
+  return max.sub(min).length() / Math.sqrt(3);
+}

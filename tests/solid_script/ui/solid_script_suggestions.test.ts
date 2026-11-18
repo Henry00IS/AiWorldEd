@@ -105,6 +105,7 @@ describe('SolidScript member suggestions', () => {
       '$Selected.Faces.First.Edges',
       '$Selected.Faces.First.Vertices',
       '$Selected.Faces.First.Parent',
+      '$Selected.Faces.First.UVs',
       '$Selected.Faces.First.Data',
     ]);
     expect(labels('[$Selected.Faces.C')).toEqual(['$Selected.Faces.Count', '$Selected.Faces.Center']);

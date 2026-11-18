@@ -95,10 +95,16 @@ export function solidScriptNameDotProblem(name: string, use: 'read' | 'set'): st
   );
   if (bad !== undefined)
     return `"${text}" cannot be a name: names use letters, digits and _, and a dot reads a member such as Face.Center, Pos.x or Face.Data.Height`;
-  if (use === 'read' || SOLID_SCRIPT_NAME_OWN.test(text) || solidScriptNameIsDataWrite(text)) return '';
+  if (
+    use === 'read' ||
+    SOLID_SCRIPT_NAME_OWN.test(text) ||
+    solidScriptNameIsDataWrite(text) ||
+    solidScriptNameIsUvWrite(text)
+  )
+    return '';
   if (parts.length >= 2 && parts[last]?.toLowerCase() === 'data')
     return `${text} needs a key to set, such as ${text}.Height; a line sets a value under .Data, not .Data itself`;
-  return `${text} can only be read; a line sets whole names, .x, .y and .z of a vector, or a value under .Data such as Face.Data.Height or Brush.Edges.Data.Kind`;
+  return `${text} can only be read; a line sets whole names, .x, .y and .z of a vector, Face.UVs, or a value under .Data such as Face.Data.Height or Brush.Edges.Data.Kind`;
 }
 
 /**
@@ -127,4 +133,16 @@ export function solidScriptSystemIsVector(name: string): boolean | null {
   if (part !== undefined) return /^[xyz]$/.test(part) ? false : null;
   const global = SOLID_SCRIPT_SYSTEM_GLOBALS.find((value) => value.name.toLowerCase() === `${group}.${member}`);
   return global ? global.type === 'Vector' : false;
+}
+
+/**
+ * Tells whether a name sets Face.UVs or a list of faces' UVs, such as Face.UVs
+ * or Sides.UVs.
+ *
+ * @param name Name as written, without brackets.
+ * @returns True for such a name.
+ */
+export function solidScriptNameIsUvWrite(name: string): boolean {
+  const parts = solidScriptNameParts(name.trim());
+  return parts.length >= 2 && parts[parts.length - 1]?.toLowerCase() === 'uvs';
 }

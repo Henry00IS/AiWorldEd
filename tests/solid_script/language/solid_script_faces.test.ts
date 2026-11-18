@@ -368,9 +368,9 @@ describe('SolidScript faces', () => {
     expect(run(select('Facing Up')).error?.message).toMatch(/add a brush such as Cube or Input Brushes above it/);
     expect(run(CUBE, select('Sideways')).error?.message).toMatch(/Which must be one of/);
     expect(run(CUBE, { command: 'place_on_face' }, { command: 'cube' }, END).error?.message).toMatch(
-      /no faces to work on; pick some with Select Faces/,
+      /no faces to work on; use Select Faces/,
     );
-    expect(run(CUBE, { command: 'extrude_face' }).error?.message).toMatch(/pick some with Select Faces/);
+    expect(run(CUBE, { command: 'extrude_face' }).error?.message).toMatch(/use Select Faces/);
     expect(
       run(CUBE, select('Facing Up', { into: 'Top' }), {
         command: 'bevel_edges',

@@ -2,6 +2,7 @@ import { solidScriptNameKey } from '@/solid_script/language/solid_script_name_ke
 import {
   solidScriptNameDotProblem,
   solidScriptNameIsDataWrite,
+  solidScriptNameIsUvWrite,
 } from '@/solid_script/language/solid_script_name_rules.js';
 import { solidScriptFieldMistakeOf } from '@/solid_script/language/solid_script_field_mistakes.js';
 import type {
@@ -315,8 +316,13 @@ function solidScriptConfiguratorNameProblem(parameter: SolidScriptCommandParamet
   if (dotted) return `${parameter.label}: ${dotted}.`;
   if (parameter.type === 'name' && !SOLID_SCRIPT_CONFIGURATOR_NAME.test(text))
     return `${parameter.label} must start with a letter and use only letters, digits and _.`;
-  if (parameter.type === 'target' && !SOLID_SCRIPT_CONFIGURATOR_TARGET.test(text) && !solidScriptNameIsDataWrite(text))
-    return `${parameter.label} must be a name such as width, an item such as points(0), points() to add one, or a value under .Data such as face.data.height.`;
+  if (
+    parameter.type === 'target' &&
+    !SOLID_SCRIPT_CONFIGURATOR_TARGET.test(text) &&
+    !solidScriptNameIsDataWrite(text) &&
+    !solidScriptNameIsUvWrite(text)
+  )
+    return `${parameter.label} must be a name such as width, an item such as points(0), points() to add one, Face.UVs, or a value under .Data such as face.data.height.`;
   return '';
 }
 

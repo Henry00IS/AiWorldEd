@@ -42,6 +42,7 @@ describe('SolidScript configurator Set Variable field', () => {
   });
 
   it('still refuses members that can only be read', () => {
+    expect(setVariableProblem('Face.UVs')).toBe('');
     expect(setVariableProblem('Brush.Edges')).toMatch(/Brush\.Edges can only be read/);
     expect(setVariableProblem('Face.Center')).toMatch(/Face\.Center can only be read/);
     expect(setVariableProblem('Brush.Edges.Data')).toMatch(/Brush\.Edges\.Data needs a key to set/);

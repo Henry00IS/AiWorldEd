@@ -67,7 +67,6 @@ const SOLID_SCRIPT_SAMPLE_CHILDREN: Readonly<Record<string, readonly SolidScript
     { command: 'end' },
   ],
   extrude_faces: [{ command: 'cube' }],
-  box_uvs: [{ command: 'cube' }],
   flip_faces: [{ command: 'cube' }],
   place_on_face: [{ command: 'cube', values: { size: '0.2, 0.2, 0.2', anchor: 'Left, Bottom, Back' } }],
   texture: [{ command: 'cube' }],
@@ -316,8 +315,8 @@ describe('solid script command catalog', () => {
     const converters = solidScriptCommands.filter((command) => !solidScriptCommandPreservesBrushes(command));
     expect(converters.some((command) => command.id === 'mesh_brushes')).toBe(true);
     expect(converters.some((command) => command.id === 'subdivide')).toBe(true);
-    const boxUvs = solidScriptCommandFind('box_uvs');
-    expect(boxUvs && solidScriptCommandPreservesBrushes(boxUvs)).toBe(true);
+    const projectUvs = solidScriptCommandFind('project_uvs');
+    expect(projectUvs && projectUvs.category === 'Faces').toBe(true);
     for (const command of solidScriptCommands.filter(solidScriptCommandPreservesBrushes)) {
       const result = run(...standalone(command));
       expect(result.error?.message ?? null, command.id).toBeNull();

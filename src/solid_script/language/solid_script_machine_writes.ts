@@ -8,6 +8,13 @@ import {
 import { solidScriptNameKey } from './solid_script_name_key.js';
 import type { SolidScriptScope } from './solid_script_scope.js';
 import { SolidScriptElement, solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
+import type { SolidScriptGeometryLeaf } from './solid_script_geometry.js';
+import {
+  solidScriptFaceUvsFit,
+  solidScriptMeshFaceUvsWrite,
+  solidScriptSolidFaceUvsWrite,
+  solidScriptUvsFromValue,
+} from './solid_script_uvs.js';
 import {
   SOLID_SCRIPT_LOCAL_PREFIX,
   SOLID_SCRIPT_NAME,
@@ -29,6 +36,22 @@ import {
  * another kind.
  */
 export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariables {
+  /**
+   * Returns what a solid or mesh became after later writes.
+   *
+   * @param leaf Solid or mesh.
+   * @returns Latest version.
+   */
+  protected abstract leafLatest(leaf: SolidScriptGeometryLeaf): SolidScriptGeometryLeaf;
+
+  /**
+   * Replaces a solid or mesh with a later version.
+   *
+   * @param leaf Solid or mesh to replace.
+   * @param by Replacement.
+   */
+  protected abstract leafRewrite(leaf: SolidScriptGeometryLeaf, by: SolidScriptGeometryLeaf): void;
+
   /**
    * Writes a user value under .Data, such as Face.Data.Height, to one element
    * or every element of a list.
@@ -66,6 +89,49 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
   }
 
   /**
+   * Writes Face.UVs, or the UVs of every face in a list, from a list of U and V
+   * pairs, one per corner.
+   *
+   * @param written Name as written.
+   * @param scope Scope of the line.
+   * @param value Corner UVs.
+   * @returns True when the name was Face.UVs or a list of faces' UVs.
+   */
+  protected uvsSet(written: string, scope: SolidScriptScope, value: SolidScriptValue): boolean {
+    const parts = solidScriptMemberParts(written);
+    const last = parts[parts.length - 1];
+    if (parts.length < 2 || last?.toLowerCase() !== 'uvs') return false;
+    const owner = this.fieldVariable(solidScriptNameKey(parts.slice(0, -1).join('.')), scope);
+    const uvs = solidScriptUvsFromValue(value);
+    const items = Array.isArray(owner) ? owner : [owner];
+    for (const item of items) this.uvsSetFace(item, uvs, parts.slice(0, -1).join('.'));
+    return true;
+  }
+
+  /**
+   * Writes corner UVs onto one face value.
+   *
+   * @param item Face element.
+   * @param uvs Corner UVs.
+   * @param shown Owner name, for messages.
+   */
+  private uvsSetFace(item: SolidScriptValue, uvs: readonly [number, number][], shown: string): void {
+    if (!(item instanceof SolidScriptElement) || item.kind !== 'face')
+      throw new Error(`only faces have .UVs; ${shown} is ${solidScriptKindNamed(item)}`);
+    const [face] = this.elements.faces(item);
+    if (!face) throw new Error(`${String(item)} was cut away`);
+    if (uvs.length !== face.corners.length)
+      throw new Error(`Face.UVs needs ${face.corners.length} corners, not ${uvs.length}`);
+    const latest = this.leafLatest(face.leaf);
+    if (latest.kind === 'mesh') {
+      this.leafRewrite(latest, solidScriptMeshFaceUvsWrite(latest, face.index, uvs));
+      return;
+    }
+    if (latest.kind === 'solid')
+      this.leafRewrite(latest, solidScriptSolidFaceUvsWrite(latest, [solidScriptFaceUvsFit(face, uvs)]));
+  }
+
+  /**
    * Sets a variable after checking its name and that lines may change it.
    *
    * @param scope Scope of the line.
@@ -82,6 +148,7 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
     }
     if (name.startsWith(SOLID_SCRIPT_SYSTEM_PREFIX)) return this.variableSetSelected(written, name, value);
     if (this.dataSet(written, scope, value)) return;
+    if (this.uvsSet(written, scope, value)) return;
     const locals = name.startsWith(SOLID_SCRIPT_LOCAL_PREFIX) ? this.frameFunction()?.locals : undefined;
     const bare = locals ? solidScriptLocalBare(name) : '';
     if (locals && SOLID_SCRIPT_NAME.test(bare)) return locals.variableSet(bare, value);
