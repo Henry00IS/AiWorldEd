@@ -87,12 +87,13 @@ Brushes, faces, edges and corners are values, like numbers and text. A dot reads
 
 ## Paths and meshes
 
-**Curve To Mesh** sweeps a circle or your own outline along a list of points, such as a rail or a pipe. Points are vectors in brackets separated by commas, such as `[0, 0, 0], [1, 0, 0], [2, 1, 0]`, or a list variable such as `[Path]`; a Profile outline ignores z.
+**Path** writes a list of points along a **Line**, **Arc**, **Spiral** or **From Points**, and **Curve To Mesh** sweeps a circle or your own outline along that list, such as a rail or a pipe. Points are vectors in brackets separated by commas, such as `[0, 0, 0], [1, 0, 0], [2, 1, 0]`, or a list variable such as `[Path]`; a Profile outline ignores z.
 
 <details>
 <summary>More Details</summary>
 
 - Each stretch becomes one solid, cut on the mitre so the pieces meet; **As Mesh** builds one mesh instead.
+- **Path** writes points to Into (Path by default). Shape **Line** (the default) walks from From to To; **Arc** turns around Center facing Normal, from Start by Sweep degrees; **Spiral** also climbs Height and can change radius over Turns; **From Points** uses the corners in Points, and Radius rounds them (Sides segments on each corner, Closed joins the last back to the first). Count is how many points Line, Arc and Spiral write. Unused fields stay hidden.
 - `Resample(points, count)` spaces points evenly along a path, and `PathLength(points)` measures it. `PathAt(points, amount)` and `PathDirection(points, amount)` give the point and the way the path faces at a fraction of its length, and `TrimPath(points, start, end)` keeps one stretch.
 - `Noise(x, y, z, scale, seed)` is a smooth random field from 0 to 1, and `Hash(value, seed)` is a number from 0 to 1 from any value. `Random(min, max, seed)` can be two vectors, `Shuffle(list, seed)` shuffles a list, and `Nearest(points, point)` is the index of the closest point. `RotateVector(vector, axis, degrees)`, `Angle(a, b)`, `Project(point, through, normal)` and `Reflect(vector, normal)` work on vectors. For a yes-or-no chance, write `Random(0, 1, seed) < 0.3`.
 - **Merge By Distance** welds mesh corners that nearly touch. **Mesh From Shapes** turns shapes into a real mesh.
