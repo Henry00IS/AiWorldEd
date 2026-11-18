@@ -16,6 +16,7 @@ import {
 } from './solid_script_command_parameters.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import { solidScriptPlaceMatrices } from '@/solid_script/language/solid_script_place.js';
+import { solidScriptFaceGroups, solidScriptFaceTargets, solidScriptFaceWrite } from './solid_script_face_of.js';
 import { solidScriptScatterRun } from '@/solid_script/language/solid_script_scatter.js';
 import {
   solidScriptGeometryBevel,
@@ -29,7 +30,6 @@ import {
   type SolidScriptEdgeFacts,
   type SolidScriptFaceFacts,
   type SolidScriptFacePick,
-  type SolidScriptGeometryLeaf,
 } from '@/solid_script/language/solid_script_geometry.js';
 import { solidScriptMeshExtrudeFaces, type SolidScriptShapeMesh } from '@/solid_script/language/solid_script_mesh.js';
 import { SOLID_SCRIPT_AXES_FACING } from '@/solid_script/language/solid_script_axes.js';
@@ -203,36 +203,6 @@ function solidScriptScatterListingOther(read: SolidScriptListingValues, where: s
 }
 
 /**
- * Reads the faces a line works on now: those its Of gives (faces, or every face
- * of the brushes it gives), else [$Selected.Faces]. A face a list held that was
- * cut away has left it; a single face that was cut away stops the line.
- *
- * @param run Running line.
- * @param label Command, for messages.
- * @returns Faces read from the latest geometry, each piece of a split face.
- */
-function solidScriptFaceTargets(run: SolidScriptBlockRun, label: string): SolidScriptFaceFacts[] {
-  const given = run.ofValues();
-  const values = given ?? run.selectedGet('faces');
-  if (values.length === 0)
-    throw new Error(
-      given
-        ? `${label} has no faces in Of; check that Of holds faces or brushes`
-        : `${label} has no faces to work on; pick some with Select Faces above it, or give them in Of`,
-    );
-  const faces: SolidScriptFaceFacts[] = [];
-  for (const value of values) {
-    if (!(value instanceof SolidScriptElement) || (value.kind !== 'face' && value.kind !== 'brush'))
-      throw new Error(`${label} takes faces or brushes, not ${solidScriptKindNamed(value)}`);
-    const read = run.elements.faces(value);
-    if (read.length === 0 && values.length === 1) throw new Error(`${String(value)} was cut away by a line above`);
-    for (const face of read)
-      if (!faces.some((known) => known.leaf === face.leaf && known.index === face.index)) faces.push(face);
-  }
-  return faces;
-}
-
-/**
  * Reads the edges a line works on now: those its Of gives (edges, the edges of
  * faces, or every edge of brushes), else [$Selected.Edges], else the edges of
  * [$Selected.Faces].
@@ -259,25 +229,6 @@ function solidScriptFaceEdgeTargets(run: SolidScriptBlockRun, label: string): So
 }
 
 /**
- * Groups items by the solid or mesh they belong to.
- *
- * @param items Faces or edges.
- * @param leafOf Solid or mesh of an item.
- * @returns Items per solid or mesh.
- */
-function solidScriptFaceGroups<Item>(
-  items: readonly Item[],
-  leafOf: (item: Item) => SolidScriptGeometryLeaf,
-): Map<SolidScriptGeometryLeaf, Item[]> {
-  const groups = new Map<SolidScriptGeometryLeaf, Item[]>();
-  for (const item of items) {
-    const leaf = leafOf(item);
-    groups.set(leaf, [...(groups.get(leaf) ?? []), item]);
-  }
-  return groups;
-}
-
-/**
  * Reads a distance field.
  *
  * @param run Running line.
@@ -288,18 +239,6 @@ function solidScriptFaceDistance(run: SolidScriptBlockRun, what: string): number
   const number = solidScriptValueNumber(run.value('distance'));
   if (number === undefined) throw new Error(`${what} needs a number of metres, such as 0.2`);
   return number;
-}
-
-/**
- * Writes a list to the variable a field names, when it names one.
- *
- * @param run Running line.
- * @param key Field key.
- * @param values Values.
- */
-function solidScriptFaceWrite(run: SolidScriptBlockRun, key: string, values: readonly SolidScriptValue[]): void {
-  const name = run.text(key).trim();
-  if (name !== '') run.variableSet(name.replace(/^\[(.*)\]$/s, '$1'), [...values]);
 }
 
 /**

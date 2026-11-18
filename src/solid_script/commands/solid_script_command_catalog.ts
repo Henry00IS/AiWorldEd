@@ -9,6 +9,7 @@ import { SOLID_SCRIPT_COMMANDS_SELECT } from './solid_script_commands_select.js'
 import { SOLID_SCRIPT_COMMANDS_PATHS } from './solid_script_commands_paths.js';
 import { SOLID_SCRIPT_COMMANDS_GENERATORS } from './solid_script_commands_generators.js';
 import { SOLID_SCRIPT_COMMANDS_PROGRAM } from './solid_script_commands_program.js';
+import { SOLID_SCRIPT_COMMANDS_QUERY } from './solid_script_commands_query.js';
 
 /** Palette groups in palette order. */
 export const SOLID_SCRIPT_COMMAND_CATEGORIES: readonly SolidScriptCommandCategory[] = [
@@ -37,6 +38,7 @@ export const solidScriptCommands: readonly SolidScriptCommand[] = [
   ...SOLID_SCRIPT_COMMANDS_FACES.slice(0, 1),
   ...SOLID_SCRIPT_COMMANDS_SELECT,
   ...SOLID_SCRIPT_COMMANDS_FACES.slice(1),
+  ...SOLID_SCRIPT_COMMANDS_QUERY,
   ...SOLID_SCRIPT_COMMANDS_LOGIC,
   ...SOLID_SCRIPT_COMMANDS_LISTS,
   ...SOLID_SCRIPT_COMMANDS_PROGRAM,
