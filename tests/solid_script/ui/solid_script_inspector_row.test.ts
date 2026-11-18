@@ -12,7 +12,11 @@ import { PANEL_PROJECT_PATH_DRAG_TYPE } from '@/project/ui/panel_project_drag.js
 import {
   solidScriptDocumentCreate,
   solidScriptDocumentNormalize,
+  solidScriptDocumentUseProblem,
+  type SolidScriptDocument,
+  type SolidScriptLine,
 } from '@/solid_script/document/solid_script_document.js';
+import { solidScriptInspectorRow } from '@/solid_script/ui/solid_script_inspector_row.js';
 import { solidScriptFileEncode } from '@/solid_script/file/solid_script_file.js';
 import { solidScriptEditorCurrentGet } from '@/solid_script/ui/solid_script_editor_open.js';
 import { ProjectMockDirectoryHandle } from '../../project/fs/project_mock_directory_handle.js';
@@ -50,6 +54,9 @@ function rowFixture() {
   if (!field) throw new Error('Expected the script row');
   return { node, commandStack, field, rows, script: () => solidScriptDocumentNormalize(parameters()['script']) };
 }
+
+/** Uses of a script made to be used as a modifier only. */
+const MODIFIER_ONLY = { generator: false, modifier: true };
 
 /** Lets pending promises settle. */
 async function settle(): Promise<void> {
@@ -102,5 +109,48 @@ describe('SolidScript inspector row', () => {
     [...field.querySelectorAll('button')].find((button) => button.textContent === 'Edit Script')?.click();
     await settle();
     expect(document.querySelector('[data-solid-script-editor]')).not.toBeNull();
+  });
+});
+
+/**
+ * Renders a script row for a script and reads its message area.
+ *
+ * @param script Stored script.
+ * @returns Shown messages in DOM order, each with whether it is the error.
+ */
+function messagesOf(script: SolidScriptDocument): { text: string; error: boolean }[] {
+  const row = solidScriptInspectorRow(() => null, 'script', 'scriptInputs', 'generator');
+  document.body.append(row.element);
+  row.write({ script });
+  const area = row.element.querySelector('[data-solid-script-messages]');
+  if (!area) throw new Error('Expected the message area');
+  return [...area.children]
+    .filter((child) => child instanceof HTMLElement && child.style.display !== 'none' && child.textContent !== '')
+    .map((child) => ({ text: child.textContent ?? '', error: child.hasAttribute('data-solid-script-error') }));
+}
+
+/** A line that stops the script. */
+const BROKEN: SolidScriptLine = { command: 'cube', values: { size: 'oak' } };
+
+describe('SolidScript inspector row messages', () => {
+  it('shows nothing for a script that runs where it is used', () => {
+    expect(messagesOf(solidScriptDocumentCreate([{ command: 'cube' }]))).toEqual([]);
+  });
+
+  it('shows only the red error for a script that stops', () => {
+    const shown = messagesOf(solidScriptDocumentCreate([BROKEN]));
+    expect(shown.map((entry) => entry.error)).toEqual([true]);
+  });
+
+  it('shows only the use warning for a script made for another use', () => {
+    const script = { ...solidScriptDocumentCreate([{ command: 'cube' }], 'Radial Array'), uses: MODIFIER_ONLY };
+    expect(messagesOf(script)).toEqual([{ text: solidScriptDocumentUseProblem(script, 'generator'), error: false }]);
+  });
+
+  it('shows the use warning first and the error directly below it', () => {
+    const script = { ...solidScriptDocumentCreate([BROKEN], 'Radial Array'), uses: MODIFIER_ONLY };
+    const shown = messagesOf(script);
+    expect(shown.map((entry) => entry.error)).toEqual([false, true]);
+    expect(shown[0]?.text).toBe(solidScriptDocumentUseProblem(script, 'generator'));
   });
 });
