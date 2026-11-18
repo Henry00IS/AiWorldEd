@@ -39,10 +39,38 @@ export function solidScriptRotateMatrix(args: SolidScriptBlockArguments): THREE.
  * @returns Matrix.
  */
 export function solidScriptAlignMatrix(args: SolidScriptBlockArguments): THREE.Matrix4 {
-  const direction = new THREE.Vector3(...args.vector('direction', [0, 1, 0]));
+  return solidScriptAlignDirectionMatrix(new THREE.Vector3(...args.vector('direction', [0, 1, 0])));
+}
+
+/**
+ * Matrix that turns up (Y) to point along a direction, by the shortest turn.
+ *
+ * @param direction Direction up should point along.
+ * @returns Rotation matrix.
+ */
+export function solidScriptAlignDirectionMatrix(direction: THREE.Vector3): THREE.Matrix4 {
   if (direction.lengthSq() < 1e-18) throw new Error('Direction needs a direction that is not 0, 0, 0');
-  const turn = new THREE.Quaternion().setFromUnitVectors(SOLID_SCRIPT_AXES_UP, direction.normalize());
+  const turn = new THREE.Quaternion().setFromUnitVectors(SOLID_SCRIPT_AXES_UP, direction.clone().normalize());
   return new THREE.Matrix4().makeRotationFromQuaternion(turn);
+}
+
+/**
+ * Matrix that stands a shape at a point, with its up along a direction and a
+ * lift along that up.
+ *
+ * @param position Where the origin goes, in metres.
+ * @param direction Where up (Y) should point, or null to keep world up.
+ * @param lift Metres to move out along up after the turn.
+ * @returns Matrix.
+ */
+export function solidScriptPlaceMatrix(
+  position: THREE.Vector3,
+  direction: THREE.Vector3 | null,
+  lift: number,
+): THREE.Matrix4 {
+  const offset = new THREE.Matrix4().makeTranslation(0, lift, 0);
+  const rotation = direction ? solidScriptAlignDirectionMatrix(direction) : new THREE.Matrix4();
+  return new THREE.Matrix4().makeTranslation(position.x, position.y, position.z).multiply(rotation).multiply(offset);
 }
 
 /**

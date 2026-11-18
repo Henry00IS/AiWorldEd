@@ -10,6 +10,7 @@ import {
   solidScriptParameterOf,
 } from './solid_script_command_parameters.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
+import { solidScriptPlaceMatrices } from '@/solid_script/language/solid_script_place.js';
 import {
   solidScriptGeometryBevel,
   solidScriptGeometryFaceMatrix,
@@ -464,6 +465,46 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         run.framed(solidScriptGeometryFaceMatrix(face).multiply(new THREE.Matrix4().makeTranslation(0, lift, 0))),
       );
     },
+  }),
+
+  new SolidScriptCommand({
+    id: 'place_at_points',
+    label: 'Place At Points',
+    category: 'Faces',
+    description: 'Stand brushes at a list of points',
+    manual:
+      'Builds the brushes between this line and its End at each point in At, a list of vectors such as the points Scatter Points writes. Directions, when given, turns up (Y) along the matching entry, one per point; leave it empty to keep world up. Lift moves them out along that up. Example: Scatter Points 20 Into [Spots] Normals [Dirs], then Place At Points At [Spots] Directions [Dirs], Sphere, End, puts a ball on every point, standing on the face.',
+    stops: [
+      'A point or direction that is not x, y, z.',
+      'A Directions list whose length is not the number of points in At.',
+      'A missing End line.',
+    ],
+    nesting: 'open',
+    endLabel: 'Place',
+    parameters: [
+      solidScriptParameter(
+        'at',
+        'At',
+        'points3',
+        '0, 0, 0',
+        'Points to stand on, a list of vectors such as [Spots] from Scatter Points, or 0, 0, 0 for one point at the origin.',
+      ),
+      solidScriptParameterOptional(
+        'directions',
+        'Directions',
+        'points3',
+        'Optional: one direction per point, such as [Dirs] from Scatter Points Normals, so up (Y) points along it. Empty keeps world up.',
+      ),
+      solidScriptParameter('lift', 'Lift', 'number', '0', 'Metres to move the brushes out along up.'),
+    ],
+    listing: (read) => [
+      'Place At Points',
+      ' At ',
+      read.value('at'),
+      ...(read.text('directions') === '' ? [] : [' Directions ', read.value('directions')]),
+      ...solidScriptListingOptions([read.changed('lift') && ['Lift ', read.value('lift')]]),
+    ],
+    execute: (run) => solidScriptPlaceMatrices(run).flatMap((matrix) => run.framed(matrix)),
   }),
   new SolidScriptCommand({
     id: 'extrude_face',
