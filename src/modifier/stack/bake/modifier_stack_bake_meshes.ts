@@ -48,3 +48,30 @@ export function modifierStackBakeMeshesCreate(volume: THREE.Object3D, parent: TH
     return [{ mesh, parent }];
   });
 }
+
+/**
+ * Returns the world group baked meshes belong in: the solid's parent, or the
+ * last ancestor under the scene, so the outliner can list them. The scene
+ * itself is never returned; objects parented there stay visible but vanish from
+ * the outliner.
+ *
+ * @param volume Modifier volume or generator node being baked.
+ * @param preferred Parent already known, such as the solid's parent, or null.
+ * @param sceneRoot Top of the object's parent chain.
+ * @returns Parent for baked content.
+ */
+export function modifierStackBakeContentParent(
+  volume: THREE.Object3D,
+  preferred: THREE.Object3D | null,
+  sceneRoot: THREE.Object3D,
+): THREE.Object3D {
+  if (preferred && !(preferred instanceof THREE.Scene)) return preferred;
+  let node: THREE.Object3D | null = volume;
+  let content = volume;
+  while (node?.parent) {
+    if (node.parent instanceof THREE.Scene) return node;
+    content = node.parent;
+    node = node.parent;
+  }
+  return content instanceof THREE.Scene ? sceneRoot : content;
+}

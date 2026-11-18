@@ -18,7 +18,11 @@ import {
 } from './modifier_stack_bake_plan.js';
 import { modifierStackTreeAnchor, modifierStackTreeInsert } from '@/modifier/stack/evaluate/modifier_stack_tree.js';
 import { modifierStackBakeGroupsPlace, type ModifierStackBakeGroup } from './modifier_stack_bake_groups.js';
-import { modifierStackBakeMeshesCreate, type ModifierStackBakeMesh } from './modifier_stack_bake_meshes.js';
+import {
+  modifierStackBakeContentParent,
+  modifierStackBakeMeshesCreate,
+  type ModifierStackBakeMesh,
+} from './modifier_stack_bake_meshes.js';
 
 /** A volume or generator node the bake took out of the scene. */
 interface ModifierStackBakeDetached {
@@ -65,7 +69,10 @@ export class CommandModifierVolumeBake implements UndoCommand {
     const restore = modifierStackBakeParametersApply(this.sceneRoot);
     try {
       this.plans = modifierStackBakePlan(volume);
-      this.meshes = modifierStackBakeMeshesCreate(volume, this.plans[0]?.model.root.parent ?? this.sceneRoot);
+      this.meshes = modifierStackBakeMeshesCreate(
+        volume,
+        modifierStackBakeContentParent(volume, this.plans[0]?.model.root.parent ?? null, this.sceneRoot),
+      );
     } finally {
       restore();
     }
