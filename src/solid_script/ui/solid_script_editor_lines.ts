@@ -178,7 +178,10 @@ export class SolidScriptEditorLines {
       blank: (line) => solidScriptBlockIsBlank(this.document.blocks[line]),
       count: () => this.document.blocks.length,
       insert: handlers.insert,
-      move: (from, target) => this.keys.move(from, target.line),
+      move: (from, target) => {
+        this.pressKept = false;
+        this.keys.drag(from, target.line);
+      },
       rowPx: SOLID_SCRIPT_EDITOR_ROW_PX,
     });
     this.element.addEventListener('mousedown', (event) => this.backgroundDown(event));

@@ -1362,7 +1362,9 @@ describe('SolidScript editor undo history', () => {
     down(1);
     drop(chip(5), { [SOLID_SCRIPT_EDITOR_DRAG_LINE]: '1' });
     expect(order()).toBe('cdeabf');
+    // The dragged lines stay selected; a click without a drag picks one alone.
     down(3);
+    chip(3).dispatchEvent(new MouseEvent('click', { bubbles: true }));
     down(5, { ctrlKey: true });
     down(3);
     drop(chip(0), { [SOLID_SCRIPT_EDITOR_DRAG_LINE]: '3' });
