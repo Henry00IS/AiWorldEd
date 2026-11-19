@@ -7,7 +7,7 @@ import { solidScriptShapeMeshes } from '@/solid_script/language/solid_script_mes
 import type { SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
 
 const END: SolidScriptLine = { command: 'end' };
-const CUBE: SolidScriptLine = { command: 'cube', values: { size: '2, 2, 2' } };
+const CUBE: SolidScriptLine = { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } };
 /** A round per picked face, with the face in [Face]. */
 const EACH_FACE: SolidScriptLine = { command: 'for_each', values: { variable: 'Face', list: '[$Selected.Faces]' } };
 /** Builds the lines inside standing on the face of the round. */
@@ -142,7 +142,7 @@ describe('SolidScript faces', () => {
       select('All'),
       { command: 'for_each', values: { variable: 'Face', list: '[$Selected.Faces]' } },
       { command: 'place_on_face', values: { of: '[Face]' } },
-      { command: 'cube', values: { size: '0.2, 0.2, 0.2' } },
+      { command: 'cube', values: { size: '0.2, 0.2, 0.2', anchor: 'Center, Center, Center' } },
       END,
       END,
       END,
@@ -205,7 +205,7 @@ describe('SolidScript faces', () => {
 
   it('puts a trim on every stair step by its tag', () => {
     const result = run(
-      { command: 'stairs', values: { size: '2, 2, 2' } },
+      { command: 'stairs', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } },
       select('Tagged', { detail: 'Step Tread' }),
       { command: 'for_each', values: { variable: 'Face', list: '[$Selected.Faces]', key: 'I' } },
       { command: 'echo', values: { value: '[I] [Face.Tag]' } },
@@ -304,7 +304,7 @@ describe('SolidScript faces', () => {
     expect(count(CUBE, '$Selected.Brushes.First.Vertices.Count')).toBe(8);
     expect(count(CUBE, 'Top.First.Edges.Count')).toBe(4);
     // An eight-sided cylinder: its caps are octagons, not fans of triangles.
-    const cylinder: SolidScriptLine = { command: 'cylinder', values: { sides: '8' } };
+    const cylinder: SolidScriptLine = { command: 'cylinder', values: { sides: '8', anchor: 'Center, Center, Center' } };
     expect(count(cylinder, '$Selected.Brushes.First.Edges.Count')).toBe(24);
     expect(count(cylinder, '$Selected.Brushes.First.Vertices.Count')).toBe(16);
     expect(count(cylinder, 'Top.First.Edges.Count')).toBe(8);
@@ -336,7 +336,7 @@ describe('SolidScript faces', () => {
 
   it('puts more scattered points on bigger faces', () => {
     const counts = run(
-      { command: 'cube', values: { size: '4, 1, 1' } },
+      { command: 'cube', values: { size: '4, 1, 1', anchor: 'Center, Center, Center' } },
       select('All'),
       { command: 'scatter_points', values: { count: '600', seed: '1', into: 'Spots', normals: 'Ways' } },
       { command: 'for_each', values: { variable: 'Way', list: '[Ways]' } },
@@ -369,9 +369,10 @@ describe('SolidScript faces', () => {
   it('stops with plain errors', () => {
     expect(run(select('Facing Up')).error?.message).toMatch(/add a brush such as Cube or Input Brushes above it/);
     expect(run(CUBE, select('Sideways')).error?.message).toMatch(/Which must be one of/);
-    expect(run(CUBE, { command: 'place_on_face' }, { command: 'cube' }, END).error?.message).toMatch(
-      /no faces to work on; use Select Faces/,
-    );
+    expect(
+      run(CUBE, { command: 'place_on_face' }, { command: 'cube', values: { anchor: 'Center, Center, Center' } }, END)
+        .error?.message,
+    ).toMatch(/no faces to work on; use Select Faces/);
     expect(run(CUBE, { command: 'extrude_face' }).error?.message).toMatch(/use Select Faces/);
     expect(
       run(CUBE, select('Facing Up', { into: 'Top' }), {

@@ -45,7 +45,7 @@ function bounds(lines: SolidScriptLine[]): { min: number[]; max: number[] } {
 
 describe('SolidScript axes', () => {
   it('uses the editor axes: X right, Y up, Z toward the front', () => {
-    expect(bounds([solidScriptExampleLine('cube', { size: '1, 2, 3' })])).toEqual({
+    expect(bounds([solidScriptExampleLine('cube', { size: '1, 2, 3', anchor: 'Center, Center, Center' })])).toEqual({
       min: [-0.5, -1, -1.5],
       max: [0.5, 1, 1.5],
     });
@@ -101,11 +101,20 @@ describe('SolidScript axes', () => {
   });
 
   it('gives the box as width (X), height (Y) and depth (Z)', () => {
-    expect(bounds([solidScriptExampleLine('cube', { size: '[$Box.Size]' })])).toEqual({
-      min: [-2, -0.5, -1],
-      max: [2, 0.5, 1],
-    });
-    expect(bounds([solidScriptExampleLine('cube', { size: '[$Box.Width], [$Box.Height], [$Box.Depth]' })])).toEqual({
+    expect(bounds([solidScriptExampleLine('cube', { size: '[$Box.Size]', anchor: 'Center, Center, Center' })])).toEqual(
+      {
+        min: [-2, -0.5, -1],
+        max: [2, 0.5, 1],
+      },
+    );
+    expect(
+      bounds([
+        solidScriptExampleLine('cube', {
+          size: '[$Box.Width], [$Box.Height], [$Box.Depth]',
+          anchor: 'Center, Center, Center',
+        }),
+      ]),
+    ).toEqual({
       min: [-2, -0.5, -1],
       max: [2, 0.5, 1],
     });

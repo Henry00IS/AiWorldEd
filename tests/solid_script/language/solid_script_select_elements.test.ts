@@ -4,7 +4,7 @@ import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/
 import { solidScriptDocumentListing } from '@/solid_script/document/solid_script_document_listing.js';
 
 const line = (command: string, values: Record<string, string> = {}): SolidScriptLine => ({ command, values });
-const CUBE = line('cube', { size: '2, 2, 2' });
+const CUBE = line('cube', { size: '2, 2, 2', anchor: 'Center, Center, Center' });
 
 /** Runs lines and returns what they printed, or the error. */
 function printed(...lines: SolidScriptLine[]): string[] {
@@ -25,7 +25,7 @@ describe('SolidScript Select Edges and Select Vertices', () => {
     ).toEqual(['4 4 2']);
     expect(
       printed(
-        line('cube', { size: '4, 1, 1' }),
+        line('cube', { size: '4, 1, 1', anchor: 'Center, Center, Center' }),
         line('select_edges', { which: 'Longest', detail: '4' }),
         line('select_edges', { which: 'Where', detail: '[=[Edge.Middle.y] > 0]', how: 'Remove' }),
         line('echo', { value: '[$Selected.Edges.Count] [$Selected.Edges.First.Length]' }),

@@ -3,9 +3,9 @@ import type { SolidScriptLine } from '@/solid_script/document/solid_script_docum
 /** A wall with a doorway cut out of it. */
 export const SOLID_SCRIPT_EXAMPLE_DOORWAY: readonly SolidScriptLine[] = [
   { command: 'difference' },
-  { command: 'cube', values: { size: '4, 3, 0.2' } },
+  { command: 'cube', values: { size: '4, 3, 0.2', anchor: 'Center, Center, Center' } },
   { command: 'translate', values: { v: '0, -0.45, 0' } },
-  { command: 'cube', values: { size: '1, 2.1, 0.4' } },
+  { command: 'cube', values: { size: '1, 2.1, 0.4', anchor: 'Center, Center, Center' } },
   { command: 'end' },
   { command: 'end' },
 ];
@@ -13,7 +13,7 @@ export const SOLID_SCRIPT_EXAMPLE_DOORWAY: readonly SolidScriptLine[] = [
 /** A row of five columns from one named part, centered on the origin. */
 export const SOLID_SCRIPT_EXAMPLE_COLUMNS: readonly SolidScriptLine[] = [
   { command: 'part', values: { name: 'Column' } },
-  { command: 'cylinder', values: { h: '3', r1: '0.2', r2: '0.2', sides: '12' } },
+  { command: 'cylinder', values: { h: '3', r1: '0.2', r2: '0.2', sides: '12', anchor: 'Center, Center, Center' } },
   { command: 'end' },
   { command: 'repeat', values: { variable: 'I', from: '0', to: '4' } },
   { command: 'translate', values: { v: '[=[I] * 1.5 - 3], 0, 0' } },
@@ -41,7 +41,7 @@ export const SOLID_SCRIPT_EXAMPLE_PILLAR_RING: readonly SolidScriptLine[] = [
     values: { name: 'Pos', value: '[=[Center] + Vector(Cos([Angle]), 0, -Sin([Angle])) * [Radius]]' },
   },
   { command: 'translate', values: { v: '[Pos]' } },
-  { command: 'cylinder', values: { h: '3', r1: '0.25', r2: '0.2', sides: '12' } },
+  { command: 'cylinder', values: { h: '3', r1: '0.25', r2: '0.2', sides: '12', anchor: 'Center, Center, Center' } },
   { command: 'end' },
   { command: 'end' },
 ];
@@ -60,7 +60,7 @@ export const SOLID_SCRIPT_EXAMPLE_STEPPING_STONES: readonly SolidScriptLine[] = 
   { command: 'variable', values: { name: 'Pos.Y', value: '[=Sin([I] * 40) * 0.15]' } },
   { command: 'translate', values: { v: '[Pos]' } },
   { command: 'rotate', values: { a: '0, [=[I] * 23], 0' } },
-  { command: 'cube', values: { size: '0.7, 0.15, 0.5' } },
+  { command: 'cube', values: { size: '0.7, 0.15, 0.5', anchor: 'Center, Center, Center' } },
   { command: 'end' },
   { command: 'end' },
   { command: 'end' },
@@ -73,12 +73,12 @@ export const SOLID_SCRIPT_EXAMPLE_PEBBLES: readonly SolidScriptLine[] = [
     command: 'input',
     values: { name: 'Pebbles', type: 'Count', default: '40', min: '1', max: '400', label: 'Pebbles' },
   },
-  { command: 'cube', values: { size: '3, 0.4, 3' } },
+  { command: 'cube', values: { size: '3, 0.4, 3', anchor: 'Center, Center, Center' } },
   { command: 'select_faces', values: { which: 'Facing Up' } },
   { command: 'scatter_points', values: { count: '[Pebbles]', seed: '3', into: 'Spots' } },
   { command: 'for_each', values: { variable: 'Spot', list: '[Spots]', key: 'I' } },
   { command: 'translate', values: { v: '[Spot]' } },
-  { command: 'sphere', values: { r: '[=Random(0.05, 0.12, [I])]' } },
+  { command: 'sphere', values: { r: '[=Random(0.05, 0.12, [I])]', anchor: 'Center, Center, Center' } },
   { command: 'end' },
   { command: 'end' },
 ];
@@ -90,13 +90,13 @@ export const SOLID_SCRIPT_EXAMPLE_SPIKY_BALL: readonly SolidScriptLine[] = [
     command: 'input',
     values: { name: 'Spikes', type: 'Count', default: '30', min: '1', max: '200', label: 'Spikes' },
   },
-  { command: 'sphere', values: { r: '1' } },
+  { command: 'sphere', values: { r: '1', anchor: 'Center, Center, Center' } },
   { command: 'select_faces', values: { which: 'All' } },
   { command: 'scatter_points', values: { count: '[Spikes]', seed: '5', into: 'Spots', normals: 'Ways' } },
   { command: 'for_each', values: { variable: 'Spot', list: '[Spots]', key: 'I' } },
   { command: 'translate', values: { v: '[Spot]' } },
   { command: 'align', values: { direction: '[Ways([I])]' } },
-  { command: 'cylinder', values: { h: '0.5', r1: '0.08', r2: '0' } },
+  { command: 'cylinder', values: { h: '0.5', r1: '0.08', r2: '0', anchor: 'Center, Center, Center' } },
   { command: 'end' },
   { command: 'end' },
   { command: 'end' },
@@ -125,10 +125,16 @@ export const SOLID_SCRIPT_EXAMPLE_PEDESTAL: readonly SolidScriptLine[] = [
   { command: 'variable', values: { name: 'Depth', value: '[$Input.Size.Z]' } },
   { command: 'input_brushes', values: { textures: 'Move With Shape' } },
   { command: 'else' },
-  { command: 'cube', values: { size: '1, 1, 1' } },
+  { command: 'cube', values: { size: '1, 1, 1', anchor: 'Center, Center, Center' } },
   { command: 'end' },
   { command: 'translate', values: { v: '0, [=[Low] - [Thickness] / 2], 0' } },
-  { command: 'cube', values: { size: '[=[Width] + 2 * [Margin]], [Thickness], [=[Depth] + 2 * [Margin]]' } },
+  {
+    command: 'cube',
+    values: {
+      size: '[=[Width] + 2 * [Margin]], [Thickness], [=[Depth] + 2 * [Margin]]',
+      anchor: 'Center, Center, Center',
+    },
+  },
   { command: 'end' },
 ];
 
@@ -138,16 +144,16 @@ export const SOLID_SCRIPT_EXAMPLE_PEDESTAL: readonly SolidScriptLine[] = [
  */
 export const SOLID_SCRIPT_EXAMPLE_KNOBS: readonly SolidScriptLine[] = [
   { command: 'note', values: { text: 'Name shapes, then Select Faces Of that name picks only theirs' } },
-  { command: 'cube', values: { size: '4, 0.2, 1', label: 'Panel' } },
+  { command: 'cube', values: { size: '4, 0.2, 1', label: 'Panel', anchor: 'Center, Center, Center' } },
   { command: 'for_each', values: { variable: 'X', list: '-1.5, -0.5, 0.5, 1.5' } },
   { command: 'translate', values: { v: '[X], 0.25, 0' } },
-  { command: 'cube', values: { size: '0.3, 0.3, 0.3', label: 'Knob' } },
+  { command: 'cube', values: { size: '0.3, 0.3, 0.3', label: 'Knob', anchor: 'Center, Center, Center' } },
   { command: 'end' },
   { command: 'end' },
   { command: 'select_faces', values: { which: 'Facing Up', of: 'Knob' } },
   { command: 'for_each', values: { variable: 'Face', list: '[$Selected.Faces]' } },
   { command: 'place_on_face', values: { of: '[Face]' } },
-  { command: 'sphere', values: { r: '0.1' } },
+  { command: 'sphere', values: { r: '0.1', anchor: 'Center, Center, Center' } },
   { command: 'end' },
   { command: 'end' },
 ];

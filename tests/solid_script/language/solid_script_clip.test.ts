@@ -8,7 +8,7 @@ import type { SolidScriptShapeSolid } from '@/solid_script/language/solid_script
 
 const END: SolidScriptLine = { command: 'end' };
 const CLIP: SolidScriptLine = { command: 'clip' };
-const CUBE: SolidScriptLine = { command: 'cube', values: { size: '2, 2, 2' } };
+const CUBE: SolidScriptLine = { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } };
 
 /**
  * Runs script lines.
@@ -89,9 +89,9 @@ describe('SolidScript Clip', () => {
   it('cuts only the brushes in Of, and leaves a miss unchanged', () => {
     const both = solids(
       run(
-        { command: 'cube', values: { size: '2, 2, 2', into: 'A' } },
+        { command: 'cube', values: { size: '2, 2, 2', into: 'A', anchor: 'Center, Center, Center' } },
         { command: 'translate', values: { v: '5, 0, 0' } },
-        { command: 'cube', values: { size: '2, 2, 2', into: 'B' } },
+        { command: 'cube', values: { size: '2, 2, 2', into: 'B', anchor: 'Center, Center, Center' } },
         END,
         { command: 'clip', values: { of: '[A]' } },
       ),

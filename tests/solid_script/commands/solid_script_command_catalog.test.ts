@@ -120,7 +120,7 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
   }
   if (command.category === '2D Shapes') return [{ command: 'linear_extrude' }, line, { command: 'end' }];
   if (command.id === 'linear_extrude') return [line, { command: 'square' }, { command: 'end' }];
-  if (command.id === 'clip') return [{ command: 'cube' }, line];
+  if (command.id === 'clip') return [{ command: 'cube', values: { anchor: 'Center, Center, Center' } }, line];
   if (command.id === 'stop_script') return [{ command: 'cube' }, line, { command: 'sphere' }];
   if (command.id === 'else')
     return [counter, { command: 'if' }, { command: 'cube' }, line, { command: 'sphere' }, { command: 'end' }];
@@ -202,9 +202,19 @@ describe('solid script command catalog', () => {
       expect(JSON.stringify(run({ command: id }, { command: 'cube' }, { command: 'end' }).shapes), id).toBe(plain);
   });
 
-  it('centers shapes on the origin by default', () => {
+  it('stands shapes on the origin by default, and still centers them when asked', () => {
     for (const id of ['cube', 'cylinder', 'sphere']) {
       const [shape] = run({ command: id }).shapes;
+      const points = shape?.kind === 'solid' ? shape.points : [];
+      const ys = points.map((point) => point.y);
+      const midX = points.reduce((total, point) => total + point.x, 0) / Math.max(points.length, 1);
+      const midZ = points.reduce((total, point) => total + point.z, 0) / Math.max(points.length, 1);
+      expect(Math.min(...ys), id).toBeCloseTo(0, 9);
+      expect(Math.abs(midX), `${id} x`).toBeLessThan(1e-9);
+      expect(Math.abs(midZ), `${id} z`).toBeLessThan(1e-9);
+    }
+    for (const id of ['cube', 'cylinder', 'sphere']) {
+      const [shape] = run({ command: id, values: { anchor: 'Center, Center, Center' } }).shapes;
       const points = shape?.kind === 'solid' ? shape.points : [];
       const sum = points.reduce((total, point) => total + point.x + point.y + point.z, 0);
       expect(Math.abs(sum / Math.max(points.length, 1)), id).toBeLessThan(1e-9);
@@ -259,7 +269,7 @@ describe('solid script command catalog', () => {
   it('lists every parameter with its value, for display', () => {
     expect(solidScriptCommandFind('cube')?.entries({ size: '2, 2, 2' })).toEqual([
       { key: 'size', label: 'Size', value: '2, 2, 2' },
-      { key: 'anchor', label: 'Anchor', value: 'Center, Center, Center' },
+      { key: 'anchor', label: 'Anchor', value: 'Center, Bottom, Center' },
       { key: 'label', label: 'Name', value: '' },
       { key: 'into', label: 'Into', value: '' },
     ]);

@@ -18,7 +18,7 @@ const USE: SolidScriptUseFacts = { usage: 'Modifier', solids: [box(2)], faces: 6
 
 const line = (command: string, values: Record<string, string> = {}): SolidScriptLine => ({ command, values });
 const END = line('end');
-const CUBE = line('cube', { size: '2, 2, 2' });
+const CUBE = line('cube', { size: '2, 2, 2', anchor: 'Center, Center, Center' });
 
 /** Runs lines, as a modifier when given what it receives. */
 function run(lines: SolidScriptLine[], use?: SolidScriptUseFacts) {

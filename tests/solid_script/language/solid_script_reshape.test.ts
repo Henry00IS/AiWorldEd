@@ -42,30 +42,42 @@ function solids(shapes: readonly SolidScriptShape[]): number {
 
 describe('SolidScript Resize, Matrix, Minkowski and Rotate Extrude', () => {
   it('resizes shapes to an exact size, keeping axes of 0 or their proportions', () => {
-    const plain = run({ command: 'resize', values: { size: '4, 2, 1' } }, { command: 'sphere' }, END);
+    const plain = run(
+      { command: 'resize', values: { size: '4, 2, 1' } },
+      { command: 'sphere', values: { anchor: 'Center, Center, Center' } },
+      END,
+    );
     expect(plain.error).toBeNull();
     expect(bounds(plain.shapes)).toEqual([-2, -1, -0.5, 2, 1, 0.5]);
     const kept = run(
       { command: 'resize', values: { size: '4, 0, 0', keep: 'true' } },
-      { command: 'cube', values: { size: '2, 1, 1' } },
+      { command: 'cube', values: { size: '2, 1, 1', anchor: 'Center, Center, Center' } },
       END,
     );
     expect(bounds(kept.shapes)).toEqual([-2, -1, -1, 2, 1, 1]);
   });
 
   it('applies a matrix with a shear and refuses one that squashes shapes flat', () => {
-    const leaned = run({ command: 'matrix', values: { row1: '1, 0, 1, 0' } }, { command: 'cube' }, END);
+    const leaned = run(
+      { command: 'matrix', values: { row1: '1, 0, 1, 0' } },
+      { command: 'cube', values: { anchor: 'Center, Center, Center' } },
+      END,
+    );
     expect(leaned.error).toBeNull();
     expect(bounds(leaned.shapes)).toEqual([-1, -0.5, -0.5, 1, 0.5, 0.5]);
-    const flat = run({ command: 'matrix', values: { row3: '0, 0, 0, 0' } }, { command: 'cube' }, END);
+    const flat = run(
+      { command: 'matrix', values: { row3: '0, 0, 0, 0' } },
+      { command: 'cube', values: { anchor: 'Center, Center, Center' } },
+      END,
+    );
     expect(flat.error?.message).toMatch(/squashes shapes flat/);
   });
 
   it('grows a cube by a sphere into a rounded box', () => {
     const result = run(
       { command: 'minkowski' },
-      { command: 'cube', values: { size: '2, 2, 1' } },
-      { command: 'sphere', values: { r: '0.2' } },
+      { command: 'cube', values: { size: '2, 2, 1', anchor: 'Center, Center, Center' } },
+      { command: 'sphere', values: { r: '0.2', anchor: 'Center, Center, Center' } },
       END,
     );
     expect(result.error).toBeNull();
@@ -105,11 +117,13 @@ describe('SolidScript Resize, Matrix, Minkowski and Rotate Extrude', () => {
       END,
       { command: 'use_part', values: { name: 'steps' } },
       { command: 'echo', values: { value: 'after' } },
-      { command: 'cube' },
+      { command: 'cube', values: { anchor: 'Center, Center, Center' } },
     );
     expect(result.error).toBeNull();
     expect(result.messages).toEqual(['before', 'after']);
-    expect(run({ command: 'return' }, { command: 'cube' }).error?.message).toMatch(/only works inside one of them/);
+    expect(
+      run({ command: 'return' }, { command: 'cube', values: { anchor: 'Center, Center, Center' } }).error?.message,
+    ).toMatch(/only works inside one of them/);
   });
 
   it('looks up blended table values and makes repeatable random numbers', () => {
@@ -117,7 +131,7 @@ describe('SolidScript Resize, Matrix, Minkowski and Rotate Extrude', () => {
       { command: 'variable', values: { name: 'table', value: '[=$[$[0, 0$], $[10, 100$]$]]' } },
       { command: 'echo', values: { value: '[=lookup(2.5, [table])] [=lookup(-1, [table])] [=lookup(20, [table])]' } },
       { command: 'echo', values: { value: '[=rands(0, 1, 2, 7) == rands(0, 1, 2, 7)] [=len(rands(0, 1, 3))]' } },
-      { command: 'cube' },
+      { command: 'cube', values: { anchor: 'Center, Center, Center' } },
     );
     expect(result.error).toBeNull();
     expect(result.messages).toEqual(['25 0 100', 'Yes 3']);

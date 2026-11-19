@@ -9,7 +9,9 @@ import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/
  * @returns Run result.
  */
 function run(...lines: SolidScriptLine[]) {
-  return solidScriptProgramRun(solidScriptDocumentCreate([...lines, { command: 'cube' }]));
+  return solidScriptProgramRun(
+    solidScriptDocumentCreate([...lines, { command: 'cube', values: { anchor: 'Center, Center, Center' } }]),
+  );
 }
 
 /**
@@ -39,7 +41,7 @@ describe('names ignore case', () => {
     const lines = solidScriptDocumentCreate([
       { command: 'input', values: { name: 'TopSize', type: 'Number', default: '1' } },
       echo('[TopSize]'),
-      { command: 'cube' },
+      { command: 'cube', values: { anchor: 'Center, Center, Center' } },
     ]);
     expect(solidScriptProgramRun(lines, { inputs: { topSize: '0.5' } }).messages).toEqual(['0.5']);
   });
@@ -73,7 +75,7 @@ describe('names ignore case', () => {
   it('reads members such as Face.Center in any case', () => {
     const result = solidScriptProgramRun(
       solidScriptDocumentCreate([
-        { command: 'cube', values: { size: '2, 2, 2' } },
+        { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } },
         { command: 'select_faces', values: { which: 'Facing Up' } },
         { command: 'for_each', values: { variable: 'Face', list: '[$Selected.Faces]' } },
         echo('[face.center.y] [FACE.CENTER.Y]'),

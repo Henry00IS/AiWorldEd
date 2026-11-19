@@ -33,13 +33,15 @@ export const SOLID_SCRIPT_ANCHOR_CAPTIONS: Readonly<Record<SolidScriptAnchorAxis
 };
 
 /**
- * The Anchor every shape starts with: its middle on the origin.
+ * The Anchor every shape starts with: Center, Bottom, Center for a solid, so it
+ * stands on the origin; Center, Center for a flat outline, which has no Bottom
+ * word; Bottom for Linear Extrude.
  *
  * @param axes Axes.
- * @returns Text, such as "Center, Center, Center".
+ * @returns Text, such as "Center, Bottom, Center".
  */
 export function solidScriptAnchorDefault(axes: readonly SolidScriptAnchorAxis[]): string {
-  return axes.map(() => 'Center').join(', ');
+  return axes.map((axis) => (axis === 'y' ? 'Bottom' : 'Center')).join(', ');
 }
 
 /**

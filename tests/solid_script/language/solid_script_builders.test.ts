@@ -48,16 +48,16 @@ describe('SolidScript builders', () => {
   it('writes what a block builds Into a variable, with its Name', () => {
     expect(
       printed(
-        line('cube', { size: '2, 2, 2', label: 'Crate', into: 'Box' }),
+        line('cube', { size: '2, 2, 2', label: 'Crate', into: 'Box', anchor: 'Center, Center, Center' }),
         line('echo', { value: '[Box.Name] [Box.Faces.Count] [Box.Size]' }),
       ),
     ).toEqual(['Crate 6 [2, 2, 2]']);
     expect(
       printed(
         line('hull', { label: 'Lump', into: 'L' }),
-        line('cube'),
+        line('cube', { anchor: 'Center, Center, Center' }),
         line('translate', { v: '3, 0, 0' }),
-        line('cube'),
+        line('cube', { anchor: 'Center, Center, Center' }),
         END,
         END,
         line('echo', { value: '[L.Name] [L.Size.x]' }),
@@ -69,7 +69,7 @@ describe('SolidScript builders', () => {
     expect(
       printed(
         line('translate', { v: '0, 5, 0' }),
-        line('cube', { into: 'C' }),
+        line('cube', { into: 'C', anchor: 'Center, Center, Center' }),
         END,
         line('echo', { value: '[C.Center]' }),
       ),
@@ -79,11 +79,11 @@ describe('SolidScript builders', () => {
   it('adds what a block builds to [$Selected.Brushes], also after a Set narrowed it', () => {
     expect(
       printed(
-        line('cube', { into: 'A' }),
-        line('cube'),
+        line('cube', { into: 'A', anchor: 'Center, Center, Center' }),
+        line('cube', { anchor: 'Center, Center, Center' }),
         line('variable', { name: '$Selected.Brushes', value: '[A]' }),
         line('echo', { value: '[$Selected.Brushes.Count]' }),
-        line('sphere', { into: 'S' }),
+        line('sphere', { into: 'S', anchor: 'Center, Center, Center' }),
         line('echo', { value: '[$Selected.Brushes.Count] [$Selected.Brushes.Last.Name]' }),
       ),
     ).toEqual(['1', '2 sphere']);

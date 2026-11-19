@@ -112,7 +112,10 @@ describe('SolidScript generator blocks', () => {
   });
 
   it('builds the same pieces as the generator, filling a centered box of width, height and depth', () => {
-    const result = run({ command: 'cone', values: { size: '2, 3, 4', sides: '12', topRadius: '0.5' } });
+    const result = run({
+      command: 'cone',
+      values: { size: '2, 3, 4', sides: '12', topRadius: '0.5', anchor: 'Center, Center, Center' },
+    });
     expect(result.error).toBeNull();
     const [minX, minY, minZ, maxX, maxY, maxZ] = bounds(result.shapes);
     expect([minY, maxY]).toEqual([-1.5, 1.5]);
@@ -140,15 +143,18 @@ describe('SolidScript generator blocks', () => {
   it('reads choices as plain text or variables and names the choices when one is wrong', () => {
     const chosen = run(
       { command: 'variable', values: { name: 'axis', value: 'Along X' } },
-      { command: 'prism', values: { axis: '[axis]' } },
+      { command: 'prism', values: { axis: '[axis]', anchor: 'Center, Center, Center' } },
     );
     expect(chosen.error).toBeNull();
-    const wrong = run({ command: 'prism', values: { axis: 'w' } });
+    const wrong = run({ command: 'prism', values: { axis: 'w', anchor: 'Center, Center, Center' } });
     expect(wrong.error?.message).toMatch(/Axis must be one of Along Z, Along X, Upright, not/);
   });
 
   it('builds Sphere and Cylinder with the primitive generators, under their field names', () => {
-    const sphere = run({ command: 'sphere', values: { r: '1', sides: '8', rings: '4' } });
+    const sphere = run({
+      command: 'sphere',
+      values: { r: '1', sides: '8', rings: '4', anchor: 'Center, Center, Center' },
+    });
     const kindSphere = generator('sphere').previewPieces(
       { sides: 8, rings: 4 },
       new THREE.Box3(new THREE.Vector3(-1, -1, -1), new THREE.Vector3(1, 1, 1)),
@@ -157,7 +163,10 @@ describe('SolidScript generator blocks', () => {
       kindSphere.map((piece) => piece.vertices.length),
     );
     expect(bounds(sphere.shapes)).toEqual(bounds([{ kind: 'solid', label: '', points: kindSphere[0]!.vertices }]));
-    const cylinder = run({ command: 'cylinder', values: { h: '2', r1: '1', r2: '1', sides: '10' } });
+    const cylinder = run({
+      command: 'cylinder',
+      values: { h: '2', r1: '1', r2: '1', sides: '10', anchor: 'Center, Center, Center' },
+    });
     const kindCylinder = generator('cylinder').previewPieces(
       { sides: 10 },
       new THREE.Box3(new THREE.Vector3(-1, -1, -1), new THREE.Vector3(1, 1, 1)),

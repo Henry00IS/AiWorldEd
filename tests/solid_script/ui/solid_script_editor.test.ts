@@ -742,7 +742,7 @@ describe('SolidScript editor', () => {
     const anchor = [...help.querySelectorAll('.solid-script-editor-help-parameter')].find((row) =>
       row.textContent?.includes('Anchor'),
     );
-    expect(anchor?.querySelector('.solid-script-editor-parameter-value')?.textContent).toBe('Center, Center, Center');
+    expect(anchor?.querySelector('.solid-script-editor-parameter-value')?.textContent).toBe('Center, Bottom, Center');
     expect(help.textContent).toContain('Stops the script when');
     find<HTMLElement>('.solid-script-editor-palette-item[data-command="sphere"]').focus();
     expect(root.querySelector('.solid-script-editor-help-title')?.textContent).toBe('Sphere');

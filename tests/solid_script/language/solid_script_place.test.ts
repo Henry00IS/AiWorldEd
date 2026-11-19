@@ -32,7 +32,7 @@ describe('SolidScript Place At Points', () => {
     expect(
       printed(
         line('place_at_points', { at: '[0, 2, 0], [4, 0, 0]', into: '' }),
-        line('cube', { size: '1, 1, 1', into: 'A' }),
+        line('cube', { size: '1, 1, 1', into: 'A', anchor: 'Center, Center, Center' }),
         END,
         line('echo', {
           value: '[=[$Selected.Brushes.Count]] [$Selected.Brushes.First.Center] [$Selected.Brushes.Last.Center]',
@@ -42,7 +42,7 @@ describe('SolidScript Place At Points', () => {
     expect(
       printed(
         line('place_at_points', { at: '0, 0, 0', directions: '0, 0, 1' }),
-        line('cube', { size: '2, 4, 2', into: 'Post' }),
+        line('cube', { size: '2, 4, 2', into: 'Post', anchor: 'Center, Center, Center' }),
         END,
         line('echo', { value: '[Post.Size.z] [Post.Size.y]' }),
       ),
@@ -54,7 +54,7 @@ describe('SolidScript Place At Points', () => {
       printed(
         line('translate', { v: '0, 3, 0' }),
         line('place_at_points', { at: '1, 0, 0', lift: '2' }),
-        line('cube', { size: '1, 1, 1', into: 'C' }),
+        line('cube', { size: '1, 1, 1', into: 'C', anchor: 'Center, Center, Center' }),
         END,
         END,
         line('echo', { value: '[C.Center]' }),
@@ -64,7 +64,11 @@ describe('SolidScript Place At Points', () => {
 
   it('stops when Directions does not match the number of points', () => {
     expect(
-      failed(line('place_at_points', { at: '[0, 0, 0], [1, 0, 0]', directions: '0, 1, 0' }), line('cube'), END),
+      failed(
+        line('place_at_points', { at: '[0, 0, 0], [1, 0, 0]', directions: '0, 1, 0' }),
+        line('cube', { anchor: 'Center, Center, Center' }),
+        END,
+      ),
     ).toMatch(/Line \d+: Directions needs one direction for each point in At.*At has 2 and Directions has 1/i);
   });
 });

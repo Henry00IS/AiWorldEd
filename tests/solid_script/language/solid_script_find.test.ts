@@ -3,7 +3,7 @@ import { solidScriptProgramRun } from '@/solid_script/language/solid_script_prog
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 
 const END: SolidScriptLine = { command: 'end' };
-const CUBE: SolidScriptLine = { command: 'cube', values: { size: '2, 2, 2' } };
+const CUBE: SolidScriptLine = { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } };
 const SELECT_ALL: SolidScriptLine = { command: 'select_faces', values: { which: 'All' } };
 
 /**

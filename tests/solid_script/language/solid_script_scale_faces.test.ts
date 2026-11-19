@@ -6,7 +6,7 @@ import { solidScriptShapeMeshes } from '@/solid_script/language/solid_script_mes
 import { solidScriptShapeLeavesPositive } from '@/solid_script/language/solid_script_shape.js';
 
 const END: SolidScriptLine = { command: 'end' };
-const CUBE: SolidScriptLine = { command: 'cube', values: { size: '2, 2, 2' } };
+const CUBE: SolidScriptLine = { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } };
 
 /**
  * Runs script lines.

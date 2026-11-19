@@ -15,12 +15,12 @@ const line = (command: string, values: Record<string, string> = {}): SolidScript
 
 /** Lines that give every kind a value can have, for the fields to read. */
 export const SOLID_SCRIPT_AUDIT_PRELUDE: readonly SolidScriptLine[] = [
-  line('cube', { into: 'B' }),
+  line('cube', { into: 'B', anchor: 'Center, Center, Center' }),
   line('select_faces', { which: 'All', of: '[B]', into: 'F' }),
   line('select_edges', { which: 'All', of: '[B]', into: 'E' }),
   line('select_vertices', { which: 'All', of: '[B]', into: 'P' }),
   line('mesh_brushes', { into: 'M' }),
-  line('cube'),
+  line('cube', { anchor: 'Center, Center, Center' }),
   line('end'),
   line('select_faces', { which: 'All', of: '[M]', into: 'MF' }),
   line('select_vertices', { which: 'All', of: '[M]', into: 'MP' }),
@@ -46,10 +46,13 @@ const SOLID_SCRIPT_AUDIT_PLACES: Readonly<Record<string, (self: SolidScriptLine)
     [line('polyhedron'), ...CORNERS.slice(1)],
     [self, line('end')],
   ],
-  square: (self) => [[line('linear_extrude')], [self, line('end')]],
-  circle: (self) => [[line('linear_extrude')], [self, line('end')]],
-  offset: (self) => [[line('linear_extrude')], [self, line('square'), line('end'), line('end')]],
-  polygon: (self) => [[line('linear_extrude')], [self, ...CORNERS.slice(0, 3), line('end'), line('end')]],
+  square: (self) => [[line('linear_extrude', { anchor: 'Center' })], [self, line('end')]],
+  circle: (self) => [[line('linear_extrude', { anchor: 'Center' })], [self, line('end')]],
+  offset: (self) => [[line('linear_extrude', { anchor: 'Center' })], [self, line('square'), line('end'), line('end')]],
+  polygon: (self) => [
+    [line('linear_extrude', { anchor: 'Center' })],
+    [self, ...CORNERS.slice(0, 3), line('end'), line('end')],
+  ],
   linear_extrude: (self) => [[], [self, line('square'), line('end')]],
   rotate_extrude: (self) => [[], [self, line('square', { anchor: 'Left, Center' }), line('end')]],
   mesh: (self) => [[], [self, ...MESH, line('end')]],
@@ -62,15 +65,15 @@ const SOLID_SCRIPT_AUDIT_PLACES: Readonly<Record<string, (self: SolidScriptLine)
     [self, line('end')],
   ],
   else: (self) => [
-    [line('if', { condition: '1 == 2' }), line('cube')],
-    [self, line('cube'), line('end')],
+    [line('if', { condition: '1 == 2' }), line('cube', { anchor: 'Center, Center, Center' })],
+    [self, line('cube', { anchor: 'Center, Center, Center' }), line('end')],
   ],
-  end: (self) => [[line('if', { condition: '1 == 1' }), line('cube')], [self]],
+  end: (self) => [[line('if', { condition: '1 == 1' }), line('cube', { anchor: 'Center, Center, Center' })], [self]],
   return: (self) => [
-    [line('function'), line('cube')],
+    [line('function'), line('cube', { anchor: 'Center, Center, Center' })],
     [self, line('end'), line('call')],
   ],
-  use_part: (self) => [[line('part'), line('cube'), line('end')], [self]],
+  use_part: (self) => [[line('part'), line('cube', { anchor: 'Center, Center, Center' }), line('end')], [self]],
   call: (self) => [[line('function'), line('return', { value: '3' }), line('end')], [self]],
   set_input: (self) => [
     [line('input', { name: 'Width' }), line('when_input_changes')],
@@ -145,7 +148,10 @@ export function solidScriptAuditScript(
   const place = SOLID_SCRIPT_AUDIT_PLACES[command.id];
   const [before, after] = place
     ? place(self)
-    : [[], command.nesting === 'open' ? [self, line('cube'), line('end')] : [self]];
+    : [
+        [],
+        command.nesting === 'open' ? [self, line('cube', { anchor: 'Center, Center, Center' }), line('end')] : [self],
+      ];
   const lines = [...SOLID_SCRIPT_AUDIT_PRELUDE, ...before!, ...after!, line('echo', { value: 'done' })];
   return { lines, at: SOLID_SCRIPT_AUDIT_PRELUDE.length + before!.length };
 }

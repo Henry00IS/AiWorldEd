@@ -31,8 +31,8 @@ function tree(lines: SolidScriptLine[], options: Partial<SolidScriptSolidTreeOpt
 }
 
 /** Shorthands for lines. */
-const CUBE: SolidScriptLine = { command: 'cube' };
-const SPHERE: SolidScriptLine = { command: 'sphere' };
+const CUBE: SolidScriptLine = { command: 'cube', values: { anchor: 'Center, Center, Center' } };
+const SPHERE: SolidScriptLine = { command: 'sphere', values: { anchor: 'Center, Center, Center' } };
 const END: SolidScriptLine = { command: 'end' };
 
 /**
@@ -66,7 +66,11 @@ describe('solidScriptSolidTreeBuild', () => {
 
   it('keeps the editor axes, adds the offset and centers brushes', () => {
     const [node] = tree(
-      [{ command: 'translate', values: { v: '0.5, 1.5, 2.5' } }, { command: 'cube', values: { size: '1, 1, 3' } }, END],
+      [
+        { command: 'translate', values: { v: '0.5, 1.5, 2.5' } },
+        { command: 'cube', values: { size: '1, 1, 3', anchor: 'Center, Center, Center' } },
+        END,
+      ],
       { offset: new THREE.Vector3(10, 0, 0), operation: SolidOperation.Subtractive, namePrefix: 'Hall' },
     );
     expect(node?.kind).toBe('brush');

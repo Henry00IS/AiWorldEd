@@ -66,9 +66,14 @@ function worldBounds(mesh: THREE.Mesh): THREE.Box3 {
 
 describe('SolidScript generator meshes', () => {
   it('shows a mesh the script builds at the generator, as an unsaved helper, next to its brushes', () => {
-    const fixture = meshFixture({ command: 'mesh_brushes' }, { command: 'cube', values: { size: '2, 2, 2' } }, END, {
-      command: 'sphere',
-    });
+    const fixture = meshFixture(
+      { command: 'mesh_brushes' },
+      { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } },
+      END,
+      {
+        command: 'sphere',
+      },
+    );
     const compiled = fixture.compile();
     expect(compiled.instances.filter((brush) => brush.id.startsWith(`${fixture.node.uuid}#`))).toHaveLength(1);
     const [shown, ...others] = modifierStackMeshesShown(fixture.node);

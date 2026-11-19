@@ -38,7 +38,7 @@ describe('solidScriptProgramRun', () => {
       { command: 'end' },
       { command: 'echo', values: { value: '[=twice([n]) + twice(10)]' } },
       { command: 'echo', values: { value: '[local.b]' } },
-      { command: 'cube' },
+      { command: 'cube', values: { anchor: 'Center, Center, Center' } },
     ]);
     const first = solidScriptProgramRun(document, { inputs: { n: '1' } });
     expect(first.messages).toEqual(['22']);
@@ -46,11 +46,11 @@ describe('solidScriptProgramRun', () => {
     expect(solidScriptProgramRun(document, { inputs: { n: '4' } }).messages).toEqual(['28']);
   });
 
-  it('runs each block directly: a translated cube, centered by default', () => {
+  it('runs each block directly: a translated cube', () => {
     const { shapes } = solidScriptProgramEvaluate(
       script(
         { command: 'translate', values: { v: '1, 2, 3' } },
-        { command: 'cube', values: { size: '2, 4, 6' } },
+        { command: 'cube', values: { size: '2, 4, 6', anchor: 'Center, Center, Center' } },
         { command: 'end' },
       ),
     );
@@ -63,10 +63,10 @@ describe('solidScriptProgramRun', () => {
     const { shapes } = solidScriptProgramEvaluate(
       script(
         { command: 'part', values: { name: 'wall' } },
-        { command: 'cube', values: { size: '4, 0.2, 3' } },
+        { command: 'cube', values: { size: '4, 0.2, 3', anchor: 'Center, Center, Center' } },
         { command: 'end' },
         { command: 'part', values: { name: 'door' } },
-        { command: 'cube', values: { size: '1, 1, 2' } },
+        { command: 'cube', values: { size: '1, 1, 2', anchor: 'Center, Center, Center' } },
         { command: 'end' },
         { command: 'difference' },
         { command: 'use_part', values: { name: 'wall' } },
@@ -88,7 +88,7 @@ describe('solidScriptProgramRun', () => {
         { command: 'variable', values: { name: 'height', value: '[=[height] + [i]]' } },
         { command: 'end' },
         { command: 'echo', values: { value: '[height]' } },
-        { command: 'cube', values: { size: '1, 1, [height]' } },
+        { command: 'cube', values: { size: '1, 1, [height]', anchor: 'Center, Center, Center' } },
       ),
     );
     expect(messages).toEqual(['6']);
@@ -98,7 +98,7 @@ describe('solidScriptProgramRun', () => {
   it('does not let a line use a variable set below it', () => {
     const result = solidScriptProgramRun(
       script(
-        { command: 'cube', values: { size: '[width]' } },
+        { command: 'cube', values: { size: '[width]', anchor: 'Center, Center, Center' } },
         { command: 'variable', values: { name: 'width', value: '2' } },
       ),
     );
@@ -137,7 +137,7 @@ describe('solidScriptProgramRun', () => {
   it('extrudes concave polygons into convex pieces', () => {
     const outline = solidScriptProgramEvaluate(
       script(
-        { command: 'linear_extrude' },
+        { command: 'linear_extrude', values: { anchor: 'Center' } },
         { command: 'polygon', values: { points: '[0, 0, 0], [2, 0, 0], [2, 1, 0], [1, 1, 0], [1, 2, 0], [0, 2, 0]' } },
         { command: 'end' },
         { command: 'end' },
@@ -150,9 +150,9 @@ describe('solidScriptProgramRun', () => {
     const { shapes } = solidScriptProgramEvaluate(
       script(
         { command: 'hull' },
-        { command: 'cube' },
+        { command: 'cube', values: { anchor: 'Center, Center, Center' } },
         { command: 'translate', values: { v: '3, 0, 0' } },
-        { command: 'sphere', values: { r: '0.5' } },
+        { command: 'sphere', values: { r: '0.5', anchor: 'Center, Center, Center' } },
         { command: 'end' },
         { command: 'end' },
       ),
@@ -162,21 +162,36 @@ describe('solidScriptProgramRun', () => {
   });
 
   it('checks the block structure before anything runs, naming the line', () => {
-    expect(solidScriptProgramRun(script({ command: 'cube' }, { command: 'end' })).error?.message).toMatch(
-      /line 2: this End has no block/,
-    );
-    expect(solidScriptProgramRun(script({ command: 'cube' }, { command: 'else' })).error?.message).toMatch(/line 2:/);
-    expect(solidScriptProgramRun(script({ command: 'translate' }, { command: 'cube' })).error?.line).toBe(1);
-    expect(solidScriptProgramRun(script({ command: 'cube' }, { command: 'twist' })).error?.message).toMatch(
-      /line 2: .*"twist"/,
-    );
+    expect(
+      solidScriptProgramRun(
+        script({ command: 'cube', values: { anchor: 'Center, Center, Center' } }, { command: 'end' }),
+      ).error?.message,
+    ).toMatch(/line 2: this End has no block/);
+    expect(
+      solidScriptProgramRun(
+        script({ command: 'cube', values: { anchor: 'Center, Center, Center' } }, { command: 'else' }),
+      ).error?.message,
+    ).toMatch(/line 2:/);
+    expect(
+      solidScriptProgramRun(
+        script({ command: 'translate' }, { command: 'cube', values: { anchor: 'Center, Center, Center' } }),
+      ).error?.line,
+    ).toBe(1);
+    expect(
+      solidScriptProgramRun(
+        script({ command: 'cube', values: { anchor: 'Center, Center, Center' } }, { command: 'twist' }),
+      ).error?.message,
+    ).toMatch(/line 2: .*"twist"/);
     expect(solidScriptProgramRun(script({ command: 'square' })).error?.message).toMatch(/inside a Linear Extrude/);
   });
 });
 
 describe('a fresh machine for every run', () => {
   it('refuses to run one machine twice', () => {
-    const lines = solidScriptBlockTree(script({ command: 'cube' }).blocks, solidScriptCommandFind);
+    const lines = solidScriptBlockTree(
+      script({ command: 'cube', values: { anchor: 'Center, Center, Center' } }).blocks,
+      solidScriptCommandFind,
+    );
     const machine = new SolidScriptMachine();
     machine.run(lines);
     expect(() => machine.run(lines)).toThrow(/runs once/);
@@ -187,22 +202,28 @@ describe('a fresh machine for every run', () => {
       { command: 'variable', values: { name: 'count', value: '1' } },
       { command: 'variable', values: { name: 'count', value: '[=[count] + 1]' } },
       { command: 'echo', values: { value: '[count]' } },
-      { command: 'cube' },
+      { command: 'cube', values: { anchor: 'Center, Center, Center' } },
     );
     expect(solidScriptProgramRun(counting).messages).toEqual(['2']);
     expect(solidScriptProgramRun(counting).messages).toEqual(['2']);
-    const reading = script({ command: 'echo', values: { value: '[count]' } }, { command: 'cube' });
+    const reading = script(
+      { command: 'echo', values: { value: '[count]' } },
+      { command: 'cube', values: { anchor: 'Center, Center, Center' } },
+    );
     expect(solidScriptProgramRun(reading).error?.message).toMatch(/there is no variable \[count\]/);
   });
 
   it('takes the detail of a round shape only from its own line', () => {
-    const fine = script({ command: 'sphere', values: { sides: '32', rings: '16' } });
-    const plain = script({ command: 'sphere' });
+    const fine = script({ command: 'sphere', values: { sides: '32', rings: '16', anchor: 'Center, Center, Center' } });
+    const plain = script({ command: 'sphere', values: { anchor: 'Center, Center, Center' } });
     const before = solidScriptProgramEvaluate(plain).shapes;
     solidScriptProgramEvaluate(fine);
     expect(JSON.stringify(solidScriptProgramEvaluate(plain).shapes)).toBe(JSON.stringify(before));
     const mixed = solidScriptProgramEvaluate(
-      script({ command: 'sphere', values: { sides: '32', rings: '16' } }, { command: 'sphere' }),
+      script(
+        { command: 'sphere', values: { sides: '32', rings: '16', anchor: 'Center, Center, Center' } },
+        { command: 'sphere', values: { anchor: 'Center, Center, Center' } },
+      ),
     ).shapes;
     expect(JSON.stringify(mixed[1])).toBe(JSON.stringify(before[0]));
   });

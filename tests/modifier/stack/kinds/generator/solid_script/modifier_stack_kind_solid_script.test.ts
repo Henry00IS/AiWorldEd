@@ -99,11 +99,19 @@ describe('SolidScript generator', () => {
     expect(pieces[1]?.mesh?.parent).toBe(group);
   });
 
-  it('puts the script origin at the centre of the box, so shapes sit centred there without a Translate', () => {
+  it('puts the script origin at the centre of the box, so shapes stand there without a Translate', () => {
     const fixture = scriptFixture();
     const box = new THREE.Box3().setFromObject(fixture.node);
     const centre = box.getCenter(new THREE.Vector3());
     scriptSet(fixture.node, { script: script({ command: 'cube', values: { size: '1, 2, 3' } }) });
+    const standing = new THREE.Box3(
+      new THREE.Vector3(centre.x - 0.5, centre.y, centre.z - 1.5),
+      new THREE.Vector3(centre.x + 0.5, centre.y + 2, centre.z + 1.5),
+    );
+    expectBox(bounds(fixture.pieces()), standing);
+    scriptSet(fixture.node, {
+      script: script({ command: 'cube', values: { size: '1, 2, 3', anchor: 'Center, Center, Center' } }),
+    });
     const half = new THREE.Vector3(0.5, 1, 1.5);
     expectBox(bounds(fixture.pieces()), new THREE.Box3(centre.clone().sub(half), centre.clone().add(half)));
   });

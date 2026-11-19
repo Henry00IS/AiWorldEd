@@ -126,14 +126,16 @@ describe('SolidScript meshes', () => {
       END,
     );
     expect(missing.error?.message).toMatch(/face 0 uses point 1, but the mesh has points 0 to 0/);
-    expect(run({ command: 'face' }, { command: 'cube' }).error?.message).toMatch(/a Face belongs between a Mesh line/);
+    expect(
+      run({ command: 'face' }, { command: 'cube', values: { anchor: 'Center, Center, Center' } }).error?.message,
+    ).toMatch(/a Face belongs between a Mesh line/);
     const point = run({ command: 'mesh' }, { command: 'point' }, END);
     expect(point.error?.message).toMatch(/a Mesh takes Vertex lines/);
     const cut = run(
       { command: 'difference' },
-      { command: 'cube' },
+      { command: 'cube', values: { anchor: 'Center, Center, Center' } },
       { command: 'mesh_brushes' },
-      { command: 'sphere' },
+      { command: 'sphere', values: { anchor: 'Center, Center, Center' } },
       END,
       END,
     );
@@ -141,9 +143,14 @@ describe('SolidScript meshes', () => {
   });
 
   it('turns shapes into closed outward meshes and keeps brushes for the rest', () => {
-    const result = run({ command: 'mesh_brushes' }, { command: 'cube', values: { size: '2, 2, 2' } }, END, {
-      command: 'sphere',
-    });
+    const result = run(
+      { command: 'mesh_brushes' },
+      { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } },
+      END,
+      {
+        command: 'sphere',
+      },
+    );
     const mesh = onlyMesh(result);
     expect(mesh.points).toHaveLength(8);
     expect(mesh.faces).toHaveLength(6);
@@ -153,11 +160,19 @@ describe('SolidScript meshes', () => {
 
   it('subdivides smoothly into a rounded mesh, or keeps the shape when not smooth', () => {
     const flat = onlyMesh(
-      run(...fromBrushes({ command: 'cube' }), { command: 'subdivide', values: { smooth: 'false' } }),
+      run(...fromBrushes({ command: 'cube', values: { anchor: 'Center, Center, Center' } }), {
+        command: 'subdivide',
+        values: { smooth: 'false' },
+      }),
     );
     expect(flat.faces).toHaveLength(24);
     expect(bounds(flat)).toEqual([-0.5, -0.5, -0.5, 0.5, 0.5, 0.5]);
-    const round = onlyMesh(run(...fromBrushes({ command: 'cube' }), { command: 'subdivide', values: { levels: '2' } }));
+    const round = onlyMesh(
+      run(...fromBrushes({ command: 'cube', values: { anchor: 'Center, Center, Center' } }), {
+        command: 'subdivide',
+        values: { levels: '2' },
+      }),
+    );
     expect(round.faces).toHaveLength(96);
     expect(outwards(round)).toBe(true);
     const corner = Math.max(...round.points.map((point) => point.length()));
@@ -166,7 +181,7 @@ describe('SolidScript meshes', () => {
 
   it('displaces points by a formula of their position and normal', () => {
     const mesh = onlyMesh(
-      run(...fromBrushes({ command: 'cube' }), {
+      run(...fromBrushes({ command: 'cube', values: { anchor: 'Center, Center, Center' } }), {
         command: 'displace',
         values: { distance: '[=[$NZ] > 0.5 ? 1 : 0]' },
       }),
@@ -178,7 +193,7 @@ describe('SolidScript meshes', () => {
   it('extrudes only the faces Select Faces picked', () => {
     const mesh = onlyMesh(
       run(
-        ...fromBrushes({ command: 'cube' }),
+        ...fromBrushes({ command: 'cube', values: { anchor: 'Center, Center, Center' } }),
         { command: 'select_faces', values: { which: 'Facing Front' } },
         { command: 'extrude_face', values: { distance: '0.5' } },
       ),
@@ -191,17 +206,19 @@ describe('SolidScript meshes', () => {
   it('smooths, flips and maps texture coordinates', () => {
     const smooth = onlyMesh(
       run(
-        ...fromBrushes({ command: 'cube' }),
+        ...fromBrushes({ command: 'cube', values: { anchor: 'Center, Center, Center' } }),
         { command: 'subdivide', values: { smooth: 'false' } },
         { command: 'mesh_smooth', values: { rounds: '3' } },
       ),
     );
     expect(Math.max(...smooth.points.map((point) => point.length()))).toBeLessThan(0.85);
-    const flipped = onlyMesh(run(...fromBrushes({ command: 'cube' }), { command: 'flip_faces' }));
+    const flipped = onlyMesh(
+      run(...fromBrushes({ command: 'cube', values: { anchor: 'Center, Center, Center' } }), { command: 'flip_faces' }),
+    );
     expect(outwards(flipped)).toBe(false);
     const mapped = onlyMesh(
       run(
-        ...fromBrushes({ command: 'cube' }),
+        ...fromBrushes({ command: 'cube', values: { anchor: 'Center, Center, Center' } }),
         { command: 'select_faces', values: { which: 'All' } },
         { command: 'box_uvs', values: { size: '0.5' } },
       ),
@@ -213,7 +230,7 @@ describe('SolidScript meshes', () => {
 
   it('keeps a brush after Project UVs as a brush, with stored UV records', () => {
     const result = run(
-      { command: 'cube' },
+      { command: 'cube', values: { anchor: 'Center, Center, Center' } },
       { command: 'select_faces', values: { which: 'All' } },
       { command: 'project_uvs', values: { size: '0.5' } },
     );
@@ -227,7 +244,7 @@ describe('SolidScript meshes', () => {
 
   it('keeps a brush as a brush when Box UVs maps the faces Select Faces picked', () => {
     const result = run(
-      { command: 'cube' },
+      { command: 'cube', values: { anchor: 'Center, Center, Center' } },
       { command: 'select_faces', values: { which: 'All' } },
       { command: 'box_uvs', values: { size: '0.5' } },
     );
@@ -241,11 +258,16 @@ describe('SolidScript meshes', () => {
   });
 
   it('displaces only the vertices Select Vertices picked, or every point when none are picked', () => {
-    const all = onlyMesh(run(...fromBrushes({ command: 'cube' }), { command: 'displace', values: { distance: '1' } }));
+    const all = onlyMesh(
+      run(...fromBrushes({ command: 'cube', values: { anchor: 'Center, Center, Center' } }), {
+        command: 'displace',
+        values: { distance: '1' },
+      }),
+    );
     expect(bounds(all)[4]).toBeGreaterThan(0.5);
     const picked = onlyMesh(
       run(
-        ...fromBrushes({ command: 'cube' }),
+        ...fromBrushes({ command: 'cube', values: { anchor: 'Center, Center, Center' } }),
         { command: 'select_vertices', values: { which: 'Where', detail: '[=[Vertex.Position.z] > 0]' } },
         { command: 'displace', values: { distance: '1' } },
       ),
@@ -257,7 +279,7 @@ describe('SolidScript meshes', () => {
 
   it('stops on a brush with a plain hint to wrap it in Mesh From Brushes first', () => {
     const hint = /no longer be a convex brush.+Mesh From Brushes first/;
-    const cube: SolidScriptLine = { command: 'cube' };
+    const cube: SolidScriptLine = { command: 'cube', values: { anchor: 'Center, Center, Center' } };
     const select: SolidScriptLine = { command: 'select_faces', values: { which: 'Facing Up' } };
     expect(run(cube, { command: 'subdivide' }).error?.message ?? '').toMatch(hint);
     expect(run(cube, { command: 'displace' }).error?.message ?? '').toMatch(hint);
@@ -270,7 +292,15 @@ describe('SolidScript meshes', () => {
   });
 
   it('mirrors meshes without turning them inside out', () => {
-    const mesh = onlyMesh(run({ command: 'mirror' }, { command: 'mesh_brushes' }, { command: 'cube' }, END, END));
+    const mesh = onlyMesh(
+      run(
+        { command: 'mirror' },
+        { command: 'mesh_brushes' },
+        { command: 'cube', values: { anchor: 'Center, Center, Center' } },
+        END,
+        END,
+      ),
+    );
     expect(outwards(mesh)).toBe(true);
     expect(
       outwards(

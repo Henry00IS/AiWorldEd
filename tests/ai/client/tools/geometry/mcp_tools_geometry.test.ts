@@ -71,9 +71,9 @@ describe('geometry tools', () => {
     const { api, world, stack } = editorApiFixtureCreate();
     const lines = [
       { command: 'mesh_brushes' },
-      { command: 'cube', values: { size: '2, 2, 2' } },
+      { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } },
       { command: 'end' },
-      { command: 'cube' },
+      { command: 'cube', values: { anchor: 'Center, Center, Center' } },
     ];
     const preview = api.invokeTool('geometry_script_preview', { lines });
     expect(preview.message).toBe('Would create 1 brush(es) and 1 mesh(es)');
