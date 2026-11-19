@@ -45,6 +45,14 @@ function solidOf(...lines: SolidScriptLine[]) {
 }
 
 describe('SolidScript Hull', () => {
+  it('wraps only a list of points without warning that the Hull is empty', () => {
+    const result = run(line('hull', { points: '[0, 0, 0], [2, 0, 0], [0, 2, 0], [0, 0, 2]', into: 'Rock' }), END);
+    expect(result.error?.message ?? null).toBeNull();
+    expect(result.warnings.map((warning) => warning.text)).toEqual([]);
+    expect(result.shapes).toHaveLength(1);
+    expect(result.steps.length).toBeGreaterThan(0);
+  });
+
   it('wraps a list of points in one convex solid', () => {
     expect(
       printed(

@@ -119,4 +119,4 @@ A script can be a **generator**, which builds new geometry from nothing, or a **
 
 ## Examples
 
-The **Examples** window holds showcase scripts such as the Spiral Staircase, small lessons, and the built-in generators and modifiers rebuilt line by line, so you can see how they work and change them.
+The **Examples** window holds showcase scripts such as the Spiral Staircase, small lessons (an irregular rock from Hull, a tapered box, a rounded rail, a hilly floor), and the built-in generators and modifiers rebuilt line by line, so you can see how they work and change them.

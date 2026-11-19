@@ -10,6 +10,12 @@ import {
   SOLID_SCRIPT_EXAMPLE_SPIKY_BALL,
 } from './solid_script_examples_basics.js';
 import {
+  SOLID_SCRIPT_EXAMPLE_HILLY_FLOOR,
+  SOLID_SCRIPT_EXAMPLE_IRREGULAR_ROCK,
+  SOLID_SCRIPT_EXAMPLE_ROUNDED_RAIL,
+  SOLID_SCRIPT_EXAMPLE_TAPERED_BOX,
+} from './solid_script_examples_geometry.js';
+import {
   SOLID_SCRIPT_EXAMPLE_CAPSULE,
   SOLID_SCRIPT_EXAMPLE_CONE,
   SOLID_SCRIPT_EXAMPLE_COLUMN,
@@ -173,6 +179,38 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
     summary: 'Shapes get a Name; Select Faces Of Knob puts a ball only on the knobs, not on the panel.',
     port: null,
     lines: SOLID_SCRIPT_EXAMPLE_KNOBS,
+  },
+  {
+    id: 'irregularRock',
+    name: 'Irregular Rock',
+    group: 'Basics',
+    summary: 'Scatter Points fills a box; Hull wraps the points in one lumpy solid. Change Seed for another rock.',
+    port: null,
+    lines: SOLID_SCRIPT_EXAMPLE_IRREGULAR_ROCK,
+  },
+  {
+    id: 'taperedBox',
+    name: 'Tapered Box',
+    group: 'Basics',
+    summary: 'Scale Faces shrinks the top of a cube about its centre, so the cube becomes a tapered block.',
+    port: null,
+    lines: SOLID_SCRIPT_EXAMPLE_TAPERED_BOX,
+  },
+  {
+    id: 'roundedRail',
+    name: 'Rounded Rail',
+    group: 'Basics',
+    summary: 'Path From Points rounds the corners of a rectangle; Curve To Mesh sweeps a tube along that path.',
+    port: null,
+    lines: SOLID_SCRIPT_EXAMPLE_ROUNDED_RAIL,
+  },
+  {
+    id: 'hillyFloor',
+    name: 'Hilly Floor',
+    group: 'Basics',
+    summary: 'Grid Mesh lays a floor; Displace lifts each point with Noise, so the same Seed is the same hills.',
+    port: null,
+    lines: SOLID_SCRIPT_EXAMPLE_HILLY_FLOOR,
   },
   {
     id: 'pedestal',

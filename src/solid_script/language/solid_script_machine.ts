@@ -78,8 +78,7 @@ const SOLID_SCRIPT_SOLIDS_MAX = 2000;
 
 /**
  * Most steps of work one run may take: lines, loop rounds and function calls.
- * Counting work instead of time keeps the result the same on every machine of a
- * room while no script can freeze the editor.
+ * Counting work instead of time keeps every machine of a room in step.
  */
 export const SOLID_SCRIPT_WORK_LIMIT = 10_000_000;
 
@@ -165,7 +164,6 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
 
   /** Lists every brush and mesh built so far, as [$Selected.Brushes] starts. */
   protected brushesBuilt(): SolidScriptValue[] {
-    // Inside a round, what the round built so far; before it builds anything, everything above.
     const start = this.roundStarts.at(-1);
     const own = start === undefined ? [] : this.builtStack.slice(start).flat();
     const built = own.length > 0 ? own : this.builtStack.flat();
@@ -312,7 +310,6 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     const warnings: SolidScriptWarning[] = [...this.warnings]
       .sort(([left], [right]) => left - right)
       .map(([line, text]) => ({ line, text }));
-    // Building nothing is allowed, for trying out lines or stopping early; it only warns.
     if (
       !this.failure &&
       !this.paused &&
@@ -355,7 +352,6 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     const id = SOLID_SCRIPT_HANDLERS[event.kind];
     for (const handler of this.handlers) {
       if (handler.command.id !== id) continue;
-      // A bake has no name; When Baked blocks all answer it.
       if (event.kind !== 'bake' && handler.command.valueText(handler.values, 'name').trim() !== event.name) continue;
       if (handler.children.length > 0) this.linesRun(handler.children, this.root, context);
       this.stopping = false;
@@ -453,17 +449,21 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     if (this.failure || this.paused || this.leaving || this.stopping) return [];
     const outer = this.line;
     this.line = node.line;
-    if (node.command.nesting === 'open' && node.children.length === 0 && (node.otherwise?.length ?? 0) === 0)
-      this.emptyWarn(node);
     const line = this.runOf(node, scope, context, known);
     line.busy = true;
     try {
       this.workTake();
       const shapes = node.command.execute(line.run);
       if (node.command.builds) this.builtNote(node, scope, shapes);
+      if (
+        shapes.length === 0 &&
+        node.command.nesting === 'open' &&
+        node.children.length === 0 &&
+        !node.otherwise?.length
+      )
+        this.emptyWarn(node);
       return shapes;
     } catch (error) {
-      // The variables as they were when the line stopped, for the variable explorer.
       if (!this.failure && !this.paused) this.watch(scope);
       this.failureNote(solidScriptMistakeHinted(error, node), node.line);
       return [];
@@ -667,14 +667,16 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       transformed: (matrix) => inside({ ...state.context, matrix: state.context.matrix.clone().multiply(matrix) }),
       combined: (operation) => state.machine.combine(node, operation, state.scope, state.context, labelOf()),
       hulled: (extra = []) =>
-        solidScriptMachineGatherWhile(state.machine.gathering, 'hull', (into) =>
-          solidScriptHullShapes(
-            inside(state.context),
-            [...into.points, ...solidScriptHullMoved(extra, state.context.matrix)],
-            labelOf(),
-            state.context.planar,
-          ),
-        ),
+        !state.machine.stepTake(state.scope)
+          ? []
+          : solidScriptMachineGatherWhile(state.machine.gathering, 'hull', (into) =>
+              solidScriptHullShapes(
+                inside(state.context),
+                [...into.points, ...solidScriptHullMoved(extra, state.context.matrix)],
+                labelOf(),
+                state.context.planar,
+              ),
+            ),
       extruded: (fields) => {
         if (state.context.planar) throw new Error('Linear Extrude cannot be inside another Linear Extrude');
         const flat = solidScriptShapeJoin(inside({ matrix: new THREE.Matrix4(), planar: true }), labelOf());
@@ -778,7 +780,6 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         if (state.machine.readOnly.get(key) !== 'input')
           throw new Error(`there is no input "${name}"; add an Input line for it`);
         state.machine.root.variableSet(key, assigned);
-        // The inspector keeps the value under the Input line's own spelling.
         state.machine.inputsChanged[state.machine.spellings.get(key) ?? name] = solidScriptValueText(assigned);
       },
       notice: (text) => {
