@@ -8,6 +8,7 @@ import { solidScriptValueNumber } from '@/solid_script/language/solid_script_val
 export const SOLID_SCRIPT_COMMANDS_BOX_UVS: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'box_uvs',
+    edits: true,
     label: 'Box UVs',
     category: 'Faces',
     description: 'Give faces even texture coordinates, as if wrapped in a box',

@@ -127,6 +127,7 @@ describe('SolidScript values', () => {
       line('for_each', { variable: 'Face', list: '[$Selected.Faces]' }),
       line('extrude_face', { of: '[Face]', distance: '0.2', lift: '1', into: 'Slab' }),
       line('bevel_edges', { of: '[Slab]', distance: '0.05' }),
+      line('output', { of: '[Slab]' }),
       END,
     ]);
     expect(result.error?.message ?? null).toBeNull();

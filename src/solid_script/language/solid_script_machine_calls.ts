@@ -11,7 +11,8 @@ import type {
 import { SOLID_SCRIPT_NAME } from './solid_script_machine_variables.js';
 import { SolidScriptMachineWrites } from './solid_script_machine_writes.js';
 import { SolidScriptScope } from './solid_script_scope.js';
-import { solidScriptGeometryLeaves } from './solid_script_geometry.js';
+import { solidScriptGeometryLeaves, type SolidScriptGeometryLeaf } from './solid_script_geometry.js';
+import { SolidScriptToolCopy } from './solid_script_tool_copy.js';
 import { solidScriptKindOf } from './solid_script_kinds.js';
 import { type SolidScriptGroupMode } from './solid_script_mode.js';
 import { solidScriptShapeTransform } from './solid_script_reshape.js';
@@ -19,6 +20,7 @@ import { solidScriptShapeClone } from './solid_script_shape_clone.js';
 import {
   solidScriptShapeGrouped,
   solidScriptShapeJoin,
+  solidScriptShapeMapLeaves,
   type SolidScriptShape,
   type SolidScriptShapeGroup,
 } from './solid_script_shape.js';
@@ -99,6 +101,7 @@ export abstract class SolidScriptMachineCalls<
   protected readonly parts = new Map<string, SolidScriptPart<Command>>();
   /** CSG groups built by each Part, by name key, so Output can stamp Mode. */
   protected readonly partsHeld = new Map<string, SolidScriptShapeGroup>();
+  protected readonly toolCopy = new SolidScriptToolCopy();
   /** Part group each stored brush belongs to. */
   protected readonly partsByBrush = new Map<number, SolidScriptShapeGroup>();
   /** Function blocks by name. */
@@ -381,7 +384,14 @@ export abstract class SolidScriptMachineCalls<
     const group = this.outputGroupOf(source);
     const shapes = group ? [group] : this.outputLeavesOf(source);
     if (shapes.length === 0) throw new Error('Output has nothing to stamp; give a part or brushes such as [Wall]');
-    return shapes.map((shape) => solidScriptShapeTransform(solidScriptShapeClone(shape), context.matrix));
+    return shapes.map((shape) =>
+      solidScriptShapeTransform(
+        solidScriptShapeClone(
+          solidScriptShapeMapLeaves(shape, (leaf) => (leaf.kind === 'polygon' ? leaf : this.leafLatestOf(leaf))),
+        ),
+        context.matrix,
+      ),
+    );
   }
 
   /**
@@ -475,5 +485,63 @@ export abstract class SolidScriptMachineCalls<
    */
   protected emptyWarn(node: SolidScriptBlockNode<Command>): void {
     this.warnings.set(node.line, `${node.command.label} has nothing inside, so it does nothing.`);
+  }
+
+  /** Starts a copy session so an Into tool leaves the original alone. */
+  protected toolCopyStart(): void {
+    this.toolCopy.start();
+  }
+
+  /** Ends a copy session. */
+  protected toolCopyEnd(): void {
+    this.toolCopy.end();
+  }
+
+  /** Edited copies the current Into session has written. */
+  protected toolCopyResults(): SolidScriptGeometryLeaf[] {
+    return this.toolCopy.results();
+  }
+
+  /**
+   * Adds new shapes to the Part group of a memory target, and to that Part's
+   * variable, so Output still stamps the whole group.
+   *
+   * @param leaves Targets the tool worked on.
+   * @param shapes New shapes to keep with them.
+   */
+  protected partAdopt(leaves: readonly SolidScriptGeometryLeaf[], shapes: readonly SolidScriptShape[]): boolean {
+    const first = leaves[0];
+    if (!first || shapes.length === 0) return false;
+    const group = this.partsByBrush.get(this.elements.brush(first).id);
+    if (!group) return false;
+    group.children.push(...shapes);
+    for (const leaf of solidScriptGeometryLeaves(shapes)) this.partsByBrush.set(this.elements.brush(leaf).id, group);
+    this.partLeavesWrite(group);
+    return true;
+  }
+
+  /**
+   * Replaces a leaf inside every stored Part group.
+   *
+   * @param leaf Leaf to replace.
+   * @param by Replacement.
+   */
+  protected partLeavesRewrite(leaf: SolidScriptGeometryLeaf, by: SolidScriptGeometryLeaf): void {
+    for (const [key, group] of this.partsHeld) {
+      const next = solidScriptShapeMapLeaves(group, (entry) => (entry === leaf ? by : entry));
+      if (next !== group && next.kind === 'group') this.partsHeld.set(key, next);
+    }
+  }
+
+  /**
+   * Writes a stored Part group back to its variable, including later additions.
+   *
+   * @param group Stored group.
+   */
+  private partLeavesWrite(group: SolidScriptShapeGroup): void {
+    const name = [...this.partsHeld.entries()].find(([, held]) => held === group)?.[0];
+    if (!name) return;
+    const brushes = solidScriptGeometryLeaves([group]).map((leaf) => this.elements.brush(leaf));
+    this.variableSet(this.root, this.nameShown(name), brushes);
   }
 }

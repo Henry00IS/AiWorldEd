@@ -273,7 +273,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
   protected readonly persistent = new SolidScriptScope(null);
   protected root = new SolidScriptScope(null);
   /** Brushes, faces, edges and corners the script holds. */
-  protected readonly elements = new SolidScriptElements({ leafLatest: (leaf) => this.leafLatestOf(leaf) });
+  protected readonly elements = new SolidScriptElements({ leafLatest: (leaf) => this.leafSwapsLatest(leaf) });
   /** The [$Selected.*] lists of the round running. */
   protected selected: SolidScriptSelected = { brushes: null, faces: [], edges: [], vertices: [] };
 
@@ -298,6 +298,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
    * @returns Latest version.
    */
   protected abstract leafLatestOf(leaf: SolidScriptGeometryLeaf): SolidScriptGeometryLeaf;
+  protected abstract leafSwapsLatest(leaf: SolidScriptGeometryLeaf): SolidScriptGeometryLeaf;
 
   /**
    * Lists every brush and mesh built so far in the round running, and those the

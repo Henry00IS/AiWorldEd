@@ -216,6 +216,14 @@ export interface SolidScriptBlockRun {
   leafReplace(leaf: SolidScriptGeometryLeaf, by: SolidScriptGeometryLeaf): void;
   /** Returns what a solid or mesh became after the swaps since it was read. */
   leafLatest(leaf: SolidScriptGeometryLeaf): SolidScriptGeometryLeaf;
+  /** Starts a copy session so an Into tool leaves the original alone. */
+  toolCopyStart(): void;
+  /** Ends a copy session. */
+  toolCopyEnd(): void;
+  /** Edited copies the current Into session has written. */
+  toolCopyResults(): SolidScriptGeometryLeaf[];
+  /** Adds new shapes to the Part or Group a memory target belongs to. */
+  partAdopt(leaves: readonly SolidScriptGeometryLeaf[], shapes: readonly SolidScriptShape[]): boolean;
   /** Adds shapes as built by this line, each a step for the debugger. */
   adopted(shapes: readonly SolidScriptShapeLeaf[]): SolidScriptShape[];
   /** Changes the inspector value of an input, while handling an event. */

@@ -423,6 +423,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
   }),
   new SolidScriptCommand({
     id: 'merge_by_distance',
+    edits: true,
     label: 'Merge By Distance',
     category: 'Meshes',
     description: 'Weld corners that nearly touch',
@@ -452,6 +453,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
   }),
   new SolidScriptCommand({
     id: 'subdivide',
+    edits: true,
     label: 'Subdivide',
     category: 'Meshes',
     description: 'Split mesh faces into smaller ones',
@@ -498,6 +500,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
   }),
   new SolidScriptCommand({
     id: 'mesh_smooth',
+    edits: true,
     label: 'Smooth Mesh',
     category: 'Meshes',
     description: 'Relax a mesh so it looks softer',
@@ -536,6 +539,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
   }),
   new SolidScriptCommand({
     id: 'displace',
+    edits: true,
     label: 'Displace',
     category: 'Meshes',
     description: 'Push mesh points in or out by a formula',
@@ -570,6 +574,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
   }),
   new SolidScriptCommand({
     id: 'flip_faces',
+    edits: true,
     label: 'Flip Faces',
     category: 'Meshes',
     description: 'Turn mesh faces to show the other side',

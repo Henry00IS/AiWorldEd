@@ -254,6 +254,24 @@ export function solidScriptParameterInto(what: string, kind: string, detail: str
 }
 
 /**
+ * The optional Into field of an edit tool: empty edits in place; a name keeps
+ * the original and holds only the edited copy.
+ *
+ * @returns Field.
+ */
+export function solidScriptParameterToolInto(): SolidScriptCommandParameter {
+  return solidScriptParameterWrites(
+    solidScriptParameterOptional(
+      'into',
+      'Into',
+      'name',
+      'Variable for the edited copy; empty edits in place. When set, the original stays and the result is only in this variable.',
+    ),
+    { rule: 'kind', kind: 'Brush List', what: 'edited copy of **{command}**' },
+  );
+}
+
+/**
  * Marks a field as defining a name or a setting the editor reads before the
  * script runs: a Function and its inputs, a part, the settings of an Input, or
  * the input a handler or Set Input works on. Like a field naming a variable it

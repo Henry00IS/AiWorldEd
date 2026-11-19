@@ -197,10 +197,26 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
    * @param leaf Solid or mesh.
    * @returns Latest version.
    */
-  protected leafLatestOf(leaf: SolidScriptGeometryLeaf): SolidScriptGeometryLeaf {
+  protected leafSwapsLatest(leaf: SolidScriptGeometryLeaf): SolidScriptGeometryLeaf {
     let latest = leaf;
     for (let next = this.leafSwaps.get(latest); next; next = this.leafSwaps.get(latest)) latest = next;
     return latest;
+  }
+
+  /**
+   * Returns what a solid or mesh became after the swaps since it was read,
+   * including the edited copy of an Into tool.
+   *
+   * @param leaf Solid or mesh.
+   * @returns Latest version.
+   */
+  protected leafLatestOf(leaf: SolidScriptGeometryLeaf): SolidScriptGeometryLeaf {
+    let latest = this.leafSwapsLatest(leaf);
+    for (;;) {
+      const next = this.toolCopy.of(latest);
+      if (!next) return this.leafSwapsLatest(latest);
+      latest = next;
+    }
   }
 
   /**
@@ -221,11 +237,13 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
    */
   protected leafRewrite(leaf: SolidScriptGeometryLeaf, found: SolidScriptGeometryLeaf): void {
     const by = found.kind === 'solid' && found.received ? solidScriptLeafUnreceived(found) : found;
+    if (this.toolCopy.take(leaf, by)) return;
     this.leafSwaps.set(leaf, by);
     for (const built of this.builtStack)
       built.forEach((shape, index) => {
         built[index] = solidScriptShapeMapLeaves(shape, (entry) => (entry === leaf ? by : entry));
       });
+    this.partLeavesRewrite(leaf, by);
   }
 
   /**
@@ -795,6 +813,10 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       leafReplace: (leaf, found) => {
         state.machine.leafRewrite(leaf, found);
       },
+      toolCopyStart: () => state.machine.toolCopyStart(),
+      toolCopyEnd: () => state.machine.toolCopyEnd(),
+      toolCopyResults: () => state.machine.toolCopyResults(),
+      partAdopt: (leaves, shapes) => state.machine.partAdopt(leaves, shapes),
       adopted: (shapes) => shapes.filter(() => state.machine.stepTake(state.scope)),
       gathered: (what) => {
         const into: SolidScriptGathering = { kind: what, points: [], uvs: [], faces: [] };

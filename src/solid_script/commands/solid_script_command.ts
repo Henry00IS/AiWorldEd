@@ -15,7 +15,12 @@ import {
   type SolidScriptListingValues,
   type SolidScriptListingWrite,
 } from './solid_script_command_listing.js';
-import { solidScriptParameterInto, solidScriptParameterShapeName } from './solid_script_command_parameters.js';
+import {
+  solidScriptParameterInto,
+  solidScriptParameterShapeName,
+  solidScriptParameterToolInto,
+} from './solid_script_command_parameters.js';
+import { solidScriptToolRun } from '@/solid_script/language/solid_script_tool_copy.js';
 import { solidScriptParameterEachActive, type SolidScriptCommandEach } from './solid_script_command_each.js';
 
 /** How a command field reads its text, which also picks its configurator editor. */
@@ -223,6 +228,12 @@ export interface SolidScriptCommandSpec {
   named?: boolean;
   /** False for lines that do nothing when run, such as notes. */
   runs?: boolean;
+  /**
+   * True for tools that edit existing brushes or meshes: without Into they edit
+   * in place; with Into they leave the original and keep the result in the
+   * variable, not in the scene.
+   */
+  edits?: boolean;
   /** Writes the line as the script listing shows it. */
   listing: SolidScriptListingWrite;
   /** Runs the line. */
@@ -252,6 +263,9 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
   readonly runs: boolean;
   /** True for blocks that build brushes or meshes, with Name and Into. */
   readonly builds: boolean;
+  /** True for tools that edit in place, or copy into Into. */
+  readonly edits: boolean;
+  private readonly writeCopy: boolean;
   private readonly listingWrite: SolidScriptListingWrite;
   private readonly run: SolidScriptCommandSpec['execute'];
 
@@ -270,7 +284,8 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
     const named = spec.named ?? SOLID_SCRIPT_COMMAND_NAMED.includes(spec.category);
     // Blocks that build brushes or meshes also write them Into a variable; flat outlines do not.
     this.builds = named && spec.category !== '2D Shapes';
-    this.parameters = named
+    this.edits = spec.edits === true;
+    const given = named
       ? [
           ...spec.parameters,
           solidScriptParameterShapeName(),
@@ -279,20 +294,15 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
             : []),
         ]
       : spec.parameters;
+    this.writeCopy = this.edits && !given.some((field) => field.key === 'into');
+    this.parameters = this.writeCopy ? [...given, solidScriptParameterToolInto()] : given;
     this.nesting = spec.nesting ?? 'none';
     this.flow = spec.flow;
     this.fills = spec.fills ?? [];
     this.endLabel = spec.endLabel ?? spec.label;
     this.inPalette = spec.inPalette !== false;
     this.runs = spec.runs !== false;
-    this.listingWrite = named
-      ? (read) => {
-          const pieces = spec.listing(read);
-          const name = read.text(SOLID_SCRIPT_SHAPE_NAME_KEY);
-          const into = this.builds ? read.text('into') : '';
-          return [...pieces, ...(name === '' ? [] : [' Named ', name]), ...(into === '' ? [] : [' Into ', into])];
-        }
-      : spec.listing;
+    this.listingWrite = solidScriptCommandListing(spec, named, this.builds, this.writeCopy);
     this.run = spec.execute;
   }
 
@@ -303,7 +313,7 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
    * @returns Shapes it builds.
    */
   execute(run: SolidScriptBlockRun): SolidScriptShape[] {
-    return this.run(run);
+    return this.edits ? solidScriptToolRun(run, this.run, this.writeCopy) : this.run(run);
   }
 
   /**
@@ -389,4 +399,28 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
   listingText(values: SolidScriptCommandValues): string {
     return solidScriptListingText(this.listing(values));
   }
+}
+
+/**
+ * Wraps a command listing with optional Name and Into suffixes.
+ *
+ * @param spec Command spec.
+ * @param named Whether the line has a Name field.
+ * @param builds Whether a building line writes Into.
+ * @param writeCopy Whether an edit tool adds Into.
+ * @returns Listing writer.
+ */
+function solidScriptCommandListing(
+  spec: SolidScriptCommandSpec,
+  named: boolean,
+  builds: boolean,
+  writeCopy: boolean,
+): SolidScriptListingWrite {
+  if (!named && !writeCopy) return spec.listing;
+  return (read) => {
+    const pieces = spec.listing(read);
+    const name = named ? read.text(SOLID_SCRIPT_SHAPE_NAME_KEY) : '';
+    const into = builds || writeCopy ? read.text('into') : '';
+    return [...pieces, ...(name === '' ? [] : [' Named ', name]), ...(into === '' ? [] : [' Into ', into])];
+  };
 }

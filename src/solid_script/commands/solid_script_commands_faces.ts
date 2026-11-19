@@ -559,6 +559,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
   }),
   new SolidScriptCommand({
     id: 'extrude_face',
+    edits: true,
     label: 'Extrude Face',
     category: 'Faces',
     description: 'Pull faces out',
@@ -648,6 +649,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
   }),
   new SolidScriptCommand({
     id: 'inset_face',
+    edits: true,
     label: 'Inset Face',
     category: 'Faces',
     description: 'Shrink faces inside a ring',
@@ -706,6 +708,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
   }),
   new SolidScriptCommand({
     id: 'bevel_edges',
+    edits: true,
     label: 'Bevel Edges',
     category: 'Faces',
     description: 'Cut edges off flat',
@@ -768,6 +771,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
   }),
   new SolidScriptCommand({
     id: 'delete_faces',
+    edits: true,
     label: 'Delete Faces',
     category: 'Faces',
     description: 'Take faces out',
@@ -824,6 +828,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
   }),
   new SolidScriptCommand({
     id: 'texture_faces',
+    edits: true,
     label: 'Texture Faces',
     category: 'Faces',
     description: 'Paint faces with a texture',
@@ -870,6 +875,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
   }),
   new SolidScriptCommand({
     id: 'scale_faces',
+    edits: true,
     label: 'Scale Faces',
     category: 'Faces',
     description: 'Scale faces about their centers',

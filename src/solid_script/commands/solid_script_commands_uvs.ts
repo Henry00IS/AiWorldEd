@@ -52,6 +52,7 @@ import type { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
 export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'project_uvs',
+    edits: true,
     label: 'Project UVs',
     category: 'Faces',
     description: 'Give faces texture coordinates from a box, plane, cylinder or sphere',
@@ -129,6 +130,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
   }),
   new SolidScriptCommand({
     id: 'unwrap',
+    edits: true,
     label: 'Unwrap',
     category: 'Faces',
     description: 'Lay each face flat in UV space',
@@ -152,6 +154,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
   }),
   new SolidScriptCommand({
     id: 'pack_islands',
+    edits: true,
     label: 'Pack Islands',
     category: 'Faces',
     description: 'Fit UV islands into 0 to 1',
@@ -167,6 +170,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
   }),
   new SolidScriptCommand({
     id: 'transform_uvs',
+    edits: true,
     label: 'Transform UVs',
     category: 'Faces',
     description: 'Move, scale or rotate texture coordinates',
