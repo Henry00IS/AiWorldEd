@@ -14,6 +14,9 @@ export interface SolidScriptEditorSizes {
 /** Storage key of the area sizes. */
 export const SOLID_SCRIPT_EDITOR_SIZES_KEY = 'aiworlded.solidScriptEditor.sizes';
 
+/** Storage key of the window's own position and size. */
+export const SOLID_SCRIPT_EDITOR_BOUNDS_KEY = 'aiworlded.solidScriptEditor.bounds';
+
 /** Sizes before the user drags a splitter. */
 export const SOLID_SCRIPT_EDITOR_SIZES_DEFAULT: Readonly<SolidScriptEditorSizes> = {
   palette: 176,

@@ -351,6 +351,12 @@ export abstract class PanelFloating {
   protected onAfterHide(): void {}
 
   /**
+   * Called after a title-bar drag has moved the panel and clamped it to the
+   * screen.
+   */
+  protected onAfterMove(): void {}
+
+  /**
    * Returns the element registered with the window stack.
    *
    * @returns Backdrop for modal panels, otherwise the panel root.
@@ -546,6 +552,7 @@ export abstract class PanelFloating {
       this.clampToScreen();
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      this.onAfterMove();
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);

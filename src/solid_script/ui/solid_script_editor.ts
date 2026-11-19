@@ -43,7 +43,12 @@ import {
 } from '@/solid_script/document/solid_script_document_names.js';
 import { SolidScriptConfigurator } from './solid_script_configurator.js';
 import { SolidScriptEditorSettings } from './solid_script_editor_settings.js';
-import { solidScriptEditorSizesRead, solidScriptEditorSplitter } from './solid_script_editor_splitters.js';
+import {
+  SOLID_SCRIPT_EDITOR_BOUNDS_KEY,
+  solidScriptEditorSizesRead,
+  solidScriptEditorSplitter,
+} from './solid_script_editor_splitters.js';
+import { PanelFloatingBoundsMemory } from '@/ui/floating_panel/panel_floating_bounds_memory.js';
 import type { SolidScriptExplorerRun } from './solid_script_editor_explorer.js';
 import { SolidScriptEditorOutput } from './solid_script_editor_output.js';
 import { solidScriptEditorLoad, solidScriptEditorSave } from './solid_script_editor_files.js';
@@ -86,6 +91,8 @@ export class SolidScriptEditor extends PanelFloating {
   private readonly output = new SolidScriptEditorOutput();
   private readonly status = document.createElement('div');
   private readonly title = document.createElement('span');
+  /** Where the window was left and how big it was, between sessions. */
+  private readonly bounds = new PanelFloatingBoundsMemory(SOLID_SCRIPT_EDITOR_BOUNDS_KEY);
   private revision = '';
   /** Id of the line whose configurator is open, or null. */
   private configuring: string | null = null;
@@ -187,12 +194,33 @@ export class SolidScriptEditor extends PanelFloating {
     this.closed();
   }
 
-  /** Places the window near the top centre of the screen. */
+  /**
+   * Places the window where it was last left, at its remembered size, or near
+   * the top centre of the screen the first time.
+   */
   protected override onAfterShow(): void {
-    const view = this.root.ownerDocument.defaultView ?? window;
-    const left = Math.max(16, (view.innerWidth - SOLID_SCRIPT_EDITOR_SIZE.width) / 2);
-    this.setTopLeftPosition(left, Math.max(56, (view.innerHeight - SOLID_SCRIPT_EDITOR_SIZE.height) / 3));
+    const remembered = this.bounds.read();
+    if (remembered) {
+      this.root.style.width = `${remembered.width}px`;
+      this.root.style.height = `${remembered.height}px`;
+      this.setTopLeftPosition(remembered.left, remembered.top);
+    } else {
+      const view = this.root.ownerDocument.defaultView ?? window;
+      const left = Math.max(16, (view.innerWidth - SOLID_SCRIPT_EDITOR_SIZE.width) / 2);
+      this.setTopLeftPosition(left, Math.max(56, (view.innerHeight - SOLID_SCRIPT_EDITOR_SIZE.height) / 3));
+    }
     this.clampToScreen();
+  }
+
+  /** Remembers where the window was dragged. */
+  protected override onAfterMove(): void {
+    this.boundsRemember();
+  }
+
+  /** Remembers the window's position and size. */
+  private boundsRemember(): void {
+    const rect = this.root.getBoundingClientRect();
+    this.bounds.write({ left: rect.left, top: rect.top, width: rect.width, height: rect.height });
   }
 
   /** Builds the window contents. */
@@ -258,7 +286,10 @@ export class SolidScriptEditor extends PanelFloating {
       minWidth: SOLID_SCRIPT_EDITOR_MIN_SIZE.width,
       minHeight: SOLID_SCRIPT_EDITOR_MIN_SIZE.height,
       place: (left, top) => this.setTopLeftPosition(left, top),
-      done: () => this.clampToScreen(),
+      done: () => {
+        this.clampToScreen();
+        this.boundsRemember();
+      },
     });
   }
 
