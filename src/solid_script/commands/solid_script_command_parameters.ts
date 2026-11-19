@@ -116,6 +116,16 @@ export function solidScriptParameterOptional(
 }
 
 /**
+ * Autocomplete hint of an Anchor word: a star marks the two most common.
+ *
+ * @param word Anchor text, such as "Center, Bottom, Center".
+ * @returns Hint.
+ */
+function solidScriptAnchorWordDetail(word: string): string {
+  return word === 'Center, Center, Center' || word === 'Center, Bottom, Center' ? 'Anchor. ⭐' : 'Anchor.';
+}
+
+/**
  * The Anchor of a shape: the spot of its box that sits on the origin, one word
  * per axis, such as Center, Bottom, Back for a shape standing on the origin
  * with its back on it.
@@ -142,7 +152,10 @@ export function solidScriptParameterAnchor(axes: readonly SolidScriptAnchorAxis[
         (combos, axis) => combos.flatMap((combo) => SOLID_SCRIPT_ANCHOR_WORDS[axis].map((word) => [...combo, word])),
         [[]],
       )
-      .map((combo) => ({ word: combo.join(', '), detail: 'Anchor' })),
+      .map((combo) => {
+        const word = combo.join(', ');
+        return { word, detail: solidScriptAnchorWordDetail(word) };
+      }),
   };
 }
 

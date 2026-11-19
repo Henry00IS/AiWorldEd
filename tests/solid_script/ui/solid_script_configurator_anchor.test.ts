@@ -29,6 +29,19 @@ describe('SolidScript editable choice fields', () => {
     ).toContain('needs 3 words');
   });
 
+  it('stars the two most common Anchors in autocomplete', () => {
+    const byWord = Object.fromEntries(
+      (parameterOf('cube', 'anchor').words ?? []).map((entry) => [entry.word, entry.detail]),
+    );
+    expect(byWord['Center, Center, Center']).toBe('Anchor. ⭐');
+    expect(byWord['Center, Bottom, Center']).toBe('Anchor. ⭐');
+    expect(byWord['Left, Bottom, Back']).toBe('Anchor.');
+    const square = Object.fromEntries(
+      (parameterOf('square', 'anchor').words ?? []).map((entry) => [entry.word, entry.detail]),
+    );
+    expect(square['Center, Center']).toBe('Anchor.');
+  });
+
   it('shows a switch as Yes or No text, never a checkbox, and lists it like before', () => {
     const closed = parameterOf('curve_to_mesh', 'closed');
     const field = solidScriptConfiguratorFieldBuild(closed, 'false', () => {});
