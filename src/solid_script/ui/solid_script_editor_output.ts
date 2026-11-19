@@ -52,6 +52,7 @@ export class SolidScriptEditorOutput {
   private failedKeys: ReadonlySet<string> = new Set();
   private unknownShow: (unknown: ReadonlyMap<number, ReadonlySet<string>>) => void = () => undefined;
   private runs: ReadonlyMap<number, SolidScriptLineProfile> = new Map();
+  private passed: readonly number[] = [];
   private revealLine: (line: number) => void = () => undefined;
   /** Settings, scrolling inside the area like the other tabs. */
   private readonly settingsScroller = document.createElement('div');
@@ -138,6 +139,7 @@ export class SolidScriptEditorOutput {
     this.settings?.write(document);
     this.checkSchedule(document);
     const result = solidScriptProgramRun(document, { context: 'preview', ...options, profile: true });
+    this.passed = result.passed;
     if (!result.error) {
       const count = result.steps.length;
       this.failed = null;
@@ -200,6 +202,16 @@ export class SolidScriptEditorOutput {
    */
   lineRuns(): ReadonlyMap<number, SolidScriptLineProfile> {
     return this.runs;
+  }
+
+  /**
+   * Returns the lines the last run passed, up to the step or breakpoint shown,
+   * or up to its error.
+   *
+   * @returns 0-based line indices.
+   */
+  linesPassed(): number[] {
+    return this.passed.map((line) => line - 1);
   }
 
   /**

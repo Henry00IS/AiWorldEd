@@ -65,11 +65,16 @@ export class SolidScriptEditorToolbar {
       'Stop debugging and show the whole script (Shift+F5)',
       actions.stop,
     );
-    this.trace = solidScriptEditorToolButton('Trace', 'trace', 'Mark every line the run has passed', () => {
-      this.tracing = !this.tracing;
-      this.trace.setAttribute('aria-pressed', String(this.tracing));
-      actions.trace(this.tracing);
-    });
+    this.trace = solidScriptEditorToolButton(
+      'Trace',
+      'trace',
+      'Mark every line the run passed, up to the debugger step or breakpoint; lines left unmarked did not run',
+      () => {
+        this.tracing = !this.tracing;
+        this.trace.setAttribute('aria-pressed', String(this.tracing));
+        actions.trace(this.tracing);
+      },
+    );
     this.trace.setAttribute('aria-pressed', 'false');
     const toggle = solidScriptEditorToolButton(
       'Off / On',

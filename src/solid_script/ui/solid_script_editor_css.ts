@@ -232,7 +232,8 @@ const SOLID_SCRIPT_EDITOR_LINES_CSS = `
 .${c.row}.${c.dropBefore}::before { top: -1px; }
 .${c.row}.${c.dropAfter}::after { bottom: -1px; }
 .${c.row}.${c.dropInto} { --solid-script-row-bg: ${ThemeCss.accentAlpha(0.14)}; }
-.${c.row}.${c.traced} .${c.gutter} { box-shadow: inset 3px 0 0 ${SOLID_SCRIPT_EDITOR_STEP_COLOR}; }
+.${c.row}.${c.traced} { --solid-script-row-bg: color-mix(in srgb, ${SOLID_SCRIPT_EDITOR_STEP_COLOR} 12%, transparent); }
+.${c.row}.${c.traced} .${c.gutter} { box-shadow: inset 4px 0 0 ${SOLID_SCRIPT_EDITOR_STEP_COLOR}; }
 .${c.row}.${c.stepped} { --solid-script-row-bg: color-mix(in srgb, ${SOLID_SCRIPT_EDITOR_STEP_COLOR} 26%, transparent); }
 .${c.row}.${c.stepped} .${c.gutter} { color: ${SOLID_SCRIPT_EDITOR_STEP_COLOR}; font-weight: 700; }
 .${c.row}.${c.stepped} .${c.gutter}::before { content: '\\25B6'; margin-right: 4px; font-size: 9px; }

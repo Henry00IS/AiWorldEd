@@ -284,6 +284,12 @@ export interface SolidScriptEvaluation {
    */
   system: SolidScriptVariable[];
   /**
+   * 1-based lines that ran up to the last step within the step limit, or else
+   * up to where the run paused or ended; empty unless the run was asked to
+   * profile.
+   */
+  passed: number[];
+  /**
    * How often each line ran and how long it took with the lines inside it, by
    * 1-based line; empty unless the run was asked to profile.
    */

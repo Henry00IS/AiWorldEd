@@ -613,7 +613,7 @@ export class SolidScriptEditorLines {
       row.title = 'Paused at this breakpoint: the line has not run yet. Step or Continue.';
     else if (line === marks.stepped) row.title = 'Debugger step: the script is built up to this line';
     else if (marks.breakpoints.has(line)) row.title = 'Breakpoint: Start and Debug pause before this line runs';
-    else if (marks.traced.has(line)) row.title = 'Traced: the debugger has passed this line';
+    else if (marks.traced.has(line)) row.title = 'Traced: the run passed this line';
     else row.removeAttribute('title');
     solidScriptEditorRunsShow(row, marks.runs.get(line + 1));
   }

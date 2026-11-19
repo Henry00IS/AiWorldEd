@@ -100,15 +100,6 @@ export class SolidScriptEditorDebugger {
   }
 
   /**
-   * Returns the lines of every step built so far, for tracing.
-   *
-   * @returns 0-based line indices.
-   */
-  passedLines(): number[] {
-    return this.state === 'stopped' ? [] : this.lines.slice(0, this.step).map((line) => line - 1);
-  }
-
-  /**
    * Builds the whole script at once, or up to the next breakpoint, and shows
    * the result in the viewport.
    */

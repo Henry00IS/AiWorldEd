@@ -96,6 +96,11 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
    * step limit, or null to read them where the run ends.
    */
   private systemSeen: SolidScriptVariable[] | null = null;
+  /**
+   * 1-based lines that ran up to the last step within the limit, when
+   * profiling.
+   */
+  private passedSeen: number[] | null = null;
   /** True from the last step within the limit until its line finishes. */
   private systemPending = false;
   /** The stack as it was at the watched step. */
@@ -311,7 +316,10 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     this.useOnce();
     this.scriptLines = lines;
     const context = { matrix: new THREE.Matrix4(), planar: false };
-    if (this.stepLimit === 0) this.systemSeen = this.systemCapture();
+    if (this.stepLimit === 0) {
+      this.systemSeen = this.systemCapture();
+      this.passedSeen = [];
+    }
     const shapes = this.linesRun(lines, this.root, context, this.root);
     this.stopping = false;
     // Where the run ended, the top lines' shapes count as built so far.
@@ -342,6 +350,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       paused: this.paused,
       stack: this.stackSeen,
       system,
+      passed: this.passedSeen ?? [...this.profile.keys()],
       profile: this.profile,
       error: this.failure,
     };
@@ -423,6 +432,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
           // The last step shown is built: its line reads the lists as they are now.
           this.systemPending = false;
           this.systemSeen = this.systemCapture();
+          this.passedSeen = [...this.profile.keys()];
         }
       }
     } finally {

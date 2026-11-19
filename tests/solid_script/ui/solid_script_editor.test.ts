@@ -778,7 +778,9 @@ describe('SolidScript editor', () => {
     expect(solidScriptDebugStepLimit(node, stepId)).toBe(1);
     tool('Step').click();
     expect(root.querySelector('.solid-script-editor-stepped')?.getAttribute('data-line')).toBe('2');
-    expect(root.querySelector('.solid-script-editor-traced')?.getAttribute('data-line')).toBe('2');
+    expect(
+      [...root.querySelectorAll('.solid-script-editor-traced')].map((row) => row.getAttribute('data-line')),
+    ).toEqual(['0', '1', '2']);
     expect(root.querySelector('.solid-script-editor-stepped')?.getAttribute('title')).toMatch(/^Debugger step/);
     expect(root.querySelector('.solid-script-editor-stepped')?.classList.contains('solid-script-editor-current')).toBe(
       false,

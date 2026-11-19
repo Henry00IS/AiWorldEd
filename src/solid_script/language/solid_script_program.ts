@@ -141,6 +141,7 @@ export function solidScriptProgramRun(
       paused: null,
       stack: [],
       system: [],
+      passed: [],
       profile: new Map(),
       error: solidScriptFailure(solidScriptErrorLine(message), message),
     };
