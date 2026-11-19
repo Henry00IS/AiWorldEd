@@ -10,6 +10,7 @@ import type { SolidScriptCommand } from '@/solid_script/commands/solid_script_co
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptShapeMeshes } from '@/solid_script/language/solid_script_mesh.js';
+import { SOLID_SCRIPT_FUNCTIONS_BUILTIN } from '@/solid_script/language/solid_script_functions_builtin.js';
 
 /**
  * Title Case: every word starts with a capital letter or a digit; words may be
@@ -200,6 +201,15 @@ describe('solid script command catalog', () => {
       }
       expect(solidScriptCommandFind(command.id)).toBe(command);
     }
+  });
+
+  it('has no Select In Box command; InBox in Where picks items in a box', () => {
+    expect(solidScriptCommands.map((command) => command.id)).not.toContain('select_in_box');
+    expect(solidScriptCommands.some((command) => command.label.toLowerCase() === 'select in box')).toBe(false);
+    expect(solidScriptCommandFind('select_faces')?.parameters.some((parameter) => parameter.key === 'where')).toBe(
+      true,
+    );
+    expect(SOLID_SCRIPT_FUNCTIONS_BUILTIN['in_box']).toBeTypeOf('function');
   });
 
   it('documents with an example and the mistakes that stop every command with values', () => {
