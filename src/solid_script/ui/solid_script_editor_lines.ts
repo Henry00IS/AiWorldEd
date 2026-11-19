@@ -133,6 +133,8 @@ export class SolidScriptEditorLines {
   private unknown: ReadonlyMap<number, ReadonlySet<string>> = new Map();
   private readonly keys: SolidScriptEditorLineKeys;
   private readonly paint: SolidScriptEditorLinePaint;
+  /** Drops of palette commands and dragged lines. */
+  private readonly drop: SolidScriptEditorDrop;
   private readonly vertical: VirtualListScrollbarBinding;
   private readonly horizontal: VirtualListScrollbarBinding;
 
@@ -172,7 +174,7 @@ export class SolidScriptEditorLines {
       paint: (painted, base, subtractive, pointerLine) =>
         this.selectionApply(SelectionRowsRules.paintApply(base, painted, subtractive), pointerLine),
     });
-    new SolidScriptEditorDrop(this.element, {
+    this.drop = new SolidScriptEditorDrop(this.element, {
       blank: (line) => solidScriptBlockIsBlank(this.document.blocks[line]),
       count: () => this.document.blocks.length,
       insert: handlers.insert,
@@ -183,6 +185,13 @@ export class SolidScriptEditorLines {
     this.element.addEventListener('cut', (event) => this.keys.copy(event, true));
     this.element.addEventListener('paste', (event) => this.keys.paste(event));
     this.element.addEventListener('contextmenu', (event) => this.menuOpen(event));
+  }
+
+  /** Stops listening for drags on the page and closes the line menu. */
+  dispose(): void {
+    this.drop.dispose();
+    this.menu?.dispose();
+    this.menu = null;
   }
 
   /** Turns the selected lines, or the current one, off or on again. */

@@ -34,8 +34,19 @@ const SOLID_SCRIPT_EDITOR_DROP_CLASSES = [
  * the script, showing where they land.
  */
 export class SolidScriptEditorDrop {
+  /** Removes the listeners on the page. */
+  private readonly listening = new AbortController();
+
   /**
-   * Listens for drags over the line list.
+   * How many elements inside the line list the drag has entered and not yet
+   * left.
+   */
+  private depth = 0;
+
+  /**
+   * Listens for drags over the line list. The marker only shows while a command
+   * or line drag is over the list: it goes when the drag leaves, ends, is
+   * cancelled or drops anywhere.
    *
    * @param element Line list.
    * @param handlers Drop callbacks.
@@ -44,10 +55,35 @@ export class SolidScriptEditorDrop {
     private readonly element: HTMLElement,
     private readonly handlers: SolidScriptEditorDropHandlers,
   ) {
-    element.addEventListener('dragover', (event) => this.over(event));
-    element.addEventListener('dragleave', (event) => event.target === element && this.clear());
-    element.addEventListener('drop', (event) => this.drop(event));
-    element.addEventListener('dragend', () => this.clear());
+    const signal = this.listening.signal;
+    element.addEventListener('dragenter', () => this.depth++, { signal });
+    element.addEventListener('dragover', (event) => this.over(event), { signal });
+    element.addEventListener('dragleave', (event) => this.leave(event), { signal });
+    element.addEventListener('drop', (event) => this.drop(event), { signal });
+    // A drag that ends, is cancelled or drops somewhere else never comes back here.
+    const page = element.ownerDocument;
+    page.addEventListener('dragend', () => this.clear(), { capture: true, signal });
+    page.addEventListener('drop', () => this.clear(), { capture: true, signal });
+    page.addEventListener('keydown', (event) => event.key === 'Escape' && this.clear(), { capture: true, signal });
+  }
+
+  /** Stops listening, once the editor closes. */
+  dispose(): void {
+    this.listening.abort();
+    this.clear();
+  }
+
+  /**
+   * Hides the marker once the drag has left the line list, not just one of the
+   * rows inside it.
+   *
+   * @param event Drag leave event.
+   */
+  private leave(event: DragEvent): void {
+    this.depth = Math.max(0, this.depth - 1);
+    const into = event.relatedTarget;
+    if (into instanceof Node && this.element.contains(into)) return;
+    if (this.depth === 0 || into instanceof Node) this.clear();
   }
 
   /**
@@ -61,7 +97,7 @@ export class SolidScriptEditorDrop {
     event.preventDefault();
     if (event.dataTransfer)
       event.dataTransfer.dropEffect = types.includes(SOLID_SCRIPT_EDITOR_DRAG_LINE) ? 'move' : 'copy';
-    this.clear();
+    this.unmark();
     const { row, mark } = this.locate(event);
     row?.classList.add(mark);
   }
@@ -115,8 +151,14 @@ export class SolidScriptEditorDrop {
     return { row, line, mark: after ? SOLID_SCRIPT_EDITOR_CLASSES.dropAfter : SOLID_SCRIPT_EDITOR_CLASSES.dropBefore };
   }
 
-  /** Hides the drop marker. */
+  /** Hides the drop marker and forgets the drag. */
   clear(): void {
+    this.depth = 0;
+    this.unmark();
+  }
+
+  /** Hides the drop marker. */
+  private unmark(): void {
     for (const row of this.element.querySelectorAll(`.${SOLID_SCRIPT_EDITOR_CLASSES.row}`))
       row.classList.remove(...SOLID_SCRIPT_EDITOR_DROP_CLASSES);
   }

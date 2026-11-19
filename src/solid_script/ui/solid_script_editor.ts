@@ -190,6 +190,7 @@ export class SolidScriptEditor extends PanelFloating {
     if (this.pollTimer !== null) clearInterval(this.pollTimer);
     if (this.noticeTimer !== null) clearTimeout(this.noticeTimer);
     this.target.commandStack?.offStackChanged(this.stackChanged);
+    this.lines.dispose();
     this.dispose();
     this.closed();
   }
