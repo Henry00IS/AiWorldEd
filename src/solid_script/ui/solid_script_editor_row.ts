@@ -36,8 +36,11 @@ export interface SolidScriptEditorRowHandlers {
   jump: (line: number) => void;
   /** The line got the keyboard focus. */
   focus: (line: number) => void;
-  /** The row was pressed; Shift grows the selection to it, Ctrl picks it alone. */
-  press: (line: number, extend: boolean, pick: boolean) => void;
+  /**
+   * The row was pressed with the left button; the event carries the modifier
+   * keys.
+   */
+  press: (line: number, event: MouseEvent) => void;
   /** A press on the row ended without a drag. */
   release: (line: number) => void;
   /** Sets or clears the breakpoint of the line. */
@@ -68,9 +71,10 @@ export interface SolidScriptEditorRowLook {
 
 /**
  * Builds one script row across the full width: the line number and the line as
- * the listing reads. A click anywhere on the row selects the line (Shift+click
- * selects every line up to it), a double-click configures it (on an End line it
- * selects the line that opens the block), and the whole row can be dragged.
+ * the listing reads. A press anywhere on the row selects the line (Shift adds
+ * it, Ctrl toggles it), a right press leaves the selection and the focus to the
+ * line menu, a double-click configures it (on an End line it selects the line
+ * that opens the block), and the whole row can be dragged.
  *
  * @param block Line.
  * @param look Line index, indent and closed block.
@@ -109,13 +113,7 @@ export function solidScriptEditorRowBuild(
       ? 'Turned off: it does not run. F4 turns it on again.'
       : 'Inside a block that is turned off.';
   }
-  row.addEventListener('mousedown', (event) => {
-    if (event.button !== 0) return;
-    handlers.press(look.line, event.shiftKey, event.ctrlKey || event.metaKey);
-    if (event.shiftKey || (event.target !== chip && !chip.contains(event.target as Node))) event.preventDefault();
-    // Focus comes back to the script from anywhere, such as the output, so Ctrl+C copies lines.
-    chip.focus();
-  });
+  row.addEventListener('mousedown', (event) => solidScriptEditorRowMouseDown(event, chip, look.line, handlers));
   row.addEventListener('click', (event) => {
     if (!event.shiftKey && !event.ctrlKey && !event.metaKey) handlers.release(look.line);
   });
@@ -129,6 +127,30 @@ export function solidScriptEditorRowBuild(
     if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
   });
   return row;
+}
+
+/**
+ * Handles a press on a row. A right press is cancelled so the browser does not
+ * move the focus, which would change the selection before the line menu opens.
+ * A left press with a modifier, or outside the line text, is cancelled so it
+ * starts no text selection or row drag.
+ *
+ * @param event Mouse down event.
+ * @param chip Line element of the row.
+ * @param line Line index.
+ * @param handlers Row callbacks.
+ */
+function solidScriptEditorRowMouseDown(
+  event: MouseEvent,
+  chip: HTMLElement,
+  line: number,
+  handlers: SolidScriptEditorRowHandlers,
+): void {
+  if (event.button === 2) return event.preventDefault();
+  if (event.button !== 0) return;
+  const modified = event.shiftKey || event.ctrlKey || event.metaKey;
+  if (modified || (event.target !== chip && !chip.contains(event.target as Node))) event.preventDefault();
+  handlers.press(line, event);
 }
 
 /**

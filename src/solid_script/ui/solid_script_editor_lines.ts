@@ -26,6 +26,8 @@ import { SOLID_SCRIPT_EDITOR_CLASSES, SOLID_SCRIPT_EDITOR_INDENT_PX } from './so
 import { SolidScriptEditorDrop, type SolidScriptEditorDropTarget } from './solid_script_editor_drop.js';
 import { solidScriptEditorRowBuild, type SolidScriptEditorRowHandlers } from './solid_script_editor_row.js';
 import { SolidScriptEditorLineKeys } from './solid_script_editor_line_keys.js';
+import { SolidScriptEditorLinePaint } from './solid_script_editor_line_paint.js';
+import { SelectionRowsRules } from '@/selection/rows/selection_rows_rules.js';
 import { solidScriptEditorViewRead, type SolidScriptEditorView } from './solid_script_editor_view.js';
 
 /** Lines the debugger and the last run point at, as 0-based indices. */
@@ -104,8 +106,9 @@ export class SolidScriptEditorLines {
   /** True per line that is off. */
   private offs: boolean[] = [];
   private caretLine = 0;
+  /** Start of a keyboard Shift range, or null. */
   private anchor: number | null = null;
-  /** Lines picked one by one with Ctrl+click, in order, or null for a range. */
+  /** Lines picked with the mouse, in order, or null for the current line alone. */
   private picked: number[] | null = null;
   /** True while a press on a picked line waits to see whether it drags. */
   private pressKept = false;
@@ -129,6 +132,7 @@ export class SolidScriptEditorLines {
   private view: SolidScriptEditorView = solidScriptEditorViewRead();
   private unknown: ReadonlyMap<number, ReadonlySet<string>> = new Map();
   private readonly keys: SolidScriptEditorLineKeys;
+  private readonly paint: SolidScriptEditorLinePaint;
   private readonly vertical: VirtualListScrollbarBinding;
   private readonly horizontal: VirtualListScrollbarBinding;
 
@@ -163,6 +167,11 @@ export class SolidScriptEditorLines {
       configure: handlers.configure,
       notice: handlers.notice,
     });
+    this.paint = new SolidScriptEditorLinePaint({
+      lineAt: (clientY) => this.lineAt(clientY),
+      paint: (painted, base, subtractive, pointerLine) =>
+        this.selectionApply(SelectionRowsRules.paintApply(base, painted, subtractive), pointerLine),
+    });
     new SolidScriptEditorDrop(this.element, {
       blank: (line) => solidScriptBlockIsBlank(this.document.blocks[line]),
       count: () => this.document.blocks.length,
@@ -182,8 +191,8 @@ export class SolidScriptEditorLines {
   }
 
   /**
-   * Opens the line menu at a row: the clicked line joins the selection unless
-   * it is already in it.
+   * Opens the line menu at a row: the selection stays when it holds the clicked
+   * line, otherwise the clicked line is selected alone.
    *
    * @param event Context menu event.
    */
@@ -192,7 +201,8 @@ export class SolidScriptEditorLines {
     if (!row) return;
     event.preventDefault();
     const line = Number(row.dataset['line']);
-    if (!this.selected().includes(line)) this.focusLine(line);
+    const kept = SelectionRowsRules.contextApply(new Set(this.selected()), line);
+    if (kept.size === 1 && kept.has(line)) this.focusLine(line);
     const off = this.offs[line] === true;
     this.menu?.dispose();
     this.menu = new MenuContext(this.element, [
@@ -352,16 +362,17 @@ export class SolidScriptEditorLines {
   }
 
   /**
-   * Returns the selected lines in order: the lines picked with Ctrl+click, or
-   * from the selection start to the current line, or the current line alone.
+   * Returns the selected lines in order: the lines picked with the mouse plus
+   * the keyboard Shift range from its start to the current line, or the current
+   * line alone.
    *
    * @returns Line indexes.
    */
   selected(): number[] {
-    if (this.picked) return [...this.picked];
-    const anchor = this.anchor ?? this.caretLine;
-    const first = Math.min(anchor, this.caretLine);
-    return Array.from({ length: Math.abs(anchor - this.caretLine) + 1 }, (_, index) => first + index);
+    if (this.anchor === null) return this.picked ? [...this.picked] : [this.caretLine];
+    const first = Math.min(this.anchor, this.caretLine);
+    const range = Array.from({ length: Math.abs(this.anchor - this.caretLine) + 1 }, (_, index) => first + index);
+    return [...new Set([...(this.picked ?? []), ...range])].sort((a, b) => a - b);
   }
 
   /**
@@ -417,17 +428,22 @@ export class SolidScriptEditorLines {
    * Focuses a line, scrolling it into view up and down and sideways.
    *
    * @param line Line index, clamped to the script.
-   * @param extend True grows the selection to the line instead of starting a
-   *   new one.
+   * @param extend True grows a Shift range from the current line to the line,
+   *   keeping the lines picked with the mouse; false selects the line alone.
    */
   focusLine(line: number, extend = false): void {
     const clamped = Math.max(0, Math.min(line, this.document.blocks.length - 1));
     this.anchor = extend ? (this.anchor ?? this.caretLine) : null;
-    this.picked = null;
+    if (!extend) this.picked = null;
     this.caretLine = clamped;
     this.reveal(clamped);
     this.windowRender();
-    this.rowAt(clamped)
+    this.caretChipFocus();
+  }
+
+  /** Moves the keyboard focus to the current line without scrolling. */
+  private caretChipFocus(): void {
+    this.rowAt(this.caretLine)
       ?.querySelector<HTMLElement>(`.${SOLID_SCRIPT_EDITOR_CLASSES.chip}`)
       ?.focus({ preventScroll: true });
   }
@@ -543,11 +559,8 @@ export class SolidScriptEditorLines {
       key: (event, at) => this.keys.key(event, at),
       configure: this.handlers.configure,
       jump: (at) => this.focusLine(at),
-      focus: (at) => {
-        if (this.picked && !this.picked.includes(at)) this.picked = null;
-        this.caretSet(at);
-      },
-      press: (at, extend, pick) => this.press(at, extend, pick),
+      focus: (at) => this.focusArrived(at),
+      press: (at, event) => this.press(at, event),
       release: (at) => {
         if (!this.pressKept) return;
         this.pressKept = false;
@@ -606,37 +619,77 @@ export class SolidScriptEditorLines {
   }
 
   /**
-   * Moves the current line.
+   * Takes the keyboard focus arriving on a line, such as by Tab: a line other
+   * than the current one becomes the current line, selected alone. Focus that
+   * lands on the current line leaves the selection as it is.
    *
    * @param line Line index.
    */
-  /**
-   * Handles a press on a row: Shift grows the selection, Ctrl picks or drops
-   * the line alone, and a plain press on a selected line keeps the selection
-   * until the press ends without a drag, so several lines can be dragged.
-   *
-   * @param line Line index.
-   * @param extend True with Shift.
-   * @param pick True with Ctrl or Cmd.
-   */
-  private press(line: number, extend: boolean, pick: boolean): void {
-    const selected = this.selected();
-    this.pressKept = false;
-    if (pick) {
-      const lines = selected.includes(line) ? selected.filter((at) => at !== line) : [...selected, line];
-      this.picked = (lines.length > 0 ? lines : [line]).sort((a, b) => a - b);
-      this.anchor = null;
-    } else if (!extend && selected.length > 1 && selected.includes(line)) {
-      this.picked = selected;
-      this.anchor = null;
-      this.pressKept = true;
-    } else {
-      this.picked = null;
-      this.anchor = extend ? (this.anchor ?? this.caretLine) : null;
-    }
+  private focusArrived(line: number): void {
+    if (line === this.caretLine) return;
+    this.anchor = null;
+    this.picked = null;
     this.caretSet(line);
   }
 
+  /**
+   * Handles a left press on a row with the shared row rules: a plain press
+   * selects the line alone, Shift adds it, Ctrl or Cmd toggles it, and a Shift
+   * or Ctrl/Cmd drag paints from it. A plain press on a line of a larger
+   * selection keeps the selection until the press ends without a drag, so
+   * several lines can be dragged.
+   *
+   * @param line Line index.
+   * @param event Mouse down event.
+   */
+  private press(line: number, event: MouseEvent): void {
+    const modifiers = { shift: event.shiftKey, ctrl: event.ctrlKey || event.metaKey };
+    const selected = new Set(this.selected());
+    this.pressKept = !modifiers.shift && !modifiers.ctrl && selected.size > 1 && selected.has(line);
+    if (modifiers.shift || modifiers.ctrl) this.paint.begin(line, selected, modifiers.ctrl);
+    const next = this.pressKept ? selected : SelectionRowsRules.clickApply(selected, line, modifiers);
+    this.selectionApply(next, line);
+  }
+
+  /**
+   * Makes a set of lines the selection. The current line moves to the wanted
+   * line when it is selected, otherwise to the nearest selected line; an empty
+   * set selects the wanted line alone.
+   *
+   * @param lines Selected line indexes.
+   * @param wanted Line that should become the current line.
+   */
+  private selectionApply(lines: ReadonlySet<number>, wanted: number): void {
+    const sorted = [...lines].sort((a, b) => a - b);
+    const nearest = sorted.reduce(
+      (best, at) => (Math.abs(at - wanted) < Math.abs(best - wanted) ? at : best),
+      sorted[0] ?? wanted,
+    );
+    this.anchor = null;
+    this.picked = sorted.length > 1 ? sorted : null;
+    this.caretSet(lines.has(wanted) ? wanted : nearest);
+    this.caretChipFocus();
+  }
+
+  /**
+   * Returns the line under a pointer height, clamped to the script.
+   *
+   * @param clientY Pointer height in client pixels.
+   * @returns Line index, or null when the script has no lines.
+   */
+  private lineAt(clientY: number): number | null {
+    const last = this.document.blocks.length - 1;
+    if (last < 0) return null;
+    const offset = clientY - this.element.getBoundingClientRect().top + this.element.scrollTop;
+    const line = Math.floor((offset - SOLID_SCRIPT_EDITOR_LINES_TOP_PX) / SOLID_SCRIPT_EDITOR_ROW_PX);
+    return Math.max(0, Math.min(line, last));
+  }
+
+  /**
+   * Moves the current line and shows the selection on every built row.
+   *
+   * @param line Line index.
+   */
   private caretSet(line: number): void {
     this.caretLine = line;
     for (const [at, row] of this.built) this.rowMark(row, at);

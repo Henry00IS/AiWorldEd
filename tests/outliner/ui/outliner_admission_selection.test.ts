@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { PanelOutliner } from '@/outliner/ui/panel_outliner.js';
+import { rowByName } from './outliner_test_rows.js';
 import { Theme } from '@/theme.js';
 
 describe('Outliner selection refused by a collaborator lock', () => {
@@ -47,20 +48,6 @@ describe('Outliner selection refused by a collaborator lock', () => {
     expect(isHighlighted(rowByName(container, 'CubeB'))).toBe(false);
   });
 });
-
-/**
- * Finds the outliner row element whose name span matches.
- *
- * @param host Parent element that contains the outliner panel DOM.
- * @param name Object display name.
- * @returns The row element.
- */
-function rowByName(host: HTMLElement, name: string): HTMLElement {
-  const span = Array.from(host.querySelectorAll('span')).find((candidate) => candidate.textContent === name);
-  const row = span?.closest<HTMLElement>('[data-outliner-object-uuid]') ?? span?.closest<HTMLElement>('div');
-  if (!row) throw new Error(`Outliner row not found: ${name}`);
-  return row;
-}
 
 /**
  * Returns whether a row carries the selected background.

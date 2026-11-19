@@ -1,4 +1,5 @@
 import type * as THREE from 'three';
+import { SelectionRowsRules } from '@/selection/rows/selection_rows_rules.js';
 
 /**
  * Selection bookkeeping for one paint gesture: the selection it started from,
@@ -64,7 +65,7 @@ export class OutlinerPaintSelectionState {
     const kept = new Set(this.base);
     painted.forEach((object) => current.has(object) && kept.add(object));
     const wanted = painted.filter((object) => !kept.has(object) && !this.refused.has(object));
-    if (tryApply(new Set([...kept, ...wanted]))) return;
+    if (tryApply(SelectionRowsRules.paintApply(kept, wanted, false))) return;
     this.applyWantedOneByOne(wanted, kept, tryApply, (accepted, object) => new Set(accepted).add(object));
   }
 
@@ -76,9 +77,7 @@ export class OutlinerPaintSelectionState {
    */
   private applySubtractive(painted: readonly THREE.Object3D[], tryApply: (next: Set<THREE.Object3D>) => boolean): void {
     const wanted = painted.filter((object) => this.base.has(object) && !this.refused.has(object));
-    const next = new Set(this.base);
-    wanted.forEach((object) => next.delete(object));
-    if (tryApply(next)) return;
+    if (tryApply(SelectionRowsRules.paintApply(this.base, wanted, true))) return;
     const accepted = new Set(this.base);
     this.applyWantedOneByOne(wanted, accepted, tryApply, (current, object) => {
       const candidate = new Set(current);

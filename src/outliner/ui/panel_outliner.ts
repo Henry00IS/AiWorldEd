@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { MenuContext, MenuContextItem } from '@/ui/menu/menu_context.js';
+import { SelectionRowsRules } from '@/selection/rows/selection_rows_rules.js';
 import { OutlinerPaintSelectionState } from './outliner_paint_selection_state.js';
 import { OutlinerTree } from './outliner_tree.js';
 import type { OutlinerDropPlacement } from './outliner_drop_placement.js';
@@ -634,20 +635,10 @@ export class PanelOutliner {
    * @param toggle Ctrl/Meta toggle mode.
    */
   private updateHierarchySelection(obj: THREE.Object3D, additive: boolean, toggle: boolean): void {
-    if (toggle) {
-      if (this.hierarchySelection.has(obj)) {
-        this.hierarchySelection.delete(obj);
-      } else {
-        this.hierarchySelection.add(obj);
-      }
-      return;
-    }
-    if (additive) {
-      this.hierarchySelection.add(obj);
-      return;
-    }
-    this.hierarchySelection.clear();
-    this.hierarchySelection.add(obj);
+    this.hierarchySelection = SelectionRowsRules.clickApply(this.hierarchySelection, obj, {
+      shift: additive,
+      ctrl: toggle,
+    });
   }
 
   /**
@@ -837,8 +828,7 @@ export class PanelOutliner {
     if (this.isDisposed) return;
     if (!this.hierarchySelection.has(obj)) {
       this.isApplyingOutlinerSelection = true;
-      this.hierarchySelection.clear();
-      this.hierarchySelection.add(obj);
+      this.hierarchySelection = SelectionRowsRules.contextApply(this.hierarchySelection, obj);
       this.syncMeshSelectionFromHierarchy();
       this.isApplyingOutlinerSelection = false;
       this.refresh();

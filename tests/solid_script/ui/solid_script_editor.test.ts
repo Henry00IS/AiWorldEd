@@ -1,105 +1,24 @@
 import { ManagerInput } from '@/input/manager_input.js';
 import { HandlerKeyboardShortcut } from '@/input/handler_keyboard_shortcut.js';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
-import * as THREE from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SOLID_SCRIPT_EDITOR_CHECK_DELAY_MS } from '@/solid_script/ui/solid_script_editor_output.js';
-import { CommandStack } from '@/commands/command_stack.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
-import { modifierGeneratorNodeCreate } from '@/modifier/stack/modifier_generator_node.js';
-import { MODIFIER_STACK_SOLID_SCRIPT_KIND } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
 import { modifierStackParametersCommit } from '@/modifier/stack/modifier_stack_parameters_commit.js';
-import type { ModifierStackActionTarget } from '@/modifier/stack/modifier_stack_types.js';
 import { projectFolderCurrentSet } from '@/project/fs/project_folder_current.js';
 import { ProjectFileSystemHandle } from '@/project/fs/project_file_system_handle.js';
 import { PANEL_PROJECT_PATH_DRAG_TYPE } from '@/project/ui/panel_project_drag.js';
 import { solidScriptDebugStepLimit } from '@/solid_script/debug/solid_script_debug_steps.js';
-import {
-  solidScriptDocumentCreate,
-  solidScriptDocumentNormalize,
-  type SolidScriptDocument,
-  type SolidScriptLine,
-} from '@/solid_script/document/solid_script_document.js';
+import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptFileEncode } from '@/solid_script/file/solid_script_file.js';
-import { solidScriptEditorCurrentGet, solidScriptEditorOpen } from '@/solid_script/ui/solid_script_editor_open.js';
+import { solidScriptEditorCurrentGet } from '@/solid_script/ui/solid_script_editor_open.js';
+import { chip, doubleClick, editorFixture, find, press } from './solid_script_editor_fixture.js';
 import { SOLID_SCRIPT_EDITOR_DRAG_COMMAND } from '@/solid_script/ui/solid_script_editor_palette.js';
 import { SOLID_SCRIPT_EDITOR_DRAG_LINE } from '@/solid_script/ui/solid_script_editor_row.js';
 import { ProjectMockDirectoryHandle } from '../../project/fs/project_mock_directory_handle.js';
 
 /** Lines of a script with a cube and a sphere. */
 const CUBE_SPHERE: SolidScriptLine[] = [{ command: 'cube' }, { command: 'sphere' }];
-
-/**
- * Opens the editor of a generator holding a script.
- *
- * @param lines Command lines of the script.
- * @returns Fixture parts.
- */
-function editorFixture(lines: SolidScriptLine[]) {
-  const world = new THREE.Group();
-  const node = modifierGeneratorNodeCreate(MODIFIER_STACK_SOLID_SCRIPT_KIND);
-  world.add(node);
-  const stepId = ModifierVolume.read(node).modifiers[0]?.id ?? '';
-  modifierStackParametersCommit(node, stepId, { script: solidScriptDocumentCreate(lines, 'Test Script') }, null);
-  const commandStack = new CommandStack(50);
-  const refreshes = { count: 0 };
-  const target: ModifierStackActionTarget = {
-    volume: node,
-    stepId,
-    commandStack,
-    status: () => {},
-    refresh: () => void refreshes.count++,
-  };
-  solidScriptEditorOpen(target);
-  const root = document.querySelector<HTMLElement>('[data-solid-script-editor]');
-  if (!root) throw new Error('Expected the editor window');
-  const script = (): SolidScriptDocument =>
-    solidScriptDocumentNormalize(ModifierVolume.read(node).modifiers[0]?.parameters['script']);
-  const commands = (): string[] => script().blocks.map((block) => block.command);
-  return { node, stepId, commandStack, root, script, commands, refreshes };
-}
-
-/**
- * Finds an element or fails.
- *
- * @param selector CSS selector.
- * @returns Element.
- */
-function find<T extends HTMLElement = HTMLElement>(selector: string): T {
-  const element = document.querySelector<T>(selector);
-  if (!element) throw new Error(`Expected ${selector}`);
-  return element;
-}
-
-/**
- * Returns the command line of a script line.
- *
- * @param line Line index.
- * @returns Line element.
- */
-function chip(line: number): HTMLElement {
-  return find(`[data-line="${line}"] .solid-script-editor-chip`);
-}
-
-/**
- * Double-clicks an element.
- *
- * @param element Element.
- */
-function doubleClick(element: HTMLElement): void {
-  element.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
-}
-
-/**
- * Presses a key on an element.
- *
- * @param element Element.
- * @param key Key.
- * @param modifiers Modifier keys.
- */
-function press(element: HTMLElement, key: string, modifiers: KeyboardEventInit = {}): void {
-  element.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...modifiers }));
-}
 
 /**
  * Presses an undo or redo key in the script editor's lines.
