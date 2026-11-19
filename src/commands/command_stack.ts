@@ -68,6 +68,7 @@ export class CommandStack {
   private historyRevision: number;
   private observer: CommandStackObserver | null;
   private untrackedSinceSave: boolean;
+  private untrackedMark: object | null;
 
   /**
    * Creates a new command stack with a maximum history size.
@@ -83,6 +84,7 @@ export class CommandStack {
     this.historyRevision = 0;
     this.observer = null;
     this.untrackedSinceSave = false;
+    this.untrackedMark = null;
   }
 
   /**
@@ -252,6 +254,7 @@ export class CommandStack {
   markSavedPoint(): void {
     this.savedPointUndoDepth = this.undoStack.length;
     this.untrackedSinceSave = false;
+    this.untrackedMark = null;
   }
 
   /**
@@ -278,6 +281,7 @@ export class CommandStack {
   /** Notifies all registered callbacks of a stack change. */
   notifyChanged(): void {
     this.historyRevision += 1;
+    if (this.untrackedSinceSave) this.untrackedMark = {};
     this.changedCallbacks.forEach((callback) => {
       callback(this.getUndoCount(), this.getRedoCount());
     });
@@ -310,6 +314,17 @@ export class CommandStack {
   }
 
   /**
+   * Returns an identity of the live scene for autosave. After an untracked
+   * edit, such as a script change, this is a new object so autosave does not
+   * treat the scene as a return to the last saved undo entry.
+   *
+   * @returns The current undo entry, or a distinct mark after untracked work.
+   */
+  historyState(): unknown {
+    return this.untrackedMark ?? this.peekUndo();
+  }
+
+  /**
    * Clears all commands from both stacks without undoing them. Disposes redo
    * commands (their effects are already reversed and may hold orphaned GPU
    * resources). Undo entries are dropped without dispose because their scene
@@ -323,6 +338,7 @@ export class CommandStack {
     this.redoStack = [];
     this.savedPointUndoDepth = null;
     this.untrackedSinceSave = false;
+    this.untrackedMark = null;
     this.notifyChanged();
   }
 

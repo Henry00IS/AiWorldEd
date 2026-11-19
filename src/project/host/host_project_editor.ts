@@ -17,8 +17,9 @@ export interface HostProjectHistory {
   /** Counter that changes with every edit, undo and redo. */
   revision: () => number;
   /**
-   * Identity of the edit the scene stands at, or undefined when unknown (in a
-   * room, where edits arrive outside the undo stack).
+   * Identity of the edit the scene stands at, including untracked script edits,
+   * or undefined when unknown (in a room, where edits arrive outside the undo
+   * stack).
    */
   state: () => unknown;
   /**

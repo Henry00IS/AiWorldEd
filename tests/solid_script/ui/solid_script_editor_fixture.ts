@@ -40,7 +40,7 @@ export function editorFixture(lines: SolidScriptLine[]) {
   const script = (): SolidScriptDocument =>
     solidScriptDocumentNormalize(ModifierVolume.read(node).modifiers[0]?.parameters['script']);
   const commands = (): string[] => script().blocks.map((block) => block.command);
-  return { node, stepId, commandStack, root, script, commands, refreshes };
+  return { world, node, stepId, commandStack, root, script, commands, refreshes };
 }
 
 /**

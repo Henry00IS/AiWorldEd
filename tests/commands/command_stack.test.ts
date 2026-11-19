@@ -295,4 +295,19 @@ describe('CommandStack', () => {
     expect(stack.executeUntracked(command)).toBe(false);
     expect(command.getExecuteCount()).toBe(2);
   });
+
+  it('gives untracked edits a new history state, distinct from the saved undo entry', () => {
+    const stack = new CommandStack(10);
+    const command = new TestCommand('tracked');
+    stack.push(command);
+    stack.markSavedPoint();
+    expect(stack.historyState()).toBe(command);
+    stack.executeUntracked(new TestCommand('script'));
+    expect(stack.peekUndo()).toBe(command);
+    expect(stack.historyState()).not.toBe(command);
+    const after = stack.historyState();
+    expect(stack.historyState()).toBe(after);
+    stack.markSavedPoint();
+    expect(stack.historyState()).toBe(command);
+  });
 });

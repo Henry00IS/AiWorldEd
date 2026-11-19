@@ -65,7 +65,8 @@ export interface ProjectAutosaveDependencies {
   revision?: (() => number) | undefined;
   /**
    * Identity of the edit the scene stands at (the same value again after undo
-   * returns to it), or undefined when unknown.
+   * returns to it). Must change for untracked edits that leave the undo entry
+   * in place, or undefined when unknown.
    */
   state?: (() => unknown) | undefined;
   now?: () => number;

@@ -163,7 +163,7 @@ function createLayoutProjectHost(
     history: {
       thumbnail: parts.historyThumbnail,
       revision: () => parts.commandStack.getHistoryRevision(),
-      state: () => (parts.collaborationMenu.active() ? undefined : parts.commandStack.peekUndo()),
+      state: () => (parts.collaborationMenu.active() ? undefined : parts.commandStack.historyState()),
       title: () => parts.sceneIo.getSceneFileSession().getCurrentFilename(),
     },
   };

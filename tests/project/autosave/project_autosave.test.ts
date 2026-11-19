@@ -207,6 +207,19 @@ describe('ProjectAutosave', () => {
     expect(saves.map((entry) => entry.kind)).toEqual(['autosave', 'autosave', 'autosave', 'autosave']);
   });
 
+  it('writes when the edit counter moved and the scene identity changed, even without a new undo entry', async () => {
+    const { fileSystem } = projectAutosaveProjectCreate();
+    const { autosave, capture, edits } = autosaveCreate(fileSystem);
+    edit(edits, autosave);
+    await autosave.flush();
+    const undoEntry = edits.state;
+    edits.revision += 1;
+    edits.state = { undo: undoEntry };
+    autosave.changed();
+    await autosave.flush();
+    expect(capture).toHaveBeenCalledTimes(2);
+  });
+
   it('does not write again when nothing changed or an undo returned to the saved edit', async () => {
     const { fileSystem } = projectAutosaveProjectCreate();
     const { autosave, capture, edits } = autosaveCreate(fileSystem);
