@@ -133,8 +133,6 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   private incoming: SolidScriptGeometryLeaf[] | null = null;
   /** Received brushes, made on first use, until Input Brushes builds them. */
   private received: SolidScriptGeometryLeaf[] | null = null;
-  /** Where the built shapes of each running round start, innermost last. */
-  private readonly roundStarts: number[] = [];
   /** What each swapped solid or mesh became. */
   private readonly leafSwaps = new Map<SolidScriptGeometryLeaf, SolidScriptGeometryLeaf>();
   /**
@@ -210,17 +208,6 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   protected receivedLatest(): SolidScriptGeometryLeaf[] {
     this.brushesReceived();
     return (this.incoming ?? []).map((leaf) => this.leafLatestOf(leaf));
-  }
-
-  /**
-   * Lists every brush and mesh built so far, the pool Select Brushes picks
-   * from.
-   */
-  protected brushesBuilt(): SolidScriptValue[] {
-    const start = this.roundStarts.at(-1);
-    const own = start === undefined ? [] : this.builtStack.slice(start).flat();
-    const built = own.length > 0 ? own : this.builtStack.flat();
-    return solidScriptGeometryLeaves(built).map((leaf) => this.elements.brush(leaf));
   }
 
   /**
@@ -341,25 +328,6 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       .replace(/^\[(.*)\]$/s, '$1')
       .trim();
     if (into !== '') this.variableSet(scope, into, solidScriptIntoAssigned(node.command.intoList === true, brushes));
-  }
-
-  /**
-   * Runs lines of a round with the outer [$Selected.*] lists, and brings them
-   * back after it.
-   *
-   * @param round Runs the round.
-   * @returns What the round returns.
-   */
-  private selectedKept<Result>(round: () => Result): Result {
-    const outer = this.selected;
-    this.selected = { ...outer };
-    this.roundStarts.push(this.builtStack.length);
-    try {
-      return round();
-    } finally {
-      this.roundStarts.pop();
-      this.selected = outer;
-    }
   }
 
   /**
@@ -791,18 +759,23 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         }
         const keyName = keyed ? state.machine.nameKey(keyed.name) : '';
         const shapes: SolidScriptShape[] = [];
-        values.forEach((round, index) => {
-          state.machine.workTake();
-          const inner = new SolidScriptScope(state.scope);
-          inner.variableDefine(key, round);
-          if (keyed) inner.variableDefine(keyName, keyed.keys[index]);
-          solidScriptScopeElementBind(inner, round, index);
-          if (node.children.length === 0) return;
-          const built = state.machine.selectedKept(() =>
-            state.machine.linesRun(node.children, inner, state.context, inner, children()),
-          );
-          for (const shape of built) shapes.push(shape);
-        });
+        // Later rounds can Select and Move brushes earlier rounds already built.
+        // [$Selected.*] is not copied: it carries from round to round and stays after.
+        state.machine.builtStack.push(shapes);
+        try {
+          values.forEach((round, index) => {
+            state.machine.workTake();
+            const inner = new SolidScriptScope(state.scope);
+            inner.variableDefine(key, round);
+            if (keyed) inner.variableDefine(keyName, keyed.keys[index]);
+            solidScriptScopeElementBind(inner, round, index);
+            if (node.children.length === 0) return;
+            const built = state.machine.linesRun(node.children, inner, state.context, inner, children());
+            for (const shape of built) shapes.push(shape);
+          });
+        } finally {
+          state.machine.builtStack.pop();
+        }
         const joined = solidScriptShapeJoin(shapes, labelOf());
         return joined ? [joined] : [];
       },

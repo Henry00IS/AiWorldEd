@@ -109,19 +109,19 @@ describe('SolidScript values', () => {
     ).toEqual(['0:10', '1:20', 'Height=3', 'Color=red', '2', '2', '2', '2']);
   });
 
-  it('keeps the outer pick after a round, and a round picks on its own', () => {
+  it('leaves [$Selected] as the last round left it, and Into keeps the earlier pick', () => {
     expect(
       printed([
         CUBE,
         line('select_brushes'),
-        line('select_faces', { which: 'All' }),
+        line('select_faces', { which: 'All', into: 'AllFaces' }),
         line('for_each', { variable: 'B', list: '[$Selected.Brushes]' }),
         line('select_faces', { which: 'Facing Up', of: '[B]' }),
         line('echo', { value: 'in [$Selected.Faces.Count]' }),
         END,
-        line('echo', { value: 'out [$Selected.Faces.Count]' }),
+        line('echo', { value: 'after [$Selected.Faces.Count] saved [AllFaces.Count]' }),
       ]),
-    ).toEqual(['in 1', 'out 6']);
+    ).toEqual(['in 1', 'after 1 saved 6']);
   });
 
   it('A: slabs off every face, each bevelled, the cube untouched', () => {

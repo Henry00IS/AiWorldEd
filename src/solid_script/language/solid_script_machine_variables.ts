@@ -304,14 +304,6 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
   protected abstract leafSwapsLatest(leaf: SolidScriptGeometryLeaf): SolidScriptGeometryLeaf;
 
   /**
-   * Lists every brush and mesh built so far in the round running, and those the
-   * modifier receives, as [$Selected.Brushes] starts.
-   *
-   * @returns Brush elements.
-   */
-  protected abstract brushesBuilt(): SolidScriptValue[];
-
-  /**
    * Lists the brushes a modifier receives, as [$Input.Brushes].
    *
    * @returns Brush elements.

@@ -20,7 +20,7 @@ const line = (command: string, values: Record<string, string> = {}): SolidScript
 const END = line('end');
 const CUBE = line('cube', { size: '0.1, 0.1, 0.1', anchor: 'Center, Center, Center' });
 
-/** Henry's script from t121u, with Move split into Move By. */
+/** Henry's t121u script, with Move split into Move By. */
 const HENRY: SolidScriptLine[] = [
   line('select_brushes', { which: 'New', how: 'New' }),
   line('select_faces', { which: 'Facing Up', how: 'New' }),
@@ -45,8 +45,7 @@ function run(lines: SolidScriptLine[], use?: SolidScriptUseFacts) {
 }
 
 /**
- * Rounded centers of the solids a run built, sorted by distance from the origin
- * so a staircase is easy to read.
+ * Rounded centers of the solids a run built, sorted from the origin out.
  *
  * @param lines Lines.
  * @param use What a modifier receives.
@@ -66,64 +65,77 @@ function centers(lines: SolidScriptLine[], use?: SolidScriptUseFacts): number[][
     .sort((left, right) => left[0]! + left[1]! + left[2]! - (right[0]! + right[1]! + right[2]!));
 }
 
-/**
- * Script that makes four 0.1 m cubes in a loop, then picks and moves them.
- *
- * @param which Select Brushes Which.
- * @param how Select Brushes How.
- * @returns Lines.
- */
-function loopSelect(which: string, how: string): SolidScriptLine[] {
-  return [
-    line('repeat', { from: '1', to: '4' }),
-    CUBE,
-    line('select_brushes', { which, how }),
-    line('move_by', { by: '1, 1, 1' }),
-    END,
-  ];
-}
-
 describe('SolidScript Select and Move By in a loop', () => {
-  it('moves each new 0.1 m cube by a literal 1, 1, 1 metres in the New Add loop', () => {
-    // Each For Each round starts from the pick made before the loop (the input
-    // brush), so How Add cannot pile cubes up across rounds. Every new cube
-    // still moves a full metre, not a fraction of its 0.1 m size.
+  it('narrows Select Faces to the picked brushes, and Select Edges with empty Of to those faces', () => {
+    const result = run([
+      line('cube', { size: '2, 2, 2', anchor: 'Center, Center, Center' }),
+      line('select_brushes', { which: 'New', how: 'New' }),
+      line('echo', { value: 'brushes [$Selected.Brushes.Count] faces [$Selected.Faces.Count]' }),
+      line('select_faces', { which: 'Facing Up', how: 'New' }),
+      line('echo', { value: 'faces [$Selected.Faces.Count] edges [$Selected.Edges.Count]' }),
+      line('select_edges', { which: 'All', how: 'New' }),
+      line('echo', { value: 'edges [$Selected.Edges.Count]' }),
+      line('points_from_edges', { into: 'Points' }),
+      line('echo', { value: 'points [Points.Count]' }),
+    ]);
+    expect(result.error?.message ?? null).toBeNull();
+    expect(result.messages).toEqual(['brushes 1 faces 0', 'faces 1 edges 0', 'edges 4', 'points 4']);
+  });
+
+  it("builds a 1 m staircase from Henry's New Add loop, and does not place cubes at [Point]", () => {
+    // The four 0.1 m cubes all start at the origin (the Cube line does not
+    // use [Point]), then each Move By 1, 1, 1 moves every already picked
+    // brush. The input brush stays in the pick from the Select Brushes
+    // before the loop, but is not outputted without an Input Brushes line.
     expect(centers(HENRY, USE)).toEqual([
       [1, 1, 1],
-      [1, 1, 1],
-      [1, 1, 1],
-      [1, 1, 1],
+      [2, 2, 2],
+      [3, 3, 3],
+      [4, 4, 4],
     ]);
   });
 
-  it('moves every cube a full metre in All New and All Add loops, each round on its own', () => {
-    // A For Each or Repeat round only picks what that round built, and the
-    // pick from before the loop comes back after, so cubes from earlier
-    // rounds are not added in. Each 0.1 m cube still moves a literal metre.
-    const stacked = [
+  it('keeps the received brush in the pick and moves it 4 m, even though it is not outputted', () => {
+    const result = run(
+      [
+        ...HENRY,
+        line('for_each', { variable: 'Brush', list: '[$Selected.Brushes]' }),
+        line('echo', { value: '[Brush.Size] at [Brush.Center]' }),
+        END,
+      ],
+      USE,
+    );
+    expect(result.error?.message ?? null).toBeNull();
+    expect(result.messages).toEqual([
+      '[2, 2, 2] at [4, 4, 4]',
+      '[0.1, 0.1, 0.1] at [4, 4, 4]',
+      '[0.1, 0.1, 0.1] at [3, 3, 3]',
+      '[0.1, 0.1, 0.1] at [2, 2, 2]',
+      '[0.1, 0.1, 0.1] at [1, 1, 1]',
+    ]);
+    expect(centers(HENRY, USE)).toEqual([
       [1, 1, 1],
-      [1, 1, 1],
-      [1, 1, 1],
-      [1, 1, 1],
-    ];
-    expect(centers(loopSelect('All', 'New'))).toEqual(stacked);
-    expect(centers(loopSelect('All', 'Add'))).toEqual(stacked);
-    expect(
-      centers(
-        [
-          line('select_brushes', { which: 'New', how: 'New' }),
-          line('select_faces', { which: 'Facing Up', how: 'New' }),
-          line('select_edges', { which: 'All', how: 'New' }),
-          line('points_from_edges', { into: 'Points' }),
-          line('for_each', { variable: 'Point', list: '[Points]' }),
-          CUBE,
-          line('select_brushes', { which: 'All', how: 'New' }),
-          line('move_by', { by: '1, 1, 1' }),
-          END,
-        ],
-        USE,
-      ),
-    ).toEqual(stacked);
+      [2, 2, 2],
+      [3, 3, 3],
+      [4, 4, 4],
+    ]);
+  });
+
+  it('lets the pick grow from round to round, and stay after the loop', () => {
+    const result = run(
+      [
+        line('select_brushes', { which: 'New', how: 'New' }),
+        line('for_each', { variable: 'Point', list: '0, 1, 2, 3' }),
+        CUBE,
+        line('select_brushes', { which: 'New', how: 'Add' }),
+        line('echo', { value: '[$Selected.Brushes.Count]' }),
+        END,
+        line('echo', { value: 'after [$Selected.Brushes.Count]' }),
+      ],
+      USE,
+    );
+    expect(result.error?.message ?? null).toBeNull();
+    expect(result.messages).toEqual(['2', '3', '4', '5', 'after 5']);
   });
 
   it('lets How Remove drop new cubes in the same round, and Select Edges New Add pick later edges', () => {

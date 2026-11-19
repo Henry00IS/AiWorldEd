@@ -5,6 +5,8 @@ import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/
 import { solidScriptDocumentListing } from '@/solid_script/document/solid_script_document_listing.js';
 import { solidScriptShapeMeshes } from '@/solid_script/language/solid_script_mesh.js';
 import type { SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
+import { solidScriptGeometryLeaves } from '@/solid_script/language/solid_script_geometry.js';
+import { createHash } from 'crypto';
 
 const END: SolidScriptLine = { command: 'end' };
 const CUBE: SolidScriptLine = { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } };
@@ -110,22 +112,21 @@ describe('SolidScript faces', () => {
     expect(placed('Facing Up', 'Center, Center, Center')).toEqual({ min: [-0.25, 0.9, -0.25], max: [0.25, 1.1, 0.25] });
   });
 
-  it('nests Select Faces: a round picks faces of what it built, and the outer pick comes back after', () => {
+  it('nests Select Faces by writing the outer pick Into a variable and selecting Of the new brush', () => {
     const result = run(
       CUBE,
       SELECT_BRUSHES,
-      select('Facing Up'),
-      EACH_FACE,
+      select('Facing Up', { into: 'Tops' }),
+      { command: 'for_each', values: { variable: 'Face', list: '[Tops]' } },
       PLACE,
-      { command: 'cube', values: { size: '0.5, 0.5, 0.5', anchor: 'Left, Bottom, Back' } },
-      { command: 'select_brushes', values: { which: 'New' } },
-      select('All'),
+      { command: 'cube', values: { size: '0.5, 0.5, 0.5', anchor: 'Left, Bottom, Back', into: 'Knob' } },
+      select('All', { of: '[Knob]' }),
       EACH_FACE,
       { command: 'echo', values: { value: 'inner [Face.Center]' } },
       END,
       END,
       END,
-      EACH_FACE,
+      { command: 'for_each', values: { variable: 'Face', list: '[Tops]' } },
       { command: 'echo', values: { value: 'outer [Face.Center]' } },
       END,
     );
@@ -141,12 +142,11 @@ describe('SolidScript faces', () => {
     const result = run(
       CUBE,
       SELECT_BRUSHES,
-      select('All'),
-      EACH_FACE,
+      select('All', { into: 'Faces' }),
+      { command: 'for_each', values: { variable: 'Face', list: '[Faces]' } },
       PLACE,
-      { command: 'cube', values: { size: '0.2, 0.2, 0.2', anchor: 'Left, Bottom, Back' } },
-      { command: 'select_brushes', values: { which: 'New' } },
-      select('All'),
+      { command: 'cube', values: { size: '0.2, 0.2, 0.2', anchor: 'Left, Bottom, Back', into: 'Knob' } },
+      select('All', { of: '[Knob]' }),
       { command: 'for_each', values: { variable: 'Face', list: '[$Selected.Faces]' } },
       { command: 'place_on_face', values: { of: '[Face]' } },
       { command: 'cube', values: { size: '0.2, 0.2, 0.2', anchor: 'Center, Center, Center' } },
@@ -156,16 +156,90 @@ describe('SolidScript faces', () => {
       END,
     );
     expect(result.error).toBeNull();
+    const round = (value: number): number => Math.round(value * 1e4) / 1e4 + 0;
     const centres = solids(result.shapes).map((points) =>
       points
         .reduce((sum, point) => sum.add(point), new THREE.Vector3())
         .divideScalar(points.length)
         .toArray()
-        .map((axis) => axis.toFixed(2))
+        .map(round)
         .join(' '),
     );
-    expect(centres).toHaveLength(1 + 6 + 36);
-    expect(new Set(centres).size).toBe(1 + 6 + 36);
+    expect(centres.sort()).toEqual([
+      '-0.1 -0.1 -1',
+      '-0.1 -0.1 -1.1',
+      '-0.1 -0.1 -1.2',
+      '-0.1 -0.2 -1.1',
+      '-0.1 -1 0.1',
+      '-0.1 -1.1 0',
+      '-0.1 -1.1 0.1',
+      '-0.1 -1.1 0.2',
+      '-0.1 -1.2 0.1',
+      '-0.1 0 -1.1',
+      '-0.2 -0.1 -1.1',
+      '-0.2 -1.1 0.1',
+      '-1 -0.1 0.1',
+      '-1.1 -0.1 0',
+      '-1.1 -0.1 0.1',
+      '-1.1 -0.1 0.2',
+      '-1.1 -0.2 0.1',
+      '-1.1 0 0.1',
+      '-1.2 -0.1 0.1',
+      '0 -0.1 -1.1',
+      '0 -0.1 1.1',
+      '0 -1.1 0.1',
+      '0 0 0',
+      '0 1.1 0.1',
+      '0.1 -0.1 1',
+      '0.1 -0.1 1.1',
+      '0.1 -0.1 1.2',
+      '0.1 -0.2 1.1',
+      '0.1 0 1.1',
+      '0.1 1 0.1',
+      '0.1 1.1 0',
+      '0.1 1.1 0.1',
+      '0.1 1.1 0.2',
+      '0.1 1.2 0.1',
+      '0.2 -0.1 1.1',
+      '0.2 1.1 0.1',
+      '1 -0.1 -0.1',
+      '1.1 -0.1 -0.1',
+      '1.1 -0.1 -0.2',
+      '1.1 -0.1 0',
+      '1.1 -0.2 -0.1',
+      '1.1 0 -0.1',
+      '1.2 -0.1 -0.1',
+    ]);
+    const leaves = solidScriptGeometryLeaves(result.shapes);
+    const points = leaves.flatMap((leaf) => leaf.points);
+    const bounds = [
+      Math.min(...points.map((point) => point.x)),
+      Math.min(...points.map((point) => point.y)),
+      Math.min(...points.map((point) => point.z)),
+      Math.max(...points.map((point) => point.x)),
+      Math.max(...points.map((point) => point.y)),
+      Math.max(...points.map((point) => point.z)),
+    ].map(round);
+    expect(bounds).toEqual([-1.3, -1.3, -1.3, 1.3, 1.3, 1.3]);
+    const uvNumbers = (value: unknown, out: number[]): void => {
+      if (typeof value === 'number') out.push(Math.round(value * 1e6) / 1e6 + 0);
+      else if (Array.isArray(value)) value.forEach((entry) => uvNumbers(entry, out));
+      else if (value && typeof value === 'object')
+        Object.keys(value)
+          .sort()
+          .forEach((key) => uvNumbers((value as Record<string, unknown>)[key], out));
+    };
+    const fingerprints = leaves
+      .map((leaf) => {
+        const raw = JSON.stringify(leaf.kind === 'solid' ? (leaf.faceUvs ?? null) : null);
+        const numbers: number[] = [];
+        uvNumbers(raw === 'null' ? null : JSON.parse(raw), numbers);
+        return numbers.map((value) => value.toFixed(6)).join(',');
+      })
+      .sort();
+    expect(createHash('sha256').update(fingerprints.join('\n')).digest('hex')).toBe(
+      '9a25b3eee2fdd2b1dc1494b5e301e58dfd08285a046b591234d4d09eb8e1702d',
+    );
   });
 
   it('names shapes and picks faces, corners and edges Of a name, in any case', () => {
