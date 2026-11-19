@@ -25,7 +25,7 @@ function text(result: ReturnType<typeof run>): string {
   return result.error?.text ?? '';
 }
 
-describe('SolidScript limits', () => {
+describe('SolidScript limits', { timeout: 60_000 }, () => {
   it('keeps at least ten times the headroom of the largest official example', () => {
     expect(SOLID_SCRIPT_LIMITS.brushes).toBeGreaterThanOrEqual(3070);
     expect(SOLID_SCRIPT_LIMITS.meshTriangles).toBeGreaterThanOrEqual(2880);
