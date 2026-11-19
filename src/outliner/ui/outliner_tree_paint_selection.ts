@@ -1,6 +1,6 @@
 import type * as THREE from 'three';
 import { outlinerRowIndexFromClientYResolve } from './outliner_drop_placement.js';
-import { OutlinerEdgeAutoScroll } from './outliner_edge_auto_scroll.js';
+import { DragEdgeAutoScroll } from '@/ui/drag/drag_edge_scroll.js';
 import type { TreePaintSelectCallback } from './outliner_tree_types.js';
 import { isCtrlOrMetaPressedOnDomFlags } from '@/input/modifier_keys_query.js';
 
@@ -51,7 +51,7 @@ export interface OutlinerTreePaintSelectionHost {
  */
 export class OutlinerTreePaintSelection {
   private readonly host: OutlinerTreePaintSelectionHost;
-  private readonly edgeScroll: OutlinerEdgeAutoScroll;
+  private readonly edgeScroll: DragEdgeAutoScroll;
   private readonly mouseMoveHandleBound: (event: MouseEvent) => void;
   private readonly mouseUpHandleBound: () => void;
   private anchor: THREE.Object3D | null;
@@ -76,9 +76,9 @@ export class OutlinerTreePaintSelection {
     this.pointerClientY = 0;
     this.mouseMoveHandleBound = (event) => this.mouseMoveHandle(event);
     this.mouseUpHandleBound = () => this.end();
-    this.edgeScroll = new OutlinerEdgeAutoScroll({
-      getTreeElement: () => this.host.getTreeElement(),
-      scrollByDeltaPx: (deltaY) => this.host.scrollByDeltaPx(deltaY),
+    this.edgeScroll = new DragEdgeAutoScroll({
+      element: () => this.host.getTreeElement(),
+      scrollBy: (deltaY) => this.host.scrollByDeltaPx(deltaY),
       pointerGet: () => ({ clientX: this.pointerClientX, clientY: this.pointerClientY }),
       scrollWanted: () => this.anchor !== null,
       onFrameScrolled: () => this.paintedRangeUpdate(),

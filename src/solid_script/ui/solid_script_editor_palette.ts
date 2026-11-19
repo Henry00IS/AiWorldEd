@@ -9,6 +9,7 @@ import { SOLID_SCRIPT_EDITOR_CATEGORY_COLORS, SOLID_SCRIPT_EDITOR_CLASSES } from
 import { solidScriptEditorIcon } from './solid_script_editor_icons.js';
 import { SolidScriptEditorFavorites } from './solid_script_editor_favorites.js';
 import { MenuContext } from '@/ui/menu/menu_context.js';
+import { DragEdgeAutoScroll } from '@/ui/drag/drag_edge_scroll.js';
 
 /** Drag data type carrying the id of a command dragged out of the palette. */
 export const SOLID_SCRIPT_EDITOR_DRAG_COMMAND = 'application/x-aiworlded-solidscript-command';
@@ -43,6 +44,21 @@ export class SolidScriptEditorPalette {
   private highlighted: SolidScriptEditorPaletteEntry | null = null;
   /** Command menu while open. */
   private menu: MenuContext | null = null;
+  /** Where a command drag out of the palette was last seen, while one runs. */
+  private dragPointer: { clientX: number; clientY: number } | null = null;
+  /** Follows a command drag anywhere on the page. */
+  private readonly dragOverBound = (event: DragEvent): void => this.dragOver(event);
+  /** Scrolls the list while a command drag lingers near its top or bottom. */
+  private readonly edgeScroll = new DragEdgeAutoScroll({
+    element: () => this.list,
+    scrollBy: (deltaY) => {
+      const before = this.list.scrollTop;
+      this.list.scrollTop = before + deltaY;
+      return this.list.scrollTop !== before;
+    },
+    pointerGet: () => this.dragPointer ?? { clientX: 0, clientY: 0 },
+    scrollWanted: () => this.dragPointer !== null && this.listUnder(this.dragPointer),
+  });
 
   /**
    * Builds the palette from the command catalog.
@@ -79,6 +95,7 @@ export class SolidScriptEditorPalette {
     this.list.append(this.favorites);
     this.favoritesRender(this.favoritesMemory.read());
     this.list.addEventListener('contextmenu', (event) => this.menuOpen(event));
+    this.list.addEventListener('dragend', () => this.dragEnd());
     for (const category of SOLID_SCRIPT_COMMAND_CATEGORIES) {
       const commands = solidScriptCommandsOfCategory(category);
       if (commands.length === 0) continue;
@@ -93,6 +110,16 @@ export class SolidScriptEditorPalette {
     }
     this.list.append(this.empty);
     this.element.append(this.search, solidScriptScrollerWrap(this.list, '1 1 0', 0));
+  }
+
+  /**
+   * Stops following a command drag and closes the command menu, once the editor
+   * closes.
+   */
+  dispose(): void {
+    this.dragEnd();
+    this.menu?.dispose();
+    this.menu = null;
   }
 
   /**
@@ -277,5 +304,46 @@ export class SolidScriptEditorPalette {
     event.dataTransfer.setData(SOLID_SCRIPT_EDITOR_DRAG_COMMAND, command.id);
     event.dataTransfer.setData('text/plain', command.label);
     event.dataTransfer.effectAllowed = 'copyMove';
+    this.dragPointer = { clientX: event.clientX, clientY: event.clientY };
+    document.addEventListener('dragover', this.dragOverBound, true);
+  }
+
+  /**
+   * Scrolls the list while the command drag lingers near its top or bottom.
+   *
+   * @param event Drag over anywhere on the page.
+   */
+  private dragOver(event: DragEvent): void {
+    if (!this.dragPointer) return;
+    this.dragPointer = { clientX: event.clientX, clientY: event.clientY };
+    if (!this.listUnder(this.dragPointer)) return this.edgeScroll.stop();
+    this.edgeScroll.tick();
+    this.edgeScroll.loopStart();
+  }
+
+  /**
+   * Ends a command drag, however it ended: dropped, cancelled or released
+   * elsewhere.
+   */
+  private dragEnd(): void {
+    this.dragPointer = null;
+    this.edgeScroll.stop();
+    document.removeEventListener('dragover', this.dragOverBound, true);
+  }
+
+  /**
+   * Returns whether a pointer is over the list.
+   *
+   * @param pointer Pointer in viewport coordinates.
+   * @returns True inside the list's box.
+   */
+  private listUnder(pointer: { clientX: number; clientY: number }): boolean {
+    const box = this.list.getBoundingClientRect();
+    return (
+      pointer.clientX >= box.left &&
+      pointer.clientX <= box.right &&
+      pointer.clientY >= box.top &&
+      pointer.clientY <= box.bottom
+    );
   }
 }

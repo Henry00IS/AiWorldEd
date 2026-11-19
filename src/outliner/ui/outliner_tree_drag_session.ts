@@ -10,7 +10,7 @@ import {
   type OutlinerResolvedDrop,
 } from './outliner_drop_placement.js';
 import { OutlinerInsertIndicator } from './outliner_insert_indicator.js';
-import { OutlinerEdgeAutoScroll } from './outliner_edge_auto_scroll.js';
+import { DragEdgeAutoScroll } from '@/ui/drag/drag_edge_scroll.js';
 import type { OutlinerItem } from './outliner_item.js';
 import { outlinerRowElementFromNodeResolve } from './outliner_tree_drag_row_hit.js';
 import type { TreeReparentCallback } from './outliner_tree_types.js';
@@ -109,7 +109,7 @@ export class OutlinerTreeDragSession {
   private readonly documentDragOverHandleBound: (event: DragEvent) => void;
   private readonly documentDropHandleBound: (event: DragEvent) => void;
   private readonly documentWheelHandleBound: (event: WheelEvent) => void;
-  private readonly edgeScroll: OutlinerEdgeAutoScroll;
+  private readonly edgeScroll: DragEdgeAutoScroll;
   private dragSource: THREE.Object3D | null;
   private lastResolvedDrop: OutlinerResolvedDrop<THREE.Object3D> | null;
   private lastFeedbackScrollTop: number;
@@ -141,9 +141,9 @@ export class OutlinerTreeDragSession {
     this.documentDragOverHandleBound = (event) => this.documentDragOverHandle(event);
     this.documentDropHandleBound = (event) => this.documentDropHandle(event);
     this.documentWheelHandleBound = (event) => this.documentWheelHandle(event);
-    this.edgeScroll = new OutlinerEdgeAutoScroll({
-      getTreeElement: () => this.host.getTreeElement(),
-      scrollByDeltaPx: (deltaY) => this.treeScrollByDeltaApply(deltaY),
+    this.edgeScroll = new DragEdgeAutoScroll({
+      element: () => this.host.getTreeElement(),
+      scrollBy: (deltaY) => this.treeScrollByDeltaApply(deltaY),
       pointerGet: () => ({ clientX: this.lastPointerClientX, clientY: this.lastPointerClientY }),
       scrollWanted: () =>
         this.dragSource !== null && this.treePointerOverIs(this.lastPointerClientX, this.lastPointerClientY),

@@ -1,3 +1,4 @@
+import { DRAG_EDGE_SCROLL_TUNING, DragEdgeAutoScroll } from '@/ui/drag/drag_edge_scroll.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import { SOLID_SCRIPT_EDITOR_DRAG_COMMAND } from './solid_script_editor_palette.js';
 import { SOLID_SCRIPT_EDITOR_DRAG_LINE } from './solid_script_editor_row.js';
@@ -20,6 +21,11 @@ export interface SolidScriptEditorDropHandlers {
   insert: (command: string, target: SolidScriptEditorDropTarget) => void;
   /** Moves a line. */
   move: (from: number, target: SolidScriptEditorDropTarget) => void;
+  /**
+   * Height of one line row in CSS pixels, the unit the edge scroll speeds count
+   * in.
+   */
+  rowPx: number;
 }
 
 /** Drop marker classes, cleared together. */
@@ -31,7 +37,8 @@ const SOLID_SCRIPT_EDITOR_DROP_CLASSES = [
 
 /**
  * Accepts commands dragged from the palette and command lines dragged inside
- * the script, showing where they land.
+ * the script, showing where they land and scrolling the list while the drag
+ * lingers near its top or bottom.
  */
 export class SolidScriptEditorDrop {
   /** Removes the listeners on the page. */
@@ -42,6 +49,12 @@ export class SolidScriptEditorDrop {
    * left.
    */
   private depth = 0;
+
+  /** Where the drag was last seen over the line list. */
+  private readonly pointer = { clientX: 0, clientY: 0 };
+
+  /** Scrolls the line list while a drag lingers near its top or bottom. */
+  private readonly edgeScroll: DragEdgeAutoScroll;
 
   /**
    * Listens for drags over the line list. The marker only shows while a command
@@ -55,6 +68,19 @@ export class SolidScriptEditorDrop {
     private readonly element: HTMLElement,
     private readonly handlers: SolidScriptEditorDropHandlers,
   ) {
+    this.edgeScroll = new DragEdgeAutoScroll(
+      {
+        element: () => element,
+        scrollBy: (deltaY) => {
+          const before = element.scrollTop;
+          element.scrollTop = before + deltaY;
+          return element.scrollTop !== before;
+        },
+        pointerGet: () => this.pointer,
+        scrollWanted: () => this.depth > 0,
+      },
+      { ...DRAG_EDGE_SCROLL_TUNING, rowHeightPx: handlers.rowPx },
+    );
     const signal = this.listening.signal;
     element.addEventListener('dragenter', () => this.depth++, { signal });
     element.addEventListener('dragover', (event) => this.over(event), { signal });
@@ -97,6 +123,10 @@ export class SolidScriptEditorDrop {
     event.preventDefault();
     if (event.dataTransfer)
       event.dataTransfer.dropEffect = types.includes(SOLID_SCRIPT_EDITOR_DRAG_LINE) ? 'move' : 'copy';
+    this.pointer.clientX = event.clientX;
+    this.pointer.clientY = event.clientY;
+    this.edgeScroll.tick();
+    this.edgeScroll.loopStart();
     this.unmark();
     const { row, mark } = this.locate(event);
     row?.classList.add(mark);
@@ -154,6 +184,7 @@ export class SolidScriptEditorDrop {
   /** Hides the drop marker and forgets the drag. */
   clear(): void {
     this.depth = 0;
+    this.edgeScroll.stop();
     this.unmark();
   }
 

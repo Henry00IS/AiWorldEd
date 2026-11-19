@@ -4,6 +4,7 @@ import { OutlinerItem } from '@/outliner/ui/outliner_item.js';
 import { OutlinerInsertIndicator } from '@/outliner/ui/outliner_insert_indicator.js';
 import { OutlinerTreeDragSession, type OutlinerTreeDragHost } from '@/outliner/ui/outliner_tree_drag_session.js';
 import { OUTLINER_ROW_HEIGHT_PX, OUTLINER_TREE_PADDING_PX } from '@/outliner/ui/outliner_drop_placement.js';
+import { DragEdgeAutoScroll } from '@/ui/drag/drag_edge_scroll.js';
 
 /**
  * Builds a drag host backed by a flat list of objects for drag feedback tests.
@@ -248,6 +249,20 @@ describe('OutlinerTreeDragSession', () => {
     session['edgeScroll'].tick();
     expect(treeElement.scrollTop).toBeGreaterThan(earlyScroll);
     expect(treeElement.scrollTop - earlyScroll).toBeGreaterThanOrEqual(OUTLINER_ROW_HEIGHT_PX * 4);
+    session.dragSessionEnd();
+    treeElement.remove();
+  });
+
+  it('should edge-scroll through the shared drag helper at the steps it always used', () => {
+    const { treeElement, objects, session } = createFlatDragHost(200);
+    treeElement.getBoundingClientRect = () => new DOMRect(0, 0, 200, 400);
+    session.dragSessionBegin(objects[0]!);
+    expect(session['edgeScroll']).toBeInstanceOf(DragEdgeAutoScroll);
+    treeElement.scrollTop = 0;
+    session['lastPointerClientY'] = 395;
+    session['edgeScroll']['holdStartedAtMs'] = performance.now() - 2500;
+    session['edgeScroll'].tick();
+    expect(treeElement.scrollTop).toBe(128);
     session.dragSessionEnd();
     treeElement.remove();
   });
