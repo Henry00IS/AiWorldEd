@@ -6,29 +6,48 @@ import { SOLID_SCRIPT_AXES_UP } from './solid_script_axes.js';
 const SOLID_SCRIPT_DEGREES = Math.PI / 180;
 
 /**
- * Matrix of a Translate block.
+ * Translation by a distance along X, Y and Z in metres.
  *
- * @param args Block fields.
+ * @param offset Distance along X, Y and Z.
  * @returns Matrix.
  */
-export function solidScriptTranslateMatrix(args: SolidScriptBlockArguments): THREE.Matrix4 {
-  const [x, y, z] = args.vector('v', [0, 0, 0]) as [number, number, number];
+export function solidScriptOffsetMatrix(offset: readonly number[]): THREE.Matrix4 {
+  const [x, y, z] = [offset[0] ?? 0, offset[1] ?? 0, offset[2] ?? 0];
   return new THREE.Matrix4().makeTranslation(x, y, z);
 }
 
 /**
- * Matrix of a Rotate block: degrees around X, then Y, then Z.
+ * Rotation in degrees around X, then Y, then Z.
  *
- * @param args Block fields.
+ * @param angles Degrees around X, then Y, then Z.
  * @returns Matrix.
  */
-export function solidScriptRotateMatrix(args: SolidScriptBlockArguments): THREE.Matrix4 {
-  const [x, y, z] = args.vector('a', [0, 0, 0]).map((degrees) => degrees * SOLID_SCRIPT_DEGREES) as [
-    number,
-    number,
-    number,
-  ];
+export function solidScriptRotationDegreesMatrix(angles: readonly number[]): THREE.Matrix4 {
+  const [x, y, z] = [angles[0] ?? 0, angles[1] ?? 0, angles[2] ?? 0].map((degrees) => degrees * SOLID_SCRIPT_DEGREES);
   return new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(x, y, z, 'ZYX'));
+}
+
+/**
+ * Matrix of a Move By or Transform Move field.
+ *
+ * @param args Block fields, key by or move.
+ * @param key Field key.
+ * @returns Matrix.
+ */
+export function solidScriptMoveMatrix(args: SolidScriptBlockArguments, key = 'by'): THREE.Matrix4 {
+  return solidScriptOffsetMatrix(args.vector(key, [0, 0, 0]));
+}
+
+/**
+ * Matrix of a Rotate line or a Transform Rotate field: degrees around X, then
+ * Y, then Z.
+ *
+ * @param args Block fields, key a or rotate.
+ * @param key Field key.
+ * @returns Matrix.
+ */
+export function solidScriptRotateMatrix(args: SolidScriptBlockArguments, key = 'a'): THREE.Matrix4 {
+  return solidScriptRotationDegreesMatrix(args.vector(key, [0, 0, 0]));
 }
 
 /**
@@ -79,8 +98,8 @@ export function solidScriptPlaceMatrix(
  * @param args Block fields.
  * @returns Matrix.
  */
-export function solidScriptScaleMatrix(args: SolidScriptBlockArguments): THREE.Matrix4 {
-  const [x, y, z] = args.vector('v', [1, 1, 1]) as [number, number, number];
+export function solidScriptScaleMatrix(args: SolidScriptBlockArguments, key = 'v'): THREE.Matrix4 {
+  const [x, y, z] = args.vector(key, [1, 1, 1]) as [number, number, number];
   return new THREE.Matrix4().makeScale(x, y, z);
 }
 

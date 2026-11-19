@@ -78,7 +78,7 @@ describe('SolidScript editor view', () => {
         {
           line: 5,
           depth: 0,
-          closes: 'Translate',
+          closes: 'Transform',
           opener: 2,
           openerCommand,
           off: false,
@@ -89,8 +89,8 @@ describe('SolidScript editor view', () => {
         { ...HANDLERS, jump: (line) => jumps.push(line), configure: () => jumps.push(-1) },
       );
     const icon = (element: HTMLElement) => element.querySelector<HTMLElement>('[data-command] > span')!;
-    const translate = row('translate');
-    expect(icon(translate).innerHTML).toBe(icon(row('translate')).innerHTML);
+    const translate = row('transform');
+    expect(icon(translate).innerHTML).toBe(icon(row('transform')).innerHTML);
     expect(icon(translate).innerHTML).not.toBe(icon(row('hull')).innerHTML);
     expect(icon(translate).style.color).not.toBe(icon(row('hull')).style.color);
     translate.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));

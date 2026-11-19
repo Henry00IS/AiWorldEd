@@ -97,7 +97,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Logic',
     description: 'Run lines several times',
     manual:
-      'Runs the lines inside once for each counter value. The counter goes from Start to End Value, adding Step each round. The lines inside can read the counter. Example: Repeat [I] From 0 To 4 around Translate By [=[I] * 2], 0, 0 and a Cube builds five cubes in a row.',
+      'Runs the lines inside once for each counter value. The counter goes from Start to End Value, adding Step each round. The lines inside can read the counter. Example: Repeat [I] From 0 To 4 around Transform Move [=[I] * 2], 0, 0 and a Cube builds five cubes in a row.',
     stops: [
       'A Step of 0, or a Step that walks away from End Value.',
       `More than ${SOLID_SCRIPT_REPEAT_ROUNDS_MAX} rounds.`,
@@ -306,7 +306,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Parts',
     description: 'Build into a variable, without output',
     manual:
-      'Builds the lines inside into a variable of the same name, inside a CSG group, and places nothing where the Part stands. Parts and variables share one set of names, so after Define Part Wall the brushes are [Wall]. Mode defaults to Additive and can be Subtractive, Intersecting or Pass-Through, the same words as Group. Output stamps a snapshot of the part, including the group and its Mode, right where the Output line sits. Later changes to the part do not reach copies already stamped. Example: Define Part Post holds one tall Cube. [Post] is that cube, and two Output [Post] lines inside two Translates build two posts.',
+      'Builds the lines inside into a variable of the same name, inside a CSG group, and places nothing where the Part stands. Parts and variables share one set of names, so after Define Part Wall the brushes are [Wall]. Mode defaults to Additive and can be Subtractive, Intersecting or Pass-Through, the same words as Group. Output stamps a snapshot of the part, including the group and its Mode, right where the Output line sits. Later changes to the part do not reach copies already stamped. Example: Define Part Post holds one tall Cube. [Post] is that cube, and two Output [Post] lines inside two Transforms build two posts.',
     stops: [
       'A name already used by another part.',
       'A name that is not letters, digits and _.',
@@ -366,7 +366,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Parts',
     description: 'Stamp a snapshot of a part or brushes',
     manual:
-      "Places a snapshot of a Part or of brushes right where this line sits, including the Part's CSG group and Mode. A wall Part with a subtractive door always comes out as a wall with a hole. To make a cutter that reaches the world, set the Part's Mode to Subtractive, or to Pass-Through to let its brushes join the CSG order around it. Blocks around this line move the stamp. Later changes to the Part do not reach copies already stamped. The Part line must have run already. Example: Output [Post] inside Translate By 2, 0, 0 stamps the post two metres to the right.",
+      "Places a snapshot of a Part or of brushes right where this line sits, including the Part's CSG group and Mode. A wall Part with a subtractive door always comes out as a wall with a hole. To make a cutter that reaches the world, set the Part's Mode to Subtractive, or to Pass-Through to let its brushes join the CSG order around it. Blocks around this line move the stamp. Later changes to the Part do not reach copies already stamped. The Part line must have run already. Example: Output [Post] inside Transform Move 2, 0, 0 stamps the post two metres to the right.",
     stops: [
       'No part or brushes with this name.',
       'A value that is not a part, a brush or a mesh.',

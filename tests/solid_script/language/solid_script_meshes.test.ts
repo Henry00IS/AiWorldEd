@@ -80,7 +80,7 @@ describe('SolidScript meshes', () => {
         { command: 'mesh' },
         { command: 'vertex', values: { position: '0, 0, 0', uv: '0, 0' } },
         { command: 'vertex', values: { position: '1, 0, 0', uv: '1, 0' } },
-        { command: 'translate', values: { v: '0, 0, 2' } },
+        { command: 'transform', values: { move: '0, 0, 2' } },
         { command: 'vertex', values: { position: '0, 1, 0', uv: '0, 1' } },
         END,
         { command: 'face', values: { corners: '0, 1, 2' } },
@@ -325,11 +325,11 @@ describe('SolidScript meshes', () => {
   it('mirrors meshes without turning them inside out', () => {
     const mesh = onlyMesh(
       run(
-        { command: 'mirror' },
         { command: 'mesh_brushes' },
         { command: 'cube', values: { anchor: 'Center, Center, Center' } },
         END,
-        END,
+        { command: 'select_brushes' },
+        { command: 'mirror' },
       ),
     );
     expect(outwards(mesh)).toBe(true);

@@ -73,14 +73,14 @@ afterEach(() => {
 describe('solidScriptDocumentLinesWithBlocks', () => {
   const document = solidScriptDocumentCreate(
     [
-      { command: 'translate' }, // 0
+      { command: 'transform' }, // 0
       { command: 'if', values: { condition: 'yes' } }, // 1
       { command: 'cube' }, // 2
       { command: 'else' }, // 3
       { command: 'sphere' }, // 4
       END, // 5
       END, // 6
-      { command: 'rotate' }, // 7, never closed
+      { command: 'transform' }, // 7, never closed
       { command: 'cylinder' }, // 8
     ],
     'Blocks',
@@ -103,7 +103,7 @@ describe('solidScriptDocumentLinesWithBlocks', () => {
 describe('SolidScript editor row drag', () => {
   it('moves a block with its End when its opener is dragged, keeps it selected, and undoes in one step', () => {
     const { commands } = editorFixture([
-      { command: 'translate' },
+      { command: 'transform' },
       { command: 'cube' },
       END,
       { command: 'sphere' },
@@ -111,10 +111,10 @@ describe('SolidScript editor row drag', () => {
     ]);
     down(0);
     dragLine(0, 4);
-    expect(commands()).toEqual(['sphere', 'translate', 'cube', 'end', 'cylinder']);
+    expect(commands()).toEqual(['sphere', 'transform', 'cube', 'end', 'cylinder']);
     expect(marked(5)).toEqual([1, 2, 3]);
     undo();
-    expect(commands()).toEqual(['translate', 'cube', 'end', 'sphere', 'cylinder']);
+    expect(commands()).toEqual(['transform', 'cube', 'end', 'sphere', 'cylinder']);
   });
 
   it('moves the whole block when its End or Else is dragged', () => {
@@ -157,7 +157,7 @@ describe('SolidScript editor row drag', () => {
   it('moves a picked line together with the whole block of a picked opener', () => {
     const { commands } = editorFixture([
       { command: 'sphere' },
-      { command: 'translate' },
+      { command: 'transform' },
       { command: 'cube' },
       END,
       { command: 'cylinder' },
@@ -166,7 +166,7 @@ describe('SolidScript editor row drag', () => {
     down(1, { ctrlKey: true });
     down(1);
     dragLine(1, 0);
-    expect(commands()).toEqual(['translate', 'cube', 'end', 'cylinder', 'sphere']);
+    expect(commands()).toEqual(['transform', 'cube', 'end', 'cylinder', 'sphere']);
     expect(marked(5)).toEqual([0, 1, 2, 3]);
   });
 });

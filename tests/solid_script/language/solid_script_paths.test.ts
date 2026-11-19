@@ -175,7 +175,7 @@ describe('SolidScript paths', () => {
       run(
         { command: 'mesh_brushes' },
         { command: 'cube', values: { size: '1, 1, 1' } },
-        { command: 'translate', values: { v: '1.0005, 0, 0' } },
+        { command: 'transform', values: { move: '1.0005, 0, 0' } },
         { command: 'cube', values: { size: '1, 1, 1' } },
         END,
         END,

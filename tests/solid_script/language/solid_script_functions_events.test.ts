@@ -140,7 +140,7 @@ describe('Function blocks', () => {
   it('builds the shapes of a Call where it stands and stores Return in Result In', () => {
     const result = run(
       fn('post', 'x, h'),
-      line('translate', { v: '[local.x], 0, 0' }),
+      line('transform', { move: '[local.x], 0, 0' }),
       line('cube', { size: `1, [local.h], 1` }),
       END,
       line('return', { value: '[=[local.x] + 1]' }),

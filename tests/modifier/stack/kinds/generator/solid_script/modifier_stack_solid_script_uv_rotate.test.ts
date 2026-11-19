@@ -129,7 +129,7 @@ function editorGap(plain: SolidBrushInstance, turned: SolidBrushInstance, matrix
  */
 function rotateGap(inner: readonly SolidScriptLine[], x: number, y: number, z: number): number {
   const plain = compiled(inner);
-  const turned = compiled([{ command: 'rotate', values: { a: `${x}, ${y}, ${z}` } }, ...inner, END]);
+  const turned = compiled([{ command: 'transform', values: { rotate: `${x}, ${y}, ${z}` } }, ...inner, END]);
   expect(turned).toHaveLength(plain.length);
   return Math.max(...plain.map((brush, index) => editorGap(brush, turned[index] as SolidBrushInstance, turn(x, y, z))));
 }
@@ -195,7 +195,7 @@ describe('SolidScript Rotate keeps UVs like the editor rotate tool', () => {
     const hull: SolidScriptLine[] = [
       { command: 'hull' },
       { command: 'cube', values: { size: '1, 1, 1' } },
-      { command: 'translate', values: { v: '2, 0, 0' } },
+      { command: 'transform', values: { move: '2, 0, 0' } },
       CYLINDER,
       END,
       END,
@@ -224,11 +224,11 @@ describe('SolidScript Rotate keeps UVs like the editor rotate tool', () => {
     expect(rotateGap(projected, 0, 0, 60)).toBeLessThan(1e-6);
   });
 
-  it('matches the editor turning and then moving a brush, for Translate around Rotate', () => {
+  it('matches the editor turning and then moving a brush, for Transform Move around Rotate', () => {
     const plain = compiled([CYLINDER]);
     const placed = compiled([
-      { command: 'translate', values: { v: '3, 1, -2' } },
-      { command: 'rotate', values: { a: '30, 0, 60' } },
+      { command: 'transform', values: { move: '3, 1, -2' } },
+      { command: 'transform', values: { rotate: '30, 0, 60' } },
       CYLINDER,
       END,
       END,
@@ -237,11 +237,11 @@ describe('SolidScript Rotate keeps UVs like the editor rotate tool', () => {
     expect(editorGap(plain[0] as SolidBrushInstance, placed[0] as SolidBrushInstance, matrix)).toBeLessThan(1e-6);
   });
 
-  it('matches the editor for Rotate around Translate, which swings the brush around the origin', () => {
+  it('matches the editor for Rotate around Transform Move, which swings the brush around the origin', () => {
     const plain = compiled([CYLINDER]);
     const swung = compiled([
-      { command: 'rotate', values: { a: '0, 45, 0' } },
-      { command: 'translate', values: { v: '2, 0, 0' } },
+      { command: 'transform', values: { rotate: '0, 45, 0' } },
+      { command: 'transform', values: { move: '2, 0, 0' } },
       CYLINDER,
       END,
       END,
@@ -251,10 +251,10 @@ describe('SolidScript Rotate keeps UVs like the editor rotate tool', () => {
   });
 
   it('keeps UVs when an even Scale wraps a turn: the texture keeps its size and turns along', () => {
-    const turned = compiled([{ command: 'rotate', values: { a: '0, 0, 60' } }, CYLINDER, END]);
+    const turned = compiled([{ command: 'transform', values: { rotate: '0, 0, 60' } }, CYLINDER, END]);
     const grown = compiled([
-      { command: 'scale', values: { v: '2, 2, 2' } },
-      { command: 'rotate', values: { a: '0, 0, 60' } },
+      { command: 'transform', values: { scale: '2, 2, 2' } },
+      { command: 'transform', values: { rotate: '0, 0, 60' } },
       CYLINDER,
       END,
       END,
@@ -271,10 +271,10 @@ describe('SolidScript Rotate keeps UVs like the editor rotate tool', () => {
   });
 
   it('gives nested turns the same UVs as one turn by their sum', () => {
-    const once = compiled([{ command: 'rotate', values: { a: '0, 0, 60' } }, CYLINDER, END]);
+    const once = compiled([{ command: 'transform', values: { rotate: '0, 0, 60' } }, CYLINDER, END]);
     const twice = compiled([
-      { command: 'rotate', values: { a: '0, 0, 25' } },
-      { command: 'rotate', values: { a: '0, 0, 35' } },
+      { command: 'transform', values: { rotate: '0, 0, 25' } },
+      { command: 'transform', values: { rotate: '0, 0, 35' } },
       CYLINDER,
       END,
       END,
@@ -284,17 +284,17 @@ describe('SolidScript Rotate keeps UVs like the editor rotate tool', () => {
 
   it('keeps the UVs of plain moves and stretches as before', () => {
     const plain = compiled([CYLINDER]);
-    const moved = compiled([{ command: 'translate', values: { v: '3, 1, -2' } }, CYLINDER, END]);
+    const moved = compiled([{ command: 'transform', values: { move: '3, 1, -2' } }, CYLINDER, END]);
     expect(localCorners(moved)).toEqual(localCorners(plain));
-    const stretched = compiled([{ command: 'scale', values: { v: '2, 1, 1' } }, CYLINDER, END]);
+    const stretched = compiled([{ command: 'transform', values: { scale: '2, 1, 1' } }, CYLINDER, END]);
     expect(stretched[0]?.brush.faces.length).toBe(plain[0]?.brush.faces.length);
   });
 
   it('keeps the texture size when a turned cylinder is stretched unevenly', () => {
-    const turned = compiled([{ command: 'rotate', values: { a: '0, 0, 60' } }, CYLINDER, END]);
+    const turned = compiled([{ command: 'transform', values: { rotate: '0, 0, 60' } }, CYLINDER, END]);
     const stretched = compiled([
-      { command: 'scale', values: { v: '1, 3, 1' } },
-      { command: 'rotate', values: { a: '0, 0, 60' } },
+      { command: 'transform', values: { scale: '1, 3, 1' } },
+      { command: 'transform', values: { rotate: '0, 0, 60' } },
       CYLINDER,
       END,
       END,

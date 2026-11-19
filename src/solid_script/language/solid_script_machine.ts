@@ -56,7 +56,7 @@ import {
   type SolidScriptShape,
   SOLID_SCRIPT_SHAPE_NAME_KEY,
   solidScriptShapesNamed,
-  solidScriptLeafUnreceived,
+  solidScriptLeafRewritten,
 } from './solid_script_shape.js';
 import { SolidScriptElement, solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
 import { SOLID_SCRIPT_HANDLERS, SolidScriptMachineCalls } from './solid_script_machine_calls.js';
@@ -269,7 +269,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
    * @param found Replacement.
    */
   protected leafRewrite(leaf: SolidScriptGeometryLeaf, found: SolidScriptGeometryLeaf): void {
-    const by = found.kind === 'solid' && found.received ? solidScriptLeafUnreceived(found) : found;
+    const by = solidScriptLeafRewritten(leaf, found);
     if (this.toolCopy.take(leaf, by)) return;
     this.leafSwaps.set(leaf, by);
     for (const built of this.builtStack)
@@ -294,13 +294,14 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     const field = node.command.parameters.find((parameter) => parameter.key === 'of');
     if (!field || (node.values['of'] ?? '').trim() === '') return null;
     const flat = (entry: SolidScriptValue): SolidScriptValue[] =>
-      Array.isArray(entry) ? entry.flatMap(flat) : [entry];
+      Array.isArray(entry) && solidScriptKindOf(entry) !== 'Vector' ? entry.flatMap(flat) : [entry];
     return flat(value('of')).flatMap((entry) => this.ofEntry(field, entry));
   }
 
   /**
-   * Reads one value of an Of field: an element as it is, a name as the brushes
-   * that have it, and any other kind stops with what the field takes.
+   * Reads one value of an Of field: an element as it is, a value that is not
+   * text as it is, a name as the brushes that have it, and any other kind stops
+   * with what the field takes.
    *
    * @param field The Of field, with the kinds it accepts.
    * @param entry Value.
@@ -311,6 +312,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     if (!solidScriptKindAccepted(field.accepts, kind))
       throw new Error(`${solidScriptKindMismatch(field.label, field.accepts, kind)}: ${solidScriptValueText(entry)}`);
     if (entry instanceof SolidScriptElement) return [entry];
+    if (kind !== 'Text') return [entry];
     const name = solidScriptValueText(entry).trim();
     if (name === '') return [];
     this.brushesReceived();
@@ -725,6 +727,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         const field = solidScriptLineFieldOf(fields, node, key);
         return field.text.includes('[') ? solidScriptValueText(value(key)) : field.text;
       },
+      source: (key) => solidScriptLineFieldOf(fields, node, key).text,
       value,
       list: (key) =>
         solidScriptFieldList(solidScriptLineFieldOf(fields, node, key).text, (item) =>

@@ -25,7 +25,7 @@ const set = (name: string, value: string): SolidScriptLine => ({ command: 'varia
 describe('autocomplete describes a name by the writes that reach the caret', () => {
   const henry: SolidScriptLine[] = [
     set('Width', '15'),
-    { command: 'translate' },
+    { command: 'transform' },
     { command: 'cube', values: { size: '2, 2, 2', into: 'Width' } },
     { command: 'sphere', values: { r: '1.3', label: '[Width]' } },
     END,

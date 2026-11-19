@@ -3,7 +3,7 @@ import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_com
 import { solidScriptFieldVectorNote } from '@/solid_script/language/solid_script_field.js';
 import { solidScriptConfiguratorFieldBuild } from '@/solid_script/ui/solid_script_configurator_fields.js';
 
-const OFFSET = solidScriptCommandFind('translate')!.parameters.find((parameter) => parameter.key === 'v')!;
+const OFFSET = solidScriptCommandFind('transform')!.parameters.find((parameter) => parameter.key === 'move')!;
 
 afterEach(() => document.body.replaceChildren());
 

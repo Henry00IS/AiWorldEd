@@ -94,6 +94,7 @@ export function solidScriptToolRun(
  */
 function solidScriptToolWrite(run: SolidScriptBlockRun, into: string, shapes: readonly SolidScriptShape[]): void {
   const leaves = [...solidScriptGeometryLeaves(shapes), ...run.toolCopyResults()];
+  if (leaves.length === 0) return;
   const brushes: SolidScriptValue[] = leaves.map((leaf) => run.elements.brush(leaf));
   if (brushes.some((entry) => !(entry instanceof SolidScriptElement))) return;
   run.variableSet(into, brushes);

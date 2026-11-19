@@ -25,7 +25,7 @@ function shapeCenter(shape: SolidScriptShape): THREE.Vector3 {
 describe('solid script document', () => {
   it('runs the block lines directly, so error and step lines are editor lines', () => {
     const document = solidScriptDocumentCreate([
-      { command: 'translate' },
+      { command: 'transform' },
       { command: 'cube', values: { size: '1, 1, 1' } },
       { command: 'end' },
       { command: 'sphere', values: { r: '[unknown_size]' } },
@@ -75,15 +75,15 @@ describe('solid script document', () => {
 
   it('indents the lines inside blocks for display, an Else at the level of its If', () => {
     const document = solidScriptDocumentCreate(
-      ['translate', 'if', 'cube', 'note', 'else', 'sphere', 'end', 'end', 'blank'].map((command) => ({ command })),
+      ['transform', 'if', 'cube', 'note', 'else', 'sphere', 'end', 'end', 'blank'].map((command) => ({ command })),
     );
     expect(solidScriptDocumentDepths(document)).toEqual([0, 1, 2, 2, 1, 2, 1, 0, 0]);
   });
 
-  it('starts new generators with a named, centered script that builds a shape without any Translate or Detail', () => {
+  it('starts new generators with a named, centered script that builds a shape without any Transform or Detail', () => {
     const script = solidScriptDocumentDefault();
     expect(script.name).not.toBe('');
-    expect(script.blocks.map((block) => block.command)).not.toContain('translate');
+    expect(script.blocks.map((block) => block.command)).not.toContain('transform');
     expect(script.blocks.map((block) => block.command)).not.toContain('detail');
     expect(script.blocks.some((block) => (block.values['size'] ?? '').includes('[$Box.'))).toBe(false);
     const result = solidScriptProgramEvaluate(script);

@@ -73,7 +73,7 @@ describe('solidScriptSolidTreeBuild', () => {
   it('keeps the editor axes, adds the offset and centers brushes', () => {
     const [node] = tree(
       [
-        { command: 'translate', values: { v: '0.5, 1.5, 2.5' } },
+        { command: 'transform', values: { move: '0.5, 1.5, 2.5' } },
         { command: 'cube', values: { size: '1, 1, 3', anchor: 'Center, Center, Center' } },
         END,
       ],
@@ -100,7 +100,7 @@ describe('solidScriptSolidTreeBuild', () => {
       SPHERE,
       END,
       END,
-      { command: 'translate', values: { v: '3, 0, 0' } },
+      { command: 'transform', values: { move: '3, 0, 0' } },
       CUBE,
       END,
     ]);
@@ -109,8 +109,8 @@ describe('solidScriptSolidTreeBuild', () => {
 
   it('gives the faces Texture Faces picked their own texture, moved along with the brush', () => {
     const nodes = tree([
-      { command: 'translate', values: { v: '3, 0, 1' } },
-      { command: 'rotate', values: { a: '0, 0, 90' } },
+      { command: 'transform', values: { move: '3, 0, 1' } },
+      { command: 'transform', values: { rotate: '0, 0, 90' } },
       CUBE,
       { command: 'select_brushes' },
       { command: 'select_faces', values: { which: 'Up' } },

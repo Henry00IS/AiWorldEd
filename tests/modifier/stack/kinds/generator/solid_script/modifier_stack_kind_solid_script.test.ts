@@ -194,7 +194,11 @@ describe('SolidScript generator', () => {
 
   it('keeps the script when the level is saved and loaded', () => {
     const fixture = scriptFixture();
-    const stored = script({ command: 'translate', values: { v: '1, 0, 0' } }, { command: 'cube' }, { command: 'end' });
+    const stored = script(
+      { command: 'transform', values: { move: '1, 0, 0' } },
+      { command: 'cube' },
+      { command: 'end' },
+    );
     scriptSet(fixture.node, { script: stored });
     const loaded = new THREE.Group();
     new SceneDeserializer().deserialize(new SceneSerializer().serialize(fixture.world) as never, loaded);
@@ -211,7 +215,7 @@ describe('SolidScript generator', () => {
         { command: 'texture', values: { texture: 'brick' } },
         { command: 'cube' },
         { command: 'end' },
-        { command: 'translate', values: { v: '3, 0, 0' } },
+        { command: 'transform', values: { move: '3, 0, 0' } },
         { command: 'cube' },
         { command: 'end' },
       ),
@@ -230,7 +234,7 @@ describe('SolidScript generator', () => {
         { command: 'texture', values: { texture: '' } },
         { command: 'cube' },
         { command: 'end' },
-        { command: 'translate', values: { v: '3, 0, 0' } },
+        { command: 'transform', values: { move: '3, 0, 0' } },
         { command: 'cube' },
         { command: 'end' },
       ),
@@ -279,7 +283,7 @@ describe('SolidScript generator', () => {
         { command: 'set_input', values: { name: 'count', value: '5' } },
         { command: 'end' },
         { command: 'repeat', values: { variable: 'i', from: '1', to: '[count]' } },
-        { command: 'translate', values: { v: '[=[i] * 2], 0, 0' } },
+        { command: 'transform', values: { move: '[=[i] * 2], 0, 0' } },
         { command: 'cube' },
         { command: 'end' },
         { command: 'end' },

@@ -118,7 +118,7 @@ describe('SolidScript generator meshes', () => {
     const fromBrushes: SolidScriptLine = { command: 'mesh_brushes' };
     const torus: SolidScriptLine[] = [
       { command: 'rotate_extrude', values: { angle: '360', sides: '16' } },
-      { command: 'translate', values: { v: '1, 0, 0' } },
+      { command: 'transform', values: { move: '1, 0, 0' } },
       { command: 'circle', values: { r: '0.5', sides: '8' } },
       END,
       END,

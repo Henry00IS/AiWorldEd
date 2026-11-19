@@ -50,10 +50,10 @@ describe('SolidScript Place At Points', () => {
     ).toEqual(['4 2']);
   });
 
-  it('follows a Translate around it, and lifts along up', () => {
+  it('follows a Transform around it, and lifts along up', () => {
     expect(
       printed(
-        line('translate', { v: '0, 3, 0' }),
+        line('transform', { move: '0, 3, 0' }),
         line('place_at_points', { at: '1, 0, 0', lift: '2' }),
         line('cube', { size: '1, 1, 1', into: 'C', anchor: 'Center, Center, Center' }),
         END,

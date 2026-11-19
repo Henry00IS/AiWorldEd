@@ -53,7 +53,7 @@ describe('SolidScript vectors', () => {
       solidScriptDocumentCreate([
         line('variable', { name: 'size', value: '2, 4, 6' }),
         line('variable', { name: 'spot', value: '10, 0, 0' }),
-        line('translate', { v: '[spot]' }),
+        line('transform', { move: '[spot]' }),
         line('cube', { size: '[size]', anchor: 'Left, Bottom, Back' }),
         { command: 'end' },
       ]),

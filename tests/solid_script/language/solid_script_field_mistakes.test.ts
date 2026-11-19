@@ -34,21 +34,21 @@ describe('SolidScript mistake hints', () => {
   });
 
   it('adds the hint to the error a run stops with', () => {
-    expect(failure(K, line('translate', { v: '[K]*2' }), line('cube'), line('end'))).toContain(
+    expect(failure(K, line('transform', { move: '[K]*2' }), line('cube'), line('end'))).toContain(
       'Did you mean to write [=[K]*2]?',
     );
-    expect(failure(K, line('translate', { v: '[[K]*2], 0, 0' }), line('cube'), line('end'))).toContain(
+    expect(failure(K, line('transform', { move: '[[K]*2], 0, 0' }), line('cube'), line('end'))).toContain(
       'Did you mean to write [=[K]*2], 0, 0?',
     );
     expect(failure(line('echo', { value: '[Box.Width]' }))).toContain('Did you mean to write [$Box.Width]?');
   });
 
   it('points the mistakes out in the editor without running', () => {
-    const document = solidScriptDocumentCreate([K, line('translate', { v: '[K]*2' }), line('cube'), line('end')]);
+    const document = solidScriptDocumentCreate([K, line('transform', { move: '[K]*2' }), line('cube'), line('end')]);
     expect(solidScriptMistakeCheck(document)).toEqual([
-      { line: 2, text: 'Offset: math outside a formula is not worked out. Did you mean to write [=[K]*2]?' },
+      { line: 2, text: 'Move: math outside a formula is not worked out. Did you mean to write [=[K]*2]?' },
     ]);
-    const offset = solidScriptCommandFind('translate')!.parameters[0]!;
+    const offset = solidScriptCommandFind('transform')!.parameters[0]!;
     expect(solidScriptConfiguratorFieldBuild(offset, '[K]*2', () => {}).warning()).toContain(
       'Did you mean to write [=[K]*2]?',
     );

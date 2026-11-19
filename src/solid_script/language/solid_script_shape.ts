@@ -259,6 +259,24 @@ export function solidScriptLeafUnreceived(leaf: SolidScriptShapeSolid): SolidScr
 }
 
 /**
+ * A later version of a received solid: keeps the pass record when the received
+ * matrix changed, as Move and Matrix do; otherwise drops it, as Clip does.
+ *
+ * @param leaf Solid or mesh being replaced.
+ * @param found Replacement.
+ * @returns Replacement, without a received record when the shape itself
+ *   changed.
+ */
+export function solidScriptLeafRewritten(
+  leaf: SolidScriptShapeSolid | SolidScriptShapeMesh,
+  found: SolidScriptShapeSolid | SolidScriptShapeMesh,
+): SolidScriptShapeSolid | SolidScriptShapeMesh {
+  if (found.kind !== 'solid' || !found.received) return found;
+  if (leaf.kind === 'solid' && leaf.received && !leaf.received.matrix.equals(found.received.matrix)) return found;
+  return solidScriptLeafUnreceived(found);
+}
+
+/**
  * Gives every piece of a shape the name a line was given, so an Extrude named
  * Wall builds pieces named Wall; without a name each keeps its own.
  *

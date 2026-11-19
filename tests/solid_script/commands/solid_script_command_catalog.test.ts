@@ -41,7 +41,7 @@ const SOLID_SCRIPT_SAMPLE_CHILDREN: Readonly<Record<string, readonly SolidScript
     { command: 'point', values: { position: '1, 2, 0' } },
   ],
   rotate_extrude: [
-    { command: 'translate', values: { v: '2, 0, 0' } },
+    { command: 'transform', values: { move: '2, 0, 0' } },
     { command: 'square', values: { size: '0.5, 1' } },
     { command: 'end' },
   ],
@@ -121,7 +121,7 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
   }
   if (command.category === '2D Shapes') return [{ command: 'linear_extrude' }, line, { command: 'end' }];
   if (command.id === 'linear_extrude') return [line, { command: 'square' }, { command: 'end' }];
-  if (command.id === 'clip')
+  if (['clip', 'move', 'rotate', 'scale', 'align', 'mirror', 'resize', 'matrix'].includes(command.id))
     return [{ command: 'cube', values: { anchor: 'Center, Center, Center' } }, { command: 'select_brushes' }, line];
   if (command.id === 'stop_script') return [{ command: 'cube' }, line, { command: 'sphere' }];
   if (command.id === 'else')
@@ -130,7 +130,7 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
     return [{ command: 'add_item', values: { list: 'items' } }, line, { command: 'cube' }];
   if (command.id === 'remove_item')
     return [{ command: 'variable', values: { name: 'points()', value: '0, 0' } }, line, { command: 'cube' }];
-  if (command.id === 'end') return [{ command: 'translate' }, { command: 'cube' }, line];
+  if (command.id === 'end') return [{ command: 'transform' }, { command: 'cube' }, line];
   if (command.id === 'part')
     return [line, { command: 'cube' }, { command: 'end' }, { command: 'output', values: { of: '[Part]' } }];
   if (command.id === 'function' || command.id === 'call')
@@ -214,13 +214,22 @@ describe('solid script command catalog', () => {
 
   it('starts every transform as a neutral one that changes nothing', () => {
     const defaults = (id: string) => solidScriptCommandFind(id)?.valuesDefault();
-    expect(defaults('translate')).toEqual({ v: '0, 0, 0' });
-    expect(defaults('rotate')).toEqual({ a: '0, 0, 0' });
-    expect(defaults('scale')).toEqual({ v: '1, 1, 1' });
+    expect(defaults('transform')).toMatchObject({ move: '0, 0, 0', rotate: '0, 0, 0', scale: '1, 1, 1' });
+    expect(defaults('move')).toMatchObject({ by: '0, 0, 0' });
+    expect(defaults('rotate')).toMatchObject({ a: '0, 0, 0' });
+    expect(defaults('scale')).toMatchObject({ v: '1, 1, 1' });
     expect(defaults('linear_extrude')).toMatchObject({ scale: '1, 1' });
     const plain = JSON.stringify(run({ command: 'cube' }).shapes);
-    for (const id of ['translate', 'rotate', 'scale'])
-      expect(JSON.stringify(run({ command: id }, { command: 'cube' }, { command: 'end' }).shapes), id).toBe(plain);
+    expect(JSON.stringify(run({ command: 'transform' }, { command: 'cube' }, { command: 'end' }).shapes)).toBe(plain);
+    const selected = [{ command: 'cube' }, { command: 'select_brushes' }, { command: 'move' }];
+    const moved = JSON.stringify(run(...selected).shapes);
+    expect(moved).toBe(plain);
+    expect(JSON.stringify(run({ command: 'cube' }, { command: 'select_brushes' }, { command: 'rotate' }).shapes)).toBe(
+      plain,
+    );
+    expect(JSON.stringify(run({ command: 'cube' }, { command: 'select_brushes' }, { command: 'scale' }).shapes)).toBe(
+      plain,
+    );
   });
 
   it('centers shapes on the origin by default, and still stands them when asked', () => {

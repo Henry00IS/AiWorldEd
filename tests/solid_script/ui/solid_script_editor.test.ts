@@ -202,9 +202,9 @@ describe('SolidScript editor', () => {
     press(chip(0), 'ArrowDown', { shiftKey: true });
     press(chip(1), 'ArrowDown', { shiftKey: true });
     press(chip(2), 'ArrowDown', { shiftKey: true });
-    doubleClick(find('.solid-script-editor-palette-item[data-command="translate"]'));
+    doubleClick(find('.solid-script-editor-palette-item[data-command="transform"]'));
     tool('OK').click();
-    expect(commands()).toEqual(['translate', 'cube', 'if', 'sphere', 'end', 'end', 'cylinder']);
+    expect(commands()).toEqual(['transform', 'cube', 'if', 'sphere', 'end', 'end', 'cylinder']);
     expect(parseFloat(chip(1).style.paddingLeft)).toBeGreaterThan(parseFloat(chip(0).style.paddingLeft));
     scriptKey('z');
     expect(commands()).toEqual(['cube', 'if', 'sphere', 'end', 'cylinder']);
@@ -219,9 +219,9 @@ describe('SolidScript editor', () => {
     ]);
     chip(0).focus();
     press(chip(0), 'ArrowDown', { shiftKey: true });
-    doubleClick(find('.solid-script-editor-palette-item[data-command="translate"]'));
+    doubleClick(find('.solid-script-editor-palette-item[data-command="transform"]'));
     tool('OK').click();
-    expect(commands()).toEqual(['cube', 'if', 'translate', 'end', 'sphere', 'end']);
+    expect(commands()).toEqual(['cube', 'if', 'transform', 'end', 'sphere', 'end']);
   });
 
   it('drops a dragged command where it lands, and cancelling the configurator inserts nothing', () => {
@@ -237,23 +237,23 @@ describe('SolidScript editor', () => {
   });
 
   it('reopens the configurator of a line on double-click or Enter and applies the change', () => {
-    const { script } = editorFixture([{ command: 'translate' }, { command: 'cube' }, { command: 'end' }]);
+    const { script } = editorFixture([{ command: 'transform' }, { command: 'cube' }, { command: 'end' }]);
     doubleClick(chip(0));
     const fields = document.querySelectorAll<HTMLInputElement>(
-      '[data-solid-script-configurator="translate"] input:not([hidden])',
+      '[data-solid-script-configurator="transform"] input:not([hidden])',
     );
-    expect([...fields].map((input) => input.value)).toEqual(['0, 0, 0']);
+    expect([...fields].map((input) => input.value)).toEqual(['0, 0, 0', '0, 0, 0', '1, 1, 1', '']);
     type(fields[0] as HTMLInputElement, '0, 0, 3');
     tool('OK').click();
-    expect(script().blocks[0]?.values?.['v']).toBe('0, 0, 3');
+    expect(script().blocks[0]?.values?.['move']).toBe('0, 0, 3');
     press(chip(1), 'Enter');
     expect(document.querySelector('[data-solid-script-configurator="cube"]')).not.toBeNull();
   });
 
   it('selects the line that opens a block when its End line is double-clicked, without a configurator', () => {
     editorFixture([
-      { command: 'translate' },
-      { command: 'rotate' },
+      { command: 'transform' },
+      { command: 'transform' },
       { command: 'cube' },
       { command: 'end' },
       { command: 'end' },
@@ -478,14 +478,14 @@ describe('SolidScript editor', () => {
     const { root, commands } = editorFixture([
       { command: 'for_each', values: { variable: 'Item', list: '1, 2, 3', key: 'K' } },
       { command: 'echo', values: { value: '[K] = [Item]' } },
-      { command: 'translate', values: { v: '[=[K]*2], 0, 0' } },
+      { command: 'transform', values: { move: '[=[K]*2], 0, 0' } },
       { command: 'cube', values: { size: '[$Box.Width], [$Box.Height], [$Box.Depth]' } },
       { command: 'end' },
       { command: 'end' },
     ]);
     chip(0).focus();
     press(chip(0), 'Delete');
-    expect(commands()).toEqual(['echo', 'translate', 'cube', 'end', 'end']);
+    expect(commands()).toEqual(['echo', 'transform', 'cube', 'end', 'end']);
     // The idle check then underlines [K] and [Item] on the focused line, which builds its row again.
     await new Promise((resolve) => setTimeout(resolve, SOLID_SCRIPT_EDITOR_CHECK_DELAY_MS + 50));
     expect(root.contains(document.activeElement)).toBe(true);
@@ -1243,11 +1243,11 @@ describe('SolidScript editor', () => {
     expect(highlighted()).toBe('else');
     expect(title()).toBe('Else');
     find<HTMLElement>('.solid-script-editor-palette-item[data-command="repeat"]').focus();
-    find<HTMLAnchorElement>('.solid-script-editor-help a[data-command="translate"]').click();
+    find<HTMLAnchorElement>('.solid-script-editor-help a[data-command="transform"]').click();
     expect(search.value).toBe('');
-    expect(highlighted()).toBe('translate');
-    expect(title()).toBe('Translate');
-    expect(find('.solid-script-editor-palette-item[data-command="translate"]').hidden).toBe(false);
+    expect(highlighted()).toBe('transform');
+    expect(title()).toBe('Transform');
+    expect(find('.solid-script-editor-palette-item[data-command="transform"]').hidden).toBe(false);
   });
 
   it('keeps typing in the search inside the window, undo keys included', () => {

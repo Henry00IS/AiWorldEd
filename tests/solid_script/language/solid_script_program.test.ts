@@ -49,7 +49,7 @@ describe('solidScriptProgramRun', () => {
   it('runs each block directly: a translated cube', () => {
     const { shapes } = solidScriptProgramEvaluate(
       script(
-        { command: 'translate', values: { v: '1, 2, 3' } },
+        { command: 'transform', values: { move: '1, 2, 3' } },
         { command: 'cube', values: { size: '2, 4, 6', anchor: 'Center, Center, Center' } },
         { command: 'end' },
       ),
@@ -119,7 +119,7 @@ describe('solidScriptProgramRun', () => {
   it('uses Sides on cylinders and degrees in rotate', () => {
     const { shapes } = solidScriptProgramEvaluate(
       script(
-        { command: 'rotate', values: { a: '90, 0, 0' } },
+        { command: 'transform', values: { rotate: '90, 0, 0' } },
         { command: 'cylinder', values: { h: '2', r1: '1', r2: '1', anchor: 'Center, Bottom, Center', sides: '8' } },
         { command: 'end' },
       ),
@@ -133,7 +133,7 @@ describe('solidScriptProgramRun', () => {
     const box = bounds(
       solidScriptProgramEvaluate(
         script(
-          { command: 'rotate', values: { a: '90, 0, 90' } },
+          { command: 'transform', values: { rotate: '90, 0, 90' } },
           { command: 'cube', values: { size: '1, 2, 3', anchor: 'Left, Bottom, Back' } },
           { command: 'end' },
         ),
@@ -161,7 +161,7 @@ describe('solidScriptProgramRun', () => {
       script(
         { command: 'hull' },
         { command: 'cube', values: { anchor: 'Center, Center, Center' } },
-        { command: 'translate', values: { v: '3, 0, 0' } },
+        { command: 'transform', values: { move: '3, 0, 0' } },
         { command: 'sphere', values: { r: '0.5', anchor: 'Center, Center, Center' } },
         { command: 'end' },
         { command: 'end' },
@@ -184,7 +184,7 @@ describe('solidScriptProgramRun', () => {
     ).toMatch(/line 2:/);
     expect(
       solidScriptProgramRun(
-        script({ command: 'translate' }, { command: 'cube', values: { anchor: 'Center, Center, Center' } }),
+        script({ command: 'transform' }, { command: 'cube', values: { anchor: 'Center, Center, Center' } }),
       ).error?.line,
     ).toBe(1);
     expect(

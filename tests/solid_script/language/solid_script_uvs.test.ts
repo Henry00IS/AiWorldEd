@@ -149,7 +149,7 @@ describe('SolidScript UV commands', () => {
     if (carried.kind !== 'solid') throw new Error('Expected a solid');
     const reprojected = onlySolid(
       run(
-        { command: 'rotate', values: { a: '0, 90, 0' } },
+        { command: 'transform', values: { rotate: '0, 90, 0' } },
         { command: 'cube', values: { size: '2, 1, 3' } },
         END,
         SELECT_BRUSHES,

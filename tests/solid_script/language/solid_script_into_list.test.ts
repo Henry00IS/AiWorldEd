@@ -32,7 +32,7 @@ describe('SolidScript multi-item Into lists', () => {
       printed(
         line('linear_extrude', { height: '1', into: 'Posts' }),
         line('square', { size: '1, 1' }),
-        line('translate', { v: '2, 0, 0' }),
+        line('transform', { move: '2, 0, 0' }),
         line('square', { size: '1, 1' }),
         END,
         END,

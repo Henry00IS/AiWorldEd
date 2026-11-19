@@ -14,7 +14,7 @@ import { SOLID_SCRIPT_REFERENCE_SUMMARY } from '@/solid_script/reference/solid_s
 const MCP_GEOMETRY_SCRIPT_LINES = {
   type: 'array',
   description:
-    'The script as block lines, in order, exactly like the script editor: there is no code text. Blocks such as translate, hull or repeat hold the lines up to their {command: "end"}; {command: "blank"} is an empty line. Shapes are centered on the origin, the center of the generator (or the build position), so no Translate is needed to place them. Example of a wall with a doorway: [{command: "cube", values: {size: "4, 3, 0.2", anchor: "Center, Center, Center"}}, {command: "translate", values: {v: "0, -0.45, 0"}}, {command: "cube", values: {size: "1, 2.1, 0.4", anchor: "Center, Center, Center", mode: "Subtractive"}}, {command: "end"}]. Errors name the line number in this list, counting from 1.',
+    'The script as block lines, in order, exactly like the script editor: there is no code text. Blocks such as transform, hull or repeat hold the lines up to their {command: "end"}; {command: "blank"} is an empty line. Shapes are centered on the origin, the center of the generator (or the build position), so no Transform is needed to place them. Example of a wall with a doorway: [{command: "cube", values: {size: "4, 3, 0.2", anchor: "Center, Center, Center"}}, {command: "transform", values: {move: "0, -0.45, 0"}}, {command: "cube", values: {size: "1, 2.1, 0.4", anchor: "Center, Center, Center", mode: "Subtractive"}}, {command: "end"}]. Errors name the line number in this list, counting from 1.',
   items: {
     type: 'object',
     properties: {

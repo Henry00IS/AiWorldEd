@@ -89,13 +89,54 @@ function solidScriptShapePoints(shapes: readonly SolidScriptShape[]): THREE.Vect
 }
 
 /**
- * The matrix of Resize: scales the shapes about the origin so their bounds get
- * the given size. A size of 0 on an axis keeps that axis, or with Keep
- * Proportions scales it like the first axis that has a size.
+ * Reads Size on a Resize line, and stops when it is below 0 or 0 on every axis.
  *
- * @param shapes Shapes in the block's own frame.
+ * @param args Block fields: size.
+ * @returns Width, height and depth in metres; 0 keeps an axis.
+ */
+export function solidScriptResizeSize(args: SolidScriptBlockArguments): number[] {
+  const size = args.vector('size', [1, 1, 1]);
+  if (size.some((value) => value < 0)) throw args.error('size', 'must not be below 0', size);
+  if (size.every((value) => value === 0)) throw args.error('size', 'needs at least one axis above 0', size);
+  return size;
+}
+
+/**
+ * Scale factors that stretch an extent to a Size, as Resize uses.
+ *
+ * @param extent Width, height and depth of what is resized, in metres.
+ * @param size Target size; 0 leaves that axis alone.
+ * @param keep Yes: axes with a size of 0 scale like the first axis that has
+ *   one.
+ * @param planar True to ignore Z.
+ * @returns Scale along X, Y and Z.
+ */
+export function solidScriptResizeFactors(
+  extent: readonly number[],
+  size: readonly number[],
+  keep: boolean,
+  planar: boolean,
+): [number, number, number] {
+  const axes = planar ? 2 : 3;
+  const ratios = size.map((target, axis) => {
+    const span = extent[axis] ?? 0;
+    if (axis >= axes || target === 0) return null;
+    if (!(span > 1e-9))
+      throw new Error(
+        `Resize cannot stretch shapes that are flat along ${'XYZ'[axis]} to ${target}; check that they have thickness along that axis, or set that size to 0`,
+      );
+    return target / span;
+  });
+  const first = ratios.find((ratio) => ratio !== null) ?? 1;
+  return ratios.map((ratio) => ratio ?? (keep ? first : 1)) as [number, number, number];
+}
+
+/**
+ * Matrix of a Resize line, from the combined bounds of shapes about the origin.
+ *
+ * @param shapes Shapes to measure.
  * @param args Block fields: size and keep.
- * @param planar True for flat outlines, which only have X and Y.
+ * @param planar True to ignore Z.
  * @returns Scale matrix.
  */
 export function solidScriptResizeMatrix(
@@ -103,21 +144,9 @@ export function solidScriptResizeMatrix(
   args: SolidScriptBlockArguments,
   planar: boolean,
 ): THREE.Matrix4 {
-  const size = args.vector('size', [1, 1, 1]);
-  if (size.some((value) => value < 0)) throw args.error('size', 'must not be below 0', size);
-  if (size.every((value) => value === 0)) throw args.error('size', 'needs at least one axis above 0', size);
-  const bounds = new THREE.Box3().setFromPoints(solidScriptShapePoints(shapes));
-  const extent = bounds.getSize(new THREE.Vector3()).toArray();
-  const axes = planar ? 2 : 3;
-  const ratios = size.map((target, axis) => {
-    if (axis >= axes || target === 0) return null;
-    if (!(extent[axis]! > 1e-9))
-      throw new Error(`Resize cannot stretch shapes that are flat along ${'XYZ'[axis]} to ${target}`);
-    return target / extent[axis]!;
-  });
-  const keep = args.flag('keep');
-  const first = ratios.find((ratio) => ratio !== null) ?? 1;
-  const [x, y, z] = ratios.map((ratio) => ratio ?? (keep ? first : 1)) as [number, number, number];
+  const size = solidScriptResizeSize(args);
+  const extent = new THREE.Box3().setFromPoints(solidScriptShapePoints(shapes)).getSize(new THREE.Vector3()).toArray();
+  const [x, y, z] = solidScriptResizeFactors(extent, size, args.flag('keep'), planar);
   return new THREE.Matrix4().makeScale(x, y, z);
 }
 

@@ -56,7 +56,7 @@ describe('SolidScript builders', () => {
       printed(
         line('hull', { label: 'Lump', into: 'L' }),
         line('cube', { anchor: 'Center, Center, Center' }),
-        line('translate', { v: '3, 0, 0' }),
+        line('transform', { move: '3, 0, 0' }),
         line('cube', { anchor: 'Center, Center, Center' }),
         END,
         END,
@@ -68,7 +68,7 @@ describe('SolidScript builders', () => {
   it('follows a brush moved by the block around it', () => {
     expect(
       printed(
-        line('translate', { v: '0, 5, 0' }),
+        line('transform', { move: '0, 5, 0' }),
         line('cube', { into: 'C', anchor: 'Center, Center, Center' }),
         END,
         line('echo', { value: '[C.Center]' }),

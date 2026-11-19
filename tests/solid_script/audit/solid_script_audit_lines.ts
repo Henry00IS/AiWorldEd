@@ -146,7 +146,8 @@ export function solidScriptAuditLine(
   if (SOLID_SCRIPT_AUDIT_MESHES.has(command.id) && 'of' in filled)
     filled['of'] = command.id === 'inset_face' || command.id === 'delete_faces' ? '[MF]' : '[M]';
   if (command.id === 'remove_item') filled['target'] = 'Points()';
-  if (command.id === 'clip' && 'of' in filled) filled['of'] = '[B]';
+  if (['clip', 'move', 'rotate', 'scale', 'align', 'mirror', 'resize', 'matrix'].includes(command.id) && 'of' in filled)
+    filled['of'] = '[B]';
   if (command.id === 'select_faces' && (filled['of'] ?? '') === '') filled['of'] = '[B]';
   if (command.id === 'select_brushes' && (filled['of'] ?? '') === '') filled['of'] = '[B]';
   if (

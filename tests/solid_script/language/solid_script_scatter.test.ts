@@ -65,7 +65,7 @@ function scatter(extra: Record<string, string>, setup: SolidScriptLine[] = []): 
 }
 
 /**
- * Echoes scattered points inside a Translate block.
+ * Echoes scattered points inside a Transform block.
  *
  * @param extra Scatter fields.
  * @param move Metres to translate by, as text.
@@ -74,7 +74,7 @@ function scatter(extra: Record<string, string>, setup: SolidScriptLine[] = []): 
 function scatterMoved(extra: Record<string, string>, move: string): [number, number, number][] {
   return pointsOf(
     printed(
-      { command: 'translate', values: { v: move } },
+      { command: 'transform', values: { move: move } },
       { command: 'scatter_points', values: { into: 'Spots', ...extra } },
       { command: 'for_each', values: { variable: 'Spot', list: '[Spots]' } },
       { command: 'echo', values: { value: '[Spot]' } },
@@ -140,7 +140,7 @@ describe('SolidScript Scatter Points Where', () => {
     }
   });
 
-  it('fills a box of Size, follows a Translate, and lays a grid', () => {
+  it('fills a box of Size, follows a Transform, and lays a grid', () => {
     const box = scatter({ where: 'Box', count: '30', seed: '2', size: '2, 2, 2' });
     expect(box).toHaveLength(30);
     for (const [x, y, z] of box) {

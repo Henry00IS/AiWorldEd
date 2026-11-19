@@ -10,7 +10,7 @@ const ROOM = [
   { command: 'cube', values: { size: '4, 0.2, 3' } },
   { command: 'end' },
   { command: 'part', values: { name: 'doorway' } },
-  { command: 'translate', values: { v: '0, 0, -0.45' } },
+  { command: 'transform', values: { move: '0, 0, -0.45' } },
   { command: 'cube', values: { size: '1, 0.4, 2.1', mode: 'Subtractive' } },
   { command: 'end' },
   { command: 'end' },

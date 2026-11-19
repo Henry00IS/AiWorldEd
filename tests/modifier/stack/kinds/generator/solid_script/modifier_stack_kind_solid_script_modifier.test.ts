@@ -81,7 +81,7 @@ describe('SolidScript as a modifier', () => {
           command: 'if',
           values: { condition: '[$Script.Usage] == "Modifier" and [$Input.Brushes.Count] == 1' },
         },
-        { command: 'translate', values: { v: '0, [$Input.Size.y], 0' } },
+        { command: 'transform', values: { move: '0, [$Input.Size.y], 0' } },
         { command: 'input_brushes' },
         { command: 'end' },
         { command: 'end' },

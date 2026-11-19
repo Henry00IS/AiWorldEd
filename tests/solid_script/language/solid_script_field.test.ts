@@ -138,7 +138,7 @@ describe('SolidScript fields in a running script', () => {
     const result = run(
       { command: 'variable', values: { name: 'width', value: '2' } },
       { command: 'repeat', values: { variable: 'i', from: '0', to: '2' } },
-      { command: 'translate', values: { v: '[=[i] * [width]], 0, 0' } },
+      { command: 'transform', values: { move: '[=[i] * [width]], 0, 0' } },
       { command: 'cube', values: { size: '[width], 1, 1' } },
       { command: 'end' },
       { command: 'end' },

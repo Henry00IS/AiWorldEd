@@ -20,7 +20,7 @@ describe('SolidScript listing', () => {
   it('writes the command name, two spaces and its configured values in quotes, without field captions', () => {
     expect(listed('cube', { size: '0.5, 0.5, 2.5' })).toBe("Cube '0.5, 0.5, 2.5'");
     expect(listed('sphere', { r: '2' })).toBe("Sphere Radius '2'");
-    expect(listed('translate', { v: '0, 0, 2.5' })).toBe("Translate By '0, 0, 2.5'");
+    expect(listed('transform', { move: '0, 0, 2.5' })).toBe("Transform Move '0, 0, 2.5'");
     expect(listed('rotate', { a: '0, 0, 90' })).toBe("Rotate By '0, 0, 90' Degrees");
     expect(listed('scale', { v: '1, 1, 2' })).toBe("Scale By '1, 1, 2'");
     expect(listed('mirror', { v: '1, 0, 0' })).toBe("Mirror Across '1, 0, 0'");
@@ -67,9 +67,9 @@ describe('SolidScript listing', () => {
 
   it('shows a lone variable as [name] and everything else as typed, in quotes', () => {
     expect(listed('variable', { name: 'width', value: '3' })).toBe("Set [width]: '3'");
-    expect(listed('translate', { v: '[offset]' })).toBe('Translate By [offset]');
+    expect(listed('transform', { move: '[offset]' })).toBe('Transform Move [offset]');
     expect(listed('sphere', { r: '[radius]' })).toBe('Sphere Radius [radius]');
-    expect(listed('translate', { v: '[=[i] * 2], 0, 0' })).toBe("Translate By '[=[i] * 2], 0, 0'");
+    expect(listed('transform', { move: '[=[i] * 2], 0, 0' })).toBe("Transform Move '[=[i] * 2], 0, 0'");
     expect(listed('if', { condition: '[width] > 2' })).toBe("If '[width] > 2'");
     expect(listed('echo', { value: 'Hello' })).toBe("@ Echo 'Hello'");
     expect(listed('echo', { value: '[width]' })).toBe('@ Echo [width]');
@@ -136,7 +136,7 @@ describe('SolidScript listing', () => {
   });
 
   it('tags every piece so values and variables can be shown in full colour', () => {
-    const parts = solidScriptCommandFind('translate')?.listing({ v: '[=[i] * [width]], 0, 0' }) ?? [];
+    const parts = solidScriptCommandFind('transform')?.listing({ move: '[=[i] * [width]], 0, 0' }) ?? [];
     expect(parts.map((part) => part.kind)).toEqual(['name', 'word', 'value']);
     expect(
       solidScriptCommandFind('repeat')

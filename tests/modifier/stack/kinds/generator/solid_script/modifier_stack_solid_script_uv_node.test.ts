@@ -14,7 +14,7 @@ const END: SolidScriptLine = { command: 'end' };
 
 /** Henry's repro: a cylinder turned inside the script. */
 const HENRY: SolidScriptLine[] = [
-  { command: 'rotate', values: { a: '0, 0, 60' } },
+  { command: 'transform', values: { rotate: '0, 0, 60' } },
   { command: 'cylinder', values: { h: '1', r1: '1', r2: '1', anchor: 'Center, Bottom, Center', sides: '16' } },
   END,
 ];

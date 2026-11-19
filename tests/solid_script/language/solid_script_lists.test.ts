@@ -107,7 +107,7 @@ describe('SolidScript Point lines', () => {
       { command: 'point', values: { position: '0, 0, 0' } },
       { command: 'point', values: { position: '1, 0, 0' } },
       { command: 'point', values: { position: '0, 1, 0' } },
-      { command: 'translate', values: { v: '0, 0, 2' } },
+      { command: 'transform', values: { move: '0, 0, 2' } },
       { command: 'point', values: { position: '0, 0, 0' } },
       END,
       END,

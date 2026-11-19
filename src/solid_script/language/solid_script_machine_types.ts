@@ -94,6 +94,8 @@ export interface SolidScriptBlockRun {
   fields(): SolidScriptBlockArguments;
   /** The stored text of a field, such as a name. */
   text(key: string): string;
+  /** The typed text of a field, before it is evaluated. */
+  source(key: string): string;
   /** Evaluates one field. */
   value(key: string): SolidScriptValue;
   /**
@@ -246,7 +248,7 @@ export interface SolidScriptBlockRun {
   inputValue(name: string): string | undefined;
   /** Where the script is used, and what a modifier receives. */
   use(): SolidScriptUseFacts;
-  /** The move of the Translate, Rotate and other blocks around this line. */
+  /** The move of the Transform block around this line. */
   matrix(): THREE.Matrix4;
   /** Defines a script input: a variable lines may only read. */
   inputDefine(name: string, value: SolidScriptValue): void;

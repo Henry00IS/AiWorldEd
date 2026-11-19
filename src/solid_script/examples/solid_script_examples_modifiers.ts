@@ -69,6 +69,20 @@ function solidScriptExampleInputBrushes(index: string, readable = false): SolidS
   });
 }
 
+/**
+ * Stamps the received brushes, then applies a flat Matrix to that new stamp.
+ *
+ * @param values Matrix rows.
+ * @param input The Input Brushes line that stamps the copy.
+ * @returns Lines.
+ */
+function solidScriptExampleMatrixOf(values: Record<string, string>, input: SolidScriptLine): SolidScriptLine[] {
+  return [
+    { ...input, values: { ...input.values, into: 'Copy' } },
+    solidScriptExampleLine('matrix', { ...values, of: '[Copy]' }),
+  ];
+}
+
 /** Port of the Shear modifier. */
 export const SOLID_SCRIPT_EXAMPLE_SHEAR: readonly SolidScriptLine[] = [
   solidScriptExampleNote(
@@ -102,14 +116,13 @@ export const SOLID_SCRIPT_EXAMPLE_SHEAR: readonly SolidScriptLine[] = [
       solidScriptExampleSet('Measure', solidScriptExampleAxis('Along')),
       solidScriptExampleNote('Each point moves by Slide times its distance from the center along Measure.'),
       solidScriptExampleSet('Shift', '[=[Slide] * -Dot([Measure], [$Input.Center])]'),
-      ...solidScriptExampleBlock(
-        'matrix',
+      ...solidScriptExampleMatrixOf(
         {
           row1: '[=1 + [Slide.X] * [Measure.X]], [=[Slide.X] * [Measure.Y]], [=[Slide.X] * [Measure.Z]], [Shift.X]',
           row2: '[=[Slide.Y] * [Measure.X]], [=1 + [Slide.Y] * [Measure.Y]], [=[Slide.Y] * [Measure.Z]], [Shift.Y]',
           row3: '[=[Slide.Z] * [Measure.X]], [=[Slide.Z] * [Measure.Y]], [=1 + [Slide.Z] * [Measure.Z]], [Shift.Z]',
         },
-        [solidScriptExampleLine('input_brushes', { textures: '[Textures]' })],
+        solidScriptExampleLine('input_brushes', { textures: '[Textures]' }),
       ),
     ],
   ),
@@ -152,7 +165,7 @@ export const SOLID_SCRIPT_EXAMPLE_LINEAR_ARRAY: readonly SolidScriptLine[] = [
   ...solidScriptExampleIf('[Mode] == "Fit"', [solidScriptExampleSet('Step', '[=[Endpoint] / Max(1, [Count] - 1)]')]),
   solidScriptExampleNote('Copy 0 is the original; each next copy moves one more Step.'),
   ...solidScriptExampleRepeat('I', '0', '[=[Count] - 1]', [
-    ...solidScriptExampleBlock('translate', { v: '[=[Step] * [I]]' }, [solidScriptExampleInputBrushes('[I]')]),
+    ...solidScriptExampleBlock('transform', { move: '[=[Step] * [I]]' }, [solidScriptExampleInputBrushes('[I]')]),
   ]),
 ];
 
@@ -278,14 +291,13 @@ export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
       ...solidScriptExampleIf(
         '[RotateCopies]',
         [
-          ...solidScriptExampleBlock(
-            'matrix',
+          ...solidScriptExampleMatrixOf(
             {
               row1: '[R1.X], [R1.Y], [R1.Z], [Move.X]',
               row2: '[R2.X], [R2.Y], [R2.Z], [Move.Y]',
               row3: '[R3.X], [R3.Y], [R3.Z], [Move.Z]',
             },
-            [solidScriptExampleInputBrushes('[I]')],
+            solidScriptExampleInputBrushes('[I]'),
           ),
         ],
         [
@@ -294,7 +306,7 @@ export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
             'Delta',
             '[=Vector(Dot([R1], [Center]), Dot([R2], [Center]), Dot([R3], [Center])) + [Move] - [Center]]',
           ),
-          ...solidScriptExampleBlock('translate', { v: '[Delta]' }, [solidScriptExampleInputBrushes('[I]')]),
+          ...solidScriptExampleBlock('transform', { move: '[Delta]' }, [solidScriptExampleInputBrushes('[I]')]),
         ],
       ),
     ]),
@@ -353,14 +365,13 @@ export const SOLID_SCRIPT_EXAMPLE_TRANSFORM_ARRAY: readonly SolidScriptLine[] = 
       solidScriptExampleSet('R3', '[=[R1] * [S3.X] + [R2] * [S3.Y] + [R3] * [S3.Z]]'),
       solidScriptExampleSet('R1', '[N1]'),
       solidScriptExampleSet('R2', '[N2]'),
-      ...solidScriptExampleBlock(
-        'matrix',
+      ...solidScriptExampleMatrixOf(
         {
           row1: '[R1.X], [R1.Y], [R1.Z], [Shift.X]',
           row2: '[R2.X], [R2.Y], [R2.Z], [Shift.Y]',
           row3: '[R3.X], [R3.Y], [R3.Z], [Shift.Z]',
         },
-        [solidScriptExampleInputBrushes('[I]')],
+        solidScriptExampleInputBrushes('[I]'),
       ),
     ]),
   ]),
@@ -396,14 +407,13 @@ export const SOLID_SCRIPT_EXAMPLE_MIRROR: readonly SolidScriptLine[] = [
   ]),
   solidScriptExampleNote('Copy 0 is the original; the copy is reflected: p - 2 (p · K - D) K.'),
   solidScriptExampleInputBrushes('0', true),
-  ...solidScriptExampleBlock(
-    'matrix',
+  ...solidScriptExampleMatrixOf(
     {
       row1: '[=1 - 2 * [K.X] * [K.X]], [=-2 * [K.X] * [K.Y]], [=-2 * [K.X] * [K.Z]], [=2 * [D] * [K.X]]',
       row2: '[=-2 * [K.Y] * [K.X]], [=1 - 2 * [K.Y] * [K.Y]], [=-2 * [K.Y] * [K.Z]], [=2 * [D] * [K.Y]]',
       row3: '[=-2 * [K.Z] * [K.X]], [=-2 * [K.Z] * [K.Y]], [=1 - 2 * [K.Z] * [K.Z]], [=2 * [D] * [K.Z]]',
     },
-    [solidScriptExampleInputBrushes('1', true)],
+    solidScriptExampleInputBrushes('1', true),
   ),
 ];
 

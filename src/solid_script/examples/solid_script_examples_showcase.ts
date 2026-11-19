@@ -60,7 +60,7 @@ export const SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE: readonly SolidScriptLine[] =
   ...solidScriptExampleBlock('function', { name: 'Slope', parameters: 'Angle' }, [
     solidScriptExampleLine('return', { value: '[=[Base] + [Rise] * [Local.Angle] / [Per]]' }),
   ]),
-  ...solidScriptExampleBlock('translate', { v: '0, [Base], 0' }, [
+  ...solidScriptExampleBlock('transform', { move: '0, [Base], 0' }, [
     solidScriptExampleLine('cylinder', {
       h: '[=[Height] + [RailHeight]]',
       r1: '[Inner]',
@@ -80,7 +80,7 @@ export const SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE: readonly SolidScriptLine[] =
       ]),
     ]),
     solidScriptExampleSet('Middle', '[=[Per] * ([S] + 0.5)]'),
-    ...solidScriptExampleBlock('translate', { v: '[=Spot([Middle], [RailAt], [Top])]' }, [
+    ...solidScriptExampleBlock('transform', { move: '[=Spot([Middle], [RailAt], [Top])]' }, [
       solidScriptExampleLine('cylinder', {
         h: '[RailHeight]',
         r1: '0.02',

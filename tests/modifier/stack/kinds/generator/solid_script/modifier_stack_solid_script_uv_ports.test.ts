@@ -88,7 +88,7 @@ function compared(kind: string, pose: Pose): { native: string[]; script: string[
   const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
   const script = built(MODIFIER_STACK_SOLID_SCRIPT_KIND, pose, [
-    { command: 'translate', values: { v: center.toArray().join(', ') } },
+    { command: 'transform', values: { move: center.toArray().join(', ') } },
     { command: kind, values: { size: size.toArray().join(', ') } },
     { command: 'end' },
   ]);

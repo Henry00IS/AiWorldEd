@@ -82,7 +82,7 @@ export const SOLID_SCRIPT_EXAMPLE_PRISM: readonly SolidScriptLine[] = [
  */
 function solidScriptExampleSlabFunction(): SolidScriptLine[] {
   return solidScriptExampleBlock('function', { name: 'Slab', parameters: 'From, To' }, [
-    ...solidScriptExampleBlock('translate', { v: '[Local.From]' }, [
+    ...solidScriptExampleBlock('transform', { move: '[Local.From]' }, [
       solidScriptExampleLine('cube', { size: '[=[Local.To] - [Local.From]]', anchor: 'Left, Bottom, Back' }),
     ]),
   ]);

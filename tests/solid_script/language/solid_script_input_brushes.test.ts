@@ -101,7 +101,7 @@ describe('SolidScript input brushes', () => {
     };
     const result = run(
       [
-        line('translate', { v: '10, 0, 0' }),
+        line('transform', { move: '10, 0, 0' }),
         line('input_brushes'),
         line('end'),
         line('cube', { size: '1, 3, 1', anchor: 'Center, Center, Center', mode: 'Subtractive' }),

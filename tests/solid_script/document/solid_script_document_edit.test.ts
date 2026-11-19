@@ -34,12 +34,12 @@ describe('solid script document edits', () => {
   it('turns off only the picked lines, with the End and Else of a picked block line, and back on', () => {
     const offs = (document: SolidScriptDocument): number[] =>
       document.blocks.flatMap((block, line) => (block.off === true ? [line] : []));
-    // 0 translate, 1 if, 2 cube, 3 else, 4 sphere, 5 end (if), 6 cylinder, 7 end (translate)
-    const block = script('translate', 'if', 'cube', 'else', 'sphere', 'end', 'cylinder', 'end');
+    // 0 transform, 1 if, 2 cube, 3 else, 4 sphere, 5 end (if), 6 cylinder, 7 end (transform)
+    const block = script('transform', 'if', 'cube', 'else', 'sphere', 'end', 'cylinder', 'end');
     const ifOff = solidScriptDocumentLinesToggle(block, [1]);
     expect(offs(ifOff.document)).toEqual([1, 3, 5]);
     expect(ifOff.count).toBe(1);
-    // The contents still run, inside the Translate.
+    // The contents still run, inside the Transform.
     expect(solidScriptProgramRun(ifOff.document).error).toBeNull();
     expect(solidScriptProgramRun(ifOff.document).steps).toHaveLength(3);
     expect(offs(solidScriptDocumentLinesToggle(ifOff.document, [1]).document)).toEqual([]);
@@ -83,10 +83,10 @@ describe('solid script document edits', () => {
 
   it('wraps selected lines whose blocks are whole in a block command and its End', () => {
     const before = script('variable', 'cube', 'if', 'sphere', 'end', 'echo');
-    const wrapped = solidScriptDocumentCommandWrap(before, 'translate', 1, 4);
+    const wrapped = solidScriptDocumentCommandWrap(before, 'transform', 1, 4);
     expect(wrapped && lines(wrapped.document)).toEqual([
       'variable',
-      'translate',
+      'transform',
       'cube',
       'if',
       'sphere',
@@ -98,18 +98,18 @@ describe('solid script document edits', () => {
     expect(wrapped?.document.blocks.slice(2, 6).map((block) => block.id)).toEqual(
       before.blocks.slice(1, 5).map((block) => block.id),
     );
-    const values = solidScriptDocumentCommandWrap(before, 'translate', 1, 4, { v: '0, 0, 2' });
-    expect(values?.document.blocks[1]?.values['v']).toBe('0, 0, 2');
+    const values = solidScriptDocumentCommandWrap(before, 'transform', 1, 4, { move: '0, 0, 2' });
+    expect(values?.document.blocks[1]?.values['move']).toBe('0, 0, 2');
   });
 
   it('does not wrap a cut block, an Else without its If, one line or a plain command', () => {
     const cut = script('cube', 'if', 'sphere', 'end');
-    expect(solidScriptDocumentCommandWrap(cut, 'translate', 0, 1)).toBeNull();
-    expect(solidScriptDocumentCommandWrap(cut, 'translate', 2, 3)).toBeNull();
+    expect(solidScriptDocumentCommandWrap(cut, 'transform', 0, 1)).toBeNull();
+    expect(solidScriptDocumentCommandWrap(cut, 'transform', 2, 3)).toBeNull();
     const branches = script('if', 'cube', 'else', 'sphere', 'end');
-    expect(solidScriptDocumentCommandWrap(branches, 'translate', 1, 3)).toBeNull();
-    expect(solidScriptDocumentCommandWrap(branches, 'translate', 0, 4)).not.toBeNull();
-    expect(solidScriptDocumentCommandWrap(cut, 'translate', 0, 0)).toBeNull();
+    expect(solidScriptDocumentCommandWrap(branches, 'transform', 1, 3)).toBeNull();
+    expect(solidScriptDocumentCommandWrap(branches, 'transform', 0, 4)).not.toBeNull();
+    expect(solidScriptDocumentCommandWrap(cut, 'transform', 0, 0)).toBeNull();
     expect(solidScriptDocumentCommandWrap(script('cube', 'sphere'), 'cylinder', 0, 1)).toBeNull();
   });
 
@@ -121,20 +121,20 @@ describe('solid script document edits', () => {
   });
 
   it('moves and removes exactly the lines asked for, End lines too', () => {
-    const block = script('variable', 'translate', 'if', 'cube', 'else', 'sphere', 'end', 'end');
+    const block = script('variable', 'transform', 'if', 'cube', 'else', 'sphere', 'end', 'end');
     const moved = solidScriptDocumentLinesMove(block, [1], 0);
-    expect(lines(moved.document)).toEqual(['translate', 'variable', 'if', 'cube', 'else', 'sphere', 'end', 'end']);
+    expect(lines(moved.document)).toEqual(['transform', 'variable', 'if', 'cube', 'else', 'sphere', 'end', 'end']);
     expect(moved.line).toBe(0);
     const down = solidScriptDocumentLinesMove(block, [6, 7], 1);
-    expect(lines(down.document)).toEqual(['variable', 'end', 'end', 'translate', 'if', 'cube', 'else', 'sphere']);
+    expect(lines(down.document)).toEqual(['variable', 'end', 'end', 'transform', 'if', 'cube', 'else', 'sphere']);
     expect(solidScriptDocumentLinesMove(block, [2, 3], 3).document).toBe(block);
     const squashed = solidScriptDocumentLinesMove(block, [0, 3, 5], 7);
-    expect(lines(squashed.document)).toEqual(['translate', 'if', 'else', 'end', 'variable', 'cube', 'sphere', 'end']);
+    expect(lines(squashed.document)).toEqual(['transform', 'if', 'else', 'end', 'variable', 'cube', 'sphere', 'end']);
     expect(squashed.line).toBe(4);
     const removed = solidScriptDocumentLinesRemove(block, [1]);
     expect(lines(removed.document)).toEqual(['variable', 'if', 'cube', 'else', 'sphere', 'end', 'end']);
     expect(lines(solidScriptDocumentLinesRemove(block, [7, 6]).document)).toEqual(
-      lines(script(...['variable', 'translate', 'if', 'cube', 'else', 'sphere'])),
+      lines(script(...['variable', 'transform', 'if', 'cube', 'else', 'sphere'])),
     );
   });
 });
@@ -154,10 +154,10 @@ describe('SolidScript command insert', () => {
 
   it('turns off a picked block line and its own End together, never an End after it', () => {
     const document = solidScriptDocumentCreate([
-      { command: 'translate' },
+      { command: 'transform' },
       { command: 'cube' },
       { command: 'end' },
-      { command: 'translate' },
+      { command: 'transform' },
       { command: 'sphere' },
       { command: 'end' },
     ]);

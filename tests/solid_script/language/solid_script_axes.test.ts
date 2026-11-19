@@ -49,7 +49,7 @@ describe('SolidScript axes', () => {
       min: [-0.5, -1, -1.5],
       max: [0.5, 1, 1.5],
     });
-    const raised = solidScriptExampleBlock('translate', { v: '0, 5, 0' }, [
+    const raised = solidScriptExampleBlock('transform', { move: '0, 5, 0' }, [
       solidScriptExampleLine('cube', { anchor: 'Left, Bottom, Back' }),
     ]);
     expect(bounds(raised)).toEqual({ min: [0, 5, 0], max: [1, 6, 1] });

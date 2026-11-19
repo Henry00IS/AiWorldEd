@@ -55,7 +55,7 @@ describe('SolidScript vector literals', () => {
   it('lets a vector field take three numbers, a vector in brackets or a vector value', () => {
     const at = (v: string, ...before: SolidScriptLine[]) => {
       const result = solidScriptProgramRun(
-        solidScriptDocumentCreate([...before, line('translate', { v }), CUBE, line('end')]),
+        solidScriptDocumentCreate([...before, line('transform', { v }), CUBE, line('end')]),
         {},
       );
       return result.error ? result.error.message : 'ok';

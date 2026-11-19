@@ -43,32 +43,32 @@ function solids(shapes: readonly SolidScriptShape[]): number {
 describe('SolidScript Resize, Matrix, Minkowski and Rotate Extrude', () => {
   it('resizes shapes to an exact size, keeping axes of 0 or their proportions', () => {
     const plain = run(
-      { command: 'resize', values: { size: '4, 2, 1' } },
       { command: 'sphere', values: { anchor: 'Center, Center, Center' } },
-      END,
+      { command: 'select_brushes' },
+      { command: 'resize', values: { size: '4, 2, 1' } },
     );
     expect(plain.error).toBeNull();
     expect(bounds(plain.shapes)).toEqual([-2, -1, -0.5, 2, 1, 0.5]);
     const kept = run(
-      { command: 'resize', values: { size: '4, 0, 0', keep: 'true' } },
       { command: 'cube', values: { size: '2, 1, 1', anchor: 'Center, Center, Center' } },
-      END,
+      { command: 'select_brushes' },
+      { command: 'resize', values: { size: '4, 0, 0', keep: 'true' } },
     );
     expect(bounds(kept.shapes)).toEqual([-2, -1, -1, 2, 1, 1]);
   });
 
   it('applies a matrix with a shear and refuses one that squashes shapes flat', () => {
     const leaned = run(
-      { command: 'matrix', values: { row1: '1, 0, 1, 0' } },
       { command: 'cube', values: { anchor: 'Center, Center, Center' } },
-      END,
+      { command: 'select_brushes' },
+      { command: 'matrix', values: { row1: '1, 0, 1, 0' } },
     );
     expect(leaned.error).toBeNull();
     expect(bounds(leaned.shapes)).toEqual([-1, -0.5, -0.5, 1, 0.5, 0.5]);
     const flat = run(
-      { command: 'matrix', values: { row3: '0, 0, 0, 0' } },
       { command: 'cube', values: { anchor: 'Center, Center, Center' } },
-      END,
+      { command: 'select_brushes' },
+      { command: 'matrix', values: { row3: '0, 0, 0, 0' } },
     );
     expect(flat.error?.message).toMatch(/squashes shapes flat/);
   });
@@ -88,7 +88,7 @@ describe('SolidScript Resize, Matrix, Minkowski and Rotate Extrude', () => {
   it('spins a flat outline around Y into one brush per side, and starts with a ring that builds at once', () => {
     const result = run(
       { command: 'rotate_extrude', values: { sides: '8' } },
-      { command: 'translate', values: { v: '2, 0, 0' } },
+      { command: 'transform', values: { move: '2, 0, 0' } },
       { command: 'square', values: { size: '0.5, 1' } },
       END,
       END,
@@ -98,7 +98,7 @@ describe('SolidScript Resize, Matrix, Minkowski and Rotate Extrude', () => {
     expect(bounds(result.shapes)).toEqual([-2.25, -0.5, -2.25, 2.25, 0.5, 2.25]);
     const half = run(
       { command: 'rotate_extrude', values: { sides: '8', angle: '180' } },
-      { command: 'translate', values: { v: '2, 0, 0' } },
+      { command: 'transform', values: { move: '2, 0, 0' } },
       { command: 'square', values: { size: '0.5, 1' } },
       END,
       END,

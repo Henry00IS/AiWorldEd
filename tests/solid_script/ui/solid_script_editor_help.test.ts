@@ -43,10 +43,10 @@ describe('SolidScript help panel', () => {
     const help = new SolidScriptEditorHelp(open);
     help.show(solidScriptCommandFind('repeat')!, null);
     const linked = [...help.element.querySelectorAll<HTMLAnchorElement>('a')].map((link) => link.dataset['command']);
-    expect(linked).toContain('translate');
+    expect(linked).toContain('transform');
     expect(linked).toContain('cube');
     expect(linked).not.toContain('repeat');
-    help.element.querySelector<HTMLAnchorElement>('a[data-command="translate"]')!.click();
-    expect(open).toHaveBeenCalledWith('translate');
+    help.element.querySelector<HTMLAnchorElement>('a[data-command="transform"]')!.click();
+    expect(open).toHaveBeenCalledWith('transform');
   });
 });

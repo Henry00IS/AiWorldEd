@@ -170,8 +170,8 @@ describe('SolidScript faces', () => {
 
   it('names shapes and picks faces, corners and edges Of a name, in any case', () => {
     const knob = (x: number): SolidScriptLine => ({
-      command: 'translate',
-      values: { v: `${x}, 0, 0` },
+      command: 'transform',
+      values: { move: `${x}, 0, 0` },
     });
     const lines: SolidScriptLine[] = [
       { command: 'cube', values: { size: '4, 4, 1', label: 'Base' } },
@@ -368,14 +368,16 @@ describe('SolidScript faces', () => {
 
   it('aligns the lines inside so their Y (up) points along a direction', () => {
     const tall = { command: 'cube', values: { size: '0.2, 1, 0.2', anchor: 'Left, Bottom, Back' } };
-    const sideways = run({ command: 'align', values: { direction: '1, 0, 0' } }, tall, END);
+    const sideways = run(tall, { command: 'select_brushes' }, { command: 'align', values: { direction: '1, 0, 0' } });
     expect(sideways.error).toBeNull();
     const points = solids(sideways.shapes)[0]!;
     const xs = points.map((point) => Math.round(point.x * 1000) / 1000);
     expect([Math.min(...xs), Math.max(...xs)]).toEqual([0, 1]);
-    const down = run({ command: 'align', values: { direction: '0, -2, 0' } }, tall, END);
+    const down = run(tall, { command: 'select_brushes' }, { command: 'align', values: { direction: '0, -2, 0' } });
     expect(heightRange(solids(down.shapes)[0]!)).toEqual([-1, 0]);
-    expect(run({ command: 'align', values: { direction: '0, 0, 0' } }, tall, END).error?.message).toMatch(/Direction/);
+    expect(
+      run(tall, { command: 'select_brushes' }, { command: 'align', values: { direction: '0, 0, 0' } }).error?.message,
+    ).toMatch(/Direction/);
   });
 
   it('stops with plain errors', () => {

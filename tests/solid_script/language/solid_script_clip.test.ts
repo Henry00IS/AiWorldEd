@@ -93,7 +93,7 @@ describe('SolidScript Clip', () => {
     const both = solids(
       run(
         { command: 'cube', values: { size: '2, 2, 2', into: 'A', anchor: 'Center, Center, Center' } },
-        { command: 'translate', values: { v: '5, 0, 0' } },
+        { command: 'transform', values: { move: '5, 0, 0' } },
         { command: 'cube', values: { size: '2, 2, 2', into: 'B', anchor: 'Center, Center, Center' } },
         END,
         { command: 'clip', values: { of: '[A]' } },
