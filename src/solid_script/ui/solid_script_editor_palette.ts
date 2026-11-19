@@ -2,10 +2,13 @@ import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
 import type { SolidScriptCommand } from '@/solid_script/commands/solid_script_command.js';
 import {
   SOLID_SCRIPT_COMMAND_CATEGORIES,
+  solidScriptCommandFind,
   solidScriptCommandsOfCategory,
 } from '@/solid_script/commands/solid_script_command_catalog.js';
 import { SOLID_SCRIPT_EDITOR_CATEGORY_COLORS, SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import { solidScriptEditorIcon } from './solid_script_editor_icons.js';
+import { SolidScriptEditorFavorites } from './solid_script_editor_favorites.js';
+import { MenuContext } from '@/ui/menu/menu_context.js';
 
 /** Drag data type carrying the id of a command dragged out of the palette. */
 export const SOLID_SCRIPT_EDITOR_DRAG_COMMAND = 'application/x-aiworlded-solidscript-command';
@@ -21,10 +24,11 @@ interface SolidScriptEditorPaletteEntry {
 
 /**
  * The list of commands beside the script: drag one into the script, or double
- * click it to insert it at the caret line. The search field on top filters the
- * commands by name, description and category as you type; the arrow keys move
- * through the results, Enter inserts the highlighted one and Escape clears the
- * search.
+ * click it to insert it at the caret line. Favorites come first, in name order;
+ * a right click on any command adds it to them or removes it. The search field
+ * on top filters the commands by name, description and category as you type, in
+ * their own groups only; the arrow keys move through the results, Enter inserts
+ * the highlighted one and Escape clears the search.
  */
 export class SolidScriptEditorPalette {
   /** Palette element. */
@@ -34,17 +38,23 @@ export class SolidScriptEditorPalette {
   private readonly list: HTMLElement;
   private readonly empty: HTMLElement;
   private readonly entries: SolidScriptEditorPaletteEntry[] = [];
+  /** Favorites group: its caption and the favorite commands. */
+  private readonly favorites = document.createElement('div');
   private highlighted: SolidScriptEditorPaletteEntry | null = null;
+  /** Command menu while open. */
+  private menu: MenuContext | null = null;
 
   /**
    * Builds the palette from the command catalog.
    *
    * @param onInsert Inserts a command at the caret line.
    * @param onSelect Shows the help of a focused command.
+   * @param favoritesMemory Remembers the favorite commands.
    */
   constructor(
     private readonly onInsert: (command: string) => void,
     private readonly onSelect: (command: SolidScriptCommand) => void,
+    private readonly favoritesMemory = new SolidScriptEditorFavorites(),
   ) {
     this.element = document.createElement('div');
     this.element.className = SOLID_SCRIPT_EDITOR_CLASSES.palette;
@@ -65,6 +75,10 @@ export class SolidScriptEditorPalette {
     this.empty.className = SOLID_SCRIPT_EDITOR_CLASSES.paletteEmpty;
     this.empty.textContent = 'No command matches. Try another word, or press Escape.';
     this.empty.hidden = true;
+    this.favorites.className = SOLID_SCRIPT_EDITOR_CLASSES.paletteFavorites;
+    this.list.append(this.favorites);
+    this.favoritesRender(this.favoritesMemory.read());
+    this.list.addEventListener('contextmenu', (event) => this.menuOpen(event));
     for (const category of SOLID_SCRIPT_COMMAND_CATEGORIES) {
       const commands = solidScriptCommandsOfCategory(category);
       if (commands.length === 0) continue;
@@ -114,6 +128,7 @@ export class SolidScriptEditorPalette {
    */
   private filter(): void {
     const words = this.search.value.toLowerCase().split(/\s+/).filter(Boolean);
+    this.favorites.hidden = words.length > 0 || this.favorites.childElementCount === 0;
     const captions = new Set<HTMLElement>();
     for (const entry of this.entries) {
       const shown = words.every((word) => entry.text.includes(word));
@@ -123,6 +138,57 @@ export class SolidScriptEditorPalette {
     for (const entry of this.entries) entry.caption.hidden = !captions.has(entry.caption);
     this.empty.hidden = captions.size > 0;
     this.highlight(words.length > 0 ? (this.entries.find((entry) => !entry.element.hidden) ?? null) : null);
+  }
+
+  /**
+   * Returns the commands shown under Favorites.
+   *
+   * @returns Command ids in palette order; empty while the search hides them.
+   */
+  favoritesVisible(): string[] {
+    if (this.favorites.hidden) return [];
+    return [...this.favorites.querySelectorAll<HTMLElement>('[data-command]')].map(
+      (item) => item.dataset['command'] ?? '',
+    );
+  }
+
+  /**
+   * Lists the favorite commands under their caption, in name order; the group
+   * hides when there are none or while searching.
+   *
+   * @param ids Favorite command ids.
+   */
+  private favoritesRender(ids: readonly string[]): void {
+    const commands = ids
+      .map((id) => solidScriptCommandFind(id))
+      .filter((command): command is SolidScriptCommand => command !== undefined)
+      .sort((left, right) => left.label.localeCompare(right.label));
+    this.favorites.replaceChildren(
+      ...(commands.length > 0 ? [this.caption('Favorites')] : []),
+      ...commands.map((command) => this.item(command)),
+    );
+    this.favorites.hidden = commands.length === 0 || this.search.value.trim() !== '';
+  }
+
+  /**
+   * Opens the menu of a command: Add to Favorites, or Remove from Favorites.
+   *
+   * @param event Context menu event.
+   */
+  private menuOpen(event: MouseEvent): void {
+    const item = (event.target as HTMLElement | null)?.closest<HTMLElement>('[data-command]');
+    const id = item?.dataset['command'];
+    if (!id) return;
+    event.preventDefault();
+    const favorite = this.favoritesMemory.read().includes(id);
+    this.menu?.dispose();
+    this.menu = new MenuContext(this.element, [
+      {
+        label: favorite ? 'Remove from Favorites' : 'Add to Favorites',
+        callback: () => this.favoritesRender(this.favoritesMemory.toggle(id)),
+      },
+    ]);
+    this.menu.show(event.clientX, event.clientY);
   }
 
   /**

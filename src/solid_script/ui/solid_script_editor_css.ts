@@ -20,6 +20,7 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
   body: 'solid-script-editor-body',
   palette: 'solid-script-editor-palette',
   paletteCaption: 'solid-script-editor-palette-caption',
+  paletteFavorites: 'solid-script-editor-palette-favorites',
   paletteItem: 'solid-script-editor-palette-item',
   paletteSearch: 'solid-script-editor-palette-search',
   paletteList: 'solid-script-editor-palette-list',
@@ -169,7 +170,7 @@ const SOLID_SCRIPT_EDITOR_FRAME_CSS = `
 .${c.paletteCaption} { padding: 6px 12px 1px; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: ${ThemeCss.mutedTextColor}; white-space: nowrap; }
 .${c.paletteItem} { display: flex; align-items: center; gap: 7px; height: 22px; margin: 0 6px; padding: 0 8px; border-radius: 4px; cursor: grab; user-select: none; white-space: nowrap; overflow: hidden; }
 .${c.paletteItem}.${c.paletteHighlighted} { background: ${ThemeCss.accentAlpha(0.32)}; }
-.${c.paletteItem}[hidden], .${c.paletteCaption}[hidden] { display: none; }
+.${c.paletteItem}[hidden], .${c.paletteCaption}[hidden], .${c.paletteFavorites}[hidden] { display: none; }
 .${c.paletteItem}:hover { background: ${ThemeCss.inkAlpha(0.07)}; }
 .${c.paletteItem}:active { cursor: grabbing; }
 `;

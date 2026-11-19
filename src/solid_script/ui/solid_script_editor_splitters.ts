@@ -17,6 +17,9 @@ export const SOLID_SCRIPT_EDITOR_SIZES_KEY = 'aiworlded.solidScriptEditor.sizes'
 /** Storage key of the window's own position and size. */
 export const SOLID_SCRIPT_EDITOR_BOUNDS_KEY = 'aiworlded.solidScriptEditor.bounds';
 
+/** Storage key of the command ids in the palette's Favorites. */
+export const SOLID_SCRIPT_EDITOR_FAVORITES_KEY = 'aiworlded.solidScriptEditor.favorites';
+
 /** Sizes before the user drags a splitter. */
 export const SOLID_SCRIPT_EDITOR_SIZES_DEFAULT: Readonly<SolidScriptEditorSizes> = {
   palette: 176,

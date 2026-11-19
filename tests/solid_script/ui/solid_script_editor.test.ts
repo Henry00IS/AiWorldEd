@@ -73,6 +73,7 @@ describe('SolidScript editor', () => {
       (caption) => caption.textContent,
     );
     expect(captions).toEqual([
+      'Favorites',
       'Solids',
       'Generators',
       '2D Shapes',
@@ -1204,7 +1205,7 @@ describe('SolidScript editor', () => {
     type(search, 'ball');
     const shown = () =>
       [...root.querySelectorAll<HTMLElement>('.solid-script-editor-palette-item')]
-        .filter((item) => !item.hidden)
+        .filter((item) => item.closest('[hidden]') === null)
         .map((item) => item.dataset['command']);
     expect(shown()).toEqual(['sphere']);
     type(search, 'logic');
