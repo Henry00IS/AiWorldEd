@@ -27,6 +27,7 @@ import { solidScriptFieldMirrorAttach } from './solid_script_field_highlight.js'
 import { solidScriptEditorViewRead, type SolidScriptEditorView } from './solid_script_editor_view.js';
 import { SolidScriptConfiguratorNames } from './solid_script_configurator_names.js';
 import { solidScriptEditorToolButton } from './solid_script_editor_icons.js';
+import { SOLID_SCRIPT_COMMAND_EACH_ICON } from '@/solid_script/commands/solid_script_command_each.js';
 import { textureSelectCreate } from '@/texture/ui/texture_select.js';
 import { solidScriptSuggestionSelectedWords, type SolidScriptSuggestionScope } from './solid_script_suggestions.js';
 
@@ -152,7 +153,13 @@ export function solidScriptConfiguratorFieldBuild(
   row.title = parameter.hint;
   const caption = document.createElement('span');
   caption.className = SOLID_SCRIPT_EDITOR_CLASSES.fieldLabel;
-  caption.textContent = parameter.label;
+  if (parameter.each) {
+    const icon = document.createElement('span');
+    icon.className = SOLID_SCRIPT_EDITOR_CLASSES.fieldEachIcon;
+    icon.textContent = SOLID_SCRIPT_COMMAND_EACH_ICON;
+    icon.setAttribute('aria-hidden', 'true');
+    caption.append(icon, document.createTextNode(parameter.label));
+  } else caption.textContent = parameter.label;
   const inputs = document.createElement('span');
   inputs.className = SOLID_SCRIPT_EDITOR_CLASSES.fieldInputs;
   const field = solidScriptConfiguratorInputs(parameter, value, inputs);

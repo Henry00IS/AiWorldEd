@@ -550,13 +550,16 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     ],
     fills: ['$X', '$Y', '$Z', '$NX', '$NY', '$NZ', '$Index'],
     parameters: [
-      solidScriptParameter(
-        'distance',
-        'Distance',
-        'number',
-        '[=0.1 * Sin([$X] * 360)]',
-        'Metres to move each point outwards. May use [$X], [$Y], [$Z], [$NX], [$NY], [$NZ] and [$Index].',
-      ),
+      {
+        ...solidScriptParameter(
+          'distance',
+          'Distance',
+          'number',
+          '[=0.1 * Sin([$X] * 360)]',
+          'Metres to move each point outwards. May use [$X], [$Y], [$Z], [$NX], [$NY], [$NZ] and [$Index].',
+        ),
+        each: 'Vertex',
+      },
       solidScriptParameterOf('meshes', '$Selected.Brushes', ['Brush']),
     ],
     listing: (read) => [

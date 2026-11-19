@@ -322,12 +322,16 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         `How to pick. One of: ${SOLID_SCRIPT_FACE_WHICH.join(', ')}.`,
         SOLID_SCRIPT_FACE_WHICH_WORDS,
       ),
-      solidScriptParameterOptional(
-        'detail',
-        'Detail',
-        'value',
-        'The name for Tagged, how many for Biggest or Smallest, numbers for Number, a direction for Facing, a condition for Where such as [=[$Face.Area] > 1], with [$Face] the face being tested and [$Index] its number from 0.',
-      ),
+      {
+        ...solidScriptParameterOptional(
+          'detail',
+          'Detail',
+          'value',
+          'The name for Tagged, how many for Biggest or Smallest, numbers for Number, a direction for Facing, a condition for Where such as [=[$Face.Area] > 1], with [$Face] the face being tested and [$Index] its number from 0.',
+        ),
+        each: 'Face',
+        eachWhen: { field: 'which', words: ['Where'] },
+      },
       solidScriptParameterOf('brushes or faces to pick from', '$Selected.Brushes'),
       solidScriptParameter(
         'within',

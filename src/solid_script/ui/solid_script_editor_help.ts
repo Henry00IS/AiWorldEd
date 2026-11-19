@@ -1,6 +1,10 @@
 import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
 import type { SolidScriptCommand, SolidScriptCommandParameter } from '@/solid_script/commands/solid_script_command.js';
 import { solidScriptParameterApplies } from '@/solid_script/commands/solid_script_command_parameters.js';
+import {
+  SOLID_SCRIPT_COMMAND_EACH_ICON,
+  solidScriptParameterEachActive,
+} from '@/solid_script/commands/solid_script_command_each.js';
 import type { SolidScriptBlock } from '@/solid_script/document/solid_script_document.js';
 import { SOLID_SCRIPT_EDITOR_CATEGORY_COLORS, SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import { solidScriptEditorLinked, type SolidScriptEditorLinkOpen } from './solid_script_editor_links.js';
@@ -112,6 +116,7 @@ export class SolidScriptEditorHelp {
           this.open,
           command.id,
           solidScriptEditorHelpValue(parameter, stored[parameter.key] ?? parameter.default),
+          stored,
         ),
       );
   }
@@ -131,12 +136,16 @@ function solidScriptEditorHelpParameter(
   open: SolidScriptEditorLinkOpen | null,
   self: string,
   shown: string,
+  values: Readonly<Record<string, string>>,
 ): HTMLElement {
   const item = document.createElement('div');
   item.className = SOLID_SCRIPT_EDITOR_CLASSES.helpParameter;
   const name = document.createElement('span');
   name.className = SOLID_SCRIPT_EDITOR_CLASSES.parameterName;
-  name.textContent = parameter.label;
+  if (solidScriptParameterEachActive(parameter, values)) {
+    item.classList.add(SOLID_SCRIPT_EDITOR_CLASSES.helpEach);
+    name.textContent = `${SOLID_SCRIPT_COMMAND_EACH_ICON} ${parameter.label}`;
+  } else name.textContent = parameter.label;
   const value = document.createElement('span');
   value.className = SOLID_SCRIPT_EDITOR_CLASSES.parameterValue;
   value.textContent = shown;

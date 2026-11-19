@@ -1,5 +1,6 @@
 import type { SolidScriptCommand, SolidScriptCommandValues } from '@/solid_script/commands/solid_script_command.js';
 import { solidScriptParameterApplies } from '@/solid_script/commands/solid_script_command_parameters.js';
+import { solidScriptParameterEachActive } from '@/solid_script/commands/solid_script_command_each.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import {
   solidScriptConfiguratorFieldBuild,
@@ -126,6 +127,10 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
       if (!field) continue;
       const applies = solidScriptParameterApplies(parameter, values, this.command.parameters);
       field.element.hidden = !applies;
+      field.element.classList.toggle(
+        SOLID_SCRIPT_EDITOR_CLASSES.fieldEach,
+        applies && solidScriptParameterEachActive(parameter, values) !== undefined,
+      );
       if (applies) shown.push(field);
     }
     return shown;

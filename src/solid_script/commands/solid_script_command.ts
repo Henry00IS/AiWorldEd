@@ -16,6 +16,7 @@ import {
   type SolidScriptListingWrite,
 } from './solid_script_command_listing.js';
 import { solidScriptParameterInto, solidScriptParameterShapeName } from './solid_script_command_parameters.js';
+import { solidScriptParameterEachActive, type SolidScriptCommandEach } from './solid_script_command_each.js';
 
 /** How a command field reads its text, which also picks its configurator editor. */
 export type SolidScriptCommandParameterType = SolidScriptFieldKind;
@@ -150,6 +151,16 @@ export interface SolidScriptCommandParameter {
   when?: { readonly field: string; readonly words: readonly string[] };
   /** Axes of an Anchor field, which the window shows as one choice per axis. */
   anchor?: readonly SolidScriptAnchorAxis[];
+  /**
+   * When set, the field is worked out once per Face, Edge, Vertex or Point,
+   * with that element filled in as $Face, $Edge, $Vertex or $Point and $Index.
+   */
+  each?: SolidScriptCommandEach;
+  /**
+   * When set, the field is only per-element while the named field holds one of
+   * these words, such as Detail of Select Faces while Which is Where.
+   */
+  eachWhen?: { readonly field: string; readonly words: readonly string[] };
 }
 
 /** One word a field takes, with what it means. */
@@ -329,6 +340,21 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
   }
 
   /**
+   * Lists one configured value, and marks it when the field is worked out once
+   * per element for these values.
+   *
+   * @param values Stored values.
+   * @param key Field key.
+   * @returns Listing piece.
+   */
+  private listingValue(values: SolidScriptCommandValues, key: string): SolidScriptListingPart {
+    const part = solidScriptListingValue(this.valueText(values, key));
+    const parameter = this.parameters.find((entry) => entry.key === key);
+    if (parameter && solidScriptParameterEachActive(parameter, values)) part.each = true;
+    return part;
+  }
+
+  /**
    * Returns the line as the script listing shows it, in pieces: the command
    * name, then its values with connecting words. Options only appear when they
    * are switched on or changed.
@@ -338,7 +364,7 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
    */
   listing(values: SolidScriptCommandValues): SolidScriptListingPart[] {
     const read: SolidScriptListingValues = {
-      value: (key) => solidScriptListingValue(this.valueText(values, key)),
+      value: (key) => this.listingValue(values, key),
       variable: (key) => ({ kind: 'variable', text: `[${this.valueText(values, key)}]` }),
       text: (key) => this.valueText(values, key),
       on: (key) => solidScriptFieldBoolean(this.valueText(values, key)) === true,

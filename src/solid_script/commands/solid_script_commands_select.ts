@@ -160,12 +160,16 @@ function solidScriptSelectCommand(kind: SolidScriptSelectKind): SolidScriptComma
         `How to pick. One of: ${words.join(', ')}.`,
         kind.words,
       ),
-      solidScriptParameterOptional(
-        'detail',
-        'Detail',
-        'value',
-        kind.size ? 'How many for Longest or Shortest, a condition for Where.' : 'A condition for Where.',
-      ),
+      {
+        ...solidScriptParameterOptional(
+          'detail',
+          'Detail',
+          'value',
+          kind.size ? 'How many for Longest or Shortest, a condition for Where.' : 'A condition for Where.',
+        ),
+        each: kind.item === 'Edge' ? 'Edge' : 'Vertex',
+        eachWhen: { field: 'which', words: ['Where'] },
+      },
       solidScriptParameterOf(`brushes, faces or edges to pick ${kind.many} of`, '$Selected.Faces', [
         'Brush',
         'Face',

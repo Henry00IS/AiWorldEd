@@ -11,6 +11,7 @@ import {
   SOLID_SCRIPT_EDITOR_INDENT_PX,
 } from './solid_script_editor_css.js';
 import { solidScriptEditorIcon } from './solid_script_editor_icons.js';
+import { SOLID_SCRIPT_COMMAND_EACH_ICON } from '@/solid_script/commands/solid_script_command_each.js';
 import type { SolidScriptEditorView } from './solid_script_editor_view.js';
 import { solidScriptFieldHighlight } from './solid_script_field_highlight.js';
 
@@ -176,19 +177,38 @@ function solidScriptEditorChipFill(chip: HTMLElement, block: SolidScriptBlock, l
   const shown = look.openerCommand ? solidScriptCommandFind(look.openerCommand) : command;
   if (look.view.icons && shown)
     chip.append(solidScriptEditorIcon(shown.category, SOLID_SCRIPT_EDITOR_CATEGORY_COLORS[shown.category]));
-  chip.append(
-    ...parts.map((part) => {
-      const span = document.createElement('span');
-      span.className = SOLID_SCRIPT_EDITOR_LISTING_CLASSES[part.kind];
-      if (part.kind === 'value' || part.kind === 'variable')
-        span.append(...solidScriptFieldHighlight(part.text, marks));
-      else span.textContent = part.text;
-      return span;
-    }),
-  );
+  chip.append(...parts.map((part) => solidScriptEditorListingPart(part, marks)));
   chip.classList.toggle(SOLID_SCRIPT_EDITOR_CLASSES.unknown, !command);
   chip.setAttribute('aria-label', parts.map((part) => part.text).join(''));
   chip.title = solidScriptEditorChipTitle(command, solidScriptBlockNesting(block) === 'close');
+}
+
+/**
+ * Builds one listing piece, with the per-element icon and colour when the value
+ * is worked out once per element.
+ *
+ * @param part Listing piece.
+ * @param marks Highlight marks of the line.
+ * @returns Element.
+ */
+function solidScriptEditorListingPart(
+  part: SolidScriptListingPart,
+  marks: Parameters<typeof solidScriptFieldHighlight>[1],
+): HTMLElement {
+  const span = document.createElement('span');
+  span.className = SOLID_SCRIPT_EDITOR_LISTING_CLASSES[part.kind];
+  if (part.kind === 'value' || part.kind === 'variable') span.append(...solidScriptFieldHighlight(part.text, marks));
+  else span.textContent = part.text;
+  if (!part.each) return span;
+  const wrap = document.createElement('span');
+  wrap.className = SOLID_SCRIPT_EDITOR_CLASSES.listEach;
+  wrap.title = 'Worked out once per element';
+  const icon = document.createElement('span');
+  icon.className = SOLID_SCRIPT_EDITOR_CLASSES.listEachIcon;
+  icon.textContent = SOLID_SCRIPT_COMMAND_EACH_ICON;
+  icon.setAttribute('aria-hidden', 'true');
+  wrap.append(icon, span);
+  return wrap;
 }
 
 /**

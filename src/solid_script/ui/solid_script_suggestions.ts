@@ -15,6 +15,7 @@ import { SolidScriptLexer, type SolidScriptToken } from '@/solid_script/language
 import { solidScriptFunctionSpelling } from '@/solid_script/language/solid_script_name_key.js';
 import { SOLID_SCRIPT_SYSTEM_LISTED } from '@/solid_script/language/solid_script_system.js';
 import { solidScriptSystemFill } from '@/solid_script/language/solid_script_system_names.js';
+import { solidScriptSystemFillEach } from '@/solid_script/commands/solid_script_command_each.js';
 import { solidScriptSentence, solidScriptSentenceTyped } from '@/solid_script/language/solid_script_sentence.js';
 import { solidScriptFieldEscapes } from '@/solid_script/language/solid_script_field.js';
 import {
@@ -90,6 +91,8 @@ export interface SolidScriptSuggestion {
   pick: SolidScriptSuggestionPick;
   /** Other spelling it is found by, such as pad_left for PadLeft. */
   alias?: string;
+  /** True when this is a current-element name such as $Vertex or $Index. */
+  each?: boolean;
 }
 
 /** Field text after a pick, with the caret. */
@@ -288,6 +291,7 @@ function solidScriptSuggestionFill(name: string): SolidScriptSuggestion {
     detail: fill ? solidScriptSentenceTyped(fill.type, fill.detail) : 'Filled in for this command.',
     category: 'This Command',
     pick: 'value',
+    each: solidScriptSystemFillEach(name),
   };
 }
 

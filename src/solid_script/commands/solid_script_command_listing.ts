@@ -12,6 +12,8 @@ export interface SolidScriptListingPart {
   kind: SolidScriptListingKind;
   /** Shown text, spacing included. */
   text: string;
+  /** True when this value is worked out once per element. */
+  each?: boolean;
 }
 
 /** Reads the configured values of a line for its listing. */

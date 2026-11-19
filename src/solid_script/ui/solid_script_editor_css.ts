@@ -72,6 +72,12 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
   fieldLabel: 'solid-script-editor-field-label',
   fieldInputs: 'solid-script-editor-field-inputs',
   fieldHint: 'solid-script-editor-field-hint',
+  fieldEach: 'solid-script-editor-field-each',
+  fieldEachIcon: 'solid-script-editor-field-each-icon',
+  listEach: 'solid-script-editor-list-each',
+  listEachIcon: 'solid-script-editor-list-each-icon',
+  suggestionEach: 'solid-script-editor-suggestion-each',
+  helpEach: 'solid-script-editor-help-each',
   input: 'solid-script-editor-input',
   preview: 'solid-script-editor-preview',
   list: 'solid-script-editor-list',
@@ -194,6 +200,8 @@ const SOLID_SCRIPT_EDITOR_LINES_CSS = `
 .${c.listName} { font-weight: 700; color: ${ThemeCss.textColor}; }
 .${c.listWord} { color: ${ThemeCss.textColor}; }
 .${c.listValue} { color: ${ThemeCss.inputTextColor}; font-weight: 600; }
+.${c.listEach} { color: #2f9e44; }
+.${c.listEachIcon} { margin-right: 0.25em; }
 .${c.listVariable} { color: #3d8fd6; font-weight: 700; }
 .${c.listNote} { color: #2f9e44; font-weight: 700; }
 .${c.unknown} .${c.listName} { color: #e5484d; }
@@ -299,6 +307,11 @@ const SOLID_SCRIPT_EDITOR_DIALOG_CSS = `
 .${c.field} { display: grid; grid-template-columns: 112px minmax(0, 1fr); align-items: center; gap: 8px; margin-bottom: 8px; }
 .${c.fieldLabel} { color: ${ThemeCss.textColor}; font-weight: 500; }
 .${c.fieldHint} { grid-column: 2; margin-top: -4px; font-size: 11px; line-height: 1.35; color: ${ThemeCss.textColor}; opacity: 0.8; }
+.${c.fieldEach} { outline: 2px solid #2f9e44; outline-offset: 2px; border-radius: 6px; }
+.${c.fieldEachIcon} { display: none; margin-right: 0.3em; }
+.${c.fieldEach} .${c.fieldEachIcon} { display: inline; }
+.${c.helpEach} { color: #2f9e44; }
+.${c.suggestionEach} { color: #2f9e44; }
 .${c.fieldInputs} { position: relative; display: flex; gap: 6px; min-width: 0; }
 .${c.input}.${c.invalid} { border-color: #e5484d; }
 .${c.scrollHost} { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; }

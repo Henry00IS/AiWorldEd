@@ -1,6 +1,7 @@
 import { panelFloatingScopeMark } from '@/ui/floating_panel/panel_floating_scope.js';
 import { solidScriptSentenceParts, solidScriptSentencePlain } from '@/solid_script/language/solid_script_sentence.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
+import { SOLID_SCRIPT_COMMAND_EACH_ICON } from '@/solid_script/commands/solid_script_command_each.js';
 import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
 import {
   solidScriptSuggestionActive,
@@ -51,7 +52,13 @@ function solidScriptSuggestionRows(
     row.dataset['index'] = String(index);
     row.title = `${suggestion.label}: ${solidScriptSentencePlain(suggestion.detail)}`;
     const name = document.createElement('span');
-    name.textContent = suggestion.label;
+    if (suggestion.each) {
+      row.classList.add(SOLID_SCRIPT_EDITOR_CLASSES.suggestionEach);
+      const icon = document.createElement('span');
+      icon.textContent = `${SOLID_SCRIPT_COMMAND_EACH_ICON} `;
+      icon.setAttribute('aria-hidden', 'true');
+      name.append(icon, document.createTextNode(suggestion.label));
+    } else name.textContent = suggestion.label;
     const detail = document.createElement('span');
     detail.className = SOLID_SCRIPT_EDITOR_CLASSES.suggestionDetail;
     for (const part of solidScriptSentenceParts(suggestion.detail))
