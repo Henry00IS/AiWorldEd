@@ -3,7 +3,7 @@ import { SOLID_SCRIPT_AXES_FACING, SOLID_SCRIPT_AXES_UP, solidScriptAxesHeight }
 import {
   solidScriptMeshChecked,
   solidScriptMeshFromSolid,
-  solidScriptMeshLoopCentre,
+  solidScriptMeshLoopCenter,
   solidScriptMeshLoopNormal,
   type SolidScriptShapeMesh,
 } from './solid_script_mesh.js';
@@ -82,16 +82,24 @@ export function solidScriptGeometryLeaves(shapes: readonly SolidScriptShape[]): 
     .filter((leaf): leaf is SolidScriptGeometryLeaf => leaf.kind !== 'polygon');
 }
 
+const SOLID_SCRIPT_MESH_OF = new WeakMap<SolidScriptGeometryLeaf, SolidScriptShapeMesh>();
+const SOLID_SCRIPT_FACES_OF = new WeakMap<SolidScriptGeometryLeaf, SolidScriptFaceFacts[]>();
+
 /**
- * Returns the faces of a solid or mesh as loops of points.
+ * Returns the faces of a solid or mesh as loops of points. A solid is hulled
+ * once and kept, so later face, edge or UV reads do not hull it again.
  *
  * @param leaf Solid or mesh.
  * @returns Mesh with the same faces.
  */
 export function solidScriptGeometryMesh(leaf: SolidScriptGeometryLeaf): SolidScriptShapeMesh {
   if (leaf.kind === 'mesh') return leaf;
+  const kept = SOLID_SCRIPT_MESH_OF.get(leaf);
+  if (kept) return kept;
   const mesh = solidScriptMeshFromSolid(leaf.points, leaf.label);
-  return leaf.faceTags ? { ...mesh, faceTags: leaf.faceTags } : mesh;
+  const result = leaf.faceTags ? { ...mesh, faceTags: leaf.faceTags } : mesh;
+  SOLID_SCRIPT_MESH_OF.set(leaf, result);
+  return result;
 }
 
 /**
@@ -154,7 +162,7 @@ export function solidScriptGeometryFrame(normal: THREE.Vector3): { across: THREE
 
 /**
  * Returns the matrix that stands a shape on a face the way it stands on the
- * ground: its origin at the face centre, X across, Y out of the face and Z down
+ * ground: its origin at the face center, X across, Y out of the face and Z down
  * the face (toward its front).
  *
  * @param face Face.
@@ -203,9 +211,25 @@ const SOLID_SCRIPT_GEOMETRY_CLIMB: Readonly<Record<string, THREE.Vector3>> = {
 export function solidScriptGeometryFaces(shapes: readonly SolidScriptShape[]): SolidScriptFaceFacts[] {
   const faces: SolidScriptFaceFacts[] = [];
   for (const leaf of solidScriptGeometryLeaves(shapes)) {
-    const mesh = solidScriptGeometryMesh(leaf);
-    for (const loop of mesh.faces) faces.push(solidScriptGeometryFace(mesh.points, loop, leaf, faces.length));
+    for (const face of solidScriptGeometryFacesOf(leaf))
+      faces.push(face.index === faces.length ? face : { ...face, index: faces.length });
   }
+  return faces;
+}
+
+/**
+ * Reads every face of one solid or mesh, numbered from 0, kept after the first
+ * read.
+ *
+ * @param leaf Solid or mesh.
+ * @returns Faces.
+ */
+function solidScriptGeometryFacesOf(leaf: SolidScriptGeometryLeaf): SolidScriptFaceFacts[] {
+  const kept = SOLID_SCRIPT_FACES_OF.get(leaf);
+  if (kept) return kept;
+  const mesh = solidScriptGeometryMesh(leaf);
+  const faces = mesh.faces.map((loop, index) => solidScriptGeometryFace(mesh.points, loop, leaf, index));
+  SOLID_SCRIPT_FACES_OF.set(leaf, faces);
   return faces;
 }
 
@@ -226,7 +250,7 @@ function solidScriptGeometryFace(
 ): SolidScriptFaceFacts {
   const corners = loop.map((corner) => points[corner]!.clone());
   const normal = solidScriptMeshLoopNormal(points, loop);
-  const center = solidScriptMeshLoopCentre(points, loop);
+  const center = solidScriptMeshLoopCenter(points, loop);
   const { across, up } = solidScriptGeometryFrame(normal);
   const spans = (axis: THREE.Vector3): number => {
     const along = corners.map((corner) => corner.clone().sub(center).dot(axis));
@@ -430,7 +454,7 @@ export function solidScriptGeometryPick(
 }
 
 /**
- * Finds a face again in a solid or mesh, by its centre and direction, after
+ * Finds a face again in a solid or mesh, by its center and direction, after
  * other faces changed.
  *
  * @param leaf Solid or mesh.
@@ -441,7 +465,7 @@ export function solidScriptGeometryFaceFind(leaf: SolidScriptGeometryLeaf, face:
   const mesh = solidScriptGeometryMesh(leaf);
   return mesh.faces.findIndex(
     (loop) =>
-      solidScriptMeshLoopCentre(mesh.points, loop).distanceTo(face.center) < 1e-4 &&
+      solidScriptMeshLoopCenter(mesh.points, loop).distanceTo(face.center) < 1e-4 &&
       solidScriptMeshLoopNormal(mesh.points, loop).dot(face.normal) > 0.9999,
   );
 }

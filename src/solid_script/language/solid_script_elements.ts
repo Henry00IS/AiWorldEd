@@ -38,6 +38,8 @@ interface SolidScriptElementEntry {
   planes?: [SolidScriptElementPlane, SolidScriptElementPlane | null];
   /** Vertex: where it was. */
   position?: THREE.Vector3;
+  /** Face: its number on the solid or mesh when the id was made. */
+  faceIndex?: number;
   /** The user's own values, by key. */
   data: Map<string, SolidScriptElementDatum>;
   /** The Data value of the element, made on first read. */
@@ -71,6 +73,11 @@ export class SolidScriptElements {
    * read from.
    */
   private readonly boundsKept = new Map<string, { leaves: SolidScriptGeometryLeaf[]; box: THREE.Box3 }>();
+  /**
+   * Face ids of one solid or mesh by the face number they were made from, so a
+   * later read of that face does not walk every face already held.
+   */
+  private readonly facesByIndex = new WeakMap<SolidScriptGeometryLeaf, Map<number, SolidScriptElementEntry>>();
   /** How many times bounds were worked out rather than read from what is kept. */
   boundsPasses = 0;
 
@@ -135,18 +142,49 @@ export class SolidScriptElements {
    */
   face(face: SolidScriptFaceFacts): SolidScriptElement {
     const latest = this.host.leafLatest(face.leaf);
+    const known = this.faceKnown(latest, face);
+    if (known && SolidScriptElements.outlineSame(known.plane!.corners, face.corners)) return known.element;
+    const entry = this.add('face', latest, {
+      plane: { normal: face.normal.clone(), corners: face.corners.map((corner) => corner.clone()) },
+      faceIndex: face.index,
+    });
+    if (known) for (const [key, datum] of known.data) entry.data.set(key, { ...datum });
+    this.faceIndexSet(latest, face.index, entry);
+    return entry.element;
+  }
+
+  /**
+   * Finds a held face of a solid or mesh: the same outline, else a face this
+   * one is a piece of.
+   *
+   * @param latest Solid or mesh now.
+   * @param face Face read now.
+   * @returns Matching entry, or undefined.
+   */
+  private faceKnown(latest: SolidScriptGeometryLeaf, face: SolidScriptFaceFacts): SolidScriptElementEntry | undefined {
+    const byIndex = this.facesByIndex.get(latest)?.get(face.index);
+    if (byIndex?.plane && SolidScriptElements.planeHolds(byIndex.plane, face)) return byIndex;
     let inherited: SolidScriptElementEntry | undefined;
     for (const entry of this.entries) {
       if (entry.element.kind !== 'face' || !entry.plane || this.host.leafLatest(entry.leaf) !== latest) continue;
       if (!SolidScriptElements.planeHolds(entry.plane, face)) continue;
-      if (SolidScriptElements.outlineSame(entry.plane.corners, face.corners)) return entry.element;
+      if (SolidScriptElements.outlineSame(entry.plane.corners, face.corners)) return entry;
       inherited ??= entry;
     }
-    const entry = this.add('face', latest, {
-      plane: { normal: face.normal.clone(), corners: face.corners.map((corner) => corner.clone()) },
-    });
-    if (inherited) for (const [key, datum] of inherited.data) entry.data.set(key, { ...datum });
-    return entry.element;
+    return inherited;
+  }
+
+  /**
+   * Remembers a face id under the number it was made from.
+   *
+   * @param leaf Solid or mesh.
+   * @param index Face number.
+   * @param entry Entry.
+   */
+  private faceIndexSet(leaf: SolidScriptGeometryLeaf, index: number, entry: SolidScriptElementEntry): void {
+    const byIndex = this.facesByIndex.get(leaf) ?? new Map();
+    byIndex.set(index, entry);
+    this.facesByIndex.set(leaf, byIndex);
   }
 
   /**
@@ -251,7 +289,9 @@ export class SolidScriptElements {
     const entry = this.entry(element);
     const faces = solidScriptGeometryFaces([this.leaf(element)]);
     if (element.kind === 'brush') return faces;
-    if (element.kind !== 'face') return [];
+    if (element.kind !== 'face' || !entry.plane) return [];
+    const at = entry.faceIndex !== undefined ? faces[entry.faceIndex] : undefined;
+    if (at && SolidScriptElements.outlineSame(entry.plane.corners, at.corners)) return [at];
     return faces.filter((face) => SolidScriptElements.pieceOf(entry.plane!, face));
   }
 

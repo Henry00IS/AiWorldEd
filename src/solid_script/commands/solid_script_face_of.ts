@@ -22,15 +22,30 @@ export function solidScriptFaceTargets(run: SolidScriptBlockRun, label: string):
         : `${label} has no faces to work on; use Select Faces above it to pick some, or give them in Of`,
     );
   const faces: SolidScriptFaceFacts[] = [];
+  const seen = new WeakMap<SolidScriptGeometryLeaf, Set<number>>();
   for (const value of values) {
     if (!(value instanceof SolidScriptElement) || (value.kind !== 'face' && value.kind !== 'brush'))
       throw new Error(`${label} takes faces or brushes, not ${solidScriptKindNamed(value)}`);
     const read = run.elements.faces(value);
     if (read.length === 0 && values.length === 1) throw new Error(`${String(value)} was cut away by a line above`);
-    for (const face of read)
-      if (!faces.some((known) => known.leaf === face.leaf && known.index === face.index)) faces.push(face);
+    for (const face of read) if (solidScriptFaceSeen(seen, face)) faces.push(face);
   }
   return faces;
+}
+
+/**
+ * Tells whether a face has not yet been kept, and remembers it when it is new.
+ *
+ * @param seen Faces already kept, by solid or mesh and number.
+ * @param face Face.
+ * @returns True when it is new.
+ */
+function solidScriptFaceSeen(seen: WeakMap<SolidScriptGeometryLeaf, Set<number>>, face: SolidScriptFaceFacts): boolean {
+  const known = seen.get(face.leaf) ?? new Set();
+  if (known.has(face.index)) return false;
+  known.add(face.index);
+  seen.set(face.leaf, known);
+  return true;
 }
 
 /**
