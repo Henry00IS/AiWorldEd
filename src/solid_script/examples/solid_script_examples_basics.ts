@@ -98,6 +98,7 @@ export const SOLID_SCRIPT_EXAMPLE_SPIKY_BALL: readonly SolidScriptLine[] = [
   { command: 'cylinder', values: { h: '0.5', r1: '0.08', r2: '0', anchor: 'Center, Center, Center', into: 'Spike' } },
   { command: 'align', values: { direction: '[Ways([I])]', of: '[Spike]' } },
   { command: 'end' },
+  { command: 'output', values: { of: '[Spike]' } },
   { command: 'end' },
 ];
 

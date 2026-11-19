@@ -46,7 +46,11 @@ function solidOf(...lines: SolidScriptLine[]) {
 
 describe('SolidScript Hull', () => {
   it('wraps only a list of points without warning that the Hull is empty', () => {
-    const result = run(line('hull', { points: '[0, 0, 0], [2, 0, 0], [0, 2, 0], [0, 0, 2]', into: 'Rock' }), END);
+    const result = run(
+      line('hull', { points: '[0, 0, 0], [2, 0, 0], [0, 2, 0], [0, 0, 2]', into: 'Rock' }),
+      END,
+      line('output', { of: '[Rock]' }),
+    );
     expect(result.error?.message ?? null).toBeNull();
     expect(result.warnings.map((warning) => warning.text)).toEqual([]);
     expect(result.shapes).toHaveLength(1);
@@ -67,7 +71,11 @@ describe('SolidScript Hull', () => {
   });
 
   it('wraps Point lines the same way a list does', () => {
-    const listed = solidOf(line('hull', { points: '[0, 0, 0], [2, 0, 0], [0, 2, 0], [0, 0, 2]', into: 'A' }), END);
+    const listed = solidOf(
+      line('hull', { points: '[0, 0, 0], [2, 0, 0], [0, 2, 0], [0, 0, 2]', into: 'A' }),
+      END,
+      line('output', { of: '[A]' }),
+    );
     const drawn = solidOf(
       line('hull', { into: 'B' }),
       line('point', { position: '0, 0, 0' }),
@@ -75,6 +83,7 @@ describe('SolidScript Hull', () => {
       line('point', { position: '0, 2, 0' }),
       line('point', { position: '0, 0, 2' }),
       END,
+      line('output', { of: '[B]' }),
     );
     expect(listed.points.length).toBe(drawn.points.length);
     expect(listed.points.map((point) => point.toArray())).toEqual(drawn.points.map((point) => point.toArray()));

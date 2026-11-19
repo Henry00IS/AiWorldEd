@@ -97,6 +97,8 @@ describe('SolidScript Clip', () => {
         { command: 'cube', values: { size: '2, 2, 2', into: 'B', anchor: 'Center, Center, Center' } },
         END,
         { command: 'clip', values: { of: '[A]' } },
+        { command: 'output', values: { of: '[A]' } },
+        { command: 'output', values: { of: '[B]' } },
       ),
     );
     expect(both).toHaveLength(2);

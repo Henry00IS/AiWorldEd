@@ -104,7 +104,7 @@ describe('SolidScript stops at the first mistake', () => {
     const result = solidScriptProgramRun(solidScriptDocumentCreate(lines));
     expect(result.messages).toEqual(['1']);
     expect(result.warnings).toEqual([
-      { line: null, text: 'The script builds no brushes or meshes; add one such as Cube.' },
+      { line: null, text: 'The script builds no brushes or meshes; add one such as Cube, or Output a variable.' },
     ]);
   });
 

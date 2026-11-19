@@ -32,7 +32,7 @@ describe('SolidScript Place At Points', () => {
     expect(
       printed(
         line('place_at_points', { at: '[0, 2, 0], [4, 0, 0]', into: '' }),
-        line('cube', { size: '1, 1, 1', into: 'A', anchor: 'Center, Center, Center' }),
+        line('cube', { size: '1, 1, 1', anchor: 'Center, Center, Center' }),
         END,
         line('select_brushes'),
         line('echo', {

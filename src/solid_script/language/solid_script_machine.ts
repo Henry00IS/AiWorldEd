@@ -309,6 +309,21 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   }
 
   /**
+   * Name in a line's Into field, or empty when the result stays in the current
+   * output.
+   *
+   * @param node Line and command.
+   * @returns Variable name, or empty.
+   */
+  private intoName(node: SolidScriptBlockNode<Command>): string {
+    return node.command
+      .valueText(node.values, 'into')
+      .trim()
+      .replace(/^\[(.*)\]$/s, '$1')
+      .trim();
+  }
+
+  /**
    * Writes what a building block built Into its variable.
    *
    * @param node Line.
@@ -321,13 +336,23 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     shapes: readonly SolidScriptShape[],
   ): void {
     if (this.failure) return;
+    const into = this.intoName(node);
+    if (into === '') return;
     const brushes = solidScriptGeometryLeaves([...shapes]).map((leaf) => this.elements.brush(leaf));
-    const into = node.command
-      .valueText(node.values, 'into')
-      .trim()
-      .replace(/^\[(.*)\]$/s, '$1')
-      .trim();
-    if (into !== '') this.variableSet(scope, into, solidScriptIntoAssigned(node.command.intoList === true, brushes));
+    this.variableSet(scope, into, solidScriptIntoAssigned(node.command.intoList === true, brushes));
+  }
+
+  /**
+   * Shapes a line adds to the current output: none when Into is set, so the
+   * result lives only in that variable until Output places it.
+   *
+   * @param node Line and command.
+   * @param shapes What the line built or edited.
+   * @returns Shapes for the current output.
+   */
+  private intoShapes(node: SolidScriptBlockNode<Command>, shapes: SolidScriptShape[]): SolidScriptShape[] {
+    if (shapes.length === 0) return shapes;
+    return this.intoName(node) === '' ? shapes : [];
   }
 
   /**
@@ -361,11 +386,14 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     if (
       !this.failure &&
       !this.paused &&
-      this.steps.length === 0 &&
+      shapes.length === 0 &&
       this.system.use?.usage !== 'Modifier' &&
       !solidScriptLinesPassInput(lines)
     )
-      warnings.push({ line: null, text: 'The script builds no brushes or meshes; add one such as Cube.' });
+      warnings.push({
+        line: null,
+        text: 'The script builds no brushes or meshes; add one such as Cube, or Output a variable.',
+      });
     return {
       shapes,
       messages: this.messages,
@@ -521,7 +549,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         !node.otherwise?.length
       )
         this.emptyWarn(node);
-      return shapes;
+      return this.intoShapes(node, shapes);
     } catch (error) {
       if (!this.failure && !this.paused) this.watch(scope);
       this.failure = solidScriptFailureKeep(

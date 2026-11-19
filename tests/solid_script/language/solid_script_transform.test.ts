@@ -51,6 +51,7 @@ describe('SolidScript Transform and flat transform tools', () => {
     const flat = run(
       { command: 'cube', values: { size: '1, 1, 1', anchor: 'Center, Center, Center', into: 'Box' } },
       { command: 'move_by', values: { by: '0, 2, 0', of: '[Box]' } },
+      { command: 'output', values: { of: '[Box]' } },
     );
     expect(wrapped.error).toBeNull();
     expect(flat.error).toBeNull();
@@ -98,12 +99,14 @@ describe('SolidScript Transform and flat transform tools', () => {
     const moved = run(
       { command: 'cube', values: { size: '1, 2, 0.2', anchor: 'Center, Center, Center', into: 'Door' } },
       { command: 'move_to', values: { to: '3, 1, 0', of: '[Door]' } },
+      { command: 'output', values: { of: '[Door]' } },
     );
     expect(moved.error).toBeNull();
     expect(bounds(moved.shapes)).toEqual([2.5, 0, -0.1, 3.5, 2, 0.1]);
     const copied = run(
       { command: 'cube', values: { size: '1, 1, 1', anchor: 'Center, Center, Center', into: 'Box' } },
       { command: 'move_by', values: { by: '0, 2, 0', of: '[Box]', into: 'Copy' } },
+      { command: 'output', values: { of: '[Box]' } },
     );
     expect(copied.error).toBeNull();
     expect(bounds(copied.shapes)).toEqual([-0.5, -0.5, -0.5, 0.5, 0.5, 0.5]);
@@ -137,6 +140,7 @@ describe('SolidScript Transform and flat transform tools', () => {
       { command: 'transform', values: { rotate: '0, 90, 0' } },
       { command: 'move_by', values: { by: '2, 0, 0', of: '[Box]' } },
       { command: 'end' },
+      { command: 'output', values: { of: '[Box]' } },
     );
     expect(nested.error).toBeNull();
     expect(tool.error).toBeNull();
@@ -147,6 +151,7 @@ describe('SolidScript Transform and flat transform tools', () => {
     const result = run(
       { command: 'cube', values: { size: '0.1, 0.1, 0.1', anchor: 'Center, Center, Center', into: 'Box' } },
       { command: 'move_by', values: { by: '1, 1, 1', of: '[Box]' } },
+      { command: 'output', values: { of: '[Box]' } },
     );
     expect(result.error).toBeNull();
     expect(bounds(result.shapes)).toEqual([0.95, 0.95, 0.95, 1.05, 1.05, 1.05]);
@@ -157,6 +162,7 @@ describe('SolidScript Transform and flat transform tools', () => {
       { command: 'cube', values: { size: '0.1, 0.1, 0.1', anchor: 'Center, Center, Center', into: 'Box' } },
       { command: 'move_to', values: { to: '0, 0, 0', of: '[Box]' } },
       { command: 'move_to', values: { to: '2, 0, 0', of: '[Box]' } },
+      { command: 'output', values: { of: '[Box]' } },
     );
     expect(result.error).toBeNull();
     expect(bounds(result.shapes)).toEqual([1.95, -0.05, -0.05, 2.05, 0.05, 0.05]);
@@ -167,6 +173,7 @@ describe('SolidScript Transform and flat transform tools', () => {
       { command: 'cube', values: { size: '2, 1, 1', anchor: 'Center, Center, Center', into: 'Box' } },
       { command: 'move_by', values: { by: '3, 0, 0', of: '[Box]' } },
       { command: 'rotate_to', values: { to: '0, 0, 90', of: '[Box]' } },
+      { command: 'output', values: { of: '[Box]' } },
     );
     expect(turned.error).toBeNull();
     // 2 x 1 box at x=3, quarter turn about its center around Z: still centered at 3, 0, 0, now 1 wide and 2 tall.
@@ -175,6 +182,7 @@ describe('SolidScript Transform and flat transform tools', () => {
       { command: 'cube', values: { size: '1, 1, 1', anchor: 'Center, Center, Center', into: 'Box' } },
       { command: 'move_by', values: { by: '4, 0, 0', of: '[Box]' } },
       { command: 'scale_to', values: { to: '2, 4, 1', of: '[Box]' } },
+      { command: 'output', values: { of: '[Box]' } },
     );
     expect(sized.error).toBeNull();
     expect(bounds(sized.shapes)).toEqual([3, -2, -0.5, 5, 2, 0.5]);

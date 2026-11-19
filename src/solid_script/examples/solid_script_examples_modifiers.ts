@@ -82,6 +82,7 @@ function solidScriptExampleMatrixOf(values: Record<string, string>, input: Solid
   return [
     { ...input, values: { ...input.values, into: 'Copy' } },
     solidScriptExampleLine('matrix', { ...values, of: '[Copy]' }),
+    solidScriptExampleLine('output', { of: '[Copy]' }),
   ];
 }
 

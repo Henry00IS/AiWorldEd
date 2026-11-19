@@ -153,6 +153,7 @@ describe('SolidScript faces', () => {
       END,
       END,
       END,
+      { command: 'output', values: { of: '[Knob]' } },
       END,
     );
     expect(result.error).toBeNull();
