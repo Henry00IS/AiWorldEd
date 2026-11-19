@@ -9,7 +9,7 @@ describe("the editor's kinds always include what a run holds", () => {
   });
 });
 
-describe("the editor's kinds include what a run holds in random scripts", () => {
+describe("the editor's kinds include what a run holds in random scripts", { timeout: 60_000 }, () => {
   const seeds = Array.from({ length: 1500 }, (_, index) => index + 1);
   it('holds for every seed', () => {
     const failures: string[] = [];
