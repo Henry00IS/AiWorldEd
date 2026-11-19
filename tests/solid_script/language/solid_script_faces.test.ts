@@ -239,7 +239,7 @@ describe('SolidScript faces', () => {
     expect(count(select('All'), select('Tagged', { detail: 'Side', how: 'Remove' }))).toBe(2);
     expect(count(select('Biggest', { detail: '3' }))).toBe(3);
     expect(count(select('Number', { detail: '0, 2' }))).toBe(2);
-    expect(count(select('Where', { detail: '[=[Face.Center(2)] > 0.5]' }))).toBe(1);
+    expect(count(select('Where', { detail: '[=[$Face.Center.Z] > 0.5]' }))).toBe(1);
     expect(count(select('Facing', { detail: '1, 0, 0' }))).toBe(1);
   });
 

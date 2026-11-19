@@ -14,6 +14,7 @@ import { SolidScriptScope } from './solid_script_scope.js';
 import { solidScriptValueText, solidScriptValueType, type SolidScriptValue } from './solid_script_value.js';
 import { SolidScriptElements } from './solid_script_elements.js';
 import { solidScriptMemberRead } from './solid_script_members.js';
+import { solidScriptSystemFillShort } from './solid_script_system_fill_shorts.js';
 import type { SolidScriptGeometryLeaf } from './solid_script_geometry.js';
 
 /** Pattern of a variable or part name. */
@@ -515,6 +516,8 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
     if (!name.includes('.') && !name.includes('(')) {
       const found = scope.variableGet(name);
       if (found !== undefined) return found;
+      const short = solidScriptSystemFillShort(name, scope, this.elements);
+      if (short !== undefined) return short;
     } else if (name.startsWith(SOLID_SCRIPT_LOCAL_PREFIX)) {
       // A Function's own input or variable, the common read inside one.
       const found = this.fieldLocal(solidScriptLocalBare(name));

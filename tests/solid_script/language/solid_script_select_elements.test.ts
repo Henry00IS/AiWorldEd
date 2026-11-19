@@ -27,7 +27,7 @@ describe('SolidScript Select Edges and Select Vertices', () => {
       printed(
         line('cube', { size: '4, 1, 1', anchor: 'Center, Center, Center' }),
         line('select_edges', { which: 'Longest', detail: '4' }),
-        line('select_edges', { which: 'Where', detail: '[=[Edge.Middle.y] > 0]', how: 'Remove' }),
+        line('select_edges', { which: 'Where', detail: '[=[$Edge.Middle.Y] > 0]', how: 'Remove' }),
         line('echo', { value: '[$Selected.Edges.Count] [$Selected.Edges.First.Length]' }),
       ),
     ).toEqual(['2 4']);
@@ -37,7 +37,7 @@ describe('SolidScript Select Edges and Select Vertices', () => {
     expect(
       printed(
         CUBE,
-        line('select_vertices', { which: 'Where', detail: '[=[Vertex.Position.y] > 0]', into: 'Up' }),
+        line('select_vertices', { which: 'Where', detail: '[=[$Vertex.Position.Y] > 0]', into: 'Up' }),
         line('echo', { value: '[Up.Count] [$Selected.Vertices.Count] [Up.Center]' }),
       ),
     ).toEqual(['4 4 [0, 1, 0]']);

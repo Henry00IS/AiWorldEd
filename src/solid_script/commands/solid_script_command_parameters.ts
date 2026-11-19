@@ -208,9 +208,9 @@ export function solidScriptParameterShapeName(): SolidScriptCommandParameter {
 }
 
 /**
- * The Of field of lines that work on geometry: a value such as [Face] or [Top],
- * a list of them, or a Name tag; empty uses a [$Selected.*] list, shown greyed
- * in the empty field.
+ * The Of field of lines that work on geometry: a value such as [Top] or
+ * [Picked], a list of them, or a Name tag; empty uses a [$Selected.*] list,
+ * shown greyed in the empty field.
  *
  * @param what What the line takes, such as faces or brushes.
  * @param fallback The system list an empty Of uses, such as $Selected.Faces.
@@ -227,7 +227,7 @@ export function solidScriptParameterOf(
       'of',
       'Of',
       'value',
-      `The ${what} to work on: a variable such as [Face], a list, or a Name given to brushes; empty uses [${fallback}].`,
+      `The ${what} to work on: a variable such as [Top], a list, or a Name given to brushes; empty uses [${fallback}].`,
     ),
     placeholder: `[${fallback}]`,
     nameGroups: ['Brushes', 'Parts'],

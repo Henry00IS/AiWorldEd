@@ -268,7 +268,7 @@ describe('SolidScript meshes', () => {
     const picked = onlyMesh(
       run(
         ...fromBrushes({ command: 'cube', values: { anchor: 'Center, Center, Center' } }),
-        { command: 'select_vertices', values: { which: 'Where', detail: '[=[Vertex.Position.z] > 0]' } },
+        { command: 'select_vertices', values: { which: 'Where', detail: '[=[$Vertex.Position.Z] > 0]' } },
         { command: 'displace', values: { distance: '1' } },
       ),
     );

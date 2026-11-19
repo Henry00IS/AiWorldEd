@@ -32,16 +32,20 @@ export interface SolidScriptSystemFill {
  * only fill names listed here.
  */
 export const SOLID_SCRIPT_SYSTEM_FILLS = {
-  $X: { type: 'Number', detail: 'where the point is, on X' },
-  $Y: { type: 'Number', detail: 'where the point is, on Y' },
-  $Z: { type: 'Number', detail: 'where the point is, on Z' },
-  $NX: { type: 'Number', detail: 'which way the surface faces, on X' },
-  $NY: { type: 'Number', detail: 'which way the surface faces, on Y' },
-  $NZ: { type: 'Number', detail: 'which way the surface faces, on Z' },
-  $CX: { type: 'Number', detail: 'the middle of the face, on X' },
-  $CY: { type: 'Number', detail: 'the middle of the face, on Y' },
-  $CZ: { type: 'Number', detail: 'the middle of the face, on Z' },
-  $Index: { type: 'Number', detail: 'the number of this point or face, from 0' },
+  $Face: { type: 'Face', detail: 'the face a line is testing or working on' },
+  $Edge: { type: 'Edge', detail: 'the edge a line is testing or working on' },
+  $Vertex: { type: 'Vertex', detail: 'the corner a line is testing or working on' },
+  $Point: { type: 'Point', detail: 'the point a line is testing or working on' },
+  $X: { type: 'Number', detail: 'short form of $Vertex.Position.X, or $Point.Position.X' },
+  $Y: { type: 'Number', detail: 'short form of $Vertex.Position.Y, or $Point.Position.Y' },
+  $Z: { type: 'Number', detail: 'short form of $Vertex.Position.Z, or $Point.Position.Z' },
+  $NX: { type: 'Number', detail: 'short form of $Vertex.Normal.X, or $Face.Normal.X' },
+  $NY: { type: 'Number', detail: 'short form of $Vertex.Normal.Y, or $Face.Normal.Y' },
+  $NZ: { type: 'Number', detail: 'short form of $Vertex.Normal.Z, or $Face.Normal.Z' },
+  $CX: { type: 'Number', detail: 'short form of $Face.Center.X' },
+  $CY: { type: 'Number', detail: 'short form of $Face.Center.Y' },
+  $CZ: { type: 'Number', detail: 'short form of $Face.Center.Z' },
+  $Index: { type: 'Number', detail: 'the number of this face, edge, vertex or point, from 0' },
 } as const satisfies Record<SolidScriptSystemName, SolidScriptSystemFill>;
 
 /** A name a command may fill in, such as $NZ. */

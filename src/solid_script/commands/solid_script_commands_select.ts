@@ -93,7 +93,9 @@ function solidScriptSelectWhich(
   const which = run.text('which').trim();
   if (which === 'All') return items;
   if (which === 'Where')
-    return items.filter((item) => solidScriptValueTruthy(run.valueWith('detail', { [kind.item]: item })));
+    return items.filter((item, index) =>
+      solidScriptValueTruthy(run.valueWith('detail', { [`$${kind.item}`]: item, $Index: index })),
+    );
   const size = kind.size;
   if (!size || (which !== 'Longest' && which !== 'Shortest'))
     throw new Error(`Which must be one of ${kind.words.map((entry) => entry.word).join(', ')}, not "${which}"`);
@@ -142,7 +144,8 @@ function solidScriptSelectCommand(kind: SolidScriptSelectKind): SolidScriptComma
     label: kind.label,
     category: 'Faces',
     description: `Pick ${kind.many} of brushes or faces`,
-    manual: `Picks ${kind.many} and puts them in [$Selected.${kind.item === 'Edge' ? 'Edges' : 'Vertices'}], where lines with an empty Of find them. Of says where to pick from: brushes, faces or edges; empty uses [$Selected.Faces], or [$Selected.Brushes] when no faces are picked. Into also writes them to a variable, a ${kind.item} list. Where tests each one as [${kind.item}], such as [=[${kind.item}.${kind.item === 'Edge' ? 'Length' : 'Position.Y'}] > 1]. How adds to or removes from the ${kind.many} picked before. Example: ${kind.example}`,
+    fills: kind.item === 'Edge' ? ['$Edge', '$Index'] : ['$Vertex', '$Index'],
+    manual: `Picks ${kind.many} and puts them in [$Selected.${kind.item === 'Edge' ? 'Edges' : 'Vertices'}], where lines with an empty Of find them. Of says where to pick from: brushes, faces or edges; empty uses [$Selected.Faces], or [$Selected.Brushes] when no faces are picked. Into also writes them to a variable, a ${kind.item} list. Where tests each one as [$${kind.item}], such as [=[$${kind.item}.${kind.item === 'Edge' ? 'Length' : 'Position.Y'}] > 1], and [$Index] is its number from 0. How adds to or removes from the ${kind.many} picked before. Example: ${kind.example}`,
     stops: [
       'No brushes to pick from.',
       'A Which that is not one of the choices.',
@@ -208,7 +211,7 @@ export const SOLID_SCRIPT_COMMANDS_SELECT: readonly SolidScriptCommand[] = [
       { word: 'All', detail: 'Every edge' },
       { word: 'Longest', detail: 'The longest edges; Detail says how many' },
       { word: 'Shortest', detail: 'The shortest edges; Detail says how many' },
-      { word: 'Where', detail: 'The edges a condition in Detail holds for, with [Edge]' },
+      { word: 'Where', detail: 'The edges a condition in Detail holds for, with [$Edge] and [$Index]' },
     ],
     items: (run, element) => run.elements.edges(element).map((edge) => run.elements.edge(edge)),
     size: (run, item) => run.elements.edges(item)[0]?.length ?? 0,
@@ -217,13 +220,13 @@ export const SOLID_SCRIPT_COMMANDS_SELECT: readonly SolidScriptCommand[] = [
     id: 'select_vertices',
     label: 'Select Vertices',
     many: 'corners',
-    example: 'Cube, then Select Vertices Where [=[Vertex.Position.Y] > 0] Into Up, and Print [Up.Count] shows 4.',
+    example: 'Cube, then Select Vertices Where [=[$Vertex.Position.Y] > 0] Into Up, and Print [Up.Count] shows 4.',
     item: 'Vertex',
     selected: 'vertices',
     from: ['brush', 'face', 'edge'],
     words: [
       { word: 'All', detail: 'Every corner' },
-      { word: 'Where', detail: 'The corners a condition in Detail holds for, with [Vertex]' },
+      { word: 'Where', detail: 'The corners a condition in Detail holds for, with [$Vertex] and [$Index]' },
     ],
     items: (run, element) => {
       const leaf = run.elements.leaf(element);

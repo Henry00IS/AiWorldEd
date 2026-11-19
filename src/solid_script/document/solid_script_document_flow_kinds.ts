@@ -86,21 +86,28 @@ export function solidScriptFlowMember(kinds: readonly string[], part: string): s
   return solidScriptFlowPicks(part) ? gives.map(solidScriptFlowItemOf) : gives;
 }
 
+/** Kind of the start of a system name, and how many parts that start uses. */
+interface SolidScriptFlowSystemStart {
+  kinds: string[];
+  rest: number;
+}
+
 /**
- * Gives the kind of a system value, such as Face List for $Selected.Faces.
+ * Gives the kind of the start of a system name: a listed value such as
+ * $Selected.Faces, or a fill such as $Face, so $Face.Area can follow members.
  *
  * @param parts Name split at its dots, the first with its $.
- * @returns Kinds, the unknown kind for one not listed.
+ * @returns Kinds and the index of the first member after that start.
  */
-function solidScriptFlowSystem(parts: readonly string[]): string[] {
-  if (parts.length === 1) {
-    const fill = solidScriptSystemFill(parts[0] ?? '');
-    return fill ? [fill.type] : [SOLID_SCRIPT_FLOW_UNKNOWN];
+function solidScriptFlowSystemStart(parts: readonly string[]): SolidScriptFlowSystemStart {
+  if (parts.length >= 2) {
+    const two = `${solidScriptFlowWord(parts[0] ?? '')}.${solidScriptFlowWord(parts[1] ?? '')}`.toLowerCase();
+    const kind = SOLID_SCRIPT_SYSTEM_LISTED.find(([label]) => label.toLowerCase() === two)?.[1];
+    if (kind !== undefined)
+      return { kinds: [solidScriptFlowPicks(parts[1] ?? '') ? solidScriptFlowItemOf(kind) : kind], rest: 2 };
   }
-  const two = `${solidScriptFlowWord(parts[0] ?? '')}.${solidScriptFlowWord(parts[1] ?? '')}`.toLowerCase();
-  const kind = SOLID_SCRIPT_SYSTEM_LISTED.find(([label]) => label.toLowerCase() === two)?.[1];
-  if (kind === undefined) return [SOLID_SCRIPT_FLOW_UNKNOWN];
-  return [solidScriptFlowPicks(parts[1] ?? '') ? solidScriptFlowItemOf(kind) : kind];
+  const fill = solidScriptSystemFill(parts[0] ?? '');
+  return { kinds: fill ? [fill.type] : [SOLID_SCRIPT_FLOW_UNKNOWN], rest: 1 };
 }
 
 /**
@@ -153,9 +160,10 @@ export function solidScriptFlowPathKinds(path: string, head: SolidScriptFlowHead
   if (parts.length > 1 && /^(local|persistent)$/i.test(parts[0] ?? '')) parts.splice(0, 2, `${parts[0]}.${parts[1]}`);
   const system = path.trim().startsWith('$');
   const first = parts[0] ?? '';
-  let kinds = system ? solidScriptFlowSystem(parts) : [...head(solidScriptFlowWord(first).toLowerCase())];
+  const start = system ? solidScriptFlowSystemStart(parts) : null;
+  let kinds = start ? start.kinds : [...head(solidScriptFlowWord(first).toLowerCase())];
   if (!system && solidScriptFlowPicks(first)) kinds = kinds.map(solidScriptFlowItemOf);
-  for (const part of parts.slice(system ? 2 : 1)) kinds = solidScriptFlowMember(kinds, part);
+  for (const part of parts.slice(start?.rest ?? 1)) kinds = solidScriptFlowMember(kinds, part);
   return solidScriptFlowUnique(kinds);
 }
 

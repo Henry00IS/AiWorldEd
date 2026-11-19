@@ -542,7 +542,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Push mesh points in or out by a formula',
     manual:
-      'Moves points of a mesh outwards along the surface by Distance in metres. A negative distance pulls them in. It moves the vertices Select Vertices picked, or every point when none are picked. Distance is worked out for each point, and may use [$X], [$Y] and [$Z] (where the point is), [$NX], [$NY] and [$NZ] (which way the surface faces there) and [$Index] (the point number), so waves, noise and bulges come from one formula. Of is the mesh; empty uses [$Selected.Brushes]. A brush stops the line: wrap it in Mesh From Brushes first. Subdivide first for a smooth result. Example: Mesh From Brushes around a subdivided Cube, then Distance [=0.1 * Sin([$X] * 180)], gives a wavy surface.',
+      'Moves points of a mesh outwards along the surface by Distance in metres. A negative distance pulls them in. It moves the vertices Select Vertices picked, or every point when none are picked. Distance is worked out for each point, and may use [$X], [$Y] and [$Z] (short forms of [$Vertex.Position] on each axis), [$NX], [$NY] and [$NZ] (short forms of [$Vertex.Normal]) and [$Index] (the point number), so waves, noise and bulges come from one formula. Of is the mesh; empty uses [$Selected.Brushes]. A brush stops the line: wrap it in Mesh From Brushes first. Subdivide first for a smooth result. Example: Mesh From Brushes around a subdivided Cube, then Distance [=0.1 * Sin([$X] * 180)], gives a wavy surface.',
     stops: [
       'A Distance that does not give a number.',
       'A brush. Wrap it in Mesh From Brushes first.',

@@ -110,6 +110,11 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     Parent: form('Parents', 'Brush'),
     Data: form('Data', 'Data'),
   },
+  Point: {
+    Position: form('Positions', 'Vector'),
+    Normal: form('Normals', 'Vector'),
+    Data: form('Data', 'Data'),
+  },
 } as const;
 
 /** What each member of each kind gives on one value, by its singular name. */

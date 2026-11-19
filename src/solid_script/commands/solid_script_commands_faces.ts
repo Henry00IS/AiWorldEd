@@ -142,7 +142,8 @@ function solidScriptFacePickRead(run: SolidScriptBlockRun): SolidScriptFacePick 
     case 'Where':
       return {
         by: 'where',
-        holds: (face) => solidScriptValueTruthy(run.valueWith('detail', { Face: run.elements.face(face) })),
+        holds: (face) =>
+          solidScriptValueTruthy(run.valueWith('detail', { $Face: run.elements.face(face), $Index: face.index })),
       };
     default:
       throw new Error(`Which must be one of ${SOLID_SCRIPT_FACE_WHICH.join(', ')}, not "${which}"`);
@@ -303,8 +304,9 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     label: 'Select Faces',
     category: 'Faces',
     description: 'Pick faces of brushes',
+    fills: ['$Face', '$Index', '$CX', '$CY', '$CZ', '$NX', '$NY', '$NZ'],
     manual:
-      'Picks faces and puts them in [$Selected.Faces], where Extrude Face, Inset Face, Bevel Edges, Delete Faces and Texture Faces find them when their Of is empty. Of says where to pick from: brushes (all their faces) or faces (a list to narrow down); empty uses [$Selected.Brushes], every brush built above. Into also writes the faces to a variable, a Face list. How adds to or removes from the faces picked before. Inside a For Each round the pick stays in that round. Example: Cube, then Select Faces Facing Up and Extrude Face by 1 pulls the top up.',
+      'Picks faces and puts them in [$Selected.Faces], where Extrude Face, Inset Face, Bevel Edges, Delete Faces and Texture Faces find them when their Of is empty. Of says where to pick from: brushes (all their faces) or faces (a list to narrow down); empty uses [$Selected.Brushes], every brush built above. Into also writes the faces to a variable, a Face list. Where tests each face as [$Face], and [$Index] is its number from 0; [$CX], [$CY] and [$CZ] are short forms of [$Face.Center.X] and the other axes, and [$NX], [$NY] and [$NZ] of [$Face.Normal]. How adds to or removes from the faces picked before. Inside a For Each round the pick stays in that round. Example: Cube, then Select Faces Facing Up and Extrude Face by 1 pulls the top up.',
     stops: [
       'No brushes to pick from.',
       'A Which that is not one of the choices.',
@@ -324,7 +326,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         'detail',
         'Detail',
         'value',
-        'The name for Tagged, how many for Biggest or Smallest, numbers for Number, a direction for Facing, a condition for Where such as [=[Face.Area] > 1], with [Face] the face being tested.',
+        'The name for Tagged, how many for Biggest or Smallest, numbers for Number, a direction for Facing, a condition for Where such as [=[$Face.Area] > 1], with [$Face] the face being tested and [$Index] its number from 0.',
       ),
       solidScriptParameterOf('brushes or faces to pick from', '$Selected.Brushes'),
       solidScriptParameter(

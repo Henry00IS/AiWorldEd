@@ -110,6 +110,8 @@ function solidScriptMistakeOfficial(name: string): string | undefined {
   const fill = solidScriptSystemFill(name);
   if (fill) return fill.name;
   const parts = name.split('.');
+  const headFill = parts.length >= 2 ? solidScriptSystemFill(parts[0] ?? '') : undefined;
+  if (headFill) return [headFill.name, ...parts.slice(1)].join('.');
   const head = parts.length >= 2 ? `${parts[0]}.${parts[1]}`.toLowerCase() : '';
   return head && SOLID_SCRIPT_MISTAKE_SYSTEM.has(head) ? `$${name}` : undefined;
 }
