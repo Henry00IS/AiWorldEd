@@ -115,3 +115,30 @@ export function tool(label: string): HTMLButtonElement {
   if (!button) throw new Error(`Expected the ${label} button`);
   return button;
 }
+
+/**
+ * Clicks a category of the variable explorer.
+ *
+ * @param category Category.
+ */
+export function categoryShow(category: string): void {
+  find<HTMLButtonElement>(`[data-category="${category}"]`).click();
+}
+
+/**
+ * Reads the caption above the variable table.
+ *
+ * @returns Caption.
+ */
+export function caption(): string {
+  return find('.solid-script-editor-explorer-column .solid-script-editor-variables-caption').textContent ?? '';
+}
+
+/**
+ * Presses a line with the left button.
+ *
+ * @param at Line index.
+ */
+export function linePress(at: number): void {
+  chip(at).dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 }));
+}

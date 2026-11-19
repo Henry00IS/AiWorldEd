@@ -65,8 +65,10 @@ import type {
   SolidScriptMachineCommand,
   SolidScriptMachineField,
   SolidScriptRun,
+  SolidScriptVariable,
   SolidScriptWarning,
 } from './solid_script_machine_types.js';
+import { SOLID_SCRIPT_SYSTEM_CATALOG } from './solid_script_system_names.js';
 import {
   SOLID_SCRIPT_LOCAL_PREFIX,
   solidScriptPersistentRead,
@@ -89,6 +91,13 @@ export const SOLID_SCRIPT_WORK_LIMIT = 10_000_000;
  */
 export class SolidScriptMachine<Command extends SolidScriptMachineCommand> extends SolidScriptMachineCalls<Command> {
   private readonly messages: string[] = [];
+  /**
+   * System lists such as [$Selected.Faces] where the run paused or reached its
+   * step limit, or null to read them where the run ends.
+   */
+  private systemSeen: SolidScriptVariable[] | null = null;
+  /** True from the last step within the limit until its line finishes. */
+  private systemPending = false;
   /** The stack as it was at the watched step. */
   private stackSeen: SolidScriptFrameView[] = [];
   private readonly notices: string[] = [];
@@ -302,8 +311,13 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     this.useOnce();
     this.scriptLines = lines;
     const context = { matrix: new THREE.Matrix4(), planar: false };
+    if (this.stepLimit === 0) this.systemSeen = this.systemCapture();
     const shapes = this.linesRun(lines, this.root, context, this.root);
     this.stopping = false;
+    // Where the run ended, the top lines' shapes count as built so far.
+    this.builtStack.push(shapes);
+    const system = this.systemSeen ?? this.systemCapture();
+    this.builtStack.pop();
     const variables = [...(this.watched?.variablesVisible() ?? [])].map(([name, value]) =>
       solidScriptVariableView(this.spellings.get(name) ?? name, value),
     );
@@ -327,6 +341,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       breaks: this.breaks,
       paused: this.paused,
       stack: this.stackSeen,
+      system,
       profile: this.profile,
       error: this.failure,
     };
@@ -404,6 +419,11 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       for (let index = 0; index < lines.length; index++) {
         const shapes = this.lineRun(lines[index]!, scope, context, runs[index]!);
         for (const shape of shapes) built.push(shape);
+        if (this.systemPending) {
+          // The last step shown is built: its line reads the lists as they are now.
+          this.systemPending = false;
+          this.systemSeen = this.systemCapture();
+        }
       }
     } finally {
       this.builtStack.pop();
@@ -525,6 +545,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     if (this.breaks.length !== this.breakpoints.pauseAt) return false;
     this.paused = reached;
     this.watch(scope);
+    this.systemSeen = this.systemCapture();
     return true;
   }
 
@@ -958,6 +979,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     this.steps.push(this.line);
     if (this.steps.length > this.stepLimit) return false;
     this.watch(scope);
+    if (this.steps.length === this.stepLimit) this.systemPending = true;
     this.solids += 1;
     if (this.solids > SOLID_SCRIPT_SOLIDS_MAX)
       throw new Error(`the script builds more than ${SOLID_SCRIPT_SOLIDS_MAX} brushes and meshes`);
@@ -981,6 +1003,21 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         ),
       };
     });
+  }
+
+  /**
+   * Reads every system list of the catalog, such as [$Selected.Faces], as the
+   * run holds them now.
+   *
+   * @returns The lists with their values as text.
+   */
+  private systemCapture(): SolidScriptVariable[] {
+    const seen: SolidScriptVariable[] = [];
+    for (const entry of SOLID_SCRIPT_SYSTEM_CATALOG) {
+      const list = this.systemList(solidScriptNameKey(entry.name.slice(1)));
+      if (list !== undefined) seen.push(solidScriptVariableView(entry.name, list));
+    }
+    return seen;
   }
 
   /** Counts one step of work and stops a run that never ends. */

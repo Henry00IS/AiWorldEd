@@ -279,6 +279,11 @@ export interface SolidScriptEvaluation {
    */
   stack: SolidScriptFrameView[];
   /**
+   * System lists such as [$Selected.Faces] where the run paused or reached its
+   * step limit, or else where it ended.
+   */
+  system: SolidScriptVariable[];
+  /**
    * How often each line ran and how long it took with the lines inside it, by
    * 1-based line; empty unless the run was asked to profile.
    */

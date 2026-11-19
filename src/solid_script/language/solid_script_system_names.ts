@@ -149,7 +149,7 @@ function solidScriptSystemCatalogFrom(
  * exactly these.
  */
 export const SOLID_SCRIPT_SYSTEM_CATALOG: readonly SolidScriptSystemCatalogEntry[] = [
-  ...solidScriptSystemCatalogFrom(SOLID_SCRIPT_SYSTEM_SELECTED, 'Only While a Script Runs'),
+  ...solidScriptSystemCatalogFrom(SOLID_SCRIPT_SYSTEM_SELECTED, 'Nothing Ran Yet'),
   ...solidScriptSystemCatalogFrom(SOLID_SCRIPT_SYSTEM_GLOBALS, 'Only in a Generator'),
   ...(Object.entries(SOLID_SCRIPT_SYSTEM_FILLS) as [SolidScriptSystemFillName, SolidScriptSystemFill][]).map(
     ([name, fill]) => ({ name, type: fill.type, detail: fill.detail, absent: 'Only Inside Lines That Fill It' }),

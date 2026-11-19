@@ -63,13 +63,42 @@ export function solidScriptExplorerContextEntries(
     .filter((name) => solidScriptContextReadable(name, before))
     .map((name) => solidScriptContextNameEntry(name, live));
   solidScriptContextWritesMark(entries, script, line);
-  const fills = solidScriptCommandFind(block.command)?.fills ?? [];
-  const filled = SOLID_SCRIPT_SYSTEM_CATALOG.filter((entry) => (fills as readonly string[]).includes(entry.name));
+  const fills = solidScriptExplorerFills(script, line);
+  const filled = SOLID_SCRIPT_SYSTEM_CATALOG.filter((entry) => fills.includes(entry.name));
+  const fillText = live ? solidScriptExplorerFillText(line) : null;
   return [
     ...entries,
-    ...SOLID_SCRIPT_CONTEXT_SELECTED.map((entry) => solidScriptContextSystemEntry(entry, '')),
-    ...filled.map((entry) => solidScriptContextSystemEntry(entry, ', filled by this line for its own fields')),
+    ...SOLID_SCRIPT_CONTEXT_SELECTED.map((entry) => {
+      const found = live?.get(entry.name);
+      return solidScriptContextSystemEntry(entry, '', found?.value ?? null, found?.items ?? []);
+    }),
+    ...filled.map((entry) =>
+      solidScriptContextSystemEntry(entry, ', filled by this line for its own fields', fillText, []),
+    ),
   ];
+}
+
+/**
+ * Lists the names a line fills for its own fields, such as $NZ.
+ *
+ * @param script Script.
+ * @param line 0-based line.
+ * @returns Official fill names; empty when the line fills none.
+ */
+export function solidScriptExplorerFills(script: SolidScriptDocument, line: number): readonly string[] {
+  const block = script.blocks[line];
+  return (block && solidScriptCommandFind(block.command)?.fills) ?? [];
+}
+
+/**
+ * Says when a fill holds a value: for each element in turn while its line runs,
+ * so a run stopped before the line has none yet.
+ *
+ * @param line 0-based line that fills it.
+ * @returns Text shown as its value.
+ */
+export function solidScriptExplorerFillText(line: number): string {
+  return `Set for Each Element While Line ${line + 1} Runs`;
 }
 
 /**
@@ -167,16 +196,23 @@ function solidScriptContextWrittenEntry(
  *
  * @param entry Catalog entry.
  * @param note Words added after what it holds.
+ * @param value Value where the run stopped before the line, or null.
+ * @param items Items of a list where the run stopped.
  * @returns Entry.
  */
-function solidScriptContextSystemEntry(entry: SolidScriptSystemCatalogEntry, note: string): SolidScriptExplorerEntry {
+function solidScriptContextSystemEntry(
+  entry: SolidScriptSystemCatalogEntry,
+  note: string,
+  value: string | null,
+  items: SolidScriptVariable[],
+): SolidScriptExplorerEntry {
   return {
     name: entry.name,
     category: 'System',
-    value: null,
+    value,
     type: entry.type,
     lines: [],
-    items: [],
+    items,
     readOnly: true,
     detail: `${entry.detail}${note}`,
   };

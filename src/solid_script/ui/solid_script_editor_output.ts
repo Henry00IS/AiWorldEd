@@ -146,7 +146,7 @@ export class SolidScriptEditorOutput {
       const solids = `${count} ${count === 1 ? 'solid' : 'solids'}${result.paused ? ' so far' : ''}`;
       this.text([solids, ...result.messages].join('\n'), '');
       this.output.append(...result.warnings.map((warning) => this.warningRow(warning)), this.checks);
-      this.explorer.show(document, result.variables, options ? result.stack : [], run);
+      this.explorer.show(document, result.variables, options ? result.stack : [], result.system, run);
     } else {
       const message = solidScriptErrorText(new Error(result.error.message));
       const failed = solidScriptErrorLine(message);
@@ -160,7 +160,11 @@ export class SolidScriptEditorOutput {
       this.output.append(...result.warnings.map((warning) => this.warningRow(warning)), this.checks);
       const caption =
         failed === null ? 'Where the error stopped the run' : `Where the error on line ${failed} stopped the run`;
-      this.explorer.show(document, result.variables, options ? result.stack : [], { caption, stoppedBefore: null });
+      this.explorer.show(document, result.variables, options ? result.stack : [], result.system, {
+        caption,
+        stoppedBefore: null,
+        ran: true,
+      });
     }
   }
 

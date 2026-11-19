@@ -453,12 +453,16 @@ export class SolidScriptEditor extends PanelFloating {
     const line = this.debugger.line();
     const blocks = this.session.document().blocks;
     if (blocks.every((block) => solidScriptBlockIsBlank(block)))
-      return { caption: 'Nothing ran yet', stoppedBefore: null };
+      return { caption: 'Nothing ran yet', stoppedBefore: null, ran: false };
     if (this.debugger.stateGet() === 'stopped' || line === null)
-      return { caption: 'At the end of the run', stoppedBefore: null };
+      return { caption: 'At the end of the run', stoppedBefore: null, ran: true };
     if (this.debugger.atBreakpoint())
-      return { caption: `Stopped at the breakpoint on line ${line + 1}, before it runs`, stoppedBefore: line };
-    return { caption: `At step ${this.debugger.position().step}, line ${line + 1}`, stoppedBefore: null };
+      return {
+        caption: `Stopped at the breakpoint on line ${line + 1}, before it runs`,
+        stoppedBefore: line,
+        ran: true,
+      };
+    return { caption: `At step ${this.debugger.position().step}, line ${line + 1}`, stoppedBefore: null, ran: true };
   }
 
   /**

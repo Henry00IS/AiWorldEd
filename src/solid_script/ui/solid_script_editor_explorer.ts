@@ -14,7 +14,11 @@ import { SOLID_SCRIPT_SYSTEM_CATALOG } from '@/solid_script/language/solid_scrip
 import { solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
 import type { SolidScriptFrameView, SolidScriptVariable } from '@/solid_script/language/solid_script_machine_types.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
-import { solidScriptExplorerContextEntries } from './solid_script_editor_explorer_context.js';
+import {
+  solidScriptExplorerContextEntries,
+  solidScriptExplorerFills,
+  solidScriptExplorerFillText,
+} from './solid_script_editor_explorer_context.js';
 import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
 
 /**
@@ -29,10 +33,20 @@ export interface SolidScriptExplorerRun {
   caption: string;
   /** 0-based line the run stopped just before, such as at a breakpoint, or null. */
   stoppedBefore: number | null;
+  /** False when the script has nothing to run, so no values were captured. */
+  ran: boolean;
 }
 
-/** Caption of the System category. */
-const SOLID_SCRIPT_EXPLORER_SYSTEM_CAPTION = 'Built-in values as they read now, outside a run';
+/** System lists of a run and where it stopped, for the System names. */
+export interface SolidScriptExplorerSystemRun {
+  /** System lists such as $Selected.Faces where the values were captured. */
+  system: readonly SolidScriptVariable[];
+  /** 0-based line the run stopped just before, or null. */
+  stoppedBefore: number | null;
+}
+
+/** Words after the caption of the System category. */
+const SOLID_SCRIPT_EXPLORER_SYSTEM_NOW = 'built-in values as they read now';
 
 /** Caption of the Context category when no line is focused. */
 const SOLID_SCRIPT_EXPLORER_CONTEXT_NONE = 'No line is focused.';
@@ -52,7 +66,7 @@ export function solidScriptExplorerCaption(
   run: SolidScriptExplorerRun,
   contextLine: number | null,
 ): string {
-  if (category === 'System') return SOLID_SCRIPT_EXPLORER_SYSTEM_CAPTION;
+  if (category === 'System') return `${run.caption}; ${SOLID_SCRIPT_EXPLORER_SYSTEM_NOW}`;
   if (category !== 'Context') return run.caption;
   if (contextLine === null) return SOLID_SCRIPT_EXPLORER_CONTEXT_NONE;
   const live = run.stoppedBefore === contextLine ? ', with the values where the run stopped' : '';
@@ -108,12 +122,15 @@ const SOLID_SCRIPT_EXPLORER_TYPES_STATIC: Partial<Record<SolidScriptNameCategory
  * @param script Script.
  * @param variables Variables at the step shown.
  * @param stack Running Functions and parts, outermost first.
+ * @param run System lists of the run and where it stopped; none when nothing
+ *   ran.
  * @returns Entries in category order.
  */
 export function solidScriptExplorerEntries(
   script: SolidScriptDocument,
   variables: readonly SolidScriptVariable[],
   stack: readonly SolidScriptFrameView[],
+  run: SolidScriptExplorerSystemRun = { system: [], stoppedBefore: null },
 ): SolidScriptExplorerEntry[] {
   const origins = solidScriptDocumentOrigins(script);
   const live = solidScriptExplorerLive(variables, stack);
@@ -158,15 +175,23 @@ export function solidScriptExplorerEntries(
     });
   }
   const system = solidScriptSystemValues('preview', null, false);
+  const lists = new Map(run.system.map((list) => [list.name, list]));
+  const filling = run.stoppedBefore === null ? [] : solidScriptExplorerFills(script, run.stoppedBefore);
   for (const value of SOLID_SCRIPT_SYSTEM_CATALOG) {
+    const list = lists.get(value.name);
     const current = system.get(value.name.slice(1));
+    let shown = value.absent;
+    if (list) shown = list.value;
+    else if (current !== undefined) shown = solidScriptValueText(current);
+    else if (run.stoppedBefore !== null && filling.includes(value.name))
+      shown = solidScriptExplorerFillText(run.stoppedBefore);
     entries.push({
       name: value.name,
       category: 'System',
-      value: current === undefined ? value.absent : solidScriptValueText(current),
+      value: shown,
       type: value.type,
       lines: [],
-      items: [],
+      items: list?.items ?? [],
       readOnly: true,
       detail: value.detail,
     });
@@ -257,7 +282,7 @@ export class SolidScriptEditorExplorer {
   private stack: readonly SolidScriptFrameView[] = [];
   private script: SolidScriptDocument | null = null;
   private live: ReadonlyMap<string, SolidScriptVariable> = new Map();
-  private run: SolidScriptExplorerRun = { caption: 'Nothing ran yet', stoppedBefore: null };
+  private run: SolidScriptExplorerRun = { caption: 'Nothing ran yet', stoppedBefore: null, ran: false };
   private contextLine: number | null = null;
 
   /** Builds the explorer. */
@@ -303,18 +328,27 @@ export class SolidScriptEditorExplorer {
    * @param script Script.
    * @param variables Variables at the step shown.
    * @param stack Running Functions and parts, outermost first.
+   * @param system System lists such as $Selected.Faces at the step shown.
    * @param run Where the values were captured.
    */
   show(
     script: SolidScriptDocument,
     variables: readonly SolidScriptVariable[],
     stack: readonly SolidScriptFrameView[],
+    system: readonly SolidScriptVariable[],
     run: SolidScriptExplorerRun,
   ): void {
-    this.entries = solidScriptExplorerEntries(script, variables, stack);
+    const lists = run.ran ? system : [];
+    this.entries = solidScriptExplorerEntries(script, variables, stack, {
+      system: lists,
+      stoppedBefore: run.stoppedBefore,
+    });
     this.stack = stack;
     this.script = script;
-    this.live = solidScriptExplorerLive(variables, stack);
+    this.live = new Map([
+      ...solidScriptExplorerLive(variables, stack),
+      ...lists.map((list): [string, SolidScriptVariable] => [list.name, list]),
+    ]);
     this.run = run;
     this.contextRefresh();
   }

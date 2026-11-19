@@ -114,7 +114,7 @@ describe('the System tab lists every system name, no exceptions', () => {
       (entry) => entry.category === 'System',
     );
     expect(system.filter((entry) => entry.value === null || !entry.detail).map((entry) => entry.name)).toEqual([]);
-    expect(system.find((entry) => entry.name === '$Selected.Faces')?.value).toBe('Only While a Script Runs');
+    expect(system.find((entry) => entry.name === '$Selected.Faces')?.value).toBe('Nothing Ran Yet');
     expect(system.find((entry) => entry.name === '$NZ')?.value).toBe('Only Inside Lines That Fill It');
   });
 });

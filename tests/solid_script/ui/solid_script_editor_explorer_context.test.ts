@@ -6,7 +6,15 @@ import {
   type SolidScriptExplorerRun,
 } from '@/solid_script/ui/solid_script_editor_explorer.js';
 import { solidScriptExplorerContextEntries } from '@/solid_script/ui/solid_script_editor_explorer_context.js';
-import { chip, editorFixture, explorerRows, find, tool } from './solid_script_editor_fixture.js';
+import {
+  categoryShow,
+  caption,
+  editorFixture,
+  explorerRows,
+  find,
+  linePress,
+  tool,
+} from './solid_script_editor_fixture.js';
 
 /**
  * Builds a line.
@@ -30,7 +38,7 @@ const END = line('end');
 const ELSE = line('else');
 
 /** A run captured at its end. */
-const RUN_END: SolidScriptExplorerRun = { caption: 'At the end of the run', stoppedBefore: null };
+const RUN_END: SolidScriptExplorerRun = { caption: 'At the end of the run', stoppedBefore: null, ran: true };
 
 /**
  * Lists what a line can read as name=type, system values left out.
@@ -56,33 +64,6 @@ function systemAt(lines: SolidScriptLine[], at: number): string[] {
   return solidScriptExplorerContextEntries(solidScriptDocumentCreate(lines), at, null)
     .filter((entry) => entry.category === 'System')
     .map((entry) => entry.name);
-}
-
-/**
- * Clicks a category of the variable explorer.
- *
- * @param category Category.
- */
-function categoryShow(category: string): void {
-  find<HTMLButtonElement>(`[data-category="${category}"]`).click();
-}
-
-/**
- * Reads the caption above the variable table.
- *
- * @returns Caption.
- */
-function caption(): string {
-  return find('.solid-script-editor-explorer-column .solid-script-editor-variables-caption').textContent ?? '';
-}
-
-/**
- * Presses a line with the left button.
- *
- * @param at Line index.
- */
-function down(at: number): void {
-  chip(at).dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 }));
 }
 
 afterEach(() => {
@@ -177,6 +158,7 @@ describe('Variable explorer captions say where the values come from', () => {
     const stopped: SolidScriptExplorerRun = {
       caption: 'Stopped at the breakpoint on line 3, before it runs',
       stoppedBefore: 2,
+      ran: true,
     };
     expect(solidScriptExplorerCaption('All', RUN_END, 0)).toBe('At the end of the run');
     expect(solidScriptExplorerCaption('Variables', stopped, 0)).toBe(stopped.caption);
@@ -186,7 +168,9 @@ describe('Variable explorer captions say where the values come from', () => {
     );
     expect(solidScriptExplorerCaption('Context', stopped, 1)).toBe('Before line 2 runs');
     expect(solidScriptExplorerCaption('Context', RUN_END, null)).toBe('No line is focused.');
-    expect(solidScriptExplorerCaption('System', stopped, 2)).toBe('Built-in values as they read now, outside a run');
+    expect(solidScriptExplorerCaption('System', stopped, 2)).toBe(
+      'Stopped at the breakpoint on line 3, before it runs; built-in values as they read now',
+    );
   });
 
   it('says nothing ran yet for an empty script, and no line is focused in Context', () => {
@@ -208,12 +192,12 @@ describe('Variable explorer captions say where the values come from', () => {
 
   it('follows the focused line live in Context', () => {
     editorFixture([line('cube', { into: 'Box' }), set('A', '[Box.Faces.Count]'), set('B', '[A]')]);
-    down(0);
+    linePress(0);
     categoryShow('Context');
     expect(caption()).toBe('Before line 1 runs');
     expect(explorerRows().find((row) => row.startsWith('Box|'))).toContain('Set Here');
     expect(explorerRows().map((row) => row.split('|')[0])).not.toContain('A');
-    down(2);
+    linePress(2);
     expect(caption()).toBe('Before line 3 runs');
     const rows = explorerRows();
     expect(rows.map((row) => row.split('|')[0])).toEqual(expect.arrayContaining(['Box', 'A', 'B', '$Selected.Faces']));
@@ -230,7 +214,7 @@ describe('Variable explorer captions say where the values come from', () => {
     find('[data-line="2"] .solid-script-editor-gutter').click();
     tool('Start').click();
     expect(root.textContent).toContain('Stopped at the breakpoint on line 3, before it runs');
-    down(2);
+    linePress(2);
     categoryShow('Context');
     expect(caption()).toBe('Before line 3 runs, with the values where the run stopped');
     expect(
@@ -238,7 +222,7 @@ describe('Variable explorer captions say where the values come from', () => {
         .find((row) => row.startsWith('i|'))
         ?.split('|')[1],
     ).toBe('0');
-    down(0);
+    linePress(0);
     expect(caption()).toBe('Before line 1 runs');
   });
 });
