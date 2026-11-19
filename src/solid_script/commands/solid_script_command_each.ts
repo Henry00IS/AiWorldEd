@@ -1,4 +1,5 @@
 import type { SolidScriptCommandParameter } from './solid_script_command.js';
+import { solidScriptNameIsPositionWrite } from '@/solid_script/language/solid_script_name_rules.js';
 import {
   solidScriptSystemFill,
   type SolidScriptSystemFillName,
@@ -42,8 +43,9 @@ export function solidScriptParameterEachActive(
   if (!parameter.each) return undefined;
   const when = parameter.eachWhen;
   if (!when) return parameter.each;
-  const held = (values[when.field] ?? '').trim().toLowerCase();
-  return when.words.some((word) => word.toLowerCase() === held) ? parameter.each : undefined;
+  const held = values[when.field] ?? '';
+  if (when.position && solidScriptNameIsPositionWrite(held)) return parameter.each;
+  return when.words?.some((word) => word.toLowerCase() === held.trim().toLowerCase()) ? parameter.each : undefined;
 }
 
 /**
@@ -67,4 +69,23 @@ export function solidScriptParameterEachFills(each: SolidScriptCommandEach): rea
 export function solidScriptSystemFillEach(name: string): boolean {
   const official = solidScriptSystemFill(name)?.name ?? name;
   return SOLID_SCRIPT_COMMAND_EACH_FILL_KEYS.has(official.toLowerCase());
+}
+
+/**
+ * Lists the fills a line may use in its fields: the command's own fills, plus
+ * the current-element names of any field that is per-element for these values.
+ *
+ * @param command Command of the line.
+ * @param values Stored values of the line.
+ * @returns Official fill names, each once.
+ */
+export function solidScriptCommandEachFills(
+  command: { fills: readonly string[]; parameters: readonly SolidScriptCommandParameter[] },
+  values: Readonly<Record<string, string>>,
+): readonly string[] {
+  const extra = command.parameters.flatMap((parameter) => {
+    const each = solidScriptParameterEachActive(parameter, values);
+    return each ? [...solidScriptParameterEachFills(each)] : [];
+  });
+  return [...new Set([...command.fills, ...extra])];
 }

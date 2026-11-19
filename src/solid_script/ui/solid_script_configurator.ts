@@ -1,6 +1,9 @@
 import type { SolidScriptCommand, SolidScriptCommandValues } from '@/solid_script/commands/solid_script_command.js';
 import { solidScriptParameterApplies } from '@/solid_script/commands/solid_script_command_parameters.js';
-import { solidScriptParameterEachActive } from '@/solid_script/commands/solid_script_command_each.js';
+import {
+  solidScriptCommandEachFills,
+  solidScriptParameterEachActive,
+} from '@/solid_script/commands/solid_script_command_each.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import {
   solidScriptConfiguratorFieldBuild,
@@ -126,11 +129,12 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
       const field = this.fields.get(parameter.key);
       if (!field) continue;
       const applies = solidScriptParameterApplies(parameter, values, this.command.parameters);
+      const active = applies && solidScriptParameterEachActive(parameter, values) !== undefined;
       field.element.hidden = !applies;
-      field.element.classList.toggle(
-        SOLID_SCRIPT_EDITOR_CLASSES.fieldEach,
-        applies && solidScriptParameterEachActive(parameter, values) !== undefined,
-      );
+      field.element.classList.toggle(SOLID_SCRIPT_EDITOR_CLASSES.fieldEach, active);
+      const icon = field.element.querySelector<HTMLElement>(`.${SOLID_SCRIPT_EDITOR_CLASSES.fieldEachIcon}`);
+      if (icon) icon.hidden = !active;
+      field.fillsSet(solidScriptCommandEachFills({ fills: this.command.fills, parameters: [parameter] }, values));
       if (applies) shown.push(field);
     }
     return shown;

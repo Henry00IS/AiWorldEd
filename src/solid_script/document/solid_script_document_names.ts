@@ -20,6 +20,7 @@ import { SOLID_SCRIPT_SHAPE_NAME_KEY } from '@/solid_script/language/solid_scrip
 import { solidScriptDocumentActiveLines } from './solid_script_document_active.js';
 import { solidScriptBlockNesting } from './solid_script_document_indent.js';
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
+import { solidScriptCommandEachFills } from '@/solid_script/commands/solid_script_command_each.js';
 import { solidScriptBuiltinFind } from '@/solid_script/language/solid_script_expression_compile.js';
 import { solidScriptFieldTokenKey, solidScriptFieldTokens } from '@/solid_script/language/solid_script_field_tokens.js';
 import { solidScriptFieldAsTyped } from '@/solid_script/language/solid_script_field.js';
@@ -570,7 +571,10 @@ export function solidScriptDocumentNamesUnknown(document: SolidScriptDocument): 
       .map((parameter) => block.values[parameter.key] ?? '')
       .filter((text) => /[[(]/.test(text));
     if (texts.length === 0) continue;
-    const known = solidScriptFieldKnown(solidScriptDocumentNamesAt(document, line), command.fills);
+    const known = solidScriptFieldKnown(
+      solidScriptDocumentNamesAt(document, line),
+      solidScriptCommandEachFills(command, block.values),
+    );
     const keys = new Set(texts.flatMap((text) => solidScriptFieldUnknown(text, known).map((entry) => entry.key)));
     if (keys.size > 0) unknown.set(line, keys);
   }

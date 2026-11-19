@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   solidScriptNameDotProblem,
   solidScriptNameIsDataWrite,
+  solidScriptNameIsPositionWrite,
   solidScriptNameIsUvWrite,
 } from '@/solid_script/language/solid_script_name_rules.js';
 
@@ -33,6 +34,24 @@ describe('SolidScript name rules for values under .Data', () => {
     expect(solidScriptNameIsUvWrite('Face.Normal')).toBe(false);
     expect(solidScriptNameDotProblem('Face.UVs', 'set')).toBe('');
     expect(solidScriptNameDotProblem('Brush.Faces.UVs', 'set')).toBe('');
+  });
+
+  it('lets a line set Vertex.Position, list Positions, and an axis, including $Selected', () => {
+    for (const name of [
+      'Vertex.Position',
+      'Vertices.Positions',
+      'Vertex.Position.Y',
+      '$Selected.Vertices.Positions',
+      '$Selected.Vertices.Positions.X',
+      'Brush.Vertices.Positions',
+      '$Vertex.Position',
+    ])
+      expect(solidScriptNameIsPositionWrite(name), name).toBe(true);
+    for (const name of ['Face.Center', 'Vertex.Normal', 'Pos.X', '$Selected.Vertices'])
+      expect(solidScriptNameIsPositionWrite(name), name).toBe(false);
+    expect(solidScriptNameDotProblem('Vertex.Position', 'set')).toBe('');
+    expect(solidScriptNameDotProblem('$Selected.Vertices.Positions', 'set')).toBe('');
+    expect(solidScriptNameDotProblem('Face.Center', 'set')).toMatch(/^Face\.Center can only be read/);
   });
 
   it('asks for a key when a line sets .Data itself', () => {

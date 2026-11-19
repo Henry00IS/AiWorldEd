@@ -54,12 +54,13 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Logic',
     description: 'Set a variable to a value',
     manual:
-      'Gives a value a name, so later lines can use the name. Lines below see the new value. Lines above do not. Setting the same name again changes it, so a Set in a Repeat can count up. Read it in any field as [Width], or compute with it as [=[Width] * 2]. Example: Set [Width] to 3, then a Cube of size [Width], 1, 1. Commas typed outside brackets make a list, each item read on its own: [5, 3, 4], zu, 45 is a vector, a text and a number, three plain numbers such as 1, 2, 3 are a vector, and $, keeps a comma in a text such as Hello$, World. Lists: Set Points() adds an item at the end. Set Points(2) changes item 2. Items count from 0. [Points(2)] reads one item, and [Points.Count] says how many there are. Data: Set Face.Data.Height keeps your own value on a face, brush, edge or corner. Through a list it sets every item, so Set Brush.Edges.Data.Kind to trim marks every edge of [Brush], and Brush.Faces(0).Edges.Data.Kind only the edges of its first face. The key may come from a variable, such as Brush.Data.[Key].',
+      'Gives a value a name, so later lines can use the name. Lines below see the new value. Lines above do not. Setting the same name again changes it, so a Set in a Repeat can count up. Read it in any field as [Width], or compute with it as [=[Width] * 2]. Example: Set [Width] to 3, then a Cube of size [Width], 1, 1. Commas typed outside brackets make a list, each item read on its own: [5, 3, 4], zu, 45 is a vector, a text and a number, three plain numbers such as 1, 2, 3 are a vector, and $, keeps a comma in a text such as Hello$, World. Lists: Set Points() adds an item at the end. Set Points(2) changes item 2. Items count from 0. [Points(2)] reads one item, and [Points.Count] says how many there are. Data: Set Face.Data.Height keeps your own value on a face, brush, edge or corner. Through a list it sets every item, so Set Brush.Edges.Data.Kind to trim marks every edge of [Brush], and Brush.Faces(0).Edges.Data.Kind only the edges of its first face. The key may come from a variable, such as Brush.Data.[Key]. Position: Set [$Selected.Vertices.Positions] or Set [$Vertex.Position] moves those corners; Value is worked out once per corner, with $Vertex and $Index, and every read in the line sees the geometry as it was before the line. All the moves apply together, and a brush that is no longer a convex brush stops the line.',
     stops: [
       'A name that is not letters, digits and _, or starts with a digit.',
       'A [Name] for a variable not set above this line, or a [=formula] that cannot be read.',
       'Setting an input of the script, which can only be read.',
-      'Setting a member such as Face.Center or Brush.Edges, which can only be read; only the values under .Data can be set.',
+      'Setting a member such as Face.Center or Brush.Edges, which can only be read; Vertex.Position, Face.UVs and the values under .Data can be set.',
+      'A brush that is no longer a convex brush after the corners move.',
       'An item number past the end of a list, such as Points(5) when Points has 3 items.',
     ],
     parameters: [
@@ -69,21 +70,25 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
           'Variable',
           'target',
           'Width',
-          'Letters, digits and _, not starting with a digit. For a list, Points() adds an item and Points(2) changes item 2. Face.Data.Height sets a value under .Data, on every item of a list such as Brush.Edges.Data.Kind.',
+          'Letters, digits and _, not starting with a digit. For a list, Points() adds an item and Points(2) changes item 2. Face.Data.Height sets a value under .Data, on every item of a list such as Brush.Edges.Data.Kind. Vertex.Position, Vertices.Positions or [$Selected.Vertices.Positions] moves those corners.',
         ),
         { rule: 'value', field: 'value', what: 'set to {value}' },
         'path',
       ),
-      solidScriptParameterOptional(
-        'value',
-        'Value',
-        'value',
-        'A number, numbers separated by commas such as 1, 2, 3, a vector such as [1, 2, 3], a list of any items separated by commas such as [1, 2, 3], zu, 45, plain text ($, for a comma in it), [Name] for another variable, or [=formula] such as [=[Width] * 2]. Left empty it is empty text.',
-      ),
+      {
+        ...solidScriptParameterOptional(
+          'value',
+          'Value',
+          'value',
+          'A number, numbers separated by commas such as 1, 2, 3, a vector such as [1, 2, 3], a list of any items separated by commas such as [1, 2, 3], zu, 45, plain text ($, for a comma in it), [Name] for another variable, or [=formula] such as [=[Width] * 2]. For a Vertex.Position write, once per corner, such as [=[$Vertex.Position] + [0, 1, 0]]. Left empty it is empty text.',
+        ),
+        each: 'Vertex',
+        eachWhen: { field: 'name', position: true },
+      },
     ],
     listing: (read) => ['Set', read.variable('name'), ': ', read.value('value')],
     execute: (run) => {
-      run.variableSet(run.text('name'), run.valueItems('value'));
+      run.variableWrite(run.text('name'), 'value');
       return [];
     },
   }),

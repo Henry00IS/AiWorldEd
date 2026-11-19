@@ -105,6 +105,11 @@ export interface SolidScriptBlockRun {
   values(key: string): SolidScriptValue[];
   /** Sets a variable, where it already exists or else in the current block. */
   variableSet(name: string, value: SolidScriptValue): void;
+  /**
+   * Writes a Set value, evaluating a Vertex.Position formula once per corner
+   * with $Vertex and $Index.
+   */
+  variableWrite(name: string, key: string): void;
   /** Builds one convex solid from its corner points. */
   solid(points: THREE.Vector3[]): SolidScriptShape[];
   /** Draws one flat outline for Linear Extrude. */

@@ -510,12 +510,14 @@ function solidScriptSuggestionPathElement(type: string | null): boolean {
  * @param prefix Typed path.
  * @param scope What the field may refer to.
  * @returns Members, or null when nothing before a dot is typed or it is a
- *   system value.
+ *   system value other than a $Selected path.
  */
 function solidScriptSuggestionPaths(prefix: string, scope: SolidScriptSuggestionScope): SolidScriptSuggestion[] | null {
   const dot = prefix.lastIndexOf('.');
-  if (dot < 0 || prefix.startsWith('$')) return null;
+  if (dot < 0) return null;
+  if (prefix.startsWith('$') && !/^\$selected\./i.test(prefix)) return null;
   const base = prefix.slice(0, dot);
+  if (/^\$selected$/i.test(base)) return null;
   const kinds = solidScriptSuggestionKinds(base, scope).filter((kind) => kind !== 'List');
   return solidScriptSuggestionMembersOf(
     base,

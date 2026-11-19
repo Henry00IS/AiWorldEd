@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { solidHullBrushFromPoints } from '@/solid/algorithm/surface/solid_hull_brush.js';
+import { solidScriptSolidValidate } from './solid_script_solid_validate.js';
 import {
   SOLID_SCRIPT_GEOMETRY_EPSILON,
   type SolidScriptFaceFacts,
@@ -9,7 +9,7 @@ import type { SolidScriptShapeSolid } from '@/solid_script/language/solid_script
 
 /**
  * Scales the faces of a brush or mesh about each face's center. A brush stays a
- * brush; a mesh stays a mesh. Stops when a brush would not stay convex.
+ * brush; a mesh stays a mesh. Stops when a brush is no longer a convex brush.
  *
  * @param leaf Brush or mesh.
  * @param faces Faces of that leaf to scale.
@@ -51,8 +51,8 @@ function solidScriptScaleFacePoint(
 }
 
 /**
- * Keeps a scaled brush as a convex solid, or stops when the corners would fold
- * inside the hull.
+ * Keeps a scaled brush as a convex solid, or stops when it is no longer a
+ * convex brush.
  *
  * @param leaf Brush.
  * @param points New corners.
@@ -64,33 +64,6 @@ function solidScriptScaleFaceSolid(
   points: THREE.Vector3[],
   label: string,
 ): SolidScriptShapeSolid {
-  const unique = solidScriptScaleFaceUnique(points);
-  const brush = solidHullBrushFromPoints(unique.map((point) => point.clone()));
-  if (!brush || unique.some((point) => !solidScriptScaleFaceOnHull(point, brush.vertices)))
-    throw new Error(`${label} would not stay convex; use a Factor closer to 1, or scale fewer faces`);
+  solidScriptSolidValidate(points, label);
   return { ...leaf, points };
-}
-
-/**
- * Drops corners that sit on an earlier corner.
- *
- * @param points Corners.
- * @returns Unique corners.
- */
-function solidScriptScaleFaceUnique(points: readonly THREE.Vector3[]): THREE.Vector3[] {
-  const unique: THREE.Vector3[] = [];
-  for (const point of points)
-    if (!unique.some((known) => known.distanceTo(point) <= SOLID_SCRIPT_GEOMETRY_EPSILON)) unique.push(point);
-  return unique;
-}
-
-/**
- * Tells whether a corner sits on a hull vertex.
- *
- * @param point Corner.
- * @param vertices Hull vertices.
- * @returns True when it does.
- */
-function solidScriptScaleFaceOnHull(point: THREE.Vector3, vertices: readonly THREE.Vector3[]): boolean {
-  return vertices.some((vertex) => vertex.distanceTo(point) <= SOLID_SCRIPT_GEOMETRY_EPSILON);
 }

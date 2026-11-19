@@ -43,6 +43,9 @@ describe('SolidScript configurator Set Variable field', () => {
 
   it('still refuses members that can only be read', () => {
     expect(setVariableProblem('Face.UVs')).toBe('');
+    expect(setVariableProblem('Vertex.Position')).toBe('');
+    expect(setVariableProblem('$Selected.Vertices.Positions')).toBe('');
+    expect(setVariableProblem('$Selected.Vertices.Positions.Y')).toBe('');
     expect(setVariableProblem('Brush.Edges')).toMatch(/Brush\.Edges can only be read/);
     expect(setVariableProblem('Face.Center')).toMatch(/Face\.Center can only be read/);
     expect(setVariableProblem('Brush.Edges.Data')).toMatch(/Brush\.Edges\.Data needs a key to set/);
@@ -125,6 +128,17 @@ describe('SolidScript configurator suggestions in fields naming a variable', () 
     const { shown } = typedSuggestions('variable', 'name', namesAt(SCRIPT_WITH_NAMES, 0), '$');
     expect(shown.length).toBeGreaterThan(0);
     expect(shown.every((label) => /^\$Selected\./.test(label))).toBe(true);
+  });
+
+  it('offers Positions after $Selected.Vertices. and Brush.Vertices.', () => {
+    const selected = typedSuggestions('variable', 'name', namesAt(SCRIPT_WITH_NAMES, 0), '$Selected.Vertices.').shown;
+    expect(selected).toContain('$Selected.Vertices.Positions');
+    expect(selected).not.toContain('$Selected.Vertices.Count');
+    document.body.replaceChildren();
+    const names = namesAt([CUBE_INTO_BRUSH], 1);
+    const brush = typedSuggestions('variable', 'name', names, 'Brush.Vertices.').shown;
+    expect(brush).toContain('Brush.Vertices.Positions');
+    expect(brush).not.toContain('Brush.Vertices.Count');
   });
 
   it('offers Data and the members that give elements after Brush. and Brush.Edges.', () => {

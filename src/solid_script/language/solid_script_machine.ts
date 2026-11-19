@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { solidScriptMistakeHinted } from './solid_script_field_mistakes.js';
 import { SolidScriptBlockArguments } from './solid_script_block_arguments.js';
 import type { SolidScriptBlockNode } from './solid_script_block_tree.js';
-import { solidScriptErrorLine, solidScriptFailure } from './solid_script_error.js';
+import { solidScriptFailure, solidScriptFailureKeep } from './solid_script_error.js';
 import {
   solidScriptFieldAsTyped,
   solidScriptFieldArguments,
@@ -465,7 +465,12 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       return shapes;
     } catch (error) {
       if (!this.failure && !this.paused) this.watch(scope);
-      this.failureNote(solidScriptMistakeHinted(error, node), node.line);
+      this.failure = solidScriptFailureKeep(
+        this.failure,
+        this.paused,
+        solidScriptMistakeHinted(error, node),
+        node.line,
+      );
       return [];
     } finally {
       line.busy = false;
@@ -539,24 +544,11 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       this.workTake();
       return step();
     } catch (error) {
-      this.failureNote(error, line);
+      this.failure = solidScriptFailureKeep(this.failure, this.paused, error, line);
       return undefined;
     } finally {
       this.line = outer;
     }
-  }
-
-  /**
-   * Keeps the first mistake of the run, at the line it names or else the line
-   * that ran; a run that paused keeps no mistake.
-   *
-   * @param error What was thrown.
-   * @param line Line that ran.
-   */
-  private failureNote(error: unknown, line: number): void {
-    if (this.paused) return;
-    const message = error instanceof Error ? error.message : String(error);
-    this.failure ??= solidScriptFailure(solidScriptErrorLine(message) ?? line, message);
   }
 
   /**
@@ -646,6 +638,9 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         return solidScriptFieldSplit(typed, ',').length > 1 ? this.list(key) : value(key);
       },
       variableSet: (name, assigned) => state.machine.variableSet(state.scope, name, assigned),
+      variableWrite(name, key) {
+        state.machine.variableWrite(state.scope, name, key, this);
+      },
       solid: (points) => {
         state.machine.gatherCheck(node);
         state.machine.flatCheck(node, state.context, false);

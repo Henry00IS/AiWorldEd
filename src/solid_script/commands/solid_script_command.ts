@@ -158,9 +158,10 @@ export interface SolidScriptCommandParameter {
   each?: SolidScriptCommandEach;
   /**
    * When set, the field is only per-element while the named field holds one of
-   * these words, such as Detail of Select Faces while Which is Where.
+   * these words, such as Detail of Select Faces while Which is Where, or while
+   * it is a Vertex.Position write when position is true.
    */
-  eachWhen?: { readonly field: string; readonly words: readonly string[] };
+  eachWhen?: { readonly field: string; readonly words?: readonly string[]; readonly position?: boolean };
 }
 
 /** One word a field takes, with what it means. */

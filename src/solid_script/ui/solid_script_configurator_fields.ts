@@ -2,6 +2,7 @@ import { solidScriptNameKey } from '@/solid_script/language/solid_script_name_ke
 import {
   solidScriptNameDotProblem,
   solidScriptNameIsDataWrite,
+  solidScriptNameIsPositionWrite,
   solidScriptNameIsUvWrite,
 } from '@/solid_script/language/solid_script_name_rules.js';
 import { solidScriptFieldMistakeOf } from '@/solid_script/language/solid_script_field_mistakes.js';
@@ -43,6 +44,11 @@ export interface SolidScriptConfiguratorField {
   warning: () => string;
   /** Takes its suggestion lists off the page, when the window closes. */
   close: () => void;
+  /**
+   * Updates the names this field fills in, such as $Vertex on a Set of
+   * Positions.
+   */
+  fillsSet: (extra: readonly string[]) => void;
 }
 
 /** What a field can refer to: the names of the script around the line. */
@@ -170,13 +176,13 @@ export function solidScriptConfiguratorFieldBuild(
     paths: parameter.writes?.offers === 'path',
     words,
   };
+  let known = solidScriptFieldKnown(scope.names, scope.extra);
   const texts = solidScriptConfiguratorSuggests(parameter)
     ? [...inputs.querySelectorAll<HTMLInputElement>('input[type="text"]')]
     : [];
   const lists = texts.map((input) => new SolidScriptConfiguratorNames(input, suggest));
   inputs.addEventListener('input', changed);
   inputs.addEventListener('change', changed);
-  const known = solidScriptFieldKnown(scope.names, scope.extra);
   const raw = solidScriptFieldAsTyped(parameter);
   if (!raw)
     for (const input of texts)
@@ -209,6 +215,10 @@ export function solidScriptConfiguratorFieldBuild(
     read: field.read,
     warning,
     close: () => lists.forEach((list) => list.close()),
+    fillsSet: (extra) => {
+      suggest.extra = extra;
+      known = solidScriptFieldKnown(scope.names, extra);
+    },
     problem: () => {
       const problem = field.problem();
       for (const input of inputs.querySelectorAll('input[type="text"]'))
@@ -327,9 +337,10 @@ function solidScriptConfiguratorNameProblem(parameter: SolidScriptCommandParamet
     parameter.type === 'target' &&
     !SOLID_SCRIPT_CONFIGURATOR_TARGET.test(text) &&
     !solidScriptNameIsDataWrite(text) &&
-    !solidScriptNameIsUvWrite(text)
+    !solidScriptNameIsUvWrite(text) &&
+    !solidScriptNameIsPositionWrite(text)
   )
-    return `${parameter.label} must be a name such as width, an item such as points(0), points() to add one, Face.UVs, or a value under .Data such as face.data.height.`;
+    return `${parameter.label} must be a name such as width, an item such as points(0), points() to add one, Vertex.Position, Face.UVs, or a value under .Data such as face.data.height.`;
   return '';
 }
 

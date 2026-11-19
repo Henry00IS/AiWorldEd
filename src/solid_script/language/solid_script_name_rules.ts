@@ -82,7 +82,7 @@ export function solidScriptNameDotProblem(name: string, use: 'read' | 'set'): st
   const text = name.trim();
   if (!text.includes('.')) return '';
   if (text.startsWith('$')) {
-    if (use === 'set' && !SOLID_SCRIPT_NAME_SELECTED.test(text))
+    if (use === 'set' && !SOLID_SCRIPT_NAME_SELECTED.test(text) && !solidScriptNameIsPositionWrite(text))
       return `${text} is a system value and can only be read; only the $Selected lists can be set`;
     return '';
   }
@@ -97,12 +97,13 @@ export function solidScriptNameDotProblem(name: string, use: 'read' | 'set'): st
     use === 'read' ||
     SOLID_SCRIPT_NAME_OWN.test(text) ||
     solidScriptNameIsDataWrite(text) ||
-    solidScriptNameIsUvWrite(text)
+    solidScriptNameIsUvWrite(text) ||
+    solidScriptNameIsPositionWrite(text)
   )
     return '';
   if (parts.length >= 2 && parts[last]?.toLowerCase() === 'data')
     return `${text} needs a key to set, such as ${text}.Height; a line sets a value under .Data, not .Data itself`;
-  return `${text} can only be read; a line sets whole names, .X, .Y and .Z of a vector, Face.UVs, or a value under .Data such as Face.Data.Height or Brush.Edges.Data.Kind`;
+  return `${text} can only be read; a line sets whole names, .X, .Y and .Z of a vector, Vertex.Position, Face.UVs, or a value under .Data such as Face.Data.Height or Brush.Edges.Data.Kind`;
 }
 
 /**
@@ -143,4 +144,22 @@ export function solidScriptSystemIsVector(name: string): boolean | null {
 export function solidScriptNameIsUvWrite(name: string): boolean {
   const parts = solidScriptNameParts(name.trim());
   return parts.length >= 2 && parts[parts.length - 1]?.toLowerCase() === 'uvs';
+}
+
+/**
+ * Tells whether a name sets a corner position, such as Vertex.Position,
+ * Vertices.Positions, Vertex.Position.Y or [$Selected.Vertices.Positions].
+ *
+ * @param name Name as written, without brackets.
+ * @returns True for such a name.
+ */
+export function solidScriptNameIsPositionWrite(name: string): boolean {
+  const text = name.trim().startsWith('$') ? name.trim().slice(1) : name.trim();
+  const parts = solidScriptNameParts(text);
+  if (parts.length < 2) return false;
+  const last = parts[parts.length - 1]?.toLowerCase() ?? '';
+  if (last === 'position' || last === 'positions') return true;
+  if (parts.length < 3 || (last !== 'x' && last !== 'y' && last !== 'z')) return false;
+  const member = parts[parts.length - 2]?.toLowerCase() ?? '';
+  return member === 'position' || member === 'positions';
 }

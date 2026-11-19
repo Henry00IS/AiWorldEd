@@ -873,11 +873,11 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Scale faces about their centers',
     manual:
-      'Scales each face about its center, in the plane of the face. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. A brush stays a brush, and a mesh stays a mesh. Factor 1 leaves the face as it is; 0.5 shrinks it toward its center, and 2 grows it. If several picked faces share a corner, the corner takes the average of those moves. A Factor that would fold a brush so it is no longer convex stops the line. Example: Select Faces Facing Up, Scale Faces By 0.5 turns the top of a Cube into a smaller roof.',
+      'Scales each face about its center, in the plane of the face. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. A brush stays a brush, and a mesh stays a mesh. Factor 1 leaves the face as it is; 0.5 shrinks it toward its center, and 2 grows it. If several picked faces share a corner, the corner takes the average of those moves. A Factor that would fold a brush so it is no longer a convex brush stops the line. Example: Select Faces Facing Up, Scale Faces By 0.5 turns the top of a Cube into a smaller roof.',
     stops: [
       'No faces.',
       'A Factor that is not a number.',
-      'A Factor that would fold a brush so it is no longer convex.',
+      'A Factor that would fold a brush so it is no longer a convex brush.',
     ],
     parameters: [
       solidScriptParameter(

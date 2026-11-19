@@ -35,3 +35,24 @@ export function solidScriptFailure(line: number | null, message: string): SolidS
   const lined = line === null ? bare : `line ${line}: ${bare}`;
   return { line, message: lined, text: solidScriptErrorText(lined) };
 }
+
+/**
+ * Keeps the first mistake of a run, at the line it names or else the line that
+ * ran; a run that paused keeps no mistake.
+ *
+ * @param current Failure already kept, if any.
+ * @param paused True when the run paused, so no mistake is kept.
+ * @param error What was thrown.
+ * @param line Line that ran.
+ * @returns Failure to keep.
+ */
+export function solidScriptFailureKeep(
+  current: SolidScriptFailure | undefined,
+  paused: boolean,
+  error: unknown,
+  line: number,
+): SolidScriptFailure | undefined {
+  if (paused) return current;
+  const message = error instanceof Error ? error.message : String(error);
+  return current ?? solidScriptFailure(solidScriptErrorLine(message) ?? line, message);
+}

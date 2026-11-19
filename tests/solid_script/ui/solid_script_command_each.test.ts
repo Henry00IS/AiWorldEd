@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
 import {
   SOLID_SCRIPT_COMMAND_EACH_ICON,
+  solidScriptCommandEachFills,
   solidScriptParameterEachActive,
   solidScriptParameterEachFills,
   solidScriptSystemFillEach,
@@ -81,5 +82,22 @@ describe('SolidScript per-element fields', () => {
     const index = labels.find((entry) => entry.label === '$Index');
     expect(index?.each).toBe(true);
     expect(labels.find((entry) => entry.label === '$X')?.each).toBe(true);
+  });
+
+  it('marks Value of Set as per vertex only when Variable is a Position write', () => {
+    const value = parameter('variable', 'value');
+    expect(value.each).toBe('Vertex');
+    expect(solidScriptParameterEachActive(value, { name: '$Selected.Vertices.Positions' })).toBe('Vertex');
+    expect(solidScriptParameterEachActive(value, { name: 'Vertex.Position' })).toBe('Vertex');
+    expect(solidScriptParameterEachActive(value, { name: 'Width' })).toBeUndefined();
+    const command = solidScriptCommandFind('variable');
+    if (!command) throw new Error('Set is missing');
+    const listed = command.listing({ name: '$Selected.Vertices.Positions', value: '[=[$Vertex.Position]]' });
+    expect(listed.some((part) => part.each)).toBe(true);
+    expect(command.listing({ name: 'Width', value: '1' }).some((part) => part.each)).toBe(false);
+    expect(solidScriptCommandEachFills(command, { name: '$Selected.Vertices.Positions' })).toEqual(
+      expect.arrayContaining(['$Vertex', '$Index', '$X']),
+    );
+    expect(solidScriptCommandEachFills(command, { name: 'Width' })).not.toEqual(expect.arrayContaining(['$Vertex']));
   });
 });

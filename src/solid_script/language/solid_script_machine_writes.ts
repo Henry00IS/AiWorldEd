@@ -1,4 +1,15 @@
 import { solidScriptKindNamed } from './solid_script_kinds.js';
+import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
+import { solidScriptNameIsPositionWrite } from './solid_script_name_rules.js';
+import { SOLID_SCRIPT_GEOMETRY_EPSILON } from './solid_script_geometry.js';
+import {
+  solidScriptPositionApply,
+  solidScriptPositionAxis,
+  solidScriptPositionByLeaf,
+  solidScriptPositionOwner,
+  solidScriptPositionValue,
+  type SolidScriptPositionMove,
+} from './solid_script_position_write.js';
 import { solidScriptFieldResolve } from './solid_script_field.js';
 import {
   solidScriptListItemParse,
@@ -28,6 +39,13 @@ import {
   type SolidScriptSelectedKind,
   type SolidScriptVariableWhere,
 } from './solid_script_machine_variables.js';
+
+/** One corner a position write will move, as it was before the line. */
+interface SolidScriptPositionTarget {
+  leaf: SolidScriptGeometryLeaf;
+  position: SolidScriptPositionMove['from'];
+  element: SolidScriptElement;
+}
 
 /**
  * Every write of a running script to a variable goes through here: Set, Into
@@ -146,9 +164,13 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
       home.variableSet(name, value);
       return;
     }
-    if (name.startsWith(SOLID_SCRIPT_SYSTEM_PREFIX)) return this.variableSetSelected(written, name, value);
+    if (name.startsWith(SOLID_SCRIPT_SYSTEM_PREFIX)) {
+      if (this.positionAssign(scope, written, value)) return;
+      return this.variableSetSelected(written, name, value);
+    }
     if (this.dataSet(written, scope, value)) return;
     if (this.uvsSet(written, scope, value)) return;
+    if (this.positionAssign(scope, written, value)) return;
     const locals = name.startsWith(SOLID_SCRIPT_LOCAL_PREFIX) ? this.frameFunction()?.locals : undefined;
     const bare = locals ? solidScriptLocalBare(name) : '';
     if (locals && SOLID_SCRIPT_NAME.test(bare)) return locals.variableSet(bare, value);
@@ -156,6 +178,119 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
     const component = solidScriptVectorComponent(where.name);
     if (component && !where.scope.variableHas(where.name)) return this.variableSetComponent(where, component, value);
     this.variableSetNamed(scope, where, value);
+  }
+
+  /**
+   * Writes a Set value, evaluating a Vertex.Position formula once per corner
+   * with $Vertex and $Index, from the geometry as it was before the line.
+   *
+   * @param scope Scope of the line.
+   * @param written Name as written.
+   * @param key Value field of the line.
+   * @param run Line run, for the value.
+   */
+  protected variableWrite(scope: SolidScriptScope, written: string, key: string, run: SolidScriptBlockRun): void {
+    if (this.positionWriteEach(scope, written, key, run)) return;
+    this.variableSet(scope, written, run.valueItems(key));
+  }
+
+  /**
+   * Sets every targeted corner to one already-read value.
+   *
+   * @param scope Scope of the line.
+   * @param written Name as written.
+   * @param value New position, or a number on one axis.
+   * @returns True when the name was a corner position.
+   */
+  private positionAssign(scope: SolidScriptScope, written: string, value: SolidScriptValue): boolean {
+    if (!solidScriptNameIsPositionWrite(written)) return false;
+    const targets = this.positionTargets(scope, written);
+    const axis = solidScriptPositionAxis(written);
+    const moves = targets.map((target) => ({
+      from: target.position.clone(),
+      to: solidScriptPositionValue(value, target.position, axis),
+    }));
+    this.positionCommit(targets, moves);
+    return true;
+  }
+
+  /**
+   * Evaluates the value once per corner with $Vertex and $Index, then applies
+   * every move together.
+   *
+   * @param scope Scope of the line.
+   * @param written Name as written.
+   * @param key Value field of the line.
+   * @param run Line run, for the value.
+   * @returns True when the name was a corner position.
+   */
+  private positionWriteEach(scope: SolidScriptScope, written: string, key: string, run: SolidScriptBlockRun): boolean {
+    if (!solidScriptNameIsPositionWrite(written)) return false;
+    const targets = this.positionTargets(scope, written);
+    const axis = solidScriptPositionAxis(written);
+    const moves = targets.map((target, index) => {
+      const assigned = run.valueWith(key, { $Vertex: target.element, $Index: index });
+      return { from: target.position.clone(), to: solidScriptPositionValue(assigned, target.position, axis) };
+    });
+    this.positionCommit(targets, moves);
+    return true;
+  }
+
+  /**
+   * Lists the unique corners a position write sets, as they were before the
+   * line.
+   *
+   * @param scope Scope of the line.
+   * @param written Name as written.
+   * @returns Corners, each with its solid or mesh and vertex element.
+   */
+  private positionTargets(scope: SolidScriptScope, written: string): SolidScriptPositionTarget[] {
+    const ownerName = solidScriptPositionOwner(written);
+    const owner = this.fieldVariable(solidScriptNameKey(ownerName), scope);
+    if (owner === undefined) throw new Error(`${ownerName} is not set`);
+    const targets: SolidScriptPositionTarget[] = [];
+    for (const item of Array.isArray(owner) ? owner : [owner]) this.positionTargetAdd(targets, item, ownerName);
+    if (targets.length === 0) throw new Error(`${written} has no vertices to set`);
+    return targets;
+  }
+
+  /**
+   * Adds the corners of one brush, face, edge or vertex to a position write.
+   *
+   * @param targets Corners collected so far.
+   * @param item Element that owns the corners.
+   * @param ownerName Name of the owner, for the message.
+   */
+  private positionTargetAdd(targets: SolidScriptPositionTarget[], item: SolidScriptValue, ownerName: string): void {
+    if (!(item instanceof SolidScriptElement) || item.kind === 'data')
+      throw new Error(
+        `Position can only be set on a brush, face, edge or vertex; ${ownerName} is ${solidScriptKindNamed(item)}`,
+      );
+    const leaf = this.elements.leaf(item);
+    for (const vertex of this.elements.vertices(item)) {
+      if (
+        targets.some(
+          (known) => known.leaf === leaf && known.position.distanceTo(vertex.position) <= SOLID_SCRIPT_GEOMETRY_EPSILON,
+        )
+      )
+        continue;
+      targets.push({ leaf, position: vertex.position.clone(), element: this.elements.vertex(leaf, vertex) });
+    }
+  }
+
+  /**
+   * Applies every corner move of the line together, then checks a brush is
+   * still convex.
+   *
+   * @param targets Corners being set.
+   * @param moves Moves in the same order, from the positions before the line.
+   */
+  private positionCommit(
+    targets: readonly SolidScriptPositionTarget[],
+    moves: readonly SolidScriptPositionMove[],
+  ): void {
+    for (const group of solidScriptPositionByLeaf(targets, moves, (leaf) => this.leafLatest(leaf)))
+      this.leafRewrite(group.leaf, solidScriptPositionApply(this.leafLatest(group.leaf), group.moves, 'Set'));
   }
 
   /**
