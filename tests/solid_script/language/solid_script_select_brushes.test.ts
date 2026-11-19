@@ -7,7 +7,7 @@ import {
   solidScriptSelectFixLabel,
   solidScriptSelectFresh,
   solidScriptSelectIds,
-  SOLID_SCRIPT_SELECT_NEW,
+  SOLID_SCRIPT_SELECT_BETWEEN,
 } from '@/solid_script/language/solid_script_select.js';
 import { SolidScriptElement } from '@/solid_script/language/solid_script_value.js';
 import { editorFixture } from '../ui/solid_script_editor_fixture.js';
@@ -39,7 +39,7 @@ function printed(...lines: SolidScriptLine[]): string[] {
   return result.error ? [result.error.message] : result.messages;
 }
 
-describe('SolidScript Select Brushes and Which New', () => {
+describe('SolidScript Select Brushes and Which Between', () => {
   it('leaves [$Selected.Brushes] empty until Select Brushes or a Set', () => {
     expect(printed(CUBE, { command: 'echo', values: { value: '[$Selected.Brushes.Count]' } })).toEqual(['0']);
     expect(printed(CUBE, SELECT_BRUSHES, { command: 'echo', values: { value: '[$Selected.Brushes.Count]' } })).toEqual([
@@ -82,7 +82,7 @@ describe('SolidScript Select Brushes and Which New', () => {
         { command: 'select_brushes', values: { into: 'All' } },
         { command: 'echo', values: { value: '[All.Count]' } },
         { command: 'cylinder', values: { anchor: 'Center, Center, Center' } },
-        { command: 'select_brushes', values: { which: SOLID_SCRIPT_SELECT_NEW, into: 'New' } },
+        { command: 'select_brushes', values: { which: SOLID_SCRIPT_SELECT_BETWEEN, into: 'New' } },
         { command: 'echo', values: { value: '[New.Count] [New.First.Name]' } },
       ),
     ).toEqual(['2', '1 cylinder']);
@@ -93,18 +93,18 @@ describe('SolidScript Select Brushes and Which New', () => {
       printed(
         CUBE,
         SPHERE,
-        { command: 'select_brushes', values: { which: SOLID_SCRIPT_SELECT_NEW, into: 'New' } },
+        { command: 'select_brushes', values: { which: SOLID_SCRIPT_SELECT_BETWEEN, into: 'New' } },
         { command: 'echo', values: { value: '[New.Count]' } },
       ),
     ).toEqual(['2']);
   });
 
-  it('keeps the Which New snapshot across Repeat and For Each', () => {
+  it('keeps the Which Between snapshot across Repeat and For Each', () => {
     expect(
       printed(
         { command: 'repeat', values: { from: '1', to: '2' } },
         CUBE,
-        { command: 'select_brushes', values: { which: SOLID_SCRIPT_SELECT_NEW, into: 'Fresh' } },
+        { command: 'select_brushes', values: { which: SOLID_SCRIPT_SELECT_BETWEEN, into: 'Fresh' } },
         { command: 'echo', values: { value: '[Fresh.Count]' } },
         END,
       ),
@@ -113,14 +113,14 @@ describe('SolidScript Select Brushes and Which New', () => {
       printed(
         { command: 'for_each', values: { variable: 'Step', list: 'a, b' } },
         CUBE,
-        { command: 'select_brushes', values: { which: SOLID_SCRIPT_SELECT_NEW, into: 'Fresh' } },
+        { command: 'select_brushes', values: { which: SOLID_SCRIPT_SELECT_BETWEEN, into: 'Fresh' } },
         { command: 'echo', values: { value: '[Fresh.Count]' } },
         END,
       ),
     ).toEqual(['1', '1']);
   });
 
-  it('picks Which New faces of a later cube after Select Faces of the first', () => {
+  it('picks Which Between faces of a later cube after Select Faces of the first', () => {
     expect(
       printed(
         CUBE,
@@ -128,27 +128,27 @@ describe('SolidScript Select Brushes and Which New', () => {
         { command: 'select_faces', values: { which: 'All', into: 'First' } },
         CUBE,
         SELECT_BRUSHES,
-        { command: 'select_faces', values: { which: SOLID_SCRIPT_SELECT_NEW, into: 'Later' } },
+        { command: 'select_faces', values: { which: SOLID_SCRIPT_SELECT_BETWEEN, into: 'Later' } },
         { command: 'echo', values: { value: '[First.Count] [Later.Count]' } },
       ),
     ).toEqual(['6 6']);
   });
 
-  it('picks Which New inside a Part from brushes built since the previous Select', () => {
+  it('picks Which Between inside a Part from brushes built since the previous Select', () => {
     expect(
       printed(
         CUBE,
         SELECT_BRUSHES,
         { command: 'part', values: { name: 'Extra' } },
         SPHERE,
-        { command: 'select_brushes', values: { which: SOLID_SCRIPT_SELECT_NEW, into: 'Fresh' } },
+        { command: 'select_brushes', values: { which: SOLID_SCRIPT_SELECT_BETWEEN, into: 'Fresh' } },
         { command: 'echo', values: { value: '[Fresh.Count]' } },
         END,
       ),
     ).toEqual(['1']);
   });
 
-  it('filters ids the way Which New does, including the first Select', () => {
+  it('filters ids the way Which Between does, including the first Select', () => {
     const first = new SolidScriptElement('brush', 1);
     const second = new SolidScriptElement('brush', 2);
     expect(solidScriptSelectFresh(undefined, [first, second])).toEqual([first, second]);
@@ -162,7 +162,7 @@ describe('SolidScript empty-Of Select fix in the editor', () => {
     document.body.replaceChildren();
   });
 
-  it('inserts Select Brushes set to Which New above Clip, without opening the configurator', () => {
+  it('inserts Select Brushes set to Which Between above Clip, without opening the configurator', () => {
     const { root, script, commands } = editorFixture([CUBE, { command: 'clip' }]);
     const button = [...root.querySelectorAll('button')].find(
       (entry) => entry.textContent === 'Add Select Brushes Above',
@@ -172,8 +172,15 @@ describe('SolidScript empty-Of Select fix in the editor', () => {
     expect(root.textContent).toContain("doesn't know which brushes");
     button?.click();
     expect(commands()).toEqual(['cube', 'select_brushes', 'clip']);
-    expect(script().blocks[1]?.values['which']).toBe(SOLID_SCRIPT_SELECT_NEW);
+    expect(script().blocks[1]?.values['which']).toBe(SOLID_SCRIPT_SELECT_BETWEEN);
     expect(root.querySelector('[data-solid-script-configurator]')).toBeNull();
     expect(root.textContent).not.toContain("doesn't know which brushes");
+  });
+
+  it('does not accept Which New, and still accepts How New', () => {
+    expect(run(CUBE, { command: 'select_brushes', values: { which: 'New' } }).error?.message).toContain(
+      'Which must be one of All, Between, not "New"',
+    );
+    expect(run(CUBE, { command: 'select_brushes', values: { which: 'Between', how: 'New' } }).error).toBeNull();
   });
 });

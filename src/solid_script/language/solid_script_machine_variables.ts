@@ -277,7 +277,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
   protected readonly elements = new SolidScriptElements({ leafLatest: (leaf) => this.leafSwapsLatest(leaf) });
   /** The [$Selected.*] lists of the round running. */
   protected selected: SolidScriptSelected = { brushes: null, faces: [], edges: [], vertices: [] };
-  /** Element ids each Select kind last looked at, for Which New. */
+  /** Element ids each Select kind last looked at, for Which Between. */
   protected readonly selectSeen = new Map<SolidScriptSelectedKind, Set<number>>();
 
   /**
@@ -345,7 +345,8 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
   }
 
   /**
-   * Remembers the pool a Select just looked at, for the next Select Which New.
+   * Remembers the pool a Select just looked at, for the next Select Which
+   * Between.
    *
    * @param kind Faces, edges, vertices or brushes.
    * @param items Pool.

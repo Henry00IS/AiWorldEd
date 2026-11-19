@@ -1040,7 +1040,7 @@ describe('SolidScript editor', () => {
       [...document.querySelectorAll('body > .solid-script-editor-suggestions-host [role="option"]')].map(
         (option) => option.firstChild?.textContent,
       );
-    expect(options().slice(0, 3)).toEqual(['All', 'New', 'Facing Up']);
+    expect(options().slice(0, 3)).toEqual(['All', 'Between', 'Facing Up']);
     type(which, 'Bott');
     expect(options()).toEqual(['Bottom']);
     press(which, 'Enter');

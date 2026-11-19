@@ -40,7 +40,7 @@ import {
   type SolidScriptFaceTag,
   type SolidScriptShapeSolid,
 } from '@/solid_script/language/solid_script_shape.js';
-import { SOLID_SCRIPT_SELECT_NEW, solidScriptOfEmpty } from '@/solid_script/language/solid_script_select.js';
+import { SOLID_SCRIPT_SELECT_BETWEEN, solidScriptOfEmpty } from '@/solid_script/language/solid_script_select.js';
 import {
   SOLID_SCRIPT_FACING_WITHIN_DEFAULT,
   solidScriptConditionHolds,
@@ -66,9 +66,9 @@ const SOLID_SCRIPT_FACE_DIRECTIONS: Readonly<Record<string, THREE.Vector3>> = Ob
 const SOLID_SCRIPT_FACE_WHICH_WORDS: readonly SolidScriptCommandWord[] = [
   { word: 'All', detail: 'Every face, the same as a Where left off' },
   {
-    word: SOLID_SCRIPT_SELECT_NEW,
+    word: SOLID_SCRIPT_SELECT_BETWEEN,
     detail:
-      "Only faces created since the previous Select Faces. Example: Cube, Select Faces, Cube, then Select Faces Which New picks only the second Cube's faces.",
+      "The faces between this Select Faces and the previous one. Example: Cube, Select Faces, Cube, then Select Faces Which Between picks only the second Cube's faces.",
   },
   ...Object.entries(SOLID_SCRIPT_FACE_DIRECTIONS).map(([word, direction]) => {
     const axis = (['x', 'y', 'z'] as const).find((key) => direction[key] !== 0) ?? 'z';
@@ -298,7 +298,7 @@ function solidScriptFaceSelectFrom(run: SolidScriptBlockRun): SolidScriptFaceFac
 
 /**
  * Writes the faces a Select Faces line picked, after How, and remembers the
- * pool for Which New.
+ * pool for Which Between.
  *
  * @param run Running line.
  * @param how New, Add or Remove.
@@ -333,7 +333,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     description: 'Pick faces of brushes',
     fills: ['$Face', '$Index', '$CX', '$CY', '$CZ', '$NX', '$NY', '$NZ'],
     manual:
-      'Picks faces and puts them in [$Selected.Faces], where Extrude Face, Inset Face, Bevel Edges, Delete Faces and Texture Faces find them when their Of is empty. Of says where to pick from: brushes (all their faces) or faces (a list to narrow down); empty uses [$Selected.Brushes]. Which is a preset that equals a written-out Where: All keeps every face, Facing Up equals Facing([$Face.Normal], Vector(0, 1, 0)), and Top equals HasTag([$Face.Tags], Top). Which New keeps only faces created since the previous Select Faces. Where is a 🔁 condition each remaining face must pass, with [$Face] the face being tested and [$Index] its number from 0; [$CX], [$CY] and [$CZ] are short forms of [$Face.Center.X] and the other axes, and [$NX], [$NY] and [$NZ] of [$Face.Normal]. Left off, Where keeps what Which picked. How adds to or removes from the faces picked before. Into also writes the faces to a variable, a Face list. To pick faces of a new brush, set Of to that brush or its Name. To walk the same faces after later Select lines, write them Into a variable. Example: Cube, then Select Faces Facing Up and Extrude Face By 1 pulls the top up.',
+      'Picks faces and puts them in [$Selected.Faces], where Extrude Face, Inset Face, Bevel Edges, Delete Faces and Texture Faces find them when their Of is empty. Of says where to pick from: brushes (all their faces) or faces (a list to narrow down); empty uses [$Selected.Brushes]. Which is a preset that equals a written-out Where: All keeps every face, Facing Up equals Facing([$Face.Normal], Vector(0, 1, 0)), and Top equals HasTag([$Face.Tags], Top). Which Between keeps the faces between this Select Faces and the previous one. Where is a 🔁 condition each remaining face must pass, with [$Face] the face being tested and [$Index] its number from 0; [$CX], [$CY] and [$CZ] are short forms of [$Face.Center.X] and the other axes, and [$NX], [$NY] and [$NZ] of [$Face.Normal]. Left off, Where keeps what Which picked. How adds to or removes from the faces picked before. Into also writes the faces to a variable, a Face list. To pick faces of a new brush, set Of to that brush or its Name. To walk the same faces after later Select lines, write them Into a variable. Example: Cube, then Select Faces Facing Up and Extrude Face By 1 pulls the top up.',
     stops: [
       'No brushes to pick from.',
       'A Which that is not one of the choices.',
@@ -387,7 +387,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       const items = faces.map((face) => run.elements.face(face));
       const which = run.text('which').trim();
       const chosen =
-        which === SOLID_SCRIPT_SELECT_NEW
+        which === SOLID_SCRIPT_SELECT_BETWEEN
           ? run.selectFresh('faces', items)
           : solidScriptFaceSelectWhich(which, faces).map((face) => run.elements.face(face));
       const picked = chosen.filter((item) =>

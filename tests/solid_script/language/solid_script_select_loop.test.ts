@@ -22,13 +22,13 @@ const CUBE = line('cube', { size: '0.1, 0.1, 0.1', anchor: 'Center, Center, Cent
 
 /** Henry's t121u script, with Move split into Move By. */
 const HENRY: SolidScriptLine[] = [
-  line('select_brushes', { which: 'New', how: 'New' }),
+  line('select_brushes', { which: 'Between', how: 'New' }),
   line('select_faces', { which: 'Facing Up', how: 'New' }),
   line('select_edges', { which: 'All', how: 'New' }),
   line('points_from_edges', { into: 'Points' }),
   line('for_each', { variable: 'Point', list: '[Points]' }),
   CUBE,
-  line('select_brushes', { which: 'New', how: 'Add' }),
+  line('select_brushes', { which: 'Between', how: 'Add' }),
   line('move_by', { by: '1, 1, 1' }),
   END,
 ];
@@ -69,7 +69,7 @@ describe('SolidScript Select and Move By in a loop', () => {
   it('narrows Select Faces to the picked brushes, and Select Edges with empty Of to those faces', () => {
     const result = run([
       line('cube', { size: '2, 2, 2', anchor: 'Center, Center, Center' }),
-      line('select_brushes', { which: 'New', how: 'New' }),
+      line('select_brushes', { which: 'Between', how: 'New' }),
       line('echo', { value: 'brushes [$Selected.Brushes.Count] faces [$Selected.Faces.Count]' }),
       line('select_faces', { which: 'Facing Up', how: 'New' }),
       line('echo', { value: 'faces [$Selected.Faces.Count] edges [$Selected.Edges.Count]' }),
@@ -82,7 +82,7 @@ describe('SolidScript Select and Move By in a loop', () => {
     expect(result.messages).toEqual(['brushes 1 faces 0', 'faces 1 edges 0', 'edges 4', 'points 4']);
   });
 
-  it("builds a 1 m staircase from Henry's New Add loop, and does not place cubes at [Point]", () => {
+  it("builds a 1 m staircase from Henry's Between Add loop, and does not place cubes at [Point]", () => {
     // The four 0.1 m cubes all start at the origin (the Cube line does not
     // use [Point]), then each Move By 1, 1, 1 moves every already picked
     // brush. The input brush stays in the pick from the Select Brushes
@@ -124,10 +124,10 @@ describe('SolidScript Select and Move By in a loop', () => {
   it('lets the pick grow from round to round, and stay after the loop', () => {
     const result = run(
       [
-        line('select_brushes', { which: 'New', how: 'New' }),
+        line('select_brushes', { which: 'Between', how: 'New' }),
         line('for_each', { variable: 'Point', list: '0, 1, 2, 3' }),
         CUBE,
-        line('select_brushes', { which: 'New', how: 'Add' }),
+        line('select_brushes', { which: 'Between', how: 'Add' }),
         line('echo', { value: '[$Selected.Brushes.Count]' }),
         END,
         line('echo', { value: 'after [$Selected.Brushes.Count]' }),
@@ -138,7 +138,7 @@ describe('SolidScript Select and Move By in a loop', () => {
     expect(result.messages).toEqual(['2', '3', '4', '5', 'after 5']);
   });
 
-  it('lets How Remove drop new cubes in the same round, and Select Edges New Add pick later edges', () => {
+  it('lets How Remove drop new cubes in the same round, and Select Edges Between Add pick later edges', () => {
     const printed = (lines: SolidScriptLine[]): string[] => {
       const result = run(lines);
       expect(result.error?.message ?? null).toBeNull();
@@ -149,7 +149,7 @@ describe('SolidScript Select and Move By in a loop', () => {
         line('cube', { anchor: 'Center, Center, Center' }),
         line('select_brushes', { which: 'All', how: 'New', into: 'First' }),
         line('cube', { anchor: 'Center, Center, Center' }),
-        line('select_brushes', { which: 'New', how: 'Remove', into: 'Left' }),
+        line('select_brushes', { which: 'Between', how: 'Remove', into: 'Left' }),
         line('echo', { value: '[First.Count] [Left.Count] [$Selected.Brushes.Count]' }),
       ]),
     ).toEqual(['1 1 1']);
@@ -159,8 +159,8 @@ describe('SolidScript Select and Move By in a loop', () => {
         line('select_brushes', { which: 'All', how: 'New' }),
         line('select_edges', { which: 'All', how: 'New', into: 'First' }),
         line('cube', { anchor: 'Center, Center, Center' }),
-        line('select_brushes', { which: 'New', how: 'New' }),
-        line('select_edges', { which: 'New', how: 'Add', into: 'Both' }),
+        line('select_brushes', { which: 'Between', how: 'New' }),
+        line('select_edges', { which: 'Between', how: 'Add', into: 'Both' }),
         line('echo', { value: '[First.Count] [Both.Count]' }),
       ]),
     ).toEqual(['12 24']);

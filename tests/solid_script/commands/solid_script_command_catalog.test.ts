@@ -352,10 +352,10 @@ describe('solid script command catalog', () => {
       (solidScriptCommandFind(id)?.parameters.find((parameter) => parameter.key === key)?.words ?? []).map(
         (entry) => entry.word,
       );
-    expect(word('select_faces', 'which')).toEqual(expect.arrayContaining(['All', 'New', 'Facing Up', 'Top']));
-    expect(word('select_brushes', 'which')).toEqual(['All', 'New']);
-    expect(word('select_edges', 'which')).toEqual(['All', 'New']);
-    expect(word('select_vertices', 'which')).toEqual(['All', 'New']);
+    expect(word('select_faces', 'which')).toEqual(expect.arrayContaining(['All', 'Between', 'Facing Up', 'Top']));
+    expect(word('select_brushes', 'which')).toEqual(['All', 'Between']);
+    expect(word('select_edges', 'which')).toEqual(['All', 'Between']);
+    expect(word('select_vertices', 'which')).toEqual(['All', 'Between']);
     expect(word('select_faces', 'how')).toEqual(['New', 'Add', 'Remove']);
     expect(word('if_used_as', 'use')).toEqual(['Generator', 'Modifier']);
     expect(word('input_brushes', 'textures')).toEqual(['Move With Shape', 'World Aligned']);

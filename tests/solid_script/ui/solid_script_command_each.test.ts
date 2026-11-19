@@ -32,7 +32,7 @@ describe('SolidScript per-element fields', () => {
     expect(where.each).toBe('Face');
     expect(solidScriptParameterEachActive(where, { which: 'All' })).toBe('Face');
     expect(solidScriptParameterEachActive(where, { which: 'Facing Up' })).toBe('Face');
-    expect(solidScriptParameterEachActive(where, { which: 'New' })).toBe('Face');
+    expect(solidScriptParameterEachActive(where, { which: 'Between' })).toBe('Face');
   });
 
   it('declares Distance of Displace as per vertex, and Where of Select Vertices and Select Edges as per item', () => {
@@ -41,7 +41,7 @@ describe('SolidScript per-element fields', () => {
     const where = parameter('select_vertices', 'where');
     expect(where.each).toBe('Vertex');
     expect(solidScriptParameterEachActive(where, { which: 'All' })).toBe('Vertex');
-    expect(solidScriptParameterEachActive(where, { which: 'New' })).toBe('Vertex');
+    expect(solidScriptParameterEachActive(where, { which: 'Between' })).toBe('Vertex');
     expect(parameter('select_edges', 'where').each).toBe('Edge');
     expect(parameter('select_brushes', 'where').each).toBe('Brush');
   });

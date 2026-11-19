@@ -11,7 +11,7 @@ import {
 } from './solid_script_command_parameters.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import type { SolidScriptSelectedKind } from '@/solid_script/language/solid_script_machine_variables.js';
-import { SOLID_SCRIPT_SELECT_NEW, solidScriptOfEmpty } from '@/solid_script/language/solid_script_select.js';
+import { SOLID_SCRIPT_SELECT_BETWEEN, solidScriptOfEmpty } from '@/solid_script/language/solid_script_select.js';
 import { solidScriptConditionHolds } from '@/solid_script/language/solid_script_condition.js';
 import { solidScriptGeometryLeaves } from '@/solid_script/language/solid_script_geometry.js';
 import { SolidScriptElement, type SolidScriptValue } from '@/solid_script/language/solid_script_value.js';
@@ -150,7 +150,7 @@ function solidScriptSelectCommand(kind: SolidScriptSelectKind): SolidScriptComma
     description: `Pick ${kind.many}`,
     fills:
       kind.item === 'Edge' ? ['$Edge', '$Index'] : kind.item === 'Brush' ? ['$Brush', '$Index'] : ['$Vertex', '$Index'],
-    manual: `Picks ${kind.many} and puts them in [$Selected.${kind.item === 'Edge' ? 'Edges' : kind.item === 'Brush' ? 'Brushes' : 'Vertices'}], where lines with an empty Of find them. ${kind.item === 'Brush' ? 'Of says which brushes to pick from; empty uses every brush and mesh built so far, and those a modifier has received.' : 'Of says where to pick from: brushes, faces or edges; empty uses [$Selected.Faces], or [$Selected.Brushes] when no faces are picked.'} Which All keeps every one, the same as a Where left off. Which New keeps only what was created since the previous ${kind.label}. Where is a 🔁 condition each remaining one must pass, with [$${kind.item}] the item being tested, such as [=[$${kind.item}.${kind.item === 'Edge' ? 'Length' : kind.item === 'Brush' ? 'Size.X' : 'Position.Y'}] > 1], and [$Index] its number from 0. Left off, Where keeps what Which picked. How adds to or removes from the ${kind.many} picked before. Into also writes them to a variable, a ${kind.item} list. Example: ${kind.example}`,
+    manual: `Picks ${kind.many} and puts them in [$Selected.${kind.item === 'Edge' ? 'Edges' : kind.item === 'Brush' ? 'Brushes' : 'Vertices'}], where lines with an empty Of find them. ${kind.item === 'Brush' ? 'Of says which brushes to pick from; empty uses every brush and mesh built so far, and those a modifier has received.' : 'Of says where to pick from: brushes, faces or edges; empty uses [$Selected.Faces], or [$Selected.Brushes] when no faces are picked.'} Which All keeps every one, the same as a Where left off. Which Between keeps the ${kind.many} between this ${kind.label} and the previous one. Where is a 🔁 condition each remaining one must pass, with [$${kind.item}] the item being tested, such as [=[$${kind.item}.${kind.item === 'Edge' ? 'Length' : kind.item === 'Brush' ? 'Size.X' : 'Position.Y'}] > 1], and [$Index] its number from 0. Left off, Where keeps what Which picked. How adds to or removes from the ${kind.many} picked before. Into also writes them to a variable, a ${kind.item} list. Example: ${kind.example}`,
     stops: [
       'No brushes to pick from.',
       'A Which that is not one of the choices.',
@@ -197,9 +197,9 @@ function solidScriptSelectCommand(kind: SolidScriptSelectKind): SolidScriptComma
     execute: (run) => {
       const pool = solidScriptSelectItems(run, kind);
       const which = run.text('which').trim();
-      if (which !== 'All' && which !== SOLID_SCRIPT_SELECT_NEW)
+      if (which !== 'All' && which !== SOLID_SCRIPT_SELECT_BETWEEN)
         throw new Error(`Which must be one of ${kind.words.map((entry) => entry.word).join(', ')}, not "${which}"`);
-      const chosen = which === SOLID_SCRIPT_SELECT_NEW ? run.selectFresh(kind.selected, pool) : pool;
+      const chosen = which === SOLID_SCRIPT_SELECT_BETWEEN ? run.selectFresh(kind.selected, pool) : pool;
       const picked = chosen.filter((item, index) =>
         solidScriptConditionHolds(run, 'where', { [`$${kind.item}`]: item, $Index: index }),
       );
@@ -251,9 +251,9 @@ export const SOLID_SCRIPT_COMMANDS_SELECT: readonly SolidScriptCommand[] = [
     words: [
       { word: 'All', detail: 'Every brush and mesh, the same as a Where left off' },
       {
-        word: SOLID_SCRIPT_SELECT_NEW,
+        word: SOLID_SCRIPT_SELECT_BETWEEN,
         detail:
-          'Only brushes and meshes created since the previous Select Brushes. Example: Cube, Select Brushes, Cube, then Select Brushes Which New picks only the second Cube.',
+          'The brushes and meshes between this Select Brushes and the previous one. Example: Cube, Select Brushes, Cube, then Select Brushes Which Between picks only the second Cube.',
       },
     ],
     items: (_run, element) => [element],
@@ -270,9 +270,9 @@ export const SOLID_SCRIPT_COMMANDS_SELECT: readonly SolidScriptCommand[] = [
     words: [
       { word: 'All', detail: 'Every edge, the same as a Where left off' },
       {
-        word: SOLID_SCRIPT_SELECT_NEW,
+        word: SOLID_SCRIPT_SELECT_BETWEEN,
         detail:
-          "Only edges created since the previous Select Edges. Example: Cube, Select Edges, Cube, then Select Edges Which New picks only the second Cube's edges.",
+          "The edges between this Select Edges and the previous one. Example: Cube, Select Edges, Cube, then Select Edges Which Between picks only the second Cube's edges.",
       },
     ],
     items: (run, element) => run.elements.edges(element).map((edge) => run.elements.edge(edge)),
@@ -288,9 +288,9 @@ export const SOLID_SCRIPT_COMMANDS_SELECT: readonly SolidScriptCommand[] = [
     words: [
       { word: 'All', detail: 'Every corner, the same as a Where left off' },
       {
-        word: SOLID_SCRIPT_SELECT_NEW,
+        word: SOLID_SCRIPT_SELECT_BETWEEN,
         detail:
-          "Only corners created since the previous Select Vertices. Example: Cube, Select Vertices, Cube, then Select Vertices Which New picks only the second Cube's corners.",
+          "The corners between this Select Vertices and the previous one. Example: Cube, Select Vertices, Cube, then Select Vertices Which Between picks only the second Cube's corners.",
       },
     ],
     items: (run, element) => {

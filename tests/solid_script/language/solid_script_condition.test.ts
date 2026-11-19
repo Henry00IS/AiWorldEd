@@ -96,7 +96,7 @@ describe('SolidScript condition helpers', () => {
     }
   });
 
-  it('puts one Where on every Select, and still honours Which New and How', () => {
+  it('puts one Where on every Select, and still honours Which Between and How', () => {
     const faces = run(
       CUBE,
       SELECT_BRUSHES,
@@ -135,7 +135,7 @@ describe('SolidScript condition helpers', () => {
       { command: 'select_faces', values: { which: 'All', into: 'First' } },
       CUBE,
       SELECT_BRUSHES,
-      { command: 'select_faces', values: { which: 'New', into: 'Later' } },
+      { command: 'select_faces', values: { which: 'Between', into: 'Later' } },
       { command: 'echo', values: { value: '[First.Count] [Later.Count]' } },
     );
     expect(fresh.error).toBeNull();
