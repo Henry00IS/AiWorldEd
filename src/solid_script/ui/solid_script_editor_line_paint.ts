@@ -1,5 +1,14 @@
+import { DRAG_EDGE_SCROLL_TUNING } from '@/ui/drag/drag_edge_scroll.js';
+import { RowPaintDrag } from '@/ui/drag/row_paint_drag.js';
+
 /** What a paint over script lines needs from the line list. */
 export interface SolidScriptEditorLinePaintHost {
+  /**
+   * Returns the scrolling line list.
+   *
+   * @returns List element.
+   */
+  element: () => HTMLElement;
   /**
    * Returns the line under a pointer height, clamped to the script.
    *
@@ -17,69 +26,80 @@ export interface SolidScriptEditorLinePaintHost {
    * @param pointerLine Line under the pointer.
    */
   paint: (painted: number[], base: ReadonlySet<number>, subtractive: boolean, pointerLine: number) => void;
+  /**
+   * Height of one line row in CSS pixels, the unit the edge scroll speeds count
+   * in.
+   */
+  rowPx: number;
 }
 
 /**
  * Modifier-drag paint over script lines: pressing Shift or Ctrl/Cmd on a line
  * and dragging over other lines selects (Shift) or deselects (Ctrl/Cmd) every
- * line from the pressed one to the one under the pointer. Nothing is painted
- * until the pointer reaches another line, so a plain modifier click keeps its
- * own behaviour.
+ * line from the pressed one to the one under the pointer. Holding the pointer
+ * near the top or bottom of the script scrolls it like the outliner, painting
+ * the lines that scroll by. Nothing is painted until the pointer reaches
+ * another line, so a plain modifier click keeps its own behaviour.
  */
 export class SolidScriptEditorLinePaint {
   private pressedLine: number | null = null;
   private base: ReadonlySet<number> = new Set();
   private subtractive = false;
-  private paintedTo: number | null = null;
-  private readonly mouseMoveBound = (event: MouseEvent): void => this.mouseMove(event);
-  private readonly mouseUpBound = (): void => this.end();
+  private readonly drag: RowPaintDrag;
 
   /**
    * Creates an idle paint.
    *
    * @param host Line list callbacks.
    */
-  constructor(private readonly host: SolidScriptEditorLinePaintHost) {}
+  constructor(host: SolidScriptEditorLinePaintHost) {
+    this.drag = new RowPaintDrag(
+      {
+        element: () => host.element(),
+        scrollBy: (deltaY) => {
+          const element = host.element();
+          const before = element.scrollTop;
+          element.scrollTop = before + deltaY;
+          return element.scrollTop !== before;
+        },
+        rowAt: (clientY) => host.lineAt(clientY),
+        anchorRow: () => this.pressedLine,
+        paint: (first, last, pointerLine) =>
+          host.paint(
+            Array.from({ length: last - first + 1 }, (_, index) => first + index),
+            this.base,
+            this.subtractive,
+            pointerLine,
+          ),
+      },
+      { ...DRAG_EDGE_SCROLL_TUNING, rowHeightPx: host.rowPx },
+    );
+  }
 
   /**
-   * Starts painting from a pressed line.
+   * Starts a paint from a pressed line.
    *
-   * @param pressedLine Line under the press.
-   * @param base Selection before the press changed it.
-   * @param subtractive True for a Ctrl/Cmd press, even with Shift held.
+   * @param pressedLine Line the gesture started on.
+   * @param base Selection when the gesture started.
+   * @param subtractive True removes painted lines, false adds them.
+   * @param event Press that started it.
    */
-  begin(pressedLine: number, base: ReadonlySet<number>, subtractive: boolean): void {
-    this.end();
+  begin(
+    pressedLine: number,
+    base: ReadonlySet<number>,
+    subtractive: boolean,
+    event: Pick<MouseEvent, 'clientX' | 'clientY'>,
+  ): void {
+    this.drag.end();
     this.pressedLine = pressedLine;
     this.base = new Set(base);
     this.subtractive = subtractive;
-    document.addEventListener('mousemove', this.mouseMoveBound, true);
-    document.addEventListener('mouseup', this.mouseUpBound, true);
+    this.drag.begin(event);
   }
 
-  /** Ends the gesture. */
+  /** Ends the paint, keeping what it selected. */
   end(): void {
+    this.drag.end();
     this.pressedLine = null;
-    this.paintedTo = null;
-    document.removeEventListener('mousemove', this.mouseMoveBound, true);
-    document.removeEventListener('mouseup', this.mouseUpBound, true);
-  }
-
-  /**
-   * Follows the pointer and paints when it reaches a new line.
-   *
-   * @param event Mouse move event.
-   */
-  private mouseMove(event: MouseEvent): void {
-    if ((event.buttons & 1) === 0) return this.end();
-    const pressedLine = this.pressedLine;
-    const pointerLine = this.host.lineAt(event.clientY);
-    if (pressedLine === null || pointerLine === null || pointerLine === this.paintedTo) return;
-    if (this.paintedTo === null && pointerLine === pressedLine) return;
-    event.preventDefault();
-    this.paintedTo = pointerLine;
-    const first = Math.min(pressedLine, pointerLine);
-    const painted = Array.from({ length: Math.abs(pointerLine - pressedLine) + 1 }, (_, index) => first + index);
-    this.host.paint(painted, this.base, this.subtractive, pointerLine);
   }
 }

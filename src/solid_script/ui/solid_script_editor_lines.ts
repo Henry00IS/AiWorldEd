@@ -170,9 +170,11 @@ export class SolidScriptEditorLines {
       notice: handlers.notice,
     });
     this.paint = new SolidScriptEditorLinePaint({
+      element: () => this.element,
       lineAt: (clientY) => this.lineAt(clientY),
       paint: (painted, base, subtractive, pointerLine) =>
         this.selectionApply(SelectionRowsRules.paintApply(base, painted, subtractive), pointerLine),
+      rowPx: SOLID_SCRIPT_EDITOR_ROW_PX,
     });
     this.drop = new SolidScriptEditorDrop(this.element, {
       blank: (line) => solidScriptBlockIsBlank(this.document.blocks[line]),
@@ -194,6 +196,7 @@ export class SolidScriptEditorLines {
   /** Stops listening for drags on the page and closes the line menu. */
   dispose(): void {
     this.drop.dispose();
+    this.paint.end();
     this.menu?.dispose();
     this.menu = null;
   }
@@ -660,7 +663,7 @@ export class SolidScriptEditorLines {
     const modifiers = { shift: event.shiftKey, ctrl: event.ctrlKey || event.metaKey };
     const selected = new Set(this.selected());
     this.pressKept = !modifiers.shift && !modifiers.ctrl && selected.size > 1 && selected.has(line);
-    if (modifiers.shift || modifiers.ctrl) this.paint.begin(line, selected, modifiers.ctrl);
+    if (modifiers.shift || modifiers.ctrl) this.paint.begin(line, selected, modifiers.ctrl, event);
     const next = this.pressKept ? selected : SelectionRowsRules.clickApply(selected, line, modifiers);
     this.selectionApply(next, line);
   }
