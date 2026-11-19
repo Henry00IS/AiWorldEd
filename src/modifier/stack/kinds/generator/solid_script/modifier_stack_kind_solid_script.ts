@@ -1,3 +1,4 @@
+import type { ModifierStackPoseFollow } from '@/modifier/stack/kinds/modifier_stack_kind.js';
 import * as THREE from 'three';
 import {
   MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY,
@@ -104,6 +105,17 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
         input[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY],
       ),
     };
+  }
+
+  /**
+   * Returns that the brushes and their textures follow any move or turn of the
+   * node: every face carries a frame-space surface, so the textures turn with
+   * the node like a brush turned by the editor's rotate tool.
+   *
+   * @returns 'rigid'.
+   */
+  override volumePoseFollow(): ModifierStackPoseFollow | null {
+    return 'rigid';
   }
 
   /**
@@ -257,7 +269,7 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
       piece.transformVertices(new THREE.Matrix4().makeTranslation(node.center.x, node.center.y, node.center.z));
       const look = {
         parameters,
-        surfaces: modifierStackSolidScriptSurfaces(node, modifierStackSolidScriptToModel(context)),
+        surfaces: modifierStackSolidScriptSurfaces(node),
         caps: null,
         textures:
           node.texture || node.faceTextures
@@ -277,18 +289,6 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
     group.updateMatrixWorld(true);
     return { tree: group, brushes: members.flatMap((member) => member.brushes), authored: false, origin: null };
   }
-}
-
-/**
- * Builds the frame-to-model matrix pieceUnit will apply to a piece, so script
- * UV mappings can pre-multiply it and stay in frame space after that invert.
- *
- * @param context Evaluation context.
- * @returns Transform from the volume frame to solid-local coordinates.
- */
-function modifierStackSolidScriptToModel(context: ModifierStackContext): THREE.Matrix4 {
-  const frame = modifierStackFrame(context.volume, 'volume');
-  return context.solidRoot.matrixWorld.clone().invert().multiply(frame);
 }
 
 /**

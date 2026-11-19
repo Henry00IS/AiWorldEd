@@ -12,21 +12,16 @@ import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
 
 /**
  * Builds frame-space face surfaces for a script brush, with UVs worked out in
- * the brush's own centred space so a move, turn or scale keeps the mapping on
- * the shape. Pass the same frame-to-model matrix pieceUnit applies, so after
- * that invert the stored UVs stay in frame space and a volume move stays world
- * aligned.
+ * the brush's own centred space so a move, turn or scale in the script keeps
+ * the mapping on the shape. pieceUnit then carries them from the frame into the
+ * solid, so the textures turn and move with the generator node the way the
+ * editor's rotate and move tools carry a brush's textures.
  *
  * @param node Centred script brush and its placement.
- * @param toModel Optional frame-to-model matrix, cancelled by pieceUnit.
- * @returns One surface per face, ready for pieceUnit.
+ * @returns One surface per face, in frame coordinates.
  */
-export function modifierStackSolidScriptSurfaces(
-  node: SolidTreeBrush,
-  toModel?: THREE.Matrix4,
-): ModifierStackPieceSurfaces {
+export function modifierStackSolidScriptSurfaces(node: SolidTreeBrush): ModifierStackPieceSurfaces {
   const fromCentered = new THREE.Matrix4().makeTranslation(-node.center.x, -node.center.y, -node.center.z);
-  if (toModel) fromCentered.multiply(toModel);
   return node.brush.faces.map((_, index) => {
     const surface = modifierStackSolidScriptFaceSurface(node, index);
     return { ...surface, uv: surface.uv.multiplyMatrix4(fromCentered) };

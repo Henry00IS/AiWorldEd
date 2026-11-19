@@ -22,8 +22,14 @@ export function modifierStackFrame(volume: THREE.Object3D, space: unknown): THRE
   return new THREE.Matrix4().compose(position, rotation, new THREE.Vector3(1, 1, 1));
 }
 
+/** Steps the volume scale is rounded to, past the noise a turn leaves in it. */
+const MODIFIER_STACK_SCALE_STEPS = 1e9;
+
 /**
- * Returns the volume box measured in its own frame, with scale applied.
+ * Returns the volume box measured in its own frame, with scale applied. The
+ * scale is rounded past floating-point noise, so a turned volume measures the
+ * same box as before the turn and builds the same pieces, as the cache that
+ * follows a turn assumes.
  *
  * @param volume Scene modifier volume, generator node, or stack owner.
  * @returns Box in frame coordinates; empty when the volume has no geometry.
@@ -31,7 +37,11 @@ export function modifierStackFrame(volume: THREE.Object3D, space: unknown): THRE
 export function modifierStackVolumeBox(volume: THREE.Object3D): THREE.Box3 {
   const local = modifierStackVolumeLocalBox(volume);
   if (local.isEmpty()) return new THREE.Box3();
-  const scale = new THREE.Vector3().setFromMatrixScale(volume.matrixWorld);
+  const scale = new THREE.Vector3()
+    .setFromMatrixScale(volume.matrixWorld)
+    .multiplyScalar(MODIFIER_STACK_SCALE_STEPS)
+    .round()
+    .divideScalar(MODIFIER_STACK_SCALE_STEPS);
   return new THREE.Box3().setFromPoints([local.min.clone().multiply(scale), local.max.clone().multiply(scale)]);
 }
 
