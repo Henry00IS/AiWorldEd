@@ -28,6 +28,7 @@ import { solidScriptNameKey } from './solid_script_name_key.js';
 import { solidScriptShapeTransform } from './solid_script_reshape.js';
 import { solidScriptMeshChecked, solidScriptMeshTransform, solidScriptShapeHasMesh } from './solid_script_mesh.js';
 import { SolidScriptScope } from './solid_script_scope.js';
+import { solidScriptScopeElementBind } from './solid_script_scope_element.js';
 import {
   solidScriptLineFieldOf,
   solidScriptLinesPassInput,
@@ -723,6 +724,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
           const inner = new SolidScriptScope(state.scope);
           inner.variableDefine(key, round);
           if (keyed) inner.variableDefine(keyName, keyed.keys[index]);
+          solidScriptScopeElementBind(inner, round, index);
           if (node.children.length === 0) return;
           const built = state.machine.selectedKept(() =>
             state.machine.linesRun(node.children, inner, state.context, inner, children()),
