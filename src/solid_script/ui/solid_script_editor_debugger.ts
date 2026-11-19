@@ -6,12 +6,13 @@ import {
 import type { SolidScriptBreak } from '@/solid_script/language/solid_script_machine_types.js';
 import { solidScriptProgramRun, type SolidScriptProgramOptions } from '@/solid_script/language/solid_script_program.js';
 import type { SolidScriptEditorSession } from './solid_script_editor_session.js';
+import {
+  SOLID_SCRIPT_EDITOR_DEBUG_SPEED_DEFAULT,
+  solidScriptEditorDebugSpeedMs,
+} from './solid_script_editor_debug_speed.js';
 
 /** Whether a script is being stepped through. */
 export type SolidScriptDebuggerState = 'stopped' | 'paused' | 'playing';
-
-/** Time between steps while playing, in ms. */
-const SOLID_SCRIPT_DEBUGGER_STEP_MS = 400;
 
 /**
  * Steps through a script one shape at a time and pauses at breakpoints: the
@@ -36,6 +37,8 @@ export class SolidScriptEditorDebugger {
   /** Index of the breakpoint hit paused at, or null. */
   private atBreak: number | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
+  /** Time between steps while Debug plays, in ms. */
+  private stepMs = solidScriptEditorDebugSpeedMs(SOLID_SCRIPT_EDITOR_DEBUG_SPEED_DEFAULT);
 
   /**
    * Creates the debugger.
@@ -127,7 +130,7 @@ export class SolidScriptEditorDebugger {
     }
     this.breakLeave();
     this.state = 'playing';
-    this.timer = setInterval(() => this.advance(), SOLID_SCRIPT_DEBUGGER_STEP_MS);
+    this.timer = setInterval(() => this.advance(), this.stepMs);
     this.apply();
   }
 
@@ -295,6 +298,19 @@ export class SolidScriptEditorDebugger {
   }
 
   /** Stops the play timer. */
+  /**
+   * Sets how long Debug waits between steps while it plays; a run that is
+   * playing goes on at the new speed at once.
+   *
+   * @param ms Milliseconds between steps.
+   */
+  stepMsSet(ms: number): void {
+    this.stepMs = ms;
+    if (this.state !== 'playing') return;
+    this.timerClear();
+    this.timer = setInterval(() => this.advance(), this.stepMs);
+  }
+
   private timerClear(): void {
     if (this.timer !== null) clearInterval(this.timer);
     this.timer = null;

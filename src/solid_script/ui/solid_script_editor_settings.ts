@@ -14,11 +14,19 @@ import {
   solidScriptEditorViewWrite,
   type SolidScriptEditorView,
 } from './solid_script_editor_view.js';
+import {
+  SOLID_SCRIPT_EDITOR_DEBUG_SPEEDS,
+  solidScriptEditorDebugSpeedMs,
+  solidScriptEditorDebugSpeedRead,
+  solidScriptEditorDebugSpeedWrite,
+  type SolidScriptEditorDebugSpeed,
+} from './solid_script_editor_debug_speed.js';
 
 /**
  * The Settings tab of the script editor: Can Be Used As, the same switches as
  * the inspector, and who wrote the script, which are saved with the script;
- * then how the editor shows code, which is kept on this computer.
+ * then how the editor shows code and how fast Debug steps, which are kept on
+ * this computer.
  */
 export class SolidScriptEditorSettings {
   /** Tab content. */
@@ -34,13 +42,15 @@ export class SolidScriptEditorSettings {
    * @param commit Stores a changed script.
    * @param notice Shows a short message.
    * @param viewChanged Shows the code with changed view switches.
-   * @param storage Where the view switches are kept.
+   * @param speedChanged Steps Debug at a new pace, in ms between steps.
+   * @param storage Where the view switches and the Debug speed are kept.
    */
   constructor(
     use: SolidScriptUse,
     private readonly commit: (document: SolidScriptDocument) => void,
     notice: (text: string) => void,
     viewChanged: (view: SolidScriptEditorView) => void,
+    speedChanged: (ms: number) => void,
     storage: SettingsStorage = new LocalSettingsStorage(),
   ) {
     this.element.dataset['solidScriptSettings'] = 'true';
@@ -58,7 +68,12 @@ export class SolidScriptEditorSettings {
       this.change((script) => solidScriptDocumentAuthorWith(script, this.author.value)),
     );
     row.append(modifierStackUiText('span', 'Author', true), this.author);
-    this.element.append(this.uses.element, row, solidScriptEditorSettingsView(viewChanged, storage));
+    this.element.append(
+      this.uses.element,
+      row,
+      solidScriptEditorSettingsView(viewChanged, storage),
+      solidScriptEditorSettingsDebug(speedChanged, storage),
+    );
   }
 
   /**
@@ -114,5 +129,43 @@ function solidScriptEditorSettingsView(
     row.append(box, label);
     group.append(row);
   }
+  return group;
+}
+
+/**
+ * Builds the Debug group: how fast Debug steps through the script on its own,
+ * stored when changed and used at once, even while Debug plays.
+ *
+ * @param speedChanged Steps Debug at a new pace, in ms between steps.
+ * @param storage Where the speed is kept.
+ * @returns Group element.
+ */
+function solidScriptEditorSettingsDebug(speedChanged: (ms: number) => void, storage: SettingsStorage): HTMLElement {
+  const group = document.createElement('fieldset');
+  group.className = SOLID_SCRIPT_EDITOR_CLASSES.settingsGroup;
+  const legend = document.createElement('legend');
+  legend.textContent = 'Debug';
+  legend.title = 'How Debug steps through the script; kept on this computer';
+  const row = document.createElement('label');
+  row.title =
+    'How fast Debug builds one solid after the other when it plays on its own. Slow shows one solid per second, Normal about two, Fast about seven and Fastest about 25. Step still builds one solid per press.';
+  Object.assign(row.style, { display: 'flex', gap: '8px', alignItems: 'center' });
+  const speed = document.createElement('select');
+  speed.setAttribute('aria-label', 'Debug Speed');
+  for (const [name, , words] of SOLID_SCRIPT_EDITOR_DEBUG_SPEEDS) {
+    const option = document.createElement('option');
+    option.value = name;
+    option.textContent = name;
+    option.title = words;
+    speed.append(option);
+  }
+  speed.value = solidScriptEditorDebugSpeedRead(storage);
+  speed.addEventListener('change', () => {
+    const chosen = speed.value as SolidScriptEditorDebugSpeed;
+    solidScriptEditorDebugSpeedWrite(chosen, storage);
+    speedChanged(solidScriptEditorDebugSpeedMs(chosen));
+  });
+  row.append(modifierStackUiText('span', 'Debug Speed', true), speed);
+  group.append(legend, row);
   return group;
 }

@@ -52,6 +52,7 @@ import { PanelFloatingBoundsMemory } from '@/ui/floating_panel/panel_floating_bo
 import type { SolidScriptExplorerRun } from './solid_script_editor_explorer.js';
 import { SolidScriptEditorOutput } from './solid_script_editor_output.js';
 import { solidScriptEditorLoad, solidScriptEditorSave } from './solid_script_editor_files.js';
+import { solidScriptEditorDebugSpeedMs, solidScriptEditorDebugSpeedRead } from './solid_script_editor_debug_speed.js';
 import { solidScriptFileDropBind, type SolidScriptFileDropResult } from './solid_script_file_drop.js';
 import { SOLID_SCRIPT_COMMAND_INPUT } from '@/solid_script/language/solid_script_input.js';
 
@@ -123,6 +124,7 @@ export class SolidScriptEditor extends PanelFloating {
       target.refresh ?? null,
     );
     this.debugger = new SolidScriptEditorDebugger(this.session, () => this.debugChanged());
+    this.debugger.stepMsSet(solidScriptEditorDebugSpeedMs(solidScriptEditorDebugSpeedRead()));
     this.lines = new SolidScriptEditorLines({
       edit: (document, line) => this.commit(document, line),
       configure: (line) => this.configure(line),
@@ -139,6 +141,7 @@ export class SolidScriptEditor extends PanelFloating {
         (document) => this.commit(document, null),
         (text) => this.noticeShow(text),
         (view) => this.lines.viewSet(view),
+        (ms) => this.debugger.stepMsSet(ms),
       ),
     );
     this.output.selectAbove = (command, line) => this.selectAbove(command, line);
