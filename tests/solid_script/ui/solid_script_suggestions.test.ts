@@ -286,6 +286,37 @@ describe('SolidScript suggestions', () => {
       expect(labels.has(solidScriptFunctionSpelling(key)), key).toBe(true);
   });
 
+  it('lists This Command element names first on a per-element field, then variables, Inputs and System', () => {
+    const scope: SolidScriptSuggestionScope = { ...SCOPE, extra: ['$Brush', '$Index'] };
+    const all = solidScriptSuggestions(at('[|'), scope);
+    const categories = [...new Set(all.map((entry) => entry.category))];
+    expect(categories).toEqual([
+      'This Command',
+      'Variables',
+      'Locals',
+      'Inputs',
+      'System',
+      'Functions',
+      'Built-In Functions',
+    ]);
+    expect(all.filter((entry) => entry.category === 'This Command').map((entry) => entry.label)).toEqual([
+      '$Brush',
+      '$Index',
+    ]);
+  });
+
+  it('lists current-element names before other This Command fills, and This Command before System on a usual field', () => {
+    const eachFirst = solidScriptSuggestions(at('[|'), { ...SCOPE, extra: ['$Box', '$Brush'] }).filter(
+      (entry) => entry.category === 'This Command',
+    );
+    expect(eachFirst.map((entry) => entry.label)).toEqual(['$Brush', '$Box']);
+    const usual = [
+      ...new Set(solidScriptSuggestions(at('[|'), { ...SCOPE, extra: ['$Box'] }).map((entry) => entry.category)),
+    ];
+    expect(usual.indexOf('Inputs')).toBeLessThan(usual.indexOf('This Command'));
+    expect(usual.indexOf('This Command')).toBeLessThan(usual.indexOf('System'));
+  });
+
   it('lists the locals of a Function and explains built-in values and functions', () => {
     const locals = solidScriptSuggestions(at('[Local.|'), SCOPE).map((entry) => entry.label);
     expect(locals).toEqual(['Local.W', 'Local.D']);

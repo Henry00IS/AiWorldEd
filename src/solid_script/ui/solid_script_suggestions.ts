@@ -103,27 +103,94 @@ export interface SolidScriptSuggestionWritten {
   caret: number;
 }
 
-/** Groups in listing order: words first, then values, then functions. */
-const SOLID_SCRIPT_SUGGESTION_GROUPS = [
-  'Choices',
-  'Members',
+/** Words and members stay first whenever they are listed. */
+const SOLID_SCRIPT_SUGGESTION_GROUPS_HEAD = ['Choices', 'Members'] as const;
+
+/**
+ * Value groups on a usual field: script names after Inputs, then this command's
+ * fills, then System.
+ */
+const SOLID_SCRIPT_SUGGESTION_GROUPS_VALUES = [
   'Inputs',
   'Variables',
   'Lists',
   'Counters',
   'Locals',
   'Persistent',
-  'System',
   'This Command',
-  'Functions',
-  'Built-In Functions',
-];
+  'System',
+] as const;
+
+/**
+ * Value groups on a per-element field: this command's element names first, then
+ * local variables, Inputs and System.
+ */
+const SOLID_SCRIPT_SUGGESTION_GROUPS_EACH = [
+  'This Command',
+  'Variables',
+  'Lists',
+  'Counters',
+  'Locals',
+  'Persistent',
+  'Inputs',
+  'System',
+] as const;
+
+/** Functions stay last, after values. */
+const SOLID_SCRIPT_SUGGESTION_GROUPS_TAIL = ['Functions', 'Built-In Functions'] as const;
 
 /** Name categories that are not values a field reads. */
 const SOLID_SCRIPT_SUGGESTION_NOT_VALUES = new Set(['Functions', 'Parts', 'Brushes', 'Handlers']);
 
 /** Most suggestions listed at the caret at once. */
 const SOLID_SCRIPT_SUGGESTIONS_MAX = 200;
+
+/**
+ * Tells whether a field offers current-element names, such as $Brush on Select
+ * Brushes Where.
+ *
+ * @param scope What the field may refer to.
+ * @returns True when a current-element name is in the field's fills.
+ */
+function solidScriptSuggestionEach(scope: SolidScriptSuggestionScope): boolean {
+  return scope.extra.some((name) => solidScriptSystemFillEach(name));
+}
+
+/**
+ * Groups in listing order for a field: words first, then the values that belong
+ * first on that field, then functions.
+ *
+ * @param scope What the field may refer to.
+ * @returns Group names in order.
+ */
+function solidScriptSuggestionGroups(scope: SolidScriptSuggestionScope): readonly string[] {
+  const values = solidScriptSuggestionEach(scope)
+    ? SOLID_SCRIPT_SUGGESTION_GROUPS_EACH
+    : SOLID_SCRIPT_SUGGESTION_GROUPS_VALUES;
+  return [...SOLID_SCRIPT_SUGGESTION_GROUPS_HEAD, ...values, ...SOLID_SCRIPT_SUGGESTION_GROUPS_TAIL];
+}
+
+/**
+ * Sorts two suggestions by the field's group order, then current-element names
+ * first inside This Command, then by match rank and original index.
+ *
+ * @param groups Group names in order.
+ * @param a Left suggestion, with its index and optional match rank.
+ * @param b Right suggestion, with its index and optional match rank.
+ * @returns Sort comparison.
+ */
+function solidScriptSuggestionGroupOrder(
+  groups: readonly string[],
+  a: { suggestion: SolidScriptSuggestion; index: number; rank?: number },
+  b: { suggestion: SolidScriptSuggestion; index: number; rank?: number },
+): number {
+  return (
+    groups.indexOf(a.suggestion.category) - groups.indexOf(b.suggestion.category) ||
+    Number(b.suggestion.each ?? false) - Number(a.suggestion.each ?? false) ||
+    (a.rank ?? 0) - (b.rank ?? 0) ||
+    a.index - b.index
+  );
+}
 
 /** What may follow [ while a name is typed. */
 const SOLID_SCRIPT_SUGGESTION_BRACKET =
@@ -341,13 +408,10 @@ function solidScriptSuggestionsAll(scope: SolidScriptSuggestionScope): SolidScri
         };
       }),
   ];
+  const groups = solidScriptSuggestionGroups(scope);
   return all
     .map((suggestion, index) => ({ suggestion, index }))
-    .sort(
-      (a, b) =>
-        SOLID_SCRIPT_SUGGESTION_GROUPS.indexOf(a.suggestion.category) -
-          SOLID_SCRIPT_SUGGESTION_GROUPS.indexOf(b.suggestion.category) || a.index - b.index,
-    )
+    .sort((a, b) => solidScriptSuggestionGroupOrder(groups, a, b))
     .map(({ suggestion }) => suggestion);
 }
 
@@ -587,18 +651,13 @@ export function solidScriptSuggestions(
       .sort((a, b) => a.rank - b.rank)
       .map(({ entry }) => entry);
   }
+  const groups = solidScriptSuggestionGroups(scope);
   return all
     .filter((entry) => entry.pick !== 'word')
-    .map((entry, index) => ({ entry, index, rank: solidScriptSuggestionRank(entry, prefix) }))
+    .map((entry, index) => ({ suggestion: entry, index, rank: solidScriptSuggestionRank(entry, prefix) }))
     .filter(({ rank }) => rank >= 0)
-    .sort(
-      (a, b) =>
-        SOLID_SCRIPT_SUGGESTION_GROUPS.indexOf(a.entry.category) -
-          SOLID_SCRIPT_SUGGESTION_GROUPS.indexOf(b.entry.category) ||
-        a.rank - b.rank ||
-        a.index - b.index,
-    )
-    .map(({ entry }) => entry)
+    .sort((a, b) => solidScriptSuggestionGroupOrder(groups, a, b))
+    .map(({ suggestion }) => suggestion)
     .slice(0, SOLID_SCRIPT_SUGGESTIONS_MAX);
 }
 
