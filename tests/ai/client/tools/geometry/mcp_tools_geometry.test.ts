@@ -11,13 +11,11 @@ const ROOM = [
   { command: 'end' },
   { command: 'part', values: { name: 'doorway' } },
   { command: 'translate', values: { v: '0, 0, -0.45' } },
-  { command: 'cube', values: { size: '1, 0.4, 2.1' } },
+  { command: 'cube', values: { size: '1, 0.4, 2.1', mode: 'Subtractive' } },
   { command: 'end' },
   { command: 'end' },
-  { command: 'difference' },
   { command: 'use_part', values: { name: 'wall' } },
   { command: 'use_part', values: { name: 'doorway' } },
-  { command: 'end' },
 ];
 
 describe('geometry tools', () => {
@@ -57,7 +55,7 @@ describe('geometry tools', () => {
     const { api, world } = editorApiFixtureCreate();
     const preview = api.invokeTool('geometry_script_preview', { lines: ROOM });
     expect(preview.ok).toBe(true);
-    expect(JSON.stringify(preview.data)).toContain('"group":"difference"');
+    expect(JSON.stringify(preview.data)).toMatch(/Subtractive|subtractive/);
     expect(listSolidModels(world)).toHaveLength(0);
     const failed = api.invokeTool('geometry_script_build', {
       lines: [{ command: 'cube' }, { command: 'sphere', values: { r: '[size]' } }],

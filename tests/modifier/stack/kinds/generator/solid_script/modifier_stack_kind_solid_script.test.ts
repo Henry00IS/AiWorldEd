@@ -4,7 +4,7 @@ import { NotificationGlobal } from '@/audio/notification/notification_global.js'
 import { markAsSolidCsgGroup, setSolidGroupOperation } from '@/solid/model/solid_group.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
-import { getSolidGroupOperation, isSolidCsgGroup } from '@/solid/model/solid_group.js';
+import { isSolidCsgGroup } from '@/solid/model/solid_group.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierGeneratorNodeCreate, modifierGeneratorNodeKind } from '@/modifier/stack/modifier_generator_node.js';
 import { modifierStackCompile } from '@/modifier/stack/evaluate/modifier_stack_compile.js';
@@ -89,14 +89,13 @@ function script(...lines: SolidScriptLine[]) {
 }
 
 describe('SolidScript generator', () => {
-  it('starts with a script and builds its difference as a CSG group of an additive and a subtractive piece', () => {
+  it('starts with a script and builds an additive cube and a subtractive sphere, unwrapped', () => {
     const fixture = scriptFixture();
     expect(modifierGeneratorNodeKind(fixture.node)).toBe(MODIFIER_STACK_SOLID_SCRIPT_KIND);
     const pieces = fixture.pieces();
     expect(pieces.map((piece) => piece.operation)).toEqual([SolidOperation.Additive, SolidOperation.Subtractive]);
     const group = pieces[0]?.mesh?.parent;
-    expect(group && isSolidCsgGroup(group) && getSolidGroupOperation(group)).toBe(SolidOperation.Additive);
-    expect(pieces[1]?.mesh?.parent).toBe(group);
+    expect(Boolean(group && isSolidCsgGroup(group))).toBe(false);
   });
 
   it('puts the script origin at the centre of the box, so shapes stand there without a Translate', () => {
@@ -134,13 +133,9 @@ describe('SolidScript generator', () => {
     const fixture = scriptFixture();
     scriptSet(fixture.node, {
       script: script(
-        { command: 'difference' },
         { command: 'cube', values: { size: '2, 2, 2' } },
-        { command: 'intersection' },
-        { command: 'sphere' },
-        { command: 'cube' },
-        { command: 'end' },
-        { command: 'end' },
+        { command: 'sphere', values: { mode: 'Intersecting' } },
+        { command: 'cube', values: { mode: 'Subtractive' } },
       ),
     });
     expect(fixture.pieces().length).toBeGreaterThan(0);

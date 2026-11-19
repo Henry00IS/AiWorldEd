@@ -79,7 +79,7 @@ describe('SolidScript listing', () => {
     expect(listed('note', { text: 'Two posts and a lintel' })).toBe('*** Two posts and a lintel');
     expect(listed('part', { name: 'post' })).toBe('Define Part post');
     expect(listed('use_part', { name: 'post' })).toBe("Use Part 'post'");
-    expect(listed('union')).toBe('Union');
+    expect(listed('hull')).toBe('Hull');
     expect(listed('else')).toBe('Else');
     expect(listed('blank')).toBe('');
   });

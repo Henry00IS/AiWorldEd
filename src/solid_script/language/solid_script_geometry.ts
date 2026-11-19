@@ -70,8 +70,8 @@ export interface SolidScriptEdgeFacts {
 }
 
 /**
- * Returns the solids and meshes of shapes: the kept shapes of each Union and
- * the first shape of each Difference; flat outlines have no faces.
+ * Returns the solids and meshes of shapes: the kept shapes of each joined list;
+ * flat outlines have no faces.
  *
  * @param shapes Shapes.
  * @returns Leaves.

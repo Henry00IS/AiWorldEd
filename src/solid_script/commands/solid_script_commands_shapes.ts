@@ -5,6 +5,7 @@ import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import {
   solidScriptParameter,
   solidScriptParameterAnchor,
+  solidScriptParameterMode,
   solidScriptParameterOptional,
   solidScriptParameterRings,
   solidScriptParameterSides,
@@ -27,16 +28,20 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     category: 'Solids',
     description: 'Build a box',
     manual:
-      'Builds a box with the given width (X), height (Y) and depth (Z) in metres. Anchor picks the spot of the box that sits on the origin, the center of the generator: Center, Bottom, Center ⭐ by default, so it stands on the origin; Center, Center, Center ⭐ puts its middle there, and Left, Bottom, Back puts its corner there so it grows along X, Y and Z. Example: a size of 2, 0.2, 1 gives a flat slab two metres wide.',
+      'Builds a box with the given width (X), height (Y) and depth (Z) in metres. Anchor picks the spot of the box that sits on the origin, the center of the generator: Center, Bottom, Center ⭐ by default, so it stands on the origin; Center, Center, Center ⭐ puts its middle there, and Left, Bottom, Back puts its corner there so it grows along X, Y and Z. Mode chooses how the brush combines with the ones before it: Additive, Subtractive or Intersecting. Example: a size of 2, 0.2, 1 gives a flat slab two metres wide.',
     stops: ['A size of 0 or less on any axis.', 'A size that is not one number or three numbers separated by commas.'],
     parameters: [
       solidScriptParameter('size', 'Size', 'vector3', '1, 1, 1', 'Width (X), height (Y) and depth (Z) in metres.'),
       solidScriptParameterAnchor(SOLID_SCRIPT_ANCHOR_SOLID),
+      solidScriptParameterMode(),
     ],
     listing: (read) => [
       'Cube',
       read.value('size'),
-      ...solidScriptListingOptions([read.changed('anchor') && ['Anchor ', read.value('anchor')]]),
+      ...solidScriptListingOptions([
+        read.changed('anchor') && ['Anchor ', read.value('anchor')],
+        read.changed('mode') && ['Mode ', read.value('mode')],
+      ]),
     ],
     execute: (run) => run.solid(solidScriptCubePoints(run.fields())),
   }),
@@ -46,13 +51,14 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     category: 'Solids',
     description: 'Build a ball',
     manual:
-      'Builds a faceted ball that stands on the origin by default (Center, Bottom, Center ⭐); Center, Center, Center ⭐ puts its middle there. Sides sets the faces around it, Rings the bands from bottom to top. More of either looks rounder but costs more polygons. Example: radius 0.5 with 8 sides and 4 rings gives a low-poly ball one metre across.',
+      'Builds a faceted ball that stands on the origin by default (Center, Bottom, Center ⭐); Center, Center, Center ⭐ puts its middle there. Sides sets the faces around it, Rings the bands from bottom to top. More of either looks rounder but costs more polygons. Mode chooses how the brush combines with the ones before it: Additive, Subtractive or Intersecting. Example: radius 0.5 with 8 sides and 4 rings gives a low-poly ball one metre across.',
     stops: ['A radius of 0 or less.', 'Sides outside 3 to 64 or Rings outside 2 to 32, or a count with decimals.'],
     parameters: [
       solidScriptParameter('r', 'Radius', 'number', '1', 'Distance from the middle to the surface in metres.'),
       solidScriptParameterSides(),
       solidScriptParameterRings(),
       solidScriptParameterAnchor(SOLID_SCRIPT_ANCHOR_SOLID),
+      solidScriptParameterMode(),
     ],
     listing: (read) => [
       'Sphere',
@@ -62,6 +68,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
         read.changed('sides') && ['Sides ', read.value('sides')],
         read.changed('rings') && ['Rings ', read.value('rings')],
         read.changed('anchor') && ['Anchor ', read.value('anchor')],
+        read.changed('mode') && ['Mode ', read.value('mode')],
       ]),
     ],
     execute: (run) => run.solid(solidScriptSpherePoints(run.fields())),
@@ -72,7 +79,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     category: 'Solids',
     description: 'Build a cylinder or cone',
     manual:
-      'Builds a faceted cylinder standing up along the Y axis. By default it stands on the origin (Center, Bottom, Center ⭐); Center, Center, Center ⭐ puts its middle there. Give the top a different radius to make a tapered cone, or 0 for a point. Sides sets the faces around it. Example: height 2, bottom radius 1 and top radius 0 gives a pointed cone.',
+      'Builds a faceted cylinder standing up along the Y axis. By default it stands on the origin (Center, Bottom, Center ⭐); Center, Center, Center ⭐ puts its middle there. Give the top a different radius to make a tapered cone, or 0 for a point. Sides sets the faces around it. Mode chooses how the brush combines with the ones before it: Additive, Subtractive or Intersecting. Example: height 2, bottom radius 1 and top radius 0 gives a pointed cone.',
     stops: [
       'A height of 0 or less.',
       'A negative radius, or both radii at 0.',
@@ -84,6 +91,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
       solidScriptParameter('r2', 'Top Radius', 'number', '1', 'Radius at the top in metres. 0 makes a pointed cone.'),
       solidScriptParameterAnchor(SOLID_SCRIPT_ANCHOR_SOLID),
       solidScriptParameterSides(),
+      solidScriptParameterMode(),
     ],
     listing: (read) => [
       'Cylinder',
@@ -96,6 +104,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
       ...solidScriptListingOptions([
         read.changed('anchor') && ['Anchor ', read.value('anchor')],
         read.changed('sides') && ['Sides ', read.value('sides')],
+        read.changed('mode') && ['Mode ', read.value('mode')],
       ]),
     ],
     execute: (run) => run.solid(solidScriptCylinderPoints(run.fields())),
@@ -106,7 +115,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     category: 'Solids',
     description: 'Build a solid around Point lines',
     manual:
-      'Builds the convex solid that wraps the corner points given by the Point lines between this line and its End, like shrink wrap around pins. Points inside the wrap are ignored, so the result is never hollow or dented. The lines inside may use Repeat, For Each, If, Set and moves such as Translate, so corners can come from loops and formulas. Points From List adds the points of a list variable too, such as [Corners]. Example: Points at 0, 0, 0 and 1, 0, 0 and 0, 1, 0 and 0, 0, 1 give a small three-sided pyramid.',
+      'Builds the convex solid that wraps the corner points given by the Point lines between this line and its End, like shrink wrap around pins. Points inside the wrap are ignored, so the result is never hollow or dented. The lines inside may use Repeat, For Each, If, Set and moves such as Translate, so corners can come from loops and formulas. Points From List adds the points of a list variable too, such as [Corners]. Mode chooses how the brush combines with the ones before it: Additive, Subtractive or Intersecting. Example: Points at 0, 0, 0 and 1, 0, 0 and 0, 1, 0 and 0, 0, 1 give a small three-sided pyramid.',
     stops: [
       'Fewer than four points.',
       'Points that all lie in one plane.',
@@ -121,10 +130,14 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
         'points3',
         'Optional: a list of x, y, z points, such as a list variable [Corners] or vectors written [0, 0, 0], [2, 0, 0], [0, 2, 0], [0, 0, 2]. Point lines inside add more.',
       ),
+      solidScriptParameterMode(),
     ],
     listing: (read) => [
       'Polyhedron',
-      ...solidScriptListingOptions([read.changed('points') && ['From ', read.value('points')]]),
+      ...solidScriptListingOptions([
+        read.changed('points') && ['From ', read.value('points')],
+        read.changed('mode') && ['Mode ', read.value('mode')],
+      ]),
     ],
     execute: (run) => run.solid(solidScriptPolyhedronPoints(run.fields(), run.gathered('points').points)),
   }),

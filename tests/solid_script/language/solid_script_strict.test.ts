@@ -74,8 +74,6 @@ describe('SolidScript stops at the first mistake', () => {
   it('runs empty blocks as nothing, with a warning on their line', () => {
     const lines: SolidScriptLine[] = [
       { command: 'cube' },
-      { command: 'union' },
-      { command: 'end' },
       { command: 'translate', values: { offset: '1, 0, 0' } },
       { command: 'end' },
       { command: 'texture', values: { texture: '' } },
@@ -87,10 +85,9 @@ describe('SolidScript stops at the first mistake', () => {
     const result = solidScriptProgramEvaluate(solidScriptDocumentCreate(lines));
     expect(result.steps).toEqual([1]);
     expect(result.warnings).toEqual([
-      { line: 2, text: 'Union has nothing inside, so it does nothing.' },
-      { line: 4, text: 'Translate has nothing inside, so it does nothing.' },
-      { line: 6, text: 'Texture has nothing inside, so it does nothing.' },
-      { line: 8, text: 'Repeat has nothing inside, so it does nothing.' },
+      { line: 2, text: 'Translate has nothing inside, so it does nothing.' },
+      { line: 4, text: 'Texture has nothing inside, so it does nothing.' },
+      { line: 6, text: 'Repeat has nothing inside, so it does nothing.' },
     ]);
   });
 

@@ -2,12 +2,8 @@ import * as THREE from 'three';
 import type { SolidTreeBrush, SolidTreeNode } from '@/solid/commands/tree/solid_tree_node.js';
 import { solidHullBrushFromPoints } from '@/solid/algorithm/surface/solid_hull_brush.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
-import type {
-  SolidScriptFaceTexture,
-  SolidScriptFaceUv,
-  SolidScriptShape,
-  SolidScriptShapeBoolean,
-} from './solid_script_shape.js';
+import { solidScriptModeOperation } from './solid_script_mode.js';
+import type { SolidScriptFaceTexture, SolidScriptFaceUv, SolidScriptShape } from './solid_script_shape.js';
 import type { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
 
 /** How evaluated script shapes are placed into a solid model. */
@@ -26,9 +22,9 @@ export interface SolidScriptSolidTreeOptions {
 const SOLID_SCRIPT_SOLID_TREE_PRECISION = 1e6;
 
 /**
- * Maps evaluated script shapes onto ordered CSG brushes and groups: difference
- * becomes a group of one additive part followed by subtractive parts,
- * intersection a group of intersecting parts, and union flattens.
+ * Maps evaluated script shapes onto ordered CSG brushes: each brush uses its
+ * Mode, or the insertion operation when the line left Mode unset, and joined
+ * lists flatten so line order is scene CSG order.
  *
  * @param shapes Top-level shapes.
  * @param options Placement options.
@@ -56,7 +52,8 @@ function solidScriptSolidTreeNodes(
 ): SolidTreeNode[] {
   if (shape.kind === 'polygon') throw new Error('2D shapes must be inside linear_extrude()');
   if (shape.kind === 'solid') {
-    const brush = solidScriptSolidTreeBrush(shape.points, shape.label, role, options);
+    const operation = solidScriptModeOperation(shape.mode) ?? role;
+    const brush = solidScriptSolidTreeBrush(shape.points, shape.label, operation, options);
     if (shape.texture) brush.texture = shape.texture;
     if (shape.faceTextures) brush.faceTextures = solidScriptSolidTreeFaceTextures(brush, shape.faceTextures, options);
     if (shape.boxUvSize !== undefined) brush.boxUvSize = shape.boxUvSize;
@@ -64,39 +61,7 @@ function solidScriptSolidTreeNodes(
     return [brush];
   }
   if (shape.kind === 'mesh') return [];
-  if (shape.operation === 'union' && role !== SolidOperation.Intersecting)
-    return shape.children.flatMap((child) => solidScriptSolidTreeNodes(child, role, options));
-  return [
-    {
-      kind: 'group',
-      name: solidScriptSolidTreeName(shape.label, options),
-      operation: role,
-      children: solidScriptSolidTreeMembers(shape, options),
-    },
-  ];
-}
-
-/**
- * Lists the ordered members of a boolean group.
- *
- * @param shape Boolean shape.
- * @param options Placement options.
- * @returns Member nodes.
- */
-function solidScriptSolidTreeMembers(
-  shape: SolidScriptShapeBoolean,
-  options: SolidScriptSolidTreeOptions,
-): SolidTreeNode[] {
-  if (shape.operation === 'union')
-    return shape.children.flatMap((child) => solidScriptSolidTreeNodes(child, SolidOperation.Additive, options));
-  const [first, ...rest] = shape.children;
-  if (!first) return [];
-  const rule = shape.operation === 'difference' ? SolidOperation.Subtractive : SolidOperation.Intersecting;
-  const head =
-    first.kind === 'boolean' && first.operation === shape.operation
-      ? solidScriptSolidTreeMembers(first, options)
-      : solidScriptSolidTreeNodes(first, SolidOperation.Additive, options);
-  return [...head, ...rest.flatMap((child) => solidScriptSolidTreeNodes(child, rule, options))];
+  return shape.children.flatMap((child) => solidScriptSolidTreeNodes(child, role, options));
 }
 
 /**

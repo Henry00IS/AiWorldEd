@@ -1,6 +1,7 @@
 import type * as THREE from 'three';
 import type { SolidScriptShapeMesh } from './solid_script_mesh.js';
 import type { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
+import type { SolidScriptMode } from './solid_script_mode.js';
 
 /** Boolean operation of a shape group. */
 export type SolidScriptBooleanOperation = 'union' | 'difference' | 'intersection';
@@ -10,6 +11,11 @@ export interface SolidScriptShapeSolid {
   kind: 'solid';
   points: THREE.Vector3[];
   label: string;
+  /**
+   * How this brush combines with the ones before it; none inherits the
+   * operation of the generator or modifier that runs the script.
+   */
+  mode?: SolidScriptMode;
   /**
    * What built it, for the names its faces get, such as "stairs +x" for a step
    * of a Stairs block; none for plain shapes.

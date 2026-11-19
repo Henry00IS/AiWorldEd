@@ -131,23 +131,18 @@ describe('SolidScript as a modifier', () => {
 
   it('cuts the received brush like any brush and keeps its face textures', () => {
     const fixture = modifierFixture(
-      both(
-        { command: 'difference' },
-        { command: 'input_brushes' },
-        { command: 'cube', values: { size: '0.2, 2, 0.2' } },
-        { command: 'end' },
-      ),
+      both({ command: 'input_brushes' }, { command: 'cube', values: { size: '0.2, 2, 0.2', mode: 'Subtractive' } }),
     );
     for (const face of fixture.source.brush.faces) fixture.source.setFaceTextureId(face.surfaceIndex, 'Brick');
     const result = fixture.compile();
-    const cut = result.instances.filter(
+    const added = result.instances.filter(
       (brush) => brush !== fixture.source && brush.constructor.name !== 'ModifierStackHiddenBrush',
     );
-    expect(cut).toHaveLength(2);
-    const kept = cut.find(
-      (brush) => brush.brush.faces.length === 6 && brush.getModelSpaceBounds().getSize(new THREE.Vector3()).x > 0.5,
-    )!;
-    expect(kept.brush.faces.every((face) => kept.getSurfaceTextureId(face.surfaceIndex) === 'Brick')).toBe(true);
+    expect(added).toHaveLength(1);
+    expect(added[0]?.operation).toBe(SolidOperation.Subtractive);
+    expect(
+      fixture.source.brush.faces.every((face) => fixture.source.getSurfaceTextureId(face.surfaceIndex) === 'Brick'),
+    ).toBe(true);
   });
 
   it('refuses a script made only for generators with a friendly message and passes the brush on', () => {

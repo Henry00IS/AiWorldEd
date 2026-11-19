@@ -113,10 +113,8 @@ export function solidScriptDocumentCreate(lines: readonly SolidScriptLine[], nam
 export function solidScriptDocumentDefault(): SolidScriptDocument {
   return solidScriptDocumentCreate(
     [
-      { command: 'difference' },
       { command: 'cube', values: { size: '2, 2, 2' } },
-      { command: 'sphere', values: { r: '1.3' } },
-      { command: 'end' },
+      { command: 'sphere', values: { r: '1.3', mode: 'Subtractive' } },
     ],
     SOLID_SCRIPT_DOCUMENT_NAME_DEFAULT,
   );

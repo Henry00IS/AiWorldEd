@@ -59,25 +59,25 @@ describe('solidScriptProgramRun', () => {
     expect(box.max.toArray()).toEqual([2, 4, 6]);
   });
 
-  it('keeps difference operands in order with part names as labels', () => {
+  it('keeps stamped parts in order, and a Subtractive Mode on the door cube stays on it', () => {
     const { shapes } = solidScriptProgramEvaluate(
       script(
         { command: 'part', values: { name: 'wall' } },
         { command: 'cube', values: { size: '4, 0.2, 3', anchor: 'Center, Center, Center' } },
         { command: 'end' },
         { command: 'part', values: { name: 'door' } },
-        { command: 'cube', values: { size: '1, 1, 2', anchor: 'Center, Center, Center' } },
+        { command: 'cube', values: { size: '1, 1, 2', anchor: 'Center, Center, Center', mode: 'Subtractive' } },
         { command: 'end' },
-        { command: 'difference' },
         { command: 'use_part', values: { name: 'wall' } },
         { command: 'use_part', values: { name: 'door' } },
-        { command: 'end' },
       ),
     );
-    const [root] = shapes;
-    expect(root?.kind === 'boolean' && root.operation).toBe('difference');
-    if (root?.kind !== 'boolean') return;
-    expect(root.children.map((child) => child.label)).toEqual(['wall', 'door']);
+    expect(
+      shapes.map((shape) => [shape.label, shape.kind === 'solid' ? (shape.mode ?? 'Additive') : shape.kind]),
+    ).toEqual([
+      ['wall', 'Additive'],
+      ['door', 'Subtractive'],
+    ]);
   });
 
   it('applies variables in line order, so a Set inside a Repeat counts up across rounds', () => {

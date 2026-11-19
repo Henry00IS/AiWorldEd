@@ -603,7 +603,8 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       const targets = solidScriptFaceTargets(run, 'Extrude Face');
       for (const [leaf, faces] of solidScriptFaceGroups(targets, (face) => face.leaf)) {
         if (leaf.kind === 'solid') {
-          if (distance < 0) throw new Error('Extrude Face cannot push into a brush; use Difference to cut into it');
+          if (distance < 0)
+            throw new Error('Extrude Face cannot push into a brush; use a Subtractive brush to cut into it');
           for (const face of faces)
             added.push({
               slab: { kind: 'solid', label: 'Slab', points: solidScriptGeometryFacePrism(face, distance, lift) },

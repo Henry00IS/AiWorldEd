@@ -116,8 +116,6 @@ export interface SolidScriptBlockRun {
   outline(points: SolidScriptPoint2[]): SolidScriptShape[];
   /** Runs the lines inside, moved by a matrix. */
   transformed(matrix: THREE.Matrix4): SolidScriptShape[];
-  /** Runs the lines inside and combines their results. */
-  combined(operation: 'union' | 'difference' | 'intersection'): SolidScriptShape[];
   /**
    * Runs the lines inside and wraps their results and extra corners in one
    * convex shape.

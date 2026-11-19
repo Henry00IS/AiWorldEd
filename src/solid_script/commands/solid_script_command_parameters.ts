@@ -14,6 +14,7 @@ import type {
 } from './solid_script_command.js';
 import { SOLID_SCRIPT_SHAPE_NAME_KEY } from '@/solid_script/language/solid_script_shape.js';
 import { SOLID_SCRIPT_RINGS, SOLID_SCRIPT_SIDES } from '@/solid_script/language/solid_script_primitives.js';
+import { SOLID_SCRIPT_MODE_WORDS } from '@/solid_script/language/solid_script_mode.js';
 
 /**
  * Kinds of value each kind of field accepts unless the field says otherwise:
@@ -329,4 +330,25 @@ export function solidScriptParameterApplies(
   if (rule.words.some((word) => word.toLowerCase() === folded)) return true;
   const known = source?.words?.map((entry) => entry.word.toLowerCase()) ?? [];
   return text !== '' && !known.includes(folded);
+}
+
+/**
+ * Mode of a brush generator: Additive, Subtractive or Intersecting, the
+ * editor's exact labels. The default is Additive, and Pass-Through is only for
+ * groups.
+ *
+ * @returns Field.
+ */
+export function solidScriptParameterMode(): SolidScriptCommandParameter {
+  return {
+    ...solidScriptParameterWords(
+      'mode',
+      'Mode',
+      'message',
+      '',
+      'How this brush combines with the ones before it in the scene, Additive if left empty: Additive adds it, Subtractive cuts it out of them, Intersecting keeps only the overlap.',
+      SOLID_SCRIPT_MODE_WORDS,
+    ),
+    optional: true,
+  };
 }

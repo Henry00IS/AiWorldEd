@@ -26,7 +26,7 @@ export function solidScriptDocumentBlockOpeners(document: SolidScriptDocument): 
 }
 
 /**
- * Names the block every End line closes, such as "Difference" or "When".
+ * Names the block every End line closes, such as "Linear Extrude" or "When".
  *
  * @param document Script.
  * @param openers Opening line per line, from solidScriptDocumentBlockOpeners.

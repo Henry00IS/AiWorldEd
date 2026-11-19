@@ -74,7 +74,7 @@ describe('SolidScript inspector row', () => {
     const { field, rows } = rowFixture();
     expect(rows.getElement().firstElementChild?.contains(field)).toBe(true);
     expect(field.textContent).toContain('Script');
-    expect(field.textContent).toMatch(/4 lines · 2 solids/);
+    expect(field.textContent).toMatch(/2 lines · 2 solids/);
   });
 
   it('uses an .aiscript file dropped from the project browser as one undo step', async () => {

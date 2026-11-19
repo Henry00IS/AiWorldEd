@@ -24,7 +24,10 @@ const OPTIONS: SolidScriptSolidTreeOptions = {
  * @returns Nodes.
  */
 function tree(lines: SolidScriptLine[], options: Partial<SolidScriptSolidTreeOptions> = {}): SolidTreeNode[] {
-  return solidScriptSolidTreeBuild(solidScriptProgramEvaluate(solidScriptDocumentCreate(lines)).shapes, {
+  const document = solidScriptDocumentCreate(lines);
+  for (const [index, line] of lines.entries())
+    if (line.values?.['mode'] === undefined && document.blocks[index]) delete document.blocks[index].values['mode'];
+  return solidScriptSolidTreeBuild(solidScriptProgramEvaluate(document).shapes, {
     ...OPTIONS,
     ...options,
   });
@@ -50,18 +53,21 @@ function summary(nodes: SolidTreeNode[]): unknown[] {
 }
 
 describe('solidScriptSolidTreeBuild', () => {
-  it('maps difference to a group with a subtractive tail and flattens unions', () => {
-    const nodes = tree([CUBE, { command: 'difference' }, CUBE, { command: 'union' }, CUBE, SPHERE, END, END]);
-    expect(summary(nodes)).toEqual(['cube:0', { 'difference:0': ['cube:0', 'cube:1', 'sphere:1'] }]);
+  it('emits brushes in line order with each Mode, unwrapped', () => {
+    const subtract = { command: 'cube', values: { ...CUBE.values, mode: 'Subtractive' } };
+    const intersect = { command: 'sphere', values: { ...SPHERE.values, mode: 'Intersecting' } };
+    expect(summary(tree([CUBE, subtract, intersect]))).toEqual(['cube:0', 'cube:1', 'sphere:2']);
   });
 
-  it('flattens chained differences and keeps intersecting unions grouped', () => {
-    expect(summary(tree([{ command: 'difference' }, { command: 'difference' }, CUBE, CUBE, END, SPHERE, END]))).toEqual(
-      [{ 'difference:0': ['cube:0', 'cube:1', 'sphere:1'] }],
-    );
-    expect(summary(tree([{ command: 'intersection' }, CUBE, { command: 'union' }, CUBE, SPHERE, END, END]))).toEqual([
-      { 'intersection:0': ['cube:0', { 'union:2': ['cube:0', 'sphere:0'] }] },
-    ]);
+  it('inherits the insertion operation when a line leaves Mode unset', () => {
+    expect(summary(tree([CUBE], { operation: SolidOperation.Subtractive }))).toEqual(['cube:1']);
+    expect(
+      summary(
+        tree([CUBE, { command: 'cube', values: { ...CUBE.values, mode: 'Additive' } }], {
+          operation: SolidOperation.Subtractive,
+        }),
+      ),
+    ).toEqual(['cube:1', 'cube:0']);
   });
 
   it('keeps the editor axes, adds the offset and centers brushes', () => {

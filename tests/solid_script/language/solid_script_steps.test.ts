@@ -17,10 +17,8 @@ const SOLID_SCRIPT_STEPS = solidScriptDocumentCreate([
   { command: 'cylinder', values: { h: '1', r1: '0.5', r2: '0.5' } },
   { command: 'end' },
   { command: 'end' },
-  { command: 'difference' },
   { command: 'cube', values: { size: '2, 2, 2' } },
-  { command: 'cube', values: { size: '1, 1, 3' } },
-  { command: 'end' },
+  { command: 'cube', values: { size: '1, 1, 3', mode: 'Subtractive' } },
 ]);
 
 /**
@@ -36,7 +34,7 @@ function leavesAfter(stepLimit?: number): number {
 
 describe('solid script steps', () => {
   it('records the block line of every shape in run order, a Repeat repeating its lines', () => {
-    expect(solidScriptProgramEvaluate(SOLID_SCRIPT_STEPS).steps).toEqual([1, 3, 7, 7, 7, 11, 12]);
+    expect(solidScriptProgramEvaluate(SOLID_SCRIPT_STEPS).steps).toEqual([1, 3, 7, 7, 7, 10, 11]);
   });
 
   it('builds only the first steps when limited, while still listing every step', () => {
@@ -48,11 +46,9 @@ describe('solid script steps', () => {
     expect(leavesAfter()).toBe(full.steps.length);
   });
 
-  it('shows a partly built difference as its first shape only', () => {
+  it('shows a partly built later cube when the step limit stops before the next one', () => {
     const last = solidScriptProgramEvaluate(SOLID_SCRIPT_STEPS, { stepLimit: 6 }).shapes.at(-1);
-    expect(last?.kind === 'boolean' && last.operation).toBe('difference');
-    if (last?.kind !== 'boolean') return;
-    expect(last.children).toHaveLength(1);
+    expect(last?.kind).toBe('solid');
   });
 
   it('reports the variables visible at the last built step, counters included', () => {

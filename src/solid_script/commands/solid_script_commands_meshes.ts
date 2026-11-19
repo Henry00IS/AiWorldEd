@@ -73,9 +73,7 @@ function solidScriptMeshesOf(shape: SolidScriptShape, label: string): SolidScrip
   if (shape.kind === 'polygon')
     throw new Error(`${label} needs solids or meshes; a flat outline becomes a solid inside Linear Extrude first`);
   if (shape.operation !== 'union')
-    throw new Error(
-      `${label} cannot turn a ${shape.operation === 'difference' ? 'Difference' : 'Intersection'} into a mesh yet; only brushes and Unions can be`,
-    );
+    throw new Error(`${label} cannot turn a joined cut into a mesh yet; only brushes can be`);
   return shape.children.flatMap((child) => solidScriptMeshesOf(child, label));
 }
 
@@ -414,7 +412,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     manual:
       'Turns the brushes between this line and its End into one mesh: every Cube, Sphere, Cylinder, Polyhedron, Hull or extrusion inside becomes faces of a regular mesh object. Use it when a brush should be a model rather than level geometry, or to change it with the other mesh tools. Brushes inside are joined, not cut. Example: a Sphere inside Mesh From Brushes becomes a round mesh ball.',
     stops: [
-      'A Difference or Intersection inside. They only work on brushes.',
+      'A cut or overlap that is not a brush. Mesh From Brushes works on brushes.',
       SOLID_SCRIPT_MESH_STOPS_FLAT,
       SOLID_SCRIPT_MESH_STOPS_END,
     ],

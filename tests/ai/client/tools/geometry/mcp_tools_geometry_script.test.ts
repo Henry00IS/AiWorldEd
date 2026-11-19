@@ -23,13 +23,21 @@ describe('SolidScript generator tools', () => {
     const result = api.invokeTool('geometry_script_command_list', {});
     const commands = (
       result.data as {
-        commands: { id: string; manual: string; example: { command: string; listed: string }; parameters: unknown[] }[];
+        commands: {
+          id: string;
+          manual: string;
+          example: { command: string; listed: string };
+          parameters: { key: string }[];
+        }[];
       }
     ).commands;
     const cylinder = commands.find((command) => command.id === 'cylinder');
     expect(cylinder?.example).toMatchObject({ command: 'cylinder', listed: "Cylinder Height '1', Radius '1'" });
     expect(cylinder?.manual).not.toBe('');
-    expect(commands.find((command) => command.id === 'difference')?.parameters).toEqual([]);
+    expect(
+      commands.find((command) => command.id === 'cube')?.parameters.some((parameter) => parameter.key === 'mode'),
+    ).toBe(true);
+    expect(commands.find((command) => command.id === 'difference')).toBeUndefined();
   });
 
   it('set a script name and command lines as one undo step and read it back', () => {
@@ -41,10 +49,8 @@ describe('SolidScript generator tools', () => {
       name: 'Hollow Box',
       placement: 'fit',
       lines: [
-        { command: 'difference' },
         { command: 'cube', values: { size: '2, 2, 2' } },
-        { command: 'sphere', values: { r: '1.2' } },
-        { command: 'end' },
+        { command: 'sphere', values: { r: '1.2', mode: 'Subtractive' } },
       ],
     });
     expect(set.ok, set.message).toBe(true);
@@ -56,15 +62,13 @@ describe('SolidScript generator tools', () => {
     });
     expect(set.data).not.toHaveProperty('source');
     expect((set.data as { lines: { listed: string }[] }).lines.map((line) => line.listed)).toEqual([
-      'Difference',
-      "    Cube '2, 2, 2'",
-      "    Sphere Radius '1.2'",
-      'End Difference',
+      "Cube '2, 2, 2'",
+      "Sphere Radius '1.2' (Mode 'Subtractive')",
     ]);
-    expect((set.data as { lines: unknown[] }).lines[2]).toMatchObject({
-      line: 3,
+    expect((set.data as { lines: unknown[] }).lines[1]).toMatchObject({
+      line: 2,
       command: 'sphere',
-      values: { r: '1.2' },
+      values: { r: '1.2', mode: 'Subtractive' },
     });
     stack.undo();
     expect(api.invokeTool('geometry_script_generator_get', { objectId }).data).toEqual(before.data);

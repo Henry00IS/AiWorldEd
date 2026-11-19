@@ -128,7 +128,7 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
     return [{ command: 'add_item', values: { list: 'items' } }, line, { command: 'cube' }];
   if (command.id === 'remove_item')
     return [{ command: 'variable', values: { name: 'points()', value: '0, 0' } }, line, { command: 'cube' }];
-  if (command.id === 'end') return [{ command: 'union' }, { command: 'cube' }, line];
+  if (command.id === 'end') return [{ command: 'translate' }, { command: 'cube' }, line];
   if (command.id === 'part') return [line, { command: 'cube' }, { command: 'end' }, { command: 'use_part' }];
   if (command.id === 'function' || command.id === 'call')
     return [
@@ -270,6 +270,7 @@ describe('solid script command catalog', () => {
     expect(solidScriptCommandFind('cube')?.entries({ size: '2, 2, 2' })).toEqual([
       { key: 'size', label: 'Size', value: '2, 2, 2' },
       { key: 'anchor', label: 'Anchor', value: 'Center, Bottom, Center' },
+      { key: 'mode', label: 'Mode', value: '' },
       { key: 'label', label: 'Name', value: '' },
       { key: 'into', label: 'Into', value: '' },
     ]);
@@ -281,6 +282,7 @@ describe('solid script command catalog', () => {
       'sides',
       'rings',
       'anchor',
+      'mode',
       'label',
       'into',
     ]);

@@ -26,9 +26,10 @@ import {
 import { type SolidScriptPoint2 } from './solid_script_polygon.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
 import { solidScriptShapeTransform } from './solid_script_reshape.js';
-import { solidScriptMeshChecked, solidScriptMeshTransform, solidScriptShapeHasMesh } from './solid_script_mesh.js';
+import { solidScriptMeshChecked, solidScriptMeshTransform } from './solid_script_mesh.js';
 import { SolidScriptScope } from './solid_script_scope.js';
 import { solidScriptScopeElementBind } from './solid_script_scope_element.js';
+import { solidScriptModeApply, solidScriptSolidMade } from './solid_script_mode.js';
 import {
   solidScriptLineFieldOf,
   solidScriptLinesPassInput,
@@ -638,6 +639,12 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       .filter((field) => !solidScriptFieldAsTyped(field))
       .map((field) => field.key);
     const value = (key: string): SolidScriptValue => state.machine.fieldValue(fields, node, key, state.scope);
+    const modeOf = (): Readonly<Record<string, string>> => {
+      if (!node.command.parameters.some((field) => field.key === 'mode')) return node.values;
+      const field = solidScriptLineFieldOf(fields, node, 'mode');
+      const mode = field.text.includes('[') ? solidScriptValueText(value('mode')) : field.text;
+      return { ...node.values, mode };
+    };
     return {
       values: (key) =>
         solidScriptFieldArguments(node.command.valueText(node.values, key)).map((piece, index) => {
@@ -677,8 +684,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         state.machine.gatherCheck(node);
         state.machine.flatCheck(node, state.context, false);
         if (!state.machine.stepTake(state.scope)) return [];
-        // Built in its own frame, then moved like any shape so its faces keep their texture.
-        return [solidScriptShapeTransform({ kind: 'solid', label: labelOf(), points }, state.context.matrix)];
+        return [solidScriptShapeTransform(solidScriptSolidMade(labelOf(), points, modeOf()), state.context.matrix)];
       },
       outline: (points) => {
         state.machine.gatherCheck(node);
@@ -691,7 +697,6 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         return [{ kind: 'polygon', label: labelOf(), points: moved }];
       },
       transformed: (matrix) => inside({ ...state.context, matrix: state.context.matrix.clone().multiply(matrix) }),
-      combined: (operation) => state.machine.combine(node, operation, state.scope, state.context, labelOf()),
       hulled: (extra = []) =>
         !state.machine.stepTake(state.scope)
           ? []
@@ -702,13 +707,18 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
                 labelOf(),
                 state.context.planar,
               ).map((shape) => solidScriptShapeTransform(shape, state.context.matrix)),
-            ),
+            ).map((shape) => solidScriptModeApply(shape, modeOf())),
       extruded: (fields) => {
         if (state.context.planar) throw new Error('Linear Extrude cannot be inside another Linear Extrude');
         const flat = solidScriptShapeJoin(inside({ matrix: new THREE.Matrix4(), planar: true }), labelOf());
         if (!flat) return [];
         const extruded = solidScriptExtrude(flat, fields, new THREE.Matrix4());
-        return [solidScriptShapeNamed(solidScriptShapeTransform(extruded, state.context.matrix), ownName())];
+        return [
+          solidScriptModeApply(
+            solidScriptShapeNamed(solidScriptShapeTransform(extruded, state.context.matrix), ownName()),
+            modeOf(),
+          ),
+        ];
       },
       repeated: (counter, values, keyed) => {
         state.machine.nameCheck(counter, 'a counter');
@@ -780,7 +790,10 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         return into;
       },
       local: (planar) => inside({ matrix: new THREE.Matrix4(), planar }),
-      placed: (shapes) => shapes.map((shape) => solidScriptShapeTransform(shape, state.context.matrix)),
+      placed: (shapes) =>
+        shapes
+          .map((shape) => solidScriptShapeTransform(shape, state.context.matrix))
+          .map((shape) => solidScriptModeApply(shape, modeOf())),
       leave: (returned) => {
         const frame = state.machine.stack[state.machine.stack.length - 1];
         if (!frame) throw new Error('Return leaves a Function or a part, so it only works inside one of them');
@@ -934,52 +947,6 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
    */
   private flatCheck(node: SolidScriptBlockNode<Command>, context: SolidScriptContext, flat: boolean): void {
     solidScriptMachineFlatCheck(node.command.label, context.planar, flat);
-  }
-
-  /**
-   * Runs Union, Difference or Intersection: each line inside is one operand.
-   *
-   * @param node Line.
-   * @param operation Operation.
-   * @param scope Scope.
-   * @param context Matrix and flatness.
-   * @param label Shape label.
-   * @returns One combined shape, or nothing when empty.
-   */
-  private combine(
-    node: SolidScriptBlockNode<Command>,
-    operation: 'union' | 'difference' | 'intersection',
-    scope: SolidScriptScope,
-    context: SolidScriptContext,
-    label: string,
-  ): SolidScriptShape[] {
-    if (node.children.length === 0) return [];
-    const inner = new SolidScriptScope(scope);
-    for (const child of node.children)
-      if (child.command.id === 'part') this.guarded(child.line, () => this.partDefine(child));
-    const reached = this.steps.length;
-    const operands: SolidScriptShape[] = [];
-    node.children.forEach((child, index) => {
-      const joined = solidScriptShapeJoin(this.lineRun(child, inner, context), label);
-      if (
-        index === 0 &&
-        operation === 'difference' &&
-        this.steps.length === reached &&
-        !this.failure &&
-        !this.paused &&
-        !this.leaving &&
-        !this.stopping
-      )
-        throw new Error('Difference has nothing to cut from: its first line builds no brush');
-      if (joined) operands.push(joined);
-    });
-    if (operands.length === 0) return [];
-    if (operation !== 'union' && operands.some(solidScriptShapeHasMesh))
-      throw new Error(
-        `${node.command.label} cuts brushes, and a mesh cannot be cut; keep meshes outside it, or build the cut from brushes and wrap it in Mesh From Brushes`,
-      );
-    if (operands.length === 1 && operation !== 'difference') return operands;
-    return [{ kind: 'boolean', operation, children: operands, label }];
   }
 
   /**

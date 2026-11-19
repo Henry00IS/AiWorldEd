@@ -2,11 +2,9 @@ import type { SolidScriptLine } from '@/solid_script/document/solid_script_docum
 
 /** A wall with a doorway cut out of it. */
 export const SOLID_SCRIPT_EXAMPLE_DOORWAY: readonly SolidScriptLine[] = [
-  { command: 'difference' },
   { command: 'cube', values: { size: '4, 3, 0.2', anchor: 'Center, Center, Center' } },
   { command: 'translate', values: { v: '0, -0.45, 0' } },
-  { command: 'cube', values: { size: '1, 2.1, 0.4', anchor: 'Center, Center, Center' } },
-  { command: 'end' },
+  { command: 'cube', values: { size: '1, 2.1, 0.4', anchor: 'Center, Center, Center', mode: 'Subtractive' } },
   { command: 'end' },
 ];
 

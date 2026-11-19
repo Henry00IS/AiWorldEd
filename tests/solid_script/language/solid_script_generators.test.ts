@@ -99,6 +99,7 @@ describe('SolidScript generator blocks', () => {
       expect(command?.parameters.map((parameter) => parameter.key)).toEqual([
         'size',
         'anchor',
+        'mode',
         ...shaped.map((field) => field.key),
         'label',
         'into',

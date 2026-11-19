@@ -91,8 +91,8 @@ describe('SolidScript editor view', () => {
     const icon = (element: HTMLElement) => element.querySelector<HTMLElement>('[data-command] > span')!;
     const translate = row('translate');
     expect(icon(translate).innerHTML).toBe(icon(row('translate')).innerHTML);
-    expect(icon(translate).innerHTML).not.toBe(icon(row('union')).innerHTML);
-    expect(icon(translate).style.color).not.toBe(icon(row('union')).style.color);
+    expect(icon(translate).innerHTML).not.toBe(icon(row('hull')).innerHTML);
+    expect(icon(translate).style.color).not.toBe(icon(row('hull')).style.color);
     translate.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
     expect(jumps).toEqual([2]);
   });

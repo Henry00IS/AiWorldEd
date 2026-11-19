@@ -131,15 +131,6 @@ describe('SolidScript meshes', () => {
     ).toMatch(/a Face belongs between a Mesh line/);
     const point = run({ command: 'mesh' }, { command: 'point' }, END);
     expect(point.error?.message).toMatch(/a Mesh takes Vertex lines/);
-    const cut = run(
-      { command: 'difference' },
-      { command: 'cube', values: { anchor: 'Center, Center, Center' } },
-      { command: 'mesh_brushes' },
-      { command: 'sphere', values: { anchor: 'Center, Center, Center' } },
-      END,
-      END,
-    );
-    expect(cut.error?.message).toMatch(/a mesh cannot be cut/);
   });
 
   it('turns shapes into closed outward meshes and keeps brushes for the rest', () => {

@@ -101,21 +101,24 @@ describe('SolidScript input brushes', () => {
     };
     const result = run(
       [
-        line('difference'),
         line('translate', { v: '10, 0, 0' }),
         line('input_brushes'),
         line('end'),
-        line('cube', { size: '1, 3, 1', anchor: 'Center, Center, Center' }),
-        line('end'),
+        line('cube', { size: '1, 3, 1', anchor: 'Center, Center, Center', mode: 'Subtractive' }),
       ],
       use,
     );
     expect(result.error?.message ?? null).toBeNull();
-    const cut = result.shapes[0]!;
-    expect(cut.kind === 'boolean' && cut.operation).toBe('difference');
-    const kept = cut.kind === 'boolean' ? cut.children[0]! : cut;
-    expect(kept.kind).toBe('solid');
-    const faces = kept.kind === 'solid' ? (kept.faceTextures ?? []) : [];
+    const solids = result.shapes.flatMap((shape) =>
+      shape.kind === 'solid'
+        ? [shape]
+        : shape.kind === 'boolean'
+          ? shape.children.filter((child) => child.kind === 'solid')
+          : [],
+    );
+    const kept = solids.find((shape) => (shape.kind === 'solid' ? (shape.faceTextures?.length ?? 0) > 0 : false));
+    expect(kept?.kind).toBe('solid');
+    const faces = kept && kept.kind === 'solid' ? (kept.faceTextures ?? []) : [];
     expect(faces).toHaveLength(6);
     const right = faces.find((face) => face.texture === 'High x')!;
     expect(right.point.toArray()).toEqual([11, 0, 0]);

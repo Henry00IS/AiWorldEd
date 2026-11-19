@@ -34,24 +34,24 @@ describe('solid script document edits', () => {
   it('turns off only the picked lines, with the End and Else of a picked block line, and back on', () => {
     const offs = (document: SolidScriptDocument): number[] =>
       document.blocks.flatMap((block, line) => (block.off === true ? [line] : []));
-    // 0 union, 1 if, 2 cube, 3 else, 4 sphere, 5 end (if), 6 cylinder, 7 end (union)
-    const block = script('union', 'if', 'cube', 'else', 'sphere', 'end', 'cylinder', 'end');
+    // 0 translate, 1 if, 2 cube, 3 else, 4 sphere, 5 end (if), 6 cylinder, 7 end (translate)
+    const block = script('translate', 'if', 'cube', 'else', 'sphere', 'end', 'cylinder', 'end');
     const ifOff = solidScriptDocumentLinesToggle(block, [1]);
     expect(offs(ifOff.document)).toEqual([1, 3, 5]);
     expect(ifOff.count).toBe(1);
-    // The contents still run, inside the Union.
+    // The contents still run, inside the Translate.
     expect(solidScriptProgramRun(ifOff.document).error).toBeNull();
     expect(solidScriptProgramRun(ifOff.document).steps).toHaveLength(3);
     expect(offs(solidScriptDocumentLinesToggle(ifOff.document, [1]).document)).toEqual([]);
-    const unionOff = solidScriptDocumentLinesToggle(block, [0]);
-    expect(offs(unionOff.document)).toEqual([0, 7]);
+    const blockOff = solidScriptDocumentLinesToggle(block, [0]);
+    expect(offs(blockOff.document)).toEqual([0, 7]);
     expect(offs(solidScriptDocumentLinesToggle(block, [2, 4]).document)).toEqual([2, 4]);
     // An End picked on its own goes off alone; the script then names the block without End.
     const endOff = solidScriptDocumentLinesToggle(block, [7]);
     expect(offs(endOff.document)).toEqual([7]);
     expect(solidScriptProgramRun(endOff.document).error?.message).toContain('has no End');
     // Turning a block line on takes back the off End on its level when it lacks one.
-    expect(offs(solidScriptDocumentLinesToggle(unionOff.document, [0]).document)).toEqual([]);
+    expect(offs(solidScriptDocumentLinesToggle(blockOff.document, [0]).document)).toEqual([]);
     const both = solidScriptDocumentLinesToggle(block, [0, 1]);
     expect(offs(both.document)).toEqual([0, 1, 3, 5, 7]);
     expect(offs(solidScriptDocumentLinesToggle(both.document, [1]).document)).toEqual([0, 7]);
@@ -72,9 +72,12 @@ describe('solid script document edits', () => {
   });
 
   it('drops before a line, closes blocks with an End line and inserts into an empty script', () => {
-    expect(
-      lines(solidScriptDocumentCommandInsert(script('variable', 'echo'), 'difference', 1, 'before').document),
-    ).toEqual(['variable', 'difference', 'end', 'echo']);
+    expect(lines(solidScriptDocumentCommandInsert(script('variable', 'echo'), 'hull', 1, 'before').document)).toEqual([
+      'variable',
+      'hull',
+      'end',
+      'echo',
+    ]);
     expect(lines(solidScriptDocumentCommandInsert(script(), 'cube', 0, 'caret').document)).toEqual(['cube']);
   });
 

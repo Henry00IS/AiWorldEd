@@ -6,6 +6,7 @@ import {
   SOLID_SCRIPT_WORDS_ACCEPTS,
   solidScriptParameter,
   solidScriptParameterAnchor,
+  solidScriptParameterMode,
 } from './solid_script_command_parameters.js';
 import { SOLID_SCRIPT_ANCHOR_SOLID, solidScriptAnchorMin } from '@/solid_script/language/solid_script_anchor.js';
 import type { SolidScriptBlockArguments } from '@/solid_script/language/solid_script_block_arguments.js';
@@ -154,7 +155,7 @@ function solidScriptGeneratorCommand(kind: ModifierStackKindGenerator): SolidScr
     label: kind.label,
     category: 'Generators',
     description: `Build a ${kind.label.toLowerCase()} like the generator`,
-    manual: `${kind.description} The script block fills a box of the given width (X), height (Y) and depth (Z) in metres, standing on the origin by default (Center, Bottom, Center ⭐); Anchor Center, Center, Center ⭐ puts the middle of the box on the origin. Its other fields are the ones the ${kind.label} generator shows in the inspector, with the same names, so a script can change them with variables and formulas. Textures come from the generator holding the script. Example: a ${kind.label} block with Size 2, 3, 2 fills a box two metres wide and three metres tall around the origin.`,
+    manual: `${kind.description} The script block fills a box of the given width (X), height (Y) and depth (Z) in metres, standing on the origin by default (Center, Bottom, Center ⭐); Anchor Center, Center, Center ⭐ puts the middle of the box on the origin. Its other fields are the ones the ${kind.label} generator shows in the inspector, with the same names, so a script can change them with variables and formulas. Mode chooses how each brush combines with the ones before it: Additive, Subtractive or Intersecting. Textures come from the generator holding the script. Example: a ${kind.label} block with Size 2, 3, 2 fills a box two metres wide and three metres tall around the origin.`,
     stops: [
       'A size of 0 or less on any axis.',
       'A number outside the range its field allows, or a count with decimals.',
@@ -169,6 +170,7 @@ function solidScriptGeneratorCommand(kind: ModifierStackKindGenerator): SolidScr
         'Width (X), height (Y) and depth (Z) of the box it fills, in metres.',
       ),
       solidScriptParameterAnchor(SOLID_SCRIPT_ANCHOR_SOLID),
+      solidScriptParameterMode(),
       ...fields.map(solidScriptGeneratorParameter),
     ],
     listing: (read) => [
@@ -176,6 +178,7 @@ function solidScriptGeneratorCommand(kind: ModifierStackKindGenerator): SolidScr
       read.value('size'),
       ...solidScriptListingOptions([
         read.changed('anchor') && ['Anchor ', read.value('anchor')],
+        read.changed('mode') && ['Mode ', read.value('mode')],
         ...fields.map((field) => read.changed(field.key) && [`${field.label} `, read.value(field.key)]),
       ]),
     ],
