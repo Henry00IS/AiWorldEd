@@ -252,7 +252,7 @@ export function solidScriptRotateExtrude(
     if (leaf.kind !== 'polygon') throw new Error('only flat shapes (Square, Circle, Polygon) can be spun');
     if (leaf.points.some(([x]) => x < -1e-9))
       throw new Error(
-        'Rotate Extrude spins around the Y axis (up), so its outlines must lie at X 0 or more; move them with Translate',
+        'Rotate Extrude spins around the Y axis (up), so its outlines must lie at X 0 or more; move them with Move',
       );
     const pieces: SolidScriptShapeSolid[] = [];
     for (const piece of solidScriptPolygonConvexPieces(leaf.points))

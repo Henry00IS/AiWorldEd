@@ -4,7 +4,7 @@ SolidScript builds level geometry from a list of command lines: add a **SolidScr
 
 ## Writing a script
 
-Double-click a command in the palette, or drag it in, to add it below the current line. Double-click a line to change its values. Blocks such as Repeat, Translate or If hold the lines up to their End. A block with nothing inside is no mistake: it does nothing, and the Output shows a ⚠️ warning with a link to its line. With several lines selected whose blocks are whole (every If with its End), double-clicking a block command wraps them: it goes above the first line and its End below the last. When the selection cuts a block, the command goes below the current line as usual.
+Double-click a command in the palette, or drag it in, to add it below the current line. Double-click a line to change its values. Blocks such as Repeat, Transform or If hold the lines up to their End. Move, Rotate, Scale, Align To, Mirror, Resize and Matrix are flat lines with Of, and do not take an End. A block with nothing inside is no mistake: it does nothing, and the Output shows a ⚠️ warning with a link to its line. With several lines selected whose blocks are whole (every If with its End), double-clicking a block command wraps them: it goes above the first line and its End below the last. When the selection cuts a block, the command goes below the current line as usual.
 
 <details>
 <summary>More Details</summary>
@@ -37,6 +37,7 @@ The script runs on every change. **Start** builds everything, **Debug** builds o
 <details>
 <summary>More Details</summary>
 
+- A script may make at most 10,000 brushes, a mesh may have at most 1,000,000 triangles, a list may hold at most 100,000 items, functions and parts may run 256 levels deep, Repeat and For Each run at most 10,000 rounds, and a run stops after 10,000,000 steps of work. A line that hits a cap names the line and what to change.
 - **F9** sets a breakpoint on the current line; Start and Debug pause before it runs.
 - **Ctrl+F10** builds up to the line at the cursor.
 - **Trace** marks the lines the debugger has passed.
@@ -71,7 +72,7 @@ Brushes, faces, edges and corners are values, like numbers and text. A dot reads
 <details>
 <summary>More Details</summary>
 
-- **Select Faces** picks faces into `[$Selected.Faces]` and into its **Into** variable. Inside a For Each round it picks faces of what that round built, and after the round the outer pick comes back, so Select Faces can be nested.
+- **Select Faces** picks faces into `[$Selected.Faces]` and into its **Into** variable. Which **New** keeps only faces made since the previous Select Faces. Inside a For Each round it picks faces of what that round built, and after the round the outer pick comes back, so Select Faces can be nested.
 - **For Each** walks any list: For Each `[Face]` In `[$Selected.Faces]`, with an optional **Key** for its number. In a Data value it walks the keys.
 - Every face command takes **Of**: a face, edge, brush, a list of them, or a brush **Name** such as Knob (in any case, also the shapes of a Part by its name). Empty takes `[$Selected.Faces]`. See the Panel With Knobs example.
 - **Place On Face** builds the shapes inside standing on its face the way they stand on the ground (Y out of the face), with a Lift.
@@ -81,7 +82,8 @@ Brushes, faces, edges and corners are values, like numbers and text. A dot reads
 - **Hull** wraps the brushes, Point lines and optional **Points From List** between it and its End in one convex solid. Hand it the list Scatter Points writes, such as `Hull` From `[Spots]`, to wrap those points; they must not all lie in one plane, so scatter on more than one face. **Polyhedron** also wraps a point list, when you are listing corners yourself.
 - **Find On** looks at the faces in Of, or [$Selected.Faces] when Of is empty: **Closest** (the default) picks the nearest point to From, **Along Ray** follows Direction and picks the first face it meets. It can write the point, Distance, Normal, Face and Hit.
 - **Clip** cuts the brushes and meshes in Of, or [$Selected.Brushes] when Of is empty, with a plane. Through is a point on the plane. Normal is the way the part you cut away faces; the other side stays. A brush stays a brush, a mesh stays a mesh, and a closed mesh gets a new face over the cut.
-- **Align To** turns the lines inside so their up (Y) points along a direction, such as a face's `[Face.Normal]`.
+- **Transform** changes the space that the lines between it and its End work in. Move, Rotate and Scale on that line are applied in that order after On. On takes a face (the same frame as Place On Face) or a brush (its center with world axes); leaving On off keeps the parent space. What the lines build is stored in ordinary script space. Transform never groups brushes for CSG.
+- **Move**, **Rotate**, **Scale**, **Align To**, **Mirror**, **Resize** and **Matrix** are flat lines with **Of**: they change the brushes, meshes or points already named there, or `[$Selected.Brushes]` when Of is empty. Without Into the change happens where the items already are; with Into the originals stay and the copies are only in that variable. **Align To** turns Of so its up (Y) points along a direction, such as a face's `[Face.Normal]`. **Resize** stretches Of to an exact size. **Matrix** applies a 3 by 4 matrix, including shear.
 
 </details>
 
@@ -97,7 +99,7 @@ Brushes, faces, edges and corners are values, like numbers and text. A dot reads
 - `Resample(points, count)` spaces points evenly along a path, and `PathLength(points)` measures it. `PathAt(points, amount)` and `PathDirection(points, amount)` give the point and the way the path faces at a fraction of its length, and `TrimPath(points, start, end)` keeps one stretch.
 - `Noise(x, y, z, scale, seed)` is a smooth random field from 0 to 1, and `Hash(value, seed)` is a number from 0 to 1 from any value. `Random(min, max, seed)` can be two vectors, `Shuffle(list, seed)` shuffles a list, and `Nearest(points, point)` is the index of the closest point. `RotateVector(vector, axis, degrees)`, `Angle(a, b)`, `Project(point, through, normal)` and `Reflect(vector, normal)` work on vectors. For a yes-or-no chance, write `Random(0, 1, seed) < 0.3`.
 - **Grid Mesh** builds a mesh of quads in a plane: Size is width, height and depth, with one length at 0 so the grid is flat (2, 0, 2 on the ground, 2, 2, 0 for a wall facing the front). Columns and Rows are how many faces there are, and Anchor works like Cube.
-- **Mesh** and **Mesh From Brushes** are the way a shape becomes a mesh. **Subdivide**, **Smooth Mesh**, **Displace**, **Flip Faces** and **Merge By Distance** then change that mesh; a brush stops, with a hint to wrap it in **Mesh From Brushes** first. **Displace** moves the vertices Select Vertices picked, or every point when none are picked. **Flip Faces** flips the faces Select Faces picked, or every face when none are picked.
+- **Mesh** and **Mesh From Brushes** are the way a shape becomes a mesh. **Mesh From Brushes** bakes the brushes between it and its End into one mesh, cutting them the same way the editor does, including Subtractive and Intersecting modes and Group; only the brushes inside the block are baked. **Subdivide**, **Smooth Mesh**, **Displace**, **Flip Faces** and **Merge By Distance** then change that mesh; a brush stops, with a hint to wrap it in **Mesh From Brushes** first. **Displace** moves the vertices Select Vertices picked, or every point when none are picked. **Flip Faces** flips the faces Select Faces picked, or every face when none are picked.
 
 </details>
 
@@ -113,7 +115,7 @@ A script can be a **generator**, which builds new geometry from nothing, or a **
 - As a modifier, the brushes it receives pass on unchanged unless the script has an **Input Brushes** line. What the script builds is added, with the script origin at the center of what it receives; Operation picks whether it is added, cut out or intersected.
 - `[$Script.Usage]` is Generator or Modifier. `[$Input.Brushes]`, `[$Input.Faces]`, `[$Input.Min]`, `[$Input.Max]`, `[$Input.Size]` and `[$Input.Center]` describe what a modifier receives (all zero for a generator), and **Input Shapes** builds copies of those brushes to move, mirror or cut.
 - The **Pedestal** example works both ways: as a generator it builds a box on a slab, as a modifier it puts the slab under the brush.
-- **Input Brushes** passes the received brushes on, moved by the Translate, Rotate, Scale, Mirror or Matrix blocks around it, with their textures and materials. The first one that runs changes them; each later one adds a copy. Textures is Move With Shape or World Aligned; Readable Text flips U on a mirrored copy so lettering stays readable; UV Shift U and V move the texture of that pass by that many tiles. Clip of [$Input.Brushes] above this line cuts the received brushes the same way. **Built-In Modifiers** in the Examples window rebuilds Shear, Linear Array, Radial Array, Transform Array and Mirror this way, including Mirror Bisect and Flip. They match the built-in inspectors; a few behaviours still differ (the arrays measure the whole input, not each piece; Mirror places its plane on the received brushes, not the modifier volume box).
+- **Input Brushes** passes the received brushes on, with their textures and materials. A **Transform** around that line, or a **Move**, **Rotate**, **Scale**, **Mirror**, **Resize**, **Align To** or **Matrix** of the copy, moves it. The first one that runs changes them; each later one adds a copy. Textures is Move With Shape or World Aligned; Readable Text flips U on a mirrored copy so lettering stays readable; UV Shift U and V move the texture of that pass by that many tiles. Clip of [$Input.Brushes] above this line cuts the received brushes the same way. **Built-In Modifiers** in the Examples window rebuilds Shear, Linear Array, Radial Array, Transform Array and Mirror this way, including Mirror Bisect and Flip. They match the built-in inspectors; a few behaviours still differ (the arrays measure the whole input, not each piece; Mirror places its plane on the received brushes, not the modifier volume box).
 
 </details>
 
