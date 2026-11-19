@@ -14,13 +14,50 @@ import { SOLID_SCRIPT_SYSTEM_CATALOG } from '@/solid_script/language/solid_scrip
 import { solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
 import type { SolidScriptFrameView, SolidScriptVariable } from '@/solid_script/language/solid_script_machine_types.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
+import { solidScriptExplorerContextEntries } from './solid_script_editor_explorer_context.js';
 import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
 
 /**
  * Categories of the explorer: everything, the names with a value now, then each
  * kind of name.
  */
-export type SolidScriptExplorerCategory = 'All' | 'Current' | SolidScriptNameCategory | 'Call Stack';
+export type SolidScriptExplorerCategory = 'All' | 'Current' | 'Context' | SolidScriptNameCategory | 'Call Stack';
+
+/** Where the values of a run were captured. */
+export interface SolidScriptExplorerRun {
+  /** Where the values come from, such as "At the end of the run". */
+  caption: string;
+  /** 0-based line the run stopped just before, such as at a breakpoint, or null. */
+  stoppedBefore: number | null;
+}
+
+/** Caption of the System category. */
+const SOLID_SCRIPT_EXPLORER_SYSTEM_CAPTION = 'Built-in values as they read now, outside a run';
+
+/** Caption of the Context category when no line is focused. */
+const SOLID_SCRIPT_EXPLORER_CONTEXT_NONE = 'No line is focused.';
+
+/**
+ * Describes what a category of the explorer shows: the Context of the focused
+ * line before it runs, the built-in values read now, or the values of the run
+ * where they were captured.
+ *
+ * @param category Category shown.
+ * @param run Where the run values were captured.
+ * @param contextLine Focused 0-based line, or null when no line is focused.
+ * @returns Caption.
+ */
+export function solidScriptExplorerCaption(
+  category: SolidScriptExplorerCategory,
+  run: SolidScriptExplorerRun,
+  contextLine: number | null,
+): string {
+  if (category === 'System') return SOLID_SCRIPT_EXPLORER_SYSTEM_CAPTION;
+  if (category !== 'Context') return run.caption;
+  if (contextLine === null) return SOLID_SCRIPT_EXPLORER_CONTEXT_NONE;
+  const live = run.stoppedBefore === contextLine ? ', with the values where the run stopped' : '';
+  return `Before line ${contextLine + 1} runs${live}`;
+}
 
 /** One name the explorer lists. */
 export interface SolidScriptExplorerEntry {
@@ -49,6 +86,8 @@ export interface SolidScriptExplorerEntry {
    * empty when none is known.
    */
   reaches?: string;
+  /** True in Context for a name the focused line sets. */
+  setHere?: boolean;
 }
 
 /** Friendly type of a name the run has not reached yet. */
@@ -77,8 +116,7 @@ export function solidScriptExplorerEntries(
   stack: readonly SolidScriptFrameView[],
 ): SolidScriptExplorerEntry[] {
   const origins = solidScriptDocumentOrigins(script);
-  const live = new Map(variables.map((variable) => [solidScriptNameShown(variable.name), variable]));
-  for (const frame of stack) for (const local of frame.locals) live.set(solidScriptNameShown(local.name), local);
+  const live = solidScriptExplorerLive(variables, stack);
   const entries: SolidScriptExplorerEntry[] = [];
   for (const known of solidScriptDocumentNames(script)) {
     const seen =
@@ -138,6 +176,34 @@ export function solidScriptExplorerEntries(
 }
 
 /**
+ * Gathers the values of a run by shown name, the locals of running Functions
+ * last so they win.
+ *
+ * @param variables Variables at the step shown.
+ * @param stack Running Functions and parts, outermost first.
+ * @returns Values by shown name.
+ */
+function solidScriptExplorerLive(
+  variables: readonly SolidScriptVariable[],
+  stack: readonly SolidScriptFrameView[],
+): Map<string, SolidScriptVariable> {
+  const live = new Map(variables.map((variable) => [solidScriptNameShown(variable.name), variable]));
+  for (const frame of stack) for (const local of frame.locals) live.set(solidScriptNameShown(local.name), local);
+  return live;
+}
+
+/**
+ * Writes the Type column of an entry, with Read Only or Set Here after it.
+ *
+ * @param entry Entry.
+ * @returns Type text.
+ */
+function solidScriptExplorerTypeText(entry: SolidScriptExplorerEntry): string {
+  if (entry.readOnly) return `${entry.type} · Read Only`;
+  return entry.setHere ? `${entry.type} · Set Here` : entry.type;
+}
+
+/**
  * Checks the name and detail of an entry against the search text.
  *
  * @param entry Entry.
@@ -187,8 +253,12 @@ export class SolidScriptEditorExplorer {
   private readonly open = new Set<string>();
   private selected: string | null = null;
   private entries: SolidScriptExplorerEntry[] = [];
+  private contextEntries: SolidScriptExplorerEntry[] = [];
   private stack: readonly SolidScriptFrameView[] = [];
-  private captionText = '';
+  private script: SolidScriptDocument | null = null;
+  private live: ReadonlyMap<string, SolidScriptVariable> = new Map();
+  private run: SolidScriptExplorerRun = { caption: 'Nothing ran yet', stoppedBefore: null };
+  private contextLine: number | null = null;
 
   /** Builds the explorer. */
   constructor() {
@@ -233,17 +303,41 @@ export class SolidScriptEditorExplorer {
    * @param script Script.
    * @param variables Variables at the step shown.
    * @param stack Running Functions and parts, outermost first.
-   * @param caption Where the values come from, such as "Paused at line 4".
+   * @param run Where the values were captured.
    */
   show(
     script: SolidScriptDocument,
     variables: readonly SolidScriptVariable[],
     stack: readonly SolidScriptFrameView[],
-    caption: string,
+    run: SolidScriptExplorerRun,
   ): void {
     this.entries = solidScriptExplorerEntries(script, variables, stack);
     this.stack = stack;
-    this.captionText = caption;
+    this.script = script;
+    this.live = solidScriptExplorerLive(variables, stack);
+    this.run = run;
+    this.contextRefresh();
+  }
+
+  /**
+   * Follows the focused line for the Context category.
+   *
+   * @param line Focused 0-based line, or null when no line is focused.
+   */
+  contextSet(line: number | null): void {
+    if (line === this.contextLine) return;
+    this.contextLine = line;
+    this.contextRefresh();
+  }
+
+  /** Works out what the focused line can read, then redraws. */
+  private contextRefresh(): void {
+    const script = this.script;
+    const line = this.contextLine;
+    const inScript = script !== null && line !== null && line < script.blocks.length;
+    if (!inScript) this.contextLine = null;
+    const live = inScript && this.run.stoppedBefore === line ? this.live : null;
+    this.contextEntries = inScript ? solidScriptExplorerContextEntries(script, line, live) : [];
     this.render();
   }
 
@@ -272,11 +366,14 @@ export class SolidScriptEditorExplorer {
     const matching = this.entries.filter((entry) => solidScriptExplorerMatches(entry, query));
     counts.set('All', matching.filter((entry) => this.listedIn(entry, 'All', query)).length);
     counts.set('Current', matching.filter((entry) => this.listedIn(entry, 'Current', query)).length);
+    const contextMatching = this.contextEntries.filter((entry) => solidScriptExplorerMatches(entry, query));
+    counts.set('Context', contextMatching.length);
     for (const entry of matching) counts.set(entry.category, (counts.get(entry.category) ?? 0) + 1);
     if (this.stack.length > 0) counts.set('Call Stack', this.stack.length);
     const shown: SolidScriptExplorerCategory[] = [
       'All',
       'Current',
+      'Context',
       ...SOLID_SCRIPT_NAME_CATEGORIES.filter((category) => category === 'Inputs' || counts.has(category)),
       ...(this.stack.length > 0 ? (['Call Stack'] as const) : []),
     ];
@@ -302,9 +399,10 @@ export class SolidScriptEditorExplorer {
         return button;
       }),
     );
-    this.caption.textContent = this.captionText;
+    this.caption.textContent = solidScriptExplorerCaption(this.category, this.run, this.contextLine);
     const rows: HTMLElement[] = [this.headerRow()];
     if (this.category === 'Call Stack') rows.push(...this.stackRows(query));
+    else if (this.category === 'Context') rows.push(...this.contextRows(contextMatching, query));
     else {
       const listed = matching.filter((entry) => this.listedIn(entry, this.category, query));
       for (const entry of listed) rows.push(...this.entryRows(entry, query));
@@ -313,6 +411,20 @@ export class SolidScriptEditorExplorer {
         rows.push(this.note(query.trim() === '' ? 'Nothing here yet.' : `Nothing matches "${query.trim()}".`));
     }
     this.table.replaceChildren(...rows);
+  }
+
+  /**
+   * Lists what the focused line can read, or says how to pick a line.
+   *
+   * @param listed Context entries that match the search.
+   * @param query Search text.
+   * @returns Rows.
+   */
+  private contextRows(listed: readonly SolidScriptExplorerEntry[], query: string): HTMLElement[] {
+    if (this.contextLine === null) return [this.note('Click a line to see what it can read.')];
+    if (listed.length === 0)
+      return [this.note(query.trim() === '' ? 'Nothing to read yet.' : `Nothing matches "${query.trim()}".`)];
+    return listed.flatMap((entry) => this.entryRows(entry, query));
   }
 
   /**
@@ -342,7 +454,7 @@ export class SolidScriptEditorExplorer {
       entry.name,
       label,
       entry.value ?? '—',
-      entry.readOnly ? `${entry.type} · Read Only` : entry.type,
+      solidScriptExplorerTypeText(entry),
       entry.lines,
       entry.reachLines?.at(-1),
     );

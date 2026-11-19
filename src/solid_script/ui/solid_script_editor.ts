@@ -44,6 +44,7 @@ import {
 import { SolidScriptConfigurator } from './solid_script_configurator.js';
 import { SolidScriptEditorSettings } from './solid_script_editor_settings.js';
 import { solidScriptEditorSizesRead, solidScriptEditorSplitter } from './solid_script_editor_splitters.js';
+import type { SolidScriptExplorerRun } from './solid_script_editor_explorer.js';
 import { SolidScriptEditorOutput } from './solid_script_editor_output.js';
 import { solidScriptEditorLoad, solidScriptEditorSave } from './solid_script_editor_files.js';
 import { solidScriptFileDropBind, type SolidScriptFileDropResult } from './solid_script_file_drop.js';
@@ -411,15 +412,22 @@ export class SolidScriptEditor extends PanelFloating {
   }
 
   /**
-   * Describes what the variables show.
+   * Describes where the variables were captured: nowhere for a script with
+   * nothing to run, at a breakpoint before its line runs, at a debugger step,
+   * or at the end of the run.
    *
-   * @returns Caption.
+   * @returns Caption, and the line the run stopped just before.
    */
-  private debugCaption(): string {
+  private debugCaption(): SolidScriptExplorerRun {
     const line = this.debugger.line();
-    if (this.debugger.stateGet() === 'stopped' || line === null) return 'After the last solid';
-    if (this.debugger.atBreakpoint()) return `Paused at the breakpoint on line ${line + 1}`;
-    return `At step ${this.debugger.position().step}, line ${line + 1}`;
+    const blocks = this.session.document().blocks;
+    if (blocks.every((block) => solidScriptBlockIsBlank(block)))
+      return { caption: 'Nothing ran yet', stoppedBefore: null };
+    if (this.debugger.stateGet() === 'stopped' || line === null)
+      return { caption: 'At the end of the run', stoppedBefore: null };
+    if (this.debugger.atBreakpoint())
+      return { caption: `Stopped at the breakpoint on line ${line + 1}, before it runs`, stoppedBefore: line };
+    return { caption: `At step ${this.debugger.position().step}, line ${line + 1}`, stoppedBefore: null };
   }
 
   /**
@@ -499,6 +507,7 @@ export class SolidScriptEditor extends PanelFloating {
    */
   private selectLine(line: number): void {
     const block = this.session.document().blocks[line];
+    this.output.contextLineSet(block ? line : null);
     const command = block ? solidScriptCommandFind(block.command) : undefined;
     if (block && command && !solidScriptBlockIsBlank(block)) this.help.show(command, block);
     else this.help.clear();

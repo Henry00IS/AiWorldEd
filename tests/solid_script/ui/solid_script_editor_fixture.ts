@@ -84,3 +84,34 @@ export function doubleClick(element: HTMLElement): void {
 export function press(element: HTMLElement, key: string, modifiers: KeyboardEventInit = {}): void {
   element.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...modifiers }));
 }
+
+/**
+ * Reads the rows of the variable explorer as name|value|type|lines.
+ *
+ * @returns Rows.
+ */
+export function explorerRows(): string[] {
+  return [...document.querySelectorAll<HTMLElement>('.solid-script-editor-explorer-row[data-name]')].map((row) =>
+    [...row.children]
+      .map((cell) =>
+        cell.classList.contains('solid-script-editor-explorer-lines')
+          ? [...cell.children].map((link) => link.textContent).join(',')
+          : cell.textContent,
+      )
+      .join('|'),
+  );
+}
+
+/**
+ * Returns the button with a label.
+ *
+ * @param label Button text.
+ * @returns Button.
+ */
+export function tool(label: string): HTMLButtonElement {
+  const button = [...document.querySelectorAll<HTMLButtonElement>('button')].find(
+    (candidate) => candidate.textContent === label,
+  );
+  if (!button) throw new Error(`Expected the ${label} button`);
+  return button;
+}

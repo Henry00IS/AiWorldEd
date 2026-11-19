@@ -4,7 +4,7 @@ import type { SolidScriptDocument } from '@/solid_script/document/solid_script_d
 import { solidScriptErrorLine, solidScriptErrorText } from '@/solid_script/language/solid_script_error.js';
 import { solidScriptProgramRun, type SolidScriptProgramOptions } from '@/solid_script/language/solid_script_program.js';
 import type { SolidScriptLineProfile, SolidScriptWarning } from '@/solid_script/language/solid_script_machine_types.js';
-import { SolidScriptEditorExplorer } from './solid_script_editor_explorer.js';
+import { SolidScriptEditorExplorer, type SolidScriptExplorerRun } from './solid_script_editor_explorer.js';
 import {
   solidScriptDocumentDefines,
   solidScriptDocumentNamesUnknown,
@@ -131,9 +131,10 @@ export class SolidScriptEditorOutput {
    * @param document Script.
    * @param options How the debugger runs it to the state shown, or null for the
    *   whole script.
-   * @param caption What the variables show, such as "At step 2, line 4".
+   * @param run Where the debugger captures the values, such as "At step 2, line
+   *   4".
    */
-  show(document: SolidScriptDocument, options: SolidScriptProgramOptions | null, caption: string): void {
+  show(document: SolidScriptDocument, options: SolidScriptProgramOptions | null, run: SolidScriptExplorerRun): void {
     this.settings?.write(document);
     this.checkSchedule(document);
     const result = solidScriptProgramRun(document, { context: 'preview', ...options, profile: true });
@@ -145,7 +146,7 @@ export class SolidScriptEditorOutput {
       const solids = `${count} ${count === 1 ? 'solid' : 'solids'}${result.paused ? ' so far' : ''}`;
       this.text([solids, ...result.messages].join('\n'), '');
       this.output.append(...result.warnings.map((warning) => this.warningRow(warning)), this.checks);
-      this.explorer.show(document, result.variables, options ? result.stack : [], caption);
+      this.explorer.show(document, result.variables, options ? result.stack : [], run);
     } else {
       const message = solidScriptErrorText(new Error(result.error.message));
       const failed = solidScriptErrorLine(message);
@@ -157,8 +158,19 @@ export class SolidScriptEditorOutput {
       // What ran before the error stays, to help find it.
       this.text(result.messages.join('\n'), message);
       this.output.append(...result.warnings.map((warning) => this.warningRow(warning)), this.checks);
-      this.explorer.show(document, result.variables, options ? result.stack : [], 'The script stops with an error.');
+      const caption =
+        failed === null ? 'Where the error stopped the run' : `Where the error on line ${failed} stopped the run`;
+      this.explorer.show(document, result.variables, options ? result.stack : [], { caption, stoppedBefore: null });
     }
+  }
+
+  /**
+   * Follows the focused line for the Context of the variables.
+   *
+   * @param line Focused 0-based line, or null when no line is focused.
+   */
+  contextLineSet(line: number | null): void {
+    this.explorer.contextSet(line);
   }
 
   /**

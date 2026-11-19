@@ -12,7 +12,7 @@ import { solidScriptDebugStepLimit } from '@/solid_script/debug/solid_script_deb
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptFileEncode } from '@/solid_script/file/solid_script_file.js';
 import { solidScriptEditorCurrentGet } from '@/solid_script/ui/solid_script_editor_open.js';
-import { chip, doubleClick, editorFixture, find, press } from './solid_script_editor_fixture.js';
+import { chip, doubleClick, editorFixture, explorerRows, find, press, tool } from './solid_script_editor_fixture.js';
 import { SOLID_SCRIPT_EDITOR_DRAG_COMMAND } from '@/solid_script/ui/solid_script_editor_palette.js';
 import { SOLID_SCRIPT_EDITOR_DRAG_LINE } from '@/solid_script/ui/solid_script_editor_row.js';
 import { ProjectMockDirectoryHandle } from '../../project/fs/project_mock_directory_handle.js';
@@ -42,20 +42,6 @@ function type(input: HTMLInputElement, value: string): void {
 }
 
 /**
- * Returns the button with a label.
- *
- * @param label Button text.
- * @returns Button.
- */
-function tool(label: string): HTMLButtonElement {
-  const button = [...document.querySelectorAll<HTMLButtonElement>('button')].find(
-    (candidate) => candidate.textContent === label,
-  );
-  if (!button) throw new Error(`Expected the ${label} button`);
-  return button;
-}
-
-/**
  * Drops drag data on an element.
  *
  * @param element Drop target.
@@ -79,23 +65,6 @@ afterEach(() => {
   projectFolderCurrentSet(null);
   document.body.replaceChildren();
 });
-
-/**
- * Reads the rows of the variable explorer as name|value|type|lines.
- *
- * @returns Rows.
- */
-function explorerRows(): string[] {
-  return [...document.querySelectorAll<HTMLElement>('.solid-script-editor-explorer-row[data-name]')].map((row) =>
-    [...row.children]
-      .map((cell) =>
-        cell.classList.contains('solid-script-editor-explorer-lines')
-          ? [...cell.children].map((link) => link.textContent).join(',')
-          : cell.textContent,
-      )
-      .join('|'),
-  );
-}
 
 describe('SolidScript editor', () => {
   it('lists the commands by category, with End in Logic and without Blank Line', () => {
@@ -878,7 +847,7 @@ describe('SolidScript editor', () => {
     const gutter = (line: number) => find(`[data-line="${line}"] .solid-script-editor-gutter`).click();
     gutter(2);
     tool('Start').click();
-    expect(root.textContent).toContain('Paused at the breakpoint on line 3');
+    expect(root.textContent).toContain('Stopped at the breakpoint on line 3, before it runs');
     gutter(2);
     tool('Start').click();
     expect(solidScriptDebugStepLimit(node, stepId)).toBeUndefined();
@@ -888,7 +857,7 @@ describe('SolidScript editor', () => {
     gutter(4);
     gutter(2);
     tool('Start').click();
-    expect(root.textContent).toContain('Paused at the breakpoint on line 5');
+    expect(root.textContent).toContain('Stopped at the breakpoint on line 5, before it runs');
     expect(solidScriptDebugStepLimit(node, stepId)).toBe(4);
   });
 
@@ -910,7 +879,7 @@ describe('SolidScript editor', () => {
     const paused = find('[data-line="2"]');
     expect(paused.classList.contains('solid-script-editor-stepped')).toBe(true);
     expect(paused.title).toMatch(/^Paused at this breakpoint/);
-    expect(root.textContent).toContain('Paused at the breakpoint on line 3');
+    expect(root.textContent).toContain('Stopped at the breakpoint on line 3, before it runs');
     find<HTMLButtonElement>('[data-category="Current"]').click();
     const variables = () => explorerRows().map((row) => row.split('|').slice(0, 2).join('='));
     expect(variables()).toEqual(['i=0']);
@@ -1147,7 +1116,7 @@ describe('SolidScript editor', () => {
     ]);
     find('[data-line="1"] .solid-script-editor-gutter').click();
     tool('Start').click();
-    expect(root.textContent).toContain('Paused at the breakpoint on line 2');
+    expect(root.textContent).toContain('Stopped at the breakpoint on line 2, before it runs');
     find<HTMLButtonElement>('[data-category="Call Stack"]').click();
     expect(find('.solid-script-editor-stack-frame').textContent).toBe('post()called on line 4');
     expect(explorerRows()).toEqual(['Local.h|3|Whole Number|1']);
