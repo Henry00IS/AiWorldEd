@@ -58,6 +58,10 @@ function solidScriptModifierInputType(field: ModifierStackField): string {
  */
 function solidScriptModifierInputDefault(field: ModifierStackField): string {
   if (field.type === 'boolean') return field.default ? 'Yes' : 'No';
+  if (field.type === 'choice') {
+    const match = (field.choices ?? []).find((choice) => choice.value === field.default);
+    if (match) return match.label;
+  }
   return String(field.default);
 }
 

@@ -2,7 +2,7 @@ import { SOLID_SCRIPT_SYSTEM_GLOBALS, SOLID_SCRIPT_SYSTEM_SELECTED } from './sol
 
 /**
  * Which names may contain a dot. A script's own names use letters, digits and _
- * only; a dot reads a member, such as Face.Centre, Faces.Count, Pos.X or
+ * only; a dot reads a member, such as Face.Center, Faces.Count, Pos.X or
  * Face.Data.Height, and Local. and Persistent. go in front of a name. System
  * values start with $, such as $Selected.Faces or $Box.Width.
  */
@@ -92,7 +92,7 @@ export function solidScriptNameDotProblem(name: string, use: 'read' | 'set'): st
     (part, index) => !SOLID_SCRIPT_NAME_PART.test(part) && !(index === last && /^\[.*\]$/s.test(part)),
   );
   if (bad !== undefined)
-    return `"${text}" cannot be a name: names use letters, digits and _, and a dot reads a member such as Face.Centre, Pos.X or Face.Data.Height`;
+    return `"${text}" cannot be a name: names use letters, digits and _, and a dot reads a member such as Face.Center, Pos.X or Face.Data.Height`;
   if (
     use === 'read' ||
     SOLID_SCRIPT_NAME_OWN.test(text) ||

@@ -152,7 +152,7 @@ const MODIFIER_CASES: Record<string, ModifierCase[]> = {
     { parameters: {}, inputs: {} },
     {
       parameters: { count: 5, mode: 'Arc', sweep: 120, axis: 'Z', rise: 0.5, centreSide: 'Right', radius: 3 },
-      inputs: { count: '5', mode: 'Arc', sweep: '120', axis: 'Z', rise: '0.5', centreside: 'Right', radius: '3' },
+      inputs: { count: '5', mode: 'Arc', sweep: '120', axis: 'Z', rise: '0.5', centerside: 'Right', radius: '3' },
     },
     {
       parameters: { count: 3, mode: 'Angle Step', step: 40, rotateCopies: false, uv: 'World Aligned' },
@@ -178,7 +178,7 @@ const MODIFIER_CASES: Record<string, ModifierCase[]> = {
         axis: 'X',
       },
     },
-    { parameters: { count: 4, centreSide: 'Up', axis: 'Y' }, inputs: { count: '4', centreside: 'Up', axis: 'Y' } },
+    { parameters: { count: 4, centreSide: 'Up', axis: 'Y' }, inputs: { count: '4', centerside: 'Up', axis: 'Y' } },
     {
       parameters: { count: 1, origin: 'Around Pivot', start: 45 },
       inputs: { count: '1', origin: 'Around Pivot', start: '45' },

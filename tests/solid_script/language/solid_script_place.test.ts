@@ -35,7 +35,7 @@ describe('SolidScript Place At Points', () => {
         line('cube', { size: '1, 1, 1', into: 'A' }),
         END,
         line('echo', {
-          value: '[=[$Selected.Brushes.Count]] [$Selected.Brushes.First.Centre] [$Selected.Brushes.Last.Centre]',
+          value: '[=[$Selected.Brushes.Count]] [$Selected.Brushes.First.Center] [$Selected.Brushes.Last.Center]',
         }),
       ),
     ).toEqual(['2 [0, 2, 0] [4, 0, 0]']);
@@ -57,7 +57,7 @@ describe('SolidScript Place At Points', () => {
         line('cube', { size: '1, 1, 1', into: 'C' }),
         END,
         END,
-        line('echo', { value: '[C.Centre]' }),
+        line('echo', { value: '[C.Center]' }),
       ),
     ).toEqual(['[1, 5, 0]']);
   });

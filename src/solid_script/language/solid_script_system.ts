@@ -111,7 +111,7 @@ export const SOLID_SCRIPT_SYSTEM_GLOBALS: readonly SolidScriptSystemValue[] = [
   { name: 'Box.Height', type: 'Number', detail: 'height of the generator box in metres (Y, up)' },
   { name: 'Box.Depth', type: 'Number', detail: 'depth of the generator box in metres (Z)' },
   { name: 'Box.Size', type: 'Vector', detail: 'width, height and depth of the generator box' },
-  { name: 'Box.Extents', type: 'Vector', detail: 'half the box size: from its centre to its sides' },
+  { name: 'Box.Extents', type: 'Vector', detail: 'half the box size: from its center to its sides' },
   { name: 'Script.Usage', type: 'Text', detail: 'Generator or Modifier: how this script is used here' },
   {
     name: 'Input.Brushes',
@@ -123,8 +123,8 @@ export const SOLID_SCRIPT_SYSTEM_GLOBALS: readonly SolidScriptSystemValue[] = [
   { name: 'Input.Min', type: 'Vector', detail: 'lowest corner of what a modifier receives' },
   { name: 'Input.Max', type: 'Vector', detail: 'highest corner of what a modifier receives' },
   { name: 'Input.Size', type: 'Vector', detail: 'width, height and depth of what a modifier receives' },
-  { name: 'Input.Centre', type: 'Vector', detail: 'centre of what a modifier receives' },
-  { name: 'Input.Extents', type: 'Vector', detail: 'half of Input.Size: from the centre to the sides' },
+  { name: 'Input.Center', type: 'Vector', detail: 'center of what a modifier receives' },
+  { name: 'Input.Extents', type: 'Vector', detail: 'half of Input.Size: from the center to the sides' },
   { name: 'Editor.Name', type: 'Text', detail: 'name of the editor' },
   { name: 'Editor.Version', type: 'Text', detail: 'version of the editor, such as 1.2.3' },
   { name: 'Editor.Url', type: 'Text', detail: 'address of the editor page' },
@@ -226,7 +226,7 @@ export interface SolidScriptUseFacts {
   textures?: readonly (readonly SolidScriptUseFaceTexture[])[];
 }
 
-/** Texture of one face a modifier receives, centred like the corners. */
+/** Texture of one face a modifier receives, centered like the corners. */
 export interface SolidScriptUseFaceTexture {
   /** Middle of the face. */
   point: readonly [number, number, number];
@@ -320,7 +320,7 @@ export function solidScriptSystemValues(
     'Input.Min': () => bounds().min,
     'Input.Max': () => bounds().max,
     'Input.Size': () => bounds().max.map((value, axis) => value - bounds().min[axis]!),
-    'Input.Centre': () => bounds().max.map((value, axis) => (value + bounds().min[axis]!) / 2),
+    'Input.Center': () => bounds().max.map((value, axis) => (value + bounds().min[axis]!) / 2),
     'Input.Extents': () => bounds().max.map((value, axis) => (value - bounds().min[axis]!) / 2),
     ...(box
       ? {

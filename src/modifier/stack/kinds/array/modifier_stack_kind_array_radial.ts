@@ -100,12 +100,12 @@ export class ModifierStackKindArrayRadial extends ModifierStackKindArray {
       default: 2,
       min: 0,
       step: 0.25,
-      hint: 'Distance from the original to the ring centre, in metres.',
+      hint: 'Distance from the original to the ring center, in metres.',
       visible: modifierStackWhen('origin', 'On The Ring'),
     },
     {
       key: 'centreSide',
-      label: 'Ring Centre',
+      label: 'Ring Center',
       type: 'choice',
       default: 'Back',
       choices: modifierStackChoices([
@@ -116,7 +116,7 @@ export class ModifierStackKindArrayRadial extends ModifierStackKindArray {
         ['Down', 'Down'],
         ['Up', 'Up'],
       ]),
-      hint: 'Side of the original the ring centre lies on. A side along the axis uses the next one across it.',
+      hint: 'Side of the original the ring center lies on. A side along the axis uses the next one across it.',
       visible: modifierStackWhen('origin', 'On The Ring'),
     },
     {
@@ -156,11 +156,11 @@ export class ModifierStackKindArrayRadial extends ModifierStackKindArray {
     },
     {
       ...MODIFIER_STACK_ARRAY_BOUNDS_FIELD,
-      label: 'Centre From',
+      label: 'Center From',
       hint: 'Where the radius offset and unrotated copies are measured from: the whole input or each piece.',
     },
     ...modifierStackVectorFields('pivot', 'Pivot', [0, 0, 0], {
-      hint: 'Point the copies turn around, in metres from the volume centre along this axis.',
+      hint: 'Point the copies turn around, in metres from the volume center along this axis.',
       group: 'Pivot',
       visible: modifierStackWhen('origin', 'Around Pivot'),
     }),

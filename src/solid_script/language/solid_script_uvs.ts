@@ -155,12 +155,12 @@ export function solidScriptMeshFaceUvsWrite(
 }
 
 /**
- * Bounds centre of a solid or mesh, in script space.
+ * Bounds center of a solid or mesh, in script space.
  *
  * @param leaf Solid or mesh.
- * @returns Centre.
+ * @returns Center.
  */
-export function solidScriptLeafCentre(leaf: SolidScriptGeometryLeaf): THREE.Vector3 {
+export function solidScriptLeafCenter(leaf: SolidScriptGeometryLeaf): THREE.Vector3 {
   const points = leaf.kind === 'solid' ? leaf.points : leaf.points;
   const box = new THREE.Box3().setFromPoints(points);
   return box.getCenter(new THREE.Vector3());
@@ -168,7 +168,7 @@ export function solidScriptLeafCentre(leaf: SolidScriptGeometryLeaf): THREE.Vect
 
 /**
  * Writes a box projection onto a solid as stored records, or onto a mesh as
- * corner UVs, from the leaf's centre so a later move keeps the mapping.
+ * corner UVs, from the leaf's center so a later move keeps the mapping.
  *
  * @param leaf Solid or mesh.
  * @param faces Faces of this leaf to map.
@@ -180,7 +180,7 @@ export function solidScriptUvsBoxMap(
   faces: readonly SolidScriptFaceFacts[],
   size: number,
 ): SolidScriptGeometryLeaf {
-  const origin = solidScriptLeafCentre(leaf);
+  const origin = solidScriptLeafCenter(leaf);
   if (leaf.kind === 'solid') {
     return solidScriptSolidFaceUvsWrite(
       leaf,
@@ -196,7 +196,7 @@ export function solidScriptUvsBoxMap(
  * @param leaf Mesh.
  * @param faces Faces of this mesh.
  * @param size Metres per texture repeat.
- * @param origin Projection origin, usually the mesh centre.
+ * @param origin Projection origin, usually the mesh center.
  * @returns Mesh with those coordinates.
  */
 function solidScriptUvsBoxMapMesh(

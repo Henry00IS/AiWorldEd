@@ -31,7 +31,7 @@ function box(x: number, y: number, z: number, role?: string): SolidScriptShapeSo
 }
 
 describe('SolidScript geometry lookups', () => {
-  it('reads the faces of a box with centre, direction, size, area and names', () => {
+  it('reads the faces of a box with center, direction, size, area and names', () => {
     const faces = solidScriptGeometryFaces([box(2, 4, 1)]);
     expect(faces).toHaveLength(6);
     const top = faces.find((face) => face.normal.y > 0.9)!;

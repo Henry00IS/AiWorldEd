@@ -61,7 +61,7 @@ interface SolidScriptFieldOpen {
 
 /**
  * Names the kind of a word: Local. and Persistent. names, built-in values such
- * as Face.Centre (with an optional .X part), or a name of the script.
+ * as Face.Center (with an optional .X part), or a name of the script.
  *
  * @param word Word as written.
  * @returns Kind.
@@ -209,7 +209,7 @@ export function solidScriptFieldTokenKey(text: string, token: SolidScriptFieldTo
   if (!token.checked) return null;
   const written = text.slice(token.from, token.to);
   if (token.kind === 'function') return `${solidScriptFunctionKey(written)}()`;
-  // A member such as Face.Centre or Points.Count is checked by the name it starts with.
+  // A member such as Face.Center or Points.Count is checked by the name it starts with.
   if (token.kind === 'local') return solidScriptNameKey(written.split('.').slice(0, 2).join('.'));
   return token.kind === 'name' ? solidScriptNameKey(written.split('.')[0]!) : null;
 }

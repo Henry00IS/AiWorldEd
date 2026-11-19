@@ -136,7 +136,7 @@ function solidScriptPathBuild(run: SolidScriptBlockRun): THREE.Vector3[] {
  */
 function solidScriptPathBuildArc(run: SolidScriptBlockRun, count: number): THREE.Vector3[] {
   return solidScriptPathArc(
-    solidScriptPathFieldVector(run, 'center', 'Centre'),
+    solidScriptPathFieldVector(run, 'center', 'Center'),
     solidScriptPathFieldNumber(run, 'radius', 'Radius'),
     solidScriptPathFieldNumber(run, 'start', 'Start'),
     solidScriptPathFieldNumber(run, 'sweep', 'Sweep'),
@@ -155,7 +155,7 @@ function solidScriptPathBuildArc(run: SolidScriptBlockRun, count: number): THREE
  */
 function solidScriptPathBuildSpiral(run: SolidScriptBlockRun, count: number): THREE.Vector3[] {
   return solidScriptPathSpiral(
-    solidScriptPathFieldVector(run, 'center', 'Centre'),
+    solidScriptPathFieldVector(run, 'center', 'Center'),
     solidScriptPathFieldNumber(run, 'radius', 'Radius'),
     solidScriptPathFieldNumber(run, 'end_radius', 'End Radius'),
     solidScriptPathFieldNumber(run, 'height', 'Height'),
@@ -247,7 +247,7 @@ function solidScriptPathListingKeys(
     from: ' From ',
     to: ' To ',
     count: ' Count ',
-    center: ' Centre ',
+    center: ' Center ',
     radius: ' Radius ',
     sweep: ' Sweep ',
     end_radius: ' End Radius ',
@@ -265,7 +265,7 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Build a list of points along a line, arc, spiral or polyline',
     manual:
-      'Writes a list of points to Into, for Curve To Mesh, Place At Points or PathAt. Shape Line (the default) walks from From to To. Arc turns around Centre in the plane facing Normal, from Start by Sweep degrees, the same way as RotateVector around Normal; a negative Sweep turns the other way. Spiral also climbs Height along Normal while the radius moves from Radius to End Radius, for Turns of a rotation. From Points uses the corners in Points; Radius rounds those corners, with Sides segments on each, and Closed joins the last point back to the first. Count is how many points Line, Arc and Spiral write. Example: Path Line From 0, 0, 0 To 4, 0, 0 Count 8 Into [Rail], then Curve To Mesh along [Rail].',
+      'Writes a list of points to Into, for Curve To Mesh, Place At Points or PathAt. Shape Line (the default) walks from From to To. Arc turns around Center in the plane facing Normal, from Start by Sweep degrees, the same way as RotateVector around Normal; a negative Sweep turns the other way. Spiral also climbs Height along Normal while the radius moves from Radius to End Radius, for Turns of a rotation. From Points uses the corners in Points; Radius rounds those corners, with Sides segments on each, and Closed joins the last point back to the first. Count is how many points Line, Arc and Spiral write. Example: Path Line From 0, 0, 0 To 4, 0, 0 Count 8 Into [Rail], then Curve To Mesh along [Rail].',
     stops: [
       'A Shape other than Line, Arc, Spiral or From Points.',
       'A Count that is not a whole number from 2 to 10000, when Shape is Line, Arc or Spiral.',
@@ -283,8 +283,8 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
         'The kind of path: Line, Arc, Spiral or From Points.',
         [
           { word: 'Line', detail: 'A straight line from From to To' },
-          { word: 'Arc', detail: 'A circular arc around Centre' },
-          { word: 'Spiral', detail: 'A spiral or helix around Centre' },
+          { word: 'Arc', detail: 'A circular arc around Center' },
+          { word: 'Spiral', detail: 'A spiral or helix around Center' },
           { word: 'From Points', detail: 'The corners in Points, with optional rounding' },
         ],
       ),
@@ -299,7 +299,7 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
         ['Line'],
       ),
       solidScriptParameterWhen(
-        solidScriptParameter('center', 'Centre', 'vector3', '0, 0, 0', 'Middle of the arc or spiral, in metres.'),
+        solidScriptParameter('center', 'Center', 'vector3', '0, 0, 0', 'Middle of the arc or spiral, in metres.'),
         'shape',
         ['Arc', 'Spiral'],
       ),

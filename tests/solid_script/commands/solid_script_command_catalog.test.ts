@@ -202,7 +202,7 @@ describe('solid script command catalog', () => {
       expect(JSON.stringify(run({ command: id }, { command: 'cube' }, { command: 'end' }).shapes), id).toBe(plain);
   });
 
-  it('centres shapes on the origin by default', () => {
+  it('centers shapes on the origin by default', () => {
     for (const id of ['cube', 'cylinder', 'sphere']) {
       const [shape] = run({ command: id }).shapes;
       const points = shape?.kind === 'solid' ? shape.points : [];
@@ -259,7 +259,7 @@ describe('solid script command catalog', () => {
   it('lists every parameter with its value, for display', () => {
     expect(solidScriptCommandFind('cube')?.entries({ size: '2, 2, 2' })).toEqual([
       { key: 'size', label: 'Size', value: '2, 2, 2' },
-      { key: 'anchor', label: 'Anchor', value: 'Centre, Centre, Centre' },
+      { key: 'anchor', label: 'Anchor', value: 'Center, Center, Center' },
       { key: 'label', label: 'Name', value: '' },
       { key: 'into', label: 'Into', value: '' },
     ]);

@@ -70,13 +70,13 @@ describe('names ignore case', () => {
     expect(result.messages).toEqual(['10 10 3 3', '65 65', 'Yes Yes Yes']);
   });
 
-  it('reads members such as Face.Centre in any case', () => {
+  it('reads members such as Face.Center in any case', () => {
     const result = solidScriptProgramRun(
       solidScriptDocumentCreate([
         { command: 'cube', values: { size: '2, 2, 2' } },
         { command: 'select_faces', values: { which: 'Facing Up' } },
         { command: 'for_each', values: { variable: 'Face', list: '[$Selected.Faces]' } },
-        echo('[face.centre.y] [FACE.CENTRE.Y]'),
+        echo('[face.center.y] [FACE.CENTER.Y]'),
         { command: 'end' },
       ]),
     );

@@ -75,7 +75,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     category: 'Transforms',
     description: 'Turn brushes',
     manual:
-      'Turns every brush between this line and its End around the origin, first around X, then Y, then Z, in degrees. To turn a brush around its own middle, build it centred, or move it after turning it. Example: by 0, 90, 0 turns a box a quarter turn around the upright Y axis.',
+      'Turns every brush between this line and its End around the origin, first around X, then Y, then Z, in degrees. To turn a brush around its own middle, build it centered, or move it after turning it. Example: by 0, 90, 0 turns a box a quarter turn around the upright Y axis.',
     stops: ['A value that is not one number or three numbers separated by commas.', SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [solidScriptParameter('a', 'Angles', 'vector3', '0, 0, 0', 'Degrees around X, then Y, then Z.')],
@@ -304,7 +304,7 @@ export const SOLID_SCRIPT_COMMANDS_COMBINE: readonly SolidScriptCommand[] = [
     category: 'Combine',
     description: 'Keep only where brushes overlap',
     manual:
-      'Keeps only the space that every brush between this line and its End fills at the same time. Example: a Cube and a slightly larger Sphere, both centred, give a box with rounded corners.',
+      'Keeps only the space that every brush between this line and its End fills at the same time. Example: a Cube and a slightly larger Sphere, both centered, give a box with rounded corners.',
     stops: [SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [],

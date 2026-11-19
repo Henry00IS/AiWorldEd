@@ -38,7 +38,7 @@ describe('SolidScript Select Edges and Select Vertices', () => {
       printed(
         CUBE,
         line('select_vertices', { which: 'Where', detail: '[=[Vertex.Position.y] > 0]', into: 'Up' }),
-        line('echo', { value: '[Up.Count] [$Selected.Vertices.Count] [Up.Centre]' }),
+        line('echo', { value: '[Up.Count] [$Selected.Vertices.Count] [Up.Center]' }),
       ),
     ).toEqual(['4 4 [0, 1, 0]']);
     expect(

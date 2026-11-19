@@ -212,7 +212,7 @@ export function buildViewportToolFaceMenuEntries(actions: ViewportToolEditMenuAc
     createAction(
       'Poke Faces',
       '',
-      'Fan the selected mesh faces into triangles around a new centre vertex',
+      'Fan the selected mesh faces into triangles around a new center vertex',
       tool('poke_faces'),
     ),
     createAction(

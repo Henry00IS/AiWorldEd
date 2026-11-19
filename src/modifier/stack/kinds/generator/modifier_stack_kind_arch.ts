@@ -145,11 +145,11 @@ export class ModifierStackKindArch extends ModifierStackKindGenerator {
       type: 'choice',
       default: 'Centre',
       choices: modifierStackChoices([
-        ['Centre', 'Centre'],
+        ['Centre', 'Center'],
         ['Left', 'Left (on the ground)'],
         ['Right', 'Right (on the ground)'],
       ]),
-      hint: 'Where a sweep under 180° sits: centred on the crown, or rising from the left or right springing.',
+      hint: 'Where a sweep under 180° sits: centered on the crown, or rising from the left or right springing.',
       visible: modifierStackArchPartial,
     },
     {

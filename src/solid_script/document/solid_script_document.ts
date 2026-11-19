@@ -106,7 +106,7 @@ export function solidScriptDocumentCreate(lines: readonly SolidScriptLine[], nam
 
 /**
  * Returns the script a new generator starts with: a ball cut out of a cube,
- * both centred in the generator.
+ * both centered in the generator.
  *
  * @returns Script.
  */

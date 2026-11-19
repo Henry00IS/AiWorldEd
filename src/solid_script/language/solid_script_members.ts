@@ -16,7 +16,7 @@ import {
  * Members of a list of brushes, faces, edges or corners that read all of it at
  * once.
  */
-const SOLID_SCRIPT_MEMBERS_BOUNDS = ['Centre', 'Min', 'Max', 'Size', 'Extents'] as const;
+const SOLID_SCRIPT_MEMBERS_BOUNDS = ['Center', 'Min', 'Max', 'Size', 'Extents'] as const;
 
 /** Kinds whose lists also have bounds of the whole list. */
 const SOLID_SCRIPT_MEMBERS_GEOMETRY = ['Brush', 'Face', 'Edge', 'Vertex'] as const;
@@ -52,7 +52,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     Last: form('Last', 'Item'),
   },
   Bounds: {
-    Centre: form('Centres', 'Vector'),
+    Center: form('Centers', 'Vector'),
     Min: form('Mins', 'Vector'),
     Max: form('Maxes', 'Vector'),
     Size: form('Sizes', 'Vector'),
@@ -73,7 +73,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     Faces: form('Faces', 'Face List'),
     Edges: form('Edges', 'Edge List'),
     Vertices: form('Vertices', 'Vertex List'),
-    Centre: form('Centres', 'Vector'),
+    Center: form('Centers', 'Vector'),
     Min: form('Mins', 'Vector'),
     Max: form('Maxes', 'Vector'),
     Size: form('Sizes', 'Vector'),
@@ -81,7 +81,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     Data: form('Data', 'Data'),
   },
   Face: {
-    Centre: form('Centres', 'Vector'),
+    Center: form('Centers', 'Vector'),
     Normal: form('Normals', 'Vector'),
     Area: form('Areas', 'Number'),
     Width: form('Widths', 'Number'),
@@ -162,7 +162,7 @@ function solidScriptMemberDecl(kind: string, member: string): SolidScriptMemberD
 /**
  * Tells the kind of value a member gives, such as Vector for Face.Normal or
  * Vector List for Brush.Vertices.Positions. A list of geometry also has bounds
- * of the whole list under the singular names, such as Faces.Centre.
+ * of the whole list under the singular names, such as Faces.Center.
  *
  * @param type Kind of the value, such as Face or Face List.
  * @param member Member as typed, in any case.
@@ -267,7 +267,7 @@ export function solidScriptMemberVector(vector: THREE.Vector3): SolidScriptValue
 }
 
 /**
- * Reads a member of a value, such as .Count of a list, .Centre of a face or a
+ * Reads a member of a value, such as .Count of a list, .Center of a face or a
  * key under .Data.
  *
  * @param value Value the member is read from.
@@ -359,12 +359,12 @@ function solidScriptMemberList(
  * Reads a bounds member of a box.
  *
  * @param bounds Box around the points.
- * @param member Centre, Min, Max, Size or Extents, folded.
+ * @param member Center, Min, Max, Size or Extents, folded.
  * @returns Vector.
  */
 function solidScriptMemberBounds(bounds: THREE.Box3, member: string): SolidScriptValue {
   switch (solidScriptNameKey(member)) {
-    case 'centre':
+    case 'center':
       return solidScriptMemberVector(bounds.getCenter(new THREE.Vector3()));
     case 'min':
       return solidScriptMemberVector(bounds.min);
@@ -485,7 +485,7 @@ function solidScriptMemberFace(
     return Math.max(...along) - Math.min(...along);
   };
   switch (member) {
-    case 'centre': {
+    case 'center': {
       const center = new THREE.Vector3();
       for (const face of pieces) center.addScaledVector(face.center, area > 0 ? face.area / area : 1 / pieces.length);
       return solidScriptMemberVector(center);

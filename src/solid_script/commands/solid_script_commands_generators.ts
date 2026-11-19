@@ -46,6 +46,60 @@ function solidScriptGeneratorFields(kind: ModifierStackKindGenerator): ModifierS
 }
 
 /**
+ * Script word for a generator choice: the inspector label when that label is
+ * only the Center spelling of the stored value, otherwise the stored value.
+ *
+ * @param choice Inspector choice.
+ * @returns Word a script writes.
+ */
+function solidScriptGeneratorChoiceWord(choice: { value: string; label: string }): string {
+  return choice.label === choice.value.replaceAll('Centre', 'Center') ? choice.label : choice.value;
+}
+
+/**
+ * Lists a generator field's script choice words, with longer inspector labels
+ * in parentheses when they differ.
+ *
+ * @param field Generator field.
+ * @returns Comma-separated list.
+ */
+function solidScriptGeneratorChoiceList(field: ModifierStackField): string {
+  return (field.choices ?? [])
+    .map((choice) => {
+      const word = solidScriptGeneratorChoiceWord(choice);
+      return word === choice.label ? word : `${word} (${choice.label})`;
+    })
+    .join(', ');
+}
+
+/**
+ * Describes a generator choice field, using inspector display words.
+ *
+ * @param field Generator choice field.
+ * @param hint Field hint.
+ * @returns Script field.
+ */
+function solidScriptGeneratorChoiceParameter(field: ModifierStackField, hint: string): SolidScriptCommandParameter {
+  const words = (field.choices ?? []).map(solidScriptGeneratorChoiceWord);
+  const fallback =
+    words[(field.choices ?? []).findIndex((choice) => choice.value === field.default)] ?? String(field.default);
+  return {
+    ...solidScriptParameter(
+      field.key,
+      field.label,
+      'message',
+      fallback,
+      `${hint} One of: ${solidScriptGeneratorChoiceList(field)}.`,
+    ),
+    words: (field.choices ?? []).map((choice) => ({
+      word: solidScriptGeneratorChoiceWord(choice),
+      detail: choice.label,
+    })),
+    accepts: SOLID_SCRIPT_WORDS_ACCEPTS,
+  };
+}
+
+/**
  * Describes a generator field as a script field under the same key and label.
  *
  * @param field Generator field.
@@ -55,14 +109,7 @@ function solidScriptGeneratorParameter(field: ModifierStackField): SolidScriptCo
   const hint = field.hint ?? field.label;
   if (field.type === 'boolean')
     return solidScriptParameter(field.key, field.label, 'boolean', field.default === true ? 'Yes' : 'No', hint);
-  if (field.type === 'choice') {
-    const choices = (field.choices ?? []).map((choice) => `${choice.value} (${choice.label})`).join(', ');
-    return {
-      ...solidScriptParameter(field.key, field.label, 'message', String(field.default), `${hint} One of: ${choices}.`),
-      words: (field.choices ?? []).map((choice) => ({ word: choice.value, detail: choice.label })),
-      accepts: SOLID_SCRIPT_WORDS_ACCEPTS,
-    };
-  }
+  if (field.type === 'choice') return solidScriptGeneratorChoiceParameter(field, hint);
   const range = field.min !== undefined && field.max !== undefined ? ` From ${field.min} to ${field.max}.` : '';
   const type = field.integer ? 'count' : 'number';
   return solidScriptParameter(field.key, field.label, type, String(field.default), `${hint}${range}`);
@@ -80,9 +127,10 @@ function solidScriptGeneratorValue(args: SolidScriptBlockArguments, field: Modif
   if (field.type === 'boolean') return args.flag(field.key);
   if (field.type === 'choice') {
     const text = solidScriptValueText(args.value(field.key));
-    const values = (field.choices ?? []).map((choice) => choice.value);
-    if (!values.includes(text)) throw args.error(field.key, `must be one of ${values.join(', ')}`, text);
-    return text;
+    const choice = (field.choices ?? []).find((entry) => solidScriptGeneratorChoiceWord(entry) === text);
+    const words = (field.choices ?? []).map(solidScriptGeneratorChoiceWord);
+    if (!choice) throw args.error(field.key, `must be one of ${words.join(', ')}`, text);
+    return choice.value;
   }
   const number = solidScriptValueNumber(args.value(field.key));
   if (number === undefined) throw args.error(field.key, 'must be a number', args.value(field.key));
@@ -106,7 +154,7 @@ function solidScriptGeneratorCommand(kind: ModifierStackKindGenerator): SolidScr
     label: kind.label,
     category: 'Generators',
     description: `Build a ${kind.label.toLowerCase()} like the generator`,
-    manual: `${kind.description} The script block fills a box of the given width (X), height (Y) and depth (Z) in metres, centred on the origin; Anchor picks another spot of the box, such as Centre, Bottom, Centre to stand it on the origin. Its other fields are the ones the ${kind.label} generator shows in the inspector, with the same names, so a script can change them with variables and formulas. Textures come from the generator holding the script. Example: a ${kind.label} block with Size 2, 3, 2 fills a box two metres wide and three metres tall around the origin.`,
+    manual: `${kind.description} The script block fills a box of the given width (X), height (Y) and depth (Z) in metres, centered on the origin; Anchor picks another spot of the box, such as Center, Bottom, Center to stand it on the origin. Its other fields are the ones the ${kind.label} generator shows in the inspector, with the same names, so a script can change them with variables and formulas. Textures come from the generator holding the script. Example: a ${kind.label} block with Size 2, 3, 2 fills a box two metres wide and three metres tall around the origin.`,
     stops: [
       'A size of 0 or less on any axis.',
       'A number outside the range its field allows, or a count with decimals.',

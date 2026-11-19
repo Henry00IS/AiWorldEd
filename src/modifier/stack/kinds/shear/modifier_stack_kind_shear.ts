@@ -92,9 +92,9 @@ const MODIFIER_STACK_SHEAR_FIELDS: readonly ModifierStackField[] = [
     type: 'choice',
     default: 'Centre Of Whole Input',
     choices: modifierStackChoices([
-      ['Centre Of Whole Input', 'Centre Of Whole Input'],
-      ['Centre Of Each Piece', 'Centre Of Each Piece'],
-      ['Volume Centre', 'Volume Centre'],
+      ['Centre Of Whole Input', 'Center Of Whole Input'],
+      ['Centre Of Each Piece', 'Center Of Each Piece'],
+      ['Volume Centre', 'Volume Center'],
     ]),
     hint: 'Where the slide is zero.',
   },

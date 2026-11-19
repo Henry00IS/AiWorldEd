@@ -34,7 +34,7 @@ export class ModifierStackKindArrayTransform extends ModifierStackKindArray {
       hint: 'Degrees each copy turns from the previous one around this axis.',
     }),
     ...modifierStackVectorFields('pivot', 'Pivot', [0, 0, 0], {
-      hint: 'Point each copy turns around, in metres from the volume centre along this axis.',
+      hint: 'Point each copy turns around, in metres from the volume center along this axis.',
       group: 'Pivot',
       visible: (parameters) => modifierStackVector(parameters, 'rotation').lengthSq() > 1e-12,
     }),

@@ -57,7 +57,7 @@ function firstNormal(mesh: SolidScriptShapeMesh): number[] | null {
 }
 
 describe('SolidScript Grid Mesh', () => {
-  it('builds a ground grid centred on the origin, facing up', () => {
+  it('builds a ground grid centered on the origin, facing up', () => {
     const mesh = grid({ size: '2, 0, 2', columns: '1', rows: '1' });
     if (typeof mesh === 'string') throw new Error(mesh);
     expect(mesh.points.map(xyz).sort((left, right) => left.join().localeCompare(right.join()))).toEqual([
@@ -77,7 +77,7 @@ describe('SolidScript Grid Mesh', () => {
   });
 
   it('stands a wall on the origin and subdivides it', () => {
-    const mesh = grid({ size: '2, 2, 0', columns: '2', rows: '1', anchor: 'Left, Bottom, Centre' });
+    const mesh = grid({ size: '2, 2, 0', columns: '2', rows: '1', anchor: 'Left, Bottom, Center' });
     if (typeof mesh === 'string') throw new Error(mesh);
     expect(mesh.points).toHaveLength(6);
     expect(mesh.faces).toHaveLength(2);

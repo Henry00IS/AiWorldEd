@@ -196,7 +196,7 @@ export class SolidScriptEditor extends PanelFloating {
 
   /**
    * Places the window where it was last left, at its remembered size, or near
-   * the top centre of the screen the first time.
+   * the top center of the screen the first time.
    */
   protected override onAfterShow(): void {
     const remembered = this.bounds.read();

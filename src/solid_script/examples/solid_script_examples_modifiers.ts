@@ -74,7 +74,7 @@ function solidScriptExampleInputBrushes(index: string, readable = false): SolidS
 /** Port of the Shear modifier. */
 export const SOLID_SCRIPT_EXAMPLE_SHEAR: readonly SolidScriptLine[] = [
   solidScriptExampleNote(
-    'Shear: slides the brushes it receives along one axis, more the further they are from their centre along another.',
+    'Shear: slides the brushes it receives along one axis, more the further they are from their center along another.',
   ),
   solidScriptExampleInput('Axis', 'Choice', 'X', { label: 'Shear Axis', choices: 'X, Y, Z' }),
   solidScriptExampleInput('Along', 'Choice', 'Y', { label: 'Along', choices: 'X, Y, Z' }),
@@ -85,9 +85,9 @@ export const SOLID_SCRIPT_EXAMPLE_SHEAR: readonly SolidScriptLine[] = [
   ...solidScriptExampleShowWhen('Mode', 'Factor', [
     solidScriptExampleInput('Factor', 'Number', '0.5', { label: 'Factor', min: '-10', max: '10' }),
   ]),
-  solidScriptExampleInput('Pivot', 'Choice', 'Centre Of Whole Input', {
+  solidScriptExampleInput('Pivot', 'Choice', 'Center Of Whole Input', {
     label: 'Pivot',
-    choices: 'Centre Of Whole Input, Centre Of Each Piece, Volume Centre',
+    choices: 'Center Of Whole Input, Center Of Each Piece, Volume Center',
   }),
   solidScriptExampleInput('Space', 'Choice', 'Volume', { label: 'Axes', choices: 'Volume, World' }),
   ...solidScriptExampleTextures('Move With Shape'),
@@ -102,8 +102,8 @@ export const SOLID_SCRIPT_EXAMPLE_SHEAR: readonly SolidScriptLine[] = [
       solidScriptExampleSet('Shear', '[=[Mode] == "Factor" ? [Factor] : Tan([Angle])]'),
       solidScriptExampleSet('Slide', `[=(${solidScriptExampleAxis('Axis').slice(2, -1)}) * [Shear]]`),
       solidScriptExampleSet('Measure', solidScriptExampleAxis('Along')),
-      solidScriptExampleNote('Each point moves by Slide times its distance from the centre along Measure.'),
-      solidScriptExampleSet('Shift', '[=[Slide] * -Dot([Measure], [$Input.Centre])]'),
+      solidScriptExampleNote('Each point moves by Slide times its distance from the center along Measure.'),
+      solidScriptExampleSet('Shift', '[=[Slide] * -Dot([Measure], [$Input.Center])]'),
       ...solidScriptExampleBlock(
         'matrix',
         {
@@ -171,7 +171,7 @@ function solidScriptExampleSide(name: string): string {
   return `[=${pick('Right', '1, 0, 0')}${pick('Left', '-1, 0, 0')}${pick('Up', '0, 1, 0')}${pick('Down', '0, -1, 0')}${pick('Front', '0, 0, 1')}Vector(0, 0, -1)]`;
 }
 
-/** Port of the Radial Array modifier (whole input as the centre). */
+/** Port of the Radial Array modifier (whole input as the center). */
 export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
   solidScriptExampleNote(
     'Radial Array: repeats the brushes it receives around an axis, measured from the whole input.',
@@ -194,8 +194,8 @@ export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
   ]),
   ...solidScriptExampleShowWhen('Origin', 'On The Ring', [
     solidScriptExampleInput('Radius', 'Number', '2', { label: 'Radius', min: '0' }),
-    solidScriptExampleInput('CentreSide', 'Choice', 'Back', {
-      label: 'Ring Centre',
+    solidScriptExampleInput('CenterSide', 'Choice', 'Back', {
+      label: 'Ring Center',
       choices: 'Back, Front, Left, Right, Down, Up',
     }),
   ]),
@@ -206,7 +206,7 @@ export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
   solidScriptExampleInput('Rise', 'Number', '0', { label: 'Rise per Step' }),
   solidScriptExampleInput('RotateCopies', 'Switch', 'Yes', { label: 'Rotate Copies' }),
   solidScriptExampleInput('Bounds', 'Choice', 'Whole Input', {
-    label: 'Centre From',
+    label: 'Center From',
     choices: 'Whole Input, Each Piece',
   }),
   ...solidScriptExampleInputGroup('Pivot', [
@@ -216,7 +216,7 @@ export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
   ]),
   solidScriptExampleSet('Pivot', '[=Vector([PivotX], [PivotY], [PivotZ])]'),
   solidScriptExampleSet('K', solidScriptExampleAxis('Axis')),
-  solidScriptExampleSet('Centre', '[$Input.Centre]'),
+  solidScriptExampleSet('Center', '[$Input.Center]'),
   solidScriptExampleNote('The angle between copies: a full ring, an arc or a fixed step.'),
   solidScriptExampleSet('Turn', '[=360 / [Count]]'),
   ...solidScriptExampleIf('[Mode] == "Angle Step"', [solidScriptExampleSet('Turn', '[Step]')]),
@@ -224,7 +224,7 @@ export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
   solidScriptExampleNote(
     'Around is the point the copies turn about, Push moves them off the axis, First is the first angle.',
   ),
-  solidScriptExampleSet('Around', '[Centre]'),
+  solidScriptExampleSet('Around', '[Center]'),
   solidScriptExampleSet('Push', '[=Vector(0, 0, 0)]'),
   solidScriptExampleSet('First', '0'),
   solidScriptExampleSet('Side', '[K]'),
@@ -232,18 +232,18 @@ export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
   ...solidScriptExampleIf(
     '[Origin] == "On The Ring"',
     [
-      solidScriptExampleNote('The ring centre lies Radius away on the chosen side, across the axis.'),
-      solidScriptExampleSet('Side', solidScriptExampleSide('CentreSide')),
+      solidScriptExampleNote('The ring center lies Radius away on the chosen side, across the axis.'),
+      solidScriptExampleSet('Side', solidScriptExampleSide('CenterSide')),
       solidScriptExampleSet('Side', '[=[Side] - [K] * Dot([Side], [K])]'),
       ...solidScriptExampleIf('[=Dot([Side], [Side]) < 1e-12]', [
         solidScriptExampleSet('Side', '[=[Axis] == "Z" ? Vector(0, -1, 0) : Vector(0, 0, -1)]'),
       ]),
-      solidScriptExampleSet('Around', '[=[Centre] + Normalize([Side]) * [Radius]]'),
+      solidScriptExampleSet('Around', '[=[Center] + Normalize([Side]) * [Radius]]'),
     ],
     [
       solidScriptExampleNote('Around the pivot: copies start at Start ° and move Radius Offset away from the axis.'),
       solidScriptExampleSet('Around', '[Pivot]'),
-      solidScriptExampleSet('Out', '[=[Centre] - [Around]]'),
+      solidScriptExampleSet('Out', '[=[Center] - [Around]]'),
       solidScriptExampleSet('Out', '[=[Out] - [K] * Dot([Out], [K])]'),
       ...solidScriptExampleIf('[=Dot([Out], [Out]) < 1e-12]', [
         solidScriptExampleSet('Out', '[=[Axis] == "Y" ? Vector(1, 0, 0) : Vector(0, 1, 0)]'),
@@ -293,10 +293,10 @@ export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
           ),
         ],
         [
-          solidScriptExampleNote('Rotate Copies off: only the centre moves, the brushes keep their turn.'),
+          solidScriptExampleNote('Rotate Copies off: only the center moves, the brushes keep their turn.'),
           solidScriptExampleSet(
             'Delta',
-            '[=Vector(Dot([R1], [Centre]), Dot([R2], [Centre]), Dot([R3], [Centre])) + [Move] - [Centre]]',
+            '[=Vector(Dot([R1], [Center]), Dot([R2], [Center]), Dot([R3], [Center])) + [Move] - [Center]]',
           ),
           ...solidScriptExampleBlock('translate', { v: '[Delta]' }, [solidScriptExampleInputBrushes('[I]')]),
         ],
@@ -375,9 +375,9 @@ export const SOLID_SCRIPT_EXAMPLE_MIRROR: readonly SolidScriptLine[] = [
   solidScriptExampleNote('Mirror: adds a reflected copy of the brushes it receives across a plane.'),
   ...solidScriptExampleArrayInputs('Move With Copy', false),
   solidScriptExampleInput('Axis', 'Choice', 'X', { label: 'Axis', choices: 'X, Y, Z' }),
-  solidScriptExampleInput('Plane', 'Choice', 'Volume Centre', {
+  solidScriptExampleInput('Plane', 'Choice', 'Volume Center', {
     label: 'Plane',
-    choices: 'Volume Centre, Negative Side, Positive Side',
+    choices: 'Volume Center, Negative Side, Positive Side',
   }),
   solidScriptExampleInput('PlaneOffset', 'Number', '0', { label: 'Offset' }),
   solidScriptExampleInput('Bisect', 'Switch', 'No', { label: 'Bisect' }),
@@ -386,8 +386,8 @@ export const SOLID_SCRIPT_EXAMPLE_MIRROR: readonly SolidScriptLine[] = [
     solidScriptExampleInput('Readable', 'Switch', 'Yes', { label: 'Readable Text' }),
   ]),
   solidScriptExampleSet('K', solidScriptExampleAxis('Axis')),
-  solidScriptExampleNote('The plane runs through the centre or touches a side, then moves by Offset along its axis.'),
-  solidScriptExampleSet('D', '[=Dot([$Input.Centre], [K]) + [PlaneOffset]]'),
+  solidScriptExampleNote('The plane runs through the center or touches a side, then moves by Offset along its axis.'),
+  solidScriptExampleSet('D', '[=Dot([$Input.Center], [K]) + [PlaneOffset]]'),
   solidScriptExampleSet('Half', '[=Abs(Dot([$Input.Size], [K])) / 2]'),
   ...solidScriptExampleIf('[Plane] == "Negative Side"', [solidScriptExampleSet('D', '[=[D] - [Half]]')]),
   ...solidScriptExampleIf('[Plane] == "Positive Side"', [solidScriptExampleSet('D', '[=[D] + [Half]]')]),

@@ -21,7 +21,7 @@ import {
   solidScriptFaceUvMatrix,
   solidScriptFaceUvRecord,
   solidScriptFaceUvsFit,
-  solidScriptLeafCentre,
+  solidScriptLeafCenter,
   solidScriptMeshFaceUvsWrite,
   solidScriptSolidFaceUvsWrite,
 } from '@/solid_script/language/solid_script_uvs.js';
@@ -56,7 +56,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Give faces texture coordinates from a box, plane, cylinder or sphere',
     manual:
-      "Gives faces texture coordinates projected from a Mode: Box (the same Axis views as Bevel: Overhead, Front or Side, picked from the way the face looks), Planar (one plane, From Face, Overhead, Front or Side), Cylinder or Sphere. Size is metres of one texture repeat. Space is Local (from the shape's centre, so a move keeps the mapping) or World (from the script origin, the same World axes as Bevel). Cylinder and Sphere take Axis and an optional Centre (empty uses the shape's centre); a brush face gets a fitted planar map, a mesh face gets exact corner coordinates. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. Brushes stay brushes; meshes stay meshes. Example: Cube, Select Faces, Project UVs Mode Box Size 1 wraps each side from the way it faces.",
+      "Gives faces texture coordinates projected from a Mode: Box (the same Axis views as Bevel: Overhead, Front or Side, picked from the way the face looks), Planar (one plane, From Face, Overhead, Front or Side), Cylinder or Sphere. Size is metres of one texture repeat. Space is Local (from the shape's center, so a move keeps the mapping) or World (from the script origin, the same World axes as Bevel). Cylinder and Sphere take Axis and an optional Center (empty uses the shape's center); a brush face gets a fitted planar map, a mesh face gets exact corner coordinates. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. Brushes stay brushes; meshes stay meshes. Example: Cube, Select Faces, Project UVs Mode Box Size 1 wraps each side from the way it faces.",
     stops: [
       'No faces.',
       'A Size of 0 or less.',
@@ -69,7 +69,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
         { word: 'Box', detail: "Each face uses the closest of Bevel's Overhead, Front and Side views" },
         { word: 'Planar', detail: 'Every face uses one plane' },
         { word: 'Cylinder', detail: 'Around an axis, height along it' },
-        { word: 'Sphere', detail: 'Around a centre, from the +axis pole' },
+        { word: 'Sphere', detail: 'Around a center, from the +axis pole' },
       ]),
       solidScriptParameter('size', 'Size', 'number', '1', 'Metres covered by one texture repeat.'),
       solidScriptParameterWhen(
@@ -80,7 +80,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
           'Local',
           'Local follows the shape; World stays fixed to the script, as in Bevel.',
           [
-            { word: 'Local', detail: 'Follows the shape, from its centre' },
+            { word: 'Local', detail: 'Follows the shape, from its center' },
             { word: 'World', detail: 'Stays fixed to the script origin' },
           ],
         ),
@@ -105,9 +105,9 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
       solidScriptParameterWhen(
         solidScriptParameterOptional(
           'center',
-          'Centre',
+          'Center',
           'vector3',
-          "A point on the axis, or the sphere centre; empty uses the shape's centre.",
+          "A point on the axis, or the sphere center; empty uses the shape's center.",
         ),
         'mode',
         ['Cylinder', 'Sphere'],
@@ -171,14 +171,14 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Move, scale or rotate texture coordinates',
     manual:
-      "Offsets, scales and rotates the UV mapping of the faces in UV space. Offset is added after Scale and Rotate. Pivot is Centre (the middle of the faces' UVs), Tile (the middle of the texture tile under that centre, as in Bevel) or Origin (0, 0). Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. Brushes stay brushes; meshes stay meshes. Example: Project UVs, then Transform UVs Offset 0.5, 0 Rotate 90.",
-    stops: ['No faces.', 'A Pivot other than Centre, Tile or Origin.'],
+      "Offsets, scales and rotates the UV mapping of the faces in UV space. Offset is added after Scale and Rotate. Pivot is Center (the middle of the faces' UVs), Tile (the middle of the texture tile under that center, as in Bevel) or Origin (0, 0). Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. Brushes stay brushes; meshes stay meshes. Example: Project UVs, then Transform UVs Offset 0.5, 0 Rotate 90.",
+    stops: ['No faces.', 'A Pivot other than Center, Tile or Origin.'],
     parameters: [
       solidScriptParameter('offset', 'Offset', 'vector3', '0, 0, 0', 'Added to U and V; Z is ignored.'),
       solidScriptParameter('scale', 'Scale', 'vector3', '1, 1, 1', 'Multiplier of U and V; Z is ignored.'),
       solidScriptParameter('rotate', 'Rotate', 'number', '0', 'Rotation around the pivot, in degrees.'),
-      solidScriptParameterWords('pivot', 'Pivot', 'text', 'Centre', 'The point Scale and Rotate turn about.', [
-        { word: 'Centre', detail: "The middle of the faces' UVs" },
+      solidScriptParameterWords('pivot', 'Pivot', 'text', 'Center', 'The point Scale and Rotate turn about.', [
+        { word: 'Center', detail: "The middle of the faces' UVs" },
         { word: 'Tile', detail: 'The middle of the texture tile, as in Bevel' },
         { word: 'Origin', detail: 'U 0, V 0' },
       ]),
@@ -278,12 +278,12 @@ function solidScriptUvsOrigin(run: SolidScriptBlockRun, mode: string, leaf: Soli
   const folded = mode.toLowerCase();
   if (folded === 'cylinder' || folded === 'sphere') {
     const text = solidScriptValueText(run.value('center')).trim();
-    return text === '' ? solidScriptLeafCentre(leaf) : solidScriptUvsVector(run, 'center', [0, 0, 0], 'Centre');
+    return text === '' ? solidScriptLeafCenter(leaf) : solidScriptUvsVector(run, 'center', [0, 0, 0], 'Center');
   }
   const space = solidScriptValueText(run.value('space')).trim() || 'Local';
   if (space.toLowerCase() === 'world') return new THREE.Vector3();
   if (space.toLowerCase() !== 'local') throw new Error(`Space must be Local or World, not ${space}`);
-  return solidScriptLeafCentre(leaf);
+  return solidScriptLeafCenter(leaf);
 }
 
 /**
@@ -340,7 +340,7 @@ function solidScriptUvsPlanar(
  * @param run Running line.
  * @param mode Cylinder or sphere, folded.
  * @param size Metres per repeat.
- * @param origin Centre.
+ * @param origin Center.
  * @returns Projector.
  */
 function solidScriptUvsRadialProject(
@@ -364,7 +364,7 @@ function solidScriptUvsRadialProject(
  * @param face Face facts.
  * @param mode Cylinder or sphere, folded.
  * @param size Metres per repeat.
- * @param origin Centre.
+ * @param origin Center.
  * @returns Fitted matrix.
  */
 function solidScriptUvsRadial(
@@ -584,7 +584,7 @@ function solidScriptUvsTransformSolid(
  * Reads Offset, Scale, Rotate and Pivot for Transform UVs.
  *
  * @param run Running line.
- * @param faces Faces, for the Centre and Tile pivots.
+ * @param faces Faces, for the Center and Tile pivots.
  * @returns Transform.
  */
 function solidScriptUvsTransformValues(
@@ -610,18 +610,18 @@ function solidScriptUvsTransformValues(
  * Reads the UV pivot of Transform UVs.
  *
  * @param run Running line.
- * @param faces Faces, for Centre and Tile.
+ * @param faces Faces, for Center and Tile.
  * @returns Pivot U and V.
  */
 function solidScriptUvsPivot(run: SolidScriptBlockRun, faces: readonly SolidScriptFaceFacts[]): [number, number] {
-  const pivot = solidScriptValueText(run.value('pivot')).trim() || 'Centre';
+  const pivot = solidScriptValueText(run.value('pivot')).trim() || 'Center';
   const folded = pivot.toLowerCase();
   if (folded === 'origin') return [0, 0];
   const uvs = faces.flatMap((face) => solidScriptFaceCornerUvs(face));
   if (uvs.length === 0) return [0, 0];
   const midU = uvs.reduce((sum, uv) => sum + uv[0], 0) / uvs.length;
   const midV = uvs.reduce((sum, uv) => sum + uv[1], 0) / uvs.length;
-  if (folded === 'centre') return [midU, midV];
+  if (folded === 'center') return [midU, midV];
   if (folded === 'tile') return [Math.floor(midU) + 0.5, Math.floor(midV) + 0.5];
-  throw new Error(`Pivot must be Centre, Tile or Origin, not ${pivot}`);
+  throw new Error(`Pivot must be Center, Tile or Origin, not ${pivot}`);
 }

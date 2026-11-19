@@ -80,7 +80,7 @@ describe('SolidScript faces', () => {
     expect(heightRange(all[1]!)).toEqual([1, 1.1]);
   });
 
-  it('sits a shape flush on a face and centred on it with Anchor Centre, Bottom, Centre', () => {
+  it('sits a shape flush on a face and centered on it with Anchor Center, Bottom, Center', () => {
     const placed = (side: string, anchorText: string) => {
       const result = run(
         CUBE,
@@ -97,14 +97,14 @@ describe('SolidScript faces', () => {
       return { min: round(box.min), max: round(box.max) };
     };
     // On the top: standing on it, its middle over the face middle.
-    expect(placed('Facing Up', 'Centre, Bottom, Centre')).toEqual({ min: [-0.25, 1, -0.25], max: [0.25, 1.2, 0.25] });
-    // On the front: flush against it, out along Z, still centred.
-    expect(placed('Facing Front', 'Centre, Bottom, Centre')).toEqual({
+    expect(placed('Facing Up', 'Center, Bottom, Center')).toEqual({ min: [-0.25, 1, -0.25], max: [0.25, 1.2, 0.25] });
+    // On the front: flush against it, out along Z, still centered.
+    expect(placed('Facing Front', 'Center, Bottom, Center')).toEqual({
       min: [-0.25, -0.25, 1],
       max: [0.25, 0.25, 1.2],
     });
-    // Centred halfway into the face.
-    expect(placed('Facing Up', 'Centre, Centre, Centre')).toEqual({ min: [-0.25, 0.9, -0.25], max: [0.25, 1.1, 0.25] });
+    // Centerd halfway into the face.
+    expect(placed('Facing Up', 'Center, Center, Center')).toEqual({ min: [-0.25, 0.9, -0.25], max: [0.25, 1.1, 0.25] });
   });
 
   it('nests Select Faces: a round picks faces of what it built, and the outer pick comes back after', () => {
@@ -116,12 +116,12 @@ describe('SolidScript faces', () => {
       { command: 'cube', values: { size: '0.5, 0.5, 0.5', anchor: 'Left, Bottom, Back' } },
       select('All'),
       EACH_FACE,
-      { command: 'echo', values: { value: 'inner [Face.Centre]' } },
+      { command: 'echo', values: { value: 'inner [Face.Center]' } },
       END,
       END,
       END,
       EACH_FACE,
-      { command: 'echo', values: { value: 'outer [Face.Centre]' } },
+      { command: 'echo', values: { value: 'outer [Face.Center]' } },
       END,
     );
     expect(result.error).toBeNull();
@@ -221,7 +221,7 @@ describe('SolidScript faces', () => {
       CUBE,
       select('Facing Up'),
       EACH_FACE,
-      { command: 'echo', values: { value: '[Face.Area] [Face.Centre] [Face.Normal]' } },
+      { command: 'echo', values: { value: '[Face.Area] [Face.Center] [Face.Normal]' } },
       END,
     );
     expect(result.error).toBeNull();
@@ -239,7 +239,7 @@ describe('SolidScript faces', () => {
     expect(count(select('All'), select('Tagged', { detail: 'Side', how: 'Remove' }))).toBe(2);
     expect(count(select('Biggest', { detail: '3' }))).toBe(3);
     expect(count(select('Number', { detail: '0, 2' }))).toBe(2);
-    expect(count(select('Where', { detail: '[=[Face.Centre(2)] > 0.5]' }))).toBe(1);
+    expect(count(select('Where', { detail: '[=[Face.Center(2)] > 0.5]' }))).toBe(1);
     expect(count(select('Facing', { detail: '1, 0, 0' }))).toBe(1);
   });
 

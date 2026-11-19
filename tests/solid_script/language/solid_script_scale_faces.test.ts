@@ -46,7 +46,7 @@ function solidPoints(...lines: SolidScriptLine[]): number[][] | string {
 }
 
 describe('SolidScript Scale Faces', () => {
-  it('leaves a face as it is at Factor 1, and shrinks a top face toward its centre', () => {
+  it('leaves a face as it is at Factor 1, and shrinks a top face toward its center', () => {
     const pick = { command: 'select_faces', values: { which: 'Facing Up' } };
     expect(solidPoints(CUBE, pick, { command: 'scale_faces', values: { factor: '1' } })).toEqual(solidPoints(CUBE));
     expect(solidPoints(CUBE, pick, { command: 'scale_faces', values: { factor: '0.5' } })).toEqual(

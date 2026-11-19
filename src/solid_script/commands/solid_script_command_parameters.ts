@@ -117,7 +117,7 @@ export function solidScriptParameterOptional(
 
 /**
  * The Anchor of a shape: the spot of its box that sits on the origin, one word
- * per axis, such as Centre, Bottom, Back for a shape standing on the origin
+ * per axis, such as Center, Bottom, Back for a shape standing on the origin
  * with its back on it.
  *
  * @param axes Axes it sets.
@@ -133,7 +133,7 @@ export function solidScriptParameterAnchor(axes: readonly SolidScriptAnchorAxis[
       'Anchor',
       'message',
       solidScriptAnchorDefault(axes),
-      `The spot of the brush that sits on the origin, the centre of the generator: ${words.join(', ')}.`,
+      `The spot of the brush that sits on the origin, the center of the generator: ${words.join(', ')}.`,
     ),
     anchor: axes,
     accepts: ['Text', 'Text List'],

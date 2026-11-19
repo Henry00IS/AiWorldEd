@@ -21,7 +21,7 @@ export const MODIFIER_STACK_MIRROR_BISECT_EMPTY =
 export class ModifierStackKindArrayMirror extends ModifierStackKindArray {
   readonly id = 'mirror';
   readonly label = 'Mirror';
-  readonly description = 'Adds a reflected copy across the volume centre or one of its sides. Winding stays outward.';
+  readonly description = 'Adds a reflected copy across the volume center or one of its sides. Winding stays outward.';
   protected override readonly fixedCount = 2;
   protected readonly specificFields: readonly ModifierStackField[] = [
     {
@@ -39,11 +39,11 @@ export class ModifierStackKindArrayMirror extends ModifierStackKindArray {
     {
       key: 'plane',
       label: 'Plane',
-      hint: 'Where the mirror plane sits: through the volume centre, or on its negative or positive face along the axis.',
+      hint: 'Where the mirror plane sits: through the volume center, or on its negative or positive face along the axis.',
       type: 'choice',
       default: 'Volume Centre',
       choices: modifierStackChoices([
-        ['Volume Centre', 'Volume Centre'],
+        ['Volume Centre', 'Volume Center'],
         ['Negative Side', 'Negative Side'],
         ['Positive Side', 'Positive Side'],
       ]),
@@ -61,7 +61,7 @@ export class ModifierStackKindArrayMirror extends ModifierStackKindArray {
       label: 'Bisect',
       type: 'boolean',
       default: false,
-      hint: 'Cuts the captured brushes at the mirror plane (the pink guide while the volume or generator is selected and this card is unfolded), drops the part on the far side and mirrors the rest, so the halves meet without overlap. Brushes wholly on the far side disappear. Keeps the positive side of the centre plane, or the inside of a side plane.',
+      hint: 'Cuts the captured brushes at the mirror plane (the pink guide while the volume or generator is selected and this card is unfolded), drops the part on the far side and mirrors the rest, so the halves meet without overlap. Brushes wholly on the far side disappear. Keeps the positive side of the center plane, or the inside of a side plane.',
     },
     {
       key: 'flip',

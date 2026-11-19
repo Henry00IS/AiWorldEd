@@ -40,7 +40,7 @@ describe('solidScriptFieldTokens', () => {
   });
 
   it('tells Local, Persistent and built-in names apart and keeps escapes plain', () => {
-    expect(pieces('[Local.Width] [Persistent.Presses] [Face.Centre.x] $[x$] 12')).toEqual([
+    expect(pieces('[Local.Width] [Persistent.Presses] [Face.Center.x] $[x$] 12')).toEqual([
       'bracket:[',
       'local:Local.Width',
       'bracket:]',
@@ -48,7 +48,7 @@ describe('solidScriptFieldTokens', () => {
       'persistent:Persistent.Presses',
       'bracket:]',
       'bracket:[',
-      'name:Face.Centre.x',
+      'name:Face.Center.x',
       'bracket:]',
       'text: $[x$] ',
       'number:12',

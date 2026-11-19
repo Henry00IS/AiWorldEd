@@ -14,7 +14,7 @@ import { SOLID_SCRIPT_REFERENCE_SUMMARY } from '@/solid_script/reference/solid_s
 const MCP_GEOMETRY_SCRIPT_LINES = {
   type: 'array',
   description:
-    'The script as block lines, in order, exactly like the script editor: there is no code text. Blocks such as translate, difference or repeat hold the lines up to their {command: "end"}; {command: "blank"} is an empty line. Shapes are centred on the origin, the centre of the generator (or the build position), so no Translate is needed to place them. Example of a wall with a doorway: [{command: "difference"}, {command: "cube", values: {size: "4, 0.2, 3"}}, {command: "translate", values: {v: "0, 0, -0.45"}}, {command: "cube", values: {size: "1, 0.4, 2.1"}}, {command: "end"}, {command: "end"}]. Errors name the line number in this list, counting from 1.',
+    'The script as block lines, in order, exactly like the script editor: there is no code text. Blocks such as translate, difference or repeat hold the lines up to their {command: "end"}; {command: "blank"} is an empty line. Shapes are centered on the origin, the center of the generator (or the build position), so no Translate is needed to place them. Example of a wall with a doorway: [{command: "difference"}, {command: "cube", values: {size: "4, 0.2, 3"}}, {command: "translate", values: {v: "0, 0, -0.45"}}, {command: "cube", values: {size: "1, 0.4, 2.1"}}, {command: "end"}, {command: "end"}]. Errors name the line number in this list, counting from 1.',
   items: {
     type: 'object',
     properties: {
@@ -81,7 +81,7 @@ const MCP_GEOMETRY_SCRIPT_SET_SCHEMA: McpToolSchema = {
       type: 'string',
       enum: ['origin', 'fit', 'stretch'],
       description:
-        "'origin' keeps script units around the box's centre, 'fit' scales uniformly into the box, 'stretch' fills it.",
+        "'origin' keeps script units around the box's center, 'fit' scales uniformly into the box, 'stretch' fills it.",
     },
     inputs: {
       type: 'object',

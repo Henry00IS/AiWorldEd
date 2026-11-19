@@ -6,6 +6,7 @@ import { solidScriptShapeLeavesPositive, type SolidScriptShape } from '@/solid_s
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
 import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
 import { ModifierStackKindGenerator } from '@/modifier/stack/kinds/generator/modifier_stack_kind_generator.js';
+import type { ModifierStackField } from '@/modifier/stack/modifier_stack_types.js';
 
 /**
  * Runs script lines.
@@ -65,6 +66,22 @@ const GENERATED = [
   'blastHole',
 ];
 
+/**
+ * Default a script generator field shows: Yes or No, or the Center spelling of
+ * a stored Centre choice, otherwise the stored value.
+ *
+ * @param field Generator field.
+ * @returns Script default.
+ */
+function generatorScriptDefault(field: ModifierStackField): string {
+  if (field.type === 'boolean') return field.default === true ? 'Yes' : 'No';
+  if (field.type === 'choice') {
+    const match = (field.choices ?? []).find((choice) => choice.value === field.default);
+    if (match && match.label === String(field.default).replaceAll('Centre', 'Center')) return match.label;
+  }
+  return String(field.default);
+}
+
 describe('SolidScript generator blocks', () => {
   it('offers every box generator as a block with its own field names, labels and defaults', () => {
     for (const id of GENERATED) {
@@ -89,14 +106,12 @@ describe('SolidScript generator blocks', () => {
       for (const field of shaped) {
         const parameter = command?.parameters.find((entry) => entry.key === field.key);
         expect(parameter?.label).toBe(field.label);
-        expect(parameter?.default).toBe(
-          field.type === 'boolean' ? (field.default === true ? 'Yes' : 'No') : String(field.default),
-        );
+        expect(parameter?.default).toBe(generatorScriptDefault(field));
       }
     }
   });
 
-  it('builds the same pieces as the generator, filling a centred box of width, height and depth', () => {
+  it('builds the same pieces as the generator, filling a centered box of width, height and depth', () => {
     const result = run({ command: 'cone', values: { size: '2, 3, 4', sides: '12', topRadius: '0.5' } });
     expect(result.error).toBeNull();
     const [minX, minY, minZ, maxX, maxY, maxZ] = bounds(result.shapes);
@@ -149,7 +164,7 @@ describe('SolidScript generator blocks', () => {
     );
     expect(bounds(cylinder.shapes)).toEqual(bounds([{ kind: 'solid', label: '', points: kindCylinder[0]!.vertices }]));
     expect(bounds(cylinder.shapes)[1]).toBe(-1);
-    const cone = run({ command: 'cylinder', values: { h: '2', r1: '0.5', r2: '1', anchor: 'Centre, Bottom, Centre' } });
+    const cone = run({ command: 'cylinder', values: { h: '2', r1: '0.5', r2: '1', anchor: 'Center, Bottom, Center' } });
     const points = solids(cone.shapes).flat();
     const radiusAt = (y: number) =>
       Math.max(...points.filter((point) => Math.abs(point.y - y) < 1e-6).map((point) => Math.hypot(point.x, point.z)));

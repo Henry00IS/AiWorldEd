@@ -71,8 +71,8 @@ export function modifierStackSolidScriptFields(use: SolidScriptUse): readonly Mo
       ]),
       hint:
         use === 'generator'
-          ? 'Script Units: metres from the centre of the box, which is the script origin [0, 0, 0]. Fit Box: scaled evenly to fit. Stretch to Box: fills the box.'
-          : 'Script Units: metres from the centre of what the modifier receives, the script origin [0, 0, 0]. Fit Box: scaled evenly to fit around it. Stretch to Box: fills its bounds.',
+          ? 'Script Units: metres from the center of the box, which is the script origin [0, 0, 0]. Fit Box: scaled evenly to fit. Stretch to Box: fills the box.'
+          : 'Script Units: metres from the center of what the modifier receives, the script origin [0, 0, 0]. Fit Box: scaled evenly to fit around it. Stretch to Box: fills its bounds.',
     },
   ];
 }

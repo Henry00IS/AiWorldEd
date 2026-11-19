@@ -23,7 +23,7 @@ describe('SolidScript name rules for values under .Data', () => {
     expect(solidScriptNameDotProblem('Brush.Edges.Data.Kind', 'set')).toBe('');
     expect(solidScriptNameDotProblem('Brush.Faces(0).Edges.Data.[Key]', 'set')).toBe('');
     expect(solidScriptNameDotProblem('Brush.Edges', 'set')).toMatch(/^Brush\.Edges can only be read/);
-    expect(solidScriptNameDotProblem('Face.Centre', 'set')).toMatch(/^Face\.Centre can only be read/);
+    expect(solidScriptNameDotProblem('Face.Center', 'set')).toMatch(/^Face\.Center can only be read/);
   });
 
   it('lets a line set Face.UVs, also through a list of faces', () => {

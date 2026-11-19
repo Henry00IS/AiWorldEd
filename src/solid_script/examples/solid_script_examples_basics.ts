@@ -10,7 +10,7 @@ export const SOLID_SCRIPT_EXAMPLE_DOORWAY: readonly SolidScriptLine[] = [
   { command: 'end' },
 ];
 
-/** A row of five columns from one named part, centred on the origin. */
+/** A row of five columns from one named part, centered on the origin. */
 export const SOLID_SCRIPT_EXAMPLE_COLUMNS: readonly SolidScriptLine[] = [
   { command: 'part', values: { name: 'Column' } },
   { command: 'cylinder', values: { h: '3', r1: '0.2', r2: '0.2', sides: '12' } },
@@ -33,12 +33,12 @@ export const SOLID_SCRIPT_EXAMPLE_PILLAR_RING: readonly SolidScriptLine[] = [
     command: 'input',
     values: { name: 'Radius', type: 'Number', default: '3', min: '0.5', max: '20', label: 'Radius' },
   },
-  { command: 'variable', values: { name: 'Centre', value: '0, 1.5, 0' } },
+  { command: 'variable', values: { name: 'Center', value: '0, 1.5, 0' } },
   { command: 'repeat', values: { variable: 'I', from: '1', to: '[Count]' } },
   { command: 'variable', values: { name: 'Angle', value: '[=360 / [Count] * [I]]' } },
   {
     command: 'variable',
-    values: { name: 'Pos', value: '[=[Centre] + Vector(Cos([Angle]), 0, -Sin([Angle])) * [Radius]]' },
+    values: { name: 'Pos', value: '[=[Center] + Vector(Cos([Angle]), 0, -Sin([Angle])) * [Radius]]' },
   },
   { command: 'translate', values: { v: '[Pos]' } },
   { command: 'cylinder', values: { h: '3', r1: '0.25', r2: '0.2', sides: '12' } },

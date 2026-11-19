@@ -192,7 +192,7 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
     id: 'taperedBox',
     name: 'Tapered Box',
     group: 'Basics',
-    summary: 'Scale Faces shrinks the top of a cube about its centre, so the cube becomes a tapered block.',
+    summary: 'Scale Faces shrinks the top of a cube about its center, so the cube becomes a tapered block.',
     port: null,
     lines: SOLID_SCRIPT_EXAMPLE_TAPERED_BOX,
   },

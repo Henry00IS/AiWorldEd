@@ -150,7 +150,7 @@ export const SOLID_SCRIPT_EXAMPLE_ARCH: readonly SolidScriptLine[] = [
   solidScriptExampleInput('Shape', 'Choice', 'Round', { label: 'Shape', choices: 'Round, Stretch To Top' }),
   solidScriptExampleInput('Segments', 'Count', '16', { label: 'Segments', min: '2', max: '128' }),
   solidScriptExampleInput('Sweep', 'Number', '180', { label: 'Sweep °', min: '1', max: '180' }),
-  solidScriptExampleInput('Start', 'Choice', 'Centre', { label: 'Start From', choices: 'Centre, Left, Right' }),
+  solidScriptExampleInput('Start', 'Choice', 'Center', { label: 'Start From', choices: 'Center, Left, Right' }),
   solidScriptExampleInput('Thickness', 'Number', '0.25', { label: 'Thickness', min: '0.01', max: '100' }),
   solidScriptExampleNote('The arch rises along Y and spans X, or Z when Span Along is z.'),
   solidScriptExampleSet('AlongX', '[=[Span] == "Along X"]'),

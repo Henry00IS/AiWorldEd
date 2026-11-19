@@ -31,7 +31,7 @@ describe('SolidScript listing', () => {
     expect(listed('cube', { size: '1, 1, 1', anchor: 'Left, Bottom, Back' })).toBe(
       "Cube '1, 1, 1' (Anchor 'Left, Bottom, Back')",
     );
-    expect(listed('cube', { size: '1, 1, 1', anchor: 'Centre, Centre, Centre' })).toBe("Cube '1, 1, 1'");
+    expect(listed('cube', { size: '1, 1, 1', anchor: 'Center, Center, Center' })).toBe("Cube '1, 1, 1'");
     expect(listed('square', { size: '2, 1', anchor: 'Left, Front' })).toBe("Square '2, 1' (Anchor 'Left, Front')");
     expect(listed('linear_extrude', { height: '2', scale: '1, 1' })).toBe("Linear Extrude height '2'");
     expect(listed('linear_extrude', { height: '2', anchor: 'Bottom', scale: '0.5, 0.5' })).toBe(
@@ -50,8 +50,8 @@ describe('SolidScript listing', () => {
 
   it('reads differently depending on how the block is configured', () => {
     expect(listed('cylinder', { h: '2', r1: '0.5', r2: '0.5' })).toBe("Cylinder height '2', radius '0.5'");
-    expect(listed('cylinder', { h: '2', r1: '0.5', r2: '0', anchor: 'Centre, Bottom, Centre' })).toBe(
-      "Cylinder height '2', radius '0.5' to '0' (Anchor 'Centre, Bottom, Centre')",
+    expect(listed('cylinder', { h: '2', r1: '0.5', r2: '0', anchor: 'Center, Bottom, Center' })).toBe(
+      "Cylinder height '2', radius '0.5' to '0' (Anchor 'Center, Bottom, Center')",
     );
     expect(listed('repeat', { variable: 'i', from: '0', to: '3', step: '1' })).toBe("Repeat [i] from '0' to '3'");
     expect(listed('repeat', { variable: 'i', from: '0', to: '10', step: '2' })).toBe(

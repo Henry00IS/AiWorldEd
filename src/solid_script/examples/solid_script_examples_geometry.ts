@@ -25,9 +25,9 @@ export const SOLID_SCRIPT_EXAMPLE_IRREGULAR_ROCK: readonly SolidScriptLine[] = [
   ...solidScriptExampleBlock('hull', { points: '[Spots]' }, []),
 ];
 
-/** A cube whose top face is scaled about its centre, making a tapered block. */
+/** A cube whose top face is scaled about its center, making a tapered block. */
 export const SOLID_SCRIPT_EXAMPLE_TAPERED_BOX: readonly SolidScriptLine[] = [
-  solidScriptExampleNote('Scale Faces shrinks the top about its centre, so the cube becomes a tapered block.'),
+  solidScriptExampleNote('Scale Faces shrinks the top about its center, so the cube becomes a tapered block.'),
   solidScriptExampleInput('Factor', 'Number', '0.5', { min: '0.1', max: '2', label: 'Factor' }),
   solidScriptExampleLine('cube', { size: '2, 2, 2' }),
   solidScriptExampleLine('select_faces', { which: 'Facing Up' }),

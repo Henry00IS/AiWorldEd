@@ -62,7 +62,7 @@ describe('SolidScript axes', () => {
         r1: '0.5',
         r2: '0.5',
         sides: '4',
-        anchor: 'Centre, Bottom, Centre',
+        anchor: 'Center, Bottom, Center',
       }),
     ]);
     expect([cylinder.min[1], cylinder.max[1]]).toEqual([0, 3]);
@@ -74,11 +74,11 @@ describe('SolidScript axes', () => {
 
   it('puts the spot the Anchor names on the origin, for every shape', () => {
     const cube = (anchor: string) => bounds([solidScriptExampleLine('cube', { size: '2, 2, 2', anchor })]);
-    expect(cube('Centre, Centre, Centre')).toEqual({ min: [-1, -1, -1], max: [1, 1, 1] });
-    expect(cube('Centre, Bottom, Back')).toEqual({ min: [-1, 0, 0], max: [1, 2, 2] });
+    expect(cube('Center, Center, Center')).toEqual({ min: [-1, -1, -1], max: [1, 1, 1] });
+    expect(cube('Center, Bottom, Back')).toEqual({ min: [-1, 0, 0], max: [1, 2, 2] });
     expect(cube('Right, Top, Front')).toEqual({ min: [-2, -2, -2], max: [0, 0, 0] });
     expect(cube('left, bottom, back')).toEqual({ min: [0, 0, 0], max: [2, 2, 2] });
-    expect(bounds([solidScriptExampleLine('sphere', { r: '1', anchor: 'Centre, Bottom, Centre' })]).min[1]).toBe(0);
+    expect(bounds([solidScriptExampleLine('sphere', { r: '1', anchor: 'Center, Bottom, Center' })]).min[1]).toBe(0);
     const cylinder = bounds([
       solidScriptExampleLine('cylinder', { h: '2', r1: '1', r2: '0.5', sides: '4', anchor: 'Left, Top, Back' }),
     ]);
@@ -86,7 +86,7 @@ describe('SolidScript axes', () => {
     const middle = (range: { min: number[]; max: number[] }, axis: number) => (range.min[axis]! + range.max[axis]!) / 2;
     expect([middle(cylinder, 0), cylinder.max[1], middle(cylinder, 2)]).toEqual([1, 0, 1]);
     const cone = bounds([
-      solidScriptExampleLine('cylinder', { h: '2', r1: '0.5', r2: '1', sides: '4', anchor: 'Centre, Top, Centre' }),
+      solidScriptExampleLine('cylinder', { h: '2', r1: '0.5', r2: '1', sides: '4', anchor: 'Center, Top, Center' }),
     ]);
     expect([cone.min[1], cone.max[1]]).toEqual([-2, 0]);
     const circle = bounds(
@@ -96,7 +96,7 @@ describe('SolidScript axes', () => {
     );
     expect([middle(circle, 0), circle.max[1], middle(circle, 2)]).toEqual([1, 0, 1]);
     expect(
-      bounds([solidScriptExampleLine('stairs', { size: '2, 2, 2', anchor: 'Centre, Bottom, Centre' })]).min[1],
+      bounds([solidScriptExampleLine('stairs', { size: '2, 2, 2', anchor: 'Center, Bottom, Center' })]).min[1],
     ).toBe(0);
   });
 

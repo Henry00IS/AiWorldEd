@@ -42,7 +42,7 @@ These tools work on meshes. A convex solid brush cannot hold the faces they add,
 - **Duplicate Faces** (`Shift+D`, Face select): copy the selected faces onto their own vertices and select the copy, ready to move, extrude or scale.
 - **Split Faces** (`Y`, Face select): detach the selected faces from the rest of the mesh without copying them, so they can be moved, solidified or extruded on their own; the edges they shared with the rest become open borders on both sides.
 - **Flip Faces** (Face select): turn the selected faces to face the other way, for example after building a face from the wrong side.
-- **Triangulate Faces** and **Poke Faces** (Face select): split the selected faces into triangles, along their outline or fanned around a new centre vertex. Every piece stays selected.
+- **Triangulate Faces** and **Poke Faces** (Face select): split the selected faces into triangles, along their outline or fanned around a new center vertex. Every piece stays selected.
 - **Join Triangles** (Face select): join flat pairs of selected triangles into quads, squarest pairs first, for example to clean up an imported model before extruding or cutting loops.
 - **Connect Vertices** (`J`, Vertex select): cut the faces between the selected vertices with new edges, for example from one edge midpoint to another.
 - **Smooth Vertices** (Vertex select): move the selected vertices half way towards the average of their edge neighbours to even out bumps and spacing; run it again to smooth further.

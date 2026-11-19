@@ -67,7 +67,7 @@ describe('solid script document', () => {
     expect(solidScriptDocumentDepths(document)).toEqual([0, 1, 2, 2, 1, 2, 1, 0, 0]);
   });
 
-  it('starts new generators with a named, centred script that builds a shape without any Translate or Detail', () => {
+  it('starts new generators with a named, centered script that builds a shape without any Translate or Detail', () => {
     const script = solidScriptDocumentDefault();
     expect(script.name).not.toBe('');
     expect(script.blocks.map((block) => block.command)).not.toContain('translate');

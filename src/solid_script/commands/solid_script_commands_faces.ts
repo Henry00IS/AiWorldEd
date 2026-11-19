@@ -390,7 +390,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Spread points on faces, inside a shape, in a box, or on a grid',
     manual:
-      'Spreads points and writes their positions to Into as a list of vectors. Where chooses how: On Faces (the default) spreads them over faces, more on bigger ones, and writes the way each face looks to Normals; Inside fills the volume of a brush or mesh; In Box fills a box of Size, centred on the origin; Grid lays Counts points along that box. Of gives the faces, brushes or meshes for On Faces and Inside; empty uses [$Selected.Faces]. The same Seed gives the same points for the random modes. Example: Select Faces Facing Up, Scatter Points 20 Into [Spots], then Place At Points At [Spots], Sphere, End.',
+      'Spreads points and writes their positions to Into as a list of vectors. Where chooses how: On Faces (the default) spreads them over faces, more on bigger ones, and writes the way each face looks to Normals; Inside fills the volume of a brush or mesh; In Box fills a box of Size, centered on the origin; Grid lays Counts points along that box. Of gives the faces, brushes or meshes for On Faces and Inside; empty uses [$Selected.Faces]. The same Seed gives the same points for the random modes. Example: Select Faces Facing Up, Scatter Points 20 Into [Spots], then Place At Points At [Spots], Sphere, End.',
     stops: [
       'No faces, when Where is On Faces or Inside.',
       'A Count that is not a whole number from 0 to 10000.',
@@ -407,7 +407,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         [
           { word: 'On Faces', detail: 'Spread over faces, more on bigger ones' },
           { word: 'Inside', detail: 'Fill the volume of a brush or mesh' },
-          { word: 'In Box', detail: 'Fill a box of Size, centred on the origin' },
+          { word: 'In Box', detail: 'Fill a box of Size, centered on the origin' },
           { word: 'Grid', detail: 'A regular grid of Counts in a box of Size' },
         ],
       ),
@@ -490,7 +490,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Stand brushes on faces',
     manual:
-      'Builds the brushes between this line and its End standing on a face: up is the way the face points and the centre is the middle of the face. Of gives the face, such as [Face] in For Each [Face] In [$Selected.Faces]; given several faces it builds them on each. Empty Of uses [$Selected.Faces]. Lift moves them out from the face. Example: For Each [Face] In [$Selected.Faces], Place On Face Of [Face], Cylinder, End, End puts a post on every picked face.',
+      'Builds the brushes between this line and its End standing on a face: up is the way the face points and the center is the middle of the face. Of gives the face, such as [Face] in For Each [Face] In [$Selected.Faces]; given several faces it builds them on each. Empty Of uses [$Selected.Faces]. Lift moves them out from the face. Example: For Each [Face] In [$Selected.Faces], Place On Face Of [Face], Cylinder, End, End puts a post on every picked face.',
     stops: ['No faces.', 'Nothing between this line and its End.', 'A missing End line.'],
     nesting: 'open',
     endLabel: 'Place',
@@ -865,9 +865,9 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     id: 'scale_faces',
     label: 'Scale Faces',
     category: 'Faces',
-    description: 'Scale faces about their centres',
+    description: 'Scale faces about their centers',
     manual:
-      'Scales each face about its centre, in the plane of the face. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. A brush stays a brush, and a mesh stays a mesh. Factor 1 leaves the face as it is; 0.5 shrinks it toward its centre, and 2 grows it. If several picked faces share a corner, the corner takes the average of those moves. A Factor that would fold a brush so it is no longer convex stops the line. Example: Select Faces Facing Up, Scale Faces by 0.5 turns the top of a Cube into a smaller roof.',
+      'Scales each face about its center, in the plane of the face. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. A brush stays a brush, and a mesh stays a mesh. Factor 1 leaves the face as it is; 0.5 shrinks it toward its center, and 2 grows it. If several picked faces share a corner, the corner takes the average of those moves. A Factor that would fold a brush so it is no longer convex stops the line. Example: Select Faces Facing Up, Scale Faces by 0.5 turns the top of a Cube into a smaller roof.',
     stops: [
       'No faces.',
       'A Factor that is not a number.',
@@ -879,7 +879,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         'Factor',
         'number',
         '1',
-        'How much to scale each face about its centre; 1 leaves it as it is.',
+        'How much to scale each face about its center; 1 leaves it as it is.',
       ),
       solidScriptParameterOf('faces or brushes', '$Selected.Faces'),
     ],

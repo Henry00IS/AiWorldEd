@@ -8,12 +8,12 @@ import {
 import type { SolidScriptShapeSolid } from '@/solid_script/language/solid_script_shape.js';
 
 /**
- * Scales the faces of a brush or mesh about each face's centre. A brush stays a
+ * Scales the faces of a brush or mesh about each face's center. A brush stays a
  * brush; a mesh stays a mesh. Stops when a brush would not stay convex.
  *
  * @param leaf Brush or mesh.
  * @param faces Faces of that leaf to scale.
- * @param factor Scale about each face centre; 1 leaves the face as it is.
+ * @param factor Scale about each face center; 1 leaves the face as it is.
  * @param label Command, for messages.
  * @returns Updated leaf.
  */
@@ -34,7 +34,7 @@ export function solidScriptScaleFaces(
  *
  * @param point Corner.
  * @param faces Faces being scaled.
- * @param factor Scale about each face centre.
+ * @param factor Scale about each face center.
  * @returns New position.
  */
 function solidScriptScaleFacePoint(

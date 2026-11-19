@@ -5,7 +5,7 @@ import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/
 import {
   solidScriptMeshFromSolid,
   solidScriptMeshLoopNormal,
-  solidScriptMeshLoopCentre,
+  solidScriptMeshLoopCenter,
   solidScriptShapeMeshes,
   type SolidScriptShapeMesh,
 } from '@/solid_script/language/solid_script_mesh.js';
@@ -58,7 +58,7 @@ function outwards(mesh: SolidScriptShapeMesh): boolean {
     .divideScalar(mesh.points.length);
   return mesh.faces.every((face) => {
     const normal = solidScriptMeshLoopNormal(mesh.points, face);
-    return normal.dot(solidScriptMeshLoopCentre(mesh.points, face).sub(middle)) > 0;
+    return normal.dot(solidScriptMeshLoopCenter(mesh.points, face).sub(middle)) > 0;
   });
 }
 

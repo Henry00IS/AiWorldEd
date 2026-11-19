@@ -40,7 +40,7 @@ function pieceKey(points: readonly THREE.Vector3[]): string {
 
 /**
  * The editor box of a case: width (X), height (Y) and depth (Z), off the origin
- * so a port that ignores the box centre shows.
+ * so a port that ignores the box center shows.
  *
  * @param test Parameters.
  * @returns Box in editor space.
@@ -254,9 +254,9 @@ describe('SolidScript examples', () => {
       const box = new THREE.Box3().setFromPoints(leaf.kind === 'solid' ? leaf.points : []);
       return box.getCenter(new THREE.Vector3());
     });
-    for (const centre of centres) {
-      expect(Math.hypot(centre.x, centre.z)).toBeCloseTo(3, 1);
-      expect(centre.y).toBeCloseTo(1.5, 5);
+    for (const center of centres) {
+      expect(Math.hypot(center.x, center.z)).toBeCloseTo(3, 1);
+      expect(center.y).toBeCloseTo(1.5, 5);
     }
     const stones = solidScriptProgramRun(solidScriptDocumentCreate(lines('steppingStones')));
     expect(stones.steps).toHaveLength(9);

@@ -20,7 +20,7 @@ describe('SolidScript member cache', () => {
     });
     const first = box(0);
     const list = [elements.brush(first), elements.brush(box(3))];
-    expect(solidScriptMemberRead(list, 'centre', elements)).toEqual([2, 0.5, 0.5]);
+    expect(solidScriptMemberRead(list, 'center', elements)).toEqual([2, 0.5, 0.5]);
     expect(solidScriptMemberRead(list, 'min', elements)).toEqual([0, 0, 0]);
     expect(solidScriptMemberRead([...list], 'max', elements)).toEqual([4, 1, 1]);
     expect(solidScriptMemberRead(list, 'size', elements)).toEqual([4, 1, 1]);
@@ -28,7 +28,7 @@ describe('SolidScript member cache', () => {
     swaps.set(first, box(-2));
     expect(solidScriptMemberRead(list, 'min', elements)).toEqual([-2, 0, 0]);
     expect(elements.boundsPasses).toBe(2);
-    expect(solidScriptMemberRead(list[1]!, 'centre', elements)).toEqual([3.5, 0.5, 0.5]);
+    expect(solidScriptMemberRead(list[1]!, 'center', elements)).toEqual([3.5, 0.5, 0.5]);
     expect(solidScriptMemberRead(list[1]!, 'extents', elements)).toEqual([0.5, 0.5, 0.5]);
     expect(elements.boundsPasses).toBe(3);
   });

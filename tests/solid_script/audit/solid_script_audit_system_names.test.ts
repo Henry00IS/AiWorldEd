@@ -23,6 +23,8 @@ import {
 import { SOLID_SCRIPT_SYSTEM_VALUES } from '@/solid_script/language/solid_script_name_rules.js';
 import { solidScriptExplorerEntries } from '@/solid_script/ui/solid_script_editor_explorer.js';
 import { solidScriptSuggestionContext, solidScriptSuggestions } from '@/solid_script/ui/solid_script_suggestions.js';
+import { SOLID_SCRIPT_ANCHOR_WORDS } from '@/solid_script/language/solid_script_anchor.js';
+import { SOLID_SCRIPT_EXAMPLES } from '@/solid_script/examples/solid_script_examples.js';
 
 /**
  * Collects declared system names that are missing a $ or are not PascalCase.
@@ -194,5 +196,61 @@ describe('every shown name is PascalCase', () => {
     for (const command of solidScriptCommands)
       for (const name of command.fills) solidScriptShownProblem(problems, `${command.label} fill`, name);
     expect(problems).toEqual([]);
+  });
+});
+
+/**
+ * Collects official SolidScript texts that still spell Centre.
+ *
+ * @returns Problems, one per leftover spelling.
+ */
+function solidScriptCentreSpellings(): string[] {
+  const problems: string[] = [];
+  for (const [kind, members] of Object.entries(SOLID_SCRIPT_MEMBER_TYPES))
+    for (const name of [...Object.keys(members), ...solidScriptMemberNames(kind)])
+      if (name.includes('Centre')) problems.push(`${kind}.${name}`);
+  for (const [name] of SOLID_SCRIPT_SYSTEM_LISTED) if (name.includes('Centre')) problems.push(`$${name}`);
+  for (const words of Object.values(SOLID_SCRIPT_ANCHOR_WORDS))
+    for (const word of words) if (word.includes('Centre')) problems.push(`anchor ${word}`);
+  problems.push(...solidScriptCommandCentreSpellings(), ...solidScriptExampleCentreSpellings());
+  return problems;
+}
+
+/**
+ * Collects command labels, defaults and choice words that still spell Centre.
+ *
+ * @returns Problems.
+ */
+function solidScriptCommandCentreSpellings(): string[] {
+  const problems: string[] = [];
+  for (const command of solidScriptCommands) {
+    for (const parameter of command.parameters) {
+      const texts = [parameter.label, parameter.default, ...(parameter.words ?? []).map((entry) => entry.word)];
+      for (const text of texts)
+        if (text?.includes('Centre')) problems.push(`${command.label} ${parameter.label}: ${JSON.stringify(text)}`);
+    }
+  }
+  return problems;
+}
+
+/**
+ * Collects example field values that still spell Centre.
+ *
+ * @returns Problems.
+ */
+function solidScriptExampleCentreSpellings(): string[] {
+  const problems: string[] = [];
+  for (const example of SOLID_SCRIPT_EXAMPLES) {
+    for (const line of example.lines) {
+      for (const [key, value] of Object.entries(line.values ?? {}))
+        if (value.includes('Centre')) problems.push(`${example.id} ${line.command}.${key}: ${JSON.stringify(value)}`);
+    }
+  }
+  return problems;
+}
+
+describe('SolidScript spells Center', () => {
+  it('uses Center for members, system values, anchors, commands and examples', () => {
+    expect(solidScriptCentreSpellings()).toEqual([]);
   });
 });

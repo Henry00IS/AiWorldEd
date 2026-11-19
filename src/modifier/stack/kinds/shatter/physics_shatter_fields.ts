@@ -152,7 +152,7 @@ const PHYSICS_SHATTER_BLAST_FIELDS: readonly ModifierStackField[] = [
   },
   ...modifierStackVectorFields('impact', 'Impact', [0, 0, 0], {
     group: 'Blast',
-    hint: 'Where the blast hits, in metres from the volume centre along its axes. The red arrow tip marks it.',
+    hint: 'Where the blast hits, in metres from the volume center along its axes. The red arrow tip marks it.',
   }),
   ...modifierStackVectorFields('direction', 'Direction', [0, 0, -1], {
     group: 'Blast',

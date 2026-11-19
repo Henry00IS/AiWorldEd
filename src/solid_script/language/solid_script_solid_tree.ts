@@ -140,7 +140,7 @@ const SOLID_SCRIPT_SOLID_TREE_FACE_ALIGN = 0.99;
  * Finds the brush faces given their own texture: the face whose plane holds the
  * textured face's point and looks the same way.
  *
- * @param brush Brush node, centred on its origin.
+ * @param brush Brush node, centered on its origin.
  * @param faces Textured faces in script space.
  * @param options Placement options.
  * @returns Texture per brush face, by face index.
@@ -171,9 +171,9 @@ function solidScriptSolidTreeFaceTextures(
 
 /**
  * Finds the brush faces given their own UV mapping, converts each matrix from
- * script space into the centred brush's space, and lists them by face index.
+ * script space into the centered brush's space, and lists them by face index.
  *
- * @param brush Brush node, centred on its origin.
+ * @param brush Brush node, centered on its origin.
  * @param faces Mapped faces in script space.
  * @param options Placement options.
  * @returns UV matrix per brush face, by face index.
@@ -193,9 +193,9 @@ function solidScriptSolidTreeFaceUvs(
 }
 
 /**
- * Converts a script-space UV matrix into the centred brush's local space.
+ * Converts a script-space UV matrix into the centered brush's local space.
  *
- * @param brush Centred brush.
+ * @param brush Centerd brush.
  * @param options Placement options.
  * @returns Script-to-local matrix.
  */
@@ -208,9 +208,9 @@ function solidScriptSolidTreeFaceUvToLocal(brush: SolidTreeBrush, options: Solid
 }
 
 /**
- * Finds the centred-brush face that a stored UV record belongs to.
+ * Finds the centered-brush face that a stored UV record belongs to.
  *
- * @param brush Centred brush.
+ * @param brush Centerd brush.
  * @param face Record in script space.
  * @param options Placement options.
  * @returns Face index, or -1 when none matches.

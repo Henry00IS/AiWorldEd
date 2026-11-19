@@ -76,14 +76,14 @@ export function solidScriptMeshFromSolid(
 ): SolidScriptShapeMesh {
   const brush = solidHullBrushFromPoints(points.map((point) => point.clone()));
   if (!brush) throw new Error(`${label} is flat or degenerate; give it a non-zero size on all three axes`);
-  const centre = brush.vertices
+  const center = brush.vertices
     .reduce((sum, point) => sum.add(point), new THREE.Vector3())
     .divideScalar(brush.vertices.length);
   const faces = brush.faces.map((face) => {
     const loop = brush.getFaceVertexIndices(face);
     const normal = solidScriptMeshLoopNormal(brush.vertices, loop);
-    const middle = solidScriptMeshLoopCentre(brush.vertices, loop);
-    return normal.dot(middle.sub(centre)) < 0 ? loop.reverse() : loop;
+    const middle = solidScriptMeshLoopCenter(brush.vertices, loop);
+    return normal.dot(middle.sub(center)) < 0 ? loop.reverse() : loop;
   });
   return {
     kind: 'mesh',
@@ -177,9 +177,9 @@ export function solidScriptMeshLoopNormal(points: readonly THREE.Vector3[], loop
  *
  * @param points Mesh points.
  * @param loop Point numbers.
- * @returns Centre.
+ * @returns Center.
  */
-export function solidScriptMeshLoopCentre(points: readonly THREE.Vector3[], loop: readonly number[]): THREE.Vector3 {
+export function solidScriptMeshLoopCenter(points: readonly THREE.Vector3[], loop: readonly number[]): THREE.Vector3 {
   return loop.reduce((sum, index) => sum.add(points[index]!), new THREE.Vector3()).divideScalar(loop.length);
 }
 
@@ -228,7 +228,7 @@ function solidScriptMeshEdgeKey(a: number, b: number): string {
  */
 export function solidScriptMeshSubdivide(mesh: SolidScriptShapeMesh, smooth: boolean): SolidScriptShapeMesh {
   const points = mesh.points;
-  const facePoints = mesh.faces.map((face) => solidScriptMeshLoopCentre(points, face));
+  const facePoints = mesh.faces.map((face) => solidScriptMeshLoopCenter(points, face));
   const edgeFaces = new Map<string, number[]>();
   mesh.faces.forEach((face, faceIndex) =>
     face.forEach((a, corner) => {
@@ -257,7 +257,7 @@ export function solidScriptMeshSubdivide(mesh: SolidScriptShapeMesh, smooth: boo
   const uvs: (SolidScriptUv[] | null)[] = [];
   mesh.faces.forEach((face, faceIndex) => {
     const uv = mesh.uvs[faceIndex];
-    const uvCentre = uv ? solidScriptUvAverage(uv) : null;
+    const uvCenter = uv ? solidScriptUvAverage(uv) : null;
     face.forEach((point, corner) => {
       const next = face[(corner + 1) % face.length]!;
       const previous = face[(corner + face.length - 1) % face.length]!;
@@ -267,14 +267,14 @@ export function solidScriptMeshSubdivide(mesh: SolidScriptShapeMesh, smooth: boo
         faceBase + faceIndex,
         edgeBase + edgeIndex.get(solidScriptMeshEdgeKey(previous, point))!,
       ]);
-      if (!uv || !uvCentre) {
+      if (!uv || !uvCenter) {
         uvs.push(null);
         return;
       }
       const here = uv[corner]!;
       const after = uv[(corner + 1) % face.length]!;
       const before = uv[(corner + face.length - 1) % face.length]!;
-      uvs.push([here, solidScriptUvAverage([here, after]), uvCentre, solidScriptUvAverage([before, here])]);
+      uvs.push([here, solidScriptUvAverage([here, after]), uvCenter, solidScriptUvAverage([before, here])]);
     });
   });
   return solidScriptMeshChecked({ ...mesh, points: [...moved, ...edgePoints, ...facePoints], faces, uvs });
@@ -285,7 +285,7 @@ export function solidScriptMeshSubdivide(mesh: SolidScriptShapeMesh, smooth: boo
  * border edges only, so open meshes keep their outline.
  *
  * @param mesh Mesh.
- * @param facePoints Face centres.
+ * @param facePoints Face centers.
  * @param edgeFaces Faces of every edge.
  * @returns Moved points.
  */
@@ -410,19 +410,19 @@ export function solidScriptMeshDisplace(
  *
  * @param mesh Mesh.
  * @param distance Distance per face, or null to leave the face alone; gets the
- *   face centre, normal and number.
+ *   face center, normal and number.
  * @returns Extruded mesh.
  */
 export function solidScriptMeshExtrudeFaces(
   mesh: SolidScriptShapeMesh,
-  distance: (centre: THREE.Vector3, normal: THREE.Vector3, index: number) => number | null,
+  distance: (center: THREE.Vector3, normal: THREE.Vector3, index: number) => number | null,
 ): SolidScriptShapeMesh {
   const points = mesh.points.map((point) => point.clone());
   const faces: number[][] = [];
   const uvs: (SolidScriptUv[] | null)[] = [];
   mesh.faces.forEach((face, faceIndex) => {
     const normal = solidScriptMeshLoopNormal(mesh.points, face);
-    const amount = distance(solidScriptMeshLoopCentre(mesh.points, face), normal, faceIndex);
+    const amount = distance(solidScriptMeshLoopCenter(mesh.points, face), normal, faceIndex);
     if (amount === null || amount === 0) {
       faces.push([...face]);
       uvs.push(mesh.uvs[faceIndex] ?? null);

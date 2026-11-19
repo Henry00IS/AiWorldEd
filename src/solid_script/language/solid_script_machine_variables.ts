@@ -107,7 +107,7 @@ export type SolidScriptSelected = Record<Exclude<SolidScriptSelectedKind, 'brush
 export const SOLID_SCRIPT_SYSTEM_PREFIX = '$';
 
 /**
- * Splits a name at the dots outside brackets, such as Face.Edges(0).Centre.
+ * Splits a name at the dots outside brackets, such as Face.Edges(0).Center.
  *
  * @param name Name.
  * @returns Parts.
@@ -362,7 +362,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
   }
 
   /**
-   * Reads a name that is a value followed by members, such as Face.Centre,
+   * Reads a name that is a value followed by members, such as Face.Center,
    * Faces.Count or Face.Data.Height.
    *
    * @param name Name key.

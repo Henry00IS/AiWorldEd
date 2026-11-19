@@ -82,7 +82,7 @@ function solidScriptScatterInside(run: SolidScriptBlockRun, faces: readonly Soli
 }
 
 /**
- * Spreads points at random in a box of Size, centred on the origin, then moved
+ * Spreads points at random in a box of Size, centered on the origin, then moved
  * by the blocks around this line.
  *
  * @param run Running line.
@@ -100,8 +100,8 @@ function solidScriptScatterInBox(run: SolidScriptBlockRun): THREE.Vector3[] {
 }
 
 /**
- * Lays points in a grid of Counts along Size, centred on the origin, then moved
- * by the blocks around this line.
+ * Lays points in a grid of Counts along Size, centered on the origin, then
+ * moved by the blocks around this line.
  *
  * @param run Running line.
  * @returns Positions.
@@ -202,7 +202,7 @@ function solidScriptScatterVector(value: SolidScriptValue): THREE.Vector3 | unde
 
 /**
  * One point of a grid, in local space, with the first and last on the faces of
- * the box when a count is at least 2, or the centre when it is 1.
+ * the box when a count is at least 2, or the center when it is 1.
  *
  * @param size Box size.
  * @param counts Points along each axis.
@@ -252,7 +252,7 @@ function solidScriptScatterGroups(faces: readonly SolidScriptFaceFacts[]): Solid
  * @returns Pieces.
  */
 function solidScriptScatterPieces(faces: readonly SolidScriptFaceFacts[]): SolidScriptScatterPiece[] {
-  const origin = solidScriptScatterCentre(faces);
+  const origin = solidScriptScatterCenter(faces);
   const pieces: SolidScriptScatterPiece[] = [];
   for (const face of faces)
     for (let corner = 1; corner + 1 < face.corners.length; corner++) {
@@ -270,16 +270,16 @@ function solidScriptScatterPieces(faces: readonly SolidScriptFaceFacts[]): Solid
  * Middle of the unique corners of some faces.
  *
  * @param faces Faces.
- * @returns Centre.
+ * @returns Center.
  */
-function solidScriptScatterCentre(faces: readonly SolidScriptFaceFacts[]): THREE.Vector3 {
+function solidScriptScatterCenter(faces: readonly SolidScriptFaceFacts[]): THREE.Vector3 {
   const seen: THREE.Vector3[] = [];
   for (const face of faces)
     for (const corner of face.corners)
       if (!seen.some((point) => point.distanceToSquared(corner) < 1e-16)) seen.push(corner);
-  const centre = new THREE.Vector3();
-  for (const point of seen) centre.add(point);
-  return seen.length === 0 ? centre : centre.multiplyScalar(1 / seen.length);
+  const center = new THREE.Vector3();
+  for (const point of seen) center.add(point);
+  return seen.length === 0 ? center : center.multiplyScalar(1 / seen.length);
 }
 
 /**
