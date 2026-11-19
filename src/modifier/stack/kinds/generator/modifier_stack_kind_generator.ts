@@ -247,6 +247,33 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKindGenera
   }
 
   /**
+   * Builds the pieces of a box from raw parameters with the face surfaces this
+   * generator gives them, for script blocks that build the same shape with the
+   * same texture mapping. Textures and their placement fields stay with what
+   * holds the script.
+   *
+   * @param parameters Raw parameters; missing ones take their defaults.
+   * @param box Box in frame coordinates.
+   * @returns Convex pieces in frame coordinates, each with its frame-space
+   *   surfaces; undefined keeps a face's default.
+   */
+  surfacedPieces(
+    parameters: Record<string, unknown>,
+    box: THREE.Box3,
+  ): { piece: SolidBrush; surfaces: ModifierStackPieceSurfaces | null }[] {
+    const normalized = this.normalizeParameters(parameters);
+    // Some generators keep what pieceSurfaces reads from the build, so each
+    // piece's surfaces are read right after the build.
+    return this.buildPieces(normalized, box).map((piece) => {
+      const caps = this.pieceCapFaces(piece, normalized);
+      return {
+        piece,
+        surfaces: modifierStackCapSurfaces(this.pieceSurfaces(piece, normalized, box), caps, piece, box),
+      };
+    });
+  }
+
+  /**
    * Returns custom face surfaces of a piece, such as wrapped side textures. The
    * default keeps every face on its default mapping.
    *

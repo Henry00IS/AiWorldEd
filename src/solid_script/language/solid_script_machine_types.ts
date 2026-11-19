@@ -10,7 +10,7 @@ import type { SOLID_SCRIPT_HANDLERS } from './solid_script_machine_calls.js';
 import type { SolidScriptShapeMesh, SolidScriptUv } from './solid_script_mesh.js';
 import type { SolidScriptPoint2 } from './solid_script_polygon.js';
 import type { SolidScriptScope } from './solid_script_scope.js';
-import type { SolidScriptShape, SolidScriptShapeLeaf } from './solid_script_shape.js';
+import type { SolidScriptFaceUv, SolidScriptShape, SolidScriptShapeLeaf } from './solid_script_shape.js';
 import type { SolidScriptUseFacts } from './solid_script_system.js';
 import type { SolidScriptValue } from './solid_script_value.js';
 
@@ -110,8 +110,11 @@ export interface SolidScriptBlockRun {
    * with $Vertex and $Index.
    */
   variableWrite(name: string, key: string): void;
-  /** Builds one convex solid from its corner points. */
-  solid(points: THREE.Vector3[]): SolidScriptShape[];
+  /**
+   * Builds one convex solid from its corner points, with the texture mapping of
+   * some faces in script space when given.
+   */
+  solid(points: THREE.Vector3[], faceUvs?: SolidScriptFaceUv[]): SolidScriptShape[];
   /** Draws one flat outline for Linear Extrude. */
   outline(points: SolidScriptPoint2[]): SolidScriptShape[];
   /** Runs the lines inside, moved by a matrix. */

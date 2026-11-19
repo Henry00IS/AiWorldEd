@@ -106,9 +106,9 @@ export function solidScriptCylinderPoints(args: SolidScriptBlockArguments): THRE
   const size = [radius * 2, height, radius * 2] as const;
   const min = solidScriptAnchorMin(size, args.anchor(SOLID_SCRIPT_ANCHOR_SOLID)) as [number, number, number];
   const box = { size, min };
-  if (bottom === top) return solidScriptGeneratorPieces('cylinder', { sides }, box)[0] ?? [];
+  if (bottom === top) return solidScriptGeneratorPieces('cylinder', { sides }, box)[0]?.points ?? [];
   const topRadius = Math.min(bottom, top) / radius;
-  const points = solidScriptGeneratorPieces('cone', { sides, topRadius }, box)[0] ?? [];
+  const points = solidScriptGeneratorPieces('cone', { sides, topRadius }, box)[0]?.points ?? [];
   if (bottom > top) return points;
   // Upside down within the same box.
   const flip = 2 * min[1] + height;
@@ -129,7 +129,7 @@ export function solidScriptSpherePoints(args: SolidScriptBlockArguments): THREE.
   const size = [radius * 2, radius * 2, radius * 2] as const;
   const min = solidScriptAnchorMin(size, args.anchor(SOLID_SCRIPT_ANCHOR_SOLID)) as [number, number, number];
   const box = { size, min };
-  return solidScriptGeneratorPieces('sphere', { sides, rings }, box)[0] ?? [];
+  return solidScriptGeneratorPieces('sphere', { sides, rings }, box)[0]?.points ?? [];
 }
 
 /**

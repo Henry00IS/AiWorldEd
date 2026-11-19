@@ -737,11 +737,12 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       variableWrite(name, key) {
         state.machine.variableWrite(state.scope, name, key, this);
       },
-      solid: (points) => {
+      solid: (points, faceUvs) => {
         state.machine.gatherCheck(node);
         state.machine.flatCheck(node, state.context, false);
         if (!state.machine.stepTake(state.scope)) return [];
-        return [solidScriptShapeTransform(solidScriptSolidMade(labelOf(), points, modeOf()), state.context.matrix)];
+        const made = solidScriptSolidMade(labelOf(), points, modeOf());
+        return [solidScriptShapeTransform(faceUvs ? { ...made, faceUvs } : made, state.context.matrix)];
       },
       outline: (points) => {
         state.machine.gatherCheck(node);
