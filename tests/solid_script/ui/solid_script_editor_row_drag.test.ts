@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
-import { solidScriptDocumentLinesWithBlocks } from '@/solid_script/document/solid_script_document_edit.js';
+import type { SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptEditorCurrentGet } from '@/solid_script/ui/solid_script_editor_open.js';
 import { chip, editorFixture, find, press } from './solid_script_editor_fixture.js';
 
@@ -70,38 +69,8 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-describe('solidScriptDocumentLinesWithBlocks', () => {
-  const document = solidScriptDocumentCreate(
-    [
-      { command: 'transform' }, // 0
-      { command: 'if', values: { condition: 'yes' } }, // 1
-      { command: 'cube' }, // 2
-      { command: 'else' }, // 3
-      { command: 'sphere' }, // 4
-      END, // 5
-      END, // 6
-      { command: 'transform' }, // 7, never closed
-      { command: 'cylinder' }, // 8
-    ],
-    'Blocks',
-  );
-
-  it('grows an opener, an Else or an End to its whole block, and an outer block around inner ones', () => {
-    expect(solidScriptDocumentLinesWithBlocks(document, [1])).toEqual([1, 2, 3, 4, 5]);
-    expect(solidScriptDocumentLinesWithBlocks(document, [3])).toEqual([1, 2, 3, 4, 5]);
-    expect(solidScriptDocumentLinesWithBlocks(document, [6])).toEqual([0, 1, 2, 3, 4, 5, 6]);
-    expect(solidScriptDocumentLinesWithBlocks(document, [5, 0])).toEqual([0, 1, 2, 3, 4, 5, 6]);
-  });
-
-  it('leaves plain lines and an opener without an End alone', () => {
-    expect(solidScriptDocumentLinesWithBlocks(document, [4, 2])).toEqual([2, 4]);
-    expect(solidScriptDocumentLinesWithBlocks(document, [7])).toEqual([7]);
-    expect(solidScriptDocumentLinesWithBlocks(document, [8])).toEqual([8]);
-  });
-});
-
 describe('SolidScript editor row drag', () => {
-  it('moves a block with its End when its opener is dragged, keeps it selected, and undoes in one step', () => {
+  it('moves only the opener when it is dragged, leaving its End, and undoes in one step', () => {
     const { commands } = editorFixture([
       { command: 'transform' },
       { command: 'cube' },
@@ -111,13 +80,13 @@ describe('SolidScript editor row drag', () => {
     ]);
     down(0);
     dragLine(0, 4);
-    expect(commands()).toEqual(['sphere', 'transform', 'cube', 'end', 'cylinder']);
-    expect(marked(5)).toEqual([1, 2, 3]);
+    expect(commands()).toEqual(['cube', 'end', 'sphere', 'transform', 'cylinder']);
+    expect(marked(5)).toEqual([3]);
     undo();
     expect(commands()).toEqual(['transform', 'cube', 'end', 'sphere', 'cylinder']);
   });
 
-  it('moves the whole block when its End or Else is dragged', () => {
+  it('moves an End or Else line on its own', () => {
     const { commands } = editorFixture([
       { command: 'sphere' },
       { command: 'if', values: { condition: 'yes' } },
@@ -128,14 +97,10 @@ describe('SolidScript editor row drag', () => {
     ]);
     down(5);
     dragLine(5, 0);
-    expect(commands()).toEqual(['if', 'cube', 'else', 'cylinder', 'end', 'sphere']);
-    down(2);
-    dragLine(2, 0);
-    expect(commands()).toEqual(['if', 'cube', 'else', 'cylinder', 'end', 'sphere']);
-    down(2);
-    // Into the block's own lines it stays where it is.
-    dragLine(2, 4);
-    expect(commands()).toEqual(['if', 'cube', 'else', 'cylinder', 'end', 'sphere']);
+    expect(commands()).toEqual(['end', 'sphere', 'if', 'cube', 'else', 'cylinder']);
+    down(4);
+    dragLine(4, 2);
+    expect(commands()).toEqual(['end', 'sphere', 'else', 'if', 'cube', 'cylinder']);
   });
 
   it('moves several picked lines together, closing their gaps, and keeps them selected', () => {
@@ -154,7 +119,7 @@ describe('SolidScript editor row drag', () => {
     expect(order()).toBe('abcde');
   });
 
-  it('moves a picked line together with the whole block of a picked opener', () => {
+  it('moves only the selected lines when a picked opener is dragged with another line', () => {
     const { commands } = editorFixture([
       { command: 'sphere' },
       { command: 'transform' },
@@ -166,7 +131,15 @@ describe('SolidScript editor row drag', () => {
     down(1, { ctrlKey: true });
     down(1);
     dragLine(1, 0);
-    expect(commands()).toEqual(['transform', 'cube', 'end', 'cylinder', 'sphere']);
-    expect(marked(5)).toEqual([0, 1, 2, 3]);
+    expect(commands()).toEqual(['transform', 'cylinder', 'sphere', 'cube', 'end']);
+    expect(marked(5)).toEqual([0, 1]);
+  });
+
+  it('moves an opener or End alone with the keyboard', () => {
+    const { commands } = editorFixture([{ command: 'transform' }, { command: 'cube' }, END, { command: 'sphere' }]);
+    press(chip(0), 'ArrowDown', { ctrlKey: true, shiftKey: true });
+    expect(commands()).toEqual(['cube', 'transform', 'end', 'sphere']);
+    press(chip(2), 'ArrowDown', { ctrlKey: true, shiftKey: true });
+    expect(commands()).toEqual(['cube', 'transform', 'sphere', 'end']);
   });
 });

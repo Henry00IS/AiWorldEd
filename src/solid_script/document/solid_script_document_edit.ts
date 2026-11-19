@@ -149,44 +149,6 @@ export function solidScriptDocumentLinesMove(
 }
 
 /**
- * Grows a set of lines to whole blocks: a line that opens, continues (Else) or
- * ends a block brings every line from its opener to its End, so dragging an If
- * moves its Else, End and everything inside with it. An opener without an End,
- * or an End without an opener, stays on its own.
- *
- * @param document Script.
- * @param lines Line indexes, in any order.
- * @returns Line indexes in order.
- */
-export function solidScriptDocumentLinesWithBlocks(document: SolidScriptDocument, lines: readonly number[]): number[] {
-  const spans: { first: number; last: number; edges: number[] }[] = [];
-  const open: number[][] = [];
-  document.blocks.forEach((block, line) => {
-    const nesting = solidScriptBlockNesting(block);
-    if (nesting === 'open') open.push([line]);
-    else if (nesting === 'continue') open.at(-1)?.push(line);
-    else if (nesting === 'close') {
-      const edges = open.pop();
-      if (edges) spans.push({ first: edges[0]!, last: line, edges: [...edges, line] });
-    }
-  });
-  const chosen = new Set(lines);
-  // Spans close inner first, so one pass from the innermost outward settles every block.
-  for (let grown = true; grown;) {
-    grown = false;
-    for (const span of spans) {
-      if (!span.edges.some((line) => chosen.has(line))) continue;
-      for (let line = span.first; line <= span.last; line++) {
-        if (chosen.has(line)) continue;
-        chosen.add(line);
-        grown = true;
-      }
-    }
-  }
-  return [...chosen].sort((a, b) => a - b);
-}
-
-/**
  * Replaces one line.
  *
  * @param document Script.

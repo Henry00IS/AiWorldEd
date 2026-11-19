@@ -4,7 +4,6 @@ import {
   solidScriptDocumentBlankInsert,
   solidScriptDocumentLinesInsert,
   solidScriptDocumentLinesMove,
-  solidScriptDocumentLinesWithBlocks,
   solidScriptDocumentLinesRemove,
   solidScriptDocumentLinesToggle,
 } from '@/solid_script/document/solid_script_document_edit.js';
@@ -77,7 +76,7 @@ export class SolidScriptEditorLineKeys {
 
   /**
    * Lands dragged lines before another line: the selected lines, or the dragged
-   * line alone, grown to whole blocks so an opener brings its End along. The
+   * line alone. Every line moves on its own, openers and End lines too. The
    * moved lines stay selected, so they can be dragged again.
    *
    * @param from Dragged line; the selection moves when it holds this line.
@@ -85,7 +84,7 @@ export class SolidScriptEditorLineKeys {
    */
   drag(from: number, to: number): void {
     const document = this.host.document();
-    const lines = solidScriptDocumentLinesWithBlocks(document, this.linesOf(from));
+    const lines = this.linesOf(from);
     const moved = solidScriptDocumentLinesMove(document, lines, to);
     if (moved.document === document) return;
     this.host.edit(moved.document, moved.line + lines.indexOf(from));
