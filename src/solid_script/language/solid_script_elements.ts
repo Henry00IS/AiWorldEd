@@ -135,8 +135,13 @@ export class SolidScriptElements {
    */
   brush(leaf: SolidScriptGeometryLeaf): SolidScriptElement {
     const latest = this.host.leafLatest(leaf);
-    for (const [known, element] of this.brushes) if (this.host.leafLatest(known) === latest) return element;
+    for (const [known, element] of this.brushes)
+      if (this.host.leafLatest(known) === latest) {
+        element.mesh = latest.kind === 'mesh';
+        return element;
+      }
     const element = this.add('brush', leaf, {}).element;
+    element.mesh = latest.kind === 'mesh';
     this.brushes.set(leaf, element);
     return element;
   }
@@ -304,7 +309,9 @@ export class SolidScriptElements {
    * @returns Solid or mesh.
    */
   leaf(element: SolidScriptElement): SolidScriptGeometryLeaf {
-    return this.host.leafLatest(this.entry(element).leaf);
+    const latest = this.host.leafLatest(this.entry(element).leaf);
+    if (element.kind === 'brush') element.mesh = latest.kind === 'mesh';
+    return latest;
   }
 
   /**

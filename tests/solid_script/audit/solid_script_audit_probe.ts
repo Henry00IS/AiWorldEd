@@ -68,6 +68,8 @@ export function solidScriptAuditCovers(predicted: readonly string[], kind: strin
   if (kind === 'List' && predicted.some((each) => each.endsWith('List') || each === 'Vector')) return true;
   if (kind === 'Vector' && (predicted.includes('Number List') || predicted.includes('List'))) return true;
   if (kind === 'Number List' && predicted.includes('Vector')) return true;
+  if (kind === 'Mesh' && predicted.includes('Brush')) return true;
+  if (kind === 'Mesh List' && (predicted.includes('Brush List') || predicted.includes('List'))) return true;
   return kind === 'Number' && predicted.includes('Text');
 }
 

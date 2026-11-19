@@ -19,7 +19,7 @@ import {
 const SOLID_SCRIPT_MEMBERS_BOUNDS = ['Center', 'Min', 'Max', 'Size', 'Extents'] as const;
 
 /** Kinds whose lists also have bounds of the whole list. */
-const SOLID_SCRIPT_MEMBERS_GEOMETRY = ['Brush', 'Face', 'Edge', 'Vertex'] as const;
+const SOLID_SCRIPT_MEMBERS_GEOMETRY = ['Brush', 'Mesh', 'Face', 'Edge', 'Vertex'] as const;
 
 /** Official Vector axis members, in X, Y, Z order. */
 export const SOLID_SCRIPT_VECTOR_AXES = ['X', 'Y', 'Z'] as const;
@@ -27,6 +27,7 @@ export const SOLID_SCRIPT_VECTOR_AXES = ['X', 'Y', 'Z'] as const;
 /** How a geometry list is named in messages, such as Vertices for a Vertex List. */
 const SOLID_SCRIPT_MEMBER_LIST_WORDS: Readonly<Record<string, string>> = {
   'Brush List': 'Brushes',
+  'Mesh List': 'Meshes',
   'Face List': 'Faces',
   'Edge List': 'Edges',
   'Vertex List': 'Vertices',
@@ -153,6 +154,7 @@ function solidScriptMemberKind(type: string): string {
 }
 
 function solidScriptMemberDecl(kind: string, member: string): SolidScriptMemberDecl | undefined {
+  if (kind === 'Mesh') return solidScriptMemberDecl('Brush', member);
   const members = SOLID_SCRIPT_MEMBER_DECLS[kind as keyof typeof SOLID_SCRIPT_MEMBER_DECLS];
   if (!members) return undefined;
   const key = solidScriptNameKey(member);
@@ -174,6 +176,8 @@ function solidScriptMemberDecl(kind: string, member: string): SolidScriptMemberD
  * @returns Kind it gives, or null when the value has no such member.
  */
 export function solidScriptMemberType(type: string, member: string): string | null {
+  if (type === 'Mesh' || type === 'Mesh List')
+    return solidScriptMemberType(type === 'Mesh' ? 'Brush' : 'Brush List', member);
   if (!type.endsWith(' List')) {
     const decl = solidScriptMemberDecl(type, member);
     return decl && solidScriptNameKey(decl.singular) === solidScriptNameKey(member) ? decl.type : null;

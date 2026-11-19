@@ -17,6 +17,7 @@ export const SOLID_SCRIPT_KINDS = [
   'Yes/No',
   'Vector',
   'Brush',
+  'Mesh',
   'Face',
   'Edge',
   'Vertex',
@@ -48,7 +49,8 @@ export function solidScriptKindKnown(kind: string): boolean {
 export function solidScriptKindOf(value: SolidScriptValue): string {
   if (value === undefined) return 'Text';
   if (typeof value === 'boolean') return 'Yes/No';
-  if (value instanceof SolidScriptElement) return SOLID_SCRIPT_ELEMENT_TYPES[value.kind];
+  if (value instanceof SolidScriptElement)
+    return value.kind === 'brush' && value.mesh ? 'Mesh' : SOLID_SCRIPT_ELEMENT_TYPES[value.kind];
   if (!Array.isArray(value)) return solidScriptValueNumber(value) === undefined ? 'Text' : 'Number';
   const kinds = new Set(value.map(solidScriptKindOf));
   const [only] = kinds;
@@ -69,14 +71,26 @@ export function solidScriptKindNamed(value: SolidScriptValue): string {
 }
 
 /**
- * Tells whether a field accepts a value of a kind.
+ * Kind a more specific kind may be used as, such as Brush for Mesh, because
+ * meshes live in the same lists as convex brushes.
  *
+ * @param kind Kind.
+ * @returns Broader kind, or undefined.
+ */
+export function solidScriptKindBroader(kind: string): string | undefined {
+  if (kind === 'Mesh') return 'Brush';
+  return kind === 'Mesh List' ? 'Brush List' : undefined;
+}
+
+/**
  * @param accepts What the field accepts.
  * @param kind Kind of the value.
  * @returns True when it does.
  */
 export function solidScriptKindAccepted(accepts: SolidScriptCommandAccepts, kind: string): boolean {
-  return accepts === 'Any' || accepts.includes(kind);
+  if (accepts === 'Any' || accepts.includes(kind)) return true;
+  const broader = solidScriptKindBroader(kind);
+  return broader !== undefined && accepts.includes(broader);
 }
 
 /**
@@ -122,6 +136,8 @@ export function solidScriptKindMismatch(label: string, accepts: SolidScriptComma
  */
 export function solidScriptKindFits(kinds: 'Any' | readonly string[], kind: string, unsure = false): boolean {
   if (kinds === 'Any' || kinds.includes(kind)) return true;
+  const broader = solidScriptKindBroader(kind);
+  if (broader !== undefined && (kinds.includes(broader) || solidScriptKindFits(kinds, broader, unsure))) return true;
   if (kinds.includes('List') && (kind.endsWith('List') || kind === 'Vector')) return true;
   if (kinds.includes('Vector') && (kind === 'List' || kind === 'Number List')) return true;
   if (kinds.includes('Text') && kind === 'Number') return true;

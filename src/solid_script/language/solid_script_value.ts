@@ -19,6 +19,12 @@ export class SolidScriptElement {
    * @param name Name it shows, such as a brush's Name; empty shows the kind and
    *   id.
    */
+  /**
+   * True when this object is a mesh, not a convex brush. Only used when kind is
+   * brush; the run updates it if the leaf later becomes a mesh or a brush.
+   */
+  mesh = false;
+
   constructor(
     readonly kind: SolidScriptElementKind,
     readonly id: number,
@@ -98,7 +104,8 @@ export function solidScriptValueNumeric(value: SolidScriptValue): SolidScriptVal
 export function solidScriptValueType(value: SolidScriptValue): string {
   if (value === undefined) return 'Nothing';
   if (typeof value === 'boolean') return 'Yes/No';
-  if (value instanceof SolidScriptElement) return SOLID_SCRIPT_ELEMENT_TYPES[value.kind];
+  if (value instanceof SolidScriptElement)
+    return value.kind === 'brush' && value.mesh ? 'Mesh' : SOLID_SCRIPT_ELEMENT_TYPES[value.kind];
   if (Array.isArray(value)) {
     if (value.length === 0) return 'List';
     const kinds = new Set(value.map((entry) => solidScriptValueType(entry)));
