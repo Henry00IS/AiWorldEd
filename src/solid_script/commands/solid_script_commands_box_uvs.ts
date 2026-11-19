@@ -20,7 +20,7 @@ export const SOLID_SCRIPT_COMMANDS_BOX_UVS: readonly SolidScriptCommand[] = [
     ],
     listing: (read) => [
       'Box UVs',
-      'size ',
+      'Size ',
       read.value('size'),
       ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
     ],

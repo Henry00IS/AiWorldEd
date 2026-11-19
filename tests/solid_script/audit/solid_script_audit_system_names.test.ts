@@ -150,6 +150,54 @@ function solidScriptShownProblem(problems: string[], where: string, name: string
   if (!solidScriptShownNameOk(name)) problems.push(`${where}: ${JSON.stringify(name)} is not PascalCase`);
 }
 
+/**
+ * Collects the sample values a listing was rendered with, so those words are
+ * not treated as labels.
+ *
+ * @param values Stored values used to render the line.
+ * @returns Values and their comma-separated items.
+ */
+function solidScriptListingUserWords(values: Readonly<Record<string, string>>): Set<string> {
+  const words = new Set<string>();
+  for (const text of Object.values(values)) {
+    const trimmed = text.trim();
+    if (trimmed !== '') words.add(trimmed);
+    for (const piece of text.split(',')) {
+      const item = piece.trim();
+      if (item !== '') words.add(item);
+    }
+  }
+  return words;
+}
+
+/**
+ * Lists lowercase words in the labels of a rendered command line, ignoring
+ * quoted text and the sample values the line was given.
+ *
+ * @param command Command.
+ * @param values Sample values used to render it.
+ * @returns Problems, one per leftover lowercase word.
+ */
+function solidScriptListingLabelProblems(
+  command: (typeof solidScriptCommands)[number],
+  values: Readonly<Record<string, string>>,
+): string[] {
+  const used: Record<string, string> = { ...command.valuesDefault() };
+  for (const [key, text] of Object.entries(values)) if (text !== '') used[key] = text;
+  const users = solidScriptListingUserWords(used);
+  const problems: string[] = [];
+  const shown = command.listingText(values);
+  for (const part of command.listing(values)) {
+    if (part.kind === 'value' || part.kind === 'variable' || part.kind === 'note') continue;
+    if (users.has(part.text.trim())) continue;
+    for (const word of part.text.match(/[A-Za-z][A-Za-z0-9]*/g) ?? []) {
+      if (users.has(word) || /^[A-Z0-9]/.test(word)) continue;
+      problems.push(`${command.id}: ${JSON.stringify(shown)} has lowercase ${JSON.stringify(word)}`);
+    }
+  }
+  return problems;
+}
+
 describe('every shown name is PascalCase', () => {
   it('declares every member of every kind in PascalCase', () => {
     const problems: string[] = [];
@@ -196,6 +244,22 @@ describe('every shown name is PascalCase', () => {
     for (const command of solidScriptCommands)
       for (const name of command.fills) solidScriptShownProblem(problems, `${command.label} fill`, name);
     expect(problems).toEqual([]);
+  });
+
+  it('renders every command with Title Case labels, apart from user values and quoted text', () => {
+    const problems: string[] = [];
+    for (const command of solidScriptCommands) {
+      const filled = Object.fromEntries(
+        command.parameters.map((parameter) => [
+          parameter.key,
+          parameter.words?.[0]?.word ?? (parameter.type === 'boolean' ? 'Yes' : 'Sample'),
+        ]),
+      );
+      const empty = Object.fromEntries(command.parameters.map((parameter) => [parameter.key, '']));
+      for (const values of [{}, empty, filled, command.valuesDefault()])
+        problems.push(...solidScriptListingLabelProblems(command, values));
+    }
+    expect([...new Set(problems)]).toEqual([]);
   });
 });
 

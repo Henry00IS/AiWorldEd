@@ -27,7 +27,7 @@ describe('SolidScript generator tools', () => {
       }
     ).commands;
     const cylinder = commands.find((command) => command.id === 'cylinder');
-    expect(cylinder?.example).toMatchObject({ command: 'cylinder', listed: "Cylinder height '1', radius '1'" });
+    expect(cylinder?.example).toMatchObject({ command: 'cylinder', listed: "Cylinder Height '1', Radius '1'" });
     expect(cylinder?.manual).not.toBe('');
     expect(commands.find((command) => command.id === 'difference')?.parameters).toEqual([]);
   });
@@ -58,7 +58,7 @@ describe('SolidScript generator tools', () => {
     expect((set.data as { lines: { listed: string }[] }).lines.map((line) => line.listed)).toEqual([
       'Difference',
       "    Cube '2, 2, 2'",
-      "    Sphere radius '1.2'",
+      "    Sphere Radius '1.2'",
       'End Difference',
     ]);
     expect((set.data as { lines: unknown[] }).lines[2]).toMatchObject({

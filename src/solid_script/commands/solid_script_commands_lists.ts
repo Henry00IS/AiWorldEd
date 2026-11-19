@@ -94,7 +94,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
       solidScriptParameter('value', 'Value', 'value', '1', 'What to put in the list.'),
       SOLID_SCRIPT_LIST_ADD,
     ],
-    listing: (read) => ['Add Item', read.value('value'), ' to ', read.text('list')],
+    listing: (read) => ['Add Item', read.value('value'), ' To ', read.text('list')],
     execute: (run) => {
       const value = run.value('value');
       run.listUpdate(run.text('list'), (items) => [...items, value], true);
@@ -118,7 +118,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
       SOLID_SCRIPT_LIST_ADD,
       solidScriptParameter('at', 'Position', 'count', '0', 'Where to put it, counting from 0.'),
     ],
-    listing: (read) => ['Insert Item', read.value('value'), ' into ', read.text('list'), ' at ', read.value('at')],
+    listing: (read) => ['Insert Item', read.value('value'), ' Into ', read.text('list'), ' At ', read.value('at')],
     execute: (run) => {
       const value = run.value('value');
       run.listUpdate(
@@ -177,7 +177,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     listing: (read) => [
       'Remove Value',
       read.value('value'),
-      ' from ',
+      ' From ',
       read.text('list'),
       ...solidScriptListingOptions([read.on('every') && ['Every Copy']]),
     ],
@@ -215,9 +215,9 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     listing: (read) => [
       'Find Item',
       read.value('value'),
-      ' in ',
+      ' In ',
       read.text('list'),
-      ', result in ',
+      ', Result In ',
       read.variable('result'),
     ],
     execute: (run) => {

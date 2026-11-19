@@ -114,7 +114,7 @@ export function solidScriptListingInputs(names: string): SolidScriptListingPiece
     .map((name) => name.trim())
     .filter((name) => name !== '');
   if (shown.length === 0) return [];
-  return [shown.length === 1 ? ' with input ' : ' with inputs ', shown.join(', ')];
+  return [shown.length === 1 ? ' With Input ' : ' With Inputs ', shown.join(', ')];
 }
 
 /**

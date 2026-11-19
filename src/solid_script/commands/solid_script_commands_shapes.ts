@@ -56,7 +56,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     ],
     listing: (read) => [
       'Sphere',
-      'radius ',
+      'Radius ',
       read.value('r'),
       ...solidScriptListingOptions([
         read.changed('sides') && ['Sides ', read.value('sides')],
@@ -87,11 +87,11 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     ],
     listing: (read) => [
       'Cylinder',
-      'height ',
+      'Height ',
       read.value('h'),
-      ', radius ',
+      ', Radius ',
       read.value('r1'),
-      read.text('r1') !== read.text('r2') && ' to ',
+      read.text('r1') !== read.text('r2') && ' To ',
       read.text('r1') !== read.text('r2') && read.value('r2'),
       ...solidScriptListingOptions([
         read.changed('anchor') && ['Anchor ', read.value('anchor')],
@@ -136,7 +136,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     named: false,
     description: 'Add a corner to a Polyhedron or Polygon',
     manual:
-      'Adds one corner point at X, Y and Z in metres to the Polyhedron or Polygon around this line, moved by any Translate, Rotate or other move between them. A Polygon uses X and Y of its drawing and ignores Z. Each value may be a variable or a formula, so a Repeat around a Point can place many corners. Example: inside Repeat [I] from 0 to 5, Point [=Cos([I] * 60)], [=Sin([I] * 60)], 0 adds the six corners of a hexagon.',
+      'Adds one corner point at X, Y and Z in metres to the Polyhedron or Polygon around this line, moved by any Translate, Rotate or other move between them. A Polygon uses X and Y of its drawing and ignores Z. Each value may be a variable or a formula, so a Repeat around a Point can place many corners. Example: inside Repeat [I] From 0 To 5, Point [=Cos([I] * 60)], [=Sin([I] * 60)], 0 adds the six corners of a hexagon.',
     stops: ['Being placed outside a Polyhedron or Polygon.', 'A position that is not x, y, z.'],
     parameters: [
       solidScriptParameter('position', 'Position', 'vector3', '0, 0, 0', 'X, Y and Z of the corner in metres.'),
@@ -185,7 +185,7 @@ export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
     ],
     listing: (read) => [
       'Circle',
-      'radius ',
+      'Radius ',
       read.value('r'),
       ...solidScriptListingOptions([
         read.changed('sides') && ['Sides ', read.value('sides')],

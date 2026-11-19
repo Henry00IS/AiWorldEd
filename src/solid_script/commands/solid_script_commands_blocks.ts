@@ -66,7 +66,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     stops: ['A value that is not one number or three numbers separated by commas.', SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [solidScriptParameter('v', 'Offset', 'vector3', '0, 0, 0', 'Distance along X, Y and Z in metres.')],
-    listing: (read) => ['Translate', 'by ', read.value('v')],
+    listing: (read) => ['Translate', 'By ', read.value('v')],
     execute: (run) => run.transformed(solidScriptTranslateMatrix(run.fields())),
   }),
   new SolidScriptCommand({
@@ -79,7 +79,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     stops: ['A value that is not one number or three numbers separated by commas.', SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [solidScriptParameter('a', 'Angles', 'vector3', '0, 0, 0', 'Degrees around X, then Y, then Z.')],
-    listing: (read) => ['Rotate', 'by ', read.value('a'), ' degrees'],
+    listing: (read) => ['Rotate', 'By ', read.value('a'), ' Degrees'],
     execute: (run) => run.transformed(solidScriptRotateMatrix(run.fields())),
   }),
   new SolidScriptCommand({
@@ -88,7 +88,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     category: 'Transforms',
     description: 'Turn brushes to point along a direction',
     manual:
-      'Turns every brush between this line and its End so that its upright Y axis points along Direction, by the shortest turn around the origin. Example: after Scatter Points Into Spots Normals Ways, For Each [Spot] In [Spots] Key I; Translate by [Spot]; Align To [Ways([I])] and a thin Cylinder grows a spike straight out of every face.',
+      'Turns every brush between this line and its End so that its upright Y axis points along Direction, by the shortest turn around the origin. Example: after Scatter Points Into Spots Normals Ways, For Each [Spot] In [Spots] Key I; Translate By [Spot]; Align To [Ways([I])] and a thin Cylinder grows a spike straight out of every face.',
     stops: ['A Direction of 0, 0, 0.', SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [
@@ -115,7 +115,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     parameters: [
       solidScriptParameter('v', 'Factors', 'vector3', '1, 1, 1', 'Stretch factor along X, Y and Z. 1 keeps the size.'),
     ],
-    listing: (read) => ['Scale', 'by ', read.value('v')],
+    listing: (read) => ['Scale', 'By ', read.value('v')],
     execute: (run) => run.transformed(solidScriptScaleMatrix(run.fields())),
   }),
   new SolidScriptCommand({
@@ -128,7 +128,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     stops: ['A direction of 0, 0, 0.', SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [solidScriptParameter('v', 'Plane Normal', 'vector3', '1, 0, 0', 'Direction the mirror faces.')],
-    listing: (read) => ['Mirror', 'across ', read.value('v')],
+    listing: (read) => ['Mirror', 'Across ', read.value('v')],
     execute: (run) => run.transformed(solidScriptMirrorMatrix(run.fields())),
   }),
   new SolidScriptCommand({
@@ -162,7 +162,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     ],
     listing: (read) => [
       'Resize',
-      'to ',
+      'To ',
       read.value('size'),
       ...solidScriptListingOptions([read.on('keep') && ['Keep Proportions']]),
     ],
@@ -218,7 +218,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     ],
     listing: (read) => [
       'Linear Extrude',
-      'height ',
+      'Height ',
       read.value('height'),
       ...solidScriptListingOptions([
         read.changed('anchor') && ['Anchor ', read.value('anchor')],
@@ -341,7 +341,7 @@ export const SOLID_SCRIPT_COMMANDS_COMBINE: readonly SolidScriptCommand[] = [
     category: 'Combine',
     description: 'Grow a brush by sweeping others over it',
     manual:
-      'Grows the first shape between this line and its End by the shapes after it, as if their middle were swept over every point of the first. A small Sphere after a Cube rounds every edge and corner. A flat Cylinder after a Square inside a Linear Extrude gives rounded corners. Each later shape counts as its convex hull. Example: Cube 2, 2, 1 then Sphere radius 0.2 gives a box 2.4 by 2.4 by 1.4 with soft edges.',
+      'Grows the first shape between this line and its End by the shapes after it, as if their middle were swept over every point of the first. A small Sphere after a Cube rounds every edge and corner. A flat Cylinder after a Square inside a Linear Extrude gives rounded corners. Each later shape counts as its convex hull. Example: Cube 2, 2, 1 then Sphere Radius 0.2 gives a box 2.4 by 2.4 by 1.4 with soft edges.',
     stops: ['Too many corner points: use fewer Sides.', SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [],

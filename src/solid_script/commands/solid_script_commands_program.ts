@@ -83,7 +83,7 @@ const SOLID_SCRIPT_INPUT_COMMAND = new SolidScriptCommand({
   category: 'Inputs',
   description: 'Add a setting to the inspector',
   manual:
-    "Adds a setting to the inspector, like the settings of a built-in generator. Lines read it as a variable, such as [Width], but cannot change it. Until someone changes it, it has the Default value. Type picks the control: Number, Count (whole numbers), Switch (Yes or No), Text, Choice, Button, Curve, Texture or Vector. A Number, Count or Vector can have a Minimum and Maximum; a Vector's apply to each of its x, y and z. A Number or Count with both gets a slider beside its field. A Choice lists its Choices. A Button runs When Button Pressed. A Curve opens the curve editor; read it with curve_at or profile_points, and a Number Default is a flat line at that height. A Texture picks a library texture by name for a Texture block; an empty Default keeps the generator's texture. A Vector shows X, Y and Z fields on one row and gives one value, such as 1, 2, 3 for a Cube of size [Size]. Example: Input Steps, Count, Default 8. Then Repeat [I] from 1 to [Steps] builds that many steps.",
+    "Adds a setting to the inspector, like the settings of a built-in generator. Lines read it as a variable, such as [Width], but cannot change it. Until someone changes it, it has the Default value. Type picks the control: Number, Count (whole numbers), Switch (Yes or No), Text, Choice, Button, Curve, Texture or Vector. A Number, Count or Vector can have a Minimum and Maximum; a Vector's apply to each of its x, y and z. A Number or Count with both gets a slider beside its field. A Choice lists its Choices. A Button runs When Button Pressed. A Curve opens the curve editor; read it with curve_at or profile_points, and a Number Default is a flat line at that height. A Texture picks a library texture by name for a Texture block; an empty Default keeps the generator's texture. A Vector shows X, Y and Z fields on one row and gives one value, such as 1, 2, 3 for a Cube of size [Size]. Example: Input Steps, Count, Default 8. Then Repeat [I] From 1 To [Steps] builds that many steps.",
   stops: [
     'A Type that is not Number, Count, Switch, Text, Choice, Button, Curve, Texture or Vector.',
     'A value outside Minimum and Maximum, a Count with decimals, a Vector that is not three numbers, or a Choice that is not listed.',
@@ -183,7 +183,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
         solidScriptParameter('value', 'Value', 'text', 'yes', 'Value that shows the inputs inside, as plain text.'),
       ),
     ],
-    listing: (read) => ['Show Inputs When', read.text('name'), ' is ', read.text('value')],
+    listing: (read) => ['Show Inputs When', read.text('name'), ' Is ', read.text('value')],
     execute: (run) => run.inPlace(),
   }),
   new SolidScriptCommand({
@@ -271,8 +271,8 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     listing: (read) => [
       'Call',
       read.text('name'),
-      ...(read.text('values').trim() === '' ? [] : [' with ', read.value('values')]),
-      ...(read.text('result').trim() === '' ? [] : [', result in ', read.variable('result')]),
+      ...(read.text('values').trim() === '' ? [] : [' With ', read.value('values')]),
+      ...(read.text('result').trim() === '' ? [] : [', Result In ', read.variable('result')]),
     ],
     execute: (run) => {
       const result = run.text('result').trim();
@@ -364,7 +364,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Inputs',
     description: 'Output the brushes a modifier receives',
     manual:
-      'Outputs every brush the script receives as a modifier. Like a generator, a modifier outputs nothing by itself: without an Input Brushes line the received brushes are gone and only what the script builds comes out. The brushes act like any brush built here: the Translate, Rotate, Scale, Mirror or Matrix blocks around this line move them, Repeat makes copies, Union, Difference and Intersection cut them, Select Faces finds their faces, and Clip cuts them, including when Of is [$Input.Brushes] above this line. Their faces keep their textures and materials. Textures is Move With Shape, so textures stay on their faces, or World Aligned, so they stay where they are in the world; a cut brush keeps its textures but they are laid out again. Readable Text flips U on a mirrored copy so lettering is not reversed. UV Shift U and V move the texture of this pass by that many tiles. As a generator it outputs nothing. Example: Repeat [I] from 0 to 2 around Translate by [=[I] * 2], 0, 0 around Input Brushes gives the brush and two copies two metres apart.',
+      'Outputs every brush the script receives as a modifier. Like a generator, a modifier outputs nothing by itself: without an Input Brushes line the received brushes are gone and only what the script builds comes out. The brushes act like any brush built here: the Translate, Rotate, Scale, Mirror or Matrix blocks around this line move them, Repeat makes copies, Union, Difference and Intersection cut them, Select Faces finds their faces, and Clip cuts them, including when Of is [$Input.Brushes] above this line. Their faces keep their textures and materials. Textures is Move With Shape, so textures stay on their faces, or World Aligned, so they stay where they are in the world; a cut brush keeps its textures but they are laid out again. Readable Text flips U on a mirrored copy so lettering is not reversed. UV Shift U and V move the texture of this pass by that many tiles. As a generator it outputs nothing. Example: Repeat [I] From 0 To 2 around Translate By [=[I] * 2], 0, 0 around Input Brushes gives the brush and two copies two metres apart.',
     stops: ['Textures other than Move With Shape or World Aligned.'],
     parameters: [
       solidScriptParameterWords(
@@ -403,7 +403,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     ],
     listing: (read) => [
       'Input Brushes',
-      ' textures ',
+      ' Textures ',
       read.text('textures'),
       ...solidScriptListingOptions([
         !read.on('readable') && ['Readable Text No'],
@@ -429,7 +429,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
       ),
       solidScriptParameter('value', 'Value', 'value', '1', 'New value: a number, text, [Variable] or [=formula].'),
     ],
-    listing: (read) => ['Set Input', read.text('name'), ' to ', read.value('value')],
+    listing: (read) => ['Set Input', read.text('name'), ' To ', read.value('value')],
     execute: (run) => {
       run.inputSet(run.text('name').trim(), run.value('value'));
       return [];

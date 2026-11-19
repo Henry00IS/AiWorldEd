@@ -93,7 +93,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Logic',
     description: 'Run lines several times',
     manual:
-      'Runs the lines inside once for each counter value. The counter goes from Start to End Value, adding Step each round. The lines inside can read the counter. Example: Repeat [I] from 0 to 4 around Translate by [=[I] * 2], 0, 0 and a Cube builds five cubes in a row.',
+      'Runs the lines inside once for each counter value. The counter goes from Start to End Value, adding Step each round. The lines inside can read the counter. Example: Repeat [I] From 0 To 4 around Translate By [=[I] * 2], 0, 0 and a Cube builds five cubes in a row.',
     stops: [
       'A Step of 0, or a Step that walks away from End Value.',
       `More than ${SOLID_SCRIPT_REPEAT_ROUNDS_MAX} rounds.`,
@@ -114,9 +114,9 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     listing: (read) => [
       'Repeat',
       read.variable('variable'),
-      ' from ',
+      ' From ',
       read.value('from'),
-      ' to ',
+      ' To ',
       read.value('to'),
       ...solidScriptListingOptions([read.changed('step') && ['Step ', read.value('step')]]),
     ],
@@ -326,7 +326,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Parts',
     description: 'Build a part here',
     manual:
-      'Builds a part here, then goes on with the next line. Define the part with Define Part, above or below this line. The blocks around this line move what the part builds. A part may be used many times. It shares the variables of the script, so a Set inside it can hand back a result. The name may be a variable, such as [Style]. A part may use itself, but an If must stop it. Example: Use Part Post inside Translate by 2, 0, 0 builds the post two metres to the right.',
+      'Builds a part here, then goes on with the next line. Define the part with Define Part, above or below this line. The blocks around this line move what the part builds. A part may be used many times. It shares the variables of the script, so a Set inside it can hand back a result. The name may be a variable, such as [Style]. A part may use itself, but an If must stop it. Example: Use Part Post inside Translate By 2, 0, 0 builds the post two metres to the right.',
     stops: ['No part with this name.', `Parts using each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} levels deep.`],
     flow: { kind: 'use_part', name: 'name' },
     parameters: [

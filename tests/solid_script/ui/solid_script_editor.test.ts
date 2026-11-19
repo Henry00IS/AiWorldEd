@@ -117,7 +117,7 @@ describe('SolidScript editor', () => {
     chip(0).focus();
     doubleClick(find('.solid-script-editor-palette-item[data-command="cylinder"]'));
     type(find<HTMLInputElement>('[data-solid-script-configurator="cylinder"] input[aria-label="Height"]'), '5');
-    expect(find('.solid-script-editor-preview').textContent).toContain("height '5'");
+    expect(find('.solid-script-editor-preview').textContent).toContain("Height '5'");
     tool('OK').click();
     expect(script().blocks[1]?.values?.['h']).toBe('5');
     expect(chip(1).textContent).toContain('Cylinder');

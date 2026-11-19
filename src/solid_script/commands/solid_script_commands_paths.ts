@@ -487,7 +487,7 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
     ],
     listing: (read) => [
       'Curve To Mesh',
-      'along ',
+      'Along ',
       read.value('path'),
       ...solidScriptListingOptions([
         read.changed('profile') ? ['Profile ', read.value('profile')] : ['Radius ', read.value('radius')],
