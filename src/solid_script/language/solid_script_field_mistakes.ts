@@ -187,6 +187,8 @@ interface SolidScriptMistakeField {
   key: string;
   label: string;
   type: SolidScriptFieldKind;
+  /** The few words a choice or Yes/No field takes, when it has them. */
+  words?: readonly { word: string }[];
 }
 
 /**
@@ -234,9 +236,24 @@ function solidScriptMistakeEngine(error: Error): boolean {
 }
 
 /**
+ * Tells whether field text is one of the words a choice or Yes/No field takes,
+ * so a bare X in a listed choice such as Along X is not treated as $X.
+ *
+ * @param field Field, with its words when it takes a few.
+ * @param text Field text as written.
+ * @returns True when the text is a listed choice.
+ */
+function solidScriptFieldListedChoice(field: Pick<SolidScriptMistakeField, 'type' | 'words'>, text: string): boolean {
+  const words = field.type === 'boolean' ? ['Yes', 'No'] : (field.words ?? []).map((entry) => entry.word);
+  if (words.length === 0) return false;
+  const written = text.trim().toLowerCase();
+  return words.some((word) => word.toLowerCase() === written);
+}
+
+/**
  * Explains a mistake in the text of one field, by the same rule in the editor
- * and in a run: names are never checked, and math outside a formula only in
- * fields that are read as numbers.
+ * and in a run: names are never checked, math outside a formula only in fields
+ * that are read as numbers, and listed choices are left as they are.
  *
  * @param field Field.
  * @param text Field text as written.
@@ -244,10 +261,11 @@ function solidScriptMistakeEngine(error: Error): boolean {
  * @returns Explanation, or an empty string when nothing looks wrong.
  */
 export function solidScriptFieldMistakeOf(
-  field: Pick<SolidScriptMistakeField, 'type'>,
+  field: Pick<SolidScriptMistakeField, 'type' | 'words'>,
   text: string,
   known: (name: string) => boolean = () => false,
 ): string {
   if (SOLID_SCRIPT_MISTAKE_NAMES.has(field.type) || text.trim() === '') return '';
+  if (solidScriptFieldListedChoice(field, text)) return '';
   return solidScriptFieldMistakeNote(text, SOLID_SCRIPT_MISTAKE_NUMERIC.has(field.type), known);
 }

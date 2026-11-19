@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
-import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
-import { solidScriptFieldMistake } from '@/solid_script/language/solid_script_field_mistakes.js';
+import { solidScriptCommandFind, solidScriptCommands } from '@/solid_script/commands/solid_script_command_catalog.js';
+import {
+  solidScriptFieldMistake,
+  solidScriptFieldMistakeOf,
+} from '@/solid_script/language/solid_script_field_mistakes.js';
 import { solidScriptMistakeCheck } from '@/solid_script/language/solid_script_use_check.js';
 import { solidScriptConfiguratorFieldBuild } from '@/solid_script/ui/solid_script_configurator_fields.js';
 
@@ -49,5 +52,49 @@ describe('SolidScript mistake hints', () => {
     expect(solidScriptConfiguratorFieldBuild(offset, '[K]*2', () => {}).warning()).toContain(
       'Did you mean to write [=[K]*2]?',
     );
+  });
+
+  it('does not hint a missing $ on the Arch Span Along choice Along X', () => {
+    const span = solidScriptCommandFind('arch')!.parameters.find((parameter) => parameter.key === 'span')!;
+    expect(span.words?.map((entry) => entry.word)).toContain('Along X');
+    expect(solidScriptFieldMistakeOf(span, 'Along X')).toBe('');
+    const document = solidScriptDocumentCreate([line('arch', { span: 'Along X' }), line('end')]);
+    expect(
+      solidScriptMistakeCheck(document).filter((warning) => warning.text.includes('system values start with $')),
+    ).toEqual([]);
+    expect(solidScriptConfiguratorFieldBuild(span, 'Along X', () => {}).warning()).not.toContain(
+      'system values start with $',
+    );
+  });
+
+  it('does not hint a missing $ for any listed choice of any command', () => {
+    const hinted: string[] = [];
+    for (const command of solidScriptCommands) {
+      for (const parameter of command.parameters) {
+        const words = parameter.type === 'boolean' ? ['Yes', 'No'] : (parameter.words ?? []).map((entry) => entry.word);
+        for (const word of words) {
+          const note = solidScriptFieldMistakeOf(parameter, word);
+          if (note.includes('system values start with $'))
+            hinted.push(`${command.id} ${parameter.label}: ${word} -> ${note}`);
+        }
+      }
+    }
+    expect(hinted).toEqual([]);
+  });
+
+  it('still hints a bare system name in a formula field', () => {
+    expect(solidScriptFieldMistakeOf({ type: 'number' }, 'X')).toBe(
+      'system values start with $. Did you mean to write $X?',
+    );
+    expect(solidScriptFieldMistakeOf({ type: 'vector3' }, 'Along X')).toBe(
+      'system values start with $. Did you mean to write Along $X?',
+    );
+    expect(solidScriptFieldMistakeOf({ type: 'number' }, '[=X]')).toBe(
+      'system values start with $. Did you mean to write [=$X]?',
+    );
+    const document = solidScriptDocumentCreate([line('cube', { size: 'X, 1, 1' }), line('end')]);
+    expect(solidScriptMistakeCheck(document).map((warning) => warning.text)).toEqual([
+      'Size: system values start with $. Did you mean to write $X, 1, 1?',
+    ]);
   });
 });
