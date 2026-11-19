@@ -107,6 +107,9 @@ const SOLID_SCRIPT_AUDIT_PLACES: Readonly<Record<string, (self: SolidScriptLine)
 const SOLID_SCRIPT_AUDIT_FACES = new Set([
   'scatter_points',
   'place_on_face',
+  'points_from_faces',
+  'points_from_edges',
+  'points_from_vertices',
   'extrude_face',
   'bevel_edges',
   'texture_faces',

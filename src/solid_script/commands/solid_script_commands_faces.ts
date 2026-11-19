@@ -15,13 +15,12 @@ import {
   solidScriptParameterWhen,
 } from './solid_script_command_parameters.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
-import { solidScriptPlaceMatrices } from '@/solid_script/language/solid_script_place.js';
+import { solidScriptPlaceAtMatrix, solidScriptPlaceMatrices } from '@/solid_script/language/solid_script_place.js';
 import { solidScriptFaceGroups, solidScriptFaceTargets, solidScriptFaceWrite } from './solid_script_face_of.js';
 import { solidScriptScaleFaces } from '@/solid_script/language/solid_script_scale_faces.js';
 import { solidScriptScatterRun } from '@/solid_script/language/solid_script_scatter.js';
 import {
   solidScriptGeometryBevel,
-  solidScriptGeometryFaceMatrix,
   solidScriptGeometryFacePrism,
   solidScriptGeometryFaces,
   solidScriptGeometryFacesDelete,
@@ -541,7 +540,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     builds: true,
     intoList: true,
     manual:
-      'Builds the brushes between this line and its End standing on a face: up is the way the face points and the center is the middle of the face. Of gives the face, such as [Face] in For Each [Face] In [$Selected.Faces]; given several faces it builds them on each. Empty Of uses [$Selected.Faces]. Lift moves them out from the face. Into is always a list of the brushes or meshes it built, even when there is only one. Example: For Each [Face] In [$Selected.Faces], Place On Face Of [Face], Cylinder, End, End puts a post on every picked face.',
+      'Builds the brushes between this line and its End standing on a face: up is the way the face points and the center is the middle of the face. Of gives the face, such as [Face] in For Each [Face] In [$Selected.Faces]; given several faces it builds them on each. Empty Of uses [$Selected.Faces]. Lift moves them out from the face. The same as Points From Faces then Place At Points with Align To Normal, with the same lift. Into is always a list of the brushes or meshes it built, even when there is only one. Example: For Each [Face] In [$Selected.Faces], Place On Face Of [Face], Cylinder, End, End puts a post on every picked face.',
     stops: ['No faces.', 'Nothing between this line and its End.', 'A missing End line.'],
     nesting: 'open',
     endLabel: 'Place',
@@ -557,8 +556,9 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     execute: (run) => {
       const lift = solidScriptValueNumber(run.value('lift'));
       if (lift === undefined) throw new Error('Lift needs a number of metres, such as 0');
+      const identity = new THREE.Matrix4();
       return solidScriptFaceTargets(run, 'Place On Face').flatMap((face) =>
-        run.framed(solidScriptGeometryFaceMatrix(face).multiply(new THREE.Matrix4().makeTranslation(0, lift, 0))),
+        run.framed(solidScriptPlaceAtMatrix(face.center, face.normal, lift, true, identity, identity)),
       );
     },
   }),
@@ -570,8 +570,9 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     description: 'Stand brushes at a list of points',
     builds: true,
     intoList: true,
+    fills: ['$Point', '$Index', '$X', '$Y', '$Z'],
     manual:
-      'Builds the brushes between this line and its End at each point in At, a list of vectors such as the points Scatter Points writes. Directions, when given, turns up (Y) along the matching entry, one per point; leave it empty to keep world up. Lift moves them out along that up. Into is always a list of the brushes or meshes it built, even when there is only one. Example: Scatter Points 20 Into [Spots] Normals [Dirs], then Place At Points At [Spots] Directions [Dirs], Sphere, End, puts a ball on every point, standing on the face.',
+      'Builds the brushes between this line and its End at each point in At, a list of vectors such as the points Scatter Points writes. Directions, when given, turns up (Y) along the matching entry, one per point; leave it empty to keep world up. Lift moves them out along that up. Align To Normal stands each copy the way Place On Face would, with Direction as the face normal. Rotation and Scale are worked out once per point as 🔁 fields, with [$Point] the position, [$Index] from 0, and [$X], [$Y] and [$Z]. Into is always a list of the brushes or meshes it built, even when there is only one. Example: Scatter Points 20 Into [Spots] Normals [Dirs], then Place At Points At [Spots] Directions [Dirs], Sphere, End, puts a ball on every point, standing on the face.',
     stops: [
       'A point or direction that is not x, y, z.',
       'A Directions list whose length is not the number of points in At.',
@@ -594,13 +595,45 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         'Optional: one direction per point, such as [Dirs] from Scatter Points Normals, so up (Y) points along it. Empty keeps world up.',
       ),
       solidScriptParameter('lift', 'Lift', 'number', '0', 'Metres to move the brushes out along up.'),
+      solidScriptParameter(
+        'align',
+        'Align To Normal',
+        'boolean',
+        'No',
+        'Yes: stand each copy the way Place On Face would, with Directions as the normals. No: the shortest turn that points up along each direction, or world up when Directions is left off.',
+      ),
+      {
+        ...solidScriptParameter(
+          'rotation',
+          'Rotation',
+          'vector3',
+          '0, 0, 0',
+          'Degrees around X, then Y, then Z, worked out once per point. May use [$Point], [$Index], [$X], [$Y] and [$Z].',
+        ),
+        each: 'Point',
+      },
+      {
+        ...solidScriptParameter(
+          'scale',
+          'Scale',
+          'vector3',
+          '1, 1, 1',
+          'Size of each copy, worked out once per point. May use [$Point], [$Index], [$X], [$Y] and [$Z].',
+        ),
+        each: 'Point',
+      },
     ],
     listing: (read) => [
       'Place At Points',
       ' At ',
       read.value('at'),
       ...(read.text('directions') === '' ? [] : [' Directions ', read.value('directions')]),
-      ...solidScriptListingOptions([read.changed('lift') && ['Lift ', read.value('lift')]]),
+      ...solidScriptListingOptions([
+        read.changed('lift') && ['Lift ', read.value('lift')],
+        read.on('align') && ['Align To Normal'],
+        read.changed('rotation') && ['Rotation ', read.value('rotation')],
+        read.changed('scale') && ['Scale ', read.value('scale')],
+      ]),
     ],
     execute: (run) => solidScriptPlaceMatrices(run).flatMap((matrix) => run.framed(matrix)),
   }),
