@@ -223,6 +223,52 @@ describe('SolidScript Rotate keeps UVs like the editor rotate tool', () => {
     expect(rotateGap(projected, 0, 0, 60)).toBeLessThan(1e-6);
   });
 
+  it('matches the editor turning and then moving a brush, for Translate around Rotate', () => {
+    const plain = compiled([CYLINDER]);
+    const placed = compiled([
+      { command: 'translate', values: { v: '3, 1, -2' } },
+      { command: 'rotate', values: { a: '30, 0, 60' } },
+      CYLINDER,
+      END,
+      END,
+    ]);
+    const matrix = new THREE.Matrix4().makeTranslation(3, 1, -2).multiply(turn(30, 0, 60));
+    expect(editorGap(plain[0] as SolidBrushInstance, placed[0] as SolidBrushInstance, matrix)).toBeLessThan(1e-6);
+  });
+
+  it('matches the editor for Rotate around Translate, which swings the brush around the origin', () => {
+    const plain = compiled([CYLINDER]);
+    const swung = compiled([
+      { command: 'rotate', values: { a: '0, 45, 0' } },
+      { command: 'translate', values: { v: '2, 0, 0' } },
+      CYLINDER,
+      END,
+      END,
+    ]);
+    const matrix = turn(0, 45, 0).multiply(new THREE.Matrix4().makeTranslation(2, 0, 0));
+    expect(editorGap(plain[0] as SolidBrushInstance, swung[0] as SolidBrushInstance, matrix)).toBeLessThan(1e-6);
+  });
+
+  it('keeps UVs when an even Scale wraps a turn: the texture keeps its size and turns along', () => {
+    const turned = compiled([{ command: 'rotate', values: { a: '0, 0, 60' } }, CYLINDER, END]);
+    const grown = compiled([
+      { command: 'scale', values: { v: '2, 2, 2' } },
+      { command: 'rotate', values: { a: '0, 0, 60' } },
+      CYLINDER,
+      END,
+      END,
+    ]);
+    const size = (brush: SolidBrushInstance | undefined): number[] =>
+      (brush?.brush.faces ?? []).map((_, index) => {
+        const uv = brush!.getFaceSurface(index).uv;
+        const a = uv.project(new THREE.Vector3(0, 0, 0));
+        const b = uv.project(new THREE.Vector3(0, 0, 1));
+        const c = uv.project(new THREE.Vector3(1, 0, 0));
+        return Math.round((Math.hypot(b.u - a.u, b.v - a.v) + Math.hypot(c.u - a.u, c.v - a.v)) * 1e4) / 1e4;
+      });
+    expect(size(grown[0]).sort()).toEqual(size(turned[0]).sort());
+  });
+
   it('gives nested turns the same UVs as one turn by their sum', () => {
     const once = compiled([{ command: 'rotate', values: { a: '0, 0, 60' } }, CYLINDER, END]);
     const twice = compiled([
