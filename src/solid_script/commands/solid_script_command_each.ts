@@ -74,8 +74,10 @@ export function solidScriptSystemFillEach(name: string): boolean {
 }
 
 /**
- * Lists the fills a line may use in its fields: the command's own fills, plus
- * the current-element names of any field that is per-element for these values.
+ * Lists every fill a line has: the command's own fills, plus the
+ * current-element names of any field that is per-element for these values.
+ * Autocomplete and the analyzer use solidScriptCommandFieldFills for one
+ * field.
  *
  * @param command Command of the line.
  * @param values Stored values of the line.
@@ -90,4 +92,24 @@ export function solidScriptCommandEachFills(
     return each ? [...solidScriptParameterEachFills(each)] : [];
   });
   return [...new Set([...command.fills, ...extra])];
+}
+
+/**
+ * Lists the fills one field may use. Per-element names such as $Brush and
+ * $Index are only included while that field is worked out once per element.
+ *
+ * @param command Command of the line.
+ * @param parameter Field.
+ * @param values Stored values of the line.
+ * @returns Official fill names, each once.
+ */
+export function solidScriptCommandFieldFills(
+  command: { fills: readonly string[]; parameters: readonly SolidScriptCommandParameter[] },
+  parameter: SolidScriptCommandParameter,
+  values: Readonly<Record<string, string>>,
+): readonly string[] {
+  const each = solidScriptParameterEachActive(parameter, values);
+  const eachFills = each ? [...solidScriptParameterEachFills(each)] : [];
+  const shared = command.fills.filter((name) => !solidScriptSystemFillEach(name));
+  return [...new Set([...shared, ...eachFills])];
 }

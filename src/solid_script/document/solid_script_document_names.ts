@@ -19,14 +19,26 @@ import {
   solidScriptGivenFlowName,
   type SolidScriptGiven,
 } from './solid_script_document_gives.js';
-import type { SolidScriptCommandGives } from '@/solid_script/commands/solid_script_command.js';
+import type {
+  SolidScriptCommandGives,
+  SolidScriptCommandParameter,
+} from '@/solid_script/commands/solid_script_command.js';
 import { SOLID_SCRIPT_SHAPE_NAME_KEY } from '@/solid_script/language/solid_script_shape.js';
 import { solidScriptDocumentActiveLines } from './solid_script_document_active.js';
 import { solidScriptBlockNesting } from './solid_script_document_indent.js';
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
-import { solidScriptCommandEachFills } from '@/solid_script/commands/solid_script_command_each.js';
+import {
+  solidScriptCommandFieldFills,
+  solidScriptSystemFillEach,
+} from '@/solid_script/commands/solid_script_command_each.js';
+import { solidScriptParameterApplies } from '@/solid_script/commands/solid_script_command_parameters.js';
+import { solidScriptSystemFill } from '@/solid_script/language/solid_script_system_names.js';
 import { solidScriptBuiltinFind } from '@/solid_script/language/solid_script_expression_compile.js';
-import { solidScriptFieldTokenKey, solidScriptFieldTokens } from '@/solid_script/language/solid_script_field_tokens.js';
+import {
+  solidScriptFieldTokenKey,
+  solidScriptFieldTokens,
+  type SolidScriptFieldToken,
+} from '@/solid_script/language/solid_script_field_tokens.js';
 import { solidScriptFieldAsTyped } from '@/solid_script/language/solid_script_field.js';
 import { solidScriptFunctionKey, solidScriptNameKey } from '@/solid_script/language/solid_script_name_key.js';
 
@@ -549,10 +561,26 @@ export function solidScriptFieldKnown(
  * @param known What the field may use.
  * @returns Unknown names in field order.
  */
+/**
+ * Key of a token the field may not use: a variable, or a per-element fill such
+ * as $Brush when this field does not fill it.
+ *
+ * @param text Field text.
+ * @param token Token.
+ * @returns Folded key, or null when the token is not checked this way.
+ */
+function solidScriptFieldUnknownKey(text: string, token: SolidScriptFieldToken): string | null {
+  const key = solidScriptFieldTokenKey(text, token);
+  if (key !== null || token.kind !== 'system') return key;
+  const head = text.slice(token.from, token.to).split('.')[0] ?? '';
+  const official = solidScriptSystemFill(head)?.name;
+  return official && solidScriptSystemFillEach(official) ? solidScriptNameKey(official) : null;
+}
+
 export function solidScriptFieldUnknown(text: string, known: SolidScriptFieldKnown): SolidScriptFieldUnknownName[] {
   const unknown: SolidScriptFieldUnknownName[] = [];
   for (const token of solidScriptFieldTokens(text)) {
-    const key = solidScriptFieldTokenKey(text, token);
+    const key = solidScriptFieldUnknownKey(text, token);
     if (key === null || unknown.some((entry) => entry.key === key)) continue;
     const written = text.slice(token.from, token.to);
     const call = token.kind === 'function';
@@ -579,9 +607,126 @@ function solidScriptFieldUnknownWritten(written: string): string {
 }
 
 /**
+ * Joins names in plain words, such as Where, or Rotation or Scale.
+ *
+ * @param parts Words.
+ * @returns Joined text.
+ */
+function solidScriptFieldListWords(parts: readonly string[]): string {
+  if (parts.length <= 1) return parts[0] ?? '';
+  return `${parts.slice(0, -1).join(', ')} or ${parts[parts.length - 1]}`;
+}
+
+/** A command as needed to list the fills of each field. */
+type SolidScriptFillCommand = {
+  fills: readonly string[];
+  parameters: readonly SolidScriptCommandParameter[];
+};
+
+/**
+ * Lists the fields of a line that fill a name, such as Where for $Brush.
+ *
+ * @param command Command of the line.
+ * @param values Stored values of the line.
+ * @param key Folded fill name.
+ * @returns Field labels.
+ */
+function solidScriptCommandFillOwners(
+  command: SolidScriptFillCommand,
+  values: Readonly<Record<string, string>>,
+  key: string,
+): string[] {
+  return command.parameters
+    .filter((other) =>
+      solidScriptCommandFieldFills(command, other, values).some((fill) => solidScriptNameKey(fill) === key),
+    )
+    .map((other) => other.label);
+}
+
+/**
+ * Official fills a field used that only another field of the same line fills,
+ * such as $Brush in Of of Select Brushes.
+ *
+ * @param command Command of the line.
+ * @param parameter Field.
+ * @param values Stored values of the line.
+ * @param text Field text.
+ * @returns Official names and the fields that fill them.
+ */
+export function solidScriptFieldEachFillMisplaced(
+  command: SolidScriptFillCommand,
+  parameter: SolidScriptCommandParameter,
+  values: Readonly<Record<string, string>>,
+  text: string,
+): readonly { name: string; owners: readonly string[] }[] {
+  const allowed = new Set(solidScriptCommandFieldFills(command, parameter, values).map(solidScriptNameKey));
+  const found: { name: string; owners: readonly string[] }[] = [];
+  for (const entry of solidScriptFieldUnknown(text, solidScriptFieldKnown([], []))) {
+    if (entry.call || allowed.has(entry.key)) continue;
+    const name = solidScriptSystemFill(entry.written)?.name ?? entry.written;
+    if (!solidScriptSystemFillEach(name)) continue;
+    const owners = solidScriptCommandFillOwners(command, values, entry.key);
+    if (owners.length > 0) found.push({ name, owners });
+  }
+  return found;
+}
+
+/**
+ * Warns when a field uses a per-element fill that belongs to another field,
+ * such as $Brush in Of.
+ *
+ * @param command Command of the line.
+ * @param parameter Field.
+ * @param values Stored values of the line.
+ * @param text Field text.
+ * @returns Warning, or empty when the field does not misuse a fill.
+ */
+export function solidScriptFieldEachFillWarning(
+  command: SolidScriptFillCommand,
+  parameter: SolidScriptCommandParameter,
+  values: Readonly<Record<string, string>>,
+  text: string,
+): string {
+  const found = solidScriptFieldEachFillMisplaced(command, parameter, values, text);
+  if (found.length === 0) return '';
+  const names = found.map((entry) => `[${entry.name}]`);
+  const owners = [...new Set(found.flatMap((entry) => [...entry.owners]))];
+  const used = names.length === 1 ? (names[0] ?? '') : solidScriptFieldListWords(names);
+  const verb = names.length === 1 ? 'it is' : 'they are';
+  return `${parameter.label} cannot use ${used}; ${verb} only filled in ${solidScriptFieldListWords(owners)}.`;
+}
+
+/**
+ * Collects unknown names and calls of one field, using only the fills that
+ * field may use.
+ *
+ * @param command Command of the line.
+ * @param parameter Field.
+ * @param values Stored values of the line.
+ * @param names Names the line sees.
+ * @param text Field text.
+ * @returns Unknown keys.
+ */
+function solidScriptParameterUnknownKeys(
+  command: SolidScriptFillCommand,
+  parameter: SolidScriptCommandParameter,
+  values: Readonly<Record<string, string>>,
+  names: readonly SolidScriptName[],
+  text: string,
+): string[] {
+  if (solidScriptFieldAsTyped(parameter) || !/[[(]/.test(text)) return [];
+  if (!solidScriptParameterApplies(parameter, values, command.parameters)) return [];
+  return solidScriptFieldUnknown(
+    text,
+    solidScriptFieldKnown(names, solidScriptCommandFieldFills(command, parameter, values)),
+  ).map((entry) => entry.key);
+}
+
+/**
  * Finds, without running the script, the names and calls each line reads that
- * it cannot see, for the editor's squiggles: what the line's fields use against
- * the names at that line. Lines that are off are skipped.
+ * it cannot see, for the editor's squiggles: what each field uses against the
+ * names at that line and the fills that field may use. Lines that are off are
+ * skipped.
  *
  * @param document Script.
  * @returns Unknown keys per 0-based line, only for lines that have any.
@@ -591,16 +736,12 @@ export function solidScriptDocumentNamesUnknown(document: SolidScriptDocument): 
   for (const { block, line } of solidScriptDocumentActiveLines(document.blocks)) {
     const command = solidScriptCommandFind(block.command);
     if (!command) continue;
-    const texts = command.parameters
-      .filter((parameter) => !solidScriptFieldAsTyped(parameter))
-      .map((parameter) => block.values[parameter.key] ?? '')
-      .filter((text) => /[[(]/.test(text));
-    if (texts.length === 0) continue;
-    const known = solidScriptFieldKnown(
-      solidScriptDocumentNamesAt(document, line),
-      solidScriptCommandEachFills(command, block.values),
+    const names = solidScriptDocumentNamesAt(document, line);
+    const keys = new Set(
+      command.parameters.flatMap((parameter) =>
+        solidScriptParameterUnknownKeys(command, parameter, block.values, names, block.values[parameter.key] ?? ''),
+      ),
     );
-    const keys = new Set(texts.flatMap((text) => solidScriptFieldUnknown(text, known).map((entry) => entry.key)));
     if (keys.size > 0) unknown.set(line, keys);
   }
   return unknown;

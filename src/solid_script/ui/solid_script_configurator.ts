@@ -1,7 +1,7 @@
 import type { SolidScriptCommand, SolidScriptCommandValues } from '@/solid_script/commands/solid_script_command.js';
 import { solidScriptParameterApplies } from '@/solid_script/commands/solid_script_command_parameters.js';
 import {
-  solidScriptCommandEachFills,
+  solidScriptCommandFieldFills,
   solidScriptParameterEachActive,
 } from '@/solid_script/commands/solid_script_command_each.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
@@ -9,7 +9,10 @@ import {
   solidScriptConfiguratorFieldBuild,
   type SolidScriptConfiguratorField,
 } from './solid_script_configurator_fields.js';
-import { type SolidScriptName } from '@/solid_script/document/solid_script_document_names.js';
+import {
+  solidScriptFieldEachFillWarning,
+  type SolidScriptName,
+} from '@/solid_script/document/solid_script_document_names.js';
 import { solidScriptInputRead } from '@/solid_script/language/solid_script_input.js';
 import { SolidScriptDialog } from './solid_script_dialog.js';
 import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
@@ -67,7 +70,11 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
         parameter,
         values[parameter.key] ?? parameter.default,
         () => this.refresh(),
-        { names, extra: command.fills },
+        {
+          names,
+          extra: solidScriptCommandFieldFills(command, parameter, values),
+          eachFillWarning: (text) => solidScriptFieldEachFillWarning(command, parameter, this.values(), text),
+        },
       );
       this.fields.set(parameter.key, field);
       list.append(field.element);
@@ -134,7 +141,7 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
       field.element.classList.toggle(SOLID_SCRIPT_EDITOR_CLASSES.fieldEach, active);
       const icon = field.element.querySelector<HTMLElement>(`.${SOLID_SCRIPT_EDITOR_CLASSES.fieldEachIcon}`);
       if (icon) icon.hidden = !active;
-      field.fillsSet(solidScriptCommandEachFills({ fills: this.command.fills, parameters: [parameter] }, values));
+      field.fillsSet(solidScriptCommandFieldFills(this.command, parameter, values));
       if (applies) shown.push(field);
     }
     return shown;

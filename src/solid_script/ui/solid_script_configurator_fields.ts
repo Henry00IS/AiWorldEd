@@ -55,8 +55,13 @@ export interface SolidScriptConfiguratorField {
 export interface SolidScriptConfiguratorScope {
   /** Names the script defines. */
   names: readonly SolidScriptName[];
-  /** Names the command fills in for its own formulas. */
+  /** Names the command fills in for this field. */
   extra: readonly string[];
+  /**
+   * Warning when this field uses a per-element fill that only another field of
+   * the line fills.
+   */
+  eachFillWarning?: (text: string) => string;
 }
 
 /** How a field's inputs are read and checked. */
@@ -199,6 +204,8 @@ export function solidScriptConfiguratorFieldBuild(
     if (mistake) return `${parameter.label}: ${mistake}`;
     const note = solidScriptConfiguratorVectorSize(parameter) > 0 ? solidScriptFieldVectorNote(field.read()) : '';
     if (note) return `${parameter.label}: ${note}.`;
+    const fillWarning = scope.eachFillWarning?.(field.read()) ?? '';
+    if (fillWarning) return fillWarning;
     const unknown = solidScriptFieldUnknown(field.read(), known);
     const names = unknown.filter((entry) => !entry.call).map((entry) => `[${entry.written}]`);
     const calls = unknown.filter((entry) => entry.call).map((entry) => `${entry.written}()`);
