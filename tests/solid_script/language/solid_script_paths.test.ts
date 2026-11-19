@@ -179,6 +179,7 @@ describe('SolidScript paths', () => {
         { command: 'cube', values: { size: '1, 1, 1' } },
         END,
         END,
+        { command: 'select_brushes' },
         { command: 'merge_by_distance', values: { distance } },
       );
     const [merged] = solidScriptShapeMeshes(cubes('0.001').shapes);

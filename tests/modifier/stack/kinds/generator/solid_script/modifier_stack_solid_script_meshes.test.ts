@@ -123,12 +123,13 @@ describe('SolidScript generator meshes', () => {
       END,
       END,
     ];
+    const selectBrushes: SolidScriptLine = { command: 'select_brushes' };
     const select: SolidScriptLine = { command: 'select_faces', values: { which: 'All' } };
     const project: SolidScriptLine = { command: 'project_uvs', values: { size: '1' } };
     const boxed: SolidScriptLine = { command: 'box_uvs', values: { size: '1' } };
     const orders: SolidScriptLine[][] = [
-      [texture, fromBrushes, ...torus, END, select, project, END],
-      [fromBrushes, texture, ...torus, END, END, select, boxed],
+      [texture, fromBrushes, ...torus, END, selectBrushes, select, project, END],
+      [fromBrushes, texture, ...torus, END, END, selectBrushes, select, boxed],
     ];
     for (const order of orders) {
       const fixture = meshFixture(...order);
@@ -146,7 +147,13 @@ describe('SolidScript generator meshes', () => {
   });
 
   it('bakes shown meshes into regular editable meshes beside the solid, and undo takes them away', () => {
-    const fixture = meshFixture({ command: 'mesh_brushes' }, { command: 'cube' }, END, { command: 'subdivide' });
+    const fixture = meshFixture(
+      { command: 'mesh_brushes' },
+      { command: 'cube' },
+      END,
+      { command: 'select_brushes' },
+      { command: 'subdivide' },
+    );
     fixture.compile();
     const shown = modifierStackMeshesShown(fixture.node)[0];
     if (!shown) throw new Error('Expected a shown mesh');

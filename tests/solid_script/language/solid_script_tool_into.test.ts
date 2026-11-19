@@ -6,6 +6,7 @@ import type { SolidScriptShapeSolid } from '@/solid_script/language/solid_script
 
 const END: SolidScriptLine = { command: 'end' };
 const CUBE: SolidScriptLine = { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } };
+const SELECT_BRUSHES: SolidScriptLine = { command: 'select_brushes' };
 
 /**
  * Runs script lines.
@@ -43,7 +44,10 @@ function maxY(solid: SolidScriptShapeSolid): number {
 
 describe('SolidScript tools with Into', () => {
   it('clips in place when Into is empty', () => {
-    const [solid] = solids(CUBE, { command: 'clip', values: { through: '0, 0, 0', normal: '0, 1, 0' } });
+    const [solid] = solids(CUBE, SELECT_BRUSHES, {
+      command: 'clip',
+      values: { through: '0, 0, 0', normal: '0, 1, 0' },
+    });
     if (!solid) throw new Error('Expected a clipped cube');
     expect(maxY(solid)).toBeCloseTo(0, 5);
   });
@@ -51,6 +55,7 @@ describe('SolidScript tools with Into', () => {
   it('leaves the original and keeps the clipped copy in the variable when Into is set', () => {
     const result = run(
       CUBE,
+      { command: 'select_brushes' },
       { command: 'clip', values: { through: '0, 0, 0', normal: '0, 1, 0', into: 'Cut' } },
       { command: 'echo', values: { value: '[=[Cut.Count]] [=[Cut(0).Max.Y]]' } },
     );
@@ -66,13 +71,17 @@ describe('SolidScript tools with Into', () => {
   it('puts an extruded slab in the scene without Into, and only in the variable with Into', () => {
     const inPlace = solids(
       CUBE,
+      { command: 'select_brushes' },
       { command: 'select_faces', values: { which: 'Up' } },
+      { command: 'select_brushes' },
       { command: 'extrude_face', values: { distance: '0.5' } },
     );
     expect(inPlace).toHaveLength(2);
     const copied = run(
       CUBE,
+      { command: 'select_brushes' },
       { command: 'select_faces', values: { which: 'Up' } },
+      { command: 'select_brushes' },
       { command: 'extrude_face', values: { distance: '0.5', into: 'Slab' } },
       { command: 'echo', values: { value: '[=[Slab.Count]]' } },
     );

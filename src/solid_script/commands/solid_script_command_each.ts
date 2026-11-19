@@ -6,7 +6,7 @@ import {
 } from '@/solid_script/language/solid_script_system_names.js';
 
 /** Element a per-element field is worked out for, once each. */
-export type SolidScriptCommandEach = 'Face' | 'Edge' | 'Vertex' | 'Point';
+export type SolidScriptCommandEach = 'Brush' | 'Face' | 'Edge' | 'Vertex' | 'Point';
 
 /** Icon shown on a field worked out once per element. */
 export const SOLID_SCRIPT_COMMAND_EACH_ICON = '🔁';
@@ -14,6 +14,7 @@ export const SOLID_SCRIPT_COMMAND_EACH_ICON = '🔁';
 /** Official fills of the current element, by the element kind. */
 const SOLID_SCRIPT_COMMAND_EACH_FILLS: Readonly<Record<SolidScriptCommandEach, readonly SolidScriptSystemFillName[]>> =
   {
+    Brush: ['$Brush', '$Index'],
     Face: ['$Face', '$Index', '$CX', '$CY', '$CZ', '$NX', '$NY', '$NZ'],
     Edge: ['$Edge', '$Index'],
     Vertex: ['$Vertex', '$Index', '$X', '$Y', '$Z', '$NX', '$NY', '$NZ'],

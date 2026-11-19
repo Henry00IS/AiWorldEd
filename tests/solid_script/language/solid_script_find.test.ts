@@ -4,6 +4,7 @@ import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/
 
 const END: SolidScriptLine = { command: 'end' };
 const CUBE: SolidScriptLine = { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } };
+const SELECT_BRUSHES: SolidScriptLine = { command: 'select_brushes' };
 const SELECT_ALL: SolidScriptLine = { command: 'select_faces', values: { which: 'All' } };
 
 /**
@@ -40,6 +41,7 @@ describe('SolidScript Find On', () => {
     expect(
       printed(
         CUBE,
+        SELECT_BRUSHES,
         SELECT_ALL,
         { command: 'find_on', values: fields },
         { command: 'echo', values: { value: '[Found] [Spot] [Dist] [Way]' } },
@@ -50,6 +52,7 @@ describe('SolidScript Find On', () => {
         { command: 'mesh_brushes' },
         CUBE,
         END,
+        SELECT_BRUSHES,
         SELECT_ALL,
         { command: 'find_on', values: fields },
         { command: 'echo', values: { value: '[Found] [Spot] [Dist]' } },
@@ -58,6 +61,7 @@ describe('SolidScript Find On', () => {
     expect(
       printed(
         CUBE,
+        SELECT_BRUSHES,
         SELECT_ALL,
         {
           command: 'find_on',
@@ -72,14 +76,17 @@ describe('SolidScript Find On', () => {
     expect(
       printed(
         CUBE,
+        SELECT_BRUSHES,
         SELECT_ALL,
         { command: 'find_on', values: { how: 'Ray', from: '0, 3, 0', direction: '0, 1, 0', hit: 'Found' } },
         { command: 'echo', values: { value: '[Found]' } },
       ),
     ).toEqual(['No']);
     expect(
-      run(CUBE, SELECT_ALL, { command: 'find_on', values: { how: 'Ray', from: '0, 0, 0', direction: '0, 0, 0' } }).error
-        ?.text,
+      run(CUBE, SELECT_BRUSHES, SELECT_ALL, {
+        command: 'find_on',
+        values: { how: 'Ray', from: '0, 0, 0', direction: '0, 0, 0' },
+      }).error?.text,
     ).toMatch(/Line \d+: Direction needs a direction that is not 0, 0, 0/);
   });
 });

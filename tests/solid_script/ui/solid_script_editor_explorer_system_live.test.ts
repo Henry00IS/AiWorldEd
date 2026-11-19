@@ -14,6 +14,7 @@ import {
 /** A cube, its top face picked, then a second cube. */
 const PICKED: SolidScriptLine[] = [
   { command: 'cube', values: {} },
+  { command: 'select_brushes' },
   { command: 'select_faces', values: { which: 'Up' } },
   { command: 'cube', values: {} },
 ];
@@ -73,38 +74,38 @@ describe('System names show the values of the run where it was captured', () => 
     editorFixture(PICKED);
     systemShow();
     expect(caption()).toBe('At the end of the run; built-in values as they read now');
-    expect(valueOf('$Selected.Faces')).toBe('[Face 2]');
-    expect(valueOf('$Selected.Brushes')).toBe('[cube, cube]');
-    expect(itemsOf('$Selected.Brushes')).toEqual(['$Selected.Brushes(0)|cube', '$Selected.Brushes(1)|cube']);
-    expect(itemsOf('$Selected.Faces')).toEqual(['$Selected.Faces(0)|Face 2']);
+    expect(valueOf('$Selected.Faces')).toBe('[Face 5]');
+    expect(valueOf('$Selected.Brushes')).toBe('[cube]');
+    expect(itemsOf('$Selected.Brushes')).toEqual(['$Selected.Brushes(0)|cube']);
+    expect(itemsOf('$Selected.Faces')).toEqual(['$Selected.Faces(0)|Face 5']);
   });
 
   it('shows the lists where a breakpoint paused the run, before its line', () => {
     const { root } = editorFixture(PICKED);
-    find('[data-line="2"] .solid-script-editor-gutter').click();
+    find('[data-line="3"] .solid-script-editor-gutter').click();
     tool('Start').click();
-    expect(root.textContent).toContain('Stopped at the breakpoint on line 3, before it runs');
+    expect(root.textContent).toContain('Stopped at the breakpoint on line 4, before it runs');
     systemShow();
-    expect(valueOf('$Selected.Faces')).toBe('[Face 2]');
+    expect(valueOf('$Selected.Faces')).toBe('[Face 5]');
     expect(valueOf('$Selected.Brushes')).toBe('[cube]');
-    linePress(2);
+    linePress(3);
     categoryShow('Context');
-    expect(valueOf('$Selected.Faces')).toBe('[Face 2]');
-    expect(itemsOf('$Selected.Faces')).toEqual(['$Selected.Faces(0)|Face 2']);
+    expect(valueOf('$Selected.Faces')).toBe('[Face 5]');
+    expect(itemsOf('$Selected.Faces')).toEqual(['$Selected.Faces(0)|Face 5']);
   });
 
   it('says when the fills of the paused line hold values, in System and Context', () => {
     editorFixture(PICKED);
-    find('[data-line="1"] .solid-script-editor-gutter').click();
+    find('[data-line="2"] .solid-script-editor-gutter').click();
     tool('Start').click();
     systemShow();
-    expect(valueOf('$NZ')).toBe('Set for Each Element While Line 2 Runs');
-    expect(valueOf('$Index')).toBe('Set for Each Element While Line 2 Runs');
+    expect(valueOf('$NZ')).toBe('Set for Each Element While Line 3 Runs');
+    expect(valueOf('$Index')).toBe('Set for Each Element While Line 3 Runs');
     expect(valueOf('$X')).toBe('Only Inside Lines That Fill It');
     expect(valueOf('$Selected.Faces')).toBe('[]');
-    linePress(1);
+    linePress(2);
     categoryShow('Context');
-    expect(valueOf('$Face')).toBe('Set for Each Element While Line 2 Runs');
+    expect(valueOf('$Face')).toBe('Set for Each Element While Line 3 Runs');
   });
 
   it('follows each debugger step', () => {
@@ -112,11 +113,11 @@ describe('System names show the values of the run where it was captured', () => 
     tool('Step').click();
     systemShow();
     expect(caption()).toBe('At step 1, line 1; built-in values as they read now');
-    expect(valueOf('$Selected.Brushes')).toBe('[cube]');
+    expect(valueOf('$Selected.Brushes')).toBe('[]');
     expect(valueOf('$Selected.Faces')).toBe('[]');
     tool('Step').click();
-    expect(caption()).toBe('At step 2, line 3; built-in values as they read now');
-    expect(valueOf('$Selected.Brushes')).toBe('[cube, cube]');
-    expect(valueOf('$Selected.Faces')).toBe('[Face 2]');
+    expect(caption()).toBe('At step 2, line 4; built-in values as they read now');
+    expect(valueOf('$Selected.Brushes')).toBe('[cube]');
+    expect(valueOf('$Selected.Faces')).toBe('[Face 5]');
   });
 });

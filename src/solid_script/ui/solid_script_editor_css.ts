@@ -273,7 +273,7 @@ const SOLID_SCRIPT_EDITOR_PANES_CSS = `
 .${c.outputTab}[aria-selected="true"] { border-bottom-color: ${ThemeCss.accentColor}; font-weight: 600; }
 .${c.outputTab}.${c.outputError} { color: #e5484d; }
 .${c.outputText} { flex: 1; min-height: 0; overflow-y: auto; padding: 5px 12px; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; white-space: pre-wrap; color: ${ThemeCss.textColor}; user-select: text; cursor: text; caret-color: currentColor; outline: none; }
-.${c.outputFailure} { color: #e5484d; }
+.${c.outputFailure} { color: #e5484d; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 .${c.outputWarning} { color: #f5a524; }
 .${c.outputWarning} > button { background: none; border: none; padding: 0; font: inherit; color: inherit; }
 .${c.variablesCaption} { margin-bottom: 4px; font: 11px ${Theme.uiFontFamily}; color: ${ThemeCss.mutedTextColor}; }

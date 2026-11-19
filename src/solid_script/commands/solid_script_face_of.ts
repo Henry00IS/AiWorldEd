@@ -2,6 +2,7 @@ import { solidScriptKindNamed } from '@/solid_script/language/solid_script_kinds
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import type { SolidScriptFaceFacts, SolidScriptGeometryLeaf } from '@/solid_script/language/solid_script_geometry.js';
 import { SolidScriptElement, type SolidScriptValue } from '@/solid_script/language/solid_script_value.js';
+import { solidScriptOfEmpty } from '@/solid_script/language/solid_script_select.js';
 
 /**
  * Reads the faces a line works on now: those its Of gives (faces, or every face
@@ -17,9 +18,7 @@ export function solidScriptFaceTargets(run: SolidScriptBlockRun, label: string):
   const values = given ?? run.selectedGet('faces');
   if (values.length === 0)
     throw new Error(
-      given
-        ? `${label} has no faces in Of; check that Of holds faces or brushes`
-        : `${label} has no faces to work on; use Select Faces above it to pick some, or give them in Of`,
+      given ? `${label} has no faces in Of; check that Of holds faces or brushes` : solidScriptOfEmpty(label, 'faces'),
     );
   const faces: SolidScriptFaceFacts[] = [];
   const seen = new WeakMap<SolidScriptGeometryLeaf, Set<number>>();

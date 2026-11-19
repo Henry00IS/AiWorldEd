@@ -43,6 +43,7 @@ import {
   type SolidScriptFaceTag,
   type SolidScriptShapeSolid,
 } from '@/solid_script/language/solid_script_shape.js';
+import { SOLID_SCRIPT_SELECT_NEW_SINCE_LAST, solidScriptOfEmpty } from '@/solid_script/language/solid_script_select.js';
 import {
   SolidScriptElement,
   solidScriptValueNumber,
@@ -61,6 +62,7 @@ const SOLID_SCRIPT_FACE_DIRECTIONS: Readonly<Record<string, THREE.Vector3>> = SO
  */
 const SOLID_SCRIPT_FACE_WHICH_WORDS: readonly SolidScriptCommandWord[] = [
   { word: 'All', detail: 'Every face' },
+  { word: SOLID_SCRIPT_SELECT_NEW_SINCE_LAST, detail: 'Faces added since the last Select Faces' },
   ...Object.entries(SOLID_SCRIPT_FACE_DIRECTIONS).map(([word, direction]) => {
     const axis = (['x', 'y', 'z'] as const).find((key) => direction[key] !== 0) ?? 'z';
     const sign = direction[axis] > 0 ? '+' : '−';
@@ -293,6 +295,53 @@ function solidScriptFaceTagsOf(
 }
 
 /**
+ * Faces Select Faces may pick from, or a stop when Of or [$Selected.Brushes]
+ * has nothing.
+ *
+ * @param run Running line.
+ * @returns Faces of those brushes or of a face list in Of.
+ */
+function solidScriptFaceSelectFrom(run: SolidScriptBlockRun): SolidScriptFaceFacts[] {
+  const given = run.ofValues();
+  const from = given ?? run.selectedGet('brushes');
+  if (!given && from.length === 0) throw new Error(solidScriptOfEmpty('Select Faces', 'brushes'));
+  const faces: SolidScriptFaceFacts[] = [];
+  for (const value of from) {
+    if (!(value instanceof SolidScriptElement) || (value.kind !== 'face' && value.kind !== 'brush'))
+      throw new Error(`Select Faces picks from brushes or faces, not ${solidScriptKindNamed(value)}`);
+    faces.push(...run.elements.faces(value));
+  }
+  if (faces.length === 0)
+    throw new Error('Select Faces has no faces to pick from; add a brush such as Cube or Input Brushes above it');
+  return faces;
+}
+
+/**
+ * Writes the faces a Select Faces line picked, after How, and remembers the
+ * pool for New Since Last.
+ *
+ * @param run Running line.
+ * @param how New, Add or Remove.
+ * @param items Faces in the pool.
+ * @param picked Faces this Which chose.
+ */
+function solidScriptFaceSelectWrite(
+  run: SolidScriptBlockRun,
+  how: string,
+  items: readonly SolidScriptValue[],
+  picked: readonly SolidScriptValue[],
+): void {
+  const before = how === 'New' ? [] : run.selectedGet('faces');
+  const after =
+    how === 'Remove'
+      ? before.filter((face) => !picked.includes(face as SolidScriptElement))
+      : [...before, ...picked.filter((face) => !before.includes(face))];
+  run.selectNote('faces', items);
+  run.selectedSet('faces', after);
+  solidScriptFaceWrite(run, 'into', after);
+}
+
+/**
  * Commands that pick faces of the shapes built so far and work on faces and
  * edges given as values.
  */
@@ -304,7 +353,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     description: 'Pick faces of brushes',
     fills: ['$Face', '$Index', '$CX', '$CY', '$CZ', '$NX', '$NY', '$NZ'],
     manual:
-      'Picks faces and puts them in [$Selected.Faces], where Extrude Face, Inset Face, Bevel Edges, Delete Faces and Texture Faces find them when their Of is empty. Of says where to pick from: brushes (all their faces) or faces (a list to narrow down); empty uses [$Selected.Brushes], every brush built above. Into also writes the faces to a variable, a Face list. Where tests each face as [$Face], and [$Index] is its number from 0; [$CX], [$CY] and [$CZ] are short forms of [$Face.Center.X] and the other axes, and [$NX], [$NY] and [$NZ] of [$Face.Normal]. How adds to or removes from the faces picked before. Inside a For Each round the pick stays in that round. Example: Cube, then Select Faces Which Up and Extrude Face By 1 pulls the top up.',
+      'Picks faces and puts them in [$Selected.Faces], where Extrude Face, Inset Face, Bevel Edges, Delete Faces and Texture Faces find them when their Of is empty. Of says where to pick from: brushes (all their faces) or faces (a list to narrow down); empty uses [$Selected.Brushes]. New-Since-Last keeps only faces added since the last Select Faces. Into also writes the faces to a variable, a Face list. Where tests each face as [$Face], and [$Index] is its number from 0; [$CX], [$CY] and [$CZ] are short forms of [$Face.Center.X] and the other axes, and [$NX], [$NY] and [$NZ] of [$Face.Normal]. How adds to or removes from the faces picked before. Inside a For Each round the pick stays in that round. Example: Cube, then Select Faces Which Up and Extrude Face By 1 pulls the top up.',
     stops: [
       'No brushes to pick from.',
       'A Which that is not one of the choices.',
@@ -365,26 +414,14 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       const how = run.text('how').trim();
       if (!(SOLID_SCRIPT_FACE_HOW as readonly string[]).includes(how))
         throw new Error(`How must be New, Add or Remove, not "${how}"`);
-      const given = run.ofValues();
-      const from = given ?? run.selectedGet('brushes');
-      const faces: SolidScriptFaceFacts[] = [];
-      for (const value of from) {
-        if (!(value instanceof SolidScriptElement) || (value.kind !== 'face' && value.kind !== 'brush'))
-          throw new Error(`Select Faces picks from brushes or faces, not ${solidScriptKindNamed(value)}`);
-        faces.push(...run.elements.faces(value));
-      }
-      if (faces.length === 0)
-        throw new Error('Select Faces has no faces to pick from; add a brush such as Cube or Input Brushes above it');
-      const picked = solidScriptGeometryPick(faces, solidScriptFacePickRead(run)).map((face) =>
-        run.elements.face(face),
-      );
-      const before = how === 'New' ? [] : run.selectedGet('faces');
-      const after =
-        how === 'Remove'
-          ? before.filter((face) => !picked.includes(face as SolidScriptElement))
-          : [...before, ...picked.filter((face) => !before.includes(face))];
-      run.selectedSet('faces', after);
-      solidScriptFaceWrite(run, 'into', after);
+      const faces = solidScriptFaceSelectFrom(run);
+      const items = faces.map((face) => run.elements.face(face));
+      const which = run.text('which').trim();
+      const picked =
+        which === SOLID_SCRIPT_SELECT_NEW_SINCE_LAST
+          ? run.selectFresh('faces', items)
+          : solidScriptGeometryPick(faces, solidScriptFacePickRead(run)).map((face) => run.elements.face(face));
+      solidScriptFaceSelectWrite(run, how, items, picked);
       return [];
     },
   }),

@@ -121,6 +121,7 @@ describe('SolidScript generator UVs', () => {
       { command: 'translate', values: { v: offset } },
       { command: 'cube', values: { size: '2, 2, 2' } },
       END,
+      { command: 'select_brushes' },
       { command: 'select_faces', values: { which: 'All' } },
       { command: 'box_uvs', values: { size: '1' } },
     ];
@@ -161,6 +162,7 @@ describe('SolidScript generator UVs', () => {
       { command: 'translate', values: { v: offset } },
       { command: 'cube', values: { size: '2, 2, 2' } },
       END,
+      { command: 'select_brushes' },
       { command: 'select_faces', values: { which: 'All' } },
       { command: 'project_uvs', values: { mode: 'Box', size: '1', space: 'Local' } },
     ];
@@ -177,6 +179,7 @@ describe('SolidScript generator UVs', () => {
       { command: 'rotate', values: { a: '0, 90, 0' } },
       { command: 'texture' },
       { command: 'cube', values: { size: '2, 1, 3' } },
+      { command: 'select_brushes' },
       { command: 'select_faces', values: { which: 'All' } },
       { command: 'project_uvs', values: { mode: 'Planar', from: 'Overhead', size: '1' } },
       END,
@@ -186,6 +189,7 @@ describe('SolidScript generator UVs', () => {
       { command: 'rotate', values: { a: '0, 90, 0' } },
       { command: 'cube', values: { size: '2, 1, 3' } },
       END,
+      { command: 'select_brushes' },
       { command: 'select_faces', values: { which: 'All' } },
       { command: 'project_uvs', values: { mode: 'Planar', from: 'Overhead', size: '1' } },
     ]);
@@ -199,12 +203,14 @@ describe('SolidScript generator UVs', () => {
     const block: SolidScriptLine[] = [
       { command: 'part', values: { name: 'Block' } },
       { command: 'cube', values: { size: '0.4, 0.4, 0.4' } },
+      { command: 'select_brushes' },
       { command: 'select_faces', values: { which: 'All' } },
       { command: 'project_uvs', values: { mode: 'Box', size: '1' } },
       END,
     ];
     const host: SolidScriptLine[] = [
       { command: 'cube', values: { size: '2, 2, 2' } },
+      { command: 'select_brushes' },
       { command: 'select_faces', values: { which: 'All' } },
       { command: 'for_each', values: { variable: 'Face', list: '[$Selected.Faces]' } },
       { command: 'place_on_face', values: { of: '[Face]' } },
@@ -216,6 +222,7 @@ describe('SolidScript generator UVs', () => {
       compiled([
         ...host,
         { command: 'cube', values: { size: '0.4, 0.4, 0.4' } },
+        { command: 'select_brushes' },
         { command: 'select_faces', values: { which: 'All' } },
         { command: 'project_uvs', values: { mode: 'Box', size: '1' } },
         END,

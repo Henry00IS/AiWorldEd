@@ -7,6 +7,7 @@ import { solidScriptShapeMeshes } from '@/solid_script/language/solid_script_mes
 
 const END: SolidScriptLine = { command: 'end' };
 const CUBE: SolidScriptLine = { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } };
+const SELECT_BRUSHES: SolidScriptLine = { command: 'select_brushes' };
 const SELECT_ALL_VERTICES: SolidScriptLine = { command: 'select_vertices', values: { which: 'All' } };
 
 /**
@@ -48,7 +49,7 @@ function solidPoints(...lines: SolidScriptLine[]): number[][] | string {
 
 describe('SolidScript Set Vertex.Position', () => {
   it('moves every selected corner by a per-vertex formula', () => {
-    const moved = solidPoints(CUBE, SELECT_ALL_VERTICES, {
+    const moved = solidPoints(CUBE, SELECT_BRUSHES, SELECT_ALL_VERTICES, {
       command: 'variable',
       values: { name: '$Selected.Vertices.Positions', value: '[=[$Vertex.Position] + [0, 1, 0]]' },
     });
@@ -67,7 +68,7 @@ describe('SolidScript Set Vertex.Position', () => {
   });
 
   it('reads every position in the line from the geometry as it was before the line', () => {
-    const result = run({ command: 'mesh_brushes' }, CUBE, END, SELECT_ALL_VERTICES, {
+    const result = run({ command: 'mesh_brushes' }, CUBE, END, SELECT_BRUSHES, SELECT_ALL_VERTICES, {
       command: 'variable',
       values: { name: '$Selected.Vertices.Positions', value: '[=[$Selected.Vertices.First.Position] + [1, 0, 0]]' },
     });
@@ -79,7 +80,7 @@ describe('SolidScript Set Vertex.Position', () => {
   });
 
   it('stops when the corners would make a brush that is no longer a convex brush', () => {
-    const result = run(CUBE, SELECT_ALL_VERTICES, {
+    const result = run(CUBE, SELECT_BRUSHES, SELECT_ALL_VERTICES, {
       command: 'variable',
       values: { name: '$Selected.Vertices.Positions', value: '0, 0, 0' },
     });
@@ -89,6 +90,7 @@ describe('SolidScript Set Vertex.Position', () => {
   it('still refuses members that can only be read', () => {
     const result = run(
       CUBE,
+      { command: 'select_brushes' },
       { command: 'select_faces', values: { which: 'All' } },
       {
         command: 'variable',
@@ -99,7 +101,7 @@ describe('SolidScript Set Vertex.Position', () => {
   });
 
   it('sets one axis from $Y and leaves the other axes, still from the snapshot', () => {
-    const moved = solidPoints(CUBE, SELECT_ALL_VERTICES, {
+    const moved = solidPoints(CUBE, SELECT_BRUSHES, SELECT_ALL_VERTICES, {
       command: 'variable',
       values: { name: '$Selected.Vertices.Positions.Y', value: '[=[$Y] + 1]' },
     });
@@ -118,7 +120,7 @@ describe('SolidScript Set Vertex.Position', () => {
   });
 
   it('moves mesh corners in place, with no convex check', () => {
-    const result = run({ command: 'mesh_brushes' }, CUBE, END, SELECT_ALL_VERTICES, {
+    const result = run({ command: 'mesh_brushes' }, CUBE, END, SELECT_BRUSHES, SELECT_ALL_VERTICES, {
       command: 'variable',
       values: { name: '$Selected.Vertices.Positions', value: '[=[$Vertex.Position] + [0, 1, 0]]' },
     });

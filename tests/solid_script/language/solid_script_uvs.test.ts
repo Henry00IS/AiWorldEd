@@ -9,6 +9,7 @@ import { solidScriptShapeTransform } from '@/solid_script/language/solid_script_
 import * as THREE from 'three';
 
 const END: SolidScriptLine = { command: 'end' };
+const SELECT_BRUSHES: SolidScriptLine = { command: 'select_brushes' };
 const SELECT_ALL: SolidScriptLine = { command: 'select_faces', values: { which: 'All' } };
 const SELECT_UP: SolidScriptLine = { command: 'select_faces', values: { which: 'Up' } };
 const EACH_FACE: SolidScriptLine = { command: 'for_each', values: { variable: 'Face', list: '[$Selected.Faces]' } };
@@ -62,18 +63,25 @@ function cornerIslands(solid: SolidScriptShapeSolid): [number, number][][] {
 
 describe('SolidScript UV commands', () => {
   it('keeps a brush as a brush after Project UVs, Unwrap, Pack Islands and Transform UVs', () => {
-    expect(onlySolid(run({ command: 'cube' }, SELECT_ALL, { command: 'project_uvs' })).faceUvs).toHaveLength(6);
-    expect(onlySolid(run({ command: 'cube' }, SELECT_ALL, { command: 'unwrap' })).faceUvs?.length).toBeGreaterThan(0);
     expect(
-      onlySolid(run({ command: 'cube' }, SELECT_ALL, { command: 'unwrap' }, { command: 'pack_islands' })).faceUvs
-        ?.length,
+      onlySolid(run({ command: 'cube' }, SELECT_BRUSHES, SELECT_ALL, { command: 'project_uvs' })).faceUvs,
+    ).toHaveLength(6);
+    expect(
+      onlySolid(run({ command: 'cube' }, SELECT_BRUSHES, SELECT_ALL, { command: 'unwrap' })).faceUvs?.length,
+    ).toBeGreaterThan(0);
+    expect(
+      onlySolid(
+        run({ command: 'cube' }, SELECT_BRUSHES, SELECT_ALL, { command: 'unwrap' }, { command: 'pack_islands' }),
+      ).faceUvs?.length,
     ).toBeGreaterThan(0);
     expect(
       onlySolid(
         run(
           { command: 'cube' },
+          SELECT_BRUSHES,
           SELECT_ALL,
           { command: 'project_uvs' },
+          { command: 'select_brushes' },
           { command: 'transform_uvs', values: { offset: '0.5, 0, 0' } },
         ),
       ).faceUvs?.length,
@@ -81,7 +89,13 @@ describe('SolidScript UV commands', () => {
   });
 
   it('keeps a mesh as a mesh after Project UVs, Unwrap, Pack Islands and Transform UVs', () => {
-    const prefix: SolidScriptLine[] = [{ command: 'mesh_brushes' }, { command: 'cube' }, END, SELECT_ALL];
+    const prefix: SolidScriptLine[] = [
+      { command: 'mesh_brushes' },
+      { command: 'cube' },
+      END,
+      SELECT_BRUSHES,
+      SELECT_ALL,
+    ];
     for (const extra of [
       [{ command: 'project_uvs', values: { mode: 'Box', size: '0.5' } }],
       [{ command: 'unwrap' }],
@@ -97,20 +111,26 @@ describe('SolidScript UV commands', () => {
 
   it('packs unwrapped islands into 0 to 1', () => {
     const uvs = cornerIslands(
-      onlySolid(run({ command: 'cube' }, SELECT_ALL, { command: 'unwrap' }, { command: 'pack_islands' })),
+      onlySolid(
+        run({ command: 'cube' }, SELECT_BRUSHES, SELECT_ALL, { command: 'unwrap' }, { command: 'pack_islands' }),
+      ),
     ).flat();
     expect(uvs.length).toBeGreaterThan(0);
     expect(uvs.every(([u, v]) => u >= -1e-4 && v >= -1e-4 && u <= 1 + 1e-4 && v <= 1 + 1e-4)).toBe(true);
   });
 
   it('offsets UVs with Transform UVs', () => {
-    const before = cornerIslands(onlySolid(run({ command: 'cube' }, SELECT_ALL, { command: 'project_uvs' }))).flat();
+    const before = cornerIslands(
+      onlySolid(run({ command: 'cube' }, SELECT_BRUSHES, SELECT_ALL, { command: 'project_uvs' })),
+    ).flat();
     const after = cornerIslands(
       onlySolid(
         run(
           { command: 'cube' },
+          SELECT_BRUSHES,
           SELECT_ALL,
           { command: 'project_uvs' },
+          { command: 'select_brushes' },
           { command: 'transform_uvs', values: { offset: '0.5, 0, 0', pivot: 'Origin' } },
         ),
       ),
@@ -120,7 +140,7 @@ describe('SolidScript UV commands', () => {
 
   it('carries stored UVs when a transform is applied to an already projected brush', () => {
     const projected = onlySolid(
-      run({ command: 'cube', values: { size: '2, 1, 3' } }, SELECT_ALL, {
+      run({ command: 'cube', values: { size: '2, 1, 3' } }, SELECT_BRUSHES, SELECT_ALL, {
         command: 'project_uvs',
         values: { mode: 'Planar', from: 'Overhead', size: '1' },
       }),
@@ -132,6 +152,7 @@ describe('SolidScript UV commands', () => {
         { command: 'rotate', values: { a: '0, 90, 0' } },
         { command: 'cube', values: { size: '2, 1, 3' } },
         END,
+        SELECT_BRUSHES,
         SELECT_ALL,
         { command: 'project_uvs', values: { mode: 'Planar', from: 'Overhead', size: '1' } },
       ),
@@ -148,7 +169,7 @@ describe('SolidScript UV commands', () => {
       { mode: 'Sphere', axis: '0, 1, 0' },
     ];
     for (const values of cases) {
-      const solid = onlySolid(run({ command: 'cube' }, SELECT_ALL, { command: 'project_uvs', values }));
+      const solid = onlySolid(run({ command: 'cube' }, SELECT_BRUSHES, SELECT_ALL, { command: 'project_uvs', values }));
       expect(solid.faceUvs?.length, JSON.stringify(values)).toBe(6);
     }
   });
@@ -157,6 +178,7 @@ describe('SolidScript UV commands', () => {
     const written = onlySolid(
       run(
         { command: 'cube' },
+        SELECT_BRUSHES,
         SELECT_UP,
         EACH_FACE,
         {
@@ -176,6 +198,7 @@ describe('SolidScript UV commands', () => {
     ]);
     const refused = run(
       { command: 'cube' },
+      SELECT_BRUSHES,
       SELECT_UP,
       EACH_FACE,
       {
@@ -193,6 +216,7 @@ describe('SolidScript UV commands', () => {
       { command: 'mesh_brushes' },
       { command: 'cube' },
       END,
+      SELECT_BRUSHES,
       SELECT_UP,
       EACH_FACE,
       {

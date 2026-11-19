@@ -88,18 +88,19 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
       command.id,
     )
   ) {
-    const prepared =
+    const tools =
       command.id === 'mesh_smooth'
-        ? [...meshFirst, { command: 'subdivide', values: { smooth: 'false' } }]
+        ? [{ command: 'subdivide', values: { smooth: 'false' } }]
         : command.id === 'displace'
-          ? [...meshFirst, { command: 'subdivide', values: { levels: '3', smooth: 'false' } }]
-          : meshFirst;
-    if (command.category === 'Faces') return [...prepared, { command: 'select_faces' }, line];
-    return [...prepared, line];
+          ? [{ command: 'subdivide', values: { levels: '3', smooth: 'false' } }]
+          : [];
+    const pick = command.category === 'Faces' ? [{ command: 'select_faces' }] : [];
+    return [...meshFirst, { command: 'select_brushes' }, ...tools, ...pick, line];
   }
   if (command.category === 'Faces') {
-    const pick: SolidScriptLine[] = [{ command: 'cube' }, { command: 'select_faces' }];
-    if (command.id === 'select_faces') return [{ command: 'cube' }, line];
+    if (command.id === 'select_brushes') return [{ command: 'cube' }, line];
+    const pick: SolidScriptLine[] = [{ command: 'cube' }, { command: 'select_brushes' }, { command: 'select_faces' }];
+    if (command.id === 'select_faces') return [{ command: 'cube' }, { command: 'select_brushes' }, line];
     return [...pick, ...started, ...(command.nesting === 'open' ? [{ command: 'end' }] : [])];
   }
   if (children.length > 0 && command.category === '2D Shapes')
@@ -120,7 +121,8 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
   }
   if (command.category === '2D Shapes') return [{ command: 'linear_extrude' }, line, { command: 'end' }];
   if (command.id === 'linear_extrude') return [line, { command: 'square' }, { command: 'end' }];
-  if (command.id === 'clip') return [{ command: 'cube', values: { anchor: 'Center, Center, Center' } }, line];
+  if (command.id === 'clip')
+    return [{ command: 'cube', values: { anchor: 'Center, Center, Center' } }, { command: 'select_brushes' }, line];
   if (command.id === 'stop_script') return [{ command: 'cube' }, line, { command: 'sphere' }];
   if (command.id === 'else')
     return [counter, { command: 'if' }, { command: 'cube' }, line, { command: 'sphere' }, { command: 'end' }];
@@ -326,7 +328,12 @@ describe('solid script command catalog', () => {
       (solidScriptCommandFind(id)?.parameters.find((parameter) => parameter.key === key)?.words ?? []).map(
         (entry) => entry.word,
       );
-    expect(word('select_faces', 'which')).toEqual(expect.arrayContaining(['All', 'Up', 'Tagged', 'Where']));
+    expect(word('select_faces', 'which')).toEqual(
+      expect.arrayContaining(['All', 'New-Since-Last', 'Up', 'Tagged', 'Where']),
+    );
+    expect(word('select_brushes', 'which')).toEqual(['All', 'New-Since-Last', 'Where']);
+    expect(word('select_edges', 'which')).toEqual(expect.arrayContaining(['All', 'New-Since-Last', 'Where']));
+    expect(word('select_vertices', 'which')).toEqual(expect.arrayContaining(['All', 'New-Since-Last', 'Where']));
     expect(word('select_faces', 'how')).toEqual(['New', 'Add', 'Remove']);
     expect(word('if_used_as', 'use')).toEqual(['Generator', 'Modifier']);
     expect(word('input_brushes', 'textures')).toEqual(['Follow', 'World']);
@@ -365,7 +372,10 @@ describe('solid script command catalog', () => {
       'delete_faces',
     ];
     for (const id of refused) {
-      const pick = id === 'inset_face' || id === 'delete_faces' ? [{ command: 'select_faces' }] : [];
+      const pick = [
+        { command: 'select_brushes' },
+        ...(id === 'inset_face' || id === 'delete_faces' ? [{ command: 'select_faces' }] : []),
+      ];
       const result = run({ command: 'cube' }, ...pick, { command: id });
       expect(result.error?.message ?? '', id).toMatch(hint);
       expect(solidScriptShapeMeshes(result.shapes), id).toHaveLength(0);

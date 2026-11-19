@@ -2,6 +2,7 @@ import { solidScriptKindNamed } from '@/solid_script/language/solid_script_kinds
 import type { SolidScriptGeometryLeaf } from '@/solid_script/language/solid_script_geometry.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import { SolidScriptElement, type SolidScriptValue } from '@/solid_script/language/solid_script_value.js';
+import { solidScriptOfEmpty } from '@/solid_script/language/solid_script_select.js';
 
 /**
  * Reads the brushes a line works on now: those its Of gives, else
@@ -30,7 +31,7 @@ export function solidScriptBrushTargets(run: SolidScriptBlockRun, label: string)
 function solidScriptBrushTargetsEmpty(label: string, given: boolean): string {
   return given
     ? `${label} has no brushes in Of; check that Of holds brushes or meshes`
-    : `${label} has no brushes to cut; build some above it, or give them in Of`;
+    : solidScriptOfEmpty(label, 'brushes');
 }
 
 /**

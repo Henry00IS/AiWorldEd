@@ -183,7 +183,10 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     return (this.incoming ?? []).map((leaf) => this.leafLatestOf(leaf));
   }
 
-  /** Lists every brush and mesh built so far, as [$Selected.Brushes] starts. */
+  /**
+   * Lists every brush and mesh built so far, the pool Select Brushes picks
+   * from.
+   */
   protected brushesBuilt(): SolidScriptValue[] {
     const start = this.roundStarts.at(-1);
     const own = start === undefined ? [] : this.builtStack.slice(start).flat();
@@ -288,8 +291,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   }
 
   /**
-   * Writes what a building block built Into its variable, and adds it to
-   * [$Selected.Brushes] when a Set narrowed that list.
+   * Writes what a building block built Into its variable.
    *
    * @param node Line.
    * @param scope Scope of the line.
@@ -302,7 +304,6 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   ): void {
     if (this.failure) return;
     const brushes = solidScriptGeometryLeaves([...shapes]).map((leaf) => this.elements.brush(leaf));
-    if (this.selected.brushes) this.selected.brushes = [...this.selected.brushes, ...brushes];
     const into = node.command
       .valueText(node.values, 'into')
       .trim()
@@ -803,6 +804,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       selectedSet: (kind, values) => {
         state.machine.selected[kind] = [...values];
       },
+      selectFresh: (kind, items) => state.machine.selectFresh(kind, items),
+      selectNote: (kind, items) => state.machine.selectNote(kind, items),
       ofValues: () => state.machine.ofRead(node, value),
       inputsBuilt: (shapes) => {
         state.machine.received = solidScriptGeometryLeaves([...shapes]);

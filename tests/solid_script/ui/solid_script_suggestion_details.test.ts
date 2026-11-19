@@ -15,6 +15,7 @@ const SCRIPT = solidScriptDocumentCreate([
   { command: 'input', values: { name: 'Steps', type: 'Count' } },
   { command: 'cube', values: { into: 'Box1', label: 'Knob' } },
   { command: 'for_each', values: { variable: 'Brush', list: '[$Input.Brushes]', key: 'K' } },
+  { command: 'select_brushes' },
   { command: 'extrude_face', values: { top: 'Tops' } },
   { command: 'end' },
   { command: 'repeat', values: { variable: 'I', from: '0', to: '3' } },
@@ -51,10 +52,10 @@ describe('SolidScript suggestion details', () => {
     const all = [...offered('[', scope), ...offered('[=', scope), ...offered('[$Selected.', scope)];
     const details = new Map(all.map((entry) => [entry.label, entry.detail]));
     expect(details.get('Box1')).toBe('Brush: What is made of **Cube** (line 2).');
-    expect(details.get('Tops')).toBe('Face List: Top faces of **Extrude Face** (line 4).');
+    expect(details.get('Tops')).toBe('Face List: Top faces of **Extrude Face** (line 5).');
     expect(details.get('$Editor.Name')).toBe('Text: Name of the editor.');
     expect(details.get('Steps')).toBe('Number: Count input (line 1).');
-    expect(details.get('I')).toBe('Number: Counter of **Repeat** (line 6).');
+    expect(details.get('I')).toBe('Number: Counter of **Repeat** (line 7).');
     const scoped = { names: solidScriptDocumentNamesAt(SCRIPT, 3), extra: [], words: [] };
     const inside = new Map(offered('[', scoped).map((entry) => [entry.label, entry.detail]));
     expect(inside.get('Brush')).toBe('Brush: Item of **For Each** (line 3).');

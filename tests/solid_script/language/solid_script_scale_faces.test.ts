@@ -7,6 +7,7 @@ import { solidScriptShapeLeavesPositive } from '@/solid_script/language/solid_sc
 
 const END: SolidScriptLine = { command: 'end' };
 const CUBE: SolidScriptLine = { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } };
+const SELECT_BRUSHES: SolidScriptLine = { command: 'select_brushes' };
 
 /**
  * Runs script lines.
@@ -48,8 +49,10 @@ function solidPoints(...lines: SolidScriptLine[]): number[][] | string {
 describe('SolidScript Scale Faces', () => {
   it('leaves a face as it is at Factor 1, and shrinks a top face toward its center', () => {
     const pick = { command: 'select_faces', values: { which: 'Up' } };
-    expect(solidPoints(CUBE, pick, { command: 'scale_faces', values: { factor: '1' } })).toEqual(solidPoints(CUBE));
-    expect(solidPoints(CUBE, pick, { command: 'scale_faces', values: { factor: '0.5' } })).toEqual(
+    expect(solidPoints(CUBE, SELECT_BRUSHES, pick, { command: 'scale_faces', values: { factor: '1' } })).toEqual(
+      solidPoints(CUBE),
+    );
+    expect(solidPoints(CUBE, SELECT_BRUSHES, pick, { command: 'scale_faces', values: { factor: '0.5' } })).toEqual(
       [
         [-1, -1, -1],
         [-1, -1, 1],
@@ -66,6 +69,7 @@ describe('SolidScript Scale Faces', () => {
   it('keeps a brush as a brush, and scales a mesh face in place', () => {
     const scaled = run(
       CUBE,
+      { command: 'select_brushes' },
       { command: 'select_faces', values: { which: 'Up' } },
       {
         command: 'scale_faces',
@@ -78,7 +82,9 @@ describe('SolidScript Scale Faces', () => {
       { command: 'mesh_brushes' },
       CUBE,
       END,
+      { command: 'select_brushes' },
       { command: 'select_faces', values: { which: 'Up' } },
+      { command: 'select_brushes' },
       { command: 'scale_faces', values: { factor: '0.5' } },
     );
     expect(meshed.error).toBeNull();

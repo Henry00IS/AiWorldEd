@@ -24,6 +24,7 @@ describe('SolidScript current-element system names', () => {
     expect(
       printed(
         CUBE,
+        line('select_brushes'),
         line('select_faces', { which: 'Where', detail: '[=[$Face.Area] > 1]' }),
         line('echo', { value: '[$Selected.Faces.Count]' }),
       ),
@@ -31,23 +32,26 @@ describe('SolidScript current-element system names', () => {
     expect(
       printed(
         CUBE,
+        line('select_brushes'),
         line('select_faces', { which: 'Where', detail: '[=[$Index] == 0]' }),
         line('echo', { value: '[$Selected.Faces.Count] [$Selected.Faces.First.Area]' }),
       ),
     ).toEqual(['1 4']);
-    expect(printed(CUBE, line('select_faces', { which: 'Where', detail: '[=[Face.Area] > 1]' }))[0]).toMatch(
-      /no variable \[Face\.Area\].*\$Face\.Area/,
-    );
+    expect(
+      printed(CUBE, line('select_brushes'), line('select_faces', { which: 'Where', detail: '[=[Face.Area] > 1]' }))[0],
+    ).toMatch(/no variable \[Face\.Area\].*\$Face\.Area/);
   });
 
   it('lets Select Vertices Where use [$Y] as the short form of [$Vertex.Position.Y]', () => {
     const byMember = printed(
       CUBE,
+      line('select_brushes'),
       line('select_vertices', { which: 'Where', detail: '[=[$Vertex.Position.Y] > 0]', into: 'Up' }),
       line('echo', { value: '[Up.Count]' }),
     );
     const byShort = printed(
       CUBE,
+      line('select_brushes'),
       line('select_vertices', { which: 'Where', detail: '[=[$Y] > 0]', into: 'Up' }),
       line('echo', { value: '[Up.Count]' }),
     );
@@ -58,11 +62,13 @@ describe('SolidScript current-element system names', () => {
   it('lets Select Faces Where use [$CX] as the short form of [$Face.Center.X]', () => {
     const byMember = printed(
       CUBE,
+      line('select_brushes'),
       line('select_faces', { which: 'Where', detail: '[=[$Face.Center.Y] > 0]' }),
       line('echo', { value: '[$Selected.Faces.Count]' }),
     );
     const byShort = printed(
       CUBE,
+      line('select_brushes'),
       line('select_faces', { which: 'Where', detail: '[=[$CY] > 0]' }),
       line('echo', { value: '[$Selected.Faces.Count]' }),
     );

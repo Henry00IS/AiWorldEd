@@ -12,6 +12,7 @@ import type { SolidScriptFrame, SolidScriptMachineCommand, SolidScriptVariable }
 import { solidScriptNameFind, solidScriptNameKey, solidScriptNameSpelling } from './solid_script_name_key.js';
 import { SolidScriptScope } from './solid_script_scope.js';
 import { solidScriptValueText, solidScriptValueType, type SolidScriptValue } from './solid_script_value.js';
+import { solidScriptSelectFresh, solidScriptSelectIds } from './solid_script_select.js';
 import { SolidScriptElements } from './solid_script_elements.js';
 import { solidScriptMemberRead } from './solid_script_members.js';
 import { solidScriptSystemFillShort } from './solid_script_system_fill_shorts.js';
@@ -276,6 +277,8 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
   protected readonly elements = new SolidScriptElements({ leafLatest: (leaf) => this.leafSwapsLatest(leaf) });
   /** The [$Selected.*] lists of the round running. */
   protected selected: SolidScriptSelected = { brushes: null, faces: [], edges: [], vertices: [] };
+  /** Element ids each Select kind last looked at, for New Since Last. */
+  protected readonly selectSeen = new Map<SolidScriptSelectedKind, Set<number>>();
 
   /**
    * Creates the variables of a run.
@@ -324,7 +327,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
   protected systemList(key: string): SolidScriptValue {
     switch (key) {
       case 'selected.brushes':
-        return this.selected.brushes ?? this.brushesBuilt();
+        return this.selected.brushes ?? [];
       case 'selected.faces':
         return this.selected.faces;
       case 'selected.edges':
@@ -336,6 +339,27 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
       default:
         return undefined;
     }
+  }
+
+  /**
+   * Items that have appeared since the last Select of this kind.
+   *
+   * @param kind Faces, edges, vertices or brushes.
+   * @param items Current pool.
+   * @returns New items, or all of them when this is the first such Select.
+   */
+  protected selectFresh(kind: SolidScriptSelectedKind, items: readonly SolidScriptValue[]): SolidScriptValue[] {
+    return solidScriptSelectFresh(this.selectSeen.get(kind), items);
+  }
+
+  /**
+   * Remembers the pool a Select just looked at, for the next New Since Last.
+   *
+   * @param kind Faces, edges, vertices or brushes.
+   * @param items Pool.
+   */
+  protected selectNote(kind: SolidScriptSelectedKind, items: readonly SolidScriptValue[]): void {
+    this.selectSeen.set(kind, solidScriptSelectIds(items));
   }
 
   /**

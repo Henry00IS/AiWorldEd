@@ -73,6 +73,7 @@ describe('every system name is $ then PascalCase', () => {
       { command: 'mesh_brushes' },
       { command: 'cube' },
       { command: 'end' },
+      { command: 'select_brushes' },
       { command: 'displace', values: {} },
     ]);
     const system = solidScriptExplorerEntries(document, [], [])
@@ -119,6 +120,7 @@ describe('every system name is $ then PascalCase', () => {
       { command: 'mesh_brushes' },
       { command: 'cube' },
       { command: 'end' },
+      { command: 'select_brushes' },
       { command: 'displace', values: { distance: '[=[$X] * 0]' } },
     );
     expect(waved.error).toBeNull();

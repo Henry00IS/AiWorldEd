@@ -1,14 +1,18 @@
 import { solidScriptKindNamed } from '@/solid_script/language/solid_script_kinds.js';
 import { SolidScriptCommand, type SolidScriptCommandWord } from './solid_script_command.js';
+import type { SolidScriptCommandEach } from './solid_script_command_each.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import {
   solidScriptParameterInto,
+  solidScriptOfAccepts,
   solidScriptParameterOf,
   solidScriptParameterOptional,
   solidScriptParameterWords,
 } from './solid_script_command_parameters.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import type { SolidScriptSelectedKind } from '@/solid_script/language/solid_script_machine_variables.js';
+import { SOLID_SCRIPT_SELECT_NEW_SINCE_LAST, solidScriptOfEmpty } from '@/solid_script/language/solid_script_select.js';
+import { solidScriptGeometryLeaves } from '@/solid_script/language/solid_script_geometry.js';
 import {
   SolidScriptElement,
   solidScriptValueNumber,
@@ -32,13 +36,15 @@ interface SolidScriptSelectKind {
   /** Example for the manual. */
   example: string;
   /** Name of the value a Where condition reads, such as Edge. */
-  item: string;
+  item: SolidScriptCommandEach;
   selected: SolidScriptSelectedKind;
   /** Kinds of element it picks from. */
   from: readonly string[];
   words: readonly SolidScriptCommandWord[];
   /** Lists the items of an element. */
   items: (run: SolidScriptBlockRun, element: SolidScriptElement) => SolidScriptElement[];
+  /** Replaces Of as the pool to pick from, such as every built brush. */
+  pool?: (run: SolidScriptBlockRun) => SolidScriptElement[];
   /** Size an item is ranked by for Longest and Shortest. */
   size?: (run: SolidScriptBlockRun, item: SolidScriptElement) => number;
 }
@@ -52,10 +58,16 @@ interface SolidScriptSelectKind {
  * @returns Elements.
  */
 function solidScriptSelectFrom(run: SolidScriptBlockRun, kind: SolidScriptSelectKind): SolidScriptElement[] {
+  if (kind.pool) return kind.pool(run);
+  const given = run.ofValues();
   const faces = run.selectedGet('faces');
-  const from = run.ofValues() ?? (faces.length > 0 ? faces : run.selectedGet('brushes'));
+  const from = given ?? (faces.length > 0 ? faces : run.selectedGet('brushes'));
   if (from.length === 0)
-    throw new Error(`${kind.label} has no brushes to pick from; add a brush such as Cube above it`);
+    throw new Error(
+      given
+        ? `${kind.label} has no ${kind.many} in Of; check that Of holds brushes, faces or edges`
+        : solidScriptOfEmpty(kind.label, faces.length > 0 ? 'faces' : 'brushes'),
+    );
   return from.map((value) => {
     if (!(value instanceof SolidScriptElement) || !kind.from.includes(value.kind))
       throw new Error(`${kind.label} picks from brushes, faces or edges, not ${solidScriptKindNamed(value)}`);
@@ -132,6 +144,33 @@ function solidScriptSelectWrite(
 }
 
 /**
+ * The Of field of a Select line.
+ *
+ * @param kind What it picks.
+ * @returns Parameter.
+ */
+function solidScriptSelectOf(kind: SolidScriptSelectKind) {
+  if (kind.pool) {
+    return {
+      ...solidScriptParameterOptional(
+        'of',
+        'Of',
+        'value',
+        'The brushes to pick from: a variable such as [Wall], a list, or a Name given to brushes; empty uses every brush and mesh built so far, and those a modifier has received.',
+      ),
+      placeholder: 'every built brush',
+      nameGroups: ['Brushes', 'Parts'] as const,
+      accepts: solidScriptOfAccepts(['Brush']),
+    };
+  }
+  return solidScriptParameterOf(`brushes, faces or edges to pick ${kind.many} of`, '$Selected.Faces', [
+    'Brush',
+    'Face',
+    'Edge',
+  ]);
+}
+
+/**
  * Builds one Select line.
  *
  * @param kind What it picks.
@@ -143,9 +182,10 @@ function solidScriptSelectCommand(kind: SolidScriptSelectKind): SolidScriptComma
     id: kind.id,
     label: kind.label,
     category: 'Faces',
-    description: `Pick ${kind.many} of brushes or faces`,
-    fills: kind.item === 'Edge' ? ['$Edge', '$Index'] : ['$Vertex', '$Index'],
-    manual: `Picks ${kind.many} and puts them in [$Selected.${kind.item === 'Edge' ? 'Edges' : 'Vertices'}], where lines with an empty Of find them. Of says where to pick from: brushes, faces or edges; empty uses [$Selected.Faces], or [$Selected.Brushes] when no faces are picked. Into also writes them to a variable, a ${kind.item} list. Where tests each one as [$${kind.item}], such as [=[$${kind.item}.${kind.item === 'Edge' ? 'Length' : 'Position.Y'}] > 1], and [$Index] is its number from 0. How adds to or removes from the ${kind.many} picked before. Example: ${kind.example}`,
+    description: `Pick ${kind.many}`,
+    fills:
+      kind.item === 'Edge' ? ['$Edge', '$Index'] : kind.item === 'Brush' ? ['$Brush', '$Index'] : ['$Vertex', '$Index'],
+    manual: `Picks ${kind.many} and puts them in [$Selected.${kind.item === 'Edge' ? 'Edges' : kind.item === 'Brush' ? 'Brushes' : 'Vertices'}], where lines with an empty Of find them. ${kind.item === 'Brush' ? 'Of says which brushes to pick from; empty uses every brush and mesh built so far, and those a modifier has received.' : 'Of says where to pick from: brushes, faces or edges; empty uses [$Selected.Faces], or [$Selected.Brushes] when no faces are picked.'} Into also writes them to a variable, a ${kind.item} list. New-Since-Last keeps only items added since the last ${kind.label}. Where tests each one as [$${kind.item}], such as [=[$${kind.item}.${kind.item === 'Edge' ? 'Length' : kind.item === 'Brush' ? 'Size.X' : 'Position.Y'}] > 1], and [$Index] is its number from 0. How adds to or removes from the ${kind.many} picked before. Example: ${kind.example}`,
     stops: [
       'No brushes to pick from.',
       'A Which that is not one of the choices.',
@@ -167,14 +207,10 @@ function solidScriptSelectCommand(kind: SolidScriptSelectKind): SolidScriptComma
           'value',
           kind.size ? 'How many for Longest or Shortest, a condition for Where.' : 'A condition for Where.',
         ),
-        each: kind.item === 'Edge' ? 'Edge' : 'Vertex',
+        each: kind.item,
         eachWhen: { field: 'which', words: ['Where'] },
       },
-      solidScriptParameterOf(`brushes, faces or edges to pick ${kind.many} of`, '$Selected.Faces', [
-        'Brush',
-        'Face',
-        'Edge',
-      ]),
+      solidScriptSelectOf(kind),
       solidScriptParameterWords(
         'how',
         'How',
@@ -195,14 +231,68 @@ function solidScriptSelectCommand(kind: SolidScriptSelectKind): SolidScriptComma
       ...(read.text('into') === '' ? [] : [' Into ', read.variable('into')]),
     ],
     execute: (run) => {
-      solidScriptSelectWrite(run, kind, solidScriptSelectWhich(run, kind, solidScriptSelectItems(run, kind)));
+      const pool = solidScriptSelectItems(run, kind);
+      const which = run.text('which').trim();
+      const picked =
+        which === SOLID_SCRIPT_SELECT_NEW_SINCE_LAST
+          ? run.selectFresh(kind.selected, pool)
+          : solidScriptSelectWhich(run, kind, pool);
+      run.selectNote(kind.selected, pool);
+      solidScriptSelectWrite(run, kind, picked);
       return [];
     },
   });
 }
 
-/** Select Edges and Select Vertices. */
+/**
+ * The brushes Select Brushes picks from when Of is empty: every brush and mesh
+ * built so far, and those a modifier has received.
+ *
+ * @param run Running line.
+ * @returns Brushes, each once.
+ */
+function solidScriptSelectBrushPool(run: SolidScriptBlockRun): SolidScriptElement[] {
+  const given = run.ofValues();
+  if (given) {
+    if (given.length === 0) throw new Error('Select Brushes has no brushes in Of; check that Of holds brushes');
+    return given.map((value) => {
+      if (!(value instanceof SolidScriptElement) || value.kind !== 'brush')
+        throw new Error(`Select Brushes picks from brushes, not ${solidScriptKindNamed(value)}`);
+      return value;
+    });
+  }
+  const leaves = [...solidScriptGeometryLeaves(run.built()), ...run.receivedLatest()];
+  const brushes: SolidScriptElement[] = [];
+  for (const leaf of leaves) {
+    const brush = run.elements.brush(leaf);
+    if (!brushes.includes(brush)) brushes.push(brush);
+  }
+  if (brushes.length === 0)
+    throw new Error('Select Brushes has no brushes to pick from; add a brush such as Cube or Input Brushes above it');
+  return brushes;
+}
+
+/** Select Brushes, Select Edges and Select Vertices. */
 export const SOLID_SCRIPT_COMMANDS_SELECT: readonly SolidScriptCommand[] = [
+  solidScriptSelectCommand({
+    id: 'select_brushes',
+    label: 'Select Brushes',
+    many: 'brushes',
+    example: 'Cube, Select Brushes, then Clip cuts those brushes.',
+    item: 'Brush',
+    selected: 'brushes',
+    from: ['brush'],
+    words: [
+      { word: 'All', detail: 'Every brush and mesh' },
+      {
+        word: SOLID_SCRIPT_SELECT_NEW_SINCE_LAST,
+        detail: 'Brushes and meshes added since the last Select Brushes',
+      },
+      { word: 'Where', detail: 'The brushes a condition in Detail holds for, with [$Brush] and [$Index]' },
+    ],
+    items: (_run, element) => [element],
+    pool: solidScriptSelectBrushPool,
+  }),
   solidScriptSelectCommand({
     id: 'select_edges',
     label: 'Select Edges',
@@ -213,6 +303,7 @@ export const SOLID_SCRIPT_COMMANDS_SELECT: readonly SolidScriptCommand[] = [
     from: ['brush', 'face', 'edge'],
     words: [
       { word: 'All', detail: 'Every edge' },
+      { word: SOLID_SCRIPT_SELECT_NEW_SINCE_LAST, detail: 'Edges added since the last Select Edges' },
       { word: 'Longest', detail: 'The longest edges; Detail says how many' },
       { word: 'Shortest', detail: 'The shortest edges; Detail says how many' },
       { word: 'Where', detail: 'The edges a condition in Detail holds for, with [$Edge] and [$Index]' },
@@ -230,6 +321,7 @@ export const SOLID_SCRIPT_COMMANDS_SELECT: readonly SolidScriptCommand[] = [
     from: ['brush', 'face', 'edge'],
     words: [
       { word: 'All', detail: 'Every corner' },
+      { word: SOLID_SCRIPT_SELECT_NEW_SINCE_LAST, detail: 'Corners added since the last Select Vertices' },
       { word: 'Where', detail: 'The corners a condition in Detail holds for, with [$Vertex] and [$Index]' },
     ],
     items: (run, element) => {

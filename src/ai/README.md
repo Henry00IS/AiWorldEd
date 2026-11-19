@@ -173,6 +173,7 @@ Rounded rock as a mesh:
   { "command": "mesh_brushes" },
   { "command": "cube", "values": { "size": "2, 1.5, 1" } },
   { "command": "end" },
+  { "command": "select_brushes" },
   { "command": "subdivide", "values": { "levels": "2" } },
   { "command": "mesh_smooth", "values": { "rounds": "4" } }
 ]
@@ -193,6 +194,7 @@ Hilly floor:
 ```solid-script
 [
   { "command": "grid_mesh", "values": { "size": "8, 0, 8", "columns": "8", "rows": "8" } },
+  { "command": "select_brushes" },
   { "command": "displace", "values": { "distance": "[=0.4 * (Noise([$X], 0, [$Z], 3, 2) * 2 - 1)]" } }
 ]
 ```

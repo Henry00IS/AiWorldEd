@@ -198,6 +198,10 @@ export interface SolidScriptBlockRun {
   selectedGet(kind: SolidScriptSelectedKind): SolidScriptValue[];
   /** Sets a [$Selected.*] list for the rest of the round. */
   selectedSet(kind: SolidScriptSelectedKind, values: readonly SolidScriptValue[]): void;
+  /** Items that have appeared since the last Select of this kind. */
+  selectFresh(kind: SolidScriptSelectedKind, items: readonly SolidScriptValue[]): SolidScriptValue[];
+  /** Remembers the pool a Select just looked at, for New Since Last. */
+  selectNote(kind: SolidScriptSelectedKind, items: readonly SolidScriptValue[]): void;
   /**
    * The values of the line's Of field as one flat list, with Name tags read as
    * the brushes that have them; null when Of is empty.

@@ -27,6 +27,7 @@ import {
   solidScriptGridMesh,
 } from '@/solid_script/language/solid_script_grid_mesh.js';
 import type { SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
+import { solidScriptOfEmpty } from '@/solid_script/language/solid_script_select.js';
 import {
   SolidScriptElement,
   solidScriptValueNumber,
@@ -153,7 +154,10 @@ function solidScriptMeshLeaf(run: SolidScriptBlockRun, value: SolidScriptValue, 
 function solidScriptMeshTargets(run: SolidScriptBlockRun, label: string): SolidScriptShapeMesh[] {
   const given = run.ofValues();
   const values = given ?? run.selectedGet('brushes');
-  if (values.length === 0) throw new Error(`${label} has no mesh to work on. Wrap a brush in Mesh From Brushes first.`);
+  if (values.length === 0)
+    throw new Error(
+      given ? `${label} has no mesh in Of; check that Of holds a mesh` : solidScriptOfEmpty(label, 'brushes'),
+    );
   const leaves: SolidScriptShapeMesh[] = [];
   for (const value of values) {
     const leaf = solidScriptMeshLeaf(run, value, label);

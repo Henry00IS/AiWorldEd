@@ -95,7 +95,7 @@ export const SOLID_SCRIPT_SYSTEM_SELECTED: readonly SolidScriptSystemValue[] = [
   {
     name: 'Selected.Brushes',
     type: 'Brush List',
-    detail: 'the brushes lines below work on; every brush built so far until set',
+    detail: 'the brushes lines below work on; empty until Select Brushes or a Set',
   },
   { name: 'Selected.Faces', type: 'Face List', detail: 'the faces the last Select Faces picked' },
   { name: 'Selected.Edges', type: 'Edge List', detail: 'the edges set as selected' },

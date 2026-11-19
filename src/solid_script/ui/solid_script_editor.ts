@@ -141,6 +141,7 @@ export class SolidScriptEditor extends PanelFloating {
         (view) => this.lines.viewSet(view),
       ),
     );
+    this.output.selectAbove = (command, line) => this.selectAbove(command, line);
     this.output.inputAdd = () => {
       const blocks = this.session.document().blocks;
       const last = blocks.map((block) => block.command).lastIndexOf(SOLID_SCRIPT_COMMAND_INPUT);
@@ -561,6 +562,21 @@ export class SolidScriptEditor extends PanelFloating {
    * @param start Values that replace the command's defaults.
    * @param selected First and last selected line, to wrap, or null.
    */
+  /**
+   * Inserts a Select line above a tool that stopped for an empty Of, already
+   * set to New Since Last, and does not open the configurator.
+   *
+   * @param command Select command id.
+   * @param line 0-based index of the failed tool.
+   */
+  private selectAbove(command: string, line: number): void {
+    const found = solidScriptCommandFind(command);
+    if (!found) return;
+    const values = { ...found.valuesDefault(), which: 'New-Since-Last' };
+    const inserted = solidScriptDocumentCommandInsert(this.session.document(), command, line, 'before', values);
+    this.commit(inserted.document, inserted.line);
+  }
+
   private insert(
     command: string,
     line: number,

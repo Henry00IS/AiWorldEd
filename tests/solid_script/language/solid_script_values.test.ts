@@ -52,6 +52,7 @@ describe('SolidScript values', () => {
         line('variable', { name: 'Title', value: 'Old Stone Bridge' }),
         line('echo', { value: '[Title.Words.Count] [Title.Length]' }),
         CUBE,
+        line('select_brushes'),
         line('select_faces', { which: 'Up', into: 'Top' }),
         line('echo', { value: '[Top.Count] [Top.First.Area] [Top(0).Normal] [Top.First.Parent.Faces.Count]' }),
       ]),
@@ -68,7 +69,7 @@ describe('SolidScript values', () => {
         ],
         USE,
       ),
-    ).toEqual(['5 1 1 0']);
+    ).toEqual(['5 1 0 0']);
     expect(run([line('echo', { value: '[$Nope]' })], USE).error?.message).toMatch(/Nope/);
   });
 
@@ -76,6 +77,7 @@ describe('SolidScript values', () => {
     expect(
       printed([
         CUBE,
+        line('select_brushes'),
         line('select_faces', { which: 'All', into: 'Sides' }),
         line('variable', { name: 'Sides.Data.Height', value: '2' }),
         line('variable', { name: 'Key', value: 'Mood' }),
@@ -93,6 +95,7 @@ describe('SolidScript values', () => {
         line('echo', { value: '[I]:[N]' }),
         END,
         CUBE,
+        line('select_brushes'),
         line('select_faces', { which: 'Up', into: 'Top' }),
         line('variable', { name: 'Top(0).Data.Height', value: '3' }),
         line('variable', { name: 'Top(0).Data.Color', value: 'red' }),
@@ -110,6 +113,7 @@ describe('SolidScript values', () => {
     expect(
       printed([
         CUBE,
+        line('select_brushes'),
         line('select_faces', { which: 'All' }),
         line('for_each', { variable: 'B', list: '[$Selected.Brushes]' }),
         line('select_faces', { which: 'Up', of: '[B]' }),
@@ -123,6 +127,7 @@ describe('SolidScript values', () => {
   it('A: slabs off every face, each bevelled, the cube untouched', () => {
     const result = run([
       CUBE,
+      line('select_brushes'),
       line('select_faces', { which: 'All' }),
       line('for_each', { variable: 'Face', list: '[$Selected.Faces]' }),
       line('extrude_face', { of: '[Face]', distance: '0.2', lift: '1', into: 'Slab' }),
@@ -139,12 +144,18 @@ describe('SolidScript values', () => {
 
   it('B and C: bevelling all edges at once equals bevelling face by face', () => {
     const all = run(
-      [line('input_brushes'), line('select_faces', { which: 'All' }), line('bevel_edges', { distance: '0.1' })],
+      [
+        line('input_brushes'),
+        line('select_brushes'),
+        line('select_faces', { which: 'All' }),
+        line('bevel_edges', { distance: '0.1' }),
+      ],
       USE,
     );
     const each = run(
       [
         line('input_brushes'),
+        line('select_brushes'),
         line('select_faces', { which: 'All' }),
         line('for_each', { variable: 'Face', list: '[$Selected.Faces]' }),
         line('bevel_edges', { of: '[Face]', distance: '0.1' }),
@@ -164,8 +175,10 @@ describe('SolidScript values', () => {
         line('mesh_brushes'),
         CUBE,
         line('end'),
+        line('select_brushes'),
         line('select_faces', { which: 'Up', into: 'Top' }),
         line('variable', { name: 'Top.Data.Kind', value: 'roof' }),
+        line('select_brushes'),
         line('inset_face', { distance: '0.5', inner: 'Inner', ring: 'Ring' }),
         line('echo', { value: '[Top(0).Area] [Inner.Count] [Ring.Count] [Inner(0).Area] [Inner(0).Tag]' }),
         line('select_faces', { which: 'Up', of: '[Top]' }),
@@ -178,7 +191,9 @@ describe('SolidScript values', () => {
     expect(
       printed([
         CUBE,
+        line('select_brushes'),
         line('select_faces', { which: 'Up' }),
+        line('select_brushes'),
         line('extrude_face', { distance: '0.5', into: 'Slabs', top: 'Roof', sides: 'Walls' }),
         line('echo', { value: '[Slabs.Count] [Roof.Count] [Walls.Count] [Roof(0).Center] [$Selected.Faces.Count]' }),
       ]),
@@ -190,8 +205,10 @@ describe('SolidScript values', () => {
       line('mesh_brushes'),
       CUBE,
       line('end'),
+      line('select_brushes'),
       line('select_faces', { which: 'Up', into: 'Top' }),
       line('variable', { name: 'Face', value: '[Top(0)]' }),
+      line('select_brushes'),
       line('delete_faces'),
       line('echo', { value: '[Face.Area]' }),
     ]);
@@ -204,6 +221,7 @@ describe('SolidScript values', () => {
         line('mesh_brushes'),
         CUBE,
         END,
+        line('select_brushes'),
         line('select_faces', { which: 'Up', into: 'Top' }),
         line('variable', { name: 'Top.Data.Mark', value: 'roof' }),
         line('extrude_face', { distance: '1', of: '[Top]', top: 'Roof' }),

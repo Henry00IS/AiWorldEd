@@ -107,6 +107,7 @@ describe('SolidScript as a modifier', () => {
   it('bevels the received brush, and the inspector and the editor run it like the stack does', () => {
     const script = both(
       { command: 'input_brushes', values: { textures: 'Follow' } },
+      { command: 'select_brushes' },
       { command: 'select_faces', values: { which: 'All', detail: '', of: '', within: '30', how: 'New' } },
       { command: 'bevel_edges', values: { distance: '0.1' } },
     );
@@ -126,7 +127,7 @@ describe('SolidScript as a modifier', () => {
       (status) => ({ volume: fixture.mesh, stepId, commandStack: null, status }),
     );
     rows.update(kind.normalizeParameters({ script }));
-    expect(rows.getElement().textContent).toContain('3 lines · 1 solid');
+    expect(rows.getElement().textContent).toContain('4 lines · 1 solid');
   });
 
   it('cuts the received brush like any brush and keeps its face textures', () => {

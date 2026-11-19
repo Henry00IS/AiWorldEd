@@ -32,6 +32,7 @@ describe('SolidScript list blocks', () => {
   it('keeps a list that Add Item makes inside a loop for the lines after it', () => {
     const lines: SolidScriptLine[] = [
       line('cube', { size: '2, 2, 2', label: 'Boing' }),
+      line('select_brushes'),
       line('for_each', { variable: 'Vertex', list: '[$Selected.Brushes.First.Vertices]' }),
       line('add_item', { value: '[Vertex.Position]', list: 'Vertices' }),
       line('translate', { v: '[Vertex.Position.X], 0.5, [Vertex.Position.Z]' }),

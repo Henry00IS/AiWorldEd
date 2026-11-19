@@ -13,6 +13,7 @@ import { solidScriptNameKey } from '@/solid_script/language/solid_script_name_ke
 import { solidScriptMistakeCheck, solidScriptUseCheck } from '@/solid_script/language/solid_script_use_check.js';
 import type { SolidScriptEditorSettings } from './solid_script_editor_settings.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
+import { solidScriptSelectFix, solidScriptSelectFixLabel } from '@/solid_script/language/solid_script_select.js';
 
 /** Pause after the last edit before the idle check runs, in milliseconds. */
 export const SOLID_SCRIPT_EDITOR_CHECK_DELAY_MS = 400;
@@ -77,6 +78,9 @@ export class SolidScriptEditorOutput {
   set inputAdd(inputAdd: () => void) {
     this.explorer.inputAdd = inputAdd;
   }
+
+  /** Inserts a Select line above a failed tool, with no configurator. */
+  selectAbove: (command: string, line: number) => void = () => undefined;
 
   /**
    * Fills the Settings tab; set by the editor.
@@ -324,12 +328,29 @@ export class SolidScriptEditorOutput {
    */
   private text(text: string, failure: string): void {
     this.output.textContent = text;
-    if (failure !== '') {
-      const row = document.createElement('div');
-      row.className = SOLID_SCRIPT_EDITOR_CLASSES.outputFailure;
-      row.textContent = failure;
-      this.output.append(row);
-    }
+    if (failure !== '') this.output.append(this.failureRow(failure));
     this.tabs.get('output')?.classList.toggle(SOLID_SCRIPT_EDITOR_CLASSES.outputError, failure !== '');
+  }
+
+  /**
+   * The red stop text, and the one-click Select fix when Of was empty.
+   *
+   * @param failure Error the run stopped with.
+   * @returns Row.
+   */
+  private failureRow(failure: string): HTMLElement {
+    const row = document.createElement('div');
+    row.className = SOLID_SCRIPT_EDITOR_CLASSES.outputFailure;
+    row.append(failure);
+    const fix = solidScriptSelectFix(failure);
+    const line = this.failed;
+    if (!fix || line === null) return row;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = SOLID_SCRIPT_EDITOR_CLASSES.tool;
+    button.textContent = solidScriptSelectFixLabel(fix.label);
+    button.addEventListener('click', () => this.selectAbove(fix.command, line));
+    row.append(button);
+    return row;
   }
 }

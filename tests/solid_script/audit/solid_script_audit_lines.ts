@@ -16,12 +16,14 @@ const line = (command: string, values: Record<string, string> = {}): SolidScript
 /** Lines that give every kind a value can have, for the fields to read. */
 export const SOLID_SCRIPT_AUDIT_PRELUDE: readonly SolidScriptLine[] = [
   line('cube', { into: 'B', anchor: 'Center, Center, Center' }),
+  line('select_brushes', { of: '[B]', into: 'Brushes' }),
   line('select_faces', { which: 'All', of: '[B]', into: 'F' }),
   line('select_edges', { which: 'All', of: '[B]', into: 'E' }),
   line('select_vertices', { which: 'All', of: '[B]', into: 'P' }),
   line('mesh_brushes', { into: 'M' }),
   line('cube', { anchor: 'Center, Center, Center' }),
   line('end'),
+  line('select_brushes', { of: '[M]', into: 'Meshes' }),
   line('select_faces', { which: 'All', of: '[M]', into: 'MF' }),
   line('select_vertices', { which: 'All', of: '[M]', into: 'MP' }),
   line('variable', { name: 'Items', value: '1, 2, 3' }),
@@ -141,6 +143,15 @@ export function solidScriptAuditLine(
   if (SOLID_SCRIPT_AUDIT_MESHES.has(command.id) && 'of' in filled)
     filled['of'] = command.id === 'inset_face' || command.id === 'delete_faces' ? '[MF]' : '[M]';
   if (command.id === 'remove_item') filled['target'] = 'Points()';
+  if (command.id === 'clip' && 'of' in filled) filled['of'] = '[B]';
+  if (command.id === 'select_faces' && (filled['of'] ?? '') === '') filled['of'] = '[B]';
+  if (command.id === 'select_brushes' && (filled['of'] ?? '') === '') filled['of'] = '[B]';
+  if (
+    ['project_uvs', 'unwrap', 'pack_islands', 'transform_uvs'].includes(command.id) &&
+    'of' in filled &&
+    (filled['of'] ?? '') === ''
+  )
+    filled['of'] = '[B]';
   return line(command.id, { ...filled, ...values });
 }
 

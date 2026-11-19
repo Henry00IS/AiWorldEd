@@ -986,9 +986,10 @@ describe('SolidScript editor', () => {
     editorFixture([
       { command: 'cube', values: { label: 'Knob' } },
       { command: 'sphere', values: { label: 'Handle' } },
+      { command: 'select_brushes' },
       { command: 'select_faces' },
     ]);
-    doubleClick(chip(2));
+    doubleClick(chip(3));
     const of = find<HTMLInputElement>('[data-solid-script-configurator="select_faces"] input[aria-label="Of"]');
     of.focus();
     of.click();
@@ -1039,7 +1040,7 @@ describe('SolidScript editor', () => {
       [...document.querySelectorAll('body > .solid-script-editor-suggestions-host [role="option"]')].map(
         (option) => option.firstChild?.textContent,
       );
-    expect(options().slice(0, 3)).toEqual(['All', 'Up', 'Down']);
+    expect(options().slice(0, 3)).toEqual(['All', 'New-Since-Last', 'Up']);
     type(which, 'Bi');
     expect(options()).toEqual(['Biggest']);
     press(which, 'Enter');

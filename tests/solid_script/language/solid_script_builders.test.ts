@@ -76,16 +76,17 @@ describe('SolidScript builders', () => {
     ).toEqual(['[0, 5, 0]']);
   });
 
-  it('adds what a block builds to [$Selected.Brushes], also after a Set narrowed it', () => {
+  it('leaves [$Selected.Brushes] empty until Select Brushes or a Set, and a later build does not add to it', () => {
     expect(
       printed(
         line('cube', { into: 'A', anchor: 'Center, Center, Center' }),
         line('cube', { anchor: 'Center, Center, Center' }),
-        line('variable', { name: '$Selected.Brushes', value: '[A]' }),
+        line('echo', { value: '[$Selected.Brushes.Count]' }),
+        line('select_brushes', { of: '[A]' }),
         line('echo', { value: '[$Selected.Brushes.Count]' }),
         line('sphere', { into: 'S', anchor: 'Center, Center, Center' }),
         line('echo', { value: '[$Selected.Brushes.Count] [$Selected.Brushes.Last.Name]' }),
       ),
-    ).toEqual(['1', '2 sphere']);
+    ).toEqual(['0', '1', '1 cube']);
   });
 });

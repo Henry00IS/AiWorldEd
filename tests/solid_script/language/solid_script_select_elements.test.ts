@@ -5,6 +5,7 @@ import { solidScriptDocumentListing } from '@/solid_script/document/solid_script
 
 const line = (command: string, values: Record<string, string> = {}): SolidScriptLine => ({ command, values });
 const CUBE = line('cube', { size: '2, 2, 2', anchor: 'Center, Center, Center' });
+const SELECT_BRUSHES = line('select_brushes');
 
 /** Runs lines and returns what they printed, or the error. */
 function printed(...lines: SolidScriptLine[]): string[] {
@@ -14,10 +15,14 @@ function printed(...lines: SolidScriptLine[]): string[] {
 
 describe('SolidScript Select Edges and Select Vertices', () => {
   it('picks edges of brushes, faces or edges into [$Selected.Edges] and Into', () => {
-    expect(printed(CUBE, line('select_edges'), line('echo', { value: '[$Selected.Edges.Count]' }))).toEqual(['12']);
+    expect(
+      printed(CUBE, SELECT_BRUSHES, line('select_edges'), line('echo', { value: '[$Selected.Edges.Count]' })),
+    ).toEqual(['12']);
     expect(
       printed(
         CUBE,
+        SELECT_BRUSHES,
+        line('select_brushes'),
         line('select_faces', { which: 'Up', into: 'Top' }),
         line('select_edges', { of: '[Top]', into: 'Rim' }),
         line('echo', { value: '[Rim.Count] [$Selected.Edges.Count] [Rim.First.Length]' }),
@@ -26,7 +31,10 @@ describe('SolidScript Select Edges and Select Vertices', () => {
     expect(
       printed(
         line('cube', { size: '4, 1, 1', anchor: 'Center, Center, Center' }),
+        SELECT_BRUSHES,
+        line('select_brushes'),
         line('select_edges', { which: 'Longest', detail: '4' }),
+        line('select_brushes'),
         line('select_edges', { which: 'Where', detail: '[=[$Edge.Middle.Y] > 0]', how: 'Remove' }),
         line('echo', { value: '[$Selected.Edges.Count] [$Selected.Edges.First.Length]' }),
       ),
@@ -37,6 +45,8 @@ describe('SolidScript Select Edges and Select Vertices', () => {
     expect(
       printed(
         CUBE,
+        SELECT_BRUSHES,
+        line('select_brushes'),
         line('select_vertices', { which: 'Where', detail: '[=[$Vertex.Position.Y] > 0]', into: 'Up' }),
         line('echo', { value: '[Up.Count] [$Selected.Vertices.Count] [Up.Center]' }),
       ),
@@ -44,15 +54,17 @@ describe('SolidScript Select Edges and Select Vertices', () => {
     expect(
       printed(
         CUBE,
+        SELECT_BRUSHES,
+        line('select_brushes'),
         line('select_edges', { which: 'Longest', detail: '1' }),
         line('select_vertices', { of: '[$Selected.Edges]' }),
         line('echo', { value: '[$Selected.Vertices.Count]' }),
       ),
     ).toEqual(['2']);
-    expect(printed(line('select_edges'))[0]).toMatch(/no brushes|add a brush/i);
-    expect(printed(CUBE, line('select_vertices', { into: 'V' }), line('select_edges', { of: '[V]' }))[0]).toMatch(
-      /Of needs a Brush, Face, Edge or Text, or a list of them, not a Vertex List/,
-    );
+    expect(printed(line('select_edges'))[0]).toMatch(/doesn't know which brushes/);
+    expect(
+      printed(CUBE, SELECT_BRUSHES, line('select_vertices', { into: 'V' }), line('select_edges', { of: '[V]' }))[0],
+    ).toMatch(/Of needs a Brush, Face, Edge or Text, or a list of them, not a Vertex List/);
   });
 
   it('writes its lines in plain words', () => {

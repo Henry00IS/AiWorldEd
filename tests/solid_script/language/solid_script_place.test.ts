@@ -34,6 +34,7 @@ describe('SolidScript Place At Points', () => {
         line('place_at_points', { at: '[0, 2, 0], [4, 0, 0]', into: '' }),
         line('cube', { size: '1, 1, 1', into: 'A', anchor: 'Center, Center, Center' }),
         END,
+        line('select_brushes'),
         line('echo', {
           value: '[=[$Selected.Brushes.Count]] [$Selected.Brushes.First.Center] [$Selected.Brushes.Last.Center]',
         }),

@@ -30,6 +30,7 @@ export const SOLID_SCRIPT_EXAMPLE_TAPERED_BOX: readonly SolidScriptLine[] = [
   solidScriptExampleNote('Scale Faces shrinks the top about its center, so the cube becomes a tapered block.'),
   solidScriptExampleInput('Factor', 'Number', '0.5', { min: '0.1', max: '2', label: 'Factor' }),
   solidScriptExampleLine('cube', { size: '2, 2, 2' }),
+  solidScriptExampleLine('select_brushes'),
   solidScriptExampleLine('select_faces', { which: 'Up' }),
   solidScriptExampleLine('scale_faces', { factor: '[Factor]' }),
 ];
@@ -69,6 +70,7 @@ export const SOLID_SCRIPT_EXAMPLE_HILLY_FLOOR: readonly SolidScriptLine[] = [
   solidScriptExampleInput('Scale', 'Number', '3', { min: '0.1', max: '40', label: 'Scale' }),
   solidScriptExampleInput('Seed', 'Number', '2', { label: 'Seed' }),
   solidScriptExampleLine('grid_mesh', { size: '[Width], 0, [Depth]', columns: '[Columns]', rows: '[Rows]' }),
+  solidScriptExampleLine('select_brushes'),
   solidScriptExampleLine('displace', {
     distance: '[=[Height] * (Noise([$X], 0, [$Z], [Scale], [Seed]) * 2 - 1)]',
   }),
