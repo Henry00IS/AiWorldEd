@@ -70,7 +70,8 @@ async function solidScriptFileDropDocument(path: string, file: File | undefined)
 
 /**
  * Outlines a drop target while a drag it takes is over it, the same way for
- * every drop target of the script editor.
+ * every drop target of the script editor: drawn just inside the target, so all
+ * four sides show even where a scrolling panel clips what lies outside.
  *
  * @param element Drop target.
  * @param on True shows the outline, false hides it.
@@ -78,6 +79,7 @@ async function solidScriptFileDropDocument(path: string, file: File | undefined)
  */
 export function solidScriptDropOutline(element: HTMLElement, on: boolean, outline: string): void {
   element.style.outline = on ? `2px dashed ${outline}` : '';
+  element.style.outlineOffset = on ? '-2px' : '';
 }
 
 /**

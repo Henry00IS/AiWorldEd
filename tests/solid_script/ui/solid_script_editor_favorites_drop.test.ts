@@ -86,10 +86,13 @@ describe('SolidScript palette: dropping onto Favorites', () => {
     expect(group(palette).style.outline).toBe('');
     drag(group(palette), 'dragenter', data, entry(palette, 'sphere'));
     expect(group(palette).style.outline).toContain('dashed');
+    // Drawn inside the group, so the list's clipping never hides its top or left side.
+    expect(group(palette).style.outlineOffset).toBe('-2px');
     expect(drag(group(palette), 'dragover', data).defaultPrevented).toBe(true);
     drag(group(palette), 'drop', data);
     drag(entry(palette, 'sphere'), 'dragend', data);
     expect(group(palette).style.outline).toBe('');
+    expect(group(palette).style.outlineOffset).toBe('');
     expect(palette.favoritesVisible()).toContain('sphere');
     expect(JSON.parse(storage.getItem(SOLID_SCRIPT_EDITOR_FAVORITES_KEY) ?? '[]')).toContain('sphere');
   });
