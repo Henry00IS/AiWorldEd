@@ -57,6 +57,14 @@ export interface SolidScriptElementsHost {
   leafLatest(leaf: SolidScriptGeometryLeaf): SolidScriptGeometryLeaf;
 }
 
+/** Held faces of one solid or mesh. */
+interface SolidScriptElementFaces {
+  /** Face ids by the face number they were made from. */
+  byIndex: Map<number, SolidScriptElementEntry>;
+  /** Every face already held on this solid or mesh. */
+  list: SolidScriptElementEntry[];
+}
+
 /** How close two directions must be to count as the same, as a dot product. */
 const SOLID_SCRIPT_ELEMENTS_SAME = 0.9999;
 
@@ -74,10 +82,10 @@ export class SolidScriptElements {
    */
   private readonly boundsKept = new Map<string, { leaves: SolidScriptGeometryLeaf[]; box: THREE.Box3 }>();
   /**
-   * Face ids of one solid or mesh by the face number they were made from, so a
-   * later read of that face does not walk every face already held.
+   * Held faces of each solid or mesh, keyed by the latest leaf, so a face
+   * lookup only looks at faces of that brush, not every element of the run.
    */
-  private readonly facesByIndex = new WeakMap<SolidScriptGeometryLeaf, Map<number, SolidScriptElementEntry>>();
+  private readonly facesHeld = new Map<SolidScriptGeometryLeaf, SolidScriptElementFaces>();
   /** How many times bounds were worked out rather than read from what is kept. */
   boundsPasses = 0;
 
@@ -162,16 +170,37 @@ export class SolidScriptElements {
    * @returns Matching entry, or undefined.
    */
   private faceKnown(latest: SolidScriptGeometryLeaf, face: SolidScriptFaceFacts): SolidScriptElementEntry | undefined {
-    const byIndex = this.facesByIndex.get(latest)?.get(face.index);
+    const store = this.faceStore(latest);
+    const byIndex = store.byIndex.get(face.index);
     if (byIndex?.plane && SolidScriptElements.planeHolds(byIndex.plane, face)) return byIndex;
     let inherited: SolidScriptElementEntry | undefined;
-    for (const entry of this.entries) {
-      if (entry.element.kind !== 'face' || !entry.plane || this.host.leafLatest(entry.leaf) !== latest) continue;
-      if (!SolidScriptElements.planeHolds(entry.plane, face)) continue;
+    for (const entry of store.list) {
+      if (!entry.plane || !SolidScriptElements.planeHolds(entry.plane, face)) continue;
       if (SolidScriptElements.outlineSame(entry.plane.corners, face.corners)) return entry;
       inherited ??= entry;
     }
     return inherited;
+  }
+
+  /**
+   * Returns the held faces of a solid or mesh, moving the store onto the latest
+   * leaf when a later change replaced it.
+   *
+   * @param latest Solid or mesh now.
+   * @returns Held faces of that solid or mesh.
+   */
+  private faceStore(latest: SolidScriptGeometryLeaf): SolidScriptElementFaces {
+    const direct = this.facesHeld.get(latest);
+    if (direct) return direct;
+    for (const [leaf, store] of this.facesHeld) {
+      if (this.host.leafLatest(leaf) !== latest) continue;
+      this.facesHeld.delete(leaf);
+      this.facesHeld.set(latest, store);
+      return store;
+    }
+    const store: SolidScriptElementFaces = { byIndex: new Map(), list: [] };
+    this.facesHeld.set(latest, store);
+    return store;
   }
 
   /**
@@ -182,9 +211,9 @@ export class SolidScriptElements {
    * @param entry Entry.
    */
   private faceIndexSet(leaf: SolidScriptGeometryLeaf, index: number, entry: SolidScriptElementEntry): void {
-    const byIndex = this.facesByIndex.get(leaf) ?? new Map();
-    byIndex.set(index, entry);
-    this.facesByIndex.set(leaf, byIndex);
+    const store = this.faceStore(leaf);
+    store.byIndex.set(index, entry);
+    store.list.push(entry);
   }
 
   /**
@@ -196,8 +225,8 @@ export class SolidScriptElements {
    */
   faceMoved(from: SolidScriptFaceFacts, to: SolidScriptFaceFacts): void {
     const offset = to.center.clone().sub(from.center);
-    for (const entry of this.entries) {
-      if (entry.element.kind !== 'face' || !entry.plane || !SolidScriptElements.pieceOf(entry.plane, from)) continue;
+    for (const entry of this.faceStore(this.host.leafLatest(from.leaf)).list) {
+      if (!entry.plane || !SolidScriptElements.pieceOf(entry.plane, from)) continue;
       entry.plane = {
         normal: to.normal.clone(),
         corners: entry.plane.corners.map((corner) => corner.clone().add(offset)),

@@ -24,20 +24,33 @@ function heavyScene(tail: readonly SolidScriptLine[]): SolidScriptLine[] {
 }
 
 /**
- * Several spheres, then Select Faces All, then a cheap Scatter Points line.
+ * Several spheres, then Select Faces All, then optional lines after it.
  *
  * @param count How many spheres.
+ * @param tail Lines after Select Faces.
  * @returns Script lines.
  */
-function spheresThenScatter(count: number): SolidScriptLine[] {
+function spheresThenSelect(count: number, tail: readonly SolidScriptLine[] = []): SolidScriptLine[] {
   return [
     ...Array.from({ length: count }, () => ({
       command: 'sphere',
       values: { r: '0.2', sides: '16', rings: '8' },
     })),
     { command: 'select_faces', values: { which: 'All' } },
-    { command: 'scatter_points', values: { where: 'On Faces', count: '10', seed: '0', into: 'Points' } },
+    ...tail,
   ];
+}
+
+/**
+ * Several spheres, then Select Faces All, then a cheap Scatter Points line.
+ *
+ * @param count How many spheres.
+ * @returns Script lines.
+ */
+function spheresThenScatter(count: number): SolidScriptLine[] {
+  return spheresThenSelect(count, [
+    { command: 'scatter_points', values: { where: 'On Faces', count: '10', seed: '0', into: 'Points' } },
+  ]);
 }
 
 /**
@@ -155,5 +168,27 @@ describe('SolidScript line cost on a heavy scene', () => {
       `scatter last line: 2 spheres ${smallMs.toFixed(3)} ms, 8 spheres ${largeMs.toFixed(3)} ms, ratio ${ratio.toFixed(2)} (4× geometry)\n`,
     );
     expect(ratio, `last-line ratio ${ratio.toFixed(2)} should stay near 4, not 16`).toBeLessThan(10);
+  }, 120000);
+
+  it('grows the cost of Select Faces All linearly with the number of solids', () => {
+    const small = spheresThenSelect(2);
+    const large = spheresThenSelect(8);
+    const smallRun = profiled(small);
+    const largeRun = profiled(large);
+    expect(smallRun.error).toBeNull();
+    expect(largeRun.error).toBeNull();
+    const selectOf = (lines: SolidScriptLine[]) => {
+      const result = profiled(lines);
+      if (result.error) throw new Error(result.error.message);
+      return lineMs(result, lines.length);
+    };
+    const smallMs = median(() => selectOf(small));
+    const largeMs = median(() => selectOf(large));
+    const ratio = largeMs / Math.max(smallMs, 0.2);
+    writeFileSync(
+      '/tmp/geo-perf-after-face-lookup.log',
+      `Select Faces All: 2 spheres ${smallMs.toFixed(3)} ms, 8 spheres ${largeMs.toFixed(3)} ms, ratio ${ratio.toFixed(2)} (4× geometry)\n`,
+    );
+    expect(ratio, `Select Faces ratio ${ratio.toFixed(2)} should stay near 4, not 16`).toBeLessThan(10);
   }, 120000);
 });
