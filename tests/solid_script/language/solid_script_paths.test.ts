@@ -175,14 +175,14 @@ describe('SolidScript paths', () => {
       run(
         { command: 'mesh_brushes' },
         { command: 'cube', values: { size: '1, 1, 1' } },
-        { command: 'transform', values: { move: '1.0005, 0, 0' } },
+        { command: 'transform', values: { move: '1.001, 0, 0' } },
         { command: 'cube', values: { size: '1, 1, 1' } },
         END,
         END,
         { command: 'select_brushes' },
         { command: 'merge_by_distance', values: { distance } },
       );
-    const [merged] = solidScriptShapeMeshes(cubes('0.001').shapes);
+    const [merged] = solidScriptShapeMeshes(cubes('0.002').shapes);
     expect(merged?.points).toHaveLength(12);
     expect(merged?.faces).toHaveLength(12);
     const [apart] = solidScriptShapeMeshes(cubes('0.0001').shapes);

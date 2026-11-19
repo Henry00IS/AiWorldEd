@@ -36,6 +36,30 @@ export interface SolidChunkUvBakeOptions {
   brushModelMatrix?: THREE.Matrix4;
 }
 
+/**
+ * Projects one model-space vertex into UV coordinates using a brush-local UV
+ * matrix. Reverse-facing surfaces mirror U so the texture reads the same way as
+ * on a front-facing surface, with tile seams in the same places.
+ *
+ * @param modelVertex Vertex in solid model space.
+ * @param surface Authored face surface.
+ * @param modelToBrush Inverse of the brush model matrix.
+ * @param isViewedFromReverseSide True when the polygon winding was reversed.
+ * @param scratch Optional scratch point; a new vector is used when omitted.
+ * @returns Texture coordinates.
+ */
+export function solidChunkUvProject(
+  modelVertex: THREE.Vector3,
+  surface: FaceSurfaceDescription,
+  modelToBrush: THREE.Matrix4,
+  isViewedFromReverseSide: boolean,
+  scratch: THREE.Vector3 = new THREE.Vector3(),
+): { u: number; v: number } {
+  const local = scratch.copy(modelVertex).applyMatrix4(modelToBrush);
+  const coords = surface.uv.project(local);
+  return { u: isViewedFromReverseSide ? 1 - coords.u : coords.u, v: coords.v };
+}
+
 /** Builds and holds UV bake scratch state for chunk construction. */
 export class SolidBrushMeshChunkBuilder {
   private readonly scratchPoint = new THREE.Vector3();
@@ -250,10 +274,15 @@ export class SolidBrushMeshChunkBuilder {
     vertexWrite: number,
     isViewedFromReverseSide: boolean,
   ): void {
-    this.scratchPoint.copy(modelVertex).applyMatrix4(this.scratchInverse);
-    const coords = surface.uv.project(this.scratchPoint);
+    const coords = solidChunkUvProject(
+      modelVertex,
+      surface,
+      this.scratchInverse,
+      isViewedFromReverseSide,
+      this.scratchPoint,
+    );
     const uvBase = vertexWrite * 2;
-    uvs[uvBase] = isViewedFromReverseSide ? 1 - coords.u : coords.u;
+    uvs[uvBase] = coords.u;
     uvs[uvBase + 1] = coords.v;
   }
 }

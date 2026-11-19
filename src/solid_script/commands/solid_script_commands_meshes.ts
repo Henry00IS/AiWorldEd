@@ -13,14 +13,13 @@ import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_m
 import {
   SOLID_SCRIPT_MESH_NEEDS_WRAP,
   solidScriptMeshDisplace,
-  solidScriptMeshFromSolid,
-  solidScriptMeshJoin,
   solidScriptMeshMerge,
   solidScriptMeshSmooth,
   solidScriptMeshSubdivide,
   type SolidScriptShapeMesh,
   type SolidScriptUv,
 } from '@/solid_script/language/solid_script_mesh.js';
+import { solidScriptMeshFromBrushes } from '@/solid_script/language/solid_script_mesh_from_brushes.js';
 import {
   SOLID_SCRIPT_GRID_MESH_COUNT_MAX,
   SOLID_SCRIPT_GRID_MESH_COUNT_MIN,
@@ -49,7 +48,7 @@ const SOLID_SCRIPT_SMOOTH_ROUNDS_MAX = 100;
 
 /**
  * Runs the lines inside a mesh tool and turns them into one mesh: meshes stay
- * as they are and solids such as Cube become meshes of their faces.
+ * as they are, and brushes are baked through the editor CSG compiler.
  *
  * @param run Running line.
  * @param label Mesh label.
@@ -57,25 +56,11 @@ const SOLID_SCRIPT_SMOOTH_ROUNDS_MAX = 100;
  */
 function solidScriptMeshInside(run: SolidScriptBlockRun, label: string): SolidScriptShapeMesh | null {
   if (run.planar) throw new Error(`${label} cannot be inside a Linear Extrude; put it around the extrusion`);
-  const meshes = run.local(false).flatMap((shape) => solidScriptMeshesOf(shape, label));
-  return meshes.length === 0 ? null : solidScriptMeshJoin(meshes, label);
-}
-
-/**
- * Turns one shape tree into meshes.
- *
- * @param shape Shape tree.
- * @param label Tool label, for messages.
- * @returns Meshes.
- */
-function solidScriptMeshesOf(shape: SolidScriptShape, label: string): SolidScriptShapeMesh[] {
-  if (shape.kind === 'mesh') return [shape];
-  if (shape.kind === 'solid') return [solidScriptMeshFromSolid(shape.points, shape.label, shape.texture)];
-  if (shape.kind === 'polygon')
+  const shapes = run.local(false);
+  const flat = shapes.find((shape) => shape.kind === 'polygon');
+  if (flat)
     throw new Error(`${label} needs solids or meshes; a flat outline becomes a solid inside Linear Extrude first`);
-  if (shape.kind === 'boolean' && shape.operation !== 'union')
-    throw new Error(`${label} cannot turn a joined cut into a mesh yet; only brushes can be`);
-  return shape.children.flatMap((child) => solidScriptMeshesOf(child, label));
+  return solidScriptMeshFromBrushes(shapes, label);
 }
 
 /**
@@ -414,9 +399,10 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Turn brushes into one mesh',
     manual:
-      'Turns the brushes between this line and its End into one mesh: every Cube, Sphere, Cylinder, Polyhedron, Hull or extrusion inside becomes faces of a regular mesh object. Use it when a brush should be a model rather than level geometry, or to change it with the other mesh tools. Brushes inside are joined, not cut. Example: a Sphere inside Mesh From Brushes becomes a round mesh ball.',
+      'Turns the brushes between this line and its End into one mesh, baking their cut result the same way the editor cuts brushes, including Subtractive and Intersecting modes and Group. Only the brushes inside this block are baked, not the rest of the world. Use it when a brush should be a model rather than level geometry, or to change it with the other mesh tools. Example: a Cube, then a smaller Cube with Mode Subtractive, inside Mesh From Brushes, becomes a mesh with a notch.',
     stops: [
-      'A cut or overlap that is not a brush. Mesh From Brushes works on brushes.',
+      'A Subtractive or Intersecting brush that removes everything, so nothing is left to turn into a mesh.',
+      'A brush that is no longer convex.',
       SOLID_SCRIPT_MESH_STOPS_FLAT,
       SOLID_SCRIPT_MESH_STOPS_END,
     ],
@@ -432,7 +418,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Weld corners that nearly touch',
     manual:
-      'Welds corners of a mesh that are closer than Distance into one, so pieces that touch share their corners and smooth as one surface. Faces that fold away are dropped. Of is the mesh to weld; empty uses [$Selected.Brushes]. A brush stops the line: wrap it in Mesh From Brushes first, which also joins several brushes into one mesh. Example: Mesh From Brushes around two Cubes side by side, then Merge By Distance 0.001, gives one mesh whose touching corners are shared.',
+      'Welds corners of a mesh that are closer than Distance into one, so pieces that touch share their corners and smooth as one surface. Faces that fold away are dropped. Of is the mesh to weld; empty uses [$Selected.Brushes]. A brush stops the line: wrap it in Mesh From Brushes first, which also bakes several brushes, including cuts, into one mesh. Example: Mesh From Brushes around two Cubes side by side, then Merge By Distance 0.001, gives one mesh whose touching corners are shared.',
     stops: ['A Distance below 0.', 'A brush. Wrap it in Mesh From Brushes first.', 'No mesh to work on.'],
     parameters: [
       solidScriptParameter(

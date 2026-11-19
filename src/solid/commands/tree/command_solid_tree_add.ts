@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import type { UndoCommand } from '@/commands/command_undo.js';
 import type { SolidModel } from '@/solid/model/solid_model.js';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
-import { markAsSolidCsgGroup } from '@/solid/model/solid_group.js';
-import type { SolidTreeNode } from './solid_tree_node.js';
+import type { SolidTreeBrush, SolidTreeNode } from './solid_tree_node.js';
+import { solidTreeBrushTexturesApply, solidTreeNodesCreate } from './solid_tree_nodes_create.js';
 
 /** One inserted object and the parent it was appended to, in insert order. */
 type SolidTreeInsert =
@@ -81,30 +81,27 @@ export class CommandSolidTreeAdd implements UndoCommand {
    * @param parent Parent to append to.
    */
   private nodesCreate(nodes: readonly SolidTreeNode[], parent: THREE.Object3D): void {
-    for (const node of nodes) {
-      if (node.kind === 'group') {
-        const group = new THREE.Group();
-        group.name = node.name;
-        markAsSolidCsgGroup(group, node.operation);
-        this.inserts.push({ parent, group });
-        parent.add(group);
-        this.nodesCreate(node.children, group);
-      } else {
-        const instance = this.model.prepareTopologyBrush(
-          node.brush,
-          node.operation,
-          node.center,
-          node.texture,
-          node.name,
-        );
-        node.faceTextures?.forEach((texture, index) => {
-          const face = node.brush.faces[index];
-          if (texture && face) instance.setFaceTextureId(face.surfaceIndex, texture);
-        });
-        this.inserts.push({ parent, instance });
-        this.model.addBrushInstanceAfter(instance, parent, null, false);
-      }
-    }
+    solidTreeNodesCreate(
+      nodes,
+      parent,
+      (node, host) => this.brushInsert(node, host),
+      (group, host) => this.inserts.push({ parent: host, group }),
+    );
+  }
+
+  /**
+   * Prepares one brush, records it, and inserts it under a parent.
+   *
+   * @param node Brush node.
+   * @param parent Parent to append to.
+   * @returns Inserted instance.
+   */
+  private brushInsert(node: SolidTreeBrush, parent: THREE.Object3D): SolidBrushInstance {
+    const instance = this.model.prepareTopologyBrush(node.brush, node.operation, node.center, node.texture, node.name);
+    solidTreeBrushTexturesApply(instance, node);
+    this.inserts.push({ parent, instance });
+    this.model.addBrushInstanceAfter(instance, parent, null, false);
+    return instance;
   }
 
   /** Re-inserts recorded objects in their original order. */
