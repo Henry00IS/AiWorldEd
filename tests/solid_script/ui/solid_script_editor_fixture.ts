@@ -2,7 +2,11 @@ import * as THREE from 'three';
 import { CommandStack } from '@/commands/command_stack.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierGeneratorNodeCreate } from '@/modifier/stack/modifier_generator_node.js';
-import { MODIFIER_STACK_SOLID_SCRIPT_KIND } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
+import {
+  MODIFIER_STACK_SOLID_SCRIPT_KIND,
+  MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND,
+} from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
+import { modifierVolumeTemplateEntries } from '@/modifier/stack/modifier_volume_templates.js';
 import { modifierStackParametersCommit } from '@/modifier/stack/modifier_stack_parameters_commit.js';
 import type { ModifierStackActionTarget } from '@/modifier/stack/modifier_stack_types.js';
 import {
@@ -10,18 +14,25 @@ import {
   solidScriptDocumentNormalize,
   type SolidScriptDocument,
   type SolidScriptLine,
+  type SolidScriptUse,
 } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptEditorOpen } from '@/solid_script/ui/solid_script_editor_open.js';
 
 /**
- * Opens the editor of a generator holding a script.
+ * Opens the editor of a SolidScript generator, or of a SolidScript modifier.
  *
  * @param lines Command lines of the script.
+ * @param use Generator or modifier host.
  * @returns Fixture parts.
  */
-export function editorFixture(lines: SolidScriptLine[]) {
+export function editorFixture(lines: SolidScriptLine[], use: SolidScriptUse = 'generator') {
   const world = new THREE.Group();
-  const node = modifierGeneratorNodeCreate(MODIFIER_STACK_SOLID_SCRIPT_KIND);
+  const node =
+    use === 'modifier'
+      ? ModifierVolume.create({
+          modifiers: modifierVolumeTemplateEntries([MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND]),
+        })
+      : modifierGeneratorNodeCreate(MODIFIER_STACK_SOLID_SCRIPT_KIND);
   world.add(node);
   const stepId = ModifierVolume.read(node).modifiers[0]?.id ?? '';
   modifierStackParametersCommit(node, stepId, { script: solidScriptDocumentCreate(lines, 'Test Script') }, null);

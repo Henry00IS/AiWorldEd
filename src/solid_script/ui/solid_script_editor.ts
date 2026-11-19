@@ -12,6 +12,8 @@ import {
   solidScriptDocumentCreate,
   solidScriptDocumentUsesWith,
   type SolidScriptDocument,
+  type SolidScriptLine,
+  type SolidScriptUses,
 } from '@/solid_script/document/solid_script_document.js';
 import {
   solidScriptBlockIsBlank,
@@ -668,7 +670,7 @@ export class SolidScriptEditor extends PanelFloating {
 
   /** Starts a new script with one Cube; Undo brings the old one back. */
   private create(): void {
-    this.commit(solidScriptDocumentCreate([{ command: 'cube' }], SOLID_SCRIPT_DOCUMENT_NAME_DEFAULT), 0);
+    this.commit(this.scriptForHost([{ command: 'cube' }], SOLID_SCRIPT_DOCUMENT_NAME_DEFAULT), 0);
     this.noticeShow('New script. Undo brings the old one back.');
   }
 
@@ -676,9 +678,27 @@ export class SolidScriptEditor extends PanelFloating {
   private async examples(): Promise<void> {
     const example = await solidScriptExamplesAsk(this.root.ownerDocument.body);
     if (!example) return;
-    const created = solidScriptDocumentCreate(example.lines, example.name);
-    this.commit(example.uses ? solidScriptDocumentUsesWith(created, example.uses) : created, 0);
+    this.commit(this.scriptForHost(example.lines, example.name, example.uses), 0);
     this.noticeShow(`Opened the ${example.name} example. Undo brings your script back.`);
+  }
+
+  /**
+   * Builds a script for this window's host. New, and examples that set no uses,
+   * take the host's type: Modifier when opened from Add Modifier, Generator
+   * from a generator.
+   *
+   * @param lines Command lines.
+   * @param name Script name.
+   * @param uses Uses from an example, when it has them.
+   * @returns Script.
+   */
+  private scriptForHost(lines: readonly SolidScriptLine[], name: string, uses?: SolidScriptUses): SolidScriptDocument {
+    const created = solidScriptDocumentCreate(lines, name);
+    const use = this.session.use();
+    return solidScriptDocumentUsesWith(
+      created,
+      uses ?? { generator: use === 'generator', modifier: use === 'modifier' },
+    );
   }
 
   /** Saves the script and keeps the name it was saved under. */
