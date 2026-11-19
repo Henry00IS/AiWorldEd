@@ -82,7 +82,7 @@ export class SolidScriptEditorDrop {
       { ...DRAG_EDGE_SCROLL_TUNING, rowHeightPx: handlers.rowPx },
     );
     const signal = this.listening.signal;
-    element.addEventListener('dragenter', () => this.depth++, { signal });
+    element.addEventListener('dragenter', (event) => this.enter(event), { signal });
     element.addEventListener('dragover', (event) => this.over(event), { signal });
     element.addEventListener('dragleave', (event) => this.leave(event), { signal });
     element.addEventListener('drop', (event) => this.drop(event), { signal });
@@ -97,6 +97,30 @@ export class SolidScriptEditorDrop {
   dispose(): void {
     this.listening.abort();
     this.clear();
+  }
+
+  /**
+   * Counts a drag entering the list or a row in it, and claims a command or
+   * line drag: browsers that follow the drag rules closely only keep dropping
+   * onto an element whose drag enter was taken.
+   *
+   * @param event Drag enter event.
+   */
+  private enter(event: DragEvent): void {
+    this.depth++;
+    if (this.takes(event)) event.preventDefault();
+  }
+
+  /**
+   * Tells whether a drag carries a palette command or a script line.
+   *
+   * @param event Drag event.
+   * @returns True for a drag the list takes.
+   */
+  private takes(event: DragEvent): boolean {
+    // Some browsers give the types as a list without includes.
+    const types = Array.from(event.dataTransfer?.types ?? []);
+    return types.includes(SOLID_SCRIPT_EDITOR_DRAG_COMMAND) || types.includes(SOLID_SCRIPT_EDITOR_DRAG_LINE);
   }
 
   /**
@@ -118,11 +142,12 @@ export class SolidScriptEditorDrop {
    * @param event Drag event.
    */
   private over(event: DragEvent): void {
-    const types = event.dataTransfer?.types ?? [];
-    if (!types.includes(SOLID_SCRIPT_EDITOR_DRAG_COMMAND) && !types.includes(SOLID_SCRIPT_EDITOR_DRAG_LINE)) return;
+    if (!this.takes(event)) return;
     event.preventDefault();
     if (event.dataTransfer)
-      event.dataTransfer.dropEffect = types.includes(SOLID_SCRIPT_EDITOR_DRAG_LINE) ? 'move' : 'copy';
+      event.dataTransfer.dropEffect = Array.from(event.dataTransfer.types).includes(SOLID_SCRIPT_EDITOR_DRAG_LINE)
+        ? 'move'
+        : 'copy';
     this.pointer.clientX = event.clientX;
     this.pointer.clientY = event.clientY;
     this.edgeScroll.tick();
