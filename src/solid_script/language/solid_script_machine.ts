@@ -17,7 +17,7 @@ import {
   solidScriptFieldSplit,
 } from './solid_script_field.js';
 import { solidScriptExtrude } from './solid_script_extrude.js';
-import { solidScriptHullMoved, solidScriptHullShapes } from './solid_script_hull.js';
+import { solidScriptHullShapes } from './solid_script_hull.js';
 import {
   solidScriptMachineFlatCheck,
   solidScriptMachineGatherCheck,
@@ -677,9 +677,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         state.machine.gatherCheck(node);
         state.machine.flatCheck(node, state.context, false);
         if (!state.machine.stepTake(state.scope)) return [];
-        return [
-          { kind: 'solid', label: labelOf(), points: points.map((point) => point.applyMatrix4(state.context.matrix)) },
-        ];
+        // Built in its own frame, then moved like any shape so its faces keep their texture.
+        return [solidScriptShapeTransform({ kind: 'solid', label: labelOf(), points }, state.context.matrix)];
       },
       outline: (points) => {
         state.machine.gatherCheck(node);
@@ -698,16 +697,18 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
           ? []
           : solidScriptMachineGatherWhile(state.machine.gathering, 'hull', (into) =>
               solidScriptHullShapes(
-                inside(state.context),
-                [...into.points, ...solidScriptHullMoved(extra, state.context.matrix)],
+                inside({ ...state.context, matrix: new THREE.Matrix4() }),
+                [...into.points, ...extra],
                 labelOf(),
                 state.context.planar,
-              ),
+              ).map((shape) => solidScriptShapeTransform(shape, state.context.matrix)),
             ),
       extruded: (fields) => {
         if (state.context.planar) throw new Error('Linear Extrude cannot be inside another Linear Extrude');
         const flat = solidScriptShapeJoin(inside({ matrix: new THREE.Matrix4(), planar: true }), labelOf());
-        return flat ? [solidScriptShapeNamed(solidScriptExtrude(flat, fields, state.context.matrix), ownName())] : [];
+        if (!flat) return [];
+        const extruded = solidScriptExtrude(flat, fields, new THREE.Matrix4());
+        return [solidScriptShapeNamed(solidScriptShapeTransform(extruded, state.context.matrix), ownName())];
       },
       repeated: (counter, values, keyed) => {
         state.machine.nameCheck(counter, 'a counter');

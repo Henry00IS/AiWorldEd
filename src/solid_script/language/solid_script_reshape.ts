@@ -7,7 +7,7 @@ import {
   type SolidScriptPoint2,
 } from './solid_script_polygon.js';
 import { solidScriptFaceTagsTransform, solidScriptMeshTransform } from './solid_script_mesh.js';
-import { solidScriptFaceUvsTransform } from './solid_script_uvs.js';
+import { solidScriptFaceUvsCarry } from './solid_script_uvs.js';
 import {
   solidScriptShapeJoin,
   solidScriptShapeLeavesPositive,
@@ -41,7 +41,11 @@ function solidScriptSolidTransform(leaf: SolidScriptShapeSolid, matrix: THREE.Ma
       normal: face.normal.clone().applyMatrix3(normals).normalize(),
     }));
   }
-  if (leaf.faceUvs) moved.faceUvs = solidScriptFaceUvsTransform(leaf.faceUvs, matrix);
+  const faceUvs = solidScriptFaceUvsCarry(leaf, matrix);
+  if (faceUvs) {
+    moved.faceUvs = faceUvs;
+    delete moved.boxUvSize;
+  }
   return moved;
 }
 

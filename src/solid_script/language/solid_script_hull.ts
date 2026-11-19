@@ -21,17 +21,6 @@ export function solidScriptHullListed(run: SolidScriptBlockRun): THREE.Vector3[]
 }
 
 /**
- * Moves points into the frame of the blocks around a Hull.
- *
- * @param points Points in the Hull's own frame.
- * @param matrix Frame of the blocks around it.
- * @returns Moved points.
- */
-export function solidScriptHullMoved(points: readonly THREE.Vector3[], matrix: THREE.Matrix4): THREE.Vector3[] {
-  return points.map((point) => point.clone().applyMatrix4(matrix));
-}
-
-/**
  * Builds one convex wrap from the shapes inside a Hull and any extra corners.
  *
  * @param shapes Shapes the lines inside built.

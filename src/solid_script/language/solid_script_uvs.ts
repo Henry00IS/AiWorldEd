@@ -3,7 +3,11 @@ import { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
 import { fitSurfaceUvMatrixFromWorldSamples } from '@/texture/uv_matrix/surface_uv_matrix_fit.js';
 import { createDefaultFaceSurface, orientDefaultFaceSurface } from '@/texture/uv_matrix/face_surface_description.js';
 import { textureUvProjectAxis, textureUvProjectPoint } from '@/texture/uv_project/texture_uv_project_view.js';
-import type { SolidScriptFaceFacts, SolidScriptGeometryLeaf } from './solid_script_geometry.js';
+import {
+  solidScriptGeometryFaces,
+  type SolidScriptFaceFacts,
+  type SolidScriptGeometryLeaf,
+} from './solid_script_geometry.js';
 import { solidScriptValueNumbers, type SolidScriptValue } from './solid_script_value.js';
 import type { SolidScriptShapeMesh } from './solid_script_mesh.js';
 import type { SolidScriptFaceUv, SolidScriptShapeSolid } from './solid_script_shape.js';
@@ -56,26 +60,115 @@ function solidScriptFaceUvSame(left: SolidScriptFaceUv, right: SolidScriptFaceUv
   );
 }
 
+/** Most rounds the turn of a matrix is refined for. */
+const SOLID_SCRIPT_UV_TURN_ROUNDS = 32;
+
+/** Closest the turn of a matrix may be to no turn, or to its last round. */
+const SOLID_SCRIPT_UV_TURN_EPSILON = 1e-9;
+
 /**
- * Moves stored UV records with a solid: points and normals follow the matrix,
- * and each UV matrix is multiplied by its inverse so the mapping stays on the
- * face.
+ * Finds the turn in a matrix: what is left once its stretch is taken out, a
+ * rotation that may also mirror. Nested blocks such as a Rotate inside a Scale
+ * that is not even still have one.
  *
- * @param records Records in the old space.
- * @param matrix Transform applied to the solid's points.
- * @returns Records in the new space.
+ * @param matrix Transform.
+ * @returns Turn, or null when the matrix only moves, scales or flattens.
  */
-export function solidScriptFaceUvsTransform(
-  records: readonly SolidScriptFaceUv[],
+export function solidScriptMatrixTurn(matrix: THREE.Matrix4): THREE.Matrix3 | null {
+  let turn = new THREE.Matrix3().setFromMatrix4(matrix);
+  if (Math.abs(turn.determinant()) < SOLID_SCRIPT_UV_TURN_EPSILON) return null;
+  for (let round = 0; round < SOLID_SCRIPT_UV_TURN_ROUNDS; round++) {
+    const flipped = turn.clone().invert().transpose();
+    const next = new THREE.Matrix3().fromArray(
+      turn.elements.map((value, index) => (value + flipped.elements[index]!) / 2),
+    );
+    const settled = next.elements.every(
+      (value, index) => Math.abs(value - turn.elements[index]!) < SOLID_SCRIPT_UV_TURN_EPSILON,
+    );
+    turn = next;
+    if (settled) break;
+  }
+  const still = turn.elements.every(
+    (value, index) => Math.abs(value - (index % 4 === 0 ? 1 : 0)) < SOLID_SCRIPT_UV_TURN_EPSILON,
+  );
+  return still ? null : turn;
+}
+
+/**
+ * The default mapping of a face of a solid, aimed at the face from the solid's
+ * center, as the generator gives a face no line mapped.
+ *
+ * @param normal Unit face normal in script space.
+ * @param center Bounds center of the solid in script space.
+ * @returns UV matrix in script space.
+ */
+export function solidScriptFaceUvDefault(normal: THREE.Vector3, center: THREE.Vector3): SurfaceUvMatrix {
+  const aimed = orientDefaultFaceSurface(createDefaultFaceSurface(DEFAULT_CHECKER_TEXTURE_ID), normal).uv;
+  return aimed.multiplyMatrix4(new THREE.Matrix4().makeTranslation(-center.x, -center.y, -center.z));
+}
+
+/**
+ * Carries the texture of a solid through a transform, the way a brush turned or
+ * moved in the editor keeps its own UVs: a move or turn takes the texture
+ * along, while a scale changes the size of the shape, not of the texture. When
+ * the transform turns the solid, every face keeps the mapping it had, mapped,
+ * box projected or default, so it no longer follows the new way the face
+ * looks.
+ *
+ * @param leaf Solid before the transform.
+ * @param matrix Transform applied to its points.
+ * @returns Records in the new space, or undefined when the faces keep their
+ *   default or box mapping.
+ */
+export function solidScriptFaceUvsCarry(
+  leaf: SolidScriptShapeSolid,
   matrix: THREE.Matrix4,
-): SolidScriptFaceUv[] {
+): SolidScriptFaceUv[] | undefined {
+  // A received brush brings its own textures, moved with it.
+  const turn = leaf.received ? null : solidScriptMatrixTurn(matrix);
+  if (!turn && !leaf.faceUvs) return undefined;
+  const center = solidScriptLeafCenter(leaf);
+  // The rigid part: the center goes where the matrix takes it, the rest turns about it.
+  const carry = new THREE.Matrix4().setFromMatrix3(turn ?? new THREE.Matrix3());
+  const turned = center.clone().applyMatrix3(turn ?? new THREE.Matrix3());
+  const moved = center.clone().applyMatrix4(matrix).sub(turned);
+  carry.setPosition(moved);
+  const back = carry.clone().invert();
   const normals = new THREE.Matrix3().getNormalMatrix(matrix);
-  const inverse = matrix.clone().invert();
+  const records: readonly SolidScriptFaceUv[] = turn
+    ? solidScriptGeometryFaces([leaf]).map((face) => ({
+        point: face.center,
+        normal: face.normal,
+        uv: solidScriptFaceUvOwn(leaf, face.center, face.normal, center),
+      }))
+    : (leaf.faceUvs ?? []);
   return records.map((face) => ({
     point: face.point.clone().applyMatrix4(matrix),
     normal: face.normal.clone().applyMatrix3(normals).normalize(),
-    uv: face.uv.multiplyMatrix4(inverse),
+    uv: face.uv.multiplyMatrix4(back),
   }));
+}
+
+/**
+ * The mapping a face of a solid has now: its stored one, a box projection from
+ * the solid's center, or the default mapping.
+ *
+ * @param leaf Solid.
+ * @param point A point on the face, in script space.
+ * @param normal Unit face normal in script space.
+ * @param center Bounds center of the solid.
+ * @returns UV matrix in script space.
+ */
+function solidScriptFaceUvOwn(
+  leaf: SolidScriptShapeSolid,
+  point: THREE.Vector3,
+  normal: THREE.Vector3,
+  center: THREE.Vector3,
+): SurfaceUvMatrix {
+  const stored = solidScriptFaceUvLookup(leaf, point, normal);
+  if (stored) return stored;
+  if (leaf.boxUvSize !== undefined && leaf.boxUvSize > 0) return textureUvProjectAxis(normal, leaf.boxUvSize, center);
+  return solidScriptFaceUvDefault(normal, center);
 }
 
 /**
