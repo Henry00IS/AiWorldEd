@@ -157,8 +157,9 @@ export interface SolidScriptCommandParameter {
   /** Axes of an Anchor field, which the window shows as one choice per axis. */
   anchor?: readonly SolidScriptAnchorAxis[];
   /**
-   * When set, the field is worked out once per Face, Edge, Vertex or Point,
-   * with that element filled in as $Face, $Edge, $Vertex or $Point and $Index.
+   * When set, the field is worked out once per Face, Edge, Vertex, Point or
+   * Item, with that element filled in as $Face, $Edge, $Vertex, $Point or $Item
+   * and $Index.
    */
   each?: SolidScriptCommandEach;
   /**

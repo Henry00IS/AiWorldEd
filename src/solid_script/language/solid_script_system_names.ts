@@ -37,6 +37,7 @@ export const SOLID_SCRIPT_SYSTEM_FILLS = {
   $Edge: { type: 'Edge', detail: 'the edge a line is testing or working on' },
   $Vertex: { type: 'Vertex', detail: 'the corner a line is testing or working on' },
   $Point: { type: 'Point', detail: 'the point a line is testing or working on' },
+  $Item: { type: 'Value', detail: 'the item a Filter List condition is testing' },
   $X: { type: 'Number', detail: 'short form of $Vertex.Position.X, or $Point.Position.X' },
   $Y: { type: 'Number', detail: 'short form of $Vertex.Position.Y, or $Point.Position.Y' },
   $Z: { type: 'Number', detail: 'short form of $Vertex.Position.Z, or $Point.Position.Z' },
@@ -46,7 +47,7 @@ export const SOLID_SCRIPT_SYSTEM_FILLS = {
   $CX: { type: 'Number', detail: 'short form of $Face.Center.X' },
   $CY: { type: 'Number', detail: 'short form of $Face.Center.Y' },
   $CZ: { type: 'Number', detail: 'short form of $Face.Center.Z' },
-  $Index: { type: 'Number', detail: 'the number of this brush, face, edge, vertex or point, from 0' },
+  $Index: { type: 'Number', detail: 'the number of this brush, face, edge, vertex, point or list item, from 0' },
 } as const satisfies Record<SolidScriptSystemName, SolidScriptSystemFill>;
 
 /** A name a command may fill in, such as $NZ. */

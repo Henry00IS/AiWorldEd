@@ -101,4 +101,18 @@ describe('SolidScript per-element fields', () => {
     );
     expect(solidScriptCommandEachFills(command, { name: 'Width' })).not.toEqual(expect.arrayContaining(['$Vertex']));
   });
+
+  it('declares Where of Filter List as per item, with $Item and $Index', () => {
+    const where = parameter('filter_list', 'where');
+    expect(where.each).toBe('Item');
+    expect(solidScriptParameterEachActive(where, {})).toBe('Item');
+    expect(solidScriptParameterEachFills('Item')).toEqual(['$Item', '$Index']);
+    const command = solidScriptCommandFind('filter_list');
+    if (!command) throw new Error('Filter List is missing');
+    expect(solidScriptCommandEachFills(command, {})).toEqual(expect.arrayContaining(['$Item', '$Index']));
+    const listed = command.listing({ list: '[Heights]', where: '[=[$Item] > 2]', into: 'Tall' });
+    expect(listed.filter((part) => part.each)).toEqual(
+      expect.arrayContaining([expect.objectContaining({ each: true, text: expect.stringContaining('$Item') })]),
+    );
+  });
 });
