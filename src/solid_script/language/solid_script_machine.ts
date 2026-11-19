@@ -84,15 +84,14 @@ import {
   solidScriptPersistentRead,
   solidScriptVariableView,
 } from './solid_script_machine_variables.js';
-
-/** Most solids one run may produce. */
-const SOLID_SCRIPT_SOLIDS_MAX = 2000;
+import { SOLID_SCRIPT_LIMITS, SOLID_SCRIPT_WORK_LIMIT, solidScriptLimitCount } from './solid_script_limits.js';
 
 /**
  * Most steps of work one run may take: lines, loop rounds and function calls.
- * Counting work instead of time keeps every machine of a room in step.
+ * Counting work instead of time keeps every machine of a room in step. The cap
+ * lives in the shared limits table.
  */
-export const SOLID_SCRIPT_WORK_LIMIT = 10_000_000;
+export { SOLID_SCRIPT_WORK_LIMIT } from './solid_script_limits.js';
 
 /**
  * Most variable values a profiling run keeps for what each line saw before it
@@ -1044,8 +1043,10 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     this.watch(scope);
     if (this.steps.length === this.stepLimit) this.systemPending = true;
     this.solids += 1;
-    if (this.solids > SOLID_SCRIPT_SOLIDS_MAX)
-      throw new Error(`the script builds more than ${SOLID_SCRIPT_SOLIDS_MAX} brushes and meshes`);
+    if (this.solids > SOLID_SCRIPT_LIMITS.brushes)
+      throw new Error(
+        `this line made more than ${solidScriptLimitCount(SOLID_SCRIPT_LIMITS.brushes)} brushes. Change the Count, or split this into smaller generators.`,
+      );
     return true;
   }
 
@@ -1142,7 +1143,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     this.work += 1;
     if (this.work > SOLID_SCRIPT_WORK_LIMIT)
       throw new Error(
-        `the script stopped after ${SOLID_SCRIPT_WORK_LIMIT.toLocaleString('en-US')} steps of work; check Repeat ranges and parts that use each other`,
+        `the script stopped after ${solidScriptLimitCount(SOLID_SCRIPT_WORK_LIMIT)} steps of work. Check Repeat ranges, or split this into smaller generators.`,
       );
   }
 }

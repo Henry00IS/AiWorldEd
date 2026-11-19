@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { solidHullBrushFromPoints } from '@/solid/algorithm/surface/solid_hull_brush.js';
 import type { SolidScriptFaceTag, SolidScriptShape } from './solid_script_shape.js';
+import { solidScriptMeshLimitCheck } from './solid_script_limits.js';
 
 /** Texture coordinate of one face corner. */
 export type SolidScriptUv = [number, number];
@@ -31,7 +32,7 @@ export interface SolidScriptShapeMesh {
 }
 
 /** Most corner points a mesh may have after an operation. */
-export const SOLID_SCRIPT_MESH_POINTS_MAX = 200000;
+export { SOLID_SCRIPT_MESH_POINTS_MAX } from './solid_script_limits.js';
 
 /** Told when a tool would turn a brush into a mesh. */
 export const SOLID_SCRIPT_MESH_NEEDS_WRAP =
@@ -44,10 +45,7 @@ export const SOLID_SCRIPT_MESH_NEEDS_WRAP =
  * @returns The mesh.
  */
 export function solidScriptMeshChecked(mesh: SolidScriptShapeMesh): SolidScriptShapeMesh {
-  if (mesh.points.length > SOLID_SCRIPT_MESH_POINTS_MAX)
-    throw new Error(
-      `the mesh has ${mesh.points.length} points, more than ${SOLID_SCRIPT_MESH_POINTS_MAX}; use fewer Levels`,
-    );
+  solidScriptMeshLimitCheck(mesh.points.length, mesh.faces);
   if (mesh.faces.length === 0) throw new Error('a mesh needs at least one Face line');
   mesh.faces.forEach((face, index) => {
     if (face.length < 3) throw new Error(`face ${index} has ${face.length} corners; a face needs at least 3`);

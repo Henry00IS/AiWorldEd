@@ -9,6 +9,7 @@ import type {
   SolidScriptMachineCommand,
 } from './solid_script_machine_types.js';
 import { SOLID_SCRIPT_NAME } from './solid_script_machine_variables.js';
+import { SOLID_SCRIPT_PART_DEPTH_MAX, solidScriptLimitCount } from './solid_script_limits.js';
 import { SolidScriptMachineWrites } from './solid_script_machine_writes.js';
 import { SolidScriptScope } from './solid_script_scope.js';
 import { solidScriptGeometryLeaves, type SolidScriptGeometryLeaf } from './solid_script_geometry.js';
@@ -46,7 +47,7 @@ export const SOLID_SCRIPT_DEFINITIONS: ReadonlySet<string> = new Set([
 ]);
 
 /** Most parts that may be in use inside each other at once. */
-export const SOLID_SCRIPT_PART_DEPTH_MAX = 64;
+export { SOLID_SCRIPT_PART_DEPTH_MAX } from './solid_script_limits.js';
 
 /**
  * Reads the input names of a Define Function line, such as "width, depth".
@@ -212,7 +213,7 @@ export abstract class SolidScriptMachineCalls<
       );
     if (this.stack.length >= SOLID_SCRIPT_PART_DEPTH_MAX)
       throw new Error(
-        `functions and parts run inside each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} levels deep. A function that calls itself needs an If that stops it`,
+        `this line ran functions or parts more than ${solidScriptLimitCount(SOLID_SCRIPT_PART_DEPTH_MAX)} levels deep. A function or part that uses itself needs an If that stops it.`,
       );
     const locals = new SolidScriptScope(null);
     for (let index = 0; index < parameters.length; index++) locals.variableDefine(parameters[index]!, values[index]);
@@ -344,7 +345,7 @@ export abstract class SolidScriptMachineCalls<
   ): SolidScriptShape[] {
     if (this.stack.length >= SOLID_SCRIPT_PART_DEPTH_MAX)
       throw new Error(
-        `functions and parts run inside each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} levels deep. A part that uses itself needs an If that stops it`,
+        `this line ran functions or parts more than ${solidScriptLimitCount(SOLID_SCRIPT_PART_DEPTH_MAX)} levels deep. A function or part that uses itself needs an If that stops it.`,
       );
     this.stack.push({ kind: 'part', name, line: this.line, locals: null, returned: null });
     try {

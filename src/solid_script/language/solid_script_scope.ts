@@ -1,5 +1,6 @@
 import type { SolidScriptFieldContext } from './solid_script_field.js';
 import type { SolidScriptValue } from './solid_script_value.js';
+import { solidScriptListLimitCheck } from './solid_script_limits.js';
 
 /**
  * Variables visible to the lines of one block. Each block that runs its lines
@@ -40,6 +41,7 @@ export class SolidScriptScope {
    * @param value Value.
    */
   variableDefine(name: string, value: SolidScriptValue): void {
+    solidScriptListLimitCheck(value);
     if (this.variables !== null) this.variables.set(name, value);
     else if (this.soloName === '' || this.soloName === name) {
       this.soloName = name;

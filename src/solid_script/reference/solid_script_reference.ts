@@ -55,7 +55,7 @@ SolidScript is how AiWorldEd describes brush geometry as a script of block lines
 - Lines then run top to bottom. A variable exists from its Set line on; a line above it cannot use it. Setting a name again changes the existing variable, so a Set inside a Repeat can count up across rounds. A variable first set inside a Repeat, For Each or If, by Set or Add Item, stays after its End.
 - The script runs from the top. Function, When Input Changes and When Button Pressed blocks are skipped to their End where they stand, and registered before the run, so a Call may come before or after them. Define Part runs where it stands: it builds its lines into a variable of the same name, inside a CSG group, and places nothing. Parts and variables share one set of names, so after Define Part Wall the brushes are [Wall]. Mode on a Part or Group defaults to Additive and can be Subtractive, Intersecting or Pass-Through. Group places that CSG group here. Output stamps a snapshot of a part or of brushes right where its line sits, including the Part's group and Mode. The Part line must have run already. Later changes to the Part do not reach copies already stamped. Output's Of may be a variable, such as "[Style]".
 - The first mistake stops the script at that line; the error names the line and the field, such as "line 3: Size must be greater than 0".
-- A script builds at most 2000 solids, and Repeat runs at most 10000 rounds.
+- A script may make at most 10,000 brushes, a mesh may have at most 1,000,000 triangles, a list may hold at most 100,000 items, functions and parts may run 256 levels deep, Repeat and For Each run at most 10,000 rounds, and a run stops after 10,000,000 steps of work.
 
 ## Field values
 

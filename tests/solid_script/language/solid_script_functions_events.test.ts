@@ -202,7 +202,7 @@ describe('Function blocks', () => {
     const loose = run(line('cube'), line('return'));
     expect(loose.error?.message).toMatch(/only works inside one of them/);
     const endless = run(line('cube'), fn('loop', 'x'), ret('[=loop([local.x])]'), END, echo('[=loop(1)]'));
-    expect(endless.error?.message).toMatch(/more than 64 levels deep/);
+    expect(endless.error?.message).toMatch(/more than 256 levels deep/);
   });
 
   it('pauses at a breakpoint inside a function with the call stack and its locals', () => {

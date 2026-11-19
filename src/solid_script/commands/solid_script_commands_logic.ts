@@ -12,15 +12,13 @@ import {
   solidScriptValueTruthy,
 } from '@/solid_script/language/solid_script_value.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
+import { SOLID_SCRIPT_REPEAT_ROUNDS_MAX, solidScriptLimitCount } from '@/solid_script/language/solid_script_limits.js';
 
 /** Id of the command that closes a block. */
 export const SOLID_SCRIPT_COMMAND_END = 'end';
 
 /** Id of the command of an empty line, which inserting a command fills. */
 export const SOLID_SCRIPT_COMMAND_BLANK = 'blank';
-
-/** Most rounds one Repeat may run. */
-const SOLID_SCRIPT_REPEAT_ROUNDS_MAX = 10000;
 
 /**
  * Lists the counter values of a Repeat line: Start, then Start + Step, up to
@@ -39,7 +37,9 @@ function solidScriptRepeatValues(run: SolidScriptBlockRun): number[] {
     throw new Error(`the counter cannot get from ${from} to ${to} by adding ${step}; change Step to ${-step}`);
   const rounds = Math.floor((to - from) / step + 1e-9) + 1;
   if (rounds > SOLID_SCRIPT_REPEAT_ROUNDS_MAX)
-    throw new Error(`Repeat would run ${rounds} times; at most ${SOLID_SCRIPT_REPEAT_ROUNDS_MAX} are allowed`);
+    throw new Error(
+      `Repeat would run ${solidScriptLimitCount(rounds)} times, more than ${solidScriptLimitCount(SOLID_SCRIPT_REPEAT_ROUNDS_MAX)}. Change To, or split this into smaller generators.`,
+    );
   const values = new Array<number>(rounds);
   for (let round = 0; round < rounds; round++) values[round] = from + round * step;
   return values;
@@ -176,7 +176,9 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
         only instanceof SolidScriptElement && only.kind === 'data' ? run.elements.dataEntries(only) : null;
       const items = entries ? entries.map((entry) => entry.value) : list;
       if (items.length > SOLID_SCRIPT_REPEAT_ROUNDS_MAX)
-        throw new Error(`For Each would run ${items.length} times, more than ${SOLID_SCRIPT_REPEAT_ROUNDS_MAX}`);
+        throw new Error(
+          `For Each would run ${solidScriptLimitCount(items.length)} times, more than ${solidScriptLimitCount(SOLID_SCRIPT_REPEAT_ROUNDS_MAX)}. Give it a shorter list, or split this into smaller generators.`,
+        );
       const key = run
         .text('key')
         .trim()
