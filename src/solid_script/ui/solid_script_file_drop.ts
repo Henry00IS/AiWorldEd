@@ -69,6 +69,18 @@ async function solidScriptFileDropDocument(path: string, file: File | undefined)
 }
 
 /**
+ * Outlines a drop target while a drag it takes is over it, the same way for
+ * every drop target of the script editor.
+ *
+ * @param element Drop target.
+ * @param on True shows the outline, false hides it.
+ * @param outline Outline colour.
+ */
+export function solidScriptDropOutline(element: HTMLElement, on: boolean, outline: string): void {
+  element.style.outline = on ? `2px dashed ${outline}` : '';
+}
+
+/**
  * Lets an element take dropped script files, outlining it while a drag that may
  * carry one is over it.
  *
@@ -82,7 +94,7 @@ export function solidScriptFileDropBind(
   onResult: (result: SolidScriptFileDropResult) => void,
 ): void {
   let depth = 0;
-  const highlight = (on: boolean): void => void (element.style.outline = on ? `2px dashed ${outline}` : '');
+  const highlight = (on: boolean): void => solidScriptDropOutline(element, on, outline);
   element.addEventListener('dragenter', (event) => {
     if (solidScriptFileDropOver(event)) highlight((depth += 1) > 0);
   });

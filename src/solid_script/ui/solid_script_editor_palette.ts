@@ -10,6 +10,8 @@ import { solidScriptEditorIcon } from './solid_script_editor_icons.js';
 import { SolidScriptEditorFavorites } from './solid_script_editor_favorites.js';
 import { MenuContext } from '@/ui/menu/menu_context.js';
 import { DragEdgeAutoScroll } from '@/ui/drag/drag_edge_scroll.js';
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
+import { solidScriptDropOutline } from './solid_script_file_drop.js';
 
 /** Drag data type carrying the id of a command dragged out of the palette. */
 export const SOLID_SCRIPT_EDITOR_DRAG_COMMAND = 'application/x-aiworlded-solidscript-command';
@@ -44,6 +46,10 @@ export class SolidScriptEditorPalette {
   private highlighted: SolidScriptEditorPaletteEntry | null = null;
   /** Command menu while open. */
   private menu: MenuContext | null = null;
+  /** Command dragged out of the palette, while one is. */
+  private dragged: string | null = null;
+  /** How many elements of the Favorites group a drag has entered and not left. */
+  private favoritesDepth = 0;
   /** Where a command drag out of the palette was last seen, while one runs. */
   private dragPointer: { clientX: number; clientY: number } | null = null;
   /** Follows a command drag anywhere on the page. */
@@ -96,6 +102,10 @@ export class SolidScriptEditorPalette {
     this.favoritesRender(this.favoritesMemory.read());
     this.list.addEventListener('contextmenu', (event) => this.menuOpen(event));
     this.list.addEventListener('dragend', () => this.dragEnd());
+    this.favorites.addEventListener('dragenter', (event) => this.favoritesEnter(event));
+    this.favorites.addEventListener('dragover', (event) => this.favoritesTakes(event));
+    this.favorites.addEventListener('dragleave', (event) => this.favoritesLeave(event));
+    this.favorites.addEventListener('drop', (event) => this.favoritesDrop(event));
     for (const category of SOLID_SCRIPT_COMMAND_CATEGORIES) {
       const commands = solidScriptCommandsOfCategory(category);
       if (commands.length === 0) continue;
@@ -304,6 +314,7 @@ export class SolidScriptEditorPalette {
     event.dataTransfer.setData(SOLID_SCRIPT_EDITOR_DRAG_COMMAND, command.id);
     event.dataTransfer.setData('text/plain', command.label);
     event.dataTransfer.effectAllowed = 'copyMove';
+    this.dragged = command.id;
     this.dragPointer = { clientX: event.clientX, clientY: event.clientY };
     document.addEventListener('dragover', this.dragOverBound, true);
   }
@@ -326,9 +337,74 @@ export class SolidScriptEditorPalette {
    * elsewhere.
    */
   private dragEnd(): void {
+    this.dragged = null;
+    this.favoritesOutline(false);
     this.dragPointer = null;
     this.edgeScroll.stop();
     document.removeEventListener('dragover', this.dragOverBound, true);
+  }
+
+  /**
+   * Takes a command dragged onto the Favorites group when it is not a favorite
+   * yet. The group only takes drops while it shows: while searching or with no
+   * favorites it is hidden, and the command menu adds favorites instead.
+   *
+   * @param event Drag event over the group.
+   * @returns True when the drag is taken.
+   */
+  private favoritesTakes(event: DragEvent): boolean {
+    const id = this.dragged;
+    if (!id || this.favorites.hidden || this.favoritesMemory.read().includes(id)) return false;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+    return true;
+  }
+
+  /**
+   * Outlines the Favorites group when a drag it takes enters it.
+   *
+   * @param event Drag enter event.
+   */
+  private favoritesEnter(event: DragEvent): void {
+    if (!this.favoritesTakes(event)) return;
+    this.favoritesDepth++;
+    this.favoritesOutline(true);
+  }
+
+  /**
+   * Hides the outline once the drag has left the group, not just a row in it.
+   *
+   * @param event Drag leave event.
+   */
+  private favoritesLeave(event: DragEvent): void {
+    this.favoritesDepth = Math.max(0, this.favoritesDepth - 1);
+    const into = event.relatedTarget;
+    if (into instanceof Node && this.favorites.contains(into)) return;
+    if (this.favoritesDepth === 0 || into instanceof Node) this.favoritesOutline(false);
+  }
+
+  /**
+   * Adds a command dropped onto the Favorites group.
+   *
+   * @param event Drop event.
+   */
+  private favoritesDrop(event: DragEvent): void {
+    const id = this.dragged;
+    const taken = this.favoritesTakes(event);
+    this.favoritesOutline(false);
+    if (!taken || !id) return;
+    event.stopPropagation();
+    this.favoritesRender(this.favoritesMemory.toggle(id));
+  }
+
+  /**
+   * Shows or hides the drop outline of the Favorites group.
+   *
+   * @param on True shows it.
+   */
+  private favoritesOutline(on: boolean): void {
+    if (!on) this.favoritesDepth = 0;
+    solidScriptDropOutline(this.favorites, on, ThemeCss.accentColor);
   }
 
   /**
