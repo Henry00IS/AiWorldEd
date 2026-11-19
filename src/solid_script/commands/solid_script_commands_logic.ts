@@ -128,7 +128,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Logic',
     description: 'Run lines once per item of a list',
     manual:
-      'Runs the lines inside once for each item of a list, with Item holding the current one. The list can be numbers separated by commas, a list variable such as [Points], or geometry such as [$Selected.Faces], [Top.Edges] or [$Input.Brushes]; over [Face.Data] it runs once per user value. Key, when given, holds the item number from 0, or the key name over Data. Inside a round the [$Selected.*] lists start as they were and come back after End. Example: For Each [Face] In [$Selected.Faces], Extrude Face Of [Face] by 0.2, End.',
+      'Runs the lines inside once for each item of a list, with Item holding the current one. The list can be numbers separated by commas, a list variable such as [Points], or geometry such as [$Selected.Faces], [Top.Edges] or [$Input.Brushes]; over [Face.Data] it runs once per user value. Key, when given, holds the item number from 0, or the key name over Data. Inside a round the [$Selected.*] lists start as they were and come back after End. Example: For Each [Face] In [$Selected.Faces], Extrude Face Of [Face] By 0.2, End.',
     stops: [
       `More than ${SOLID_SCRIPT_REPEAT_ROUNDS_MAX} items.`,
       'An Item or Key name that is not letters, digits and _.',

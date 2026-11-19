@@ -306,7 +306,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     description: 'Pick faces of brushes',
     fills: ['$Face', '$Index', '$CX', '$CY', '$CZ', '$NX', '$NY', '$NZ'],
     manual:
-      'Picks faces and puts them in [$Selected.Faces], where Extrude Face, Inset Face, Bevel Edges, Delete Faces and Texture Faces find them when their Of is empty. Of says where to pick from: brushes (all their faces) or faces (a list to narrow down); empty uses [$Selected.Brushes], every brush built above. Into also writes the faces to a variable, a Face list. Where tests each face as [$Face], and [$Index] is its number from 0; [$CX], [$CY] and [$CZ] are short forms of [$Face.Center.X] and the other axes, and [$NX], [$NY] and [$NZ] of [$Face.Normal]. How adds to or removes from the faces picked before. Inside a For Each round the pick stays in that round. Example: Cube, then Select Faces Facing Up and Extrude Face by 1 pulls the top up.',
+      'Picks faces and puts them in [$Selected.Faces], where Extrude Face, Inset Face, Bevel Edges, Delete Faces and Texture Faces find them when their Of is empty. Of says where to pick from: brushes (all their faces) or faces (a list to narrow down); empty uses [$Selected.Brushes], every brush built above. Into also writes the faces to a variable, a Face list. Where tests each face as [$Face], and [$Index] is its number from 0; [$CX], [$CY] and [$CZ] are short forms of [$Face.Center.X] and the other axes, and [$NX], [$NY] and [$NZ] of [$Face.Normal]. How adds to or removes from the faces picked before. Inside a For Each round the pick stays in that round. Example: Cube, then Select Faces Facing Up and Extrude Face By 1 pulls the top up.',
     stops: [
       'No brushes to pick from.',
       'A Which that is not one of the choices.',
@@ -563,7 +563,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Pull faces out',
     manual:
-      'Pulls faces out along the way they point. On a brush each face becomes a new brush, a slab standing on it, and Into gets those brushes; on a mesh the face itself moves out. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. Top and Sides name variables for the new faces: Top the moved or capping faces and Sides the new side faces, as the operation builds them. Afterwards [$Selected.Faces] holds the top faces. Lift moves a slab away from its face. Example: Select Faces Facing Up, Extrude Face by 1, Top [Roof].',
+      'Pulls faces out along the way they point. On a brush each face becomes a new brush, a slab standing on it, and Into gets those brushes; on a mesh the face itself moves out. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. Top and Sides name variables for the new faces: Top the moved or capping faces and Sides the new side faces, as the operation builds them. Afterwards [$Selected.Faces] holds the top faces. Lift moves a slab away from its face. Example: Select Faces Facing Up, Extrude Face By 1, Top [Roof].',
     stops: ['No faces.', 'A negative Distance on a brush.', 'A Lift on a mesh.'],
     parameters: [
       solidScriptParameter('distance', 'Distance', 'number', '0.2', 'Metres to pull out.'),
@@ -651,7 +651,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Shrink faces inside a ring',
     manual:
-      'Gives each face of a mesh a smaller copy of itself inside, joined to the old outline by a ring of faces. Of gives the faces; empty uses [$Selected.Faces]. A brush stops the line: wrap it in Mesh From Brushes first. Inner and Ring name variables for the new faces, as the operation builds them. Afterwards [$Selected.Faces] holds the inner faces. Example: Mesh From Brushes around a Cube, Select Faces Facing Up, Inset Face by 0.1, Extrude Face by -0.2 sinks a tray.',
+      'Gives each face of a mesh a smaller copy of itself inside, joined to the old outline by a ring of faces. Of gives the faces; empty uses [$Selected.Faces]. A brush stops the line: wrap it in Mesh From Brushes first. Inner and Ring name variables for the new faces, as the operation builds them. Afterwards [$Selected.Faces] holds the inner faces. Example: Mesh From Brushes around a Cube, Select Faces Facing Up, Inset Face By 0.1, Extrude Face By -0.2 sinks a tray.',
     stops: ['No faces.', 'A brush. Wrap it in Mesh From Brushes first.'],
     parameters: [
       solidScriptParameter('distance', 'Distance', 'number', '0.1', 'Metres from the old edge to the new one.'),
@@ -873,7 +873,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Scale faces about their centers',
     manual:
-      'Scales each face about its center, in the plane of the face. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. A brush stays a brush, and a mesh stays a mesh. Factor 1 leaves the face as it is; 0.5 shrinks it toward its center, and 2 grows it. If several picked faces share a corner, the corner takes the average of those moves. A Factor that would fold a brush so it is no longer convex stops the line. Example: Select Faces Facing Up, Scale Faces by 0.5 turns the top of a Cube into a smaller roof.',
+      'Scales each face about its center, in the plane of the face. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. A brush stays a brush, and a mesh stays a mesh. Factor 1 leaves the face as it is; 0.5 shrinks it toward its center, and 2 grows it. If several picked faces share a corner, the corner takes the average of those moves. A Factor that would fold a brush so it is no longer convex stops the line. Example: Select Faces Facing Up, Scale Faces By 0.5 turns the top of a Cube into a smaller roof.',
     stops: [
       'No faces.',
       'A Factor that is not a number.',

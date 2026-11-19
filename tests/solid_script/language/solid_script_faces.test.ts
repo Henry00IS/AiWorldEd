@@ -396,7 +396,7 @@ describe('SolidScript faces', () => {
       "Select Faces Tagged 'Step Tread'",
       "Select Faces Facing Up within '45'° (Add) Into [Top]",
       "For Each [Face] In '[$Selected.Faces]'",
-      "    Extrude Face by '0.1' Of [Face] Top [Roof]",
+      "    Extrude Face By '0.1' Of [Face] Top [Roof]",
       'End For Each',
     ]);
   });
