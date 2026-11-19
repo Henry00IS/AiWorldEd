@@ -8,7 +8,11 @@ import {
   solidScriptSystemFillEach,
 } from '@/solid_script/commands/solid_script_command_each.js';
 import { solidScriptConfiguratorFieldBuild } from '@/solid_script/ui/solid_script_configurator_fields.js';
-import { SOLID_SCRIPT_EDITOR_CLASSES } from '@/solid_script/ui/solid_script_editor_css.js';
+import {
+  SOLID_SCRIPT_EDITOR_CLASSES,
+  SOLID_SCRIPT_EDITOR_EACH_COLOR,
+  solidScriptEditorStylesheetEnsure,
+} from '@/solid_script/ui/solid_script_editor_css.js';
 import { solidScriptSuggestions, solidScriptSuggestionContext } from '@/solid_script/ui/solid_script_suggestions.js';
 import { solidScriptDocumentNamesAt } from '@/solid_script/document/solid_script_document_names.js';
 import { solidScriptDocumentCreate } from '@/solid_script/document/solid_script_document.js';
@@ -114,5 +118,26 @@ describe('SolidScript per-element fields', () => {
     expect(listed.filter((part) => part.each)).toEqual(
       expect.arrayContaining([expect.objectContaining({ each: true, text: expect.stringContaining('$Item') })]),
     );
+  });
+});
+
+describe('SolidScript per-element field chrome', () => {
+  it('marks the textbox with green caps and does not outline the whole field', () => {
+    solidScriptEditorStylesheetEnsure();
+    const css = document.getElementById('solid-script-editor-stylesheet')?.textContent ?? '';
+    expect(css).not.toMatch(/\.solid-script-editor-field-each\s*\{[^}]*outline\s*:/);
+    expect(css).toContain('.solid-script-editor-field-each .solid-script-editor-field-inputs::before');
+    expect(css).toContain('.solid-script-editor-field-each .solid-script-editor-field-inputs::after');
+    expect(css).toContain(SOLID_SCRIPT_EDITOR_EACH_COLOR);
+    const field = solidScriptConfiguratorFieldBuild(parameter('select_faces', 'where'), '', () => {});
+    field.element.classList.add(SOLID_SCRIPT_EDITOR_CLASSES.fieldEach);
+    const inputs = field.element.querySelector(`.${SOLID_SCRIPT_EDITOR_CLASSES.fieldInputs}`);
+    const label = field.element.querySelector(`.${SOLID_SCRIPT_EDITOR_CLASSES.fieldLabel}`);
+    const hint = field.element.querySelector(`.${SOLID_SCRIPT_EDITOR_CLASSES.fieldHint}`);
+    expect(inputs?.parentElement).toBe(field.element);
+    expect(label?.parentElement).toBe(field.element);
+    expect(hint?.parentElement).toBe(field.element);
+    expect(inputs?.contains(label)).toBe(false);
+    expect(inputs?.contains(hint)).toBe(false);
   });
 });

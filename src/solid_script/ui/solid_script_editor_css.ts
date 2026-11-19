@@ -181,6 +181,12 @@ const SOLID_SCRIPT_EDITOR_FRAME_CSS = `
  */
 export const SOLID_SCRIPT_EDITOR_STEP_COLOR = '#2f9e6e';
 
+/** Colour of 🔁 each-item fields, notes and help. */
+export const SOLID_SCRIPT_EDITOR_EACH_COLOR = '#2f9e44';
+
+/** Corner radius of configurator text boxes. */
+const SOLID_SCRIPT_EDITOR_INPUT_RADIUS = '4px';
+
 /** Colour of the breakpoint dot in the gutter. */
 export const SOLID_SCRIPT_EDITOR_BREAKPOINT_COLOR = '#e5484d';
 
@@ -201,10 +207,10 @@ const SOLID_SCRIPT_EDITOR_LINES_CSS = `
 .${c.listName} { font-weight: 700; color: ${ThemeCss.textColor}; }
 .${c.listWord} { color: ${ThemeCss.textColor}; }
 .${c.listValue} { color: ${ThemeCss.inputTextColor}; font-weight: 600; }
-.${c.listEach} { color: #2f9e44; }
+.${c.listEach} { color: ${SOLID_SCRIPT_EDITOR_EACH_COLOR}; }
 .${c.listEachIcon} { margin-right: 0.25em; }
 .${c.listVariable} { color: #3d8fd6; font-weight: 700; }
-.${c.listNote} { color: #2f9e44; font-weight: 700; }
+.${c.listNote} { color: ${SOLID_SCRIPT_EDITOR_EACH_COLOR}; font-weight: 700; }
 .${c.unknown} .${c.listName} { color: #e5484d; }
 .${c.guides} { background-image: repeating-linear-gradient(to right, ${ThemeCss.inkAlpha(0.16)} 0 1px, transparent 1px ${SOLID_SCRIPT_EDITOR_INDENT_PX}px); background-repeat: no-repeat; background-position: 11px 0; }
 .${c.chip} > .${c.icon} { margin-right: 6px; }
@@ -309,11 +315,14 @@ const SOLID_SCRIPT_EDITOR_DIALOG_CSS = `
 .${c.field} { display: grid; grid-template-columns: 112px minmax(0, 1fr); align-items: center; gap: 8px; margin-bottom: 8px; }
 .${c.fieldLabel} { color: ${ThemeCss.textColor}; font-weight: 500; }
 .${c.fieldHint} { grid-column: 2; margin-top: -4px; font-size: 11px; line-height: 1.35; color: ${ThemeCss.textColor}; opacity: 0.8; }
-.${c.fieldEach} { outline: 2px solid #2f9e44; outline-offset: 2px; border-radius: 6px; }
 .${c.fieldEachIcon} { display: none; margin-right: 0.3em; }
 .${c.fieldEach} .${c.fieldEachIcon} { display: inline; }
-.${c.helpEach} { color: #2f9e44; }
-.${c.suggestionEach} { color: #2f9e44; }
+.${c.fieldEach} .${c.fieldInputs}::before, .${c.fieldEach} .${c.fieldInputs}::after { content: ''; position: absolute; left: 0; right: 0; height: 8px; box-sizing: border-box; border: 2px solid ${SOLID_SCRIPT_EDITOR_EACH_COLOR}; pointer-events: none; z-index: 1; }
+.${c.fieldEach} .${c.fieldInputs}::before { top: 0; border-bottom: none; border-radius: ${SOLID_SCRIPT_EDITOR_INPUT_RADIUS} ${SOLID_SCRIPT_EDITOR_INPUT_RADIUS} 0 0; }
+.${c.fieldEach} .${c.fieldInputs}::after { bottom: 0; border-top: none; border-radius: 0 0 ${SOLID_SCRIPT_EDITOR_INPUT_RADIUS} ${SOLID_SCRIPT_EDITOR_INPUT_RADIUS}; }
+.${c.fieldEach} .${c.input}:focus { outline: none; border-color: ${ThemeCss.accentColor}; box-shadow: inset 0 0 0 1px ${ThemeCss.accentColor}; }
+.${c.helpEach} { color: ${SOLID_SCRIPT_EDITOR_EACH_COLOR}; }
+.${c.suggestionEach} { color: ${SOLID_SCRIPT_EDITOR_EACH_COLOR}; }
 .${c.fieldInputs} { position: relative; display: flex; gap: 6px; min-width: 0; }
 .${c.input}.${c.invalid} { border-color: #e5484d; }
 .${c.scrollHost} { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
@@ -330,7 +339,7 @@ const SOLID_SCRIPT_EDITOR_DIALOG_CSS = `
 .${c.suggestion}[aria-selected="true"], .${c.suggestion}:hover { background: ${ThemeCss.accentAlpha(0.3)}; }
 .${c.suggestionDetail} { overflow: hidden; text-overflow: ellipsis; color: ${ThemeCss.mutedTextColor}; }
 .${c.fieldWarning} { color: ${ThemeCss.mutedTextColor}; }
-.${c.input} { flex: 1; min-width: 0; height: 26px; padding: 0 7px; border-radius: 4px; border: 1px solid ${ThemeCss.inputBorderColor}; background: ${ThemeCss.inputBackground}; color: ${ThemeCss.inputTextColor}; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; box-sizing: border-box; }
+.${c.input} { flex: 1; min-width: 0; height: 26px; padding: 0 7px; border-radius: ${SOLID_SCRIPT_EDITOR_INPUT_RADIUS}; border: 1px solid ${ThemeCss.inputBorderColor}; background: ${ThemeCss.inputBackground}; color: ${ThemeCss.inputTextColor}; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; box-sizing: border-box; }
 .${c.input}:focus { outline: none; border-color: ${ThemeCss.accentColor}; }
 .${c.preview} { margin: 12px 0 14px; padding: 8px 10px; border-radius: 5px; background: ${ThemeCss.inputBackground}; border: 1px solid ${ThemeCss.inkAlpha(0.08)}; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; color: ${ThemeCss.inputTextColor}; white-space: pre-wrap; word-break: break-word; }
 .${c.list} { max-height: 240px; overflow-y: auto; margin-bottom: 14px; border-radius: 5px; border: 1px solid ${ThemeCss.inkAlpha(0.1)}; background: ${ThemeCss.inputBackground}; }
