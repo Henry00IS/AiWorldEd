@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { SolidTreeBrush, SolidTreeNode } from '@/solid/commands/tree/solid_tree_node.js';
 import { solidHullBrushFromPoints } from '@/solid/algorithm/surface/solid_hull_brush.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
-import { solidScriptModeOperation } from './solid_script_mode.js';
+import { solidScriptGroupModeOperation, solidScriptModeOperation } from './solid_script_mode.js';
 import type { SolidScriptFaceTexture, SolidScriptFaceUv, SolidScriptShape } from './solid_script_shape.js';
 import type { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
 
@@ -61,6 +61,16 @@ function solidScriptSolidTreeNodes(
     return [brush];
   }
   if (shape.kind === 'mesh') return [];
+  if (shape.kind === 'group') {
+    return [
+      {
+        kind: 'group',
+        name: solidScriptSolidTreeName(shape.label, options),
+        operation: solidScriptGroupModeOperation(shape.mode),
+        children: shape.children.flatMap((child) => solidScriptSolidTreeNodes(child, SolidOperation.Additive, options)),
+      },
+    ];
+  }
   return shape.children.flatMap((child) => solidScriptSolidTreeNodes(child, role, options));
 }
 

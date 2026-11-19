@@ -134,6 +134,13 @@ export interface SolidScriptBlockRun {
   inPlace(): SolidScriptShape[];
   /** Builds the lines of a part defined in the script. */
   partUse(name: string): SolidScriptShape[];
+  /** Runs the lines inside and wraps them in a CSG group with Mode. */
+  grouped(): SolidScriptShape[];
+  /**
+   * Builds the lines inside into a variable of the part's name, as a CSG group,
+   * and outputs nothing.
+   */
+  partKeep(): SolidScriptShape[];
   /**
    * Runs the lines inside and returns what their Point, Vertex and Face lines
    * add, moved by the blocks between.

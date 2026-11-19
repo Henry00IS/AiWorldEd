@@ -126,4 +126,40 @@ describe('solidScriptSolidTreeBuild', () => {
     expect(textured[0]).toBeCloseTo(1, 5);
     expect(brush.texture).toBeUndefined();
   });
+
+  it('emits a Part or Group as a CSG group whose Mode is the group operation', () => {
+    expect(
+      summary(
+        tree([
+          { command: 'group', values: { mode: 'Subtractive' } },
+          CUBE,
+          { command: 'cube', values: { ...CUBE.values, mode: 'Subtractive' } },
+          END,
+        ]),
+      ),
+    ).toEqual([{ 'group:1': ['cube:0', 'cube:1'] }]);
+    expect(
+      summary(
+        tree([
+          { command: 'part', values: { name: 'Door', mode: 'Subtractive' } },
+          CUBE,
+          END,
+          { command: 'use_part', values: { name: 'Door' } },
+        ]),
+      ),
+    ).toEqual([{ 'Door:1': ['Door:0'] }]);
+  });
+
+  it('defaults a Group Mode to Additive, and Pass-Through keeps the editor folder operation', () => {
+    expect(summary(tree([{ command: 'group' }, CUBE, END]))).toEqual([{ 'group:0': ['cube:0'] }]);
+    expect(summary(tree([{ command: 'group', values: { mode: 'Pass-Through' } }, CUBE, SPHERE, END]))).toEqual([
+      { 'group:3': ['cube:0', 'sphere:0'] },
+    ]);
+  });
+
+  it('does not inherit the insertion operation on a Group, and children default to Additive inside it', () => {
+    expect(summary(tree([{ command: 'group' }, CUBE, END], { operation: SolidOperation.Subtractive }))).toEqual([
+      { 'group:0': ['cube:0'] },
+    ]);
+  });
 });

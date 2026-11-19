@@ -39,6 +39,7 @@ describe('SolidScript names', () => {
       ['Local.w', 'Locals', 6],
       ['Local.d', 'Locals', 6],
       ['Local.sum', 'Locals', 8],
+      ['column', 'Variables', 10],
       ['column', 'Parts', 10],
       ['steps', 'Handlers', 12],
       ['size', 'Variables', 14],

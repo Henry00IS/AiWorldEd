@@ -78,6 +78,9 @@ describe('SolidScript listing', () => {
   it('marks notes, parts and plain block lines with their own short forms', () => {
     expect(listed('note', { text: 'Two posts and a lintel' })).toBe('*** Two posts and a lintel');
     expect(listed('part', { name: 'post' })).toBe('Define Part post');
+    expect(listed('part', { name: 'post', mode: 'Subtractive' })).toBe("Define Part post (Mode 'Subtractive')");
+    expect(listed('group')).toBe('Group');
+    expect(listed('group', { mode: 'Pass-Through' })).toBe("Group (Mode 'Pass-Through')");
     expect(listed('use_part', { name: 'post' })).toBe("Use Part 'post'");
     expect(listed('hull')).toBe('Hull');
     expect(listed('else')).toBe('Else');

@@ -72,7 +72,7 @@ function solidScriptMeshesOf(shape: SolidScriptShape, label: string): SolidScrip
   if (shape.kind === 'solid') return [solidScriptMeshFromSolid(shape.points, shape.label, shape.texture)];
   if (shape.kind === 'polygon')
     throw new Error(`${label} needs solids or meshes; a flat outline becomes a solid inside Linear Extrude first`);
-  if (shape.operation !== 'union')
+  if (shape.kind === 'boolean' && shape.operation !== 'union')
     throw new Error(`${label} cannot turn a joined cut into a mesh yet; only brushes can be`);
   return shape.children.flatMap((child) => solidScriptMeshesOf(child, label));
 }

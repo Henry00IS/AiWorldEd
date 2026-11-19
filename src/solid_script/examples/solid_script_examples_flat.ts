@@ -173,7 +173,7 @@ export const SOLID_SCRIPT_EXAMPLE_ARCH: readonly SolidScriptLine[] = [
         '[=Vector(Cos([Local.Angle]) * ([Rx] + [Local.Grow]), [Floor] + Sin([Local.Angle]) * ([Ry] + [Local.Grow]))]',
     }),
   ]),
-  ...solidScriptExampleBlock('part', { name: 'Prism' }, [
+  ...solidScriptExampleBlock('function', { name: 'Prism' }, [
     ...solidScriptExamplePolyhedron(
       solidScriptExampleBlock('for_each', { variable: 'P', list: '[Outline]' }, [
         ...solidScriptExampleIf(
@@ -195,7 +195,7 @@ export const SOLID_SCRIPT_EXAMPLE_ARCH: readonly SolidScriptLine[] = [
         solidScriptExampleArchCorner('[=Vector([Inner], [Floor])]'),
         solidScriptExampleArchCorner('[=Vector([Inner], [Top])]'),
         solidScriptExampleArchCorner('[=Vector([Outer], [Top])]'),
-        solidScriptExampleLine('use_part', { name: 'Prism' }),
+        solidScriptExampleLine('call', { name: 'Prism' }),
       ]),
     ]),
     ...solidScriptExampleRepeat('I', '0', '[=[Segments] - 1]', [
@@ -226,7 +226,7 @@ export const SOLID_SCRIPT_EXAMPLE_ARCH: readonly SolidScriptLine[] = [
           ],
         ),
       ),
-      solidScriptExampleLine('use_part', { name: 'Prism' }),
+      solidScriptExampleLine('call', { name: 'Prism' }),
     ]),
   ]),
 ];

@@ -120,7 +120,7 @@ describe('SolidScript Resize, Matrix, Minkowski and Rotate Extrude', () => {
       { command: 'cube', values: { anchor: 'Center, Center, Center' } },
     );
     expect(result.error).toBeNull();
-    expect(result.messages).toEqual(['before', 'after']);
+    expect(result.messages).toEqual(['before', 'before', 'after']);
     expect(
       run({ command: 'return' }, { command: 'cube', values: { anchor: 'Center, Center, Center' } }).error?.message,
     ).toMatch(/only works inside one of them/);

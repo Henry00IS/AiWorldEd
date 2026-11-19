@@ -29,7 +29,12 @@ import { solidScriptShapeTransform } from './solid_script_reshape.js';
 import { solidScriptMeshChecked, solidScriptMeshTransform } from './solid_script_mesh.js';
 import { SolidScriptScope } from './solid_script_scope.js';
 import { solidScriptScopeElementBind } from './solid_script_scope_element.js';
-import { solidScriptModeApply, solidScriptSolidMade } from './solid_script_mode.js';
+import {
+  SOLID_SCRIPT_GROUP_MODE_DEFAULT,
+  solidScriptGroupModeOf,
+  solidScriptModeApply,
+  solidScriptSolidMade,
+} from './solid_script_mode.js';
 import {
   solidScriptLineFieldOf,
   solidScriptLinesPassInput,
@@ -308,8 +313,9 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   }
 
   /**
-   * Runs a script once, from the top. Function, part and event handler blocks
-   * are skipped to their End; their lines run when they are called.
+   * Runs a script once, from the top. Function and event handler blocks are
+   * skipped to their End; their lines run when they are called. A Part builds
+   * into a variable of the same name and outputs nothing where it stands.
    *
    * @param lines Top-level lines.
    * @returns Shapes, output, steps and the first mistake.
@@ -422,8 +428,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     scope = new SolidScriptScope(parent),
     known = solidScriptRunsKnown(lines, SolidScriptMachine.build),
   ): SolidScriptShape[] {
-    const { runs, defines } = known;
-    if (defines) this.definitionsRegister(lines);
+    const { runs } = known;
+    this.definitionsRegister(lines);
     const built: SolidScriptShape[] = [];
     this.builtStack.push(built);
     try {
@@ -753,6 +759,21 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       },
       inPlace: () => state.machine.linesRun(node.children, state.scope, state.context, state.scope, children()),
       partUse: (name) => state.machine.partUse(name, state.scope, state.context),
+      grouped: () =>
+        state.machine.grouped(
+          inside(state.context),
+          labelOf(),
+          solidScriptGroupModeOf(modeOf()['mode']) ?? SOLID_SCRIPT_GROUP_MODE_DEFAULT,
+          node,
+        ),
+      partKeep: () =>
+        state.machine.partKeep(
+          node,
+          solidScriptValueText(value('name')).trim(),
+          solidScriptGroupModeOf(modeOf()['mode']) ?? SOLID_SCRIPT_GROUP_MODE_DEFAULT,
+          state.scope,
+          (inner) => state.machine.linesRun(node.children, inner, state.context, inner, children()),
+        ),
       built: () => state.machine.builtStack.flat(),
       get elements() {
         return state.machine.elements;

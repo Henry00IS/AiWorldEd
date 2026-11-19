@@ -73,7 +73,7 @@ export const SOLID_SCRIPT_PASCAL_IDENT = /^[A-Z][A-Za-z0-9]*$/;
  * Title Case words shown as a choice or label, such as Counter Clockwise or
  * Left, Bottom, Back.
  */
-export const SOLID_SCRIPT_SHOWN_WORDS = /^[A-Z0-9][A-Za-z0-9]*(?:(?:, | \/ | )[A-Z0-9][A-Za-z0-9]*)*(?: [°%])?$/;
+export const SOLID_SCRIPT_SHOWN_WORDS = /^[A-Z0-9][A-Za-z0-9]*(?:(?:, | \/ | |-| )[A-Z0-9][A-Za-z0-9]*)*(?: [°%])?$/;
 
 /**
  * Tells whether a shown name is PascalCase or Title Case, including a dotted

@@ -1,7 +1,7 @@
 import type * as THREE from 'three';
 import type { SolidScriptShapeMesh } from './solid_script_mesh.js';
 import type { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
-import type { SolidScriptMode } from './solid_script_mode.js';
+import type { SolidScriptGroupMode, SolidScriptMode } from './solid_script_mode.js';
 
 /** Boolean operation of a shape group. */
 export type SolidScriptBooleanOperation = 'union' | 'difference' | 'intersection';
@@ -118,12 +118,61 @@ export interface SolidScriptShapeBoolean {
   label: string;
 }
 
+/** A Part or Group: a CSG group whose Mode is the group's scene operation. */
+export interface SolidScriptShapeGroup {
+  kind: 'group';
+  label: string;
+  mode: SolidScriptGroupMode;
+  children: SolidScriptShape[];
+}
+
 /** Node of an evaluated shape tree. */
 export type SolidScriptShape =
-  SolidScriptShapeSolid | SolidScriptShapePolygon | SolidScriptShapeMesh | SolidScriptShapeBoolean;
+  | SolidScriptShapeSolid
+  | SolidScriptShapePolygon
+  | SolidScriptShapeMesh
+  | SolidScriptShapeBoolean
+  | SolidScriptShapeGroup;
 
-/** A shape that is not a boolean group. */
+/** A shape that is not a boolean or CSG group. */
 export type SolidScriptShapeLeaf = SolidScriptShapeSolid | SolidScriptShapePolygon | SolidScriptShapeMesh;
+
+/**
+ * Tells whether a shape holds children: a boolean join or a Part or Group.
+ *
+ * @param shape Shape.
+ * @returns Its children, or undefined when it is a leaf.
+ */
+export function solidScriptShapeNested(shape: SolidScriptShape): readonly SolidScriptShape[] | undefined {
+  return shape.kind === 'boolean' || shape.kind === 'group' ? shape.children : undefined;
+}
+
+/**
+ * Tells whether a shape is a leaf, not a boolean join or a CSG group.
+ *
+ * @param shape Shape.
+ * @returns True when it has no children.
+ */
+export function solidScriptShapeIsLeaf(shape: SolidScriptShape): shape is SolidScriptShapeLeaf {
+  return shape.kind !== 'boolean' && shape.kind !== 'group';
+}
+
+/**
+ * Wraps shapes in a CSG group with a Mode. An empty list stays empty.
+ *
+ * @param children Shapes inside the group.
+ * @param label Name of the group.
+ * @param mode How the group combines with the shapes before it.
+ * @returns The group, or null when there are no children.
+ */
+export function solidScriptShapeGrouped(
+  children: readonly SolidScriptShape[],
+  label: string,
+  mode: SolidScriptGroupMode,
+): SolidScriptShapeGroup | null {
+  if (children.length === 0) return null;
+  return { kind: 'group', label, mode, children: [...children] };
+}
 
 /**
  * Wraps shapes into one shape: the single shape itself, or a union.
@@ -149,7 +198,7 @@ export function solidScriptShapeMapLeaves(
   shape: SolidScriptShape,
   map: (leaf: SolidScriptShapeLeaf) => SolidScriptShape,
 ): SolidScriptShape {
-  if (shape.kind !== 'boolean') return map(shape);
+  if (solidScriptShapeIsLeaf(shape)) return map(shape);
   return { ...shape, children: shape.children.map((child) => solidScriptShapeMapLeaves(child, map)) };
 }
 
@@ -161,8 +210,9 @@ export function solidScriptShapeMapLeaves(
  * @returns Leaves.
  */
 export function solidScriptShapeLeavesPositive(shape: SolidScriptShape): SolidScriptShapeLeaf[] {
-  if (shape.kind !== 'boolean') return [shape];
-  const children = shape.operation === 'difference' ? shape.children.slice(0, 1) : shape.children;
+  if (solidScriptShapeIsLeaf(shape)) return [shape];
+  const children =
+    shape.kind === 'boolean' && shape.operation === 'difference' ? shape.children.slice(0, 1) : shape.children;
   return children.flatMap(solidScriptShapeLeavesPositive);
 }
 
@@ -173,9 +223,8 @@ export function solidScriptShapeLeavesPositive(shape: SolidScriptShape): SolidSc
  * @returns Leaf count.
  */
 export function solidScriptShapeLeafCount(shape: SolidScriptShape): number {
-  return shape.kind === 'boolean'
-    ? shape.children.reduce((sum, child) => sum + solidScriptShapeLeafCount(child), 0)
-    : 1;
+  const nested = solidScriptShapeNested(shape);
+  return nested ? nested.reduce((sum, child) => sum + solidScriptShapeLeafCount(child), 0) : 1;
 }
 
 /** Key of the optional Name of a shape line, which the Of fields find it by. */
@@ -193,7 +242,8 @@ export function solidScriptShapesNamed(shapes: readonly SolidScriptShape[], name
   const wanted = name.trim().toLowerCase();
   return shapes.flatMap((shape): SolidScriptShape[] => {
     if (shape.label.toLowerCase() === wanted) return [shape];
-    return shape.kind === 'boolean' ? solidScriptShapesNamed(shape.children, name) : [];
+    const nested = solidScriptShapeNested(shape);
+    return nested ? solidScriptShapesNamed(nested, name) : [];
   });
 }
 
@@ -218,6 +268,7 @@ export function solidScriptLeafUnreceived(leaf: SolidScriptShapeSolid): SolidScr
  */
 export function solidScriptShapeNamed(shape: SolidScriptShape, name: string): SolidScriptShape {
   if (name === '') return shape;
-  if (shape.kind !== 'boolean') return { ...shape, label: name };
-  return { ...shape, label: name, children: shape.children.map((child) => solidScriptShapeNamed(child, name)) };
+  if (shape.kind === 'boolean')
+    return { ...shape, label: name, children: shape.children.map((child) => solidScriptShapeNamed(child, name)) };
+  return { ...shape, label: name };
 }

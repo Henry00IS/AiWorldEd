@@ -241,7 +241,7 @@ class SolidScriptFlowAnalysis {
     frame: SolidScriptFlowFrame,
   ): SolidScriptFlowMaybe {
     const kind = solidScriptGivenFlow(node.block)?.kind;
-    if (kind === 'function' || kind === 'part' || kind === 'handler') return state;
+    if (kind === 'function' || kind === 'handler') return state;
     if (kind === 'choice') return this.choice(node, state, frame);
     if (kind === 'loop') return this.loop(node, state, frame);
     const after = this.line(node.block, state, frame);

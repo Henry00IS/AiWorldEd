@@ -73,10 +73,20 @@ describe('solidScriptProgramRun', () => {
       ),
     );
     expect(
-      shapes.map((shape) => [shape.label, shape.kind === 'solid' ? (shape.mode ?? 'Additive') : shape.kind]),
+      shapes.map((shape) => [
+        shape.label,
+        shape.kind,
+        shape.kind === 'group' ? shape.mode : shape.kind,
+        shape.kind === 'group'
+          ? shape.children.map((child) => [
+              child.label,
+              child.kind === 'solid' ? (child.mode ?? 'Additive') : child.kind,
+            ])
+          : [],
+      ]),
     ).toEqual([
-      ['wall', 'Additive'],
-      ['door', 'Subtractive'],
+      ['wall', 'group', 'Additive', [['wall', 'Additive']]],
+      ['door', 'group', 'Additive', [['door', 'Subtractive']]],
     ]);
   });
 

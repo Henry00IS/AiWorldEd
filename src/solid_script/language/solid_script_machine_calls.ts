@@ -11,7 +11,13 @@ import type {
 import { SOLID_SCRIPT_NAME } from './solid_script_machine_variables.js';
 import { SolidScriptMachineWrites } from './solid_script_machine_writes.js';
 import { SolidScriptScope } from './solid_script_scope.js';
-import { solidScriptShapeJoin, type SolidScriptShape } from './solid_script_shape.js';
+import { solidScriptGeometryLeaves } from './solid_script_geometry.js';
+import {
+  solidScriptGroupModeOf,
+  SOLID_SCRIPT_GROUP_MODE_DEFAULT,
+  type SolidScriptGroupMode,
+} from './solid_script_mode.js';
+import { solidScriptShapeGrouped, solidScriptShapeJoin, type SolidScriptShape } from './solid_script_shape.js';
 import type { SolidScriptValue } from './solid_script_value.js';
 import * as THREE from 'three';
 
@@ -24,10 +30,9 @@ export const SOLID_SCRIPT_HANDLERS = {
 
 /**
  * Blocks that only define something: the script skips from them to their End,
- * and their lines run only when they are used, called or their event happens.
+ * and their lines run only when they are called or their event happens.
  */
 export const SOLID_SCRIPT_DEFINITIONS: ReadonlySet<string> = new Set([
-  'part',
   'function',
   SOLID_SCRIPT_HANDLERS.input,
   SOLID_SCRIPT_HANDLERS.button,
@@ -285,6 +290,67 @@ export abstract class SolidScriptMachineCalls<
   }
 
   /**
+   * Wraps built shapes in a CSG group with Mode, or warns when the block is
+   * empty.
+   *
+   * @param built Shapes inside the group.
+   * @param label Name of the group.
+   * @param mode How the group combines with the shapes before it.
+   * @param node Group line.
+   * @returns The group, or nothing when empty.
+   */
+  protected grouped(
+    built: readonly SolidScriptShape[],
+    label: string,
+    mode: SolidScriptGroupMode,
+    node: SolidScriptBlockNode<Command>,
+  ): SolidScriptShape[] {
+    if (built.length === 0) {
+      this.emptyWarn(node);
+      return [];
+    }
+    const group = solidScriptShapeGrouped(built, label, mode);
+    return group ? [group] : [];
+  }
+
+  /**
+   * Builds a Part into a variable of the same name, as a CSG group, and outputs
+   * nothing. Return inside the part stops only the part.
+   *
+   * @param node Define Part line.
+   * @param name Part name, which is also the variable.
+   * @param mode How the stored group combines when it is placed.
+   * @param scope Scope of the Part line.
+   * @param build Runs the part's lines in a scope named after the part.
+   * @returns Nothing; the part is stored in the variable.
+   */
+  protected partKeep(
+    node: SolidScriptBlockNode<Command>,
+    name: string,
+    mode: SolidScriptGroupMode,
+    scope: SolidScriptScope,
+    build: (inner: SolidScriptScope) => SolidScriptShape[],
+  ): SolidScriptShape[] {
+    if (this.stack.length >= SOLID_SCRIPT_PART_DEPTH_MAX)
+      throw new Error(
+        `functions and parts run inside each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} levels deep. A part that uses itself needs an If that stops it`,
+      );
+    this.stack.push({ kind: 'part', name, line: this.line, locals: null, returned: null });
+    try {
+      const inner = new SolidScriptScope(scope, name);
+      const built = node.children.length === 0 ? [] : build(inner);
+      this.leaving = false;
+      if (built.length === 0) this.emptyWarn(node);
+      const group = solidScriptShapeGrouped(built, name, mode);
+      const brushes = solidScriptGeometryLeaves(group ? [group] : []).map((leaf) => this.elements.brush(leaf));
+      this.variableSet(scope, name, brushes);
+      return [];
+    } finally {
+      this.stack.pop();
+    }
+  }
+
+  /**
    * Builds the lines of a part where Use Part asks for it.
    *
    * @param name Part name.
@@ -313,8 +379,11 @@ export abstract class SolidScriptMachineCalls<
       const inner = new SolidScriptScope(scope, name);
       const built = this.linesRun(part.node.children, inner, context, inner);
       this.leaving = false;
-      const joined = solidScriptShapeJoin(built, name);
-      return joined ? [joined] : [];
+      const mode =
+        solidScriptGroupModeOf(part.node.command.valueText(part.node.values, 'mode')) ??
+        SOLID_SCRIPT_GROUP_MODE_DEFAULT;
+      const group = solidScriptShapeGrouped(built, name, mode);
+      return group ? [group] : [];
     } finally {
       this.stack.pop();
     }

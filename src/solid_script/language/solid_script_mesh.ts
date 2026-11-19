@@ -447,7 +447,8 @@ export function solidScriptMeshExtrudeFaces(
  * @returns True when any leaf is a mesh.
  */
 export function solidScriptShapeHasMesh(shape: SolidScriptShape): boolean {
-  return shape.kind === 'mesh' || (shape.kind === 'boolean' && shape.children.some(solidScriptShapeHasMesh));
+  const nested = shape.kind === 'boolean' || shape.kind === 'group' ? shape.children : undefined;
+  return shape.kind === 'mesh' || (nested !== undefined && nested.some(solidScriptShapeHasMesh));
 }
 
 /**
@@ -459,7 +460,11 @@ export function solidScriptShapeHasMesh(shape: SolidScriptShape): boolean {
  */
 export function solidScriptShapeMeshes(shapes: readonly SolidScriptShape[]): SolidScriptShapeMesh[] {
   return shapes.flatMap((shape) =>
-    shape.kind === 'mesh' ? [shape] : shape.kind === 'boolean' ? solidScriptShapeMeshes(shape.children) : [],
+    shape.kind === 'mesh'
+      ? [shape]
+      : shape.kind === 'boolean' || shape.kind === 'group'
+        ? solidScriptShapeMeshes(shape.children)
+        : [],
   );
 }
 

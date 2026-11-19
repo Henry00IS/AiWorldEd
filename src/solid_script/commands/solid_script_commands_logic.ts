@@ -2,7 +2,7 @@ import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import {
   solidScriptParameter,
-  solidScriptParameterDefines,
+  solidScriptParameterGroupMode,
   solidScriptParameterOptional,
   solidScriptParameterWrites,
 } from './solid_script_command_parameters.js';
@@ -287,23 +287,59 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     execute: () => [],
   }),
   new SolidScriptCommand({
+    id: 'group',
+    label: 'Group',
+    category: 'Parts',
+    description: 'Wrap shapes in a CSG group',
+    manual:
+      'Builds the lines inside into a CSG group and places that group here. Mode defaults to Additive: the group is added to the shapes before it. Subtractive cuts the group out of them, Intersecting keeps only the overlap, and Pass-Through acts like a folder whose brushes combine as if they were not grouped. A Name on the group becomes the outliner name. Example: Group Mode Subtractive around a door Cube cuts that door out of the wall before it.',
+    stops: ['A missing End line.', 'Mode that is not Additive, Subtractive, Intersecting or Pass-Through.'],
+    nesting: 'open',
+    named: true,
+    parameters: [solidScriptParameterGroupMode()],
+    endLabel: 'Group',
+    listing: (read) => ['Group', ...solidScriptListingOptions([read.changed('mode') && ['Mode ', read.value('mode')]])],
+    execute: (run) => run.grouped(),
+  }),
+  new SolidScriptCommand({
     id: 'part',
     label: 'Define Part',
     category: 'Parts',
-    description: 'Group lines to build elsewhere',
+    description: 'Build into a variable, without output',
     manual:
-      'Names a group of lines as a part. They build nothing where they stand. They build wherever a Use Part line asks for them. The part name also names the brushes it builds. Example: Define Part Post holds one tall Cube. Two Use Part Post lines inside two Translates build two posts.',
-    stops: ['A name already used by another part.', 'A name that is not letters, digits and _.', 'A missing End line.'],
+      'Builds the lines inside into a variable of the same name, inside a CSG group, and places nothing where the Part stands. Parts and variables share one set of names, so after Define Part Wall the brushes are [Wall]. Mode defaults to Additive and can be Subtractive, Intersecting or Pass-Through, the same words as Group. Use Part still builds the part at another line, and may stand above or below the definition. Example: Define Part Post holds one tall Cube. [Post] is that cube, and two Use Part Post lines inside two Translates build two posts.',
+    stops: [
+      'A name already used by another part.',
+      'A name that is not letters, digits and _.',
+      'A missing End line.',
+      'Mode that is not Additive, Subtractive, Intersecting or Pass-Through.',
+    ],
     nesting: 'open',
     flow: { kind: 'part', name: 'name' },
     parameters: [
-      solidScriptParameterDefines(
-        solidScriptParameter('name', 'Name', 'name', 'Part', 'The name Use Part uses. It also names the brushes.'),
-      ),
+      {
+        ...solidScriptParameterWrites(
+          solidScriptParameter(
+            'name',
+            'Name',
+            'name',
+            'Part',
+            'The name of the part and of the variable it builds into, a Brush list. It also names the group.',
+          ),
+          { rule: 'kind', kind: 'Brush List', what: 'the brushes of **{command}**' },
+          'none',
+        ),
+        nameGroups: ['Parts'],
+      },
+      solidScriptParameterGroupMode(),
     ],
     endLabel: 'Part',
-    listing: (read) => ['Define Part', read.text('name')],
-    execute: () => [],
+    listing: (read) => [
+      'Define Part',
+      read.text('name'),
+      ...solidScriptListingOptions([read.changed('mode') && ['Mode ', read.value('mode')]]),
+    ],
+    execute: (run) => run.partKeep(),
   }),
   new SolidScriptCommand({
     id: 'return',
@@ -331,7 +367,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Parts',
     description: 'Build a part here',
     manual:
-      'Builds a part here, then goes on with the next line. Define the part with Define Part, above or below this line. The blocks around this line move what the part builds. A part may be used many times. It shares the variables of the script, so a Set inside it can hand back a result. The name may be a variable, such as [Style]. A part may use itself, but an If must stop it. Example: Use Part Post inside Translate By 2, 0, 0 builds the post two metres to the right.',
+      'Builds a part here as a CSG group with the Mode set on Define Part, then goes on with the next line. Define the part with Define Part, above or below this line. After the Part line has run, the same name is also a variable, such as [Post]. The blocks around this line move what the part builds. A part may be used many times. It shares the variables of the script, so a Set inside it can hand back a result. The name may be a variable, such as [Style]. A part may use itself, but an If must stop it. Example: Use Part Post inside Translate By 2, 0, 0 builds the post two metres to the right.',
     stops: ['No part with this name.', `Parts using each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} levels deep.`],
     flow: { kind: 'use_part', name: 'name' },
     parameters: [

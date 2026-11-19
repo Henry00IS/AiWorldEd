@@ -14,7 +14,7 @@ import type {
 } from './solid_script_command.js';
 import { SOLID_SCRIPT_SHAPE_NAME_KEY } from '@/solid_script/language/solid_script_shape.js';
 import { SOLID_SCRIPT_RINGS, SOLID_SCRIPT_SIDES } from '@/solid_script/language/solid_script_primitives.js';
-import { SOLID_SCRIPT_MODE_WORDS } from '@/solid_script/language/solid_script_mode.js';
+import { SOLID_SCRIPT_GROUP_MODE_WORDS, SOLID_SCRIPT_MODE_WORDS } from '@/solid_script/language/solid_script_mode.js';
 
 /**
  * Kinds of value each kind of field accepts unless the field says otherwise:
@@ -348,6 +348,27 @@ export function solidScriptParameterMode(): SolidScriptCommandParameter {
       '',
       'How this brush combines with the ones before it in the scene, Additive if left empty: Additive adds it, Subtractive cuts it out of them, Intersecting keeps only the overlap.',
       SOLID_SCRIPT_MODE_WORDS,
+    ),
+    optional: true,
+  };
+}
+
+/**
+ * Mode of a Part or Group: Additive, Subtractive, Intersecting or Pass-Through.
+ * Empty means Additive. Unlike a brush Mode, it does not inherit the insertion
+ * operation.
+ *
+ * @returns Field.
+ */
+export function solidScriptParameterGroupMode(): SolidScriptCommandParameter {
+  return {
+    ...solidScriptParameterWords(
+      'mode',
+      'Mode',
+      'message',
+      '',
+      'How this group combines with the shapes before it, Additive if left empty: Additive adds it, Subtractive cuts it out of them, Intersecting keeps only the overlap, Pass-Through acts like a folder.',
+      SOLID_SCRIPT_GROUP_MODE_WORDS,
     ),
     optional: true,
   };

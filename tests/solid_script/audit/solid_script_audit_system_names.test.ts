@@ -229,7 +229,7 @@ describe('every shown name is PascalCase', () => {
           const where = `${command.label} ${parameter.label}`;
           if (!SOLID_SCRIPT_SHOWN_WORDS.test(word))
             problems.push(`${where}: ${JSON.stringify(word)} is not Title Case`);
-          for (const part of word.split(/, | \/ | /))
+          for (const part of word.split(/, | \/ | |-/))
             if (SOLID_SCRIPT_CHOICE_ABBREVIATION.test(part))
               problems.push(`${where}: ${JSON.stringify(word)} uses an abbreviation`);
         }

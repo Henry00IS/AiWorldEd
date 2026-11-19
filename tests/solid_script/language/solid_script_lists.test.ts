@@ -200,7 +200,7 @@ describe('SolidScript parts as calls', () => {
       { command: 'use_part', values: { name: '[which]' } },
     );
     expect(result.error).toBeNull();
-    expect(result.messages).toEqual(['post']);
+    expect(result.messages).toEqual(['post', 'post']);
   });
 
   it('reads Positions through a vertex list, and hints when the singular is used', () => {

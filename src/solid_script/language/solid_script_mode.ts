@@ -75,3 +75,50 @@ export function solidScriptModeOperation(mode: SolidScriptMode | undefined): Sol
   if (mode === 'Additive') return SolidOperation.Additive;
   return undefined;
 }
+
+/** How a Part or Group combines with the shapes before it in the scene. */
+export type SolidScriptGroupMode = SolidScriptMode | 'Pass-Through';
+
+/** Mode of a new Part or Group when the field is left at its default. */
+export const SOLID_SCRIPT_GROUP_MODE_DEFAULT: SolidScriptGroupMode = 'Additive';
+
+/**
+ * Official Mode words for a Part or Group, with the same labels the editor
+ * uses.
+ */
+export const SOLID_SCRIPT_GROUP_MODE_WORDS: readonly { word: SolidScriptGroupMode; detail: string }[] = [
+  { word: 'Additive', detail: 'Adds this group to the ones before it.' },
+  { word: 'Subtractive', detail: 'Cuts this group out of the ones before it.' },
+  { word: 'Intersecting', detail: 'Keeps only where this group overlaps the ones before it.' },
+  {
+    word: 'Pass-Through',
+    detail: "Acts like a folder. Its brushes are combined as if they weren't grouped.",
+  },
+];
+
+/**
+ * Reads a Part or Group Mode word. An empty value means Additive.
+ *
+ * @param text Value as typed.
+ * @returns Mode, or undefined when the line left it unset.
+ */
+export function solidScriptGroupModeOf(text: string | undefined): SolidScriptGroupMode | undefined {
+  const word = text?.trim() ?? '';
+  if (word === '') return undefined;
+  if (word === 'Additive' || word === 'Subtractive' || word === 'Intersecting' || word === 'Pass-Through') return word;
+  throw new Error(`Mode must be Additive, Subtractive, Intersecting or Pass-Through, not "${text}"`);
+}
+
+/**
+ * Maps a Part or Group Mode onto the editor's group operation. Unset is
+ * Additive.
+ *
+ * @param mode Mode, or none when the line left it unset.
+ * @returns Operation.
+ */
+export function solidScriptGroupModeOperation(mode: SolidScriptGroupMode | undefined): SolidOperation {
+  if (mode === 'Subtractive') return SolidOperation.Subtractive;
+  if (mode === 'Intersecting') return SolidOperation.Intersecting;
+  if (mode === 'Pass-Through') return SolidOperation.PassThrough;
+  return SolidOperation.Additive;
+}
