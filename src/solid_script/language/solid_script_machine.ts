@@ -28,6 +28,7 @@ import { solidScriptNameKey } from './solid_script_name_key.js';
 import { solidScriptShapeTransform } from './solid_script_reshape.js';
 import { solidScriptMeshChecked, solidScriptMeshTransform } from './solid_script_mesh.js';
 import { SolidScriptScope } from './solid_script_scope.js';
+import { solidScriptIntoAssigned } from './solid_script_into_assigned.js';
 import { solidScriptScopeElementBind } from './solid_script_scope_element.js';
 import {
   SOLID_SCRIPT_GROUP_MODE_DEFAULT,
@@ -338,7 +339,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       .trim()
       .replace(/^\[(.*)\]$/s, '$1')
       .trim();
-    if (into !== '') this.variableSet(scope, into, brushes.length === 1 ? brushes[0]! : brushes);
+    if (into !== '') this.variableSet(scope, into, solidScriptIntoAssigned(node.command.intoList === true, brushes));
   }
 
   /**

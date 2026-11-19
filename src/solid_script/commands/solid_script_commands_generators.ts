@@ -123,6 +123,21 @@ function solidScriptGeneratorValue(args: SolidScriptBlockArguments, field: Modif
 }
 
 /**
+ * Box generators that fill a box with several brushes, so Into is always a
+ * list.
+ */
+const SOLID_SCRIPT_GENERATOR_INTO_LIST: ReadonlySet<string> = new Set([
+  'torus',
+  'pipe',
+  'hollowBox',
+  'curvedStairs',
+  'column',
+  'stairs',
+  'arch',
+  'blastHole',
+]);
+
+/**
  * Builds the script block of one box generator. It fills a box like the
  * generator node does and takes the generator's own fields.
  *
@@ -136,7 +151,8 @@ function solidScriptGeneratorCommand(kind: ModifierStackKindGenerator): SolidScr
     label: kind.label,
     category: 'Generators',
     description: `Build a ${kind.label.toLowerCase()} like the generator`,
-    manual: `${kind.description} The script block fills a box of the given width (X), height (Y) and depth (Z) in metres, with its middle on the origin by default (Center, Center, Center ⭐); Anchor Center, Bottom, Center ⭐ makes the box stand on the origin. Its other fields are the ones the ${kind.label} generator shows in the inspector, with the same names, so a script can change them with variables and formulas. Mode chooses how each brush combines with the ones before it: Additive, Subtractive or Intersecting. Textures come from the generator holding the script. Example: a ${kind.label} block with Size 2, 3, 2 fills a box two metres wide and three metres tall around the origin.`,
+    intoList: SOLID_SCRIPT_GENERATOR_INTO_LIST.has(kind.id),
+    manual: `${kind.description} The script block fills a box of the given width (X), height (Y) and depth (Z) in metres, with its middle on the origin by default (Center, Center, Center ⭐); Anchor Center, Bottom, Center ⭐ makes the box stand on the origin. Its other fields are the ones the ${kind.label} generator shows in the inspector, with the same names, so a script can change them with variables and formulas. Mode chooses how each brush combines with the ones before it: Additive, Subtractive or Intersecting. ${SOLID_SCRIPT_GENERATOR_INTO_LIST.has(kind.id) ? 'Into is always a list of the brushes it built, even when there is only one. ' : ''}Textures come from the generator holding the script. Example: a ${kind.label} block with Size 2, 3, 2 fills a box two metres wide and three metres tall around the origin.`,
     stops: [
       'A size of 0 or less on any axis.',
       'A number outside the range its field allows, or a count with decimals.',

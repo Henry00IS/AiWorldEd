@@ -538,8 +538,10 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     label: 'Place On Face',
     category: 'Faces',
     description: 'Stand brushes on faces',
+    builds: true,
+    intoList: true,
     manual:
-      'Builds the brushes between this line and its End standing on a face: up is the way the face points and the center is the middle of the face. Of gives the face, such as [Face] in For Each [Face] In [$Selected.Faces]; given several faces it builds them on each. Empty Of uses [$Selected.Faces]. Lift moves them out from the face. Example: For Each [Face] In [$Selected.Faces], Place On Face Of [Face], Cylinder, End, End puts a post on every picked face.',
+      'Builds the brushes between this line and its End standing on a face: up is the way the face points and the center is the middle of the face. Of gives the face, such as [Face] in For Each [Face] In [$Selected.Faces]; given several faces it builds them on each. Empty Of uses [$Selected.Faces]. Lift moves them out from the face. Into is always a list of the brushes or meshes it built, even when there is only one. Example: For Each [Face] In [$Selected.Faces], Place On Face Of [Face], Cylinder, End, End puts a post on every picked face.',
     stops: ['No faces.', 'Nothing between this line and its End.', 'A missing End line.'],
     nesting: 'open',
     endLabel: 'Place',
@@ -566,8 +568,10 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     label: 'Place At Points',
     category: 'Faces',
     description: 'Stand brushes at a list of points',
+    builds: true,
+    intoList: true,
     manual:
-      'Builds the brushes between this line and its End at each point in At, a list of vectors such as the points Scatter Points writes. Directions, when given, turns up (Y) along the matching entry, one per point; leave it empty to keep world up. Lift moves them out along that up. Example: Scatter Points 20 Into [Spots] Normals [Dirs], then Place At Points At [Spots] Directions [Dirs], Sphere, End, puts a ball on every point, standing on the face.',
+      'Builds the brushes between this line and its End at each point in At, a list of vectors such as the points Scatter Points writes. Directions, when given, turns up (Y) along the matching entry, one per point; leave it empty to keep world up. Lift moves them out along that up. Into is always a list of the brushes or meshes it built, even when there is only one. Example: Scatter Points 20 Into [Spots] Normals [Dirs], then Place At Points At [Spots] Directions [Dirs], Sphere, End, puts a ball on every point, standing on the face.',
     stops: [
       'A point or direction that is not x, y, z.',
       'A Directions list whose length is not the number of points in At.',

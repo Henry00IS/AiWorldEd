@@ -72,4 +72,43 @@ describe('SolidScript Place At Points', () => {
       ),
     ).toMatch(/Line \d+: Directions needs one direction for each point in At.*At has 2 and Directions has 1/i);
   });
+
+  it('writes every copy Into a list, even when there is only one', () => {
+    expect(
+      printed(
+        line('place_at_points', { at: '[0, 2, 0], [4, 0, 0], [8, 0, 0]', into: 'Posts' }),
+        line('cube', { size: '1, 1, 1', anchor: 'Center, Center, Center' }),
+        END,
+        line('echo', { value: '[=[Posts.Count]] [Posts.First.Center] [Posts.Last.Center]' }),
+      ),
+    ).toEqual(['3 [0, 2, 0] [8, 0, 0]']);
+    expect(
+      printed(
+        line('place_at_points', { at: '0, 3, 0', into: 'Posts' }),
+        line('cube', { size: '1, 1, 1', anchor: 'Center, Center, Center' }),
+        END,
+        line('echo', { value: '[=[Posts.Count]] [Posts.First.Center]' }),
+      ),
+    ).toEqual(['1 [0, 3, 0]']);
+    expect(
+      printed(
+        line('cube', { size: '2, 2, 2', anchor: 'Center, Center, Center' }),
+        line('select_brushes'),
+        line('select_faces', { which: 'Up' }),
+        line('place_on_face', { into: 'Posts' }),
+        line('cube', { size: '0.2, 0.2, 0.2', anchor: 'Center, Bottom, Center' }),
+        END,
+        line('echo', { value: '[=[Posts.Count]]' }),
+      ),
+    ).toEqual(['1']);
+  });
+
+  it('leaves a Cube Into as a single brush, not a list', () => {
+    expect(
+      printed(
+        line('cube', { size: '2, 2, 2', into: 'Box', anchor: 'Center, Center, Center' }),
+        line('echo', { value: '[Box.Faces.Count]' }),
+      ),
+    ).toEqual(['6']);
+  });
 });

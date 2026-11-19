@@ -234,10 +234,33 @@ export interface SolidScriptCommandSpec {
    * variable, not in the scene.
    */
   edits?: boolean;
+  /**
+   * True to write built shapes Into a variable, even when the line has no Name
+   * field. On by default for named solids, meshes and generators.
+   */
+  builds?: boolean;
+  /**
+   * True when Into is always a list, even for one built item, because this line
+   * can create several. Cube and other one-item builders stay a single brush.
+   */
+  intoList?: boolean;
   /** Writes the line as the script listing shows it. */
   listing: SolidScriptListingWrite;
   /** Runs the line. */
   execute: (run: SolidScriptBlockRun) => SolidScriptShape[];
+}
+
+/**
+ * Into field of a building line: a Brush list when the line can create several
+ * items, otherwise a single Brush.
+ *
+ * @param listed True when Into is always a list.
+ * @returns Field.
+ */
+function solidScriptCommandBuiltInto(listed: boolean): SolidScriptCommandParameter {
+  return listed
+    ? solidScriptParameterInto('the brushes or meshes it builds, a Brush list', 'Brush List', 'what is made')
+    : solidScriptParameterInto('the brushes or meshes it builds', 'Brush', 'what is made');
 }
 
 /** Palette groups whose lines build shapes, which get the optional Name field. */
@@ -261,8 +284,10 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
   readonly endLabel: string;
   readonly inPalette: boolean;
   readonly runs: boolean;
-  /** True for blocks that build brushes or meshes, with Name and Into. */
+  /** True for blocks that build brushes or meshes, with Into. */
   readonly builds: boolean;
+  /** True when Into is always a list, even for one built item. */
+  readonly intoList: boolean;
   /** True for tools that edit in place, or copy into Into. */
   readonly edits: boolean;
   private readonly writeCopy: boolean;
@@ -282,18 +307,13 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
     this.manual = spec.manual;
     this.stops = spec.stops ?? [];
     const named = spec.named ?? SOLID_SCRIPT_COMMAND_NAMED.includes(spec.category);
-    // Blocks that build brushes or meshes also write them Into a variable; flat outlines do not.
-    this.builds = named && spec.category !== '2D Shapes';
+    this.intoList = spec.intoList === true;
+    this.builds = spec.builds ?? (named && spec.category !== '2D Shapes');
     this.edits = spec.edits === true;
+    const into = this.builds ? [solidScriptCommandBuiltInto(this.intoList)] : [];
     const given = named
-      ? [
-          ...spec.parameters,
-          solidScriptParameterShapeName(),
-          ...(this.builds
-            ? [solidScriptParameterInto('the brushes or meshes it builds', 'Brush', 'what is made')]
-            : []),
-        ]
-      : spec.parameters;
+      ? [...spec.parameters, solidScriptParameterShapeName(), ...into]
+      : [...spec.parameters, ...into];
     this.writeCopy = this.edits && !given.some((field) => field.key === 'into');
     this.parameters = this.writeCopy ? [...given, solidScriptParameterToolInto()] : given;
     this.nesting = spec.nesting ?? 'none';
@@ -416,7 +436,7 @@ function solidScriptCommandListing(
   builds: boolean,
   writeCopy: boolean,
 ): SolidScriptListingWrite {
-  if (!named && !writeCopy) return spec.listing;
+  if (!named && !writeCopy && !builds) return spec.listing;
   return (read) => {
     const pieces = spec.listing(read);
     const name = named ? read.text(SOLID_SCRIPT_SHAPE_NAME_KEY) : '';

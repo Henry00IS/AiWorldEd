@@ -41,6 +41,11 @@ export interface SolidScriptMachineCommand extends SolidScriptTreeCommand {
    */
   readonly builds?: boolean;
   /**
+   * True when Into is always a list, even for one built item, because the line
+   * can create several.
+   */
+  readonly intoList?: boolean;
+  /**
    * Returns the stored text of a field, or its default when empty.
    *
    * @param values Stored values.

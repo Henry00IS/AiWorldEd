@@ -194,11 +194,12 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'linear_extrude',
     named: true,
+    intoList: true,
     label: 'Linear Extrude',
     category: 'Transforms',
     description: 'Pull flat outlines up into solids',
     manual:
-      'Lays the flat outlines between this line and its End (Square, Circle, Polygon) on the ground, their Y running to the back, and pulls them straight up along Y into solids. Anchor is Center by default, so the middle of its height sits on the origin; Bottom makes the extrusion stand on the outlines. Top Scale below 1 narrows the top, for a tapered shape. Mode chooses how the brush combines with the ones before it: Additive, Subtractive or Intersecting. Example: a Polygon star with height 0.2 gives a star-shaped tile.',
+      'Lays the flat outlines between this line and its End (Square, Circle, Polygon) on the ground, their Y running to the back, and pulls them straight up along Y into solids. Anchor is Center by default, so the middle of its height sits on the origin; Bottom makes the extrusion stand on the outlines. Top Scale below 1 narrows the top, for a tapered shape. Mode chooses how the brush combines with the ones before it: Additive, Subtractive or Intersecting. Into is always a list of the brushes it built, even when there is only one. Example: a Polygon star with height 0.2 gives a star-shaped tile.',
     stops: [
       'A height of 0 or less.',
       'A solid such as Cube between this line and its End. Only flat outlines can be extruded.',
@@ -233,11 +234,12 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'rotate_extrude',
     named: true,
+    intoList: true,
     label: 'Rotate Extrude',
     category: 'Transforms',
     description: 'Spin flat outlines around the Y axis',
     manual:
-      "Spins the flat outlines between this line and its End (Square, Circle, Polygon) around the upright Y axis, like clay on a potter's wheel. The outline's X is the distance from the axis and its Y the height. Angle below 360 leaves a gap, for a partial ring or a curved wall. Each piece becomes one brush per side. Mode chooses how each brush combines with the ones before it: Additive, Subtractive or Intersecting. Example: a Square of 0.5, 2 moved to X = 3 and spun 360 degrees gives a round tower wall.",
+      "Spins the flat outlines between this line and its End (Square, Circle, Polygon) around the upright Y axis, like clay on a potter's wheel. The outline's X is the distance from the axis and its Y the height. Angle below 360 leaves a gap, for a partial ring or a curved wall. Each piece becomes one brush per side. Into is always a list of those brushes, even when there is only one. Mode chooses how each brush combines with the ones before it: Additive, Subtractive or Intersecting. Example: a Square of 0.5, 2 moved to X = 3 and spun 360 degrees gives a round tower wall.",
     stops: [
       'An outline with points at X below 0.',
       'An angle of 0 or more than 360.',
