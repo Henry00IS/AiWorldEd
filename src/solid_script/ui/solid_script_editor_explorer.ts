@@ -9,7 +9,8 @@ import {
   type SolidScriptNameCategory,
 } from '@/solid_script/document/solid_script_document_names.js';
 import { solidScriptInputTypeLabel } from '@/solid_script/language/solid_script_input.js';
-import { SOLID_SCRIPT_SYSTEM_GLOBALS, solidScriptSystemValues } from '@/solid_script/language/solid_script_system.js';
+import { solidScriptSystemValues } from '@/solid_script/language/solid_script_system.js';
+import { SOLID_SCRIPT_SYSTEM_CATALOG } from '@/solid_script/language/solid_script_system_names.js';
 import { solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
 import type { SolidScriptFrameView, SolidScriptVariable } from '@/solid_script/language/solid_script_machine_types.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
@@ -119,12 +120,12 @@ export function solidScriptExplorerEntries(
     });
   }
   const system = solidScriptSystemValues('preview', null, false);
-  for (const value of SOLID_SCRIPT_SYSTEM_GLOBALS) {
-    const current = system.get(value.name);
+  for (const value of SOLID_SCRIPT_SYSTEM_CATALOG) {
+    const current = system.get(value.name.slice(1));
     entries.push({
-      name: `$${value.name}`,
+      name: value.name,
       category: 'System',
-      value: current === undefined ? 'Only in a Generator' : solidScriptValueText(current),
+      value: current === undefined ? value.absent : solidScriptValueText(current),
       type: value.type,
       lines: [],
       items: [],

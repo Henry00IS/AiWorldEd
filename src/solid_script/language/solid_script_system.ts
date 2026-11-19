@@ -87,6 +87,21 @@ export function solidScriptInputBrushName(index: number): string {
   return `Input ${index + 1}`;
 }
 
+/**
+ * The lists the lines below work on, which Select lines set while a script
+ * runs.
+ */
+export const SOLID_SCRIPT_SYSTEM_SELECTED: readonly SolidScriptSystemValue[] = [
+  {
+    name: 'Selected.Brushes',
+    type: 'Brush List',
+    detail: 'the brushes lines below work on; every brush built so far until set',
+  },
+  { name: 'Selected.Faces', type: 'Face List', detail: 'the faces the last Select Faces picked' },
+  { name: 'Selected.Edges', type: 'Edge List', detail: 'the edges set as selected' },
+  { name: 'Selected.Vertices', type: 'Vertex List', detail: 'the corners set as selected' },
+];
+
 /** Every built-in value, by group. */
 export const SOLID_SCRIPT_SYSTEM_GLOBALS: readonly SolidScriptSystemValue[] = [
   { name: 'Run.Context', type: 'Text', detail: 'where the script runs: generator, preview, handler or assistant' },
@@ -352,9 +367,6 @@ function solidScriptUseBounds(use: SolidScriptUseFacts): { min: number[]; max: n
  * read their kinds: name with its $, kind and what it holds.
  */
 export const SOLID_SCRIPT_SYSTEM_LISTED: readonly (readonly [string, string, string])[] = [
-  ['$Selected.Brushes', 'Brush List', 'the brushes lines below work on; every brush built so far until set'],
-  ['$Selected.Faces', 'Face List', 'the faces the last Select Faces picked'],
-  ['$Selected.Edges', 'Edge List', 'the edges set as selected'],
-  ['$Selected.Vertices', 'Vertex List', 'the corners set as selected'],
-  ...SOLID_SCRIPT_SYSTEM_GLOBALS.map((value) => [`$${value.name}`, value.type, value.detail] as const),
-];
+  ...SOLID_SCRIPT_SYSTEM_SELECTED,
+  ...SOLID_SCRIPT_SYSTEM_GLOBALS,
+].map((value) => [`$${value.name}`, value.type, value.detail] as const);

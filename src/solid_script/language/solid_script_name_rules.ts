@@ -1,4 +1,4 @@
-import { SOLID_SCRIPT_SYSTEM_GLOBALS } from './solid_script_system.js';
+import { SOLID_SCRIPT_SYSTEM_GLOBALS, SOLID_SCRIPT_SYSTEM_SELECTED } from './solid_script_system.js';
 
 /**
  * Which names may contain a dot. A script's own names use letters, digits and _
@@ -8,19 +8,17 @@ import { SOLID_SCRIPT_SYSTEM_GLOBALS } from './solid_script_system.js';
  */
 
 /** System values by group, without the $, such as Box: Width. */
-export const SOLID_SCRIPT_SYSTEM_VALUES: Readonly<Record<string, readonly string[]>> = solidScriptSystemGroups({
-  Selected: ['Brushes', 'Faces', 'Edges', 'Vertices'],
-});
+export const SOLID_SCRIPT_SYSTEM_VALUES: Readonly<Record<string, readonly string[]>> = solidScriptSystemGroups();
 
 /**
- * Adds the built-in values every script can read, such as Time.Year, to the
- * system lists.
+ * Groups the selected lists and the built-in values every script can read, such
+ * as Selected: Faces and Time: Year.
  *
- * @param lists System lists by group.
  * @returns Every system value by group.
  */
-function solidScriptSystemGroups(lists: Record<string, string[]>): Record<string, string[]> {
-  for (const { name } of SOLID_SCRIPT_SYSTEM_GLOBALS) {
+function solidScriptSystemGroups(): Record<string, string[]> {
+  const lists: Record<string, string[]> = {};
+  for (const { name } of [...SOLID_SCRIPT_SYSTEM_SELECTED, ...SOLID_SCRIPT_SYSTEM_GLOBALS]) {
     const [group = '', member = ''] = name.split('.');
     (lists[group] ??= []).push(member);
   }

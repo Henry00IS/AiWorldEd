@@ -6,7 +6,12 @@
  */
 
 import { solidScriptNameKey } from './solid_script_name_key.js';
-import { SOLID_SCRIPT_SYSTEM_LISTED } from './solid_script_system.js';
+import {
+  SOLID_SCRIPT_SYSTEM_GLOBALS,
+  SOLID_SCRIPT_SYSTEM_LISTED,
+  SOLID_SCRIPT_SYSTEM_SELECTED,
+  type SolidScriptSystemValue,
+} from './solid_script_system.js';
 
 /** A system name as scripts write it, such as $NZ or $Selected.Faces. */
 export type SolidScriptSystemName = `$${string}`;
@@ -107,3 +112,42 @@ export function solidScriptSystemBareHint(written: string): string | undefined {
   const official = solidScriptSystemOfficial(name);
   return official ? `${name} is a system value. Did you mean to write ${official}?` : undefined;
 }
+
+/** One system value as the variable explorer lists it. */
+export interface SolidScriptSystemCatalogEntry {
+  /** Name with its $, such as $Selected.Faces. */
+  name: SolidScriptSystemName;
+  /** Kind, such as Face List. */
+  type: string;
+  /** What it holds, in a few words. */
+  detail: string;
+  /** What the explorer shows when the value cannot be read outside a run. */
+  absent: string;
+}
+
+/**
+ * Turns registered system values into catalog entries.
+ *
+ * @param values Values without their $.
+ * @param absent Text shown when a value cannot be read outside a run.
+ * @returns Catalog entries.
+ */
+function solidScriptSystemCatalogFrom(
+  values: readonly SolidScriptSystemValue[],
+  absent: string,
+): SolidScriptSystemCatalogEntry[] {
+  return values.map((value) => ({ name: `$${value.name}`, type: value.type, detail: value.detail, absent }));
+}
+
+/**
+ * Every system name a script can read, from the registries above: the selected
+ * lists, the built-in values and the command fills. The variable explorer lists
+ * exactly these.
+ */
+export const SOLID_SCRIPT_SYSTEM_CATALOG: readonly SolidScriptSystemCatalogEntry[] = [
+  ...solidScriptSystemCatalogFrom(SOLID_SCRIPT_SYSTEM_SELECTED, 'Only While a Script Runs'),
+  ...solidScriptSystemCatalogFrom(SOLID_SCRIPT_SYSTEM_GLOBALS, 'Only in a Generator'),
+  ...(Object.entries(SOLID_SCRIPT_SYSTEM_FILLS) as [SolidScriptSystemFillName, SolidScriptSystemFill][]).map(
+    ([name, fill]) => ({ name, type: fill.type, detail: fill.detail, absent: 'Only Inside Lines That Fill It' }),
+  ),
+];
