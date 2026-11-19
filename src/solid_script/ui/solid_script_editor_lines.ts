@@ -619,16 +619,17 @@ export class SolidScriptEditorLines {
   }
 
   /**
-   * Takes the keyboard focus arriving on a line, such as by Tab: a line other
-   * than the current one becomes the current line, selected alone. Focus that
-   * lands on the current line leaves the selection as it is.
+   * Takes the keyboard focus arriving on a line and makes it the current line.
+   * A line other than the current one, such as one reached by Tab, is selected
+   * alone; focus that lands on the current line leaves the selection as it is.
    *
    * @param line Line index.
    */
   private focusArrived(line: number): void {
-    if (line === this.caretLine) return;
-    this.anchor = null;
-    this.picked = null;
+    if (line !== this.caretLine) {
+      this.anchor = null;
+      this.picked = null;
+    }
     this.caretSet(line);
   }
 

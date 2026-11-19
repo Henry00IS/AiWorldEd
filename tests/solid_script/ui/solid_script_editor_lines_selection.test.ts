@@ -249,6 +249,15 @@ describe('SolidScript editor line selection follows the shared row rules', () =>
     expect(selection(5)).toEqual([2]);
   });
 
+  it('moves the help to the line the arrow keys focus', () => {
+    const { root } = editorFixture([{ command: 'cube' }, { command: 'sphere' }]);
+    chip(0).focus();
+    press(chip(0), 'ArrowDown');
+    expect(root.querySelector('.solid-script-editor-help-title')?.textContent).toBe('Sphere');
+    press(chip(1), 'ArrowUp', { shiftKey: true });
+    expect(root.querySelector('.solid-script-editor-help-title')?.textContent).toBe('Cube');
+  });
+
   it('selects a line alone when the keyboard focus arrives on it', () => {
     editorFixture(cubeLines(5));
     down(0);
