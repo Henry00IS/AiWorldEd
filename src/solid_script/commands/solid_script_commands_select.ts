@@ -11,7 +11,7 @@ import {
 } from './solid_script_command_parameters.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import type { SolidScriptSelectedKind } from '@/solid_script/language/solid_script_machine_variables.js';
-import { SOLID_SCRIPT_SELECT_NEW_SINCE_LAST, solidScriptOfEmpty } from '@/solid_script/language/solid_script_select.js';
+import { SOLID_SCRIPT_SELECT_NEW, solidScriptOfEmpty } from '@/solid_script/language/solid_script_select.js';
 import { solidScriptGeometryLeaves } from '@/solid_script/language/solid_script_geometry.js';
 import {
   SolidScriptElement,
@@ -185,7 +185,7 @@ function solidScriptSelectCommand(kind: SolidScriptSelectKind): SolidScriptComma
     description: `Pick ${kind.many}`,
     fills:
       kind.item === 'Edge' ? ['$Edge', '$Index'] : kind.item === 'Brush' ? ['$Brush', '$Index'] : ['$Vertex', '$Index'],
-    manual: `Picks ${kind.many} and puts them in [$Selected.${kind.item === 'Edge' ? 'Edges' : kind.item === 'Brush' ? 'Brushes' : 'Vertices'}], where lines with an empty Of find them. ${kind.item === 'Brush' ? 'Of says which brushes to pick from; empty uses every brush and mesh built so far, and those a modifier has received.' : 'Of says where to pick from: brushes, faces or edges; empty uses [$Selected.Faces], or [$Selected.Brushes] when no faces are picked.'} Into also writes them to a variable, a ${kind.item} list. New-Since-Last keeps only items added since the last ${kind.label}. Where tests each one as [$${kind.item}], such as [=[$${kind.item}.${kind.item === 'Edge' ? 'Length' : kind.item === 'Brush' ? 'Size.X' : 'Position.Y'}] > 1], and [$Index] is its number from 0. How adds to or removes from the ${kind.many} picked before. Example: ${kind.example}`,
+    manual: `Picks ${kind.many} and puts them in [$Selected.${kind.item === 'Edge' ? 'Edges' : kind.item === 'Brush' ? 'Brushes' : 'Vertices'}], where lines with an empty Of find them. ${kind.item === 'Brush' ? 'Of says which brushes to pick from; empty uses every brush and mesh built so far, and those a modifier has received.' : 'Of says where to pick from: brushes, faces or edges; empty uses [$Selected.Faces], or [$Selected.Brushes] when no faces are picked.'} Into also writes them to a variable, a ${kind.item} list. Which New keeps only what was created since the previous ${kind.label}. Where tests each one as [$${kind.item}], such as [=[$${kind.item}.${kind.item === 'Edge' ? 'Length' : kind.item === 'Brush' ? 'Size.X' : 'Position.Y'}] > 1], and [$Index] is its number from 0. How adds to or removes from the ${kind.many} picked before. Example: ${kind.example}`,
     stops: [
       'No brushes to pick from.',
       'A Which that is not one of the choices.',
@@ -234,7 +234,7 @@ function solidScriptSelectCommand(kind: SolidScriptSelectKind): SolidScriptComma
       const pool = solidScriptSelectItems(run, kind);
       const which = run.text('which').trim();
       const picked =
-        which === SOLID_SCRIPT_SELECT_NEW_SINCE_LAST
+        which === SOLID_SCRIPT_SELECT_NEW
           ? run.selectFresh(kind.selected, pool)
           : solidScriptSelectWhich(run, kind, pool);
       run.selectNote(kind.selected, pool);
@@ -285,8 +285,9 @@ export const SOLID_SCRIPT_COMMANDS_SELECT: readonly SolidScriptCommand[] = [
     words: [
       { word: 'All', detail: 'Every brush and mesh' },
       {
-        word: SOLID_SCRIPT_SELECT_NEW_SINCE_LAST,
-        detail: 'Brushes and meshes added since the last Select Brushes',
+        word: SOLID_SCRIPT_SELECT_NEW,
+        detail:
+          'Only brushes and meshes created since the previous Select Brushes. Example: Cube, Select Brushes, Cube, then Select Brushes Which New picks only the second Cube.',
       },
       { word: 'Where', detail: 'The brushes a condition in Detail holds for, with [$Brush] and [$Index]' },
     ],
@@ -303,7 +304,11 @@ export const SOLID_SCRIPT_COMMANDS_SELECT: readonly SolidScriptCommand[] = [
     from: ['brush', 'face', 'edge'],
     words: [
       { word: 'All', detail: 'Every edge' },
-      { word: SOLID_SCRIPT_SELECT_NEW_SINCE_LAST, detail: 'Edges added since the last Select Edges' },
+      {
+        word: SOLID_SCRIPT_SELECT_NEW,
+        detail:
+          "Only edges created since the previous Select Edges. Example: Cube, Select Edges, Cube, then Select Edges Which New picks only the second Cube's edges.",
+      },
       { word: 'Longest', detail: 'The longest edges; Detail says how many' },
       { word: 'Shortest', detail: 'The shortest edges; Detail says how many' },
       { word: 'Where', detail: 'The edges a condition in Detail holds for, with [$Edge] and [$Index]' },
@@ -321,7 +326,11 @@ export const SOLID_SCRIPT_COMMANDS_SELECT: readonly SolidScriptCommand[] = [
     from: ['brush', 'face', 'edge'],
     words: [
       { word: 'All', detail: 'Every corner' },
-      { word: SOLID_SCRIPT_SELECT_NEW_SINCE_LAST, detail: 'Corners added since the last Select Vertices' },
+      {
+        word: SOLID_SCRIPT_SELECT_NEW,
+        detail:
+          "Only corners created since the previous Select Vertices. Example: Cube, Select Vertices, Cube, then Select Vertices Which New picks only the second Cube's corners.",
+      },
       { word: 'Where', detail: 'The corners a condition in Detail holds for, with [$Vertex] and [$Index]' },
     ],
     items: (run, element) => {

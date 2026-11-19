@@ -1,8 +1,11 @@
 import type { SolidScriptSelectedKind } from './solid_script_machine_variables.js';
 import { SolidScriptElement, type SolidScriptValue } from './solid_script_value.js';
 
-/** Which word that picks items created since the last Select of the same kind. */
-export const SOLID_SCRIPT_SELECT_NEW_SINCE_LAST = 'New-Since-Last';
+/**
+ * Which word that picks items created since the previous Select of the same
+ * kind.
+ */
+export const SOLID_SCRIPT_SELECT_NEW = 'New';
 
 /** What an empty Of is missing, for the stop text and the one-click fix. */
 export type SolidScriptSelectMissing = 'brushes' | 'faces' | 'edges' | 'vertices';
@@ -81,7 +84,7 @@ export function solidScriptSelectFresh(
 }
 
 /**
- * Ids of the items a Select just looked at, for the next New Since Last.
+ * Ids of the items a Select just looked at, for the next Select Which New.
  *
  * @param items Items in the pool.
  * @returns Ids.

@@ -55,6 +55,7 @@ import { solidScriptEditorLoad, solidScriptEditorSave } from './solid_script_edi
 import { solidScriptEditorDebugSpeedMs, solidScriptEditorDebugSpeedRead } from './solid_script_editor_debug_speed.js';
 import { solidScriptFileDropBind, type SolidScriptFileDropResult } from './solid_script_file_drop.js';
 import { SOLID_SCRIPT_COMMAND_INPUT } from '@/solid_script/language/solid_script_input.js';
+import { SOLID_SCRIPT_SELECT_NEW } from '@/solid_script/language/solid_script_select.js';
 
 /** Notice when another user deletes the line being configured. */
 const SOLID_SCRIPT_EDITOR_CONFIGURED_GONE =
@@ -567,7 +568,7 @@ export class SolidScriptEditor extends PanelFloating {
    */
   /**
    * Inserts a Select line above a tool that stopped for an empty Of, already
-   * set to New Since Last, and does not open the configurator.
+   * set to Which New, and does not open the configurator.
    *
    * @param command Select command id.
    * @param line 0-based index of the failed tool.
@@ -575,7 +576,7 @@ export class SolidScriptEditor extends PanelFloating {
   private selectAbove(command: string, line: number): void {
     const found = solidScriptCommandFind(command);
     if (!found) return;
-    const values = { ...found.valuesDefault(), which: 'New-Since-Last' };
+    const values = { ...found.valuesDefault(), which: SOLID_SCRIPT_SELECT_NEW };
     const inserted = solidScriptDocumentCommandInsert(this.session.document(), command, line, 'before', values);
     this.commit(inserted.document, inserted.line);
   }

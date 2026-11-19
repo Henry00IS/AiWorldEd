@@ -337,12 +337,10 @@ describe('solid script command catalog', () => {
       (solidScriptCommandFind(id)?.parameters.find((parameter) => parameter.key === key)?.words ?? []).map(
         (entry) => entry.word,
       );
-    expect(word('select_faces', 'which')).toEqual(
-      expect.arrayContaining(['All', 'New-Since-Last', 'Up', 'Tagged', 'Where']),
-    );
-    expect(word('select_brushes', 'which')).toEqual(['All', 'New-Since-Last', 'Where']);
-    expect(word('select_edges', 'which')).toEqual(expect.arrayContaining(['All', 'New-Since-Last', 'Where']));
-    expect(word('select_vertices', 'which')).toEqual(expect.arrayContaining(['All', 'New-Since-Last', 'Where']));
+    expect(word('select_faces', 'which')).toEqual(expect.arrayContaining(['All', 'New', 'Up', 'Tagged', 'Where']));
+    expect(word('select_brushes', 'which')).toEqual(['All', 'New', 'Where']);
+    expect(word('select_edges', 'which')).toEqual(expect.arrayContaining(['All', 'New', 'Where']));
+    expect(word('select_vertices', 'which')).toEqual(expect.arrayContaining(['All', 'New', 'Where']));
     expect(word('select_faces', 'how')).toEqual(['New', 'Add', 'Remove']);
     expect(word('if_used_as', 'use')).toEqual(['Generator', 'Modifier']);
     expect(word('input_brushes', 'textures')).toEqual(['Follow', 'World']);

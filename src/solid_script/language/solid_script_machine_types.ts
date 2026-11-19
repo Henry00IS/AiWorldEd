@@ -210,7 +210,7 @@ export interface SolidScriptBlockRun {
   selectedSet(kind: SolidScriptSelectedKind, values: readonly SolidScriptValue[]): void;
   /** Items that have appeared since the last Select of this kind. */
   selectFresh(kind: SolidScriptSelectedKind, items: readonly SolidScriptValue[]): SolidScriptValue[];
-  /** Remembers the pool a Select just looked at, for New Since Last. */
+  /** Remembers the pool a Select just looked at, for Which New. */
   selectNote(kind: SolidScriptSelectedKind, items: readonly SolidScriptValue[]): void;
   /**
    * The values of the line's Of field as one flat list, with Name tags read as

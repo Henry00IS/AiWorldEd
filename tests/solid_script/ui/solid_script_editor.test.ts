@@ -1040,7 +1040,7 @@ describe('SolidScript editor', () => {
       [...document.querySelectorAll('body > .solid-script-editor-suggestions-host [role="option"]')].map(
         (option) => option.firstChild?.textContent,
       );
-    expect(options().slice(0, 3)).toEqual(['All', 'New-Since-Last', 'Up']);
+    expect(options().slice(0, 3)).toEqual(['All', 'New', 'Up']);
     type(which, 'Bi');
     expect(options()).toEqual(['Biggest']);
     press(which, 'Enter');
