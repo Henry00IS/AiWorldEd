@@ -25,10 +25,8 @@ import {
   solidScriptGeometryFaces,
   solidScriptGeometryFacesDelete,
   solidScriptGeometryInset,
-  solidScriptGeometryPick,
   type SolidScriptEdgeFacts,
   type SolidScriptFaceFacts,
-  type SolidScriptFacePick,
 } from '@/solid_script/language/solid_script_geometry.js';
 import {
   SOLID_SCRIPT_MESH_NEEDS_WRAP,
@@ -44,11 +42,15 @@ import {
 } from '@/solid_script/language/solid_script_shape.js';
 import { SOLID_SCRIPT_SELECT_NEW, solidScriptOfEmpty } from '@/solid_script/language/solid_script_select.js';
 import {
+  SOLID_SCRIPT_FACING_WITHIN_DEFAULT,
+  solidScriptConditionHolds,
+  solidScriptFacingHolds,
+  solidScriptHasTagHolds,
+} from '@/solid_script/language/solid_script_condition.js';
+import {
   SolidScriptElement,
   solidScriptValueNumber,
-  solidScriptValueNumbers,
   solidScriptValueText,
-  solidScriptValueTruthy,
   type SolidScriptValue,
 } from '@/solid_script/language/solid_script_value.js';
 
@@ -62,7 +64,7 @@ const SOLID_SCRIPT_FACE_DIRECTIONS: Readonly<Record<string, THREE.Vector3>> = Ob
  * the help lists them.
  */
 const SOLID_SCRIPT_FACE_WHICH_WORDS: readonly SolidScriptCommandWord[] = [
-  { word: 'All', detail: 'Every face' },
+  { word: 'All', detail: 'Every face, the same as a Where left off' },
   {
     word: SOLID_SCRIPT_SELECT_NEW,
     detail:
@@ -73,15 +75,11 @@ const SOLID_SCRIPT_FACE_WHICH_WORDS: readonly SolidScriptCommandWord[] = [
     const sign = direction[axis] > 0 ? '+' : '−';
     return {
       word,
-      detail: `Faces pointing ${word.slice('Facing '.length).toLowerCase()} (${sign}${axis.toUpperCase()})`,
+      detail: `Faces pointing ${word.slice('Facing '.length).toLowerCase()} (${sign}${axis.toUpperCase()}), the same as Where [=Facing([$Face.Normal], Vector(${direction.x}, ${direction.y}, ${direction.z}))]`,
     };
   }),
-  { word: 'Facing', detail: 'Faces pointing along Detail' },
-  { word: 'Tagged', detail: 'Faces tagged with the name in Detail' },
-  { word: 'Biggest', detail: 'The largest faces; Detail says how many' },
-  { word: 'Smallest', detail: 'The smallest faces; Detail says how many' },
-  { word: 'Number', detail: 'Faces by number; Detail lists them' },
-  { word: 'Where', detail: 'Faces where the condition in Detail holds' },
+  { word: 'Top', detail: 'Faces tagged Top, the same as Where [=HasTag([$Face.Tags], Top)]' },
+  { word: 'Bottom', detail: 'Faces tagged Bottom, the same as Where [=HasTag([$Face.Tags], Bottom)]' },
 ];
 
 /** Every choice of Select Faces' Which field. */
@@ -101,58 +99,23 @@ const SOLID_SCRIPT_FACE_HOW_DETAILS: Readonly<Record<(typeof SOLID_SCRIPT_FACE_H
 const SOLID_SCRIPT_FACE_BEVEL_TAG = 'Bevel';
 
 /**
- * Reads how Select Faces picks.
+ * Keeps the faces a Select Faces Which preset picks. Each preset equals a
+ * written-out Where: All keeps every face, Top and Bottom use HasTag, and
+ * Facing Up and the other facing words use Facing with the default lean.
  *
- * @param run Running line.
- * @returns Pick.
+ * @param which Which word.
+ * @param faces Faces to pick from.
+ * @returns Faces the preset keeps.
  */
-function solidScriptFacePickRead(run: SolidScriptBlockRun): SolidScriptFacePick {
-  const which = run.text('which').trim();
+function solidScriptFaceSelectWhich(which: string, faces: readonly SolidScriptFaceFacts[]): SolidScriptFaceFacts[] {
+  if (which === 'All') return [...faces];
+  if (which === 'Top' || which === 'Bottom') return faces.filter((face) => solidScriptHasTagHolds(face.tags, which));
   const direction = SOLID_SCRIPT_FACE_DIRECTIONS[which];
-  const within = (): number => {
-    const number = solidScriptValueNumber(run.value('within'));
-    if (number === undefined || number < 0 || number > 180)
-      throw new Error('Within needs a number of degrees, 0 to 180');
-    return number;
-  };
-  if (direction) return { by: 'facing', direction, within: within() };
-  switch (which) {
-    case 'All':
-      return { by: 'all' };
-    case 'Facing': {
-      const numbers = solidScriptValueNumbers(run.value('detail'));
-      if (numbers?.length !== 3)
-        throw new Error('Facing needs a direction in Detail, three numbers such as 0, 1, 0 for up');
-      return { by: 'facing', direction: new THREE.Vector3(...numbers).normalize(), within: within() };
-    }
-    case 'Tagged': {
-      const tag = run.text('detail').trim();
-      if (tag === '') throw new Error('Tagged needs a name in Detail, such as Top, Side or Step Tread');
-      return { by: 'tag', tag };
-    }
-    case 'Biggest':
-    case 'Smallest': {
-      const count = run.text('detail').trim() === '' ? 1 : solidScriptValueNumber(run.value('detail'));
-      if (count === undefined || !Number.isInteger(count) || count < 1)
-        throw new Error(`${which} needs a whole number of faces in Detail, such as 1`);
-      return { by: which === 'Biggest' ? 'biggest' : 'smallest', count };
-    }
-    case 'Number': {
-      const value = run.value('detail');
-      const numbers = Array.isArray(value) ? solidScriptValueNumbers(value) : [solidScriptValueNumber(value)];
-      if (!numbers || numbers.some((number) => number === undefined))
-        throw new Error('Number needs face numbers in Detail, such as 0 or 0, 2, 4');
-      return { by: 'numbers', numbers: numbers as number[] };
-    }
-    case 'Where':
-      return {
-        by: 'where',
-        holds: (face) =>
-          solidScriptValueTruthy(run.valueWith('detail', { $Face: run.elements.face(face), $Index: face.index })),
-      };
-    default:
-      throw new Error(`Which must be one of ${SOLID_SCRIPT_FACE_WHICH.join(', ')}, not "${which}"`);
-  }
+  if (direction)
+    return faces.filter((face) =>
+      solidScriptFacingHolds(face.normal.toArray(), direction.toArray(), SOLID_SCRIPT_FACING_WITHIN_DEFAULT),
+    );
+  throw new Error(`Which must be one of ${SOLID_SCRIPT_FACE_WHICH.join(', ')}, not "${which}"`);
 }
 
 /**
@@ -306,6 +269,18 @@ function solidScriptFaceTagsOf(
  * @param run Running line.
  * @returns Faces of those brushes or of a face list in Of.
  */
+/**
+ * Face number a Where condition reads as [$Index].
+ *
+ * @param run Running line.
+ * @param item Picked face.
+ * @returns Face number from 0, or 0 when it has none.
+ */
+function solidScriptFaceWhereIndex(run: SolidScriptBlockRun, item: SolidScriptValue): number {
+  if (!(item instanceof SolidScriptElement)) return 0;
+  return run.elements.faces(item)[0]?.index ?? 0;
+}
+
 function solidScriptFaceSelectFrom(run: SolidScriptBlockRun): SolidScriptFaceFacts[] {
   const given = run.ofValues();
   const from = given ?? run.selectedGet('brushes');
@@ -358,11 +333,10 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     description: 'Pick faces of brushes',
     fills: ['$Face', '$Index', '$CX', '$CY', '$CZ', '$NX', '$NY', '$NZ'],
     manual:
-      'Picks faces and puts them in [$Selected.Faces], where Extrude Face, Inset Face, Bevel Edges, Delete Faces and Texture Faces find them when their Of is empty. Of says where to pick from: brushes (all their faces) or faces (a list to narrow down); empty uses [$Selected.Brushes]. Which New keeps only faces created since the previous Select Faces. Into also writes the faces to a variable, a Face list. Where tests each face as [$Face], and [$Index] is its number from 0; [$CX], [$CY] and [$CZ] are short forms of [$Face.Center.X] and the other axes, and [$NX], [$NY] and [$NZ] of [$Face.Normal]. How adds to or removes from the faces picked before. Inside a For Each round the pick stays in that round. Example: Cube, then Select Faces Facing Up and Extrude Face By 1 pulls the top up.',
+      'Picks faces and puts them in [$Selected.Faces], where Extrude Face, Inset Face, Bevel Edges, Delete Faces and Texture Faces find them when their Of is empty. Of says where to pick from: brushes (all their faces) or faces (a list to narrow down); empty uses [$Selected.Brushes]. Which is a preset that equals a written-out Where: All keeps every face, Facing Up equals Facing([$Face.Normal], Vector(0, 1, 0)), and Top equals HasTag([$Face.Tags], Top). Which New keeps only faces created since the previous Select Faces. Where is a 🔁 condition each remaining face must pass, with [$Face] the face being tested and [$Index] its number from 0; [$CX], [$CY] and [$CZ] are short forms of [$Face.Center.X] and the other axes, and [$NX], [$NY] and [$NZ] of [$Face.Normal]. Left off, Where keeps what Which picked. How adds to or removes from the faces picked before. Into also writes the faces to a variable, a Face list. Inside a For Each round the pick stays in that round. Example: Cube, then Select Faces Facing Up and Extrude Face By 1 pulls the top up.',
     stops: [
       'No brushes to pick from.',
       'A Which that is not one of the choices.',
-      'A Detail that does not fit the Which.',
       'An Of that is not brushes or faces.',
     ],
     parameters: [
@@ -376,22 +350,14 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       ),
       {
         ...solidScriptParameterOptional(
-          'detail',
-          'Detail',
+          'where',
+          'Where',
           'value',
-          'The name for Tagged, how many for Biggest or Smallest, numbers for Number, a direction for Facing, a condition for Where such as [=[$Face.Area] > 1], with [$Face] the face being tested and [$Index] its number from 0.',
+          'A 🔁 condition each face must pass, such as [=Facing([$Face.Normal], Vector(0, 1, 0))] or [=HasTag([$Face.Tags], Top)]. [$Face] is the face being tested and [$Index] is its number from 0. Left off keeps every face Which picked.',
         ),
         each: 'Face',
-        eachWhen: { field: 'which', words: ['Where'] },
       },
       solidScriptParameterOf('brushes or faces to pick from', '$Selected.Brushes'),
-      solidScriptParameter(
-        'within',
-        'Within',
-        'number',
-        '30',
-        'Degrees a face may lean and still count as facing that way.',
-      ),
       solidScriptParameterWords(
         'how',
         'How',
@@ -404,13 +370,11 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     ],
     listing: (read) => {
       const which = read.text('which').trim();
-      const facing = which.startsWith('Facing');
       return [
         'Select Faces',
         which,
-        ...(read.text('detail').trim() === '' ? [] : [' ', read.value('detail')]),
+        ...(read.text('where').trim() === '' ? [] : [' Where ', read.value('where')]),
         ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
-        ...(facing && read.changed('within') ? [' within ', read.value('within'), '°'] : []),
         ...solidScriptListingOptions([read.text('how').trim() !== 'New' && [read.text('how').trim()]]),
         ...(read.text('into') === '' ? [] : [' Into ', read.variable('into')]),
       ];
@@ -422,10 +386,13 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       const faces = solidScriptFaceSelectFrom(run);
       const items = faces.map((face) => run.elements.face(face));
       const which = run.text('which').trim();
-      const picked =
+      const chosen =
         which === SOLID_SCRIPT_SELECT_NEW
           ? run.selectFresh('faces', items)
-          : solidScriptGeometryPick(faces, solidScriptFacePickRead(run)).map((face) => run.elements.face(face));
+          : solidScriptFaceSelectWhich(which, faces).map((face) => run.elements.face(face));
+      const picked = chosen.filter((item) =>
+        solidScriptConditionHolds(run, 'where', { $Face: item, $Index: solidScriptFaceWhereIndex(run, item) }),
+      );
       solidScriptFaceSelectWrite(run, how, items, picked);
       return [];
     },

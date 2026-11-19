@@ -33,9 +33,9 @@ describe('SolidScript Select Edges and Select Vertices', () => {
         line('cube', { size: '4, 1, 1', anchor: 'Center, Center, Center' }),
         SELECT_BRUSHES,
         line('select_brushes'),
-        line('select_edges', { which: 'Longest', detail: '4' }),
+        line('select_edges', { which: 'All', where: '[=[$Edge.Length] > 3]' }),
         line('select_brushes'),
-        line('select_edges', { which: 'Where', detail: '[=[$Edge.Middle.Y] > 0]', how: 'Remove' }),
+        line('select_edges', { which: 'All', where: '[=[$Edge.Middle.Y] > 0]', how: 'Remove' }),
         line('echo', { value: '[$Selected.Edges.Count] [$Selected.Edges.First.Length]' }),
       ),
     ).toEqual(['2 4']);
@@ -47,7 +47,7 @@ describe('SolidScript Select Edges and Select Vertices', () => {
         CUBE,
         SELECT_BRUSHES,
         line('select_brushes'),
-        line('select_vertices', { which: 'Where', detail: '[=[$Vertex.Position.Y] > 0]', into: 'Up' }),
+        line('select_vertices', { which: 'All', where: '[=[$Vertex.Position.Y] > 0]', into: 'Up' }),
         line('echo', { value: '[Up.Count] [$Selected.Vertices.Count] [Up.Center]' }),
       ),
     ).toEqual(['4 4 [0, 1, 0]']);
@@ -56,7 +56,7 @@ describe('SolidScript Select Edges and Select Vertices', () => {
         CUBE,
         SELECT_BRUSHES,
         line('select_brushes'),
-        line('select_edges', { which: 'Longest', detail: '1' }),
+        line('select_edges', { which: 'All', where: '[=[$Index] == 0]' }),
         line('select_vertices', { of: '[$Selected.Edges]' }),
         line('echo', { value: '[$Selected.Vertices.Count]' }),
       ),
@@ -71,10 +71,10 @@ describe('SolidScript Select Edges and Select Vertices', () => {
     expect(
       solidScriptDocumentListing(
         solidScriptDocumentCreate([
-          line('select_edges', { which: 'Longest', detail: '2', into: 'Long' }),
+          line('select_edges', { which: 'All', where: '[=[$Edge.Length] > 1]', into: 'Long' }),
           line('select_vertices', { how: 'Add' }),
         ]),
       ),
-    ).toEqual(["Select Edges Longest '2' Into [Long]", 'Select Vertices All (Add)']);
+    ).toEqual(["Select Edges All Where '[=[$Edge.Length] > 1]' Into [Long]", 'Select Vertices All (Add)']);
   });
 });

@@ -1041,13 +1041,13 @@ describe('SolidScript editor', () => {
         (option) => option.firstChild?.textContent,
       );
     expect(options().slice(0, 3)).toEqual(['All', 'New', 'Facing Up']);
-    type(which, 'Bi');
-    expect(options()).toEqual(['Biggest']);
+    type(which, 'Bott');
+    expect(options()).toEqual(['Bottom']);
     press(which, 'Enter');
-    expect(which.value).toBe('Biggest');
-    const detail = find<HTMLInputElement>('[data-solid-script-configurator="select_faces"] input[aria-label="Detail"]');
-    detail.focus();
-    type(detail, '[=Max(2, ');
+    expect(which.value).toBe('Bottom');
+    const where = find<HTMLInputElement>('[data-solid-script-configurator="select_faces"] input[aria-label="Where"]');
+    where.focus();
+    type(where, '[=Max(2, ');
     const hint = find('.solid-script-editor-suggestion-signature');
     expect(hint.querySelector('strong')?.textContent).toBe('B: Number');
     expect(hint.textContent).toBe(

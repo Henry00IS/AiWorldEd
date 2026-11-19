@@ -1,5 +1,9 @@
 import type { SOLID_SCRIPT_KINDS } from './solid_script_kinds.js';
 import type { SolidScriptBuiltinName } from './solid_script_functions_builtin.js';
+import {
+  SOLID_SCRIPT_CONDITION_HELPER_ARGUMENTS,
+  SOLID_SCRIPT_CONDITION_HELPER_DOCS,
+} from './solid_script_condition_helpers.js';
 /** A kind of value the editor checks name, such as Face or Face List. */
 export type SolidScriptKindName = (typeof SOLID_SCRIPT_KINDS)[number] | `${(typeof SOLID_SCRIPT_KINDS)[number]} List`;
 
@@ -462,6 +466,7 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
     group: 'Vectors',
     gives: ['Vector'],
   },
+  ...SOLID_SCRIPT_CONDITION_HELPER_DOCS,
 };
 
 /** Every built-in function of formulas with its kinds, by name. */
@@ -609,6 +614,7 @@ const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
   time_text: { pattern: { type: ['Text'], about: 'Layout with YYYY, MM, DD, HH, mm and ss, such as "HH:mm".' } },
   slice: { start: { type: ['Number'], about: 'Position of the first item, from 0.' } },
   replace_pattern: { with: { type: ['Text'], about: 'Text to put in instead of every match.' } },
+  ...SOLID_SCRIPT_CONDITION_HELPER_ARGUMENTS,
 };
 
 /**

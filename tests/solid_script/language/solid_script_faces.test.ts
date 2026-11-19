@@ -214,7 +214,7 @@ describe('SolidScript faces', () => {
     const result = run(
       { command: 'stairs', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } },
       SELECT_BRUSHES,
-      select('Tagged', { detail: 'Step Tread' }),
+      select('All', { where: '[=HasTag([$Face.Tags], "Step Tread")]' }),
       { command: 'for_each', values: { variable: 'Face', list: '[$Selected.Faces]', key: 'I' } },
       { command: 'echo', values: { value: '[I] [Face.Tag]' } },
       END,
@@ -245,11 +245,11 @@ describe('SolidScript faces', () => {
     };
     expect(count(select('All'))).toBe(6);
     expect(count(select('Facing Up'), select('Facing Down', { how: 'Add' }))).toBe(2);
-    expect(count(select('All'), select('Tagged', { detail: 'Side', how: 'Remove' }))).toBe(2);
-    expect(count(select('Biggest', { detail: '3' }))).toBe(3);
-    expect(count(select('Number', { detail: '0, 2' }))).toBe(2);
-    expect(count(select('Where', { detail: '[=[$Face.Center.Z] > 0.5]' }))).toBe(1);
-    expect(count(select('Facing', { detail: '1, 0, 0' }))).toBe(1);
+    expect(count(select('All'), select('All', { where: '[=HasTag([$Face.Tags], "Side")]', how: 'Remove' }))).toBe(2);
+    expect(count(select('All', { where: '[=[$Index] < 3]' }))).toBe(3);
+    expect(count(select('All', { where: '[=[$Index] == 0 || [$Index] == 2]' }))).toBe(2);
+    expect(count(select('All', { where: '[=[$Face.Center.Z] > 0.5]' }))).toBe(1);
+    expect(count(select('All', { where: '[=Facing([$Face.Normal], Vector(1, 0, 0))]' }))).toBe(1);
   });
 
   it('extrudes a brush face as a new brush', () => {
@@ -407,16 +407,16 @@ describe('SolidScript faces', () => {
   it('writes face lines in plain words', () => {
     const listing = solidScriptDocumentListing(
       solidScriptDocumentCreate([
-        select('Tagged', { detail: 'Step Tread' }),
-        select('Facing Up', { within: '45', how: 'Add', into: 'Top' }),
+        select('All', { where: '[=HasTag([$Face.Tags], "Step Tread")]' }),
+        select('All', { where: '[=Facing([$Face.Normal], Vector(0, 1, 0), 45)]', how: 'Add', into: 'Top' }),
         EACH_FACE,
         { command: 'extrude_face', values: { distance: '0.1', of: '[Face]', top: 'Roof' } },
         END,
       ]),
     );
     expect(listing).toEqual([
-      "Select Faces Tagged 'Step Tread'",
-      "Select Faces Facing Up within '45'° (Add) Into [Top]",
+      'Select Faces All Where \'[=HasTag([$Face.Tags], "Step Tread")]\'',
+      "Select Faces All Where '[=Facing([$Face.Normal], Vector(0, 1, 0), 45)]' (Add) Into [Top]",
       "For Each [Face] In '[$Selected.Faces]'",
       "    Extrude Face By '0.1' Of [Face] Top [Roof]",
       'End For Each',

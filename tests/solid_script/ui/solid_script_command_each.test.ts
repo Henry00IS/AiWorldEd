@@ -27,22 +27,23 @@ function parameter(id: string, key: string) {
 }
 
 describe('SolidScript per-element fields', () => {
-  it('declares Detail of Select Faces as per face only when Which is Where', () => {
-    const detail = parameter('select_faces', 'detail');
-    expect(detail.each).toBe('Face');
-    expect(solidScriptParameterEachActive(detail, { which: 'Where' })).toBe('Face');
-    expect(solidScriptParameterEachActive(detail, { which: 'All' })).toBeUndefined();
-    expect(solidScriptParameterEachActive(detail, { which: 'Facing Up' })).toBeUndefined();
+  it('declares Where of Select Faces as per face for every Which', () => {
+    const where = parameter('select_faces', 'where');
+    expect(where.each).toBe('Face');
+    expect(solidScriptParameterEachActive(where, { which: 'All' })).toBe('Face');
+    expect(solidScriptParameterEachActive(where, { which: 'Facing Up' })).toBe('Face');
+    expect(solidScriptParameterEachActive(where, { which: 'New' })).toBe('Face');
   });
 
-  it('declares Distance of Displace as per vertex, and Detail of Select Vertices as per vertex when Which is Where', () => {
+  it('declares Distance of Displace as per vertex, and Where of Select Vertices and Select Edges as per item', () => {
     expect(parameter('displace', 'distance').each).toBe('Vertex');
     expect(solidScriptParameterEachActive(parameter('displace', 'distance'), {})).toBe('Vertex');
-    const detail = parameter('select_vertices', 'detail');
-    expect(detail.each).toBe('Vertex');
-    expect(solidScriptParameterEachActive(detail, { which: 'Where' })).toBe('Vertex');
-    expect(solidScriptParameterEachActive(detail, { which: 'All' })).toBeUndefined();
-    expect(parameter('select_edges', 'detail').each).toBe('Edge');
+    const where = parameter('select_vertices', 'where');
+    expect(where.each).toBe('Vertex');
+    expect(solidScriptParameterEachActive(where, { which: 'All' })).toBe('Vertex');
+    expect(solidScriptParameterEachActive(where, { which: 'New' })).toBe('Vertex');
+    expect(parameter('select_edges', 'where').each).toBe('Edge');
+    expect(parameter('select_brushes', 'where').each).toBe('Brush');
   });
 
   it('lists the current-element fills, including short forms, and recognises them for autocomplete', () => {
@@ -53,10 +54,10 @@ describe('SolidScript per-element fields', () => {
     expect(solidScriptSystemFillEach('$Selected.Faces')).toBe(false);
   });
 
-  it('marks the Where condition in the script listing, and leaves other Detail values unmarked', () => {
+  it('marks the Where condition in the script listing, and leaves an unused Where unmarked', () => {
     const command = solidScriptCommandFind('select_faces');
     if (!command) throw new Error('Select Faces is missing');
-    const where = command.listing({ which: 'Where', detail: '[=[$Face.Area] > 1]' });
+    const where = command.listing({ which: 'All', where: '[=[$Face.Area] > 1]' });
     expect(where.filter((part) => part.each)).toEqual(
       expect.arrayContaining([expect.objectContaining({ each: true, text: expect.stringContaining('$Face.Area') })]),
     );

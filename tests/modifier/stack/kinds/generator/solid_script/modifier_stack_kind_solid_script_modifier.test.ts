@@ -108,7 +108,7 @@ describe('SolidScript as a modifier', () => {
     const script = both(
       { command: 'input_brushes', values: { textures: 'Move With Shape' } },
       { command: 'select_brushes' },
-      { command: 'select_faces', values: { which: 'All', detail: '', of: '', within: '30', how: 'New' } },
+      { command: 'select_faces', values: { which: 'All', where: '', of: '', how: 'New' } },
       { command: 'bevel_edges', values: { distance: '0.1' } },
     );
     const fixture = modifierFixture(script);

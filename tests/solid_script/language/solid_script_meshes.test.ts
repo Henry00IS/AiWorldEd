@@ -290,7 +290,7 @@ describe('SolidScript meshes', () => {
       run(
         ...fromBrushes({ command: 'cube', values: { anchor: 'Center, Center, Center' } }),
         { command: 'select_brushes' },
-        { command: 'select_vertices', values: { which: 'Where', detail: '[=[$Vertex.Position.Z] > 0]' } },
+        { command: 'select_vertices', values: { which: 'All', where: '[=[$Vertex.Position.Z] > 0]' } },
         { command: 'select_brushes' },
         { command: 'displace', values: { distance: '1' } },
       ),

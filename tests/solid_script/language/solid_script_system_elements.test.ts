@@ -25,7 +25,7 @@ describe('SolidScript current-element system names', () => {
       printed(
         CUBE,
         line('select_brushes'),
-        line('select_faces', { which: 'Where', detail: '[=[$Face.Area] > 1]' }),
+        line('select_faces', { which: 'All', where: '[=[$Face.Area] > 1]' }),
         line('echo', { value: '[$Selected.Faces.Count]' }),
       ),
     ).toEqual(['6']);
@@ -33,12 +33,12 @@ describe('SolidScript current-element system names', () => {
       printed(
         CUBE,
         line('select_brushes'),
-        line('select_faces', { which: 'Where', detail: '[=[$Index] == 0]' }),
+        line('select_faces', { which: 'All', where: '[=[$Index] == 0]' }),
         line('echo', { value: '[$Selected.Faces.Count] [$Selected.Faces.First.Area]' }),
       ),
     ).toEqual(['1 4']);
     expect(
-      printed(CUBE, line('select_brushes'), line('select_faces', { which: 'Where', detail: '[=[Face.Area] > 1]' }))[0],
+      printed(CUBE, line('select_brushes'), line('select_faces', { which: 'All', where: '[=[Face.Area] > 1]' }))[0],
     ).toMatch(/no variable \[Face\.Area\].*\$Face\.Area/);
   });
 
@@ -46,13 +46,13 @@ describe('SolidScript current-element system names', () => {
     const byMember = printed(
       CUBE,
       line('select_brushes'),
-      line('select_vertices', { which: 'Where', detail: '[=[$Vertex.Position.Y] > 0]', into: 'Up' }),
+      line('select_vertices', { which: 'All', where: '[=[$Vertex.Position.Y] > 0]', into: 'Up' }),
       line('echo', { value: '[Up.Count]' }),
     );
     const byShort = printed(
       CUBE,
       line('select_brushes'),
-      line('select_vertices', { which: 'Where', detail: '[=[$Y] > 0]', into: 'Up' }),
+      line('select_vertices', { which: 'All', where: '[=[$Y] > 0]', into: 'Up' }),
       line('echo', { value: '[Up.Count]' }),
     );
     expect(byMember).toEqual(['4']);
@@ -63,13 +63,13 @@ describe('SolidScript current-element system names', () => {
     const byMember = printed(
       CUBE,
       line('select_brushes'),
-      line('select_faces', { which: 'Where', detail: '[=[$Face.Center.Y] > 0]' }),
+      line('select_faces', { which: 'All', where: '[=[$Face.Center.Y] > 0]' }),
       line('echo', { value: '[$Selected.Faces.Count]' }),
     );
     const byShort = printed(
       CUBE,
       line('select_brushes'),
-      line('select_faces', { which: 'Where', detail: '[=[$CY] > 0]' }),
+      line('select_faces', { which: 'All', where: '[=[$CY] > 0]' }),
       line('echo', { value: '[$Selected.Faces.Count]' }),
     );
     expect(byMember).toEqual(['1']);

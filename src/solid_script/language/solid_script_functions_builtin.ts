@@ -1,6 +1,7 @@
 import { SOLID_SCRIPT_FUNCTIONS_EXTRA } from './solid_script_functions_extra.js';
 import { SOLID_SCRIPT_FUNCTIONS_MATH } from './solid_script_functions_math.js';
 import { SOLID_SCRIPT_FUNCTIONS_CURVE } from './solid_script_functions_curve.js';
+import { SOLID_SCRIPT_FUNCTIONS_CONDITION } from './solid_script_functions_condition.js';
 import {
   solidScriptValueNumber,
   solidScriptValueNumbers,
@@ -159,6 +160,7 @@ const SOLID_SCRIPT_FUNCTIONS_NAMED = {
   ...SOLID_SCRIPT_FUNCTIONS_EXTRA,
   ...SOLID_SCRIPT_FUNCTIONS_MATH,
   ...SOLID_SCRIPT_FUNCTIONS_CURVE,
+  ...SOLID_SCRIPT_FUNCTIONS_CONDITION,
 } satisfies Readonly<Record<string, SolidScriptBuiltin>>;
 
 /** Name of a built-in function; its kinds must be declared for each. */
