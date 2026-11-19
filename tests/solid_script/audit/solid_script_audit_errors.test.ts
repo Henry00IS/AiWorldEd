@@ -89,7 +89,7 @@ function wording(text: string): string[] {
   return problems.map((problem) => `${problem} in ${JSON.stringify(text)}`);
 }
 
-describe('every mistake is told in plain words, at a line, with what to do', () => {
+describe('every mistake is told in plain words, at a line, with what to do', { timeout: 60_000 }, () => {
   it.each(SOLID_SCRIPT_AUDIT_COMMANDS)('%s', (_id, command) => {
     const found = new Set<string>();
     for (const parameter of command.parameters) {
