@@ -364,24 +364,23 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Inputs',
     description: 'Output the brushes a modifier receives',
     manual:
-      'Outputs every brush the script receives as a modifier. Like a generator, a modifier outputs nothing by itself: without an Input Brushes line the received brushes are gone and only what the script builds comes out. The brushes act like any brush built here: the Transform, Move, Rotate, Scale, Mirror or Matrix lines around this line move them, Repeat makes copies, Mode on a brush cuts or keeps overlap, Select Faces finds their faces, and Clip cuts them, including when Of is [$Input.Brushes] above this line. Their faces keep their textures and materials. Textures is Follow, so textures stay on their faces, or World, so they stay where they are in the world; a cut brush keeps its textures but they are laid out again. Readable Text flips U on a mirrored copy so lettering is not reversed. UV Shift U and V move the texture of this pass by that many tiles. As a generator it outputs nothing. Example: Repeat [I] From 0 To 2 around Transform Move [=[I] * 2], 0, 0 around Input Brushes gives the brush and two copies two metres apart.',
-    stops: ['Textures other than Follow or World.'],
+      'Outputs every brush the script receives as a modifier. Like a generator, a modifier outputs nothing by itself: without an Input Brushes line the received brushes are gone and only what the script builds comes out. The brushes act like any brush built here: the Transform, Move, Rotate, Scale, Mirror or Matrix lines around this line move them, Repeat makes copies, Mode on a brush cuts or keeps overlap, Select Faces finds their faces, and Clip cuts them, including when Of is [$Input.Brushes] above this line. Their faces keep their textures and materials. Textures is Move With Shape, so textures stay on their faces, or World Aligned, so they stay where they are in the world; a cut brush keeps its textures but they are laid out again. Readable Text flips U on a mirrored copy so lettering is not reversed. UV Shift U and V move the texture of this pass by that many tiles. As a generator it outputs nothing. Example: Repeat [I] From 0 To 2 around Transform Move [=[I] * 2], 0, 0 around Input Brushes gives the brush and two copies two metres apart.',
+    stops: ['Textures other than Move With Shape or World Aligned.'],
     parameters: [
       solidScriptParameterWords(
         'textures',
         'Textures',
         'message',
-        'Follow',
-        'Follow keeps textures on their faces when the brush moves; World keeps them where they are in the world.',
+        'Move With Shape',
+        'Move With Shape keeps textures on their faces; World Aligned keeps them where they are in the world.',
         [
           {
-            word: 'Follow',
-            detail: 'Textures stay on their faces when the brush moves. Example: Textures Follow on a rotating door.',
+            word: 'Move With Shape',
+            detail: 'Textures stay on their faces',
           },
           {
-            word: 'World',
-            detail:
-              'Textures stay where they are in the world when the brush moves. Example: Textures World on a sliding panel.',
+            word: 'World Aligned',
+            detail: 'Textures stay where they are in the world',
           },
         ],
       ),

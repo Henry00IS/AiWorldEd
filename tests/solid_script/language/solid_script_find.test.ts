@@ -65,7 +65,7 @@ describe('SolidScript Find On', () => {
         SELECT_ALL,
         {
           command: 'find_on',
-          values: { how: 'Ray', from: '0, 0, 0', direction: '0, 1, 0', into: 'Spot', hit: 'Found' },
+          values: { how: 'Along Ray', from: '0, 0, 0', direction: '0, 1, 0', into: 'Spot', hit: 'Found' },
         },
         { command: 'echo', values: { value: '[Found] [Spot]' } },
       ),
@@ -78,14 +78,14 @@ describe('SolidScript Find On', () => {
         CUBE,
         SELECT_BRUSHES,
         SELECT_ALL,
-        { command: 'find_on', values: { how: 'Ray', from: '0, 3, 0', direction: '0, 1, 0', hit: 'Found' } },
+        { command: 'find_on', values: { how: 'Along Ray', from: '0, 3, 0', direction: '0, 1, 0', hit: 'Found' } },
         { command: 'echo', values: { value: '[Found]' } },
       ),
     ).toEqual(['No']);
     expect(
       run(CUBE, SELECT_BRUSHES, SELECT_ALL, {
         command: 'find_on',
-        values: { how: 'Ray', from: '0, 0, 0', direction: '0, 0, 0' },
+        values: { how: 'Along Ray', from: '0, 0, 0', direction: '0, 0, 0' },
       }).error?.text,
     ).toMatch(/Line \d+: Direction needs a direction that is not 0, 0, 0/);
   });

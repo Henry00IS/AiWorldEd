@@ -7,7 +7,6 @@ import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_com
 import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
 import { ModifierStackKindGenerator } from '@/modifier/stack/kinds/generator/modifier_stack_kind_generator.js';
 import type { ModifierStackField } from '@/modifier/stack/modifier_stack_types.js';
-import { solidScriptGeneratorChoiceScript } from '@/solid_script/commands/solid_script_generator_choices.js';
 
 /**
  * Runs script lines.
@@ -78,7 +77,7 @@ function generatorScriptDefault(field: ModifierStackField): string {
   if (field.type === 'boolean') return field.default === true ? 'Yes' : 'No';
   if (field.type === 'choice') {
     const match = (field.choices ?? []).find((choice) => choice.value === field.default);
-    if (match) return solidScriptGeneratorChoiceScript(field, match).word;
+    if (match) return match.label === match.value.replaceAll('Centre', 'Center') ? match.label : match.value;
   }
   return String(field.default);
 }
@@ -144,12 +143,12 @@ describe('SolidScript generator blocks', () => {
 
   it('reads choices as plain text or variables and names the choices when one is wrong', () => {
     const chosen = run(
-      { command: 'variable', values: { name: 'axis', value: 'X' } },
+      { command: 'variable', values: { name: 'axis', value: 'Along X' } },
       { command: 'prism', values: { axis: '[axis]', anchor: 'Center, Center, Center' } },
     );
     expect(chosen.error).toBeNull();
     const wrong = run({ command: 'prism', values: { axis: 'w', anchor: 'Center, Center, Center' } });
-    expect(wrong.error?.message).toMatch(/Axis must be one of Z, X, Upright, not/);
+    expect(wrong.error?.message).toMatch(/Axis must be one of Along Z, Along X, Upright, not/);
   });
 
   it('builds Sphere and Cylinder with the primitive generators, under their field names', () => {

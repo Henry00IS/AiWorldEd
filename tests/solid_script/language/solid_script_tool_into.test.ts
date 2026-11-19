@@ -72,7 +72,7 @@ describe('SolidScript tools with Into', () => {
     const inPlace = solids(
       CUBE,
       { command: 'select_brushes' },
-      { command: 'select_faces', values: { which: 'Up' } },
+      { command: 'select_faces', values: { which: 'Facing Up' } },
       { command: 'select_brushes' },
       { command: 'extrude_face', values: { distance: '0.5' } },
     );
@@ -80,7 +80,7 @@ describe('SolidScript tools with Into', () => {
     const copied = run(
       CUBE,
       { command: 'select_brushes' },
-      { command: 'select_faces', values: { which: 'Up' } },
+      { command: 'select_faces', values: { which: 'Facing Up' } },
       { command: 'select_brushes' },
       { command: 'extrude_face', values: { distance: '0.5', into: 'Slab' } },
       { command: 'echo', values: { value: '[=[Slab.Count]]' } },

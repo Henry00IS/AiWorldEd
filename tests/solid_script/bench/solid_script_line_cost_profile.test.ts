@@ -54,7 +54,7 @@ function spheresThenSelect(count: number, tail: readonly SolidScriptLine[] = [])
 function spheresThenScatter(count: number): SolidScriptLine[] {
   return spheresThenSelect(count, [
     { command: 'select_brushes' },
-    { command: 'scatter_points', values: { where: 'Faces', count: '10', seed: '0', into: 'Points' } },
+    { command: 'scatter_points', values: { where: 'On Faces', count: '10', seed: '0', into: 'Points' } },
   ]);
 }
 
@@ -118,7 +118,7 @@ function profileText(lines: readonly SolidScriptLine[], result: ReturnType<typeo
 /** A cheap last line used on the heavy scene. */
 const SCATTER: SolidScriptLine = {
   command: 'scatter_points',
-  values: { where: 'Faces', count: '10', seed: '0', into: 'Points' },
+  values: { where: 'On Faces', count: '10', seed: '0', into: 'Points' },
 };
 
 /** Project UVs Mode Box, the other last line Henry compared. */

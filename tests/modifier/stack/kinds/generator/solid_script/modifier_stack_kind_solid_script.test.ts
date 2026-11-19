@@ -256,7 +256,7 @@ describe('SolidScript generator', () => {
         { command: 'cube' },
         { command: 'end' },
         { command: 'select_brushes' },
-        { command: 'select_faces', values: { which: 'Up' } },
+        { command: 'select_faces', values: { which: 'Facing Up' } },
         { command: 'texture_faces', values: { texture: '[top]' } },
       ),
     });
@@ -306,7 +306,7 @@ describe('SolidScript generator', () => {
       script: script(
         { command: 'cube' },
         { command: 'select_brushes' },
-        { command: 'select_faces', values: { which: 'Up' } },
+        { command: 'select_faces', values: { which: 'Facing Up' } },
         { command: 'texture_faces', values: { texture: 'grass' } },
       ),
     });

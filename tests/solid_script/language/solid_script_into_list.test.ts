@@ -44,13 +44,13 @@ describe('SolidScript multi-item Into lists', () => {
   it('writes Stairs Into as a list, including a single step', () => {
     expect(
       printed(
-        line('stairs', { size: '1, 1, 1', sizing: 'Count', count: '1', into: 'Steps' }),
+        line('stairs', { size: '1, 1, 1', sizing: 'Step Count', count: '1', into: 'Steps' }),
         line('echo', { value: '[=[Steps.Count]]' }),
       ),
     ).toEqual(['1']);
     expect(
       printed(
-        line('stairs', { size: '1, 2, 1', sizing: 'Count', count: '4', into: 'Steps' }),
+        line('stairs', { size: '1, 2, 1', sizing: 'Step Count', count: '4', into: 'Steps' }),
         line('echo', { value: '[=[Steps.Count]]' }),
       ),
     ).toEqual(['4']);

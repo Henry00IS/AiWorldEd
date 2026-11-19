@@ -64,7 +64,7 @@ export const SOLID_SCRIPT_COMMANDS_POINTS: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Take a point at the center of each face',
     manual:
-      'Writes a point at the center of each face in Of, and the way the face looks in Normals. Empty Of uses [$Selected.Faces]. Use the points with Place At Points, and turn on Align To Normal so each copy stands the way Place On Face would. Example: Select Faces Which Up, Points From Faces Into [Spots] Normals [Dirs], Place At Points At [Spots] Directions [Dirs] Align To Normal, Cylinder, End.',
+      'Writes a point at the center of each face in Of, and the way the face looks in Normals. Empty Of uses [$Selected.Faces]. Use the points with Place At Points, and turn on Align To Normal so each copy stands the way Place On Face would. Example: Select Faces Facing Up, Points From Faces Into [Spots] Normals [Dirs], Place At Points At [Spots] Directions [Dirs] Align To Normal, Cylinder, End.',
     stops: ['No faces.'],
     parameters: [...solidScriptPointsFromFields('faces or brushes', '$Selected.Faces', ['Brush', 'Face'])],
     listing: (read) => [

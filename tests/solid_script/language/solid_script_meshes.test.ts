@@ -198,7 +198,7 @@ describe('SolidScript meshes', () => {
       run(
         ...fromBrushes({ command: 'cube', values: { anchor: 'Center, Center, Center' } }),
         { command: 'select_brushes' },
-        { command: 'select_faces', values: { which: 'Front' } },
+        { command: 'select_faces', values: { which: 'Facing Front' } },
         { command: 'select_brushes' },
         { command: 'extrude_face', values: { distance: '0.5' } },
       ),
@@ -303,7 +303,7 @@ describe('SolidScript meshes', () => {
   it('stops on a brush with a plain hint to wrap it in Mesh From Brushes first', () => {
     const hint = /no longer be a convex brush.+Mesh From Brushes first/;
     const cube: SolidScriptLine = { command: 'cube', values: { anchor: 'Center, Center, Center' } };
-    const select: SolidScriptLine = { command: 'select_faces', values: { which: 'Up' } };
+    const select: SolidScriptLine = { command: 'select_faces', values: { which: 'Facing Up' } };
     expect(run(cube, { command: 'select_brushes' }, { command: 'subdivide' }).error?.message ?? '').toMatch(hint);
     expect(run(cube, { command: 'select_brushes' }, { command: 'displace' }).error?.message ?? '').toMatch(hint);
     expect(run(cube, { command: 'select_brushes' }, { command: 'flip_faces' }).error?.message ?? '').toMatch(hint);

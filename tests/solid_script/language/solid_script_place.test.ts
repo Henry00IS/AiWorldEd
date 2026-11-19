@@ -94,7 +94,7 @@ describe('SolidScript Place At Points', () => {
       printed(
         line('cube', { size: '2, 2, 2', anchor: 'Center, Center, Center' }),
         line('select_brushes'),
-        line('select_faces', { which: 'Up' }),
+        line('select_faces', { which: 'Facing Up' }),
         line('place_on_face', { into: 'Posts' }),
         line('cube', { size: '0.2, 0.2, 0.2', anchor: 'Center, Bottom, Center' }),
         END,

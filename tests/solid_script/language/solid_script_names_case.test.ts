@@ -77,7 +77,7 @@ describe('names ignore case', () => {
       solidScriptDocumentCreate([
         { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } },
         { command: 'select_brushes' },
-        { command: 'select_faces', values: { which: 'Up' } },
+        { command: 'select_faces', values: { which: 'Facing Up' } },
         { command: 'for_each', values: { variable: 'Face', list: '[$Selected.Faces]' } },
         echo('[face.center.y] [FACE.CENTER.Y]'),
         { command: 'end' },

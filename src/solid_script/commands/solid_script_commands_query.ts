@@ -18,21 +18,20 @@ export const SOLID_SCRIPT_COMMANDS_QUERY: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Find the closest point on faces, or the first hit along a ray',
     manual:
-      'Looks at the faces in Of, or [$Selected.Faces] when Of is empty, and writes what it finds. How Closest (the default) picks the nearest point to From on any of those faces. Ray follows Direction from From and picks the first face it meets. Into gets the point, Distance how far it is, Normal the way the face looks, Face the face, and Hit whether a face was found. Example: Cube, Select Faces All, Find On Closest From 0, 2, 0 Into [Spot] Face [Top] Hit [Found].',
-    stops: ['No faces.', 'A From or Direction that is not x, y, z.', 'A Direction of 0, 0, 0, when How is Ray.'],
+      'Looks at the faces in Of, or [$Selected.Faces] when Of is empty, and writes what it finds. How Closest (the default) picks the nearest point to From on any of those faces. Along Ray follows Direction from From and picks the first face it meets. Into gets the point, Distance how far it is, Normal the way the face looks, Face the face, and Hit whether a face was found. Example: Cube, Select Faces All, Find On Closest From 0, 2, 0 Into [Spot] Face [Top] Hit [Found].',
+    stops: ['No faces.', 'A From or Direction that is not x, y, z.', 'A Direction of 0, 0, 0, when How is Along Ray.'],
     parameters: [
       solidScriptParameterWords(
         'how',
         'How',
         'text',
         'Closest',
-        'How to look: Closest for the nearest point to From, or Ray for the first face the ray meets.',
+        'How to look: Closest for the nearest point to From, or Along Ray for the first face the ray meets.',
         [
           { word: 'Closest', detail: 'The nearest point to From on any face' },
           {
-            word: 'Ray',
-            detail:
-              'The first face the ray from From along Direction meets. Example: Find On How Ray From 0, 2, 0 Direction 0, -1, 0.',
+            word: 'Along Ray',
+            detail: 'The first face the ray from From along Direction meets',
           },
         ],
       ),
@@ -49,10 +48,10 @@ export const SOLID_SCRIPT_COMMANDS_QUERY: readonly SolidScriptCommand[] = [
           'Direction',
           'vector3',
           '0, 1, 0',
-          'The way the ray travels, when How is Ray.',
+          'The way the ray travels, when How is Along Ray.',
         ),
         'how',
-        ['Ray'],
+        ['Along Ray'],
       ),
       solidScriptParameterOf('faces or brushes', '$Selected.Faces'),
       {
@@ -78,7 +77,7 @@ export const SOLID_SCRIPT_COMMANDS_QUERY: readonly SolidScriptCommand[] = [
     ],
     listing: (read) => {
       const how = read.text('how').trim();
-      const ray = how.toLowerCase() === 'ray';
+      const ray = how.toLowerCase() === 'along ray';
       return [
         'Find On',
         ...(how === '' || how.toLowerCase() === 'closest' ? [] : [' ', read.value('how')]),

@@ -27,7 +27,7 @@ function members(lines: SolidScriptLine[], text: string): string[] {
 describe('SolidScript Set', () => {
   it('lets a variable hold any kind, and another kind later', () => {
     expect(outcome(set('X', '2'), set('X', 'oak'), line('echo', { value: '[X]' }))).toEqual(['oak']);
-    const top = line('select_faces', { which: 'Up' });
+    const top = line('select_faces', { which: 'Facing Up' });
     expect(
       outcome(CUBE, line('select_brushes'), top, set('F', '[$Selected.Faces]'), line('echo', { value: '[F.Count]' })),
     ).toEqual(['1']);

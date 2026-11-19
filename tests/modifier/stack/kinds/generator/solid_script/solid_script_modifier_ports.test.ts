@@ -12,7 +12,6 @@ import {
   solidScriptDocumentUsesWith,
 } from '@/solid_script/document/solid_script_document.js';
 import { SOLID_SCRIPT_EXAMPLES } from '@/solid_script/examples/solid_script_examples.js';
-import { solidScriptExampleChoiceWord } from '@/solid_script/examples/solid_script_example_choices.js';
 import { MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
 
 /** Parameters of the built-in modifier, and the matching inputs of its port. */
@@ -89,10 +88,7 @@ function both(id: string, test: ModifierCase) {
   const example = SOLID_SCRIPT_EXAMPLES.find((entry) => entry.id === id);
   if (!example?.uses) throw new Error(`no modifier example ${id}`);
   const script = solidScriptDocumentUsesWith(solidScriptDocumentCreate(example.lines, example.name), example.uses);
-  const inputs = Object.fromEntries(
-    Object.entries(test.inputs).map(([key, value]) => [key, solidScriptExampleChoiceWord(value)]),
-  );
-  const port = compiled(MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND, { script, inputs });
+  const port = compiled(MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND, { script, inputs: test.inputs });
   const builtIn = compiled(id, test.parameters);
   return { port, builtIn };
 }

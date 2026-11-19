@@ -337,13 +337,15 @@ describe('solid script command catalog', () => {
       (solidScriptCommandFind(id)?.parameters.find((parameter) => parameter.key === key)?.words ?? []).map(
         (entry) => entry.word,
       );
-    expect(word('select_faces', 'which')).toEqual(expect.arrayContaining(['All', 'New', 'Up', 'Tagged', 'Where']));
+    expect(word('select_faces', 'which')).toEqual(
+      expect.arrayContaining(['All', 'New', 'Facing Up', 'Tagged', 'Where']),
+    );
     expect(word('select_brushes', 'which')).toEqual(['All', 'New', 'Where']);
     expect(word('select_edges', 'which')).toEqual(expect.arrayContaining(['All', 'New', 'Where']));
     expect(word('select_vertices', 'which')).toEqual(expect.arrayContaining(['All', 'New', 'Where']));
     expect(word('select_faces', 'how')).toEqual(['New', 'Add', 'Remove']);
     expect(word('if_used_as', 'use')).toEqual(['Generator', 'Modifier']);
-    expect(word('input_brushes', 'textures')).toEqual(['Follow', 'World']);
+    expect(word('input_brushes', 'textures')).toEqual(['Move With Shape', 'World Aligned']);
     expect(word('input', 'type')).toContain('Texture');
     expect(word('stairs', 'direction')).toEqual(['Right', 'Left', 'Front', 'Back']);
     const missing = solidScriptCommands.flatMap((command) =>

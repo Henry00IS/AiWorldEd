@@ -113,7 +113,7 @@ describe('solidScriptSolidTreeBuild', () => {
       { command: 'transform', values: { rotate: '0, 0, 90' } },
       CUBE,
       { command: 'select_brushes' },
-      { command: 'select_faces', values: { which: 'Up' } },
+      { command: 'select_faces', values: { which: 'Facing Up' } },
       { command: 'select_brushes' },
       { command: 'texture_faces', values: { texture: 'grass' } },
       END,

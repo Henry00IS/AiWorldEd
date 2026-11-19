@@ -15,7 +15,7 @@ import {
 const PICKED: SolidScriptLine[] = [
   { command: 'cube', values: {} },
   { command: 'select_brushes' },
-  { command: 'select_faces', values: { which: 'Up' } },
+  { command: 'select_faces', values: { which: 'Facing Up' } },
   { command: 'cube', values: {} },
 ];
 

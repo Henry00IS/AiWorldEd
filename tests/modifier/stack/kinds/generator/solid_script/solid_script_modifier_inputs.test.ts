@@ -9,7 +9,6 @@ import {
   type SolidScriptInputLayoutItem,
 } from '@/solid_script/document/solid_script_document_inputs.js';
 import { SOLID_SCRIPT_EXAMPLES } from '@/solid_script/examples/solid_script_examples.js';
-import { solidScriptExampleChoiceWord } from '@/solid_script/examples/solid_script_example_choices.js';
 
 /** Inspector groups the ports do not rebuild yet. */
 const SOLID_SCRIPT_MODIFIER_SKIP_GROUPS = new Set(['Caps', 'Randomize']);
@@ -61,7 +60,7 @@ function solidScriptModifierInputDefault(field: ModifierStackField): string {
   if (field.type === 'boolean') return field.default ? 'Yes' : 'No';
   if (field.type === 'choice') {
     const match = (field.choices ?? []).find((choice) => choice.value === field.default);
-    if (match) return solidScriptExampleChoiceWord(match.label);
+    if (match) return match.label;
   }
   return String(field.default);
 }
@@ -144,9 +143,7 @@ describe('SolidScript modifier example inputs', () => {
         expect(input.fallback.trim(), field.label).toBe(solidScriptModifierInputDefault(field));
         expect(input.min, `${field.label} min`).toBe(field.min ?? null);
         expect(input.max, `${field.label} max`).toBe(field.max ?? null);
-        expect(input.choices, field.label).toEqual(
-          (field.choices ?? []).map((choice) => solidScriptExampleChoiceWord(choice.label)),
-        );
+        expect(input.choices, field.label).toEqual((field.choices ?? []).map((choice) => choice.label));
         expect(rows[index]?.group, field.label).toBe(field.group ?? '');
       }
       for (const parameters of solidScriptModifierSnapshots(kind?.fields ?? [])) {

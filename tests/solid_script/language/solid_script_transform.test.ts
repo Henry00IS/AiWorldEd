@@ -76,7 +76,7 @@ describe('SolidScript Transform and flat transform tools', () => {
     const placed = run(
       { command: 'cube', values: { size: '1, 1, 1', anchor: 'Center, Center, Center' } },
       { command: 'select_brushes' },
-      { command: 'select_faces', values: { which: 'Up', into: 'Top' } },
+      { command: 'select_faces', values: { which: 'Facing Up', into: 'Top' } },
       { command: 'place_on_face', values: { of: '[Top]' } },
       child,
       { command: 'end' },
@@ -84,7 +84,7 @@ describe('SolidScript Transform and flat transform tools', () => {
     const transformed = run(
       { command: 'cube', values: { size: '1, 1, 1', anchor: 'Center, Center, Center' } },
       { command: 'select_brushes' },
-      { command: 'select_faces', values: { which: 'Up', into: 'Top' } },
+      { command: 'select_faces', values: { which: 'Facing Up', into: 'Top' } },
       { command: 'transform', values: { on: '[Top]' } },
       child,
       { command: 'end' },

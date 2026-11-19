@@ -78,7 +78,7 @@ export const SOLID_SCRIPT_EXAMPLE_CONE: readonly SolidScriptLine[] = [
 export const SOLID_SCRIPT_EXAMPLE_SPHERE: readonly SolidScriptLine[] = [
   solidScriptExampleNote('Sphere: rings from the bottom pole to the top pole, each sized by how far round it is.'),
   SOLID_SCRIPT_EXAMPLE_SIDES,
-  solidScriptExampleInput('Coverage', 'Choice', 'Sphere', { label: 'Shape', choices: 'Sphere, Dome' }),
+  solidScriptExampleInput('Coverage', 'Choice', 'Full Sphere', { label: 'Shape', choices: 'Full Sphere, Dome' }),
   solidScriptExampleInput('Rings', 'Count', '8', { label: 'Rings', min: '2', max: '32' }),
   solidScriptExampleSet('From', '-90'),
   solidScriptExampleSet('Equator', '0'),

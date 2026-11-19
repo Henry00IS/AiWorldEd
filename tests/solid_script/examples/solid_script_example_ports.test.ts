@@ -13,7 +13,6 @@ import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { solidHullBrushFromPoints } from '@/solid/algorithm/surface/solid_hull_brush.js';
 import { SOLID_SCRIPT_EXAMPLES, solidScriptExamplesFind } from '@/solid_script/examples/solid_script_examples.js';
 import { solidScriptBuiltinFind } from '@/solid_script/language/solid_script_expression_compile.js';
-import { solidScriptGeneratorChoiceStoredOf } from '@/solid_script/commands/solid_script_generator_choices.js';
 
 /** One parameter set a port is checked with. */
 interface PortCase {
@@ -92,24 +91,6 @@ function portPieces(id: string, test: PortCase): string[] {
 }
 
 /**
- * Turns script choice words in a port case into the stored values of the box
- * generator.
- *
- * @param parameters Script parameter values.
- * @returns Values the box generator stores.
- */
-function productionParameters(
-  parameters: Record<string, string | number | boolean>,
-): Record<string, string | number | boolean> {
-  return Object.fromEntries(
-    Object.entries(parameters).map(([key, value]) => [
-      key,
-      typeof value === 'string' ? solidScriptGeneratorChoiceStoredOf(key, value) : value,
-    ]),
-  );
-}
-
-/**
  * Pieces the generator builds in the same editor box, as keys.
  *
  * @param kind Generator kind id.
@@ -120,7 +101,7 @@ function generatorPieces(kind: string, test: PortCase): string[] {
   const generator = modifierStackKindFind(kind);
   if (!(generator instanceof ModifierStackKindGenerator)) throw new Error(`no generator ${kind}`);
   return generator
-    .previewPieces(productionParameters(test.parameters), portBox(test))
+    .previewPieces(test.parameters, portBox(test))
     .map((piece) => pieceKey(piece.vertices))
     .sort();
 }
@@ -193,9 +174,9 @@ const PORT_CASES: Record<string, PortCase[]> = {
   ],
   prism: [
     { size: [2, 2, 2], parameters: {} },
-    { size: [3, 1, 2], parameters: { sides: 6, axis: 'X' } },
+    { size: [3, 1, 2], parameters: { sides: 6, axis: 'Along X' } },
     { size: [1, 2, 4], parameters: { sides: 5, axis: 'Upright' } },
-    { size: [2, 3, 1], parameters: { sides: 4, axis: 'Z' } },
+    { size: [2, 3, 1], parameters: { sides: 4, axis: 'Along Z' } },
   ],
   hollowBox: [
     { size: [4, 3, 2], parameters: {} },
@@ -206,11 +187,11 @@ const PORT_CASES: Record<string, PortCase[]> = {
     { size: [4, 1, 3], parameters: {} },
     {
       size: [4, 1, 3],
-      parameters: { style: 'Wall', shape: 'Stretch', segments: 8, thickness: 0.5 },
+      parameters: { style: 'Wall With Opening', shape: 'Stretch To Top', segments: 8, thickness: 0.5 },
     },
-    { size: [1, 5, 2], parameters: { style: 'Tunnel', span: 'Z', segments: 6 } },
-    { size: [3, 2, 1], parameters: { sweep: 90, start: 'Left', segments: 5, thickness: 0.3, span: 'Z' } },
-    { size: [3, 2, 4], parameters: { sweep: 120, start: 'Right', shape: 'Stretch' } },
+    { size: [1, 5, 2], parameters: { style: 'Tunnel', span: 'Along Z', segments: 6 } },
+    { size: [3, 2, 1], parameters: { sweep: 90, start: 'Left', segments: 5, thickness: 0.3, span: 'Along Z' } },
+    { size: [3, 2, 4], parameters: { sweep: 120, start: 'Right', shape: 'Stretch To Top' } },
   ],
   pipe: [
     { size: [4, 4, 2], parameters: {} },
@@ -231,11 +212,11 @@ const PORT_CASES: Record<string, PortCase[]> = {
     { size: [2, 4, 2], parameters: {} },
     {
       size: [4, 2, 2],
-      parameters: { direction: 'Left', sizing: 'Count', count: 6, landing: 1, nosing: 0.05, noseEdge: 0.01 },
+      parameters: { direction: 'Left', sizing: 'Step Count', count: 6, landing: 1, nosing: 0.05, noseEdge: 0.01 },
     },
-    { size: [3, 3, 1.5], parameters: { direction: 'Right', fill: 'Solid', rise: 0.25 } },
-    { size: [2, 3, 2], parameters: { direction: 'Back', fill: 'Floating', thickness: 0.05, nosing: 0.04 } },
-    { size: [2, 5, 3], parameters: { sizing: 'Count', count: 10, waist: 0.3, landing: 1.5 } },
+    { size: [3, 3, 1.5], parameters: { direction: 'Right', fill: 'Solid To Floor', rise: 0.25 } },
+    { size: [2, 3, 2], parameters: { direction: 'Back', fill: 'Floating Treads', thickness: 0.05, nosing: 0.04 } },
+    { size: [2, 5, 3], parameters: { sizing: 'Step Count', count: 10, waist: 0.3, landing: 1.5 } },
   ],
 };
 

@@ -54,15 +54,15 @@ describe('SolidScript mistake hints', () => {
     );
   });
 
-  it('does not hint a missing $ on the Arch Span Along choice X', () => {
+  it('does not hint a missing $ on the Arch Span Along choice Along X', () => {
     const span = solidScriptCommandFind('arch')!.parameters.find((parameter) => parameter.key === 'span')!;
-    expect(span.words?.map((entry) => entry.word)).toContain('X');
-    expect(solidScriptFieldMistakeOf(span, 'X')).toBe('');
-    const document = solidScriptDocumentCreate([line('arch', { span: 'X' }), line('end')]);
+    expect(span.words?.map((entry) => entry.word)).toContain('Along X');
+    expect(solidScriptFieldMistakeOf(span, 'Along X')).toBe('');
+    const document = solidScriptDocumentCreate([line('arch', { span: 'Along X' }), line('end')]);
     expect(
       solidScriptMistakeCheck(document).filter((warning) => warning.text.includes('system values start with $')),
     ).toEqual([]);
-    expect(solidScriptConfiguratorFieldBuild(span, 'X', () => {}).warning()).not.toContain(
+    expect(solidScriptConfiguratorFieldBuild(span, 'Along X', () => {}).warning()).not.toContain(
       'system values start with $',
     );
   });

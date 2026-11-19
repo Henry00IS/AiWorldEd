@@ -32,7 +32,7 @@ import { solidScriptValueNumber, solidScriptValueNumbers } from '@/solid_script/
 const SOLID_SCRIPT_SWEEP_SIDES_MAX = 64;
 
 /** Shapes a Path line can build. */
-const SOLID_SCRIPT_PATH_SHAPES = ['Line', 'Arc', 'Spiral', 'Points'] as const;
+const SOLID_SCRIPT_PATH_SHAPES = ['Line', 'Arc', 'Spiral', 'From Points'] as const;
 
 /** One Shape word. */
 type SolidScriptPathShape = (typeof SOLID_SCRIPT_PATH_SHAPES)[number];
@@ -70,7 +70,7 @@ function solidScriptSweepProfile(run: SolidScriptBlockRun): THREE.Vector2[] {
 function solidScriptPathShapeOf(run: SolidScriptBlockRun): SolidScriptPathShape {
   const text = run.text('shape').trim() || 'Line';
   const match = SOLID_SCRIPT_PATH_SHAPES.find((word) => word.toLowerCase() === text.toLowerCase());
-  if (!match) throw new Error(`Shape needs Line, Arc, Spiral or Points, not ${text}`);
+  if (!match) throw new Error(`Shape needs Line, Arc, Spiral or From Points, not ${text}`);
   return match;
 }
 
@@ -114,7 +114,7 @@ function solidScriptPathFieldNumber(run: SolidScriptBlockRun, key: string, label
  */
 function solidScriptPathBuild(run: SolidScriptBlockRun): THREE.Vector3[] {
   const shape = solidScriptPathShapeOf(run);
-  if (shape === 'Points') return solidScriptPathFromPoints(run);
+  if (shape === 'From Points') return solidScriptPathFromPoints(run);
   const count = solidScriptPathFieldNumber(run, 'count', 'Count');
   if (shape === 'Line')
     return solidScriptPathLine(
@@ -265,9 +265,9 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Build a list of points along a line, arc, spiral or polyline',
     manual:
-      'Writes a list of points to Into, for Curve To Mesh, Place At Points or PathAt. Shape Line (the default) walks from From to To. Arc turns around Center in the plane facing Normal, from Start by Sweep degrees, the same way as RotateVector around Normal; a negative Sweep turns the other way. Spiral also climbs Height along Normal while the radius moves from Radius to End Radius, for Turns of a rotation. Points uses the corners in Points; Radius rounds those corners, with Sides segments on each, and Closed joins the last point back to the first. Count is how many points Line, Arc and Spiral write. Example: Path Line From 0, 0, 0 To 4, 0, 0 Count 8 Into [Rail], then Curve To Mesh along [Rail].',
+      'Writes a list of points to Into, for Curve To Mesh, Place At Points or PathAt. Shape Line (the default) walks from From to To. Arc turns around Center in the plane facing Normal, from Start by Sweep degrees, the same way as RotateVector around Normal; a negative Sweep turns the other way. Spiral also climbs Height along Normal while the radius moves from Radius to End Radius, for Turns of a rotation. From Points uses the corners in Points; Radius rounds those corners, with Sides segments on each, and Closed joins the last point back to the first. Count is how many points Line, Arc and Spiral write. Example: Path Line From 0, 0, 0 To 4, 0, 0 Count 8 Into [Rail], then Curve To Mesh along [Rail].',
     stops: [
-      'A Shape other than Line, Arc, Spiral or Points.',
+      'A Shape other than Line, Arc, Spiral or From Points.',
       'A Count that is not a whole number from 2 to 10000, when Shape is Line, Arc or Spiral.',
       'From and To at the same point, a Sweep or Turns of 0, a Radius of 0 on an Arc, or a Normal of 0, 0, 0.',
       'A Points list with fewer than 2 different points, or 3 when Closed or when rounding corners.',
@@ -275,16 +275,19 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
       'An empty Into.',
     ],
     parameters: [
-      solidScriptParameterWords('shape', 'Shape', 'text', 'Line', 'The kind of path: Line, Arc, Spiral or Points.', [
-        { word: 'Line', detail: 'A straight line from From to To' },
-        { word: 'Arc', detail: 'A circular arc around Center' },
-        { word: 'Spiral', detail: 'A spiral or helix around Center' },
-        {
-          word: 'Points',
-          detail:
-            'The path visits the corners in Points, with optional rounding. Example: Shape Points, then list the corners.',
-        },
-      ]),
+      solidScriptParameterWords(
+        'shape',
+        'Shape',
+        'text',
+        'Line',
+        'The kind of path: Line, Arc, Spiral or From Points.',
+        [
+          { word: 'Line', detail: 'A straight line from From to To' },
+          { word: 'Arc', detail: 'A circular arc around Center' },
+          { word: 'Spiral', detail: 'A spiral or helix around Center' },
+          { word: 'From Points', detail: 'The corners in Points, with optional rounding' },
+        ],
+      ),
       solidScriptParameterWhen(
         solidScriptParameter('from', 'From', 'vector3', '0, 0, 0', 'Start of the line, in metres.'),
         'shape',
@@ -380,7 +383,7 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
           'Corners of the path, such as a list variable.',
         ),
         'shape',
-        ['Points'],
+        ['From Points'],
       ),
       solidScriptParameterWhen(
         solidScriptParameter(
@@ -391,7 +394,7 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
           'Metres to round each corner by; 0 keeps the corners sharp.',
         ),
         'shape',
-        ['Points'],
+        ['From Points'],
       ),
       solidScriptParameterWhen(
         solidScriptParameter(
@@ -402,7 +405,7 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
           `Segments of each rounded corner, ${SOLID_SCRIPT_PATH_CORNER_SIDES_MIN} to ${SOLID_SCRIPT_PATH_CORNER_SIDES_MAX}.`,
         ),
         'shape',
-        ['Points'],
+        ['From Points'],
       ),
       solidScriptParameterWhen(
         solidScriptParameter(
@@ -413,7 +416,7 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
           'Yes: join the last point back to the first, and round that corner too.',
         ),
         'shape',
-        ['Points'],
+        ['From Points'],
       ),
       solidScriptParameterWhen(
         solidScriptParameter(

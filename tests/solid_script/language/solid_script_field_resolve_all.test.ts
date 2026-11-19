@@ -84,7 +84,7 @@ describe('fields that used to be read as typed now read names', () => {
   it('picks faces by a Which held in a variable', () => {
     const run = solidScriptProgramRun(
       solidScriptDocumentCreate([
-        { command: 'variable', values: { name: 'Side', value: 'Up' } },
+        { command: 'variable', values: { name: 'Side', value: 'Facing Up' } },
         { command: 'cube', values: { into: 'B' } },
         { command: 'select_faces', values: { which: '[Side]', of: '[B]', into: 'F' } },
         { command: 'echo', values: { value: '[F.Count]' } },

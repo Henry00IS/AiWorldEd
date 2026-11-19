@@ -119,9 +119,9 @@ export const SOLID_SCRIPT_EXAMPLE_CURVED_STAIRS: readonly SolidScriptLine[] = [
   solidScriptExampleInput('Steps', 'Count', '12', { label: 'Steps', min: '2', max: '128' }),
   solidScriptExampleInput('Sweep', 'Number', '270', { label: 'Sweep Angle', min: '1', max: '1440' }),
   solidScriptExampleInput('InnerRadius', 'Number', '0.3', { label: 'Inner Radius', min: '0', max: '0.95' }),
-  solidScriptExampleInput('Direction', 'Choice', 'Counterclockwise', {
+  solidScriptExampleInput('Direction', 'Choice', 'Counter Clockwise', {
     label: 'Direction',
-    choices: 'Counterclockwise, Clockwise',
+    choices: 'Counter Clockwise, Clockwise',
   }),
   solidScriptExampleInput('StepDetail', 'Count', '2', { label: 'Step Detail', min: '1', max: '16' }),
   solidScriptExampleInput('FillToFloor', 'Switch', 'Yes', { label: 'Fill To Floor' }),
