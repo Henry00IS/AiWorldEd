@@ -18,7 +18,7 @@ describe('SolidScript Select Edges and Select Vertices', () => {
     expect(
       printed(
         CUBE,
-        line('select_faces', { which: 'Facing Up', into: 'Top' }),
+        line('select_faces', { which: 'Up', into: 'Top' }),
         line('select_edges', { of: '[Top]', into: 'Rim' }),
         line('echo', { value: '[Rim.Count] [$Selected.Edges.Count] [Rim.First.Length]' }),
       ),

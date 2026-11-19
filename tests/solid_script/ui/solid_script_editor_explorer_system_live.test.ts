@@ -14,7 +14,7 @@ import {
 /** A cube, its top face picked, then a second cube. */
 const PICKED: SolidScriptLine[] = [
   { command: 'cube', values: {} },
-  { command: 'select_faces', values: { which: 'Facing Up' } },
+  { command: 'select_faces', values: { which: 'Up' } },
   { command: 'cube', values: {} },
 ];
 

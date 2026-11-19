@@ -10,7 +10,7 @@ import * as THREE from 'three';
 
 const END: SolidScriptLine = { command: 'end' };
 const SELECT_ALL: SolidScriptLine = { command: 'select_faces', values: { which: 'All' } };
-const SELECT_UP: SolidScriptLine = { command: 'select_faces', values: { which: 'Facing Up' } };
+const SELECT_UP: SolidScriptLine = { command: 'select_faces', values: { which: 'Up' } };
 const EACH_FACE: SolidScriptLine = { command: 'for_each', values: { variable: 'Face', list: '[$Selected.Faces]' } };
 
 /**

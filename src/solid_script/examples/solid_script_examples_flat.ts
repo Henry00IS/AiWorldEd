@@ -35,7 +35,7 @@ export const SOLID_SCRIPT_EXAMPLE_PYRAMID: readonly SolidScriptLine[] = [
 export const SOLID_SCRIPT_EXAMPLE_PRISM: readonly SolidScriptLine[] = [
   solidScriptExampleNote('Prism: a regular outline stretched to the box, copied at both ends of its axis.'),
   solidScriptExampleInput('Sides', 'Count', '3', { label: 'Sides', min: '3', max: '12' }),
-  solidScriptExampleInput('Axis', 'Choice', 'Along Z', { label: 'Axis', choices: 'Along Z, Along X, Upright' }),
+  solidScriptExampleInput('Axis', 'Choice', 'Z', { label: 'Axis', choices: 'Z, X, Upright' }),
   solidScriptExampleNote('First find how far the outline reaches, so it can be stretched to fill the box.'),
   solidScriptExampleSet('Low', '1, 1'),
   solidScriptExampleSet('High', '-1, -1'),
@@ -54,7 +54,7 @@ export const SOLID_SCRIPT_EXAMPLE_PRISM: readonly SolidScriptLine[] = [
       ),
       ...solidScriptExampleRepeat('End', '-1', '1', [
         ...solidScriptExampleIf('[End] != 0', [
-          ...solidScriptExampleIf('[Axis] == "Along X"', [
+          ...solidScriptExampleIf('[Axis] == "X"', [
             solidScriptExamplePoint(
               '[=[End] * [Half.X]], [=-[Half.Y] + [$Box.Height] * [U.Y]], [=[$Box.Depth] * [U.X] - [Half.Z]]',
             ),
@@ -64,7 +64,7 @@ export const SOLID_SCRIPT_EXAMPLE_PRISM: readonly SolidScriptLine[] = [
               '[=-[Half.X] + [$Box.Width] * [U.X]], [=[End] * [Half.Y]], [=[$Box.Depth] * [U.Y] - [Half.Z]]',
             ),
           ]),
-          ...solidScriptExampleIf('[Axis] == "Along Z"', [
+          ...solidScriptExampleIf('[Axis] == "Z"', [
             solidScriptExamplePoint(
               '[=-[Half.X] + [$Box.Width] * [U.X]], [=-[Half.Y] + [$Box.Height] * [U.Y]], [=[End] * [Half.Z]]',
             ),
@@ -142,27 +142,24 @@ export const SOLID_SCRIPT_EXAMPLE_ARCH: readonly SolidScriptLine[] = [
   solidScriptExampleNote(
     'Arch: a half ellipse cut into segments. A ring makes one stone per segment, a wall fills up to the top beside two piers, and a tunnel fills the opening.',
   ),
-  solidScriptExampleInput('Style', 'Choice', 'Voussoir Ring', {
+  solidScriptExampleInput('Style', 'Choice', 'Voussoir', {
     label: 'Style',
-    choices: 'Voussoir Ring, Wall With Opening, Tunnel',
+    choices: 'Voussoir, Wall, Tunnel',
   }),
-  solidScriptExampleInput('Span', 'Choice', 'Along X', { label: 'Span Along', choices: 'Along X, Along Z' }),
-  solidScriptExampleInput('Shape', 'Choice', 'Round', { label: 'Shape', choices: 'Round, Stretch To Top' }),
+  solidScriptExampleInput('Span', 'Choice', 'X', { label: 'Span Along', choices: 'X, Z' }),
+  solidScriptExampleInput('Shape', 'Choice', 'Round', { label: 'Shape', choices: 'Round, Stretch' }),
   solidScriptExampleInput('Segments', 'Count', '16', { label: 'Segments', min: '2', max: '128' }),
   solidScriptExampleInput('Sweep', 'Number', '180', { label: 'Sweep °', min: '1', max: '180' }),
   solidScriptExampleInput('Start', 'Choice', 'Center', { label: 'Start From', choices: 'Center, Left, Right' }),
   solidScriptExampleInput('Thickness', 'Number', '0.25', { label: 'Thickness', min: '0.01', max: '100' }),
   solidScriptExampleNote('The arch rises along Y and spans X, or Z when Span Along is z.'),
-  solidScriptExampleSet('AlongX', '[=[Span] == "Along X"]'),
+  solidScriptExampleSet('AlongX', '[=[Span] == "X"]'),
   solidScriptExampleSet('Half', '[=([AlongX] ? [$Box.Width] : [$Box.Depth]) / 2]'),
   solidScriptExampleSet('Across', '[=([AlongX] ? [$Box.Depth] : [$Box.Width]) / 2]'),
   solidScriptExampleSet('Thick', '[=[Style] == "Tunnel" ? 0 : [Thickness]]'),
   solidScriptExampleSet('Rx', '[=[Half] - [Thick]]'),
-  solidScriptExampleSet(
-    'Ry',
-    '[=[Shape] == "Stretch To Top" ? [$Box.Height] - [Thick] : Min([Rx], [$Box.Height] - [Thick])]',
-  ),
-  solidScriptExampleSet('Arc', '[=[Style] == "Voussoir Ring" ? [Sweep] : 180]'),
+  solidScriptExampleSet('Ry', '[=[Shape] == "Stretch" ? [$Box.Height] - [Thick] : Min([Rx], [$Box.Height] - [Thick])]'),
+  solidScriptExampleSet('Arc', '[=[Style] == "Voussoir" ? [Sweep] : 180]'),
   solidScriptExampleSet('First', '[=[Start] == "Right" ? 0 : ([Start] == "Left" ? 180 - [Arc] : (180 - [Arc]) / 2)]'),
   solidScriptExampleSet('Floor', '[=-[$Box.Height] / 2]'),
   solidScriptExampleSet('Top', '[=[$Box.Height] / 2]'),
@@ -185,7 +182,7 @@ export const SOLID_SCRIPT_EXAMPLE_ARCH: readonly SolidScriptLine[] = [
     ),
   ]),
   ...solidScriptExampleIf('[Rx] >= 0.0001 and [Ry] >= 0.0001', [
-    ...solidScriptExampleIf('[Style] == "Wall With Opening"', [
+    ...solidScriptExampleIf('[Style] == "Wall"', [
       solidScriptExampleNote('The piers beside the opening.'),
       ...solidScriptExampleRepeat('Side', '0', '1', [
         solidScriptExampleSet('Inner', '[=[Side] == 0 ? -[Rx] : [Rx]]'),
@@ -203,7 +200,7 @@ export const SOLID_SCRIPT_EXAMPLE_ARCH: readonly SolidScriptLine[] = [
       solidScriptExampleSet('B', '[=Corner([I] + 1, 0)]'),
       solidScriptExampleLine('clear_variable', { name: 'Outline' }),
       ...solidScriptExampleIf(
-        '[Style] == "Voussoir Ring"',
+        '[Style] == "Voussoir"',
         [
           solidScriptExampleArchCorner('[A]'),
           solidScriptExampleArchCorner('[=Corner([I], [Thick])]'),
@@ -211,7 +208,7 @@ export const SOLID_SCRIPT_EXAMPLE_ARCH: readonly SolidScriptLine[] = [
           solidScriptExampleArchCorner('[B]'),
         ],
         solidScriptExampleIf(
-          '[Style] == "Wall With Opening"',
+          '[Style] == "Wall"',
           [
             solidScriptExampleArchCorner('[A]'),
             solidScriptExampleArchCorner('[B]'),

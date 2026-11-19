@@ -4,7 +4,7 @@ import { solidScriptValueNumbers } from './solid_script_value.js';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
 
 /** How Find On can look for a face. */
-export const SOLID_SCRIPT_FIND_HOW = ['Closest', 'Along Ray'] as const;
+export const SOLID_SCRIPT_FIND_HOW = ['Closest', 'Ray'] as const;
 
 /** One of the How words. */
 export type SolidScriptFindHow = (typeof SOLID_SCRIPT_FIND_HOW)[number];
@@ -31,7 +31,7 @@ export function solidScriptFindOn(
 ): SolidScriptFindHit {
   const from = solidScriptFindVector(run, 'from', 'From');
   const how = solidScriptFindHow(run);
-  if (how === 'Along Ray') return solidScriptFindRay(from, solidScriptFindDirection(run), faces);
+  if (how === 'Ray') return solidScriptFindRay(from, solidScriptFindDirection(run), faces);
   return solidScriptFindClosest(from, faces);
 }
 
@@ -44,7 +44,7 @@ export function solidScriptFindOn(
 function solidScriptFindHow(run: SolidScriptBlockRun): SolidScriptFindHow {
   const text = run.text('how').trim() || 'Closest';
   const match = SOLID_SCRIPT_FIND_HOW.find((word) => word.toLowerCase() === text.toLowerCase());
-  if (!match) throw new Error(`How needs Closest or Along Ray, not ${text}`);
+  if (!match) throw new Error(`How needs Closest or Ray, not ${text}`);
   return match;
 }
 

@@ -52,10 +52,8 @@ import {
   type SolidScriptValue,
 } from '@/solid_script/language/solid_script_value.js';
 
-/** Ways Select Faces picks, with the direction of each Facing choice. */
-const SOLID_SCRIPT_FACE_DIRECTIONS: Readonly<Record<string, THREE.Vector3>> = Object.fromEntries(
-  Object.entries(SOLID_SCRIPT_AXES_FACING).map(([word, direction]) => [`Facing ${word}`, direction]),
-);
+/** Ways Select Faces picks, with the direction of each side choice. */
+const SOLID_SCRIPT_FACE_DIRECTIONS: Readonly<Record<string, THREE.Vector3>> = SOLID_SCRIPT_AXES_FACING;
 
 /**
  * Every choice of Select Faces' Which field with what it picks, in the order
@@ -68,7 +66,7 @@ const SOLID_SCRIPT_FACE_WHICH_WORDS: readonly SolidScriptCommandWord[] = [
     const sign = direction[axis] > 0 ? '+' : '−';
     return {
       word,
-      detail: `Faces pointing ${word.slice('Facing '.length).toLowerCase()} (${sign}${axis.toUpperCase()})`,
+      detail: `Faces pointing ${word.toLowerCase()} (${sign}${axis.toUpperCase()}). Example: Select Faces Which ${word}, then Extrude Face By 1.`,
     };
   }),
   { word: 'Facing', detail: 'Faces pointing along Detail' },
@@ -151,20 +149,20 @@ function solidScriptFacePickRead(run: SolidScriptBlockRun): SolidScriptFacePick 
 }
 
 /**
- * Lists a Scatter Points line: the On Faces form stays as it was, so existing
- * scripts look the same, and other Where values show only the fields they use.
+ * Lists a Scatter Points line: the default Faces form omits Where, and other
+ * Where values show only the fields they use.
  *
  * @param read Line values.
  * @returns Listing parts.
  */
 function solidScriptScatterListing(read: SolidScriptListingValues): SolidScriptListingPiece[] {
   const where = read.text('where').trim();
-  if (where === '' || where.toLowerCase() === 'on faces') return solidScriptScatterListingFaces(read);
+  if (where === '' || where.toLowerCase() === 'faces') return solidScriptScatterListingFaces(read);
   return solidScriptScatterListingOther(read, where);
 }
 
 /**
- * Lists a Scatter Points line whose Where is On Faces, or empty (the default).
+ * Lists a Scatter Points line whose Where is Faces, or empty (the default).
  *
  * @param read Line values.
  * @returns Listing parts.
@@ -184,7 +182,7 @@ function solidScriptScatterListingFaces(read: SolidScriptListingValues): SolidSc
 }
 
 /**
- * Lists a Scatter Points line whose Where is not On Faces.
+ * Lists a Scatter Points line whose Where is not Faces.
  *
  * @param read Line values.
  * @param where Where word or variable.
@@ -306,7 +304,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     description: 'Pick faces of brushes',
     fills: ['$Face', '$Index', '$CX', '$CY', '$CZ', '$NX', '$NY', '$NZ'],
     manual:
-      'Picks faces and puts them in [$Selected.Faces], where Extrude Face, Inset Face, Bevel Edges, Delete Faces and Texture Faces find them when their Of is empty. Of says where to pick from: brushes (all their faces) or faces (a list to narrow down); empty uses [$Selected.Brushes], every brush built above. Into also writes the faces to a variable, a Face list. Where tests each face as [$Face], and [$Index] is its number from 0; [$CX], [$CY] and [$CZ] are short forms of [$Face.Center.X] and the other axes, and [$NX], [$NY] and [$NZ] of [$Face.Normal]. How adds to or removes from the faces picked before. Inside a For Each round the pick stays in that round. Example: Cube, then Select Faces Facing Up and Extrude Face By 1 pulls the top up.',
+      'Picks faces and puts them in [$Selected.Faces], where Extrude Face, Inset Face, Bevel Edges, Delete Faces and Texture Faces find them when their Of is empty. Of says where to pick from: brushes (all their faces) or faces (a list to narrow down); empty uses [$Selected.Brushes], every brush built above. Into also writes the faces to a variable, a Face list. Where tests each face as [$Face], and [$Index] is its number from 0; [$CX], [$CY] and [$CZ] are short forms of [$Face.Center.X] and the other axes, and [$NX], [$NY] and [$NZ] of [$Face.Normal]. How adds to or removes from the faces picked before. Inside a For Each round the pick stays in that round. Example: Cube, then Select Faces Which Up and Extrude Face By 1 pulls the top up.',
     stops: [
       'No brushes to pick from.',
       'A Which that is not one of the choices.',
@@ -318,7 +316,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         'which',
         'Which',
         'text',
-        'Facing Up',
+        'Up',
         `How to pick. One of: ${SOLID_SCRIPT_FACE_WHICH.join(', ')}.`,
         SOLID_SCRIPT_FACE_WHICH_WORDS,
       ),
@@ -352,7 +350,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     ],
     listing: (read) => {
       const which = read.text('which').trim();
-      const facing = which.startsWith('Facing');
+      const facing = which in SOLID_SCRIPT_FACE_DIRECTIONS || which === 'Facing';
       return [
         'Select Faces',
         which,
@@ -396,9 +394,9 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Spread points on faces, inside a shape, in a box, or on a grid',
     manual:
-      'Spreads points and writes their positions to Into as a list of vectors. Where chooses how: On Faces (the default) spreads them over faces, more on bigger ones, and writes the way each face looks to Normals; Inside fills the volume of a brush or mesh; In Box fills a box of Size, centered on the origin; Grid lays Counts points along that box. Of gives the faces, brushes or meshes for On Faces and Inside; empty uses [$Selected.Faces]. The same Seed gives the same points for the random modes. Example: Select Faces Facing Up, Scatter Points 20 Into [Spots], then Place At Points At [Spots], Sphere, End.',
+      'Spreads points and writes their positions to Into as a list of vectors. Where chooses how: Faces (the default) spreads them over faces, more on bigger ones, and writes the way each face looks to Normals; Inside fills the volume of a brush or mesh; Box fills a box of Size, centered on the origin; Grid lays Counts points along that box. Of gives the faces, brushes or meshes for Faces and Inside; empty uses [$Selected.Faces]. The same Seed gives the same points for the random modes. Example: Select Faces Which Up, Scatter Points 20 Into [Spots], then Place At Points At [Spots], Sphere, End.',
     stops: [
-      'No faces, when Where is On Faces or Inside.',
+      'No faces, when Where is Faces or Inside.',
       'A Count that is not a whole number from 0 to 10000.',
       'An empty Into.',
       'A Size below 0, or Counts that are not whole numbers from 1 to 100 with at most 10000 points in all.',
@@ -408,27 +406,35 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         'where',
         'Where',
         'text',
-        'On Faces',
-        'Where to put the points: On Faces, Inside, In Box or Grid.',
+        'Faces',
+        'Where to put the points: Faces, Inside, Box or Grid.',
         [
-          { word: 'On Faces', detail: 'Spread over faces, more on bigger ones' },
+          {
+            word: 'Faces',
+            detail:
+              'Spread over faces, more on bigger ones. Example: Scatter Points Where Faces, Count 20 Into [Spots].',
+          },
           { word: 'Inside', detail: 'Fill the volume of a brush or mesh' },
-          { word: 'In Box', detail: 'Fill a box of Size, centered on the origin' },
+          {
+            word: 'Box',
+            detail:
+              'Fill a box of Size, centered on the origin. Example: Scatter Points Where Box, Size 2, 2, 2, Count 20.',
+          },
           { word: 'Grid', detail: 'A regular grid of Counts in a box of Size' },
         ],
       ),
       solidScriptParameterWhen(
         solidScriptParameter('count', 'Count', 'number', '10', 'How many points, 0 to 10000.'),
         'where',
-        ['On Faces', 'Inside', 'In Box'],
+        ['Faces', 'Inside', 'Box'],
       ),
       solidScriptParameterWhen(
         solidScriptParameter('seed', 'Seed', 'number', '0', 'Any number; another seed gives other points.'),
         'where',
-        ['On Faces', 'Inside', 'In Box'],
+        ['Faces', 'Inside', 'Box'],
       ),
       solidScriptParameterWhen(solidScriptParameterOf('faces, brushes or meshes', '$Selected.Faces'), 'where', [
-        'On Faces',
+        'Faces',
         'Inside',
       ]),
       {
@@ -448,7 +454,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
           label: 'Normals',
         },
         'where',
-        ['On Faces'],
+        ['Faces'],
       ),
       solidScriptParameterWhen(
         solidScriptParameter(
@@ -456,10 +462,10 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
           'Size',
           'vector3',
           '1, 1, 1',
-          'Width, height and depth of the box, in metres, for In Box and Grid.',
+          'Width, height and depth of the box, in metres, for Box and Grid.',
         ),
         'where',
-        ['In Box', 'Grid'],
+        ['Box', 'Grid'],
       ),
       solidScriptParameterWhen(
         solidScriptParameter(
@@ -564,7 +570,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Pull faces out',
     manual:
-      'Pulls faces out along the way they point. On a brush each face becomes a new brush, a slab standing on it, and Into gets those brushes; on a mesh the face itself moves out. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. Top and Sides name variables for the new faces: Top the moved or capping faces and Sides the new side faces, as the operation builds them. Afterwards [$Selected.Faces] holds the top faces. Lift moves a slab away from its face. Example: Select Faces Facing Up, Extrude Face By 1, Top [Roof].',
+      'Pulls faces out along the way they point. On a brush each face becomes a new brush, a slab standing on it, and Into gets those brushes; on a mesh the face itself moves out. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. Top and Sides name variables for the new faces: Top the moved or capping faces and Sides the new side faces, as the operation builds them. Afterwards [$Selected.Faces] holds the top faces. Lift moves a slab away from its face. Example: Select Faces Which Up, Extrude Face By 1, Top [Roof].',
     stops: ['No faces.', 'A negative Distance on a brush.', 'A Lift on a mesh.'],
     parameters: [
       solidScriptParameter('distance', 'Distance', 'number', '0.2', 'Metres to pull out.'),
@@ -654,7 +660,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Shrink faces inside a ring',
     manual:
-      'Gives each face of a mesh a smaller copy of itself inside, joined to the old outline by a ring of faces. Of gives the faces; empty uses [$Selected.Faces]. A brush stops the line: wrap it in Mesh From Brushes first. Inner and Ring name variables for the new faces, as the operation builds them. Afterwards [$Selected.Faces] holds the inner faces. Example: Mesh From Brushes around a Cube, Select Faces Facing Up, Inset Face By 0.1, Extrude Face By -0.2 sinks a tray.',
+      'Gives each face of a mesh a smaller copy of itself inside, joined to the old outline by a ring of faces. Of gives the faces; empty uses [$Selected.Faces]. A brush stops the line: wrap it in Mesh From Brushes first. Inner and Ring name variables for the new faces, as the operation builds them. Afterwards [$Selected.Faces] holds the inner faces. Example: Mesh From Brushes around a Cube, Select Faces Which Up, Inset Face By 0.1, Extrude Face By -0.2 sinks a tray.',
     stops: ['No faces.', 'A brush. Wrap it in Mesh From Brushes first.'],
     parameters: [
       solidScriptParameter('distance', 'Distance', 'number', '0.1', 'Metres from the old edge to the new one.'),
@@ -776,7 +782,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Take faces out',
     manual:
-      'Takes faces out of a mesh, leaving an opening. Of gives the faces, or a mesh for all its faces; empty uses [$Selected.Faces]. A brush stops the line: wrap it in Mesh From Brushes first. The faces leave every list that held them. Example: Mesh From Brushes around a Cube, Select Faces Facing Up, Delete Faces leaves an open box.',
+      'Takes faces out of a mesh, leaving an opening. Of gives the faces, or a mesh for all its faces; empty uses [$Selected.Faces]. A brush stops the line: wrap it in Mesh From Brushes first. The faces leave every list that held them. Example: Mesh From Brushes around a Cube, Select Faces Which Up, Delete Faces leaves an open box.',
     stops: ['No faces.', 'A brush. Wrap it in Mesh From Brushes first.'],
     parameters: [solidScriptParameterOf('faces or meshes', '$Selected.Faces')],
     listing: (read) => ['Delete Faces', ...(read.text('of') === '' ? [] : [' Of ', read.value('of')])],
@@ -833,7 +839,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Paint faces with a texture',
     manual:
-      'Gives faces their own library texture. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. It works on brushes and wins over a Texture block around them. The faces keep it when the brush is moved, turned or scaled. Example: Cube, Select Faces Facing Up, Texture Faces grass gives a box a grass top.',
+      'Gives faces their own library texture. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. It works on brushes and wins over a Texture block around them. The faces keep it when the brush is moved, turned or scaled. Example: Cube, Select Faces Which Up, Texture Faces grass gives a box a grass top.',
     stops: [
       'No faces.',
       'Faces of a mesh. Texture Faces works on brushes for now.',
@@ -880,7 +886,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Scale faces about their centers',
     manual:
-      'Scales each face about its center, in the plane of the face. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. A brush stays a brush, and a mesh stays a mesh. Factor 1 leaves the face as it is; 0.5 shrinks it toward its center, and 2 grows it. If several picked faces share a corner, the corner takes the average of those moves. A Factor that would fold a brush so it is no longer a convex brush stops the line. Example: Select Faces Facing Up, Scale Faces By 0.5 turns the top of a Cube into a smaller roof.',
+      'Scales each face about its center, in the plane of the face. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. A brush stays a brush, and a mesh stays a mesh. Factor 1 leaves the face as it is; 0.5 shrinks it toward its center, and 2 grows it. If several picked faces share a corner, the corner takes the average of those moves. A Factor that would fold a brush so it is no longer a convex brush stops the line. Example: Select Faces Which Up, Scale Faces By 0.5 turns the top of a Cube into a smaller roof.',
     stops: [
       'No faces.',
       'A Factor that is not a number.',

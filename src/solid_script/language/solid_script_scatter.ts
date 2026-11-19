@@ -4,12 +4,12 @@ import { solidScriptGeometryScatter, type SolidScriptFaceFacts } from './solid_s
 import { solidScriptValueNumber, solidScriptValueNumbers, type SolidScriptValue } from './solid_script_value.js';
 
 /** Where Scatter Points can put its points. */
-export const SOLID_SCRIPT_SCATTER_WHERE = ['On Faces', 'Inside', 'In Box', 'Grid'] as const;
+export const SOLID_SCRIPT_SCATTER_WHERE = ['Faces', 'Inside', 'Box', 'Grid'] as const;
 
 /** One of the Where words. */
 export type SolidScriptScatterWhere = (typeof SOLID_SCRIPT_SCATTER_WHERE)[number];
 
-/** Points Scatter Points writes, and face directions when it is On Faces. */
+/** Points Scatter Points writes, and face directions when it is Faces. */
 export interface SolidScriptScatterResult {
   positions: THREE.Vector3[];
   normals: THREE.Vector3[] | null;
@@ -21,7 +21,7 @@ export interface SolidScriptScatterResult {
  *
  * @param run Running line.
  * @param faces Faces or brushes in Of, read only when that Where needs them.
- * @returns Positions, and Normals for On Faces.
+ * @returns Positions, and Normals for Faces.
  */
 export function solidScriptScatterRun(
   run: SolidScriptBlockRun,
@@ -29,22 +29,22 @@ export function solidScriptScatterRun(
 ): SolidScriptScatterResult {
   if (run.text('into').trim() === '') throw new Error('Scatter Points needs a variable in Into for the points');
   const where = solidScriptScatterWhere(run);
-  if (where === 'On Faces') return solidScriptScatterOnFaces(run, faces());
+  if (where === 'Faces') return solidScriptScatterOnFaces(run, faces());
   if (where === 'Inside') return { positions: solidScriptScatterInside(run, faces()), normals: null };
-  if (where === 'In Box') return { positions: solidScriptScatterInBox(run), normals: null };
+  if (where === 'Box') return { positions: solidScriptScatterInBox(run), normals: null };
   return { positions: solidScriptScatterGrid(run), normals: null };
 }
 
 /**
- * Reads Where, or On Faces when the field is empty.
+ * Reads Where, or Faces when the field is empty.
  *
  * @param run Running line.
  * @returns Where word.
  */
 export function solidScriptScatterWhere(run: SolidScriptBlockRun): SolidScriptScatterWhere {
-  const text = run.text('where').trim() || 'On Faces';
+  const text = run.text('where').trim() || 'Faces';
   const match = SOLID_SCRIPT_SCATTER_WHERE.find((word) => word.toLowerCase() === text.toLowerCase());
-  if (!match) throw new Error(`Where needs On Faces, Inside, In Box or Grid, not ${text}`);
+  if (!match) throw new Error(`Where needs Faces, Inside, Box or Grid, not ${text}`);
   return match;
 }
 
@@ -368,7 +368,7 @@ function solidScriptScatterSpace(unit: number): number {
 
 /**
  * Random numbers 0..1, the same sequence for the same seed. Kept for Inside and
- * In Box only; On Faces keeps its own, so existing layouts do not move.
+ * Box only; Faces keeps its own sequence.
  *
  * @param seed Seed.
  * @returns Next number.

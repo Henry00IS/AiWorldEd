@@ -85,13 +85,13 @@ function scatterMoved(extra: Record<string, string>, move: string): [number, num
 }
 
 describe('SolidScript Scatter Points Where', () => {
-  it('keeps the On Faces listing and points when Where is left at its default', () => {
+  it('keeps the Faces listing and points when Where is left at its default', () => {
     const values = { count: '4', seed: '7', into: 'Spots', normals: 'Ways' };
-    const withWhere = { command: 'scatter_points', values: { where: 'On Faces', ...values } };
+    const withWhere = { command: 'scatter_points', values: { where: 'Faces', ...values } };
     const without = { command: 'scatter_points', values };
     const script = (line: SolidScriptLine): SolidScriptLine[] => [
       CUBE,
-      { command: 'select_faces', values: { which: 'Facing Up' } },
+      { command: 'select_faces', values: { which: 'Up' } },
       line,
     ];
     expect(solidScriptDocumentListing(solidScriptDocumentCreate(script(withWhere)))).toEqual(
@@ -137,15 +137,15 @@ describe('SolidScript Scatter Points Where', () => {
   });
 
   it('fills a box of Size, follows a Translate, and lays a grid', () => {
-    const box = scatter({ where: 'In Box', count: '30', seed: '2', size: '2, 2, 2' });
+    const box = scatter({ where: 'Box', count: '30', seed: '2', size: '2, 2, 2' });
     expect(box).toHaveLength(30);
     for (const [x, y, z] of box) {
       expect(Math.abs(x)).toBeLessThanOrEqual(1.0001);
       expect(Math.abs(y)).toBeLessThanOrEqual(1.0001);
       expect(Math.abs(z)).toBeLessThanOrEqual(1.0001);
     }
-    expect(scatter({ where: 'In Box', count: '30', seed: '2', size: '2, 2, 2' })).toEqual(box);
-    expect(scatterMoved({ where: 'In Box', count: '1', seed: '0', size: '0, 0, 0' }, '4, 1, 0')).toEqual([[4, 1, 0]]);
+    expect(scatter({ where: 'Box', count: '30', seed: '2', size: '2, 2, 2' })).toEqual(box);
+    expect(scatterMoved({ where: 'Box', count: '1', seed: '0', size: '0, 0, 0' }, '4, 1, 0')).toEqual([[4, 1, 0]]);
     expect(scatter({ where: 'Grid', counts: '2, 1, 1', size: '2, 2, 2' })).toEqual([
       [-1, 0, 0],
       [1, 0, 0],

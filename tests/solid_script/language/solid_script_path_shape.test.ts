@@ -45,8 +45,8 @@ describe('SolidScript Path', () => {
     );
   });
 
-  it('keeps From Points as they are, and rounds a corner when Radius is above 0', () => {
-    const corners = { shape: 'From Points', points: '[0, 0, 0], [1, 0, 0], [1, 1, 0]', into: 'P' };
+  it('keeps Points as they are, and rounds a corner when Radius is above 0', () => {
+    const corners = { shape: 'Points', points: '[0, 0, 0], [1, 0, 0], [1, 1, 0]', into: 'P' };
     expect(echo([path(corners)], '[P]')).toBe('[[0, 0, 0], [1, 0, 0], [1, 1, 0]]');
     const rounded = echo([path({ ...corners, corner_radius: '0.5', sides: '2' })], '[P]');
     expect(rounded.startsWith('[[0, 0, 0], [0.5, 0, 0],')).toBe(true);
@@ -61,7 +61,7 @@ describe('SolidScript Path', () => {
       echo(
         [
           path({
-            shape: 'From Points',
+            shape: 'Points',
             points: '[0, 0, 0], [0.2, 0, 0], [0.2, 0.2, 0]',
             corner_radius: '1',
             into: 'P',

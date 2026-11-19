@@ -105,9 +105,9 @@ describe('SolidScript inspector rows skip lines turned off', () => {
 
 describe('solidScriptInputRulesHold', () => {
   it('treats a comma-separated Value as any one of those words', () => {
-    const when = [{ name: 'Mode', value: 'Fixed Step, Size × Plus Step' }];
-    expect(solidScriptInputRulesHold(when, () => 'Fixed Step')).toBe(true);
-    expect(solidScriptInputRulesHold(when, () => 'Size × Plus Step')).toBe(true);
-    expect(solidScriptInputRulesHold(when, () => 'Fit Distance')).toBe(false);
+    const when = [{ name: 'Mode', value: 'Fixed, Plus' }];
+    expect(solidScriptInputRulesHold(when, () => 'Fixed')).toBe(true);
+    expect(solidScriptInputRulesHold(when, () => 'Plus')).toBe(true);
+    expect(solidScriptInputRulesHold(when, () => 'Fit')).toBe(false);
   });
 });

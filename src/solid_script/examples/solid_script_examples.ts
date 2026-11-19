@@ -200,7 +200,7 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
     id: 'roundedRail',
     name: 'Rounded Rail',
     group: 'Basics',
-    summary: 'Path From Points rounds the corners of a rectangle; Curve To Mesh sweeps a tube along that path.',
+    summary: 'Path Points rounds the corners of a rectangle; Curve To Mesh sweeps a tube along that path.',
     port: null,
     lines: SOLID_SCRIPT_EXAMPLE_ROUNDED_RAIL,
   },

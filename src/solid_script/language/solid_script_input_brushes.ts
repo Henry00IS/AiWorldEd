@@ -92,11 +92,9 @@ function solidScriptInputBrushesInto(run: SolidScriptBlockRun, built: readonly S
  */
 function solidScriptInputBrushesTextures(run: SolidScriptBlockRun): 'copied' | 'world' {
   const textures = solidScriptValueText(run.value('textures')).trim().toLowerCase();
-  if (textures !== 'move with shape' && textures !== 'world aligned')
-    throw new Error(
-      `Textures must be Move With Shape or World Aligned, not "${solidScriptValueText(run.value('textures'))}"`,
-    );
-  return textures === 'world aligned' ? 'world' : 'copied';
+  if (textures !== 'follow' && textures !== 'world')
+    throw new Error(`Textures must be Follow or World, not "${solidScriptValueText(run.value('textures'))}"`);
+  return textures === 'world' ? 'world' : 'copied';
 }
 
 /**

@@ -47,7 +47,7 @@ function solidPoints(...lines: SolidScriptLine[]): number[][] | string {
 
 describe('SolidScript Scale Faces', () => {
   it('leaves a face as it is at Factor 1, and shrinks a top face toward its center', () => {
-    const pick = { command: 'select_faces', values: { which: 'Facing Up' } };
+    const pick = { command: 'select_faces', values: { which: 'Up' } };
     expect(solidPoints(CUBE, pick, { command: 'scale_faces', values: { factor: '1' } })).toEqual(solidPoints(CUBE));
     expect(solidPoints(CUBE, pick, { command: 'scale_faces', values: { factor: '0.5' } })).toEqual(
       [
@@ -66,7 +66,7 @@ describe('SolidScript Scale Faces', () => {
   it('keeps a brush as a brush, and scales a mesh face in place', () => {
     const scaled = run(
       CUBE,
-      { command: 'select_faces', values: { which: 'Facing Up' } },
+      { command: 'select_faces', values: { which: 'Up' } },
       {
         command: 'scale_faces',
         values: { factor: '0.5' },
@@ -78,7 +78,7 @@ describe('SolidScript Scale Faces', () => {
       { command: 'mesh_brushes' },
       CUBE,
       END,
-      { command: 'select_faces', values: { which: 'Facing Up' } },
+      { command: 'select_faces', values: { which: 'Up' } },
       { command: 'scale_faces', values: { factor: '0.5' } },
     );
     expect(meshed.error).toBeNull();

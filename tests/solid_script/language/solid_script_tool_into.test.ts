@@ -66,13 +66,13 @@ describe('SolidScript tools with Into', () => {
   it('puts an extruded slab in the scene without Into, and only in the variable with Into', () => {
     const inPlace = solids(
       CUBE,
-      { command: 'select_faces', values: { which: 'Facing Up' } },
+      { command: 'select_faces', values: { which: 'Up' } },
       { command: 'extrude_face', values: { distance: '0.5' } },
     );
     expect(inPlace).toHaveLength(2);
     const copied = run(
       CUBE,
-      { command: 'select_faces', values: { which: 'Facing Up' } },
+      { command: 'select_faces', values: { which: 'Up' } },
       { command: 'extrude_face', values: { distance: '0.5', into: 'Slab' } },
       { command: 'echo', values: { value: '[=[Slab.Count]]' } },
     );

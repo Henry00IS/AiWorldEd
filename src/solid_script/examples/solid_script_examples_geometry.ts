@@ -16,7 +16,7 @@ export const SOLID_SCRIPT_EXAMPLE_IRREGULAR_ROCK: readonly SolidScriptLine[] = [
   solidScriptExampleInput('Count', 'Count', '16', { min: '4', max: '64', label: 'Points' }),
   solidScriptExampleInput('Seed', 'Number', '4', { label: 'Seed' }),
   solidScriptExampleLine('scatter_points', {
-    where: 'In Box',
+    where: 'Box',
     count: '[Count]',
     seed: '[Seed]',
     size: '[Size], [Height], [Size]',
@@ -30,7 +30,7 @@ export const SOLID_SCRIPT_EXAMPLE_TAPERED_BOX: readonly SolidScriptLine[] = [
   solidScriptExampleNote('Scale Faces shrinks the top about its center, so the cube becomes a tapered block.'),
   solidScriptExampleInput('Factor', 'Number', '0.5', { min: '0.1', max: '2', label: 'Factor' }),
   solidScriptExampleLine('cube', { size: '2, 2, 2' }),
-  solidScriptExampleLine('select_faces', { which: 'Facing Up' }),
+  solidScriptExampleLine('select_faces', { which: 'Up' }),
   solidScriptExampleLine('scale_faces', { factor: '[Factor]' }),
 ];
 
@@ -39,13 +39,13 @@ export const SOLID_SCRIPT_EXAMPLE_TAPERED_BOX: readonly SolidScriptLine[] = [
  * tube.
  */
 export const SOLID_SCRIPT_EXAMPLE_ROUNDED_RAIL: readonly SolidScriptLine[] = [
-  solidScriptExampleNote('Path From Points rounds the corners; Curve To Mesh sweeps a tube along that path.'),
+  solidScriptExampleNote('Path Points rounds the corners; Curve To Mesh sweeps a tube along that path.'),
   solidScriptExampleInput('Width', 'Number', '3', { min: '0.5', max: '20', label: 'Width' }),
   solidScriptExampleInput('Depth', 'Number', '2', { min: '0.5', max: '20', label: 'Depth' }),
   solidScriptExampleInput('Corner', 'Number', '0.4', { min: '0', max: '5', label: 'Corner' }),
   solidScriptExampleInput('Thickness', 'Number', '0.08', { min: '0.01', max: '1', label: 'Thickness' }),
   solidScriptExampleLine('path', {
-    shape: 'From Points',
+    shape: 'Points',
     points:
       '[=Vector(-[Width] / 2, 0, -[Depth] / 2)], [=Vector([Width] / 2, 0, -[Depth] / 2)], [=Vector([Width] / 2, 0, [Depth] / 2)], [=Vector(-[Width] / 2, 0, [Depth] / 2)]',
     corner_radius: '[Corner]',

@@ -32,7 +32,7 @@ describe('SolidScript per-element fields', () => {
     expect(detail.each).toBe('Face');
     expect(solidScriptParameterEachActive(detail, { which: 'Where' })).toBe('Face');
     expect(solidScriptParameterEachActive(detail, { which: 'All' })).toBeUndefined();
-    expect(solidScriptParameterEachActive(detail, { which: 'Facing Up' })).toBeUndefined();
+    expect(solidScriptParameterEachActive(detail, { which: 'Up' })).toBeUndefined();
   });
 
   it('declares Distance of Displace as per vertex, and Detail of Select Vertices as per vertex when Which is Where', () => {

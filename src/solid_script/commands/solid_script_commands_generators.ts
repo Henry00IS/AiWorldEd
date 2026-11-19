@@ -8,6 +8,7 @@ import {
   solidScriptParameterAnchor,
   solidScriptParameterMode,
 } from './solid_script_command_parameters.js';
+import { solidScriptGeneratorChoiceScript } from './solid_script_generator_choices.js';
 import { SOLID_SCRIPT_ANCHOR_SOLID, solidScriptAnchorMin } from '@/solid_script/language/solid_script_anchor.js';
 import type { SolidScriptBlockArguments } from '@/solid_script/language/solid_script_block_arguments.js';
 import { solidScriptValueNumber, solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
@@ -47,30 +48,13 @@ function solidScriptGeneratorFields(kind: ModifierStackKindGenerator): ModifierS
 }
 
 /**
- * Script word for a generator choice: the inspector label when that label is
- * only the Center spelling of the stored value, otherwise the stored value.
- *
- * @param choice Inspector choice.
- * @returns Word a script writes.
- */
-function solidScriptGeneratorChoiceWord(choice: { value: string; label: string }): string {
-  return choice.label === choice.value.replaceAll('Centre', 'Center') ? choice.label : choice.value;
-}
-
-/**
- * Lists a generator field's script choice words, with longer inspector labels
- * in parentheses when they differ.
+ * Lists a generator field's script choice words.
  *
  * @param field Generator field.
  * @returns Comma-separated list.
  */
 function solidScriptGeneratorChoiceList(field: ModifierStackField): string {
-  return (field.choices ?? [])
-    .map((choice) => {
-      const word = solidScriptGeneratorChoiceWord(choice);
-      return word === choice.label ? word : `${word} (${choice.label})`;
-    })
-    .join(', ');
+  return (field.choices ?? []).map((choice) => solidScriptGeneratorChoiceScript(field, choice).word).join(', ');
 }
 
 /**
@@ -81,9 +65,9 @@ function solidScriptGeneratorChoiceList(field: ModifierStackField): string {
  * @returns Script field.
  */
 function solidScriptGeneratorChoiceParameter(field: ModifierStackField, hint: string): SolidScriptCommandParameter {
-  const words = (field.choices ?? []).map(solidScriptGeneratorChoiceWord);
+  const choices = (field.choices ?? []).map((choice) => solidScriptGeneratorChoiceScript(field, choice));
   const fallback =
-    words[(field.choices ?? []).findIndex((choice) => choice.value === field.default)] ?? String(field.default);
+    choices[(field.choices ?? []).findIndex((choice) => choice.value === field.default)]?.word ?? String(field.default);
   return {
     ...solidScriptParameter(
       field.key,
@@ -92,10 +76,7 @@ function solidScriptGeneratorChoiceParameter(field: ModifierStackField, hint: st
       fallback,
       `${hint} One of: ${solidScriptGeneratorChoiceList(field)}.`,
     ),
-    words: (field.choices ?? []).map((choice) => ({
-      word: solidScriptGeneratorChoiceWord(choice),
-      detail: choice.label,
-    })),
+    words: choices.map((choice) => ({ word: choice.word, detail: choice.detail })),
     accepts: SOLID_SCRIPT_WORDS_ACCEPTS,
   };
 }
@@ -128,8 +109,8 @@ function solidScriptGeneratorValue(args: SolidScriptBlockArguments, field: Modif
   if (field.type === 'boolean') return args.flag(field.key);
   if (field.type === 'choice') {
     const text = solidScriptValueText(args.value(field.key));
-    const choice = (field.choices ?? []).find((entry) => solidScriptGeneratorChoiceWord(entry) === text);
-    const words = (field.choices ?? []).map(solidScriptGeneratorChoiceWord);
+    const choice = (field.choices ?? []).find((entry) => solidScriptGeneratorChoiceScript(field, entry).word === text);
+    const words = (field.choices ?? []).map((entry) => solidScriptGeneratorChoiceScript(field, entry).word);
     if (!choice) throw args.error(field.key, `must be one of ${words.join(', ')}`, text);
     return choice.value;
   }

@@ -237,7 +237,7 @@ function solidScriptMistakeEngine(error: Error): boolean {
 
 /**
  * Tells whether field text is one of the words a choice or Yes/No field takes,
- * so a bare X in a listed choice such as Along X is not treated as $X.
+ * so a bare X in a listed choice such as X is not treated as $X.
  *
  * @param field Field, with its words when it takes a few.
  * @param text Field text as written.
