@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
 import { solidScriptConfiguratorFieldBuild } from '@/solid_script/ui/solid_script_configurator_fields.js';
+import { solidScriptSuggestionContext, solidScriptSuggestions } from '@/solid_script/ui/solid_script_suggestions.js';
 
 /**
  * Finds a parameter of a command.
@@ -40,6 +41,19 @@ describe('SolidScript editable choice fields', () => {
       (parameterOf('square', 'anchor').words ?? []).map((entry) => [entry.word, entry.detail]),
     );
     expect(square['Center, Center']).toBe('Anchor.');
+  });
+
+  it('shows starred Anchors in autocomplete as Anchor. ⭐, with no period after the star', () => {
+    const words = parameterOf('cube', 'anchor').words ?? [];
+    const shown = solidScriptSuggestions(solidScriptSuggestionContext('', 0, true), {
+      names: [],
+      extra: [],
+      words,
+    });
+    const byWord = Object.fromEntries(shown.map((entry) => [entry.label, entry.detail]));
+    expect(byWord['Center, Center, Center']).toBe('Anchor. ⭐');
+    expect(byWord['Center, Bottom, Center']).toBe('Anchor. ⭐');
+    expect(byWord['Left, Bottom, Back']).toBe('Anchor.');
   });
 
   it('shows a switch as Yes or No text, never a checkbox, and lists it like before', () => {
