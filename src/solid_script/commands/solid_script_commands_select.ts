@@ -123,7 +123,6 @@ function solidScriptSelectOf(kind: SolidScriptSelectKind) {
         'value',
         'The brushes to pick from: a variable such as [Wall], a list, or a Name given to brushes; empty uses every brush and mesh built so far, and those a modifier has received.',
       ),
-      placeholder: 'every built brush',
       nameGroups: ['Brushes', 'Parts'] as const,
       accepts: solidScriptOfAccepts(['Brush']),
     };
@@ -188,11 +187,11 @@ function solidScriptSelectCommand(kind: SolidScriptSelectKind): SolidScriptComma
     listing: (read) => [
       kind.label,
       ' ',
-      read.text('which').trim(),
+      read.value('which'),
       ...(read.text('where').trim() === '' ? [] : [' Where ', read.value('where')]),
       ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
-      ...solidScriptListingOptions([read.text('how').trim() !== 'New' && [read.text('how').trim()]]),
-      ...(read.text('into') === '' ? [] : [' Into ', read.variable('into')]),
+      ...solidScriptListingOptions([read.changed('how') && ['How ', read.value('how')]]),
+      ...(read.text('into') === '' ? [] : [' Into ', read.value('into')]),
     ],
     execute: (run) => {
       const pool = solidScriptSelectItems(run, kind);

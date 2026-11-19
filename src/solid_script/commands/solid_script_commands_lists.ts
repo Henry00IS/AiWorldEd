@@ -99,7 +99,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
       solidScriptParameter('value', 'Value', 'value', '1', 'What to put in the list.'),
       SOLID_SCRIPT_LIST_ADD,
     ],
-    listing: (read) => ['Add Item', read.value('value'), ' To ', read.text('list')],
+    listing: (read) => ['Add Item', read.value('value'), ' To ', read.value('list')],
     execute: (run) => {
       const value = run.value('value');
       run.listUpdate(run.text('list'), (items) => [...items, value], true);
@@ -123,7 +123,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
       SOLID_SCRIPT_LIST_ADD,
       solidScriptParameter('at', 'Position', 'count', '0', 'Where to put it, counting from 0.'),
     ],
-    listing: (read) => ['Insert Item', read.value('value'), ' Into ', read.text('list'), ' At ', read.value('at')],
+    listing: (read) => ['Insert Item', read.value('value'), ' Into ', read.value('list'), ' At ', read.value('at')],
     execute: (run) => {
       const value = run.value('value');
       run.listUpdate(
@@ -160,7 +160,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
         { rule: 'shrunk' },
       ),
     ],
-    listing: (read) => ['Remove Item', read.variable('target')],
+    listing: (read) => ['Remove Item', read.value('target')],
     execute: (run) => {
       run.itemRemove(run.text('target'));
       return [];
@@ -183,7 +183,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
       'Remove Value',
       read.value('value'),
       ' From ',
-      read.text('list'),
+      read.value('list'),
       ...solidScriptListingOptions([read.on('every') && ['Every Copy']]),
     ],
     execute: (run) => {
@@ -221,9 +221,9 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
       'Find Item',
       read.value('value'),
       ' In ',
-      read.text('list'),
+      read.value('list'),
       ', Result In ',
-      read.variable('result'),
+      read.value('result'),
     ],
     execute: (run) => {
       const value = run.value('value');
@@ -271,7 +271,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
       read.value('list'),
       ...(read.text('where').trim() === '' ? [] : [' Where ', read.value('where')]),
       ' Into ',
-      read.variable('into'),
+      read.value('into'),
     ],
     execute: (run) => {
       const kept = run
@@ -301,7 +301,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     ],
     listing: (read) => [
       'Sort List',
-      read.text('list'),
+      read.value('list'),
       ...solidScriptListingOptions([read.on('descending') && ['Biggest First']]),
     ],
     execute: (run) => {
@@ -323,7 +323,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
       'Turns a list around, so the last item comes first. Example: Heights holds 1, 2, 3. Reverse List Heights leaves 3, 2, 1.',
     stops: [SOLID_SCRIPT_LIST_STOP],
     parameters: [SOLID_SCRIPT_LIST_NAME],
-    listing: (read) => ['Reverse List', read.text('list')],
+    listing: (read) => ['Reverse List', read.value('list')],
     execute: (run) => {
       run.listUpdate(run.text('list'), (items) => [...items].reverse(), false);
       return [];
@@ -338,7 +338,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
       'Empties a variable but keeps its name: a list keeps no items, and anything else becomes empty text. Example: Clear Variable Heights empties the list Heights, so [Heights.Count] is 0. A name not set yet becomes an empty list, ready for Add Item.',
     stops: ['An input. Inputs can only be read.'],
     parameters: [solidScriptParameterWrites(SOLID_SCRIPT_LIST_VARIABLE_FIELD, { rule: 'emptied' })],
-    listing: (read) => ['Clear Variable', read.variable('name')],
+    listing: (read) => ['Clear Variable', read.value('name')],
     execute: (run) => {
       run.variableClear(run.text('name'));
       return [];
@@ -353,7 +353,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
       'Forgets a variable, as if it was never set. Reading it afterwards stops the script, until a line sets it again. With a Persistent. name, it is no longer kept between runs. Example: Delete Variable Step forgets Step.',
     stops: ['A name that is not set.', 'An input. Inputs can only be read.'],
     parameters: [solidScriptParameterWrites(SOLID_SCRIPT_LIST_VARIABLE_FIELD, { rule: 'forgotten' })],
-    listing: (read) => ['Delete Variable', read.variable('name')],
+    listing: (read) => ['Delete Variable', read.value('name')],
     execute: (run) => {
       run.variableDelete(run.text('name'));
       return [];

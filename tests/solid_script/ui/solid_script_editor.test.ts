@@ -110,7 +110,7 @@ describe('SolidScript editor', () => {
     expect(chip(0).querySelector('.solid-script-editor-list-name')?.textContent?.trim()).toBe('Cube');
     expect(chip(0).querySelector('.solid-script-editor-list-value')?.textContent).toBe("'2, 2, 2'");
     expect(chip(1).querySelector('.solid-script-editor-list-variable')?.textContent).toBe('[radius]');
-    expect(chip(2).textContent).toBe('*** Walls');
+    expect(chip(2).textContent).toBe("*** 'Walls'");
   });
 
   it('inserts a double-clicked command below the current line after configuring it, as one undo step', () => {
@@ -997,7 +997,7 @@ describe('SolidScript editor', () => {
       (option) => option.firstChild?.textContent,
     );
     expect(shown.slice(0, 2)).toEqual(['Knob', 'Handle']);
-    expect(chip(0).textContent).toContain('Named Knob');
+    expect(chip(0).textContent).toContain("Named 'Knob'");
   });
 
   it('suggests the counters and loop values a line sees, and only inside their loop', () => {

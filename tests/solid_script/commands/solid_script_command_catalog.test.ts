@@ -324,7 +324,7 @@ describe('solid script command catalog', () => {
     expect(solidScriptCommandFind('cube')?.entries({ size: '2, 2, 2' })).toEqual([
       { key: 'size', label: 'Size', value: '2, 2, 2' },
       { key: 'anchor', label: 'Anchor', value: 'Center, Center, Center' },
-      { key: 'mode', label: 'Mode', value: '' },
+      { key: 'mode', label: 'Mode', value: 'Additive' },
       { key: 'label', label: 'Name', value: '' },
       { key: 'into', label: 'Into', value: '' },
     ]);

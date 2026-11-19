@@ -12,6 +12,7 @@ import type {
 } from '@/solid_script/commands/solid_script_command.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import { solidScriptAnchorRead } from '@/solid_script/language/solid_script_anchor.js';
+import { solidScriptParameterPlaceholder } from '@/solid_script/commands/solid_script_parameter_default.js';
 import {
   solidScriptFieldAsTyped,
   solidScriptFieldBoolean,
@@ -251,7 +252,8 @@ function solidScriptConfiguratorInputs(
   const switched = parameter.type === 'boolean' ? solidScriptFieldBoolean(value) : value;
   const shown = typeof switched === 'boolean' ? (switched ? 'Yes' : 'No') : value;
   const input = solidScriptConfiguratorInput(shown, parameter.label);
-  if (parameter.placeholder) input.placeholder = parameter.placeholder;
+  const placeholder = solidScriptParameterPlaceholder(parameter);
+  if (placeholder !== '') input.placeholder = placeholder;
   if (parameter.texture === true) return solidScriptConfiguratorTexture(input, parameter, inputs);
   inputs.append(input);
   return { read: () => input.value.trim(), problem: () => solidScriptConfiguratorProblem(parameter, input.value) };

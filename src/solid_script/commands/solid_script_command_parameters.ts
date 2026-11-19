@@ -13,8 +13,14 @@ import type {
   SolidScriptCommandWord,
 } from './solid_script_command.js';
 import { SOLID_SCRIPT_SHAPE_NAME_KEY } from '@/solid_script/language/solid_script_shape.js';
+import { solidScriptParameterValueEffective } from './solid_script_parameter_default.js';
 import { SOLID_SCRIPT_RINGS, SOLID_SCRIPT_SIDES } from '@/solid_script/language/solid_script_primitives.js';
-import { SOLID_SCRIPT_GROUP_MODE_WORDS, SOLID_SCRIPT_MODE_WORDS } from '@/solid_script/language/solid_script_mode.js';
+import {
+  SOLID_SCRIPT_GROUP_MODE_DEFAULT,
+  SOLID_SCRIPT_GROUP_MODE_WORDS,
+  SOLID_SCRIPT_MODE_DEFAULT,
+  SOLID_SCRIPT_MODE_WORDS,
+} from '@/solid_script/language/solid_script_mode.js';
 
 /**
  * Kinds of value each kind of field accepts unless the field says otherwise:
@@ -343,7 +349,7 @@ export function solidScriptParameterApplies(
   const rule = parameter.when;
   if (!rule) return true;
   const source = parameters.find((entry) => entry.key === rule.field);
-  const text = (values[rule.field] ?? source?.default ?? '').trim();
+  const text = solidScriptParameterValueEffective(values[rule.field], source?.default ?? '').trim();
   const folded = text.toLowerCase();
   if (rule.words.some((word) => word.toLowerCase() === folded)) return true;
   const known = source?.words?.map((entry) => entry.word.toLowerCase()) ?? [];
@@ -363,8 +369,8 @@ export function solidScriptParameterMode(): SolidScriptCommandParameter {
       'mode',
       'Mode',
       'message',
-      '',
-      'How this brush combines with the ones before it in the scene, Additive if left empty: Additive adds it, Subtractive cuts it out of them, Intersecting keeps only the overlap.',
+      SOLID_SCRIPT_MODE_DEFAULT,
+      'How this brush combines with the ones before it in the scene: Additive adds it, Subtractive cuts it out of them, Intersecting keeps only the overlap.',
       SOLID_SCRIPT_MODE_WORDS,
     ),
     optional: true,
@@ -384,8 +390,8 @@ export function solidScriptParameterGroupMode(): SolidScriptCommandParameter {
       'mode',
       'Mode',
       'message',
-      '',
-      'How this group combines with the shapes before it, Additive if left empty: Additive adds it, Subtractive cuts it out of them, Intersecting keeps only the overlap, Pass-Through acts like a folder.',
+      SOLID_SCRIPT_GROUP_MODE_DEFAULT,
+      'How this group combines with the ones before it: Additive adds it, Subtractive cuts it out of them, Intersecting keeps only the overlap, Pass-Through acts like a folder.',
       SOLID_SCRIPT_GROUP_MODE_WORDS,
     ),
     optional: true,

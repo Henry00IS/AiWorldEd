@@ -1,5 +1,5 @@
 import { SolidScriptCommand } from './solid_script_command.js';
-import { solidScriptListingOptions } from './solid_script_command_listing.js';
+import { solidScriptListingOptions, solidScriptListingValue } from './solid_script_command_listing.js';
 import {
   solidScriptParameter,
   solidScriptParameterGroupMode,
@@ -85,7 +85,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
         eachWhen: { field: 'name', position: true },
       },
     ],
-    listing: (read) => ['Set', read.variable('name'), ': ', read.value('value')],
+    listing: (read) => ['Set', read.value('name'), ': ', read.value('value')],
     execute: (run) => {
       run.variableWrite(run.text('name'), 'value');
       return [];
@@ -117,7 +117,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     ],
     listing: (read) => [
       'Repeat',
-      read.variable('variable'),
+      read.value('variable'),
       ' From ',
       read.value('from'),
       ' To ',
@@ -164,10 +164,10 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     ],
     listing: (read) => [
       'For Each',
-      read.variable('variable'),
+      read.value('variable'),
       ' In ',
       read.value('list'),
-      ...(read.text('key').trim() === '' ? [] : [' Key ', read.variable('key')]),
+      ...(read.text('key').trim() === '' ? [] : [' Key ', read.value('key')]),
     ],
     execute: (run) => {
       const list = run.list('list');
@@ -271,7 +271,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
       'A note for people reading the script, such as what the next lines build. It does nothing when the script runs.',
     parameters: [solidScriptParameter('text', 'Text', 'text', 'Describe this part', 'Any text.')],
     runs: false,
-    listing: (read) => [{ kind: 'note', text: `*** ${read.text('text')}` }],
+    listing: (read) => [{ kind: 'note', text: `*** ${solidScriptListingValue(read.text('text')).text}` }],
     execute: () => [],
   }),
   new SolidScriptCommand({
@@ -337,7 +337,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     endLabel: 'Part',
     listing: (read) => [
       'Define Part',
-      read.text('name'),
+      read.value('name'),
       ...solidScriptListingOptions([read.changed('mode') && ['Mode ', read.value('mode')]]),
     ],
     execute: (run) => run.partKeep(),
@@ -385,7 +385,6 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
         ),
         nameGroups: ['Parts', 'Brushes'],
         accepts: ['Brush', 'Brush List', 'Text', 'List'],
-        placeholder: '[Wall]',
       },
     ],
     listing: (read) => ['Output', read.value('of')],

@@ -10,6 +10,7 @@ describe('SolidScript brush Mode', () => {
     if (!command) throw new Error('Cube is missing');
     expect(command.parameters.some((parameter) => parameter.key === 'mode')).toBe(true);
     expect(command.listingText({ size: '1, 1, 1' })).toBe("Cube '1, 1, 1'");
+    expect(command.listingText({ size: '1, 1, 1', mode: 'Additive' })).toBe("Cube '1, 1, 1'");
     expect(command.listingText({ size: '1, 1, 1', mode: 'Subtractive' })).toBe("Cube '1, 1, 1' (Mode 'Subtractive')");
   });
 

@@ -92,17 +92,15 @@ const SOLID_SCRIPT_INPUT_COMMAND = new SolidScriptCommand({
   parameters: SOLID_SCRIPT_INPUT_PARAMETERS,
   listing: (read) => [
     'Input',
-    read.text('name'),
+    read.value('name'),
     ' (',
-    read.text('type'),
+    read.value('type'),
     // A curve's text is long and unreadable; the inspector shows it.
-    ...(['Button', 'Curve'].includes(read.text('type').trim())
-      ? [')']
-      : [') = ', { kind: 'value' as const, text: read.text('default') }]),
+    ...(['Button', 'Curve'].includes(read.text('type').trim()) ? [')'] : [') = ', read.value('default')]),
     ...solidScriptListingOptions([
-      read.text('min') !== '' && ['Min ', read.text('min')],
-      read.text('max') !== '' && ['Max ', read.text('max')],
-      read.text('choices') !== '' && ['Choices ', read.text('choices')],
+      read.text('min') !== '' && ['Min ', read.value('min')],
+      read.text('max') !== '' && ['Max ', read.value('max')],
+      read.text('choices') !== '' && ['Choices ', read.value('choices')],
     ]),
   ],
   execute: (run) => {
@@ -149,7 +147,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
         solidScriptParameter('title', 'Title', 'text', 'Settings', 'Heading shown above the inputs inside.'),
       ),
     ],
-    listing: (read) => ['Input Group', read.text('title')],
+    listing: (read) => ['Input Group', read.value('title')],
     execute: (run) => run.inPlace(),
   }),
   new SolidScriptCommand({
@@ -183,7 +181,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
         solidScriptParameter('value', 'Value', 'text', 'yes', 'Value that shows the inputs inside, as plain text.'),
       ),
     ],
-    listing: (read) => ['Show Inputs When', read.text('name'), ' Is ', read.text('value')],
+    listing: (read) => ['Show Inputs When', read.value('name'), ' Is ', read.value('value')],
     execute: (run) => run.inPlace(),
   }),
   new SolidScriptCommand({
@@ -199,7 +197,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
       ),
     ],
     runs: false,
-    listing: (read) => ['Input Note', read.text('text')],
+    listing: (read) => ['Input Note', read.value('text')],
     execute: () => [],
   }),
   new SolidScriptCommand({
@@ -236,7 +234,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
         ),
       ),
     ],
-    listing: (read) => ['Function', read.text('name'), ...solidScriptListingInputs(read.text('parameters'))],
+    listing: (read) => ['Function', read.value('name'), ...solidScriptListingInputs(read.text('parameters'))],
     execute: () => [],
   }),
   new SolidScriptCommand({
@@ -270,9 +268,9 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     ],
     listing: (read) => [
       'Call',
-      read.text('name'),
+      read.value('name'),
       ...(read.text('values').trim() === '' ? [] : [' With ', read.value('values')]),
-      ...(read.text('result').trim() === '' ? [] : [', Result In ', read.variable('result')]),
+      ...(read.text('result').trim() === '' ? [] : [', Result In ', read.value('result')]),
     ],
     execute: (run) => {
       const result = run.text('result').trim();
@@ -296,7 +294,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
       ),
     ],
     endLabel: 'When',
-    listing: (read) => ['When Input Changes', read.text('name')],
+    listing: (read) => ['When Input Changes', read.value('name')],
     execute: () => [],
   }),
   new SolidScriptCommand({
@@ -316,7 +314,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
       ),
     ],
     endLabel: 'When',
-    listing: (read) => ['When Button Pressed', read.text('name')],
+    listing: (read) => ['When Button Pressed', read.value('name')],
     execute: () => [],
   }),
   new SolidScriptCommand({
@@ -350,7 +348,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
         { word: 'Modifier', detail: 'In the modifier stack of a brush, mesh or group' },
       ]),
     ],
-    listing: (read) => ['If Used As', read.text('use')],
+    listing: (read) => ['If Used As', read.value('use')],
     endLabel: 'If',
     execute: (run) => {
       const use = run.text('use').trim().toLowerCase();
@@ -410,12 +408,12 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     listing: (read) => [
       'Input Brushes',
       ' Textures ',
-      read.text('textures'),
+      read.value('textures'),
       ...solidScriptListingOptions([
         !read.on('readable') && ['Readable Text No'],
         read.text('uv_shift_u') !== '' && read.text('uv_shift_u') !== '0' && [' UV Shift U ', read.value('uv_shift_u')],
         read.text('uv_shift_v') !== '' && read.text('uv_shift_v') !== '0' && [' UV Shift V ', read.value('uv_shift_v')],
-        read.text('into') !== '' && [' Into ', read.variable('into')],
+        read.text('into') !== '' && [' Into ', read.value('into')],
       ]),
     ],
     execute: (run) => solidScriptInputBrushesBuild(run),
@@ -435,7 +433,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
       ),
       solidScriptParameter('value', 'Value', 'value', '1', 'New value: a number, text, [Variable] or [=formula].'),
     ],
-    listing: (read) => ['Set Input', read.text('name'), ' To ', read.value('value')],
+    listing: (read) => ['Set Input', read.value('name'), ' To ', read.value('value')],
     execute: (run) => {
       run.inputSet(run.text('name').trim(), run.value('value'));
       return [];

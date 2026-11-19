@@ -203,7 +203,7 @@ function solidScriptPathListing(read: SolidScriptListingValues): SolidScriptList
     'Path',
     ...solidScriptPathListingFields(read, shape),
     ...solidScriptListingOptions([
-      read.changed('into') && read.text('into') !== 'Path' && ['Into ', read.variable('into')],
+      read.changed('into') && read.text('into') !== 'Path' && ['Into ', read.value('into')],
     ]),
   ];
 }

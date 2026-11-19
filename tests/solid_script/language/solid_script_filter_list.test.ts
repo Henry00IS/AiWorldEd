@@ -79,6 +79,6 @@ describe('SolidScript Filter List', () => {
           },
         ]),
       ),
-    ).toEqual(["Filter List [Heights] Where '[=[$Item] > 2]' Into [Tall]"]);
+    ).toEqual(["Filter List [Heights] Where '[=[$Item] > 2]' Into 'Tall'"]);
   });
 });

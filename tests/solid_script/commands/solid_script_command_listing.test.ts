@@ -36,6 +36,10 @@ describe('SolidScript listing', () => {
       "Cube '1, 1, 1' (Anchor 'Left, Bottom, Back')",
     );
     expect(listed('cube', { size: '1, 1, 1', anchor: 'Center, Center, Center' })).toBe("Cube '1, 1, 1'");
+    expect(listed('cube', { size: '1, 1, 1', mode: 'Additive' })).toBe("Cube '1, 1, 1'");
+    expect(listed('cube', { size: '1, 1, 1', mode: 'additive' })).toBe("Cube '1, 1, 1'");
+    expect(listed('cube', { size: '1, 1, 1', anchor: 'center,center,center' })).toBe("Cube '1, 1, 1'");
+    expect(listed('cube', { size: '1, 1, 1', label: 'High' })).toBe("Cube '1, 1, 1' Named 'High'");
     expect(listed('cube', { size: '1, 1, 1', anchor: 'Center, Bottom, Center' })).toBe(
       "Cube '1, 1, 1' (Anchor 'Center, Bottom, Center')",
     );
@@ -63,14 +67,14 @@ describe('SolidScript listing', () => {
     expect(listed('cylinder', { h: '2', r1: '0.5', r2: '0', anchor: 'Center, Center, Center' })).toBe(
       "Cylinder Height '2', Radius '0.5' To '0'",
     );
-    expect(listed('repeat', { variable: 'i', from: '0', to: '3', step: '1' })).toBe("Repeat [i] From '0' To '3'");
+    expect(listed('repeat', { variable: 'i', from: '0', to: '3', step: '1' })).toBe("Repeat 'i' From '0' To '3'");
     expect(listed('repeat', { variable: 'i', from: '0', to: '10', step: '2' })).toBe(
-      "Repeat [i] From '0' To '10' (Step '2')",
+      "Repeat 'i' From '0' To '10' (Step '2')",
     );
   });
 
   it('shows a lone variable as [name] and everything else as typed, in quotes', () => {
-    expect(listed('variable', { name: 'width', value: '3' })).toBe("Set [width]: '3'");
+    expect(listed('variable', { name: 'width', value: '3' })).toBe("Set 'width': '3'");
     expect(listed('transform', { move: '[offset]' })).toBe('Transform Move [offset]');
     expect(listed('sphere', { r: '[radius]' })).toBe('Sphere Radius [radius]');
     expect(listed('transform', { move: '[=[i] * 2], 0, 0' })).toBe("Transform Move '[=[i] * 2], 0, 0'");
@@ -80,9 +84,9 @@ describe('SolidScript listing', () => {
   });
 
   it('marks notes, parts and plain block lines with their own short forms', () => {
-    expect(listed('note', { text: 'Two posts and a lintel' })).toBe('*** Two posts and a lintel');
-    expect(listed('part', { name: 'post' })).toBe('Define Part post');
-    expect(listed('part', { name: 'post', mode: 'Subtractive' })).toBe("Define Part post (Mode 'Subtractive')");
+    expect(listed('note', { text: 'Two posts and a lintel' })).toBe("*** 'Two posts and a lintel'");
+    expect(listed('part', { name: 'post' })).toBe("Define Part 'post'");
+    expect(listed('part', { name: 'post', mode: 'Subtractive' })).toBe("Define Part 'post' (Mode 'Subtractive')");
     expect(listed('group')).toBe('Group');
     expect(listed('group', { mode: 'Pass-Through' })).toBe("Group (Mode 'Pass-Through')");
     expect(listed('output', { of: '[post]' })).toBe('Output [post]');
@@ -105,15 +109,15 @@ describe('SolidScript listing', () => {
     const lines = (command: string, values: Record<string, string>) =>
       solidScriptDocumentListing(solidScriptDocumentCreate([{ command, values }, { command: 'end' }]));
     expect(lines('function', { name: 'area', parameters: 'w, d' })).toEqual([
-      'Function area With Inputs w, d',
+      "Function 'area' With Inputs 'w, d'",
       'End Function',
     ]);
-    expect(lines('function', { name: 'area', parameters: '' })).toEqual(['Function area', 'End Function']);
-    expect(lines('when_button_pressed', { name: 'Reset' })).toEqual(['When Button Pressed Reset', 'End When']);
-    expect(lines('when_input_changes', { name: 'width' })).toEqual(['When Input Changes width', 'End When']);
-    expect(lines('part', { name: 'post' })).toEqual(['Define Part post', 'End Part']);
+    expect(lines('function', { name: 'area', parameters: '' })).toEqual(["Function 'area'", 'End Function']);
+    expect(lines('when_button_pressed', { name: 'Reset' })).toEqual(["When Button Pressed 'Reset'", 'End When']);
+    expect(lines('when_input_changes', { name: 'width' })).toEqual(["When Input Changes 'width'", 'End When']);
+    expect(lines('part', { name: 'post' })).toEqual(["Define Part 'post'", 'End Part']);
     expect(lines('repeat', { variable: 'i', from: '0', to: '3' })).toEqual([
-      "Repeat [i] From '0' To '3'",
+      "Repeat 'i' From '0' To '3'",
       'End Repeat',
     ]);
     expect(lines('if', { condition: '[i] > 2' })).toEqual(["If '[i] > 2'", 'End If']);
@@ -121,18 +125,18 @@ describe('SolidScript listing', () => {
 
   it('writes calls, results and inspector lines in plain words', () => {
     expect(listed('call', { name: 'area', values: '2, 3', result: 'size' })).toBe(
-      "Call area With '2, 3', Result In [size]",
+      "Call 'area' With '2, 3', Result In 'size'",
     );
-    expect(listed('call', { name: 'Thread', values: '4' })).toBe("Call Thread With '4'");
-    expect(listed('call', { name: 'tick', values: '', result: '' })).toBe('Call tick');
-    expect(listed('function', { name: 'Thread', parameters: 'N' })).toBe('Function Thread With Input N');
-    expect(listed('function', { name: 'area', parameters: 'w, d' })).toBe('Function area With Inputs w, d');
+    expect(listed('call', { name: 'Thread', values: '4' })).toBe("Call 'Thread' With '4'");
+    expect(listed('call', { name: 'tick', values: '', result: '' })).toBe("Call 'tick'");
+    expect(listed('function', { name: 'Thread', parameters: 'N' })).toBe("Function 'Thread' With Input 'N'");
+    expect(listed('function', { name: 'area', parameters: 'w, d' })).toBe("Function 'area' With Inputs 'w, d'");
     expect(solidScriptCommandFind('function')?.parameters.map((field) => field.key)).toEqual(['name', 'parameters']);
     expect(listed('return', { value: '[local.x]' })).toBe('Return [local.x]');
-    expect(listed('set_input', { name: 'width', value: '2' })).toBe("Set Input width To '2'");
+    expect(listed('set_input', { name: 'width', value: '2' })).toBe("Set Input 'width' To '2'");
     expect(listed('show_message', { text: 'Too thin' })).toBe("Show Message 'Too thin'");
-    expect(listed('input', { name: 'width', type: 'Number', default: '1' })).toBe('Input width (Number) = 1');
-    expect(listed('remove_item', { target: 'points(1)' })).toBe('Remove Item [points(1)]');
+    expect(listed('input', { name: 'width', type: 'Number', default: '1' })).toBe("Input 'width' ('Number') = '1'");
+    expect(listed('remove_item', { target: 'points(1)' })).toBe("Remove Item 'points(1)'");
   });
 
   it('has no Detail command any more', () => {
@@ -146,7 +150,7 @@ describe('SolidScript listing', () => {
       solidScriptCommandFind('repeat')
         ?.listing({ variable: 'i' })
         .map((part) => part.kind),
-    ).toEqual(['name', 'variable', 'word', 'value', 'word', 'value']);
+    ).toEqual(['name', 'value', 'word', 'value', 'word', 'value']);
     expect(
       solidScriptCommandFind('note')
         ?.listing({ text: 'x' })

@@ -668,8 +668,9 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     const value = (key: string): SolidScriptValue => state.machine.fieldValue(fields, node, key, state.scope);
     const modeOf = (): Readonly<Record<string, string>> => {
       if (!node.command.parameters.some((field) => field.key === 'mode')) return node.values;
-      const field = solidScriptLineFieldOf(fields, node, 'mode');
-      const mode = field.text.includes('[') ? solidScriptValueText(value('mode')) : field.text;
+      const stored = (node.values['mode'] ?? '').trim();
+      if (stored === '') return { ...node.values, mode: '' };
+      const mode = stored.includes('[') ? solidScriptValueText(value('mode')) : stored;
       return { ...node.values, mode };
     };
     return {

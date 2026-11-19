@@ -85,11 +85,11 @@ export const SOLID_SCRIPT_COMMANDS_QUERY: readonly SolidScriptCommand[] = [
         read.value('from'),
         ...(ray ? [' Direction ', read.value('direction')] : []),
         ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
-        ...(read.text('into') === '' ? [] : [' Into ', read.variable('into')]),
-        ...(read.text('distance') === '' ? [] : [' Distance ', read.variable('distance')]),
-        ...(read.text('normal') === '' ? [] : [' Normal ', read.variable('normal')]),
-        ...(read.text('face') === '' ? [] : [' Face ', read.variable('face')]),
-        ...(read.text('hit') === '' ? [] : [' Hit ', read.variable('hit')]),
+        ...(read.text('into') === '' ? [] : [' Into ', read.value('into')]),
+        ...(read.text('distance') === '' ? [] : [' Distance ', read.value('distance')]),
+        ...(read.text('normal') === '' ? [] : [' Normal ', read.value('normal')]),
+        ...(read.text('face') === '' ? [] : [' Face ', read.value('face')]),
+        ...(read.text('hit') === '' ? [] : [' Hit ', read.value('hit')]),
       ];
     },
     execute: (run) => {

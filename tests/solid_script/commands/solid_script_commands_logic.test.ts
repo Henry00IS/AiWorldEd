@@ -43,7 +43,7 @@ describe('SolidScript Set', () => {
   });
 
   it('writes the variable and the value in the line, and ignores a saved Type', () => {
-    expect(solidScriptDocumentListing(solidScriptDocumentCreate([set('X', '2')]))).toEqual(["Set [X]: '2'"]);
+    expect(solidScriptDocumentListing(solidScriptDocumentCreate([set('X', '2')]))).toEqual(["Set 'X': '2'"]);
     const saved = line('variable', { name: 'X', value: 'oak', type: 'Number' });
     expect(outcome(saved, line('echo', { value: '[X]' }))).toEqual(['oak']);
   });

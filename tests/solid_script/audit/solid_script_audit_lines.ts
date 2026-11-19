@@ -140,8 +140,7 @@ export function solidScriptAuditLine(
   command: SolidScriptCommand,
   values: Record<string, string> = {},
 ): SolidScriptLine {
-  const filled: Record<string, string> = {};
-  for (const parameter of command.parameters) filled[parameter.key] = parameter.default;
+  const filled: Record<string, string> = { ...command.valuesDefault() };
   if (SOLID_SCRIPT_AUDIT_FACES.has(command.id) && 'of' in filled) filled['of'] = '[F]';
   if (SOLID_SCRIPT_AUDIT_MESHES.has(command.id) && 'of' in filled)
     filled['of'] = command.id === 'inset_face' || command.id === 'delete_faces' ? '[MF]' : '[M]';

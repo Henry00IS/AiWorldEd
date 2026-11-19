@@ -131,14 +131,14 @@ describe('SolidScript list blocks', () => {
       ]),
     );
     expect(listing).toEqual([
-      "Add Item '5' To heights",
-      "Insert Item '4' Into heights At '1'",
-      "Remove Value 'red' From colors (Every Copy)",
-      "Find Item 'blue' In colors, Result In [where]",
-      'Sort List heights (Biggest First)',
-      'Reverse List heights',
-      'Clear Variable [heights]',
-      'Delete Variable [step]',
+      "Add Item '5' To 'heights'",
+      "Insert Item '4' Into 'heights' At '1'",
+      "Remove Value 'red' From 'colors' (Every Copy)",
+      "Find Item 'blue' In 'colors', Result In 'where'",
+      "Sort List 'heights' (Biggest First)",
+      "Reverse List 'heights'",
+      "Clear Variable 'heights'",
+      "Delete Variable 'step'",
     ]);
   });
 });

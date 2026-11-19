@@ -75,6 +75,6 @@ describe('SolidScript Select Edges and Select Vertices', () => {
           line('select_vertices', { how: 'Add' }),
         ]),
       ),
-    ).toEqual(["Select Edges All Where '[=[$Edge.Length] > 1]' Into [Long]", 'Select Vertices All (Add)']);
+    ).toEqual(["Select Edges 'All' Where '[=[$Edge.Length] > 1]' Into 'Long'", "Select Vertices 'All' (How 'Add')"]);
   });
 });

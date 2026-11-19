@@ -71,8 +71,8 @@ export const SOLID_SCRIPT_COMMANDS_POINTS: readonly SolidScriptCommand[] = [
       'Points From Faces',
       ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
       ' Into ',
-      read.variable('into'),
-      ...(read.text('normals') === '' ? [] : [' Normals ', read.variable('normals')]),
+      read.value('into'),
+      ...(read.text('normals') === '' ? [] : [' Normals ', read.value('normals')]),
     ],
     execute: (run) => {
       solidScriptPointsFromWrite(
@@ -96,8 +96,8 @@ export const SOLID_SCRIPT_COMMANDS_POINTS: readonly SolidScriptCommand[] = [
       'Points From Edges',
       ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
       ' Into ',
-      read.variable('into'),
-      ...(read.text('normals') === '' ? [] : [' Normals ', read.variable('normals')]),
+      read.value('into'),
+      ...(read.text('normals') === '' ? [] : [' Normals ', read.value('normals')]),
     ],
     execute: (run) => {
       solidScriptPointsFromWrite(
@@ -125,8 +125,8 @@ export const SOLID_SCRIPT_COMMANDS_POINTS: readonly SolidScriptCommand[] = [
       'Points From Vertices',
       ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
       ' Into ',
-      read.variable('into'),
-      ...(read.text('normals') === '' ? [] : [' Normals ', read.variable('normals')]),
+      read.value('into'),
+      ...(read.text('normals') === '' ? [] : [' Normals ', read.value('normals')]),
     ],
     execute: (run) => {
       solidScriptPointsFromWrite(

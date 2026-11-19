@@ -68,7 +68,7 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
     for (const parameter of command.parameters) {
       const field = solidScriptConfiguratorFieldBuild(
         parameter,
-        values[parameter.key] ?? parameter.default,
+        values[parameter.key] ?? (parameter.optional === true ? '' : parameter.default),
         () => this.refresh(),
         {
           names,

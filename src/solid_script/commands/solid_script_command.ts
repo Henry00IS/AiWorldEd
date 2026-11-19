@@ -15,6 +15,7 @@ import {
   type SolidScriptListingValues,
   type SolidScriptListingWrite,
 } from './solid_script_command_listing.js';
+import { solidScriptParameterValueIsDefault } from './solid_script_parameter_default.js';
 import {
   solidScriptParameterInto,
   solidScriptParameterShapeName,
@@ -338,12 +339,15 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
   }
 
   /**
-   * Returns the values of a new command line.
+   * Returns the values of a new command line. Optional fields start empty so
+   * their declared default can show as placeholder text.
    *
    * @returns Default value per field key.
    */
   valuesDefault(): Record<string, string> {
-    return Object.fromEntries(this.parameters.map((parameter) => [parameter.key, parameter.default]));
+    return Object.fromEntries(
+      this.parameters.map((parameter) => [parameter.key, parameter.optional === true ? '' : parameter.default]),
+    );
   }
 
   /**
@@ -401,8 +405,10 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
       text: (key) => this.valueText(values, key),
       on: (key) => solidScriptFieldBoolean(this.valueText(values, key)) === true,
       changed: (key) =>
-        solidScriptFieldBoolean(this.valueText(values, key)) !==
-        solidScriptFieldBoolean(this.parameters.find((parameter) => parameter.key === key)?.default ?? ''),
+        !solidScriptParameterValueIsDefault(
+          this.valueText(values, key),
+          this.parameters.find((parameter) => parameter.key === key)?.default ?? '',
+        ),
     };
     const [first, ...rest] = this.listingWrite(read);
     if (typeof first === 'string') return solidScriptListingBuild(first, rest);
@@ -442,6 +448,10 @@ function solidScriptCommandListing(
     const pieces = spec.listing(read);
     const name = named ? read.text(SOLID_SCRIPT_SHAPE_NAME_KEY) : '';
     const into = builds || writeCopy ? read.text('into') : '';
-    return [...pieces, ...(name === '' ? [] : [' Named ', name]), ...(into === '' ? [] : [' Into ', into])];
+    return [
+      ...pieces,
+      ...(name === '' ? [] : [' Named ', solidScriptListingValue(name)]),
+      ...(into === '' ? [] : [' Into ', solidScriptListingValue(into)]),
+    ];
   };
 }

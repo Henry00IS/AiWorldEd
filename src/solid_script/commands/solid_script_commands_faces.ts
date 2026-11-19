@@ -146,8 +146,8 @@ function solidScriptScatterListingFaces(read: SolidScriptListingValues): SolidSc
     read.value('seed'),
     ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
     ' Into ',
-    read.variable('into'),
-    ...(read.text('normals') === '' ? [] : [' Normals ', read.variable('normals')]),
+    read.value('into'),
+    ...(read.text('normals') === '' ? [] : [' Normals ', read.value('normals')]),
   ];
 }
 
@@ -171,7 +171,7 @@ function solidScriptScatterListingOther(read: SolidScriptListingValues, where: s
     ...(grid ? [] : [' With Seed ', read.value('seed')]),
     ...(read.text('of') === '' || box ? [] : [' Of ', read.value('of')]),
     ' Into ',
-    read.variable('into'),
+    read.value('into'),
   ];
 }
 
@@ -369,14 +369,13 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       solidScriptParameterInto('the picked faces, a Face list', 'Face List', 'what is made'),
     ],
     listing: (read) => {
-      const which = read.text('which').trim();
       return [
         'Select Faces',
-        which,
+        read.value('which'),
         ...(read.text('where').trim() === '' ? [] : [' Where ', read.value('where')]),
         ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
-        ...solidScriptListingOptions([read.text('how').trim() !== 'New' && [read.text('how').trim()]]),
-        ...(read.text('into') === '' ? [] : [' Into ', read.variable('into')]),
+        ...solidScriptListingOptions([read.changed('how') && ['How ', read.value('how')]]),
+        ...(read.text('into') === '' ? [] : [' Into ', read.value('into')]),
       ];
     },
     execute: (run) => {
@@ -634,9 +633,9 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       read.value('distance'),
       ...(read.text('lift').trim() === '' ? [] : [' Lift ', read.value('lift')]),
       ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
-      ...(read.text('into') === '' ? [] : [' Into ', read.variable('into')]),
-      ...(read.text('top') === '' ? [] : [' Top ', read.variable('top')]),
-      ...(read.text('sides') === '' ? [] : [' Sides ', read.variable('sides')]),
+      ...(read.text('into') === '' ? [] : [' Into ', read.value('into')]),
+      ...(read.text('top') === '' ? [] : [' Top ', read.value('top')]),
+      ...(read.text('sides') === '' ? [] : [' Sides ', read.value('sides')]),
     ],
     execute: (run) => {
       const distance = solidScriptFaceDistance(run, 'Distance');
@@ -720,8 +719,8 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       'By ',
       read.value('distance'),
       ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
-      ...(read.text('inner') === '' ? [] : [' Inner ', read.variable('inner')]),
-      ...(read.text('ring') === '' ? [] : [' Ring ', read.variable('ring')]),
+      ...(read.text('inner') === '' ? [] : [' Inner ', read.value('inner')]),
+      ...(read.text('ring') === '' ? [] : [' Ring ', read.value('ring')]),
     ],
     execute: (run) => {
       const distance = solidScriptFaceDistance(run, 'Distance');
@@ -770,7 +769,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       'By ',
       read.value('distance'),
       ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
-      ...(read.text('into') === '' ? [] : [' Into ', read.variable('into')]),
+      ...(read.text('into') === '' ? [] : [' Into ', read.value('into')]),
     ],
     execute: (run) => {
       const distance = solidScriptFaceDistance(run, 'Distance');

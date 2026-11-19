@@ -279,8 +279,8 @@ describe('SolidScript faces', () => {
     const missing = run(...lines, select('All', { of: 'Handle' }));
     expect(missing.error?.message).toContain('No brush or mesh above is named "Handle"');
     expect(solidScriptDocumentListing(solidScriptDocumentCreate([lines[0]!, select('All', { of: 'Knob' })]))).toEqual([
-      "Cube '4, 4, 1' Named Base",
-      "Select Faces All Of 'Knob'",
+      "Cube '4, 4, 1' Named 'Base'",
+      "Select Faces 'All' Of 'Knob'",
     ]);
   });
 
@@ -489,10 +489,10 @@ describe('SolidScript faces', () => {
       ]),
     );
     expect(listing).toEqual([
-      'Select Faces All Where \'[=HasTag([$Face.Tags], "Step Tread")]\'',
-      "Select Faces All Where '[=Facing([$Face.Normal], Vector(0, 1, 0), 45)]' (Add) Into [Top]",
-      "For Each [Face] In '[$Selected.Faces]'",
-      "    Extrude Face By '0.1' Of [Face] Top [Roof]",
+      "Select Faces 'All' Where '[=HasTag([$Face.Tags], \"Step Tread\")]'",
+      "Select Faces 'All' Where '[=Facing([$Face.Normal], Vector(0, 1, 0), 45)]' (How 'Add') Into 'Top'",
+      "For Each 'Face' In '[$Selected.Faces]'",
+      "    Extrude Face By '0.1' Of [Face] Top 'Roof'",
       'End For Each',
     ]);
   });
