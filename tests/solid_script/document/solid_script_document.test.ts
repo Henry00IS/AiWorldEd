@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import {
   SOLID_SCRIPT_DOCUMENT_VERSION,
@@ -6,8 +7,20 @@ import {
   solidScriptDocumentDefault,
   solidScriptDocumentNormalize,
 } from '@/solid_script/document/solid_script_document.js';
+import type { SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
 import { solidScriptDocumentDepths } from '@/solid_script/document/solid_script_document_indent.js';
 import { solidScriptProgramEvaluate } from '@/solid_script/language/solid_script_program.js';
+
+/**
+ * Center of a built solid, from its corner points.
+ *
+ * @param shape Shape.
+ * @returns Center.
+ */
+function shapeCenter(shape: SolidScriptShape): THREE.Vector3 {
+  if (shape.kind !== 'solid') throw new Error('expected a solid');
+  return new THREE.Box3().setFromPoints(shape.points).getCenter(new THREE.Vector3());
+}
 
 describe('solid script document', () => {
   it('runs the block lines directly, so error and step lines are editor lines', () => {
@@ -72,7 +85,10 @@ describe('solid script document', () => {
     expect(script.name).not.toBe('');
     expect(script.blocks.map((block) => block.command)).not.toContain('translate');
     expect(script.blocks.map((block) => block.command)).not.toContain('detail');
-    expect(solidScriptProgramEvaluate(script).shapes.length).toBeGreaterThan(0);
+    expect(script.blocks.some((block) => (block.values['size'] ?? '').includes('[$Box.'))).toBe(false);
+    const result = solidScriptProgramEvaluate(script);
+    expect(result.shapes.length).toBeGreaterThan(0);
+    for (const shape of result.shapes) expect(shapeCenter(shape).length()).toBeCloseTo(0, 6);
     expect(script.blocks.every((block) => block.id !== solidScriptBlockCreate('cube').id)).toBe(true);
   });
 });

@@ -31,17 +31,17 @@ describe('SolidScript listing', () => {
     expect(listed('cube', { size: '1, 1, 1', anchor: 'Left, Bottom, Back' })).toBe(
       "Cube '1, 1, 1' (Anchor 'Left, Bottom, Back')",
     );
-    expect(listed('cube', { size: '1, 1, 1', anchor: 'Center, Bottom, Center' })).toBe("Cube '1, 1, 1'");
-    expect(listed('cube', { size: '1, 1, 1', anchor: 'Center, Center, Center' })).toBe(
-      "Cube '1, 1, 1' (Anchor 'Center, Center, Center')",
+    expect(listed('cube', { size: '1, 1, 1', anchor: 'Center, Center, Center' })).toBe("Cube '1, 1, 1'");
+    expect(listed('cube', { size: '1, 1, 1', anchor: 'Center, Bottom, Center' })).toBe(
+      "Cube '1, 1, 1' (Anchor 'Center, Bottom, Center')",
     );
     expect(listed('square', { size: '2, 1', anchor: 'Left, Front' })).toBe("Square '2, 1' (Anchor 'Left, Front')");
     expect(listed('linear_extrude', { height: '2', scale: '1, 1' })).toBe("Linear Extrude Height '2'");
     expect(listed('linear_extrude', { height: '2', anchor: 'Center', scale: '0.5, 0.5' })).toBe(
-      "Linear Extrude Height '2' (Anchor 'Center', Top Scale '0.5, 0.5')",
+      "Linear Extrude Height '2' (Top Scale '0.5, 0.5')",
     );
     expect(listed('linear_extrude', { height: '2', anchor: 'Bottom', scale: '0.5, 0.5' })).toBe(
-      "Linear Extrude Height '2' (Top Scale '0.5, 0.5')",
+      "Linear Extrude Height '2' (Anchor 'Bottom', Top Scale '0.5, 0.5')",
     );
   });
 
@@ -56,7 +56,7 @@ describe('SolidScript listing', () => {
 
   it('reads differently depending on how the block is configured', () => {
     expect(listed('cylinder', { h: '2', r1: '0.5', r2: '0.5' })).toBe("Cylinder Height '2', Radius '0.5'");
-    expect(listed('cylinder', { h: '2', r1: '0.5', r2: '0', anchor: 'Center, Bottom, Center' })).toBe(
+    expect(listed('cylinder', { h: '2', r1: '0.5', r2: '0', anchor: 'Center, Center, Center' })).toBe(
       "Cylinder Height '2', Radius '0.5' To '0'",
     );
     expect(listed('repeat', { variable: 'i', from: '0', to: '3', step: '1' })).toBe("Repeat [i] From '0' To '3'");

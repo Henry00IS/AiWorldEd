@@ -198,7 +198,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     category: 'Transforms',
     description: 'Pull flat outlines up into solids',
     manual:
-      'Lays the flat outlines between this line and its End (Square, Circle, Polygon) on the ground, their Y running to the back, and pulls them straight up along Y into solids. Anchor is Bottom by default, so the extrusion stands on the outlines; Center puts the middle of its height on the origin. Top Scale below 1 narrows the top, for a tapered shape. Mode chooses how the brush combines with the ones before it: Additive, Subtractive or Intersecting. Example: a Polygon star with height 0.2 gives a star-shaped tile.',
+      'Lays the flat outlines between this line and its End (Square, Circle, Polygon) on the ground, their Y running to the back, and pulls them straight up along Y into solids. Anchor is Center by default, so the middle of its height sits on the origin; Bottom makes the extrusion stand on the outlines. Top Scale below 1 narrows the top, for a tapered shape. Mode chooses how the brush combines with the ones before it: Additive, Subtractive or Intersecting. Example: a Polygon star with height 0.2 gives a star-shaped tile.',
     stops: [
       'A height of 0 or less.',
       'A solid such as Cube between this line and its End. Only flat outlines can be extruded.',
