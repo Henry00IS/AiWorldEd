@@ -12,7 +12,11 @@ import { solidScriptInputTypeLabel } from '@/solid_script/language/solid_script_
 import { solidScriptSystemValues } from '@/solid_script/language/solid_script_system.js';
 import { SOLID_SCRIPT_SYSTEM_CATALOG } from '@/solid_script/language/solid_script_system_names.js';
 import { solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
-import type { SolidScriptFrameView, SolidScriptVariable } from '@/solid_script/language/solid_script_machine_types.js';
+import type {
+  SolidScriptFrameView,
+  SolidScriptLineSeen,
+  SolidScriptVariable,
+} from '@/solid_script/language/solid_script_machine_types.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import {
   solidScriptExplorerContextEntries,
@@ -52,6 +56,45 @@ const SOLID_SCRIPT_EXPLORER_SYSTEM_NOW = 'built-in values as they read now';
 const SOLID_SCRIPT_EXPLORER_CONTEXT_NONE = 'No line is focused.';
 
 /**
+ * Where the values in Context come from: no run, the run stopped just before
+ * the focused line, the last time the focused line ran, or where the values of
+ * the run were captured because the focused line did not run or ran too often
+ * to keep its values.
+ */
+export type SolidScriptExplorerContextSource = 'none' | 'stopped' | 'last' | 'captured' | 'often';
+
+/** Values the focused line sees in Context, and where they come from. */
+export interface SolidScriptExplorerContextValues {
+  source: SolidScriptExplorerContextSource;
+  /** Values by shown name, or null when there are none. */
+  values: ReadonlyMap<string, SolidScriptVariable> | null;
+}
+
+/**
+ * Picks the values Context shows for the focused line: where the run stopped
+ * when it stopped just before that line, else as they were just before the line
+ * last ran, else where the run's values were captured.
+ *
+ * @param line Focused 0-based line.
+ * @param run Where the run values were captured.
+ * @param live Values of the run by shown name where they were captured.
+ * @param seen Variables and stack just before each 1-based line last ran.
+ * @returns Values and where they come from.
+ */
+export function solidScriptExplorerContextValues(
+  line: number,
+  run: SolidScriptExplorerRun,
+  live: ReadonlyMap<string, SolidScriptVariable>,
+  seen: ReadonlyMap<number, SolidScriptLineSeen | null>,
+): SolidScriptExplorerContextValues {
+  if (!run.ran) return { source: 'none', values: null };
+  if (run.stoppedBefore === line) return { source: 'stopped', values: live };
+  const last = seen.get(line + 1);
+  if (last) return { source: 'last', values: solidScriptExplorerLive(last.variables, last.stack) };
+  return { source: last === null ? 'often' : 'captured', values: live };
+}
+
+/**
  * Describes what a category of the explorer shows: the Context of the focused
  * line before it runs, the built-in values read now, or the values of the run
  * where they were captured.
@@ -59,18 +102,28 @@ const SOLID_SCRIPT_EXPLORER_CONTEXT_NONE = 'No line is focused.';
  * @param category Category shown.
  * @param run Where the run values were captured.
  * @param contextLine Focused 0-based line, or null when no line is focused.
+ * @param source Where the values in Context come from.
  * @returns Caption.
  */
 export function solidScriptExplorerCaption(
   category: SolidScriptExplorerCategory,
   run: SolidScriptExplorerRun,
   contextLine: number | null,
+  source: SolidScriptExplorerContextSource = 'none',
 ): string {
   if (category === 'System') return `${run.caption}; ${SOLID_SCRIPT_EXPLORER_SYSTEM_NOW}`;
   if (category !== 'Context') return run.caption;
   if (contextLine === null) return SOLID_SCRIPT_EXPLORER_CONTEXT_NONE;
-  const live = run.stoppedBefore === contextLine ? ', with the values where the run stopped' : '';
-  return `Before line ${contextLine + 1} runs${live}`;
+  const before = `Before line ${contextLine + 1} runs`;
+  if (source === 'stopped') return `${before}, with the values where the run stopped`;
+  if (source === 'last') return `${before}, with the values from the last time it ran`;
+  if (source === 'none') return before;
+  const where =
+    run.stoppedBefore !== null
+      ? 'where the run stopped'
+      : `${run.caption.charAt(0).toLowerCase()}${run.caption.slice(1)}`;
+  const why = source === 'often' ? 'ran too many times to keep its values' : 'has not run';
+  return `Line ${contextLine + 1} ${why}, so these are the values ${where}`;
 }
 
 /** One name the explorer lists. */
@@ -286,6 +339,8 @@ export class SolidScriptEditorExplorer {
   private live: ReadonlyMap<string, SolidScriptVariable> = new Map();
   private run: SolidScriptExplorerRun = { caption: 'Nothing ran yet', stoppedBefore: null, ran: false };
   private contextLine: number | null = null;
+  private seen: ReadonlyMap<number, SolidScriptLineSeen | null> = new Map();
+  private contextSource: SolidScriptExplorerContextSource = 'none';
 
   /** Builds the explorer. */
   constructor() {
@@ -332,6 +387,7 @@ export class SolidScriptEditorExplorer {
    * @param stack Running Functions and parts, outermost first.
    * @param system System lists such as $Selected.Faces at the step shown.
    * @param run Where the values were captured.
+   * @param seen Variables and stack just before each 1-based line last ran.
    */
   show(
     script: SolidScriptDocument,
@@ -339,6 +395,7 @@ export class SolidScriptEditorExplorer {
     stack: readonly SolidScriptFrameView[],
     system: readonly SolidScriptVariable[],
     run: SolidScriptExplorerRun,
+    seen: ReadonlyMap<number, SolidScriptLineSeen | null> = new Map(),
   ): void {
     const lists = run.ran ? system : [];
     this.entries = solidScriptExplorerEntries(script, variables, stack, {
@@ -352,6 +409,7 @@ export class SolidScriptEditorExplorer {
       ...lists.map((list): [string, SolidScriptVariable] => [list.name, list]),
     ]);
     this.run = run;
+    this.seen = seen;
     this.contextRefresh();
   }
 
@@ -372,8 +430,11 @@ export class SolidScriptEditorExplorer {
     const line = this.contextLine;
     const inScript = script !== null && line !== null && line < script.blocks.length;
     if (!inScript) this.contextLine = null;
-    const live = inScript && this.run.stoppedBefore === line ? this.live : null;
-    this.contextEntries = inScript ? solidScriptExplorerContextEntries(script, line, live) : [];
+    const context = inScript
+      ? solidScriptExplorerContextValues(line, this.run, this.live, this.seen)
+      : { source: 'none' as const, values: null };
+    this.contextSource = context.source;
+    this.contextEntries = inScript ? solidScriptExplorerContextEntries(script, line, context.values) : [];
     this.render();
   }
 
@@ -435,7 +496,12 @@ export class SolidScriptEditorExplorer {
         return button;
       }),
     );
-    this.caption.textContent = solidScriptExplorerCaption(this.category, this.run, this.contextLine);
+    this.caption.textContent = solidScriptExplorerCaption(
+      this.category,
+      this.run,
+      this.contextLine,
+      this.contextSource,
+    );
     const rows: HTMLElement[] = [this.headerRow()];
     if (this.category === 'Call Stack') rows.push(...this.stackRows(query));
     else if (this.category === 'Context') rows.push(...this.contextRows(contextMatching, query));

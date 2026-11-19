@@ -311,6 +311,18 @@ export interface SolidScriptEvaluation {
    * 1-based line; empty unless the run was asked to profile.
    */
   profile: ReadonlyMap<number, SolidScriptLineProfile>;
+  /**
+   * Variables and the call stack just before each line last ran, by 1-based
+   * line, up to where the values were captured; null for a line that ran too
+   * often to keep them; empty unless the run was asked to profile.
+   */
+  seen: ReadonlyMap<number, SolidScriptLineSeen | null>;
+}
+
+/** Variables and the call stack just before a line ran. */
+export interface SolidScriptLineSeen {
+  variables: SolidScriptVariable[];
+  stack: SolidScriptFrameView[];
 }
 
 /** How often one line ran and its time in milliseconds, inner lines included. */

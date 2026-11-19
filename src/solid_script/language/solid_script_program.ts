@@ -143,6 +143,7 @@ export function solidScriptProgramRun(
       system: [],
       passed: [],
       profile: new Map(),
+      seen: new Map(),
       error: solidScriptFailure(solidScriptErrorLine(message), message),
     };
   }

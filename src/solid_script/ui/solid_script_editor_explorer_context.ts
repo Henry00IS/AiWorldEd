@@ -47,8 +47,9 @@ const SOLID_SCRIPT_CONTEXT_SELECTED = SOLID_SCRIPT_SYSTEM_CATALOG.filter((entry)
  *
  * @param script Script.
  * @param line 0-based line.
- * @param live Values by shown name when the run stopped just before this line,
- *   or null.
+ * @param live Values by shown name as the line sees them, from where the run
+ *   stopped, the last time the line ran, or where the run's values were
+ *   captured; or null.
  * @returns Entries; empty when the line is not in the script.
  */
 export function solidScriptExplorerContextEntries(
@@ -118,8 +119,7 @@ function solidScriptContextReadable(name: SolidScriptName, before: SolidScriptFl
  * Builds the entry of a name a line can read.
  *
  * @param name Name with its kinds at the line.
- * @param live Values by shown name when the run stopped just before the line,
- *   or null.
+ * @param live Values by shown name as the line sees them, or null.
  * @returns Entry.
  */
 function solidScriptContextNameEntry(

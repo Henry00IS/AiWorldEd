@@ -68,7 +68,9 @@ import type {
   SolidScriptFrameView,
   SolidScriptGathering,
   SolidScriptHandled,
+  SolidScriptFrame,
   SolidScriptLineProfile,
+  SolidScriptLineSeen,
   SolidScriptMachineCommand,
   SolidScriptMachineField,
   SolidScriptRun,
@@ -90,6 +92,13 @@ const SOLID_SCRIPT_SOLIDS_MAX = 2000;
  * Counting work instead of time keeps every machine of a room in step.
  */
 export const SOLID_SCRIPT_WORK_LIMIT = 10_000_000;
+
+/**
+ * Most variable values a profiling run keeps for what each line saw before it
+ * ran; past it, a line that runs again keeps nothing, so a long loop does not
+ * slow the run down.
+ */
+export const SOLID_SCRIPT_SEEN_LIMIT = 250_000;
 
 /**
  * Runs the lines of a script directly, one block after the other. A machine
@@ -136,10 +145,30 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   /** True from a Stop Script line until the run or event ends. */
   private stopping = false;
   private watched: SolidScriptScope | null = null;
+  /**
+   * Variables of the last step within the step limit as they were then, since
+   * the run goes on past it; null to read the watched scope where the run
+   * ends.
+   */
+  private watchedValues: Map<string, SolidScriptValue> | null = null;
   /** Count and time of each line, when profiling. */
   private readonly profile = new Map<number, SolidScriptLineProfile>();
   /** Lines being timed now, so a line that calls itself is timed once. */
   private readonly profiled = new Set<number>();
+  /**
+   * Variables and running frames with their own variables just before each
+   * 1-based line last ran, when profiling, turned into text when the run ends;
+   * null for a line that ran again once too many values were kept.
+   */
+  private readonly lineSeen = new Map<
+    number,
+    {
+      variables: Map<string, SolidScriptValue>;
+      stack: { frame: SolidScriptFrame; locals: Map<string, SolidScriptValue> }[];
+    } | null
+  >();
+  /** Values kept in lineSeen so far, up to SOLID_SCRIPT_SEEN_LIMIT. */
+  private lineSeenValues = 0;
 
   /**
    * Creates a machine.
@@ -353,7 +382,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     this.builtStack.push(shapes);
     const system = this.systemSeen ?? this.systemCapture();
     this.builtStack.pop();
-    const variables = [...(this.watched?.variablesVisible() ?? [])].map(([name, value]) =>
+    const variables = [...(this.watchedValues ?? this.watched?.variablesVisible() ?? [])].map(([name, value]) =>
       solidScriptVariableView(this.spellings.get(name) ?? name, value),
     );
     const warnings: SolidScriptWarning[] = [...this.warnings]
@@ -379,6 +408,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       system,
       passed: this.passedSeen ?? [...this.profile.keys()],
       profile: this.profile,
+      seen: this.lineSeenViews(),
       error: this.failure,
     };
   }
@@ -483,7 +513,9 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     context: SolidScriptContext,
     known = solidScriptRunKnown(node, SolidScriptMachine.build),
   ): SolidScriptShape[] {
-    if (known.definition || this.breakReached(node.line, scope)) return [];
+    if (known.definition) return [];
+    if (this.profiling) this.lineSeenNote(node.line, scope);
+    if (this.breakReached(node.line, scope)) return [];
     if (this.profiling) return this.lineProfiled(node, scope, context, known);
     return this.lineExecute(node, scope, context, known);
   }
@@ -1019,16 +1051,70 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
    */
   private watch(scope: SolidScriptScope): void {
     this.watched = scope;
-    this.stackSeen = this.stack.map((frame) => {
-      const name = this.nameShown(solidScriptNameKey(frame.name));
-      return {
-        name: frame.kind === 'function' ? `${name}()` : `part ${name}`,
-        line: frame.line,
-        locals: [...(frame.locals?.variablesVisible() ?? [])].map(([key, value]) =>
-          solidScriptVariableView(this.nameShown(`${SOLID_SCRIPT_LOCAL_PREFIX}${key}`), value),
-        ),
-      };
-    });
+    this.watchedValues = this.steps.length === this.stepLimit ? scope.variablesVisible() : null;
+    this.stackSeen = this.stack.map((frame) => this.frameView(frame, frame.locals?.variablesVisible() ?? new Map()));
+  }
+
+  /**
+   * Shows one running Function or part as the debugger lists it.
+   *
+   * @param frame Frame.
+   * @param locals Its own variables.
+   * @returns Frame with its variables as text.
+   */
+  private frameView(frame: SolidScriptFrame, locals: ReadonlyMap<string, SolidScriptValue>): SolidScriptFrameView {
+    const name = this.nameShown(solidScriptNameKey(frame.name));
+    return {
+      name: frame.kind === 'function' ? `${name}()` : `part ${name}`,
+      line: frame.line,
+      locals: [...locals].map(([key, value]) =>
+        solidScriptVariableView(this.nameShown(`${SOLID_SCRIPT_LOCAL_PREFIX}${key}`), value),
+      ),
+    };
+  }
+
+  /**
+   * Keeps the variables a line sees just before it runs, replacing those of its
+   * earlier runs, while the run is still before where its values get shown: not
+   * after a stop, nor past the last step within the step limit. Once too many
+   * values were kept, the line keeps nothing instead of older values.
+   *
+   * @param line 1-based line about to run.
+   * @param scope Scope it runs in.
+   */
+  private lineSeenNote(line: number, scope: SolidScriptScope): void {
+    if (this.failure || this.paused || this.leaving || this.stopping || this.passedSeen !== null) return;
+    if (this.lineSeenValues >= SOLID_SCRIPT_SEEN_LIMIT) {
+      this.lineSeen.set(line, null);
+      return;
+    }
+    // Values never change in place, so the bindings alone keep them as they are now.
+    const variables = scope.variablesVisible();
+    const stack = this.stack.map((frame) => ({ frame, locals: frame.locals?.variablesVisible() ?? new Map() }));
+    this.lineSeenValues += 1 + variables.size;
+    for (const frame of stack) this.lineSeenValues += frame.locals.size;
+    this.lineSeen.set(line, { variables, stack });
+  }
+
+  /**
+   * Turns the kept variables of every line into text.
+   *
+   * @returns Variables and stack just before each line last ran, by line; null
+   *   for a line that ran too often to keep them.
+   */
+  private lineSeenViews(): Map<number, SolidScriptLineSeen | null> {
+    const views = new Map<number, SolidScriptLineSeen | null>();
+    for (const [line, seen] of this.lineSeen)
+      views.set(
+        line,
+        seen && {
+          variables: [...seen.variables].map(([name, value]) =>
+            solidScriptVariableView(this.spellings.get(name) ?? name, value),
+          ),
+          stack: seen.stack.map(({ frame, locals }) => this.frameView(frame, locals)),
+        },
+      );
+    return views;
   }
 
   /**

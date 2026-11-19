@@ -163,10 +163,21 @@ describe('Variable explorer captions say where the values come from', () => {
     expect(solidScriptExplorerCaption('All', RUN_END, 0)).toBe('At the end of the run');
     expect(solidScriptExplorerCaption('Variables', stopped, 0)).toBe(stopped.caption);
     expect(solidScriptExplorerCaption('Context', RUN_END, 4)).toBe('Before line 5 runs');
-    expect(solidScriptExplorerCaption('Context', stopped, 2)).toBe(
+    expect(solidScriptExplorerCaption('Context', stopped, 2, 'stopped')).toBe(
       'Before line 3 runs, with the values where the run stopped',
     );
-    expect(solidScriptExplorerCaption('Context', stopped, 1)).toBe('Before line 2 runs');
+    expect(solidScriptExplorerCaption('Context', stopped, 1, 'last')).toBe(
+      'Before line 2 runs, with the values from the last time it ran',
+    );
+    expect(solidScriptExplorerCaption('Context', stopped, 5, 'captured')).toBe(
+      'Line 6 has not run, so these are the values where the run stopped',
+    );
+    expect(solidScriptExplorerCaption('Context', RUN_END, 5, 'captured')).toBe(
+      'Line 6 has not run, so these are the values at the end of the run',
+    );
+    expect(solidScriptExplorerCaption('Context', RUN_END, 5, 'often')).toBe(
+      'Line 6 ran too many times to keep its values, so these are the values at the end of the run',
+    );
     expect(solidScriptExplorerCaption('Context', RUN_END, null)).toBe('No line is focused.');
     expect(solidScriptExplorerCaption('System', stopped, 2)).toBe(
       'Stopped at the breakpoint on line 3, before it runs; built-in values as they read now',
@@ -194,11 +205,11 @@ describe('Variable explorer captions say where the values come from', () => {
     editorFixture([line('cube', { into: 'Box' }), set('A', '[Box.Faces.Count]'), set('B', '[A]')]);
     linePress(0);
     categoryShow('Context');
-    expect(caption()).toBe('Before line 1 runs');
+    expect(caption()).toBe('Before line 1 runs, with the values from the last time it ran');
     expect(explorerRows().find((row) => row.startsWith('Box|'))).toContain('Set Here');
     expect(explorerRows().map((row) => row.split('|')[0])).not.toContain('A');
     linePress(2);
-    expect(caption()).toBe('Before line 3 runs');
+    expect(caption()).toBe('Before line 3 runs, with the values from the last time it ran');
     const rows = explorerRows();
     expect(rows.map((row) => row.split('|')[0])).toEqual(expect.arrayContaining(['Box', 'A', 'B', '$Selected.Faces']));
     expect(rows.find((row) => row.startsWith('B|'))).toContain('Set Here');
@@ -223,7 +234,7 @@ describe('Variable explorer captions say where the values come from', () => {
         ?.split('|')[1],
     ).toBe('0');
     linePress(0);
-    expect(caption()).toBe('Before line 1 runs');
+    expect(caption()).toBe('Before line 1 runs, with the values from the last time it ran');
   });
 });
 
