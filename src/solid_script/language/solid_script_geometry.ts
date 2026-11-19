@@ -3,7 +3,7 @@ import { SOLID_SCRIPT_AXES_FACING, SOLID_SCRIPT_AXES_UP, solidScriptAxesHeight }
 import {
   solidScriptMeshChecked,
   solidScriptMeshFromSolid,
-  solidScriptMeshLoopCenter,
+  solidScriptMeshLoopCentre,
   solidScriptMeshLoopNormal,
   type SolidScriptShapeMesh,
 } from './solid_script_mesh.js';
@@ -250,7 +250,7 @@ function solidScriptGeometryFace(
 ): SolidScriptFaceFacts {
   const corners = loop.map((corner) => points[corner]!.clone());
   const normal = solidScriptMeshLoopNormal(points, loop);
-  const center = solidScriptMeshLoopCenter(points, loop);
+  const center = solidScriptMeshLoopCentre(points, loop);
   const { across, up } = solidScriptGeometryFrame(normal);
   const spans = (axis: THREE.Vector3): number => {
     const along = corners.map((corner) => corner.clone().sub(center).dot(axis));
@@ -465,7 +465,7 @@ export function solidScriptGeometryFaceFind(leaf: SolidScriptGeometryLeaf, face:
   const mesh = solidScriptGeometryMesh(leaf);
   return mesh.faces.findIndex(
     (loop) =>
-      solidScriptMeshLoopCenter(mesh.points, loop).distanceTo(face.center) < 1e-4 &&
+      solidScriptMeshLoopCentre(mesh.points, loop).distanceTo(face.center) < 1e-4 &&
       solidScriptMeshLoopNormal(mesh.points, loop).dot(face.normal) > 0.9999,
   );
 }
