@@ -323,7 +323,7 @@ function solidScriptSuggestionsAll(scope: SolidScriptSuggestionScope): SolidScri
       .filter((entry) => entry.category === 'Functions')
       .map((entry): SolidScriptSuggestion => ({
         label: entry.name,
-        detail: entry.detail,
+        detail: entry.gives === undefined ? entry.detail : `${entry.detail} -> ${entry.gives}`,
         category: 'Functions',
         pick: 'function',
       })),
@@ -662,7 +662,8 @@ export function solidScriptSuggestionHint(
       type: 'Any' as const,
       about: 'Input of this Function.',
     }));
-    return { name: own.name, inputs, gives: 'Any', summary: 'Function of this script.', current: at(inputs) };
+    const gives = own.gives ?? 'Any';
+    return { name: own.name, inputs, gives, summary: 'Function of this script.', current: at(inputs) };
   }
   const key = Object.keys(SOLID_SCRIPT_FUNCTION_DOCS).find(
     (entry) => entry === name || solidScriptFunctionSpelling(entry).toLowerCase() === name,

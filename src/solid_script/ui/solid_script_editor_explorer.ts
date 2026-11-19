@@ -149,9 +149,11 @@ export function solidScriptExplorerEntries(
       value: found?.value ?? null,
       type: input
         ? solidScriptInputTypeLabel(block?.values['type'] ?? '')
-        : (found?.type ??
-          (solidScriptNameKindsText(known.kinds) ||
-            (SOLID_SCRIPT_EXPLORER_TYPES_STATIC[known.category] ?? 'Not Set Yet'))),
+        : known.gives !== undefined
+          ? `Function -> ${known.gives}`
+          : (found?.type ??
+            (solidScriptNameKindsText(known.kinds) ||
+              (SOLID_SCRIPT_EXPLORER_TYPES_STATIC[known.category] ?? 'Not Set Yet'))),
       lines: origins.get(known.name) ?? [known.line],
       ...(known.reachLines ? { reachLines: known.reachLines } : {}),
       items: found?.items ?? [],

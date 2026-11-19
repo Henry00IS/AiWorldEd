@@ -94,6 +94,10 @@ class SolidScriptFlowAnalysis {
   private guesses = 0;
   /** Name keys of the script's Inputs, which no line can change. */
   private readonly inputNames = new Set<string>();
+  /** Kinds each Function gave back, joined over every way it was followed. */
+  private readonly gave = new Map<SolidScriptFlowNode, Set<string>>();
+  /** What each Function gives once asked, by Function line. */
+  private readonly given = new Map<SolidScriptFlowNode, string[]>();
   /** Function and part lines some line ran. */
   private readonly ran = new Set<SolidScriptFlowNode>();
   /**
@@ -164,7 +168,9 @@ class SolidScriptFlowAnalysis {
     for (const node of [...this.functions.values(), ...this.parts.values()])
       if (!this.ran.has(node)) {
         this.current = node.line;
-        this.body(node, this.inputs(node, this.end, []), frame());
+        const unreached = frame();
+        this.body(node, this.inputs(node, this.end, []), unreached);
+        this.gaveAdd(node, unreached.returns);
       }
     for (const node of this.handlers) this.body(node, this.end, frame());
   }
@@ -667,7 +673,42 @@ class SolidScriptFlowAnalysis {
       if (!grown || !ran.again) break;
       this.guessed.clear();
     }
+    this.gaveAdd(call.node, known);
     return { after, returns: [...known] };
+  }
+
+  /**
+   * Joins kinds a Function gave back on one way it was followed into what it
+   * gives.
+   *
+   * @param node Function line.
+   * @param kinds Kinds it gave.
+   */
+  private gaveAdd(node: SolidScriptFlowNode, kinds: Iterable<string>): void {
+    const known = this.gave.get(node) ?? new Set<string>();
+    for (const kind of kinds) known.add(kind);
+    this.gave.set(node, known);
+  }
+
+  /**
+   * Tells what a Function of the script gives back: every kind its Return lines
+   * give, joined over each Call and formula that runs it, or with unknown
+   * inputs when nothing does. A Function whose Returns only give what a cycle
+   * of calls never settles gives the unknown kind.
+   *
+   * @param name Function name as written.
+   * @returns Kinds, empty when no Return gives a value; undefined when there is
+   *   no such Function.
+   */
+  gives(name: string): string[] | undefined {
+    const node = this.functions.get(solidScriptFunctionKey(name));
+    if (!node) return undefined;
+    const known = this.given.get(node);
+    if (known) return known;
+    let kinds = [...(this.gave.get(node) ?? [])];
+    if (kinds.length === 0 && solidScriptFlowReturnsValue(node)) kinds = [SOLID_SCRIPT_FLOW_UNKNOWN];
+    this.given.set(node, kinds);
+    return kinds;
   }
 
   /**
@@ -771,6 +812,22 @@ interface SolidScriptFlowCall {
 }
 
 /**
+ * Tells whether a Function has a Return line that gives a value, not counting
+ * the lines of a Function or part inside it.
+ *
+ * @param node Function line.
+ * @returns True when one does.
+ */
+function solidScriptFlowReturnsValue(node: SolidScriptFlowNode): boolean {
+  return [...node.children, ...(node.otherwise ?? [])].some((inner) => {
+    const flow = solidScriptGivenFlow(inner.block);
+    if (flow?.kind === 'return') return (inner.block.values[flow.value] ?? '').trim() !== '';
+    if (flow?.kind === 'function' || flow?.kind === 'part') return false;
+    return solidScriptFlowReturnsValue(inner);
+  });
+}
+
+/**
  * Names a call by its Function line and the kinds of its values.
  *
  * @param node Function line.
@@ -837,4 +894,20 @@ export function solidScriptDocumentFlowAt(document: SolidScriptDocument, positio
  */
 export function solidScriptDocumentFlowEnd(document: SolidScriptDocument): SolidScriptFlowState {
   return solidScriptFlowOf(document).end;
+}
+
+/**
+ * Tells, without running the script, the kinds a Function of the script gives
+ * back, once per version of its lines.
+ *
+ * @param document Script.
+ * @param name Function name as written.
+ * @returns Kinds, with the unknown kind for what only running tells; empty when
+ *   no Return gives a value; undefined when there is no such Function.
+ */
+export function solidScriptDocumentFunctionGives(
+  document: SolidScriptDocument,
+  name: string,
+): readonly string[] | undefined {
+  return solidScriptFlowOf(document).gives(name);
 }

@@ -1,5 +1,9 @@
 import type { SolidScriptBlock, SolidScriptDocument } from './solid_script_document.js';
-import { solidScriptDocumentFlowAt, solidScriptDocumentFlowEnd } from './solid_script_document_flow.js';
+import {
+  solidScriptDocumentFlowAt,
+  solidScriptDocumentFlowEnd,
+  solidScriptDocumentFunctionGives,
+} from './solid_script_document_flow.js';
 import {
   solidScriptFlowKinds,
   solidScriptFlowSources,
@@ -68,6 +72,8 @@ export interface SolidScriptName {
   reaches?: string;
   /** 0-based lines of the writes that may reach where the line stands, in order. */
   reachLines?: readonly number[];
+  /** What a Function gives back in words, such as Vector, Any or Nothing. */
+  gives?: string;
 }
 
 /** Pattern of a plain name, or of a Function's own variable. */
@@ -175,20 +181,39 @@ export function solidScriptNameShown(name: string): string {
 }
 
 /**
+ * Writes what a Function gives back for people: its kinds, Any when only
+ * running tells, or Nothing when no Return gives a value.
+ *
+ * @param kinds Kinds it gives.
+ * @returns Words, such as Vector or Number or Text.
+ */
+export function solidScriptFunctionGivesText(kinds: readonly string[]): string {
+  if (kinds.length === 0) return 'Nothing';
+  return kinds.includes('') ? 'Any' : kinds.join(' or ');
+}
+
+/**
  * Gives each name that holds a value the kinds it may hold at a point of the
- * script; a name not set there gets none.
+ * script, and each Function what it gives back; a name not set there gets
+ * none.
  *
  * @param names Names.
  * @param state Variables at that point.
+ * @param document Script.
  * @returns Names with their kinds.
  */
 function solidScriptNamesKinds(
   names: readonly SolidScriptName[],
   state: SolidScriptFlowState,
-  blocks: readonly SolidScriptBlock[],
+  document: SolidScriptDocument,
 ): SolidScriptName[] {
+  const blocks = document.blocks;
   return names.map((entry) => {
     const { name, category, line, detail } = entry;
+    if (category === 'Functions') {
+      const gives = solidScriptDocumentFunctionGives(document, name);
+      return { name, category, line, detail, ...(gives ? { gives: solidScriptFunctionGivesText(gives) } : {}) };
+    }
     if (!SOLID_SCRIPT_NAMES_KINDED.has(category)) return { name, category, line, detail };
     const key = solidScriptNameKey(name);
     const kinds = solidScriptFlowKinds(state, key);
@@ -263,7 +288,7 @@ export function solidScriptDocumentNames(document: SolidScriptDocument): SolidSc
     solidScriptNamesOfValues(list, block, line);
     solidScriptNamesOfBlocks(list, block, line);
   }
-  return solidScriptNamesKinds(list.names, solidScriptDocumentFlowEnd(document), document.blocks);
+  return solidScriptNamesKinds(list.names, solidScriptDocumentFlowEnd(document), document);
 }
 
 /**
@@ -382,7 +407,7 @@ export function solidScriptDocumentNamesAt(document: SolidScriptDocument, positi
     if (block)
       for (const counter of solidScriptNameCounters(block)) list.add(counter.name, 'Counters', line, counter.detail);
   }
-  return solidScriptNamesKinds(list.names, solidScriptDocumentFlowAt(document, position), document.blocks);
+  return solidScriptNamesKinds(list.names, solidScriptDocumentFlowAt(document, position), document);
 }
 
 /**
