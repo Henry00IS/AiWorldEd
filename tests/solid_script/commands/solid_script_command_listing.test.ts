@@ -21,8 +21,12 @@ describe('SolidScript listing', () => {
     expect(listed('cube', { size: '0.5, 0.5, 2.5' })).toBe("Cube '0.5, 0.5, 2.5'");
     expect(listed('sphere', { r: '2' })).toBe("Sphere Radius '2'");
     expect(listed('transform', { move: '0, 0, 2.5' })).toBe("Transform Move '0, 0, 2.5'");
-    expect(listed('rotate', { a: '0, 0, 90' })).toBe("Rotate By '0, 0, 90' Degrees");
-    expect(listed('scale', { v: '1, 1, 2' })).toBe("Scale By '1, 1, 2'");
+    expect(listed('move_by', { by: '1, 0, 0' })).toBe("Move By '1, 0, 0'");
+    expect(listed('move_to', { to: '3, 1, 0' })).toBe("Move To '3, 1, 0'");
+    expect(listed('rotate_by', { by: '0, 0, 90' })).toBe("Rotate By '0, 0, 90' Degrees");
+    expect(listed('rotate_to', { to: '0, 90, 0' })).toBe("Rotate To '0, 90, 0' Degrees");
+    expect(listed('scale_by', { by: '1, 1, 2' })).toBe("Scale By '1, 1, 2'");
+    expect(listed('scale_to', { to: '4, 2, 1' })).toBe("Scale To '4, 2, 1'");
     expect(listed('mirror', { v: '1, 0, 0' })).toBe("Mirror Across '1, 0, 0'");
     expect(listed('circle', { r: '1' })).toBe("Circle Radius '1'");
   });

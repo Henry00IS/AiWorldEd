@@ -42,11 +42,11 @@ export function solidScriptMoveMatrix(args: SolidScriptBlockArguments, key = 'by
  * Matrix of a Rotate line or a Transform Rotate field: degrees around X, then
  * Y, then Z.
  *
- * @param args Block fields, key a or rotate.
+ * @param args Block fields, key by, to or rotate.
  * @param key Field key.
  * @returns Matrix.
  */
-export function solidScriptRotateMatrix(args: SolidScriptBlockArguments, key = 'a'): THREE.Matrix4 {
+export function solidScriptRotateMatrix(args: SolidScriptBlockArguments, key = 'by'): THREE.Matrix4 {
   return solidScriptRotationDegreesMatrix(args.vector(key, [0, 0, 0]));
 }
 
@@ -93,12 +93,13 @@ export function solidScriptPlaceMatrix(
 }
 
 /**
- * Matrix of a Scale block.
+ * Matrix of a Scale By line or a Transform Scale field.
  *
- * @param args Block fields.
+ * @param args Block fields, key by or scale.
+ * @param key Field key.
  * @returns Matrix.
  */
-export function solidScriptScaleMatrix(args: SolidScriptBlockArguments, key = 'v'): THREE.Matrix4 {
+export function solidScriptScaleMatrix(args: SolidScriptBlockArguments, key = 'by'): THREE.Matrix4 {
   const [x, y, z] = args.vector(key, [1, 1, 1]) as [number, number, number];
   return new THREE.Matrix4().makeScale(x, y, z);
 }

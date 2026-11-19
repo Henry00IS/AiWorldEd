@@ -42,7 +42,7 @@ function solidCount(shapes: readonly SolidScriptShape[]): number {
 }
 
 describe('SolidScript Transform and flat transform tools', () => {
-  it('moves shapes inside a Transform the same way a later Move Of the shape does', () => {
+  it('moves shapes inside a Transform the same way a later Move By of the shape does', () => {
     const wrapped = run(
       { command: 'transform', values: { move: '0, 2, 0' } },
       { command: 'cube', values: { size: '1, 1, 1', anchor: 'Center, Center, Center' } },
@@ -50,7 +50,7 @@ describe('SolidScript Transform and flat transform tools', () => {
     );
     const flat = run(
       { command: 'cube', values: { size: '1, 1, 1', anchor: 'Center, Center, Center', into: 'Box' } },
-      { command: 'move', values: { by: '0, 2, 0', of: '[Box]' } },
+      { command: 'move_by', values: { by: '0, 2, 0', of: '[Box]' } },
     );
     expect(wrapped.error).toBeNull();
     expect(flat.error).toBeNull();
@@ -94,16 +94,16 @@ describe('SolidScript Transform and flat transform tools', () => {
     expect(bounds(transformed.shapes)).toEqual(bounds(placed.shapes));
   });
 
-  it('moves a door so its center sits at To, and can copy with Into', () => {
+  it('moves a door so its center sits at Move To, and can copy with Into', () => {
     const moved = run(
       { command: 'cube', values: { size: '1, 2, 0.2', anchor: 'Center, Center, Center', into: 'Door' } },
-      { command: 'move', values: { to: '3, 1, 0', of: '[Door]' } },
+      { command: 'move_to', values: { to: '3, 1, 0', of: '[Door]' } },
     );
     expect(moved.error).toBeNull();
     expect(bounds(moved.shapes)).toEqual([2.5, 0, -0.1, 3.5, 2, 0.1]);
     const copied = run(
       { command: 'cube', values: { size: '1, 1, 1', anchor: 'Center, Center, Center', into: 'Box' } },
-      { command: 'move', values: { by: '0, 2, 0', of: '[Box]', into: 'Copy' } },
+      { command: 'move_by', values: { by: '0, 2, 0', of: '[Box]', into: 'Copy' } },
     );
     expect(copied.error).toBeNull();
     expect(bounds(copied.shapes)).toEqual([-0.5, -0.5, -0.5, 0.5, 0.5, 0.5]);
@@ -114,17 +114,17 @@ describe('SolidScript Transform and flat transform tools', () => {
   it('moves a list of points and writes them back, and stops when Of is left off with no selection', () => {
     const result = run(
       { command: 'variable', values: { name: 'Spots', value: '[0, 0, 0], [1, 0, 0]' } },
-      { command: 'move', values: { by: '0, 2, 0', of: '[Spots]' } },
+      { command: 'move_by', values: { by: '0, 2, 0', of: '[Spots]' } },
       { command: 'echo', values: { value: '[Spots]' } },
     );
     expect(result.error).toBeNull();
     expect(result.messages.join(' ')).toMatch(/0,\s*2,\s*0/);
     expect(result.messages.join(' ')).toMatch(/1,\s*2,\s*0/);
-    const stopped = run({ command: 'move', values: { by: '0, 1, 0' } });
+    const stopped = run({ command: 'move_by', values: { by: '0, 1, 0' } });
     expect(stopped.error?.message).toMatch(/Select Brushes/);
   });
 
-  it('applies Move By in the Transform space, the same as a Move inside that space', () => {
+  it('applies Move By in the Transform space, the same as a Transform Move inside that space', () => {
     const nested = run(
       { command: 'transform', values: { rotate: '0, 90, 0' } },
       { command: 'transform', values: { move: '2, 0, 0' } },
@@ -135,11 +135,48 @@ describe('SolidScript Transform and flat transform tools', () => {
     const tool = run(
       { command: 'cube', values: { size: '1, 1, 1', anchor: 'Center, Center, Center', into: 'Box' } },
       { command: 'transform', values: { rotate: '0, 90, 0' } },
-      { command: 'move', values: { by: '2, 0, 0', of: '[Box]' } },
+      { command: 'move_by', values: { by: '2, 0, 0', of: '[Box]' } },
       { command: 'end' },
     );
     expect(nested.error).toBeNull();
     expect(tool.error).toBeNull();
     expect(bounds(tool.shapes)).toEqual(bounds(nested.shapes));
+  });
+
+  it('moves a 0.1 m cube by a literal 1, 1, 1 metres, not by the cube size', () => {
+    const result = run(
+      { command: 'cube', values: { size: '0.1, 0.1, 0.1', anchor: 'Center, Center, Center', into: 'Box' } },
+      { command: 'move_by', values: { by: '1, 1, 1', of: '[Box]' } },
+    );
+    expect(result.error).toBeNull();
+    expect(bounds(result.shapes)).toEqual([0.95, 0.95, 0.95, 1.05, 1.05, 1.05]);
+  });
+
+  it('places the combined center at Move To without also adding a By', () => {
+    const result = run(
+      { command: 'cube', values: { size: '0.1, 0.1, 0.1', anchor: 'Center, Center, Center', into: 'Box' } },
+      { command: 'move_to', values: { to: '0, 0, 0', of: '[Box]' } },
+      { command: 'move_to', values: { to: '2, 0, 0', of: '[Box]' } },
+    );
+    expect(result.error).toBeNull();
+    expect(bounds(result.shapes)).toEqual([1.95, -0.05, -0.05, 2.05, 0.05, 0.05]);
+  });
+
+  it('turns around the combined center with Rotate To, and sizes to To with Scale To', () => {
+    const turned = run(
+      { command: 'cube', values: { size: '2, 1, 1', anchor: 'Center, Center, Center', into: 'Box' } },
+      { command: 'move_by', values: { by: '3, 0, 0', of: '[Box]' } },
+      { command: 'rotate_to', values: { to: '0, 0, 90', of: '[Box]' } },
+    );
+    expect(turned.error).toBeNull();
+    // 2 x 1 box at x=3, quarter turn about its center around Z: still centered at 3, 0, 0, now 1 wide and 2 tall.
+    expect(bounds(turned.shapes)).toEqual([2.5, -1, -0.5, 3.5, 1, 0.5]);
+    const sized = run(
+      { command: 'cube', values: { size: '1, 1, 1', anchor: 'Center, Center, Center', into: 'Box' } },
+      { command: 'move_by', values: { by: '4, 0, 0', of: '[Box]' } },
+      { command: 'scale_to', values: { to: '2, 4, 1', of: '[Box]' } },
+    );
+    expect(sized.error).toBeNull();
+    expect(bounds(sized.shapes)).toEqual([3, -2, -0.5, 5, 2, 0.5]);
   });
 });

@@ -121,7 +121,21 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
   }
   if (command.category === '2D Shapes') return [{ command: 'linear_extrude' }, line, { command: 'end' }];
   if (command.id === 'linear_extrude') return [line, { command: 'square' }, { command: 'end' }];
-  if (['clip', 'move', 'rotate', 'scale', 'align', 'mirror', 'resize', 'matrix'].includes(command.id))
+  if (
+    [
+      'clip',
+      'move_by',
+      'move_to',
+      'rotate_by',
+      'rotate_to',
+      'scale_by',
+      'scale_to',
+      'align',
+      'mirror',
+      'resize',
+      'matrix',
+    ].includes(command.id)
+  )
     return [{ command: 'cube', values: { anchor: 'Center, Center, Center' } }, { command: 'select_brushes' }, line];
   if (command.id === 'stop_script') return [{ command: 'cube' }, line, { command: 'sphere' }];
   if (command.id === 'else')
@@ -215,21 +229,22 @@ describe('solid script command catalog', () => {
   it('starts every transform as a neutral one that changes nothing', () => {
     const defaults = (id: string) => solidScriptCommandFind(id)?.valuesDefault();
     expect(defaults('transform')).toMatchObject({ move: '0, 0, 0', rotate: '0, 0, 0', scale: '1, 1, 1' });
-    expect(defaults('move')).toMatchObject({ by: '0, 0, 0' });
-    expect(defaults('rotate')).toMatchObject({ a: '0, 0, 0' });
-    expect(defaults('scale')).toMatchObject({ v: '1, 1, 1' });
+    expect(defaults('move_by')).toMatchObject({ by: '0, 0, 0' });
+    expect(defaults('rotate_by')).toMatchObject({ by: '0, 0, 0' });
+    expect(defaults('rotate_to')).toMatchObject({ to: '0, 0, 0' });
+    expect(defaults('scale_by')).toMatchObject({ by: '1, 1, 1' });
     expect(defaults('linear_extrude')).toMatchObject({ scale: '1, 1' });
     const plain = JSON.stringify(run({ command: 'cube' }).shapes);
     expect(JSON.stringify(run({ command: 'transform' }, { command: 'cube' }, { command: 'end' }).shapes)).toBe(plain);
-    const selected = [{ command: 'cube' }, { command: 'select_brushes' }, { command: 'move' }];
+    const selected = [{ command: 'cube' }, { command: 'select_brushes' }, { command: 'move_by' }];
     const moved = JSON.stringify(run(...selected).shapes);
     expect(moved).toBe(plain);
-    expect(JSON.stringify(run({ command: 'cube' }, { command: 'select_brushes' }, { command: 'rotate' }).shapes)).toBe(
-      plain,
-    );
-    expect(JSON.stringify(run({ command: 'cube' }, { command: 'select_brushes' }, { command: 'scale' }).shapes)).toBe(
-      plain,
-    );
+    expect(
+      JSON.stringify(run({ command: 'cube' }, { command: 'select_brushes' }, { command: 'rotate_by' }).shapes),
+    ).toBe(plain);
+    expect(
+      JSON.stringify(run({ command: 'cube' }, { command: 'select_brushes' }, { command: 'scale_by' }).shapes),
+    ).toBe(plain);
   });
 
   it('centers shapes on the origin by default, and still stands them when asked', () => {

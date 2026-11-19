@@ -13,7 +13,10 @@ import {
 import {
   solidScriptTransformApply,
   solidScriptTransformMove,
+  solidScriptTransformMoveTo,
   solidScriptTransformResize,
+  solidScriptTransformRotateTo,
+  solidScriptTransformScaleTo,
   solidScriptTransformSpace,
 } from '@/solid_script/language/solid_script_transform_apply.js';
 import {
@@ -27,7 +30,21 @@ import { solidScriptMatrixRows } from '@/solid_script/language/solid_script_resh
 /** What stops every block without its End. */
 const SOLID_SCRIPT_STOPS_END = 'A missing End line.';
 
-/** Shared Of field of the flat transform tools. */
+/** Ids of the flat transform tools that take Of. */
+export const SOLID_SCRIPT_TRANSFORM_TOOL_IDS = [
+  'move_by',
+  'move_to',
+  'rotate_by',
+  'rotate_to',
+  'scale_by',
+  'scale_to',
+  'align',
+  'mirror',
+  'resize',
+  'matrix',
+] as const;
+
+/** Shared Of field of the flat transform tools, including Move By and Move To. */
 const SOLID_SCRIPT_TRANSFORM_OF = solidScriptParameterOf('brushes, meshes or points', '$Selected.Brushes', [
   'Brush',
   'Vector',
@@ -88,56 +105,102 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
     execute: (run) => run.transformed(solidScriptTransformSpace(run)),
   }),
   solidScriptTransformTool({
-    id: 'move',
-    label: 'Move',
-    description: 'Move existing brushes, meshes or points',
+    id: 'move_by',
+    label: 'Move By',
+    description: 'Move existing brushes, meshes or points by a distance',
     manual:
-      'Moves the brushes, meshes or points in Of, or [$Selected.Brushes] when Of is left off. By is a distance in the current space. To moves their combined center to that point in script space, then By is applied. Without Into the change happens where the items already are; with Into the originals stay and the moved copies are only in that variable. Example: Move Of [Door] To [Wall.Center] slides the door so its center sits at the wall center.',
-    stops: ['No brushes, meshes or points.', 'A By or To that is not one number or three numbers separated by commas.'],
-    parameters: [
-      solidScriptParameter('by', 'By', 'vector3', '0, 0, 0', 'Distance along X, Y and Z in metres.'),
-      {
-        ...solidScriptParameterOptional('to', 'To', 'vector3', 'Point the combined center should move to, in metres.'),
-        accepts: ['Vector', 'Text', 'Number List'],
-      },
-    ],
-    listing: (read) => [
-      'Move',
-      ...(read.text('to').trim() === '' ? [] : [' To ', read.value('to')]),
-      ...(read.changed('by') || read.text('to').trim() === '' ? [' By ', read.value('by')] : []),
-    ],
+      'Moves the brushes, meshes or points in Of, or [$Selected.Brushes] when Of is left off, by a distance in the current space, in metres. The distance is literal: a By of 1, 0, 0 moves them one metre along X, no matter how small or large they are. Without Into the change happens where the items already are; with Into the originals stay and the moved copies are only in that variable. Example: Move By 0, 2, 0 Of [Box] raises the box two metres.',
+    stops: ['No brushes, meshes or points.', 'A By that is not one number or three numbers separated by commas.'],
+    parameters: [solidScriptParameter('by', 'By', 'vector3', '0, 0, 0', 'Distance along X, Y and Z in metres.')],
+    listing: (read) => ['Move By', ' ', read.value('by')],
     execute: (run) => {
       solidScriptTransformMove(run);
       return [];
     },
   }),
   solidScriptTransformTool({
-    id: 'rotate',
-    label: 'Rotate',
-    description: 'Turn existing brushes, meshes or points',
+    id: 'move_to',
+    label: 'Move To',
+    description: 'Move existing brushes, meshes or points so their center sits at a point',
     manual:
-      'Turns the brushes, meshes or points in Of, or [$Selected.Brushes] when Of is left off, around the origin of the current space, first around X, then Y, then Z, in degrees. Without Into the change happens where the items already are; with Into the originals stay and the turned copies are only in that variable. Example: Rotate Of [Box] By 0, 90, 0 turns the box a quarter turn around the upright Y axis of the current space.',
-    stops: ['No brushes, meshes or points.', 'A value that is not one number or three numbers separated by commas.'],
-    parameters: [solidScriptParameter('a', 'Angles', 'vector3', '0, 0, 0', 'Degrees around X, then Y, then Z.')],
-    listing: (read) => ['Rotate', ' By ', read.value('a'), ' Degrees'],
+      'Moves the brushes, meshes or points in Of, or [$Selected.Brushes] when Of is left off, so their combined center sits at To, a point in script space in metres. The combined center is the middle of the box around every point of the selection, the same middle a Center, Center, Center anchor uses. Without Into the change happens where the items already are; with Into the originals stay and the moved copies are only in that variable. Example: Move To 3, 1, 0 Of [Door] slides the door so its center sits at 3, 1, 0.',
+    stops: ['No brushes, meshes or points.', 'A To that is not one number or three numbers separated by commas.'],
+    parameters: [
+      solidScriptParameter('to', 'To', 'vector3', '0, 0, 0', 'Point the combined center should sit at, in metres.'),
+    ],
+    listing: (read) => ['Move To', ' ', read.value('to')],
     execute: (run) => {
-      solidScriptTransformApply(run, 'Rotate', solidScriptRotateMatrix(run.fields()));
+      solidScriptTransformMoveTo(run);
       return [];
     },
   }),
   solidScriptTransformTool({
-    id: 'scale',
-    label: 'Scale',
-    description: 'Stretch or shrink existing brushes, meshes or points',
+    id: 'rotate_by',
+    label: 'Rotate By',
+    description: 'Turn existing brushes, meshes or points by an angle',
     manual:
-      'Stretches or shrinks the brushes, meshes or points in Of, or [$Selected.Brushes] when Of is left off, measured from the origin of the current space: 1 keeps the size, 2 doubles it, 0.5 halves it. Without Into the change happens where the items already are; with Into the originals stay and the scaled copies are only in that variable. Example: Scale Of [Sphere] By 1, 1, 2 makes the sphere twice as tall, like an egg.',
-    stops: ['No brushes, meshes or points.', 'A value that is not one number or three numbers separated by commas.'],
-    parameters: [
-      solidScriptParameter('v', 'Factors', 'vector3', '1, 1, 1', 'Stretch factor along X, Y and Z. 1 keeps the size.'),
-    ],
-    listing: (read) => ['Scale', ' By ', read.value('v')],
+      'Turns the brushes, meshes or points in Of, or [$Selected.Brushes] when Of is left off, around the origin of the current space, first around X, then Y, then Z, in degrees. Without Into the change happens where the items already are; with Into the originals stay and the turned copies are only in that variable. Example: Rotate By 0, 90, 0 Of [Box] turns the box a quarter turn around the upright Y axis of the current space.',
+    stops: ['No brushes, meshes or points.', 'A By that is not one number or three numbers separated by commas.'],
+    parameters: [solidScriptParameter('by', 'By', 'vector3', '0, 0, 0', 'Degrees around X, then Y, then Z.')],
+    listing: (read) => ['Rotate By', ' ', read.value('by'), ' Degrees'],
     execute: (run) => {
-      solidScriptTransformApply(run, 'Scale', solidScriptScaleMatrix(run.fields()));
+      solidScriptTransformApply(run, 'Rotate By', solidScriptRotateMatrix(run.fields(), 'by'));
+      return [];
+    },
+  }),
+  solidScriptTransformTool({
+    id: 'rotate_to',
+    label: 'Rotate To',
+    description: 'Turn existing brushes, meshes or points around their center to an angle',
+    manual:
+      'Turns the brushes, meshes or points in Of, or [$Selected.Brushes] when Of is left off, around their combined center, first around X, then Y, then Z, in degrees, in the current space. The combined center is the middle of the box around the selection, the same point Move To uses. These angles are applied to the brushes as they are now, so a second Rotate To of the same angles turns them again. Without Into the change happens where the items already are; with Into the originals stay and the turned copies are only in that variable. Example: Rotate To 0, 90, 0 Of [Box] turns the box a quarter turn around the upright Y axis through its center.',
+    stops: ['No brushes, meshes or points.', 'A To that is not one number or three numbers separated by commas.'],
+    parameters: [solidScriptParameter('to', 'To', 'vector3', '0, 0, 0', 'Degrees around X, then Y, then Z.')],
+    listing: (read) => ['Rotate To', ' ', read.value('to'), ' Degrees'],
+    execute: (run) => {
+      solidScriptTransformRotateTo(run);
+      return [];
+    },
+  }),
+  solidScriptTransformTool({
+    id: 'scale_by',
+    label: 'Scale By',
+    description: 'Stretch or shrink existing brushes, meshes or points by a factor',
+    manual:
+      'Stretches or shrinks the brushes, meshes or points in Of, or [$Selected.Brushes] when Of is left off, measured from the origin of the current space: 1 keeps the size, 2 doubles it, 0.5 halves it. Without Into the change happens where the items already are; with Into the originals stay and the scaled copies are only in that variable. Example: Scale By 1, 1, 2 Of [Sphere] makes the sphere twice as tall, like an egg.',
+    stops: ['No brushes, meshes or points.', 'A By that is not one number or three numbers separated by commas.'],
+    parameters: [
+      solidScriptParameter('by', 'By', 'vector3', '1, 1, 1', 'Stretch factor along X, Y and Z. 1 keeps the size.'),
+    ],
+    listing: (read) => ['Scale By', ' ', read.value('by')],
+    execute: (run) => {
+      solidScriptTransformApply(run, 'Scale By', solidScriptScaleMatrix(run.fields(), 'by'));
+      return [];
+    },
+  }),
+  solidScriptTransformTool({
+    id: 'scale_to',
+    label: 'Scale To',
+    description: 'Stretch existing brushes, meshes or points to an exact size about their center',
+    manual:
+      'Stretches the brushes, meshes or points in Of, or [$Selected.Brushes] when Of is left off, about their combined center so that, together, they measure exactly the given width (X), height (Y) and depth (Z) in metres. The combined center is the middle of the box around the selection, the same point Move To uses. A size must be above 0 on every axis. Without Into the change happens where the items already are; with Into the originals stay and the scaled copies are only in that variable. Example: Scale To 4, 2, 1 Of [Sphere] gives an egg four metres long, two metres tall and one metre deep.',
+    stops: [
+      'No brushes, meshes or points.',
+      'A size of 0 or below on any axis.',
+      'Stretching shapes that are flat along an axis.',
+    ],
+    parameters: [
+      solidScriptParameter(
+        'to',
+        'To',
+        'vector3',
+        '2, 2, 2',
+        'Width (X), height (Y) and depth (Z) in metres. Every axis must be above 0.',
+      ),
+    ],
+    listing: (read) => ['Scale To', ' ', read.value('to')],
+    execute: (run) => {
+      solidScriptTransformScaleTo(run);
       return [];
     },
   }),
@@ -146,7 +209,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
     label: 'Align To',
     description: 'Turn existing brushes, meshes or points to point along a direction',
     manual:
-      'Turns the brushes, meshes or points in Of, or [$Selected.Brushes] when Of is left off, so that their upright Y axis points along Direction, by the shortest turn around the origin of the current space. Without Into the change happens where the items already are; with Into the originals stay and the turned copies are only in that variable. Example: after Scatter Points Into Spots Normals Ways, For Each [Spot] In [Spots] Key I, Move Of [Spike] To [Spot] Into [Copy], Align To [Ways([I])] Of [Copy] stands a spike out of every face.',
+      'Turns the brushes, meshes or points in Of, or [$Selected.Brushes] when Of is left off, so that their upright Y axis points along Direction, by the shortest turn around the origin of the current space. Without Into the change happens where the items already are; with Into the originals stay and the turned copies are only in that variable. Example: after Scatter Points Into Spots Normals Ways, For Each [Spot] In [Spots] Key I, Move To [Spot] Of [Spike] Into [Copy], Align To [Ways([I])] Of [Copy] stands a spike out of every face.',
     stops: ['No brushes, meshes or points.', 'A Direction of 0, 0, 0.'],
     parameters: [
       solidScriptParameter(
@@ -220,7 +283,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
     label: 'Matrix',
     description: 'Move, turn, stretch and slant existing brushes, meshes or points at once',
     manual:
-      'Moves the brushes, meshes or points in Of, or [$Selected.Brushes] when Of is left off, by a 3 by 4 matrix, one row per axis: the new X is Row 1 times x, y, z, 1, and so on, in the current space. The fourth number of a row moves along that axis. It can do everything Move, Rotate, Scale and Mirror do, and slant (shear) too. Without Into the change happens where the items already are; with Into the originals stay and the copies are only in that variable. Example: Matrix Of [Box] with Row 1 of 1, 0, 0.5, 0 leans the box over, moving its top half a metre along X per metre of height.',
+      'Moves the brushes, meshes or points in Of, or [$Selected.Brushes] when Of is left off, by a 3 by 4 matrix, one row per axis: the new X is Row 1 times x, y, z, 1, and so on, in the current space. The fourth number of a row moves along that axis. It can do everything Move By, Rotate By, Scale By and Mirror do, and slant (shear) too. Without Into the change happens where the items already are; with Into the originals stay and the copies are only in that variable. Example: Matrix Of [Box] with Row 1 of 1, 0, 0.5, 0 leans the box over, moving its top half a metre along X per metre of height.',
     stops: ['No brushes, meshes or points.', 'A row that is not four numbers.', 'A matrix that squashes shapes flat.'],
     parameters: [
       solidScriptParameterRow('row1', 'Row 1', '1, 0, 0, 0', 'How X is made from x, y, z, plus a move along X.'),

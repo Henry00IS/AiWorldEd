@@ -98,25 +98,100 @@ export function solidScriptTransformApplyWorld(run: SolidScriptBlockRun, label: 
 }
 
 /**
- * Moves the brushes, meshes or points in Of: To places their combined center,
- * then By is a distance in the current space.
+ * Moves the brushes, meshes or points in Of by a distance in the current space.
  *
  * @param run Running line.
  */
 export function solidScriptTransformMove(run: SolidScriptBlockRun): void {
-  const by = solidScriptTransformWorld(
-    run.matrix(),
-    solidScriptOffsetMatrix(solidScriptRunVector(run, 'by', [0, 0, 0])),
-  );
-  if (run.text('to').trim() === '') {
-    solidScriptTransformApplyWorld(run, 'Move', by);
-    return;
-  }
-  const picked = solidScriptTransformPicked(run, 'Move');
+  solidScriptTransformApply(run, 'Move By', solidScriptOffsetMatrix(solidScriptRunVector(run, 'by', [0, 0, 0])));
+}
+
+/**
+ * Moves the brushes, meshes or points in Of so their combined center sits at
+ * To, a point in script space.
+ *
+ * @param run Running line.
+ */
+export function solidScriptTransformMoveTo(run: SolidScriptBlockRun): void {
+  const picked = solidScriptTransformPicked(run, 'Move To');
   const to = solidScriptRunVector(run, 'to', [0, 0, 0]);
   const center = solidScriptTransformCenter(solidScriptTransformPickedPoints(picked));
-  const world = solidScriptOffsetMatrix([to[0] - center.x, to[1] - center.y, to[2] - center.z]).multiply(by);
-  solidScriptTransformApplyWorld(run, 'Move', world);
+  solidScriptTransformApplyWorld(
+    run,
+    'Move To',
+    solidScriptOffsetMatrix([to[0] - center.x, to[1] - center.y, to[2] - center.z]),
+  );
+}
+
+/**
+ * Turns the brushes, meshes or points in Of around their combined center, by
+ * the To angles in the current space.
+ *
+ * @param run Running line.
+ */
+export function solidScriptTransformRotateTo(run: SolidScriptBlockRun): void {
+  solidScriptTransformAboutCenter(run, 'Rotate To', solidScriptRotateMatrix(run.fields(), 'to'));
+}
+
+/**
+ * Stretches the brushes, meshes or points in Of about their combined center so
+ * they measure exactly To, in metres, in the current space.
+ *
+ * @param run Running line.
+ */
+export function solidScriptTransformScaleTo(run: SolidScriptBlockRun): void {
+  const space = run.matrix();
+  if (Math.abs(space.determinant()) < 1e-9)
+    throw new Error('Scale To cannot work in a space that squashes shapes flat');
+  const inverse = space.clone().invert();
+  const points = solidScriptTransformPickedPoints(solidScriptTransformPicked(run, 'Scale To')).map((point) =>
+    point.clone().applyMatrix4(inverse),
+  );
+  const box = new THREE.Box3().setFromPoints(points);
+  const extent = box.getSize(new THREE.Vector3()).toArray();
+  const size = solidScriptRunVector(run, 'to', [2, 2, 2]);
+  if (size.some((value) => value <= 0)) throw new Error('To needs a size above 0 on every axis, such as 2, 2, 2');
+  const axes = run.planar ? 2 : 3;
+  const factors: [number, number, number] = [1, 1, 1];
+  for (let axis = 0; axis < axes; axis++) {
+    const span = extent[axis] ?? 0;
+    const target = size[axis] ?? 0;
+    if (!(span > 1e-9))
+      throw new Error(
+        `Scale To cannot stretch shapes that are flat along ${'XYZ'[axis]} to ${target}; check that they have thickness along that axis`,
+      );
+    factors[axis] = target / span;
+  }
+  const center = box.getCenter(new THREE.Vector3());
+  const local = solidScriptOffsetMatrix([center.x, center.y, center.z])
+    .multiply(new THREE.Matrix4().makeScale(...factors))
+    .multiply(solidScriptOffsetMatrix([-center.x, -center.y, -center.z]));
+  solidScriptTransformApply(run, 'Scale To', local);
+}
+
+/**
+ * Applies a local transform about the combined center of the selection, in the
+ * current space.
+ *
+ * @param run Running line.
+ * @param label Command, for messages.
+ * @param local Transform about the origin of the current space, moved to the
+ *   center.
+ */
+function solidScriptTransformAboutCenter(run: SolidScriptBlockRun, label: string, local: THREE.Matrix4): void {
+  const space = run.matrix();
+  if (Math.abs(space.determinant()) < 1e-9)
+    throw new Error(`${label} cannot work in a space that squashes shapes flat`);
+  const inverse = space.clone().invert();
+  const center = solidScriptTransformCenter(
+    solidScriptTransformPickedPoints(solidScriptTransformPicked(run, label)).map((point) =>
+      point.clone().applyMatrix4(inverse),
+    ),
+  );
+  const about = solidScriptOffsetMatrix([center.x, center.y, center.z])
+    .multiply(local)
+    .multiply(solidScriptOffsetMatrix([-center.x, -center.y, -center.z]));
+  solidScriptTransformApply(run, label, about);
 }
 
 /**
