@@ -65,6 +65,6 @@ describe('solid script checks skip lines turned off', () => {
       { command: 'part', values: { name: 'Post' }, off: true },
       { command: 'end', off: true },
     ];
-    expect(run([...part, { command: 'use_part', values: { name: 'Post' } }])).toMatch(/Post/);
+    expect(run([...part, { command: 'output', values: { of: '[Post]' } }])).toMatch(/Post/);
   });
 });

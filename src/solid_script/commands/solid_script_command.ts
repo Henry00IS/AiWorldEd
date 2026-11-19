@@ -64,15 +64,15 @@ export interface SolidScriptCommandWrites {
 /**
  * What a line means for the order lines run in, read by the editor checks: a
  * choice of its lines (If), a loop, a Function, a part or a When block whose
- * lines run elsewhere, a Call or Use Part that runs them, or a Return. Each
- * names the fields it reads.
+ * lines run elsewhere, a Call that runs them, or a Return. Each names the
+ * fields it reads.
  */
 export type SolidScriptCommandFlow =
   | { readonly kind: 'choice'; readonly condition?: string }
   | { readonly kind: 'loop' }
   | { readonly kind: 'handler'; readonly name?: string }
   | { readonly kind: 'function'; readonly name: string; readonly inputs: string }
-  | { readonly kind: 'part' | 'use_part'; readonly name: string }
+  | { readonly kind: 'part'; readonly name: string }
   | { readonly kind: 'call'; readonly name: string; readonly values: string }
   | { readonly kind: 'return'; readonly value: string };
 
@@ -127,7 +127,7 @@ export interface SolidScriptCommandParameter {
   texture?: boolean;
   /**
    * Name groups of the script the field offers, such as Brushes and Parts for
-   * Of, Inputs for Show Inputs When or Parts for Use Part.
+   * Of, Inputs for Show Inputs When or Parts for Output.
    */
   nameGroups?: readonly string[];
   /** Kinds of value the field accepts. */

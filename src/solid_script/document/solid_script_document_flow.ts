@@ -393,8 +393,8 @@ class SolidScriptFlowAnalysis {
 
   /**
    * Follows one line that opens no block, or the line of a block before its
-   * lines: a Call or Use Part runs its lines, a Return gives its value, then
-   * every field that names a variable writes it the way the command declares.
+   * lines: a Call runs its lines, a Return gives its value, then every field
+   * that names a variable writes it the way the command declares.
    *
    * @param block Line.
    * @param state Variables before it.
@@ -411,8 +411,6 @@ class SolidScriptFlowAnalysis {
       const { after, returns } = this.call(block, flow, state, frame);
       return this.writes(block, after, returns, frame);
     }
-    if (flow?.kind === 'use_part')
-      return this.writes(block, this.partUse(solidScriptGivenFlowName(block), state, frame), [], frame);
     if (flow?.kind !== 'return') return this.writes(block, state, [], frame);
     if ((block.values[flow.value] ?? '').trim() !== '')
       for (const kind of solidScriptFlowValueKinds(block.values[flow.value] ?? '', this.headOf(state, frame)))
@@ -745,22 +743,6 @@ class SolidScriptFlowAnalysis {
       return node ? this.invoke(node, values, state, frame).returns : undefined;
     };
     return head;
-  }
-
-  /**
-   * Follows a Use Part: the part's lines run where it is used.
-   *
-   * @param name Part name as written.
-   * @param state Variables before it.
-   * @param frame Function or part it runs in.
-   * @returns Variables after it.
-   */
-  private partUse(name: string, state: SolidScriptFlowState, frame: SolidScriptFlowFrame): SolidScriptFlowState {
-    const node = this.parts.get(solidScriptNameKey(name.replace(/^'(.*)'$/s, '$1').trim()));
-    if (!node || frame.depth >= SOLID_SCRIPT_FLOW_DEPTH) return state;
-    this.ran.add(node);
-    const part: SolidScriptFlowFrame = { returns: new Set(), depth: frame.depth + 1, exits: null };
-    return solidScriptNarrowJoin(this.body(node, state, part), part.exits) ?? state;
   }
 
   /**

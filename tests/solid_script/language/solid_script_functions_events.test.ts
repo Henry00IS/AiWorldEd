@@ -196,7 +196,7 @@ describe('Function blocks', () => {
       line('cube'),
       line('return', { value: '1' }),
       END,
-      line('use_part', { name: 'p' }),
+      line('output', { of: '[p]' }),
     );
     expect(partValue.error?.message).toMatch(/Return with a Value only works in a Function/);
     const loose = run(line('cube'), line('return'));

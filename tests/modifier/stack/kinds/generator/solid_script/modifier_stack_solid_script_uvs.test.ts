@@ -141,14 +141,14 @@ describe('SolidScript generator UVs', () => {
     expect(Math.max(...xs)).toBeGreaterThan(1);
   });
 
-  it('keeps UVs relative to a Part copied by Repeat and Use Part', () => {
+  it('keeps UVs relative to a Part copied by Repeat and Output', () => {
     const brushes = compiled([
       { command: 'part', values: { name: 'Block' } },
       { command: 'cube', values: { size: '1, 1, 1' } },
       END,
       { command: 'repeat', values: { variable: 'I', from: '0', to: '2' } },
       { command: 'translate', values: { v: '[=[I] * 2], 0, 0' } },
-      { command: 'use_part', values: { name: 'Block' } },
+      { command: 'output', values: { of: '[Block]' } },
       END,
       END,
     ]);
@@ -195,24 +195,40 @@ describe('SolidScript generator UVs', () => {
     expect(localUvChart(projectThenRotate[0])).not.toBe(localUvChart(rotateThenProject[0]));
   });
 
-  it('carries stored Project UVs through Repeat, Use Part and Place On Face', () => {
-    const brushes = compiled([
+  it('carries stored Project UVs when Output stamps a Part onto faces', () => {
+    const block: SolidScriptLine[] = [
       { command: 'part', values: { name: 'Block' } },
       { command: 'cube', values: { size: '0.4, 0.4, 0.4' } },
       { command: 'select_faces', values: { which: 'All' } },
       { command: 'project_uvs', values: { mode: 'Box', size: '1' } },
       END,
+    ];
+    const host: SolidScriptLine[] = [
       { command: 'cube', values: { size: '2, 2, 2' } },
       { command: 'select_faces', values: { which: 'All' } },
       { command: 'for_each', values: { variable: 'Face', list: '[$Selected.Faces]' } },
       { command: 'place_on_face', values: { of: '[Face]' } },
-      { command: 'use_part', values: { name: 'Block' } },
-      END,
-      END,
-    ]);
-    const placed = brushes.filter((brush) => brush.brush.vertices.length <= 8 && meanSize(brush) < 1);
-    expect(placed.length).toBeGreaterThan(1);
-    expect(new Set(placed.map(localUvChart)).size).toBe(1);
+    ];
+    const small = (brushes: readonly SolidBrushInstance[]) =>
+      brushes.filter((brush) => brush.brush.vertices.length <= 8 && meanSize(brush) < 1);
+    const stamped = small(compiled([...block, ...host, { command: 'output', values: { of: '[Block]' } }, END, END]));
+    const reprojected = small(
+      compiled([
+        ...host,
+        { command: 'cube', values: { size: '0.4, 0.4, 0.4' } },
+        { command: 'select_faces', values: { which: 'All' } },
+        { command: 'project_uvs', values: { mode: 'Box', size: '1' } },
+        END,
+        END,
+      ]),
+    );
+    expect(stamped.length).toBeGreaterThan(1);
+    expect(reprojected.length).toBe(stamped.length);
+    expect(new Set(reprojected.map(localUvChart)).size).toBe(1);
+    const first = reprojected[0];
+    if (!first) throw new Error('Expected a reprojected placement');
+    const reprojectedChart = localUvChart(first);
+    expect(stamped.some((brush) => localUvChart(brush) !== reprojectedChart)).toBe(true);
   });
 });
 

@@ -100,8 +100,8 @@ describe('SolidScript configurator fields', () => {
     expect(solidScriptConfiguratorFieldBuild(target, 'Persistent.Presses', () => {}).problem()).toBe('');
   });
 
-  it('offers the parts the script defines for Use Part', () => {
-    const name = solidScriptCommandFind('use_part')!.parameters[0]!;
+  it('offers the parts the script defines for Output', () => {
+    const name = solidScriptCommandFind('output')!.parameters[0]!;
     const names = [
       { name: 'Post', category: 'Parts' as const, line: 0, detail: 'Define Part' },
       { name: 'Rail', category: 'Parts' as const, line: 3, detail: 'Define Part' },

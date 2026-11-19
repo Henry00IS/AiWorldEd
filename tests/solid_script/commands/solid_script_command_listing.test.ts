@@ -81,7 +81,7 @@ describe('SolidScript listing', () => {
     expect(listed('part', { name: 'post', mode: 'Subtractive' })).toBe("Define Part post (Mode 'Subtractive')");
     expect(listed('group')).toBe('Group');
     expect(listed('group', { mode: 'Pass-Through' })).toBe("Group (Mode 'Pass-Through')");
-    expect(listed('use_part', { name: 'post' })).toBe("Use Part 'post'");
+    expect(listed('output', { of: '[post]' })).toBe('Output [post]');
     expect(listed('hull')).toBe('Hull');
     expect(listed('else')).toBe('Else');
     expect(listed('blank')).toBe('');

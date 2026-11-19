@@ -73,7 +73,18 @@ const SOLID_SCRIPT_AUDIT_PLACES: Readonly<Record<string, (self: SolidScriptLine)
     [line('function'), line('cube', { anchor: 'Center, Center, Center' })],
     [self, line('end'), line('call')],
   ],
-  use_part: (self) => [[line('part'), line('cube', { anchor: 'Center, Center, Center' }), line('end')], [self]],
+  output: (self) => [
+    [line('part'), line('cube', { anchor: 'Center, Center, Center' }), line('end')],
+    [
+      {
+        ...self,
+        values: {
+          ...self.values,
+          of: (self.values?.['of'] ?? '').trim() === '' ? '[Part]' : (self.values?.['of'] ?? '[Part]'),
+        },
+      },
+    ],
+  ],
   call: (self) => [[line('function'), line('return', { value: '3' }), line('end')], [self]],
   set_input: (self) => [
     [line('input', { name: 'Width' }), line('when_input_changes')],

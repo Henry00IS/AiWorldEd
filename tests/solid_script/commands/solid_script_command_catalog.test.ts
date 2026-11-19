@@ -129,7 +129,8 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
   if (command.id === 'remove_item')
     return [{ command: 'variable', values: { name: 'points()', value: '0, 0' } }, line, { command: 'cube' }];
   if (command.id === 'end') return [{ command: 'translate' }, { command: 'cube' }, line];
-  if (command.id === 'part') return [line, { command: 'cube' }, { command: 'end' }, { command: 'use_part' }];
+  if (command.id === 'part')
+    return [line, { command: 'cube' }, { command: 'end' }, { command: 'output', values: { of: '[Part]' } }];
   if (command.id === 'function' || command.id === 'call')
     return [
       { command: 'function', values: { name: 'area', parameters: 'w, d' } },
@@ -142,8 +143,26 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
     return [line, { command: 'end' }, { command: 'cube' }];
   if (command.id === 'set_input' || command.id === 'show_message') return [{ command: 'cube' }];
   if (command.id === 'return')
-    return [{ command: 'part' }, { command: 'cube' }, line, { command: 'end' }, { command: 'use_part' }];
-  if (command.id === 'use_part') return [{ command: 'part' }, { command: 'cube' }, { command: 'end' }, line];
+    return [
+      { command: 'part' },
+      { command: 'cube' },
+      line,
+      { command: 'end' },
+      { command: 'output', values: { of: '[Part]' } },
+    ];
+  if (command.id === 'output')
+    return [
+      { command: 'part' },
+      { command: 'cube' },
+      { command: 'end' },
+      {
+        ...line,
+        values: {
+          ...line.values,
+          of: (line.values?.['of'] ?? '').trim() === '' ? '[Part]' : (line.values?.['of'] ?? '[Part]'),
+        },
+      },
+    ];
   if (command.nesting === 'open')
     return [counter, line, { command: 'cube' }, { command: 'sphere' }, { command: 'end' }];
   return [counter, line, { command: 'cube' }];
@@ -248,21 +267,21 @@ describe('solid script command catalog', () => {
     expect(solidScriptCommandFind('blank')?.inPalette).toBe(false);
   });
 
-  it('defines named parts that other lines build, before or after the definition', () => {
+  it('defines named parts that Output stamps after the Part line has run', () => {
     const after = run(
       { command: 'part', values: { name: 'post' } },
       { command: 'cube' },
       { command: 'end' },
-      { command: 'use_part', values: { name: 'post' } },
+      { command: 'output', values: { of: '[post]' } },
     );
     expect(after.shapes).toHaveLength(1);
     const before = run(
-      { command: 'use_part', values: { name: 'post' } },
+      { command: 'output', values: { of: '[post]' } },
       { command: 'part', values: { name: 'post' } },
       { command: 'cube' },
       { command: 'end' },
     );
-    expect(before.shapes).toHaveLength(1);
+    expect(before.error?.message).toMatch(/no variable \[post\]/);
   });
 
   it('lists every parameter with its value, for display', () => {

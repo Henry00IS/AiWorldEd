@@ -68,8 +68,8 @@ describe('solidScriptProgramRun', () => {
         { command: 'part', values: { name: 'door' } },
         { command: 'cube', values: { size: '1, 1, 2', anchor: 'Center, Center, Center', mode: 'Subtractive' } },
         { command: 'end' },
-        { command: 'use_part', values: { name: 'wall' } },
-        { command: 'use_part', values: { name: 'door' } },
+        { command: 'output', values: { of: '[wall]' } },
+        { command: 'output', values: { of: '[door]' } },
       ),
     );
     expect(

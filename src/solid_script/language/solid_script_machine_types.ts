@@ -132,8 +132,8 @@ export interface SolidScriptBlockRun {
    * variables, so names they define are read after its End.
    */
   inPlace(): SolidScriptShape[];
-  /** Builds the lines of a part defined in the script. */
-  partUse(name: string): SolidScriptShape[];
+  /** Stamps a snapshot of a Part or of brushes at this line. */
+  outputStamp(value: SolidScriptValue): SolidScriptShape[];
   /** Runs the lines inside and wraps them in a CSG group with Mode. */
   grouped(): SolidScriptShape[];
   /**
@@ -172,7 +172,7 @@ export interface SolidScriptBlockRun {
   placed(shapes: readonly SolidScriptShape[]): SolidScriptShape[];
   /**
    * Leaves the Function or part being run; a Function hands back the value. The
-   * lines after its Call or Use Part carry on.
+   * lines after its Call carry on.
    */
   leave(value: SolidScriptValue | undefined): SolidScriptShape[];
   /** Ends the whole run after this line, keeping what was built. */
@@ -311,7 +311,7 @@ export interface SolidScriptLineProfile {
 export interface SolidScriptFrameView {
   /** "area()" for a Function, "part column" for a part. */
   name: string;
-  /** 1-based line of the Call or Use Part that started it. */
+  /** 1-based line of the Call that started it. */
   line: number;
   /** Its own variables, written [local.name]; empty for a part. */
   locals: SolidScriptVariable[];
@@ -402,7 +402,7 @@ export interface SolidScriptContext {
 export interface SolidScriptFrame {
   kind: 'function' | 'part';
   name: string;
-  /** Line of the Call, Use Part or formula that started it. */
+  /** Line of the Call or formula that started it. */
   line: number;
   /** The Function's own variables, or null for a part. */
   locals: SolidScriptScope | null;

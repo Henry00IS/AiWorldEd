@@ -174,7 +174,7 @@ describe('SolidScript generator tools', () => {
     const result = api.invokeTool('geometry_script_reference_get', {});
     expect(result.ok).toBe(true);
     const text = (result.data as { reference: string }).reference;
-    for (const topic of ['Coordinates', 'Field values', '[=', 'Common mistakes', 'Examples', 'Cylinder', 'Use Part'])
+    for (const topic of ['Coordinates', 'Field values', '[=', 'Common mistakes', 'Examples', 'Cylinder', 'Output'])
       expect(text, topic).toContain(topic);
   });
 

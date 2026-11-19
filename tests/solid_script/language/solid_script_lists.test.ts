@@ -158,36 +158,34 @@ describe('SolidScript Point lines', () => {
   });
 });
 
-describe('SolidScript parts as calls', () => {
-  it('lets a part use itself until an If stops it, and hands results back through Set', () => {
+describe('SolidScript Output of a Part', () => {
+  it('lets a Function call itself until an If stops it, and hands results back through Set', () => {
     const result = run(
       set('n', '0'),
       set('total', '0'),
-      { command: 'use_part', values: { name: 'count' } },
-      echo('[n] [total]'),
-      { command: 'part', values: { name: 'count' } },
+      { command: 'function', values: { name: 'count' } },
       { command: 'if', values: { condition: '[n] < 4' } },
       set('n', '[=[n] + 1]'),
       set('total', '[=[total] + [n]]'),
-      { command: 'use_part', values: { name: 'count' } },
+      { command: 'call', values: { name: 'count' } },
       END,
       END,
+      { command: 'call', values: { name: 'count' } },
+      echo('[n] [total]'),
       { command: 'cube' },
     );
     expect(result.error).toBeNull();
     expect(result.messages).toEqual(['4 10']);
   });
 
-  it('stops endless recursion at the depth limit with a hint', () => {
+  it('stops Output when the Part line has not run yet', () => {
     const result = run(
+      { command: 'output', values: { of: '[loop]' } },
       { command: 'part', values: { name: 'loop' } },
-      { command: 'use_part', values: { name: 'loop' } },
+      { command: 'cube' },
       END,
-      { command: 'use_part', values: { name: 'loop' } },
     );
-    expect(result.error?.message).toMatch(
-      /more than 64 levels deep. A part that uses itself needs an If that stops it/,
-    );
+    expect(result.error?.message).toMatch(/no variable \[loop\]/);
   });
 
   it('chooses the part by a variable', () => {
@@ -197,10 +195,11 @@ describe('SolidScript parts as calls', () => {
       { command: 'cube' },
       END,
       set('which', 'post'),
-      { command: 'use_part', values: { name: '[which]' } },
+      { command: 'output', values: { of: '[which]' } },
     );
     expect(result.error).toBeNull();
-    expect(result.messages).toEqual(['post', 'post']);
+    expect(result.messages).toEqual(['post']);
+    expect(result.shapes).toHaveLength(1);
   });
 
   it('reads Positions through a vertex list, and hints when the singular is used', () => {

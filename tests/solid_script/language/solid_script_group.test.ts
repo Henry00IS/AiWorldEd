@@ -56,16 +56,51 @@ describe('SolidScript Part and Group', () => {
     expect(result.messages).toEqual(['[Wall]']);
   });
 
-  it('still places a part with Use Part, including when Use Part stands above the definition', () => {
+  it('stamps a Part with Output, including its group and Mode', () => {
     const { shapes } = solidScriptProgramEvaluate(
       script(
-        { command: 'use_part', values: { name: 'Post' } },
+        { command: 'part', values: { name: 'Post', mode: 'Subtractive' } },
+        { command: 'cube', values: { size: '0.4, 3, 0.4', anchor: 'Center, Center, Center' } },
+        { command: 'end' },
+        { command: 'output', values: { of: '[Post]' } },
+      ),
+    );
+    expect(shapes.map(named)).toEqual([['Post', 'group', 'Subtractive', [['Post', 'solid', 'Additive']]]]);
+  });
+
+  it('stops Output when the Part line has not run yet', () => {
+    const result = solidScriptProgramRun(
+      script(
+        { command: 'output', values: { of: '[Post]' } },
         { command: 'part', values: { name: 'Post' } },
         { command: 'cube', values: { size: '0.4, 3, 0.4', anchor: 'Center, Center, Center' } },
         { command: 'end' },
       ),
     );
-    expect(shapes.map(named)).toEqual([['Post', 'group', 'Additive', [['Post', 'solid', 'Additive']]]]);
+    expect(result.error?.message).toMatch(/no variable \[Post\]/);
+  });
+
+  it('leaves already stamped copies unchanged when it stamps again', () => {
+    const { shapes } = solidScriptProgramEvaluate(
+      script(
+        { command: 'part', values: { name: 'Post' } },
+        { command: 'cube', values: { size: '0.4, 3, 0.4', anchor: 'Center, Center, Center' } },
+        { command: 'end' },
+        { command: 'output', values: { of: '[Post]' } },
+        { command: 'output', values: { of: '[Post]' } },
+      ),
+    );
+    expect(shapes).toHaveLength(2);
+    const first = shapes[0];
+    const second = shapes[1];
+    if (first?.kind !== 'group' || second?.kind !== 'group') throw new Error('expected groups');
+    const left = first.children[0];
+    const right = second.children[0];
+    if (left?.kind !== 'solid' || right?.kind !== 'solid') throw new Error('expected solids');
+    const original = right.points[0]?.clone();
+    if (!left.points[0] || !original) throw new Error('expected corners');
+    left.points[0].x += 10;
+    expect(right.points[0]?.toArray()).toEqual(original.toArray());
   });
 
   it('lets a later line read the Part as a brush, and shares the name with variables', () => {

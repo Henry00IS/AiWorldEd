@@ -11,7 +11,6 @@ import {
   solidScriptValueText,
   solidScriptValueTruthy,
 } from '@/solid_script/language/solid_script_value.js';
-import { SOLID_SCRIPT_PART_DEPTH_MAX } from '@/solid_script/language/solid_script_machine_calls.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 
 /** Id of the command that closes a block. */
@@ -307,7 +306,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Parts',
     description: 'Build into a variable, without output',
     manual:
-      'Builds the lines inside into a variable of the same name, inside a CSG group, and places nothing where the Part stands. Parts and variables share one set of names, so after Define Part Wall the brushes are [Wall]. Mode defaults to Additive and can be Subtractive, Intersecting or Pass-Through, the same words as Group. Use Part still builds the part at another line, and may stand above or below the definition. Example: Define Part Post holds one tall Cube. [Post] is that cube, and two Use Part Post lines inside two Translates build two posts.',
+      'Builds the lines inside into a variable of the same name, inside a CSG group, and places nothing where the Part stands. Parts and variables share one set of names, so after Define Part Wall the brushes are [Wall]. Mode defaults to Additive and can be Subtractive, Intersecting or Pass-Through, the same words as Group. Output stamps a snapshot of the part, including the group and its Mode, right where the Output line sits. Later changes to the part do not reach copies already stamped. Example: Define Part Post holds one tall Cube. [Post] is that cube, and two Output [Post] lines inside two Translates build two posts.',
     stops: [
       'A name already used by another part.',
       'A name that is not letters, digits and _.',
@@ -347,7 +346,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Parts',
     description: 'Leave the function or part early',
     manual:
-      'Stops a Function or a part early. The lines after it are skipped. The script goes on after the Call or Use Part that started it. In a Function, Return can give back a value. A Call line stores that value in its Result In variable. Brushes built before Return stay. Put Return inside an If to stop only sometimes. Example: Return [Local.V] gives back the value V.',
+      'Stops a Function or a part early. The lines after it are skipped. In a Function, the script goes on after the Call that started it, and Return can give back a value. A Call line stores that value in its Result In variable. In a Part, Return stops building the variable. Brushes built before Return stay. Put Return inside an If to stop only sometimes. Example: Return [Local.V] gives back the value V.',
     stops: ['Being outside a Function or a Define Part.', 'A Value inside a part. Parts hand back results with Set.'],
     flow: { kind: 'return', value: 'value' },
     parameters: [
@@ -362,29 +361,33 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     execute: (run) => run.leave(run.text('value').trim() === '' ? undefined : run.value('value')),
   }),
   new SolidScriptCommand({
-    id: 'use_part',
-    label: 'Use Part',
+    id: 'output',
+    label: 'Output',
     category: 'Parts',
-    description: 'Build a part here',
+    description: 'Stamp a snapshot of a part or brushes',
     manual:
-      'Builds a part here as a CSG group with the Mode set on Define Part, then goes on with the next line. Define the part with Define Part, above or below this line. After the Part line has run, the same name is also a variable, such as [Post]. The blocks around this line move what the part builds. A part may be used many times. It shares the variables of the script, so a Set inside it can hand back a result. The name may be a variable, such as [Style]. A part may use itself, but an If must stop it. Example: Use Part Post inside Translate By 2, 0, 0 builds the post two metres to the right.',
-    stops: ['No part with this name.', `Parts using each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} levels deep.`],
-    flow: { kind: 'use_part', name: 'name' },
+      "Places a snapshot of a Part or of brushes right where this line sits, including the Part's CSG group and Mode. A wall Part with a subtractive door always comes out as a wall with a hole. To make a cutter that reaches the world, set the Part's Mode to Subtractive, or to Pass-Through to let its brushes join the CSG order around it. Blocks around this line move the stamp. Later changes to the Part do not reach copies already stamped. The Part line must have run already. Example: Output [Post] inside Translate By 2, 0, 0 stamps the post two metres to the right.",
+    stops: [
+      'No part or brushes with this name.',
+      'A value that is not a part, a brush or a mesh.',
+      'Nothing to stamp.',
+    ],
     parameters: [
       {
         ...solidScriptParameter(
-          'name',
-          'Name',
-          'message',
-          'Part',
-          'Name of a part defined in this script, or a variable such as [Style] that holds one.',
+          'of',
+          'Of',
+          'value',
+          '',
+          'The part or brushes to stamp, such as [Wall]. A name such as Post also works.',
         ),
-        nameGroups: ['Parts'],
-        accepts: ['Text'],
+        nameGroups: ['Parts', 'Brushes'],
+        accepts: ['Brush', 'Brush List', 'Text', 'List'],
+        placeholder: '[Wall]',
       },
     ],
-    listing: (read) => ['Use Part', { kind: 'value', text: `'${read.text('name')}'` }],
-    execute: (run) => run.partUse(String(run.value('name')).trim()),
+    listing: (read) => ['Output', read.value('of')],
+    execute: (run) => run.outputStamp(run.value('of')),
   }),
   new SolidScriptCommand({
     id: 'stop_script',

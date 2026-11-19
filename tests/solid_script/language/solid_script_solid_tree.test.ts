@@ -144,7 +144,7 @@ describe('solidScriptSolidTreeBuild', () => {
           { command: 'part', values: { name: 'Door', mode: 'Subtractive' } },
           CUBE,
           END,
-          { command: 'use_part', values: { name: 'Door' } },
+          { command: 'output', values: { of: '[Door]' } },
         ]),
       ),
     ).toEqual([{ 'Door:1': ['Door:0'] }]);

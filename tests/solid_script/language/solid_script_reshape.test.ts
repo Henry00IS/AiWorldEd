@@ -108,19 +108,20 @@ describe('SolidScript Resize, Matrix, Minkowski and Rotate Extrude', () => {
     expect(crossing.error?.message).toMatch(/must lie at X 0 or more/);
   });
 
-  it('leaves a part early with Return and carries on after Use Part', () => {
+  it('leaves a part early with Return and carries on after Output', () => {
     const result = run(
       { command: 'part', values: { name: 'steps' } },
       { command: 'echo', values: { value: 'before' } },
+      { command: 'cube', values: { anchor: 'Center, Center, Center' } },
       { command: 'return' },
       { command: 'echo', values: { value: 'skipped' } },
       END,
-      { command: 'use_part', values: { name: 'steps' } },
+      { command: 'output', values: { of: '[steps]' } },
       { command: 'echo', values: { value: 'after' } },
       { command: 'cube', values: { anchor: 'Center, Center, Center' } },
     );
     expect(result.error).toBeNull();
-    expect(result.messages).toEqual(['before', 'before', 'after']);
+    expect(result.messages).toEqual(['before', 'after']);
     expect(
       run({ command: 'return' }, { command: 'cube', values: { anchor: 'Center, Center, Center' } }).error?.message,
     ).toMatch(/only works inside one of them/);

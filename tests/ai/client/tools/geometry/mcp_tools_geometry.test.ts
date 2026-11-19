@@ -14,8 +14,8 @@ const ROOM = [
   { command: 'cube', values: { size: '1, 0.4, 2.1', mode: 'Subtractive' } },
   { command: 'end' },
   { command: 'end' },
-  { command: 'use_part', values: { name: 'wall' } },
-  { command: 'use_part', values: { name: 'doorway' } },
+  { command: 'output', values: { of: '[wall]' } },
+  { command: 'output', values: { of: '[doorway]' } },
 ];
 
 describe('geometry tools', () => {

@@ -15,7 +15,7 @@ export const SOLID_SCRIPT_EXAMPLE_COLUMNS: readonly SolidScriptLine[] = [
   { command: 'end' },
   { command: 'repeat', values: { variable: 'I', from: '0', to: '4' } },
   { command: 'translate', values: { v: '[=[I] * 1.5 - 3], 0, 0' } },
-  { command: 'use_part', values: { name: 'Column' } },
+  { command: 'output', values: { of: '[Column]' } },
   { command: 'end' },
   { command: 'end' },
 ];

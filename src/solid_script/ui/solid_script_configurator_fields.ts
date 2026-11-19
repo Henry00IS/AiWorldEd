@@ -347,7 +347,7 @@ function solidScriptConfiguratorNameProblem(parameter: SolidScriptCommandParamet
 /**
  * Tells whether a field offers suggestions as it is typed: every field that
  * reads [names] and [=formulas], and a field used as typed that offers name
- * groups, such as Set's Variable or Use Part's Name.
+ * groups, such as Set's Variable or Output's Of.
  *
  * @param parameter Field.
  * @returns True when it offers them.

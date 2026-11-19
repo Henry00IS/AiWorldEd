@@ -412,7 +412,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
 
   /**
    * Runs lines one after the other in a new scope. Parts defined among them are
-   * known to all of them, so Use Part may come before Define Part.
+   * known to all of them, and each Part is also stored as a variable.
    *
    * @param lines Lines.
    * @param parent Enclosing scope.
@@ -758,7 +758,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         return state.machine.linesRun(lines, state.scope, state.context, new SolidScriptScope(state.scope), known);
       },
       inPlace: () => state.machine.linesRun(node.children, state.scope, state.context, state.scope, children()),
-      partUse: (name) => state.machine.partUse(name, state.scope, state.context),
+      outputStamp: (value) => state.machine.outputStamp(value, state.scope, state.context),
       grouped: () =>
         state.machine.grouped(
           inside(state.context),

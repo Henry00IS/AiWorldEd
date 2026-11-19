@@ -12,13 +12,17 @@ import { SOLID_SCRIPT_NAME } from './solid_script_machine_variables.js';
 import { SolidScriptMachineWrites } from './solid_script_machine_writes.js';
 import { SolidScriptScope } from './solid_script_scope.js';
 import { solidScriptGeometryLeaves } from './solid_script_geometry.js';
+import { solidScriptKindOf } from './solid_script_kinds.js';
+import { type SolidScriptGroupMode } from './solid_script_mode.js';
+import { solidScriptShapeTransform } from './solid_script_reshape.js';
+import { solidScriptShapeClone } from './solid_script_shape_clone.js';
 import {
-  solidScriptGroupModeOf,
-  SOLID_SCRIPT_GROUP_MODE_DEFAULT,
-  type SolidScriptGroupMode,
-} from './solid_script_mode.js';
-import { solidScriptShapeGrouped, solidScriptShapeJoin, type SolidScriptShape } from './solid_script_shape.js';
-import type { SolidScriptValue } from './solid_script_value.js';
+  solidScriptShapeGrouped,
+  solidScriptShapeJoin,
+  type SolidScriptShape,
+  type SolidScriptShapeGroup,
+} from './solid_script_shape.js';
+import { SolidScriptElement, type SolidScriptValue } from './solid_script_value.js';
 import * as THREE from 'three';
 
 /** Command ids of the blocks that run when an inspector event happens. */
@@ -93,6 +97,10 @@ export abstract class SolidScriptMachineCalls<
     return /\.Size$/i.test(name) ? [1, 1, 1] : 1;
   }
   protected readonly parts = new Map<string, SolidScriptPart<Command>>();
+  /** CSG groups built by each Part, by name key, so Output can stamp Mode. */
+  protected readonly partsHeld = new Map<string, SolidScriptShapeGroup>();
+  /** Part group each stored brush belongs to. */
+  protected readonly partsByBrush = new Map<number, SolidScriptShapeGroup>();
   /** Function blocks by name. */
   protected readonly functions = new Map<string, SolidScriptBlockNode<Command>>();
   /** Input names of each Function block. */
@@ -343,6 +351,10 @@ export abstract class SolidScriptMachineCalls<
       if (built.length === 0) this.emptyWarn(node);
       const group = solidScriptShapeGrouped(built, name, mode);
       const brushes = solidScriptGeometryLeaves(group ? [group] : []).map((leaf) => this.elements.brush(leaf));
+      if (group) {
+        this.partsHeld.set(this.nameKey(name), group);
+        for (const brush of brushes) this.partsByBrush.set(brush.id, group);
+      }
       this.variableSet(scope, name, brushes);
       return [];
     } finally {
@@ -351,42 +363,108 @@ export abstract class SolidScriptMachineCalls<
   }
 
   /**
-   * Builds the lines of a part where Use Part asks for it.
+   * Stamps a snapshot of a Part or of brushes at this line, including the
+   * Part's CSG group and Mode. Later changes to the Part do not reach this
+   * copy.
    *
-   * @param name Part name.
-   * @param scope Calling scope.
+   * @param value Part name, or the brushes or meshes to stamp.
+   * @param scope Scope of the Output line.
    * @param context Matrix and flatness.
-   * @returns The part as one shape.
+   * @returns The stamped shapes.
    */
-  protected partUse(name: string, scope: SolidScriptScope, context: SolidScriptContext): SolidScriptShape[] {
-    const part = this.parts.get(this.nameKey(name));
-    if (!part) {
-      const known = [...this.parts.keys()].map(this.nameShown).sort();
-      throw new Error(
-        `no part is named "${name}". ${known.length > 0 ? `Parts: ${known.join(', ')}` : 'Define one with Define Part'}`,
+  protected outputStamp(
+    value: SolidScriptValue,
+    scope: SolidScriptScope,
+    context: SolidScriptContext,
+  ): SolidScriptShape[] {
+    const source = this.outputSource(value, scope);
+    const group = this.outputGroupOf(source);
+    const shapes = group ? [group] : this.outputLeavesOf(source);
+    if (shapes.length === 0) throw new Error('Output has nothing to stamp; give a part or brushes such as [Wall]');
+    return shapes.map((shape) => solidScriptShapeTransform(solidScriptShapeClone(shape), context.matrix));
+  }
+
+  /**
+   * Resolves an Output value: a name looks up the variable, or the stored Part.
+   *
+   * @param value Field value.
+   * @param scope Scope of the Output line.
+   * @returns Value to stamp.
+   */
+  protected outputSource(value: SolidScriptValue, scope: SolidScriptScope): SolidScriptValue {
+    if (typeof value !== 'string') return value;
+    const name = value
+      .trim()
+      .replace(/^\[(.*)\]$/s, '$1')
+      .trim();
+    if (name === '') throw new Error('Output needs a part or brushes, such as [Wall]');
+    const key = this.nameKey(name);
+    if (scope.variableHas(key)) return scope.variableGet(key);
+    const held = this.partsHeld.get(key);
+    if (held) return name;
+    const known = [...this.partsHeld.keys()].map(this.nameShown).sort();
+    throw new Error(
+      `no part or brushes are named "${name}". ${known.length > 0 ? `Parts: ${known.join(', ')}` : 'Define one with Define Part'}`,
+    );
+  }
+
+  /**
+   * Finds the Part group a value should stamp, when it is the whole part.
+   *
+   * @param value Resolved Output value.
+   * @returns Group, or undefined when the value is not a whole Part.
+   */
+  protected outputGroupOf(value: SolidScriptValue): SolidScriptShapeGroup | undefined {
+    if (typeof value === 'string')
+      return this.partsHeld.get(
+        this.nameKey(
+          value
+            .trim()
+            .replace(/^\[(.*)\]$/s, '$1')
+            .trim(),
+        ),
       );
+    const brushes = this.outputBrushes(value);
+    const first = brushes?.[0];
+    if (!brushes || first === undefined) return undefined;
+    const group = this.partsByBrush.get(first.id);
+    if (!group) return undefined;
+    const ids = new Set(brushes.map((brush) => brush.id));
+    const leaves = solidScriptGeometryLeaves([group]);
+    if (leaves.length !== ids.size) return undefined;
+    if (!leaves.every((leaf) => ids.has(this.elements.brush(leaf).id))) return undefined;
+    return group;
+  }
+
+  /**
+   * Reads a value as the brushes or meshes to stamp.
+   *
+   * @param value Resolved Output value.
+   * @returns Elements, or undefined when the value is another kind.
+   */
+  protected outputBrushes(value: SolidScriptValue): SolidScriptElement[] | undefined {
+    const list = Array.isArray(value) ? value : [value];
+    const brushes: SolidScriptElement[] = [];
+    for (const entry of list) {
+      if (!(entry instanceof SolidScriptElement) || entry.kind !== 'brush') return undefined;
+      brushes.push(entry);
     }
-    if (this.stack.length >= SOLID_SCRIPT_PART_DEPTH_MAX)
-      throw new Error(
-        `functions and parts run inside each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} levels deep. A part that uses itself needs an If that stops it`,
-      );
-    if (part.node.children.length === 0) {
-      this.emptyWarn(part.node);
-      return [];
+    return brushes;
+  }
+
+  /**
+   * Turns brush or mesh elements into their latest shapes.
+   *
+   * @param value Resolved Output value.
+   * @returns Leaves.
+   */
+  protected outputLeavesOf(value: SolidScriptValue): SolidScriptShape[] {
+    const brushes = this.outputBrushes(value);
+    if (!brushes) {
+      const kind = solidScriptKindOf(value);
+      throw new Error(`Output needs a part, a brush or a mesh, not a ${kind}`);
     }
-    this.stack.push({ kind: 'part', name, line: this.line, locals: null, returned: null });
-    try {
-      const inner = new SolidScriptScope(scope, name);
-      const built = this.linesRun(part.node.children, inner, context, inner);
-      this.leaving = false;
-      const mode =
-        solidScriptGroupModeOf(part.node.command.valueText(part.node.values, 'mode')) ??
-        SOLID_SCRIPT_GROUP_MODE_DEFAULT;
-      const group = solidScriptShapeGrouped(built, name, mode);
-      return group ? [group] : [];
-    } finally {
-      this.stack.pop();
-    }
+    return brushes.map((brush) => this.elements.leaf(brush));
   }
 
   /**
