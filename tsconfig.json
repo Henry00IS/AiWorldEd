@@ -13,7 +13,10 @@
     "noEmit": true,
     "types": ["bun"],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "electrobun/view": ["./src/types/shims/electrobun_view.ts"],
+      "electrobun": ["./src/types/shims/electrobun_main.ts"],
+      "electrobun/main": ["./src/types/shims/electrobun_main.ts"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts", "tests/**/*.ts"],

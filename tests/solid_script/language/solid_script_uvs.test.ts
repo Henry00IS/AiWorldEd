@@ -140,13 +140,14 @@ describe('SolidScript UV commands', () => {
   });
 
   it('projects Box, Planar, Cylinder and Sphere without turning a brush into a mesh', () => {
-    for (const values of [
+    const cases: readonly Record<string, string>[] = [
       { mode: 'Box' },
       { mode: 'Planar', from: 'Face' },
       { mode: 'Planar', from: 'Overhead' },
       { mode: 'Cylinder', axis: '0, 1, 0' },
       { mode: 'Sphere', axis: '0, 1, 0' },
-    ]) {
+    ];
+    for (const values of cases) {
       const solid = onlySolid(run({ command: 'cube' }, SELECT_ALL, { command: 'project_uvs', values }));
       expect(solid.faceUvs?.length, JSON.stringify(values)).toBe(6);
     }

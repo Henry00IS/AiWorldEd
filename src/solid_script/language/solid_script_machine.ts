@@ -497,7 +497,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       if (!this.failure && !this.paused) this.watch(scope);
       this.failure = solidScriptFailureKeep(
         this.failure,
-        this.paused,
+        this.paused !== null,
         solidScriptMistakeHinted(error, node),
         node.line,
       );
@@ -575,7 +575,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       this.workTake();
       return step();
     } catch (error) {
-      this.failure = solidScriptFailureKeep(this.failure, this.paused, error, line);
+      this.failure = solidScriptFailureKeep(this.failure, this.paused !== null, error, line);
       return undefined;
     } finally {
       this.line = outer;

@@ -47,11 +47,11 @@ export function solidScriptFailure(line: number | null, message: string): SolidS
  * @returns Failure to keep.
  */
 export function solidScriptFailureKeep(
-  current: SolidScriptFailure | undefined,
+  current: SolidScriptFailure | null,
   paused: boolean,
   error: unknown,
   line: number,
-): SolidScriptFailure | undefined {
+): SolidScriptFailure | null {
   if (paused) return current;
   const message = error instanceof Error ? error.message : String(error);
   return current ?? solidScriptFailure(solidScriptErrorLine(message) ?? line, message);
