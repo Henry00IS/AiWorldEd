@@ -1,4 +1,5 @@
 import type { SolidScriptValue } from './solid_script_value.js';
+import { SOLID_SCRIPT_MODE_DEFAULT, type SolidScriptGroupMode } from './solid_script_mode.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
 
 /** Where a script runs. */
@@ -114,6 +115,12 @@ export const SOLID_SCRIPT_SYSTEM_GLOBALS: readonly SolidScriptSystemValue[] = [
   { name: 'Box.Extents', type: 'Vector', detail: 'half the box size: from its center to its sides' },
   { name: 'Script.Usage', type: 'Text', detail: 'Generator or Modifier: how this script is used here' },
   {
+    name: 'Script.Mode',
+    type: 'Text',
+    detail:
+      "Additive, Subtractive, Intersecting or Pass-Through: the generator node's or modifier host's mode in the scene",
+  },
+  {
     name: 'Input.Brushes',
     type: 'Brush List',
     detail:
@@ -215,6 +222,12 @@ export function solidScriptTimeText(seconds: number, pattern: string): string {
 export interface SolidScriptUseFacts {
   /** Generator or Modifier, for Script.Usage and If Used As. */
   usage: 'Generator' | 'Modifier';
+  /**
+   * Scene CSG mode of the generator node or modifier host, for Script.Mode.
+   * Pass-Through is used when the host is a group with that mode. Absent reads
+   * as Additive.
+   */
+  mode?: SolidScriptGroupMode;
   /** Corners of every brush the modifier receives, one list per brush. */
   solids: readonly (readonly [number, number, number])[][];
   /** Faces of those brushes, together. */
@@ -237,7 +250,12 @@ export interface SolidScriptUseFaceTexture {
 }
 
 /** Use of a run that sets none: a generator, which receives nothing. */
-export const SOLID_SCRIPT_USE_GENERATOR: SolidScriptUseFacts = { usage: 'Generator', solids: [], faces: 0 };
+export const SOLID_SCRIPT_USE_GENERATOR: SolidScriptUseFacts = {
+  usage: 'Generator',
+  solids: [],
+  faces: 0,
+  mode: SOLID_SCRIPT_MODE_DEFAULT,
+};
 
 /** Reads the built-in values of one run. */
 export interface SolidScriptSystemReader {
@@ -315,6 +333,7 @@ export function solidScriptSystemValues(
     'Math.Sqrt2': () => Math.SQRT2,
     'Math.Epsilon': () => 0.000001,
     'Script.Usage': () => use.usage,
+    'Script.Mode': () => use.mode ?? SOLID_SCRIPT_MODE_DEFAULT,
     'Input.Brushes': () => use.solids.map((_, index) => solidScriptInputBrushName(index)),
     'Input.Faces': () => use.faces,
     'Input.Min': () => bounds().min,

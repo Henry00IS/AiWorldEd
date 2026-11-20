@@ -21,6 +21,7 @@ import { solidScriptDebugStepLimitSet } from '@/solid_script/debug/solid_script_
 import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
 import { CommandModifierVolumeBake } from '@/modifier/stack/bake/command_modifier_volume_bake.js';
 import { MODIFIER_STACK_SOLID_SCRIPT_KIND } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
+import { modifierStackSolidScriptRunStart } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_received.js';
 
 /**
  * Builds a world with an empty solid holding one SolidScript generator node.
@@ -314,5 +315,20 @@ describe('SolidScript generator', () => {
     const textures = piece?.brush.faces.map((face) => piece.getSurfaceTextureId(face.surfaceIndex)) ?? [];
     expect(textures.filter((id) => id === 'grass')).toHaveLength(1);
     expect(textures).toHaveLength(6);
+  });
+
+  it('gives Script.Mode from the generator node operation', () => {
+    const fixture = scriptFixture();
+    const matching = script(
+      { command: 'if', values: { condition: '[$Script.Mode] == "Subtractive"' } },
+      { command: 'cube' },
+      { command: 'end' },
+    );
+    scriptSet(fixture.node, { operation: 'subtract', script: matching });
+    expect(fixture.pieces()).toHaveLength(1);
+    scriptSet(fixture.node, { operation: 'add', script: matching });
+    expect(fixture.pieces()).toHaveLength(0);
+    const stepId = ModifierVolume.read(fixture.node).modifiers[0]!.id;
+    expect(modifierStackSolidScriptRunStart(fixture.node, stepId, 'generator').use?.mode).toBe('Additive');
   });
 });

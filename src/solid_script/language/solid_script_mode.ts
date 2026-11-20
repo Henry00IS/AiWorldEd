@@ -122,3 +122,16 @@ export function solidScriptGroupModeOperation(mode: SolidScriptGroupMode | undef
   if (mode === 'Pass-Through') return SolidOperation.PassThrough;
   return SolidOperation.Additive;
 }
+
+/**
+ * Names a scene CSG operation with the same words Mode fields use.
+ *
+ * @param operation Scene operation.
+ * @returns Mode word, including Pass-Through for a group.
+ */
+export function solidScriptModeLabel(operation: SolidOperation): SolidScriptGroupMode {
+  if (operation === SolidOperation.Subtractive) return 'Subtractive';
+  if (operation === SolidOperation.Intersecting) return 'Intersecting';
+  if (operation === SolidOperation.PassThrough) return 'Pass-Through';
+  return 'Additive';
+}

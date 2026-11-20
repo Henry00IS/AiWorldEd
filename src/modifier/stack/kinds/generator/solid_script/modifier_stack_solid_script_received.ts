@@ -1,7 +1,8 @@
 import { Vector3, type Object3D } from 'three';
 import { modifierStackVolumeBox } from '@/modifier/stack/evaluate/modifier_stack_frame.js';
 import type { SolidScriptUse } from '@/solid_script/document/solid_script_document.js';
-import type { SolidScriptUseFacts } from '@/solid_script/language/solid_script_system.js';
+import { SOLID_SCRIPT_USE_GENERATOR, type SolidScriptUseFacts } from '@/solid_script/language/solid_script_system.js';
+import { modifierStackSolidScriptHostMode } from './modifier_stack_solid_script_host_mode.js';
 
 /** What a SolidScript modifier received at its last evaluation. */
 export interface ModifierStackSolidScriptReceived {
@@ -52,13 +53,16 @@ export function modifierStackSolidScriptRunStart(
   stepId: string,
   use: SolidScriptUse,
 ): { box: [number, number, number]; use?: SolidScriptUseFacts } {
+  const mode = modifierStackSolidScriptHostMode(owner);
   if (use === 'modifier') {
     const received = modifierStackSolidScriptReceivedByOwner.get(owner)?.get(stepId);
+    const facts = received?.use;
+    const useFacts = { usage: 'Modifier' as const, solids: facts?.solids ?? [], faces: facts?.faces ?? 0, mode };
     return {
       box: received?.box ?? [1, 1, 1],
-      use: received?.use ?? { usage: 'Modifier', solids: [], faces: 0 },
+      use: facts?.textures ? { ...useFacts, textures: facts.textures } : useFacts,
     };
   }
   const size = modifierStackVolumeBox(owner).getSize(new Vector3());
-  return { box: [size.x, size.y, size.z] };
+  return { box: [size.x, size.y, size.z], use: { ...SOLID_SCRIPT_USE_GENERATOR, mode } };
 }

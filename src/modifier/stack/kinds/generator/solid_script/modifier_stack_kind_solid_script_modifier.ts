@@ -20,6 +20,7 @@ import {
   MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND,
 } from './modifier_stack_solid_script_keys.js';
 import type { ModifierStackSolidScriptPassed } from './modifier_stack_solid_script_layout.js';
+import { modifierStackSolidScriptHostMode } from './modifier_stack_solid_script_host_mode.js';
 import { modifierStackSolidScriptReceivedWrite } from './modifier_stack_solid_script_received.js';
 
 /**
@@ -27,7 +28,8 @@ import { modifierStackSolidScriptReceivedWrite } from './modifier_stack_solid_sc
  * mesh or group it is added to. Like a generator, only what the script outputs
  * comes out, placed around their centre: Input Brushes passes the received
  * brushes on. The script reads them as Input.Brushes, Input.Size and the other
- * Input values, and Script.Usage is Modifier.
+ * Input values, Script.Usage is Modifier, and Script.Mode is the host's mode in
+ * the scene.
  */
 export class ModifierStackKindSolidScriptModifier extends ModifierStackKindSolidScript {
   override readonly id: string = MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND;
@@ -121,6 +123,7 @@ export class ModifierStackKindSolidScriptModifier extends ModifierStackKindSolid
     const centred = (point: THREE.Vector3) => [point.x - centre.x, point.y - centre.y, point.z - centre.z] as const;
     const use: SolidScriptUseFacts = {
       usage: 'Modifier',
+      mode: modifierStackSolidScriptHostMode(context.volume),
       solids: corners.map((list) => list.map(centred)),
       faces: brushes.reduce((sum, brush) => sum + brush.brush.faces.length, 0),
       textures: brushes.map((brush) => {

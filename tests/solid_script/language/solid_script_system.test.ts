@@ -103,6 +103,22 @@ describe('SolidScript system values', () => {
     expect(run.error?.message).toMatch(/built-in|read/i);
   });
 
+  it('reads Script.Mode as Additive when the host does not set one, and every scene mode when it does', () => {
+    expect(echo('[$Script.Mode]')).toBe('Additive');
+    expect(echo('[$Script.Usage] [$Script.Mode]')).toBe('Generator Additive');
+    for (const mode of ['Additive', 'Subtractive', 'Intersecting', 'Pass-Through'] as const) {
+      const use = { usage: 'Modifier' as const, solids: [] as const, faces: 0, mode };
+      expect(echo('[$Script.Mode]', { use }), mode).toBe(mode);
+    }
+  });
+
+  it('cannot change Script.Mode', () => {
+    const run = solidScriptProgramRun(
+      solidScriptDocumentCreate([{ command: 'variable', values: { name: '$Script.Mode', value: 'Subtractive' } }]),
+    );
+    expect(run.error?.message).toMatch(/built-in|read|system/i);
+  });
+
   it('lists a type and detail for every value', () => {
     for (const entry of SOLID_SCRIPT_SYSTEM_GLOBALS) {
       expect(entry.type.length).toBeGreaterThan(0);
@@ -158,6 +174,12 @@ describe('SolidScript explorer system values', () => {
     expect(version).toMatchObject({ category: 'System', value: '9.8.7', type: 'Text', readOnly: true });
     expect(version?.detail).toMatch(/version/);
     expect(entries.find((entry) => entry.name === '$Box.Width')?.value).toBe('Only in a Generator');
+    expect(entries.find((entry) => entry.name === '$Script.Mode')).toMatchObject({
+      category: 'System',
+      value: 'Additive',
+      type: 'Text',
+      readOnly: true,
+    });
     expect(entries.filter((entry) => entry.category === 'System').length).toBeGreaterThanOrEqual(
       SOLID_SCRIPT_SYSTEM_GLOBALS.length,
     );

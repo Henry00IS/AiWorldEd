@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { SolidModel } from '@/solid/model/solid_model.js';
+import { markAsSolidCsgGroup } from '@/solid/model/solid_group.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { modifierStackCompile } from '@/modifier/stack/evaluate/modifier_stack_compile.js';
 import { modifierStackStatusRead } from '@/modifier/stack/evaluate/modifier_stack_status.js';
@@ -22,13 +23,14 @@ import { solidScriptProgramRun } from '@/solid_script/language/solid_script_prog
  * modifier.
  *
  * @param script Script to run, or undefined for the starting one.
+ * @param operation Host brush mode in the scene.
  * @returns Fixture parts and a compile helper.
  */
-function modifierFixture(script?: unknown) {
+function modifierFixture(script?: unknown, operation: SolidOperation = SolidOperation.Additive) {
   const world = new THREE.Group();
   const model = new SolidModel('Script modifier test');
   world.add(model.root);
-  const source = model.addBoxBrush(1, SolidOperation.Additive);
+  const source = model.addBoxBrush(1, operation);
   const mesh = source.mesh as THREE.Mesh;
   const entry = modifierStackEntryCreate(MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND, []);
   if (script !== undefined) entry.parameters['script'] = script;
@@ -151,5 +153,51 @@ describe('SolidScript as a modifier', () => {
     const result = fixture.compile();
     expect(result.instances).toHaveLength(1);
     expect(JSON.stringify(modifierStackStatusRead(fixture.mesh))).toContain('Turn on Modifier under Can Be Used As');
+  });
+
+  it('gives Script.Mode from the host brush for every mode, and Pass-Through from a group', () => {
+    const modes = [
+      [SolidOperation.Additive, 'Additive'],
+      [SolidOperation.Subtractive, 'Subtractive'],
+      [SolidOperation.Intersecting, 'Intersecting'],
+    ] as const;
+    for (const [operation, mode] of modes) {
+      const fixture = modifierFixture(
+        both(
+          { command: 'if', values: { condition: `[$Script.Mode] == "${mode}"` } },
+          { command: 'input_brushes' },
+          { command: 'end' },
+        ),
+        operation,
+      );
+      const shown = fixture
+        .compile()
+        .instances.filter((brush) => brush.constructor.name !== 'ModifierStackHiddenBrush');
+      expect(shown, mode).toHaveLength(1);
+      const stepId = modifierStackOwnerEncode(fixture.mesh)!.modifiers[0]!.id;
+      expect(modifierStackSolidScriptRunStart(fixture.mesh, stepId, 'modifier').use?.mode).toBe(mode);
+    }
+    const world = new THREE.Group();
+    const model = new SolidModel('Group host mode');
+    world.add(model.root);
+    const group = new THREE.Group();
+    markAsSolidCsgGroup(group, SolidOperation.PassThrough);
+    model.root.add(group);
+    const source = model.addBoxBrush(1, SolidOperation.Additive);
+    if (source.mesh) group.add(source.mesh);
+    model.syncBrushOrderFromScene();
+    const entry = modifierStackEntryCreate(MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND, []);
+    entry.parameters['script'] = both(
+      { command: 'if', values: { condition: '[$Script.Mode] == "Pass-Through"' } },
+      { command: 'input_brushes' },
+      { command: 'end' },
+    );
+    modifierStackOwnerDecode(group, { modifiers: [entry] });
+    world.updateMatrixWorld(true);
+    const shown = modifierStackCompile(model.getBrushes(), model.root).instances.filter(
+      (brush) => brush.constructor.name !== 'ModifierStackHiddenBrush',
+    );
+    expect(shown).toHaveLength(1);
+    expect(modifierStackSolidScriptRunStart(group, entry.id, 'modifier').use?.mode).toBe('Pass-Through');
   });
 });
