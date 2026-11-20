@@ -119,34 +119,71 @@ export function solidScriptProgramRun(
   program: SolidScriptProgram,
   options: SolidScriptProgramOptions = {},
 ): SolidScriptRun {
+  const started = performance.now();
   try {
-    const lines = solidScriptProgramLines(program);
-    const system = solidScriptSystemValues(options.context ?? 'generator', options.box ?? null, true, options.use);
-    return new SolidScriptMachine(
-      options.stepLimit,
-      options.breakpoints ?? null,
-      options.inputs,
-      system,
-      options.profile === true,
-    ).run(lines);
+    return solidScriptProgramTimed(solidScriptProgramExecute(program, options), started);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return {
-      shapes: [],
-      messages: [],
-      warnings: [],
-      steps: [],
-      variables: [],
-      breaks: [],
-      paused: null,
-      stack: [],
-      system: [],
-      passed: [],
-      profile: new Map(),
-      seen: new Map(),
-      error: solidScriptFailure(solidScriptErrorLine(message), message),
-    };
+    return solidScriptProgramTimed(solidScriptProgramFailed(error), started);
   }
+}
+
+/**
+ * Runs the lines of a script in a new machine.
+ *
+ * @param program Lines of the script.
+ * @param options Step limit, breakpoints and input values.
+ * @returns Run result, before its time is stored.
+ */
+function solidScriptProgramExecute(
+  program: SolidScriptProgram,
+  options: SolidScriptProgramOptions,
+): Omit<SolidScriptRun, 'ms'> {
+  const lines = solidScriptProgramLines(program);
+  const system = solidScriptSystemValues(options.context ?? 'generator', options.box ?? null, true, options.use);
+  return new SolidScriptMachine(
+    options.stepLimit,
+    options.breakpoints ?? null,
+    options.inputs,
+    system,
+    options.profile === true,
+  ).run(lines);
+}
+
+/**
+ * Stores how long a run took, from a high-resolution start time.
+ *
+ * @param run Run result, before its time is stored.
+ * @param started High-resolution time just before the run.
+ * @returns Run result with its time in milliseconds.
+ */
+function solidScriptProgramTimed(run: Omit<SolidScriptRun, 'ms'>, started: number): SolidScriptRun {
+  return { ...run, ms: Math.max(0, performance.now() - started) };
+}
+
+/**
+ * Builds an empty failed run from a thrown value, such as a line that could not
+ * be checked.
+ *
+ * @param error Thrown value.
+ * @returns Failed run, before its time is stored.
+ */
+function solidScriptProgramFailed(error: unknown): Omit<SolidScriptRun, 'ms'> {
+  const message = error instanceof Error ? error.message : String(error);
+  return {
+    shapes: [],
+    messages: [],
+    warnings: [],
+    steps: [],
+    variables: [],
+    breaks: [],
+    paused: null,
+    stack: [],
+    system: [],
+    passed: [],
+    profile: new Map(),
+    seen: new Map(),
+    error: solidScriptFailure(solidScriptErrorLine(message), message),
+  };
 }
 
 /**

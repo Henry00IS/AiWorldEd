@@ -444,7 +444,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
    * @param lines Top-level lines.
    * @returns Shapes, output, steps and the first mistake.
    */
-  run(lines: SolidScriptBlockNode<Command>[]): SolidScriptRun {
+  run(lines: SolidScriptBlockNode<Command>[]): Omit<SolidScriptRun, 'ms'> {
     solidScriptGeneratorPiecesCacheClear();
     this.useOnce();
     this.scriptLines = lines;

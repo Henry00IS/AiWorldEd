@@ -3,6 +3,7 @@ import { solidScriptKindCheck } from '@/solid_script/document/solid_script_docum
 import type { SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptErrorLine, solidScriptErrorText } from '@/solid_script/language/solid_script_error.js';
 import { solidScriptProgramRun, type SolidScriptProgramOptions } from '@/solid_script/language/solid_script_program.js';
+import { solidScriptOutputSolids } from '@/solid_script/language/solid_script_output_solids.js';
 import type { SolidScriptLineProfile, SolidScriptWarning } from '@/solid_script/language/solid_script_machine_types.js';
 import { SolidScriptEditorExplorer, type SolidScriptExplorerRun } from './solid_script_editor_explorer.js';
 import {
@@ -145,11 +146,10 @@ export class SolidScriptEditorOutput {
     const result = solidScriptProgramRun(document, { context: 'preview', ...options, profile: true });
     this.passed = result.passed;
     if (!result.error) {
-      const count = result.steps.length;
       this.failed = null;
       this.failedKeys = new Set();
       this.runs = result.profile;
-      const solids = `${count} ${count === 1 ? 'solid' : 'solids'}${result.paused ? ' so far' : ''}`;
+      const solids = solidScriptOutputSolids(result.steps.length, result.ms, result.paused !== null);
       this.text([solids, ...result.messages].join('\n'), '');
       this.output.append(...result.warnings.map((warning) => this.warningRow(warning)), this.checks);
       this.explorer.show(document, result.variables, options ? result.stack : [], result.system, run, result.seen);

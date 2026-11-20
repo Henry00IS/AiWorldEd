@@ -19,6 +19,7 @@ import {
   solidScriptProgramEvaluate,
   type SolidScriptProgramOptions,
 } from '@/solid_script/language/solid_script_program.js';
+import { solidScriptOutputSolids } from '@/solid_script/language/solid_script_output_solids.js';
 import { modifierStackSolidScriptRunStart } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_received.js';
 import { SOLID_SCRIPT_FILE_EXTENSION } from '@/solid_script/file/solid_script_file.js';
 import { solidScriptEditorIcon } from './solid_script_editor_icons.js';
@@ -229,8 +230,8 @@ function solidScriptInspectorDetail(
 ): void {
   const lines = `${document.blocks.length} ${document.blocks.length === 1 ? 'line' : 'lines'}`;
   try {
-    const solids = solidScriptProgramEvaluate(document, { ...options, context: 'preview' }).steps.length;
-    element.textContent = `${lines} · ${solids} ${solids === 1 ? 'solid' : 'solids'}`;
+    const result = solidScriptProgramEvaluate(document, { ...options, context: 'preview' });
+    element.textContent = `${lines} · ${solidScriptOutputSolids(result.steps.length, result.ms)}`;
     fail('');
   } catch (error) {
     element.textContent = lines;

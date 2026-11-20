@@ -349,6 +349,8 @@ export interface SolidScriptEvaluation {
    * often to keep them; empty unless the run was asked to profile.
    */
   seen: ReadonlyMap<number, SolidScriptLineSeen | null>;
+  /** Milliseconds the script run took, measured around the run itself. */
+  ms: number;
 }
 
 /** Variables and the call stack just before a line ran. */
