@@ -6,6 +6,7 @@ import { SolidBrushValidator } from '@/solid/brush/solid_brush_validator.js';
 import { solidTreeBrushTexturesApply, solidTreeNodesCreate } from '@/solid/commands/tree/solid_tree_nodes_create.js';
 import type { SolidTreeBrush, SolidTreeNode } from '@/solid/commands/tree/solid_tree_node.js';
 import { solidChunkUvProject } from '@/solid/mesh/solid_brush_mesh_chunk.js';
+import { SeamModelConformer } from '@/solid/mesh/seam/seam_model_conformer.js';
 import { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
@@ -206,7 +207,9 @@ function solidScriptMeshBrushPreviewsDispose(instances: readonly SolidBrushInsta
 
 /**
  * Turns compiled polygons into a script mesh, with UVs baked the same way as
- * editor mesh chunks, then welds shared corners.
+ * editor mesh chunks. Corners of one polygon lying on another polygon's edge
+ * are inserted into that edge first, the same way the editor closes
+ * T-junctions, so welding shared corners leaves every edge with two faces.
  *
  * @param polygons Compiled surface polygons.
  * @param instances Brushes the polygons came from.
@@ -223,8 +226,42 @@ function solidScriptMeshFromPolygons(
   const mesh: SolidScriptShapeMesh = { kind: 'mesh', label, points: [], faces: [], uvs: [] };
   const texture = solidScriptMeshBakeTexture(polygons);
   if (texture !== undefined) mesh.texture = texture;
-  for (const polygon of polygons) solidScriptMeshPolygonAdd(mesh, polygon, byId, inverses);
+  for (const polygon of solidScriptMeshPolygonsConformed(polygons))
+    solidScriptMeshPolygonAdd(mesh, polygon, byId, inverses);
   return solidScriptMeshMerge(solidScriptMeshChecked(mesh), SOLID_VERTEX_EQUAL_EPSILON);
+}
+
+/**
+ * Inserts every corner that lies inside another polygon's edge into that edge,
+ * through the editor's seam conformer.
+ *
+ * @param polygons Compiled polygons of every baked brush.
+ * @returns Polygons with their conformed outlines, grouped by brush.
+ */
+function solidScriptMeshPolygonsConformed(polygons: readonly SolidCompiledPolygon[]): SolidCompiledPolygon[] {
+  const byBrush = solidScriptMeshPolygonsByBrush(polygons);
+  const brushOrder = [...byBrush.keys()];
+  const conformer = new SeamModelConformer();
+  conformer.refresh(brushOrder, brushOrder, (brushId) => byBrush.get(brushId));
+  return brushOrder.flatMap((brushId) => conformer.polygonsForMesh(brushId, byBrush.get(brushId) ?? []));
+}
+
+/**
+ * Groups compiled polygons by the brush they came from, in first-seen order.
+ *
+ * @param polygons Compiled polygons.
+ * @returns Polygons per brush id.
+ */
+function solidScriptMeshPolygonsByBrush(
+  polygons: readonly SolidCompiledPolygon[],
+): Map<string, SolidCompiledPolygon[]> {
+  const byBrush = new Map<string, SolidCompiledPolygon[]>();
+  for (const polygon of polygons) {
+    const list = byBrush.get(polygon.brushId);
+    if (list) list.push(polygon);
+    else byBrush.set(polygon.brushId, [polygon]);
+  }
+  return byBrush;
 }
 
 /**
