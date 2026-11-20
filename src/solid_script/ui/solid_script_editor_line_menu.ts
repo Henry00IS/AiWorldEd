@@ -16,6 +16,8 @@ export interface SolidScriptEditorLineMenuHost {
   off: (line: number) => boolean;
   /** Opens the configurator of a line. */
   configure: (line: number) => void;
+  /** Tells whether a line has values to set. */
+  configurable: (line: number) => boolean;
   /** Sets or clears the breakpoint of a line. */
   breakpoint: (line: number) => void;
   /** Shows a short message. */
@@ -86,7 +88,7 @@ export function solidScriptEditorLineMenuItems(host: SolidScriptEditorLineMenuHo
     { label: 'Copy as Plain Text', callback: () => solidScriptEditorLineMenuCopyShown(host, false) },
     { label: 'Copy with Markup', callback: () => solidScriptEditorLineMenuCopyShown(host, true) },
     SOLID_SCRIPT_EDITOR_LINE_MENU_SEPARATOR,
-    { label: 'Change…', callback: () => host.configure(line) },
+    { label: 'Change…', callback: () => host.configure(line), disabled: !host.configurable(line) },
     ...(host.switches ? [{ label: off ? 'Turn On' : 'Turn Off', callback: () => host.keys.toggle(line) }] : []),
     { label: 'Duplicate', callback: () => host.keys.duplicate(line) },
     { label: 'Delete', callback: () => host.keys.remove(line) },

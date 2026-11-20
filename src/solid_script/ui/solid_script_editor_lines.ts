@@ -27,6 +27,7 @@ import type { SolidScriptLineProfile } from '@/solid_script/language/solid_scrip
 import { SOLID_SCRIPT_EDITOR_CLASSES, SOLID_SCRIPT_EDITOR_INDENT_PX } from './solid_script_editor_css.js';
 import { SolidScriptEditorDrop, type SolidScriptEditorDropTarget } from './solid_script_editor_drop.js';
 import {
+  solidScriptEditorLineConfigurable,
   solidScriptEditorRowBuild,
   type SolidScriptEditorRowHandlers,
   type SolidScriptEditorRowLook,
@@ -156,7 +157,7 @@ export class SolidScriptEditorLines {
   /** What every row does on keys, presses and focus. */
   private readonly rowHandlers: SolidScriptEditorRowHandlers = {
     key: (event, at) => this.keys.key(event, at),
-    configure: (at) => this.handlers.configure(at),
+    configure: (at) => this.configureLine(at),
     jump: (at) => this.focusLine(at),
     focus: (at) => this.focusArrived(at),
     press: (at, event) => this.press(at, event),
@@ -233,7 +234,7 @@ export class SolidScriptEditorLines {
       select: (lines) => this.select(lines),
       selectAll: () => this.selectAll(),
       selectRange: (first, last) => this.selectRange(first, last),
-      configure: this.handlers.configure,
+      configure: (line) => this.configureLine(line),
       notice: this.handlers.notice,
       catalog: this.options.catalog,
       switches: this.options.switches,
@@ -298,6 +299,28 @@ export class SolidScriptEditorLines {
   }
 
   /**
+   * Tells whether a line has values to set; End lines and blocks without fields
+   * have none.
+   *
+   * @param line Line index.
+   * @returns True when it has.
+   */
+  private configurable(line: number): boolean {
+    const block = this.document.blocks[line];
+    return block !== undefined && solidScriptEditorLineConfigurable(block, this.options.catalog);
+  }
+
+  /**
+   * Opens the configurator of a line, or does nothing for a line with nothing
+   * to configure, from a double-click, Enter or the line menu alike.
+   *
+   * @param line Line index.
+   */
+  private configureLine(line: number): void {
+    if (this.configurable(line)) this.handlers.configure(line);
+  }
+
+  /**
    * Tells the line menu what it works on.
    *
    * @returns Menu host.
@@ -306,7 +329,8 @@ export class SolidScriptEditorLines {
     return {
       switches: this.options.switches,
       off: (line) => this.offs[line] === true,
-      configure: (line) => this.handlers.configure(line),
+      configure: (line) => this.configureLine(line),
+      configurable: (line) => this.configurable(line),
       breakpoint: (line) => this.handlers.breakpoint(line),
       notice: (text) => this.handlers.notice(text),
       keys: this.keys,

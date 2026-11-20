@@ -187,7 +187,11 @@ function solidScriptEditorChipFill(chip: HTMLElement, block: SolidScriptBlock, l
   chip.append(...parts.map((part) => solidScriptEditorListingPart(part, marks)));
   chip.classList.toggle(SOLID_SCRIPT_EDITOR_CLASSES.unknown, !command);
   chip.setAttribute('aria-label', parts.map((part) => part.text).join(''));
-  chip.title = solidScriptEditorChipTitle(command, solidScriptBlockNesting(block, look.catalog) === 'close');
+  chip.title = solidScriptEditorChipTitle(
+    command,
+    solidScriptBlockNesting(block, look.catalog) === 'close',
+    solidScriptEditorLineConfigurable(block, look.catalog),
+  );
 }
 
 /**
@@ -219,15 +223,41 @@ function solidScriptEditorListingPart(
 }
 
 /**
- * Returns the hover text of a line.
+ * Returns the hover text of a line; only a line with values to set tells how to
+ * configure it.
  *
  * @param command Command, or undefined when unknown.
  * @param end True for an End line.
+ * @param configurable True when the line has values to set.
  * @returns Hover text.
  */
-function solidScriptEditorChipTitle(command: SolidScriptCommand | undefined, end: boolean): string {
+function solidScriptEditorChipTitle(
+  command: SolidScriptCommand | undefined,
+  end: boolean,
+  configurable: boolean,
+): string {
   if (!command) return 'This editor does not know this command; it stops the script.';
   if (end)
     return 'Closes the block above. Double-click to go to the line that opens it; remove that line to remove the block.';
-  return `${command.description}.\nDouble-click or press Enter to configure.`;
+  return configurable
+    ? `${command.description}.\nDouble-click or press Enter to configure.`
+    : `${command.description}.`;
+}
+
+/**
+ * Tells whether a line has values to set: a known command with fields, not an
+ * End line. A blank or unknown line counts too, so configuring it still says
+ * what to do instead.
+ *
+ * @param block Line.
+ * @param catalog Commands the line is found in.
+ * @returns False for a line with nothing to configure.
+ */
+export function solidScriptEditorLineConfigurable(
+  block: SolidScriptBlock,
+  catalog: SolidScriptCommandCatalog,
+): boolean {
+  const command = catalog.find(block.command);
+  if (!command || solidScriptBlockIsBlank(block)) return true;
+  return command.nesting !== 'close' && command.parameters.length > 0;
 }
