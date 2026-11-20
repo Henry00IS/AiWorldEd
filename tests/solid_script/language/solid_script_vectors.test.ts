@@ -32,7 +32,8 @@ function echoed(...lines: SolidScriptLine[]): string[] | string {
  * @returns Echoed text, or the error.
  */
 function formula(formula: string): string {
-  const out = echoed(line('echo', { value: `[=${formula.replace(/([[\]])/g, '$$$1')}]` }));
+  const typed = formula.replace(/"[^"]*"/g, (text) => text.replace(/[[\]]/g, '$$$&'));
+  const out = echoed(line('echo', { value: `[=${typed}]` }));
   return typeof out === 'string' ? out : out[0]!;
 }
 
@@ -124,6 +125,17 @@ describe('SolidScript text and helper functions', () => {
   });
 });
 
+/**
+ * Writes a calculator expression as a formula of a field, where system values
+ * stand in brackets.
+ *
+ * @param text Calculator expression.
+ * @returns Formula.
+ */
+function bracketed(text: string): string {
+  return text.replace(/\$Math\.\w+/g, (name) => `[${name}]`);
+}
+
 describe('SolidScript formulas and the MCP calculator', () => {
   it('give the same answers, because they share one formula language', () => {
     for (const text of [
@@ -139,7 +151,7 @@ describe('SolidScript formulas and the MCP calculator', () => {
       '$Math.Pi',
     ]) {
       const shared = (calculateExpression(text).data as { value: number }).value;
-      expect(formula(text), text).toBe(String(shared));
+      expect(formula(bracketed(text)), text).toBe(String(shared));
     }
     for (const text of [
       '$Math.Tau / 2',
@@ -150,7 +162,7 @@ describe('SolidScript formulas and the MCP calculator', () => {
       'sum([1, 2])',
     ]) {
       const shared = (calculateExpression(text).data as { value: number }).value;
-      expect(formula(text), text).toBe(String(shared));
+      expect(formula(bracketed(text)), text).toBe(String(shared));
     }
     expect(calculateExpression('1/0').ok).toBe(false);
     expect(formula('1/0')).toMatch(/division by zero/);

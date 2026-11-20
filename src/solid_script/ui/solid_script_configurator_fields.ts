@@ -536,6 +536,6 @@ export function solidScriptConfiguratorProblem(parameter: SolidScriptCommandPara
   const count = solidScriptFieldSplit(text, ',').length;
   if (size > 0 && count !== 1 && count !== size)
     return `${parameter.label} needs ${size} values separated by commas, or one vector such as [$Box.Size].`;
-  const problem = solidScriptFieldCheck(text);
+  const problem = solidScriptFieldCheck(text, parameter.type === 'condition');
   return problem === '' ? '' : `${parameter.label}: ${problem}.`;
 }

@@ -1,6 +1,7 @@
 import type { SolidScriptExpression } from './solid_script_ast.js';
 import { solidScriptExpressionParse, SolidScriptValueParser } from './solid_script_expression_parse.js';
-import { solidScriptFieldEscapes, solidScriptFieldPieces } from './solid_script_field.js';
+import { solidScriptFieldEscapes, solidScriptFieldPieces, type SolidScriptFieldPiece } from './solid_script_field.js';
+import { solidScriptFormulaListInline } from './solid_script_formula_list_literal.js';
 
 /**
  * Where a part of a formula stands in its text: from its first character to
@@ -76,7 +77,8 @@ class SolidScriptFormulaParser extends SolidScriptValueParser {
 /**
  * Masks the bracketed parts of a formula and reads its escapes, as the running
  * formula does: a part becomes a name of underscores the parser reads as one
- * value, in its place, and an escape the character it keeps.
+ * value, in its place, and an escape the character it keeps. A list in brackets
+ * stays as written, its own parts masked the same way.
  *
  * @param text Formula.
  * @returns Masked formula, where each part starts and each escaped character
@@ -92,19 +94,39 @@ function solidScriptFormulaMask(text: string): {
   const read = { masked: '', slots: new Set<number>(), escapes: new Set<number>(), origins: [] as number[] };
   for (let index = 0; index < text.length; index++) {
     const group = groups[0];
-    if (group?.from === index) {
-      if (group.to - group.from < 3)
-        throw new Error('[] is empty; put a variable name inside, or write $[$] for brackets');
-      solidScriptFormulaMaskAdd(read, ` ${'_'.repeat(group.to - group.from - 2)} `, index);
-      read.slots.add(index + 1);
-      index = group.to - 1;
-      groups.shift();
-    } else if (solidScriptFieldEscapes(text, index)) {
+    if (group?.from === index) index = solidScriptFormulaMaskGroup(read, groups);
+    else if (solidScriptFieldEscapes(text, index)) {
       read.escapes.add(++index);
       solidScriptFormulaMaskAdd(read, text[index]!, index);
     } else solidScriptFormulaMaskAdd(read, text[index]!, index);
   }
   return read;
+}
+
+/**
+ * Masks the bracketed part next in line: a list in brackets keeps its [ and
+ * puts its own parts next in line, any other part becomes one name.
+ *
+ * @param read Masked formula so far, and where its characters stand.
+ * @param read.masked Masked text.
+ * @param read.slots Where each masked part starts, after its [.
+ * @param read.origins Where each masked character stands.
+ * @param groups Bracketed parts still to come, in order; the first is taken.
+ * @returns Index of the last character taken.
+ */
+function solidScriptFormulaMaskGroup(
+  read: { masked: string; slots: Set<number>; origins: number[] },
+  groups: SolidScriptFieldPiece[],
+): number {
+  const group = groups.shift() as Extract<SolidScriptFieldPiece, { kind: 'group' }>;
+  if (solidScriptFormulaListInline(group)) {
+    groups.unshift(...group.pieces.flatMap((piece) => (piece.kind === 'group' ? [piece] : [])));
+    solidScriptFormulaMaskAdd(read, '[', group.from);
+    return group.from;
+  }
+  solidScriptFormulaMaskAdd(read, ` ${'_'.repeat(group.to - group.from - 2)} `, group.from);
+  read.slots.add(group.from + 1);
+  return group.to - 1;
 }
 
 /**
@@ -210,20 +232,5 @@ export class SolidScriptFormulaSource {
    */
   slot(node: SolidScriptExpression): boolean {
     return node.kind === 'variable' && this.slots.has(this.span(node).from + 1);
-  }
-}
-
-/**
- * Checks that a formula can be read, without running it.
- *
- * @param text Formula.
- * @returns Problem in plain words, or an empty string.
- */
-export function solidScriptFormulaProblem(text: string): string {
-  try {
-    SolidScriptFormulaSource.read(text);
-    return '';
-  } catch (error) {
-    return error instanceof Error ? error.message : String(error);
   }
 }

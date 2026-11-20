@@ -3,6 +3,7 @@ import { SOLID_SCRIPT_SYSTEM_VALUES } from './solid_script_name_rules.js';
 import { solidScriptSystemFill } from './solid_script_system_names.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
 import { solidScriptMistakeBareMembers, solidScriptMistakeUserDollars } from './solid_script_field_bare_members.js';
+import { SOLID_SCRIPT_FORMULA_BARE_TOLD } from './solid_script_formula_bare.js';
 
 /**
  * Fields that take numbers, where math outside a formula is surely a mistake.
@@ -145,9 +146,12 @@ const SOLID_SCRIPT_MISTAKE_BARE_WHY = 'in a formula, a variable read with a memb
 /** Why a variable of the script written with a $ reads nothing. */
 const SOLID_SCRIPT_MISTAKE_DOLLAR_WHY = 'a $ marks only system values, never a variable of the script';
 
+/** Why a name written without brackets in a formula reads nothing. */
+const SOLID_SCRIPT_MISTAKE_PLAIN_WHY = 'a formula reads every variable and system value in brackets';
+
 /**
  * Reasons a running line's error does not tell by itself, so its hint says
- * them.
+ * them; a name without brackets in a formula stops with its own reason.
  */
 const SOLID_SCRIPT_MISTAKE_NAME_WHYS = [SOLID_SCRIPT_MISTAKE_BARE_WHY, SOLID_SCRIPT_MISTAKE_DOLLAR_WHY];
 
@@ -181,6 +185,21 @@ function solidScriptMistakeNamesWhy(text: string, sees: SolidScriptMistakeNames)
 }
 
 /**
+ * Reads a condition, which is a formula as a whole, as the [= ] formula it
+ * works like, and back.
+ *
+ * @param text Field text, trimmed.
+ * @param formula True when the whole text is a formula.
+ * @param rewrite Rewrites field text.
+ * @returns Rewritten text.
+ */
+function solidScriptMistakeAsFormula(text: string, formula: boolean, rewrite: (text: string) => string): string {
+  if (!formula) return rewrite(text);
+  const written = rewrite(`[=${text}]`);
+  return written.slice(2, -1);
+}
+
+/**
  * Finds a common mistake in field text and writes what was probably meant,
  * built from the text as written: [K]*2 or [[K]_2] or [K_2] becomes [=[K]*2],
  * =[K]*2 becomes [=[K]*2], [=Edge.Start + 1] becomes [=[Edge.Start] + 1] when
@@ -192,6 +211,7 @@ function solidScriptMistakeNamesWhy(text: string, sees: SolidScriptMistakeNames)
  *   brackets of a member read are checked.
  * @param known Tells whether the script defines a name.
  * @param sees Tells whether the line sees a variable of that name.
+ * @param formula True when the whole text is a formula, as a condition is.
  * @returns What was probably meant, or an empty string when nothing looks
  *   wrong.
  */
@@ -200,15 +220,51 @@ export function solidScriptFieldMistake(
   math = true,
   known: SolidScriptMistakeNames = () => false,
   sees: SolidScriptMistakeNames = () => false,
+  formula = false,
 ): string {
   const trimmed = text.trim();
-  const bare = solidScriptMistakeNamesWritten(trimmed, sees);
+  const meant = solidScriptMistakeBracketed(solidScriptMistakeUnbracketed(trimmed, math, known, sees), sees, formula);
+  return meant === trimmed ? '' : meant;
+}
+
+/**
+ * Writes what field text probably meant, apart from the brackets a formula
+ * needs around names: a $ or the brackets of a member read, math outside a
+ * formula and a system value written without its $.
+ *
+ * @param text Field text, trimmed.
+ * @param math False for fields that may hold text.
+ * @param known Tells whether the script defines a name.
+ * @param sees Tells whether the line sees a variable of that name.
+ * @returns Rewritten text.
+ */
+function solidScriptMistakeUnbracketed(
+  text: string,
+  math: boolean,
+  known: SolidScriptMistakeNames,
+  sees: SolidScriptMistakeNames,
+): string {
+  const bare = solidScriptMistakeNamesWritten(text, sees);
   // Commas inside a call such as Max([A], [B]) stay in their piece.
   const pieces = solidScriptFieldArguments(bare);
   const rewritten = math ? pieces.map(solidScriptMistakeMath).join(', ') : bare;
   const unchanged = math && rewritten === pieces.join(', ') ? bare : rewritten;
-  const meant = solidScriptMistakeSystem(unchanged, (name) => known(name) || sees(name));
-  return meant === trimmed ? '' : meant;
+  return solidScriptMistakeSystem(unchanged, (name) => known(name) || sees(name));
+}
+
+/**
+ * Writes brackets around each name a formula writes without them that surely
+ * means a variable or a system value: one with a $, or a variable the line
+ * sees, such as [=Width + $Box.Width] as [=[Width] + [$Box.Width]].
+ *
+ * @param text Field text, trimmed.
+ * @param sees Tells whether the line sees a variable of that name.
+ * @param formula True when the whole text is a formula, as a condition is.
+ * @returns Rewritten text.
+ */
+function solidScriptMistakeBracketed(text: string, sees: SolidScriptMistakeNames, formula: boolean): string {
+  const means = (name: string): boolean => name.startsWith('$') || sees(name);
+  return solidScriptMistakeAsFormula(text, formula, (written) => solidScriptMistakeNamesWritten(written, means, true));
 }
 
 /**
@@ -219,6 +275,7 @@ export function solidScriptFieldMistake(
  * @param math False for fields that may hold text.
  * @param known Tells whether the script defines a name.
  * @param sees Tells whether the line sees a variable of that name.
+ * @param formula True when the whole text is a formula, as a condition is.
  * @returns Explanation, or an empty string when nothing looks wrong.
  */
 export function solidScriptFieldMistakeNote(
@@ -226,15 +283,20 @@ export function solidScriptFieldMistakeNote(
   math = true,
   known: SolidScriptMistakeNames = () => false,
   sees: SolidScriptMistakeNames = () => false,
+  formula = false,
 ): string {
-  const meant = solidScriptFieldMistake(text, math, known, sees);
+  const meant = solidScriptFieldMistake(text, math, known, sees, formula);
   if (meant === '') return '';
-  const names = solidScriptMistakeNamesWhy(text.trim(), sees);
+  const trimmed = text.trim();
+  const names = solidScriptMistakeNamesWhy(formula ? `[=${trimmed}]` : trimmed, sees);
+  const unbracketed = solidScriptMistakeUnbracketed(trimmed, math, known, sees);
   const why = names
     ? names
-    : meant.includes('[=') && !text.includes('[=')
-      ? 'math outside a formula is not worked out'
-      : 'system values start with $';
+    : meant !== unbracketed
+      ? SOLID_SCRIPT_MISTAKE_PLAIN_WHY
+      : meant.includes('[=') && !text.includes('[=')
+        ? 'math outside a formula is not worked out'
+        : 'system values start with $';
   return `${why}. Did you mean to write ${meant}?`;
 }
 
@@ -281,14 +343,16 @@ export function solidScriptMistakeHinted(
 
 /**
  * Puts a hint after an error, in place of what the error itself guessed was
- * meant; a name written the wrong way also says why.
+ * meant; a name written the wrong way also says why, unless the error says
+ * already that a name needs brackets.
  *
  * @param message Error message.
  * @param note Hint of the field.
  * @returns Message with the hint.
  */
 function solidScriptMistakeJoined(message: string, note: string): string {
-  const says = SOLID_SCRIPT_MISTAKE_NAME_WHYS.some((why) => note.startsWith(why));
+  const told = message.includes(SOLID_SCRIPT_FORMULA_BARE_TOLD);
+  const says = !told && SOLID_SCRIPT_MISTAKE_NAME_WHYS.some((why) => note.startsWith(why));
   const hint = note.slice(says ? 0 : note.indexOf('Did you mean'));
   const said = message.replace(/\s*Did you mean[\s\S]*$/, '').replace(/\.?\s*$/, '');
   return `${said}. ${hint.charAt(0).toUpperCase()}${hint.slice(1)}`;
@@ -358,5 +422,6 @@ export function solidScriptFieldMistakeOf(
 ): string {
   if (SOLID_SCRIPT_MISTAKE_NAMES.has(field.type) || text.trim() === '') return '';
   if (solidScriptFieldListedChoice(field, text)) return '';
-  return solidScriptFieldMistakeNote(text, SOLID_SCRIPT_MISTAKE_NUMERIC.has(field.type), known, sees);
+  const numeric = SOLID_SCRIPT_MISTAKE_NUMERIC.has(field.type);
+  return solidScriptFieldMistakeNote(text, numeric, known, sees, field.type === 'condition');
 }

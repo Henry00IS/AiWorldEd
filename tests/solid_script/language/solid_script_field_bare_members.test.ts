@@ -19,6 +19,9 @@ const EDGES = [
 /** Why a bare member read is a mistake, as the hint says it. */
 const WHY = 'a variable read with a member needs its own brackets';
 
+/** What a running formula says of a name it writes without brackets. */
+const TOLD = 'needs brackets in a formula; a word without them can only be a function, such as Sin(5)';
+
 /**
  * Opens a For Each over the selected edges, or over another list.
  *
@@ -57,7 +60,7 @@ describe('SolidScript hint for a variable read with a member and no brackets in 
     const { run, editor } = hints([...EDGES, each('Edge'), line('polyhedron', { points }), line('end'), line('end')]);
     const meant = '[Edge.Start], [Edge.End], [=[Edge.Start] + [0,0.1,0]], [=[Edge.End] + [0.1,0.1,0]]';
     expect(run).toBe(
-      `line 6: Points From List: a position must be a number, not undef. In a formula, ${WHY}. Did you mean to write ${meant}?`,
+      `line 6: Points From List: Edge.Start ${TOLD}; write [Edge.Start]. Did you mean to write ${meant}?`,
     );
     expect(editor).toEqual([`6: Points From List: in a formula, ${WHY}. Did you mean to write ${meant}?`]);
     expect(run).not.toContain('$');
@@ -85,14 +88,14 @@ describe('SolidScript hint for a variable read with a member and no brackets in 
       line('end'),
       line('end'),
     ]);
-    expect(inner.run).toContain(`${WHY}. Did you mean to write [=[P.Start] + [0, 1, 0]]?`);
+    expect(inner.run).toContain(`P.Start ${TOLD}; write [P.Start]. Did you mean to write [=[P.Start] + [0, 1, 0]]?`);
     expect(inner.editor).toEqual([`7: Message: in a formula, ${WHY}. Did you mean to write [=[P.Start] + [0, 1, 0]]?`]);
     const outer = hints([
       ...EDGES,
       each('P', '[0, 1, 2], [3, 4, 5]'),
       each('Q'),
       line('end'),
-      echo('[=P.X + 1] [=P.Y]'),
+      echo('[=[P].X + 1] [=[P.Y]]'),
       line('end'),
     ]);
     expect(outer).toEqual({ run: '', editor: [] });
@@ -112,13 +115,11 @@ describe('SolidScript hint for a variable read with a member and no brackets in 
   it('gives no suggestion for a name that is a variable on another line only', () => {
     const after = hints([...EDGES, each('Edge'), echo('[Edge.Start]'), line('end'), echo('[=Edge.Start + [0, 1, 0]]')]);
     expect(after.run).toBe(
-      'line 8: Message: "Edge" is not a variable here; for text write "Edge". No variables are known here',
+      `line 8: Message: Edge.Start ${TOLD}. There is no variable Edge either; for a variable write [Edge], for text write "Edge.Start"`,
     );
     expect(after.editor).toEqual([]);
     const later = hints([echo('[=Box.Width + 1]'), line('variable', { name: 'Box', value: '1, 2, 3' }), line('cube')]);
-    expect(later.run).toBe(
-      'line 1: Message: "Box" is not a variable here; for text write "Box". No variables are known here',
-    );
+    expect(later.run).toContain(`Box.Width ${TOLD}`);
     expect(later.editor).toEqual([]);
   });
 
@@ -130,45 +131,52 @@ describe('SolidScript hint for a variable read with a member and no brackets in 
       line('end'),
     ]);
     const meant = '[=[Edge.Start] + [Edge.End.X] + [Edge.End]] and [=[Edge.Length] * 2]';
-    expect(mixed.run).toContain(`${WHY}. Did you mean to write ${meant}?`);
+    expect(mixed.run).toContain(`Edge.End.X ${TOLD}; write [Edge.End.X]. Did you mean to write ${meant}?`);
     expect(mixed.editor).toEqual([`6: Message: in a formula, ${WHY}. Did you mean to write ${meant}?`]);
     const set = hints([
       line('variable', { name: 'Pos', value: '1, 2, 3' }),
       echo('[=Pos.X + Pos.Length]'),
       line('cube'),
     ]);
-    expect(set.editor).toEqual([`2: Message: in a formula, ${WHY}. Did you mean to write [=Pos.X + [Pos.Length]]?`]);
+    expect(set.editor).toEqual([`2: Message: in a formula, ${WHY}. Did you mean to write [=[Pos.X] + [Pos.Length]]?`]);
     const into = hints([
       line('cube'),
       line('select_brushes', { which: 'All', how: 'New', into: 'Picked' }),
       echo('[=Picked.Count + 1]'),
     ]);
-    expect(into.run).toContain(`${WHY}. Did you mean to write [=[Picked.Count] + 1]?`);
+    expect(into.run).toContain(
+      `Picked.Count ${TOLD}; write [Picked.Count]. Did you mean to write [=[Picked.Count] + 1]?`,
+    );
   });
 
   it('keeps $ for a system value, and never gives it to a name of the script', () => {
     const system = hints([...EDGES, each('Edge'), echo('[=Box.Width + 1] [=$Box.Width] [=Math.Pi]'), line('end')]);
-    expect(system.run).toBe(
-      'line 6: Message: box.width is a system value. Did you mean to write [=$Box.Width + 1] [=$Box.Width] [=$Math.Pi]?',
-    );
+    const meant = '[=[$Box.Width] + 1] [=[$Box.Width]] [=[$Math.Pi]]';
+    expect(system.run).toBe(`line 6: Message: Box.Width ${TOLD}; write [$Box.Width]. Did you mean to write ${meant}?`);
     expect(system.editor).toEqual([
-      '6: Message: system values start with $. Did you mean to write [=$Box.Width + 1] [=$Box.Width] [=$Math.Pi]?',
+      `6: Message: a formula reads every variable and system value in brackets. Did you mean to write ${meant}?`,
     ]);
     const own = hints([...EDGES, each('Box', '[$Selected.Brushes]'), echo('[=Box.Faces.Count + 1]'), line('end')]);
-    expect(own.run).toContain(`${WHY}. Did you mean to write [=[Box.Faces.Count] + 1]?`);
+    expect(own.run).toContain(
+      `Box.Faces.Count ${TOLD}; write [Box.Faces.Count]. Did you mean to write [=[Box.Faces.Count] + 1]?`,
+    );
     expect(own.editor).toEqual([`6: Message: in a formula, ${WHY}. Did you mean to write [=[Box.Faces.Count] + 1]?`]);
     expect(`${own.run} ${own.editor.join(' ')}`).not.toContain('$');
   });
 
-  it('gives no suggestion for an unknown name, a function, a number or a plain variable', () => {
+  it('gives no suggestion for an unknown name, and brackets a plain variable read without them', () => {
     const unknown = hints([...EDGES, each('Edge'), echo('[=Foo.Start + 1]'), line('end')]);
     expect(unknown.run).toBe(
-      'line 6: Message: "Foo" is not a variable here; for text write "Foo". Known here: $edge, $index, Edge',
+      `line 6: Message: Foo.Start ${TOLD}. There is no variable Foo either; for a variable write [Foo], for text write "Foo.Start"`,
     );
     expect(unknown.editor).toEqual([]);
     const plain = hints([...EDGES, each('Edge'), echo('[=Max(1, 2) + 1.5 + Edge]'), line('end')]);
-    expect(plain.run).not.toContain('Did you mean');
-    expect(plain.editor).toEqual([]);
+    expect(plain.run).toContain('Did you mean to write [=Max(1, 2) + 1.5 + [Edge]]?');
+    expect(plain.editor).toEqual([
+      '6: Message: a formula reads every variable and system value in brackets. Did you mean to write [=Max(1, 2) + 1.5 + [Edge]]?',
+    ]);
+    const fine = hints([...EDGES, each('Edge'), echo('[=Max(1, 2) + 1.5 + [Edge.Length]]'), line('end')]);
+    expect(fine).toEqual({ run: '', editor: [] });
   });
 
   it('reads formulas as they parse: [Edge].Start, $ names, text and names a list comprehension binds', () => {

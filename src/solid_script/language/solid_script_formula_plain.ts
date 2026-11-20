@@ -7,6 +7,7 @@ import {
   type SolidScriptFieldKind,
 } from './solid_script_field.js';
 import { SolidScriptFormulaSource } from './solid_script_formula_source.js';
+import { solidScriptFormulaListWrite } from './solid_script_formula_list_literal.js';
 
 /** A plain number, such as -2 or 0.5. */
 export const SOLID_SCRIPT_FORMULA_NUMBER = /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i;
@@ -171,8 +172,8 @@ function solidScriptFormulaItemFromPlain(item: string): string | null {
  * Turns plain field text into the formula it stands for, so blocks can open it:
  * Subtractive as "Subtractive", 2, 2, 2 as [2, 2, 2], 0, [Y], 0 in a vector
  * field as Vector(0, [Y], 0), 1, 2 in a flat vector field as Vector(1, 2), Hi
- * [Name] as Str("Hi ", [Name]), and a list such as [0, 0, 0], [1, 0, 0] as
- * $[[0, 0, 0], [1, 0, 0]$].
+ * [Name] as Str("Hi ", [Name]), and a list such as [0, 0, 0], [1, 0, 0] as [[0,
+ * 0, 0], [1, 0, 0]].
  *
  * @param kind How the field reads its text.
  * @param text Field text, trimmed.
@@ -187,7 +188,7 @@ export function solidScriptFormulaFromPlain(kind: SolidScriptFieldKind, text: st
   if (parts.length === 3 && items.every((item) => SOLID_SCRIPT_FORMULA_NUMBER.test(item)))
     return `[${items.join(', ')}]`;
   if (parts.length === solidScriptFormulaVectorSize(kind)) return `Vector(${parts.join(', ')})`;
-  return `$[${parts.join(', ')}$]`;
+  return solidScriptFormulaListWrite(parts);
 }
 
 /**
@@ -256,7 +257,7 @@ function solidScriptFormulaItemPlain(
   const text = source.slice(node);
   if (SOLID_SCRIPT_FORMULA_NUMBER.test(text.replace(/\s+/g, ''))) return text.replace(/\s+/g, '');
   if (node.kind === 'string') return solidScriptFormulaStringPlain(source, node, splits, edges);
-  if (source.slot(node)) return text;
+  if (source.slot(node) || (node.kind === 'vector' && text.startsWith('['))) return text;
   if (node.kind === 'call' && /^vector$/i.test(node.name)) {
     const numbers = node.args.map((arg) => source.slice(arg.value).replace(/\s+/g, ''));
     if (numbers.every((number) => SOLID_SCRIPT_FORMULA_NUMBER.test(number))) return `[${numbers.join(', ')}]`;
@@ -306,7 +307,7 @@ function solidScriptFormulaPlainEdges(plain: string | null, edges: boolean): str
 
 /**
  * Returns the items a formula lists as a plain list in this field: the inputs
- * of Vector in a vector field, or the items of a $[ ] list of two or more.
+ * of Vector in a vector field, or the items of a list of two or more.
  *
  * @param node Formula as a whole.
  * @param kind How the field reads its text.

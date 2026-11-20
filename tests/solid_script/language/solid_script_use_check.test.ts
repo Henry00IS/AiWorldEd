@@ -7,7 +7,7 @@ import {
 import { solidScriptMistakeCheck, solidScriptUseCheck } from '@/solid_script/language/solid_script_use_check.js';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 
-const BOXED: SolidScriptLine = { command: 'cube', values: { size: '[$Box.Width], 1, [=box.height / 2]' } };
+const BOXED: SolidScriptLine = { command: 'cube', values: { size: '[$Box.Width], 1, [=[$Box.Height] / 2]' } };
 
 /**
  * Checks a script that may be used as a modifier.

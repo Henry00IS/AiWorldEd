@@ -14,16 +14,16 @@ const PLAIN: readonly [SolidScriptFieldKind, string, string][] = [
   ['vector3', '0, [=[Base] * 2], 0', 'Vector(0, [Base] * 2, 0)'],
   ['vector2', '1, 2', 'Vector(1, 2)'],
   ['value', '1, 2, 3', '[1, 2, 3]'],
-  ['value', '-1.5, -0.5, 0.5, 1.5', '$[-1.5, -0.5, 0.5, 1.5$]'],
-  ['value', 'Red, Green', '$["Red", "Green"$]'],
-  ['value', '[P], [P]', '$[[P], [P]$]'],
-  ['points3', '[0, 0, 0], [1, 0, 0], [1, 1, 0]', '$[[0, 0, 0], [1, 0, 0], [1, 1, 0]$]'],
-  ['points3', '[=Vector(1, 2, 3)], [=Vector(4, 5, 6)]', '$[Vector(1, 2, 3), Vector(4, 5, 6)$]'],
+  ['value', '-1.5, -0.5, 0.5, 1.5', '[-1.5, -0.5, 0.5, 1.5]'],
+  ['value', 'Red, Green', '["Red", "Green"]'],
+  ['value', '[P], [P]', '[[P], [P]]'],
+  ['points3', '[0, 0, 0], [1, 0, 0], [1, 1, 0]', '[[0, 0, 0], [1, 0, 0], [1, 1, 0]]'],
+  ['points3', '[=Vector(1, 2, 3)], [=Vector(4, 5, 6)]', '[Vector(1, 2, 3), Vector(4, 5, 6)]'],
   ['text', 'Fully Inside', '"Fully Inside"'],
   ['message', 'Hi [Name]', 'Str("Hi ", [Name])'],
   ['message', 'Hi$, there [Name]!', 'Str("Hi, there ", [Name], "!")'],
   ['message', '$[Box$] is', '"$[Box$] is"'],
-  ['value', 'Top and Side, 5', '$["Top and Side", 5$]'],
+  ['value', 'Top and Side, 5', '["Top and Side", 5]'],
 ];
 
 /**

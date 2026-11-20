@@ -13,6 +13,12 @@ const SOLID_SCRIPT_BARE_DOLLAR = /^\$([A-Za-z_]\w*)(?:\.[A-Za-z_]\w*)*$/;
 /** A plain name of the script, without a $, such as Edge. */
 const SOLID_SCRIPT_BARE_PLAIN = /^[A-Za-z_]\w*$/;
 
+/**
+ * A name a formula may write without brackets by mistake, a system value with
+ * its $ too, such as $Box.
+ */
+const SOLID_SCRIPT_BARE_ANY = /^\$?[A-Za-z_]\w*$/;
+
 /** Members a formula reads from any value, .X, .Y and .Z of a vector, folded. */
 const SOLID_SCRIPT_BARE_AXES: ReadonlySet<string> = new Set(SOLID_SCRIPT_VECTOR_AXES.map(solidScriptNameKey));
 
@@ -103,14 +109,15 @@ function solidScriptBareMembersFind(
 /**
  * Reads a member chain, such as Edge.Start.X, as one that needs brackets: it
  * starts at a variable the line sees, written bare or as [Edge], and reads a
- * member other than .X, .Y or .Z; with plain, any bare read of such a
- * variable.
+ * member other than .X, .Y or .Z; with plain, any read of such a variable
+ * written without brackets.
  *
  * @param source Formula read.
  * @param node Outermost member of the chain, or a bare variable read.
  * @param bound Names a list comprehension around it binds, folded.
  * @param sees Tells whether the line sees a variable of that name.
- * @param plain True also takes a bare read without members.
+ * @param plain True also takes a bare read without members, and a system value
+ *   written with its $ but without brackets.
  * @returns The read to write in brackets, or null.
  */
 function solidScriptBareMember(
@@ -124,9 +131,15 @@ function solidScriptBareMember(
   let part: SolidScriptExpression = node;
   for (; part.kind === 'member'; part = part.target) members.unshift(part.name);
   if (part.kind !== 'variable' || (part === node && source.slot(part))) return null;
-  if (!plain && members.every((name) => SOLID_SCRIPT_BARE_AXES.has(solidScriptNameKey(name)))) return null;
+  const bare = plain && !source.slot(part);
+  if (!bare && members.every((name) => SOLID_SCRIPT_BARE_AXES.has(solidScriptNameKey(name)))) return null;
   const root = source.slot(part) ? source.slice(part).slice(1, -1).trim() : part.name;
-  if (!SOLID_SCRIPT_BARE_PLAIN.test(root) || bound.has(solidScriptNameKey(root)) || !sees(root)) return null;
+  if (
+    !(plain ? SOLID_SCRIPT_BARE_ANY : SOLID_SCRIPT_BARE_PLAIN).test(root) ||
+    bound.has(solidScriptNameKey(root)) ||
+    !sees(root)
+  )
+    return null;
   return { ...source.span(node), name: [root, ...members].join('.') };
 }
 

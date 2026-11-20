@@ -90,7 +90,7 @@ describe('SolidScript names', () => {
       ['x'],
     );
     const written = (text: string): string[] => solidScriptFieldUnknown(text, known).map((entry) => entry.written);
-    expect(written('[width], [depth], [=[i] * [h] + x]')).toEqual(['depth', 'h']);
+    expect(written('[width], [depth], [=[i] * [h] + [x]]')).toEqual(['depth', 'h']);
     expect(written('$[depth$] [part[i]] [points(0)] [Pos.x]')).toEqual(['points', 'Pos']);
     expect(solidScriptFieldUnknown('[=Area(1) + Max(2, 3) + Spto(1) + [Local.A]]', known)).toEqual([
       { written: 'Spto', key: 'spto()', call: true },
@@ -101,7 +101,7 @@ describe('SolidScript names', () => {
   it('marks per line the names and calls the line cannot see', () => {
     const script = solidScriptDocumentCreate([
       { command: 'function', values: { name: 'Spin', parameters: 'Angle' } },
-      { command: 'variable', values: { name: 'Local.Turn', value: '[=[Local.Anglex] + Local.Angle]' } },
+      { command: 'variable', values: { name: 'Local.Turn', value: '[=[Local.Anglex] + [Local.Angle]]' } },
       { command: 'end' },
       { command: 'variable', values: { name: 'Width', value: '[Widht]' } },
       { command: 'variable', values: { name: 'Depth', value: '[=Spin([Width]) + Spn(1)]' } },

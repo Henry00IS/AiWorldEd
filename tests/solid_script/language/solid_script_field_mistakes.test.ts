@@ -90,7 +90,7 @@ describe('SolidScript mistake hints', () => {
       'system values start with $. Did you mean to write Along $X?',
     );
     expect(solidScriptFieldMistakeOf({ type: 'number' }, '[=X]')).toBe(
-      'system values start with $. Did you mean to write [=$X]?',
+      'a formula reads every variable and system value in brackets. Did you mean to write [=[$X]]?',
     );
     const document = solidScriptDocumentCreate([line('cube', { size: 'X, 1, 1' }), line('end')]);
     expect(solidScriptMistakeCheck(document).map((warning) => warning.text)).toEqual([

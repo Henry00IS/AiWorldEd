@@ -127,11 +127,12 @@ describe('every system name is $ then PascalCase', () => {
     expect(solidScriptFieldMistake('[Nz] > 0.5', false)).toBe('[$NZ] > 0.5');
   });
 
-  it('reads $Math.Pi in a formula and tells the user to write the $ when it is missing', () => {
+  it('reads [$Math.Pi] in a formula and tells the user to write the $ and the brackets when they are missing', () => {
     const echo = (value: string) => run({ command: 'echo', values: { value } }, { command: 'cube' });
-    expect(Number(echo('[=$Math.Pi]').messages[0])).toBeCloseTo(Math.PI, 5);
-    expect(echo('[=Math.Pi]').error?.message ?? '').toMatch(/\$Math\.Pi/);
-    expect(echo('[=Pi]').error?.message ?? '').toMatch(/\$Math\.Pi/);
+    expect(Number(echo('[=[$Math.Pi]]').messages[0])).toBeCloseTo(Math.PI, 5);
+    expect(echo('[=$Math.Pi]').error?.message ?? '').toMatch(/Did you mean to write \[=\[\$Math\.Pi\]\]\?/);
+    expect(echo('[=Math.Pi]').error?.message ?? '').toMatch(/Did you mean to write \[=\[\$Math\.Pi\]\]\?/);
+    expect(echo('[=Pi]').error?.message ?? '').toMatch(/Did you mean to write \[=\[\$Math\.Pi\]\]\?/);
     expect(SOLID_SCRIPT_SYSTEM_NAME.test('$Math.Pi')).toBe(true);
     expect(SOLID_SCRIPT_SYSTEM_NAME.test('Math.Pi')).toBe(false);
     expect(SOLID_SCRIPT_SYSTEM_NAME.test('$nz')).toBe(false);

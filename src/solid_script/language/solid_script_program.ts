@@ -79,9 +79,10 @@ export function solidScriptProgramProblem(program: SolidScriptProgram): { line: 
  * @returns Problem, or an empty string.
  */
 function solidScriptProgramFieldProblem(parameter: SolidScriptCommandParameter, text: string): string {
-  if (!solidScriptFieldAsTyped(parameter)) return solidScriptFieldCheck(text);
+  const formula = parameter.type === 'condition';
+  if (!solidScriptFieldAsTyped(parameter)) return solidScriptFieldCheck(text, formula);
   if (parameter.type === 'name' || parameter.type === 'target') return solidScriptNameDotProblem(text, 'set');
-  return parameter.type === 'text' ? '' : solidScriptFieldCheck(text);
+  return parameter.type === 'text' ? '' : solidScriptFieldCheck(text, formula);
 }
 
 /** Checked block trees of scripts, by their lines, which edits never change. */

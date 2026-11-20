@@ -93,8 +93,8 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_MATH = {
   radians: {
     usage: 'Radians(degrees)',
     summary: solidScriptFunctionDocSummary(
-      'Turns a degrees angle into radians, another way to measure a turn. A half turn is $Math.Pi, a whole turn is $Math.Tau. Sin and Cos already take degrees, so you only need this when a formula asks for radians.',
-      ['Radians(180) is $Math.Pi.', 'Radians(360) is $Math.Tau.'],
+      'Turns a degrees angle into radians, another way to measure a turn. A half turn is [$Math.Pi], a whole turn is [$Math.Tau]. Sin and Cos already take degrees, so you only need this when a formula asks for radians.',
+      ['Radians(180) is [$Math.Pi].', 'Radians(360) is [$Math.Tau].'],
       'Use it when you mix a degrees turn with a formula that counts in radians.',
     ),
     group: 'Trigonometry',
@@ -104,7 +104,7 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_MATH = {
     usage: 'Degrees(radians)',
     summary: solidScriptFunctionDocSummary(
       'Turns a radians angle back into degrees, the units Sin and Cos already use.',
-      ['Degrees($Math.Pi) is 180.', 'Degrees($Math.Tau) is 360.'],
+      ['Degrees([$Math.Pi]) is 180.', 'Degrees([$Math.Tau]) is 360.'],
       'Use it to read a radians result as a familiar turn, such as a half turn of 180.',
     ),
     group: 'Trigonometry',
@@ -203,8 +203,8 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_MATH = {
   exp: {
     usage: 'Exp(number)',
     summary: solidScriptFunctionDocSummary(
-      'Raises the special growth number e ($Math.E, about 2.718) to a power. At 0 it is 1; as the power rises, the result grows faster and faster. Natural Log undoes it.',
-      ['Exp(0) is 1.', 'Exp(1) is $Math.E.'],
+      'Raises the special growth number e ([$Math.E], about 2.718) to a power. At 0 it is 1; as the power rises, the result grows faster and faster. Natural Log undoes it.',
+      ['Exp(0) is 1.', 'Exp(1) is [$Math.E].'],
       'Use it for a glow or a falloff that starts gentle and then runs away, or for a growth curve.',
     ),
     group: 'Math',
@@ -213,8 +213,8 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_MATH = {
   ln: {
     usage: 'Ln(number)',
     summary: solidScriptFunctionDocSummary(
-      'Natural Log asks to what power you raise e ($Math.E) to get this number. It undoes E To The: together they go back and forth. The Natural Log of 1 is 0, because e to the power 0 is 1.',
-      ['Ln(1) is 0.', 'Ln($Math.E) is 1.'],
+      'Natural Log asks to what power you raise e ([$Math.E]) to get this number. It undoes E To The: together they go back and forth. The Natural Log of 1 is 0, because e to the power 0 is 1.',
+      ['Ln(1) is 0.', 'Ln([$Math.E]) is 1.'],
       'Use it to stretch a growth curve back into an even range, or to ease a value that has grown very large.',
     ),
     group: 'Math',

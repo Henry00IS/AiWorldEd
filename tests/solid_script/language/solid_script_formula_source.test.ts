@@ -2,10 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { SolidScriptExpression } from '@/solid_script/language/solid_script_ast.js';
 import { SolidScriptLexer } from '@/solid_script/language/solid_script_lexer.js';
 import { solidScriptExpressionParse } from '@/solid_script/language/solid_script_expression_parse.js';
-import {
-  SolidScriptFormulaSource,
-  solidScriptFormulaProblem,
-} from '@/solid_script/language/solid_script_formula_source.js';
+import { SolidScriptFormulaSource } from '@/solid_script/language/solid_script_formula_source.js';
+import { solidScriptFormulaProblem } from '@/solid_script/language/solid_script_formula_bare.js';
 
 /**
  * Lists every part of a formula with the text it was read from.

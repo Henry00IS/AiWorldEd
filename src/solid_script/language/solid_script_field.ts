@@ -1,15 +1,11 @@
 import type { SolidScriptExpression } from './solid_script_ast.js';
-import {
-  solidScriptExpressionCompiled,
-  solidScriptSlotNode,
-  type SolidScriptCompiled,
-  type SolidScriptSlotFrame,
-} from './solid_script_expression_compile.js';
+import type { SolidScriptCompiled } from './solid_script_expression_compile.js';
+import { solidScriptFieldFormulaCompile } from './solid_script_field_formula_compile.js';
 import { solidScriptNameDotProblem, solidScriptSystemIsVector } from './solid_script_name_rules.js';
 import type { SolidScriptValue } from './solid_script_value.js';
 import { solidScriptValueText } from './solid_script_value.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
-import { solidScriptStringWrite } from './solid_script_lexer.js';
+import { solidScriptFieldVectorRead, solidScriptFormulaListStarts } from './solid_script_formula_list_literal.js';
 
 /**
  * How the text typed into a block field is read. Field text is plain text
@@ -75,9 +71,6 @@ export interface SolidScriptFieldContext {
 
 /** A field compiled once: reading it only runs the closure. */
 export type SolidScriptFieldCompiled = (context: SolidScriptFieldContext) => SolidScriptValue;
-
-/** Start of the names that stand for bracketed parts while a formula is parsed. */
-const SOLID_SCRIPT_FIELD_SLOT = '__field_slot_';
 
 /** Compiled fields by kind and text; cleared when it grows past its limit. */
 const solidScriptFieldCache = new Map<string, SolidScriptFieldCompiled>();
@@ -247,120 +240,6 @@ export function solidScriptFieldPieces(text: string): SolidScriptFieldPiece[] {
 }
 
 /**
- * Writes a value so a formula reads it back unchanged.
- *
- * @param value Value.
- * @returns Formula text.
- */
-function solidScriptFieldFormulaText(value: SolidScriptValue): string {
-  if (typeof value === 'string') return solidScriptStringWrite(value);
-  if (typeof value === 'number') return value < 0 ? `(${value})` : String(value);
-  if (Array.isArray(value)) return `[${value.map(solidScriptFieldFormulaText).join(', ')}]`;
-  if (typeof value === 'boolean') return value ? 'True' : 'False';
-  return solidScriptValueText(value);
-}
-
-/**
- * Puts slot nodes in place of the names that stand for bracketed parts.
- *
- * @param expression Parsed formula.
- * @param frame Frame the slots read their values from.
- * @returns Formula reading slots.
- */
-function solidScriptFieldSlots(expression: SolidScriptExpression, frame: SolidScriptSlotFrame): SolidScriptExpression {
-  const walk = (node: SolidScriptExpression): SolidScriptExpression => {
-    switch (node.kind) {
-      case 'variable':
-        return node.name.startsWith(SOLID_SCRIPT_FIELD_SLOT)
-          ? solidScriptSlotNode(Number(node.name.slice(SOLID_SCRIPT_FIELD_SLOT.length)), frame)
-          : node;
-      case 'vector':
-        return { ...node, items: node.items.map(walk) };
-      case 'comprehension':
-        return {
-          ...node,
-          bindings: node.bindings.map((binding) => ({ ...binding, value: walk(binding.value) })),
-          body: walk(node.body),
-        };
-      case 'range':
-        return { ...node, start: walk(node.start), step: node.step ? walk(node.step) : null, end: walk(node.end) };
-      case 'unary':
-        return { ...node, operand: walk(node.operand) };
-      case 'binary':
-        return { ...node, left: walk(node.left), right: walk(node.right) };
-      case 'ternary':
-        return {
-          ...node,
-          condition: walk(node.condition),
-          whenTrue: walk(node.whenTrue),
-          whenFalse: walk(node.whenFalse),
-        };
-      case 'call':
-        return { ...node, args: node.args.map((arg) => ({ ...arg, value: walk(arg.value) })) };
-      case 'index':
-        return { ...node, target: walk(node.target), index: walk(node.index) };
-      case 'member':
-        return { ...node, target: walk(node.target) };
-      default:
-        return node;
-    }
-  };
-  return walk(expression);
-}
-
-/**
- * Compiles a formula part, [=...]: the formula is parsed once with a slot for
- * every bracketed part inside it, so running it only reads those parts and
- * evaluates the tree. A formula that cannot be parsed that way is put together
- * as text on every run, like it is written, so its message shows the values.
- *
- * @param pieces Contents of the brackets.
- * @returns Compiled part.
- */
-function solidScriptFieldFormulaCompile(pieces: readonly SolidScriptFieldPiece[]): SolidScriptFieldCompiled {
-  const groups: SolidScriptFieldCompiled[] = [];
-  let written = '';
-  for (const piece of pieces) {
-    if (piece.kind === 'plain') written += piece.text;
-    else {
-      written += ` ${SOLID_SCRIPT_FIELD_SLOT}${groups.length} `;
-      groups.push(solidScriptFieldGroupCompile(piece.pieces));
-    }
-  }
-  const body = written.trimStart().slice(1).trim();
-  if (body === '')
-    return () => {
-      throw new Error('[=] has no formula after the =; write one, such as [=1 + 2], or leave the field empty');
-    };
-  const slow: SolidScriptFieldCompiled = (context) => {
-    let inner = '';
-    let slot = 0;
-    for (const piece of pieces)
-      inner += piece.kind === 'plain' ? piece.text : solidScriptFieldFormulaText(groups[slot++]!(context));
-    return context.formula(inner.trimStart().slice(1).trim());
-  };
-  const frame: SolidScriptSlotFrame = { values: [] };
-  let parsed: SolidScriptCompiled | null | undefined;
-  return (context) => {
-    if (parsed === undefined) {
-      const tree = context.formulaParse(body);
-      parsed = tree ? solidScriptExpressionCompiled(solidScriptFieldSlots(tree, frame)) : null;
-    }
-    if (parsed === null) return slow(context);
-    if (groups.length === 0) return context.formulaRun(parsed);
-    const slots = new Array<SolidScriptValue>(groups.length);
-    for (let index = 0; index < groups.length; index++) slots[index] = groups[index]!(context);
-    const outer = frame.values;
-    frame.values = slots;
-    try {
-      return context.formulaRun(parsed);
-    } finally {
-      frame.values = outer;
-    }
-  };
-}
-
-/**
  * Compiles a bracketed part: a formula after =, otherwise a variable name.
  * Parts inside a name are read first.
  *
@@ -369,7 +248,8 @@ function solidScriptFieldFormulaCompile(pieces: readonly SolidScriptFieldPiece[]
  */
 function solidScriptFieldGroupCompile(pieces: readonly SolidScriptFieldPiece[]): SolidScriptFieldCompiled {
   const first = pieces[0];
-  if (first?.kind === 'plain' && first.text.trimStart().startsWith('=')) return solidScriptFieldFormulaCompile(pieces);
+  if (first?.kind === 'plain' && first.text.trimStart().startsWith('='))
+    return solidScriptFieldFormulaCompile(pieces, solidScriptFieldGroupCompile);
   const empty = (): never => {
     throw new Error('[] is empty; put a variable name inside, or write $[$] for brackets');
   };
@@ -400,25 +280,8 @@ function solidScriptFieldGroupCompile(pieces: readonly SolidScriptFieldPiece[]):
   };
 }
 
-/** Three items separated by commas, such as 20, 30, 10: a vector in brackets. */
-const SOLID_SCRIPT_FIELD_VECTOR = /^([^,]+),([^,]+),([^,]+)$/;
-
 /** Start of bracket text no name has: a digit, a minus or a dot. */
 const SOLID_SCRIPT_FIELD_NUMBER_START = /^\s*[-.\d]/;
-
-/**
- * Reads the text of a bracket, with its inner brackets already put in, as a
- * vector when it is exactly three numbers, such as [20, 30, 10].
- *
- * @param text Bracket text.
- * @returns Vector, or null when it is not three numbers.
- */
-function solidScriptFieldVectorRead(text: string): number[] | null {
-  const parts = SOLID_SCRIPT_FIELD_VECTOR.exec(text);
-  if (!parts) return null;
-  const vector = parts.slice(1).map((part) => (part.trim() === '' ? NaN : Number(part)));
-  return vector.every(Number.isFinite) ? vector : null;
-}
 
 /**
  * Explains bracket text that starts like a number, so it is no name, but is not
@@ -855,50 +718,65 @@ export function solidScriptFieldLone(text: string): boolean {
  * Checks the brackets and escapes of field text without running it.
  *
  * @param text Field text.
+ * @param formula True when the whole text is a formula, as a condition is.
  * @returns Problem, or an empty string.
  */
-export function solidScriptFieldCheck(text: string): string {
-  const known = SOLID_SCRIPT_FIELD_CHECKED.get(text);
+export function solidScriptFieldCheck(text: string, formula = false): string {
+  const key = formula ? `=${text}` : text;
+  const known = SOLID_SCRIPT_FIELD_CHECKED.get(key);
   if (known !== undefined) return known;
-  const problem = solidScriptFieldCheckRead(text);
+  const problem = solidScriptFieldCheckRead(text, formula);
   if (SOLID_SCRIPT_FIELD_CHECKED.size >= 20000) SOLID_SCRIPT_FIELD_CHECKED.clear();
-  SOLID_SCRIPT_FIELD_CHECKED.set(text, problem);
+  SOLID_SCRIPT_FIELD_CHECKED.set(key, problem);
   return problem;
 }
 
-/** Problems of field texts already checked, by text. */
+/** Problems of field texts already checked, by text, with = before a formula. */
 const SOLID_SCRIPT_FIELD_CHECKED = new Map<string, string>();
 
 /**
  * Checks a field text without the cache.
  *
  * @param text Field text.
+ * @param formula True when the whole text is a formula.
  * @returns Problem, or an empty string.
  */
-function solidScriptFieldCheckRead(text: string): string {
+function solidScriptFieldCheckRead(text: string, formula: boolean): string {
   let pieces: SolidScriptFieldPiece[];
   try {
     pieces = solidScriptFieldPieces(text);
   } catch (error) {
     return error instanceof Error ? error.message : String(error);
   }
+  const lists = solidScriptFormulaListStarts(pieces, formula);
   const walk = (list: readonly SolidScriptFieldPiece[]): string => {
     for (const piece of list) {
       if (piece.kind === 'plain') continue;
-      const first = piece.pieces[0];
-      const formula = first?.kind === 'plain' && first.text.trimStart().startsWith('=');
-      if (!formula && piece.pieces.every((inner) => inner.kind === 'plain')) {
-        const text = piece.pieces.map((inner) => (inner.kind === 'plain' ? inner.text : '')).join('');
-        if (solidScriptFieldVectorRead(text)) continue;
-        const problem = solidScriptFieldVectorProblem(text) || solidScriptNameDotProblem(text, 'read');
-        if (problem) return problem;
-      }
+      const problem = lists.has(piece.from) ? '' : solidScriptFieldNameProblem(piece.pieces);
+      if (problem) return problem;
       const inner = walk(piece.pieces);
       if (inner) return inner;
     }
     return '';
   };
   return walk(pieces);
+}
+
+/**
+ * Checks the contents of a bracketed part that names a variable: three numbers
+ * are a vector, text that starts like a number must be one, and a dotted name
+ * must read a member.
+ *
+ * @param pieces Contents of the brackets.
+ * @returns Problem, or an empty string.
+ */
+function solidScriptFieldNameProblem(pieces: readonly SolidScriptFieldPiece[]): string {
+  const first = pieces[0];
+  const formula = first?.kind === 'plain' && first.text.trimStart().startsWith('=');
+  if (formula || !pieces.every((inner) => inner.kind === 'plain')) return '';
+  const text = pieces.map((inner) => (inner.kind === 'plain' ? inner.text : '')).join('');
+  if (solidScriptFieldVectorRead(text)) return '';
+  return solidScriptFieldVectorProblem(text) || solidScriptNameDotProblem(text, 'read');
 }
 
 /**

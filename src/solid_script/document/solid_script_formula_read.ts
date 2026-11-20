@@ -156,7 +156,7 @@ class SolidScriptFormulaReader {
 
   /**
    * Tells which group block a part is: an operator, Not, Negate, If, a List
-   * such as $[1, 2$] or a function with a block per input.
+   * such as [1, 2] or a function with a block per input.
    *
    * @param node Part.
    * @returns Group, or null for a part that is no group.

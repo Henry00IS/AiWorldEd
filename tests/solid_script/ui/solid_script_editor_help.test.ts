@@ -91,7 +91,7 @@ describe('SolidScript help panel', () => {
     expect(getComputedStyle(visible[0]!).whiteSpace).toBe('pre-wrap');
     expect(visible[0]!.style.fontWeight).toBe('600');
     const examples = visible.find((block) => (block.textContent ?? '').startsWith('Example:'));
-    expect(examples?.textContent).toMatch(/Example:\nLn\(1\) is 0\.\nLn\(\$Math\.E\) is 1\./);
+    expect(examples?.textContent).toMatch(/Example:\nLn\(1\) is 0\.\nLn\(\[\$Math\.E\]\) is 1\./);
     help.element.remove();
   });
 });

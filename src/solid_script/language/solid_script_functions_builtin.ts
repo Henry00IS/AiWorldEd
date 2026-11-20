@@ -146,6 +146,7 @@ const SOLID_SCRIPT_FUNCTIONS_NAMED = {
   cross: solidScriptCross,
   len: solidScriptLen,
   concat: (args) => args.flatMap((value) => (Array.isArray(value) ? value : [value])),
+  list: (args) => [...args],
   // Parse reads names of the running script, so the formula hands it to the machine.
   parse: () => {
     throw new Error('Parse() works only in a running script');

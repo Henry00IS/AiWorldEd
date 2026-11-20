@@ -1,4 +1,5 @@
-import { solidScriptFieldEscapes } from './solid_script_field.js';
+import { solidScriptFieldEscapes, solidScriptFieldPieces } from './solid_script_field.js';
+import { solidScriptFormulaListStarts } from './solid_script_formula_list_literal.js';
 import { solidScriptStringEscapes } from './solid_script_lexer.js';
 import { solidScriptFunctionKey, solidScriptNameKey } from './solid_script_name_key.js';
 
@@ -81,9 +82,10 @@ export type SolidScriptFieldTokenStart = 'text' | 'formula';
 /**
  * Splits field text into pieces the way fields read it: [name] and [=formula]
  * brackets that nest, $ keeping a following $, [ or ] as typed, and inside a
- * formula numbers, "texts", names, calls and operators. Each bracket knows its
- * partner, so the editor can show which ones the caret is inside. Broken text
- * still splits; what cannot be read stays plain.
+ * formula, and inside a list in brackets a formula reads, numbers, "texts",
+ * names, calls and operators. Each bracket knows its partner, so the editor can
+ * show which ones the caret is inside. Broken text still splits; what cannot be
+ * read stays plain.
  *
  * @param text Field text.
  * @param start How the text outside brackets reads: as plain text, as in a
@@ -96,6 +98,7 @@ export function solidScriptFieldTokens(
 ): SolidScriptFieldToken[] {
   const tokens: SolidScriptFieldToken[] = [];
   const open: SolidScriptFieldOpen[] = [];
+  const lists = solidScriptFieldTokensLists(text, start);
   const push = (kind: SolidScriptFieldTokenKind, from: number, to: number, checked = false): number => {
     const last = tokens.at(-1);
     if (kind === 'text' && last?.kind === 'text' && last.to === from) last.to = to;
@@ -126,7 +129,7 @@ export function solidScriptFieldTokens(
     if (char === '[') {
       const formula = text[index + 1] === '=';
       const token = push('bracket', index, index + (formula ? 2 : 1));
-      open.push({ token, close: ']', mode: formula ? 'formula' : 'name' });
+      open.push({ token, close: ']', mode: formula || lists.has(index) ? 'formula' : 'name' });
       index += formula ? 2 : 1;
       continue;
     }
@@ -186,6 +189,23 @@ export function solidScriptFieldTokens(
     index += 1;
   }
   return tokens;
+}
+
+/**
+ * Finds where the lists in brackets a formula of field text reads itself start,
+ * such as [1, "a"] in [=Reversed([1, "a"])]; none while the brackets are
+ * broken.
+ *
+ * @param text Field text.
+ * @param start How the text outside brackets reads.
+ * @returns Places of the [ of each list.
+ */
+function solidScriptFieldTokensLists(text: string, start: SolidScriptFieldTokenStart): ReadonlySet<number> {
+  try {
+    return solidScriptFormulaListStarts(solidScriptFieldPieces(text), start === 'formula');
+  } catch {
+    return new Set();
+  }
 }
 
 /**

@@ -64,9 +64,9 @@ describe('names ignore case', () => {
 
   it('read built-in values and functions in any case, old snake_case spellings included', () => {
     const result = run(
-      echo('[=Round(Sin(90) * 10)] [=round(sin(90) * 10)] [=Floor($MATH.PI)] [=floor($Math.Pi)]'),
+      echo('[=Round(Sin(90) * 10)] [=round(sin(90) * 10)] [=Floor([$MATH.PI])] [=floor([$Math.Pi])]'),
       echo('[=CharacterCode("A")] [=character_code("A")]'),
-      echo('[=True] [=TRUE] [=$Math.Pi > 3]'),
+      echo('[=True] [=TRUE] [=[$Math.Pi] > 3]'),
     );
     expect(result.error).toBeNull();
     expect(result.messages).toEqual(['10 10 3 3', '65 65', 'Yes Yes Yes']);

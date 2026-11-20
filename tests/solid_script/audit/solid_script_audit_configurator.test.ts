@@ -6,7 +6,7 @@ import { SOLID_SCRIPT_AUDIT_COMMANDS } from './solid_script_audit_lines.js';
  * Values a field is shown with and read back from, beyond its own default and
  * words.
  */
-const VALUES = ['', '7', '[A]', '[=A + 1]', 'a, b', '$[x$] "q"', '1, 2, 3'];
+const VALUES = ['', '7', '[A]', '[=[A] + 1]', 'a, b', '$[x$] "q"', '1, 2, 3'];
 
 /**
  * Reads a field back after showing it with a value.

@@ -33,7 +33,7 @@ import {
   solidScriptFormulaTyped,
   type SolidScriptFormulaInputKind,
 } from '@/solid_script/language/solid_script_formula_field.js';
-import { solidScriptFormulaProblem } from '@/solid_script/language/solid_script_formula_source.js';
+import { solidScriptFormulaProblem } from '@/solid_script/language/solid_script_formula_bare.js';
 
 export { SOLID_SCRIPT_FORMULA_COMMAND, SOLID_SCRIPT_FORMULA_FUNCTION } from './solid_script_formula_groups.js';
 

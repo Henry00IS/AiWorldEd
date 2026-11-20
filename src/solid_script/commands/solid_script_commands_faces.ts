@@ -79,8 +79,8 @@ const SOLID_SCRIPT_FACE_WHICH_WORDS: readonly SolidScriptCommandWord[] = [
       detail: `Faces pointing ${word.slice('Facing '.length).toLowerCase()} (${sign}${axis.toUpperCase()}), the same as Where [=Facing([$Face.Normal], Vector(${direction.x}, ${direction.y}, ${direction.z}))]`,
     };
   }),
-  { word: 'Top', detail: 'Faces tagged Top, the same as Where [=HasTag([$Face.Tags], Top)]' },
-  { word: 'Bottom', detail: 'Faces tagged Bottom, the same as Where [=HasTag([$Face.Tags], Bottom)]' },
+  { word: 'Top', detail: 'Faces tagged Top, the same as Where [=HasTag([$Face.Tags], "Top")]' },
+  { word: 'Bottom', detail: 'Faces tagged Bottom, the same as Where [=HasTag([$Face.Tags], "Bottom")]' },
 ];
 
 /** Every choice of Select Faces' Which field. */
@@ -334,7 +334,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     description: 'Pick faces of brushes',
     fills: ['$Face', '$Index', '$CX', '$CY', '$CZ', '$NX', '$NY', '$NZ'],
     manual:
-      'Picks faces and puts them in [$Selected.Faces], where Extrude Face, Inset Face, Bevel Edges, Delete Faces and Texture Faces find them when their Of is empty. Of says where to pick from: brushes (all their faces) or faces (a list to narrow down); empty uses [$Selected.Brushes]. Which is a preset that equals a written-out Where: All keeps every face, Facing Up equals Facing([$Face.Normal], Vector(0, 1, 0)), and Top equals HasTag([$Face.Tags], Top). Which Between keeps the faces between this Select Faces and the previous one. Where is a 🔁 condition each remaining face must pass, with [$Face] the face being tested and [$Index] its number from 0; [$CX], [$CY] and [$CZ] are short forms of [$Face.Center.X] and the other axes, and [$NX], [$NY] and [$NZ] of [$Face.Normal]. Left off, Where keeps what Which picked. How adds to or removes from the faces picked before. Into also writes the faces to a variable, a Face list. To pick faces of a new brush, set Of to that brush or its Name. To walk the same faces after later Select lines, write them Into a variable. Example: Cube, then Select Faces Facing Up and Extrude Face By 1 pulls the top up.',
+      'Picks faces and puts them in [$Selected.Faces], where Extrude Face, Inset Face, Bevel Edges, Delete Faces and Texture Faces find them when their Of is empty. Of says where to pick from: brushes (all their faces) or faces (a list to narrow down); empty uses [$Selected.Brushes]. Which is a preset that equals a written-out Where: All keeps every face, Facing Up equals Facing([$Face.Normal], Vector(0, 1, 0)), and Top equals [=HasTag([$Face.Tags], "Top")]. Which Between keeps the faces between this Select Faces and the previous one. Where is a 🔁 condition each remaining face must pass, with [$Face] the face being tested and [$Index] its number from 0; [$CX], [$CY] and [$CZ] are short forms of [$Face.Center.X] and the other axes, and [$NX], [$NY] and [$NZ] of [$Face.Normal]. Left off, Where keeps what Which picked. How adds to or removes from the faces picked before. Into also writes the faces to a variable, a Face list. To pick faces of a new brush, set Of to that brush or its Name. To walk the same faces after later Select lines, write them Into a variable. Example: Cube, then Select Faces Facing Up and Extrude Face By 1 pulls the top up.',
     stops: [
       'No brushes to pick from.',
       'A Which that is not one of the choices.',
@@ -354,7 +354,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
           'where',
           'Where',
           'value',
-          'A 🔁 condition each face must pass, such as [=Facing([$Face.Normal], Vector(0, 1, 0))] or [=HasTag([$Face.Tags], Top)]. [$Face] is the face being tested and [$Index] is its number from 0. Left off keeps every face Which picked.',
+          'A 🔁 condition each face must pass, such as [=Facing([$Face.Normal], Vector(0, 1, 0))] or [=HasTag([$Face.Tags], "Top")]. [$Face] is the face being tested and [$Index] is its number from 0. Left off keeps every face Which picked.',
         ),
         each: 'Face',
       },

@@ -6,7 +6,7 @@ import {
 } from '@/solid_script/language/solid_script_function_docs.js';
 import { solidScriptFormulaCatalog } from '@/solid_script/commands/solid_script_formula_commands.js';
 import { SOLID_SCRIPT_FORMULA_COMMAND } from '@/solid_script/commands/solid_script_formula_groups.js';
-import { solidScriptFormulaProblem } from '@/solid_script/language/solid_script_formula_source.js';
+import { solidScriptFormulaProblem } from '@/solid_script/language/solid_script_formula_bare.js';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 
@@ -28,6 +28,14 @@ function docTexts(): string[] {
 }
 
 /**
+ * How each built-in function is called, with the names of its inputs, which is
+ * no formula to run.
+ */
+const SOLID_SCRIPT_FUNCTION_USAGES: ReadonlySet<string> = new Set(
+  Object.values(SOLID_SCRIPT_FUNCTION_DOCS).map((doc) => doc.usage),
+);
+
+/**
  * The calls written in a text with what it says they give, such as Sum([1, 2,
  * 3]) and 6.
  *
@@ -43,7 +51,7 @@ function docCalls(text: string): { call: string; result: string | null }[] {
     at = match.index;
     while (at < text.length && (text[at] !== ')' || --depth > 0)) depth += text[at++] === '(' ? 1 : 0;
     const call = text.slice(match.index, ++at);
-    if (call.includes('...')) continue;
+    if (call.includes('...') || SOLID_SCRIPT_FUNCTION_USAGES.has(call)) continue;
     const result = /^ is (.*?)(?:;|\.(?:\s|$)|$)/.exec(text.slice(at))?.[1] ?? null;
     found.push({ call, result });
   }
@@ -75,12 +83,12 @@ describe('SolidScript function docs', () => {
     expect(solidScriptFunctionInputsLeast('pick')).toBe(2);
   });
 
-  it('asks for at least one input and never more than a function has', () => {
+  it('asks for at least one input, but none of List, and never more than a function has', () => {
     for (const key of Object.keys(SOLID_SCRIPT_FUNCTION_DOCS)) {
       const least = solidScriptFunctionInputsLeast(key);
       const inputs = solidScriptFunctionArguments(key);
       if (inputs.length === 0) continue;
-      expect(least, key).toBeGreaterThanOrEqual(1);
+      expect(least, key).toBeGreaterThanOrEqual(key === 'list' ? 0 : 1);
       if (!inputs.some((input) => input.name === '...')) expect(least, key).toBeLessThanOrEqual(inputs.length);
     }
   });

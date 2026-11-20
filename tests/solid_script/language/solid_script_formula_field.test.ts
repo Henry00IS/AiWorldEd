@@ -80,7 +80,7 @@ describe('SolidScript formula field', () => {
     expect(solidScriptFormulaStore('number', '5', '')).toBe('5');
     expect(solidScriptFormulaStore('vector3', '[1, 2, 3]', '')).toBe('1, 2, 3');
     expect(solidScriptFormulaStore('vector3', 'Vector(1, 2, 3)', '')).toBe('1, 2, 3');
-    expect(solidScriptFormulaStore('vector3', '[1, [h], 3]', '')).toBe('[1, [h], 3]');
+    expect(solidScriptFormulaStore('vector3', '[1, [h], 3]', '')).toBe('1, [h], 3');
     expect(solidScriptFormulaStore('value', '[1, 2, 3]', '')).toBe('1, 2, 3');
     const choice = '4 > 2 ? "Subtractive" : "Additive"';
     expect(solidScriptFormulaStore('text', choice, '')).toBe(`[=${choice}]`);

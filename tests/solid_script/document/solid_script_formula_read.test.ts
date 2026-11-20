@@ -144,7 +144,8 @@ describe('SolidScript formula blocks read', () => {
     expect(lines('  ')).toEqual([]);
     expect(() => solidScriptFormulaRead('[a] >')).toThrow(/value is still missing/);
     expect(() => solidScriptFormulaRead('[a')).toThrow(/has no \]/);
-    expect(() => solidScriptFormulaRead('[] > 1')).toThrow(/empty/);
+    expect(() => solidScriptFormulaRead('[] > 1')).not.toThrow();
+    expect(() => solidScriptFormulaRead('Width > 1')).not.toThrow();
   });
 
   it('uses the shared End of the script editor', () => {

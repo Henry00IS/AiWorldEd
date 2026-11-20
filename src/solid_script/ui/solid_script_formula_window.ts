@@ -15,7 +15,7 @@ import {
   solidScriptFormulaBodyOr,
   solidScriptFormulaStore,
 } from '@/solid_script/language/solid_script_formula_field.js';
-import { solidScriptFormulaProblem } from '@/solid_script/language/solid_script_formula_source.js';
+import { solidScriptFormulaProblem } from '@/solid_script/language/solid_script_formula_bare.js';
 import type { SolidScriptInput } from '@/solid_script/language/solid_script_input.js';
 import { SolidScriptDialog } from './solid_script_dialog.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';

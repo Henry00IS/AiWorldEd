@@ -32,7 +32,7 @@ function echo(value: string, options: SolidScriptProgramOptions = {}): string {
  * @returns Echoed text, or the error.
  */
 function formula(formula: string): string {
-  return echo(`[=${formula.replace(/([[\]])/g, '$$$1')}]`);
+  return echo(`[=${formula}]`);
 }
 
 const HOST = {
@@ -93,7 +93,7 @@ describe('SolidScript system values', () => {
     expect(Number(echo('[$Time.Year]'))).toBe(new Date().getFullYear());
     expect(echo('[$Time.Date]')).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(Number(echo('[$Math.Pi]'))).toBeCloseTo(Math.PI, 4);
-    expect(Number(formula('$Math.Tau / 2'))).toBeCloseTo(Math.PI, 4);
+    expect(Number(formula('[$Math.Tau] / 2'))).toBeCloseTo(Math.PI, 4);
   });
 
   it('cannot be changed by the script', () => {
@@ -133,7 +133,7 @@ describe('SolidScript text and time functions', () => {
     expect(solidScriptTimeText(seconds, 'YYYY-MM-DD HH:mm:ss')).toBe('2026-11-16 09:05:07');
     expect(solidScriptTimeText(seconds, "dddd D MMMM 'at' h A")).toBe('Monday 16 November at 9 AM');
     expect(formula(`time_text(${seconds}, "ddd DD MMM YY")`)).toBe('Mon 16 Nov 26');
-    expect(formula('time_text($Time.Now, "YYYY")')).toBe(String(new Date().getFullYear()));
+    expect(formula('time_text([$Time.Now], "YYYY")')).toBe(String(new Date().getFullYear()));
   });
 
   it('pads, trims one side, capitalizes and counts', () => {
@@ -198,7 +198,7 @@ describe('SolidScript math and list functions', () => {
     expect(formula('snap(0.37, 0.25)')).toBe('0.25');
     expect(formula('fract(2.75)')).toBe('0.75');
     expect(Number(formula('radians(180)'))).toBeCloseTo(Math.PI, 5);
-    expect(formula('degrees($Math.Pi)')).toBe('180');
+    expect(formula('degrees([$Math.Pi])')).toBe('180');
     expect(formula('hypot(3, 4)')).toBe('5');
     expect(formula('between(5, 1, 9)')).toBe('Yes');
   });

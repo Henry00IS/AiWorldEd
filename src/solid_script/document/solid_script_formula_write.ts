@@ -30,6 +30,7 @@ import {
 } from '@/solid_script/language/solid_script_formula_print.js';
 import type { SolidScriptBlock, SolidScriptDocument } from './solid_script_document.js';
 import type { SolidScriptFormulaBlocks, SolidScriptFormulaOrigin } from './solid_script_formula_read.js';
+import { solidScriptFormulaListWrite } from '@/solid_script/language/solid_script_formula_list_literal.js';
 
 /**
  * The formula of blocks with the formula of each block by line, a group's on
@@ -291,10 +292,9 @@ class SolidScriptFormulaWriter {
     if (join.form === 'join') return solidScriptFormulaJoin(join.operator, first);
     if (join.form === 'choose') return `${wrap(first, 1)} ? ${wrap(second, 0)} : ${wrap(third, 0)}`;
     if (join.form === 'call' || join.form === 'list') {
-      const args = first.map((part) => solidScriptFormulaWrap(part, 0)).join(', ');
-      return join.form === 'list'
-        ? `$[${args}$]`
-        : `${name || join.name || solidScriptFormulaCheckName(join.key)}(${args})`;
+      const parts = first.map((part) => solidScriptFormulaWrap(part, 0));
+      if (join.form === 'list') return solidScriptFormulaListWrite(parts);
+      return `${name || join.name || solidScriptFormulaCheckName(join.key)}(${parts.join(', ')})`;
     }
     const operand = wrap(first, SOLID_SCRIPT_FORMULA_LEVEL_UNARY);
     const twice = join.operator === '-' && /^[-+]/.test(operand) ? `(${operand})` : operand;

@@ -9,7 +9,7 @@ import {
   SOLID_SCRIPT_KIND_CHECK_ARGUMENTS,
   SOLID_SCRIPT_KIND_CHECK_DOCS,
 } from './solid_script_functions_kind_checks.js';
-import { SOLID_SCRIPT_FUNCTION_DOCS_MATH } from './solid_script_function_docs_math.js';
+import { SOLID_SCRIPT_FUNCTION_DOCS_MATH, solidScriptFunctionDocSummary } from './solid_script_function_docs_math.js';
 /** A kind of value the editor checks name, such as Face or Face List. */
 export type SolidScriptKindName = (typeof SOLID_SCRIPT_KINDS)[number] | `${(typeof SOLID_SCRIPT_KINDS)[number]} List`;
 
@@ -270,6 +270,21 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
     group: 'List',
     gives: ['Number'],
   },
+  list: {
+    usage: 'List(a, b, ...)',
+    summary: solidScriptFunctionDocSummary(
+      'Makes a list from the values you give it, in that order. It takes any number of values, none at all for an empty list, and each one can be a number, a text, a vector or another list.',
+      [
+        'List(1, 2, 3) is [1, 2, 3].',
+        'List("a", "b") is [a, b].',
+        'List() is [].',
+        'List(0, List(1, 1, 1), "Easy") is [0, [1, 1, 1], Easy].',
+      ],
+      'Use it to hand a few values to a function that takes a list, such as Reversed(List("a", "b", "c")). Writing the values in brackets, such as [0, [1, 1, 1], "Easy"], makes the same list.',
+    ),
+    group: 'List',
+    gives: ['List'],
+  },
   concat: {
     usage: 'Concat(a, b, ...)',
     summary: 'One list from lists and values, such as Concat([1, 2, 3], 4) is [1, 2, 3, 4].',
@@ -393,7 +408,7 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
   random: {
     usage: 'Random(min, max, seed)',
     summary:
-      'A random number or vector; one seed gives one result, such as Random(0, 1, 1). For a yes-or-no chance, use Random(0, 1, seed) < 0.3.',
+      'A random number or vector; one seed gives one result, such as Random(0, 1, 1). For a yes-or-no chance, use Random(0, 1, [Seed]) < 0.3.',
     group: 'Random',
     gives: ['Number', 'Vector'],
   },
@@ -597,6 +612,11 @@ const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
     b: { type: 'Any', about: 'Another value.' },
     '...': { type: 'Any', about: 'More values.' },
   },
+  list: {
+    a: { type: 'Any', about: 'The first value.' },
+    b: { type: 'Any', about: 'The next value.' },
+    '...': { type: 'Any', about: 'More values.' },
+  },
   concat: {
     a: { type: 'Any', about: 'A list or value.' },
     b: { type: 'Any', about: 'Another list or value.' },
@@ -671,7 +691,7 @@ const SOLID_SCRIPT_FUNCTION_INPUTS_LEFT_OFF: Readonly<Record<string, number>> = 
 };
 
 /** Fewest inputs of functions that take as many as needed, when more than one. */
-const SOLID_SCRIPT_FUNCTION_INPUTS_LEAST: Readonly<Record<string, number>> = { pick: 2 };
+const SOLID_SCRIPT_FUNCTION_INPUTS_LEAST: Readonly<Record<string, number>> = { pick: 2, list: 0 };
 
 /**
  * Returns the fewest inputs a function takes: the inputs its usage lists, less

@@ -10,6 +10,8 @@ import {
 import { solidScriptExpressionChildren, type SolidScriptExpression } from '@/solid_script/language/solid_script_ast.js';
 import { solidScriptBuiltinFind } from '@/solid_script/language/solid_script_expression_compile.js';
 import { solidScriptExpressionParse } from '@/solid_script/language/solid_script_expression_parse.js';
+import { solidScriptFieldPieces } from '@/solid_script/language/solid_script_field.js';
+import { solidScriptFormulaListInline } from '@/solid_script/language/solid_script_formula_list_literal.js';
 import {
   SOLID_SCRIPT_FUNCTION_DOCS,
   solidScriptFunctionArguments,
@@ -106,7 +108,24 @@ export function solidScriptFlowFormulaRead(text: string): SolidScriptFlowFormula
  */
 function solidScriptFlowPartKinds(part: string, head: SolidScriptFlowHead): string[] {
   if (part.trimStart().startsWith('=')) return solidScriptFlowFormulaKinds(part, head);
+  if (solidScriptFlowPartIsList(part)) return solidScriptFlowFormulaKinds(`=$[${part}$]`, head);
   return solidScriptFlowNameKinds(part, head);
+}
+
+/**
+ * Tells whether a bracketed part of a formula is a list the formula reads
+ * itself, such as 0, [1, 1, 1], "Easy".
+ *
+ * @param part Text inside the brackets.
+ * @returns True for such a list.
+ */
+function solidScriptFlowPartIsList(part: string): boolean {
+  try {
+    const [group] = solidScriptFieldPieces(`[${part}]`);
+    return group?.kind === 'group' && solidScriptFormulaListInline(group);
+  } catch {
+    return false;
+  }
 }
 
 /**

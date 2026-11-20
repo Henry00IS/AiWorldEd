@@ -41,12 +41,14 @@ describe('SolidScript messages spell names as they were written', () => {
     expect(failure(line('echo', { value: '[MissingThing]' }))).toMatch(/there is no variable \[MissingThing\];/);
   });
 
-  it('lists the known names as written when a formula names a missing one', () => {
-    const message = failure(
-      line('variable', { name: 'StepHeight', value: '2' }),
-      line('echo', { value: '[=Nope + 1]' }),
+  it('spells a name a formula writes without brackets as written, with the formula that works for a known one', () => {
+    const height = line('variable', { name: 'StepHeight', value: '2' });
+    expect(failure(height, line('echo', { value: '[=Nope + 1]' }))).toMatch(
+      /Nope needs brackets in a formula.*There is no variable Nope either; for a variable write \[Nope\], for text write "Nope"/,
     );
-    expect(message).toMatch(/"Nope" is not a variable here; for text write "Nope"\. Known here: .*StepHeight/);
+    expect(failure(height, line('echo', { value: '[=stepHeight + 1]' }))).toMatch(
+      /stepHeight needs brackets in a formula.*Did you mean to write \[=\[stepHeight\] \+ 1\]\?/,
+    );
   });
 
   it('teaches Local. in PascalCase outside a Function', () => {

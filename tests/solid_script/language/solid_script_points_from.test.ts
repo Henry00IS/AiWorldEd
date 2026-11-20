@@ -87,7 +87,7 @@ describe('SolidScript Points From Faces, Edges and Vertices', () => {
       printed(
         line('place_at_points', {
           at: '[0, 0, 0], [4, 0, 0]',
-          scale: '[=1 + $Index], 1, 1',
+          scale: '[=1 + [$Index]], 1, 1',
           into: 'Copies',
         }),
         line('cube', { size: '1, 1, 1', anchor: 'Center, Center, Center' }),

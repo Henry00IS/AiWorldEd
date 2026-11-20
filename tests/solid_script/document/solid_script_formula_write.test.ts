@@ -85,13 +85,13 @@ const BRACKETS: readonly (readonly [string, string, string])[] = [
   ['[d] / ([c] / 3)', '[d] / ([c] / 3)', '[d] / ([c] / 6)'],
   ['Max((1), (2 + 3))', 'Max(1, 2 + 3)', 'Max(6, (2 + 3))'],
   ['Vector((1), ([a] + 1), (3))', 'Vector(1, [a] + 1, 3)', 'Vector(6, ([a] + 1), (3))'],
-  ['[(1 + 1), 2, 3] == [2, 2, 3]', '[(1 + 1), 2, 3] == [2, 2, 3]', '[(1 + 1), 2, 3] == [2, 2, 3]'],
+  ['[(1 + 1), 2, 3] == [2, 2, 3]', '[1 + 1, 2, 3] == [2, 2, 3]', '[(6 + 1), 2, 3] == [2, 2, 3]'],
   ['Abs((-(5)))', 'Abs(-5)', 'Abs(6)'],
   ['5+(5)', '5 + 5', '6+(5)'],
   ['(5)+5', '5 + 5', '6+5'],
   ['5*(-5)', '5 * -5', '6*(-5)'],
   ['Abs((5))', 'Abs(5)', 'Abs(6)'],
-  ['[(1), 2, (3)]', '[(1), 2, (3)]', '[(1), 2, (3)]'],
+  ['[(1), 2, (3)]', '[1, 2, 3]', '[6, 2, (3)]'],
   ['(-2)^2', '(-2) ^ 2', '6^2'],
   ['-2^2', '-2 ^ 2', '-6^2'],
   ['("Top")', '"Top"', '"Side"'],
@@ -308,10 +308,10 @@ describe('SolidScript formula blocks write', () => {
     const text = write(read);
     expect(text).toBe('[x] == [5, 2, 7]');
     expect(line(solidScriptFormulaRead(text), SOLID_SCRIPT_FORMULA_COMMAND.vector).values['value']).toBe('5, 2, 7');
-    line(read, SOLID_SCRIPT_FORMULA_COMMAND.number).values['value'] = '[=Width * 2]';
-    expect(write(read)).toBe('[x] == Width * 2');
+    line(read, SOLID_SCRIPT_FORMULA_COMMAND.number).values['value'] = '[=[Width] * 2]';
+    expect(write(read)).toBe('[x] == [Width] * 2');
     line(read, SOLID_SCRIPT_FORMULA_COMMAND.variable).values['value'] = '$Face.Area';
-    expect(write(read)).toBe('[$Face.Area] == Width * 2');
+    expect(write(read)).toBe('[$Face.Area] == [Width] * 2');
     const text2 = solidScriptFormulaRead('"Top" == [t]');
     line(text2, SOLID_SCRIPT_FORMULA_COMMAND.text).values['value'] = 'Side Wall';
     expect(write(text2)).toBe('"Side Wall" == [t]');

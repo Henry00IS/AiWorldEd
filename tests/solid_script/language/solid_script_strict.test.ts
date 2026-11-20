@@ -113,7 +113,7 @@ describe('SolidScript stops at the first mistake', () => {
       solidScriptDocumentCreate([
         { command: 'echo', values: { value: '5+5' } },
         { command: 'variable', values: { name: 'Width', value: '45$,8' } },
-        { command: 'cube', values: { size: '1,[=Number(Width)],3' } },
+        { command: 'cube', values: { size: '1,[=Number([Width])],3' } },
       ]),
     );
     expect(result.error?.line).toBe(3);
