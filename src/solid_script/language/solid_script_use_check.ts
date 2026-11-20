@@ -8,6 +8,11 @@ import { solidScriptBlockNesting } from '@/solid_script/document/solid_script_do
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
 import type { SolidScriptWarning } from './solid_script_machine_types.js';
 import { solidScriptFieldMistakeOf } from './solid_script_field_mistakes.js';
+import {
+  solidScriptDocumentNamesAt,
+  solidScriptFieldKnown,
+} from '@/solid_script/document/solid_script_document_names.js';
+import { solidScriptNameKey } from './solid_script_name_key.js';
 
 /**
  * A Box value written in a field or formula, such as [$Box.Width] or
@@ -86,7 +91,7 @@ function solidScriptUseCheckBox(block: SolidScriptBlock, index: number): SolidSc
 
 /**
  * Finds, without running the script, the fields with a common mistake, for the
- * editor. Lines that are off are skipped.
+ * editor, with the variables each line sees. Lines that are off are skipped.
  *
  * @param document Script.
  * @param known Tells whether the script defines a name.
@@ -99,11 +104,32 @@ export function solidScriptMistakeCheck(
   const warnings: SolidScriptWarning[] = [];
   for (const { block, line: index } of solidScriptDocumentActiveLines(document.blocks)) {
     const command = solidScriptCommandFind(block.command);
+    const sees = solidScriptMistakeSees(document, index);
     for (const parameter of command?.parameters ?? []) {
       const text = block.values?.[parameter.key] ?? '';
-      const note = solidScriptFieldMistakeOf(parameter, text, known);
+      const note = solidScriptFieldMistakeOf(parameter, text, known, sees);
       if (note !== '') warnings.push({ line: index + 1, text: `${parameter.label}: ${note}` });
     }
   }
   return warnings;
+}
+
+/**
+ * Tells whether a line surely sees a variable of a name: one a line above it
+ * writes, or the Item of a loop it is in, worked out only when first asked. A
+ * name only a line below writes is left out, since it may not be set yet.
+ *
+ * @param document Script.
+ * @param line 0-based line.
+ * @returns Test by name, in any case.
+ */
+function solidScriptMistakeSees(document: SolidScriptDocument, line: number): (name: string) => boolean {
+  let names: ReadonlySet<string> | null = null;
+  return (name) => {
+    names ??= solidScriptFieldKnown(
+      solidScriptDocumentNamesAt(document, line).filter((entry) => entry.line < line),
+      [],
+    ).names;
+    return names.has(solidScriptNameKey(name));
+  };
 }

@@ -637,7 +637,12 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       this.failure = solidScriptFailureKeep(
         this.failure,
         this.paused !== null,
-        solidScriptMistakeHinted(error, node),
+        solidScriptMistakeHinted(
+          error,
+          node,
+          (name) => scope.variableHas(solidScriptNameKey(name)),
+          (name) => this.nameWritten(name),
+        ),
         node.line,
       );
       return [];

@@ -24,6 +24,7 @@ export class SolidScriptExpressionEvaluator {
    * @param shown Spells a name key for a message, as it was written.
    * @param parse Reads text like a typed field, for Parse().
    * @param hitsBounds Reads the box of elements, for Hits and HitsBox.
+   * @param written Tells whether a line of the script writes a name.
    */
   constructor(
     private readonly tick: () => void = () => {},
@@ -39,7 +40,19 @@ export class SolidScriptExpressionEvaluator {
     private readonly hitsBounds: SolidScriptHitsBounds = () => {
       throw new Error('Hits() works only in a running script');
     },
+    private readonly written: (name: string) => boolean = () => false,
   ) {}
+
+  /**
+   * Tells whether a line of the script writes a name, so the name is the
+   * script's own and never a system value missing its $.
+   *
+   * @param name Name, in any case.
+   * @returns True when a line writes it.
+   */
+  scriptWrites(name: string): boolean {
+    return this.written(name);
+  }
 
   /**
    * Reads the axis-aligned box around geometry elements, for Hits and HitsBox.

@@ -156,7 +156,7 @@ function solidScriptCompileVariable(written: string): SolidScriptCompiled {
   return (evaluator, scope) => {
     const home = scope.variableHome(name);
     if (home) return home.variableOwn(name);
-    if (hinted) throw new Error(hinted);
+    if (hinted && !evaluator.scriptWrites(name)) throw new Error(hinted);
     return evaluator.variableMissing(name, scope);
   };
 }
@@ -358,7 +358,7 @@ function solidScriptCompileSystemRead(
   if (scope.variableHas(root)) return undefined;
   if (root.startsWith('$')) return evaluator.systemRead(dotted.slice(1));
   const hinted = solidScriptSystemBareHint(dotted);
-  if (hinted) throw new Error(hinted);
+  if (hinted && !evaluator.scriptWrites(root)) throw new Error(hinted);
   return undefined;
 }
 

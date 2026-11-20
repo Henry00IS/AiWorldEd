@@ -37,3 +37,32 @@ export type SolidScriptExpression =
   | { kind: 'member'; target: SolidScriptExpression; name: string }
   /** A bracketed part of a field formula, read before the formula runs. */
   | { kind: 'slot'; index: number };
+
+/** The direct parts of each kind of expression that has any. */
+const SOLID_SCRIPT_EXPRESSION_CHILDREN: {
+  readonly [Kind in SolidScriptExpression['kind']]?: (
+    node: Extract<SolidScriptExpression, { kind: Kind }>,
+  ) => SolidScriptExpression[];
+} = {
+  vector: (node) => node.items,
+  comprehension: (node) => [...node.bindings.map((binding) => binding.value), node.body],
+  range: (node) => [node.start, ...(node.step ? [node.step] : []), node.end],
+  unary: (node) => [node.operand],
+  binary: (node) => [node.left, node.right],
+  ternary: (node) => [node.condition, node.whenTrue, node.whenFalse],
+  call: (node) => node.args.map((arg) => arg.value),
+  index: (node) => [node.target, node.index],
+  member: (node) => [node.target],
+};
+
+/**
+ * Lists the parts of an expression.
+ *
+ * @param node Expression.
+ * @returns Its direct parts.
+ */
+export function solidScriptExpressionChildren(node: SolidScriptExpression): SolidScriptExpression[] {
+  const rule = SOLID_SCRIPT_EXPRESSION_CHILDREN[node.kind] as
+    ((node: SolidScriptExpression) => SolidScriptExpression[]) | undefined;
+  return rule ? rule(node) : [];
+}

@@ -248,6 +248,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
       const box = this.elements.bounds(items);
       return { min: box.min.toArray(), max: box.max.toArray() };
     },
+    (name) => this.nameWritten(name),
   );
   /** How many Parse() calls are running inside each other. */
   private parseDepth = 0;
@@ -468,6 +469,39 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
         `[${this.nameShown(name)}] is a local variable, and Local. only works inside a Function; outside one, write [${this.nameShown(name).slice(SOLID_SCRIPT_LOCAL_PREFIX.length)}]`,
       );
     return { scope: frame.locals, name: bare, local: true, persistent: false };
+  }
+
+  /**
+   * Tells whether a line of the script running writes a name, such as the Item
+   * of a For Each or the Into of a Select, wherever that line stands, so a name
+   * of the script is never taken for a system value.
+   *
+   * @param name Name, in any case.
+   * @returns True when a line writes it.
+   */
+  protected nameWritten(name: string): boolean {
+    const key = solidScriptNameKey(name);
+    for (const written of this.scriptWrites()) if (solidScriptNameKey(written) === key) return true;
+    return false;
+  }
+
+  /**
+   * Lists the names the fields of the script running write, line by line.
+   *
+   * @param lines Lines to read.
+   * @yields Names as typed, without brackets.
+   */
+  private *scriptWrites(lines = this.scriptLines): Generator<string> {
+    for (const node of lines) {
+      for (const field of node.command.parameters)
+        if (field.writes)
+          yield (node.values[field.key] ?? '')
+            .trim()
+            .replace(/^\[(.*)\]$/s, '$1')
+            .trim();
+      yield* this.scriptWrites(node.children);
+      if (node.otherwise) yield* this.scriptWrites(node.otherwise);
+    }
   }
 
   /**

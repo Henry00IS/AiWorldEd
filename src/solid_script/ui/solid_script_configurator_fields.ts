@@ -243,9 +243,8 @@ export function solidScriptConfiguratorFieldBuild(
   };
   const warning = (): string => {
     if (raw) return words.length > 0 ? choice() : '';
-    const mistake = solidScriptFieldMistakeOf(parameter, field.read(), (name) =>
-      known.names.has(solidScriptNameKey(name)),
-    );
+    const sees = (name: string): boolean => known.names.has(solidScriptNameKey(name));
+    const mistake = solidScriptFieldMistakeOf(parameter, field.read(), sees, sees);
     if (mistake) return `${parameter.label}: ${mistake}`;
     if (choice()) return choice();
     const note = solidScriptConfiguratorVectorSize(parameter) > 0 ? solidScriptFieldVectorNote(field.read()) : '';

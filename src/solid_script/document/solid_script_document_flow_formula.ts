@@ -7,7 +7,7 @@ import {
   SOLID_SCRIPT_FLOW_UNKNOWN,
   type SolidScriptFlowHead,
 } from './solid_script_document_flow_kinds.js';
-import type { SolidScriptExpression } from '@/solid_script/language/solid_script_ast.js';
+import { solidScriptExpressionChildren, type SolidScriptExpression } from '@/solid_script/language/solid_script_ast.js';
 import { solidScriptBuiltinFind } from '@/solid_script/language/solid_script_expression_compile.js';
 import { solidScriptExpressionParse } from '@/solid_script/language/solid_script_expression_parse.js';
 import {
@@ -316,7 +316,7 @@ export function solidScriptFlowFormulaProblems(text: string, head: SolidScriptFl
   const names = solidScriptFlowFormulaNames(formula, head);
   const problems: string[] = [];
   const visit = (node: SolidScriptExpression): void => {
-    solidScriptFlowChildren(node).forEach(visit);
+    solidScriptExpressionChildren(node).forEach(visit);
     if (node.kind === 'call') problems.push(...solidScriptFlowCallProblems(node, names, head));
   };
   visit(formula.tree);
@@ -361,33 +361,4 @@ function solidScriptFlowCallProblems(
  */
 function solidScriptFlowArticle(kinds: string): string {
   return `${/^[AEIOU]/.test(kinds) ? 'an' : 'a'} ${kinds}`;
-}
-
-/** The direct parts of each kind of expression that has any. */
-const SOLID_SCRIPT_FLOW_CHILDREN: {
-  readonly [Kind in SolidScriptExpression['kind']]?: (
-    node: SolidScriptFlowExpressionOf<Kind>,
-  ) => SolidScriptExpression[];
-} = {
-  vector: (node) => node.items,
-  comprehension: (node) => [...node.bindings.map((binding) => binding.value), node.body],
-  range: (node) => [node.start, ...(node.step ? [node.step] : []), node.end],
-  unary: (node) => [node.operand],
-  binary: (node) => [node.left, node.right],
-  ternary: (node) => [node.condition, node.whenTrue, node.whenFalse],
-  call: (node) => node.args.map((arg) => arg.value),
-  index: (node) => [node.target, node.index],
-  member: (node) => [node.target],
-};
-
-/**
- * Lists the parts of an expression.
- *
- * @param node Expression.
- * @returns Its direct parts.
- */
-function solidScriptFlowChildren(node: SolidScriptExpression): SolidScriptExpression[] {
-  const rule = SOLID_SCRIPT_FLOW_CHILDREN[node.kind] as
-    ((node: SolidScriptExpression) => SolidScriptExpression[]) | undefined;
-  return rule ? rule(node) : [];
 }

@@ -2,6 +2,7 @@ import { solidScriptFieldArguments, type SolidScriptFieldKind } from './solid_sc
 import { SOLID_SCRIPT_SYSTEM_VALUES } from './solid_script_name_rules.js';
 import { solidScriptSystemFill } from './solid_script_system_names.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
+import { solidScriptMistakeBareMembers, solidScriptMistakeUserDollars } from './solid_script_field_bare_members.js';
 
 /**
  * Fields that take numbers, where math outside a formula is surely a mistake.
@@ -135,27 +136,78 @@ function solidScriptMistakeSystem(text: string, known: (name: string) => boolean
   });
 }
 
+/** Tells whether a name is one the script or the line has; by default none. */
+type SolidScriptMistakeNames = (name: string) => boolean;
+
+/** Why a variable read with a member in a formula reads nothing. */
+const SOLID_SCRIPT_MISTAKE_BARE_WHY = 'in a formula, a variable read with a member needs its own brackets';
+
+/** Why a variable of the script written with a $ reads nothing. */
+const SOLID_SCRIPT_MISTAKE_DOLLAR_WHY = 'a $ marks only system values, never a variable of the script';
+
+/**
+ * Reasons a running line's error does not tell by itself, so its hint says
+ * them.
+ */
+const SOLID_SCRIPT_MISTAKE_NAME_WHYS = [SOLID_SCRIPT_MISTAKE_BARE_WHY, SOLID_SCRIPT_MISTAKE_DOLLAR_WHY];
+
+/**
+ * Writes the names of field text as a line that sees them reads them, the one
+ * rule every hint about names uses: [$Width] of a variable Width as [Width],
+ * and a member read such as Edge.Start in a formula as [Edge.Start].
+ *
+ * @param text Field text, trimmed.
+ * @param sees Tells whether the line sees a variable of that name.
+ * @param plain True also writes a variable read bare in a formula, such as Edge
+ *   in [=Edge + 1], as [Edge].
+ * @returns Rewritten text, the same when every name is written right.
+ */
+export function solidScriptMistakeNamesWritten(text: string, sees: SolidScriptMistakeNames, plain = false): string {
+  const system = (name: string): boolean => solidScriptMistakeOfficial(name.slice(1)) !== undefined;
+  return solidScriptMistakeBareMembers(solidScriptMistakeUserDollars(text, sees, system), sees, plain);
+}
+
+/**
+ * Tells why field text needs the names it has written another way.
+ *
+ * @param text Field text, trimmed.
+ * @param sees Tells whether the line sees a variable of that name.
+ * @returns Reason, or an empty string when its names are written right.
+ */
+function solidScriptMistakeNamesWhy(text: string, sees: SolidScriptMistakeNames): string {
+  const system = (name: string): boolean => solidScriptMistakeOfficial(name.slice(1)) !== undefined;
+  if (solidScriptMistakeUserDollars(text, sees, system) !== text) return SOLID_SCRIPT_MISTAKE_DOLLAR_WHY;
+  return solidScriptMistakeBareMembers(text, sees) !== text ? SOLID_SCRIPT_MISTAKE_BARE_WHY : '';
+}
+
 /**
  * Finds a common mistake in field text and writes what was probably meant,
  * built from the text as written: [K]*2 or [[K]_2] or [K_2] becomes [=[K]*2],
- * =[K]*2 becomes [=[K]*2], and [Box.Width] becomes [$Box.Width].
+ * =[K]*2 becomes [=[K]*2], [=Edge.Start + 1] becomes [=[Edge.Start] + 1] when
+ * the line sees a variable Edge, and [Box.Width] becomes [$Box.Width] unless
+ * Box is a name of the script.
  *
  * @param text Field text as written.
- * @param math False for fields that may hold text, where only the $ is checked.
+ * @param math False for fields that may hold text, where only the $ and the
+ *   brackets of a member read are checked.
  * @param known Tells whether the script defines a name.
+ * @param sees Tells whether the line sees a variable of that name.
  * @returns What was probably meant, or an empty string when nothing looks
  *   wrong.
  */
 export function solidScriptFieldMistake(
   text: string,
   math = true,
-  known: (name: string) => boolean = () => false,
+  known: SolidScriptMistakeNames = () => false,
+  sees: SolidScriptMistakeNames = () => false,
 ): string {
   const trimmed = text.trim();
+  const bare = solidScriptMistakeNamesWritten(trimmed, sees);
   // Commas inside a call such as Max([A], [B]) stay in their piece.
-  const pieces = solidScriptFieldArguments(trimmed);
-  const rewritten = math ? pieces.map(solidScriptMistakeMath).join(', ') : trimmed;
-  const meant = solidScriptMistakeSystem(math && rewritten === pieces.join(', ') ? trimmed : rewritten, known);
+  const pieces = solidScriptFieldArguments(bare);
+  const rewritten = math ? pieces.map(solidScriptMistakeMath).join(', ') : bare;
+  const unchanged = math && rewritten === pieces.join(', ') ? bare : rewritten;
+  const meant = solidScriptMistakeSystem(unchanged, (name) => known(name) || sees(name));
   return meant === trimmed ? '' : meant;
 }
 
@@ -166,17 +218,21 @@ export function solidScriptFieldMistake(
  * @param text Field text as written.
  * @param math False for fields that may hold text.
  * @param known Tells whether the script defines a name.
+ * @param sees Tells whether the line sees a variable of that name.
  * @returns Explanation, or an empty string when nothing looks wrong.
  */
 export function solidScriptFieldMistakeNote(
   text: string,
   math = true,
-  known: (name: string) => boolean = () => false,
+  known: SolidScriptMistakeNames = () => false,
+  sees: SolidScriptMistakeNames = () => false,
 ): string {
-  const meant = solidScriptFieldMistake(text, math, known);
+  const meant = solidScriptFieldMistake(text, math, known, sees);
   if (meant === '') return '';
-  const why =
-    meant.includes('[=') && !text.includes('[=')
+  const names = solidScriptMistakeNamesWhy(text.trim(), sees);
+  const why = names
+    ? names
+    : meant.includes('[=') && !text.includes('[=')
       ? 'math outside a formula is not worked out'
       : 'system values start with $';
   return `${why}. Did you mean to write ${meant}?`;
@@ -193,11 +249,16 @@ interface SolidScriptMistakeField {
 
 /**
  * Adds what was probably meant to the error a line stopped with, from the field
- * the error names, or else the only field with a mistake.
+ * the error names, or else the only field with a mistake. A member read that
+ * needs brackets also says why, since the error alone does not tell.
  *
  * @param error Error the line threw.
  * @param node Line: its fields and their text as written.
- * @returns The error, with the hint when one fits.
+ * @param sees Tells whether the running line sees a variable of that name.
+ * @param known Tells whether a line of the script writes a name, so it is never
+ *   given a $.
+ * @returns The error, with the hint when one fits; an error that already says
+ *   what was meant is kept as it is.
  */
 export function solidScriptMistakeHinted(
   error: unknown,
@@ -205,23 +266,51 @@ export function solidScriptMistakeHinted(
     command: { label: string; parameters: readonly SolidScriptMistakeField[] };
     values: Readonly<Record<string, string>>;
   },
+  sees: SolidScriptMistakeNames,
+  known: SolidScriptMistakeNames,
 ): unknown {
   if (!(error instanceof Error)) return error;
   if (solidScriptMistakeEngine(error))
     return new Error(`${node.command.label} cannot be built with these values; try smaller sizes or counts`);
-  const fields = node.command.parameters;
-  const notes = fields
-    .map((field) => ({ field, note: solidScriptFieldMistakeOf(field, node.values[field.key] ?? '') }))
+  const notes = node.command.parameters
+    .map((field) => ({ field, note: solidScriptFieldMistakeOf(field, node.values[field.key] ?? '', known, sees) }))
     .filter((entry) => entry.note !== '');
+  const note = solidScriptMistakeNamed(error, node.command.parameters, notes);
+  return note === undefined ? error : new Error(solidScriptMistakeJoined(error.message, note));
+}
+
+/**
+ * Puts a hint after an error, in place of what the error itself guessed was
+ * meant; a name written the wrong way also says why.
+ *
+ * @param message Error message.
+ * @param note Hint of the field.
+ * @returns Message with the hint.
+ */
+function solidScriptMistakeJoined(message: string, note: string): string {
+  const says = SOLID_SCRIPT_MISTAKE_NAME_WHYS.some((why) => note.startsWith(why));
+  const hint = note.slice(says ? 0 : note.indexOf('Did you mean'));
+  const said = message.replace(/\s*Did you mean[\s\S]*$/, '').replace(/\.?\s*$/, '');
+  return `${said}. ${hint.charAt(0).toUpperCase()}${hint.slice(1)}`;
+}
+
+/**
+ * Picks the note of the field an error names, or else of the only field with a
+ * mistake; an error about one field never gets the hint of another.
+ *
+ * @param error Error the line threw.
+ * @param fields Fields of the line.
+ * @param notes Fields with a mistake, with their notes.
+ * @returns Note, or undefined when none fits.
+ */
+function solidScriptMistakeNamed(
+  error: Error,
+  fields: readonly SolidScriptMistakeField[],
+  notes: readonly { field: SolidScriptMistakeField; note: string }[],
+): string | undefined {
   const names = (field: SolidScriptMistakeField): boolean => error.message.startsWith(field.label);
-  // An error about one field never gets the hint of another.
-  const named = fields.some(names)
-    ? notes.find((entry) => names(entry.field))
-    : notes.length === 1
-      ? notes[0]
-      : undefined;
-  if (!named) return error;
-  return new Error(`${error.message.replace(/\.?\s*$/, '')}. ${named.note.slice(named.note.indexOf('Did you mean'))}`);
+  if (fields.some(names)) return notes.find((entry) => names(entry.field))?.note;
+  return notes.length === 1 ? notes[0]?.note : undefined;
 }
 
 /**
@@ -258,14 +347,16 @@ function solidScriptFieldListedChoice(field: Pick<SolidScriptMistakeField, 'type
  * @param field Field.
  * @param text Field text as written.
  * @param known Tells whether the script defines a name.
+ * @param sees Tells whether the line sees a variable of that name.
  * @returns Explanation, or an empty string when nothing looks wrong.
  */
 export function solidScriptFieldMistakeOf(
   field: Pick<SolidScriptMistakeField, 'type' | 'words'>,
   text: string,
-  known: (name: string) => boolean = () => false,
+  known: SolidScriptMistakeNames = () => false,
+  sees: SolidScriptMistakeNames = () => false,
 ): string {
   if (SOLID_SCRIPT_MISTAKE_NAMES.has(field.type) || text.trim() === '') return '';
   if (solidScriptFieldListedChoice(field, text)) return '';
-  return solidScriptFieldMistakeNote(text, SOLID_SCRIPT_MISTAKE_NUMERIC.has(field.type), known);
+  return solidScriptFieldMistakeNote(text, SOLID_SCRIPT_MISTAKE_NUMERIC.has(field.type), known, sees);
 }
