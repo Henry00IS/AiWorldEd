@@ -274,9 +274,9 @@ describe('SolidScript ports of the modifiers', () => {
     expect(ports.map((entry) => entry.name)).toEqual([
       'Shear',
       'Linear Array',
-      'Radial Array',
-      'Transform Array',
       'Mirror',
+      'Transform Array',
+      'Radial Array',
     ]);
     for (const port of ports) expect(port.uses).toEqual({ generator: false, modifier: true });
   });

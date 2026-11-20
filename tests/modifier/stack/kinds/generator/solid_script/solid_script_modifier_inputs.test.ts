@@ -122,7 +122,7 @@ describe('SolidScript modifier example inputs', () => {
   const ports = SOLID_SCRIPT_EXAMPLES.filter((entry) => entry.modifier);
 
   it('lists a port for every built-in array and Shear modifier', () => {
-    expect(ports.map((entry) => entry.modifier)).toEqual(['shear', 'linear', 'radial', 'transform', 'mirror']);
+    expect(ports.map((entry) => entry.modifier)).toEqual(['shear', 'linear', 'mirror', 'transform', 'radial']);
   });
 
   for (const example of ports) {
