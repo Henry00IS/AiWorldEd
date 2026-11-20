@@ -92,7 +92,7 @@ describe('SolidScript formula window', () => {
     expect(root.querySelector(`.${SOLID_SCRIPT_EDITOR_CLASSES.shade}`)).toBeNull();
     button('Build Where from blocks').click();
     expect(formulaText()).toBe('[=[$NY] > 0.5]');
-    expect(rows()).toEqual(['More Than', 'Variable [$NY]', "Number '0.5'", 'End More Than']);
+    expect(rows()).toEqual(['Greater Than', 'Variable [$NY]', "Number '0.5'", 'End Greater Than']);
     button('OK', formulaWindow()).click();
     expect(input.value).toBe('[=[$NY] > 0.5]');
   });
@@ -124,14 +124,14 @@ describe('SolidScript formula window', () => {
     formulaOpen();
     expect(rows()).toEqual([
       'Or',
-      'More Than',
+      'Greater Than',
       'Variable [$NY]',
       "Number '0.5'",
-      'End More Than',
-      'More Than',
+      'End Greater Than',
+      'Greater Than',
       'Variable [$NX]',
       "Number '0.5'",
-      'End More Than',
+      'End Greater Than',
       'End Or',
     ]);
     const indent = (line: number) => Number.parseFloat(chip(line).style.paddingLeft);
@@ -183,7 +183,7 @@ describe('SolidScript formula window', () => {
   it('names a function with too few inputs on its line, and the blocks can fix it', () => {
     const { input } = selectFaces('[=Clamp([a], 0) > 0]');
     formulaOpen();
-    expect(rows().slice(0, 4)).toEqual(['More Than', 'Clamp', 'Variable [a]', "Number '0'"]);
+    expect(rows().slice(0, 4)).toEqual(['Greater Than', 'Clamp', 'Variable [a]', "Number '0'"]);
     expect(status()).toBe('Line 2: Clamp needs at least 3 parts.');
     button('OK', formulaWindow()).click();
     expect(status()).toMatch(/^Fix the formula first: Line 2: Clamp/);
@@ -346,7 +346,7 @@ describe('SolidScript formula window', () => {
     solidScriptEditorViewWrite({ ...solidScriptEditorViewRead(), endNames: false });
     const { input } = selectFaces('[=[$Face.Center.Y] > 0]');
     formulaOpen();
-    expect(rows()).toEqual(['More Than', 'Variable [$Face.Center.Y]', "Number '0'", 'End']);
+    expect(rows()).toEqual(['Greater Than', 'Variable [$Face.Center.Y]', "Number '0'", 'End']);
     press(chip(2), 'Enter');
     fieldFill('formula_number', 'Number', '1');
     button('OK', formulaWindow()).click();
@@ -466,7 +466,16 @@ const FIELD_CASES: readonly FieldCase[] = [
     id: 'cube',
     label: 'Size',
     stored: '0, [=[W] * 2], 0',
-    blocks: ['Vector', "Number '0'", 'Times', 'Variable [W]', "Number '2'", 'End Times', "Number '0'", 'End Vector'],
+    blocks: [
+      'Vector',
+      "Number '0'",
+      'Multiply',
+      'Variable [W]',
+      "Number '2'",
+      'End Multiply',
+      "Number '0'",
+      'End Vector',
+    ],
     edit: edit(4, 'formula_number', '3', '0, [=[W] * 3], 0'),
   },
   {
@@ -499,7 +508,7 @@ const FIELD_CASES: readonly FieldCase[] = [
     id: 'sphere',
     label: 'Radius',
     stored: '[=[Radius] * 2]',
-    blocks: ['Times', 'Variable [Radius]', "Number '2'", 'End Times'],
+    blocks: ['Multiply', 'Variable [Radius]', "Number '2'", 'End Multiply'],
     edit: edit(2, 'formula_number', '3', '[=[Radius] * 3]'),
   },
   {
@@ -594,7 +603,7 @@ const FIELD_CASES: readonly FieldCase[] = [
     id: 'select_faces',
     label: 'Where',
     stored: '[=[$Face.Center.Y] > 0]',
-    blocks: ['More Than', 'Variable [$Face.Center.Y]', "Number '0'", 'End More Than'],
+    blocks: ['Greater Than', 'Variable [$Face.Center.Y]', "Number '0'", 'End Greater Than'],
     edit: edit(2, 'formula_number', '1', '[=[$Face.Center.Y] > 1]'),
   },
   { kind: 'where', id: 'select_faces', label: 'Where', stored: PEBBLES, blocks: [] },

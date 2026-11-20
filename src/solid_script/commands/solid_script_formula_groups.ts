@@ -40,6 +40,8 @@ export interface SolidScriptFormulaBlockText {
   description: string;
   /** Longer help with an example. */
   manual: string;
+  /** Other words people search for. */
+  synonyms?: readonly string[];
 }
 
 /** Ids of the blocks that keep the formula together. */
@@ -108,6 +110,7 @@ const SOLID_SCRIPT_FORMULA_OPERATORS: readonly (SolidScriptFormulaBlockText & {
     operator: '==',
     category: 'Operators',
     label: 'Equals',
+    synonyms: ['equal', 'same', 'is', '=='],
     description: 'Yes when the blocks inside are the same, such as 2 and 2',
     manual:
       'Yes when its blocks are the same. Example: Equals, Variable $Index, Number 0, End Equals keeps the first one.',
@@ -116,15 +119,17 @@ const SOLID_SCRIPT_FORMULA_OPERATORS: readonly (SolidScriptFormulaBlockText & {
     id: 'formula_differs',
     operator: '!=',
     category: 'Operators',
-    label: 'Differs',
+    label: 'Not Equal',
+    synonyms: ['differs', 'different', 'unequal', 'is not', '!='],
     description: 'Yes when the blocks inside are different',
-    manual: 'Yes when its blocks are not the same. Example: Differs, Variable Name, Text Top, End Differs.',
+    manual: 'Yes when its blocks are not the same. Example: Not Equal, Variable Name, Text Top, End Not Equal.',
   },
   {
     id: 'formula_less',
     operator: '<',
     category: 'Operators',
     label: 'Less Than',
+    synonyms: ['smaller', 'below', 'fewer', '<'],
     description: 'Yes when the first block is smaller, such as 1 < 2',
     manual:
       'Yes when the first block is smaller than the second. Example: Less Than, Variable $Face.Area, Number 2, End Less Than.',
@@ -134,6 +139,7 @@ const SOLID_SCRIPT_FORMULA_OPERATORS: readonly (SolidScriptFormulaBlockText & {
     operator: '<=',
     category: 'Operators',
     label: 'At Most',
+    synonyms: ['less or equal', 'less than or equal', 'no more than', 'maximum', '<='],
     description: 'Yes when the first block is smaller or the same',
     manual: 'Yes when the first block is at most the second. Example: At Most, Variable $CY, Number 0, End At Most.',
   },
@@ -141,16 +147,18 @@ const SOLID_SCRIPT_FORMULA_OPERATORS: readonly (SolidScriptFormulaBlockText & {
     id: 'formula_more',
     operator: '>',
     category: 'Operators',
-    label: 'More Than',
+    label: 'Greater Than',
+    synonyms: ['more than', 'bigger', 'larger', 'above', '>'],
     description: 'Yes when the first block is bigger, such as 3 > 2',
     manual:
-      'Yes when the first block is bigger than the second. Example: More Than, Variable $NY, Number 0.5, End More Than keeps faces that face up.',
+      'Yes when the first block is bigger than the second. Example: Greater Than, Variable $NY, Number 0.5, End Greater Than keeps faces that face up.',
   },
   {
     id: 'formula_at_least',
     operator: '>=',
     category: 'Operators',
     label: 'At Least',
+    synonyms: ['greater or equal', 'greater than or equal', 'no less than', 'minimum', '>='],
     description: 'Yes when the first block is bigger or the same',
     manual:
       'Yes when the first block is at least the second. Example: At Least, Variable $Index, Number 0, End At Least.',
@@ -159,40 +167,45 @@ const SOLID_SCRIPT_FORMULA_OPERATORS: readonly (SolidScriptFormulaBlockText & {
     id: 'formula_plus',
     operator: '+',
     category: 'Operators',
-    label: 'Plus',
+    label: 'Add',
+    synonyms: ['plus', 'sum', 'addition', 'total', '+'],
     description: 'Adds the blocks inside, such as 2 + 3',
-    manual: 'Adds its blocks together. Example: Plus, Variable Width, Number 1, End Plus is one more than Width.',
+    manual: 'Adds its blocks together. Example: Add, Variable Width, Number 1, End Add is one more than Width.',
   },
   {
     id: 'formula_minus',
     operator: '-',
     category: 'Operators',
-    label: 'Minus',
+    label: 'Subtract',
+    synonyms: ['minus', 'difference', 'take away', 'subtraction', '-'],
     description: 'Takes the later blocks off the first, such as 5 - 2',
-    manual: 'Takes the second block off the first. Example: Minus, Variable Width, Number 1, End Minus.',
+    manual: 'Takes the second block off the first. Example: Subtract, Variable Width, Number 1, End Subtract.',
   },
   {
     id: 'formula_times',
     operator: '*',
     category: 'Operators',
-    label: 'Times',
+    label: 'Multiply',
+    synonyms: ['times', 'product', 'multiplication', '*'],
     description: 'Multiplies the blocks inside, such as 2 * 3',
-    manual: 'Multiplies its blocks. Example: Times, Variable Width, Number 2, End Times is twice Width.',
+    manual: 'Multiplies its blocks. Example: Multiply, Variable Width, Number 2, End Multiply is twice Width.',
   },
   {
     id: 'formula_divide',
     operator: '/',
     category: 'Operators',
-    label: 'Divided By',
+    label: 'Divide',
+    synonyms: ['divided by', 'over', 'quotient', 'division', '/'],
     description: 'Divides the first block by the next, such as 6 / 2',
     manual:
-      'Divides the first block by the second. Example: Divided By, Variable Width, Number 2, End Divided By is half Width.',
+      'Divides the first block by the second. Example: Divide, Variable Width, Number 2, End Divide is half Width.',
   },
   {
     id: 'formula_remainder',
     operator: '%',
     category: 'Operators',
     label: 'Remainder',
+    synonyms: ['modulo', 'mod', 'modulus', '%'],
     description: 'What is left after dividing, such as 7 % 3 is 1',
     manual:
       'What is left when the first block is divided by the second. Example: Remainder, Variable $Index, Number 2, End Remainder is 0 for every other one.',
@@ -202,6 +215,7 @@ const SOLID_SCRIPT_FORMULA_OPERATORS: readonly (SolidScriptFormulaBlockText & {
     operator: '^',
     category: 'Operators',
     label: 'Power',
+    synonyms: ['exponent', 'raise', 'pow', 'squared', '^'],
     description: 'Raises the first block to the next, such as 2 ^ 3 is 8',
     manual:
       'Multiplies the first block by itself as often as the second says. Example: Power, Number 2, Number 3, End Power is 8.',
@@ -225,9 +239,10 @@ const SOLID_SCRIPT_FORMULA_UNARY: readonly (SolidScriptFormulaBlockText & {
     id: SOLID_SCRIPT_FORMULA_COMMAND.negate,
     operator: '-',
     category: 'Operators',
-    label: 'Negative',
+    label: 'Negate',
+    synonyms: ['negative', 'minus', 'opposite', 'flip sign'],
     description: 'The block inside with its sign turned, such as -3',
-    manual: 'Turns a number or vector the other way. Example: Negative, Variable Width, End Negative.',
+    manual: 'Turns a number or vector the other way. Example: Negate, Variable Width, End Negate.',
   },
 ];
 
@@ -398,7 +413,7 @@ export function solidScriptFormulaGroupCommands(): SolidScriptCommand[] {
 
 /**
  * Creates the operator blocks, which hold two or more blocks, and Not and
- * Negative, which hold one.
+ * Negate, which hold one.
  *
  * @returns Commands.
  */

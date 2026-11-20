@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { button, chip, configuratorOpen, formulaWindow, rows } from './solid_script_formula_window_fixture.js';
 
 /** Blocks of the Size formula [W] + 1. */
-const SUM = ['Plus', 'Variable [W]', "Number '1'", 'End Plus'];
+const SUM = ['Add', 'Variable [W]', "Number '1'", 'End Add'];
 
 /**
  * Opens the formula window of a Cube's Size over its options.
@@ -50,7 +50,7 @@ describe('SolidScript formula window keys', () => {
     chip(1).focus();
     clipboard(document.activeElement!, 'copy');
     clipboard(document.activeElement!, 'paste');
-    expect(rows()).toEqual(['Plus', 'Variable [W]', 'Variable [W]', "Number '1'", 'End Plus']);
+    expect(rows()).toEqual(['Add', 'Variable [W]', 'Variable [W]', "Number '1'", 'End Add']);
     clipboard(document.activeElement!, 'cut');
     expect(rows()).toEqual(SUM);
     expect(size.value).toBe('[=[W] + 1]');

@@ -223,6 +223,11 @@ export interface SolidScriptCommandSpec {
   /** Short description in a few words, shown in the palette and as hover help. */
   description: string;
   /**
+   * Other words people search for, such as plus and sum for Add; none when
+   * omitted.
+   */
+  synonyms?: readonly string[];
+  /**
    * Plain explanation of what the line does to the shape, with an example, for
    * the help panel.
    */
@@ -350,6 +355,8 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
   readonly label: string;
   readonly category: SolidScriptCommandCategory;
   readonly description: string;
+  /** Other words people search for. */
+  readonly synonyms: readonly string[];
   readonly manual: string;
   readonly stops: readonly string[];
   readonly parameters: readonly SolidScriptCommandParameter[];
@@ -396,6 +403,7 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
     this.label = spec.label;
     this.category = spec.category;
     this.description = spec.description;
+    this.synonyms = spec.synonyms ?? [];
     this.manual = spec.manual;
     this.stops = spec.stops ?? [];
     const fields = (this.fields = solidScriptCommandFields(spec));

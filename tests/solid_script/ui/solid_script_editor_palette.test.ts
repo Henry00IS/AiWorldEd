@@ -56,4 +56,33 @@ describe('SolidScript editor palette', () => {
       for (const item of items) expect(repeated(item.title), item.dataset['command']).toEqual([]);
     }
   });
+
+  it.each([
+    ['add', 'formula_plus', 'Add'],
+    ['plus', 'formula_plus', 'Add'],
+    ['sum', 'formula_plus', 'Add'],
+    ['multiply', 'formula_times', 'Multiply'],
+    ['times', 'formula_times', 'Multiply'],
+    ['product', 'formula_times', 'Multiply'],
+    ['subtract', 'formula_minus', 'Subtract'],
+    ['minus', 'formula_minus', 'Subtract'],
+    ['divide', 'formula_divide', 'Divide'],
+    ['modulo', 'formula_remainder', 'Remainder'],
+    ['greater', 'formula_more', 'Greater Than'],
+    ['not equal', 'formula_differs', 'Not Equal'],
+    ['negate', 'formula_negate', 'Negate'],
+  ])('finds the operator block for %j in the formula palette: %s, named %s', (word, id, label) => {
+    const catalog = solidScriptFormulaCatalog();
+    const options = { ...SOLID_SCRIPT_EDITOR_PALETTE_SCRIPT, catalog, target: 'the formula' };
+    const palette = new SolidScriptEditorPalette(
+      () => undefined,
+      () => undefined,
+      new SolidScriptEditorFavorites(undefined, catalog),
+      options,
+    );
+    palette.search.value = word;
+    palette.search.dispatchEvent(new Event('input'));
+    expect(palette.visible()).toContain(id);
+    expect(catalog.find(id)?.label).toBe(label);
+  });
 });

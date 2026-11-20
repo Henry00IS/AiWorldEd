@@ -104,9 +104,9 @@ describe('SolidScript formula window groups', () => {
   it('keeps Not and a function block while they are empty, naming what they need', () => {
     selectFaces('[=Abs([a]) > 1]');
     formulaOpen();
-    expect(rows().slice(0, 3)).toEqual(['More Than', 'Absolute', 'Variable [a]']);
+    expect(rows().slice(0, 3)).toEqual(['Greater Than', 'Absolute', 'Variable [a]']);
     press(chip(2), 'Delete');
-    expect(rows().slice(0, 3)).toEqual(['More Than', 'Absolute', 'End Absolute']);
+    expect(rows().slice(0, 3)).toEqual(['Greater Than', 'Absolute', 'End Absolute']);
     expect(status()).toBe('Line 2: Absolute needs at least one part.');
     paletteDrop('formula_not', 2);
     expect(rows().slice(1, 5)).toEqual(['Absolute', 'Not', 'End Not', 'End Absolute']);

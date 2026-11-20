@@ -42,7 +42,10 @@ interface SolidScriptEditorPaletteEntry {
   command: SolidScriptCommand;
   element: HTMLElement;
   caption: HTMLElement;
-  /** Name, description and category in lower case. */
+  /**
+   * Name, description, category and other words people search for, in lower
+   * case.
+   */
   text: string;
 }
 
@@ -136,7 +139,9 @@ export class SolidScriptEditorPalette {
       for (const command of commands) {
         const element = this.item(command);
         this.list.append(element);
-        const text = `${command.label} ${command.description} ${command.category} ${command.id}`.toLowerCase();
+        const text = [command.label, command.description, command.category, command.id, ...command.synonyms]
+          .join(' ')
+          .toLowerCase();
         this.entries.push({ command, element, caption, text });
       }
     }
