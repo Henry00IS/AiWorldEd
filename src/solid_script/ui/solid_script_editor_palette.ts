@@ -5,7 +5,8 @@ import type { SolidScriptCommandCatalog } from '@/solid_script/commands/solid_sc
 import { SOLID_SCRIPT_EDITOR_CATEGORY_COLORS, SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import { solidScriptEditorIcon } from './solid_script_editor_icons.js';
 import { SolidScriptEditorFavorites } from './solid_script_editor_favorites.js';
-import { MenuContext } from '@/ui/menu/menu_context.js';
+import type { MenuContext } from '@/ui/menu/menu_context.js';
+import { solidScriptEditorMenuShow } from './solid_script_editor_line_menu.js';
 import { DragEdgeAutoScroll } from '@/ui/drag/drag_edge_scroll.js';
 import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { solidScriptDropOutline } from './solid_script_file_drop.js';
@@ -239,14 +240,9 @@ export class SolidScriptEditorPalette {
     if (!id) return;
     event.preventDefault();
     const favorite = this.favoritesMemory.read().includes(id);
-    this.menu?.dispose();
-    this.menu = new MenuContext(this.element, [
-      {
-        label: favorite ? 'Remove from Favorites' : 'Add to Favorites',
-        callback: () => this.favoritesRender(this.favoritesMemory.toggle(id)),
-      },
-    ]);
-    this.menu.show(event.clientX, event.clientY);
+    const label = favorite ? 'Remove from Favorites' : 'Add to Favorites';
+    const toggle = () => this.favoritesRender(this.favoritesMemory.toggle(id));
+    this.menu = solidScriptEditorMenuShow(this.menu, [{ label, callback: toggle }], event);
   }
 
   /**

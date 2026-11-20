@@ -1,4 +1,4 @@
-import { MenuContext } from '@/ui/menu/menu_context.js';
+import type { MenuContext } from '@/ui/menu/menu_context.js';
 import { SOLID_SCRIPT_COMMAND_CATALOG } from '@/solid_script/commands/solid_script_command_catalog.js';
 import type { SolidScriptCommandCatalog } from '@/solid_script/commands/solid_script_command_catalog_base.js';
 import { solidScriptDocumentCreate, type SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
@@ -32,7 +32,11 @@ import {
   type SolidScriptEditorRowLook,
 } from './solid_script_editor_row.js';
 import { SolidScriptEditorLineKeys } from './solid_script_editor_line_keys.js';
-import { solidScriptEditorLineMenuItems, type SolidScriptEditorLineMenuHost } from './solid_script_editor_line_menu.js';
+import {
+  solidScriptEditorLineMenuItems,
+  solidScriptEditorMenuShow,
+  type SolidScriptEditorLineMenuHost,
+} from './solid_script_editor_line_menu.js';
 import { solidScriptEditorShownCopy, type SolidScriptEditorShownCopy } from './solid_script_editor_copy.js';
 import { SolidScriptEditorLinePaint } from './solid_script_editor_line_paint.js';
 import { SelectionRowsRules } from '@/selection/rows/selection_rows_rules.js';
@@ -209,6 +213,7 @@ export class SolidScriptEditorLines {
     this.element.className = `${SOLID_SCRIPT_EDITOR_CLASSES.lines} ${VIRTUAL_LIST_SCROLLBAR_BIND_SCROLLER_CLASS}`;
     this.element.setAttribute('role', 'list');
     this.element.setAttribute('aria-label', label);
+    this.element.tabIndex = -1;
     this.canvas.className = SOLID_SCRIPT_EDITOR_CLASSES.linesCanvas;
     this.element.append(this.canvas);
     this.host.append(this.element);
@@ -289,9 +294,7 @@ export class SolidScriptEditorLines {
     const line = Number(row.dataset['line']);
     const kept = SelectionRowsRules.contextApply(new Set(this.selected()), line);
     if (kept.size === 1 && kept.has(line)) this.focusLine(line);
-    this.menu?.dispose();
-    this.menu = new MenuContext(this.element, solidScriptEditorLineMenuItems(this.menuHost(), line));
-    this.menu.show(event.clientX, event.clientY);
+    this.menu = solidScriptEditorMenuShow(this.menu, solidScriptEditorLineMenuItems(this.menuHost(), line), event);
   }
 
   /**
@@ -567,6 +570,15 @@ export class SolidScriptEditorLines {
     this.reveal(clamped);
     this.windowRender();
     this.caretChipFocus();
+  }
+
+  /**
+   * Gives the list the keyboard focus, on the current line, or on the list when
+   * it has no lines, so keys and the clipboard reach it.
+   */
+  focusIn(): void {
+    if (this.document.blocks.length > 0) this.focusLine(this.caretLine);
+    else this.element.focus({ preventScroll: true });
   }
 
   /** Moves the keyboard focus to the current line without scrolling. */

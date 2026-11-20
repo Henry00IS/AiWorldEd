@@ -405,6 +405,11 @@ export class SolidScriptFormulaWindow extends SolidScriptDialog {
     this.tip.dispose();
   }
 
+  /** Gives the block list the keyboard focus, on its current block. */
+  protected override focusIn(): void {
+    this.lines.focusIn();
+  }
+
   /** Hides the code tip under a dialog opened over the window. */
   protected override popupsClose(): void {
     this.tip.hide();

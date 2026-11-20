@@ -6,6 +6,9 @@ import { SOLID_SCRIPT_EDITOR_CLASSES, solidScriptEditorStylesheetEnsure } from '
 /** Counter that keeps dialog title ids unique. */
 let solidScriptDialogCount = 0;
 
+/** Events that only the topmost dialog may get: keys and the clipboard. */
+const SOLID_SCRIPT_DIALOG_KEY_EVENTS = ['keydown', 'keyup', 'copy', 'cut', 'paste'] as const;
+
 /**
  * Base of the script editor's modal dialogs: a window with a title bar (its
  * name and an X), the content below it and the button row at the bottom: Cancel
@@ -17,9 +20,15 @@ let solidScriptDialogCount = 0;
  * own blocker stays clear, so the editor behind does not get darker and darker,
  * and a click on it does nothing. However it closes, the window below is light
  * again and the focus goes back to what had it when it opened, such as a script
- * line or the window below, so keys never fall through to the scene.
+ * line or the window below, so keys never fall through to the scene. The dialog
+ * on top takes the keyboard focus when it opens, and keys and the clipboard
+ * reach only that dialog: windows below it get none.
  */
 export abstract class SolidScriptDialog extends PanelFloating {
+  /** Open dialogs, the topmost last. */
+  private static readonly opened: SolidScriptDialog[] = [];
+  /** True once the page sends keys and the clipboard through the guard. */
+  private static guarding = false;
   /** Main button. */
   protected readonly confirmButton: HTMLButtonElement;
   /** Area below the title bar the dialog content goes in. */
@@ -70,6 +79,7 @@ export abstract class SolidScriptDialog extends PanelFloating {
     this.confirmButton = dialogCardButton(confirmLabel, true, () => this.confirmRequest());
     this.confirmButton.title = `${confirmLabel} (Enter)`;
     this.root.addEventListener('keydown', (event) => this.key(event));
+    this.root.tabIndex = -1;
     this.backdropListen();
   }
 
@@ -161,11 +171,54 @@ export abstract class SolidScriptDialog extends PanelFloating {
     this.close();
   }
 
-  /** Opens the dialog, remembering what has the focus. */
+  /**
+   * Opens the dialog on top, remembering what has the focus, and takes the
+   * focus when the dialog put it nowhere inside itself.
+   */
   override show(): void {
     const active = document.activeElement;
     if (!this.isOpen()) this.opener = active instanceof HTMLElement && active !== document.body ? active : null;
+    SolidScriptDialog.guardListen();
+    SolidScriptDialog.opened.push(this);
     super.show();
+    if (!this.root.contains(document.activeElement)) this.focusIn();
+  }
+
+  /**
+   * Gives the dialog the keyboard focus: its first field or button, or the
+   * window itself. Dialogs with a list of their own focus that instead.
+   */
+  protected focusIn(): void {
+    const first = this.content.querySelector<HTMLElement>('input, textarea, select, button, [tabindex="0"]');
+    (first ?? this.root).focus({ preventScroll: true });
+  }
+
+  /** Sends the keys and the clipboard of the page through the guard, once. */
+  private static guardListen(): void {
+    if (SolidScriptDialog.guarding) return;
+    SolidScriptDialog.guarding = true;
+    for (const type of SOLID_SCRIPT_DIALOG_KEY_EVENTS)
+      document.addEventListener(type, (event) => SolidScriptDialog.guard(event), { capture: true });
+  }
+
+  /**
+   * Keeps keys and the clipboard from a window below the topmost dialog, and
+   * keys from the page while a dialog is open: they are dropped, and the dialog
+   * on top takes the focus. Copies a menu runs on the page pass.
+   *
+   * @param event Key or clipboard event.
+   */
+  private static guard(event: Event): void {
+    const opened = SolidScriptDialog.opened.filter((dialog) => dialog.root.isConnected);
+    const top = opened.at(-1);
+    const target = event.target;
+    if (!top || !(target instanceof Node)) return;
+    const page = event instanceof KeyboardEvent && (target === document.body || target === document.documentElement);
+    const below = opened.some((dialog) => dialog !== top && dialog.root.contains(target));
+    if (!page && (!below || top.root.contains(target))) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    top.focusIn();
   }
 
   /** Closes for good, handing the focus back when it was in the dialog. */
@@ -185,6 +238,8 @@ export abstract class SolidScriptDialog extends PanelFloating {
 
   /** Closes the popups and lightens the window below, however the dialog hides. */
   protected override onAfterHide(): void {
+    const index = SolidScriptDialog.opened.indexOf(this);
+    if (index >= 0) SolidScriptDialog.opened.splice(index, 1);
     this.popupsClose();
     if (this.shading) this.parent?.shadeSet(false);
     this.shading = false;

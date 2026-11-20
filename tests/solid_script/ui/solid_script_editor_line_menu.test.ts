@@ -5,7 +5,9 @@ import {
   SOLID_SCRIPT_EDITOR_VIEW_DEFAULT,
   solidScriptEditorViewWrite,
 } from '@/solid_script/ui/solid_script_editor_view.js';
+import { UiStackLayers } from '@/ui/stack/ui_stack_layers.js';
 import { chip, editorFixture, find, press } from './solid_script_editor_fixture.js';
+import { button, chip as block, configuratorOpen } from './solid_script_formula_window_fixture.js';
 
 /** A Transform holding an If with two shapes and a blank line between them. */
 const NESTED: SolidScriptLine[] = [
@@ -176,5 +178,18 @@ describe('SolidScript line menu', () => {
     expect(spans.length).toBeGreaterThan(3);
     for (const span of spans) expect(span.getAttribute('style')).toMatch(/^color:[^;]+;font-weight:/);
     expect(document.querySelectorAll('[data-line]').length).toBe(NESTED.length);
+  });
+
+  it('gives the formula window the same menu, above the window, without turning off and breakpoints', () => {
+    editorFixture([{ command: 'cube' }, { command: 'sphere' }]);
+    menuOpen(0);
+    const script = menuEntries();
+    solidScriptEditorCurrentGet()?.close();
+    document.body.replaceChildren();
+    configuratorOpen('cube', { size: '[=[W] + 1]' }, 'Size');
+    button('Build Size from blocks').click();
+    block(1).dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 5, clientY: 5 }));
+    expect(menuEntries()).toEqual(script.filter((entry) => entry !== 'Turn Off').slice(0, -2));
+    expect(Number(find('[role="menu"]').style.zIndex)).toBeGreaterThan(UiStackLayers.modal);
   });
 });

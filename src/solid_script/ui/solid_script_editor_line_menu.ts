@@ -1,4 +1,5 @@
-import type { MenuContextItem } from '@/ui/menu/menu_context.js';
+import { MenuContext, type MenuContextItem } from '@/ui/menu/menu_context.js';
+import { UiStackLayers } from '@/ui/stack/ui_stack_layers.js';
 import {
   solidScriptEditorClipboardHas,
   solidScriptEditorClipboardRun,
@@ -90,4 +91,26 @@ export function solidScriptEditorLineMenuItems(host: SolidScriptEditorLineMenuHo
     { label: 'Delete', callback: () => host.keys.remove(line) },
     ...(host.switches ? [SOLID_SCRIPT_EDITOR_LINE_MENU_SEPARATOR, breakpoint] : []),
   ];
+}
+
+/**
+ * Opens a menu of the editor at the pointer, in place of the one open before,
+ * above the windows of the editor, also when it opens in a dialog such as the
+ * formula window.
+ *
+ * @param previous Menu open before, or null.
+ * @param items Menu items.
+ * @param event Context menu event.
+ * @returns The open menu.
+ */
+export function solidScriptEditorMenuShow(
+  previous: MenuContext | null,
+  items: MenuContextItem[],
+  event: MouseEvent,
+): MenuContext {
+  previous?.dispose();
+  const menu = new MenuContext(document.body, items);
+  menu.show(event.clientX, event.clientY);
+  menu.getElement().style.zIndex = String(UiStackLayers.modalPopup);
+  return menu;
 }
