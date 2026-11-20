@@ -472,6 +472,20 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
   },
   ...SOLID_SCRIPT_CONDITION_HELPER_DOCS,
   ...SOLID_SCRIPT_KIND_CHECK_DOCS,
+  hits: {
+    usage: 'Hits(element, target, how)',
+    summary:
+      'Yes when the box of an element meets the box of another brush, mesh, face, edge, vertex, point, or any item of a list. How is Touching (any contact, including sitting inside), Overlapping (they share interior space) or Fully Inside. Touching when How is left off.',
+    group: 'Checks',
+    gives: ['Yes/No'],
+  },
+  hits_box: {
+    usage: 'HitsBox(element, center, size, how)',
+    summary:
+      'Yes when the box of an element meets a box of a Center and Size. How is Touching, Overlapping or Fully Inside. Touching when How is left off.',
+    group: 'Checks',
+    gives: ['Yes/No'],
+  },
 };
 
 /** Every built-in function of formulas with its kinds, by name. */
@@ -555,6 +569,21 @@ const SOLID_SCRIPT_FUNCTION_ARGUMENTS: Readonly<Record<string, Omit<SolidScriptF
 const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
   Record<string, Readonly<Record<string, Omit<SolidScriptFunctionArgument, 'name'>>>>
 > = {
+  hits_box: {
+    element: {
+      type: ['Brush', 'Mesh', 'Face', 'Edge', 'Vertex', 'Vector', 'List'],
+      about: 'The thing to test, such as [$Brush] or [$Face].',
+    },
+    center: { type: ['Vector'], about: 'Center of the box.' },
+    size: {
+      type: ['Vector', 'Number'],
+      about: 'Width, height and depth in metres. One number is used on every axis.',
+    },
+    how: {
+      type: ['Text'],
+      about: 'Touching, Overlapping or Fully Inside. Touching when How is left off.',
+    },
+  },
   asin: { value: { type: ['Number'], about: 'A sine, from -1 to 1.' } },
   acos: { value: { type: ['Number'], about: 'A cosine, from -1 to 1.' } },
   atan: { value: { type: ['Number'], about: 'A tangent.' } },

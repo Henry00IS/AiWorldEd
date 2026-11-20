@@ -127,6 +127,15 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
   fieldCodeLayer: 'solid-script-editor-field-code-layer',
   guides: 'solid-script-editor-guides',
   settingsGroup: 'solid-script-editor-settings-group',
+  fieldQuery: 'solid-script-editor-field-query',
+  query: 'solid-script-editor-query',
+  queryMode: 'solid-script-editor-query-mode',
+  queryEasy: 'solid-script-editor-query-easy',
+  queryGroup: 'solid-script-editor-query-group',
+  queryRoot: 'solid-script-editor-query-root',
+  queryHead: 'solid-script-editor-query-head',
+  queryTitle: 'solid-script-editor-query-title',
+  queryInputs: 'solid-script-editor-query-inputs',
 } as const;
 
 /** Accent colour of each palette category, readable on light and dark panels. */
@@ -341,6 +350,17 @@ const SOLID_SCRIPT_EDITOR_DIALOG_CSS = `
 .${c.fieldWarning} { color: ${ThemeCss.mutedTextColor}; }
 .${c.input} { flex: 1; min-width: 0; height: 26px; padding: 0 7px; border-radius: ${SOLID_SCRIPT_EDITOR_INPUT_RADIUS}; border: 1px solid ${ThemeCss.inputBorderColor}; background: ${ThemeCss.inputBackground}; color: ${ThemeCss.inputTextColor}; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; box-sizing: border-box; }
 .${c.input}:focus { outline: none; border-color: ${ThemeCss.accentColor}; }
+.${c.fieldQuery} { align-items: start; }
+.${c.query} { display: flex; flex-direction: column; gap: 8px; width: 100%; min-width: 0; }
+.${c.queryMode} { display: flex; gap: 4px; }
+.${c.queryMode} button[aria-pressed="true"] { font-weight: 600; border-color: ${ThemeCss.accentColor}; }
+.${c.queryEasy} { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.${c.queryGroup} { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 4px 0 4px 8px; border-left: 2px solid ${ThemeCss.inkAlpha(0.16)}; }
+.${c.queryRoot} { padding-left: 0; border-left: none; }
+.${c.queryHead} { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.${c.queryTitle} { flex: 1; min-width: 0; font-weight: 600; }
+.${c.queryInputs} { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 8px; align-items: center; min-width: 0; }
+.${c.queryInputs} span { font-size: 12px; color: ${ThemeCss.textColor}; }
 .${c.preview} { margin: 12px 0 14px; padding: 8px 10px; border-radius: 5px; background: ${ThemeCss.inputBackground}; border: 1px solid ${ThemeCss.inkAlpha(0.08)}; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; color: ${ThemeCss.inputTextColor}; white-space: pre-wrap; word-break: break-word; }
 .${c.list} { max-height: 240px; overflow-y: auto; margin-bottom: 14px; border-radius: 5px; border: 1px solid ${ThemeCss.inkAlpha(0.1)}; background: ${ThemeCss.inputBackground}; }
 .${c.listItem} { padding: 6px 10px; cursor: pointer; }

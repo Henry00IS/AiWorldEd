@@ -162,6 +162,8 @@ const SOLID_SCRIPT_FUNCTIONS_NAMED = {
   ...SOLID_SCRIPT_FUNCTIONS_MATH,
   ...SOLID_SCRIPT_FUNCTIONS_CURVE,
   ...SOLID_SCRIPT_FUNCTIONS_CONDITION,
+  hits: () => undefined,
+  hits_box: () => undefined,
   ...SOLID_SCRIPT_FUNCTIONS_KIND_CHECKS,
 } satisfies Readonly<Record<string, SolidScriptBuiltin>>;
 

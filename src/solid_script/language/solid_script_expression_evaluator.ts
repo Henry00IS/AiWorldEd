@@ -2,8 +2,10 @@ import type { SolidScriptBinding, SolidScriptExpression } from './solid_script_a
 import { solidScriptArithmeticBinary } from './solid_script_arithmetic.js';
 import { solidScriptExpressionCompiled, type SolidScriptCompiled } from './solid_script_expression_compile.js';
 import { SolidScriptScope } from './solid_script_scope.js';
+import type { SolidScriptHitsBox, SolidScriptHitsBounds } from './solid_script_hits.js';
 import {
   SOLID_SCRIPT_LIST_LIMIT,
+  SolidScriptElement,
   solidScriptValueNumber,
   solidScriptValueShow,
   solidScriptValueTruthy,
@@ -21,6 +23,7 @@ export class SolidScriptExpressionEvaluator {
    * @param system Reads a built-in value by name.
    * @param shown Spells a name key for a message, as it was written.
    * @param parse Reads text like a typed field, for Parse().
+   * @param hitsBounds Reads the box of elements, for Hits and HitsBox.
    */
   constructor(
     private readonly tick: () => void = () => {},
@@ -33,7 +36,20 @@ export class SolidScriptExpressionEvaluator {
     private readonly parse: (value: SolidScriptValue, scope: SolidScriptScope) => SolidScriptValue = () => {
       throw new Error('Parse() works only in a running script');
     },
+    private readonly hitsBounds: SolidScriptHitsBounds = () => {
+      throw new Error('Hits() works only in a running script');
+    },
   ) {}
+
+  /**
+   * Reads the axis-aligned box around geometry elements, for Hits and HitsBox.
+   *
+   * @param items Brushes, faces, edges or corners.
+   * @returns Box.
+   */
+  bounds(items: readonly SolidScriptElement[]): SolidScriptHitsBox {
+    return this.hitsBounds(items);
+  }
 
   /**
    * Reads text like a typed field, for Parse().

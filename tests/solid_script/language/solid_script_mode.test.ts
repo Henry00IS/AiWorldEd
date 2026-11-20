@@ -3,6 +3,8 @@ import { solidScriptCommandFind, solidScriptCommands } from '@/solid_script/comm
 import { solidScriptDocumentCreate } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptDocumentListing } from '@/solid_script/document/solid_script_document_listing.js';
 import { solidScriptProgramEvaluate } from '@/solid_script/language/solid_script_program.js';
+import { solidScriptMistakeCheck, solidScriptUseCheck } from '@/solid_script/language/solid_script_use_check.js';
+import { solidScriptKindCheck } from '@/solid_script/document/solid_script_document_kind_check.js';
 
 describe('SolidScript brush Mode', () => {
   it('defaults to Additive, hidden in the listing until it changes', () => {
@@ -68,5 +70,18 @@ describe('SolidScript brush Mode', () => {
       ]),
     );
     expect(listing).toEqual(["Cube '2, 2, 2'", "Sphere Radius '1.3' (Mode 'Subtractive')"]);
+  });
+  it('does not warn when a Cube in a Subtractive group leaves Mode empty', () => {
+    const document = solidScriptDocumentCreate([
+      { command: 'group', values: { mode: 'Subtractive' } },
+      { command: 'cube', values: { size: '2, 2, 2' } },
+      { command: 'end', values: {} },
+    ]);
+    const texts = [
+      ...solidScriptKindCheck(document),
+      ...solidScriptUseCheck(document),
+      ...solidScriptMistakeCheck(document),
+    ].map((warning) => warning.text);
+    expect(texts.filter((text) => /mode/i.test(text))).toEqual([]);
   });
 });

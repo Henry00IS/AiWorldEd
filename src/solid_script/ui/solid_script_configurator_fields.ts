@@ -37,6 +37,10 @@ import {
   solidScriptChoiceWordsForField,
 } from '@/solid_script/language/solid_script_choices.js';
 import type { SolidScriptInput } from '@/solid_script/language/solid_script_input.js';
+import {
+  solidScriptConfiguratorQueryApplies,
+  solidScriptConfiguratorQueryBuild,
+} from './solid_script_configurator_query.js';
 
 /** One labelled field of the configurator. */
 export interface SolidScriptConfiguratorField {
@@ -176,6 +180,8 @@ export function solidScriptConfiguratorFieldBuild(
   // Not a <label>: a click that starts in one input and ends in another lands on
   // the row, and a label would then focus its first input. The inputs carry
   // their own names, so a click on the caption does nothing.
+  if (solidScriptConfiguratorQueryApplies(parameter))
+    return solidScriptConfiguratorQueryBuild(parameter, value, changed, scope, view);
   const row = document.createElement('div');
   row.className = SOLID_SCRIPT_EDITOR_CLASSES.field;
   row.title = parameter.hint;
@@ -352,7 +358,7 @@ function solidScriptConfiguratorTexture(
  * @param label Accessible name.
  * @returns Input.
  */
-function solidScriptConfiguratorInput(value: string, label: string): HTMLInputElement {
+export function solidScriptConfiguratorInput(value: string, label: string): HTMLInputElement {
   const input = document.createElement('input');
   input.type = 'text';
   input.className = SOLID_SCRIPT_EDITOR_CLASSES.input;
@@ -408,7 +414,7 @@ export function solidScriptConfiguratorSuggests(parameter: SolidScriptCommandPar
  * @param value Typed text.
  * @returns Problem, or an empty string.
  */
-function solidScriptConfiguratorProblem(parameter: SolidScriptCommandParameter, value: string): string {
+export function solidScriptConfiguratorProblem(parameter: SolidScriptCommandParameter, value: string): string {
   const text = value.trim();
   if (text === '' && parameter.optional) return '';
   const named = solidScriptConfiguratorNameProblem(parameter, text);

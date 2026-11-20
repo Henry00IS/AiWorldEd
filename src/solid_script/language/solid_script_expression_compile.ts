@@ -8,6 +8,7 @@ import { solidScriptKindFits, solidScriptKindOf, solidScriptKindsWords } from '.
 import { solidScriptArithmeticBinary } from './solid_script_arithmetic.js';
 import type { SolidScriptExpressionEvaluator } from './solid_script_expression_evaluator.js';
 import { SOLID_SCRIPT_FUNCTIONS_BUILTIN } from './solid_script_functions_builtin.js';
+import { solidScriptHits, solidScriptHitsBox } from './solid_script_hits.js';
 import { solidScriptFunctionKey, solidScriptFunctionSpelling, solidScriptNameKey } from './solid_script_name_key.js';
 import { SOLID_SCRIPT_VECTOR_AXES } from './solid_script_members.js';
 import { solidScriptSystemBareHint } from './solid_script_system_names.js';
@@ -182,6 +183,28 @@ function solidScriptCompileCallMistake(name: string, key: string, values: readon
  * @param args Compiled arguments.
  * @returns Closure.
  */
+
+/**
+ * Runs a built-in function, including Hits and HitsBox which need the boxes of
+ * the running script.
+ *
+ * @param key Stored name, such as hits.
+ * @param builtin Ordinary implementation.
+ * @param values Evaluated arguments.
+ * @param evaluator Running evaluator.
+ * @returns Result, or undefined when the values do not fit.
+ */
+function solidScriptCompileBuiltin(
+  key: string,
+  builtin: (args: SolidScriptValue[]) => SolidScriptValue,
+  values: readonly SolidScriptValue[],
+  evaluator: SolidScriptExpressionEvaluator,
+): SolidScriptValue {
+  if (key === 'hits') return solidScriptHits(values, (items) => evaluator.bounds(items));
+  if (key === 'hits_box') return solidScriptHitsBox(values, (items) => evaluator.bounds(items));
+  return builtin([...values]);
+}
+
 function solidScriptCompileCall(written: string, args: readonly SolidScriptCompiled[]): SolidScriptCompiled {
   const found = solidScriptBuiltinFind(written);
   const builtin = found ? SOLID_SCRIPT_FUNCTIONS_BUILTIN[found] : undefined;
@@ -195,10 +218,10 @@ function solidScriptCompileCall(written: string, args: readonly SolidScriptCompi
   return (evaluator, scope) => {
     const values = new Array<SolidScriptValue>(args.length);
     for (let index = 0; index < args.length; index++) values[index] = args[index]!(evaluator, scope);
-    if (!builtin) return evaluator.callUser(name, values);
+    if (!found || !builtin) return evaluator.callUser(name, values);
     solidScriptCompileInputsCheck(name, inputs, values);
-    const result = builtin(values);
-    if (result === undefined && found !== 'is_undef') throw solidScriptCompileCallMistake(name, found!, values);
+    const result = solidScriptCompileBuiltin(found, builtin, values, evaluator);
+    if (result === undefined && found !== 'is_undef') throw solidScriptCompileCallMistake(name, found, values);
     return result;
   };
 }

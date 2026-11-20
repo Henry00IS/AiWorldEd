@@ -244,6 +244,10 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
     (name) => this.systemRead(name),
     (key) => this.nameShown(key),
     (value, scope) => this.fieldParse(value, scope),
+    (items) => {
+      const box = this.elements.bounds(items);
+      return { min: box.min.toArray(), max: box.max.toArray() };
+    },
   );
   /** How many Parse() calls are running inside each other. */
   private parseDepth = 0;

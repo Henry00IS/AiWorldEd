@@ -142,6 +142,50 @@ export const SOLID_SCRIPT_CONDITION_HELPERS: readonly SolidScriptConditionHelper
       { name: 'name', label: 'Name', type: ['Text'], about: 'Tag to look for, such as Top.' },
     ],
   },
+  {
+    key: 'hits',
+    name: 'Hits',
+    display: 'Hits',
+    description:
+      'Yes when the box of an element meets another box, or any item of a list. How is Touching (any contact, including sitting inside), Overlapping (they share interior space) or Fully Inside. Touching when How is left off.',
+    inputs: [
+      {
+        name: 'element',
+        label: 'Element',
+        type: ['Brush', 'Mesh', 'Face', 'Edge', 'Vertex', 'Vector', 'List'],
+        about: 'The thing to test, such as [$Brush] or [$Face].',
+      },
+      {
+        name: 'target',
+        label: 'Box',
+        type: ['Brush', 'Mesh', 'Face', 'Edge', 'Vertex', 'Vector', 'List'],
+        about:
+          'A brush, mesh or list whose bounds are the box, such as [Wall]. Leave off and set Center and Size instead.',
+        optional: '',
+      },
+      {
+        name: 'center',
+        label: 'Center',
+        type: ['Vector'],
+        about: 'Center of the box, when Box is left off.',
+        optional: '',
+      },
+      {
+        name: 'size',
+        label: 'Size',
+        type: ['Vector', 'Number'],
+        about: 'Width, height and depth in metres, when Box is left off. One number is used on every axis.',
+        optional: '',
+      },
+      {
+        name: 'how',
+        label: 'How',
+        type: ['Text'],
+        about: 'Touching, Overlapping or Fully Inside. Touching when left off.',
+        optional: 'Touching',
+      },
+    ],
+  },
 ];
 
 /**
@@ -182,6 +226,7 @@ export const SOLID_SCRIPT_CONDITION_HELPER_DOCS = {
   near: solidScriptConditionHelperDoc('near'),
   every_nth: solidScriptConditionHelperDoc('every_nth'),
   has_tag: solidScriptConditionHelperDoc('has_tag'),
+  hits: solidScriptConditionHelperDoc('hits'),
 };
 
 /** Argument docs for the curated condition functions, keyed by stored name. */
@@ -191,4 +236,5 @@ export const SOLID_SCRIPT_CONDITION_HELPER_ARGUMENTS = {
   near: solidScriptConditionHelperArgs('near'),
   every_nth: solidScriptConditionHelperArgs('every_nth'),
   has_tag: solidScriptConditionHelperArgs('has_tag'),
+  hits: solidScriptConditionHelperArgs('hits'),
 };
