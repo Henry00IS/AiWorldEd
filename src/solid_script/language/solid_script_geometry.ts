@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { solidScriptPointsKey } from './solid_script_points_key.js';
 import { SOLID_SCRIPT_AXES_FACING, SOLID_SCRIPT_AXES_UP, solidScriptAxesHeight } from './solid_script_axes.js';
 import {
   solidScriptMeshChecked,
@@ -103,16 +104,6 @@ export function solidScriptGeometryMeshCacheClear(): void {
  * @param leaf Solid or mesh.
  * @returns Mesh with the same faces.
  */
-/**
- * A key of corner points so two solids of the same shape share one hull.
- *
- * @param points Corners.
- * @returns Key.
- */
-function solidScriptPointsKey(points: readonly THREE.Vector3[]): string {
-  return points.map((point) => `${point.x.toFixed(6)},${point.y.toFixed(6)},${point.z.toFixed(6)}`).join(';');
-}
-
 export function solidScriptGeometryMesh(leaf: SolidScriptGeometryLeaf): SolidScriptShapeMesh {
   if (leaf.kind === 'mesh') return leaf;
   const kept = SOLID_SCRIPT_MESH_OF.get(leaf);
