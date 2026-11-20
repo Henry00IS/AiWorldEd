@@ -12,6 +12,7 @@ import {
   resolveSharedContentMaterialList,
   restoreSharedContentMaterials,
 } from '@/viewports/shared/shared_content_material_store.js';
+import { CacheShadingOverrideMaterials } from './cache_shading_override_materials.js';
 
 /** Object names that mark groups exempt from shading material overrides. */
 const EXEMPT_GROUP_NAMES = new Set(['gizmo_transform', 'gizmo_transform_viewport', 'gizmo_bounds']);
@@ -20,7 +21,7 @@ const EXEMPT_GROUP_NAMES = new Set(['gizmo_transform', 'gizmo_transform_viewport
 export class ManagerShadingMode {
   private viewportScene: THREE.Scene;
   private activeMode: ShadingMode;
-  private ownedOverrideMaterials: Set<THREE.Material>;
+  private overrideCache: CacheShadingOverrideMaterials;
 
   /**
    * Creates a new shading mode manager for the given scene.
@@ -30,7 +31,7 @@ export class ManagerShadingMode {
   constructor(viewportScene: THREE.Scene) {
     this.viewportScene = viewportScene;
     this.activeMode = ShadingMode.SOLID;
-    this.ownedOverrideMaterials = new Set();
+    this.overrideCache = new CacheShadingOverrideMaterials();
   }
 
   /**
@@ -87,7 +88,7 @@ export class ManagerShadingMode {
   /** Cleans up resources held by this manager. */
   dispose(): void {
     this.restoreContentMaterials();
-    this.ownedOverrideMaterials.clear();
+    this.overrideCache.disposeAll();
   }
 
   /**
@@ -160,7 +161,6 @@ export class ManagerShadingMode {
 
   /** Restores every content mesh from the shared content material store. */
   private restoreContentMaterials(): void {
-    this.disposeOwnedOverrideMaterials();
     this.collectContentMeshes().forEach((mesh) => {
       restoreSharedContentMaterials(mesh);
     });
@@ -186,13 +186,19 @@ export class ManagerShadingMode {
     meshes: readonly THREE.Mesh[],
     createOverride: (source: THREE.Material) => THREE.Material,
   ): void {
+    const liveSources = new Set<THREE.Material>();
     meshes.forEach((mesh) => {
       const contentMaterials = resolveSharedContentMaterialList(mesh);
       if (contentMaterials.length === 0) return;
-      const overrideMaterials = contentMaterials.map((source) => createOverride(source));
-      overrideMaterials.forEach((material) => this.trackOverrideMaterial(material));
+      contentMaterials.forEach((source) => liveSources.add(source));
+      const overrideMaterials = contentMaterials.map((source) =>
+        this.overrideCache.resolve(source, this.activeMode, (content) =>
+          this.trackOverrideMaterial(createOverride(content)),
+        ),
+      );
       mesh.material = pickMaterialOrArray(overrideMaterials);
     });
+    this.overrideCache.pruneMissingSources(liveSources);
   }
 
   /**
@@ -260,24 +266,14 @@ export class ManagerShadingMode {
   }
 
   /**
-   * Tracks and tags an override material for later dispose.
+   * Tags an override material so content snapshots and disposal skip it.
    *
    * @param material Temporary shading material.
+   * @returns The same material.
    */
-  private trackOverrideMaterial(material: THREE.Material): void {
+  private trackOverrideMaterial(material: THREE.Material): THREE.Material {
     markShadingOverrideMaterial(material);
-    this.ownedOverrideMaterials.add(material);
-  }
-
-  /** Disposes override materials created for FLAT, WIREFRAME or CLAY modes. */
-  private disposeOwnedOverrideMaterials(): void {
-    this.ownedOverrideMaterials.forEach((material) => {
-      if ('map' in material) {
-        (material as THREE.MeshBasicMaterial).map = null;
-      }
-      material.dispose();
-    });
-    this.ownedOverrideMaterials.clear();
+    return material;
   }
 }
 
