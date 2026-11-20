@@ -12,7 +12,10 @@ import type {
 } from '@/solid_script/commands/solid_script_command.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import { solidScriptAnchorRead } from '@/solid_script/language/solid_script_anchor.js';
-import { solidScriptParameterPlaceholder } from '@/solid_script/commands/solid_script_parameter_default.js';
+import {
+  solidScriptParameterPlaceholder,
+  solidScriptParameterValueEffective,
+} from '@/solid_script/commands/solid_script_parameter_default.js';
 import {
   solidScriptFieldAsTyped,
   solidScriptFieldBoolean,
@@ -458,8 +461,8 @@ export function solidScriptConfiguratorSuggests(parameter: SolidScriptCommandPar
  * @returns Problem, or an empty string.
  */
 export function solidScriptConfiguratorProblem(parameter: SolidScriptCommandParameter, value: string): string {
-  const text = value.trim();
-  if (text === '' && parameter.optional) return '';
+  const text = solidScriptParameterValueEffective(value, parameter.default).trim();
+  if (text === '' && (parameter.optional || parameter.type === 'text')) return '';
   const named = solidScriptConfiguratorNameProblem(parameter, text);
   if (named) return named;
   if (parameter.type !== 'text' && text === '') return `${parameter.label} needs a value.`;

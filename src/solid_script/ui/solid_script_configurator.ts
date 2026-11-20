@@ -4,6 +4,7 @@ import type {
   SolidScriptCommandValues,
 } from '@/solid_script/commands/solid_script_command.js';
 import { solidScriptParameterApplies } from '@/solid_script/commands/solid_script_command_parameters.js';
+import { solidScriptParameterAllowsEmpty } from '@/solid_script/commands/solid_script_parameter_default.js';
 import {
   solidScriptCommandFieldFills,
   solidScriptParameterEachActive,
@@ -122,7 +123,7 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
     values: SolidScriptCommandValues,
   ): SolidScriptConfiguratorField {
     const command = this.command;
-    const stored = values[parameter.key] ?? (parameter.optional === true ? '' : parameter.default);
+    const stored = values[parameter.key] ?? (solidScriptParameterAllowsEmpty(parameter) ? '' : parameter.default);
     return solidScriptConfiguratorFieldBuild(parameter, stored, () => this.refresh(), {
       names: this.names,
       extra: this.fillsOf(parameter, values),

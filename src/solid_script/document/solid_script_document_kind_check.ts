@@ -1,4 +1,5 @@
 import type { SolidScriptDocument } from './solid_script_document.js';
+import { solidScriptGivenText } from './solid_script_document_gives.js';
 import { solidScriptDocumentActiveLines } from './solid_script_document_active.js';
 import { solidScriptDocumentFlowAt } from './solid_script_document_flow.js';
 import { solidScriptFlowFormulaProblems } from './solid_script_document_flow_formula.js';
@@ -41,7 +42,7 @@ export function solidScriptKindCheck(document: SolidScriptDocument): SolidScript
     const state = solidScriptDocumentFlowAt(document, line);
     const head: SolidScriptFlowHead = (key) => [...(state.get(key)?.kinds ?? [])];
     for (const parameter of command.parameters) {
-      const text = block.values[parameter.key] ?? '';
+      const text = solidScriptGivenText(block, parameter.key);
       if (text.trim() === '' || parameter.writes) continue;
       if (!solidScriptParameterApplies(parameter, block.values, command.parameters)) continue;
       for (const problem of solidScriptKindProblems(parameter, text, head, block.values, inputs))

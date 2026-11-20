@@ -35,6 +35,20 @@ export function solidScriptParameterValueEffective(text: string | undefined, fal
  * @param fallback Declared default.
  * @returns True when it equals the default.
  */
+
+/**
+ * Tells whether a field may stay empty: it is marked optional, or it has a
+ * declared default that empty uses.
+ *
+ * @param parameter Field.
+ * @returns True when empty is allowed.
+ */
+export function solidScriptParameterAllowsEmpty(
+  parameter: Pick<SolidScriptCommandParameter, 'optional' | 'default'>,
+): boolean {
+  return parameter.optional === true || parameter.default.trim() !== '';
+}
+
 export function solidScriptParameterValueIsDefault(text: string, fallback: string): boolean {
   const given = solidScriptParameterValueEffective(text, fallback);
   return solidScriptParameterTextNormalized(given) === solidScriptParameterTextNormalized(fallback);
@@ -90,10 +104,9 @@ function solidScriptParameterPlaceholderNumber(text: string): boolean {
  * @returns Placeholder text, or empty when there is none.
  */
 export function solidScriptParameterPlaceholder(parameter: SolidScriptCommandParameter): string {
-  const candidate =
-    parameter.placeholder !== undefined && parameter.placeholder !== '' ? parameter.placeholder : parameter.default;
-  if (!solidScriptParameterPlaceholderValue(parameter, candidate)) return '';
-  if (parameter.default !== '' && solidScriptParameterValueIsDefault(candidate, parameter.default))
+  if (parameter.default.trim() !== '' && solidScriptParameterPlaceholderValue(parameter, parameter.default))
     return parameter.default;
-  return parameter.optional === true ? candidate : '';
+  const candidate = parameter.placeholder ?? '';
+  if (parameter.optional === true && solidScriptParameterPlaceholderValue(parameter, candidate)) return candidate;
+  return '';
 }

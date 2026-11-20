@@ -1,4 +1,5 @@
 import type { SolidScriptCommand } from '@/solid_script/commands/solid_script_command.js';
+import { solidScriptParameterAllowsEmpty } from '@/solid_script/commands/solid_script_parameter_default.js';
 import type { SolidScriptCommandCatalog } from '@/solid_script/commands/solid_script_command_catalog_base.js';
 import {
   SOLID_SCRIPT_FORMULA_CHECK,
@@ -363,7 +364,9 @@ function solidScriptFormulaNeed(command: string, section: number, count: number,
  * @returns Problem, or an empty string.
  */
 function solidScriptFormulaLeafProblem(command: SolidScriptCommand, values: Readonly<Record<string, string>>): string {
-  const missing = command.parameters.find((field) => !field.optional && (values[field.key] ?? '').trim() === '');
+  const missing = command.parameters.find(
+    (field) => !solidScriptParameterAllowsEmpty(field) && (values[field.key] ?? '').trim() === '',
+  );
   if (missing) return `${command.label}: ${missing.label} needs a value.`;
   const problem = command.check?.(values) ?? '';
   return problem;
