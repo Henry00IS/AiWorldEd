@@ -632,7 +632,7 @@ const FIELD_CASES: readonly FieldCase[] = [
     edit: edit(1, 'formula_variable', 'Turns', '[Turns] / [Steps] + 9'),
   },
   { kind: 'slots', id: 'echo', label: 'Message', stored: 'Box$, big', blocks: ["Text 'Box, big'"] },
-  { kind: 'slots', id: 'echo', label: 'Message', stored: '$[Box$] is', blocks: ["Text '$[Box$] is'"] },
+  { kind: 'slots', id: 'echo', label: 'Message', stored: '$[Box$] is', blocks: ["Text '[Box] is'"] },
   { kind: 'message', id: 'echo', label: 'Message', stored: '[=""]', blocks: ["Text ''"], edit: edit(0, T, 'Hi', 'Hi') },
   {
     kind: 'message',

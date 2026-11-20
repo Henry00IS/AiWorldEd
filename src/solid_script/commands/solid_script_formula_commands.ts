@@ -26,13 +26,10 @@ import {
   SOLID_SCRIPT_FUNCTION_DOCS,
   SOLID_SCRIPT_FUNCTION_GROUPS,
 } from '@/solid_script/language/solid_script_function_docs.js';
-import {
-  solidScriptListingValue,
-  type SolidScriptListingPart,
-  type SolidScriptListingValues,
-} from './solid_script_command_listing.js';
+import { type SolidScriptListingPart, type SolidScriptListingValues } from './solid_script_command_listing.js';
 import {
   solidScriptFormulaIsName,
+  solidScriptFormulaTextBlock,
   solidScriptFormulaTyped,
   type SolidScriptFormulaInputKind,
 } from '@/solid_script/language/solid_script_formula_field.js';
@@ -103,9 +100,10 @@ export const SOLID_SCRIPT_FORMULA_LEAVES: readonly (SolidScriptFormulaBlockText 
     id: SOLID_SCRIPT_FORMULA_COMMAND.text,
     kind: 'text',
     label: 'Text',
-    description: 'Words, such as Top',
-    manual: 'Words, such as a tag name. Example: Text Top.',
-    hint: 'Words, such as Top or Fully Inside.',
+    description: 'Words, kept exactly as typed, such as Top',
+    manual:
+      'Words, kept exactly as typed, spaces, brackets and dollar signs too, such as a tag name. Example: Text Top.',
+    hint: 'Words, kept exactly as you type them, such as Top. The $ signs the field needs are added for you: $ and a space keep a space at the start or end, $$ is a dollar sign, $[ and $] are brackets, $, is a comma.',
   },
   {
     id: SOLID_SCRIPT_FORMULA_COMMAND.variable,
@@ -139,7 +137,7 @@ function solidScriptFormulaLeafListing(
   kind: SolidScriptFormulaInputKind,
   read: SolidScriptListingValues,
 ): SolidScriptListingPart {
-  if (kind === 'text') return solidScriptListingValue(read.raw('value'));
+  if (kind === 'text') return { kind: 'value', text: `'${read.raw('value')}'` };
   const name = kind === 'variable' && solidScriptFormulaIsName(read.text('value'));
   return name ? read.variable('value') : read.value('value');
 }
@@ -155,10 +153,10 @@ function solidScriptFormulaLeafListing(
 function solidScriptFormulaValues(words: readonly SolidScriptCommandWord[] = []): SolidScriptCommand[] {
   return SOLID_SCRIPT_FORMULA_LEAVES.map((leaf) => {
     const field = solidScriptParameter('value', leaf.label, leaf.kind === 'text' ? 'text' : 'value', '', leaf.hint);
-    const offered = leaf.kind === 'text' ? { spaces: true, ...(words.length > 0 ? { words } : {}) } : {};
-    const fields = [
-      { key: 'value', label: leaf.label, formula: (text: string) => solidScriptFormulaTyped(leaf.kind, text) },
-    ];
+    const text = leaf.kind === 'text';
+    const offered = text ? { spaces: true, verbatim: true, ...(words.length > 0 ? { words } : {}) } : {};
+    const formula = text ? solidScriptFormulaTextBlock : (typed: string) => solidScriptFormulaTyped(leaf.kind, typed);
+    const fields = [{ key: 'value', label: leaf.label, formula }];
     return solidScriptFormulaBlock(leaf, 'Values', {
       parameters: [{ ...field, ...offered }],
       check: (values) => solidScriptFormulaFieldsProblem(fields, values),

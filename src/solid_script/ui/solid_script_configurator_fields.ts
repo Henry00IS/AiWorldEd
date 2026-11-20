@@ -231,20 +231,23 @@ export function solidScriptConfiguratorFieldBuild(
         view,
         (text) => new Set(solidScriptFieldUnknown(text, known).map((entry) => entry.key)),
       );
-  const warning = (): string => {
-    if (raw) return '';
-    const mistake = solidScriptFieldMistakeOf(parameter, field.read(), (name) =>
-      known.names.has(solidScriptNameKey(name)),
-    );
-    if (mistake) return `${parameter.label}: ${mistake}`;
+  const choice = (): string => {
     const declared = solidScriptChoiceWordsForField(
       parameter,
       scope.values?.() ?? {},
       field.read(),
       scope.inputs ?? [],
     );
-    const choice = solidScriptChoiceWordProblem(field.read(), declared);
-    if (choice) return `${parameter.label} ${choice}`;
+    const problem = solidScriptChoiceWordProblem(field.read(), declared);
+    return problem ? `${parameter.label} ${problem}` : '';
+  };
+  const warning = (): string => {
+    if (raw) return words.length > 0 ? choice() : '';
+    const mistake = solidScriptFieldMistakeOf(parameter, field.read(), (name) =>
+      known.names.has(solidScriptNameKey(name)),
+    );
+    if (mistake) return `${parameter.label}: ${mistake}`;
+    if (choice()) return choice();
     const note = solidScriptConfiguratorVectorSize(parameter) > 0 ? solidScriptFieldVectorNote(field.read()) : '';
     if (note) return `${parameter.label}: ${note}.`;
     const fillWarning = scope.eachFillWarning?.(field.read()) ?? '';
@@ -501,13 +504,15 @@ function solidScriptConfiguratorNameProblem(parameter: SolidScriptCommandParamet
 /**
  * Tells whether a field offers suggestions as it is typed: every field that
  * reads [names] and [=formulas], and a field used as typed that offers name
- * groups, such as Set's Variable or Output's Of.
+ * groups, such as Set's Variable or Output's Of, or words, such as a Text
+ * block.
  *
  * @param parameter Field.
  * @returns True when it offers them.
  */
 export function solidScriptConfiguratorSuggests(parameter: SolidScriptCommandParameter): boolean {
-  return !solidScriptFieldAsTyped(parameter) || solidScriptConfiguratorNameGroups(parameter) !== undefined;
+  const offers = solidScriptConfiguratorNameGroups(parameter) !== undefined || (parameter.words?.length ?? 0) > 0;
+  return !solidScriptFieldAsTyped(parameter) || offers;
 }
 
 /**

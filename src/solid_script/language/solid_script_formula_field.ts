@@ -8,8 +8,11 @@ import {
 import {
   SOLID_SCRIPT_FORMULA_NUMBER,
   solidScriptFormulaFromPlain,
+  solidScriptFormulaTextLiteral,
+  solidScriptFormulaTextQuote,
   solidScriptFormulaToPlain,
 } from './solid_script_formula_plain.js';
+import { SolidScriptFormulaSource } from './solid_script_formula_source.js';
 
 /**
  * How a block input shows what it holds: a vector, a text, a variable or any
@@ -19,9 +22,6 @@ export type SolidScriptFormulaInputKind = 'vector' | 'text' | 'variable' | 'any'
 
 /** A variable name as typed without brackets, such as Width or $Face.Center. */
 const SOLID_SCRIPT_FORMULA_NAME = /^\$?[A-Za-z_][\w.]*$/;
-
-/** Text in double quotes, where $" is a double quote and $$ a dollar sign. */
-const SOLID_SCRIPT_FORMULA_QUOTED = /^"((?:[^"$]|\$["$]|\$(?!["$]))*)"$/;
 
 /** A Vector call, such as Vector(0, 1, 0). */
 const SOLID_SCRIPT_FORMULA_VECTOR_CALL = /^Vector\s*\(([\s\S]*)\)$/i;
@@ -130,6 +130,22 @@ export function solidScriptFormulaBodyOr(kind: SolidScriptFieldKind, stored: str
 }
 
 /**
+ * Reads a formula that is one text in double quotes as that text.
+ *
+ * @param formula Formula, trimmed.
+ * @returns Text, or null for any other formula.
+ */
+function solidScriptFormulaQuoted(formula: string): string | null {
+  if (!formula.startsWith('"')) return null;
+  try {
+    const string = SolidScriptFormulaSource.read(formula).tree.kind === 'string';
+    return string ? solidScriptFormulaTextLiteral(formula.slice(1, -1)) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Shows the formula of a text input the way it is typed: a text such as "Top"
  * or "" as what is inside the quotes, Top or nothing, one [Name] as it is, and
  * any other formula as [=formula].
@@ -138,8 +154,8 @@ export function solidScriptFormulaBodyOr(kind: SolidScriptFieldKind, stored: str
  * @returns Shown text.
  */
 function solidScriptFormulaTextShown(formula: string): string {
-  const quoted = SOLID_SCRIPT_FORMULA_QUOTED.exec(formula)?.[1];
-  if (quoted !== undefined) return quoted.replace(/\$"/g, '"');
+  const quoted = solidScriptFormulaQuoted(formula);
+  if (quoted !== null) return quoted;
   if (formula === '' || (solidScriptFormulaLone(formula) && !formula.startsWith('[='))) return formula;
   return `[=${formula}]`;
 }
@@ -156,18 +172,18 @@ function solidScriptFormulaTextTyped(shown: string): string {
   const unwrapped = solidScriptFormulaUnwrap(shown);
   if (unwrapped !== null) return unwrapped.trim();
   if (shown === '' || solidScriptFormulaLone(shown.trim())) return shown.trim();
-  return `"${shown.replace(/"/g, '$"')}"`;
+  return solidScriptFormulaTextQuote(shown);
 }
 
 /**
- * Turns the text of a Text block into its formula: like a text input, and
- * nothing is the empty text "".
+ * Turns the text of a Text block into its formula: the text exactly as typed,
+ * brackets, $ and spaces too, in quotes; nothing is the empty text "".
  *
  * @param shown Typed text.
  * @returns Formula.
  */
 export function solidScriptFormulaTextBlock(shown: string): string {
-  return shown === '' ? '""' : solidScriptFormulaTextTyped(shown);
+  return solidScriptFormulaTextQuote(shown);
 }
 
 /**

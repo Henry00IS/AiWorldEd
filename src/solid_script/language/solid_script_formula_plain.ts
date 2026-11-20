@@ -58,6 +58,36 @@ function solidScriptFormulaPlainItems(text: string): string[] | null {
   return items.some((item) => item === '') ? null : items;
 }
 
+/** A double quote, or a $ a formula string would read as an escape. */
+const SOLID_SCRIPT_FORMULA_STRING_ESCAPE = /"|\$(?=[$"]|$)/g;
+
+/** A bracket, or a $ field text would read as an escape. */
+const SOLID_SCRIPT_FORMULA_FIELD_ESCAPE = /\$(?=[$[\],])|[[\]]/g;
+
+/**
+ * Writes text as a formula string in a field that reads back as exactly that
+ * text: a double quote as $", a $ the string would read as an escape as $$, and
+ * then a $ or bracket the field would read as an escape with a $ before it.
+ *
+ * @param text Text as it should come out.
+ * @returns Formula string, in double quotes.
+ */
+export function solidScriptFormulaTextQuote(text: string): string {
+  const string = text.replace(SOLID_SCRIPT_FORMULA_STRING_ESCAPE, (character) => `$${character}`);
+  return `"${string.replace(SOLID_SCRIPT_FORMULA_FIELD_ESCAPE, (character) => `$${character}`)}"`;
+}
+
+/**
+ * Reads what is inside the quotes of a formula string in a field as the text it
+ * stands for: the field's $$, $[, $], $, first, then the string's $" and $$.
+ *
+ * @param inner Text inside the quotes, as written in the field.
+ * @returns Text.
+ */
+export function solidScriptFormulaTextLiteral(inner: string): string {
+  return inner.replace(/\$([$[\],])/g, '$1').replace(/\$([$"])/g, '$1');
+}
+
 /**
  * Tells whether field text is one bracketed part alone, such as [Width].
  *
@@ -103,14 +133,14 @@ function solidScriptFormulaTextFromPlain(typed: string): string | null {
 }
 
 /**
- * Writes words of plain field text as a formula string: $, becomes a comma and
- * a double quote $".
+ * Writes words of plain field text as a formula string of the same text: the
+ * field's $$, $[, $] and $, are read first.
  *
  * @param words Words as typed in the field.
  * @returns Formula string.
  */
 function solidScriptFormulaPlainString(words: string): string {
-  return `"${words.replaceAll('$,', ',').replaceAll('"', '$"')}"`;
+  return solidScriptFormulaTextQuote(words.replace(/\$([$[\],])/g, '$1'));
 }
 
 /**
@@ -161,22 +191,27 @@ export function solidScriptFormulaFromPlain(kind: SolidScriptFieldKind, text: st
 }
 
 /**
- * Writes a text of a formula as plain field text, with commas escaped where
- * they part items. Escaped brackets, such as $[Box$], stay as they are.
+ * Writes a text of a formula as plain field text that reads back as the same
+ * text: a bracket, and a $ the field would read as an escape or that ends the
+ * text, get a $ before them, and so do commas where they part items. A $ and a
+ * space stay, unless at the start or end of the field; see
+ * solidScriptFormulaPlainEdges.
  *
  * @param source Formula read.
  * @param node Text.
  * @param splits True when commas part items in the field.
- * @returns Plain text, or null when it would read back as something else.
+ * @returns Plain text, or null when a bracket in the quotes reads a part.
  */
 function solidScriptFormulaTextPlain(
   source: SolidScriptFormulaSource,
   node: SolidScriptExpression,
   splits: boolean,
 ): string | null {
-  const raw = source.slice(node).slice(1, -1).replaceAll('$"', '"');
-  if (/\$(?![[\]])|(?<!\$)[[\]]/.test(raw)) return null;
-  return splits ? raw.replaceAll(',', '$,') : raw;
+  const inner = source.slice(node).slice(1, -1);
+  if (/[[\]]/.test(inner.replace(/\$[$[\],]/g, ''))) return null;
+  const text = solidScriptFormulaTextLiteral(inner);
+  const escape = splits ? /\$(?=[$[\],]|$)|[[\],]/g : /\$(?=[$[\],]|$)|[[\]]/g;
+  return text.replace(escape, (character) => `$${character}`);
 }
 
 /**
@@ -248,21 +283,25 @@ function solidScriptFormulaStringPlain(
   edges: boolean,
 ): string | null {
   const plain = solidScriptFormulaPlainEdges(solidScriptFormulaTextPlain(source, node, splits), edges);
-  return plain !== null && plain !== '' && !/^[-+.\d=]/.test(plain.trim()) ? plain : null;
+  const reads = plain === null ? '' : plain.trim();
+  return reads !== '' && !SOLID_SCRIPT_FORMULA_NUMBER.test(reads) && !reads.startsWith('=') ? plain : null;
 }
 
 /**
- * Keeps the spaces at the start and the end of plain text: written as $ and a
- * space each where the text is the whole field, and not plain at all in an item
- * of a list.
+ * Keeps the start and the end of plain text as they are: a $ and a space there
+ * become $$ and a space, so the field does not read them as a kept space, and
+ * spaces become $ and a space each where the text is the whole field; with
+ * spaces there an item of a list is not plain at all.
  *
  * @param plain Plain text, or null.
  * @param edges True when the text is the whole field.
  * @returns Plain text, or null.
  */
 function solidScriptFormulaPlainEdges(plain: string | null, edges: boolean): string | null {
-  if (plain === null || !/^ | $/.test(plain)) return plain;
-  return edges ? solidScriptFieldSpacesWrite(plain) : null;
+  if (plain === null) return null;
+  const kept = plain.replace(/^(?: |\$ )+|(?: |\$ )+$/g, (run) => run.replaceAll('$ ', '$$$$ '));
+  if (!/^ | $/.test(kept)) return kept;
+  return edges ? solidScriptFieldSpacesWrite(kept) : null;
 }
 
 /**

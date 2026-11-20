@@ -5,6 +5,7 @@ import {
   solidScriptFunctionInputsLeast,
 } from '@/solid_script/language/solid_script_function_docs.js';
 import { solidScriptFormulaCatalog } from '@/solid_script/commands/solid_script_formula_commands.js';
+import { SOLID_SCRIPT_FORMULA_COMMAND } from '@/solid_script/commands/solid_script_formula_groups.js';
 import { solidScriptFormulaProblem } from '@/solid_script/language/solid_script_formula_source.js';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
@@ -86,8 +87,10 @@ describe('SolidScript function docs', () => {
 });
 
 describe('SolidScript function doc text', () => {
-  it('writes no $ escapes and no such as( in any doc, hint or summary', () => {
-    for (const text of docTexts()) {
+  it('writes no $ escapes and no such as( in any doc, hint or summary, but where the Text block explains them', () => {
+    const explains = solidScriptFormulaCatalog().find(SOLID_SCRIPT_FORMULA_COMMAND.text)!.parameters[0]!.hint;
+    expect(explains).toMatch(/\$\$ is a dollar sign/);
+    for (const text of docTexts().filter((entry) => entry !== explains)) {
       expect(text, text).not.toMatch(/\$[[\],$" ]/);
       expect(text, text).not.toContain('such as(');
     }
