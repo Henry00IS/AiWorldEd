@@ -740,7 +740,7 @@ describe('SolidScript editor', () => {
     chip(0).focus();
     const help = find('.solid-script-editor-help');
     expect(help.textContent).toContain('Cylinder');
-    expect(help.textContent).toContain('Height along Y in metres.');
+    expect(help.textContent).toContain('Height along Y in metres, such as 2.');
     expect(
       help.querySelector('.solid-script-editor-help-parameter .solid-script-editor-parameter-value')?.textContent,
     ).toBe('4');
@@ -1053,7 +1053,7 @@ describe('SolidScript editor', () => {
     expect(hint.textContent).toBe(
       'Max(A: Number or List, B: Number, ...: Number) -> Number' +
         'B: Number. Another number.' +
-        'The biggest number, of the inputs or of one list.',
+        'The biggest number, of the inputs or of one list, such as Max(3, 1, 4) is 4.',
     );
     expect(options()).toContain('$Box.Width');
     const how = find<HTMLInputElement>('[data-solid-script-configurator="select_faces"] input[aria-label="How"]');

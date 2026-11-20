@@ -10,7 +10,9 @@ describe('the reference reads kinds from the declarations', () => {
   });
 
   it('says which kinds a built-in function gives and takes', () => {
-    expect(text).toContain('Abs(number: Number) gives Number: The number without its minus sign.');
+    expect(text).toContain(
+      'Abs(number: Number) gives Number: The number without its minus sign, such as Abs(-3) is 3.',
+    );
   });
 
   it('no longer mentions a Type on Set', () => {

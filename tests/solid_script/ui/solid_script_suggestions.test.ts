@@ -220,7 +220,7 @@ describe('SolidScript suggestions', () => {
       'Max: Number',
     ]);
     expect(solidScriptSuggestionHintSignature(clamp)).toBe('Clamp(Value: Number, Min: Number, Max: Number) -> Number');
-    expect(clamp.summary).toBe('Keeps a number between min and max.');
+    expect(clamp.summary).toBe('Keeps a number between min and max, such as Clamp(12, 0, 10) is 10.');
     expect(solidScriptSuggestionHint(at('[=Clamp(|'), SCOPE)?.current).toBe(0);
     expect(solidScriptSuggestionHint(at('[=Clamp([Width], Pow(2, |'), SCOPE)).toMatchObject({
       name: 'Pow',
@@ -324,7 +324,9 @@ describe('SolidScript suggestions', () => {
     expect(year.map((entry) => entry.label)).toEqual(['$Time.Year']);
     expect(year[0]?.detail).toMatch(/^Number: Year now\.$/);
     const pad = solidScriptSuggestions(at('[=pad_l|'), SCOPE);
-    expect(pad[0]?.detail).toBe('PadLeft(text, width, fill): Fills in front up to a width: 007.');
+    expect(pad[0]?.detail).toBe(
+      'PadLeft(text, width, fill): Fills in front up to a width, such as PadLeft(7, 3, 0) is 007.',
+    );
   });
 });
 
