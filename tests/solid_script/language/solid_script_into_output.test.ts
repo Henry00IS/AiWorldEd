@@ -170,7 +170,7 @@ function builderScript(
     ];
     return { lines };
   }
-  const extra = command.id === 'place_at_points' ? { at: '0, 2, 0' } : {};
+  const extra: Record<string, string> = command.id === 'place_at_points' ? { at: '0, 2, 0' } : {};
   const tail = builderTail(command);
   const lines = [
     intoLine(command, extra),
