@@ -117,35 +117,16 @@ export function solidScriptEditorClipboardRun(run: (event: Event) => void): void
 }
 
 /**
- * Copies text as plain text, and as HTML too when given, to the clipboard of a
- * copy event, or to the system clipboard where the browser allows it.
+ * Copies text as plain text, its only part, to the clipboard of a copy event,
+ * or to the system clipboard where the browser allows it.
  *
  * @param text Plain text.
- * @param html HTML, or empty for plain text only.
  */
-export function solidScriptEditorClipboardWriteText(text: string, html = ''): void {
+export function solidScriptEditorClipboardWriteText(text: string): void {
   solidScriptEditorClipboardRun((event) => {
     const data = (event as ClipboardEvent).clipboardData ?? null;
     event.preventDefault();
-    if (!data) return solidScriptEditorClipboardSystem(text, html);
-    data.setData('text/plain', text);
-    if (html) data.setData('text/html', html);
+    if (data) data.setData('text/plain', text);
+    else void globalThis.navigator?.clipboard?.writeText?.(text).catch(() => undefined);
   });
-}
-
-/**
- * Writes text, and HTML when given and the browser takes it, to the system
- * clipboard.
- *
- * @param text Plain text.
- * @param html HTML, or empty.
- */
-function solidScriptEditorClipboardSystem(text: string, html: string): void {
-  const clipboard = globalThis.navigator?.clipboard;
-  const Item = globalThis.ClipboardItem;
-  if (html && Item && clipboard?.write) {
-    const blob = (body: string, type: string) => new Blob([body], { type });
-    const item = new Item({ 'text/plain': blob(text, 'text/plain'), 'text/html': blob(html, 'text/html') });
-    void clipboard.write([item]).catch(() => undefined);
-  } else void clipboard?.writeText?.(text).catch(() => undefined);
 }

@@ -9,10 +9,7 @@ export interface SolidScriptEditorShownLine {
   row: HTMLElement;
 }
 
-/**
- * Lines copied as shown: plain text, the same text as Markdown, and coloured as
- * HTML.
- */
+/** Lines copied as shown: plain text, and the same text as Markdown. */
 export interface SolidScriptEditorShownCopy {
   /** Plain text. */
   text: string;
@@ -21,8 +18,6 @@ export interface SolidScriptEditorShownCopy {
    * one line per line.
    */
   markdown: string;
-  /** HTML with the colours of the code view, block names bold, notes italic. */
-  html: string;
 }
 
 /** Indent of one block level in Markdown: spaces that never start a code block. */
@@ -123,88 +118,11 @@ export function solidScriptEditorShownMarkdown(lines: readonly SolidScriptEditor
 }
 
 /**
- * Escapes text for HTML.
- *
- * @param text Text.
- * @returns Escaped text.
- */
-function solidScriptEditorShownEscape(text: string): string {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-/**
- * Writes the text of a line element as coloured spans, each piece in the colour
- * and weight it shows in, leaving out icons.
- *
- * @param chip Line element, on the page.
- * @returns HTML.
- */
-function solidScriptEditorShownSpans(chip: HTMLElement): string {
-  const walker = chip.ownerDocument.createTreeWalker(chip, NodeFilter.SHOW_TEXT);
-  const spans: string[] = [];
-  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    const parent = node.parentElement;
-    if (!parent || parent.closest('[aria-hidden="true"], svg')) continue;
-    const style = getComputedStyle(parent);
-    const look = `color:${style.color};font-weight:${style.fontWeight};font-style:${style.fontStyle}`;
-    const span = `<span style="${solidScriptEditorShownEscape(look)}">${solidScriptEditorShownEscape(node.textContent ?? '')}</span>`;
-    spans.push(solidScriptEditorShownTag(parent, span));
-  }
-  return spans.join('');
-}
-
-/**
- * Marks a piece of a block name as strong and of a note as emphasised, so the
- * HTML keeps them where colours are dropped.
- *
- * @param parent Element the text is in.
- * @param span Coloured span.
- * @returns HTML.
- */
-function solidScriptEditorShownTag(parent: Element, span: string): string {
-  if (parent.closest(`.${SOLID_SCRIPT_EDITOR_CLASSES.listName}`)) return `<strong>${span}</strong>`;
-  if (parent.closest(`.${SOLID_SCRIPT_EDITOR_CLASSES.listNote}`)) return `<em>${span}</em>`;
-  return span;
-}
-
-/**
- * Writes lines as the code view shows them, in its colours, as HTML. The rows
- * are put on the page under the view for a moment, so they take its styles.
- *
- * @param lines Lines.
- * @param view Code view the rows belong under.
- * @returns HTML.
- */
-export function solidScriptEditorShownHtml(lines: readonly SolidScriptEditorShownLine[], view: HTMLElement): string {
-  const shelf = view.ownerDocument.createElement('div');
-  Object.assign(shelf.style, { position: 'absolute', visibility: 'hidden', left: '-10000px', top: '0' });
-  shelf.append(...lines.map((line) => line.row));
-  view.append(shelf);
-  const indents = solidScriptEditorShownIndents(lines);
-  const body = lines.map((line, index) => {
-    const chip = solidScriptEditorShownChip(line.row);
-    return (indents[index] ?? '') + (chip ? solidScriptEditorShownSpans(chip) : '');
-  });
-  const style = getComputedStyle(view);
-  shelf.remove();
-  const look = `font-family:${style.fontFamily};background:${style.backgroundColor};color:${style.color}`;
-  return `<pre style="${solidScriptEditorShownEscape(look)}">${body.join('\n')}</pre>`;
-}
-
-/**
  * Copies lines as the code view shows them.
  *
  * @param lines Lines.
- * @param view Code view the rows belong under.
- * @returns Plain text and HTML.
+ * @returns Plain text and Markdown.
  */
-export function solidScriptEditorShownCopy(
-  lines: readonly SolidScriptEditorShownLine[],
-  view: HTMLElement,
-): SolidScriptEditorShownCopy {
-  return {
-    text: solidScriptEditorShownText(lines),
-    markdown: solidScriptEditorShownMarkdown(lines),
-    html: solidScriptEditorShownHtml(lines, view),
-  };
+export function solidScriptEditorShownCopy(lines: readonly SolidScriptEditorShownLine[]): SolidScriptEditorShownCopy {
+  return { text: solidScriptEditorShownText(lines), markdown: solidScriptEditorShownMarkdown(lines) };
 }

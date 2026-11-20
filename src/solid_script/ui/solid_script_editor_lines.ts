@@ -318,7 +318,7 @@ export class SolidScriptEditorLines {
    * Returns the selected lines as the code view shows them, from rows built the
    * way the view builds them.
    *
-   * @returns Plain text and HTML.
+   * @returns Plain text and Markdown.
    */
   private shown(): SolidScriptEditorShownCopy {
     const lines = this.selected().flatMap((line) => {
@@ -327,7 +327,7 @@ export class SolidScriptEditorLines {
       const row = solidScriptEditorRowBuild(block, this.rowLook(line), this.rowHandlers);
       return [{ depth: this.depths[line] ?? 0, row }];
     });
-    return solidScriptEditorShownCopy(lines, this.element);
+    return solidScriptEditorShownCopy(lines);
   }
 
   /** Line menu while open. */

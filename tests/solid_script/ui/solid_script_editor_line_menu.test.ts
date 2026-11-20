@@ -183,31 +183,35 @@ describe('SolidScript line menu', () => {
         '**End Transform**',
       ].join('  \n'),
     );
-    const html = new DOMParser().parseFromString(data.get('text/html') ?? '', 'text/html');
-    expect([...html.querySelectorAll('strong')].map((tag) => tag.textContent?.trim())).toEqual([
-      'Transform',
-      'Cube',
-      'End Transform',
-    ]);
-    expect(html.querySelector('em')?.textContent).toBe('*** Transform to a big brush.');
+    expect([...data.keys()]).toEqual(['text/plain']);
     expect(menuCopy('Copy as Plain Text', 0).get('text/plain')).toBe(
       `*** Transform to a big brush.\nTransform\n    Cube '[=[W] * 2]'\nEnd Transform`,
     );
   });
 
-  it('copies with markup: the same text in the colours of the code view as HTML, with Markdown as text', () => {
+  it('copies with markup as the only clipboard text, so a rich paste shows the marks too', () => {
     editorFixture(NESTED);
     selectRun(1, 3);
-    const plain = menuCopy('Copy as Plain Text', 1).get('text/plain');
+    const page: string[] = [];
+    document.addEventListener('copy', () => page.push('page copy'));
     const data = menuCopy('Copy with Markup', 1);
+    expect([...data.keys()]).toEqual(['text/plain']);
     expect(data.get('text/plain')).toMatch(/^\*\*If\*\*/);
-    const html = new DOMParser().parseFromString(data.get('text/html') ?? '', 'text/html');
-    const pre = html.querySelector('pre');
-    expect(pre?.textContent).toBe(plain);
-    const spans = [...(pre?.querySelectorAll('span') ?? [])];
-    expect(spans.length).toBeGreaterThan(3);
-    for (const span of spans) expect(span.getAttribute('style')).toMatch(/^color:[^;]+;font-weight:/);
-    expect(document.querySelectorAll('[data-line]').length).toBe(NESTED.length);
+    expect(page).toEqual([]);
+  });
+
+  it('copies with markup through the system clipboard when the browser fires no copy event', async () => {
+    editorFixture([{ command: 'note', values: { text: 'Hi' } }, { command: 'cube' }]);
+    selectRun(0, 1);
+    menuOpen(0);
+    const written: string[] = [];
+    const writeText = (text: string) => Promise.resolve(void written.push(text));
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    Object.defineProperty(document, 'execCommand', { value: () => false, configurable: true });
+    menuClick('Copy with Markup');
+    await Promise.resolve();
+    Reflect.deleteProperty(navigator, 'clipboard');
+    expect(written).toEqual(["_*** Hi_  \n**Cube** '1, 1, 1'"]);
   });
 
   it('gives the formula window the same menu, above the window, without turning off and breakpoints', () => {
