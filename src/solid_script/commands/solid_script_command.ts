@@ -135,6 +135,12 @@ export interface SolidScriptCommandParameter {
   hint: string;
   /** True when the field may stay empty. */
   optional?: boolean;
+  /**
+   * True when the field keeps its text exactly as typed, spaces, brackets and
+   * all, such as a Note: it reads no [names] or [=formulas] and needs no $[ for
+   * a bracket.
+   */
+  verbatim?: boolean;
   /** The few words the field takes, offered first while it is typed. */
   words?: readonly SolidScriptCommandWord[];
   /** True for a library texture: the window offers the texture picker or typing. */
@@ -362,6 +368,20 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
   private readonly run: SolidScriptCommandSpec['execute'];
 
   /**
+   * The manual without the description it may start with, so the two read once
+   * when shown together; empty when the manual only repeats the description.
+   *
+   * @returns Manual text.
+   */
+  get details(): string {
+    const lead = this.description.replace(/\.$/, '');
+    const manual = this.manual.trim();
+    const rest = manual.startsWith(lead) ? manual.slice(lead.length) : null;
+    if (rest === null || !/^(\.|$)/.test(rest)) return manual;
+    return rest.replace(/^\.\s*/, '');
+  }
+
+  /**
    * Creates the command.
    *
    * @param spec Id, texts, fields, listing and run step.
@@ -465,6 +485,7 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
       value: (key) => this.listingValue(values, key),
       variable: (key) => ({ kind: 'variable', text: `[${this.valueText(values, key)}]` }),
       text: (key) => this.valueText(values, key),
+      raw: (key) => (values[key] ?? '').replace(/[\r\n]+/g, ' '),
       on: (key) => solidScriptFieldBoolean(this.valueText(values, key)) === true,
       changed: (key) =>
         !solidScriptParameterValueIsDefault(

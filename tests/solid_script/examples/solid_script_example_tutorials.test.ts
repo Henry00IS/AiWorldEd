@@ -205,6 +205,18 @@ describe('SolidScript example tutorials', () => {
     for (const example of examples) checkExample(example, stored);
   });
 
+  it('writes the brackets of its Notes plainly, as a Note reads no names', () => {
+    for (const example of solidScriptExamplesAll()) {
+      const notes = example.lines.filter((line) => line.command === 'note').map((line) => line.values?.['text'] ?? '');
+      expect(
+        notes.filter((text) => /\$[[\]$,]/.test(text)),
+        example.id,
+      ).toEqual([]);
+    }
+    const all = solidScriptExamplesAll().flatMap((example) => example.lines);
+    expect(all.some((line) => line.command === 'note' && /\[\w/.test(line.values?.['text'] ?? ''))).toBe(true);
+  });
+
   it('introduces each covered idea in a real official example', () => {
     const ids = new Set(solidScriptExamplesAll().map((example) => example.id));
     for (const [idea, id] of Object.entries(COVERAGE)) {

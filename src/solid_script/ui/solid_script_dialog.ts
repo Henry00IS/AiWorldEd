@@ -13,10 +13,11 @@ let solidScriptDialogCount = 0;
  * editor. Enter presses the main button; Escape, the X or a click on the
  * blocker behind it cancels. It stays where it opens, in the middle of the
  * editor. A dialog opened over another one, such as the formula window over a
- * configurator, darkens only that window: its own blocker stays clear, so the
- * editor behind does not get darker and darker. However it closes, the focus
- * goes back to what had it when it opened, such as a script line or the window
- * below, so keys never fall through to the scene.
+ * configurator, closes that window's popups and darkens only that window: its
+ * own blocker stays clear, so the editor behind does not get darker and darker,
+ * and a click on it does nothing. However it closes, the window below is light
+ * again and the focus goes back to what had it when it opened, such as a script
+ * line or the window below, so keys never fall through to the scene.
  */
 export abstract class SolidScriptDialog extends PanelFloating {
   /** Main button. */
@@ -30,6 +31,8 @@ export abstract class SolidScriptDialog extends PanelFloating {
   private shaded = 0;
   /** What had the keyboard focus when the dialog opened; it gets it back. */
   private opener: HTMLElement | null = null;
+  /** True while this dialog darkens the window it opened over. */
+  private shading: boolean;
 
   /**
    * Builds the window.
@@ -54,10 +57,13 @@ export abstract class SolidScriptDialog extends PanelFloating {
       centered: !movable,
       draggable: movable,
       closeOnEscape: false,
+      closeOnBackdropClick: false,
       stackLayer: 'modal',
       backdropClassName: 'editor-message-box-backdrop',
       ...(parent ? { backdropBackground: 'transparent' } : {}),
     });
+    this.shading = parent !== null;
+    parent?.popupsClose();
     parent?.shadeSet(true);
     solidScriptEditorStylesheetEnsure();
     this.frameBuild(title);
@@ -164,12 +170,24 @@ export abstract class SolidScriptDialog extends PanelFloating {
 
   /** Closes for good, handing the focus back when it was in the dialog. */
   protected close(): void {
-    if (!this.settled) this.parent?.shadeSet(false);
     this.settled = true;
     const active = document.activeElement;
     const held = !active || active === document.body || this.root.contains(active);
     this.dispose();
     if (held) this.focusReturn();
+  }
+
+  /**
+   * Closes the popups of this window, such as suggestion lists, when the window
+   * hides or a dialog opens over it.
+   */
+  protected popupsClose(): void {}
+
+  /** Closes the popups and lightens the window below, however the dialog hides. */
+  protected override onAfterHide(): void {
+    this.popupsClose();
+    if (this.shading) this.parent?.shadeSet(false);
+    this.shading = false;
   }
 
   /**

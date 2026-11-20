@@ -16,6 +16,8 @@ export type MenuContextItem =
       callback: () => void;
       /** Whether the item should be disabled and non-interactive. */
       disabled?: boolean;
+      /** Keyboard shortcut shown on the right, such as Ctrl+C. */
+      shortcut?: string;
     }
   | {
       /** Horizontal separator between sections. */
@@ -126,19 +128,12 @@ export class MenuContext {
     if (item.label === '---') {
       return { kind: 'separator' };
     }
-    const disabled = item.disabled === true;
-    if (disabled) {
-      return {
-        kind: 'action',
-        label: item.label,
-        onClick: item.callback,
-        isEnabled: () => false,
-      };
-    }
     return {
       kind: 'action',
       label: item.label,
       onClick: item.callback,
+      ...(item.disabled === true ? { isEnabled: () => false } : {}),
+      ...(item.shortcut ? { shortcut: item.shortcut } : {}),
     };
   }
 }

@@ -413,7 +413,7 @@ function solidScriptSuggestionsAll(scope: SolidScriptSuggestionScope): SolidScri
       .filter((entry) => entry.category === 'Functions')
       .map((entry): SolidScriptSuggestion => ({
         label: entry.name,
-        detail: entry.gives === undefined ? entry.detail : `${entry.detail} -> ${entry.gives}`,
+        detail: solidScriptSuggestionFunctionDetail(entry),
         category: 'Functions',
         pick: 'function',
       })),
@@ -740,6 +740,39 @@ export interface SolidScriptSuggestionHint {
 }
 
 /**
+ * Describes a Function of this script in suggestions: its call, what it gives
+ * and what its Note above says, such as Spot(Angle) -> Vector: A point.
+ *
+ * @param entry Function name.
+ * @returns Detail.
+ */
+function solidScriptSuggestionFunctionDetail(entry: SolidScriptName): string {
+  const call = entry.gives === undefined ? entry.detail : `${entry.detail} -> ${entry.gives}`;
+  return entry.description ? `${call}: ${entry.description}` : call;
+}
+
+/**
+ * Describes the call of a Function of this script: its inputs, what it gives
+ * and what the Note above it says.
+ *
+ * @param own Function name.
+ * @param at Finds the input being typed among the inputs.
+ * @returns Hint.
+ */
+function solidScriptSuggestionHintOwn(
+  own: SolidScriptName,
+  at: (inputs: SolidScriptFunctionArgument[]) => number,
+): SolidScriptSuggestionHint {
+  const inputs = (own.inputs ?? []).map((name) => ({
+    name,
+    type: 'Any' as const,
+    about: 'Input of this Function.',
+  }));
+  const summary = own.description ? `Function of this script. ${own.description}` : 'Function of this script.';
+  return { name: own.name, inputs, gives: own.gives ?? 'Any', summary, current: at(inputs) };
+}
+
+/**
  * Finds the call the caret is in, built-in or a Function of this script, and
  * which input the caret is on.
  *
@@ -756,16 +789,7 @@ export function solidScriptSuggestionHint(
   const name = call.name.toLowerCase();
   const at = (inputs: SolidScriptFunctionArgument[]): number => Math.max(0, Math.min(call.argument, inputs.length - 1));
   const own = scope.names.find((entry) => entry.category === 'Functions' && entry.name.toLowerCase() === name);
-  if (own) {
-    const inside = /\((.*)\)/.exec(own.detail)?.[1]?.trim() ?? '';
-    const inputs = (inside === '' ? [] : inside.split(',')).map((piece) => ({
-      name: piece.trim(),
-      type: 'Any' as const,
-      about: 'Input of this Function.',
-    }));
-    const gives = own.gives ?? 'Any';
-    return { name: own.name, inputs, gives, summary: 'Function of this script.', current: at(inputs) };
-  }
+  if (own) return solidScriptSuggestionHintOwn(own, at);
   const key = Object.keys(SOLID_SCRIPT_FUNCTION_DOCS).find(
     (entry) => entry === name || solidScriptFunctionSpelling(entry).toLowerCase() === name,
   );

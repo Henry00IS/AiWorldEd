@@ -137,7 +137,7 @@ export const SOLID_SCRIPT_EXAMPLE_COLUMN: readonly SolidScriptLine[] = [
   solidScriptExampleSet('Stations', '[=ProfilePoints([Profile], [$Box.Height], [Radius])]'),
   solidScriptExampleNote('Sort the stations into runs: x is the height, y the radius, z the run.'),
   solidScriptExampleNote(
-    'Clear Variable empties $[Marks$]. Add Item appends to that list, and Remove Item takes the last item off when two steps are the same.',
+    'Clear Variable empties [Marks]. Add Item appends to that list, and Remove Item takes the last item off when two steps are the same.',
   ),
   solidScriptExampleLine('clear_variable', { name: 'Marks' }),
   solidScriptExampleSet('Run', '-1'),

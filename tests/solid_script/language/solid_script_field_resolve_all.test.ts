@@ -9,6 +9,7 @@ import { solidScriptProgramRun } from '@/solid_script/language/solid_script_prog
 import { SolidScriptScope } from '@/solid_script/language/solid_script_scope.js';
 import { solidScriptSystemValues } from '@/solid_script/language/solid_script_system.js';
 import { solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
+import { solidScriptFieldAsTyped } from '@/solid_script/language/solid_script_field.js';
 
 const MACHINE = new SolidScriptMachine(
   undefined,
@@ -25,7 +26,7 @@ const fields = solidScriptCommands.flatMap((command) =>
 );
 
 describe('every field resolves [names] and [=formulas] through the shared field path', () => {
-  it.each(fields.filter(([, parameter]) => !parameter.writes))('%s resolves', (_name, parameter) => {
+  it.each(fields.filter(([, parameter]) => !solidScriptFieldAsTyped(parameter)))('%s resolves', (_name, parameter) => {
     // What the field reads, or the mistake a kind it does not accept gives: either way the value 7, never the text typed.
     const read = (text: string): string => {
       try {
@@ -40,8 +41,8 @@ describe('every field resolves [names] and [=formulas] through the shared field 
     }
   });
 
-  it.each(fields.filter(([, parameter]) => parameter.writes))(
-    '%s names a variable and stays as typed',
+  it.each(fields.filter(([, parameter]) => solidScriptFieldAsTyped(parameter)))(
+    '%s names a variable or is plain text, and stays as typed',
     (_n, parameter) => {
       expect(MACHINE.fieldRead(solidScriptLineFieldMake(parameter, '[V]'), SCOPE)).toBe('[V]');
     },
@@ -96,13 +97,13 @@ describe('fields that used to be read as typed now read names', () => {
 });
 
 describe('the editor checks every field that reads names, by the same declaration', () => {
-  it('squiggles an unknown name in a Name and a Note, but not in an Into', () => {
+  it('squiggles an unknown name in a Name, but not in an Into or a Note', () => {
     const document = solidScriptDocumentCreate([
       { command: 'cube', values: { label: '[Wdth]', into: '[Nope]' } },
       { command: 'note', values: { text: 'see [Missing]' } },
     ]);
     const unknown = solidScriptDocumentNamesUnknown(document);
     expect([...(unknown.get(0) ?? [])]).toEqual(['wdth']);
-    expect([...(unknown.get(1) ?? [])]).toEqual(['missing']);
+    expect(unknown.has(1)).toBe(false);
   });
 });

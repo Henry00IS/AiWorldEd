@@ -1,5 +1,5 @@
 import { SolidScriptCommand } from './solid_script_command.js';
-import { solidScriptListingOptions, solidScriptListingValue } from './solid_script_command_listing.js';
+import { solidScriptListingNote, solidScriptListingOptions } from './solid_script_command_listing.js';
 import {
   solidScriptParameter,
   solidScriptParameterGroupMode,
@@ -283,16 +283,19 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     manual:
       'A note for people reading the script, such as what the next lines build. It does nothing when the script runs.',
     parameters: [
-      solidScriptParameter(
-        'text',
-        'Text',
-        'text',
-        'Describe this part',
-        'Any text, such as a short reminder of what the next lines do.',
-      ),
+      {
+        ...solidScriptParameter(
+          'text',
+          'Text',
+          'text',
+          '',
+          'Any text, such as a short reminder of what the next lines do.',
+        ),
+        verbatim: true,
+      },
     ],
     runs: false,
-    listing: (read) => [{ kind: 'note', text: `*** ${solidScriptListingValue(read.text('text')).text}` }],
+    listing: (read) => [{ kind: 'note', text: solidScriptListingNote(read.raw('text')) }],
     execute: () => [],
   }),
   new SolidScriptCommand({

@@ -32,6 +32,8 @@ import {
   type SolidScriptEditorRowLook,
 } from './solid_script_editor_row.js';
 import { SolidScriptEditorLineKeys } from './solid_script_editor_line_keys.js';
+import { solidScriptEditorLineMenuItems, type SolidScriptEditorLineMenuHost } from './solid_script_editor_line_menu.js';
+import { solidScriptEditorShownCopy, type SolidScriptEditorShownCopy } from './solid_script_editor_copy.js';
 import { SolidScriptEditorLinePaint } from './solid_script_editor_line_paint.js';
 import { SelectionRowsRules } from '@/selection/rows/selection_rows_rules.js';
 import { solidScriptEditorViewRead, type SolidScriptEditorView } from './solid_script_editor_view.js';
@@ -288,28 +290,41 @@ export class SolidScriptEditorLines {
     const kept = SelectionRowsRules.contextApply(new Set(this.selected()), line);
     if (kept.size === 1 && kept.has(line)) this.focusLine(line);
     this.menu?.dispose();
-    this.menu = new MenuContext(this.element, this.menuItems(line));
+    this.menu = new MenuContext(this.element, solidScriptEditorLineMenuItems(this.menuHost(), line));
     this.menu.show(event.clientX, event.clientY);
   }
 
   /**
-   * Lists what the line menu offers: turning on and off and breakpoints only
-   * where lines can be switched.
+   * Tells the line menu what it works on.
    *
-   * @param line Line the menu opened on.
-   * @returns Menu items.
+   * @returns Menu host.
    */
-  private menuItems(line: number): ConstructorParameters<typeof MenuContext>[1] {
-    const switches = this.options.switches;
-    const off = this.offs[line] === true;
-    const breakpoint = { label: 'Toggle Breakpoint', callback: () => this.handlers.breakpoint(line) };
-    return [
-      { label: 'Change…', callback: () => this.handlers.configure(line) },
-      ...(switches ? [{ label: off ? 'Turn On' : 'Turn Off', callback: () => this.keys.toggle(line) }] : []),
-      { label: 'Duplicate', callback: () => this.keys.duplicate(line) },
-      { label: 'Delete', callback: () => this.keys.remove(line) },
-      ...(switches ? [{ kind: 'separator' as const }, breakpoint] : []),
-    ];
+  private menuHost(): SolidScriptEditorLineMenuHost {
+    return {
+      switches: this.options.switches,
+      off: (line) => this.offs[line] === true,
+      configure: (line) => this.handlers.configure(line),
+      breakpoint: (line) => this.handlers.breakpoint(line),
+      notice: (text) => this.handlers.notice(text),
+      keys: this.keys,
+      shown: () => this.shown(),
+    };
+  }
+
+  /**
+   * Returns the selected lines as the code view shows them, from rows built the
+   * way the view builds them.
+   *
+   * @returns Plain text and HTML.
+   */
+  private shown(): SolidScriptEditorShownCopy {
+    const lines = this.selected().flatMap((line) => {
+      const block = this.document.blocks[line];
+      if (!block) return [];
+      const row = solidScriptEditorRowBuild(block, this.rowLook(line), this.rowHandlers);
+      return [{ depth: this.depths[line] ?? 0, row }];
+    });
+    return solidScriptEditorShownCopy(lines, this.element);
   }
 
   /** Line menu while open. */

@@ -86,6 +86,10 @@ export interface SolidScriptName {
   reachLines?: readonly number[];
   /** What a Function gives back in words, such as Vector, Any or Nothing. */
   gives?: string;
+  /** What a Function does, from the Note lines right above it. */
+  description?: string;
+  /** Names of the values a Function takes, in order, such as W and D. */
+  inputs?: readonly string[];
 }
 
 /** Pattern of a plain name, or of a Function's own variable. */
@@ -222,10 +226,7 @@ function solidScriptNamesKinds(
   const blocks = document.blocks;
   return names.map((entry) => {
     const { name, category, line, detail } = entry;
-    if (category === 'Functions') {
-      const gives = solidScriptDocumentFunctionGives(document, name);
-      return { name, category, line, detail, ...(gives ? { gives: solidScriptFunctionGivesText(gives) } : {}) };
-    }
+    if (category === 'Functions') return solidScriptNamesFunction(entry, document);
     if (!SOLID_SCRIPT_NAMES_KINDED.has(category)) return { name, category, line, detail };
     const key = solidScriptNameKey(name);
     const kinds = solidScriptFlowKinds(state, key);
@@ -389,6 +390,44 @@ function solidScriptNamesOfFunction(list: SolidScriptNameList, block: SolidScrip
   const inputs = solidScriptNameInputs(block);
   list.add(name, 'Functions', line, `${name}(${(block.values['parameters'] ?? '').trim()})`);
   for (const input of inputs) list.add(`Local.${input}`, 'Locals', line, `input of ${name}()`);
+}
+
+/**
+ * Adds to a Function's name the values it takes, what it gives and what the
+ * Note lines right above it say.
+ *
+ * @param entry Function name.
+ * @param document Script.
+ * @returns Name with what it gives and its description.
+ */
+function solidScriptNamesFunction(entry: SolidScriptName, document: SolidScriptDocument): SolidScriptName {
+  const { name, category, line, detail } = entry;
+  const gives = solidScriptDocumentFunctionGives(document, name);
+  const description = solidScriptDocumentNotesAbove(document, line);
+  return {
+    name,
+    category,
+    line,
+    detail,
+    inputs: solidScriptNameInputs(document.blocks[line]),
+    ...(gives ? { gives: solidScriptFunctionGivesText(gives) } : {}),
+    ...(description ? { description } : {}),
+  };
+}
+
+/**
+ * Joins the texts of the Note lines right above a line, top first, such as the
+ * description of a Function; empty when the line right above is no Note.
+ *
+ * @param document Script.
+ * @param line 0-based line.
+ * @returns Note text.
+ */
+export function solidScriptDocumentNotesAbove(document: SolidScriptDocument, line: number): string {
+  const notes: string[] = [];
+  for (let above = line - 1; document.blocks[above]?.command === 'note'; above--)
+    notes.unshift((document.blocks[above]?.values['text'] ?? '').trim());
+  return notes.filter((note) => note !== '').join(' ');
 }
 
 /**

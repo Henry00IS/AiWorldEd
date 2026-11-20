@@ -7,6 +7,7 @@ import {
 import { solidScriptMemberNames } from '@/solid_script/language/solid_script_members.js';
 import {
   solidScriptSuggestionContext,
+  solidScriptSuggestionHint,
   solidScriptSuggestions,
   type SolidScriptSuggestionScope,
 } from '@/solid_script/ui/solid_script_suggestions.js';
@@ -80,5 +81,23 @@ describe('SolidScript suggestion details', () => {
     expect(solidScriptDocumentNames(SCRIPT).find((entry) => entry.name === 'Knob')?.detail).toBe(
       'Name of a **Cube** line',
     );
+  });
+
+  it('adds the Note above a Function to its suggestion and call hint, after what it takes and gives', () => {
+    const script = solidScriptDocumentCreate([
+      { command: 'note', values: { text: 'A point on the ring.' } },
+      { command: 'function', values: { name: 'Spot', parameters: 'Angle' } },
+      { command: 'return', values: { value: '[0, 1, 0]' } },
+      { command: 'end' },
+      { command: 'function', values: { name: 'Bare', parameters: '' } },
+      { command: 'end' },
+    ]);
+    const scope = { names: solidScriptDocumentNamesAt(script, 6), extra: [], words: [] };
+    const detail = (label: string) => offered('[=', scope).find((entry) => entry.label === label)?.detail;
+    expect(detail('Spot')).toBe('Spot(Angle) -> Vector: A point on the ring.');
+    expect(detail('Bare')).toBe('Bare() -> Nothing');
+    const hint = solidScriptSuggestionHint(solidScriptSuggestionContext('[=Spot(', 7, false), scope);
+    expect(hint?.summary).toBe('Function of this script. A point on the ring.');
+    expect(hint?.gives).toBe('Vector');
   });
 });

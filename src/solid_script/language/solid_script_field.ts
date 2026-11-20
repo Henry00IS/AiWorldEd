@@ -879,15 +879,16 @@ export function solidScriptFieldVectorNote(text: string): string {
 }
 
 /**
- * Tells whether a field is used exactly as typed: only a field that declares
+ * Tells whether a field is used exactly as typed: a field that declares
  * `writes`, because it names a variable a line writes or defines a name or a
- * setting read before the run. Every other field reads its [names] and
+ * setting read before the run, and a verbatim field, such as the text of a
+ * Note, which is plain words. Every other field reads its [names] and
  * [=formulas]; the runtime, the checks, the squiggles and the suggestions all
  * ask this one question, so no field can skip resolution by its type.
  *
  * @param field Field as its command declares it.
  * @returns True when the field is used as typed.
  */
-export function solidScriptFieldAsTyped(field: { readonly writes?: object }): boolean {
-  return field.writes !== undefined;
+export function solidScriptFieldAsTyped(field: { readonly writes?: object; readonly verbatim?: boolean }): boolean {
+  return field.writes !== undefined || field.verbatim === true;
 }

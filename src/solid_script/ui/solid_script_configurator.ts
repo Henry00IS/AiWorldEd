@@ -166,8 +166,8 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
     this.cancelled?.();
   }
 
-  /** Closes the suggestion lists with the window. */
-  protected override onAfterHide(): void {
+  /** Closes the suggestion lists, with the window or under a dialog over it. */
+  protected override popupsClose(): void {
     for (const field of this.fields.values()) field.close();
   }
 
@@ -262,8 +262,9 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
 
   /**
    * Tells where a field's formula is used: the element it is worked out for,
-   * and the words a choice field takes, which Text blocks offer: for an Anchor
-   * the word of each axis, as its List holds a Text block per axis.
+   * the words a choice field takes, which Text blocks offer: for an Anchor the
+   * word of each axis, as its List holds a Text block per axis; and the
+   * Functions of the script, which have blocks too.
    *
    * @param parameter Field.
    * @param values Values of the line.
@@ -281,7 +282,12 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
       : parameter.writes
         ? []
         : solidScriptChoiceWordsForField(parameter, values, stored, this.inputs);
-    return { ...(each ? { each } : {}), ...(words.length > 0 ? { words } : {}) };
+    const functions = this.names.filter((name) => name.category === 'Functions');
+    return {
+      ...(each ? { each } : {}),
+      ...(words.length > 0 ? { words } : {}),
+      ...(functions.length ? { functions } : {}),
+    };
   }
 
   /**

@@ -82,3 +82,70 @@ export function solidScriptEditorClipboardRead(data: DataTransfer | null = null)
   if (pasted) return pasted;
   return solidScriptEditorClipboardHeld?.map((line) => ({ ...line, values: { ...line.values } })) ?? null;
 }
+
+/**
+ * Tells whether there are lines to paste in this editor session.
+ *
+ * @returns True after lines were copied.
+ */
+export function solidScriptEditorClipboardHas(): boolean {
+  return solidScriptEditorClipboardHeld !== null;
+}
+
+/**
+ * Runs a copy from a menu as if Ctrl+C was pressed: through a copy event, so it
+ * reaches the system clipboard, or with a plain event where the browser fires
+ * none.
+ *
+ * @param run Writes the clipboard of the event.
+ */
+export function solidScriptEditorClipboardRun(run: (event: Event) => void): void {
+  let ran = false;
+  const copy = (event: Event): void => {
+    event.stopImmediatePropagation();
+    ran = true;
+    run(event);
+  };
+  document.addEventListener('copy', copy, { capture: true });
+  try {
+    document.execCommand('copy');
+  } catch {
+    ran = false;
+  }
+  document.removeEventListener('copy', copy, { capture: true });
+  if (!ran) run(new Event('copy'));
+}
+
+/**
+ * Copies text as plain text, and as HTML too when given, to the clipboard of a
+ * copy event, or to the system clipboard where the browser allows it.
+ *
+ * @param text Plain text.
+ * @param html HTML, or empty for plain text only.
+ */
+export function solidScriptEditorClipboardWriteText(text: string, html = ''): void {
+  solidScriptEditorClipboardRun((event) => {
+    const data = (event as ClipboardEvent).clipboardData ?? null;
+    event.preventDefault();
+    if (!data) return solidScriptEditorClipboardSystem(text, html);
+    data.setData('text/plain', text);
+    if (html) data.setData('text/html', html);
+  });
+}
+
+/**
+ * Writes text, and HTML when given and the browser takes it, to the system
+ * clipboard.
+ *
+ * @param text Plain text.
+ * @param html HTML, or empty.
+ */
+function solidScriptEditorClipboardSystem(text: string, html: string): void {
+  const clipboard = globalThis.navigator?.clipboard;
+  const Item = globalThis.ClipboardItem;
+  if (html && Item && clipboard?.write) {
+    const blob = (body: string, type: string) => new Blob([body], { type });
+    const item = new Item({ 'text/plain': blob(text, 'text/plain'), 'text/html': blob(html, 'text/html') });
+    void clipboard.write([item]).catch(() => undefined);
+  } else void clipboard?.writeText?.(text).catch(() => undefined);
+}

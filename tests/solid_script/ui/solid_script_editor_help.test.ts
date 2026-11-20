@@ -2,6 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { solidScriptEditorLinked } from '@/solid_script/ui/solid_script_editor_links.js';
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
 import { SolidScriptEditorHelp } from '@/solid_script/ui/solid_script_editor_help.js';
+import { SOLID_SCRIPT_COMMAND_CATALOG } from '@/solid_script/commands/solid_script_command_catalog.js';
+import { solidScriptFormulaCatalog } from '@/solid_script/commands/solid_script_formula_commands.js';
+import { solidScriptEditorStylesheetEnsure } from '@/solid_script/ui/solid_script_editor_css.js';
 
 describe('SolidScript help panel', () => {
   it('shows a short summary first and keeps the manual under More Details, open for the next command', () => {
@@ -48,5 +51,24 @@ describe('SolidScript help panel', () => {
     expect(linked).not.toContain('repeat');
     help.element.querySelector<HTMLAnchorElement>('a[data-command="transform"]')!.click();
     expect(open).toHaveBeenCalledWith('transform');
+  });
+
+  it('lines up the docs of every block on the left, a long Note too', () => {
+    solidScriptEditorStylesheetEnsure();
+    const help = new SolidScriptEditorHelp();
+    document.body.append(help.element);
+    const text = 'A long note about what the next lines build, long enough to wrap in the panel.';
+    for (const command of [...SOLID_SCRIPT_COMMAND_CATALOG.commands, ...solidScriptFormulaCatalog().commands]) {
+      const values = command.id === 'note' ? { text } : command.valuesDefault();
+      help.show(command, { id: '1', command: command.id, values });
+      const aligned = [...help.element.querySelectorAll<HTMLElement>('*')].map(
+        (element) => getComputedStyle(element).textAlign,
+      );
+      expect(
+        aligned.filter((align) => !['', 'start', 'left', 'match-parent'].includes(align)),
+        command.id,
+      ).toEqual([]);
+    }
+    help.element.remove();
   });
 });

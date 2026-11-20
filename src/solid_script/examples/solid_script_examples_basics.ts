@@ -38,14 +38,14 @@ export const SOLID_SCRIPT_EXAMPLE_COLUMNS: readonly SolidScriptLine[] = [
     solidScriptExampleLine('cylinder', { h: '3', r1: '0.2', r2: '0.2', sides: '12', anchor: 'Center, Center, Center' }),
   ]),
   solidScriptExampleNote(
-    'Repeat runs the lines inside once for every number from 0 to 4. Each time, $[I$] is that number.',
+    'Repeat runs the lines inside once for every number from 0 to 4. Each time, [I] is that number.',
   ),
   ...solidScriptExampleRepeat('I', '0', '4', [
     solidScriptExampleNote(
-      'Transform opens a space for the lines until End. This one slides each stamp along X. A formula starts with $[= and is a calculation: the formula in Move spaces the five columns in a row, centered on the origin.',
+      'Transform opens a space for the lines until End. This one slides each stamp along X. A formula starts with [= and is a calculation: the formula in Move spaces the five columns in a row, centered on the origin.',
     ),
     ...solidScriptExampleBlock('transform', { move: '[=[I] * 1.5 - 3], 0, 0' }, [
-      solidScriptExampleNote('Output $[Column$] stamps a copy of the part into that space.'),
+      solidScriptExampleNote('Output [Column] stamps a copy of the part into that space.'),
       solidScriptExampleLine('output', { of: '[Column]' }),
     ]),
   ]),
@@ -56,17 +56,17 @@ export const SOLID_SCRIPT_EXAMPLE_STEPPING_STONES: readonly SolidScriptLine[] = 
   solidScriptExampleNote('Change the Stones Input and the path gains or loses slabs. The default is 9.'),
   solidScriptExampleInput('Stones', 'Count', '9', { min: '2', max: '40', label: 'Stones' }),
   solidScriptExampleNote(
-    'Set gives a name to a value so you can use it later. $[Start$] and $[Finish$] are the two ends of the path, written as points.',
+    'Set gives a name to a value so you can use it later. [Start] and [Finish] are the two ends of the path, written as points.',
   ),
   solidScriptExampleSet('Start', '-4, 0, 1'),
   solidScriptExampleSet('Finish', '4, 0, -2'),
   ...solidScriptExampleRepeat('I', '0', '[=[Stones] - 1]', [
     solidScriptExampleNote(
-      'Lerp walks from $[Start$] to $[Finish$]. The last number is how far along, from 0 at the start to 1 at the end. Then $[Pos.Y$] changes only the height, so the path has a gentle wave.',
+      'Lerp walks from [Start] to [Finish]. The last number is how far along, from 0 at the start to 1 at the end. Then [Pos.Y] changes only the height, so the path has a gentle wave.',
     ),
     solidScriptExampleSet('Pos', '[=Lerp([Start], [Finish], [I] / ([Stones] - 1))]'),
     solidScriptExampleSet('Pos.Y', '[=Sin([I] * 40) * 0.15]'),
-    solidScriptExampleNote('This Transform moves the space to $[Pos$], so the slab is built already in place.'),
+    solidScriptExampleNote('This Transform moves the space to [Pos], so the slab is built already in place.'),
     ...solidScriptExampleBlock('transform', { move: '[Pos]' }, [
       solidScriptExampleLine('cube', { size: '0.7, 0.15, 0.5', anchor: 'Center, Center, Center' }),
     ]),
@@ -83,15 +83,15 @@ export const SOLID_SCRIPT_EXAMPLE_PILLAR_RING: readonly SolidScriptLine[] = [
   solidScriptExampleNote('Count and Radius are Inputs too: change them in the inspector and the ring updates.'),
   solidScriptExampleInput('Count', 'Count', '8', { min: '3', max: '32', label: 'Pillars' }),
   solidScriptExampleInput('Radius', 'Number', '3', { min: '0.5', max: '20', label: 'Radius' }),
-  solidScriptExampleNote('Set $[Center$] is the middle of the ring, one and a half metres up.'),
+  solidScriptExampleNote('Set [Center] is the middle of the ring, one and a half metres up.'),
   solidScriptExampleSet('Center', '0, 1.5, 0'),
   ...solidScriptExampleRepeat('I', '1', '[Count]', [
     solidScriptExampleNote(
-      'Each round, $[Angle$] is how far around the ring, in degrees. Vector, Cos and Sin turn that angle into a point on the circle, $[Radius$] metres from $[Center$].',
+      'Each round, [Angle] is how far around the ring, in degrees. Vector, Cos and Sin turn that angle into a point on the circle, [Radius] metres from [Center].',
     ),
     solidScriptExampleSet('Angle', '[=360 / [Count] * [I]]'),
     solidScriptExampleSet('Pos', '[=[Center] + Vector(Cos([Angle]), 0, -Sin([Angle])) * [Radius]]'),
-    solidScriptExampleNote('A Transform whose Move is $[Pos$] builds the pillar already in place, around that point.'),
+    solidScriptExampleNote('A Transform whose Move is [Pos] builds the pillar already in place, around that point.'),
     ...solidScriptExampleBlock('transform', { move: '[Pos]' }, [
       solidScriptExampleLine('cylinder', {
         h: '3',
@@ -119,11 +119,11 @@ export const SOLID_SCRIPT_EXAMPLE_PEBBLES: readonly SolidScriptLine[] = [
       '[=HitsBox([$Face], Vector(0, 0.2, 0), Vector(4, 0.3, 4), "Fully Inside") and InBox([$Face.Center], Vector(0, 0.2, 0), 1)]',
   }),
   solidScriptExampleNote(
-    'Scatter Points now drops points on the selected faces, more where a face is bigger. Into writes them to $[Spots$].',
+    'Scatter Points now drops points on the selected faces, more where a face is bigger. Into writes them to [Spots].',
   ),
   solidScriptExampleLine('scatter_points', { count: '[Pebbles]', seed: '3', into: 'Spots' }),
   solidScriptExampleNote(
-    'Filter List keeps the items of a list that pass Where. $[Index$] is 0 for the first spot, then 1, and so on. This keeps every spot. Into writes them to $[Kept$].',
+    'Filter List keeps the items of a list that pass Where. [Index] is 0 for the first spot, then 1, and so on. This keeps every spot. Into writes them to [Kept].',
   ),
   solidScriptExampleLine('filter_list', {
     list: '[Spots]',
@@ -131,7 +131,7 @@ export const SOLID_SCRIPT_EXAMPLE_PEBBLES: readonly SolidScriptLine[] = [
     into: 'Kept',
   }),
   solidScriptExampleNote(
-    'Each pebble is a Sphere whose radius comes from Random, so they are not all the same size. The last number, $[I$], is a seed, so the same pebble is always the same size.',
+    'Each pebble is a Sphere whose radius comes from Random, so they are not all the same size. The last number, [I], is a seed, so the same pebble is always the same size.',
   ),
   ...solidScriptExampleBlock('for_each', { variable: 'Spot', list: '[Kept]', key: 'I' }, [
     ...solidScriptExampleBlock('transform', { move: '[Spot]' }, [
@@ -147,12 +147,12 @@ export const SOLID_SCRIPT_EXAMPLE_SPIKY_BALL: readonly SolidScriptLine[] = [
   solidScriptExampleLine('select_brushes'),
   solidScriptExampleNote('Every face of the ball is selected, so spikes can grow all around it.'),
   solidScriptExampleLine('select_faces', { which: 'All' }),
-  solidScriptExampleNote("Scatter's Normals writes the face direction at each spot into $[Ways$]."),
+  solidScriptExampleNote("Scatter's Normals writes the face direction at each spot into [Ways]."),
   solidScriptExampleLine('scatter_points', { count: '[Spikes]', seed: '5', into: 'Spots', normals: 'Ways' }),
   ...solidScriptExampleBlock('for_each', { variable: 'Spot', list: '[Spots]', key: 'I' }, [
     ...solidScriptExampleBlock('transform', { move: '[Spot]' }, [
       solidScriptExampleNote(
-        'The cylinder is built Into $[Spike$], so it is not in the world yet. Align To turns it so its up follows the face, using $[Ways$] at this spike.',
+        'The cylinder is built Into [Spike], so it is not in the world yet. Align To turns it so its up follows the face, using [Ways] at this spike.',
       ),
       solidScriptExampleLine('cylinder', {
         h: '0.5',
@@ -185,7 +185,7 @@ export const SOLID_SCRIPT_EXAMPLE_PEDESTAL: readonly SolidScriptLine[] = [
   solidScriptExampleSet('Width', '1'),
   solidScriptExampleSet('Depth', '1'),
   solidScriptExampleNote(
-    'If Used As runs the lines until Else only when this script is added as a modifier. $[Input$] is what it was added to: the lowest point, the width and the depth come from that.',
+    'If Used As runs the lines until Else only when this script is added as a modifier. [Input] is what it was added to: the lowest point, the width and the depth come from that.',
   ),
   solidScriptExampleLine('if_used_as', { use: 'Modifier' }),
   solidScriptExampleSet('Low', '[$Input.Min.Y]'),
@@ -216,7 +216,7 @@ export const SOLID_SCRIPT_EXAMPLE_PEDESTAL: readonly SolidScriptLine[] = [
  */
 export const SOLID_SCRIPT_EXAMPLE_KNOBS: readonly SolidScriptLine[] = [
   solidScriptExampleNote(
-    'For Each runs the lines inside once for every item in a list. This list is four numbers, the left-to-right places of the knobs. Each time, $[X$] is one of those numbers.',
+    'For Each runs the lines inside once for every item in a list. This list is four numbers, the left-to-right places of the knobs. Each time, [X] is one of those numbers.',
   ),
   solidScriptExampleLine('cube', { size: '4, 0.2, 1', label: 'Panel', anchor: 'Center, Center, Center' }),
   ...solidScriptExampleBlock('for_each', { variable: 'X', list: '-1.5, -0.5, 0.5, 1.5' }, [
@@ -225,7 +225,7 @@ export const SOLID_SCRIPT_EXAMPLE_KNOBS: readonly SolidScriptLine[] = [
     ]),
   ]),
   solidScriptExampleNote(
-    'Select Faces Of Knob picks only faces of the boxes named Knob, not the panel. After Select, $[Selected.Faces$] is that list of faces.',
+    'Select Faces Of Knob picks only faces of the boxes named Knob, not the panel. After Select, [Selected.Faces] is that list of faces.',
   ),
   solidScriptExampleLine('select_faces', { which: 'Facing Up', of: 'Knob' }),
   solidScriptExampleNote(

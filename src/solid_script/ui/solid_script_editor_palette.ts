@@ -313,7 +313,8 @@ export class SolidScriptEditorPalette {
     item.tabIndex = 0;
     item.draggable = true;
     item.setAttribute('role', 'listitem');
-    item.title = `${command.description}.\n${command.manual}\nDouble-click to insert below the current line, or drag into ${this.options.target}.`;
+    const insert = `Double-click to insert below the current line, or drag into ${this.options.target}.`;
+    item.title = [`${command.description}.`, command.details, insert].filter((line) => line !== '').join('\n');
     const label = document.createElement('span');
     label.textContent = command.label;
     item.append(solidScriptEditorIcon(command.category, SOLID_SCRIPT_EDITOR_CATEGORY_COLORS[command.category]), label);

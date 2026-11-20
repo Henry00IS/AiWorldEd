@@ -22,6 +22,20 @@ export interface SolidScriptFormulaContext {
    * by Text blocks.
    */
   words?: readonly SolidScriptCommandWord[];
+  /** Functions the script defines, which the formula may call. */
+  functions?: readonly SolidScriptFormulaOwnFunction[];
+}
+
+/** A Function the script defines, as the names of the script tell it. */
+export interface SolidScriptFormulaOwnFunction {
+  /** Name, such as Area. */
+  readonly name: string;
+  /** Names of the values it takes, in order, such as W and D. */
+  readonly inputs?: readonly string[];
+  /** What it gives back in words, such as Vector or Any. */
+  readonly gives?: string;
+  /** What it does, from the Note lines right above it. */
+  readonly description?: string;
 }
 
 /** One input of a check block. */

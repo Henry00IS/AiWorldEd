@@ -5,7 +5,6 @@ import { SOLID_SCRIPT_FORMULA_LEAVES } from '@/solid_script/commands/solid_scrip
 import { solidScriptConfiguratorFormulaCapable } from '@/solid_script/ui/solid_script_configurator_fields.js';
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
 import { solidScriptParameterValueStored } from '@/solid_script/commands/solid_script_parameter_default.js';
-import { SolidScriptConfigurator } from '@/solid_script/ui/solid_script_configurator.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from '@/solid_script/ui/solid_script_editor_css.js';
 import { SOLID_SCRIPT_EDITOR_SIZE } from '@/solid_script/ui/solid_script_editor_frame.js';
 import { solidScriptEditorViewRead, solidScriptEditorViewWrite } from '@/solid_script/ui/solid_script_editor_view.js';
@@ -16,192 +15,25 @@ import {
   SOLID_SCRIPT_FORMULA_BOUNDS_KEY,
   SOLID_SCRIPT_FORMULA_SIZES_KEY,
 } from '@/solid_script/ui/solid_script_editor_splitters.js';
+import {
+  configuratorOpen,
+  selectFaces,
+  formulaOpen,
+  formulaWindow,
+  button,
+  preview,
+  formulaText,
+  chip,
+  press,
+  paletteDrop,
+  rows,
+  fieldFill,
+  status,
+} from './solid_script_formula_window_fixture.js';
 
 /** The Where of the Pebbles tutorial. */
 const PEBBLES =
   '[=HitsBox([$Face], Vector(0, 0.2, 0), Vector(4, 0.3, 4), "Fully Inside") and InBox([$Face.Center], Vector(0, 0.2, 0), 1)]';
-
-/**
- * Opens the configurator of a line.
- *
- * @param id Command id.
- * @param values Stored values.
- * @param label Caption of the field to find.
- * @returns What OK stored, the window root and the field's input.
- */
-function configuratorOpen(id: string, values: Record<string, string>, label: string) {
-  const command = solidScriptCommandFind(id);
-  if (!command) throw new Error(`Expected ${id}`);
-  const stored: Record<string, string>[] = [];
-  new SolidScriptConfigurator(document.body, command, values, (written) => stored.push(written)).show();
-  const root = document.querySelector<HTMLElement>(`[data-solid-script-configurator="${id}"]`);
-  const input = root?.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`);
-  if (!root || !input) throw new Error(`Expected the ${label} field`);
-  return { stored, root, input };
-}
-
-/**
- * Opens the configurator of a Select Faces line.
- *
- * @param where Where text.
- * @returns What OK stored, the window root and the Where input.
- */
-function selectFaces(where: string) {
-  return configuratorOpen('select_faces', { which: 'All', where }, 'Where');
-}
-
-/**
- * Opens the formula window of the Where field.
- *
- * @returns Formula window root.
- */
-function formulaOpen(): HTMLElement {
-  button('Build Where from blocks').click();
-  return formulaWindow();
-}
-
-/** Formula window root. */
-function formulaWindow(): HTMLElement {
-  const root = document.querySelector<HTMLElement>('[data-solid-script-formula]');
-  if (!root) throw new Error('Expected the formula window');
-  return root;
-}
-
-/**
- * Finds a button by its accessible name or text.
- *
- * @param name Name.
- * @param within Element to search in.
- * @returns Button.
- */
-function button(name: string, within: ParentNode = document): HTMLButtonElement {
-  const found = [...within.querySelectorAll<HTMLButtonElement>('button')].find(
-    (candidate) => candidate.getAttribute('aria-label') === name || candidate.textContent === name,
-  );
-  if (!found) throw new Error(`Expected the ${name} button`);
-  return found;
-}
-
-/** The formula shown under the help of the window. */
-function preview(): HTMLElement {
-  const found = formulaWindow().querySelector<HTMLElement>('[role="textbox"][aria-readonly="true"]');
-  if (!found) throw new Error('Expected the formula text');
-  return found;
-}
-
-/**
- * The formula as the window shows it.
- *
- * @returns Text.
- */
-function formulaText(): string {
-  return preview().textContent ?? '';
-}
-
-/**
- * The block on a line of the formula window.
- *
- * @param line Line index.
- * @returns Block element.
- */
-function chip(line: number): HTMLElement {
-  const found = formulaWindow().querySelector<HTMLElement>(
-    `[data-line="${line}"] .${SOLID_SCRIPT_EDITOR_CLASSES.chip}`,
-  );
-  if (!found) throw new Error(`Expected line ${line}`);
-  return found;
-}
-
-/**
- * Presses a key on an element.
- *
- * @param element Element.
- * @param key Key.
- * @param init Modifier keys.
- */
-function press(element: HTMLElement, key: string, init: KeyboardEventInit = {}): void {
-  element.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init }));
-}
-
-/**
- * Sends a drag event with data shared by the whole drag.
- *
- * @param element Target.
- * @param type Event type.
- * @param data Shared drag data.
- * @param init Pointer position.
- */
-function drag(element: Element, type: string, data: Record<string, string>, init: MouseEventInit = {}): void {
-  const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientY: -1, ...init });
-  Object.defineProperty(event, 'dataTransfer', {
-    value: {
-      get types() {
-        return Object.keys(data);
-      },
-      files: [],
-      getData: (kind: string) => data[kind] ?? '',
-      setData: (kind: string, value: string) => void (data[kind] = value),
-      dropEffect: 'none',
-      effectAllowed: 'all',
-    },
-  });
-  element.dispatchEvent(event);
-}
-
-/**
- * Drags a palette block onto a line of the formula.
- *
- * @param id Command id.
- * @param line Line it lands before.
- */
-function paletteDrop(id: string, line: number): void {
-  const data: Record<string, string> = {};
-  const favorites = formulaWindow().querySelector('.solid-script-editor-palette-favorites');
-  const source = [
-    ...formulaWindow().querySelectorAll<HTMLElement>(`.solid-script-editor-palette-item[data-command="${id}"]`),
-  ].find((entry) => !favorites?.contains(entry));
-  if (!source) throw new Error(`Expected ${id}`);
-  const list = formulaWindow().querySelector<HTMLElement>('.solid-script-editor-lines')!;
-  drag(source, 'dragstart', data);
-  drag(list, 'dragenter', data, { relatedTarget: source });
-  drag(chip(line), 'dragenter', data, { relatedTarget: list });
-  drag(chip(line), 'dragover', data);
-  drag(chip(line), 'drop', data);
-  drag(source, 'dragend', data);
-}
-
-/**
- * Lists the commands of the formula's blocks, read from the rows.
- *
- * @returns Command ids per line.
- */
-function rows(): string[] {
-  return [...formulaWindow().querySelectorAll<HTMLElement>(`[data-line] .${SOLID_SCRIPT_EDITOR_CLASSES.chip}`)].map(
-    (row) => row.textContent ?? '',
-  );
-}
-
-/**
- * Types into a field of the open block window and presses OK.
- *
- * @param id Command id of the block.
- * @param label Field caption.
- * @param value Typed text.
- */
-function fieldFill(id: string, label: string, value: string): void {
-  const block = document.querySelector<HTMLElement>(`[data-solid-script-configurator="${id}"]`);
-  if (!block) throw new Error(`Expected the window of ${id}`);
-  const field = block.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[aria-label="${label}"]`);
-  if (!field) throw new Error(`Expected the field ${label}`);
-  field.value = value;
-  field.dispatchEvent(new Event('input', { bubbles: true }));
-  button('OK', block).click();
-}
-
-/** Status line of the formula window. */
-function status(): string {
-  return formulaWindow().querySelector(`.${SOLID_SCRIPT_EDITOR_CLASSES.formulaStatus}`)?.textContent ?? '';
-}
 
 afterEach(() => {
   document.body.replaceChildren();
@@ -253,13 +85,14 @@ describe('SolidScript formula window', () => {
     press(chip(0), 'Delete');
     paletteDrop('formula_value', 0);
     fieldFill('formula_value', 'Expression', '[$NY] > 0.5');
-    press(chip(4), 'Delete');
-    expect(rows()).toEqual(['More Than', 'Variable [$NY]', "Number '0.5'", 'End More Than']);
+    press(chip(1), 'Delete');
+    expect(rows()).toEqual(["Expression '[$NY] > 0.5'"]);
     button('OK', formulaWindow()).click();
     expect(input.value).toBe('[=[$NY] > 0.5]');
     expect(root.querySelector(`.${SOLID_SCRIPT_EDITOR_CLASSES.shade}`)).toBeNull();
     button('Build Where from blocks').click();
     expect(formulaText()).toBe('[$NY] > 0.5');
+    expect(rows()).toEqual(['More Than', 'Variable [$NY]', "Number '0.5'", 'End More Than']);
     button('OK', formulaWindow()).click();
     expect(input.value).toBe('[=[$NY] > 0.5]');
   });
@@ -305,7 +138,7 @@ describe('SolidScript formula window', () => {
     expect(indent(2)).toBeGreaterThan(indent(1));
     expect(indent(9)).toBe(indent(0));
     paletteDrop('formula_equals', 9);
-    expect(status()).toMatch(/Equals needs at least 2 blocks inside/);
+    expect(status()).toMatch(/Equals needs at least 2 parts/);
     paletteDrop('formula_variable', 10);
     fieldFill('formula_variable', 'Variable', '$Index');
     paletteDrop('formula_fn_abs', 11);
@@ -315,20 +148,22 @@ describe('SolidScript formula window', () => {
     expect(status()).not.toMatch(/Line/);
   });
 
-  it('shows a value as the block that fits it once it is written', () => {
+  it('keeps a block as it was dropped while editing, reading the formula into fitting blocks only on opening', () => {
     selectFaces('[=[$Face.Center] == 2]');
     formulaOpen();
     press(chip(2), 'Enter');
     fieldFill('formula_number', 'Number', '5, 2, 7');
     expect(formulaText()).toBe('[$Face.Center] == [5, 2, 7]');
-    expect(rows()[2]).toBe("Vector '5, 2, 7'");
+    expect(rows()[2]).toBe("Number '5, 2, 7'");
+    press(chip(1), 'Enter');
+    fieldFill('formula_variable', 'Variable', '"Top"');
+    expect(rows()[1]?.startsWith('Variable')).toBe(true);
+    button('OK', formulaWindow()).click();
+    formulaOpen();
+    expect(rows().slice(1, 3)).toEqual(["Text 'Top'", "Vector '5, 2, 7'"]);
     press(chip(2), 'Enter');
     const vector = document.querySelector<HTMLElement>('[data-solid-script-configurator="formula_vector"]')!;
     expect(vector.querySelector<HTMLInputElement>('input[aria-label="Vector"]')!.value).toBe('5, 2, 7');
-    button('Cancel', vector).click();
-    press(chip(1), 'Enter');
-    fieldFill('formula_variable', 'Variable', '"Top"');
-    expect(rows()[1]).toBe("Text 'Top'");
   });
 
   it('refuses OK while the blocks have a mistake, keeping the last formula greyed', () => {
@@ -348,7 +183,7 @@ describe('SolidScript formula window', () => {
     const { input } = selectFaces('[=Clamp([a], 0) > 0]');
     formulaOpen();
     expect(rows().slice(0, 4)).toEqual(['More Than', 'Clamp', 'Variable [a]', "Number '0'"]);
-    expect(status()).toBe('Line 2: Clamp needs at least 3 blocks inside.');
+    expect(status()).toBe('Line 2: Clamp needs at least 3 parts.');
     button('OK', formulaWindow()).click();
     expect(status()).toMatch(/^Fix the formula first: Line 2: Clamp/);
     paletteDrop('formula_number', 4);
@@ -462,7 +297,7 @@ describe('SolidScript formula window', () => {
     formulaOpen();
     paletteDrop('formula_if', 0);
     expect(rows().slice(0, 4)).toEqual(['If', 'Then', 'Else', 'End If']);
-    expect(status()).toMatch(/^Line 1: If needs a block inside/);
+    expect(status()).toMatch(/^Line 1: If needs at least one part/);
   });
 
   it('opens a plain choice as a Text block offering the words of the field, and writes it back plain', () => {

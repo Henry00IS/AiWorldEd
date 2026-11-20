@@ -100,7 +100,7 @@ export class SolidScriptFormulaWindow extends SolidScriptDialog {
   private readonly tip: SolidScriptEditorTip;
   private parts: ReadonlyMap<number, string> = new Map();
   private readonly status = document.createElement('div');
-  private blocks: SolidScriptFormulaBlocks;
+  private readonly blocks: SolidScriptFormulaBlocks;
   private document: SolidScriptDocument;
   private body: string;
   private problemText = '';
@@ -124,7 +124,7 @@ export class SolidScriptFormulaWindow extends SolidScriptDialog {
     this.tip = new SolidScriptEditorTip(this.lines.host, (line) => this.parts.get(line) ?? null);
     this.palette = this.paletteCreate();
     this.layout();
-    this.read(this.body, null);
+    this.commit(this.document, null);
     if (solidScriptFormulaBodyOr(options.kind, options.stored) === null) this.statusShow(this.plainNote());
   }
 
@@ -291,42 +291,24 @@ export class SolidScriptFormulaWindow extends SolidScriptDialog {
   }
 
   /**
-   * Takes blocks changed in the list and writes them as the formula text, or
-   * shows what keeps them from being one. The text is then read again, so each
-   * block shows as what it holds, such as a Number typed as 5, 2, 7 as a
-   * Vector.
+   * Takes blocks changed in the list as they are and writes them as the formula
+   * text, or shows what keeps them from being one. The blocks stay the ones
+   * edited: the text is read into blocks only when the window opens, so a group
+   * keeps its place while it holds no block or one.
    *
    * @param document Blocks.
    * @param line Line to focus.
    */
-  private commit(document: SolidScriptDocument, line: number): void {
+  private commit(document: SolidScriptDocument, line: number | null): void {
+    this.document = document;
+    this.lines.render(document, line);
     const written = solidScriptFormulaWrite(document, this.blocks, this.options.context);
     this.blocksBroken = 'problem' in written;
     this.parts = 'problem' in written ? new Map() : written.parts;
-    if ('problem' in written) {
-      this.document = document;
-      this.lines.render(document, line);
-      return this.problemSet(`Line ${written.line + 1}: ${written.problem}`);
-    }
-    this.read(written.text, line);
-  }
-
-  /**
-   * Shows formula text as blocks.
-   *
-   * @param text Formula.
-   * @param line Line to focus, or null.
-   * @throws Error naming the first problem when the text cannot be read.
-   */
-  private read(text: string, line: number | null): void {
-    this.blocks = solidScriptFormulaRead(text, this.options.context);
-    this.body = text;
-    this.document = this.blocks.document;
-    this.lines.render(this.document, line);
-    this.previewShow(text);
-    const written = solidScriptFormulaWrite(this.document, this.blocks, this.options.context);
-    this.parts = 'problem' in written ? new Map() : written.parts;
-    this.problemSet('problem' in written ? `Line ${written.line + 1}: ${written.problem}` : '');
+    if ('problem' in written) return this.problemSet(`Line ${written.line + 1}: ${written.problem}`);
+    this.body = written.text;
+    this.previewShow(written.text);
+    this.problemSet('');
   }
 
   /**
@@ -384,8 +366,14 @@ export class SolidScriptFormulaWindow extends SolidScriptDialog {
 
   /** Takes the lists off the page with the window. */
   protected override onAfterHide(): void {
+    super.onAfterHide();
     this.lines.dispose();
     this.palette.dispose();
     this.tip.dispose();
+  }
+
+  /** Hides the code tip under a dialog opened over the window. */
+  protected override popupsClose(): void {
+    this.tip.hide();
   }
 }

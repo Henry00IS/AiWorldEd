@@ -19,6 +19,7 @@ import {
   SOLID_SCRIPT_FORMULA_COMMAND,
   solidScriptFormulaBlock,
   solidScriptFormulaGroupCommands,
+  solidScriptFormulaOwn,
   type SolidScriptFormulaBlockText,
 } from './solid_script_formula_groups.js';
 import { SOLID_SCRIPT_FUNCTION_DOCS } from '@/solid_script/language/solid_script_function_docs.js';
@@ -252,17 +253,23 @@ const SOLID_SCRIPT_FORMULA_CATALOGS = new Map<string, SolidScriptCommandCatalog>
 
 /**
  * Returns the blocks of a formula where it is used: an element field fills in
- * its element by default.
+ * its element by default, and each Function of the script has its block among
+ * the functions.
  *
  * @param context Where the formula is used.
  * @returns Catalog.
  */
 export function solidScriptFormulaCatalog(context: SolidScriptFormulaContext = {}): SolidScriptCommandCatalog {
-  const key = [context.each ?? '', ...(context.words ?? []).map((entry) => entry.word)].join('|');
+  const own = (context.functions ?? []).map(solidScriptFormulaOwn);
+  const functions = (context.functions ?? []).map((entry) =>
+    JSON.stringify([entry.name, entry.inputs, entry.gives, entry.description]),
+  );
+  const key = [context.each ?? '', ...(context.words ?? []).map((entry) => entry.word), ...functions].join('|');
   const known = SOLID_SCRIPT_FORMULA_CATALOGS.get(key);
   if (known) return known;
   const checks = solidScriptFormulaCheckKeys().map((check) => solidScriptFormulaCheck(check, context));
-  const commands = [...solidScriptFormulaValues(context.words), ...solidScriptFormulaGroupCommands(), ...checks];
+  const groups = solidScriptFormulaGroupCommands();
+  const commands = [...solidScriptFormulaValues(context.words), ...groups, ...own, ...checks];
   const catalog = new SolidScriptCommandCatalog('formula', SOLID_SCRIPT_FORMULA_CATEGORIES, commands, [
     SOLID_SCRIPT_FORMULA_COMMAND.and,
     SOLID_SCRIPT_FORMULA_COMMAND.number,

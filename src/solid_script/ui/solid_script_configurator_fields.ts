@@ -344,7 +344,8 @@ function solidScriptConfiguratorInputs(
   if (placeholder !== '') input.placeholder = placeholder;
   if (parameter.texture === true) return solidScriptConfiguratorTexture(input, parameter, inputs);
   inputs.append(input);
-  return { read: () => input.value.trim(), problem: () => solidScriptConfiguratorProblem(parameter, input.value) };
+  const read = () => (parameter.verbatim === true ? input.value : input.value.trim());
+  return { read, problem: () => solidScriptConfiguratorProblem(parameter, input.value) };
 }
 
 /**

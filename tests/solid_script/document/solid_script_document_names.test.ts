@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { solidScriptDocumentCreate } from '@/solid_script/document/solid_script_document.js';
+import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 import {
   solidScriptDocumentNames,
   solidScriptDocumentNamesAt,
   solidScriptDocumentOrigins,
   solidScriptDocumentNamesUnknown,
+  solidScriptDocumentNotesAbove,
   solidScriptFieldKnown,
   solidScriptFieldUnknown,
 } from '@/solid_script/document/solid_script_document_names.js';
@@ -131,5 +132,33 @@ describe('SolidScript origins', () => {
       ]),
     );
     expect(Object.fromEntries(origins)).toEqual({ w: [0, 2], pts: [1, 3], 'Local.a': [4], 'Local.b': [4], i: [6] });
+  });
+
+  it.each([
+    ['one Note right above', ['note:A point.', 'function'], 'A point.'],
+    ['Note lines right above, top first', ['note:Where a', 'note:post stands.', 'function'], 'Where a post stands.'],
+    ['a Note with a line between', ['note:A point.', 'blank', 'function'], undefined],
+    ['a Note with another block between', ['note:A point.', 'cube', 'function'], undefined],
+    ['no Note', ['cube', 'function'], undefined],
+  ])('describes a Function by %s', (_case, lines, description) => {
+    const blocks: SolidScriptLine[] = lines.map((line) =>
+      line.startsWith('note:') ? { command: 'note', values: { text: line.slice(5) } } : { command: line },
+    );
+    blocks[blocks.length - 1] = { command: 'function', values: { name: 'Spot', parameters: 'A' } };
+    const script = solidScriptDocumentCreate([
+      ...blocks,
+      { command: 'return', values: { value: '[0, 1, 0]' } },
+      { command: 'end' },
+    ]);
+    const spot = solidScriptDocumentNamesAt(script, script.blocks.length).find((entry) => entry.name === 'Spot');
+    expect(spot?.description).toBe(description);
+    expect(spot?.detail).toBe('Spot(A)');
+    expect(spot?.gives).toBe('Vector');
+  });
+
+  it('reads the Notes right above any line, which only a Function uses', () => {
+    const script = solidScriptDocumentCreate([{ command: 'note', values: { text: 'Box.' } }, { command: 'cube' }]);
+    expect(solidScriptDocumentNotesAbove(script, 1)).toBe('Box.');
+    expect(solidScriptDocumentNamesAt(script, 2).some((entry) => entry.description !== undefined)).toBe(false);
   });
 });

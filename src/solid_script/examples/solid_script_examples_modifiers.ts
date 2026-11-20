@@ -125,7 +125,7 @@ export const SOLID_SCRIPT_EXAMPLE_SHEAR: readonly SolidScriptLine[] = [
       solidScriptExampleSet('Measure', solidScriptExampleAxis('Along')),
       solidScriptExampleNote('Each point moves by Slide times its distance from the center along Measure.'),
       solidScriptExampleNote(
-        'Matrix changes every point of the copy by these rows. Input Brushes writes the received brushes Into $[Copy$], Matrix edits that copy, and Output stamps it.',
+        'Matrix changes every point of the copy by these rows. Input Brushes writes the received brushes Into [Copy], Matrix edits that copy, and Output stamps it.',
       ),
       solidScriptExampleSet('Shift', '[=[Slide] * -Dot([Measure], [$Input.Center])]'),
       ...solidScriptExampleMatrixOf(
@@ -441,12 +441,12 @@ export const SOLID_SCRIPT_EXAMPLE_MIRROR: readonly SolidScriptLine[] = [
  */
 export const SOLID_SCRIPT_EXAMPLE_PUSH_OUT_FACES: readonly SolidScriptLine[] = [
   solidScriptExampleNote(
-    'This script is a modifier only: add it to a brush. For Each walks every received brush in $[Input.Brushes$]. The received brushes themselves are not kept, and only the new slabs stay.',
+    'This script is a modifier only: add it to a brush. For Each walks every received brush in [Input.Brushes]. The received brushes themselves are not kept, and only the new slabs stay.',
   ),
   solidScriptExampleInput('Distance', 'Number', '0.25', { label: 'Distance', min: '0', max: '10' }),
   solidScriptExampleInput('Thickness', 'Number', '0.1', { label: 'Thickness', min: '0.001', max: '10' }),
   ...solidScriptExampleBlock('for_each', { variable: 'Brush', list: '[$Input.Brushes]' }, [
-    solidScriptExampleNote('Select Faces Which All Of $[Brush$] keeps every face of that brush.'),
+    solidScriptExampleNote('Select Faces Which All Of [Brush] keeps every face of that brush.'),
     solidScriptExampleLine('select_faces', { which: 'All', of: '[Brush]' }),
     solidScriptExampleNote(
       'Extrude Face grows a slab from each selected face. The Thickness Input is how thick the slab is, and the Distance Input is the gap in front of the face.',

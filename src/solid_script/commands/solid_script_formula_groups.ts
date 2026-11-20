@@ -5,7 +5,8 @@ import {
   solidScriptFunctionArguments,
   solidScriptFunctionInputsLeast,
 } from '@/solid_script/language/solid_script_function_docs.js';
-import { solidScriptFormulaCheckName } from './solid_script_formula_inputs.js';
+import { solidScriptFormulaCheckName, type SolidScriptFormulaOwnFunction } from './solid_script_formula_inputs.js';
+import { solidScriptFunctionKey } from '@/solid_script/language/solid_script_name_key.js';
 
 /** How a group block joins the blocks inside it into a formula. */
 export type SolidScriptFormulaGroupForm =
@@ -13,7 +14,7 @@ export type SolidScriptFormulaGroupForm =
   | { readonly form: 'unary'; readonly operator: string }
   | { readonly form: 'choose' }
   | { readonly form: 'list' }
-  | { readonly form: 'call'; readonly key: string };
+  | { readonly form: 'call'; readonly key: string; readonly name?: string };
 
 /** A block that holds other blocks, such as And, Equals or Absolute. */
 export interface SolidScriptFormulaGroup {
@@ -63,6 +64,23 @@ export const SOLID_SCRIPT_FORMULA_COMMAND = {
  * formula_fn_abs.
  */
 export const SOLID_SCRIPT_FORMULA_FUNCTION = 'formula_fn_';
+
+/**
+ * Start of the id of the block of a Function the script defines, followed by
+ * the key of its name, such as formula_own_area.
+ */
+export const SOLID_SCRIPT_FORMULA_OWN = 'formula_own_';
+
+/**
+ * Returns the id of the block of a Function the script defines; any case of its
+ * name gives the same block.
+ *
+ * @param name Function name as written, such as Area.
+ * @returns Command id.
+ */
+export function solidScriptFormulaOwnId(name: string): string {
+  return `${SOLID_SCRIPT_FORMULA_OWN}${solidScriptFunctionKey(name)}`;
+}
 
 /** Operators with their block, loosest first; each holds two or more blocks. */
 const SOLID_SCRIPT_FORMULA_OPERATORS: readonly (SolidScriptFormulaBlockText & {
@@ -312,20 +330,54 @@ function solidScriptFormulaGroupAdd(
  */
 function solidScriptFormulaFunction(key: string): SolidScriptCommand {
   const doc = SOLID_SCRIPT_FUNCTION_DOCS[key];
-  const inputs = solidScriptFunctionArguments(key);
+  const inputs = solidScriptFunctionArguments(key).map((input) => input.name);
   const name = solidScriptFormulaCheckName(key);
   const label = SOLID_SCRIPT_FORMULA_FUNCTION_NAMES[key] ?? name.replace(/([a-z])([A-Z])/g, '$1 $2');
-  const summary = doc?.summary ?? label;
-  const takes = inputs.map((input) => input.name).join(', ');
-  const text = {
-    id: `${SOLID_SCRIPT_FORMULA_FUNCTION}${key}`,
-    label,
-    description: summary.replace(/\.$/, ''),
-    manual: `${summary} Put a block inside for each of: ${takes}. Written as ${doc?.usage ?? name}.`,
-  };
-  const max = inputs.some((input) => input.name === '...') ? Number.POSITIVE_INFINITY : inputs.length;
+  const call = { id: `${SOLID_SCRIPT_FORMULA_FUNCTION}${key}`, label, summary: doc?.summary ?? label };
+  const max = inputs.includes('...') ? Number.POSITIVE_INFINITY : inputs.length;
   const min = Math.max(1, solidScriptFunctionInputsLeast(key));
-  return solidScriptFormulaGroupAdd(text, 'Functions', { join: { form: 'call', key }, min, max, sections: 1 });
+  return solidScriptFormulaCall(call, inputs, doc?.usage ?? name, { join: { form: 'call', key }, min, max });
+}
+
+/**
+ * Creates the block of a Function the script defines, like the block of a
+ * built-in function: one block inside per value it takes.
+ *
+ * @param own Function, as the names of the script tell it.
+ * @returns Command.
+ */
+export function solidScriptFormulaOwn(own: SolidScriptFormulaOwnFunction): SolidScriptCommand {
+  const inputs = own.inputs ?? [];
+  const usage = `${own.name}(${inputs.join(', ')}) -> ${own.gives ?? 'Any'}`;
+  const summary = own.description ? `${own.description.replace(/\.$/, '')}.` : 'A Function of this script.';
+  const call = { id: solidScriptFormulaOwnId(own.name), label: own.name, summary };
+  const join = { form: 'call', key: solidScriptFunctionKey(own.name), name: own.name } as const;
+  return solidScriptFormulaCall(call, inputs, usage, { join, min: inputs.length, max: inputs.length });
+}
+
+/**
+ * Creates the group block of a call, which holds one block per input.
+ *
+ * @param call Id, name and what the function does.
+ * @param inputs Input names.
+ * @param usage How the call is written.
+ * @param group How it joins and how many blocks it holds.
+ * @returns Command.
+ */
+function solidScriptFormulaCall(
+  call: { id: string; label: string; summary: string },
+  inputs: readonly string[],
+  usage: string,
+  group: Omit<SolidScriptFormulaGroup, 'id' | 'sections'>,
+): SolidScriptCommand {
+  const takes = inputs.length > 0 ? ` Put a block inside for each of: ${inputs.join(', ')}.` : '';
+  const text = {
+    id: call.id,
+    label: call.label,
+    description: call.summary.replace(/\.$/, ''),
+    manual: `${call.summary}${takes} Written as ${usage}.`,
+  };
+  return solidScriptFormulaGroupAdd(text, 'Functions', { ...group, sections: 1 });
 }
 
 /**

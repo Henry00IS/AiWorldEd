@@ -99,7 +99,7 @@ export class SolidScriptEditorHelp {
     const link = (text: string): HTMLElement => solidScriptEditorHelpText(text, this.open, command.id);
     const description = link(`${command.description}.`);
     description.style.fontWeight = '600';
-    const manual = link(command.manual);
+    const manual = link(command.details);
     const fields = command.parameters.some((parameter) => parameter.type !== 'name' && parameter.type !== 'text')
       ? [solidScriptEditorHelpText(SOLID_SCRIPT_EDITOR_HELP_FIELDS)]
       : [];

@@ -27,6 +27,8 @@ export interface SolidScriptListingValues {
   variable: (key: string) => SolidScriptListingPart;
   /** Returns a value as plain text. */
   text: (key: string) => string;
+  /** Returns a value exactly as stored, spaces and all, on one line. */
+  raw: (key: string) => string;
   /** Returns whether a switch is on. */
   on: (key: string) => boolean;
   /** Returns whether a value differs from its default. */
@@ -41,6 +43,20 @@ export type SolidScriptListingPiece = SolidScriptListingPart | string | null | f
  * command name; the listing keeps two spaces between it and the rest.
  */
 export type SolidScriptListingWrite = (read: SolidScriptListingValues) => SolidScriptListingPiece[];
+
+/** Mark a Note line starts with. */
+export const SOLID_SCRIPT_LISTING_NOTE = '***';
+
+/**
+ * Writes a Note line: the mark, then the note text exactly as typed, without
+ * quotes, such as *** Hello.
+ *
+ * @param text Note text.
+ * @returns Line text.
+ */
+export function solidScriptListingNote(text: string): string {
+  return text === '' ? SOLID_SCRIPT_LISTING_NOTE : `${SOLID_SCRIPT_LISTING_NOTE} ${text}`;
+}
 
 /**
  * Formats a configured value as typed: a lone variable as [Name], anything else

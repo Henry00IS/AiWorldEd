@@ -5,6 +5,7 @@ import { solidScriptBlockTree } from '@/solid_script/language/solid_script_block
 import { SolidScriptMachine } from '@/solid_script/language/solid_script_machine.js';
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
+import { solidScriptDocumentNamesUnknown } from '@/solid_script/document/solid_script_document_names.js';
 import type { SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
 
 /**
@@ -29,6 +30,15 @@ function script(...lines: SolidScriptLine[]) {
 }
 
 describe('solidScriptProgramRun', () => {
+  it('skips a Note as plain text, brackets, formulas and $ as written', () => {
+    const text = '[I] is [=1 + 2], a [ alone, $[ and "quotes"';
+    const document = script({ command: 'note', values: { text } }, { command: 'cube', values: {} });
+    const run = solidScriptProgramRun(document);
+    expect(run.error).toBeNull();
+    expect(solidScriptDocumentNamesUnknown(document).size).toBe(0);
+    expect(document.blocks[0]?.values['text']).toBe(text);
+  });
+
   it('runs one script again with new inputs, and Function locals stay per call', () => {
     const document = solidScriptDocumentCreate([
       { command: 'input', values: { name: 'n', type: 'Number', default: '1' } },

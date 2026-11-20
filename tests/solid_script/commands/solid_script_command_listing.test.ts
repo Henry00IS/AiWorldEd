@@ -84,7 +84,7 @@ describe('SolidScript listing', () => {
   });
 
   it('marks notes, parts and plain block lines with their own short forms', () => {
-    expect(listed('note', { text: 'Two posts and a lintel' })).toBe("*** 'Two posts and a lintel'");
+    expect(listed('note', { text: 'Two posts and a lintel' })).toBe('*** Two posts and a lintel');
     expect(listed('part', { name: 'post' })).toBe("Define Part 'post'");
     expect(listed('part', { name: 'post', mode: 'Subtractive' })).toBe("Define Part 'post' (Mode 'Subtractive')");
     expect(listed('group')).toBe('Group');
@@ -93,6 +93,18 @@ describe('SolidScript listing', () => {
     expect(listed('hull')).toBe('Hull');
     expect(listed('else')).toBe('Else');
     expect(listed('blank')).toBe('');
+  });
+
+  it.each([
+    ['Hello', '*** Hello'],
+    ['', '***'],
+    ["it's 'quoted' and \"double\"", `*** it's 'quoted' and "double"`],
+    ['[I] and [=1 + 2] $[ "q"', '*** [I] and [=1 + 2] $[ "q"'],
+    ['a [ alone', '*** a [ alone'],
+    ['  spaced out  ', '***   spaced out  '],
+  ])('writes the Note %j as the rest of the line after ***, exactly as typed', (text, line) => {
+    expect(listed('note', { text })).toBe(line);
+    expect(line.slice(4)).toBe(text);
   });
 
   it('starts every line with its command label in Start Case, never a short code like fn', () => {

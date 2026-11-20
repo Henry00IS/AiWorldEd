@@ -22,7 +22,7 @@ export const SOLID_SCRIPT_EXAMPLE_PYRAMID: readonly SolidScriptLine[] = [
   solidScriptExampleNote('Pyramid: four corners on the floor and a smaller square, or a tip, at the top.'),
   solidScriptExampleInput('TopSize', 'Number', '0', { label: 'Top Size', min: '0', max: '1' }),
   solidScriptExampleNote(
-    '$[Box$] is the generator box in the editor: its Width, Height and Depth. $[Half$] is half of that, so the pyramid sits in the box.',
+    '[Box] is the generator box in the editor: its Width, Height and Depth. [Half] is half of that, so the pyramid sits in the box.',
   ),
   SOLID_SCRIPT_EXAMPLE_HALF,
   solidScriptExampleNote('Polyhedron builds one solid from corners you list. Each Point is one corner of the pyramid.'),
@@ -112,7 +112,7 @@ export const SOLID_SCRIPT_EXAMPLE_HOLLOW_BOX: readonly SolidScriptLine[] = [
   solidScriptExampleInput('WallThickness', 'Number', '0.25', { label: 'Wall Thickness', min: '0.01', max: '100' }),
   solidScriptExampleInput('OpenTop', 'Switch', 'No', { label: 'Open Top' }),
   solidScriptExampleNote(
-    'Function names a group of lines so Call can run them later. Slab takes From and To; inside the function, $[Local.From$] and $[Local.To$] are the values from that Call. The script skips the Function lines where they stand.',
+    'Function names a group of lines so Call can run them later. Slab takes From and To; inside the function, [Local.From] and [Local.To] are the values from that Call. The script skips the Function lines where they stand.',
   ),
   ...solidScriptExampleSlabFunction(),
   SOLID_SCRIPT_EXAMPLE_HALF,

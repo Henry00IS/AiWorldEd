@@ -13,6 +13,7 @@ import {
 } from '@/solid_script/commands/solid_script_formula_inputs.js';
 import {
   solidScriptFormulaGroupOf,
+  solidScriptFormulaOwnId,
   solidScriptFormulaOperatorBlock,
 } from '@/solid_script/commands/solid_script_formula_groups.js';
 import { solidScriptBuiltinFind } from '@/solid_script/language/solid_script_expression_compile.js';
@@ -179,17 +180,19 @@ class SolidScriptFormulaReader {
   }
 
   /**
-   * Tells which function block a call is, when it gives each input plainly; a
-   * call with too few inputs still is, so the blocks name what is missing.
+   * Tells which function block a call is, a built-in one or a Function of the
+   * script, when it gives each input plainly; a call with too few inputs still
+   * is, so the blocks name what is missing.
    *
    * @param node Part.
    * @returns Group, or null when no function block holds the call.
    */
   call(node: SolidScriptExpression): SolidScriptFormulaGrouped | null {
     if (node.kind !== 'call' || node.args.some((arg) => arg.name !== null)) return null;
-    const command = `${SOLID_SCRIPT_FORMULA_FUNCTION}${solidScriptBuiltinFind(node.name) ?? ''}`;
-    const group = solidScriptFormulaGroupOf(command);
-    if (!group || node.args.length === 0 || node.args.length > group.max) return null;
+    const builtin = solidScriptBuiltinFind(node.name);
+    const command = builtin ? `${SOLID_SCRIPT_FORMULA_FUNCTION}${builtin}` : solidScriptFormulaOwnId(node.name);
+    const group = this.catalog.find(command) ? solidScriptFormulaGroupOf(command) : undefined;
+    if (!group || (node.args.length === 0 && group.max > 0) || node.args.length > group.max) return null;
     return { command, parts: [node.args.map((arg) => arg.value)], name: node.name };
   }
 

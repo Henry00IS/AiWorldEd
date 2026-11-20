@@ -24,14 +24,16 @@ function solidScriptAuditListingSample(command: SolidScriptCommand, parameter: S
 }
 
 /**
- * Tells whether a listing part shows a sample as a quoted or bracketed value.
+ * Tells whether a listing part shows a sample as a quoted or bracketed value,
+ * or as the plain text of a Note after its ***.
  *
  * @param part Listing piece.
  * @param sample User value.
  * @returns True when the sample is formatted.
  */
 function solidScriptAuditListingQuoted(part: SolidScriptListingPart, sample: string): boolean {
-  if (part.kind === 'value' || part.kind === 'note') return part.text.includes(`'${sample}'`);
+  if (part.kind === 'note') return part.text === `*** ${sample}`;
+  if (part.kind === 'value') return part.text.includes(`'${sample}'`);
   return part.kind === 'variable' && (part.text === `[${sample}]` || part.text === sample);
 }
 

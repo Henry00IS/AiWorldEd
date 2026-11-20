@@ -265,7 +265,7 @@ describe('SolidScript formula blocks write', () => {
     });
     expect(problem('[a]', (blocks) => blocks.push({ id: 'e', command: 'end', values: {} }))).toMatchObject({ line: 1 });
     expect(problem('!([a])', (blocks) => blocks.splice(1, 1))).toEqual({
-      problem: 'Not needs a block inside.',
+      problem: 'Not needs at least one part.',
       line: 0,
     });
     expect(problem('![a]', (blocks) => blocks.splice(1, 0, { ...blocks[1]!, id: 'n' }))).toEqual({
@@ -273,15 +273,15 @@ describe('SolidScript formula blocks write', () => {
       line: 0,
     });
     expect(problem('[a] == 1', (blocks) => blocks.splice(1, 1))).toEqual({
-      problem: 'Equals needs at least 2 blocks inside.',
+      problem: 'Equals needs at least 2 parts.',
       line: 0,
     });
     expect(problem('[a] ? 1 : 2', (blocks) => blocks.splice(1, 1))).toEqual({
-      problem: 'If needs a block inside.',
+      problem: 'If needs at least one part.',
       line: 0,
     });
     expect(problem('[a] ? 1 : 2', (blocks) => blocks.splice(5, 1))).toEqual({
-      problem: 'If needs a block inside under Else.',
+      problem: 'If needs at least one part under Else.',
       line: 0,
     });
     expect(problem('[a] ? 1 : 2', (blocks) => blocks.splice(3, 2))).toMatchObject({

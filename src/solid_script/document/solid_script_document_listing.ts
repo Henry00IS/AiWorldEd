@@ -9,7 +9,7 @@ import { solidScriptBlockIsBlank } from './solid_script_document_edit.js';
 import { solidScriptBlockNesting, solidScriptDocumentDepths } from './solid_script_document_indent.js';
 
 /** Spaces of one indent level in a listing written as text. */
-const SOLID_SCRIPT_LISTING_INDENT = '    ';
+export const SOLID_SCRIPT_LISTING_INDENT = '    ';
 
 /**
  * Finds the line that opens the block every End line closes.

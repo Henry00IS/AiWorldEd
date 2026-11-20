@@ -188,8 +188,8 @@ function solidScriptFormulaEmpty(node: SolidScriptFormulaNode): void {
     const label = node.command?.label ?? '';
     const where = group.sections > 1 ? (SOLID_SCRIPT_FORMULA_SECTION_NAMES[index] ?? '') : '';
     if (section.length < group.min) {
-      const count = group.min === 1 ? 'a block' : `at least ${group.min} blocks`;
-      throw new SolidScriptFormulaProblem(`${label} needs ${count} inside${where}.`, node.line);
+      const count = group.min === 1 ? 'one part' : `${group.min} parts`;
+      throw new SolidScriptFormulaProblem(`${label} needs at least ${count}${where}.`, node.line);
     }
     if (section.length > group.max) {
       const count = group.max === 1 ? 'one block' : `${group.max} blocks`;
@@ -292,7 +292,9 @@ class SolidScriptFormulaWriter {
     if (join.form === 'choose') return `${wrap(first, 1)} ? ${wrap(second, 0)} : ${wrap(third, 0)}`;
     if (join.form === 'call' || join.form === 'list') {
       const args = first.map((part) => solidScriptFormulaWrap(part, 0)).join(', ');
-      return join.form === 'list' ? `$[${args}$]` : `${name || solidScriptFormulaCheckName(join.key)}(${args})`;
+      return join.form === 'list'
+        ? `$[${args}$]`
+        : `${name || join.name || solidScriptFormulaCheckName(join.key)}(${args})`;
     }
     const operand = wrap(first, SOLID_SCRIPT_FORMULA_LEVEL_UNARY);
     const twice = join.operator === '-' && /^[-+]/.test(operand) ? `(${operand})` : operand;
