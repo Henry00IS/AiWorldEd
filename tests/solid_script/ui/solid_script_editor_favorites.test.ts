@@ -4,6 +4,7 @@ import { SolidScriptEditorFavorites } from '@/solid_script/ui/solid_script_edito
 import { SOLID_SCRIPT_EDITOR_FAVORITES_DEFAULT } from '@/solid_script/commands/solid_script_command_catalog.js';
 import { SolidScriptEditorPalette } from '@/solid_script/ui/solid_script_editor_palette.js';
 import { SOLID_SCRIPT_EDITOR_FAVORITES_KEY } from '@/solid_script/ui/solid_script_editor_splitters.js';
+import { solidScriptFormulaCatalog } from '@/solid_script/commands/solid_script_formula_commands.js';
 
 /**
  * Builds a palette on a storage, in the page so its menu can open.
@@ -126,5 +127,16 @@ describe('Palette Favorites', () => {
     expect(group(reloaded).hidden).toBe(false);
     expect(group(reloaded).firstElementChild?.textContent).toBe('Favorites');
     expect(reloaded.favoritesVisible()).toEqual(['cube']);
+  });
+
+  it('keeps the favorites of the formula blocks apart from the script editor', () => {
+    const storage = new MemorySettingsStorage();
+    const formula = new SolidScriptEditorFavorites(storage, solidScriptFormulaCatalog());
+    expect(formula.read()).toEqual(['formula_and', 'formula_number', 'formula_variable']);
+    formula.toggle('formula_or');
+    expect(storage.getItem(SOLID_SCRIPT_EDITOR_FAVORITES_KEY)).toBeNull();
+    expect(new SolidScriptEditorFavorites(storage).read()).toEqual([...SOLID_SCRIPT_EDITOR_FAVORITES_DEFAULT]);
+    new SolidScriptEditorFavorites(storage).toggle('cube');
+    expect(formula.read()).toEqual(['formula_and', 'formula_number', 'formula_variable', 'formula_or']);
   });
 });

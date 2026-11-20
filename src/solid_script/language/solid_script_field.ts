@@ -86,8 +86,10 @@ const SOLID_SCRIPT_FIELD_CACHE_LIMIT = 20000;
 
 /** One piece of field text: plain characters or a bracketed part. */
 export type SolidScriptFieldPiece =
-  | { kind: 'plain'; text: string }
-  | { kind: 'group'; pieces: SolidScriptFieldPiece[]; from: number; to: number };
+  { kind: 'plain'; text: string } | { kind: 'group'; pieces: SolidScriptFieldPiece[]; from: number; to: number };
+
+/** A bracketed part of field text, with where its brackets stand. */
+type SolidScriptFieldGroup = Extract<SolidScriptFieldPiece, { kind: 'group' }>;
 
 /** A plain variable name, such as width. */
 const SOLID_SCRIPT_FIELD_NAME_PLAIN = /^[A-Za-z_]\w*$/;
@@ -132,7 +134,7 @@ export function solidScriptFieldEscapes(text: string, index: number): boolean {
 export function solidScriptFieldPieces(text: string): SolidScriptFieldPiece[] {
   const root: SolidScriptFieldPiece[] = [];
   const open: SolidScriptFieldPiece[][] = [root];
-  const groups: Extract<SolidScriptFieldPiece, { kind: 'group' }>[] = [];
+  const groups: SolidScriptFieldGroup[] = [];
   const plain = (character: string): void => {
     const into = open[open.length - 1]!;
     const last = into[into.length - 1];
@@ -145,10 +147,9 @@ export function solidScriptFieldPieces(text: string): SolidScriptFieldPiece[] {
       plain(text[index + 1]!);
       index++;
     } else if (character === '[') {
-      const group: Extract<SolidScriptFieldPiece, { kind: 'group' }> = { kind: 'group', pieces: [], from: index, to: -1 };
-      open[open.length - 1]!.push(group);
-      open.push(group.pieces);
-      groups.push(group);
+      groups.push({ kind: 'group', pieces: [], from: index, to: -1 });
+      open[open.length - 1]!.push(groups[groups.length - 1]!);
+      open.push(groups[groups.length - 1]!.pieces);
     } else if (character === ']') {
       if (open.length === 1) throw new Error('a ] has no [ before it; write $] for a bracket');
       open.pop();

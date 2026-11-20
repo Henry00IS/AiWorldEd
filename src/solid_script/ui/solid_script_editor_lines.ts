@@ -244,22 +244,29 @@ export class SolidScriptEditorLines {
     const line = Number(row.dataset['line']);
     const kept = SelectionRowsRules.contextApply(new Set(this.selected()), line);
     if (kept.size === 1 && kept.has(line)) this.focusLine(line);
-    const off = this.offs[line] === true;
     this.menu?.dispose();
+    this.menu = new MenuContext(this.element, this.menuItems(line));
+    this.menu.show(event.clientX, event.clientY);
+  }
+
+  /**
+   * Lists what the line menu offers: turning on and off and breakpoints only
+   * where lines can be switched.
+   *
+   * @param line Line the menu opened on.
+   * @returns Menu items.
+   */
+  private menuItems(line: number): ConstructorParameters<typeof MenuContext>[1] {
     const switches = this.options.switches;
-    this.menu = new MenuContext(this.element, [
+    const off = this.offs[line] === true;
+    const breakpoint = { label: 'Toggle Breakpoint', callback: () => this.handlers.breakpoint(line) };
+    return [
       { label: 'Change…', callback: () => this.handlers.configure(line) },
       ...(switches ? [{ label: off ? 'Turn On' : 'Turn Off', callback: () => this.keys.toggle(line) }] : []),
       { label: 'Duplicate', callback: () => this.keys.duplicate(line) },
       { label: 'Delete', callback: () => this.keys.remove(line) },
-      ...(switches
-        ? [
-            { kind: 'separator' as const },
-            { label: 'Toggle Breakpoint', callback: () => this.handlers.breakpoint(line) },
-          ]
-        : []),
-    ]);
-    this.menu.show(event.clientX, event.clientY);
+      ...(switches ? [{ kind: 'separator' as const }, breakpoint] : []),
+    ];
   }
 
   /** Line menu while open. */

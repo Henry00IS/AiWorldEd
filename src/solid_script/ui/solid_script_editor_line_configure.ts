@@ -12,6 +12,7 @@ import { solidScriptBlockNesting } from '@/solid_script/document/solid_script_do
 import type { SolidScriptName } from '@/solid_script/document/solid_script_document_names.js';
 import type { SolidScriptInput } from '@/solid_script/language/solid_script_input.js';
 import { SolidScriptConfigurator } from './solid_script_configurator.js';
+import type { SolidScriptDialog } from './solid_script_dialog.js';
 
 /** Notice when another user deletes the line being configured. */
 export const SOLID_SCRIPT_EDITOR_CONFIGURED_GONE =
@@ -37,6 +38,8 @@ export interface SolidScriptEditorLineConfigureHost {
   history: ((redo: boolean) => void) | null;
   /** Element the configurator windows mount in. */
   mount: () => HTMLElement;
+  /** Dialog the configurator windows open over, or null for the editor itself. */
+  parent: () => SolidScriptDialog | null;
 }
 
 /**
@@ -170,6 +173,7 @@ export class SolidScriptEditorLineConfigure {
       this.host.history,
       this.host.inputs(document),
       this.host.fills(),
+      this.host.parent(),
     ).show();
   }
 }

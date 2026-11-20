@@ -273,7 +273,8 @@ export class SolidScriptParserExpression {
   private parsePrimary(): SolidScriptExpression {
     const first = this.index;
     const token = this.next();
-    if (token.kind === 'number') return this.expressionMark({ kind: 'number', value: Number(token.text) }, first, false);
+    if (token.kind === 'number')
+      return this.expressionMark({ kind: 'number', value: Number(token.text) }, first, false);
     if (token.kind === 'string') return this.expressionMark({ kind: 'string', value: token.text }, first, false);
     if (token.kind === 'identifier') return this.expressionMark(this.parseName(token.text), first, false);
     if (token.text === '(') {

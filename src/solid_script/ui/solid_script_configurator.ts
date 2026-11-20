@@ -20,6 +20,8 @@ import {
 import { solidScriptInputRead, type SolidScriptInput } from '@/solid_script/language/solid_script_input.js';
 import { solidScriptChoiceWordsForField } from '@/solid_script/language/solid_script_choices.js';
 import { SolidScriptDialog } from './solid_script_dialog.js';
+import { SOLID_SCRIPT_FORMULA_CATEGORIES } from '@/solid_script/commands/solid_script_formula_commands.js';
+import { SolidScriptFormulaWindow, solidScriptFormulaWindowProblem } from './solid_script_formula_window.js';
 import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
 
 /**
@@ -46,19 +48,22 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
    * @param inputs Input lines whose words choice fields offer.
    * @param fills Names every field fills in besides the command's own, such as
    *   $Face for the blocks of a Where formula.
+   * @param parent Dialog this one opens over, such as the formula window, or
+   *   null.
    */
   constructor(
     host: HTMLElement,
     private readonly command: SolidScriptCommand,
     values: SolidScriptCommandValues,
     private readonly apply: (values: Record<string, string>) => void,
-    names: readonly SolidScriptName[] = [],
+    private readonly names: readonly SolidScriptName[] = [],
     private readonly cancelled: (() => void) | null = null,
     history: ((redo: boolean) => void) | null = null,
     private readonly inputs: readonly SolidScriptInput[] = [],
     private readonly fills: readonly string[] = [],
+    parent: SolidScriptDialog | null = null,
   ) {
-    super(host, command.label, 'OK');
+    super(host, command.label, 'OK', parent);
     this.root.dataset['solidScriptConfigurator'] = command.id;
     // Undo keys belong to the script, never to the level behind the window;
     // inside a text field they undo typing.
@@ -86,6 +91,9 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
           eachFillWarning: (text) => solidScriptFieldEachFillWarning(command, parameter, this.values(), text),
           values: () => this.values(),
           inputs: this.inputs,
+          ...(SOLID_SCRIPT_FORMULA_CATEGORIES.includes(command.category)
+            ? {}
+            : { formula: (field, stored, write) => this.formulaOpen(field, stored, write) }),
         },
       );
       this.fields.set(parameter.key, field);
@@ -184,6 +192,37 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
    */
   private fillsOf(parameter: SolidScriptCommandParameter, values: SolidScriptCommandValues): string[] {
     return [...solidScriptCommandFieldFills(this.command, parameter, values), ...this.fills];
+  }
+
+  /**
+   * Opens the formula window of a field over this window, once its formula
+   * reads; a broken one must be fixed first.
+   *
+   * @param parameter Field.
+   * @param stored Field text.
+   * @param write Writes the built text into the field.
+   */
+  private formulaOpen(parameter: SolidScriptCommandParameter, stored: string, write: (text: string) => void): void {
+    const values = this.values();
+    const problem = solidScriptFormulaWindowProblem(parameter.type, stored);
+    if (problem) {
+      this.problem.textContent = problem;
+      this.problem.classList.remove(SOLID_SCRIPT_EDITOR_CLASSES.fieldWarning);
+      return;
+    }
+    const each = solidScriptParameterEachActive(parameter, values);
+    new SolidScriptFormulaWindow({
+      host: this.host,
+      parent: this,
+      label: parameter.label,
+      kind: parameter.type,
+      stored,
+      context: each ? { each } : {},
+      names: this.names,
+      fills: this.fillsOf(parameter, values),
+      inputs: this.inputs,
+      apply: write,
+    }).show();
   }
 
   /**

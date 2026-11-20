@@ -126,10 +126,19 @@ describe('SolidScript per-element field chrome', () => {
     solidScriptEditorStylesheetEnsure();
     const css = document.getElementById('solid-script-editor-stylesheet')?.textContent ?? '';
     expect(css).not.toMatch(/\.solid-script-editor-field-each\s*\{[^}]*outline\s*:/);
-    expect(css).toContain('.solid-script-editor-field-each .solid-script-editor-field-inputs::before');
-    expect(css).toContain('.solid-script-editor-field-each .solid-script-editor-field-inputs::after');
+    expect(css).toContain('.solid-script-editor-field-each .solid-script-editor-field-code::before');
+    expect(css).toContain('.solid-script-editor-field-each .solid-script-editor-field-code::after');
     expect(css).toContain(SOLID_SCRIPT_EDITOR_EACH_COLOR);
-    const field = solidScriptConfiguratorFieldBuild(parameter('select_faces', 'where'), '', () => {});
+    const field = solidScriptConfiguratorFieldBuild(parameter('select_faces', 'where'), '', () => {}, {
+      names: [],
+      extra: [],
+      formula: () => undefined,
+    });
+    const box = field.element.querySelector(`.${SOLID_SCRIPT_EDITOR_CLASSES.fieldCode}`);
+    const button = field.element.querySelector(`.${SOLID_SCRIPT_EDITOR_CLASSES.fieldFormula}`);
+    expect(box?.querySelector('input')).not.toBeNull();
+    expect(button).not.toBeNull();
+    expect(box?.contains(button)).toBe(false);
     field.element.classList.add(SOLID_SCRIPT_EDITOR_CLASSES.fieldEach);
     const inputs = field.element.querySelector(`.${SOLID_SCRIPT_EDITOR_CLASSES.fieldInputs}`);
     const label = field.element.querySelector(`.${SOLID_SCRIPT_EDITOR_CLASSES.fieldLabel}`);

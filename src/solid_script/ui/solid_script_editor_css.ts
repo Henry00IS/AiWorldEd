@@ -127,15 +127,13 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
   fieldCodeLayer: 'solid-script-editor-field-code-layer',
   guides: 'solid-script-editor-guides',
   settingsGroup: 'solid-script-editor-settings-group',
-  fieldQuery: 'solid-script-editor-field-query',
-  query: 'solid-script-editor-query',
-  queryMode: 'solid-script-editor-query-mode',
-  queryEasy: 'solid-script-editor-query-easy',
-  queryGroup: 'solid-script-editor-query-group',
-  queryRoot: 'solid-script-editor-query-root',
-  queryHead: 'solid-script-editor-query-head',
-  queryTitle: 'solid-script-editor-query-title',
-  queryInputs: 'solid-script-editor-query-inputs',
+  fieldFormula: 'solid-script-editor-field-formula',
+  formulaBody: 'solid-script-editor-formula-body',
+  formulaText: 'solid-script-editor-formula-text',
+  formulaStatus: 'solid-script-editor-formula-status',
+  formulaProblem: 'solid-script-editor-formula-problem',
+  formulaOff: 'solid-script-editor-formula-off',
+  shade: 'solid-script-editor-shade',
 } as const;
 
 /** Accent colour of each palette category, readable on light and dark panels. */
@@ -151,6 +149,11 @@ export const SOLID_SCRIPT_EDITOR_CATEGORY_COLORS: Readonly<Record<string, string
   Logic: '#8a9a3c',
   Lists: '#3ca7a0',
   Parts: '#d4537e',
+  Groups: '#2e9e5b',
+  Operators: '#9b6bd6',
+  Checks: '#3d8fd6',
+  Functions: '#2aa198',
+  Values: '#c99a1e',
 };
 
 const c = SOLID_SCRIPT_EDITOR_CLASSES;
@@ -326,9 +329,9 @@ const SOLID_SCRIPT_EDITOR_DIALOG_CSS = `
 .${c.fieldHint} { grid-column: 2; margin-top: -4px; font-size: 11px; line-height: 1.35; color: ${ThemeCss.textColor}; opacity: 0.8; }
 .${c.fieldEachIcon} { display: none; margin-right: 0.3em; }
 .${c.fieldEach} .${c.fieldEachIcon} { display: inline; }
-.${c.fieldEach} .${c.fieldInputs}::before, .${c.fieldEach} .${c.fieldInputs}::after { content: ''; position: absolute; left: 0; right: 0; height: 8px; box-sizing: border-box; border: 2px solid ${SOLID_SCRIPT_EDITOR_EACH_COLOR}; pointer-events: none; z-index: 1; }
-.${c.fieldEach} .${c.fieldInputs}::before { top: 0; border-bottom: none; border-radius: ${SOLID_SCRIPT_EDITOR_INPUT_RADIUS} ${SOLID_SCRIPT_EDITOR_INPUT_RADIUS} 0 0; }
-.${c.fieldEach} .${c.fieldInputs}::after { bottom: 0; border-top: none; border-radius: 0 0 ${SOLID_SCRIPT_EDITOR_INPUT_RADIUS} ${SOLID_SCRIPT_EDITOR_INPUT_RADIUS}; }
+.${c.fieldEach} .${c.fieldCode}::before, .${c.fieldEach} .${c.fieldCode}::after { content: ''; position: absolute; left: 0; right: 0; height: 8px; box-sizing: border-box; border: 2px solid ${SOLID_SCRIPT_EDITOR_EACH_COLOR}; pointer-events: none; z-index: 1; }
+.${c.fieldEach} .${c.fieldCode}::before { top: 0; border-bottom: none; border-radius: ${SOLID_SCRIPT_EDITOR_INPUT_RADIUS} ${SOLID_SCRIPT_EDITOR_INPUT_RADIUS} 0 0; }
+.${c.fieldEach} .${c.fieldCode}::after { bottom: 0; border-top: none; border-radius: 0 0 ${SOLID_SCRIPT_EDITOR_INPUT_RADIUS} ${SOLID_SCRIPT_EDITOR_INPUT_RADIUS}; }
 .${c.fieldEach} .${c.input}:focus { outline: none; border-color: ${ThemeCss.accentColor}; box-shadow: inset 0 0 0 1px ${ThemeCss.accentColor}; }
 .${c.helpEach} { color: ${SOLID_SCRIPT_EDITOR_EACH_COLOR}; }
 .${c.suggestionEach} { color: ${SOLID_SCRIPT_EDITOR_EACH_COLOR}; }
@@ -350,17 +353,19 @@ const SOLID_SCRIPT_EDITOR_DIALOG_CSS = `
 .${c.fieldWarning} { color: ${ThemeCss.mutedTextColor}; }
 .${c.input} { flex: 1; min-width: 0; height: 26px; padding: 0 7px; border-radius: ${SOLID_SCRIPT_EDITOR_INPUT_RADIUS}; border: 1px solid ${ThemeCss.inputBorderColor}; background: ${ThemeCss.inputBackground}; color: ${ThemeCss.inputTextColor}; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; box-sizing: border-box; }
 .${c.input}:focus { outline: none; border-color: ${ThemeCss.accentColor}; }
-.${c.fieldQuery} { align-items: start; }
-.${c.query} { display: flex; flex-direction: column; gap: 8px; width: 100%; min-width: 0; }
-.${c.queryMode} { display: flex; gap: 4px; }
-.${c.queryMode} button[aria-pressed="true"] { font-weight: 600; border-color: ${ThemeCss.accentColor}; }
-.${c.queryEasy} { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.${c.queryGroup} { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 4px 0 4px 8px; border-left: 2px solid ${ThemeCss.inkAlpha(0.16)}; }
-.${c.queryRoot} { padding-left: 0; border-left: none; }
-.${c.queryHead} { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.${c.queryTitle} { flex: 1; min-width: 0; font-weight: 600; }
-.${c.queryInputs} { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 8px; align-items: center; min-width: 0; }
-.${c.queryInputs} span { font-size: 12px; color: ${ThemeCss.textColor}; }
+.${c.field}[hidden] { display: none; }
+.${c.fieldFormula} { flex: 0 0 auto; width: 26px; height: 26px; padding: 0; border-radius: ${SOLID_SCRIPT_EDITOR_INPUT_RADIUS}; border: 1px solid ${ThemeCss.inkAlpha(0.16)}; background: ${ThemeCss.inkAlpha(0.06)}; color: ${ThemeCss.textColor}; font: inherit; cursor: pointer; }
+.${c.fieldFormula}:hover { background: ${ThemeCss.inkAlpha(0.12)}; }
+.${c.formulaBody} { display: flex; gap: 10px; height: min(460px, calc(100vh - 220px)); min-height: 240px; margin-bottom: 10px; }
+.${c.formulaBody} > .${c.palette} { width: 190px; border: 1px solid ${ThemeCss.separatorColor}; border-radius: 5px; }
+.${c.formulaBody} > .${c.linesHost} { flex: 1.3; border: 1px solid ${ThemeCss.separatorColor}; border-radius: 5px; overflow: hidden; }
+.${c.formulaBody} > .${c.linesHost}.${c.formulaOff} { opacity: 0.45; pointer-events: none; }
+.${c.formulaText} { flex: 1; min-width: 0; resize: none; padding: 8px 10px; border-radius: 5px; border: 1px solid ${ThemeCss.inputBorderColor}; background: ${ThemeCss.inputBackground}; color: ${ThemeCss.inputTextColor}; font: 12px/1.5 ${SOLID_SCRIPT_EDITOR_CODE_FONT}; box-sizing: border-box; }
+.${c.formulaText}:focus { outline: none; border-color: ${ThemeCss.accentColor}; }
+.${c.formulaText}[readonly] { opacity: 0.6; }
+.${c.formulaStatus} { min-height: 16px; margin-bottom: 8px; color: ${ThemeCss.mutedTextColor}; }
+.${c.formulaStatus}.${c.formulaProblem} { color: #e5484d; }
+.${c.shade} { position: absolute; inset: 0; z-index: 10; background: rgba(0, 0, 0, calc(0.45 * var(--aiworlded-shadow-strength, 1))); }
 .${c.preview} { margin: 12px 0 14px; padding: 8px 10px; border-radius: 5px; background: ${ThemeCss.inputBackground}; border: 1px solid ${ThemeCss.inkAlpha(0.08)}; font: 12px ${SOLID_SCRIPT_EDITOR_CODE_FONT}; color: ${ThemeCss.inputTextColor}; white-space: pre-wrap; word-break: break-word; }
 .${c.list} { max-height: 240px; overflow-y: auto; margin-bottom: 14px; border-radius: 5px; border: 1px solid ${ThemeCss.inkAlpha(0.1)}; background: ${ThemeCss.inputBackground}; }
 .${c.listItem} { padding: 6px 10px; cursor: pointer; }

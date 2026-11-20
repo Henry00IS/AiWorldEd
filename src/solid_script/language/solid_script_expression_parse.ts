@@ -3,7 +3,7 @@ import { SolidScriptLexer } from './solid_script_lexer.js';
 import { SolidScriptParserExpression } from './solid_script_parser_expression.js';
 
 /** Parser of one value typed into a block, such as "[i * width, 0, 0]". */
-class SolidScriptValueParser extends SolidScriptParserExpression {
+export class SolidScriptValueParser extends SolidScriptParserExpression {
   /**
    * Creates the parser.
    *
@@ -33,11 +33,16 @@ class SolidScriptValueParser extends SolidScriptParserExpression {
  * a formula of them.
  *
  * @param text Value text.
+ * @param parser Makes the parser of the text; a reader that keeps positions
+ *   passes its own.
  * @returns Expression.
  */
-export function solidScriptExpressionParse(text: string): SolidScriptExpression {
+export function solidScriptExpressionParse(
+  text: string,
+  parser: (text: string) => SolidScriptValueParser = (value) => new SolidScriptValueParser(value),
+): SolidScriptExpression {
   try {
-    return new SolidScriptValueParser(text).parseValue();
+    return parser(text).parseValue();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(message.replace(/^line \d+: /, ''));

@@ -221,13 +221,7 @@ export class SolidScriptEditorLineKeys {
     lines: readonly { command: string; values?: Record<string, string> }[],
     keepBlank = false,
   ): void {
-    const inserted = solidScriptDocumentLinesInsert(
-      this.host.document(),
-      below,
-      lines,
-      keepBlank,
-      this.host.catalog,
-    );
+    const inserted = solidScriptDocumentLinesInsert(this.host.document(), below, lines, keepBlank, this.host.catalog);
     this.host.edit(inserted.document, inserted.line + lines.length - 1);
     this.host.selectRange(inserted.line, inserted.line + lines.length - 1);
   }

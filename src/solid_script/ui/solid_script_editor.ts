@@ -59,7 +59,6 @@ import { solidScriptFileDropBind, type SolidScriptFileDropResult } from './solid
 import { SOLID_SCRIPT_COMMAND_INPUT, solidScriptInputsList } from '@/solid_script/language/solid_script_input.js';
 import { SOLID_SCRIPT_SELECT_BETWEEN } from '@/solid_script/language/solid_script_select.js';
 
-
 /** First size of the editor window. */
 
 const SOLID_SCRIPT_EDITOR_SIZE = { width: 940, height: 600 };
@@ -125,17 +124,7 @@ export class SolidScriptEditor extends PanelFloating {
     );
     this.debugger = new SolidScriptEditorDebugger(this.session, () => this.debugChanged());
     this.debugger.stepMsSet(solidScriptEditorDebugSpeedMs(solidScriptEditorDebugSpeedRead()));
-    this.lineConfigure = new SolidScriptEditorLineConfigure({
-      catalog: SOLID_SCRIPT_COMMAND_CATALOG,
-      document: () => this.session.document(),
-      commit: (document, line) => this.commit(document, line),
-      notice: (text) => this.noticeShow(text),
-      names: (document, line) => solidScriptDocumentNamesAt(document, line),
-      inputs: (document) => solidScriptInputsList(document.blocks),
-      fills: () => [],
-      history: (redo) => this.historyStep(redo),
-      mount: () => this.root.ownerDocument.body,
-    });
+    this.lineConfigure = this.lineConfigureCreate();
     this.lines = new SolidScriptEditorLines({
       edit: (document, line) => this.commit(document, line),
       configure: (line) => this.lineConfigure.configure(line),
@@ -156,16 +145,7 @@ export class SolidScriptEditor extends PanelFloating {
       ),
     );
     this.output.selectAbove = (command, line) => this.selectAbove(command, line);
-    this.output.inputAdd = () => {
-      const blocks = this.session.document().blocks;
-      const last = blocks.map((block) => block.command).lastIndexOf(SOLID_SCRIPT_COMMAND_INPUT);
-      const used = new Set(solidScriptDocumentNames(this.session.document()).map((entry) => entry.name));
-      let name = 'width';
-      for (let index = 2; used.has(name); index++) name = `input${index}`;
-      this.lineConfigure.insert(SOLID_SCRIPT_COMMAND_INPUT, Math.max(0, last), last >= 0 ? 'caret' : 'before', {
-        name,
-      });
-    };
+    this.output.inputAdd = () => this.inputAdd();
     this.toolbar = new SolidScriptEditorToolbar({
       start: () => this.debugger.start(),
       debug: () => this.debugger.play(),
@@ -179,6 +159,38 @@ export class SolidScriptEditor extends PanelFloating {
       load: () => void this.load(),
     });
     this.build();
+  }
+
+  /**
+   * Creates how lines are added and changed through their window.
+   *
+   * @returns Line configuring.
+   */
+  private lineConfigureCreate(): SolidScriptEditorLineConfigure {
+    return new SolidScriptEditorLineConfigure({
+      catalog: SOLID_SCRIPT_COMMAND_CATALOG,
+      document: () => this.session.document(),
+      commit: (document, line) => this.commit(document, line),
+      notice: (text) => this.noticeShow(text),
+      names: (document, line) => solidScriptDocumentNamesAt(document, line),
+      inputs: (document) => solidScriptInputsList(document.blocks),
+      fills: () => [],
+      history: (redo) => this.historyStep(redo),
+      mount: () => this.root.ownerDocument.body,
+      parent: () => null,
+    });
+  }
+
+  /** Adds an Input line with a name no other variable has, below the last Input. */
+  private inputAdd(): void {
+    const blocks = this.session.document().blocks;
+    const last = blocks.map((block) => block.command).lastIndexOf(SOLID_SCRIPT_COMMAND_INPUT);
+    const used = new Set(solidScriptDocumentNames(this.session.document()).map((entry) => entry.name));
+    let name = 'width';
+    for (let index = 2; used.has(name); index++) name = `input${index}`;
+    this.lineConfigure.insert(SOLID_SCRIPT_COMMAND_INPUT, Math.max(0, last), last >= 0 ? 'caret' : 'before', {
+      name,
+    });
   }
 
   /**

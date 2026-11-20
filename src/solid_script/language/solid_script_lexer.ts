@@ -117,9 +117,7 @@ export class SolidScriptLexer {
     if (identifier) {
       const word = SOLID_SCRIPT_WORD_SYMBOLS.get(identifier[0].toLowerCase());
       if (word === undefined) return this.tokenTake('identifier', identifier[0]);
-      const start = this.position;
-      this.position += identifier[0].length;
-      return { kind: 'symbol', text: word, line: this.line, start, end: this.position };
+      return this.tokenTake('symbol', word, identifier[0].length);
     }
     if (rest[0] === '"') return this.tokenString();
     const double = SOLID_SCRIPT_SYMBOLS_DOUBLE.find((symbol) => rest.startsWith(symbol));
@@ -138,11 +136,13 @@ export class SolidScriptLexer {
    *
    * @param kind Token kind.
    * @param text Token text.
+   * @param length Characters it takes in the source, such as 3 for and read as
+   *   &&.
    * @returns Token.
    */
-  private tokenTake(kind: SolidScriptTokenKind, text: string): SolidScriptToken {
+  private tokenTake(kind: SolidScriptTokenKind, text: string, length = text.length): SolidScriptToken {
     const start = this.position;
-    this.position += text.length;
+    this.position += length;
     return { kind, text, line: this.line, start, end: this.position };
   }
 

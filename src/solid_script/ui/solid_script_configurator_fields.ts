@@ -37,10 +37,6 @@ import {
   solidScriptChoiceWordsForField,
 } from '@/solid_script/language/solid_script_choices.js';
 import type { SolidScriptInput } from '@/solid_script/language/solid_script_input.js';
-import {
-  solidScriptConfiguratorQueryApplies,
-  solidScriptConfiguratorQueryBuild,
-} from './solid_script_configurator_query.js';
 
 /** One labelled field of the configurator. */
 export interface SolidScriptConfiguratorField {
@@ -83,6 +79,11 @@ export interface SolidScriptConfiguratorScope {
   values?: () => Readonly<Record<string, string>>;
   /** Input lines of the script, for Choice inputs. */
   inputs?: readonly SolidScriptInput[];
+  /**
+   * Opens the formula window of a field, which writes the field text back on
+   * OK; fields have no … button without it.
+   */
+  formula?: (parameter: SolidScriptCommandParameter, stored: string, write: (text: string) => void) => void;
 }
 
 /** How a field's inputs are read and checked. */
@@ -180,8 +181,6 @@ export function solidScriptConfiguratorFieldBuild(
   // Not a <label>: a click that starts in one input and ends in another lands on
   // the row, and a label would then focus its first input. The inputs carry
   // their own names, so a click on the caption does nothing.
-  if (solidScriptConfiguratorQueryApplies(parameter))
-    return solidScriptConfiguratorQueryBuild(parameter, value, changed, scope, view);
   const row = document.createElement('div');
   row.className = SOLID_SCRIPT_EDITOR_CLASSES.field;
   row.title = parameter.hint;
@@ -256,6 +255,7 @@ export function solidScriptConfiguratorFieldBuild(
   const hint = document.createElement('span');
   hint.className = SOLID_SCRIPT_EDITOR_CLASSES.fieldHint;
   hint.textContent = parameter.hint;
+  solidScriptConfiguratorFormulaButton(parameter, inputs, field.read, scope.formula);
   row.append(caption, inputs, hint);
   return {
     element: row,
@@ -276,6 +276,49 @@ export function solidScriptConfiguratorFieldBuild(
       return problem;
     },
   };
+}
+
+/**
+ * Tells whether a field can be built from formula blocks: every field that
+ * reads [names] and [=formulas] and is typed, not picked.
+ *
+ * @param parameter Field.
+ * @returns True when it can.
+ */
+export function solidScriptConfiguratorFormulaCapable(parameter: SolidScriptCommandParameter): boolean {
+  return !solidScriptFieldAsTyped(parameter) && parameter.texture !== true && parameter.anchor === undefined;
+}
+
+/**
+ * Adds the … button that opens the formula window of a field, which writes the
+ * text it builds into the field.
+ *
+ * @param parameter Field.
+ * @param inputs Container of the field's inputs.
+ * @param read Reads the field text.
+ * @param open Opens the formula window, or undefined for no button.
+ */
+function solidScriptConfiguratorFormulaButton(
+  parameter: SolidScriptCommandParameter,
+  inputs: HTMLElement,
+  read: () => string,
+  open: SolidScriptConfiguratorScope['formula'],
+): void {
+  const input = inputs.querySelector<HTMLInputElement>('input[type="text"]');
+  if (!open || !input || !solidScriptConfiguratorFormulaCapable(parameter)) return;
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = SOLID_SCRIPT_EDITOR_CLASSES.fieldFormula;
+  button.textContent = '…';
+  button.setAttribute('aria-label', `Build ${parameter.label} from blocks`);
+  button.title = 'Build this value from blocks, such as In Box or Compare, in a bigger window.';
+  button.addEventListener('click', () =>
+    open(parameter, read(), (text) => {
+      input.value = text;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }),
+  );
+  inputs.append(button);
 }
 
 /**

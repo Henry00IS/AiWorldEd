@@ -68,8 +68,7 @@ export function solidScriptDocumentCommandInsert(
   const at = reuse || mode === 'before' || blocks.length === 0 ? index : index + 1;
   const line = Math.max(0, Math.min(at, blocks.length));
   const inserted = [solidScriptBlockCreate(command, values, false, catalog)];
-  if (catalog.find(command)?.nesting === 'open')
-    inserted.push(solidScriptBlockCreate(SOLID_SCRIPT_COMMAND_END));
+  if (catalog.find(command)?.nesting === 'open') inserted.push(solidScriptBlockCreate(SOLID_SCRIPT_COMMAND_END));
   blocks.splice(line, reuse ? 1 : 0, ...inserted);
   return { document: solidScriptDocumentWith(document, blocks), line };
 }
@@ -253,8 +252,7 @@ export function solidScriptDocumentLinesToggle(
   for (const line of picked) flags[line] = off;
   for (const line of picked) {
     if (solidScriptBlockNesting(document.blocks[line], catalog) !== 'open') continue;
-    for (const partner of solidScriptDocumentBlockPartners(document, before, line, !off, catalog))
-      flags[partner] = off;
+    for (const partner of solidScriptDocumentBlockPartners(document, before, line, !off, catalog)) flags[partner] = off;
   }
   const blocks = document.blocks.map((block, line) => {
     if ((block.off === true) === flags[line]) return block;

@@ -97,7 +97,12 @@ export type SolidScriptCommandCategory =
   | 'Inputs'
   | 'Logic'
   | 'Lists'
-  | 'Parts';
+  | 'Parts'
+  | 'Groups'
+  | 'Operators'
+  | 'Checks'
+  | 'Functions'
+  | 'Values';
 
 /**
  * How a command line shapes the block structure: 'open' starts a block that an

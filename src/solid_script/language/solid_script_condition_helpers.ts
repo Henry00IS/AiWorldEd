@@ -2,13 +2,13 @@ import type { SolidScriptFunctionDoc, SolidScriptFunctionKinds } from './solid_s
 import { SOLID_SCRIPT_FACING_WITHIN_DEFAULT } from './solid_script_condition.js';
 
 /**
- * One input of a curated condition function, for docs, autocomplete and easy
- * mode.
+ * One input of a curated condition function, for docs, autocomplete and formula
+ * blocks.
  */
 export interface SolidScriptConditionHelperInput {
   /** Name in the call, such as direction. */
   name: string;
-  /** Field label in easy mode. */
+  /** Field label of its formula block. */
   label: string;
   /** Kinds the input takes. */
   type: SolidScriptFunctionKinds;
@@ -19,7 +19,7 @@ export interface SolidScriptConditionHelperInput {
 }
 
 /**
- * One curated condition function, the declaration easy mode, docs and
+ * One curated condition function, the declaration formula blocks, docs and
  * autocomplete share.
  */
 export interface SolidScriptConditionHelper {
@@ -27,7 +27,7 @@ export interface SolidScriptConditionHelper {
   key: string;
   /** Official call name, such as InBox. */
   name: string;
-  /** Easy-mode row name, such as In Box. */
+  /** Formula block name, such as In Box. */
   display: string;
   /** What it tests, one short sentence. */
   description: string;
@@ -37,8 +37,8 @@ export interface SolidScriptConditionHelper {
 
 /**
  * Curated condition functions. Each one works in Where, Filter List, If and
- * every other condition field. One declaration drives easy mode, autocomplete
- * and the docs.
+ * every other condition field. One declaration drives formula blocks,
+ * autocomplete and the docs.
  */
 export const SOLID_SCRIPT_CONDITION_HELPERS: readonly SolidScriptConditionHelper[] = [
   {
