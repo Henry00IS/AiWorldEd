@@ -121,6 +121,7 @@ export function solidScriptNameDotProblem(name: string, use: 'read' | 'set'): st
  * @returns True for such a name.
  */
 export function solidScriptNameIsDataWrite(name: string): boolean {
+  if (!name.includes('.')) return false;
   const parts = solidScriptNameParts(name.trim());
   return parts.length >= 3 && parts[parts.length - 2]?.toLowerCase() === 'data';
 }
@@ -148,6 +149,7 @@ export function solidScriptSystemIsVector(name: string): boolean | null {
  * @returns True for such a name.
  */
 export function solidScriptNameIsUvWrite(name: string): boolean {
+  if (!name.includes('.')) return false;
   const parts = solidScriptNameParts(name.trim());
   return parts.length >= 2 && parts[parts.length - 1]?.toLowerCase() === 'uvs';
 }
@@ -160,6 +162,7 @@ export function solidScriptNameIsUvWrite(name: string): boolean {
  * @returns True for such a name.
  */
 export function solidScriptNameIsPositionWrite(name: string): boolean {
+  if (!name.includes('.')) return false;
   const text = name.trim().startsWith('$') ? name.trim().slice(1) : name.trim();
   const parts = solidScriptNameParts(text);
   if (parts.length < 2) return false;
@@ -178,6 +181,7 @@ export function solidScriptNameIsPositionWrite(name: string): boolean {
  * @returns True for such a name.
  */
 export function solidScriptNameIsModeWrite(name: string): boolean {
+  if (!name.includes('.')) return false;
   const raw = name.trim();
   const system = raw.startsWith('$');
   const parts = solidScriptNameParts(system ? raw.slice(1) : raw);

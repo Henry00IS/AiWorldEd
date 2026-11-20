@@ -53,6 +53,8 @@ export interface SolidScriptLineField {
   label: string;
   /** Closure that reads its value. */
   compiled: SolidScriptFieldCompiled;
+  /** True when its text holds commas outside brackets, worked out on first use. */
+  listed?: boolean;
 }
 
 /**

@@ -815,8 +815,9 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
           solidScriptFieldResolve('value', item, state.machine.fieldContext(state.scope)),
         ),
       valueItems(key) {
-        const typed = solidScriptLineFieldOf(fields, node, key).text;
-        return solidScriptFieldSplit(typed, ',').length > 1 ? this.list(key) : value(key);
+        const field = solidScriptLineFieldOf(fields, node, key);
+        field.listed ??= solidScriptFieldSplit(field.text, ',').length > 1;
+        return field.listed ? this.list(key) : value(key);
       },
       variableSet: (name, assigned) => state.machine.variableSet(state.scope, name, assigned),
       variableWrite(name, key) {

@@ -177,14 +177,6 @@ function solidScriptCompileCallMistake(name: string, key: string, values: readon
 }
 
 /**
- * Compiles a call; built-in functions are looked up once.
- *
- * @param name Function name.
- * @param args Compiled arguments.
- * @returns Closure.
- */
-
-/**
  * Runs a built-in function, including Hits and HitsBox which need the boxes of
  * the running script.
  *
@@ -205,6 +197,13 @@ function solidScriptCompileBuiltin(
   return builtin([...values]);
 }
 
+/**
+ * Compiles a call; built-in functions are looked up once.
+ *
+ * @param written Function name as written.
+ * @param args Compiled arguments.
+ * @returns Closure.
+ */
 function solidScriptCompileCall(written: string, args: readonly SolidScriptCompiled[]): SolidScriptCompiled {
   const found = solidScriptBuiltinFind(written);
   const builtin = found ? SOLID_SCRIPT_FUNCTIONS_BUILTIN[found] : undefined;
@@ -215,11 +214,12 @@ function solidScriptCompileCall(written: string, args: readonly SolidScriptCompi
       return evaluator.parseText(args[0]!(evaluator, scope), scope);
     };
   const inputs = found ? solidScriptFunctionArguments(found) : [];
+  const more = inputs.find((input) => input.name === '...');
   return (evaluator, scope) => {
     const values = new Array<SolidScriptValue>(args.length);
     for (let index = 0; index < args.length; index++) values[index] = args[index]!(evaluator, scope);
     if (!found || !builtin) return evaluator.callUser(name, values);
-    solidScriptCompileInputsCheck(name, inputs, values);
+    solidScriptCompileInputsCheck(name, inputs, more, values);
     const result = solidScriptCompileBuiltin(found, builtin, values, evaluator);
     if (result === undefined && found !== 'is_undef') throw solidScriptCompileCallMistake(name, found, values);
     return result;
@@ -232,14 +232,15 @@ function solidScriptCompileCall(written: string, args: readonly SolidScriptCompi
  *
  * @param name Function name as shown.
  * @param inputs Its inputs with their kinds.
+ * @param more The input that takes any number of further values, if it has one.
  * @param values Values given.
  */
 function solidScriptCompileInputsCheck(
   name: string,
   inputs: readonly SolidScriptFunctionArgument[],
+  more: SolidScriptFunctionArgument | undefined,
   values: readonly SolidScriptValue[],
 ): void {
-  const more = inputs.find((input) => input.name === '...');
   for (let index = 0; index < values.length; index++) {
     const input = inputs[index] ?? more;
     if (!input || input.type === 'Any') continue;
