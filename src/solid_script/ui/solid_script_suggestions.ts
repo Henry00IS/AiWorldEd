@@ -74,6 +74,11 @@ export interface SolidScriptSuggestionScope {
    * the members that lead to a value a line can set.
    */
   paths?: boolean;
+  /**
+   * True for a condition or Where field: the text is a formula without [= ], so
+   * a word after == does not replace the whole field.
+   */
+  phrase?: boolean;
 }
 
 /** How a suggestion is written: as the whole field, as a value or as a call. */
@@ -265,11 +270,29 @@ function solidScriptSuggestionCallAt(formula: string): SolidScriptSuggestionCall
  * @returns Context, or null where nothing fits, such as after a number outside
  *   a call.
  */
+
+/**
+ * Reads the word under the caret of a condition or Where field as if it were
+ * written inside [= ], so comparisons can offer declared choice words.
+ *
+ * @param text Field text.
+ * @param caret Caret index.
+ * @returns Context, shifted back to the field text, or null.
+ */
+function solidScriptSuggestionPhraseContext(text: string, caret: number): SolidScriptSuggestionContext | null {
+  const inner = solidScriptSuggestionContext(`[=${text}`, caret + 2, false);
+  if (!inner) return null;
+  return { ...inner, from: Math.max(0, inner.from - 2), to: Math.max(0, inner.to - 2) };
+}
+
 export function solidScriptSuggestionContext(
   text: string,
   caret: number,
   words: boolean,
+  phrase = false,
 ): SolidScriptSuggestionContext | null {
+  if (phrase && !solidScriptSuggestionBrackets(text.slice(0, caret)).at(-1))
+    return solidScriptSuggestionPhraseContext(text, caret);
   const before = text.slice(0, caret);
   const open = solidScriptSuggestionBrackets(before);
   const top = open.at(-1);
@@ -652,13 +675,32 @@ export function solidScriptSuggestions(
       .map(({ entry }) => entry);
   }
   const groups = solidScriptSuggestionGroups(scope);
-  return all
-    .filter((entry) => entry.pick !== 'word')
+  const listed = [
+    ...(scope.phrase ? solidScriptSuggestionChoiceValues(scope) : []),
+    ...all.filter((entry) => entry.pick !== 'word'),
+  ];
+  return listed
     .map((entry, index) => ({ suggestion: entry, index, rank: solidScriptSuggestionRank(entry, prefix) }))
     .filter(({ rank }) => rank >= 0)
     .sort((a, b) => solidScriptSuggestionGroupOrder(groups, a, b))
     .map(({ suggestion }) => suggestion)
     .slice(0, SOLID_SCRIPT_SUGGESTIONS_MAX);
+}
+
+/**
+ * Offers declared choice words as quoted values inside a formula or condition,
+ * such as "Generator" after [$Script.Usage] ==.
+ *
+ * @param scope What the field may refer to.
+ * @returns Suggestions.
+ */
+function solidScriptSuggestionChoiceValues(scope: SolidScriptSuggestionScope): SolidScriptSuggestion[] {
+  return scope.words.map((word) => ({
+    label: `"${word.word}"`,
+    detail: solidScriptSentence(word.detail),
+    category: 'Choices',
+    pick: 'value' as const,
+  }));
 }
 
 /**

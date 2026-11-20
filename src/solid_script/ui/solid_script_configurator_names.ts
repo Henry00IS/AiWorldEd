@@ -188,7 +188,12 @@ export class SolidScriptConfiguratorNames {
   /** Lists what fits at the caret, with the call being typed on top. */
   private update(): void {
     const caret = this.input.selectionStart ?? this.input.value.length;
-    const context = solidScriptSuggestionContext(this.input.value, caret, this.scope.words.length > 0);
+    const context = solidScriptSuggestionContext(
+      this.input.value,
+      caret,
+      this.scope.words.length > 0 && !this.scope.phrase,
+      this.scope.phrase === true,
+    );
     this.shown = solidScriptSuggestions(context, this.scope);
     this.active = solidScriptSuggestionActive(this.shown, context);
     const hint = solidScriptSuggestionHint(context, this.scope);

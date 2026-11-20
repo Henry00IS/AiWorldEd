@@ -32,6 +32,11 @@ import { solidScriptEditorToolButton } from './solid_script_editor_icons.js';
 import { SOLID_SCRIPT_COMMAND_EACH_ICON } from '@/solid_script/commands/solid_script_command_each.js';
 import { textureSelectCreate } from '@/texture/ui/texture_select.js';
 import { solidScriptSuggestionSelectedWords, type SolidScriptSuggestionScope } from './solid_script_suggestions.js';
+import {
+  solidScriptChoiceWordProblem,
+  solidScriptChoiceWordsForField,
+} from '@/solid_script/language/solid_script_choices.js';
+import type { SolidScriptInput } from '@/solid_script/language/solid_script_input.js';
 
 /** One labelled field of the configurator. */
 export interface SolidScriptConfiguratorField {
@@ -50,6 +55,13 @@ export interface SolidScriptConfiguratorField {
    * Positions.
    */
   fillsSet: (extra: readonly string[]) => void;
+  /**
+   * Updates the declared choice words this field offers, such as when Set's
+   * Variable becomes Brush.Mode.
+   *
+   * @param words Declared choice words.
+   */
+  choicesSet: (words: readonly SolidScriptCommandWord[]) => void;
 }
 
 /** What a field can refer to: the names of the script around the line. */
@@ -63,6 +75,10 @@ export interface SolidScriptConfiguratorScope {
    * the line fills.
    */
   eachFillWarning?: (text: string) => string;
+  /** Current values of the line, so Set Value can offer the target's words. */
+  values?: () => Readonly<Record<string, string>>;
+  /** Input lines of the script, for Choice inputs. */
+  inputs?: readonly SolidScriptInput[];
 }
 
 /** How a field's inputs are read and checked. */
@@ -175,12 +191,21 @@ export function solidScriptConfiguratorFieldBuild(
   const inputs = document.createElement('span');
   inputs.className = SOLID_SCRIPT_EDITOR_CLASSES.fieldInputs;
   const field = solidScriptConfiguratorInputs(parameter, value, inputs);
-  const words = solidScriptConfiguratorWords(parameter, scope.names);
+  const wordsOf = (): readonly SolidScriptCommandWord[] => {
+    const base = solidScriptConfiguratorWords(parameter, scope.names);
+    if (base.length > 0 && parameter.words === undefined && parameter.type !== 'boolean') return base;
+    const values = scope.values?.() ?? {};
+    const extra = solidScriptChoiceWordsForField(parameter, values, field.read(), scope.inputs ?? []);
+    return extra.length > 0 ? extra : base;
+  };
+  const named = solidScriptConfiguratorWords(parameter, scope.names);
+  const words = wordsOf();
   const suggest: SolidScriptSuggestionScope = {
     names: scope.names,
     extra: scope.extra,
     paths: parameter.writes?.offers === 'path',
     words,
+    phrase: parameter.type === 'condition' || parameter.key === 'where',
   };
   let known = solidScriptFieldKnown(scope.names, scope.extra);
   const texts = solidScriptConfiguratorSuggests(parameter)
@@ -203,6 +228,14 @@ export function solidScriptConfiguratorFieldBuild(
       known.names.has(solidScriptNameKey(name)),
     );
     if (mistake) return `${parameter.label}: ${mistake}`;
+    const declared = solidScriptChoiceWordsForField(
+      parameter,
+      scope.values?.() ?? {},
+      field.read(),
+      scope.inputs ?? [],
+    );
+    const choice = solidScriptChoiceWordProblem(field.read(), declared);
+    if (choice) return `${parameter.label} ${choice}`;
     const note = solidScriptConfiguratorVectorSize(parameter) > 0 ? solidScriptFieldVectorNote(field.read()) : '';
     if (note) return `${parameter.label}: ${note}.`;
     const fillWarning = scope.eachFillWarning?.(field.read()) ?? '';
@@ -226,6 +259,9 @@ export function solidScriptConfiguratorFieldBuild(
     fillsSet: (extra) => {
       suggest.extra = extra;
       known = solidScriptFieldKnown(scope.names, extra);
+    },
+    choicesSet: (words) => {
+      suggest.words = words.length > 0 ? words : named;
     },
     problem: () => {
       const problem = field.problem();

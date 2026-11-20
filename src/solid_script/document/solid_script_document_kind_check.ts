@@ -15,6 +15,12 @@ import { solidScriptFieldSplit } from '@/solid_script/language/solid_script_fiel
 import { solidScriptKindAccepted, solidScriptKindMismatch } from '@/solid_script/language/solid_script_kinds.js';
 import type { SolidScriptWarning } from '@/solid_script/language/solid_script_machine_types.js';
 import { solidScriptMemberHint, solidScriptMemberNames } from '@/solid_script/language/solid_script_members.js';
+import {
+  solidScriptChoiceLiteralProblems,
+  solidScriptChoiceWordProblem,
+  solidScriptChoiceWordsForTarget,
+} from '@/solid_script/language/solid_script_choices.js';
+import { solidScriptInputsList, type SolidScriptInput } from '@/solid_script/language/solid_script_input.js';
 
 /**
  * Finds, without running the script, the values no run can use, from what each
@@ -28,6 +34,7 @@ import { solidScriptMemberHint, solidScriptMemberNames } from '@/solid_script/la
  */
 export function solidScriptKindCheck(document: SolidScriptDocument): SolidScriptWarning[] {
   const warnings: SolidScriptWarning[] = [];
+  const inputs = solidScriptInputsList(document.blocks);
   for (const { block, line } of solidScriptDocumentActiveLines(document.blocks)) {
     const command = solidScriptCommandFind(block.command);
     if (!command) continue;
@@ -37,7 +44,7 @@ export function solidScriptKindCheck(document: SolidScriptDocument): SolidScript
       const text = block.values[parameter.key] ?? '';
       if (text.trim() === '' || parameter.writes) continue;
       if (!solidScriptParameterApplies(parameter, block.values, command.parameters)) continue;
-      for (const problem of solidScriptKindProblems(parameter, text, head))
+      for (const problem of solidScriptKindProblems(parameter, text, head, block.values, inputs))
         warnings.push({ line: line + 1, text: problem });
     }
   }
@@ -56,8 +63,13 @@ function solidScriptKindProblems(
   parameter: SolidScriptCommandParameter,
   text: string,
   head: SolidScriptFlowHead,
+  values: Readonly<Record<string, string>> = {},
+  inputs: readonly SolidScriptInput[] = [],
 ): string[] {
-  const problems = [...solidScriptKindMembers(text, head)];
+  const problems = [
+    ...solidScriptKindMembers(text, head),
+    ...solidScriptKindChoiceProblems(parameter, text, values, inputs),
+  ];
   for (const formula of text.match(/\[=(?:[^[\]]|\[[^[\]]*\])*\]/g) ?? [])
     problems.push(...solidScriptFlowFormulaProblems(formula.slice(1, -1), head));
   if (parameter.accepts === 'Any' || problems.length > 0) return problems;
@@ -119,4 +131,28 @@ function solidScriptKindMemberMissing(path: string, head: SolidScriptFlowHead): 
     kinds = next;
   }
   return undefined;
+}
+
+/**
+ * Warns when a typable word is not in the declared choices of the field's
+ * target, such as Set Brush.Mode to Open, or an If that compares $Script.Usage
+ * to a word it does not have.
+ *
+ * @param parameter Field.
+ * @param text Field text.
+ * @param values Stored values of the line.
+ * @param inputs Input lines of the script.
+ * @returns Messages.
+ */
+function solidScriptKindChoiceProblems(
+  parameter: SolidScriptCommandParameter,
+  text: string,
+  values: Readonly<Record<string, string>>,
+  inputs: readonly SolidScriptInput[],
+): string[] {
+  const words =
+    parameter.key === 'value' ? solidScriptChoiceWordsForTarget(values['name'] ?? '', inputs) : (parameter.words ?? []);
+  const typable = solidScriptChoiceWordProblem(text, words);
+  const labelled = typable === '' ? [] : [`${parameter.label} ${typable}`];
+  return [...labelled, ...solidScriptChoiceLiteralProblems(text, inputs)];
 }

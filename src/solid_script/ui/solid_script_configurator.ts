@@ -13,7 +13,8 @@ import {
   solidScriptFieldEachFillWarning,
   type SolidScriptName,
 } from '@/solid_script/document/solid_script_document_names.js';
-import { solidScriptInputRead } from '@/solid_script/language/solid_script_input.js';
+import { solidScriptInputRead, type SolidScriptInput } from '@/solid_script/language/solid_script_input.js';
+import { solidScriptChoiceWordsForField } from '@/solid_script/language/solid_script_choices.js';
 import { SolidScriptDialog } from './solid_script_dialog.js';
 import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
 
@@ -47,6 +48,7 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
     names: readonly SolidScriptName[] = [],
     private readonly cancelled: (() => void) | null = null,
     history: ((redo: boolean) => void) | null = null,
+    private readonly inputs: readonly SolidScriptInput[] = [],
   ) {
     super(host, command.label, 'OK');
     this.root.dataset['solidScriptConfigurator'] = command.id;
@@ -74,6 +76,8 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
           names,
           extra: solidScriptCommandFieldFills(command, parameter, values),
           eachFillWarning: (text) => solidScriptFieldEachFillWarning(command, parameter, this.values(), text),
+          values: () => this.values(),
+          inputs: this.inputs,
         },
       );
       this.fields.set(parameter.key, field);
@@ -142,6 +146,8 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
       const icon = field.element.querySelector<HTMLElement>(`.${SOLID_SCRIPT_EDITOR_CLASSES.fieldEachIcon}`);
       if (icon) icon.hidden = !active;
       field.fillsSet(solidScriptCommandFieldFills(this.command, parameter, values));
+      if (!parameter.writes)
+        field.choicesSet(solidScriptChoiceWordsForField(parameter, values, field.read(), this.inputs));
       if (applies) shown.push(field);
     }
     return shown;

@@ -56,7 +56,7 @@ import { SolidScriptEditorOutput } from './solid_script_editor_output.js';
 import { solidScriptEditorLoad, solidScriptEditorSave } from './solid_script_editor_files.js';
 import { solidScriptEditorDebugSpeedMs, solidScriptEditorDebugSpeedRead } from './solid_script_editor_debug_speed.js';
 import { solidScriptFileDropBind, type SolidScriptFileDropResult } from './solid_script_file_drop.js';
-import { SOLID_SCRIPT_COMMAND_INPUT } from '@/solid_script/language/solid_script_input.js';
+import { SOLID_SCRIPT_COMMAND_INPUT, solidScriptInputsList } from '@/solid_script/language/solid_script_input.js';
 import { SOLID_SCRIPT_SELECT_BETWEEN } from '@/solid_script/language/solid_script_select.js';
 
 /** Notice when another user deletes the line being configured. */
@@ -605,8 +605,15 @@ export class SolidScriptEditor extends PanelFloating {
     const at = wraps && selected ? selected[0] : mode === 'caret' ? line + 1 : line;
     const names = solidScriptDocumentNamesAt(this.session.document(), at);
     const values = { ...found.valuesDefault(), ...start };
-    new SolidScriptConfigurator(this.root.ownerDocument.body, found, values, place, names, null, (redo) =>
-      this.historyStep(redo),
+    new SolidScriptConfigurator(
+      this.root.ownerDocument.body,
+      found,
+      values,
+      place,
+      names,
+      null,
+      (redo) => this.historyStep(redo),
+      solidScriptInputsList(this.session.document().blocks),
     ).show();
   }
 
@@ -653,6 +660,7 @@ export class SolidScriptEditor extends PanelFloating {
       names,
       () => (this.configuring = null),
       (redo) => this.historyStep(redo),
+      solidScriptInputsList(this.session.document().blocks),
     ).show();
   }
 
