@@ -45,6 +45,7 @@ const COVERAGE: Readonly<Record<string, string>> = {
   'Select Of a name': 'knobs',
   $Selected: 'knobs',
   'Place On Face': 'knobs',
+  'Which All': 'pebbles',
   'Filter List': 'pebbles',
   Where: 'pebbles',
   Hits: 'pebbles',

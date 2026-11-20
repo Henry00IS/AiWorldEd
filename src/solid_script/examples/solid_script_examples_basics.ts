@@ -106,18 +106,25 @@ export const SOLID_SCRIPT_EXAMPLE_PEBBLES: readonly SolidScriptLine[] = [
   solidScriptExampleNote('This slab is the ground the pebbles sit on. It is named Slab so later lines can find it.'),
   solidScriptExampleInput('Pebbles', 'Count', '40', { min: '1', max: '400', label: 'Pebbles' }),
   solidScriptExampleLine('cube', { size: '3, 0.4, 3', anchor: 'Center, Center, Center', label: 'Slab' }),
-  solidScriptExampleNote('Select Faces Of Slab keeps the top of the slab.'),
-  solidScriptExampleLine('select_faces', { which: 'Facing Up', of: 'Slab' }),
+  solidScriptExampleNote(
+    'Select Faces Of Slab starts from Which All, every face of the slab, then Where keeps only the top. InBox is yes when a point sits in a box. HitsBox is yes when a face or brush meets a box of a Center and Size; Fully Inside means the whole face sits in the box. Hits is the same idea when the other box is a brush or a list.',
+  ),
+  solidScriptExampleLine('select_faces', {
+    which: 'All',
+    of: 'Slab',
+    where:
+      '[=HitsBox([$Face], Vector(0, 0.2, 0), Vector(4, 0.3, 4), "Fully Inside") and InBox([$Face.Center], Vector(0, 0.2, 0), 1)]',
+  }),
   solidScriptExampleNote(
     'Scatter Points now drops points on the selected faces, more where a face is bigger. Into writes them to $[Spots$].',
   ),
   solidScriptExampleLine('scatter_points', { count: '[Pebbles]', seed: '3', into: 'Spots' }),
   solidScriptExampleNote(
-    'Filter List keeps the items of a list that pass Where. Hits asks whether a point or brush meets another thing: here each spot must meet the selected faces, so every pebble stays on the slab. InBox is the same idea for a point in a box, and HitsBox is Hits with a box you write as a Center and Size. The and joins both checks. Into writes the kept spots to $[Kept$].',
+    'Filter List keeps the items of a list that pass Where. $[Index$] is 0 for the first spot, then 1, and so on. This keeps every spot. Into writes them to $[Kept$].',
   ),
   solidScriptExampleLine('filter_list', {
     list: '[Spots]',
-    where: '[=Hits([$Item], [$Selected.Faces]) and InBox([$Item], Vector(0, 0, 0), 10)]',
+    where: '[=[$Index] >= 0]',
     into: 'Kept',
   }),
   solidScriptExampleNote(
