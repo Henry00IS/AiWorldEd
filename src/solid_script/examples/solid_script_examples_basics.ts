@@ -66,12 +66,15 @@ export const SOLID_SCRIPT_EXAMPLE_STEPPING_STONES: readonly SolidScriptLine[] = 
     ),
     solidScriptExampleSet('Pos', '[=Lerp([Start], [Finish], [I] / ([Stones] - 1))]'),
     solidScriptExampleSet('Pos.Y', '[=Sin([I] * 40) * 0.15]'),
-    solidScriptExampleNote(
-      'This Transform both moves and rotates. Move happens first, then Rotate turns each slab around its new place. The middle number of Rotate is the turn in degrees, a little more for each slab.',
-    ),
-    ...solidScriptExampleBlock('transform', { move: '[Pos]', rotate: '0, [=[I] * 23], 0' }, [
+    solidScriptExampleNote('This Transform moves the space to $[Pos$], so the slab is built already in place.'),
+    ...solidScriptExampleBlock('transform', { move: '[Pos]' }, [
       solidScriptExampleLine('cube', { size: '0.7, 0.15, 0.5', anchor: 'Center, Center, Center' }),
     ]),
+    solidScriptExampleNote(
+      'Select Brushes Which Between picks the slab just built. Rotate To turns it around its middle to these angles, in degrees. The middle number is a little more for each slab.',
+    ),
+    solidScriptExampleLine('select_brushes', { which: 'Between' }),
+    solidScriptExampleLine('rotate_to', { to: '0, [=[I] * 23], 0' }),
   ]),
 ];
 

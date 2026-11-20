@@ -160,7 +160,7 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
     id: 'steppingStones',
     name: 'Stepping Stones',
     group: 'Basics',
-    summary: 'Slabs from one point to another, with a gentle wave, moved and rotated in one Transform.',
+    summary: 'Slabs from one point to another, with a gentle wave, placed with Transform and turned with Rotate To.',
     port: null,
     lines: SOLID_SCRIPT_EXAMPLE_STEPPING_STONES,
   },
