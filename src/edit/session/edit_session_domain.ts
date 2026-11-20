@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { isResultMesh, isSolidModelObject } from '@/solid/model/solid_model_keys.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
+import { modifierStackOutputIs } from '@/modifier/stack/output/modifier_stack_output.js';
 
 /** One editable content mesh in the Edit Mode domain. */
 export interface EditDomainContentMesh {
@@ -38,17 +39,37 @@ export function buildEditSessionDomain(selectedObjects: readonly THREE.Object3D[
 }
 
 /**
- * Appends domain targets discovered under one selected object.
+ * Appends domain targets discovered under one selected object. Brushes and
+ * meshes a modifier stack built are skipped, since their stack rebuilds them.
  *
  * @param object Selected scene object.
  * @param targets Output list.
  * @param seen Deduped target ids.
  */
 function appendDomainTargetsFromObject(object: THREE.Object3D, targets: EditDomainTarget[], seen: Set<string>): void {
+  if (modifierStackOutputIs(object)) {
+    return;
+  }
   if (object instanceof THREE.Mesh && isEditableContentMesh(object)) {
     appendContentMeshTarget(object, targets, seen);
     return;
   }
+  appendSolidModelTargetsFromObject(object, targets, seen);
+}
+
+/**
+ * Appends the brush targets a selected solid model, brush or result mesh stands
+ * for.
+ *
+ * @param object Selected scene object.
+ * @param targets Output list.
+ * @param seen Deduped target ids.
+ */
+function appendSolidModelTargetsFromObject(
+  object: THREE.Object3D,
+  targets: EditDomainTarget[],
+  seen: Set<string>,
+): void {
   const solidModel = SolidModel.fromObject(object);
   if (!solidModel) {
     return;
