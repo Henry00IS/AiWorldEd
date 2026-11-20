@@ -8,12 +8,13 @@ let solidScriptDialogCount = 0;
 
 /**
  * Base of the script editor's modal dialogs: a window with a title bar (its
- * name and an X), the content below it and the button row at the bottom: the
- * main button on the left, Cancel on the right. Enter presses the main button;
- * Escape, the X or a click on the blocker behind it cancels. It stays where it
- * opens, in the middle of the editor. A dialog opened over another one, such as
- * the formula window over a configurator, darkens only that window: its own
- * blocker stays clear, so the editor behind does not get darker and darker.
+ * name and an X), the content below it and the button row at the bottom: Cancel
+ * and the main button side by side on the right, as in every window of the
+ * editor. Enter presses the main button; Escape, the X or a click on the
+ * blocker behind it cancels. It stays where it opens, in the middle of the
+ * editor. A dialog opened over another one, such as the formula window over a
+ * configurator, darkens only that window: its own blocker stays clear, so the
+ * editor behind does not get darker and darker.
  */
 export abstract class SolidScriptDialog extends PanelFloating {
   /** Main button. */
@@ -33,18 +34,21 @@ export abstract class SolidScriptDialog extends PanelFloating {
    * @param title Title text.
    * @param confirmLabel Main button text.
    * @param parent Dialog this one opens over, or null.
+   * @param movable True lets the title bar move the window, which then places
+   *   itself instead of opening in the middle.
    */
   protected constructor(
     host: HTMLElement,
     title: string,
     confirmLabel: string,
     private readonly parent: SolidScriptDialog | null = null,
+    movable = false,
   ) {
     super(host, {
       corner: 'top-left',
       modal: true,
-      centered: true,
-      draggable: false,
+      centered: !movable,
+      draggable: movable,
       closeOnEscape: false,
       stackLayer: 'modal',
       backdropClassName: 'editor-message-box-backdrop',
@@ -52,6 +56,19 @@ export abstract class SolidScriptDialog extends PanelFloating {
     });
     parent?.shadeSet(true);
     solidScriptEditorStylesheetEnsure();
+    this.frameBuild(title);
+    this.confirmButton = dialogCardButton(confirmLabel, true, () => this.confirmRequest());
+    this.confirmButton.title = `${confirmLabel} (Enter)`;
+    this.root.addEventListener('keydown', (event) => this.key(event));
+    this.backdropListen();
+  }
+
+  /**
+   * Styles the window as a dialog card with its title bar above the content.
+   *
+   * @param title Title text.
+   */
+  private frameBuild(title: string): void {
     const titleId = `solid-script-dialog-${++solidScriptDialogCount}`;
     dialogCardStyle(this.root, '440px', titleId);
     Object.assign(this.root.style, { fontSize: '12px', padding: '0', overflow: 'hidden' });
@@ -61,10 +78,6 @@ export abstract class SolidScriptDialog extends PanelFloating {
     bar.closeButton.title = 'Close (Escape)';
     this.content.style.padding = '14px 16px 14px';
     this.root.append(bar.bar, this.content);
-    this.confirmButton = dialogCardButton(confirmLabel, true, () => this.confirmRequest());
-    this.confirmButton.title = `${confirmLabel} (Enter)`;
-    this.root.addEventListener('keydown', (event) => this.key(event));
-    this.backdropListen();
   }
 
   /**
@@ -84,8 +97,8 @@ export abstract class SolidScriptDialog extends PanelFloating {
   protected abstract cancel(): void;
 
   /**
-   * Builds the button row: the main button and any extra buttons on the left,
-   * Cancel on the right.
+   * Builds the button row the way every window of the editor has it: any extra
+   * buttons on the left, Cancel and then the main button on the right.
    *
    * @param extra Extra buttons.
    * @returns Row.
@@ -97,7 +110,7 @@ export abstract class SolidScriptDialog extends PanelFloating {
     spacer.style.flex = '1';
     const cancel = dialogCardButton('Cancel', false, () => this.cancelRequest());
     cancel.title = 'Cancel (Escape)';
-    row.append(this.confirmButton, ...extra, spacer, cancel);
+    row.append(...extra, spacer, cancel, this.confirmButton);
     return row;
   }
 

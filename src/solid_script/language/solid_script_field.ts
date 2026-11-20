@@ -124,6 +124,58 @@ export function solidScriptFieldEscapes(text: string, index: number): boolean {
   return text[index] === '$' && SOLID_SCRIPT_FIELD_ESCAPED.has(text[index + 1] ?? '');
 }
 
+/** Splits field text into pieces, one character at a time. */
+class SolidScriptFieldPiecesReader {
+  readonly root: SolidScriptFieldPiece[] = [];
+  private readonly open: SolidScriptFieldPiece[][] = [this.root];
+  private readonly groups: SolidScriptFieldGroup[] = [];
+
+  /**
+   * Adds a plain character to the innermost part.
+   *
+   * @param character Character.
+   */
+  plain(character: string): void {
+    const into = this.open[this.open.length - 1]!;
+    const last = into[into.length - 1];
+    if (last?.kind === 'plain') last.text += character;
+    else into.push({ kind: 'plain', text: character });
+  }
+
+  /**
+   * Starts a bracketed part at a [.
+   *
+   * @param index Place of the [.
+   */
+  groupOpen(index: number): void {
+    const group: SolidScriptFieldGroup = { kind: 'group', pieces: [], from: index, to: -1 };
+    this.groups.push(group);
+    this.open[this.open.length - 1]!.push(group);
+    this.open.push(group.pieces);
+  }
+
+  /**
+   * Ends the innermost bracketed part at a ].
+   *
+   * @param index Place of the ].
+   * @throws Error when no [ is open.
+   */
+  groupClose(index: number): void {
+    if (this.open.length === 1) throw new Error('a ] has no [ before it; write $] for a bracket');
+    this.open.pop();
+    this.groups.pop()!.to = index + 1;
+  }
+
+  /**
+   * Checks every [ has its ].
+   *
+   * @throws Error when one is left open.
+   */
+  done(): void {
+    if (this.open.length > 1) throw new Error('a [ has no ] after it; write $[ for a bracket');
+  }
+}
+
 /**
  * Splits field text into plain characters and bracketed parts; each part knows
  * where its brackets stand in the text.
@@ -132,32 +184,18 @@ export function solidScriptFieldEscapes(text: string, index: number): boolean {
  * @returns Pieces.
  */
 export function solidScriptFieldPieces(text: string): SolidScriptFieldPiece[] {
-  const root: SolidScriptFieldPiece[] = [];
-  const open: SolidScriptFieldPiece[][] = [root];
-  const groups: SolidScriptFieldGroup[] = [];
-  const plain = (character: string): void => {
-    const into = open[open.length - 1]!;
-    const last = into[into.length - 1];
-    if (last?.kind === 'plain') last.text += character;
-    else into.push({ kind: 'plain', text: character });
-  };
+  const reader = new SolidScriptFieldPiecesReader();
   for (let index = 0; index < text.length; index++) {
     const character = text[index]!;
     if (solidScriptFieldEscapes(text, index)) {
-      plain(text[index + 1]!);
+      reader.plain(text[index + 1]!);
       index++;
-    } else if (character === '[') {
-      groups.push({ kind: 'group', pieces: [], from: index, to: -1 });
-      open[open.length - 1]!.push(groups[groups.length - 1]!);
-      open.push(groups[groups.length - 1]!.pieces);
-    } else if (character === ']') {
-      if (open.length === 1) throw new Error('a ] has no [ before it; write $] for a bracket');
-      open.pop();
-      groups.pop()!.to = index + 1;
-    } else plain(character);
+    } else if (character === '[') reader.groupOpen(index);
+    else if (character === ']') reader.groupClose(index);
+    else reader.plain(character);
   }
-  if (open.length > 1) throw new Error('a [ has no ] after it; write $[ for a bracket');
-  return root;
+  reader.done();
+  return reader.root;
 }
 
 /**

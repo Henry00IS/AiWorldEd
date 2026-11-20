@@ -1,7 +1,15 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
 import { SolidScriptConfigurator } from '@/solid_script/ui/solid_script_configurator.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from '@/solid_script/ui/solid_script_editor_css.js';
+import { SOLID_SCRIPT_EDITOR_SIZE } from '@/solid_script/ui/solid_script_editor_frame.js';
+import { SOLID_SCRIPT_EDITOR_TIP_DELAY_MS } from '@/solid_script/ui/solid_script_editor_tip.js';
+import {
+  SOLID_SCRIPT_EDITOR_BOUNDS_KEY,
+  SOLID_SCRIPT_EDITOR_SIZES_KEY,
+  SOLID_SCRIPT_FORMULA_BOUNDS_KEY,
+  SOLID_SCRIPT_FORMULA_SIZES_KEY,
+} from '@/solid_script/ui/solid_script_editor_splitters.js';
 
 /** The Where of the Pebbles tutorial. */
 const PEBBLES =
@@ -59,21 +67,20 @@ function button(name: string, within: ParentNode = document): HTMLButtonElement 
   return found;
 }
 
-/** Formula text of the window. */
-function text(): HTMLTextAreaElement {
-  const found = formulaWindow().querySelector<HTMLTextAreaElement>('textarea');
+/** The formula shown under the help of the window. */
+function preview(): HTMLElement {
+  const found = formulaWindow().querySelector<HTMLElement>('[role="textbox"][aria-readonly="true"]');
   if (!found) throw new Error('Expected the formula text');
   return found;
 }
 
 /**
- * Types into the formula text.
+ * The formula as the window shows it.
  *
- * @param value New text.
+ * @returns Text.
  */
-function type(value: string): void {
-  text().value = value;
-  text().dispatchEvent(new Event('input', { bubbles: true }));
+function formulaText(): string {
+  return preview().textContent ?? '';
 }
 
 /**
@@ -192,7 +199,7 @@ describe('SolidScript formula window', () => {
     const backdrops = document.querySelectorAll<HTMLElement>('.editor-message-box-backdrop');
     expect(backdrops).toHaveLength(1);
     const window = formulaOpen();
-    expect(text().value).toBe(
+    expect(formulaText()).toBe(
       'HitsBox([$Face], Vector(0, 0.2, 0), Vector(4, 0.3, 4), "Fully Inside") and InBox([$Face.Center], Vector(0, 0.2, 0), 1)',
     );
     expect(rows()).toHaveLength(2);
@@ -220,7 +227,7 @@ describe('SolidScript formula window', () => {
     size.dispatchEvent(new Event('input', { bubbles: true }));
     button('OK', block!).click();
     expect(window.querySelector(`.${SOLID_SCRIPT_EDITOR_CLASSES.shade}`)).toBeNull();
-    expect(text().value).toBe(
+    expect(formulaText()).toBe(
       'HitsBox([$Face], Vector(0, 0.2, 0), Vector(4, 0.3, 4), "Fully Inside") and InBox([$Face.Center], Vector(0, 0.2, 0), 2)',
     );
   });
@@ -228,12 +235,16 @@ describe('SolidScript formula window', () => {
   it('writes the formula into the field on OK, wrapped once', () => {
     const { input, root } = selectFaces(PEBBLES);
     formulaOpen();
-    type('[$NY] > 0.5');
+    press(chip(0), 'Delete');
+    paletteDrop('formula_value', 0);
+    fieldFill('formula_value', 'Expression', '[$NY] > 0.5');
+    press(chip(4), 'Delete');
+    expect(rows()).toEqual(['More Than', 'Variable [$NY]', "Number '0.5'", 'End More Than']);
     button('OK', formulaWindow()).click();
     expect(input.value).toBe('[=[$NY] > 0.5]');
     expect(root.querySelector(`.${SOLID_SCRIPT_EDITOR_CLASSES.shade}`)).toBeNull();
     button('Build Where from blocks').click();
-    type('[=[$NY] > 0.5]');
+    expect(formulaText()).toBe('[$NY] > 0.5');
     button('OK', formulaWindow()).click();
     expect(input.value).toBe('[=[$NY] > 0.5]');
   });
@@ -247,10 +258,10 @@ describe('SolidScript formula window', () => {
     fieldFill('formula_number', 'Number', '5, 2, 7');
     press(chip(0), 'Delete');
     press(chip(1), 'ArrowDown', { ctrlKey: true, shiftKey: true });
-    type('[$NY] > 0.5 || IsFace([$Face])');
     paletteDrop('formula_not', 0);
+    paletteDrop('formula_check_is_face', 1);
     press(chip(0), 'Delete');
-    expect(text().value).not.toBe(PEBBLES);
+    expect(formulaText()).not.toBe(PEBBLES);
     button('Cancel', formulaWindow()).click();
     expect(document.querySelector('[data-solid-script-formula]')).toBeNull();
     expect(input.value).toBe(PEBBLES);
@@ -260,18 +271,17 @@ describe('SolidScript formula window', () => {
   });
 
   it('builds groups closed by End, the blocks inside indented', () => {
-    selectFaces('');
+    selectFaces('[=[$NY] > 0.5 || [$NX] > 0.5]');
     formulaOpen();
-    type('[$NY] > 0.5 || [$NX] > 0.5');
     expect(rows()).toEqual([
       'Or',
       'More Than',
-      'Variable $NY',
-      'Number 0.5',
+      'Variable [$NY]',
+      "Number '0.5'",
       'End More Than',
       'More Than',
-      'Variable $NX',
-      'Number 0.5',
+      'Variable [$NX]',
+      "Number '0.5'",
       'End More Than',
       'End Or',
     ]);
@@ -286,42 +296,52 @@ describe('SolidScript formula window', () => {
     paletteDrop('formula_fn_abs', 11);
     paletteDrop('formula_number', 12);
     fieldFill('formula_number', 'Number', '-3');
-    expect(text().value).toBe('[$NY] > 0.5 || [$NX] > 0.5 || [$Index] == Abs(-3)');
+    expect(formulaText()).toBe('[$NY] > 0.5 || [$NX] > 0.5 || [$Index] == Abs(-3)');
     expect(status()).not.toMatch(/Line/);
   });
 
   it('shows a value as the block that fits it once it is written', () => {
-    selectFaces('');
+    selectFaces('[=[$Face.Center] == 2]');
     formulaOpen();
-    type('[$Face.Center] == 2');
     press(chip(2), 'Enter');
     fieldFill('formula_number', 'Number', '5, 2, 7');
-    expect(text().value).toBe('[$Face.Center] == [5, 2, 7]');
-    expect(rows()[2]).toBe('Vector 5, 2, 7');
+    expect(formulaText()).toBe('[$Face.Center] == [5, 2, 7]');
+    expect(rows()[2]).toBe("Vector '5, 2, 7'");
     press(chip(2), 'Enter');
     const vector = document.querySelector<HTMLElement>('[data-solid-script-configurator="formula_vector"]')!;
     expect(vector.querySelector<HTMLInputElement>('input[aria-label="Vector"]')!.value).toBe('5, 2, 7');
     button('Cancel', vector).click();
     press(chip(1), 'Enter');
     fieldFill('formula_variable', 'Variable', '"Top"');
-    expect(rows()[1]).toBe('Text Top');
+    expect(rows()[1]).toBe("Text 'Top'");
   });
 
-  it('refuses OK while the text or the blocks have a mistake', () => {
-    const { input } = selectFaces('');
+  it('refuses OK while the blocks have a mistake, keeping the last formula greyed', () => {
+    const { input } = selectFaces('[=[a] || [b]]');
     formulaOpen();
-    type('[$NY] >');
-    button('OK', formulaWindow()).click();
-    expect(formulaWindow()).not.toBeNull();
-    expect(status()).toMatch(/^Fix the formula first/);
-    type('[a] || [b]');
     press(chip(3), 'Delete');
     expect(status()).toMatch(/Or has no End/);
-    expect(text().readOnly).toBe(true);
+    expect(preview().classList.contains(SOLID_SCRIPT_EDITOR_CLASSES.formulaOff)).toBe(true);
+    expect(formulaText()).toBe('[a] || [b]');
     button('OK', formulaWindow()).click();
     expect(status()).toMatch(/^Fix the formula first/);
     button('Cancel', formulaWindow()).click();
-    expect(input.value).toBe('');
+    expect(input.value).toBe('[=[a] || [b]]');
+  });
+
+  it('names a function with too few inputs on its line, and the blocks can fix it', () => {
+    const { input } = selectFaces('[=Clamp([a], 0) > 0]');
+    formulaOpen();
+    expect(rows().slice(0, 4)).toEqual(['More Than', 'Clamp', 'Variable [a]', "Number '0'"]);
+    expect(status()).toBe('Line 2: Clamp needs at least 3 blocks inside.');
+    button('OK', formulaWindow()).click();
+    expect(status()).toMatch(/^Fix the formula first: Line 2: Clamp/);
+    paletteDrop('formula_number', 4);
+    fieldFill('formula_number', 'Number', '1');
+    expect(formulaText()).toBe('Clamp([a], 0, 1) > 0');
+    expect(status()).not.toMatch(/Line/);
+    button('OK', formulaWindow()).click();
+    expect(input.value).toBe('[=Clamp([a], 0, 1) > 0]');
   });
 
   it('tells you to fix a broken formula before it opens', () => {
@@ -344,5 +364,81 @@ describe('SolidScript formula window', () => {
     expect(shown).toContain('formula_check_in_box');
     expect(shown).toContain('formula_check_hits_box');
     expect(shown).not.toContain('formula_or');
+  });
+
+  it('shows the help of the selected block above a highlighted formula that can only be copied', () => {
+    selectFaces(PEBBLES);
+    const window = formulaOpen();
+    const title = () => window.querySelector(`.${SOLID_SCRIPT_EDITOR_CLASSES.helpTitle}`)?.textContent;
+    chip(1).dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true, cancelable: true }));
+    expect(title()).toBe('In Box');
+    expect(window.querySelector(`.${SOLID_SCRIPT_EDITOR_CLASSES.help}`)?.textContent).toMatch(/Point/);
+    expect(preview().querySelector('input, textarea')).toBeNull();
+    expect(preview().tabIndex).toBe(0);
+    const kinds = [...preview().querySelectorAll('span')].flatMap((span) => [...span.classList]);
+    expect(kinds).toContain(SOLID_SCRIPT_EDITOR_CLASSES.tokenFunction);
+    expect(kinds).toContain(SOLID_SCRIPT_EDITOR_CLASSES.tokenNumber);
+    expect(kinds).toContain(SOLID_SCRIPT_EDITOR_CLASSES.tokenString);
+    expect(kinds).toContain(SOLID_SCRIPT_EDITOR_CLASSES.tokenSystem);
+  });
+
+  it('puts Cancel and OK next to each other on the right', () => {
+    selectFaces('');
+    const row = button('OK', formulaOpen()).parentElement!;
+    const names = [...row.children].map((child) => child.textContent);
+    expect(names.slice(-2)).toEqual(['Cancel', 'OK']);
+    expect((row.children[row.children.length - 3] as HTMLElement).style.flex).toBe('1 1 0%');
+  });
+
+  it('opens at the script editor size and keeps its own layout apart from the script editor', () => {
+    const editor = JSON.stringify({ left: 5, top: 6, width: 700, height: 400 });
+    localStorage.setItem(SOLID_SCRIPT_EDITOR_BOUNDS_KEY, editor);
+    selectFaces('');
+    let window = formulaOpen();
+    expect(window.style.width).toBe(`${SOLID_SCRIPT_EDITOR_SIZE.width}px`);
+    expect(window.style.height).toBe(`${SOLID_SCRIPT_EDITOR_SIZE.height}px`);
+    window.getBoundingClientRect = () => ({ left: 30, top: 40, width: 800, height: 500 }) as DOMRect;
+    const grip = window.querySelector('[aria-label="Resize panel"]')!;
+    grip.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0, clientX: 1, clientY: 1 }));
+    globalThis.dispatchEvent(new MouseEvent('pointerup', { bubbles: true }));
+    const splitter = window.querySelector<HTMLElement>('[role="separator"]')!;
+    splitter.dispatchEvent(new MouseEvent('pointerdown', { button: 0, clientX: 100 }));
+    globalThis.dispatchEvent(new MouseEvent('pointermove', { clientX: 130 }));
+    globalThis.dispatchEvent(new MouseEvent('pointerup'));
+    expect(JSON.parse(localStorage.getItem(SOLID_SCRIPT_FORMULA_BOUNDS_KEY)!)).toEqual({
+      left: 30,
+      top: 40,
+      width: 800,
+      height: 500,
+    });
+    expect(JSON.parse(localStorage.getItem(SOLID_SCRIPT_FORMULA_SIZES_KEY)!).palette).toBe(206);
+    expect(localStorage.getItem(SOLID_SCRIPT_EDITOR_BOUNDS_KEY)).toBe(editor);
+    expect(localStorage.getItem(SOLID_SCRIPT_EDITOR_SIZES_KEY)).toBeNull();
+    button('Cancel', window).click();
+    window = formulaOpen();
+    expect(window.style.width).toBe('800px');
+    expect(window.querySelector<HTMLElement>('.solid-script-editor-palette')!.style.width).toBe('206px');
+  });
+
+  it('shows the formula of a hovered block, and of a whole group on the group or its End, highlighted', () => {
+    vi.useFakeTimers();
+    selectFaces('[=[$NY] > 0.5 || HasTag([$Face.Tags], "Top")]');
+    formulaOpen();
+    const tipOf = (line: number) => {
+      chip(line).dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+      vi.advanceTimersByTime(SOLID_SCRIPT_EDITOR_TIP_DELAY_MS);
+      return document.querySelector<HTMLElement>(`.${SOLID_SCRIPT_EDITOR_CLASSES.codeTipText}`);
+    };
+    expect(rows()[0]).toBe('Or');
+    expect(tipOf(0)?.textContent).toBe('[$NY] > 0.5 || HasTag([$Face.Tags], "Top")');
+    expect(tipOf(rows().length - 1)?.textContent).toBe('[$NY] > 0.5 || HasTag([$Face.Tags], "Top")');
+    expect(tipOf(1)?.textContent).toBe('[$NY] > 0.5');
+    const leaf = tipOf(3)!;
+    expect(leaf.textContent).toBe('0.5');
+    expect(leaf.querySelector(`.${SOLID_SCRIPT_EDITOR_CLASSES.tokenNumber}`)).not.toBeNull();
+    const check = tipOf(5)!;
+    expect(check.textContent).toBe('HasTag([$Face.Tags], "Top")');
+    expect(check.querySelector(`.${SOLID_SCRIPT_EDITOR_CLASSES.tokenString}`)?.textContent).toBe('"Top"');
+    vi.useRealTimers();
   });
 });

@@ -20,14 +20,19 @@ import { solidScriptFormulaTyped } from '@/solid_script/language/solid_script_fo
 import {
   solidScriptFormulaJoin,
   solidScriptFormulaOperandNeed,
+  solidScriptFormulaUnwrap,
   solidScriptFormulaWrap,
   SOLID_SCRIPT_FORMULA_LEVEL_UNARY,
 } from '@/solid_script/language/solid_script_formula_print.js';
 import type { SolidScriptBlock, SolidScriptDocument } from './solid_script_document.js';
 import type { SolidScriptFormulaBlocks, SolidScriptFormulaOrigin } from './solid_script_formula_read.js';
 
-/** The formula of blocks, or the first line that keeps it from being one. */
-export type SolidScriptFormulaWritten = { text: string } | { problem: string; line: number };
+/**
+ * The formula of blocks with the formula of each block by line, a group's on
+ * its Then, Else and End too; or the first line that keeps it from being one.
+ */
+export type SolidScriptFormulaWritten =
+  { text: string; parts: ReadonlyMap<number, string> } | { problem: string; line: number };
 
 /** A block with the blocks inside it, per section. */
 interface SolidScriptFormulaNode {
@@ -39,6 +44,8 @@ interface SolidScriptFormulaNode {
   command: SolidScriptCommand | null;
   /** Blocks inside, per section. */
   sections: SolidScriptFormulaNode[][];
+  /** Indexes of its Then, Else and End lines. */
+  ends: number[];
 }
 
 /** A problem with the line it is on. */
@@ -88,7 +95,7 @@ function solidScriptFormulaTree(
   blocks: readonly SolidScriptBlock[],
   catalog: SolidScriptCommandCatalog,
 ): SolidScriptFormulaNode {
-  const root: SolidScriptFormulaNode = { block: null, line: -1, command: null, sections: [[]] };
+  const root: SolidScriptFormulaNode = { block: null, line: -1, command: null, sections: [[]], ends: [] };
   const open = [root];
   blocks.forEach((block, line) => {
     const command = catalog.find(block.command);
@@ -97,16 +104,36 @@ function solidScriptFormulaTree(
     const top = open[open.length - 1] ?? root;
     if (command.nesting === 'continue') return solidScriptFormulaBranch(top, command, line);
     if (command.nesting === 'close') return solidScriptFormulaClose(open, line);
-    if (command.id === SOLID_SCRIPT_COMMAND_BLANK) return;
-    const node: SolidScriptFormulaNode = { block, line, command, sections: command.nesting === 'open' ? [[]] : [] };
-    top.sections[top.sections.length - 1]?.push(node);
-    if (command.nesting === 'open') open.push(node);
+    if (command.id !== SOLID_SCRIPT_COMMAND_BLANK) solidScriptFormulaAdd(open, top, block, command, line);
   });
   const left = open[open.length - 1];
   if (left && left !== root)
     throw new SolidScriptFormulaProblem(`${left.command?.label} has no End; add one below its last block.`, left.line);
   solidScriptFormulaEmpty(root);
   return root;
+}
+
+/**
+ * Adds a block to the innermost open group, opening it as a group when it holds
+ * others.
+ *
+ * @param open Open groups, the formula as a whole first.
+ * @param top Innermost open group.
+ * @param block Line.
+ * @param command Its command.
+ * @param line Index of the line.
+ */
+function solidScriptFormulaAdd(
+  open: SolidScriptFormulaNode[],
+  top: SolidScriptFormulaNode,
+  block: SolidScriptBlock,
+  command: SolidScriptCommand,
+  line: number,
+): void {
+  const sections: SolidScriptFormulaNode[][] = command.nesting === 'open' ? [[]] : [];
+  const node: SolidScriptFormulaNode = { block, line, command, sections, ends: [] };
+  top.sections[top.sections.length - 1]?.push(node);
+  if (command.nesting === 'open') open.push(node);
 }
 
 /**
@@ -124,6 +151,7 @@ function solidScriptFormulaBranch(top: SolidScriptFormulaNode, command: SolidScr
       line,
     );
   top.sections.push([]);
+  top.ends.push(line);
 }
 
 /**
@@ -138,6 +166,7 @@ function solidScriptFormulaClose(open: SolidScriptFormulaNode[], line: number): 
     throw new SolidScriptFormulaProblem('This End has no group above it to end; remove it.', line);
   if (top.sections.length !== solidScriptFormulaGroup(top.command?.id ?? '').sections)
     throw new SolidScriptFormulaProblem(`${top.command?.label} needs a Then and an Else before its End.`, top.line);
+  top.ends.push(line);
   open.pop();
 }
 
@@ -168,6 +197,9 @@ function solidScriptFormulaEmpty(node: SolidScriptFormulaNode): void {
 
 /** Writes the tree of blocks as a formula. */
 class SolidScriptFormulaWriter {
+  /** Formula of each block written, by line. */
+  readonly parts = new Map<number, string>();
+
   /**
    * Creates the writer.
    *
@@ -180,6 +212,20 @@ class SolidScriptFormulaWriter {
   ) {}
 
   /**
+   * Writes one block and keeps its formula on its lines.
+   *
+   * @param node Block.
+   * @param origin How it was typed, if it was.
+   * @returns Formula.
+   */
+  write(node: SolidScriptFormulaNode, origin: SolidScriptFormulaOrigin | undefined): string {
+    const text = this.block(node, origin);
+    const part = solidScriptFormulaUnwrap(text);
+    for (const line of [node.line, ...node.ends]) this.parts.set(line, part);
+    return text;
+  }
+
+  /**
    * Writes one block: unchanged blocks as typed, groups with the same blocks
    * inside with only those changed, anything else neatly.
    *
@@ -187,7 +233,7 @@ class SolidScriptFormulaWriter {
    * @param origin How it was typed, if it was.
    * @returns Formula.
    */
-  write(node: SolidScriptFormulaNode, origin: SolidScriptFormulaOrigin | undefined): string {
+  block(node: SolidScriptFormulaNode, origin: SolidScriptFormulaOrigin | undefined): string {
     const command = node.command?.id ?? '';
     const known = origin?.command === command ? origin : undefined;
     if (node.command && node.command.nesting !== 'open') return this.leaf(node, known);
@@ -339,7 +385,10 @@ export function solidScriptFormulaWrite(
 ): SolidScriptFormulaWritten {
   try {
     const tree = solidScriptFormulaTree(document.blocks, solidScriptFormulaCatalog(context));
-    return { text: new SolidScriptFormulaWriter(read.origins, context).write(tree, read.root) };
+    const writer = new SolidScriptFormulaWriter(read.origins, context);
+    const text = writer.write(tree, read.root);
+    writer.parts.delete(-1);
+    return { text, parts: writer.parts };
   } catch (error) {
     if (error instanceof SolidScriptFormulaProblem) return { problem: error.message, line: error.line };
     throw error;

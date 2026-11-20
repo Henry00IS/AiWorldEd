@@ -3,6 +3,7 @@ import { SolidScriptCommand, type SolidScriptCommandCategory } from './solid_scr
 import {
   SOLID_SCRIPT_FUNCTION_DOCS,
   solidScriptFunctionArguments,
+  solidScriptFunctionInputsLeast,
 } from '@/solid_script/language/solid_script_function_docs.js';
 import { solidScriptFormulaCheckName } from './solid_script_formula_inputs.js';
 
@@ -318,7 +319,8 @@ function solidScriptFormulaFunction(key: string): SolidScriptCommand {
     manual: `${summary} Put a block inside for each of: ${takes}. Written as ${doc?.usage ?? name}.`,
   };
   const max = inputs.some((input) => input.name === '...') ? Number.POSITIVE_INFINITY : inputs.length;
-  return solidScriptFormulaGroupAdd(text, 'Functions', { join: { form: 'call', key }, min: 1, max, sections: 1 });
+  const min = Math.max(1, solidScriptFunctionInputsLeast(key));
+  return solidScriptFormulaGroupAdd(text, 'Functions', { join: { form: 'call', key }, min, max, sections: 1 });
 }
 
 /**

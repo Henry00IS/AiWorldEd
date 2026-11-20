@@ -74,6 +74,9 @@ function solidScriptFieldWordKind(word: string): SolidScriptFieldTokenKind {
   return 'name';
 }
 
+/** How text outside brackets reads: as plain text, or as a whole formula. */
+export type SolidScriptFieldTokenStart = 'text' | 'formula';
+
 /**
  * Splits field text into pieces the way fields read it: [name] and [=formula]
  * brackets that nest, $ keeping a following $, [ or ] as typed, and inside a
@@ -82,9 +85,14 @@ function solidScriptFieldWordKind(word: string): SolidScriptFieldTokenKind {
  * still splits; what cannot be read stays plain.
  *
  * @param text Field text.
+ * @param start How the text outside brackets reads: as plain text, as in a
+ *   field, or as a formula, as in a condition or the formula window.
  * @returns Pieces in order, covering the whole text.
  */
-export function solidScriptFieldTokens(text: string): SolidScriptFieldToken[] {
+export function solidScriptFieldTokens(
+  text: string,
+  start: SolidScriptFieldTokenStart = 'text',
+): SolidScriptFieldToken[] {
   const tokens: SolidScriptFieldToken[] = [];
   const open: SolidScriptFieldOpen[] = [];
   const push = (kind: SolidScriptFieldTokenKind, from: number, to: number, checked = false): number => {
@@ -106,7 +114,7 @@ export function solidScriptFieldTokens(text: string): SolidScriptFieldToken[] {
   let index = 0;
   while (index < text.length) {
     const char = text[index]!;
-    const mode = open.at(-1)?.mode ?? 'text';
+    const mode = open.at(-1)?.mode ?? start;
     const rest = text.slice(index);
     if (solidScriptFieldEscapes(text, index)) {
       const end = Math.min(text.length, index + 2);

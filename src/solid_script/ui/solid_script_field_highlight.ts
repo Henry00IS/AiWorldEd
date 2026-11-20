@@ -3,6 +3,7 @@ import {
   solidScriptFieldTokenKey,
   solidScriptFieldTokens,
   type SolidScriptFieldTokenKind,
+  type SolidScriptFieldTokenStart,
 } from '@/solid_script/language/solid_script_field_tokens.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import type { SolidScriptEditorView } from './solid_script_editor_view.js';
@@ -42,10 +43,15 @@ const SOLID_SCRIPT_FIELD_TOKEN_CLASSES: Readonly<Record<SolidScriptFieldTokenKin
  *
  * @param text Field text.
  * @param marks What to show.
+ * @param start How the text outside brackets reads: plain text, or a formula.
  * @returns Spans covering the whole text.
  */
-export function solidScriptFieldHighlight(text: string, marks: SolidScriptFieldMarks): HTMLElement[] {
-  const tokens = solidScriptFieldTokens(text);
+export function solidScriptFieldHighlight(
+  text: string,
+  marks: SolidScriptFieldMarks,
+  start: SolidScriptFieldTokenStart = 'text',
+): HTMLElement[] {
+  const tokens = solidScriptFieldTokens(text, start);
   const bold = new Set(
     marks.view.brackets && marks.caret !== null ? solidScriptFieldBracketsAround(tokens, marks.caret) : [],
   );

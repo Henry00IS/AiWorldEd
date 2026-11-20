@@ -26,7 +26,11 @@ import {
 import type { SolidScriptLineProfile } from '@/solid_script/language/solid_script_machine_types.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES, SOLID_SCRIPT_EDITOR_INDENT_PX } from './solid_script_editor_css.js';
 import { SolidScriptEditorDrop, type SolidScriptEditorDropTarget } from './solid_script_editor_drop.js';
-import { solidScriptEditorRowBuild, type SolidScriptEditorRowHandlers } from './solid_script_editor_row.js';
+import {
+  solidScriptEditorRowBuild,
+  type SolidScriptEditorRowHandlers,
+  type SolidScriptEditorRowLook,
+} from './solid_script_editor_row.js';
 import { SolidScriptEditorLineKeys } from './solid_script_editor_line_keys.js';
 import { SolidScriptEditorLinePaint } from './solid_script_editor_line_paint.js';
 import { SelectionRowsRules } from '@/selection/rows/selection_rows_rules.js';
@@ -113,10 +117,10 @@ const SOLID_SCRIPT_EDITOR_SCROLLBAR_PX = 12;
  */
 export class SolidScriptEditorLines {
   /** Positioned box holding the scroller and its scrollbars. */
-  readonly host: HTMLElement;
+  readonly host = document.createElement('div');
   /** Line list element: the scroller. */
-  readonly element: HTMLElement;
-  private readonly canvas: HTMLElement;
+  readonly element = document.createElement('div');
+  private readonly canvas = document.createElement('div');
   private document: SolidScriptDocument = solidScriptDocumentCreate([]);
   private depths: number[] = [];
   private closes: string[] = [];
@@ -143,6 +147,16 @@ export class SolidScriptEditorLines {
     runs: new Map(),
   };
   private readonly built = new Map<number, HTMLElement>();
+  /** What every row does on keys, presses and focus. */
+  private readonly rowHandlers: SolidScriptEditorRowHandlers = {
+    key: (event, at) => this.keys.key(event, at),
+    configure: (at) => this.handlers.configure(at),
+    jump: (at) => this.focusLine(at),
+    focus: (at) => this.focusArrived(at),
+    press: (at, event) => this.press(at, event),
+    release: (at) => this.release(at),
+    breakpoint: (at) => this.handlers.breakpoint(at),
+  };
   /**
    * Line whose focused row was dropped to be built again; its new row takes the
    * focus.
@@ -168,32 +182,10 @@ export class SolidScriptEditorLines {
     private readonly options: SolidScriptEditorLinesOptions = SOLID_SCRIPT_EDITOR_LINES_SCRIPT,
   ) {
     virtualListScrollbarBindStylesEnsure();
-    this.host = document.createElement('div');
-    this.host.className = SOLID_SCRIPT_EDITOR_CLASSES.linesHost;
-    this.element = document.createElement('div');
-    this.element.className = `${SOLID_SCRIPT_EDITOR_CLASSES.lines} ${VIRTUAL_LIST_SCROLLBAR_BIND_SCROLLER_CLASS}`;
-    this.element.setAttribute('role', 'list');
-    this.element.setAttribute('aria-label', options.label);
-    this.canvas = document.createElement('div');
-    this.canvas.className = SOLID_SCRIPT_EDITOR_CLASSES.linesCanvas;
-    this.element.append(this.canvas);
-    this.host.append(this.element);
+    this.domBuild(options.label);
     this.vertical = virtualListScrollbarBind(this.host, this.element, SOLID_SCRIPT_EDITOR_ROW_PX, [this.canvas]);
     this.horizontal = virtualListScrollbarBindHorizontal(this.host, this.element, 48, [this.canvas]);
-    this.element.addEventListener('scroll', () => this.windowRender());
-    this.keys = new SolidScriptEditorLineKeys({
-      document: () => this.document,
-      edit: handlers.edit,
-      focus: (line, extend) => this.focusLine(line, extend),
-      selected: () => this.selected(),
-      select: (lines) => this.select(lines),
-      selectAll: () => this.selectAll(),
-      selectRange: (first, last) => this.selectRange(first, last),
-      configure: handlers.configure,
-      notice: handlers.notice,
-      catalog: options.catalog,
-      switches: options.switches,
-    });
+    this.keys = this.keysCreate();
     this.paint = new SolidScriptEditorLinePaint({
       element: () => this.element,
       lineAt: (clientY) => this.lineAt(clientY),
@@ -201,16 +193,67 @@ export class SolidScriptEditorLines {
         this.selectionApply(SelectionRowsRules.paintApply(base, painted, subtractive), pointerLine),
       rowPx: SOLID_SCRIPT_EDITOR_ROW_PX,
     });
-    this.drop = new SolidScriptEditorDrop(this.element, {
+    this.drop = this.dropCreate();
+    this.listen();
+  }
+
+  /**
+   * Builds the scrolling list inside its host.
+   *
+   * @param label Accessible name of the list.
+   */
+  private domBuild(label: string): void {
+    this.host.className = SOLID_SCRIPT_EDITOR_CLASSES.linesHost;
+    this.element.className = `${SOLID_SCRIPT_EDITOR_CLASSES.lines} ${VIRTUAL_LIST_SCROLLBAR_BIND_SCROLLER_CLASS}`;
+    this.element.setAttribute('role', 'list');
+    this.element.setAttribute('aria-label', label);
+    this.canvas.className = SOLID_SCRIPT_EDITOR_CLASSES.linesCanvas;
+    this.element.append(this.canvas);
+    this.host.append(this.element);
+  }
+
+  /**
+   * Creates what the keys do to the lines.
+   *
+   * @returns Line keys.
+   */
+  private keysCreate(): SolidScriptEditorLineKeys {
+    return new SolidScriptEditorLineKeys({
+      document: () => this.document,
+      edit: this.handlers.edit,
+      focus: (line, extend) => this.focusLine(line, extend),
+      selected: () => this.selected(),
+      select: (lines) => this.select(lines),
+      selectAll: () => this.selectAll(),
+      selectRange: (first, last) => this.selectRange(first, last),
+      configure: this.handlers.configure,
+      notice: this.handlers.notice,
+      catalog: this.options.catalog,
+      switches: this.options.switches,
+    });
+  }
+
+  /**
+   * Creates what drops palette commands and dragged lines on the list.
+   *
+   * @returns Drop.
+   */
+  private dropCreate(): SolidScriptEditorDrop {
+    return new SolidScriptEditorDrop(this.element, {
       blank: (line) => solidScriptBlockIsBlank(this.document.blocks[line]),
       count: () => this.document.blocks.length,
-      insert: handlers.insert,
+      insert: this.handlers.insert,
       move: (from, target) => {
         this.pressKept = false;
         this.keys.drag(from, target.line);
       },
       rowPx: SOLID_SCRIPT_EDITOR_ROW_PX,
     });
+  }
+
+  /** Listens to scrolling, presses, the clipboard and the context menu. */
+  private listen(): void {
+    this.element.addEventListener('scroll', () => this.windowRender());
     this.element.addEventListener('mousedown', (event) => this.backgroundDown(event));
     this.element.addEventListener('copy', (event) => this.keys.copy(event, false));
     this.element.addEventListener('cut', (event) => this.keys.copy(event, true));
@@ -601,6 +644,42 @@ export class SolidScriptEditorLines {
   }
 
   /**
+   * Tells how the row of a line looks: its depth, group, marks and view.
+   *
+   * @param line Line index.
+   * @returns Look.
+   */
+  private rowLook(line: number): SolidScriptEditorRowLook {
+    const opener = this.openers[line] ?? -1;
+    return {
+      line,
+      depth: this.depths[line] ?? 0,
+      closes: this.closes[line] ?? '',
+      opener,
+      openerCommand: this.document.blocks[opener]?.command ?? '',
+      off: this.offs[line] ?? false,
+      view: this.view,
+      unknown: this.unknown.get(line) ?? new Set(),
+      error: line === this.marks.failed ? this.marks.error : new Set(),
+      catalog: this.options.catalog,
+      switches: this.options.switches,
+    };
+  }
+
+  /**
+   * Ends a press that kept the selection, making its line the current one.
+   *
+   * @param line Line index.
+   */
+  private release(line: number): void {
+    if (!this.pressKept) return;
+    this.pressKept = false;
+    this.anchor = null;
+    this.picked = null;
+    this.caretSet(line);
+  }
+
+  /**
    * Builds the row of a line and places it.
    *
    * @param line Line index.
@@ -609,38 +688,7 @@ export class SolidScriptEditorLines {
   private rowBuild(line: number): HTMLElement | null {
     const block = this.document.blocks[line];
     if (!block) return null;
-    const handlers: SolidScriptEditorRowHandlers = {
-      key: (event, at) => this.keys.key(event, at),
-      configure: this.handlers.configure,
-      jump: (at) => this.focusLine(at),
-      focus: (at) => this.focusArrived(at),
-      press: (at, event) => this.press(at, event),
-      release: (at) => {
-        if (!this.pressKept) return;
-        this.pressKept = false;
-        this.anchor = null;
-        this.picked = null;
-        this.caretSet(at);
-      },
-      breakpoint: (at) => this.handlers.breakpoint(at),
-    };
-    const row = solidScriptEditorRowBuild(
-      block,
-      {
-        line,
-        depth: this.depths[line] ?? 0,
-        closes: this.closes[line] ?? '',
-        opener: this.openers[line] ?? -1,
-        openerCommand: this.document.blocks[this.openers[line] ?? -1]?.command ?? '',
-        off: this.offs[line] ?? false,
-        view: this.view,
-        unknown: this.unknown.get(line) ?? new Set(),
-        error: line === this.marks.failed ? this.marks.error : new Set(),
-        catalog: this.options.catalog,
-        switches: this.options.switches,
-      },
-      handlers,
-    );
+    const row = solidScriptEditorRowBuild(block, this.rowLook(line), this.rowHandlers);
     row.style.top = `${SOLID_SCRIPT_EDITOR_LINES_TOP_PX + line * SOLID_SCRIPT_EDITOR_ROW_PX}px`;
     const after = [...this.built.keys()].filter((other) => other > line).sort((a, b) => a - b)[0];
     this.canvas.insertBefore(row, after === undefined ? null : (this.built.get(after) ?? null));

@@ -25,6 +25,23 @@ const SOLID_SCRIPT_EDITOR_HELP_LINE =
 const SOLID_SCRIPT_EDITOR_HELP_FIELDS =
   'Fields are plain text without quotes. [Name] puts in a variable, [=formula] a calculation such as [=[I] * 2]. Write $[ and $] for brackets, $$ for a dollar sign, $, for a comma inside a list item.';
 
+/** What the help panel says about using the editor it is in. */
+export interface SolidScriptEditorHelpTexts {
+  /** Shown when nothing is selected. */
+  empty: string;
+  /** How to use a palette entry. */
+  palette: string;
+  /** How to use a line. */
+  line: string;
+}
+
+/** Help texts of the script editor. */
+export const SOLID_SCRIPT_EDITOR_HELP_SCRIPT: Readonly<SolidScriptEditorHelpTexts> = {
+  empty: SOLID_SCRIPT_EDITOR_HELP_EMPTY,
+  palette: SOLID_SCRIPT_EDITOR_HELP_PALETTE,
+  line: SOLID_SCRIPT_EDITOR_HELP_LINE,
+};
+
 /**
  * The help panel beside the script: a short summary of the selected palette
  * command or script line and its values with their current text, and the full
@@ -44,8 +61,12 @@ export class SolidScriptEditorHelp {
    *
    * @param open Opens a mentioned command in the palette, or null for plain
    *   text.
+   * @param texts What it says about using the editor it is in.
    */
-  constructor(private readonly open: SolidScriptEditorLinkOpen | null = null) {
+  constructor(
+    private readonly open: SolidScriptEditorLinkOpen | null = null,
+    private readonly texts: Readonly<SolidScriptEditorHelpTexts> = SOLID_SCRIPT_EDITOR_HELP_SCRIPT,
+  ) {
     this.element.className = SOLID_SCRIPT_EDITOR_CLASSES.help;
     this.element.setAttribute('aria-label', 'Command help');
     this.host = solidScriptScrollerWrap(this.element, '0 0 auto', 12);
@@ -56,7 +77,7 @@ export class SolidScriptEditorHelp {
   clear(): void {
     const text = document.createElement('p');
     text.className = SOLID_SCRIPT_EDITOR_CLASSES.helpText;
-    text.textContent = SOLID_SCRIPT_EDITOR_HELP_EMPTY;
+    text.textContent = this.texts.empty;
     this.element.replaceChildren(text);
   }
 
@@ -84,7 +105,7 @@ export class SolidScriptEditorHelp {
       : [];
     const usage = document.createElement('p');
     usage.className = SOLID_SCRIPT_EDITOR_CLASSES.helpUsage;
-    usage.textContent = block ? SOLID_SCRIPT_EDITOR_HELP_LINE : SOLID_SCRIPT_EDITOR_HELP_PALETTE;
+    usage.textContent = block ? this.texts.line : this.texts.palette;
     const more = document.createElement('details');
     more.className = SOLID_SCRIPT_EDITOR_CLASSES.helpMore;
     more.open = this.moreOpen;

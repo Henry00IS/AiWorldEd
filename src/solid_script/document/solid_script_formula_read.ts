@@ -144,7 +144,10 @@ class SolidScriptFormulaReader {
     const value = this.value(node);
     const group = value ? null : this.group(node);
     if (group) return this.groupAdd(node, group);
-    const leaf = value ?? this.check(node) ?? this.leaf(SOLID_SCRIPT_FORMULA_COMMAND.value, this.text(node));
+    const leaf =
+      value ??
+      this.check(node) ??
+      this.leaf(SOLID_SCRIPT_FORMULA_COMMAND.value, this.text(node), this.source.slice(node));
     const block = this.add(leaf.command, leaf.values);
     this.origins.set(block.id, { ...leaf, text: this.text(node), sections: [] });
     return block.id;
@@ -174,7 +177,8 @@ class SolidScriptFormulaReader {
   }
 
   /**
-   * Tells which function block a call is, when it gives each input plainly.
+   * Tells which function block a call is, when it gives each input plainly; a
+   * call with too few inputs still is, so the blocks name what is missing.
    *
    * @param node Part.
    * @returns Group, or null when no function block holds the call.
@@ -183,7 +187,7 @@ class SolidScriptFormulaReader {
     if (node.kind !== 'call' || node.args.some((arg) => arg.name !== null)) return null;
     const command = `${SOLID_SCRIPT_FORMULA_FUNCTION}${solidScriptBuiltinFind(node.name) ?? ''}`;
     const group = solidScriptFormulaGroupOf(command);
-    if (!group || node.args.length < group.min || node.args.length > group.max) return null;
+    if (!group || node.args.length === 0 || node.args.length > group.max) return null;
     return { command, parts: [node.args.map((arg) => arg.value)], name: node.name };
   }
 
@@ -218,13 +222,15 @@ class SolidScriptFormulaReader {
    */
   value(node: SolidScriptExpression): SolidScriptFormulaLeaf | null {
     const text = this.text(node);
+    const inner = this.source.slice(node);
     if (node.kind === 'string')
-      return this.leaf(SOLID_SCRIPT_FORMULA_COMMAND.text, text, solidScriptFormulaShown('text', text));
+      return this.leaf(SOLID_SCRIPT_FORMULA_COMMAND.text, text, solidScriptFormulaShown('text', inner));
     const negative = node.kind === 'unary' && node.operator === '-' && node.operand.kind === 'number';
-    if (node.kind === 'number' || negative) return this.leaf(SOLID_SCRIPT_FORMULA_COMMAND.number, text);
+    if (negative) return this.leaf(SOLID_SCRIPT_FORMULA_COMMAND.number, text, `-${this.source.slice(node.operand)}`);
+    if (node.kind === 'number') return this.leaf(SOLID_SCRIPT_FORMULA_COMMAND.number, text, inner);
     for (const entry of SOLID_SCRIPT_FORMULA_SHOWN) {
-      const shown = solidScriptFormulaShown(entry.kind, text);
-      if (shown !== text.trim()) return this.leaf(entry.command, text, shown);
+      const shown = solidScriptFormulaShown(entry.kind, inner);
+      if (shown !== inner.trim()) return this.leaf(entry.command, text, shown);
     }
     return null;
   }
@@ -259,10 +265,10 @@ class SolidScriptFormulaReader {
     const values: Record<string, string> = {};
     inputs.forEach((input, index) => {
       const arg = node.args[index];
-      const formula = arg ? this.text(arg.value) : '';
-      formulas[input.name] = formula;
-      const same = input.fallback !== '' && formula.replace(/\s+/g, '') === input.fallback.replace(/\s+/g, '');
-      values[input.name] = same ? '' : solidScriptFormulaShown(input.kind, formula);
+      formulas[input.name] = arg ? this.text(arg.value) : '';
+      const inner = arg ? this.source.slice(arg.value) : '';
+      const same = input.fallback !== '' && inner.replace(/\s+/g, '') === input.fallback.replace(/\s+/g, '');
+      values[input.name] = same ? '' : solidScriptFormulaShown(input.kind, inner);
     });
     return { command, values, formulas, name: node.name };
   }

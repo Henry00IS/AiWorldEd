@@ -84,6 +84,24 @@ export function solidScriptFormulaWrap(text: string, need: number): string {
 }
 
 /**
+ * Takes away parentheses around formula text as a whole, so (a || b) shows as
+ * a.
+ *
+ * || b where it stands alone.
+ *
+ * @param text Formula.
+ * @returns Text without the parentheses around it, or as it was.
+ */
+export function solidScriptFormulaUnwrap(text: string): string {
+  try {
+    const source = SolidScriptFormulaSource.read(text);
+    return source.parenthesized(source.tree) ? source.slice(source.tree) : text;
+  } catch {
+    return text;
+  }
+}
+
+/**
  * Returns the lowest level a part joined by an operator keeps without
  * parentheses: the first part keeps the operator's own level and the others one
  * tighter, so a - (b - c) keeps its parentheses; ^ is the other way round, so

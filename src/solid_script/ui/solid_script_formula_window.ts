@@ -22,6 +22,15 @@ import { SolidScriptEditorFavorites } from './solid_script_editor_favorites.js';
 import { SolidScriptEditorLineConfigure } from './solid_script_editor_line_configure.js';
 import { SolidScriptEditorLines } from './solid_script_editor_lines.js';
 import { SolidScriptEditorPalette } from './solid_script_editor_palette.js';
+import { SolidScriptEditorHelp } from './solid_script_editor_help.js';
+import { SolidScriptEditorTip, solidScriptEditorCodeHighlight } from './solid_script_editor_tip.js';
+import { SolidScriptEditorFrame } from './solid_script_editor_frame.js';
+import {
+  SOLID_SCRIPT_FORMULA_BOUNDS_KEY,
+  SOLID_SCRIPT_FORMULA_SIZES_KEY,
+  solidScriptEditorSizesRead,
+  solidScriptEditorSplitter,
+} from './solid_script_editor_splitters.js';
 
 /** What the formula window edits and where its text goes. */
 export interface SolidScriptFormulaWindowOptions {
@@ -49,7 +58,16 @@ export interface SolidScriptFormulaWindowOptions {
 
 /** Note shown while nothing is wrong. */
 const SOLID_SCRIPT_FORMULA_WINDOW_HINT =
-  'Drag blocks in from the left, or type on the right; both stay the same formula. Double-click a block to change it.';
+  'Drag blocks in from the left; the formula on the bottom right follows. Double-click a block to change it.';
+
+/** What the help beside the blocks says about using the formula window. */
+const SOLID_SCRIPT_FORMULA_WINDOW_HELP = {
+  empty:
+    'Select a block, in the list or among the formula blocks, to read what it does and what each of its values means.',
+  palette:
+    'Drag it into the formula, or double-click it to add it at the current block. Blocks that hold others, such as Equals, take the blocks between them and their End.',
+  line: 'Double-click a block or press Enter to change it. Drag blocks to move them, into a group to put them inside it. Delete removes the selected blocks; Ctrl+C, Ctrl+X and Ctrl+V copy, cut and paste them.',
+};
 
 /**
  * Tells why a field cannot open in the formula window: its formula has a
@@ -67,15 +85,20 @@ export function solidScriptFormulaWindowProblem(kind: SolidScriptFieldKind, stor
 
 /**
  * The formula window: blocks on the left to pick from, the formula as blocks in
- * the middle, the same formula as text on the right. It opens over the window
- * of a field and writes the field only on OK; Cancel leaves it as it was.
+ * the middle, and on the right the help of the selected block above the formula
+ * as highlighted text that can be copied. It opens over the window of a field
+ * and writes the field only on OK; Cancel leaves it as it was.
  */
 export class SolidScriptFormulaWindow extends SolidScriptDialog {
   private readonly catalog: SolidScriptCommandCatalog;
   private readonly lines: SolidScriptEditorLines;
   private readonly palette: SolidScriptEditorPalette;
   private readonly lineConfigure: SolidScriptEditorLineConfigure;
-  private readonly text = document.createElement('textarea');
+  private readonly help = new SolidScriptEditorHelp(null, SOLID_SCRIPT_FORMULA_WINDOW_HELP);
+  private readonly preview = document.createElement('div');
+  private readonly frame: SolidScriptEditorFrame;
+  private readonly tip: SolidScriptEditorTip;
+  private parts: ReadonlyMap<number, string> = new Map();
   private readonly status = document.createElement('div');
   private blocks: SolidScriptFormulaBlocks;
   private document: SolidScriptDocument;
@@ -89,30 +112,28 @@ export class SolidScriptFormulaWindow extends SolidScriptDialog {
    * @param options What it edits and where its text goes.
    */
   constructor(private readonly options: SolidScriptFormulaWindowOptions) {
-    super(options.host, `${options.label} Formula`, 'OK', options.parent);
+    super(options.host, `${options.label} Formula`, 'OK', options.parent, true);
     this.root.dataset['solidScriptFormula'] = options.label;
-    this.root.style.width = 'min(1100px, calc(100vw - 48px))';
-    this.root.style.maxWidth = 'none';
+    this.frame = this.frameCreate();
     this.catalog = solidScriptFormulaCatalog(options.context);
     this.body = solidScriptFormulaBodyOr(options.kind, options.stored) ?? '';
     this.blocks = solidScriptFormulaRead(this.body, options.context);
     this.document = this.blocks.document;
     this.lineConfigure = this.lineConfigureCreate();
     this.lines = this.linesCreate();
+    this.tip = new SolidScriptEditorTip(this.lines.host, (line) => this.parts.get(line) ?? null);
     this.palette = this.paletteCreate();
     this.layout();
-    this.lines.render(this.document, null);
-    this.statusShow(this.plainNote());
+    this.read(this.body, null);
+    if (solidScriptFormulaBodyOr(options.kind, options.stored) === null) this.statusShow(this.plainNote());
   }
 
   /**
    * Notes that the field held plain text, which OK replaces.
    *
-   * @returns Note, or the usual hint.
+   * @returns Note.
    */
   private plainNote(): string {
-    if (solidScriptFormulaBodyOr(this.options.kind, this.options.stored) !== null)
-      return SOLID_SCRIPT_FORMULA_WINDOW_HINT;
     return `${this.options.label} holds plain text, not a formula. OK replaces it with the formula built here.`;
   }
 
@@ -148,7 +169,7 @@ export class SolidScriptFormulaWindow extends SolidScriptDialog {
         edit: (document, line) => this.commit(document, line),
         configure: (line) => this.lineConfigure.configure(line),
         insert: (command, drop) => this.lineConfigure.insert(command, drop.line, 'before'),
-        select: () => undefined,
+        select: (line) => this.helpShow(line),
         notice: (text) => this.statusShow(text),
         breakpoint: () => undefined,
       },
@@ -165,7 +186,7 @@ export class SolidScriptFormulaWindow extends SolidScriptDialog {
   private paletteCreate(): SolidScriptEditorPalette {
     return new SolidScriptEditorPalette(
       (command) => this.lineConfigure.insert(command, this.lines.caret(), 'caret', {}, this.lines.selectedRun()),
-      (command: SolidScriptCommand) => this.statusShow(command.manual),
+      (command: SolidScriptCommand) => this.help.show(command, null),
       new SolidScriptEditorFavorites(undefined, this.catalog),
       {
         catalog: this.catalog,
@@ -177,20 +198,96 @@ export class SolidScriptFormulaWindow extends SolidScriptDialog {
     );
   }
 
-  /** Puts the palette, the blocks, the text and the buttons in the window. */
+  /**
+   * Sizes the window like the script editor and places it where it was last
+   * left, remembered apart from the script editor.
+   *
+   * @returns Frame.
+   */
+  private frameCreate(): SolidScriptEditorFrame {
+    Object.assign(this.root.style, { display: 'flex', flexDirection: 'column' });
+    Object.assign(this.content.style, { flex: '1 1 0', minHeight: '0', display: 'flex', flexDirection: 'column' });
+    const place = (left: number, top: number): void => this.setTopLeftPosition(left, top);
+    const window = { root: this.root, place, clamp: () => this.clampToScreen() };
+    return new SolidScriptEditorFrame(window, SOLID_SCRIPT_FORMULA_BOUNDS_KEY);
+  }
+
+  /**
+   * Puts the palette, the blocks, the help, the formula and the buttons in the
+   * window.
+   */
   private layout(): void {
     const body = document.createElement('div');
     body.className = SOLID_SCRIPT_EDITOR_CLASSES.formulaBody;
-    this.text.className = SOLID_SCRIPT_EDITOR_CLASSES.formulaText;
-    this.text.spellcheck = false;
-    this.text.value = this.body;
-    this.text.setAttribute('aria-label', `${this.options.label} formula`);
-    this.text.title = 'The formula as text, such as InBox([$Face.Center], [0, 0, 0], 2) && [$NY] > 0.5.';
-    this.text.addEventListener('input', () => this.typed());
-    body.append(this.palette.element, this.lines.host, this.text);
+    const side = document.createElement('div');
+    side.className = SOLID_SCRIPT_EDITOR_CLASSES.formulaSide;
+    this.help.host.style.flex = '1 1 0';
+    side.append(this.help.host, this.previewCreate());
+    const sizes = solidScriptEditorSizesRead(undefined, SOLID_SCRIPT_FORMULA_SIZES_KEY);
+    body.append(
+      this.palette.element,
+      solidScriptEditorSplitter(this.palette.element, 'palette', sizes, SOLID_SCRIPT_FORMULA_SIZES_KEY),
+      this.lines.host,
+      solidScriptEditorSplitter(side, 'help', sizes, SOLID_SCRIPT_FORMULA_SIZES_KEY),
+      side,
+    );
     this.status.className = SOLID_SCRIPT_EDITOR_CLASSES.formulaStatus;
     this.status.setAttribute('role', 'status');
     this.content.append(body, this.status, this.buttonRow());
+    this.root.append(this.frame.grip());
+  }
+
+  /** Places the window where it was last left, at its remembered size. */
+  protected override onAfterShow(): void {
+    this.frame.restore();
+  }
+
+  /** Remembers where the window was moved. */
+  protected override onAfterMove(): void {
+    this.frame.remember();
+  }
+
+  /**
+   * Creates the formula as text: read only, highlighted like a field, and
+   * selectable so it can be copied; Ctrl+A selects only the formula.
+   *
+   * @returns Preview element.
+   */
+  private previewCreate(): HTMLElement {
+    this.preview.className = SOLID_SCRIPT_EDITOR_CLASSES.formulaText;
+    this.preview.tabIndex = 0;
+    this.preview.setAttribute('role', 'textbox');
+    this.preview.setAttribute('aria-readonly', 'true');
+    this.preview.setAttribute('aria-label', `${this.options.label} formula`);
+    this.preview.title = 'The formula the blocks make. Select it to copy it.';
+    this.preview.addEventListener('keydown', (event) => {
+      if (event.key.toLowerCase() !== 'a' || !(event.ctrlKey || event.metaKey)) return;
+      event.preventDefault();
+      this.preview.ownerDocument.getSelection()?.selectAllChildren(this.preview);
+    });
+    this.previewShow(this.body);
+    return this.preview;
+  }
+
+  /**
+   * Shows formula text in the preview, highlighted.
+   *
+   * @param text Formula.
+   */
+  private previewShow(text: string): void {
+    this.preview.replaceChildren(...solidScriptEditorCodeHighlight(text, 'formula'));
+  }
+
+  /**
+   * Shows the help of the block on a line, or the hint when it has none.
+   *
+   * @param line Line index.
+   */
+  private helpShow(line: number): void {
+    const block = this.document.blocks[line];
+    const command = block ? this.catalog.find(block.command) : undefined;
+    if (block && command) this.help.show(command, block);
+    else this.help.clear();
   }
 
   /**
@@ -205,23 +302,13 @@ export class SolidScriptFormulaWindow extends SolidScriptDialog {
   private commit(document: SolidScriptDocument, line: number): void {
     const written = solidScriptFormulaWrite(document, this.blocks, this.options.context);
     this.blocksBroken = 'problem' in written;
+    this.parts = 'problem' in written ? new Map() : written.parts;
     if ('problem' in written) {
       this.document = document;
       this.lines.render(document, line);
       return this.problemSet(`Line ${written.line + 1}: ${written.problem}`);
     }
-    if (this.text.value !== written.text) this.text.value = written.text;
     this.read(written.text, line);
-  }
-
-  /** Reads typed text into blocks, or shows why it cannot be read. */
-  private typed(): void {
-    if (this.blocksBroken) return;
-    try {
-      this.read(this.text.value, null);
-    } catch (error) {
-      this.problemSet(error instanceof Error ? error.message : String(error));
-    }
   }
 
   /**
@@ -236,19 +323,21 @@ export class SolidScriptFormulaWindow extends SolidScriptDialog {
     this.body = text;
     this.document = this.blocks.document;
     this.lines.render(this.document, line);
-    this.problemSet('');
+    this.previewShow(text);
+    const written = solidScriptFormulaWrite(this.document, this.blocks, this.options.context);
+    this.parts = 'problem' in written ? new Map() : written.parts;
+    this.problemSet('problem' in written ? `Line ${written.line + 1}: ${written.problem}` : '');
   }
 
   /**
-   * Shows a problem, or clears it: while the text has one the blocks rest,
-   * while the blocks have one the text rests.
+   * Shows a problem, or clears it; while the blocks make no formula the text
+   * keeps the last one they made, greyed.
    *
    * @param problem Problem in plain words, or an empty string.
    */
   private problemSet(problem: string): void {
     this.problemText = problem;
-    this.lines.host.classList.toggle(SOLID_SCRIPT_EDITOR_CLASSES.formulaOff, problem !== '' && !this.blocksBroken);
-    this.text.readOnly = this.blocksBroken;
+    this.preview.classList.toggle(SOLID_SCRIPT_EDITOR_CLASSES.formulaOff, this.blocksBroken);
     this.statusShow(problem || SOLID_SCRIPT_FORMULA_WINDOW_HINT, problem !== '');
   }
 
@@ -283,13 +372,13 @@ export class SolidScriptFormulaWindow extends SolidScriptDialog {
   }
 
   /**
-   * Keeps Enter for new lines in the text and for the blocks.
+   * Keeps Enter for the blocks, where it opens the current one.
    *
    * @param target Element the key was pressed on.
    * @returns True when Enter presses OK.
    */
   protected override enterConfirms(target: EventTarget | null): boolean {
-    if (target instanceof Node && (target === this.text || this.lines.host.contains(target))) return false;
+    if (target instanceof Node && this.lines.host.contains(target)) return false;
     return super.enterConfirms(target);
   }
 
@@ -297,5 +386,6 @@ export class SolidScriptFormulaWindow extends SolidScriptDialog {
   protected override onAfterHide(): void {
     this.lines.dispose();
     this.palette.dispose();
+    this.tip.dispose();
   }
 }

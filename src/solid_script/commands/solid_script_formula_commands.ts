@@ -21,7 +21,9 @@ import {
   type SolidScriptFormulaBlockText,
 } from './solid_script_formula_groups.js';
 import { SOLID_SCRIPT_FUNCTION_DOCS } from '@/solid_script/language/solid_script_function_docs.js';
+import type { SolidScriptListingPart, SolidScriptListingValues } from './solid_script_command_listing.js';
 import {
+  solidScriptFormulaIsName,
   solidScriptFormulaTyped,
   type SolidScriptFormulaInputKind,
 } from '@/solid_script/language/solid_script_formula_field.js';
@@ -116,6 +118,22 @@ export const SOLID_SCRIPT_FORMULA_LEAVES: readonly (SolidScriptFormulaBlockText 
 ];
 
 /**
+ * Lists the value of a value block the way the script lists values: a variable
+ * name in square brackets, anything else in single quotes.
+ *
+ * @param kind What the block holds.
+ * @param read Values of the line.
+ * @returns Listing piece.
+ */
+function solidScriptFormulaLeafListing(
+  kind: SolidScriptFormulaInputKind,
+  read: SolidScriptListingValues,
+): SolidScriptListingPart {
+  const name = kind === 'variable' && solidScriptFormulaIsName(read.text('value'));
+  return name ? read.variable('value') : read.value('value');
+}
+
+/**
  * Creates the value blocks: Number, Vector, Text, Variable and Expression, each
  * holding one value typed in its window.
  *
@@ -130,7 +148,7 @@ function solidScriptFormulaValues(): SolidScriptCommand[] {
     return solidScriptFormulaBlock(leaf, 'Values', {
       parameters: [solidScriptParameter('value', leaf.label, field, '', leaf.hint)],
       check: (values) => solidScriptFormulaFieldsProblem(fields, values),
-      listing: (read) => [leaf.label, read.text('value')],
+      listing: (read) => [leaf.label, ' ', solidScriptFormulaLeafListing(leaf.kind, read)],
     });
   });
 }

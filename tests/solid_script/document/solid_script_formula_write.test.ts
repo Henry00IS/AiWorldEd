@@ -57,6 +57,48 @@ const CORPUS: readonly string[] = [
 ];
 
 /**
+ * Formulas with brackets, each with how it is written neatly and how it is
+ * written after its first Number becomes 6 (or, without one, its first Variable
+ * becomes [d] or its first Text "Side"): only brackets nothing needs go.
+ */
+const BRACKETS: readonly (readonly [string, string, string])[] = [
+  ['(5+4)', '5 + 4', '(6+4)'],
+  ['((5+4))', '5 + 4', '((6+4))'],
+  ['(((15)))', '15', '6'],
+  ['(7+8)*3', '(7 + 8) * 3', '(6+8)*3'],
+  ['7+(8*3)', '7 + 8 * 3', '6+(8*3)'],
+  ['-(5+4)', '-(5 + 4)', '-(6+4)'],
+  ['([a] && [b]) || [c]', '[a] && [b] || [c]', '([d] && [b]) || [c]'],
+  ['[a] && ([b] || [c])', '[a] && ([b] || [c])', '[d] && ([b] || [c])'],
+  ['!([a] && [b])', '!([a] && [b])', '!([d] && [b])'],
+  ['not ([a] and [b])', '!([a] && [b])', 'not ([d] and [b])'],
+  ['[a] ? ([b] ? 1 : 2) : 3', '[a] ? [b] ? 1 : 2 : 3', '[a] ? ([b] ? 6 : 2) : 3'],
+  ['[a] ? [b] ? 1 : 2 : 3', '[a] ? [b] ? 1 : 2 : 3', '[a] ? [b] ? 6 : 2 : 3'],
+  ['([a] ? 1 : 2) + 1', '([a] ? 1 : 2) + 1', '([a] ? 6 : 2) + 1'],
+  ['[a] ? 1 : ([b] ? 2 : 3)', '[a] ? 1 : [b] ? 2 : 3', '[a] ? 6 : ([b] ? 2 : 3)'],
+  ['(([a]) ? (1) : (2))', '[a] ? 1 : 2', '(([a]) ? 6 : (2))'],
+  ['(2^3)^2', '(2 ^ 3) ^ 2', '(6^3)^2'],
+  ['2^(3^2)', '2 ^ 3 ^ 2', '6^(3^2)'],
+  ['([a] - [b]) - [c]', '[a] - [b] - [c]', '([d] - [b]) - [c]'],
+  ['[a] - ([b] - [c])', '[a] - ([b] - [c])', '[d] - ([b] - [c])'],
+  ['([d] / [c]) / 3', '[d] / [c] / 3', '([d] / [c]) / 6'],
+  ['[d] / ([c] / 3)', '[d] / ([c] / 3)', '[d] / ([c] / 6)'],
+  ['Max((1), (2 + 3))', 'Max(1, 2 + 3)', 'Max(6, (2 + 3))'],
+  ['Vector((1), ([a] + 1), (3))', 'Vector(1, [a] + 1, 3)', 'Vector(6, ([a] + 1), (3))'],
+  ['[(1 + 1), 2, 3] == [2, 2, 3]', '[(1 + 1), 2, 3] == [2, 2, 3]', '[(1 + 1), 2, 3] == [2, 2, 3]'],
+  ['Abs((-(5)))', 'Abs(-5)', 'Abs(6)'],
+  ['5+(5)', '5 + 5', '6+(5)'],
+  ['(5)+5', '5 + 5', '6+5'],
+  ['5*(-5)', '5 * -5', '6*(-5)'],
+  ['Abs((5))', 'Abs(5)', 'Abs(6)'],
+  ['[(1), 2, (3)]', '[(1), 2, (3)]', '[(1), 2, (3)]'],
+  ['(-2)^2', '(-2) ^ 2', '6^2'],
+  ['-2^2', '-2 ^ 2', '-6^2'],
+  ['("Top")', '"Top"', '"Side"'],
+  ['HasTag(([l]), ("Top"))', 'HasTag([l], "Top")', 'HasTag(([l]), ("Top"))'],
+];
+
+/**
  * Works a formula out in a script with test variables.
  *
  * @param formula Formula.
@@ -269,5 +311,69 @@ describe('SolidScript formula blocks write', () => {
     add(SOLID_SCRIPT_FORMULA_COMMAND.text, 'Top');
     expect(write(read)).toBe('[x] == Abs(-54) && "Top"');
     expect(evaluate('[a] == Abs(-1)')).toBe('Yes');
+  });
+
+  it('keeps the formula of every block by line, a group on its Then, Else and End too', () => {
+    const read = solidScriptFormulaRead('[a] && ([b] || Abs([c]) > 1) && ([d] ? 1 : 2)');
+    const written = solidScriptFormulaWrite(read.document, read);
+    if (!('parts' in written)) throw new Error('Expected a formula');
+    const part = (line: number) => written.parts.get(line);
+    expect(read.document.blocks.map((block) => block.command)).toEqual([
+      'formula_variable',
+      'formula_or',
+      'formula_variable',
+      'formula_more',
+      'formula_fn_abs',
+      'formula_variable',
+      'end',
+      'formula_number',
+      'end',
+      'end',
+      'formula_if',
+      'formula_variable',
+      'formula_then',
+      'formula_number',
+      'formula_else',
+      'formula_number',
+      'end',
+    ]);
+    expect(part(0)).toBe('[a]');
+    expect(part(1)).toBe('[b] || Abs([c]) > 1');
+    expect(part(9)).toBe(part(1));
+    expect(part(3)).toBe('Abs([c]) > 1');
+    expect(part(4)).toBe('Abs([c])');
+    expect(part(6)).toBe('Abs([c])');
+    expect(part(7)).toBe('1');
+    expect([10, 12, 14, 16].map(part)).toEqual(Array(4).fill('[d] ? 1 : 2'));
+    expect(part(-1)).toBeUndefined();
+  });
+
+  it('keeps brackets exactly while untouched, and drops only brackets nothing needs', () => {
+    for (const [formula, neat, edited] of BRACKETS) {
+      const read = solidScriptFormulaRead(formula);
+      expect(write(read), formula).toBe(formula);
+      expect(rewrite(read), formula).toBe(neat);
+      expect(evaluate(neat), `${formula} -> ${neat}`).toBe(evaluate(formula));
+      const number = read.document.blocks.find((block) => block.command === SOLID_SCRIPT_FORMULA_COMMAND.number);
+      const named = read.document.blocks.find(
+        (block) =>
+          block.command === SOLID_SCRIPT_FORMULA_COMMAND.variable ||
+          block.command === SOLID_SCRIPT_FORMULA_COMMAND.text,
+      );
+      if (number) number.values['value'] = '6';
+      else if (named) named.values['value'] = named.command === SOLID_SCRIPT_FORMULA_COMMAND.text ? 'Side' : 'd';
+      expect(write(read), formula).toBe(edited);
+      expect(evaluate(edited), `${formula} -> ${edited}`).toBe(evaluate(rewrite(read)));
+    }
+  });
+
+  it('keeps the brackets a changed value needs, such as a negative number raised to a power', () => {
+    const read = solidScriptFormulaRead('(-2)^2 + 5*(-5)');
+    const numbers = read.document.blocks.filter((block) => block.command === SOLID_SCRIPT_FORMULA_COMMAND.number);
+    expect(numbers.map((block) => block.values['value'])).toEqual(['-2', '2', '5', '-5']);
+    numbers[0]!.values['value'] = '-3';
+    numbers[3]!.values['value'] = '-6';
+    expect(write(read)).toBe('(-3)^2 + 5*-6');
+    expect(evaluate(write(read))).toBe(evaluate('9 + -30'));
   });
 });

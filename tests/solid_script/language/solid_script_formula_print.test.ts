@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   solidScriptFormulaJoin,
   solidScriptFormulaOperandNeed,
+  solidScriptFormulaUnwrap,
   solidScriptFormulaOperatorLevel,
   solidScriptFormulaWrap,
 } from '@/solid_script/language/solid_script_formula_print.js';
@@ -28,5 +29,13 @@ describe('SolidScript formula print', () => {
     expect(solidScriptFormulaJoin('^', ['2', '3 ^ 2'])).toBe('2 ^ 3 ^ 2');
     expect(solidScriptFormulaJoin('&&', ['[a] || [b]'])).toBe('[a] || [b]');
     expect(solidScriptFormulaOperandNeed('&&', 1, 0)).toBe(0);
+  });
+
+  it('takes away parentheses only around the whole formula', () => {
+    expect(solidScriptFormulaUnwrap('([b] || [c])')).toBe('[b] || [c]');
+    expect(solidScriptFormulaUnwrap('(([a]))')).toBe('[a]');
+    expect(solidScriptFormulaUnwrap('([a]) && ([b])')).toBe('([a]) && ([b])');
+    expect(solidScriptFormulaUnwrap('Abs([c])')).toBe('Abs([c])');
+    expect(solidScriptFormulaUnwrap('([a] >')).toBe('([a] >');
   });
 });

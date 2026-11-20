@@ -108,4 +108,20 @@ describe('solidScriptFieldTokens', () => {
       .map((token) => text.slice(token.from, token.to));
     expect(operators).toEqual(['+', '*', '/', '-', '^', '%', '>', '=']);
   });
+
+  it('reads a whole formula without brackets around it when it starts as a formula', () => {
+    const kinds = (text: string, start: 'text' | 'formula') =>
+      solidScriptFieldTokens(text, start)
+        .filter((token) => text.slice(token.from, token.to).trim() !== '')
+        .map((token) => token.kind);
+    expect(kinds('Abs(0.5) > "Top"', 'formula')).toEqual([
+      'function',
+      'bracket',
+      'number',
+      'bracket',
+      'operator',
+      'string',
+    ]);
+    expect(kinds('Abs(0.5) > "Top"', 'text')).not.toContain('function');
+  });
 });

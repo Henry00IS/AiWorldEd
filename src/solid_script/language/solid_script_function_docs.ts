@@ -880,3 +880,36 @@ export function solidScriptFunctionArguments(key: string): SolidScriptFunctionAr
     return { name, ...known };
   });
 }
+
+/** Inputs at the end of a function that may be left off, by function key. */
+const SOLID_SCRIPT_FUNCTION_INPUTS_LEFT_OFF: Readonly<Record<string, number>> = {
+  pad_left: 1,
+  pad_right: 1,
+  random: 1,
+  part: 1,
+  split: 1,
+  join: 1,
+  format_number: 2,
+  time_text: 1,
+  hash: 1,
+  noise: 2,
+  shuffle: 1,
+  slice: 1,
+};
+
+/** Fewest inputs of functions that take as many as needed, when more than one. */
+const SOLID_SCRIPT_FUNCTION_INPUTS_LEAST: Readonly<Record<string, number>> = { pick: 2 };
+
+/**
+ * Returns the fewest inputs a function takes: the inputs its usage lists, less
+ * those that may be left off; one for a function taking as many as needed, such
+ * as Max, which also takes one list.
+ *
+ * @param key Function key, such as clamp.
+ * @returns Fewest inputs.
+ */
+export function solidScriptFunctionInputsLeast(key: string): number {
+  const inputs = solidScriptFunctionArguments(key);
+  if (inputs.some((input) => input.name === '...')) return SOLID_SCRIPT_FUNCTION_INPUTS_LEAST[key] ?? 1;
+  return inputs.length - (SOLID_SCRIPT_FUNCTION_INPUTS_LEFT_OFF[key] ?? 0);
+}

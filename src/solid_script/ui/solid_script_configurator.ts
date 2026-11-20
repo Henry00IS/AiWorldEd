@@ -65,8 +65,22 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
   ) {
     super(host, command.label, 'OK', parent);
     this.root.dataset['solidScriptConfigurator'] = command.id;
-    // Undo keys belong to the script, never to the level behind the window;
-    // inside a text field they undo typing.
+    this.historyKeysListen(history);
+    this.content.append(this.note(command.description), this.fieldsBuild(values));
+    this.preview.className = SOLID_SCRIPT_EDITOR_CLASSES.preview;
+    this.preview.setAttribute('aria-label', 'Line');
+    Object.assign(this.problem.style, { color: '#e5484d', minHeight: '16px', marginBottom: '8px' });
+    this.content.append(this.preview, this.problem, this.buttonRow());
+    this.refresh();
+  }
+
+  /**
+   * Gives Ctrl+Z and Ctrl+Y to the script, never to the level behind the
+   * window; inside a text field they undo typing.
+   *
+   * @param history Undoes (false) or redoes (true) a step, or null.
+   */
+  private historyKeysListen(history: ((redo: boolean) => void) | null): void {
     this.root.addEventListener('keydown', (event) => {
       const key = event.key.toLowerCase();
       if (!(event.ctrlKey || event.metaKey) || (key !== 'z' && key !== 'y')) return;
@@ -75,35 +89,50 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
       event.preventDefault();
       history?.(key === 'y' || event.shiftKey);
     });
-    this.content.append(this.note(command.description));
-    // Many fields scroll inside the window, so it never grows past the page.
+  }
+
+  /**
+   * Builds a field per input in a list that scrolls inside the window, so many
+   * fields never grow it past the page.
+   *
+   * @param values Stored values.
+   * @returns Scrolling list.
+   */
+  private fieldsBuild(values: SolidScriptCommandValues): HTMLElement {
     const list = document.createElement('div');
     Object.assign(list.style, { maxHeight: 'calc(100vh - 260px)', overflowY: 'auto', paddingRight: '4px' });
-    this.content.append(solidScriptScrollerWrap(list, '0 1 auto', 0));
-    for (const parameter of command.parameters) {
-      const field = solidScriptConfiguratorFieldBuild(
-        parameter,
-        values[parameter.key] ?? (parameter.optional === true ? '' : parameter.default),
-        () => this.refresh(),
-        {
-          names,
-          extra: this.fillsOf(parameter, values),
-          eachFillWarning: (text) => solidScriptFieldEachFillWarning(command, parameter, this.values(), text),
-          values: () => this.values(),
-          inputs: this.inputs,
-          ...(SOLID_SCRIPT_FORMULA_CATEGORIES.includes(command.category)
-            ? {}
-            : { formula: (field, stored, write) => this.formulaOpen(field, stored, write) }),
-        },
-      );
+    for (const parameter of this.command.parameters) {
+      const field = this.fieldBuild(parameter, values);
       this.fields.set(parameter.key, field);
       list.append(field.element);
     }
-    this.preview.className = SOLID_SCRIPT_EDITOR_CLASSES.preview;
-    this.preview.setAttribute('aria-label', 'Line');
-    Object.assign(this.problem.style, { color: '#e5484d', minHeight: '16px', marginBottom: '8px' });
-    this.content.append(this.preview, this.problem, this.buttonRow());
-    this.refresh();
+    return solidScriptScrollerWrap(list, '0 1 auto', 0);
+  }
+
+  /**
+   * Builds the field of one input, with a … button that builds a formula from
+   * blocks unless this is itself a formula block.
+   *
+   * @param parameter Input.
+   * @param values Stored values.
+   * @returns Field.
+   */
+  private fieldBuild(
+    parameter: SolidScriptCommandParameter,
+    values: SolidScriptCommandValues,
+  ): SolidScriptConfiguratorField {
+    const command = this.command;
+    const stored = values[parameter.key] ?? (parameter.optional === true ? '' : parameter.default);
+    return solidScriptConfiguratorFieldBuild(parameter, stored, () => this.refresh(), {
+      names: this.names,
+      extra: this.fillsOf(parameter, values),
+      eachFillWarning: (text) => solidScriptFieldEachFillWarning(command, parameter, this.values(), text),
+      values: () => this.values(),
+      inputs: this.inputs,
+      ...(SOLID_SCRIPT_FORMULA_CATEGORIES.includes(command.category)
+        ? {}
+        : { formula: (field, text, write) => this.formulaOpen(field, text, write) }),
+    });
   }
 
   /** Focuses the first field. */

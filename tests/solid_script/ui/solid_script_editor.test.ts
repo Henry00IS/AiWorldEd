@@ -353,13 +353,13 @@ describe('SolidScript editor', () => {
     expect(document.activeElement).toBe(chip(1));
   });
 
-  it('shows the configurator as a window titled with the command, OK on the left and Cancel on the right', () => {
+  it('shows the configurator as a window titled with the command, Cancel then OK on the right', () => {
     const { commands } = editorFixture([{ command: 'cube' }]);
     doubleClick(chip(0));
     const dialog = find('[data-solid-script-configurator="cube"]');
     expect(dialog.querySelector('[id^="solid-script-dialog-"]')?.textContent).toBe('Cube');
     const buttons = [...dialog.querySelectorAll('button')].map((button) => button.textContent);
-    expect(buttons.slice(-2)).toEqual(['OK', 'Cancel']);
+    expect(buttons.slice(-2)).toEqual(['Cancel', 'OK']);
     // The title bar holds only the title and the X.
     const bar = find('[data-solid-script-configurator="cube"] [id^="solid-script-dialog-"]').parentElement!;
     expect([...bar.querySelectorAll('button')].map((button) => button.getAttribute('aria-label'))).toEqual(['Close']);

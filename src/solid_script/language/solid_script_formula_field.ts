@@ -26,6 +26,17 @@ const SOLID_SCRIPT_FORMULA_QUOTED = /^"([^"\\]*)"$/;
 /** A Vector call, such as Vector(0, 1, 0). */
 const SOLID_SCRIPT_FORMULA_VECTOR_CALL = /^Vector\s*\(([\s\S]*)\)$/i;
 
+/**
+ * Tells whether text is a variable name as typed without brackets, such as
+ * Width or $Face.Center.
+ *
+ * @param text Text.
+ * @returns True for a name.
+ */
+export function solidScriptFormulaIsName(text: string): boolean {
+  return SOLID_SCRIPT_FORMULA_NAME.test(text.trim());
+}
+
 /** Problem of field text the blocks cannot open. */
 export const SOLID_SCRIPT_FORMULA_PLAIN_TEXT =
   'This field holds plain text, not a formula. Blocks open a formula, such as [=[Width] * 2].';

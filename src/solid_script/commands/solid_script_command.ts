@@ -287,6 +287,44 @@ function solidScriptCommandBuiltInto(listed: boolean): SolidScriptCommandParamet
 /** Palette groups whose lines build shapes, which get the optional Name field. */
 const SOLID_SCRIPT_COMMAND_NAMED: readonly SolidScriptCommandCategory[] = ['Solids', '2D Shapes', 'Generators'];
 
+/** The fields of a command, with those every builder or tool line adds. */
+interface SolidScriptCommandFields {
+  /** True when lines of it carry a Center name. */
+  named: boolean;
+  /** True when it builds into a list. */
+  intoList: boolean;
+  /** True when it builds a Center. */
+  builds: boolean;
+  /** True when it changes a Center. */
+  edits: boolean;
+  /** True when it can write its change into a copy. */
+  writeCopy: boolean;
+  /** Its own fields and the added ones. */
+  parameters: SolidScriptCommandParameter[];
+  /** Writes its lines as the listing shows them. */
+  listing: SolidScriptListingWrite;
+}
+
+/**
+ * Works out the fields of a command: a builder gets a name and where it goes, a
+ * tool without its own Into gets one to write a copy; the listing shows them.
+ *
+ * @param spec Command spec.
+ * @returns Fields.
+ */
+function solidScriptCommandFields(spec: SolidScriptCommandSpec): SolidScriptCommandFields {
+  const named = spec.named ?? SOLID_SCRIPT_COMMAND_NAMED.includes(spec.category);
+  const intoList = spec.intoList === true;
+  const builds = spec.builds ?? (named && spec.category !== '2D Shapes');
+  const edits = spec.edits === true;
+  const into = builds ? [solidScriptCommandBuiltInto(intoList)] : [];
+  const given = named ? [...spec.parameters, solidScriptParameterShapeName(), ...into] : [...spec.parameters, ...into];
+  const writeCopy = edits && !given.some((field) => field.key === 'into');
+  const parameters = writeCopy ? [...given, solidScriptParameterToolInto()] : given;
+  const listing = solidScriptCommandListing(spec, named, builds, writeCopy);
+  return { named, intoList, builds, edits, writeCopy, parameters, listing };
+}
+
 /**
  * One command of the script editor: how its line looks in the listing, what its
  * fields mean and what it does when the script runs.
@@ -313,8 +351,7 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
   readonly edits: boolean;
   /** Checks the values of a line together, when the command does. */
   readonly check: ((values: SolidScriptCommandValues) => string) | undefined;
-  private readonly writeCopy: boolean;
-  private readonly listingWrite: SolidScriptListingWrite;
+  private readonly fields: SolidScriptCommandFields;
   private readonly run: SolidScriptCommandSpec['execute'];
 
   /**
@@ -329,16 +366,11 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
     this.description = spec.description;
     this.manual = spec.manual;
     this.stops = spec.stops ?? [];
-    const named = spec.named ?? SOLID_SCRIPT_COMMAND_NAMED.includes(spec.category);
-    this.intoList = spec.intoList === true;
-    this.builds = spec.builds ?? (named && spec.category !== '2D Shapes');
-    this.edits = spec.edits === true;
-    const into = this.builds ? [solidScriptCommandBuiltInto(this.intoList)] : [];
-    const given = named
-      ? [...spec.parameters, solidScriptParameterShapeName(), ...into]
-      : [...spec.parameters, ...into];
-    this.writeCopy = this.edits && !given.some((field) => field.key === 'into');
-    this.parameters = this.writeCopy ? [...given, solidScriptParameterToolInto()] : given;
+    const fields = (this.fields = solidScriptCommandFields(spec));
+    this.intoList = fields.intoList;
+    this.builds = fields.builds;
+    this.edits = fields.edits;
+    this.parameters = fields.parameters;
     this.nesting = spec.nesting ?? 'none';
     this.flow = spec.flow;
     this.fills = spec.fills ?? [];
@@ -346,7 +378,6 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
     this.inPalette = spec.inPalette !== false;
     this.runs = spec.runs !== false;
     this.check = spec.check;
-    this.listingWrite = solidScriptCommandListing(spec, named, this.builds, this.writeCopy);
     this.run = spec.execute;
   }
 
@@ -359,7 +390,7 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
   execute(run: SolidScriptBlockRun): SolidScriptShape[] {
     if (!this.edits) return this.run(run);
     const into = solidScriptIntoCopyName(this.parameters, (key) => run.text(key));
-    return solidScriptToolRun(run, this.run, this.writeCopy, into);
+    return solidScriptToolRun(run, this.run, this.fields.writeCopy, into);
   }
 
   /**
@@ -434,7 +465,7 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
           this.parameters.find((parameter) => parameter.key === key)?.default ?? '',
         ),
     };
-    const [first, ...rest] = this.listingWrite(read);
+    const [first, ...rest] = this.fields.listing(read);
     if (typeof first === 'string') return solidScriptListingBuild(first, rest);
     return [first, ...rest].filter(
       (piece): piece is SolidScriptListingPart => typeof piece === 'object' && piece !== null,

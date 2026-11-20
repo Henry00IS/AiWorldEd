@@ -17,6 +17,15 @@ export const SOLID_SCRIPT_EDITOR_SIZES_KEY = 'aiworlded.solidScriptEditor.sizes'
 /** Storage key of the window's own position and size. */
 export const SOLID_SCRIPT_EDITOR_BOUNDS_KEY = 'aiworlded.solidScriptEditor.bounds';
 
+/**
+ * Storage key of the area sizes of the formula window, apart from the script
+ * editor's.
+ */
+export const SOLID_SCRIPT_FORMULA_SIZES_KEY = 'aiworlded.solidScriptEditor.formula.sizes';
+
+/** Storage key of the formula window's own position and size. */
+export const SOLID_SCRIPT_FORMULA_BOUNDS_KEY = 'aiworlded.solidScriptEditor.formula.bounds';
+
 /** Storage key of the command ids in the palette's Favorites. */
 export const SOLID_SCRIPT_EDITOR_FAVORITES_KEY = 'aiworlded.solidScriptEditor.favorites';
 
@@ -50,14 +59,16 @@ function solidScriptEditorSizeClamp(area: keyof SolidScriptEditorSizes, size: nu
  * Reads the stored sizes; missing or broken values fall back to the defaults.
  *
  * @param storage Storage.
+ * @param key Storage key of the window's sizes.
  * @returns Sizes.
  */
 export function solidScriptEditorSizesRead(
   storage: SettingsStorage = new LocalSettingsStorage(),
+  key = SOLID_SCRIPT_EDITOR_SIZES_KEY,
 ): SolidScriptEditorSizes {
   let stored: Record<string, unknown> = {};
   try {
-    const parsed: unknown = JSON.parse(storage.getItem(SOLID_SCRIPT_EDITOR_SIZES_KEY) ?? '{}');
+    const parsed: unknown = JSON.parse(storage.getItem(key) ?? '{}');
     if (typeof parsed === 'object' && parsed !== null) stored = parsed as Record<string, unknown>;
   } catch {
     stored = {};
@@ -75,12 +86,14 @@ export function solidScriptEditorSizesRead(
  *
  * @param sizes Sizes.
  * @param storage Storage.
+ * @param key Storage key of the window's sizes.
  */
 export function solidScriptEditorSizesWrite(
   sizes: SolidScriptEditorSizes,
   storage: SettingsStorage = new LocalSettingsStorage(),
+  key = SOLID_SCRIPT_EDITOR_SIZES_KEY,
 ): void {
-  storage.setItem(SOLID_SCRIPT_EDITOR_SIZES_KEY, JSON.stringify(sizes));
+  storage.setItem(key, JSON.stringify(sizes));
 }
 
 /**
@@ -103,12 +116,14 @@ function solidScriptEditorSizeApply(element: HTMLElement, area: keyof SolidScrip
  * @param element Area element.
  * @param area Area.
  * @param sizes Current sizes, changed in place.
+ * @param key Storage key the window keeps its sizes under.
  * @returns Splitter element, to place beside the area.
  */
 export function solidScriptEditorSplitter(
   element: HTMLElement,
   area: keyof SolidScriptEditorSizes,
   sizes: SolidScriptEditorSizes,
+  key = SOLID_SCRIPT_EDITOR_SIZES_KEY,
 ): HTMLElement {
   solidScriptEditorSizeApply(element, area, sizes[area]);
   const splitter = document.createElement('div');
@@ -132,7 +147,7 @@ export function solidScriptEditorSplitter(
     const up = (): void => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
-      solidScriptEditorSizesWrite(sizes);
+      solidScriptEditorSizesWrite(sizes, undefined, key);
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);

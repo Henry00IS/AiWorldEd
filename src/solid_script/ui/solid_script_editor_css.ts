@@ -130,6 +130,10 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
   fieldFormula: 'solid-script-editor-field-formula',
   formulaBody: 'solid-script-editor-formula-body',
   formulaText: 'solid-script-editor-formula-text',
+  codeTip: 'solid-script-editor-code-tip',
+  codeTipHeading: 'solid-script-editor-code-tip-heading',
+  codeTipText: 'solid-script-editor-code-tip-text',
+  formulaSide: 'solid-script-editor-formula-side',
   formulaStatus: 'solid-script-editor-formula-status',
   formulaProblem: 'solid-script-editor-formula-problem',
   formulaOff: 'solid-script-editor-formula-off',
@@ -356,13 +360,19 @@ const SOLID_SCRIPT_EDITOR_DIALOG_CSS = `
 .${c.field}[hidden] { display: none; }
 .${c.fieldFormula} { flex: 0 0 auto; width: 26px; height: 26px; padding: 0; border-radius: ${SOLID_SCRIPT_EDITOR_INPUT_RADIUS}; border: 1px solid ${ThemeCss.inkAlpha(0.16)}; background: ${ThemeCss.inkAlpha(0.06)}; color: ${ThemeCss.textColor}; font: inherit; cursor: pointer; }
 .${c.fieldFormula}:hover { background: ${ThemeCss.inkAlpha(0.12)}; }
-.${c.formulaBody} { display: flex; gap: 10px; height: min(460px, calc(100vh - 220px)); min-height: 240px; margin-bottom: 10px; }
-.${c.formulaBody} > .${c.palette} { width: 190px; border: 1px solid ${ThemeCss.separatorColor}; border-radius: 5px; }
-.${c.formulaBody} > .${c.linesHost} { flex: 1.3; border: 1px solid ${ThemeCss.separatorColor}; border-radius: 5px; overflow: hidden; }
-.${c.formulaBody} > .${c.linesHost}.${c.formulaOff} { opacity: 0.45; pointer-events: none; }
-.${c.formulaText} { flex: 1; min-width: 0; resize: none; padding: 8px 10px; border-radius: 5px; border: 1px solid ${ThemeCss.inputBorderColor}; background: ${ThemeCss.inputBackground}; color: ${ThemeCss.inputTextColor}; font: 12px/1.5 ${SOLID_SCRIPT_EDITOR_CODE_FONT}; box-sizing: border-box; }
+.${c.formulaBody} { display: flex; flex: 1 1 0; min-height: 0; margin-bottom: 10px; }
+.${c.formulaBody} > .${c.palette} { flex-shrink: 0; border: 1px solid ${ThemeCss.separatorColor}; border-radius: 5px; }
+.${c.formulaBody} > .${c.linesHost} { flex: 1; min-width: 0; border: 1px solid ${ThemeCss.separatorColor}; border-radius: 5px; overflow: hidden; }
+.${c.formulaSide} { flex-shrink: 0; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.${c.formulaSide} > .${c.scrollHost} { min-height: 0; border: 1px solid ${ThemeCss.separatorColor}; border-radius: 5px; overflow: hidden; }
+.${c.formulaSide} .${c.help} { width: auto; flex: 1 1 0; border-left: none; }
+.${c.formulaText} { flex: 0 0 auto; max-height: 40%; overflow: auto; padding: 8px 10px; border-radius: 5px; border: 1px solid ${ThemeCss.inputBorderColor}; background: ${ThemeCss.inputBackground}; color: ${ThemeCss.inputTextColor}; font: 12px/1.5 ${SOLID_SCRIPT_EDITOR_CODE_FONT}; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; cursor: text; box-sizing: border-box; }
 .${c.formulaText}:focus { outline: none; border-color: ${ThemeCss.accentColor}; }
-.${c.formulaText}[readonly] { opacity: 0.6; }
+.${c.formulaText}.${c.formulaOff} { opacity: 0.5; }
+.${c.codeTip} { position: fixed; z-index: ${UiStackLayers.modalPopup}; max-width: 560px; padding: 6px 9px; border-radius: 5px; border: 1px solid ${ThemeCss.inputBorderColor}; background: ${ThemeCss.inputBackground}; color: ${ThemeCss.inputTextColor}; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4); pointer-events: none; }
+.${c.codeTip}[hidden] { display: none; }
+.${c.codeTipHeading} { margin-bottom: 4px; font-size: 11px; color: ${ThemeCss.mutedTextColor}; }
+.${c.codeTipText} { font: 12px/1.5 ${SOLID_SCRIPT_EDITOR_CODE_FONT}; white-space: pre-wrap; overflow-wrap: anywhere; }
 .${c.formulaStatus} { min-height: 16px; margin-bottom: 8px; color: ${ThemeCss.mutedTextColor}; }
 .${c.formulaStatus}.${c.formulaProblem} { color: #e5484d; }
 .${c.shade} { position: absolute; inset: 0; z-index: 10; background: rgba(0, 0, 0, calc(0.45 * var(--aiworlded-shadow-strength, 1))); }

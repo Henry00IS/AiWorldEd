@@ -95,3 +95,34 @@ describe('SolidScript formula commands', () => {
     expect(inBox.check?.({ point: '', center: '0, 0, 0', size: '1' })).toMatch(/Point needs a value/);
   });
 });
+
+describe('SolidScript formula block listings', () => {
+  it('quotes and colours every value the way script lines do, a lone variable as a variable', () => {
+    const formula = solidScriptFormulaCatalog();
+    for (const category of SOLID_SCRIPT_FORMULA_CATEGORIES)
+      for (const command of formula.ofCategory(category)) {
+        const values = Object.fromEntries(command.parameters.map((field) => [field.key, '7']));
+        const parts = command.listing(values);
+        for (const part of parts.filter((piece) => piece.text.includes('7')))
+          expect([command.id, part.kind, part.text]).toEqual([command.id, 'value', "'7'"]);
+      }
+    const kinds = (id: string, value: string) =>
+      formula
+        .find(id)
+        ?.listing({ value })
+        .filter((part) => part.text.trim() !== '')
+        .map((part) => [part.kind, part.text]);
+    expect(kinds(SOLID_SCRIPT_FORMULA_COMMAND.number, '0.5')).toEqual([
+      ['name', 'Number'],
+      ['value', "'0.5'"],
+    ]);
+    expect(kinds(SOLID_SCRIPT_FORMULA_COMMAND.variable, '$NY')).toEqual([
+      ['name', 'Variable'],
+      ['variable', '[$NY]'],
+    ]);
+    expect(kinds(SOLID_SCRIPT_FORMULA_COMMAND.text, 'Top')).toEqual([
+      ['name', 'Text'],
+      ['value', "'Top'"],
+    ]);
+  });
+});

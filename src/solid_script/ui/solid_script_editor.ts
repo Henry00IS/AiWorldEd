@@ -3,7 +3,6 @@ import type * as THREE from 'three';
 import type { ModifierStackActionTarget } from '@/modifier/stack/modifier_stack_types.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
 import { applyFloatingPanelToolChrome } from '@/ui/floating_panel/panel_floating_tool_chrome.js';
-import { createFloatingPanelResizeGrip } from '@/ui/floating_panel/panel_floating_resize.js';
 import { styleFloatingPanelStatusBar } from '@/ui/floating_panel/panel_floating_status_bar.js';
 import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import {
@@ -50,7 +49,11 @@ import {
   solidScriptEditorSizesRead,
   solidScriptEditorSplitter,
 } from './solid_script_editor_splitters.js';
-import { PanelFloatingBoundsMemory } from '@/ui/floating_panel/panel_floating_bounds_memory.js';
+import {
+  SOLID_SCRIPT_EDITOR_MIN_SIZE,
+  SOLID_SCRIPT_EDITOR_SIZE,
+  SolidScriptEditorFrame,
+} from './solid_script_editor_frame.js';
 import type { SolidScriptExplorerRun } from './solid_script_editor_explorer.js';
 import { SolidScriptEditorOutput } from './solid_script_editor_output.js';
 import { solidScriptEditorLoad, solidScriptEditorSave } from './solid_script_editor_files.js';
@@ -58,13 +61,6 @@ import { solidScriptEditorDebugSpeedMs, solidScriptEditorDebugSpeedRead } from '
 import { solidScriptFileDropBind, type SolidScriptFileDropResult } from './solid_script_file_drop.js';
 import { SOLID_SCRIPT_COMMAND_INPUT, solidScriptInputsList } from '@/solid_script/language/solid_script_input.js';
 import { SOLID_SCRIPT_SELECT_BETWEEN } from '@/solid_script/language/solid_script_select.js';
-
-/** First size of the editor window. */
-
-const SOLID_SCRIPT_EDITOR_SIZE = { width: 940, height: 600 };
-
-/** Smallest size of the editor window. */
-const SOLID_SCRIPT_EDITOR_MIN_SIZE = { width: 640, height: 360 };
 
 /** How often the editor looks for changes made elsewhere, in ms. */
 const SOLID_SCRIPT_EDITOR_POLL_MS = 400;
@@ -92,7 +88,10 @@ export class SolidScriptEditor extends PanelFloating {
   private readonly status = document.createElement('div');
   private readonly title = document.createElement('span');
   /** Where the window was left and how big it was, between sessions. */
-  private readonly bounds = new PanelFloatingBoundsMemory(SOLID_SCRIPT_EDITOR_BOUNDS_KEY);
+  private readonly frame = new SolidScriptEditorFrame(
+    { root: this.root, place: (left, top) => this.setTopLeftPosition(left, top), clamp: () => this.clampToScreen() },
+    SOLID_SCRIPT_EDITOR_BOUNDS_KEY,
+  );
   private revision = '';
   /** Inserts lines and opens their configurator windows. */
   private readonly lineConfigure: SolidScriptEditorLineConfigure;
@@ -230,28 +229,12 @@ export class SolidScriptEditor extends PanelFloating {
    * the top center of the screen the first time.
    */
   protected override onAfterShow(): void {
-    const remembered = this.bounds.read();
-    if (remembered) {
-      this.root.style.width = `${remembered.width}px`;
-      this.root.style.height = `${remembered.height}px`;
-      this.setTopLeftPosition(remembered.left, remembered.top);
-    } else {
-      const view = this.root.ownerDocument.defaultView ?? window;
-      const left = Math.max(16, (view.innerWidth - SOLID_SCRIPT_EDITOR_SIZE.width) / 2);
-      this.setTopLeftPosition(left, Math.max(56, (view.innerHeight - SOLID_SCRIPT_EDITOR_SIZE.height) / 3));
-    }
-    this.clampToScreen();
+    this.frame.restore();
   }
 
   /** Remembers where the window was dragged. */
   protected override onAfterMove(): void {
-    this.boundsRemember();
-  }
-
-  /** Remembers the window's position and size. */
-  private boundsRemember(): void {
-    const rect = this.root.getBoundingClientRect();
-    this.bounds.write({ left: rect.left, top: rect.top, width: rect.width, height: rect.height });
+    this.frame.remember();
   }
 
   /** Builds the window contents. */
@@ -313,15 +296,7 @@ export class SolidScriptEditor extends PanelFloating {
    * @returns Grip.
    */
   private grip(): HTMLElement {
-    return createFloatingPanelResizeGrip(this.root, {
-      minWidth: SOLID_SCRIPT_EDITOR_MIN_SIZE.width,
-      minHeight: SOLID_SCRIPT_EDITOR_MIN_SIZE.height,
-      place: (left, top) => this.setTopLeftPosition(left, top),
-      done: () => {
-        this.clampToScreen();
-        this.boundsRemember();
-      },
-    });
+    return this.frame.grip();
   }
 
   /**
