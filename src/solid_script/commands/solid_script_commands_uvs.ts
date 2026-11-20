@@ -201,7 +201,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Move, scale or rotate texture coordinates',
     manual:
-      "Offsets, scales and rotates the UV mapping of the faces in UV space. Offset is tiles added to U and V (Z is ignored), the same shift as UV Shift on Input Brushes, and is added after Scale and Rotate. Pivot is Center (the middle of the faces' UVs), Tile (the middle of the texture tile under that center, such as 0.5, 0.5) or Origin (0, 0). Readable Text Yes keeps lettering readable when a later Mirror or a mirrored copy would otherwise reverse it. Textures is Move With Shape, so textures stay on their faces, or World Aligned, so they stay where they are in the world; left off, the solid keeps the Textures it already has. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. Brushes stay brushes; meshes stay meshes. Example: Project UVs, then Transform UVs Offset 0.5, 0 Rotate 90.",
+      "Offsets, scales and rotates the UV mapping of the faces in UV space. Offset is tiles added to U and V (Z is ignored); on brushes from Input Brushes it shifts the texture of that copy. It is added after Scale and Rotate. Pivot is Center (the middle of the faces' UVs), Tile (the middle of the texture tile under that center, such as 0.5, 0.5) or Origin (0, 0). Readable Text Yes keeps lettering readable when a later Mirror or a mirrored copy would otherwise reverse it. Textures is Move With Shape, so textures stay on their faces, or World Aligned, so they stay where they are in the world; left off, the solid keeps the Textures it already has. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. Brushes stay brushes; meshes stay meshes. Example: Project UVs, then Transform UVs Offset 0.5, 0 Rotate 90.",
     stops: [
       'No faces.',
       'A Pivot other than Center, Tile or Origin.',
@@ -213,7 +213,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
         'Offset',
         'vector3',
         '0, 0, 0',
-        'Tiles added to U and V, the same as UV Shift on Input Brushes, such as 0.5, 0; Z is ignored.',
+        'Tiles added to U and V, such as 0.5, 0; Z is ignored.',
       ),
       solidScriptParameter(
         'scale',
@@ -260,16 +260,13 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
     ],
     listing: (read) => [
       'Transform UVs',
-      ' Offset ',
-      read.value('offset'),
-      ' Scale ',
-      read.value('scale'),
-      ' Rotate ',
-      read.value('rotate'),
+      ...(read.changed('offset') ? [' Offset ', read.value('offset')] : []),
+      ...(read.changed('scale') ? [' Scale ', read.value('scale')] : []),
+      ...(read.changed('rotate') ? [' Rotate ', read.value('rotate')] : []),
       ...solidScriptListingOptions([
         read.on('readable') && ['Readable Text'],
-        read.text('textures') !== '' && [' Textures ', read.value('textures')],
-        read.text('of') !== '' && [' Of ', read.value('of')],
+        read.changed('textures') && ['Textures ', read.value('textures')],
+        read.text('of') !== '' && ['Of ', read.value('of')],
       ]),
     ],
     execute: (run) => {

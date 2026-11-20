@@ -63,6 +63,26 @@ function bounds(brush: SolidBrushInstance): number[] {
   );
 }
 
+/**
+ * Three copies two metres apart, each written Into [Copy], given a Transform
+ * UVs Offset and output.
+ *
+ * @param offset Transform UVs Offset; [I] is the copy index.
+ * @param textures Input Brushes and Transform UVs Textures.
+ * @returns Lines.
+ */
+function copies(offset: string, textures = 'Move With Shape'): SolidScriptLine[] {
+  return [
+    { command: 'repeat', values: { variable: 'I', from: '0', to: '3' } },
+    { command: 'transform', values: { move: '[=[I] * 2], 0, 0' } },
+    { command: 'input_brushes', values: { textures, into: 'Copy' } },
+    { command: 'end' },
+    { command: 'transform_uvs', values: { offset, textures, of: '[Copy]' } },
+    { command: 'output', values: { of: '[Copy]' } },
+    { command: 'end' },
+  ];
+}
+
 describe('SolidScript Input Brushes and Transform UVs share texture policy', () => {
   it('keeps solids, bounds and UVs the same for a default Input Brushes pass', () => {
     const shown = compile([{ command: 'input_brushes' }]);
@@ -71,69 +91,34 @@ describe('SolidScript Input Brushes and Transform UVs share texture policy', () 
     expect(bounds(shown[0]!)).toEqual([-0.5, -0.5, -0.5, 0.5, 0.5, 0.5]);
   });
 
-  it('gives the same copy UVs from Input Brushes fields and from Transform UVs', () => {
-    const byFields = compile([
-      { command: 'repeat', values: { variable: 'I', from: '0', to: '3' } },
-      { command: 'transform', values: { move: '[=[I] * 2], 0, 0' } },
-      {
-        command: 'input_brushes',
-        values: { textures: 'Move With Shape', readable: 'Yes', uv_shift_u: '[=[I]]', uv_shift_v: '0.25' },
-      },
-      { command: 'end' },
-      { command: 'end' },
-    ]);
-    const byTransform = compile([
-      { command: 'repeat', values: { variable: 'I', from: '0', to: '3' } },
-      { command: 'transform', values: { move: '[=[I] * 2], 0, 0' } },
-      { command: 'input_brushes' },
-      { command: 'select_brushes', values: { which: 'Between', how: 'New' } },
-      { command: 'select_faces', values: { which: 'All', how: 'New' } },
-      {
-        command: 'transform_uvs',
-        values: { offset: '[=[I]], 0.25, 0', readable: 'Yes', textures: 'Move With Shape' },
-      },
-      { command: 'end' },
-      { command: 'end' },
-    ]);
-    expect(byFields).toHaveLength(3);
-    expect(byTransform).toHaveLength(3);
-    expect(byTransform.map(bounds)).toEqual(byFields.map(bounds));
-    expect(byTransform.map((brush) => brush.brush.faces.length)).toEqual(
-      byFields.map((brush) => brush.brush.faces.length),
-    );
-    expect(byTransform.map(shifts)).toEqual(byFields.map(shifts));
+  it('shifts each copy by the Transform UVs Offset of its pass', () => {
+    const plain = compile(copies('0, 0, 0'));
+    const shifted = compile(copies('[=[I]], 0.25, 0'));
+    expect(shifted).toHaveLength(3);
+    expect(shifted.map(bounds)).toEqual(plain.map(bounds));
+    expect(shifts(shifted[0]!)).toEqual(shifts(plain[0]!));
+    for (const index of [1, 2])
+      expect(shifts(shifted[index]!)).toEqual(shifts(plain[index]!).map(([u, v]) => [u + index, v + 0.25]));
   });
 
-  it('gives the same solids, bounds and UVs for a huge UV Shift and for Transform UVs Offset', () => {
-    const byFields = compile([
-      { command: 'repeat', values: { variable: 'I', from: '0', to: '2' } },
-      { command: 'transform', values: { move: '[=[I] * 3], 0, 0' } },
-      {
-        command: 'input_brushes',
-        values: { textures: 'World Aligned', readable: 'Yes', uv_shift_u: '1000000', uv_shift_v: '-1000000' },
-      },
+  it('keeps a huge Transform UVs Offset on a World Aligned copy', () => {
+    const plain = compile(copies('0, 0, 0', 'World Aligned'));
+    const shifted = compile(copies('1000000, -1000000, 0', 'World Aligned'));
+    expect(shifted).toHaveLength(3);
+    expect(shifted.map(bounds)).toEqual(plain.map(bounds));
+    expect(shifts(shifted[1]!)).toEqual(shifts(plain[1]!).map(([u, v]) => [u + 1000000, v - 1000000]));
+  });
+
+  it('ignores Readable Text and UV Shift values an old script stored on Input Brushes', () => {
+    const stale = compile([
+      { command: 'repeat', values: { variable: 'I', from: '0', to: '3' } },
+      { command: 'transform', values: { move: '[=[I] * 2], 0, 0' } },
+      { command: 'input_brushes', values: { readable: 'No', uv_shift_u: '[=[I]]', uv_shift_v: '0.25' } },
       { command: 'end' },
       { command: 'end' },
     ]);
-    const byTransform = compile([
-      { command: 'repeat', values: { variable: 'I', from: '0', to: '2' } },
-      { command: 'transform', values: { move: '[=[I] * 3], 0, 0' } },
-      { command: 'input_brushes' },
-      { command: 'select_brushes', values: { which: 'Between', how: 'New' } },
-      { command: 'select_faces', values: { which: 'All', how: 'New' } },
-      {
-        command: 'transform_uvs',
-        values: { offset: '1000000, -1000000, 0', readable: 'Yes', textures: 'World Aligned' },
-      },
-      { command: 'end' },
-      { command: 'end' },
-    ]);
-    expect(byFields).toHaveLength(2);
-    expect(byTransform).toHaveLength(2);
-    expect(byTransform.map(bounds)).toEqual(byFields.map(bounds));
-    expect(byTransform.map(shifts)).toEqual(byFields.map(shifts));
-    const first = shifts(byFields[0]!);
-    const later = shifts(byFields[1]!);
-    expect(later).toEqual(first.map(([u, v]) => [u + 1000000, v - 1000000]));
+    const plain = compile(copies('0, 0, 0'));
+    expect(stale.map(bounds)).toEqual(plain.map(bounds));
+    expect(stale.map(shifts)).toEqual(plain.map(shifts));
   });
 });

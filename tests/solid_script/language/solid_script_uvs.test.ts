@@ -270,18 +270,13 @@ describe('SolidScript UV commands', () => {
       shiftV: -1,
     });
     const direct = solidScriptProgramRun(
-      solidScriptDocumentCreate([
-        {
-          command: 'input_brushes',
-          values: { textures: 'World Aligned', readable: 'Yes', uv_shift_u: '2', uv_shift_v: '-1' },
-        },
-      ]),
+      solidScriptDocumentCreate([{ command: 'input_brushes', values: { textures: 'World Aligned' } }]),
       { use },
     );
     expect(direct.error?.message ?? null).toBeNull();
     const fromInput = direct.shapes.find((shape): shape is SolidScriptShapeSolid => shape.kind === 'solid');
     if (!fromInput) throw new Error('Expected the Input Brushes solid');
-    expect(solidScriptUvPolicyOf(fromInput)).toEqual(solidScriptUvPolicyOf(pass));
+    expect(solidScriptUvPolicyOf(fromInput)).toEqual({ textures: 'world', readable: true, shiftU: 0, shiftV: 0 });
   });
 
   it('keeps lettering readable when a mirrored copy would reverse U', () => {
@@ -314,7 +309,7 @@ describe('SolidScript UV commands', () => {
     expect(Math.min(...readableU) + Math.max(...readableU)).toBeCloseTo(Math.min(...plainU) + Math.max(...plainU), 4);
   });
 
-  it('writes Transform UVs Readable Text and Textures in plain words', () => {
+  it('writes Transform UVs Readable Text and a changed Textures in plain words', () => {
     expect(
       solidScriptDocumentListing(
         solidScriptDocumentCreate([
@@ -324,6 +319,11 @@ describe('SolidScript UV commands', () => {
           },
         ]),
       ),
-    ).toEqual(["Transform UVs Offset '1, 0, 0' Scale '1, 1, 1' Rotate '0' (Readable Text, Textures 'World Aligned')"]);
+    ).toEqual(["Transform UVs Offset '1, 0, 0' (Readable Text, Textures 'World Aligned')"]);
   });
+  expect(
+    solidScriptDocumentListing(
+      solidScriptDocumentCreate([{ command: 'transform_uvs', values: { offset: '1, 0, 0', readable: 'Yes' } }]),
+    ),
+  ).toEqual(["Transform UVs Offset '1, 0, 0' (Readable Text)"]);
 });

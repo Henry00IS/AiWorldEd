@@ -53,6 +53,22 @@ describe('SolidScript listing', () => {
     );
   });
 
+  it('shows Textures on Input Brushes, and every Transform UVs field, only when it differs from its default', () => {
+    expect(listed('input_brushes')).toBe('Input Brushes');
+    expect(listed('input_brushes', { textures: 'Move With Shape' })).toBe('Input Brushes');
+    expect(listed('input_brushes', { textures: 'World Aligned', into: 'Copy' })).toBe(
+      "Input Brushes Textures 'World Aligned' (Into 'Copy')",
+    );
+    expect(listed('transform_uvs')).toBe('Transform UVs');
+    expect(listed('transform_uvs', { offset: '0, 0, 0', scale: '2,2,2', rotate: '0', textures: '' })).toBe(
+      "Transform UVs Scale '2,2,2'",
+    );
+    expect(listed('transform_uvs', { textures: 'Move With Shape', of: '[Top]' })).toBe('Transform UVs (Of [Top])');
+    expect(listed('transform_uvs', { rotate: '90', textures: 'World Aligned' })).toBe(
+      "Transform UVs Rotate '90' (Textures 'World Aligned')",
+    );
+  });
+
   it('shows the sides and rings of round shapes only when changed', () => {
     expect(listed('sphere', { r: '1', sides: '16', rings: '8' })).toBe("Sphere Radius '1'");
     expect(listed('sphere', { r: '1', sides: '8', rings: '4' })).toBe("Sphere Radius '1' (Sides '8', Rings '4')");

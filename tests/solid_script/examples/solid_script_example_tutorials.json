@@ -28,10 +28,10 @@
     "torus": 36,
     "curvedStairs": 33,
     "shear": 28,
-    "linear": 49,
-    "radial": 94,
-    "transform": 60,
-    "mirror": 43
+    "linear": 53,
+    "radial": 101,
+    "transform": 63,
+    "mirror": 46
   },
   "times": {
     "spiralStaircase": 29.542,

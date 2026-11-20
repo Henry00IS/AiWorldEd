@@ -418,7 +418,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Inputs',
     description: 'Output the brushes a modifier receives',
     manual:
-      'Outputs every brush the script receives as a modifier. Like a generator, a modifier outputs nothing by itself: without an Input Brushes line the received brushes are gone and only what the script builds comes out. The brushes act like any brush built here: the Transform, Move By, Move To, Rotate By, Rotate To, Scale By, Scale To, Mirror or Matrix lines around this line move them, Repeat makes copies, Mode on a brush cuts or keeps overlap, Select Faces finds their faces, and Clip cuts them, including when Of is [$Input.Brushes] above this line. Their faces keep their textures and materials. Textures is Move With Shape, so textures stay on their faces, or World Aligned, so they stay where they are in the world; a cut brush keeps its textures but they are laid out again. Readable Text flips U on a mirrored copy so lettering is not reversed. UV Shift U and V move the texture of this pass by that many tiles. Transform UVs offers the same Readable Text, Offset (the same tiles as UV Shift) and Textures on any brush, not only the ones this line outputs. As a generator it outputs nothing. Example: Repeat [I] From 0 To 2 around Transform Move [=[I] * 2], 0, 0 around Input Brushes gives the brush and two copies two metres apart.',
+      'Outputs every brush the script receives as a modifier. Like a generator, a modifier outputs nothing by itself: without an Input Brushes line the received brushes are gone and only what the script builds comes out. The brushes act like any brush built here: the Transform, Move By, Move To, Rotate By, Rotate To, Scale By, Scale To, Mirror or Matrix lines around this line move them, Repeat makes copies, Mode on a brush cuts or keeps overlap, Select Faces finds their faces, and Clip cuts them, including when Of is [$Input.Brushes] above this line. Their faces keep their textures and materials. Textures is Move With Shape, so textures stay on their faces, or World Aligned, so they stay where they are in the world; a cut brush keeps its textures but they are laid out again. To shift the texture of a copy by whole or part tiles, or keep lettering readable on a mirrored copy, write the brushes Into a list and use Transform UVs Offset and Readable Text Of that list. As a generator it outputs nothing. Example: Repeat [I] From 0 To 2 around Transform Move [=[I] * 2], 0, 0 around Input Brushes gives the brush and two copies two metres apart.',
     stops: ['Textures other than Move With Shape or World Aligned.'],
     parameters: [
       solidScriptParameterWords(
@@ -438,39 +438,12 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
           },
         ],
       ),
-      solidScriptParameter(
-        'readable',
-        'Readable Text',
-        'boolean',
-        'Yes',
-        'Yes: flips U on a mirrored copy so lettering is not reversed. No: leaves it as the reflection made it. Type Yes or No, such as Yes.',
-      ),
-      solidScriptParameter(
-        'uv_shift_u',
-        'UV Shift U',
-        'number',
-        '0',
-        'Tiles to move the texture of this pass along U, such as 0.5.',
-      ),
-      solidScriptParameter(
-        'uv_shift_v',
-        'UV Shift V',
-        'number',
-        '0',
-        'Tiles to move the texture of this pass along V, such as 0.',
-      ),
       solidScriptParameterInto('the brushes, a Brush list', 'Brush List', 'what is made', 'copy'),
     ],
     listing: (read) => [
       'Input Brushes',
-      ' Textures ',
-      read.value('textures'),
-      ...solidScriptListingOptions([
-        !read.on('readable') && ['Readable Text No'],
-        read.text('uv_shift_u') !== '' && read.text('uv_shift_u') !== '0' && [' UV Shift U ', read.value('uv_shift_u')],
-        read.text('uv_shift_v') !== '' && read.text('uv_shift_v') !== '0' && [' UV Shift V ', read.value('uv_shift_v')],
-        read.text('into') !== '' && [' Into ', read.value('into')],
-      ]),
+      ...(read.changed('textures') ? [' Textures ', read.value('textures')] : []),
+      ...solidScriptListingOptions([read.text('into') !== '' && ['Into ', read.value('into')]]),
     ],
     execute: (run) => solidScriptInputBrushesBuild(run),
   }),

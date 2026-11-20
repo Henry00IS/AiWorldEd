@@ -4,11 +4,7 @@ import type { SolidScriptGeometryLeaf } from './solid_script_geometry.js';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
 import { solidScriptInputBrushName, type SolidScriptUseSolid } from './solid_script_system.js';
 import type { SolidScriptReceived, SolidScriptShape, SolidScriptShapeSolid } from './solid_script_shape.js';
-import {
-  solidScriptUvPolicyFromRun,
-  solidScriptUvPolicyTextures,
-  solidScriptUvPolicyWrite,
-} from './solid_script_uv_policy.js';
+import { solidScriptUvPolicyTextures, solidScriptUvPolicyWrite } from './solid_script_uv_policy.js';
 
 /**
  * Builds the shapes of an Input Brushes line: each received brush, as it is
@@ -80,7 +76,7 @@ function solidScriptInputBrushesOne(
     normal: new THREE.Vector3(...face.normal).applyMatrix3(turn).normalize(),
     texture: face.texture,
   }));
-  const received = solidScriptInputBrushesReceived(run, index, matrix, textures, leaf);
+  const received = solidScriptInputBrushesReceived(index, matrix, textures, leaf);
   return run
     .solid(solidScriptInputBrushesBody(leaf, solid, solidScriptInputBrushName(index)))
     .map((shape) => solidScriptInputBrushesSolid(shape, faceTextures, received, mode));
@@ -154,8 +150,9 @@ function solidScriptInputBrushesBody(
 
 /**
  * Received-pass record for an Input Brushes solid, including a Clip plane.
+ * Readable Text and the UV shift start at their defaults; Transform UVs changes
+ * them.
  *
- * @param run Running line.
  * @param index Brush index.
  * @param matrix Script-space move.
  * @param textures Copied or world.
@@ -163,23 +160,13 @@ function solidScriptInputBrushesBody(
  * @returns Record.
  */
 function solidScriptInputBrushesReceived(
-  run: SolidScriptBlockRun,
   index: number,
   matrix: THREE.Matrix4,
   textures: 'copied' | 'world',
   leaf: SolidScriptGeometryLeaf | undefined,
 ): SolidScriptReceived {
-  const policy = solidScriptUvPolicyFromRun(run, { readable: true });
   const clip = solidScriptInputBrushesClip(leaf);
-  return {
-    index,
-    matrix,
-    textures: policy.textures ?? textures,
-    readable: policy.readable !== false,
-    shiftU: policy.shiftU ?? 0,
-    shiftV: policy.shiftV ?? 0,
-    ...(clip ? { clip } : {}),
-  };
+  return { index, matrix, textures, readable: true, shiftU: 0, shiftV: 0, ...(clip ? { clip } : {}) };
 }
 
 /**

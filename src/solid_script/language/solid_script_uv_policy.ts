@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { solidScriptValueNumber, solidScriptValueText } from './solid_script_value.js';
+import { solidScriptValueText } from './solid_script_value.js';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
 import type { SolidScriptShapeSolid, SolidScriptUvPolicy } from './solid_script_shape.js';
 import { surfaceUvApplyPolicy } from '@/texture/uv_matrix/surface_uv_policy.js';
@@ -7,27 +7,6 @@ import type { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
 
 /** Allowed Textures words, in listing order. */
 export const SOLID_SCRIPT_UV_TEXTURES = ['Move With Shape', 'World Aligned'] as const;
-
-/**
- * Reads Textures, Readable Text and UV Shift fields from a line.
- *
- * @param run Running line.
- * @param fallback Readable Text when the field is left off.
- * @returns Policy, with textures omitted when the field is empty.
- */
-export function solidScriptUvPolicyFromRun(
-  run: SolidScriptBlockRun,
-  fallback: { readable: boolean },
-): SolidScriptUvPolicy {
-  const textures = solidScriptUvPolicyTextures(run, false);
-  const readableField = run.fields().value('readable');
-  return {
-    ...(textures ? { textures } : {}),
-    readable: readableField === undefined ? fallback.readable : run.fields().flag('readable'),
-    shiftU: solidScriptValueNumber(run.value('uv_shift_u')) ?? 0,
-    shiftV: solidScriptValueNumber(run.value('uv_shift_v')) ?? 0,
-  };
-}
 
 /**
  * Reads a Textures field, or none when it is left off and optional.

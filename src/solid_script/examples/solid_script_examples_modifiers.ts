@@ -56,32 +56,56 @@ function solidScriptExampleArrayInputs(follow: string, count = true): SolidScrip
 }
 
 /**
- * Builds an Input Brushes line for copy Index, with the port's texture policy.
+ * Shifts the texture of the stamp in [Copy] by the port's per-copy UV shift
+ * times Index with Transform UVs, keeping Readable Text as Input Brushes leaves
+ * it unless the port passes its own.
  *
  * @param index Copy index as text or a formula field such as [I].
- * @param readable True to pass Readable Text through.
- * @returns Line.
+ * @param readable True to pass the port's Readable Text through.
+ * @returns Lines.
  */
-function solidScriptExampleInputBrushes(index: string, readable = false): SolidScriptLine {
-  return solidScriptExampleLine('input_brushes', {
-    textures: '[Textures]',
-    ...(readable ? { readable: '[Readable]' } : {}),
-    uv_shift_u: `[=[UvShiftU] * ${index}]`,
-    uv_shift_v: `[=[UvShiftV] * ${index}]`,
-  });
+function solidScriptExampleCopyUvs(index: string, readable: boolean): SolidScriptLine[] {
+  const shifted = '([UvShiftU] != 0 or [UvShiftV] != 0)';
+  return solidScriptExampleIf(`[Copy.Count] > 0${readable ? '' : ` and ${shifted}`}`, [
+    solidScriptExampleLine('transform_uvs', {
+      offset: `[=[UvShiftU] * ${index}], [=[UvShiftV] * ${index}], 0`,
+      readable: readable ? '[Readable]' : 'Yes',
+      textures: '[Textures]',
+      of: '[Copy]',
+    }),
+  ]);
+}
+
+/**
+ * Stamps the received brushes as copy Index, moved by the Transform around
+ * them, with the port's per-copy UV shift.
+ *
+ * @param move Move of the copy.
+ * @param index Copy index as text or a formula field such as [I].
+ * @returns Lines.
+ */
+function solidScriptExampleMovedCopy(move: string, index: string): SolidScriptLine[] {
+  return [
+    ...solidScriptExampleBlock('transform', { move }, [
+      solidScriptExampleLine('input_brushes', { textures: '[Textures]', into: 'Copy' }),
+    ]),
+    ...solidScriptExampleCopyUvs(index, false),
+    solidScriptExampleLine('output', { of: '[Copy]' }),
+  ];
 }
 
 /**
  * Stamps the received brushes, then applies a flat Matrix to that new stamp.
  *
  * @param values Matrix rows.
- * @param input The Input Brushes line that stamps the copy.
+ * @param uvs Lines that change the texture of [Copy] before it is output.
  * @returns Lines.
  */
-function solidScriptExampleMatrixOf(values: Record<string, string>, input: SolidScriptLine): SolidScriptLine[] {
+function solidScriptExampleMatrixOf(values: Record<string, string>, uvs: SolidScriptLine[] = []): SolidScriptLine[] {
   return [
-    { ...input, values: { ...input.values, into: 'Copy' } },
+    solidScriptExampleLine('input_brushes', { textures: '[Textures]', into: 'Copy' }),
     solidScriptExampleLine('matrix', { ...values, of: '[Copy]' }),
+    ...uvs,
     solidScriptExampleLine('output', { of: '[Copy]' }),
   ];
 }
@@ -128,14 +152,11 @@ export const SOLID_SCRIPT_EXAMPLE_SHEAR: readonly SolidScriptLine[] = [
         'Matrix changes every point of the copy by these rows. Input Brushes writes the received brushes Into [Copy], Matrix edits that copy, and Output stamps it.',
       ),
       solidScriptExampleSet('Shift', '[=[Slide] * -Dot([Measure], [$Input.Center])]'),
-      ...solidScriptExampleMatrixOf(
-        {
-          row1: '[=1 + [Slide.X] * [Measure.X]], [=[Slide.X] * [Measure.Y]], [=[Slide.X] * [Measure.Z]], [Shift.X]',
-          row2: '[=[Slide.Y] * [Measure.X]], [=1 + [Slide.Y] * [Measure.Y]], [=[Slide.Y] * [Measure.Z]], [Shift.Y]',
-          row3: '[=[Slide.Z] * [Measure.X]], [=[Slide.Z] * [Measure.Y]], [=1 + [Slide.Z] * [Measure.Z]], [Shift.Z]',
-        },
-        solidScriptExampleLine('input_brushes', { textures: '[Textures]' }),
-      ),
+      ...solidScriptExampleMatrixOf({
+        row1: '[=1 + [Slide.X] * [Measure.X]], [=[Slide.X] * [Measure.Y]], [=[Slide.X] * [Measure.Z]], [Shift.X]',
+        row2: '[=[Slide.Y] * [Measure.X]], [=1 + [Slide.Y] * [Measure.Y]], [=[Slide.Y] * [Measure.Z]], [Shift.Y]',
+        row3: '[=[Slide.Z] * [Measure.X]], [=[Slide.Z] * [Measure.Y]], [=1 + [Slide.Z] * [Measure.Z]], [Shift.Z]',
+      }),
     ],
   ),
 ];
@@ -179,9 +200,7 @@ export const SOLID_SCRIPT_EXAMPLE_LINEAR_ARRAY: readonly SolidScriptLine[] = [
     solidScriptExampleSet('Step', '[=[Endpoint] / Max(1, [Count] - 1)]'),
   ]),
   solidScriptExampleNote('Copy 0 is the original; each next copy moves one more Step.'),
-  ...solidScriptExampleRepeat('I', '0', '[Count]', [
-    ...solidScriptExampleBlock('transform', { move: '[=[Step] * [I]]' }, [solidScriptExampleInputBrushes('[I]')]),
-  ]),
+  ...solidScriptExampleRepeat('I', '0', '[Count]', [...solidScriptExampleMovedCopy('[=[Step] * [I]]', '[I]')]),
 ];
 
 /**
@@ -278,7 +297,7 @@ export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
   ),
   solidScriptExampleNote('Copy I turns by First + I × Turn around K through Around, then rises along K.'),
   solidScriptExampleNote('Copy 0 is the original.'),
-  solidScriptExampleInputBrushes('0'),
+  solidScriptExampleLine('input_brushes', { textures: '[Textures]' }),
   ...solidScriptExampleIf('[Count] > 1', [
     ...solidScriptExampleRepeat('I', '1', '[Count]', [
       solidScriptExampleSet('A', '[=[First] + [I] * [Turn]]'),
@@ -312,7 +331,7 @@ export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
               row2: '[R2.X], [R2.Y], [R2.Z], [Move.Y]',
               row3: '[R3.X], [R3.Y], [R3.Z], [Move.Z]',
             },
-            solidScriptExampleInputBrushes('[I]'),
+            solidScriptExampleCopyUvs('[I]', false),
           ),
         ],
         [
@@ -321,7 +340,7 @@ export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
             'Delta',
             '[=Vector(Dot([R1], [Center]), Dot([R2], [Center]), Dot([R3], [Center])) + [Move] - [Center]]',
           ),
-          ...solidScriptExampleBlock('transform', { move: '[Delta]' }, [solidScriptExampleInputBrushes('[I]')]),
+          ...solidScriptExampleMovedCopy('[Delta]', '[I]'),
         ],
       ),
     ]),
@@ -367,7 +386,7 @@ export const SOLID_SCRIPT_EXAMPLE_TRANSFORM_ARRAY: readonly SolidScriptLine[] = 
     '[=[Offset] + Vector([Relative.X] * [$Input.Size.X], [Relative.Y] * [$Input.Size.Y], [Relative.Z] * [$Input.Size.Z]) + [Pivot] - Vector(Dot([S1], [Pivot]), Dot([S2], [Pivot]), Dot([S3], [Pivot]))]',
   ),
   solidScriptExampleNote('Copy 0 is the original; R1 to R3 and Shift hold the step applied I times.'),
-  solidScriptExampleInputBrushes('0'),
+  solidScriptExampleLine('input_brushes', { textures: '[Textures]' }),
   solidScriptExampleSet('R1', '[=Vector(1, 0, 0)]'),
   solidScriptExampleSet('R2', '[=Vector(0, 1, 0)]'),
   solidScriptExampleSet('R3', '[=Vector(0, 0, 1)]'),
@@ -386,7 +405,7 @@ export const SOLID_SCRIPT_EXAMPLE_TRANSFORM_ARRAY: readonly SolidScriptLine[] = 
           row2: '[R2.X], [R2.Y], [R2.Z], [Shift.Y]',
           row3: '[R3.X], [R3.Y], [R3.Z], [Shift.Z]',
         },
-        solidScriptExampleInputBrushes('[I]'),
+        solidScriptExampleCopyUvs('[I]', false),
       ),
     ]),
   ]),
@@ -424,14 +443,14 @@ export const SOLID_SCRIPT_EXAMPLE_MIRROR: readonly SolidScriptLine[] = [
     solidScriptExampleLine('clip', { through: '[=[K] * [D]]', normal: '[Drop]', of: '[$Input.Brushes]' }),
   ]),
   solidScriptExampleNote('Copy 0 is the original; the copy is reflected: p - 2 (p · K - D) K.'),
-  solidScriptExampleInputBrushes('0', true),
+  solidScriptExampleLine('input_brushes', { textures: '[Textures]' }),
   ...solidScriptExampleMatrixOf(
     {
       row1: '[=1 - 2 * [K.X] * [K.X]], [=-2 * [K.X] * [K.Y]], [=-2 * [K.X] * [K.Z]], [=2 * [D] * [K.X]]',
       row2: '[=-2 * [K.Y] * [K.X]], [=1 - 2 * [K.Y] * [K.Y]], [=-2 * [K.Y] * [K.Z]], [=2 * [D] * [K.Y]]',
       row3: '[=-2 * [K.Z] * [K.X]], [=-2 * [K.Z] * [K.Y]], [=1 - 2 * [K.Z] * [K.Z]], [=2 * [D] * [K.Z]]',
     },
-    solidScriptExampleInputBrushes('1', true),
+    solidScriptExampleCopyUvs('1', true),
   ),
 ];
 
