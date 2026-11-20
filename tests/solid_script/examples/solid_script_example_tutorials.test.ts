@@ -45,6 +45,16 @@ const COVERAGE: Readonly<Record<string, string>> = {
   'Select Of a name': 'knobs',
   $Selected: 'knobs',
   'Place On Face': 'knobs',
+  'Filter List': 'pebbles',
+  Where: 'pebbles',
+  Hits: 'pebbles',
+  'HitsBox and InBox': 'pebbles',
+  Random: 'pebbles',
+  'Path From Points': 'roundedRail',
+  'Curve To Mesh': 'roundedRail',
+  'Grid Mesh': 'hillyFloor',
+  Displace: 'hillyFloor',
+  Noise: 'hillyFloor',
 };
 
 type TutorialStore = {
@@ -190,5 +200,5 @@ describe('SolidScript example tutorials', () => {
       expect(after, rows[rows.length - 1]).toBeLessThanOrEqual(limit);
     }
     process.stderr.write(`${rows.join('\n')}\n`);
-  }, 60000);
+  }, 180000);
 });

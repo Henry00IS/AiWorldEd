@@ -106,4 +106,92 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     { command: 'end' },
     { command: 'end' },
   ],
+
+  pebbles: [
+    { command: 'note', values: { text: 'Scatter pebbles on the top of a slab; change Seed for another layout' } },
+    {
+      command: 'input',
+      values: { name: 'Pebbles', type: 'Count', default: '40', min: '1', max: '400', label: 'Pebbles' },
+    },
+    { command: 'cube', values: { size: '3, 0.4, 3', anchor: 'Center, Center, Center' } },
+    { command: 'select_brushes' },
+    { command: 'select_faces', values: { which: 'Facing Up' } },
+    { command: 'scatter_points', values: { count: '[Pebbles]', seed: '3', into: 'Spots' } },
+    { command: 'for_each', values: { variable: 'Spot', list: '[Spots]', key: 'I' } },
+    { command: 'transform', values: { move: '[Spot]' } },
+    { command: 'sphere', values: { r: '[=Random(0.05, 0.12, [I])]', anchor: 'Center, Center, Center' } },
+    { command: 'end' },
+    { command: 'end' },
+  ],
+  roundedRail: [
+    {
+      command: 'note',
+      values: { text: 'Path From Points rounds the corners; Curve To Mesh sweeps a tube along that path.' },
+    },
+    {
+      command: 'input',
+      values: { name: 'Width', type: 'Number', default: '3', min: '0.5', max: '20', label: 'Width' },
+    },
+    {
+      command: 'input',
+      values: { name: 'Depth', type: 'Number', default: '2', min: '0.5', max: '20', label: 'Depth' },
+    },
+    {
+      command: 'input',
+      values: { name: 'Corner', type: 'Number', default: '0.4', min: '0', max: '5', label: 'Corner' },
+    },
+    {
+      command: 'input',
+      values: { name: 'Thickness', type: 'Number', default: '0.08', min: '0.01', max: '1', label: 'Thickness' },
+    },
+    {
+      command: 'path',
+      values: {
+        shape: 'From Points',
+        points:
+          '[=Vector(-[Width] / 2, 0, -[Depth] / 2)], [=Vector([Width] / 2, 0, -[Depth] / 2)], [=Vector([Width] / 2, 0, [Depth] / 2)], [=Vector(-[Width] / 2, 0, [Depth] / 2)]',
+        corner_radius: '[Corner]',
+        sides: '6',
+        closed: 'Yes',
+        into: 'Rail',
+      },
+    },
+    { command: 'curve_to_mesh', values: { path: '[Rail]', radius: '[Thickness]', sides: '8', closed: 'Yes' } },
+  ],
+  hillyFloor: [
+    {
+      command: 'note',
+      values: {
+        text: 'Grid Mesh lays a floor; Displace lifts each point with Noise, so the same Seed is the same hills.',
+      },
+    },
+    {
+      command: 'input',
+      values: { name: 'Width', type: 'Number', default: '8', min: '0.5', max: '40', label: 'Width' },
+    },
+    {
+      command: 'input',
+      values: { name: 'Depth', type: 'Number', default: '8', min: '0.5', max: '40', label: 'Depth' },
+    },
+    {
+      command: 'input',
+      values: { name: 'Columns', type: 'Count', default: '12', min: '1', max: '32', label: 'Columns' },
+    },
+    { command: 'input', values: { name: 'Rows', type: 'Count', default: '12', min: '1', max: '32', label: 'Rows' } },
+    {
+      command: 'input',
+      values: { name: 'Height', type: 'Number', default: '0.6', min: '0', max: '10', label: 'Height' },
+    },
+    {
+      command: 'input',
+      values: { name: 'Scale', type: 'Number', default: '3', min: '0.1', max: '40', label: 'Scale' },
+    },
+    { command: 'input', values: { name: 'Seed', type: 'Number', default: '2', label: 'Seed' } },
+    { command: 'grid_mesh', values: { size: '[Width], 0, [Depth]', columns: '[Columns]', rows: '[Rows]' } },
+    { command: 'select_brushes' },
+    {
+      command: 'displace',
+      values: { distance: '[=[Height] * (Noise([$X], 0, [$Z], [Scale], [Seed]) * 2 - 1)]' },
+    },
+  ],
 };

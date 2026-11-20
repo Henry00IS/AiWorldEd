@@ -54,7 +54,9 @@ export const SOLID_SCRIPT_EXAMPLE_TAPERED_BOX: readonly SolidScriptLine[] = [
  * tube.
  */
 export const SOLID_SCRIPT_EXAMPLE_ROUNDED_RAIL: readonly SolidScriptLine[] = [
-  solidScriptExampleNote('Path From Points rounds the corners; Curve To Mesh sweeps a tube along that path.'),
+  solidScriptExampleNote(
+    'Path From Points draws a path through these four corners. Corner rounds them, Closed joins the last back to the first, and Into writes the path to $[Rail$].',
+  ),
   solidScriptExampleInput('Width', 'Number', '3', { min: '0.5', max: '20', label: 'Width' }),
   solidScriptExampleInput('Depth', 'Number', '2', { min: '0.5', max: '20', label: 'Depth' }),
   solidScriptExampleInput('Corner', 'Number', '0.4', { min: '0', max: '5', label: 'Corner' }),
@@ -68,14 +70,13 @@ export const SOLID_SCRIPT_EXAMPLE_ROUNDED_RAIL: readonly SolidScriptLine[] = [
     closed: 'Yes',
     into: 'Rail',
   }),
+  solidScriptExampleNote('Curve To Mesh sweeps a tube along that path. Radius is how thick the rail is.'),
   solidScriptExampleLine('curve_to_mesh', { path: '[Rail]', radius: '[Thickness]', sides: '8', closed: 'Yes' }),
 ];
 
 /** A hilly floor: Grid Mesh, then Displace with Noise at each point. */
 export const SOLID_SCRIPT_EXAMPLE_HILLY_FLOOR: readonly SolidScriptLine[] = [
-  solidScriptExampleNote(
-    'Grid Mesh lays a floor; Displace lifts each point with Noise, so the same Seed is the same hills.',
-  ),
+  solidScriptExampleNote('Grid Mesh lays a flat floor of this Width and Depth, divided into Columns and Rows.'),
   solidScriptExampleInput('Width', 'Number', '8', { min: '0.5', max: '40', label: 'Width' }),
   solidScriptExampleInput('Depth', 'Number', '8', { min: '0.5', max: '40', label: 'Depth' }),
   solidScriptExampleInput('Columns', 'Count', '12', { min: '1', max: '32', label: 'Columns' }),
@@ -85,6 +86,9 @@ export const SOLID_SCRIPT_EXAMPLE_HILLY_FLOOR: readonly SolidScriptLine[] = [
   solidScriptExampleInput('Seed', 'Number', '2', { label: 'Seed' }),
   solidScriptExampleLine('grid_mesh', { size: '[Width], 0, [Depth]', columns: '[Columns]', rows: '[Rows]' }),
   solidScriptExampleLine('select_brushes'),
+  solidScriptExampleNote(
+    "Displace moves each selected point along its normal. The distance uses Noise, which turns a point into a smooth random height: the same Seed is the same hills. $[X$] and $[Z$] are the point's place on the floor.",
+  ),
   solidScriptExampleLine('displace', {
     distance: '[=[Height] * (Noise([$X], 0, [$Z], [Scale], [Seed]) * 2 - 1)]',
   }),

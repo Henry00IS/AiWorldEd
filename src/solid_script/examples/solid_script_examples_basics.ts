@@ -103,20 +103,31 @@ export const SOLID_SCRIPT_EXAMPLE_PILLAR_RING: readonly SolidScriptLine[] = [
 
 /** Pebbles scattered over the top of a slab, more where the face is bigger. */
 export const SOLID_SCRIPT_EXAMPLE_PEBBLES: readonly SolidScriptLine[] = [
-  { command: 'note', values: { text: 'Scatter pebbles on the top of a slab; change Seed for another layout' } },
-  {
-    command: 'input',
-    values: { name: 'Pebbles', type: 'Count', default: '40', min: '1', max: '400', label: 'Pebbles' },
-  },
-  { command: 'cube', values: { size: '3, 0.4, 3', anchor: 'Center, Center, Center' } },
-  { command: 'select_brushes' },
-  { command: 'select_faces', values: { which: 'Facing Up' } },
-  { command: 'scatter_points', values: { count: '[Pebbles]', seed: '3', into: 'Spots' } },
-  { command: 'for_each', values: { variable: 'Spot', list: '[Spots]', key: 'I' } },
-  { command: 'transform', values: { move: '[Spot]' } },
-  { command: 'sphere', values: { r: '[=Random(0.05, 0.12, [I])]', anchor: 'Center, Center, Center' } },
-  { command: 'end' },
-  { command: 'end' },
+  solidScriptExampleNote('This slab is the ground the pebbles sit on. It is named Slab so later lines can find it.'),
+  solidScriptExampleInput('Pebbles', 'Count', '40', { min: '1', max: '400', label: 'Pebbles' }),
+  solidScriptExampleLine('cube', { size: '3, 0.4, 3', anchor: 'Center, Center, Center', label: 'Slab' }),
+  solidScriptExampleNote('Select Faces Of Slab keeps the top of the slab.'),
+  solidScriptExampleLine('select_faces', { which: 'Facing Up', of: 'Slab' }),
+  solidScriptExampleNote(
+    'Scatter Points now drops points on the selected faces, more where a face is bigger. Into writes them to $[Spots$].',
+  ),
+  solidScriptExampleLine('scatter_points', { count: '[Pebbles]', seed: '3', into: 'Spots' }),
+  solidScriptExampleNote(
+    'Filter List keeps the items of a list that pass Where. Hits asks whether a point or brush meets another thing: here each spot must meet the selected faces, so every pebble stays on the slab. InBox is the same idea for a point in a box, and HitsBox is Hits with a box you write as a Center and Size. The and joins both checks. Into writes the kept spots to $[Kept$].',
+  ),
+  solidScriptExampleLine('filter_list', {
+    list: '[Spots]',
+    where: '[=Hits([$Item], [$Selected.Faces]) and InBox([$Item], Vector(0, 0, 0), 10)]',
+    into: 'Kept',
+  }),
+  solidScriptExampleNote(
+    'Each pebble is a Sphere whose radius comes from Random, so they are not all the same size. The last number, $[I$], is a seed, so the same pebble is always the same size.',
+  ),
+  ...solidScriptExampleBlock('for_each', { variable: 'Spot', list: '[Kept]', key: 'I' }, [
+    ...solidScriptExampleBlock('transform', { move: '[Spot]' }, [
+      solidScriptExampleLine('sphere', { r: '[=Random(0.05, 0.12, [I])]', anchor: 'Center, Center, Center' }),
+    ]),
+  ]),
 ];
 
 /** Spikes growing straight out of a ball at scattered points. */
