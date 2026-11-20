@@ -35,7 +35,7 @@ export function solidScriptGivenFlow(block: SolidScriptBlock): SolidScriptComman
 export function solidScriptGivenFlowName(block: SolidScriptBlock): string {
   const flow = solidScriptGivenFlow(block);
   const key = flow && 'name' in flow ? flow.name : undefined;
-  return key === undefined ? '' : (block.values[key] ?? '').trim();
+  return key === undefined ? '' : solidScriptGivenText(block, key).trim();
 }
 
 /**
@@ -48,7 +48,7 @@ export function solidScriptGivenFlowName(block: SolidScriptBlock): string {
 export function solidScriptGivenFields(block: SolidScriptBlock): SolidScriptGiven[] {
   const command = solidScriptCommandFind(block.command);
   return (command?.parameters ?? []).flatMap((parameter) => {
-    const name = (block.values[parameter.key] ?? '')
+    const name = solidScriptGivenText(block, parameter.key)
       .trim()
       .replace(/^\[(.*)\]$/s, '$1')
       .trim();

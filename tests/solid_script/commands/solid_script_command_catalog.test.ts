@@ -206,7 +206,10 @@ describe('solid script command catalog', () => {
   it('has no Box UVs command; Project UVs Mode Box maps faces in a box', () => {
     expect(solidScriptCommands.map((command) => command.id)).not.toContain('box_uvs');
     expect(solidScriptCommands.some((command) => command.label.toLowerCase() === 'box uvs')).toBe(false);
-    expect(solidScriptCommandFind('project_uvs')?.valuesDefault()['mode']).toBe('Box');
+    expect(
+      solidScriptCommandFind('project_uvs')?.parameters.find((parameter) => parameter.key === 'mode')?.default,
+    ).toBe('Box');
+    expect(solidScriptCommandFind('project_uvs')?.valuesDefault()['mode']).toBe('');
   });
 
   it('has no Select In Box command; InBox in Where picks items in a box', () => {
@@ -243,13 +246,16 @@ describe('solid script command catalog', () => {
   });
 
   it('starts every transform as a neutral one that changes nothing', () => {
-    const defaults = (id: string) => solidScriptCommandFind(id)?.valuesDefault();
-    expect(defaults('transform')).toMatchObject({ move: '0, 0, 0', rotate: '0, 0, 0', scale: '1, 1, 1' });
-    expect(defaults('move_by')).toMatchObject({ by: '0, 0, 0' });
-    expect(defaults('rotate_by')).toMatchObject({ by: '0, 0, 0' });
-    expect(defaults('rotate_to')).toMatchObject({ to: '0, 0, 0' });
-    expect(defaults('scale_by')).toMatchObject({ by: '1, 1, 1' });
-    expect(defaults('linear_extrude')).toMatchObject({ scale: '1, 1' });
+    const fallback = (id: string, key: string) =>
+      solidScriptCommandFind(id)?.parameters.find((parameter) => parameter.key === key)?.default;
+    expect(fallback('transform', 'move')).toBe('0, 0, 0');
+    expect(fallback('transform', 'rotate')).toBe('0, 0, 0');
+    expect(fallback('transform', 'scale')).toBe('1, 1, 1');
+    expect(fallback('move_by', 'by')).toBe('0, 0, 0');
+    expect(fallback('rotate_by', 'by')).toBe('0, 0, 0');
+    expect(fallback('rotate_to', 'to')).toBe('0, 0, 0');
+    expect(fallback('scale_by', 'by')).toBe('1, 1, 1');
+    expect(fallback('linear_extrude', 'scale')).toBe('1, 1');
     const plain = JSON.stringify(run({ command: 'cube' }).shapes);
     expect(JSON.stringify(run({ command: 'transform' }, { command: 'cube' }, { command: 'end' }).shapes)).toBe(plain);
     const selected = [{ command: 'cube' }, { command: 'select_brushes' }, { command: 'move_by' }];

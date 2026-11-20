@@ -1,4 +1,5 @@
 import type { SolidScriptValue } from './solid_script_value.js';
+import { solidScriptParameterValueEffective } from '@/solid_script/commands/solid_script_parameter_default.js';
 
 /** Kinds of value a script input takes, as the inspector edits them. */
 export const SOLID_SCRIPT_INPUT_TYPES = [
@@ -99,7 +100,7 @@ type SolidScriptInputValues = Readonly<Record<string, string | undefined>>;
  * @returns Input.
  */
 export function solidScriptInputRead(values: SolidScriptInputValues): SolidScriptInput {
-  const type = (values['type'] ?? SOLID_SCRIPT_INPUT_DEFAULTS.type).trim();
+  const type = solidScriptParameterValueEffective(values['type'], SOLID_SCRIPT_INPUT_DEFAULTS.type).trim();
   if (!SOLID_SCRIPT_INPUT_TYPES.includes(type as SolidScriptInputType))
     throw new Error(`Type must be one of ${SOLID_SCRIPT_INPUT_TYPES.join(', ')}, not "${type}"`);
   const limit = (key: 'min' | 'max', label: string): number | null => {
@@ -109,7 +110,7 @@ export function solidScriptInputRead(values: SolidScriptInputValues): SolidScrip
     if (!Number.isFinite(number)) throw new Error(`${label} must be a number or empty, not "${text}"`);
     return number;
   };
-  const name = (values['name'] ?? SOLID_SCRIPT_INPUT_DEFAULTS.name).trim();
+  const name = solidScriptParameterValueEffective(values['name'], SOLID_SCRIPT_INPUT_DEFAULTS.name).trim();
   const label = (values['label'] ?? '').trim();
   const min = limit('min', 'Minimum');
   const max = limit('max', 'Maximum');
@@ -124,7 +125,7 @@ export function solidScriptInputRead(values: SolidScriptInputValues): SolidScrip
     name,
     label: label || name,
     type: type as SolidScriptInputType,
-    fallback: values['default'] ?? SOLID_SCRIPT_INPUT_DEFAULTS.default,
+    fallback: solidScriptParameterValueEffective(values['default'], SOLID_SCRIPT_INPUT_DEFAULTS.default),
     min,
     max,
     choices,

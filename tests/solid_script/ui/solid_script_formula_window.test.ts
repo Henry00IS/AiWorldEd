@@ -4,6 +4,7 @@ import { SOLID_SCRIPT_COMMAND_CATALOG } from '@/solid_script/commands/solid_scri
 import { SOLID_SCRIPT_FORMULA_LEAVES } from '@/solid_script/commands/solid_script_formula_commands.js';
 import { solidScriptConfiguratorFormulaCapable } from '@/solid_script/ui/solid_script_configurator_fields.js';
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
+import { solidScriptParameterValueStored } from '@/solid_script/commands/solid_script_parameter_default.js';
 import { SolidScriptConfigurator } from '@/solid_script/ui/solid_script_configurator.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from '@/solid_script/ui/solid_script_editor_css.js';
 import { SOLID_SCRIPT_EDITOR_SIZE } from '@/solid_script/ui/solid_script_editor_frame.js';
@@ -936,6 +937,18 @@ function solidScriptFieldOf(field: FieldCase): SolidScriptCommandParameter {
   return parameter;
 }
 
+/**
+ * Returns the text the formula window stores for a field: empty when it equals
+ * the declared default.
+ *
+ * @param field Field case.
+ * @param text Written or unchanged field text.
+ * @returns Text stored in the field.
+ */
+function solidScriptFieldStored(field: FieldCase, text: string): string {
+  return solidScriptParameterValueStored(text, solidScriptFieldOf(field).default);
+}
+
 describe('SolidScript formula window on every kind of field', () => {
   it.each(FIELD_CASES.map((field) => [field.kind, field.stored, field] as const))(
     'opens %s %j as its blocks, and OK without a change keeps it exactly',
@@ -946,7 +959,7 @@ describe('SolidScript formula window on every kind of field', () => {
       expect(status()).not.toMatch(/^Line \d|plain text/);
       button('OK', formulaWindow()).click();
       expect(document.querySelector('[data-solid-script-formula]')).toBeNull();
-      expect(input.value).toBe(stored);
+      expect(input.value).toBe(solidScriptFieldStored(field, stored));
     },
   );
 
@@ -971,7 +984,7 @@ describe('SolidScript formula window on every kind of field', () => {
       press(chip(change.line), 'Enter');
       fieldFill(change.block, solidScriptFormulaLeafLabel(change.block), change.value);
       button('OK', formulaWindow()).click();
-      expect(input.value).toBe(change.written);
+      expect(input.value).toBe(solidScriptFieldStored(field, change.written));
     },
   );
 

@@ -236,13 +236,50 @@ describe('SolidScript editor', () => {
     expect(script().blocks[0]?.values?.['r']).toBe('2');
   });
 
+  it('stores a confirmed field as empty when it equals the declared default, and keeps a different value', () => {
+    const { script } = editorFixture([{ command: 'cube' }]);
+    drop(chip(0), { [SOLID_SCRIPT_EDITOR_DRAG_COMMAND]: 'sphere' });
+    const sides = find<HTMLInputElement>('input[aria-label="Sides"]');
+    expect(sides.value).toBe('');
+    expect(sides.placeholder).toBe('16');
+    type(sides, '16.0');
+    tool('OK').click();
+    expect(script().blocks[0]?.values?.['sides']).toBe('');
+    doubleClick(chip(0));
+    const again = find<HTMLInputElement>('input[aria-label="Sides"]');
+    expect(again.value).toBe('');
+    expect(again.placeholder).toBe('16');
+    type(again, '15');
+    tool('OK').click();
+    expect(script().blocks[0]?.values?.['sides']).toBe('15');
+  });
+
+  it('stores the field as empty when the formula editor confirms a value equal to the default', () => {
+    const { script } = editorFixture([{ command: 'cube' }]);
+    drop(chip(0), { [SOLID_SCRIPT_EDITOR_DRAG_COMMAND]: 'sphere' });
+    const sides = find<HTMLInputElement>('input[aria-label="Sides"]');
+    type(sides, '16.0');
+    find<HTMLButtonElement>('button[aria-label="Build Sides from blocks"]').click();
+    const formula = find('[data-solid-script-formula="Sides"]');
+    const confirm = [...formula.querySelectorAll<HTMLButtonElement>('button')].find(
+      (candidate) => candidate.textContent === 'OK',
+    );
+    if (!confirm) throw new Error('Expected the formula OK button');
+    confirm.click();
+    expect(document.querySelector('[data-solid-script-formula]')).toBeNull();
+    expect(sides.value).toBe('');
+    expect(sides.placeholder).toBe('16');
+    tool('OK').click();
+    expect(script().blocks[0]?.values?.['sides']).toBe('');
+  });
+
   it('reopens the configurator of a line on double-click or Enter and applies the change', () => {
     const { script } = editorFixture([{ command: 'transform' }, { command: 'cube' }, { command: 'end' }]);
     doubleClick(chip(0));
     const fields = document.querySelectorAll<HTMLInputElement>(
       '[data-solid-script-configurator="transform"] input:not([hidden])',
     );
-    expect([...fields].map((input) => input.value)).toEqual(['0, 0, 0', '0, 0, 0', '1, 1, 1', '']);
+    expect([...fields].map((input) => input.value)).toEqual(['', '', '', '']);
     type(fields[0] as HTMLInputElement, '0, 0, 3');
     tool('OK').click();
     expect(script().blocks[0]?.values?.['move']).toBe('0, 0, 3');
@@ -1104,7 +1141,7 @@ describe('SolidScript editor', () => {
     add().click();
     tool('OK').click();
     expect(commands()).toEqual(['input', 'input', 'cube', 'sphere']);
-    expect(script().blocks.map((block) => block.values['name'])).toEqual(['width', 'input2', undefined, undefined]);
+    expect(script().blocks.map((block) => block.values['name'])).toEqual(['', 'input2', undefined, undefined]);
     expect(add().textContent).toBe('Add Input');
   });
 

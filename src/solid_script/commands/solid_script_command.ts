@@ -402,15 +402,14 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
   }
 
   /**
-   * Returns the values of a new command line. Optional fields start empty so
-   * their declared default can show as placeholder text.
+   * Returns the values of a new command line. Fields start empty so a declared
+   * default can show as placeholder text. Only values that differ from the
+   * default are written; the catalog has none, so every field starts empty.
    *
-   * @returns Default value per field key.
+   * @returns Starting value per field key.
    */
   valuesDefault(): Record<string, string> {
-    return Object.fromEntries(
-      this.parameters.map((parameter) => [parameter.key, parameter.optional === true ? '' : parameter.default]),
-    );
+    return Object.fromEntries(this.parameters.map((parameter) => [parameter.key, '']));
   }
 
   /**

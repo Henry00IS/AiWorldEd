@@ -13,7 +13,11 @@ export function solidScriptParameterTextNormalized(text: string): string {
     .trim()
     .toLowerCase()
     .replace(/\s*,\s*/g, ', ')
-    .replace(/\s+/g, ' ');
+    .replace(/\s+/g, ' ')
+    .replace(/-?\d+(?:\.\d+)?/g, (token) => {
+      const value = Number(token);
+      return Number.isFinite(value) ? String(value) : token;
+    });
 }
 
 /**
@@ -29,14 +33,6 @@ export function solidScriptParameterValueEffective(text: string | undefined, fal
 }
 
 /**
- * Tells whether a field is at its default, empty or typed, compared folded.
- *
- * @param text Stored or shown text.
- * @param fallback Declared default.
- * @returns True when it equals the default.
- */
-
-/**
  * Tells whether a field may stay empty: it is marked optional, or it has a
  * declared default that empty uses.
  *
@@ -49,9 +45,49 @@ export function solidScriptParameterAllowsEmpty(
   return parameter.optional === true || parameter.default.trim() !== '';
 }
 
+/**
+ * Tells whether a field is at its default, empty or typed, compared folded:
+ * trim, letter case, comma spacing, and numbers such as 16 and 16.0.
+ *
+ * @param text Stored or shown text.
+ * @param fallback Declared default.
+ * @returns True when it equals the default.
+ */
 export function solidScriptParameterValueIsDefault(text: string, fallback: string): boolean {
   const given = solidScriptParameterValueEffective(text, fallback);
   return solidScriptParameterTextNormalized(given) === solidScriptParameterTextNormalized(fallback);
+}
+
+/**
+ * Returns the text to store for a field: empty when it equals the declared
+ * default, compared folded, so the default can show as placeholder text.
+ *
+ * @param text Typed or shown text.
+ * @param fallback Declared default.
+ * @returns Text to store.
+ */
+export function solidScriptParameterValueStored(text: string, fallback: string): string {
+  return solidScriptParameterValueIsDefault(text, fallback) ? '' : text;
+}
+
+/**
+ * Returns the values to store for a command line, with every field that equals
+ * its declared default left empty.
+ *
+ * @param command Command whose fields are stored.
+ * @param values Typed values.
+ * @returns Values to store, one key per field.
+ */
+export function solidScriptCommandValuesStored(
+  command: { parameters: readonly Pick<SolidScriptCommandParameter, 'key' | 'default'>[] },
+  values: Readonly<Record<string, string>>,
+): Record<string, string> {
+  return Object.fromEntries(
+    command.parameters.map((parameter) => [
+      parameter.key,
+      solidScriptParameterValueStored(values[parameter.key] ?? '', parameter.default),
+    ]),
+  );
 }
 
 /**

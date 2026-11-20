@@ -72,10 +72,11 @@ export function solidScriptBlockId(): string {
 }
 
 /**
- * Creates a command line with the command's default values.
+ * Creates a command line with the command's starting values, empty where a
+ * declared default can show as placeholder text.
  *
  * @param command Command id.
- * @param values Values replacing defaults.
+ * @param values Values replacing the starting values.
  * @param off True makes a line that is turned off.
  * @param catalog Commands the line's command is found in.
  * @returns Line.

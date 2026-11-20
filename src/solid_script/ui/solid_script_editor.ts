@@ -59,7 +59,11 @@ import { SolidScriptEditorOutput } from './solid_script_editor_output.js';
 import { solidScriptEditorLoad, solidScriptEditorSave } from './solid_script_editor_files.js';
 import { solidScriptEditorDebugSpeedMs, solidScriptEditorDebugSpeedRead } from './solid_script_editor_debug_speed.js';
 import { solidScriptFileDropBind, type SolidScriptFileDropResult } from './solid_script_file_drop.js';
-import { SOLID_SCRIPT_COMMAND_INPUT, solidScriptInputsList } from '@/solid_script/language/solid_script_input.js';
+import {
+  SOLID_SCRIPT_COMMAND_INPUT,
+  SOLID_SCRIPT_INPUT_DEFAULTS,
+  solidScriptInputsList,
+} from '@/solid_script/language/solid_script_input.js';
 import { SOLID_SCRIPT_SELECT_BETWEEN } from '@/solid_script/language/solid_script_select.js';
 
 /** How often the editor looks for changes made elsewhere, in ms. */
@@ -188,7 +192,7 @@ export class SolidScriptEditor extends PanelFloating {
     let name = 'width';
     for (let index = 2; used.has(name); index++) name = `input${index}`;
     this.lineConfigure.insert(SOLID_SCRIPT_COMMAND_INPUT, Math.max(0, last), last >= 0 ? 'caret' : 'before', {
-      name,
+      ...(name === SOLID_SCRIPT_INPUT_DEFAULTS.name ? {} : { name }),
     });
   }
 

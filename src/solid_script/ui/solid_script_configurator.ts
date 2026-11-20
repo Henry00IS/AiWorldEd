@@ -4,7 +4,11 @@ import type {
   SolidScriptCommandValues,
 } from '@/solid_script/commands/solid_script_command.js';
 import { solidScriptParameterApplies } from '@/solid_script/commands/solid_script_command_parameters.js';
-import { solidScriptParameterAllowsEmpty } from '@/solid_script/commands/solid_script_parameter_default.js';
+import {
+  solidScriptCommandValuesStored,
+  solidScriptParameterAllowsEmpty,
+  solidScriptParameterValueStored,
+} from '@/solid_script/commands/solid_script_parameter_default.js';
 import {
   solidScriptCommandFieldFills,
   solidScriptParameterEachActive,
@@ -153,7 +157,7 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
    * @returns True to close.
    */
   protected confirm(): boolean {
-    this.apply(this.values());
+    this.apply(solidScriptCommandValuesStored(this.command, this.values()));
     return true;
   }
 
@@ -252,7 +256,7 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
       names: this.names,
       fills: this.fillsOf(parameter, values),
       inputs: this.inputs,
-      apply: write,
+      apply: (text) => write(solidScriptParameterValueStored(text, parameter.default)),
     }).show();
   }
 
