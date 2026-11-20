@@ -63,7 +63,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Give faces texture coordinates from a box, plane, cylinder or sphere',
     manual:
-      "Gives faces texture coordinates projected from a Mode: Box (the same Axis views as Bevel: Overhead, Front or Side, picked from the way the face looks), Planar (one plane, From Face, Overhead, Front or Side), Cylinder or Sphere. Size is metres of one texture repeat. Space is Local (from the shape's center, so a move keeps the mapping) or World (from the script origin, the same World axes as Bevel). Cylinder and Sphere take Axis and an optional Center (empty uses the shape's center); a brush face gets a fitted planar map, a mesh face gets exact corner coordinates. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. Brushes stay brushes; meshes stay meshes. Example: Cube, Select Faces, Project UVs Mode Box Size 1 wraps each side from the way it faces.",
+      "Gives faces texture coordinates projected from a Mode: Box (the Overhead, Front or Side view each face faces most), Planar (one plane, From Face, Overhead, Front or Side), Cylinder or Sphere. Size is metres of one texture repeat. Space is Local (from the shape's center, so a move keeps the mapping) or World (from the script origin, along the world axes). Cylinder and Sphere take Axis and an optional Center (empty uses the shape's center); a brush face gets a fitted planar map, a mesh face gets exact corner coordinates. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. Brushes stay brushes; meshes stay meshes. Example: Cube, Select Faces, Project UVs Mode Box Size 1 wraps each side from the way it faces.",
     stops: [
       'No faces.',
       'A Size of 0 or less.',
@@ -79,7 +79,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
         'Box',
         'How the coordinates are projected. Type one word, such as Box.',
         [
-          { word: 'Box', detail: "Each face uses the closest of Bevel's Overhead, Front and Side views" },
+          { word: 'Box', detail: 'Each face uses the Overhead, Front or Side view it faces most' },
           { word: 'Planar', detail: 'Every face uses one plane' },
           { word: 'Cylinder', detail: 'Around an axis, height along it' },
           { word: 'Sphere', detail: 'Around a center, from the +axis pole' },

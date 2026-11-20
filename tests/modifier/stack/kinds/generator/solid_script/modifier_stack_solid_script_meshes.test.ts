@@ -126,10 +126,9 @@ describe('SolidScript generator meshes', () => {
     const selectBrushes: SolidScriptLine = { command: 'select_brushes' };
     const select: SolidScriptLine = { command: 'select_faces', values: { which: 'All' } };
     const project: SolidScriptLine = { command: 'project_uvs', values: { size: '1' } };
-    const boxed: SolidScriptLine = { command: 'box_uvs', values: { size: '1' } };
     const orders: SolidScriptLine[][] = [
       [texture, fromBrushes, ...torus, END, selectBrushes, select, project, END],
-      [fromBrushes, texture, ...torus, END, END, selectBrushes, select, boxed],
+      [fromBrushes, texture, ...torus, END, END, selectBrushes, select, project],
     ];
     for (const order of orders) {
       const fixture = meshFixture(...order);

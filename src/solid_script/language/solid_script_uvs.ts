@@ -275,57 +275,6 @@ export function solidScriptLeafCenter(leaf: SolidScriptGeometryLeaf): THREE.Vect
 }
 
 /**
- * Writes a box projection onto a solid as stored records, or onto a mesh as
- * corner UVs, from the leaf's center so a later move keeps the mapping.
- *
- * @param leaf Solid or mesh.
- * @param faces Faces of this leaf to map.
- * @param size Metres per texture repeat.
- * @returns Leaf with those coordinates. A solid no longer carries boxUvSize.
- */
-export function solidScriptUvsBoxMap(
-  leaf: SolidScriptGeometryLeaf,
-  faces: readonly SolidScriptFaceFacts[],
-  size: number,
-): SolidScriptGeometryLeaf {
-  const origin = solidScriptLeafCenter(leaf);
-  if (leaf.kind === 'solid') {
-    return solidScriptSolidFaceUvsWrite(
-      leaf,
-      faces.map((face) => solidScriptFaceUvRecord(face, textureUvProjectAxis(face.normal, size, origin))),
-    );
-  }
-  return solidScriptUvsBoxMapMesh(leaf, faces, size, origin);
-}
-
-/**
- * Writes box-projected corner UVs onto the given mesh faces.
- *
- * @param leaf Mesh.
- * @param faces Faces of this mesh.
- * @param size Metres per texture repeat.
- * @param origin Projection origin, usually the mesh center.
- * @returns Mesh with those coordinates.
- */
-function solidScriptUvsBoxMapMesh(
-  leaf: Extract<SolidScriptGeometryLeaf, { kind: 'mesh' }>,
-  faces: readonly SolidScriptFaceFacts[],
-  size: number,
-  origin: THREE.Vector3,
-): Extract<SolidScriptGeometryLeaf, { kind: 'mesh' }> {
-  let mesh = leaf;
-  for (const face of faces) {
-    const mapping = textureUvProjectAxis(face.normal, size, origin);
-    mesh = solidScriptMeshFaceUvsWrite(
-      mesh,
-      face.index,
-      face.corners.map((corner) => textureUvProjectPoint(mapping, corner)),
-    );
-  }
-  return mesh;
-}
-
-/**
  * Reads a list of corner UVs from a value, such as a list of vectors; Z is
  * ignored.
  *

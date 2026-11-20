@@ -24,7 +24,7 @@ describe('no command picks elements on its own', () => {
       'bevel_edges',
       'delete_faces',
       'texture_faces',
-      'box_uvs',
+      'project_uvs',
       'displace',
       'flip_faces',
       'subdivide',

@@ -22,7 +22,6 @@ const FACE_TOOLS = new Set([
   'extrude_face',
   'texture_faces',
   'scale_faces',
-  'box_uvs',
   'project_uvs',
   'unwrap',
   'pack_islands',

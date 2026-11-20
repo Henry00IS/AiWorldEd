@@ -203,6 +203,12 @@ describe('solid script command catalog', () => {
     }
   });
 
+  it('has no Box UVs command; Project UVs Mode Box maps faces in a box', () => {
+    expect(solidScriptCommands.map((command) => command.id)).not.toContain('box_uvs');
+    expect(solidScriptCommands.some((command) => command.label.toLowerCase() === 'box uvs')).toBe(false);
+    expect(solidScriptCommandFind('project_uvs')?.valuesDefault()['mode']).toBe('Box');
+  });
+
   it('has no Select In Box command; InBox in Where picks items in a box', () => {
     expect(solidScriptCommands.map((command) => command.id)).not.toContain('select_in_box');
     expect(solidScriptCommands.some((command) => command.label.toLowerCase() === 'select in box')).toBe(false);
@@ -391,8 +397,7 @@ describe('solid script command catalog', () => {
     expect(converters.map((command) => command.id).sort()).toEqual(['grid_mesh', 'mesh', 'mesh_brushes']);
     const projectUvs = solidScriptCommandFind('project_uvs');
     expect(projectUvs && projectUvs.category === 'Faces').toBe(true);
-    const boxUvs = solidScriptCommandFind('box_uvs');
-    expect(boxUvs && solidScriptCommandPreservesBrushes(boxUvs)).toBe(true);
+    expect(projectUvs && solidScriptCommandPreservesBrushes(projectUvs)).toBe(true);
     const hint = /no longer be a convex brush.+Mesh From Brushes first/;
     const refused = [
       'merge_by_distance',

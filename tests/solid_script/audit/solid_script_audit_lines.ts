@@ -114,7 +114,6 @@ const SOLID_SCRIPT_AUDIT_FACES = new Set([
   'bevel_edges',
   'texture_faces',
   'find_on',
-  'box_uvs',
   'scale_faces',
 ]);
 

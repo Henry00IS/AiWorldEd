@@ -233,7 +233,7 @@ describe('SolidScript meshes', () => {
         { command: 'select_brushes' },
         { command: 'select_faces', values: { which: 'All' } },
         { command: 'select_brushes' },
-        { command: 'box_uvs', values: { size: '0.5' } },
+        { command: 'project_uvs', values: { mode: 'Box', size: '0.5' } },
       ),
     );
     expect(mapped.uvs.every((uv) => uv !== null && uv.every(([u, v]) => Math.abs(u) === 1 && Math.abs(v) === 1))).toBe(
@@ -248,22 +248,6 @@ describe('SolidScript meshes', () => {
       { command: 'select_faces', values: { which: 'All' } },
       { command: 'select_brushes' },
       { command: 'project_uvs', values: { size: '0.5' } },
-    );
-    expect(result.error).toBeNull();
-    expect(solidScriptShapeMeshes(result.shapes)).toHaveLength(0);
-    const [shape] = result.shapes;
-    expect(shape?.kind).toBe('solid');
-    if (shape?.kind !== 'solid') throw new Error('Expected a solid');
-    expect(shape.faceUvs).toHaveLength(6);
-  });
-
-  it('keeps a brush as a brush when Box UVs maps the faces Select Faces picked', () => {
-    const result = run(
-      { command: 'cube', values: { anchor: 'Center, Center, Center' } },
-      { command: 'select_brushes' },
-      { command: 'select_faces', values: { which: 'All' } },
-      { command: 'select_brushes' },
-      { command: 'box_uvs', values: { size: '0.5' } },
     );
     expect(result.error).toBeNull();
     expect(solidScriptShapeMeshes(result.shapes)).toHaveLength(0);
