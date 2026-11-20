@@ -134,7 +134,7 @@ describe('SolidScript Repeat', () => {
     expect(repeatRounds(values)).toEqual(expected);
   });
 
-  it.each([
+  it.each<Record<string, string>>([
     { from: '0', to: '0' },
     { from: '3', to: '3' },
     { from: '2', to: '2', step: '-1' },
