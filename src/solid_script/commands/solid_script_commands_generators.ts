@@ -234,7 +234,7 @@ function solidScriptGeneratorCommand(kind: ModifierStackKindGenerator): SolidScr
       const pieces = solidScriptGeneratorPieces(kind.id, parameters, { size: [x, y, z], min });
       const role = 'direction' in parameters ? `${kind.id} ${String(parameters['direction'])}` : kind.id;
       return pieces
-        .flatMap((piece) => run.solid(piece.points, piece.faceUvs))
+        .flatMap((piece) => run.solid(piece.body, piece.faceUvs))
         .map((shape) => (shape.kind === 'solid' ? { ...shape, role } : shape));
     },
   });

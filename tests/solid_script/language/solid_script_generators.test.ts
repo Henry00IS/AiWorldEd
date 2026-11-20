@@ -7,6 +7,8 @@ import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_com
 import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
 import { ModifierStackKindGenerator } from '@/modifier/stack/kinds/generator/modifier_stack_kind_generator.js';
 import type { ModifierStackField } from '@/modifier/stack/modifier_stack_types.js';
+import { solidScriptGeneratorPieces } from '@/solid_script/language/solid_script_generator_pieces.js';
+import type { SolidScriptFaceUv } from '@/solid_script/language/solid_script_shape.js';
 
 /**
  * Runs script lines.
@@ -163,7 +165,9 @@ describe('SolidScript generator blocks', () => {
     expect(solids(sphere.shapes).map((points) => points.length)).toEqual(
       kindSphere.map((piece) => piece.vertices.length),
     );
-    expect(bounds(sphere.shapes)).toEqual(bounds([{ kind: 'solid', label: '', points: kindSphere[0]!.vertices }]));
+    expect(bounds(sphere.shapes)).toEqual(
+      bounds([{ kind: 'solid', label: '', points: kindSphere[0]!.vertices, faces: [] }]),
+    );
     const cylinder = run({
       command: 'cylinder',
       values: { h: '2', r1: '1', r2: '1', sides: '10', anchor: 'Center, Center, Center' },
@@ -172,7 +176,9 @@ describe('SolidScript generator blocks', () => {
       { sides: 10 },
       new THREE.Box3(new THREE.Vector3(-1, -1, -1), new THREE.Vector3(1, 1, 1)),
     );
-    expect(bounds(cylinder.shapes)).toEqual(bounds([{ kind: 'solid', label: '', points: kindCylinder[0]!.vertices }]));
+    expect(bounds(cylinder.shapes)).toEqual(
+      bounds([{ kind: 'solid', label: '', points: kindCylinder[0]!.vertices, faces: [] }]),
+    );
     expect(bounds(cylinder.shapes)[1]).toBe(-1);
     const cone = run({ command: 'cylinder', values: { h: '2', r1: '0.5', r2: '1', anchor: 'Center, Bottom, Center' } });
     const points = solids(cone.shapes).flat();
@@ -181,4 +187,74 @@ describe('SolidScript generator blocks', () => {
     expect(radiusAt(0)).toBeCloseTo(0.5, 5);
     expect(radiusAt(2)).toBeCloseTo(1, 5);
   });
+
+  it.each<[string, SolidScriptLine, string, Record<string, unknown>]>([
+    ['Sphere', { command: 'sphere', values: { anchor: 'Left, Bottom, Back' } }, 'sphere', { sides: 16, rings: 8 }],
+    ['Cylinder', { command: 'cylinder', values: { anchor: 'Left, Bottom, Back' } }, 'cylinder', { sides: 16 }],
+    [
+      'Cone',
+      { command: 'cylinder', values: { r2: '0.5', anchor: 'Left, Bottom, Back' } },
+      'cone',
+      { sides: 16, topRadius: 0.5 },
+    ],
+    ['Arch', { command: 'arch', values: { size: '2, 2, 2', anchor: 'Left, Bottom, Back' } }, 'arch', {}],
+    ['Torus', { command: 'torus', values: { size: '2, 2, 2', anchor: 'Left, Bottom, Back' } }, 'torus', {}],
+  ])('keeps the texture mapping the generator gives every face of a %s', (_, line, kind, parameters) => {
+    const result = run(line);
+    expect(result.error).toBeNull();
+    const leaves = result.shapes.flatMap(solidScriptShapeLeavesPositive);
+    const height = kind === 'cylinder' || kind === 'cone' ? 1 : 2;
+    const defaults = kind === 'arch' || kind === 'torus' ? generatorDefaults(kind) : parameters;
+    const pieces = solidScriptGeneratorPieces(kind, defaults, { size: [2, height, 2], min: [0, 0, 0] });
+    expect(leaves).toHaveLength(pieces.length);
+    leaves.forEach((leaf, index) => {
+      expect(leaf.kind === 'solid' && leaf.faceUvs ? uvKeys(leaf.faceUvs) : []).toEqual(uvKeys(pieces[index]!.faceUvs));
+    });
+  });
+
+  it('turns a cone wider at the top over, its texture mapping with it', () => {
+    const result = run({ command: 'cylinder', values: { r1: '0.5', r2: '1', anchor: 'Left, Bottom, Back' } });
+    const [leaf] = result.shapes.flatMap(solidScriptShapeLeavesPositive);
+    const piece = solidScriptGeneratorPieces(
+      'cone',
+      { sides: 16, topRadius: 0.5 },
+      { size: [2, 1, 2], min: [0, 0, 0] },
+    )[0]!;
+    const over = new THREE.Matrix4().makeRotationX(Math.PI).setPosition(0, 1, 2);
+    expect(leaf?.kind === 'solid' && leaf.faceUvs ? uvKeys(leaf.faceUvs) : []).toEqual(
+      uvKeys(
+        piece.faceUvs.map((face) => ({
+          point: face.point.clone().applyMatrix4(over),
+          normal: face.normal.clone().transformDirection(over),
+          uv: face.uv.multiplyMatrix4(over.clone().invert()),
+        })),
+      ),
+    );
+  });
 });
+
+/**
+ * Generator parameters at their defaults, as a block with no fields sends them.
+ *
+ * @param id Generator kind.
+ * @returns Parameters.
+ */
+function generatorDefaults(id: string): Record<string, unknown> {
+  return Object.fromEntries(generator(id).fields.map((field) => [field.key, field.default]));
+}
+
+/**
+ * Rounded, sorted keys of texture mappings: where each face is, how it looks
+ * and the U and V rows of its mapping.
+ *
+ * @param faces Mappings.
+ * @returns Keys.
+ */
+function uvKeys(faces: readonly SolidScriptFaceUv[]): string[] {
+  const round = (values: number[]) => values.map((value) => Math.round(value * 1e5) / 1e5 + 0).join(',');
+  return faces
+    .map((face) =>
+      [face.point.toArray(), face.normal.toArray(), face.uv.u.toArray(), face.uv.v.toArray()].map(round).join(' '),
+    )
+    .sort();
+}

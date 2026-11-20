@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { solidHullBrushFromPoints } from '@/solid/algorithm/surface/solid_hull_brush.js';
-import { SOLID_SCRIPT_GEOMETRY_EPSILON, solidScriptGeometryClip } from './solid_script_geometry.js';
+import { solidScriptBodySolid } from './solid_script_body.js';
+import { solidScriptBodyClip } from './solid_script_body_clip.js';
+import { SOLID_SCRIPT_GEOMETRY_EPSILON } from './solid_script_geometry.js';
 import type { SolidScriptGeometryLeaf } from './solid_script_geometry.js';
 import {
   solidScriptMeshChecked,
@@ -86,9 +87,9 @@ function solidScriptClipSolid(
   const fate = solidScriptClipFate(solid.points, plane);
   if (fate === 'keep') return solid;
   if (fate === 'gone') throw new Error(solidScriptClipGone(label, solid.label, 'brush'));
-  const points = solidScriptGeometryClip(solid.points, plane.normal, plane.constant, label);
-  if (!solidHullBrushFromPoints(points)) throw new Error(solidScriptClipFlat(label, solid.label, 'brush'));
-  return { ...solid, points, clippedBy: plane };
+  const body = solidScriptBodyClip(solid, plane.normal, plane.constant);
+  if (!solidScriptBodySolid(body)) throw new Error(solidScriptClipFlat(label, solid.label, 'brush'));
+  return { ...solid, points: body.points, faces: body.faces, clippedBy: plane };
 }
 
 /**

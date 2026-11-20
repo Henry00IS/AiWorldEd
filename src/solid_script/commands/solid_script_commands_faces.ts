@@ -665,7 +665,11 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
             throw new Error('Extrude Face cannot push into a brush; use a Subtractive brush to cut into it');
           for (const face of faces)
             added.push({
-              slab: { kind: 'solid', label: 'Slab', points: solidScriptGeometryFacePrism(face, distance, lift) },
+              slab: {
+                kind: 'solid',
+                label: 'Slab',
+                ...solidScriptGeometryFacePrism(face, distance, lift, 'Extrude Face'),
+              },
               normal: face.normal,
             });
           continue;
@@ -804,8 +808,8 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
           (edge) => !edge.faces.some((face) => face?.tags.includes(SOLID_SCRIPT_FACE_BEVEL_TAG)),
         );
         if (edges.length === 0) continue;
-        const { points, cuts } = solidScriptGeometryBevel(leaf, edges, distance);
-        const bevelled: SolidScriptShapeSolid = { ...leaf, points };
+        const { body, cuts } = solidScriptGeometryBevel(leaf, edges, distance);
+        const bevelled: SolidScriptShapeSolid = { ...leaf, ...body };
         const faces = solidScriptGeometryFaces([bevelled]).filter((face) =>
           cuts.some(
             (cut) =>

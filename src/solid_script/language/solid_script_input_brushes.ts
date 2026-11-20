@@ -1,7 +1,8 @@
 import * as THREE from 'three';
-import { SOLID_SCRIPT_GEOMETRY_EPSILON } from './solid_script_geometry.js';
+import { solidScriptBodyHull, type SolidScriptBody } from './solid_script_body.js';
 import type { SolidScriptGeometryLeaf } from './solid_script_geometry.js';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
+import { solidScriptInputBrushName, type SolidScriptUseSolid } from './solid_script_system.js';
 import type { SolidScriptReceived, SolidScriptShape, SolidScriptShapeSolid } from './solid_script_shape.js';
 import {
   solidScriptUvPolicyFromRun,
@@ -26,11 +27,11 @@ export function solidScriptInputBrushesBuild(run: SolidScriptBlockRun): SolidScr
   const use = run.use();
   const latest = run.receivedLatest();
   const modes = run.receivedModes();
-  const built = use.solids.flatMap((corners, index) =>
+  const built = use.solids.flatMap((solid, index) =>
     solidScriptInputBrushesOne(
       run,
       latest[index],
-      corners,
+      solid,
       index,
       matrix,
       turn,
@@ -49,7 +50,7 @@ export function solidScriptInputBrushesBuild(run: SolidScriptBlockRun): SolidScr
  *
  * @param run Running line.
  * @param leaf Latest received leaf at this index, when it exists.
- * @param corners Corners as the modifier passed them in.
+ * @param solid Brush as the modifier passed it in.
  * @param index Brush index.
  * @param matrix Script-space move.
  * @param turn Normal matrix of that move.
@@ -60,7 +61,7 @@ export function solidScriptInputBrushesBuild(run: SolidScriptBlockRun): SolidScr
 function solidScriptInputBrushesOne(
   run: SolidScriptBlockRun,
   leaf: SolidScriptGeometryLeaf | undefined,
-  corners: readonly (readonly [number, number, number])[],
+  solid: SolidScriptUseSolid,
   index: number,
   matrix: THREE.Matrix4,
   turn: THREE.Matrix3,
@@ -81,7 +82,7 @@ function solidScriptInputBrushesOne(
   }));
   const received = solidScriptInputBrushesReceived(run, index, matrix, textures, leaf);
   return run
-    .solid(solidScriptInputBrushesPoints(leaf, corners))
+    .solid(solidScriptInputBrushesBody(leaf, solid, solidScriptInputBrushName(index)))
     .map((shape) => solidScriptInputBrushesSolid(shape, faceTextures, received, mode));
 }
 
@@ -130,38 +131,25 @@ function solidScriptInputBrushesTextures(run: SolidScriptBlockRun): 'copied' | '
 }
 
 /**
- * Corners of one received brush, after writes, or the corners as they arrived.
+ * Corners and faces of one received brush, after writes, or as it arrived. A
+ * brush a write turned into a mesh is wrapped again.
  *
  * @param leaf Latest received leaf at this index, when it exists.
- * @param corners Corners as the modifier passed them in.
- * @returns Points in script space.
+ * @param solid Brush as the modifier passed it in.
+ * @param label Brush name, for the message.
+ * @returns Body in script space.
  */
-function solidScriptInputBrushesPoints(
+function solidScriptInputBrushesBody(
   leaf: SolidScriptGeometryLeaf | undefined,
-  corners: readonly (readonly [number, number, number])[],
-): THREE.Vector3[] {
-  if (leaf && solidScriptInputBrushesChanged(leaf, corners)) return leaf.points.map((point) => point.clone());
-  return corners.map(([x, y, z]) => new THREE.Vector3(x, y, z));
-}
-
-/**
- * Tells whether a received leaf was rewritten, such as by Clip.
- *
- * @param leaf Latest received leaf at this index, when it exists.
- * @param corners Corners as the modifier passed them in.
- * @returns True when the points no longer match.
- */
-function solidScriptInputBrushesChanged(
-  leaf: SolidScriptGeometryLeaf | undefined,
-  corners: readonly (readonly [number, number, number])[],
-): boolean {
-  if (!leaf) return false;
-  if (leaf.kind !== 'solid' || leaf.points.length !== corners.length) return true;
-  const epsilon = SOLID_SCRIPT_GEOMETRY_EPSILON * SOLID_SCRIPT_GEOMETRY_EPSILON;
-  return leaf.points.some((point, index) => {
-    const [x, y, z] = corners[index] ?? [0, 0, 0];
-    return point.distanceToSquared(new THREE.Vector3(x, y, z)) > epsilon;
-  });
+  solid: SolidScriptUseSolid,
+  label: string,
+): SolidScriptBody {
+  if (leaf?.kind === 'mesh') return solidScriptBodyHull(leaf.points, label);
+  if (leaf) return { points: leaf.points.map((point) => point.clone()), faces: leaf.faces.map((loop) => [...loop]) };
+  return {
+    points: solid.corners.map(([x, y, z]) => new THREE.Vector3(x, y, z)),
+    faces: solid.faces.map((loop) => [...loop]),
+  };
 }
 
 /**

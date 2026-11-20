@@ -232,14 +232,18 @@ describe('SolidScript faces', () => {
     };
     const fingerprints = leaves
       .map((leaf) => {
-        const raw = JSON.stringify(leaf.kind === 'solid' ? (leaf.faceUvs ?? null) : null);
-        const numbers: number[] = [];
-        uvNumbers(raw === 'null' ? null : JSON.parse(raw), numbers);
-        return numbers.map((value) => value.toFixed(6)).join(',');
+        const records = leaf.kind === 'solid' ? (leaf.faceUvs ?? null) : null;
+        if (!records) return 'null';
+        const faces = records.map((record) => {
+          const numbers: number[] = [];
+          uvNumbers(JSON.parse(JSON.stringify(record)), numbers);
+          return numbers.map((value) => value.toFixed(6)).join(',');
+        });
+        return faces.sort().join(';');
       })
       .sort();
     expect(createHash('sha256').update(fingerprints.join('\n')).digest('hex')).toBe(
-      '9a25b3eee2fdd2b1dc1494b5e301e58dfd08285a046b591234d4d09eb8e1702d',
+      '2500d2ee384024112d96cfcb067f95377d31abe385546c31010423989ee4dd11',
     );
   });
 

@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import type { SolidScriptBlockArguments } from './solid_script_block_arguments.js';
 import { solidScriptPolygonConvexPieces } from './solid_script_polygon.js';
 import { SOLID_SCRIPT_AXES_FLAT } from './solid_script_axes.js';
+import { solidScriptBodyPrism } from './solid_script_body.js';
 import {
   solidScriptShapeJoin,
   solidScriptShapeMapLeaves,
@@ -34,10 +35,11 @@ export function solidScriptExtrude(
     const pieces = solidScriptPolygonConvexPieces(leaf.points).map((piece): SolidScriptShapeSolid => ({
       kind: 'solid',
       label: leaf.label,
-      points: piece.flatMap(([x, y]) => [
-        new THREE.Vector3(x, y, base).applyMatrix4(lift),
-        new THREE.Vector3(x * scaleX, y * scaleY, base + height).applyMatrix4(lift),
-      ]),
+      ...solidScriptBodyPrism(
+        piece.map(([x, y]) => new THREE.Vector3(x, y, base).applyMatrix4(lift)),
+        piece.map(([x, y]) => new THREE.Vector3(x * scaleX, y * scaleY, base + height).applyMatrix4(lift)),
+        leaf.label,
+      ),
     }));
     return solidScriptShapeJoin(pieces, leaf.label) as SolidScriptShape;
   });

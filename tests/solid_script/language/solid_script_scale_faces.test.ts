@@ -94,6 +94,20 @@ describe('SolidScript Scale Faces', () => {
     expect(mesh && mesh.points.some((point) => Math.abs(point.y - 1) < 1e-6 && Math.abs(point.x) === 0.5)).toBe(true);
   });
 
+  it('keeps the brush faces when the scaled faces still fit them, and rebuilds them when a face closes up', () => {
+    const faces = (...lines: SolidScriptLine[]) => {
+      const result = run(...lines);
+      expect(result.error).toBeNull();
+      const [leaf] = result.shapes.flatMap(solidScriptShapeLeavesPositive);
+      return leaf?.kind === 'solid' ? leaf.faces : [];
+    };
+    const top = { command: 'select_faces', values: { which: 'Facing Up' } };
+    expect(faces(CUBE, SELECT_BRUSHES, top, { command: 'scale_faces', values: { factor: '0.5' } })).toEqual(
+      faces(CUBE),
+    );
+    expect(faces(CUBE, SELECT_BRUSHES, top, { command: 'scale_faces', values: { factor: '0' } })).toHaveLength(5);
+  });
+
   it('stops when there are no faces', () => {
     const result = run({ command: 'scale_faces', values: { factor: '0.5' } });
     expect(result.error?.message ?? '').toMatch(/Select Faces/);

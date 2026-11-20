@@ -3,12 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 import {
-  solidScriptMeshFromSolid,
   solidScriptMeshLoopNormal,
   solidScriptMeshLoopCenter,
   solidScriptShapeMeshes,
   type SolidScriptShapeMesh,
 } from '@/solid_script/language/solid_script_mesh.js';
+import { solidScriptBodyHull } from '@/solid_script/language/solid_script_body.js';
+import { solidScriptGeometryMesh } from '@/solid_script/language/solid_script_geometry.js';
 
 const END: SolidScriptLine = { command: 'end' };
 
@@ -319,15 +320,19 @@ describe('SolidScript meshes', () => {
     expect(outwards(mesh)).toBe(true);
     expect(
       outwards(
-        solidScriptMeshFromSolid(
-          [
-            new THREE.Vector3(0, 0, 0),
-            new THREE.Vector3(1, 0, 0),
-            new THREE.Vector3(0, 1, 0),
-            new THREE.Vector3(0, 0, 1),
-          ],
-          'tetra',
-        ),
+        solidScriptGeometryMesh({
+          kind: 'solid',
+          label: 'tetra',
+          ...solidScriptBodyHull(
+            [
+              new THREE.Vector3(0, 0, 0),
+              new THREE.Vector3(1, 0, 0),
+              new THREE.Vector3(0, 1, 0),
+              new THREE.Vector3(0, 0, 1),
+            ],
+            'tetra',
+          ),
+        }),
       ),
     ).toBe(true);
   });

@@ -5,6 +5,7 @@ import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/
 import type { SolidScriptUseFaceTexture, SolidScriptUseFacts } from '@/solid_script/language/solid_script_system.js';
 import { solidScriptShapeLeavesPositive } from '@/solid_script/language/solid_script_shape.js';
 import { SOLID_SCRIPT_EXAMPLES } from '@/solid_script/examples/solid_script_examples.js';
+import { solidScriptUseSolidOf } from './solid_script_use_solid.js';
 
 /** Corners of a box of a size, centered on a point. */
 function box(size: [number, number, number], at: [number, number, number] = [0, 0, 0]) {
@@ -17,7 +18,11 @@ function box(size: [number, number, number], at: [number, number, number] = [0, 
 }
 
 /** A modifier receiving a 2 m cube and a small box beside it. */
-const USE: SolidScriptUseFacts = { usage: 'Modifier', solids: [box([2, 2, 2]), box([1, 1, 1], [5, 0, 0])], faces: 12 };
+const USE: SolidScriptUseFacts = {
+  usage: 'Modifier',
+  solids: [solidScriptUseSolidOf(box([2, 2, 2])), solidScriptUseSolidOf(box([1, 1, 1], [5, 0, 0]))],
+  faces: 12,
+};
 
 const line = (command: string, values: Record<string, string> = {}): SolidScriptLine => ({ command, values });
 
@@ -95,7 +100,7 @@ describe('SolidScript input brushes', () => {
   it('cuts received brushes like any brush and keeps their face textures, moved along', () => {
     const use: SolidScriptUseFacts = {
       usage: 'Modifier',
-      solids: [box([2, 2, 2])],
+      solids: [solidScriptUseSolidOf(box([2, 2, 2]))],
       faces: 6,
       textures: [textured([2, 2, 2])],
     };
@@ -129,7 +134,7 @@ describe('SolidScript input brushes', () => {
     const example = SOLID_SCRIPT_EXAMPLES.find((entry) => entry.id === 'pushOutFaces')!;
     expect(example.uses).toEqual({ generator: false, modifier: true });
     expect(example.lines.some((entry) => entry.command === 'input_brushes')).toBe(false);
-    const cube: SolidScriptUseFacts = { usage: 'Modifier', solids: [box([2, 2, 2])], faces: 6 };
+    const cube: SolidScriptUseFacts = { usage: 'Modifier', solids: [solidScriptUseSolidOf(box([2, 2, 2]))], faces: 6 };
     const result = run([...example.lines], cube);
     expect(result.error?.message ?? null).toBeNull();
     const slabs = result.shapes.flatMap(solidScriptShapeLeavesPositive);
@@ -145,7 +150,7 @@ describe('SolidScript input brushes', () => {
   });
 
   it('outputs the clipped received brush when Clip runs on $Input.Brushes first', () => {
-    const cube: SolidScriptUseFacts = { usage: 'Modifier', solids: [box([2, 2, 2])], faces: 6 };
+    const cube: SolidScriptUseFacts = { usage: 'Modifier', solids: [solidScriptUseSolidOf(box([2, 2, 2]))], faces: 6 };
     const result = run(
       [line('clip', { through: '0, 0, 0', normal: '0, 1, 0', of: '[$Input.Brushes]' }), line('input_brushes')],
       cube,

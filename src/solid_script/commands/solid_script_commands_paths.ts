@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { solidScriptBodyPrism } from '@/solid_script/language/solid_script_body.js';
 import { SolidScriptCommand } from './solid_script_command.js';
 import {
   solidScriptListingOptions,
@@ -522,7 +523,7 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
       if (fields.flag('mesh')) return run.mesh(solidScriptPathMesh(rings, closed, 'Curve To Mesh'));
       return rings.slice(1).flatMap((ring, index) => {
         const before = rings[index];
-        return before ? run.solid([...before, ...ring]) : [];
+        return before ? run.solid(solidScriptBodyPrism(before, ring, 'Curve To Mesh')) : [];
       });
     },
   }),

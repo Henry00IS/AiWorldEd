@@ -4,6 +4,7 @@ import { solidScriptProgramRun } from '@/solid_script/language/solid_script_prog
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptShapeLeavesPositive } from '@/solid_script/language/solid_script_shape.js';
 import { solidScriptShapeMeshes } from '@/solid_script/language/solid_script_mesh.js';
+import { solidScriptBodyConvex } from '@/solid_script/language/solid_script_body.js';
 
 const END: SolidScriptLine = { command: 'end' };
 const CUBE: SolidScriptLine = { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } };
@@ -77,6 +78,31 @@ describe('SolidScript Set Vertex.Position', () => {
     const points = mesh?.points.map(xyz) ?? [];
     expect(points).toHaveLength(8);
     expect(new Set(points.map((point) => point.join(','))).size).toBe(1);
+  });
+
+  it('keeps the faces of a brush whose corners still fit them, and rebuilds them only when a face bends', () => {
+    const solid = (result: ReturnType<typeof run>) => {
+      expect(result.error).toBeNull();
+      const [leaf] = result.shapes.flatMap(solidScriptShapeLeavesPositive);
+      if (leaf?.kind !== 'solid') throw new Error('expected a solid');
+      return leaf;
+    };
+    const cube = solid(run(CUBE));
+    const write = (value: string) =>
+      solid(
+        run(CUBE, SELECT_BRUSHES, SELECT_ALL_VERTICES, {
+          command: 'variable',
+          values: { name: '$Selected.Vertices.Positions.Y', value },
+        }),
+      );
+    const raised = write('[=[$Y] * 2 + 1]');
+    expect(raised.faces).toEqual(cube.faces);
+    const bent = write('[=[$Y] + ([$X] + 1) * ([$Z] + 1) / 8]');
+    expect(bent.faces).toHaveLength(8);
+    expect(bent.points.map(xyz)).toEqual(
+      cube.points.map((point) => xyz(point.clone().setY(point.y + ((point.x + 1) * (point.z + 1)) / 8))),
+    );
+    expect(solidScriptBodyConvex(bent)).toBe(true);
   });
 
   it('stops when the corners would make a brush that is no longer a convex brush', () => {

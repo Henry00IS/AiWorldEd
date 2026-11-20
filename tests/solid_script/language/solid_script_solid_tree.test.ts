@@ -8,6 +8,10 @@ import {
 import type { SolidTreeNode } from '@/solid/commands/tree/solid_tree_node.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
+import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
+import { SOLID_SCRIPT_EXAMPLES } from '@/solid_script/examples/solid_script_examples.js';
+import { solidScriptExampleRunOptions } from '../examples/solid_script_example_shot.js';
+import type { SolidScriptShape, SolidScriptShapeSolid } from '@/solid_script/language/solid_script_shape.js';
 
 const OPTIONS: SolidScriptSolidTreeOptions = {
   offset: new THREE.Vector3(),
@@ -164,4 +168,69 @@ describe('solidScriptSolidTreeBuild', () => {
       { 'group:0': ['cube:0'] },
     ]);
   });
+
+  it.each(SOLID_SCRIPT_EXAMPLES.map((example) => [example.id, example] as const))(
+    'places the %s brushes with the very corners and faces the run built',
+    (_, example) => {
+      const result = solidScriptProgramRun(
+        solidScriptDocumentCreate(example.lines),
+        solidScriptExampleRunOptions(example),
+      );
+      expect(result.error).toBeNull();
+      const built = solids(result.shapes).map((solid) =>
+        faceKeys(solid.faces.map((loop) => loop.map((index) => solid.points[index]!))),
+      );
+      const placed = brushes(solidScriptSolidTreeBuild(result.shapes, OPTIONS)).map((brush) =>
+        faceKeys(
+          brush.brush.faces.map((face) => brush.brush.getFaceVertices(face).map((point) => point.add(brush.center))),
+        ),
+      );
+      expect(placed).toEqual(built);
+    },
+  );
 });
+
+/**
+ * Every solid of shapes in scene order, the way placing them visits them.
+ *
+ * @param shapes Shapes.
+ * @returns Solids.
+ */
+function solids(shapes: readonly SolidScriptShape[]): SolidScriptShapeSolid[] {
+  return shapes.flatMap((shape) => {
+    if (shape.kind === 'solid') return [shape];
+    return 'children' in shape ? solids(shape.children) : [];
+  });
+}
+
+/**
+ * Every brush of placed nodes in order.
+ *
+ * @param nodes Nodes.
+ * @returns Brushes.
+ */
+function brushes(nodes: readonly SolidTreeNode[]): Extract<SolidTreeNode, { kind: 'brush' }>[] {
+  return nodes.flatMap((node) => (node.kind === 'brush' ? [node] : brushes(node.children)));
+}
+
+/**
+ * Corner keys of every face, in face order, each face from its first corner as
+ * written, so equal keys mean equal corners, faces and windings.
+ *
+ * @param faces Faces as corner loops.
+ * @returns Keys.
+ */
+function faceKeys(faces: readonly (readonly THREE.Vector3[])[]): string[] {
+  const key = (point: THREE.Vector3) =>
+    point
+      .toArray()
+      .map((value) => Math.round(value * 1e6) / 1e6 + 0)
+      .join(',');
+  return faces
+    .map((loop) => {
+      const keys = loop.map(key);
+      const start = keys.indexOf([...keys].sort()[0]!);
+      return [...keys.slice(start), ...keys.slice(0, start)].join('|');
+    })
+    .sort();
+}

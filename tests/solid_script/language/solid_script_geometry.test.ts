@@ -7,11 +7,12 @@ import {
   solidScriptGeometryFaces,
   solidScriptGeometryInset,
   solidScriptGeometryMerge,
+  solidScriptGeometryMesh,
   solidScriptGeometryPick,
   solidScriptGeometryTags,
   solidScriptGeometryVertices,
 } from '@/solid_script/language/solid_script_geometry.js';
-import { solidScriptMeshFromSolid } from '@/solid_script/language/solid_script_mesh.js';
+import { solidScriptBodyBox, solidScriptBodyConvex } from '@/solid_script/language/solid_script_body.js';
 import type { SolidScriptShapeSolid } from '@/solid_script/language/solid_script_shape.js';
 
 /**
@@ -24,10 +25,8 @@ import type { SolidScriptShapeSolid } from '@/solid_script/language/solid_script
  * @returns Solid.
  */
 function box(x: number, y: number, z: number, role?: string): SolidScriptShapeSolid {
-  const points: THREE.Vector3[] = [];
-  for (const a of [-x / 2, x / 2])
-    for (const b of [-y / 2, y / 2]) for (const c of [-z / 2, z / 2]) points.push(new THREE.Vector3(a, b, c));
-  return { kind: 'solid', label: 'Box', points, ...(role ? { role } : {}) };
+  const half = new THREE.Vector3(x / 2, y / 2, z / 2);
+  return { kind: 'solid', label: 'Box', ...solidScriptBodyBox(half.clone().negate(), half), ...(role ? { role } : {}) };
 }
 
 describe('SolidScript geometry lookups', () => {
@@ -76,15 +75,16 @@ describe('SolidScript geometry lookups', () => {
   it('bevels the edges of a box into a convex solid with flat cuts', () => {
     const solid = box(2, 2, 2);
     const topEdges = solidScriptGeometryEdges([solid]).filter((edge) => edge.middle.z > 0.9);
-    const { points: bevelled } = solidScriptGeometryBevel(solid, topEdges, 0.25);
-    const mesh = solidScriptMeshFromSolid(bevelled, 'Box');
-    expect(mesh.faces).toHaveLength(10);
+    const { body } = solidScriptGeometryBevel(solid, topEdges, 0.25);
+    const bevelled = body.points;
+    expect(body.faces).toHaveLength(10);
+    expect(solidScriptBodyConvex(body)).toBe(true);
     expect(Math.max(...bevelled.map((point) => point.x))).toBeCloseTo(1);
     expect(bevelled.some((point) => point.z > 0.99 && Math.abs(point.x) > 0.76)).toBe(false);
   });
 
   it('insets mesh faces and merges close points', () => {
-    const mesh = solidScriptMeshFromSolid(box(2, 2, 2).points, 'Box');
+    const mesh = solidScriptGeometryMesh(box(2, 2, 2));
     const top = mesh.faces.findIndex((loop) => loop.every((corner) => mesh.points[corner]!.z > 0.9));
     const inset = solidScriptGeometryInset(mesh, new Set([top]), 0.25);
     expect(inset.faces).toHaveLength(6 - 1 + 5);

@@ -1,9 +1,14 @@
 import * as THREE from 'three';
 import type { SolidTreeBrush, SolidTreeNode } from '@/solid/commands/tree/solid_tree_node.js';
-import { solidHullBrushFromPoints } from '@/solid/algorithm/surface/solid_hull_brush.js';
+import { solidScriptBodyBrush, solidScriptBodyFacesMoved } from './solid_script_body.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { solidScriptGroupModeOperation, solidScriptModeOperation } from './solid_script_mode.js';
-import type { SolidScriptFaceTexture, SolidScriptFaceUv, SolidScriptShape } from './solid_script_shape.js';
+import type {
+  SolidScriptFaceTexture,
+  SolidScriptFaceUv,
+  SolidScriptShape,
+  SolidScriptShapeSolid,
+} from './solid_script_shape.js';
 import type { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
 
 /** How evaluated script shapes are placed into a solid model. */
@@ -53,7 +58,7 @@ function solidScriptSolidTreeNodes(
   if (shape.kind === 'polygon') throw new Error('2D shapes must be inside linear_extrude()');
   if (shape.kind === 'solid') {
     const operation = solidScriptModeOperation(shape.mode) ?? role;
-    const brush = solidScriptSolidTreeBrush(shape.points, shape.label, operation, options);
+    const brush = solidScriptSolidTreeBrush(shape, operation, options);
     if (shape.texture) brush.texture = shape.texture;
     if (shape.faceTextures) brush.faceTextures = solidScriptSolidTreeFaceTextures(brush, shape.faceTextures, options);
     if (shape.boxUvSize !== undefined) brush.boxUvSize = shape.boxUvSize;
@@ -75,21 +80,20 @@ function solidScriptSolidTreeNodes(
 }
 
 /**
- * Builds one convex brush from script points.
+ * Builds one convex brush from a script solid's own corners and faces, without
+ * a hull.
  *
- * @param source Points in script space.
- * @param label Shape label.
+ * @param solid Solid in script space.
  * @param operation Brush operation.
  * @param options Placement options.
  * @returns Brush node.
  */
 function solidScriptSolidTreeBrush(
-  source: readonly THREE.Vector3[],
-  label: string,
+  solid: SolidScriptShapeSolid,
   operation: SolidOperation,
   options: SolidScriptSolidTreeOptions,
 ): SolidTreeBrush {
-  const points = source.map((point) => solidScriptSolidTreePoint(point, options));
+  const points = solid.points.map((point) => solidScriptSolidTreePoint(point, options));
   const center = new THREE.Box3().setFromPoints(points).getCenter(new THREE.Vector3());
   center.set(
     ...(center
@@ -100,9 +104,9 @@ function solidScriptSolidTreeBrush(
       number,
     ]),
   );
-  const brush = solidHullBrushFromPoints(points.map((point) => point.sub(center)));
-  if (!brush) throw new Error(`${label} is flat or degenerate; give every solid a non-zero size on all three axes`);
-  return { kind: 'brush', name: solidScriptSolidTreeName(label, options), operation, brush, center };
+  const faces = solidScriptBodyFacesMoved(solid.faces, options.worldToParent);
+  const brush = solidScriptBodyBrush({ points: points.map((point) => point.sub(center)), faces }, solid.label);
+  return { kind: 'brush', name: solidScriptSolidTreeName(solid.label, options), operation, brush, center };
 }
 
 /** Farthest a textured face's point may be from a brush face, in metres. */

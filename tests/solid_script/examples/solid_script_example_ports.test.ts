@@ -13,6 +13,7 @@ import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { solidHullBrushFromPoints } from '@/solid/algorithm/surface/solid_hull_brush.js';
 import { SOLID_SCRIPT_EXAMPLES, solidScriptExamplesFind } from '@/solid_script/examples/solid_script_examples.js';
 import { solidScriptBuiltinFind } from '@/solid_script/language/solid_script_expression_compile.js';
+import { solidScriptUseSolidOf } from '../language/solid_script_use_solid.js';
 
 /** One parameter set a port is checked with. */
 interface PortCase {
@@ -237,7 +238,7 @@ describe('SolidScript ports of the generators', () => {
 describe('SolidScript examples', () => {
   it('runs every example without a mistake, a modifier-only one on a received cube', () => {
     const corners = [-1, 1].flatMap((x) => [-1, 1].flatMap((y) => [-1, 1].map((z) => [x, y, z] as const)));
-    const received = { use: { usage: 'Modifier' as const, solids: [corners], faces: 6 } };
+    const received = { use: { usage: 'Modifier' as const, solids: [solidScriptUseSolidOf(corners)], faces: 6 } };
     for (const example of SOLID_SCRIPT_EXAMPLES) {
       const options = example.uses?.generator === false ? received : {};
       const result = solidScriptProgramRun(solidScriptDocumentCreate(example.lines), options);

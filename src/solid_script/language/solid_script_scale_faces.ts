@@ -1,11 +1,10 @@
 import * as THREE from 'three';
-import { solidScriptSolidValidate } from './solid_script_solid_validate.js';
+import { solidScriptSolidEdited } from './solid_script_solid_validate.js';
 import {
   SOLID_SCRIPT_GEOMETRY_EPSILON,
   type SolidScriptFaceFacts,
   type SolidScriptGeometryLeaf,
 } from '@/solid_script/language/solid_script_geometry.js';
-import type { SolidScriptShapeSolid } from '@/solid_script/language/solid_script_shape.js';
 
 /**
  * Scales the faces of a brush or mesh about each face's center. A brush stays a
@@ -25,7 +24,7 @@ export function solidScriptScaleFaces(
 ): SolidScriptGeometryLeaf {
   if (!Number.isFinite(factor)) throw new Error(`${label} needs a Factor, such as 1 or 0.5, not ${factor}`);
   const points = leaf.points.map((point) => solidScriptScaleFacePoint(point, faces, factor));
-  return leaf.kind === 'solid' ? solidScriptScaleFaceSolid(leaf, points, label) : { ...leaf, points };
+  return leaf.kind === 'solid' ? solidScriptSolidEdited(leaf, points, label) : { ...leaf, points };
 }
 
 /**
@@ -48,22 +47,4 @@ function solidScriptScaleFacePoint(
   });
   if (moved.length === 0) return point.clone();
   return moved.reduce((sum, next) => sum.add(next), new THREE.Vector3()).divideScalar(moved.length);
-}
-
-/**
- * Keeps a scaled brush as a convex solid, or stops when it is no longer a
- * convex brush.
- *
- * @param leaf Brush.
- * @param points New corners.
- * @param label Command, for messages.
- * @returns Updated brush.
- */
-function solidScriptScaleFaceSolid(
-  leaf: SolidScriptShapeSolid,
-  points: THREE.Vector3[],
-  label: string,
-): SolidScriptShapeSolid {
-  solidScriptSolidValidate(points, label);
-  return { ...leaf, points };
 }

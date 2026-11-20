@@ -12,11 +12,11 @@ import {
 } from './solid_script_command_parameters.js';
 import {
   solidScriptCircleOutline,
-  solidScriptCubePoints,
-  solidScriptCylinderPoints,
+  solidScriptCubeBody,
+  solidScriptCylinderPiece,
   solidScriptPolygonOutline,
   solidScriptPolyhedronPoints,
-  solidScriptSpherePoints,
+  solidScriptSpherePiece,
   solidScriptSquarePoints,
 } from '@/solid_script/language/solid_script_primitives.js';
 
@@ -49,7 +49,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
         read.changed('mode') && ['Mode ', read.value('mode')],
       ]),
     ],
-    execute: (run) => run.solid(solidScriptCubePoints(run.fields())),
+    execute: (run) => run.solid(solidScriptCubeBody(run.fields())),
   }),
   new SolidScriptCommand({
     id: 'sphere',
@@ -83,7 +83,10 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
         read.changed('mode') && ['Mode ', read.value('mode')],
       ]),
     ],
-    execute: (run) => run.solid(solidScriptSpherePoints(run.fields())),
+    execute: (run) => {
+      const piece = solidScriptSpherePiece(run.fields());
+      return run.solid(piece.body, piece.faceUvs);
+    },
   }),
   new SolidScriptCommand({
     id: 'cylinder',
@@ -125,7 +128,10 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
         read.changed('mode') && ['Mode ', read.value('mode')],
       ]),
     ],
-    execute: (run) => run.solid(solidScriptCylinderPoints(run.fields())),
+    execute: (run) => {
+      const piece = solidScriptCylinderPiece(run.fields());
+      return run.solid(piece.body, piece.faceUvs);
+    },
   }),
   new SolidScriptCommand({
     id: 'polyhedron',
@@ -157,7 +163,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
         read.changed('mode') && ['Mode ', read.value('mode')],
       ]),
     ],
-    execute: (run) => run.solid(solidScriptPolyhedronPoints(run.fields(), run.gathered('points').points)),
+    execute: (run) => run.solidFromPoints(solidScriptPolyhedronPoints(run.fields(), run.gathered('points').points)),
   }),
   new SolidScriptCommand({
     id: 'point',

@@ -13,6 +13,7 @@ import {
   solidScriptDocumentUsesWith,
 } from '@/solid_script/document/solid_script_document.js';
 import { SOLID_SCRIPT_EXAMPLE_PEDESTAL } from '@/solid_script/examples/solid_script_examples_basics.js';
+import { solidScriptBodyFacesMoved } from '@/solid_script/language/solid_script_body.js';
 import { solidScriptBrushModeLabel } from '@/solid_script/language/solid_script_mode.js';
 import type { SolidScriptUseFacts } from '@/solid_script/language/solid_script_system.js';
 import { ModifierStackKindSolidScript, modifierStackSolidScriptFields } from './modifier_stack_kind_solid_script.js';
@@ -116,9 +117,8 @@ export class ModifierStackKindSolidScriptModifier extends ModifierStackKindSolid
     const frame = modifierStackFrame(context.volume, 'volume');
     const toFrame = frame.clone().invert().multiply(context.solidRoot.matrixWorld);
     const brushes = units.flatMap((unit) => unit.brushes);
-    const corners = brushes.map((brush) =>
-      brush.getModelSpaceBrush().vertices.map((vertex) => vertex.clone().applyMatrix4(toFrame)),
-    );
+    const models = brushes.map((brush) => brush.getModelSpaceBrush());
+    const corners = models.map((model) => model.vertices.map((vertex) => vertex.clone().applyMatrix4(toFrame)));
     const box = new THREE.Box3().setFromPoints(corners.flat());
     if (box.isEmpty()) {
       context.report.error = 'The modifier receives no brushes to work on.';
@@ -130,7 +130,13 @@ export class ModifierStackKindSolidScriptModifier extends ModifierStackKindSolid
       usage: 'Modifier',
       mode: modifierStackSolidScriptHostMode(context.volume),
       insertMode: solidScriptBrushModeLabel(this.pieceOperation(parameters)),
-      solids: corners.map((list) => list.map(centred)),
+      solids: models.map((model, index) => ({
+        corners: corners[index]!.map(centred),
+        faces: solidScriptBodyFacesMoved(
+          model.faces.map((face) => model.getFaceVertexIndices(face)),
+          toFrame,
+        ),
+      })),
       modes: brushes.map((brush) => solidScriptBrushModeLabel(brush.operation)),
       faces: brushes.reduce((sum, brush) => sum + brush.brush.faces.length, 0),
       textures: brushes.map((brush) => {

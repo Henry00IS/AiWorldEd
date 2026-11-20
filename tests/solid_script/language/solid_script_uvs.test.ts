@@ -10,6 +10,7 @@ import { solidScriptUvPolicyOf } from '@/solid_script/language/solid_script_uv_p
 import type { SolidScriptUseFacts } from '@/solid_script/language/solid_script_system.js';
 import { solidScriptShapeTransform } from '@/solid_script/language/solid_script_reshape.js';
 import * as THREE from 'three';
+import { solidScriptUseSolidOf } from './solid_script_use_solid.js';
 
 const END: SolidScriptLine = { command: 'end' };
 const SELECT_BRUSHES: SolidScriptLine = { command: 'select_brushes' };
@@ -249,7 +250,7 @@ describe('SolidScript UV commands', () => {
           for (const z of [-1, 1]) corners.push([(x * size) / 2, (y * size) / 2, (z * size) / 2]);
       return corners;
     };
-    const use: SolidScriptUseFacts = { usage: 'Modifier', solids: [box(2)], faces: 6 };
+    const use: SolidScriptUseFacts = { usage: 'Modifier', solids: [solidScriptUseSolidOf(box(2))], faces: 6 };
     const received = solidScriptProgramRun(
       solidScriptDocumentCreate([
         { command: 'input_brushes' },

@@ -8,7 +8,7 @@ import {
 } from './solid_script_polygon.js';
 import { solidScriptFaceTagsTransform, solidScriptMeshTransform } from './solid_script_mesh.js';
 import { solidScriptFaceUvsCarry } from './solid_script_uvs.js';
-import { solidScriptGeometryCacheCarry } from './solid_script_geometry.js';
+import { solidScriptBodyFacesMoved, solidScriptBodyHull, solidScriptBodyPrism } from './solid_script_body.js';
 import {
   solidScriptShapeJoin,
   solidScriptShapeLeavesPositive,
@@ -31,7 +31,11 @@ const SOLID_SCRIPT_ROTATE_SEGMENTS = { min: 3, max: 128 };
  * @returns Moved solid.
  */
 function solidScriptSolidTransform(leaf: SolidScriptShapeSolid, matrix: THREE.Matrix4): SolidScriptShapeSolid {
-  const moved = { ...leaf, points: leaf.points.map((point) => point.clone().applyMatrix4(matrix)) };
+  const moved = {
+    ...leaf,
+    points: leaf.points.map((point) => point.clone().applyMatrix4(matrix)),
+    faces: solidScriptBodyFacesMoved(leaf.faces, matrix),
+  };
   if (leaf.received) moved.received = { ...leaf.received, matrix: matrix.clone().multiply(leaf.received.matrix) };
   if (leaf.faceTags) moved.faceTags = solidScriptFaceTagsTransform(leaf.faceTags, matrix);
   if (leaf.faceTextures) {
@@ -47,7 +51,6 @@ function solidScriptSolidTransform(leaf: SolidScriptShapeSolid, matrix: THREE.Ma
     moved.faceUvs = faceUvs;
     delete moved.boxUvSize;
   }
-  solidScriptGeometryCacheCarry(leaf, moved, matrix);
   return moved;
 }
 
@@ -217,7 +220,7 @@ export function solidScriptMinkowski(
   const pieces = solidScriptShapeLeavesPositive(first).flatMap((leaf): SolidScriptShape[] => {
     if (planar) return leaf.kind === 'polygon' ? solidScriptPolygonConvexPieces(leaf.points).map(flatGrow) : [];
     if (leaf.kind !== 'solid') throw new Error('Minkowski needs solids here; flat outlines belong in a Linear Extrude');
-    return [{ kind: 'solid', label, points: grow(leaf.points) }];
+    return [{ kind: 'solid', label, ...solidScriptBodyHull(grow(leaf.points), label) }];
   });
   const joined = solidScriptShapeJoin(pieces, label);
   return joined ? [joined] : [];
@@ -259,16 +262,12 @@ export function solidScriptRotateExtrude(
     const pieces: SolidScriptShapeSolid[] = [];
     for (const piece of solidScriptPolygonConvexPieces(leaf.points))
       for (let segment = 0; segment < segments; segment++) {
-        const turns = [segment * step, (segment + 1) * step];
-        pieces.push({
-          kind: 'solid',
-          label: leaf.label,
-          points: piece.flatMap(([radius, height]) =>
-            turns.map((turn) =>
-              new THREE.Vector3(radius * Math.cos(turn), radius * Math.sin(turn), height).applyMatrix4(lift),
-            ),
-          ),
-        });
+        const spun = (turn: number) =>
+          piece.map(([radius, height]) =>
+            new THREE.Vector3(radius * Math.cos(turn), radius * Math.sin(turn), height).applyMatrix4(lift),
+          );
+        const body = solidScriptBodyPrism(spun(segment * step), spun((segment + 1) * step), leaf.label);
+        pieces.push({ kind: 'solid', label: leaf.label, ...body });
       }
     return solidScriptShapeJoin(pieces, leaf.label) as SolidScriptShape;
   });

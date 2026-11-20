@@ -8,6 +8,7 @@ import { solidScriptProgramRun } from '@/solid_script/language/solid_script_prog
 import type { SolidScriptFaceUv, SolidScriptReceived } from '@/solid_script/language/solid_script_shape.js';
 import type { SolidScriptShapeMesh } from '@/solid_script/language/solid_script_mesh.js';
 import { SOLID_SCRIPT_EXAMPLES, type SolidScriptExample } from '@/solid_script/examples/solid_script_examples.js';
+import { solidScriptUseSolidOf } from '../language/solid_script_use_solid.js';
 
 const CORNERS = [-1, 1].flatMap((x) => [-1, 1].flatMap((y) => [-1, 1].map((z) => [x, y, z] as const)));
 
@@ -127,7 +128,9 @@ export function solidScriptExampleLeafShot(leaf: SolidScriptGeometryLeaf) {
  * @returns Run options.
  */
 export function solidScriptExampleRunOptions(example: SolidScriptExample) {
-  return example.uses?.generator === false ? { use: { usage: 'Modifier' as const, solids: [CORNERS], faces: 6 } } : {};
+  return example.uses?.generator === false
+    ? { use: { usage: 'Modifier' as const, solids: [solidScriptUseSolidOf(CORNERS)], faces: 6 } }
+    : {};
 }
 
 /**

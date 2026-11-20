@@ -1,6 +1,6 @@
 import type { SolidScriptShape, SolidScriptShapeSolid } from './solid_script_shape.js';
 import { solidScriptShapeMapLeaves } from './solid_script_shape.js';
-import type * as THREE from 'three';
+import type { SolidScriptBody } from './solid_script_body.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 
 /** How a brush combines with the ones before it in the scene. */
@@ -33,17 +33,19 @@ export function solidScriptModeOf(text: string | undefined): SolidScriptMode | u
  * Builds a solid, keeping Mode only when the line set one.
  *
  * @param label Shape label.
- * @param points Corners in script space.
+ * @param body Corners and faces in script space.
  * @param values Stored field values of the line.
  * @returns Solid.
  */
 export function solidScriptSolidMade(
   label: string,
-  points: THREE.Vector3[],
+  body: SolidScriptBody,
   values: Readonly<Record<string, string>>,
 ): SolidScriptShapeSolid {
   const mode = solidScriptModeOf(values['mode']);
-  return mode ? { kind: 'solid', label, points, mode } : { kind: 'solid', label, points };
+  const solid: SolidScriptShapeSolid = { kind: 'solid', label, points: body.points, faces: body.faces };
+  if (mode) solid.mode = mode;
+  return solid;
 }
 
 /**

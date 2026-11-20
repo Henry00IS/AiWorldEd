@@ -5,6 +5,7 @@ import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/
 import { solidScriptGeometryLeaves } from '@/solid_script/language/solid_script_geometry.js';
 import { solidScriptProgramRun, type SolidScriptProgramOptions } from '@/solid_script/language/solid_script_program.js';
 import type { SolidScriptUseFacts } from '@/solid_script/language/solid_script_system.js';
+import { solidScriptUseSolidOf } from './solid_script_use_solid.js';
 
 const END: SolidScriptLine = { command: 'end' };
 const CUBE: SolidScriptLine = { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } };
@@ -32,7 +33,7 @@ const FACE_TOOLS = new Set([
 const RECEIVED: SolidScriptUseFacts = {
   usage: 'Modifier',
   solids: [
-    [
+    solidScriptUseSolidOf([
       [-1, -1, -1],
       [1, -1, -1],
       [-1, 1, -1],
@@ -41,7 +42,7 @@ const RECEIVED: SolidScriptUseFacts = {
       [1, -1, 1],
       [-1, 1, 1],
       [1, 1, 1],
-    ],
+    ]),
   ],
   faces: 6,
 };

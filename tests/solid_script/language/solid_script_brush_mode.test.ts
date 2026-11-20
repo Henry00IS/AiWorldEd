@@ -10,6 +10,7 @@ import {
 } from '@/solid_script/language/solid_script_solid_tree.js';
 import type { SolidScriptUseFacts } from '@/solid_script/language/solid_script_system.js';
 import type { SolidScriptMode } from '@/solid_script/language/solid_script_mode.js';
+import { solidScriptUseSolidOf } from './solid_script_use_solid.js';
 
 const END: SolidScriptLine = { command: 'end' };
 
@@ -171,7 +172,7 @@ describe('Input Brushes.Mode', () => {
   const modes: SolidScriptMode[] = ['Additive', 'Subtractive', 'Intersecting'];
   const inputUse = (words: readonly SolidScriptMode[]): SolidScriptUseFacts => ({
     usage: 'Modifier',
-    solids: words.map(() => cubeCorners()),
+    solids: words.map(() => solidScriptUseSolidOf(cubeCorners())),
     modes: words,
     faces: words.length * 6,
     insertMode: 'Additive',
@@ -241,7 +242,7 @@ describe('Input Brushes.Mode', () => {
   it('treats a received brush without a Mode as Additive at the top level', () => {
     const result = run([line('input_brushes', { into: 'Got' }), line('echo', { value: '[Got.First.Mode]' })], {
       usage: 'Modifier',
-      solids: [cubeCorners()],
+      solids: [solidScriptUseSolidOf(cubeCorners())],
       faces: 6,
       mode: 'Subtractive',
     });
@@ -265,7 +266,7 @@ describe('Brush.Mode performance', () => {
         line('echo', { value: '[Cut.Count]' }),
         line('input_brushes'),
       ],
-      { usage: 'Modifier', solids: words.map(() => corners), modes: words, faces: count * 6 },
+      { usage: 'Modifier', solids: words.map(() => solidScriptUseSolidOf(corners)), modes: words, faces: count * 6 },
     );
     const elapsed = performance.now() - started;
     expect(result.error?.message ?? null).toBeNull();

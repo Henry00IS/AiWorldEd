@@ -114,7 +114,7 @@ describe('SolidScript Point lines', () => {
     );
     expect(result.error).toBeNull();
     expect(result.shapes).toHaveLength(1);
-    expect(corners(result.shapes[0])).toEqual(['0,0,0', '1,0,0', '0,1,0', '0,0,2']);
+    expect(corners(result.shapes[0]).sort()).toEqual(['0,0,0', '0,0,2', '0,1,0', '1,0,0']);
   });
 
   it('takes points from loops and from a list variable', () => {
@@ -128,7 +128,7 @@ describe('SolidScript Point lines', () => {
       END,
     );
     expect(result.error).toBeNull();
-    expect(corners(result.shapes[0])).toEqual(['0,0,0', '2,0,0', '0,1,0', '1,1,1']);
+    expect(corners(result.shapes[0]).sort()).toEqual(['0,0,0', '0,1,0', '1,1,1', '2,0,0']);
   });
 
   it('explains too few points and shapes among the Point lines', () => {
@@ -141,6 +141,23 @@ describe('SolidScript Point lines', () => {
     expect(loose.error?.message).toMatch(
       /a Point belongs between a Polyhedron, Polygon, Hull or Mesh line and its End/,
     );
+  });
+
+  it('stops a flat Polyhedron or Hull on its own line', () => {
+    const points = '[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0]';
+    const flat = run({ command: 'cube' }, { command: 'polyhedron', values: { points } }, END);
+    expect(flat.error?.line).toBe(2);
+    expect(flat.error?.message).toMatch(/polyhedron is flat or degenerate/);
+    const lines = run(
+      { command: 'cube' },
+      { command: 'polyhedron' },
+      ...[0, 1, 2, 3].map((i) => ({ command: 'point', values: { position: `${i % 2}, ${Math.floor(i / 2)}, 0` } })),
+      END,
+    );
+    expect(lines.error?.line).toBe(2);
+    const wrap = run({ command: 'cube' }, { command: 'hull', values: { points } }, END);
+    expect(wrap.error?.line).toBe(2);
+    expect(wrap.error?.message).toMatch(/do not all lie in one plane/);
   });
 
   it('extrudes a Polygon of Point lines', () => {

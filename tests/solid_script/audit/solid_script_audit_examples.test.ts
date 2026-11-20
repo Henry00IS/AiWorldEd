@@ -9,6 +9,7 @@ import {
 import { SOLID_SCRIPT_EXAMPLES } from '@/solid_script/examples/solid_script_examples.js';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptConfiguratorFieldBuild } from '@/solid_script/ui/solid_script_configurator_fields.js';
+import { solidScriptUseSolidOf } from '../language/solid_script_use_solid.js';
 
 const CORNERS = [-1, 1].flatMap((x) => [-1, 1].flatMap((y) => [-1, 1].map((z) => [x, y, z] as const)));
 
@@ -39,7 +40,7 @@ describe('every shipped example is clean in the run and in the editor', () => {
     const document = solidScriptDocumentCreate(example.lines);
     const use =
       example.uses?.generator === false
-        ? { use: { usage: 'Modifier' as const, solids: [CORNERS], faces: 6 } }
+        ? { use: { usage: 'Modifier' as const, solids: [solidScriptUseSolidOf(CORNERS)], faces: 6 } }
         : { box: [4, 4, 4] as const };
     const run = solidScriptProgramRun(document, use);
     expect(run.error?.message ?? '').toBe('');

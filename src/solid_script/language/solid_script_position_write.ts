@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { SOLID_SCRIPT_GEOMETRY_EPSILON, type SolidScriptGeometryLeaf } from './solid_script_geometry.js';
 import { solidScriptNameIsPositionWrite } from './solid_script_name_rules.js';
-import { solidScriptSolidValidate } from './solid_script_solid_validate.js';
+import { solidScriptSolidEdited } from './solid_script_solid_validate.js';
 import { solidScriptValueNumber, solidScriptValueNumbers, type SolidScriptValue } from './solid_script_value.js';
 
 /** Axis of a Vertex.Position.X write, or none for a whole position. */
@@ -83,8 +83,7 @@ export function solidScriptPositionApply(
   label: string,
 ): SolidScriptGeometryLeaf {
   const points = leaf.points.map((point) => solidScriptPositionMoved(point, moves).clone());
-  if (leaf.kind === 'solid') solidScriptSolidValidate(points, label);
-  return { ...leaf, points };
+  return leaf.kind === 'solid' ? solidScriptSolidEdited(leaf, points, label) : { ...leaf, points };
 }
 
 /**

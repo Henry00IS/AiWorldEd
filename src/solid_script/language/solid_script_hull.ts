@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { solidHullBrushFromPoints } from '@/solid/algorithm/surface/solid_hull_brush.js';
+import { solidScriptBodyFromBrush } from './solid_script_body.js';
+import { solidScriptHullBrush } from './solid_script_body_hull.js';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
 import { solidScriptPolygonHull, type SolidScriptPoint2 } from './solid_script_polygon.js';
 import {
@@ -87,11 +88,12 @@ function solidScriptHullSolid(
   extra: readonly THREE.Vector3[],
   label: string,
 ): SolidScriptShape[] {
-  const points = [...leaves.flatMap(solidScriptHullLeafPoints), ...extra.map((point) => point.clone())];
+  const points = [...leaves.flatMap(solidScriptHullLeafPoints), ...extra];
   if (points.length === 0) return [];
-  if (!solidHullBrushFromPoints(points))
+  const brush = solidScriptHullBrush(points);
+  if (!brush)
     throw new Error(
       `${label} needs at least 4 corners that do not all lie in one plane; add Point lines, a list in Points From List, or scatter on more than one face`,
     );
-  return [{ kind: 'solid', label, points }];
+  return [{ kind: 'solid', label, ...solidScriptBodyFromBrush(brush) }];
 }

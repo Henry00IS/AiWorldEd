@@ -8,6 +8,7 @@ import {
 } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptFileDecode, solidScriptFileEncode } from '@/solid_script/file/solid_script_file.js';
+import { solidScriptUseSolidOf } from '../language/solid_script_use_solid.js';
 
 describe('Can Be Used As', () => {
   const plain = solidScriptDocumentCreate([{ command: 'cube' }], 'Box');
@@ -44,12 +45,12 @@ describe('Can Be Used As', () => {
     ]);
     expect(solidScriptProgramRun(script).messages).toEqual(['generator Generator 0']);
     const solids = [
-      [
+      solidScriptUseSolidOf([
         [0, 0, 0],
         [1, 0, 0],
         [0, 1, 0],
         [0, 0, 1],
-      ] as [number, number, number][],
+      ]),
     ];
     const modifier = solidScriptProgramRun(script, { use: { usage: 'Modifier', solids, faces: 4 } });
     expect(modifier.error).toBeNull();

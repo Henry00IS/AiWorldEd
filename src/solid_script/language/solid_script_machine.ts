@@ -52,17 +52,14 @@ import {
   type SolidScriptLineState,
   type SolidScriptRunBuild,
 } from './solid_script_machine_runs.js';
-import {
-  solidScriptGeometryLeaves,
-  solidScriptGeometryMesh,
-  solidScriptGeometryMeshCacheClear,
-  type SolidScriptGeometryLeaf,
-} from './solid_script_geometry.js';
+import { solidScriptGeometryLeaves, type SolidScriptGeometryLeaf } from './solid_script_geometry.js';
 import { solidScriptGeneratorPiecesCacheClear } from './solid_script_generator_pieces.js';
+import { solidScriptBodyHull, type SolidScriptBody } from './solid_script_body.js';
 import {
   solidScriptShapeJoin,
   solidScriptShapeNamed,
   solidScriptShapeMapLeaves,
+  type SolidScriptFaceUv,
   type SolidScriptShape,
   type SolidScriptShapeSolid,
   SOLID_SCRIPT_SHAPE_NAME_KEY,
@@ -220,12 +217,13 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
    */
   private incomingSolids(): SolidScriptGeometryLeaf[] {
     const use = this.system.use;
-    return (use?.solids ?? []).map((corners, index) => {
+    return (use?.solids ?? []).map((solid, index) => {
       const mode = use?.modes?.[index];
       const leaf: SolidScriptGeometryLeaf = {
         kind: 'solid',
         label: solidScriptInputBrushName(index),
-        points: corners.map(([x, y, z]) => new THREE.Vector3(x, y, z)),
+        points: solid.corners.map(([x, y, z]) => new THREE.Vector3(x, y, z)),
+        faces: solid.faces.map((loop) => [...loop]),
         ...(mode ? { mode } : {}),
       };
       this.elements.modeRoleSet(leaf, mode ?? SOLID_SCRIPT_MODE_DEFAULT);
@@ -447,7 +445,6 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
    * @returns Shapes, output, steps and the first mistake.
    */
   run(lines: SolidScriptBlockNode<Command>[]): SolidScriptRun {
-    solidScriptGeometryMeshCacheClear();
     solidScriptGeneratorPiecesCacheClear();
     this.useOnce();
     this.scriptLines = lines;
@@ -786,6 +783,15 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       const mode = stored.includes('[') ? solidScriptValueText(value('mode')) : stored;
       return { ...node.values, mode };
     };
+    const built = (body: () => SolidScriptBody, faceUvs?: SolidScriptFaceUv[]): SolidScriptShape[] => {
+      state.machine.gatherCheck(node);
+      state.machine.flatCheck(node, state.context, false);
+      if (!state.machine.stepTake(state.scope)) return [];
+      const made = solidScriptSolidMade(labelOf(), body(), modeOf());
+      return state.machine.modeRolePlaced([
+        solidScriptShapeTransform(faceUvs ? { ...made, faceUvs } : made, state.context.matrix),
+      ]);
+    };
     return {
       values: (key) =>
         solidScriptFieldArguments(node.command.valueText(node.values, key)).map((piece, index) => {
@@ -823,16 +829,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       variableWrite(name, key) {
         state.machine.variableWrite(state.scope, name, key, this);
       },
-      solid: (points, faceUvs) => {
-        state.machine.gatherCheck(node);
-        state.machine.flatCheck(node, state.context, false);
-        if (!state.machine.stepTake(state.scope)) return [];
-        const made = solidScriptSolidMade(labelOf(), points, modeOf());
-        solidScriptGeometryMesh(made);
-        return state.machine.modeRolePlaced([
-          solidScriptShapeTransform(faceUvs ? { ...made, faceUvs } : made, state.context.matrix),
-        ]);
-      },
+      solid: (body, faceUvs) => built(() => body, faceUvs),
+      solidFromPoints: (points) => built(() => solidScriptBodyHull(points, labelOf())),
       outline: (points) => {
         state.machine.gatherCheck(node);
         state.machine.flatCheck(node, state.context, true);

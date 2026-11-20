@@ -1,43 +1,50 @@
 import type * as THREE from 'three';
-import { solidHullBrushFromPoints } from '@/solid/algorithm/surface/solid_hull_brush.js';
+import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import { SolidBrushValidator } from '@/solid/brush/solid_brush_validator.js';
+import { solidScriptBodyConvex } from './solid_script_body.js';
+import { solidScriptHullBrush } from './solid_script_body_hull.js';
 import { SOLID_SCRIPT_GEOMETRY_EPSILON } from './solid_script_geometry.js';
+import type { SolidScriptShapeSolid } from './solid_script_shape.js';
 
 /**
- * Stops an in-place brush edit when the corners would no longer make a convex
- * brush, using the editor's brush check.
+ * Moves the corners of a brush in place and stops when they no longer make a
+ * convex brush. The brush keeps its faces when they still fit, which a quick
+ * check tells; only when a face bends is it rebuilt, with the editor's brush
+ * check, from a hull of the corners.
  *
- * @param points New corners.
+ * @param leaf Brush before the edit.
+ * @param points New corners, one for each old corner.
  * @param label Command or line, for the message.
+ * @returns Edited brush.
  */
-export function solidScriptSolidValidate(points: readonly THREE.Vector3[], label: string): void {
-  const unique = solidScriptSolidUnique(points);
-  const brush = solidHullBrushFromPoints(unique.map((point) => point.clone()));
-  const valid = brush && unique.every((point) => solidScriptSolidOnHull(point, brush.vertices));
-  if (!valid || !brush || !SolidBrushValidator.validate(brush).valid)
+export function solidScriptSolidEdited(
+  leaf: SolidScriptShapeSolid,
+  points: THREE.Vector3[],
+  label: string,
+): SolidScriptShapeSolid {
+  if (solidScriptBodyConvex({ points, faces: leaf.faces })) return { ...leaf, points };
+  const brush = solidScriptHullBrush(points);
+  const faces = brush ? solidScriptSolidHullFaces(brush, points) : null;
+  if (!brush || !faces || !SolidBrushValidator.validate(brush).valid)
     throw new Error(`${label} is no longer a convex brush`);
+  return { ...leaf, points, faces };
 }
 
 /**
- * Drops corners that sit on an earlier corner.
+ * Faces of a hull, numbered by the corners they came from; none when a corner
+ * is not one of the hull's own corners, so it would sit inside or on a face.
  *
+ * @param brush Hull of the corners.
  * @param points Corners.
- * @returns Unique corners.
+ * @returns Face loops, or null.
  */
-function solidScriptSolidUnique(points: readonly THREE.Vector3[]): THREE.Vector3[] {
-  const unique: THREE.Vector3[] = [];
-  for (const point of points)
-    if (!unique.some((known) => known.distanceTo(point) <= SOLID_SCRIPT_GEOMETRY_EPSILON)) unique.push(point);
-  return unique;
-}
-
-/**
- * Tells whether a corner sits on a hull vertex.
- *
- * @param point Corner.
- * @param vertices Hull vertices.
- * @returns True when it does.
- */
-function solidScriptSolidOnHull(point: THREE.Vector3, vertices: readonly THREE.Vector3[]): boolean {
-  return vertices.some((vertex) => vertex.distanceTo(point) <= SOLID_SCRIPT_GEOMETRY_EPSILON);
+function solidScriptSolidHullFaces(brush: SolidBrush, points: readonly THREE.Vector3[]): number[][] | null {
+  const own = brush.vertices.map((vertex) =>
+    points.findIndex((point) => point.distanceTo(vertex) <= SOLID_SCRIPT_GEOMETRY_EPSILON),
+  );
+  const used = points.every((point) =>
+    brush.vertices.some((vertex) => vertex.distanceTo(point) <= SOLID_SCRIPT_GEOMETRY_EPSILON),
+  );
+  if (!used || own.some((index) => index < 0)) return null;
+  return brush.faces.map((face) => brush.getFaceVertexIndices(face).map((index) => own[index]!));
 }

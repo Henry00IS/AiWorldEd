@@ -1,10 +1,9 @@
 import * as THREE from 'three';
-import { solidScriptPointsKey } from './solid_script_points_key.js';
+import { solidScriptBodyPrism, type SolidScriptBody } from './solid_script_body.js';
+import { solidScriptBodyClip } from './solid_script_body_clip.js';
 import { SOLID_SCRIPT_AXES_FACING, SOLID_SCRIPT_AXES_UP, solidScriptAxesHeight } from './solid_script_axes.js';
 import {
   solidScriptMeshChecked,
-  solidScriptMeshFromSolid,
-  solidScriptMeshTransform,
   solidScriptMeshLoopCenter,
   solidScriptMeshLoopNormal,
   type SolidScriptShapeMesh,
@@ -86,20 +85,10 @@ export function solidScriptGeometryLeaves(shapes: readonly SolidScriptShape[]): 
 
 const SOLID_SCRIPT_MESH_OF = new WeakMap<SolidScriptGeometryLeaf, SolidScriptShapeMesh>();
 const SOLID_SCRIPT_FACES_OF = new WeakMap<SolidScriptGeometryLeaf, SolidScriptFaceFacts[]>();
-/** Hulls already worked out for a set of corner points, reused by later solids. */
-const SOLID_SCRIPT_MESH_BY_POINTS = new Map<string, SolidScriptShapeMesh>();
 
 /**
- * Drops hulls remembered by corner points, at the start of a run, so a long
- * editor session does not keep every unique solid.
- */
-export function solidScriptGeometryMeshCacheClear(): void {
-  SOLID_SCRIPT_MESH_BY_POINTS.clear();
-}
-
-/**
- * Returns the faces of a solid or mesh as loops of points. A solid is hulled
- * once and kept, so later face, edge or UV reads do not hull it again.
+ * Returns the faces of a solid or mesh as loops of points: a solid's own faces,
+ * kept so later face, edge or UV reads share them.
  *
  * @param leaf Solid or mesh.
  * @returns Mesh with the same faces.
@@ -108,32 +97,16 @@ export function solidScriptGeometryMesh(leaf: SolidScriptGeometryLeaf): SolidScr
   if (leaf.kind === 'mesh') return leaf;
   const kept = SOLID_SCRIPT_MESH_OF.get(leaf);
   if (kept) return kept;
-  const key = solidScriptPointsKey(leaf.points);
-  const shared = SOLID_SCRIPT_MESH_BY_POINTS.get(key);
-  const mesh = shared ?? solidScriptMeshFromSolid(leaf.points, leaf.label);
-  if (!shared) SOLID_SCRIPT_MESH_BY_POINTS.set(key, mesh);
-  const result = leaf.faceTags
-    ? { ...mesh, faceTags: leaf.faceTags, label: leaf.label }
-    : { ...mesh, label: leaf.label };
-  SOLID_SCRIPT_MESH_OF.set(leaf, result);
-  return result;
-}
-
-/**
- * Copies a solid's remembered faces onto a moved copy, so a later read does not
- * hull the copy again.
- *
- * @param from Solid before the move.
- * @param to Moved solid.
- * @param matrix The move applied to it.
- */
-export function solidScriptGeometryCacheCarry(
-  from: SolidScriptGeometryLeaf,
-  to: SolidScriptGeometryLeaf,
-  matrix: THREE.Matrix4,
-): void {
-  const mesh = SOLID_SCRIPT_MESH_OF.get(from);
-  if (mesh) SOLID_SCRIPT_MESH_OF.set(to, solidScriptMeshTransform(mesh, matrix));
+  const mesh: SolidScriptShapeMesh = {
+    kind: 'mesh',
+    label: leaf.label,
+    points: leaf.points,
+    faces: leaf.faces,
+    uvs: leaf.faces.map(() => null),
+  };
+  if (leaf.faceTags) mesh.faceTags = leaf.faceTags;
+  SOLID_SCRIPT_MESH_OF.set(leaf, mesh);
+  return mesh;
 }
 
 /**
@@ -505,57 +478,23 @@ export function solidScriptGeometryFaceFind(leaf: SolidScriptGeometryLeaf, face:
 }
 
 /**
- * Builds the corner points of the block a face sweeps out when it is pulled
- * along its direction: a new convex solid on the face.
+ * Builds the block a face sweeps out when it is pulled along its direction: a
+ * new convex solid on the face, with the face at both ends.
  *
  * @param face Face.
  * @param distance Metres, above 0.
  * @param lift Metres the block starts away from the face, along its direction.
- * @returns Points.
+ * @param label Command, for messages.
+ * @returns Body.
  */
-export function solidScriptGeometryFacePrism(face: SolidScriptFaceFacts, distance: number, lift = 0): THREE.Vector3[] {
-  const along = (metres: number) => face.corners.map((corner) => corner.clone().addScaledVector(face.normal, metres));
-  return [...along(lift), ...along(lift + distance)];
-}
-
-/**
- * Cuts a convex solid with a plane and keeps the part behind it.
- *
- * @param points Corner points of the solid.
- * @param normal Unit plane direction; the part it points away from is kept.
- * @param constant Plane offset: points p with normal · p = constant lie on it.
- * @param label Label, for errors.
- * @returns Corner points of the kept part.
- */
-export function solidScriptGeometryClip(
-  points: readonly THREE.Vector3[],
-  normal: THREE.Vector3,
-  constant: number,
+export function solidScriptGeometryFacePrism(
+  face: SolidScriptFaceFacts,
+  distance: number,
+  lift: number,
   label: string,
-): THREE.Vector3[] {
-  const mesh = solidScriptMeshFromSolid(points, label);
-  const side = (point: THREE.Vector3): number => normal.dot(point) - constant;
-  const kept = mesh.points
-    .filter((point) => side(point) <= SOLID_SCRIPT_GEOMETRY_EPSILON)
-    .map((point) => point.clone());
-  const seen = new Set<string>();
-  for (const loop of mesh.faces)
-    loop.forEach((a, corner) => {
-      const b = loop[(corner + 1) % loop.length]!;
-      const key = a < b ? `${a}:${b}` : `${b}:${a}`;
-      if (seen.has(key)) return;
-      seen.add(key);
-      const pa = mesh.points[a]!;
-      const pb = mesh.points[b]!;
-      const da = side(pa);
-      const db = side(pb);
-      if (
-        (da < -SOLID_SCRIPT_GEOMETRY_EPSILON && db > SOLID_SCRIPT_GEOMETRY_EPSILON) ||
-        (db < -SOLID_SCRIPT_GEOMETRY_EPSILON && da > SOLID_SCRIPT_GEOMETRY_EPSILON)
-      )
-        kept.push(pa.clone().lerp(pb, da / (da - db)));
-    });
-  return kept;
+): SolidScriptBody {
+  const along = (metres: number) => face.corners.map((corner) => corner.clone().addScaledVector(face.normal, metres));
+  return solidScriptBodyPrism(along(lift), along(lift + distance), label);
 }
 
 /**
@@ -565,15 +504,15 @@ export function solidScriptGeometryClip(
  * @param solid Solid.
  * @param edges Edges to bevel, read from this solid.
  * @param distance Metres along each face.
- * @returns Corner points of the bevelled solid, and the direction and a point
- *   of every new face.
+ * @returns The bevelled solid's corners and faces, and the direction and a
+ *   point of every new face.
  */
 export function solidScriptGeometryBevel(
   solid: SolidScriptShapeSolid,
   edges: readonly SolidScriptEdgeFacts[],
   distance: number,
-): { points: THREE.Vector3[]; cuts: { normal: THREE.Vector3; point: THREE.Vector3 }[] } {
-  let points = solid.points.map((point) => point.clone());
+): { body: SolidScriptBody; cuts: { normal: THREE.Vector3; point: THREE.Vector3 }[] } {
+  let body: SolidScriptBody = { points: solid.points, faces: solid.faces };
   const cuts: { normal: THREE.Vector3; point: THREE.Vector3 }[] = [];
   for (const edge of edges) {
     const [first, second] = edge.faces;
@@ -585,10 +524,10 @@ export function solidScriptGeometryBevel(
       .normalize()
       .negate();
     const through = edge.start.clone().addScaledVector(inward, distance);
-    points = solidScriptGeometryClip(points, bisector, bisector.dot(through), solid.label);
+    body = solidScriptBodyClip(body, bisector, bisector.dot(through));
     cuts.push({ normal: bisector, point: through });
   }
-  return { points, cuts };
+  return { body, cuts };
 }
 
 /**

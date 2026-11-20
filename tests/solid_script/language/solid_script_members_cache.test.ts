@@ -3,13 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { SolidScriptElements } from '@/solid_script/language/solid_script_elements.js';
 import { solidScriptMemberRead } from '@/solid_script/language/solid_script_members.js';
 import type { SolidScriptShapeSolid } from '@/solid_script/language/solid_script_shape.js';
+import { solidScriptBodyBox } from '@/solid_script/language/solid_script_body.js';
 
 /** A box brush of a size with its lowest corner at a spot. */
 function box(at: number, size = 1): SolidScriptShapeSolid {
-  const points: THREE.Vector3[] = [];
-  for (const x of [0, size])
-    for (const y of [0, size]) for (const z of [0, size]) points.push(new THREE.Vector3(at + x, y, z));
-  return { kind: 'solid', label: 'Box', points };
+  const min = new THREE.Vector3(at, 0, 0);
+  return { kind: 'solid', label: 'Box', ...solidScriptBodyBox(min, min.clone().addScalar(size)) };
 }
 
 describe('SolidScript member cache', () => {

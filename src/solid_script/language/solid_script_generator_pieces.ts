@@ -6,6 +6,7 @@ import { ModifierStackKindGenerator } from '@/modifier/stack/kinds/generator/mod
 import { createDefaultFaceSurface, orientDefaultFaceSurface } from '@/texture/uv_matrix/face_surface_description.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
 import type { SolidScriptFaceUv } from './solid_script_shape.js';
+import { solidScriptBodyFacesMoved, solidScriptBodyFromBrush, type SolidScriptBody } from './solid_script_body.js';
 
 /** Where a generator's box sits in script coordinates. */
 export interface SolidScriptGeneratorBox {
@@ -17,8 +18,8 @@ export interface SolidScriptGeneratorBox {
 
 /** One convex piece of a generator, as a script builds it. */
 export interface SolidScriptGeneratorPiece {
-  /** Corner points in script coordinates. */
-  points: THREE.Vector3[];
+  /** Corners and faces in script coordinates, as the generator built them. */
+  body: SolidScriptBody;
   /**
    * Texture mapping of every face in script coordinates, as the generator maps
    * it.
@@ -36,7 +37,7 @@ const SOLID_SCRIPT_GENERATOR_PIECES_CACHE = new Map<string, SolidScriptGenerator
  */
 function solidScriptGeneratorPieceClone(piece: SolidScriptGeneratorPiece): SolidScriptGeneratorPiece {
   return {
-    points: piece.points.map((point) => point.clone()),
+    body: { points: piece.body.points.map((point) => point.clone()), faces: piece.body.faces.map((loop) => [...loop]) },
     faceUvs: piece.faceUvs.map((face) => ({
       point: face.point.clone(),
       normal: face.normal.clone(),
@@ -63,7 +64,7 @@ function solidScriptGeneratorPiecesBuild(
   const min = new THREE.Vector3(...box.min);
   const frame = new THREE.Box3(min, min.clone().add(new THREE.Vector3(...box.size)));
   return kind.surfacedPieces(parameters, frame).map(({ piece, surfaces }) => ({
-    points: piece.vertices.map((point) => point.clone()),
+    body: solidScriptBodyFromBrush(piece),
     faceUvs: piece.faces.map((face, index) => {
       const corners = piece.getFaceVertices(face);
       const point = corners.reduce((sum, corner) => sum.add(corner), new THREE.Vector3()).divideScalar(corners.length);
@@ -105,4 +106,31 @@ export function solidScriptGeneratorPieces(
   const pieces = solidScriptGeneratorPiecesBuild(kindId, parameters, box);
   SOLID_SCRIPT_GENERATOR_PIECES_CACHE.set(key, pieces);
   return pieces.map(solidScriptGeneratorPieceClone);
+}
+
+/**
+ * Moves a generator piece by a matrix that keeps it solid, faces and texture
+ * mapping along.
+ *
+ * @param piece Piece.
+ * @param matrix Transform.
+ * @returns Moved piece.
+ */
+export function solidScriptGeneratorPieceMoved(
+  piece: SolidScriptGeneratorPiece,
+  matrix: THREE.Matrix4,
+): SolidScriptGeneratorPiece {
+  const normals = new THREE.Matrix3().getNormalMatrix(matrix);
+  const back = matrix.clone().invert();
+  return {
+    body: {
+      points: piece.body.points.map((point) => point.clone().applyMatrix4(matrix)),
+      faces: solidScriptBodyFacesMoved(piece.body.faces, matrix),
+    },
+    faceUvs: piece.faceUvs.map((face) => ({
+      point: face.point.clone().applyMatrix4(matrix),
+      normal: face.normal.clone().applyMatrix3(normals).normalize(),
+      uv: face.uv.multiplyMatrix4(back),
+    })),
+  };
 }

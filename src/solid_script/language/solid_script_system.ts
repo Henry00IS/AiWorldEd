@@ -228,8 +228,8 @@ export interface SolidScriptUseFacts {
    * as Additive.
    */
   mode?: SolidScriptGroupMode;
-  /** Corners of every brush the modifier receives, one list per brush. */
-  solids: readonly (readonly [number, number, number])[][];
+  /** Every brush the modifier receives: its corners and faces. */
+  solids: readonly SolidScriptUseSolid[];
   /**
    * Insertion Mode top-level brushes inherit when their Mode was left empty,
    * from the generator or modifier Operation. Absent is Additive for a
@@ -245,6 +245,14 @@ export interface SolidScriptUseFacts {
    * keep them.
    */
   textures?: readonly (readonly SolidScriptUseFaceTexture[])[];
+}
+
+/** One brush a modifier receives, centered like the others. */
+export interface SolidScriptUseSolid {
+  /** Corner positions. */
+  corners: readonly (readonly [number, number, number])[];
+  /** Faces as loops of corner numbers, counter-clockwise seen from outside. */
+  faces: readonly (readonly number[])[];
 }
 
 /** Texture of one face a modifier receives, centered like the corners. */
@@ -382,7 +390,7 @@ export function solidScriptSystemValues(
  * @returns Lowest and highest corner.
  */
 function solidScriptUseBounds(use: SolidScriptUseFacts): { min: number[]; max: number[] } {
-  const corners = use.solids.flat();
+  const corners = use.solids.flatMap((solid) => solid.corners);
   if (corners.length === 0) return { min: [0, 0, 0], max: [0, 0, 0] };
   const min = [0, 1, 2].map((axis) => Math.min(...corners.map((corner) => corner[axis]!)));
   const max = [0, 1, 2].map((axis) => Math.max(...corners.map((corner) => corner[axis]!)));

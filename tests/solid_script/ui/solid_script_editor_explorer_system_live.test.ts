@@ -74,10 +74,10 @@ describe('System names show the values of the run where it was captured', () => 
     editorFixture(PICKED);
     systemShow();
     expect(caption()).toBe('At the end of the run; built-in values as they read now');
-    expect(valueOf('$Selected.Faces')).toBe('[Face 5]');
+    expect(valueOf('$Selected.Faces')).toBe('[Face 3]');
     expect(valueOf('$Selected.Brushes')).toBe('[cube]');
     expect(itemsOf('$Selected.Brushes')).toEqual(['$Selected.Brushes(0)|cube']);
-    expect(itemsOf('$Selected.Faces')).toEqual(['$Selected.Faces(0)|Face 5']);
+    expect(itemsOf('$Selected.Faces')).toEqual(['$Selected.Faces(0)|Face 3']);
   });
 
   it('shows the lists where a breakpoint paused the run, before its line', () => {
@@ -86,12 +86,12 @@ describe('System names show the values of the run where it was captured', () => 
     tool('Start').click();
     expect(root.textContent).toContain('Stopped at the breakpoint on line 4, before it runs');
     systemShow();
-    expect(valueOf('$Selected.Faces')).toBe('[Face 5]');
+    expect(valueOf('$Selected.Faces')).toBe('[Face 3]');
     expect(valueOf('$Selected.Brushes')).toBe('[cube]');
     linePress(3);
     categoryShow('Context');
-    expect(valueOf('$Selected.Faces')).toBe('[Face 5]');
-    expect(itemsOf('$Selected.Faces')).toEqual(['$Selected.Faces(0)|Face 5']);
+    expect(valueOf('$Selected.Faces')).toBe('[Face 3]');
+    expect(itemsOf('$Selected.Faces')).toEqual(['$Selected.Faces(0)|Face 3']);
   });
 
   it('says when the fills of the paused line hold values, in System and Context', () => {
@@ -118,6 +118,6 @@ describe('System names show the values of the run where it was captured', () => 
     tool('Step').click();
     expect(caption()).toBe('At step 2, line 4; built-in values as they read now');
     expect(valueOf('$Selected.Brushes')).toBe('[cube]');
-    expect(valueOf('$Selected.Faces')).toBe('[Face 5]');
+    expect(valueOf('$Selected.Faces')).toBe('[Face 3]');
   });
 });

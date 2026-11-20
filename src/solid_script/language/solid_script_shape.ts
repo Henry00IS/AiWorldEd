@@ -6,10 +6,15 @@ import type { SolidScriptGroupMode, SolidScriptMode } from './solid_script_mode.
 /** Boolean operation of a shape group. */
 export type SolidScriptBooleanOperation = 'union' | 'difference' | 'intersection';
 
-/** Convex 3D solid given by points in script space (the editor's axes, Y up). */
+/**
+ * Convex 3D solid in script space (the editor's axes, Y up): its corners and
+ * faces, which become the brush as they are.
+ */
 export interface SolidScriptShapeSolid {
   kind: 'solid';
   points: THREE.Vector3[];
+  /** Faces as loops of corner numbers, counter-clockwise seen from outside. */
+  faces: number[][];
   label: string;
   /**
    * How this brush combines with the ones before it; none inherits Additive

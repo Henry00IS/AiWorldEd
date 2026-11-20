@@ -1,5 +1,6 @@
 import type { SolidScriptCommandAccepts } from '@/solid_script/commands/solid_script_command.js';
 import type * as THREE from 'three';
+import type { SolidScriptBody } from './solid_script_body.js';
 import type { SolidScriptBlockArguments } from './solid_script_block_arguments.js';
 import type { SolidScriptTreeCommand } from './solid_script_block_tree.js';
 import type { SolidScriptFieldKind } from './solid_script_field.js';
@@ -128,10 +129,15 @@ export interface SolidScriptBlockRun {
    */
   variableWrite(name: string, key: string): void;
   /**
-   * Builds one convex solid from its corner points, with the texture mapping of
-   * some faces in script space when given.
+   * Builds one convex solid from its corners and faces, with the texture
+   * mapping of some faces in script space when given.
    */
-  solid(points: THREE.Vector3[], faceUvs?: SolidScriptFaceUv[]): SolidScriptShape[];
+  solid(body: SolidScriptBody, faceUvs?: SolidScriptFaceUv[]): SolidScriptShape[];
+  /**
+   * Builds one convex solid that wraps loose corners, such as a Polyhedron's:
+   * the one kind of solid made with a hull.
+   */
+  solidFromPoints(points: readonly THREE.Vector3[]): SolidScriptShape[];
   /** Draws one flat outline for Linear Extrude. */
   outline(points: SolidScriptPoint2[]): SolidScriptShape[];
   /** Runs the lines inside, moved by a matrix. */

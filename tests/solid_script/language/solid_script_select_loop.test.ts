@@ -4,6 +4,7 @@ import { solidScriptProgramRun } from '@/solid_script/language/solid_script_prog
 import type { SolidScriptUseFacts } from '@/solid_script/language/solid_script_system.js';
 import { solidScriptGeometryLeaves } from '@/solid_script/language/solid_script_geometry.js';
 import * as THREE from 'three';
+import { solidScriptUseSolidOf } from './solid_script_use_solid.js';
 
 /** Corners of a box of a size, centered on the origin. */
 function box(size: number): [number, number, number][] {
@@ -14,7 +15,7 @@ function box(size: number): [number, number, number][] {
 }
 
 /** A modifier receiving one 2 m cube. */
-const USE: SolidScriptUseFacts = { usage: 'Modifier', solids: [box(2)], faces: 6 };
+const USE: SolidScriptUseFacts = { usage: 'Modifier', solids: [solidScriptUseSolidOf(box(2))], faces: 6 };
 
 const line = (command: string, values: Record<string, string> = {}): SolidScriptLine => ({ command, values });
 const END = line('end');
