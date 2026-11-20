@@ -165,12 +165,42 @@ describe('SolidScript line menu', () => {
     expect(menuCopy('Copy as Plain Text', 4).get('text/plain')).toBe(`        ${chip(4).textContent}\n    End\nEnd`);
   });
 
-  it('copies with markup: the same text in the colours of the code view as HTML, with plain text too', () => {
+  it('copies with markup as Markdown: block names and End lines bold, notes in italics, line breaks kept', () => {
+    editorFixture([
+      { command: 'note', values: { text: 'Transform to a big brush.' } },
+      { command: 'transform' },
+      { command: 'cube', values: { size: '[=[W] * 2]' } },
+      { command: 'end' },
+    ]);
+    selectRun(0, 3);
+    const data = menuCopy('Copy with Markup', 0);
+    const indent = '\u00a0'.repeat(4);
+    expect(data.get('text/plain')).toBe(
+      [
+        '_*** Transform to a big brush._',
+        '**Transform**',
+        `${indent}**Cube** '[=[W] \\* 2]'`,
+        '**End Transform**',
+      ].join('  \n'),
+    );
+    const html = new DOMParser().parseFromString(data.get('text/html') ?? '', 'text/html');
+    expect([...html.querySelectorAll('strong')].map((tag) => tag.textContent?.trim())).toEqual([
+      'Transform',
+      'Cube',
+      'End Transform',
+    ]);
+    expect(html.querySelector('em')?.textContent).toBe('*** Transform to a big brush.');
+    expect(menuCopy('Copy as Plain Text', 0).get('text/plain')).toBe(
+      `*** Transform to a big brush.\nTransform\n    Cube '[=[W] * 2]'\nEnd Transform`,
+    );
+  });
+
+  it('copies with markup: the same text in the colours of the code view as HTML, with Markdown as text', () => {
     editorFixture(NESTED);
     selectRun(1, 3);
     const plain = menuCopy('Copy as Plain Text', 1).get('text/plain');
     const data = menuCopy('Copy with Markup', 1);
-    expect(data.get('text/plain')).toBe(plain);
+    expect(data.get('text/plain')).toMatch(/^\*\*If\*\*/);
     const html = new DOMParser().parseFromString(data.get('text/html') ?? '', 'text/html');
     const pre = html.querySelector('pre');
     expect(pre?.textContent).toBe(plain);

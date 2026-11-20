@@ -54,15 +54,15 @@ function solidScriptEditorLineMenuClipboard(host: SolidScriptEditorLineMenuHost)
 }
 
 /**
- * Copies the selected lines as they show, as plain text or coloured, and says
- * so.
+ * Copies the selected lines as they show, as plain text, or as Markdown with
+ * the colours as HTML, and says so.
  *
  * @param host Lines.
- * @param markup True adds the colours as HTML.
+ * @param markup True copies Markdown, with the colours as HTML.
  */
 function solidScriptEditorLineMenuCopyShown(host: SolidScriptEditorLineMenuHost, markup: boolean): void {
   const shown = host.shown();
-  solidScriptEditorClipboardWriteText(shown.text, markup ? shown.html : '');
+  solidScriptEditorClipboardWriteText(markup ? shown.markdown : shown.text, markup ? shown.html : '');
   const count = shown.text.split('\n').length;
   host.notice(`Copied ${count} ${count === 1 ? 'line' : 'lines'} ${markup ? 'with markup' : 'as plain text'}.`);
 }

@@ -9,13 +9,38 @@ export interface SolidScriptEditorShownLine {
   row: HTMLElement;
 }
 
-/** Lines copied as shown: plain text and the same text coloured as HTML. */
+/**
+ * Lines copied as shown: plain text, the same text as Markdown, and coloured as
+ * HTML.
+ */
 export interface SolidScriptEditorShownCopy {
   /** Plain text. */
   text: string;
-  /** HTML with the colours of the code view. */
+  /**
+   * Markdown: block names in bold, End lines too, and Note lines in italics,
+   * one line per line.
+   */
+  markdown: string;
+  /** HTML with the colours of the code view, block names bold, notes italic. */
   html: string;
 }
+
+/** Indent of one block level in Markdown: spaces that never start a code block. */
+const SOLID_SCRIPT_EDITOR_SHOWN_MARKDOWN_INDENT = '\u00a0'.repeat(4);
+
+/** Markdown characters a listed value keeps as typed. */
+const SOLID_SCRIPT_EDITOR_SHOWN_MARKDOWN_SPECIAL = /[\\*_`]/g;
+
+/** Selector of the listing pieces of a line element. */
+const SOLID_SCRIPT_EDITOR_SHOWN_PIECES = [
+  SOLID_SCRIPT_EDITOR_CLASSES.listName,
+  SOLID_SCRIPT_EDITOR_CLASSES.listWord,
+  SOLID_SCRIPT_EDITOR_CLASSES.listValue,
+  SOLID_SCRIPT_EDITOR_CLASSES.listVariable,
+  SOLID_SCRIPT_EDITOR_CLASSES.listNote,
+]
+  .map((name) => `.${name}`)
+  .join(', ');
 
 /**
  * Finds the line element of a row, or null for a blank line.
@@ -60,6 +85,44 @@ export function solidScriptEditorShownText(lines: readonly SolidScriptEditorShow
 }
 
 /**
+ * Writes one listing piece of a line element as Markdown: a block name in bold,
+ * a note in italics, anything else with its Markdown characters kept as typed.
+ * The space after a name stays outside the bold.
+ *
+ * @param piece Listing piece element.
+ * @returns Markdown.
+ */
+function solidScriptEditorShownMarkdownPiece(piece: Element): string {
+  const text = piece.textContent ?? '';
+  if (piece.classList.contains(SOLID_SCRIPT_EDITOR_CLASSES.listNote)) return `_${text}_`;
+  const typed = text.replace(SOLID_SCRIPT_EDITOR_SHOWN_MARKDOWN_SPECIAL, '\\$&');
+  if (!piece.classList.contains(SOLID_SCRIPT_EDITOR_CLASSES.listName)) return typed;
+  const name = typed.trimEnd();
+  return `**${name}**${typed.slice(name.length)}`;
+}
+
+/**
+ * Writes lines as the code view shows them, as Markdown: each line ends in a
+ * line break, and the indent is made of spaces that do not start a code block.
+ *
+ * @param lines Lines.
+ * @returns Markdown.
+ */
+export function solidScriptEditorShownMarkdown(lines: readonly SolidScriptEditorShownLine[]): string {
+  const least = Math.min(...lines.filter((line) => solidScriptEditorShownChip(line.row)).map((line) => line.depth));
+  const marked = lines.map((line) => {
+    const chip = solidScriptEditorShownChip(line.row);
+    if (!chip) return '';
+    const pieces = [...chip.querySelectorAll(SOLID_SCRIPT_EDITOR_SHOWN_PIECES)].filter(
+      (piece) => !piece.parentElement?.closest(SOLID_SCRIPT_EDITOR_SHOWN_PIECES),
+    );
+    const indent = SOLID_SCRIPT_EDITOR_SHOWN_MARKDOWN_INDENT.repeat(line.depth - least);
+    return indent + pieces.map(solidScriptEditorShownMarkdownPiece).join('');
+  });
+  return marked.join('  \n');
+}
+
+/**
  * Escapes text for HTML.
  *
  * @param text Text.
@@ -84,11 +147,24 @@ function solidScriptEditorShownSpans(chip: HTMLElement): string {
     if (!parent || parent.closest('[aria-hidden="true"], svg')) continue;
     const style = getComputedStyle(parent);
     const look = `color:${style.color};font-weight:${style.fontWeight};font-style:${style.fontStyle}`;
-    spans.push(
-      `<span style="${solidScriptEditorShownEscape(look)}">${solidScriptEditorShownEscape(node.textContent ?? '')}</span>`,
-    );
+    const span = `<span style="${solidScriptEditorShownEscape(look)}">${solidScriptEditorShownEscape(node.textContent ?? '')}</span>`;
+    spans.push(solidScriptEditorShownTag(parent, span));
   }
   return spans.join('');
+}
+
+/**
+ * Marks a piece of a block name as strong and of a note as emphasised, so the
+ * HTML keeps them where colours are dropped.
+ *
+ * @param parent Element the text is in.
+ * @param span Coloured span.
+ * @returns HTML.
+ */
+function solidScriptEditorShownTag(parent: Element, span: string): string {
+  if (parent.closest(`.${SOLID_SCRIPT_EDITOR_CLASSES.listName}`)) return `<strong>${span}</strong>`;
+  if (parent.closest(`.${SOLID_SCRIPT_EDITOR_CLASSES.listNote}`)) return `<em>${span}</em>`;
+  return span;
 }
 
 /**
@@ -126,5 +202,9 @@ export function solidScriptEditorShownCopy(
   lines: readonly SolidScriptEditorShownLine[],
   view: HTMLElement,
 ): SolidScriptEditorShownCopy {
-  return { text: solidScriptEditorShownText(lines), html: solidScriptEditorShownHtml(lines, view) };
+  return {
+    text: solidScriptEditorShownText(lines),
+    markdown: solidScriptEditorShownMarkdown(lines),
+    html: solidScriptEditorShownHtml(lines, view),
+  };
 }
