@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { solidScriptDocumentCreate } from '@/solid_script/document/solid_script_document.js';
+import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import {
   button,
@@ -57,7 +57,7 @@ const PLACES = [
  * @returns What it says.
  */
 function echo(value: string): string | undefined {
-  const lines = [
+  const lines: SolidScriptLine[] = [
     { command: 'echo', values: { value } },
     { command: 'cube', values: {} },
   ];
