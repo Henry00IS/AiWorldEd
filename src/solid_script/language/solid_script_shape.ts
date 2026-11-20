@@ -39,12 +39,32 @@ export interface SolidScriptShapeSolid {
   /** Tags the operations that built faces gave them, such as Bevel. */
   faceTags?: SolidScriptFaceTag[];
   /**
+   * How textures follow a move and whether lettering stays readable, from
+   * Transform UVs or Input Brushes; none keeps the defaults.
+   */
+  uvPolicy?: SolidScriptUvPolicy;
+  /**
    * The received brush this solid passes on, from Input Brushes; none for built
    * shapes.
    */
   received?: SolidScriptReceived;
   /** Plane that last clipped this solid, in script space; none if uncut. */
   clippedBy?: { normal: THREE.Vector3; constant: number };
+}
+
+/**
+ * How a solid's textures follow a move, and whether lettering stays readable on
+ * a mirrored copy.
+ */
+export interface SolidScriptUvPolicy {
+  /** 'copied' moves textures with the solid; 'world' keeps them in place. */
+  textures?: 'copied' | 'world';
+  /** False leaves lettering reversed on a mirrored copy; missing means unset. */
+  readable?: boolean;
+  /** UV tiles added along U. */
+  shiftU?: number;
+  /** UV tiles added along V. */
+  shiftV?: number;
 }
 
 /**

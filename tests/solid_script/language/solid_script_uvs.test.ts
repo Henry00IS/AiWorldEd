@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
+import { solidScriptDocumentListing } from '@/solid_script/document/solid_script_document_listing.js';
 import { solidScriptGeometryFaces } from '@/solid_script/language/solid_script_geometry.js';
 import { solidScriptFaceCornerUvs } from '@/solid_script/language/solid_script_uvs.js';
 import { solidScriptShapeMeshes } from '@/solid_script/language/solid_script_mesh.js';
 import type { SolidScriptShapeSolid } from '@/solid_script/language/solid_script_shape.js';
+import { solidScriptUvPolicyOf } from '@/solid_script/language/solid_script_uv_policy.js';
+import type { SolidScriptUseFacts } from '@/solid_script/language/solid_script_system.js';
 import { solidScriptShapeTransform } from '@/solid_script/language/solid_script_reshape.js';
 import * as THREE from 'three';
 
@@ -229,5 +232,97 @@ describe('SolidScript UV commands', () => {
     const [mesh] = solidScriptShapeMeshes(result.shapes);
     if (!mesh) throw new Error('Expected a mesh');
     expect(mesh.uvs.some((face) => face?.some(([u, v]) => u === 0.5 && v === 0.5))).toBe(true);
+  });
+
+  it('stores Readable Text and Textures on any brush, and Offset tiles on a received brush', () => {
+    const solid = onlySolid(
+      run({ command: 'cube' }, SELECT_BRUSHES, SELECT_ALL, {
+        command: 'transform_uvs',
+        values: { offset: '0, 0, 0', readable: 'Yes', textures: 'World Aligned' },
+      }),
+    );
+    expect(solidScriptUvPolicyOf(solid)).toMatchObject({ readable: true, textures: 'world' });
+    const box = (size: number): [number, number, number][] => {
+      const corners: [number, number, number][] = [];
+      for (const x of [-1, 1])
+        for (const y of [-1, 1])
+          for (const z of [-1, 1]) corners.push([(x * size) / 2, (y * size) / 2, (z * size) / 2]);
+      return corners;
+    };
+    const use: SolidScriptUseFacts = { usage: 'Modifier', solids: [box(2)], faces: 6 };
+    const received = solidScriptProgramRun(
+      solidScriptDocumentCreate([
+        { command: 'input_brushes' },
+        SELECT_BRUSHES,
+        SELECT_ALL,
+        { command: 'transform_uvs', values: { offset: '2, -1, 0', readable: 'Yes', textures: 'World Aligned' } },
+      ]),
+      { use },
+    );
+    expect(received.error?.message ?? null).toBeNull();
+    const pass = received.shapes.find((shape): shape is SolidScriptShapeSolid => shape.kind === 'solid');
+    if (!pass) throw new Error('Expected the received brush');
+    expect(solidScriptUvPolicyOf(pass)).toEqual({
+      textures: 'world',
+      readable: true,
+      shiftU: 2,
+      shiftV: -1,
+    });
+    const direct = solidScriptProgramRun(
+      solidScriptDocumentCreate([
+        {
+          command: 'input_brushes',
+          values: { textures: 'World Aligned', readable: 'Yes', uv_shift_u: '2', uv_shift_v: '-1' },
+        },
+      ]),
+      { use },
+    );
+    expect(direct.error?.message ?? null).toBeNull();
+    const fromInput = direct.shapes.find((shape): shape is SolidScriptShapeSolid => shape.kind === 'solid');
+    if (!fromInput) throw new Error('Expected the Input Brushes solid');
+    expect(solidScriptUvPolicyOf(fromInput)).toEqual(solidScriptUvPolicyOf(pass));
+  });
+
+  it('keeps lettering readable when a mirrored copy would reverse U', () => {
+    const plain = onlySolid(
+      run(
+        { command: 'cube' },
+        SELECT_BRUSHES,
+        SELECT_ALL,
+        { command: 'project_uvs', values: { mode: 'Planar', from: 'Overhead', size: '1' } },
+        { command: 'mirror', values: { v: '1, 0, 0' } },
+      ),
+    );
+    const readable = onlySolid(
+      run(
+        { command: 'cube' },
+        SELECT_BRUSHES,
+        SELECT_ALL,
+        { command: 'project_uvs', values: { mode: 'Planar', from: 'Overhead', size: '1' } },
+        { command: 'transform_uvs', values: { readable: 'Yes' } },
+        { command: 'mirror', values: { v: '1, 0, 0' } },
+      ),
+    );
+    const tops = (solid: SolidScriptShapeSolid) =>
+      solidScriptGeometryFaces([solid])
+        .filter((face) => face.normal.y > 0.9)
+        .flatMap((face) => solidScriptFaceCornerUvs(face).map(([u]) => round(u)));
+    const plainU = tops(plain);
+    const readableU = tops(readable);
+    expect(readableU).not.toEqual(plainU);
+    expect(Math.min(...readableU) + Math.max(...readableU)).toBeCloseTo(Math.min(...plainU) + Math.max(...plainU), 4);
+  });
+
+  it('writes Transform UVs Readable Text and Textures in plain words', () => {
+    expect(
+      solidScriptDocumentListing(
+        solidScriptDocumentCreate([
+          {
+            command: 'transform_uvs',
+            values: { offset: '1, 0, 0', readable: 'Yes', textures: 'World Aligned' },
+          },
+        ]),
+      ),
+    ).toEqual(["Transform UVs Offset '1, 0, 0' Scale '1, 1, 1' Rotate '0' (Readable Text, Textures 'World Aligned')"]);
   });
 });

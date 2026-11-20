@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
+import { solidScriptUvPolicyOf, solidScriptUvPolicyMap } from './solid_script_uv_policy.js';
 import { fitSurfaceUvMatrixFromWorldSamples } from '@/texture/uv_matrix/surface_uv_matrix_fit.js';
 import { createDefaultFaceSurface, orientDefaultFaceSurface } from '@/texture/uv_matrix/face_surface_description.js';
 import { textureUvProjectAxis, textureUvProjectPoint } from '@/texture/uv_project/texture_uv_project_view.js';
@@ -142,11 +143,25 @@ export function solidScriptFaceUvsCarry(
         uv: solidScriptFaceUvOwn(leaf, face.center, face.normal, center),
       }))
     : (leaf.faceUvs ?? []);
-  return records.map((face) => ({
-    point: face.point.clone().applyMatrix4(matrix),
-    normal: face.normal.clone().applyMatrix3(normals).normalize(),
-    uv: face.uv.multiplyMatrix4(back),
-  }));
+  const policy = solidScriptUvPolicyOf(leaf);
+  const world = policy.textures === 'world';
+  const reflected = matrix.determinant() < 0 && policy.readable === true;
+  const originals = reflected || world ? solidScriptGeometryFaces([leaf]) : [];
+  return records.map((face) => {
+    const point = face.point.clone().applyMatrix4(matrix);
+    const normal = face.normal.clone().applyMatrix3(normals).normalize();
+    const source = originals.find(
+      (entry) =>
+        entry.normal.dot(face.normal) >= SOLID_SCRIPT_FACE_UV_ALIGN &&
+        Math.abs(entry.normal.dot(entry.center.clone().sub(face.point))) <= SOLID_SCRIPT_FACE_UV_GAP,
+    );
+    const corners = source?.corners ?? [];
+    return {
+      point,
+      normal,
+      uv: solidScriptUvPolicyMap(face.uv, corners, world ? null : back, reflected, 0, 0),
+    };
+  });
 }
 
 /**

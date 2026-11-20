@@ -4,6 +4,7 @@ import { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { SolidBrushVisual } from '@/solid/model/solid_brush_visual.js';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import type { FaceSurfaceDescription } from '@/texture/uv_matrix/face_surface_description.js';
+import { surfaceUvApplyPolicy } from '@/texture/uv_matrix/surface_uv_policy.js';
 
 /** UserData flag on meshes of brushes that a modifier produced. */
 export const MODIFIER_STACK_DERIVED_KEY = 'modifierDerived';
@@ -112,33 +113,15 @@ function modifierStackCopySurface(
   shift: Pick<ModifierStackUvPolicy, 'shiftU' | 'shiftV'>,
 ): FaceSurfaceDescription {
   const surface = source.getFaceSurface(index);
-  const reflectionOffset = reverseU ? modifierStackMirrorUOffset(source, index) : 0;
-  surface.uv = surface.uv.multiplyMatrix4(pose);
-  if (reverseU) {
-    surface.uv.u.multiplyScalar(-1);
-    surface.uv.u.w += reflectionOffset;
-  }
-  surface.uv.u.w += shift.shiftU;
-  surface.uv.v.w += shift.shiftV;
-  return surface;
-}
-
-/**
- * Returns the U shift that mirrors a face inside its own chart.
- *
- * @param source Brush being copied.
- * @param index Face index.
- * @returns Sum of the face's smallest and largest U.
- */
-function modifierStackMirrorUOffset(source: SolidBrushInstance, index: number): number {
-  const mapping = source.getFaceSurface(index).uv;
   const face = source.brush.faces[index];
-  if (!face) return 0;
-  const values = source.brush.getFaceVertexIndices(face).map((vertex) => {
-    const point = source.brush.vertices[vertex];
-    return point ? mapping.project(point).u : 0;
-  });
-  return Math.min(...values) + Math.max(...values);
+  const points = face
+    ? source.brush.getFaceVertexIndices(face).flatMap((vertex) => {
+        const point = source.brush.vertices[vertex];
+        return point ? [point] : [];
+      })
+    : [];
+  surface.uv = surfaceUvApplyPolicy(surface.uv, points, pose, reverseU, shift.shiftU, shift.shiftV);
+  return surface;
 }
 
 /**

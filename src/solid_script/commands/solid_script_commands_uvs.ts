@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { SolidScriptCommand } from './solid_script_command.js';
+import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import {
   solidScriptParameter,
   solidScriptParameterOf,
@@ -47,6 +48,11 @@ import {
   type TextureUvTransform,
 } from '@/texture/uv_project/texture_uv_transform.js';
 import type { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
+import {
+  solidScriptUvPolicyApply,
+  solidScriptUvPolicyOf,
+  solidScriptUvPolicyTextures,
+} from '@/solid_script/language/solid_script_uv_policy.js';
 
 /** Commands that project, unwrap, pack and transform texture coordinates. */
 export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
@@ -175,10 +181,20 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Move, scale or rotate texture coordinates',
     manual:
-      "Offsets, scales and rotates the UV mapping of the faces in UV space. Offset is added after Scale and Rotate. Pivot is Center (the middle of the faces' UVs), Tile (the middle of the texture tile under that center, as in Bevel) or Origin (0, 0). Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. Brushes stay brushes; meshes stay meshes. Example: Project UVs, then Transform UVs Offset 0.5, 0 Rotate 90.",
-    stops: ['No faces.', 'A Pivot other than Center, Tile or Origin.'],
+      "Offsets, scales and rotates the UV mapping of the faces in UV space. Offset is tiles added to U and V (Z is ignored), the same shift as UV Shift on Input Brushes, and is added after Scale and Rotate. Pivot is Center (the middle of the faces' UVs), Tile (the middle of the texture tile under that center, as in Bevel) or Origin (0, 0). Readable Text Yes keeps lettering readable when a later Mirror or a mirrored copy would otherwise reverse it. Textures is Move With Shape, so textures stay on their faces, or World Aligned, so they stay where they are in the world; left off, the solid keeps the Textures it already has. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. Brushes stay brushes; meshes stay meshes. Example: Project UVs, then Transform UVs Offset 0.5, 0 Rotate 90.",
+    stops: [
+      'No faces.',
+      'A Pivot other than Center, Tile or Origin.',
+      'Textures other than Move With Shape or World Aligned.',
+    ],
     parameters: [
-      solidScriptParameter('offset', 'Offset', 'vector3', '0, 0, 0', 'Added to U and V; Z is ignored.'),
+      solidScriptParameter(
+        'offset',
+        'Offset',
+        'vector3',
+        '0, 0, 0',
+        'Tiles added to U and V, the same as UV Shift on Input Brushes; Z is ignored.',
+      ),
       solidScriptParameter('scale', 'Scale', 'vector3', '1, 1, 1', 'Multiplier of U and V; Z is ignored.'),
       solidScriptParameter('rotate', 'Rotate', 'number', '0', 'Rotation around the pivot, in degrees.'),
       solidScriptParameterWords('pivot', 'Pivot', 'text', 'Center', 'The point Scale and Rotate turn about.', [
@@ -186,6 +202,27 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
         { word: 'Tile', detail: 'The middle of the texture tile, as in Bevel' },
         { word: 'Origin', detail: 'U 0, V 0' },
       ]),
+      solidScriptParameter(
+        'readable',
+        'Readable Text',
+        'boolean',
+        'No',
+        'Yes: keeps lettering readable on a mirrored copy. No: leaves it as the reflection made it.',
+      ),
+      {
+        ...solidScriptParameterWords(
+          'textures',
+          'Textures',
+          'message',
+          'Move With Shape',
+          'Move With Shape keeps textures on their faces; World Aligned keeps them where they are in the world. Left off, the solid keeps the Textures it already has.',
+          [
+            { word: 'Move With Shape', detail: 'Textures stay on their faces' },
+            { word: 'World Aligned', detail: 'Textures stay where they are in the world' },
+          ],
+        ),
+        optional: true,
+      },
       solidScriptParameterOf('faces or brushes', '$Selected.Faces'),
     ],
     listing: (read) => [
@@ -196,14 +233,77 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
       read.value('scale'),
       ' Rotate ',
       read.value('rotate'),
-      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+      ...solidScriptListingOptions([
+        read.on('readable') && ['Readable Text'],
+        read.text('textures') !== '' && [' Textures ', read.value('textures')],
+        read.text('of') !== '' && [' Of ', read.value('of')],
+      ]),
     ],
     execute: (run) => {
-      solidScriptUvsTransform(run, solidScriptFaceTargets(run, 'Transform UVs'));
+      const faces = solidScriptFaceTargets(run, 'Transform UVs');
+      const bake = solidScriptUvsTransformBakesReceived(run, faces);
+      solidScriptUvsTransformPolicy(run, faces, bake);
+      solidScriptUvsTransform(run, faces, bake);
       return [];
     },
   }),
 ];
+
+/**
+ * Stores Readable Text, Textures and Offset tiles on the solids of the faces,
+ * so a later Mirror or an Input Brushes copy uses the same policy.
+ *
+ * @param run Running line.
+ * @param faces Faces Transform UVs just edited.
+ */
+function solidScriptUvsTransformPolicy(
+  run: SolidScriptBlockRun,
+  faces: readonly SolidScriptFaceFacts[],
+  bake: boolean,
+): void {
+  const offset = solidScriptUvsVector(run, 'offset', [0, 0, 0], 'Offset');
+  const readableField = run.fields().value('readable');
+  const readable = readableField === undefined ? undefined : run.fields().flag('readable');
+  const textures = solidScriptUvPolicyTextures(run, false);
+  const unchanged = readable === undefined && textures === undefined && offset.x === 0 && offset.y === 0;
+  if (unchanged) return;
+  const seen = new Set<SolidScriptGeometryLeaf>();
+  for (const face of faces) {
+    if (seen.has(face.leaf)) continue;
+    seen.add(face.leaf);
+    const latest = run.leafLatest(face.leaf);
+    if (latest.kind !== 'solid') continue;
+    const keepShift = !!latest.received && !bake;
+    const writeTextures = textures && (textures !== 'copied' || solidScriptUvPolicyOf(latest).textures !== undefined);
+    solidScriptUvPolicyApply(
+      latest,
+      {
+        ...(writeTextures ? { textures } : {}),
+        ...(readable !== undefined ? { readable } : {}),
+        shiftU: keepShift ? offset.x : 0,
+        shiftV: keepShift ? offset.y : 0,
+      },
+      'add',
+    );
+  }
+}
+
+/**
+ * Tells whether Scale and Rotate will bake UVs, which turns a received brush
+ * into a built one. Offset on a received brush stays in the texture policy when
+ * they are left at 1 and 0.
+ *
+ * @param run Running line.
+ * @param faces Faces, for the pivot when Rotate or Scale is set.
+ * @returns True when stored UVs will change.
+ */
+function solidScriptUvsTransformBakesReceived(
+  run: SolidScriptBlockRun,
+  faces: readonly SolidScriptFaceFacts[],
+): boolean {
+  const transform = solidScriptUvsTransformValues(run, faces);
+  return transform.scaleU !== 1 || transform.scaleV !== 1 || transform.rotationDeg !== 0;
+}
 
 /**
  * Reads Size and stops when it is not a number greater than 0.
@@ -542,10 +642,11 @@ function solidScriptUvsFitCorners(
  * @param run Running line.
  * @param faces Faces to transform.
  */
-function solidScriptUvsTransform(run: SolidScriptBlockRun, faces: readonly SolidScriptFaceFacts[]): void {
+function solidScriptUvsTransform(run: SolidScriptBlockRun, faces: readonly SolidScriptFaceFacts[], bake = true): void {
   const transform = solidScriptUvsTransformValues(run, faces);
   for (const [leaf, group] of solidScriptFaceGroups(faces, (face) => face.leaf)) {
     const latest = run.leafLatest(leaf);
+    if (latest.kind === 'solid' && latest.received && !bake) continue;
     if (latest.kind === 'solid') solidScriptUvsTransformSolid(run, latest, group, transform);
     else
       solidScriptUvsWriteCorners(
