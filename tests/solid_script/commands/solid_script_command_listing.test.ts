@@ -63,7 +63,7 @@ describe('SolidScript listing', () => {
     expect(listed('transform_uvs', { offset: '0, 0, 0', scale: '2,2,2', rotate: '0', textures: '' })).toBe(
       "Transform UVs Scale '2,2,2'",
     );
-    expect(listed('transform_uvs', { textures: 'Move With Shape', of: '[Top]' })).toBe('Transform UVs (Of [Top])');
+    expect(listed('transform_uvs', { textures: '', of: '[Top]' })).toBe('Transform UVs (Of [Top])');
     expect(listed('transform_uvs', { rotate: '90', textures: 'World Aligned' })).toBe(
       "Transform UVs Rotate '90' (Textures 'World Aligned')",
     );

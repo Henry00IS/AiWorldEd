@@ -201,7 +201,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Move, scale or rotate texture coordinates',
     manual:
-      "Offsets, scales and rotates the UV mapping of the faces in UV space. Offset is tiles added to U and V (Z is ignored); on brushes from Input Brushes it shifts the texture of that copy. It is added after Scale and Rotate. Pivot is Center (the middle of the faces' UVs), Tile (the middle of the texture tile under that center, such as 0.5, 0.5) or Origin (0, 0). Readable Text Yes keeps lettering readable when a later Mirror or a mirrored copy would otherwise reverse it. Textures is Move With Shape, so textures stay on their faces, or World Aligned, so they stay where they are in the world; left off, the solid keeps the Textures it already has. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. Brushes stay brushes; meshes stay meshes. Example: Project UVs, then Transform UVs Offset 0.5, 0 Rotate 90.",
+      "Offsets, scales and rotates the UV mapping of the faces in UV space. Offset is tiles added to U and V (Z is ignored); on brushes from Input Brushes it shifts the texture of that copy. It is added after Scale and Rotate. Pivot is Center (the middle of the faces' UVs), Tile (the middle of the texture tile under that center, such as 0.5, 0.5) or Origin (0, 0). Readable Text Yes keeps lettering readable when a later Mirror or a mirrored copy would otherwise reverse it, No lets the reflection reverse it, and left off the solid keeps the Readable Text it already has. Textures is Move With Shape, so textures stay on their faces, or World Aligned, so they stay where they are in the world; left off, the solid keeps the Textures it already has. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. Brushes stay brushes; meshes stay meshes. Example: Project UVs, then Transform UVs Offset 0.5, 0 Rotate 90.",
     stops: [
       'No faces.',
       'A Pivot other than Center, Tile or Origin.',
@@ -235,20 +235,19 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
           { word: 'Origin', detail: 'U 0, V 0' },
         ],
       ),
-      solidScriptParameter(
+      solidScriptParameterOptional(
         'readable',
         'Readable Text',
         'boolean',
-        'No',
-        'Yes: keeps lettering readable on a mirrored copy. No: leaves it as the reflection made it. Type Yes or No, such as Yes.',
+        'Yes: keeps lettering readable on a mirrored copy. No: leaves it as the reflection made it. Type Yes or No, such as Yes. Left off, the solid keeps the Readable Text it already has.',
       ),
       {
         ...solidScriptParameterWords(
           'textures',
           'Textures',
           'message',
-          'Move With Shape',
-          'Move With Shape keeps textures on their faces; World Aligned keeps them where they are in the world. Type one of those, such as Move With Shape. Type one of those, such as Move With Shape. Left off, the solid keeps the Textures it already has.',
+          '',
+          'Move With Shape keeps textures on their faces; World Aligned keeps them where they are in the world. Type one of those, such as Move With Shape. Left off, the solid keeps the Textures it already has.',
           [
             { word: 'Move With Shape', detail: 'Textures stay on their faces' },
             { word: 'World Aligned', detail: 'Textures stay where they are in the world' },
@@ -264,7 +263,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
       ...(read.changed('scale') ? [' Scale ', read.value('scale')] : []),
       ...(read.changed('rotate') ? [' Rotate ', read.value('rotate')] : []),
       ...solidScriptListingOptions([
-        read.on('readable') && ['Readable Text'],
+        read.text('readable') !== '' && [read.on('readable') ? 'Readable Text' : 'Readable Text No'],
         read.changed('textures') && ['Textures ', read.value('textures')],
         read.text('of') !== '' && ['Of ', read.value('of')],
       ]),
@@ -292,8 +291,7 @@ function solidScriptUvsTransformPolicy(
   bake: boolean,
 ): void {
   const offset = solidScriptUvsVector(run, 'offset', [0, 0, 0], 'Offset');
-  const readableField = run.fields().value('readable');
-  const readable = readableField === undefined ? undefined : run.fields().flag('readable');
+  const readable = solidScriptUvsReadable(run);
   const textures = solidScriptUvPolicyTextures(run, false);
   const unchanged = readable === undefined && textures === undefined && offset.x === 0 && offset.y === 0;
   if (unchanged) return;
@@ -316,6 +314,16 @@ function solidScriptUvsTransformPolicy(
       'add',
     );
   }
+}
+
+/**
+ * Reads Readable Text, or none when it is left off so the solid keeps its own.
+ *
+ * @param run Running line.
+ * @returns Yes or No, or undefined when empty.
+ */
+function solidScriptUvsReadable(run: SolidScriptBlockRun): boolean | undefined {
+  return run.text('readable').trim() === '' ? undefined : run.fields().flag('readable');
 }
 
 /**

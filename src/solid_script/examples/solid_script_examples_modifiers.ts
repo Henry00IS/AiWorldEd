@@ -69,8 +69,7 @@ function solidScriptExampleCopyUvs(index: string, readable: boolean): SolidScrip
   return solidScriptExampleIf(`[Copy.Count] > 0${readable ? '' : ` and ${shifted}`}`, [
     solidScriptExampleLine('transform_uvs', {
       offset: `[=[UvShiftU] * ${index}], [=[UvShiftV] * ${index}], 0`,
-      readable: readable ? '[Readable]' : 'Yes',
-      textures: '[Textures]',
+      ...(readable ? { readable: '[Readable]' } : {}),
       of: '[Copy]',
     }),
   ]);

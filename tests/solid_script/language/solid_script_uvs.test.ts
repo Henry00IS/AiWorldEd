@@ -327,3 +327,88 @@ describe('SolidScript UV commands', () => {
     ),
   ).toEqual(["Transform UVs Offset '1, 0, 0' (Readable Text)"]);
 });
+
+/**
+ * Texture policy of the received brush after Input Brushes writes it Into
+ * [Copy] with Textures and the lines given run on it.
+ *
+ * @param textures Input Brushes Textures.
+ * @param lines Lines run on [Copy] before it is output.
+ * @returns Policy of the output brush.
+ */
+function receivedPolicy(textures: string, ...lines: SolidScriptLine[]) {
+  const corners = [-1, 1].flatMap((x) => [-1, 1].flatMap((y) => [-1, 1].map((z) => [x, y, z] as const)));
+  const use: SolidScriptUseFacts = { usage: 'Modifier', solids: [solidScriptUseSolidOf(corners)], faces: 6 };
+  const result = solidScriptProgramRun(
+    solidScriptDocumentCreate([
+      { command: 'input_brushes', values: { textures, into: 'Copy' } },
+      ...lines,
+      { command: 'output', values: { of: '[Copy]' } },
+    ]),
+    { use },
+  );
+  return solidScriptUvPolicyOf(onlySolid(result));
+}
+
+/**
+ * A Transform UVs line on [Copy].
+ *
+ * @param values Fields besides Of.
+ * @returns Line.
+ */
+function transformCopy(values: Record<string, string>): SolidScriptLine {
+  return { command: 'transform_uvs', values: { ...values, of: '[Copy]' } };
+}
+
+describe('SolidScript Transform UVs with Textures or Readable Text left off', () => {
+  it('keeps a World Aligned brush World Aligned and still adds the Offset', () => {
+    expect(receivedPolicy('World Aligned', transformCopy({ offset: '1, -0.5, 0' }))).toEqual({
+      textures: 'world',
+      readable: true,
+      shiftU: 1,
+      shiftV: -0.5,
+    });
+  });
+
+  it('keeps the Readable Text that Input Brushes or an earlier line set', () => {
+    expect(receivedPolicy('Move With Shape', transformCopy({ offset: '1, 0, 0' })).readable).toBe(true);
+    const earlier = receivedPolicy(
+      'Move With Shape',
+      transformCopy({ readable: 'No' }),
+      transformCopy({ offset: '2, 0, 0' }),
+    );
+    expect(earlier).toMatchObject({ readable: false, shiftU: 2 });
+    const built = onlySolid(
+      run(
+        { command: 'cube' },
+        SELECT_BRUSHES,
+        SELECT_ALL,
+        {
+          command: 'transform_uvs',
+          values: { readable: 'Yes' },
+        },
+        { command: 'transform_uvs', values: { rotate: '90' } },
+      ),
+    );
+    expect(solidScriptUvPolicyOf(built).readable).toBe(true);
+  });
+
+  it('still lets typed values override what the brush has', () => {
+    expect(receivedPolicy('World Aligned', transformCopy({ textures: 'Move With Shape' })).textures).toBe('copied');
+    expect(receivedPolicy('Move With Shape', transformCopy({ textures: 'World Aligned' })).textures).toBe('world');
+    expect(receivedPolicy('Move With Shape', transformCopy({ readable: 'No' })).readable).toBe(false);
+    expect(
+      receivedPolicy('Move With Shape', transformCopy({ readable: 'No' }), transformCopy({ readable: 'Yes' })).readable,
+    ).toBe(true);
+  });
+
+  it('lists Textures and Readable Text only when they are typed', () => {
+    const listing = (values: Record<string, string>) =>
+      solidScriptDocumentListing(solidScriptDocumentCreate([{ command: 'transform_uvs', values }]));
+    expect(listing({ scale: '2, 2, 2' })).toEqual(["Transform UVs Scale '2, 2, 2'"]);
+    expect(listing({ readable: 'No' })).toEqual(['Transform UVs (Readable Text No)']);
+    expect(listing({ readable: 'Yes', textures: 'Move With Shape' })).toEqual([
+      "Transform UVs (Readable Text, Textures 'Move With Shape')",
+    ]);
+  });
+});
