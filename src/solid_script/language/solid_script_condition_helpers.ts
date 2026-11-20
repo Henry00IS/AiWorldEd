@@ -118,20 +118,23 @@ export const SOLID_SCRIPT_CONDITION_HELPERS: readonly SolidScriptConditionHelper
     key: 'every_nth',
     name: 'EveryNth',
     display: 'Every Nth',
-    description: 'Yes for every step-th item, from a start, such as EveryNth([$Index], 2) for every second item.',
+    description:
+      'Yes for every Nth item, such as every second one: Step 1 keeps every item, 2 every second item (skipping the one between), 3 every third, and so on. Items count from 0, so of 6 items EveryNth([$Index], 2) keeps items 0, 2 and 4, and EveryNth([$Index], 2, 1) keeps items 1, 3 and 5.',
     inputs: [
       { name: 'index', label: 'Index', type: ['Number'], about: 'Item number from 0, usually [$Index].' },
       {
         name: 'step',
         label: 'Step',
         type: ['Number'],
-        about: 'How often to keep an item, a whole number of 1 or more, such as 2.',
+        about:
+          'How often to keep an item, such as 2; 1 keeps every item, 2 every second, 3 every third, and so on, always a whole number of 1 or more.',
       },
       {
         name: 'start',
         label: 'Start',
         type: ['Number'],
-        about: 'First kept index, such as 1.',
+        about:
+          'Shifts which items are kept, such as 1; the item at Start is kept, and every Step-th item before and after it, so with Step 2, Start 1 keeps items 1, 3 and 5.',
         optional: '0',
       },
     ],

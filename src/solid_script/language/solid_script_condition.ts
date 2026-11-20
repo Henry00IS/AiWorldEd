@@ -86,11 +86,11 @@ export function solidScriptNearHolds(point: readonly number[], target: readonly 
 }
 
 /**
- * Tells whether an index is every step-th item, from a start.
+ * Tells whether an index is every Nth item, lined up with a start.
  *
  * @param index Item number from 0.
  * @param step How often to keep an item, a whole number of 1 or more.
- * @param start First kept index, 0 when omitted.
+ * @param start Index the kept items line up with, 0 when omitted.
  * @returns Yes for start, start + step, and so on.
  */
 export function solidScriptEveryNthHolds(index: number, step: number, start = 0): boolean {
