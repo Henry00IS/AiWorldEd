@@ -93,7 +93,7 @@ describe('SolidScript generator tools', () => {
       { command: 'when_button_pressed', values: { name: 'reset' } },
       { command: 'set_input', values: { name: 'steps', value: '8' } },
       { command: 'end' },
-      { command: 'repeat', values: { variable: 'i', from: '1', to: '[steps]' } },
+      { command: 'repeat', values: { variable: 'i', from: '1', to: '[=[steps] + 1]' } },
       { command: 'cube' },
       { command: 'end' },
     ];
@@ -141,7 +141,7 @@ describe('SolidScript generator tools', () => {
     const { api, objectId } = generatorFixture();
     const lines = [
       { command: 'input', values: { name: 'steps', type: 'Count', default: '2', min: '1', max: '20' } },
-      { command: 'repeat', values: { variable: 'i', from: '1', to: '[steps]' } },
+      { command: 'repeat', values: { variable: 'i', from: '1', to: '[=[steps] + 1]' } },
       { command: 'cube' },
       { command: 'end' },
     ];

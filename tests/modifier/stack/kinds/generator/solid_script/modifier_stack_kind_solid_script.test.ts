@@ -283,7 +283,7 @@ describe('SolidScript generator', () => {
         { command: 'when_baked' },
         { command: 'set_input', values: { name: 'count', value: '5' } },
         { command: 'end' },
-        { command: 'repeat', values: { variable: 'i', from: '1', to: '[count]' } },
+        { command: 'repeat', values: { variable: 'i', from: '1', to: '[=[count] + 1]' } },
         { command: 'transform', values: { move: '[=[i] * 2], 0, 0' } },
         { command: 'cube' },
         { command: 'end' },

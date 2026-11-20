@@ -6,7 +6,7 @@ import type { SolidScriptLineSeen } from '@/solid_script/language/solid_script_m
 
 const LOOP: SolidScriptLine[] = [
   { command: 'variable', values: { name: 'A', value: '1' } },
-  { command: 'repeat', values: { variable: 'i', from: '0', to: '2' } },
+  { command: 'repeat', values: { variable: 'i', from: '0', to: '3' } },
   { command: 'variable', values: { name: 'A', value: '[=[A] + 1]' } },
   { command: 'cube', values: {} },
   { command: 'end', values: {} },
@@ -111,9 +111,9 @@ describe('SolidScript keeps what each line saw the last time it ran', () => {
       { command: 'variable', values: { name: 'A', value: '1' } },
       {
         command: 'repeat',
-        values: { variable: 'j', from: '1', to: String(Math.ceil(SOLID_SCRIPT_SEEN_LIMIT / rounds)) },
+        values: { variable: 'j', from: '1', to: String(Math.ceil(SOLID_SCRIPT_SEEN_LIMIT / rounds) + 1) },
       },
-      { command: 'repeat', values: { variable: 'i', from: '1', to: String(rounds) } },
+      { command: 'repeat', values: { variable: 'i', from: '1', to: String(rounds + 1) } },
       { command: 'variable', values: { name: 'A', value: '[i]' } },
       { command: 'end', values: {} },
       { command: 'end', values: {} },

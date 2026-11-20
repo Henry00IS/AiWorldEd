@@ -69,9 +69,9 @@ export const SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE: readonly SolidScriptLine[] =
       anchor: 'Center, Bottom, Center',
     }),
   ]),
-  ...solidScriptExampleRepeat('S', '0', '[=[Steps] - 1]', [
+  ...solidScriptExampleRepeat('S', '0', '[Steps]', [
     solidScriptExampleSet('Top', '[=[Base] + [Rise] * ([S] + 1)]'),
-    ...solidScriptExampleRepeat('P', '0', '[=[Smooth] - 1]', [
+    ...solidScriptExampleRepeat('P', '0', '[Smooth]', [
       ...solidScriptExampleSweepPiece('[=[Per] * ([S] + [P] / [Smooth])]', '[=[Per] * ([S] + ([P] + 1) / [Smooth])]', [
         '[=Spot([A], [Inner], [Top] - 0.06)]',
         '[=Spot([A], [Outer], [Top] - 0.06)]',
@@ -94,7 +94,7 @@ export const SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE: readonly SolidScriptLine[] =
     'The slope, the outer stringer and the handrail follow the turn in small twisted pieces, so they look smooth.',
   ),
   solidScriptExampleSet('Pieces', '[=[Steps] * [Smooth]]'),
-  ...solidScriptExampleRepeat('K', '0', '[=[Pieces] - 1]', [
+  ...solidScriptExampleRepeat('K', '0', '[Pieces]', [
     solidScriptExampleSet('From', '[=[Turn] * [K] / [Pieces]]'),
     solidScriptExampleSet('To', '[=[Turn] * ([K] + 1) / [Pieces]]'),
     ...solidScriptExampleSweepPiece('[From]', '[To]', [

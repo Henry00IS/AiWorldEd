@@ -100,3 +100,59 @@ describe('SolidScript Set reads typed commas as a list', () => {
     expect(outcome(set('Word', 'zu'), line('echo', { value: '[Word.Length]' }))).toEqual(['2']);
   });
 });
+
+/**
+ * Runs a Repeat that echoes its counter and returns the counter values, or the
+ * error.
+ *
+ * @param values From, To and Step as typed.
+ * @returns Counter values, or the error message.
+ */
+function repeatRounds(values: Record<string, string>): string[] | string {
+  const run = solidScriptProgramRun(
+    solidScriptDocumentCreate([
+      { command: 'repeat', values: { variable: 'I', ...values } },
+      { command: 'echo', values: { value: '[I]' } },
+      { command: 'end', values: {} },
+    ]),
+  );
+  return run.error ? run.error.message : run.messages;
+}
+
+describe('SolidScript Repeat', () => {
+  it.each([
+    [{ from: '0', to: '5' }, ['0', '1', '2', '3', '4']],
+    [{ from: '1', to: '4' }, ['1', '2', '3']],
+    [{ from: '0', to: '1' }, ['0']],
+    [{ from: '0', to: '10', step: '3' }, ['0', '3', '6', '9']],
+    [{ from: '0', to: '9', step: '3' }, ['0', '3', '6']],
+    [{ from: '0', to: '1', step: '0.25' }, ['0', '0.25', '0.5', '0.75']],
+    [{ from: '-2', to: '1' }, ['-2', '-1', '0']],
+    [{ from: '5', to: '0', step: '-1' }, ['5', '4', '3', '2', '1']],
+    [{ from: '0', to: '-6', step: '-2' }, ['0', '-2', '-4']],
+  ])('runs %j with the counter at %j, To left out', (values, expected) => {
+    expect(repeatRounds(values)).toEqual(expected);
+  });
+
+  it.each([
+    { from: '0', to: '0' },
+    { from: '3', to: '3' },
+    { from: '2', to: '2', step: '-1' },
+  ])('runs no round for the empty range %j', (values) => {
+    expect(repeatRounds(values)).toEqual([]);
+  });
+
+  it('stops on a Step of 0 or one that walks away from To', () => {
+    expect(repeatRounds({ from: '0', to: '5', step: '0' })).toMatch(/Step.*must not be 0/);
+    expect(repeatRounds({ from: '0', to: '5', step: '-1' })).toMatch(
+      /cannot get from 0 to 5 by adding -1; change Step to 1/,
+    );
+  });
+
+  it('lists To as exclusive', () => {
+    const listing = solidScriptDocumentListing(
+      solidScriptDocumentCreate([line('repeat', { variable: 'I', from: '0', to: '5' }), line('end')]),
+    );
+    expect(listing).toEqual(["Repeat 'I' From '0' To '5' (Exclusive)", 'End Repeat']);
+  });
+});

@@ -23,7 +23,7 @@ const line = (command: string, values: Record<string, string> = {}): SolidScript
 /** A loop that counts A up, then a branch that never runs. */
 const COUNTING: SolidScriptLine[] = [
   line('variable', { name: 'A', value: '1' }),
-  line('repeat', { variable: 'i', from: '0', to: '2' }),
+  line('repeat', { variable: 'i', from: '0', to: '3' }),
   line('variable', { name: 'A', value: '[=[A] + 1]' }),
   line('cube'),
   line('end'),

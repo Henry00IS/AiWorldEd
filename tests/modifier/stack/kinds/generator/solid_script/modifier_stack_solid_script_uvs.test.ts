@@ -130,7 +130,7 @@ describe('SolidScript generator UVs', () => {
       { command: 'part', values: { name: 'Block' } },
       { command: 'cube', values: { size: '1, 1, 1' } },
       END,
-      { command: 'repeat', values: { variable: 'I', from: '0', to: '2' } },
+      { command: 'repeat', values: { variable: 'I', from: '0', to: '3' } },
       { command: 'transform', values: { move: '[=[I] * 2], 0, 0' } },
       { command: 'output', values: { of: '[Block]' } },
       END,

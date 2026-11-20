@@ -73,7 +73,7 @@ describe('SolidScript Input Brushes and Transform UVs share texture policy', () 
 
   it('gives the same copy UVs from Input Brushes fields and from Transform UVs', () => {
     const byFields = compile([
-      { command: 'repeat', values: { variable: 'I', from: '0', to: '2' } },
+      { command: 'repeat', values: { variable: 'I', from: '0', to: '3' } },
       { command: 'transform', values: { move: '[=[I] * 2], 0, 0' } },
       {
         command: 'input_brushes',
@@ -83,7 +83,7 @@ describe('SolidScript Input Brushes and Transform UVs share texture policy', () 
       { command: 'end' },
     ]);
     const byTransform = compile([
-      { command: 'repeat', values: { variable: 'I', from: '0', to: '2' } },
+      { command: 'repeat', values: { variable: 'I', from: '0', to: '3' } },
       { command: 'transform', values: { move: '[=[I] * 2], 0, 0' } },
       { command: 'input_brushes' },
       { command: 'select_brushes', values: { which: 'Between', how: 'New' } },
@@ -106,7 +106,7 @@ describe('SolidScript Input Brushes and Transform UVs share texture policy', () 
 
   it('gives the same solids, bounds and UVs for a huge UV Shift and for Transform UVs Offset', () => {
     const byFields = compile([
-      { command: 'repeat', values: { variable: 'I', from: '0', to: '1' } },
+      { command: 'repeat', values: { variable: 'I', from: '0', to: '2' } },
       { command: 'transform', values: { move: '[=[I] * 3], 0, 0' } },
       {
         command: 'input_brushes',
@@ -116,7 +116,7 @@ describe('SolidScript Input Brushes and Transform UVs share texture policy', () 
       { command: 'end' },
     ]);
     const byTransform = compile([
-      { command: 'repeat', values: { variable: 'I', from: '0', to: '1' } },
+      { command: 'repeat', values: { variable: 'I', from: '0', to: '2' } },
       { command: 'transform', values: { move: '[=[I] * 3], 0, 0' } },
       { command: 'input_brushes' },
       { command: 'select_brushes', values: { which: 'Between', how: 'New' } },

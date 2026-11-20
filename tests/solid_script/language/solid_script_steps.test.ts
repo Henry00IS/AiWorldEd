@@ -12,7 +12,7 @@ const SOLID_SCRIPT_STEPS = solidScriptDocumentCreate([
   { command: 'transform', values: { move: '3, 0, 0' } },
   { command: 'sphere' },
   { command: 'end' },
-  { command: 'repeat', values: { variable: 'i', from: '0', to: '2' } },
+  { command: 'repeat', values: { variable: 'i', from: '0', to: '3' } },
   { command: 'transform', values: { move: '0, [=3 * [i]], 0' } },
   { command: 'cylinder', values: { h: '1', r1: '0.5', r2: '0.5' } },
   { command: 'end' },
@@ -54,7 +54,7 @@ describe('solid script steps', () => {
   it('reports the variables visible at the last built step, counters included', () => {
     const script = solidScriptDocumentCreate([
       { command: 'variable', values: { name: 'width', value: '2' } },
-      { command: 'repeat', values: { variable: 'i', from: '0', to: '2' } },
+      { command: 'repeat', values: { variable: 'i', from: '0', to: '3' } },
       { command: 'transform', values: { move: '[=[width] * [i]], 0, 0' } },
       { command: 'cube', values: { size: '[width]' } },
       { command: 'end' },

@@ -153,7 +153,7 @@ describe('SolidScript persistent values', () => {
     line('variable', { name: 'persistent.count', value: '[=[persistent.count] + 1]' }),
     line('add_item', { value: '[persistent.count]', list: 'persistent.history' }),
     { command: 'end' },
-    line('repeat', { variable: 'i', from: '1', to: '[persistent.count]' }),
+    line('repeat', { variable: 'i', from: '1', to: '[=[persistent.count] + 1]' }),
     line('cube'),
     { command: 'end' },
   ]);

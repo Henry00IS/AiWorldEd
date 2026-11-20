@@ -31,7 +31,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
       },
     },
     { command: 'end' },
-    { command: 'repeat', values: { variable: 'I', from: '0', to: '4' } },
+    { command: 'repeat', values: { variable: 'I', from: '0', to: '5' } },
     { command: 'transform', values: { move: '[=[I] * 1.5 - 3], 0, 0' } },
     { command: 'output', values: { of: '[Column]' } },
     { command: 'end' },
@@ -52,7 +52,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     },
     { command: 'variable', values: { name: 'Start', value: '-4, 0, 1' } },
     { command: 'variable', values: { name: 'Finish', value: '4, 0, -2' } },
-    { command: 'repeat', values: { variable: 'I', from: '0', to: '[=[Stones] - 1]' } },
+    { command: 'repeat', values: { variable: 'I', from: '0', to: '[Stones]' } },
     {
       command: 'variable',
       values: {
@@ -93,7 +93,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
       },
     },
     { command: 'variable', values: { name: 'Center', value: '0, 1.5, 0' } },
-    { command: 'repeat', values: { variable: 'I', from: '1', to: '[Count]' } },
+    { command: 'repeat', values: { variable: 'I', from: '1', to: '[=[Count] + 1]' } },
     { command: 'variable', values: { name: 'Angle', value: '[=360 / [Count] * [I]]' } },
     {
       command: 'variable',
@@ -537,7 +537,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
       },
     },
     { command: 'polyhedron', values: {} },
-    { command: 'repeat', values: { variable: 'Corner', from: '0', to: '3' } },
+    { command: 'repeat', values: { variable: 'Corner', from: '0', to: '4' } },
     {
       command: 'variable',
       values: {
@@ -596,7 +596,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     },
     { command: 'variable', values: { name: 'Low', value: '1, 1' } },
     { command: 'variable', values: { name: 'High', value: '-1, -1' } },
-    { command: 'repeat', values: { variable: 'I', from: '0', to: '[=[Sides] - 1]' } },
+    { command: 'repeat', values: { variable: 'I', from: '0', to: '[Sides]' } },
     { command: 'variable', values: { name: 'Turn', value: '[=-90 + 180 / [Sides] + 360 * [I] / [Sides]]' } },
     {
       command: 'variable',
@@ -621,7 +621,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
       },
     },
     { command: 'polyhedron', values: {} },
-    { command: 'repeat', values: { variable: 'I', from: '0', to: '[=[Sides] - 1]' } },
+    { command: 'repeat', values: { variable: 'I', from: '0', to: '[Sides]' } },
     { command: 'variable', values: { name: 'Turn', value: '[=-90 + 180 / [Sides] + 360 * [I] / [Sides]]' } },
     {
       command: 'variable',
@@ -630,7 +630,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
         value: '[=(Cos([Turn]) - [Low.X]) / ([High.X] - [Low.X])], [=(Sin([Turn]) - [Low.Y]) / ([High.Y] - [Low.Y])]',
       },
     },
-    { command: 'repeat', values: { variable: 'End', from: '-1', to: '1' } },
+    { command: 'repeat', values: { variable: 'End', from: '-1', to: '2' } },
     { command: 'if', values: { condition: '[End] != 0' } },
     { command: 'if', values: { condition: '[Axis] == "Along X"' } },
     {
@@ -680,7 +680,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
       },
     },
     { command: 'polyhedron', values: {} },
-    { command: 'repeat', values: { variable: 'I', from: '0', to: '[=[Sides] - 1]' } },
+    { command: 'repeat', values: { variable: 'I', from: '0', to: '[Sides]' } },
     { command: 'variable', values: { name: 'Angle', value: '[=([I] + 0.5) * 360 / [Sides]]' } },
     {
       command: 'point',
@@ -690,7 +690,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
       },
     },
     { command: 'end', values: {} },
-    { command: 'repeat', values: { variable: 'I', from: '0', to: '[=[Sides] - 1]' } },
+    { command: 'repeat', values: { variable: 'I', from: '0', to: '[Sides]' } },
     { command: 'variable', values: { name: 'Angle', value: '[=([I] + 0.5) * 360 / [Sides]]' } },
     {
       command: 'point',
@@ -732,7 +732,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
       },
     },
     { command: 'polyhedron', values: {} },
-    { command: 'repeat', values: { variable: 'I', from: '0', to: '[=[Sides] - 1]' } },
+    { command: 'repeat', values: { variable: 'I', from: '0', to: '[Sides]' } },
     { command: 'variable', values: { name: 'Angle', value: '[=([I] + 0.5) * 360 / [Sides]]' } },
     {
       command: 'point',
@@ -745,7 +745,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     { command: 'if', values: { condition: '[TopRadius] <= 0.000000001' } },
     { command: 'point', values: { position: '0, [=[$Box.Height] / 2], 0' } },
     { command: 'else', values: {} },
-    { command: 'repeat', values: { variable: 'I', from: '0', to: '[=[Sides] - 1]' } },
+    { command: 'repeat', values: { variable: 'I', from: '0', to: '[Sides]' } },
     { command: 'variable', values: { name: 'Angle', value: '[=([I] + 0.5) * 360 / [Sides]]' } },
     {
       command: 'point',
@@ -806,7 +806,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     { command: 'variable', values: { name: 'Rise', value: '[$Box.Height]' } },
     { command: 'end', values: {} },
     { command: 'polyhedron', values: {} },
-    { command: 'repeat', values: { variable: 'Ring', from: '0', to: '[Rings]' } },
+    { command: 'repeat', values: { variable: 'Ring', from: '0', to: '[=[Rings] + 1]' } },
     {
       command: 'variable',
       values: {
@@ -817,7 +817,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     { command: 'if', values: { condition: '[=Cos([Latitude])] <= 0.000000001' } },
     { command: 'point', values: { position: '0, [=[Equator] + [Rise] * Sin([Latitude])], 0' } },
     { command: 'else', values: {} },
-    { command: 'repeat', values: { variable: 'I', from: '0', to: '[=[Sides] - 1]' } },
+    { command: 'repeat', values: { variable: 'I', from: '0', to: '[Sides]' } },
     { command: 'variable', values: { name: 'Angle', value: '[=([I] + 0.5) * 360 / [Sides]]' } },
     {
       command: 'point',
@@ -862,7 +862,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     },
     { command: 'variable', values: { name: 'Cap', value: '[=Min([$Box.Width] / 2, [$Box.Height] / 2)]' } },
     { command: 'polyhedron', values: {} },
-    { command: 'repeat', values: { variable: 'End', from: '0', to: '1' } },
+    { command: 'repeat', values: { variable: 'End', from: '0', to: '2' } },
     {
       command: 'variable',
       values: {
@@ -870,7 +870,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
         value: '[=-[$Box.Height] / 2 + [Cap] + [End] * ([$Box.Height] - 2 * [Cap])]',
       },
     },
-    { command: 'repeat', values: { variable: 'Ring', from: '0', to: '[CapRings]' } },
+    { command: 'repeat', values: { variable: 'Ring', from: '0', to: '[=[CapRings] + 1]' } },
     {
       command: 'variable',
       values: {
@@ -881,7 +881,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     { command: 'if', values: { condition: '[=Cos([Latitude])] <= 0.000000001' } },
     { command: 'point', values: { position: '0, [=[Middle] + [Cap] * Sin([Latitude])], 0' } },
     { command: 'else', values: {} },
-    { command: 'repeat', values: { variable: 'I', from: '0', to: '[=[Sides] - 1]' } },
+    { command: 'repeat', values: { variable: 'I', from: '0', to: '[Sides]' } },
     { command: 'variable', values: { name: 'Angle', value: '[=([I] + 0.5) * 360 / [Sides]]' } },
     {
       command: 'point',
@@ -1046,7 +1046,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     { command: 'variable', values: { name: 'Run', value: '-1' } },
     { command: 'variable', values: { name: 'Open', value: 'no' } },
     { command: 'variable', values: { name: 'Slope', value: '0' } },
-    { command: 'repeat', values: { variable: 'K', from: '0', to: '[=Len([Stations]) - 2]' } },
+    { command: 'repeat', values: { variable: 'K', from: '0', to: '[=Len([Stations]) - 1]' } },
     { command: 'variable', values: { name: 'A', value: '[Stations([K])]' } },
     { command: 'variable', values: { name: 'B', value: '[Stations([=[K] + 1])]' } },
     { command: 'variable', values: { name: 'Rise', value: '[=[B.X] - [A.X]]' } },
@@ -1076,7 +1076,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
         text: 'Each run is one solid: a ring of corners per station, or a tip where the radius is zero.',
       },
     },
-    { command: 'repeat', values: { variable: 'R', from: '0', to: '[Run]' } },
+    { command: 'repeat', values: { variable: 'R', from: '0', to: '[=[Run] + 1]' } },
     { command: 'polyhedron', values: {} },
     { command: 'for_each', values: { variable: 'M', list: '[Marks]' } },
     { command: 'if', values: { condition: '[M.Z] == [R]' } },
@@ -1084,7 +1084,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     { command: 'if', values: { condition: '[M.Y] <= 0.000001' } },
     { command: 'point', values: { position: '0, [Y], 0' } },
     { command: 'else', values: {} },
-    { command: 'repeat', values: { variable: 'I', from: '0', to: '[=[Sides] - 1]' } },
+    { command: 'repeat', values: { variable: 'I', from: '0', to: '[Sides]' } },
     { command: 'variable', values: { name: 'Angle', value: '[=([I] + 0.5) * 360 / [Sides]]' } },
     {
       command: 'point',
@@ -1169,9 +1169,9 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
         value: '[=Max(1, Ceil([Sides] * [Sweep] / 360 - 0.000000001))]',
       },
     },
-    { command: 'repeat', values: { variable: 'Piece', from: '0', to: '[=[Segments] - 1]' } },
+    { command: 'repeat', values: { variable: 'Piece', from: '0', to: '[Segments]' } },
     { command: 'polyhedron', values: {} },
-    { command: 'repeat', values: { variable: 'Edge', from: '0', to: '1' } },
+    { command: 'repeat', values: { variable: 'Edge', from: '0', to: '2' } },
     { command: 'variable', values: { name: 'Angle', value: '[=[Sweep] * ([Piece] + [Edge]) / [Segments]]' } },
     { command: 'point', values: { position: '[=RingPoint([Angle], 0, -[$Box.Height] / 2)]' } },
     { command: 'point', values: { position: '[=RingPoint([Angle], [Wall], -[$Box.Height] / 2)]' } },
@@ -1269,7 +1269,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     },
     { command: 'variable', values: { name: 'Low', value: '1, 1' } },
     { command: 'variable', values: { name: 'High', value: '-1, -1' } },
-    { command: 'repeat', values: { variable: 'I', from: '0', to: '[=[TubeSides] - 1]' } },
+    { command: 'repeat', values: { variable: 'I', from: '0', to: '[TubeSides]' } },
     { command: 'variable', values: { name: 'Turn', value: '[=360 * ([I] + 0.5) / [TubeSides]]' } },
     {
       command: 'variable',
@@ -1293,11 +1293,11 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
         value: '[=Max(1, Ceil([RingSides] * [Sweep] / 360 - 0.000000001))]',
       },
     },
-    { command: 'repeat', values: { variable: 'Piece', from: '0', to: '[=[Segments] - 1]' } },
+    { command: 'repeat', values: { variable: 'Piece', from: '0', to: '[Segments]' } },
     { command: 'polyhedron', values: {} },
-    { command: 'repeat', values: { variable: 'Edge', from: '0', to: '1' } },
+    { command: 'repeat', values: { variable: 'Edge', from: '0', to: '2' } },
     { command: 'variable', values: { name: 'Angle', value: '[=[Sweep] * ([Piece] + [Edge]) / [Segments]]' } },
-    { command: 'repeat', values: { variable: 'I', from: '0', to: '[=[TubeSides] - 1]' } },
+    { command: 'repeat', values: { variable: 'I', from: '0', to: '[TubeSides]' } },
     { command: 'variable', values: { name: 'Turn', value: '[=360 * ([I] + 0.5) / [TubeSides]]' } },
     {
       command: 'variable',
@@ -1477,7 +1477,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     { command: 'if', values: { condition: '[Rx] >= 0.0001 and [Ry] >= 0.0001' } },
     { command: 'if', values: { condition: '[Style] == "Wall With Opening"' } },
     { command: 'note', values: { text: 'The piers beside the opening.' } },
-    { command: 'repeat', values: { variable: 'Side', from: '0', to: '1' } },
+    { command: 'repeat', values: { variable: 'Side', from: '0', to: '2' } },
     { command: 'variable', values: { name: 'Inner', value: '[=[Side] == 0 ? -[Rx] : [Rx]]' } },
     { command: 'variable', values: { name: 'Outer', value: '[=[Side] == 0 ? -[Half] : [Half]]' } },
     { command: 'clear_variable', values: { name: 'Outline' } },
@@ -1488,7 +1488,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     { command: 'call', values: { name: 'Prism' } },
     { command: 'end', values: {} },
     { command: 'end', values: {} },
-    { command: 'repeat', values: { variable: 'I', from: '0', to: '[=[Segments] - 1]' } },
+    { command: 'repeat', values: { variable: 'I', from: '0', to: '[Segments]' } },
     { command: 'variable', values: { name: 'A', value: '[=Corner([I], 0)]' } },
     { command: 'variable', values: { name: 'B', value: '[=Corner([I] + 1, 0)]' } },
     { command: 'clear_variable', values: { name: 'Outline' } },
@@ -1732,7 +1732,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     { command: 'note', values: { text: 'Set here, so the underside function can read them for each step.' } },
     { command: 'variable', values: { name: 'From', value: '0' } },
     { command: 'variable', values: { name: 'LandingStep', value: 'No' } },
-    { command: 'repeat', values: { variable: 'I', from: '0', to: '[=[Steps] - 1]' } },
+    { command: 'repeat', values: { variable: 'I', from: '0', to: '[Steps]' } },
     { command: 'variable', values: { name: 'Last', value: '[=[I] == [Steps] - 1]' } },
     { command: 'variable', values: { name: 'From', value: '[=[I] * [Run] + [NoseDepth]]' } },
     {
@@ -1757,7 +1757,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     { command: 'add_item', values: { value: '[=Vector([To], [Top])]', list: 'Corners' } },
     { command: 'add_item', values: { value: '[=Vector([From], [Top])]', list: 'Corners' } },
     { command: 'clear_variable', values: { name: 'Outline' } },
-    { command: 'repeat', values: { variable: 'C', from: '0', to: '3' } },
+    { command: 'repeat', values: { variable: 'C', from: '0', to: '4' } },
     { command: 'variable', values: { name: 'N', value: '[=([C] + 1) % 4]' } },
     { command: 'variable', values: { name: 'Here', value: '[Corners([C])]' } },
     { command: 'variable', values: { name: 'Next', value: '[Corners([N])]' } },
@@ -1913,12 +1913,12 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
       },
     },
     { command: 'end', values: {} },
-    { command: 'repeat', values: { variable: 'Step', from: '0', to: '[=[Steps] - 1]' } },
+    { command: 'repeat', values: { variable: 'Step', from: '0', to: '[Steps]' } },
     { command: 'variable', values: { name: 'Top', value: '[=-[$Box.Height] / 2 + [Rise] * ([Step] + 1)]' } },
     { command: 'variable', values: { name: 'Bottom', value: '[=Max(-[$Box.Height] / 2, [Top] - [Thick])]' } },
-    { command: 'repeat', values: { variable: 'Part', from: '0', to: '[=[StepDetail] - 1]' } },
+    { command: 'repeat', values: { variable: 'Part', from: '0', to: '[StepDetail]' } },
     { command: 'polyhedron', values: {} },
-    { command: 'repeat', values: { variable: 'Edge', from: '0', to: '1' } },
+    { command: 'repeat', values: { variable: 'Edge', from: '0', to: '2' } },
     {
       command: 'variable',
       values: {
@@ -2249,7 +2249,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     { command: 'variable', values: { name: 'Step', value: '[=[Endpoint] / Max(1, [Count] - 1)]' } },
     { command: 'end', values: {} },
     { command: 'note', values: { text: 'Copy 0 is the original; each next copy moves one more Step.' } },
-    { command: 'repeat', values: { variable: 'I', from: '0', to: '[=[Count] - 1]' } },
+    { command: 'repeat', values: { variable: 'I', from: '0', to: '[Count]' } },
     { command: 'transform', values: { move: '[=[Step] * [I]]' } },
     {
       command: 'input_brushes',
@@ -2538,7 +2538,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
       },
     },
     { command: 'if', values: { condition: '[Count] > 1' } },
-    { command: 'repeat', values: { variable: 'I', from: '1', to: '[=[Count] - 1]' } },
+    { command: 'repeat', values: { variable: 'I', from: '1', to: '[Count]' } },
     { command: 'variable', values: { name: 'A', value: '[=[First] + [I] * [Turn]]' } },
     { command: 'variable', values: { name: 'C', value: '[=Cos([A])]' } },
     { command: 'variable', values: { name: 'S', value: '[=Sin([A])]' } },
@@ -2792,7 +2792,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     { command: 'variable', values: { name: 'R3', value: '[=Vector(0, 0, 1)]' } },
     { command: 'variable', values: { name: 'Shift', value: '[=Vector(0, 0, 0)]' } },
     { command: 'if', values: { condition: '[Count] > 1' } },
-    { command: 'repeat', values: { variable: 'I', from: '1', to: '[=[Count] - 1]' } },
+    { command: 'repeat', values: { variable: 'I', from: '1', to: '[Count]' } },
     {
       command: 'variable',
       values: {
@@ -3123,9 +3123,9 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
       },
     },
     { command: 'end', values: {} },
-    { command: 'repeat', values: { variable: 'S', from: '0', to: '[=[Steps] - 1]' } },
+    { command: 'repeat', values: { variable: 'S', from: '0', to: '[Steps]' } },
     { command: 'variable', values: { name: 'Top', value: '[=[Base] + [Rise] * ([S] + 1)]' } },
-    { command: 'repeat', values: { variable: 'P', from: '0', to: '[=[Smooth] - 1]' } },
+    { command: 'repeat', values: { variable: 'P', from: '0', to: '[Smooth]' } },
     { command: 'polyhedron', values: {} },
     {
       command: 'for_each',
@@ -3162,7 +3162,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
       },
     },
     { command: 'variable', values: { name: 'Pieces', value: '[=[Steps] * [Smooth]]' } },
-    { command: 'repeat', values: { variable: 'K', from: '0', to: '[=[Pieces] - 1]' } },
+    { command: 'repeat', values: { variable: 'K', from: '0', to: '[Pieces]' } },
     { command: 'variable', values: { name: 'From', value: '[=[Turn] * [K] / [Pieces]]' } },
     { command: 'variable', values: { name: 'To', value: '[=[Turn] * ([K] + 1) / [Pieces]]' } },
     { command: 'polyhedron', values: {} },

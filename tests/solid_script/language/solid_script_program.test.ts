@@ -104,7 +104,7 @@ describe('solidScriptProgramRun', () => {
     const { shapes, messages } = solidScriptProgramEvaluate(
       script(
         { command: 'variable', values: { name: 'height', value: '0' } },
-        { command: 'repeat', values: { variable: 'i', from: '1', to: '3' } },
+        { command: 'repeat', values: { variable: 'i', from: '1', to: '4' } },
         { command: 'variable', values: { name: 'height', value: '[=[height] + [i]]' } },
         { command: 'end' },
         { command: 'echo', values: { value: '[height]' } },

@@ -69,9 +69,9 @@ export const SOLID_SCRIPT_EXAMPLE_PIPE: readonly SolidScriptLine[] = [
   ...SOLID_SCRIPT_EXAMPLE_RING_POINT,
   solidScriptExampleSet('Wall', '[=Min([WallThickness], [Limit])]'),
   solidScriptExampleSegments('[Sides]'),
-  ...solidScriptExampleRepeat('Piece', '0', '[=[Segments] - 1]', [
+  ...solidScriptExampleRepeat('Piece', '0', '[Segments]', [
     ...solidScriptExamplePolyhedron(
-      solidScriptExampleRepeat('Edge', '0', '1', [
+      solidScriptExampleRepeat('Edge', '0', '2', [
         solidScriptExampleSet('Angle', '[=[Sweep] * ([Piece] + [Edge]) / [Segments]]'),
         solidScriptExamplePoint('[=RingPoint([Angle], 0, -[$Box.Height] / 2)]'),
         solidScriptExamplePoint('[=RingPoint([Angle], [Wall], -[$Box.Height] / 2)]'),
@@ -95,17 +95,17 @@ export const SOLID_SCRIPT_EXAMPLE_TORUS: readonly SolidScriptLine[] = [
   solidScriptExampleNote('The tube outline, stretched so it reaches from -1 to 1 both ways.'),
   solidScriptExampleSet('Low', '1, 1'),
   solidScriptExampleSet('High', '-1, -1'),
-  ...solidScriptExampleRepeat('I', '0', '[=[TubeSides] - 1]', [
+  ...solidScriptExampleRepeat('I', '0', '[TubeSides]', [
     solidScriptExampleSet('Turn', '[=360 * ([I] + 0.5) / [TubeSides]]'),
     solidScriptExampleSet('Low', '[=Min([Low.X], Cos([Turn]))], [=Min([Low.Y], Sin([Turn]))]'),
     solidScriptExampleSet('High', '[=Max([High.X], Cos([Turn]))], [=Max([High.Y], Sin([Turn]))]'),
   ]),
   solidScriptExampleSegments('[RingSides]'),
-  ...solidScriptExampleRepeat('Piece', '0', '[=[Segments] - 1]', [
+  ...solidScriptExampleRepeat('Piece', '0', '[Segments]', [
     ...solidScriptExamplePolyhedron(
-      solidScriptExampleRepeat('Edge', '0', '1', [
+      solidScriptExampleRepeat('Edge', '0', '2', [
         solidScriptExampleSet('Angle', '[=[Sweep] * ([Piece] + [Edge]) / [Segments]]'),
-        ...solidScriptExampleRepeat('I', '0', '[=[TubeSides] - 1]', [
+        ...solidScriptExampleRepeat('I', '0', '[TubeSides]', [
           solidScriptExampleSet('Turn', '[=360 * ([I] + 0.5) / [TubeSides]]'),
           solidScriptExampleSet('U', '[=(Cos([Turn]) - [Low.X]) / ([High.X] - [Low.X]) * 2 - 1]'),
           solidScriptExampleSet('V', '[=(Sin([Turn]) - [Low.Y]) / ([High.Y] - [Low.Y]) * 2 - 1]'),
@@ -137,12 +137,12 @@ export const SOLID_SCRIPT_EXAMPLE_CURVED_STAIRS: readonly SolidScriptLine[] = [
   ...solidScriptExampleIf('[FillToFloor]', [
     solidScriptExampleSet('Thick', '[=[Rise] * Min([Steps], [Steps] * 360 / [Sweep])]'),
   ]),
-  ...solidScriptExampleRepeat('Step', '0', '[=[Steps] - 1]', [
+  ...solidScriptExampleRepeat('Step', '0', '[Steps]', [
     solidScriptExampleSet('Top', '[=-[$Box.Height] / 2 + [Rise] * ([Step] + 1)]'),
     solidScriptExampleSet('Bottom', '[=Max(-[$Box.Height] / 2, [Top] - [Thick])]'),
-    ...solidScriptExampleRepeat('Part', '0', '[=[StepDetail] - 1]', [
+    ...solidScriptExampleRepeat('Part', '0', '[StepDetail]', [
       ...solidScriptExamplePolyhedron(
-        solidScriptExampleRepeat('Edge', '0', '1', [
+        solidScriptExampleRepeat('Edge', '0', '2', [
           solidScriptExampleSet('Angle', '[=[Turn] * ([Step] + ([Part] + [Edge]) / [StepDetail])]'),
           solidScriptExampleSet(
             'Out',

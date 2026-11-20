@@ -221,6 +221,7 @@ const SOLID_SCRIPT_REFERENCE_MISTAKES = `## Common mistakes
 - Brushes have their middle on the origin (the generator's center) by default; do not add a Transform to lift them into the box. Set anchor to "Center, Bottom, Center ⭐" to make a brush stand on the origin, or "Left, Bottom, Back" to put its corner there.
 - Flat outlines (square, circle, polygon) only work inside linear_extrude, and solids never do.
 - A Subtractive brush cuts the Additive ones before it.
+- Repeat counts from From up to but not including To, adding Step: Repeat [I] From 0 To 5 (Exclusive) runs with 0, 1, 2, 3 and 4, From 0 To 0 runs no round, and From 5 To 0 Step -1 runs 5 down to 1. To run N times write From 0 To [N].
 - Every block (Transform, Repeat, If, Part, Mesh From Brushes and the other openers) needs its own end line. Move By, Move To, Rotate By, Rotate To, Scale By, Scale To, Align To, Mirror, Resize and Matrix are flat lines with Of, and do not take an End.
 - A variable can only be used below its Set line.
 - Values are strings, even numbers: "2", not 2. Never put quotes or [ ] around a list: "1, 2, 3", not "[1, 2, 3]".

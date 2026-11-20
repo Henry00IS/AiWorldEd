@@ -29,7 +29,7 @@ const SOLID_SCRIPT_EXAMPLE_SIDES = solidScriptExampleInput('Sides', 'Count', '16
  * @returns Lines.
  */
 function solidScriptExampleRing(scale: string, height: string): SolidScriptLine[] {
-  return solidScriptExampleRepeat('I', '0', '[=[Sides] - 1]', [
+  return solidScriptExampleRepeat('I', '0', '[Sides]', [
     solidScriptExampleSet('Angle', '[=([I] + 0.5) * 360 / [Sides]]'),
     solidScriptExamplePoint(
       `[=Cos([Angle]) * [$Box.Width] / 2 * ${scale}], ${height}, [=Sin([Angle]) * [$Box.Depth] / 2 * ${scale}]`,
@@ -92,7 +92,7 @@ export const SOLID_SCRIPT_EXAMPLE_SPHERE: readonly SolidScriptLine[] = [
     solidScriptExampleSet('Rise', '[$Box.Height]'),
   ]),
   ...solidScriptExamplePolyhedron(
-    solidScriptExampleRepeat('Ring', '0', '[Rings]', [
+    solidScriptExampleRepeat('Ring', '0', '[=[Rings] + 1]', [
       solidScriptExampleSet('Latitude', '[=[From] + (90 - [From]) * [Ring] / [Rings]]'),
       ...solidScriptExampleRingOrTip('[=Cos([Latitude])]', '[=[Equator] + [Rise] * Sin([Latitude])]'),
     ]),
@@ -106,9 +106,9 @@ export const SOLID_SCRIPT_EXAMPLE_CAPSULE: readonly SolidScriptLine[] = [
   solidScriptExampleInput('CapRings', 'Count', '4', { label: 'Cap Rings', min: '1', max: '16' }),
   solidScriptExampleSet('Cap', '[=Min([$Box.Width] / 2, [$Box.Height] / 2)]'),
   ...solidScriptExamplePolyhedron(
-    solidScriptExampleRepeat('End', '0', '1', [
+    solidScriptExampleRepeat('End', '0', '2', [
       solidScriptExampleSet('Middle', '[=-[$Box.Height] / 2 + [Cap] + [End] * ([$Box.Height] - 2 * [Cap])]'),
-      ...solidScriptExampleRepeat('Ring', '0', '[CapRings]', [
+      ...solidScriptExampleRepeat('Ring', '0', '[=[CapRings] + 1]', [
         solidScriptExampleSet('Latitude', '[=-90 + 90 * [End] + 90 * [Ring] / [CapRings]]'),
         ...solidScriptExampleRingOrTip('[=Cos([Latitude])]', '[=[Middle] + [Cap] * Sin([Latitude])]'),
       ]),
@@ -143,7 +143,7 @@ export const SOLID_SCRIPT_EXAMPLE_COLUMN: readonly SolidScriptLine[] = [
   solidScriptExampleSet('Run', '-1'),
   solidScriptExampleSet('Open', 'no'),
   solidScriptExampleSet('Slope', '0'),
-  ...solidScriptExampleRepeat('K', '0', '[=Len([Stations]) - 2]', [
+  ...solidScriptExampleRepeat('K', '0', '[=Len([Stations]) - 1]', [
     solidScriptExampleSet('A', '[Stations([K])]'),
     solidScriptExampleSet('B', '[Stations([=[K] + 1])]'),
     solidScriptExampleSet('Rise', '[=[B.X] - [A.X]]'),
@@ -174,7 +174,7 @@ export const SOLID_SCRIPT_EXAMPLE_COLUMN: readonly SolidScriptLine[] = [
     ]),
   ]),
   solidScriptExampleNote('Each run is one solid: a ring of corners per station, or a tip where the radius is zero.'),
-  ...solidScriptExampleRepeat('R', '0', '[Run]', [
+  ...solidScriptExampleRepeat('R', '0', '[=[Run] + 1]', [
     ...solidScriptExamplePolyhedron(
       solidScriptExampleBlock('for_each', { variable: 'M', list: '[Marks]' }, [
         ...solidScriptExampleIf('[M.Z] == [R]', [
@@ -182,7 +182,7 @@ export const SOLID_SCRIPT_EXAMPLE_COLUMN: readonly SolidScriptLine[] = [
           ...solidScriptExampleIf(
             '[M.Y] <= 0.000001',
             [solidScriptExamplePoint('0, [Y], 0')],
-            solidScriptExampleRepeat('I', '0', '[=[Sides] - 1]', [
+            solidScriptExampleRepeat('I', '0', '[Sides]', [
               solidScriptExampleSet('Angle', '[=([I] + 0.5) * 360 / [Sides]]'),
               solidScriptExamplePoint('[=Cos([Angle]) * [M.Y]], [Y], [=Sin([Angle]) * [M.Y] * [Aspect]]'),
             ]),

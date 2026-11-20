@@ -25,8 +25,8 @@ describe('SolidScript speed', () => {
   it('runs a loop of a million rounds with a formula in a few seconds at most', () => {
     const { best, result } = timed([
       { command: 'variable', values: { name: 'x', value: '0' } },
-      { command: 'repeat', values: { variable: 'j', from: '1', to: '1000' } },
-      { command: 'repeat', values: { variable: 'i', from: '1', to: '1000' } },
+      { command: 'repeat', values: { variable: 'j', from: '1', to: '1001' } },
+      { command: 'repeat', values: { variable: 'i', from: '1', to: '1001' } },
       { command: 'variable', values: { name: 'x', value: '[=[x] + [i] * 2]' } },
       { command: 'end' },
       { command: 'end' },

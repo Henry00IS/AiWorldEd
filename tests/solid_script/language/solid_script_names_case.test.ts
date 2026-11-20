@@ -52,7 +52,7 @@ describe('names ignore case', () => {
       { command: 'function', values: { name: 'Twice', parameters: 'Value' } },
       { command: 'return', values: { value: '[=[LOCAL.value] * 2]' } },
       { command: 'end' },
-      { command: 'repeat', values: { variable: 'I', from: '1', to: '[steps]' } },
+      { command: 'repeat', values: { variable: 'I', from: '1', to: '[=[steps] + 1]' } },
       echo('[=twice([i])]'),
       { command: 'end' },
       { command: 'variable', values: { name: 'Persistent.Total', value: '7' } },

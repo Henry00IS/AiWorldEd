@@ -102,7 +102,7 @@ describe('SolidScript Select Brushes and Which Between', () => {
   it('keeps the Which Between snapshot across Repeat and For Each', () => {
     expect(
       printed(
-        { command: 'repeat', values: { from: '1', to: '2' } },
+        { command: 'repeat', values: { from: '1', to: '3' } },
         CUBE,
         { command: 'select_brushes', values: { which: SOLID_SCRIPT_SELECT_BETWEEN, into: 'Fresh' } },
         { command: 'echo', values: { value: '[Fresh.Count]' } },

@@ -61,7 +61,7 @@ function solidScriptExampleOutline(list: string, points: readonly string[]): Sol
 const SOLID_SCRIPT_EXAMPLE_SLAB_CLIP: readonly SolidScriptLine[] = [
   ...solidScriptExampleOutline('Corners', ['[From], [Floor]', '[To], [Floor]', '[To], [Top]', '[From], [Top]']),
   solidScriptExampleLine('clear_variable', { name: 'Outline' }),
-  ...solidScriptExampleRepeat('C', '0', '3', [
+  ...solidScriptExampleRepeat('C', '0', '4', [
     solidScriptExampleSet('N', '[=([C] + 1) % 4]'),
     solidScriptExampleSet('Here', '[Corners([C])]'),
     solidScriptExampleSet('Next', '[Corners([N])]'),
@@ -123,7 +123,7 @@ export const SOLID_SCRIPT_EXAMPLE_STAIRS: readonly SolidScriptLine[] = [
   solidScriptExampleNote('Set here, so the underside function can read them for each step.'),
   solidScriptExampleSet('From', '0'),
   solidScriptExampleSet('LandingStep', 'No'),
-  ...solidScriptExampleRepeat('I', '0', '[=[Steps] - 1]', [
+  ...solidScriptExampleRepeat('I', '0', '[Steps]', [
     solidScriptExampleSet('Last', '[=[I] == [Steps] - 1]'),
     solidScriptExampleSet('From', '[=[I] * [Run] + [NoseDepth]]'),
     solidScriptExampleSet('To', '[=[Last] ? [Length] : ([I] + 1) * [Run] + [NoseDepth]]'),

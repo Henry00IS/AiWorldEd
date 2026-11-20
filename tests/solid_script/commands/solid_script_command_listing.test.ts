@@ -67,9 +67,11 @@ describe('SolidScript listing', () => {
     expect(listed('cylinder', { h: '2', r1: '0.5', r2: '0', anchor: 'Center, Center, Center' })).toBe(
       "Cylinder Height '2', Radius '0.5' To '0'",
     );
-    expect(listed('repeat', { variable: 'i', from: '0', to: '3', step: '1' })).toBe("Repeat 'i' From '0' To '3'");
+    expect(listed('repeat', { variable: 'i', from: '0', to: '3', step: '1' })).toBe(
+      "Repeat 'i' From '0' To '3' (Exclusive)",
+    );
     expect(listed('repeat', { variable: 'i', from: '0', to: '10', step: '2' })).toBe(
-      "Repeat 'i' From '0' To '10' (Step '2')",
+      "Repeat 'i' From '0' To '10' (Exclusive) (Step '2')",
     );
   });
 
@@ -129,7 +131,7 @@ describe('SolidScript listing', () => {
     expect(lines('when_input_changes', { name: 'width' })).toEqual(["When Input Changes 'width'", 'End When']);
     expect(lines('part', { name: 'post' })).toEqual(["Define Part 'post'", 'End Part']);
     expect(lines('repeat', { variable: 'i', from: '0', to: '3' })).toEqual([
-      "Repeat 'i' From '0' To '3'",
+      "Repeat 'i' From '0' To '3' (Exclusive)",
       'End Repeat',
     ]);
     expect(lines('if', { condition: '[i] > 2' })).toEqual(["If '[i] > 2'", 'End If']);
@@ -162,7 +164,7 @@ describe('SolidScript listing', () => {
       solidScriptCommandFind('repeat')
         ?.listing({ variable: 'i' })
         .map((part) => part.kind),
-    ).toEqual(['name', 'value', 'word', 'value', 'word', 'value']);
+    ).toEqual(['name', 'value', 'word', 'value', 'word', 'value', 'word']);
     expect(
       solidScriptCommandFind('note')
         ?.listing({ text: 'x' })

@@ -27,7 +27,7 @@ export const SOLID_SCRIPT_EXAMPLE_PYRAMID: readonly SolidScriptLine[] = [
   SOLID_SCRIPT_EXAMPLE_HALF,
   solidScriptExampleNote('Polyhedron builds one solid from corners you list. Each Point is one corner of the pyramid.'),
   ...solidScriptExamplePolyhedron(
-    solidScriptExampleRepeat('Corner', '0', '3', [
+    solidScriptExampleRepeat('Corner', '0', '4', [
       solidScriptExampleSet('Side', '[=([Corner] % 2) * 2 - 1], 0, [=Floor([Corner] / 2) * 2 - 1]'),
       solidScriptExamplePoint('[=[Side.X] * [Half.X]], [=-[Half.Y]], [=[Side.Z] * [Half.Z]]'),
       solidScriptExamplePoint('[=[Side.X] * [Half.X] * [TopSize]], [Half.Y], [=[Side.Z] * [Half.Z] * [TopSize]]'),
@@ -46,20 +46,20 @@ export const SOLID_SCRIPT_EXAMPLE_PRISM: readonly SolidScriptLine[] = [
   ),
   solidScriptExampleSet('Low', '1, 1'),
   solidScriptExampleSet('High', '-1, -1'),
-  ...solidScriptExampleRepeat('I', '0', '[=[Sides] - 1]', [
+  ...solidScriptExampleRepeat('I', '0', '[Sides]', [
     solidScriptExampleSet('Turn', '[=-90 + 180 / [Sides] + 360 * [I] / [Sides]]'),
     solidScriptExampleSet('Low', '[=Min([Low.X], Cos([Turn]))], [=Min([Low.Y], Sin([Turn]))]'),
     solidScriptExampleSet('High', '[=Max([High.X], Cos([Turn]))], [=Max([High.Y], Sin([Turn]))]'),
   ]),
   SOLID_SCRIPT_EXAMPLE_HALF,
   ...solidScriptExamplePolyhedron(
-    solidScriptExampleRepeat('I', '0', '[=[Sides] - 1]', [
+    solidScriptExampleRepeat('I', '0', '[Sides]', [
       solidScriptExampleSet('Turn', '[=-90 + 180 / [Sides] + 360 * [I] / [Sides]]'),
       solidScriptExampleSet(
         'U',
         '[=(Cos([Turn]) - [Low.X]) / ([High.X] - [Low.X])], [=(Sin([Turn]) - [Low.Y]) / ([High.Y] - [Low.Y])]',
       ),
-      ...solidScriptExampleRepeat('End', '-1', '1', [
+      ...solidScriptExampleRepeat('End', '-1', '2', [
         ...solidScriptExampleIf('[End] != 0', [
           ...solidScriptExampleIf('[Axis] == "Along X"', [
             solidScriptExamplePoint(
@@ -197,7 +197,7 @@ export const SOLID_SCRIPT_EXAMPLE_ARCH: readonly SolidScriptLine[] = [
   ...solidScriptExampleIf('[Rx] >= 0.0001 and [Ry] >= 0.0001', [
     ...solidScriptExampleIf('[Style] == "Wall With Opening"', [
       solidScriptExampleNote('The piers beside the opening.'),
-      ...solidScriptExampleRepeat('Side', '0', '1', [
+      ...solidScriptExampleRepeat('Side', '0', '2', [
         solidScriptExampleSet('Inner', '[=[Side] == 0 ? -[Rx] : [Rx]]'),
         solidScriptExampleSet('Outer', '[=[Side] == 0 ? -[Half] : [Half]]'),
         solidScriptExampleLine('clear_variable', { name: 'Outline' }),
@@ -208,7 +208,7 @@ export const SOLID_SCRIPT_EXAMPLE_ARCH: readonly SolidScriptLine[] = [
         solidScriptExampleLine('call', { name: 'Prism' }),
       ]),
     ]),
-    ...solidScriptExampleRepeat('I', '0', '[=[Segments] - 1]', [
+    ...solidScriptExampleRepeat('I', '0', '[Segments]', [
       solidScriptExampleSet('A', '[=Corner([I], 0)]'),
       solidScriptExampleSet('B', '[=Corner([I] + 1, 0)]'),
       solidScriptExampleLine('clear_variable', { name: 'Outline' }),

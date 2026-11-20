@@ -24,7 +24,7 @@ const SOLID_SCRIPT_INPUT_LINES: SolidScriptLine[] = [
   { command: 'input', values: { name: 'steps', type: 'Count', default: '2', min: '1', max: '8', label: 'Steps' } },
   { command: 'input', values: { name: 'rails', type: 'Switch', default: 'no', label: 'Rails' } },
   { command: 'input', values: { name: 'look', type: 'Choice', default: 'plain', choices: 'plain, fancy' } },
-  { command: 'repeat', values: { variable: 'i', from: '1', to: '[steps]' } },
+  { command: 'repeat', values: { variable: 'i', from: '1', to: '[=[steps] + 1]' } },
   { command: 'cube' },
   { command: 'end' },
 ];

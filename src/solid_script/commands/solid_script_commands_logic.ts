@@ -23,7 +23,8 @@ export const SOLID_SCRIPT_COMMAND_BLANK = 'blank';
 
 /**
  * Lists the counter values of a Repeat line: Start, then Start + Step, up to
- * and including End Value.
+ * but not including To, so From 0 To 5 is 0 to 4 and From 0 To 0 runs no
+ * round.
  *
  * @param run Running line.
  * @returns Counter values.
@@ -36,7 +37,7 @@ function solidScriptRepeatValues(run: SolidScriptBlockRun): number[] {
   if (step === 0) throw fields.error('step', 'must not be 0, or the counter never reaches the end', step);
   if ((to - from) / step < 0)
     throw new Error(`the counter cannot get from ${from} to ${to} by adding ${step}; change Step to ${-step}`);
-  const rounds = Math.floor((to - from) / step + 1e-9) + 1;
+  const rounds = Math.max(0, Math.ceil((to - from) / step - 1e-9));
   if (rounds > SOLID_SCRIPT_REPEAT_ROUNDS_MAX)
     throw new Error(
       `Repeat would run ${solidScriptLimitCount(rounds)} times, more than ${solidScriptLimitCount(SOLID_SCRIPT_REPEAT_ROUNDS_MAX)}. Change To, or split this into smaller generators.`,
@@ -98,9 +99,9 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Logic',
     description: 'Run lines several times',
     manual:
-      'Runs the lines inside once for each counter value. The counter goes from Start to End Value, adding Step each round. The lines inside can read the counter. Example: Repeat [I] From 0 To 4 around Transform Move [=[I] * 2], 0, 0 and a Cube builds five cubes in a row.',
+      'Runs the lines inside once for each counter value. The counter starts at From and adds Step each round, stopping before it reaches To: To is not included, so From 0 To 5 runs with 0, 1, 2, 3 and 4, and From 0 To 0 runs no round. The lines inside can read the counter. Example: Repeat [I] From 0 To 5 around Transform Move [=[I] * 2], 0, 0 and a Cube builds five cubes in a row.',
     stops: [
-      'A Step of 0, or a Step that walks away from End Value.',
+      'A Step of 0, or a Step that walks away from To.',
       `More than ${SOLID_SCRIPT_REPEAT_ROUNDS_MAX} rounds.`,
       'A counter name that is not letters, digits and _.',
       'A missing End line.',
@@ -119,7 +120,13 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
         { rule: 'kind', kind: 'Number', what: 'counter of **{command}**' },
       ),
       solidScriptParameter('from', 'Start', 'number', '0', 'Counter value of the first round, such as 0.'),
-      solidScriptParameter('to', 'End Value', 'number', '3', 'Counter value of the last round, such as 9.'),
+      solidScriptParameter(
+        'to',
+        'To',
+        'number',
+        '3',
+        'Counter value the rounds stop before, not run itself, such as 10 for 0 to 9.',
+      ),
       solidScriptParameter('step', 'Step', 'number', '1', 'Added to the counter after each round, such as 1.'),
     ],
     listing: (read) => [
@@ -129,6 +136,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
       read.value('from'),
       ' To ',
       read.value('to'),
+      ' (Exclusive)',
       ...solidScriptListingOptions([read.changed('step') && ['Step ', read.value('step')]]),
     ],
     execute: (run) => run.repeated(run.text('variable'), solidScriptRepeatValues(run)),

@@ -38,9 +38,9 @@ export const SOLID_SCRIPT_EXAMPLE_COLUMNS: readonly SolidScriptLine[] = [
     solidScriptExampleLine('cylinder', { h: '3', r1: '0.2', r2: '0.2', sides: '12', anchor: 'Center, Center, Center' }),
   ]),
   solidScriptExampleNote(
-    'Repeat runs the lines inside once for every number from 0 to 4. Each time, [I] is that number.',
+    'Repeat runs the lines inside once for every number from 0 up to 5, without 5 itself: 0, 1, 2, 3 and 4. Each time, [I] is that number.',
   ),
-  ...solidScriptExampleRepeat('I', '0', '4', [
+  ...solidScriptExampleRepeat('I', '0', '5', [
     solidScriptExampleNote(
       'Transform opens a space for the lines until End. This one slides each stamp along X. A formula starts with [= and is a calculation: the formula in Move spaces the five columns in a row, centered on the origin.',
     ),
@@ -60,7 +60,7 @@ export const SOLID_SCRIPT_EXAMPLE_STEPPING_STONES: readonly SolidScriptLine[] = 
   ),
   solidScriptExampleSet('Start', '-4, 0, 1'),
   solidScriptExampleSet('Finish', '4, 0, -2'),
-  ...solidScriptExampleRepeat('I', '0', '[=[Stones] - 1]', [
+  ...solidScriptExampleRepeat('I', '0', '[Stones]', [
     solidScriptExampleNote(
       'Lerp walks from [Start] to [Finish]. The last number is how far along, from 0 at the start to 1 at the end. Then [Pos.Y] changes only the height, so the path has a gentle wave.',
     ),
@@ -85,7 +85,7 @@ export const SOLID_SCRIPT_EXAMPLE_PILLAR_RING: readonly SolidScriptLine[] = [
   solidScriptExampleInput('Radius', 'Number', '3', { min: '0.5', max: '20', label: 'Radius' }),
   solidScriptExampleNote('Set [Center] is the middle of the ring, one and a half metres up.'),
   solidScriptExampleSet('Center', '0, 1.5, 0'),
-  ...solidScriptExampleRepeat('I', '1', '[Count]', [
+  ...solidScriptExampleRepeat('I', '1', '[=[Count] + 1]', [
     solidScriptExampleNote(
       'Each round, [Angle] is how far around the ring, in degrees. Vector, Cos and Sin turn that angle into a point on the circle, [Radius] metres from [Center].',
     ),

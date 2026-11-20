@@ -37,7 +37,7 @@ describe('SolidScript limits', { timeout: 60_000 }, () => {
 
   it('stops when a run makes more than 10,000 brushes, and names the line and the fix', () => {
     const result = run(
-      { command: 'repeat', values: { variable: 'I', from: '1', to: '5001' } },
+      { command: 'repeat', values: { variable: 'I', from: '1', to: '5002' } },
       { command: 'cube' },
       { command: 'cube' },
       END,
@@ -94,8 +94,8 @@ describe('SolidScript limits', { timeout: 60_000 }, () => {
 
   it('reuses the runaway-loop work cap and names the line and the fix', () => {
     const result = run(
-      { command: 'repeat', values: { variable: 'I', from: '0', to: '9999' } },
-      { command: 'repeat', values: { variable: 'J', from: '0', to: '9999' } },
+      { command: 'repeat', values: { variable: 'I', from: '0', to: '10000' } },
+      { command: 'repeat', values: { variable: 'J', from: '0', to: '10000' } },
       { command: 'if', values: { condition: '[I] < 0' } },
       { command: 'cube' },
       END,
@@ -111,7 +111,7 @@ describe('SolidScript limits', { timeout: 60_000 }, () => {
 
   it('reuses the Repeat rounds cap and names the line and the fix', () => {
     const result = run(
-      { command: 'repeat', values: { variable: 'I', from: '0', to: '10000' } },
+      { command: 'repeat', values: { variable: 'I', from: '0', to: '10001' } },
       { command: 'cube' },
       END,
     );

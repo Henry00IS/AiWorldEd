@@ -179,7 +179,7 @@ export const SOLID_SCRIPT_EXAMPLE_LINEAR_ARRAY: readonly SolidScriptLine[] = [
     solidScriptExampleSet('Step', '[=[Endpoint] / Max(1, [Count] - 1)]'),
   ]),
   solidScriptExampleNote('Copy 0 is the original; each next copy moves one more Step.'),
-  ...solidScriptExampleRepeat('I', '0', '[=[Count] - 1]', [
+  ...solidScriptExampleRepeat('I', '0', '[Count]', [
     ...solidScriptExampleBlock('transform', { move: '[=[Step] * [I]]' }, [solidScriptExampleInputBrushes('[I]')]),
   ]),
 ];
@@ -280,7 +280,7 @@ export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
   solidScriptExampleNote('Copy 0 is the original.'),
   solidScriptExampleInputBrushes('0'),
   ...solidScriptExampleIf('[Count] > 1', [
-    ...solidScriptExampleRepeat('I', '1', '[=[Count] - 1]', [
+    ...solidScriptExampleRepeat('I', '1', '[Count]', [
       solidScriptExampleSet('A', '[=[First] + [I] * [Turn]]'),
       solidScriptExampleSet('C', '[=Cos([A])]'),
       solidScriptExampleSet('S', '[=Sin([A])]'),
@@ -373,7 +373,7 @@ export const SOLID_SCRIPT_EXAMPLE_TRANSFORM_ARRAY: readonly SolidScriptLine[] = 
   solidScriptExampleSet('R3', '[=Vector(0, 0, 1)]'),
   solidScriptExampleSet('Shift', '[=Vector(0, 0, 0)]'),
   ...solidScriptExampleIf('[Count] > 1', [
-    ...solidScriptExampleRepeat('I', '1', '[=[Count] - 1]', [
+    ...solidScriptExampleRepeat('I', '1', '[Count]', [
       solidScriptExampleSet('Shift', '[=Vector(Dot([S1], [Shift]), Dot([S2], [Shift]), Dot([S3], [Shift])) + [Move]]'),
       solidScriptExampleSet('N1', '[=[R1] * [S1.X] + [R2] * [S1.Y] + [R3] * [S1.Z]]'),
       solidScriptExampleSet('N2', '[=[R1] * [S2.X] + [R2] * [S2.Y] + [R3] * [S2.Z]]'),

@@ -3,7 +3,7 @@ import { solidScriptProgramRun } from '@/solid_script/language/solid_script_prog
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 
 const LINES: SolidScriptLine[] = [
-  { command: 'repeat', values: { variable: 'i', from: '1', to: '4' } },
+  { command: 'repeat', values: { variable: 'i', from: '1', to: '5' } },
   { command: 'cube', values: { size: '0.5, 0.5, 0.5' } },
   { command: 'end', values: {} },
   { command: 'cube', values: {} },

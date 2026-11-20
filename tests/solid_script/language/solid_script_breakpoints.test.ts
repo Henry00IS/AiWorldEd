@@ -6,7 +6,7 @@ import { solidScriptDocumentCreate } from '@/solid_script/document/solid_script_
 const LOOP = solidScriptDocumentCreate([
   { command: 'sphere' },
   { command: 'variable', values: { name: 'width', value: '2' } },
-  { command: 'repeat', values: { variable: 'i', from: '0', to: '2' } },
+  { command: 'repeat', values: { variable: 'i', from: '0', to: '3' } },
   { command: 'cube', values: { size: '[width], 1, 1' } },
   { command: 'end' },
 ]);

@@ -109,7 +109,7 @@ const LOOPS: SolidScriptLine[] = [
   END,
   END,
   { command: 'variable', values: { name: 'Total', value: '0' } },
-  { command: 'repeat', values: { variable: 'I', from: '1', to: '30' } },
+  { command: 'repeat', values: { variable: 'I', from: '1', to: '31' } },
   { command: 'variable', values: { name: 'Total', value: '[=[Total] + Twice([I])]' } },
   END,
   { command: 'for_each', values: { variable: 'X', list: '1, 2, 3' } },
@@ -135,7 +135,7 @@ describe('SolidScript Notes at run time', { timeout: 60_000 }, () => {
   it('reports a mistake inside a loop at its own line, counting the Notes above it', () => {
     const noted = [
       note('one'),
-      { command: 'repeat', values: { variable: 'I', from: '1', to: '3' } },
+      { command: 'repeat', values: { variable: 'I', from: '1', to: '4' } },
       note('two'),
       note('three'),
       { command: 'cube', values: { size: '[Missing], 1, 1' } },
@@ -148,7 +148,7 @@ describe('SolidScript Notes at run time', { timeout: 60_000 }, () => {
 
   it('never lets a breakpoint sit on a Note, and pauses at the next working line with its own number', () => {
     const lines = [
-      { command: 'repeat', values: { variable: 'I', from: '0', to: '2' } },
+      { command: 'repeat', values: { variable: 'I', from: '0', to: '3' } },
       note('the cube'),
       { command: 'cube' },
       END,
@@ -182,7 +182,7 @@ describe('SolidScript Notes at run time', { timeout: 60_000 }, () => {
 
   it('stops at the brush cap after the same number of brushes with Notes in the loop', () => {
     const noted = [
-      { command: 'repeat', values: { variable: 'I', from: '1', to: '5001' } },
+      { command: 'repeat', values: { variable: 'I', from: '1', to: '5002' } },
       note('two cubes a round'),
       { command: 'cube' },
       note('the second one'),
@@ -196,9 +196,9 @@ describe('SolidScript Notes at run time', { timeout: 60_000 }, () => {
 
   it('stops at the work cap with the same message when Notes sit in the busiest loop', () => {
     const result = run([
-      { command: 'repeat', values: { variable: 'I', from: '0', to: '9999' } },
+      { command: 'repeat', values: { variable: 'I', from: '0', to: '10000' } },
       note('outer'),
-      { command: 'repeat', values: { variable: 'J', from: '0', to: '9999' } },
+      { command: 'repeat', values: { variable: 'J', from: '0', to: '10000' } },
       note('inner'),
       { command: 'if', values: { condition: '[I] < 0' } },
       { command: 'cube' },

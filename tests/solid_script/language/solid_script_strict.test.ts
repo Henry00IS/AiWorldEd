@@ -78,7 +78,7 @@ describe('SolidScript stops at the first mistake', () => {
       { command: 'end' },
       { command: 'texture', values: { texture: '' } },
       { command: 'end' },
-      { command: 'repeat', values: { name: 'i', from: '1', to: '2' } },
+      { command: 'repeat', values: { name: 'i', from: '1', to: '3' } },
       { command: 'end' },
     ];
     expect(failure(...lines)).toBe('');
@@ -126,8 +126,8 @@ describe('SolidScript stops at the first mistake', () => {
   it('stops runaway loops before the editor freezes', () => {
     const started = performance.now();
     const text = failure(
-      { command: 'repeat', values: { variable: 'i', from: '0', to: '9999' } },
-      { command: 'repeat', values: { variable: 'j', from: '0', to: '9999' } },
+      { command: 'repeat', values: { variable: 'i', from: '0', to: '10000' } },
+      { command: 'repeat', values: { variable: 'j', from: '0', to: '10000' } },
       { command: 'if', values: { condition: '[i] < 0' } },
       { command: 'cube' },
       { command: 'end' },

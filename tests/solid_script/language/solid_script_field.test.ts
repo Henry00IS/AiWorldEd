@@ -137,7 +137,7 @@ describe('SolidScript fields in a running script', () => {
   it('runs plain fields end to end: Set, Repeat with [=formula], Echo without quotes', () => {
     const result = run(
       { command: 'variable', values: { name: 'width', value: '2' } },
-      { command: 'repeat', values: { variable: 'i', from: '0', to: '2' } },
+      { command: 'repeat', values: { variable: 'i', from: '0', to: '3' } },
       { command: 'transform', values: { move: '[=[i] * [width]], 0, 0' } },
       { command: 'cube', values: { size: '[width], 1, 1' } },
       { command: 'end' },

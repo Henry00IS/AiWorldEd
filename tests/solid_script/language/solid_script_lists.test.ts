@@ -122,7 +122,7 @@ describe('SolidScript Point lines', () => {
       set('base()', '0, 0, 0'),
       set('base()', '2, 0, 0'),
       { command: 'polyhedron', values: { points: '[base]' } },
-      { command: 'repeat', values: { variable: 'i', from: '0', to: '1' } },
+      { command: 'repeat', values: { variable: 'i', from: '0', to: '2' } },
       { command: 'point', values: { position: '[i], 1, [i]' } },
       END,
       END,

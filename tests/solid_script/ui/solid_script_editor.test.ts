@@ -759,7 +759,7 @@ describe('SolidScript editor', () => {
 
   it('shows how often each line ran beside it', () => {
     editorFixture([
-      { command: 'repeat', values: { variable: 'i', from: '1', to: '5' } },
+      { command: 'repeat', values: { variable: 'i', from: '1', to: '6' } },
       { command: 'cube', values: { size: '0.2, 0.2, 0.2' } },
       { command: 'end' },
       { command: 'sphere' },
@@ -811,7 +811,7 @@ describe('SolidScript editor', () => {
   it('steps through the solids, shows the variables of the step, traces passed lines and stops', () => {
     const { root, node, stepId } = editorFixture([
       { command: 'variable', values: { name: 'width', value: '2' } },
-      { command: 'repeat', values: { variable: 'i', from: '0', to: '1', step: '1' } },
+      { command: 'repeat', values: { variable: 'i', from: '0', to: '2', step: '1' } },
       { command: 'cube', values: { size: '[width]' } },
       { command: 'end' },
     ]);
@@ -839,7 +839,7 @@ describe('SolidScript editor', () => {
   it('runs to the line at the cursor with Ctrl+F10, inside blocks too', () => {
     const { root, node, stepId } = editorFixture([
       { command: 'cube' },
-      { command: 'repeat', values: { variable: 'i', from: '0', to: '2', step: '1' } },
+      { command: 'repeat', values: { variable: 'i', from: '0', to: '3', step: '1' } },
       { command: 'sphere' },
       { command: 'end' },
       { command: 'cylinder' },
@@ -883,7 +883,7 @@ describe('SolidScript editor', () => {
   it('uses breakpoints set or cleared while paused right away', () => {
     const { root, node, stepId } = editorFixture([
       { command: 'sphere' },
-      { command: 'repeat', values: { variable: 'i', from: '0', to: '2' } },
+      { command: 'repeat', values: { variable: 'i', from: '0', to: '3' } },
       { command: 'cube', values: { size: '[=[i] + 1], 1, 1' } },
       { command: 'end' },
       { command: 'sphere' },
@@ -908,7 +908,7 @@ describe('SolidScript editor', () => {
   it('sets a breakpoint from the gutter or F9; Start pauses before that line with its variables, then continues', () => {
     const { root, node, stepId } = editorFixture([
       { command: 'sphere' },
-      { command: 'repeat', values: { variable: 'i', from: '0', to: '1' } },
+      { command: 'repeat', values: { variable: 'i', from: '0', to: '2' } },
       { command: 'cube', values: { size: '[=[i] + 1], 1, 1' } },
       { command: 'end' },
       { command: 'note', values: { text: 'Done' } },
