@@ -35,7 +35,7 @@ describe('SolidScript Select Edges and Select Vertices', () => {
         line('select_brushes'),
         line('select_edges', { which: 'All', where: '[=[$Edge.Length] > 3]' }),
         line('select_brushes'),
-        line('select_edges', { which: 'All', where: '[=[$Edge.Middle.Y] > 0]', how: 'Remove' }),
+        line('select_edges', { which: 'All', where: '[=[$Edge.Center.Y] > 0]', how: 'Remove' }),
         line('echo', { value: '[$Selected.Edges.Count] [$Selected.Edges.First.Length]' }),
       ),
     ).toEqual(['2 4']);

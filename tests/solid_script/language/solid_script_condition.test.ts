@@ -108,7 +108,7 @@ describe('SolidScript condition helpers', () => {
     const edges = run(
       CUBE,
       SELECT_BRUSHES,
-      { command: 'select_edges', values: { which: 'All', where: '[=[$Edge.Middle.Y] > 0]' } },
+      { command: 'select_edges', values: { which: 'All', where: '[=[$Edge.Center.Y] > 0]' } },
       { command: 'echo', values: { value: '[$Selected.Edges.Count]' } },
     );
     expect(edges.error).toBeNull();

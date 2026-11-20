@@ -74,7 +74,7 @@ describe('SolidScript geometry lookups', () => {
 
   it('bevels the edges of a box into a convex solid with flat cuts', () => {
     const solid = box(2, 2, 2);
-    const topEdges = solidScriptGeometryEdges([solid]).filter((edge) => edge.middle.z > 0.9);
+    const topEdges = solidScriptGeometryEdges([solid]).filter((edge) => edge.center.z > 0.9);
     const { body } = solidScriptGeometryBevel(solid, topEdges, 0.25);
     const bevelled = body.points;
     expect(body.faces).toHaveLength(10);

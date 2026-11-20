@@ -10,6 +10,8 @@ import {
 describe('SolidScript formula inputs', () => {
   it('fills in the element of the formula for its element inputs', () => {
     expect(solidScriptFormulaInputFallback({ each: 'Face' }, 'in_box', 'point')).toBe('[$Face.Center]');
+    expect(solidScriptFormulaInputFallback({ each: 'Edge' }, 'in_box', 'point')).toBe('[$Edge.Center]');
+    expect(solidScriptFormulaInputFallback({ each: 'Edge' }, 'near', 'point')).toBe('[$Edge.Center]');
     expect(solidScriptFormulaInputFallback({ each: 'Vertex' }, 'near', 'point')).toBe('[$Vertex.Position]');
     expect(solidScriptFormulaInputFallback({ each: 'Face' }, 'hits_box', 'element')).toBe('[$Face]');
     expect(solidScriptFormulaInputFallback({ each: 'Edge' }, 'is_face', 'value')).toBe('[$Edge]');

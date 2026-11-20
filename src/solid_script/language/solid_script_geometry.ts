@@ -62,7 +62,7 @@ export interface SolidScriptEdgeFacts {
   index: number;
   start: THREE.Vector3;
   end: THREE.Vector3;
-  middle: THREE.Vector3;
+  center: THREE.Vector3;
   length: number;
   /** Unit direction from start to end. */
   direction: THREE.Vector3;
@@ -343,7 +343,7 @@ export function solidScriptGeometryEdges(shapes: readonly SolidScriptShape[]): S
           index: edges.length,
           start,
           end,
-          middle: start.clone().add(end).multiplyScalar(0.5),
+          center: start.clone().add(end).multiplyScalar(0.5),
           length: start.distanceTo(end),
           direction: end.clone().sub(start).normalize(),
           faces: [face, null],
@@ -407,7 +407,7 @@ export function solidScriptGeometryFaceEdges(faces: readonly SolidScriptFaceFact
         index: found.size,
         start: corner.clone(),
         end: next.clone(),
-        middle: corner.clone().add(next).multiplyScalar(0.5),
+        center: corner.clone().add(next).multiplyScalar(0.5),
         length: corner.distanceTo(next),
         direction: next.clone().sub(corner).normalize(),
         faces: [face, null],

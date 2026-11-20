@@ -99,7 +99,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
   Edge: {
     Start: form('Starts', 'Vector'),
     End: form('Ends', 'Vector'),
-    Middle: form('Middles', 'Vector'),
+    Center: form('Centers', 'Vector'),
     Length: form('Lengths', 'Number'),
     Direction: form('Directions', 'Vector'),
     Faces: form('Faces', 'Face List'),
@@ -452,7 +452,7 @@ function solidScriptMemberElement(
           return solidScriptMemberVector(start);
         case 'end':
           return solidScriptMemberVector(end);
-        case 'middle':
+        case 'center':
           return solidScriptMemberVector(start.clone().add(end).multiplyScalar(0.5));
         case 'length':
           return solidScriptMemberRound(start.distanceTo(end));

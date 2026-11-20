@@ -51,8 +51,8 @@ const SOLID_SCRIPT_FORMULA_ELEMENT_INPUTS: Readonly<
   },
   Edge: {
     facing: { normal: '[$Edge.Direction]' },
-    in_box: { point: '[$Edge.Middle]' },
-    near: { point: '[$Edge.Middle]' },
+    in_box: { point: '[$Edge.Center]' },
+    near: { point: '[$Edge.Center]' },
   },
   Vertex: {
     facing: { normal: '[$Vertex.Normal]' },

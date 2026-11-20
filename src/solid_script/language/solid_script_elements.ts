@@ -340,7 +340,7 @@ export class SolidScriptElements {
       face ? { normal: face.normal.clone(), corners: face.corners.map((corner) => corner.clone()) } : null;
     return this.add('edge', latest, {
       planes: [plane(edge.faces[0])!, plane(edge.faces[1])],
-      position: edge.middle.clone(),
+      position: edge.center.clone(),
     }).element;
   }
 

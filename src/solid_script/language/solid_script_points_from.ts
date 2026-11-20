@@ -45,7 +45,7 @@ export function solidScriptPointsFromFaces(faces: readonly SolidScriptFaceFacts[
  * @returns Points.
  */
 export function solidScriptPointsFromEdges(edges: readonly SolidScriptEdgeFacts[]): SolidScriptPointsFromItem[] {
-  return edges.map((edge) => ({ position: edge.middle.clone(), normal: solidScriptPointsFromEdgeNormal(edge) }));
+  return edges.map((edge) => ({ position: edge.center.clone(), normal: solidScriptPointsFromEdgeNormal(edge) }));
 }
 
 /**
