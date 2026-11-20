@@ -79,6 +79,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     Max: form('Maxes', 'Vector'),
     Size: form('Sizes', 'Vector'),
     Extents: form('Extents', 'Vector'),
+    Mode: form('Modes', 'Text'),
     Data: form('Data', 'Data'),
   },
   Face: {
@@ -154,7 +155,11 @@ function solidScriptMemberKind(type: string): string {
 }
 
 function solidScriptMemberDecl(kind: string, member: string): SolidScriptMemberDecl | undefined {
-  if (kind === 'Mesh') return solidScriptMemberDecl('Brush', member);
+  if (kind === 'Mesh') {
+    const key = solidScriptNameKey(member);
+    if (key === 'mode' || key === 'modes') return undefined;
+    return solidScriptMemberDecl('Brush', member);
+  }
   const members = SOLID_SCRIPT_MEMBER_DECLS[kind as keyof typeof SOLID_SCRIPT_MEMBER_DECLS];
   if (!members) return undefined;
   const key = solidScriptNameKey(member);
@@ -176,6 +181,8 @@ function solidScriptMemberDecl(kind: string, member: string): SolidScriptMemberD
  * @returns Kind it gives, or null when the value has no such member.
  */
 export function solidScriptMemberType(type: string, member: string): string | null {
+  const key = solidScriptNameKey(member);
+  if ((type === 'Mesh' || type === 'Mesh List') && (key === 'mode' || key === 'modes')) return null;
   if (type === 'Mesh' || type === 'Mesh List')
     return solidScriptMemberType(type === 'Mesh' ? 'Brush' : 'Brush List', member);
   if (!type.endsWith(' List')) {
@@ -423,6 +430,7 @@ function solidScriptMemberElement(
   switch (element.kind) {
     case 'brush':
       if (member === 'name') return leaf.label;
+      if (member === 'mode') return elements.modeEffective(leaf);
       if (member === 'faces') return faceList(elements.faces(element));
       if (member === 'edges') return edgeList();
       if (member === 'vertices') return vertexList();

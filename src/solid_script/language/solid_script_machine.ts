@@ -32,10 +32,13 @@ import { solidScriptIntoAssigned } from './solid_script_into_assigned.js';
 import { solidScriptScopeElementBind } from './solid_script_scope_element.js';
 import {
   SOLID_SCRIPT_GROUP_MODE_DEFAULT,
+  SOLID_SCRIPT_MODE_DEFAULT,
   solidScriptGroupModeOf,
   solidScriptModeApply,
   solidScriptSolidMade,
+  type SolidScriptMode,
 } from './solid_script_mode.js';
+import { solidScriptModeRoleOfUse, solidScriptModeRoleRemember } from './solid_script_mode_role.js';
 import {
   solidScriptLineFieldOf,
   solidScriptLinesPassInput,
@@ -135,6 +138,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   private received: SolidScriptGeometryLeaf[] | null = null;
   /** What each swapped solid or mesh became. */
   private readonly leafSwaps = new Map<SolidScriptGeometryLeaf, SolidScriptGeometryLeaf>();
+  /** How many Group or Part blocks are around the running line. */
+  private groupDepth = 0;
   /**
    * Points being gathered by the Polyhedron or Polygon blocks around the
    * running line, innermost last.
@@ -195,13 +200,29 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
    */
   protected brushesReceived(): SolidScriptValue[] {
     if (this.received) return this.received.map((leaf) => this.elements.brush(leaf));
-    this.incoming ??= (this.system.use?.solids ?? []).map((corners, index) => ({
-      kind: 'solid',
-      label: solidScriptInputBrushName(index),
-      points: corners.map(([x, y, z]) => new THREE.Vector3(x, y, z)),
-    }));
+    this.incoming ??= this.incomingSolids();
     this.received = this.incoming;
     return this.incoming.map((leaf) => this.elements.brush(leaf));
+  }
+
+  /**
+   * Builds the received solids as they arrived, with each brush's scene Mode.
+   *
+   * @returns Solids, none for a generator.
+   */
+  private incomingSolids(): SolidScriptGeometryLeaf[] {
+    const use = this.system.use;
+    return (use?.solids ?? []).map((corners, index) => {
+      const mode = use?.modes?.[index];
+      const leaf: SolidScriptGeometryLeaf = {
+        kind: 'solid',
+        label: solidScriptInputBrushName(index),
+        points: corners.map(([x, y, z]) => new THREE.Vector3(x, y, z)),
+        ...(mode ? { mode } : {}),
+      };
+      this.elements.modeRoleSet(leaf, mode ?? SOLID_SCRIPT_MODE_DEFAULT);
+      return leaf;
+    });
   }
 
   /** Latest incoming solids or meshes, after Clip and other writes. */
@@ -256,6 +277,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
    */
   protected leafRewrite(leaf: SolidScriptGeometryLeaf, found: SolidScriptGeometryLeaf): void {
     const by = solidScriptLeafRewritten(leaf, found);
+    this.elements.modeRoleCopy(leaf, by);
     if (this.toolCopy.take(leaf, by)) return;
     this.leafSwaps.set(leaf, by);
     for (const built of this.builtStack)
@@ -263,6 +285,37 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         built[index] = solidScriptShapeMapLeaves(shape, (entry) => (entry === leaf ? by : entry));
       });
     this.partLeavesRewrite(leaf, by);
+  }
+
+  /** Marks that a Group or Part now wraps the running lines. */
+  protected groupEnter(): void {
+    this.groupDepth += 1;
+  }
+
+  /** Marks that a Group or Part around the running lines has closed. */
+  protected groupLeave(): void {
+    this.groupDepth -= 1;
+  }
+
+  /**
+   * Records the inherited Mode of newly placed solids and returns them.
+   *
+   * @param shapes Shapes just created or stamped.
+   * @returns The same shapes.
+   */
+  protected modeRolePlaced(shapes: SolidScriptShape[]): SolidScriptShape[] {
+    solidScriptModeRoleRemember(shapes, this.modeRoleCurrent(), (leaf, role) => this.elements.modeRoleSet(leaf, role));
+    return shapes;
+  }
+
+  /**
+   * Insertion Mode a solid inherits at the current depth: Additive inside a
+   * Group or Part, otherwise the run's insertion Mode.
+   *
+   * @returns Inherited Mode.
+   */
+  protected modeRoleCurrent(): SolidScriptMode {
+    return this.groupDepth > 0 ? SOLID_SCRIPT_MODE_DEFAULT : solidScriptModeRoleOfUse(this.system.use);
   }
 
   /**
@@ -742,7 +795,9 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         state.machine.flatCheck(node, state.context, false);
         if (!state.machine.stepTake(state.scope)) return [];
         const made = solidScriptSolidMade(labelOf(), points, modeOf());
-        return [solidScriptShapeTransform(faceUvs ? { ...made, faceUvs } : made, state.context.matrix)];
+        return state.machine.modeRolePlaced([
+          solidScriptShapeTransform(faceUvs ? { ...made, faceUvs } : made, state.context.matrix),
+        ]);
       },
       outline: (points) => {
         state.machine.gatherCheck(node);
@@ -758,25 +813,27 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       hulled: (extra = []) =>
         !state.machine.stepTake(state.scope)
           ? []
-          : solidScriptMachineGatherWhile(state.machine.gathering, 'hull', (into) =>
-              solidScriptHullShapes(
-                inside({ ...state.context, matrix: new THREE.Matrix4() }),
-                [...into.points, ...extra],
-                labelOf(),
-                state.context.planar,
-              ).map((shape) => solidScriptShapeTransform(shape, state.context.matrix)),
-            ).map((shape) => solidScriptModeApply(shape, modeOf())),
+          : state.machine.modeRolePlaced(
+              solidScriptMachineGatherWhile(state.machine.gathering, 'hull', (into) =>
+                solidScriptHullShapes(
+                  inside({ ...state.context, matrix: new THREE.Matrix4() }),
+                  [...into.points, ...extra],
+                  labelOf(),
+                  state.context.planar,
+                ).map((shape) => solidScriptShapeTransform(shape, state.context.matrix)),
+              ).map((shape) => solidScriptModeApply(shape, modeOf())),
+            ),
       extruded: (fields) => {
         if (state.context.planar) throw new Error('Linear Extrude cannot be inside another Linear Extrude');
         const flat = solidScriptShapeJoin(inside({ matrix: new THREE.Matrix4(), planar: true }), labelOf());
         if (!flat) return [];
         const extruded = solidScriptExtrude(flat, fields, new THREE.Matrix4());
-        return [
+        return state.machine.modeRolePlaced([
           solidScriptModeApply(
             solidScriptShapeNamed(solidScriptShapeTransform(extruded, state.context.matrix), ownName()),
             modeOf(),
           ),
-        ];
+        ]);
       },
       repeated: (counter, values, keyed) => {
         state.machine.nameCheck(counter, 'a counter');
@@ -815,21 +872,37 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         return state.machine.linesRun(lines, state.scope, state.context, new SolidScriptScope(state.scope), known);
       },
       inPlace: () => state.machine.linesRun(node.children, state.scope, state.context, state.scope, children()),
-      outputStamp: (value) => state.machine.outputStamp(value, state.scope, state.context),
-      grouped: () =>
-        state.machine.grouped(
-          inside(state.context),
-          labelOf(),
-          solidScriptGroupModeOf(modeOf()['mode']) ?? SOLID_SCRIPT_GROUP_MODE_DEFAULT,
-          node,
-        ),
+      outputStamp: (value) =>
+        state.machine.modeRolePlaced(state.machine.outputStamp(value, state.scope, state.context)),
+      grouped: () => {
+        state.machine.groupEnter();
+        try {
+          return state.machine.modeRolePlaced(
+            state.machine.grouped(
+              inside(state.context),
+              labelOf(),
+              solidScriptGroupModeOf(modeOf()['mode']) ?? SOLID_SCRIPT_GROUP_MODE_DEFAULT,
+              node,
+            ),
+          );
+        } finally {
+          state.machine.groupLeave();
+        }
+      },
       partKeep: () =>
         state.machine.partKeep(
           node,
           solidScriptValueText(value('name')).trim(),
           solidScriptGroupModeOf(modeOf()['mode']) ?? SOLID_SCRIPT_GROUP_MODE_DEFAULT,
           state.scope,
-          (inner) => state.machine.linesRun(node.children, inner, state.context, inner, children()),
+          (inner) => {
+            state.machine.groupEnter();
+            try {
+              return state.machine.linesRun(node.children, inner, state.context, inner, children());
+            } finally {
+              state.machine.groupLeave();
+            }
+          },
         ),
       built: () => state.machine.builtStack.flat(),
       get elements() {
@@ -875,9 +948,11 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       },
       local: (planar) => inside({ matrix: new THREE.Matrix4(), planar }),
       placed: (shapes) =>
-        shapes
-          .map((shape) => solidScriptShapeTransform(shape, state.context.matrix))
-          .map((shape) => solidScriptModeApply(shape, modeOf())),
+        state.machine.modeRolePlaced(
+          shapes
+            .map((shape) => solidScriptShapeTransform(shape, state.context.matrix))
+            .map((shape) => solidScriptModeApply(shape, modeOf())),
+        ),
       leave: (returned) => {
         const frame = state.machine.stack[state.machine.stack.length - 1];
         if (!frame) throw new Error('Return leaves a Function or a part, so it only works inside one of them');

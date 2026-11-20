@@ -9,6 +9,7 @@ import {
   type SolidScriptGeometryLeaf,
   type SolidScriptVertexFacts,
 } from './solid_script_geometry.js';
+import { SOLID_SCRIPT_MODE_DEFAULT, type SolidScriptMode } from './solid_script_mode.js';
 import { SolidScriptElement, type SolidScriptElementKind, type SolidScriptValue } from './solid_script_value.js';
 
 /** A plane a face lies on, with the outline the face had when its id was made. */
@@ -88,9 +89,55 @@ export class SolidScriptElements {
   private readonly facesHeld = new Map<SolidScriptGeometryLeaf, SolidScriptElementFaces>();
   /** How many times bounds were worked out rather than read from what is kept. */
   boundsPasses = 0;
+  /** Inherited Mode of a solid whose Mode field was left unset. */
+  private readonly modeRoles = new WeakMap<SolidScriptGeometryLeaf, SolidScriptMode>();
 
   /** @param host Run the elements belong to. */
   constructor(private readonly host: SolidScriptElementsHost) {}
+
+  /**
+   * Records the Mode a solid inherits when its own Mode was left unset.
+   *
+   * @param leaf Solid.
+   * @param role Inherited Mode.
+   */
+  modeRoleSet(leaf: SolidScriptGeometryLeaf, role: SolidScriptMode): void {
+    this.modeRoles.set(leaf, role);
+  }
+
+  /**
+   * Copies a solid's inherited Mode onto a later rewrite of the same brush.
+   *
+   * @param from Solid or mesh as first seen.
+   * @param to Replacement.
+   */
+  modeRoleCopy(from: SolidScriptGeometryLeaf, to: SolidScriptGeometryLeaf): void {
+    const role = this.modeRoleOf(from);
+    if (role) this.modeRoles.set(to, role);
+  }
+
+  /**
+   * Reads the inherited Mode of a solid, following later rewrites.
+   *
+   * @param leaf Solid or mesh.
+   * @returns Inherited Mode, or undefined when none was recorded.
+   */
+  modeRoleOf(leaf: SolidScriptGeometryLeaf): SolidScriptMode | undefined {
+    const latest = this.host.leafLatest(leaf);
+    return this.modeRoles.get(latest) ?? this.modeRoles.get(leaf);
+  }
+
+  /**
+   * Reads the effective CSG Mode of a brush: the Mode that was set, or the
+   * inherited insertion Mode, or Additive.
+   *
+   * @param leaf Solid or mesh.
+   * @returns Mode word.
+   */
+  modeEffective(leaf: SolidScriptGeometryLeaf): SolidScriptMode {
+    if (leaf.kind === 'solid' && leaf.mode) return leaf.mode;
+    return this.modeRoleOf(leaf) ?? SOLID_SCRIPT_MODE_DEFAULT;
+  }
 
   /**
    * Returns the entry of an element.

@@ -13,6 +13,7 @@ import {
   solidScriptDocumentUsesWith,
 } from '@/solid_script/document/solid_script_document.js';
 import { SOLID_SCRIPT_EXAMPLE_PEDESTAL } from '@/solid_script/examples/solid_script_examples_basics.js';
+import { solidScriptBrushModeLabel } from '@/solid_script/language/solid_script_mode.js';
 import type { SolidScriptUseFacts } from '@/solid_script/language/solid_script_system.js';
 import { ModifierStackKindSolidScript, modifierStackSolidScriptFields } from './modifier_stack_kind_solid_script.js';
 import {
@@ -124,7 +125,9 @@ export class ModifierStackKindSolidScriptModifier extends ModifierStackKindSolid
     const use: SolidScriptUseFacts = {
       usage: 'Modifier',
       mode: modifierStackSolidScriptHostMode(context.volume),
+      insertMode: solidScriptBrushModeLabel(this.pieceOperation(parameters)),
       solids: corners.map((list) => list.map(centred)),
+      modes: brushes.map((brush) => solidScriptBrushModeLabel(brush.operation)),
       faces: brushes.reduce((sum, brush) => sum + brush.brush.faces.length, 0),
       textures: brushes.map((brush) => {
         const placed = brush.getModelSpaceBrush();

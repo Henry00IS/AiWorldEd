@@ -12,8 +12,9 @@ export interface SolidScriptShapeSolid {
   points: THREE.Vector3[];
   label: string;
   /**
-   * How this brush combines with the ones before it; none inherits the
-   * operation of the generator or modifier that runs the script.
+   * How this brush combines with the ones before it; none inherits Additive
+   * inside a Group or Part, and otherwise the insertion Mode of the run.
+   * Reading [Brush.Mode] returns that effective Mode, not an empty value.
    */
   mode?: SolidScriptMode;
   /**

@@ -1,6 +1,7 @@
 import { solidScriptKindNamed } from './solid_script_kinds.js';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
-import { solidScriptNameIsPositionWrite } from './solid_script_name_rules.js';
+import { solidScriptNameIsModeWrite, solidScriptNameIsPositionWrite } from './solid_script_name_rules.js';
+import { solidScriptModeWriteValue } from './solid_script_mode_write.js';
 import { SOLID_SCRIPT_GEOMETRY_EPSILON } from './solid_script_geometry.js';
 import {
   solidScriptPositionApply,
@@ -166,11 +167,13 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
     }
     if (name.startsWith(SOLID_SCRIPT_SYSTEM_PREFIX)) {
       if (this.positionAssign(scope, written, value)) return;
+      if (this.modeSet(written, scope, value)) return;
       return this.variableSetSelected(written, name, value);
     }
     if (this.dataSet(written, scope, value)) return;
     if (this.uvsSet(written, scope, value)) return;
     if (this.positionAssign(scope, written, value)) return;
+    if (this.modeSet(written, scope, value)) return;
     const locals = name.startsWith(SOLID_SCRIPT_LOCAL_PREFIX) ? this.frameFunction()?.locals : undefined;
     const bare = locals ? solidScriptLocalBare(name) : '';
     if (locals && SOLID_SCRIPT_NAME.test(bare)) return locals.variableSet(bare, value);
@@ -202,6 +205,47 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
    * @param value New position, or a number on one axis.
    * @returns True when the name was a corner position.
    */
+  /**
+   * Writes Brush.Mode, or the Mode of every brush in a list, including
+   * [$Selected.Brushes.Modes]. The value must be Additive, Subtractive or
+   * Intersecting.
+   *
+   * @param written Name as written.
+   * @param scope Scope of the line.
+   * @param value New Mode.
+   * @returns True when the name was a brush Mode.
+   */
+  protected modeSet(written: string, scope: SolidScriptScope, value: SolidScriptValue): boolean {
+    if (!solidScriptNameIsModeWrite(written)) return false;
+    const parts = solidScriptMemberParts(written);
+    const ownerName = parts.slice(0, -1).join('.');
+    const owner = this.fieldVariable(solidScriptNameKey(ownerName), scope);
+    if (owner === undefined) throw new Error(`${ownerName} is not set`);
+    const mode = solidScriptModeWriteValue(value);
+    const items = Array.isArray(owner) ? owner : [owner];
+    for (const item of items) this.modeSetBrush(item, mode, ownerName);
+    return true;
+  }
+
+  /**
+   * Writes Mode onto one brush and leaves it in the output as that CSG Mode.
+   *
+   * @param item Brush element.
+   * @param mode Mode to set.
+   * @param shown Owner name, for messages.
+   */
+  private modeSetBrush(
+    item: SolidScriptValue,
+    mode: ReturnType<typeof solidScriptModeWriteValue>,
+    shown: string,
+  ): void {
+    if (!(item instanceof SolidScriptElement) || item.kind !== 'brush' || item.mesh)
+      throw new Error(`only brushes have .Mode; ${shown} is ${solidScriptKindNamed(item)}`);
+    const latest = this.leafLatest(this.elements.leaf(item));
+    if (latest.kind !== 'solid') throw new Error(`only brushes have .Mode; ${shown} is ${solidScriptKindNamed(item)}`);
+    this.leafRewrite(latest, { ...latest, mode });
+  }
+
   private positionAssign(scope: SolidScriptScope, written: string, value: SolidScriptValue): boolean {
     if (!solidScriptNameIsPositionWrite(written)) return false;
     const targets = this.positionTargets(scope, written);

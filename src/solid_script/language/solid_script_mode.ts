@@ -135,3 +135,15 @@ export function solidScriptModeLabel(operation: SolidOperation): SolidScriptGrou
   if (operation === SolidOperation.PassThrough) return 'Pass-Through';
   return 'Additive';
 }
+
+/**
+ * Names a scene brush operation with a brush Mode word. Pass-Through is not a
+ * brush Mode, so it becomes Additive.
+ *
+ * @param operation Scene operation.
+ * @returns Additive, Subtractive or Intersecting.
+ */
+export function solidScriptBrushModeLabel(operation: SolidOperation): SolidScriptMode {
+  const mode = solidScriptModeLabel(operation);
+  return mode === 'Pass-Through' ? SOLID_SCRIPT_MODE_DEFAULT : mode;
+}

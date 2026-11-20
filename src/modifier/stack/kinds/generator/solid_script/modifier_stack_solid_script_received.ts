@@ -57,12 +57,16 @@ export function modifierStackSolidScriptRunStart(
   if (use === 'modifier') {
     const received = modifierStackSolidScriptReceivedByOwner.get(owner)?.get(stepId);
     const facts = received?.use;
-    const useFacts = { usage: 'Modifier' as const, solids: facts?.solids ?? [], faces: facts?.faces ?? 0, mode };
-    return {
-      box: received?.box ?? [1, 1, 1],
-      use: facts?.textures ? { ...useFacts, textures: facts.textures } : useFacts,
-    };
+    if (facts) return { box: received?.box ?? [1, 1, 1], use: { ...facts, usage: 'Modifier' as const, mode } };
+    return { box: received?.box ?? [1, 1, 1], use: { usage: 'Modifier' as const, solids: [], faces: 0, mode } };
   }
   const size = modifierStackVolumeBox(owner).getSize(new Vector3());
-  return { box: [size.x, size.y, size.z], use: { ...SOLID_SCRIPT_USE_GENERATOR, mode } };
+  return {
+    box: [size.x, size.y, size.z],
+    use: {
+      ...SOLID_SCRIPT_USE_GENERATOR,
+      mode,
+      insertMode: mode === 'Pass-Through' ? 'Additive' : mode,
+    },
+  };
 }

@@ -22,7 +22,17 @@ export function solidScriptInputBrushesBuild(run: SolidScriptBlockRun): SolidScr
   const use = run.use();
   const latest = run.receivedLatest();
   const built = use.solids.flatMap((corners, index) =>
-    solidScriptInputBrushesOne(run, latest[index], corners, index, matrix, turn, textures, use.textures?.[index]),
+    solidScriptInputBrushesOne(
+      run,
+      latest[index],
+      corners,
+      index,
+      matrix,
+      turn,
+      textures,
+      use.textures?.[index],
+      use.modes?.[index],
+    ),
   );
   run.inputsBuilt(built);
   solidScriptInputBrushesInto(run, built);
@@ -57,6 +67,7 @@ function solidScriptInputBrushesOne(
         texture: string;
       }[]
     | undefined,
+  mode: SolidScriptShapeSolid['mode'],
 ): SolidScriptShape[] {
   const faceTextures = faces?.map((face) => ({
     point: new THREE.Vector3(...face.point).applyMatrix4(matrix),
@@ -66,7 +77,7 @@ function solidScriptInputBrushesOne(
   const received = solidScriptInputBrushesReceived(run, index, matrix, textures, leaf);
   return run
     .solid(solidScriptInputBrushesPoints(leaf, corners))
-    .map((shape) => solidScriptInputBrushesSolid(shape, faceTextures, received));
+    .map((shape) => solidScriptInputBrushesSolid(shape, faceTextures, received, mode));
 }
 
 /**
@@ -187,8 +198,14 @@ function solidScriptInputBrushesSolid(
   shape: SolidScriptShape,
   faceTextures: SolidScriptShapeSolid['faceTextures'],
   received: SolidScriptReceived | undefined,
+  mode: SolidScriptShapeSolid['mode'],
 ): SolidScriptShape {
   return shape.kind === 'solid'
-    ? { ...shape, ...(faceTextures ? { faceTextures } : {}), ...(received ? { received } : {}) }
+    ? {
+        ...shape,
+        ...(faceTextures ? { faceTextures } : {}),
+        ...(received ? { received } : {}),
+        ...(mode ? { mode } : {}),
+      }
     : shape;
 }

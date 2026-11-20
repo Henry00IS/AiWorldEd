@@ -200,4 +200,28 @@ describe('SolidScript as a modifier', () => {
     expect(shown).toHaveLength(1);
     expect(modifierStackSolidScriptRunStart(group, entry.id, 'modifier').use?.mode).toBe('Pass-Through');
   });
+
+  it('gives Input Brushes the host brush Mode, so scripts can filter by it', () => {
+    const modes = [
+      [SolidOperation.Additive, 'Additive'],
+      [SolidOperation.Subtractive, 'Subtractive'],
+      [SolidOperation.Intersecting, 'Intersecting'],
+    ] as const;
+    for (const [operation, mode] of modes) {
+      const fixture = modifierFixture(
+        both(
+          { command: 'if', values: { condition: `[$Input.Brushes.First.Mode] == "${mode}"` } },
+          { command: 'input_brushes' },
+          { command: 'end' },
+        ),
+        operation,
+      );
+      const shown = fixture
+        .compile()
+        .instances.filter((brush) => brush.constructor.name !== 'ModifierStackHiddenBrush');
+      expect(shown, mode).toHaveLength(1);
+      const stepId = modifierStackOwnerEncode(fixture.mesh)!.modifiers[0]!.id;
+      expect(modifierStackSolidScriptRunStart(fixture.mesh, stepId, 'modifier').use?.modes).toEqual([mode]);
+    }
+  });
 });

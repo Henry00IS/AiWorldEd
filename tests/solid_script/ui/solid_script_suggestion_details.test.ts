@@ -42,7 +42,19 @@ describe('SolidScript suggestion details', () => {
   it('lists after the dot of a For Each item the members its error message lists', () => {
     const scope = { names: solidScriptDocumentNamesAt(SCRIPT, 3), extra: [], words: [] };
     const brush = offered('[Brush.', scope).map((entry) => entry.label.slice('Brush.'.length));
-    expect(brush).toEqual(['Name', 'Faces', 'Edges', 'Vertices', 'Center', 'Min', 'Max', 'Size', 'Extents', 'Data']);
+    expect(brush).toEqual([
+      'Name',
+      'Faces',
+      'Edges',
+      'Vertices',
+      'Center',
+      'Min',
+      'Max',
+      'Size',
+      'Extents',
+      'Mode',
+      'Data',
+    ]);
     expect(brush).toEqual(solidScriptMemberNames('Brush'));
     expect(offered('[K.', scope)).toEqual([]);
   });

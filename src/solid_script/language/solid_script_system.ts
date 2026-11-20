@@ -1,5 +1,5 @@
 import type { SolidScriptValue } from './solid_script_value.js';
-import { SOLID_SCRIPT_MODE_DEFAULT, type SolidScriptGroupMode } from './solid_script_mode.js';
+import { SOLID_SCRIPT_MODE_DEFAULT, type SolidScriptGroupMode, type SolidScriptMode } from './solid_script_mode.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
 
 /** Where a script runs. */
@@ -230,6 +230,14 @@ export interface SolidScriptUseFacts {
   mode?: SolidScriptGroupMode;
   /** Corners of every brush the modifier receives, one list per brush. */
   solids: readonly (readonly [number, number, number])[][];
+  /**
+   * Insertion Mode top-level brushes inherit when their Mode was left empty,
+   * from the generator or modifier Operation. Absent is Additive for a
+   * modifier, and Script.Mode for a generator when that is a brush Mode.
+   */
+  insertMode?: SolidScriptMode;
+  /** CSG Mode of every brush the modifier receives, one word per solid. */
+  modes?: readonly SolidScriptMode[];
   /** Faces of those brushes, together. */
   faces: number;
   /**

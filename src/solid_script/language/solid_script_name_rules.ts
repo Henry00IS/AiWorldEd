@@ -82,7 +82,12 @@ export function solidScriptNameDotProblem(name: string, use: 'read' | 'set'): st
   const text = name.trim();
   if (!text.includes('.')) return '';
   if (text.startsWith('$')) {
-    if (use === 'set' && !SOLID_SCRIPT_NAME_SELECTED.test(text) && !solidScriptNameIsPositionWrite(text))
+    if (
+      use === 'set' &&
+      !SOLID_SCRIPT_NAME_SELECTED.test(text) &&
+      !solidScriptNameIsPositionWrite(text) &&
+      !solidScriptNameIsModeWrite(text)
+    )
       return `${text} is a system value and can only be read; only the $Selected lists can be set`;
     return '';
   }
@@ -98,12 +103,13 @@ export function solidScriptNameDotProblem(name: string, use: 'read' | 'set'): st
     SOLID_SCRIPT_NAME_OWN.test(text) ||
     solidScriptNameIsDataWrite(text) ||
     solidScriptNameIsUvWrite(text) ||
-    solidScriptNameIsPositionWrite(text)
+    solidScriptNameIsPositionWrite(text) ||
+    solidScriptNameIsModeWrite(text)
   )
     return '';
   if (parts.length >= 2 && parts[last]?.toLowerCase() === 'data')
     return `${text} needs a key to set, such as ${text}.Height; a line sets a value under .Data, not .Data itself`;
-  return `${text} can only be read; a line sets whole names, .X, .Y and .Z of a vector, Vertex.Position, Face.UVs, or a value under .Data such as Face.Data.Height or Brush.Edges.Data.Kind`;
+  return `${text} can only be read; a line sets whole names, .X, .Y and .Z of a vector, Vertex.Position, Face.UVs, Brush.Mode, or a value under .Data such as Face.Data.Height or Brush.Edges.Data.Kind`;
 }
 
 /**
@@ -162,4 +168,21 @@ export function solidScriptNameIsPositionWrite(name: string): boolean {
   if (parts.length < 3 || (last !== 'x' && last !== 'y' && last !== 'z')) return false;
   const member = parts[parts.length - 2]?.toLowerCase() ?? '';
   return member === 'position' || member === 'positions';
+}
+
+/**
+ * Tells whether a name sets a brush Mode, such as Brush.Mode, Brushes.Modes or
+ * [$Selected.Brushes.Modes].
+ *
+ * @param name Name as written, without brackets.
+ * @returns True for such a name.
+ */
+export function solidScriptNameIsModeWrite(name: string): boolean {
+  const raw = name.trim();
+  const system = raw.startsWith('$');
+  const parts = solidScriptNameParts(system ? raw.slice(1) : raw);
+  if (parts.length < 2) return false;
+  const last = parts[parts.length - 1]?.toLowerCase() ?? '';
+  if (last !== 'mode' && last !== 'modes') return false;
+  return !system || parts[0]?.toLowerCase() === 'selected';
 }
