@@ -189,6 +189,44 @@ describe('SolidScript line menu', () => {
     );
   });
 
+  it('copies with markup lines turned off struck through, inside their indent; plain text unchanged', () => {
+    const { script } = editorFixture([
+      { command: 'note', values: { text: 'Off note.' } },
+      { command: 'transform' },
+      { command: 'cube', values: { size: '2, 2, 2' } },
+      { command: 'sphere' },
+      { command: 'end' },
+      { command: 'cube', values: { size: '1, 1, 1' } },
+    ]);
+    for (const line of [0, 3, 1]) press(chip(line), 'F4');
+    expect(script().blocks.map((block) => block.off === true)).toEqual([true, true, false, true, true, false]);
+    selectRun(0, 5);
+    const data = menuCopy('Copy with Markup', 0);
+    const indent = '\u00a0'.repeat(4);
+    const sphere = chip(3).textContent!.slice('Sphere'.length);
+    expect(data.get('text/plain')).toBe(
+      [
+        '~~_*** Off note._~~',
+        '~~**Transform**~~',
+        `${indent}**Cube** '2, 2, 2'`,
+        `${indent}~~**Sphere**${sphere}~~`,
+        '~~**End Transform**~~',
+        "**Cube** '1, 1, 1'",
+      ].join('  \n'),
+    );
+    expect([...data.keys()]).toEqual(['text/plain']);
+    expect(menuCopy('Copy as Plain Text', 0).get('text/plain')).toBe(
+      [
+        '*** Off note.',
+        'Transform',
+        "    Cube '2, 2, 2'",
+        `    ${chip(3).textContent}`,
+        'End Transform',
+        "Cube '1, 1, 1'",
+      ].join('\n'),
+    );
+  });
+
   it('copies with markup as the only clipboard text, so a rich paste shows the marks too', () => {
     editorFixture(NESTED);
     selectRun(1, 3);

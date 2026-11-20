@@ -14,8 +14,8 @@ export interface SolidScriptEditorShownCopy {
   /** Plain text. */
   text: string;
   /**
-   * Markdown: block names in bold, End lines too, and Note lines in italics,
-   * one line per line.
+   * Markdown: block names in bold, End lines too, Note lines in italics and
+   * lines turned off struck through, one line per line.
    */
   markdown: string;
 }
@@ -98,7 +98,8 @@ function solidScriptEditorShownMarkdownPiece(piece: Element): string {
 
 /**
  * Writes lines as the code view shows them, as Markdown: each line ends in a
- * line break, and the indent is made of spaces that do not start a code block.
+ * line break, the indent is made of spaces that do not start a code block, and
+ * a line turned off is struck through inside its indent.
  *
  * @param lines Lines.
  * @returns Markdown.
@@ -112,7 +113,9 @@ export function solidScriptEditorShownMarkdown(lines: readonly SolidScriptEditor
       (piece) => !piece.parentElement?.closest(SOLID_SCRIPT_EDITOR_SHOWN_PIECES),
     );
     const indent = SOLID_SCRIPT_EDITOR_SHOWN_MARKDOWN_INDENT.repeat(line.depth - least);
-    return indent + pieces.map(solidScriptEditorShownMarkdownPiece).join('');
+    const text = pieces.map(solidScriptEditorShownMarkdownPiece).join('');
+    const off = line.row.classList.contains(SOLID_SCRIPT_EDITOR_CLASSES.off) && text.trim() !== '';
+    return indent + (off ? `~~${text.trim()}~~` : text);
   });
   return marked.join('  \n');
 }
