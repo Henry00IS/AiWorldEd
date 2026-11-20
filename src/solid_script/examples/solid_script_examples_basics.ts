@@ -53,9 +53,7 @@ export const SOLID_SCRIPT_EXAMPLE_COLUMNS: readonly SolidScriptLine[] = [
 
 /** Stepping stones from one point to another, along a gentle wave. */
 export const SOLID_SCRIPT_EXAMPLE_STEPPING_STONES: readonly SolidScriptLine[] = [
-  solidScriptExampleNote(
-    'An Input is a knob in the inspector. Change Stones and the path gains or loses slabs. The default is 9.',
-  ),
+  solidScriptExampleNote('Change the Stones Input and the path gains or loses slabs. The default is 9.'),
   solidScriptExampleInput('Stones', 'Count', '9', { min: '2', max: '40', label: 'Stones' }),
   solidScriptExampleNote(
     'Set gives a name to a value so you can use it later. $[Start$] and $[Finish$] are the two ends of the path, written as points.',
@@ -178,21 +176,29 @@ export const SOLID_SCRIPT_EXAMPLE_PEDESTAL: readonly SolidScriptLine[] = [
 ];
 
 /**
- * A panel with knobs: only the shapes named Knob get a ball on top, picked with
+ * A panel with knobs: only the boxes named Knob get a ball on top, picked with
  * Of.
  */
 export const SOLID_SCRIPT_EXAMPLE_KNOBS: readonly SolidScriptLine[] = [
-  { command: 'note', values: { text: 'Name shapes, then Select Faces Of that name picks only theirs' } },
-  { command: 'cube', values: { size: '4, 0.2, 1', label: 'Panel', anchor: 'Center, Center, Center' } },
-  { command: 'for_each', values: { variable: 'X', list: '-1.5, -0.5, 0.5, 1.5' } },
-  { command: 'transform', values: { move: '[X], 0.25, 0' } },
-  { command: 'cube', values: { size: '0.3, 0.3, 0.3', label: 'Knob', anchor: 'Center, Center, Center' } },
-  { command: 'end' },
-  { command: 'end' },
-  { command: 'select_faces', values: { which: 'Facing Up', of: 'Knob' } },
-  { command: 'for_each', values: { variable: 'Face', list: '[$Selected.Faces]' } },
-  { command: 'place_on_face', values: { of: '[Face]' } },
-  { command: 'sphere', values: { r: '0.1', anchor: 'Center, Center, Center' } },
-  { command: 'end' },
-  { command: 'end' },
+  solidScriptExampleNote(
+    'For Each runs the lines inside once for every item in a list. This list is four numbers, the left-to-right places of the knobs. Each time, $[X$] is one of those numbers.',
+  ),
+  solidScriptExampleLine('cube', { size: '4, 0.2, 1', label: 'Panel', anchor: 'Center, Center, Center' }),
+  ...solidScriptExampleBlock('for_each', { variable: 'X', list: '-1.5, -0.5, 0.5, 1.5' }, [
+    ...solidScriptExampleBlock('transform', { move: '[X], 0.25, 0' }, [
+      solidScriptExampleLine('cube', { size: '0.3, 0.3, 0.3', label: 'Knob', anchor: 'Center, Center, Center' }),
+    ]),
+  ]),
+  solidScriptExampleNote(
+    'Select Faces Of Knob picks only faces of the boxes named Knob, not the panel. After Select, $[Selected.Faces$] is that list of faces.',
+  ),
+  solidScriptExampleLine('select_faces', { which: 'Facing Up', of: 'Knob' }),
+  solidScriptExampleNote(
+    'This For Each walks those faces. Place On Face sets the space so the next brush sits on that face, pointed along it.',
+  ),
+  ...solidScriptExampleBlock('for_each', { variable: 'Face', list: '[$Selected.Faces]' }, [
+    ...solidScriptExampleBlock('place_on_face', { of: '[Face]' }, [
+      solidScriptExampleLine('sphere', { r: '0.1', anchor: 'Center, Center, Center' }),
+    ]),
+  ]),
 ];

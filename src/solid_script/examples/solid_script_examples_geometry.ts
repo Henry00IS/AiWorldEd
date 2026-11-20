@@ -9,7 +9,7 @@ import {
 /** An irregular convex rock: Scatter Points in a box, then Hull around them. */
 export const SOLID_SCRIPT_EXAMPLE_IRREGULAR_ROCK: readonly SolidScriptLine[] = [
   solidScriptExampleNote(
-    'Scatter Points fills a box; Hull wraps the points in one lumpy solid. Change Seed for another rock.',
+    'Scatter Points drops random points. Where In Box fills a box of this Size and Height. Count is how many points, and Seed picks the layout: the same Seed is the same rock. Into writes the points to $[Spots$], a list you can use later.',
   ),
   solidScriptExampleInput('Size', 'Number', '2', { min: '0.5', max: '20', label: 'Size' }),
   solidScriptExampleInput('Height', 'Number', '1.2', { min: '0.2', max: '20', label: 'Height' }),
@@ -22,16 +22,30 @@ export const SOLID_SCRIPT_EXAMPLE_IRREGULAR_ROCK: readonly SolidScriptLine[] = [
     size: '[Size], [Height], [Size]',
     into: 'Spots',
   }),
+  solidScriptExampleNote(
+    'Hull wraps those points in one lumpy solid. The points themselves are only a list; Hull is the rock you see.',
+  ),
   ...solidScriptExampleBlock('hull', { points: '[Spots]' }, []),
 ];
 
 /** A cube whose top face is scaled about its center, making a tapered block. */
 export const SOLID_SCRIPT_EXAMPLE_TAPERED_BOX: readonly SolidScriptLine[] = [
-  solidScriptExampleNote('Scale Faces shrinks the top about its center, so the cube becomes a tapered block.'),
+  solidScriptExampleNote(
+    'An Input is a knob in the inspector. Change Factor and the top of the box shrinks or grows. The default is 0.5.',
+  ),
   solidScriptExampleInput('Factor', 'Number', '0.5', { min: '0.1', max: '2', label: 'Factor' }),
+  solidScriptExampleNote(
+    'This Cube has no Anchor written, so it uses the usual Center, Center, Center. Select Brushes picks brushes. Which Between keeps everything built since the last Select Brushes. This is the first Select, so it picks the cube, the same as All.',
+  ),
   solidScriptExampleLine('cube', { size: '2, 2, 2' }),
-  solidScriptExampleLine('select_brushes'),
+  solidScriptExampleLine('select_brushes', { which: 'Between' }),
+  solidScriptExampleNote(
+    'Select Faces picks faces of those brushes. Which Facing Up keeps the faces that point up, so only the top is kept.',
+  ),
   solidScriptExampleLine('select_faces', { which: 'Facing Up' }),
+  solidScriptExampleNote(
+    'Scale Faces shrinks or grows the selected faces about their centers. Factor 0.5 makes the top half as wide, so the cube becomes a tapered block.',
+  ),
   solidScriptExampleLine('scale_faces', { factor: '[Factor]' }),
 ];
 

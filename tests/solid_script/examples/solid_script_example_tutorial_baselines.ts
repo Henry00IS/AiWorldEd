@@ -55,4 +55,55 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     { command: 'end' },
     { command: 'end' },
   ],
+
+  taperedBox: [
+    {
+      command: 'note',
+      values: { text: 'Scale Faces shrinks the top about its center, so the cube becomes a tapered block.' },
+    },
+    {
+      command: 'input',
+      values: { name: 'Factor', type: 'Number', default: '0.5', min: '0.1', max: '2', label: 'Factor' },
+    },
+    { command: 'cube', values: { size: '2, 2, 2' } },
+    { command: 'select_brushes' },
+    { command: 'select_faces', values: { which: 'Facing Up' } },
+    { command: 'scale_faces', values: { factor: '[Factor]' } },
+  ],
+  irregularRock: [
+    {
+      command: 'note',
+      values: {
+        text: 'Scatter Points fills a box; Hull wraps the points in one lumpy solid. Change Seed for another rock.',
+      },
+    },
+    { command: 'input', values: { name: 'Size', type: 'Number', default: '2', min: '0.5', max: '20', label: 'Size' } },
+    {
+      command: 'input',
+      values: { name: 'Height', type: 'Number', default: '1.2', min: '0.2', max: '20', label: 'Height' },
+    },
+    { command: 'input', values: { name: 'Count', type: 'Count', default: '16', min: '4', max: '64', label: 'Points' } },
+    { command: 'input', values: { name: 'Seed', type: 'Number', default: '4', label: 'Seed' } },
+    {
+      command: 'scatter_points',
+      values: { where: 'In Box', count: '[Count]', seed: '[Seed]', size: '[Size], [Height], [Size]', into: 'Spots' },
+    },
+    { command: 'hull', values: { points: '[Spots]' } },
+    { command: 'end' },
+  ],
+  knobs: [
+    { command: 'note', values: { text: 'Name shapes, then Select Faces Of that name picks only theirs' } },
+    { command: 'cube', values: { size: '4, 0.2, 1', label: 'Panel', anchor: 'Center, Center, Center' } },
+    { command: 'for_each', values: { variable: 'X', list: '-1.5, -0.5, 0.5, 1.5' } },
+    { command: 'transform', values: { move: '[X], 0.25, 0' } },
+    { command: 'cube', values: { size: '0.3, 0.3, 0.3', label: 'Knob', anchor: 'Center, Center, Center' } },
+    { command: 'end' },
+    { command: 'end' },
+    { command: 'select_faces', values: { which: 'Facing Up', of: 'Knob' } },
+    { command: 'for_each', values: { variable: 'Face', list: '[$Selected.Faces]' } },
+    { command: 'place_on_face', values: { of: '[Face]' } },
+    { command: 'sphere', values: { r: '0.1', anchor: 'Center, Center, Center' } },
+    { command: 'end' },
+    { command: 'end' },
+  ],
 };
