@@ -208,7 +208,9 @@ describe('SolidScript formula blocks write', () => {
     ['""', ''],
     ['"abc"', 'abc'],
     ['"  two  spaces "', '  two  spaces '],
-    ['"say \\"hi\\" \\\\ back"', 'say "hi" \\ back'],
+    ['"say $"hi$" \\ back"', 'say "hi" \\ back'],
+    ['"$"edges$""', '"edges"'],
+    ['"a\\nb \\"', 'a\\nb \\'],
     ['"a [b] c, d"', 'a [b] c, d'],
   ])('shows the Text %s as its content %j, and writes it back, also when typed anew', (formula, content) => {
     const read = solidScriptFormulaRead(formula);

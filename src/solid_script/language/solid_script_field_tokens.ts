@@ -1,4 +1,5 @@
 import { solidScriptFieldEscapes } from './solid_script_field.js';
+import { solidScriptStringEscapes } from './solid_script_lexer.js';
 import { solidScriptFunctionKey, solidScriptNameKey } from './solid_script_name_key.js';
 
 /**
@@ -147,7 +148,7 @@ export function solidScriptFieldTokens(
     }
     if (mode === 'formula' && char === '"') {
       let end = index + 1;
-      while (end < text.length && text[end] !== '"') end += text[end] === '\\' ? 2 : 1;
+      while (end < text.length && text[end] !== '"') end += solidScriptStringEscapes(text, end) ? 2 : 1;
       push('string', index, Math.min(text.length, end + 1));
       index = Math.min(text.length, end + 1);
       continue;

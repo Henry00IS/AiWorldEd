@@ -19,8 +19,8 @@ export type SolidScriptFormulaInputKind = 'vector' | 'text' | 'variable' | 'any'
 /** A variable name as typed without brackets, such as Width or $Face.Center. */
 const SOLID_SCRIPT_FORMULA_NAME = /^\$?[A-Za-z_][\w.]*$/;
 
-/** Text in double quotes, its backslashes standing before the next character. */
-const SOLID_SCRIPT_FORMULA_QUOTED = /^"((?:[^"\\]|\\[^nt])*)"$/;
+/** Text in double quotes, where $" is a double quote and $$ a dollar sign. */
+const SOLID_SCRIPT_FORMULA_QUOTED = /^"((?:[^"$]|\$["$]|\$(?!["$]))*)"$/;
 
 /** A Vector call, such as Vector(0, 1, 0). */
 const SOLID_SCRIPT_FORMULA_VECTOR_CALL = /^Vector\s*\(([\s\S]*)\)$/i;
@@ -138,7 +138,7 @@ export function solidScriptFormulaBodyOr(kind: SolidScriptFieldKind, stored: str
  */
 function solidScriptFormulaTextShown(formula: string): string {
   const quoted = SOLID_SCRIPT_FORMULA_QUOTED.exec(formula)?.[1];
-  if (quoted !== undefined) return quoted.replace(/\\(.)/g, '$1');
+  if (quoted !== undefined) return quoted.replace(/\$"/g, '"');
   if (formula === '' || (solidScriptFormulaLone(formula) && !formula.startsWith('[='))) return formula;
   return `[=${formula}]`;
 }
@@ -155,7 +155,7 @@ function solidScriptFormulaTextTyped(shown: string): string {
   const unwrapped = solidScriptFormulaUnwrap(shown);
   if (unwrapped !== null) return unwrapped.trim();
   if (shown === '' || solidScriptFormulaLone(shown.trim())) return shown.trim();
-  return `"${shown.replace(/["\\]/g, '\\$&')}"`;
+  return `"${shown.replace(/"/g, '$"')}"`;
 }
 
 /**

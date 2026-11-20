@@ -72,17 +72,16 @@ function solidScriptFormulaIsSlot(text: string): boolean {
  * words around parts joined with Str, such as Str("Hi ", [Name]).
  *
  * @param text Plain text.
- * @returns Formula, or null for text with a double quote or a broken bracket.
+ * @returns Formula, or null for a broken bracket.
  */
 function solidScriptFormulaTextFromPlain(text: string): string | null {
-  if (text.includes('"') || text.includes('\\')) return null;
   const parts: string[] = [];
   let depth = 0;
   let from = 0;
   for (let index = 0; index < text.length; index++) {
     if (solidScriptFieldEscapes(text, index)) index++;
     else if (text[index] === '[' && depth++ === 0) {
-      if (index > from) parts.push(`"${text.slice(from, index).replaceAll('$,', ',')}"`);
+      if (index > from) parts.push(solidScriptFormulaPlainString(text.slice(from, index)));
       from = index;
     } else if (text[index] === ']' && --depth === 0) {
       parts.push(solidScriptFormulaSlotFormula(text.slice(from, index + 1)));
@@ -90,8 +89,19 @@ function solidScriptFormulaTextFromPlain(text: string): string | null {
     }
   }
   if (depth !== 0) return null;
-  if (from < text.length) parts.push(`"${text.slice(from).replaceAll('$,', ',')}"`);
+  if (from < text.length) parts.push(solidScriptFormulaPlainString(text.slice(from)));
   return parts.length === 1 ? (parts[0] ?? null) : `Str(${parts.join(', ')})`;
+}
+
+/**
+ * Writes words of plain field text as a formula string: $, becomes a comma and
+ * a double quote $".
+ *
+ * @param words Words as typed in the field.
+ * @returns Formula string.
+ */
+function solidScriptFormulaPlainString(words: string): string {
+  return `"${words.replaceAll('$,', ',').replaceAll('"', '$"')}"`;
 }
 
 /**
@@ -155,8 +165,8 @@ function solidScriptFormulaTextPlain(
   node: SolidScriptExpression,
   splits: boolean,
 ): string | null {
-  const raw = source.slice(node).slice(1, -1);
-  if (/[\\"]|\$(?![[\]])|(?<!\$)[[\]]/.test(raw)) return null;
+  const raw = source.slice(node).slice(1, -1).replaceAll('$"', '"');
+  if (/\$(?![[\]])|(?<!\$)[[\]]/.test(raw)) return null;
   return splits ? raw.replaceAll(',', '$,') : raw;
 }
 

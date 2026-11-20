@@ -15,12 +15,6 @@ export interface SolidScriptToken {
 /** Symbols made of two characters, matched before single characters. */
 const SOLID_SCRIPT_SYMBOLS_DOUBLE = ['<=', '>=', '==', '!=', '&&', '||'];
 
-/** Characters after a backslash in a string that stand for another character. */
-const SOLID_SCRIPT_STRING_ESCAPES: ReadonlyMap<string, string> = new Map([
-  ['n', '\n'],
-  ['t', '\t'],
-]);
-
 /** Words that read like the symbols they stand for: and, or, not. */
 const SOLID_SCRIPT_WORD_SYMBOLS: ReadonlyMap<string, string> = new Map([
   ['and', '&&'],
@@ -147,24 +141,47 @@ export class SolidScriptLexer {
   }
 
   /**
-   * Reads a double-quoted string with backslash escapes: \n a new line, \t a
-   * tab, and a backslash before any other character keeps that character.
+   * Reads a double-quoted string. A $ keeps the next character as typed where
+   * it would mean something else: $" is a double quote and $$ a dollar sign,
+   * like the $ escapes of field text. Any other character, a backslash too, is
+   * itself.
    *
-   * @returns String token holding the unescaped text.
+   * @returns String token holding the text without its escapes.
    */
   private tokenString(): SolidScriptToken {
     let index = this.position + 1;
     let text = '';
     while (index < this.source.length && this.source[index] !== '"') {
-      const escaped = this.source[index] === '\\';
-      if (escaped) index += 1;
-      const character = this.source[index] ?? '';
-      text += escaped ? (SOLID_SCRIPT_STRING_ESCAPES.get(character) ?? character) : character;
-      index += 1;
+      const escaped = solidScriptStringEscapes(this.source, index);
+      text += this.source[escaped ? index + 1 : index] ?? '';
+      index += escaped ? 2 : 1;
     }
     if (index >= this.source.length) throw new Error(`line ${this.line}: unterminated string`);
     const start = this.position;
     this.position = index + 1;
     return { kind: 'string', text, line: this.line, start, end: this.position };
   }
+}
+
+/**
+ * Tells whether the character at a place in a formula string is a $ that keeps
+ * the next one as typed: $" or $$.
+ *
+ * @param text Formula text.
+ * @param index Place.
+ * @returns True for such a $.
+ */
+export function solidScriptStringEscapes(text: string, index: number): boolean {
+  return text[index] === '$' && (text[index + 1] === '"' || text[index + 1] === '$');
+}
+
+/**
+ * Writes a text as a formula string that reads back as the same text: in double
+ * quotes, with $" for a double quote and $$ for a dollar sign.
+ *
+ * @param text Text.
+ * @returns Formula string.
+ */
+export function solidScriptStringWrite(text: string): string {
+  return `"${text.replace(/[$"]/g, (character) => `$${character}`)}"`;
 }

@@ -116,7 +116,7 @@ describe('SolidScript formula blocks read', () => {
       'end',
     ]);
     expect(lines('"Top" != [$Face.Name]')).toEqual(['differs', 'text value=Top', 'variable value=$Face.Name', 'end']);
-    expect(lines('"two words" == "a\\"b"')).toEqual(['equals', 'text value=two words', 'text value=a"b', 'end']);
+    expect(lines('"two words" == "a$"b"')).toEqual(['equals', 'text value=two words', 'text value=a"b', 'end']);
   });
 
   it('keeps anything without its own block in an Expression block, as typed', () => {

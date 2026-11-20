@@ -27,7 +27,7 @@ describe('SolidScript formula field', () => {
     expect(solidScriptFormulaBody('vector3', '1, 2.5, -3')).toBe('[1, 2.5, -3]');
     expect(solidScriptFormulaBody('value', '1, 2, 3')).toBe('[1, 2, 3]');
     expect(solidScriptFormulaBody('message', 'Hi [Name]')).toBe('Str("Hi ", [Name])');
-    expect(solidScriptFormulaBodyOr('text', 'say "hi"')).toBeNull();
+    expect(solidScriptFormulaBodyOr('text', 'say "hi" \\ $5')).toBe('"say $"hi$" \\ $5"');
   });
 
   it('stores a formula wrapped once, and an unchanged one exactly as it was', () => {
@@ -45,9 +45,9 @@ describe('SolidScript formula field', () => {
     expect(solidScriptFormulaShown('vector', 'Vector(0, [h] * 2, 0)')).toBe('Vector(0, [h] * 2, 0)');
     expect(solidScriptFormulaShown('vector', '[a, b]')).toBe('[a, b]');
     expect(solidScriptFormulaShown('text', '"Fully Inside"')).toBe('Fully Inside');
-    expect(solidScriptFormulaShown('text', '"a\\"b"')).toBe('a"b');
+    expect(solidScriptFormulaShown('text', '"a$"b"')).toBe('a"b');
     expect(solidScriptFormulaShown('text', '""')).toBe('');
-    expect(solidScriptFormulaShown('text', '"a\\nb"')).toBe('[="a\\nb"]');
+    expect(solidScriptFormulaShown('text', '"a\\nb"')).toBe('a\\nb');
     expect(solidScriptFormulaShown('text', 'Str("a", [t])')).toBe('[=Str("a", [t])]');
     expect(solidScriptFormulaShown('variable', '[$Face.Center]')).toBe('$Face.Center');
     expect(solidScriptFormulaShown('variable', '[=1]')).toBe('[=1]');

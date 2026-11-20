@@ -9,6 +9,7 @@ import { solidScriptNameDotProblem, solidScriptSystemIsVector } from './solid_sc
 import type { SolidScriptValue } from './solid_script_value.js';
 import { solidScriptValueText } from './solid_script_value.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
+import { solidScriptStringWrite } from './solid_script_lexer.js';
 
 /**
  * How the text typed into a block field is read. Field text is plain text
@@ -205,7 +206,7 @@ export function solidScriptFieldPieces(text: string): SolidScriptFieldPiece[] {
  * @returns Formula text.
  */
 function solidScriptFieldFormulaText(value: SolidScriptValue): string {
-  if (typeof value === 'string') return JSON.stringify(value);
+  if (typeof value === 'string') return solidScriptStringWrite(value);
   if (typeof value === 'number') return value < 0 ? `(${value})` : String(value);
   if (Array.isArray(value)) return `[${value.map(solidScriptFieldFormulaText).join(', ')}]`;
   if (typeof value === 'boolean') return value ? 'True' : 'False';
