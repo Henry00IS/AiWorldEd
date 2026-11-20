@@ -107,7 +107,7 @@ export const SOLID_SCRIPT_EXAMPLE_PEBBLES: readonly SolidScriptLine[] = [
   solidScriptExampleInput('Pebbles', 'Count', '40', { min: '1', max: '400', label: 'Pebbles' }),
   solidScriptExampleLine('cube', { size: '3, 0.4, 3', anchor: 'Center, Center, Center', label: 'Slab' }),
   solidScriptExampleNote(
-    'Select Faces Of Slab starts from Which All, every face of the slab, then Where keeps only the top. InBox is yes when a point sits in a box. HitsBox is yes when a face or brush meets a box of a Center and Size; Fully Inside means the whole face sits in the box. Hits is the same idea when the other box is a brush or a list.',
+    'Select Faces Of Slab starts from Which All, every face of the slab, then Where keeps only the top. InBox is yes when a point sits in a box. HitsBox is yes when a face or brush meets a box of a Center and Size; Fully Inside means the whole face sits in the box.',
   ),
   solidScriptExampleLine('select_faces', {
     which: 'All',
@@ -188,7 +188,7 @@ export const SOLID_SCRIPT_EXAMPLE_PEDESTAL: readonly SolidScriptLine[] = [
   solidScriptExampleSet('Low', '[$Input.Min.Y]'),
   solidScriptExampleSet('Width', '[$Input.Size.X]'),
   solidScriptExampleSet('Depth', '[$Input.Size.Z]'),
-  solidScriptExampleNote('Input Brushes keeps the received brushes in the world. Without it they would be gone.'),
+  solidScriptExampleNote('Input Brushes keeps the received brushes in the world.'),
   solidScriptExampleLine('input_brushes', { textures: 'Move With Shape' }),
   solidScriptExampleNote(
     'Else runs when the script is used as a generator, and builds a box for the slab to sit under.',
@@ -197,7 +197,7 @@ export const SOLID_SCRIPT_EXAMPLE_PEDESTAL: readonly SolidScriptLine[] = [
   solidScriptExampleLine('cube', { size: '1, 1, 1', anchor: 'Center, Center, Center' }),
   solidScriptExampleLine('end'),
   solidScriptExampleNote(
-    'Move To places the named slab so its center sits at this point. The height puts the slab under the box. Rotate To is the same idea for angles: it turns a brush around its middle to the angles you write.',
+    'Move To places the named slab so its center sits at this point. The height puts the slab under the box.',
   ),
   solidScriptExampleLine('cube', {
     size: '[=[Width] + 2 * [Margin]], [Thickness], [=[Depth] + 2 * [Margin]]',

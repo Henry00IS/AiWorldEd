@@ -35,7 +35,7 @@ export const SOLID_SCRIPT_EXAMPLE_TAPERED_BOX: readonly SolidScriptLine[] = [
   ),
   solidScriptExampleInput('Factor', 'Number', '0.5', { min: '0.1', max: '2', label: 'Factor' }),
   solidScriptExampleNote(
-    'This Cube has no Anchor written, so it uses the usual Center, Center, Center. Select Brushes picks brushes. Which Between keeps everything built since the last Select Brushes. This is the first Select, so it picks the cube, the same as All.',
+    'This Cube has no Anchor written, so it uses the usual Center, Center, Center. Select Brushes picks brushes. Which Between keeps everything built since the last Select Brushes. This is the first Select, so it picks the cube.',
   ),
   solidScriptExampleLine('cube', { size: '2, 2, 2' }),
   solidScriptExampleLine('select_brushes', { which: 'Between' }),

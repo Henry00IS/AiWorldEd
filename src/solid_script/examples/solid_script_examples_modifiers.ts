@@ -441,7 +441,7 @@ export const SOLID_SCRIPT_EXAMPLE_MIRROR: readonly SolidScriptLine[] = [
  */
 export const SOLID_SCRIPT_EXAMPLE_PUSH_OUT_FACES: readonly SolidScriptLine[] = [
   solidScriptExampleNote(
-    'This script is a modifier only: add it to a brush. For Each walks every received brush in $[Input.Brushes$]. There is no Input Brushes line, so the brushes themselves are gone, and only the new slabs stay.',
+    'This script is a modifier only: add it to a brush. For Each walks every received brush in $[Input.Brushes$]. The received brushes themselves are not kept, and only the new slabs stay.',
   ),
   solidScriptExampleInput('Distance', 'Number', '0.25', { label: 'Distance', min: '0', max: '10' }),
   solidScriptExampleInput('Thickness', 'Number', '0.1', { label: 'Thickness', min: '0.001', max: '10' }),

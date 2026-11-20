@@ -49,7 +49,6 @@ const COVERAGE: Readonly<Record<string, string>> = {
   'Which All': 'pebbles',
   'Filter List': 'pebbles',
   Where: 'pebbles',
-  Hits: 'pebbles',
   'HitsBox and InBox': 'pebbles',
   Random: 'pebbles',
   'Path From Points': 'roundedRail',
