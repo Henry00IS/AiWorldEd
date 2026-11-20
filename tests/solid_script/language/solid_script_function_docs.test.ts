@@ -4,6 +4,65 @@ import {
   solidScriptFunctionArguments,
   solidScriptFunctionInputsLeast,
 } from '@/solid_script/language/solid_script_function_docs.js';
+import { solidScriptFormulaCatalog } from '@/solid_script/commands/solid_script_formula_commands.js';
+import { solidScriptFormulaProblem } from '@/solid_script/language/solid_script_formula_source.js';
+import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
+import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
+
+/**
+ * Every doc text of the built-in functions and the formula blocks: summaries,
+ * input notes, descriptions, manuals, field hints and stops.
+ *
+ * @returns Texts.
+ */
+function docTexts(): string[] {
+  const texts: string[] = [];
+  for (const [key, doc] of Object.entries(SOLID_SCRIPT_FUNCTION_DOCS))
+    texts.push(doc.summary, ...solidScriptFunctionArguments(key).map((input) => input.about));
+  for (const command of solidScriptFormulaCatalog({ each: 'Face' }).commands) {
+    texts.push(command.description, command.details, ...command.stops);
+    texts.push(...command.parameters.map((parameter) => parameter.hint));
+  }
+  return [...new Set(texts)];
+}
+
+/**
+ * The calls written in a text with what it says they give, such as Sum([1, 2,
+ * 3]) and 6.
+ *
+ * @param text Doc text.
+ * @returns Each call and the result after its "is", or null.
+ */
+function docCalls(text: string): { call: string; result: string | null }[] {
+  const found: { call: string; result: string | null }[] = [];
+  let at = 0;
+  for (const match of text.matchAll(/\b[A-Z][A-Za-z0-9]*\(/g)) {
+    if (match.index < at) continue;
+    let depth = 0;
+    at = match.index;
+    while (at < text.length && (text[at] !== ')' || --depth > 0)) depth += text[at++] === '(' ? 1 : 0;
+    const call = text.slice(match.index, ++at);
+    if (call.includes('...')) continue;
+    const result = /^ is (.*?)(?:;|\.(?:\s|$)|$)/.exec(text.slice(at))?.[1] ?? null;
+    found.push({ call, result });
+  }
+  return found;
+}
+
+/**
+ * Runs one formula in an Echo line.
+ *
+ * @param formula Formula as typed inside [= ].
+ * @returns Echoed text, or null when it stops the script.
+ */
+function echo(formula: string): string | null {
+  const lines: SolidScriptLine[] = [
+    { command: 'echo', values: { value: `[=${formula}]` } },
+    { command: 'cube', values: {} },
+  ];
+  const run = solidScriptProgramRun(solidScriptDocumentCreate(lines));
+  return run.error ? null : run.messages[0]!;
+}
 
 describe('SolidScript function docs', () => {
   it('counts the inputs a function cannot do without', () => {
@@ -23,5 +82,23 @@ describe('SolidScript function docs', () => {
       expect(least, key).toBeGreaterThanOrEqual(1);
       if (!inputs.some((input) => input.name === '...')) expect(least, key).toBeLessThanOrEqual(inputs.length);
     }
+  });
+});
+
+describe('SolidScript function doc text', () => {
+  it('writes no $ escapes and no such as( in any doc, hint or summary', () => {
+    for (const text of docTexts()) {
+      expect(text, text).not.toMatch(/\$[[\],$" ]/);
+      expect(text, text).not.toContain('such as(');
+    }
+  });
+
+  it.each(docTexts().flatMap(docCalls))('reads $call as typed, and it gives what the doc says', ({ call, result }) => {
+    expect(solidScriptFormulaProblem(call), call).toBe('');
+    if (result === null) return;
+    const got = echo(call);
+    const want = got === result ? result : (echo(result) ?? result);
+    if (Number.isNaN(Number(want))) expect(got, call).toBe(want);
+    else expect(Number(got), call).toBeCloseTo(Number(want), 9);
   });
 });

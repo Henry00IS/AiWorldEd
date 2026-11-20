@@ -23,13 +23,13 @@ export const SOLID_SCRIPT_KIND_CHECKS = {
   Text: {
     key: 'is_string',
     usage: 'IsString(value)',
-    summary: 'Yes for text, such as IsString(hello).',
+    summary: 'Yes for text, such as IsString("hello").',
     checks: ['Text'],
   },
   'Yes/No': {
     key: 'is_bool',
     usage: 'IsBool(value)',
-    summary: 'Yes for Yes or No, such as IsBool(Yes).',
+    summary: 'Yes for Yes or No, such as IsBool(true).',
     checks: ['Yes/No'],
   },
   Vector: {
@@ -71,7 +71,7 @@ export const SOLID_SCRIPT_KIND_CHECKS = {
   List: {
     key: 'is_list',
     usage: 'IsList(value)',
-    summary: 'Yes for a list or vector, such as IsList($[1, 2$]).',
+    summary: 'Yes for a list or vector, such as IsList([1, 2, 3]).',
     checks: ['List', 'Vector'],
   },
   Data: {
