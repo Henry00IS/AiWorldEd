@@ -215,15 +215,6 @@ export class SeamPolygonTriangulator {
 }
 
 /**
- * Whether the outline turns at a vertex in the polygon's winding direction.
- *
- * @param previous Vertex before.
- * @param current Vertex tested.
- * @param next Vertex after.
- * @param normal Polygon normal.
- * @returns True for a real convex corner.
- */
-/**
  * Scale-free width of a triangle: twice its area over its longest edge squared.
  *
  * @param first First corner.
@@ -250,7 +241,16 @@ function seamTriangleWidth(first: THREE.Vector3, second: THREE.Vector3, third: T
   return Math.sqrt(crossX * crossX + crossY * crossY + crossZ * crossZ) / longestSquared;
 }
 
-function seamTurnsAt(
+/**
+ * Whether the outline turns at a vertex in the polygon's winding direction.
+ *
+ * @param previous Vertex before.
+ * @param current Vertex tested.
+ * @param next Vertex after.
+ * @param normal Polygon normal.
+ * @returns True for a real convex corner.
+ */
+export function seamTurnsAt(
   previous: THREE.Vector3,
   current: THREE.Vector3,
   next: THREE.Vector3,

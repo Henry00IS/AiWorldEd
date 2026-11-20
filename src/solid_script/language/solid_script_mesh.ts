@@ -169,14 +169,26 @@ export function solidScriptMeshPointNormals(mesh: SolidScriptShapeMesh): THREE.V
 }
 
 /**
- * Key of an undirected edge.
+ * Key of an undirected edge, one number for both directions.
  *
  * @param a Point number.
  * @param b Point number.
+ * @param count Number of points in the mesh.
  * @returns Key.
  */
-function solidScriptMeshEdgeKey(a: number, b: number): string {
-  return a < b ? `${a}:${b}` : `${b}:${a}`;
+function solidScriptMeshEdgeKey(a: number, b: number, count: number): number {
+  return a < b ? a * count + b : b * count + a;
+}
+
+/**
+ * Point numbers of an undirected edge key, lower first.
+ *
+ * @param key Edge key.
+ * @param count Number of points in the mesh the key was made for.
+ * @returns Both point numbers.
+ */
+function solidScriptMeshEdgeEnds(key: number, count: number): [number, number] {
+  return [Math.floor(key / count), key % count];
 }
 
 /**
@@ -192,19 +204,20 @@ function solidScriptMeshEdgeKey(a: number, b: number): string {
 export function solidScriptMeshSubdivide(mesh: SolidScriptShapeMesh, smooth: boolean): SolidScriptShapeMesh {
   const points = mesh.points;
   const facePoints = mesh.faces.map((face) => solidScriptMeshLoopCenter(points, face));
-  const edgeFaces = new Map<string, number[]>();
+  const count = points.length;
+  const edgeFaces = new Map<number, number[]>();
   mesh.faces.forEach((face, faceIndex) =>
     face.forEach((a, corner) => {
-      const key = solidScriptMeshEdgeKey(a, face[(corner + 1) % face.length]!);
+      const key = solidScriptMeshEdgeKey(a, face[(corner + 1) % face.length]!, count);
       const list = edgeFaces.get(key) ?? [];
       list.push(faceIndex);
       edgeFaces.set(key, list);
     }),
   );
-  const edgeIndex = new Map<string, number>();
+  const edgeIndex = new Map<number, number>();
   const edgePoints: THREE.Vector3[] = [];
   for (const [key, faces] of edgeFaces) {
-    const [a, b] = key.split(':').map(Number) as [number, number];
+    const [a, b] = solidScriptMeshEdgeEnds(key, count);
     const middle = points[a]!.clone().add(points[b]!).multiplyScalar(0.5);
     if (smooth && faces.length === 2)
       middle.multiplyScalar(2).add(facePoints[faces[0]!]!).add(facePoints[faces[1]!]!).multiplyScalar(0.25);
@@ -226,9 +239,9 @@ export function solidScriptMeshSubdivide(mesh: SolidScriptShapeMesh, smooth: boo
       const previous = face[(corner + face.length - 1) % face.length]!;
       faces.push([
         point,
-        edgeBase + edgeIndex.get(solidScriptMeshEdgeKey(point, next))!,
+        edgeBase + edgeIndex.get(solidScriptMeshEdgeKey(point, next, count))!,
         faceBase + faceIndex,
-        edgeBase + edgeIndex.get(solidScriptMeshEdgeKey(previous, point))!,
+        edgeBase + edgeIndex.get(solidScriptMeshEdgeKey(previous, point, count))!,
       ]);
       if (!uv || !uvCenter) {
         uvs.push(null);
@@ -255,13 +268,13 @@ export function solidScriptMeshSubdivide(mesh: SolidScriptShapeMesh, smooth: boo
 function solidScriptMeshCatmullPoints(
   mesh: SolidScriptShapeMesh,
   facePoints: readonly THREE.Vector3[],
-  edgeFaces: ReadonlyMap<string, number[]>,
+  edgeFaces: ReadonlyMap<number, number[]>,
 ): THREE.Vector3[] {
   const pointFaces = mesh.points.map((): number[] => []);
   mesh.faces.forEach((face, faceIndex) => face.forEach((point) => pointFaces[point]!.push(faceIndex)));
   const pointEdges = mesh.points.map((): [number, boolean][] => []);
   for (const [key, faces] of edgeFaces) {
-    const [a, b] = key.split(':').map(Number) as [number, number];
+    const [a, b] = solidScriptMeshEdgeEnds(key, mesh.points.length);
     pointEdges[a]!.push([b, faces.length < 2]);
     pointEdges[b]!.push([a, faces.length < 2]);
   }
@@ -322,17 +335,19 @@ export function solidScriptMeshSmooth(
   strength: number,
 ): SolidScriptShapeMesh {
   const neighbours = mesh.points.map(() => new Set<number>());
-  const edgeUse = new Map<string, number>();
+  const count = mesh.points.length;
+  const edgeUse = new Map<number, number>();
   for (const face of mesh.faces)
     face.forEach((a, corner) => {
       const b = face[(corner + 1) % face.length]!;
       neighbours[a]!.add(b);
       neighbours[b]!.add(a);
-      const key = solidScriptMeshEdgeKey(a, b);
+      const key = solidScriptMeshEdgeKey(a, b, count);
       edgeUse.set(key, (edgeUse.get(key) ?? 0) + 1);
     });
   const fixed = new Set<number>();
-  for (const [key, uses] of edgeUse) if (uses < 2) for (const index of key.split(':').map(Number)) fixed.add(index);
+  for (const [key, uses] of edgeUse)
+    if (uses < 2) for (const index of solidScriptMeshEdgeEnds(key, count)) fixed.add(index);
   let points = mesh.points.map((point) => point.clone());
   for (let round = 0; round < iterations; round++)
     points = points.map((point, index) => {

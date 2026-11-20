@@ -2,7 +2,11 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
-import { solidScriptShapeMeshes, type SolidScriptShapeMesh } from '@/solid_script/language/solid_script_mesh.js';
+import {
+  solidScriptMeshLoopNormal,
+  solidScriptShapeMeshes,
+  type SolidScriptShapeMesh,
+} from '@/solid_script/language/solid_script_mesh.js';
 
 /**
  * Watertightness of Mesh From Brushes: brushes that touch, stack or meet along
@@ -154,6 +158,38 @@ function boxesVolume(boxes: readonly TestBox[]): number {
   return boxes.reduce((sum, box) => sum + box.size[0] * box.size[1] * box.size[2], 0);
 }
 
+/**
+ * Turn at every corner of a face, in degrees, signed by the face's own normal:
+ * a positive turn bends the outline the face's way, 0 is a corner in the middle
+ * of a straight side and a negative turn is a fold.
+ *
+ * @param mesh Mesh.
+ * @param face Face corners.
+ * @returns Turn per corner.
+ */
+function cornerTurns(mesh: SolidScriptShapeMesh, face: readonly number[]): number[] {
+  const normal = solidScriptMeshLoopNormal(mesh.points, face);
+  return face.map((index, corner) => {
+    const point = mesh.points[index]!;
+    const incoming = point.clone().sub(mesh.points[face[(corner + face.length - 1) % face.length]!]!);
+    const outgoing = mesh.points[face[(corner + 1) % face.length]!]!.clone().sub(point);
+    const sine = new THREE.Vector3().crossVectors(incoming, outgoing).dot(normal);
+    return THREE.MathUtils.radToDeg(Math.atan2(sine, incoming.dot(outgoing)));
+  });
+}
+
+/**
+ * Counts faces with a corner that turns less than a number of degrees, which
+ * are faces with a corner in the middle of a side, or folded faces.
+ *
+ * @param mesh Mesh.
+ * @param degrees Smallest turn a corner must make.
+ * @returns Faces with a smaller turn somewhere.
+ */
+function facesTurningLess(mesh: SolidScriptShapeMesh, degrees: number): number {
+  return mesh.faces.filter((face) => cornerTurns(mesh, face).some((turn) => turn < degrees)).length;
+}
+
 /** A wide base with two crates of different sizes standing on its top. */
 const BASE_WITH_CRATES: TestBox[] = [
   { size: [4, 1, 4], at: [0, 0, 0] },
@@ -212,6 +248,45 @@ describe('SolidScript Mesh From Brushes watertight bake', () => {
       expect(eulerCharacteristic(mesh)).toBe(2);
       expect(closestPointGap(mesh)).toBeGreaterThan(1e-5);
     });
+
+  for (const [name, boxes] of Object.entries(TOUCHING_SCENES))
+    it(`bakes ${name} with no corner left in the middle of a side`, () => {
+      const mesh = bake(boxes);
+      expect(facesTurningLess(mesh, 1)).toBe(0);
+      expect(mesh.uvs.every((uvs, index) => uvs !== null && uvs.length === mesh.faces[index]!.length)).toBe(true);
+    });
+
+  for (let levels = 1; levels <= 3; levels++)
+    it(`subdivides the base with two crates ${levels} times, flat, into only well-turned convex quads`, () => {
+      const mesh = bake(BASE_WITH_CRATES, subdivideLines(levels, 'No', null));
+      expect(mesh.faces.every((face) => face.length === 4)).toBe(true);
+      expect(facesTurningLess(mesh, 10)).toBe(0);
+    });
+
+  for (const levels of [2, 4])
+    it(`folds no face when the base with two crates is smoothed ${levels} times and displaced`, () => {
+      const mesh = bake(BASE_WITH_CRATES, subdivideLines(levels, 'Yes', '[=0.1 * Sin([$X] * 360)]'));
+      expect(unmatchedEdges(mesh)).toBe(0);
+      expect(facesTurningLess(mesh, 0)).toBe(0);
+    });
+
+  it('stays closed with a crate turned on the base, where faces of other shapes keep their extra corners', () => {
+    const lines: SolidScriptLine[] = [
+      { command: 'mesh_brushes' },
+      ...boxLines(BASE_WITH_CRATES[0]!),
+      { command: 'transform', values: { move: '0.5, 1, 0.3', rotate: '0, 30, 0' } },
+      { command: 'cube', values: { size: '1, 1, 1', anchor: 'Center, Center, Center' } },
+      END,
+      END,
+      ...subdivideLines(2, 'Yes', '[=0.1 * Sin([$X] * 360)]'),
+    ];
+    const result = solidScriptProgramRun(solidScriptDocumentCreate(lines));
+    expect(result.error?.message ?? null).toBeNull();
+    const mesh = solidScriptShapeMeshes(result.shapes)[0];
+    if (!mesh) throw new Error('Expected a mesh');
+    expect(unmatchedEdges(mesh)).toBe(0);
+    expect(eulerCharacteristic(mesh)).toBe(2);
+  });
 
   it('keeps the flat subdivided top of the base on its plane, with no point lifted out of it', () => {
     const mesh = bake(BASE_WITH_CRATES, subdivideLines(2, 'No', null));

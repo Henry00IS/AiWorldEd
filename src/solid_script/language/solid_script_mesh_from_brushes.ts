@@ -22,6 +22,7 @@ import {
   type SolidScriptShapeMesh,
   type SolidScriptUv,
 } from './solid_script_mesh.js';
+import { solidScriptMeshGridSplit } from './solid_script_mesh_grid_split.js';
 import type { SolidScriptShape } from './solid_script_shape.js';
 import { solidScriptSolidTreeBuild } from './solid_script_solid_tree.js';
 
@@ -30,6 +31,12 @@ const SOLID_SCRIPT_MESH_BAKE_OFFSET = new THREE.Vector3();
 
 /** Identity parent transform used when baking brushes in their own frame. */
 const SOLID_SCRIPT_MESH_BAKE_TO_PARENT = new THREE.Matrix4();
+
+/**
+ * Most rounds of splitting faces into grids, where each round's new grid points
+ * can give neighbouring faces extra vertices to split at.
+ */
+const SOLID_SCRIPT_MESH_GRID_ROUNDS_MAX = 8;
 
 /**
  * Turns evaluated shapes into one mesh: existing meshes stay as they are, and
@@ -226,9 +233,44 @@ function solidScriptMeshFromPolygons(
   const mesh: SolidScriptShapeMesh = { kind: 'mesh', label, points: [], faces: [], uvs: [] };
   const texture = solidScriptMeshBakeTexture(polygons);
   if (texture !== undefined) mesh.texture = texture;
-  for (const polygon of solidScriptMeshPolygonsConformed(polygons))
+  for (const polygon of solidScriptMeshPolygonsGridded(polygons))
     solidScriptMeshPolygonAdd(mesh, polygon, byId, inverses);
   return solidScriptMeshMerge(solidScriptMeshChecked(mesh), SOLID_VERTEX_EQUAL_EPSILON);
+}
+
+/**
+ * Conforms the polygons and splits every four-cornered one that gained extra
+ * vertices into a grid of four-sided cells, round after round, until no face
+ * has a vertex in the middle of a side it could be split at. Faces of another
+ * shape keep their extra vertices, so the result always conforms.
+ *
+ * @param polygons Compiled polygons of every baked brush.
+ * @returns Conformed polygons, four-cornered ones split into grids.
+ */
+function solidScriptMeshPolygonsGridded(polygons: readonly SolidCompiledPolygon[]): SolidCompiledPolygon[] {
+  let current = solidScriptMeshPolygonsConformed(polygons);
+  for (let round = 0; round < SOLID_SCRIPT_MESH_GRID_ROUNDS_MAX; round++) {
+    const split = solidScriptMeshPolygonsGridSplit(current);
+    if (!split) return current;
+    current = solidScriptMeshPolygonsConformed(split);
+  }
+  return current;
+}
+
+/**
+ * Splits every polygon that can be split into a grid.
+ *
+ * @param polygons Conformed polygons.
+ * @returns Polygons with the grids in place, or null when none was split.
+ */
+function solidScriptMeshPolygonsGridSplit(polygons: readonly SolidCompiledPolygon[]): SolidCompiledPolygon[] | null {
+  let changed = false;
+  const result = polygons.flatMap((polygon) => {
+    const cells = solidScriptMeshGridSplit(polygon);
+    if (cells) changed = true;
+    return cells ?? [polygon];
+  });
+  return changed ? result : null;
 }
 
 /**
