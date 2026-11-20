@@ -113,16 +113,63 @@ const SOLID_SCRIPT_FIELD_ITEM_CLOSE = /^\s*\)\s*$/;
  */
 const SOLID_SCRIPT_FIELD_ESCAPED: ReadonlySet<string> = new Set(['$', '[', ']', ',']);
 
+/** Text made of $ and a space, once or more in a row, or of nothing. */
+const SOLID_SCRIPT_FIELD_SPACES = /^(\$ )*$/;
+
 /**
  * Tells whether the character at a place is a $ that keeps the next one as
- * typed: $$, $[, $] or $,.
+ * typed: $$, $[, $] or $,, and $ and a space at the start or the end of the
+ * text, a space that is kept. A $ and a space in the middle are just text.
  *
  * @param text Field text.
  * @param index Place.
  * @returns True for such a $.
  */
 export function solidScriptFieldEscapes(text: string, index: number): boolean {
-  return text[index] === '$' && SOLID_SCRIPT_FIELD_ESCAPED.has(text[index + 1] ?? '');
+  if (text[index] !== '$') return false;
+  if (text[index + 1] !== ' ') return SOLID_SCRIPT_FIELD_ESCAPED.has(text[index + 1] ?? '');
+  return SOLID_SCRIPT_FIELD_SPACES.test(text.slice(0, index)) || SOLID_SCRIPT_FIELD_SPACES.test(text.slice(index + 2));
+}
+
+/**
+ * Trims field text as typed, keeping the space a $ at the end keeps: the last
+ * of a run of $ before it is a $ of its own when the run is odd.
+ *
+ * @param text Field text as typed.
+ * @returns Trimmed text.
+ */
+export function solidScriptFieldTrim(text: string): string {
+  const trimmed = text.trim();
+  const dollars = /\$*$/.exec(trimmed)?.[0].length ?? 0;
+  return dollars % 2 === 1 && text.trimStart()[trimmed.length] === ' ' ? `${trimmed} ` : trimmed;
+}
+
+/**
+ * Writes the spaces at the start and the end of a text as $ and a space each,
+ * so trimming the field keeps them.
+ *
+ * @param text Text.
+ * @returns Field text.
+ */
+export function solidScriptFieldSpacesWrite(text: string): string {
+  return text.replace(/^ +| +$/g, (spaces) => '$ '.repeat(spaces.length));
+}
+
+/**
+ * Reads the spaces a $ keeps at the start and the end of field text as spaces;
+ * every other escape stays as typed.
+ *
+ * @param text Field text.
+ * @returns Text with those spaces.
+ */
+export function solidScriptFieldSpacesRead(text: string): string {
+  let read = '';
+  for (let index = 0; index < text.length; index++) {
+    const escaped = solidScriptFieldEscapes(text, index);
+    read += escaped && text[index + 1] === ' ' ? ' ' : text.slice(index, escaped ? index + 2 : index + 1);
+    if (escaped) index++;
+  }
+  return read;
 }
 
 /** Splits field text into pieces, one character at a time. */
@@ -506,11 +553,11 @@ export function solidScriptFieldSplit(text: string, separator: string): string[]
     else if (character === '[') depth++;
     else if (character === ']') depth--;
     else if (character === separator && depth === 0) {
-      items.push(text.slice(start, index).trim());
+      items.push(solidScriptFieldTrim(text.slice(start, index)));
       start = index + 1;
     }
   }
-  items.push(text.slice(start).trim());
+  items.push(solidScriptFieldTrim(text.slice(start)));
   return items;
 }
 
@@ -532,11 +579,11 @@ export function solidScriptFieldArguments(text: string): string[] {
     else if (character === '[' || character === '(') depth++;
     else if (character === ']' || character === ')') depth = Math.max(0, depth - 1);
     else if (character === ',' && depth === 0) {
-      pieces.push(text.slice(start, index).trim());
+      pieces.push(solidScriptFieldTrim(text.slice(start, index)));
       start = index + 1;
     }
   }
-  pieces.push(text.slice(start).trim());
+  pieces.push(solidScriptFieldTrim(text.slice(start)));
   return pieces;
 }
 

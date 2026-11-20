@@ -146,7 +146,8 @@ describe('SolidScript text and time functions', () => {
     expect(formula('title_case("hello wide world")')).toBe('Hello Wide World');
     expect(formula('count_text("banana", "an")')).toBe('2');
     expect(formula('characters("abc")')).toBe('[a, b, c]');
-    expect(formula('lines("a\\nb")')).toBe('[a, b]');
+    expect(formula('lines(str("a", character(10), "b"))')).toBe('[a, b]');
+    expect(formula('lines("a\\nb")')).toBe('[a\\nb]');
   });
 
   it('turns characters into codes and back', () => {

@@ -69,8 +69,8 @@ describe('SolidScript formula plain values', () => {
     }
   });
 
-  it('opens nothing for text with a double quote, a broken bracket or an empty item', () => {
-    expect(solidScriptFormulaFromPlain('text', 'say "hi"')).toBeNull();
+  it('opens a double quote as $", and nothing for a broken bracket or an empty item', () => {
+    expect(solidScriptFormulaFromPlain('text', 'say "hi"')).toBe('"say $"hi$""');
     expect(solidScriptFormulaFromPlain('message', 'Hi [Name')).toBeNull();
     expect(solidScriptFormulaFromPlain('value', '1, , 2')).toBeNull();
   });

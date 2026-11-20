@@ -1,6 +1,7 @@
 import {
   solidScriptFieldArguments,
   solidScriptFieldPieces,
+  solidScriptFieldTrim,
   type SolidScriptFieldKind,
   type SolidScriptFieldPiece,
 } from './solid_script_field.js';
@@ -83,7 +84,7 @@ export function solidScriptFormulaUnwrap(text: string): string | null {
  */
 export function solidScriptFormulaBody(kind: SolidScriptFieldKind, stored: string): string {
   if (kind === 'condition') return stored;
-  const text = stored.trim();
+  const text = solidScriptFieldTrim(stored);
   if (text === '' || SOLID_SCRIPT_FORMULA_NUMBER.test(text) || solidScriptFormulaLone(text))
     return solidScriptFormulaUnwrap(text) ?? text;
   const formula = solidScriptFormulaFromPlain(kind, text);

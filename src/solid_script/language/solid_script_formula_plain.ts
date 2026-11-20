@@ -1,5 +1,11 @@
 import type { SolidScriptExpression } from './solid_script_ast.js';
-import { solidScriptFieldEscapes, solidScriptFieldPieces, type SolidScriptFieldKind } from './solid_script_field.js';
+import {
+  solidScriptFieldEscapes,
+  solidScriptFieldPieces,
+  solidScriptFieldSpacesRead,
+  solidScriptFieldSpacesWrite,
+  type SolidScriptFieldKind,
+} from './solid_script_field.js';
 import { SolidScriptFormulaSource } from './solid_script_formula_source.js';
 
 /** A plain number, such as -2 or 0.5. */
@@ -71,10 +77,13 @@ function solidScriptFormulaIsSlot(text: string): boolean {
  * Turns plain text with bracketed parts into a formula: words in quotes, and
  * words around parts joined with Str, such as Str("Hi ", [Name]).
  *
- * @param text Plain text.
+ * The spaces $ keeps at the start and the end are spaces in the words.
+ *
+ * @param typed Plain text.
  * @returns Formula, or null for a broken bracket.
  */
-function solidScriptFormulaTextFromPlain(text: string): string | null {
+function solidScriptFormulaTextFromPlain(typed: string): string | null {
+  const text = solidScriptFieldSpacesRead(typed);
   const parts: string[] = [];
   let depth = 0;
   let from = 0;
@@ -199,28 +208,61 @@ function solidScriptFormulaJoinPlain(
  * @param source Formula read.
  * @param node Part.
  * @param splits True when commas part items in the field.
+ * @param edges True when the part is the whole field, which keeps spaces at its
+ *   start and end.
  * @returns Plain text, or null.
  */
 function solidScriptFormulaItemPlain(
   source: SolidScriptFormulaSource,
   node: SolidScriptExpression,
   splits: boolean,
+  edges = false,
 ): string | null {
   const text = source.slice(node);
   if (SOLID_SCRIPT_FORMULA_NUMBER.test(text.replace(/\s+/g, ''))) return text.replace(/\s+/g, '');
-  if (node.kind === 'string') {
-    const plain = solidScriptFormulaTextPlain(source, node, splits);
-    const clean = plain !== null && plain.trim() === plain && plain !== '' && !/^[-+.\d=]/.test(plain);
-    return clean ? plain : null;
-  }
+  if (node.kind === 'string') return solidScriptFormulaStringPlain(source, node, splits, edges);
   if (source.slot(node)) return text;
   if (node.kind === 'call' && /^vector$/i.test(node.name)) {
     const numbers = node.args.map((arg) => source.slice(arg.value).replace(/\s+/g, ''));
     if (numbers.every((number) => SOLID_SCRIPT_FORMULA_NUMBER.test(number))) return `[${numbers.join(', ')}]`;
   }
   if (node.kind === 'call' && node.name.toLowerCase() === 'str')
-    return solidScriptFormulaJoinPlain(source, node, splits);
+    return solidScriptFormulaPlainEdges(solidScriptFormulaJoinPlain(source, node, splits), edges);
   return `[=${text}]`;
+}
+
+/**
+ * Writes a text of a formula as plain field text, unless the field would read
+ * it as something else, such as a number.
+ *
+ * @param source Formula read.
+ * @param node Text.
+ * @param splits True when commas part items in the field.
+ * @param edges True when the text is the whole field.
+ * @returns Plain text, or null.
+ */
+function solidScriptFormulaStringPlain(
+  source: SolidScriptFormulaSource,
+  node: SolidScriptExpression,
+  splits: boolean,
+  edges: boolean,
+): string | null {
+  const plain = solidScriptFormulaPlainEdges(solidScriptFormulaTextPlain(source, node, splits), edges);
+  return plain !== null && plain !== '' && !/^[-+.\d=]/.test(plain.trim()) ? plain : null;
+}
+
+/**
+ * Keeps the spaces at the start and the end of plain text: written as $ and a
+ * space each where the text is the whole field, and not plain at all in an item
+ * of a list.
+ *
+ * @param plain Plain text, or null.
+ * @param edges True when the text is the whole field.
+ * @returns Plain text, or null.
+ */
+function solidScriptFormulaPlainEdges(plain: string | null, edges: boolean): string | null {
+  if (plain === null || !/^ | $/.test(plain)) return plain;
+  return edges ? solidScriptFieldSpacesWrite(plain) : null;
 }
 
 /**
@@ -291,5 +333,5 @@ function solidScriptFormulaSlotNumbers(slot: string): string | null {
 function solidScriptFormulaWhole(source: SolidScriptFormulaSource, splits: boolean): string | null {
   const node = source.tree;
   if (node.kind === 'call' && node.name.toLowerCase() !== 'str') return null;
-  return solidScriptFormulaItemPlain(source, node, splits);
+  return solidScriptFormulaItemPlain(source, node, splits, true);
 }

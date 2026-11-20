@@ -1,4 +1,4 @@
-import { solidScriptFieldBoolean } from '@/solid_script/language/solid_script_field.js';
+import { solidScriptFieldBoolean, solidScriptFieldTrim } from '@/solid_script/language/solid_script_field.js';
 import type { SolidScriptAnchorAxis } from '@/solid_script/language/solid_script_anchor.js';
 import type {
   SolidScriptBlockRun,
@@ -141,6 +141,11 @@ export interface SolidScriptCommandParameter {
    * a bracket.
    */
   verbatim?: boolean;
+  /**
+   * True when the field keeps the spaces typed at its start and end, such as
+   * the words of a Text block; it reads them as any other field otherwise.
+   */
+  spaces?: boolean;
   /** The few words the field takes, offered first while it is typed. */
   words?: readonly SolidScriptCommandWord[];
   /** True for a library texture: the window offers the texture picker or typing. */
@@ -434,7 +439,7 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
 
   /**
    * Returns one value on one line, falling back to the field default when
-   * empty.
+   * empty, trimmed but for the spaces a $ keeps at its ends.
    *
    * @param values Stored values.
    * @param key Field key.
@@ -444,7 +449,7 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
     const stored = values[key];
     const fallback = this.parameters.find((parameter) => parameter.key === key)?.default ?? '';
     const text = stored === undefined || stored.trim() === '' ? fallback : stored;
-    return text.replace(/[\r\n]+/g, ' ').trim();
+    return solidScriptFieldTrim(text.replace(/[\r\n]+/g, ' '));
   }
 
   /**

@@ -611,7 +611,7 @@ const FIELD_CASES: readonly FieldCase[] = [
     id: 'echo',
     label: 'Message',
     stored: 'Hi [Name]!',
-    blocks: ['Text Of', "Text 'Hi'", 'Variable [Name]', "Text '!'", 'End Text Of'],
+    blocks: ['Text Of', "Text 'Hi '", 'Variable [Name]', "Text '!'", 'End Text Of'],
     edit: edit(3, T, '?', 'Hi [Name]?'),
   },
   {
@@ -619,7 +619,7 @@ const FIELD_CASES: readonly FieldCase[] = [
     id: 'echo',
     label: 'Message',
     stored: '[Turn] / [Steps] + 9',
-    blocks: ['Text Of', 'Variable [Turn]', "Text '/'", 'Variable [Steps]', "Text '+ 9'", 'End Text Of'],
+    blocks: ['Text Of', 'Variable [Turn]', "Text ' / '", 'Variable [Steps]', "Text ' + 9'", 'End Text Of'],
     edit: edit(1, 'formula_variable', 'Turns', '[Turns] / [Steps] + 9'),
   },
   { kind: 'slots', id: 'echo', label: 'Message', stored: 'Box$, big', blocks: ["Text 'Box, big'"] },

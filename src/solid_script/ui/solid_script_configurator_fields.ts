@@ -21,6 +21,7 @@ import {
   solidScriptFieldBoolean,
   solidScriptFieldCheck,
   solidScriptFieldSplit,
+  solidScriptFieldTrim,
   solidScriptFieldVectorNote,
 } from '@/solid_script/language/solid_script_field.js';
 import {
@@ -344,7 +345,8 @@ function solidScriptConfiguratorInputs(
   if (placeholder !== '') input.placeholder = placeholder;
   if (parameter.texture === true) return solidScriptConfiguratorTexture(input, parameter, inputs);
   inputs.append(input);
-  const read = () => (parameter.verbatim === true ? input.value : input.value.trim());
+  const read = () =>
+    parameter.verbatim === true || parameter.spaces === true ? input.value : solidScriptFieldTrim(input.value);
   return { read, problem: () => solidScriptConfiguratorProblem(parameter, input.value) };
 }
 

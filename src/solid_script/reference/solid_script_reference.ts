@@ -71,6 +71,7 @@ Every field is plain text, without quotes, read like this:
 - Brackets nest, so a variable name can itself come from variables: "[Part[I]]" reads the variable whose name is part followed by the value of i.
 - Text fields such as Echo's message mix plain text with them: "Width is [Width], area [=[Width] * [Depth]]".
 - $ keeps the next character as typed: $[ and $] write brackets, $$ a dollar sign, $, a comma inside a list item.
+- Fields drop the spaces at their start and end; $ and a space there keep one space each, so "$ $ Hello$ " is two spaces, Hello and one space, and "$ " alone is one space. Spaces in the middle need nothing, and $ and a space in the middle are just those two characters. In the formula editor a Text block shows its spaces as typed and writes them into the field this way.
 - Only the commas typed in a field separate list items; a value is never split again, so For Each In [Text], 23 with Text set to Hello, World walks Hello, World and 23. [=Split([Text], ",")] splits text, and [=Parse([Text])] reads text like a typed field: 4,5,5 gives a vector and 5+5 gives 10.
 - A script that builds nothing still runs and only warns; an error keeps the output and variables from before it.
 - If's condition is a formula without the leading =: "[I] % 2 == 0", "[Width] > 2 && [Open]".
