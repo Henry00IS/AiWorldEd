@@ -55,11 +55,11 @@ describe('SolidScript formula window groups', () => {
     expect(okRefused()).toBe(true);
     variableDrop(1, 'b');
     expect(rows()).toEqual(['And', 'Variable [b]', 'End And', 'Variable [a]']);
-    expect(formulaText()).toBe('[b] && [a]');
+    expect(formulaText()).toBe('[=[b] && [a]]');
     expect(status()).not.toMatch(/Line/);
     variableDrop(2, 'c');
     expect(rows()).toEqual(['And', 'Variable [b]', 'Variable [c]', 'End And', 'Variable [a]']);
-    expect(formulaText()).toBe('[b] && [c] && [a]');
+    expect(formulaText()).toBe('[=[b] && [c] && [a]]');
     button('OK', formulaWindow()).click();
     expect(input.value).toBe('[=[b] && [c] && [a]]');
   });
@@ -72,7 +72,7 @@ describe('SolidScript formula window groups', () => {
     linesSelect(2, 3);
     lineDrop(2, 1);
     expect(rows()).toEqual(['Or', 'Variable [a]', 'Variable [b]', 'End Or', 'Variable [c]']);
-    expect(formulaText()).toBe('([a] || [b]) && [c]');
+    expect(formulaText()).toBe('[=([a] || [b]) && [c]]');
   });
 
   it('keeps a group as its parts are deleted down to one and none, Cancel leaving the field', () => {
@@ -112,7 +112,7 @@ describe('SolidScript formula window groups', () => {
     expect(rows().slice(1, 5)).toEqual(['Absolute', 'Not', 'End Not', 'End Absolute']);
     expect(status()).toMatch(/needs at least one part/);
     variableDrop(3, 'b');
-    expect(formulaText()).toBe('Abs(![b]) > 1');
+    expect(formulaText()).toBe('[=Abs(![b]) > 1]');
   });
 
   it('offers the Functions of the script among the functions, dropped like any function block', () => {
@@ -142,6 +142,6 @@ describe('SolidScript formula window groups', () => {
     expect(status()).toBe('Line 1: Henry needs at least 2 parts.');
     variableDrop(1, 'b');
     variableDrop(2, 'c');
-    expect(formulaText()).toBe('Henry([b], [c]) && [a]');
+    expect(formulaText()).toBe('[=Henry([b], [c]) && [a]]');
   });
 });

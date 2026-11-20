@@ -47,7 +47,7 @@ describe('SolidScript formula window', () => {
     expect(backdrops).toHaveLength(1);
     const window = formulaOpen();
     expect(formulaText()).toBe(
-      'HitsBox([$Face], Vector(0, 0.2, 0), Vector(4, 0.3, 4), "Fully Inside") and InBox([$Face.Center], Vector(0, 0.2, 0), 1)',
+      '[=HitsBox([$Face], Vector(0, 0.2, 0), Vector(4, 0.3, 4), "Fully Inside") and InBox([$Face.Center], Vector(0, 0.2, 0), 1)]',
     );
     expect(rows()).toHaveLength(2);
     expect(root.querySelector(`.${SOLID_SCRIPT_EDITOR_CLASSES.shade}`)).not.toBeNull();
@@ -75,7 +75,7 @@ describe('SolidScript formula window', () => {
     button('OK', block!).click();
     expect(window.querySelector(`.${SOLID_SCRIPT_EDITOR_CLASSES.shade}`)).toBeNull();
     expect(formulaText()).toBe(
-      'HitsBox([$Face], Vector(0, 0.2, 0), Vector(4, 0.3, 4), "Fully Inside") and InBox([$Face.Center], Vector(0, 0.2, 0), 2)',
+      '[=HitsBox([$Face], Vector(0, 0.2, 0), Vector(4, 0.3, 4), "Fully Inside") and InBox([$Face.Center], Vector(0, 0.2, 0), 2)]',
     );
   });
 
@@ -91,7 +91,7 @@ describe('SolidScript formula window', () => {
     expect(input.value).toBe('[=[$NY] > 0.5]');
     expect(root.querySelector(`.${SOLID_SCRIPT_EDITOR_CLASSES.shade}`)).toBeNull();
     button('Build Where from blocks').click();
-    expect(formulaText()).toBe('[$NY] > 0.5');
+    expect(formulaText()).toBe('[=[$NY] > 0.5]');
     expect(rows()).toEqual(['More Than', 'Variable [$NY]', "Number '0.5'", 'End More Than']);
     button('OK', formulaWindow()).click();
     expect(input.value).toBe('[=[$NY] > 0.5]');
@@ -100,6 +100,7 @@ describe('SolidScript formula window', () => {
   it('changes nothing on Cancel, after many edits and drags', () => {
     const { input, stored, root } = selectFaces(PEBBLES);
     formulaOpen();
+    const before = rows();
     paletteDrop('formula_or', 0);
     paletteDrop('formula_equals', 1);
     paletteDrop('formula_number', 2);
@@ -109,7 +110,7 @@ describe('SolidScript formula window', () => {
     paletteDrop('formula_not', 0);
     paletteDrop('formula_check_is_face', 1);
     press(chip(0), 'Delete');
-    expect(formulaText()).not.toBe(PEBBLES);
+    expect(rows()).not.toEqual(before);
     button('Cancel', formulaWindow()).click();
     expect(document.querySelector('[data-solid-script-formula]')).toBeNull();
     expect(input.value).toBe(PEBBLES);
@@ -144,7 +145,7 @@ describe('SolidScript formula window', () => {
     paletteDrop('formula_fn_abs', 11);
     paletteDrop('formula_number', 12);
     fieldFill('formula_number', 'Number', '-3');
-    expect(formulaText()).toBe('[$NY] > 0.5 || [$NX] > 0.5 || [$Index] == Abs(-3)');
+    expect(formulaText()).toBe('[=[$NY] > 0.5 || [$NX] > 0.5 || [$Index] == Abs(-3)]');
     expect(status()).not.toMatch(/Line/);
   });
 
@@ -153,7 +154,7 @@ describe('SolidScript formula window', () => {
     formulaOpen();
     press(chip(2), 'Enter');
     fieldFill('formula_number', 'Number', '5, 2, 7');
-    expect(formulaText()).toBe('[$Face.Center] == [5, 2, 7]');
+    expect(formulaText()).toBe('[=[$Face.Center] == [5, 2, 7]]');
     expect(rows()[2]).toBe("Number '5, 2, 7'");
     press(chip(1), 'Enter');
     fieldFill('formula_variable', 'Variable', '"Top"');
@@ -172,7 +173,7 @@ describe('SolidScript formula window', () => {
     press(chip(3), 'Delete');
     expect(status()).toMatch(/Or has no End/);
     expect(preview().classList.contains(SOLID_SCRIPT_EDITOR_CLASSES.formulaOff)).toBe(true);
-    expect(formulaText()).toBe('[a] || [b]');
+    expect(formulaText()).toBe('[=[a] || [b]]');
     button('OK', formulaWindow()).click();
     expect(status()).toMatch(/^Fix the formula first/);
     button('Cancel', formulaWindow()).click();
@@ -188,7 +189,7 @@ describe('SolidScript formula window', () => {
     expect(status()).toMatch(/^Fix the formula first: Line 2: Clamp/);
     paletteDrop('formula_number', 4);
     fieldFill('formula_number', 'Number', '1');
-    expect(formulaText()).toBe('Clamp([a], 0, 1) > 0');
+    expect(formulaText()).toBe('[=Clamp([a], 0, 1) > 0]');
     expect(status()).not.toMatch(/Line/);
     button('OK', formulaWindow()).click();
     expect(input.value).toBe('[=Clamp([a], 0, 1) > 0]');
@@ -280,14 +281,14 @@ describe('SolidScript formula window', () => {
       return document.querySelector<HTMLElement>(`.${SOLID_SCRIPT_EDITOR_CLASSES.codeTipText}`);
     };
     expect(rows()[0]).toBe('Or');
-    expect(tipOf(0)?.textContent).toBe('[$NY] > 0.5 || HasTag([$Face.Tags], "Top")');
-    expect(tipOf(rows().length - 1)?.textContent).toBe('[$NY] > 0.5 || HasTag([$Face.Tags], "Top")');
-    expect(tipOf(1)?.textContent).toBe('[$NY] > 0.5');
+    expect(tipOf(0)?.textContent).toBe('[=[$NY] > 0.5 || HasTag([$Face.Tags], "Top")]');
+    expect(tipOf(rows().length - 1)?.textContent).toBe('[=[$NY] > 0.5 || HasTag([$Face.Tags], "Top")]');
+    expect(tipOf(1)?.textContent).toBe('[=[$NY] > 0.5]');
     const leaf = tipOf(3)!;
     expect(leaf.textContent).toBe('0.5');
     expect(leaf.querySelector(`.${SOLID_SCRIPT_EDITOR_CLASSES.tokenNumber}`)).not.toBeNull();
     const check = tipOf(5)!;
-    expect(check.textContent).toBe('HasTag([$Face.Tags], "Top")');
+    expect(check.textContent).toBe('[=HasTag([$Face.Tags], "Top")]');
     expect(check.querySelector(`.${SOLID_SCRIPT_EDITOR_CLASSES.tokenString}`)?.textContent).toBe('"Top"');
     vi.useRealTimers();
   });
@@ -304,7 +305,7 @@ describe('SolidScript formula window', () => {
     const { input } = configuratorOpen('group', { mode: 'Subtractive' }, 'Mode');
     button('Build Mode from blocks').click();
     expect(rows()).toEqual(["Text 'Subtractive'"]);
-    expect(formulaText()).toBe('"Subtractive"');
+    expect(formulaText()).toBe('Subtractive');
     press(chip(0), 'Enter');
     const text = document.querySelector<HTMLElement>('[data-solid-script-configurator="formula_text"]')!;
     const field = text.querySelector<HTMLInputElement>('input[aria-label="Text"]')!;
@@ -613,6 +614,14 @@ const FIELD_CASES: readonly FieldCase[] = [
     blocks: ['Text Of', "Text 'Hi'", 'Variable [Name]', "Text '!'", 'End Text Of'],
     edit: edit(3, T, '?', 'Hi [Name]?'),
   },
+  {
+    kind: 'slots',
+    id: 'echo',
+    label: 'Message',
+    stored: '[Turn] / [Steps] + 9',
+    blocks: ['Text Of', 'Variable [Turn]', "Text '/'", 'Variable [Steps]', "Text '+ 9'", 'End Text Of'],
+    edit: edit(1, 'formula_variable', 'Turns', '[Turns] / [Steps] + 9'),
+  },
   { kind: 'slots', id: 'echo', label: 'Message', stored: 'Box$, big', blocks: ["Text 'Box, big'"] },
   { kind: 'slots', id: 'echo', label: 'Message', stored: '$[Box$] is', blocks: ["Text '$[Box$] is'"] },
   { kind: 'message', id: 'echo', label: 'Message', stored: '[=""]', blocks: ["Text ''"], edit: edit(0, T, 'Hi', 'Hi') },
@@ -786,15 +795,17 @@ function solidScriptFieldStored(field: FieldCase, text: string): string {
 
 describe('SolidScript formula window on every kind of field', () => {
   it.each(FIELD_CASES.map((field) => [field.kind, field.stored, field] as const))(
-    'opens %s %j as its blocks, and OK without a change keeps it exactly',
+    'opens %s %j as its blocks, previewing exactly what OK keeps',
     (_kind, stored, field) => {
       const input = fieldOpen(field);
       if (field.blocks.length > 0) expect(rows()).toEqual(field.blocks);
       expect(rows().length > 0).toBe(stored.trim() !== '');
       expect(status()).not.toMatch(/^Line \d|plain text/);
+      const shown = formulaText();
       button('OK', formulaWindow()).click();
       expect(document.querySelector('[data-solid-script-formula]')).toBeNull();
       expect(input.value).toBe(solidScriptFieldStored(field, stored));
+      expect(input.value).toBe(solidScriptFieldStored(field, shown));
     },
   );
 
@@ -812,12 +823,13 @@ describe('SolidScript formula window on every kind of field', () => {
   );
 
   it.each(FIELD_CASES.filter((field) => field.edit).map((field) => [field.kind, field.stored, field] as const))(
-    'writes a change to %s %j back the way the field is typed',
+    'writes a change to %s %j back the way the field is typed, as the preview shows it',
     (_kind, _stored, field) => {
       const input = fieldOpen(field);
       const change = field.edit!;
       press(chip(change.line), 'Enter');
       fieldFill(change.block, solidScriptFormulaLeafLabel(change.block), change.value);
+      expect(formulaText()).toBe(change.written);
       button('OK', formulaWindow()).click();
       expect(input.value).toBe(solidScriptFieldStored(field, change.written));
     },

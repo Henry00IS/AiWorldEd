@@ -38,10 +38,13 @@ export class SolidScriptEditorTip {
    *
    * @param host List whose rows carry data-line.
    * @param code Code of a line, or null when it has none to show.
+   * @param start How the code reads outside brackets: 'formula' for a whole
+   *   formula, 'text' for field text.
    */
   constructor(
     private readonly host: HTMLElement,
     private readonly code: (line: number) => string | null,
+    private readonly start: SolidScriptFieldTokenStart = 'formula',
   ) {
     this.element.className = SOLID_SCRIPT_EDITOR_CLASSES.codeTip;
     this.element.setAttribute('role', 'tooltip');
@@ -82,7 +85,7 @@ export class SolidScriptEditorTip {
     heading.textContent = titled && row.contains(titled) ? titled.title : '';
     const text = document.createElement('div');
     text.className = SOLID_SCRIPT_EDITOR_CLASSES.codeTipText;
-    text.append(...solidScriptEditorCodeHighlight(code, 'formula'));
+    text.append(...solidScriptEditorCodeHighlight(code, this.start));
     this.element.replaceChildren(...(heading.textContent ? [heading] : []), text);
     this.titleHold(titled && row.contains(titled) ? titled : null);
     this.place(row, x);

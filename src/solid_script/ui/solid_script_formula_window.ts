@@ -10,6 +10,7 @@ import {
 } from '@/solid_script/document/solid_script_formula_read.js';
 import { solidScriptFormulaWrite } from '@/solid_script/document/solid_script_formula_write.js';
 import type { SolidScriptFieldKind } from '@/solid_script/language/solid_script_field.js';
+import type { SolidScriptFieldTokenStart } from '@/solid_script/language/solid_script_field_tokens.js';
 import {
   solidScriptFormulaBodyOr,
   solidScriptFormulaStore,
@@ -121,7 +122,7 @@ export class SolidScriptFormulaWindow extends SolidScriptDialog {
     this.document = this.blocks.document;
     this.lineConfigure = this.lineConfigureCreate();
     this.lines = this.linesCreate();
-    this.tip = new SolidScriptEditorTip(this.lines.host, (line) => this.parts.get(line) ?? null);
+    this.tip = new SolidScriptEditorTip(this.lines.host, (line) => this.partText(line), this.fieldStart());
     this.palette = this.paletteCreate();
     this.layout();
     this.commit(this.document, null);
@@ -259,23 +260,55 @@ export class SolidScriptFormulaWindow extends SolidScriptDialog {
     this.preview.setAttribute('role', 'textbox');
     this.preview.setAttribute('aria-readonly', 'true');
     this.preview.setAttribute('aria-label', `${this.options.label} formula`);
-    this.preview.title = 'The formula the blocks make. Select it to copy it.';
+    this.preview.title = 'What OK writes into the field. Select it to copy it.';
     this.preview.addEventListener('keydown', (event) => {
       if (event.key.toLowerCase() !== 'a' || !(event.ctrlKey || event.metaKey)) return;
       event.preventDefault();
       this.preview.ownerDocument.getSelection()?.selectAllChildren(this.preview);
     });
-    this.previewShow(this.body);
+    this.previewShow(this.fieldText(this.body));
     return this.preview;
   }
 
   /**
-   * Shows formula text in the preview, highlighted.
+   * Shows field text in the preview, highlighted as the field shows it.
    *
-   * @param text Formula.
+   * @param text Field text.
    */
   private previewShow(text: string): void {
-    this.preview.replaceChildren(...solidScriptEditorCodeHighlight(text, 'formula'));
+    this.preview.replaceChildren(...solidScriptEditorCodeHighlight(text, this.fieldStart()));
+  }
+
+  /**
+   * Returns the text OK writes into the field for a formula; the preview, the
+   * tips of the blocks and OK all show it, so they never differ.
+   *
+   * @param formula Formula of the blocks, or of one block.
+   * @returns Field text.
+   */
+  private fieldText(formula: string): string {
+    return solidScriptFormulaStore(this.options.kind, formula, this.options.stored);
+  }
+
+  /**
+   * Returns the field text of the block on a line, for its tip.
+   *
+   * @param line Line index.
+   * @returns Field text, or null for a line with no formula.
+   */
+  private partText(line: number): string | null {
+    const part = this.parts.get(line);
+    return part === undefined ? null : this.fieldText(part);
+  }
+
+  /**
+   * Tells how the field reads its text outside brackets: a condition is a
+   * formula as a whole, any other field is text with [names] and [=formulas].
+   *
+   * @returns Start.
+   */
+  private fieldStart(): SolidScriptFieldTokenStart {
+    return this.options.kind === 'condition' ? 'formula' : 'text';
   }
 
   /**
@@ -307,7 +340,7 @@ export class SolidScriptFormulaWindow extends SolidScriptDialog {
     this.parts = 'problem' in written ? new Map() : written.parts;
     if ('problem' in written) return this.problemSet(`Line ${written.line + 1}: ${written.problem}`);
     this.body = written.text;
-    this.previewShow(written.text);
+    this.previewShow(this.fieldText(written.text));
     this.problemSet('');
   }
 
@@ -344,7 +377,7 @@ export class SolidScriptFormulaWindow extends SolidScriptDialog {
       this.statusShow(`Fix the formula first: ${this.problemText}`, true);
       return false;
     }
-    this.options.apply(solidScriptFormulaStore(this.options.kind, this.body, this.options.stored));
+    this.options.apply(this.fieldText(this.body));
     return true;
   }
 
