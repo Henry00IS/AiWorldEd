@@ -63,6 +63,9 @@ export const SOLID_SCRIPT_EXAMPLE_PIPE: readonly SolidScriptLine[] = [
   solidScriptExampleInput('WallThickness', 'Number', '0.25', { label: 'Wall Thickness', min: '0.01', max: '100' }),
   solidScriptExampleInput('Sweep', 'Number', '360', { label: 'Sweep Angle', min: '1', max: '360' }),
   ...solidScriptExampleRingSize(),
+  solidScriptExampleNote(
+    'Function RingPoint gives a point back with Return, so later lines can write $[=RingPoint(...)$] in a formula. $[Local.Angle$], $[Local.Inset$] and $[Local.Height$] are the values for this one call.',
+  ),
   ...SOLID_SCRIPT_EXAMPLE_RING_POINT,
   solidScriptExampleSet('Wall', '[=Min([WallThickness], [Limit])]'),
   solidScriptExampleSegments('[Sides]'),

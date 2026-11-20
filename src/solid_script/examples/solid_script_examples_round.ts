@@ -68,6 +68,9 @@ export const SOLID_SCRIPT_EXAMPLE_CONE: readonly SolidScriptLine[] = [
   solidScriptExampleNote('Cone: a ring at the bottom and a smaller ring, or a tip, at the top.'),
   SOLID_SCRIPT_EXAMPLE_SIDES,
   solidScriptExampleInput('TopRadius', 'Number', '0', { label: 'Top Radius', min: '0', max: '1' }),
+  solidScriptExampleNote(
+    'If the top radius is zero, an If builds a tip instead of a ring. Else runs when the condition does not hold.',
+  ),
   ...solidScriptExamplePolyhedron([
     ...solidScriptExampleRing('1', '[=-[$Box.Height] / 2]'),
     ...solidScriptExampleRingOrTip('[TopRadius]', '[=[$Box.Height] / 2]'),
@@ -133,6 +136,9 @@ export const SOLID_SCRIPT_EXAMPLE_COLUMN: readonly SolidScriptLine[] = [
   solidScriptExampleSet('Radius', '[=Min([$Box.Width], [$Box.Depth] / [Aspect]) / 2]'),
   solidScriptExampleSet('Stations', '[=ProfilePoints([Profile], [$Box.Height], [Radius])]'),
   solidScriptExampleNote('Sort the stations into runs: x is the height, y the radius, z the run.'),
+  solidScriptExampleNote(
+    'Clear Variable empties $[Marks$]. Add Item appends to that list, and Remove Item takes the last item off when two steps are the same.',
+  ),
   solidScriptExampleLine('clear_variable', { name: 'Marks' }),
   solidScriptExampleSet('Run', '-1'),
   solidScriptExampleSet('Open', 'no'),

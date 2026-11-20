@@ -37,7 +37,7 @@ function solidScriptExampleSweepPiece(from: string, to: string, corners: readonl
  */
 export const SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE: readonly SolidScriptLine[] = [
   solidScriptExampleNote(
-    'Spiral Staircase: treads around a center column, a smooth slope below, a stringer and a handrail.',
+    'This is a showcase of a finished piece. If you are new, start with Wall With a Doorway under Basics, then come back. Treads go around a center column, with a smooth slope below, a stringer and a handrail.',
   ),
   solidScriptExampleInput('Steps', 'Count', '18', { label: 'Steps', min: '3', max: '128' }),
   solidScriptExampleInput('Turn', 'Number', '360', { label: 'Turn', min: '30', max: '1440' }),

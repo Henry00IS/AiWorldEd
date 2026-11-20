@@ -21,7 +21,11 @@ const SOLID_SCRIPT_EXAMPLE_HALF = solidScriptExampleSet(
 export const SOLID_SCRIPT_EXAMPLE_PYRAMID: readonly SolidScriptLine[] = [
   solidScriptExampleNote('Pyramid: four corners on the floor and a smaller square, or a tip, at the top.'),
   solidScriptExampleInput('TopSize', 'Number', '0', { label: 'Top Size', min: '0', max: '1' }),
+  solidScriptExampleNote(
+    '$[Box$] is the generator box in the editor: its Width, Height and Depth. $[Half$] is half of that, so the pyramid sits in the box.',
+  ),
   SOLID_SCRIPT_EXAMPLE_HALF,
+  solidScriptExampleNote('Polyhedron builds one solid from corners you list. Each Point is one corner of the pyramid.'),
   ...solidScriptExamplePolyhedron(
     solidScriptExampleRepeat('Corner', '0', '3', [
       solidScriptExampleSet('Side', '[=([Corner] % 2) * 2 - 1], 0, [=Floor([Corner] / 2) * 2 - 1]'),
@@ -37,6 +41,9 @@ export const SOLID_SCRIPT_EXAMPLE_PRISM: readonly SolidScriptLine[] = [
   solidScriptExampleInput('Sides', 'Count', '3', { label: 'Sides', min: '3', max: '12' }),
   solidScriptExampleInput('Axis', 'Choice', 'Along Z', { label: 'Axis', choices: 'Along Z, Along X, Upright' }),
   solidScriptExampleNote('First find how far the outline reaches, so it can be stretched to fill the box.'),
+  solidScriptExampleNote(
+    'If runs the lines inside only when its condition holds. Here each If picks the axis and writes the matching corners.',
+  ),
   solidScriptExampleSet('Low', '1, 1'),
   solidScriptExampleSet('High', '-1, -1'),
   ...solidScriptExampleRepeat('I', '0', '[=[Sides] - 1]', [
@@ -104,6 +111,9 @@ export const SOLID_SCRIPT_EXAMPLE_HOLLOW_BOX: readonly SolidScriptLine[] = [
   solidScriptExampleNote('Hollow Box: a floor, a ceiling and four walls, each one box.'),
   solidScriptExampleInput('WallThickness', 'Number', '0.25', { label: 'Wall Thickness', min: '0.01', max: '100' }),
   solidScriptExampleInput('OpenTop', 'Switch', 'No', { label: 'Open Top' }),
+  solidScriptExampleNote(
+    'Function names a group of lines so Call can run them later. Slab takes From and To; inside the function, $[Local.From$] and $[Local.To$] are the values from that Call. The script skips the Function lines where they stand.',
+  ),
   ...solidScriptExampleSlabFunction(),
   SOLID_SCRIPT_EXAMPLE_HALF,
   solidScriptExampleSet('T', '[WallThickness]'),

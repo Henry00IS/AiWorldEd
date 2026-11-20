@@ -288,8 +288,8 @@ describe('SolidScript examples', () => {
   it('finds examples by every word of a search', () => {
     expect(solidScriptExamplesFind('spiral').map((example) => example.id)).toEqual(['spiralStaircase']);
     expect(solidScriptExamplesFind('generator stairs').map((example) => example.id)).toEqual([
-      'stairs',
       'curvedStairs',
+      'stairs',
     ]);
     expect(solidScriptExamplesFind('')).toHaveLength(SOLID_SCRIPT_EXAMPLES.length);
   });

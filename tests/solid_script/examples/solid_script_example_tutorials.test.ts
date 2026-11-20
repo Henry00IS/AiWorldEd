@@ -64,6 +64,17 @@ const COVERAGE: Readonly<Record<string, string>> = {
   'Input Brushes': 'pedestal',
   'Move To': 'pedestal',
   'Extrude Face': 'pushOutFaces',
+  $Box: 'pyramid',
+  'Polyhedron and Point': 'pyramid',
+  If: 'prism',
+  'Function, Call and Local': 'hollowBox',
+  'Clear Variable, Add Item and Remove Item': 'column',
+  Return: 'pipe',
+  'Show Inputs When': 'shear',
+  Echo: 'shear',
+  Matrix: 'shear',
+  'Input Group': 'linear',
+  Clip: 'mirror',
 };
 
 type TutorialStore = {

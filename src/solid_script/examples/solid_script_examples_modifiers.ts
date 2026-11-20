@@ -94,6 +94,9 @@ export const SOLID_SCRIPT_EXAMPLE_SHEAR: readonly SolidScriptLine[] = [
   solidScriptExampleInput('Axis', 'Choice', 'X', { label: 'Shear Axis', choices: 'X, Y, Z' }),
   solidScriptExampleInput('Along', 'Choice', 'Y', { label: 'Along', choices: 'X, Y, Z' }),
   solidScriptExampleInput('Mode', 'Choice', 'Angle', { label: 'Amount', choices: 'Angle, Factor' }),
+  solidScriptExampleNote(
+    'Show Inputs When hides or shows the next Inputs, depending on another Input. Here Angle appears for Angle mode, and Factor for Factor mode.',
+  ),
   ...solidScriptExampleShowWhen('Mode', 'Angle', [
     solidScriptExampleInput('Angle', 'Number', '20', { label: 'Angle °', min: '-85', max: '85' }),
   ]),
@@ -109,6 +112,9 @@ export const SOLID_SCRIPT_EXAMPLE_SHEAR: readonly SolidScriptLine[] = [
   ...solidScriptExampleIf(
     '[Axis] == [Along]',
     [
+      solidScriptExampleNote(
+        'Echo writes a message in the editor when something is wrong. Here it runs if the two axes are the same.',
+      ),
       solidScriptExampleLine('echo', { value: 'Shear Axis and Along must differ; the brushes pass on unchanged.' }),
       solidScriptExampleLine('input_brushes', { textures: '[Textures]' }),
     ],
@@ -118,6 +124,9 @@ export const SOLID_SCRIPT_EXAMPLE_SHEAR: readonly SolidScriptLine[] = [
       solidScriptExampleSet('Slide', `[=(${solidScriptExampleAxis('Axis').slice(2, -1)}) * [Shear]]`),
       solidScriptExampleSet('Measure', solidScriptExampleAxis('Along')),
       solidScriptExampleNote('Each point moves by Slide times its distance from the center along Measure.'),
+      solidScriptExampleNote(
+        'Matrix changes every point of the copy by these rows. Input Brushes writes the received brushes Into $[Copy$], Matrix edits that copy, and Output stamps it.',
+      ),
       solidScriptExampleSet('Shift', '[=[Slide] * -Dot([Measure], [$Input.Center])]'),
       ...solidScriptExampleMatrixOf(
         {
@@ -134,6 +143,7 @@ export const SOLID_SCRIPT_EXAMPLE_SHEAR: readonly SolidScriptLine[] = [
 /** Port of the Linear Array modifier. */
 export const SOLID_SCRIPT_EXAMPLE_LINEAR_ARRAY: readonly SolidScriptLine[] = [
   solidScriptExampleNote('Linear Array: repeats the brushes it receives along a line.'),
+  solidScriptExampleNote('Input Group is a heading in the inspector that groups the Inputs inside it.'),
   ...solidScriptExampleArrayInputs('Move With Copy'),
   solidScriptExampleInput('Mode', 'Choice', 'Relative To Size', {
     label: 'Spacing',
@@ -408,6 +418,9 @@ export const SOLID_SCRIPT_EXAMPLE_MIRROR: readonly SolidScriptLine[] = [
   ...solidScriptExampleIf('[Flip]', [solidScriptExampleSet('Drop', '[=-[Drop]]')]),
   ...solidScriptExampleIf('[Bisect]', [
     solidScriptExampleNote('Bisect cuts the received brushes at the plane and drops the side Drop points toward.'),
+    solidScriptExampleNote(
+      'Clip cuts the received brushes with a plane: Through is a point on the plane, and Normal is the way the kept side faces.',
+    ),
     solidScriptExampleLine('clip', { through: '[=[K] * [D]]', normal: '[Drop]', of: '[$Input.Brushes]' }),
   ]),
   solidScriptExampleNote('Copy 0 is the original; the copy is reflected: p - 2 (p · K - D) K.'),
