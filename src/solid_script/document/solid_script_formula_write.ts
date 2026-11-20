@@ -17,7 +17,10 @@ import {
   type SolidScriptFormulaGroup,
 } from '@/solid_script/commands/solid_script_formula_groups.js';
 import { SOLID_SCRIPT_FORMULA_LEAVES } from '@/solid_script/commands/solid_script_formula_commands.js';
-import { solidScriptFormulaTyped } from '@/solid_script/language/solid_script_formula_field.js';
+import {
+  solidScriptFormulaTextBlock,
+  solidScriptFormulaTyped,
+} from '@/solid_script/language/solid_script_formula_field.js';
 import {
   solidScriptFormulaJoin,
   solidScriptFormulaOperandNeed,
@@ -287,9 +290,9 @@ class SolidScriptFormulaWriter {
     const wrap = (parts: readonly string[], need: number): string => solidScriptFormulaWrap(parts[0] ?? '', need);
     if (join.form === 'join') return solidScriptFormulaJoin(join.operator, first);
     if (join.form === 'choose') return `${wrap(first, 1)} ? ${wrap(second, 0)} : ${wrap(third, 0)}`;
-    if (join.form === 'call') {
+    if (join.form === 'call' || join.form === 'list') {
       const args = first.map((part) => solidScriptFormulaWrap(part, 0)).join(', ');
-      return `${name || solidScriptFormulaCheckName(join.key)}(${args})`;
+      return join.form === 'list' ? `$[${args}$]` : `${name || solidScriptFormulaCheckName(join.key)}(${args})`;
     }
     const operand = wrap(first, SOLID_SCRIPT_FORMULA_LEVEL_UNARY);
     const twice = join.operator === '-' && /^[-+]/.test(operand) ? `(${operand})` : operand;
@@ -317,7 +320,11 @@ class SolidScriptFormulaWriter {
       return origin && shown === origin.values[key] ? (origin.formulas[key] ?? '') : typed(shown);
     };
     const leaf = SOLID_SCRIPT_FORMULA_LEAVES.find((entry) => entry.id === command.id);
-    if (leaf) return formula('value', (shown) => solidScriptFormulaTyped(leaf.kind, shown));
+    const typed =
+      leaf?.kind === 'text'
+        ? solidScriptFormulaTextBlock
+        : (shown: string) => solidScriptFormulaTyped(leaf?.kind ?? 'any', shown);
+    if (leaf) return formula('value', typed);
     return this.check(command.id.slice(SOLID_SCRIPT_FORMULA_CHECK.length), formula, origin?.name ?? '');
   }
 
@@ -364,9 +371,8 @@ function solidScriptFormulaNeed(command: string, section: number, count: number,
  * @returns Problem, or an empty string.
  */
 function solidScriptFormulaLeafProblem(command: SolidScriptCommand, values: Readonly<Record<string, string>>): string {
-  const missing = command.parameters.find(
-    (field) => !solidScriptParameterAllowsEmpty(field) && (values[field.key] ?? '').trim() === '',
-  );
+  const empty = (key: string) => command.id !== SOLID_SCRIPT_FORMULA_COMMAND.text && (values[key] ?? '').trim() === '';
+  const missing = command.parameters.find((field) => !solidScriptParameterAllowsEmpty(field) && empty(field.key));
   if (missing) return `${command.label}: ${missing.label} needs a value.`;
   const problem = command.check?.(values) ?? '';
   return problem;

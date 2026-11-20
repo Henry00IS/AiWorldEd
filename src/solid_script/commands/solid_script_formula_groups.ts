@@ -12,6 +12,7 @@ export type SolidScriptFormulaGroupForm =
   | { readonly form: 'join'; readonly operator: string }
   | { readonly form: 'unary'; readonly operator: string }
   | { readonly form: 'choose' }
+  | { readonly form: 'list' }
   | { readonly form: 'call'; readonly key: string };
 
 /** A block that holds other blocks, such as And, Equals or Absolute. */
@@ -54,6 +55,7 @@ export const SOLID_SCRIPT_FORMULA_COMMAND = {
   text: 'formula_text',
   variable: 'formula_variable',
   value: 'formula_value',
+  list: 'formula_list',
 } as const;
 
 /**
@@ -266,7 +268,7 @@ export function solidScriptFormulaBlock(
   text: SolidScriptFormulaBlockText,
   category: SolidScriptCommandCategory,
   spec: Partial<
-    Pick<ConstructorParameters<typeof SolidScriptCommand>[0], 'parameters' | 'nesting' | 'check' | 'listing'>
+    Pick<ConstructorParameters<typeof SolidScriptCommand>[0], 'parameters' | 'nesting' | 'parts' | 'check' | 'listing'>
   > = {},
 ): SolidScriptCommand {
   return new SolidScriptCommand({
@@ -274,6 +276,7 @@ export function solidScriptFormulaBlock(
     category,
     parameters: spec.parameters ?? [],
     nesting: spec.nesting ?? 'none',
+    ...(spec.parts ? { parts: spec.parts } : {}),
     ...(spec.check ? { check: spec.check } : {}),
     named: false,
     runs: false,
@@ -288,15 +291,17 @@ export function solidScriptFormulaBlock(
  * @param text Id, name and help.
  * @param category Palette group.
  * @param group How it joins, and how many blocks it holds.
+ * @param parts Lines added between it and its End, such as Then and Else.
  * @returns Command.
  */
 function solidScriptFormulaGroupAdd(
   text: SolidScriptFormulaBlockText,
   category: SolidScriptCommandCategory,
   group: Omit<SolidScriptFormulaGroup, 'id'>,
+  parts: readonly string[] = [],
 ): SolidScriptCommand {
   SOLID_SCRIPT_FORMULA_GROUPS.set(text.id, { id: text.id, ...group });
-  return solidScriptFormulaBlock(text, category, { nesting: 'open' });
+  return solidScriptFormulaBlock(text, category, { nesting: 'open', parts });
 }
 
 /**
@@ -325,11 +330,27 @@ function solidScriptFormulaFunction(key: string): SolidScriptCommand {
 
 /**
  * Creates every group block: And, Or, Not and If with its Then and Else, the
- * operators and the functions.
+ * operators, List and the functions.
  *
  * @returns Commands.
  */
 export function solidScriptFormulaGroupCommands(): SolidScriptCommand[] {
+  return [
+    ...solidScriptFormulaOperatorGroups(),
+    ...solidScriptFormulaChoose(),
+    solidScriptFormulaList(),
+    ...solidScriptFormulaFunctions(),
+    ...solidScriptFormulaShared(),
+  ];
+}
+
+/**
+ * Creates the operator blocks, which hold two or more blocks, and Not and
+ * Negative, which hold one.
+ *
+ * @returns Commands.
+ */
+function solidScriptFormulaOperatorGroups(): SolidScriptCommand[] {
   const joins = SOLID_SCRIPT_FORMULA_OPERATORS.map((entry) =>
     solidScriptFormulaGroupAdd(entry, entry.category, {
       join: { form: 'join', operator: entry.operator },
@@ -346,11 +367,45 @@ export function solidScriptFormulaGroupCommands(): SolidScriptCommand[] {
       sections: 1,
     }),
   );
-  const functions = Object.entries(SOLID_SCRIPT_FUNCTION_DOCS)
+  return [...joins, ...unary];
+}
+
+/**
+ * Creates the block of every function that takes inputs, except the checks.
+ *
+ * @returns Commands.
+ */
+function solidScriptFormulaFunctions(): SolidScriptCommand[] {
+  return Object.entries(SOLID_SCRIPT_FUNCTION_DOCS)
     .filter(([key, doc]) => doc.group !== 'Checks' && solidScriptFunctionArguments(key).length > 0)
     .map(([key]) => solidScriptFormulaFunction(key));
-  return [...joins, ...unary, ...solidScriptFormulaChoose(), ...functions, ...solidScriptFormulaShared()];
 }
+
+/**
+ * Creates List, which holds one or more blocks as the items of a list.
+ *
+ * @returns Command.
+ */
+function solidScriptFormulaList(): SolidScriptCommand {
+  return solidScriptFormulaGroupAdd(SOLID_SCRIPT_FORMULA_LIST, 'Values', SOLID_SCRIPT_FORMULA_LIST_GROUP);
+}
+
+/** How List holds its blocks: one or more, as items. */
+const SOLID_SCRIPT_FORMULA_LIST_GROUP: Omit<SolidScriptFormulaGroup, 'id'> = {
+  join: { form: 'list' },
+  min: 1,
+  max: Number.POSITIVE_INFINITY,
+  sections: 1,
+};
+
+/** List, which holds its blocks as the items of a list. */
+const SOLID_SCRIPT_FORMULA_LIST: SolidScriptFormulaBlockText = {
+  id: SOLID_SCRIPT_FORMULA_COMMAND.list,
+  label: 'List',
+  description: 'The blocks inside as a list, such as 1, 2, 3',
+  manual:
+    'Holds its blocks as the items of a list, in order. Example: List, Text Center, Text Bottom, Text Back, End List is the Anchor Center, Bottom, Back.',
+};
 
 /** Example shared by If, Then and Else. */
 const SOLID_SCRIPT_FORMULA_CHOOSE_EXAMPLE =
@@ -387,7 +442,16 @@ function solidScriptFormulaChoose(): SolidScriptCommand[] {
   const [choose, ...branches] = SOLID_SCRIPT_FORMULA_CHOOSE;
   const group = { join: { form: 'choose' }, min: 1, max: 1, sections: 3 } as const;
   return [
-    ...(choose ? [solidScriptFormulaGroupAdd(choose, 'Groups', group)] : []),
+    ...(choose
+      ? [
+          solidScriptFormulaGroupAdd(
+            choose,
+            'Groups',
+            group,
+            branches.map((text) => text.id),
+          ),
+        ]
+      : []),
     ...branches.map((text) => solidScriptFormulaBlock(text, 'Groups', { nesting: 'continue' })),
   ];
 }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { solidScriptFormulaCatalog } from '@/solid_script/commands/solid_script_formula_commands.js';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptDocumentCreate, type SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
 import {
@@ -69,6 +70,19 @@ describe('solid script document edits', () => {
     const { document, line } = solidScriptDocumentCommandInsert(script('variable', 'echo'), 'sphere', 0, 'caret');
     expect(lines(document)).toEqual(['variable', 'sphere', 'echo']);
     expect(line).toBe(1);
+  });
+
+  it('inserts every part of a block made of parts: a formula If with Then, Else and End, a script If with End', () => {
+    const formula = solidScriptDocumentCommandInsert(
+      script(),
+      'formula_if',
+      0,
+      'before',
+      {},
+      solidScriptFormulaCatalog(),
+    );
+    expect(lines(formula.document)).toEqual(['formula_if', 'formula_then', 'formula_else', 'end']);
+    expect(lines(solidScriptDocumentCommandInsert(script(), 'if', 0, 'before').document)).toEqual(['if', 'end']);
   });
 
   it('drops before a line, closes blocks with an End line and inserts into an empty script', () => {

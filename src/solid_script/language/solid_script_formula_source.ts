@@ -31,11 +31,13 @@ class SolidScriptFormulaParser extends SolidScriptValueParser {
    * @param text Formula with its bracketed parts masked.
    * @param marks Spans it fills in.
    * @param slots Where each masked bracketed part starts, after its [.
+   * @param escapes Where each escaped character stands, after its $.
    */
   constructor(
     text: string,
     private readonly marks: SolidScriptFormulaMarks,
     private readonly slots: ReadonlySet<number>,
+    private readonly escapes: ReadonlySet<number>,
   ) {
     super(text);
   }
@@ -57,7 +59,7 @@ class SolidScriptFormulaParser extends SolidScriptValueParser {
     const start = this.tokenAt(first).start;
     const last = this.tokenAt(this.tokenIndex() - 1);
     const span = {
-      from: this.slots.has(start) ? start - 1 : start,
+      from: this.slots.has(start) || this.escapes.has(start) ? start - 1 : start,
       to: this.slots.has(last.start) ? last.end + 1 : last.end,
     };
     if (!this.marks.spans.has(expression)) this.marks.spans.set(expression, span);
@@ -73,11 +75,13 @@ class SolidScriptFormulaParser extends SolidScriptValueParser {
  * value, as the running formula reads it.
  *
  * @param text Formula.
- * @returns Masked formula and where each part starts.
+ * @returns Masked formula, and where each part starts and each escaped
+ *   character stands.
  */
-function solidScriptFormulaMask(text: string): { masked: string; slots: Set<number> } {
+function solidScriptFormulaMask(text: string): { masked: string; slots: Set<number>; escapes: Set<number> } {
   const groups = solidScriptFieldPieces(text).flatMap((piece) => (piece.kind === 'group' ? [piece] : []));
   const slots = new Set<number>();
+  const escapes = new Set<number>();
   let masked = '';
   for (let index = 0; index < text.length; index++) {
     const group = groups[0];
@@ -90,10 +94,11 @@ function solidScriptFormulaMask(text: string): { masked: string; slots: Set<numb
       groups.shift();
     } else if (solidScriptFieldEscapes(text, index)) {
       masked += ` ${text[index + 1]}`;
+      escapes.add(index + 1);
       index++;
     } else masked += text[index];
   }
-  return { masked, slots };
+  return { masked, slots, escapes };
 }
 
 /**
@@ -125,8 +130,9 @@ export class SolidScriptFormulaSource {
    */
   static read(text: string): SolidScriptFormulaSource {
     const marks: SolidScriptFormulaMarks = { spans: new Map(), outers: new Map(), parenthesized: new Set() };
-    const { masked, slots } = solidScriptFormulaMask(text);
-    const tree = solidScriptExpressionParse(masked, (value) => new SolidScriptFormulaParser(value, marks, slots));
+    const { masked, slots, escapes } = solidScriptFormulaMask(text);
+    const parser = (value: string) => new SolidScriptFormulaParser(value, marks, slots, escapes);
+    const tree = solidScriptExpressionParse(masked, parser);
     return new SolidScriptFormulaSource(text, tree, marks, slots);
   }
 

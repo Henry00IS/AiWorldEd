@@ -14,7 +14,9 @@ let solidScriptDialogCount = 0;
  * blocker behind it cancels. It stays where it opens, in the middle of the
  * editor. A dialog opened over another one, such as the formula window over a
  * configurator, darkens only that window: its own blocker stays clear, so the
- * editor behind does not get darker and darker.
+ * editor behind does not get darker and darker. However it closes, the focus
+ * goes back to what had it when it opened, such as a script line or the window
+ * below, so keys never fall through to the scene.
  */
 export abstract class SolidScriptDialog extends PanelFloating {
   /** Main button. */
@@ -26,6 +28,8 @@ export abstract class SolidScriptDialog extends PanelFloating {
   private readonly shadePane = document.createElement('div');
   /** How many dialogs are open over this one. */
   private shaded = 0;
+  /** What had the keyboard focus when the dialog opened; it gets it back. */
+  private opener: HTMLElement | null = null;
 
   /**
    * Builds the window.
@@ -151,11 +155,31 @@ export abstract class SolidScriptDialog extends PanelFloating {
     this.close();
   }
 
-  /** Closes for good. */
+  /** Opens the dialog, remembering what has the focus. */
+  override show(): void {
+    const active = document.activeElement;
+    if (!this.isOpen()) this.opener = active instanceof HTMLElement && active !== document.body ? active : null;
+    super.show();
+  }
+
+  /** Closes for good, handing the focus back when it was in the dialog. */
   protected close(): void {
     if (!this.settled) this.parent?.shadeSet(false);
     this.settled = true;
+    const active = document.activeElement;
+    const held = !active || active === document.body || this.root.contains(active);
     this.dispose();
+    if (held) this.focusReturn();
+  }
+
+  /**
+   * Gives the focus back to what had it when the dialog opened, or to the
+   * window it opened over when that is gone.
+   */
+  private focusReturn(): void {
+    const below = this.parent?.root.querySelector<HTMLElement>('input, textarea, select, button, [tabindex]');
+    const back = this.opener?.isConnected ? this.opener : below;
+    back?.focus({ preventScroll: true });
   }
 
   /**

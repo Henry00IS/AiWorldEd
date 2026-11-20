@@ -1,6 +1,7 @@
 import './solid_script_command_catalog.js';
 import type {
   SolidScriptCommand,
+  SolidScriptCommandWord,
   SolidScriptCommandCategory,
   SolidScriptCommandParameter,
   SolidScriptCommandValues,
@@ -135,36 +136,62 @@ function solidScriptFormulaLeafListing(
 
 /**
  * Creates the value blocks: Number, Vector, Text, Variable and Expression, each
- * holding one value typed in its window.
+ * holding one value typed in its window; Text offers the words of a choice
+ * field and warns about others.
  *
+ * @param words Words the field takes, or none.
  * @returns Commands.
  */
-function solidScriptFormulaValues(): SolidScriptCommand[] {
+function solidScriptFormulaValues(words: readonly SolidScriptCommandWord[] = []): SolidScriptCommand[] {
   return SOLID_SCRIPT_FORMULA_LEAVES.map((leaf) => {
-    const field = leaf.kind === 'text' ? 'text' : 'value';
+    const field = solidScriptParameter('value', leaf.label, leaf.kind === 'text' ? 'text' : 'value', '', leaf.hint);
+    const offered = leaf.kind === 'text' && words.length > 0 ? { words } : {};
     const fields = [
       { key: 'value', label: leaf.label, formula: (text: string) => solidScriptFormulaTyped(leaf.kind, text) },
     ];
     return solidScriptFormulaBlock(leaf, 'Values', {
-      parameters: [solidScriptParameter('value', leaf.label, field, '', leaf.hint)],
+      parameters: [{ ...field, ...offered }],
       check: (values) => solidScriptFormulaFieldsProblem(fields, values),
       listing: (read) => [leaf.label, ' ', solidScriptFormulaLeafListing(leaf.kind, read)],
     });
   });
 }
 
+/** Numbers in brackets, such as [0, 1, 0], as a formula writes a vector. */
+const SOLID_SCRIPT_FORMULA_BRACKET_NUMBERS = /\[(-?[\d.]+(?:, -?[\d.]+){1,2})\]/g;
+
 /**
- * Describes the field of one check input: an input with a default here shows it
- * greyed and may stay empty.
+ * The hint of one check input field, its examples in the form the field takes
+ * as typed: 0, 1, 0 where the docs of the formula write [0, 1, 0].
+ *
+ * @param input Input.
+ * @returns Hint.
+ */
+function solidScriptFormulaCheckHint(input: SolidScriptFormulaInput): string {
+  if (input.kind === 'text' || input.kind === 'variable') return input.about;
+  return input.about.replace(SOLID_SCRIPT_FORMULA_BRACKET_NUMBERS, '$1');
+}
+
+/**
+ * Describes the field of one check input: an input with a default, or filled in
+ * with the element here, shows it greyed and may stay empty; one that takes a
+ * few words offers them.
  *
  * @param input Input.
  * @returns Field.
  */
 function solidScriptFormulaCheckField(input: SolidScriptFormulaInput): SolidScriptCommandParameter {
   const type = input.kind === 'text' ? 'text' : 'value';
-  const field = solidScriptParameter(input.name, input.label, type, '', input.about);
+  const field = solidScriptParameter(input.name, input.label, type, '', solidScriptFormulaCheckHint(input));
   const optional = input.optional || input.fallback !== '';
-  return { ...field, ...(optional ? { optional } : {}), ...(input.fallback ? { placeholder: input.fallback } : {}) };
+  const placeholder = input.fallback || input.default;
+  const words = input.choices.map((word) => ({ word, detail: `${input.label}.` }));
+  return {
+    ...field,
+    ...(optional ? { optional } : {}),
+    ...(placeholder ? { placeholder } : {}),
+    ...(words.length > 0 ? { words } : {}),
+  };
 }
 
 /**
@@ -217,7 +244,10 @@ function solidScriptFormulaCheck(key: string, context: SolidScriptFormulaContext
   );
 }
 
-/** Formula catalogs made so far, by the element they are for. */
+/**
+ * Formula catalogs made so far, by the element they are for and the words they
+ * offer.
+ */
 const SOLID_SCRIPT_FORMULA_CATALOGS = new Map<string, SolidScriptCommandCatalog>();
 
 /**
@@ -228,11 +258,11 @@ const SOLID_SCRIPT_FORMULA_CATALOGS = new Map<string, SolidScriptCommandCatalog>
  * @returns Catalog.
  */
 export function solidScriptFormulaCatalog(context: SolidScriptFormulaContext = {}): SolidScriptCommandCatalog {
-  const key = context.each ?? '';
+  const key = [context.each ?? '', ...(context.words ?? []).map((entry) => entry.word)].join('|');
   const known = SOLID_SCRIPT_FORMULA_CATALOGS.get(key);
   if (known) return known;
   const checks = solidScriptFormulaCheckKeys().map((check) => solidScriptFormulaCheck(check, context));
-  const commands = [...solidScriptFormulaValues(), ...solidScriptFormulaGroupCommands(), ...checks];
+  const commands = [...solidScriptFormulaValues(context.words), ...solidScriptFormulaGroupCommands(), ...checks];
   const catalog = new SolidScriptCommandCatalog('formula', SOLID_SCRIPT_FORMULA_CATEGORIES, commands, [
     SOLID_SCRIPT_FORMULA_COMMAND.and,
     SOLID_SCRIPT_FORMULA_COMMAND.number,

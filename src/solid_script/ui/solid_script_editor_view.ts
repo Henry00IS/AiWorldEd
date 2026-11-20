@@ -15,6 +15,8 @@ export interface SolidScriptEditorView {
   icons: boolean;
   /** Wavy lines under names and calls nothing defines, and under the error. */
   squiggles: boolean;
+  /** The name of the block an End line closes, such as End Transform. */
+  endNames: boolean;
 }
 
 /** Storage key of the view switches. */
@@ -27,6 +29,7 @@ export const SOLID_SCRIPT_EDITOR_VIEW_DEFAULT: Readonly<SolidScriptEditorView> =
   brackets: true,
   icons: false,
   squiggles: true,
+  endNames: true,
 };
 
 /**
@@ -39,6 +42,7 @@ export const SOLID_SCRIPT_EDITOR_VIEW_LABELS: readonly (readonly [keyof SolidScr
   ['brackets', 'Bracket Highlighting', 'Bold brackets around the caret while typing a formula'],
   ['icons', 'Command Icons', 'Shows the category icon in front of each command'],
   ['squiggles', 'Error Squiggles', 'Wavy lines under names and functions nothing defines, and under the error'],
+  ['endNames', 'Block Names On End', 'Shows End Transform instead of End; the script stays the same'],
 ];
 
 /**

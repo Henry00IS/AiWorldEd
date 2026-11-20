@@ -1,7 +1,9 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ManagerInput } from '@/input/manager_input.js';
+import { HandlerKeyboardShortcut } from '@/input/handler_keyboard_shortcut.js';
 import { solidScriptEditorCurrentGet } from '@/solid_script/ui/solid_script_editor_open.js';
 import type { SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
-import { chip, editorFixture, find, press } from './solid_script_editor_fixture.js';
+import { chip, editorFixture, find, press, tool } from './solid_script_editor_fixture.js';
 
 /** Height of one script row in pixels. */
 const ROW_PX = 24;
@@ -264,5 +266,62 @@ describe('SolidScript editor line selection follows the shared row rules', () =>
     down(2, { ctrlKey: true });
     chip(4).focus();
     expect(selection(5)).toEqual([4]);
+  });
+
+  it('keeps every selected line, the current one and the range start after OK or Cancel of the window Enter opens', () => {
+    const { script } = editorFixture(cubeLines(6));
+    down(1);
+    down(3, { shiftKey: true });
+    down(4, { shiftKey: true });
+    press(chip(4), 'Enter');
+    const size = find<HTMLInputElement>('[data-solid-script-configurator="cube"] input[aria-label="Size"]');
+    size.value = '2, 2, 2';
+    size.dispatchEvent(new Event('input', { bubbles: true }));
+    tool('OK').click();
+    expect(script().blocks[4]?.values['size']).toBe('2, 2, 2');
+    expect(selection(6)).toEqual([1, 3, 4]);
+    expect(focusedLine()).toBe(4);
+    press(chip(4), 'Enter');
+    tool('Cancel').click();
+    expect(selection(6)).toEqual([1, 3, 4]);
+    expect(focusedLine()).toBe(4);
+    down(1);
+    click(1);
+    expect(selection(6)).toEqual([1]);
+    press(chip(1), 'ArrowDown', { shiftKey: true });
+    press(chip(2), 'ArrowDown', { shiftKey: true });
+    press(chip(3), 'Enter');
+    tool('OK').click();
+    expect(selection(6)).toEqual([1, 2, 3]);
+    press(chip(3), 'ArrowDown', { shiftKey: true });
+    expect(selection(6)).toEqual([1, 2, 3, 4]);
+  });
+
+  it('hands the focus back to the line when Escape closes its window, so Delete removes the line, never the brush', () => {
+    const { node, commands } = editorFixture([{ command: 'cube' }, { command: 'sphere' }]);
+    const input = new ManagerInput();
+    const handler = new HandlerKeyboardShortcut(input);
+    const scene = vi.fn();
+    const escape = vi.fn();
+    handler.setOnDeleteSelected(scene);
+    handler.setOnEscape(escape);
+    handler.register();
+    try {
+      down(1);
+      press(chip(1), 'Enter');
+      const field = find<HTMLInputElement>('[data-solid-script-configurator="sphere"] input[type="text"]');
+      field.focus();
+      press(field, 'Escape');
+      expect(document.querySelector('[data-solid-script-configurator]')).toBeNull();
+      expect(focusedLine()).toBe(1);
+      press(document.activeElement as HTMLElement, 'Delete');
+    } finally {
+      handler.unregister();
+      input.dispose();
+    }
+    expect(scene).not.toHaveBeenCalled();
+    expect(escape).not.toHaveBeenCalled();
+    expect(node.parent).not.toBeNull();
+    expect(commands()).toEqual(['cube']);
   });
 });

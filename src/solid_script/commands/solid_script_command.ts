@@ -235,6 +235,11 @@ export interface SolidScriptCommandSpec {
    * full, the End line stays short.
    */
   endLabel?: string;
+  /**
+   * Lines an open block needs between it and its End, added with it, such as
+   * Then and Else of a formula If.
+   */
+  parts?: readonly string[];
   /** False hides the command from the palette, such as End. */
   inPalette?: boolean;
   /**
@@ -341,6 +346,8 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
   readonly flow: SolidScriptCommandFlow | undefined;
   readonly fills: readonly SolidScriptSystemFillName[];
   readonly endLabel: string;
+  /** Lines added between the block and its End when it is added. */
+  readonly parts: readonly string[];
   readonly inPalette: boolean;
   readonly runs: boolean;
   /** True for blocks that build brushes or meshes, with Into. */
@@ -375,6 +382,7 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
     this.flow = spec.flow;
     this.fills = spec.fills ?? [];
     this.endLabel = spec.endLabel ?? spec.label;
+    this.parts = spec.parts ?? [];
     this.inPalette = spec.inPalette !== false;
     this.runs = spec.runs !== false;
     this.check = spec.check;

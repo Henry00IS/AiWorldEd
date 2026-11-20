@@ -20,8 +20,10 @@ import {
 } from '@/solid_script/document/solid_script_document_names.js';
 import { solidScriptInputRead, type SolidScriptInput } from '@/solid_script/language/solid_script_input.js';
 import { solidScriptChoiceWordsForField } from '@/solid_script/language/solid_script_choices.js';
+import { solidScriptAnchorAxisWords } from '@/solid_script/language/solid_script_anchor.js';
 import { SolidScriptDialog } from './solid_script_dialog.js';
 import { SOLID_SCRIPT_FORMULA_CATEGORIES } from '@/solid_script/commands/solid_script_formula_commands.js';
+import type { SolidScriptFormulaContext } from '@/solid_script/commands/solid_script_formula_inputs.js';
 import { SolidScriptFormulaWindow, solidScriptFormulaWindowProblem } from './solid_script_formula_window.js';
 import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
 
@@ -240,19 +242,42 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
       this.problem.classList.remove(SOLID_SCRIPT_EDITOR_CLASSES.fieldWarning);
       return;
     }
-    const each = solidScriptParameterEachActive(parameter, values);
     new SolidScriptFormulaWindow({
       host: this.host,
       parent: this,
       label: parameter.label,
       kind: parameter.type,
       stored,
-      context: each ? { each } : {},
+      context: this.formulaContext(parameter, values, stored),
       names: this.names,
       fills: this.fillsOf(parameter, values),
       inputs: this.inputs,
       apply: write,
     }).show();
+  }
+
+  /**
+   * Tells where a field's formula is used: the element it is worked out for,
+   * and the words a choice field takes, which Text blocks offer: for an Anchor
+   * the word of each axis, as its List holds a Text block per axis.
+   *
+   * @param parameter Field.
+   * @param values Values of the line.
+   * @param stored Field text.
+   * @returns Context.
+   */
+  private formulaContext(
+    parameter: SolidScriptCommandParameter,
+    values: SolidScriptCommandValues,
+    stored: string,
+  ): SolidScriptFormulaContext {
+    const each = solidScriptParameterEachActive(parameter, values);
+    const words = parameter.anchor
+      ? solidScriptAnchorAxisWords(parameter.anchor)
+      : parameter.writes
+        ? []
+        : solidScriptChoiceWordsForField(parameter, values, stored, this.inputs);
+    return { ...(each ? { each } : {}), ...(words.length > 0 ? { words } : {}) };
   }
 
   /**

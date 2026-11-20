@@ -44,8 +44,8 @@ export function solidScriptBlockIsBlank(block: SolidScriptBlock | undefined): bo
 }
 
 /**
- * Inserts a command line, followed by an End line when the command opens a
- * block.
+ * Inserts a command line, followed by the lines its block needs, such as Then
+ * and Else of a formula If, and an End line when the command opens a block.
  *
  * @param document Script.
  * @param command Command id.
@@ -67,8 +67,10 @@ export function solidScriptDocumentCommandInsert(
   const reuse = solidScriptBlockIsBlank(blocks[index]);
   const at = reuse || mode === 'before' || blocks.length === 0 ? index : index + 1;
   const line = Math.max(0, Math.min(at, blocks.length));
+  const found = catalog.find(command);
   const inserted = [solidScriptBlockCreate(command, values, false, catalog)];
-  if (catalog.find(command)?.nesting === 'open') inserted.push(solidScriptBlockCreate(SOLID_SCRIPT_COMMAND_END));
+  for (const part of found?.parts ?? []) inserted.push(solidScriptBlockCreate(part, undefined, false, catalog));
+  if (found?.nesting === 'open') inserted.push(solidScriptBlockCreate(SOLID_SCRIPT_COMMAND_END));
   blocks.splice(line, reuse ? 1 : 0, ...inserted);
   return { document: solidScriptDocumentWith(document, blocks), line };
 }

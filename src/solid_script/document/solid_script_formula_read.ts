@@ -154,8 +154,8 @@ class SolidScriptFormulaReader {
   }
 
   /**
-   * Tells which group block a part is: an operator, Not, Negative, If or a
-   * function with a block per input.
+   * Tells which group block a part is: an operator, Not, Negative, If, a List
+   * such as $[1, 2$] or a function with a block per input.
    *
    * @param node Part.
    * @returns Group, or null for a part that is no group.
@@ -173,6 +173,8 @@ class SolidScriptFormulaReader {
       const parts = [[node.condition], [node.whenTrue], [node.whenFalse]];
       return { command: SOLID_SCRIPT_FORMULA_COMMAND.choose, parts, name: '' };
     }
+    if (node.kind === 'vector' && node.items.length > 0)
+      return { command: SOLID_SCRIPT_FORMULA_COMMAND.list, parts: [node.items], name: '' };
     return this.call(node);
   }
 

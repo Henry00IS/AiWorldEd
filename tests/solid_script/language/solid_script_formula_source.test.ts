@@ -27,6 +27,12 @@ function parts(source: SolidScriptFormulaSource): string[] {
 }
 
 describe('SolidScript formula source', () => {
+  it('keeps the $ of an escaped bracket with the part it starts, such as a $[ $] list', () => {
+    const source = SolidScriptFormulaSource.read('$[1, [a]$]');
+    expect(source.slice(source.tree)).toBe('$[1, [a]$]');
+    expect(parts(SolidScriptFormulaSource.read('"$[Box$] is"'))).toEqual(['string:"$[Box$] is"']);
+  });
+
   it('knows where every part of a formula stands, slots with their brackets', () => {
     const source = SolidScriptFormulaSource.read('[a] > 0 and InBox([$Face.Center], [0, 1, 0], 2)');
     expect(parts(source)).toEqual([

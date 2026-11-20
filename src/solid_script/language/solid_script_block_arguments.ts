@@ -83,7 +83,7 @@ export class SolidScriptBlockArguments {
   }
 
   /**
-   * Reads an Anchor field.
+   * Reads an Anchor field: words separated by commas, or a list of words.
    *
    * @param axes Axes it sets.
    * @returns Where the origin sits along each axis of the shape's box, 0 to 1;
@@ -92,7 +92,8 @@ export class SolidScriptBlockArguments {
   anchor(axes: readonly SolidScriptAnchorAxis[]): number[] {
     const value = this.value('anchor');
     if (value === undefined) return axes.map(() => 0.5);
-    const read = solidScriptAnchorRead(solidScriptValueText(value), axes);
+    const text = Array.isArray(value) ? value.map(solidScriptValueText).join(', ') : solidScriptValueText(value);
+    const read = solidScriptAnchorRead(text, axes);
     if (typeof read === 'string') throw this.error('anchor', read, value);
     return read;
   }

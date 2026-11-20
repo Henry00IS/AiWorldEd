@@ -4,6 +4,11 @@ import {
   type SolidScriptFieldKind,
   type SolidScriptFieldPiece,
 } from './solid_script_field.js';
+import {
+  SOLID_SCRIPT_FORMULA_NUMBER,
+  solidScriptFormulaFromPlain,
+  solidScriptFormulaToPlain,
+} from './solid_script_formula_plain.js';
 
 /**
  * How a block input shows what it holds: a vector, a text, a variable or any
@@ -14,14 +19,8 @@ export type SolidScriptFormulaInputKind = 'vector' | 'text' | 'variable' | 'any'
 /** A variable name as typed without brackets, such as Width or $Face.Center. */
 const SOLID_SCRIPT_FORMULA_NAME = /^\$?[A-Za-z_][\w.]*$/;
 
-/** A plain number, such as -2 or 0.5. */
-const SOLID_SCRIPT_FORMULA_NUMBER = /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i;
-
-/** Words that are plain text, such as Fully Inside. */
-const SOLID_SCRIPT_FORMULA_WORDS = /^[A-Za-z][A-Za-z0-9 _-]*$/;
-
-/** Text in double quotes with no quote or backslash inside. */
-const SOLID_SCRIPT_FORMULA_QUOTED = /^"([^"\\]*)"$/;
+/** Text in double quotes, its backslashes standing before the next character. */
+const SOLID_SCRIPT_FORMULA_QUOTED = /^"((?:[^"\\]|\\[^nt])*)"$/;
 
 /** A Vector call, such as Vector(0, 1, 0). */
 const SOLID_SCRIPT_FORMULA_VECTOR_CALL = /^Vector\s*\(([\s\S]*)\)$/i;
@@ -73,8 +72,9 @@ export function solidScriptFormulaUnwrap(text: string): string | null {
 
 /**
  * Takes the formula out of stored field text: a condition is a formula as a
- * whole; any other field holds one [=formula], one [Name], a number, or
- * nothing.
+ * whole; any other field holds one [=formula], one [Name], a number, nothing,
+ * or plain text that solidScriptFormulaFromPlain turns into a formula, such as
+ * Subtractive, 2, 2, 2 or Hi [Name].
  *
  * @param kind How the field reads its text.
  * @param stored Stored field text.
@@ -86,13 +86,17 @@ export function solidScriptFormulaBody(kind: SolidScriptFieldKind, stored: strin
   const text = stored.trim();
   if (text === '' || SOLID_SCRIPT_FORMULA_NUMBER.test(text) || solidScriptFormulaLone(text))
     return solidScriptFormulaUnwrap(text) ?? text;
-  throw new Error(SOLID_SCRIPT_FORMULA_PLAIN_TEXT);
+  const formula = solidScriptFormulaFromPlain(kind, text);
+  if (formula === null) throw new Error(SOLID_SCRIPT_FORMULA_PLAIN_TEXT);
+  return formula;
 }
 
 /**
  * Stores a formula as field text. Text whose formula did not change stays as it
- * was; a condition keeps the formula as is; any other field wraps it in [= ]
- * unless it already is one bracketed part, so [=[=…]] never happens.
+ * was; a condition keeps the formula as is; a plain value is written plain,
+ * such as Subtractive for "Subtractive" or 2, 2, 2 for [2, 2, 2]; any other
+ * formula is wrapped in [= ] unless it already is one bracketed part, so
+ * [=[=…]] never happens.
  *
  * @param kind How the field reads its text.
  * @param body Formula.
@@ -103,6 +107,8 @@ export function solidScriptFormulaStore(kind: SolidScriptFieldKind, body: string
   if (solidScriptFormulaBodyOr(kind, stored) === body) return stored;
   if (kind === 'condition') return body;
   const text = body.trim();
+  const plain = solidScriptFormulaToPlain(kind, text);
+  if (plain !== null) return plain;
   if (text === '' || SOLID_SCRIPT_FORMULA_NUMBER.test(text) || solidScriptFormulaLone(text)) return text;
   return `[=${text}]`;
 }
@@ -123,8 +129,50 @@ export function solidScriptFormulaBodyOr(kind: SolidScriptFieldKind, stored: str
 }
 
 /**
+ * Shows the formula of a text input the way it is typed: a text such as "Top"
+ * or "" as what is inside the quotes, Top or nothing, one [Name] as it is, and
+ * any other formula as [=formula].
+ *
+ * @param formula Formula, trimmed.
+ * @returns Shown text.
+ */
+function solidScriptFormulaTextShown(formula: string): string {
+  const quoted = SOLID_SCRIPT_FORMULA_QUOTED.exec(formula)?.[1];
+  if (quoted !== undefined) return quoted.replace(/\\(.)/g, '$1');
+  if (formula === '' || (solidScriptFormulaLone(formula) && !formula.startsWith('[='))) return formula;
+  return `[=${formula}]`;
+}
+
+/**
+ * Turns typed text of a text input into its formula: [=formula] gives its
+ * formula, one [Name] stays as it is, nothing stays nothing and any other text
+ * is put in quotes as it is, spaces and all.
+ *
+ * @param shown Typed text.
+ * @returns Formula.
+ */
+function solidScriptFormulaTextTyped(shown: string): string {
+  const unwrapped = solidScriptFormulaUnwrap(shown);
+  if (unwrapped !== null) return unwrapped.trim();
+  if (shown === '' || solidScriptFormulaLone(shown.trim())) return shown.trim();
+  return `"${shown.replace(/["\\]/g, '\\$&')}"`;
+}
+
+/**
+ * Turns the text of a Text block into its formula: like a text input, and
+ * nothing is the empty text "".
+ *
+ * @param shown Typed text.
+ * @returns Formula.
+ */
+export function solidScriptFormulaTextBlock(shown: string): string {
+  return shown === '' ? '""' : solidScriptFormulaTextTyped(shown);
+}
+
+/**
  * Shows the formula of a block input the way it is typed: a vector such as [5,
- * 7, 2] or Vector(5, 7, 2) as 5, 7, 2, and a text such as "Top" as Top.
+ * 7, 2] or Vector(5, 7, 2) as 5, 7, 2, Vector(1, 2) as 1, 2, and a text such as
+ * "Top" as Top.
  *
  * @param kind What the input holds.
  * @param formula Formula of the input.
@@ -132,10 +180,7 @@ export function solidScriptFormulaBodyOr(kind: SolidScriptFieldKind, stored: str
  */
 export function solidScriptFormulaShown(kind: SolidScriptFormulaInputKind, formula: string): string {
   const text = formula.trim();
-  if (kind === 'text') {
-    const quoted = SOLID_SCRIPT_FORMULA_QUOTED.exec(text)?.[1];
-    return quoted !== undefined && SOLID_SCRIPT_FORMULA_WORDS.test(quoted) ? quoted : text;
-  }
+  if (kind === 'text') return solidScriptFormulaTextShown(text);
   const lone = solidScriptFormulaLone(text);
   if (kind === 'variable' && lone && solidScriptFormulaUnwrap(text) === null) {
     const name = text.slice(lone.from + 1, lone.to - 1).trim();
@@ -145,7 +190,8 @@ export function solidScriptFormulaShown(kind: SolidScriptFormulaInputKind, formu
   const inner = lone ? text.slice(lone.from + 1, lone.to - 1) : SOLID_SCRIPT_FORMULA_VECTOR_CALL.exec(text)?.[1];
   const parts = inner === undefined ? [] : solidScriptFieldArguments(inner);
   const numbers = parts.every((part) => SOLID_SCRIPT_FORMULA_NUMBER.test(part));
-  return parts.length === 3 && (numbers || !lone) && parts.every(solidScriptFormulaPlainPart) ? parts.join(', ') : text;
+  const size = parts.length === 3 || parts.length === 2;
+  return size && (numbers || !lone) && parts.every(solidScriptFormulaPlainPart) ? parts.join(', ') : text;
 }
 
 /**
@@ -160,22 +206,35 @@ function solidScriptFormulaPlainPart(part: string): boolean {
 }
 
 /**
+ * Tells whether one comma-separated piece of typed text is a whole value, not
+ * empty and not cut inside a call, such as 1 but not Vector(0.
+ *
+ * @param part Piece.
+ * @returns True when whole.
+ */
+function solidScriptFormulaTypedPart(part: string): boolean {
+  return part !== '' && part.split('(').length === part.split(')').length;
+}
+
+/**
  * Turns typed text of a block input into its formula: one [=formula] gives its
- * formula, three values give [5, 7, 2] or Vector(…), words where a text goes
- * are put in quotes and a name where a variable goes in brackets.
+ * formula, three values give [5, 7, 2] or Vector(…), two in a Vector Vector(…),
+ * words where a text goes are put in quotes and a name where a variable goes in
+ * brackets.
  *
  * @param kind What the input holds.
  * @param shown Typed text.
  * @returns Formula.
  */
 export function solidScriptFormulaTyped(kind: SolidScriptFormulaInputKind, shown: string): string {
+  if (kind === 'text') return solidScriptFormulaTextTyped(shown);
   const text = (solidScriptFormulaUnwrap(shown) ?? shown).trim();
-  if (kind === 'text') return SOLID_SCRIPT_FORMULA_WORDS.test(text) ? `"${text}"` : text;
   if (kind === 'variable' && SOLID_SCRIPT_FORMULA_NAME.test(text)) return `[${text}]`;
   if (solidScriptFormulaLone(text)) return text;
   const parts = solidScriptFieldArguments(text);
-  if (parts.length !== 3 || parts.some((part) => part === '')) return text;
-  return parts.every((part) => SOLID_SCRIPT_FORMULA_NUMBER.test(part))
+  const least = kind === 'vector' ? 2 : 3;
+  if (parts.length < least || parts.length > 3 || parts.some((part) => !solidScriptFormulaTypedPart(part))) return text;
+  return parts.length === 3 && parts.every((part) => SOLID_SCRIPT_FORMULA_NUMBER.test(part))
     ? `[${parts.join(', ')}]`
     : `Vector(${parts.join(', ')})`;
 }

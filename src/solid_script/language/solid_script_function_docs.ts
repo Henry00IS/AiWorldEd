@@ -4,6 +4,7 @@ import {
   SOLID_SCRIPT_CONDITION_HELPER_ARGUMENTS,
   SOLID_SCRIPT_CONDITION_HELPER_DOCS,
 } from './solid_script_condition_helpers.js';
+import { SOLID_SCRIPT_HITS_HOW_WORDS } from './solid_script_hits.js';
 import {
   SOLID_SCRIPT_KIND_CHECK_ARGUMENTS,
   SOLID_SCRIPT_KIND_CHECK_DOCS,
@@ -685,14 +686,14 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
   hits: {
     usage: 'Hits(element, target, how)',
     summary:
-      'Yes when the box of an element meets the box of another brush, mesh, face, edge, vertex, point, or any item of a list, such as Hits([$Brush], [Wall]). How is Touching (any contact, including sitting inside), Overlapping (they share interior space) or Fully Inside. Touching when How is left off.',
+      'Yes when the box of an element meets the box of another brush, mesh, face, edge, vertex, point, or any item of a list, such as Hits([$Brush], [Wall]). How is Touching by default (any contact, including sitting inside), Overlapping (they share interior space) or Fully Inside.',
     group: 'Checks',
     gives: ['Yes/No'],
   },
   hits_box: {
     usage: 'HitsBox(element, center, size, how)',
     summary:
-      'Yes when the box of an element meets a box of a Center and Size, such as HitsBox([$Brush], Vector(0, 0, 0), 2). How is Touching, Overlapping or Fully Inside. Touching when How is left off.',
+      'Yes when the box of an element meets a box of a Center and Size, such as HitsBox([$Brush], Vector(0, 0, 0), 2). How is Touching by default, Overlapping or Fully Inside.',
     group: 'Checks',
     gives: ['Yes/No'],
   },
@@ -710,10 +711,20 @@ export interface SolidScriptFunctionArgument {
   type: SolidScriptFunctionKinds;
   /** What it is for, in one short sentence. */
   about: string;
+  /** Words it takes, when it takes one of a few. */
+  choices?: readonly string[];
+  /** Value it stands for when left off, as typed. */
+  default?: string;
 }
 
 /** Kind and meaning of the inputs by name, shared by the functions using it. */
 const SOLID_SCRIPT_FUNCTION_ARGUMENTS: Readonly<Record<string, Omit<SolidScriptFunctionArgument, 'name'>>> = {
+  how: {
+    type: ['Text'],
+    about: 'How the boxes meet: Touching, Overlapping or Fully Inside.',
+    choices: SOLID_SCRIPT_HITS_HOW_WORDS,
+    default: 'Touching',
+  },
   '...': { type: 'Any', about: 'More values, as many as needed.' },
   a: { type: ['Number'], about: 'The first number.' },
   b: { type: ['Number'], about: 'The second number.' },
@@ -784,14 +795,10 @@ const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
       type: ['Brush', 'Mesh', 'Face', 'Edge', 'Vertex', 'Vector', 'List'],
       about: 'The thing to test, such as [$Brush] or [$Face].',
     },
-    center: { type: ['Vector'], about: 'Center of the box.' },
+    center: { type: ['Vector'], about: 'Center of the box, such as [0, 1, 0].' },
     size: {
       type: ['Vector', 'Number'],
-      about: 'Width, height and depth in metres. One number is used on every axis.',
-    },
-    how: {
-      type: ['Text'],
-      about: 'Touching, Overlapping or Fully Inside. Touching when How is left off.',
+      about: 'Width, height and depth in metres, such as [4, 2, 4]; or one number for every axis, such as 2.',
     },
   },
   asin: { value: { type: ['Number'], about: 'A sine, from -1 to 1.' } },
@@ -895,6 +902,7 @@ const SOLID_SCRIPT_FUNCTION_INPUTS_LEFT_OFF: Readonly<Record<string, number>> = 
   noise: 2,
   shuffle: 1,
   slice: 1,
+  vector: 1,
 };
 
 /** Fewest inputs of functions that take as many as needed, when more than one. */

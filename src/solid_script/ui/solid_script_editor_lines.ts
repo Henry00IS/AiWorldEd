@@ -316,21 +316,37 @@ export class SolidScriptEditorLines {
   private menu: MenuContext | null = null;
 
   /**
-   * Shows a script; rows are rebuilt only when a line changed.
+   * Shows a script; rows are rebuilt only when a line changed. Focusing a line
+   * selects it alone, unless it is the current line and only lines changed in
+   * place, such as by its configurator, which keeps the selection.
    *
    * @param document Script.
    * @param focus Line to focus afterwards, or null to keep the current focus.
    */
   render(document: SolidScriptDocument, focus: number | null): void {
     const kept = focus ?? this.focused();
-    if (focus !== null) {
+    const inPlace = focus !== null && this.changedInPlace(document, focus);
+    if (focus !== null && !inPlace) {
       this.anchor = null;
       this.picked = null;
     }
     this.caretLine = focus ?? this.caretLine;
     const rebuilt = this.documentSet(document);
     this.windowRender();
-    if (kept !== null && (rebuilt || focus !== null)) this.focusLine(kept);
+    if (kept !== null && (rebuilt || focus !== null)) this.focusLine(kept, inPlace);
+  }
+
+  /**
+   * Tells whether a script only changed inside its lines: as many lines, and
+   * the focused line is the current one with the same command.
+   *
+   * @param document Script.
+   * @param focus Line to focus.
+   * @returns True when the selection still fits.
+   */
+  private changedInPlace(document: SolidScriptDocument, focus: number): boolean {
+    const same = document.blocks.length === this.document.blocks.length && focus === this.caretLine;
+    return same && document.blocks[focus]?.command === this.document.blocks[focus]?.command;
   }
 
   /**

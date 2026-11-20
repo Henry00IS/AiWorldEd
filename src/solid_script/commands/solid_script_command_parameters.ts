@@ -149,7 +149,7 @@ export function solidScriptParameterAnchor(axes: readonly SolidScriptAnchorAxis[
     ...solidScriptParameter(
       'anchor',
       'Anchor',
-      'message',
+      'value',
       solidScriptAnchorDefault(axes),
       `The spot of the brush that sits on the origin, the center of the generator: ${words.join(', ')}. Type one word per axis, such as Center, Bottom, Center to stand on the origin.`,
     ),

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { MemorySettingsStorage } from '@/settings/storage/settings_storage.js';
 import { solidScriptDocumentCreate } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptEditorRowBuild } from '@/solid_script/ui/solid_script_editor_row.js';
@@ -9,6 +9,8 @@ import {
   solidScriptEditorViewRead,
   solidScriptEditorViewWrite,
 } from '@/solid_script/ui/solid_script_editor_view.js';
+import { solidScriptEditorCurrentGet } from '@/solid_script/ui/solid_script_editor_open.js';
+import { chip, editorFixture, find } from './solid_script_editor_fixture.js';
 
 const HANDLERS = {
   key: () => {},
@@ -30,6 +32,7 @@ describe('SolidScript editor view', () => {
       brackets: true,
       icons: false,
       squiggles: true,
+      endNames: true,
     });
     solidScriptEditorViewWrite({ ...SOLID_SCRIPT_EDITOR_VIEW_DEFAULT, icons: true }, storage);
     expect(solidScriptEditorViewRead(storage).icons).toBe(true);
@@ -101,4 +104,29 @@ describe('SolidScript editor view', () => {
     translate.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
     expect(jumps).toEqual([2]);
   });
+
+  it('shows End alone with Block Names On End off, keeping the script and the switch', () => {
+    const { script } = editorFixture([{ command: 'transform' }, { command: 'cube' }, { command: 'end' }]);
+    const before = JSON.stringify(script());
+    expect(chip(2).textContent).toBe('End Transform');
+    find<HTMLButtonElement>('[role="tab"][data-tab="settings"]').click();
+    const box = [...document.querySelectorAll<HTMLLabelElement>('[data-solid-script-settings] label')]
+      .find((row) => row.textContent === 'Block Names On End')
+      ?.querySelector<HTMLInputElement>('input[type="checkbox"]');
+    expect(box?.checked).toBe(true);
+    box!.checked = false;
+    box!.dispatchEvent(new Event('change'));
+    expect(chip(2).textContent).toBe('End');
+    expect(JSON.stringify(script())).toBe(before);
+    expect(solidScriptEditorViewRead().endNames).toBe(false);
+    box!.checked = true;
+    box!.dispatchEvent(new Event('change'));
+    expect(chip(2).textContent).toBe('End Transform');
+  });
+});
+
+afterEach(() => {
+  solidScriptEditorCurrentGet()?.close();
+  document.body.replaceChildren();
+  localStorage.clear();
 });

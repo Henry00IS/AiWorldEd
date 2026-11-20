@@ -2,12 +2,71 @@ import { describe, expect, it } from 'vitest';
 import { SOLID_SCRIPT_COMMAND_CATALOG } from '@/solid_script/commands/solid_script_command_catalog.js';
 import {
   SOLID_SCRIPT_FORMULA_CATEGORIES,
+  SOLID_SCRIPT_FORMULA_CHECK,
+  SOLID_SCRIPT_FORMULA_LEAVES,
   SOLID_SCRIPT_FORMULA_COMMAND,
   SOLID_SCRIPT_FORMULA_FUNCTION,
   solidScriptFormulaCatalog,
 } from '@/solid_script/commands/solid_script_formula_commands.js';
 import { solidScriptFormulaGroupOf } from '@/solid_script/commands/solid_script_formula_groups.js';
+import { solidScriptFormulaCheckInputs } from '@/solid_script/commands/solid_script_formula_inputs.js';
+import { solidScriptParameterPlaceholder } from '@/solid_script/commands/solid_script_parameter_default.js';
+import { solidScriptDocumentCreate } from '@/solid_script/document/solid_script_document.js';
+import { solidScriptFormulaTyped } from '@/solid_script/language/solid_script_formula_field.js';
 import { SOLID_SCRIPT_FUNCTION_DOCS } from '@/solid_script/language/solid_script_function_docs.js';
+import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
+
+/** Wording that tells a default in words instead of showing it greyed. */
+const LEFT_OFF_WORDING = /left off|leave off|left empty|leave empty|if empty/i;
+
+/**
+ * Examples a field hint gives, such as 2 and 0.5 from "such as 2 or 0.5".
+ *
+ * @param hint Field hint.
+ * @returns Examples.
+ */
+function hintExamples(hint: string): string[] {
+  const found = [...hint.matchAll(/(?:such as|usually) (.+?)(?= for |;|\.\s|\.$|$)/g)];
+  return found.flatMap((match) => (match[1] ?? '').split(' or '));
+}
+
+/**
+ * Formula blocks with fields, each field with the kind its text is typed as.
+ *
+ * @returns Block id, field and kind.
+ */
+function formulaFields() {
+  const formula = solidScriptFormulaCatalog();
+  return formula.commands.flatMap((command) =>
+    command.parameters.map((parameter) => {
+      const inputs = solidScriptFormulaCheckInputs(command.id.slice(SOLID_SCRIPT_FORMULA_CHECK.length), {});
+      const kind =
+        inputs.find((input) => input.name === parameter.key)?.kind ??
+        SOLID_SCRIPT_FORMULA_LEAVES.find((leaf) => leaf.id === command.id)?.kind ??
+        'any';
+      return { command, parameter, kind };
+    }),
+  );
+}
+
+/**
+ * Runs a formula through Echo with a few variables set, and tells its error.
+ *
+ * @param formula Formula.
+ * @returns Error, or empty.
+ */
+function evaluateError(formula: string): string {
+  const set = (name: string, value: string) => ({ command: 'variable', values: { name, value } });
+  const result = solidScriptProgramRun(
+    solidScriptDocumentCreate([
+      set('Width', '2'),
+      set('Spot', '0, 0, 0'),
+      { command: 'echo', values: { value: `[=${formula}]` } },
+      { command: 'cube' },
+    ]),
+  );
+  return result.error?.message ?? '';
+}
 
 describe('SolidScript formula commands', () => {
   it('keeps formula blocks out of the script editor, and script commands out of the formula editor', () => {
@@ -24,6 +83,7 @@ describe('SolidScript formula commands', () => {
     const formula = solidScriptFormulaCatalog();
     expect(formula.ofCategory('Values').map((command) => command.label)).toEqual([
       'Expression',
+      'List',
       'Number',
       'Text',
       'Variable',
@@ -123,6 +183,44 @@ describe('SolidScript formula block listings', () => {
     expect(kinds(SOLID_SCRIPT_FORMULA_COMMAND.text, 'Top')).toEqual([
       ['name', 'Text'],
       ['value', "'Top'"],
+    ]);
+  });
+
+  it('gives every formula block field a hint with an example typed in its own field form, and no default in words', () => {
+    let examples = 0;
+    for (const { command, parameter, kind } of formulaFields()) {
+      const where = `${command.label} ${parameter.label}`;
+      expect(parameter.hint, where).not.toMatch(LEFT_OFF_WORDING);
+      expect(`${command.description} ${command.manual}`, where).not.toMatch(LEFT_OFF_WORDING);
+      expect(parameter.hint, where).not.toMatch(/Vector\(/);
+      expect(parameter.hint, where).not.toMatch(/\[-?[\d.]+,/);
+      for (const example of hintExamples(parameter.hint)) {
+        examples++;
+        const filled = Object.fromEntries(
+          command.parameters.map((field) => [field.key, hintExamples(field.hint)[0] ?? '1']),
+        );
+        expect(command.check?.({ ...filled, [parameter.key]: example }), `${where}: ${example}`).toBe('');
+        if (!example.includes('$') && !example.includes('[Wall]'))
+          expect(evaluateError(solidScriptFormulaTyped(kind, example)), `${where}: ${example}`).toBe('');
+      }
+    }
+    expect(examples).toBeGreaterThan(20);
+    const facing = solidScriptFormulaCatalog().find(`${SOLID_SCRIPT_FORMULA_CHECK}facing`);
+    expect(facing?.parameters[1]?.hint).toBe('Direction it should face, such as 0, 1, 0 for up.');
+  });
+
+  it('shows the default of every formula block field that has one greyed in the empty field', () => {
+    const shown = formulaFields()
+      .map(({ command, parameter }) => [
+        `${command.label} ${parameter.label}`,
+        solidScriptParameterPlaceholder(parameter),
+      ])
+      .filter(([, placeholder]) => placeholder !== '');
+    expect(shown).toEqual([
+      ['Facing Within', '30'],
+      ['Every Nth Start', '0'],
+      ['Hits How', 'Touching'],
+      ['Hits Box How', 'Touching'],
     ]);
   });
 });

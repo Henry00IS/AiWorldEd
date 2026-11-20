@@ -1,8 +1,10 @@
 import type { SolidScriptCommandEach } from './solid_script_command_each.js';
+import type { SolidScriptCommandWord } from './solid_script_command.js';
 import { SOLID_SCRIPT_CONDITION_HELPERS } from '@/solid_script/language/solid_script_condition_helpers.js';
 import {
   SOLID_SCRIPT_FUNCTION_DOCS,
   solidScriptFunctionArguments,
+  solidScriptFunctionInputsLeast,
   type SolidScriptFunctionKinds,
 } from '@/solid_script/language/solid_script_function_docs.js';
 import { solidScriptFunctionSpelling } from '@/solid_script/language/solid_script_name_key.js';
@@ -10,11 +12,16 @@ import type { SolidScriptFormulaInputKind } from '@/solid_script/language/solid_
 
 /**
  * Where the blocks of a formula are used: the element a field is worked out
- * for, if any.
+ * for, and the words a choice field takes, if any.
  */
 export interface SolidScriptFormulaContext {
   /** Element the formula is worked out for, such as Face in a Where. */
   each?: SolidScriptCommandEach;
+  /**
+   * Words the field takes, such as Additive and Subtractive for a Mode, offered
+   * by Text blocks.
+   */
+  words?: readonly SolidScriptCommandWord[];
 }
 
 /** One input of a check block. */
@@ -29,6 +36,10 @@ export interface SolidScriptFormulaInput {
   kind: SolidScriptFormulaInputKind;
   /** True when it may be left off. */
   optional: boolean;
+  /** Value it stands for when left off, as typed, such as 30; empty for none. */
+  default: string;
+  /** Words it takes, when it takes one of a few. */
+  choices: readonly string[];
   /**
    * Formula an empty input stands for here, such as [$Face.Center]; empty for
    * none.
@@ -143,15 +154,19 @@ export function solidScriptFormulaCheckInputs(
   context: SolidScriptFormulaContext,
 ): SolidScriptFormulaInput[] {
   const helper = SOLID_SCRIPT_CONDITION_HELPERS.find((entry) => entry.key === key);
-  return solidScriptFunctionArguments(key).map((argument) => {
+  const least = solidScriptFunctionInputsLeast(key);
+  return solidScriptFunctionArguments(key).map((argument, index) => {
     const declared = helper?.inputs.find((input) => input.name === argument.name);
     const label = declared?.label ?? argument.name.charAt(0).toUpperCase() + argument.name.slice(1);
+    const fallback = declared?.optional ?? argument.default;
     return {
       name: argument.name,
       label,
       about: declared?.about ?? argument.about,
       kind: solidScriptFormulaInputKind(argument.type),
-      optional: declared?.optional !== undefined || /left off/i.test(argument.about),
+      optional: fallback !== undefined || index >= least,
+      default: fallback ?? '',
+      choices: argument.choices ?? [],
       fallback: solidScriptFormulaInputFallback(context, key, argument.name),
     };
   });

@@ -162,9 +162,10 @@ function solidScriptEditorRowMouseDown(
 
 /**
  * Fills a line with its listing: a blank line stays empty, an End names the
- * block it closes, and a command this editor does not know says so. Values are
- * highlighted like configurator fields, and the command's icon leads when
- * switched on; an End line shows the icon of the block it closes.
+ * block it closes unless that view switch is off, and a command this editor
+ * does not know says so. Values are highlighted like configurator fields, and
+ * the command's icon leads when switched on; an End line shows the icon of the
+ * block it closes.
  *
  * @param chip Line element.
  * @param block Line.
@@ -178,7 +179,7 @@ function solidScriptEditorChipFill(chip: HTMLElement, block: SolidScriptBlock, l
     chip.setAttribute('aria-label', 'Blank line');
     return;
   }
-  const parts = solidScriptBlockListing(block, look.closes, look.catalog);
+  const parts = solidScriptBlockListing(block, look.view.endNames ? look.closes : '', look.catalog);
   const marks = { view: look.view, unknown: look.unknown, error: look.error, caret: null };
   const shown = look.openerCommand ? look.catalog.find(look.openerCommand) : command;
   if (look.view.icons && shown)

@@ -1,5 +1,10 @@
-import type { SolidScriptFunctionDoc, SolidScriptFunctionKinds } from './solid_script_function_docs.js';
+import type {
+  SolidScriptFunctionArgument,
+  SolidScriptFunctionDoc,
+  SolidScriptFunctionKinds,
+} from './solid_script_function_docs.js';
 import { SOLID_SCRIPT_FACING_WITHIN_DEFAULT } from './solid_script_condition.js';
+import { SOLID_SCRIPT_HITS_HOW_WORDS } from './solid_script_hits.js';
 
 /**
  * One input of a curated condition function, for docs, autocomplete and formula
@@ -16,6 +21,8 @@ export interface SolidScriptConditionHelperInput {
   about: string;
   /** Default as typed text, when the input may be left off. */
   optional?: string;
+  /** Words it takes, when it takes one of a few. */
+  choices?: readonly string[];
 }
 
 /**
@@ -45,7 +52,7 @@ export const SOLID_SCRIPT_CONDITION_HELPERS: readonly SolidScriptConditionHelper
     key: 'facing',
     name: 'Facing',
     display: 'Facing',
-    description: `Yes when a direction, such as a face's normal, points along another direction, within a number of degrees (${SOLID_SCRIPT_FACING_WITHIN_DEFAULT} when left off).`,
+    description: `Yes when a direction, such as a face's normal, points along another direction, within a number of degrees, ${SOLID_SCRIPT_FACING_WITHIN_DEFAULT} by default.`,
     inputs: [
       {
         name: 'normal',
@@ -57,13 +64,13 @@ export const SOLID_SCRIPT_CONDITION_HELPERS: readonly SolidScriptConditionHelper
         name: 'direction',
         label: 'Direction',
         type: ['Vector'],
-        about: 'Direction it should face, such as Vector(0, 1, 0) for up.',
+        about: 'Direction it should face, such as [0, 1, 0] for up.',
       },
       {
         name: 'within',
         label: 'Within',
         type: ['Number'],
-        about: `Degrees it may lean, from 0 to 180. ${SOLID_SCRIPT_FACING_WITHIN_DEFAULT} when left off.`,
+        about: 'Degrees it may lean, from 0 to 180, such as 45.',
         optional: String(SOLID_SCRIPT_FACING_WITHIN_DEFAULT),
       },
     ],
@@ -81,12 +88,12 @@ export const SOLID_SCRIPT_CONDITION_HELPERS: readonly SolidScriptConditionHelper
         type: ['Vector'],
         about: 'Point to test, such as [$Face.Center] or [$Vertex.Position].',
       },
-      { name: 'center', label: 'Center', type: ['Vector'], about: 'Center of the box.' },
+      { name: 'center', label: 'Center', type: ['Vector'], about: 'Center of the box, such as [0, 1, 0].' },
       {
         name: 'size',
         label: 'Size',
         type: ['Vector', 'Number'],
-        about: 'Width, height and depth in metres. One number is used on every axis.',
+        about: 'Width, height and depth in metres, such as [4, 2, 4]; or one number for every axis, such as 2.',
       },
     ],
   },
@@ -98,12 +105,12 @@ export const SOLID_SCRIPT_CONDITION_HELPERS: readonly SolidScriptConditionHelper
       'Yes when a point is within a distance of a target, including the exact distance, such as Near([$Face.Center], [Spot], 0.5).',
     inputs: [
       { name: 'point', label: 'Point', type: ['Vector'], about: 'Point to test, such as [$Face.Center].' },
-      { name: 'target', label: 'Target', type: ['Vector'], about: 'Point to measure from.' },
+      { name: 'target', label: 'Target', type: ['Vector'], about: 'Point to measure from, such as [Spot].' },
       {
         name: 'distance',
         label: 'Distance',
         type: ['Number'],
-        about: 'Greatest distance that still counts, in metres.',
+        about: 'Greatest distance that still counts, in metres, such as 0.5.',
       },
     ],
   },
@@ -118,13 +125,13 @@ export const SOLID_SCRIPT_CONDITION_HELPERS: readonly SolidScriptConditionHelper
         name: 'step',
         label: 'Step',
         type: ['Number'],
-        about: 'How often to keep an item, a whole number of 1 or more.',
+        about: 'How often to keep an item, a whole number of 1 or more, such as 2.',
       },
       {
         name: 'start',
         label: 'Start',
         type: ['Number'],
-        about: 'First kept index. 0 when left off.',
+        about: 'First kept index, such as 1.',
         optional: '0',
       },
     ],
@@ -149,7 +156,7 @@ export const SOLID_SCRIPT_CONDITION_HELPERS: readonly SolidScriptConditionHelper
     name: 'Hits',
     display: 'Hits',
     description:
-      'Yes when the box of an element meets another box, or any item of a list. How is Touching (any contact, including sitting inside), Overlapping (they share interior space) or Fully Inside. Touching when How is left off.',
+      'Yes when the box of an element meets another box, or any item of a list. How is Touching by default (any contact, including sitting inside), Overlapping (they share interior space) or Fully Inside.',
     inputs: [
       {
         name: 'element',
@@ -161,30 +168,31 @@ export const SOLID_SCRIPT_CONDITION_HELPERS: readonly SolidScriptConditionHelper
         name: 'target',
         label: 'Box',
         type: ['Brush', 'Mesh', 'Face', 'Edge', 'Vertex', 'Vector', 'List'],
-        about:
-          'A brush, mesh or list whose bounds are the box, such as [Wall]. Leave off and set Center and Size instead.',
+        about: 'A brush, mesh or list whose bounds are the box, such as [Wall].',
         optional: '',
       },
       {
         name: 'center',
         label: 'Center',
         type: ['Vector'],
-        about: 'Center of the box, when Box is left off.',
+        about: 'Center of a box of your own, without Box, such as [0, 1, 0].',
         optional: '',
       },
       {
         name: 'size',
         label: 'Size',
         type: ['Vector', 'Number'],
-        about: 'Width, height and depth in metres, when Box is left off. One number is used on every axis.',
+        about:
+          'Width, height and depth of a box of your own, without Box, such as [4, 2, 4]; or one number for every axis.',
         optional: '',
       },
       {
         name: 'how',
         label: 'How',
         type: ['Text'],
-        about: 'Touching, Overlapping or Fully Inside. Touching when left off.',
+        about: 'How the boxes meet: Touching, Overlapping or Fully Inside.',
         optional: 'Touching',
+        choices: SOLID_SCRIPT_HITS_HOW_WORDS,
       },
     ],
   },
@@ -215,10 +223,15 @@ function solidScriptConditionHelperDoc(key: string): SolidScriptFunctionDoc {
  */
 function solidScriptConditionHelperArgs(
   key: string,
-): Readonly<Record<string, { type: SolidScriptFunctionKinds; about: string }>> {
+): Readonly<Record<string, Omit<SolidScriptFunctionArgument, 'name'>>> {
   const helper = SOLID_SCRIPT_CONDITION_HELPERS.find((entry) => entry.key === key);
   if (!helper) throw new Error(`missing condition helper ${key}`);
-  return Object.fromEntries(helper.inputs.map((input) => [input.name, { type: input.type, about: input.about }]));
+  return Object.fromEntries(
+    helper.inputs.map((input) => [
+      input.name,
+      { type: input.type, about: input.about, ...(input.choices ? { choices: input.choices } : {}) },
+    ]),
+  );
 }
 
 /** Docs entries for the curated condition functions, keyed by stored name. */

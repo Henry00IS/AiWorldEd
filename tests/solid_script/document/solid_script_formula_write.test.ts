@@ -204,6 +204,27 @@ describe('SolidScript formula blocks write', () => {
     expect(write(nested)).toBe('[c] && [d] && ([a] || [b])');
   });
 
+  it.each([
+    ['""', ''],
+    ['"abc"', 'abc'],
+    ['"  two  spaces "', '  two  spaces '],
+    ['"say \\"hi\\" \\\\ back"', 'say "hi" \\ back'],
+    ['"a [b] c, d"', 'a [b] c, d'],
+  ])('shows the Text %s as its content %j, and writes it back, also when typed anew', (formula, content) => {
+    const read = solidScriptFormulaRead(formula);
+    const text = line(read, SOLID_SCRIPT_FORMULA_COMMAND.text);
+    expect(text.values['value']).toBe(content);
+    expect(write(read)).toBe(formula);
+    expect(rewrite(read)).toBe(formula);
+    if (!content.includes('[')) expect(evaluate(`${rewrite(read)} == ${formula}`)).toBe('Yes');
+  });
+
+  it('allows an empty Text block, the empty text', () => {
+    const read = solidScriptFormulaRead('"abc"');
+    line(read, SOLID_SCRIPT_FORMULA_COMMAND.text).values['value'] = '';
+    expect(write(read)).toBe('""');
+  });
+
   it('turns typed vectors and words into a formula quietly', () => {
     const read = solidScriptFormulaRead('InBox([p], Vector(0, 1, 0), 2) && HitsBox([e], [1, 2, 3], 1, "Touching")');
     line(read, 'formula_check_in_box').values['center'] = '5, 7, 2';

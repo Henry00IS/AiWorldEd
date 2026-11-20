@@ -283,13 +283,13 @@ export function solidScriptConfiguratorFieldBuild(
 
 /**
  * Tells whether a field can be built from formula blocks: every field that
- * reads [names] and [=formulas] and is typed, not picked.
+ * reads [names] and [=formulas], an Anchor and a texture too.
  *
  * @param parameter Field.
  * @returns True when it can.
  */
 export function solidScriptConfiguratorFormulaCapable(parameter: SolidScriptCommandParameter): boolean {
-  return !solidScriptFieldAsTyped(parameter) && parameter.texture !== true && parameter.anchor === undefined;
+  return !solidScriptFieldAsTyped(parameter);
 }
 
 /**
@@ -349,7 +349,8 @@ function solidScriptConfiguratorInputs(
 
 /**
  * Builds a texture field: the shared texture picker, or typing for a variable
- * or formula. It opens typed when the text uses [ ].
+ * or formula. It opens typed when the text uses [ ], and turns typed when the
+ * formula window writes such text into it.
  *
  * @param input Text input with the stored text.
  * @param parameter Parameter.
@@ -361,40 +362,93 @@ function solidScriptConfiguratorTexture(
   parameter: SolidScriptCommandParameter,
   inputs: HTMLElement,
 ): SolidScriptConfiguratorFieldReader {
-  const select = textureSelectCreate(parameter.label, () =>
-    inputs.dispatchEvent(new Event('change', { bubbles: true })),
-  );
-  select.element.classList.add(SOLID_SCRIPT_EDITOR_CLASSES.input);
-  let picking = !input.value.includes('[');
-  const modes = (['Pick', 'Type'] as const).map((mode) => {
-    const button = solidScriptEditorToolButton(
-      mode,
-      mode.toLowerCase(),
-      mode === 'Pick' ? 'Pick a texture from the library' : 'Type a texture name, variable or formula',
-      () => {
-        if ((mode === 'Pick') === picking) return;
-        if (picking) input.value = select.read();
-        else if (!input.value.includes('[')) select.write(input.value.trim());
-        picking = mode === 'Pick';
-        show();
-        inputs.dispatchEvent(new Event('change', { bubbles: true }));
-      },
-    );
+  const field = new SolidScriptConfiguratorTextureField(input, parameter.label, inputs);
+  return {
+    read: () => (field.picking ? field.select.read() : input.value.trim()),
+    problem: () => (field.picking ? '' : solidScriptConfiguratorProblem(parameter, input.value)),
+  };
+}
+
+/** A texture field switching between the texture picker and typing. */
+class SolidScriptConfiguratorTextureField {
+  /** The shared texture picker. */
+  readonly select: ReturnType<typeof textureSelectCreate>;
+  /** True while the picker shows, false while the text input does. */
+  picking: boolean;
+  /** Pick and Type buttons. */
+  private readonly modes: HTMLButtonElement[];
+
+  /**
+   * Builds the field into its container.
+   *
+   * @param input Text input with the stored text.
+   * @param label Caption of the field.
+   * @param inputs Container.
+   */
+  constructor(
+    private readonly input: HTMLInputElement,
+    label: string,
+    private readonly inputs: HTMLElement,
+  ) {
+    this.select = textureSelectCreate(label, () => this.changed());
+    this.select.element.classList.add(SOLID_SCRIPT_EDITOR_CLASSES.input);
+    this.picking = !input.value.includes('[');
+    this.modes = (['Pick', 'Type'] as const).map((mode) => this.modeButton(mode));
+    this.select.write(this.picking ? input.value.trim() : '');
+    this.show();
+    input.addEventListener('input', () => this.follow());
+    inputs.append(...this.modes, this.select.element, input);
+  }
+
+  /**
+   * Creates the button that switches to picking or typing.
+   *
+   * @param mode Pick or Type.
+   * @returns Button.
+   */
+  private modeButton(mode: 'Pick' | 'Type'): HTMLButtonElement {
+    const tip = mode === 'Pick' ? 'Pick a texture from the library' : 'Type a texture name, variable or formula';
+    const button = solidScriptEditorToolButton(mode, mode.toLowerCase(), tip, () => this.switch(mode === 'Pick'));
     button.setAttribute('aria-label', `${mode} Texture`);
     return button;
-  });
-  const show = (): void => {
-    select.element.hidden = !picking;
-    input.hidden = picking;
-    modes.forEach((button, index) => button.setAttribute('aria-pressed', String((index === 0) === picking)));
-  };
-  select.write(picking ? input.value.trim() : '');
-  show();
-  inputs.append(...modes, select.element, input);
-  return {
-    read: () => (picking ? select.read() : input.value.trim()),
-    problem: () => (picking ? '' : solidScriptConfiguratorProblem(parameter, input.value)),
-  };
+  }
+
+  /**
+   * Switches between picking and typing, carrying the texture over.
+   *
+   * @param picking True to pick.
+   */
+  private switch(picking: boolean): void {
+    if (picking === this.picking) return;
+    if (this.picking) this.input.value = this.select.read();
+    else if (!this.input.value.includes('[')) this.select.write(this.input.value.trim());
+    this.picking = picking;
+    this.show();
+    this.changed();
+  }
+
+  /**
+   * Follows text written into the input while picking, such as by the formula
+   * window.
+   */
+  private follow(): void {
+    if (!this.picking) return;
+    this.picking = !this.input.value.includes('[');
+    if (this.picking) this.select.write(this.input.value.trim());
+    this.show();
+  }
+
+  /** Shows the picker or the input, and which button is down. */
+  private show(): void {
+    this.select.element.hidden = !this.picking;
+    this.input.hidden = this.picking;
+    this.modes.forEach((button, index) => button.setAttribute('aria-pressed', String((index === 0) === this.picking)));
+  }
+
+  /** Tells the field it changed. */
+  private changed(): void {
+    this.inputs.dispatchEvent(new Event('change', { bubbles: true }));
+  }
 }
 
 /**

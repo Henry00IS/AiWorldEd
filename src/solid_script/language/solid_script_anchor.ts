@@ -78,3 +78,18 @@ export function solidScriptAnchorRead(text: string, axes: readonly SolidScriptAn
 export function solidScriptAnchorMin(size: readonly number[], fractions: readonly number[]): number[] {
   return size.map((length, axis) => -length * (fractions[axis] ?? 0.5) + 0);
 }
+
+/**
+ * Lists the words an Anchor takes on any of its axes, each once with the axes
+ * that take it, such as Center for X, Y or Z.
+ *
+ * @param axes Axes.
+ * @returns Words with what they set.
+ */
+export function solidScriptAnchorAxisWords(axes: readonly SolidScriptAnchorAxis[]): { word: string; detail: string }[] {
+  const captions = new Map<string, string[]>();
+  for (const axis of axes)
+    for (const word of SOLID_SCRIPT_ANCHOR_WORDS[axis])
+      captions.set(word, [...(captions.get(word) ?? []), SOLID_SCRIPT_ANCHOR_CAPTIONS[axis]]);
+  return [...captions].map(([word, on]) => ({ word, detail: `Anchor ${[...new Set(on)].join(', ')}.` }));
+}
