@@ -110,7 +110,6 @@ export function solidScriptCylinderPoints(args: SolidScriptBlockArguments): THRE
   const topRadius = Math.min(bottom, top) / radius;
   const points = solidScriptGeneratorPieces('cone', { sides, topRadius }, box)[0]?.points ?? [];
   if (bottom > top) return points;
-  // Upside down within the same box.
   const flip = 2 * min[1] + height;
   return points.map((point) => new THREE.Vector3(point.x, flip - point.y, point.z));
 }

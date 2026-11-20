@@ -3,6 +3,7 @@ import { SOLID_SCRIPT_AXES_FACING, SOLID_SCRIPT_AXES_UP, solidScriptAxesHeight }
 import {
   solidScriptMeshChecked,
   solidScriptMeshFromSolid,
+  solidScriptMeshTransform,
   solidScriptMeshLoopCenter,
   solidScriptMeshLoopNormal,
   type SolidScriptShapeMesh,
@@ -84,6 +85,16 @@ export function solidScriptGeometryLeaves(shapes: readonly SolidScriptShape[]): 
 
 const SOLID_SCRIPT_MESH_OF = new WeakMap<SolidScriptGeometryLeaf, SolidScriptShapeMesh>();
 const SOLID_SCRIPT_FACES_OF = new WeakMap<SolidScriptGeometryLeaf, SolidScriptFaceFacts[]>();
+/** Hulls already worked out for a set of corner points, reused by later solids. */
+const SOLID_SCRIPT_MESH_BY_POINTS = new Map<string, SolidScriptShapeMesh>();
+
+/**
+ * Drops hulls remembered by corner points, at the start of a run, so a long
+ * editor session does not keep every unique solid.
+ */
+export function solidScriptGeometryMeshCacheClear(): void {
+  SOLID_SCRIPT_MESH_BY_POINTS.clear();
+}
 
 /**
  * Returns the faces of a solid or mesh as loops of points. A solid is hulled
@@ -92,14 +103,46 @@ const SOLID_SCRIPT_FACES_OF = new WeakMap<SolidScriptGeometryLeaf, SolidScriptFa
  * @param leaf Solid or mesh.
  * @returns Mesh with the same faces.
  */
+/**
+ * A key of corner points so two solids of the same shape share one hull.
+ *
+ * @param points Corners.
+ * @returns Key.
+ */
+function solidScriptPointsKey(points: readonly THREE.Vector3[]): string {
+  return points.map((point) => `${point.x.toFixed(6)},${point.y.toFixed(6)},${point.z.toFixed(6)}`).join(';');
+}
+
 export function solidScriptGeometryMesh(leaf: SolidScriptGeometryLeaf): SolidScriptShapeMesh {
   if (leaf.kind === 'mesh') return leaf;
   const kept = SOLID_SCRIPT_MESH_OF.get(leaf);
   if (kept) return kept;
-  const mesh = solidScriptMeshFromSolid(leaf.points, leaf.label);
-  const result = leaf.faceTags ? { ...mesh, faceTags: leaf.faceTags } : mesh;
+  const key = solidScriptPointsKey(leaf.points);
+  const shared = SOLID_SCRIPT_MESH_BY_POINTS.get(key);
+  const mesh = shared ?? solidScriptMeshFromSolid(leaf.points, leaf.label);
+  if (!shared) SOLID_SCRIPT_MESH_BY_POINTS.set(key, mesh);
+  const result = leaf.faceTags
+    ? { ...mesh, faceTags: leaf.faceTags, label: leaf.label }
+    : { ...mesh, label: leaf.label };
   SOLID_SCRIPT_MESH_OF.set(leaf, result);
   return result;
+}
+
+/**
+ * Copies a solid's remembered faces onto a moved copy, so a later read does not
+ * hull the copy again.
+ *
+ * @param from Solid before the move.
+ * @param to Moved solid.
+ * @param matrix The move applied to it.
+ */
+export function solidScriptGeometryCacheCarry(
+  from: SolidScriptGeometryLeaf,
+  to: SolidScriptGeometryLeaf,
+  matrix: THREE.Matrix4,
+): void {
+  const mesh = SOLID_SCRIPT_MESH_OF.get(from);
+  if (mesh) SOLID_SCRIPT_MESH_OF.set(to, solidScriptMeshTransform(mesh, matrix));
 }
 
 /**

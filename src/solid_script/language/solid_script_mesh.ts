@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { solidHullBrushFromPoints } from '@/solid/algorithm/surface/solid_hull_brush.js';
+import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import type { SolidScriptFaceTag, SolidScriptShape } from './solid_script_shape.js';
 import { solidScriptMeshLimitCheck } from './solid_script_limits.js';
 
@@ -67,13 +68,15 @@ export function solidScriptMeshChecked(mesh: SolidScriptShapeMesh): SolidScriptS
  * @param texture Texture of the solid, kept by the mesh.
  * @returns Mesh with outward faces.
  */
-export function solidScriptMeshFromSolid(
-  points: readonly THREE.Vector3[],
-  label: string,
-  texture?: string,
-): SolidScriptShapeMesh {
-  const brush = solidHullBrushFromPoints(points.map((point) => point.clone()));
-  if (!brush) throw new Error(`${label} is flat or degenerate; give it a non-zero size on all three axes`);
+/**
+ * Turns a convex brush into a mesh, with faces wound outward from the middle.
+ *
+ * @param brush Convex brush.
+ * @param label Name of the mesh.
+ * @param texture Optional library texture of the whole mesh.
+ * @returns Mesh with the same faces.
+ */
+export function solidScriptMeshFromBrush(brush: SolidBrush, label: string, texture?: string): SolidScriptShapeMesh {
   const center = brush.vertices
     .reduce((sum, point) => sum.add(point), new THREE.Vector3())
     .divideScalar(brush.vertices.length);
@@ -91,6 +94,16 @@ export function solidScriptMeshFromSolid(
     uvs: faces.map(() => null),
     ...(texture === undefined ? {} : { texture }),
   };
+}
+
+export function solidScriptMeshFromSolid(
+  points: readonly THREE.Vector3[],
+  label: string,
+  texture?: string,
+): SolidScriptShapeMesh {
+  const brush = solidHullBrushFromPoints(points.map((point) => point.clone()));
+  if (!brush) throw new Error(`${label} is flat or degenerate; give it a non-zero size on all three axes`);
+  return solidScriptMeshFromBrush(brush, label, texture);
 }
 
 /**

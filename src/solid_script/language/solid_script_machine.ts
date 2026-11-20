@@ -52,7 +52,13 @@ import {
   type SolidScriptLineState,
   type SolidScriptRunBuild,
 } from './solid_script_machine_runs.js';
-import { solidScriptGeometryLeaves, type SolidScriptGeometryLeaf } from './solid_script_geometry.js';
+import {
+  solidScriptGeometryLeaves,
+  solidScriptGeometryMesh,
+  solidScriptGeometryMeshCacheClear,
+  type SolidScriptGeometryLeaf,
+} from './solid_script_geometry.js';
+import { solidScriptGeneratorPiecesCacheClear } from './solid_script_generator_pieces.js';
 import {
   solidScriptShapeJoin,
   solidScriptShapeNamed,
@@ -285,7 +291,20 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   }
 
   /**
-   * Replaces a solid or mesh in the built stack with a later version.
+   * Shapes with each solid or mesh replaced by the version later writes left.
+   *
+   * @param shapes Shapes as they were first stored.
+   * @returns Shapes carrying the latest leaves.
+   */
+  private shapesLatest(shapes: readonly SolidScriptShape[]): SolidScriptShape[] {
+    return shapes.map((shape) =>
+      solidScriptShapeMapLeaves(shape, (leaf) => (leaf.kind === 'polygon' ? leaf : this.leafLatestOf(leaf))),
+    );
+  }
+
+  /**
+   * Records a later version of a solid or mesh so later reads and the result
+   * use it.
    *
    * @param leaf Solid or mesh to replace.
    * @param found Replacement.
@@ -294,11 +313,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     const by = solidScriptLeafRewritten(leaf, found);
     this.elements.modeRoleCopy(leaf, by);
     if (this.toolCopy.take(leaf, by)) return;
+    this.elements.brushRemember(leaf, by);
     this.leafSwaps.set(leaf, by);
-    for (const built of this.builtStack)
-      built.forEach((shape, index) => {
-        built[index] = solidScriptShapeMapLeaves(shape, (entry) => (entry === leaf ? by : entry));
-      });
     this.partLeavesRewrite(leaf, by);
   }
 
@@ -370,7 +386,10 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     const name = solidScriptValueText(entry).trim();
     if (name === '') return [];
     this.brushesReceived();
-    const built = [...this.builtStack.flat(), ...(this.received ?? [])];
+    const built = [
+      ...this.shapesLatest(this.builtStack.flat()),
+      ...(this.received ?? []).map((leaf) => this.leafLatestOf(leaf)),
+    ];
     const leaves = solidScriptGeometryLeaves(solidScriptShapesNamed(built, name));
     if (leaves.length === 0) throw new Error(`No brush or mesh above is named "${name}"; give one a Name first`);
     return leaves.map((leaf) => this.elements.brush(leaf));
@@ -428,6 +447,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
    * @returns Shapes, output, steps and the first mistake.
    */
   run(lines: SolidScriptBlockNode<Command>[]): SolidScriptRun {
+    solidScriptGeometryMeshCacheClear();
+    solidScriptGeneratorPiecesCacheClear();
     this.useOnce();
     this.scriptLines = lines;
     const context = { matrix: new THREE.Matrix4(), planar: false };
@@ -435,7 +456,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       this.systemSeen = this.systemCapture();
       this.passedSeen = [];
     }
-    const shapes = this.linesRun(lines, this.root, context, this.root);
+    const shapes = this.shapesLatest(this.linesRun(lines, this.root, context, this.root));
     this.stopping = false;
     // Where the run ended, the top lines' shapes count as built so far.
     this.builtStack.push(shapes);
@@ -806,6 +827,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         state.machine.flatCheck(node, state.context, false);
         if (!state.machine.stepTake(state.scope)) return [];
         const made = solidScriptSolidMade(labelOf(), points, modeOf());
+        solidScriptGeometryMesh(made);
         return state.machine.modeRolePlaced([
           solidScriptShapeTransform(faceUvs ? { ...made, faceUvs } : made, state.context.matrix),
         ]);
@@ -915,7 +937,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
             }
           },
         ),
-      built: () => state.machine.builtStack.flat(),
+      built: () => state.machine.shapesLatest(state.machine.builtStack.flat()),
       get elements() {
         return state.machine.elements;
       },

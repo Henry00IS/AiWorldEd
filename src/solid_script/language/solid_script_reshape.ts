@@ -8,6 +8,7 @@ import {
 } from './solid_script_polygon.js';
 import { solidScriptFaceTagsTransform, solidScriptMeshTransform } from './solid_script_mesh.js';
 import { solidScriptFaceUvsCarry } from './solid_script_uvs.js';
+import { solidScriptGeometryCacheCarry } from './solid_script_geometry.js';
 import {
   solidScriptShapeJoin,
   solidScriptShapeLeavesPositive,
@@ -46,6 +47,7 @@ function solidScriptSolidTransform(leaf: SolidScriptShapeSolid, matrix: THREE.Ma
     moved.faceUvs = faceUvs;
     delete moved.boxUvSize;
   }
+  solidScriptGeometryCacheCarry(leaf, moved, matrix);
   return moved;
 }
 

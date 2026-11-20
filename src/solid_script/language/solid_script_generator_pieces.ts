@@ -26,20 +26,34 @@ export interface SolidScriptGeneratorPiece {
   faceUvs: SolidScriptFaceUv[];
 }
 
+const SOLID_SCRIPT_GENERATOR_PIECES_CACHE = new Map<string, SolidScriptGeneratorPiece[]>();
+
 /**
- * Builds a generator's pieces in a box of the script, the way the generator
- * fills its own box, with the generator's texture mapping on every face: its
- * own surfaces where it has them, such as a texture wrapped around a blast
- * hole, and else the default mapping in the box's space, so the texture runs on
- * unbroken from piece to piece like on the generator. Scripts and generators
- * share the editor's axes.
+ * A copy of a generator piece, so a cached original is never edited.
+ *
+ * @param piece Piece.
+ * @returns Copy.
+ */
+function solidScriptGeneratorPieceClone(piece: SolidScriptGeneratorPiece): SolidScriptGeneratorPiece {
+  return {
+    points: piece.points.map((point) => point.clone()),
+    faceUvs: piece.faceUvs.map((face) => ({
+      point: face.point.clone(),
+      normal: face.normal.clone(),
+      uv: face.uv.clone(),
+    })),
+  };
+}
+
+/**
+ * Builds generator pieces without looking them up in the cache.
  *
  * @param kindId Box generator kind id.
  * @param parameters Generator parameters under its own field names.
  * @param box Box in script coordinates.
  * @returns Each convex piece, in script coordinates.
  */
-export function solidScriptGeneratorPieces(
+function solidScriptGeneratorPiecesBuild(
   kindId: string,
   parameters: Record<string, unknown>,
   box: SolidScriptGeneratorBox,
@@ -60,4 +74,35 @@ export function solidScriptGeneratorPieces(
       return { point, normal, uv: uv.clone() };
     }),
   }));
+}
+
+/** Drops remembered generator pieces, at the start of a run. */
+export function solidScriptGeneratorPiecesCacheClear(): void {
+  SOLID_SCRIPT_GENERATOR_PIECES_CACHE.clear();
+}
+
+/**
+ * Builds a generator's pieces in a box of the script, the way the generator
+ * fills its own box, with the generator's texture mapping on every face: its
+ * own surfaces where it has them, such as a texture wrapped around a blast
+ * hole, and else the default mapping in the box's space, so the texture runs on
+ * unbroken from piece to piece like on the generator. Scripts and generators
+ * share the editor's axes.
+ *
+ * @param kindId Box generator kind id.
+ * @param parameters Generator parameters under its own field names.
+ * @param box Box in script coordinates.
+ * @returns Each convex piece, in script coordinates.
+ */
+export function solidScriptGeneratorPieces(
+  kindId: string,
+  parameters: Record<string, unknown>,
+  box: SolidScriptGeneratorBox,
+): SolidScriptGeneratorPiece[] {
+  const key = JSON.stringify({ kindId, parameters, box });
+  const kept = SOLID_SCRIPT_GENERATOR_PIECES_CACHE.get(key);
+  if (kept) return kept.map(solidScriptGeneratorPieceClone);
+  const pieces = solidScriptGeneratorPiecesBuild(kindId, parameters, box);
+  SOLID_SCRIPT_GENERATOR_PIECES_CACHE.set(key, pieces);
+  return pieces.map(solidScriptGeneratorPieceClone);
 }

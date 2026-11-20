@@ -117,6 +117,18 @@ export class SolidScriptElements {
   }
 
   /**
+   * Remembers that a later in-place write of a brush is still the same brush
+   * element, not a new one.
+   *
+   * @param from Solid or mesh as first seen.
+   * @param to Replacement.
+   */
+  brushRemember(from: SolidScriptGeometryLeaf, to: SolidScriptGeometryLeaf): void {
+    const element = this.brushes.get(from) ?? this.brush(from);
+    this.brushes.set(to, element);
+  }
+
+  /**
    * Reads the inherited Mode of a solid, following later rewrites.
    *
    * @param leaf Solid or mesh.
@@ -182,14 +194,16 @@ export class SolidScriptElements {
    */
   brush(leaf: SolidScriptGeometryLeaf): SolidScriptElement {
     const latest = this.host.leafLatest(leaf);
-    for (const [known, element] of this.brushes)
-      if (this.host.leafLatest(known) === latest) {
-        element.mesh = latest.kind === 'mesh';
-        return element;
-      }
+    const cached = this.brushes.get(latest) ?? this.brushes.get(leaf);
+    if (cached) {
+      cached.mesh = latest.kind === 'mesh';
+      this.brushes.set(latest, cached);
+      return cached;
+    }
     const element = this.add('brush', leaf, {}).element;
     element.mesh = latest.kind === 'mesh';
     this.brushes.set(leaf, element);
+    this.brushes.set(latest, element);
     return element;
   }
 
