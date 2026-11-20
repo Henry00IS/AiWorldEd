@@ -58,6 +58,7 @@ import {
   solidScriptShapeNamed,
   solidScriptShapeMapLeaves,
   type SolidScriptShape,
+  type SolidScriptShapeSolid,
   SOLID_SCRIPT_SHAPE_NAME_KEY,
   solidScriptShapesNamed,
   solidScriptLeafRewritten,
@@ -230,6 +231,19 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   protected receivedLatest(): SolidScriptGeometryLeaf[] {
     this.brushesReceived();
     return (this.incoming ?? []).map((leaf) => this.leafLatestOf(leaf));
+  }
+
+  /**
+   * Latest Mode of each received brush, including Set after Input Brushes.
+   *
+   * @returns Mode of each received brush, or unset when that brush has none.
+   */
+  protected receivedModes(): readonly SolidScriptShapeSolid['mode'][] {
+    this.brushesReceived();
+    return (this.received ?? []).map((leaf) => {
+      const latest = this.leafLatestOf(leaf);
+      return latest.kind === 'solid' ? latest.mode : undefined;
+    });
   }
 
   /**
@@ -919,6 +933,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         state.machine.received = solidScriptGeometryLeaves([...shapes]);
       },
       receivedLatest: () => state.machine.receivedLatest(),
+      receivedModes: () => state.machine.receivedModes(),
       framed: (matrix) => inside({ ...state.context, matrix }),
       leafLatest: (leaf) => state.machine.leafLatestOf(leaf),
       leafReplace: (leaf, found) => {

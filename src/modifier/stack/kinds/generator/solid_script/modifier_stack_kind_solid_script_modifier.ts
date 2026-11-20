@@ -21,6 +21,10 @@ import {
   MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND,
 } from './modifier_stack_solid_script_keys.js';
 import type { ModifierStackSolidScriptPassed } from './modifier_stack_solid_script_layout.js';
+import {
+  modifierStackSolidScriptPassedGroups,
+  modifierStackSolidScriptPassedModeUnits,
+} from './modifier_stack_solid_script_passed_mode.js';
 import { modifierStackSolidScriptHostMode } from './modifier_stack_solid_script_host_mode.js';
 import { modifierStackSolidScriptReceivedWrite } from './modifier_stack_solid_script_received.js';
 
@@ -169,7 +173,8 @@ export class ModifierStackKindSolidScriptModifier extends ModifierStackKindSolid
     origin: THREE.Vector3,
     context: ModifierStackContext,
   ): ModifierStackUnit[] {
-    const passes = passed.filter((entry) => entry.index === 0);
+    const groups = modifierStackSolidScriptPassedGroups(passed);
+    const passes = groups.map((group) => group[0]).filter((entry) => entry !== undefined);
     const kept = modifierStackSolidScriptClipUnits(units, passes, frame, origin, context);
     const copies = context.budget.takeCopies(
       kept.reduce((sum, unit) => sum + unit.brushes.length, 0),
@@ -183,21 +188,43 @@ export class ModifierStackKindSolidScriptModifier extends ModifierStackKindSolid
     return passes.slice(0, copies).flatMap((pass, index) => {
       const world = frame.clone().multiply(pass.matrix).multiply(inverse);
       const model = modifierStackModelTransform(world, context.solidRoot);
-      if (index > 0) {
-        const policy = {
-          uv: pass.textures,
-          readable: pass.readable !== false,
-          shiftU: pass.shiftU ?? 0,
-          shiftV: pass.shiftV ?? 0,
-        };
-        return kept.map((unit) => modifierStackUnitCopy(unit, model, index, policy, context));
-      }
-      if (pass.matrix.equals(new THREE.Matrix4())) return [...kept];
-      return kept.map((unit) => ({
-        ...unit,
-        brushes: unit.brushes.map((brush) => modifierStackReshapeTransform(brush, model, pass.textures)),
-        reshaped: unit.authored || unit.reshaped,
-      }));
+      const placed = modifierStackSolidScriptPassedPlaced(kept, pass, model, index, context);
+      return modifierStackSolidScriptPassedModeUnits(placed, groups[index] ?? []);
     });
   }
+}
+
+/**
+ * Places one Input Brushes pass: the first pass moves the received units, and
+ * each later pass adds moved copies.
+ *
+ * @param kept Clipped received units.
+ * @param pass First received brush of the pass, for its move and textures.
+ * @param model Model-space move of the pass.
+ * @param index Pass index, zero for the first pass.
+ * @param context Evaluation context.
+ * @returns Placed units, still with their arriving Modes.
+ */
+function modifierStackSolidScriptPassedPlaced(
+  kept: readonly ModifierStackUnit[],
+  pass: ModifierStackSolidScriptPassed,
+  model: THREE.Matrix4,
+  index: number,
+  context: ModifierStackContext,
+): ModifierStackUnit[] {
+  if (index > 0) {
+    const policy = {
+      uv: pass.textures,
+      readable: pass.readable !== false,
+      shiftU: pass.shiftU ?? 0,
+      shiftV: pass.shiftV ?? 0,
+    };
+    return kept.map((unit) => modifierStackUnitCopy(unit, model, index, policy, context));
+  }
+  if (pass.matrix.equals(new THREE.Matrix4())) return [...kept];
+  return kept.map((unit) => ({
+    ...unit,
+    brushes: unit.brushes.map((brush) => modifierStackReshapeTransform(brush, model, pass.textures)),
+    reshaped: unit.authored || unit.reshaped,
+  }));
 }

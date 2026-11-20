@@ -10,7 +10,12 @@ import type { SOLID_SCRIPT_HANDLERS } from './solid_script_machine_calls.js';
 import type { SolidScriptShapeMesh, SolidScriptUv } from './solid_script_mesh.js';
 import type { SolidScriptPoint2 } from './solid_script_polygon.js';
 import type { SolidScriptScope } from './solid_script_scope.js';
-import type { SolidScriptFaceUv, SolidScriptShape, SolidScriptShapeLeaf } from './solid_script_shape.js';
+import type {
+  SolidScriptFaceUv,
+  SolidScriptShape,
+  SolidScriptShapeLeaf,
+  SolidScriptShapeSolid,
+} from './solid_script_shape.js';
 import type { SolidScriptUseFacts } from './solid_script_system.js';
 import type { SolidScriptValue } from './solid_script_value.js';
 
@@ -226,6 +231,12 @@ export interface SolidScriptBlockRun {
   inputsBuilt(shapes: readonly SolidScriptShape[]): void;
   /** Latest received solids or meshes, after Clip and other writes. */
   receivedLatest(): SolidScriptGeometryLeaf[];
+  /**
+   * Latest Mode of each received brush, including Set after Input Brushes.
+   *
+   * @returns Mode of each received brush, or unset when that brush has none.
+   */
+  receivedModes(): readonly SolidScriptShapeSolid['mode'][];
   /**
    * Runs the lines inside placed by a matrix, ignoring the blocks around this
    * line.

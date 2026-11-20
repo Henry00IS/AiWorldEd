@@ -25,6 +25,7 @@ export function solidScriptInputBrushesBuild(run: SolidScriptBlockRun): SolidScr
   const turn = new THREE.Matrix3().getNormalMatrix(matrix);
   const use = run.use();
   const latest = run.receivedLatest();
+  const modes = run.receivedModes();
   const built = use.solids.flatMap((corners, index) =>
     solidScriptInputBrushesOne(
       run,
@@ -35,7 +36,7 @@ export function solidScriptInputBrushesBuild(run: SolidScriptBlockRun): SolidScr
       turn,
       textures,
       use.textures?.[index],
-      use.modes?.[index],
+      solidScriptInputBrushesMode(latest[index], modes[index], use.modes?.[index]),
     ),
   );
   run.inputsBuilt(built);
@@ -82,6 +83,25 @@ function solidScriptInputBrushesOne(
   return run
     .solid(solidScriptInputBrushesPoints(leaf, corners))
     .map((shape) => solidScriptInputBrushesSolid(shape, faceTextures, received, mode));
+}
+
+/**
+ * Mode of a received brush after Set or other writes, or the Mode it arrived
+ * with.
+ *
+ * @param leaf Latest incoming leaf at this index, when it exists.
+ * @param written Mode of the last Input Brushes solid, after later writes.
+ * @param incoming Mode the modifier passed in.
+ * @returns Mode to store on the solid.
+ */
+function solidScriptInputBrushesMode(
+  leaf: SolidScriptGeometryLeaf | undefined,
+  written: SolidScriptShapeSolid['mode'],
+  incoming: SolidScriptShapeSolid['mode'],
+): SolidScriptShapeSolid['mode'] {
+  if (written) return written;
+  if (leaf && leaf.kind === 'solid' && leaf.mode) return leaf.mode;
+  return incoming;
 }
 
 /**

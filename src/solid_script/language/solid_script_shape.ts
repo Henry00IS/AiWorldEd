@@ -281,7 +281,8 @@ export function solidScriptLeafUnreceived(leaf: SolidScriptShapeSolid): SolidScr
 
 /**
  * A later version of a received solid: keeps the pass record when the received
- * matrix changed, as Move and Matrix do; otherwise drops it, as Clip does.
+ * matrix changed, as Move and Matrix do, or when only Mode changed; otherwise
+ * drops it, as Clip does.
  *
  * @param leaf Solid or mesh being replaced.
  * @param found Replacement.
@@ -294,7 +295,48 @@ export function solidScriptLeafRewritten(
 ): SolidScriptShapeSolid | SolidScriptShapeMesh {
   if (found.kind !== 'solid' || !found.received) return found;
   if (leaf.kind === 'solid' && leaf.received && !leaf.received.matrix.equals(found.received.matrix)) return found;
+  if (solidScriptLeafModeOnly(leaf, found)) return found;
   return solidScriptLeafUnreceived(found);
+}
+
+/**
+ * Tells whether two solids differ only by Mode, so the host can still pass the
+ * original brush on.
+ *
+ * @param leaf Solid or mesh being replaced.
+ * @param found Replacement.
+ * @returns True when both are solids and every other field is the same.
+ */
+function solidScriptLeafModeOnly(
+  leaf: SolidScriptShapeSolid | SolidScriptShapeMesh,
+  found: SolidScriptShapeSolid | SolidScriptShapeMesh,
+): boolean {
+  if (leaf.kind !== 'solid' || found.kind !== 'solid') return false;
+  return solidScriptRecordsMatch(solidScriptSolidExceptMode(leaf), solidScriptSolidExceptMode(found));
+}
+
+/**
+ * Returns a solid without its Mode field.
+ *
+ * @param solid Solid.
+ * @returns The other fields.
+ */
+function solidScriptSolidExceptMode(solid: SolidScriptShapeSolid): Omit<SolidScriptShapeSolid, 'mode'> {
+  const { mode: _mode, ...rest } = solid;
+  return rest;
+}
+
+/**
+ * Tells whether two records have the same keys and the same values.
+ *
+ * @param left First record.
+ * @param right Second record.
+ * @returns True when every key matches by reference or value.
+ */
+function solidScriptRecordsMatch(left: Record<string, unknown>, right: Record<string, unknown>): boolean {
+  const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+  for (const key of keys) if (left[key] !== right[key]) return false;
+  return true;
 }
 
 /**

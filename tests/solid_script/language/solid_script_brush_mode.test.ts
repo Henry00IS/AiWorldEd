@@ -204,12 +204,38 @@ describe('Input Brushes.Mode', () => {
       [
         line('input_brushes', { into: 'Got' }),
         line('variable', { name: 'Got.Modes', value: mode }),
+        line('output', { of: '[Got]' }),
         line('echo', { value: '[Got.Modes]' }),
       ],
       inputUse(['Additive', 'Subtractive', 'Intersecting']),
     );
     expect(result.error?.message ?? null).toBeNull();
     expect(result.messages).toEqual([`[${mode}, ${mode}, ${mode}]`]);
+    const received = result.shapes.filter((shape) => shape.kind === 'solid' && shape.received);
+    expect(received).toHaveLength(3);
+    expect(received.map((shape) => (shape.kind === 'solid' ? shape.mode : undefined))).toEqual([mode, mode, mode]);
+  });
+
+  it('keeps the pass record when Set changes one received Mode', () => {
+    const result = run(
+      [
+        line('input_brushes', { into: 'Got' }),
+        line('variable', { name: 'Got(0).Mode', value: 'Subtractive' }),
+        line('variable', { name: 'Got(1).Mode', value: 'Intersecting' }),
+        line('variable', { name: 'Got(2).Mode', value: 'Additive' }),
+        line('output', { of: '[Got]' }),
+        line('echo', { value: '[Got.Modes]' }),
+      ],
+      inputUse(['Additive', 'Subtractive', 'Intersecting']),
+    );
+    expect(result.error?.message ?? null).toBeNull();
+    expect(result.messages).toEqual(['[Subtractive, Intersecting, Additive]']);
+    const received = result.shapes.filter((shape) => shape.kind === 'solid' && shape.received);
+    expect(received.map((shape) => (shape.kind === 'solid' ? shape.mode : undefined))).toEqual([
+      'Subtractive',
+      'Intersecting',
+      'Additive',
+    ]);
   });
 
   it('treats a received brush without a Mode as Additive at the top level', () => {

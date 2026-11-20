@@ -11,6 +11,7 @@ import {
   type SolidScriptShapeSolid,
 } from '@/solid_script/language/solid_script_shape.js';
 import type { SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
+import type { SolidScriptMode } from '@/solid_script/language/solid_script_mode.js';
 import { solidScriptShapeMeshes } from '@/solid_script/language/solid_script_mesh.js';
 import {
   solidScriptMeshDocumentBuild,
@@ -59,6 +60,11 @@ export interface ModifierStackSolidScriptPassed {
    * brush.
    */
   clip?: { normal: readonly [number, number, number]; constant: number };
+  /**
+   * CSG Mode of the brush after Set, or the Mode it arrived with; none when
+   * unset.
+   */
+  mode?: SolidScriptMode;
 }
 
 /**
@@ -155,6 +161,7 @@ function modifierStackSolidScriptPassedOf(
       ...(shape.received.shiftU === undefined ? {} : { shiftU: shape.received.shiftU }),
       ...(shape.received.shiftV === undefined ? {} : { shiftV: shape.received.shiftV }),
       ...(shape.received.clip === undefined ? {} : { clip: shape.received.clip }),
+      ...(shape.mode ? { mode: shape.mode } : {}),
     });
   }
   return passed;
