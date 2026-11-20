@@ -106,7 +106,7 @@ describe('SolidScript formula commands', () => {
     const keys = Object.entries(SOLID_SCRIPT_FUNCTION_DOCS)
       .filter(([, doc]) => doc.group !== 'Checks')
       .map(([key]) => key);
-    const blocks = formula.ofCategory('Functions');
+    const blocks = formula.commands.filter((command) => command.id.startsWith(SOLID_SCRIPT_FORMULA_FUNCTION));
     expect(blocks.length).toBeGreaterThan(50);
     for (const block of blocks) expect(keys).toContain(block.id.slice(SOLID_SCRIPT_FORMULA_FUNCTION.length));
     expect(formula.find(`${SOLID_SCRIPT_FORMULA_FUNCTION}abs`)?.label).toBe('Absolute');

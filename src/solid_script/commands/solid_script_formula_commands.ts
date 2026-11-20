@@ -22,7 +22,10 @@ import {
   solidScriptFormulaOwn,
   type SolidScriptFormulaBlockText,
 } from './solid_script_formula_groups.js';
-import { SOLID_SCRIPT_FUNCTION_DOCS } from '@/solid_script/language/solid_script_function_docs.js';
+import {
+  SOLID_SCRIPT_FUNCTION_DOCS,
+  SOLID_SCRIPT_FUNCTION_GROUPS,
+} from '@/solid_script/language/solid_script_function_docs.js';
 import {
   solidScriptListingValue,
   type SolidScriptListingPart,
@@ -49,7 +52,7 @@ export const SOLID_SCRIPT_FORMULA_CATEGORIES: readonly SolidScriptCommandCategor
   'Groups',
   'Operators',
   'Checks',
-  'Functions',
+  ...SOLID_SCRIPT_FUNCTION_GROUPS.filter((group) => group !== 'Checks'),
 ];
 
 /**

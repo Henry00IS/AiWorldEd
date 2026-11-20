@@ -71,7 +71,10 @@ describe('SolidScript editor palette', () => {
     ['greater', 'formula_more', 'Greater Than'],
     ['not equal', 'formula_differs', 'Not Equal'],
     ['negate', 'formula_negate', 'Negate'],
-  ])('finds the operator block for %j in the formula palette: %s, named %s', (word, id, label) => {
+    ['sine', 'formula_fn_sin', 'Sin'],
+    ['upper', 'formula_fn_uppercase', 'Uppercase'],
+    ['lerp', 'formula_fn_lerp', 'Blend'],
+  ])('finds the block for %j in the formula palette, whatever its category: %s, named %s', (word, id, label) => {
     const catalog = solidScriptFormulaCatalog();
     const options = { ...SOLID_SCRIPT_EDITOR_PALETTE_SCRIPT, catalog, target: 'the formula' };
     const palette = new SolidScriptEditorPalette(

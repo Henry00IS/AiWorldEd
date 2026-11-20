@@ -348,7 +348,8 @@ function solidScriptFormulaFunction(key: string): SolidScriptCommand {
   const inputs = solidScriptFunctionArguments(key).map((input) => input.name);
   const name = solidScriptFormulaCheckName(key);
   const label = SOLID_SCRIPT_FORMULA_FUNCTION_NAMES[key] ?? name.replace(/([a-z])([A-Z])/g, '$1 $2');
-  const call = { id: `${SOLID_SCRIPT_FORMULA_FUNCTION}${key}`, label, summary: doc?.summary ?? label };
+  const id = `${SOLID_SCRIPT_FORMULA_FUNCTION}${key}`;
+  const call = { id, label, summary: doc?.summary ?? label, category: doc?.group ?? 'Functions' };
   const max = inputs.includes('...') ? Number.POSITIVE_INFINITY : inputs.length;
   const min = Math.max(1, solidScriptFunctionInputsLeast(key));
   return solidScriptFormulaCall(call, inputs, doc?.usage ?? name, { join: { form: 'call', key }, min, max });
@@ -373,14 +374,15 @@ export function solidScriptFormulaOwn(own: SolidScriptFormulaOwnFunction): Solid
 /**
  * Creates the group block of a call, which holds one block per input.
  *
- * @param call Id, name and what the function does.
+ * @param call Id, name, what the function does and its palette group; Functions
+ *   when it has none, as the script's own Functions.
  * @param inputs Input names.
  * @param usage How the call is written.
  * @param group How it joins and how many blocks it holds.
  * @returns Command.
  */
 function solidScriptFormulaCall(
-  call: { id: string; label: string; summary: string },
+  call: { id: string; label: string; summary: string; category?: SolidScriptCommandCategory },
   inputs: readonly string[],
   usage: string,
   group: Omit<SolidScriptFormulaGroup, 'id' | 'sections'>,
@@ -392,7 +394,7 @@ function solidScriptFormulaCall(
     description: call.summary.replace(/\.$/, ''),
     manual: `${call.summary}${takes} Written as ${usage}.`,
   };
-  return solidScriptFormulaGroupAdd(text, 'Functions', { ...group, sections: 1 });
+  return solidScriptFormulaGroupAdd(text, call.category ?? 'Functions', { ...group, sections: 1 });
 }
 
 /**

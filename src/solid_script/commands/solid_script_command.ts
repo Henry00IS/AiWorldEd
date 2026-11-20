@@ -101,6 +101,13 @@ export type SolidScriptCommandCategory =
   | 'Groups'
   | 'Operators'
   | 'Checks'
+  | 'Math'
+  | 'Trigonometry'
+  | 'Vector'
+  | 'Text'
+  | 'List'
+  | 'Curve'
+  | 'Random'
   | 'Functions'
   | 'Values';
 

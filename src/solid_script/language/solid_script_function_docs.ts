@@ -25,6 +25,25 @@ export function solidScriptFunctionKindsText(kinds: SolidScriptFunctionKinds): s
   return kinds === 'Any' ? 'Any' : kinds.join(' or ');
 }
 
+/**
+ * Groups of the built-in functions, in the order the formula palette shows
+ * them.
+ */
+export const SOLID_SCRIPT_FUNCTION_GROUPS = [
+  'Math',
+  'Trigonometry',
+  'Vector',
+  'Text',
+  'List',
+  'Curve',
+  'Random',
+  'Checks',
+  'Functions',
+] as const;
+
+/** Group of a built-in function, such as Math or Text. */
+export type SolidScriptFunctionGroup = (typeof SOLID_SCRIPT_FUNCTION_GROUPS)[number];
+
 /** How to call one built-in function and what it gives. */
 export interface SolidScriptFunctionDoc {
   /** Call with its inputs, such as pad_left(text, width, fill). */
@@ -41,8 +60,11 @@ export interface SolidScriptFunctionDoc {
    * know them inside an If that asks it; List stands for every list.
    */
   checks?: readonly SolidScriptKindName[];
-  /** Group in the reference. */
-  group: 'Math' | 'Angles' | 'Vectors' | 'Text' | 'Lists' | 'Checks' | 'Random' | 'Time' | 'Curves';
+  /**
+   * Group in the reference and the category of its block in the formula editor;
+   * Functions holds what fits no other.
+   */
+  group: SolidScriptFunctionGroup;
 }
 
 /**
@@ -53,55 +75,55 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
   sin: {
     usage: 'Sin(degrees)',
     summary: 'Sine of an angle in degrees, such as Sin(90) is 1.',
-    group: 'Angles',
+    group: 'Trigonometry',
     gives: ['Number'],
   },
   cos: {
     usage: 'Cos(degrees)',
     summary: 'Cosine of an angle in degrees, such as Cos(0) is 1.',
-    group: 'Angles',
+    group: 'Trigonometry',
     gives: ['Number'],
   },
   tan: {
     usage: 'Tan(degrees)',
     summary: 'Tangent of an angle in degrees, such as Tan(45) is 1.',
-    group: 'Angles',
+    group: 'Trigonometry',
     gives: ['Number'],
   },
   asin: {
     usage: 'Asin(value)',
     summary: 'Angle in degrees whose sine is the value, such as Asin(1) is 90.',
-    group: 'Angles',
+    group: 'Trigonometry',
     gives: ['Number'],
   },
   acos: {
     usage: 'Acos(value)',
     summary: 'Angle in degrees whose cosine is the value, such as Acos(1) is 0.',
-    group: 'Angles',
+    group: 'Trigonometry',
     gives: ['Number'],
   },
   atan: {
     usage: 'Atan(value)',
     summary: 'Angle in degrees whose tangent is the value, such as Atan(1) is 45.',
-    group: 'Angles',
+    group: 'Trigonometry',
     gives: ['Number'],
   },
   atan2: {
     usage: 'Atan2(y, x)',
     summary: 'Angle in degrees from the X axis to the point x, y, such as Atan2(1, 0) is 90.',
-    group: 'Angles',
+    group: 'Trigonometry',
     gives: ['Number'],
   },
   radians: {
     usage: 'Radians(degrees)',
     summary: 'Turns degrees into radians, such as Radians(180) is PI.',
-    group: 'Angles',
+    group: 'Trigonometry',
     gives: ['Number'],
   },
   degrees: {
     usage: 'Degrees(radians)',
     summary: 'Turns radians into degrees, such as Degrees(PI) is 180.',
-    group: 'Angles',
+    group: 'Trigonometry',
     gives: ['Number'],
   },
   abs: {
@@ -248,43 +270,43 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
   norm: {
     usage: 'Norm(vector)',
     summary: 'Length of a vector, such as Length(Vector(3, 4, 0)) is 5.',
-    group: 'Vectors',
+    group: 'Vector',
     gives: ['Number'],
   },
   length: {
     usage: 'Length(vector)',
     summary: 'Length of a vector, such as Length(Vector(3, 4, 0)) is 5.',
-    group: 'Vectors',
+    group: 'Vector',
     gives: ['Number'],
   },
   normalize: {
     usage: 'Normalize(vector)',
     summary: 'The direction of a vector, with length 1, such as Normalize(Vector(0, 4, 0)) is Vector(0, 1, 0).',
-    group: 'Vectors',
+    group: 'Vector',
     gives: ['Vector'],
   },
   dot: {
     usage: 'Dot(a, b)',
     summary: 'Dot product of two vectors, such as Dot(Vector(1, 0, 0), Vector(0, 1, 0)) is 0.',
-    group: 'Vectors',
+    group: 'Vector',
     gives: ['Number'],
   },
   cross: {
     usage: 'Cross(a, b)',
     summary: 'Vector at right angles to both, such as Cross(Vector(1, 0, 0), Vector(0, 1, 0)) is Vector(0, 0, 1).',
-    group: 'Vectors',
+    group: 'Vector',
     gives: ['Vector'],
   },
   distance: {
     usage: 'Distance(a, b)',
     summary: 'How far apart two points are, such as Distance(Vector(0, 0, 0), Vector(0, 3, 4)) is 5.',
-    group: 'Vectors',
+    group: 'Vector',
     gives: ['Number'],
   },
   vector: {
     usage: 'Vector(x, y, z)',
     summary: 'Makes a vector from numbers, such as Vector(0, 2, 0).',
-    group: 'Vectors',
+    group: 'Vector',
     gives: ['Vector'],
   },
   str: {
@@ -471,73 +493,73 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
   time_text: {
     usage: 'TimeText(seconds, pattern)',
     summary: 'Writes a time with YYYY MM DD HH mm ss, such as $Time.Now.',
-    group: 'Time',
+    group: 'Functions',
     gives: ['Text'],
   },
   len: {
     usage: 'Len(list or text)',
     summary: 'How many items or letters, such as Len(hello) is 5.',
-    group: 'Lists',
+    group: 'List',
     gives: ['Number'],
   },
   concat: {
     usage: 'Concat(a, b, ...)',
     summary: 'One list from lists and values, such as Concat($[1$], $[2$]) is 1 and 2.',
-    group: 'Lists',
+    group: 'List',
     gives: ['List'],
   },
   lookup: {
     usage: 'Lookup(key, table)',
     summary: 'Value between the rows of a key table, such as Lookup(5, a table of keys and values).',
-    group: 'Lists',
+    group: 'List',
     gives: ['Number'],
   },
   first: {
     usage: 'First(list)',
     summary: 'The first item, such as First($[a, b, c$]) is a.',
-    group: 'Lists',
+    group: 'List',
     gives: 'Any',
   },
   last: {
     usage: 'Last(list)',
     summary: 'The last item, such as Last($[a, b, c$]) is c.',
-    group: 'Lists',
+    group: 'List',
     gives: 'Any',
   },
   slice: {
     usage: 'Slice(list, start, count)',
     summary: 'Some items, from 0, such as Slice($[a, b, c$], 1, 2) is b and c.',
-    group: 'Lists',
+    group: 'List',
     gives: ['List'],
   },
   item_or: {
     usage: 'ItemOr(list, index, fallback)',
     summary: 'The item at an index, from 0, or the fallback when there is none, such as ItemOr($[1, 2$], 5, 0) is 0.',
-    group: 'Lists',
+    group: 'List',
     gives: 'Any',
   },
   index_of: {
     usage: 'IndexOf(list, value)',
     summary: 'Where a value is, from 0, or -1, such as IndexOf($[a, b$], b) is 1.',
-    group: 'Lists',
+    group: 'List',
     gives: ['Number'],
   },
   unique: {
     usage: 'Unique(list)',
     summary: 'The list without repeats, such as Unique($[1, 1, 2$]) is 1 and 2.',
-    group: 'Lists',
+    group: 'List',
     gives: ['List'],
   },
   sorted: {
     usage: 'Sorted(list)',
     summary: 'A sorted copy: numbers small to big, words A to Z, such as Sorted($[3, 1, 2$]) is 1, 2, 3.',
-    group: 'Lists',
+    group: 'List',
     gives: ['List'],
   },
   pick: {
     usage: 'Pick(number, first, second, ...)',
     summary: 'The value at a position, from 0, such as Pick(1, a, b, c) is b.',
-    group: 'Lists',
+    group: 'List',
     gives: 'Any',
   },
   is_undef: {
@@ -577,26 +599,26 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
   curve_at: {
     usage: 'CurveAt(curve, x)',
     summary: 'Height of a curve at x, from 0 to 1, such as CurveAt([Profile], 0.5).',
-    group: 'Curves',
+    group: 'Curve',
     gives: ['Number'],
   },
   path_length: {
     usage: 'PathLength(points)',
     summary: 'Length of a path through points, such as PathLength([Path]).',
-    group: 'Curves',
+    group: 'Curve',
     gives: ['Number'],
   },
   resample: {
     usage: 'Resample(points, count)',
     summary: 'Count points evenly spaced along a path, from its start to its end, such as Resample([Path], 8).',
-    group: 'Curves',
+    group: 'Curve',
     gives: ['List'],
   },
   profile_points: {
     usage: 'ProfilePoints(curve, height, radius)',
     summary:
       'A profile as [height, radius] points, like a column samples it, such as ProfilePoints([Profile], 2, 0.5).',
-    group: 'Curves',
+    group: 'Curve',
     gives: ['List'],
   },
   random: {
@@ -640,45 +662,45 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
   path_at: {
     usage: 'PathAt(points, amount)',
     summary: 'The point at a fraction of a path: 0 is the start, 1 is the end, such as PathAt([Path], 0.5).',
-    group: 'Curves',
+    group: 'Curve',
     gives: ['Vector'],
   },
   path_direction: {
     usage: 'PathDirection(points, amount)',
     summary: 'The way a path faces at a fraction of its length, such as PathDirection([Path], 0.5).',
-    group: 'Curves',
+    group: 'Curve',
     gives: ['Vector'],
   },
   trim_path: {
     usage: 'TrimPath(points, start, end)',
     summary: 'The part of a path from one fraction of its length to another, such as TrimPath([Path], 0.25, 0.75).',
-    group: 'Curves',
+    group: 'Curve',
     gives: ['List'],
   },
   rotate_vector: {
     usage: 'RotateVector(vector, axis, degrees)',
     summary:
       'Turns a vector around an axis by an angle in degrees, such as RotateVector(Vector(1, 0, 0), Vector(0, 1, 0), 90).',
-    group: 'Vectors',
+    group: 'Vector',
     gives: ['Vector'],
   },
   angle: {
     usage: 'Angle(a, b)',
     summary: 'The angle in degrees between two vectors, such as Angle(Vector(1, 0, 0), Vector(0, 1, 0)) is 90.',
-    group: 'Vectors',
+    group: 'Vector',
     gives: ['Number'],
   },
   project: {
     usage: 'Project(point, through, normal)',
     summary:
       'The closest point on the plane through Through, facing Normal, such as Project(Vector(0, 2, 0), Vector(0, 0, 0), Vector(0, 1, 0)) is Vector(0, 0, 0).',
-    group: 'Vectors',
+    group: 'Vector',
     gives: ['Vector'],
   },
   reflect: {
     usage: 'Reflect(vector, normal)',
     summary: 'The vector bounced off the plane that faces Normal, such as Reflect(Vector(1, -1, 0), Vector(0, 1, 0)).',
-    group: 'Vectors',
+    group: 'Vector',
     gives: ['Vector'],
   },
   ...SOLID_SCRIPT_CONDITION_HELPER_DOCS,

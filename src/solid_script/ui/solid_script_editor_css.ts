@@ -156,6 +156,13 @@ export const SOLID_SCRIPT_EDITOR_CATEGORY_COLORS: Readonly<Record<string, string
   Groups: '#2e9e5b',
   Operators: '#9b6bd6',
   Checks: '#3d8fd6',
+  Math: '#2aa198',
+  Trigonometry: '#d4537e',
+  Vector: '#3d8fd6',
+  Text: '#4f9e6b',
+  List: '#3ca7a0',
+  Curve: '#e2762b',
+  Random: '#c99a1e',
   Functions: '#2aa198',
   Values: '#c99a1e',
 };

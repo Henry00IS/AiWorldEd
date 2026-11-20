@@ -6,8 +6,18 @@ import {
   type SolidScriptLine,
 } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptDocumentNames } from '@/solid_script/document/solid_script_document_names.js';
-import { solidScriptFormulaCatalog } from '@/solid_script/commands/solid_script_formula_commands.js';
-import { solidScriptFormulaOwnId } from '@/solid_script/commands/solid_script_formula_groups.js';
+import {
+  SOLID_SCRIPT_FORMULA_CATEGORIES,
+  solidScriptFormulaCatalog,
+} from '@/solid_script/commands/solid_script_formula_commands.js';
+import {
+  SOLID_SCRIPT_FUNCTION_DOCS,
+  SOLID_SCRIPT_FUNCTION_GROUPS,
+} from '@/solid_script/language/solid_script_function_docs.js';
+import {
+  SOLID_SCRIPT_FORMULA_FUNCTION,
+  solidScriptFormulaOwnId,
+} from '@/solid_script/commands/solid_script_formula_groups.js';
 import type { SolidScriptFormulaContext } from '@/solid_script/commands/solid_script_formula_inputs.js';
 import { solidScriptFormulaRead } from '@/solid_script/document/solid_script_formula_read.js';
 import { solidScriptFormulaWrite } from '@/solid_script/document/solid_script_formula_write.js';
@@ -129,5 +139,38 @@ describe('SolidScript formula blocks of the Functions of the script', () => {
     expect(functions({})).not.toContain('Henry');
     expect(roundTrip('Henry(1, 2)', {}).ids).toEqual(['formula_value']);
     expect(roundTrip('Henry(1, 2)', context(script('Henri'))).ids).toEqual(['formula_value']);
+  });
+});
+
+describe('SolidScript formula function categories', () => {
+  it('gives every built-in function a group, and its block that palette category', () => {
+    const catalog = solidScriptFormulaCatalog();
+    for (const [key, doc] of Object.entries(SOLID_SCRIPT_FUNCTION_DOCS)) {
+      expect(SOLID_SCRIPT_FUNCTION_GROUPS, key).toContain(doc.group);
+      const block = catalog.find(`${SOLID_SCRIPT_FORMULA_FUNCTION}${key}`);
+      if (block) expect(block.category, key).toBe(doc.group);
+    }
+  });
+
+  it('shows the function groups in the palette, Functions last for the rest and the script own Functions', () => {
+    const catalog = solidScriptFormulaCatalog(context(script()));
+    const counts = new Map<string, number>();
+    for (const category of SOLID_SCRIPT_FORMULA_CATEGORIES)
+      counts.set(category, catalog.commands.filter((command) => command.category === category).length);
+    expect([...counts.keys()].slice(4)).toEqual([
+      'Math',
+      'Trigonometry',
+      'Vector',
+      'Text',
+      'List',
+      'Curve',
+      'Random',
+      'Functions',
+    ]);
+    for (const group of ['Math', 'Trigonometry', 'Vector', 'Text', 'List', 'Curve', 'Random'])
+      expect(counts.get(group), group).toBeGreaterThan(2);
+    expect(catalog.find(solidScriptFormulaOwnId('Henry'))?.category).toBe('Functions');
+    const calls = catalog.commands.filter((command) => /^formula_(fn|own)_/.test(command.id));
+    expect(calls.filter((command) => !SOLID_SCRIPT_FORMULA_CATEGORIES.includes(command.category))).toEqual([]);
   });
 });
