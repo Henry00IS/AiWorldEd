@@ -21,6 +21,7 @@ import {
   solidScriptParameterShapeName,
   solidScriptParameterToolInto,
 } from './solid_script_command_parameters.js';
+import { solidScriptIntoCopyName, type SolidScriptInto } from '@/solid_script/language/solid_script_into.js';
 import { solidScriptToolRun } from '@/solid_script/language/solid_script_tool_copy.js';
 import { solidScriptParameterEachActive, type SolidScriptCommandEach } from './solid_script_command_each.js';
 
@@ -33,6 +34,8 @@ export type SolidScriptCommandParameterType = SolidScriptFieldKind;
  * such as an Input.
  */
 export type SolidScriptCommandParameterWrites = 'name' | 'path' | 'none';
+
+export type { SolidScriptInto };
 
 /**
  * Kinds of value a field accepts, read by the editor checks, the help and the
@@ -146,6 +149,12 @@ export interface SolidScriptCommandParameter {
    * Brush.Edges.Data.
    */
   writes?: SolidScriptCommandWrites;
+  /**
+   * Set on an Into-style field: 'copy' holds a brush or mesh result, so the
+   * original stays and the result is withheld until Output; 'label' only names
+   * new faces, edges, points or other values, and a tool still edits in place.
+   */
+  into?: SolidScriptInto;
   /** Greyed text an empty field shows, such as the list an empty Of uses. */
   placeholder?: string;
   /**
@@ -231,9 +240,9 @@ export interface SolidScriptCommandSpec {
   /** False for lines that do nothing when run, such as notes. */
   runs?: boolean;
   /**
-   * True for tools that edit existing brushes or meshes: without Into they edit
-   * in place; with Into they leave the original and keep the result in the
-   * variable, not in the scene.
+   * True for tools that edit existing brushes or meshes: a copy-style Into
+   * leaves the original and withholds the result; a label-style Into still
+   * edits in place.
    */
   edits?: boolean;
   /**
@@ -261,8 +270,8 @@ export interface SolidScriptCommandSpec {
  */
 function solidScriptCommandBuiltInto(listed: boolean): SolidScriptCommandParameter {
   return listed
-    ? solidScriptParameterInto('the brushes or meshes it builds, a Brush list', 'Brush List', 'what is made')
-    : solidScriptParameterInto('the brushes or meshes it builds', 'Brush', 'what is made');
+    ? solidScriptParameterInto('the brushes or meshes it builds, a Brush list', 'Brush List', 'what is made', 'copy')
+    : solidScriptParameterInto('the brushes or meshes it builds', 'Brush', 'what is made', 'copy');
 }
 
 /** Palette groups whose lines build shapes, which get the optional Name field. */
@@ -290,7 +299,7 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
   readonly builds: boolean;
   /** True when Into is always a list, even for one built item. */
   readonly intoList: boolean;
-  /** True for tools that edit in place, or copy into Into. */
+  /** True for tools that edit in place, or copy into a copy-style Into. */
   readonly edits: boolean;
   private readonly writeCopy: boolean;
   private readonly listingWrite: SolidScriptListingWrite;
@@ -335,7 +344,9 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
    * @returns Shapes it builds.
    */
   execute(run: SolidScriptBlockRun): SolidScriptShape[] {
-    return this.edits ? solidScriptToolRun(run, this.run, this.writeCopy) : this.run(run);
+    if (!this.edits) return this.run(run);
+    const into = solidScriptIntoCopyName(this.parameters, (key) => run.text(key));
+    return solidScriptToolRun(run, this.run, this.writeCopy, into);
   }
 
   /**

@@ -27,6 +27,11 @@ export interface SolidScriptMachineField {
    * [names] and [=formulas].
    */
   writes?: object;
+  /**
+   * Set on an Into-style field: 'copy' holds a brush or mesh result; 'label'
+   * only names new faces, edges, points or other values.
+   */
+  into?: 'copy' | 'label';
 }
 
 /** What the machine needs from a command: its structure and its own run step. */

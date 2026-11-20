@@ -11,6 +11,7 @@ import type {
   SolidScriptCommandParameterType,
   SolidScriptCommandParameterWrites,
   SolidScriptCommandWord,
+  SolidScriptInto,
 } from './solid_script_command.js';
 import { SOLID_SCRIPT_SHAPE_NAME_KEY } from '@/solid_script/language/solid_script_shape.js';
 import { solidScriptParameterValueEffective } from './solid_script_parameter_default.js';
@@ -244,19 +245,29 @@ export function solidScriptParameterOf(
 
 /**
  * The optional Into field of lines that make something: the variable it is
- * written to.
+ * written to. Copy holds a brush or mesh result and withholds it; label only
+ * names new faces, edges, points or other values.
  *
  * @param what What is written, such as the new brushes, a Brush list.
  * @param kind Kind written, such as Brush List.
  * @param detail Short description of the variable in the names list, such as
  *   top faces, followed by of and the block.
+ * @param into Whether the field holds a brush or mesh copy, or only a label.
  * @returns Field.
  */
-export function solidScriptParameterInto(what: string, kind: string, detail: string): SolidScriptCommandParameter {
-  return solidScriptParameterWrites(
-    solidScriptParameterOptional('into', 'Into', 'name', `Variable to write ${what} to; empty writes none.`),
-    { rule: 'kind', kind, what: `${detail} of **{command}**` },
-  );
+export function solidScriptParameterInto(
+  what: string,
+  kind: string,
+  detail: string,
+  into: SolidScriptInto,
+): SolidScriptCommandParameter {
+  return {
+    ...solidScriptParameterWrites(
+      solidScriptParameterOptional('into', 'Into', 'name', `Variable to write ${what} to; empty writes none.`),
+      { rule: 'kind', kind, what: `${detail} of **{command}**` },
+    ),
+    into,
+  };
 }
 
 /**
@@ -266,15 +277,18 @@ export function solidScriptParameterInto(what: string, kind: string, detail: str
  * @returns Field.
  */
 export function solidScriptParameterToolInto(): SolidScriptCommandParameter {
-  return solidScriptParameterWrites(
-    solidScriptParameterOptional(
-      'into',
-      'Into',
-      'name',
-      'Variable for the edited copy; empty edits in place. When set, the original stays and the result is only in this variable.',
+  return {
+    ...solidScriptParameterWrites(
+      solidScriptParameterOptional(
+        'into',
+        'Into',
+        'name',
+        'Variable for the edited copy; empty edits in place. When set, the original stays and the result is only in this variable.',
+      ),
+      { rule: 'kind', kind: 'Brush List', what: 'edited copy of **{command}**' },
     ),
-    { rule: 'kind', kind: 'Brush List', what: 'edited copy of **{command}**' },
-  );
+    into: 'copy',
+  };
 }
 
 /**

@@ -55,22 +55,26 @@ export const SOLID_SCRIPT_COMMANDS_QUERY: readonly SolidScriptCommand[] = [
       ),
       solidScriptParameterOf('faces or brushes', '$Selected.Faces'),
       {
-        ...solidScriptParameterInto('the hit point, a Vector', 'Vector', 'hit point'),
+        ...solidScriptParameterInto('the hit point, a Vector', 'Vector', 'hit point', 'label'),
         hint: 'Variable to write the point to, a vector. Empty writes none.',
       },
       {
-        ...solidScriptParameterInto('how far the hit is, in metres, a Number', 'Number', 'distance'),
+        ...solidScriptParameterInto('how far the hit is, in metres, a Number', 'Number', 'distance', 'label'),
         key: 'distance',
         label: 'Distance',
       },
       {
-        ...solidScriptParameterInto('the way the face looks, a Vector', 'Vector', 'face direction'),
+        ...solidScriptParameterInto('the way the face looks, a Vector', 'Vector', 'face direction', 'label'),
         key: 'normal',
         label: 'Normal',
       },
-      { ...solidScriptParameterInto('the face that was hit, a Face', 'Face', 'hit face'), key: 'face', label: 'Face' },
       {
-        ...solidScriptParameterInto('whether a face was hit, a Yes/No', 'Yes/No', 'whether it hit'),
+        ...solidScriptParameterInto('the face that was hit, a Face', 'Face', 'hit face', 'label'),
+        key: 'face',
+        label: 'Face',
+      },
+      {
+        ...solidScriptParameterInto('whether a face was hit, a Yes/No', 'Yes/No', 'whether it hit', 'label'),
         key: 'hit',
         label: 'Hit',
       },

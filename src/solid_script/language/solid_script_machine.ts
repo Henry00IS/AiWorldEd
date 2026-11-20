@@ -29,6 +29,7 @@ import { solidScriptShapeTransform } from './solid_script_reshape.js';
 import { solidScriptMeshChecked, solidScriptMeshTransform } from './solid_script_mesh.js';
 import { SolidScriptScope } from './solid_script_scope.js';
 import { solidScriptIntoAssigned } from './solid_script_into_assigned.js';
+import { solidScriptIntoCopyName } from './solid_script_into.js';
 import { solidScriptScopeElementBind } from './solid_script_scope_element.js';
 import {
   SOLID_SCRIPT_GROUP_MODE_DEFAULT,
@@ -362,18 +363,14 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   }
 
   /**
-   * Name in a line's Into field, or empty when the result stays in the current
-   * output.
+   * Name in a line's copy-style Into field, or empty when the result stays in
+   * the current output. Label-style fields are ignored.
    *
    * @param node Line and command.
    * @returns Variable name, or empty.
    */
   private intoName(node: SolidScriptBlockNode<Command>): string {
-    return node.command
-      .valueText(node.values, 'into')
-      .trim()
-      .replace(/^\[(.*)\]$/s, '$1')
-      .trim();
+    return solidScriptIntoCopyName(node.command.parameters, (key) => node.command.valueText(node.values, key));
   }
 
   /**
@@ -396,8 +393,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   }
 
   /**
-   * Shapes a line adds to the current output: none when Into is set, so the
-   * result lives only in that variable until Output places it.
+   * Shapes a line adds to the current output: none when a copy-style Into is
+   * set, so the result lives only in that variable until Output places it.
    *
    * @param node Line and command.
    * @param shapes What the line built or edited.

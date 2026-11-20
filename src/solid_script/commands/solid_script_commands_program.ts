@@ -403,7 +403,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
         '0',
         'Tiles to move the texture of this pass along V.',
       ),
-      solidScriptParameterInto('the brushes, a Brush list', 'Brush List', 'what is made'),
+      solidScriptParameterInto('the brushes, a Brush list', 'Brush List', 'what is made', 'copy'),
     ],
     listing: (read) => [
       'Input Brushes',

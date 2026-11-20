@@ -57,6 +57,27 @@ function withInto(): SolidScriptCommand[] {
 }
 
 /**
+ * Whether a command has a copy-style Into field, which withholds a brush or
+ * mesh result.
+ *
+ * @param command Command.
+ * @returns True when a copy-style field exists.
+ */
+function hasCopyInto(command: SolidScriptCommand): boolean {
+  return command.parameters.some((field) => field.into === 'copy');
+}
+
+/**
+ * Echoes the number of items in a variable.
+ *
+ * @param name Variable name.
+ * @returns Echo line.
+ */
+function echoCount(name: string): SolidScriptLine {
+  return { command: 'echo', values: { value: `[=[${name}.Count]]` } };
+}
+
+/**
  * Line of a command with its defaults and Into set.
  *
  * @param command Command.
@@ -204,9 +225,10 @@ describe('Into-set results stay out of the world until Output', () => {
       .map((command) => command.id)
       .sort();
     const builders = withInto().filter((command) => command.builds || command.id === 'input_brushes');
-    const tools = withInto().filter((command) => command.edits);
+    const tools = withInto().filter((command) => command.edits && hasCopyInto(command));
     const lists = withInto().filter((command) => listScript(command));
-    const covered = new Set([...builders, ...tools, ...lists].map((command) => command.id));
+    const labels = withInto().filter((command) => !hasCopyInto(command) && command.edits);
+    const covered = new Set([...builders, ...tools, ...lists, ...labels].map((command) => command.id));
     expect(ids.filter((id) => !covered.has(id))).toEqual([]);
   });
 
@@ -232,21 +254,70 @@ describe('Into-set results stay out of the world until Output', () => {
 
   it.each(
     withInto()
-      .filter((command) => command.edits)
+      .filter((command) => command.edits && hasCopyInto(command))
       .map((command) => [command.id, command] as const),
   )('%s with Into leaves the original in the output and keeps the copy in the variable', (_id, command) => {
     const host = toolHost(command);
     const original = world(host);
     const copied = world([...host, intoLine(command)]);
     expect(copied).toHaveLength(original.length);
-    if (command.id === 'bevel_edges') {
-      const result = run([...host, intoLine(command), { command: 'echo', values: { value: '[=[Held.Count]]' } }]);
-      expect(result.error?.message ?? null).toBeNull();
-      expect(Number(result.messages[0])).toBeGreaterThan(0);
-      return;
-    }
     const placed = world([...host, intoLine(command), { command: 'output', values: { of: '[Held]' } }]);
     expect(placed.length).toBeGreaterThan(original.length);
+  });
+
+  it('Bevel Edges with Into edits in place and only labels the new faces', () => {
+    const host = toolHost(solidScriptCommands.find((command) => command.id === 'bevel_edges')!);
+    const plain = world([...host, { command: 'bevel_edges', values: { distance: '0.1' } }]);
+    const labelled = world([...host, { command: 'bevel_edges', values: { distance: '0.1', into: HELD } }]);
+    expect(labelled).toEqual(plain);
+    expect(labelled).toHaveLength(1);
+    expect(plain[0] && 'points' in plain[0] ? plain[0].points.length : 0).toBeGreaterThan(8);
+    const result = run([...host, { command: 'bevel_edges', values: { distance: '0.1', into: HELD } }, echoCount(HELD)]);
+    expect(result.error?.message ?? null).toBeNull();
+    expect(Number(result.messages[0])).toBeGreaterThan(0);
+  });
+
+  it('Inset Face Inner and Ring label the new faces and still edit in place', () => {
+    const command = solidScriptCommands.find((entry) => entry.id === 'inset_face')!;
+    const host = toolHost(command);
+    const tool = { command: 'inset_face', values: { distance: '0.1' } };
+    const plain = world([...host, tool]);
+    const labelled = world([
+      ...host,
+      { command: 'inset_face', values: { distance: '0.1', inner: 'Inner', ring: 'Ring' } },
+    ]);
+    expect(labelled).toEqual(plain);
+    expect(labelled.length).toBeGreaterThan(0);
+    const result = run([
+      ...host,
+      { command: 'inset_face', values: { distance: '0.1', inner: 'Inner', ring: 'Ring' } },
+      echoCount('Inner'),
+      echoCount('Ring'),
+    ]);
+    expect(result.error?.message ?? null).toBeNull();
+    expect(Number(result.messages[0])).toBeGreaterThan(0);
+    expect(Number(result.messages[1])).toBeGreaterThan(0);
+  });
+
+  it('Extrude Face Top and Sides label the new faces and still leave the slabs in the world', () => {
+    const host = toolHost(solidScriptCommands.find((command) => command.id === 'extrude_face')!);
+    const tool = { command: 'extrude_face', values: { distance: '0.2' } };
+    const plain = world([...host, tool]);
+    const labelled = world([
+      ...host,
+      { command: 'extrude_face', values: { distance: '0.2', top: 'Tops', sides: 'Sides' } },
+    ]);
+    expect(labelled).toEqual(plain);
+    expect(labelled.length).toBeGreaterThan(world(host).length);
+    const result = run([
+      ...host,
+      { command: 'extrude_face', values: { distance: '0.2', top: 'Tops', sides: 'Sides' } },
+      echoCount('Tops'),
+      echoCount('Sides'),
+    ]);
+    expect(result.error?.message ?? null).toBeNull();
+    expect(Number(result.messages[0])).toBeGreaterThan(0);
+    expect(Number(result.messages[1])).toBeGreaterThan(0);
   });
 
   it.each(

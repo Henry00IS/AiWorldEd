@@ -182,7 +182,12 @@ function solidScriptSelectCommand(kind: SolidScriptSelectKind): SolidScriptComma
         'New starts again, Add picks more, Remove drops them. One of: New, Add, Remove.',
         SOLID_SCRIPT_SELECT_HOW,
       ),
-      solidScriptParameterInto(`the picked ${kind.many}, a ${kind.item} list`, `${kind.item} List`, 'what is made'),
+      solidScriptParameterInto(
+        `the picked ${kind.many}, a ${kind.item} list`,
+        `${kind.item} List`,
+        'what is made',
+        'label',
+      ),
     ],
     listing: (read) => [
       kind.label,

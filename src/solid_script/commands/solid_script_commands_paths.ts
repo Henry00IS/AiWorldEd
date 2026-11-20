@@ -430,7 +430,7 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
         ['Line', 'Arc', 'Spiral'],
       ),
       {
-        ...solidScriptParameterInto('the points, a list of vectors', 'Vector List', 'what is made'),
+        ...solidScriptParameterInto('the points, a list of vectors', 'Vector List', 'what is made', 'label'),
         hint: 'Variable to write the points to, a list of vectors.',
         optional: false,
         default: 'Path',

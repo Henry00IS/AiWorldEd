@@ -60,23 +60,21 @@ export class SolidScriptToolCopy {
 }
 
 /**
- * Runs an edit tool: without Into it edits in place; with Into it leaves the
- * original and keeps the result in the variable, not in the scene.
+ * Runs an edit tool: a copy-style Into leaves the original and keeps the result
+ * in the variable, not in the scene; otherwise the tool edits in place.
  *
  * @param run Running line.
  * @param body The tool's own step.
  * @param writeInto True when this line's Into is the edited copy.
+ * @param into Variable a copy-style Into names, or empty to edit in place.
  * @returns Shapes to place in the scene, if any.
  */
 export function solidScriptToolRun(
   run: SolidScriptBlockRun,
   body: (run: SolidScriptBlockRun) => SolidScriptShape[],
   writeInto: boolean,
+  into: string,
 ): SolidScriptShape[] {
-  const into = run
-    .text('into')
-    .trim()
-    .replace(/^\[(.*)\]$/s, '$1');
   if (into === '') return solidScriptToolStay(run, body(run));
   run.toolCopyStart();
   const shapes = body(run);

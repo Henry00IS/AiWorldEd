@@ -261,10 +261,13 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
         ),
         each: 'Item',
       },
-      solidScriptParameterWrites(
-        solidScriptParameter('into', 'Into', 'name', 'Filtered', 'Variable that gets the items that pass, a list.'),
-        { rule: 'kind', kind: 'List', what: 'filtered list of **{command}**' },
-      ),
+      {
+        ...solidScriptParameterWrites(
+          solidScriptParameter('into', 'Into', 'name', 'Filtered', 'Variable that gets the items that pass, a list.'),
+          { rule: 'kind', kind: 'List', what: 'filtered list of **{command}**' },
+        ),
+        into: 'label',
+      },
     ],
     listing: (read) => [
       'Filter List',
