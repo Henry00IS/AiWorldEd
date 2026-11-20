@@ -1090,7 +1090,7 @@ describe('SolidScript editor', () => {
     expect(hint.textContent).toBe(
       'Max(A: Number or List, B: Number, ...: Number) -> Number' +
         'B: Number. Another number.' +
-        'The biggest number, of the inputs or of one list, such as Max(3, 1, 4) is 4.',
+        'Picks the biggest number from the values you give, or from one list.',
     );
     expect(options()).toContain('$Box.Width');
     const how = find<HTMLInputElement>('[data-solid-script-configurator="select_faces"] input[aria-label="How"]');

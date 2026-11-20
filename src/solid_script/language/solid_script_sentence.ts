@@ -68,3 +68,15 @@ export function solidScriptSentencePlain(text: string): string {
     .map((part) => part.text)
     .join('');
 }
+
+/**
+ * The first paragraph of a description as a sentence, for places that show only
+ * a short lead, such as a suggestion.
+ *
+ * @param text Description, which may have examples on later lines.
+ * @returns First paragraph, with a full stop if it needs one.
+ */
+export function solidScriptSentenceLead(text: string): string {
+  const lead = text.trim().split(/\n\n+/)[0] ?? '';
+  return solidScriptSentence(lead);
+}

@@ -143,7 +143,12 @@ export abstract class SolidScriptDialog extends PanelFloating {
   protected note(text: string): HTMLElement {
     const note = document.createElement('p');
     note.textContent = text;
-    Object.assign(note.style, { margin: '-6px 0 14px', color: ThemeCss.mutedTextColor, lineHeight: '1.4' });
+    Object.assign(note.style, {
+      margin: '-6px 0 14px',
+      color: ThemeCss.mutedTextColor,
+      lineHeight: '1.4',
+      whiteSpace: 'pre-wrap',
+    });
     return note;
   }
 

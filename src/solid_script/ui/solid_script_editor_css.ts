@@ -282,7 +282,7 @@ const SOLID_SCRIPT_EDITOR_PANES_CSS = `
 .${c.help} { width: 220px; flex-shrink: 0; overflow-y: auto; padding: 10px 12px; border-left: 1px solid ${ThemeCss.separatorColor}; box-sizing: border-box; }
 .${c.helpTitle} { font-size: 14px; font-weight: 700; }
 .${c.helpCategory} { margin: 2px 0 8px; font-size: 11px; color: ${ThemeCss.mutedTextColor}; }
-.${c.helpText} { margin: 0 0 8px; line-height: 1.45; }
+.${c.helpText} { margin: 0 0 8px; line-height: 1.45; white-space: pre-wrap; }
 .${c.helpParameter} { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 8px; align-items: baseline; padding: 6px 0; border-top: 1px solid ${ThemeCss.inkAlpha(0.08)}; }
 .${c.helpParameter} .${c.parameterValue} { overflow: hidden; text-overflow: ellipsis; }
 .${c.helpParameter} .${c.helpText} { grid-column: 1 / -1; margin: 0; color: ${ThemeCss.textColor}; opacity: 0.85; font-size: 11px; }

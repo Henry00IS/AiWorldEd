@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { solidScriptSentence, solidScriptSentenceTyped } from '@/solid_script/language/solid_script_sentence.js';
+import {
+  solidScriptSentence,
+  solidScriptSentenceLead,
+  solidScriptSentenceTyped,
+} from '@/solid_script/language/solid_script_sentence.js';
 
 describe('SolidScript sentence punctuation', () => {
   it('capitalises a description and adds a full stop, but not after a stop already there', () => {
@@ -16,5 +20,11 @@ describe('SolidScript sentence punctuation', () => {
     expect(solidScriptSentence('Anchor. ⭐\uFE0F')).toBe('Anchor. ⭐\uFE0F');
     expect(solidScriptSentence('Score +')).toBe('Score +');
     expect(solidScriptSentenceTyped('', 'Anchor. ⭐')).toBe('Anchor. ⭐');
+  });
+
+  it('takes only the first paragraph of a longer description', () => {
+    const text = 'Keeps a number inside a range.\n\nExample:\nClamp(12, 0, 10) is 10.\n\nUse it on a stair.';
+    expect(solidScriptSentenceLead(text)).toBe('Keeps a number inside a range.');
+    expect(solidScriptSentenceLead('a short lead')).toBe('A short lead.');
   });
 });

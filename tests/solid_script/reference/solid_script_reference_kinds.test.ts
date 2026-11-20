@@ -11,7 +11,7 @@ describe('the reference reads kinds from the declarations', () => {
 
   it('says which kinds a built-in function gives and takes', () => {
     expect(text).toContain(
-      'Abs(number: Number) gives Number: The number without its minus sign, such as Abs(-3) is 3.',
+      'Abs(number: Number) gives Number: Drops the minus sign, so the number is always zero or more. -3 and 3 both become 3: that is just how far it is from zero.',
     );
   });
 

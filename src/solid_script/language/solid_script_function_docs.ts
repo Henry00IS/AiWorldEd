@@ -9,6 +9,7 @@ import {
   SOLID_SCRIPT_KIND_CHECK_ARGUMENTS,
   SOLID_SCRIPT_KIND_CHECK_DOCS,
 } from './solid_script_functions_kind_checks.js';
+import { SOLID_SCRIPT_FUNCTION_DOCS_MATH } from './solid_script_function_docs_math.js';
 /** A kind of value the editor checks name, such as Face or Face List. */
 export type SolidScriptKindName = (typeof SOLID_SCRIPT_KINDS)[number] | `${(typeof SOLID_SCRIPT_KINDS)[number]} List`;
 
@@ -48,7 +49,10 @@ export type SolidScriptFunctionGroup = (typeof SOLID_SCRIPT_FUNCTION_GROUPS)[num
 export interface SolidScriptFunctionDoc {
   /** Call with its inputs, such as pad_left(text, width, fill). */
   usage: string;
-  /** What it gives, in one short sentence. */
+  /**
+   * What it does, in plain words, with examples on their own lines when it has
+   * them.
+   */
   summary: string;
   /**
    * Kinds of value it gives, read by the editor checks; Any when only running
@@ -72,243 +76,7 @@ export interface SolidScriptFunctionDoc {
  * function without its kinds fail to build.
  */
 const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, SolidScriptFunctionDoc>> = {
-  sin: {
-    usage: 'Sin(degrees)',
-    summary: 'Sine of an angle in degrees, such as Sin(90) is 1.',
-    group: 'Trigonometry',
-    gives: ['Number'],
-  },
-  cos: {
-    usage: 'Cos(degrees)',
-    summary: 'Cosine of an angle in degrees, such as Cos(0) is 1.',
-    group: 'Trigonometry',
-    gives: ['Number'],
-  },
-  tan: {
-    usage: 'Tan(degrees)',
-    summary: 'Tangent of an angle in degrees, such as Tan(45) is 1.',
-    group: 'Trigonometry',
-    gives: ['Number'],
-  },
-  asin: {
-    usage: 'Asin(value)',
-    summary: 'Angle in degrees whose sine is the value, such as Asin(1) is 90.',
-    group: 'Trigonometry',
-    gives: ['Number'],
-  },
-  acos: {
-    usage: 'Acos(value)',
-    summary: 'Angle in degrees whose cosine is the value, such as Acos(1) is 0.',
-    group: 'Trigonometry',
-    gives: ['Number'],
-  },
-  atan: {
-    usage: 'Atan(value)',
-    summary: 'Angle in degrees whose tangent is the value, such as Atan(1) is 45.',
-    group: 'Trigonometry',
-    gives: ['Number'],
-  },
-  atan2: {
-    usage: 'Atan2(y, x)',
-    summary: 'Angle in degrees from the X axis to the point x, y, such as Atan2(1, 0) is 90.',
-    group: 'Trigonometry',
-    gives: ['Number'],
-  },
-  radians: {
-    usage: 'Radians(degrees)',
-    summary: 'Turns degrees into radians, such as Radians(180) is $Math.Pi.',
-    group: 'Trigonometry',
-    gives: ['Number'],
-  },
-  degrees: {
-    usage: 'Degrees(radians)',
-    summary: 'Turns radians into degrees, such as Degrees($Math.Pi) is 180.',
-    group: 'Trigonometry',
-    gives: ['Number'],
-  },
-  abs: {
-    usage: 'Abs(number)',
-    summary: 'The number without its minus sign, such as Abs(-3) is 3.',
-    group: 'Math',
-    gives: ['Number'],
-  },
-  sign: {
-    usage: 'Sign(number)',
-    summary: '-1, 0 or 1 for below, at or above 0, such as Sign(-4) is -1.',
-    group: 'Math',
-    gives: ['Number'],
-  },
-  ceil: {
-    usage: 'Ceil(number)',
-    summary: 'Rounds up to a whole number, such as Ceil(1.2) is 2.',
-    group: 'Math',
-    gives: ['Number'],
-  },
-  floor: {
-    usage: 'Floor(number)',
-    summary: 'Rounds down to a whole number, such as Floor(1.8) is 1.',
-    group: 'Math',
-    gives: ['Number'],
-  },
-  round: {
-    usage: 'Round(number)',
-    summary: 'Rounds to the nearest whole number, such as Round(1.5) is 2.',
-    group: 'Math',
-    gives: ['Number'],
-  },
-  trunc: {
-    usage: 'Trunc(number)',
-    summary: 'Drops what is after the decimal point, such as Trunc(1.8) is 1.',
-    group: 'Math',
-    gives: ['Number'],
-  },
-  fract: {
-    usage: 'Fract(number)',
-    summary: 'Only what is after the decimal point, 0 to 1, such as Fract(1.25) is 0.25.',
-    group: 'Math',
-    gives: ['Number'],
-  },
-  sqrt: { usage: 'Sqrt(number)', summary: 'Square root, such as Sqrt(9) is 3.', group: 'Math', gives: ['Number'] },
-  pow: {
-    usage: 'Pow(number, power)',
-    summary: 'The number to a power, such as Pow(2, 3) is 8; a ^ b does the same.',
-    group: 'Math',
-    gives: ['Number'],
-  },
-  exp: {
-    usage: 'Exp(number)',
-    summary: 'e to the power of the number, such as Exp(0) is 1.',
-    group: 'Math',
-    gives: ['Number'],
-  },
-  ln: { usage: 'Ln(number)', summary: 'Natural logarithm, such as Ln(1) is 0.', group: 'Math', gives: ['Number'] },
-  log: {
-    usage: 'Log(number)',
-    summary: 'Logarithm with base 10, such as Log(100) is 2.',
-    group: 'Math',
-    gives: ['Number'],
-  },
-  min: {
-    usage: 'Min(a, b, ...)',
-    summary: 'The smallest number, of the inputs or of one list, such as Min(3, 1, 4) is 1.',
-    group: 'Math',
-    gives: ['Number'],
-  },
-  max: {
-    usage: 'Max(a, b, ...)',
-    summary: 'The biggest number, of the inputs or of one list, such as Max(3, 1, 4) is 4.',
-    group: 'Math',
-    gives: ['Number'],
-  },
-  clamp: {
-    usage: 'Clamp(value, min, max)',
-    summary: 'Keeps a number between min and max, such as Clamp(12, 0, 10) is 10.',
-    group: 'Math',
-    gives: ['Number'],
-  },
-  between: {
-    usage: 'Between(value, min, max)',
-    summary: 'Yes when the number is from min to max, such as Between(5, 0, 10).',
-    group: 'Math',
-    gives: ['Yes/No'],
-  },
-  lerp: {
-    usage: 'Lerp(from, to, amount)',
-    summary: 'The way from one number or vector to another, such as Lerp(0, 10, 0.5) is 5.',
-    group: 'Math',
-    gives: ['Number', 'Vector'],
-  },
-  remap: {
-    usage: 'Remap(value, from_low, from_high, to_low, to_high)',
-    summary: 'Moves a number from one range into another, such as Remap(5, 0, 10, 0, 100) is 50.',
-    group: 'Math',
-    gives: ['Number'],
-  },
-  smoothstep: {
-    usage: 'Smoothstep(edge_low, edge_high, value)',
-    summary: 'Eases from 0 to 1 between the edges, such as SmoothStep(0, 1, 0.5) is 0.5.',
-    group: 'Math',
-    gives: ['Number'],
-  },
-  wrap: {
-    usage: 'Wrap(value, min, max)',
-    summary: 'Goes round within a range, such as Wrap(370, 0, 360) is 10.',
-    group: 'Math',
-    gives: ['Number'],
-  },
-  mod: {
-    usage: 'Mod(a, b)',
-    summary:
-      'Rest after dividing, never below 0, such as Mod(-1, 5) is 4. The % operator is the signed remainder, such as 5 % 2 is 1.',
-    group: 'Math',
-    gives: ['Number'],
-  },
-  snap: {
-    usage: 'Snap(value, step)',
-    summary: 'Rounds to the nearest step, such as 0.25.',
-    group: 'Math',
-    gives: ['Number'],
-  },
-  hypot: {
-    usage: 'Hypot(a, b, ...)',
-    summary: 'Length of the line with these sides, such as Hypot(3, 4) is 5.',
-    group: 'Math',
-    gives: ['Number'],
-  },
-  sum: {
-    usage: 'Sum(list)',
-    summary: 'All numbers of a list added up, such as Sum([1, 2, 3]) is 6.',
-    group: 'Math',
-    gives: ['Number'],
-  },
-  average: {
-    usage: 'Average(list)',
-    summary: 'The mean of the numbers of a list, such as Average([2, 4, 6]) is 4.',
-    group: 'Math',
-    gives: ['Number'],
-  },
-  norm: {
-    usage: 'Norm(vector)',
-    summary: 'Length of a vector, such as Length(Vector(3, 4, 0)) is 5.',
-    group: 'Vector',
-    gives: ['Number'],
-  },
-  length: {
-    usage: 'Length(vector)',
-    summary: 'Length of a vector, such as Length(Vector(3, 4, 0)) is 5.',
-    group: 'Vector',
-    gives: ['Number'],
-  },
-  normalize: {
-    usage: 'Normalize(vector)',
-    summary: 'The direction of a vector, with length 1, such as Normalize(Vector(0, 4, 0)) is Vector(0, 1, 0).',
-    group: 'Vector',
-    gives: ['Vector'],
-  },
-  dot: {
-    usage: 'Dot(a, b)',
-    summary: 'Dot product of two vectors, such as Dot(Vector(1, 0, 0), Vector(0, 1, 0)) is 0.',
-    group: 'Vector',
-    gives: ['Number'],
-  },
-  cross: {
-    usage: 'Cross(a, b)',
-    summary: 'Vector at right angles to both, such as Cross(Vector(1, 0, 0), Vector(0, 1, 0)) is Vector(0, 0, 1).',
-    group: 'Vector',
-    gives: ['Vector'],
-  },
-  distance: {
-    usage: 'Distance(a, b)',
-    summary: 'How far apart two points are, such as Distance(Vector(0, 0, 0), Vector(0, 3, 4)) is 5.',
-    group: 'Vector',
-    gives: ['Number'],
-  },
-  vector: {
-    usage: 'Vector(x, y, z)',
-    summary: 'Makes a vector from numbers, such as Vector(0, 2, 0).',
-    group: 'Vector',
-    gives: ['Vector'],
-  },
+  ...SOLID_SCRIPT_FUNCTION_DOCS_MATH,
   str: {
     usage: 'Str(a, b, ...)',
     summary: 'Joins values into one text, such as Str(3, "x") is 3x.',
@@ -677,32 +445,6 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
     summary: 'The part of a path from one fraction of its length to another, such as TrimPath([Path], 0.25, 0.75).',
     group: 'Curve',
     gives: ['List'],
-  },
-  rotate_vector: {
-    usage: 'RotateVector(vector, axis, degrees)',
-    summary:
-      'Turns a vector around an axis by an angle in degrees, such as RotateVector(Vector(1, 0, 0), Vector(0, 1, 0), 90).',
-    group: 'Vector',
-    gives: ['Vector'],
-  },
-  angle: {
-    usage: 'Angle(a, b)',
-    summary: 'The angle in degrees between two vectors, such as Angle(Vector(1, 0, 0), Vector(0, 1, 0)) is 90.',
-    group: 'Vector',
-    gives: ['Number'],
-  },
-  project: {
-    usage: 'Project(point, through, normal)',
-    summary:
-      'The closest point on the plane through Through, facing Normal, such as Project(Vector(0, 2, 0), Vector(0, 0, 0), Vector(0, 1, 0)) is Vector(0, 0, 0).',
-    group: 'Vector',
-    gives: ['Vector'],
-  },
-  reflect: {
-    usage: 'Reflect(vector, normal)',
-    summary: 'The vector bounced off the plane that faces Normal, such as Reflect(Vector(1, -1, 0), Vector(0, 1, 0)).',
-    group: 'Vector',
-    gives: ['Vector'],
   },
   ...SOLID_SCRIPT_CONDITION_HELPER_DOCS,
   ...SOLID_SCRIPT_KIND_CHECK_DOCS,

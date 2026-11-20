@@ -14,6 +14,7 @@ import { solidScriptEditorIcon } from './solid_script_editor_icons.js';
 import { SOLID_SCRIPT_COMMAND_EACH_ICON } from '@/solid_script/commands/solid_script_command_each.js';
 import type { SolidScriptEditorView } from './solid_script_editor_view.js';
 import { solidScriptFieldHighlight } from './solid_script_field_highlight.js';
+import { solidScriptSentence } from '@/solid_script/language/solid_script_sentence.js';
 
 /** Drag data type of a script line being moved. */
 export const SOLID_SCRIPT_EDITOR_DRAG_LINE = 'application/x-aiworlded-solidscript-line';
@@ -240,8 +241,8 @@ function solidScriptEditorChipTitle(
   if (end)
     return 'Closes the block above. Double-click to go to the line that opens it; remove that line to remove the block.';
   return configurable
-    ? `${command.description}.\nDouble-click or press Enter to configure.`
-    : `${command.description}.`;
+    ? `${solidScriptSentence(command.description)}\nDouble-click or press Enter to configure.`
+    : solidScriptSentence(command.description);
 }
 
 /**

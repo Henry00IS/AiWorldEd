@@ -8,6 +8,7 @@ import {
 import type { SolidScriptBlock } from '@/solid_script/document/solid_script_document.js';
 import { SOLID_SCRIPT_EDITOR_CATEGORY_COLORS, SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import { solidScriptEditorLinked, type SolidScriptEditorLinkOpen } from './solid_script_editor_links.js';
+import { solidScriptSentence } from '@/solid_script/language/solid_script_sentence.js';
 
 /** What the help panel shows when nothing is selected. */
 const SOLID_SCRIPT_EDITOR_HELP_EMPTY =
@@ -88,32 +89,21 @@ export class SolidScriptEditorHelp {
    * @param block Script line using it, or null for a palette command.
    */
   show(command: SolidScriptCommand, block: SolidScriptBlock | null): void {
-    const title = document.createElement('div');
-    title.className = SOLID_SCRIPT_EDITOR_CLASSES.helpTitle;
-    title.style.color = SOLID_SCRIPT_EDITOR_CATEGORY_COLORS[command.category] ?? 'currentColor';
-    title.textContent = command.label;
-    const category = document.createElement('div');
-    category.className = SOLID_SCRIPT_EDITOR_CLASSES.helpCategory;
-    category.textContent =
-      command.nesting === 'open' ? `${command.category} · holds the lines up to its End` : command.category;
-    const link = (text: string): HTMLElement => solidScriptEditorHelpText(text, this.open, command.id);
-    const description = link(`${command.description}.`);
-    description.style.fontWeight = '600';
-    const manual = link(command.details);
-    const fields = command.parameters.some((parameter) => parameter.type !== 'name' && parameter.type !== 'text')
-      ? [solidScriptEditorHelpText(SOLID_SCRIPT_EDITOR_HELP_FIELDS)]
-      : [];
-    const usage = document.createElement('p');
-    usage.className = SOLID_SCRIPT_EDITOR_CLASSES.helpUsage;
-    usage.textContent = block ? this.texts.line : this.texts.palette;
-    const more = document.createElement('details');
-    more.className = SOLID_SCRIPT_EDITOR_CLASSES.helpMore;
-    more.open = this.moreOpen;
-    more.addEventListener('toggle', () => (this.moreOpen = more.open));
-    const moreTitle = document.createElement('summary');
-    moreTitle.textContent = 'More Details';
-    more.append(moreTitle, manual, ...fields, ...solidScriptEditorHelpStops(command, this.open), usage);
-    this.element.replaceChildren(title, category, description, ...this.parameters(command, block), more);
+    const { title, category } = solidScriptEditorHelpHeading(command);
+    const description = solidScriptEditorHelpBlocks(
+      solidScriptSentence(command.description),
+      this.open,
+      command.id,
+      true,
+    );
+    const more = solidScriptEditorHelpMore(
+      command,
+      block ? this.texts.line : this.texts.palette,
+      this.open,
+      this.moreOpen,
+      (open) => (this.moreOpen = open),
+    );
+    this.element.replaceChildren(title, category, ...description, ...this.parameters(command, block), more);
   }
 
   /**
@@ -141,6 +131,100 @@ export class SolidScriptEditorHelp {
         ),
       );
   }
+}
+
+/**
+ * Builds the title and category line of a help panel.
+ *
+ * @param command Command.
+ * @returns Title and category elements.
+ */
+function solidScriptEditorHelpHeading(command: SolidScriptCommand): { title: HTMLElement; category: HTMLElement } {
+  const title = document.createElement('div');
+  title.className = SOLID_SCRIPT_EDITOR_CLASSES.helpTitle;
+  title.style.color = SOLID_SCRIPT_EDITOR_CATEGORY_COLORS[command.category] ?? 'currentColor';
+  title.textContent = command.label;
+  const category = document.createElement('div');
+  category.className = SOLID_SCRIPT_EDITOR_CLASSES.helpCategory;
+  category.textContent =
+    command.nesting === 'open' ? `${command.category} · holds the lines up to its End` : command.category;
+  return { title, category };
+}
+
+/**
+ * Splits help text on blank lines into paragraphs, keeping line breaks inside
+ * each one, and optionally bolds the first paragraph.
+ *
+ * @param text Help text, with examples on their own lines when it has them.
+ * @param open Opens a mentioned command, or null for plain text.
+ * @param self Id of the command the text describes, or null.
+ * @param lead True to show the first paragraph in bold.
+ * @returns Paragraphs.
+ */
+function solidScriptEditorHelpBlocks(
+  text: string,
+  open: SolidScriptEditorLinkOpen | null,
+  self: string | null,
+  lead: boolean,
+): HTMLElement[] {
+  if (text.trim() === '') return [];
+  return text.split(/\n\n+/).map((block, index) => {
+    const paragraph = solidScriptEditorHelpText(block, open, self);
+    if (lead && index === 0) paragraph.style.fontWeight = '600';
+    return paragraph;
+  });
+}
+
+/**
+ * Builds the More Details section: the rest of the manual, how fields are read,
+ * what stops the script, and how to use the editor.
+ *
+ * @param command Command.
+ * @param usageText How to use a palette entry or a line.
+ * @param open Opens a mentioned command, or null.
+ * @param opened True when More Details is already open.
+ * @param onToggle Remembers whether it is open.
+ * @returns Details element.
+ */
+function solidScriptEditorHelpMore(
+  command: SolidScriptCommand,
+  usageText: string,
+  open: SolidScriptEditorLinkOpen | null,
+  opened: boolean,
+  onToggle: (open: boolean) => void,
+): HTMLElement {
+  const usage = document.createElement('p');
+  usage.className = SOLID_SCRIPT_EDITOR_CLASSES.helpUsage;
+  usage.textContent = usageText;
+  const more = document.createElement('details');
+  more.className = SOLID_SCRIPT_EDITOR_CLASSES.helpMore;
+  more.open = opened;
+  more.addEventListener('toggle', () => onToggle(more.open));
+  const moreTitle = document.createElement('summary');
+  moreTitle.textContent = 'More Details';
+  more.append(
+    moreTitle,
+    ...solidScriptEditorHelpBlocks(command.details, open, command.id, false),
+    ...solidScriptEditorHelpFieldNotes(command, open),
+    ...solidScriptEditorHelpStops(command, open),
+    usage,
+  );
+  return more;
+}
+
+/**
+ * The note on how fields are read, when the command has fields that use it.
+ *
+ * @param command Command.
+ * @param open Opens a mentioned command, or null.
+ * @returns Note paragraphs, or none.
+ */
+function solidScriptEditorHelpFieldNotes(
+  command: SolidScriptCommand,
+  open: SolidScriptEditorLinkOpen | null,
+): HTMLElement[] {
+  if (!command.parameters.some((parameter) => parameter.type !== 'name' && parameter.type !== 'text')) return [];
+  return solidScriptEditorHelpBlocks(SOLID_SCRIPT_EDITOR_HELP_FIELDS, open, command.id, false);
 }
 
 /**

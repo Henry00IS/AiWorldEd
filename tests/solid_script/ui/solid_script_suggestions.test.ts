@@ -220,7 +220,9 @@ describe('SolidScript suggestions', () => {
       'Max: Number',
     ]);
     expect(solidScriptSuggestionHintSignature(clamp)).toBe('Clamp(Value: Number, Min: Number, Max: Number) -> Number');
-    expect(clamp.summary).toBe('Keeps a number between min and max, such as Clamp(12, 0, 10) is 10.');
+    expect(clamp.summary).toBe(
+      'Keeps a number inside a low and a high end, like a fence. Below the low end becomes the low end, above the high end becomes the high end, and inside it stays as it is.',
+    );
     expect(solidScriptSuggestionHint(at('[=Clamp(|'), SCOPE)?.current).toBe(0);
     expect(solidScriptSuggestionHint(at('[=Clamp([Width], Pow(2, |'), SCOPE)).toMatchObject({
       name: 'Pow',

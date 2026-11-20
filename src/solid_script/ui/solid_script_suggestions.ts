@@ -16,7 +16,11 @@ import { solidScriptFunctionSpelling } from '@/solid_script/language/solid_scrip
 import { SOLID_SCRIPT_SYSTEM_LISTED } from '@/solid_script/language/solid_script_system.js';
 import { solidScriptSystemFill } from '@/solid_script/language/solid_script_system_names.js';
 import { solidScriptSystemFillEach } from '@/solid_script/commands/solid_script_command_each.js';
-import { solidScriptSentence, solidScriptSentenceTyped } from '@/solid_script/language/solid_script_sentence.js';
+import {
+  solidScriptSentence,
+  solidScriptSentenceLead,
+  solidScriptSentenceTyped,
+} from '@/solid_script/language/solid_script_sentence.js';
 import { solidScriptFieldEscapes } from '@/solid_script/language/solid_script_field.js';
 import {
   SOLID_SCRIPT_SYSTEM_VALUES,
@@ -424,7 +428,7 @@ function solidScriptSuggestionsAll(scope: SolidScriptSuggestionScope): SolidScri
         const doc = SOLID_SCRIPT_FUNCTION_DOCS[name];
         return {
           label: solidScriptFunctionSpelling(name),
-          detail: doc ? `${doc.usage}: ${solidScriptSentence(doc.summary)}` : 'Built in.',
+          detail: doc ? `${doc.usage}: ${solidScriptSentenceLead(doc.summary)}` : 'Built in.',
           category: 'Built-In Functions',
           pick: 'function',
           alias: name,
@@ -803,7 +807,7 @@ export function solidScriptSuggestionHint(
     name: solidScriptFunctionSpelling(key),
     inputs,
     gives: solidScriptFunctionKindsText(doc.gives),
-    summary: doc.summary,
+    summary: solidScriptSentenceLead(doc.summary),
     current: at(inputs),
   };
 }

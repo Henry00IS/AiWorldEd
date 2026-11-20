@@ -4,7 +4,10 @@ import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_com
 import { SolidScriptEditorHelp } from '@/solid_script/ui/solid_script_editor_help.js';
 import { SOLID_SCRIPT_COMMAND_CATALOG } from '@/solid_script/commands/solid_script_command_catalog.js';
 import { solidScriptFormulaCatalog } from '@/solid_script/commands/solid_script_formula_commands.js';
-import { solidScriptEditorStylesheetEnsure } from '@/solid_script/ui/solid_script_editor_css.js';
+import {
+  SOLID_SCRIPT_EDITOR_CLASSES,
+  solidScriptEditorStylesheetEnsure,
+} from '@/solid_script/ui/solid_script_editor_css.js';
 
 describe('SolidScript help panel', () => {
   it('shows a short summary first and keeps the manual under More Details, open for the next command', () => {
@@ -69,6 +72,26 @@ describe('SolidScript help panel', () => {
         command.id,
       ).toEqual([]);
     }
+    help.element.remove();
+  });
+
+  it('keeps line breaks in the docs, so examples each sit on their own line', () => {
+    solidScriptEditorStylesheetEnsure();
+    const help = new SolidScriptEditorHelp();
+    document.body.append(help.element);
+    const command = solidScriptFormulaCatalog().commands.find((entry) => entry.label === 'Natural Log');
+    expect(command).toBeDefined();
+    help.show(command!, null);
+    const visible: HTMLElement[] = [];
+    for (const child of help.element.children) {
+      if (child.tagName === 'DETAILS') break;
+      if (child.classList.contains(SOLID_SCRIPT_EDITOR_CLASSES.helpText)) visible.push(child as HTMLElement);
+    }
+    expect(visible.length).toBeGreaterThan(1);
+    expect(getComputedStyle(visible[0]!).whiteSpace).toBe('pre-wrap');
+    expect(visible[0]!.style.fontWeight).toBe('600');
+    const examples = visible.find((block) => (block.textContent ?? '').startsWith('Example:'));
+    expect(examples?.textContent).toMatch(/Example:\nLn\(1\) is 0\.\nLn\(\$Math\.E\) is 1\./);
     help.element.remove();
   });
 });

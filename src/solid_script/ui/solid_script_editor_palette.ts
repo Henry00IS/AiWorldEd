@@ -10,6 +10,7 @@ import { solidScriptEditorMenuShow } from './solid_script_editor_line_menu.js';
 import { DragEdgeAutoScroll } from '@/ui/drag/drag_edge_scroll.js';
 import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { solidScriptDropOutline } from './solid_script_file_drop.js';
+import { solidScriptSentence } from '@/solid_script/language/solid_script_sentence.js';
 
 /** Drag data type carrying the id of a command dragged out of the palette. */
 export const SOLID_SCRIPT_EDITOR_DRAG_COMMAND = 'application/x-aiworlded-solidscript-command';
@@ -315,7 +316,9 @@ export class SolidScriptEditorPalette {
     item.draggable = true;
     item.setAttribute('role', 'listitem');
     const insert = `Double-click to insert below the current line, or drag into ${this.options.target}.`;
-    item.title = [`${command.description}.`, command.details, insert].filter((line) => line !== '').join('\n');
+    item.title = [solidScriptSentence(command.description), command.details, insert]
+      .filter((line) => line !== '')
+      .join('\n');
     const label = document.createElement('span');
     label.textContent = command.label;
     item.append(solidScriptEditorIcon(command.category, SOLID_SCRIPT_EDITOR_CATEGORY_COLORS[command.category]), label);
