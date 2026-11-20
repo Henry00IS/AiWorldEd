@@ -1,67 +1,110 @@
 import type { SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
+import {
+  solidScriptExampleBlock,
+  solidScriptExampleInput,
+  solidScriptExampleLine,
+  solidScriptExampleNote,
+  solidScriptExampleRepeat,
+  solidScriptExampleSet,
+} from './solid_script_example_lines.js';
 
 /** A wall with a doorway cut out of it. */
 export const SOLID_SCRIPT_EXAMPLE_DOORWAY: readonly SolidScriptLine[] = [
-  { command: 'cube', values: { size: '4, 3, 0.2', anchor: 'Center, Center, Center' } },
-  { command: 'transform', values: { move: '0, -0.45, 0' } },
-  { command: 'cube', values: { size: '1, 2.1, 0.4', anchor: 'Center, Center, Center', mode: 'Subtractive' } },
-  { command: 'end' },
+  solidScriptExampleNote(
+    'A Cube is a box. Size is how wide, tall and deep it is, in metres. Anchor is which part of the box sits on the origin. Center, Center, Center puts the middle of the box there.',
+  ),
+  solidScriptExampleLine('cube', { size: '4, 3, 0.2', anchor: 'Center, Center, Center' }),
+  solidScriptExampleNote(
+    'Name a box so later lines can find it. Mode Subtractive cuts this box out of the wall in front, leaving a doorway.',
+  ),
+  solidScriptExampleLine('cube', {
+    size: '1, 2.1, 0.4',
+    anchor: 'Center, Center, Center',
+    mode: 'Subtractive',
+    label: 'Door',
+  }),
+  solidScriptExampleNote(
+    'Move By slides brushes by a distance in metres. Of says which ones: Door is the hole we just named. 0, -0.45, 0 means no slide sideways, a little downward, and no slide forward or back.',
+  ),
+  solidScriptExampleLine('move_by', { by: '0, -0.45, 0', of: 'Door' }),
 ];
 
 /** A row of five columns from one named part, centered on the origin. */
 export const SOLID_SCRIPT_EXAMPLE_COLUMNS: readonly SolidScriptLine[] = [
-  { command: 'part', values: { name: 'Column' } },
-  { command: 'cylinder', values: { h: '3', r1: '0.2', r2: '0.2', sides: '12', anchor: 'Center, Center, Center' } },
-  { command: 'end' },
-  { command: 'repeat', values: { variable: 'I', from: '0', to: '4' } },
-  { command: 'transform', values: { move: '[=[I] * 1.5 - 3], 0, 0' } },
-  { command: 'output', values: { of: '[Column]' } },
-  { command: 'end' },
-  { command: 'end' },
-];
-
-/** Pillars on a circle, each placed with one position vector. */
-export const SOLID_SCRIPT_EXAMPLE_PILLAR_RING: readonly SolidScriptLine[] = [
-  { command: 'note', values: { text: 'Each pillar has one position: a vector with x, y and z' } },
-  {
-    command: 'input',
-    values: { name: 'Count', type: 'Count', default: '8', min: '3', max: '32', label: 'Pillars' },
-  },
-  {
-    command: 'input',
-    values: { name: 'Radius', type: 'Number', default: '3', min: '0.5', max: '20', label: 'Radius' },
-  },
-  { command: 'variable', values: { name: 'Center', value: '0, 1.5, 0' } },
-  { command: 'repeat', values: { variable: 'I', from: '1', to: '[Count]' } },
-  { command: 'variable', values: { name: 'Angle', value: '[=360 / [Count] * [I]]' } },
-  {
-    command: 'variable',
-    values: { name: 'Pos', value: '[=[Center] + Vector(Cos([Angle]), 0, -Sin([Angle])) * [Radius]]' },
-  },
-  { command: 'transform', values: { move: '[Pos]' } },
-  { command: 'cylinder', values: { h: '3', r1: '0.25', r2: '0.2', sides: '12', anchor: 'Center, Center, Center' } },
-  { command: 'end' },
-  { command: 'end' },
+  solidScriptExampleNote(
+    'Define Part writes a recipe named Column. The cylinder inside is not in the world yet. Output, later, stamps a copy when you want one.',
+  ),
+  ...solidScriptExampleBlock('part', { name: 'Column' }, [
+    solidScriptExampleLine('cylinder', { h: '3', r1: '0.2', r2: '0.2', sides: '12', anchor: 'Center, Center, Center' }),
+  ]),
+  solidScriptExampleNote(
+    'Repeat runs the lines inside once for every number from 0 to 4. Each time, $[I$] is that number.',
+  ),
+  ...solidScriptExampleRepeat('I', '0', '4', [
+    solidScriptExampleNote(
+      'Transform opens a space for the lines until End. This one slides each stamp along X. A formula starts with $[= and is a calculation: the formula in Move spaces the five columns in a row, centered on the origin.',
+    ),
+    ...solidScriptExampleBlock('transform', { move: '[=[I] * 1.5 - 3], 0, 0' }, [
+      solidScriptExampleNote('Output $[Column$] stamps a copy of the part into that space.'),
+      solidScriptExampleLine('output', { of: '[Column]' }),
+    ]),
+  ]),
 ];
 
 /** Stepping stones from one point to another, along a gentle wave. */
 export const SOLID_SCRIPT_EXAMPLE_STEPPING_STONES: readonly SolidScriptLine[] = [
-  { command: 'note', values: { text: 'lerp walks from one vector to another; pos.Y changes one part' } },
-  {
-    command: 'input',
-    values: { name: 'Stones', type: 'Count', default: '9', min: '2', max: '40', label: 'Stones' },
-  },
-  { command: 'variable', values: { name: 'Start', value: '-4, 0, 1' } },
-  { command: 'variable', values: { name: 'Finish', value: '4, 0, -2' } },
-  { command: 'repeat', values: { variable: 'I', from: '0', to: '[=[Stones] - 1]' } },
-  { command: 'variable', values: { name: 'Pos', value: '[=Lerp([Start], [Finish], [I] / ([Stones] - 1))]' } },
-  { command: 'variable', values: { name: 'Pos.Y', value: '[=Sin([I] * 40) * 0.15]' } },
-  { command: 'transform', values: { move: '[Pos]' } },
-  { command: 'transform', values: { rotate: '0, [=[I] * 23], 0' } },
-  { command: 'cube', values: { size: '0.7, 0.15, 0.5', anchor: 'Center, Center, Center' } },
-  { command: 'end' },
-  { command: 'end' },
-  { command: 'end' },
+  solidScriptExampleNote(
+    'An Input is a knob in the inspector. Change Stones and the path gains or loses slabs. The default is 9.',
+  ),
+  solidScriptExampleInput('Stones', 'Count', '9', { min: '2', max: '40', label: 'Stones' }),
+  solidScriptExampleNote(
+    'Set gives a name to a value so you can use it later. $[Start$] and $[Finish$] are the two ends of the path, written as points.',
+  ),
+  solidScriptExampleSet('Start', '-4, 0, 1'),
+  solidScriptExampleSet('Finish', '4, 0, -2'),
+  ...solidScriptExampleRepeat('I', '0', '[=[Stones] - 1]', [
+    solidScriptExampleNote(
+      'Lerp walks from $[Start$] to $[Finish$]. The last number is how far along, from 0 at the start to 1 at the end. Then $[Pos.Y$] changes only the height, so the path has a gentle wave.',
+    ),
+    solidScriptExampleSet('Pos', '[=Lerp([Start], [Finish], [I] / ([Stones] - 1))]'),
+    solidScriptExampleSet('Pos.Y', '[=Sin([I] * 40) * 0.15]'),
+    solidScriptExampleNote('Into keeps the new slab in $[Stone$], not yet in the world.'),
+    solidScriptExampleLine('cube', { size: '0.7, 0.15, 0.5', anchor: 'Center, Center, Center', into: 'Stone' }),
+    solidScriptExampleNote('Move To puts the middle of $[Stone$] at $[Pos$].'),
+    solidScriptExampleLine('move_to', { to: '[Pos]', of: '[Stone]' }),
+    solidScriptExampleNote(
+      'Rotate To turns $[Stone$] around its middle. The middle number is the turn in degrees, a little more for each slab.',
+    ),
+    solidScriptExampleLine('rotate_to', { to: '0, [=[I] * 23], 0', of: '[Stone]' }),
+    solidScriptExampleNote('Output $[Stone$] places it in the world.'),
+    solidScriptExampleLine('output', { of: '[Stone]' }),
+  ]),
+];
+
+/** Pillars on a circle, each placed with one position vector. */
+export const SOLID_SCRIPT_EXAMPLE_PILLAR_RING: readonly SolidScriptLine[] = [
+  solidScriptExampleNote('Count and Radius are Inputs too: change them in the inspector and the ring updates.'),
+  solidScriptExampleInput('Count', 'Count', '8', { min: '3', max: '32', label: 'Pillars' }),
+  solidScriptExampleInput('Radius', 'Number', '3', { min: '0.5', max: '20', label: 'Radius' }),
+  solidScriptExampleNote('Set $[Center$] is the middle of the ring, one and a half metres up.'),
+  solidScriptExampleSet('Center', '0, 1.5, 0'),
+  ...solidScriptExampleRepeat('I', '1', '[Count]', [
+    solidScriptExampleNote(
+      'Each round, $[Angle$] is how far around the ring, in degrees. Vector, Cos and Sin turn that angle into a point on the circle, $[Radius$] metres from $[Center$].',
+    ),
+    solidScriptExampleSet('Angle', '[=360 / [Count] * [I]]'),
+    solidScriptExampleSet('Pos', '[=[Center] + Vector(Cos([Angle]), 0, -Sin([Angle])) * [Radius]]'),
+    solidScriptExampleLine('cylinder', {
+      h: '3',
+      r1: '0.25',
+      r2: '0.2',
+      sides: '12',
+      anchor: 'Center, Center, Center',
+      into: 'Pillar',
+    }),
+    solidScriptExampleLine('move_to', { to: '[Pos]', of: '[Pillar]' }),
+    solidScriptExampleLine('output', { of: '[Pillar]' }),
+  ]),
 ];
 
 /** Pebbles scattered over the top of a slab, more where the face is bigger. */

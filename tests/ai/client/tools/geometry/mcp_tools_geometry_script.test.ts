@@ -200,7 +200,8 @@ describe('SolidScript generator tools', () => {
     const columns = [...text.matchAll(/```\n(\[[\s\S]*?)```/g)][1]?.[1] ?? '';
     const set = api.invokeTool('geometry_script_generator_set', { objectId, lines: JSON.parse(columns) as unknown[] });
     const listed = (set.data as { lines: { listed: string }[] }).lines.map((line) => line.listed);
-    expect(listed[0]).toBe("Define Part 'Column'");
+    expect(listed[0]?.startsWith('*** ')).toBe(true);
+    expect(listed).toContain("Define Part 'Column'");
     expect(listed.at(-1)).toBe('End Repeat');
     expect(text).toContain(listed.join('\n'));
   });
