@@ -1,4 +1,4 @@
-import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
+import type { SolidScriptCommandCatalog } from '@/solid_script/commands/solid_script_command_catalog_base.js';
 import type { SolidScriptCommand } from '@/solid_script/commands/solid_script_command.js';
 import type { SolidScriptListingPart } from '@/solid_script/commands/solid_script_command_listing.js';
 import type { SolidScriptBlock } from '@/solid_script/document/solid_script_document.js';
@@ -68,6 +68,10 @@ export interface SolidScriptEditorRowLook {
   unknown: ReadonlySet<string>;
   /** Keys of names the error on this line points at. */
   error: ReadonlySet<string>;
+  /** Commands the line is found in. */
+  catalog: SolidScriptCommandCatalog;
+  /** True when the gutter sets breakpoints. */
+  switches: boolean;
 }
 
 /**
@@ -95,8 +99,10 @@ export function solidScriptEditorRowBuild(
   const gutter = document.createElement('div');
   gutter.className = SOLID_SCRIPT_EDITOR_CLASSES.gutter;
   gutter.textContent = String(look.line + 1);
-  gutter.title = 'Click to set or clear a breakpoint (F9)';
-  gutter.addEventListener('click', () => handlers.breakpoint(look.line));
+  if (look.switches) {
+    gutter.title = 'Click to set or clear a breakpoint (F9)';
+    gutter.addEventListener('click', () => handlers.breakpoint(look.line));
+  }
   const chip = document.createElement('div');
   chip.className = SOLID_SCRIPT_EDITOR_CLASSES.chip;
   chip.tabIndex = 0;
@@ -165,22 +171,22 @@ function solidScriptEditorRowMouseDown(
  * @param look Closed block, view switches and marks.
  */
 function solidScriptEditorChipFill(chip: HTMLElement, block: SolidScriptBlock, look: SolidScriptEditorRowLook): void {
-  const command = solidScriptCommandFind(block.command);
+  const command = look.catalog.find(block.command);
   if (solidScriptBlockIsBlank(block)) {
     chip.classList.add(SOLID_SCRIPT_EDITOR_CLASSES.blank);
     chip.title = 'Blank line. Double-click a command in the palette, or drop one here, to fill it.';
     chip.setAttribute('aria-label', 'Blank line');
     return;
   }
-  const parts = solidScriptBlockListing(block, look.closes);
+  const parts = solidScriptBlockListing(block, look.closes, look.catalog);
   const marks = { view: look.view, unknown: look.unknown, error: look.error, caret: null };
-  const shown = look.openerCommand ? solidScriptCommandFind(look.openerCommand) : command;
+  const shown = look.openerCommand ? look.catalog.find(look.openerCommand) : command;
   if (look.view.icons && shown)
     chip.append(solidScriptEditorIcon(shown.category, SOLID_SCRIPT_EDITOR_CATEGORY_COLORS[shown.category]));
   chip.append(...parts.map((part) => solidScriptEditorListingPart(part, marks)));
   chip.classList.toggle(SOLID_SCRIPT_EDITOR_CLASSES.unknown, !command);
   chip.setAttribute('aria-label', parts.map((part) => part.text).join(''));
-  chip.title = solidScriptEditorChipTitle(command, solidScriptBlockNesting(block) === 'close');
+  chip.title = solidScriptEditorChipTitle(command, solidScriptBlockNesting(block, look.catalog) === 'close');
 }
 
 /**

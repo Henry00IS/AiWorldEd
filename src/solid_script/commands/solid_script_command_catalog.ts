@@ -14,6 +14,8 @@ import { SOLID_SCRIPT_COMMANDS_GENERATORS } from './solid_script_commands_genera
 import { SOLID_SCRIPT_COMMANDS_PROGRAM } from './solid_script_commands_program.js';
 import { SOLID_SCRIPT_COMMANDS_QUERY } from './solid_script_commands_query.js';
 import { SOLID_SCRIPT_COMMANDS_CLIP } from './solid_script_commands_clip.js';
+import { SolidScriptCommandCatalog } from './solid_script_command_catalog_base.js';
+import { SOLID_SCRIPT_COMMAND_INPUT } from '@/solid_script/language/solid_script_input.js';
 
 /** Palette groups in palette order. */
 export const SOLID_SCRIPT_COMMAND_CATEGORIES: readonly SolidScriptCommandCategory[] = [
@@ -52,33 +54,41 @@ export const solidScriptCommands: readonly SolidScriptCommand[] = [
   ...SOLID_SCRIPT_COMMANDS_PROGRAM,
 ];
 
-/** Commands by id. */
-const SOLID_SCRIPT_COMMANDS_BY_ID: ReadonlyMap<string, SolidScriptCommand> = new Map(
-  solidScriptCommands.map((command) => [command.id, command]),
+/** Favorite command ids before the user changes them: Note, Echo, Set and Input. */
+export const SOLID_SCRIPT_EDITOR_FAVORITES_DEFAULT: readonly string[] = [
+  'note',
+  'echo',
+  'variable',
+  SOLID_SCRIPT_COMMAND_INPUT,
+];
+
+/** The script editor's commands. */
+export const SOLID_SCRIPT_COMMAND_CATALOG = new SolidScriptCommandCatalog(
+  'script',
+  SOLID_SCRIPT_COMMAND_CATEGORIES,
+  solidScriptCommands,
+  SOLID_SCRIPT_EDITOR_FAVORITES_DEFAULT,
 );
 
 /**
- * Finds a command.
+ * Finds a command of the script editor.
  *
  * @param id Stored command id.
  * @returns Command, or undefined when unknown.
  */
 export function solidScriptCommandFind(id: string): SolidScriptCommand | undefined {
-  return SOLID_SCRIPT_COMMANDS_BY_ID.get(id);
+  return SOLID_SCRIPT_COMMAND_CATALOG.find(id);
 }
 
 /**
- * Palette commands of one group, sorted by their display name so a new command
- * appears in order without hand-sorting the registry.
+ * Palette commands of one group of the script editor, sorted by their display
+ * name.
  *
  * @param category Palette group.
  * @returns Commands of that group, sorted by label.
  */
 export function solidScriptCommandsOfCategory(category: SolidScriptCommandCategory): SolidScriptCommand[] {
-  return solidScriptCommands
-    .filter((command) => command.inPalette && command.category === category)
-    .slice()
-    .sort((left, right) => left.label.localeCompare(right.label));
+  return SOLID_SCRIPT_COMMAND_CATALOG.ofCategory(category);
 }
 
 /**

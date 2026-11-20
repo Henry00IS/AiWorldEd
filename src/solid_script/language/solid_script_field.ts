@@ -85,7 +85,9 @@ const solidScriptFieldCache = new Map<string, SolidScriptFieldCompiled>();
 const SOLID_SCRIPT_FIELD_CACHE_LIMIT = 20000;
 
 /** One piece of field text: plain characters or a bracketed part. */
-type SolidScriptFieldPiece = { kind: 'plain'; text: string } | { kind: 'group'; pieces: SolidScriptFieldPiece[] };
+export type SolidScriptFieldPiece =
+  | { kind: 'plain'; text: string }
+  | { kind: 'group'; pieces: SolidScriptFieldPiece[]; from: number; to: number };
 
 /** A plain variable name, such as width. */
 const SOLID_SCRIPT_FIELD_NAME_PLAIN = /^[A-Za-z_]\w*$/;
@@ -121,14 +123,16 @@ export function solidScriptFieldEscapes(text: string, index: number): boolean {
 }
 
 /**
- * Splits field text into plain characters and bracketed parts.
+ * Splits field text into plain characters and bracketed parts; each part knows
+ * where its brackets stand in the text.
  *
  * @param text Field text.
  * @returns Pieces.
  */
-function solidScriptFieldPieces(text: string): SolidScriptFieldPiece[] {
+export function solidScriptFieldPieces(text: string): SolidScriptFieldPiece[] {
   const root: SolidScriptFieldPiece[] = [];
   const open: SolidScriptFieldPiece[][] = [root];
+  const groups: Extract<SolidScriptFieldPiece, { kind: 'group' }>[] = [];
   const plain = (character: string): void => {
     const into = open[open.length - 1]!;
     const last = into[into.length - 1];
@@ -141,12 +145,14 @@ function solidScriptFieldPieces(text: string): SolidScriptFieldPiece[] {
       plain(text[index + 1]!);
       index++;
     } else if (character === '[') {
-      const group: SolidScriptFieldPiece = { kind: 'group', pieces: [] };
+      const group: Extract<SolidScriptFieldPiece, { kind: 'group' }> = { kind: 'group', pieces: [], from: index, to: -1 };
       open[open.length - 1]!.push(group);
       open.push(group.pieces);
+      groups.push(group);
     } else if (character === ']') {
       if (open.length === 1) throw new Error('a ] has no [ before it; write $] for a bracket');
       open.pop();
+      groups.pop()!.to = index + 1;
     } else plain(character);
   }
   if (open.length > 1) throw new Error('a [ has no ] after it; write $[ for a bracket');

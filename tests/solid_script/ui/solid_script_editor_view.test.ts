@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { MemorySettingsStorage } from '@/settings/storage/settings_storage.js';
 import { solidScriptDocumentCreate } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptEditorRowBuild } from '@/solid_script/ui/solid_script_editor_row.js';
+import { SOLID_SCRIPT_COMMAND_CATALOG } from '@/solid_script/commands/solid_script_command_catalog.js';
 import {
   SOLID_SCRIPT_EDITOR_VIEW_DEFAULT,
   SOLID_SCRIPT_EDITOR_VIEW_KEY,
@@ -53,6 +54,8 @@ describe('SolidScript editor view', () => {
           view: { ...SOLID_SCRIPT_EDITOR_VIEW_DEFAULT, icons },
           unknown: new Set(['local.anglex']),
           error: new Set(failed ? ['local.anglex'] : []),
+          catalog: SOLID_SCRIPT_COMMAND_CATALOG,
+          switches: true,
         },
         HANDLERS,
       );
@@ -85,6 +88,8 @@ describe('SolidScript editor view', () => {
           view: { ...SOLID_SCRIPT_EDITOR_VIEW_DEFAULT, icons: true },
           unknown: new Set(),
           error: new Set(),
+          catalog: SOLID_SCRIPT_COMMAND_CATALOG,
+          switches: true,
         },
         { ...HANDLERS, jump: (line) => jumps.push(line), configure: () => jumps.push(-1) },
       );

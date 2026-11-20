@@ -1,4 +1,5 @@
-import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
+import { SOLID_SCRIPT_COMMAND_CATALOG } from '@/solid_script/commands/solid_script_command_catalog.js';
+import type { SolidScriptCommandCatalog } from '@/solid_script/commands/solid_script_command_catalog_base.js';
 import {
   solidScriptListingText,
   type SolidScriptListingPart,
@@ -14,12 +15,16 @@ const SOLID_SCRIPT_LISTING_INDENT = '    ';
  * Finds the line that opens the block every End line closes.
  *
  * @param document Script.
+ * @param catalog Commands the lines are found in.
  * @returns Opening line per line, -1 for other lines and an End without one.
  */
-export function solidScriptDocumentBlockOpeners(document: SolidScriptDocument): number[] {
+export function solidScriptDocumentBlockOpeners(
+  document: SolidScriptDocument,
+  catalog: SolidScriptCommandCatalog = SOLID_SCRIPT_COMMAND_CATALOG,
+): number[] {
   const open: number[] = [];
   return document.blocks.map((block, line) => {
-    const nesting = solidScriptBlockNesting(block);
+    const nesting = solidScriptBlockNesting(block, catalog);
     if (nesting === 'open') open.push(line);
     return nesting === 'close' ? (open.pop() ?? -1) : -1;
   });
@@ -30,15 +35,17 @@ export function solidScriptDocumentBlockOpeners(document: SolidScriptDocument): 
  *
  * @param document Script.
  * @param openers Opening line per line, from solidScriptDocumentBlockOpeners.
+ * @param catalog Commands the lines are found in.
  * @returns Name per line, empty for other lines.
  */
 export function solidScriptDocumentClosedBlocks(
   document: SolidScriptDocument,
   openers = solidScriptDocumentBlockOpeners(document),
+  catalog: SolidScriptCommandCatalog = SOLID_SCRIPT_COMMAND_CATALOG,
 ): string[] {
   return openers.map((opener) => {
     const block = document.blocks[opener];
-    return block ? (solidScriptCommandFind(block.command)?.endLabel ?? 'Block') : '';
+    return block ? (catalog.find(block.command)?.endLabel ?? 'Block') : '';
   });
 }
 
@@ -48,12 +55,17 @@ export function solidScriptDocumentClosedBlocks(
  *
  * @param block Line.
  * @param closes Label of the block an End closes.
+ * @param catalog Commands the line's command is found in.
  * @returns Pieces.
  */
-export function solidScriptBlockListing(block: SolidScriptBlock, closes: string): SolidScriptListingPart[] {
-  const command = solidScriptCommandFind(block.command);
+export function solidScriptBlockListing(
+  block: SolidScriptBlock,
+  closes: string,
+  catalog: SolidScriptCommandCatalog = SOLID_SCRIPT_COMMAND_CATALOG,
+): SolidScriptListingPart[] {
+  const command = catalog.find(block.command);
   if (!command) return [{ kind: 'name', text: `Unknown Command: ${block.command}` }];
-  if (solidScriptBlockNesting(block) === 'close' && closes) return [{ kind: 'name', text: `End ${closes}` }];
+  if (solidScriptBlockNesting(block, catalog) === 'close' && closes) return [{ kind: 'name', text: `End ${closes}` }];
   return command.listing(block.values);
 }
 

@@ -6,6 +6,10 @@ export interface SolidScriptToken {
   kind: SolidScriptTokenKind;
   text: string;
   line: number;
+  /** Index of the token's first character in the source. */
+  start: number;
+  /** Index after the token's last character in the source. */
+  end: number;
 }
 
 /** Symbols made of two characters, matched before single characters. */
@@ -55,7 +59,8 @@ export class SolidScriptLexer {
     while (this.skipBlank()) {
       this.tokens.push(this.tokenNext());
     }
-    this.tokens.push({ kind: 'end', text: '', line: this.line });
+    const length = this.source.length;
+    this.tokens.push({ kind: 'end', text: '', line: this.line, start: length, end: length });
     return this.tokens;
   }
 
@@ -112,8 +117,9 @@ export class SolidScriptLexer {
     if (identifier) {
       const word = SOLID_SCRIPT_WORD_SYMBOLS.get(identifier[0].toLowerCase());
       if (word === undefined) return this.tokenTake('identifier', identifier[0]);
+      const start = this.position;
       this.position += identifier[0].length;
-      return { kind: 'symbol', text: word, line: this.line };
+      return { kind: 'symbol', text: word, line: this.line, start, end: this.position };
     }
     if (rest[0] === '"') return this.tokenString();
     const double = SOLID_SCRIPT_SYMBOLS_DOUBLE.find((symbol) => rest.startsWith(symbol));
@@ -135,8 +141,9 @@ export class SolidScriptLexer {
    * @returns Token.
    */
   private tokenTake(kind: SolidScriptTokenKind, text: string): SolidScriptToken {
+    const start = this.position;
     this.position += text.length;
-    return { kind, text, line: this.line };
+    return { kind, text, line: this.line, start, end: this.position };
   }
 
   /**
@@ -156,7 +163,8 @@ export class SolidScriptLexer {
       index += 1;
     }
     if (index >= this.source.length) throw new Error(`line ${this.line}: unterminated string`);
+    const start = this.position;
     this.position = index + 1;
-    return { kind: 'string', text, line: this.line };
+    return { kind: 'string', text, line: this.line, start, end: this.position };
   }
 }

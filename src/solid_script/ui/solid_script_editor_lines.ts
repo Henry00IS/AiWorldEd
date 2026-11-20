@@ -1,4 +1,6 @@
 import { MenuContext } from '@/ui/menu/menu_context.js';
+import { SOLID_SCRIPT_COMMAND_CATALOG } from '@/solid_script/commands/solid_script_command_catalog.js';
+import type { SolidScriptCommandCatalog } from '@/solid_script/commands/solid_script_command_catalog_base.js';
 import { solidScriptDocumentCreate, type SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
 import {
   solidScriptDocumentDepths,
@@ -63,6 +65,23 @@ export interface SolidScriptEditorLinesHandlers {
   /** Sets or clears the breakpoint of a line. */
   breakpoint: (line: number) => void;
 }
+
+/** What kind of lines a line list shows. */
+export interface SolidScriptEditorLinesOptions {
+  /** Commands the lines are found in. */
+  catalog: SolidScriptCommandCatalog;
+  /** Accessible name of the list, such as Script. */
+  label: string;
+  /** True when lines can be turned off and hold breakpoints. */
+  switches: boolean;
+}
+
+/** Line list of the script editor. */
+export const SOLID_SCRIPT_EDITOR_LINES_SCRIPT: SolidScriptEditorLinesOptions = {
+  catalog: SOLID_SCRIPT_COMMAND_CATALOG,
+  label: 'Script',
+  switches: true,
+};
 
 /** Height of every script row in pixels; fixed so only visible rows exist. */
 export const SOLID_SCRIPT_EDITOR_ROW_PX = 24;
@@ -142,15 +161,19 @@ export class SolidScriptEditorLines {
    * Creates the line list.
    *
    * @param handlers Editor callbacks.
+   * @param options Commands, name and switches of the lines.
    */
-  constructor(private readonly handlers: SolidScriptEditorLinesHandlers) {
+  constructor(
+    private readonly handlers: SolidScriptEditorLinesHandlers,
+    private readonly options: SolidScriptEditorLinesOptions = SOLID_SCRIPT_EDITOR_LINES_SCRIPT,
+  ) {
     virtualListScrollbarBindStylesEnsure();
     this.host = document.createElement('div');
     this.host.className = SOLID_SCRIPT_EDITOR_CLASSES.linesHost;
     this.element = document.createElement('div');
     this.element.className = `${SOLID_SCRIPT_EDITOR_CLASSES.lines} ${VIRTUAL_LIST_SCROLLBAR_BIND_SCROLLER_CLASS}`;
     this.element.setAttribute('role', 'list');
-    this.element.setAttribute('aria-label', 'Script');
+    this.element.setAttribute('aria-label', options.label);
     this.canvas = document.createElement('div');
     this.canvas.className = SOLID_SCRIPT_EDITOR_CLASSES.linesCanvas;
     this.element.append(this.canvas);
@@ -168,6 +191,8 @@ export class SolidScriptEditorLines {
       selectRange: (first, last) => this.selectRange(first, last),
       configure: handlers.configure,
       notice: handlers.notice,
+      catalog: options.catalog,
+      switches: options.switches,
     });
     this.paint = new SolidScriptEditorLinePaint({
       element: () => this.element,
@@ -221,13 +246,18 @@ export class SolidScriptEditorLines {
     if (kept.size === 1 && kept.has(line)) this.focusLine(line);
     const off = this.offs[line] === true;
     this.menu?.dispose();
+    const switches = this.options.switches;
     this.menu = new MenuContext(this.element, [
       { label: 'Change…', callback: () => this.handlers.configure(line) },
-      { label: off ? 'Turn On' : 'Turn Off', callback: () => this.keys.toggle(line) },
+      ...(switches ? [{ label: off ? 'Turn On' : 'Turn Off', callback: () => this.keys.toggle(line) }] : []),
       { label: 'Duplicate', callback: () => this.keys.duplicate(line) },
       { label: 'Delete', callback: () => this.keys.remove(line) },
-      { kind: 'separator' },
-      { label: 'Toggle Breakpoint', callback: () => this.handlers.breakpoint(line) },
+      ...(switches
+        ? [
+            { kind: 'separator' as const },
+            { label: 'Toggle Breakpoint', callback: () => this.handlers.breakpoint(line) },
+          ]
+        : []),
     ]);
     this.menu.show(event.clientX, event.clientY);
   }
@@ -303,9 +333,10 @@ export class SolidScriptEditorLines {
   private documentSet(document: SolidScriptDocument): boolean {
     this.document = document;
     this.caretLine = Math.max(0, Math.min(this.caretLine, document.blocks.length - 1));
-    const depths = solidScriptDocumentDepths(document);
-    this.openers = solidScriptDocumentBlockOpeners(document);
-    const closes = solidScriptDocumentClosedBlocks(document, this.openers);
+    const catalog = this.options.catalog;
+    const depths = solidScriptDocumentDepths(document, catalog);
+    this.openers = solidScriptDocumentBlockOpeners(document, catalog);
+    const closes = solidScriptDocumentClosedBlocks(document, this.openers, catalog);
     this.offs = solidScriptDocumentOffLines(document);
     const layout = JSON.stringify([document.blocks, depths, closes]);
     const rebuilt = layout !== this.layout;
@@ -504,7 +535,7 @@ export class SolidScriptEditorLines {
           SOLID_SCRIPT_EDITOR_GUTTER_PX +
           32 +
           (depths[line] ?? 0) * SOLID_SCRIPT_EDITOR_INDENT_PX +
-          solidScriptListingText(solidScriptBlockListing(block, closes[line] ?? '')).length *
+          solidScriptListingText(solidScriptBlockListing(block, closes[line] ?? '', this.options.catalog)).length *
             SOLID_SCRIPT_EDITOR_CHAR_PX,
       ),
     );
@@ -598,6 +629,8 @@ export class SolidScriptEditorLines {
         view: this.view,
         unknown: this.unknown.get(line) ?? new Set(),
         error: line === this.marks.failed ? this.marks.error : new Set(),
+        catalog: this.options.catalog,
+        switches: this.options.switches,
       },
       handlers,
     );

@@ -6,7 +6,14 @@ import { applyFloatingPanelToolChrome } from '@/ui/floating_panel/panel_floating
 import { createFloatingPanelResizeGrip } from '@/ui/floating_panel/panel_floating_resize.js';
 import { styleFloatingPanelStatusBar } from '@/ui/floating_panel/panel_floating_status_bar.js';
 import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
-import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
+import {
+  SOLID_SCRIPT_COMMAND_CATALOG,
+  solidScriptCommandFind,
+} from '@/solid_script/commands/solid_script_command_catalog.js';
+import {
+  SOLID_SCRIPT_EDITOR_CONFIGURED_GONE,
+  SolidScriptEditorLineConfigure,
+} from './solid_script_editor_line_configure.js';
 import {
   SOLID_SCRIPT_DOCUMENT_NAME_DEFAULT,
   solidScriptDocumentCreate,
@@ -18,14 +25,8 @@ import {
 import {
   solidScriptBlockIsBlank,
   solidScriptDocumentCommandInsert,
-  solidScriptDocumentCommandWrap,
-  solidScriptDocumentLineSet,
-  type SolidScriptInsertMode,
 } from '@/solid_script/document/solid_script_document_edit.js';
-import {
-  solidScriptBlockNesting,
-  solidScriptDocumentDepths,
-} from '@/solid_script/document/solid_script_document_indent.js';
+import { solidScriptDocumentDepths } from '@/solid_script/document/solid_script_document_indent.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES, solidScriptEditorStylesheetEnsure } from './solid_script_editor_css.js';
 import { SolidScriptEditorSession } from './solid_script_editor_session.js';
 import { SolidScriptEditorPalette } from './solid_script_editor_palette.js';
@@ -43,7 +44,6 @@ import {
   solidScriptDocumentNames,
   solidScriptDocumentNamesAt,
 } from '@/solid_script/document/solid_script_document_names.js';
-import { SolidScriptConfigurator } from './solid_script_configurator.js';
 import { SolidScriptEditorSettings } from './solid_script_editor_settings.js';
 import {
   SOLID_SCRIPT_EDITOR_BOUNDS_KEY,
@@ -59,9 +59,6 @@ import { solidScriptFileDropBind, type SolidScriptFileDropResult } from './solid
 import { SOLID_SCRIPT_COMMAND_INPUT, solidScriptInputsList } from '@/solid_script/language/solid_script_input.js';
 import { SOLID_SCRIPT_SELECT_BETWEEN } from '@/solid_script/language/solid_script_select.js';
 
-/** Notice when another user deletes the line being configured. */
-const SOLID_SCRIPT_EDITOR_CONFIGURED_GONE =
-  'Someone else deleted the line you are changing. Your values were not stored; Cancel closes the window.';
 
 /** First size of the editor window. */
 
@@ -98,8 +95,8 @@ export class SolidScriptEditor extends PanelFloating {
   /** Where the window was left and how big it was, between sessions. */
   private readonly bounds = new PanelFloatingBoundsMemory(SOLID_SCRIPT_EDITOR_BOUNDS_KEY);
   private revision = '';
-  /** Id of the line whose configurator is open, or null. */
-  private configuring: string | null = null;
+  /** Inserts lines and opens their configurator windows. */
+  private readonly lineConfigure: SolidScriptEditorLineConfigure;
   private notice = '';
   private tracing = false;
   private noticeTimer: ReturnType<typeof setTimeout> | null = null;
@@ -128,10 +125,21 @@ export class SolidScriptEditor extends PanelFloating {
     );
     this.debugger = new SolidScriptEditorDebugger(this.session, () => this.debugChanged());
     this.debugger.stepMsSet(solidScriptEditorDebugSpeedMs(solidScriptEditorDebugSpeedRead()));
+    this.lineConfigure = new SolidScriptEditorLineConfigure({
+      catalog: SOLID_SCRIPT_COMMAND_CATALOG,
+      document: () => this.session.document(),
+      commit: (document, line) => this.commit(document, line),
+      notice: (text) => this.noticeShow(text),
+      names: (document, line) => solidScriptDocumentNamesAt(document, line),
+      inputs: (document) => solidScriptInputsList(document.blocks),
+      fills: () => [],
+      history: (redo) => this.historyStep(redo),
+      mount: () => this.root.ownerDocument.body,
+    });
     this.lines = new SolidScriptEditorLines({
       edit: (document, line) => this.commit(document, line),
-      configure: (line) => this.configure(line),
-      insert: (command, drop) => this.insert(command, drop.line, 'before'),
+      configure: (line) => this.lineConfigure.configure(line),
+      insert: (command, drop) => this.lineConfigure.insert(command, drop.line, 'before'),
       select: (line) => this.selectLine(line),
       notice: (text) => this.noticeShow(text),
       breakpoint: (line) => this.breakpointToggle(line),
@@ -154,7 +162,9 @@ export class SolidScriptEditor extends PanelFloating {
       const used = new Set(solidScriptDocumentNames(this.session.document()).map((entry) => entry.name));
       let name = 'width';
       for (let index = 2; used.has(name); index++) name = `input${index}`;
-      this.insert(SOLID_SCRIPT_COMMAND_INPUT, Math.max(0, last), last >= 0 ? 'caret' : 'before', { name });
+      this.lineConfigure.insert(SOLID_SCRIPT_COMMAND_INPUT, Math.max(0, last), last >= 0 ? 'caret' : 'before', {
+        name,
+      });
     };
     this.toolbar = new SolidScriptEditorToolbar({
       start: () => this.debugger.start(),
@@ -242,7 +252,7 @@ export class SolidScriptEditor extends PanelFloating {
       onClose: () => this.close(),
     });
     const palette = (this.palette = new SolidScriptEditorPalette(
-      (command) => this.insert(command, this.lines.caret(), 'caret', {}, this.lines.selectedRun()),
+      (command) => this.lineConfigure.insert(command, this.lines.caret(), 'caret', {}, this.lines.selectedRun()),
       (command) => this.help.show(command, null),
     ));
     const body = document.createElement('div');
@@ -426,7 +436,8 @@ export class SolidScriptEditor extends PanelFloating {
     this.lines.renderKeeping(document);
     this.selectLine(this.lines.caret());
     this.debugChanged();
-    if (this.configuring !== null && !document.blocks.some((block) => block.id === this.configuring))
+    const configuring = this.lineConfigure.configuring();
+    if (configuring !== null && !document.blocks.some((block) => block.id === configuring))
       this.noticeShow(SOLID_SCRIPT_EDITOR_CONFIGURED_GONE);
   }
 
@@ -558,17 +569,6 @@ export class SolidScriptEditor extends PanelFloating {
   }
 
   /**
-   * Configures a new command line, then inserts it; commands without values go
-   * in at once. A block command wraps selected lines whose blocks are whole;
-   * otherwise it goes in like any other.
-   *
-   * @param command Command id.
-   * @param line Current line or drop target.
-   * @param mode Below the current line, or before the drop target.
-   * @param start Values that replace the command's defaults.
-   * @param selected First and last selected line, to wrap, or null.
-   */
-  /**
    * Inserts a Select line above a tool that stopped for an empty Of, already
    * set to Which Between, and does not open the configurator.
    *
@@ -583,40 +583,6 @@ export class SolidScriptEditor extends PanelFloating {
     this.commit(inserted.document, inserted.line);
   }
 
-  private insert(
-    command: string,
-    line: number,
-    mode: SolidScriptInsertMode,
-    start: Record<string, string> = {},
-    selected: [number, number] | null = null,
-  ): void {
-    const found = solidScriptCommandFind(command);
-    if (!found) return;
-    const wraps =
-      selected !== null && solidScriptDocumentCommandWrap(this.session.document(), command, ...selected) !== null;
-    const place = (values?: Record<string, string>): void => {
-      const document = this.session.document();
-      const inserted =
-        (wraps && selected ? solidScriptDocumentCommandWrap(document, command, ...selected, values) : null) ??
-        solidScriptDocumentCommandInsert(document, command, line, mode, values);
-      this.commit(inserted.document, inserted.line);
-    };
-    if (found.parameters.length === 0) return place();
-    const at = wraps && selected ? selected[0] : mode === 'caret' ? line + 1 : line;
-    const names = solidScriptDocumentNamesAt(this.session.document(), at);
-    const values = { ...found.valuesDefault(), ...start };
-    new SolidScriptConfigurator(
-      this.root.ownerDocument.body,
-      found,
-      values,
-      place,
-      names,
-      null,
-      (redo) => this.historyStep(redo),
-      solidScriptInputsList(this.session.document().blocks),
-    ).show();
-  }
-
   /**
    * Opens a command a help text mentions: selects it in the palette, scrolls to
    * it and shows its help.
@@ -625,43 +591,6 @@ export class SolidScriptEditor extends PanelFloating {
    */
   private commandReveal(command: string): void {
     this.palette?.reveal(command);
-  }
-
-  /**
-   * Opens the configurator of a command line.
-   *
-   * @param line Line index.
-   */
-  private configure(line: number): void {
-    const block = this.session.document().blocks[line];
-    const command = block ? solidScriptCommandFind(block.command) : undefined;
-    if (!block || solidScriptBlockIsBlank(block))
-      return this.noticeShow('Blank line: double-click a command in the palette to fill it.');
-    if (!command) return this.noticeShow(`This editor does not know the command “${block.command}”.`);
-    if (command.parameters.length === 0)
-      return this.noticeShow(
-        `${solidScriptBlockNesting(block) === 'close' ? 'End' : command.label} has nothing to configure.`,
-      );
-    const names = solidScriptDocumentNamesAt(this.session.document(), line);
-    const apply = (values: Record<string, string>): void => {
-      this.configuring = null;
-      const document = this.session.document();
-      const index = document.blocks.findIndex((candidate) => candidate.id === block.id);
-      if (index < 0) return this.noticeShow(SOLID_SCRIPT_EDITOR_CONFIGURED_GONE);
-      const current = document.blocks[index] ?? block;
-      this.commit(solidScriptDocumentLineSet(document, index, { ...current, values }), index);
-    };
-    this.configuring = block.id;
-    new SolidScriptConfigurator(
-      this.root.ownerDocument.body,
-      command,
-      block.values,
-      apply,
-      names,
-      () => (this.configuring = null),
-      (redo) => this.historyStep(redo),
-      solidScriptInputsList(this.session.document().blocks),
-    ).show();
   }
 
   /**

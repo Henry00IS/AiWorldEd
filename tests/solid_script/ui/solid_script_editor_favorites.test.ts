@@ -1,9 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { MemorySettingsStorage } from '@/settings/storage/settings_storage.js';
-import {
-  SOLID_SCRIPT_EDITOR_FAVORITES_DEFAULT,
-  SolidScriptEditorFavorites,
-} from '@/solid_script/ui/solid_script_editor_favorites.js';
+import { SolidScriptEditorFavorites } from '@/solid_script/ui/solid_script_editor_favorites.js';
+import { SOLID_SCRIPT_EDITOR_FAVORITES_DEFAULT } from '@/solid_script/commands/solid_script_command_catalog.js';
 import { SolidScriptEditorPalette } from '@/solid_script/ui/solid_script_editor_palette.js';
 import { SOLID_SCRIPT_EDITOR_FAVORITES_KEY } from '@/solid_script/ui/solid_script_editor_splitters.js';
 

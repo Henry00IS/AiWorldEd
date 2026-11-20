@@ -1,4 +1,5 @@
-import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
+import { SOLID_SCRIPT_COMMAND_CATALOG } from '@/solid_script/commands/solid_script_command_catalog.js';
+import type { SolidScriptCommandCatalog } from '@/solid_script/commands/solid_script_command_catalog_base.js';
 import type { SolidScriptCommandNesting } from '@/solid_script/commands/solid_script_command.js';
 import type { SolidScriptBlock, SolidScriptDocument } from './solid_script_document.js';
 
@@ -7,10 +8,14 @@ import type { SolidScriptBlock, SolidScriptDocument } from './solid_script_docum
  * lines.
  *
  * @param block Line, or undefined.
+ * @param catalog Commands the line's command is found in.
  * @returns Nesting of the line's command.
  */
-export function solidScriptBlockNesting(block: SolidScriptBlock | undefined): SolidScriptCommandNesting {
-  return block ? (solidScriptCommandFind(block.command)?.nesting ?? 'none') : 'none';
+export function solidScriptBlockNesting(
+  block: SolidScriptBlock | undefined,
+  catalog: SolidScriptCommandCatalog = SOLID_SCRIPT_COMMAND_CATALOG,
+): SolidScriptCommandNesting {
+  return block ? (catalog.find(block.command)?.nesting ?? 'none') : 'none';
 }
 
 /**
@@ -19,12 +24,16 @@ export function solidScriptBlockNesting(block: SolidScriptBlock | undefined): So
  * opener.
  *
  * @param document Script.
+ * @param catalog Commands the lines are found in.
  * @returns Indent level per line.
  */
-export function solidScriptDocumentDepths(document: SolidScriptDocument): number[] {
+export function solidScriptDocumentDepths(
+  document: SolidScriptDocument,
+  catalog: SolidScriptCommandCatalog = SOLID_SCRIPT_COMMAND_CATALOG,
+): number[] {
   let depth = 0;
   return document.blocks.map((block) => {
-    const nesting = solidScriptBlockNesting(block);
+    const nesting = solidScriptBlockNesting(block, catalog);
     const shown = nesting === 'close' || nesting === 'continue' ? Math.max(0, depth - 1) : depth;
     if (nesting === 'open') depth += 1;
     if (nesting === 'close') depth = Math.max(0, depth - 1);

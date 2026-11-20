@@ -1,4 +1,5 @@
-import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
+import { SOLID_SCRIPT_COMMAND_CATALOG } from '@/solid_script/commands/solid_script_command_catalog.js';
+import type { SolidScriptCommandCatalog } from '@/solid_script/commands/solid_script_command_catalog_base.js';
 import {
   SOLID_SCRIPT_COMMAND_BLANK,
   SOLID_SCRIPT_COMMAND_END,
@@ -51,6 +52,7 @@ export function solidScriptBlockIsBlank(block: SolidScriptBlock | undefined): bo
  * @param index Current line or drop target.
  * @param mode Below the current line, or before the drop target.
  * @param values Configured values, or the command's defaults when omitted.
+ * @param catalog Commands the command is found in.
  * @returns Edited script and the command's line.
  */
 export function solidScriptDocumentCommandInsert(
@@ -59,13 +61,14 @@ export function solidScriptDocumentCommandInsert(
   index: number,
   mode: SolidScriptInsertMode,
   values?: Record<string, string>,
+  catalog: SolidScriptCommandCatalog = SOLID_SCRIPT_COMMAND_CATALOG,
 ): SolidScriptInsertResult {
   const blocks = [...document.blocks];
   const reuse = solidScriptBlockIsBlank(blocks[index]);
   const at = reuse || mode === 'before' || blocks.length === 0 ? index : index + 1;
   const line = Math.max(0, Math.min(at, blocks.length));
-  const inserted = [solidScriptBlockCreate(command, values)];
-  if (solidScriptCommandFind(command)?.nesting === 'open')
+  const inserted = [solidScriptBlockCreate(command, values, false, catalog)];
+  if (catalog.find(command)?.nesting === 'open')
     inserted.push(solidScriptBlockCreate(SOLID_SCRIPT_COMMAND_END));
   blocks.splice(line, reuse ? 1 : 0, ...inserted);
   return { document: solidScriptDocumentWith(document, blocks), line };
@@ -82,6 +85,7 @@ export function solidScriptDocumentCommandInsert(
  * @param first First selected line.
  * @param last Last selected line, after the first.
  * @param values Configured values, or the command's defaults when omitted.
+ * @param catalog Commands the command and the lines are found in.
  * @returns Edited script and the command's line, or null when the command opens
  *   no block or the lines cannot be wrapped.
  */
@@ -91,13 +95,14 @@ export function solidScriptDocumentCommandWrap(
   first: number,
   last: number,
   values?: Record<string, string>,
+  catalog: SolidScriptCommandCatalog = SOLID_SCRIPT_COMMAND_CATALOG,
 ): SolidScriptInsertResult | null {
-  if (solidScriptCommandFind(command)?.nesting !== 'open' || first < 0 || last <= first) return null;
+  if (catalog.find(command)?.nesting !== 'open' || first < 0 || last <= first) return null;
   const selected = document.blocks.slice(first, last + 1);
   if (selected.length !== last - first + 1) return null;
   let depth = 0;
   for (const block of selected) {
-    const nesting = solidScriptBlockNesting(block);
+    const nesting = solidScriptBlockNesting(block, catalog);
     if ((nesting === 'close' || nesting === 'continue') && depth === 0) return null;
     if (nesting === 'open') depth += 1;
     if (nesting === 'close') depth -= 1;
@@ -105,7 +110,7 @@ export function solidScriptDocumentCommandWrap(
   if (depth !== 0) return null;
   const blocks = [...document.blocks];
   blocks.splice(last + 1, 0, solidScriptBlockCreate(SOLID_SCRIPT_COMMAND_END));
-  blocks.splice(first, 0, solidScriptBlockCreate(command, values));
+  blocks.splice(first, 0, solidScriptBlockCreate(command, values, false, catalog));
   return { document: solidScriptDocumentWith(document, blocks), line: first };
 }
 
@@ -194,6 +199,7 @@ export function solidScriptDocumentLinesRemove(
  * @param off Off state of every line now.
  * @param opener Index of the block line.
  * @param on True looks for off End and Else lines to turn on.
+ * @param catalog Commands the lines are found in.
  * @returns Line indexes of its Else and End lines.
  */
 function solidScriptDocumentBlockPartners(
@@ -201,11 +207,12 @@ function solidScriptDocumentBlockPartners(
   off: readonly boolean[],
   opener: number,
   on: boolean,
+  catalog: SolidScriptCommandCatalog,
 ): number[] {
   const partners: number[] = [];
   let depth = 0;
   for (let line = opener + 1; line < document.blocks.length; line++) {
-    const nesting = solidScriptCommandFind(document.blocks[line]!.command)?.nesting ?? 'none';
+    const nesting = solidScriptBlockNesting(document.blocks[line], catalog);
     if (off[line]) {
       if (on && depth === 0 && nesting === 'continue') partners.push(line);
       if (on && depth === 0 && nesting === 'close') return [...partners, line];
@@ -228,12 +235,14 @@ function solidScriptDocumentBlockPartners(
  *
  * @param document Script.
  * @param lines Line indexes.
+ * @param catalog Commands the lines are found in.
  * @returns Edited script, and how many picked lines changed and whether they
  *   are off now.
  */
 export function solidScriptDocumentLinesToggle(
   document: SolidScriptDocument,
   lines: readonly number[],
+  catalog: SolidScriptCommandCatalog = SOLID_SCRIPT_COMMAND_CATALOG,
 ): { document: SolidScriptDocument; count: number; off: boolean } {
   const picked = [...new Set(lines)].filter((line) => line >= 0 && line < document.blocks.length).sort((a, b) => b - a);
   const off = !picked.every((line) => document.blocks[line]?.off === true);
@@ -243,8 +252,9 @@ export function solidScriptDocumentLinesToggle(
   const flags = [...before];
   for (const line of picked) flags[line] = off;
   for (const line of picked) {
-    if (solidScriptCommandFind(document.blocks[line]!.command)?.nesting !== 'open') continue;
-    for (const partner of solidScriptDocumentBlockPartners(document, before, line, !off)) flags[partner] = off;
+    if (solidScriptBlockNesting(document.blocks[line], catalog) !== 'open') continue;
+    for (const partner of solidScriptDocumentBlockPartners(document, before, line, !off, catalog))
+      flags[partner] = off;
   }
   const blocks = document.blocks.map((block, line) => {
     if ((block.off === true) === flags[line]) return block;
@@ -262,6 +272,7 @@ export function solidScriptDocumentLinesToggle(
  * @param index Current line.
  * @param lines Lines to insert.
  * @param keepBlank True never fills a blank current line.
+ * @param catalog Commands the lines are found in.
  * @returns Edited script and the first inserted line.
  */
 export function solidScriptDocumentLinesInsert(
@@ -269,11 +280,14 @@ export function solidScriptDocumentLinesInsert(
   index: number,
   lines: readonly { command: string; values?: Readonly<Record<string, string>>; off?: boolean }[],
   keepBlank = false,
+  catalog: SolidScriptCommandCatalog = SOLID_SCRIPT_COMMAND_CATALOG,
 ): SolidScriptInsertResult {
   const blocks = [...document.blocks];
   const reuse = !keepBlank && solidScriptBlockIsBlank(blocks[index]);
   const line = blocks.length === 0 ? 0 : Math.max(0, Math.min(reuse ? index : index + 1, blocks.length));
-  const inserted = lines.map((entry) => solidScriptBlockCreate(entry.command, { ...entry.values }, entry.off === true));
+  const inserted = lines.map((entry) =>
+    solidScriptBlockCreate(entry.command, { ...entry.values }, entry.off === true, catalog),
+  );
   blocks.splice(line, reuse ? 1 : 0, ...inserted);
   return { document: solidScriptDocumentWith(document, blocks), line };
 }

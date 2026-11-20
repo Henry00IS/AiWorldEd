@@ -31,7 +31,7 @@ export class SolidScriptParserExpression {
    * @returns Token.
    */
   protected peek(): SolidScriptToken {
-    return this.tokens[this.index] ?? { kind: 'end', text: '', line: 0 };
+    return this.tokens[this.index] ?? { kind: 'end', text: '', line: 0, start: 0, end: 0 };
   }
 
   /**
@@ -81,6 +81,42 @@ export class SolidScriptParserExpression {
     if (token.kind !== 'identifier')
       throw this.error(`a name is needed here, not "${token.text || 'the end'}"; names use letters, digits and _`);
     return token.text;
+  }
+
+  /**
+   * Notes the tokens an expression was read from. The script parser keeps no
+   * positions; a reader that needs them overrides this.
+   *
+   * @param expression Expression just read.
+   * @param _first Index of its first token.
+   * @param _parenthesized True when it was read with the parentheses around it.
+   * @returns The same expression.
+   */
+  protected expressionMark(
+    expression: SolidScriptExpression,
+    _first: number,
+    _parenthesized: boolean,
+  ): SolidScriptExpression {
+    return expression;
+  }
+
+  /**
+   * Returns the token at an index, or the end token past the last one.
+   *
+   * @param index Token index.
+   * @returns Token.
+   */
+  protected tokenAt(index: number): SolidScriptToken {
+    return this.tokens[index] ?? this.peek();
+  }
+
+  /**
+   * Returns the index of the token after the last one read.
+   *
+   * @returns Token index.
+   */
+  protected tokenIndex(): number {
+    return this.index;
   }
 
   /**
@@ -148,11 +184,16 @@ export class SolidScriptParserExpression {
    * @returns Expression.
    */
   protected parseExpression(): SolidScriptExpression {
+    const first = this.index;
     const condition = this.parseBinary(0);
     if (!this.accept('?')) return condition;
     const whenTrue = this.parseExpression();
     this.expect(':');
-    return { kind: 'ternary', condition, whenTrue, whenFalse: this.parseExpression() };
+    return this.expressionMark(
+      { kind: 'ternary', condition, whenTrue, whenFalse: this.parseExpression() },
+      first,
+      false,
+    );
   }
 
   /**
@@ -164,12 +205,14 @@ export class SolidScriptParserExpression {
   private parseBinary(level: number): SolidScriptExpression {
     const operators = SOLID_SCRIPT_BINARY_LEVELS[level];
     if (!operators) return this.parseUnary();
+    const first = this.index;
     let left = this.parseBinary(level + 1);
     for (;;) {
       const token = this.peek();
       if (token.kind !== 'symbol' || !operators.includes(token.text)) return left;
       this.next();
-      left = { kind: 'binary', operator: token.text, left, right: this.parseBinary(level + 1) };
+      const right = this.parseBinary(level + 1);
+      left = this.expressionMark({ kind: 'binary', operator: token.text, left, right }, first, false);
     }
   }
 
@@ -181,8 +224,9 @@ export class SolidScriptParserExpression {
   private parseUnary(): SolidScriptExpression {
     const token = this.peek();
     if (token.kind === 'symbol' && (token.text === '-' || token.text === '+' || token.text === '!')) {
+      const first = this.index;
       this.next();
-      return { kind: 'unary', operator: token.text, operand: this.parseUnary() };
+      return this.expressionMark({ kind: 'unary', operator: token.text, operand: this.parseUnary() }, first, false);
     }
     return this.parsePower();
   }
@@ -194,25 +238,27 @@ export class SolidScriptParserExpression {
    * @returns Expression.
    */
   private parsePower(): SolidScriptExpression {
-    const base = this.parsePostfix(this.parsePrimary());
+    const first = this.index;
+    const base = this.parsePostfix(this.parsePrimary(), first);
     if (!this.accept('^')) return base;
-    return { kind: 'binary', operator: '^', left: base, right: this.parseUnary() };
+    return this.expressionMark({ kind: 'binary', operator: '^', left: base, right: this.parseUnary() }, first, false);
   }
 
   /**
    * Parses index and member suffixes.
    *
    * @param target Expression the suffixes apply to.
+   * @param first Index of the target's first token.
    * @returns Expression.
    */
-  private parsePostfix(target: SolidScriptExpression): SolidScriptExpression {
+  private parsePostfix(target: SolidScriptExpression, first: number): SolidScriptExpression {
     for (;;) {
       if (this.accept('[')) {
         const index = this.parseExpression();
         this.expect(']');
-        target = { kind: 'index', target, index };
+        target = this.expressionMark({ kind: 'index', target, index }, first, false);
       } else if (this.accept('.')) {
-        target = { kind: 'member', target, name: this.expectIdentifier() };
+        target = this.expressionMark({ kind: 'member', target, name: this.expectIdentifier() }, first, false);
       } else {
         return target;
       }
@@ -225,16 +271,17 @@ export class SolidScriptParserExpression {
    * @returns Expression.
    */
   private parsePrimary(): SolidScriptExpression {
+    const first = this.index;
     const token = this.next();
-    if (token.kind === 'number') return { kind: 'number', value: Number(token.text) };
-    if (token.kind === 'string') return { kind: 'string', value: token.text };
-    if (token.kind === 'identifier') return this.parseName(token.text);
+    if (token.kind === 'number') return this.expressionMark({ kind: 'number', value: Number(token.text) }, first, false);
+    if (token.kind === 'string') return this.expressionMark({ kind: 'string', value: token.text }, first, false);
+    if (token.kind === 'identifier') return this.expressionMark(this.parseName(token.text), first, false);
     if (token.text === '(') {
       const inner = this.parseExpression();
       this.expect(')');
-      return inner;
+      return this.expressionMark(inner, first, true);
     }
-    if (token.text === '[') return this.parseVector();
+    if (token.text === '[') return this.expressionMark(this.parseVector(), first, false);
     throw new Error(
       token.text
         ? `line ${token.line}: "${token.text}" cannot stand here; a number, "text", [Name] or Function() was expected`

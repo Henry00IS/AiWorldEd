@@ -257,6 +257,11 @@ export interface SolidScriptCommandSpec {
   intoList?: boolean;
   /** Writes the line as the script listing shows it. */
   listing: SolidScriptListingWrite;
+  /**
+   * Checks the values of a line together, as its configurator window shows
+   * them: a problem in plain words, or an empty string.
+   */
+  check?: (values: SolidScriptCommandValues) => string;
   /** Runs the line. */
   execute: (run: SolidScriptBlockRun) => SolidScriptShape[];
 }
@@ -301,6 +306,8 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
   readonly intoList: boolean;
   /** True for tools that edit in place, or copy into a copy-style Into. */
   readonly edits: boolean;
+  /** Checks the values of a line together, when the command does. */
+  readonly check: ((values: SolidScriptCommandValues) => string) | undefined;
   private readonly writeCopy: boolean;
   private readonly listingWrite: SolidScriptListingWrite;
   private readonly run: SolidScriptCommandSpec['execute'];
@@ -333,6 +340,7 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
     this.endLabel = spec.endLabel ?? spec.label;
     this.inPalette = spec.inPalette !== false;
     this.runs = spec.runs !== false;
+    this.check = spec.check;
     this.listingWrite = solidScriptCommandListing(spec, named, this.builds, this.writeCopy);
     this.run = spec.execute;
   }

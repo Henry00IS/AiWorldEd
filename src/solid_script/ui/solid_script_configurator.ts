@@ -1,4 +1,8 @@
-import type { SolidScriptCommand, SolidScriptCommandValues } from '@/solid_script/commands/solid_script_command.js';
+import type {
+  SolidScriptCommand,
+  SolidScriptCommandParameter,
+  SolidScriptCommandValues,
+} from '@/solid_script/commands/solid_script_command.js';
 import { solidScriptParameterApplies } from '@/solid_script/commands/solid_script_command_parameters.js';
 import {
   solidScriptCommandFieldFills,
@@ -39,6 +43,9 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
    * @param cancelled Runs when the window closes without storing, or null.
    * @param history Undoes (false) or redoes (true) a step of the script's own
    *   history for Ctrl+Z and Ctrl+Y outside a text field, or null.
+   * @param inputs Input lines whose words choice fields offer.
+   * @param fills Names every field fills in besides the command's own, such as
+   *   $Face for the blocks of a Where formula.
    */
   constructor(
     host: HTMLElement,
@@ -49,6 +56,7 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
     private readonly cancelled: (() => void) | null = null,
     history: ((redo: boolean) => void) | null = null,
     private readonly inputs: readonly SolidScriptInput[] = [],
+    private readonly fills: readonly string[] = [],
   ) {
     super(host, command.label, 'OK');
     this.root.dataset['solidScriptConfigurator'] = command.id;
@@ -74,7 +82,7 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
         () => this.refresh(),
         {
           names,
-          extra: solidScriptCommandFieldFills(command, parameter, values),
+          extra: this.fillsOf(parameter, values),
           eachFillWarning: (text) => solidScriptFieldEachFillWarning(command, parameter, this.values(), text),
           values: () => this.values(),
           inputs: this.inputs,
@@ -145,7 +153,7 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
       field.element.classList.toggle(SOLID_SCRIPT_EDITOR_CLASSES.fieldEach, active);
       const icon = field.element.querySelector<HTMLElement>(`.${SOLID_SCRIPT_EDITOR_CLASSES.fieldEachIcon}`);
       if (icon) icon.hidden = !active;
-      field.fillsSet(solidScriptCommandFieldFills(this.command, parameter, values));
+      field.fillsSet(this.fillsOf(parameter, values));
       if (!parameter.writes)
         field.choicesSet(solidScriptChoiceWordsForField(parameter, values, field.read(), this.inputs));
       if (applies) shown.push(field);
@@ -168,12 +176,24 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
   }
 
   /**
+   * Lists the names a field fills in: the command's own and the window's.
+   *
+   * @param parameter Field.
+   * @param values Current values of the line.
+   * @returns Names.
+   */
+  private fillsOf(parameter: SolidScriptCommandParameter, values: SolidScriptCommandValues): string[] {
+    return [...solidScriptCommandFieldFills(this.command, parameter, values), ...this.fills];
+  }
+
+  /**
    * Checks the values together where the command reads them before running,
    * such as the type and limits of an Input line.
    *
    * @returns Problem, or an empty string.
    */
   private commandProblem(): string {
+    if (this.command.check) return this.command.check(this.values());
     if (this.command.id !== 'input') return '';
     try {
       solidScriptInputRead(this.values());

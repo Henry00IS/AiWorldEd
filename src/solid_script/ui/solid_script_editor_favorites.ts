@@ -1,28 +1,35 @@
 import { LocalSettingsStorage, type SettingsStorage } from '@/settings/storage/settings_storage.js';
-import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
-import { SOLID_SCRIPT_COMMAND_INPUT } from '@/solid_script/language/solid_script_input.js';
+import { SOLID_SCRIPT_COMMAND_CATALOG } from '@/solid_script/commands/solid_script_command_catalog.js';
+import type { SolidScriptCommandCatalog } from '@/solid_script/commands/solid_script_command_catalog_base.js';
 import { SOLID_SCRIPT_EDITOR_FAVORITES_KEY } from './solid_script_editor_splitters.js';
-
-/** Favorite command ids before the user changes them: Note, Echo, Set and Input. */
-export const SOLID_SCRIPT_EDITOR_FAVORITES_DEFAULT: readonly string[] = [
-  'note',
-  'echo',
-  'variable',
-  SOLID_SCRIPT_COMMAND_INPUT,
-];
 
 /**
  * Remembers the commands the user keeps in the palette's Favorites between
- * sessions, as command ids. Ids of commands that no longer exist are dropped
- * quietly; an empty list stays empty.
+ * sessions, as command ids, one list per catalog. Ids of commands that no
+ * longer exist are dropped quietly; an empty list stays empty.
  */
 export class SolidScriptEditorFavorites {
   /**
    * Creates the memory of the favorites.
    *
    * @param storage Storage; the browser's local storage when left out.
+   * @param catalog Commands the favorites are picked from.
    */
-  constructor(private readonly storage: SettingsStorage = new LocalSettingsStorage()) {}
+  constructor(
+    private readonly storage: SettingsStorage = new LocalSettingsStorage(),
+    private readonly catalog: SolidScriptCommandCatalog = SOLID_SCRIPT_COMMAND_CATALOG,
+  ) {}
+
+  /**
+   * Returns the storage key of the catalog's favorites.
+   *
+   * @returns Key.
+   */
+  private key(): string {
+    return this.catalog === SOLID_SCRIPT_COMMAND_CATALOG
+      ? SOLID_SCRIPT_EDITOR_FAVORITES_KEY
+      : `${SOLID_SCRIPT_EDITOR_FAVORITES_KEY}.${this.catalog.name}`;
+  }
 
   /**
    * Reads the favorite command ids.
@@ -33,12 +40,12 @@ export class SolidScriptEditorFavorites {
   read(): string[] {
     let parsed: unknown;
     try {
-      parsed = JSON.parse(this.storage.getItem(SOLID_SCRIPT_EDITOR_FAVORITES_KEY) ?? 'null');
+      parsed = JSON.parse(this.storage.getItem(this.key()) ?? 'null');
     } catch {
       parsed = null;
     }
-    const ids = Array.isArray(parsed) ? parsed : SOLID_SCRIPT_EDITOR_FAVORITES_DEFAULT;
-    const known = ids.filter((id): id is string => typeof id === 'string' && solidScriptCommandFind(id) !== undefined);
+    const ids = Array.isArray(parsed) ? parsed : this.catalog.favoritesDefault;
+    const known = ids.filter((id): id is string => typeof id === 'string' && this.catalog.find(id) !== undefined);
     return [...new Set(known)];
   }
 
@@ -51,7 +58,7 @@ export class SolidScriptEditorFavorites {
   toggle(id: string): string[] {
     const ids = this.read();
     const next = ids.includes(id) ? ids.filter((known) => known !== id) : [...ids, id];
-    this.storage.setItem(SOLID_SCRIPT_EDITOR_FAVORITES_KEY, JSON.stringify(next));
+    this.storage.setItem(this.key(), JSON.stringify(next));
     return next;
   }
 }

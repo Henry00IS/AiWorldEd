@@ -7,6 +7,7 @@ import {
   solidScriptDocumentLinesRemove,
   solidScriptDocumentLinesToggle,
 } from '@/solid_script/document/solid_script_document_edit.js';
+import type { SolidScriptCommandCatalog } from '@/solid_script/commands/solid_script_command_catalog_base.js';
 import { solidScriptEditorClipboardRead, solidScriptEditorClipboardWrite } from './solid_script_editor_clipboard.js';
 
 /** What the line keys act on. */
@@ -28,6 +29,10 @@ export interface SolidScriptEditorLineKeysHost {
   configure: (line: number) => void;
   /** Shows a short message. */
   notice: (text: string) => void;
+  /** Commands the lines are found in. */
+  catalog: SolidScriptCommandCatalog;
+  /** True when lines can be turned off and on. */
+  switches: boolean;
 }
 
 /**
@@ -164,6 +169,8 @@ export class SolidScriptEditorLineKeys {
     event.preventDefault();
     const lines = solidScriptEditorClipboardRead((event as ClipboardEvent).clipboardData ?? null);
     if (!lines || lines.length === 0) return this.host.notice('Copy lines with Ctrl+C first.');
+    if (lines.some((entry) => this.host.catalog.find(entry.command) === undefined))
+      return this.host.notice('These lines belong to another editor.');
     const first = this.host.selected()[0] ?? 0;
     const blank = solidScriptBlockIsBlank(this.host.document().blocks[first]);
     this.insertSelected(blank ? first : first - 1, lines, !blank);
@@ -176,8 +183,9 @@ export class SolidScriptEditorLineKeys {
    * @param line Line index.
    */
   toggle(line: number): void {
+    if (!this.host.switches) return;
     const lines = this.linesOf(line);
-    const toggled = solidScriptDocumentLinesToggle(this.host.document(), lines);
+    const toggled = solidScriptDocumentLinesToggle(this.host.document(), lines, this.host.catalog);
     if (toggled.count === 0) return this.host.notice('End and Else lines follow the line that opens their block.');
     const selected = this.host.selected();
     this.host.edit(toggled.document, line);
@@ -213,7 +221,13 @@ export class SolidScriptEditorLineKeys {
     lines: readonly { command: string; values?: Record<string, string> }[],
     keepBlank = false,
   ): void {
-    const inserted = solidScriptDocumentLinesInsert(this.host.document(), below, lines, keepBlank);
+    const inserted = solidScriptDocumentLinesInsert(
+      this.host.document(),
+      below,
+      lines,
+      keepBlank,
+      this.host.catalog,
+    );
     this.host.edit(inserted.document, inserted.line + lines.length - 1);
     this.host.selectRange(inserted.line, inserted.line + lines.length - 1);
   }

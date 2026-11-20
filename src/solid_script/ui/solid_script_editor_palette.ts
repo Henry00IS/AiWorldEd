@@ -1,10 +1,7 @@
 import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
 import type { SolidScriptCommand } from '@/solid_script/commands/solid_script_command.js';
-import {
-  SOLID_SCRIPT_COMMAND_CATEGORIES,
-  solidScriptCommandFind,
-  solidScriptCommandsOfCategory,
-} from '@/solid_script/commands/solid_script_command_catalog.js';
+import { SOLID_SCRIPT_COMMAND_CATALOG } from '@/solid_script/commands/solid_script_command_catalog.js';
+import type { SolidScriptCommandCatalog } from '@/solid_script/commands/solid_script_command_catalog_base.js';
 import { SOLID_SCRIPT_EDITOR_CATEGORY_COLORS, SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import { solidScriptEditorIcon } from './solid_script_editor_icons.js';
 import { SolidScriptEditorFavorites } from './solid_script_editor_favorites.js';
@@ -15,6 +12,29 @@ import { solidScriptDropOutline } from './solid_script_file_drop.js';
 
 /** Drag data type carrying the id of a command dragged out of the palette. */
 export const SOLID_SCRIPT_EDITOR_DRAG_COMMAND = 'application/x-aiworlded-solidscript-command';
+
+/** What a palette lists and how it names its entries. */
+export interface SolidScriptEditorPaletteOptions {
+  /** Commands it lists. */
+  catalog: SolidScriptCommandCatalog;
+  /** What the entries are called, such as Commands. */
+  noun: string;
+  /** What one entry is called, in lower case, such as command. */
+  singular: string;
+  /** Hover text of the search field. */
+  searchHint: string;
+  /** Where entries are dragged to, such as the script. */
+  target: string;
+}
+
+/** Palette of the script editor. */
+export const SOLID_SCRIPT_EDITOR_PALETTE_SCRIPT: SolidScriptEditorPaletteOptions = {
+  catalog: SOLID_SCRIPT_COMMAND_CATALOG,
+  noun: 'Commands',
+  singular: 'command',
+  searchHint: 'Type part of a name or what it does, such as "round" or "cut". Enter inserts the highlighted command.',
+  target: 'the script',
+};
 
 /** One command entry of the palette and its search text. */
 interface SolidScriptEditorPaletteEntry {
@@ -72,30 +92,31 @@ export class SolidScriptEditorPalette {
    * @param onInsert Inserts a command at the caret line.
    * @param onSelect Shows the help of a focused command.
    * @param favoritesMemory Remembers the favorite commands.
+   * @param options Commands it lists and how it names them.
    */
   constructor(
     private readonly onInsert: (command: string) => void,
     private readonly onSelect: (command: SolidScriptCommand) => void,
     private readonly favoritesMemory = new SolidScriptEditorFavorites(),
+    private readonly options: SolidScriptEditorPaletteOptions = SOLID_SCRIPT_EDITOR_PALETTE_SCRIPT,
   ) {
     this.element = document.createElement('div');
     this.element.className = SOLID_SCRIPT_EDITOR_CLASSES.palette;
     this.search = document.createElement('input');
     this.search.type = 'search';
     this.search.className = SOLID_SCRIPT_EDITOR_CLASSES.paletteSearch;
-    this.search.placeholder = 'Search Commands';
-    this.search.setAttribute('aria-label', 'Search Commands');
-    this.search.title =
-      'Type part of a name or what it does, such as "round" or "cut". Enter inserts the highlighted command.';
+    this.search.placeholder = `Search ${options.noun}`;
+    this.search.setAttribute('aria-label', `Search ${options.noun}`);
+    this.search.title = options.searchHint;
     this.search.addEventListener('input', () => this.filter());
     this.search.addEventListener('keydown', (event) => this.searchKey(event));
     this.list = document.createElement('div');
     this.list.className = SOLID_SCRIPT_EDITOR_CLASSES.paletteList;
     this.list.setAttribute('role', 'list');
-    this.list.setAttribute('aria-label', 'Commands');
+    this.list.setAttribute('aria-label', options.noun);
     this.empty = document.createElement('div');
     this.empty.className = SOLID_SCRIPT_EDITOR_CLASSES.paletteEmpty;
-    this.empty.textContent = 'No command matches. Try another word, or press Escape.';
+    this.empty.textContent = `No ${options.singular} matches. Try another word, or press Escape.`;
     this.empty.hidden = true;
     this.favorites.className = SOLID_SCRIPT_EDITOR_CLASSES.paletteFavorites;
     this.list.append(this.favorites);
@@ -106,8 +127,8 @@ export class SolidScriptEditorPalette {
     this.favorites.addEventListener('dragover', (event) => this.favoritesTakes(event));
     this.favorites.addEventListener('dragleave', (event) => this.favoritesLeave(event));
     this.favorites.addEventListener('drop', (event) => this.favoritesDrop(event));
-    for (const category of SOLID_SCRIPT_COMMAND_CATEGORIES) {
-      const commands = solidScriptCommandsOfCategory(category);
+    for (const category of options.catalog.categories) {
+      const commands = options.catalog.ofCategory(category);
       if (commands.length === 0) continue;
       const caption = this.caption(category);
       this.list.append(caption);
@@ -197,7 +218,7 @@ export class SolidScriptEditorPalette {
    */
   private favoritesRender(ids: readonly string[]): void {
     const commands = ids
-      .map((id) => solidScriptCommandFind(id))
+      .map((id) => this.options.catalog.find(id))
       .filter((command): command is SolidScriptCommand => command !== undefined)
       .sort((left, right) => left.label.localeCompare(right.label));
     this.favorites.replaceChildren(
@@ -292,7 +313,7 @@ export class SolidScriptEditorPalette {
     item.tabIndex = 0;
     item.draggable = true;
     item.setAttribute('role', 'listitem');
-    item.title = `${command.description}.\n${command.manual}\nDouble-click to insert below the current line, or drag into the script.`;
+    item.title = `${command.description}.\n${command.manual}\nDouble-click to insert below the current line, or drag into ${this.options.target}.`;
     const label = document.createElement('span');
     label.textContent = command.label;
     item.append(solidScriptEditorIcon(command.category, SOLID_SCRIPT_EDITOR_CATEGORY_COLORS[command.category]), label);

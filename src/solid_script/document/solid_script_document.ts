@@ -1,4 +1,5 @@
-import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
+import { SOLID_SCRIPT_COMMAND_CATALOG } from '@/solid_script/commands/solid_script_command_catalog.js';
+import type { SolidScriptCommandCatalog } from '@/solid_script/commands/solid_script_command_catalog_base.js';
 
 /** Version of the stored script format. */
 export const SOLID_SCRIPT_DOCUMENT_VERSION = 1;
@@ -76,14 +77,16 @@ export function solidScriptBlockId(): string {
  * @param command Command id.
  * @param values Values replacing defaults.
  * @param off True makes a line that is turned off.
+ * @param catalog Commands the line's command is found in.
  * @returns Line.
  */
 export function solidScriptBlockCreate(
   command: string,
   values: Record<string, string> = {},
   off = false,
+  catalog: SolidScriptCommandCatalog = SOLID_SCRIPT_COMMAND_CATALOG,
 ): SolidScriptBlock {
-  const defaults = solidScriptCommandFind(command)?.valuesDefault() ?? {};
+  const defaults = catalog.find(command)?.valuesDefault() ?? {};
   const block: SolidScriptBlock = { id: solidScriptBlockId(), command, values: { ...defaults, ...values } };
   if (off) block.off = true;
   return block;
