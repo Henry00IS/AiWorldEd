@@ -72,20 +72,27 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
       'A From other than Face, Overhead, Front or Side.',
     ],
     parameters: [
-      solidScriptParameterWords('mode', 'Mode', 'text', 'Box', 'How the coordinates are projected.', [
-        { word: 'Box', detail: "Each face uses the closest of Bevel's Overhead, Front and Side views" },
-        { word: 'Planar', detail: 'Every face uses one plane' },
-        { word: 'Cylinder', detail: 'Around an axis, height along it' },
-        { word: 'Sphere', detail: 'Around a center, from the +axis pole' },
-      ]),
-      solidScriptParameter('size', 'Size', 'number', '1', 'Metres covered by one texture repeat.'),
+      solidScriptParameterWords(
+        'mode',
+        'Mode',
+        'text',
+        'Box',
+        'How the coordinates are projected. Type one word, such as Box.',
+        [
+          { word: 'Box', detail: "Each face uses the closest of Bevel's Overhead, Front and Side views" },
+          { word: 'Planar', detail: 'Every face uses one plane' },
+          { word: 'Cylinder', detail: 'Around an axis, height along it' },
+          { word: 'Sphere', detail: 'Around a center, from the +axis pole' },
+        ],
+      ),
+      solidScriptParameter('size', 'Size', 'number', '1', 'Metres covered by one texture repeat, such as 1.'),
       solidScriptParameterWhen(
         solidScriptParameterWords(
           'space',
           'Space',
           'text',
           'Local',
-          'Local follows the shape; World stays fixed to the script, as in Bevel.',
+          'Local follows the shape; World stays fixed to the script. Type Local or World, such as Local on a swinging door and World on wallpaper that stays put.',
           [
             { word: 'Local', detail: 'Follows the shape, from its center' },
             { word: 'World', detail: 'Stays fixed to the script origin' },
@@ -95,17 +102,30 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
         ['Box', 'Planar'],
       ),
       solidScriptParameterWhen(
-        solidScriptParameterWords('from', 'From', 'text', 'Face', 'The plane Planar projects from.', [
-          { word: 'Face', detail: "Each face's own plane" },
-          { word: 'Overhead', detail: 'From above, X and Z, as in Bevel' },
-          { word: 'Front', detail: 'From the front, X and Y, as in Bevel' },
-          { word: 'Side', detail: 'From the side, Z and Y, as in Bevel' },
-        ]),
+        solidScriptParameterWords(
+          'from',
+          'From',
+          'text',
+          'Face',
+          'The plane Planar projects from. Type one word, such as Overhead, or a face such as [Front].',
+          [
+            { word: 'Face', detail: "Each face's own plane" },
+            { word: 'Overhead', detail: 'From above, along X and Z, such as looking down on a floor' },
+            { word: 'Front', detail: 'From the front, along X and Y, such as looking at a wall' },
+            { word: 'Side', detail: 'From the side, along Z and Y, such as looking from the right' },
+          ],
+        ),
         'mode',
         ['Planar'],
       ),
       solidScriptParameterWhen(
-        solidScriptParameter('axis', 'Axis', 'vector3', '0, 1, 0', 'The cylinder or sphere axis.'),
+        solidScriptParameter(
+          'axis',
+          'Axis',
+          'vector3',
+          '0, 1, 0',
+          'The cylinder or sphere axis, such as 0, 1, 0 for upright.',
+        ),
         'mode',
         ['Cylinder', 'Sphere'],
       ),
@@ -114,7 +134,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
           'center',
           'Center',
           'vector3',
-          "A point on the axis, or the sphere center; empty uses the shape's center.",
+          "A point on the axis, or the sphere center, such as 0, 0, 0; left off uses the shape's center.",
         ),
         'mode',
         ['Cylinder', 'Sphere'],
@@ -144,7 +164,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
       "Gives each face its own UV island, projected onto the face's plane with the editor's planar basis, shifted so the lowest U and V are 0. Size is metres of one texture repeat. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. Brushes stay brushes; meshes stay meshes. Use Pack Islands afterwards to fit the islands into 0 to 1. Example: Cube, Select Faces, Unwrap, Pack Islands.",
     stops: ['No faces.', 'A Size of 0 or less.'],
     parameters: [
-      solidScriptParameter('size', 'Size', 'number', '1', 'Metres covered by one texture repeat.'),
+      solidScriptParameter('size', 'Size', 'number', '1', 'Metres covered by one texture repeat, such as 1.'),
       solidScriptParameterOf('faces or brushes', '$Selected.Faces'),
     ],
     listing: (read) => [
@@ -181,7 +201,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Move, scale or rotate texture coordinates',
     manual:
-      "Offsets, scales and rotates the UV mapping of the faces in UV space. Offset is tiles added to U and V (Z is ignored), the same shift as UV Shift on Input Brushes, and is added after Scale and Rotate. Pivot is Center (the middle of the faces' UVs), Tile (the middle of the texture tile under that center, as in Bevel) or Origin (0, 0). Readable Text Yes keeps lettering readable when a later Mirror or a mirrored copy would otherwise reverse it. Textures is Move With Shape, so textures stay on their faces, or World Aligned, so they stay where they are in the world; left off, the solid keeps the Textures it already has. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. Brushes stay brushes; meshes stay meshes. Example: Project UVs, then Transform UVs Offset 0.5, 0 Rotate 90.",
+      "Offsets, scales and rotates the UV mapping of the faces in UV space. Offset is tiles added to U and V (Z is ignored), the same shift as UV Shift on Input Brushes, and is added after Scale and Rotate. Pivot is Center (the middle of the faces' UVs), Tile (the middle of the texture tile under that center, such as 0.5, 0.5) or Origin (0, 0). Readable Text Yes keeps lettering readable when a later Mirror or a mirrored copy would otherwise reverse it. Textures is Move With Shape, so textures stay on their faces, or World Aligned, so they stay where they are in the world; left off, the solid keeps the Textures it already has. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. Brushes stay brushes; meshes stay meshes. Example: Project UVs, then Transform UVs Offset 0.5, 0 Rotate 90.",
     stops: [
       'No faces.',
       'A Pivot other than Center, Tile or Origin.',
@@ -193,21 +213,34 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
         'Offset',
         'vector3',
         '0, 0, 0',
-        'Tiles added to U and V, the same as UV Shift on Input Brushes; Z is ignored.',
+        'Tiles added to U and V, the same as UV Shift on Input Brushes, such as 0.5, 0; Z is ignored.',
       ),
-      solidScriptParameter('scale', 'Scale', 'vector3', '1, 1, 1', 'Multiplier of U and V; Z is ignored.'),
-      solidScriptParameter('rotate', 'Rotate', 'number', '0', 'Rotation around the pivot, in degrees.'),
-      solidScriptParameterWords('pivot', 'Pivot', 'text', 'Center', 'The point Scale and Rotate turn about.', [
-        { word: 'Center', detail: "The middle of the faces' UVs" },
-        { word: 'Tile', detail: 'The middle of the texture tile, as in Bevel' },
-        { word: 'Origin', detail: 'U 0, V 0' },
-      ]),
+      solidScriptParameter(
+        'scale',
+        'Scale',
+        'vector3',
+        '1, 1, 1',
+        'Multiplier of U and V, such as 2, 2; Z is ignored.',
+      ),
+      solidScriptParameter('rotate', 'Rotate', 'number', '0', 'Rotation around the pivot, in degrees, such as 90.'),
+      solidScriptParameterWords(
+        'pivot',
+        'Pivot',
+        'text',
+        'Center',
+        'The point Scale and Rotate turn about. Type one word, such as Center.',
+        [
+          { word: 'Center', detail: "The middle of the faces' UVs" },
+          { word: 'Tile', detail: 'The middle of the texture tile under the UV center, such as 0.5, 0.5' },
+          { word: 'Origin', detail: 'U 0, V 0' },
+        ],
+      ),
       solidScriptParameter(
         'readable',
         'Readable Text',
         'boolean',
         'No',
-        'Yes: keeps lettering readable on a mirrored copy. No: leaves it as the reflection made it.',
+        'Yes: keeps lettering readable on a mirrored copy. No: leaves it as the reflection made it. Type Yes or No, such as Yes.',
       ),
       {
         ...solidScriptParameterWords(
@@ -215,7 +248,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
           'Textures',
           'message',
           'Move With Shape',
-          'Move With Shape keeps textures on their faces; World Aligned keeps them where they are in the world. Left off, the solid keeps the Textures it already has.',
+          'Move With Shape keeps textures on their faces; World Aligned keeps them where they are in the world. Type one of those, such as Move With Shape. Type one of those, such as Move With Shape. Left off, the solid keeps the Textures it already has.',
           [
             { word: 'Move With Shape', detail: 'Textures stay on their faces' },
             { word: 'World Aligned', detail: 'Textures stay where they are in the world' },

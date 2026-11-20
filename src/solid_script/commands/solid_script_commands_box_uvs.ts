@@ -16,7 +16,7 @@ export const SOLID_SCRIPT_COMMANDS_BOX_UVS: readonly SolidScriptCommand[] = [
       'Gives the faces Select Faces picked, or those in Of, texture coordinates projected from the side each face faces most, like wrapping it in a box of texture, so the texture keeps one size everywhere. Empty Of uses [$Selected.Faces]. Brushes stay convex brushes; meshes stay meshes. Size is how many metres one texture repeat covers. Example: Cube, Select Faces All, Box UVs with size 2 shows the texture every two metres on each side.',
     stops: ['No faces.', 'A Size of 0 or less.'],
     parameters: [
-      solidScriptParameter('size', 'Size', 'number', '1', 'Metres covered by one texture repeat.'),
+      solidScriptParameter('size', 'Size', 'number', '1', 'Metres covered by one texture repeat, such as 1.'),
       solidScriptParameterOf('faces, brushes or meshes', '$Selected.Faces'),
     ],
     listing: (read) => [

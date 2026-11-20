@@ -45,13 +45,13 @@ function solidScriptPointsFromFields(of: string, fallback: string, elements: rea
     solidScriptParameterOf(of, fallback, elements),
     {
       ...solidScriptParameterInto('the points, a list of vectors', 'Vector List', 'what is made', 'label'),
-      hint: 'Variable to write the points to, a list of vectors.',
+      hint: 'Variable to write the points to, a list of vectors, such as Path.',
     },
     {
       ...solidScriptParameterInto('the directions, a list of vectors', 'Vector List', 'directions', 'label'),
       key: 'normals',
       label: 'Normals',
-      hint: 'Optional: variable to write the direction of each point, a list of vectors.',
+      hint: 'Optional: variable to write the direction of each point, a list of vectors, such as Normals; left off writes none.',
     },
   ];
 }

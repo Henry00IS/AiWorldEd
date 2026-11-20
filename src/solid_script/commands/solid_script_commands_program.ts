@@ -55,7 +55,7 @@ const SOLID_SCRIPT_INPUT_PARAMETERS: readonly SolidScriptCommandParameter[] = [
     'Type',
     'text',
     SOLID_SCRIPT_INPUT_DEFAULTS.type,
-    `Kind of value: ${SOLID_SCRIPT_INPUT_TYPES.join(', ')}. The inspector shows a matching control.`,
+    `Kind of value: ${SOLID_SCRIPT_INPUT_TYPES.join(', ')}. Type one word, such as Number. The inspector shows a matching control.`,
     SOLID_SCRIPT_INPUT_TYPES.map((word) => ({
       word,
       detail: SOLID_SCRIPT_INPUT_TYPE_DETAILS[word],
@@ -67,13 +67,38 @@ const SOLID_SCRIPT_INPUT_PARAMETERS: readonly SolidScriptCommandParameter[] = [
     'Default',
     'text',
     '1',
-    'Value used until the inspector sets another, as plain text.',
+    'Value used until the inspector sets another, as plain text, such as 2.',
   ),
-  solidScriptParameterOptional('label', 'Label', 'text', 'Caption in the inspector. When empty, the name is shown.'),
-  solidScriptParameterOptional('min', 'Minimum', 'text', 'Smallest number allowed. Leave it empty for no limit.'),
-  solidScriptParameterOptional('max', 'Maximum', 'text', 'Largest number allowed. Leave it empty for no limit.'),
-  solidScriptParameterOptional('choices', 'Choices', 'text', 'Values a choice offers, separated by commas.'),
-  solidScriptParameterOptional('tooltip', 'Tooltip', 'text', 'Text shown when hovering the input in the inspector.'),
+  solidScriptParameterOptional(
+    'label',
+    'Label',
+    'text',
+    'Caption in the inspector, such as Wall Height. Left off, the name is shown.',
+  ),
+  solidScriptParameterOptional(
+    'min',
+    'Minimum',
+    'text',
+    'Smallest number allowed, such as 0. Left off, there is no limit.',
+  ),
+  solidScriptParameterOptional(
+    'max',
+    'Maximum',
+    'text',
+    'Largest number allowed, such as 10. Left off, there is no limit.',
+  ),
+  solidScriptParameterOptional(
+    'choices',
+    'Choices',
+    'text',
+    'Values a choice offers, separated by commas, such as Low, Medium, High.',
+  ),
+  solidScriptParameterOptional(
+    'tooltip',
+    'Tooltip',
+    'text',
+    'Text shown when hovering the input in the inspector, such as Width of the opening in metres.',
+  ),
 ].map((parameter) => (parameter.writes ? parameter : solidScriptParameterDefines(parameter)));
 
 /** The Input command, which the inspector also reads. */
@@ -144,7 +169,13 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     nesting: 'open',
     parameters: [
       solidScriptParameterDefines(
-        solidScriptParameter('title', 'Title', 'text', 'Settings', 'Heading shown above the inputs inside.'),
+        solidScriptParameter(
+          'title',
+          'Title',
+          'text',
+          'Settings',
+          'Heading shown above the inputs inside, such as Size.',
+        ),
       ),
     ],
     listing: (read) => ['Input Group', read.value('title')],
@@ -174,11 +205,17 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     nesting: 'open',
     parameters: [
       solidScriptParameterDefines(
-        solidScriptParameter('name', 'Input', 'name', 'Rails', 'Name of the Input it watches.'),
+        solidScriptParameter('name', 'Input', 'name', 'Rails', 'Name of the Input it watches, such as Style.'),
         ['Inputs'],
       ),
       solidScriptParameterDefines(
-        solidScriptParameter('value', 'Value', 'text', 'yes', 'Value that shows the inputs inside, as plain text.'),
+        solidScriptParameter(
+          'value',
+          'Value',
+          'text',
+          'yes',
+          'Value that shows the inputs inside, as plain text, such as Round.',
+        ),
       ),
     ],
     listing: (read) => ['Show Inputs When', read.value('name'), ' Is ', read.value('value')],
@@ -193,7 +230,13 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
       'Shows Text in the inspector among the inputs, where this line stands between the Input lines, such as a hint about units or what a setting does. It builds nothing. Example: Input Note Sizes are in metres above Input Width.',
     parameters: [
       solidScriptParameterDefines(
-        solidScriptParameter('text', 'Text', 'text', 'Sizes are in metres.', 'Text shown in the inspector.'),
+        solidScriptParameter(
+          'text',
+          'Text',
+          'text',
+          'Sizes are in metres.',
+          'Text shown in the inspector, such as Set the width before you run the script.',
+        ),
       ),
     ],
     runs: false,
@@ -252,7 +295,13 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     flow: { kind: 'call', name: 'name', values: 'values' },
     parameters: [
       {
-        ...solidScriptParameter('name', 'Function', 'name', 'Area', 'Name of the Function block to run.'),
+        ...solidScriptParameter(
+          'name',
+          'Function',
+          'name',
+          'Area',
+          'Name of the Function block to run, such as Staircase.',
+        ),
         accepts: ['Text'],
       },
       solidScriptParameterOptional('values', 'Values', 'text', 'Values for its Inputs, in order, such as [I], 0.2.'),
@@ -261,7 +310,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
           'result',
           'Result In',
           'target',
-          'Variable that gets the value the function gives back.',
+          'Variable that gets the value the function gives back, such as Height.',
         ),
         { rule: 'returned', what: 'returned by {name}()' },
       ),
@@ -289,7 +338,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     flow: { kind: 'handler', name: 'name' },
     parameters: [
       solidScriptParameterDefines(
-        solidScriptParameter('name', 'Input', 'name', 'Width', 'Name of the Input it watches.'),
+        solidScriptParameter('name', 'Input', 'name', 'Width', 'Name of the Input it watches, such as Style.'),
         ['Inputs'],
       ),
     ],
@@ -309,7 +358,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     flow: { kind: 'handler', name: 'name' },
     parameters: [
       solidScriptParameterDefines(
-        solidScriptParameter('name', 'Button', 'name', 'Reset', 'Name of the button Input.'),
+        solidScriptParameter('name', 'Button', 'name', 'Reset', 'Name of the button Input, such as Build.'),
         ['Inputs'],
       ),
     ],
@@ -339,14 +388,21 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     description: 'Run lines only as a generator or only as a modifier',
     manual:
       'Runs the lines inside only when the script is used the way Use names: Generator in a generator node, Modifier in the modifier stack of a brush, mesh or group. An Else starts the lines for the other use. Can Be Used As in the inspector picks the uses a script allows. Script.Usage holds the same word for formulas. Example: If Used As Modifier, a slab under [$Input.Min], Else, a cube and a slab under it.',
-    stops: ['A Use that is not Generator or Modifier.', 'A missing End line.'],
+    stops: ['A Use that is not Generator or Modifier. Type one word, such as Generator.', 'A missing End line.'],
     nesting: 'open',
     flow: { kind: 'choice' },
     parameters: [
-      solidScriptParameterWords('use', 'Use', 'text', 'Modifier', 'Generator or Modifier.', [
-        { word: 'Generator', detail: 'Placed as a generator node' },
-        { word: 'Modifier', detail: 'In the modifier stack of a brush, mesh or group' },
-      ]),
+      solidScriptParameterWords(
+        'use',
+        'Use',
+        'text',
+        'Modifier',
+        'Generator or Modifier. Type one word, such as Generator.',
+        [
+          { word: 'Generator', detail: 'Placed as a generator node' },
+          { word: 'Modifier', detail: 'In the modifier stack of a brush, mesh or group' },
+        ],
+      ),
     ],
     listing: (read) => ['If Used As', read.value('use')],
     endLabel: 'If',
@@ -370,7 +426,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
         'Textures',
         'message',
         'Move With Shape',
-        'Move With Shape keeps textures on their faces; World Aligned keeps them where they are in the world.',
+        'Move With Shape keeps textures on their faces; World Aligned keeps them where they are in the world. Type one of those, such as Move With Shape.',
         [
           {
             word: 'Move With Shape',
@@ -387,21 +443,21 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
         'Readable Text',
         'boolean',
         'Yes',
-        'Yes: flips U on a mirrored copy so lettering is not reversed. No: leaves it as the reflection made it.',
+        'Yes: flips U on a mirrored copy so lettering is not reversed. No: leaves it as the reflection made it. Type Yes or No, such as Yes.',
       ),
       solidScriptParameter(
         'uv_shift_u',
         'UV Shift U',
         'number',
         '0',
-        'Tiles to move the texture of this pass along U.',
+        'Tiles to move the texture of this pass along U, such as 0.5.',
       ),
       solidScriptParameter(
         'uv_shift_v',
         'UV Shift V',
         'number',
         '0',
-        'Tiles to move the texture of this pass along V.',
+        'Tiles to move the texture of this pass along V, such as 0.',
       ),
       solidScriptParameterInto('the brushes, a Brush list', 'Brush List', 'what is made', 'copy'),
     ],
@@ -428,10 +484,16 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     stops: ['Being placed outside When Input Changes or When Button Pressed.', 'A name that is not an Input.'],
     parameters: [
       solidScriptParameterDefines(
-        solidScriptParameter('name', 'Input', 'name', 'Width', 'Name of the Input to change.'),
+        solidScriptParameter('name', 'Input', 'name', 'Width', 'Name of the Input to change, such as Width.'),
         ['Inputs'],
       ),
-      solidScriptParameter('value', 'Value', 'value', '1', 'New value: a number, text, [Variable] or [=formula].'),
+      solidScriptParameter(
+        'value',
+        'Value',
+        'value',
+        '1',
+        'New value: a number, text, [Variable] or [=formula], such as 2 or [=[Width] / 2].',
+      ),
     ],
     listing: (read) => ['Set Input', read.value('name'), ' To ', read.value('value')],
     execute: (run) => {
@@ -447,7 +509,15 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     manual:
       'Shows a message under the inputs in the inspector, until the next change. It only works inside When Input Changes or When Button Pressed. Write plain text. [Name] and [=formula] are filled in, like in Echo. Example: Show Message Width is limited to [Max_width] m.',
     stops: ['Being placed outside When Input Changes or When Button Pressed.'],
-    parameters: [solidScriptParameter('text', 'Message', 'message', 'Checked', 'Text to show, as plain words.')],
+    parameters: [
+      solidScriptParameter(
+        'text',
+        'Message',
+        'message',
+        'Checked',
+        'Text to show, as plain words, such as The door is too narrow.',
+      ),
+    ],
     listing: (read) => ['Show Message', read.value('text')],
     execute: (run) => {
       run.notice(solidScriptValueText(run.value('text')));
@@ -472,9 +542,15 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
         'Distance',
         'number',
         '0.1',
-        'How far the edges move, in metres. Below 0 shrinks.',
+        'How far the edges move, in metres, such as 0.2. Below 0 shrinks.',
       ),
-      solidScriptParameter('round', 'Round', 'boolean', 'Yes', 'Yes: grown corners are curved. No: they stay sharp.'),
+      solidScriptParameter(
+        'round',
+        'Round',
+        'boolean',
+        'Yes',
+        'Yes: grown corners are curved. No: they stay sharp. Type Yes or No, such as Yes.',
+      ),
       solidScriptParameterSides(),
     ],
     listing: (read) => [

@@ -31,7 +31,13 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
       'Builds a box with the given width (X), height (Y) and depth (Z) in metres. Anchor picks the spot of the box that sits on the origin, the center of the generator: Center, Center, Center ⭐ by default, so its middle sits there; Center, Bottom, Center ⭐ makes it stand on the origin, and Left, Bottom, Back puts its corner there so it grows along X, Y and Z. Mode chooses how the brush combines with the ones before it: Additive, Subtractive or Intersecting. Example: a size of 2, 0.2, 1 gives a flat slab two metres wide.',
     stops: ['A size of 0 or less on any axis.', 'A size that is not one number or three numbers separated by commas.'],
     parameters: [
-      solidScriptParameter('size', 'Size', 'vector3', '1, 1, 1', 'Width (X), height (Y) and depth (Z) in metres.'),
+      solidScriptParameter(
+        'size',
+        'Size',
+        'vector3',
+        '1, 1, 1',
+        'Width (X), height (Y) and depth (Z) in metres, such as 2, 1, 2.',
+      ),
       solidScriptParameterAnchor(SOLID_SCRIPT_ANCHOR_SOLID),
       solidScriptParameterMode(),
     ],
@@ -54,7 +60,13 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
       'Builds a faceted ball with its middle on the origin by default (Center, Center, Center ⭐); Center, Bottom, Center ⭐ makes it stand on the origin. Sides sets the faces around it, Rings the bands from bottom to top. More of either looks rounder but costs more polygons. Mode chooses how the brush combines with the ones before it: Additive, Subtractive or Intersecting. Example: radius 0.5 with 8 sides and 4 rings gives a low-poly ball one metre across.',
     stops: ['A radius of 0 or less.', 'Sides outside 3 to 64 or Rings outside 2 to 32, or a count with decimals.'],
     parameters: [
-      solidScriptParameter('r', 'Radius', 'number', '1', 'Distance from the middle to the surface in metres.'),
+      solidScriptParameter(
+        'r',
+        'Radius',
+        'number',
+        '1',
+        'Distance from the middle to the surface in metres, such as 1.',
+      ),
       solidScriptParameterSides(),
       solidScriptParameterRings(),
       solidScriptParameterAnchor(SOLID_SCRIPT_ANCHOR_SOLID),
@@ -86,9 +98,15 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
       'Sides outside 3 to 64, or a count with decimals.',
     ],
     parameters: [
-      solidScriptParameter('h', 'Height', 'number', '1', 'Height along Y in metres.'),
-      solidScriptParameter('r1', 'Bottom Radius', 'number', '1', 'Radius at the bottom in metres.'),
-      solidScriptParameter('r2', 'Top Radius', 'number', '1', 'Radius at the top in metres. 0 makes a pointed cone.'),
+      solidScriptParameter('h', 'Height', 'number', '1', 'Height along Y in metres, such as 2.'),
+      solidScriptParameter('r1', 'Bottom Radius', 'number', '1', 'Radius at the bottom in metres, such as 1.'),
+      solidScriptParameter(
+        'r2',
+        'Top Radius',
+        'number',
+        '1',
+        'Radius at the top in metres, such as 0.5. 0 makes a pointed cone.',
+      ),
       solidScriptParameterAnchor(SOLID_SCRIPT_ANCHOR_SOLID),
       solidScriptParameterSides(),
       solidScriptParameterMode(),
@@ -152,7 +170,13 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
       'Adds one corner point at X, Y and Z in metres to the Polyhedron or Polygon around this line, moved by any Transform, Rotate or other move between them. A Polygon uses X and Y of its drawing and ignores Z. Each value may be a variable or a formula, so a Repeat around a Point can place many corners. Example: inside Repeat [I] From 0 To 5, Point [=Cos([I] * 60)], [=Sin([I] * 60)], 0 adds the six corners of a hexagon.',
     stops: ['Being placed outside a Polyhedron or Polygon.', 'A position that is not x, y, z.'],
     parameters: [
-      solidScriptParameter('position', 'Position', 'vector3', '0, 0, 0', 'X, Y and Z of the corner in metres.'),
+      solidScriptParameter(
+        'position',
+        'Position',
+        'vector3',
+        '0, 0, 0',
+        'X, Y and Z of the corner in metres, such as 1, 0, 0.',
+      ),
     ],
     listing: (read) => ['Point', read.value('position')],
     execute: (run) => {
@@ -173,7 +197,13 @@ export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
       'Draws a flat rectangle with the given width (X) and depth (Y of the drawing, which runs to the back once extruded) in metres, centered on the origin; Anchor picks another spot of it, such as Left, Front for the corner that ends up front left. It only works inside a Linear Extrude, which pulls it up into a solid. Example: a size of 3, 0.2 extruded by 1 gives a thin wall.',
     stops: ['A size of 0 or less on either axis.', 'Being placed outside a Linear Extrude.'],
     parameters: [
-      solidScriptParameter('size', 'Size', 'vector2', '1, 1', 'Width (X) and depth (drawing Y) in metres.'),
+      solidScriptParameter(
+        'size',
+        'Size',
+        'vector2',
+        '1, 1',
+        'Width (X) and depth (drawing Y) in metres, such as 2, 2.',
+      ),
       solidScriptParameterAnchor(SOLID_SCRIPT_ANCHOR_FLAT),
     ],
     listing: (read) => [
@@ -192,7 +222,7 @@ export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
       'Draws a flat faceted circle around the origin; Anchor moves another spot of it there, such as Left, Front for its corner. It only works inside a Linear Extrude. Sides sets how many straight edges go around it. Example: radius 1 with 6 sides extruded by 0.3 gives a hexagonal tile.',
     stops: ['A radius of 0 or less.', 'Sides outside 3 to 64.', 'Being placed outside a Linear Extrude.'],
     parameters: [
-      solidScriptParameter('r', 'Radius', 'number', '1', 'Distance from the middle to the edge in metres.'),
+      solidScriptParameter('r', 'Radius', 'number', '1', 'Distance from the middle to the edge in metres, such as 1.'),
       solidScriptParameterSides(),
       solidScriptParameterAnchor(SOLID_SCRIPT_ANCHOR_FLAT),
     ],

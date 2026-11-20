@@ -72,7 +72,8 @@ export const SOLID_SCRIPT_CONDITION_HELPERS: readonly SolidScriptConditionHelper
     key: 'in_box',
     name: 'InBox',
     display: 'In Box',
-    description: 'Yes when a point lies in an axis-aligned box of a Center and Size, including the faces of the box.',
+    description:
+      'Yes when a point lies in an axis-aligned box of a Center and Size, including the faces of the box, such as InBox([$Face.Center], Vector(0, 0, 0), 2).',
     inputs: [
       {
         name: 'point',
@@ -93,7 +94,8 @@ export const SOLID_SCRIPT_CONDITION_HELPERS: readonly SolidScriptConditionHelper
     key: 'near',
     name: 'Near',
     display: 'Near',
-    description: 'Yes when a point is within a distance of a target, including the exact distance.',
+    description:
+      'Yes when a point is within a distance of a target, including the exact distance, such as Near([$Face.Center], [Spot], 0.5).',
     inputs: [
       { name: 'point', label: 'Point', type: ['Vector'], about: 'Point to test, such as [$Face.Center].' },
       { name: 'target', label: 'Target', type: ['Vector'], about: 'Point to measure from.' },

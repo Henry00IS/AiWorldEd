@@ -90,7 +90,7 @@ function solidScriptGeneratorChoiceParameter(field: ModifierStackField, hint: st
       field.label,
       'message',
       fallback,
-      `${hint} One of: ${solidScriptGeneratorChoiceList(field)}.`,
+      `${hint} One of: ${solidScriptGeneratorChoiceList(field)}. Type one word, such as ${fallback}.`,
     ),
     words: (field.choices ?? []).map((choice) => ({
       word: solidScriptGeneratorChoiceWord(choice),
@@ -109,11 +109,38 @@ function solidScriptGeneratorChoiceParameter(field: ModifierStackField, hint: st
 function solidScriptGeneratorParameter(field: ModifierStackField): SolidScriptCommandParameter {
   const hint = field.hint ?? field.label;
   if (field.type === 'boolean')
-    return solidScriptParameter(field.key, field.label, 'boolean', field.default === true ? 'Yes' : 'No', hint);
+    return solidScriptParameter(
+      field.key,
+      field.label,
+      'boolean',
+      field.default === true ? 'Yes' : 'No',
+      solidScriptGeneratorHintExample(field, hint),
+    );
   if (field.type === 'choice') return solidScriptGeneratorChoiceParameter(field, hint);
   const range = field.min !== undefined && field.max !== undefined ? ` From ${field.min} to ${field.max}.` : '';
   const type = field.integer ? 'count' : 'number';
-  return solidScriptParameter(field.key, field.label, type, String(field.default), `${hint}${range}`);
+  return solidScriptParameter(
+    field.key,
+    field.label,
+    type,
+    String(field.default),
+    solidScriptGeneratorHintExample(field, `${hint}${range}`),
+  );
+}
+
+/**
+ * Adds a typed example to a generator field hint in the script, without
+ * changing the generator node's own hint.
+ *
+ * @param field Generator field.
+ * @param hint Hint text, with any range already appended.
+ * @returns Hint for the script field.
+ */
+function solidScriptGeneratorHintExample(field: ModifierStackField, hint: string): string {
+  if (/such as|example/i.test(hint)) return hint;
+  if (field.type === 'boolean') return `${hint} Type Yes or No, such as Yes.`;
+  const sample = field.integer ? 'a whole number' : 'a number';
+  return `${hint} Type ${sample}, such as ${field.default}.`;
 }
 
 /**
@@ -183,7 +210,7 @@ function solidScriptGeneratorCommand(kind: ModifierStackKindGenerator): SolidScr
         'Size',
         'vector3',
         SOLID_SCRIPT_GENERATOR_SIZE,
-        'Width (X), height (Y) and depth (Z) of the box it fills, in metres.',
+        'Width (X), height (Y) and depth (Z) of the box it fills, in metres, such as 2, 2, 2.',
       ),
       solidScriptParameterAnchor(SOLID_SCRIPT_ANCHOR_SOLID),
       solidScriptParameterMode(),

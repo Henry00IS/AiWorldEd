@@ -20,7 +20,13 @@ export const SOLID_SCRIPT_COMMANDS_CLIP: readonly SolidScriptCommand[] = [
       'A plane that cuts a brush or mesh away entirely, or leaves it flat.',
     ],
     parameters: [
-      solidScriptParameter('through', 'Through', 'vector3', '0, 0, 0', 'A point on the plane, in metres.'),
+      solidScriptParameter(
+        'through',
+        'Through',
+        'vector3',
+        '0, 0, 0',
+        'A point on the plane, in metres, such as 0, 1, 0.',
+      ),
       solidScriptParameter(
         'normal',
         'Normal',

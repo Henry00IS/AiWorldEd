@@ -19,22 +19,67 @@ export interface SolidScriptKindCheck {
  * IsString and IsBool. IsUndef is not a kind and stays separate.
  */
 export const SOLID_SCRIPT_KIND_CHECKS = {
-  Number: { key: 'is_num', usage: 'IsNum(value)', summary: 'Yes for a number.', checks: ['Number'] },
-  Text: { key: 'is_string', usage: 'IsString(value)', summary: 'Yes for text.', checks: ['Text'] },
-  'Yes/No': { key: 'is_bool', usage: 'IsBool(value)', summary: 'Yes for Yes or No.', checks: ['Yes/No'] },
+  Number: { key: 'is_num', usage: 'IsNum(value)', summary: 'Yes for a number, such as IsNum(3).', checks: ['Number'] },
+  Text: {
+    key: 'is_string',
+    usage: 'IsString(value)',
+    summary: 'Yes for text, such as IsString(hello).',
+    checks: ['Text'],
+  },
+  'Yes/No': {
+    key: 'is_bool',
+    usage: 'IsBool(value)',
+    summary: 'Yes for Yes or No, such as IsBool(Yes).',
+    checks: ['Yes/No'],
+  },
   Vector: {
     key: 'is_vector',
     usage: 'IsVector(value)',
-    summary: 'Yes for a vector of two or three numbers.',
+    summary: 'Yes for a vector of two or three numbers, such as IsVector(Vector(0, 1, 0)).',
     checks: ['Vector'],
   },
-  Brush: { key: 'is_brush', usage: 'IsBrush(value)', summary: 'Yes for a convex brush.', checks: ['Brush'] },
-  Mesh: { key: 'is_mesh', usage: 'IsMesh(value)', summary: 'Yes for a mesh.', checks: ['Mesh'] },
-  Face: { key: 'is_face', usage: 'IsFace(value)', summary: 'Yes for a face.', checks: ['Face'] },
-  Edge: { key: 'is_edge', usage: 'IsEdge(value)', summary: 'Yes for an edge.', checks: ['Edge'] },
-  Vertex: { key: 'is_vertex', usage: 'IsVertex(value)', summary: 'Yes for a corner.', checks: ['Vertex'] },
-  List: { key: 'is_list', usage: 'IsList(value)', summary: 'Yes for a list or vector.', checks: ['List', 'Vector'] },
-  Data: { key: 'is_data', usage: 'IsData(value)', summary: 'Yes for the values kept under .Data.', checks: ['Data'] },
+  Brush: {
+    key: 'is_brush',
+    usage: 'IsBrush(value)',
+    summary: 'Yes for a convex brush, such as IsBrush([Wall]).',
+    checks: ['Brush'],
+  },
+  Mesh: {
+    key: 'is_mesh',
+    usage: 'IsMesh(value)',
+    summary: 'Yes for a mesh, such as IsMesh([Skin]).',
+    checks: ['Mesh'],
+  },
+  Face: {
+    key: 'is_face',
+    usage: 'IsFace(value)',
+    summary: 'Yes for a face, such as IsFace([$Face]).',
+    checks: ['Face'],
+  },
+  Edge: {
+    key: 'is_edge',
+    usage: 'IsEdge(value)',
+    summary: 'Yes for an edge, such as IsEdge([$Edge]).',
+    checks: ['Edge'],
+  },
+  Vertex: {
+    key: 'is_vertex',
+    usage: 'IsVertex(value)',
+    summary: 'Yes for a corner, such as IsVertex([$Vertex]).',
+    checks: ['Vertex'],
+  },
+  List: {
+    key: 'is_list',
+    usage: 'IsList(value)',
+    summary: 'Yes for a list or vector, such as IsList($[1, 2$]).',
+    checks: ['List', 'Vector'],
+  },
+  Data: {
+    key: 'is_data',
+    usage: 'IsData(value)',
+    summary: 'Yes for the values kept under .Data, such as IsData([Brush.Data]).',
+    checks: ['Data'],
+  },
 } as const satisfies Record<string, SolidScriptKindCheck>;
 
 /** Built-in function implementation over evaluated positional arguments. */

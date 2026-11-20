@@ -108,12 +108,18 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     flow: { kind: 'loop' },
     parameters: [
       solidScriptParameterWrites(
-        solidScriptParameter('variable', 'Counter', 'name', 'I', 'Name the lines inside use for the current round.'),
+        solidScriptParameter(
+          'variable',
+          'Counter',
+          'name',
+          'I',
+          'Name the lines inside use for the current round, such as I.',
+        ),
         { rule: 'kind', kind: 'Number', what: 'counter of **{command}**' },
       ),
-      solidScriptParameter('from', 'Start', 'number', '0', 'Counter value of the first round.'),
-      solidScriptParameter('to', 'End Value', 'number', '3', 'Counter value of the last round.'),
-      solidScriptParameter('step', 'Step', 'number', '1', 'Added to the counter after each round.'),
+      solidScriptParameter('from', 'Start', 'number', '0', 'Counter value of the first round, such as 0.'),
+      solidScriptParameter('to', 'End Value', 'number', '3', 'Counter value of the last round, such as 9.'),
+      solidScriptParameter('step', 'Step', 'number', '1', 'Added to the counter after each round, such as 1.'),
     ],
     listing: (read) => [
       'Repeat',
@@ -142,7 +148,13 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     flow: { kind: 'loop' },
     parameters: [
       solidScriptParameterWrites(
-        solidScriptParameter('variable', 'Item', 'name', 'Item', 'Name the lines inside use for the current item.'),
+        solidScriptParameter(
+          'variable',
+          'Item',
+          'name',
+          'Item',
+          'Name the lines inside use for the current item, such as Face.',
+        ),
         { rule: 'item', field: 'list', what: 'item of **{command}**' },
       ),
       solidScriptParameter(
@@ -157,7 +169,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
           'key',
           'Key',
           'name',
-          'Name for the item number from 0, or the key name over Data; empty gives none.',
+          'Name for the item number from 0, or the key name over Data, such as Index; left off gives none.',
         ),
         { rule: 'key', field: 'list', what: 'key of **{command}**' },
       ),
@@ -256,7 +268,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
         'Message',
         'message',
         'Hello',
-        'Plain text; [Name] puts in a variable, [=formula] a result, $[ and $] write brackets.',
+        'Plain text, such as Hello or [=[Width]]. [Name] puts in a variable, [=formula] a result, $[ and $] write brackets.',
       ),
     ],
     listing: (read) => ['@ Echo', read.value('value')],
@@ -269,7 +281,15 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     description: 'Write a note for people',
     manual:
       'A note for people reading the script, such as what the next lines build. It does nothing when the script runs.',
-    parameters: [solidScriptParameter('text', 'Text', 'text', 'Describe this part', 'Any text.')],
+    parameters: [
+      solidScriptParameter(
+        'text',
+        'Text',
+        'text',
+        'Describe this part',
+        'Any text, such as a short reminder of what the next lines do.',
+      ),
+    ],
     runs: false,
     listing: (read) => [{ kind: 'note', text: `*** ${solidScriptListingValue(read.text('text')).text}` }],
     execute: () => [],
@@ -325,7 +345,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
             'Name',
             'name',
             'Part',
-            'The name of the part and of the variable it builds into, a Brush list. It also names the group.',
+            'The name of the part and of the variable it builds into, a Brush list, such as Knob. It also names the group.',
           ),
           { rule: 'kind', kind: 'Brush List', what: 'the brushes of **{command}**' },
           'none',
@@ -356,7 +376,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
         'value',
         'Value',
         'value',
-        'The value a Function gives back. Leave it empty to give back nothing.',
+        'The value a Function gives back, such as [Height] * 2. Left off, it gives back nothing.',
       ),
     ],
     listing: (read) => ['Return', ...(read.text('value') === '' ? [] : [read.value('value')])],

@@ -20,7 +20,7 @@ const SOLID_SCRIPT_LIST_FIELD = solidScriptParameter(
   'List',
   'name',
   'Items',
-  'Name of the list, without brackets.',
+  'Name of the list, without brackets, such as Items.',
 );
 
 /** Name field of the list a line adds to: a name not set yet becomes a list. */
@@ -38,7 +38,7 @@ const SOLID_SCRIPT_LIST_VARIABLE_FIELD = solidScriptParameter(
   'Variable',
   'name',
   'Items',
-  'Name of the variable or list, without brackets.',
+  'Name of the variable or list, without brackets, such as Items.',
 );
 
 /** Stop shared by lines that need an existing list. */
@@ -96,7 +96,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
       'A value that does not fit the Type declared for the list, such as 78o for a Number List.',
     ],
     parameters: [
-      solidScriptParameter('value', 'Value', 'value', '1', 'What to put in the list.'),
+      solidScriptParameter('value', 'Value', 'value', '1', 'What to put in the list, such as 4 or [Item].'),
       SOLID_SCRIPT_LIST_ADD,
     ],
     listing: (read) => ['Add Item', read.value('value'), ' To ', read.value('list')],
@@ -119,9 +119,15 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
       'A value that does not fit the Type declared for the list.',
     ],
     parameters: [
-      solidScriptParameter('value', 'Value', 'value', '1', 'What to put in the list.'),
+      solidScriptParameter('value', 'Value', 'value', '1', 'What to put in the list, such as 4 or [Item].'),
       SOLID_SCRIPT_LIST_ADD,
-      solidScriptParameter('at', 'Position', 'count', '0', 'Where to put it, counting from 0.'),
+      solidScriptParameter(
+        'at',
+        'Position',
+        'count',
+        '0',
+        'Where to put it, counting from 0, such as 0 to insert at the start.',
+      ),
     ],
     listing: (read) => ['Insert Item', read.value('value'), ' Into ', read.value('list'), ' At ', read.value('at')],
     execute: (run) => {
@@ -175,9 +181,15 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
       'Takes a value out of a list wherever it is. It removes the first copy, or every copy with Every Copy switched on. A value that is not in the list changes nothing. Example: Colors holds red, blue, red. Remove Value red from Colors leaves blue, red.',
     stops: [SOLID_SCRIPT_LIST_STOP],
     parameters: [
-      solidScriptParameter('value', 'Value', 'value', '1', 'What to take out.'),
+      solidScriptParameter('value', 'Value', 'value', '1', 'What to take out, such as 4 or [Item].'),
       solidScriptParameterWrites(SOLID_SCRIPT_LIST_FIELD, { rule: 'shrunk' }),
-      solidScriptParameter('every', 'Every Copy', 'boolean', 'No', 'Take out every copy, not just the first.'),
+      solidScriptParameter(
+        'every',
+        'Every Copy',
+        'boolean',
+        'No',
+        'Take out every copy, not just the first. Type Yes or No, such as Yes.',
+      ),
     ],
     listing: (read) => [
       'Remove Value',
@@ -210,10 +222,16 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
       'Looks for a value in a list and stores its position, counting from 0, in the Result variable. When the value is not there, Result is -1. Example: Colors holds red, blue. Find Item blue in Colors, result in Where, sets Where to 1.',
     stops: [SOLID_SCRIPT_LIST_STOP],
     parameters: [
-      solidScriptParameter('value', 'Value', 'value', '1', 'What to look for.'),
+      solidScriptParameter('value', 'Value', 'value', '1', 'What to look for, such as 4 or [Item].'),
       SOLID_SCRIPT_LIST_READ,
       solidScriptParameterWrites(
-        solidScriptParameter('result', 'Result In', 'name', 'Found', 'Variable that gets the position, or -1.'),
+        solidScriptParameter(
+          'result',
+          'Result In',
+          'name',
+          'Found',
+          'Variable that gets the position, or -1, such as At.',
+        ),
         { rule: 'kind', kind: 'Number', what: 'position in {list}' },
       ),
     ],
@@ -263,7 +281,13 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
       },
       {
         ...solidScriptParameterWrites(
-          solidScriptParameter('into', 'Into', 'name', 'Filtered', 'Variable that gets the items that pass, a list.'),
+          solidScriptParameter(
+            'into',
+            'Into',
+            'name',
+            'Filtered',
+            'Variable that gets the items that pass, a list, such as Filtered.',
+          ),
           { rule: 'kind', kind: 'List', what: 'filtered list of **{command}**' },
         ),
         into: 'label',
@@ -299,7 +323,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
         'Biggest First',
         'boolean',
         'No',
-        'Put the biggest number or last word first.',
+        'Put the biggest number or last word first. Type Yes or No, such as Yes.',
       ),
     ],
     listing: (read) => [

@@ -69,27 +69,33 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
     ],
     nesting: 'open',
     parameters: [
-      solidScriptParameter('move', 'Move', 'vector3', '0, 0, 0', 'Distance along X, Y and Z in metres, in this space.'),
+      solidScriptParameter(
+        'move',
+        'Move',
+        'vector3',
+        '0, 0, 0',
+        'Distance along X, Y and Z in metres, in this space, such as 0, 2, 0.',
+      ),
       solidScriptParameter(
         'rotate',
         'Rotate',
         'vector3',
         '0, 0, 0',
-        'Degrees around X, then Y, then Z, in this space.',
+        'Degrees around X, then Y, then Z, in this space, such as 0, 90, 0.',
       ),
       solidScriptParameter(
         'scale',
         'Scale',
         'vector3',
         '1, 1, 1',
-        'Stretch factor along X, Y and Z in this space. 1 keeps the size.',
+        'Stretch factor along X, Y and Z in this space, such as 2, 1, 1. 1 keeps the size.',
       ),
       {
         ...solidScriptParameterOptional(
           'on',
           'On',
           'value',
-          'Face or brush whose space the lines work in; left off keeps the parent space. A face uses the same frame as Place On Face. A brush uses its center with world axes.',
+          'Face or brush whose space the lines work in, such as [Front]; left off keeps the parent space. A face uses the same frame as Place On Face. A brush uses its center with world axes.',
         ),
         accepts: solidScriptOfAccepts(['Face', 'Brush']),
         nameGroups: ['Brushes', 'Faces'],
@@ -111,7 +117,9 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
     manual:
       'Moves the brushes, meshes or points in Of, or [$Selected.Brushes] when Of is left off, by a distance in the current space, in metres. The distance is literal: a By of 1, 0, 0 moves them one metre along X, no matter how small or large they are. Without Into the change happens where the items already are; with Into the originals stay and the moved copies are only in that variable. Example: Move By 0, 2, 0 Of [Box] raises the box two metres.',
     stops: ['No brushes, meshes or points.', 'A By that is not one number or three numbers separated by commas.'],
-    parameters: [solidScriptParameter('by', 'By', 'vector3', '0, 0, 0', 'Distance along X, Y and Z in metres.')],
+    parameters: [
+      solidScriptParameter('by', 'By', 'vector3', '0, 0, 0', 'Distance along X, Y and Z in metres, such as 0, 2, 0.'),
+    ],
     listing: (read) => ['Move By', ' ', read.value('by')],
     execute: (run) => {
       solidScriptTransformMove(run);
@@ -126,7 +134,13 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
       'Moves the brushes, meshes or points in Of, or [$Selected.Brushes] when Of is left off, so their combined center sits at To, a point in script space in metres. The combined center is the middle of the box around every point of the selection, the same middle a Center, Center, Center anchor uses. Without Into the change happens where the items already are; with Into the originals stay and the moved copies are only in that variable. Example: Move To 3, 1, 0 Of [Door] slides the door so its center sits at 3, 1, 0.',
     stops: ['No brushes, meshes or points.', 'A To that is not one number or three numbers separated by commas.'],
     parameters: [
-      solidScriptParameter('to', 'To', 'vector3', '0, 0, 0', 'Point the combined center should sit at, in metres.'),
+      solidScriptParameter(
+        'to',
+        'To',
+        'vector3',
+        '0, 0, 0',
+        'Point the combined center should sit at, in metres, such as 0, 4, 0.',
+      ),
     ],
     listing: (read) => ['Move To', ' ', read.value('to')],
     execute: (run) => {
@@ -141,7 +155,9 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
     manual:
       'Turns the brushes, meshes or points in Of, or [$Selected.Brushes] when Of is left off, around the origin of the current space, first around X, then Y, then Z, in degrees. Without Into the change happens where the items already are; with Into the originals stay and the turned copies are only in that variable. Example: Rotate By 0, 90, 0 Of [Box] turns the box a quarter turn around the upright Y axis of the current space.',
     stops: ['No brushes, meshes or points.', 'A By that is not one number or three numbers separated by commas.'],
-    parameters: [solidScriptParameter('by', 'By', 'vector3', '0, 0, 0', 'Degrees around X, then Y, then Z.')],
+    parameters: [
+      solidScriptParameter('by', 'By', 'vector3', '0, 0, 0', 'Degrees around X, then Y, then Z, such as 0, 90, 0.'),
+    ],
     listing: (read) => ['Rotate By', ' ', read.value('by'), ' Degrees'],
     execute: (run) => {
       solidScriptTransformApply(run, 'Rotate By', solidScriptRotateMatrix(run.fields(), 'by'));
@@ -155,7 +171,9 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
     manual:
       'Turns the brushes, meshes or points in Of, or [$Selected.Brushes] when Of is left off, around their combined center, first around X, then Y, then Z, in degrees, in the current space. The combined center is the middle of the box around the selection, the same point Move To uses. These angles are applied to the brushes as they are now, so a second Rotate To of the same angles turns them again. Without Into the change happens where the items already are; with Into the originals stay and the turned copies are only in that variable. Example: Rotate To 0, 90, 0 Of [Box] turns the box a quarter turn around the upright Y axis through its center.',
     stops: ['No brushes, meshes or points.', 'A To that is not one number or three numbers separated by commas.'],
-    parameters: [solidScriptParameter('to', 'To', 'vector3', '0, 0, 0', 'Degrees around X, then Y, then Z.')],
+    parameters: [
+      solidScriptParameter('to', 'To', 'vector3', '0, 0, 0', 'Degrees around X, then Y, then Z, such as 0, 90, 0.'),
+    ],
     listing: (read) => ['Rotate To', ' ', read.value('to'), ' Degrees'],
     execute: (run) => {
       solidScriptTransformRotateTo(run);
@@ -170,7 +188,13 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
       'Stretches or shrinks the brushes, meshes or points in Of, or [$Selected.Brushes] when Of is left off, measured from the origin of the current space: 1 keeps the size, 2 doubles it, 0.5 halves it. Without Into the change happens where the items already are; with Into the originals stay and the scaled copies are only in that variable. Example: Scale By 1, 1, 2 Of [Sphere] makes the sphere twice as tall, like an egg.',
     stops: ['No brushes, meshes or points.', 'A By that is not one number or three numbers separated by commas.'],
     parameters: [
-      solidScriptParameter('by', 'By', 'vector3', '1, 1, 1', 'Stretch factor along X, Y and Z. 1 keeps the size.'),
+      solidScriptParameter(
+        'by',
+        'By',
+        'vector3',
+        '1, 1, 1',
+        'Stretch factor along X, Y and Z, such as 2, 1, 1. 1 keeps the size.',
+      ),
     ],
     listing: (read) => ['Scale By', ' ', read.value('by')],
     execute: (run) => {
@@ -195,7 +219,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
         'To',
         'vector3',
         '2, 2, 2',
-        'Width (X), height (Y) and depth (Z) in metres. Every axis must be above 0.',
+        'Width (X), height (Y) and depth (Z) in metres, such as 4, 2, 4. Every axis must be above 0.',
       ),
     ],
     listing: (read) => ['Scale To', ' ', read.value('to')],
@@ -233,7 +257,15 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
     manual:
       'Flips the brushes, meshes or points in Of, or [$Selected.Brushes] when Of is left off, to the other side of a mirror through the origin of the current space. The direction says which way the mirror faces: 1, 0, 0 flips left and right. Without Into the original moves; with Into the original stays and the flipped copy is only in that variable. Example: build a post at X = 2, then Mirror Of [Post] Across 1, 0, 0 Into [Twin] keeps the post and writes its twin at X = -2.',
     stops: ['No brushes, meshes or points.', 'A direction of 0, 0, 0.'],
-    parameters: [solidScriptParameter('v', 'Plane Normal', 'vector3', '1, 0, 0', 'Direction the mirror faces.')],
+    parameters: [
+      solidScriptParameter(
+        'v',
+        'Plane Normal',
+        'vector3',
+        '1, 0, 0',
+        'Direction the mirror faces, such as 1, 0, 0 for a cut on the right.',
+      ),
+    ],
     listing: (read) => ['Mirror', ' Across ', read.value('v')],
     execute: (run) => {
       solidScriptTransformApply(run, 'Mirror', solidScriptMirrorMatrix(run.fields()));
@@ -257,14 +289,14 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
         'Size',
         'vector3',
         '2, 2, 2',
-        'Width (X), height (Y) and depth (Z) in metres. 0 keeps an axis.',
+        'Width (X), height (Y) and depth (Z) in metres, such as 4, 0, 0 to stretch only the width. 0 keeps an axis.',
       ),
       solidScriptParameter(
         'keep',
         'Keep Proportions',
         'boolean',
         'No',
-        'Yes: axes with a size of 0 scale like the first axis that has one.',
+        'Yes: axes with a size of 0 scale like the first axis that has one. Type Yes or No, such as Yes.',
       ),
     ],
     listing: (read) => [
@@ -286,9 +318,24 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
       'Moves the brushes, meshes or points in Of, or [$Selected.Brushes] when Of is left off, by a 3 by 4 matrix, one row per axis: the new X is Row 1 times x, y, z, 1, and so on, in the current space. The fourth number of a row moves along that axis. It can do everything Move By, Rotate By, Scale By and Mirror do, and slant (shear) too. Without Into the change happens where the items already are; with Into the originals stay and the copies are only in that variable. Example: Matrix Of [Box] with Row 1 of 1, 0, 0.5, 0 leans the box over, moving its top half a metre along X per metre of height.',
     stops: ['No brushes, meshes or points.', 'A row that is not four numbers.', 'A matrix that squashes shapes flat.'],
     parameters: [
-      solidScriptParameterRow('row1', 'Row 1', '1, 0, 0, 0', 'How X is made from x, y, z, plus a move along X.'),
-      solidScriptParameterRow('row2', 'Row 2', '0, 1, 0, 0', 'How Y is made from x, y, z, plus a move along Y.'),
-      solidScriptParameterRow('row3', 'Row 3', '0, 0, 1, 0', 'How Z is made from x, y, z, plus a move along Z.'),
+      solidScriptParameterRow(
+        'row1',
+        'Row 1',
+        '1, 0, 0, 0',
+        'How X is made from x, y, z, plus a move along X, such as 1, 0, 0, 2 to move 2 metres right.',
+      ),
+      solidScriptParameterRow(
+        'row2',
+        'Row 2',
+        '0, 1, 0, 0',
+        'How Y is made from x, y, z, plus a move along Y, such as 0, 1, 0, 0.',
+      ),
+      solidScriptParameterRow(
+        'row3',
+        'Row 3',
+        '0, 0, 1, 0',
+        'How Z is made from x, y, z, plus a move along Z, such as 0, 0, 1, 0.',
+      ),
     ],
     listing: (read) => ['Matrix', ' ', read.value('row1'), ' / ', read.value('row2'), ' / ', read.value('row3')],
     execute: (run) => {

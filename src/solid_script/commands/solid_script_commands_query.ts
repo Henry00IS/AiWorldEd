@@ -26,7 +26,7 @@ export const SOLID_SCRIPT_COMMANDS_QUERY: readonly SolidScriptCommand[] = [
         'How',
         'text',
         'Closest',
-        'How to look: Closest for the nearest point to From, or Along Ray for the first face the ray meets.',
+        'How to look: Closest for the nearest point to From, or Along Ray for the first face the ray meets. Type Closest or Along Ray, such as Closest.',
         [
           { word: 'Closest', detail: 'The nearest point to From on any face' },
           {
@@ -40,7 +40,7 @@ export const SOLID_SCRIPT_COMMANDS_QUERY: readonly SolidScriptCommand[] = [
         'From',
         'vector3',
         '0, 0, 0',
-        'Point to measure from, or the start of the ray, in metres.',
+        'Point to measure from, or the start of the ray, in metres, such as 0, 2, 0.',
       ),
       solidScriptParameterWhen(
         solidScriptParameter(
@@ -48,7 +48,7 @@ export const SOLID_SCRIPT_COMMANDS_QUERY: readonly SolidScriptCommand[] = [
           'Direction',
           'vector3',
           '0, 1, 0',
-          'The way the ray travels, when How is Along Ray.',
+          'The way the ray travels, when How is Along Ray, such as 0, -1, 0 to go down.',
         ),
         'how',
         ['Along Ray'],
@@ -56,7 +56,7 @@ export const SOLID_SCRIPT_COMMANDS_QUERY: readonly SolidScriptCommand[] = [
       solidScriptParameterOf('faces or brushes', '$Selected.Faces'),
       {
         ...solidScriptParameterInto('the hit point, a Vector', 'Vector', 'hit point', 'label'),
-        hint: 'Variable to write the point to, a vector. Empty writes none.',
+        hint: 'Variable to write the point to, a vector, such as Hit; left off writes none.',
       },
       {
         ...solidScriptParameterInto('how far the hit is, in metres, a Number', 'Number', 'distance', 'label'),

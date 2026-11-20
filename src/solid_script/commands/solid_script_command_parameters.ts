@@ -151,7 +151,7 @@ export function solidScriptParameterAnchor(axes: readonly SolidScriptAnchorAxis[
       'Anchor',
       'message',
       solidScriptAnchorDefault(axes),
-      `The spot of the brush that sits on the origin, the center of the generator: ${words.join(', ')}.`,
+      `The spot of the brush that sits on the origin, the center of the generator: ${words.join(', ')}. Type one word per axis, such as Center, Bottom, Center to stand on the origin.`,
     ),
     anchor: axes,
     accepts: ['Text', 'Text List'],
@@ -179,7 +179,7 @@ export function solidScriptParameterSides(): SolidScriptCommandParameter {
     'Sides',
     'count',
     String(SOLID_SCRIPT_SIDES.default),
-    `Faces around the axis, ${SOLID_SCRIPT_SIDES.min} to ${SOLID_SCRIPT_SIDES.max}. More sides look rounder and cost more polygons.`,
+    `Faces around the axis, ${SOLID_SCRIPT_SIDES.min} to ${SOLID_SCRIPT_SIDES.max}, such as 16. More sides look rounder and cost more polygons.`,
   );
 }
 
@@ -194,7 +194,7 @@ export function solidScriptParameterRings(): SolidScriptCommandParameter {
     'Rings',
     'count',
     String(SOLID_SCRIPT_RINGS.default),
-    `Bands from the bottom to the top, ${SOLID_SCRIPT_RINGS.min} to ${SOLID_SCRIPT_RINGS.max}. More rings look rounder and cost more polygons.`,
+    `Bands from the bottom to the top, ${SOLID_SCRIPT_RINGS.min} to ${SOLID_SCRIPT_RINGS.max}, such as 8. More rings look rounder and cost more polygons.`,
   );
 }
 
@@ -263,7 +263,12 @@ export function solidScriptParameterInto(
 ): SolidScriptCommandParameter {
   return {
     ...solidScriptParameterWrites(
-      solidScriptParameterOptional('into', 'Into', 'name', `Variable to write ${what} to; empty writes none.`),
+      solidScriptParameterOptional(
+        'into',
+        'Into',
+        'name',
+        `Variable to write ${what} to, such as Held; left off writes none.`,
+      ),
       { rule: 'kind', kind, what: `${detail} of **{command}**` },
     ),
     into,
@@ -283,7 +288,7 @@ export function solidScriptParameterToolInto(): SolidScriptCommandParameter {
         'into',
         'Into',
         'name',
-        'Variable for the edited copy; empty edits in place. When set, the original stays and the result is only in this variable.',
+        'Variable for the edited copy, such as Edited; left off edits in place. When set, the original stays and the result is only in this variable.',
       ),
       { rule: 'kind', kind: 'Brush List', what: 'edited copy of **{command}**' },
     ),
@@ -384,7 +389,7 @@ export function solidScriptParameterMode(): SolidScriptCommandParameter {
       'Mode',
       'message',
       SOLID_SCRIPT_MODE_DEFAULT,
-      'How this brush combines with the ones before it in the scene: Additive adds it, Subtractive cuts it out of them, Intersecting keeps only the overlap.',
+      'How this brush combines with the ones before it in the scene: Additive adds it, Subtractive cuts it out of them, Intersecting keeps only the overlap. Type one word, such as Subtractive to cut a doorway.',
       SOLID_SCRIPT_MODE_WORDS,
     ),
     optional: true,
@@ -405,7 +410,7 @@ export function solidScriptParameterGroupMode(): SolidScriptCommandParameter {
       'Mode',
       'message',
       SOLID_SCRIPT_GROUP_MODE_DEFAULT,
-      'How this group combines with the ones before it: Additive adds it, Subtractive cuts it out of them, Intersecting keeps only the overlap, Pass-Through acts like a folder.',
+      'How this group combines with the ones before it: Additive adds it, Subtractive cuts it out of them, Intersecting keeps only the overlap, Pass-Through acts like a folder. Type one word, such as Subtractive so the group as a whole cuts.',
       SOLID_SCRIPT_GROUP_MODE_WORDS,
     ),
     optional: true,

@@ -161,7 +161,7 @@ function solidScriptSelectCommand(kind: SolidScriptSelectKind): SolidScriptComma
         'Which',
         'text',
         'All',
-        `How to pick. One of: ${words.join(', ')}.`,
+        `How to pick. One of: ${words.join(', ')}. Type one word, such as All.`,
         kind.words,
       ),
       {
@@ -179,7 +179,7 @@ function solidScriptSelectCommand(kind: SolidScriptSelectKind): SolidScriptComma
         'How',
         'text',
         'New',
-        'New starts again, Add picks more, Remove drops them. One of: New, Add, Remove.',
+        'New starts again, Add picks more, Remove drops them. One of: New, Add, Remove. Type one word, such as Add.',
         SOLID_SCRIPT_SELECT_HOW,
       ),
       solidScriptParameterInto(
