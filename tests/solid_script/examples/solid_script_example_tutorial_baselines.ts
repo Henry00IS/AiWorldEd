@@ -194,4 +194,73 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
       values: { distance: '[=[Height] * (Noise([$X], 0, [$Z], [Scale], [Seed]) * 2 - 1)]' },
     },
   ],
+
+  spikyBall: [
+    { command: 'note', values: { text: 'Align To turns each spike so its Y follows the face it stands on' } },
+    {
+      command: 'input',
+      values: { name: 'Spikes', type: 'Count', default: '30', min: '1', max: '200', label: 'Spikes' },
+    },
+    { command: 'sphere', values: { r: '1', anchor: 'Center, Center, Center' } },
+    { command: 'select_brushes' },
+    { command: 'select_faces', values: { which: 'All' } },
+    { command: 'scatter_points', values: { count: '[Spikes]', seed: '5', into: 'Spots', normals: 'Ways' } },
+    { command: 'for_each', values: { variable: 'Spot', list: '[Spots]', key: 'I' } },
+    { command: 'transform', values: { move: '[Spot]' } },
+    { command: 'cylinder', values: { h: '0.5', r1: '0.08', r2: '0', anchor: 'Center, Center, Center', into: 'Spike' } },
+    { command: 'align', values: { direction: '[Ways([I])]', of: '[Spike]' } },
+    { command: 'end' },
+    { command: 'output', values: { of: '[Spike]' } },
+    { command: 'end' },
+  ],
+  pedestal: [
+    { command: 'note', values: { text: 'Works as a generator and as a modifier on a brush, mesh or group' } },
+    {
+      command: 'input',
+      values: { name: 'Margin', type: 'Number', default: '0.2', min: '0', max: '2', label: 'Margin' },
+    },
+    {
+      command: 'input',
+      values: { name: 'Thickness', type: 'Number', default: '0.2', min: '0.05', max: '2', label: 'Thickness' },
+    },
+    { command: 'variable', values: { name: 'Low', value: '-0.5' } },
+    { command: 'variable', values: { name: 'Width', value: '1' } },
+    { command: 'variable', values: { name: 'Depth', value: '1' } },
+    { command: 'if_used_as', values: { use: 'Modifier' } },
+    { command: 'variable', values: { name: 'Low', value: '[$Input.Min.Y]' } },
+    { command: 'variable', values: { name: 'Width', value: '[$Input.Size.X]' } },
+    { command: 'variable', values: { name: 'Depth', value: '[$Input.Size.Z]' } },
+    { command: 'input_brushes', values: { textures: 'Move With Shape' } },
+    { command: 'else' },
+    { command: 'cube', values: { size: '1, 1, 1', anchor: 'Center, Center, Center' } },
+    { command: 'end' },
+    { command: 'transform', values: { move: '0, [=[Low] - [Thickness] / 2], 0' } },
+    {
+      command: 'cube',
+      values: {
+        size: '[=[Width] + 2 * [Margin]], [Thickness], [=[Depth] + 2 * [Margin]]',
+        anchor: 'Center, Center, Center',
+      },
+    },
+    { command: 'end' },
+  ],
+  pushOutFaces: [
+    {
+      command: 'note',
+      values: { text: 'Push Out Faces: a slab off every face of every brush it receives; the brushes go.' },
+    },
+    {
+      command: 'input',
+      values: { name: 'Distance', type: 'Number', default: '0.25', label: 'Distance', min: '0', max: '10' },
+    },
+    {
+      command: 'input',
+      values: { name: 'Thickness', type: 'Number', default: '0.1', label: 'Thickness', min: '0.001', max: '10' },
+    },
+    { command: 'for_each', values: { variable: 'Brush', list: '[$Input.Brushes]' } },
+    { command: 'select_faces', values: { which: 'All', of: '[Brush]' } },
+    { command: 'note', values: { text: 'Each face moves out along the way it points, then gets its thickness.' } },
+    { command: 'extrude_face', values: { distance: '[Thickness]', lift: '[Distance]' } },
+    { command: 'end' },
+  ],
 };

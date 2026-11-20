@@ -139,22 +139,30 @@ export const SOLID_SCRIPT_EXAMPLE_PEBBLES: readonly SolidScriptLine[] = [
 
 /** Spikes growing straight out of a ball at scattered points. */
 export const SOLID_SCRIPT_EXAMPLE_SPIKY_BALL: readonly SolidScriptLine[] = [
-  { command: 'note', values: { text: 'Align To turns each spike so its Y follows the face it stands on' } },
-  {
-    command: 'input',
-    values: { name: 'Spikes', type: 'Count', default: '30', min: '1', max: '200', label: 'Spikes' },
-  },
-  { command: 'sphere', values: { r: '1', anchor: 'Center, Center, Center' } },
-  { command: 'select_brushes' },
-  { command: 'select_faces', values: { which: 'All' } },
-  { command: 'scatter_points', values: { count: '[Spikes]', seed: '5', into: 'Spots', normals: 'Ways' } },
-  { command: 'for_each', values: { variable: 'Spot', list: '[Spots]', key: 'I' } },
-  { command: 'transform', values: { move: '[Spot]' } },
-  { command: 'cylinder', values: { h: '0.5', r1: '0.08', r2: '0', anchor: 'Center, Center, Center', into: 'Spike' } },
-  { command: 'align', values: { direction: '[Ways([I])]', of: '[Spike]' } },
-  { command: 'end' },
-  { command: 'output', values: { of: '[Spike]' } },
-  { command: 'end' },
+  solidScriptExampleInput('Spikes', 'Count', '30', { min: '1', max: '200', label: 'Spikes' }),
+  solidScriptExampleLine('sphere', { r: '1', anchor: 'Center, Center, Center' }),
+  solidScriptExampleLine('select_brushes'),
+  solidScriptExampleNote('Every face of the ball is selected, so spikes can grow all around it.'),
+  solidScriptExampleLine('select_faces', { which: 'All' }),
+  solidScriptExampleNote("Scatter's Normals writes the face direction at each spot into $[Ways$]."),
+  solidScriptExampleLine('scatter_points', { count: '[Spikes]', seed: '5', into: 'Spots', normals: 'Ways' }),
+  ...solidScriptExampleBlock('for_each', { variable: 'Spot', list: '[Spots]', key: 'I' }, [
+    ...solidScriptExampleBlock('transform', { move: '[Spot]' }, [
+      solidScriptExampleNote(
+        'The cylinder is built Into $[Spike$], so it is not in the world yet. Align To turns it so its up follows the face, using $[Ways$] at this spike.',
+      ),
+      solidScriptExampleLine('cylinder', {
+        h: '0.5',
+        r1: '0.08',
+        r2: '0',
+        anchor: 'Center, Center, Center',
+        into: 'Spike',
+      }),
+      solidScriptExampleLine('align', { direction: '[Ways([I])]', of: '[Spike]' }),
+    ]),
+    solidScriptExampleNote('Output then stamps that turned spike into the world.'),
+    solidScriptExampleLine('output', { of: '[Spike]' }),
+  ]),
 ];
 
 /**
@@ -162,35 +170,41 @@ export const SOLID_SCRIPT_EXAMPLE_SPIKY_BALL: readonly SolidScriptLine[] = [
  * puts the slab under whatever it is added to.
  */
 export const SOLID_SCRIPT_EXAMPLE_PEDESTAL: readonly SolidScriptLine[] = [
-  { command: 'note', values: { text: 'Works as a generator and as a modifier on a brush, mesh or group' } },
-  {
-    command: 'input',
-    values: { name: 'Margin', type: 'Number', default: '0.2', min: '0', max: '2', label: 'Margin' },
-  },
-  {
-    command: 'input',
-    values: { name: 'Thickness', type: 'Number', default: '0.2', min: '0.05', max: '2', label: 'Thickness' },
-  },
-  { command: 'variable', values: { name: 'Low', value: '-0.5' } },
-  { command: 'variable', values: { name: 'Width', value: '1' } },
-  { command: 'variable', values: { name: 'Depth', value: '1' } },
-  { command: 'if_used_as', values: { use: 'Modifier' } },
-  { command: 'variable', values: { name: 'Low', value: '[$Input.Min.Y]' } },
-  { command: 'variable', values: { name: 'Width', value: '[$Input.Size.X]' } },
-  { command: 'variable', values: { name: 'Depth', value: '[$Input.Size.Z]' } },
-  { command: 'input_brushes', values: { textures: 'Move With Shape' } },
-  { command: 'else' },
-  { command: 'cube', values: { size: '1, 1, 1', anchor: 'Center, Center, Center' } },
-  { command: 'end' },
-  { command: 'transform', values: { move: '0, [=[Low] - [Thickness] / 2], 0' } },
-  {
-    command: 'cube',
-    values: {
-      size: '[=[Width] + 2 * [Margin]], [Thickness], [=[Depth] + 2 * [Margin]]',
-      anchor: 'Center, Center, Center',
-    },
-  },
-  { command: 'end' },
+  solidScriptExampleNote(
+    'This script works as a generator and as a modifier. Margin and Thickness are Inputs for the slab under the box.',
+  ),
+  solidScriptExampleInput('Margin', 'Number', '0.2', { min: '0', max: '2', label: 'Margin' }),
+  solidScriptExampleInput('Thickness', 'Number', '0.2', { min: '0.05', max: '2', label: 'Thickness' }),
+  solidScriptExampleNote(
+    'These are the starting values when this script is a generator: the slab sits under a one-metre box.',
+  ),
+  solidScriptExampleSet('Low', '-0.5'),
+  solidScriptExampleSet('Width', '1'),
+  solidScriptExampleSet('Depth', '1'),
+  solidScriptExampleNote(
+    'If Used As runs the lines until Else only when this script is added as a modifier. $[Input$] is what it was added to: the lowest point, the width and the depth come from that.',
+  ),
+  solidScriptExampleLine('if_used_as', { use: 'Modifier' }),
+  solidScriptExampleSet('Low', '[$Input.Min.Y]'),
+  solidScriptExampleSet('Width', '[$Input.Size.X]'),
+  solidScriptExampleSet('Depth', '[$Input.Size.Z]'),
+  solidScriptExampleNote('Input Brushes keeps the received brushes in the world. Without it they would be gone.'),
+  solidScriptExampleLine('input_brushes', { textures: 'Move With Shape' }),
+  solidScriptExampleNote(
+    'Else runs when the script is used as a generator, and builds a box for the slab to sit under.',
+  ),
+  solidScriptExampleLine('else'),
+  solidScriptExampleLine('cube', { size: '1, 1, 1', anchor: 'Center, Center, Center' }),
+  solidScriptExampleLine('end'),
+  solidScriptExampleNote(
+    'Move To places the named slab so its center sits at this point. The height puts the slab under the box. Rotate To is the same idea for angles: it turns a brush around its middle to the angles you write.',
+  ),
+  solidScriptExampleLine('cube', {
+    size: '[=[Width] + 2 * [Margin]], [Thickness], [=[Depth] + 2 * [Margin]]',
+    anchor: 'Center, Center, Center',
+    label: 'Slab',
+  }),
+  solidScriptExampleLine('move_to', { to: '0, [=[Low] - [Thickness] / 2], 0', of: 'Slab' }),
 ];
 
 /**

@@ -6,6 +6,7 @@ import { solidScriptProgramRun } from '@/solid_script/language/solid_script_prog
 import type { SolidScriptExample } from '@/solid_script/examples/solid_script_examples.js';
 import { SOLID_SCRIPT_TUTORIAL_BASELINES } from './solid_script_example_tutorial_baselines.js';
 import {
+  solidScriptExampleRunOptions,
   solidScriptExampleShot,
   solidScriptExampleWorkLines,
   solidScriptExamplesAll,
@@ -56,6 +57,13 @@ const COVERAGE: Readonly<Record<string, string>> = {
   'Grid Mesh': 'hillyFloor',
   Displace: 'hillyFloor',
   Noise: 'hillyFloor',
+  'Into (a brush)': 'spikyBall',
+  'Align To': 'spikyBall',
+  'If Used As and Else': 'pedestal',
+  $Input: 'pedestal',
+  'Input Brushes': 'pedestal',
+  'Move To': 'pedestal',
+  'Extrude Face': 'pushOutFaces',
 };
 
 type TutorialStore = {
@@ -100,10 +108,13 @@ function sampleMs(task: () => void, warm: number, rounds: number): number[] {
  * @param lines Script.
  * @returns Task that runs the script.
  */
-function exampleRunner(lines: readonly SolidScriptLine[]): () => void {
+function exampleRunner(
+  lines: readonly SolidScriptLine[],
+  options: ReturnType<typeof solidScriptExampleRunOptions> = {},
+): () => void {
   const document = solidScriptDocumentCreate(lines);
   return () => {
-    const result = solidScriptProgramRun(document);
+    const result = solidScriptProgramRun(document, options);
     if (result.error) throw result.error;
   };
 }
@@ -119,9 +130,10 @@ function exampleRunner(lines: readonly SolidScriptLine[]): () => void {
 function compareMs(
   before: readonly SolidScriptLine[],
   after: readonly SolidScriptLine[],
+  options: ReturnType<typeof solidScriptExampleRunOptions> = {},
 ): { before: number; after: number } {
-  const runBefore = exampleRunner(before);
-  const runAfter = exampleRunner(after);
+  const runBefore = exampleRunner(before, options);
+  const runAfter = exampleRunner(after, options);
   const warm = 80;
   const batches = 6;
   const perBatch = 40;
@@ -195,7 +207,8 @@ describe('SolidScript example tutorials', () => {
     for (const [id, before] of Object.entries(SOLID_SCRIPT_TUTORIAL_BASELINES)) {
       const example = examples.get(id);
       expect(example, id).toBeDefined();
-      const { before: baseline, after } = compareMs(before, example!.lines);
+      if (!example) throw new Error(`missing example ${id}`);
+      const { before: baseline, after } = compareMs(before, example.lines, solidScriptExampleRunOptions(example));
       const limit = baseline * 1.2;
       rows.push(`${id}: ${after.toFixed(3)} ms (baseline ${baseline.toFixed(3)}, limit ${limit.toFixed(3)})`);
       expect(after, rows[rows.length - 1]).toBeLessThanOrEqual(limit);
