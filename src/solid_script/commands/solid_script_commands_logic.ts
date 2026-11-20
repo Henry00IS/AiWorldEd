@@ -12,6 +12,7 @@ import {
   solidScriptValueTruthy,
 } from '@/solid_script/language/solid_script_value.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
+import { solidScriptRunValueOptional } from '@/solid_script/language/solid_script_run_optional.js';
 import { SOLID_SCRIPT_REPEAT_ROUNDS_MAX, solidScriptLimitCount } from '@/solid_script/language/solid_script_limits.js';
 
 /** Id of the command that closes a block. */
@@ -380,7 +381,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
       ),
     ],
     listing: (read) => ['Return', ...(read.text('value') === '' ? [] : [read.value('value')])],
-    execute: (run) => run.leave(run.text('value').trim() === '' ? undefined : run.value('value')),
+    execute: (run) => run.leave(solidScriptRunValueOptional(run, 'value')),
   }),
   new SolidScriptCommand({
     id: 'output',

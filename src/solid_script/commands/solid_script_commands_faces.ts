@@ -16,6 +16,7 @@ import {
 } from './solid_script_command_parameters.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import { solidScriptPlaceAtMatrix, solidScriptPlaceMatrices } from '@/solid_script/language/solid_script_place.js';
+import { solidScriptRunValueOptional } from '@/solid_script/language/solid_script_run_optional.js';
 import { solidScriptFaceGroups, solidScriptFaceTargets, solidScriptFaceWrite } from './solid_script_face_of.js';
 import { solidScriptScaleFaces } from '@/solid_script/language/solid_script_scale_faces.js';
 import { solidScriptScatterRun } from '@/solid_script/language/solid_script_scatter.js';
@@ -650,7 +651,8 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     ],
     execute: (run) => {
       const distance = solidScriptFaceDistance(run, 'Distance');
-      const lift = run.text('lift').trim() === '' ? 0 : solidScriptValueNumber(run.value('lift'));
+      const lifted = solidScriptRunValueOptional(run, 'lift');
+      const lift = lifted === undefined ? 0 : solidScriptValueNumber(lifted);
       if (lift === undefined) throw new Error('Lift needs a number of metres, such as 0.25');
       const added: { slab: SolidScriptShapeSolid; normal: THREE.Vector3 }[] = [];
       const tops: SolidScriptValue[] = [];

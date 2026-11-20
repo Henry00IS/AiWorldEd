@@ -4,6 +4,7 @@ import { solidScriptGeometryFaceMatrix } from './solid_script_geometry.js';
 import { solidScriptKindNamed, solidScriptKindOf } from './solid_script_kinds.js';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
 import { solidScriptResizeFactors, solidScriptResizeSize, solidScriptShapeTransform } from './solid_script_reshape.js';
+import { solidScriptRunValueOptional } from './solid_script_run_optional.js';
 import { solidScriptOfEmpty } from './solid_script_select.js';
 import { SolidScriptElement, type SolidScriptValue } from './solid_script_value.js';
 import {
@@ -54,8 +55,9 @@ export function solidScriptTransformSpace(run: SolidScriptBlockRun): THREE.Matri
  * @returns Matrix.
  */
 export function solidScriptTransformOnMatrix(run: SolidScriptBlockRun): THREE.Matrix4 {
-  if (run.text('on').trim() === '') return new THREE.Matrix4();
-  const values = solidScriptTransformFlat(run.value('on'));
+  const on = solidScriptRunValueOptional(run, 'on');
+  if (on === undefined) return new THREE.Matrix4();
+  const values = solidScriptTransformFlat(on);
   if (values.length !== 1)
     throw new Error('On takes one face or one brush; give a single face or brush, such as [Wall.Faces.First]');
   const value = values[0];
