@@ -68,16 +68,12 @@ export const SOLID_SCRIPT_EXAMPLE_STEPPING_STONES: readonly SolidScriptLine[] = 
     ),
     solidScriptExampleSet('Pos', '[=Lerp([Start], [Finish], [I] / ([Stones] - 1))]'),
     solidScriptExampleSet('Pos.Y', '[=Sin([I] * 40) * 0.15]'),
-    solidScriptExampleNote('Into keeps the new slab in $[Stone$], not yet in the world.'),
-    solidScriptExampleLine('cube', { size: '0.7, 0.15, 0.5', anchor: 'Center, Center, Center', into: 'Stone' }),
-    solidScriptExampleNote('Move To puts the middle of $[Stone$] at $[Pos$].'),
-    solidScriptExampleLine('move_to', { to: '[Pos]', of: '[Stone]' }),
     solidScriptExampleNote(
-      'Rotate To turns $[Stone$] around its middle. The middle number is the turn in degrees, a little more for each slab.',
+      'This Transform both moves and rotates. Move happens first, then Rotate turns each slab around its new place. The middle number of Rotate is the turn in degrees, a little more for each slab.',
     ),
-    solidScriptExampleLine('rotate_to', { to: '0, [=[I] * 23], 0', of: '[Stone]' }),
-    solidScriptExampleNote('Output $[Stone$] places it in the world.'),
-    solidScriptExampleLine('output', { of: '[Stone]' }),
+    ...solidScriptExampleBlock('transform', { move: '[Pos]', rotate: '0, [=[I] * 23], 0' }, [
+      solidScriptExampleLine('cube', { size: '0.7, 0.15, 0.5', anchor: 'Center, Center, Center' }),
+    ]),
   ]),
 ];
 
@@ -94,16 +90,16 @@ export const SOLID_SCRIPT_EXAMPLE_PILLAR_RING: readonly SolidScriptLine[] = [
     ),
     solidScriptExampleSet('Angle', '[=360 / [Count] * [I]]'),
     solidScriptExampleSet('Pos', '[=[Center] + Vector(Cos([Angle]), 0, -Sin([Angle])) * [Radius]]'),
-    solidScriptExampleLine('cylinder', {
-      h: '3',
-      r1: '0.25',
-      r2: '0.2',
-      sides: '12',
-      anchor: 'Center, Center, Center',
-      into: 'Pillar',
-    }),
-    solidScriptExampleLine('move_to', { to: '[Pos]', of: '[Pillar]' }),
-    solidScriptExampleLine('output', { of: '[Pillar]' }),
+    solidScriptExampleNote('A Transform whose Move is $[Pos$] builds the pillar already in place, around that point.'),
+    ...solidScriptExampleBlock('transform', { move: '[Pos]' }, [
+      solidScriptExampleLine('cylinder', {
+        h: '3',
+        r1: '0.25',
+        r2: '0.2',
+        sides: '12',
+        anchor: 'Center, Center, Center',
+      }),
+    ]),
   ]),
 ];
 
