@@ -275,4 +275,18 @@ describe('SolidScript outlines read by Name', () => {
     expect(result.error?.message).toBeUndefined();
     expect(bounds(result.shapes)[1]).toBe(5);
   });
+  it('reads a reused Name inside an extrude as the open outline, not the finished brushes that kept it', () => {
+    const block = (extrude: string) => [
+      line(extrude),
+      line('circle', { label: 'Boing' }),
+      line('move_by', { by: '8, 0, 0', of: 'Boing' }),
+      END,
+    ];
+    for (const extrude of ['rotate_extrude', 'linear_extrude']) {
+      const once = run(...block(extrude));
+      const twice = run(...block(extrude), line('blank'), ...block(extrude));
+      expect(twice.error?.message).toBeUndefined();
+      expect(bounds(twice.shapes)).toEqual(bounds(once.shapes));
+    }
+  });
 });

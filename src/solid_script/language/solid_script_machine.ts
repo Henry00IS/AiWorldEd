@@ -408,9 +408,24 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       ...(this.received ?? []).map((leaf) => this.leafLatestOf(leaf)),
     ];
     const named = solidScriptShapesNamed(built, name);
+    // Open outlines win where the line takes them: inside an extrude, a Name
+    // means the outline being drawn, not a finished brush that kept the Name.
+    if (field.outlines === true && this.outlinesOf(named).length > 0) return this.ofOutlines(field, name, named);
     const leaves = solidScriptGeometryLeaves(named);
     if (leaves.length > 0) return leaves.map((leaf) => this.elements.brush(leaf));
     return this.ofOutlines(field, name, named);
+  }
+
+  /**
+   * Lists the flat outlines among shapes.
+   *
+   * @param shapes Shapes.
+   * @returns Outlines.
+   */
+  private outlinesOf(shapes: readonly SolidScriptShape[]): SolidScriptShapePolygon[] {
+    return shapes
+      .flatMap(solidScriptShapeLeavesPositive)
+      .filter((leaf): leaf is SolidScriptShapePolygon => leaf.kind === 'polygon');
   }
 
   /**
@@ -427,9 +442,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     name: string,
     named: readonly SolidScriptShape[],
   ): SolidScriptValue[] {
-    const outlines = named
-      .flatMap(solidScriptShapeLeavesPositive)
-      .filter((leaf): leaf is SolidScriptShapePolygon => leaf.kind === 'polygon');
+    const outlines = this.outlinesOf(named);
     if (outlines.length === 0)
       throw new Error(`No brush, mesh or outline above is named "${name}"; give one a Name first`);
     if (field.outlines !== true)
