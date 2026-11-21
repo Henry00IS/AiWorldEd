@@ -7,6 +7,7 @@ import {
   solidScriptShapeMeshes,
   type SolidScriptShapeMesh,
 } from '@/solid_script/language/solid_script_mesh.js';
+import { meshEulerCharacteristic, meshUnmatchedEdges } from './solid_script_mesh_checks.js';
 
 /**
  * Watertightness of Mesh From Brushes: brushes that touch, stack or meet along
@@ -70,49 +71,6 @@ function subdivideLines(levels: number, smooth: string, displace: string | null)
   ];
   if (displace === null) return lines;
   return [...lines, { command: 'select_brushes' }, { command: 'displace', values: { distance: displace } }];
-}
-
-/**
- * Counts every directed edge of a mesh.
- *
- * @param mesh Mesh.
- * @returns Use count per "from:to" key.
- */
-function directedEdges(mesh: SolidScriptShapeMesh): Map<string, number> {
-  const edges = new Map<string, number>();
-  for (const face of mesh.faces)
-    face.forEach((from, corner) => {
-      const key = `${from}:${face[(corner + 1) % face.length]}`;
-      edges.set(key, (edges.get(key) ?? 0) + 1);
-    });
-  return edges;
-}
-
-/**
- * Counts edges whose two sides are not matched by exactly one face each, which
- * are cracks, open borders or folded seams.
- *
- * @param mesh Mesh.
- * @returns Number of unmatched directed edges.
- */
-function unmatchedEdges(mesh: SolidScriptShapeMesh): number {
-  const edges = directedEdges(mesh);
-  let unmatched = 0;
-  for (const [key, count] of edges) {
-    const [from, to] = key.split(':');
-    if (count !== 1 || edges.get(`${to}:${from}`) !== 1) unmatched += 1;
-  }
-  return unmatched;
-}
-
-/**
- * Euler characteristic of a mesh: 2 for one closed piece without handles.
- *
- * @param mesh Mesh.
- * @returns Points minus edges plus faces.
- */
-function eulerCharacteristic(mesh: SolidScriptShapeMesh): number {
-  return mesh.points.length - directedEdges(mesh).size / 2 + mesh.faces.length;
 }
 
 /**
@@ -225,8 +183,8 @@ describe('SolidScript Mesh From Brushes watertight bake', () => {
   for (const [name, boxes] of Object.entries(TOUCHING_SCENES)) {
     it(`bakes ${name} into one closed welded mesh`, () => {
       const mesh = bake(boxes);
-      expect(unmatchedEdges(mesh)).toBe(0);
-      expect(eulerCharacteristic(mesh)).toBe(2);
+      expect(meshUnmatchedEdges(mesh)).toBe(0);
+      expect(meshEulerCharacteristic(mesh)).toBe(2);
       expect(closestPointGap(mesh)).toBeGreaterThan(1e-3);
       expect(enclosedVolume(mesh)).toBeCloseTo(boxesVolume(boxes), 6);
     });
@@ -236,16 +194,16 @@ describe('SolidScript Mesh From Brushes watertight bake', () => {
     for (let levels = 1; levels <= 4; levels++)
       it(`stays closed after Subdivide ${levels} with Smooth ${smooth} on the base with two crates`, () => {
         const mesh = bake(BASE_WITH_CRATES, subdivideLines(levels, smooth, null));
-        expect(unmatchedEdges(mesh)).toBe(0);
-        expect(eulerCharacteristic(mesh)).toBe(2);
+        expect(meshUnmatchedEdges(mesh)).toBe(0);
+        expect(meshEulerCharacteristic(mesh)).toBe(2);
         if (smooth === 'No') expect(enclosedVolume(mesh)).toBeCloseTo(boxesVolume(BASE_WITH_CRATES), 6);
       });
 
   for (const [name, boxes] of Object.entries(TOUCHING_SCENES))
     it(`opens no gaps when ${name} is subdivided and displaced`, () => {
       const mesh = bake(boxes, subdivideLines(3, 'Yes', '[=0.1 * Sin([$X] * 360)]'));
-      expect(unmatchedEdges(mesh)).toBe(0);
-      expect(eulerCharacteristic(mesh)).toBe(2);
+      expect(meshUnmatchedEdges(mesh)).toBe(0);
+      expect(meshEulerCharacteristic(mesh)).toBe(2);
       expect(closestPointGap(mesh)).toBeGreaterThan(1e-5);
     });
 
@@ -266,7 +224,7 @@ describe('SolidScript Mesh From Brushes watertight bake', () => {
   for (const levels of [2, 4])
     it(`folds no face when the base with two crates is smoothed ${levels} times and displaced`, () => {
       const mesh = bake(BASE_WITH_CRATES, subdivideLines(levels, 'Yes', '[=0.1 * Sin([$X] * 360)]'));
-      expect(unmatchedEdges(mesh)).toBe(0);
+      expect(meshUnmatchedEdges(mesh)).toBe(0);
       expect(facesTurningLess(mesh, 0)).toBe(0);
     });
 
@@ -284,8 +242,8 @@ describe('SolidScript Mesh From Brushes watertight bake', () => {
     expect(result.error?.message ?? null).toBeNull();
     const mesh = solidScriptShapeMeshes(result.shapes)[0];
     if (!mesh) throw new Error('Expected a mesh');
-    expect(unmatchedEdges(mesh)).toBe(0);
-    expect(eulerCharacteristic(mesh)).toBe(2);
+    expect(meshUnmatchedEdges(mesh)).toBe(0);
+    expect(meshEulerCharacteristic(mesh)).toBe(2);
   });
 
   it('keeps the flat subdivided top of the base on its plane, with no point lifted out of it', () => {

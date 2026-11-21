@@ -156,16 +156,29 @@ export function solidScriptMeshLoopCenter(points: readonly THREE.Vector3[], loop
 export function solidScriptMeshPointNormals(mesh: SolidScriptShapeMesh): THREE.Vector3[] {
   const normals = mesh.points.map(() => new THREE.Vector3());
   for (const face of mesh.faces) {
-    const first = mesh.points[face[0]!]!;
-    const area = new THREE.Vector3();
-    for (let corner = 1; corner + 1 < face.length; corner++) {
-      const b = mesh.points[face[corner]!]!.clone().sub(first);
-      const c = mesh.points[face[corner + 1]!]!.clone().sub(first);
-      area.add(b.cross(c));
-    }
+    const area = solidScriptMeshLoopArea(mesh.points, face);
     for (const index of face) normals[index]!.add(area);
   }
   return normals.map((normal) => (normal.lengthSq() > 0 ? normal.normalize() : normal));
+}
+
+/**
+ * Twice the area of a loop of points, pointing along its normal, from a fan of
+ * triangles around its first point.
+ *
+ * @param points Mesh points.
+ * @param loop Point numbers.
+ * @returns Area vector, twice the area long.
+ */
+export function solidScriptMeshLoopArea(points: readonly THREE.Vector3[], loop: readonly number[]): THREE.Vector3 {
+  const first = points[loop[0]!]!;
+  const area = new THREE.Vector3();
+  for (let corner = 1; corner + 1 < loop.length; corner++) {
+    const b = points[loop[corner]!]!.clone().sub(first);
+    const c = points[loop[corner + 1]!]!.clone().sub(first);
+    area.add(b.cross(c));
+  }
+  return area;
 }
 
 /**
@@ -359,26 +372,6 @@ export function solidScriptMeshSmooth(
       return point.clone().lerp(average, strength);
     });
   return { ...mesh, points };
-}
-
-/**
- * Moves every point along its smooth normal.
- *
- * @param mesh Mesh.
- * @param distance Distance per point, from the point, its normal and number.
- * @returns Displaced mesh.
- */
-export function solidScriptMeshDisplace(
-  mesh: SolidScriptShapeMesh,
-  distance: (point: THREE.Vector3, normal: THREE.Vector3, index: number) => number,
-): SolidScriptShapeMesh {
-  const normals = solidScriptMeshPointNormals(mesh);
-  return {
-    ...mesh,
-    points: mesh.points.map((point, index) =>
-      point.clone().addScaledVector(normals[index]!, distance(point, normals[index]!, index)),
-    ),
-  };
 }
 
 /**
