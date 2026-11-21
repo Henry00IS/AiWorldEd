@@ -19,20 +19,43 @@ export interface SolidScriptFindHit {
 }
 
 /**
- * Finds the closest point on the faces to From, or the first hit along a ray.
+ * What Find On found: one hit, or one per item when From or Direction is a
+ * list.
+ */
+export interface SolidScriptFindFound {
+  hits: SolidScriptFindHit[];
+  /** Whether From or Direction gave a list, so every result is a list. */
+  listed: boolean;
+}
+
+/**
+ * Finds the closest point on the faces to From, or the first hit along a ray. A
+ * list of points in From, or of directions in Direction, gives one find per
+ * item; a single value is used for every item.
  *
  * @param run Running line.
  * @param faces Faces to search.
- * @returns The hit, or a miss.
+ * @returns The hits, or misses.
  */
 export function solidScriptFindOn(
   run: SolidScriptBlockRun,
   faces: readonly SolidScriptFaceFacts[],
-): SolidScriptFindHit {
-  const from = solidScriptFindVector(run, 'from', 'From');
+): SolidScriptFindFound {
   const how = solidScriptFindHow(run);
-  if (how === 'Along Ray') return solidScriptFindRay(from, solidScriptFindDirection(run), faces);
-  return solidScriptFindClosest(from, faces);
+  const froms = solidScriptFindVectors(run, 'from', 'From');
+  const directions = how === 'Along Ray' ? solidScriptFindVectors(run, 'direction', 'Direction') : null;
+  const sizes = [froms, directions].flatMap((list) => (list && list.listed ? [list.vectors.length] : []));
+  if (new Set(sizes).size > 1) throw new Error('From and Direction need the same number of items, or one of them one');
+  const count = sizes[0] ?? 1;
+  const at = <T>(list: readonly T[], index: number): T => list[list.length === 1 ? 0 : index]!;
+  const hits = Array.from({ length: count }, (_, index) => {
+    const from = at(froms.vectors, index);
+    if (!directions) return solidScriptFindClosest(from, faces);
+    const direction = at(directions.vectors, index);
+    if (direction.lengthSq() < 1e-18) throw new Error('Direction needs a direction that is not 0, 0, 0');
+    return solidScriptFindRay(from, direction.clone().normalize(), faces);
+  });
+  return { hits, listed: sizes.length > 0 };
 }
 
 /**
@@ -49,33 +72,29 @@ function solidScriptFindHow(run: SolidScriptBlockRun): SolidScriptFindHow {
 }
 
 /**
- * Reads a three-number vector field.
+ * Reads a field of one vector, or a list of vectors.
  *
  * @param run Running line.
  * @param key Field key.
  * @param label Field caption.
- * @returns Vector.
+ * @returns Vectors, and whether the field gave a list: more than one item or a
+ *   variable; one vector or a formula of one is not.
  */
-function solidScriptFindVector(run: SolidScriptBlockRun, key: string, label: string): THREE.Vector3 {
-  const numbers = solidScriptValueNumbers(run.value(key));
-  const x = numbers?.[0];
-  const y = numbers?.[1];
-  const z = numbers?.[2];
-  if (!numbers || numbers.length !== 3 || x === undefined || y === undefined || z === undefined)
-    throw new Error(`${label} needs three numbers, such as 0, 0, 0`);
-  return new THREE.Vector3(x, y, z);
-}
-
-/**
- * Reads the ray Direction, which must not be zero.
- *
- * @param run Running line.
- * @returns Unit direction.
- */
-function solidScriptFindDirection(run: SolidScriptBlockRun): THREE.Vector3 {
-  const direction = solidScriptFindVector(run, 'direction', 'Direction');
-  if (direction.lengthSq() < 1e-18) throw new Error('Direction needs a direction that is not 0, 0, 0');
-  return direction.normalize();
+function solidScriptFindVectors(
+  run: SolidScriptBlockRun,
+  key: string,
+  label: string,
+): { vectors: THREE.Vector3[]; listed: boolean } {
+  const value = run.value(key);
+  const items = Array.isArray(value) && value.length > 0 && value.every(Array.isArray) ? value : [value];
+  const listed = items.length !== 1 || /^\s*\[[^[\]=,]+\]\s*$/.test(run.source(key));
+  const vectors = items.map((item) => {
+    const numbers = solidScriptValueNumbers(item);
+    if (!numbers || numbers.length !== 3)
+      throw new Error(`${label} needs three numbers, such as 0, 0, 0, or a list of them`);
+    return new THREE.Vector3(numbers[0], numbers[1], numbers[2]);
+  });
+  return { vectors, listed };
 }
 
 /**

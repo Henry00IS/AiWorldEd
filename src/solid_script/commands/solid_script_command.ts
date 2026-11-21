@@ -58,7 +58,16 @@ export type SolidScriptCommandAccepts = 'Any' | readonly string[];
  * for the line's block.
  */
 export type SolidScriptCommandGives =
-  | { readonly rule: 'kind'; readonly kind: string; readonly what: string }
+  | {
+      readonly rule: 'kind';
+      readonly kind: string;
+      readonly what: string;
+      /**
+       * Fields that, given a list, make the line write a list of the kind, one
+       * per item.
+       */
+      readonly each?: readonly string[];
+    }
   | { readonly rule: 'value' | 'item' | 'key' | 'word'; readonly field: string; readonly what: string }
   | { readonly rule: 'returned' | 'list'; readonly what: string }
   | { readonly rule: 'kept' | 'emptied' | 'shrunk' | 'forgotten' | 'read' | 'defines' };

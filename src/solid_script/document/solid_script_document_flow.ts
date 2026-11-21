@@ -515,7 +515,7 @@ class SolidScriptFlowAnalysis {
   ): readonly string[] {
     const head = this.headOf(state, frame);
     const field = 'field' in gives ? (block.values[gives.field] ?? '') : '';
-    if (gives.rule === 'kind') return [gives.kind];
+    if (gives.rule === 'kind') return solidScriptFlowKindEach(gives.kind, gives.each, block, head);
     if (gives.rule === 'value') return solidScriptFlowValueKinds(field, head);
     if (gives.rule === 'item') return solidScriptFlowItemKinds(field, head);
     if (gives.rule === 'key') return solidScriptFlowKeyKinds(field, head);
@@ -892,4 +892,27 @@ export function solidScriptDocumentFunctionGives(
   name: string,
 ): readonly string[] | undefined {
   return solidScriptFlowOf(document).gives(name);
+}
+
+/**
+ * Kinds a field declared as one kind gives: a list of that kind when a field it
+ * follows per item holds a list, such as Find On From given [Points], and
+ * either when such a field may hold one.
+ *
+ * @param kind Declared kind, such as Vector.
+ * @param each Fields that give one result per item, when any.
+ * @param block Line.
+ * @param head Kinds the script's names may hold.
+ * @returns Kinds.
+ */
+function solidScriptFlowKindEach(
+  kind: string,
+  each: readonly string[] | undefined,
+  block: SolidScriptBlock,
+  head: SolidScriptFlowHead,
+): string[] {
+  const fields = (each ?? []).map((key) => solidScriptFlowValueKinds(block.values[key] ?? '', head));
+  const lists = fields.map((kinds) => kinds.filter((found) => found.endsWith('List')).length);
+  if (fields.some((kinds, index) => kinds.length > 0 && lists[index] === kinds.length)) return [`${kind} List`];
+  return lists.some((count) => count > 0) ? [kind, `${kind} List`] : [kind];
 }
