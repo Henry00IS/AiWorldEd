@@ -105,7 +105,7 @@ describe('formula blocks start with sensible values', () => {
       { command: 'formula_number', values: { value: '0.5' } },
       { command: 'end', values: {} },
     ]);
-    expect(inserted(`${SOLID_SCRIPT_FORMULA_FUNCTION}clamp`).map((block) => block.values.value)).toEqual([
+    expect(inserted(`${SOLID_SCRIPT_FORMULA_FUNCTION}clamp`).map((block) => block.values['value'])).toEqual([
       undefined,
       '',
       '0',
