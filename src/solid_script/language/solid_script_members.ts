@@ -80,6 +80,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     Size: form('Sizes', 'Vector'),
     Extents: form('Extents', 'Vector'),
     Mode: form('Modes', 'Text'),
+    Islands: form('Islands', 'List'),
     Data: form('Data', 'Data'),
   },
   Face: {
@@ -92,6 +93,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     Tags: form('Tags', 'Text List'),
     Edges: form('Edges', 'Edge List'),
     Vertices: form('Vertices', 'Vertex List'),
+    Neighbors: form('Neighbors', 'Face List'),
     Parent: form('Parents', 'Brush'),
     UVs: form('UVs', 'Vector List'),
     Data: form('Data', 'Data'),
@@ -102,6 +104,8 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     Center: form('Centers', 'Vector'),
     Length: form('Lengths', 'Number'),
     Direction: form('Directions', 'Vector'),
+    Angle: form('Angles', 'Number'),
+    IsBoundary: form('IsBoundaries', 'Yes/No'),
     Faces: form('Faces', 'Face List'),
     Parent: form('Parents', 'Brush'),
     Data: form('Data', 'Data'),
@@ -109,6 +113,8 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
   Vertex: {
     Position: form('Positions', 'Vector'),
     Normal: form('Normals', 'Vector'),
+    Faces: form('Faces', 'Face List'),
+    Edges: form('Edges', 'Edge List'),
     Parent: form('Parents', 'Brush'),
     Data: form('Data', 'Data'),
   },
@@ -210,7 +216,7 @@ function solidScriptMemberTypeOfList(item: string, member: string): string | nul
   }
   const decl = solidScriptMemberDecl(item, member);
   if (!decl || solidScriptNameKey(decl.plural) !== key) return null;
-  return decl.type.endsWith(' List') ? decl.type : `${decl.type} List`;
+  return decl.type === 'List' || decl.type.endsWith(' List') ? decl.type : `${decl.type} List`;
 }
 
 /**
@@ -434,15 +440,22 @@ function solidScriptMemberElement(
       if (member === 'faces') return faceList(elements.faces(element));
       if (member === 'edges') return edgeList();
       if (member === 'vertices') return vertexList();
+      if (member === 'islands') return solidScriptMemberIslands(element, elements).map(faceList);
       if (SOLID_SCRIPT_MEMBERS_BOUNDS.some((name) => solidScriptNameKey(name) === solidScriptNameKey(member)))
         return solidScriptMemberBounds(elements.bounds([element]), member);
       return undefined;
     case 'face':
+      if (member === 'neighbors')
+        return faceList(elements.edges(element).flatMap((edge) => edge.faces.filter((face) => face !== null))).filter(
+          (face) => face !== element,
+        );
       return solidScriptMemberFace(element, member, elements, edgeList, vertexList);
     case 'edge': {
       const edges = elements.edges(element);
       if (edges.length === 0) throw new Error(`${String(element)} was cut away`);
       if (member === 'faces') return faceList(edges.flatMap((edge) => edge.faces.filter((face) => face !== null)));
+      if (member === 'angle') return solidScriptMemberRound(Math.max(...edges.map(solidScriptMemberEdgeAngle)));
+      if (member === 'isboundary') return leaf.kind === 'mesh' && edges.some((edge) => edge.faces[1] === null);
       return solidScriptMemberEdge(edges, member);
     }
     case 'vertex': {
@@ -450,11 +463,66 @@ function solidScriptMemberElement(
       if (!vertex) throw new Error(`${String(element)} was cut away`);
       if (member === 'position') return solidScriptMemberVector(vertex.position);
       if (member === 'normal') return solidScriptMemberVector(vertex.normal);
+      const at = (point: THREE.Vector3): boolean => point.distanceTo(vertex.position) < 1e-6;
+      const brush = elements.parent(element);
+      if (member === 'faces') return faceList(elements.faces(brush).filter((face) => face.corners.some(at)));
+      if (member === 'edges') {
+        const found: SolidScriptValue[] = [];
+        for (const edge of elements.edges(brush))
+          if (at(edge.start) || at(edge.end)) {
+            const made = elements.edge(edge);
+            if (!found.includes(made)) found.push(made);
+          }
+        return found;
+      }
       return undefined;
     }
     default:
       return undefined;
   }
+}
+
+/**
+ * Angle in degrees between the two faces meeting at an edge piece; 0 when only
+ * one face uses it.
+ *
+ * @param edge Edge piece.
+ * @returns Degrees from 0 (flat) to 180.
+ */
+function solidScriptMemberEdgeAngle(edge: SolidScriptEdgeFacts): number {
+  const [first, second] = edge.faces;
+  if (!second) return 0;
+  return THREE.MathUtils.radToDeg(first.normal.angleTo(second.normal));
+}
+
+/**
+ * Splits the faces of a brush or mesh into islands: groups joined through
+ * shared edges, in the order their first face was built.
+ *
+ * @param element Brush or mesh.
+ * @param elements Geometry values of the run.
+ * @returns Faces of each island.
+ */
+function solidScriptMemberIslands(
+  element: SolidScriptElement,
+  elements: SolidScriptElements,
+): SolidScriptFaceFacts[][] {
+  const faces = elements.faces(element);
+  const group = faces.map((_, index) => index);
+  const root = (index: number): number => {
+    while (group[index] !== index) index = group[index] = group[group[index]!]!;
+    return index;
+  };
+  for (const edge of elements.edges(element)) {
+    const [first, second] = edge.faces;
+    if (second) group[root(first.index)] = root(second.index);
+  }
+  const islands = new Map<number, SolidScriptFaceFacts[]>();
+  faces.forEach((face, index) => {
+    const key = root(index);
+    islands.set(key, [...(islands.get(key) ?? []), face]);
+  });
+  return [...islands.values()];
 }
 
 /**
