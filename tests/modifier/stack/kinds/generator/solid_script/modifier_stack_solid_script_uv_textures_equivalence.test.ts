@@ -17,7 +17,11 @@ import {
   solidScriptDocumentUsesWith,
   type SolidScriptLine,
 } from '@/solid_script/document/solid_script_document.js';
-import { MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
+import { modifierGeneratorNodeCreate } from '@/modifier/stack/modifier_generator_node.js';
+import {
+  MODIFIER_STACK_SOLID_SCRIPT_KIND,
+  MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND,
+} from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import { surfaceUvApplyPolicy } from '@/texture/uv_matrix/surface_uv_policy.js';
 
@@ -140,6 +144,23 @@ function withInput(textures: string, inner: readonly SolidScriptLine[]): SolidSc
  */
 function texturesAfter(textures: string, inner: readonly SolidScriptLine[]): SolidScriptLine[] {
   return [...withInput('', inner), transformUvs(textures)];
+}
+
+/**
+ * Input Brushes with no Textures, then Transform UVs immediately after it, then
+ * the same later edits, so Of-tools see the policy before they move the copy.
+ *
+ * @param textures Transform UVs Textures.
+ * @param inner Template that contains one Input Brushes Into Copy line.
+ * @returns Lines.
+ */
+function texturesViaUvs(textures: string, inner: readonly SolidScriptLine[]): SolidScriptLine[] {
+  const lines: SolidScriptLine[] = [];
+  for (const entry of withInput('', inner)) {
+    lines.push(entry);
+    if (entry.command === 'input_brushes') lines.push(transformUvs(textures));
+  }
+  return lines;
 }
 
 /**
@@ -387,7 +408,7 @@ function meshDifference(left: readonly string[], right: readonly string[]): stri
  */
 function comparePair(name: string, textures: string, inner: readonly SolidScriptLine[]): string[] {
   const left = compileModifier(stamped(texturesOnInput(textures, inner)));
-  const right = compileModifier(stamped(texturesAfter(textures, inner)));
+  const right = compileModifier(stamped(texturesViaUvs(textures, inner)));
   return difference(left, right).map((row) => `${name} ${textures}: ${row}`);
 }
 
@@ -436,7 +457,7 @@ function compareMeshes(name: string, inner: readonly SolidScriptLine[], worldToo
  */
 function compareMeshed(name: string, textures: string, inner: readonly SolidScriptLine[]): string[] {
   const left = compileVolume(meshed(stamped(texturesOnInput(textures, inner))));
-  const right = compileVolume(meshed(stamped(texturesAfter(textures, inner))));
+  const right = compileVolume(meshed(stamped(texturesViaUvs(textures, inner))));
   const rows = difference(left, right).map((row) => `${name} ${textures}: ${row}`);
   if (left.meshes.every((mesh) => mesh === '') && right.meshes.every((mesh) => mesh === ''))
     rows.push(`${name} ${textures}: both scripts showed no mesh`);
@@ -594,7 +615,7 @@ function compileLevel(lines: readonly SolidScriptLine[]): { samples: string[]; e
  */
 function compareLevel(name: string, textures: string, inner: readonly SolidScriptLine[]): string[] {
   const left = compileLevel(meshed(stamped(texturesOnInput(textures, inner))));
-  const right = compileLevel(meshed(stamped(texturesAfter(textures, inner))));
+  const right = compileLevel(meshed(stamped(texturesViaUvs(textures, inner))));
   if (left.error !== right.error) return [`${name} ${textures}: error input=${left.error} later=${right.error}`];
   const rows = meshDifference(left.samples, right.samples).map((row) => `${name} ${textures}: ${row}`);
   if (left.samples.every((mesh) => mesh === '') && right.samples.every((mesh) => mesh === ''))
@@ -622,6 +643,151 @@ function meshUvsAt(result: CompiledUvs, x: number, y: number, z: number): [numbe
     .sort((left, right) => left[0] - right[0] || left[1] - right[1]);
 }
 
+/**
+ * Sets [Textures] to World Aligned on the second Repeat round (the moved copy
+ * at two metres) and Move With Shape on the others.
+ *
+ * @returns Lines.
+ */
+function mixedPolicy(): SolidScriptLine[] {
+  return [
+    line('variable', { name: 'Textures', value: COPIED }),
+    ...block(line('if', { condition: '[I] == 1' }), [line('variable', { name: 'Textures', value: WORLD })]),
+  ];
+}
+
+/**
+ * Three copies two metres apart, each with its own [Textures], moved by a
+ * Transform around Input Brushes.
+ *
+ * @param viaUvs True uses Transform UVs after Input Brushes; false sets
+ *   Textures on Input Brushes.
+ * @returns Lines.
+ */
+function mixedWrap(viaUvs: boolean): SolidScriptLine[] {
+  const input = inputBrushes(viaUvs ? '' : '[Textures]');
+  const inside = viaUvs ? [input, transformUvs('[Textures]')] : [input];
+  return block(line('repeat', { variable: 'I', from: '0', to: '3' }), [
+    ...mixedPolicy(),
+    ...block(line('transform', { move: '[=[I] * 2], 0, 0' }), inside),
+    outputCopy(),
+  ]);
+}
+
+/**
+ * Three copies two metres apart, each with its own [Textures], then moved by
+ * Move By Of [Copy].
+ *
+ * @param viaUvs True uses Transform UVs after Input Brushes, before Move By.
+ * @returns Lines.
+ */
+function mixedMoveBy(viaUvs: boolean): SolidScriptLine[] {
+  const input = inputBrushes(viaUvs ? '' : '[Textures]');
+  const move = line('move_by', { by: '[=[I] * 2], 0, 0', of: '[Copy]' });
+  const inside = viaUvs ? [input, transformUvs('[Textures]'), move] : [input, move];
+  return block(line('repeat', { variable: 'I', from: '0', to: '3' }), [...mixedPolicy(), ...inside, outputCopy()]);
+}
+
+/**
+ * Compares Input Brushes Textures with Transform UVs for a mixed-policy script.
+ *
+ * @param name Case name.
+ * @param writeOld Script that sets Textures on Input Brushes.
+ * @param writeNew Script that sets Textures on Transform UVs.
+ * @returns Difference lines.
+ */
+/**
+ * Checks that a mixed-policy run produced three copies, and that the World
+ * Aligned copy at two metres did not keep the same UVs as the moved copy after
+ * it.
+ *
+ * @param name Case name.
+ * @param result Input Brushes Textures result.
+ * @returns Problem lines, or empty.
+ */
+function mixedPolicyCheck(name: string, result: CompiledUvs): string[] {
+  if (result.error !== '') return [`${name}: error ${result.error}`];
+  const worldBrush = brushAtX(result.brushes, 2);
+  const copiedBrush = brushAtX(result.brushes, 4);
+  if (!worldBrush || !copiedBrush)
+    return [`${name}: expected copies at x=2 and x=4, got ${result.brushes.map(brushCenterX).join(', ')}`];
+  const world = brushUvsAt(worldBrush, 2.5, 0.5, 0.5);
+  const copied = brushUvsAt(copiedBrush, 4.5, 0.5, 0.5);
+  if (world.some((uv) => uv[0] === 3.25 && uv[1] === -0.1) && copied.some((uv) => uv[0] === 1.25 && uv[1] === -0.1))
+    return [];
+  return [`${name}: mixed UVs world=${JSON.stringify(world)} copied=${JSON.stringify(copied)}`];
+}
+
+/**
+ * Unique face-corner UVs of a brush at a world position.
+ *
+ * @param brush Brush.
+ * @param x World X in metres.
+ * @param y World Y in metres.
+ * @param z World Z in metres.
+ * @returns U and V pairs.
+ */
+/**
+ * Model-space mid X of a brush, rounded.
+ *
+ * @param brush Brush.
+ * @returns Metres.
+ */
+function brushCenterX(brush: SolidBrushInstance): number {
+  return rounded(brush.getModelSpaceBounds().getCenter(new THREE.Vector3()).x);
+}
+
+/**
+ * The first brush whose mid X is the given metre value.
+ *
+ * @param brushes Brushes.
+ * @param x Mid X in metres.
+ * @returns Brush, or none.
+ */
+function brushAtX(brushes: readonly SolidBrushInstance[], x: number): SolidBrushInstance | undefined {
+  return brushes.find((brush) => brushCenterX(brush) === rounded(x));
+}
+
+function brushUvsAt(brush: SolidBrushInstance, x: number, y: number, z: number): [number, number][] {
+  const prefix = `${rounded(x)},${rounded(y)},${rounded(z)}:`;
+  const hits = brushSamples(brush).filter((sample) => sample.startsWith(prefix));
+  const unique = new Set(hits.map((sample) => sample.slice(prefix.length)));
+  return [...unique].map((text) => text.split(',').map(Number) as [number, number]);
+}
+
+function compareMixed(name: string, writeOld: () => SolidScriptLine[], writeNew: () => SolidScriptLine[]): string[] {
+  const left = compileModifier(writeOld());
+  const right = compileModifier(writeNew());
+  const rows = difference(left, right).map((row) => `${name}: ${row}`);
+  const meshLeft = compileVolume(meshed(writeOld()));
+  const meshRight = compileVolume(meshed(writeNew()));
+  rows.push(...difference(meshLeft, meshRight).map((row) => `Mesh From Brushes ${name}: ${row}`));
+  rows.push(...mixedPolicyCheck(name, left));
+  return rows;
+}
+
+/**
+ * Compiles a SolidScript generator in an empty solid.
+ *
+ * @param lines Script lines.
+ * @returns Compiled output.
+ */
+function compileGenerator(lines: readonly SolidScriptLine[]): CompiledUvs {
+  const world = new THREE.Group();
+  const model = new SolidModel('Textures generator');
+  world.add(model.root);
+  const node = modifierGeneratorNodeCreate(MODIFIER_STACK_SOLID_SCRIPT_KIND);
+  model.root.add(node);
+  const settings = ModifierVolume.read(node);
+  const [first, ...rest] = settings.modifiers;
+  if (!first) throw new Error('Expected the generator modifier');
+  ModifierVolume.write(node, {
+    ...settings,
+    modifiers: [{ ...first, parameters: { ...first.parameters, script: scriptDocument(lines) } }, ...rest],
+  });
+  return compileShown(world, model, node);
+}
+
 describe('Input Brushes Textures matches Transform UVs Textures', () => {
   it('gives the same output UVs when Textures is set on Input Brushes or later on Transform UVs', () => {
     const rows: string[] = [];
@@ -631,7 +797,7 @@ describe('Input Brushes Textures matches Transform UVs Textures', () => {
     }
     for (const [name, inner, mustDiffer] of afterCases()) {
       rows.push(...compareCase(name, inner, mustDiffer));
-      rows.push(...compareMeshes(name, inner, false));
+      rows.push(...compareMeshes(name, inner, true));
     }
     expect(rows, rows.slice(0, 40).join('\n')).toEqual([]);
   });
@@ -649,15 +815,49 @@ describe('Input Brushes Textures matches Transform UVs Textures', () => {
     expect(rows, rows.slice(0, 40).join('\n')).toEqual([]);
   });
 
-  it('does not world-lock Mesh From Brushes UVs when Transform UVs World Aligned comes after Move By', () => {
+  it('gives the same output when copies in a Repeat use different Textures', () => {
+    const rows = [
+      ...compareMixed(
+        'mixed Wrap',
+        () => mixedWrap(false),
+        () => mixedWrap(true),
+      ),
+      ...compareMixed(
+        'mixed Move By',
+        () => mixedMoveBy(false),
+        () => mixedMoveBy(true),
+      ),
+    ];
+    expect(rows, rows.slice(0, 40).join('\n')).toEqual([]);
+  });
+
+  it('world-locks Mesh From Brushes UVs when Transform UVs World Aligned comes before Move By', () => {
     const inner = afterCases().find((entry) => entry[0] === 'Move By');
     if (!inner) throw new Error('Expected the Move By case');
     const left = compileVolume(meshed(stamped(texturesOnInput(WORLD, inner[1]))));
-    const right = compileVolume(meshed(stamped(texturesAfter(WORLD, inner[1]))));
+    const right = compileVolume(meshed(stamped(texturesViaUvs(WORLD, inner[1]))));
     expect(left.error).toBe('');
     expect(right.error).toBe('');
     expect(meshUvsAt(left, 2.5, 0.5, 0.5)).toContainEqual([3.25, -0.1]);
-    expect(meshUvsAt(right, 2.5, 0.5, 0.5)).toContainEqual([1.25, -0.1]);
-    expect(meshUvsAt(right, 2.5, 0.5, 0.5)).not.toContainEqual([3.25, -0.1]);
+    expect(meshUvsAt(right, 2.5, 0.5, 0.5)).toContainEqual([3.25, -0.1]);
+  });
+
+  it('does not world-lock Mesh From Brushes UVs when Transform UVs World Aligned comes after Move By', () => {
+    const inner = afterCases().find((entry) => entry[0] === 'Move By');
+    if (!inner) throw new Error('Expected the Move By case');
+    const later = compileVolume(meshed(stamped(texturesAfter(WORLD, inner[1]))));
+    expect(later.error).toBe('');
+    expect(meshUvsAt(later, 2.5, 0.5, 0.5)).toContainEqual([1.25, -0.1]);
+    expect(meshUvsAt(later, 2.5, 0.5, 0.5)).not.toContainEqual([3.25, -0.1]);
+  });
+
+  it('gives the same empty generator result, because Input Brushes receives no brushes', () => {
+    const left = compileGenerator([inputBrushes(WORLD)]);
+    const right = compileGenerator([inputBrushes('')]);
+    expect(left.error).toBe('');
+    expect(right.error).toBe('');
+    expect(signatureOf(left)).toBe(signatureOf(right));
+    expect(left.brushes).toHaveLength(0);
+    expect(left.meshes.every((mesh) => mesh === '')).toBe(true);
   });
 });
