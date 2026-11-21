@@ -51,7 +51,7 @@ describe('SolidScript per-element fields', () => {
   });
 
   it('lists the current-element fills, including short forms, and recognises them for autocomplete', () => {
-    expect(solidScriptParameterEachFills('Face')).toEqual(expect.arrayContaining(['$Face', '$Index', '$CX', '$NZ']));
+    expect(solidScriptParameterEachFills('Face')).toEqual(expect.arrayContaining(['$Face', '$Index', '$X', '$NZ']));
     expect(solidScriptParameterEachFills('Vertex')).toEqual(expect.arrayContaining(['$Vertex', '$Index', '$X', '$NZ']));
     expect(solidScriptSystemFillEach('$Face')).toBe(true);
     expect(solidScriptSystemFillEach('$x')).toBe(true);
@@ -110,7 +110,7 @@ describe('SolidScript per-element fields', () => {
     const where = parameter('filter_list', 'where');
     expect(where.each).toBe('Item');
     expect(solidScriptParameterEachActive(where, {})).toBe('Item');
-    expect(solidScriptParameterEachFills('Item')).toEqual(['$Item', '$Index']);
+    expect(solidScriptParameterEachFills('Item')).toEqual(['$Item', '$Index', '$Count', '$X', '$Y', '$Z']);
     const command = solidScriptCommandFind('filter_list');
     if (!command) throw new Error('Filter List is missing');
     expect(solidScriptCommandEachFills(command, {})).toEqual(expect.arrayContaining(['$Item', '$Index']));

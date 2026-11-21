@@ -2,7 +2,15 @@ import * as THREE from 'three';
 import { solidScriptGeometryFrame } from './solid_script_geometry.js';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
 import { solidScriptAlignDirectionMatrix } from './solid_script_transforms.js';
-import { solidScriptValueNumber, solidScriptValueNumbers } from './solid_script_value.js';
+import {
+  SolidScriptPoint,
+  solidScriptValueNumber,
+  solidScriptValueNumbers,
+  type SolidScriptValue,
+} from './solid_script_value.js';
+
+/** Per-point values of one Place At Points copy, such as $Point and $Index. */
+type SolidScriptPlaceFills = Readonly<Record<string, SolidScriptValue>>;
 
 /**
  * Reads a list of x, y, z points from a field that already turns text into
@@ -52,9 +60,35 @@ export function solidScriptPlaceMatrices(run: SolidScriptBlockRun): THREE.Matrix
   if (lift === undefined) throw new Error('Lift needs a number of metres, such as 0');
   const align = solidScriptPlaceAlignOn(run);
   const parent = run.matrix();
-  return points.map((point, index) =>
-    parent.clone().multiply(solidScriptPlaceCopyMatrix(run, point, directions[index] ?? null, lift, align, index)),
-  );
+  return points.map((point, index) => {
+    const direction = directions[index] ?? null;
+    const fills = solidScriptPlaceFills(point, direction, index, points.length);
+    return parent.clone().multiply(solidScriptPlaceCopyMatrix(run, point, direction, lift, align, fills));
+  });
+}
+
+/**
+ * Per-point values of one copy: [$Point] with its Position and Normal, the
+ * Normal being its direction or world up, and [$Index] and [$Count].
+ *
+ * @param point Point to stand on.
+ * @param direction Up direction, or null for world up.
+ * @param index Point number from 0.
+ * @param count Number of points.
+ * @returns Values by name.
+ */
+function solidScriptPlaceFills(
+  point: THREE.Vector3,
+  direction: THREE.Vector3 | null,
+  index: number,
+  count: number,
+): SolidScriptPlaceFills {
+  const normal = direction && direction.lengthSq() > 1e-18 ? direction.clone().normalize() : new THREE.Vector3(0, 1, 0);
+  return {
+    $Point: new SolidScriptPoint([point.x, point.y, point.z], [normal.x, normal.y, normal.z]),
+    $Index: index,
+    $Count: count,
+  };
 }
 
 /**
@@ -77,7 +111,7 @@ function solidScriptPlaceAlignOn(run: SolidScriptBlockRun): boolean {
  * @param direction Up direction, or null for world up.
  * @param lift Metres out along up.
  * @param align True to use the Place On Face frame.
- * @param index Point number from 0.
+ * @param fills Per-point values.
  * @returns Matrix.
  */
 function solidScriptPlaceCopyMatrix(
@@ -86,15 +120,15 @@ function solidScriptPlaceCopyMatrix(
   direction: THREE.Vector3 | null,
   lift: number,
   align: boolean,
-  index: number,
+  fills: SolidScriptPlaceFills,
 ): THREE.Matrix4 {
   return solidScriptPlaceAtMatrix(
     point,
     direction,
     lift,
     align,
-    solidScriptPlaceEachRotate(run, point, index),
-    solidScriptPlaceEachScale(run, point, index),
+    solidScriptPlaceEachRotate(run, fills),
+    solidScriptPlaceEachScale(run, fills),
   );
 }
 
@@ -170,12 +204,11 @@ export function solidScriptPlaceAtMatrix(
  * Rotation of one Place At Points copy, from its 🔁 Rotation field.
  *
  * @param run Running line.
- * @param point Current point.
- * @param index Index from 0.
+ * @param fills Per-point values.
  * @returns Rotation.
  */
-function solidScriptPlaceEachRotate(run: SolidScriptBlockRun, point: THREE.Vector3, index: number): THREE.Matrix4 {
-  const [x, y, z] = solidScriptPlaceEachVector(run, 'rotation', point, index, [0, 0, 0]);
+function solidScriptPlaceEachRotate(run: SolidScriptBlockRun, fills: SolidScriptPlaceFills): THREE.Matrix4 {
+  const [x, y, z] = solidScriptPlaceEachVector(run, 'rotation', fills, [0, 0, 0]);
   return new THREE.Matrix4().makeRotationFromEuler(
     new THREE.Euler(
       x * SOLID_SCRIPT_PLACE_DEGREES,
@@ -190,34 +223,31 @@ function solidScriptPlaceEachRotate(run: SolidScriptBlockRun, point: THREE.Vecto
  * Scale of one Place At Points copy, from its 🔁 Scale field.
  *
  * @param run Running line.
- * @param point Current point.
- * @param index Index from 0.
+ * @param fills Per-point values.
  * @returns Scale.
  */
-function solidScriptPlaceEachScale(run: SolidScriptBlockRun, point: THREE.Vector3, index: number): THREE.Matrix4 {
-  const [x, y, z] = solidScriptPlaceEachVector(run, 'scale', point, index, [1, 1, 1]);
+function solidScriptPlaceEachScale(run: SolidScriptBlockRun, fills: SolidScriptPlaceFills): THREE.Matrix4 {
+  const [x, y, z] = solidScriptPlaceEachVector(run, 'scale', fills, [1, 1, 1]);
   return new THREE.Matrix4().makeScale(x, y, z);
 }
 
 /**
- * Reads a per-point vector field, with [$Point] the position and [$Index] from
- * 0.
+ * Reads a per-point vector field, with [$Point], [$Index] and [$Count] filled
+ * in.
  *
  * @param run Running line.
  * @param key Field key.
- * @param point Current point.
- * @param index Index from 0.
+ * @param fills Per-point values.
  * @param fallback Value when the field is empty.
  * @returns Three numbers.
  */
 function solidScriptPlaceEachVector(
   run: SolidScriptBlockRun,
   key: string,
-  point: THREE.Vector3,
-  index: number,
+  fills: SolidScriptPlaceFills,
   fallback: readonly [number, number, number],
 ): [number, number, number] {
-  const numbers = solidScriptValueNumbers(run.valueWith(key, { $Point: [point.x, point.y, point.z], $Index: index }));
+  const numbers = solidScriptValueNumbers(run.valueWith(key, fills));
   if (!numbers || numbers.length < 3)
     throw new Error(`${key === 'rotation' ? 'Rotation' : 'Scale'} needs three numbers, such as ${fallback.join(', ')}`);
   const x = numbers[0];

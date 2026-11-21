@@ -1,3 +1,4 @@
+import { solidScriptParameterEach } from './solid_script_command_each.js';
 import { solidScriptKindNamed } from '@/solid_script/language/solid_script_kinds.js';
 import { SolidScriptCommand, type SolidScriptCommandWord } from './solid_script_command.js';
 import type { SolidScriptCommandEach } from './solid_script_command_each.js';
@@ -147,8 +148,6 @@ function solidScriptSelectCommand(kind: SolidScriptSelectKind): SolidScriptComma
     label: kind.label,
     category: 'Faces',
     description: `Pick ${kind.many}`,
-    fills:
-      kind.item === 'Edge' ? ['$Edge', '$Index'] : kind.item === 'Brush' ? ['$Brush', '$Index'] : ['$Vertex', '$Index'],
     manual: `Picks ${kind.many} and puts them in [$Selected.${kind.item === 'Edge' ? 'Edges' : kind.item === 'Brush' ? 'Brushes' : 'Vertices'}], where lines with an empty Of find them. ${kind.item === 'Brush' ? 'Of says which brushes to pick from; empty uses every brush and mesh built so far, and those a modifier has received.' : 'Of says where to pick from: brushes, faces or edges; empty uses [$Selected.Faces], or [$Selected.Brushes] when no faces are picked.'} Which All keeps every one, the same as a Where left off. Which Between keeps the ${kind.many} between this ${kind.label} and the previous one. Where is a 🔁 condition each remaining one must pass, with [$${kind.item}] the item being tested, such as [=[$${kind.item}.${kind.item === 'Edge' ? 'Length' : kind.item === 'Brush' ? 'Size.X' : 'Position.Y'}] > 1], and [$Index] its number from 0. Left off, Where keeps what Which picked. How adds to or removes from the ${kind.many} picked before. Into also writes them to a variable, a ${kind.item} list. Example: ${kind.example}`,
     stops: [
       'No brushes to pick from.',
@@ -164,15 +163,15 @@ function solidScriptSelectCommand(kind: SolidScriptSelectKind): SolidScriptComma
         `How to pick. One of: ${words.join(', ')}. Type one word, such as All.`,
         kind.words,
       ),
-      {
-        ...solidScriptParameterOptional(
+      solidScriptParameterEach(
+        solidScriptParameterOptional(
           'where',
           'Where',
           'value',
-          `A 🔁 condition each of the ${kind.many} must pass, such as [=[$${kind.item}.${kind.item === 'Edge' ? 'Length' : kind.item === 'Brush' ? 'Size.X' : 'Position.Y'}] > 1], with [$${kind.item}] the item being tested and [$Index] its number from 0. Left off keeps every one Which picked.`,
+          `A condition each of the ${kind.many} must pass, such as [=[$${kind.item}.${kind.item === 'Edge' ? 'Length' : kind.item === 'Brush' ? 'Size.X' : 'Position.Y'}] > 1]. Left off keeps every one Which picked.`,
         ),
-        each: kind.item,
-      },
+        kind.item,
+      ),
       solidScriptSelectOf(kind),
       solidScriptParameterWords(
         'how',
@@ -205,7 +204,7 @@ function solidScriptSelectCommand(kind: SolidScriptSelectKind): SolidScriptComma
         throw new Error(`Which must be one of ${kind.words.map((entry) => entry.word).join(', ')}, not "${which}"`);
       const chosen = which === SOLID_SCRIPT_SELECT_BETWEEN ? run.selectFresh(kind.selected, pool) : pool;
       const picked = chosen.filter((item, index) =>
-        solidScriptConditionHolds(run, 'where', { [`$${kind.item}`]: item, $Index: index }),
+        solidScriptConditionHolds(run, 'where', { [`$${kind.item}`]: item, $Index: index, $Count: chosen.length }),
       );
       run.selectNote(kind.selected, pool);
       solidScriptSelectWrite(run, kind, picked);

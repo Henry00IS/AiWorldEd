@@ -7,6 +7,7 @@ import { solidScriptNameKey } from './solid_script_name_key.js';
 import { solidScriptMemberForm } from './solid_script_shown_names.js';
 import {
   SolidScriptElement,
+  SolidScriptPoint,
   solidScriptValueNumbers,
   solidScriptValueType,
   type SolidScriptValue,
@@ -121,7 +122,6 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
   Point: {
     Position: form('Positions', 'Vector'),
     Normal: form('Normals', 'Vector'),
-    Data: form('Data', 'Data'),
   },
 } as const;
 
@@ -305,7 +305,10 @@ export function solidScriptMemberRead(
   written = member,
 ): SolidScriptValue {
   const key = solidScriptNameKey(member);
-  if (value instanceof SolidScriptElement) {
+  if (value instanceof SolidScriptPoint) {
+    if (key === 'position') return value.position;
+    if (key === 'normal') return value.normal;
+  } else if (value instanceof SolidScriptElement) {
     if (value.kind === 'data') return elements.dataRead(value, member);
     const read = solidScriptMemberElement(value, key, elements);
     if (read !== undefined) return read;

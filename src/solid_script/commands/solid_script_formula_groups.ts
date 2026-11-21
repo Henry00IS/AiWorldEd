@@ -141,7 +141,7 @@ const SOLID_SCRIPT_FORMULA_OPERATORS: readonly (SolidScriptFormulaBlockText & {
     label: 'At Most',
     synonyms: ['less or equal', 'less than or equal', 'no more than', 'maximum', '<='],
     description: 'Yes when the first block is smaller or the same',
-    manual: 'Yes when the first block is at most the second. Example: At Most, Variable $CY, Number 0, End At Most.',
+    manual: 'Yes when the first block is at most the second. Example: At Most, Variable $Y, Number 0, End At Most.',
   },
   {
     id: 'formula_more',

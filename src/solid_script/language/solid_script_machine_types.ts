@@ -139,7 +139,7 @@ export interface SolidScriptBlockRun {
    */
   positionsMove(
     items: readonly SolidScriptValue[],
-    to: (vertex: SolidScriptElement, index: number) => SolidScriptValue | null,
+    to: (vertex: SolidScriptElement, index: number, count: number) => SolidScriptValue | null,
   ): void;
   /**
    * Builds one convex solid from its corners and faces, with the texture

@@ -1,3 +1,4 @@
+import { solidScriptParameterEach } from './solid_script_command_each.js';
 import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptListingNote, solidScriptListingOptions } from './solid_script_command_listing.js';
 import {
@@ -75,16 +76,16 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
         { rule: 'value', field: 'value', what: 'set to {value}' },
         'path',
       ),
-      {
-        ...solidScriptParameterOptional(
+      solidScriptParameterEach(
+        solidScriptParameterOptional(
           'value',
           'Value',
           'value',
           'A number, numbers separated by commas such as 1, 2, 3, a vector such as [1, 2, 3], a list of any items separated by commas such as [1, 2, 3], zu, 45, plain text ($, for a comma in it), [Name] for another variable, or [=formula] such as [=[Width] * 2]. For a Vertex.Position write, once per corner, such as [=[$Vertex.Position] + [0, 1, 0]]. Left empty it is empty text.',
         ),
-        each: 'Vertex',
-        eachWhen: { field: 'name', position: true },
-      },
+        'Vertex',
+        { field: 'name', position: true },
+      ),
     ],
     listing: (read) => ['Set', read.value('name'), ': ', read.value('value')],
     execute: (run) => {

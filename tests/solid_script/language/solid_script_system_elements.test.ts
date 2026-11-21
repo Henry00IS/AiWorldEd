@@ -59,29 +59,13 @@ describe('SolidScript current-element system names', () => {
     expect(byShort).toEqual(byMember);
   });
 
-  it('lets Select Faces Where use [$CX] as the short form of [$Face.Center.X]', () => {
-    const byMember = printed(
-      CUBE,
-      line('select_brushes'),
-      line('select_faces', { which: 'All', where: '[=[$Face.Center.Y] > 0]' }),
-      line('echo', { value: '[$Selected.Faces.Count]' }),
-    );
-    const byShort = printed(
-      CUBE,
-      line('select_brushes'),
-      line('select_faces', { which: 'All', where: '[=[$CY] > 0]' }),
-      line('echo', { value: '[$Selected.Faces.Count]' }),
-    );
-    expect(byMember).toEqual(['1']);
-    expect(byShort).toEqual(byMember);
-  });
-
   it('fills $Face and $Index on Select Faces, and $Vertex on Select Vertices', () => {
     expect(solidScriptCommandFind('select_faces')?.fills).toEqual(
-      expect.arrayContaining(['$Face', '$Index', '$CX', '$CY', '$CZ']),
+      expect.arrayContaining(['$Face', '$Index', '$Count', '$X', '$NZ']),
     );
-    expect(solidScriptCommandFind('select_vertices')?.fills).toEqual(['$Vertex', '$Index']);
-    expect(solidScriptCommandFind('select_edges')?.fills).toEqual(['$Edge', '$Index']);
+    expect(solidScriptCommandFind('select_vertices')?.fills).toEqual(expect.arrayContaining(['$Vertex', '$Index']));
+    expect(solidScriptCommandFind('select_edges')?.fills).toEqual(expect.arrayContaining(['$Edge', '$Index']));
+    expect(solidScriptCommandFind('select_edges')?.fills).not.toContain('$NX');
   });
 
   it('gives the analyzer the members of $Face, and hints to write [$Face.Area] when the $ is missing', () => {

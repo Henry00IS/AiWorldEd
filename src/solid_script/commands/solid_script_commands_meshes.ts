@@ -1,3 +1,5 @@
+import { solidScriptEachUses } from '@/solid_script/language/solid_script_each_uses.js';
+import { solidScriptParameterEach } from './solid_script_command_each.js';
 import * as THREE from 'three';
 import { solidScriptKindNamed } from '@/solid_script/language/solid_script_kinds.js';
 import { SolidScriptCommand } from './solid_script_command.js';
@@ -224,10 +226,14 @@ function solidScriptMeshPickedAdd(
  */
 function solidScriptMeshDisplaceRun(run: SolidScriptBlockRun, mesh: SolidScriptShapeMesh): SolidScriptShapeMesh {
   const picked = solidScriptMeshPicked(run, mesh, 'vertices');
+  const vertexUsed = solidScriptEachUses(run.source('distance')).has('$vertex');
+  const count = mesh.points.length;
   return solidScriptMeshDisplace(mesh, (point, normal, index) => {
     if (picked && !picked.has(index)) return 0;
+    const vertex = vertexUsed ? { $Vertex: run.elements.vertex(mesh, { index, position: point, normal }) } : {};
     return solidScriptMeshNumber(
       run.valueWith('distance', {
+        ...vertex,
         $X: point.x,
         $Y: point.y,
         $Z: point.z,
@@ -235,6 +241,7 @@ function solidScriptMeshDisplaceRun(run: SolidScriptBlockRun, mesh: SolidScriptS
         $NY: normal.y,
         $NZ: normal.z,
         $Index: index,
+        $Count: count,
       }),
       'Distance',
     );
@@ -546,24 +553,23 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Push mesh points in or out by a formula',
     manual:
-      'Moves points of a mesh outwards along the surface by Distance in metres. A negative distance pulls them in. Near sharp edges the points turn smoothly around the edge, so faces never push through each other. It moves the vertices Select Vertices picked, or every point when none are picked. Distance is worked out for each point, and may use [$X], [$Y] and [$Z] (short forms of [$Vertex.Position] on each axis), [$NX], [$NY] and [$NZ] (short forms of [$Vertex.Normal]) and [$Index] (the point number), so waves, noise and bulges come from one formula. Of is the mesh; empty uses [$Selected.Brushes]. A brush stops the line: wrap it in Mesh From Brushes first. Subdivide first for a smooth result. Example: Mesh From Brushes around a subdivided Cube, then Distance [=0.1 * Sin([$X] * 180)], gives a wavy surface.',
+      'Moves points of a mesh outwards along the surface by Distance in metres. A negative distance pulls them in. Near sharp edges the points turn smoothly around the edge, so faces never push through each other. It moves the vertices Select Vertices picked, or every point when none are picked. Distance is worked out for each point, and may use [$X], [$Y] and [$Z] (its position), [$NX], [$NY] and [$NZ] (its normal), [$Vertex], [$Index] and [$Count], so waves, noise and bulges come from one formula. Of is the mesh; empty uses [$Selected.Brushes]. A brush stops the line: wrap it in Mesh From Brushes first. Subdivide first for a smooth result. Example: Mesh From Brushes around a subdivided Cube, then Distance [=0.1 * Sin([$X] * 180)], gives a wavy surface.',
     stops: [
       'A Distance that does not give a number.',
       'A brush. Wrap it in Mesh From Brushes first.',
       'No mesh to work on.',
     ],
-    fills: ['$X', '$Y', '$Z', '$NX', '$NY', '$NZ', '$Index'],
     parameters: [
-      {
-        ...solidScriptParameter(
+      solidScriptParameterEach(
+        solidScriptParameter(
           'distance',
           'Distance',
           'number',
           '[=0.1 * Sin([$X] * 360)]',
-          'Metres to move each point outwards, such as 0.2 or [=[$NX] * 0.1]. May use [$X], [$Y], [$Z], [$NX], [$NY], [$NZ] and [$Index].',
+          'Metres to move each point outwards, such as 0.2 or [=[$NX] * 0.1].',
         ),
-        each: 'Vertex',
-      },
+        'Vertex',
+      ),
       solidScriptParameterOf('meshes', '$Selected.Brushes', ['Brush']),
     ],
     listing: (read) => [

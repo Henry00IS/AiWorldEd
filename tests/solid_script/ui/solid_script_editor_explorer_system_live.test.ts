@@ -101,7 +101,8 @@ describe('System names show the values of the run where it was captured', () => 
     systemShow();
     expect(valueOf('$NZ')).toBe('Set for Each Element While Line 3 Runs');
     expect(valueOf('$Index')).toBe('Set for Each Element While Line 3 Runs');
-    expect(valueOf('$X')).toBe('Only Inside Lines That Fill It');
+    expect(valueOf('$X')).toBe('Set for Each Element While Line 3 Runs');
+    expect(valueOf('$Point')).toBe('Only Inside Lines That Fill It');
     expect(valueOf('$Selected.Faces')).toBe('[]');
     linePress(2);
     categoryShow('Context');

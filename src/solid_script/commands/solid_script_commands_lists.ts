@@ -1,3 +1,4 @@
+import { solidScriptParameterEach } from './solid_script_command_each.js';
 import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import {
@@ -258,7 +259,6 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     label: 'Filter List',
     category: 'Lists',
     description: 'Keep the items of a list that pass a condition',
-    fills: ['$Item', '$Index'],
     manual:
       'Keeps the items of a list that pass a 🔁 Where condition, and writes them to Into. List can be numbers separated by commas, a list variable such as [Heights], or geometry such as [$Selected.Faces]. Where tests each item as [$Item], with [$Index] its number from 0, and may use Facing, InBox, Near, EveryNth and HasTag. Left off, Where keeps every item. Example: Set [Heights] to 1, 5, 2, then Filter List [Heights] Where [=[$Item] > 2] Into [Tall], and Tall holds 5.',
     stops: ['A List that is not items or a list.'],
@@ -270,15 +270,15 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
         '1, 2, 3',
         'Items separated by commas, or a list such as [Heights] or [$Selected.Faces].',
       ),
-      {
-        ...solidScriptParameterOptional(
+      solidScriptParameterEach(
+        solidScriptParameterOptional(
           'where',
           'Where',
           'value',
-          'A 🔁 condition each item must pass, such as [=[$Item] > 0] or [=EveryNth([$Index], 2)], with [$Item] the item being tested and [$Index] its number from 0. Left off keeps every item.',
+          'A condition each item must pass, such as [=[$Item] > 0] or [=EveryNth([$Index], 2)]. Left off keeps every item.',
         ),
-        each: 'Item',
-      },
+        'Item',
+      ),
       {
         ...solidScriptParameterWrites(
           solidScriptParameter(
@@ -303,7 +303,9 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     execute: (run) => {
       const kept = run
         .list('list')
-        .filter((item, index) => solidScriptConditionHolds(run, 'where', { $Item: item, $Index: index }));
+        .filter((item, index, all) =>
+          solidScriptConditionHolds(run, 'where', { $Item: item, $Index: index, $Count: all.length }),
+        );
       run.variableSet(run.text('into').trim(), kept);
       return [];
     },

@@ -14,13 +14,81 @@ export const SOLID_SCRIPT_COMMAND_EACH_ICON = '🔁';
 /** Official fills of the current element, by the element kind. */
 const SOLID_SCRIPT_COMMAND_EACH_FILLS: Readonly<Record<SolidScriptCommandEach, readonly SolidScriptSystemFillName[]>> =
   {
-    Brush: ['$Brush', '$Index'],
-    Face: ['$Face', '$Index', '$CX', '$CY', '$CZ', '$NX', '$NY', '$NZ'],
-    Edge: ['$Edge', '$Index'],
-    Vertex: ['$Vertex', '$Index', '$X', '$Y', '$Z', '$NX', '$NY', '$NZ'],
-    Point: ['$Point', '$Index', '$X', '$Y', '$Z'],
-    Item: ['$Item', '$Index'],
+    Brush: ['$Brush', '$Index', '$Count', '$X', '$Y', '$Z'],
+    Face: ['$Face', '$Index', '$Count', '$X', '$Y', '$Z', '$NX', '$NY', '$NZ'],
+    Edge: ['$Edge', '$Index', '$Count', '$X', '$Y', '$Z'],
+    Vertex: ['$Vertex', '$Index', '$Count', '$X', '$Y', '$Z', '$NX', '$NY', '$NZ'],
+    Point: ['$Point', '$Index', '$Count', '$X', '$Y', '$Z', '$NX', '$NY', '$NZ'],
+    Item: ['$Item', '$Index', '$Count', '$X', '$Y', '$Z'],
   };
+
+/** How the help names each kind of item and what its $X, $Y and $Z read. */
+const SOLID_SCRIPT_COMMAND_EACH_WORDS: Readonly<
+  Record<SolidScriptCommandEach, { noun: string; place: string; normal: boolean }>
+> = {
+  Brush: { noun: 'brush', place: 'its center', normal: false },
+  Face: { noun: 'face', place: 'its center', normal: true },
+  Edge: { noun: 'edge', place: 'its center', normal: false },
+  Vertex: { noun: 'corner', place: 'its position', normal: true },
+  Point: { noun: 'point', place: 'its position', normal: true },
+  Item: { noun: 'item', place: 'its parts when it is a vector, or its center', normal: false },
+};
+
+/**
+ * Explains what a per-item field may read for one kind of item, such as
+ * [$Face], [$Index] and [$Count] and the short forms.
+ *
+ * @param each Kind of item.
+ * @returns Sentence.
+ */
+export function solidScriptEachSentence(each: SolidScriptCommandEach): string {
+  const words = SOLID_SCRIPT_COMMAND_EACH_WORDS[each];
+  const normal = words.normal ? ', and [$NX], [$NY] and [$NZ] its normal' : '';
+  return `Can change per ${words.noun}: [$${each}] is the ${words.noun}, [$Index] its number from 0 and [$Count] how many there are; [$X], [$Y] and [$Z] are ${words.place}${normal}.`;
+}
+
+/**
+ * Makes a field per-item for one kind of item: it may read that item's values,
+ * and its hint ends with what it may read.
+ *
+ * @param parameter Field.
+ * @param each Kind of item.
+ * @param eachWhen Field and words that make it per-item, when it is only
+ *   per-item then.
+ * @returns Field.
+ */
+export function solidScriptParameterEach(
+  parameter: SolidScriptCommandParameter,
+  each: SolidScriptCommandEach,
+  eachWhen?: SolidScriptCommandParameter['eachWhen'],
+): SolidScriptCommandParameter {
+  return {
+    ...parameter,
+    hint: `${parameter.hint} ${solidScriptEachSentence(each)}`,
+    each,
+    ...(eachWhen ? { eachWhen } : {}),
+  };
+}
+
+/**
+ * Lists the fills of a line: the current-item names of every field that may
+ * always be per-item, each once; a field per-item only for some values, such as
+ * Set's Value, adds its names while it is.
+ *
+ * @param parameters Fields of the line.
+ * @returns Official fill names.
+ */
+export function solidScriptCommandFillsOf(
+  parameters: readonly SolidScriptCommandParameter[],
+): readonly SolidScriptSystemFillName[] {
+  return [
+    ...new Set(
+      parameters.flatMap((parameter) =>
+        parameter.each && !parameter.eachWhen ? SOLID_SCRIPT_COMMAND_EACH_FILLS[parameter.each] : [],
+      ),
+    ),
+  ];
+}
 
 /** Current-element fill names, folded, including short forms and $Index. */
 const SOLID_SCRIPT_COMMAND_EACH_FILL_KEYS: ReadonlySet<string> = new Set(

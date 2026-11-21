@@ -273,7 +273,7 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
     const targets = this.positionTargets(scope, written);
     const axis = solidScriptPositionAxis(written);
     const moves = targets.map((target, index) => {
-      const assigned = run.valueWith(key, { $Vertex: target.element, $Index: index });
+      const assigned = run.valueWith(key, { $Vertex: target.element, $Index: index, $Count: targets.length });
       return { from: target.position.clone(), to: solidScriptPositionValue(assigned, target.position, axis) };
     });
     this.positionCommit(targets, moves);
@@ -287,17 +287,18 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
    *
    * @param items Elements that own the corners.
    * @param label Command, for messages.
-   * @param to New position of a corner, or null to leave it.
+   * @param to New position of a corner from it, its number and how many there
+   *   are, or null to leave it.
    */
   positionsMove(
     items: readonly SolidScriptValue[],
     label: string,
-    to: (vertex: SolidScriptElement, index: number) => SolidScriptValue | null,
+    to: (vertex: SolidScriptElement, index: number, count: number) => SolidScriptValue | null,
   ): void {
     const targets: SolidScriptPositionTarget[] = [];
     for (const item of items) this.positionTargetAdd(targets, item, label);
     const moved = targets.flatMap((target, index) => {
-      const value = to(target.element, index);
+      const value = to(target.element, index, targets.length);
       return value === null
         ? []
         : [

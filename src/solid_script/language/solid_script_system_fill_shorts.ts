@@ -4,55 +4,50 @@ import { solidScriptMemberRead } from './solid_script_members.js';
 import type { SolidScriptScope } from './solid_script_scope.js';
 import { solidScriptValueNumbers, type SolidScriptValue } from './solid_script_value.js';
 
-/** One way a short fill such as $X is read from the current element. */
-interface SolidScriptSystemFillShort {
-  /** Current-element name, such as $vertex. */
+/**
+ * Where a current item is and which way it faces, by the name it is filled in
+ * as.
+ */
+interface SolidScriptSystemFillItem {
+  /** Folded name, such as $face. */
   element: string;
-  /** Member that holds the vector, or empty when the element is the vector. */
-  member: string;
-  /** Axis of that vector. */
-  axis: 'x' | 'y' | 'z';
+  /** Member that gives its place: Position, or Center. */
+  position: string;
+  /** Member that gives the way it faces, or an empty text when it has none. */
+  normal: string;
 }
 
-/** Short fills and the current-element members they stand for, by name key. */
-const SOLID_SCRIPT_SYSTEM_FILL_SHORTS: Readonly<Record<string, readonly SolidScriptSystemFillShort[]>> = {
-  $x: [
-    { element: '$vertex', member: 'Position', axis: 'x' },
-    { element: '$point', member: 'Position', axis: 'x' },
-  ],
-  $y: [
-    { element: '$vertex', member: 'Position', axis: 'y' },
-    { element: '$point', member: 'Position', axis: 'y' },
-  ],
-  $z: [
-    { element: '$vertex', member: 'Position', axis: 'z' },
-    { element: '$point', member: 'Position', axis: 'z' },
-  ],
-  $nx: [
-    { element: '$vertex', member: 'Normal', axis: 'x' },
-    { element: '$face', member: 'Normal', axis: 'x' },
-  ],
-  $ny: [
-    { element: '$vertex', member: 'Normal', axis: 'y' },
-    { element: '$face', member: 'Normal', axis: 'y' },
-  ],
-  $nz: [
-    { element: '$vertex', member: 'Normal', axis: 'z' },
-    { element: '$face', member: 'Normal', axis: 'z' },
-  ],
-  $cx: [{ element: '$face', member: 'Center', axis: 'x' }],
-  $cy: [{ element: '$face', member: 'Center', axis: 'y' }],
-  $cz: [{ element: '$face', member: 'Center', axis: 'z' }],
+/**
+ * Current items the short forms read, in the order they are looked for in one
+ * scope.
+ */
+const SOLID_SCRIPT_SYSTEM_FILL_ITEMS: readonly SolidScriptSystemFillItem[] = [
+  { element: '$vertex', position: 'Position', normal: 'Normal' },
+  { element: '$point', position: 'Position', normal: 'Normal' },
+  { element: '$face', position: 'Center', normal: 'Normal' },
+  { element: '$edge', position: 'Center', normal: '' },
+  { element: '$brush', position: 'Center', normal: '' },
+  { element: '$item', position: 'Center', normal: '' },
+];
+
+/** What each short form reads: the place or the way it faces, and which axis. */
+const SOLID_SCRIPT_SYSTEM_FILL_SHORTS: Readonly<Record<string, { normal: boolean; axis: 0 | 1 | 2 }>> = {
+  $x: { normal: false, axis: 0 },
+  $y: { normal: false, axis: 1 },
+  $z: { normal: false, axis: 2 },
+  $nx: { normal: true, axis: 0 },
+  $ny: { normal: true, axis: 1 },
+  $nz: { normal: true, axis: 2 },
 };
 
 /**
- * Reads a member of a current element, or nothing when that value has no such
- * member.
+ * Reads a member of a current item, or the item itself when it has no such
+ * member, such as a vector in a list.
  *
- * @param held Current element.
- * @param member Member name, such as Position.
- * @param elements Element store of the run.
- * @returns Member value, or undefined.
+ * @param held Current item.
+ * @param member Member name.
+ * @param elements Geometry values of the run.
+ * @returns Value.
  */
 function solidScriptSystemFillMember(
   held: SolidScriptValue,
@@ -62,53 +57,55 @@ function solidScriptSystemFillMember(
   try {
     return solidScriptMemberRead(held, member, elements, member);
   } catch {
-    return undefined;
+    return held;
   }
 }
 
 /**
- * Reads one axis of a vector, or of a member that holds a vector, falling back
- * to the value itself when it is already a vector.
+ * Reads one axis of the place or direction of a current item.
  *
- * @param held Current element or vector.
- * @param option Member and axis to read.
- * @param elements Element store of the run.
- * @returns Axis number, or undefined.
+ * @param held Current item.
+ * @param member Member that gives the vector, or an empty text for none.
+ * @param axis Axis from 0.
+ * @param elements Geometry values of the run.
+ * @returns Number, or undefined when the item has no such vector.
  */
 function solidScriptSystemFillAxis(
   held: SolidScriptValue,
-  option: SolidScriptSystemFillShort,
+  member: string,
+  axis: 0 | 1 | 2,
   elements: SolidScriptElements,
 ): SolidScriptValue {
-  const source = option.member === '' ? held : (solidScriptSystemFillMember(held, option.member, elements) ?? held);
-  if (source instanceof THREE.Vector3) return source[option.axis];
+  if (member === '') return undefined;
+  const source = solidScriptSystemFillMember(held, member, elements);
+  if (source instanceof THREE.Vector3) return source.getComponent(axis);
   const numbers = solidScriptValueNumbers(source);
-  const index = option.axis === 'x' ? 0 : option.axis === 'y' ? 1 : 2;
-  return numbers?.[index];
+  return numbers?.length === 3 ? numbers[axis] : undefined;
 }
 
 /**
- * Reads a short fill such as $X from the current $Vertex, $Point or $Face when
- * that element is filled in, so $X is $Vertex.Position.X and $NZ is
- * $Face.Normal.Z or $Vertex.Normal.Z.
+ * Reads a short form such as $X or $NY from the innermost current item: the
+ * position of a vertex or point, the center of a face, edge, brush or other
+ * item, and the normal of a vertex, point or face.
  *
- * @param name Name key, such as $x.
+ * @param name Folded name, such as $x.
  * @param scope Scope of the running line.
- * @param elements Element store of the run.
- * @returns Axis number, or undefined when the short does not apply.
+ * @param elements Geometry values of the run.
+ * @returns Number, or undefined when the name is no short form or nothing fills
+ *   it.
  */
 export function solidScriptSystemFillShort(
   name: string,
   scope: SolidScriptScope,
   elements: SolidScriptElements,
 ): SolidScriptValue {
-  const options = SOLID_SCRIPT_SYSTEM_FILL_SHORTS[name];
-  if (!options) return undefined;
-  for (const option of options) {
-    const held = scope.variableGet(option.element);
-    if (held === undefined) continue;
-    const axis = solidScriptSystemFillAxis(held, option, elements);
-    if (axis !== undefined) return axis;
-  }
+  const short = SOLID_SCRIPT_SYSTEM_FILL_SHORTS[name];
+  if (!short) return undefined;
+  for (let current: SolidScriptScope | null = scope; current; current = current.parent)
+    for (const item of SOLID_SCRIPT_SYSTEM_FILL_ITEMS) {
+      const held = current.variableOwn(item.element);
+      if (held === undefined) continue;
+      return solidScriptSystemFillAxis(held, short.normal ? item.normal : item.position, short.axis, elements);
+    }
   return undefined;
 }

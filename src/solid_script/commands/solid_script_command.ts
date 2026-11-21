@@ -23,7 +23,11 @@ import {
 } from './solid_script_command_parameters.js';
 import { solidScriptIntoCopyName, type SolidScriptInto } from '@/solid_script/language/solid_script_into.js';
 import { solidScriptToolRun } from '@/solid_script/language/solid_script_tool_copy.js';
-import { solidScriptParameterEachActive, type SolidScriptCommandEach } from './solid_script_command_each.js';
+import {
+  solidScriptCommandFillsOf,
+  solidScriptParameterEachActive,
+  type SolidScriptCommandEach,
+} from './solid_script_command_each.js';
 
 /** How a command field reads its text, which also picks its configurator editor. */
 export type SolidScriptCommandParameterType = SolidScriptFieldKind;
@@ -252,8 +256,6 @@ export interface SolidScriptCommandSpec {
   nesting?: SolidScriptCommandNesting;
   /** What the line means for the order lines run in; a plain line when omitted. */
   flow?: SolidScriptCommandFlow;
-  /** Names the line fills in for its own formulas, such as $NZ for each face. */
-  fills?: readonly SolidScriptSystemFillName[];
   /**
    * Word the End line of an open block shows after "End", such as "When" for
    * "End When"; the label when omitted. The opening line names the block in
@@ -432,7 +434,7 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
     this.parameters = fields.parameters;
     this.nesting = spec.nesting ?? 'none';
     this.flow = spec.flow;
-    this.fills = spec.fills ?? [];
+    this.fills = solidScriptCommandFillsOf(this.parameters);
     this.endLabel = spec.endLabel ?? spec.label;
     this.parts = spec.parts ?? [];
     this.inPalette = spec.inPalette !== false;

@@ -1,3 +1,4 @@
+import { solidScriptParameterEach } from './solid_script_command_each.js';
 import { solidScriptKindNamed } from '@/solid_script/language/solid_script_kinds.js';
 import * as THREE from 'three';
 import { SolidScriptCommand, type SolidScriptCommandWord } from './solid_script_command.js';
@@ -271,18 +272,6 @@ function solidScriptFaceTagsOf(
  * @param run Running line.
  * @returns Faces of those brushes or of a face list in Of.
  */
-/**
- * Face number a Where condition reads as [$Index].
- *
- * @param run Running line.
- * @param item Picked face.
- * @returns Face number from 0, or 0 when it has none.
- */
-function solidScriptFaceWhereIndex(run: SolidScriptBlockRun, item: SolidScriptValue): number {
-  if (!(item instanceof SolidScriptElement)) return 0;
-  return run.elements.faces(item)[0]?.index ?? 0;
-}
-
 function solidScriptFaceSelectFrom(run: SolidScriptBlockRun): SolidScriptFaceFacts[] {
   const given = run.ofValues();
   const from = given ?? run.selectedGet('brushes');
@@ -333,9 +322,8 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     label: 'Select Faces',
     category: 'Faces',
     description: 'Pick faces of brushes',
-    fills: ['$Face', '$Index', '$CX', '$CY', '$CZ', '$NX', '$NY', '$NZ'],
     manual:
-      'Picks faces and puts them in [$Selected.Faces], where Extrude Face, Inset Face, Bevel Edges, Delete Faces and Texture Faces find them when their Of is empty. Of says where to pick from: brushes (all their faces) or faces (a list to narrow down); empty uses [$Selected.Brushes]. Which is a preset that equals a written-out Where: All keeps every face, Facing Up equals Facing([$Face.Normal], Vector(0, 1, 0)), and Top equals [=HasTag([$Face.Tags], "Top")]. Which Between keeps the faces between this Select Faces and the previous one. Where is a 🔁 condition each remaining face must pass, with [$Face] the face being tested and [$Index] its number from 0; [$CX], [$CY] and [$CZ] are short forms of [$Face.Center.X] and the other axes, and [$NX], [$NY] and [$NZ] of [$Face.Normal]. Left off, Where keeps what Which picked. How adds to or removes from the faces picked before. Into also writes the faces to a variable, a Face list. To pick faces of a new brush, set Of to that brush or its Name. To walk the same faces after later Select lines, write them Into a variable. Example: Cube, then Select Faces Facing Up and Extrude Face By 1 pulls the top up.',
+      'Picks faces and puts them in [$Selected.Faces], where Extrude Face, Inset Face, Bevel Edges, Delete Faces and Texture Faces find them when their Of is empty. Of says where to pick from: brushes (all their faces) or faces (a list to narrow down); empty uses [$Selected.Brushes]. Which is a preset that equals a written-out Where: All keeps every face, Facing Up equals Facing([$Face.Normal], Vector(0, 1, 0)), and Top equals [=HasTag([$Face.Tags], "Top")]. Which Between keeps the faces between this Select Faces and the previous one. Where is a condition each remaining face must pass, with [$Face] the face being tested, [$Index] its place in the list from 0 and [$Count] how many there are; [$X], [$Y] and [$Z] are short forms of [$Face.Center], and [$NX], [$NY] and [$NZ] of [$Face.Normal]. Left off, Where keeps what Which picked. How adds to or removes from the faces picked before. Into also writes the faces to a variable, a Face list. To pick faces of a new brush, set Of to that brush or its Name. To walk the same faces after later Select lines, write them Into a variable. Example: Cube, then Select Faces Facing Up and Extrude Face By 1 pulls the top up.',
     stops: [
       'No brushes to pick from.',
       'A Which that is not one of the choices.',
@@ -350,15 +338,15 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         `How to pick. One of: ${SOLID_SCRIPT_FACE_WHICH.join(', ')}. Type one word, such as Facing Up.`,
         SOLID_SCRIPT_FACE_WHICH_WORDS,
       ),
-      {
-        ...solidScriptParameterOptional(
+      solidScriptParameterEach(
+        solidScriptParameterOptional(
           'where',
           'Where',
           'value',
-          'A 🔁 condition each face must pass, such as [=Facing([$Face.Normal], Vector(0, 1, 0))] or [=HasTag([$Face.Tags], "Top")]. [$Face] is the face being tested and [$Index] is its number from 0. Left off keeps every face Which picked.',
+          'A condition each face must pass, such as [=Facing([$Face.Normal], Vector(0, 1, 0))] or [=HasTag([$Face.Tags], "Top")]. Left off keeps every face Which picked.',
         ),
-        each: 'Face',
-      },
+        'Face',
+      ),
       solidScriptParameterOf('brushes or faces to pick from', '$Selected.Brushes'),
       solidScriptParameterWords(
         'how',
@@ -391,8 +379,8 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         which === SOLID_SCRIPT_SELECT_BETWEEN
           ? run.selectFresh('faces', items)
           : solidScriptFaceSelectWhich(which, faces).map((face) => run.elements.face(face));
-      const picked = chosen.filter((item) =>
-        solidScriptConditionHolds(run, 'where', { $Face: item, $Index: solidScriptFaceWhereIndex(run, item) }),
+      const picked = chosen.filter((item, index) =>
+        solidScriptConditionHolds(run, 'where', { $Face: item, $Index: index, $Count: chosen.length }),
       );
       solidScriptFaceSelectWrite(run, how, items, picked);
       return [];
@@ -543,7 +531,6 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     description: 'Stand brushes at a list of points',
     builds: true,
     intoList: true,
-    fills: ['$Point', '$Index', '$X', '$Y', '$Z'],
     manual:
       'Builds the brushes between this line and its End at each point in At, a list of vectors such as the points Scatter Points writes. Directions, when given, turns up (Y) along the matching entry, one per point; leave it empty to keep world up. Lift moves them out along that up. Align To Normal stands each copy the way Place On Face would, with Direction as the face normal. Rotation and Scale are worked out once per point as 🔁 fields, with [$Point] the position, [$Index] from 0, and [$X], [$Y] and [$Z]. Into is always a list of the brushes or meshes it built, even when there is only one. Example: Scatter Points 20 Into [Spots] Normals [Dirs], then Place At Points At [Spots] Directions [Dirs], Sphere, End, puts a ball on every point, standing on the face.',
     stops: [
@@ -575,26 +562,26 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         'No',
         'Yes: stand each copy the way Place On Face would, with Directions as the normals. No: the shortest turn that points up along each direction, or world up when Directions is left off. Type Yes or No, such as Yes.',
       ),
-      {
-        ...solidScriptParameter(
+      solidScriptParameterEach(
+        solidScriptParameter(
           'rotation',
           'Rotation',
           'vector3',
           '0, 0, 0',
-          'Degrees around X, then Y, then Z, worked out once per point, such as 0, 45, 0 or [=Vector(0, [$Index] * 15, 0)]. May use [$Point], [$Index], [$X], [$Y] and [$Z].',
+          'Degrees around X, then Y, then Z, worked out once per point, such as 0, 45, 0 or [=Vector(0, [$Index] * 15, 0)].',
         ),
-        each: 'Point',
-      },
-      {
-        ...solidScriptParameter(
+        'Point',
+      ),
+      solidScriptParameterEach(
+        solidScriptParameter(
           'scale',
           'Scale',
           'vector3',
           '1, 1, 1',
-          'Size of each copy, worked out once per point, such as 1 or [=[$Index] * 0.1 + 0.5]. May use [$Point], [$Index], [$X], [$Y] and [$Z].',
+          'Size of each copy, worked out once per point, such as 1 or [=[$Index] * 0.1 + 0.5].',
         ),
-        each: 'Point',
-      },
+        'Point',
+      ),
     ],
     listing: (read) => [
       'Place At Points',
