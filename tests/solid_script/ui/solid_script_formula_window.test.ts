@@ -808,7 +808,9 @@ describe('SolidScript formula window on every kind of field', () => {
     (_kind, stored, field) => {
       const input = fieldOpen(field);
       if (field.blocks.length > 0) expect(rows()).toEqual(field.blocks);
-      expect(rows().length > 0).toBe(stored.trim() !== '');
+      // An empty field opens with its declared default.
+      const opened = stored.trim() !== '' ? stored : solidScriptFieldOf(field).default;
+      expect(rows().length > 0).toBe(opened.trim() !== '');
       expect(status()).not.toMatch(/^Line \d|plain text/);
       const shown = formulaText();
       button('OK', formulaWindow()).click();

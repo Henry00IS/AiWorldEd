@@ -232,13 +232,16 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
 
   /**
    * Opens the formula window of a field over this window, once its formula
-   * reads; a broken one must be fixed first.
+   * reads; a broken one must be fixed first. An empty field opens with its
+   * declared default as blocks; only OK writes it, and a default left as it is
+   * keeps the field empty.
    *
    * @param parameter Field.
-   * @param stored Field text.
+   * @param typed Field text.
    * @param write Writes the built text into the field.
    */
-  private formulaOpen(parameter: SolidScriptCommandParameter, stored: string, write: (text: string) => void): void {
+  private formulaOpen(parameter: SolidScriptCommandParameter, typed: string, write: (text: string) => void): void {
+    const stored = typed.trim() === '' ? parameter.default : typed;
     const values = this.values();
     const problem = solidScriptFormulaWindowProblem(parameter.type, stored);
     if (problem) {
