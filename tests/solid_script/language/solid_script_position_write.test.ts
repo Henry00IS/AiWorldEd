@@ -105,12 +105,13 @@ describe('SolidScript Set Vertex.Position', () => {
     expect(solidScriptBodyConvex(bent)).toBe(true);
   });
 
-  it('stops when the corners would make a brush that is no longer a convex brush', () => {
+  it('lets the corners make a brush that is not convex, and warns once at the end', () => {
     const result = run(CUBE, SELECT_BRUSHES, SELECT_ALL_VERTICES, {
       command: 'variable',
       values: { name: '$Selected.Vertices.Positions', value: '0, 0, 0' },
     });
-    expect(result.error?.message ?? '').toMatch(/is no longer a convex brush/);
+    expect(result.error).toBeNull();
+    expect(result.warnings.map((warning) => warning.text).join()).toMatch(/1 brush is not convex/);
   });
 
   it('still refuses members that can only be read', () => {

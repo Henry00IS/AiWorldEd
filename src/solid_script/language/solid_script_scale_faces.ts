@@ -8,7 +8,7 @@ import {
 
 /**
  * Scales the faces of a brush or mesh about each face's center. A brush stays a
- * brush; a mesh stays a mesh. Stops when a brush is no longer a convex brush.
+ * brush, convex or not until the output is checked; a mesh stays a mesh.
  *
  * @param leaf Brush or mesh.
  * @param faces Faces of that leaf to scale.
@@ -24,7 +24,7 @@ export function solidScriptScaleFaces(
 ): SolidScriptGeometryLeaf {
   if (!Number.isFinite(factor)) throw new Error(`${label} needs a Factor, such as 1 or 0.5, not ${factor}`);
   const points = leaf.points.map((point) => solidScriptScaleFacePoint(point, faces, factor));
-  return leaf.kind === 'solid' ? solidScriptSolidEdited(leaf, points, label) : { ...leaf, points };
+  return leaf.kind === 'solid' ? solidScriptSolidEdited(leaf, points) : { ...leaf, points };
 }
 
 /**

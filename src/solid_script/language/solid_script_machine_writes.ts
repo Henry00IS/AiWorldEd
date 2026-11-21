@@ -254,7 +254,7 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
       from: target.position.clone(),
       to: solidScriptPositionValue(value, target.position, axis),
     }));
-    this.positionCommit(targets, moves, 'Set');
+    this.positionCommit(targets, moves);
     return true;
   }
 
@@ -276,7 +276,7 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
       const assigned = run.valueWith(key, { $Vertex: target.element, $Index: index });
       return { from: target.position.clone(), to: solidScriptPositionValue(assigned, target.position, axis) };
     });
-    this.positionCommit(targets, moves, 'Set');
+    this.positionCommit(targets, moves);
     return true;
   }
 
@@ -310,7 +310,6 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
     this.positionCommit(
       moved.map((entry) => entry.target),
       moved.map((entry) => entry.move),
-      label,
     );
   }
 
@@ -357,20 +356,18 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
   }
 
   /**
-   * Applies every corner move of the line together, then checks a brush is
-   * still convex.
+   * Applies every corner move of the line together; a brush may be non-convex
+   * until the output is checked.
    *
    * @param targets Corners being set.
    * @param moves Moves in the same order, from the positions before the line.
-   * @param label Command, for the message.
    */
   private positionCommit(
     targets: readonly SolidScriptPositionTarget[],
     moves: readonly SolidScriptPositionMove[],
-    label: string,
   ): void {
     for (const group of solidScriptPositionByLeaf(targets, moves, (leaf) => this.leafLatest(leaf)))
-      this.leafRewrite(group.leaf, solidScriptPositionApply(this.leafLatest(group.leaf), group.moves, label));
+      this.leafRewrite(group.leaf, solidScriptPositionApply(this.leafLatest(group.leaf), group.moves));
   }
 
   /**

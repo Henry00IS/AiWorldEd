@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { SolidTreeBrush, SolidTreeNode } from '@/solid/commands/tree/solid_tree_node.js';
 import { solidScriptBodyBrush, solidScriptBodyFacesMoved } from './solid_script_body.js';
+import { solidScriptSolidBuildable } from './solid_script_solid_validate.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { solidScriptGroupModeOperation, solidScriptModeOperation } from './solid_script_mode.js';
 import type {
@@ -57,6 +58,8 @@ function solidScriptSolidTreeNodes(
 ): SolidTreeNode[] {
   if (shape.kind === 'polygon') throw new Error('2D shapes must be inside linear_extrude()');
   if (shape.kind === 'solid') {
+    // A brush left non-convex by the script is not built; the run warns about it.
+    if (!solidScriptSolidBuildable(shape)) return [];
     const operation = solidScriptModeOperation(shape.mode) ?? role;
     const brush = solidScriptSolidTreeBrush(shape, operation, options);
     if (shape.texture) brush.texture = shape.texture;

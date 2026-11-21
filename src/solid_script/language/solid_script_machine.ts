@@ -1,3 +1,4 @@
+import { solidScriptShapesNotConvex } from './solid_script_solid_validate.js';
 import {
   SOLID_SCRIPT_USE_GENERATOR,
   solidScriptInputBrushName,
@@ -532,6 +533,12 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       warnings.push({
         line: null,
         text: 'The script builds no brushes or meshes; add one such as Cube, or Output a variable.',
+      });
+    const bent = this.failure || this.paused ? 0 : solidScriptShapesNotConvex(shapes);
+    if (bent > 0)
+      warnings.push({
+        line: null,
+        text: `${bent === 1 ? '1 brush is' : `${bent} brushes are`} not convex and will not be built; move the corners until every brush is convex, or use Mesh From Brushes.`,
       });
     if (this.incomingUsed && this.incoming && this.received === this.incoming) this.processed.notes(this.incoming);
     return {

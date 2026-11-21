@@ -134,7 +134,8 @@ export interface SolidScriptBlockRun {
   /**
    * Moves the corners of brushes, faces, edges or vertices, each to the
    * position worked out for it from the geometry before the line, all at once;
-   * null leaves a corner. A brush that would no longer be convex stops the line.
+   * null leaves a corner. A brush may be left not convex until the script
+   * ends.
    */
   positionsMove(
     items: readonly SolidScriptValue[],

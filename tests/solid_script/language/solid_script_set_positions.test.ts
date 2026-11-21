@@ -67,9 +67,10 @@ describe('SolidScript Set Positions', () => {
     expect(bounds(result.shapes)).toEqual([-1, -1, -1, 4, 1, 1]);
   });
 
-  it('stops when a move would dent a brush, and when nothing is picked', () => {
+  it('dents a brush without stopping, and stops when nothing is picked', () => {
     const dent = run(BOX, line('set_positions', { of: 'Box', where: '[=[$Index] == 0]', to: '[=Vector(0, 0, 0)]' }));
-    expect(dent.error?.message).toMatch(/no longer a convex brush/);
+    expect(dent.error).toBeNull();
+    expect(dent.warnings.map((warning) => warning.text).join()).toMatch(/1 brush is not convex/);
     expect(run(BOX, line('set_positions', { to: '[=[$Vertex.Position]]' })).error?.message).toMatch(/Set Positions/);
   });
 });

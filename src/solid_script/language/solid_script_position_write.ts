@@ -69,21 +69,19 @@ export function solidScriptPositionValue(
 }
 
 /**
- * Applies every corner move of a line together, then checks a brush is still
- * convex.
+ * Applies every corner move of a line together; a brush may stay non-convex
+ * until the output is checked.
  *
  * @param leaf Solid or mesh.
  * @param moves Moves from the positions before the line.
- * @param label Command, for the message.
  * @returns Updated leaf.
  */
 export function solidScriptPositionApply(
   leaf: SolidScriptGeometryLeaf,
   moves: readonly SolidScriptPositionMove[],
-  label: string,
 ): SolidScriptGeometryLeaf {
   const points = leaf.points.map((point) => solidScriptPositionMoved(point, moves).clone());
-  return leaf.kind === 'solid' ? solidScriptSolidEdited(leaf, points, label) : { ...leaf, points };
+  return leaf.kind === 'solid' ? solidScriptSolidEdited(leaf, points) : { ...leaf, points };
 }
 
 /**
