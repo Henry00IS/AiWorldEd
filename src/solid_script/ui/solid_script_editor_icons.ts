@@ -19,6 +19,7 @@ const SOLID_SCRIPT_EDITOR_ICON_PATHS: Readonly<Record<string, string>> = {
   Groups: '<path d="M4.5 2.5H2.5v11h2 M11.5 2.5h2v11h-2 M5.5 6h5 M5.5 10h5"/>',
   Operators: '<path d="M4 2.5v5 M1.5 5h5 M9.5 5h5 M9.5 11h5 M2 13.5l4-4 M2 9.5l4 4"/>',
   Checks: '<path d="M2.5 8.5 6 12l7.5-8"/>',
+  Where: '<path d="M1.5 2.5h13L9.5 8.5v5l-3-1.5V8.5z"/>',
   Math: '<path d="M12.5 2.5h-9l5 5.5-5 5.5h9"/>',
   Trigonometry: '<path d="M1.5 8c1.5-6 3-6 4.5 0s3 6 4.5 0 3-6 4.5 0"/>',
   Vector: '<path d="M2.5 13.5 13 3 M8 3h5v5"/>',

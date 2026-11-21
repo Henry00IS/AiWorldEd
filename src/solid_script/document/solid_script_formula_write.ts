@@ -331,8 +331,8 @@ class SolidScriptFormulaWriter {
   }
 
   /**
-   * Writes the call of a check: an empty input with a default here gets it, and
-   * empty inputs at the end are left off.
+   * Writes the call of a check: an empty input with a default here, or with a
+   * start value, gets it, and empty inputs at the end are left off.
    *
    * @param key Check key.
    * @param formula Formula of a field.
@@ -342,7 +342,10 @@ class SolidScriptFormulaWriter {
   check(key: string, formula: (key: string, typed: (shown: string) => string) => string, name: string): string {
     const inputs = solidScriptFormulaCheckInputs(key, this.context);
     const args = inputs.map(
-      (input) => formula(input.name, (shown) => solidScriptFormulaTyped(input.kind, shown)) || input.fallback,
+      (input) =>
+        formula(input.name, (shown) => solidScriptFormulaTyped(input.kind, shown)) ||
+        input.fallback ||
+        solidScriptFormulaTyped(input.kind, input.start),
     );
     while (args.length > 0 && args[args.length - 1] === '') args.pop();
     return `${name || solidScriptFormulaCheckName(key)}(${args.join(', ')})`;

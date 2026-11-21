@@ -69,7 +69,8 @@ export function solidScriptDocumentCommandInsert(
   const line = Math.max(0, Math.min(at, blocks.length));
   const found = catalog.find(command);
   const inserted = [solidScriptBlockCreate(command, values, false, catalog)];
-  for (const part of found?.parts ?? []) inserted.push(solidScriptBlockCreate(part, undefined, false, catalog));
+  for (const part of found?.parts ?? [])
+    inserted.push(solidScriptBlockCreate(part.command, { ...part.values }, false, catalog));
   if (found?.nesting === 'open') inserted.push(solidScriptBlockCreate(SOLID_SCRIPT_COMMAND_END));
   blocks.splice(line, reuse ? 1 : 0, ...inserted);
   return { document: solidScriptDocumentWith(document, blocks), line };

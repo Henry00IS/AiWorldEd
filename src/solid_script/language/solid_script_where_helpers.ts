@@ -20,6 +20,8 @@ export interface SolidScriptWhereHelperInput {
   about: string;
   /** Default as typed text, when the input may be left off. */
   optional?: string;
+  /** Value a new formula block fills in, as typed, such as 0.5. */
+  start?: string;
   /** Words it takes, when it takes one of a few. */
   choices?: readonly string[];
   /**
@@ -97,6 +99,7 @@ export const SOLID_SCRIPT_WHERE_HELPERS: readonly SolidScriptWhereHelper[] = [
         label: 'Direction',
         type: ['Vector'],
         about: 'Direction it should face, such as [0, 1, 0] for up.',
+        start: '0, 1, 0',
       },
       {
         name: 'within',
@@ -121,12 +124,19 @@ export const SOLID_SCRIPT_WHERE_HELPERS: readonly SolidScriptWhereHelper[] = [
         type: ['Vector'],
         about: 'Point to test, such as [$Face.Center] or [$Vertex.Position].',
       },
-      { name: 'center', label: 'Center', type: ['Vector'], about: 'Center of the box, such as [0, 1, 0].' },
+      {
+        name: 'center',
+        label: 'Center',
+        type: ['Vector'],
+        about: 'Center of the box, such as [0, 1, 0].',
+        start: '0, 0, 0',
+      },
       {
         name: 'size',
         label: 'Size',
         type: ['Vector', 'Number'],
         about: 'Width, height and depth in metres, such as [4, 2, 4]; or one number for every axis, such as 2.',
+        start: '1, 1, 1',
       },
     ],
   },
@@ -138,13 +148,25 @@ export const SOLID_SCRIPT_WHERE_HELPERS: readonly SolidScriptWhereHelper[] = [
     description:
       'Yes when a point is within a distance of a target, including the exact distance, such as Near([$Face.Center], [Spot], 0.5).',
     inputs: [
-      { name: 'point', label: 'Point', type: ['Vector'], about: 'Point to test, such as [$Face.Center].' },
-      { name: 'target', label: 'Target', type: ['Vector'], about: 'Point to measure from, such as [Spot].' },
+      {
+        name: 'point',
+        label: 'Point',
+        type: ['Vector'],
+        about: 'Point to test, such as [$Face.Center].',
+      },
+      {
+        name: 'target',
+        label: 'Target',
+        type: ['Vector'],
+        about: 'Point to measure from, such as [Spot].',
+        start: '0, 0, 0',
+      },
       {
         name: 'distance',
         label: 'Distance',
         type: ['Number'],
         about: 'Greatest distance that still counts, in metres, such as 0.5.',
+        start: '1',
       },
     ],
   },
@@ -169,6 +191,7 @@ export const SOLID_SCRIPT_WHERE_HELPERS: readonly SolidScriptWhereHelper[] = [
         type: ['Number'],
         about:
           'How often to keep an item, such as 2; 1 keeps every item, 2 every second, 3 every third, and so on, always a whole number of 1 or more.',
+        start: '2',
       },
       {
         name: 'start',
@@ -193,7 +216,7 @@ export const SOLID_SCRIPT_WHERE_HELPERS: readonly SolidScriptWhereHelper[] = [
         type: ['Text', 'List'],
         about: 'A tag, or a list of tags such as [$Face.Tags].',
       },
-      { name: 'name', label: 'Name', type: ['Text'], about: 'Tag to look for, such as Top.' },
+      { name: 'name', label: 'Name', type: ['Text'], about: 'Tag to look for, such as Top.', start: 'Top' },
     ],
   },
   {
@@ -256,6 +279,7 @@ export const SOLID_SCRIPT_WHERE_HELPERS: readonly SolidScriptWhereHelper[] = [
         label: 'Probability',
         type: ['Number'],
         about: 'Share of the items that get Yes, from 0 (none) to 1 (all), such as 0.3.',
+        start: '0.5',
       },
       {
         name: 'id',
@@ -288,12 +312,14 @@ export const SOLID_SCRIPT_WHERE_HELPERS: readonly SolidScriptWhereHelper[] = [
         label: 'Min',
         type: ['Number', 'Vector'],
         about: 'The lowest value, or a vector of lowest values, such as 0.',
+        start: '0',
       },
       {
         name: 'max',
         label: 'Max',
         type: ['Number', 'Vector'],
         about: 'The highest value, or a vector of highest values, such as 1.',
+        start: '1',
       },
       {
         name: 'id',
@@ -321,8 +347,14 @@ export const SOLID_SCRIPT_WHERE_HELPERS: readonly SolidScriptWhereHelper[] = [
     description:
       'Steps evenly from From to To over the items: the first item gets From, the last gets To, and those between are spaced out, such as Spread(0, 90) to turn copies from 0 to 90 degrees.',
     inputs: [
-      { name: 'from', label: 'From', type: ['Number', 'Vector'], about: 'Value of the first item, such as 0.' },
-      { name: 'to', label: 'To', type: ['Number', 'Vector'], about: 'Value of the last item, such as 90.' },
+      {
+        name: 'from',
+        label: 'From',
+        type: ['Number', 'Vector'],
+        about: 'Value of the first item, such as 0.',
+        start: '0',
+      },
+      { name: 'to', label: 'To', type: ['Number', 'Vector'], about: 'Value of the last item, such as 90.', start: '1' },
       {
         name: 'index',
         label: 'Index',
@@ -348,14 +380,27 @@ export const SOLID_SCRIPT_WHERE_HELPERS: readonly SolidScriptWhereHelper[] = [
     description:
       'The point a distance away from a point along a direction, such as Along([$Face.Center], [$Face.Normal], 0.5) half a metre out from a face.',
     inputs: [
-      { name: 'point', label: 'Point', type: ['Vector'], about: 'Where to start, such as [$Face.Center].' },
+      {
+        name: 'point',
+        label: 'Point',
+        type: ['Vector'],
+        about: 'Where to start, such as [$Face.Center].',
+        start: '0, 0, 0',
+      },
       {
         name: 'direction',
         label: 'Direction',
         type: ['Vector'],
         about: 'Which way to go, such as [$Face.Normal]; only its direction counts, not its length.',
+        start: '0, 1, 0',
       },
-      { name: 'distance', label: 'Distance', type: ['Number'], about: 'How far to go, in metres, such as 0.5.' },
+      {
+        name: 'distance',
+        label: 'Distance',
+        type: ['Number'],
+        about: 'How far to go, in metres, such as 0.5.',
+        start: '1',
+      },
     ],
   },
 ];
@@ -380,7 +425,12 @@ export const SOLID_SCRIPT_WHERE_HELPER_ARGUMENTS = Object.fromEntries(
     Object.fromEntries(
       helper.inputs.map((input) => [
         input.name,
-        { type: input.type, about: input.about, ...(input.choices ? { choices: input.choices } : {}) },
+        {
+          type: input.type,
+          about: input.about,
+          ...(input.choices ? { choices: input.choices } : {}),
+          ...(input.start ? { start: input.start } : {}),
+        },
       ]),
     ),
   ]),

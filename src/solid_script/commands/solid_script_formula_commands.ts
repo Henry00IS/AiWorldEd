@@ -187,15 +187,16 @@ function solidScriptFormulaCheckHint(input: SolidScriptFormulaInput): string {
 
 /**
  * Describes the field of one check input: an input with a default, or filled in
- * with the element here, shows it greyed and may stay empty; one that takes a
- * few words offers them.
+ * with the element here, shows it greyed and may stay empty, and so does one
+ * with a start value, such as 0 and 1 for Min and Max of Random, like the
+ * defaults of every other field; one that takes a few words offers them.
  *
  * @param input Input.
  * @returns Field.
  */
 function solidScriptFormulaCheckField(input: SolidScriptFormulaInput): SolidScriptCommandParameter {
   const type = input.kind === 'text' ? 'text' : 'value';
-  const field = solidScriptParameter(input.name, input.label, type, '', solidScriptFormulaCheckHint(input));
+  const field = solidScriptParameter(input.name, input.label, type, input.start, solidScriptFormulaCheckHint(input));
   const optional = input.optional || input.fallback !== '';
   const placeholder = input.fallback || input.default;
   const words = input.choices.map((word) => ({ word, detail: `${input.label}.` }));
@@ -219,7 +220,9 @@ function solidScriptFormulaCheckProblem(
   inputs: readonly SolidScriptFormulaInput[],
   values: SolidScriptCommandValues,
 ): string {
-  const given = inputs.map((input) => (values[input.name] ?? '').trim() !== '' || input.fallback !== '');
+  const given = inputs.map(
+    (input) => (values[input.name] ?? '').trim() !== '' || input.fallback !== '' || input.start !== '',
+  );
   const gap = inputs.findIndex((_input, index) => !given[index] && given.slice(index + 1).includes(true));
   if (gap >= 0) return `${inputs[gap]?.label} needs a value when a later input has one.`;
   const fields = inputs.map((input) => ({

@@ -226,6 +226,14 @@ export interface SolidScriptCommandWord {
 /** Stored values of one command line, as typed per field key. */
 export type SolidScriptCommandValues = Readonly<Record<string, string>>;
 
+/** A line an open block adds between it and its End, with its values. */
+export interface SolidScriptCommandPart {
+  /** Command id, such as formula_then. */
+  readonly command: string;
+  /** Values it starts with; the command's defaults when omitted. */
+  readonly values?: Readonly<Record<string, string>>;
+}
+
 /** Everything that defines one command. */
 export interface SolidScriptCommandSpec {
   /** Stable id stored in scripts. */
@@ -265,9 +273,10 @@ export interface SolidScriptCommandSpec {
   endLabel?: string;
   /**
    * Lines an open block needs between it and its End, added with it, such as
-   * Then and Else of a formula If.
+   * Then and Else of a formula If, or the value blocks a function block starts
+   * with.
    */
-  parts?: readonly string[];
+  parts?: readonly SolidScriptCommandPart[];
   /** False hides the command from the palette, such as End. */
   inPalette?: boolean;
   /**
@@ -395,7 +404,7 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
   readonly fills: readonly SolidScriptSystemFillName[];
   readonly endLabel: string;
   /** Lines added between the block and its End when it is added. */
-  readonly parts: readonly string[];
+  readonly parts: readonly SolidScriptCommandPart[];
   readonly inPalette: boolean;
   readonly runs: boolean;
   /** True for blocks that build brushes or meshes, with Into. */

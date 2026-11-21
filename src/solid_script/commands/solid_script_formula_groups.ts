@@ -1,6 +1,10 @@
 import { SOLID_SCRIPT_COMMAND_CATALOG } from './solid_script_command_catalog.js';
 import { solidScriptWhereHelper } from '@/solid_script/language/solid_script_where_helpers.js';
-import { SolidScriptCommand, type SolidScriptCommandCategory } from './solid_script_command.js';
+import {
+  SolidScriptCommand,
+  type SolidScriptCommandCategory,
+  type SolidScriptCommandPart,
+} from './solid_script_command.js';
 import {
   SOLID_SCRIPT_FUNCTION_DOCS,
   solidScriptFunctionArguments,
@@ -332,7 +336,7 @@ function solidScriptFormulaGroupAdd(
   text: SolidScriptFormulaBlockText,
   category: SolidScriptCommandCategory,
   group: Omit<SolidScriptFormulaGroup, 'id'>,
-  parts: readonly string[] = [],
+  parts: readonly SolidScriptCommandPart[] = [],
 ): SolidScriptCommand {
   SOLID_SCRIPT_FORMULA_GROUPS.set(text.id, { id: text.id, ...group });
   return solidScriptFormulaBlock(text, category, { nesting: 'open', parts });
@@ -353,7 +357,37 @@ function solidScriptFormulaFunction(key: string): SolidScriptCommand {
   const call = { id, label, summary: doc?.summary ?? label, category: doc?.group ?? 'Functions' };
   const max = inputs.includes('...') ? Number.POSITIVE_INFINITY : inputs.length;
   const min = Math.max(1, solidScriptFunctionInputsLeast(key));
-  return solidScriptFormulaCall(call, inputs, doc?.usage ?? name, { join: { form: 'call', key }, min, max });
+  const group = { join: { form: 'call', key }, min, max } as const;
+  return solidScriptFormulaCall(call, inputs, doc?.usage ?? name, group, solidScriptFormulaFunctionStart(key));
+}
+
+/**
+ * Lists the value blocks a new function block starts with: one per input it
+ * needs, up to the last that has a start value, such as 0 and 1 for From and To
+ * of Lerp; an input without one, such as the Value of Clamp, gets an empty
+ * block of its kind to fill in.
+ *
+ * @param key Function key, such as lerp.
+ * @returns Blocks.
+ */
+function solidScriptFormulaFunctionStart(key: string): SolidScriptCommandPart[] {
+  const needed = solidScriptFunctionArguments(key).slice(0, solidScriptFunctionInputsLeast(key));
+  const last = needed.reduce((found, input, index) => ((input.start ?? '') !== '' ? index : found), -1);
+  return needed.slice(0, last + 1).map((input) => {
+    const types = input.type === 'Any' ? [] : input.type;
+    const start = input.start ?? '';
+    const vector = types.includes('Vector') && (start.includes(',') || !types.includes('Number'));
+    const text = types.length > 0 && types.every((type) => type === 'Text');
+    const number = types.length > 0 && types.every((type) => type === 'Number' || type === 'Vector');
+    const command = vector
+      ? SOLID_SCRIPT_FORMULA_COMMAND.vector
+      : text
+        ? SOLID_SCRIPT_FORMULA_COMMAND.text
+        : number
+          ? SOLID_SCRIPT_FORMULA_COMMAND.number
+          : SOLID_SCRIPT_FORMULA_COMMAND.value;
+    return { command, values: { value: start } };
+  });
 }
 
 /**
@@ -380,6 +414,7 @@ export function solidScriptFormulaOwn(own: SolidScriptFormulaOwnFunction): Solid
  * @param inputs Input names.
  * @param usage How the call is written.
  * @param group How it joins and how many blocks it holds.
+ * @param parts Value blocks it starts with.
  * @returns Command.
  */
 function solidScriptFormulaCall(
@@ -387,6 +422,7 @@ function solidScriptFormulaCall(
   inputs: readonly string[],
   usage: string,
   group: Omit<SolidScriptFormulaGroup, 'id' | 'sections'>,
+  parts: readonly SolidScriptCommandPart[] = [],
 ): SolidScriptCommand {
   const takes = inputs.length > 0 ? ` Put a block inside for each of: ${inputs.join(', ')}.` : '';
   const text = {
@@ -395,7 +431,7 @@ function solidScriptFormulaCall(
     description: call.summary.replace(/\.$/, ''),
     manual: `${call.summary}${takes} Written as ${usage}.`,
   };
-  return solidScriptFormulaGroupAdd(text, call.category ?? 'Functions', { ...group, sections: 1 });
+  return solidScriptFormulaGroupAdd(text, call.category ?? 'Functions', { ...group, sections: 1 }, parts);
 }
 
 /**
@@ -522,7 +558,7 @@ function solidScriptFormulaChoose(): SolidScriptCommand[] {
             choose,
             'Groups',
             group,
-            branches.map((text) => text.id),
+            branches.map((text) => ({ command: text.id })),
           ),
         ]
       : []),

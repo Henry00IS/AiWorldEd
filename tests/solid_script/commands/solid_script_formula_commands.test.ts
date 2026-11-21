@@ -217,13 +217,30 @@ describe('SolidScript formula block listings', () => {
       ])
       .filter(([, placeholder]) => placeholder !== '');
     expect(shown).toEqual([
+      ['Facing Direction', '0, 1, 0'],
       ['Facing Within', '30'],
+      ['In Box Center', '0, 0, 0'],
+      ['In Box Size', '1, 1, 1'],
+      ['Near Target', '0, 0, 0'],
+      ['Near Distance', '1'],
+      ['Every Nth Step', '2'],
       ['Every Nth Start', '0'],
+      ['Has Tag Name', 'Top'],
       ['Hits How', 'Touching'],
+      ['Chance Probability', '0.5'],
       ['Chance ID', '0'],
       ['Chance Seed', '0'],
+      ['Random Min', '0'],
+      ['Random Max', '1'],
       ['Random ID', '0'],
       ['Random Seed', '0'],
+      ['Spread From', '0'],
+      ['Spread To', '1'],
+      ['Along Point', '0, 0, 0'],
+      ['Along Direction', '0, 1, 0'],
+      ['Along Distance', '1'],
+      ['Hits Box Center', '0, 0, 0'],
+      ['Hits Box Size', '1'],
       ['Hits Box How', 'Touching'],
     ]);
   });

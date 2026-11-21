@@ -55,6 +55,11 @@ export interface SolidScriptFormulaInput {
   optional: boolean;
   /** Value it stands for when left off, as typed, such as 30; empty for none. */
   default: string;
+  /**
+   * Value a new block fills in, as typed, such as 0.5; empty when it has none
+   * or shows its fallback.
+   */
+  start: string;
   /** Words it takes, when it takes one of a few. */
   choices: readonly string[];
   /**
@@ -76,22 +81,30 @@ const SOLID_SCRIPT_FORMULA_ELEMENT_INPUTS: Readonly<
     in_box: { point: '[$Face.Center]' },
     near: { point: '[$Face.Center]' },
     has_tag: { tags: '[$Face.Tags]' },
+    along: { point: '[$Face.Center]', direction: '[$Face.Normal]' },
   },
   Edge: {
     facing: { normal: '[$Edge.Direction]' },
     in_box: { point: '[$Edge.Center]' },
     near: { point: '[$Edge.Center]' },
+    along: { point: '[$Edge.Center]', direction: '[$Edge.Direction]' },
   },
   Vertex: {
     facing: { normal: '[$Vertex.Normal]' },
     in_box: { point: '[$Vertex.Position]' },
     near: { point: '[$Vertex.Position]' },
+    along: { point: '[$Vertex.Position]', direction: '[$Vertex.Normal]' },
   },
-  Object: { in_box: { point: '[$Object.Center]' }, near: { point: '[$Object.Center]' } },
+  Object: {
+    in_box: { point: '[$Object.Center]' },
+    near: { point: '[$Object.Center]' },
+    along: { point: '[$Object.Center]' },
+  },
   Point: {
     facing: { normal: '[$Point.Normal]' },
     in_box: { point: '[$Point.Position]' },
     near: { point: '[$Point.Position]' },
+    along: { point: '[$Point.Position]', direction: '[$Point.Normal]' },
   },
 };
 
@@ -180,6 +193,7 @@ export function solidScriptFormulaCheckInputs(
     const declared = helper?.inputs.find((input) => input.name === argument.name);
     const label = declared?.label ?? argument.name.charAt(0).toUpperCase() + argument.name.slice(1);
     const fallback = declared?.optional ?? argument.default;
+    const each = solidScriptFormulaInputFallback(context, key, argument.name);
     return {
       name: argument.name,
       label,
@@ -188,7 +202,8 @@ export function solidScriptFormulaCheckInputs(
       optional: fallback !== undefined || index >= least,
       default: fallback ?? '',
       choices: argument.choices ?? [],
-      fallback: solidScriptFormulaInputFallback(context, key, argument.name),
+      fallback: each,
+      start: each === '' && fallback === undefined ? (argument.start ?? '') : '',
     };
   });
 }
