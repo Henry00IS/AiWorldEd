@@ -57,7 +57,13 @@ describe('Rhombicuboctahedron', () => {
     expect(pieces).toHaveLength(1);
     const middle = box.getCenter(new THREE.Vector3());
     const corners = (pieces[0]?.brush.vertices ?? []).map((vertex) =>
-      vertex.clone().sub(middle).toArray().map((value) => Math.abs(value)).sort().join(','),
+      vertex
+        .clone()
+        .sub(middle)
+        .toArray()
+        .map((value) => Math.abs(value))
+        .sort()
+        .join(','),
     );
     expect(corners).toHaveLength(24);
     expect(new Set(corners)).toEqual(new Set(['0.25,0.25,0.5']));
