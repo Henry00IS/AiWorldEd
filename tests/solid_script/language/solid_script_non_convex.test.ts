@@ -15,7 +15,7 @@ const DENT = line('set_positions', {
   where: '[=[$X] > 0 and [$Y] > 0 and [$Z] > 0]',
   to: '[=Vector(0, 0, 0)]',
 });
-const WARNING = /^1 brush is not convex and will not be built/;
+const WARNING = /^1 solid is not convex and will not be built/;
 
 /**
  * Runs lines and returns the run and what the scene would build from them.
@@ -36,33 +36,33 @@ function output(...lines: SolidScriptLine[]) {
   return { run, layout, warnings: run.warnings.map((warning) => warning.text) };
 }
 
-describe('SolidScript non-convex brushes', () => {
-  it('lets a line dent a brush without stopping, and later lines keep editing it', () => {
+describe('SolidScript non-convex solids', () => {
+  it('lets a line dent a solid without stopping, and later lines keep editing it', () => {
     const { run } = output(
       BOX,
       DENT,
-      line('select_brushes'),
-      line('echo', { value: '[$Selected.Brushes.First.Vertices.Count]' }),
+      line('select_objects'),
+      line('echo', { value: '[$Selected.Objects.First.Vertices.Count]' }),
     );
     expect(run.error).toBeNull();
     expect(run.messages).toEqual(['8']);
   });
 
-  it('warns once at the end when a brush is still not convex, and the scene does not build it', () => {
+  it('warns once at the end when a solid is still not convex, and the scene does not build it', () => {
     const { run, layout, warnings } = output(BOX, DENT, line('cube', { size: '1, 1, 1' }));
     expect(run.error).toBeNull();
     expect(warnings.filter((text) => WARNING.test(text))).toHaveLength(1);
     expect(layout.error).toBe('');
     expect(layout.nodes).toHaveLength(1);
     const dented = run.shapes.flatMap(solidScriptShapeLeavesPositive).find((leaf) => leaf.kind === 'solid');
-    if (!dented || dented.kind !== 'solid') throw new Error('no brush');
+    if (!dented || dented.kind !== 'solid') throw new Error('no solid');
     const brush = SolidBrushFactory.createFromFaceLoops(
       dented.faces.map((loop) => loop.map((index) => dented.points[index]!)),
     );
     expect(brush === null || !modifierStackBrushGeometryValid(brush)).toBe(true);
   });
 
-  it('gives no warning when a later line makes the brush convex again, by name, variable or Select Brushes', () => {
+  it('gives no warning when a later line makes the solid convex again, by name, variable or Select Objects', () => {
     const back = '[=Vector(1, 1, 1)]';
     const near = '[=[$Vertex.Position.Length] < 0.01]';
     const byName = output(BOX, DENT, line('set_positions', { of: 'Box', where: near, to: back }));
@@ -72,7 +72,7 @@ describe('SolidScript non-convex brushes', () => {
     const bySelect = output(
       BOX,
       DENT,
-      line('select_brushes'),
+      line('select_objects'),
       line('select_vertices', { which: 'All', where: near }),
       line('set_positions', { to: back }),
     );
@@ -81,8 +81,8 @@ describe('SolidScript non-convex brushes', () => {
     expect(bySelect.layout.nodes).toHaveLength(1);
     const byVariable = output(
       BOX,
-      line('select_brushes'),
-      line('variable', { name: 'Held', value: '[$Selected.Brushes.First]' }),
+      line('select_objects'),
+      line('variable', { name: 'Held', value: '[$Selected.Objects.First]' }),
       DENT,
       line('set_positions', { of: '[Held]', where: near, to: back }),
     );

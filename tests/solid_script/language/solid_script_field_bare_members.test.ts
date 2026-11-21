@@ -11,7 +11,7 @@ const line = (command: string, values: Record<string, string> = {}): SolidScript
 /** A 2 m cube with the four edges of its top face selected. */
 const EDGES = [
   line('cube', { size: '2, 2, 2', anchor: 'Center, Center, Center' }),
-  line('select_brushes', { which: 'Between', how: 'New' }),
+  line('select_objects', { which: 'Between', how: 'New' }),
   line('select_faces', { which: 'Facing Up', how: 'New' }),
   line('select_edges', { which: 'All', how: 'New' }),
 ];
@@ -141,7 +141,7 @@ describe('SolidScript hint for a variable read with a member and no brackets in 
     expect(set.editor).toEqual([`2: Message: in a formula, ${WHY}. Did you mean to write [=[Pos.X] + [Pos.Length]]?`]);
     const into = hints([
       line('cube'),
-      line('select_brushes', { which: 'All', how: 'New', into: 'Picked' }),
+      line('select_objects', { which: 'All', how: 'New', into: 'Picked' }),
       echo('[=Picked.Count + 1]'),
     ]);
     expect(into.run).toContain(
@@ -156,7 +156,7 @@ describe('SolidScript hint for a variable read with a member and no brackets in 
     expect(system.editor).toEqual([
       `6: Message: a formula reads every variable and system value in brackets. Did you mean to write ${meant}?`,
     ]);
-    const own = hints([...EDGES, each('Box', '[$Selected.Brushes]'), echo('[=Box.Faces.Count + 1]'), line('end')]);
+    const own = hints([...EDGES, each('Box', '[$Selected.Objects]'), echo('[=Box.Faces.Count + 1]'), line('end')]);
     expect(own.run).toContain(
       `Box.Faces.Count ${TOLD}; write [Box.Faces.Count]. Did you mean to write [=[Box.Faces.Count] + 1]?`,
     );

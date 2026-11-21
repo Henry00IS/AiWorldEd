@@ -10,14 +10,14 @@ export const SOLID_SCRIPT_COMMANDS_CLIP: readonly SolidScriptCommand[] = [
     edits: true,
     label: 'Clip',
     category: 'Transforms',
-    description: 'Cut brushes and meshes with a plane',
+    description: 'Cut objects with a plane',
     manual:
-      'Cuts the brushes and meshes in Of, or [$Selected.Brushes] when Of is empty, with a plane. Through is a point on the plane. Normal is the way the part you cut away faces; the part on the other side stays. A brush stays a convex brush. A mesh stays a mesh, and a closed mesh gets a new face over the cut. Without Into the cut happens where the brush already is; with Into the original stays and the clipped copy is only in that variable. Example: Cube, then Clip Through 0, 0, 0 Normal 0, 1, 0 keeps the lower half.',
+      'Cuts the objects in Of, or [$Selected.Objects] when Of is empty, with a plane. Through is a point on the plane. Normal is the way the part you cut away faces; the part on the other side stays. A solid stays a convex solid. A mesh stays a mesh, and a closed mesh gets a new face over the cut. Without Into the cut happens where the solid already is; with Into the original stays and the clipped copy is only in that variable. Example: Cube, then Clip Through 0, 0, 0 Normal 0, 1, 0 keeps the lower half.',
     stops: [
-      'No brushes.',
+      'No solids.',
       'A Through or Normal that is not x, y, z.',
       'A Normal of 0, 0, 0.',
-      'A plane that cuts a brush or mesh away entirely, or leaves it flat.',
+      'A plane that cuts an object away entirely, or leaves it flat.',
     ],
     parameters: [
       solidScriptParameter(
@@ -34,7 +34,7 @@ export const SOLID_SCRIPT_COMMANDS_CLIP: readonly SolidScriptCommand[] = [
         '0, 1, 0',
         'The way the part you cut away faces, such as 0, 1, 0 to cut away the top.',
       ),
-      solidScriptParameterOf('brushes or meshes', '$Selected.Brushes', ['Brush']),
+      solidScriptParameterOf('objects', '$Selected.Objects', ['Object']),
     ],
     listing: (read) => [
       'Clip',

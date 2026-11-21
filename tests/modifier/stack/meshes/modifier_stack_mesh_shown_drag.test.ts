@@ -20,7 +20,7 @@ import {
 } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
 
 /**
- * Dragging a modifier volume must not carry its Mesh From Brushes output along
+ * Dragging a modifier volume must not carry its Mesh From Solids output along
  * and then snap it back when the script runs again: the mesh is built from
  * brushes that stay put, so it stays put too. Generator output, which is built
  * in the generator's box, keeps following the generator.
@@ -43,16 +43,16 @@ function both(lines: SolidScriptLine[]) {
 }
 
 /**
- * Builds the reported script: Mesh From Brushes around Input Brushes into a
+ * Builds the reported script: Mesh From Solids around Input Objects into a
  * variable, then Output of it, with optional lines in between.
  *
- * @param inner Brush line inside Mesh From Brushes.
+ * @param inner Brush line inside Mesh From Solids.
  * @param between Lines run on the mesh before it is output.
  * @returns Script document.
  */
 function meshScript(inner: SolidScriptLine, between: SolidScriptLine[] = []) {
   return both([
-    { command: 'mesh_brushes', values: { into: 'Mesh' } },
+    { command: 'mesh_from_solids', values: { into: 'Mesh' } },
     inner,
     { command: 'end' },
     ...between,
@@ -200,12 +200,12 @@ const TURN_STRETCHED: DragStep = (object, index) => {
 };
 
 describe('Modifier volume mesh output while the volume is dragged', () => {
-  it('keeps a Mesh From Brushes output still while the volume moves down, before and after each rerun', () => {
-    expectNeverMoved(dragRecorded(volumeFixture(meshScript({ command: 'input_brushes' })), MOVE_DOWN));
+  it('keeps a Mesh From Solids output still while the volume moves down, before and after each rerun', () => {
+    expectNeverMoved(dragRecorded(volumeFixture(meshScript({ command: 'input_objects' })), MOVE_DOWN));
   });
 
   it('shows the mesh in the same place after the drag is undone', () => {
-    const fixture = volumeFixture(meshScript({ command: 'input_brushes' }));
+    const fixture = volumeFixture(meshScript({ command: 'input_objects' }));
     const start = shownWorldBox(fixture.world, fixture.node);
     const pose = fixture.node.matrix.clone();
     dragRecorded(fixture, MOVE_AND_TURN);
@@ -215,25 +215,25 @@ describe('Modifier volume mesh output while the volume is dragged', () => {
   });
 
   it('keeps it still while a turned volume moves and turns', () => {
-    const fixture = volumeFixture(meshScript({ command: 'input_brushes' }));
+    const fixture = volumeFixture(meshScript({ command: 'input_objects' }));
     fixture.node.rotation.set(0, THREE.MathUtils.degToRad(-30), 0);
     fixture.compile();
     expectNeverMoved(dragRecorded(fixture, MOVE_AND_TURN));
   });
 
   it('keeps it still while the volume is stretched unevenly', () => {
-    const fixture = volumeFixture(meshScript({ command: 'input_brushes' }));
+    const fixture = volumeFixture(meshScript({ command: 'input_objects' }));
     fixture.node.rotation.set(0, THREE.MathUtils.degToRad(40), 0);
     fixture.compile();
     expectNeverMoved(dragRecorded(fixture, STRETCH));
   });
 
   it('keeps it still while a stretched volume turns', () => {
-    expectNeverMoved(dragRecorded(volumeFixture(meshScript({ command: 'input_brushes' })), TURN_STRETCHED));
+    expectNeverMoved(dragRecorded(volumeFixture(meshScript({ command: 'input_objects' })), TURN_STRETCHED));
   });
 
   it('keeps it still when the volume sits in a moved and turned parent that is dragged', () => {
-    const fixture = volumeFixture(meshScript({ command: 'input_brushes' }));
+    const fixture = volumeFixture(meshScript({ command: 'input_objects' }));
     const parent = new THREE.Group();
     parent.position.set(-1, 0.5, 0);
     parent.rotation.set(0, THREE.MathUtils.degToRad(25), 0);
@@ -247,7 +247,7 @@ describe('Modifier volume mesh output while the volume is dragged', () => {
   });
 
   it('moves the mesh with the solid, like the brushes it was built from', () => {
-    const fixture = volumeFixture(meshScript({ command: 'input_brushes' }));
+    const fixture = volumeFixture(meshScript({ command: 'input_objects' }));
     const before = shownWorldBox(fixture.world, fixture.node);
     const offset = new THREE.Vector3(1.5, -2, 0.75);
     fixture.model.root.position.add(offset);
@@ -256,7 +256,7 @@ describe('Modifier volume mesh output while the volume is dragged', () => {
   });
 
   it('exports and bakes the mesh where it is drawn mid-drag', () => {
-    const fixture = volumeFixture(meshScript({ command: 'input_brushes' }));
+    const fixture = volumeFixture(meshScript({ command: 'input_objects' }));
     const start = shownWorldBox(fixture.world, fixture.node);
     const name = modifierStackMeshesShown(fixture.node)[0]!.name;
     fixture.node.position.y -= 0.75;
@@ -274,7 +274,7 @@ describe('Modifier volume mesh output while the volume is dragged', () => {
   });
 
   it('lets a script that reads the box position move the mesh only when it runs again', () => {
-    const script = meshScript({ command: 'input_brushes' }, [
+    const script = meshScript({ command: 'input_objects' }, [
       { command: 'move_by', values: { by: '[$Box.Position]', of: '[Mesh]' } },
     ]);
     const fixture = volumeFixture(script);

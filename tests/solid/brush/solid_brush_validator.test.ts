@@ -13,7 +13,7 @@ describe('SolidBrushValidator', () => {
     expect(validation.errors).toEqual([]);
   });
 
-  it('rejects a convex brush that stores one face as two coplanar triangles', () => {
+  it('rejects a convex solid that stores one face as two coplanar triangles', () => {
     const split = splitOneQuadIntoCoplanarTriangles(createRandomCenteredBox());
     expect(split).not.toBeNull();
     if (!split) {
@@ -36,7 +36,7 @@ describe('SolidBrushValidator', () => {
     expect(SolidBrushValidator.validateGenerated(brush).valid).toBe(false);
   });
 
-  it('rejects a convex brush that has two vertices at the same position', () => {
+  it('rejects a convex solid that has two vertices at the same position', () => {
     const brush = createRandomCenteredBox();
     expect(copyFirstVertexOntoSecond(brush)).toBe(true);
     const validation = SolidBrushValidator.validate(brush);

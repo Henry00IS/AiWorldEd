@@ -90,7 +90,7 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
   readonly id: string = MODIFIER_STACK_SOLID_SCRIPT_KIND;
   readonly label: string = 'SolidScript';
   readonly description: string =
-    'Builds brushes and meshes from a SolidScript of command lines. Edit Script opens the editor with its command palette; .aiscript files from the project browser can be dropped on the Script row.';
+    'Builds objects from a SolidScript of command lines. Edit Script opens the editor with its command palette; .aiscript files from the project browser can be dropped on the Script row.';
   protected readonly specificFields = modifierStackSolidScriptFields('generator');
 
   /**
@@ -221,7 +221,7 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
 
   /**
    * Evaluates the script like scriptUnits, and also returns the received
-   * brushes Input Brushes passed on.
+   * brushes Input Objects passed on.
    *
    * @param parameters Normalized parameters.
    * @param box Box in frame coordinates the script origin is centred in.
@@ -250,7 +250,7 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
     if (context.ownsGenerated) for (const mesh of layout.meshes) context.meshes?.push({ ...mesh, frame });
     const count = modifierStackSolidScriptBrushCount(layout.nodes);
     if (context.budget.takeCopies(1, count) < count) {
-      context.report.error = `Brush budget reached: the script needs ${count} brushes.`;
+      context.report.error = `Solid budget reached: the script needs ${count} solids.`;
       return { units: [], passed: layout.passed };
     }
     const counter = { next: 0 };

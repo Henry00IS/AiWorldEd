@@ -33,7 +33,7 @@ const MODIFIER_STACK_SPHERE_COVERAGE_FIELD: ModifierStackField = {
 export class ModifierStackKindSphere extends ModifierStackKindPrimitiveRevolved {
   readonly id = 'sphere';
   readonly label = 'Sphere';
-  readonly description = 'Builds a sphere or a dome filling the volume as one convex brush.';
+  readonly description = 'Builds a sphere or a dome filling the volume as one convex solid.';
   protected readonly shapeFields: readonly ModifierStackField[] = [
     MODIFIER_STACK_SPHERE_COVERAGE_FIELD,
     MODIFIER_STACK_SPHERE_RINGS_FIELD,

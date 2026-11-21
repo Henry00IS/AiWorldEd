@@ -18,13 +18,13 @@ export function solidScriptFaceTargets(run: SolidScriptBlockRun, label: string):
   const values = given ?? run.selectedGet('faces');
   if (values.length === 0)
     throw new Error(
-      given ? `${label} has no faces in Of; check that Of holds faces or brushes` : solidScriptOfEmpty(label, 'faces'),
+      given ? `${label} has no faces in Of; check that Of holds faces or solids` : solidScriptOfEmpty(label, 'faces'),
     );
   const faces: SolidScriptFaceFacts[] = [];
   const seen = new WeakMap<SolidScriptGeometryLeaf, Set<number>>();
   for (const value of values) {
     if (!(value instanceof SolidScriptElement) || (value.kind !== 'face' && value.kind !== 'brush'))
-      throw new Error(`${label} takes faces or brushes, not ${solidScriptKindNamed(value)}`);
+      throw new Error(`${label} takes faces or solids, not ${solidScriptKindNamed(value)}`);
     const read = run.elements.faces(value);
     if (read.length === 0 && values.length === 1) throw new Error(`${String(value)} was cut away by a line above`);
     for (const face of read) if (solidScriptFaceSeen(seen, face)) faces.push(face);

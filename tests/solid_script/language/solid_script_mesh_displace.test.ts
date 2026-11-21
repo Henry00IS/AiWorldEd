@@ -72,7 +72,7 @@ function boxLines(box: TestBox): SolidScriptLine[] {
 }
 
 /**
- * Bakes boxes with Mesh From Brushes, subdivides them and optionally displaces
+ * Bakes boxes with Mesh From Solids, subdivides them and optionally displaces
  * the result, and returns the only mesh.
  *
  * @param boxes Boxes to bake.
@@ -87,10 +87,10 @@ function pushed(
   smooth: string,
   distance: string | null,
 ): SolidScriptShapeMesh {
-  const lines: SolidScriptLine[] = [{ command: 'mesh_brushes' }, ...boxes.flatMap(boxLines), END];
+  const lines: SolidScriptLine[] = [{ command: 'mesh_from_solids' }, ...boxes.flatMap(boxLines), END];
   if (levels > 0)
-    lines.push({ command: 'select_brushes' }, { command: 'subdivide', values: { levels: String(levels), smooth } });
-  if (distance !== null) lines.push({ command: 'select_brushes' }, { command: 'displace', values: { distance } });
+    lines.push({ command: 'select_objects' }, { command: 'subdivide', values: { levels: String(levels), smooth } });
+  if (distance !== null) lines.push({ command: 'select_objects' }, { command: 'displace', values: { distance } });
   const result = solidScriptProgramRun(solidScriptDocumentCreate(lines), { pose: { position: BOX_POSITION } });
   expect(result.error?.message ?? null).toBeNull();
   const mesh = solidScriptShapeMeshes(result.shapes)[0];

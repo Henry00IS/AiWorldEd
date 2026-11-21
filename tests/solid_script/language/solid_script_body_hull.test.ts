@@ -33,7 +33,7 @@ vi.mock('@/solid_script/language/solid_script_body_hull.js', async (importOrigin
 
 const END: SolidScriptLine = { command: 'end' };
 const CUBE: SolidScriptLine = { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } };
-const SELECT_BRUSHES: SolidScriptLine = { command: 'select_brushes' };
+const SELECT_BRUSHES: SolidScriptLine = { command: 'select_objects' };
 const RECEIVED: SolidScriptUseFacts = {
   usage: 'Modifier',
   solids: [
@@ -135,7 +135,7 @@ describe('SolidScript solids keep their own faces', () => {
   });
 
   it('passes received brushes on and places them without a hull', () => {
-    expect(hullsOf([{ command: 'input_brushes' }], RECEIVED)).toEqual({ script: 0, all: 0 });
+    expect(hullsOf([{ command: 'input_objects' }], RECEIVED)).toEqual({ script: 0, all: 0 });
   });
 
   it.each([

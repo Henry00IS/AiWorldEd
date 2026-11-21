@@ -35,7 +35,7 @@ describe('SolidScript limits', { timeout: 60_000 }, () => {
     expect(SOLID_SCRIPT_LIMITS.repeatRounds).toBe(10_000);
   });
 
-  it('stops when a run makes more than 10,000 brushes, and names the line and the fix', () => {
+  it('stops when a run makes more than 10,000 solids, and names the line and the fix', () => {
     const result = run(
       { command: 'repeat', values: { variable: 'I', from: '1', to: '5002' } },
       { command: 'cube' },
@@ -44,7 +44,7 @@ describe('SolidScript limits', { timeout: 60_000 }, () => {
     );
     expect(text(result)).toMatch(
       new RegExp(
-        `^Line \\d+: this line made more than ${solidScriptLimitCount(SOLID_SCRIPT_LIMITS.brushes)} brushes\\. Change the Count, or split this into smaller generators\\.$`,
+        `^Line \\d+: this line made more than ${solidScriptLimitCount(SOLID_SCRIPT_LIMITS.brushes)} solids\\. Change the Count, or split this into smaller generators\\.$`,
       ),
     );
   });
@@ -52,7 +52,7 @@ describe('SolidScript limits', { timeout: 60_000 }, () => {
   it('stops when a mesh has more than 1,000,000 triangles, and names the line and the fix', () => {
     const result = run(
       { command: 'grid_mesh', values: { size: '2, 0, 2', columns: '256', rows: '256' } },
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'subdivide', values: { levels: '2', smooth: 'false' } },
     );
     expect(text(result)).toMatch(

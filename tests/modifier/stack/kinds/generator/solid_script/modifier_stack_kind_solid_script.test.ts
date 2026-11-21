@@ -256,7 +256,7 @@ describe('SolidScript generator', () => {
         { command: 'texture', values: { texture: '[wall]' } },
         { command: 'cube' },
         { command: 'end' },
-        { command: 'select_brushes' },
+        { command: 'select_objects' },
         { command: 'select_faces', values: { which: 'Facing Up' } },
         { command: 'texture_faces', values: { texture: '[top]' } },
       ),
@@ -306,7 +306,7 @@ describe('SolidScript generator', () => {
     scriptSet(fixture.node, {
       script: script(
         { command: 'cube' },
-        { command: 'select_brushes' },
+        { command: 'select_objects' },
         { command: 'select_faces', values: { which: 'Facing Up' } },
         { command: 'texture_faces', values: { texture: 'grass' } },
       ),

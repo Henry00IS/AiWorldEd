@@ -8,7 +8,7 @@ import {
 } from '@/edit/transform/brush_edit_convexity.js';
 
 describe('brush_edit_convexity', () => {
-  it('marks non-convex brushes and clears the flag when convex again', () => {
+  it('marks non-convex solides and clears the flag when convex again', () => {
     const mesh = SolidBrushVisual.createBoxPreview('Brush', 1, SolidOperation.Additive);
     markSolidBrushConvexityState(mesh, false);
     expect(isSolidBrushMarkedNonConvex(mesh)).toBe(true);

@@ -8,7 +8,7 @@ import { solidScriptBodyConvex } from '@/solid_script/language/solid_script_body
 
 const END: SolidScriptLine = { command: 'end' };
 const CUBE: SolidScriptLine = { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } };
-const SELECT_BRUSHES: SolidScriptLine = { command: 'select_brushes' };
+const SELECT_BRUSHES: SolidScriptLine = { command: 'select_objects' };
 const SELECT_ALL_VERTICES: SolidScriptLine = { command: 'select_vertices', values: { which: 'All' } };
 
 /**
@@ -69,7 +69,7 @@ describe('SolidScript Set Vertex.Position', () => {
   });
 
   it('reads every position in the line from the geometry as it was before the line', () => {
-    const result = run({ command: 'mesh_brushes' }, CUBE, END, SELECT_BRUSHES, SELECT_ALL_VERTICES, {
+    const result = run({ command: 'mesh_from_solids' }, CUBE, END, SELECT_BRUSHES, SELECT_ALL_VERTICES, {
       command: 'variable',
       values: { name: '$Selected.Vertices.Positions', value: '[=[$Selected.Vertices.First.Position] + [1, 0, 0]]' },
     });
@@ -80,7 +80,7 @@ describe('SolidScript Set Vertex.Position', () => {
     expect(new Set(points.map((point) => point.join(','))).size).toBe(1);
   });
 
-  it('keeps the faces of a brush whose corners still fit them, and rebuilds them only when a face bends', () => {
+  it('keeps the faces of a solid whose corners still fit them, and rebuilds them only when a face bends', () => {
     const solid = (result: ReturnType<typeof run>) => {
       expect(result.error).toBeNull();
       const [leaf] = result.shapes.flatMap(solidScriptShapeLeavesPositive);
@@ -105,19 +105,19 @@ describe('SolidScript Set Vertex.Position', () => {
     expect(solidScriptBodyConvex(bent)).toBe(true);
   });
 
-  it('lets the corners make a brush that is not convex, and warns once at the end', () => {
+  it('lets the corners make a solid that is not convex, and warns once at the end', () => {
     const result = run(CUBE, SELECT_BRUSHES, SELECT_ALL_VERTICES, {
       command: 'variable',
       values: { name: '$Selected.Vertices.Positions', value: '0, 0, 0' },
     });
     expect(result.error).toBeNull();
-    expect(result.warnings.map((warning) => warning.text).join()).toMatch(/1 brush is not convex/);
+    expect(result.warnings.map((warning) => warning.text).join()).toMatch(/1 solid is not convex/);
   });
 
   it('still refuses members that can only be read', () => {
     const result = run(
       CUBE,
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'All' } },
       {
         command: 'variable',
@@ -147,7 +147,7 @@ describe('SolidScript Set Vertex.Position', () => {
   });
 
   it('moves mesh corners in place, with no convex check', () => {
-    const result = run({ command: 'mesh_brushes' }, CUBE, END, SELECT_BRUSHES, SELECT_ALL_VERTICES, {
+    const result = run({ command: 'mesh_from_solids' }, CUBE, END, SELECT_BRUSHES, SELECT_ALL_VERTICES, {
       command: 'variable',
       values: { name: '$Selected.Vertices.Positions', value: '[=[$Vertex.Position] + [0, 1, 0]]' },
     });

@@ -461,14 +461,14 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
   hits: {
     usage: 'Hits(element, target, how)',
     summary:
-      'Yes when the box of an element meets the box of another brush, mesh, face, edge, vertex, point, or any item of a list, such as Hits([$Brush], [Wall]). How is Touching by default (any contact, including sitting inside), Overlapping (they share interior space) or Fully Inside.',
+      'Yes when the box of an element meets the box of another object, face, edge, vertex, point, or any item of a list, such as Hits([$Object], [Wall]). How is Touching by default (any contact, including sitting inside), Overlapping (they share interior space) or Fully Inside.',
     group: 'Checks',
     gives: ['Yes/No'],
   },
   hits_box: {
     usage: 'HitsBox(element, center, size, how)',
     summary:
-      'Yes when the box of an element meets a box of a Center and Size, such as HitsBox([$Brush], Vector(0, 0, 0), 2). How is Touching by default, Overlapping or Fully Inside.',
+      'Yes when the box of an element meets a box of a Center and Size, such as HitsBox([$Object], Vector(0, 0, 0), 2). How is Touching by default, Overlapping or Fully Inside.',
     group: 'Checks',
     gives: ['Yes/No'],
   },
@@ -567,8 +567,8 @@ const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
 > = {
   hits_box: {
     element: {
-      type: ['Brush', 'Mesh', 'Face', 'Edge', 'Vertex', 'Vector', 'List'],
-      about: 'The thing to test, such as [$Brush] or [$Face].',
+      type: ['Object', 'Mesh', 'Face', 'Edge', 'Vertex', 'Vector', 'List'],
+      about: 'The thing to test, such as [$Object] or [$Face].',
     },
     center: { type: ['Vector'], about: 'Center of the box, such as [0, 1, 0].' },
     size: {

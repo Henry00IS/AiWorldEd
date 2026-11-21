@@ -7,7 +7,7 @@ import type { SolidOperation } from '@/solid/types/solid_operation.js';
 import type { ModifierStackSolidScriptPassed } from './modifier_stack_solid_script_layout.js';
 
 /**
- * Groups passed brushes into Input Brushes passes, each starting at index 0.
+ * Groups passed brushes into Input Objects passes, each starting at index 0.
  *
  * @param passed Passed brushes in run order.
  * @returns One group per pass, in run order.

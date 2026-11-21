@@ -132,7 +132,7 @@ function solidScriptMeshLeaf(run: SolidScriptBlockRun, value: SolidScriptValue, 
 
 /**
  * Reads the meshes a line works on: those its Of gives, else
- * [$Selected.Brushes].
+ * [$Selected.Objects].
  *
  * @param run Running line.
  * @param label Command, for messages.
@@ -140,10 +140,10 @@ function solidScriptMeshLeaf(run: SolidScriptBlockRun, value: SolidScriptValue, 
  */
 function solidScriptMeshTargets(run: SolidScriptBlockRun, label: string): SolidScriptShapeMesh[] {
   const given = run.ofValues();
-  const values = given ?? run.selectedGet('brushes');
+  const values = given ?? run.selectedGet('objects');
   if (values.length === 0)
     throw new Error(
-      given ? `${label} has no mesh in Of; check that Of holds a mesh` : solidScriptOfEmpty(label, 'brushes'),
+      given ? `${label} has no mesh in Of; check that Of holds a mesh` : solidScriptOfEmpty(label, 'objects'),
     );
   const leaves: SolidScriptShapeMesh[] = [];
   for (const value of values) {
@@ -322,7 +322,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Build a mesh from Vertex and Face lines',
     manual:
-      'Builds a mesh, a regular model made of faces instead of brushes, from the Vertex and Face lines between this line and its End. Each Vertex adds a corner point. They are numbered from 0 in order. Each Face joins corner numbers, listed counter-clockwise as seen from outside. Unlike brushes, a mesh may be open, dented or any brush at all, but it does not cut or get cut. The lines inside may use Repeat, For Each, If, Set and moves, so a grid or a terrain can come from loops. Example: Vertex lines at -1, -1, 0 and 1, -1, 0 and 0, 1, 0, then Face 0, 1, 2 give one triangle.',
+      'Builds a mesh, a regular model made of faces instead of solids, from the Vertex and Face lines between this line and its End. Each Vertex adds a corner point. They are numbered from 0 in order. Each Face joins corner numbers, listed counter-clockwise as seen from outside. Unlike solids, a mesh may be open, dented or any solid at all, but it does not cut or get cut. The lines inside may use Repeat, For Each, If, Set and moves, so a grid or a terrain can come from loops. Example: Vertex lines at -1, -1, 0 and 1, -1, 0 and 0, 1, 0, then Face 0, 1, 2 give one triangle.',
     stops: [
       'A Face with fewer than three corners, or a corner number with no Vertex.',
       'No Face lines.',
@@ -406,23 +406,23 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     },
   }),
   new SolidScriptCommand({
-    id: 'mesh_brushes',
+    id: 'mesh_from_solids',
     named: true,
-    label: 'Mesh From Brushes',
+    label: 'Mesh From Solids',
     category: 'Meshes',
-    description: 'Turn brushes into one mesh',
+    description: 'Turn solids into one mesh',
     manual:
-      'Turns the brushes between this line and its End into one mesh, baking their cut result the same way the editor cuts brushes, including Subtractive and Intersecting modes and Group. Only the brushes inside this block are baked, not the rest of the world. Use it when a brush should be a model rather than level geometry, or to change it with the other mesh tools. Example: a Cube, then a smaller Cube with Mode Subtractive, inside Mesh From Brushes, becomes a mesh with a notch.',
+      'Turns the solids between this line and its End into one mesh, baking their cut result the same way the editor cuts solids, including Subtractive and Intersecting modes and Group. Only the solids inside this block are baked, not the rest of the world. Use it when a solid should be a model rather than level geometry, or to change it with the other mesh tools. Example: a Cube, then a smaller Cube with Mode Subtractive, inside Mesh From Solids, becomes a mesh with a notch.',
     stops: [
-      'A Subtractive or Intersecting brush that removes everything, so nothing is left to turn into a mesh.',
-      'A brush that is no longer convex.',
+      'A Subtractive or Intersecting solid that removes everything, so nothing is left to turn into a mesh.',
+      'A solid that is no longer convex.',
       SOLID_SCRIPT_MESH_STOPS_FLAT,
       SOLID_SCRIPT_MESH_STOPS_END,
     ],
     nesting: 'open',
     parameters: [],
-    listing: () => ['Mesh From Brushes'],
-    execute: (run) => solidScriptMeshTool(run, 'Mesh From Brushes', (mesh) => mesh),
+    listing: () => ['Mesh From Solids'],
+    execute: (run) => solidScriptMeshTool(run, 'Mesh From Solids', (mesh) => mesh),
   }),
   new SolidScriptCommand({
     id: 'merge_by_distance',
@@ -431,8 +431,8 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Weld corners that nearly touch',
     manual:
-      'Welds corners of a mesh that are closer than Distance into one, so pieces that touch share their corners and smooth as one surface. Faces that fold away are dropped. Of is the mesh to weld; empty uses [$Selected.Brushes]. A brush stops the line: wrap it in Mesh From Brushes first, which also bakes several brushes, including cuts, into one mesh. Example: Mesh From Brushes around two Cubes side by side, then Merge By Distance 0.001, gives one mesh whose touching corners are shared.',
-    stops: ['A Distance below 0.', 'A brush. Wrap it in Mesh From Brushes first.', 'No mesh to work on.'],
+      'Welds corners of a mesh that are closer than Distance into one, so pieces that touch share their corners and smooth as one surface. Faces that fold away are dropped. Of is the mesh to weld; empty uses [$Selected.Objects]. A solid stops the line: wrap it in Mesh From Solids first, which also bakes several solids, including cuts, into one mesh. Example: Mesh From Solids around two Cubes side by side, then Merge By Distance 0.001, gives one mesh whose touching corners are shared.',
+    stops: ['A Distance below 0.', 'A solid. Wrap it in Mesh From Solids first.', 'No mesh to work on.'],
     parameters: [
       solidScriptParameter(
         'distance',
@@ -441,7 +441,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
         '0.001',
         'Largest gap between corners that are welded, in metres, such as 0.01.',
       ),
-      solidScriptParameterOf('meshes', '$Selected.Brushes', ['Brush']),
+      solidScriptParameterOf('meshes', '$Selected.Objects', ['Object']),
     ],
     listing: (read) => [
       'Merge By Distance',
@@ -461,10 +461,10 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Split mesh faces into smaller ones',
     manual:
-      'Splits every face of a mesh into four-sided faces, Levels times. Each level makes about four times as many faces. With Smooth on, the corners are rounded off as well, so a Cube becomes a soft rounded ball after a few levels. Of is the mesh; empty uses [$Selected.Brushes]. A brush stops the line: wrap it in Mesh From Brushes first. Example: Mesh From Brushes around a Cube, then Subdivide 2 times, gives a smooth blob. With Smooth off it stays a cube with a finer grid for Displace.',
+      'Splits every face of a mesh into four-sided faces, Levels times. Each level makes about four times as many faces. With Smooth on, the corners are rounded off as well, so a Cube becomes a soft rounded ball after a few levels. Of is the mesh; empty uses [$Selected.Objects]. A solid stops the line: wrap it in Mesh From Solids first. Example: Mesh From Solids around a Cube, then Subdivide 2 times, gives a smooth blob. With Smooth off it stays a cube with a finer grid for Displace.',
     stops: [
       `Levels below 1 or above ${SOLID_SCRIPT_SUBDIVIDE_LEVELS_MAX}.`,
-      'A brush. Wrap it in Mesh From Brushes first.',
+      'A solid. Wrap it in Mesh From Solids first.',
       'No mesh to work on.',
     ],
     parameters: [
@@ -482,7 +482,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
         'Yes',
         'Yes: round the shape off. No: keep its shape exactly, only with more faces. Type Yes or No, such as Yes.',
       ),
-      solidScriptParameterOf('meshes', '$Selected.Brushes', ['Brush']),
+      solidScriptParameterOf('meshes', '$Selected.Objects', ['Object']),
     ],
     listing: (read) => [
       'Subdivide',
@@ -508,11 +508,11 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Relax a mesh so it looks softer',
     manual:
-      'Moves every point of a mesh part of the way towards its neighbours, Rounds times, which softens bumps and sharp corners. The outline of an open mesh stays where it is. Strength is how far each round moves, from 0 (not at all) to 1 (all the way). Of is the mesh; empty uses [$Selected.Brushes]. A brush stops the line: wrap it in Mesh From Brushes first. Example: Mesh From Brushes, Subdivide, then Smooth Mesh 10 rounds at 0.5 takes the harsh edges off a rocky surface.',
+      'Moves every point of a mesh part of the way towards its neighbours, Rounds times, which softens bumps and sharp corners. The outline of an open mesh stays where it is. Strength is how far each round moves, from 0 (not at all) to 1 (all the way). Of is the mesh; empty uses [$Selected.Objects]. A solid stops the line: wrap it in Mesh From Solids first. Example: Mesh From Solids, Subdivide, then Smooth Mesh 10 rounds at 0.5 takes the harsh edges off a rocky surface.',
     stops: [
       `Rounds below 1 or above ${SOLID_SCRIPT_SMOOTH_ROUNDS_MAX}.`,
       'A Strength below 0 or above 1.',
-      'A brush. Wrap it in Mesh From Brushes first.',
+      'A solid. Wrap it in Mesh From Solids first.',
       'No mesh to work on.',
     ],
     parameters: [
@@ -530,7 +530,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
         '0.5',
         'How far each round moves the points, 0 to 1, such as 0.5.',
       ),
-      solidScriptParameterOf('meshes', '$Selected.Brushes', ['Brush']),
+      solidScriptParameterOf('meshes', '$Selected.Objects', ['Object']),
     ],
     listing: (read) => [
       'Smooth Mesh',
@@ -553,10 +553,10 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Push mesh points in or out by a formula',
     manual:
-      'Moves points of a mesh outwards along the surface by Distance in metres. A negative distance pulls them in. Near sharp edges the points turn smoothly around the edge, so faces never push through each other. It moves the vertices Select Vertices picked, or every point when none are picked. Distance is worked out for each point, and may use [$X], [$Y] and [$Z] (its position), [$NX], [$NY] and [$NZ] (its normal), [$Vertex], [$Index] and [$Count], so waves, noise and bulges come from one formula. Of is the mesh; empty uses [$Selected.Brushes]. A brush stops the line: wrap it in Mesh From Brushes first. Subdivide first for a smooth result. Example: Mesh From Brushes around a subdivided Cube, then Distance [=0.1 * Sin([$X] * 180)], gives a wavy surface.',
+      'Moves points of a mesh outwards along the surface by Distance in metres. A negative distance pulls them in. Near sharp edges the points turn smoothly around the edge, so faces never push through each other. It moves the vertices Select Vertices picked, or every point when none are picked. Distance is worked out for each point, and may use [$X], [$Y] and [$Z] (its position), [$NX], [$NY] and [$NZ] (its normal), [$Vertex], [$Index] and [$Count], so waves, noise and bulges come from one formula. Of is the mesh; empty uses [$Selected.Objects]. A solid stops the line: wrap it in Mesh From Solids first. Subdivide first for a smooth result. Example: Mesh From Solids around a subdivided Cube, then Distance [=0.1 * Sin([$X] * 180)], gives a wavy surface.',
     stops: [
       'A Distance that does not give a number.',
-      'A brush. Wrap it in Mesh From Brushes first.',
+      'A solid. Wrap it in Mesh From Solids first.',
       'No mesh to work on.',
     ],
     parameters: [
@@ -570,7 +570,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
         ),
         'Vertex',
       ),
-      solidScriptParameterOf('meshes', '$Selected.Brushes', ['Brush']),
+      solidScriptParameterOf('meshes', '$Selected.Objects', ['Object']),
     ],
     listing: (read) => [
       'Displace',
@@ -587,9 +587,9 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Turn mesh faces to show the other side',
     manual:
-      'Turns faces of a mesh around, so they show the other side. It flips the faces Select Faces picked, or every face when none are picked. Use it when a mesh looks inside out, or to see a box from the inside, such as a sky box or a cave. Of is the mesh; empty uses [$Selected.Brushes]. A brush stops the line: wrap it in Mesh From Brushes first. Example: Mesh From Brushes around a large Cube, then Flip Faces, is a room seen from within.',
-    stops: ['A brush. Wrap it in Mesh From Brushes first.', 'No mesh to work on.'],
-    parameters: [solidScriptParameterOf('meshes', '$Selected.Brushes', ['Brush'])],
+      'Turns faces of a mesh around, so they show the other side. It flips the faces Select Faces picked, or every face when none are picked. Use it when a mesh looks inside out, or to see a box from the inside, such as a sky box or a cave. Of is the mesh; empty uses [$Selected.Objects]. A solid stops the line: wrap it in Mesh From Solids first. Example: Mesh From Solids around a large Cube, then Flip Faces, is a room seen from within.',
+    stops: ['A solid. Wrap it in Mesh From Solids first.', 'No mesh to work on.'],
+    parameters: [solidScriptParameterOf('meshes', '$Selected.Objects', ['Object'])],
     listing: (read) => ['Flip Faces', ...(read.text('of') === '' ? [] : [' Of ', read.value('of')])],
     execute: (run) => solidScriptMeshApply(run, 'Flip Faces', (mesh) => solidScriptMeshFlipRun(run, mesh)),
   }),

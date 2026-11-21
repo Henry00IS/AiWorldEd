@@ -14,12 +14,12 @@ export const SOLID_SCRIPT_USAGE_WORDS: readonly SolidScriptCommandWord[] = [
 
 /**
  * Declared choice lists of members, by kind then singular member name. A list
- * member uses the same list as the singular, such as Brushes.Modes.
+ * member uses the same list as the singular, such as Solids.Modes.
  */
 export const SOLID_SCRIPT_MEMBER_CHOICES: Readonly<
   Record<string, Readonly<Record<string, readonly SolidScriptCommandWord[]>>>
 > = {
-  Brush: { Mode: SOLID_SCRIPT_MODE_WORDS },
+  Solid: { Mode: SOLID_SCRIPT_MODE_WORDS },
 };
 
 /** Declared choice lists of system values, by name without the $. */
@@ -121,18 +121,15 @@ export function solidScriptChoiceWordsForTarget(
 }
 
 /**
- * Tells the kind the last member of a path is read from, such as Brush for
- * Box.Mode, $Selected.Brushes.Modes or $Input.Brushes.Modes.
+ * Tells the kind the last member of a path is read from, such as Solid for
+ * Box.Mode, or Solid List for $Selected.Objects.Modes or [Walls].Solids.Modes.
  *
  * @param parts Name parts without brackets, $ already stripped from the first.
  * @returns Kind of the owner of the last member.
  */
 function solidScriptChoiceOwnerKind(parts: readonly string[]): string {
   const owner = parts[parts.length - 2]?.toLowerCase() ?? '';
-  if (owner === 'brushes' || owner === 'brush') return owner === 'brushes' ? 'Brush List' : 'Brush';
-  if (parts[0]?.toLowerCase() === 'selected' && owner === 'brushes') return 'Brush List';
-  if (parts[0]?.toLowerCase() === 'input' && owner === 'brushes') return 'Brush List';
-  return 'Brush';
+  return owner === 'objects' || owner === 'solids' ? 'Solid List' : 'Solid';
 }
 
 /**

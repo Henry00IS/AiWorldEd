@@ -29,24 +29,24 @@ const WRITING_SCRIPTS: readonly (readonly [string, readonly SolidScriptLine[]])[
   [
     'Set Mode Subtractive on every input',
     [
-      { command: 'input_brushes', values: { into: 'Got' } },
+      { command: 'input_objects', values: { into: 'Got' } },
       { command: 'variable', values: { name: 'Got.Modes', value: 'Subtractive' } },
       { command: 'output', values: { of: '[Got]' } },
     ],
   ],
   [
-    'Set Mode per brush inside For Each',
+    'Set Mode per solid inside For Each',
     [
-      { command: 'input_brushes' },
-      { command: 'for_each', values: { variable: 'Brush', list: '[$Input.Brushes]' } },
-      { command: 'variable', values: { name: 'Brush.Mode', value: 'Intersecting' } },
+      { command: 'input_objects' },
+      { command: 'for_each', values: { variable: 'Object', list: '[$Input.Objects]' } },
+      { command: 'variable', values: { name: 'Object.Mode', value: 'Intersecting' } },
       { command: 'end' },
     ],
   ],
   [
     'Move By, Rotate By, Scale By and Move To on the inputs',
     [
-      { command: 'input_brushes', values: { into: 'Got' } },
+      { command: 'input_objects', values: { into: 'Got' } },
       { command: 'variable', values: { name: 'Got.Modes', value: 'Subtractive' } },
       { command: 'move_by', values: { by: '0.5, 0.25, 0', of: '[Got]' } },
       { command: 'rotate_by', values: { by: '0, 30, 10', of: '[Got]' } },
@@ -58,8 +58,8 @@ const WRITING_SCRIPTS: readonly (readonly [string, readonly SolidScriptLine[]])[
   [
     'Transform UVs and Texture Faces on the inputs',
     [
-      { command: 'input_brushes' },
-      { command: 'select_brushes' },
+      { command: 'input_objects' },
+      { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'All', where: '', of: '', how: 'New' } },
       { command: 'transform_uvs', values: { offset: '0.5, 0.25, 0' } },
       { command: 'texture_faces', values: { texture: 'grass' } },
@@ -68,8 +68,8 @@ const WRITING_SCRIPTS: readonly (readonly [string, readonly SolidScriptLine[]])[
   [
     'Bevel Edges, Inset and Extrude on the inputs',
     [
-      { command: 'input_brushes' },
-      { command: 'select_brushes' },
+      { command: 'input_objects' },
+      { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'All', where: '', of: '', how: 'New' } },
       { command: 'bevel_edges', values: { distance: '0.1' } },
       { command: 'select_faces', values: { which: 'All', where: '', of: '', how: 'New' } },
@@ -79,10 +79,10 @@ const WRITING_SCRIPTS: readonly (readonly [string, readonly SolidScriptLine[]])[
   [
     'Clip and a Subtractive cut through the inputs',
     [
-      { command: 'input_brushes', values: { into: 'Got' } },
+      { command: 'input_objects', values: { into: 'Got' } },
       { command: 'variable', values: { name: 'Got(0).Mode', value: 'Subtractive' } },
       { command: 'output', values: { of: '[Got]' } },
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'clip', values: { through: '0, 0.2, 0' } },
       { command: 'cube', values: { size: '0.2, 3, 0.2', mode: 'Subtractive' } },
     ],
@@ -90,10 +90,10 @@ const WRITING_SCRIPTS: readonly (readonly [string, readonly SolidScriptLine[]])[
   [
     'Mesh tools on the inputs',
     [
-      { command: 'mesh_brushes' },
-      { command: 'input_brushes' },
+      { command: 'mesh_from_solids' },
+      { command: 'input_objects' },
       { command: 'end' },
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'All', where: '', of: '', how: 'New' } },
       { command: 'extrude_face', values: { distance: '0.5' } },
     ],
@@ -280,8 +280,8 @@ function stepError(owner: THREE.Object3D): string {
   return modifierStackStatusRead(owner)?.steps?.[0]?.error ?? '';
 }
 
-describe('SolidScript modifiers never change the scene brushes', () => {
-  it.each(WRITING_SCRIPTS)('%s on a group leaves every scene brush untouched', (_, lines) => {
+describe('SolidScript modifiers never change the scene solids', () => {
+  it.each(WRITING_SCRIPTS)('%s on a group leaves every scene solid untouched', (_, lines) => {
     const fixture = sceneFixture();
     const before = resultSignature(fixture.world, fixture.model);
     modifierStackOwnerDecode(fixture.group, { modifiers: [scriptEntry(lines)] });
@@ -295,7 +295,7 @@ describe('SolidScript modifiers never change the scene brushes', () => {
     expect(fixture.sources.map((source) => source.operation)).toEqual([...MODES]);
   });
 
-  it.each(WRITING_SCRIPTS)('%s on one brush leaves that brush untouched', (_, lines) => {
+  it.each(WRITING_SCRIPTS)('%s on one solid leaves that solid untouched', (_, lines) => {
     const fixture = sceneFixture();
     const host = fixture.sources[0]!;
     const before = resultSignature(fixture.world, fixture.model);
@@ -308,7 +308,7 @@ describe('SolidScript modifiers never change the scene brushes', () => {
     expect(resultSignature(fixture.world, fixture.model)).toBe(before);
   });
 
-  it('hands the CSG new brushes for a changed Mode, never the scene brush objects', () => {
+  it('hands the CSG new solids for a changed Mode, never the scene solid objects', () => {
     const fixture = sceneFixture();
     modifierStackOwnerDecode(fixture.group, { modifiers: [scriptEntry(WRITING_SCRIPTS[0]![1])] });
     const shown = compiled(fixture.world, fixture.model);
@@ -339,7 +339,7 @@ describe('SolidScript modifiers never change the scene brushes', () => {
     expect(sceneSnapshot(fixture.world, fixture.model)).toBe(authored);
   });
 
-  it('saves the authored brushes, not the modified ones, while the modifier is on', () => {
+  it('saves the authored solids, not the modified ones, while the modifier is on', () => {
     const fixture = sceneFixture();
     const saved = savedBrushes(fixture.world);
     modifierStackOwnerDecode(fixture.group, { modifiers: [scriptEntry(WRITING_SCRIPTS[2]![1])] });
@@ -349,7 +349,7 @@ describe('SolidScript modifiers never change the scene brushes', () => {
     expect(brushes.map((brush) => brush.operation)).toEqual([...MODES]);
   });
 
-  it('restores the brushes exactly when the modifier is turned off and on again', () => {
+  it('restores the solids exactly when the modifier is turned off and on again', () => {
     const fixture = sceneFixture();
     const before = resultSignature(fixture.world, fixture.model);
     const entry = scriptEntry(WRITING_SCRIPTS[0]![1]);
@@ -363,7 +363,7 @@ describe('SolidScript modifiers never change the scene brushes', () => {
   });
 });
 
-describe('SolidScript volume modifiers never change the scene brushes', () => {
+describe('SolidScript volume modifiers never change the scene solids', () => {
   /**
    * Adds a SolidScript modifier volume around the scene brushes.
    *
@@ -379,7 +379,7 @@ describe('SolidScript volume modifiers never change the scene brushes', () => {
     return volume;
   }
 
-  it.each(WRITING_SCRIPTS)('%s: moving the volume off the brushes restores them exactly', (_, lines) => {
+  it.each(WRITING_SCRIPTS)('%s: moving the volume off the solids restores them exactly', (_, lines) => {
     const fixture = sceneFixture();
     const before = resultSignature(fixture.world, fixture.model);
     const authored = sceneSnapshot(fixture.world, fixture.model);

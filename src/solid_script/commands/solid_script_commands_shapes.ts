@@ -28,7 +28,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     category: 'Solids',
     description: 'Build a box',
     manual:
-      'Builds a box with the given width (X), height (Y) and depth (Z) in metres. Anchor picks the spot of the box that sits on the origin, the center of the generator: Center, Center, Center ⭐ by default, so its middle sits there; Center, Bottom, Center ⭐ makes it stand on the origin, and Left, Bottom, Back puts its corner there so it grows along X, Y and Z. Mode chooses how the brush combines with the ones before it: Additive, Subtractive or Intersecting. Example: a size of 2, 0.2, 1 gives a flat slab two metres wide.',
+      'Builds a box with the given width (X), height (Y) and depth (Z) in metres. Anchor picks the spot of the box that sits on the origin, the center of the generator: Center, Center, Center ⭐ by default, so its middle sits there; Center, Bottom, Center ⭐ makes it stand on the origin, and Left, Bottom, Back puts its corner there so it grows along X, Y and Z. Mode chooses how the solid combines with the ones before it: Additive, Subtractive or Intersecting. Example: a size of 2, 0.2, 1 gives a flat slab two metres wide.',
     stops: ['A size of 0 or less on any axis.', 'A size that is not one number or three numbers separated by commas.'],
     parameters: [
       solidScriptParameter(
@@ -57,7 +57,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     category: 'Solids',
     description: 'Build a ball',
     manual:
-      'Builds a faceted ball with its middle on the origin by default (Center, Center, Center ⭐); Center, Bottom, Center ⭐ makes it stand on the origin. Sides sets the faces around it, Rings the bands from bottom to top. More of either looks rounder but costs more polygons. Mode chooses how the brush combines with the ones before it: Additive, Subtractive or Intersecting. Example: radius 0.5 with 8 sides and 4 rings gives a low-poly ball one metre across.',
+      'Builds a faceted ball with its middle on the origin by default (Center, Center, Center ⭐); Center, Bottom, Center ⭐ makes it stand on the origin. Sides sets the faces around it, Rings the bands from bottom to top. More of either looks rounder but costs more polygons. Mode chooses how the solid combines with the ones before it: Additive, Subtractive or Intersecting. Example: radius 0.5 with 8 sides and 4 rings gives a low-poly ball one metre across.',
     stops: ['A radius of 0 or less.', 'Sides outside 3 to 64 or Rings outside 2 to 32, or a count with decimals.'],
     parameters: [
       solidScriptParameter(
@@ -94,7 +94,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     category: 'Solids',
     description: 'Build a cylinder or cone',
     manual:
-      'Builds a faceted cylinder standing up along the Y axis. By default its middle sits on the origin (Center, Center, Center ⭐); Center, Bottom, Center ⭐ makes it stand on the origin. Give the top a different radius to make a tapered cone, or 0 for a point. Sides sets the faces around it. Mode chooses how the brush combines with the ones before it: Additive, Subtractive or Intersecting. Example: height 2, bottom radius 1 and top radius 0 gives a pointed cone.',
+      'Builds a faceted cylinder standing up along the Y axis. By default its middle sits on the origin (Center, Center, Center ⭐); Center, Bottom, Center ⭐ makes it stand on the origin. Give the top a different radius to make a tapered cone, or 0 for a point. Sides sets the faces around it. Mode chooses how the solid combines with the ones before it: Additive, Subtractive or Intersecting. Example: height 2, bottom radius 1 and top radius 0 gives a pointed cone.',
     stops: [
       'A height of 0 or less.',
       'A negative radius, or both radii at 0.',
@@ -139,7 +139,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
     category: 'Solids',
     description: 'Build a solid around Point lines',
     manual:
-      'Builds the convex solid that wraps the corner points given by the Point lines between this line and its End, like shrink wrap around pins. Points inside the wrap are ignored, so the result is never hollow or dented. The lines inside may use Repeat, For Each, If, Set and moves such as Transform, so corners can come from loops and formulas. Points From List adds the points of a list variable too, such as [Corners]. Mode chooses how the brush combines with the ones before it: Additive, Subtractive or Intersecting. Example: Points at 0, 0, 0 and 1, 0, 0 and 0, 1, 0 and 0, 0, 1 give a small three-sided pyramid.',
+      'Builds the convex solid that wraps the corner points given by the Point lines between this line and its End, like shrink wrap around pins. Points inside the wrap are ignored, so the result is never hollow or dented. The lines inside may use Repeat, For Each, If, Set and moves such as Transform, so corners can come from loops and formulas. Points From List adds the points of a list variable too, such as [Corners]. Mode chooses how the solid combines with the ones before it: Additive, Subtractive or Intersecting. Example: Points at 0, 0, 0 and 1, 0, 0 and 0, 1, 0 and 0, 0, 1 give a small three-sided pyramid.',
     stops: [
       'Fewer than four points.',
       'Points that all lie in one plane.',
@@ -256,7 +256,7 @@ export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
     category: '2D Shapes',
     description: 'Draw an outline through Point lines',
     manual:
-      'Draws a flat outline through the Point lines between this line and its End, in order around the edge. Each Point gives X and Y, and Z is ignored. Unlike the solids it may be dented (concave), such as an L or a star. It is split into convex brushes when extruded. It only works inside a Linear Extrude or Rotate Extrude. A Name lets later lines inside the same block move, turn or scale it, such as Move By 1, 0, 0 Of Ring. Into writes the outline to a variable, so Move By 1, 0, 0 Of [Ring] moves exactly this one, even when another outline has the same Name. The lines inside may use Repeat, For Each, If and Set, and Points From List adds the points of a list variable such as [Outline]. Example: Points at 0, 0 and 2, 0 and 2, 1 and 1, 1 and 1, 2 and 0, 2 give an L.',
+      'Draws a flat outline through the Point lines between this line and its End, in order around the edge. Each Point gives X and Y, and Z is ignored. Unlike the solids it may be dented (concave), such as an L or a star. It is split into convex solids when extruded. It only works inside a Linear Extrude or Rotate Extrude. A Name lets later lines inside the same block move, turn or scale it, such as Move By 1, 0, 0 Of Ring. Into writes the outline to a variable, so Move By 1, 0, 0 Of [Ring] moves exactly this one, even when another outline has the same Name. The lines inside may use Repeat, For Each, If and Set, and Points From List adds the points of a list variable such as [Outline]. Example: Points at 0, 0 and 2, 0 and 2, 1 and 1, 1 and 1, 2 and 0, 2 give an L.',
     stops: [
       'Fewer than three points.',
       'Being placed outside a Linear Extrude or Rotate Extrude.',

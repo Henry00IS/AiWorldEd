@@ -91,7 +91,7 @@ describe('SolidScript Scatter Points On', () => {
     const without = { command: 'scatter_points', values };
     const script = (line: SolidScriptLine): SolidScriptLine[] => [
       CUBE,
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'Facing Up' } },
       line,
     ];
@@ -99,7 +99,7 @@ describe('SolidScript Scatter Points On', () => {
       solidScriptDocumentListing(solidScriptDocumentCreate(script(without))),
     );
     expect(
-      printed(CUBE, { command: 'select_brushes' }, { command: 'select_faces', values: { which: 'All' } }, without, {
+      printed(CUBE, { command: 'select_objects' }, { command: 'select_faces', values: { which: 'All' } }, without, {
         command: 'echo',
         values: { value: '[=[Spots.Count]]' },
       }),
@@ -109,7 +109,7 @@ describe('SolidScript Scatter Points On', () => {
   it('fills a brush or a mesh, staying inside, and keeps the same seed', () => {
     const insideBrush = scatter({ on: 'Inside', count: '40', seed: '3' }, [
       CUBE,
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'All' } },
     ]);
     expect(insideBrush).toHaveLength(40);
@@ -121,15 +121,15 @@ describe('SolidScript Scatter Points On', () => {
     expect(
       scatter({ on: 'Inside', count: '40', seed: '3' }, [
         CUBE,
-        { command: 'select_brushes' },
+        { command: 'select_objects' },
         { command: 'select_faces', values: { which: 'All' } },
       ]),
     ).toEqual(insideBrush);
     const insideMesh = scatter({ on: 'Inside', count: '20', seed: '3' }, [
-      { command: 'mesh_brushes' },
+      { command: 'mesh_from_solids' },
       CUBE,
       END,
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'All' } },
     ]);
     expect(insideMesh).toHaveLength(20);

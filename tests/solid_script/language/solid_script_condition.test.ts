@@ -3,7 +3,7 @@ import { solidScriptProgramRun } from '@/solid_script/language/solid_script_prog
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 const END: SolidScriptLine = { command: 'end' };
 const CUBE: SolidScriptLine = { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } };
-const SELECT_BRUSHES: SolidScriptLine = { command: 'select_brushes' };
+const SELECT_BRUSHES: SolidScriptLine = { command: 'select_objects' };
 
 /**
  * Runs script lines.
@@ -124,7 +124,7 @@ describe('SolidScript condition helpers', () => {
     const brushes = run(
       CUBE,
       { command: 'cube', values: { size: '1, 1, 1', name: 'Small' } },
-      { command: 'select_brushes', values: { which: 'All', where: '[=[$Brush.Size.X] < 1.5]', into: 'Small' } },
+      { command: 'select_objects', values: { which: 'All', where: '[=[$Object.Size.X] < 1.5]', into: 'Small' } },
       { command: 'echo', values: { value: '[Small.Count] [Small.First.Size.X]' } },
     );
     expect(brushes.error).toBeNull();

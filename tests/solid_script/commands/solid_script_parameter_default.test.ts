@@ -79,14 +79,14 @@ describe('SolidScript field defaults', () => {
     if (!mode || !of || !size) throw new Error('Cube or Move fields are missing');
     expect(mode.default).toBe('Additive');
     expect(solidScriptParameterPlaceholder(mode)).toBe('Additive');
-    expect(solidScriptParameterPlaceholder(of)).toBe('[$Selected.Brushes]');
+    expect(solidScriptParameterPlaceholder(of)).toBe('[$Selected.Objects]');
     expect(solidScriptParameterPlaceholder(size)).toBe('1, 1, 1');
   });
 
   it('shows no placeholder when empty is not a value that can be typed', () => {
-    const of = solidScriptCommandFind('select_brushes')?.parameters.find((parameter) => parameter.key === 'of');
+    const of = solidScriptCommandFind('select_objects')?.parameters.find((parameter) => parameter.key === 'of');
     const output = solidScriptCommandFind('output')?.parameters.find((parameter) => parameter.key === 'of');
-    if (!of || !output) throw new Error('Select Brushes or Output fields are missing');
+    if (!of || !output) throw new Error('Select Objects or Output fields are missing');
     expect(solidScriptParameterPlaceholder(of)).toBe('');
     expect(solidScriptParameterPlaceholder(output)).toBe('');
   });

@@ -20,14 +20,24 @@ import {
 const SOLID_SCRIPT_MEMBERS_BOUNDS = ['Center', 'Min', 'Max', 'Size', 'Extents'] as const;
 
 /** Kinds whose lists also have bounds of the whole list. */
-const SOLID_SCRIPT_MEMBERS_GEOMETRY = ['Brush', 'Mesh', 'Face', 'Edge', 'Vertex'] as const;
+const SOLID_SCRIPT_MEMBERS_GEOMETRY = ['Object', 'Solid', 'Mesh', 'Face', 'Edge', 'Vertex'] as const;
+
+/** Kinds of a scene object: any object, a convex solid, or a mesh. */
+const SOLID_SCRIPT_MEMBERS_OBJECTS: readonly string[] = ['Object', 'Solid', 'Mesh'];
+
+/** Members of a list of objects that keep only the solids or only the meshes. */
+const SOLID_SCRIPT_MEMBERS_OBJECT_FILTERS: Readonly<Record<string, string>> = {
+  Solids: 'Solid List',
+  Meshes: 'Mesh List',
+};
 
 /** Official Vector axis members, in X, Y, Z order. */
 export const SOLID_SCRIPT_VECTOR_AXES = ['X', 'Y', 'Z'] as const;
 
 /** How a geometry list is named in messages, such as Vertices for a Vertex List. */
 const SOLID_SCRIPT_MEMBER_LIST_WORDS: Readonly<Record<string, string>> = {
-  'Brush List': 'Brushes',
+  'Object List': 'Objects',
+  'Solid List': 'Solids',
   'Mesh List': 'Meshes',
   'Face List': 'Faces',
   'Edge List': 'Edges',
@@ -70,7 +80,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     Length: form('Lengths', 'Number'),
     Words: form('Words', 'Text List'),
   },
-  Brush: {
+  Object: {
     Name: form('Names', 'Text'),
     Faces: form('Faces', 'Face List'),
     Edges: form('Edges', 'Edge List'),
@@ -95,7 +105,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     Edges: form('Edges', 'Edge List'),
     Vertices: form('Vertices', 'Vertex List'),
     Neighbors: form('Neighbors', 'Face List'),
-    Parent: form('Parents', 'Brush'),
+    Parent: form('Parents', 'Object'),
     UVs: form('UVs', 'Vector List'),
     Data: form('Data', 'Data'),
   },
@@ -108,7 +118,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     Angle: form('Angles', 'Number'),
     IsBoundary: form('IsBoundaries', 'Yes/No'),
     Faces: form('Faces', 'Face List'),
-    Parent: form('Parents', 'Brush'),
+    Parent: form('Parents', 'Object'),
     Data: form('Data', 'Data'),
   },
   Vertex: {
@@ -116,7 +126,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     Normal: form('Normals', 'Vector'),
     Faces: form('Faces', 'Face List'),
     Edges: form('Edges', 'Edge List'),
-    Parent: form('Parents', 'Brush'),
+    Parent: form('Parents', 'Object'),
     Data: form('Data', 'Data'),
   },
   Point: {
@@ -164,8 +174,9 @@ function solidScriptMemberDecl(kind: string, member: string): SolidScriptMemberD
   if (kind === 'Mesh') {
     const key = solidScriptNameKey(member);
     if (key === 'mode' || key === 'modes') return undefined;
-    return solidScriptMemberDecl('Brush', member);
+    return solidScriptMemberDecl('Object', member);
   }
+  if (kind === 'Solid') return solidScriptMemberDecl('Object', member);
   const members = SOLID_SCRIPT_MEMBER_DECLS[kind as keyof typeof SOLID_SCRIPT_MEMBER_DECLS];
   if (!members) return undefined;
   const key = solidScriptNameKey(member);
@@ -189,8 +200,6 @@ function solidScriptMemberDecl(kind: string, member: string): SolidScriptMemberD
 export function solidScriptMemberType(type: string, member: string): string | null {
   const key = solidScriptNameKey(member);
   if ((type === 'Mesh' || type === 'Mesh List') && (key === 'mode' || key === 'modes')) return null;
-  if (type === 'Mesh' || type === 'Mesh List')
-    return solidScriptMemberType(type === 'Mesh' ? 'Brush' : 'Brush List', member);
   if (!type.endsWith(' List')) {
     const decl = solidScriptMemberDecl(type, member);
     return decl && solidScriptNameKey(decl.singular) === solidScriptNameKey(member) ? decl.type : null;
@@ -214,6 +223,8 @@ function solidScriptMemberTypeOfList(item: string, member: string): string | nul
     const bounds = solidScriptMemberDecl('Bounds', member);
     if (bounds && solidScriptNameKey(bounds.singular) === key) return bounds.type;
   }
+  const filter = solidScriptMemberObjectFilter(item, member);
+  if (filter) return filter;
   const decl = solidScriptMemberDecl(item, member);
   if (!decl || solidScriptNameKey(decl.plural) !== key) return null;
   return decl.type === 'List' || decl.type.endsWith(' List') ? decl.type : `${decl.type} List`;
@@ -235,12 +246,36 @@ export function solidScriptMemberNames(type: string): string[] {
         ...(SOLID_SCRIPT_MEMBERS_GEOMETRY.includes(item as (typeof SOLID_SCRIPT_MEMBERS_GEOMETRY)[number])
           ? Object.keys(SOLID_SCRIPT_MEMBER_DECLS.Bounds)
           : []),
-        ...Object.values(SOLID_SCRIPT_MEMBER_DECLS[item as keyof typeof SOLID_SCRIPT_MEMBER_DECLS] ?? {}).map(
-          (decl) => decl.plural,
-        ),
+        ...(SOLID_SCRIPT_MEMBERS_OBJECTS.includes(item) ? Object.keys(SOLID_SCRIPT_MEMBERS_OBJECT_FILTERS) : []),
+        ...Object.values(SOLID_SCRIPT_MEMBER_DECLS[solidScriptMemberDeclared(item)] ?? {}).map((decl) => decl.plural),
       ]
-    : Object.keys(SOLID_SCRIPT_MEMBER_DECLS[item as keyof typeof SOLID_SCRIPT_MEMBER_DECLS] ?? {});
+    : Object.keys(SOLID_SCRIPT_MEMBER_DECLS[solidScriptMemberDeclared(item)] ?? {});
   return [...new Set(names)].filter((name) => solidScriptMemberType(type, name) !== null);
+}
+
+/**
+ * Names the member table of a kind: a solid and a mesh read the members of an
+ * object.
+ *
+ * @param kind Kind of one item, such as Mesh.
+ * @returns Key of SOLID_SCRIPT_MEMBER_DECLS.
+ */
+function solidScriptMemberDeclared(kind: string): keyof typeof SOLID_SCRIPT_MEMBER_DECLS {
+  return (SOLID_SCRIPT_MEMBERS_OBJECTS.includes(kind) ? 'Object' : kind) as keyof typeof SOLID_SCRIPT_MEMBER_DECLS;
+}
+
+/**
+ * Tells the kind a Solids or Meshes member gives on a list of objects.
+ *
+ * @param item Kind of one item, such as Object.
+ * @param member Member as typed.
+ * @returns Solid List or Mesh List, or undefined for another member or kind.
+ */
+function solidScriptMemberObjectFilter(item: string, member: string): string | undefined {
+  if (!SOLID_SCRIPT_MEMBERS_OBJECTS.includes(item)) return undefined;
+  const key = solidScriptNameKey(member);
+  const found = Object.entries(SOLID_SCRIPT_MEMBERS_OBJECT_FILTERS).find(([name]) => solidScriptNameKey(name) === key);
+  return found?.[1];
 }
 
 /**
@@ -350,6 +385,11 @@ function solidScriptMemberList(
   switch (key) {
     case 'count':
       return list.length;
+    case 'solids':
+    case 'meshes':
+      if (list.every((item) => item instanceof SolidScriptElement && item.kind === 'brush'))
+        return list.filter((item) => (item as SolidScriptElement).mesh === (key === 'meshes'));
+      break;
     case 'first':
     case 'last':
       if (list.length === 0) throw new Error(`the list is empty, so it has no .${written}; check its .Count first`);

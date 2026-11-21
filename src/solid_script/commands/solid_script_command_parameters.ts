@@ -151,7 +151,7 @@ export function solidScriptParameterAnchor(axes: readonly SolidScriptAnchorAxis[
       'Anchor',
       'value',
       solidScriptAnchorDefault(axes),
-      `The spot of the brush that sits on the origin, the center of the generator: ${words.join(', ')}. Type one word per axis, such as Center, Bottom, Center to stand on the origin.`,
+      `The spot of the solid that sits on the origin, the center of the generator: ${words.join(', ')}. Type one word per axis, such as Center, Bottom, Center to stand on the origin.`,
     ),
     anchor: axes,
     accepts: ['Text', 'Text List'],
@@ -209,7 +209,7 @@ export function solidScriptParameterShapeName(): SolidScriptCommandParameter {
       SOLID_SCRIPT_SHAPE_NAME_KEY,
       'Name',
       'text',
-      'Optional name, such as Knob or Post [I], so Of fields can pick this brush by it. Brushes may share a name; case does not matter.',
+      'Optional name, such as Knob or Post [I], so Of fields can pick this solid by it. Solids may share a name; case does not matter.',
     ),
     accepts: ['Text', 'Number'],
   };
@@ -228,17 +228,17 @@ export function solidScriptParameterShapeName(): SolidScriptCommandParameter {
 export function solidScriptParameterOf(
   what: string,
   fallback: string,
-  elements: readonly string[] = ['Brush', 'Face'],
+  elements: readonly string[] = ['Object', 'Face'],
 ): SolidScriptCommandParameter {
   return {
     ...solidScriptParameterOptional(
       'of',
       'Of',
       'value',
-      `The ${what} to work on: a variable such as [Top], a list, or a Name given to brushes; empty uses [${fallback}].`,
+      `The ${what} to work on: a variable such as [Top], a list, or a Name given to objects; empty uses [${fallback}].`,
     ),
     placeholder: `[${fallback}]`,
-    nameGroups: ['Brushes', 'Parts'],
+    nameGroups: ['Objects', 'Parts'],
     accepts: solidScriptOfAccepts(elements),
   };
 }
@@ -290,7 +290,7 @@ export function solidScriptParameterToolInto(): SolidScriptCommandParameter {
         'name',
         'Variable for the edited copy, such as Edited; left off edits in place. When set, the original stays and the result is only in this variable.',
       ),
-      { rule: 'kind', kind: 'Brush List', what: 'edited copy of **{command}**' },
+      { rule: 'kind', kind: 'Object List', what: 'edited copy of **{command}**' },
     ),
     into: 'copy',
   };
@@ -389,7 +389,7 @@ export function solidScriptParameterMode(): SolidScriptCommandParameter {
       'Mode',
       'message',
       SOLID_SCRIPT_MODE_DEFAULT,
-      'How this brush combines with the ones before it in the scene: Additive adds it, Subtractive cuts it out of them, Intersecting keeps only the overlap. Type one word, such as Subtractive to cut a doorway.',
+      'How this solid combines with the ones before it in the scene: Additive adds it, Subtractive cuts it out of them, Intersecting keeps only the overlap. Type one word, such as Subtractive to cut a doorway.',
       SOLID_SCRIPT_MODE_WORDS,
     ),
     optional: true,

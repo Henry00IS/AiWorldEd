@@ -65,7 +65,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Give faces texture coordinates from a box, plane, cylinder or sphere',
     manual:
-      "Gives faces texture coordinates projected from a Mode: Box (the Overhead, Front or Side view each face faces most), Planar (one plane, From Face, Overhead, Front or Side), Cylinder or Sphere. Size is metres of one texture repeat. Space is Local (from the shape's center, so a move keeps the mapping) or World (from the script origin, along the world axes). Cylinder and Sphere take Axis and an optional Center (empty uses the shape's center); a brush face gets a fitted planar map, a mesh face gets exact corner coordinates. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. Brushes stay brushes; meshes stay meshes. Example: Cube, Select Faces, Project UVs Mode Box Size 1 wraps each side from the way it faces.",
+      "Gives faces texture coordinates projected from a Mode: Box (the Overhead, Front or Side view each face faces most), Planar (one plane, From Face, Overhead, Front or Side), Cylinder or Sphere. Size is metres of one texture repeat. Space is Local (from the shape's center, so a move keeps the mapping) or World (from the script origin, along the world axes). Cylinder and Sphere take Axis and an optional Center (empty uses the shape's center); a solid face gets a fitted planar map, a mesh face gets exact corner coordinates. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. Solids stay solids; meshes stay meshes. Example: Cube, Select Faces, Project UVs Mode Box Size 1 wraps each side from the way it faces.",
     stops: [
       'No faces.',
       'A Size of 0 or less.',
@@ -141,7 +141,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
         'mode',
         ['Cylinder', 'Sphere'],
       ),
-      solidScriptParameterOf('faces or brushes', '$Selected.Faces'),
+      solidScriptParameterOf('faces or objects', '$Selected.Faces'),
     ],
     listing: (read) => [
       'Project UVs',
@@ -163,11 +163,11 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Lay each face flat in UV space',
     manual:
-      "Gives each face its own UV island, projected onto the face's plane with the editor's planar basis, shifted so the lowest U and V are 0. Size is metres of one texture repeat. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. Brushes stay brushes; meshes stay meshes. Use Pack Islands afterwards to fit the islands into 0 to 1. Example: Cube, Select Faces, Unwrap, Pack Islands.",
+      "Gives each face its own UV island, projected onto the face's plane with the editor's planar basis, shifted so the lowest U and V are 0. Size is metres of one texture repeat. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. Solids stay solids; meshes stay meshes. Use Pack Islands afterwards to fit the islands into 0 to 1. Example: Cube, Select Faces, Unwrap, Pack Islands.",
     stops: ['No faces.', 'A Size of 0 or less.'],
     parameters: [
       solidScriptParameter('size', 'Size', 'number', '1', 'Metres covered by one texture repeat, such as 1.'),
-      solidScriptParameterOf('faces or brushes', '$Selected.Faces'),
+      solidScriptParameterOf('faces or objects', '$Selected.Faces'),
     ],
     listing: (read) => [
       'Unwrap',
@@ -187,9 +187,9 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Fit UV islands into 0 to 1',
     manual:
-      "Packs the UV islands of the faces into the 0 to 1 square, keeping each island's shape, with a small gap between them. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. Brushes stay brushes; meshes stay meshes. Example: Unwrap, then Pack Islands.",
+      "Packs the UV islands of the faces into the 0 to 1 square, keeping each island's shape, with a small gap between them. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. Solids stay solids; meshes stay meshes. Example: Unwrap, then Pack Islands.",
     stops: ['No faces.'],
-    parameters: [solidScriptParameterOf('faces or brushes', '$Selected.Faces')],
+    parameters: [solidScriptParameterOf('faces or objects', '$Selected.Faces')],
     listing: (read) => ['Pack Islands', ...(read.text('of') === '' ? [] : [' Of ', read.value('of')])],
     execute: (run) => {
       solidScriptUvsPack(run, solidScriptFaceTargets(run, 'Pack Islands'));
@@ -203,7 +203,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Move, scale or rotate texture coordinates',
     manual:
-      "Offsets, scales and rotates the UV mapping of the faces in UV space. Offset is tiles added to U and V (Z is ignored); on brushes from Input Brushes it shifts the texture of that copy. It is added after Scale and Rotate. Pivot is Center (the middle of the faces' UVs), Tile (the middle of the texture tile under that center, such as 0.5, 0.5) or Origin (0, 0). Readable Text Yes keeps lettering readable when a later Mirror or a mirrored copy would otherwise reverse it, No lets the reflection reverse it, and left off the solid keeps the Readable Text it already has. Textures is Move With Shape, so textures stay on their faces, or World Aligned, so they stay where they are in the world; left off, the solid keeps the Textures it already has. Of gives the faces, or brushes for all their faces; empty uses [$Selected.Faces]. Brushes stay brushes; meshes stay meshes. Example: Project UVs, then Transform UVs Offset 0.5, 0 Rotate 90.",
+      "Offsets, scales and rotates the UV mapping of the faces in UV space. Offset is tiles added to U and V (Z is ignored); on solids from Input Objects it shifts the texture of that copy. It is added after Scale and Rotate. Pivot is Center (the middle of the faces' UVs), Tile (the middle of the texture tile under that center, such as 0.5, 0.5) or Origin (0, 0). Readable Text Yes keeps lettering readable when a later Mirror or a mirrored copy would otherwise reverse it, No lets the reflection reverse it, and left off the solid keeps the Readable Text it already has. Textures is Move With Shape, so textures stay on their faces, or World Aligned, so they stay where they are in the world; left off, the solid keeps the Textures it already has. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. Solids stay solids; meshes stay meshes. Example: Project UVs, then Transform UVs Offset 0.5, 0 Rotate 90.",
     stops: [
       'No faces.',
       'A Pivot other than Center, Tile or Origin.',
@@ -257,7 +257,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
         ),
         optional: true,
       },
-      solidScriptParameterOf('faces or brushes', '$Selected.Faces'),
+      solidScriptParameterOf('faces or objects', '$Selected.Faces'),
     ],
     listing: (read) => [
       'Transform UVs',
@@ -282,7 +282,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
 
 /**
  * Stores Readable Text, Textures and Offset tiles on the solids of the faces,
- * so a later Mirror or an Input Brushes copy uses the same policy.
+ * so a later Mirror or an Input Objects copy uses the same policy.
  *
  * @param run Running line.
  * @param faces Faces Transform UVs just edited.

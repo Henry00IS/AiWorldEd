@@ -76,16 +76,16 @@ describe('SolidScript builders', () => {
     ).toEqual(['[0, 5, 0]']);
   });
 
-  it('leaves [$Selected.Brushes] empty until Select Brushes or a Set, and a later build does not add to it', () => {
+  it('leaves [$Selected.Objects] empty until Select Objects or a Set, and a later build does not add to it', () => {
     expect(
       printed(
         line('cube', { into: 'A', anchor: 'Center, Center, Center' }),
         line('cube', { anchor: 'Center, Center, Center' }),
-        line('echo', { value: '[$Selected.Brushes.Count]' }),
-        line('select_brushes', { of: '[A]' }),
-        line('echo', { value: '[$Selected.Brushes.Count]' }),
+        line('echo', { value: '[$Selected.Objects.Count]' }),
+        line('select_objects', { of: '[A]' }),
+        line('echo', { value: '[$Selected.Objects.Count]' }),
         line('sphere', { into: 'S', anchor: 'Center, Center, Center' }),
-        line('echo', { value: '[$Selected.Brushes.Count] [$Selected.Brushes.Last.Name]' }),
+        line('echo', { value: '[$Selected.Objects.Count] [$Selected.Objects.Last.Name]' }),
       ),
     ).toEqual(['0', '1', '1 cube']);
   });

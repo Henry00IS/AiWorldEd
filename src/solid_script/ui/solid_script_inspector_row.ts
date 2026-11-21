@@ -137,7 +137,7 @@ export function solidScriptInspectorUses(
   });
   for (const [each, label, hint] of [
     ['generator', 'Generator', 'Makes new geometry from nothing, in a generator node'],
-    ['modifier', 'Modifier', 'Works on the brush, mesh or group it is added to'],
+    ['modifier', 'Modifier', 'Works on the object or group it is added to'],
   ] as const) {
     const box = document.createElement('input');
     box.type = 'checkbox';

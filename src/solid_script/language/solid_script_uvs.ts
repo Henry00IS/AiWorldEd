@@ -21,7 +21,7 @@ const SOLID_SCRIPT_FACE_UV_GAP = 1e-4;
 
 /**
  * Turns received face records that carry a UV matrix into script-space UV
- * records Input Brushes can store on a solid.
+ * records Input Objects can store on a solid.
  *
  * @param faces Received face textures, when any.
  * @returns Records, or none when no face has a matrix.
@@ -440,7 +440,7 @@ export function solidScriptFaceUvsFit(face: SolidScriptFaceFacts, uvs: readonly 
   });
   const fitted = fitSurfaceUvMatrixFromWorldSamples(samples);
   if (!fitted || !solidScriptFaceUvsFitClose(fitted, samples))
-    throw new Error('those UVs do not lie on a plane, so they cannot be stored on a brush face');
+    throw new Error('those UVs do not lie on a plane, so they cannot be stored on a solid face');
   return solidScriptFaceUvRecord(face, fitted);
 }
 

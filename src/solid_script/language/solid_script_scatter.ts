@@ -83,7 +83,7 @@ function solidScriptScatterInside(run: SolidScriptBlockRun, faces: readonly Soli
   const pieces = solidScriptScatterGroups(faces).flatMap((group) => solidScriptScatterPieces(group));
   const total = pieces.reduce((sum, piece) => sum + piece.weight, 0);
   if (pieces.length === 0 || total <= 1e-18)
-    throw new Error('Inside needs a brush or mesh with some volume in Of; a flat shape has no inside to scatter in');
+    throw new Error('Inside needs an object with some volume in Of; a flat shape has no inside to scatter in');
   const random = solidScriptScatterRng(solidScriptScatterSeed(run));
   return Array.from({ length: solidScriptScatterCount(run) }, () =>
     solidScriptScatterTetPoint(solidScriptScatterWeighted(pieces, random() * total), random),
@@ -333,8 +333,7 @@ function solidScriptScatterWeighted(
     last = piece;
     if (reach >= target) return piece.corners;
   }
-  if (!last)
-    throw new Error('Inside needs a brush or mesh with some volume in Of; a flat shape has no inside to scatter in');
+  if (!last) throw new Error('Inside needs an object with some volume in Of; a flat shape has no inside to scatter in');
   return last.corners;
 }
 

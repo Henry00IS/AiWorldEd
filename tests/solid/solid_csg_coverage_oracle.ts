@@ -41,7 +41,7 @@ export interface SolidCsgCoverageReport {
 }
 
 /**
- * Checks that the compiled surface of a union of additive convex brushes is
+ * Checks that the compiled surface of a union of additive convex solides is
  * complete: every face point clearly outside all other brushes is emitted for
  * its own face, and no emitted polygon sits clearly inside another brush.
  *

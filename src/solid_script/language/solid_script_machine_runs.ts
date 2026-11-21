@@ -140,12 +140,12 @@ export function solidScriptRunMake<Command extends SolidScriptMachineCommand>(
  * Returns whether lines output the brushes a modifier receives.
  *
  * @param lines Lines.
- * @returns True when an Input Brushes line is among them.
+ * @returns True when an Input Objects line is among them.
  */
 export function solidScriptLinesPassInput(lines: readonly SolidScriptBlockNode<SolidScriptMachineCommand>[]): boolean {
   return lines.some(
     (node) =>
-      node.command.id === 'input_brushes' ||
+      node.command.id === 'input_objects' ||
       solidScriptLinesPassInput(node.children) ||
       solidScriptLinesPassInput(node.otherwise ?? []),
   );

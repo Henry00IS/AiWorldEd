@@ -53,7 +53,7 @@ export const SOLID_SCRIPT_COMMANDS_QUERY: readonly SolidScriptCommand[] = [
         'how',
         ['Along Ray'],
       ),
-      solidScriptParameterOf('faces or brushes', '$Selected.Faces'),
+      solidScriptParameterOf('faces or objects', '$Selected.Faces'),
       {
         ...solidScriptParameterInto('the hit point, a Vector', 'Vector', 'hit point', 'label'),
         hint: 'Variable to write the point to, a vector, such as Hit; left off writes none.',

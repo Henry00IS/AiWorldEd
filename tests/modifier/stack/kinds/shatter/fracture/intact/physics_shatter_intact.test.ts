@@ -38,7 +38,7 @@ function intactBox(
 }
 
 /**
- * Returns whether a point lies strictly inside a convex brush.
+ * Returns whether a point lies strictly inside a convex solid.
  *
  * @param brush Convex brush.
  * @param point Point.
@@ -76,7 +76,7 @@ function intactCoverageErrors(
 }
 
 /**
- * Returns the volume two convex brushes share, by clipping one with the other's
+ * Returns the volume two convex solides share, by clipping one with the other's
  * planes.
  *
  * @param first First brush.

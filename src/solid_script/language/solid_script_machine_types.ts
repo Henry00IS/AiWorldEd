@@ -252,12 +252,12 @@ export interface SolidScriptBlockRun {
    * the brushes that have them; null when Of is empty.
    */
   ofValues(): SolidScriptValue[] | null;
-  /** Remembers the brushes an Input Brushes line built, as [$Input.Brushes]. */
+  /** Remembers the brushes an Input Objects line built, as [$Input.Objects]. */
   inputsBuilt(shapes: readonly SolidScriptShape[]): void;
   /** Latest received solids or meshes, after Clip and other writes. */
   receivedLatest(): SolidScriptGeometryLeaf[];
   /**
-   * Latest Mode of each received brush, including Set after Input Brushes.
+   * Latest Mode of each received brush, including Set after Input Objects.
    *
    * @returns Mode of each received brush, or unset when that brush has none.
    */

@@ -24,7 +24,7 @@ import {
   MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND,
 } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
 
-const FIXTURE = path.resolve('tests/fixtures/bug-ss-mesh-different-uvs-than-input-brushes.json');
+const FIXTURE = path.resolve('tests/fixtures/bug-ss-mesh-different-uvs-than-input-solids.json');
 const FORMATS: ModelExportFormat[] = ['fbx', 'obj', 'gltf', 'glb'];
 
 /**
@@ -184,8 +184,8 @@ function modifierVolumeWorld(): { world: THREE.Group; volume: THREE.Mesh; shown:
   model.addBoxBrush(1, SolidOperation.Additive);
   const entry = modifierStackEntryCreate(MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND, []);
   entry.parameters['script'] = scriptDocument(
-    { command: 'mesh_brushes' },
-    { command: 'input_brushes' },
+    { command: 'mesh_from_solids' },
+    { command: 'input_objects' },
     { command: 'end' },
   );
   const volume = ModifierVolume.create({ modifiers: [entry] });
@@ -224,7 +224,7 @@ function generatorWorld(): { world: THREE.Group; node: THREE.Mesh; shown: THREE.
         parameters: {
           ...first.parameters,
           script: scriptDocument(
-            { command: 'mesh_brushes' },
+            { command: 'mesh_from_solids' },
             { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } },
             { command: 'end' },
           ),
@@ -294,11 +294,11 @@ describe('export of SolidScript meshes', () => {
     await expectEveryExporterWrites(world, shown.name);
   });
 
-  it('writes the transferred Mesh From Brushes scene through every exporter', async () => {
+  it('writes the transferred Mesh From Solids scene through every exporter', async () => {
     const { world, volume } = loadTransfer();
     const [shown] = modifierStackMeshesShown(volume);
     if (!shown) throw new Error('Expected the transferred volume to show a mesh');
-    expect(shown.name).toBe('Mesh From Brushes');
+    expect(shown.name).toBe('Mesh From Solids');
     expect(vertexCount(shown)).toBe(460);
     expectExportCopiesShownMesh(world, shown, volume.name);
     await expectEveryExporterWrites(world, shown.name);

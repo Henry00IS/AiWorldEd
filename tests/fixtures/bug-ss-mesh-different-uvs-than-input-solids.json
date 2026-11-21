@@ -1130,7 +1130,7 @@
                 "blocks": [
                   {
                     "id": "636a8c9f",
-                    "command": "mesh_brushes",
+                    "command": "mesh_from_solids",
                     "values": {
                       "label": "",
                       "into": ""
@@ -1138,7 +1138,7 @@
                   },
                   {
                     "id": "404fc816",
-                    "command": "input_brushes",
+                    "command": "input_objects",
                     "values": {
                       "textures": "",
                       "into": ""

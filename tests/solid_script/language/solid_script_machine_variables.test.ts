@@ -12,11 +12,11 @@ import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/
 const line = (command: string, values: Record<string, string> = {}): SolidScriptLine => ({ command, values });
 
 /** A Cube whose brush goes into the variable Brush. */
-const CUBE_INTO_BRUSH = line('cube', { size: '2, 3, 4', into: 'Brush' });
+const CUBE_INTO_BRUSH = line('cube', { size: '2, 3, 4', into: 'Object' });
 
 /** Prints the Data value Kind of every edge of Brush, one Print line per edge. */
 const PRINT_EVERY_EDGE_KIND = [
-  line('for_each', { variable: 'Edge', list: '[Brush.Edges]' }),
+  line('for_each', { variable: 'Edge', list: '[Object.Edges]' }),
   line('echo', { value: '[Edge.Data.Kind]' }),
   line('end'),
 ];
@@ -50,48 +50,48 @@ function stopped(lines: SolidScriptLine[]): string {
  * @returns Edge count.
  */
 function cubeEdgeCount(): number {
-  const [count = ''] = printed([CUBE_INTO_BRUSH, line('echo', { value: '[Brush.Edges.Count]' })]);
+  const [count = ''] = printed([CUBE_INTO_BRUSH, line('echo', { value: '[Object.Edges.Count]' })]);
   return Number(count);
 }
 
 describe('SolidScript Set of Data through list members', () => {
-  it('writes Brush.Edges.Data.Kind to every edge of the brush', () => {
+  it('writes Object.Edges.Data.Kind to every edge of the solid', () => {
     const edges = cubeEdgeCount();
     expect(edges).toBeGreaterThan(0);
     const kinds = printed([
       CUBE_INTO_BRUSH,
-      line('variable', { name: 'Brush.Edges.Data.Kind', value: 'trim' }),
+      line('variable', { name: 'Object.Edges.Data.Kind', value: 'trim' }),
       ...PRINT_EVERY_EDGE_KIND,
     ]);
     expect(kinds).toEqual(Array.from({ length: edges }, () => 'trim'));
   });
 
-  it('reads [Brush.Edges.Data.Kind] back as one value per edge', () => {
+  it('reads [Object.Edges.Data.Kind] back as one value per edge', () => {
     const [count = '', kinds = ''] = printed([
       CUBE_INTO_BRUSH,
-      line('variable', { name: 'Brush.Edges.Data.Kind', value: 'trim' }),
-      line('echo', { value: '[Brush.Edges.Data.Kind.Count]' }),
-      line('echo', { value: '[Brush.Edges.Data.Kind]' }),
+      line('variable', { name: 'Object.Edges.Data.Kind', value: 'trim' }),
+      line('echo', { value: '[Object.Edges.Data.Kind.Count]' }),
+      line('echo', { value: '[Object.Edges.Data.Kind]' }),
     ]);
     expect(Number(count)).toBe(cubeEdgeCount());
     expect(kinds).toBe(`[${Array.from({ length: cubeEdgeCount() }, () => 'trim').join(', ')}]`);
   });
 
-  it('takes the key from a variable, as in Brush.Edges.Data.[Key]', () => {
+  it('takes the key from a variable, as in Object.Edges.Data.[Key]', () => {
     const kinds = printed([
       CUBE_INTO_BRUSH,
       line('variable', { name: 'Key', value: 'Kind' }),
-      line('variable', { name: 'Brush.Edges.Data.[Key]', value: 'seam' }),
+      line('variable', { name: 'Object.Edges.Data.[Key]', value: 'seam' }),
       ...PRINT_EVERY_EDGE_KIND,
     ]);
     expect(kinds).toEqual(Array.from({ length: cubeEdgeCount() }, () => 'seam'));
   });
 
-  it('writes only the edges of one face through Brush.Faces(0).Edges.Data', () => {
+  it('writes only the edges of one face through Object.Faces(0).Edges.Data', () => {
     const [faceEdges = '', ...kinds] = printed([
       CUBE_INTO_BRUSH,
-      line('variable', { name: 'Brush.Faces(0).Edges.Data.Kind', value: 'rim' }),
-      line('echo', { value: '[Brush.Faces(0).Edges.Count]' }),
+      line('variable', { name: 'Object.Faces(0).Edges.Data.Kind', value: 'rim' }),
+      line('echo', { value: '[Object.Faces(0).Edges.Count]' }),
       ...PRINT_EVERY_EDGE_KIND,
     ]);
     expect(Number(faceEdges)).toBeGreaterThan(0);
@@ -99,26 +99,26 @@ describe('SolidScript Set of Data through list members', () => {
     expect(kinds.filter((kind) => kind === 'rim').length).toBe(Number(faceEdges));
   });
 
-  it('writes the brush of an edge through Edge.Parent.Data', () => {
+  it('writes the solid of an edge through Edge.Parent.Data', () => {
     expect(
       printed([
         CUBE_INTO_BRUSH,
-        line('variable', { name: 'Edge', value: '[Brush.Edges.First]' }),
+        line('variable', { name: 'Edge', value: '[Object.Edges.First]' }),
         line('variable', { name: 'Edge.Parent.Data.Kind', value: 'crate' }),
-        line('echo', { value: '[Brush.Data.Kind]' }),
+        line('echo', { value: '[Object.Data.Kind]' }),
       ]),
     ).toEqual(['crate']);
   });
 
   it('still stops a line that sets a member itself', () => {
-    expect(stopped([CUBE_INTO_BRUSH, line('variable', { name: 'Brush.Edges', value: '1' })])).toMatch(
-      /Brush\.Edges can only be read/,
+    expect(stopped([CUBE_INTO_BRUSH, line('variable', { name: 'Object.Edges', value: '1' })])).toMatch(
+      /Object\.Edges can only be read/,
     );
-    expect(stopped([CUBE_INTO_BRUSH, line('variable', { name: 'Brush.Faces(0).Center', value: '1' })])).toMatch(
-      /Brush\.Faces\(0\)\.Center can only be read/,
+    expect(stopped([CUBE_INTO_BRUSH, line('variable', { name: 'Object.Faces(0).Center', value: '1' })])).toMatch(
+      /Object\.Faces\(0\)\.Center can only be read/,
     );
-    expect(stopped([CUBE_INTO_BRUSH, line('variable', { name: 'Brush.Edges.Data', value: '1' })])).toMatch(
-      /Brush\.Edges\.Data needs a key to set/,
+    expect(stopped([CUBE_INTO_BRUSH, line('variable', { name: 'Object.Edges.Data', value: '1' })])).toMatch(
+      /Object\.Edges\.Data needs a key to set/,
     );
   });
 });

@@ -9,7 +9,7 @@ import type { SolidScriptShapeSolid } from '@/solid_script/language/solid_script
 const END: SolidScriptLine = { command: 'end' };
 const CLIP: SolidScriptLine = { command: 'clip' };
 const CUBE: SolidScriptLine = { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } };
-const SELECT_BRUSHES: SolidScriptLine = { command: 'select_brushes' };
+const SELECT_BRUSHES: SolidScriptLine = { command: 'select_objects' };
 
 /**
  * Runs script lines.
@@ -69,7 +69,7 @@ function failed(...lines: SolidScriptLine[]): string {
 }
 
 describe('SolidScript Clip', () => {
-  it('cuts a brush with a plane and keeps it a convex brush', () => {
+  it('cuts a solid with a plane and keeps it a convex solid', () => {
     const [solid] = solids(run(CUBE, SELECT_BRUSHES, CLIP));
     expect(solid?.kind).toBe('solid');
     expect(bounds(solid?.points ?? [])).toEqual([-1, -1, -1, 1, 0, 1]);
@@ -79,7 +79,7 @@ describe('SolidScript Clip', () => {
   });
 
   it('cuts a mesh with a plane, keeps it a mesh, and caps the cut', () => {
-    const mesh = meshOf(run({ command: 'mesh_brushes' }, CUBE, END, SELECT_BRUSHES, CLIP));
+    const mesh = meshOf(run({ command: 'mesh_from_solids' }, CUBE, END, SELECT_BRUSHES, CLIP));
     expect(mesh.kind).toBe('mesh');
     expect(bounds(mesh.points)).toEqual([-1, -1, -1, 1, 0, 1]);
     expect(mesh.faces.length).toBeGreaterThanOrEqual(6);
@@ -89,7 +89,7 @@ describe('SolidScript Clip', () => {
     expect(loop && loop.length).toBeGreaterThanOrEqual(4);
   });
 
-  it('cuts only the brushes in Of, and leaves a miss unchanged', () => {
+  it('cuts only the solids in Of, and leaves a miss unchanged', () => {
     const both = solids(
       run(
         { command: 'cube', values: { size: '2, 2, 2', into: 'A', anchor: 'Center, Center, Center' } },
@@ -106,22 +106,22 @@ describe('SolidScript Clip', () => {
     expect(heights.sort()).toEqual([0, 1]);
   });
 
-  it('stops when Normal is zero, when the plane cuts a brush away, and when nothing is there to cut', () => {
+  it('stops when Normal is zero, when the plane cuts a solid away, and when nothing is there to cut', () => {
     expect(failed(CUBE, SELECT_BRUSHES, { command: 'clip', values: { normal: '0, 0, 0' } })).toMatch(
       /Normal must not be 0, 0, 0/,
     );
     expect(
       failed(CUBE, SELECT_BRUSHES, { command: 'clip', values: { through: '0, 3, 0', normal: '0, -1, 0' } }),
     ).toMatch(/cut the whole/);
-    expect(failed(CLIP)).toMatch(/doesn't know which brushes/);
+    expect(failed(CLIP)).toMatch(/doesn't know which objects/);
     expect(
       failed(
         CUBE,
         SELECT_BRUSHES,
-        { command: 'select_brushes' },
+        { command: 'select_objects' },
         { command: 'select_faces', values: { which: 'All', into: 'F' } },
         { command: 'clip', values: { of: '[F]' } },
       ),
-    ).toMatch(/needs a Brush/);
+    ).toMatch(/needs an Object/);
   });
 });

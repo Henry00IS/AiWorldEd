@@ -1,4 +1,4 @@
-import { solidScriptKindOf } from './solid_script_kinds.js';
+import { solidScriptKindBroader, solidScriptKindOf } from './solid_script_kinds.js';
 import type { SolidScriptFunctionDoc, SolidScriptKindName } from './solid_script_function_docs.js';
 import type { SolidScriptValue } from './solid_script_value.js';
 
@@ -38,11 +38,17 @@ export const SOLID_SCRIPT_KIND_CHECKS = {
     summary: 'Yes for a vector of two or three numbers, such as IsVector(Vector(0, 1, 0)).',
     checks: ['Vector'],
   },
-  Brush: {
-    key: 'is_brush',
-    usage: 'IsBrush(value)',
-    summary: 'Yes for a convex brush, such as IsBrush([Wall]).',
-    checks: ['Brush'],
+  Object: {
+    key: 'is_object',
+    usage: 'IsObject(value)',
+    summary: 'Yes for a solid or a mesh, such as IsObject([Wall]).',
+    checks: ['Object'],
+  },
+  Solid: {
+    key: 'is_solid',
+    usage: 'IsSolid(value)',
+    summary: 'Yes for a convex solid, such as IsSolid([Wall]); a mesh gives No.',
+    checks: ['Solid'],
   },
   Mesh: {
     key: 'is_mesh',
@@ -83,7 +89,7 @@ export const SOLID_SCRIPT_KIND_CHECKS = {
   Data: {
     key: 'is_data',
     usage: 'IsData(value)',
-    summary: 'Yes for the values kept under .Data, such as IsData([Brush.Data]).',
+    summary: 'Yes for the values kept under .Data, such as IsData([Object.Data]).',
     checks: ['Data'],
   },
 } as const satisfies Record<string, SolidScriptKindCheck>;
@@ -98,7 +104,10 @@ type SolidScriptBuiltin = (args: SolidScriptValue[]) => SolidScriptValue;
  * @returns Built-in.
  */
 function solidScriptKindCheck(kind: string): SolidScriptBuiltin {
-  return (args) => solidScriptKindOf(args[0]) === kind;
+  return (args) => {
+    const found = solidScriptKindOf(args[0]);
+    return found === kind || solidScriptKindBroader(found) === kind;
+  };
 }
 
 /**
@@ -117,7 +126,8 @@ function solidScriptKindCheckDoc(check: SolidScriptKindCheck): SolidScriptFuncti
  */
 export const SOLID_SCRIPT_FUNCTIONS_KIND_CHECKS = {
   is_vector: solidScriptKindCheck('Vector'),
-  is_brush: solidScriptKindCheck('Brush'),
+  is_object: solidScriptKindCheck('Object'),
+  is_solid: solidScriptKindCheck('Solid'),
   is_mesh: solidScriptKindCheck('Mesh'),
   is_face: solidScriptKindCheck('Face'),
   is_edge: solidScriptKindCheck('Edge'),
@@ -129,7 +139,8 @@ export const SOLID_SCRIPT_FUNCTIONS_KIND_CHECKS = {
 /** Docs for the new kind checks, with literal keys so the catalog types them. */
 export const SOLID_SCRIPT_KIND_CHECK_DOCS = {
   is_vector: solidScriptKindCheckDoc(SOLID_SCRIPT_KIND_CHECKS.Vector),
-  is_brush: solidScriptKindCheckDoc(SOLID_SCRIPT_KIND_CHECKS.Brush),
+  is_object: solidScriptKindCheckDoc(SOLID_SCRIPT_KIND_CHECKS.Object),
+  is_solid: solidScriptKindCheckDoc(SOLID_SCRIPT_KIND_CHECKS.Solid),
   is_mesh: solidScriptKindCheckDoc(SOLID_SCRIPT_KIND_CHECKS.Mesh),
   is_face: solidScriptKindCheckDoc(SOLID_SCRIPT_KIND_CHECKS.Face),
   is_edge: solidScriptKindCheckDoc(SOLID_SCRIPT_KIND_CHECKS.Edge),
@@ -141,7 +152,8 @@ export const SOLID_SCRIPT_KIND_CHECK_DOCS = {
 /** Input help for the new kind checks. */
 export const SOLID_SCRIPT_KIND_CHECK_ARGUMENTS = {
   is_vector: { value: { type: 'Any', about: 'The value to check.' } },
-  is_brush: { value: { type: 'Any', about: 'The value to check.' } },
+  is_object: { value: { type: 'Any', about: 'The value to check.' } },
+  is_solid: { value: { type: 'Any', about: 'The value to check.' } },
   is_mesh: { value: { type: 'Any', about: 'The value to check.' } },
   is_face: { value: { type: 'Any', about: 'The value to check.' } },
   is_edge: { value: { type: 'Any', about: 'The value to check.' } },

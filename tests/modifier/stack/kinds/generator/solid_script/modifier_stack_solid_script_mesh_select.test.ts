@@ -34,13 +34,13 @@ const END: SolidScriptLine = { command: 'end' };
 /**
  * Script that builds a mesh from the brushes it is given or creates.
  *
- * @param source 'input' reads Input Brushes; 'cube' builds a cube.
+ * @param source 'input' reads Input Objects; 'cube' builds a cube.
  * @returns Script that may be used both ways.
  */
 function meshScript(source: 'input' | 'cube') {
-  const inner: SolidScriptLine = source === 'input' ? { command: 'input_brushes' } : { command: 'cube' };
+  const inner: SolidScriptLine = source === 'input' ? { command: 'input_objects' } : { command: 'cube' };
   return solidScriptDocumentUsesWith(
-    solidScriptDocumentCreate([{ command: 'mesh_brushes' }, inner, END], 'Mesh From Brushes'),
+    solidScriptDocumentCreate([{ command: 'mesh_from_solids' }, inner, END], 'Mesh From Solids'),
     { generator: true, modifier: true },
   );
 }
@@ -95,7 +95,7 @@ function expectShownMeshUnselectable(world: THREE.Group, shown: THREE.Mesh, kept
  * Writes a script onto the first modifier of a volume or generator node.
  *
  * @param node Volume or generator node.
- * @param source Brush source for Mesh From Brushes.
+ * @param source Brush source for Mesh From Solids.
  */
 function writeMeshScript(node: THREE.Object3D, source: 'input' | 'cube'): void {
   const settings = ModifierVolume.read(node);
@@ -143,7 +143,7 @@ function modifierTestBrushes(model: SolidModel) {
 
 /**
  * Creates a volume large enough to hold the three test brushes, running Mesh
- * From Brushes around Input Brushes.
+ * From Brushes around Input Objects.
  *
  * @returns Volume.
  */
@@ -176,13 +176,13 @@ function generatorMeshScene() {
 }
 
 describe('SolidScript mesh output stays unselectable', () => {
-  it('keeps a modifier Mesh From Brushes output out of click picking, box select and the outliner', () => {
+  it('keeps a modifier Mesh From Solids output out of click picking, box select and the outliner', () => {
     const fixture = modifierOverBrushes();
-    expect(fixture.shown.name).toBe('Mesh From Brushes');
+    expect(fixture.shown.name).toBe('Mesh From Solids');
     expectShownMeshUnselectable(fixture.world, fixture.shown, fixture.kept);
   });
 
-  it('keeps a generator Mesh From Brushes output out of those same lists', () => {
+  it('keeps a generator Mesh From Solids output out of those same lists', () => {
     const fixture = generatorMeshScene();
     expectShownMeshUnselectable(fixture.world, fixture.shown, fixture.kept);
   });

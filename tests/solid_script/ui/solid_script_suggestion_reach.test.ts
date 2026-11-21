@@ -32,7 +32,7 @@ describe('autocomplete describes a name by the writes that reach the caret', () 
   ];
 
   it('tells the Cube that wrote it, not the first Set', () => {
-    expect(detail(henry, 3, 'Width')).toBe('Brush: What is made of **Cube** (line 3).');
+    expect(detail(henry, 3, 'Width')).toBe('Solid: What is made of **Cube** (line 3).');
   });
 
   it('does not count the Cube’s own Into before the Cube runs', () => {
@@ -45,8 +45,8 @@ describe('autocomplete describes a name by the writes that reach the caret', () 
     );
     expect(entry?.lines).toEqual([0, 2]);
     expect(entry?.reachLines).toEqual([2]);
-    expect(entry?.type).toBe('Brush');
-    expect(entry?.reaches).toBe('Brush: What is made of **Cube** (line 3).');
+    expect(entry?.type).toBe('Solid');
+    expect(entry?.reaches).toBe('Solid: What is made of **Cube** (line 3).');
   });
 
   it('lists every write an If and its Else may leave, each with its kinds', () => {
@@ -59,7 +59,7 @@ describe('autocomplete describes a name by the writes that reach the caret', () 
       END,
       { command: 'echo', values: { value: '[W]' } },
     ];
-    expect(detail(lines, 6, 'W')).toBe('Number: Set to 15 (line 3). Brush: What is made of **Cube** (line 5).');
+    expect(detail(lines, 6, 'W')).toBe('Number: Set to 15 (line 3). Solid: What is made of **Cube** (line 5).');
   });
 
   it('lists the write before a loop and the one inside it', () => {

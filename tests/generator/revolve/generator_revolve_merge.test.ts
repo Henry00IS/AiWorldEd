@@ -39,7 +39,7 @@ function roundedSquare(curve: ReturnType<typeof bulge>, indices: readonly number
 }
 
 /**
- * Measures unmerged sampled pieces and validated convex brush count.
+ * Measures unmerged sampled pieces and validated convex solid count.
  *
  * @param curve Profile under test.
  * @returns Sampled pieces and actual brushes.
@@ -60,7 +60,7 @@ function counts(curve: ReturnType<typeof bulge>) {
  * non-round sections.
  */
 describe('convex column brush merging', () => {
-  it('already reduces the original Example from 22 sampled pieces to 13 convex brushes', () => {
+  it('already reduces the original Example from 22 sampled pieces to 13 convex solides', () => {
     const curve = curveFromData(example.curve);
     if (!curve) throw new Error('Expected the original Example profile');
     expect(counts(curve)).toEqual([22, 13]);

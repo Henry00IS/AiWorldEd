@@ -26,7 +26,7 @@ function arch(parameters: Record<string, unknown>, scale = 4, height = scale): S
 }
 
 /**
- * Checks that every piece is a valid convex brush.
+ * Checks that every piece is a valid convex solid.
  *
  * @param pieces Pieces.
  */

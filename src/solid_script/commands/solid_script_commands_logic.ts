@@ -56,12 +56,12 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Logic',
     description: 'Set a variable to a value',
     manual:
-      'Gives a value a name, so later lines can use the name. Lines below see the new value. Lines above do not. Setting the same name again changes it, so a Set in a Repeat can count up. Read it in any field as [Width], or compute with it as [=[Width] * 2]. Example: Set [Width] to 3, then a Cube of size [Width], 1, 1. Commas typed outside brackets make a list, each item read on its own: [5, 3, 4], zu, 45 is a vector, a text and a number, three plain numbers such as 1, 2, 3 are a vector, and $, keeps a comma in a text such as Hello$, World. Lists: Set Points() adds an item at the end. Set Points(2) changes item 2. Items count from 0. [Points(2)] reads one item, and [Points.Count] says how many there are. Data: Set Face.Data.Height keeps your own value on a face, brush, edge or corner. Through a list it sets every item, so Set Brush.Edges.Data.Kind to trim marks every edge of [Brush], and Brush.Faces(0).Edges.Data.Kind only the edges of its first face. The key may come from a variable, such as Brush.Data.[Key]. Mode: Set [Brush.Mode] or Set [Brushes.Modes] to Additive, Subtractive or Intersecting changes its CSG mode in the output. Position: Set [$Selected.Vertices.Positions] or Set [$Vertex.Position] moves those corners; Value is worked out once per corner, with $Vertex and $Index, and every read in the line sees the geometry as it was before the line. All the moves apply together. A brush may be left not convex for now, so later lines can keep moving its corners; only when the script ends does a warning list the brushes still not convex, which are not built.',
+      'Gives a value a name, so later lines can use the name. Lines below see the new value. Lines above do not. Setting the same name again changes it, so a Set in a Repeat can count up. Read it in any field as [Width], or compute with it as [=[Width] * 2]. Example: Set [Width] to 3, then a Cube of size [Width], 1, 1. Commas typed outside brackets make a list, each item read on its own: [5, 3, 4], zu, 45 is a vector, a text and a number, three plain numbers such as 1, 2, 3 are a vector, and $, keeps a comma in a text such as Hello$, World. Lists: Set Points() adds an item at the end. Set Points(2) changes item 2. Items count from 0. [Points(2)] reads one item, and [Points.Count] says how many there are. Data: Set Face.Data.Height keeps your own value on a face, solid, edge or corner. Through a list it sets every item, so Set Object.Edges.Data.Kind to trim marks every edge of [Object], and Object.Faces(0).Edges.Data.Kind only the edges of its first face. The key may come from a variable, such as Object.Data.[Key]. Mode: Set [Object.Mode] or Set [Objects.Modes] to Additive, Subtractive or Intersecting changes its CSG mode in the output. Position: Set [$Selected.Vertices.Positions] or Set [$Vertex.Position] moves those corners; Value is worked out once per corner, with $Vertex and $Index, and every read in the line sees the geometry as it was before the line. All the moves apply together. A solid may be left not convex for now, so later lines can keep moving its corners; only when the script ends does a warning list the solids still not convex, which are not built.',
     stops: [
       'A name that is not letters, digits and _, or starts with a digit.',
       'A [Name] for a variable not set above this line, or a [=formula] that cannot be read.',
       'Setting an input of the script, which can only be read.',
-      'Setting a member such as Face.Center or Brush.Edges, which can only be read; Vertex.Position, Face.UVs, Brush.Mode and the values under .Data can be set.',
+      'Setting a member such as Face.Center or Object.Edges, which can only be read; Vertex.Position, Face.UVs, Object.Mode and the values under .Data can be set.',
       'An item number past the end of a list, such as Points(5) when Points has 3 items.',
     ],
     parameters: [
@@ -71,7 +71,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
           'Variable',
           'target',
           'Width',
-          'Letters, digits and _, not starting with a digit. For a list, Points() adds an item and Points(2) changes item 2. Face.Data.Height sets a value under .Data, on every item of a list such as Brush.Edges.Data.Kind. Brush.Mode or Brushes.Modes sets the CSG mode. Vertex.Position, Vertices.Positions or [$Selected.Vertices.Positions] moves those corners.',
+          'Letters, digits and _, not starting with a digit. For a list, Points() adds an item and Points(2) changes item 2. Face.Data.Height sets a value under .Data, on every item of a list such as Object.Edges.Data.Kind. Object.Mode or Objects.Modes sets the CSG mode. Vertex.Position, Vertices.Positions or [$Selected.Vertices.Positions] moves those corners.',
         ),
         { rule: 'value', field: 'value', what: 'set to {value}' },
         'path',
@@ -147,7 +147,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Logic',
     description: 'Run lines once per item of a list',
     manual:
-      'Runs the lines inside once for each item of a list, with Item holding the current one. The list can be numbers separated by commas, a list variable such as [Points], or geometry such as [$Selected.Faces], [Top.Edges] or [$Input.Brushes]; over [Face.Data] it runs once per user value. Key, when given, holds the item number from 0, or the key name over Data. [$Selected.*] carries from round to round and stays after End, so a later round can add to or move what an earlier round picked. Write a pick Into a variable when you want to keep it through later Select lines. Example: For Each [Face] In [$Selected.Faces], Extrude Face Of [Face] By 0.2, End.',
+      'Runs the lines inside once for each item of a list, with Item holding the current one. The list can be numbers separated by commas, a list variable such as [Points], or geometry such as [$Selected.Faces], [Top.Edges] or [$Input.Objects]; over [Face.Data] it runs once per user value. Key, when given, holds the item number from 0, or the key name over Data. [$Selected.*] carries from round to round and stays after End, so a later round can add to or move what an earlier round picked. Write a pick Into a variable when you want to keep it through later Select lines. Example: For Each [Face] In [$Selected.Faces], Extrude Face Of [Face] By 0.2, End.',
     stops: [
       `More than ${SOLID_SCRIPT_REPEAT_ROUNDS_MAX} items.`,
       'An Item or Key name that is not letters, digits and _.',
@@ -325,7 +325,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Parts',
     description: 'Wrap shapes in a CSG group',
     manual:
-      'Builds the lines inside into a CSG group and places that group here. Mode defaults to Additive: the group is added to the shapes before it. Subtractive cuts the group out of them, Intersecting keeps only the overlap, and Pass-Through acts like a folder whose brushes combine as if they were not grouped. A Name on the group becomes the outliner name. Example: Group Mode Subtractive around a door Cube cuts that door out of the wall before it.',
+      'Builds the lines inside into a CSG group and places that group here. Mode defaults to Additive: the group is added to the shapes before it. Subtractive cuts the group out of them, Intersecting keeps only the overlap, and Pass-Through acts like a folder whose solids combine as if they were not grouped. A Name on the group becomes the outliner name. Example: Group Mode Subtractive around a door Cube cuts that door out of the wall before it.',
     stops: ['A missing End line.', 'Mode that is not Additive, Subtractive, Intersecting or Pass-Through.'],
     nesting: 'open',
     named: true,
@@ -340,7 +340,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Parts',
     description: 'Build into a variable, without output',
     manual:
-      'Builds the lines inside into a variable of the same name, inside a CSG group, and places nothing where the Part stands. Parts and variables share one set of names, so after Define Part Wall the brushes are [Wall]. Mode defaults to Additive and can be Subtractive, Intersecting or Pass-Through, the same words as Group. Output stamps a snapshot of the part, including the group and its Mode, right where the Output line sits. Later changes to the part do not reach copies already stamped. Example: Define Part Post holds one tall Cube. [Post] is that cube, and two Output [Post] lines inside two Transforms build two posts.',
+      'Builds the lines inside into a variable of the same name, inside a CSG group, and places nothing where the Part stands. Parts and variables share one set of names, so after Define Part Wall the solids are [Wall]. Mode defaults to Additive and can be Subtractive, Intersecting or Pass-Through, the same words as Group. Output stamps a snapshot of the part, including the group and its Mode, right where the Output line sits. Later changes to the part do not reach copies already stamped. Example: Define Part Post holds one tall Cube. [Post] is that cube, and two Output [Post] lines inside two Transforms build two posts.',
     stops: [
       'A name already used by another part.',
       'A name that is not letters, digits and _.',
@@ -357,9 +357,9 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
             'Name',
             'name',
             'Part',
-            'The name of the part and of the variable it builds into, a Brush list, such as Knob. It also names the group.',
+            'The name of the part and of the variable it builds into, an Object list, such as Knob. It also names the group.',
           ),
-          { rule: 'kind', kind: 'Brush List', what: 'the brushes of **{command}**' },
+          { rule: 'kind', kind: 'Object List', what: 'the solids of **{command}**' },
           'none',
         ),
         nameGroups: ['Parts'],
@@ -380,7 +380,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Parts',
     description: 'Leave the function or part early',
     manual:
-      'Stops a Function or a part early. The lines after it are skipped. In a Function, the script goes on after the Call that started it, and Return can give back a value. A Call line stores that value in its Result In variable. In a Part, Return stops building the variable. Brushes built before Return stay. Put Return inside an If to stop only sometimes. Example: Return [Local.V] gives back the value V.',
+      'Stops a Function or a part early. The lines after it are skipped. In a Function, the script goes on after the Call that started it, and Return can give back a value. A Call line stores that value in its Result In variable. In a Part, Return stops building the variable. Solids built before Return stay. Put Return inside an If to stop only sometimes. Example: Return [Local.V] gives back the value V.',
     stops: ['Being outside a Function or a Define Part.', 'A Value inside a part. Parts hand back results with Set.'],
     flow: { kind: 'return', value: 'value' },
     parameters: [
@@ -398,14 +398,10 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     id: 'output',
     label: 'Output',
     category: 'Parts',
-    description: 'Stamp a snapshot of a part or brushes',
+    description: 'Stamp a snapshot of a part or solids',
     manual:
-      "Places a snapshot of a Part or of brushes right where this line sits, including the Part's CSG group and Mode. A wall Part with a subtractive door always comes out as a wall with a hole. To make a cutter that reaches the world, set the Part's Mode to Subtractive, or to Pass-Through to let its brushes join the CSG order around it. Blocks around this line move the stamp. Later changes to the Part do not reach copies already stamped. The Part line must have run already. Example: Output [Post] inside Transform Move 2, 0, 0 stamps the post two metres to the right.",
-    stops: [
-      'No part or brushes with this name.',
-      'A value that is not a part, a brush or a mesh.',
-      'Nothing to stamp.',
-    ],
+      "Places a snapshot of a Part or of solids right where this line sits, including the Part's CSG group and Mode. A wall Part with a subtractive door always comes out as a wall with a hole. To make a cutter that reaches the world, set the Part's Mode to Subtractive, or to Pass-Through to let its solids join the CSG order around it. Blocks around this line move the stamp. Later changes to the Part do not reach copies already stamped. The Part line must have run already. Example: Output [Post] inside Transform Move 2, 0, 0 stamps the post two metres to the right.",
+    stops: ['No part or solids with this name.', 'A value that is not a part, a solid or a mesh.', 'Nothing to stamp.'],
     parameters: [
       {
         ...solidScriptParameter(
@@ -413,10 +409,10 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
           'Of',
           'value',
           '',
-          'The part or brushes to stamp, such as [Wall]. A name such as Post also works.',
+          'The part or solids to stamp, such as [Wall]. A name such as Post also works.',
         ),
-        nameGroups: ['Parts', 'Brushes'],
-        accepts: ['Brush', 'Brush List', 'Text', 'List'],
+        nameGroups: ['Parts', 'Objects'],
+        accepts: ['Object', 'Object List', 'Text', 'List'],
       },
     ],
     listing: (read) => ['Output', read.value('of')],
@@ -428,7 +424,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Logic',
     description: 'End the script here, keeping what it built',
     manual:
-      'Ends the whole script at this line, also from inside a Repeat, a part or a Function. Brushes built before it stay; the lines after it do not run. It is not a mistake, so nothing is highlighted. Example: If [Steps] == 0 around Echo Nothing to build and Stop Script.',
+      'Ends the whole script at this line, also from inside a Repeat, a part or a Function. Solids built before it stay; the lines after it do not run. It is not a mistake, so nothing is highlighted. Example: If [Steps] == 0 around Echo Nothing to build and Stop Script.',
     stops: [],
     parameters: [],
     listing: () => ['Stop Script'],

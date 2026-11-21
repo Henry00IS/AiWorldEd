@@ -82,7 +82,7 @@ describe('stadium column sections', () => {
     expect(curveSegmentSectionSet(curve, [0], 'round').segments[0]?.straight).toBeUndefined();
   });
 
-  it('builds one convex brush whose two long sides are single flat faces', () => {
+  it('builds one convex solid whose two long sides are single flat faces', () => {
     const { brushes, frame } = revolve(stadiumCurve(0.8, 0.6), 8);
     expect(brushes).toHaveLength(1);
     const brush = brushes[0]!;

@@ -70,10 +70,10 @@ describe('every system name is $ then PascalCase', () => {
 
   it('shows system values and fills with their $ PascalCase names in the explorer and suggestions', () => {
     const document = solidScriptDocumentCreate([
-      { command: 'mesh_brushes' },
+      { command: 'mesh_from_solids' },
       { command: 'cube' },
       { command: 'end' },
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'displace', values: {} },
     ]);
     const system = solidScriptExplorerEntries(document, [], [])
@@ -117,10 +117,10 @@ describe('every system name is $ then PascalCase', () => {
 
   it('fills $X on Displace, and refuses the old unprefixed names', () => {
     const waved = run(
-      { command: 'mesh_brushes' },
+      { command: 'mesh_from_solids' },
       { command: 'cube' },
       { command: 'end' },
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'displace', values: { distance: '[=[$X] * 0]' } },
     );
     expect(waved.error).toBeNull();

@@ -7,7 +7,7 @@ import {
 } from '@/solid_script/language/solid_script_system_names.js';
 
 /** Element a per-element field is worked out for, once each. */
-export type SolidScriptCommandEach = 'Brush' | 'Face' | 'Edge' | 'Vertex' | 'Point' | 'Item';
+export type SolidScriptCommandEach = 'Object' | 'Face' | 'Edge' | 'Vertex' | 'Point' | 'Item';
 
 /** Icon shown on a field worked out once per element. */
 export const SOLID_SCRIPT_COMMAND_EACH_ICON = '🔁';
@@ -15,7 +15,7 @@ export const SOLID_SCRIPT_COMMAND_EACH_ICON = '🔁';
 /** Official fills of the current element, by the element kind. */
 const SOLID_SCRIPT_COMMAND_EACH_FILLS: Readonly<Record<SolidScriptCommandEach, readonly SolidScriptSystemFillName[]>> =
   {
-    Brush: ['$Brush', '$Index', '$Count', '$X', '$Y', '$Z'],
+    Object: ['$Object', '$Index', '$Count', '$X', '$Y', '$Z'],
     Face: ['$Face', '$Index', '$Count', '$X', '$Y', '$Z', '$NX', '$NY', '$NZ'],
     Edge: ['$Edge', '$Index', '$Count', '$X', '$Y', '$Z'],
     Vertex: ['$Vertex', '$Index', '$Count', '$X', '$Y', '$Z', '$NX', '$NY', '$NZ'],
@@ -27,7 +27,7 @@ const SOLID_SCRIPT_COMMAND_EACH_FILLS: Readonly<Record<SolidScriptCommandEach, r
 const SOLID_SCRIPT_COMMAND_EACH_WORDS: Readonly<
   Record<SolidScriptCommandEach, { noun: string; place: string; normal: boolean }>
 > = {
-  Brush: { noun: 'brush', place: 'its center', normal: false },
+  Object: { noun: 'object', place: 'its center', normal: false },
   Face: { noun: 'face', place: 'its center', normal: true },
   Edge: { noun: 'edge', place: 'its center', normal: false },
   Vertex: { noun: 'corner', place: 'its position', normal: true },
@@ -182,7 +182,7 @@ export function solidScriptCommandEachFills(
 }
 
 /**
- * Lists the fills one field may use. Per-item names such as $Brush and $Index
+ * Lists the fills one field may use. Per-item names such as $Object and $Index
  * are only included while that field can change per item.
  *
  * @param command Command of the line.

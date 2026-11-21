@@ -14,7 +14,7 @@ export interface BlastHoleBrushQuality {
 }
 
 /**
- * Measures a convex brush: edges, thickness, corner angles and face areas.
+ * Measures a convex solid: edges, thickness, corner angles and face areas.
  *
  * @param brush Convex brush.
  * @returns Its worst values.

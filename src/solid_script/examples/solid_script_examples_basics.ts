@@ -24,7 +24,7 @@ export const SOLID_SCRIPT_EXAMPLE_DOORWAY: readonly SolidScriptLine[] = [
     label: 'Door',
   }),
   solidScriptExampleNote(
-    'Move By slides brushes by a distance in metres. Of says which ones: Door is the hole we just named. 0, -0.45, 0 means no slide sideways, a little downward, and no slide forward or back.',
+    'Move By slides solids by a distance in metres. Of says which ones: Door is the hole we just named. 0, -0.45, 0 means no slide sideways, a little downward, and no slide forward or back.',
   ),
   solidScriptExampleLine('move_by', { by: '0, -0.45, 0', of: 'Door' }),
 ];
@@ -71,9 +71,9 @@ export const SOLID_SCRIPT_EXAMPLE_STEPPING_STONES: readonly SolidScriptLine[] = 
       solidScriptExampleLine('cube', { size: '0.7, 0.15, 0.5', anchor: 'Center, Center, Center' }),
     ]),
     solidScriptExampleNote(
-      'Select Brushes Which Between picks the slab just built. Rotate To turns it around its middle to these angles, in degrees. The middle number is a little more for each slab.',
+      'Select Objects Which Between picks the slab just built. Rotate To turns it around its middle to these angles, in degrees. The middle number is a little more for each slab.',
     ),
-    solidScriptExampleLine('select_brushes', { which: 'Between' }),
+    solidScriptExampleLine('select_objects', { which: 'Between' }),
     solidScriptExampleLine('rotate_to', { to: '0, [=[I] * 23], 0' }),
   ]),
 ];
@@ -110,7 +110,7 @@ export const SOLID_SCRIPT_EXAMPLE_PEBBLES: readonly SolidScriptLine[] = [
   solidScriptExampleInput('Pebbles', 'Count', '40', { min: '1', max: '400', label: 'Pebbles' }),
   solidScriptExampleLine('cube', { size: '3, 0.4, 3', anchor: 'Center, Center, Center', label: 'Slab' }),
   solidScriptExampleNote(
-    'Select Faces Of Slab starts from Which All, every face of the slab, then Where keeps only the top. InBox is yes when a point sits in a box. HitsBox is yes when a face or brush meets a box of a Center and Size; Fully Inside means the whole face sits in the box.',
+    'Select Faces Of Slab starts from Which All, every face of the slab, then Where keeps only the top. InBox is yes when a point sits in a box. HitsBox is yes when a face or solid meets a box of a Center and Size; Fully Inside means the whole face sits in the box.',
   ),
   solidScriptExampleLine('select_faces', {
     which: 'All',
@@ -144,7 +144,7 @@ export const SOLID_SCRIPT_EXAMPLE_PEBBLES: readonly SolidScriptLine[] = [
 export const SOLID_SCRIPT_EXAMPLE_SPIKY_BALL: readonly SolidScriptLine[] = [
   solidScriptExampleInput('Spikes', 'Count', '30', { min: '1', max: '200', label: 'Spikes' }),
   solidScriptExampleLine('sphere', { r: '1', anchor: 'Center, Center, Center' }),
-  solidScriptExampleLine('select_brushes'),
+  solidScriptExampleLine('select_objects'),
   solidScriptExampleNote('Every face of the ball is selected, so spikes can grow all around it.'),
   solidScriptExampleLine('select_faces', { which: 'All' }),
   solidScriptExampleNote("Scatter's Normals writes the face direction at each spot into [Ways]."),
@@ -191,8 +191,8 @@ export const SOLID_SCRIPT_EXAMPLE_PEDESTAL: readonly SolidScriptLine[] = [
   solidScriptExampleSet('Low', '[$Input.Min.Y]'),
   solidScriptExampleSet('Width', '[$Input.Size.X]'),
   solidScriptExampleSet('Depth', '[$Input.Size.Z]'),
-  solidScriptExampleNote('Input Brushes keeps the received brushes in the world.'),
-  solidScriptExampleLine('input_brushes'),
+  solidScriptExampleNote('Input Objects keeps the received solids in the world.'),
+  solidScriptExampleLine('input_objects'),
   solidScriptExampleNote(
     'Else runs when the script is used as a generator, and builds a box for the slab to sit under.',
   ),
@@ -229,7 +229,7 @@ export const SOLID_SCRIPT_EXAMPLE_KNOBS: readonly SolidScriptLine[] = [
   ),
   solidScriptExampleLine('select_faces', { which: 'Facing Up', of: 'Knob' }),
   solidScriptExampleNote(
-    'This For Each walks those faces. Place On Face sets the space so the next brush sits on that face, pointed along it.',
+    'This For Each walks those faces. Place On Face sets the space so the next solid sits on that face, pointed along it.',
   ),
   ...solidScriptExampleBlock('for_each', { variable: 'Face', list: '[$Selected.Faces]' }, [
     ...solidScriptExampleBlock('place_on_face', { of: '[Face]' }, [

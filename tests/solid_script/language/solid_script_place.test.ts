@@ -34,9 +34,9 @@ describe('SolidScript Place At Points', () => {
         line('place_at_points', { at: '[0, 2, 0], [4, 0, 0]', into: '' }),
         line('cube', { size: '1, 1, 1', anchor: 'Center, Center, Center' }),
         END,
-        line('select_brushes'),
+        line('select_objects'),
         line('echo', {
-          value: '[=[$Selected.Brushes.Count]] [$Selected.Brushes.First.Center] [$Selected.Brushes.Last.Center]',
+          value: '[=[$Selected.Objects.Count]] [$Selected.Objects.First.Center] [$Selected.Objects.Last.Center]',
         }),
       ),
     ).toEqual(['2 [0, 2, 0] [4, 0, 0]']);
@@ -93,7 +93,7 @@ describe('SolidScript Place At Points', () => {
     expect(
       printed(
         line('cube', { size: '2, 2, 2', anchor: 'Center, Center, Center' }),
-        line('select_brushes'),
+        line('select_objects'),
         line('select_faces', { which: 'Facing Up' }),
         line('place_on_face', { into: 'Posts' }),
         line('cube', { size: '0.2, 0.2, 0.2', anchor: 'Center, Bottom, Center' }),

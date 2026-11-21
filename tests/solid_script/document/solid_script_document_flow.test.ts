@@ -40,7 +40,7 @@ describe('SolidScript kinds followed through the script', () => {
   it('replaces the kinds on every write, line by line', () => {
     expect(kindsAt(HENRY, 1, 'henry')).toEqual(['Text']);
     expect(kindsAt(HENRY, 2, 'henry')).toEqual(['Number']);
-    expect(kindsAt(HENRY, 3, 'henry')).toEqual(['Brush']);
+    expect(kindsAt(HENRY, 3, 'henry')).toEqual(['Solid']);
     expect(kindsAt(HENRY, 0, 'henry')).toEqual([]);
   });
 
@@ -71,8 +71,8 @@ describe('SolidScript kinds followed through the script', () => {
       line('end'),
     ];
     expect(kindsAt(lines, 3, 'a')).toEqual(['Text']);
-    expect(kindsAt(lines, 5, 'a')).toEqual(['Brush']);
-    expect(kindsAt(lines, 6, 'a')).toEqual(['Brush', 'Text']);
+    expect(kindsAt(lines, 5, 'a')).toEqual(['Solid']);
+    expect(kindsAt(lines, 6, 'a')).toEqual(['Solid', 'Text']);
     expect(kindsAt(lines, 9, 'b')).toEqual(['Text']);
   });
 
@@ -84,8 +84,8 @@ describe('SolidScript kinds followed through the script', () => {
       line('cube', { into: 'C' }),
       line('end'),
     ];
-    expect(kindsAt(lines, 2, 'c')).toEqual(['Brush', 'Number']);
-    expect(kindsAt(lines, 5, 'c')).toEqual(['Brush', 'Number']);
+    expect(kindsAt(lines, 2, 'c')).toEqual(['Number', 'Solid']);
+    expect(kindsAt(lines, 5, 'c')).toEqual(['Number', 'Solid']);
     expect(kindsAt(lines, 2, 'i')).toEqual(['Number']);
   });
 
@@ -97,8 +97,8 @@ describe('SolidScript kinds followed through the script', () => {
       line('end'),
       line('call', { name: 'F', values: '[Henry]' }),
     ];
-    expect(kindsAt(lines, 2, 'local.b')).toEqual(['Brush']);
-    expect(kindsAt([...lines, line('call', { name: 'F', values: '4' })], 2, 'local.b')).toEqual(['Brush', 'Number']);
+    expect(kindsAt(lines, 2, 'local.b')).toEqual(['Solid']);
+    expect(kindsAt([...lines, line('call', { name: 'F', values: '4' })], 2, 'local.b')).toEqual(['Number', 'Solid']);
     expect(kindsAt(lines, 5, 'local.b')).toEqual([]);
   });
 

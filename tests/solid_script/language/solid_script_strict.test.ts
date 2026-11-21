@@ -91,8 +91,8 @@ describe('SolidScript stops at the first mistake', () => {
     ]);
   });
 
-  it('counts Input Brushes as output, even where it passes on nothing', () => {
-    expect(failure({ command: 'input_brushes' })).toBe('');
+  it('counts Input Objects as output, even where it passes on nothing', () => {
+    expect(failure({ command: 'input_objects' })).toBe('');
   });
 
   it('only warns about scripts that build nothing, after they ran', () => {
@@ -104,7 +104,7 @@ describe('SolidScript stops at the first mistake', () => {
     const result = solidScriptProgramRun(solidScriptDocumentCreate(lines));
     expect(result.messages).toEqual(['1']);
     expect(result.warnings).toEqual([
-      { line: null, text: 'The script builds no brushes or meshes; add one such as Cube, or Output a variable.' },
+      { line: null, text: 'The script builds no objects; add one such as Cube, or Output a variable.' },
     ]);
   });
 

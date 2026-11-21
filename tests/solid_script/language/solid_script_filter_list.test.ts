@@ -41,7 +41,7 @@ describe('SolidScript Filter List', () => {
   it('filters faces with the same condition helpers Select Where uses', () => {
     const top = run(
       CUBE,
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'All' } },
       {
         command: 'filter_list',
@@ -57,7 +57,7 @@ describe('SolidScript Filter List', () => {
     expect(top.messages).toEqual(['1 [0, 1, 0]']);
     const tagged = run(
       CUBE,
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'All' } },
       {
         command: 'filter_list',

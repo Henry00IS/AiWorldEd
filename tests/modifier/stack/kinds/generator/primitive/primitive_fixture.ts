@@ -39,7 +39,7 @@ export function primitivePieces(
 }
 
 /**
- * Returns the enclosed volume of a closed convex brush.
+ * Returns the enclosed volume of a closed convex solid.
  *
  * @param piece Brush.
  * @returns Volume in cubic metres.

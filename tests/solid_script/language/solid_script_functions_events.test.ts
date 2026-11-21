@@ -186,7 +186,7 @@ describe('Function blocks', () => {
     const noCall = run(line('cube'), line('call', { name: 'nope' }));
     expect(noCall.error?.message).toMatch(/no Function is named "nope"/);
     const builds = run(line('cube'), fn('box'), line('cube'), ret('1'), END, echo('[=box()]'));
-    expect(builds.error?.message).toMatch(/box\(\) builds brushes or meshes, so use it with a Call line/);
+    expect(builds.error?.message).toMatch(/box\(\) builds objects, so use it with a Call line/);
     const noValue = run(line('cube'), fn('quiet'), echo('hi'), END, echo('[=quiet()]'));
     expect(noValue.error?.message).toMatch(/quiet\(\) gives no value/);
     const noResult = run(line('cube'), fn('quiet'), END, line('call', { name: 'quiet', result: 'r' }));

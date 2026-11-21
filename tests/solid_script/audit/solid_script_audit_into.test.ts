@@ -3,7 +3,7 @@ import { solidScriptCommands } from '@/solid_script/commands/solid_script_comman
 import type { SolidScriptCommandParameter } from '@/solid_script/commands/solid_script_command.js';
 
 /** Kinds an Into field may hold when it is a brush or mesh copy. */
-const COPY_KINDS = new Set(['Brush', 'Mesh', 'Brush List', 'Mesh List']);
+const COPY_KINDS = new Set(['Object', 'Solid', 'Mesh', 'Object List', 'Solid List', 'Mesh List']);
 
 /** Kinds an Into field must label, never copy. */
 const LABEL_KINDS = new Set([

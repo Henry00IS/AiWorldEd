@@ -22,7 +22,7 @@ const MODIFIER_STACK_TORUS_RING_FIELD = modifierStackPrimitiveCountField(
   'ringSides',
   'Ring Sides',
   { default: 16, min: 3, max: MODIFIER_STACK_PRIMITIVE_MAX_SIDES },
-  'Segments around the ring; each segment is one convex brush. More sides look rounder.',
+  'Segments around the ring; each segment is one convex solid. More sides look rounder.',
 );
 
 /** Faces around the tube. */
@@ -60,7 +60,7 @@ export class ModifierStackKindTorus extends ModifierStackKindPrimitiveSwept {
   readonly id = 'torus';
   readonly label = 'Torus';
   readonly description =
-    'Builds a ring with a round tube filling the volume, or an open bend, one convex brush per segment.';
+    'Builds a ring with a round tube filling the volume, or an open bend, one convex solid per segment.';
   protected override readonly smoothAll = true;
   protected readonly specificFields: readonly ModifierStackField[] = [
     MODIFIER_STACK_TORUS_RING_FIELD,

@@ -33,7 +33,7 @@ function generatedFixture(): { authored: THREE.Mesh; generatedBrush: THREE.Mesh;
   const node = modifierGeneratorNodeCreate(MODIFIER_STACK_SOLID_SCRIPT_KIND);
   model.root.add(node);
   node.position.set(6, 0, 0);
-  generatedScriptSet(node, [{ command: 'mesh_brushes' }, { command: 'cube' }, END, { command: 'cube' }]);
+  generatedScriptSet(node, [{ command: 'mesh_from_solids' }, { command: 'cube' }, END, { command: 'cube' }]);
   world.updateMatrixWorld(true);
   const compiled = modifierStackCompile(model.getBrushes(), model.root);
   const generatedBrush = compiled.instances.find((brush) => brush.id.startsWith(`${node.uuid}#`))?.mesh;

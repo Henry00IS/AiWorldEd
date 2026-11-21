@@ -216,7 +216,7 @@ describe('SolidScript Rotate keeps UVs like the editor rotate tool', () => {
     const projected: SolidScriptLine[] = [
       { command: 'texture' },
       CYLINDER,
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'All' } },
       { command: 'project_uvs', values: { mode: 'Box', size: '0.5' } },
       END,

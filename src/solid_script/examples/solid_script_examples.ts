@@ -106,7 +106,7 @@ function solidScriptExampleModifier(
     id: modifier,
     name,
     group: 'Built-In Modifiers',
-    summary: `The ${name} modifier, rebuilt line by line. Add it as a SolidScript Modifier: it changes the brushes it receives the same way.`,
+    summary: `The ${name} modifier, rebuilt line by line. Add it as a SolidScript Modifier: it changes the solids it receives the same way.`,
     port: null,
     lines,
     uses: { generator: false, modifier: true },
@@ -217,7 +217,7 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
     name: 'Pedestal',
     group: 'Basics',
     summary:
-      'A slab under a box. Used as a modifier on a brush, mesh or group, it puts the slab under that instead and Input Brushes keeps it: If Used As picks the lines.',
+      'A slab under a box. Used as a modifier on an object or group, it puts the slab under that instead and Input Objects keeps it: If Used As picks the lines.',
     port: null,
     lines: SOLID_SCRIPT_EXAMPLE_PEDESTAL,
     uses: { generator: true, modifier: true },
@@ -227,7 +227,7 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
     name: 'Push Out Faces',
     group: 'Basics',
     summary:
-      'A modifier: For Each [Brush] In [$Input.Brushes] lays a slab off every face of every brush it receives. It has no Input Brushes line, so the brushes themselves are gone.',
+      'A modifier: For Each [Object] In [$Input.Objects] lays a slab off every face of every solid it receives. It has no Input Objects line, so the solids themselves are gone.',
     port: null,
     lines: SOLID_SCRIPT_EXAMPLE_PUSH_OUT_FACES,
     uses: { generator: false, modifier: true },

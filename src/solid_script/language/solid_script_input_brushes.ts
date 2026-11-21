@@ -7,12 +7,12 @@ import type { SolidScriptReceived, SolidScriptShape, SolidScriptShapeSolid } fro
 import { solidScriptUvPolicyWrite } from './solid_script_uv_policy.js';
 
 /**
- * Builds the shapes of an Input Brushes line: each received brush, as it is
+ * Builds the shapes of an Input Objects line: each received brush, as it is
  * after Clip and other writes, moved by the blocks around the line. Brushes
  * stay tagged as received so the host can pass them on, and a Clip plane is
  * stored so the host can cut the received units the same way.
  *
- * @param run Running Input Brushes line.
+ * @param run Running Input Objects line.
  * @returns Shapes.
  */
 export function solidScriptInputBrushesBuild(run: SolidScriptBlockRun): SolidScriptShape[] {
@@ -84,7 +84,7 @@ function solidScriptInputBrushesOne(
  * with.
  *
  * @param leaf Latest incoming leaf at this index, when it exists.
- * @param written Mode of the last Input Brushes solid, after later writes.
+ * @param written Mode of the last Input Objects solid, after later writes.
  * @param incoming Mode the modifier passed in.
  * @returns Mode to store on the solid.
  */
@@ -136,7 +136,7 @@ function solidScriptInputBrushesBody(
 }
 
 /**
- * Received-pass record for an Input Brushes solid, including a Clip plane.
+ * Received-pass record for an Input Objects solid, including a Clip plane.
  * Readable Text and the UV shift start at their defaults; Transform UVs changes
  * them.
  *

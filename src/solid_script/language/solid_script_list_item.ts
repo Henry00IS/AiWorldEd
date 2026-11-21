@@ -17,7 +17,7 @@ export interface SolidScriptListItemReference {
 
 /**
  * Shape of an item reference: a name, possibly a system list such as
- * $Input.Brushes or a member such as Top.Edges, then round brackets.
+ * $Input.Objects or a member such as Top.Edges, then round brackets.
  */
 const SOLID_SCRIPT_LIST_ITEM = /^\s*(\$?[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*\((.*)\)\s*$/s;
 

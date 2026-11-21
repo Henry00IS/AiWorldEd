@@ -11,9 +11,9 @@ export const SOLID_SCRIPT_MODE_DEFAULT: SolidScriptMode = 'Additive';
 
 /** Official Mode words, with the same labels the editor uses. */
 export const SOLID_SCRIPT_MODE_WORDS: readonly { word: SolidScriptMode; detail: string }[] = [
-  { word: 'Additive', detail: 'Adds this brush to the ones before it.' },
-  { word: 'Subtractive', detail: 'Cuts this brush out of the ones before it.' },
-  { word: 'Intersecting', detail: 'Keeps only where this brush overlaps the ones before it.' },
+  { word: 'Additive', detail: 'Adds this solid to the ones before it.' },
+  { word: 'Subtractive', detail: 'Cuts this solid out of the ones before it.' },
+  { word: 'Intersecting', detail: 'Keeps only where this solid overlaps the ones before it.' },
 ];
 
 /**
@@ -94,7 +94,7 @@ export const SOLID_SCRIPT_GROUP_MODE_WORDS: readonly { word: SolidScriptGroupMod
   { word: 'Intersecting', detail: 'Keeps only where this group overlaps the ones before it.' },
   {
     word: 'Pass-Through',
-    detail: "Acts like a folder. Its brushes are combined as if they weren't grouped.",
+    detail: "Acts like a folder. Its solids are combined as if they weren't grouped.",
   },
 ];
 

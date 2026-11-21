@@ -99,7 +99,7 @@ describe('CSG of pieces resting tilted against each other', () => {
   const fixture = (blastedBrickWall as { brushes: BlastedBrickWallBrush[] }).brushes;
   const wall = fixture.map((entry) => ({ id: entry.name, name: entry.name, brush: fixtureBrush(entry) }));
 
-  it('every fixture brush is a closed convex brush with sound faces', () => {
+  it('every fixture brush is a closed convex solid with sound faces', () => {
     for (const { brush } of wall) {
       expect(brush.faces.length).toBe(6);
       for (const plane of brush.planes)

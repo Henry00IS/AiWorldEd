@@ -1046,7 +1046,7 @@ describe('SolidScript editor', () => {
     editorFixture([
       { command: 'cube', values: { label: 'Knob' } },
       { command: 'sphere', values: { label: 'Handle' } },
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'select_faces' },
     ]);
     doubleClick(chip(3));

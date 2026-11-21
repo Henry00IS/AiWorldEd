@@ -5,11 +5,11 @@ import { modifierStackReshapeClip } from '@/modifier/stack/evaluate/modifier_sta
 import type { ModifierStackSolidScriptPassed } from './modifier_stack_solid_script_layout.js';
 
 /**
- * Clips received units with the script-space plane Input Brushes recorded after
+ * Clips received units with the script-space plane Input Objects recorded after
  * Clip, or returns the units unchanged when no pass has a plane.
  *
  * @param units Received units.
- * @param passes Input Brushes passes, first received brush of each.
+ * @param passes Input Objects passes, first received brush of each.
  * @param frame Frame-to-world matrix.
  * @param origin Script origin in frame coordinates (the received centre).
  * @param context Evaluation context.

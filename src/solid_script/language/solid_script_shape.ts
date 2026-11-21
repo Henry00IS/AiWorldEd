@@ -45,7 +45,7 @@ export interface SolidScriptShapeSolid {
   faceTags?: SolidScriptFaceTag[];
   /**
    * How textures follow a move and whether lettering stays readable, from
-   * Transform UVs or Input Brushes; none keeps the defaults.
+   * Transform UVs or Input Objects; none keeps the defaults.
    */
   uvPolicy?: SolidScriptUvPolicy;
   /**
@@ -55,7 +55,7 @@ export interface SolidScriptShapeSolid {
    */
   uvCarry?: THREE.Matrix4;
   /**
-   * The received brush this solid passes on, from Input Brushes; none for built
+   * The received brush this solid passes on, from Input Objects; none for built
    * shapes.
    */
   received?: SolidScriptReceived;
@@ -79,7 +79,7 @@ export interface SolidScriptUvPolicy {
 }
 
 /**
- * A brush a modifier received, passed on by Input Brushes and moved by the
+ * A brush a modifier received, passed on by Input Objects and moved by the
  * blocks around it.
  */
 export interface SolidScriptReceived {

@@ -116,7 +116,7 @@ export function physicsShatterTestWorst(pieces: readonly { brush: SolidBrush }[]
 /**
  * Expects a fracture to hold only sound pieces: none dropped, none left unsound
  * after healing, each at least the minimum thickness for its piece size, no
- * edge under 5 mm and every piece a valid convex brush.
+ * edge under 5 mm and every piece a valid convex solid.
  *
  * @param result Fracture result.
  * @param pieceSize Typical piece size of the pattern.

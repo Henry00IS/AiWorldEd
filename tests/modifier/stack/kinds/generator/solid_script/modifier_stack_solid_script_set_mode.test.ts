@@ -99,9 +99,9 @@ function lines(...items: SolidScriptLine[]): SolidScriptLine[] {
   return items;
 }
 
-describe('SolidScript modifier Set Mode on input brushes', () => {
-  it('passes mixed-mode input brushes through with the same ids, modes and textures', () => {
-    const fixture = mixedFixture(lines({ command: 'input_brushes' }));
+describe('SolidScript modifier Set Mode on input solids', () => {
+  it('passes mixed-mode input solids through with the same ids, modes and textures', () => {
+    const fixture = mixedFixture(lines({ command: 'input_objects' }));
     const shown = fixture.compile();
     expect(shown).toHaveLength(3);
     for (const [index, source] of fixture.sources.entries()) {
@@ -113,11 +113,11 @@ describe('SolidScript modifier Set Mode on input brushes', () => {
     }
   });
 
-  it('sets each mixed-mode input to a different Mode and keeps the same scene brushes', () => {
+  it('sets each mixed-mode input to a different Mode and keeps the same scene solids', () => {
     const wanted = [SolidOperation.Subtractive, SolidOperation.Intersecting, SolidOperation.Additive];
     const fixture = mixedFixture(
       lines(
-        { command: 'input_brushes', values: { into: 'Got' } },
+        { command: 'input_objects', values: { into: 'Got' } },
         { command: 'variable', values: { name: 'Got(0).Mode', value: 'Subtractive' } },
         { command: 'variable', values: { name: 'Got(1).Mode', value: 'Intersecting' } },
         { command: 'variable', values: { name: 'Got(2).Mode', value: 'Additive' } },
@@ -143,7 +143,7 @@ describe('SolidScript modifier Set Mode on input brushes', () => {
   ] as const)('sets every mixed-mode input to %s in the scene', (mode, operation) => {
     const fixture = mixedFixture(
       lines(
-        { command: 'input_brushes', values: { into: 'Got' } },
+        { command: 'input_objects', values: { into: 'Got' } },
         { command: 'variable', values: { name: 'Got.Modes', value: mode } },
         { command: 'output', values: { of: '[Got]' } },
       ),
@@ -161,10 +161,10 @@ describe('SolidScript modifier Set Mode on input brushes', () => {
   it('lets For Each treat each incoming Mode differently', () => {
     const fixture = mixedFixture(
       lines(
-        { command: 'input_brushes' },
-        { command: 'for_each', values: { variable: 'Brush', list: '[$Input.Brushes]' } },
-        { command: 'if', values: { condition: '[Brush.Mode] == "Additive"' } },
-        { command: 'variable', values: { name: 'Brush.Mode', value: 'Subtractive' } },
+        { command: 'input_objects' },
+        { command: 'for_each', values: { variable: 'Object', list: '[$Input.Objects]' } },
+        { command: 'if', values: { condition: '[Object.Mode] == "Additive"' } },
+        { command: 'variable', values: { name: 'Object.Mode', value: 'Subtractive' } },
         { command: 'end' },
         { command: 'end' },
       ),
@@ -177,14 +177,14 @@ describe('SolidScript modifier Set Mode on input brushes', () => {
     ]);
   });
 
-  it('applies Set Mode to every Input Brushes pass in the scene', () => {
+  it('applies Set Mode to every Input Objects pass in the scene', () => {
     const fixture = mixedFixture(
       lines(
-        { command: 'input_brushes', values: { into: 'Got' } },
+        { command: 'input_objects', values: { into: 'Got' } },
         { command: 'variable', values: { name: 'Got.Modes', value: 'Intersecting' } },
         { command: 'output', values: { of: '[Got]' } },
         { command: 'transform', values: { move: '0, 2, 0' } },
-        { command: 'input_brushes' },
+        { command: 'input_objects' },
         { command: 'end' },
       ),
     );

@@ -102,16 +102,16 @@ function readsRun(id: string, run: SolidScriptBlockRun): SolidScriptBlockRun {
 const PRELUDE_BRUSHES: readonly SolidScriptLine[] = [
   { command: 'cube', values: {} },
   { command: 'variable', values: { name: 'Items', value: '1, 2, 3' } },
-  { command: 'select_brushes', values: { which: 'All' } },
+  { command: 'select_objects', values: { which: 'All' } },
   { command: 'select_faces', values: { which: 'All' } },
 ];
 
 /** Lines before the line under test: a mesh cube with every face selected. */
 const PRELUDE_MESH: readonly SolidScriptLine[] = [
-  { command: 'mesh_brushes', values: {} },
+  { command: 'mesh_from_solids', values: {} },
   { command: 'cube', values: {} },
   { command: 'end', values: {} },
-  { command: 'select_brushes', values: { which: 'All' } },
+  { command: 'select_objects', values: { which: 'All' } },
   { command: 'select_faces', values: { which: 'All' } },
 ];
 
@@ -247,8 +247,8 @@ describe('SolidScript catalog fields', () => {
     expect(stale).toEqual([]);
   });
 
-  it('offers only Into on Input Brushes', () => {
-    const keys = solidScriptCommands.find((command) => command.id === 'input_brushes')?.parameters.map((p) => p.key);
+  it('offers only Into on Input Objects', () => {
+    const keys = solidScriptCommands.find((command) => command.id === 'input_objects')?.parameters.map((p) => p.key);
     expect(keys).toEqual(['into']);
   });
 });

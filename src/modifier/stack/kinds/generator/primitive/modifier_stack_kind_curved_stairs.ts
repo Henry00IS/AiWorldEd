@@ -60,7 +60,7 @@ const MODIFIER_STACK_CURVED_STAIRS_DETAIL_FIELD = modifierStackPrimitiveCountFie
   'stepDetail',
   'Step Detail',
   { default: 2, min: 1, max: 16 },
-  'Straight pieces along the curve of each step; each is one convex brush. More pieces make the outer wall rounder.',
+  'Straight pieces along the curve of each step; each is one convex solid. More pieces make the outer wall rounder.',
 );
 
 /** Solid flight or floating steps. */

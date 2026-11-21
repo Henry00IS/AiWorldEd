@@ -7,7 +7,7 @@ import { solidScriptShapeLeavesPositive } from '@/solid_script/language/solid_sc
 
 const END: SolidScriptLine = { command: 'end' };
 const CUBE: SolidScriptLine = { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } };
-const SELECT_BRUSHES: SolidScriptLine = { command: 'select_brushes' };
+const SELECT_BRUSHES: SolidScriptLine = { command: 'select_objects' };
 
 /**
  * Runs script lines.
@@ -69,7 +69,7 @@ describe('SolidScript Scale Faces', () => {
   it('keeps a brush as a brush, and scales a mesh face in place', () => {
     const scaled = run(
       CUBE,
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'Facing Up' } },
       {
         command: 'scale_faces',
@@ -79,12 +79,12 @@ describe('SolidScript Scale Faces', () => {
     expect(scaled.error).toBeNull();
     expect(solidScriptShapeMeshes(scaled.shapes)).toHaveLength(0);
     const meshed = run(
-      { command: 'mesh_brushes' },
+      { command: 'mesh_from_solids' },
       CUBE,
       END,
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'Facing Up' } },
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'scale_faces', values: { factor: '0.5' } },
     );
     expect(meshed.error).toBeNull();

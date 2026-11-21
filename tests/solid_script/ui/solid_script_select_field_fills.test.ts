@@ -52,7 +52,7 @@ function labels(id: string, key: string, values: Readonly<Record<string, string>
 
 describe('SolidScript per-element fills stay in their field', () => {
   it.each([
-    ['select_brushes', '$Brush'],
+    ['select_objects', '$Object'],
     ['select_faces', '$Face'],
     ['select_edges', '$Edge'],
     ['select_vertices', '$Vertex'],
@@ -98,7 +98,7 @@ describe('SolidScript per-element fills stay in their field', () => {
   });
 
   it('still allows system lists such as $Selected in Of', () => {
-    const of = '[$Selected.Brushes]';
+    const of = '[$Selected.Objects]';
     expect(solidScriptFieldEachFillWarning(command('select_faces'), parameter('select_faces', 'of'), { of }, of)).toBe(
       '',
     );

@@ -166,7 +166,7 @@ const SOLID_SCRIPT_EXPLORER_TYPES_STATIC: Partial<Record<SolidScriptNameCategory
   Counters: 'Number',
   Functions: 'Function',
   Parts: 'Part',
-  Brushes: 'Brush Name',
+  Objects: 'Object Name',
   Handlers: 'Handler',
 };
 

@@ -67,7 +67,7 @@ function worldBounds(mesh: THREE.Mesh): THREE.Box3 {
 describe('SolidScript generator meshes', () => {
   it('shows a mesh the script builds at the generator, as an unsaved helper, next to its brushes', () => {
     const fixture = meshFixture(
-      { command: 'mesh_brushes' },
+      { command: 'mesh_from_solids' },
       { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } },
       END,
       {
@@ -79,7 +79,7 @@ describe('SolidScript generator meshes', () => {
     const [shown, ...others] = modifierStackMeshesShown(fixture.node);
     expect(others).toHaveLength(0);
     if (!shown) throw new Error('Expected a shown mesh');
-    expect(shown.name).toBe('Mesh From Brushes');
+    expect(shown.name).toBe('Mesh From Solids');
     expect(isEditorHelperObject(shown)).toBe(true);
     expect(readPersistentMeshDocument(shown)?.getTopology().getFaceCount()).toBe(6);
     const box = worldBounds(shown);
@@ -95,7 +95,7 @@ describe('SolidScript generator meshes', () => {
         .map((value) => Math.round(value * 1000) / 1000),
     ).toEqual([2, 2, 2]);
     const saved = JSON.stringify(new SceneSerializer().serialize(fixture.world));
-    expect(saved).not.toContain('Mesh From Brushes');
+    expect(saved).not.toContain('Mesh From Solids');
   });
 
   it('replaces the shown mesh on every rebuild and removes it when the generator is off', () => {
@@ -115,7 +115,7 @@ describe('SolidScript generator meshes', () => {
 
   it('paints a mesh with the Texture around Project UVs, shown and baked', () => {
     const texture: SolidScriptLine = { command: 'texture', values: { texture: 'Base/Blakm_d.bmp' } };
-    const fromBrushes: SolidScriptLine = { command: 'mesh_brushes' };
+    const fromBrushes: SolidScriptLine = { command: 'mesh_from_solids' };
     const torus: SolidScriptLine[] = [
       { command: 'rotate_extrude', values: { angle: '360', sides: '16' } },
       { command: 'transform', values: { move: '1, 0, 0' } },
@@ -123,7 +123,7 @@ describe('SolidScript generator meshes', () => {
       END,
       END,
     ];
-    const selectBrushes: SolidScriptLine = { command: 'select_brushes' };
+    const selectBrushes: SolidScriptLine = { command: 'select_objects' };
     const select: SolidScriptLine = { command: 'select_faces', values: { which: 'All' } };
     const project: SolidScriptLine = { command: 'project_uvs', values: { size: '1' } };
     const orders: SolidScriptLine[][] = [
@@ -147,10 +147,10 @@ describe('SolidScript generator meshes', () => {
 
   it('bakes shown meshes into regular editable meshes beside the solid, and undo takes them away', () => {
     const fixture = meshFixture(
-      { command: 'mesh_brushes' },
+      { command: 'mesh_from_solids' },
       { command: 'cube' },
       END,
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'subdivide' },
     );
     fixture.compile();

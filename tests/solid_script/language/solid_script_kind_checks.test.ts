@@ -48,7 +48,8 @@ describe('SolidScript kind checks', () => {
       'is_string',
       'is_bool',
       'is_vector',
-      'is_brush',
+      'is_object',
+      'is_solid',
       'is_mesh',
       'is_outline',
       'is_face',
@@ -66,7 +67,7 @@ describe('SolidScript kind checks', () => {
     expect(SOLID_SCRIPT_FUNCTION_DOCS['is_undef']?.usage).toBe('IsUndef(value)');
   });
 
-  it('answers IsVector, IsBrush, IsMesh, IsFace, IsEdge, IsVertex and IsData at run time', () => {
+  it('answers IsVector, IsSolid, IsMesh, IsFace, IsEdge, IsVertex and IsData at run time', () => {
     const numbers = run(
       { command: 'variable', values: { name: 'Long', value: '1, 2, 3, 4' } },
       {
@@ -80,7 +81,7 @@ describe('SolidScript kind checks', () => {
     expect(numbers.messages).toEqual(['Yes No No Yes Yes']);
     const geometry = run(
       CUBE,
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'All', into: 'Faces' } },
       { command: 'select_edges', values: { which: 'All', into: 'Edges' } },
       { command: 'select_vertices', values: { which: 'All', into: 'Corners' } },
@@ -88,7 +89,7 @@ describe('SolidScript kind checks', () => {
         command: 'echo',
         values: {
           value:
-            '[=IsBrush([$Selected.Brushes.First])] [=IsMesh([$Selected.Brushes.First])] [=IsFace([Faces.First])] [=IsEdge([Edges.First])] [=IsVertex([Corners.First])] [=IsData([Faces.First.Data])]',
+            '[=IsSolid([$Selected.Objects.First])] [=IsMesh([$Selected.Objects.First])] [=IsFace([Faces.First])] [=IsEdge([Edges.First])] [=IsVertex([Corners.First])] [=IsData([Faces.First.Data])]',
         },
       },
     );
@@ -96,17 +97,17 @@ describe('SolidScript kind checks', () => {
     expect(geometry.messages).toEqual(['Yes No Yes Yes Yes Yes']);
     const mesh = run(
       { command: 'grid_mesh' },
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       {
         command: 'echo',
-        values: { value: '[=IsMesh([$Selected.Brushes.First])] [=IsBrush([$Selected.Brushes.First])]' },
+        values: { value: '[=IsMesh([$Selected.Objects.First])] [=IsSolid([$Selected.Objects.First])]' },
       },
     );
     expect(mesh.error).toBeNull();
     expect(mesh.messages).toEqual(['Yes No']);
   });
 
-  it('narrows a name inside If IsVector, If IsFace and If IsBrush', () => {
+  it('narrows a name inside If IsVector, If IsFace and If IsSolid', () => {
     const vector = [
       { command: 'variable', values: { name: 'X', value: '1' } },
       { command: 'if', values: { condition: '[Coin] == 1' } },
@@ -123,7 +124,7 @@ describe('SolidScript kind checks', () => {
     expect(kindsAt(vector, 8, 'x')).toEqual(['Number']);
     const face = [
       CUBE,
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'All', into: 'X' } },
       { command: 'if', values: { condition: 'IsFace([X.First])' } },
       { command: 'echo', values: { value: 'face' } },
@@ -135,25 +136,25 @@ describe('SolidScript kind checks', () => {
       { command: 'if', values: { condition: '[Coin] == 1' } },
       { command: 'cube', values: { into: 'Item' } },
       END,
-      { command: 'if', values: { condition: 'IsBrush([Item])' } },
+      { command: 'if', values: { condition: 'IsSolid([Item])' } },
       { command: 'echo', values: { value: 'brush' } },
       { command: 'else' },
       { command: 'echo', values: { value: 'other' } },
       END,
     ];
-    expect(kindsAt(held, 5, 'item')).toEqual(['Brush']);
+    expect(kindsAt(held, 5, 'item')).toEqual(['Solid']);
     expect(kindsAt(held, 8, 'item')).toEqual(['Number']);
   });
 
-  it('lets a mesh pass where a field takes a brush, and kindOf names it Mesh', () => {
-    const accepts: SolidScriptCommandAccepts = ['Brush'];
+  it('lets a mesh pass where a field takes a solid, and kindOf names it Mesh', () => {
+    const accepts: SolidScriptCommandAccepts = ['Object'];
     const mesh = new SolidScriptElement('brush', 1);
     mesh.mesh = true;
     const brush = new SolidScriptElement('brush', 2);
     expect(solidScriptKindOf(mesh)).toBe('Mesh');
-    expect(solidScriptKindOf(brush)).toBe('Brush');
+    expect(solidScriptKindOf(brush)).toBe('Solid');
     expect(solidScriptKindAccepted(accepts, 'Mesh')).toBe(true);
-    expect(solidScriptKindAccepted(accepts, 'Brush')).toBe(true);
+    expect(solidScriptKindAccepted(accepts, 'Object')).toBe(true);
     expect(solidScriptKindAccepted(accepts, 'Face')).toBe(false);
   });
 });

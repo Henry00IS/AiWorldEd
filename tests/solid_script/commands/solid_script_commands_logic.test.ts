@@ -29,12 +29,12 @@ describe('SolidScript Set', () => {
     expect(outcome(set('X', '2'), set('X', 'oak'), line('echo', { value: '[X]' }))).toEqual(['oak']);
     const top = line('select_faces', { which: 'Facing Up' });
     expect(
-      outcome(CUBE, line('select_brushes'), top, set('F', '[$Selected.Faces]'), line('echo', { value: '[F.Count]' })),
+      outcome(CUBE, line('select_objects'), top, set('F', '[$Selected.Faces]'), line('echo', { value: '[F.Count]' })),
     ).toEqual(['1']);
     expect(
       outcome(
         CUBE,
-        line('select_brushes'),
+        line('select_objects'),
         top,
         set('F', '[$Selected.Faces.First]'),
         line('echo', { value: '[F.Area]' }),
@@ -50,7 +50,7 @@ describe('SolidScript Set', () => {
 
   it('suggests the members of the kind a variable holds', () => {
     expect(
-      members([CUBE, line('select_brushes'), line('select_faces', { into: 'Picked' })], '[Picked.First.'),
+      members([CUBE, line('select_objects'), line('select_faces', { into: 'Picked' })], '[Picked.First.'),
     ).toContain('Picked.First.Normal');
     expect(members([set('Top', '[$Selected.Faces]')], '[Top.')).toContain('Top.Normals');
     expect(members([line('for_each', { variable: 'E', list: '[$Selected.Edges]' })], '[E.')).toContain('E.Length');

@@ -33,8 +33,8 @@ describe('SolidScript configurator Set Variable field', () => {
   it('accepts a value under .Data, also through members and items', () => {
     for (const text of [
       'Face.Data.Height',
-      'Brush.Edges.Data.Anything',
-      'Brush.Faces(0).Edges.Data.Kind',
+      'Object.Edges.Data.Anything',
+      'Object.Faces(0).Edges.Data.Kind',
       'Edge.Parent.Data.Kind',
       'Sides(0).Data.[Key]',
     ])
@@ -46,9 +46,9 @@ describe('SolidScript configurator Set Variable field', () => {
     expect(setVariableProblem('Vertex.Position')).toBe('');
     expect(setVariableProblem('$Selected.Vertices.Positions')).toBe('');
     expect(setVariableProblem('$Selected.Vertices.Positions.Y')).toBe('');
-    expect(setVariableProblem('Brush.Edges')).toMatch(/Brush\.Edges can only be read/);
+    expect(setVariableProblem('Object.Edges')).toMatch(/Object\.Edges can only be read/);
     expect(setVariableProblem('Face.Center')).toMatch(/Face\.Center can only be read/);
-    expect(setVariableProblem('Brush.Edges.Data')).toMatch(/Brush\.Edges\.Data needs a key to set/);
+    expect(setVariableProblem('Object.Edges.Data')).toMatch(/Object\.Edges\.Data needs a key to set/);
   });
 });
 
@@ -96,7 +96,7 @@ function typedSuggestions(
 }
 
 /** Line that builds a brush into the variable Brush. */
-const CUBE_INTO_BRUSH = { command: 'cube', values: { size: '2, 2, 2', into: 'Brush' } };
+const CUBE_INTO_BRUSH = { command: 'cube', values: { size: '2, 2, 2', into: 'Object' } };
 
 /** Lines setting a few variables of the script, an Input and a Function. */
 const SCRIPT_WITH_NAMES: SolidScriptLine[] = [
@@ -130,26 +130,26 @@ describe('SolidScript configurator suggestions in fields naming a variable', () 
     expect(shown.every((label) => /^\$Selected\./.test(label))).toBe(true);
   });
 
-  it('offers Positions after $Selected.Vertices. and Brush.Vertices.', () => {
+  it('offers Positions after $Selected.Vertices. and Object.Vertices.', () => {
     const selected = typedSuggestions('variable', 'name', namesAt(SCRIPT_WITH_NAMES, 0), '$Selected.Vertices.').shown;
     expect(selected).toContain('$Selected.Vertices.Positions');
     expect(selected).not.toContain('$Selected.Vertices.Count');
     document.body.replaceChildren();
     const names = namesAt([CUBE_INTO_BRUSH], 1);
-    const brush = typedSuggestions('variable', 'name', names, 'Brush.Vertices.').shown;
-    expect(brush).toContain('Brush.Vertices.Positions');
-    expect(brush).not.toContain('Brush.Vertices.Count');
+    const brush = typedSuggestions('variable', 'name', names, 'Object.Vertices.').shown;
+    expect(brush).toContain('Object.Vertices.Positions');
+    expect(brush).not.toContain('Object.Vertices.Count');
   });
 
-  it('offers Data and the members that give elements after Brush. and Brush.Edges.', () => {
+  it('offers Data and the members that give elements after Object. and Object.Edges.', () => {
     const names = namesAt([CUBE_INTO_BRUSH], 1);
-    const brush = typedSuggestions('variable', 'name', names, 'Brush.').shown;
-    expect(brush).toEqual(expect.arrayContaining(['Brush.Edges', 'Brush.Faces', 'Brush.Data']));
-    expect(brush).not.toContain('Brush.Center');
+    const brush = typedSuggestions('variable', 'name', names, 'Object.').shown;
+    expect(brush).toEqual(expect.arrayContaining(['Object.Edges', 'Object.Faces', 'Object.Data']));
+    expect(brush).not.toContain('Object.Center');
     document.body.replaceChildren();
-    const edges = typedSuggestions('variable', 'name', names, 'Brush.Edges.').shown;
-    expect(edges).toContain('Brush.Edges.Data');
-    expect(edges).not.toContain('Brush.Edges.Count');
+    const edges = typedSuggestions('variable', 'name', names, 'Object.Edges.').shown;
+    expect(edges).toContain('Object.Edges.Data');
+    expect(edges).not.toContain('Object.Edges.Count');
   });
 
   it('offers .X, .Y and .Z of a vector variable, and no keys under .Data the script does not know', () => {
@@ -160,14 +160,14 @@ describe('SolidScript configurator suggestions in fields naming a variable', () 
     const names = namesAt(lines, lines.length);
     expect(typedSuggestions('variable', 'name', names, 'Pos.').shown).toEqual(['Pos.X', 'Pos.Y', 'Pos.Z']);
     document.body.replaceChildren();
-    expect(typedSuggestions('variable', 'name', names, 'Brush.Data.').shown).toEqual([]);
+    expect(typedSuggestions('variable', 'name', names, 'Object.Data.').shown).toEqual([]);
   });
 
   it('writes a picked member as the whole field, so the next dot goes on from it', () => {
-    const { input, shown } = typedSuggestions('variable', 'name', namesAt([CUBE_INTO_BRUSH], 1), 'Brush.Ed');
-    expect(shown).toEqual(['Brush.Edges']);
+    const { input, shown } = typedSuggestions('variable', 'name', namesAt([CUBE_INTO_BRUSH], 1), 'Object.Ed');
+    expect(shown).toEqual(['Object.Edges']);
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    expect(input.value).toBe('Brush.Edges');
+    expect(input.value).toBe('Object.Edges');
   });
 
   it('offers the variables of the script in an Into field, without system values or functions', () => {

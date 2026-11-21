@@ -5,7 +5,7 @@ describe('the reference reads kinds from the declarations', () => {
   const text = solidScriptReference();
 
   it('says which kinds a field takes and what a variable field gives', () => {
-    expect(text).toMatch(/- of \(Of,[^\n]*Takes a Brush, Face or Text, or a list of them/);
+    expect(text).toMatch(/- of \(Of,[^\n]*Takes an Object, Face or Text, or a list of them/);
     expect(text).toMatch(/- variable \([^\n]*The variable it names gives Number: counter/);
   });
 

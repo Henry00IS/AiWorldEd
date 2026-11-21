@@ -34,7 +34,7 @@ describe('modifier volume bake', () => {
     expect(fixture.source.brush.vertices).toHaveLength(8);
   });
 
-  it('bakes generated stairs into separate convex brushes', () => {
+  it('bakes generated stairs into separate convex solides', () => {
     const fixture = stackFixture([{ kind: 'stairs', parameters: { sizing: 'Step Count', count: 3 } }, 'bevel'], 2);
     fixture.refresh();
     const bake = new CommandModifierVolumeBake(fixture.volume);

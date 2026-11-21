@@ -75,16 +75,16 @@ describe('SolidScript as a modifier', () => {
     expect(slab.min.y).toBeCloseTo(box.min.y - 0.2, 4);
   });
 
-  it('gives Script.Usage and Input.Brushes, and Input Brushes copies what it receives', () => {
+  it('gives Script.Usage and Input.Objects, and Input Objects copies what it receives', () => {
     const fixture = modifierFixture(
       both(
-        { command: 'input_brushes' },
+        { command: 'input_objects' },
         {
           command: 'if',
-          values: { condition: '[$Script.Usage] == "Modifier" and [$Input.Brushes.Count] == 1' },
+          values: { condition: '[$Script.Usage] == "Modifier" and [$Input.Objects.Count] == 1' },
         },
         { command: 'transform', values: { move: '0, [$Input.Size.y], 0' } },
-        { command: 'input_brushes' },
+        { command: 'input_objects' },
         { command: 'end' },
         { command: 'end' },
       ),
@@ -97,7 +97,7 @@ describe('SolidScript as a modifier', () => {
     expect(copy.max.x - copy.min.x).toBeCloseTo(box.max.x - box.min.x, 4);
   });
 
-  it("outputs only the script's Cylinder: the received brush is gone without Input Brushes", () => {
+  it("outputs only the script's Cylinder: the received brush is gone without Input Objects", () => {
     const fixture = modifierFixture(both({ command: 'cylinder', values: { h: '0.3', r1: '0.1', r2: '0.1' } }));
     const shown = fixture.compile().instances.filter((brush) => brush.constructor.name !== 'ModifierStackHiddenBrush');
     expect(shown).toHaveLength(1);
@@ -108,8 +108,8 @@ describe('SolidScript as a modifier', () => {
 
   it('bevels the received brush, and the inspector and the editor run it like the stack does', () => {
     const script = both(
-      { command: 'input_brushes' },
-      { command: 'select_brushes' },
+      { command: 'input_objects' },
+      { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'All', where: '', of: '', how: 'New' } },
       { command: 'bevel_edges', values: { distance: '0.1' } },
     );
@@ -134,7 +134,7 @@ describe('SolidScript as a modifier', () => {
 
   it('cuts the received brush like any brush and keeps its face textures', () => {
     const fixture = modifierFixture(
-      both({ command: 'input_brushes' }, { command: 'cube', values: { size: '0.2, 2, 0.2', mode: 'Subtractive' } }),
+      both({ command: 'input_objects' }, { command: 'cube', values: { size: '0.2, 2, 0.2', mode: 'Subtractive' } }),
     );
     for (const face of fixture.source.brush.faces) fixture.source.setFaceTextureId(face.surfaceIndex, 'Brick');
     const result = fixture.compile();
@@ -165,7 +165,7 @@ describe('SolidScript as a modifier', () => {
       const fixture = modifierFixture(
         both(
           { command: 'if', values: { condition: `[$Script.Mode] == "${mode}"` } },
-          { command: 'input_brushes' },
+          { command: 'input_objects' },
           { command: 'end' },
         ),
         operation,
@@ -189,7 +189,7 @@ describe('SolidScript as a modifier', () => {
     const entry = modifierStackEntryCreate(MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND, []);
     entry.parameters['script'] = both(
       { command: 'if', values: { condition: '[$Script.Mode] == "Pass-Through"' } },
-      { command: 'input_brushes' },
+      { command: 'input_objects' },
       { command: 'end' },
     );
     modifierStackOwnerDecode(group, { modifiers: [entry] });
@@ -201,7 +201,7 @@ describe('SolidScript as a modifier', () => {
     expect(modifierStackSolidScriptRunStart(group, entry.id, 'modifier').use?.mode).toBe('Pass-Through');
   });
 
-  it('gives Input Brushes the host brush Mode, so scripts can filter by it', () => {
+  it('gives Input Objects the host brush Mode, so scripts can filter by it', () => {
     const modes = [
       [SolidOperation.Additive, 'Additive'],
       [SolidOperation.Subtractive, 'Subtractive'],
@@ -210,8 +210,8 @@ describe('SolidScript as a modifier', () => {
     for (const [operation, mode] of modes) {
       const fixture = modifierFixture(
         both(
-          { command: 'if', values: { condition: `[$Input.Brushes.First.Mode] == "${mode}"` } },
-          { command: 'input_brushes' },
+          { command: 'if', values: { condition: `[$Input.Objects.First.Mode] == "${mode}"` } },
+          { command: 'input_objects' },
           { command: 'end' },
         ),
         operation,

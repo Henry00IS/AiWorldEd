@@ -103,7 +103,7 @@ describe('SolidScript generation time in the output', () => {
 
   it('shows a mesh and the solid used to build it, and so far before Output', () => {
     const lines: SolidScriptLine[] = [
-      { command: 'mesh_brushes', values: { into: 'Mesh' } },
+      { command: 'mesh_from_solids', values: { into: 'Mesh' } },
       { command: 'cube' },
       { command: 'end' },
       { command: 'output', values: { of: '[Mesh]' } },
@@ -125,7 +125,7 @@ describe('SolidScript generation time on a generator row', () => {
 
   it('uses the same mesh and processed wording as the editor output', () => {
     const field = inspectorField([
-      { command: 'mesh_brushes', values: { into: 'Mesh' } },
+      { command: 'mesh_from_solids', values: { into: 'Mesh' } },
       { command: 'cube' },
       { command: 'end' },
       { command: 'output', values: { of: '[Mesh]' } },

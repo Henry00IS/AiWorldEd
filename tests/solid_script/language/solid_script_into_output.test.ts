@@ -137,7 +137,7 @@ function builderTail(command: SolidScriptCommand): SolidScriptLine[] | null {
       { command: 'face' },
       END,
     ];
-  if (command.id === 'mesh_brushes' || command.id === 'group' || command.id === 'hull') return [CUBE, END];
+  if (command.id === 'mesh_from_solids' || command.id === 'group' || command.id === 'hull') return [CUBE, END];
   if (command.id === 'place_at_points') return [CUBE, END];
   if (command.nesting === 'open') return [CUBE, END];
   return null;
@@ -154,14 +154,14 @@ function builderScript(
   command: SolidScriptCommand,
   output: boolean,
 ): { lines: SolidScriptLine[]; options?: SolidScriptProgramOptions } {
-  if (command.id === 'input_brushes') {
+  if (command.id === 'input_objects') {
     const lines = [intoLine(command), ...(output ? [{ command: 'output', values: { of: '[Held]' } }] : [])];
     return { lines, options: { use: RECEIVED } };
   }
   if (command.id === 'place_on_face') {
     const lines = [
       CUBE,
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'Facing Up' } },
       intoLine(command),
       { command: 'cube', values: { size: '0.2, 0.2, 0.2', anchor: 'Center, Bottom, Center' } },
@@ -189,13 +189,13 @@ function builderScript(
 function toolHost(command: SolidScriptCommand): SolidScriptLine[] {
   if (MESH_TOOLS.has(command.id)) {
     const faces = FACE_TOOLS.has(command.id) ? [{ command: 'select_faces', values: { which: 'All' } }] : [];
-    return [{ command: 'mesh_brushes' }, CUBE, END, { command: 'select_brushes' }, ...faces];
+    return [{ command: 'mesh_from_solids' }, CUBE, END, { command: 'select_objects' }, ...faces];
   }
   if (command.id === 'bevel_edges')
-    return [CUBE, { command: 'select_brushes' }, { command: 'select_edges', values: { which: 'All' } }];
+    return [CUBE, { command: 'select_objects' }, { command: 'select_edges', values: { which: 'All' } }];
   const faces = FACE_TOOLS.has(command.id) ? [{ command: 'select_faces', values: { which: 'All' } }] : [];
   const uvs = command.id === 'unwrap' || command.id === 'pack_islands' ? [{ command: 'project_uvs' }] : [];
-  return [CUBE, { command: 'select_brushes' }, ...faces, ...uvs];
+  return [CUBE, { command: 'select_objects' }, ...faces, ...uvs];
 }
 
 /**
@@ -209,13 +209,13 @@ function listScript(command: SolidScriptCommand): SolidScriptLine[] | null {
   if (command.id === 'scatter_points' || command.id.startsWith('points_from_') || command.id === 'find_on')
     return [
       CUBE,
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'All' } },
       intoLine(command),
     ];
-  if (command.id === 'select_brushes') return [CUBE, intoLine(command)];
+  if (command.id === 'select_objects') return [CUBE, intoLine(command)];
   if (command.id.startsWith('select_'))
-    return [CUBE, { command: 'select_brushes' }, intoLine(command, { which: 'All', of: '' })];
+    return [CUBE, { command: 'select_objects' }, intoLine(command, { which: 'All', of: '' })];
   return null;
 }
 
@@ -224,7 +224,7 @@ describe('Into-set results stay out of the world until Output', () => {
     const ids = withInto()
       .map((command) => command.id)
       .sort();
-    const builders = withInto().filter((command) => command.builds || command.id === 'input_brushes');
+    const builders = withInto().filter((command) => command.builds || command.id === 'input_objects');
     const tools = withInto().filter((command) => command.edits && hasCopyInto(command));
     const lists = withInto().filter((command) => listScript(command));
     const labels = withInto().filter((command) => !hasCopyInto(command) && command.edits);
@@ -241,7 +241,7 @@ describe('Into-set results stay out of the world until Output', () => {
 
   it.each(
     withInto()
-      .filter((command) => command.builds || command.id === 'input_brushes')
+      .filter((command) => command.builds || command.id === 'input_objects')
       .map((command) => [command.id, command] as const),
   )('%s with Into is absent from the output until Output places it', (_id, command) => {
     const hidden = builderScript(command, false);
@@ -326,7 +326,7 @@ describe('Into-set results stay out of the world until Output', () => {
     withInto()
       .filter((command) => listScript(command))
       .map((command) => [command.id, command] as const),
-  )('%s with Into does not add brushes of its own to the output', (_id, command) => {
+  )('%s with Into does not add solids of its own to the output', (_id, command) => {
     const lines = listScript(command);
     if (!lines) throw new Error(`missing list script for ${command.id}`);
     const result = run(lines);
@@ -343,14 +343,14 @@ describe('Into-set results stay out of the world until Output', () => {
     expect(result.warnings).toEqual([
       {
         line: null,
-        text: 'The script builds no brushes or meshes; add one such as Cube, or Output a variable.',
+        text: 'The script builds no objects; add one such as Cube, or Output a variable.',
       },
     ]);
     expect(result.passed).toContain(1);
     expect(result.variables.some((entry) => entry.name === HELD)).toBe(true);
   });
 
-  it('does not warn, and the preview has the brush, when Output places the variable', () => {
+  it('does not warn, and the preview has the solid, when Output places the variable', () => {
     const result = run(
       [
         { ...CUBE, values: { ...CUBE.values, into: HELD } },

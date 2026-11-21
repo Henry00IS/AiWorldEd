@@ -34,7 +34,7 @@ export interface ModifierStackSolidScriptLayout {
   /** Meshes the script built, in frame coordinates. */
   meshes: SolidScriptMeshDocument[];
   /**
-   * Received brushes Input Brushes passed on, in the order they ran, with their
+   * Received brushes Input Objects passed on, in the order they ran, with their
    * frame-space moves.
    */
   passed: ModifierStackSolidScriptPassed[];
@@ -42,7 +42,7 @@ export interface ModifierStackSolidScriptLayout {
   error: string;
 }
 
-/** A received brush that Input Brushes passed on. */
+/** A received brush that Input Objects passed on. */
 export interface ModifierStackSolidScriptPassed {
   /** Index of the brush among those received. */
   index: number;
@@ -120,7 +120,7 @@ export function modifierStackSolidScriptLayout(
 }
 
 /**
- * Takes the received brushes Input Brushes passed on out of the shapes, also
+ * Takes the received brushes Input Objects passed on out of the shapes, also
  * from inside unions; inside a cut or an intersection they stay plain shapes.
  *
  * @param shapes Evaluated shapes.

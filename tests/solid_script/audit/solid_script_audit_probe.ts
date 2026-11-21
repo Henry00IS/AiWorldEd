@@ -1,3 +1,4 @@
+import { solidScriptKindBroader } from '@/solid_script/language/solid_script_kinds.js';
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptDocumentFlowAt } from '@/solid_script/document/solid_script_document_flow.js';
 import { SOLID_SCRIPT_FLOW_UNKNOWN } from '@/solid_script/document/solid_script_document_flow_kinds.js';
@@ -68,8 +69,8 @@ export function solidScriptAuditCovers(predicted: readonly string[], kind: strin
   if (kind === 'List' && predicted.some((each) => each.endsWith('List') || each === 'Vector')) return true;
   if (kind === 'Vector' && (predicted.includes('Number List') || predicted.includes('List'))) return true;
   if (kind === 'Number List' && predicted.includes('Vector')) return true;
-  if (kind === 'Mesh' && predicted.includes('Brush')) return true;
-  if (kind === 'Mesh List' && (predicted.includes('Brush List') || predicted.includes('List'))) return true;
+  const broader = solidScriptKindBroader(kind);
+  if (broader && predicted.includes(broader)) return true;
   return kind === 'Number' && predicted.includes('Text');
 }
 

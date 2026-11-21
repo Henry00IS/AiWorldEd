@@ -20,15 +20,15 @@ describe('a running script tells a wrong kind in plain words, from the declarati
       { command: 'variable', values: { name: 'Flag', value: 'Yes' } },
       { command: 'extrude_face', values: { of: '[Flag]' } },
     );
-    expect(text).toMatch(/needs a Brush, Face.*not (a )?Yes\/No/);
+    expect(text).toMatch(/needs an Object, Face.*not (a )?Yes\/No/);
   });
 
-  it('stops Abs() given a Brush', () => {
+  it('stops Abs() given a Solid', () => {
     const text = mistake(
       { command: 'cube', values: { size: '2, 2, 2', into: 'Box' } },
       { command: 'variable', values: { name: 'N', value: '[=Abs([Box])]' } },
     );
-    expect(text).toMatch(/Abs\(\) needs a Number.*not a Brush/);
+    expect(text).toMatch(/Abs\(\) needs a Number.*not a Solid/);
   });
 });
 

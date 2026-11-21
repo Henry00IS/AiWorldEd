@@ -98,11 +98,11 @@ export function solidScriptVectorComponent(name: string): SolidScriptVectorPart 
 }
 
 /** What the [$Selected.*] lists hold. */
-export type SolidScriptSelectedKind = 'brushes' | 'faces' | 'edges' | 'vertices';
+export type SolidScriptSelectedKind = 'objects' | 'faces' | 'edges' | 'vertices';
 
 /** The [$Selected.*] lists of a round; brushes is null until a script sets it. */
-export type SolidScriptSelected = Record<Exclude<SolidScriptSelectedKind, 'brushes'>, SolidScriptValue[]> & {
-  brushes: SolidScriptValue[] | null;
+export type SolidScriptSelected = Record<Exclude<SolidScriptSelectedKind, 'objects'>, SolidScriptValue[]> & {
+  objects: SolidScriptValue[] | null;
 };
 
 /** Start of a system value, such as $Selected.Faces. */
@@ -291,7 +291,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
   /** Brushes, faces, edges and corners the script holds. */
   protected readonly elements = new SolidScriptElements({ leafLatest: (leaf) => this.leafSwapsLatest(leaf) });
   /** The [$Selected.*] lists of the round running. */
-  protected selected: SolidScriptSelected = { brushes: null, faces: [], edges: [], vertices: [] };
+  protected selected: SolidScriptSelected = { objects: null, faces: [], edges: [], vertices: [] };
   /** Element ids each Select kind last looked at, for Which Between. */
   protected readonly selectSeen = new Map<SolidScriptSelectedKind, Set<number>>();
 
@@ -319,7 +319,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
   protected abstract leafSwapsLatest(leaf: SolidScriptGeometryLeaf): SolidScriptGeometryLeaf;
 
   /**
-   * Lists the brushes a modifier receives, as [$Input.Brushes].
+   * Lists the brushes a modifier receives, as [$Input.Objects].
    *
    * @returns Brush elements.
    */
@@ -333,15 +333,15 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
    */
   protected systemList(key: string): SolidScriptValue {
     switch (key) {
-      case 'selected.brushes':
-        return this.selected.brushes ?? [];
+      case 'selected.objects':
+        return this.selected.objects ?? [];
       case 'selected.faces':
         return this.selected.faces;
       case 'selected.edges':
         return this.selected.edges;
       case 'selected.vertices':
         return this.selected.vertices;
-      case 'input.brushes':
+      case 'input.objects':
         return this.brushesReceived();
       default:
         return undefined;
@@ -386,7 +386,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
     if (builtIn !== undefined) return builtIn;
     const item = solidScriptListItemParse(name);
     if (item) {
-      // An item of a system list, such as $Input.Brushes(0).
+      // An item of a system list, such as $Input.Objects(0).
       const index = item.index === '' ? null : this.indexValue(item.index, scope);
       return solidScriptListItemRead(item.name, this.systemVariable(item.name, scope), index, this.nameShown);
     }
@@ -610,7 +610,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
         return solidScriptVectorComponentRead(component, where.scope.variableGet(component.name));
     }
     if (item && !where.scope.variableHas(base) && (base.includes('.') || base.startsWith(SOLID_SCRIPT_SYSTEM_PREFIX))) {
-      // An item of a system list or a member, such as $Input.Brushes(0) or Top.Edges(1).
+      // An item of a system list or a member, such as $Input.Objects(0) or Top.Edges(1).
       const list = this.fieldVariable(base, scope);
       const index = item.index === '' ? null : this.indexValue(item.index, scope);
       return solidScriptListItemRead(base, list, index, this.nameShown);

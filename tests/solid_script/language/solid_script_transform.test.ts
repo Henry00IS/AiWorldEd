@@ -59,7 +59,7 @@ describe('SolidScript Transform and flat transform tools', () => {
     expect(bounds(wrapped.shapes)).toEqual([-0.5, 1.5, -0.5, 0.5, 2.5, 0.5]);
   });
 
-  it('does not group the brushes its lines build', () => {
+  it('does not group the solids its lines build', () => {
     const result = run(
       { command: 'transform', values: { move: '1, 0, 0' } },
       { command: 'cube', values: { anchor: 'Center, Center, Center' } },
@@ -76,7 +76,7 @@ describe('SolidScript Transform and flat transform tools', () => {
     const child = { command: 'cube', values: { size: '0.2, 0.2, 0.2', anchor: 'Center, Bottom, Center' } };
     const placed = run(
       { command: 'cube', values: { size: '1, 1, 1', anchor: 'Center, Center, Center' } },
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'Facing Up', into: 'Top' } },
       { command: 'place_on_face', values: { of: '[Top]' } },
       child,
@@ -84,7 +84,7 @@ describe('SolidScript Transform and flat transform tools', () => {
     );
     const transformed = run(
       { command: 'cube', values: { size: '1, 1, 1', anchor: 'Center, Center, Center' } },
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'Facing Up', into: 'Top' } },
       { command: 'transform', values: { on: '[Top]' } },
       child,
@@ -111,7 +111,7 @@ describe('SolidScript Transform and flat transform tools', () => {
     expect(copied.error).toBeNull();
     expect(bounds(copied.shapes)).toEqual([-0.5, -0.5, -0.5, 0.5, 0.5, 0.5]);
     const listed = copied.variables.find((entry) => entry.name === 'Copy');
-    expect(listed?.type).toMatch(/Brush/);
+    expect(listed?.type).toMatch(/Solid/);
   });
 
   it('moves a list of points and writes them back, and stops when Of is left off with no selection', () => {
@@ -124,7 +124,7 @@ describe('SolidScript Transform and flat transform tools', () => {
     expect(result.messages.join(' ')).toMatch(/0,\s*2,\s*0/);
     expect(result.messages.join(' ')).toMatch(/1,\s*2,\s*0/);
     const stopped = run({ command: 'move_by', values: { by: '0, 1, 0' } });
-    expect(stopped.error?.message).toMatch(/Select Brushes/);
+    expect(stopped.error?.message).toMatch(/Select Objects/);
   });
 
   it('applies Move By in the Transform space, the same as a Transform Move inside that space', () => {

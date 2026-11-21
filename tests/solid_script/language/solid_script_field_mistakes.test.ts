@@ -118,10 +118,10 @@ describe('SolidScript mistake hints', () => {
 
   it('hints a system short in a running line that fills it', () => {
     const message = failure(
-      line('mesh_brushes'),
+      line('mesh_from_solids'),
       line('cube'),
       line('end'),
-      line('select_brushes'),
+      line('select_objects'),
       line('displace', { distance: '[=NX * 0.1]' }),
     );
     expect(message).toContain('Did you mean to write [=[$NX] * 0.1]?');

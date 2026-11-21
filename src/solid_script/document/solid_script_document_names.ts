@@ -51,7 +51,7 @@ export const SOLID_SCRIPT_NAME_CATEGORIES = [
   'Functions',
   'Locals',
   'Parts',
-  'Brushes',
+  'Objects',
   'Handlers',
   'Persistent',
   'System',
@@ -359,7 +359,7 @@ function solidScriptNamesOfBlocks(list: SolidScriptNameList, block: SolidScriptB
   if (kind === 'function') solidScriptNamesOfFunction(list, block, line);
   if (kind === 'part') list.add(name, 'Parts', line, solidScriptNameBlock(block.command));
   const label = block.values[SOLID_SCRIPT_SHAPE_NAME_KEY] ?? '';
-  if (label.trim() !== '') list.add(label, 'Brushes', line, `Name of a ${solidScriptNameBlock(block.command)} line`);
+  if (label.trim() !== '') list.add(label, 'Objects', line, `Name of a ${solidScriptNameBlock(block.command)} line`);
   if (kind === 'handler' && name !== '') list.add(name, 'Handlers', line, solidScriptNameBlock(block.command));
 }
 
@@ -602,7 +602,7 @@ export function solidScriptFieldKnown(
  */
 /**
  * Key of a token the field may not use: a variable, or a per-element fill such
- * as $Brush when this field does not fill it.
+ * as $Object when this field does not fill it.
  *
  * @param text Field text.
  * @param token Token.
@@ -663,7 +663,7 @@ type SolidScriptFillCommand = {
 };
 
 /**
- * Lists the fields of a line that fill a name, such as Where for $Brush.
+ * Lists the fields of a line that fill a name, such as Where for $Object.
  *
  * @param command Command of the line.
  * @param values Stored values of the line.
@@ -684,7 +684,7 @@ function solidScriptCommandFillOwners(
 
 /**
  * Official fills a field used that only another field of the same line fills,
- * such as $Brush in Of of Select Brushes.
+ * such as $Object in Of of Select Objects.
  *
  * @param command Command of the line.
  * @param parameter Field.
@@ -712,7 +712,7 @@ export function solidScriptFieldEachFillMisplaced(
 
 /**
  * Warns when a field uses a per-element fill that belongs to another field,
- * such as $Brush in Of.
+ * such as $Object in Of.
  *
  * @param command Command of the line.
  * @param parameter Field.

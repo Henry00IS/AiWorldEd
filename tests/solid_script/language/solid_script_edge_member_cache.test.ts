@@ -22,7 +22,7 @@ describe('SolidScript cached edge and vertex members', () => {
     expect(
       printed([
         CUBE,
-        line('select_brushes'),
+        line('select_objects'),
         line('select_edges', { into: 'Edges' }),
         line('select_vertices', { into: 'Corners' }),
         line('select_faces', { which: 'Facing Up', into: 'Top' }),
@@ -43,7 +43,7 @@ describe('SolidScript cached edge and vertex members', () => {
     expect(
       printed([
         CUBE,
-        line('select_brushes'),
+        line('select_objects'),
         line('select_faces', { which: 'Facing Up', into: 'Top' }),
         line('select_edges', { of: '[Top]', into: 'Rim' }),
         line('rotate_to', { to: '0, 90, 0' }),
@@ -58,7 +58,7 @@ describe('SolidScript cached edge and vertex members', () => {
     expect(
       printed([
         CUBE,
-        line('select_brushes'),
+        line('select_objects'),
         line('select_edges', { into: 'Edges' }),
         line('for_each', { variable: 'Edge', list: '[Edges]', key: 'I' }),
         line('echo', { value: '[Edges.Center] [Edge.Length]' }),
@@ -72,12 +72,12 @@ describe('SolidScript cached edge and vertex members', () => {
     expect(
       printed([
         CUBE,
-        line('select_brushes'),
+        line('select_objects'),
         line('select_edges', { into: 'First' }),
         line('transform', { move: '10, 0, 0' }),
         CUBE,
         END,
-        line('select_brushes', { which: 'Between' }),
+        line('select_objects', { which: 'Between' }),
         line('select_edges', { into: 'Second' }),
         line('echo', { value: '[First.Count] [Second.Count] [First.Center] [Second.Center]' }),
       ]),
@@ -87,10 +87,10 @@ describe('SolidScript cached edge and vertex members', () => {
   it('treats colinear Subdivide pieces as one edge whose Length is the whole line', () => {
     expect(
       printed([
-        line('mesh_brushes'),
+        line('mesh_from_solids'),
         CUBE,
         END,
-        line('select_brushes'),
+        line('select_objects'),
         line('subdivide', { levels: '1', smooth: 'No' }),
         line('select_edges', { which: 'All', into: 'Edges' }),
         line('echo', { value: '[Edges.Count] [=Max([Edges.Lengths])]' }),
@@ -101,10 +101,10 @@ describe('SolidScript cached edge and vertex members', () => {
   it('still finds a moved edge after Subdivide joins its pieces', () => {
     expect(
       printed([
-        line('mesh_brushes'),
+        line('mesh_from_solids'),
         CUBE,
         END,
-        line('select_brushes'),
+        line('select_objects'),
         line('select_edges', { into: 'Edges' }),
         line('variable', { name: 'Length', value: '[Edges.First.Length]' }),
         line('move_by', { by: '0, 3, 0' }),
@@ -117,10 +117,10 @@ describe('SolidScript cached edge and vertex members', () => {
   it('picks no edges or corners from a mesh with no faces', () => {
     expect(
       printed([
-        line('mesh_brushes'),
+        line('mesh_from_solids'),
         CUBE,
         END,
-        line('select_brushes'),
+        line('select_objects'),
         line('select_faces', { which: 'All' }),
         line('delete_faces'),
         line('select_edges', { into: 'Edges' }),

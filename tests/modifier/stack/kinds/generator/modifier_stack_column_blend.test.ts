@@ -54,7 +54,7 @@ function preset(id: string): CurvePreset {
 }
 
 /**
- * Expects every piece to be a valid convex brush: each vertex lies on or behind
+ * Expects every piece to be a valid convex solid: each vertex lies on or behind
  * every face plane, within a thousandth of the piece's size.
  *
  * @param pieces Pieces.

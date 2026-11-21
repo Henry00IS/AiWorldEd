@@ -75,7 +75,7 @@ function copies(offset: string, textures = 'Move With Shape'): SolidScriptLine[]
   return [
     { command: 'repeat', values: { variable: 'I', from: '0', to: '3' } },
     { command: 'transform', values: { move: '[=[I] * 2], 0, 0' } },
-    { command: 'input_brushes', values: { into: 'Copy' } },
+    { command: 'input_objects', values: { into: 'Copy' } },
     { command: 'end' },
     { command: 'transform_uvs', values: { offset, textures, of: '[Copy]' } },
     { command: 'output', values: { of: '[Copy]' } },
@@ -83,9 +83,9 @@ function copies(offset: string, textures = 'Move With Shape'): SolidScriptLine[]
   ];
 }
 
-describe('SolidScript Input Brushes and Transform UVs share texture policy', () => {
-  it('keeps solids, bounds and UVs the same for a default Input Brushes pass', () => {
-    const shown = compile([{ command: 'input_brushes' }]);
+describe('SolidScript Input Objects and Transform UVs share texture policy', () => {
+  it('keeps solids, bounds and UVs the same for a default Input Objects pass', () => {
+    const shown = compile([{ command: 'input_objects' }]);
     expect(shown).toHaveLength(1);
     expect(shown[0]!.brush.faces).toHaveLength(6);
     expect(bounds(shown[0]!)).toEqual([-0.5, -0.5, -0.5, 0.5, 0.5, 0.5]);
@@ -109,11 +109,11 @@ describe('SolidScript Input Brushes and Transform UVs share texture policy', () 
     expect(shifts(shifted[1]!)).toEqual(shifts(plain[1]!).map(([u, v]) => [u + 1000000, v - 1000000]));
   });
 
-  it('ignores Readable Text and UV Shift values an old script stored on Input Brushes', () => {
+  it('ignores Readable Text and UV Shift values an old script stored on Input Objects', () => {
     const stale = compile([
       { command: 'repeat', values: { variable: 'I', from: '0', to: '3' } },
       { command: 'transform', values: { move: '[=[I] * 2], 0, 0' } },
-      { command: 'input_brushes', values: { readable: 'No', uv_shift_u: '[=[I]]', uv_shift_v: '0.25' } },
+      { command: 'input_objects', values: { readable: 'No', uv_shift_u: '[=[I]]', uv_shift_v: '0.25' } },
       { command: 'end' },
       { command: 'end' },
     ]);

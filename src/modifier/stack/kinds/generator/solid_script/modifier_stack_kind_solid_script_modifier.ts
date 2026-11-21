@@ -33,8 +33,8 @@ import { modifierStackSolidScriptReceivedWrite } from './modifier_stack_solid_sc
 /**
  * Modifier that runs a SolidScript on the brushes it receives, from the brush,
  * mesh or group it is added to. Like a generator, only what the script outputs
- * comes out, placed around their centre: Input Brushes passes the received
- * brushes on. The script reads them as Input.Brushes, Input.Size and the other
+ * comes out, placed around their centre: Input Objects passes the received
+ * brushes on. The script reads them as Input.Objects, Input.Size and the other
  * Input values, Script.Usage is Modifier, and Script.Mode is the host's mode in
  * the scene.
  */
@@ -43,7 +43,7 @@ export class ModifierStackKindSolidScriptModifier extends ModifierStackKindSolid
   override readonly label: string = 'SolidScript Modifier';
   override readonly category: ModifierStackCategory = 'shape';
   override readonly description: string =
-    'Runs a SolidScript on what it is added to: only what the script outputs comes out, and Input Brushes passes the received brushes on. The script must allow Modifier under Can Be Used As.';
+    'Runs a SolidScript on what it is added to: only what the script outputs comes out, and Input Objects passes the received solids on. The script must allow Modifier under Can Be Used As.';
   protected override readonly specificFields = modifierStackSolidScriptFields('modifier');
 
   /**
@@ -99,11 +99,11 @@ export class ModifierStackKindSolidScriptModifier extends ModifierStackKindSolid
 
   /**
    * Outputs what the script builds around the received brushes, which pass on
-   * only through Input Brushes, or says why the script may not be used here.
+   * only through Input Objects, or says why the script may not be used here.
    *
    * @param units Previous output.
    * @param context Evaluation context.
-   * @returns Units Input Brushes passed on, then the script's.
+   * @returns Units Input Objects passed on, then the script's.
    */
   override apply(units: readonly ModifierStackUnit[], context: ModifierStackContext): ModifierStackUnit[] {
     const parameters = context.step.parameters;
@@ -122,7 +122,7 @@ export class ModifierStackKindSolidScriptModifier extends ModifierStackKindSolid
     const corners = models.map((model) => model.vertices.map((vertex) => vertex.clone().applyMatrix4(toFrame)));
     const box = new THREE.Box3().setFromPoints(corners.flat());
     if (box.isEmpty()) {
-      context.report.error = 'The modifier receives no brushes to work on.';
+      context.report.error = 'The modifier receives no solids to work on.';
       return [...units];
     }
     const centre = box.getCenter(new THREE.Vector3());
@@ -149,12 +149,12 @@ export class ModifierStackKindSolidScriptModifier extends ModifierStackKindSolid
       origin: [centre.x, centre.y, centre.z],
     });
     const result = this.scriptResult(parameters, box, context, use);
-    // Like a generator, only what the script outputs comes out: Input Brushes passes the received brushes on.
+    // Like a generator, only what the script outputs comes out: Input Objects passes the received brushes on.
     return [...this.passedUnits(units, result.passed, frame, centre, context), ...result.units];
   }
 
   /**
-   * Turns what Input Brushes passed on into units: the first pass moves the
+   * Turns what Input Objects passed on into units: the first pass moves the
    * received units in place, like Shear; each later pass adds moved copies,
    * like an array.
    *
@@ -178,7 +178,7 @@ export class ModifierStackKindSolidScriptModifier extends ModifierStackKindSolid
       kept.reduce((sum, unit) => sum + unit.brushes.length, 0),
       passes.length,
     );
-    if (copies < passes.length) context.report.error = `Brush budget reached: ${passes.length} passes wanted.`;
+    if (copies < passes.length) context.report.error = `Solid budget reached: ${passes.length} passes wanted.`;
     // Without a pass the received brushes are gone; the stack keeps authored ones unless told.
     if (Math.min(copies, passes.length) === 0)
       for (const unit of units) for (const brush of unit.brushes) context.records.hiddenAdd(brush.id);
@@ -193,7 +193,7 @@ export class ModifierStackKindSolidScriptModifier extends ModifierStackKindSolid
 }
 
 /**
- * Places one Input Brushes pass: the first pass moves the received units, and
+ * Places one Input Objects pass: the first pass moves the received units, and
  * each later pass adds moved copies.
  *
  * @param kept Clipped received units.

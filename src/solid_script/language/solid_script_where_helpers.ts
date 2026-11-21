@@ -207,14 +207,14 @@ export const SOLID_SCRIPT_WHERE_HELPERS: readonly SolidScriptWhereHelper[] = [
       {
         name: 'element',
         label: 'Element',
-        type: ['Brush', 'Mesh', 'Face', 'Edge', 'Vertex', 'Vector', 'List'],
-        about: 'The thing to test, such as [$Brush] or [$Face].',
+        type: ['Object', 'Mesh', 'Face', 'Edge', 'Vertex', 'Vector', 'List'],
+        about: 'The thing to test, such as [$Object] or [$Face].',
       },
       {
         name: 'target',
         label: 'Box',
-        type: ['Brush', 'Mesh', 'Face', 'Edge', 'Vertex', 'Vector', 'List'],
-        about: 'A brush, mesh or list whose bounds are the box, such as [Wall].',
+        type: ['Object', 'Mesh', 'Face', 'Edge', 'Vertex', 'Vector', 'List'],
+        about: 'An object or list whose bounds are the box, such as [Wall].',
         optional: '',
       },
       {

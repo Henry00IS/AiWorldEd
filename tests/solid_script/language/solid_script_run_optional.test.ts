@@ -71,7 +71,7 @@ describe('SolidScript optional fields are read once', () => {
       run(
         { command: 'variable', values: { name: 'Blank', value: '' } },
         { command: 'cube' },
-        { command: 'select_brushes' },
+        { command: 'select_objects' },
         { command: 'select_faces', values: { which: 'All' } },
         { command: 'extrude_face', values: { distance: '0.1', lift } },
       );

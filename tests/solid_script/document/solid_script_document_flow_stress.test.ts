@@ -117,7 +117,7 @@ describe('SolidScript kinds stress: Functions', () => {
       line('call', { name: 'ToString', values: 'oak', result: 'R3' }),
       set('R4', '[=ToString([Henry.Faces])]'),
     ];
-    expect(kindsAt(lines, 1, 'local.value')).toEqual(['Brush', 'Face List', 'Number', 'Text']);
+    expect(kindsAt(lines, 1, 'local.value')).toEqual(['Face List', 'Number', 'Solid', 'Text']);
     expect(kindsEnd(lines, 'r1')).toEqual(['Text']);
     expect(kindsEnd(lines, 'r4')).toEqual(['Text']);
   });
@@ -135,9 +135,9 @@ describe('SolidScript kinds stress: Functions', () => {
       line('call', { name: 'Choose', values: '2', result: 'R' }),
       set('S', '[=Choose(3)]'),
     ];
-    expect(kindsEnd(lines, 'r')).toEqual(['Brush', 'Number']);
-    expect(kindsEnd(lines, 's')).toEqual(['Brush', 'Number']);
-    expect(kindsAt(lines, 5, 'local.made')).toEqual(['Brush']);
+    expect(kindsEnd(lines, 'r')).toEqual(['Number', 'Solid']);
+    expect(kindsEnd(lines, 's')).toEqual(['Number', 'Solid']);
+    expect(kindsAt(lines, 5, 'local.made')).toEqual(['Solid']);
   });
 
   it('ends on recursion, direct, through another Function and without a way out', () => {
@@ -188,7 +188,7 @@ describe('SolidScript kinds stress: Functions', () => {
       line('cube', { into: 'Box' }),
       line('call', { name: 'Outer', values: '[Box]', result: 'Out' }),
     ];
-    expect(kindsAt(lines, 5, 'local.q')).toEqual(['Brush']);
+    expect(kindsAt(lines, 5, 'local.q')).toEqual(['Solid']);
     expect(kindsAt(lines, 9, 'local.face')).toEqual(['Face']);
     expect(kindsEnd(lines, 'out')).toEqual(['Edge List']);
     expect(kindsEnd(lines, 'local.r')).toEqual([]);
@@ -207,9 +207,9 @@ describe('SolidScript kinds stress: blocks', () => {
       set('C', '[C.Faces]'),
       END,
     ];
-    expect(kindsEnd(lines, 'a')).toEqual(['Brush', 'Face List', 'Number', 'Text']);
-    expect(kindsAt(lines, 4, 'a')).toEqual(['Brush', 'Face List', 'Number', 'Text']);
-    expect(kindsEnd(lines, 'c')).toEqual(['Brush', 'Face List']);
+    expect(kindsEnd(lines, 'a')).toEqual(['Face List', 'Number', 'Solid', 'Text']);
+    expect(kindsAt(lines, 4, 'a')).toEqual(['Face List', 'Number', 'Solid', 'Text']);
+    expect(kindsEnd(lines, 'c')).toEqual(['Face List', 'Solid']);
     expect(kindsAt(lines, 5, 'i')).toEqual(['Number']);
   });
 
@@ -227,8 +227,8 @@ describe('SolidScript kinds stress: blocks', () => {
       END,
     ];
     expect(kindsAt(lines, 2, 'item')).toEqual(['Number', 'Text']);
-    expect(kindsAt(lines, 8, 'x')).toEqual(['Brush', 'Number', 'Text']);
-    expect(kindsEnd(lines, 'x')).toEqual(['Brush', 'Number', 'Text']);
+    expect(kindsAt(lines, 8, 'x')).toEqual(['Number', 'Solid', 'Text']);
+    expect(kindsEnd(lines, 'x')).toEqual(['Number', 'Solid', 'Text']);
   });
 
   it('reuses one loop name across a Repeat and a For Each', () => {
@@ -273,7 +273,7 @@ describe('SolidScript kinds stress: blocks', () => {
     expect(kindsEnd(lines, 'h')).toEqual(['Face List']);
     expect(kindsEnd(lines, 'm')).toEqual(['?']);
     expect(kindsEnd(lines, 'n')).toEqual(['Number']);
-    expect(kindsEnd(lines, 'b')).toEqual(['Brush']);
+    expect(kindsEnd(lines, 'b')).toEqual(['Solid']);
     expect(kindsEnd(lines, 'p')).toEqual(['List']);
   });
 
@@ -407,9 +407,9 @@ describe('SolidScript kinds stress: If conditions narrow', () => {
     expect(kindsAt(lines, 3, 'mode')).toEqual(['Number']);
     expect(kindsEnd(lines, 'w')).toEqual([]);
     expect(kindsEnd(lines, 'v')).toEqual(['Text']);
-    expect(kindsAt(lines, 15, 'out')).toEqual(['Brush', 'Text']);
+    expect(kindsAt(lines, 15, 'out')).toEqual(['Solid', 'Text']);
     expect(kindsEnd(lines, 't')).toEqual(['Text']);
-    expect(kindsEnd(lines, 'u')).toEqual(['Brush']);
+    expect(kindsEnd(lines, 'u')).toEqual(['Solid']);
   });
 });
 
@@ -428,9 +428,9 @@ describe('SolidScript kind checks squiggle only what no run can use', () => {
       line('cube', { size: '[Box], 1, 1' }),
     ];
     expect(check(lines)).toEqual([
-      '4: Of needs a Brush, Face or Text, or a list of them, not a Yes/No',
+      '4: Of needs an Object, Face or Text, or a list of them, not a Yes/No',
       '5: [Word] holds Text, which has no .Faces; it has .Length, .Words',
-      '6: Abs() needs a Number for Number, not a Brush',
+      '6: Abs() needs a Number for Number, not a Solid',
     ]);
   });
 

@@ -1,7 +1,8 @@
 import type { SolidScriptCommandAccepts } from '@/solid_script/commands/solid_script_command.js';
 import {
-  SOLID_SCRIPT_ELEMENT_TYPES,
   SolidScriptElement,
+  solidScriptElementListType,
+  solidScriptElementType,
   solidScriptValueNumber,
   type SolidScriptValue,
 } from './solid_script_value.js';
@@ -16,7 +17,8 @@ export const SOLID_SCRIPT_KINDS = [
   'Text',
   'Yes/No',
   'Vector',
-  'Brush',
+  'Object',
+  'Solid',
   'Mesh',
   'Outline',
   'Face',
@@ -50,12 +52,13 @@ export function solidScriptKindKnown(kind: string): boolean {
 export function solidScriptKindOf(value: SolidScriptValue): string {
   if (value === undefined) return 'Text';
   if (typeof value === 'boolean') return 'Yes/No';
-  if (value instanceof SolidScriptElement)
-    return value.kind === 'brush' && value.mesh ? 'Mesh' : SOLID_SCRIPT_ELEMENT_TYPES[value.kind];
+  if (value instanceof SolidScriptElement) return solidScriptElementType(value);
   if (!Array.isArray(value)) return solidScriptValueNumber(value) === undefined ? 'Text' : 'Number';
   const kinds = new Set(value.map(solidScriptKindOf));
   const [only] = kinds;
   if (only === 'Number' && kinds.size === 1 && (value.length === 2 || value.length === 3)) return 'Vector';
+  const geometry = solidScriptElementListType(kinds);
+  if (geometry) return geometry;
   return kinds.size === 1 && only !== undefined && !only.endsWith('List') ? `${only} List` : 'List';
 }
 
@@ -72,15 +75,15 @@ export function solidScriptKindNamed(value: SolidScriptValue): string {
 }
 
 /**
- * Kind a more specific kind may be used as, such as Brush for Mesh, because
- * meshes live in the same lists as convex brushes.
+ * Kind a more specific kind may be used as: Object for a Solid or a Mesh, and
+ * Object List for a list of either.
  *
  * @param kind Kind.
  * @returns Broader kind, or undefined.
  */
 export function solidScriptKindBroader(kind: string): string | undefined {
-  if (kind === 'Mesh') return 'Brush';
-  return kind === 'Mesh List' ? 'Brush List' : undefined;
+  if (kind === 'Solid' || kind === 'Mesh') return 'Object';
+  return kind === 'Solid List' || kind === 'Mesh List' ? 'Object List' : undefined;
 }
 
 /**

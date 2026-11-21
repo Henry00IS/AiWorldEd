@@ -47,7 +47,7 @@ function polygonArea(loop: readonly THREE.Vector3[]): number {
 }
 
 /**
- * Expects a piece to be a closed convex brush whose every plane has a sound
+ * Expects a piece to be a closed convex solid whose every plane has a sound
  * polygon.
  *
  * @param brush Piece brush.
@@ -105,7 +105,7 @@ function unionCoverage(brushes: readonly SolidBrush[]) {
 }
 
 /**
- * Expects pieces to be closed convex brushes and their union to keep every
+ * Expects pieces to be closed convex solides and their union to keep every
  * visible face, both as fractured and after settling.
  *
  * @param brushes Pieces.

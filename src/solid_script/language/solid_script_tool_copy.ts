@@ -137,7 +137,7 @@ function solidScriptToolLeaves(run: SolidScriptBlockRun): SolidScriptGeometryLea
     ...run.selectedGet('faces'),
     ...run.selectedGet('edges'),
     ...run.selectedGet('vertices'),
-    ...run.selectedGet('brushes'),
+    ...run.selectedGet('objects'),
   ];
   const leaves: SolidScriptGeometryLeaf[] = [];
   for (const value of values) {

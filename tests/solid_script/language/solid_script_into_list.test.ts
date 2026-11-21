@@ -56,7 +56,7 @@ describe('SolidScript multi-item Into lists', () => {
     ).toEqual(['4']);
   });
 
-  it('declares Into as a Brush list on every line that can create several items', () => {
+  it('declares Into as a list on every line that can create several items', () => {
     for (const id of [
       'place_at_points',
       'place_on_face',
@@ -75,11 +75,13 @@ describe('SolidScript multi-item Into lists', () => {
       const gives = field?.writes?.gives;
       expect({ id, kind: gives?.rule === 'kind' ? gives.kind : undefined }).toEqual({
         id,
-        kind: 'Brush List',
+        kind: id === 'place_at_points' || id === 'place_on_face' ? 'Object List' : 'Solid List',
       });
     }
     const cube = solidScriptCommandFind('cube')?.parameters.find((parameter) => parameter.key === 'into');
     const gives = cube?.writes?.gives;
-    expect(gives?.rule === 'kind' ? gives.kind : undefined).toBe('Brush');
+    expect(gives?.rule === 'kind' ? gives.kind : undefined).toBe('Solid');
+    const mesh = solidScriptCommandFind('mesh_from_solids')?.parameters.find((parameter) => parameter.key === 'into');
+    expect(mesh?.writes?.gives).toEqual(expect.objectContaining({ kind: 'Mesh' }));
   });
 });

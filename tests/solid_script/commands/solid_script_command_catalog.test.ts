@@ -58,7 +58,7 @@ const SOLID_SCRIPT_SAMPLE_CHILDREN: Readonly<Record<string, readonly SolidScript
     { command: 'face', values: { corners: '2, 3, 4' } },
     { command: 'face', values: { corners: '3, 0, 4' } },
   ],
-  mesh_brushes: [{ command: 'cube' }],
+  mesh_from_solids: [{ command: 'cube' }],
   place_on_face: [{ command: 'cube', values: { size: '0.2, 0.2, 0.2', anchor: 'Left, Bottom, Back' } }],
   texture: [{ command: 'cube' }],
   input_group: [{ command: 'input' }],
@@ -83,7 +83,7 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
   const counter: SolidScriptLine = { command: 'variable', values: { name: 'i', value: '0' } };
   const children = SOLID_SCRIPT_SAMPLE_CHILDREN[command.id] ?? [];
   const started: SolidScriptLine[] = [line, ...children.map((entry) => ({ ...entry, values: { ...entry.values } }))];
-  const meshFirst: SolidScriptLine[] = [{ command: 'mesh_brushes' }, { command: 'cube' }, { command: 'end' }];
+  const meshFirst: SolidScriptLine[] = [{ command: 'mesh_from_solids' }, { command: 'cube' }, { command: 'end' }];
   if (
     ['merge_by_distance', 'subdivide', 'mesh_smooth', 'displace', 'flip_faces', 'inset_face', 'delete_faces'].includes(
       command.id,
@@ -96,12 +96,12 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
           ? [{ command: 'subdivide', values: { levels: '3', smooth: 'false' } }]
           : [];
     const pick = command.category === 'Faces' ? [{ command: 'select_faces' }] : [];
-    return [...meshFirst, { command: 'select_brushes' }, ...tools, ...pick, line];
+    return [...meshFirst, { command: 'select_objects' }, ...tools, ...pick, line];
   }
   if (command.category === 'Faces') {
-    if (command.id === 'select_brushes') return [{ command: 'cube' }, line];
-    const pick: SolidScriptLine[] = [{ command: 'cube' }, { command: 'select_brushes' }, { command: 'select_faces' }];
-    if (command.id === 'select_faces') return [{ command: 'cube' }, { command: 'select_brushes' }, line];
+    if (command.id === 'select_objects') return [{ command: 'cube' }, line];
+    const pick: SolidScriptLine[] = [{ command: 'cube' }, { command: 'select_objects' }, { command: 'select_faces' }];
+    if (command.id === 'select_faces') return [{ command: 'cube' }, { command: 'select_objects' }, line];
     return [...pick, ...started, ...(command.nesting === 'open' ? [{ command: 'end' }] : [])];
   }
   if (children.length > 0 && command.category === '2D Shapes')
@@ -137,7 +137,7 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
       'matrix',
     ].includes(command.id)
   )
-    return [{ command: 'cube', values: { anchor: 'Center, Center, Center' } }, { command: 'select_brushes' }, line];
+    return [{ command: 'cube', values: { anchor: 'Center, Center, Center' } }, { command: 'select_objects' }, line];
   if (command.id === 'stop_script') return [{ command: 'cube' }, line, { command: 'sphere' }];
   if (command.id === 'else')
     return [counter, { command: 'if' }, { command: 'cube' }, line, { command: 'sphere' }, { command: 'end' }];
@@ -258,14 +258,14 @@ describe('solid script command catalog', () => {
     expect(fallback('linear_extrude', 'scale')).toBe('1, 1');
     const plain = JSON.stringify(run({ command: 'cube' }).shapes);
     expect(JSON.stringify(run({ command: 'transform' }, { command: 'cube' }, { command: 'end' }).shapes)).toBe(plain);
-    const selected = [{ command: 'cube' }, { command: 'select_brushes' }, { command: 'move_by' }];
+    const selected = [{ command: 'cube' }, { command: 'select_objects' }, { command: 'move_by' }];
     const moved = JSON.stringify(run(...selected).shapes);
     expect(moved).toBe(plain);
     expect(
-      JSON.stringify(run({ command: 'cube' }, { command: 'select_brushes' }, { command: 'rotate_by' }).shapes),
+      JSON.stringify(run({ command: 'cube' }, { command: 'select_objects' }, { command: 'rotate_by' }).shapes),
     ).toBe(plain);
     expect(
-      JSON.stringify(run({ command: 'cube' }, { command: 'select_brushes' }, { command: 'scale_by' }).shapes),
+      JSON.stringify(run({ command: 'cube' }, { command: 'select_objects' }, { command: 'scale_by' }).shapes),
     ).toBe(plain);
   });
 
@@ -375,7 +375,7 @@ describe('solid script command catalog', () => {
         (entry) => entry.word,
       );
     expect(word('select_faces', 'which')).toEqual(expect.arrayContaining(['All', 'Between', 'Facing Up', 'Top']));
-    expect(word('select_brushes', 'which')).toEqual(['All', 'Between']);
+    expect(word('select_objects', 'which')).toEqual(['All', 'Between']);
     expect(word('select_edges', 'which')).toEqual(['All', 'Between']);
     expect(word('select_vertices', 'which')).toEqual(['All', 'Between']);
     expect(word('select_faces', 'how')).toEqual(['New', 'Add', 'Remove']);
@@ -397,13 +397,13 @@ describe('solid script command catalog', () => {
     }
   });
 
-  it('never turns a brush into a mesh when the command is declared as keeping brushes', () => {
+  it('never turns a solid into a mesh when the command is declared as keeping solids', () => {
     const converters = solidScriptCommands.filter((command) => !solidScriptCommandPreservesBrushes(command));
-    expect(converters.map((command) => command.id).sort()).toEqual(['grid_mesh', 'mesh', 'mesh_brushes']);
+    expect(converters.map((command) => command.id).sort()).toEqual(['grid_mesh', 'mesh', 'mesh_from_solids']);
     const projectUvs = solidScriptCommandFind('project_uvs');
     expect(projectUvs && projectUvs.category === 'Faces').toBe(true);
     expect(projectUvs && solidScriptCommandPreservesBrushes(projectUvs)).toBe(true);
-    const hint = /no longer be a convex brush.+Mesh From Brushes first/;
+    const hint = /no longer be a convex solid.+Mesh From Solids first/;
     const refused = [
       'merge_by_distance',
       'subdivide',
@@ -415,7 +415,7 @@ describe('solid script command catalog', () => {
     ];
     for (const id of refused) {
       const pick = [
-        { command: 'select_brushes' },
+        { command: 'select_objects' },
         ...(id === 'inset_face' || id === 'delete_faces' ? [{ command: 'select_faces' }] : []),
       ];
       const result = run({ command: 'cube' }, ...pick, { command: id });

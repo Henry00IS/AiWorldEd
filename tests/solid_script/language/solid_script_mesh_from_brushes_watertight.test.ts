@@ -10,7 +10,7 @@ import {
 import { meshEulerCharacteristic, meshUnmatchedEdges } from './solid_script_mesh_checks.js';
 
 /**
- * Watertightness of Mesh From Brushes: brushes that touch, stack or meet along
+ * Watertightness of Mesh From Solids: brushes that touch, stack or meet along
  * part of an edge must bake into one welded mesh in which every edge has
  * exactly one face on each side, also after Subdivide and Displace.
  */
@@ -40,7 +40,7 @@ function boxLines(box: TestBox): SolidScriptLine[] {
 }
 
 /**
- * Runs Mesh From Brushes around boxes, followed by extra lines, and returns the
+ * Runs Mesh From Solids around boxes, followed by extra lines, and returns the
  * only mesh.
  *
  * @param boxes Boxes to bake.
@@ -48,7 +48,7 @@ function boxLines(box: TestBox): SolidScriptLine[] {
  * @returns Resulting mesh.
  */
 function bake(boxes: readonly TestBox[], after: readonly SolidScriptLine[] = []): SolidScriptShapeMesh {
-  const lines = [{ command: 'mesh_brushes' }, ...boxes.flatMap(boxLines), END, ...after];
+  const lines = [{ command: 'mesh_from_solids' }, ...boxes.flatMap(boxLines), END, ...after];
   const result = solidScriptProgramRun(solidScriptDocumentCreate(lines));
   expect(result.error?.message ?? null).toBeNull();
   const mesh = solidScriptShapeMeshes(result.shapes)[0];
@@ -66,11 +66,11 @@ function bake(boxes: readonly TestBox[], after: readonly SolidScriptLine[] = [])
  */
 function subdivideLines(levels: number, smooth: string, displace: string | null): SolidScriptLine[] {
   const lines: SolidScriptLine[] = [
-    { command: 'select_brushes' },
+    { command: 'select_objects' },
     { command: 'subdivide', values: { levels: String(levels), smooth } },
   ];
   if (displace === null) return lines;
-  return [...lines, { command: 'select_brushes' }, { command: 'displace', values: { distance: displace } }];
+  return [...lines, { command: 'select_objects' }, { command: 'displace', values: { distance: displace } }];
 }
 
 /**
@@ -179,7 +179,7 @@ const TOUCHING_SCENES: Record<string, TestBox[]> = {
   ],
 };
 
-describe('SolidScript Mesh From Brushes watertight bake', () => {
+describe('SolidScript Mesh From Solids watertight bake', () => {
   for (const [name, boxes] of Object.entries(TOUCHING_SCENES)) {
     it(`bakes ${name} into one closed welded mesh`, () => {
       const mesh = bake(boxes);
@@ -230,7 +230,7 @@ describe('SolidScript Mesh From Brushes watertight bake', () => {
 
   it('stays closed with a crate turned on the base, where faces of other shapes keep their extra corners', () => {
     const lines: SolidScriptLine[] = [
-      { command: 'mesh_brushes' },
+      { command: 'mesh_from_solids' },
       ...boxLines(BASE_WITH_CRATES[0]!),
       { command: 'transform', values: { move: '0.5, 1, 0.3', rotate: '0, 30, 0' } },
       { command: 'cube', values: { size: '1, 1, 1', anchor: 'Center, Center, Center' } },

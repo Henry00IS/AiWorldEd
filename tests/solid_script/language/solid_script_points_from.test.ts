@@ -7,7 +7,7 @@ const line = (command: string, values: Record<string, string> = {}): SolidScript
 const END = line('end');
 const SOURCE: SolidScriptLine[] = [
   line('cube', { size: '2, 2, 2', anchor: 'Center, Center, Center' }),
-  line('select_brushes'),
+  line('select_objects'),
   line('select_faces', { which: 'All' }),
 ];
 const CHILD = line('cube', { size: '0.2, 0.8, 0.2', anchor: 'Center, Bottom, Center' });

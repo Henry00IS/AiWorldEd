@@ -135,7 +135,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
       },
     },
     { command: 'cube', values: { size: '2, 2, 2' } },
-    { command: 'select_brushes' },
+    { command: 'select_objects' },
     { command: 'select_faces', values: { which: 'Facing Up' } },
     { command: 'scale_faces', values: { factor: '[Factor]' } },
   ],
@@ -227,7 +227,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
       },
     },
     { command: 'cube', values: { size: '3, 0.4, 3', anchor: 'Center, Center, Center' } },
-    { command: 'select_brushes' },
+    { command: 'select_objects' },
     { command: 'select_faces', values: { which: 'Facing Up' } },
     { command: 'scatter_points', values: { count: '[Pebbles]', seed: '3', into: 'Spots' } },
     { command: 'for_each', values: { variable: 'Spot', list: '[Spots]', key: 'I' } },
@@ -384,7 +384,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     },
     { command: 'input', values: { name: 'Seed', type: 'Number', default: '2', label: 'Seed' } },
     { command: 'grid_mesh', values: { size: '[Width], 0, [Depth]', columns: '[Columns]', rows: '[Rows]' } },
-    { command: 'select_brushes' },
+    { command: 'select_objects' },
     {
       command: 'displace',
       values: {
@@ -406,7 +406,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
       },
     },
     { command: 'sphere', values: { r: '1', anchor: 'Center, Center, Center' } },
-    { command: 'select_brushes' },
+    { command: 'select_objects' },
     { command: 'select_faces', values: { which: 'All' } },
     { command: 'scatter_points', values: { count: '[Spikes]', seed: '5', into: 'Spots', normals: 'Ways' } },
     { command: 'for_each', values: { variable: 'Spot', list: '[Spots]', key: 'I' } },
@@ -457,7 +457,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     { command: 'variable', values: { name: 'Low', value: '[$Input.Min.Y]' } },
     { command: 'variable', values: { name: 'Width', value: '[$Input.Size.X]' } },
     { command: 'variable', values: { name: 'Depth', value: '[$Input.Size.Z]' } },
-    { command: 'input_brushes' },
+    { command: 'input_objects' },
     { command: 'else' },
     { command: 'cube', values: { size: '1, 1, 1', anchor: 'Center, Center, Center' } },
     { command: 'end' },
@@ -500,8 +500,8 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
         max: '10',
       },
     },
-    { command: 'for_each', values: { variable: 'Brush', list: '[$Input.Brushes]' } },
-    { command: 'select_faces', values: { which: 'All', of: '[Brush]' } },
+    { command: 'for_each', values: { variable: 'Object', list: '[$Input.Objects]' } },
+    { command: 'select_faces', values: { which: 'All', of: '[Object]' } },
     {
       command: 'note',
       values: {
@@ -2056,7 +2056,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
         value: 'Shear Axis and Along must differ; the brushes pass on unchanged.',
       },
     },
-    { command: 'input_brushes' },
+    { command: 'input_objects' },
     { command: 'else', values: {} },
     {
       command: 'note',
@@ -2098,7 +2098,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
         value: '[=[Slide] * -Dot([Measure], [$Input.Center])]',
       },
     },
-    { command: 'input_brushes', values: { into: 'Copy' } },
+    { command: 'input_objects', values: { into: 'Copy' } },
     {
       command: 'matrix',
       values: {
@@ -2252,7 +2252,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     { command: 'repeat', values: { variable: 'I', from: '0', to: '[Count]' } },
     { command: 'transform', values: { move: '[=[Step] * [I]]' } },
     {
-      command: 'input_brushes',
+      command: 'input_objects',
       values: {
         textures: '[Textures]',
         uv_shift_u: '[=[UvShiftU] * [I]]',
@@ -2530,7 +2530,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     },
     { command: 'note', values: { text: 'Copy 0 is the original.' } },
     {
-      command: 'input_brushes',
+      command: 'input_objects',
       values: {
         textures: '[Textures]',
         uv_shift_u: '[=[UvShiftU] * 0]',
@@ -2584,7 +2584,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     },
     { command: 'if', values: { condition: '[RotateCopies]' } },
     {
-      command: 'input_brushes',
+      command: 'input_objects',
       values: {
         textures: '[Textures]',
         uv_shift_u: '[=[UvShiftU] * [I]]',
@@ -2618,7 +2618,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     },
     { command: 'transform', values: { move: '[Delta]' } },
     {
-      command: 'input_brushes',
+      command: 'input_objects',
       values: {
         textures: '[Textures]',
         uv_shift_u: '[=[UvShiftU] * [I]]',
@@ -2780,7 +2780,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
       },
     },
     {
-      command: 'input_brushes',
+      command: 'input_objects',
       values: {
         textures: '[Textures]',
         uv_shift_u: '[=[UvShiftU] * 0]',
@@ -2824,7 +2824,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     { command: 'variable', values: { name: 'R1', value: '[N1]' } },
     { command: 'variable', values: { name: 'R2', value: '[N2]' } },
     {
-      command: 'input_brushes',
+      command: 'input_objects',
       values: {
         textures: '[Textures]',
         uv_shift_u: '[=[UvShiftU] * [I]]',
@@ -2971,7 +2971,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
         text: 'Bisect cuts the received brushes at the plane and drops the side Drop points toward.',
       },
     },
-    { command: 'clip', values: { through: '[=[K] * [D]]', normal: '[Drop]', of: '[$Input.Brushes]' } },
+    { command: 'clip', values: { through: '[=[K] * [D]]', normal: '[Drop]', of: '[$Input.Objects]' } },
     { command: 'end', values: {} },
     {
       command: 'note',
@@ -2980,7 +2980,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
       },
     },
     {
-      command: 'input_brushes',
+      command: 'input_objects',
       values: {
         textures: '[Textures]',
         readable: '[Readable]',
@@ -2989,7 +2989,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
       },
     },
     {
-      command: 'input_brushes',
+      command: 'input_objects',
       values: {
         textures: '[Textures]',
         readable: '[Readable]',

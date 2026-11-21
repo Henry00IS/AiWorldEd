@@ -46,7 +46,7 @@ interface SolidScriptSelectKind {
 
 /**
  * Reads the elements a Select line picks from: its Of, else [$Selected.Faces]
- * when faces are picked, else [$Selected.Brushes].
+ * when faces are picked, else [$Selected.Objects].
  *
  * @param run Running line.
  * @param kind What it picks.
@@ -56,16 +56,16 @@ function solidScriptSelectFrom(run: SolidScriptBlockRun, kind: SolidScriptSelect
   if (kind.pool) return kind.pool(run);
   const given = run.ofValues();
   const faces = run.selectedGet('faces');
-  const from = given ?? (faces.length > 0 ? faces : run.selectedGet('brushes'));
+  const from = given ?? (faces.length > 0 ? faces : run.selectedGet('objects'));
   if (from.length === 0)
     throw new Error(
       given
-        ? `${kind.label} has no ${kind.many} in Of; check that Of holds brushes, faces or edges`
-        : solidScriptOfEmpty(kind.label, faces.length > 0 ? 'faces' : 'brushes'),
+        ? `${kind.label} has no ${kind.many} in Of; check that Of holds solids, faces or edges`
+        : solidScriptOfEmpty(kind.label, faces.length > 0 ? 'faces' : 'objects'),
     );
   return from.map((value) => {
     if (!(value instanceof SolidScriptElement) || !kind.from.includes(value.kind))
-      throw new Error(`${kind.label} picks from brushes, faces or edges, not ${solidScriptKindNamed(value)}`);
+      throw new Error(`${kind.label} picks from solids, faces or edges, not ${solidScriptKindNamed(value)}`);
     return value;
   });
 }
@@ -122,14 +122,14 @@ function solidScriptSelectOf(kind: SolidScriptSelectKind) {
         'of',
         'Of',
         'value',
-        'The brushes to pick from: a variable such as [Wall], a list, or a Name given to brushes; empty uses every brush and mesh built so far, and those a modifier has received.',
+        'The objects to pick from: a variable such as [Wall], a list, or a Name given to objects; empty uses every object built so far, and those a modifier has received.',
       ),
-      nameGroups: ['Brushes', 'Parts'] as const,
-      accepts: solidScriptOfAccepts(['Brush']),
+      nameGroups: ['Objects', 'Parts'] as const,
+      accepts: solidScriptOfAccepts(['Object']),
     };
   }
-  return solidScriptParameterOf(`brushes, faces or edges to pick ${kind.many} of`, '$Selected.Faces', [
-    'Brush',
+  return solidScriptParameterOf(`objects, faces or edges to pick ${kind.many} of`, '$Selected.Faces', [
+    'Object',
     'Face',
     'Edge',
   ]);
@@ -148,11 +148,11 @@ function solidScriptSelectCommand(kind: SolidScriptSelectKind): SolidScriptComma
     label: kind.label,
     category: 'Faces',
     description: `Pick ${kind.many}`,
-    manual: `Picks ${kind.many} and puts them in [$Selected.${kind.item === 'Edge' ? 'Edges' : kind.item === 'Brush' ? 'Brushes' : 'Vertices'}], where lines with an empty Of find them. ${kind.item === 'Brush' ? 'Of says which brushes to pick from; empty uses every brush and mesh built so far, and those a modifier has received.' : 'Of says where to pick from: brushes, faces or edges; empty uses [$Selected.Faces], or [$Selected.Brushes] when no faces are picked.'} Which All keeps every one, the same as a Where left off. Which Between keeps the ${kind.many} between this ${kind.label} and the previous one. Where is a 🔁 condition each remaining one must pass, with [$${kind.item}] the item being tested, such as [=[$${kind.item}.${kind.item === 'Edge' ? 'Length' : kind.item === 'Brush' ? 'Size.X' : 'Position.Y'}] > 1], and [$Index] its number from 0. Left off, Where keeps what Which picked. How adds to or removes from the ${kind.many} picked before. Into also writes them to a variable, a ${kind.item} list. Example: ${kind.example}`,
+    manual: `Picks ${kind.many} and puts them in [$Selected.${kind.item === 'Edge' ? 'Edges' : kind.item === 'Object' ? 'Objects' : 'Vertices'}], where lines with an empty Of find them. ${kind.item === 'Object' ? 'Of says which objects to pick from, solids and meshes alike; empty uses every object built so far, and those a modifier has received.' : 'Of says where to pick from: objects, faces or edges; empty uses [$Selected.Faces], or [$Selected.Objects] when no faces are picked.'} Which All keeps every one, the same as a Where left off. Which Between keeps the ${kind.many} between this ${kind.label} and the previous one. Where is a 🔁 condition each remaining one must pass, with [$${kind.item}] the item being tested, such as [=[$${kind.item}.${kind.item === 'Edge' ? 'Length' : kind.item === 'Object' ? 'Size.X' : 'Position.Y'}] > 1], and [$Index] its number from 0. Left off, Where keeps what Which picked. How adds to or removes from the ${kind.many} picked before. Into also writes them to a variable, a ${kind.item} list. Example: ${kind.example}`,
     stops: [
-      'No brushes to pick from.',
+      'No objects to pick from.',
       'A Which that is not one of the choices.',
-      `An Of that is not brushes, faces or edges.`,
+      `An Of that is not objects, faces or edges.`,
     ],
     parameters: [
       solidScriptParameterWords(
@@ -168,7 +168,7 @@ function solidScriptSelectCommand(kind: SolidScriptSelectKind): SolidScriptComma
           'where',
           'Where',
           'value',
-          `A condition each of the ${kind.many} must pass, such as [=[$${kind.item}.${kind.item === 'Edge' ? 'Length' : kind.item === 'Brush' ? 'Size.X' : 'Position.Y'}] > 1]. Left off keeps every one Which picked.`,
+          `A condition each of the ${kind.many} must pass, such as [=[$${kind.item}.${kind.item === 'Edge' ? 'Length' : kind.item === 'Object' ? 'Size.X' : 'Position.Y'}] > 1]. Left off keeps every one Which picked.`,
         ),
         kind.item,
       ),
@@ -214,7 +214,7 @@ function solidScriptSelectCommand(kind: SolidScriptSelectKind): SolidScriptComma
 }
 
 /**
- * The brushes Select Brushes picks from when Of is empty: every brush and mesh
+ * The brushes Select Objects picks from when Of is empty: every brush and mesh
  * built so far, and those a modifier has received.
  *
  * @param run Running line.
@@ -223,10 +223,10 @@ function solidScriptSelectCommand(kind: SolidScriptSelectKind): SolidScriptComma
 function solidScriptSelectBrushPool(run: SolidScriptBlockRun): SolidScriptElement[] {
   const given = run.ofValues();
   if (given) {
-    if (given.length === 0) throw new Error('Select Brushes has no brushes in Of; check that Of holds brushes');
+    if (given.length === 0) throw new Error('Select Objects has no solids in Of; check that Of holds solids');
     return given.map((value) => {
       if (!(value instanceof SolidScriptElement) || value.kind !== 'brush')
-        throw new Error(`Select Brushes picks from brushes, not ${solidScriptKindNamed(value)}`);
+        throw new Error(`Select Objects picks from solids, not ${solidScriptKindNamed(value)}`);
       return value;
     });
   }
@@ -237,26 +237,26 @@ function solidScriptSelectBrushPool(run: SolidScriptBlockRun): SolidScriptElemen
     if (!brushes.includes(brush)) brushes.push(brush);
   }
   if (brushes.length === 0)
-    throw new Error('Select Brushes has no brushes to pick from; add a brush such as Cube or Input Brushes above it');
+    throw new Error('Select Objects has no objects to pick from; add one such as Cube or Input Objects above it');
   return brushes;
 }
 
-/** Select Brushes, Select Edges and Select Vertices. */
+/** Select Objects, Select Edges and Select Vertices. */
 export const SOLID_SCRIPT_COMMANDS_SELECT: readonly SolidScriptCommand[] = [
   solidScriptSelectCommand({
-    id: 'select_brushes',
-    label: 'Select Brushes',
-    many: 'brushes',
-    example: 'Cube, Select Brushes, then Clip cuts those brushes.',
-    item: 'Brush',
-    selected: 'brushes',
+    id: 'select_objects',
+    label: 'Select Objects',
+    many: 'objects',
+    example: 'Cube, Select Objects, then Clip cuts those objects.',
+    item: 'Object',
+    selected: 'objects',
     from: ['brush'],
     words: [
-      { word: 'All', detail: 'Every brush and mesh, the same as a Where left off' },
+      { word: 'All', detail: 'Every object, the same as a Where left off' },
       {
         word: SOLID_SCRIPT_SELECT_BETWEEN,
         detail:
-          'The brushes and meshes between this Select Brushes and the previous one. Example: Cube, Select Brushes, Cube, then Select Brushes Which Between picks only the second Cube.',
+          'The objects between this Select Objects and the previous one. Example: Cube, Select Objects, Cube, then Select Objects Which Between picks only the second Cube.',
       },
     ],
     items: (_run, element) => [element],

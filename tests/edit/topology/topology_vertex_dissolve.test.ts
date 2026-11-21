@@ -21,7 +21,7 @@ import {
 } from './topology_test_edges.js';
 
 describe('topology_vertex_dissolve', () => {
-  it('dissolves one cube corner and keeps a valid convex brush', () => {
+  it('dissolves one cube corner and keeps a valid convex solid', () => {
     const brush = SolidBrushFactory.createCenteredBox(2, 2, 2);
     const working = brushToWorkingGeometry(brush);
     const corner = findWorkingVertexWithMaxCoordinateSum(working);

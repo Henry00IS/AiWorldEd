@@ -41,7 +41,7 @@ export { SOLID_SCRIPT_MESH_POINTS_MAX } from './solid_script_limits.js';
 
 /** Told when a tool would turn a brush into a mesh. */
 export const SOLID_SCRIPT_MESH_NEEDS_WRAP =
-  'This would no longer be a convex brush. Wrap it in Mesh From Brushes first.';
+  'This would no longer be a convex solid. Wrap it in Mesh From Solids first.';
 
 /**
  * Checks a mesh's size and its faces' point numbers.

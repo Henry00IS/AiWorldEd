@@ -65,9 +65,9 @@ export const SOLID_SCRIPT_COMMANDS_POINTS: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Take a point at the center of each face',
     manual:
-      'Writes a point at the center of each face in Of, and the way the face looks in Normals. Empty Of uses [$Selected.Faces]. Faces that lie back to back against another brush in Of, inside the shape, are skipped. Use the points with Place At Points, and turn on Align To Normal so each copy stands the way Place On Face would. Example: Select Faces Facing Up, Points From Faces Into [Spots] Normals [Dirs], Place At Points At [Spots] Directions [Dirs] Align To Normal, Cylinder, End.',
+      'Writes a point at the center of each face in Of, and the way the face looks in Normals. Empty Of uses [$Selected.Faces]. Faces that lie back to back against another solid in Of, inside the shape, are skipped. Use the points with Place At Points, and turn on Align To Normal so each copy stands the way Place On Face would. Example: Select Faces Facing Up, Points From Faces Into [Spots] Normals [Dirs], Place At Points At [Spots] Directions [Dirs] Align To Normal, Cylinder, End.',
     stops: ['No faces.'],
-    parameters: [...solidScriptPointsFromFields('faces or brushes', '$Selected.Faces', ['Brush', 'Face'])],
+    parameters: [...solidScriptPointsFromFields('faces or solids', '$Selected.Faces', ['Object', 'Face'])],
     listing: (read) => [
       'Points From Faces',
       ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
@@ -90,9 +90,9 @@ export const SOLID_SCRIPT_COMMANDS_POINTS: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Take a point at the middle of each edge',
     manual:
-      'Writes a point at the middle of each edge in Of, and the way the edge looks out in Normals, from the faces that meet there. Of can be edges, faces or brushes; empty uses [$Selected.Edges], or the edges of [$Selected.Faces]. Example: Select Faces Which All, Points From Edges Into [Spots] Normals [Dirs], then Place At Points At [Spots] Directions [Dirs] Align To Normal.',
+      'Writes a point at the middle of each edge in Of, and the way the edge looks out in Normals, from the faces that meet there. Of can be edges, faces or solids; empty uses [$Selected.Edges], or the edges of [$Selected.Faces]. Example: Select Faces Which All, Points From Edges Into [Spots] Normals [Dirs], then Place At Points At [Spots] Directions [Dirs] Align To Normal.',
     stops: ['No edges.'],
-    parameters: solidScriptPointsFromFields('edges, faces or brushes', '$Selected.Edges', ['Brush', 'Face', 'Edge']),
+    parameters: solidScriptPointsFromFields('edges, faces or solids', '$Selected.Edges', ['Object', 'Face', 'Edge']),
     listing: (read) => [
       'Points From Edges',
       ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
@@ -115,10 +115,10 @@ export const SOLID_SCRIPT_COMMANDS_POINTS: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Take a point at each vertex',
     manual:
-      'Writes a point at each vertex in Of, and the average way of the faces around it in Normals. Of can be vertices, faces or brushes; empty uses [$Selected.Vertices], or the vertices of [$Selected.Faces]. Example: Select Brushes, Points From Vertices Into [Spots] Normals [Dirs].',
+      'Writes a point at each vertex in Of, and the average way of the faces around it in Normals. Of can be vertices, faces or solids; empty uses [$Selected.Vertices], or the vertices of [$Selected.Faces]. Example: Select Objects, Points From Vertices Into [Spots] Normals [Dirs].',
     stops: ['No vertices.'],
-    parameters: solidScriptPointsFromFields('vertices, faces or brushes', '$Selected.Vertices', [
-      'Brush',
+    parameters: solidScriptPointsFromFields('vertices, faces or solids', '$Selected.Vertices', [
+      'Object',
       'Face',
       'Vertex',
     ]),

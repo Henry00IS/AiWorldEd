@@ -76,7 +76,7 @@ export function solidScriptPointsFromEdgeTargets(run: SolidScriptBlockRun, label
   const edges: SolidScriptEdgeFacts[] = [];
   for (const value of values) {
     if (!(value instanceof SolidScriptElement) || value.kind === 'vertex' || value.kind === 'data')
-      throw new Error(`${label} takes edges, faces or brushes, not ${solidScriptKindNamed(value)}`);
+      throw new Error(`${label} takes edges, faces or solids, not ${solidScriptKindNamed(value)}`);
     for (const edge of run.elements.edges(value))
       if (!edges.some((known) => known.faces[0].leaf === edge.faces[0].leaf && known.index === edge.index))
         edges.push(edge);
@@ -101,7 +101,7 @@ export function solidScriptPointsFromVertexTargets(run: SolidScriptBlockRun, lab
   const vertices: SolidScriptVertexFacts[] = [];
   for (const value of values) {
     if (!(value instanceof SolidScriptElement) || value.kind === 'edge' || value.kind === 'data')
-      throw new Error(`${label} takes vertices, faces or brushes, not ${solidScriptKindNamed(value)}`);
+      throw new Error(`${label} takes vertices, faces or solids, not ${solidScriptKindNamed(value)}`);
     for (const vertex of run.elements.vertices(value))
       if (!vertices.some((known) => known.index === vertex.index && known.position.distanceTo(vertex.position) < 1e-6))
         vertices.push(vertex);

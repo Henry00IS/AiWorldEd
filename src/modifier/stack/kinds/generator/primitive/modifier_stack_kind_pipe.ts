@@ -21,7 +21,7 @@ const MODIFIER_STACK_PIPE_SIDES_FIELD = modifierStackPrimitiveCountField(
   'sides',
   'Sides',
   { default: 16, min: 3, max: MODIFIER_STACK_PRIMITIVE_MAX_SIDES },
-  'Segments around a whole turn; each segment is one convex brush. More sides look rounder.',
+  'Segments around a whole turn; each segment is one convex solid. More sides look rounder.',
 );
 
 /** Wall thickness in metres. */
@@ -51,7 +51,7 @@ export class ModifierStackKindPipe extends ModifierStackKindPrimitiveSwept {
   readonly id = 'pipe';
   readonly label = 'Pipe';
   readonly description =
-    'Builds a hollow tube, tower wall or curved wall filling the volume, one convex brush per segment.';
+    'Builds a hollow tube, tower wall or curved wall filling the volume, one convex solid per segment.';
   protected readonly specificFields: readonly ModifierStackField[] = [
     MODIFIER_STACK_PIPE_SIDES_FIELD,
     MODIFIER_STACK_PIPE_WALL_FIELD,

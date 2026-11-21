@@ -23,7 +23,7 @@ export type SolidTreeGroupInsert = (group: THREE.Group, parent: THREE.Object3D) 
 /**
  * Creates a CSG group tree from nodes, depth-first in evaluation order. Callers
  * insert each brush and may record each group; this is the shared step used by
- * the undoable tree-add command and by Mesh From Brushes when it bakes.
+ * the undoable tree-add command and by Mesh From Solids when it bakes.
  *
  * @param nodes Nodes in evaluation order.
  * @param parent Parent to append to.

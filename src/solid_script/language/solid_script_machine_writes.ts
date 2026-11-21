@@ -95,7 +95,7 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
     for (const item of items) {
       if (!(item instanceof SolidScriptElement))
         throw new Error(
-          `only brushes, faces, edges and corners have .Data; ${parts.slice(0, at).join('.')} is ${solidScriptKindNamed(item)}`,
+          `only solids, faces, edges and corners have .Data; ${parts.slice(0, at).join('.')} is ${solidScriptKindNamed(item)}`,
         );
       this.elements.dataWrite(
         item.kind === 'data' ? item : this.elements.data(item),
@@ -207,7 +207,7 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
    */
   /**
    * Writes Brush.Mode, or the Mode of every brush in a list, including
-   * [$Selected.Brushes.Modes]. The value must be Additive, Subtractive or
+   * [$Selected.Objects.Modes]. The value must be Additive, Subtractive or
    * Intersecting.
    *
    * @param written Name as written.
@@ -240,9 +240,9 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
     shown: string,
   ): void {
     if (!(item instanceof SolidScriptElement) || item.kind !== 'brush' || item.mesh)
-      throw new Error(`only brushes have .Mode; ${shown} is ${solidScriptKindNamed(item)}`);
+      throw new Error(`only solids have .Mode; ${shown} is ${solidScriptKindNamed(item)}`);
     const latest = this.leafLatest(this.elements.leaf(item));
-    if (latest.kind !== 'solid') throw new Error(`only brushes have .Mode; ${shown} is ${solidScriptKindNamed(item)}`);
+    if (latest.kind !== 'solid') throw new Error(`only solids have .Mode; ${shown} is ${solidScriptKindNamed(item)}`);
     this.leafRewrite(latest, { ...latest, mode });
   }
 
@@ -342,7 +342,7 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
   private positionTargetAdd(targets: SolidScriptPositionTarget[], item: SolidScriptValue, ownerName: string): void {
     if (!(item instanceof SolidScriptElement) || item.kind === 'data')
       throw new Error(
-        `Position can only be set on a brush, face, edge or vertex; ${ownerName} is ${solidScriptKindNamed(item)}`,
+        `Position can only be set on a solid, face, edge or vertex; ${ownerName} is ${solidScriptKindNamed(item)}`,
       );
     const leaf = this.elements.leaf(item);
     for (const vertex of this.elements.vertices(item)) {
@@ -379,7 +379,7 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
    * @param value Value.
    */
   private variableSetSelected(written: string, name: string, value: SolidScriptValue): void {
-    const kind = /^\$selected\.(brushes|faces|edges|vertices)$/.exec(name)?.[1] as SolidScriptSelectedKind | undefined;
+    const kind = /^\$selected\.(objects|faces|edges|vertices)$/.exec(name)?.[1] as SolidScriptSelectedKind | undefined;
     if (!kind)
       throw new Error(`[${written}] is a system value and can only be read; only the $Selected lists can be set`);
     this.selected[kind] = Array.isArray(value) ? [...value] : value === undefined ? [] : [value];

@@ -75,7 +75,7 @@ describe('column profile', () => {
     expect(kind?.curveFallback('profile', {}, new THREE.Object3D())).toBe(stored);
   });
 
-  it('merges concave runs into convex brushes and splits where the slope rises', () => {
+  it('merges concave runs into convex solides and splits where the slope rises', () => {
     const pieces = column({
       profile: profile([
         [0, 0.5],

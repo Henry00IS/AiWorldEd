@@ -14,7 +14,7 @@ import {
 /** A cube, its top face picked, then a second cube. */
 const PICKED: SolidScriptLine[] = [
   { command: 'cube', values: {} },
-  { command: 'select_brushes' },
+  { command: 'select_objects' },
   { command: 'select_faces', values: { which: 'Facing Up' } },
   { command: 'cube', values: {} },
 ];
@@ -75,8 +75,8 @@ describe('System names show the values of the run where it was captured', () => 
     systemShow();
     expect(caption()).toBe('At the end of the run; built-in values as they read now');
     expect(valueOf('$Selected.Faces')).toBe('[Face 3]');
-    expect(valueOf('$Selected.Brushes')).toBe('[cube]');
-    expect(itemsOf('$Selected.Brushes')).toEqual(['$Selected.Brushes(0)|cube']);
+    expect(valueOf('$Selected.Objects')).toBe('[cube]');
+    expect(itemsOf('$Selected.Objects')).toEqual(['$Selected.Objects(0)|cube']);
     expect(itemsOf('$Selected.Faces')).toEqual(['$Selected.Faces(0)|Face 3']);
   });
 
@@ -87,7 +87,7 @@ describe('System names show the values of the run where it was captured', () => 
     expect(root.textContent).toContain('Stopped at the breakpoint on line 4, before it runs');
     systemShow();
     expect(valueOf('$Selected.Faces')).toBe('[Face 3]');
-    expect(valueOf('$Selected.Brushes')).toBe('[cube]');
+    expect(valueOf('$Selected.Objects')).toBe('[cube]');
     linePress(3);
     categoryShow('Context');
     expect(valueOf('$Selected.Faces')).toBe('[Face 3]');
@@ -114,11 +114,11 @@ describe('System names show the values of the run where it was captured', () => 
     tool('Step').click();
     systemShow();
     expect(caption()).toBe('At step 1, line 1; built-in values as they read now');
-    expect(valueOf('$Selected.Brushes')).toBe('[]');
+    expect(valueOf('$Selected.Objects')).toBe('[]');
     expect(valueOf('$Selected.Faces')).toBe('[]');
     tool('Step').click();
     expect(caption()).toBe('At step 2, line 4; built-in values as they read now');
-    expect(valueOf('$Selected.Brushes')).toBe('[cube]');
+    expect(valueOf('$Selected.Objects')).toBe('[cube]');
     expect(valueOf('$Selected.Faces')).toBe('[Face 3]');
   });
 });

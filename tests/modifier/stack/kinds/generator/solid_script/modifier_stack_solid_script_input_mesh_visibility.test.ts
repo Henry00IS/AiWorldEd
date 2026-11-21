@@ -17,7 +17,7 @@ import { modifierBevelRefreshScene } from '@/modifier/compile/modifier_bevel_sce
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 import { MODIFIER_STACK_SOLID_SCRIPT_KIND } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
 
-const FIXTURE = path.resolve('tests/fixtures/bug-ss-mesh-different-uvs-than-input-brushes.json');
+const FIXTURE = path.resolve('tests/fixtures/bug-ss-mesh-different-uvs-than-input-solids.json');
 
 /**
  * Loads the transferred level: its solid and the SolidScript modifier volume.
@@ -95,7 +95,7 @@ function volumeEnabled(volume: THREE.Object3D, enabled: boolean): void {
 
 /**
  * Builds a world with an empty solid holding one SolidScript generator that
- * shows a Mesh From Brushes helper.
+ * shows a Mesh From Solids helper.
  *
  * @returns World, solid, and generator node.
  */
@@ -113,14 +113,13 @@ function meshGenerator(): { world: THREE.Group; model: SolidModel; node: THREE.M
 }
 
 /**
- * Writes a Mesh From Brushes script that builds a centred cube onto a
- * generator.
+ * Writes a Mesh From Solids script that builds a centred cube onto a generator.
  *
  * @param node Generator node.
  */
 function writeMeshFromBrushesScript(node: THREE.Object3D): void {
   const lines: SolidScriptLine[] = [
-    { command: 'mesh_brushes' },
+    { command: 'mesh_from_solids' },
     { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } },
     { command: 'end' },
   ];
@@ -136,8 +135,8 @@ function writeMeshFromBrushesScript(node: THREE.Object3D): void {
   });
 }
 
-describe('hiding a Mesh From Brushes modifier shows the source brushes again', () => {
-  it('rebuilds the brushes as soon as the volume is hidden with the Eye, and hides them again when shown', () => {
+describe('hiding a Mesh From Solids modifier shows the source solids again', () => {
+  it('rebuilds the solids as soon as the volume is hidden with the Eye, and hides them again when shown', () => {
     const { model, volume } = loadLevel();
     compileLevel(model);
     expectSourceSolids(model, volume, false);
@@ -148,7 +147,7 @@ describe('hiding a Mesh From Brushes modifier shows the source brushes again', (
     expectSourceSolids(model, volume, false);
   });
 
-  it('shows the brushes again when the modifier steps are muted, and hides them when they are turned back on', () => {
+  it('shows the solids again when the modifier steps are muted, and hides them when they are turned back on', () => {
     const { model, volume } = loadLevel();
     compileLevel(model);
     muteModifiers(volume, false);
@@ -157,7 +156,7 @@ describe('hiding a Mesh From Brushes modifier shows the source brushes again', (
     expectSourceSolids(model, volume, false);
   });
 
-  it('shows the brushes again when the volume is disabled, and hides them when it is enabled', () => {
+  it('shows the solids again when the volume is disabled, and hides them when it is enabled', () => {
     const { model, volume } = loadLevel();
     compileLevel(model);
     volumeEnabled(volume, false);
@@ -166,7 +165,7 @@ describe('hiding a Mesh From Brushes modifier shows the source brushes again', (
     expectSourceSolids(model, volume, false);
   });
 
-  it('shows the brushes again when the volume is deleted, and hides them when the delete is undone', () => {
+  it('shows the solids again when the volume is deleted, and hides them when the delete is undone', () => {
     const { model, volume } = loadLevel();
     compileLevel(model);
     const remove = new CommandObjectHierarchyDelete([volume]);

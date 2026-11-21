@@ -26,7 +26,7 @@ const SOLID_SCRIPT_SYSTEM_FILL_ITEMS: readonly SolidScriptSystemFillItem[] = [
   { element: '$point', position: 'Position', normal: 'Normal' },
   { element: '$face', position: 'Center', normal: 'Normal' },
   { element: '$edge', position: 'Center', normal: '' },
-  { element: '$brush', position: 'Center', normal: '' },
+  { element: '$object', position: 'Center', normal: '' },
   { element: '$item', position: 'Center', normal: '' },
 ];
 

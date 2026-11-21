@@ -37,7 +37,7 @@ export class SolidScriptElement {
    * @returns Name.
    */
   toString(): string {
-    return this.name || `${SOLID_SCRIPT_ELEMENT_TYPES[this.kind]} ${this.id}`;
+    return this.name || `${solidScriptElementType(this)} ${this.id}`;
   }
 }
 
@@ -57,7 +57,7 @@ export class SolidScriptPoint extends SolidScriptElement {
 
 /** Friendly type of each element kind. */
 export const SOLID_SCRIPT_ELEMENT_TYPES: Readonly<Record<SolidScriptElementKind, string>> = {
-  brush: 'Brush',
+  brush: 'Solid',
   outline: 'Outline',
   face: 'Face',
   edge: 'Edge',
@@ -65,6 +65,33 @@ export const SOLID_SCRIPT_ELEMENT_TYPES: Readonly<Record<SolidScriptElementKind,
   point: 'Point',
   data: 'Data',
 };
+
+/**
+ * Names the kind of a geometry value: Solid or Mesh for an object, otherwise
+ * the kind of element, such as Face.
+ *
+ * @param element Element.
+ * @returns Kind.
+ */
+export function solidScriptElementType(element: SolidScriptElement): string {
+  return element.kind === 'brush' && element.mesh ? 'Mesh' : SOLID_SCRIPT_ELEMENT_TYPES[element.kind];
+}
+
+/**
+ * Names the kind of a list whose items all share one geometry kind, or hold
+ * solids and meshes together as an Object List.
+ *
+ * @param kinds Kinds of the items.
+ * @returns Kind of the list, or undefined when the items are not one geometry
+ *   kind.
+ */
+export function solidScriptElementListType(kinds: ReadonlySet<string>): string | undefined {
+  if (kinds.size === 2 && kinds.has('Solid') && kinds.has('Mesh')) return 'Object List';
+  const [only] = kinds;
+  return kinds.size === 1 && only && (only === 'Mesh' || Object.values(SOLID_SCRIPT_ELEMENT_TYPES).includes(only))
+    ? `${only} List`
+    : undefined;
+}
 
 /** Most list entries a range or comprehension may produce. */
 export const SOLID_SCRIPT_LIST_LIMIT = 10000;
@@ -120,8 +147,7 @@ export function solidScriptValueNumeric(value: SolidScriptValue): SolidScriptVal
 export function solidScriptValueType(value: SolidScriptValue): string {
   if (value === undefined) return 'Nothing';
   if (typeof value === 'boolean') return 'Yes/No';
-  if (value instanceof SolidScriptElement)
-    return value.kind === 'brush' && value.mesh ? 'Mesh' : SOLID_SCRIPT_ELEMENT_TYPES[value.kind];
+  if (value instanceof SolidScriptElement) return solidScriptElementType(value);
   if (Array.isArray(value)) {
     if (value.length === 0) return 'List';
     const kinds = new Set(value.map((entry) => solidScriptValueType(entry)));
@@ -130,9 +156,7 @@ export function solidScriptValueType(value: SolidScriptValue): string {
     if (numbers) return 'List of Numbers';
     if (kinds.size === 1 && kinds.has('Text')) return 'List of Text';
     if (kinds.size === 1 && kinds.has('Vector')) return 'List of Vectors';
-    const [only] = kinds;
-    if (kinds.size === 1 && only && Object.values(SOLID_SCRIPT_ELEMENT_TYPES).includes(only)) return `${only} List`;
-    return 'List';
+    return solidScriptElementListType(kinds) ?? 'List';
   }
   const number = solidScriptValueNumber(value);
   if (number === undefined) return 'Text';

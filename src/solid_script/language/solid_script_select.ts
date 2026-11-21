@@ -8,11 +8,11 @@ import { SolidScriptElement, type SolidScriptValue } from './solid_script_value.
 export const SOLID_SCRIPT_SELECT_BETWEEN = 'Between';
 
 /** What an empty Of is missing, for the stop text and the one-click fix. */
-export type SolidScriptSelectMissing = 'brushes' | 'faces' | 'edges' | 'vertices';
+export type SolidScriptSelectMissing = 'objects' | 'faces' | 'edges' | 'vertices';
 
 /** Official Select line that fills each [$Selected.*] list. */
 const SOLID_SCRIPT_SELECT_LINE: Readonly<Record<SolidScriptSelectMissing, string>> = {
-  brushes: 'Select Brushes',
+  objects: 'Select Objects',
   faces: 'Select Faces',
   edges: 'Select Edges',
   vertices: 'Select Vertices',
@@ -20,7 +20,7 @@ const SOLID_SCRIPT_SELECT_LINE: Readonly<Record<SolidScriptSelectMissing, string
 
 /** Command id of that Select line. */
 const SOLID_SCRIPT_SELECT_COMMAND: Readonly<Record<SolidScriptSelectMissing, string>> = {
-  brushes: 'select_brushes',
+  objects: 'select_objects',
   faces: 'select_faces',
   edges: 'select_edges',
   vertices: 'select_vertices',
@@ -28,7 +28,7 @@ const SOLID_SCRIPT_SELECT_COMMAND: Readonly<Record<SolidScriptSelectMissing, str
 
 /** Example Of value for each kind. */
 const SOLID_SCRIPT_SELECT_EXAMPLE: Readonly<Record<SolidScriptSelectMissing, string>> = {
-  brushes: '[Wall]',
+  objects: '[Wall]',
   faces: '[Face]',
   edges: '[Edge]',
   vertices: '[Vertex]',
@@ -43,7 +43,7 @@ const SOLID_SCRIPT_SELECT_EXAMPLE: Readonly<Record<SolidScriptSelectMissing, str
  */
 export function solidScriptOfEmpty(label: string, missing: SolidScriptSelectMissing): string {
   const select = SOLID_SCRIPT_SELECT_LINE[missing];
-  const item = missing === 'brushes' ? 'brush' : missing.slice(0, -1);
+  const item = missing === 'vertices' ? 'vertex' : missing.slice(0, -1);
   return (
     `${label} doesn't know which ${missing} to work on yet. ` +
     `Add a ${select} line above it to pick them, or write a ${item} in Of, like ${SOLID_SCRIPT_SELECT_EXAMPLE[missing]}.`
@@ -98,7 +98,7 @@ export function solidScriptSelectIds(items: readonly SolidScriptValue[]): Set<nu
 /**
  * The button caption that inserts the missing Select line.
  *
- * @param label Official Select name, such as Select Brushes.
+ * @param label Official Select name, such as Select Objects.
  * @returns Caption.
  */
 export function solidScriptSelectFixLabel(label: string): string {

@@ -151,7 +151,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
    * Brushes.
    */
   private incoming: SolidScriptGeometryLeaf[] | null = null;
-  /** Received brushes, made on first use, until Input Brushes builds them. */
+  /** Received brushes, made on first use, until Input Objects builds them. */
   private received: SolidScriptGeometryLeaf[] | null = null;
   /** What each swapped solid or mesh became. */
   private readonly leafSwaps = new Map<SolidScriptGeometryLeaf, SolidScriptGeometryLeaf>();
@@ -212,7 +212,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   }
 
   /**
-   * Lists the brushes a modifier receives, as [$Input.Brushes]: those the Input
+   * Lists the brushes a modifier receives, as [$Input.Objects]: those the Input
    * Brushes line built, else the received brushes as they came.
    *
    * @returns Brush elements, none for a generator.
@@ -255,7 +255,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   }
 
   /**
-   * Latest Mode of each received brush, including Set after Input Brushes.
+   * Latest Mode of each received brush, including Set after Input Objects.
    *
    * @returns Mode of each received brush, or unset when that brush has none.
    */
@@ -445,10 +445,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     named: readonly SolidScriptShape[],
   ): SolidScriptValue[] {
     const outlines = this.outlinesOf(named);
-    if (outlines.length === 0)
-      throw new Error(`No brush, mesh or outline above is named "${name}"; give one a Name first`);
-    if (field.outlines !== true)
-      throw new Error(`"${name}" is a flat outline, and this line works on brushes and meshes`);
+    if (outlines.length === 0) throw new Error(`No object or outline above is named "${name}"; give one a Name first`);
+    if (field.outlines !== true) throw new Error(`"${name}" is a flat outline, and this line works on objects`);
     return outlines.map((outline) => this.outlines.element(outline));
   }
 
@@ -533,13 +531,13 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     )
       warnings.push({
         line: null,
-        text: 'The script builds no brushes or meshes; add one such as Cube, or Output a variable.',
+        text: 'The script builds no objects; add one such as Cube, or Output a variable.',
       });
     const bent = this.failure || this.paused ? 0 : solidScriptShapesNotConvex(shapes);
     if (bent > 0)
       warnings.push({
         line: null,
-        text: `${bent === 1 ? '1 brush is' : `${bent} brushes are`} not convex and will not be built; move the corners until every brush is convex, or use Mesh From Brushes.`,
+        text: `${bent === 1 ? '1 solid is' : `${bent} solids are`} not convex and will not be built; move the corners until every solid is convex, or use Mesh From Solids.`,
       });
     if (this.incomingUsed && this.incoming && this.received === this.incoming) this.processed.notes(this.incoming);
     return {
@@ -587,7 +585,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       if (this.steps.length > 0 && !this.failure)
         this.failure = solidScriptFailure(
           this.steps[0] ?? handler.line,
-          `line ${this.steps[0] ?? handler.line}: ${handler.command.label} blocks only check and change inputs; brushes and meshes are built by the script from the top`,
+          `line ${this.steps[0] ?? handler.line}: ${handler.command.label} blocks only check and change inputs; objects are built by the script from the top`,
         );
     }
     return {
@@ -1257,7 +1255,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     this.solids += 1;
     if (this.solids > SOLID_SCRIPT_LIMITS.brushes)
       throw new Error(
-        `this line made more than ${solidScriptLimitCount(SOLID_SCRIPT_LIMITS.brushes)} brushes. Change the Count, or split this into smaller generators.`,
+        `this line made more than ${solidScriptLimitCount(SOLID_SCRIPT_LIMITS.brushes)} solids. Change the Count, or split this into smaller generators.`,
       );
     return true;
   }

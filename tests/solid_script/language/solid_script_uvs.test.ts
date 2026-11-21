@@ -13,7 +13,7 @@ import * as THREE from 'three';
 import { solidScriptUseSolidOf } from './solid_script_use_solid.js';
 
 const END: SolidScriptLine = { command: 'end' };
-const SELECT_BRUSHES: SolidScriptLine = { command: 'select_brushes' };
+const SELECT_BRUSHES: SolidScriptLine = { command: 'select_objects' };
 const SELECT_ALL: SolidScriptLine = { command: 'select_faces', values: { which: 'All' } };
 const SELECT_UP: SolidScriptLine = { command: 'select_faces', values: { which: 'Facing Up' } };
 const EACH_FACE: SolidScriptLine = { command: 'for_each', values: { variable: 'Face', list: '[$Selected.Faces]' } };
@@ -85,7 +85,7 @@ describe('SolidScript UV commands', () => {
           SELECT_BRUSHES,
           SELECT_ALL,
           { command: 'project_uvs' },
-          { command: 'select_brushes' },
+          { command: 'select_objects' },
           { command: 'transform_uvs', values: { offset: '0.5, 0, 0' } },
         ),
       ).faceUvs?.length,
@@ -94,7 +94,7 @@ describe('SolidScript UV commands', () => {
 
   it('keeps a mesh as a mesh after Project UVs, Unwrap, Pack Islands and Transform UVs', () => {
     const prefix: SolidScriptLine[] = [
-      { command: 'mesh_brushes' },
+      { command: 'mesh_from_solids' },
       { command: 'cube' },
       END,
       SELECT_BRUSHES,
@@ -134,7 +134,7 @@ describe('SolidScript UV commands', () => {
           SELECT_BRUSHES,
           SELECT_ALL,
           { command: 'project_uvs' },
-          { command: 'select_brushes' },
+          { command: 'select_objects' },
           { command: 'transform_uvs', values: { offset: '0.5, 0, 0', pivot: 'Origin' } },
         ),
       ),
@@ -217,7 +217,7 @@ describe('SolidScript UV commands', () => {
 
   it('sets Face.UVs on a mesh face even when the coordinates are not planar', () => {
     const result = run(
-      { command: 'mesh_brushes' },
+      { command: 'mesh_from_solids' },
       { command: 'cube' },
       END,
       SELECT_BRUSHES,
@@ -253,7 +253,7 @@ describe('SolidScript UV commands', () => {
     const use: SolidScriptUseFacts = { usage: 'Modifier', solids: [solidScriptUseSolidOf(box(2))], faces: 6 };
     const received = solidScriptProgramRun(
       solidScriptDocumentCreate([
-        { command: 'input_brushes' },
+        { command: 'input_objects' },
         SELECT_BRUSHES,
         SELECT_ALL,
         { command: 'transform_uvs', values: { offset: '2, -1, 0', readable: 'Yes', textures: 'World Aligned' } },
@@ -271,7 +271,7 @@ describe('SolidScript UV commands', () => {
     });
     const direct = solidScriptProgramRun(
       solidScriptDocumentCreate([
-        { command: 'input_brushes' },
+        { command: 'input_objects' },
         SELECT_BRUSHES,
         SELECT_ALL,
         { command: 'transform_uvs', values: { textures: 'World Aligned' } },
@@ -280,7 +280,7 @@ describe('SolidScript UV commands', () => {
     );
     expect(direct.error?.message ?? null).toBeNull();
     const fromInput = direct.shapes.find((shape): shape is SolidScriptShapeSolid => shape.kind === 'solid');
-    if (!fromInput) throw new Error('Expected the Input Brushes solid');
+    if (!fromInput) throw new Error('Expected the Input Objects solid');
     expect(solidScriptUvPolicyOf(fromInput)).toEqual({ textures: 'world', readable: true, shiftU: 0, shiftV: 0 });
   });
 
@@ -334,7 +334,7 @@ describe('SolidScript UV commands', () => {
 });
 
 /**
- * Texture policy of the received brush after Input Brushes writes it Into
+ * Texture policy of the received brush after Input Objects writes it Into
  * [Copy], Transform UVs sets Textures, and the lines given run on it.
  *
  * @param textures Transform UVs Textures.
@@ -346,7 +346,7 @@ function receivedPolicy(textures: string, ...lines: SolidScriptLine[]) {
   const use: SolidScriptUseFacts = { usage: 'Modifier', solids: [solidScriptUseSolidOf(corners)], faces: 6 };
   const result = solidScriptProgramRun(
     solidScriptDocumentCreate([
-      { command: 'input_brushes', values: { into: 'Copy' } },
+      { command: 'input_objects', values: { into: 'Copy' } },
       { command: 'transform_uvs', values: { textures, of: '[Copy]' } },
       ...lines,
       { command: 'output', values: { of: '[Copy]' } },
@@ -376,7 +376,7 @@ describe('SolidScript Transform UVs with Textures or Readable Text left off', ()
     });
   });
 
-  it('keeps the Readable Text that Input Brushes or an earlier line set', () => {
+  it('keeps the Readable Text that Input Objects or an earlier line set', () => {
     expect(receivedPolicy('Move With Shape', transformCopy({ offset: '1, 0, 0' })).readable).toBe(true);
     const earlier = receivedPolicy(
       'Move With Shape',

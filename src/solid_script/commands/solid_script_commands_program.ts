@@ -254,7 +254,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
       'A name another function, or a built-in one, already uses.',
       'A call with more or fewer values than the function has Inputs.',
       `Functions and parts calling each other more than ${SOLID_SCRIPT_PART_DEPTH_MAX} levels deep.`,
-      'Building brushes from inside a formula. Use a Call line for that.',
+      'Building solids from inside a formula. Use a Call line for that.',
     ],
     nesting: 'open',
     flow: { kind: 'function', name: 'name', inputs: 'parameters' },
@@ -332,8 +332,8 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Inputs',
     description: 'Check an input when it changes',
     manual:
-      'Runs these lines when someone changes the input in the inspector, before the output is rebuilt. The script skips them where they stand. They cannot build brushes. Use them to check the new value. Set Input can fix it, and Show Message can say why. Read any input as [Name]. Example: When Input Changes Steps, then If [Steps] > 64, Set Input Steps to 64 and Show Message At most 64 steps.',
-    stops: ['A name that is not an Input of the script.', 'Building a brush.'],
+      'Runs these lines when someone changes the input in the inspector, before the output is rebuilt. The script skips them where they stand. They cannot build solids. Use them to check the new value. Set Input can fix it, and Show Message can say why. Read any input as [Name]. Example: When Input Changes Steps, then If [Steps] > 64, Set Input Steps to 64 and Show Message At most 64 steps.',
+    stops: ['A name that is not an Input of the script.', 'Building a solid.'],
     nesting: 'open',
     flow: { kind: 'handler', name: 'name' },
     parameters: [
@@ -352,8 +352,8 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Inputs',
     description: 'Run lines when a button is pressed',
     manual:
-      'Runs these lines when someone presses a button in the inspector. The button comes from an Input with Type Button. The script skips these lines where they stand. They cannot build brushes. Use Set Input to change inputs, and Show Message to explain. The brush is then rebuilt. Example: Input Reset with Type Button, then When Button Pressed Reset holds Set Input Width to 2.',
-    stops: ['A name that is not a button Input of the script.', 'Building a brush.'],
+      'Runs these lines when someone presses a button in the inspector. The button comes from an Input with Type Button. The script skips these lines where they stand. They cannot build solids. Use Set Input to change inputs, and Show Message to explain. The solid is then rebuilt. Example: Input Reset with Type Button, then When Button Pressed Reset holds Set Input Width to 2.',
+    stops: ['A name that is not a button Input of the script.', 'Building a solid.'],
     nesting: 'open',
     flow: { kind: 'handler', name: 'name' },
     parameters: [
@@ -372,8 +372,8 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Inputs',
     description: 'Change inputs just before a bake',
     manual:
-      'Runs these lines when the generator is baked into plain brushes, just before they are made. The script skips them where they stand. They cannot build brushes. Set Input changes inputs for the bake only, so a script can show a light preview while you edit and bake a detailed version. Undoing the bake brings back the generator with its old inputs. Example: When Baked holds Set Input Sides to 32, so the editor shows 8 sides and the baked brushes have 32.',
-    stops: ['Building a brush.'],
+      'Runs these lines when the generator is baked into plain solids, just before they are made. The script skips them where they stand. They cannot build solids. Set Input changes inputs for the bake only, so a script can show a light preview while you edit and bake a detailed version. Undoing the bake brings back the generator with its old inputs. Example: When Baked holds Set Input Sides to 32, so the editor shows 8 sides and the baked solids have 32.',
+    stops: ['Building a solid.'],
     nesting: 'open',
     flow: { kind: 'handler' },
     parameters: [],
@@ -387,7 +387,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Logic',
     description: 'Run lines only as a generator or only as a modifier',
     manual:
-      'Runs the lines inside only when the script is used the way Use names: Generator in a generator node, Modifier in the modifier stack of a brush, mesh or group. An Else starts the lines for the other use. Can Be Used As in the inspector picks the uses a script allows. Script.Usage holds the same word for formulas. Example: If Used As Modifier, a slab under [$Input.Min], Else, a cube and a slab under it.',
+      'Runs the lines inside only when the script is used the way Use names: Generator in a generator node, Modifier in the modifier stack of an object or group. An Else starts the lines for the other use. Can Be Used As in the inspector picks the uses a script allows. Script.Usage holds the same word for formulas. Example: If Used As Modifier, a slab under [$Input.Min], Else, a cube and a slab under it.',
     stops: ['A Use that is not Generator or Modifier. Type one word, such as Generator.', 'A missing End line.'],
     nesting: 'open',
     flow: { kind: 'choice' },
@@ -400,7 +400,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
         'Generator or Modifier. Type one word, such as Generator.',
         [
           { word: 'Generator', detail: 'Placed as a generator node' },
-          { word: 'Modifier', detail: 'In the modifier stack of a brush, mesh or group' },
+          { word: 'Modifier', detail: 'In the modifier stack of an object or group' },
         ],
       ),
     ],
@@ -413,16 +413,16 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     },
   }),
   new SolidScriptCommand({
-    id: 'input_brushes',
-    label: 'Input Brushes',
+    id: 'input_objects',
+    label: 'Input Objects',
     category: 'Inputs',
-    description: 'Output the brushes a modifier receives',
+    description: 'Output the solids a modifier receives',
     manual:
-      'Outputs every brush the script receives as a modifier. Like a generator, a modifier outputs nothing by itself: without an Input Brushes line the received brushes are gone and only what the script builds comes out. The brushes act like any brush built here: the Transform, Move By, Move To, Rotate By, Rotate To, Scale By, Scale To, Mirror or Matrix lines around this line move them, Repeat makes copies, Mode on a brush cuts or keeps overlap, Select Faces finds their faces, and Clip cuts them, including when Of is [$Input.Brushes] above this line. Their faces keep their textures and materials; a cut brush keeps its textures but they are laid out again. To keep textures where they are in the world, or shift the texture of a copy by whole or part tiles, or keep lettering readable on a mirrored copy, write the brushes Into a list and use Transform UVs Textures, Offset and Readable Text Of that list. As a generator it outputs nothing. Example: Repeat [I] From 0 To 2 around Transform Move [=[I] * 2], 0, 0 around Input Brushes gives the brush and two copies two metres apart.',
+      'Outputs every solid the script receives as a modifier. Like a generator, a modifier outputs nothing by itself: without an Input Objects line the received solids are gone and only what the script builds comes out. The solids act like any solid built here: the Transform, Move By, Move To, Rotate By, Rotate To, Scale By, Scale To, Mirror or Matrix lines around this line move them, Repeat makes copies, Mode on a solid cuts or keeps overlap, Select Faces finds their faces, and Clip cuts them, including when Of is [$Input.Objects] above this line. Their faces keep their textures and materials; a cut solid keeps its textures but they are laid out again. To keep textures where they are in the world, or shift the texture of a copy by whole or part tiles, or keep lettering readable on a mirrored copy, write the solids Into a list and use Transform UVs Textures, Offset and Readable Text Of that list. As a generator it outputs nothing. Example: Repeat [I] From 0 To 2 around Transform Move [=[I] * 2], 0, 0 around Input Objects gives the solid and two copies two metres apart.',
     stops: ['An Into name that cannot name a variable, or that is an Input of the script.'],
-    parameters: [solidScriptParameterInto('the brushes, a Brush list', 'Brush List', 'what is made', 'copy')],
+    parameters: [solidScriptParameterInto('the solids, an Object list', 'Object List', 'what is made', 'copy')],
     listing: (read) => [
-      'Input Brushes',
+      'Input Objects',
       ...solidScriptListingOptions([read.text('into') !== '' && ['Into ', read.value('into')]]),
     ],
     execute: (run) => solidScriptInputBrushesBuild(run),

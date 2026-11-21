@@ -57,7 +57,7 @@ function summary(nodes: SolidTreeNode[]): unknown[] {
 }
 
 describe('solidScriptSolidTreeBuild', () => {
-  it('emits brushes in line order with each Mode, unwrapped', () => {
+  it('emits solids in line order with each Mode, unwrapped', () => {
     const subtract = { command: 'cube', values: { ...CUBE.values, mode: 'Subtractive' } };
     const intersect = { command: 'sphere', values: { ...SPHERE.values, mode: 'Intersecting' } };
     expect(summary(tree([CUBE, subtract, intersect]))).toEqual(['cube:0', 'cube:1', 'sphere:2']);
@@ -74,7 +74,7 @@ describe('solidScriptSolidTreeBuild', () => {
     ).toEqual(['cube:1', 'cube:0']);
   });
 
-  it('keeps the editor axes, adds the offset and centers brushes', () => {
+  it('keeps the editor axes, adds the offset and centers solids', () => {
     const [node] = tree(
       [
         { command: 'transform', values: { move: '0.5, 1.5, 2.5' } },
@@ -96,7 +96,7 @@ describe('solidScriptSolidTreeBuild', () => {
     ).toThrow(/flat|plane/);
   });
 
-  it('carries the texture of a Texture block onto its brushes; an inner Texture wins', () => {
+  it('carries the texture of a Texture block onto its solids; an inner Texture wins', () => {
     const nodes = tree([
       { command: 'texture', values: { texture: 'stone' } },
       CUBE,
@@ -111,20 +111,20 @@ describe('solidScriptSolidTreeBuild', () => {
     expect(nodes.map((node) => (node.kind === 'brush' ? node.texture : 'group'))).toEqual(['stone', 'wood', undefined]);
   });
 
-  it('gives the faces Texture Faces picked their own texture, moved along with the brush', () => {
+  it('gives the faces Texture Faces picked their own texture, moved along with the solid', () => {
     const nodes = tree([
       { command: 'transform', values: { move: '3, 0, 1' } },
       { command: 'transform', values: { rotate: '0, 0, 90' } },
       CUBE,
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'Facing Up' } },
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'texture_faces', values: { texture: 'grass' } },
       END,
       END,
     ]);
     const brush = nodes[0];
-    if (brush?.kind !== 'brush') throw new Error('Expected a brush');
+    if (brush?.kind !== 'brush') throw new Error('Expected a solid');
     const textured = brush.brush.faces.flatMap((_, index) =>
       brush.faceTextures?.[index] === 'grass' ? [brush.brush.planes[index]!.normal.y] : [],
     );
@@ -170,7 +170,7 @@ describe('solidScriptSolidTreeBuild', () => {
   });
 
   it.each(SOLID_SCRIPT_EXAMPLES.map((example) => [example.id, example] as const))(
-    'places the %s brushes with the very corners and faces the run built',
+    'places the %s solids with the very corners and faces the run built',
     (_, example) => {
       const result = solidScriptProgramRun(
         solidScriptDocumentCreate(example.lines),

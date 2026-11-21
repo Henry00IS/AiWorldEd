@@ -166,7 +166,7 @@ export function modifierStackReshapeChanged(
 
 /**
  * Returns the authored ids that the last compile of a solid replaced, such as
- * hidden stand-ins Mesh From Brushes leaves while it shows its mesh.
+ * hidden stand-ins Mesh From Solids leaves while it shows its mesh.
  *
  * @param scopeId Solid identity.
  * @returns Authored ids with a replacement.

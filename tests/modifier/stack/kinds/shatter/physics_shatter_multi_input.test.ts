@@ -93,7 +93,7 @@ function multiCompile(scene: MultiScene): SolidBrushInstance[] {
 }
 
 /**
- * Returns the net CSG volume of convex brushes that do not overlap.
+ * Returns the net CSG volume of convex solides that do not overlap.
  *
  * @param brushes Visible brushes.
  * @returns Additive minus subtractive volume.
@@ -139,7 +139,7 @@ function multiOverlapCount(pieces: readonly PhysicsShatterPiece[], steps = 24): 
 }
 
 /**
- * Checks the pieces of a run: watertight convex brushes that never overlap.
+ * Checks the pieces of a run: watertight convex solides that never overlap.
  *
  * @param run Last run.
  */

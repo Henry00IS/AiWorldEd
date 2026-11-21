@@ -8,8 +8,8 @@ const END = line('end');
 const BOX = line('cube', { size: '2, 2, 2', anchor: 'Center, Center, Center', into: 'Box' });
 const GRID = [
   line('grid_mesh', { size: '2, 0, 2', columns: '2', rows: '2' }),
-  line('select_brushes'),
-  line('variable', { name: 'Grid', value: '[$Selected.Brushes.First]' }),
+  line('select_objects'),
+  line('variable', { name: 'Grid', value: '[$Selected.Objects.First]' }),
 ];
 
 /**
@@ -33,7 +33,7 @@ describe('SolidScript topology members', () => {
     expect(solidScriptMemberType('Face', 'Neighbors')).toBe('Face List');
     expect(solidScriptMemberType('Vertex', 'Faces')).toBe('Face List');
     expect(solidScriptMemberType('Vertex', 'Edges')).toBe('Edge List');
-    expect(solidScriptMemberType('Brush', 'Islands')).toBe('List');
+    expect(solidScriptMemberType('Object', 'Islands')).toBe('List');
     expect(solidScriptMemberType('Mesh', 'Islands')).toBe('List');
   });
 
@@ -88,8 +88,8 @@ describe('SolidScript topology members', () => {
         line('face', { corners: '2, 1, 3' }),
         line('face', { corners: '4, 5, 6' }),
         END,
-        line('select_brushes'),
-        line('variable', { name: 'Lumps', value: '[$Selected.Brushes.First]' }),
+        line('select_objects'),
+        line('variable', { name: 'Lumps', value: '[$Selected.Objects.First]' }),
         BOX,
         line('echo', { value: '[Lumps.Islands.Count]|[Lumps.Islands.First.Count]|[Box.Islands.Count]' }),
       ),

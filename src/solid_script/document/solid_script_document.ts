@@ -215,7 +215,7 @@ export function solidScriptDocumentUseProblem(document: SolidScriptDocument, use
   if (solidScriptDocumentUses(document)[use]) return '';
   const name = document.name || 'This script';
   return use === 'modifier'
-    ? `${name} is made to be used as a generator only. Turn on Modifier under Can Be Used As to use it on a brush, mesh or group.`
+    ? `${name} is made to be used as a generator only. Turn on Modifier under Can Be Used As to use it on an object or group.`
     : `${name} is made to be used as a modifier only. Turn on Generator under Can Be Used As to use it as a generator.`;
 }
 

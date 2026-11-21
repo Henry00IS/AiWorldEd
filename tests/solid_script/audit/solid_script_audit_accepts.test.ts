@@ -16,7 +16,7 @@ export const SOLID_SCRIPT_AUDIT_SAMPLES: readonly (readonly [string, string])[] 
   ['Text', 'abc'],
   ['Yes/No', 'Yes'],
   ['Vector', '[1, 2, 3]'],
-  ['Brush', '[B]'],
+  ['Solid', '[B]'],
   ['Face', '[F.First]'],
   ['Edge', '[E.First]'],
   ['Vertex', '[P.First]'],

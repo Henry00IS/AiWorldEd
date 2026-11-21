@@ -102,5 +102,5 @@ export function solidScriptCommandsOfCategory(category: SolidScriptCommandCatego
  * @returns True when the command must not emit a mesh from a brush.
  */
 export function solidScriptCommandPreservesBrushes(command: SolidScriptCommand): boolean {
-  return command.id !== 'mesh' && command.id !== 'mesh_brushes' && command.id !== 'grid_mesh';
+  return command.id !== 'mesh' && command.id !== 'mesh_from_solids' && command.id !== 'grid_mesh';
 }

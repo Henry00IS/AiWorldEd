@@ -20,7 +20,7 @@ const MODIFIER_STACK_CAPSULE_RINGS_FIELD = modifierStackPrimitiveCountField(
 export class ModifierStackKindCapsule extends ModifierStackKindPrimitiveRevolved {
   readonly id = 'capsule';
   readonly label = 'Capsule';
-  readonly description = 'Builds a cylinder with rounded ends filling the volume as one convex brush.';
+  readonly description = 'Builds a cylinder with rounded ends filling the volume as one convex solid.';
   protected readonly shapeFields: readonly ModifierStackField[] = [MODIFIER_STACK_CAPSULE_RINGS_FIELD];
 
   /**

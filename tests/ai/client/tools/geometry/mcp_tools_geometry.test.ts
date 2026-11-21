@@ -68,14 +68,14 @@ describe('geometry tools', () => {
   it('builds script meshes as regular mesh objects, previews them and undoes them with the brushes', () => {
     const { api, world, stack } = editorApiFixtureCreate();
     const lines = [
-      { command: 'mesh_brushes' },
+      { command: 'mesh_from_solids' },
       { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } },
       { command: 'end' },
       { command: 'cube', values: { anchor: 'Center, Center, Center' } },
     ];
     const preview = api.invokeTool('geometry_script_preview', { lines });
     expect(preview.message).toBe('Would create 1 brush(es) and 1 mesh(es)');
-    expect(preview.data).toMatchObject({ meshes: [{ mesh: 'Mesh From Brushes', vertices: 8, faces: 6 }] });
+    expect(preview.data).toMatchObject({ meshes: [{ mesh: 'Mesh From Solids', vertices: 8, faces: 6 }] });
     const built = api.invokeTool('geometry_script_build', { lines, position: { x: 0, y: 0, z: 5 } });
     expect(built.ok, built.message).toBe(true);
     const meshId = (built.data as { meshes: { meshId: string }[] }).meshes[0]?.meshId;

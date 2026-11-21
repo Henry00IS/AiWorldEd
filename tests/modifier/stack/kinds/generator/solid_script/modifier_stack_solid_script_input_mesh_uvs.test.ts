@@ -27,7 +27,7 @@ interface Mismatch {
   face: number;
 }
 
-const FIXTURE = path.resolve('tests/fixtures/bug-ss-mesh-different-uvs-than-input-brushes.json');
+const FIXTURE = path.resolve('tests/fixtures/bug-ss-mesh-different-uvs-than-input-solids.json');
 
 /**
  * Loads the transferred level: its solid and the SolidScript modifier volume.
@@ -139,8 +139,8 @@ function sourceFace(
   return best;
 }
 
-describe('Mesh From Brushes of Input Brushes keeps the source UVs', () => {
-  it('keeps the transferred level’s brush UVs on the output mesh', () => {
+describe('Mesh From Solids of Input Objects keeps the source UVs', () => {
+  it('keeps the transferred level’s solid UVs on the output mesh', () => {
     const { model, volume } = loadLevel();
     expect(model.getBrushes()).toHaveLength(3);
     modifierStackCompile(model.getBrushes(), model.root);

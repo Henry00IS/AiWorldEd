@@ -149,13 +149,13 @@ const SOLID_SCRIPT_SUGGESTION_GROUPS_EACH = [
 const SOLID_SCRIPT_SUGGESTION_GROUPS_TAIL = ['Functions', 'Built-In Functions'] as const;
 
 /** Name categories that are not values a field reads. */
-const SOLID_SCRIPT_SUGGESTION_NOT_VALUES = new Set(['Functions', 'Parts', 'Brushes', 'Handlers']);
+const SOLID_SCRIPT_SUGGESTION_NOT_VALUES = new Set(['Functions', 'Parts', 'Solids', 'Handlers']);
 
 /** Most suggestions listed at the caret at once. */
 const SOLID_SCRIPT_SUGGESTIONS_MAX = 200;
 
 /**
- * Tells whether a field offers current-element names, such as $Brush on Select
+ * Tells whether a field offers current-element names, such as $Object on Select
  * Brushes Where.
  *
  * @param scope What the field may refer to.

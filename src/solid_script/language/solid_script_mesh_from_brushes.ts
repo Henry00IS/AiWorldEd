@@ -43,7 +43,7 @@ const SOLID_SCRIPT_MESH_GRID_ROUNDS_MAX = 8;
  * brushes, including their Modes and Groups, are baked through the editor CSG
  * compiler so cuts and overlaps become faces of a regular mesh.
  *
- * @param shapes Shapes built between Mesh From Brushes and its End.
+ * @param shapes Shapes built between Mesh From Solids and its End.
  * @param label Mesh label, for messages.
  * @returns Mesh, or null when nothing was built.
  */
@@ -120,7 +120,7 @@ function solidScriptMeshTreeBake(nodes: readonly SolidTreeNode[], label: string)
   const polygons = new SolidCsgCompiler().compile(instances, { forceFull: true, solidRoot: root });
   solidScriptMeshBrushPreviewsDispose(instances);
   if (polygons.length === 0)
-    throw new Error(`${label} has nothing left; the Subtractive or Intersecting brushes removed everything`);
+    throw new Error(`${label} has nothing left; the Subtractive or Intersecting solids removed everything`);
   return solidScriptMeshFromPolygons(polygons, instances, label);
 }
 
@@ -134,7 +134,7 @@ function solidScriptMeshTreeBake(nodes: readonly SolidTreeNode[], label: string)
  * @returns Configured instance with a preview mesh parented.
  */
 function solidScriptMeshBrushInsert(node: SolidTreeBrush, parent: THREE.Object3D, id: string): SolidBrushInstance {
-  solidScriptMeshBrushChecked(node, 'Mesh From Brushes');
+  solidScriptMeshBrushChecked(node, 'Mesh From Solids');
   const instance = new SolidBrushInstance(id, node.name, node.brush, node.operation);
   instance.position.copy(node.center);
   if (node.texture) instance.setAllFacesTextureId(node.texture);
@@ -155,8 +155,8 @@ function solidScriptMeshBrushInsert(node: SolidTreeBrush, parent: THREE.Object3D
 function solidScriptMeshBrushChecked(node: SolidTreeBrush, label: string): void {
   const result = SolidBrushValidator.validate(node.brush);
   if (result.valid) return;
-  const reason = result.errors[0] ?? 'it is no longer a convex brush';
-  throw new Error(`${label} stopped because ${node.name} failed a convex-brush check: ${reason}`);
+  const reason = result.errors[0] ?? 'it is no longer a convex solid';
+  throw new Error(`${label} stopped because ${node.name} failed a convex-solid check: ${reason}`);
 }
 
 /**

@@ -10,7 +10,7 @@ import { createHash } from 'crypto';
 
 const END: SolidScriptLine = { command: 'end' };
 const CUBE: SolidScriptLine = { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } };
-const SELECT_BRUSHES: SolidScriptLine = { command: 'select_brushes' };
+const SELECT_BRUSHES: SolidScriptLine = { command: 'select_objects' };
 /** A round per picked face, with the face in [Face]. */
 const EACH_FACE: SolidScriptLine = { command: 'for_each', values: { variable: 'Face', list: '[$Selected.Faces]' } };
 /** Builds the lines inside standing on the face of the round. */
@@ -112,7 +112,7 @@ describe('SolidScript faces', () => {
     expect(placed('Facing Up', 'Center, Center, Center')).toEqual({ min: [-0.25, 0.9, -0.25], max: [0.25, 1.1, 0.25] });
   });
 
-  it('nests Select Faces by writing the outer pick Into a variable and selecting Of the new brush', () => {
+  it('nests Select Faces by writing the outer pick Into a variable and selecting Of the new solid', () => {
     const result = run(
       CUBE,
       SELECT_BRUSHES,
@@ -282,7 +282,7 @@ describe('SolidScript faces', () => {
       }),
     ).toBe(12);
     const missing = run(...lines, select('All', { of: 'Handle' }));
-    expect(missing.error?.message).toContain('No brush, mesh or outline above is named "Handle"');
+    expect(missing.error?.message).toContain('No object or outline above is named "Handle"');
     expect(solidScriptDocumentListing(solidScriptDocumentCreate([lines[0]!, select('All', { of: 'Knob' })]))).toEqual([
       "Cube '4, 4, 1' Named 'Base'",
       "Select Faces 'All' Of 'Knob'",
@@ -331,7 +331,7 @@ describe('SolidScript faces', () => {
     expect(count(select('All', { where: '[=Facing([$Face.Normal], Vector(1, 0, 0))]' }))).toBe(1);
   });
 
-  it('extrudes a brush face as a new brush', () => {
+  it('extrudes a solid face as a new solid', () => {
     const result = run(CUBE, SELECT_BRUSHES, select('Facing Up'), {
       command: 'extrude_face',
       values: { distance: '0.5' },
@@ -342,9 +342,9 @@ describe('SolidScript faces', () => {
     expect(heightRange(all[1]!)).toEqual([1, 1.5]);
   });
 
-  it('insets and deletes faces of a mesh made with Mesh From Brushes', () => {
+  it('insets and deletes faces of a mesh made with Mesh From Solids', () => {
     const mesh = (extra: SolidScriptLine) =>
-      run({ command: 'mesh_brushes' }, CUBE, { command: 'end' }, SELECT_BRUSHES, select('Facing Up'), extra);
+      run({ command: 'mesh_from_solids' }, CUBE, { command: 'end' }, SELECT_BRUSHES, select('Facing Up'), extra);
     const inset = mesh({ command: 'inset_face', values: { distance: '0.2' } });
     expect(inset.error).toBeNull();
     expect(solidScriptShapeMeshes(inset.shapes)[0]!.faces).toHaveLength(10);
@@ -353,7 +353,7 @@ describe('SolidScript faces', () => {
     expect(solidScriptShapeMeshes(deleted.shapes)[0]!.faces).toHaveLength(5);
   });
 
-  it('bevels the edges of picked brush faces', () => {
+  it('bevels the edges of picked solid faces', () => {
     const result = run(CUBE, SELECT_BRUSHES, select('Facing Up'), {
       command: 'bevel_edges',
       values: { distance: '0.2' },
@@ -365,7 +365,7 @@ describe('SolidScript faces', () => {
     expect(heightRange(all[0]!)).toEqual([-1, 1]);
   });
 
-  it('loops over the corners and edges of brushes and faces as members', () => {
+  it('loops over the corners and edges of solids and faces as members', () => {
     const messages = (...lines: SolidScriptLine[]) => {
       const result = run(CUBE, SELECT_BRUSHES, ...lines);
       expect(result.error?.message ?? null).toBeNull();
@@ -373,8 +373,8 @@ describe('SolidScript faces', () => {
     };
     const each = (list: string): SolidScriptLine => ({ command: 'for_each', values: { variable: 'It', list } });
     const echo = (value: string): SolidScriptLine => ({ command: 'echo', values: { value } });
-    expect(messages(each('[$Selected.Brushes.First.Edges]'), echo('[It.Length]'), END)).toHaveLength(12);
-    expect(messages(each('[$Selected.Brushes.First.Vertices]'), echo('[It.Position]'), END)).toHaveLength(8);
+    expect(messages(each('[$Selected.Objects.First.Edges]'), echo('[It.Length]'), END)).toHaveLength(12);
+    expect(messages(each('[$Selected.Objects.First.Vertices]'), echo('[It.Position]'), END)).toHaveLength(8);
     expect(messages(select('Facing Up'), each('[$Selected.Faces.Edges]'), echo('[It.Length]'), END)).toEqual([
       '2',
       '2',
@@ -394,13 +394,13 @@ describe('SolidScript faces', () => {
       expect(result.error?.message ?? null).toBeNull();
       return Number(result.messages[0]);
     };
-    expect(count(CUBE, '$Selected.Brushes.First.Edges.Count')).toBe(12);
-    expect(count(CUBE, '$Selected.Brushes.First.Vertices.Count')).toBe(8);
+    expect(count(CUBE, '$Selected.Objects.First.Edges.Count')).toBe(12);
+    expect(count(CUBE, '$Selected.Objects.First.Vertices.Count')).toBe(8);
     expect(count(CUBE, 'Top.First.Edges.Count')).toBe(4);
     // An eight-sided cylinder: its caps are octagons, not fans of triangles.
     const cylinder: SolidScriptLine = { command: 'cylinder', values: { sides: '8', anchor: 'Center, Center, Center' } };
-    expect(count(cylinder, '$Selected.Brushes.First.Edges.Count')).toBe(24);
-    expect(count(cylinder, '$Selected.Brushes.First.Vertices.Count')).toBe(16);
+    expect(count(cylinder, '$Selected.Objects.First.Edges.Count')).toBe(24);
+    expect(count(cylinder, '$Selected.Objects.First.Vertices.Count')).toBe(16);
     expect(count(cylinder, 'Top.First.Edges.Count')).toBe(8);
   });
 
@@ -453,21 +453,21 @@ describe('SolidScript faces', () => {
 
   it('aligns the lines inside so their Y (up) points along a direction', () => {
     const tall = { command: 'cube', values: { size: '0.2, 1, 0.2', anchor: 'Left, Bottom, Back' } };
-    const sideways = run(tall, { command: 'select_brushes' }, { command: 'align', values: { direction: '1, 0, 0' } });
+    const sideways = run(tall, { command: 'select_objects' }, { command: 'align', values: { direction: '1, 0, 0' } });
     expect(sideways.error).toBeNull();
     const points = solids(sideways.shapes)[0]!;
     const xs = points.map((point) => Math.round(point.x * 1000) / 1000);
     expect([Math.min(...xs), Math.max(...xs)]).toEqual([0, 1]);
-    const down = run(tall, { command: 'select_brushes' }, { command: 'align', values: { direction: '0, -2, 0' } });
+    const down = run(tall, { command: 'select_objects' }, { command: 'align', values: { direction: '0, -2, 0' } });
     expect(heightRange(solids(down.shapes)[0]!)).toEqual([-1, 0]);
     expect(
-      run(tall, { command: 'select_brushes' }, { command: 'align', values: { direction: '0, 0, 0' } }).error?.message,
+      run(tall, { command: 'select_objects' }, { command: 'align', values: { direction: '0, 0, 0' } }).error?.message,
     ).toMatch(/Direction/);
   });
 
   it('stops with plain errors', () => {
-    expect(run(select('Facing Up')).error?.message).toMatch(/doesn't know which brushes/);
-    expect(run(CUBE, select('Facing Up')).error?.message).toMatch(/doesn't know which brushes/);
+    expect(run(select('Facing Up')).error?.message).toMatch(/doesn't know which objects/);
+    expect(run(CUBE, select('Facing Up')).error?.message).toMatch(/doesn't know which objects/);
     expect(run(CUBE, SELECT_BRUSHES, select('Facing Up')).error).toBeNull();
     expect(run(CUBE, SELECT_BRUSHES, select('Sideways')).error?.message).toMatch(/Which must be one of/);
     expect(
@@ -478,9 +478,9 @@ describe('SolidScript faces', () => {
     expect(
       run(CUBE, SELECT_BRUSHES, select('Facing Up', { into: 'Top' }), {
         command: 'bevel_edges',
-        values: { of: '[$Selected.Brushes.First.Vertices]' },
+        values: { of: '[$Selected.Objects.First.Vertices]' },
       }).error?.message,
-    ).toMatch(/Of needs a Brush, Face, Edge or Text, or a list of them, not a Vertex List/);
+    ).toMatch(/Of needs an Object, Face, Edge or Text, or a list of them, not a Vertex List/);
   });
 
   it('writes face lines in plain words', () => {
@@ -504,12 +504,12 @@ describe('SolidScript faces', () => {
 });
 
 describe('SolidScript geometry members', () => {
-  it('reads any face, corner or edge of a brush through its members, not through formula functions', () => {
+  it('reads any face, corner or edge of a solid through its members, not through formula functions', () => {
     const result = run(CUBE, SELECT_BRUSHES, {
       command: 'echo',
       values: {
         value:
-          '[$Selected.Brushes(0).Faces.Count] [$Selected.Brushes(0).Vertices.Count] [$Selected.Brushes(0).Edges.Count] [$Selected.Brushes(0).Faces(0).Area] [$Selected.Brushes(0).Edges(3).Length] [=Len([$Selected.Brushes(0).Vertices(7).Position])]',
+          '[$Selected.Objects(0).Faces.Count] [$Selected.Objects(0).Vertices.Count] [$Selected.Objects(0).Edges.Count] [$Selected.Objects(0).Faces(0).Area] [$Selected.Objects(0).Edges(3).Length] [=Len([$Selected.Objects(0).Vertices(7).Position])]',
       },
     });
     expect(result.error).toBeNull();

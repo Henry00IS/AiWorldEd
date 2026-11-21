@@ -13,14 +13,14 @@ import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/
 function heavyScene(tail: readonly SolidScriptLine[]): SolidScriptLine[] {
   return [
     { command: 'cube', values: { size: '1, 1, 1' } },
-    { command: 'select_brushes' },
+    { command: 'select_objects' },
     { command: 'select_faces', values: { which: 'All' } },
-    { command: 'select_brushes' },
+    { command: 'select_objects' },
     { command: 'place_on_face', values: { lift: '0' } },
     { command: 'cylinder', values: { h: '1', r1: '0.1', r2: '0.1', sides: '16' } },
     { command: 'sphere', values: { r: '0.2', sides: '16', rings: '8' } },
     { command: 'end' },
-    { command: 'select_brushes' },
+    { command: 'select_objects' },
     { command: 'select_faces', values: { which: 'All' } },
     ...tail,
   ];
@@ -39,7 +39,7 @@ function spheresThenSelect(count: number, tail: readonly SolidScriptLine[] = [])
       command: 'sphere',
       values: { r: '0.2', sides: '16', rings: '8' },
     })),
-    { command: 'select_brushes' },
+    { command: 'select_objects' },
     { command: 'select_faces', values: { which: 'All' } },
     ...tail,
   ];
@@ -53,7 +53,7 @@ function spheresThenSelect(count: number, tail: readonly SolidScriptLine[] = [])
  */
 function spheresThenScatter(count: number): SolidScriptLine[] {
   return spheresThenSelect(count, [
-    { command: 'select_brushes' },
+    { command: 'select_objects' },
     { command: 'scatter_points', values: { on: 'On Faces', count: '10', seed: '0', into: 'Points' } },
   ]);
 }

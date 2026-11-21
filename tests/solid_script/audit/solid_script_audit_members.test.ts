@@ -16,7 +16,7 @@ const SOLID_SCRIPT_AUDIT_LIST_MEMBERS: Readonly<Record<string, string>> = {
   Faces: 'Face List',
   Edges: 'Edge List',
   Vertices: 'Vertex List',
-  Brushes: 'Brush List',
+  Brushes: 'Object List',
   Words: 'Text List',
 };
 

@@ -37,18 +37,18 @@ describe('SolidScript empty fields show their default as placeholder text', () =
   });
 
   it('shows the same default on other choice and number fields when they are empty', () => {
-    expect(shown('select_brushes', 'which', '').placeholder).toBe('All');
+    expect(shown('select_objects', 'which', '').placeholder).toBe('All');
     expect(shown('project_uvs', 'mode', '').placeholder).toBe('Box');
     expect(shown('cube', 'size', '').placeholder).toBe('1, 1, 1');
     expect(shown('cube', 'anchor', '').placeholder).toBe('Center, Center, Center');
   });
 
   it('keeps an explicit Of placeholder, not a blank default', () => {
-    expect(shown('move_by', 'of', '').placeholder).toBe('[$Selected.Brushes]');
+    expect(shown('move_by', 'of', '').placeholder).toBe('[$Selected.Objects]');
   });
 
   it('shows no placeholder when empty is not a value that can be typed', () => {
-    expect(shown('select_brushes', 'of', '').placeholder).toBe('');
+    expect(shown('select_objects', 'of', '').placeholder).toBe('');
     expect(shown('output', 'of', '').placeholder).toBe('');
   });
 });

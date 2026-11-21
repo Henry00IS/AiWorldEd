@@ -66,9 +66,9 @@ function bounds(mesh: SolidScriptShapeMesh): number[] {
 /** A centred unit cube. */
 const CUBE: SolidScriptLine = { command: 'cube', values: { size: '1, 1, 1', anchor: 'Center, Center, Center' } };
 
-describe('SolidScript Mesh From Brushes baking', () => {
+describe('SolidScript Mesh From Solids baking', () => {
   it('bakes one cube into a closed outward mesh of six faces and eight corners', () => {
-    const mesh = onlyMesh(run({ command: 'mesh_brushes' }, CUBE, END));
+    const mesh = onlyMesh(run({ command: 'mesh_from_solids' }, CUBE, END));
     expect(mesh.points).toHaveLength(8);
     expect(mesh.faces).toHaveLength(6);
     expect(outwards(mesh)).toBe(true);
@@ -79,7 +79,7 @@ describe('SolidScript Mesh From Brushes baking', () => {
   it('cuts a subtractive notch instead of keeping both brushes as uncut hulls', () => {
     const mesh = onlyMesh(
       run(
-        { command: 'mesh_brushes' },
+        { command: 'mesh_from_solids' },
         { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } },
         { command: 'transform', values: { move: '0.75, 0, 0' } },
         { command: 'cube', values: { size: '1, 1, 1', anchor: 'Center, Center, Center', mode: 'Subtractive' } },
@@ -96,7 +96,7 @@ describe('SolidScript Mesh From Brushes baking', () => {
   it('unions two touching cubes so the shared wall is gone', () => {
     const mesh = onlyMesh(
       run(
-        { command: 'mesh_brushes' },
+        { command: 'mesh_from_solids' },
         { command: 'transform', values: { move: '-0.5, 0, 0' } },
         CUBE,
         END,
@@ -115,7 +115,7 @@ describe('SolidScript Mesh From Brushes baking', () => {
   it('keeps a subtractive brush inside a group from cutting a brush outside it', () => {
     const cut = onlyMesh(
       run(
-        { command: 'mesh_brushes' },
+        { command: 'mesh_from_solids' },
         { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } },
         { command: 'cube', values: { size: '1, 1, 3', anchor: 'Center, Center, Center', mode: 'Subtractive' } },
         END,
@@ -123,7 +123,7 @@ describe('SolidScript Mesh From Brushes baking', () => {
     );
     const grouped = onlyMesh(
       run(
-        { command: 'mesh_brushes' },
+        { command: 'mesh_from_solids' },
         { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } },
         { command: 'group' },
         { command: 'transform', values: { move: '3, 0, 0' } },
@@ -146,7 +146,7 @@ describe('SolidScript Mesh From Brushes baking', () => {
 
   it('stops when subtractive brushes remove everything', () => {
     const result = run(
-      { command: 'mesh_brushes' },
+      { command: 'mesh_from_solids' },
       CUBE,
       { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center', mode: 'Subtractive' } },
       END,

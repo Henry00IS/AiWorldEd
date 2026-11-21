@@ -45,7 +45,7 @@ function sceneFixture() {
   world.add(model.root);
   const node = modifierGeneratorNodeCreate(MODIFIER_STACK_SOLID_SCRIPT_KIND);
   model.root.add(node);
-  writeScript(node, [{ command: 'mesh_brushes' }, { command: 'cube', values: { size: '2, 2, 2' } }, END]);
+  writeScript(node, [{ command: 'mesh_from_solids' }, { command: 'cube', values: { size: '2, 2, 2' } }, END]);
   scene.updateMatrixWorld(true);
   modifierStackCompile(model.getBrushes(), model.root);
   return { scene, world, model, node };

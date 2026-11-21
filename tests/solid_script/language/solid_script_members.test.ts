@@ -5,7 +5,7 @@ import { solidScriptProgramRun } from '@/solid_script/language/solid_script_prog
 
 const line = (command: string, values: Record<string, string> = {}): SolidScriptLine => ({ command, values });
 const CUBE = line('cube', { size: '2, 2, 2', anchor: 'Center, Center, Center' });
-const SELECT_EDGES: SolidScriptLine[] = [CUBE, line('select_brushes'), line('select_edges')];
+const SELECT_EDGES: SolidScriptLine[] = [CUBE, line('select_objects'), line('select_edges')];
 
 /**
  * Runs script lines.
@@ -44,7 +44,7 @@ describe('SolidScript Edge.Center', () => {
   it('gives the normal unknown-member warning for Edge.Middle', () => {
     const lines = [
       CUBE,
-      line('select_brushes'),
+      line('select_objects'),
       line('select_edges', { into: 'Edges' }),
       line('echo', { value: '[Edges.First.Middle]' }),
     ];

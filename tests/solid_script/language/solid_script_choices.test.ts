@@ -15,13 +15,13 @@ import { solidScriptSuggestionContext, solidScriptSuggestions } from '@/solid_sc
 const line = (command: string, values: Record<string, string> = {}): SolidScriptLine => ({ command, values });
 
 describe('declared choice lists', () => {
-  it('lists brush Mode words, including through a list and $Selected.Brushes', () => {
+  it('lists brush Mode words, including through a list and $Selected.Objects', () => {
     const words = ['Additive', 'Subtractive', 'Intersecting'];
     expect(solidScriptChoiceWordsForTarget('Brush.Mode').map((entry) => entry.word)).toEqual(words);
     expect(solidScriptChoiceWordsForTarget('Box.Mode').map((entry) => entry.word)).toEqual(words);
     expect(solidScriptChoiceWordsForTarget('Brushes.Modes').map((entry) => entry.word)).toEqual(words);
-    expect(solidScriptChoiceWordsForTarget('[$Selected.Brushes.Modes]').map((entry) => entry.word)).toEqual(words);
-    expect(solidScriptChoiceWordsForTarget('$Input.Brushes.Modes').map((entry) => entry.word)).toEqual(words);
+    expect(solidScriptChoiceWordsForTarget('[$Selected.Objects.Modes]').map((entry) => entry.word)).toEqual(words);
+    expect(solidScriptChoiceWordsForTarget('$Input.Objects.Modes').map((entry) => entry.word)).toEqual(words);
   });
 
   it('lists Script.Usage and Script.Mode words, including Pass-Through on Script.Mode', () => {

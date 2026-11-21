@@ -54,9 +54,9 @@ const SUBTRACTIVE_INSERT: SolidScriptUseFacts = {
 
 describe('Brush.Mode', () => {
   it('is a Text member of a brush, not of a mesh', () => {
-    expect(solidScriptMemberType('Brush', 'Mode')).toBe('Text');
-    expect(solidScriptMemberType('Brush List', 'Modes')).toBe('Text List');
-    expect(solidScriptMemberNames('Brush')).toContain('Mode');
+    expect(solidScriptMemberType('Object', 'Mode')).toBe('Text');
+    expect(solidScriptMemberType('Object List', 'Modes')).toBe('Text List');
+    expect(solidScriptMemberNames('Object')).toContain('Mode');
     expect(solidScriptMemberType('Mesh', 'Mode')).toBeNull();
     expect(solidScriptMemberNames('Mesh')).not.toContain('Mode');
   });
@@ -135,12 +135,12 @@ describe('Brush.Mode', () => {
     },
   );
 
-  it('lets Set change an inherited empty Mode, including on $Selected.Brushes', () => {
+  it('lets Set change an inherited empty Mode, including on $Selected.Objects', () => {
     const result = run(
       [
         line('cube', { mode: '', into: 'Box' }),
-        line('select_brushes', { which: 'All', of: '[Box]' }),
-        line('variable', { name: '$Selected.Brushes.Modes', value: 'Intersecting' }),
+        line('select_objects', { which: 'All', of: '[Box]' }),
+        line('variable', { name: '$Selected.Objects.Modes', value: 'Intersecting' }),
         line('echo', { value: '[Box.Mode]' }),
       ],
       SUBTRACTIVE_INSERT,
@@ -168,7 +168,7 @@ describe('Brush.Mode', () => {
   });
 });
 
-describe('Input Brushes.Mode', () => {
+describe('Input Objects.Mode', () => {
   const modes: SolidScriptMode[] = ['Additive', 'Subtractive', 'Intersecting'];
   const inputUse = (words: readonly SolidScriptMode[]): SolidScriptUseFacts => ({
     usage: 'Modifier',
@@ -182,11 +182,11 @@ describe('Input Brushes.Mode', () => {
   it('reads every received brush Mode and Filter List can keep one Mode', () => {
     const result = run(
       [
-        line('echo', { value: '[$Input.Brushes.Modes]' }),
-        line('filter_list', { list: '[$Input.Brushes]', where: '[=[$Item.Mode] == "Subtractive"]', into: 'Cut' }),
+        line('echo', { value: '[$Input.Objects.Modes]' }),
+        line('filter_list', { list: '[$Input.Objects]', where: '[=[$Item.Mode] == "Subtractive"]', into: 'Cut' }),
         line('echo', { value: '[Cut.Count]' }),
         line('echo', { value: '[Cut.First.Mode]' }),
-        line('input_brushes'),
+        line('input_objects'),
       ],
       inputUse(modes),
     );
@@ -203,7 +203,7 @@ describe('Input Brushes.Mode', () => {
   it.each(modes)('lets Set change a received brush to %s', (mode) => {
     const result = run(
       [
-        line('input_brushes', { into: 'Got' }),
+        line('input_objects', { into: 'Got' }),
         line('variable', { name: 'Got.Modes', value: mode }),
         line('output', { of: '[Got]' }),
         line('echo', { value: '[Got.Modes]' }),
@@ -220,7 +220,7 @@ describe('Input Brushes.Mode', () => {
   it('keeps the pass record when Set changes one received Mode', () => {
     const result = run(
       [
-        line('input_brushes', { into: 'Got' }),
+        line('input_objects', { into: 'Got' }),
         line('variable', { name: 'Got(0).Mode', value: 'Subtractive' }),
         line('variable', { name: 'Got(1).Mode', value: 'Intersecting' }),
         line('variable', { name: 'Got(2).Mode', value: 'Additive' }),
@@ -240,7 +240,7 @@ describe('Input Brushes.Mode', () => {
   });
 
   it('treats a received brush without a Mode as Additive at the top level', () => {
-    const result = run([line('input_brushes', { into: 'Got' }), line('echo', { value: '[Got.First.Mode]' })], {
+    const result = run([line('input_objects', { into: 'Got' }), line('echo', { value: '[Got.First.Mode]' })], {
       usage: 'Modifier',
       solids: [solidScriptUseSolidOf(cubeCorners())],
       faces: 6,
@@ -261,10 +261,10 @@ describe('Brush.Mode performance', () => {
     const started = performance.now();
     const result = run(
       [
-        line('echo', { value: '[$Input.Brushes.Count]' }),
-        line('filter_list', { list: '[$Input.Brushes]', where: '[=[$Item.Mode] == "Subtractive"]', into: 'Cut' }),
+        line('echo', { value: '[$Input.Objects.Count]' }),
+        line('filter_list', { list: '[$Input.Objects]', where: '[=[$Item.Mode] == "Subtractive"]', into: 'Cut' }),
         line('echo', { value: '[Cut.Count]' }),
-        line('input_brushes'),
+        line('input_objects'),
       ],
       { usage: 'Modifier', solids: words.map(() => solidScriptUseSolidOf(corners)), modes: words, faces: count * 6 },
     );

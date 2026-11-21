@@ -31,17 +31,17 @@ describe('SolidScript help panel', () => {
     const open = vi.fn();
     const element = solidScriptEditorLinked(
       document.createElement('p'),
-      'If the list is empty, Set [X] to 1. Put Input Brushes inside a Repeat. Cubes stay. Set [Y] to 2.',
+      'If the list is empty, Set [X] to 1. Put Input Objects inside a Repeat. Cubes stay. Set [Y] to 2.',
       open,
       'repeat',
     );
     const links = [...element.querySelectorAll<HTMLAnchorElement>('a')];
-    expect(links.map((link) => link.dataset['command'])).toEqual(['variable', 'input_brushes', 'variable']);
+    expect(links.map((link) => link.dataset['command'])).toEqual(['variable', 'input_objects', 'variable']);
     expect(element.textContent).toBe(
-      'If the list is empty, Set [X] to 1. Put Input Brushes inside a Repeat. Cubes stay. Set [Y] to 2.',
+      'If the list is empty, Set [X] to 1. Put Input Objects inside a Repeat. Cubes stay. Set [Y] to 2.',
     );
     links[1]!.click();
-    expect(open).toHaveBeenCalledWith('input_brushes');
+    expect(open).toHaveBeenCalledWith('input_objects');
   });
 
   it('turns the mentions in the manual, the value hints and the stops into links', () => {

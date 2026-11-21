@@ -31,7 +31,7 @@ function run(...lines: SolidScriptLine[]): { printed: unknown[]; shapes: SolidSc
 }
 
 /** Lines that pick the top faces of the two cubes. */
-const TOPS = [line('select_brushes'), line('select_faces', { which: 'All', where: '[=[$NY] > 0.5]' })];
+const TOPS = [line('select_objects'), line('select_faces', { which: 'All', where: '[=[$NY] > 0.5]' })];
 
 /**
  * Places a 1 by 2 by 3 cube at two points and returns the sizes.
@@ -118,7 +118,7 @@ describe('SolidScript commands with per-item fields', () => {
   it('insets each mesh face by its own Distance', () => {
     const areas = (distance: string) =>
       run(
-        line('mesh_brushes', { into: 'M' }),
+        line('mesh_from_solids', { into: 'M' }),
         line('cube', { size: '2, 2, 2', anchor: 'Center, Center, Center' }),
         line('end'),
         line('select_faces', { which: 'All', of: '[M]' }),
@@ -136,7 +136,7 @@ describe('SolidScript commands with per-item fields', () => {
       ...twoCubes(),
       ...TOPS,
       line('scale_faces', { factor: '[=1 + [$Index]]' }),
-      line('echo', { value: '[$Selected.Brushes.Sizes]' }),
+      line('echo', { value: '[$Selected.Objects.Sizes]' }),
     ).printed[0] as number[][];
     expect(sizes[0]?.[0]).toBeCloseTo(2, 6);
     expect(sizes[1]?.[0]).toBeCloseTo(4, 6);
@@ -173,12 +173,12 @@ describe('SolidScript commands with per-item fields', () => {
 
   it('moves, turns and scales each brush by its own amount', () => {
     const after = (...lines: SolidScriptLine[]) =>
-      run(...twoCubes(), line('select_brushes'), ...lines, line('echo', { value: '[$Selected.Brushes.Mins]' })).printed;
+      run(...twoCubes(), line('select_objects'), ...lines, line('echo', { value: '[$Selected.Objects.Mins]' })).printed;
     const centers = (...lines: SolidScriptLine[]) =>
-      run(...twoCubes(), line('select_brushes'), ...lines, line('echo', { value: '[$Selected.Brushes.Centers]' }))
+      run(...twoCubes(), line('select_objects'), ...lines, line('echo', { value: '[$Selected.Objects.Centers]' }))
         .printed[0] as number[][];
     const sizes = (...lines: SolidScriptLine[]) =>
-      run(...twoCubes(), line('select_brushes'), ...lines, line('echo', { value: '[$Selected.Brushes.Sizes]' }))
+      run(...twoCubes(), line('select_objects'), ...lines, line('echo', { value: '[$Selected.Objects.Sizes]' }))
         .printed[0] as number[][];
     expect(centers(line('move_by', { by: '[=Vector(0, [$Index] * 2, 0)]' })).map((c) => c[1])).toEqual([0, 2]);
     expect(centers(line('move_to', { to: '[=Vector([$Index] * 10, 0, 0)]' })).map((c) => c[0])).toEqual([0, 10]);

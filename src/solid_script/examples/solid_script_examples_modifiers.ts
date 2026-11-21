@@ -23,7 +23,7 @@ function solidScriptExampleAxis(name: string): string {
 }
 
 /**
- * Builds the Textures input of a modifier port, and maps it to Input Brushes.
+ * Builds the Textures input of a modifier port, and maps it to Input Objects.
  *
  * @param follow Move With Shape or Move With Copy.
  * @returns Lines.
@@ -57,7 +57,7 @@ function solidScriptExampleArrayInputs(follow: string, count = true): SolidScrip
 
 /**
  * Shifts the texture of the stamp in [Copy] by the port's per-copy UV shift
- * times Index with Transform UVs, keeping Readable Text as Input Brushes leaves
+ * times Index with Transform UVs, keeping Readable Text as Input Objects leaves
  * it unless the port passes its own.
  *
  * @param index Copy index as text or a formula field such as [I].
@@ -72,7 +72,7 @@ function solidScriptExampleArrayInputs(follow: string, count = true): SolidScrip
  */
 function solidScriptExampleInputCopy(): SolidScriptLine[] {
   return [
-    solidScriptExampleLine('input_brushes', { into: 'Copy' }),
+    solidScriptExampleLine('input_objects', { into: 'Copy' }),
     solidScriptExampleLine('transform_uvs', { textures: '[Textures]', of: '[Copy]' }),
   ];
 }
@@ -133,7 +133,7 @@ function solidScriptExampleMatrixOf(values: Record<string, string>, uvs: SolidSc
 /** Port of the Shear modifier. */
 export const SOLID_SCRIPT_EXAMPLE_SHEAR: readonly SolidScriptLine[] = [
   solidScriptExampleNote(
-    'Shear: slides the brushes it receives along one axis, more the further they are from their center along another.',
+    'Shear: slides the solids it receives along one axis, more the further they are from their center along another.',
   ),
   solidScriptExampleInput('Axis', 'Choice', 'X', { label: 'Shear Axis', choices: 'X, Y, Z' }),
   solidScriptExampleInput('Along', 'Choice', 'Y', { label: 'Along', choices: 'X, Y, Z' }),
@@ -159,7 +159,7 @@ export const SOLID_SCRIPT_EXAMPLE_SHEAR: readonly SolidScriptLine[] = [
       solidScriptExampleNote(
         'Echo writes a message in the editor when something is wrong. Here it runs if the two axes are the same.',
       ),
-      solidScriptExampleLine('echo', { value: 'Shear Axis and Along must differ; the brushes pass on unchanged.' }),
+      solidScriptExampleLine('echo', { value: 'Shear Axis and Along must differ; the solids pass on unchanged.' }),
       ...solidScriptExamplePassCopy(),
     ],
     [
@@ -169,7 +169,7 @@ export const SOLID_SCRIPT_EXAMPLE_SHEAR: readonly SolidScriptLine[] = [
       solidScriptExampleSet('Measure', solidScriptExampleAxis('Along')),
       solidScriptExampleNote('Each point moves by Slide times its distance from the center along Measure.'),
       solidScriptExampleNote(
-        'Matrix changes every point of the copy by these rows. Input Brushes writes the received brushes Into [Copy], Matrix edits that copy, and Output stamps it.',
+        'Matrix changes every point of the copy by these rows. Input Objects writes the received solids Into [Copy], Matrix edits that copy, and Output stamps it.',
       ),
       solidScriptExampleSet('Shift', '[=[Slide] * -Dot([Measure], [$Input.Center])]'),
       ...solidScriptExampleMatrixOf({
@@ -183,7 +183,7 @@ export const SOLID_SCRIPT_EXAMPLE_SHEAR: readonly SolidScriptLine[] = [
 
 /** Port of the Linear Array modifier. */
 export const SOLID_SCRIPT_EXAMPLE_LINEAR_ARRAY: readonly SolidScriptLine[] = [
-  solidScriptExampleNote('Linear Array: repeats the brushes it receives along a line.'),
+  solidScriptExampleNote('Linear Array: repeats the solids it receives along a line.'),
   solidScriptExampleNote('Input Group is a heading in the inspector that groups the Inputs inside it.'),
   ...solidScriptExampleArrayInputs('Move With Copy'),
   solidScriptExampleInput('Mode', 'Choice', 'Relative To Size', {
@@ -236,9 +236,7 @@ function solidScriptExampleSide(name: string): string {
 
 /** Port of the Radial Array modifier (whole input as the center). */
 export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
-  solidScriptExampleNote(
-    'Radial Array: repeats the brushes it receives around an axis, measured from the whole input.',
-  ),
+  solidScriptExampleNote('Radial Array: repeats the solids it receives around an axis, measured from the whole input.'),
   ...solidScriptExampleArrayInputs('Move With Copy'),
   solidScriptExampleInput('Origin', 'Choice', 'On The Ring', {
     label: 'Original',
@@ -355,7 +353,7 @@ export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
           ),
         ],
         [
-          solidScriptExampleNote('Rotate Copies off: only the center moves, the brushes keep their turn.'),
+          solidScriptExampleNote('Rotate Copies off: only the center moves, the solids keep their turn.'),
           solidScriptExampleSet(
             'Delta',
             '[=Vector(Dot([R1], [Center]), Dot([R2], [Center]), Dot([R3], [Center])) + [Move] - [Center]]',
@@ -433,7 +431,7 @@ export const SOLID_SCRIPT_EXAMPLE_TRANSFORM_ARRAY: readonly SolidScriptLine[] = 
 
 /** Port of the Mirror modifier, including Bisect through Clip. */
 export const SOLID_SCRIPT_EXAMPLE_MIRROR: readonly SolidScriptLine[] = [
-  solidScriptExampleNote('Mirror: adds a reflected copy of the brushes it receives across a plane.'),
+  solidScriptExampleNote('Mirror: adds a reflected copy of the solids it receives across a plane.'),
   ...solidScriptExampleArrayInputs('Move With Copy', false),
   solidScriptExampleInput('Axis', 'Choice', 'X', { label: 'Axis', choices: 'X, Y, Z' }),
   solidScriptExampleInput('Plane', 'Choice', 'Volume Center', {
@@ -456,11 +454,11 @@ export const SOLID_SCRIPT_EXAMPLE_MIRROR: readonly SolidScriptLine[] = [
   ...solidScriptExampleIf('[Plane] == "Positive Side"', [solidScriptExampleSet('Drop', '[K]')]),
   ...solidScriptExampleIf('[Flip]', [solidScriptExampleSet('Drop', '[=-[Drop]]')]),
   ...solidScriptExampleIf('[Bisect]', [
-    solidScriptExampleNote('Bisect cuts the received brushes at the plane and drops the side Drop points toward.'),
+    solidScriptExampleNote('Bisect cuts the received solids at the plane and drops the side Drop points toward.'),
     solidScriptExampleNote(
-      'Clip cuts the received brushes with a plane: Through is a point on the plane, and Normal is the way the kept side faces.',
+      'Clip cuts the received solids with a plane: Through is a point on the plane, and Normal is the way the kept side faces.',
     ),
-    solidScriptExampleLine('clip', { through: '[=[K] * [D]]', normal: '[Drop]', of: '[$Input.Brushes]' }),
+    solidScriptExampleLine('clip', { through: '[=[K] * [D]]', normal: '[Drop]', of: '[$Input.Objects]' }),
   ]),
   solidScriptExampleNote('Copy 0 is the original; the copy is reflected: p - 2 (p · K - D) K.'),
   ...solidScriptExamplePassCopy(),
@@ -476,17 +474,17 @@ export const SOLID_SCRIPT_EXAMPLE_MIRROR: readonly SolidScriptLine[] = [
 
 /**
  * Lays a slab off every face of every brush a modifier receives, pushed out
- * from the brush; without Input Brushes the brushes themselves are gone.
+ * from the brush; without Input Objects the brushes themselves are gone.
  */
 export const SOLID_SCRIPT_EXAMPLE_PUSH_OUT_FACES: readonly SolidScriptLine[] = [
   solidScriptExampleNote(
-    'This script is a modifier only: add it to a brush. For Each walks every received brush in [Input.Brushes]. The received brushes themselves are not kept, and only the new slabs stay.',
+    'This script is a modifier only: add it to a solid. For Each walks every received solid in [Input.Objects]. The received solids themselves are not kept, and only the new slabs stay.',
   ),
   solidScriptExampleInput('Distance', 'Number', '0.25', { label: 'Distance', min: '0', max: '10' }),
   solidScriptExampleInput('Thickness', 'Number', '0.1', { label: 'Thickness', min: '0.001', max: '10' }),
-  ...solidScriptExampleBlock('for_each', { variable: 'Brush', list: '[$Input.Brushes]' }, [
-    solidScriptExampleNote('Select Faces Which All Of [Brush] keeps every face of that brush.'),
-    solidScriptExampleLine('select_faces', { which: 'All', of: '[Brush]' }),
+  ...solidScriptExampleBlock('for_each', { variable: 'Object', list: '[$Input.Objects]' }, [
+    solidScriptExampleNote('Select Faces Which All Of [Object] keeps every face of that solid.'),
+    solidScriptExampleLine('select_faces', { which: 'All', of: '[Object]' }),
     solidScriptExampleNote(
       'Extrude Face grows a slab from each selected face. The Thickness Input is how thick the slab is, and the Distance Input is the gap in front of the face.',
     ),

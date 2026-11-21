@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { solidScriptCommands } from '@/solid_script/commands/solid_script_command_catalog.js';
 
 /** The only commands that may pick faces, edges or vertices themselves. */
-const SOLID_SCRIPT_ELEMENT_PICKERS = new Set(['select_brushes', 'select_faces', 'select_edges', 'select_vertices']);
+const SOLID_SCRIPT_ELEMENT_PICKERS = new Set(['select_objects', 'select_faces', 'select_edges', 'select_vertices']);
 
 describe('no command picks elements on its own', () => {
   it('keeps Which filters on Select Faces, Select Edges and Select Vertices only', () => {

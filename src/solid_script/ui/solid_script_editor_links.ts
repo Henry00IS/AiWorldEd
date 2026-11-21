@@ -5,7 +5,7 @@ import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 export type SolidScriptEditorLinkOpen = (command: string) => void;
 
 /**
- * Palette commands by label, longest label first so Input Brushes wins over
+ * Palette commands by label, longest label first so Input Objects wins over
  * Input.
  */
 let solidScriptEditorLinkLabels: { label: string; id: string }[] | null = null;

@@ -56,7 +56,7 @@ describe('a shape Name reads names and formulas, and takes text or a number', ()
     { command: 'echo', values: { value: '[Bla.Name]' } },
   ];
 
-  it('names the brush with the value of the variable', () => {
+  it('names the solid with the value of the variable', () => {
     const run = solidScriptProgramRun(
       solidScriptDocumentCreate(henry({ command: 'variable', values: { name: 'Width', value: '15' } })),
     );
@@ -71,12 +71,12 @@ describe('a shape Name reads names and formulas, and takes text or a number', ()
     expect(formula.messages).toEqual(['Post 2']);
   });
 
-  it('stops on a Brush in plain words, and the editor marks it', () => {
+  it('stops on a Solid in plain words, and the editor marks it', () => {
     const lines = henry({ command: 'cube', values: { into: 'Width' } });
     const run = solidScriptProgramRun(solidScriptDocumentCreate(lines));
-    expect(run.error?.message).toMatch(/^line 2: Name needs a Text or Number, not a Brush/);
+    expect(run.error?.message).toMatch(/^line 2: Name needs a Text or Number, not a Solid/);
     expect(solidScriptKindCheck(solidScriptDocumentCreate(lines))).toEqual([
-      expect.objectContaining({ line: 2, text: expect.stringMatching(/Name needs a Text or Number, not a Brush/) }),
+      expect.objectContaining({ line: 2, text: expect.stringMatching(/Name needs a Text or Number, not a Solid/) }),
     ]);
   });
 });

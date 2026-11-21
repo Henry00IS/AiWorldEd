@@ -6,7 +6,7 @@ import { solidScriptOfEmpty } from '@/solid_script/language/solid_script_select.
 
 /**
  * Reads the brushes a line works on now: those its Of gives, else
- * [$Selected.Brushes]. Meshes are included, as they are in that list.
+ * [$Selected.Objects]. Meshes are included, as they are in that list.
  *
  * @param run Running line.
  * @param label Command, for messages.
@@ -14,7 +14,7 @@ import { solidScriptOfEmpty } from '@/solid_script/language/solid_script_select.
  */
 export function solidScriptBrushTargets(run: SolidScriptBlockRun, label: string): SolidScriptGeometryLeaf[] {
   const given = run.ofValues();
-  const values = given ?? run.selectedGet('brushes');
+  const values = given ?? run.selectedGet('objects');
   if (values.length === 0) throw new Error(solidScriptBrushTargetsEmpty(label, given !== null));
   const leaves: SolidScriptGeometryLeaf[] = [];
   for (const value of values) leaves.push(...solidScriptBrushTarget(run, label, value, leaves));
@@ -29,9 +29,7 @@ export function solidScriptBrushTargets(run: SolidScriptBlockRun, label: string)
  * @returns Message.
  */
 function solidScriptBrushTargetsEmpty(label: string, given: boolean): string {
-  return given
-    ? `${label} has no brushes in Of; check that Of holds brushes or meshes`
-    : solidScriptOfEmpty(label, 'brushes');
+  return given ? `${label} has no solids in Of; check that Of holds objects` : solidScriptOfEmpty(label, 'objects');
 }
 
 /**
@@ -39,7 +37,7 @@ function solidScriptBrushTargetsEmpty(label: string, given: boolean): string {
  *
  * @param run Running line.
  * @param label Command, for messages.
- * @param value Value from Of or [$Selected.Brushes].
+ * @param value Value from Of or [$Selected.Objects].
  * @param known Leaves already collected.
  * @returns The leaf, or none when it is already in known.
  */
@@ -51,7 +49,7 @@ function solidScriptBrushTarget(
 ): SolidScriptGeometryLeaf[] {
   if (!(value instanceof SolidScriptElement) || value.kind !== 'brush')
     throw new Error(
-      `${label} takes brushes, not ${solidScriptKindNamed(value)}; give a brush in Of, or leave Of empty to use [$Selected.Brushes]`,
+      `${label} takes solids, not ${solidScriptKindNamed(value)}; give a solid in Of, or leave Of empty to use [$Selected.Objects]`,
     );
   const leaf = run.leafLatest(run.elements.leaf(value));
   return known.includes(leaf) ? [] : [leaf];

@@ -85,7 +85,7 @@ export interface SolidScriptSystemValue {
 }
 
 /**
- * Names the brush a modifier receives at a place, as [$Input.Brushes] lists it
+ * Names the brush a modifier receives at a place, as [$Input.Objects] lists it
  * and Of fields find it.
  *
  * @param index Place among the received brushes, from 0.
@@ -101,9 +101,9 @@ export function solidScriptInputBrushName(index: number): string {
  */
 export const SOLID_SCRIPT_SYSTEM_SELECTED: readonly SolidScriptSystemValue[] = [
   {
-    name: 'Selected.Brushes',
-    type: 'Brush List',
-    detail: 'the brushes lines below work on; empty until Select Brushes or a Set',
+    name: 'Selected.Objects',
+    type: 'Object List',
+    detail: 'the objects, solids and meshes, lines below work on; empty until Select Objects or a Set',
   },
   { name: 'Selected.Faces', type: 'Face List', detail: 'the faces the last Select Faces picked' },
   { name: 'Selected.Edges', type: 'Edge List', detail: 'the edges set as selected' },
@@ -154,12 +154,12 @@ export const SOLID_SCRIPT_SYSTEM_GLOBALS: readonly SolidScriptSystemValue[] = [
       "Additive, Subtractive, Intersecting or Pass-Through: the generator node's or modifier host's mode in the scene",
   },
   {
-    name: 'Input.Brushes',
-    type: 'Brush List',
+    name: 'Input.Objects',
+    type: 'Object List',
     detail:
-      'the brushes a modifier receives, named Input 1, Input 2…, or those Input Brushes built; empty for a generator',
+      'the solids a modifier receives, named Input 1, Input 2…, or those Input Objects built; empty for a generator',
   },
-  { name: 'Input.Faces', type: 'Number', detail: 'faces of those brushes together' },
+  { name: 'Input.Faces', type: 'Number', detail: 'faces of those solids together' },
   { name: 'Input.Min', type: 'Vector', detail: 'lowest corner of what a modifier receives' },
   { name: 'Input.Max', type: 'Vector', detail: 'highest corner of what a modifier receives' },
   { name: 'Input.Size', type: 'Vector', detail: 'width, height and depth of what a modifier receives' },
@@ -263,26 +263,26 @@ export interface SolidScriptUseFacts {
    * as Additive.
    */
   mode?: SolidScriptGroupMode;
-  /** Every brush the modifier receives: its corners and faces. */
+  /** Every solid the modifier receives: its corners and faces. */
   solids: readonly SolidScriptUseSolid[];
   /**
-   * Insertion Mode top-level brushes inherit when their Mode was left empty,
+   * Insertion Mode top-level solids inherit when their Mode was left empty,
    * from the generator or modifier Operation. Absent is Additive for a
-   * modifier, and Script.Mode for a generator when that is a brush Mode.
+   * modifier, and Script.Mode for a generator when that is a solid Mode.
    */
   insertMode?: SolidScriptMode;
-  /** CSG Mode of every brush the modifier receives, one word per solid. */
+  /** CSG Mode of every solid the modifier receives, one word per solid. */
   modes?: readonly SolidScriptMode[];
-  /** Faces of those brushes, together. */
+  /** Faces of those solids, together. */
   faces: number;
   /**
-   * Texture of every face of those brushes, one list per brush, so built copies
+   * Texture of every face of those solids, one list per solid, so built copies
    * keep them.
    */
   textures?: readonly (readonly SolidScriptUseFaceTexture[])[];
 }
 
-/** One brush a modifier receives, centered like the others. */
+/** One solid a modifier receives, centered like the others. */
 export interface SolidScriptUseSolid {
   /** Corner positions. */
   corners: readonly (readonly [number, number, number])[];
@@ -395,7 +395,7 @@ export function solidScriptSystemValues(
     'Text.Tab': () => '\t',
     'Script.Usage': () => use.usage,
     'Script.Mode': () => use.mode ?? SOLID_SCRIPT_MODE_DEFAULT,
-    'Input.Brushes': () => use.solids.map((_, index) => solidScriptInputBrushName(index)),
+    'Input.Objects': () => use.solids.map((_, index) => solidScriptInputBrushName(index)),
     'Input.Faces': () => use.faces,
     'Input.Min': () => bounds().min,
     'Input.Max': () => bounds().max,

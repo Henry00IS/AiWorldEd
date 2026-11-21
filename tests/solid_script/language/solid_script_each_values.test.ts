@@ -40,7 +40,7 @@ function facesKept(where: string): string[] {
   return printed(
     ...cubeAt(0),
     ...cubeAt(5),
-    line('select_brushes'),
+    line('select_objects'),
     line('select_faces', { which: 'All', where }),
     line('echo', { value: '[$Selected.Faces.Count]' }),
   );
@@ -48,7 +48,7 @@ function facesKept(where: string): string[] {
 
 describe('SolidScript per-item values', () => {
   it('gives every kind of item $Index, $Count and the $X short forms', () => {
-    for (const kind of ['Brush', 'Face', 'Edge', 'Vertex', 'Point', 'Item'] as const) {
+    for (const kind of ['Object', 'Face', 'Edge', 'Vertex', 'Point', 'Item'] as const) {
       const fills = solidScriptParameterEachFills(kind);
       expect(fills).toEqual(expect.arrayContaining([`$${kind}`, '$Index', '$Count', '$X', '$Y', '$Z']));
     }
@@ -75,7 +75,7 @@ describe('SolidScript per-item values', () => {
   it('reads $X of an edge and a brush as its center', () => {
     const edges = printed(
       ...cubeAt(0),
-      line('select_brushes'),
+      line('select_objects'),
       line('select_edges', { which: 'All', where: '[=[$Y] > 0.5]', into: 'Top' }),
       line('echo', { value: '[Top.Count]' }),
     );
@@ -83,7 +83,7 @@ describe('SolidScript per-item values', () => {
     const brushes = printed(
       ...cubeAt(0),
       ...cubeAt(5),
-      line('select_brushes', { which: 'All', where: '[=[$X] > 2]', into: 'Right' }),
+      line('select_objects', { which: 'All', where: '[=[$X] > 2]', into: 'Right' }),
       line('echo', { value: '[Right.Count]' }),
     );
     expect(brushes).toEqual(['1']);
@@ -128,7 +128,7 @@ describe('SolidScript per-item values', () => {
   it('lets Displace read [$Vertex.Position] the same as [$Y]', () => {
     const mesh = (distance: string): string[] =>
       printed(
-        line('mesh_brushes', { into: 'M' }),
+        line('mesh_from_solids', { into: 'M' }),
         line('cube', { size: '2, 2, 2', anchor: 'Center, Center, Center' }),
         line('end'),
         line('displace', { distance, of: '[M]' }),

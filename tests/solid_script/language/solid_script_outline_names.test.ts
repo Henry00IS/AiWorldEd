@@ -238,14 +238,14 @@ describe('SolidScript outlines read by Name', () => {
       line('move_by', { by: '1, 0, 0', of: 'There' }),
       END,
     );
-    expect(missing.error?.message).toContain('No brush, mesh or outline above is named "There"; give one a Name first');
+    expect(missing.error?.message).toContain('No object or outline above is named "There"; give one a Name first');
     const faces = run(
       EXTRUDE,
       line('square', { label: 'Flat' }),
       line('select_faces', { which: 'All', of: 'Flat' }),
       END,
     );
-    expect(faces.error?.message).toContain('"Flat" is a flat outline, and this line works on brushes and meshes');
+    expect(faces.error?.message).toContain('"Flat" is a flat outline, and this line works on objects');
     const into = run(
       EXTRUDE,
       line('square', { label: 'Flat' }),
@@ -260,14 +260,14 @@ describe('SolidScript outlines read by Name', () => {
       line('move_by', { by: '1, 0, 0', of: '[=List("Flat", [Spot])]' }),
       END,
     );
-    expect(mixed.error?.message).toContain('not mixed with brushes, meshes or points');
+    expect(mixed.error?.message).toContain('not mixed with objects or points');
     const outside = run(line('circle', { label: 'Lost' }));
     expect(outside.error?.message).toContain(
       'Circle is a flat outline; place it inside a Linear Extrude or Rotate Extrude',
     );
   });
 
-  it('still finds brushes first, and moves the extruded brushes by the name after End', () => {
+  it('still finds solids first, and moves the extruded solids by the name after End', () => {
     const result = run(
       line('rotate_extrude'),
       line('square', { size: '1, 1', anchor: 'Left, Front', label: 'Ring' }),
@@ -277,7 +277,7 @@ describe('SolidScript outlines read by Name', () => {
     expect(result.error?.message).toBeUndefined();
     expect(bounds(result.shapes)[1]).toBe(5);
   });
-  it('reads a reused Name inside an extrude as the open outline, not the finished brushes that kept it', () => {
+  it('reads a reused Name inside an extrude as the open outline, not the finished solids that kept it', () => {
     const block = (extrude: string) => [
       line(extrude),
       line('circle', { label: 'Boing' }),

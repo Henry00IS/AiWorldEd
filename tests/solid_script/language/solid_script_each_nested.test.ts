@@ -20,7 +20,7 @@ describe('SolidScript nested current elements', () => {
   it('uses the innermost $Face, and a Set keeps the outer one', () => {
     const lines: SolidScriptLine[] = [
       { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } },
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'All', into: 'Faces' } },
       { command: 'for_each', values: { variable: 'Outer', list: '[Faces]' } },
       { command: 'variable', values: { name: 'Kept', value: '[$Face]' } },

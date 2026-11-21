@@ -176,7 +176,7 @@ describe('SolidScript generator UVs when the node moves', () => {
   it('keeps Project UVs made in the script when the node is turned', () => {
     const fixture = generator(MODIFIER_STACK_SOLID_SCRIPT_KIND, [
       ...HENRY,
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'select_faces', values: { which: 'All' } },
       { command: 'project_uvs', values: { mode: 'Box', size: '0.5' } },
     ]);

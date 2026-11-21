@@ -44,14 +44,14 @@ describe('SolidScript Resize, Matrix, Minkowski and Rotate Extrude', () => {
   it('resizes shapes to an exact size, keeping axes of 0 or their proportions', () => {
     const plain = run(
       { command: 'sphere', values: { anchor: 'Center, Center, Center' } },
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'resize', values: { size: '4, 2, 1' } },
     );
     expect(plain.error).toBeNull();
     expect(bounds(plain.shapes)).toEqual([-2, -1, -0.5, 2, 1, 0.5]);
     const kept = run(
       { command: 'cube', values: { size: '2, 1, 1', anchor: 'Center, Center, Center' } },
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'resize', values: { size: '4, 0, 0', keep: 'true' } },
     );
     expect(bounds(kept.shapes)).toEqual([-2, -1, -1, 2, 1, 1]);
@@ -60,14 +60,14 @@ describe('SolidScript Resize, Matrix, Minkowski and Rotate Extrude', () => {
   it('applies a matrix with a shear and refuses one that squashes shapes flat', () => {
     const leaned = run(
       { command: 'cube', values: { anchor: 'Center, Center, Center' } },
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'matrix', values: { row1: '1, 0, 1, 0' } },
     );
     expect(leaned.error).toBeNull();
     expect(bounds(leaned.shapes)).toEqual([-1, -0.5, -0.5, 1, 0.5, 0.5]);
     const flat = run(
       { command: 'cube', values: { anchor: 'Center, Center, Center' } },
-      { command: 'select_brushes' },
+      { command: 'select_objects' },
       { command: 'matrix', values: { row3: '0, 0, 0, 0' } },
     );
     expect(flat.error?.message).toMatch(/squashes shapes flat/);

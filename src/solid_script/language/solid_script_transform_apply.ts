@@ -81,13 +81,13 @@ export function solidScriptTransformOnMatrix(run: SolidScriptBlockRun): THREE.Ma
   if (on === undefined) return new THREE.Matrix4();
   const values = solidScriptTransformFlat(on);
   if (values.length !== 1)
-    throw new Error('On takes one face or one brush; give a single face or brush, such as [Wall.Faces.First]');
+    throw new Error('On takes one face or one solid; give a single face or solid, such as [Wall.Faces.First]');
   const value = values[0];
   if (value === undefined)
-    throw new Error('On takes one face or one brush; give a single face or brush, such as [Wall.Faces.First]');
+    throw new Error('On takes one face or one solid; give a single face or solid, such as [Wall.Faces.First]');
   if (value instanceof SolidScriptElement && value.kind === 'face') return solidScriptTransformFaceOn(run, value);
   if (value instanceof SolidScriptElement && value.kind === 'brush') return solidScriptTransformBrushOn(run, value);
-  throw new Error(`On takes a face or a brush, not ${solidScriptKindNamed(value)}`);
+  throw new Error(`On takes a face or a solid, not ${solidScriptKindNamed(value)}`);
 }
 
 /**
@@ -342,7 +342,7 @@ function solidScriptTransformVectorField(
 }
 
 /**
- * Reads Of, or [$Selected.Brushes] when Of is empty, as brushes and meshes or
+ * Reads Of, or [$Selected.Objects] when Of is empty, as brushes and meshes or
  * as a list of points, not both at once.
  *
  * @param run Running line.
@@ -351,17 +351,17 @@ function solidScriptTransformVectorField(
  */
 export function solidScriptTransformPicked(run: SolidScriptBlockRun, label: string): SolidScriptTransformPicked {
   const given = run.ofValues();
-  const values = given ?? run.selectedGet('brushes');
+  const values = given ?? run.selectedGet('objects');
   if (values.length === 0) throw new Error(solidScriptTransformEmpty(label, given !== null));
   const targets: SolidScriptTransformTargets = { leaves: [], points: [], outlines: [] };
   for (const value of values) solidScriptTransformCollect(run, label, value, targets);
   const { leaves, points, outlines } = targets;
   if (outlines.length > 0 && leaves.length + points.length > 0)
-    throw new Error(`${label} works on outlines on their own, not mixed with brushes, meshes or points`);
+    throw new Error(`${label} works on outlines on their own, not mixed with objects or points`);
   if (outlines.length > 0)
     return { kind: 'outlines', outlines, points: solidScriptTransformOutlinePoints(run, outlines) };
   if (leaves.length > 0 && points.length > 0)
-    throw new Error(`${label} works on brushes and meshes, or on a list of points, not both at once`);
+    throw new Error(`${label} works on objects, or on a list of points, not both at once`);
   return points.length > 0 ? { kind: 'points', points } : { kind: 'leaves', leaves };
 }
 
@@ -411,9 +411,9 @@ function solidScriptTransformFlat(value: SolidScriptValue): SolidScriptValue[] {
  */
 function solidScriptTransformFaceOn(run: SolidScriptBlockRun, element: SolidScriptElement): THREE.Matrix4 {
   const faces = run.elements.faces(element);
-  if (faces.length !== 1) throw new Error('On takes one face or one brush; give a single face or brush');
+  if (faces.length !== 1) throw new Error('On takes one face or one solid; give a single face or solid');
   const face = faces[0];
-  if (!face) throw new Error('On takes one face or one brush; give a single face or brush');
+  if (!face) throw new Error('On takes one face or one solid; give a single face or solid');
   return solidScriptGeometryFaceMatrix(face);
 }
 
@@ -482,8 +482,8 @@ function solidScriptTransformWritePoints(
  */
 function solidScriptTransformEmpty(label: string, given: boolean): string {
   return given
-    ? `${label} has nothing in Of; check that Of holds brushes, meshes or a list of points`
-    : solidScriptOfEmpty(label, 'brushes');
+    ? `${label} has nothing in Of; check that Of holds objects or a list of points`
+    : solidScriptOfEmpty(label, 'objects');
 }
 
 /**
@@ -514,7 +514,7 @@ function solidScriptTransformCollect(
     return;
   }
   throw new Error(
-    `${label} takes brushes, meshes, outlines or points, not ${solidScriptKindNamed(value)}; give those in Of, or leave Of empty to use [$Selected.Brushes]`,
+    `${label} takes objects, outlines or points, not ${solidScriptKindNamed(value)}; give those in Of, or leave Of empty to use [$Selected.Objects]`,
   );
 }
 

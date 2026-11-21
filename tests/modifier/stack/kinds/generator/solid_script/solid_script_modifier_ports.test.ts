@@ -257,7 +257,7 @@ const MODIFIER_CASES: Record<string, ModifierCase[]> = {
 
 describe('SolidScript ports of the modifiers', () => {
   for (const example of SOLID_SCRIPT_EXAMPLES.filter((entry) => entry.modifier)) {
-    it(`${example.name} changes the brushes it receives like the ${example.modifier} modifier`, () => {
+    it(`${example.name} changes the solids it receives like the ${example.modifier} modifier`, () => {
       const cases = MODIFIER_CASES[example.modifier ?? ''] ?? [];
       expect(cases.length).toBeGreaterThan(0);
       for (const test of cases) {
@@ -282,8 +282,8 @@ describe('SolidScript ports of the modifiers', () => {
   });
 });
 
-describe('SolidScript modifiers that read the brushes they receive', () => {
-  it('Push Out Faces swaps the brush for six slabs pushed out from its faces', () => {
+describe('SolidScript modifiers that read the solids they receive', () => {
+  it('Push Out Faces swaps the solid for six slabs pushed out from its faces', () => {
     const example = SOLID_SCRIPT_EXAMPLES.find((entry) => entry.id === 'pushOutFaces')!;
     const script = solidScriptDocumentUsesWith(solidScriptDocumentCreate(example.lines, example.name), example.uses!);
     const { brushes, error, outputs, source } = compiled(MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND, {
@@ -310,13 +310,13 @@ describe('SolidScript modifiers that read the brushes they receive', () => {
     }
   });
 
-  it('outputs only what the script builds, like a generator, unless Input Brushes passes the brushes on', () => {
+  it('outputs only what the script builds, like a generator, unless Input Objects passes the solids on', () => {
     const uses = { generator: false, modifier: true };
     const outputs = (lines: { command: string }[]) =>
       compiled(MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND, {
         script: solidScriptDocumentUsesWith(solidScriptDocumentCreate(lines, 'Output'), uses),
       }).outputs;
     expect(outputs([{ command: 'cube' }])).toBe(1);
-    expect(outputs([{ command: 'input_brushes' }, { command: 'cube' }])).toBe(2);
+    expect(outputs([{ command: 'input_objects' }, { command: 'cube' }])).toBe(2);
   });
 });

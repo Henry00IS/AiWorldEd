@@ -65,15 +65,15 @@ function received(count: number): SolidScriptUseFacts {
 }
 
 /**
- * Henry's mesh-from-received-brushes script: Input Brushes inside Mesh From
+ * Henry's mesh-from-received-brushes script: Input Objects inside Mesh From
  * Brushes, with the mesh kept in a variable and then placed.
  *
  * @returns Lines.
  */
 function meshFromInput(): SolidScriptLine[] {
   return [
-    { command: 'mesh_brushes', values: { into: 'Mesh' } },
-    { command: 'input_brushes' },
+    { command: 'mesh_from_solids', values: { into: 'Mesh' } },
+    { command: 'input_objects' },
     { command: 'end' },
     { command: 'output', values: { of: '[Mesh]' } },
   ];
@@ -254,7 +254,7 @@ describe('solidScriptOutputLine of a run', () => {
     expect(countsOf(lineOf(five))).toBe('5 solids (t ms)');
   });
 
-  it('shows 1 mesh from 4 received solids, as in Input Brushes inside Mesh From Brushes', () => {
+  it('shows 1 mesh from 4 received solids, as in Input Objects inside Mesh From Solids', () => {
     expect(countsOf(lineOf(meshFromInput(), received(4)))).toBe('1 mesh (4 solids, 1 mesh processed, t ms)');
   });
 
@@ -262,7 +262,7 @@ describe('solidScriptOutputLine of a run', () => {
     expect(
       countsOf(
         lineOf([
-          { command: 'mesh_brushes', values: { into: 'Mesh' } },
+          { command: 'mesh_from_solids', values: { into: 'Mesh' } },
           { command: 'cube' },
           { command: 'end' },
           { command: 'output', values: { of: '[Mesh]' } },
@@ -291,7 +291,7 @@ describe('solidScriptOutputLine of a run', () => {
           { command: 'cube' },
           { command: 'cube' },
           { command: 'cube' },
-          { command: 'mesh_brushes', values: { into: 'Mesh' } },
+          { command: 'mesh_from_solids', values: { into: 'Mesh' } },
           { command: 'cube' },
           { command: 'end' },
           { command: 'output', values: { of: '[Mesh]' } },
@@ -304,7 +304,7 @@ describe('solidScriptOutputLine of a run', () => {
     expect(
       countsOf(
         lineOf([
-          { command: 'mesh_brushes', values: { into: 'Mesh' } },
+          { command: 'mesh_from_solids', values: { into: 'Mesh' } },
           { command: 'cube' },
           { command: 'end' },
           { command: 'output', values: { of: '[Mesh]' } },
@@ -318,15 +318,15 @@ describe('solidScriptOutputLine of a run', () => {
     expect(
       countsOf(
         lineOf(
-          [{ command: 'select_faces', values: { which: 'All', of: '[$Input.Brushes]', into: 'All' } }],
+          [{ command: 'select_faces', values: { which: 'All', of: '[$Input.Objects]', into: 'All' } }],
           received(2),
         ),
       ),
     ).toBe('0 solids (2 solids processed, t ms)');
   });
 
-  it('hides processed counts when Input Brushes places the same solids', () => {
-    expect(countsOf(lineOf([{ command: 'input_brushes' }], received(4)))).toBe('4 solids (t ms)');
+  it('hides processed counts when Input Objects places the same solids', () => {
+    expect(countsOf(lineOf([{ command: 'input_objects' }], received(4)))).toBe('4 solids (t ms)');
   });
 
   it('does not count received brushes a modifier never reads', () => {
@@ -343,10 +343,10 @@ describe('solidScriptOutputLine of a run', () => {
     expect(
       countsOf(
         lineOf([
-          { command: 'mesh_brushes' },
+          { command: 'mesh_from_solids' },
           { command: 'cube' },
           { command: 'end' },
-          { command: 'select_brushes' },
+          { command: 'select_objects' },
           { command: 'subdivide', values: { levels: '1', smooth: 'No' } },
         ]),
       ),
@@ -357,7 +357,7 @@ describe('solidScriptOutputLine of a run', () => {
     expect(
       countsOf(
         lineOf([
-          { command: 'mesh_brushes', values: { into: 'Mesh' } },
+          { command: 'mesh_from_solids', values: { into: 'Mesh' } },
           { command: 'cube' },
           { command: 'end' },
           { command: 'subdivide', values: { of: '[Mesh]', into: 'Fine', levels: '1', smooth: 'No' } },

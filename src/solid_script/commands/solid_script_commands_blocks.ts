@@ -30,7 +30,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     category: 'Transforms',
     description: 'Pull flat outlines up into solids',
     manual:
-      'Lays the flat outlines between this line and its End (Square, Circle, Polygon) on the ground, their Y running to the back, and pulls them straight up along Y into solids. Anchor is Center by default, so the middle of its height sits on the origin; Bottom makes the extrusion stand on the outlines. Top Scale below 1 narrows the top, for a tapered shape. Mode chooses how the brush combines with the ones before it: Additive, Subtractive or Intersecting. Into is always a list of the brushes it built, even when there is only one. Example: a Polygon star with height 0.2 gives a star-shaped tile.',
+      'Lays the flat outlines between this line and its End (Square, Circle, Polygon) on the ground, their Y running to the back, and pulls them straight up along Y into solids. Anchor is Center by default, so the middle of its height sits on the origin; Bottom makes the extrusion stand on the outlines. Top Scale below 1 narrows the top, for a tapered shape. Mode chooses how the solid combines with the ones before it: Additive, Subtractive or Intersecting. Into is always a list of the solids it built, even when there is only one. Example: a Polygon star with height 0.2 gives a star-shaped tile.',
     stops: [
       'A height of 0 or less.',
       'A solid such as Cube between this line and its End. Only flat outlines can be extruded.',
@@ -76,7 +76,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     category: 'Transforms',
     description: 'Spin flat outlines around the Y axis',
     manual:
-      "Spins the flat outlines between this line and its End (Square, Circle, Polygon) around the upright Y axis, like clay on a potter's wheel. The outline's X is the distance from the axis and its Y the height. Angle below 360 leaves a gap, for a partial ring or a curved wall. Each piece becomes one brush per side. Into is always a list of those brushes, even when there is only one. Mode chooses how each brush combines with the ones before it: Additive, Subtractive or Intersecting. Example: a Square of 0.5, 2 moved to X = 3 and spun 360 degrees gives a round tower wall.",
+      "Spins the flat outlines between this line and its End (Square, Circle, Polygon) around the upright Y axis, like clay on a potter's wheel. The outline's X is the distance from the axis and its Y the height. Angle below 360 leaves a gap, for a partial ring or a curved wall. Each piece becomes one solid per side. Into is always a list of those solids, even when there is only one. Mode chooses how each solid combines with the ones before it: Additive, Subtractive or Intersecting. Example: a Square of 0.5, 2 moved to X = 3 and spun 360 degrees gives a round tower wall.",
     stops: [
       'An outline with points at X below 0.',
       'An angle of 0 or more than 360.',
@@ -97,7 +97,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
         'Sides',
         'count',
         String(SOLID_SCRIPT_SIDES.default),
-        'Brushes per full turn, 3 to 128, such as 16. More sides look rounder and cost more polygons.',
+        'Solids per full turn, 3 to 128, such as 16. More sides look rounder and cost more polygons.',
       ),
       solidScriptParameterMode(),
     ],
@@ -127,9 +127,9 @@ export const SOLID_SCRIPT_COMMANDS_COMBINE: readonly SolidScriptCommand[] = [
     named: true,
     label: 'Hull',
     category: 'Combine',
-    description: 'Wrap brushes or points in one solid',
+    description: 'Wrap solids or points in one solid',
     manual:
-      'Wraps the brushes, Point lines and the optional Points From List between this line and its End in one convex solid, like shrink wrap stretched around them. A list of vectors such as the points Scatter Points writes can be handed over in Points From List, so Hull (From [Spots]) wraps those points. Points inside the wrap are ignored, so the result is never hollow or dented. Mode chooses how the brush combines with the ones before it: Additive, Subtractive or Intersecting. Example: two small spheres far apart give a capsule. Scatter Points on a Cube, then Hull From the points, gives an irregular rock.',
+      'Wraps the solids, Point lines and the optional Points From List between this line and its End in one convex solid, like shrink wrap stretched around them. A list of vectors such as the points Scatter Points writes can be handed over in Points From List, so Hull (From [Spots]) wraps those points. Points inside the wrap are ignored, so the result is never hollow or dented. Mode chooses how the solid combines with the ones before it: Additive, Subtractive or Intersecting. Example: two small spheres far apart give a capsule. Scatter Points on a Cube, then Hull From the points, gives an irregular rock.',
     stops: ['Fewer than four corners, or corners that all lie in one plane.', 'A missing End line.'],
     nesting: 'open',
     parameters: [
@@ -137,7 +137,7 @@ export const SOLID_SCRIPT_COMMANDS_COMBINE: readonly SolidScriptCommand[] = [
         'points',
         'Points From List',
         'points3',
-        'Optional: a list of x, y, z points, such as a list variable [Spots] from Scatter Points, or vectors written [0, 0, 0], [2, 0, 0], [0, 2, 0], [0, 0, 2]. Point lines and brushes inside add more.',
+        'Optional: a list of x, y, z points, such as a list variable [Spots] from Scatter Points, or vectors written [0, 0, 0], [2, 0, 0], [0, 2, 0], [0, 0, 2]. Point lines and solids inside add more.',
       ),
       solidScriptParameterMode(),
     ],
@@ -154,9 +154,9 @@ export const SOLID_SCRIPT_COMMANDS_COMBINE: readonly SolidScriptCommand[] = [
     id: 'minkowski',
     label: 'Minkowski',
     category: 'Combine',
-    description: 'Grow a brush by sweeping others over it',
+    description: 'Grow a solid by sweeping others over it',
     manual:
-      'Grows the first shape between this line and its End by the shapes after it, as if their middle were swept over every point of the first. A small Sphere after a Cube rounds every edge and corner. A flat Cylinder after a Square inside a Linear Extrude gives rounded corners. Each later shape counts as its convex hull. Mode chooses how the brush combines with the ones before it: Additive, Subtractive or Intersecting. Example: Cube 2, 2, 1 then Sphere Radius 0.2 gives a box 2.4 by 2.4 by 1.4 with soft edges.',
+      'Grows the first shape between this line and its End by the shapes after it, as if their middle were swept over every point of the first. A small Sphere after a Cube rounds every edge and corner. A flat Cylinder after a Square inside a Linear Extrude gives rounded corners. Each later shape counts as its convex hull. Mode chooses how the solid combines with the ones before it: Additive, Subtractive or Intersecting. Example: Cube 2, 2, 1 then Sphere Radius 0.2 gives a box 2.4 by 2.4 by 1.4 with soft edges.',
     stops: ['Too many corner points: use fewer Sides.', SOLID_SCRIPT_STOPS_END],
     nesting: 'open',
     parameters: [solidScriptParameterMode()],

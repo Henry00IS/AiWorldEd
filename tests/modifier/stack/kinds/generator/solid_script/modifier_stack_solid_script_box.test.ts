@@ -185,7 +185,7 @@ describe('SolidScript $Box from a generator or modifier volume', () => {
 
   it('gives Script.Usage Modifier and $Box from a moved, rotated and scaled volume, not the received brush', () => {
     const script = both(
-      { command: 'input_brushes' },
+      { command: 'input_objects' },
       { command: 'echo', values: { value: '[$Script.Usage] [$Box.Size] [$Box.Position]' } },
     );
     const fixture = volumeFixture(script);

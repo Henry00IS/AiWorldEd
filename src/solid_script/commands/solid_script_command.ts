@@ -310,16 +310,24 @@ export interface SolidScriptCommandSpec {
 }
 
 /**
- * Into field of a building line: a Brush list when the line can create several
- * items, otherwise a single Brush.
+ * Into field of a building line: what it builds, a list when the line can
+ * create several items. Mesh lines build meshes, Place and Group lines hold
+ * lines that may build either, so they give objects, and the rest build
+ * solids.
  *
  * @param listed True when Into is always a list.
+ * @param category Palette group of the line.
  * @returns Field.
  */
-function solidScriptCommandBuiltInto(listed: boolean): SolidScriptCommandParameter {
+function solidScriptCommandBuiltInto(
+  listed: boolean,
+  category: SolidScriptCommandCategory,
+): SolidScriptCommandParameter {
+  const kind = category === 'Meshes' ? 'Mesh' : category === 'Faces' || category === 'Parts' ? 'Object' : 'Solid';
+  const many = `${kind.toLowerCase()}${kind === 'Mesh' ? 'es' : 's'}`;
   return listed
-    ? solidScriptParameterInto('the brushes or meshes it builds, a Brush list', 'Brush List', 'what is made', 'copy')
-    : solidScriptParameterInto('the brushes or meshes it builds', 'Brush', 'what is made', 'copy');
+    ? solidScriptParameterInto(`the ${many} it builds, a ${kind} list`, `${kind} List`, 'what is made', 'copy')
+    : solidScriptParameterInto(`the ${many} it builds`, kind, 'what is made', 'copy');
 }
 
 /** Palette groups whose lines build shapes, which get the optional Name field. */
@@ -357,7 +365,7 @@ function solidScriptCommandFields(spec: SolidScriptCommandSpec): SolidScriptComm
   const builds = spec.builds ?? (named && spec.category !== '2D Shapes');
   const edits = spec.edits === true;
   const into = builds
-    ? [solidScriptCommandBuiltInto(intoList)]
+    ? [solidScriptCommandBuiltInto(intoList, spec.category)]
     : spec.draws === true
       ? [solidScriptParameterInto('the outline it draws, an Outline', 'Outline', 'outline drawn', 'label')]
       : [];

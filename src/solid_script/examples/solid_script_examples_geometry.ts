@@ -35,12 +35,12 @@ export const SOLID_SCRIPT_EXAMPLE_TAPERED_BOX: readonly SolidScriptLine[] = [
   ),
   solidScriptExampleInput('Factor', 'Number', '0.5', { min: '0.1', max: '2', label: 'Factor' }),
   solidScriptExampleNote(
-    'This Cube has no Anchor written, so it uses the usual Center, Center, Center. Select Brushes picks brushes. Which Between keeps everything built since the last Select Brushes. This is the first Select, so it picks the cube.',
+    'This Cube has no Anchor written, so it uses the usual Center, Center, Center. Select Objects picks solids. Which Between keeps everything built since the last Select Objects. This is the first Select, so it picks the cube.',
   ),
   solidScriptExampleLine('cube', { size: '2, 2, 2' }),
-  solidScriptExampleLine('select_brushes', { which: 'Between' }),
+  solidScriptExampleLine('select_objects', { which: 'Between' }),
   solidScriptExampleNote(
-    'Select Faces picks faces of those brushes. Which Facing Up keeps the faces that point up, so only the top is kept.',
+    'Select Faces picks faces of those solids. Which Facing Up keeps the faces that point up, so only the top is kept.',
   ),
   solidScriptExampleLine('select_faces', { which: 'Facing Up' }),
   solidScriptExampleNote(
@@ -85,7 +85,7 @@ export const SOLID_SCRIPT_EXAMPLE_HILLY_FLOOR: readonly SolidScriptLine[] = [
   solidScriptExampleInput('Scale', 'Number', '3', { min: '0.1', max: '40', label: 'Scale' }),
   solidScriptExampleInput('Seed', 'Number', '2', { label: 'Seed' }),
   solidScriptExampleLine('grid_mesh', { size: '[Width], 0, [Depth]', columns: '[Columns]', rows: '[Rows]' }),
-  solidScriptExampleLine('select_brushes'),
+  solidScriptExampleLine('select_objects'),
   solidScriptExampleNote(
     "Displace moves each selected point along its normal. The distance uses Noise, which turns a point into a smooth random height: the same Seed is the same hills. [X] and [Z] are the point's place on the floor.",
   ),

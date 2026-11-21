@@ -29,7 +29,7 @@ describe('revolve brushes', () => {
     expect(square.vertices).toHaveLength(5);
   });
 
-  it('merges a concave run into one valid convex brush', () => {
+  it('merges a concave run into one valid convex solid', () => {
     const runs = generatorRevolveRuns([
       { height: 0, radius: 0.5 },
       { height: 1, radius: 0.45 },

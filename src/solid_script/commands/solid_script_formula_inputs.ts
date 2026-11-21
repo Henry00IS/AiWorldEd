@@ -87,7 +87,7 @@ const SOLID_SCRIPT_FORMULA_ELEMENT_INPUTS: Readonly<
     in_box: { point: '[$Vertex.Position]' },
     near: { point: '[$Vertex.Position]' },
   },
-  Brush: { in_box: { point: '[$Brush.Center]' }, near: { point: '[$Brush.Center]' } },
+  Object: { in_box: { point: '[$Object.Center]' }, near: { point: '[$Object.Center]' } },
   Point: {
     facing: { normal: '[$Point.Normal]' },
     in_box: { point: '[$Point.Position]' },
@@ -126,7 +126,7 @@ export function solidScriptFormulaInputFallback(context: SolidScriptFormulaConte
 function solidScriptFormulaInputKind(type: SolidScriptFunctionKinds): SolidScriptFormulaInputKind {
   if (type === 'Any') return 'any';
   if (type.length === 1 && type[0] === 'Text') return 'text';
-  return type.includes('Vector') && !type.some((kind) => kind === 'Brush' || kind === 'List') ? 'vector' : 'any';
+  return type.includes('Vector') && !type.some((kind) => kind === 'Object' || kind === 'List') ? 'vector' : 'any';
 }
 
 /**

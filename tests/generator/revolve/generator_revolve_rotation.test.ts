@@ -36,7 +36,7 @@ function straightProfile(section: CurveSegmentSection, rotation: number, twist =
 }
 
 /**
- * Revolves a profile into convex brushes.
+ * Revolves a profile into convex solides.
  *
  * @param curve Profile.
  * @returns Brushes bottom to top, each checked for validity.

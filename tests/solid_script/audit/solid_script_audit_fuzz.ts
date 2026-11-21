@@ -159,7 +159,7 @@ export function solidScriptAuditFuzz(seed: number): SolidScriptLine[] {
   ]);
   return [
     line('cube', { into: 'B' }),
-    line('mesh_brushes', { into: 'M' }),
+    line('mesh_from_solids', { into: 'M' }),
     line('cube'),
     line('end'),
     line('select_faces', { which: 'All', of: '[M]', into: 'MF' }),

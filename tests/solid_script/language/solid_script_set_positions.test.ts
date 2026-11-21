@@ -33,7 +33,7 @@ function bounds(shapes: readonly SolidScriptShape[]): number[] {
 }
 
 describe('SolidScript Set Positions', () => {
-  it('moves the picked corners of a brush by a formula read once per corner', () => {
+  it('moves the picked corners of a solid by a formula read once per corner', () => {
     const result = run(
       BOX,
       line('select_vertices', { which: 'All', of: 'Box', where: '[=[$Vertex.Position.Y] > 0]' }),
@@ -58,7 +58,7 @@ describe('SolidScript Set Positions', () => {
 
   it('moves mesh points freely', () => {
     const result = run(
-      line('mesh_brushes', { label: 'Lump' }),
+      line('mesh_from_solids', { label: 'Lump' }),
       BOX,
       END,
       line('set_positions', { of: 'Lump', where: '[=[$X] > 0]', to: '[=[$Vertex.Position] + Vector(3, 0, 0)]' }),
@@ -67,10 +67,10 @@ describe('SolidScript Set Positions', () => {
     expect(bounds(result.shapes)).toEqual([-1, -1, -1, 4, 1, 1]);
   });
 
-  it('dents a brush without stopping, and stops when nothing is picked', () => {
+  it('dents a solid without stopping, and stops when nothing is picked', () => {
     const dent = run(BOX, line('set_positions', { of: 'Box', where: '[=[$Index] == 0]', to: '[=Vector(0, 0, 0)]' }));
     expect(dent.error).toBeNull();
-    expect(dent.warnings.map((warning) => warning.text).join()).toMatch(/1 brush is not convex/);
+    expect(dent.warnings.map((warning) => warning.text).join()).toMatch(/1 solid is not convex/);
     expect(run(BOX, line('set_positions', { to: '[=[$Vertex.Position]]' })).error?.message).toMatch(/Set Positions/);
   });
 });

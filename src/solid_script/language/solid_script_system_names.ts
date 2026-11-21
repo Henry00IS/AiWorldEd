@@ -32,7 +32,7 @@ export interface SolidScriptSystemFill {
  * only fill names listed here.
  */
 export const SOLID_SCRIPT_SYSTEM_FILLS = {
-  $Brush: { type: 'Brush', detail: 'the brush a line is testing or working on' },
+  $Object: { type: 'Object', detail: 'the solid a line is testing or working on' },
   $Face: { type: 'Face', detail: 'the face a line is testing or working on' },
   $Edge: { type: 'Edge', detail: 'the edge a line is testing or working on' },
   $Vertex: { type: 'Vertex', detail: 'the corner a line is testing or working on' },
@@ -45,7 +45,7 @@ export const SOLID_SCRIPT_SYSTEM_FILLS = {
   $NY: { type: 'Number', detail: 'short form of $Vertex.Normal.Y, or $Face.Normal.Y' },
   $NZ: { type: 'Number', detail: 'short form of $Vertex.Normal.Z, or $Face.Normal.Z' },
   $Count: { type: 'Number', detail: 'how many items the line works through' },
-  $Index: { type: 'Number', detail: 'the number of this brush, face, edge, vertex, point or list item, from 0' },
+  $Index: { type: 'Number', detail: 'the number of this solid, face, edge, vertex, point or list item, from 0' },
 } as const satisfies Record<SolidScriptSystemName, SolidScriptSystemFill>;
 
 /** A name a command may fill in, such as $NZ. */

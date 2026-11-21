@@ -31,7 +31,7 @@ export function solidScriptUvPolicyTextures(
 }
 
 /**
- * The texture policy of a solid: its own, or the one Input Brushes stored on a
+ * The texture policy of a solid: its own, or the one Input Objects stored on a
  * received brush.
  *
  * @param leaf Solid.

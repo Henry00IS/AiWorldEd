@@ -4,7 +4,7 @@ import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/
 
 const END: SolidScriptLine = { command: 'end' };
 const CUBE: SolidScriptLine = { command: 'cube', values: { size: '2, 2, 2', anchor: 'Center, Center, Center' } };
-const SELECT_BRUSHES: SolidScriptLine = { command: 'select_brushes' };
+const SELECT_BRUSHES: SolidScriptLine = { command: 'select_objects' };
 const SELECT_ALL: SolidScriptLine = { command: 'select_faces', values: { which: 'All' } };
 
 /**
@@ -49,7 +49,7 @@ describe('SolidScript Find On', () => {
     ).toEqual(['Yes [0, 1, 0] 2 [0, 1, 0]']);
     expect(
       printed(
-        { command: 'mesh_brushes' },
+        { command: 'mesh_from_solids' },
         CUBE,
         END,
         SELECT_BRUSHES,

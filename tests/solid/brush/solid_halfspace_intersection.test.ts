@@ -10,7 +10,7 @@ import { SolidHalfspaceIntersection } from '@/solid/brush/solid_halfspace_inters
 import { SolidPlane } from '@/solid/brush/solid_plane.js';
 import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 
-/** Half-space intersection of a convex brush. */
+/** Half-space intersection of a convex solid. */
 describe('SolidHalfspaceIntersection', () => {
   it('rebuilds a centered box from its own face planes', () => {
     const brush = SolidBrushFactory.createCenteredBox(1, 1, 1);

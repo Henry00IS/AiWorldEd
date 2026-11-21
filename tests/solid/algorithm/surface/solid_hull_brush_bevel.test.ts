@@ -63,7 +63,7 @@ function randomUnit(seed: number): () => number {
 }
 
 /**
- * Returns whether a point is inside or on a convex brush.
+ * Returns whether a point is inside or on a convex solid.
  *
  * @param brush Convex brush.
  * @param point Point.

@@ -47,7 +47,7 @@ describe('SolidScript per-element fields', () => {
     expect(solidScriptParameterEachKind(where, { which: 'All' })).toBe('Vertex');
     expect(solidScriptParameterEachKind(where, { which: 'Between' })).toBe('Vertex');
     expect(parameter('select_edges', 'where').each).toBe('Edge');
-    expect(parameter('select_brushes', 'where').each).toBe('Brush');
+    expect(parameter('select_objects', 'where').each).toBe('Object');
   });
 
   it('lists the current-element fills, including short forms, and recognises them for autocomplete', () => {

@@ -87,9 +87,9 @@ describe('SolidScript member suggestions', () => {
     expect(labels('[Heights.')).toEqual(['Heights.Count', 'Heights.First', 'Heights.Last']);
     expect(labels('[=[Heights.C')).toEqual(['Heights.Count']);
     expect(labels('[$Box.E')).toEqual(['$Box.Extents']);
-    expect(labels('[$Input.Br')).toEqual(['$Input.Brushes']);
+    expect(labels('[$Input.Ob')).toEqual(['$Input.Objects']);
     expect(labels('[$Selected.')).toEqual([
-      '$Selected.Brushes',
+      '$Selected.Objects',
       '$Selected.Faces',
       '$Selected.Edges',
       '$Selected.Vertices',
@@ -114,7 +114,7 @@ describe('SolidScript member suggestions', () => {
       '$Selected.Faces.Center',
       '$Selected.Faces.Centers',
     ]);
-    expect(labels('[$Input.Brushes(0).Faces(1).Normal.')).toEqual(vector('$Input.Brushes(0).Faces(1).Normal'));
+    expect(labels('[$Input.Objects(0).Faces(1).Normal.')).toEqual(vector('$Input.Objects(0).Faces(1).Normal'));
     expect(labels('[$Selected.Edges.First.Parent.N')).toEqual(['$Selected.Edges.First.Parent.Name']);
     // A number has no parts.
     expect(labels('[$Selected.Faces.Count.')).toEqual([]);
@@ -290,7 +290,7 @@ describe('SolidScript suggestions', () => {
   });
 
   it('lists This Command element names first on a per-element field, then variables, Inputs and System', () => {
-    const scope: SolidScriptSuggestionScope = { ...SCOPE, extra: ['$Brush', '$Index'] };
+    const scope: SolidScriptSuggestionScope = { ...SCOPE, extra: ['$Object', '$Index'] };
     const all = solidScriptSuggestions(at('[|'), scope);
     const categories = [...new Set(all.map((entry) => entry.category))];
     expect(categories).toEqual([
@@ -303,16 +303,16 @@ describe('SolidScript suggestions', () => {
       'Built-In Functions',
     ]);
     expect(all.filter((entry) => entry.category === 'This Command').map((entry) => entry.label)).toEqual([
-      '$Brush',
+      '$Object',
       '$Index',
     ]);
   });
 
   it('lists current-element names before other This Command fills, and This Command before System on a usual field', () => {
-    const eachFirst = solidScriptSuggestions(at('[|'), { ...SCOPE, extra: ['$Box', '$Brush'] }).filter(
+    const eachFirst = solidScriptSuggestions(at('[|'), { ...SCOPE, extra: ['$Box', '$Object'] }).filter(
       (entry) => entry.category === 'This Command',
     );
-    expect(eachFirst.map((entry) => entry.label)).toEqual(['$Brush', '$Box']);
+    expect(eachFirst.map((entry) => entry.label)).toEqual(['$Object', '$Box']);
     const usual = [
       ...new Set(solidScriptSuggestions(at('[|'), { ...SCOPE, extra: ['$Box'] }).map((entry) => entry.category)),
     ];
@@ -367,7 +367,7 @@ describe('SolidScript suggestions follow the kinds a name may hold where the lin
     const detail = (position: number) =>
       shownAt(HENRY, position, '[Hen').find((entry) => entry.label === 'Henry')?.detail;
     expect(detail(1)).toMatch(/^Text\b/);
-    expect(detail(3)).toMatch(/^Brush\b/);
+    expect(detail(3)).toMatch(/^Solid\b/);
   });
 
   it('offers the members of every kind a name may hold after an If', () => {
@@ -380,7 +380,7 @@ describe('SolidScript suggestions follow the kinds a name may hold where the lin
     const shown = shownAt(document, 4, '[Henry.');
     expect(shown.map((entry) => entry.label)).toEqual(expect.arrayContaining(['Henry.Words', 'Henry.Faces']));
     expect(shownAt(document, 4, '[Hen').find((entry) => entry.label === 'Henry')?.detail).toBe(
-      'Text: Set to Henry (line 1). Brush: What is made of **Cube** (line 3).',
+      'Text: Set to Henry (line 1). Solid: What is made of **Cube** (line 3).',
     );
   });
 
@@ -397,6 +397,6 @@ describe('SolidScript suggestions follow the kinds a name may hold where the lin
 
   it('shows the kind in the Variables tab before running', () => {
     const entry = solidScriptExplorerEntries(HENRY, [], []).find((known) => known.name === 'Henry');
-    expect(entry?.type).toBe('Brush');
+    expect(entry?.type).toBe('Solid');
   });
 });

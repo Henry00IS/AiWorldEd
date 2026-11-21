@@ -45,7 +45,7 @@ const SOLID_SCRIPT_NAME_PART = /^[A-Za-z_]\w*\s*(\(.*\))?$/s;
 const SOLID_SCRIPT_NAME_OWN = /^(local\.|persistent\.)?[A-Za-z_]\w*\s*(\(.*\))?(\.[xyzXYZ])?$/is;
 
 /** The [$Selected.*] lists, the only system values a line may set. */
-const SOLID_SCRIPT_NAME_SELECTED = /^\$selected\.(brushes|faces|edges|vertices)$/i;
+const SOLID_SCRIPT_NAME_SELECTED = /^\$selected\.(objects|faces|edges|vertices)$/i;
 
 /**
  * Splits a name at its dots outside brackets.
@@ -109,7 +109,7 @@ export function solidScriptNameDotProblem(name: string, use: 'read' | 'set'): st
     return '';
   if (parts.length >= 2 && parts[last]?.toLowerCase() === 'data')
     return `${text} needs a key to set, such as ${text}.Height; a line sets a value under .Data, not .Data itself`;
-  return `${text} can only be read; a line sets whole names, .X, .Y and .Z of a vector, Vertex.Position, Face.UVs, Brush.Mode, or a value under .Data such as Face.Data.Height or Brush.Edges.Data.Kind`;
+  return `${text} can only be read; a line sets whole names, .X, .Y and .Z of a vector, Vertex.Position, Face.UVs, Solid.Mode, or a value under .Data such as Face.Data.Height or Solid.Edges.Data.Kind`;
 }
 
 /**
@@ -175,7 +175,7 @@ export function solidScriptNameIsPositionWrite(name: string): boolean {
 
 /**
  * Tells whether a name sets a brush Mode, such as Brush.Mode, Brushes.Modes or
- * [$Selected.Brushes.Modes].
+ * [$Selected.Objects.Modes].
  *
  * @param name Name as written, without brackets.
  * @returns True for such a name.
