@@ -117,7 +117,7 @@ export class SolidScriptEditorSession {
   commit(document: SolidScriptDocument): boolean {
     const before = this.document();
     if (!this.store(document)) return false;
-    SolidScriptEditorHistory.of(this.node, this.stepId).record(before, this.document());
+    SolidScriptEditorHistory.of(this.node, this.stepId, this.commandStack).record(before, this.document());
     return true;
   }
 
@@ -127,7 +127,7 @@ export class SolidScriptEditorSession {
    * @returns False when there was nothing to undo.
    */
   undo(): boolean {
-    const document = SolidScriptEditorHistory.of(this.node, this.stepId).undo(this.document());
+    const document = SolidScriptEditorHistory.of(this.node, this.stepId, this.commandStack).undo(this.document());
     if (document) this.store(document);
     return document !== null;
   }
@@ -138,7 +138,7 @@ export class SolidScriptEditorSession {
    * @returns False when there was nothing to redo.
    */
   redo(): boolean {
-    const document = SolidScriptEditorHistory.of(this.node, this.stepId).redo(this.document());
+    const document = SolidScriptEditorHistory.of(this.node, this.stepId, this.commandStack).redo(this.document());
     if (document) this.store(document);
     return document !== null;
   }

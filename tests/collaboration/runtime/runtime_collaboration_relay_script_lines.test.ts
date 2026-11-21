@@ -129,16 +129,16 @@ describe('SolidScript lines over relay', { timeout: 60000 }, () => {
     await harnessCollaborationUntil(() => lines(peer) === lines(owner), 5000, 'same line');
     expect(['0.7', '0.9']).toContain((JSON.parse(lines(owner)) as [string, Record<string, string>][])[1]![1]['r']);
 
-    // Undo on the owner reverts the owner's last line only.
+    // Undo in the owner's script editor reverts the owner's last line only.
     const before = JSON.parse(lines(peer)) as [string, Record<string, string>, boolean][];
-    owner.commandStack.undo();
+    session(owner).undo();
     owner.commit();
     await harnessCollaborationUntil(
       () => lines(peer) === lines(owner) && lines(owner) !== JSON.stringify(before),
       5000,
       'undone',
     );
-    owner.commandStack.undo();
+    session(owner).undo();
     owner.commit();
     await harnessCollaborationUntil(
       () => lines(peer) === lines(owner) && JSON.parse(lines(owner))[0][1]['size'] === '1, 1, 1',

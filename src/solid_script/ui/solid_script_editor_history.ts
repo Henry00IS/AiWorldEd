@@ -11,11 +11,15 @@ interface SolidScriptEditorHistoryStep {
   after: SolidScriptDocument;
 }
 
+/** Owner of the histories of sessions without a level undo stack. */
+const SOLID_SCRIPT_EDITOR_HISTORY_DETACHED = {};
+
 /**
- * Histories by generator node id, then by modifier id. The id outlives the node
- * object, so a level undo that brings the generator back keeps them.
+ * Histories by owner (the user's level undo stack), then by generator node id,
+ * then by modifier id. The id outlives the node object, so a level undo that
+ * brings the generator back keeps them; each user only steps their own edits.
  */
-const solidScriptEditorHistories = new Map<string, Map<string, SolidScriptEditorHistory>>();
+const solidScriptEditorHistories = new WeakMap<object, Map<string, Map<string, SolidScriptEditorHistory>>>();
 
 /**
  * Undo and redo of one generator's script, apart from the level's undo history,
@@ -32,13 +36,20 @@ export class SolidScriptEditorHistory {
    *
    * @param node Generator node.
    * @param stepId Modifier id of the script.
+   * @param owner The user's level undo stack, or null outside a level.
    * @returns History.
    */
-  static of(node: Object3D, stepId: string): SolidScriptEditorHistory {
-    let byStep = solidScriptEditorHistories.get(node.uuid);
+  static of(node: Object3D, stepId: string, owner: object | null): SolidScriptEditorHistory {
+    const key = owner ?? SOLID_SCRIPT_EDITOR_HISTORY_DETACHED;
+    let byNode = solidScriptEditorHistories.get(key);
+    if (!byNode) {
+      byNode = new Map();
+      solidScriptEditorHistories.set(key, byNode);
+    }
+    let byStep = byNode.get(node.uuid);
     if (!byStep) {
       byStep = new Map();
-      solidScriptEditorHistories.set(node.uuid, byStep);
+      byNode.set(node.uuid, byStep);
     }
     let history = byStep.get(stepId);
     if (!history) {
