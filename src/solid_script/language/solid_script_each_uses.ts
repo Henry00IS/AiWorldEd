@@ -14,7 +14,7 @@ const SOLID_SCRIPT_EACH_USES_LIMIT = 4096;
 /**
  * Lists the per-item values a field text mentions, such as $index for
  * [=[$Index] * 2] or $vertex for [$Vertex.Position.Y], each folded and once.
- * Words in quotes and plain text never count.
+ * Plain text never counts.
  *
  * @param text Field text.
  * @returns Folded official names.
@@ -33,4 +33,15 @@ export function solidScriptEachUses(text: string): ReadonlySet<string> {
   if (SOLID_SCRIPT_EACH_USES.size >= SOLID_SCRIPT_EACH_USES_LIMIT) SOLID_SCRIPT_EACH_USES.clear();
   SOLID_SCRIPT_EACH_USES.set(text, uses);
   return uses;
+}
+
+/**
+ * Tells whether a field text reads a per-item value, so it is worked out per
+ * item; [=[Height] * 2] is worked out once.
+ *
+ * @param text Field text.
+ * @returns Yes when the text mentions a per-item value.
+ */
+export function solidScriptEachUsed(text: string): boolean {
+  return solidScriptEachUses(text).size > 0;
 }

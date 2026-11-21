@@ -12,6 +12,7 @@ import {
 import {
   solidScriptCommandFieldFills,
   solidScriptParameterEachActive,
+  solidScriptParameterEachKind,
 } from '@/solid_script/commands/solid_script_command_each.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import {
@@ -258,7 +259,7 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
     values: SolidScriptCommandValues,
     stored: string,
   ): SolidScriptFormulaContext {
-    const each = solidScriptParameterEachActive(parameter, values);
+    const each = solidScriptParameterEachKind(parameter, values);
     const words = parameter.anchor
       ? solidScriptAnchorAxisWords(parameter.anchor)
       : parameter.writes

@@ -1,3 +1,4 @@
+import { solidScriptEachUsed } from './solid_script_each_uses.js';
 import { solidScriptShapesNotConvex } from './solid_script_solid_validate.js';
 import {
   SOLID_SCRIPT_USE_GENERATOR,
@@ -848,6 +849,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       .filter((field) => !solidScriptFieldAsTyped(field))
       .map((field) => field.key);
     const value = (key: string): SolidScriptValue => state.machine.fieldValue(fields, node, key, state.scope);
+    /** Fields that read no per-item value, worked out once for all items. */
+    const once = new Map<string, SolidScriptValue>();
     const modeOf = (): Readonly<Record<string, string>> => {
       if (!node.command.parameters.some((field) => field.key === 'mode')) return node.values;
       const stored = (node.values['mode'] ?? '').trim();
@@ -1137,6 +1140,10 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         ]);
       },
       valueWith: (key, variables) => {
+        if (!solidScriptEachUsed(solidScriptLineFieldOf(fields, node, key).text)) {
+          if (!once.has(key)) once.set(key, value(key));
+          return once.get(key) as SolidScriptValue;
+        }
         const inner = new SolidScriptScope(state.scope);
         for (const [name, assigned] of Object.entries(variables))
           inner.variableDefine(state.machine.nameKey(name), assigned);

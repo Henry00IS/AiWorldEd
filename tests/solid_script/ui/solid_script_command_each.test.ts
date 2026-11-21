@@ -3,7 +3,7 @@ import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_com
 import {
   SOLID_SCRIPT_COMMAND_EACH_ICON,
   solidScriptCommandEachFills,
-  solidScriptParameterEachActive,
+  solidScriptParameterEachKind,
   solidScriptParameterEachFills,
   solidScriptSystemFillEach,
 } from '@/solid_script/commands/solid_script_command_each.js';
@@ -34,18 +34,18 @@ describe('SolidScript per-element fields', () => {
   it('declares Where of Select Faces as per face for every Which', () => {
     const where = parameter('select_faces', 'where');
     expect(where.each).toBe('Face');
-    expect(solidScriptParameterEachActive(where, { which: 'All' })).toBe('Face');
-    expect(solidScriptParameterEachActive(where, { which: 'Facing Up' })).toBe('Face');
-    expect(solidScriptParameterEachActive(where, { which: 'Between' })).toBe('Face');
+    expect(solidScriptParameterEachKind(where, { which: 'All' })).toBe('Face');
+    expect(solidScriptParameterEachKind(where, { which: 'Facing Up' })).toBe('Face');
+    expect(solidScriptParameterEachKind(where, { which: 'Between' })).toBe('Face');
   });
 
   it('declares Distance of Displace as per vertex, and Where of Select Vertices and Select Edges as per item', () => {
     expect(parameter('displace', 'distance').each).toBe('Vertex');
-    expect(solidScriptParameterEachActive(parameter('displace', 'distance'), {})).toBe('Vertex');
+    expect(solidScriptParameterEachKind(parameter('displace', 'distance'), {})).toBe('Vertex');
     const where = parameter('select_vertices', 'where');
     expect(where.each).toBe('Vertex');
-    expect(solidScriptParameterEachActive(where, { which: 'All' })).toBe('Vertex');
-    expect(solidScriptParameterEachActive(where, { which: 'Between' })).toBe('Vertex');
+    expect(solidScriptParameterEachKind(where, { which: 'All' })).toBe('Vertex');
+    expect(solidScriptParameterEachKind(where, { which: 'Between' })).toBe('Vertex');
     expect(parameter('select_edges', 'where').each).toBe('Edge');
     expect(parameter('select_brushes', 'where').each).toBe('Brush');
   });
@@ -92,9 +92,9 @@ describe('SolidScript per-element fields', () => {
   it('marks Value of Set as per vertex only when Variable is a Position write', () => {
     const value = parameter('variable', 'value');
     expect(value.each).toBe('Vertex');
-    expect(solidScriptParameterEachActive(value, { name: '$Selected.Vertices.Positions' })).toBe('Vertex');
-    expect(solidScriptParameterEachActive(value, { name: 'Vertex.Position' })).toBe('Vertex');
-    expect(solidScriptParameterEachActive(value, { name: 'Width' })).toBeUndefined();
+    expect(solidScriptParameterEachKind(value, { name: '$Selected.Vertices.Positions' })).toBe('Vertex');
+    expect(solidScriptParameterEachKind(value, { name: 'Vertex.Position' })).toBe('Vertex');
+    expect(solidScriptParameterEachKind(value, { name: 'Width' })).toBeUndefined();
     const command = solidScriptCommandFind('variable');
     if (!command) throw new Error('Set is missing');
     const listed = command.listing({ name: '$Selected.Vertices.Positions', value: '[=[$Vertex.Position]]' });
@@ -109,7 +109,7 @@ describe('SolidScript per-element fields', () => {
   it('declares Where of Filter List as per item, with $Item and $Index', () => {
     const where = parameter('filter_list', 'where');
     expect(where.each).toBe('Item');
-    expect(solidScriptParameterEachActive(where, {})).toBe('Item');
+    expect(solidScriptParameterEachKind(where, {})).toBe('Item');
     expect(solidScriptParameterEachFills('Item')).toEqual(['$Item', '$Index', '$Count', '$X', '$Y', '$Z']);
     const command = solidScriptCommandFind('filter_list');
     if (!command) throw new Error('Filter List is missing');

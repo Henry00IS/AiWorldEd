@@ -1,5 +1,6 @@
 import type { SolidScriptCommandParameter } from './solid_script_command.js';
 import { solidScriptNameIsPositionWrite } from '@/solid_script/language/solid_script_name_rules.js';
+import { solidScriptEachUsed } from '@/solid_script/language/solid_script_each_uses.js';
 import {
   solidScriptSystemFill,
   type SolidScriptSystemFillName,
@@ -98,15 +99,16 @@ const SOLID_SCRIPT_COMMAND_EACH_FILL_KEYS: ReadonlySet<string> = new Set(
 );
 
 /**
- * Tells whether a field is worked out once per element for the line's current
- * values, such as Detail of Select Faces when Which is Where.
+ * Tells which items a field may be worked out for with the line's current
+ * values, such as Value of Set when Variable is a Position write, so the field
+ * offers [$Vertex] and the other per-item values.
  *
  * @param parameter Field.
  * @param values Stored values of the line.
- * @returns The element kind, or undefined when the field is not per-element
+ * @returns The item kind, or undefined when the field cannot change per item
  *   now.
  */
-export function solidScriptParameterEachActive(
+export function solidScriptParameterEachKind(
   parameter: SolidScriptCommandParameter,
   values: Readonly<Record<string, string>>,
 ): SolidScriptCommandEach | undefined {
@@ -116,6 +118,23 @@ export function solidScriptParameterEachActive(
   const held = values[when.field] ?? '';
   if (when.position && solidScriptNameIsPositionWrite(held)) return parameter.each;
   return when.words?.some((word) => word.toLowerCase() === held.trim().toLowerCase()) ? parameter.each : undefined;
+}
+
+/**
+ * Tells whether a field is worked out once per item: it may change per item and
+ * its text reads a per-item value, such as [=[$Y] * 0.1] in Distance of
+ * Displace. Such a field gets the 🔁 marker.
+ *
+ * @param parameter Field.
+ * @param values Stored values of the line.
+ * @returns The item kind, or undefined when the field is worked out once.
+ */
+export function solidScriptParameterEachActive(
+  parameter: SolidScriptCommandParameter,
+  values: Readonly<Record<string, string>>,
+): SolidScriptCommandEach | undefined {
+  const each = solidScriptParameterEachKind(parameter, values);
+  return each && solidScriptEachUsed(values[parameter.key] ?? '') ? each : undefined;
 }
 
 /**
@@ -156,15 +175,15 @@ export function solidScriptCommandEachFills(
   values: Readonly<Record<string, string>>,
 ): readonly string[] {
   const extra = command.parameters.flatMap((parameter) => {
-    const each = solidScriptParameterEachActive(parameter, values);
+    const each = solidScriptParameterEachKind(parameter, values);
     return each ? [...solidScriptParameterEachFills(each)] : [];
   });
   return [...new Set([...command.fills, ...extra])];
 }
 
 /**
- * Lists the fills one field may use. Per-element names such as $Brush and
- * $Index are only included while that field is worked out once per element.
+ * Lists the fills one field may use. Per-item names such as $Brush and $Index
+ * are only included while that field can change per item.
  *
  * @param command Command of the line.
  * @param parameter Field.
@@ -176,7 +195,7 @@ export function solidScriptCommandFieldFills(
   parameter: SolidScriptCommandParameter,
   values: Readonly<Record<string, string>>,
 ): readonly string[] {
-  const each = solidScriptParameterEachActive(parameter, values);
+  const each = solidScriptParameterEachKind(parameter, values);
   const eachFills = each ? [...solidScriptParameterEachFills(each)] : [];
   const shared = command.fills.filter((name) => !solidScriptSystemFillEach(name));
   return [...new Set([...shared, ...eachFills])];

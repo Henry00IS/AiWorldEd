@@ -196,7 +196,8 @@ export interface SolidScriptBlockRun {
   mesh(mesh: SolidScriptShapeMesh): SolidScriptShapeMesh[];
   /**
    * Evaluates a field with extra variables, such as the point a Displace is
-   * moving.
+   * moving. A field that reads no per-item value is worked out once and its
+   * value reused for every item.
    */
   valueWith(key: string, variables: Readonly<Record<string, SolidScriptValue>>): SolidScriptValue;
   /**
