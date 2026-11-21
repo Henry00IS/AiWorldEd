@@ -898,9 +898,14 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       if (texture === '') return run.placed(shapes);
       return run.placed(
         shapes.map((shape) =>
-          solidScriptShapeMapLeaves(shape, (leaf) =>
-            (leaf.kind === 'solid' || leaf.kind === 'mesh') && leaf.texture === undefined ? { ...leaf, texture } : leaf,
-          ),
+          solidScriptShapeMapLeaves(shape, (leaf) => {
+            if (leaf.kind !== 'solid' && leaf.kind !== 'mesh') return leaf;
+            const latest = run.leafLatest(leaf);
+            if (latest.texture !== undefined) return latest;
+            const painted = { ...latest, texture };
+            run.leafReplace(latest, painted);
+            return painted;
+          }),
         ),
       );
     },

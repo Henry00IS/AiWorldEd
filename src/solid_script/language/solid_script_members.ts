@@ -100,6 +100,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     Extents: form('Extents', 'Vector'),
     Mode: form('Modes', 'Text'),
     Islands: form('Islands', 'List'),
+    Textures: form('Textures', 'Text List'),
     Data: form('Data', 'Data'),
   },
   Face: {
@@ -115,6 +116,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     Neighbors: form('Neighbors', 'Face List'),
     Parent: form('Parents', 'Object'),
     UVs: form('UVs', 'Vector List'),
+    Texture: form('Textures', 'Text'),
     Data: form('Data', 'Data'),
   },
   Edge: {
@@ -496,6 +498,8 @@ function solidScriptMemberElement(
   switch (element.kind) {
     case 'brush':
       if (member === 'name') return leaf.label;
+      if (member === 'textures')
+        return [...new Set(elements.faces(element).map(solidScriptMemberTexture))].filter((name) => name !== '');
       if (member === 'mode') return elements.modeEffective(leaf);
       if (member === 'faces') return faceList(elements.faces(element));
       if (member === 'edges') return edgeList();
@@ -582,6 +586,26 @@ function solidScriptMemberEdgeSigned(edges: readonly SolidScriptEdgeFacts[]): nu
 }
 
 /**
+ * Texture the face will be painted with: the last Texture Faces on its plane
+ * wins over its object's Texture; empty means the generator's texture. The
+ * plane test matches the one used when the output paints faces.
+ *
+ * @param face Face to read.
+ * @returns Library texture name, or empty for the generator's texture.
+ */
+function solidScriptMemberTexture(face: SolidScriptFaceFacts): string {
+  const painted = face.leaf.kind === 'solid' ? (face.leaf.faceTextures ?? []) : [];
+  const own = [...painted]
+    .reverse()
+    .find(
+      (texture) =>
+        texture.normal.dot(face.normal) >= 0.99 &&
+        Math.abs(texture.point.clone().sub(face.center).dot(face.normal)) <= 1e-3,
+    );
+  return own?.texture ?? face.leaf.texture ?? '';
+}
+
+/**
  * Splits the faces of a brush or mesh into islands: groups joined through
  * shared edges, in the order their first face was built.
  *
@@ -633,6 +657,8 @@ function solidScriptMemberFace(
   const first = pieces[0]!;
   const area = pieces.reduce((sum, face) => sum + face.area, 0);
   switch (member) {
+    case 'texture':
+      return solidScriptMemberTexture(first);
     case 'center': {
       const center = new THREE.Vector3();
       for (const face of pieces) center.addScaledVector(face.center, area > 0 ? face.area / area : 1 / pieces.length);

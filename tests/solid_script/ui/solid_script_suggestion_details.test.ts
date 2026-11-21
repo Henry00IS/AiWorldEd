@@ -55,6 +55,7 @@ describe('SolidScript suggestion details', () => {
       'Extents',
       'Mode',
       'Islands',
+      'Textures',
       'Data',
     ]);
     expect(brush).toEqual(solidScriptMemberNames('Object'));

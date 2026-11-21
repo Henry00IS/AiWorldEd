@@ -107,6 +107,7 @@ describe('SolidScript member suggestions', () => {
       '$Selected.Faces.First.Neighbors',
       '$Selected.Faces.First.Parent',
       '$Selected.Faces.First.UVs',
+      '$Selected.Faces.First.Texture',
       '$Selected.Faces.First.Data',
     ]);
     expect(labels('[$Selected.Faces.C')).toEqual([
