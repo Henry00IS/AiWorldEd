@@ -71,6 +71,15 @@ export const SOLID_SCRIPT_FUNCTIONS_WHERE = {
       probability
     );
   },
+  random_int: (args) => {
+    const usage = 'RandomInt(min, max, id, seed)';
+    const ends = [solidScriptExtraNumber(args, 0, usage), solidScriptExtraNumber(args, 1, usage)].map(Math.round);
+    const low = Math.min(...ends);
+    const span = Math.max(...ends) - low + 1;
+    const id = solidScriptWhereOptional(args, 2, usage);
+    const pick = Math.floor(solidScriptWhereRandom(id, solidScriptWhereOptional(args, 3, usage)) * span);
+    return low + Math.min(span - 1, pick);
+  },
   spread: (args) => {
     const usage = 'Spread(from, to, index, count)';
     if (args.length < 4) throw new Error(`${usage} needs an Index and a Count outside a field that changes per item`);

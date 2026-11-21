@@ -68,6 +68,11 @@ export interface SolidScriptFunctionDoc {
    */
   checks?: readonly SolidScriptKindName[];
   /**
+   * For math that works per axis, such as Abs or Min: numbers give a number and
+   * a vector gives a vector, so the editor checks narrow Gives by the inputs.
+   */
+  perAxis?: true;
+  /**
    * Group in the reference and the category of its block in the formula editor;
    * Functions holds what fits no other.
    */
@@ -574,6 +579,63 @@ const VECTORS_START = {
 } as const;
 
 /** Inputs whose meaning differs in one function, by function, then name. */
+/** A number, or a vector a math function works on per axis. */
+const PER_AXIS = { type: ['Number', 'Vector'], about: 'A number, or a vector to work on per axis.' } as const;
+
+/**
+ * Inputs of the math functions that work per axis: each takes a vector as well
+ * as a number, under the name its usage writes.
+ */
+const PER_AXIS_INPUTS = {
+  sin: { degrees: { ...PER_AXIS, start: '45' } },
+  cos: { degrees: { ...PER_AXIS, start: '45' } },
+  tan: { degrees: { ...PER_AXIS, start: '45' } },
+  asin: { value: { ...PER_AXIS, about: 'A sine, from -1 to 1, or a vector of them.', start: '0.5' } },
+  acos: { value: { ...PER_AXIS, about: 'A cosine, from -1 to 1, or a vector of them.', start: '0.5' } },
+  atan: { value: { ...PER_AXIS, about: 'A tangent, or a vector of them.', start: '1' } },
+  abs: { number: PER_AXIS },
+  sign: { number: PER_AXIS },
+  ceil: { number: PER_AXIS },
+  floor: { number: PER_AXIS },
+  round: { number: PER_AXIS },
+  fract: { number: PER_AXIS },
+  sqrt: { number: PER_AXIS },
+  exp: { number: PER_AXIS },
+  ln: { number: PER_AXIS },
+  log: { number: PER_AXIS },
+  pow: { number: PER_AXIS, power: { ...PER_AXIS, about: 'The power, or one per axis.', start: '2' } },
+  snap: { value: PER_AXIS, step: { ...PER_AXIS, about: 'Step size, such as 0.25, or one per axis.', start: '0.25' } },
+  wrap: {
+    value: PER_AXIS,
+    min: { ...PER_AXIS, about: 'Start of the range, or one per axis.', start: '0' },
+    max: { ...PER_AXIS, about: 'End of the range, or one per axis.', start: '360' },
+  },
+  mod: {
+    a: { ...PER_AXIS, about: 'The number or vector to divide.', start: '10' },
+    b: { ...PER_AXIS, about: 'What to divide by, or one per axis.', start: '3' },
+  },
+  min: {
+    a: { type: ['Number', 'Vector', 'List'], about: 'A number or vector, or one list of numbers.', start: '0' },
+    b: { ...PER_AXIS, about: 'Another number, or another vector for the lowest per axis.' },
+    '...': { ...PER_AXIS, about: 'More numbers or vectors.' },
+  },
+  max: {
+    a: { type: ['Number', 'Vector', 'List'], about: 'A number or vector, or one list of numbers.', start: '0' },
+    b: { ...PER_AXIS, about: 'Another number, or another vector for the highest per axis.' },
+    '...': { ...PER_AXIS, about: 'More numbers or vectors.' },
+  },
+  equal: {
+    a: { type: ['Number', 'Vector', 'Text'], about: 'The first value.', start: '1' },
+    b: { type: ['Number', 'Vector', 'Text'], about: 'The second value.', start: '1.0005' },
+    tolerance: {
+      type: ['Number'],
+      about: 'How far apart two numbers may be and still match.',
+      default: '0.001',
+      start: '0.001',
+    },
+  },
+} as const;
+
 const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
   Record<string, Readonly<Record<string, Omit<SolidScriptFunctionArgument, 'name'>>>>
 > = {
@@ -589,31 +651,14 @@ const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
       start: '1',
     },
   },
-  asin: { value: { type: ['Number'], about: 'A sine, from -1 to 1.', start: '0.5' } },
-  acos: { value: { type: ['Number'], about: 'A cosine, from -1 to 1.', start: '0.5' } },
-  atan: { value: { type: ['Number'], about: 'A tangent.', start: '1' } },
   atan2: {
     y: { type: ['Number'], about: 'Y of the point.', start: '1' },
     x: { type: ['Number'], about: 'X of the point.', start: '1' },
-  },
-  min: {
-    a: { type: ['Number', 'List'], about: 'A number, or one list of numbers.', start: '0' },
-    b: { type: ['Number'], about: 'Another number.' },
-    '...': { type: ['Number'], about: 'More numbers.' },
-  },
-  max: {
-    a: { type: ['Number', 'List'], about: 'A number, or one list of numbers.', start: '0' },
-    b: { type: ['Number'], about: 'Another number.' },
-    '...': { type: ['Number'], about: 'More numbers.' },
   },
   hypot: {
     a: { type: ['Number'], about: 'One side.', start: '3' },
     b: { type: ['Number'], about: 'Another side.', start: '4' },
     '...': { type: ['Number'], about: 'More sides.' },
-  },
-  mod: {
-    a: { type: ['Number'], about: 'The number to divide.', start: '10' },
-    b: { type: ['Number'], about: 'What to divide by.', start: '3' },
   },
   dot: VECTORS_START,
   cross: VECTORS_START,
@@ -665,6 +710,7 @@ const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
   time_text: { pattern: { type: ['Text'], about: 'Layout with YYYY, MM, DD, HH, mm and ss, such as "HH:mm".' } },
   slice: { start: { type: ['Number'], about: 'Position of the first item, from 0.', start: '0' } },
   replace_pattern: { with: { type: ['Text'], about: 'Text to put in instead of every match.' } },
+  ...PER_AXIS_INPUTS,
   ...SOLID_SCRIPT_WHERE_HELPER_ARGUMENTS,
   ...SOLID_SCRIPT_KIND_CHECK_ARGUMENTS,
 };

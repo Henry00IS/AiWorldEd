@@ -304,6 +304,24 @@ function solidScriptFlowArithmetic(left: readonly string[], right: readonly stri
 }
 
 /**
+ * Tells what math that works per axis gives: a number unless an input may be a
+ * vector or a list of numbers, which it then gives; Min or Max of one list
+ * gives a number. An input whose kind is not known yet counts as a number.
+ *
+ * @param key Function key, such as abs.
+ * @param values Kinds of the values passed.
+ * @returns Kinds.
+ */
+function solidScriptFlowPerAxisKinds(key: string | undefined, values: readonly string[][]): string[] {
+  if ((key === 'min' || key === 'max') && values.length === 1) return ['Number'];
+  const listed = values.map((value) => value.filter((kind) => kind === 'Vector' || kind === 'Number List'));
+  const lists = solidScriptFlowUnique(listed.flat());
+  if (lists.length === 0) return ['Number'];
+  const always = values.some((value, index) => value.length > 0 && listed[index]?.length === value.length);
+  return always ? lists : ['Number', ...lists];
+}
+
+/**
  * Tells what a call in a formula gives: a built-in function what it declares, a
  * Function of the script what its Return lines give for these kinds.
  *
@@ -314,7 +332,9 @@ function solidScriptFlowArithmetic(left: readonly string[], right: readonly stri
  */
 function solidScriptFlowCallKinds(name: string, values: readonly string[][], head: SolidScriptFlowHead): string[] {
   const builtin = solidScriptBuiltinFind(name);
-  const gives = builtin === undefined ? undefined : SOLID_SCRIPT_FUNCTION_DOCS[builtin]?.gives;
+  const doc = builtin === undefined ? undefined : SOLID_SCRIPT_FUNCTION_DOCS[builtin];
+  if (doc?.perAxis) return solidScriptFlowPerAxisKinds(builtin, values);
+  const gives = doc?.gives;
   if (gives !== undefined) return gives === 'Any' ? [SOLID_SCRIPT_FLOW_UNKNOWN] : [...gives];
   const own = head.call?.(name, values);
   return own === undefined ? [SOLID_SCRIPT_FLOW_UNKNOWN] : [...own];

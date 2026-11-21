@@ -1109,11 +1109,11 @@ describe('SolidScript editor', () => {
     where.focus();
     type(where, '[=Max(2, ');
     const hint = find('.solid-script-editor-suggestion-signature');
-    expect(hint.querySelector('strong')?.textContent).toBe('B: Number');
+    expect(hint.querySelector('strong')?.textContent).toBe('B: Number or Vector');
     expect(hint.textContent).toBe(
-      'Max(A: Number or List, B: Number, ...: Number) -> Number' +
-        'B: Number. Another number.' +
-        'Picks the biggest number from the values you give, or from one list.',
+      'Max(A: Number or Vector or List, B: Number or Vector, ...: Number or Vector) -> Number or Vector' +
+        'B: Number or Vector. Another number, or another vector for the highest per axis.' +
+        'Picks the biggest number from the values you give, or from one list. Two or more vectors give the highest on each axis.',
     );
     expect(options()).toContain('$Box.Width');
     const how = find<HTMLInputElement>('[data-solid-script-configurator="select_faces"] input[aria-label="How"]');

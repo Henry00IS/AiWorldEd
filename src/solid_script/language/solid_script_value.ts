@@ -199,17 +199,35 @@ export function solidScriptValueNumbers(value: SolidScriptValue): number[] | und
 }
 
 /**
- * Compares two values structurally.
+ * How far apart two numbers may be and still count as equal, so 0.1 + 0.2 ==
+ * 0.3.
+ */
+export const SOLID_SCRIPT_EQUAL_TOLERANCE = 0.001;
+
+/**
+ * Compares two values structurally; numbers count as equal when they are at
+ * most the tolerance apart.
  *
  * @param left First value.
  * @param right Second value.
+ * @param tolerance Largest gap between two equal numbers.
  * @returns True when equal.
  */
-export function solidScriptValueEquals(left: SolidScriptValue, right: SolidScriptValue): boolean {
+export function solidScriptValueEquals(
+  left: SolidScriptValue,
+  right: SolidScriptValue,
+  tolerance = SOLID_SCRIPT_EQUAL_TOLERANCE,
+): boolean {
   if (Array.isArray(left) && Array.isArray(right)) {
-    return left.length === right.length && left.every((entry, index) => solidScriptValueEquals(entry, right[index]));
+    return (
+      left.length === right.length &&
+      left.every((entry, index) => solidScriptValueEquals(entry, right[index], tolerance))
+    );
   }
-  return solidScriptValueNumeric(left) === solidScriptValueNumeric(right);
+  const a = solidScriptValueNumeric(left);
+  const b = solidScriptValueNumeric(right);
+  if (typeof a === 'number' && typeof b === 'number') return a === b || Math.abs(a - b) <= tolerance;
+  return a === b;
 }
 
 /**

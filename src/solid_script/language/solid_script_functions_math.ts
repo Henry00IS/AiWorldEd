@@ -1,5 +1,12 @@
 import { solidScriptExtraNumber } from './solid_script_functions_extra.js';
-import { solidScriptValueNumbers, solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
+import { solidScriptAxesEach } from './solid_script_functions_axes.js';
+import {
+  SOLID_SCRIPT_EQUAL_TOLERANCE,
+  solidScriptValueEquals,
+  solidScriptValueNumbers,
+  solidScriptValueText,
+  type SolidScriptValue,
+} from './solid_script_value.js';
 
 /** A built-in function over evaluated arguments. */
 type SolidScriptMath = (args: SolidScriptValue[]) => SolidScriptValue;
@@ -194,25 +201,32 @@ export const SOLID_SCRIPT_FUNCTIONS_MATH = {
     const t = Math.min(1, Math.max(0, (solidScriptExtraNumber(args, 2, usage) - low) / (high - low || 1)));
     return t * t * (3 - 2 * t);
   },
-  wrap: (args) => {
+  wrap: solidScriptAxesEach('Wrap(value, min, max)', (args) => {
     const usage = 'Wrap(value, min, max)';
     return solidScriptMathWrap(
       solidScriptExtraNumber(args, 0, usage),
       solidScriptExtraNumber(args, 1, usage),
       solidScriptExtraNumber(args, 2, usage),
     );
-  },
-  mod: (args) =>
+  }),
+  mod: solidScriptAxesEach('Mod(a, b)', (args) =>
     solidScriptMathWrap(solidScriptExtraNumber(args, 0, 'Mod(a, b)'), 0, solidScriptExtraNumber(args, 1, 'Mod(a, b)')),
-  snap: (args) => {
+  ),
+  snap: solidScriptAxesEach('Snap(value, step)', (args) => {
     const usage = 'Snap(value, step)';
     const step = solidScriptExtraNumber(args, 1, usage);
     if (step <= 0) throw new Error(`${usage} needs a step above 0`);
     return Math.round(solidScriptExtraNumber(args, 0, usage) / step) * step;
-  },
-  fract: (args) => {
+  }),
+  fract: solidScriptAxesEach('Fract(value)', (args) => {
     const value = solidScriptExtraNumber(args, 0, 'Fract(value)');
     return value - Math.floor(value);
+  }),
+  equal: (args) => {
+    const usage = 'Equal(a, b, tolerance)';
+    const tolerance = args.length > 2 ? solidScriptExtraNumber(args, 2, usage) : SOLID_SCRIPT_EQUAL_TOLERANCE;
+    if (tolerance < 0) throw new Error(`${usage} needs a tolerance of 0 or more`);
+    return solidScriptValueEquals(args[0], args[1], tolerance);
   },
   radians: (args) => (solidScriptExtraNumber(args, 0, 'Radians(degrees)') * Math.PI) / 180,
   degrees: (args) => (solidScriptExtraNumber(args, 0, 'Degrees(radians)') * 180) / Math.PI,

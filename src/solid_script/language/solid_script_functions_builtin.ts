@@ -4,6 +4,7 @@ import { SOLID_SCRIPT_FUNCTIONS_CURVE } from './solid_script_functions_curve.js'
 import { SOLID_SCRIPT_FUNCTIONS_CONDITION } from './solid_script_functions_condition.js';
 import { SOLID_SCRIPT_FUNCTIONS_WHERE } from './solid_script_functions_where.js';
 import { SOLID_SCRIPT_FUNCTIONS_KIND_CHECKS } from './solid_script_functions_kind_checks.js';
+import { solidScriptAxesEach, solidScriptAxesPick } from './solid_script_functions_axes.js';
 import {
   solidScriptValueNumber,
   solidScriptValueNumbers,
@@ -18,28 +19,17 @@ const SOLID_SCRIPT_DEGREES = Math.PI / 180;
 type SolidScriptBuiltin = (args: SolidScriptValue[]) => SolidScriptValue;
 
 /**
- * Wraps a one-number math function.
+ * Wraps a one-number math function; a vector works per axis.
  *
+ * @param name Function name, for the message.
  * @param operation Math function.
  * @returns Built-in.
  */
-function solidScriptUnary(operation: (value: number) => number): SolidScriptBuiltin {
-  return (args) => {
+function solidScriptUnary(name: string, operation: (value: number) => number): SolidScriptBuiltin {
+  return solidScriptAxesEach(`${name}(number or vector)`, (args) => {
     const value = solidScriptValueNumber(args[0]);
     return value === undefined ? undefined : operation(value);
-  };
-}
-
-/**
- * Collects the numbers of min()/max() arguments: either one vector or many
- * numbers.
- *
- * @param args Arguments.
- * @returns Numbers.
- */
-function solidScriptNumberList(args: SolidScriptValue[]): number[] {
-  const list = args.length === 1 && Array.isArray(args[0]) ? args[0] : args;
-  return solidScriptValueNumbers(list) ?? [];
+  });
 }
 
 /**
@@ -123,26 +113,29 @@ function solidScriptRands(args: SolidScriptValue[]): SolidScriptValue {
 
 /** Built-in functions by name, with their names as a type. */
 const SOLID_SCRIPT_FUNCTIONS_NAMED = {
-  sin: solidScriptUnary((value) => Math.sin(value * SOLID_SCRIPT_DEGREES)),
-  cos: solidScriptUnary((value) => Math.cos(value * SOLID_SCRIPT_DEGREES)),
-  tan: solidScriptUnary((value) => Math.tan(value * SOLID_SCRIPT_DEGREES)),
-  asin: solidScriptUnary((value) => Math.asin(value) / SOLID_SCRIPT_DEGREES),
-  acos: solidScriptUnary((value) => Math.acos(value) / SOLID_SCRIPT_DEGREES),
-  atan: solidScriptUnary((value) => Math.atan(value) / SOLID_SCRIPT_DEGREES),
+  sin: solidScriptUnary('Sin', (value) => Math.sin(value * SOLID_SCRIPT_DEGREES)),
+  cos: solidScriptUnary('Cos', (value) => Math.cos(value * SOLID_SCRIPT_DEGREES)),
+  tan: solidScriptUnary('Tan', (value) => Math.tan(value * SOLID_SCRIPT_DEGREES)),
+  asin: solidScriptUnary('Asin', (value) => Math.asin(value) / SOLID_SCRIPT_DEGREES),
+  acos: solidScriptUnary('Acos', (value) => Math.acos(value) / SOLID_SCRIPT_DEGREES),
+  atan: solidScriptUnary('Atan', (value) => Math.atan(value) / SOLID_SCRIPT_DEGREES),
   atan2: (args) =>
     Math.atan2(solidScriptValueNumber(args[0]) ?? NaN, solidScriptValueNumber(args[1]) ?? NaN) / SOLID_SCRIPT_DEGREES,
-  abs: solidScriptUnary(Math.abs),
-  sign: solidScriptUnary(Math.sign),
-  ceil: solidScriptUnary(Math.ceil),
-  floor: solidScriptUnary(Math.floor),
-  round: solidScriptUnary(Math.round),
-  sqrt: solidScriptUnary(Math.sqrt),
-  exp: solidScriptUnary(Math.exp),
-  ln: solidScriptUnary(Math.log),
-  log: solidScriptUnary(Math.log10),
-  pow: (args) => (solidScriptValueNumber(args[0]) ?? NaN) ** (solidScriptValueNumber(args[1]) ?? NaN),
-  min: (args) => Math.min(...solidScriptNumberList(args)),
-  max: (args) => Math.max(...solidScriptNumberList(args)),
+  abs: solidScriptUnary('Abs', Math.abs),
+  sign: solidScriptUnary('Sign', Math.sign),
+  ceil: solidScriptUnary('Ceil', Math.ceil),
+  floor: solidScriptUnary('Floor', Math.floor),
+  round: solidScriptUnary('Round', Math.round),
+  sqrt: solidScriptUnary('Sqrt', Math.sqrt),
+  exp: solidScriptUnary('Exp', Math.exp),
+  ln: solidScriptUnary('Ln', Math.log),
+  log: solidScriptUnary('Log', Math.log10),
+  pow: solidScriptAxesEach(
+    'Pow(number, power)',
+    (args) => (solidScriptValueNumber(args[0]) ?? NaN) ** (solidScriptValueNumber(args[1]) ?? NaN),
+  ),
+  min: solidScriptAxesPick('Min(a, b, ...)', Math.min),
+  max: solidScriptAxesPick('Max(a, b, ...)', Math.max),
   norm: (args) => Math.hypot(...(solidScriptValueNumbers(args[0]) ?? [NaN])),
   cross: solidScriptCross,
   len: solidScriptLen,

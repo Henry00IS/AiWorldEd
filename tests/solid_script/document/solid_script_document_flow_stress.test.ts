@@ -93,7 +93,7 @@ describe('SolidScript kinds stress: formulas', () => {
   it('gives every built-in function the kinds its definition declares', () => {
     for (const [key, doc] of Object.entries(SOLID_SCRIPT_FUNCTION_DOCS)) {
       const kinds = kindsEnd([set('R', `[=${solidScriptFunctionSpelling(key)}(1)]`)], 'r');
-      expect(kinds, key).toEqual(doc.gives === 'Any' ? ['?'] : [...doc.gives].sort());
+      expect(kinds, key).toEqual(doc.gives === 'Any' ? ['?'] : doc.perAxis ? ['Number'] : [...doc.gives].sort());
     }
   });
 
@@ -430,7 +430,7 @@ describe('SolidScript kind checks squiggle only what no run can use', () => {
     expect(check(lines)).toEqual([
       '4: Of needs an Object, Face or Text, or a list of them, not a Yes/No',
       '5: [Word] holds Text, which has no .Faces; it has .Length, .Words',
-      '6: Abs() needs a Number for Number, not a Solid',
+      '6: Abs() needs a Number or Vector for Number, not a Solid',
     ]);
   });
 

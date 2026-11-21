@@ -41,6 +41,7 @@ export const SOLID_SCRIPT_WHERE_HELPER_KEYS = [
   'hits',
   'chance',
   'random',
+  'random_int',
   'spread',
   'along',
 ] as const;
@@ -334,6 +335,40 @@ export const SOLID_SCRIPT_WHERE_HELPERS: readonly SolidScriptWhereHelper[] = [
         label: 'Seed',
         type: ['Number'],
         about: 'Any number, such as 1; another seed gives other values for the same IDs.',
+        optional: '0',
+      },
+    ],
+  },
+  {
+    key: 'random_int',
+    name: 'RandomInt',
+    display: 'Random Whole Number',
+    group: 'Random',
+    gives: ['Number'],
+    description:
+      'A random whole number from Min to Max, both included, such as RandomInt(1, 3) for 1, 2 or 3 per item; a reversed range such as 3 to 1 works the same. The same ID and Seed always give the same number.',
+    inputs: [
+      { name: 'min', label: 'Min', type: ['Number'], about: 'The lowest whole number, such as 1.', start: '1' },
+      {
+        name: 'max',
+        label: 'Max',
+        type: ['Number'],
+        about: 'The highest whole number, included, such as 3.',
+        start: '3',
+      },
+      {
+        name: 'id',
+        label: 'ID',
+        type: ['Number'],
+        about: 'Which item asks, such as [$Index]; each ID gets its own number.',
+        optional: '0',
+        each: '[$Index]',
+      },
+      {
+        name: 'seed',
+        label: 'Seed',
+        type: ['Number'],
+        about: 'Any number, such as 1; another seed gives other numbers for the same IDs.',
         optional: '0',
       },
     ],
