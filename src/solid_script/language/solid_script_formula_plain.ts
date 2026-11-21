@@ -59,34 +59,30 @@ function solidScriptFormulaPlainItems(text: string): string[] | null {
   return items.some((item) => item === '') ? null : items;
 }
 
-/** A double quote, or a $ a formula string would read as an escape. */
-const SOLID_SCRIPT_FORMULA_STRING_ESCAPE = /"|\$(?=[$"]|$)/g;
-
-/** A bracket, or a $ field text would read as an escape. */
-const SOLID_SCRIPT_FORMULA_FIELD_ESCAPE = /\$(?=[$[\],])|[[\]]/g;
+/** A double quote or bracket, or a $ a formula string would read as an escape. */
+const SOLID_SCRIPT_FORMULA_STRING_ESCAPE = /["[\]]|\$(?=[$"[\],]|$)/g;
 
 /**
  * Writes text as a formula string in a field that reads back as exactly that
- * text: a double quote as $", a $ the string would read as an escape as $$, and
- * then a $ or bracket the field would read as an escape with a $ before it.
+ * text: a double quote as $", a bracket as $[ or $], and a $ the string would
+ * read as an escape as $$. Only the formula string reads them.
  *
  * @param text Text as it should come out.
  * @returns Formula string, in double quotes.
  */
 export function solidScriptFormulaTextQuote(text: string): string {
-  const string = text.replace(SOLID_SCRIPT_FORMULA_STRING_ESCAPE, (character) => `$${character}`);
-  return `"${string.replace(SOLID_SCRIPT_FORMULA_FIELD_ESCAPE, (character) => `$${character}`)}"`;
+  return `"${text.replace(SOLID_SCRIPT_FORMULA_STRING_ESCAPE, (character) => `$${character}`)}"`;
 }
 
 /**
  * Reads what is inside the quotes of a formula string in a field as the text it
- * stands for: the field's $$, $[, $], $, first, then the string's $" and $$.
+ * stands for: each $", $$, $[, $] and $, as the character after the $.
  *
  * @param inner Text inside the quotes, as written in the field.
  * @returns Text.
  */
 export function solidScriptFormulaTextLiteral(inner: string): string {
-  return inner.replace(/\$([$[\],])/g, '$1').replace(/\$([$"])/g, '$1');
+  return inner.replace(/\$([$"[\],])/g, '$1');
 }
 
 /**
@@ -209,7 +205,7 @@ function solidScriptFormulaTextPlain(
   splits: boolean,
 ): string | null {
   const inner = source.slice(node).slice(1, -1);
-  if (/[[\]]/.test(inner.replace(/\$[$[\],]/g, ''))) return null;
+  if (/[[\]]/.test(inner.replace(/\$[$"[\],]/g, ''))) return null;
   const text = solidScriptFormulaTextLiteral(inner);
   const escape = splits ? /\$(?=[$[\],]|$)|[[\],]/g : /\$(?=[$[\],]|$)|[[\]]/g;
   return text.replace(escape, (character) => `$${character}`);

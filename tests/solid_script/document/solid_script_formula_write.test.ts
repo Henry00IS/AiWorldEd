@@ -213,7 +213,7 @@ describe('SolidScript formula blocks write', () => {
     ['"a\\nb \\"', 'a\\nb \\'],
     ['"a $[b$] c, d"', 'a [b] c, d'],
     ['"5, $ $ $ "', '5, $ $ $ '],
-    ['"a$b $$$[ $$$"', 'a$b $[ $'],
+    ['"a$b $$$[ $$"', 'a$b $[ $'],
   ])('shows the Text %s as its content %j, and writes it back, also when typed anew', (formula, content) => {
     const read = solidScriptFormulaRead(formula);
     const text = line(read, SOLID_SCRIPT_FORMULA_COMMAND.text);

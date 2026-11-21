@@ -192,6 +192,8 @@ export const SOLID_SCRIPT_SYSTEM_GLOBALS: readonly SolidScriptSystemValue[] = [
   { name: 'Math.Golden', type: 'Number', detail: 'the golden ratio, 1.61803…' },
   { name: 'Math.Sqrt2', type: 'Number', detail: 'square root of 2, 1.41421…' },
   { name: 'Math.Epsilon', type: 'Number', detail: 'a tiny number for comparing, 0.000001' },
+  { name: 'Text.NewLine', type: 'Text', detail: 'a new line, to start the next line of a text' },
+  { name: 'Text.Tab', type: 'Text', detail: 'a tab, to line up words in columns' },
 ];
 
 /** Names of the week days, Sunday first, as Date counts them. */
@@ -389,6 +391,8 @@ export function solidScriptSystemValues(
     'Math.Golden': () => (1 + Math.sqrt(5)) / 2,
     'Math.Sqrt2': () => Math.SQRT2,
     'Math.Epsilon': () => 0.000001,
+    'Text.NewLine': () => '\n',
+    'Text.Tab': () => '\t',
     'Script.Usage': () => use.usage,
     'Script.Mode': () => use.mode ?? SOLID_SCRIPT_MODE_DEFAULT,
     'Input.Brushes': () => use.solids.map((_, index) => solidScriptInputBrushName(index)),

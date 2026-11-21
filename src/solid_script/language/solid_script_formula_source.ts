@@ -1,6 +1,10 @@
 import type { SolidScriptExpression } from './solid_script_ast.js';
 import { solidScriptExpressionParse, SolidScriptValueParser } from './solid_script_expression_parse.js';
-import { solidScriptFieldEscapes, solidScriptFieldPieces, type SolidScriptFieldPiece } from './solid_script_field.js';
+import {
+  solidScriptFieldEscapeReads,
+  solidScriptFieldPieces,
+  type SolidScriptFieldPiece,
+} from './solid_script_field.js';
 import { solidScriptFormulaListInline } from './solid_script_formula_list_literal.js';
 
 /**
@@ -90,12 +94,17 @@ function solidScriptFormulaMask(text: string): {
   escapes: Set<number>;
   origins: number[];
 } {
-  const groups = solidScriptFieldPieces(text).flatMap((piece) => (piece.kind === 'group' ? [piece] : []));
+  const groups = solidScriptFieldPieces(text, true).flatMap((piece) => (piece.kind === 'group' ? [piece] : []));
   const read = { masked: '', slots: new Set<number>(), escapes: new Set<number>(), origins: [] as number[] };
+  const escapes = solidScriptFieldEscapeReads(text, true);
   for (let index = 0; index < text.length; index++) {
     const group = groups[0];
     if (group?.from === index) index = solidScriptFormulaMaskGroup(read, groups);
-    else if (solidScriptFieldEscapes(text, index)) {
+    else if (escapes.get(index) === 'string') {
+      // A formula string reads its own escapes, so both characters stay.
+      solidScriptFormulaMaskAdd(read, text[index]!, index);
+      solidScriptFormulaMaskAdd(read, text[++index]!, index);
+    } else if (escapes.has(index)) {
       read.escapes.add(++index);
       solidScriptFormulaMaskAdd(read, text[index]!, index);
     } else solidScriptFormulaMaskAdd(read, text[index]!, index);

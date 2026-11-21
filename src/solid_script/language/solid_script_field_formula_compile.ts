@@ -12,7 +12,7 @@ import {
   type SolidScriptFormulaBareRead,
 } from './solid_script_formula_bare.js';
 import { solidScriptFormulaListInline } from './solid_script_formula_list_literal.js';
-import { solidScriptStringWrite } from './solid_script_lexer.js';
+import { solidScriptStringEscapes, solidScriptStringWrite } from './solid_script_lexer.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
 import { solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
 
@@ -148,8 +148,8 @@ function solidScriptFieldFormulaWriteInto(
 }
 
 /**
- * Writes plain formula text, following where quoted text opens and closes; a $
- * before a quote or a $ inside quoted text keeps the quote in the text.
+ * Writes plain formula text, following where quoted text opens and closes; an
+ * escape inside quoted text, such as $" or $$, stays for the formula string.
  *
  * @param text Plain text.
  * @param writing Formula being written.
@@ -158,7 +158,7 @@ function solidScriptFieldFormulaPlain(text: string, writing: SolidScriptFieldWri
   for (let index = 0; index < text.length; index++) {
     const character = text[index]!;
     const next = text[index + 1];
-    if (writing.quote && character === '$' && (next === '"' || next === '$')) {
+    if (writing.quote && solidScriptStringEscapes(text, index)) {
       writing.written += character + next;
       index++;
       continue;

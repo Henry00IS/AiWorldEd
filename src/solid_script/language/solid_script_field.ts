@@ -6,6 +6,7 @@ import type { SolidScriptValue } from './solid_script_value.js';
 import { solidScriptValueText } from './solid_script_value.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
 import { solidScriptFieldVectorRead, solidScriptFormulaListStarts } from './solid_script_formula_list_literal.js';
+import { SOLID_SCRIPT_ESCAPED, solidScriptStringEscapes } from './solid_script_lexer.js';
 
 /**
  * How the text typed into a block field is read. Field text is plain text
@@ -100,12 +101,6 @@ const SOLID_SCRIPT_FIELD_ITEM_OPEN = /^\s*([A-Za-z_]\w*)\s*\(\s*$/;
 /** Text after the item number of a list item. */
 const SOLID_SCRIPT_FIELD_ITEM_CLOSE = /^\s*\)\s*$/;
 
-/**
- * Characters a $ keeps as typed: $$, $[, $] and $, for a comma inside a list
- * item. A $ before anything else is itself, as in [$Selected.Faces].
- */
-const SOLID_SCRIPT_FIELD_ESCAPED: ReadonlySet<string> = new Set(['$', '[', ']', ',']);
-
 /** Text made of $ and a space, once or more in a row, or of nothing. */
 const SOLID_SCRIPT_FIELD_SPACES = /^(\$ )*$/;
 
@@ -120,8 +115,73 @@ const SOLID_SCRIPT_FIELD_SPACES = /^(\$ )*$/;
  */
 export function solidScriptFieldEscapes(text: string, index: number): boolean {
   if (text[index] !== '$') return false;
-  if (text[index + 1] !== ' ') return SOLID_SCRIPT_FIELD_ESCAPED.has(text[index + 1] ?? '');
+  if (text[index + 1] !== ' ') return SOLID_SCRIPT_ESCAPED.has(text[index + 1] ?? '');
   return SOLID_SCRIPT_FIELD_SPACES.test(text.slice(0, index)) || SOLID_SCRIPT_FIELD_SPACES.test(text.slice(index + 2));
+}
+
+/**
+ * How field text reads a $: as an escape of the field, or left for a formula
+ * string.
+ */
+export type SolidScriptFieldEscape = 'field' | 'string';
+
+/**
+ * Where a character of field text stands: in how many brackets, and in a
+ * formula string or not.
+ */
+export interface SolidScriptFieldPlace {
+  /** Brackets around it. */
+  depth: number;
+  /** True inside the double quotes of a formula. */
+  quoted: boolean;
+}
+
+/**
+ * Walks field text one character at a time, telling where each stands and who
+ * reads each $ escape: inside the double quotes of a formula the formula string
+ * reads them, anywhere else the field does, so every escape is read once.
+ *
+ * @param text Field text.
+ * @param formula True when the whole text is a formula, as a condition is.
+ * @param visit Called for each character, or once for an escape and the
+ *   character it keeps.
+ */
+export function solidScriptFieldWalk(
+  text: string,
+  formula: boolean,
+  visit: (index: number, place: SolidScriptFieldPlace, escape?: SolidScriptFieldEscape) => void,
+): void {
+  const modes = [{ formula, quoted: false }];
+  for (let index = 0; index < text.length; index++) {
+    const mode = modes[modes.length - 1]!;
+    const place = { depth: modes.length - 1, quoted: mode.quoted };
+    const character = text[index]!;
+    if (mode.quoted ? solidScriptStringEscapes(text, index) : solidScriptFieldEscapes(text, index)) {
+      visit(index, place, mode.quoted ? 'string' : 'field');
+      index++;
+      continue;
+    }
+    visit(index, place);
+    if (character === '[') modes.push({ formula: mode.formula || /^\s*=/.test(text.slice(index + 1)), quoted: false });
+    else if (character === ']' && modes.length > 1) modes.pop();
+    else if (character === '"' && mode.formula) mode.quoted = !mode.quoted;
+  }
+}
+
+/**
+ * Finds the $ escapes of field text and who reads each; see
+ * solidScriptFieldWalk.
+ *
+ * @param text Field text.
+ * @param formula True when the whole text is a formula, as a condition is.
+ * @returns Who reads the $ at each place that is an escape.
+ */
+export function solidScriptFieldEscapeReads(text: string, formula = false): Map<number, SolidScriptFieldEscape> {
+  const reads = new Map<number, SolidScriptFieldEscape>();
+  solidScriptFieldWalk(text, formula, (index, _place, escape) => {
+    if (escape) reads.set(index, escape);
+  });
+  return reads;
 }
 
 /**
@@ -222,14 +282,18 @@ class SolidScriptFieldPiecesReader {
  * where its brackets stand in the text.
  *
  * @param text Field text.
+ * @param formula True when the whole text is a formula, as a condition is.
  * @returns Pieces.
  */
-export function solidScriptFieldPieces(text: string): SolidScriptFieldPiece[] {
+export function solidScriptFieldPieces(text: string, formula = false): SolidScriptFieldPiece[] {
   const reader = new SolidScriptFieldPiecesReader();
+  const escapes = solidScriptFieldEscapeReads(text, formula);
   for (let index = 0; index < text.length; index++) {
     const character = text[index]!;
-    if (solidScriptFieldEscapes(text, index)) {
-      reader.plain(text[index + 1]!);
+    const escape = escapes.get(index);
+    if (escape) {
+      // A formula string reads its own escapes, so they stay as typed for it.
+      reader.plain(escape === 'string' ? text.slice(index, index + 2) : text[index + 1]!);
       index++;
     } else if (character === '[') reader.groupOpen(index);
     else if (character === ']') reader.groupClose(index);
@@ -635,7 +699,7 @@ function solidScriptFieldCompile(kind: SolidScriptFieldKind, text: string): Soli
         return (context) => solidScriptFieldBoolean(template(context));
       }
       case 'condition':
-        return solidScriptFieldGroupCompile([{ kind: 'plain', text: '=' }, ...solidScriptFieldPieces(text)]);
+        return solidScriptFieldGroupCompile([{ kind: 'plain', text: '=' }, ...solidScriptFieldPieces(text, true)]);
       case 'message': {
         const template = solidScriptFieldTemplateCompile(text);
         return (context) => solidScriptValueText(template(context));

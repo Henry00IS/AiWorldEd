@@ -37,7 +37,7 @@ describe('SolidScript formula strings', () => {
   it('runs a field formula with quotes, dollars and backslashes as written', () => {
     const run = solidScriptProgramRun(
       solidScriptDocumentCreate([
-        { command: 'variable', values: { name: 'T', value: '[="Say $"Hi$" for $$$$5 \\o/"]' } },
+        { command: 'variable', values: { name: 'T', value: '[="Say $"Hi$" for $$5 \\o/"]' } },
         { command: 'echo', values: { value: '[=Str([T], "!")]' } },
       ]),
     );

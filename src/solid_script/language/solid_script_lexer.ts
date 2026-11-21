@@ -143,8 +143,8 @@ export class SolidScriptLexer {
   /**
    * Reads a double-quoted string. A $ keeps the next character as typed where
    * it would mean something else: $" is a double quote and $$ a dollar sign,
-   * like the $ escapes of field text. Any other character, a backslash too, is
-   * itself.
+   * with $[, $] and $, like field text. Any other character, a backslash too,
+   * is itself.
    *
    * @returns String token holding the text without its escapes.
    */
@@ -164,15 +164,23 @@ export class SolidScriptLexer {
 }
 
 /**
+ * Characters a $ keeps as typed in field text: $$, $[, $] and $, for a comma
+ * inside a list item. A $ before anything else is itself, as in
+ * [$Selected.Faces].
+ */
+export const SOLID_SCRIPT_ESCAPED: ReadonlySet<string> = new Set(['$', '[', ']', ',']);
+
+/**
  * Tells whether the character at a place in a formula string is a $ that keeps
- * the next one as typed: $" or $$.
+ * the next one as typed: the escapes of field text, and $" for a double quote.
+ * Inside a formula string only the formula reads them, so each is read once.
  *
  * @param text Formula text.
  * @param index Place.
  * @returns True for such a $.
  */
 export function solidScriptStringEscapes(text: string, index: number): boolean {
-  return text[index] === '$' && (text[index + 1] === '"' || text[index + 1] === '$');
+  return text[index] === '$' && (text[index + 1] === '"' || SOLID_SCRIPT_ESCAPED.has(text[index + 1] ?? ''));
 }
 
 /**
