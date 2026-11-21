@@ -228,7 +228,9 @@ describe('Into-set results stay out of the world until Output', () => {
     const tools = withInto().filter((command) => command.edits && hasCopyInto(command));
     const lists = withInto().filter((command) => listScript(command));
     const labels = withInto().filter((command) => !hasCopyInto(command) && command.edits);
-    const covered = new Set([...builders, ...tools, ...lists, ...labels].map((command) => command.id));
+    // The outlines 2D shapes write Into are tested in solid_script_outline_names.
+    const outlines = withInto().filter((command) => command.category === '2D Shapes');
+    const covered = new Set([...builders, ...tools, ...lists, ...labels, ...outlines].map((command) => command.id));
     expect(ids.filter((id) => !covered.has(id))).toEqual([]);
   });
 

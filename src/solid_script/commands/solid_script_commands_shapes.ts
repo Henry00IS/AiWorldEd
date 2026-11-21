@@ -196,6 +196,7 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
 export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'square',
+    draws: true,
     label: 'Square',
     category: '2D Shapes',
     description: 'Draw a rectangle outline',
@@ -221,6 +222,7 @@ export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
   }),
   new SolidScriptCommand({
     id: 'circle',
+    draws: true,
     label: 'Circle',
     category: '2D Shapes',
     description: 'Draw a circle outline',
@@ -249,6 +251,7 @@ export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
   }),
   new SolidScriptCommand({
     id: 'polygon',
+    draws: true,
     label: 'Polygon',
     category: '2D Shapes',
     description: 'Draw an outline through Point lines',

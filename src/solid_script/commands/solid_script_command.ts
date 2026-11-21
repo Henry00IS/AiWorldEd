@@ -272,6 +272,11 @@ export interface SolidScriptCommandSpec {
    * shapes and generators.
    */
   named?: boolean;
+  /**
+   * True for 2D shapes that draw one flat outline, such as Circle: Into writes
+   * that outline.
+   */
+  draws?: boolean;
   /** False for lines that do nothing when run, such as notes. */
   runs?: boolean;
   /**
@@ -350,7 +355,7 @@ function solidScriptCommandFields(spec: SolidScriptCommandSpec): SolidScriptComm
   const edits = spec.edits === true;
   const into = builds
     ? [solidScriptCommandBuiltInto(intoList)]
-    : spec.category === '2D Shapes'
+    : spec.draws === true
       ? [solidScriptParameterInto('the outline it draws, an Outline', 'Outline', 'outline drawn', 'label')]
       : [];
   const given = named ? [...spec.parameters, solidScriptParameterShapeName(), ...into] : [...spec.parameters, ...into];

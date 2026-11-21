@@ -50,6 +50,7 @@ describe('SolidScript kind checks', () => {
       'is_vector',
       'is_brush',
       'is_mesh',
+      'is_outline',
       'is_face',
       'is_edge',
       'is_vertex',
