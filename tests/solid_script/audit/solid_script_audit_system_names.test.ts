@@ -124,7 +124,14 @@ describe('every system name is $ then PascalCase', () => {
       { command: 'displace', values: { distance: '[=[$X] * 0]' } },
     );
     expect(waved.error).toBeNull();
-    expect(solidScriptFieldMistake('[Nz] > 0.5', false)).toBe('[$NZ] > 0.5');
+    expect(
+      solidScriptFieldMistake(
+        '[Nz] > 0.5',
+        false,
+        () => false,
+        (name) => name === '$NZ',
+      ),
+    ).toBe('[$NZ] > 0.5');
   });
 
   it('reads [$Math.Pi] in a formula and tells the user to write the $ and the brackets when they are missing', () => {

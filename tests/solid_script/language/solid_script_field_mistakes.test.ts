@@ -82,19 +82,55 @@ describe('SolidScript mistake hints', () => {
     expect(hinted).toEqual([]);
   });
 
-  it('still hints a bare system name in a formula field', () => {
-    expect(solidScriptFieldMistakeOf({ type: 'number' }, 'X')).toBe(
+  it('still hints a bare system short in a field of a line that fills it', () => {
+    const fills = (name: string): boolean => ['$X', '$NX'].includes(name);
+    expect(solidScriptFieldMistakeOf({ type: 'number' }, 'X', () => false, fills)).toBe(
       'system values start with $. Did you mean to write $X?',
     );
-    expect(solidScriptFieldMistakeOf({ type: 'vector3' }, 'Along X')).toBe(
-      'system values start with $. Did you mean to write Along $X?',
-    );
-    expect(solidScriptFieldMistakeOf({ type: 'number' }, '[=X]')).toBe(
+    expect(solidScriptFieldMistakeOf({ type: 'number' }, '[=X]', () => false, fills)).toBe(
       'a formula reads every variable and system value in brackets. Did you mean to write [=[$X]]?',
     );
-    const document = solidScriptDocumentCreate([line('cube', { size: 'X, 1, 1' }), line('end')]);
+    const document = solidScriptDocumentCreate([line('displace', { distance: '[=NX * 0.1]' })]);
     expect(solidScriptMistakeCheck(document).map((warning) => warning.text)).toEqual([
-      'Size: system values start with $. Did you mean to write $X, 1, 1?',
+      'Distance: a formula reads every variable and system value in brackets. Did you mean to write [=[$NX] * 0.1]?',
     ]);
+  });
+
+  it('never hints a system short where the line does not fill it, or in quotes and plain text', () => {
+    expect(solidScriptFieldMistakeOf({ type: 'number' }, 'X')).toBe('');
+    const cube = solidScriptDocumentCreate([line('cube', { size: 'X, 1, 1' }), line('end')]);
+    expect(solidScriptMistakeCheck(cube)).toEqual([]);
+    const fills = (name: string): boolean => name === '$Y';
+    expect(solidScriptFieldMistake('Hello y', false, () => false, fills)).toBe('');
+    expect(solidScriptFieldMistake('[="y"]', false, () => false, fills)).toBe('');
+    expect(solidScriptFieldMistake('[=1<2 ? "y" : "n"]', true, () => false, fills)).toBe('');
+    expect(solidScriptFieldMistake('[K] > "y"', false, () => false, fills, true)).toBe('');
+    expect(
+      solidScriptFieldMistake(
+        '[K] > y',
+        false,
+        () => false,
+        () => false,
+        true,
+      ),
+    ).toBe('');
+  });
+
+  it('hints a system short in a running line that fills it', () => {
+    const message = failure(
+      line('mesh_brushes'),
+      line('cube'),
+      line('end'),
+      line('select_brushes'),
+      line('displace', { distance: '[=NX * 0.1]' }),
+    );
+    expect(message).toContain('Did you mean to write [=[$NX] * 0.1]?');
+  });
+
+  it('keeps the hints for a $ before a variable and a system value without its $', () => {
+    const sees = (name: string): boolean => name === 'K';
+    expect(solidScriptFieldMistake('[=[$K]-1]', true, () => false, sees)).toBe('[=[K]-1]');
+    expect(solidScriptFieldMistake('[Box.Width]')).toBe('[$Box.Width]');
+    expect(solidScriptFieldMistake('[=Pi * 2]')).toBe('[=[$Math.Pi] * 2]');
   });
 });

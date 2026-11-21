@@ -1,4 +1,4 @@
-import { solidScriptFieldArguments, type SolidScriptFieldKind } from './solid_script_field.js';
+import { solidScriptFieldArguments, solidScriptFieldWalk, type SolidScriptFieldKind } from './solid_script_field.js';
 import { SOLID_SCRIPT_SYSTEM_VALUES } from './solid_script_name_rules.js';
 import { solidScriptSystemFill } from './solid_script_system_names.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
@@ -119,21 +119,51 @@ function solidScriptMistakeOfficial(name: string): string | undefined {
 }
 
 /**
+ * Tells which characters of field text a name could be read from: inside
+ * brackets, or anywhere in a field of numbers or a condition, but never in the
+ * double quotes of a formula string.
+ *
+ * @param text Field text.
+ * @param math True for fields that take numbers.
+ * @param formula True when the whole text is a formula, as a condition is.
+ * @returns True at each place a name is read.
+ */
+function solidScriptMistakeReadPlaces(text: string, math: boolean, formula: boolean): boolean[] {
+  const reads: boolean[] = [];
+  solidScriptFieldWalk(text, formula, (index, place) => {
+    reads[index] = !place.quoted && (place.depth > 0 || math || formula);
+  });
+  return reads;
+}
+
+/**
  * Adds the $ a system value needs, such as [Box.Width] to [$Box.Width] or Nz to
- * $NZ, unless the script already defines that name.
+ * $NZ, unless the script already defines that name. A short such as $NZ is only
+ * offered on a line that fills it, and never in quoted or plain text.
  *
  * @param text Text.
  * @param known Tells whether the script defines a name, so it is no system
  *   value.
+ * @param fills Tells whether the line fills a system short, such as $NZ.
+ * @param math True for fields that take numbers.
+ * @param formula True when the whole text is a formula, as a condition is.
  * @returns Rewritten text.
  */
-function solidScriptMistakeSystem(text: string, known: (name: string) => boolean): string {
+function solidScriptMistakeSystem(
+  text: string,
+  known: SolidScriptMistakeNames,
+  fills: SolidScriptMistakeNames,
+  math: boolean,
+  formula: boolean,
+): string {
+  const reads = solidScriptMistakeReadPlaces(text, math, formula);
   return text.replace(SOLID_SCRIPT_MISTAKE_NAME, (name: string, at: number) => {
     const official = solidScriptMistakeOfficial(name);
     const group = name.split('.')[0] ?? name;
     const before = text[at - 1] ?? '';
-    if (!official || known(group) || /[\d.]/.test(before) || /^\s*\(/.test(text.slice(at + name.length))) return name;
-    return official;
+    if (!official || !reads[at] || known(group) || /[\d.]/.test(before) || /^\s*\(/.test(text.slice(at + name.length)))
+      return name;
+    return solidScriptSystemFill(official) && !fills(official) ? name : official;
   });
 }
 
@@ -223,7 +253,11 @@ export function solidScriptFieldMistake(
   formula = false,
 ): string {
   const trimmed = text.trim();
-  const meant = solidScriptMistakeBracketed(solidScriptMistakeUnbracketed(trimmed, math, known, sees), sees, formula);
+  const meant = solidScriptMistakeBracketed(
+    solidScriptMistakeUnbracketed(trimmed, math, known, sees, formula),
+    sees,
+    formula,
+  );
   return meant === trimmed ? '' : meant;
 }
 
@@ -236,6 +270,7 @@ export function solidScriptFieldMistake(
  * @param math False for fields that may hold text.
  * @param known Tells whether the script defines a name.
  * @param sees Tells whether the line sees a variable of that name.
+ * @param formula True when the whole text is a formula, as a condition is.
  * @returns Rewritten text.
  */
 function solidScriptMistakeUnbracketed(
@@ -243,13 +278,14 @@ function solidScriptMistakeUnbracketed(
   math: boolean,
   known: SolidScriptMistakeNames,
   sees: SolidScriptMistakeNames,
+  formula = false,
 ): string {
   const bare = solidScriptMistakeNamesWritten(text, sees);
   // Commas inside a call such as Max([A], [B]) stay in their piece.
   const pieces = solidScriptFieldArguments(bare);
   const rewritten = math ? pieces.map(solidScriptMistakeMath).join(', ') : bare;
   const unchanged = math && rewritten === pieces.join(', ') ? bare : rewritten;
-  return solidScriptMistakeSystem(unchanged, (name) => known(name) || sees(name));
+  return solidScriptMistakeSystem(unchanged, (name) => known(name) || sees(name), sees, math, formula);
 }
 
 /**
@@ -289,7 +325,7 @@ export function solidScriptFieldMistakeNote(
   if (meant === '') return '';
   const trimmed = text.trim();
   const names = solidScriptMistakeNamesWhy(formula ? `[=${trimmed}]` : trimmed, sees);
-  const unbracketed = solidScriptMistakeUnbracketed(trimmed, math, known, sees);
+  const unbracketed = solidScriptMistakeUnbracketed(trimmed, math, known, sees, formula);
   const why = names
     ? names
     : meant !== unbracketed
@@ -315,7 +351,8 @@ interface SolidScriptMistakeField {
  * needs brackets also says why, since the error alone does not tell.
  *
  * @param error Error the line threw.
- * @param node Line: its fields and their text as written.
+ * @param node Line: its fields and their text as written, and the system values
+ *   it fills, such as $X, which it sees too.
  * @param sees Tells whether the running line sees a variable of that name.
  * @param known Tells whether a line of the script writes a name, so it is never
  *   given a $.
@@ -325,17 +362,19 @@ interface SolidScriptMistakeField {
 export function solidScriptMistakeHinted(
   error: unknown,
   node: {
-    command: { label: string; parameters: readonly SolidScriptMistakeField[] };
+    command: { label: string; parameters: readonly SolidScriptMistakeField[]; fills?: readonly string[] };
     values: Readonly<Record<string, string>>;
   },
   sees: SolidScriptMistakeNames,
   known: SolidScriptMistakeNames,
 ): unknown {
   if (!(error instanceof Error)) return error;
+  const fills = new Set((node.command.fills ?? []).map(solidScriptNameKey));
+  const seen: SolidScriptMistakeNames = (name) => sees(name) || fills.has(solidScriptNameKey(name));
   if (solidScriptMistakeEngine(error))
     return new Error(`${node.command.label} cannot be built with these values; try smaller sizes or counts`);
   const notes = node.command.parameters
-    .map((field) => ({ field, note: solidScriptFieldMistakeOf(field, node.values[field.key] ?? '', known, sees) }))
+    .map((field) => ({ field, note: solidScriptFieldMistakeOf(field, node.values[field.key] ?? '', known, seen) }))
     .filter((entry) => entry.note !== '');
   const note = solidScriptMistakeNamed(error, node.command.parameters, notes);
   return note === undefined ? error : new Error(solidScriptMistakeJoined(error.message, note));

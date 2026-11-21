@@ -61,7 +61,7 @@ export function solidScriptMistakeCheck(
   const warnings: SolidScriptWarning[] = [];
   for (const { block, line: index } of solidScriptDocumentActiveLines(document.blocks)) {
     const command = solidScriptCommandFind(block.command);
-    const sees = solidScriptMistakeSees(document, index);
+    const sees = solidScriptMistakeSees(document, index, command?.fills ?? []);
     for (const parameter of command?.parameters ?? []) {
       const text = block.values?.[parameter.key] ?? '';
       const note = solidScriptFieldMistakeOf(parameter, text, known, sees);
@@ -74,18 +74,24 @@ export function solidScriptMistakeCheck(
 /**
  * Tells whether a line surely sees a variable of a name: one a line above it
  * writes, or the Item of a loop it is in, worked out only when first asked. A
- * name only a line below writes is left out, since it may not be set yet.
+ * name only a line below writes is left out, since it may not be set yet. The
+ * system values the line fills, such as $X, are seen too.
  *
  * @param document Script.
  * @param line 0-based line.
+ * @param fills System values the line fills.
  * @returns Test by name, in any case.
  */
-function solidScriptMistakeSees(document: SolidScriptDocument, line: number): (name: string) => boolean {
+function solidScriptMistakeSees(
+  document: SolidScriptDocument,
+  line: number,
+  fills: readonly string[],
+): (name: string) => boolean {
   let names: ReadonlySet<string> | null = null;
   return (name) => {
     names ??= solidScriptFieldKnown(
       solidScriptDocumentNamesAt(document, line).filter((entry) => entry.line < line),
-      [],
+      fills,
     ).names;
     return names.has(solidScriptNameKey(name));
   };
