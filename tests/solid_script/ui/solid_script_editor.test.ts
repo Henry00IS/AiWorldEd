@@ -1002,7 +1002,7 @@ describe('SolidScript editor', () => {
     expect(Number.parseFloat(host.style.width)).toBeGreaterThanOrEqual(Math.min(560, globalThis.innerWidth - 8));
   });
 
-  it('warns after a pause, without running, where a modifier would read Box values', async () => {
+  it('does not warn after a pause when a modifier reads Box values, because the volume is the box', async () => {
     const { root } = editorFixture(CUBE_SPHERE);
     const output = () => root.querySelector('.solid-script-editor-output-text')?.textContent ?? '';
     find<HTMLButtonElement>('[role="tab"][data-tab="settings"]').click();
@@ -1015,8 +1015,8 @@ describe('SolidScript editor', () => {
     tool('OK').click();
     expect(output()).not.toContain('If Used As Generator');
     await new Promise((resolve) => setTimeout(resolve, SOLID_SCRIPT_EDITOR_CHECK_DELAY_MS + 50));
-    expect(output()).toContain('Line 1');
-    expect(output()).toContain('If Used As Generator');
+    expect(output()).not.toContain('If Used As Generator');
+    expect(output()).not.toContain('only a generator');
   });
 
   it('offers the shape Names of the script in the Of field', () => {

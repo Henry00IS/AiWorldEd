@@ -155,7 +155,11 @@ export class ModifierStackKindSolidScriptModifier extends ModifierStackKindSolid
       }),
     };
     const size = box.getSize(new THREE.Vector3());
-    modifierStackSolidScriptReceivedWrite(context.volume, context.step.id, { use, box: [size.x, size.y, size.z] });
+    modifierStackSolidScriptReceivedWrite(context.volume, context.step.id, {
+      use,
+      box: [size.x, size.y, size.z],
+      origin: [centre.x, centre.y, centre.z],
+    });
     const result = this.scriptResult(parameters, box, context, use);
     // Like a generator, only what the script outputs comes out: Input Brushes passes the received brushes on.
     return [...this.passedUnits(units, result.passed, frame, centre, context), ...result.units];

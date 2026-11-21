@@ -14,6 +14,7 @@ import {
   type SolidScriptRunContext,
   type SolidScriptUseFacts,
 } from './solid_script_system.js';
+import type { SolidScriptBoxCorners, SolidScriptBoxPose } from './solid_script_box.js';
 import { SolidScriptMachine } from './solid_script_machine.js';
 import type {
   SolidScriptBreakpoints,
@@ -31,8 +32,19 @@ export interface SolidScriptProgramOptions {
   inputs?: Readonly<Record<string, string>>;
   /** Where the script runs, for Run.Context; a generator when not given. */
   context?: SolidScriptRunContext;
-  /** Size of the generator box, for Box.Width and the others. */
+  /** Size of the generator or modifier volume box, for Box.Width and the others. */
   box?: readonly [number, number, number];
+  /**
+   * Pose of the generator or modifier volume in the level, for Box.Position,
+   * Box.Rotation and Box.Scale; the origin, no turn and a scale of one when not
+   * given.
+   */
+  pose?: Partial<SolidScriptBoxPose>;
+  /**
+   * Lowest and highest corners of the box in script space, for Box.Min and
+   * Box.Max; plus and minus Extents when not given.
+   */
+  corners?: SolidScriptBoxCorners;
   /**
    * Where the script is used and what a modifier receives; a generator when not
    * given.
@@ -140,7 +152,14 @@ function solidScriptProgramExecute(
   options: SolidScriptProgramOptions,
 ): Omit<SolidScriptRun, 'ms'> {
   const lines = solidScriptProgramLines(program);
-  const system = solidScriptSystemValues(options.context ?? 'generator', options.box ?? null, true, options.use);
+  const system = solidScriptSystemValues(
+    options.context ?? 'generator',
+    options.box ?? null,
+    true,
+    options.use,
+    options.pose,
+    options.corners,
+  );
   return new SolidScriptMachine(
     options.stepLimit,
     options.breakpoints ?? null,

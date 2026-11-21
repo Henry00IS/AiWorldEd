@@ -4,7 +4,11 @@ import {
   solidScriptDocumentUsesWith,
   type SolidScriptLine,
 } from '@/solid_script/document/solid_script_document.js';
-import { solidScriptMistakeCheck, solidScriptUseCheck } from '@/solid_script/language/solid_script_use_check.js';
+import {
+  solidScriptDocumentReadsBoxMember,
+  solidScriptMistakeCheck,
+  solidScriptUseCheck,
+} from '@/solid_script/language/solid_script_use_check.js';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 
 const BOXED: SolidScriptLine = { command: 'cube', values: { size: '[$Box.Width], 1, [=[$Box.Height] / 2]' } };
@@ -21,25 +25,25 @@ function warned(...lines: SolidScriptLine[]): number[] {
 }
 
 describe('solid script use check', () => {
-  it('warns, without running, where a modifier would read Box values', () => {
-    expect(warned(BOXED)).toEqual([1]);
-    const [warning] = solidScriptUseCheck(
-      solidScriptDocumentUsesWith(solidScriptDocumentCreate([BOXED]), { generator: true, modifier: true }),
-    );
-    expect(warning?.text).toContain('[$Box.Width]');
-    expect(warning?.text).toContain('If Used As Generator');
+  it('does not warn when a modifier reads Box values, because the volume is the box', () => {
+    expect(warned(BOXED)).toEqual([]);
+    expect(
+      solidScriptUseCheck(
+        solidScriptDocumentUsesWith(solidScriptDocumentCreate([BOXED]), { generator: true, modifier: true }),
+      ),
+    ).toEqual([]);
   });
 
-  it('respects If Used As, its Else, off lines and Can Be Used As', () => {
-    const generator: SolidScriptLine = { command: 'if_used_as', values: { use: 'Generator' } };
-    const modifier: SolidScriptLine = { command: 'if_used_as', values: { use: 'Modifier' } };
-    const end: SolidScriptLine = { command: 'end' };
-    expect(warned(generator, BOXED, end)).toEqual([]);
-    expect(warned(generator, { command: 'sphere' }, { command: 'else' }, BOXED, end)).toEqual([4]);
-    expect(warned(modifier, BOXED, end)).toEqual([2]);
-    expect(warned(modifier, { command: 'sphere' }, { command: 'else' }, BOXED, end)).toEqual([]);
-    expect(warned({ ...BOXED, off: true })).toEqual([]);
-    expect(solidScriptUseCheck(solidScriptDocumentCreate([BOXED]))).toEqual([]);
+  it('tells which Box member an active line reads, and skips lines that are off', () => {
+    const script = solidScriptDocumentCreate([
+      BOXED,
+      { command: 'echo', values: { value: '[=[$Box.Position.X] + [$Box.Size.Y]]' } },
+      { command: 'echo', values: { value: '[$Box.Rotation]' }, off: true },
+    ]);
+    expect(solidScriptDocumentReadsBoxMember(script, 'Width')).toBe(true);
+    expect(solidScriptDocumentReadsBoxMember(script, 'Position')).toBe(true);
+    expect(solidScriptDocumentReadsBoxMember(script, 'Rotation')).toBe(false);
+    expect(solidScriptDocumentReadsBoxMember(solidScriptDocumentCreate([{ command: 'cube' }]), 'Position')).toBe(false);
   });
 });
 

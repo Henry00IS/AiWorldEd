@@ -10,6 +10,7 @@ import {
 } from '@/solid_script/document/solid_script_document_names.js';
 import { solidScriptInputTypeLabel } from '@/solid_script/language/solid_script_input.js';
 import { solidScriptSystemValues } from '@/solid_script/language/solid_script_system.js';
+import type { SolidScriptProgramOptions } from '@/solid_script/language/solid_script_program.js';
 import { SOLID_SCRIPT_SYSTEM_CATALOG } from '@/solid_script/language/solid_script_system_names.js';
 import { solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
 import type {
@@ -47,6 +48,8 @@ export interface SolidScriptExplorerSystemRun {
   system: readonly SolidScriptVariable[];
   /** 0-based line the run stopped just before, or null. */
   stoppedBefore: number | null;
+  /** Options of the preview run, so $Box and $Script.Usage match it. */
+  options?: SolidScriptProgramOptions;
 }
 
 /** Words after the caption of the System category. */
@@ -229,7 +232,15 @@ export function solidScriptExplorerEntries(
       detail: '',
     });
   }
-  const system = solidScriptSystemValues('preview', null, false);
+  const options = run.options;
+  const system = solidScriptSystemValues(
+    options?.context ?? 'preview',
+    options?.box ?? null,
+    false,
+    options?.use,
+    options?.pose,
+    options?.corners,
+  );
   const lists = new Map(run.system.map((list) => [list.name, list]));
   const filling = run.stoppedBefore === null ? [] : solidScriptExplorerFills(script, run.stoppedBefore);
   for (const value of SOLID_SCRIPT_SYSTEM_CATALOG) {
@@ -396,11 +407,13 @@ export class SolidScriptEditorExplorer {
     system: readonly SolidScriptVariable[],
     run: SolidScriptExplorerRun,
     seen: ReadonlyMap<number, SolidScriptLineSeen | null> = new Map(),
+    options?: SolidScriptProgramOptions,
   ): void {
     const lists = run.ran ? system : [];
     this.entries = solidScriptExplorerEntries(script, variables, stack, {
       system: lists,
       stoppedBefore: run.stoppedBefore,
+      ...(options ? { options } : {}),
     });
     this.stack = stack;
     this.script = script;

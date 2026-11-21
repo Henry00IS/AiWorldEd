@@ -1,3 +1,4 @@
+import { solidScriptSystemMissingBox } from './solid_script_box.js';
 import type { SolidScriptBlockNode } from './solid_script_block_tree.js';
 import { solidScriptBuiltinFind } from './solid_script_expression_compile.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
@@ -89,15 +90,15 @@ export abstract class SolidScriptMachineCalls<
   protected readonly warnings = new Map<number, string>();
 
   /**
-   * Uses 1, or 1, 1, 1 for a size, for a Box value outside a generator, and
+   * Uses 1, or a matching size, for a Box value when this run has no box, and
    * warns on the line, so the script still runs.
    *
    * @param name Value name as taught, such as Box.Width.
    * @returns Stand-in value.
    */
   protected systemMissing(name: string): SolidScriptValue {
-    this.warnings.set(this.line, `[$${name}] is only known in a generator, where there is a box; 1 is used here.`);
-    return /\.Size$/i.test(name) ? [1, 1, 1] : 1;
+    this.warnings.set(this.line, `[$${name}] is only known where there is a box; 1 is used here.`);
+    return solidScriptSystemMissingBox(name);
   }
   protected readonly parts = new Map<string, SolidScriptPart<Command>>();
   /** CSG groups built by each Part, by name key, so Output can stamp Mode. */

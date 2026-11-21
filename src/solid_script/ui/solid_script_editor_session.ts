@@ -8,6 +8,7 @@ import {
 import { SolidScriptEditorHistory } from './solid_script_editor_history.js';
 import { modifierStackSolidScriptRunStart } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_received.js';
 import type { SolidScriptUseFacts } from '@/solid_script/language/solid_script_system.js';
+import type { SolidScriptBoxCorners, SolidScriptBoxPose } from '@/solid_script/language/solid_script_box.js';
 import {
   MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY,
   MODIFIER_STACK_SOLID_SCRIPT_KEY,
@@ -90,14 +91,19 @@ export class SolidScriptEditorSession {
 
   /**
    * Returns what a run of the script in the editor starts from: the inspector
-   * values and the size of the generator box; for a modifier, the brushes it
-   * received at its last evaluation and the size of their bounds, so the editor
-   * shows what the modifier builds.
+   * values and $Box from the generator or modifier volume; for a modifier, also
+   * the brushes it received at its last evaluation, so the editor shows what
+   * the modifier builds.
    *
-   * @returns Input values, box size in script axes (width, height, depth) and,
-   *   for a modifier, what it receives.
+   * @returns Input values, box values and, for a modifier, what it receives.
    */
-  runStart(): { inputs: Record<string, string>; box: [number, number, number]; use?: SolidScriptUseFacts } {
+  runStart(): {
+    inputs: Record<string, string>;
+    box: [number, number, number];
+    pose: SolidScriptBoxPose;
+    corners: SolidScriptBoxCorners;
+    use?: SolidScriptUseFacts;
+  } {
     return { inputs: this.inputs(), ...modifierStackSolidScriptRunStart(this.node, this.stepId, this.use()) };
   }
 

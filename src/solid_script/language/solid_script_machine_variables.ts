@@ -137,6 +137,16 @@ const SOLID_SCRIPT_SYSTEM_NAMES: ReadonlyMap<string, string> = new Map(
 );
 
 /**
+ * Official spelling of a built-in value name, or undefined when it is not one.
+ *
+ * @param name Name as written or folded, such as Box.Size or box.size.
+ * @returns Official name, such as Box.Size.
+ */
+function solidScriptSystemListed(name: string): string | undefined {
+  return SOLID_SCRIPT_SYSTEM_NAMES.get(solidScriptNameKey(name));
+}
+
+/**
  * Names already checked to be plain names, so setting them again skips the
  * checks.
  */
@@ -729,9 +739,12 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
     const part = solidScriptVectorComponent(name);
     const whole = part ? this.system.get(part.name) : undefined;
     if (part && whole !== undefined) return solidScriptVectorComponentRead(part, whole);
-    const base = part && SOLID_SCRIPT_SYSTEM_NAMES.has(part.name) ? part.name : name;
-    if (SOLID_SCRIPT_SYSTEM_NAMES.has(base)) return this.systemMissing(SOLID_SCRIPT_SYSTEM_NAMES.get(base) ?? base);
-    return undefined;
+    const listed = solidScriptSystemListed(part?.name ?? name) ?? solidScriptSystemListed(name);
+    if (!listed) return undefined;
+    const missing = this.systemMissing(listed);
+    return part && solidScriptNameKey(part.name) === solidScriptNameKey(listed)
+      ? solidScriptVectorComponentRead(part, missing)
+      : missing;
   }
 
   /**

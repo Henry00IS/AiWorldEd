@@ -85,7 +85,7 @@ describe('SolidScript system values', () => {
     expect(run.error).toBeNull();
     expect(run.messages).toEqual(['start', '1 [1, 1, 1]']);
     expect(run.warnings).toEqual([
-      { line: 2, text: '[$Box.Size] is only known in a generator, where there is a box; 1 is used here.' },
+      { line: 2, text: '[$Box.Size] is only known where there is a box; 1 is used here.' },
     ]);
   });
 
@@ -117,6 +117,67 @@ describe('SolidScript system values', () => {
       solidScriptDocumentCreate([{ command: 'variable', values: { name: '$Script.Mode', value: 'Subtractive' } }]),
     );
     expect(run.error?.message).toMatch(/built-in|read|system/i);
+  });
+
+  it('reads the box pose with defaults when none is given, and does not warn', () => {
+    expect(echo('[$Box.Position] [$Box.Rotation] [$Box.Scale]')).toBe('[0, 0, 0] [0, 0, 0] [1, 1, 1]');
+    const run = solidScriptProgramRun(
+      solidScriptDocumentCreate([{ command: 'echo', values: { value: '[$Box.Position]' } }, { command: 'cube' }]),
+    );
+    expect(run.error).toBeNull();
+    expect(run.messages).toEqual(['[0, 0, 0]']);
+    expect(run.warnings).toEqual([]);
+  });
+
+  it('reads a given pose and the box corners, or plus and minus Extents when corners are omitted', () => {
+    expect(
+      echo('[$Box.Position] [$Box.Rotation] [$Box.Scale]', {
+        pose: { position: [1.5, 2, -3], rotation: [10, 20, 30], scale: [2, 0.5, -1] },
+      }),
+    ).toBe('[1.5, 2, -3] [10, 20, 30] [2, 0.5, -1]');
+    expect(echo('[$Box.Min] [$Box.Max] [$Box.Extents]', { box: [4, 2, 6] })).toBe('[-2, -1, -3] [2, 1, 3] [2, 1, 3]');
+    expect(echo('[$Box.Min] [$Box.Max]', { box: [4, 2, 6], corners: { min: [-1, -4, -3], max: [3, 0, 3] } })).toBe(
+      '[-1, -4, -3] [3, 0, 3]',
+    );
+  });
+
+  it('reads .X, .Y and .Z of a $Box vector, including the stand-in when there is no box, the same way a brush Size does', () => {
+    expect(echo('[$Box.Size.X] [$Box.Size.Y] [$Box.Size.Z] [$Box.Min.X] [$Box.Max.Z]', { box: [4, 2, 6] })).toBe(
+      '4 2 6 -2 3',
+    );
+    const compared = solidScriptProgramRun(
+      solidScriptDocumentCreate([
+        { command: 'cube', values: { size: '1, 1, 1', into: 'C', anchor: 'Center, Center, Center' } },
+        { command: 'echo', values: { value: '[$Box.Size.X] [C.Size.X]' } },
+      ]),
+      { box: [1, 1, 1] },
+    );
+    expect(compared.error).toBeNull();
+    expect(compared.messages).toEqual(['1 1']);
+    const missing = solidScriptProgramRun(
+      solidScriptDocumentCreate([
+        { command: 'echo', values: { value: '[$Box.Size.X]' } },
+        { command: 'echo', values: { value: '[$Box.Min.X] [$Box.Max.Y] [$Box.Extents.Z]' } },
+        { command: 'cube' },
+      ]),
+    );
+    expect(missing.error).toBeNull();
+    expect(missing.messages).toEqual(['1', '-0.5 0.5 0.5']);
+    expect(missing.warnings).toEqual([
+      { line: 1, text: '[$Box.Size] is only known where there is a box; 1 is used here.' },
+      { line: 2, text: '[$Box.Extents] is only known where there is a box; 1 is used here.' },
+    ]);
+  });
+
+  it('uses half-metre stand-ins for Min, Max and Extents when there is no box, and warns', () => {
+    const run = solidScriptProgramRun(
+      solidScriptDocumentCreate([
+        { command: 'echo', values: { value: '[$Box.Min] [$Box.Max] [$Box.Extents]' } },
+        { command: 'cube' },
+      ]),
+    );
+    expect(run.messages).toEqual(['[-0.5, -0.5, -0.5] [0.5, 0.5, 0.5] [0.5, 0.5, 0.5]']);
+    expect(run.warnings[0]?.text).toContain('only known where there is a box');
   });
 
   it('lists a type and detail for every value', () => {
@@ -174,7 +235,23 @@ describe('SolidScript explorer system values', () => {
     const version = entries.find((entry) => entry.name === '$Editor.Version');
     expect(version).toMatchObject({ category: 'System', value: '9.8.7', type: 'Text', readOnly: true });
     expect(version?.detail).toMatch(/version/);
-    expect(entries.find((entry) => entry.name === '$Box.Width')?.value).toBe('Only in a Generator');
+    expect(entries.find((entry) => entry.name === '$Box.Width')?.value).toBe('Only with a Box');
+    expect(entries.find((entry) => entry.name === '$Box.Position')?.value).toBe('[0, 0, 0]');
+    expect(entries.find((entry) => entry.name === '$Script.Usage')?.value).toBe('Generator');
+    const modifier = solidScriptExplorerEntries(solidScriptDocumentCreate([{ command: 'cube', values: {} }]), [], [], {
+      system: [],
+      stoppedBefore: null,
+      options: {
+        box: [4, 2, 6],
+        pose: { position: [8, 0, 1], rotation: [0, 45, 0], scale: [1, 1, 1] },
+        use: { usage: 'Modifier', solids: [], faces: 0 },
+      },
+    });
+    expect(modifier.find((entry) => entry.name === '$Script.Usage')?.value).toBe('Modifier');
+    expect(modifier.find((entry) => entry.name === '$Box.Width')?.value).toBe('4');
+    expect(modifier.find((entry) => entry.name === '$Box.Position')?.value).toBe('[8, 0, 1]');
+    expect(modifier.find((entry) => entry.name === '$Box.Rotation')?.value).toBe('[0, 45, 0]');
+    expect(modifier.find((entry) => entry.name === '$Box.Min')?.value).toBe('[-2, -1, -3]');
     expect(entries.find((entry) => entry.name === '$Script.Mode')).toMatchObject({
       category: 'System',
       value: 'Additive',

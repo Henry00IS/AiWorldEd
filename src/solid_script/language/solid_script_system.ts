@@ -1,6 +1,12 @@
 import type { SolidScriptValue } from './solid_script_value.js';
 import { SOLID_SCRIPT_MODE_DEFAULT, type SolidScriptGroupMode, type SolidScriptMode } from './solid_script_mode.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
+import {
+  solidScriptBoxCornersFromSize,
+  solidScriptBoxPoseComplete,
+  type SolidScriptBoxCorners,
+  type SolidScriptBoxPose,
+} from './solid_script_box.js';
 
 /** Where a script runs. */
 export type SolidScriptRunContext = 'generator' | 'preview' | 'handler' | 'assistant';
@@ -108,11 +114,37 @@ export const SOLID_SCRIPT_SYSTEM_GLOBALS: readonly SolidScriptSystemValue[] = [
   { name: 'Run.Context', type: 'Text', detail: 'where the script runs: generator, preview, handler or assistant' },
   { name: 'Run.Count', type: 'Number', detail: 'how many scripts ran in this window, this one included' },
   { name: 'Run.Seed', type: 'Number', detail: 'a new random whole number every run' },
-  { name: 'Box.Width', type: 'Number', detail: 'width of the generator box in metres (X)' },
-  { name: 'Box.Height', type: 'Number', detail: 'height of the generator box in metres (Y, up)' },
-  { name: 'Box.Depth', type: 'Number', detail: 'depth of the generator box in metres (Z)' },
-  { name: 'Box.Size', type: 'Vector', detail: 'width, height and depth of the generator box' },
+  { name: 'Box.Width', type: 'Number', detail: 'width of the generator or modifier volume box in metres (X)' },
+  { name: 'Box.Height', type: 'Number', detail: 'height of the generator or modifier volume box in metres (Y, up)' },
+  { name: 'Box.Depth', type: 'Number', detail: 'depth of the generator or modifier volume box in metres (Z)' },
+  { name: 'Box.Size', type: 'Vector', detail: 'width, height and depth of the generator or modifier volume box' },
   { name: 'Box.Extents', type: 'Vector', detail: 'half the box size: from its center to its sides' },
+  {
+    name: 'Box.Min',
+    type: 'Vector',
+    detail: 'lowest corner of the generator or modifier volume box, in the same space as the script',
+  },
+  {
+    name: 'Box.Max',
+    type: 'Vector',
+    detail: 'highest corner of the generator or modifier volume box, in the same space as the script',
+  },
+  {
+    name: 'Box.Position',
+    type: 'Vector',
+    detail: 'position of the generator or modifier volume in the level, in metres',
+  },
+  {
+    name: 'Box.Rotation',
+    type: 'Vector',
+    detail:
+      'rotation of the generator or modifier volume in the level, in degrees, first around X, then Y, then Z, as Rotate To uses',
+  },
+  {
+    name: 'Box.Scale',
+    type: 'Vector',
+    detail: 'scale of the generator or modifier volume in the level',
+  },
   { name: 'Script.Usage', type: 'Text', detail: 'Generator or Modifier: how this script is used here' },
   {
     name: 'Script.Mode',
@@ -291,10 +323,14 @@ export interface SolidScriptSystemReader {
  * a script reads it, so runs that read none cost nothing.
  *
  * @param context Where the script runs.
- * @param box Generator box size, or null when the run has no box.
+ * @param box Generator or modifier volume box size, or null when the run has no
+ *   box.
  * @param count True counts this run in Run.Count and Time.Delta; false only
  *   looks, as the variable explorer does.
  * @param use Where the script is used and what a modifier receives.
+ * @param pose Pose of the volume in the level, or defaults when omitted.
+ * @param corners Box corners in script space, or plus and minus Extents when
+ *   omitted.
  * @returns Values by name.
  */
 export function solidScriptSystemValues(
@@ -302,6 +338,8 @@ export function solidScriptSystemValues(
   box: readonly [number, number, number] | null,
   count = true,
   use: SolidScriptUseFacts = SOLID_SCRIPT_USE_GENERATOR,
+  pose?: Partial<SolidScriptBoxPose> | null,
+  corners?: SolidScriptBoxCorners | null,
 ): SolidScriptSystemReader {
   const now = Date.now();
   const delta = solidScriptSystemLastRun === null ? 0 : (now - solidScriptSystemLastRun) / 1000;
@@ -357,15 +395,7 @@ export function solidScriptSystemValues(
     'Input.Size': () => bounds().max.map((value, axis) => value - bounds().min[axis]!),
     'Input.Center': () => bounds().max.map((value, axis) => (value + bounds().min[axis]!) / 2),
     'Input.Extents': () => bounds().max.map((value, axis) => (value - bounds().min[axis]!) / 2),
-    ...(box
-      ? {
-          'Box.Width': () => box[0],
-          'Box.Height': () => box[1],
-          'Box.Depth': () => box[2],
-          'Box.Size': () => [box[0], box[1], box[2]],
-          'Box.Extents': () => [box[0] / 2, box[1] / 2, box[2] / 2],
-        }
-      : {}),
+    ...solidScriptSystemBoxRead(box, solidScriptBoxPoseComplete(pose), corners),
   };
   const known = new Map<string, SolidScriptValue>();
   // Names ignore case: Box.Size and box.size are one value.
@@ -380,6 +410,51 @@ export function solidScriptSystemValues(
       known.set(name, value);
       return value;
     },
+  };
+}
+
+/**
+ * Readers for $Box: pose is always present, and size members only when this run
+ * has a box.
+ *
+ * @param box Box size, or null when there is none.
+ * @param pose Complete pose in the level.
+ * @param corners Corners in script space, or plus and minus Extents.
+ * @returns Readers by official name.
+ */
+function solidScriptSystemBoxRead(
+  box: readonly [number, number, number] | null,
+  pose: SolidScriptBoxPose,
+  corners?: SolidScriptBoxCorners | null,
+): Readonly<Record<string, () => SolidScriptValue>> {
+  const sides = corners ?? (box ? solidScriptBoxCornersFromSize(box) : null);
+  return {
+    'Box.Position': () => [...pose.position],
+    'Box.Rotation': () => [...pose.rotation],
+    'Box.Scale': () => [...pose.scale],
+    ...(box && sides ? solidScriptSystemBoxSizeRead(box, sides) : {}),
+  };
+}
+
+/**
+ * Readers for the size and corners of a box.
+ *
+ * @param box Box size.
+ * @param sides Corners in script space.
+ * @returns Readers by official name.
+ */
+function solidScriptSystemBoxSizeRead(
+  box: readonly [number, number, number],
+  sides: SolidScriptBoxCorners,
+): Readonly<Record<string, () => SolidScriptValue>> {
+  return {
+    'Box.Width': () => box[0],
+    'Box.Height': () => box[1],
+    'Box.Depth': () => box[2],
+    'Box.Size': () => [box[0], box[1], box[2]],
+    'Box.Extents': () => [box[0] / 2, box[1] / 2, box[2] / 2],
+    'Box.Min': () => [...sides.min],
+    'Box.Max': () => [...sides.max],
   };
 }
 

@@ -28,6 +28,8 @@ import { SOLID_SCRIPT_HANDLERS } from '@/solid_script/language/solid_script_mach
 import { solidScriptProgramHandle } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptDebugStepLimit } from '@/solid_script/debug/solid_script_debug_steps.js';
 import { modifierStackFrame } from '@/modifier/stack/evaluate/modifier_stack_frame.js';
+import { modifierStackSolidScriptBoxValues } from './modifier_stack_solid_script_box.js';
+import { solidScriptDocumentReadsBoxMember } from '@/solid_script/language/solid_script_use_check.js';
 import { modifierStackSolidScriptSurfaces } from './modifier_stack_solid_script_surfaces.js';
 import {
   modifierStackSolidScriptLayout,
@@ -109,13 +111,18 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
   }
 
   /**
-   * Returns that the brushes and their textures follow any move or turn of the
-   * node: every face carries a frame-space surface, so the textures turn with
-   * the node like a brush turned by the editor's rotate tool.
+   * Returns how the brushes follow a move or turn of the node. They follow any
+   * move or turn unless the script reads the volume's position or rotation,
+   * which would go stale.
    *
-   * @returns 'rigid'.
+   * @param parameters Normalized parameters.
+   * @returns 'rigid', 'translate' when only rotation is read, or null when
+   *   position is read.
    */
-  override volumePoseFollow(): ModifierStackPoseFollow | null {
+  override volumePoseFollow(parameters: Record<string, unknown>): ModifierStackPoseFollow | null {
+    const document = solidScriptDocumentNormalize(parameters[MODIFIER_STACK_SOLID_SCRIPT_KEY]);
+    if (solidScriptDocumentReadsBoxMember(document, 'Position')) return null;
+    if (solidScriptDocumentReadsBoxMember(document, 'Rotation')) return 'translate';
     return 'rigid';
   }
 
@@ -236,6 +243,7 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
       solidScriptDebugStepLimit(context.volume, context.step.id),
       parameters[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY] as Record<string, string>,
       use,
+      modifierStackSolidScriptBoxValues(context.volume, box),
     );
     if (layout.error) context.report.error = layout.error;
     const frame = modifierStackFrame(context.volume, 'volume');

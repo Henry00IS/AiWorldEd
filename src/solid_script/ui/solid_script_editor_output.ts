@@ -152,7 +152,15 @@ export class SolidScriptEditorOutput {
       const solids = solidScriptOutputSolids(result.steps.length, result.ms, result.paused !== null);
       this.text([solids, ...result.messages].join('\n'), '');
       this.output.append(...result.warnings.map((warning) => this.warningRow(warning)), this.checks);
-      this.explorer.show(document, result.variables, options ? result.stack : [], result.system, run, result.seen);
+      this.explorer.show(
+        document,
+        result.variables,
+        options ? result.stack : [],
+        result.system,
+        run,
+        result.seen,
+        options ?? undefined,
+      );
     } else {
       const message = solidScriptErrorText(new Error(result.error.message));
       const failed = solidScriptErrorLine(message);
@@ -177,6 +185,7 @@ export class SolidScriptEditorOutput {
           ran: true,
         },
         result.seen,
+        options ?? undefined,
       );
     }
   }

@@ -1,10 +1,5 @@
-import {
-  solidScriptDocumentUses,
-  type SolidScriptBlock,
-  type SolidScriptDocument,
-} from '@/solid_script/document/solid_script_document.js';
+import type { SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptDocumentActiveLines } from '@/solid_script/document/solid_script_document_active.js';
-import { solidScriptBlockNesting } from '@/solid_script/document/solid_script_document_indent.js';
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
 import type { SolidScriptWarning } from './solid_script_machine_types.js';
 import { solidScriptFieldMistakeOf } from './solid_script_field_mistakes.js';
@@ -15,78 +10,40 @@ import {
 import { solidScriptNameKey } from './solid_script_name_key.js';
 
 /**
- * A Box value written in a field or formula, such as [$Box.Width] or
+ * A Box member written in a field or formula, such as [$Box.Position] or
  * Box.Size.X.
  */
-const SOLID_SCRIPT_USE_CHECK_BOX = /\bBox\.(Width|Depth|Height|Size)\b/i;
+const SOLID_SCRIPT_BOX_MEMBER = /\bBox\.(Width|Depth|Height|Size|Extents|Min|Max|Position|Rotation|Scale)\b/gi;
 
 /**
- * Finds, without running the script, the lines a modifier would run that read a
- * Box value, which only a generator has. It follows If Used As and its Else and
- * skips lines that are off; a script that cannot be used as a modifier has
- * none.
+ * Finds, without running the script, the lines a modifier would run that used
+ * to be warned about for reading a Box value. Box values come from the
+ * generator or the modifier volume, so a modifier may read them and this check
+ * reports none.
+ *
+ * @param _document Script.
+ * @returns No warnings.
+ */
+export function solidScriptUseCheck(_document: SolidScriptDocument): SolidScriptWarning[] {
+  return [];
+}
+
+/**
+ * Tells whether any active line of a script reads a Box member, such as
+ * Position or Rotation, including a part such as Box.Position.X.
  *
  * @param document Script.
- * @returns One warning per such line, in line order.
+ * @param member Official member name, such as Position.
+ * @returns True when a running line reads it.
  */
-export function solidScriptUseCheck(document: SolidScriptDocument): SolidScriptWarning[] {
-  if (!solidScriptDocumentUses(document).modifier) return [];
-  const warnings: SolidScriptWarning[] = [];
-  const open: SolidScriptUseCheckBlock[] = [];
-  for (const { block, line: index } of solidScriptDocumentActiveLines(document.blocks)) {
-    const nesting = solidScriptBlockNesting(block);
-    const top = open.at(-1);
-    if (nesting === 'close') open.pop();
-    if (nesting === 'continue' && top) top.runs = top.otherwise;
-    if (nesting === 'close' || nesting === 'continue') continue;
-    const warning = open.every((entry) => entry.runs) ? solidScriptUseCheckBox(block, index) : undefined;
-    if (warning) warnings.push(warning);
-    if (nesting === 'open') open.push(solidScriptUseCheckOpen(block));
+export function solidScriptDocumentReadsBoxMember(document: SolidScriptDocument, member: string): boolean {
+  const wanted = member.toLowerCase();
+  for (const { block } of solidScriptDocumentActiveLines(document.blocks)) {
+    for (const text of Object.values(block.values ?? {})) {
+      for (const found of text.matchAll(SOLID_SCRIPT_BOX_MEMBER)) if (found[1]?.toLowerCase() === wanted) return true;
+    }
   }
-  return warnings;
-}
-
-/**
- * An open block: whether a modifier runs its lines, and what it runs after an
- * Else.
- */
-interface SolidScriptUseCheckBlock {
-  runs: boolean;
-  readonly otherwise: boolean;
-}
-
-/**
- * Tells whether a modifier runs the lines of a block it opens: If Used As
- * Modifier runs them and not its Else, If Used As Generator the other way
- * round.
- *
- * @param block Line that opens a block.
- * @returns The open block.
- */
-function solidScriptUseCheckOpen(block: SolidScriptBlock): SolidScriptUseCheckBlock {
-  if (block.command !== 'if_used_as') return { runs: true, otherwise: true };
-  const use = solidScriptCommandFind(block.command)?.valueText(block.values, 'use') ?? '';
-  const modifier = use.toLowerCase() === 'modifier';
-  return { runs: modifier, otherwise: !modifier };
-}
-
-/**
- * Warns about a line a modifier runs that reads a Box value.
- *
- * @param block Line.
- * @param index 0-based line.
- * @returns Warning, or nothing when it reads none.
- */
-function solidScriptUseCheckBox(block: SolidScriptBlock, index: number): SolidScriptWarning | undefined {
-  const found = Object.values(block.values)
-    .map((text) => SOLID_SCRIPT_USE_CHECK_BOX.exec(text)?.[0])
-    .find((match) => match !== undefined);
-  if (found === undefined) return undefined;
-  const name = `Box.${found.slice(4, 5).toUpperCase()}${found.slice(5).toLowerCase()}`;
-  return {
-    line: index + 1,
-    text: `Used As Modifier this line reads [$${name}], which only a generator has, so it reads 1; put it inside If Used As Generator.`,
-  };
+  return false;
 }
 
 /**

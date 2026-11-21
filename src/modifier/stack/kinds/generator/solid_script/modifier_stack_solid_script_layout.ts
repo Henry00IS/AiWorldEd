@@ -4,6 +4,7 @@ import type { SolidOperation } from '@/solid/types/solid_operation.js';
 import { solidScriptProgramEvaluate } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptSolidTreeBuild } from '@/solid_script/language/solid_script_solid_tree.js';
 import { SOLID_SCRIPT_USE_GENERATOR, type SolidScriptUseFacts } from '@/solid_script/language/solid_script_system.js';
+import type { ModifierStackSolidScriptBoxValues } from './modifier_stack_solid_script_box.js';
 import { solidScriptErrorText } from '@/solid_script/language/solid_script_error.js';
 import {
   solidScriptShapeLeavesPositive,
@@ -77,6 +78,8 @@ export interface ModifierStackSolidScriptPassed {
  * @param stepLimit Primitive steps to build, or undefined for all.
  * @param inputs Values of the script's Input lines, as text by name.
  * @param use Where the script is used and what a modifier receives.
+ * @param boxValues $Box size, pose and corners; the layout box size, plus and
+ *   minus Extents and no pose when omitted.
  * @returns Nodes in frame coordinates, or an error.
  */
 export function modifierStackSolidScriptLayout(
@@ -87,10 +90,17 @@ export function modifierStackSolidScriptLayout(
   stepLimit: number | undefined,
   inputs: Readonly<Record<string, string>> = {},
   use: SolidScriptUseFacts = SOLID_SCRIPT_USE_GENERATOR,
+  boxValues?: ModifierStackSolidScriptBoxValues,
 ): ModifierStackSolidScriptLayout {
   try {
     const size = box.getSize(new THREE.Vector3());
-    const run = { inputs, box: [size.x, size.y, size.z] as const, use };
+    const run = {
+      inputs,
+      box: boxValues?.size ?? ([size.x, size.y, size.z] as const),
+      ...(boxValues?.pose ? { pose: boxValues.pose } : {}),
+      ...(boxValues?.corners ? { corners: boxValues.corners } : {}),
+      use,
+    };
     const evaluated = solidScriptProgramEvaluate(document, stepLimit === undefined ? run : { ...run, stepLimit });
     const placed = modifierStackSolidScriptPlacementMatrix(evaluated.shapes, placement, box);
     const received: SolidScriptShapeSolid[] = [];
