@@ -162,4 +162,31 @@ describe('SolidScript Scatter Points Where', () => {
       run({ command: 'scatter_points', values: { where: 'Grid', counts: '25, 25, 25', into: 'P' } }).error?.text,
     ).toMatch(/Line \d+: Counts needs three whole numbers from 1 to 100, and at most 10000 points in all/);
   });
+
+  it('spreads points over the outside of a Rotate Extrude ring, not the faces where its brushes meet', () => {
+    const messages = printed(
+      { command: 'rotate_extrude', values: { sides: '32' } },
+      { command: 'circle', values: { r: '2', label: 'Boing' } },
+      { command: 'move_by', values: { by: '8, 0, 0', of: 'Boing' } },
+      END,
+      { command: 'scatter_points', values: { count: '200', of: 'Boing', into: 'Spots', normals: 'Ways' } },
+      { command: 'for_each', values: { variable: 'Spot', list: '[Spots]' } },
+      { command: 'echo', values: { value: '[Spot]' } },
+      END,
+      { command: 'for_each', values: { variable: 'Way', list: '[Ways]' } },
+      { command: 'echo', values: { value: '[Way]' } },
+      END,
+    );
+    const spots = pointsOf(messages.slice(0, 200));
+    const ways = pointsOf(messages.slice(200));
+    expect(ways).toHaveLength(200);
+    spots.forEach(([x, y, z], index) => {
+      const [nx, ny, nz] = ways[index]!;
+      const flat = Math.hypot(x, z);
+      const tangent = Math.abs((-z * nx + x * nz) / flat);
+      const outward = (x - (8 * x) / flat) * nx + y * ny + (z - (8 * z) / flat) * nz;
+      expect(tangent, `point ${index}`).toBeLessThan(0.2);
+      expect(outward, `point ${index}`).toBeGreaterThan(1.5);
+    });
+  });
 });

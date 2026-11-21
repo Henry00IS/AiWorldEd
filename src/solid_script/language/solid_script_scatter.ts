@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
-import { solidScriptGeometryScatter, type SolidScriptFaceFacts } from './solid_script_geometry.js';
+import {
+  solidScriptGeometryFacesOutside,
+  solidScriptGeometryScatter,
+  type SolidScriptFaceFacts,
+} from './solid_script_geometry.js';
 import { solidScriptValueNumber, solidScriptValueNumbers, type SolidScriptValue } from './solid_script_value.js';
 
 /** Where Scatter Points can put its points. */
@@ -49,7 +53,8 @@ export function solidScriptScatterWhere(run: SolidScriptBlockRun): SolidScriptSc
 }
 
 /**
- * Spreads points on faces, more on bigger ones. Same seed, same points.
+ * Spreads points on faces, more on bigger ones. Same seed, same points. Faces
+ * back to back against another brush in Of, inside the shape, get none.
  *
  * @param run Running line.
  * @param faces Faces.
@@ -59,7 +64,11 @@ function solidScriptScatterOnFaces(
   run: SolidScriptBlockRun,
   faces: readonly SolidScriptFaceFacts[],
 ): SolidScriptScatterResult {
-  const points = solidScriptGeometryScatter(faces, solidScriptScatterCount(run), solidScriptScatterSeed(run));
+  const points = solidScriptGeometryScatter(
+    solidScriptGeometryFacesOutside(faces),
+    solidScriptScatterCount(run),
+    solidScriptScatterSeed(run),
+  );
   return { positions: points.map((point) => point.position), normals: points.map((point) => point.face.normal) };
 }
 
