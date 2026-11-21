@@ -351,6 +351,16 @@ export interface SolidScriptEvaluation {
   seen: ReadonlyMap<number, SolidScriptLineSeen | null>;
   /** Milliseconds the script run took, measured around the run itself. */
   ms: number;
+  /**
+   * Solids the script created or handled, including those kept only in memory
+   * and received brushes the script read, each counted once.
+   */
+  processedSolids: number;
+  /**
+   * Meshes the script created or handled, including those kept only in memory,
+   * each counted once.
+   */
+  processedMeshes: number;
 }
 
 /** Variables and the call stack just before a line ran. */

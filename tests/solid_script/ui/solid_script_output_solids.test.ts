@@ -11,17 +11,17 @@ import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/
 import { solidScriptEditorCurrentGet } from '@/solid_script/ui/solid_script_editor_open.js';
 import { editorFixture, find, tool } from './solid_script_editor_fixture.js';
 
-/** Solids count and five-decimal time, as the output writes it. */
-const SOLIDS_TIME = /^\d+ solids?(?: so far)? \(\d+\.\d{5}ms\)/;
+/** Time written at the end of the result line. */
+const SOLIDS_TIME = /\(\d+(?:\.\d+)? ms\)/;
 
 /**
- * Reads the solids count and time at the start of the editor output.
+ * Reads the result line at the start of the editor output.
  *
- * @returns Solids line, without warnings appended after it.
+ * @returns Result line, without warnings appended after it.
  */
 function outputLine(): string {
   const text = find('.solid-script-editor-output-text').textContent ?? '';
-  return text.match(SOLIDS_TIME)?.[0] ?? text.split('\n')[0] ?? '';
+  return text.match(/^.*?\d+(?:\.\d+)? ms\)/)?.[0] ?? text.split('\n')[0] ?? '';
 }
 
 /**
@@ -62,12 +62,12 @@ afterEach(() => {
 describe('SolidScript generation time in the output', () => {
   it('shows 0, 1 and 5 solids with the time the run took', () => {
     editorFixture([]);
-    expect(outputLine()).toMatch(/^0 solids \(\d+\.\d{5}ms\)$/);
+    expect(outputLine()).toMatch(/^0 solids \(\d+(?:\.\d+)? ms\)$/);
 
     solidScriptEditorCurrentGet()?.close();
     document.body.replaceChildren();
     editorFixture([{ command: 'cube' }]);
-    expect(outputLine()).toMatch(/^1 solid \(\d+\.\d{5}ms\)$/);
+    expect(outputLine()).toMatch(/^1 solid \(\d+(?:\.\d+)? ms\)$/);
 
     solidScriptEditorCurrentGet()?.close();
     document.body.replaceChildren();
@@ -78,7 +78,7 @@ describe('SolidScript generation time in the output', () => {
       { command: 'cube' },
       { command: 'cube' },
     ]);
-    expect(outputLine()).toMatch(/^5 solids \(\d+\.\d{5}ms\)$/);
+    expect(outputLine()).toMatch(/^5 solids \(\d+(?:\.\d+)? ms\)$/);
   });
 
   it('keeps the error text when a run fails, with no solids line', () => {
@@ -98,14 +98,39 @@ describe('SolidScript generation time in the output', () => {
     ]);
     find('[data-line="2"] .solid-script-editor-gutter').click();
     tool('Start').click();
-    expect(outputLine()).toMatch(/^2 solids so far \(\d+\.\d{5}ms\)$/);
+    expect(outputLine()).toMatch(/^2 solids so far \(\d+(?:\.\d+)? ms\)$/);
+  });
+
+  it('shows a mesh and the solid used to build it, and so far before Output', () => {
+    const lines: SolidScriptLine[] = [
+      { command: 'mesh_brushes', values: { into: 'Mesh' } },
+      { command: 'cube' },
+      { command: 'end' },
+      { command: 'output', values: { of: '[Mesh]' } },
+    ];
+    editorFixture(lines);
+    expect(outputLine()).toMatch(/^1 mesh \(1 solid, 1 mesh processed, \d+(?:\.\d+)? ms\)$/);
+
+    find('[data-line="3"] .solid-script-editor-gutter').click();
+    tool('Start').click();
+    expect(outputLine()).toMatch(/^0 solids so far \(1 solid, 1 mesh processed, \d+(?:\.\d+)? ms\)$/);
   });
 });
 
 describe('SolidScript generation time on a generator row', () => {
   it('appends the run time after the solids count', () => {
     const field = inspectorField([{ command: 'cube' }, { command: 'sphere' }]);
-    expect(field.textContent).toMatch(/2 lines · 2 solids \(\d+\.\d{5}ms\)/);
+    expect(field.textContent).toMatch(/2 lines · 2 solids \(\d+(?:\.\d+)? ms\)/);
+  });
+
+  it('uses the same mesh and processed wording as the editor output', () => {
+    const field = inspectorField([
+      { command: 'mesh_brushes', values: { into: 'Mesh' } },
+      { command: 'cube' },
+      { command: 'end' },
+      { command: 'output', values: { of: '[Mesh]' } },
+    ]);
+    expect(field.textContent).toMatch(/4 lines · 1 mesh \(1 solid, 1 mesh processed, \d+(?:\.\d+)? ms\)/);
   });
 
   it('keeps only the line count when the script fails', () => {

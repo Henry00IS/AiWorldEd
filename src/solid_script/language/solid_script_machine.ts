@@ -54,6 +54,7 @@ import {
   type SolidScriptRunBuild,
 } from './solid_script_machine_runs.js';
 import { solidScriptGeometryLeaves, type SolidScriptGeometryLeaf } from './solid_script_geometry.js';
+import { SolidScriptOutputProcessed } from './solid_script_output_processed.js';
 import { solidScriptGeneratorPiecesCacheClear } from './solid_script_generator_pieces.js';
 import { solidScriptBodyHull, type SolidScriptBody } from './solid_script_body.js';
 import {
@@ -132,6 +133,11 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   private stackSeen: SolidScriptFrameView[] = [];
   private readonly notices: string[] = [];
   private solids = 0;
+  protected readonly processed = new SolidScriptOutputProcessed();
+  /** True once a line has read the received brushes, not only the debugger. */
+  private incomingUsed = false;
+  /** True while system lists are being copied for the debugger. */
+  private capturingSystem = false;
   private work = 0;
   private used = false;
   private readonly breaks: SolidScriptBreak[] = [];
@@ -205,6 +211,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
    * @returns Brush elements, none for a generator.
    */
   protected brushesReceived(): SolidScriptValue[] {
+    if (!this.capturingSystem) this.incomingUsed = true;
     if (this.received) return this.received.map((leaf) => this.elements.brush(leaf));
     this.incoming ??= this.incomingSolids();
     this.received = this.incoming;
@@ -313,7 +320,10 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   protected leafRewrite(leaf: SolidScriptGeometryLeaf, found: SolidScriptGeometryLeaf): void {
     const by = solidScriptLeafRewritten(leaf, found);
     this.elements.modeRoleCopy(leaf, by);
-    if (this.toolCopy.take(leaf, by)) return;
+    if (this.toolCopy.take(leaf, by)) {
+      this.processed.note(by);
+      return;
+    }
     this.elements.brushRemember(leaf, by);
     this.leafSwaps.set(leaf, by);
     this.elements.follow(leaf, by);
@@ -480,6 +490,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         line: null,
         text: 'The script builds no brushes or meshes; add one such as Cube, or Output a variable.',
       });
+    if (this.incomingUsed && this.incoming && this.received === this.incoming) this.processed.notes(this.incoming);
     return {
       shapes,
       messages: this.messages,
@@ -493,6 +504,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       passed: this.passedSeen ?? [...this.profile.keys()],
       profile: this.profile,
       seen: this.lineSeenViews(),
+      processedSolids: this.processed.solids,
+      processedMeshes: this.processed.meshes,
       error: this.failure,
     };
   }
@@ -797,9 +810,11 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       state.machine.flatCheck(node, state.context, false);
       if (!state.machine.stepTake(state.scope)) return [];
       const made = solidScriptSolidMade(labelOf(), body(), modeOf());
-      return state.machine.modeRolePlaced([
-        solidScriptShapeTransform(faceUvs ? { ...made, faceUvs } : made, state.context.matrix),
-      ]);
+      return state.machine.processed.taken(
+        state.machine.modeRolePlaced([
+          solidScriptShapeTransform(faceUvs ? { ...made, faceUvs } : made, state.context.matrix),
+        ]),
+      );
     };
     return {
       values: (key) =>
@@ -854,27 +869,31 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       hulled: (extra = []) =>
         !state.machine.stepTake(state.scope)
           ? []
-          : state.machine.modeRolePlaced(
-              solidScriptMachineGatherWhile(state.machine.gathering, 'hull', (into) =>
-                solidScriptHullShapes(
-                  inside({ ...state.context, matrix: new THREE.Matrix4() }),
-                  [...into.points, ...extra],
-                  labelOf(),
-                  state.context.planar,
-                ).map((shape) => solidScriptShapeTransform(shape, state.context.matrix)),
-              ).map((shape) => solidScriptModeApply(shape, modeOf())),
+          : state.machine.processed.taken(
+              state.machine.modeRolePlaced(
+                solidScriptMachineGatherWhile(state.machine.gathering, 'hull', (into) =>
+                  solidScriptHullShapes(
+                    inside({ ...state.context, matrix: new THREE.Matrix4() }),
+                    [...into.points, ...extra],
+                    labelOf(),
+                    state.context.planar,
+                  ).map((shape) => solidScriptShapeTransform(shape, state.context.matrix)),
+                ).map((shape) => solidScriptModeApply(shape, modeOf())),
+              ),
             ),
       extruded: (fields) => {
         if (state.context.planar) throw new Error('Linear Extrude cannot be inside another Linear Extrude');
         const flat = solidScriptShapeJoin(inside({ matrix: new THREE.Matrix4(), planar: true }), labelOf());
         if (!flat) return [];
         const extruded = solidScriptExtrude(flat, fields, new THREE.Matrix4());
-        return state.machine.modeRolePlaced([
-          solidScriptModeApply(
-            solidScriptShapeNamed(solidScriptShapeTransform(extruded, state.context.matrix), ownName()),
-            modeOf(),
-          ),
-        ]);
+        return state.machine.processed.taken(
+          state.machine.modeRolePlaced([
+            solidScriptModeApply(
+              solidScriptShapeNamed(solidScriptShapeTransform(extruded, state.context.matrix), ownName()),
+              modeOf(),
+            ),
+          ]),
+        );
       },
       repeated: (counter, values, keyed) => {
         state.machine.nameCheck(counter, 'a counter');
@@ -973,7 +992,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       toolCopyEnd: () => state.machine.toolCopyEnd(),
       toolCopyResults: () => state.machine.toolCopyResults(),
       partAdopt: (leaves, shapes) => state.machine.partAdopt(leaves, shapes),
-      adopted: (shapes) => shapes.filter(() => state.machine.stepTake(state.scope)),
+      adopted: (shapes) => state.machine.processed.taken(shapes.filter(() => state.machine.stepTake(state.scope))),
       gathered: (what) => {
         const into: SolidScriptGathering = { kind: what, points: [], uvs: [], faces: [] };
         state.machine.gathering.push(into);
@@ -1054,7 +1073,9 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         state.machine.gatherCheck(node);
         state.machine.flatCheck(node, state.context, false);
         if (!state.machine.stepTake(state.scope)) return [];
-        return [solidScriptMeshChecked(solidScriptMeshTransform({ ...mesh, label: labelOf() }, state.context.matrix))];
+        return state.machine.processed.taken([
+          solidScriptMeshChecked(solidScriptMeshTransform({ ...mesh, label: labelOf() }, state.context.matrix)),
+        ]);
       },
       valueWith: (key, variables) => {
         const inner = new SolidScriptScope(state.scope);
@@ -1249,12 +1270,17 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
    * @returns The lists with their values as text.
    */
   private systemCapture(): SolidScriptVariable[] {
-    const seen: SolidScriptVariable[] = [];
-    for (const entry of SOLID_SCRIPT_SYSTEM_CATALOG) {
-      const list = this.systemList(solidScriptNameKey(entry.name.slice(1)));
-      if (list !== undefined) seen.push(solidScriptVariableView(entry.name, list));
+    this.capturingSystem = true;
+    try {
+      const seen: SolidScriptVariable[] = [];
+      for (const entry of SOLID_SCRIPT_SYSTEM_CATALOG) {
+        const list = this.systemList(solidScriptNameKey(entry.name.slice(1)));
+        if (list !== undefined) seen.push(solidScriptVariableView(entry.name, list));
+      }
+      return seen;
+    } finally {
+      this.capturingSystem = false;
     }
-    return seen;
   }
 
   /** Counts one step of work and stops a run that never ends. */

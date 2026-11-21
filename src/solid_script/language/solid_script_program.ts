@@ -202,6 +202,8 @@ function solidScriptProgramFailed(error: unknown): Omit<SolidScriptRun, 'ms'> {
     passed: [],
     profile: new Map(),
     seen: new Map(),
+    processedSolids: 0,
+    processedMeshes: 0,
     error: solidScriptFailure(solidScriptErrorLine(message), message),
   };
 }

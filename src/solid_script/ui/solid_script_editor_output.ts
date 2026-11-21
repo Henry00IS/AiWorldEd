@@ -3,7 +3,7 @@ import { solidScriptKindCheck } from '@/solid_script/document/solid_script_docum
 import type { SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptErrorLine, solidScriptErrorText } from '@/solid_script/language/solid_script_error.js';
 import { solidScriptProgramRun, type SolidScriptProgramOptions } from '@/solid_script/language/solid_script_program.js';
-import { solidScriptOutputSolids } from '@/solid_script/language/solid_script_output_solids.js';
+import { solidScriptOutputLine } from '@/solid_script/language/solid_script_output_solids.js';
 import type { SolidScriptLineProfile, SolidScriptWarning } from '@/solid_script/language/solid_script_machine_types.js';
 import { SolidScriptEditorExplorer, type SolidScriptExplorerRun } from './solid_script_editor_explorer.js';
 import {
@@ -149,7 +149,7 @@ export class SolidScriptEditorOutput {
       this.failed = null;
       this.failedKeys = new Set();
       this.runs = result.profile;
-      const solids = solidScriptOutputSolids(result.steps.length, result.ms, result.paused !== null);
+      const solids = solidScriptOutputLine(result);
       this.text([solids, ...result.messages].join('\n'), '');
       this.output.append(...result.warnings.map((warning) => this.warningRow(warning)), this.checks);
       this.explorer.show(

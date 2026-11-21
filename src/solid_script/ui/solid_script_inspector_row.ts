@@ -19,7 +19,7 @@ import {
   solidScriptProgramEvaluate,
   type SolidScriptProgramOptions,
 } from '@/solid_script/language/solid_script_program.js';
-import { solidScriptOutputSolids } from '@/solid_script/language/solid_script_output_solids.js';
+import { solidScriptOutputLine } from '@/solid_script/language/solid_script_output_solids.js';
 import { modifierStackSolidScriptRunStart } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_received.js';
 import { SOLID_SCRIPT_FILE_EXTENSION } from '@/solid_script/file/solid_script_file.js';
 import { solidScriptEditorIcon } from './solid_script_editor_icons.js';
@@ -214,8 +214,8 @@ function solidScriptInspectorButtons(
 }
 
 /**
- * Shows the size of a script and how many solids it builds, or its error in the
- * message area when it stops.
+ * Shows the size of a script and what it builds, or its error in the message
+ * area when it stops.
  *
  * @param element Detail line.
  * @param fail Shows the script's error, or hides it when empty.
@@ -231,7 +231,7 @@ function solidScriptInspectorDetail(
   const lines = `${document.blocks.length} ${document.blocks.length === 1 ? 'line' : 'lines'}`;
   try {
     const result = solidScriptProgramEvaluate(document, { ...options, context: 'preview' });
-    element.textContent = `${lines} · ${solidScriptOutputSolids(result.steps.length, result.ms)}`;
+    element.textContent = `${lines} · ${solidScriptOutputLine(result)}`;
     fail('');
   } catch (error) {
     element.textContent = lines;
