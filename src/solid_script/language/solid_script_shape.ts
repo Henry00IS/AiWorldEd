@@ -49,6 +49,12 @@ export interface SolidScriptShapeSolid {
    */
   uvPolicy?: SolidScriptUvPolicy;
   /**
+   * Accumulated pose applied to face mappings while textures moved with the
+   * solid. Transform UVs World Aligned uses it to lock textures in the world
+   * from the current script-space position, then drops it.
+   */
+  uvCarry?: THREE.Matrix4;
+  /**
    * The received brush this solid passes on, from Input Brushes; none for built
    * shapes.
    */

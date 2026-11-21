@@ -128,6 +128,42 @@ export function solidScriptFaceUvDefault(normal: THREE.Vector3, center: THREE.Ve
 }
 
 /**
+ * Rigid pose a transform applies to a solid's texture mappings when they move
+ * with the solid: the centre is taken to its new place, and any turn is about
+ * that centre. A received brush stores no turn, only the centre move.
+ *
+ * @param leaf Solid before the transform.
+ * @param matrix Transform applied to its points.
+ * @returns Pose.
+ */
+export function solidScriptUvCarryMatrix(leaf: SolidScriptShapeSolid, matrix: THREE.Matrix4): THREE.Matrix4 {
+  const turn = leaf.received ? null : solidScriptMatrixTurn(matrix);
+  const rotation = turn ?? new THREE.Matrix3();
+  const center = solidScriptLeafCenter(leaf);
+  const carry = new THREE.Matrix4().setFromMatrix3(rotation);
+  carry.setPosition(center.clone().applyMatrix4(matrix).sub(center.clone().applyMatrix3(rotation)));
+  return carry;
+}
+
+/**
+ * Accumulated pose of mappings that moved with the solid, after this transform.
+ * World Aligned mappings stay where they are, so the stored pose is unchanged.
+ *
+ * @param leaf Solid before the transform.
+ * @param matrix Transform applied to its points.
+ * @returns Pose to store, or none when it is still the identity.
+ */
+export function solidScriptUvCarryAccumulate(
+  leaf: SolidScriptShapeSolid,
+  matrix: THREE.Matrix4,
+): THREE.Matrix4 | undefined {
+  if (solidScriptUvPolicyOf(leaf).textures === 'world') return leaf.uvCarry;
+  const carry = solidScriptUvCarryMatrix(leaf, matrix);
+  const pose = leaf.uvCarry ? carry.clone().multiply(leaf.uvCarry) : carry;
+  return pose.equals(new THREE.Matrix4()) ? undefined : pose;
+}
+
+/**
  * Carries the texture of a solid through a transform, the way a brush turned or
  * moved in the editor keeps its own UVs: a move or turn takes the texture
  * along, while a scale changes the size of the shape, not of the texture. When
@@ -144,16 +180,10 @@ export function solidScriptFaceUvsCarry(
   leaf: SolidScriptShapeSolid,
   matrix: THREE.Matrix4,
 ): SolidScriptFaceUv[] | undefined {
-  // A received brush brings its own textures, moved with it.
   const turn = leaf.received ? null : solidScriptMatrixTurn(matrix);
   if (!turn && !leaf.faceUvs) return undefined;
   const center = solidScriptLeafCenter(leaf);
-  // The rigid part: the center goes where the matrix takes it, the rest turns about it.
-  const carry = new THREE.Matrix4().setFromMatrix3(turn ?? new THREE.Matrix3());
-  const turned = center.clone().applyMatrix3(turn ?? new THREE.Matrix3());
-  const moved = center.clone().applyMatrix4(matrix).sub(turned);
-  carry.setPosition(moved);
-  const back = carry.clone().invert();
+  const back = solidScriptUvCarryMatrix(leaf, matrix).invert();
   const normals = new THREE.Matrix3().getNormalMatrix(matrix);
   const records: readonly SolidScriptFaceUv[] = turn
     ? solidScriptGeometryFaces([leaf]).map((face) => ({
@@ -181,6 +211,77 @@ export function solidScriptFaceUvsCarry(
       uv: solidScriptUvPolicyMap(face.uv, corners, world ? null : back, reflected, 0, 0),
     };
   });
+}
+
+/**
+ * Rewrites a solid's face mappings so they stay where they are in the world,
+ * from the solid's current script-space position, then forgets the copied
+ * pose.
+ *
+ * @param leaf Solid whose textures just became World Aligned.
+ * @returns Solid with world-locked mappings.
+ */
+export function solidScriptFaceUvsWorldLock(leaf: SolidScriptShapeSolid): SolidScriptShapeSolid {
+  const pose = leaf.uvCarry;
+  if (pose && !pose.equals(new THREE.Matrix4())) {
+    const written = solidScriptFaceUvsWorldLockApply(leaf, pose);
+    if (written.faceUvs) leaf.faceUvs = written.faceUvs;
+    delete leaf.boxUvSize;
+  }
+  delete leaf.uvCarry;
+  return leaf;
+}
+
+/**
+ * Fits world-locked mappings to the solid's current faces.
+ *
+ * @param leaf Solid.
+ * @param pose Accumulated copied pose to apply to each mapping.
+ * @returns Solid with those records.
+ */
+function solidScriptFaceUvsWorldLockApply(leaf: SolidScriptShapeSolid, pose: THREE.Matrix4): SolidScriptShapeSolid {
+  const center = solidScriptLeafCenter(leaf);
+  return solidScriptSolidFaceUvsWrite(
+    leaf,
+    solidScriptGeometryFaces([leaf]).map((face) =>
+      solidScriptFaceUvRecord(
+        face,
+        solidScriptUvPolicyMap(
+          solidScriptFaceUvOwn(leaf, face.center, face.normal, center),
+          face.corners,
+          pose,
+          false,
+          0,
+          0,
+        ),
+      ),
+    ),
+  );
+}
+
+/**
+ * Rewrites a mesh's corner UVs so they stay where they are in the world, from
+ * the mesh's current script-space position, then forgets the copied pose.
+ *
+ * @param mesh Mesh whose textures just became World Aligned.
+ * @returns Mesh with world-locked corner UVs.
+ */
+export function solidScriptMeshUvsWorldLock(mesh: SolidScriptShapeMesh): SolidScriptShapeMesh {
+  const pose = mesh.uvCarry;
+  if (pose && !pose.equals(new THREE.Matrix4())) {
+    let next = mesh;
+    for (const face of solidScriptGeometryFaces([mesh]))
+      next = solidScriptMeshFaceUvsWrite(
+        next,
+        face.index,
+        face.corners.map((corner) =>
+          textureUvProjectPoint(solidScriptFaceUvMatrix(face).multiplyMatrix4(pose), corner),
+        ),
+      );
+    mesh.uvs = next.uvs;
+  }
+  delete mesh.uvCarry;
+  return mesh;
 }
 
 /**

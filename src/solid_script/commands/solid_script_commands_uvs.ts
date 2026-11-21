@@ -23,7 +23,9 @@ import {
   solidScriptFaceUvRecord,
   solidScriptFaceUvsFit,
   solidScriptLeafCenter,
+  solidScriptFaceUvsWorldLock,
   solidScriptMeshFaceUvsWrite,
+  solidScriptMeshUvsWorldLock,
   solidScriptSolidFaceUvsWrite,
 } from '@/solid_script/language/solid_script_uvs.js';
 import {
@@ -299,21 +301,49 @@ function solidScriptUvsTransformPolicy(
   for (const face of faces) {
     if (seen.has(face.leaf)) continue;
     seen.add(face.leaf);
-    const latest = run.leafLatest(face.leaf);
-    if (latest.kind !== 'solid') continue;
-    const keepShift = !!latest.received && !bake;
-    const writeTextures = textures && (textures !== 'copied' || solidScriptUvPolicyOf(latest).textures !== undefined);
-    solidScriptUvPolicyApply(
-      latest,
-      {
-        ...(writeTextures ? { textures } : {}),
-        ...(readable !== undefined ? { readable } : {}),
-        shiftU: keepShift ? offset.x : 0,
-        shiftV: keepShift ? offset.y : 0,
-      },
-      'add',
-    );
+    solidScriptUvsTransformPolicyLeaf(run, face.leaf, { offset, readable, textures, bake });
   }
+}
+
+/**
+ * Stores the policy on one solid, or world-locks a mesh from its current
+ * position when Textures is World Aligned.
+ *
+ * @param run Running line.
+ * @param leaf Target solid or mesh, as first seen.
+ * @param policy Fields read from the line.
+ */
+function solidScriptUvsTransformPolicyLeaf(
+  run: SolidScriptBlockRun,
+  leaf: SolidScriptGeometryLeaf,
+  policy: {
+    offset: THREE.Vector3;
+    readable: boolean | undefined;
+    textures: 'copied' | 'world' | undefined;
+    bake: boolean;
+  },
+): void {
+  const latest = run.leafLatest(leaf);
+  if (latest.kind === 'mesh') {
+    if (policy.textures === 'world') solidScriptMeshUvsWorldLock(latest);
+    return;
+  }
+  if (latest.kind !== 'solid') return;
+  if (policy.textures === 'world') solidScriptFaceUvsWorldLock(latest);
+  const solid = latest;
+  const keepShift = !!solid.received && !policy.bake;
+  const textures = policy.textures;
+  const writeTextures = textures && (textures !== 'copied' || solidScriptUvPolicyOf(solid).textures !== undefined);
+  solidScriptUvPolicyApply(
+    solid,
+    {
+      ...(writeTextures ? { textures } : {}),
+      ...(policy.readable !== undefined ? { readable: policy.readable } : {}),
+      shiftU: keepShift ? policy.offset.x : 0,
+      shiftV: keepShift ? policy.offset.y : 0,
+    },
+    'add',
+  );
 }
 
 /**

@@ -28,6 +28,12 @@ export interface SolidScriptShapeMesh {
   texture?: string;
   /** Tags the operations that built faces gave them, such as Inner. */
   faceTags?: SolidScriptFaceTag[];
+  /**
+   * Accumulated pose of the mesh since its UVs were written. Transform UVs
+   * World Aligned uses it to project from the current script-space position,
+   * then drops it.
+   */
+  uvCarry?: THREE.Matrix4;
 }
 
 /** Most corner points a mesh may have after an operation. */
@@ -88,13 +94,31 @@ export function solidScriptMeshJoin(meshes: readonly SolidScriptShapeMesh[], lab
  */
 export function solidScriptMeshTransform(mesh: SolidScriptShapeMesh, matrix: THREE.Matrix4): SolidScriptShapeMesh {
   const flip = matrix.determinant() < 0;
-  return {
+  const moved: SolidScriptShapeMesh = {
     ...mesh,
     points: mesh.points.map((point) => point.clone().applyMatrix4(matrix)),
     faces: flip ? mesh.faces.map((face) => [...face].reverse()) : mesh.faces.map((face) => [...face]),
     uvs: flip ? mesh.uvs.map((uv) => (uv ? [...uv].reverse() : null)) : mesh.uvs,
     ...(mesh.faceTags ? { faceTags: solidScriptFaceTagsTransform(mesh.faceTags, matrix) } : {}),
   };
+  const uvCarry = solidScriptMeshUvCarry(mesh, matrix);
+  if (uvCarry) moved.uvCarry = uvCarry;
+  else delete moved.uvCarry;
+  return moved;
+}
+
+/**
+ * Accumulated mesh pose after this transform, so World Aligned can project from
+ * the current position. Vertex UVs travel with the points, so the whole matrix
+ * is stored.
+ *
+ * @param mesh Mesh before the transform.
+ * @param matrix Transform applied to its points.
+ * @returns Pose, or none when it is still the identity.
+ */
+function solidScriptMeshUvCarry(mesh: SolidScriptShapeMesh, matrix: THREE.Matrix4): THREE.Matrix4 | undefined {
+  const pose = mesh.uvCarry ? matrix.clone().multiply(mesh.uvCarry) : matrix.clone();
+  return pose.equals(new THREE.Matrix4()) ? undefined : pose;
 }
 
 /**

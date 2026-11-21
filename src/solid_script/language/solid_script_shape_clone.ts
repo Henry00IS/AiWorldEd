@@ -35,6 +35,7 @@ function solidScriptSolidClone(leaf: SolidScriptShapeSolid): SolidScriptShapeSol
   if (leaf.faceUvs) copy.faceUvs = leaf.faceUvs.map(solidScriptFaceUvClone);
   if (leaf.faceTags) copy.faceTags = leaf.faceTags.map(solidScriptFaceTagClone);
   if (leaf.clippedBy) copy.clippedBy = { normal: leaf.clippedBy.normal.clone(), constant: leaf.clippedBy.constant };
+  if (leaf.uvCarry) copy.uvCarry = leaf.uvCarry.clone();
   return copy;
 }
 
@@ -94,5 +95,6 @@ function solidScriptMeshClone(mesh: SolidScriptShapeMesh): SolidScriptShapeMesh 
     uvs: mesh.uvs.map((face) => face?.map(([u, v]): SolidScriptUv => [u, v]) ?? null),
   };
   if (mesh.faceTags) copy.faceTags = mesh.faceTags.map(solidScriptFaceTagClone);
+  if (mesh.uvCarry) copy.uvCarry = mesh.uvCarry.clone();
   return copy;
 }

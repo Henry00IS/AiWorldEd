@@ -7,7 +7,7 @@ import {
   type SolidScriptPoint2,
 } from './solid_script_polygon.js';
 import { solidScriptFaceTagsTransform, solidScriptMeshTransform } from './solid_script_mesh.js';
-import { solidScriptFaceUvsCarry } from './solid_script_uvs.js';
+import { solidScriptFaceUvsCarry, solidScriptUvCarryAccumulate } from './solid_script_uvs.js';
 import { solidScriptBodyFacesMoved, solidScriptBodyHull, solidScriptBodyPrism } from './solid_script_body.js';
 import {
   solidScriptShapeJoin,
@@ -47,11 +47,31 @@ function solidScriptSolidTransform(leaf: SolidScriptShapeSolid, matrix: THREE.Ma
       normal: face.normal.clone().applyMatrix3(normals).normalize(),
     }));
   }
+  return solidScriptSolidTransformUvs(leaf, moved, matrix);
+}
+
+/**
+ * Carries face mappings through a transform and stores the pose World Aligned
+ * later uses to lock them in the world.
+ *
+ * @param leaf Solid before the transform.
+ * @param moved Solid after its points moved.
+ * @param matrix Transform applied to the points.
+ * @returns Moved solid with mappings and pose.
+ */
+function solidScriptSolidTransformUvs(
+  leaf: SolidScriptShapeSolid,
+  moved: SolidScriptShapeSolid,
+  matrix: THREE.Matrix4,
+): SolidScriptShapeSolid {
   const faceUvs = solidScriptFaceUvsCarry(leaf, matrix);
   if (faceUvs) {
     moved.faceUvs = faceUvs;
     delete moved.boxUvSize;
   }
+  const uvCarry = solidScriptUvCarryAccumulate(leaf, matrix);
+  if (uvCarry) moved.uvCarry = uvCarry;
+  else delete moved.uvCarry;
   return moved;
 }
 

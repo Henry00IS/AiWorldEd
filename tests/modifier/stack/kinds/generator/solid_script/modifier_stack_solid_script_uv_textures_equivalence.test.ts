@@ -667,7 +667,7 @@ describe('Transform UVs Textures replaces Input Brushes Textures', () => {
     const rows: string[] = [];
     for (const [name, inner, mustDiffer] of aroundCases()) {
       rows.push(...compareCase(name, inner, mustDiffer));
-      rows.push(...compareMeshes(name, inner, false));
+      rows.push(...compareMeshes(name, inner, name !== 'Transform Scale' && name !== 'no move' && mustDiffer));
     }
     for (const [name, inner, mustDiffer] of afterCases()) {
       rows.push(...compareCase(name, inner, mustDiffer));
@@ -689,7 +689,7 @@ describe('Transform UVs Textures replaces Input Brushes Textures', () => {
   });
 
   it('lets Repeat copies use different Textures, including mixed Move By meshes', () => {
-    const rows = [...compareMixed('mixed Wrap', mixedWrap, false), ...compareMixed('mixed Move By', mixedMoveBy, true)];
+    const rows = [...compareMixed('mixed Wrap', mixedWrap, true), ...compareMixed('mixed Move By', mixedMoveBy, true)];
     expect(rows, rows.slice(0, 40).join('\n')).toEqual([]);
   });
 
@@ -701,13 +701,20 @@ describe('Transform UVs Textures replaces Input Brushes Textures', () => {
     expect(meshUvsAt(result, 2.5, 0.5, 0.5)).toContainEqual([3.25, -0.1]);
   });
 
-  it('does not world-lock Mesh From Brushes UVs when Transform UVs World Aligned comes after Move By', () => {
+  it('world-locks Mesh From Brushes UVs when Transform UVs World Aligned comes after Move By', () => {
     const inner = afterCases().find((entry) => entry[0] === 'Move By');
     if (!inner) throw new Error('Expected the Move By case');
     const later = compileVolume(meshed(stamped(texturesAfter(WORLD, inner[1]))));
     expect(later.error).toBe('');
-    expect(meshUvsAt(later, 2.5, 0.5, 0.5)).toContainEqual([1.25, -0.1]);
-    expect(meshUvsAt(later, 2.5, 0.5, 0.5)).not.toContainEqual([3.25, -0.1]);
+    expect(meshUvsAt(later, 2.5, 0.5, 0.5)).toContainEqual([3.25, -0.1]);
+  });
+
+  it('world-locks Mesh From Brushes UVs when Transform UVs World Aligned comes after a Transform wrap', () => {
+    const inner = aroundCases().find((entry) => entry[0] === 'Transform Move');
+    if (!inner) throw new Error('Expected the Transform Move case');
+    const later = compileVolume(meshed(stamped(texturesAfter(WORLD, inner[1]))));
+    expect(later.error).toBe('');
+    expect(meshUvsAt(later, 2.5, 0.5, 0.5)).toContainEqual([3.25, -0.1]);
   });
 
   it('gives an empty generator result, because Input Brushes receives no brushes', () => {
