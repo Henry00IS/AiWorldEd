@@ -210,7 +210,7 @@ In the editor, the generator's first inspector row is its script: it shows the s
 ## Generators, modifiers and curves
 
 - `modifier_kind_list` with `kindId` lists every property of a kind. Each entry gives key, label, type, range, choices, default and the inspector tooltip, plus the kind's presets. The list is read from the same field descriptors the inspector draws, so new inspector fields show up in MCP by themselves.
-- `modifier_generator_create` adds a generator inside a solid model: Cylinder, Cone, Sphere, Capsule, Torus, Pipe, Pyramid, Prism, Hollow Box, Column, Stairs, Curved Stairs, Arch, Blast Hole. `modifier_stack_bake` on the node is Convert to Brush. `modifier_volume_create` adds a scene-level modifier volume from an Add menu template.
+- `modifier_generator_create` adds a generator inside a solid model: Cylinder, Cone, Sphere, Capsule, Torus, Pipe, Pyramid, Prism, Rhombicuboctahedron, Hollow Box, Column, Stairs, Curved Stairs, Arch, Blast Hole. `modifier_stack_bake` on the node is Convert to Brush. `modifier_volume_create` adds a scene-level modifier volume from an Add menu template.
 - `modifier_parameters_set` validates like the inspector does. Unknown keys are refused with the valid list. Numbers are clamped to their range with a warning. Objects are referenced by id, and curves are given as curve data. Bevel options use `options.<name>` keys.
 - Curve properties, such as a column `profile`, are edited with the `curve_*` tools. Coordinates run 0..1: x along the curve and y the value, y up. Segment i joins points i and i+1. `curve_get` reports handles as absolute positions, and `curve_point_set` takes them the same way.
 
@@ -370,7 +370,7 @@ Architectural helpers: walls, room shells, doors and windows.
 
 ### modifier
 
-Modifier stacks: kinds and parameters with tooltips, modifier volumes, generators (Cylinder, Cone, Sphere, Capsule, Torus, Pipe, Pyramid, Prism, Hollow Box, Column, Stairs, Curved Stairs, Arch, Blast Hole), buttons, entries, parameters, presets, bake.
+Modifier stacks: kinds and parameters with tooltips, modifier volumes, generators (Cylinder, Cone, Sphere, Capsule, Torus, Pipe, Pyramid, Prism, Rhombicuboctahedron, Hollow Box, Column, Stairs, Curved Stairs, Arch, Blast Hole), buttons, entries, parameters, presets, bake.
 
 | Tool                          | Purpose                                                                                                                                          |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |

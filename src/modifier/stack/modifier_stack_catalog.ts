@@ -18,6 +18,7 @@ import { ModifierStackKindTorus } from './kinds/generator/primitive/modifier_sta
 import { ModifierStackKindPipe } from './kinds/generator/primitive/modifier_stack_kind_pipe.js';
 import { ModifierStackKindPyramid } from './kinds/generator/primitive/modifier_stack_kind_pyramid.js';
 import { ModifierStackKindPrism } from './kinds/generator/primitive/modifier_stack_kind_prism.js';
+import { ModifierStackKindRhombicuboctahedron } from './kinds/generator/primitive/modifier_stack_kind_rhombicuboctahedron.js';
 import { ModifierStackKindHollowBox } from './kinds/generator/primitive/modifier_stack_kind_hollow_box.js';
 import { ModifierStackKindCurvedStairs } from './kinds/generator/primitive/modifier_stack_kind_curved_stairs.js';
 import { ModifierStackKindSolidScript } from './kinds/generator/solid_script/modifier_stack_kind_solid_script.js';
@@ -39,6 +40,7 @@ export const modifierStackKinds: readonly ModifierStackKind[] = [
   new ModifierStackKindPipe(),
   new ModifierStackKindPyramid(),
   new ModifierStackKindPrism(),
+  new ModifierStackKindRhombicuboctahedron(),
   new ModifierStackKindHollowBox(),
   new ModifierStackKindCurvedStairs(),
   new ModifierStackKindSolidScript(),

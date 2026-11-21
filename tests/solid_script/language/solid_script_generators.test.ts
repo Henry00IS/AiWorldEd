@@ -60,6 +60,7 @@ const GENERATED = [
   'pipe',
   'pyramid',
   'prism',
+  'rhombicuboctahedron',
   'hollowBox',
   'curvedStairs',
   'column',

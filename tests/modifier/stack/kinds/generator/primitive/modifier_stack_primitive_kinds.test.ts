@@ -17,6 +17,7 @@ const PRIMITIVE_KINDS = [
   'pipe',
   'pyramid',
   'prism',
+  'rhombicuboctahedron',
   'hollowBox',
   'curvedStairs',
 ] as const;

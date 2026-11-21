@@ -45,6 +45,7 @@ describe('modifier stack kinds', () => {
       'pipe',
       'pyramid',
       'prism',
+      'rhombicuboctahedron',
       'hollowBox',
       'curvedStairs',
       'solidScript',
