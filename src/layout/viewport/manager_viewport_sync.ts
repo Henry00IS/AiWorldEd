@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { Viewport3D } from '@/viewports/core/viewport_3d.js';
 import { Viewport2D } from '@/viewports/core/viewport_2d.js';
 import type { ViewportEditor } from '@/viewports/core/viewport_editor.js';
-import { SELECTION_HIGHLIGHT_USERDATA_KEY } from '@/selection/object/selection_highlight.js';
 import { CLIP_PREVIEW_USERDATA_KEY } from '@/tools/clip_plane/clip_plane_preview.js';
+import { isEditorHelperObject } from '@/utils/mesh_edge_sync.js';
 import { EDITOR_SOURCE_UUID_KEY } from './viewport_sync_keys.js';
 
 export { EDITOR_SOURCE_UUID_KEY } from './viewport_sync_keys.js';
@@ -169,14 +169,18 @@ export class ManagerViewportSync {
    * @returns True when the object is classified as a helper.
    */
   private isHelperMesh(mesh: THREE.Object3D): boolean {
-    if (mesh.userData[SELECTION_HIGHLIGHT_USERDATA_KEY] === true) return true;
-    if (mesh.userData[CLIP_PREVIEW_USERDATA_KEY] === true) return true;
-    if (mesh.userData['isWireframeOverlay'] === true) return true;
-    if (mesh.userData['isSelectionHighlight']) return true;
-    if (mesh.userData['isSolidModelResult'] === true) return true;
-    if (mesh instanceof THREE.LineSegments && mesh.parent instanceof THREE.Mesh) {
-      return true;
-    }
+    if (isEditorHelperObject(mesh)) return true;
+    if (mesh instanceof THREE.LineSegments && mesh.parent instanceof THREE.Mesh) return true;
+    return ManagerViewportSync.hasClipPreviewAncestor(mesh);
+  }
+
+  /**
+   * Returns whether a clip-plane preview sits above the object.
+   *
+   * @param mesh Object to test.
+   * @returns True when an ancestor is a clip-plane preview.
+   */
+  private static hasClipPreviewAncestor(mesh: THREE.Object3D): boolean {
     let current: THREE.Object3D | null = mesh.parent;
     while (current) {
       if (current.userData[CLIP_PREVIEW_USERDATA_KEY] === true) return true;

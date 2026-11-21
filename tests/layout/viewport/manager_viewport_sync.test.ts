@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import { ManagerViewportSync } from '@/layout/viewport/manager_viewport_sync.js';
 import { Viewport2D } from '@/viewports/core/viewport_2d.js';
 import { Viewport3D } from '@/viewports/core/viewport_3d.js';
+import { MODIFIER_STACK_MESH_KEY } from '@/modifier/stack/meshes/modifier_stack_meshes.js';
+import { isEditorHelperObject } from '@/utils/mesh_edge_sync.js';
 
 /**
  * Creates a minimal viewport mock with the methods required by
@@ -98,5 +100,20 @@ describe('ViewportSyncManager (shared scene)', () => {
     syncManager.syncWorldObjectToViewports(worldObject);
     syncManager.syncWorldObjectToViewports(worldObject);
     expect((worldObject.children[0] as THREE.Mesh).geometry).toBe(originalGeometry);
+  });
+
+  it('should omit editor helper meshes such as unbaked generator output', () => {
+    const worldObject = createWorldGroupWithChildren([[0, 0, 0]]);
+    const helper = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
+    helper.userData[MODIFIER_STACK_MESH_KEY] = true;
+    helper.userData['isModifierVolumeEdge'] = true;
+    worldObject.add(helper);
+    expect(isEditorHelperObject(helper)).toBe(true);
+    const sync = new ManagerViewportSync(null, null, null, null);
+    sync.setWorldObject(worldObject);
+    const selectable = sync.getWorldSelectableMeshes();
+    expect(selectable).toHaveLength(1);
+    expect(selectable[0]).toBe(worldObject.children[0]);
+    expect(selectable).not.toContain(helper);
   });
 });
