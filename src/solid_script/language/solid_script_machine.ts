@@ -313,6 +313,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     if (this.toolCopy.take(leaf, by)) return;
     this.elements.brushRemember(leaf, by);
     this.leafSwaps.set(leaf, by);
+    this.elements.follow(leaf, by);
     this.partLeavesRewrite(leaf, by);
   }
 

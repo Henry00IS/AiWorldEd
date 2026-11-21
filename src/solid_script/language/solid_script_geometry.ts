@@ -85,6 +85,61 @@ export function solidScriptGeometryLeaves(shapes: readonly SolidScriptShape[]): 
 
 const SOLID_SCRIPT_MESH_OF = new WeakMap<SolidScriptGeometryLeaf, SolidScriptShapeMesh>();
 const SOLID_SCRIPT_FACES_OF = new WeakMap<SolidScriptGeometryLeaf, SolidScriptFaceFacts[]>();
+const SOLID_SCRIPT_EDGES_OF = new WeakMap<SolidScriptGeometryLeaf, SolidScriptEdgeCache>();
+const SOLID_SCRIPT_VERTICES_OF = new WeakMap<SolidScriptGeometryLeaf, SolidScriptVertexCache>();
+
+/** Kept edges of one solid or mesh, also grouped by the line they lie on. */
+interface SolidScriptEdgeCache {
+  list: SolidScriptEdgeFacts[];
+  along: Map<string, SolidScriptEdgeFacts[]>;
+}
+
+/** Kept corners of one solid or mesh, also grouped by where they are. */
+interface SolidScriptVertexCache {
+  list: SolidScriptVertexFacts[];
+  at: Map<string, SolidScriptVertexFacts[]>;
+}
+
+/**
+ * Returns a kept value for a solid or mesh, making it on the first read. A
+ * later replacement of the leaf is a new object, so it starts empty, the same
+ * as faces.
+ *
+ * @param store Kept values, keyed by the solid or mesh itself.
+ * @param leaf Solid or mesh.
+ * @param make Value of a leaf not yet kept.
+ * @returns Kept value.
+ */
+function solidScriptGeometryKept<T>(
+  store: WeakMap<SolidScriptGeometryLeaf, T>,
+  leaf: SolidScriptGeometryLeaf,
+  make: (leaf: SolidScriptGeometryLeaf) => T,
+): T {
+  const kept = store.get(leaf);
+  if (kept) return kept;
+  const value = make(leaf);
+  store.set(leaf, value);
+  return value;
+}
+
+/**
+ * Joins the kept facts of every solid or mesh, numbering them from 0 in build
+ * order.
+ *
+ * @param leaves Solids and meshes.
+ * @param of Facts of one leaf.
+ * @param at Facts with a joined number.
+ * @returns Joined facts.
+ */
+function solidScriptGeometryFactsJoin<T extends { index: number }>(
+  leaves: readonly SolidScriptGeometryLeaf[],
+  of: (leaf: SolidScriptGeometryLeaf) => readonly T[],
+  at: (item: T, index: number) => T,
+): T[] {
+  const joined: T[] = [];
+  for (const leaf of leaves) for (const item of of(leaf)) joined.push(at(item, joined.length));
+  return joined;
+}
 
 /**
  * Returns the faces of a solid or mesh as loops of points: a solid's own faces,
@@ -216,12 +271,9 @@ const SOLID_SCRIPT_GEOMETRY_CLIMB: Readonly<Record<string, THREE.Vector3>> = {
  * @returns Faces.
  */
 export function solidScriptGeometryFaces(shapes: readonly SolidScriptShape[]): SolidScriptFaceFacts[] {
-  const faces: SolidScriptFaceFacts[] = [];
-  for (const leaf of solidScriptGeometryLeaves(shapes)) {
-    for (const face of solidScriptGeometryFacesOf(leaf))
-      faces.push(face.index === faces.length ? face : { ...face, index: faces.length });
-  }
-  return faces;
+  return solidScriptGeometryFactsJoin(solidScriptGeometryLeaves(shapes), solidScriptGeometryFacesOf, (face, index) =>
+    face.index === index ? face : { ...face, index },
+  );
 }
 
 /**
@@ -232,12 +284,10 @@ export function solidScriptGeometryFaces(shapes: readonly SolidScriptShape[]): S
  * @returns Faces.
  */
 function solidScriptGeometryFacesOf(leaf: SolidScriptGeometryLeaf): SolidScriptFaceFacts[] {
-  const kept = SOLID_SCRIPT_FACES_OF.get(leaf);
-  if (kept) return kept;
-  const mesh = solidScriptGeometryMesh(leaf);
-  const faces = mesh.faces.map((loop, index) => solidScriptGeometryFace(mesh.points, loop, leaf, index));
-  SOLID_SCRIPT_FACES_OF.set(leaf, faces);
-  return faces;
+  return solidScriptGeometryKept(SOLID_SCRIPT_FACES_OF, leaf, (item) => {
+    const mesh = solidScriptGeometryMesh(item);
+    return mesh.faces.map((loop, index) => solidScriptGeometryFace(mesh.points, loop, item, index));
+  });
 }
 
 /**
@@ -300,19 +350,84 @@ function solidScriptGeometryFace(
  * @returns Points.
  */
 export function solidScriptGeometryVertices(shapes: readonly SolidScriptShape[]): SolidScriptVertexFacts[] {
-  const vertices: SolidScriptVertexFacts[] = [];
-  for (const leaf of solidScriptGeometryLeaves(shapes)) {
-    const mesh = solidScriptGeometryMesh(leaf);
-    const normals = mesh.points.map(() => new THREE.Vector3());
-    for (const loop of mesh.faces) {
-      const normal = solidScriptMeshLoopNormal(mesh.points, loop);
-      for (const corner of loop) normals[corner]!.add(normal);
-    }
-    mesh.points.forEach((position, corner) =>
-      vertices.push({ index: vertices.length, position: position.clone(), normal: normals[corner]!.normalize() }),
-    );
+  return solidScriptGeometryFactsJoin(
+    solidScriptGeometryLeaves(shapes),
+    solidScriptGeometryVerticesOf,
+    (vertex, index) => (vertex.index === index ? vertex : { ...vertex, index }),
+  );
+}
+
+/**
+ * Reads every corner point of one solid or mesh, kept after the first read.
+ *
+ * @param leaf Solid or mesh.
+ * @returns Points.
+ */
+function solidScriptGeometryVerticesOf(leaf: SolidScriptGeometryLeaf): SolidScriptVertexFacts[] {
+  return solidScriptGeometryVerticesCache(leaf).list;
+}
+
+/**
+ * Returns the kept corner points of a solid or mesh, grouped by where they are.
+ *
+ * @param leaf Solid or mesh.
+ * @returns Kept corners.
+ */
+function solidScriptGeometryVerticesCache(leaf: SolidScriptGeometryLeaf): SolidScriptVertexCache {
+  return solidScriptGeometryKept(SOLID_SCRIPT_VERTICES_OF, leaf, solidScriptGeometryVerticesMake);
+}
+
+/**
+ * Works out the corner points of a solid or mesh, using the kept faces for
+ * their directions, and groups them by where they are.
+ *
+ * @param leaf Solid or mesh.
+ * @returns Kept corners.
+ */
+function solidScriptGeometryVerticesMake(leaf: SolidScriptGeometryLeaf): SolidScriptVertexCache {
+  const mesh = solidScriptGeometryMesh(leaf);
+  const normals = mesh.points.map(() => new THREE.Vector3());
+  for (const face of solidScriptGeometryFacesOf(leaf))
+    for (const corner of mesh.faces[face.index] ?? []) normals[corner]!.add(face.normal);
+  const list = mesh.points.map((position, index) => ({
+    index,
+    position: position.clone(),
+    normal: normals[index]!.normalize(),
+  }));
+  return { list, at: solidScriptGeometryVerticesAtMap(list) };
+}
+
+/**
+ * Groups corner points by where they are.
+ *
+ * @param vertices Corner points.
+ * @returns Groups.
+ */
+function solidScriptGeometryVerticesAtMap(
+  vertices: readonly SolidScriptVertexFacts[],
+): Map<string, SolidScriptVertexFacts[]> {
+  const at = new Map<string, SolidScriptVertexFacts[]>();
+  for (const vertex of vertices) {
+    const key = solidScriptGeometryPointKey(vertex.position);
+    const group = at.get(key);
+    if (group) group.push(vertex);
+    else at.set(key, [vertex]);
   }
-  return vertices;
+  return at;
+}
+
+/**
+ * Reads the kept corners of a solid or mesh that sit at a point.
+ *
+ * @param leaf Solid or mesh.
+ * @param position Point.
+ * @returns Corners there.
+ */
+export function solidScriptGeometryVerticesAt(
+  leaf: SolidScriptGeometryLeaf,
+  position: THREE.Vector3,
+): SolidScriptVertexFacts[] {
+  return solidScriptGeometryVerticesCache(leaf).at.get(solidScriptGeometryPointKey(position)) ?? [];
 }
 
 /**
@@ -322,38 +437,172 @@ export function solidScriptGeometryVertices(shapes: readonly SolidScriptShape[])
  * @returns Edges.
  */
 export function solidScriptGeometryEdges(shapes: readonly SolidScriptShape[]): SolidScriptEdgeFacts[] {
+  return solidScriptGeometryEdgesJoin(solidScriptGeometryLeaves(shapes));
+}
+
+/**
+ * Reads the edges of one solid or mesh, kept after the first read, from the
+ * kept faces rather than building the faces again.
+ *
+ * @param leaf Solid or mesh.
+ * @returns Edges.
+ */
+function solidScriptGeometryEdgesOf(leaf: SolidScriptGeometryLeaf): SolidScriptEdgeFacts[] {
+  return solidScriptGeometryEdgesCache(leaf).list;
+}
+
+/**
+ * Returns the kept edges of a solid or mesh, grouped by the line they lie on.
+ *
+ * @param leaf Solid or mesh.
+ * @returns Kept edges.
+ */
+function solidScriptGeometryEdgesCache(leaf: SolidScriptGeometryLeaf): SolidScriptEdgeCache {
+  return solidScriptGeometryKept(SOLID_SCRIPT_EDGES_OF, leaf, solidScriptGeometryEdgesMake);
+}
+
+/**
+ * Works out the edges of a solid or mesh from the kept faces, and groups them
+ * by the line they lie on.
+ *
+ * @param leaf Solid or mesh.
+ * @returns Kept edges.
+ */
+function solidScriptGeometryEdgesMake(leaf: SolidScriptGeometryLeaf): SolidScriptEdgeCache {
+  const list = solidScriptGeometryFaceEdges(solidScriptGeometryFacesOf(leaf));
+  return { list, along: solidScriptGeometryEdgesAlongMap(list) };
+}
+
+/**
+ * Groups edges by the line they lie on.
+ *
+ * @param edges Edges.
+ * @returns Groups.
+ */
+function solidScriptGeometryEdgesAlongMap(edges: readonly SolidScriptEdgeFacts[]): Map<string, SolidScriptEdgeFacts[]> {
+  const along = new Map<string, SolidScriptEdgeFacts[]>();
+  for (const edge of edges) {
+    const key = solidScriptGeometryLineKey(edge.start, edge.direction);
+    const group = along.get(key);
+    if (group) group.push(edge);
+    else along.set(key, [edge]);
+  }
+  return along;
+}
+
+/**
+ * Key of an infinite line through a point with a direction, so colinear edges
+ * share one group.
+ *
+ * @param point A point on the line.
+ * @param direction Direction along the line.
+ * @returns Key.
+ */
+function solidScriptGeometryLineKey(point: THREE.Vector3, direction: THREE.Vector3): string {
+  const dir = direction.clone();
+  if (dir.lengthSq() < 1e-16) return `point:${solidScriptGeometryPointKey(point)}`;
+  dir.normalize();
+  solidScriptGeometryLineSign(dir);
+  return `${solidScriptGeometryPointKey(dir)}:${solidScriptGeometryPointKey(
+    point.clone().addScaledVector(dir, -point.dot(dir)),
+  )}`;
+}
+
+/**
+ * Flips a unit direction so opposite ways of the same line share a key.
+ *
+ * @param direction Unit direction, changed in place.
+ */
+function solidScriptGeometryLineSign(direction: THREE.Vector3): void {
+  if (
+    direction.x < -1e-5 ||
+    (Math.abs(direction.x) <= 1e-5 && direction.y < -1e-5) ||
+    (Math.abs(direction.x) <= 1e-5 && Math.abs(direction.y) <= 1e-5 && direction.z < 0)
+  )
+    direction.negate();
+}
+
+/**
+ * Tells whether an edge lies on the line through a point with a direction.
+ *
+ * @param point A point on the line.
+ * @param direction Direction along the line.
+ * @param edge Edge.
+ * @returns True when it does.
+ */
+function solidScriptGeometryLineHolds(
+  point: THREE.Vector3,
+  direction: THREE.Vector3,
+  edge: SolidScriptEdgeFacts,
+): boolean {
+  const dir = direction.clone();
+  if (dir.lengthSq() < 1e-16) return edge.start.distanceTo(point) < 1e-5 && edge.end.distanceTo(point) < 1e-5;
+  dir.normalize();
+  const off = (at: THREE.Vector3): boolean => {
+    const offset = at.clone().sub(point);
+    return offset.addScaledVector(dir, -offset.dot(dir)).length() < 1e-5;
+  };
+  return off(edge.start) && off(edge.end);
+}
+
+/**
+ * Reads the kept edges of a solid or mesh that lie on the line through a point
+ * with a direction. When a later move makes the key miss, it still finds them
+ * by the line itself.
+ *
+ * @param leaf Solid or mesh.
+ * @param point A point on the line.
+ * @param direction Direction along the line.
+ * @returns Edges on that line.
+ */
+export function solidScriptGeometryEdgesAlong(
+  leaf: SolidScriptGeometryLeaf,
+  point: THREE.Vector3,
+  direction: THREE.Vector3,
+): SolidScriptEdgeFacts[] {
+  const cache = solidScriptGeometryEdgesCache(leaf);
+  return (
+    cache.along.get(solidScriptGeometryLineKey(point, direction)) ??
+    cache.list.filter((edge) => solidScriptGeometryLineHolds(point, direction, edge))
+  );
+}
+
+/**
+ * Joins the kept edges of every solid or mesh, numbering edges and their faces
+ * from 0 in build order.
+ *
+ * @param leaves Solids and meshes.
+ * @returns Edges.
+ */
+function solidScriptGeometryEdgesJoin(leaves: readonly SolidScriptGeometryLeaf[]): SolidScriptEdgeFacts[] {
   const edges: SolidScriptEdgeFacts[] = [];
-  let faceIndex = 0;
-  for (const leaf of solidScriptGeometryLeaves(shapes)) {
-    const mesh = solidScriptGeometryMesh(leaf);
-    const found = new Map<string, SolidScriptEdgeFacts>();
-    for (const loop of mesh.faces) {
-      const face = solidScriptGeometryFace(mesh.points, loop, leaf, faceIndex++);
-      loop.forEach((a, corner) => {
-        const b = loop[(corner + 1) % loop.length]!;
-        const key = a < b ? `${a}:${b}` : `${b}:${a}`;
-        const known = found.get(key);
-        if (known) {
-          known.faces[1] = face;
-          return;
-        }
-        const start = mesh.points[a]!.clone();
-        const end = mesh.points[b]!.clone();
-        const edge: SolidScriptEdgeFacts = {
-          index: edges.length,
-          start,
-          end,
-          center: start.clone().add(end).multiplyScalar(0.5),
-          length: start.distanceTo(end),
-          direction: end.clone().sub(start).normalize(),
-          faces: [face, null],
-        };
-        found.set(key, edge);
-        edges.push(edge);
-      });
-    }
+  let faceBase = 0;
+  for (const leaf of leaves) {
+    for (const edge of solidScriptGeometryEdgesOf(leaf))
+      edges.push(solidScriptGeometryEdgeShifted(edge, edges.length, faceBase));
+    faceBase += solidScriptGeometryFacesOf(leaf).length;
   }
   return edges;
+}
+
+/**
+ * Returns an edge numbered in a joined list, with its faces numbered the same
+ * way.
+ *
+ * @param edge Kept edge of one solid or mesh.
+ * @param index Number in the joined list.
+ * @param faceBase First face number of that solid or mesh.
+ * @returns Edge; the kept one when the numbers already match.
+ */
+function solidScriptGeometryEdgeShifted(
+  edge: SolidScriptEdgeFacts,
+  index: number,
+  faceBase: number,
+): SolidScriptEdgeFacts {
+  if (index === edge.index && faceBase === 0) return edge;
+  const face = (item: SolidScriptFaceFacts | null): SolidScriptFaceFacts | null =>
+    item && faceBase !== 0 ? { ...item, index: item.index + faceBase } : item;
+  return { ...edge, index, faces: [face(edge.faces[0])!, face(edge.faces[1])] };
 }
 
 /**

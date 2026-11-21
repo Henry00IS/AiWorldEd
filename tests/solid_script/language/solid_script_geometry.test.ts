@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   solidScriptGeometryBevel,
   solidScriptGeometryEdges,
+  solidScriptGeometryEdgesAlong,
   solidScriptGeometryFaceMatrix,
   solidScriptGeometryFaces,
   solidScriptGeometryInset,
@@ -11,6 +12,7 @@ import {
   solidScriptGeometryPick,
   solidScriptGeometryTags,
   solidScriptGeometryVertices,
+  solidScriptGeometryVerticesAt,
 } from '@/solid_script/language/solid_script_geometry.js';
 import { solidScriptBodyBox, solidScriptBodyConvex } from '@/solid_script/language/solid_script_body.js';
 import type { SolidScriptShapeSolid } from '@/solid_script/language/solid_script_shape.js';
@@ -92,5 +94,66 @@ describe('SolidScript geometry lookups', () => {
     expect(Math.max(...inner.map((point) => Math.abs(point.x)))).toBeCloseTo(0.75);
     const doubled = { ...mesh, points: [...mesh.points, mesh.points[0]!.clone()] };
     expect(solidScriptGeometryMerge(doubled, 0.001).points).toHaveLength(8);
+  });
+
+  it('keeps edges and corners of a leaf after the first read, and not after a replacement', () => {
+    const solid = box(1, 1, 1);
+    const edges = solidScriptGeometryEdges([solid]);
+    const vertices = solidScriptGeometryVertices([solid]);
+    expect(solidScriptGeometryEdges([solid])[0]).toBe(edges[0]);
+    expect(solidScriptGeometryVertices([solid])[0]).toBe(vertices[0]);
+    const moved: SolidScriptShapeSolid = {
+      ...solid,
+      points: solid.points.map((point) => point.clone().add(new THREE.Vector3(0, 2, 0))),
+    };
+    const movedEdges = solidScriptGeometryEdges([moved]);
+    expect(movedEdges.map((edge) => Math.round((edge.center.y - 2) * 1e6) / 1e6)).toEqual(
+      edges.map((edge) => Math.round(edge.center.y * 1e6) / 1e6),
+    );
+    expect(movedEdges[0]).not.toBe(edges[0]);
+    expect(solidScriptGeometryEdges([solid])[0]).toBe(edges[0]);
+  });
+
+  it('finds kept edges on a line and kept corners at a point', () => {
+    const solid = box(2, 2, 2);
+    const edges = solidScriptGeometryEdges([solid]);
+    const topFront = edges.find((edge) => edge.center.y === 1 && edge.center.z === 1)!;
+    const along = solidScriptGeometryEdgesAlong(solid, topFront.center, topFront.direction);
+    expect(along).toEqual([topFront]);
+    expect(along[0]).toBe(topFront);
+    const corner = solidScriptGeometryVertices([solid])[0]!;
+    expect(solidScriptGeometryVerticesAt(solid, corner.position)).toEqual([corner]);
+    expect(solidScriptGeometryVerticesAt(solid, new THREE.Vector3(9, 9, 9))).toEqual([]);
+    expect(solidScriptGeometryEdgesAlong(solid, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 1, 0))).toEqual([]);
+  });
+
+  it('reads no edges and no faces from a mesh with no faces, and still lists unused corners', () => {
+    const empty = { kind: 'mesh' as const, label: 'empty', points: [], faces: [], uvs: [] };
+    expect(solidScriptGeometryFaces([empty])).toEqual([]);
+    expect(solidScriptGeometryEdges([empty])).toEqual([]);
+    expect(solidScriptGeometryVertices([empty])).toEqual([]);
+    const loose = {
+      kind: 'mesh' as const,
+      label: 'loose',
+      points: [new THREE.Vector3(1, 2, 3)],
+      faces: [],
+      uvs: [],
+    };
+    expect(solidScriptGeometryEdges([loose])).toEqual([]);
+    expect(solidScriptGeometryVertices([loose])).toHaveLength(1);
+    expect(solidScriptGeometryVertices([loose])[0]!.position.toArray()).toEqual([1, 2, 3]);
+  });
+
+  it('numbers the faces of a second solid’s edges on from the first solid', () => {
+    const first = box(1, 1, 1);
+    const second: SolidScriptShapeSolid = {
+      ...box(1, 1, 1),
+      points: box(1, 1, 1).points.map((point) => point.clone().add(new THREE.Vector3(3, 0, 0))),
+    };
+    const edges = solidScriptGeometryEdges([first, second]);
+    expect(edges).toHaveLength(24);
+    const later = edges.filter((edge) => edge.center.x > 1);
+    expect(later).toHaveLength(12);
+    expect(later.every((edge) => edge.faces[0].index >= 6)).toBe(true);
   });
 });

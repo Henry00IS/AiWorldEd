@@ -1,14 +1,17 @@
 import * as THREE from 'three';
 import {
   solidScriptGeometryEdges,
+  solidScriptGeometryEdgesAlong,
   solidScriptGeometryFaceHolds,
   solidScriptGeometryFaces,
   solidScriptGeometryVertices,
+  solidScriptGeometryVerticesAt,
   type SolidScriptEdgeFacts,
   type SolidScriptFaceFacts,
   type SolidScriptGeometryLeaf,
   type SolidScriptVertexFacts,
 } from './solid_script_geometry.js';
+import { solidScriptGeometryLeafMatrix } from './solid_script_geometry_matrix.js';
 import { SOLID_SCRIPT_MODE_DEFAULT, type SolidScriptMode } from './solid_script_mode.js';
 import { SolidScriptElement, type SolidScriptElementKind, type SolidScriptValue } from './solid_script_value.js';
 
@@ -37,8 +40,10 @@ interface SolidScriptElementEntry {
   plane?: SolidScriptElementPlane;
   /** Edge: the planes of its two faces. */
   planes?: [SolidScriptElementPlane, SolidScriptElementPlane | null];
-  /** Vertex: where it was. */
+  /** Vertex: where it was. Edge: a point on its line. */
   position?: THREE.Vector3;
+  /** Edge: unit direction along its line. */
+  direction?: THREE.Vector3;
   /** Face: its number on the solid or mesh when the id was made. */
   faceIndex?: number;
   /** The user's own values, by key. */
@@ -301,6 +306,68 @@ export class SolidScriptElements {
   }
 
   /**
+   * Moves the stored planes and positions of held faces, edges and corners when
+   * a later write is the same faces moved as one, so later reads still find
+   * them.
+   *
+   * @param from Solid or mesh as first seen.
+   * @param to Replacement.
+   */
+  follow(from: SolidScriptGeometryLeaf, to: SolidScriptGeometryLeaf): void {
+    const matrix = solidScriptGeometryLeafMatrix(from, to);
+    if (!matrix || matrix.equals(new THREE.Matrix4())) return;
+    const normals = new THREE.Matrix3().getNormalMatrix(matrix);
+    const linear = new THREE.Matrix3().setFromMatrix4(matrix);
+    const latest = this.host.leafLatest(to);
+    for (const entry of this.entries) {
+      if (this.host.leafLatest(entry.leaf) !== latest) continue;
+      this.entryFollow(entry, matrix, normals, linear);
+    }
+  }
+
+  /**
+   * Applies a move to one held element.
+   *
+   * @param entry Entry.
+   * @param matrix Point transform.
+   * @param normals Direction transform.
+   */
+  private entryFollow(
+    entry: SolidScriptElementEntry,
+    matrix: THREE.Matrix4,
+    normals: THREE.Matrix3,
+    linear: THREE.Matrix3,
+  ): void {
+    if (entry.plane) entry.plane = SolidScriptElements.planeFollow(entry.plane, matrix, normals);
+    if (entry.planes)
+      entry.planes = [
+        SolidScriptElements.planeFollow(entry.planes[0], matrix, normals),
+        entry.planes[1] ? SolidScriptElements.planeFollow(entry.planes[1], matrix, normals) : null,
+      ];
+    if (entry.position) entry.position = entry.position.clone().applyMatrix4(matrix);
+    if (entry.direction) entry.direction = entry.direction.clone().applyMatrix3(linear).normalize();
+  }
+
+  /**
+   * Moves a stored plane.
+   *
+   * @param plane Plane and outline.
+   * @param matrix Point transform.
+   * @param normals Direction transform.
+   * @returns Moved plane.
+   */
+  private static planeFollow(
+    plane: SolidScriptElementPlane,
+    matrix: THREE.Matrix4,
+    normals: THREE.Matrix3,
+  ): SolidScriptElementPlane {
+    return {
+      normal: plane.normal.clone().applyMatrix3(normals).normalize(),
+      corners: plane.corners.map((corner) => corner.clone().applyMatrix4(matrix)),
+    };
+  }
+
+  /**
    * Reads the box around every corner of some elements in one pass, kept until
    * the list or a brush in it changes.
    *
@@ -341,6 +408,7 @@ export class SolidScriptElements {
     return this.add('edge', latest, {
       planes: [plane(edge.faces[0])!, plane(edge.faces[1])],
       position: edge.center.clone(),
+      direction: edge.direction.clone(),
     }).element;
   }
 
@@ -401,11 +469,29 @@ export class SolidScriptElements {
    */
   edges(element: SolidScriptElement): SolidScriptEdgeFacts[] {
     const entry = this.entry(element);
-    const edges = solidScriptGeometryEdges([this.leaf(element)]);
-    if (element.kind === 'brush') return edges;
-    if (element.kind === 'edge') return edges.filter((edge) => SolidScriptElements.edgeMatches(entry, edge));
+    const leaf = this.leaf(element);
+    if (element.kind === 'brush') return solidScriptGeometryEdges([leaf]);
+    if (element.kind === 'edge') return this.edgePieces(entry, leaf);
     if (element.kind !== 'face') return [];
-    return edges.filter((edge) => edge.faces.some((face) => face && SolidScriptElements.pieceOf(entry.plane!, face)));
+    return solidScriptGeometryEdges([leaf]).filter((edge) =>
+      edge.faces.some((face) => face && SolidScriptElements.pieceOf(entry.plane!, face)),
+    );
+  }
+
+  /**
+   * Reads the pieces of a held edge from the line they share, then keeps only
+   * those that still meet the same faces.
+   *
+   * @param entry Edge entry.
+   * @param leaf Latest solid or mesh.
+   * @returns Pieces.
+   */
+  private edgePieces(entry: SolidScriptElementEntry, leaf: SolidScriptGeometryLeaf): SolidScriptEdgeFacts[] {
+    const edges =
+      entry.position && entry.direction
+        ? solidScriptGeometryEdgesAlong(leaf, entry.position, entry.direction)
+        : solidScriptGeometryEdges([leaf]);
+    return edges.filter((edge) => SolidScriptElements.edgeMatches(entry, edge));
   }
 
   /**
@@ -419,7 +505,10 @@ export class SolidScriptElements {
     const leaf = this.leaf(element);
     const all = solidScriptGeometryVertices([leaf]);
     if (element.kind === 'brush') return SolidScriptElements.unique(all);
-    if (element.kind === 'vertex') return all.filter((vertex) => vertex.position.distanceTo(entry.position!) < 1e-6);
+    if (element.kind === 'vertex') {
+      const at = solidScriptGeometryVerticesAt(leaf, entry.position!);
+      return at.length ? at : all.filter((vertex) => vertex.position.distanceTo(entry.position!) < 1e-6);
+    }
     const corners =
       element.kind === 'face'
         ? this.faces(element).flatMap((face) => face.corners)

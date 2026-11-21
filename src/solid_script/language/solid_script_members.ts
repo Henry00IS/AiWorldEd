@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { SolidScriptElements } from './solid_script_elements.js';
-import type { SolidScriptFaceFacts } from './solid_script_geometry.js';
+import type { SolidScriptEdgeFacts, SolidScriptFaceFacts } from './solid_script_geometry.js';
 import { solidScriptKindNamed } from './solid_script_kinds.js';
 import { solidScriptFaceCornerUvs } from './solid_script_uvs.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
@@ -442,27 +442,8 @@ function solidScriptMemberElement(
     case 'edge': {
       const edges = elements.edges(element);
       if (edges.length === 0) throw new Error(`${String(element)} was cut away`);
-      const ends = edges.flatMap((edge) => [edge.start, edge.end]);
-      const direction = edges[0]!.direction;
-      const along = ends.map((point) => point.dot(direction));
-      const start = ends[along.indexOf(Math.min(...along))]!;
-      const end = ends[along.indexOf(Math.max(...along))]!;
-      switch (member) {
-        case 'start':
-          return solidScriptMemberVector(start);
-        case 'end':
-          return solidScriptMemberVector(end);
-        case 'center':
-          return solidScriptMemberVector(start.clone().add(end).multiplyScalar(0.5));
-        case 'length':
-          return solidScriptMemberRound(start.distanceTo(end));
-        case 'direction':
-          return solidScriptMemberVector(direction);
-        case 'faces':
-          return faceList(edges.flatMap((edge) => edge.faces.filter((face) => face !== null)));
-        default:
-          return undefined;
-      }
+      if (member === 'faces') return faceList(edges.flatMap((edge) => edge.faces.filter((face) => face !== null)));
+      return solidScriptMemberEdge(edges, member);
     }
     case 'vertex': {
       const [vertex] = elements.vertices(element);
@@ -497,10 +478,6 @@ function solidScriptMemberFace(
   if (pieces.length === 0) throw new Error(`${String(element)} was cut away`);
   const first = pieces[0]!;
   const area = pieces.reduce((sum, face) => sum + face.area, 0);
-  const span = (axis: THREE.Vector3): number => {
-    const along = pieces.flatMap((face) => face.corners.map((corner) => corner.dot(axis)));
-    return Math.max(...along) - Math.min(...along);
-  };
   switch (member) {
     case 'center': {
       const center = new THREE.Vector3();
@@ -512,9 +489,9 @@ function solidScriptMemberFace(
     case 'area':
       return solidScriptMemberRound(area);
     case 'width':
-      return solidScriptMemberRound(span(first.across));
+      return solidScriptMemberRound(solidScriptMemberFaceSpan(pieces, first.across, first.width));
     case 'height':
-      return solidScriptMemberRound(span(first.up));
+      return solidScriptMemberRound(solidScriptMemberFaceSpan(pieces, first.up, first.height));
     case 'tag':
       return first.tags.at(-1) ?? '';
     case 'tags':
@@ -528,4 +505,83 @@ function solidScriptMemberFace(
     default:
       return undefined;
   }
+}
+
+/**
+ * Reads an edge member from kept facts: one piece uses them as they are;
+ * several colinear pieces use the ends of the whole line.
+ *
+ * @param edges Matching pieces, at least one.
+ * @param member Start, End, Center, Length or Direction, folded.
+ * @returns Value, or undefined when edges have no such member.
+ */
+function solidScriptMemberEdge(edges: readonly SolidScriptEdgeFacts[], member: string): SolidScriptValue {
+  if (edges.length === 1) return solidScriptMemberEdgeFact(edges[0]!, member);
+  const first = edges[0]!;
+  const ends = edges.flatMap((edge) => [edge.start, edge.end]);
+  const along = ends.map((point) => point.dot(first.direction));
+  const start = ends[along.indexOf(Math.min(...along))]!;
+  const end = ends[along.indexOf(Math.max(...along))]!;
+  return solidScriptMemberEdgeSpan(member, start, end, first.direction);
+}
+
+/**
+ * Reads an edge member from one kept piece.
+ *
+ * @param edge Piece.
+ * @param member Member, folded.
+ * @returns Value, or undefined when edges have no such member.
+ */
+function solidScriptMemberEdgeFact(edge: SolidScriptEdgeFacts, member: string): SolidScriptValue {
+  return solidScriptMemberEdgeSpan(member, edge.start, edge.end, edge.direction, edge.center, edge.length);
+}
+
+/**
+ * Writes a start, end, center, length or direction value.
+ *
+ * @param member Member, folded.
+ * @param start Start point.
+ * @param end End point.
+ * @param direction Unit direction from start to end.
+ * @param center Midpoint, when already known.
+ * @param length Length, when already known.
+ * @returns Value, or undefined when edges have no such member.
+ */
+function solidScriptMemberEdgeSpan(
+  member: string,
+  start: THREE.Vector3,
+  end: THREE.Vector3,
+  direction: THREE.Vector3,
+  center?: THREE.Vector3,
+  length?: number,
+): SolidScriptValue {
+  switch (member) {
+    case 'start':
+      return solidScriptMemberVector(start);
+    case 'end':
+      return solidScriptMemberVector(end);
+    case 'center':
+      return solidScriptMemberVector(center ?? start.clone().add(end).multiplyScalar(0.5));
+    case 'length':
+      return solidScriptMemberRound(length ?? start.distanceTo(end));
+    case 'direction':
+      return solidScriptMemberVector(direction);
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Width or height of a face: the kept size of a single piece, or the span of
+ * every piece along that axis.
+ *
+ * @param pieces Face pieces, at least one.
+ * @param axis Across or up of the first piece.
+ * @param kept Width or height of the first piece.
+ * @returns Size.
+ */
+function solidScriptMemberFaceSpan(pieces: readonly SolidScriptFaceFacts[], axis: THREE.Vector3, kept: number): number {
+  if (pieces.length === 1) return kept;
+  const along = pieces.flatMap((face) => face.corners.map((corner) => corner.dot(axis)));
+  return Math.max(...along) - Math.min(...along);
 }
