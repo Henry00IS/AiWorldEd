@@ -132,6 +132,15 @@ export interface SolidScriptBlockRun {
    */
   variableWrite(name: string, key: string): void;
   /**
+   * Moves the corners of brushes, faces, edges or vertices, each to the
+   * position worked out for it from the geometry before the line, all at once;
+   * null leaves a corner. A brush that would no longer be convex stops the line.
+   */
+  positionsMove(
+    items: readonly SolidScriptValue[],
+    to: (vertex: SolidScriptElement, index: number) => SolidScriptValue | null,
+  ): void;
+  /**
    * Builds one convex solid from its corners and faces, with the texture
    * mapping of some faces in script space when given.
    */

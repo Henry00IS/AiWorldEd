@@ -254,7 +254,7 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
       from: target.position.clone(),
       to: solidScriptPositionValue(value, target.position, axis),
     }));
-    this.positionCommit(targets, moves);
+    this.positionCommit(targets, moves, 'Set');
     return true;
   }
 
@@ -276,8 +276,42 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
       const assigned = run.valueWith(key, { $Vertex: target.element, $Index: index });
       return { from: target.position.clone(), to: solidScriptPositionValue(assigned, target.position, axis) };
     });
-    this.positionCommit(targets, moves);
+    this.positionCommit(targets, moves, 'Set');
     return true;
+  }
+
+  /**
+   * Moves the corners of brushes, faces, edges or vertices, each to the
+   * position a line works out for it from the geometry before the line, then
+   * applies every move together, as Set Vertex.Position does.
+   *
+   * @param items Elements that own the corners.
+   * @param label Command, for messages.
+   * @param to New position of a corner, or null to leave it.
+   */
+  positionsMove(
+    items: readonly SolidScriptValue[],
+    label: string,
+    to: (vertex: SolidScriptElement, index: number) => SolidScriptValue | null,
+  ): void {
+    const targets: SolidScriptPositionTarget[] = [];
+    for (const item of items) this.positionTargetAdd(targets, item, label);
+    const moved = targets.flatMap((target, index) => {
+      const value = to(target.element, index);
+      return value === null
+        ? []
+        : [
+            {
+              target,
+              move: { from: target.position.clone(), to: solidScriptPositionValue(value, target.position, undefined) },
+            },
+          ];
+    });
+    this.positionCommit(
+      moved.map((entry) => entry.target),
+      moved.map((entry) => entry.move),
+      label,
+    );
   }
 
   /**
@@ -328,13 +362,15 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
    *
    * @param targets Corners being set.
    * @param moves Moves in the same order, from the positions before the line.
+   * @param label Command, for the message.
    */
   private positionCommit(
     targets: readonly SolidScriptPositionTarget[],
     moves: readonly SolidScriptPositionMove[],
+    label: string,
   ): void {
     for (const group of solidScriptPositionByLeaf(targets, moves, (leaf) => this.leafLatest(leaf)))
-      this.leafRewrite(group.leaf, solidScriptPositionApply(this.leafLatest(group.leaf), group.moves, 'Set'));
+      this.leafRewrite(group.leaf, solidScriptPositionApply(this.leafLatest(group.leaf), group.moves, label));
   }
 
   /**

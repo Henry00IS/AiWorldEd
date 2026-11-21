@@ -1,0 +1,116 @@
+import { SolidScriptCommand } from './solid_script_command.js';
+import {
+  solidScriptParameter,
+  solidScriptParameterOf,
+  solidScriptParameterOptional,
+} from './solid_script_command_parameters.js';
+import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
+import { solidScriptConditionHolds } from '@/solid_script/language/solid_script_condition.js';
+import { solidScriptOfEmpty } from '@/solid_script/language/solid_script_select.js';
+import type { SolidScriptElement, SolidScriptValue } from '@/solid_script/language/solid_script_value.js';
+
+/**
+ * What a To or Where field of Set Positions reads for one corner: the corner,
+ * its number, and the short forms of its position and normal Displace uses.
+ *
+ * @param run Running line.
+ * @param vertex Corner.
+ * @param index Number of the corner from 0.
+ * @returns Fills.
+ */
+function solidScriptSetPositionsFills(
+  run: SolidScriptBlockRun,
+  vertex: SolidScriptElement,
+  index: number,
+): Record<string, SolidScriptValue> {
+  const [facts] = run.elements.vertices(vertex);
+  if (!facts) throw new Error(`${String(vertex)} was cut away`);
+  const { position, normal } = facts;
+  return {
+    $Vertex: vertex,
+    $Index: index,
+    $X: position.x,
+    $Y: position.y,
+    $Z: position.z,
+    $NX: normal.x,
+    $NY: normal.y,
+    $NZ: normal.z,
+  };
+}
+
+/**
+ * Moves every corner of Of that passes Where to the position To gives for it.
+ *
+ * @param run Running line.
+ */
+function solidScriptSetPositionsRun(run: SolidScriptBlockRun): void {
+  const given = run.ofValues();
+  const picked = run.selectedGet('vertices');
+  const items = given ?? (picked.length > 0 ? picked : run.selectedGet('faces'));
+  if (items.length === 0)
+    throw new Error(
+      given
+        ? 'Set Positions has no corners in Of; check that Of holds vertices, faces, edges, brushes or meshes'
+        : solidScriptOfEmpty('Set Positions', 'vertices'),
+    );
+  run.positionsMove(items, (vertex, index) => {
+    const fills = solidScriptSetPositionsFills(run, vertex, index);
+    return solidScriptConditionHolds(run, 'where', fills) ? run.valueWith('to', fills) : null;
+  });
+}
+
+/** Set Positions: moves corners one by one to positions a formula works out. */
+export const SOLID_SCRIPT_COMMANDS_POSITIONS: readonly SolidScriptCommand[] = [
+  new SolidScriptCommand({
+    id: 'set_positions',
+    label: 'Set Positions',
+    category: 'Faces',
+    description: 'Move corners to positions worked out one by one',
+    manual:
+      'Moves each corner in Of to the position To works out for it. To is worked out once per corner, with [$Vertex] the corner, [$Index] its number from 0, [$X], [$Y] and [$Z] the short forms of [$Vertex.Position], and [$NX], [$NY] and [$NZ] those of [$Vertex.Normal]. Where, when given, is a 🔁 condition a corner must pass to move. Every position is read from the shape before the line, and all corners move together. Of gives vertices, or the corners of faces, edges, brushes or meshes; empty uses [$Selected.Vertices], or the corners of [$Selected.Faces] when no vertices are selected. A mesh takes any position. A brush stays a brush: when the moved corners still make a convex solid its faces are rebuilt around them, otherwise the line stops. The same as Set [$Selected.Vertices.Positions], with Of and Where added. Example: Cube, Select Vertices Where [=[$Vertex.Position.Y] > 0], then Set Positions To [=[$Vertex.Position] * Vector(0.5, 1, 0.5)] narrows the top into a frustum.',
+    stops: [
+      'No corners: an empty Of with nothing in [$Selected.Vertices] or [$Selected.Faces].',
+      'A To that is not three numbers, such as 0, 1, 0.',
+      'A move that would leave a brush no longer convex.',
+    ],
+    fills: ['$Vertex', '$Index', '$X', '$Y', '$Z', '$NX', '$NY', '$NZ'],
+    parameters: [
+      {
+        ...solidScriptParameter(
+          'to',
+          'To',
+          'vector3',
+          '[=[$Vertex.Position]]',
+          'Where each corner goes, worked out once per corner, such as [=[$Vertex.Position] + Vector(0, [$X] * 0.1, 0)]. May use [$Vertex], [$Index], [$X], [$Y], [$Z], [$NX], [$NY] and [$NZ].',
+        ),
+        each: 'Vertex',
+      },
+      {
+        ...solidScriptParameterOptional(
+          'where',
+          'Where',
+          'value',
+          'A 🔁 condition each corner must pass to move, such as [=[$Y] > 0]. Left off moves every corner.',
+        ),
+        each: 'Vertex',
+      },
+      solidScriptParameterOf('vertices, faces, edges, brushes or meshes', '$Selected.Vertices', [
+        'Vertex',
+        'Face',
+        'Edge',
+        'Brush',
+      ]),
+    ],
+    listing: (read) => [
+      'Set Positions',
+      ' To ',
+      read.value('to'),
+      ...(read.text('where').trim() === '' ? [] : [' Where ', read.value('where')]),
+      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+    ],
+    execute: (run) => {
+      solidScriptSetPositionsRun(run);
+      return [];
+    },
+  }),
+];

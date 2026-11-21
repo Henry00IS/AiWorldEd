@@ -896,6 +896,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       variableWrite(name, key) {
         state.machine.variableWrite(state.scope, name, key, this);
       },
+      positionsMove: (items, to) => state.machine.positionsMove(items, node.command.label, to),
       solid: (body, faceUvs) => built(() => body, faceUvs),
       solidFromPoints: (points) => built(() => solidScriptBodyHull(points, labelOf())),
       outline: (points) => {
