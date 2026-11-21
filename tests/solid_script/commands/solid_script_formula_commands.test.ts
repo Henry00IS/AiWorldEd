@@ -220,6 +220,10 @@ describe('SolidScript formula block listings', () => {
       ['Facing Within', '30'],
       ['Every Nth Start', '0'],
       ['Hits How', 'Touching'],
+      ['Chance ID', '0'],
+      ['Chance Seed', '0'],
+      ['Random ID', '0'],
+      ['Random Seed', '0'],
       ['Hits Box How', 'Touching'],
     ]);
   });

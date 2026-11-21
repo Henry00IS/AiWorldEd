@@ -1,6 +1,11 @@
 import type { SOLID_SCRIPT_KINDS } from './solid_script_kinds.js';
 import type { SolidScriptBuiltinName } from './solid_script_functions_builtin.js';
-import { SOLID_SCRIPT_WHERE_HELPER_ARGUMENTS, SOLID_SCRIPT_WHERE_HELPER_DOCS } from './solid_script_where_helpers.js';
+import {
+  SOLID_SCRIPT_WHERE_HELPER_ARGUMENTS,
+  SOLID_SCRIPT_WHERE_HELPER_DOCS,
+  solidScriptWhereHelper,
+  solidScriptWhereHelperLeast,
+} from './solid_script_where_helpers.js';
 import { SOLID_SCRIPT_HITS_HOW_WORDS } from './solid_script_hits.js';
 import {
   SOLID_SCRIPT_KIND_CHECK_ARGUMENTS,
@@ -402,13 +407,6 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
     group: 'Curve',
     gives: ['List'],
   },
-  random: {
-    usage: 'Random(min, max, seed)',
-    summary:
-      'A random number or vector; one seed gives one result, such as Random(0, 1, 1). For a yes-or-no chance, use Random(0, 1, [Seed]) < 0.3.',
-    group: 'Random',
-    gives: ['Number', 'Vector'],
-  },
   rands: {
     usage: 'Rands(min, max, count, seed)',
     summary: 'A list of random numbers, such as Rands(0, 1, 4, 1).',
@@ -628,10 +626,6 @@ const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
   is_bool: { value: { type: 'Any', about: 'The value to check.' } },
   curve_at: { x: { type: ['Number'], about: 'Where on the curve, from 0 to 1.' } },
   resample: { count: { type: ['Number'], about: 'How many points to give.' } },
-  random: {
-    min: { type: ['Number', 'Vector'], about: 'The lowest value, or a vector of lowest values.' },
-    max: { type: ['Number', 'Vector'], about: 'The highest value, or a vector of highest values.' },
-  },
   hash: { value: { type: 'Any', about: 'The value to hash.' } },
   path_at: { amount: { type: ['Number'], about: 'How far along the path: 0 is the start, 1 is the end.' } },
   path_direction: { amount: { type: ['Number'], about: 'How far along the path: 0 is the start, 1 is the end.' } },
@@ -674,7 +668,6 @@ export function solidScriptFunctionArguments(key: string): SolidScriptFunctionAr
 const SOLID_SCRIPT_FUNCTION_INPUTS_LEFT_OFF: Readonly<Record<string, number>> = {
   pad_left: 1,
   pad_right: 1,
-  random: 1,
   part: 1,
   split: 1,
   join: 1,
@@ -701,5 +694,7 @@ const SOLID_SCRIPT_FUNCTION_INPUTS_LEAST: Readonly<Record<string, number>> = { p
 export function solidScriptFunctionInputsLeast(key: string): number {
   const inputs = solidScriptFunctionArguments(key);
   if (inputs.some((input) => input.name === '...')) return SOLID_SCRIPT_FUNCTION_INPUTS_LEAST[key] ?? 1;
+  const helper = solidScriptWhereHelper(key);
+  if (helper) return solidScriptWhereHelperLeast(helper);
   return inputs.length - (SOLID_SCRIPT_FUNCTION_INPUTS_LEFT_OFF[key] ?? 0);
 }

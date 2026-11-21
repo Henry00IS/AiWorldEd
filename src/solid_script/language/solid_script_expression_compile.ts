@@ -13,6 +13,7 @@ import { solidScriptFunctionKey, solidScriptFunctionSpelling, solidScriptNameKey
 import { SOLID_SCRIPT_VECTOR_AXES } from './solid_script_members.js';
 import { solidScriptSystemBareHint } from './solid_script_system_names.js';
 import type { SolidScriptScope } from './solid_script_scope.js';
+import { solidScriptWhereHelperFills } from './solid_script_where_helpers.js';
 import { solidScriptValueShow, solidScriptValueTruthy, type SolidScriptValue } from './solid_script_value.js';
 
 /** A formula turned into a JavaScript closure. */
@@ -198,7 +199,9 @@ function solidScriptCompileBuiltin(
 }
 
 /**
- * Compiles a call; built-in functions are looked up once.
+ * Compiles a call; built-in functions are looked up once. A Where helper that
+ * leaves off an input a per-item field fills in, such as the ID of Random, gets
+ * that value, such as [$Index].
  *
  * @param written Function name as written.
  * @param args Compiled arguments.
@@ -215,9 +218,15 @@ function solidScriptCompileCall(written: string, args: readonly SolidScriptCompi
     };
   const inputs = found ? solidScriptFunctionArguments(found) : [];
   const more = inputs.find((input) => input.name === '...');
+  const fills = found ? solidScriptWhereHelperFills(found, args.length) : [];
   return (evaluator, scope) => {
     const values = new Array<SolidScriptValue>(args.length);
     for (let index = 0; index < args.length; index++) values[index] = args[index]!(evaluator, scope);
+    for (const fill of fills) {
+      const value = (fill.variable === null ? undefined : scope.variableGet(fill.variable)) ?? fill.optional;
+      if (value === undefined) break;
+      values.push(value);
+    }
     if (!found || !builtin) return evaluator.callUser(name, values);
     solidScriptCompileInputsCheck(name, inputs, more, values);
     const result = solidScriptCompileBuiltin(found, builtin, values, evaluator);

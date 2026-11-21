@@ -102,44 +102,11 @@ function solidScriptExtraPattern(pattern: string, usage: string): RegExp {
  * @param seed Seed.
  * @returns Number from 0 up to 1.
  */
-function solidScriptExtraSeeded(seed: number): number {
+export function solidScriptExtraSeeded(seed: number): number {
   let state = (Math.floor(seed * 1000) ^ 0x2545f491) >>> 0;
   state = Math.imul(state ^ (state >>> 16), 0x7feb352d);
   state = Math.imul(state ^ (state >>> 15), 0x846ca68b);
   return ((state ^ (state >>> 16)) >>> 0) / 4294967296;
-}
-
-/**
- * A random number or vector. One seed always gives the same result; for a
- * vector the first component uses that seed, the next uses seed + 1, and so
- * on.
- *
- * @param args Min, max and optional seed.
- * @returns Number or vector.
- */
-function solidScriptExtraRandom(args: readonly SolidScriptValue[]): SolidScriptValue {
-  const usage = 'Random(min, max, seed)';
-  const seed = args.length > 2 ? solidScriptExtraNumber(args, 2, usage) : 0;
-  if (Array.isArray(args[0]) || Array.isArray(args[1])) return solidScriptExtraRandomVector(args, seed, usage);
-  const low = solidScriptExtraNumber(args, 0, usage);
-  return low + (solidScriptExtraNumber(args, 1, usage) - low) * solidScriptExtraSeeded(seed);
-}
-
-/**
- * A random vector whose first component matches Random of those two numbers and
- * the same seed.
- *
- * @param args Min, max and optional seed.
- * @param seed Seed of the first component.
- * @param usage How to call the function, for the message.
- * @returns Vector.
- */
-function solidScriptExtraRandomVector(args: readonly SolidScriptValue[], seed: number, usage: string): number[] {
-  const low = solidScriptValueNumbers(args[0]);
-  const high = solidScriptValueNumbers(args[1]);
-  if (!low || !high || low.length !== high.length || low.length === 0)
-    throw new Error(`${usage} needs two numbers, or two vectors of the same size`);
-  return low.map((start, axis) => start + ((high[axis] ?? start) - start) * solidScriptExtraSeeded(seed + axis));
 }
 
 /**
@@ -386,7 +353,6 @@ export const SOLID_SCRIPT_FUNCTIONS_EXTRA = {
       throw new Error(`${usage} has ${args.length - 1} choices, numbered from 0, so ${index} is not one of them`);
     return args[index + 1];
   },
-  random: (args) => solidScriptExtraRandom(args),
   hash: (args) => {
     const usage = 'Hash(value, seed)';
     if (args.length < 1) throw new Error(`${usage} needs a value`);

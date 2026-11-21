@@ -6,6 +6,7 @@ import type {
 } from './solid_script_function_docs.js';
 import { SOLID_SCRIPT_FACING_WITHIN_DEFAULT } from './solid_script_condition.js';
 import { SOLID_SCRIPT_HITS_HOW_WORDS } from './solid_script_hits.js';
+import { solidScriptFunctionKey, solidScriptNameKey } from './solid_script_name_key.js';
 
 /** One input of a Where helper, for docs, autocomplete and formula blocks. */
 export interface SolidScriptWhereHelperInput {
@@ -29,7 +30,18 @@ export interface SolidScriptWhereHelperInput {
 }
 
 /** Stored names of the Where helpers, in palette order. */
-export const SOLID_SCRIPT_WHERE_HELPER_KEYS = ['facing', 'in_box', 'near', 'every_nth', 'has_tag', 'hits'] as const;
+export const SOLID_SCRIPT_WHERE_HELPER_KEYS = [
+  'facing',
+  'in_box',
+  'near',
+  'every_nth',
+  'has_tag',
+  'hits',
+  'chance',
+  'random',
+  'spread',
+  'along',
+] as const;
 
 /** Stored name of a Where helper, such as in_box. */
 export type SolidScriptWhereHelperKey = (typeof SOLID_SCRIPT_WHERE_HELPER_KEYS)[number];
@@ -230,6 +242,122 @@ export const SOLID_SCRIPT_WHERE_HELPERS: readonly SolidScriptWhereHelper[] = [
       },
     ],
   },
+  {
+    key: 'chance',
+    name: 'Chance',
+    display: 'Chance',
+    group: 'Random',
+    gives: ['Yes/No'],
+    description:
+      'Yes for about a share of the items, picked at random, such as Chance(0.3) to keep about 3 in 10 faces in a Where. The same ID and Seed always give the same answer; another Seed picks other items.',
+    inputs: [
+      {
+        name: 'probability',
+        label: 'Probability',
+        type: ['Number'],
+        about: 'Share of the items that get Yes, from 0 (none) to 1 (all), such as 0.3.',
+      },
+      {
+        name: 'id',
+        label: 'ID',
+        type: ['Number'],
+        about: 'Which item asks, such as [$Index]; each ID gets its own answer.',
+        optional: '0',
+        each: '[$Index]',
+      },
+      {
+        name: 'seed',
+        label: 'Seed',
+        type: ['Number'],
+        about: 'Any number, such as 1; another seed gives other answers for the same IDs.',
+        optional: '0',
+      },
+    ],
+  },
+  {
+    key: 'random',
+    name: 'Random',
+    display: 'Random',
+    group: 'Random',
+    gives: ['Number', 'Vector'],
+    description:
+      'A random number from Min to Max, or a vector between two vectors, such as Random(0.5, 2) for a size per face. The same ID and Seed always give the same value; give another Seed, such as Random(0, 90, [$Index], 1), for a value that does not follow another Random.',
+    inputs: [
+      {
+        name: 'min',
+        label: 'Min',
+        type: ['Number', 'Vector'],
+        about: 'The lowest value, or a vector of lowest values, such as 0.',
+      },
+      {
+        name: 'max',
+        label: 'Max',
+        type: ['Number', 'Vector'],
+        about: 'The highest value, or a vector of highest values, such as 1.',
+      },
+      {
+        name: 'id',
+        label: 'ID',
+        type: ['Number'],
+        about: 'Which item asks, such as [$Index]; each ID gets its own value.',
+        optional: '0',
+        each: '[$Index]',
+      },
+      {
+        name: 'seed',
+        label: 'Seed',
+        type: ['Number'],
+        about: 'Any number, such as 1; another seed gives other values for the same IDs.',
+        optional: '0',
+      },
+    ],
+  },
+  {
+    key: 'spread',
+    name: 'Spread',
+    display: 'Spread',
+    group: 'Math',
+    gives: ['Number', 'Vector'],
+    description:
+      'Steps evenly from From to To over the items: the first item gets From, the last gets To, and those between are spaced out, such as Spread(0, 90) to turn copies from 0 to 90 degrees.',
+    inputs: [
+      { name: 'from', label: 'From', type: ['Number', 'Vector'], about: 'Value of the first item, such as 0.' },
+      { name: 'to', label: 'To', type: ['Number', 'Vector'], about: 'Value of the last item, such as 90.' },
+      {
+        name: 'index',
+        label: 'Index',
+        type: ['Number'],
+        about: 'Item number from 0, usually [$Index].',
+        each: '[$Index]',
+      },
+      {
+        name: 'count',
+        label: 'Count',
+        type: ['Number'],
+        about: 'How many items there are, usually [$Count].',
+        each: '[$Count]',
+      },
+    ],
+  },
+  {
+    key: 'along',
+    name: 'Along',
+    display: 'Along',
+    group: 'Vector',
+    gives: ['Vector'],
+    description:
+      'The point a distance away from a point along a direction, such as Along([$Face.Center], [$Face.Normal], 0.5) half a metre out from a face.',
+    inputs: [
+      { name: 'point', label: 'Point', type: ['Vector'], about: 'Where to start, such as [$Face.Center].' },
+      {
+        name: 'direction',
+        label: 'Direction',
+        type: ['Vector'],
+        about: 'Which way to go, such as [$Face.Normal]; only its direction counts, not its length.',
+      },
+      { name: 'distance', label: 'Distance', type: ['Number'], about: 'How far to go, in metres, such as 0.5.' },
+    ],
+  },
 ];
 
 /** Docs entries of the Where helpers, keyed by stored name. */
@@ -266,4 +394,56 @@ export const SOLID_SCRIPT_WHERE_HELPER_ARGUMENTS = Object.fromEntries(
  */
 export function solidScriptWhereHelper(key: string): SolidScriptWhereHelper | undefined {
   return SOLID_SCRIPT_WHERE_HELPERS.find((helper) => helper.key === key);
+}
+
+/**
+ * Finds a Where helper by its name as written, in any case, such as random for
+ * Random.
+ *
+ * @param written Name as written.
+ * @returns Helper, or undefined for any other function.
+ */
+export function solidScriptWhereHelperNamed(written: string): SolidScriptWhereHelper | undefined {
+  const folded = solidScriptFunctionKey(written);
+  return SOLID_SCRIPT_WHERE_HELPERS.find((helper) => solidScriptFunctionKey(helper.name) === folded);
+}
+
+/**
+ * Counts the inputs a Where helper always needs: those before the first that
+ * may be left off or that a per-item field fills in, and at least one.
+ *
+ * @param helper Helper.
+ * @returns Fewest inputs.
+ */
+export function solidScriptWhereHelperLeast(helper: SolidScriptWhereHelper): number {
+  const first = helper.inputs.findIndex((input) => input.optional !== undefined || input.each !== undefined);
+  return Math.max(1, first < 0 ? helper.inputs.length : first);
+}
+
+/** An input a call left off that a per-item field fills in. */
+export interface SolidScriptWhereHelperFill {
+  /** Folded name of the per-item value, such as $index; null for none. */
+  variable: string | null;
+  /** Value when there is no such value, such as 0; undefined to stop there. */
+  optional: number | undefined;
+}
+
+/**
+ * Lists the inputs after those a call gives, up to the last one a per-item
+ * field fills in, such as the ID of Random(0, 1) from [$Index].
+ *
+ * @param key Stored function name, such as random.
+ * @param given How many inputs the call gives.
+ * @returns The inputs to fill in, in order; empty for other functions.
+ */
+export function solidScriptWhereHelperFills(key: string, given: number): SolidScriptWhereHelperFill[] {
+  const inputs = solidScriptWhereHelper(key)?.inputs ?? [];
+  let last = -1;
+  inputs.forEach((input, index) => {
+    if (input.each !== undefined) last = index;
+  });
+  return inputs.slice(given, last + 1).map((input) => ({
+    variable: input.each ? solidScriptNameKey(input.each.replace(/^\[|\]$/g, '')) : null,
+    optional: input.optional === undefined || input.optional === '' ? undefined : Number(input.optional),
+  }));
 }

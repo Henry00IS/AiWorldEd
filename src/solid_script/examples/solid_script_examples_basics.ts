@@ -131,7 +131,7 @@ export const SOLID_SCRIPT_EXAMPLE_PEBBLES: readonly SolidScriptLine[] = [
     into: 'Kept',
   }),
   solidScriptExampleNote(
-    'Each pebble is a Sphere whose radius comes from Random, so they are not all the same size. The last number, [I], is a seed, so the same pebble is always the same size.',
+    'Each pebble is a Sphere whose radius comes from Random, so they are not all the same size. The last number, [I], is the ID of the pebble, so the same pebble is always the same size; a Seed after it, such as Random(0.05, 0.12, [I], 1), gives a different set.',
   ),
   ...solidScriptExampleBlock('for_each', { variable: 'Spot', list: '[Kept]', key: 'I' }, [
     ...solidScriptExampleBlock('transform', { move: '[Spot]' }, [

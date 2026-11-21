@@ -173,8 +173,7 @@ describe('SolidScript commands with per-item fields', () => {
 
   it('moves, turns and scales each brush by its own amount', () => {
     const after = (...lines: SolidScriptLine[]) =>
-      run(...twoCubes(), line('select_brushes'), ...lines, line('echo', { value: '[$Selected.Brushes.Mins]' }))
-        .printed;
+      run(...twoCubes(), line('select_brushes'), ...lines, line('echo', { value: '[$Selected.Brushes.Mins]' })).printed;
     const centers = (...lines: SolidScriptLine[]) =>
       run(...twoCubes(), line('select_brushes'), ...lines, line('echo', { value: '[$Selected.Brushes.Centers]' }))
         .printed[0] as number[][];
