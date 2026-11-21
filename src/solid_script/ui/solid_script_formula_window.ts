@@ -26,6 +26,7 @@ import { SolidScriptEditorPalette } from './solid_script_editor_palette.js';
 import { SolidScriptEditorHelp } from './solid_script_editor_help.js';
 import { SolidScriptEditorTip, solidScriptEditorCodeHighlight } from './solid_script_editor_tip.js';
 import { SolidScriptEditorFrame } from './solid_script_editor_frame.js';
+import { SolidScriptEditorHistory } from './solid_script_editor_history.js';
 import {
   SOLID_SCRIPT_FORMULA_BOUNDS_KEY,
   SOLID_SCRIPT_FORMULA_SIZES_KEY,
@@ -102,6 +103,11 @@ export class SolidScriptFormulaWindow extends SolidScriptDialog {
   private parts: ReadonlyMap<number, string> = new Map();
   private readonly status = document.createElement('div');
   private readonly blocks: SolidScriptFormulaBlocks;
+  /**
+   * Undo and redo of the block edits made in this window; Cancel drops them
+   * with it.
+   */
+  private readonly history = new SolidScriptEditorHistory();
   private document: SolidScriptDocument;
   private body: string;
   private problemText = '';
@@ -330,8 +336,11 @@ export class SolidScriptFormulaWindow extends SolidScriptDialog {
    *
    * @param document Blocks.
    * @param line Line to focus.
+   * @param recorded True to keep the edit for undo; false for undo and redo
+   *   themselves.
    */
-  private commit(document: SolidScriptDocument, line: number | null): void {
+  private commit(document: SolidScriptDocument, line: number | null, recorded = true): void {
+    if (recorded && document !== this.document) this.history.record(this.document, document);
     this.document = document;
     this.lines.render(document, line);
     const written = solidScriptFormulaWrite(document, this.blocks, this.options.context);
@@ -378,6 +387,16 @@ export class SolidScriptFormulaWindow extends SolidScriptDialog {
     }
     this.options.apply(this.fieldText(this.body));
     return true;
+  }
+
+  /**
+   * Undoes or redoes one block edit made in this window.
+   *
+   * @param redo True for redo.
+   */
+  protected override historyStep(redo: boolean): void {
+    const document = redo ? this.history.redo(this.document) : this.history.undo(this.document);
+    if (document) this.commit(document, null, false);
   }
 
   /** Leaves the field as it was. */

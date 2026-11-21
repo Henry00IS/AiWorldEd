@@ -18,9 +18,9 @@ interface SolidScriptEditorHistoryStep {
 const solidScriptEditorHistories = new Map<string, Map<string, SolidScriptEditorHistory>>();
 
 /**
- * Undo and redo of one generator's script, apart from the level's undo history.
- * A step only moves the lines it changed, so lines other users edited since
- * stay as they are.
+ * Undo and redo of one generator's script, apart from the level's undo history,
+ * or of the blocks of one formula window. A step only moves the lines it
+ * changed, so lines other users edited since stay as they are.
  */
 export class SolidScriptEditorHistory {
   private readonly undoSteps: SolidScriptEditorHistoryStep[] = [];

@@ -40,6 +40,29 @@ function focusInFormula(): boolean {
 afterEach(() => document.body.replaceChildren());
 
 describe('SolidScript formula window keys', () => {
+  it('undoes and redoes its own block edits with Ctrl+Z, Ctrl+Y and Ctrl+Shift+Z, and Escape drops them', () => {
+    const size = sizeFormula();
+    const doubled = ['Add', 'Variable [W]', 'Variable [W]', "Number '1'", 'End Add'];
+    chip(1).focus();
+    clipboard(document.activeElement!, 'copy');
+    clipboard(document.activeElement!, 'paste');
+    expect(rows()).toEqual(doubled);
+    const key = (key: string, init: KeyboardEventInit = {}): void => {
+      document.activeElement!.dispatchEvent(
+        new KeyboardEvent('keydown', { key, ctrlKey: true, bubbles: true, cancelable: true, ...init }),
+      );
+    };
+    key('z');
+    expect(rows()).toEqual(SUM);
+    key('y');
+    expect(rows()).toEqual(doubled);
+    key('z');
+    key('Z', { shiftKey: true });
+    expect(rows()).toEqual(doubled);
+    key('Escape', { ctrlKey: false });
+    expect(size.value).toBe('[=[W] + 1]');
+  });
+
   it('takes the focus on its current block when it opens', () => {
     sizeFormula();
     expect(document.activeElement).toBe(chip(0));
