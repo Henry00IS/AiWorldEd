@@ -17,7 +17,6 @@ import {
   solidScriptFormulaOperatorBlock,
 } from '@/solid_script/commands/solid_script_formula_groups.js';
 import { solidScriptBuiltinFind } from '@/solid_script/language/solid_script_expression_compile.js';
-import { SOLID_SCRIPT_FUNCTION_DOCS } from '@/solid_script/language/solid_script_function_docs.js';
 import { solidScriptFormulaShown } from '@/solid_script/language/solid_script_formula_field.js';
 import {
   SolidScriptFormulaSource,
@@ -264,7 +263,7 @@ class SolidScriptFormulaReader {
     const key = solidScriptBuiltinFind(node.name) ?? '';
     const inputs = solidScriptFormulaCheckInputs(key, this.context);
     const command = `${SOLID_SCRIPT_FORMULA_CHECK}${key}`;
-    if (SOLID_SCRIPT_FUNCTION_DOCS[key]?.group !== 'Checks' || !this.catalog.find(command)) return null;
+    if (!this.catalog.find(command)) return null;
     if (node.args.length > inputs.length || node.args.some((arg) => arg.name !== null)) return null;
     const formulas: Record<string, string> = {};
     const values: Record<string, string> = {};

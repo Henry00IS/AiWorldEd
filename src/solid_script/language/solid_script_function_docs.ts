@@ -1,9 +1,6 @@
 import type { SOLID_SCRIPT_KINDS } from './solid_script_kinds.js';
 import type { SolidScriptBuiltinName } from './solid_script_functions_builtin.js';
-import {
-  SOLID_SCRIPT_CONDITION_HELPER_ARGUMENTS,
-  SOLID_SCRIPT_CONDITION_HELPER_DOCS,
-} from './solid_script_condition_helpers.js';
+import { SOLID_SCRIPT_WHERE_HELPER_ARGUMENTS, SOLID_SCRIPT_WHERE_HELPER_DOCS } from './solid_script_where_helpers.js';
 import { SOLID_SCRIPT_HITS_HOW_WORDS } from './solid_script_hits.js';
 import {
   SOLID_SCRIPT_KIND_CHECK_ARGUMENTS,
@@ -461,7 +458,7 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
     group: 'Curve',
     gives: ['List'],
   },
-  ...SOLID_SCRIPT_CONDITION_HELPER_DOCS,
+  ...SOLID_SCRIPT_WHERE_HELPER_DOCS,
   ...SOLID_SCRIPT_KIND_CHECK_DOCS,
   hits: {
     usage: 'Hits(element, target, how)',
@@ -650,7 +647,7 @@ const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
   time_text: { pattern: { type: ['Text'], about: 'Layout with YYYY, MM, DD, HH, mm and ss, such as "HH:mm".' } },
   slice: { start: { type: ['Number'], about: 'Position of the first item, from 0.' } },
   replace_pattern: { with: { type: ['Text'], about: 'Text to put in instead of every match.' } },
-  ...SOLID_SCRIPT_CONDITION_HELPER_ARGUMENTS,
+  ...SOLID_SCRIPT_WHERE_HELPER_ARGUMENTS,
   ...SOLID_SCRIPT_KIND_CHECK_ARGUMENTS,
 };
 

@@ -1,6 +1,9 @@
 import type { SolidScriptCommandEach } from './solid_script_command_each.js';
 import type { SolidScriptCommandWord } from './solid_script_command.js';
-import { SOLID_SCRIPT_CONDITION_HELPERS } from '@/solid_script/language/solid_script_condition_helpers.js';
+import {
+  SOLID_SCRIPT_WHERE_HELPERS,
+  solidScriptWhereHelper,
+} from '@/solid_script/language/solid_script_where_helpers.js';
 import {
   SOLID_SCRIPT_FUNCTION_DOCS,
   solidScriptFunctionArguments,
@@ -95,7 +98,8 @@ const SOLID_SCRIPT_FORMULA_ELEMENT_INPUTS: Readonly<
 /**
  * Returns the formula an empty check input stands for where the formula is
  * worked out per element: the element for an element input, such as [$Face],
- * $Index for every_nth, or the element's own value, such as [$Face.Center].
+ * the default a Where helper declares, such as [$Index] for EveryNth, or the
+ * element's own value, such as [$Face.Center].
  *
  * @param context Where the formula is used.
  * @param key Check key, such as in_box.
@@ -107,7 +111,8 @@ export function solidScriptFormulaInputFallback(context: SolidScriptFormulaConte
   if (!each) return '';
   const own = SOLID_SCRIPT_FORMULA_ELEMENT_INPUTS[each]?.[key]?.[name];
   if (own) return own;
-  if (key === 'every_nth' && name === 'index') return '[$Index]';
+  const declared = solidScriptWhereHelper(key)?.inputs.find((input) => input.name === name)?.each;
+  if (declared) return declared;
   const element = name === 'element' || (key.startsWith('is_') && name === 'value');
   return element ? `[$${each}]` : '';
 }
@@ -125,14 +130,16 @@ function solidScriptFormulaInputKind(type: SolidScriptFunctionKinds): SolidScrip
 }
 
 /**
- * Lists the keys of every check a formula block can be, such as in_box.
+ * Lists the keys of every block with an input field per input: the Where
+ * helpers, such as in_box, and the other checks, such as is_num.
  *
  * @returns Keys.
  */
 export function solidScriptFormulaCheckKeys(): string[] {
-  return Object.entries(SOLID_SCRIPT_FUNCTION_DOCS)
-    .filter(([, doc]) => doc.group === 'Checks')
+  const checks = Object.entries(SOLID_SCRIPT_FUNCTION_DOCS)
+    .filter(([key, doc]) => doc.group === 'Checks' && !solidScriptWhereHelper(key))
     .map(([key]) => key);
+  return [...SOLID_SCRIPT_WHERE_HELPERS.map((helper) => helper.key), ...checks];
 }
 
 /**
@@ -152,7 +159,7 @@ export function solidScriptFormulaCheckName(key: string): string {
  * @returns Name.
  */
 export function solidScriptFormulaCheckLabel(key: string): string {
-  const helper = SOLID_SCRIPT_CONDITION_HELPERS.find((entry) => entry.key === key);
+  const helper = solidScriptWhereHelper(key);
   return helper?.display ?? solidScriptFormulaCheckName(key).replace(/([a-z])([A-Z])/g, '$1 $2');
 }
 
@@ -167,7 +174,7 @@ export function solidScriptFormulaCheckInputs(
   key: string,
   context: SolidScriptFormulaContext,
 ): SolidScriptFormulaInput[] {
-  const helper = SOLID_SCRIPT_CONDITION_HELPERS.find((entry) => entry.key === key);
+  const helper = solidScriptWhereHelper(key);
   const least = solidScriptFunctionInputsLeast(key);
   return solidScriptFunctionArguments(key).map((argument, index) => {
     const declared = helper?.inputs.find((input) => input.name === argument.name);

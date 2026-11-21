@@ -157,7 +157,7 @@ describe('SolidScript formula function categories', () => {
     const counts = new Map<string, number>();
     for (const category of SOLID_SCRIPT_FORMULA_CATEGORIES)
       counts.set(category, catalog.commands.filter((command) => command.category === category).length);
-    expect([...counts.keys()].slice(4)).toEqual([
+    expect([...counts.keys()].slice(5)).toEqual([
       'Math',
       'Trigonometry',
       'Vector',

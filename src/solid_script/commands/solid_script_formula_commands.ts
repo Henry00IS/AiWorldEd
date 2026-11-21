@@ -34,6 +34,7 @@ import {
   type SolidScriptFormulaInputKind,
 } from '@/solid_script/language/solid_script_formula_field.js';
 import { solidScriptFormulaProblem } from '@/solid_script/language/solid_script_formula_bare.js';
+import { solidScriptWhereHelper } from '@/solid_script/language/solid_script_where_helpers.js';
 
 export { SOLID_SCRIPT_FORMULA_COMMAND, SOLID_SCRIPT_FORMULA_FUNCTION } from './solid_script_formula_groups.js';
 
@@ -43,8 +44,12 @@ export { SOLID_SCRIPT_FORMULA_COMMAND, SOLID_SCRIPT_FORMULA_FUNCTION } from './s
  */
 export const SOLID_SCRIPT_FORMULA_CHECK = 'formula_check_';
 
-/** Palette groups of the formula editor, in palette order. */
+/**
+ * Palette groups of the formula editor, in palette order: the Where helpers
+ * first, right under Favorites.
+ */
 export const SOLID_SCRIPT_FORMULA_CATEGORIES: readonly SolidScriptCommandCategory[] = [
+  'Where',
   'Values',
   'Groups',
   'Operators',
@@ -226,7 +231,8 @@ function solidScriptFormulaCheckProblem(
 }
 
 /**
- * Creates the block of one check, such as In Box.
+ * Creates the block of one check or Where helper, such as In Box, with a field
+ * per input; Where helpers go in the Where group.
  *
  * @param key Check key, such as in_box.
  * @param context Where the formula is used.
@@ -238,7 +244,7 @@ function solidScriptFormulaCheck(key: string, context: SolidScriptFormulaContext
   const summary = SOLID_SCRIPT_FUNCTION_DOCS[key]?.summary ?? label;
   return solidScriptFormulaBlock(
     { id: `${SOLID_SCRIPT_FORMULA_CHECK}${key}`, label, description: summary.replace(/\.$/, ''), manual: summary },
-    'Checks',
+    solidScriptWhereHelper(key) ? 'Where' : 'Checks',
     {
       parameters: inputs.map(solidScriptFormulaCheckField),
       check: (values) => solidScriptFormulaCheckProblem(inputs, values),

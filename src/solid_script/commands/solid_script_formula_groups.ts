@@ -1,4 +1,5 @@
 import { SOLID_SCRIPT_COMMAND_CATALOG } from './solid_script_command_catalog.js';
+import { solidScriptWhereHelper } from '@/solid_script/language/solid_script_where_helpers.js';
 import { SolidScriptCommand, type SolidScriptCommandCategory } from './solid_script_command.js';
 import {
   SOLID_SCRIPT_FUNCTION_DOCS,
@@ -440,13 +441,17 @@ function solidScriptFormulaOperatorGroups(): SolidScriptCommand[] {
 }
 
 /**
- * Creates the block of every function that takes inputs, except the checks.
+ * Creates the block of every function that takes inputs, except the checks and
+ * the Where helpers, which have a field per input.
  *
  * @returns Commands.
  */
 function solidScriptFormulaFunctions(): SolidScriptCommand[] {
   return Object.entries(SOLID_SCRIPT_FUNCTION_DOCS)
-    .filter(([key, doc]) => doc.group !== 'Checks' && solidScriptFunctionArguments(key).length > 0)
+    .filter(
+      ([key, doc]) =>
+        doc.group !== 'Checks' && !solidScriptWhereHelper(key) && solidScriptFunctionArguments(key).length > 0,
+    )
     .map(([key]) => solidScriptFormulaFunction(key));
 }
 

@@ -1,16 +1,14 @@
 import type {
   SolidScriptFunctionArgument,
   SolidScriptFunctionDoc,
+  SolidScriptFunctionGroup,
   SolidScriptFunctionKinds,
 } from './solid_script_function_docs.js';
 import { SOLID_SCRIPT_FACING_WITHIN_DEFAULT } from './solid_script_condition.js';
 import { SOLID_SCRIPT_HITS_HOW_WORDS } from './solid_script_hits.js';
 
-/**
- * One input of a curated condition function, for docs, autocomplete and formula
- * blocks.
- */
-export interface SolidScriptConditionHelperInput {
+/** One input of a Where helper, for docs, autocomplete and formula blocks. */
+export interface SolidScriptWhereHelperInput {
   /** Name in the call, such as direction. */
   name: string;
   /** Field label of its formula block. */
@@ -23,33 +21,55 @@ export interface SolidScriptConditionHelperInput {
   optional?: string;
   /** Words it takes, when it takes one of a few. */
   choices?: readonly string[];
+  /**
+   * Formula an empty input stands for in a field that changes per item, such as
+   * [$Index]; the formula editor shows it greyed.
+   */
+  each?: string;
 }
 
+/** Stored names of the Where helpers, in palette order. */
+export const SOLID_SCRIPT_WHERE_HELPER_KEYS = ['facing', 'in_box', 'near', 'every_nth', 'has_tag', 'hits'] as const;
+
+/** Stored name of a Where helper, such as in_box. */
+export type SolidScriptWhereHelperKey = (typeof SOLID_SCRIPT_WHERE_HELPER_KEYS)[number];
+
 /**
- * One curated condition function, the declaration formula blocks, docs and
- * autocomplete share.
+ * One Where helper: a function made for fields that change per item, such as
+ * InBox or EveryNth. Its declaration drives formula blocks, docs and
+ * autocomplete.
  */
-export interface SolidScriptConditionHelper {
+export interface SolidScriptWhereHelper {
   /** Stored function key, such as in_box. */
-  key: string;
+  key: SolidScriptWhereHelperKey;
   /** Official call name, such as InBox. */
   name: string;
   /** Formula block name, such as In Box. */
   display: string;
-  /** What it tests, one short sentence. */
+  /** What it does, one short sentence. */
   description: string;
+  /** Function group of its docs, such as Checks. */
+  group: SolidScriptFunctionGroup;
+  /** Kinds it gives. */
+  gives: SolidScriptFunctionKinds;
   /** Inputs in call order. */
-  inputs: readonly SolidScriptConditionHelperInput[];
+  inputs: readonly SolidScriptWhereHelperInput[];
 }
 
+/** What a yes-or-no helper gives, and its docs group. */
+const SOLID_SCRIPT_WHERE_CHECK = { group: 'Checks', gives: ['Yes/No'] } as const;
+
 /**
- * Curated condition functions. Each one works in Where, Filter List, If and
- * every other condition field. One declaration drives formula blocks,
- * autocomplete and the docs.
+ * The Where helpers, the functions made for fields that change per item, such
+ * as a Where condition or a per-face Distance. They work in every formula; in a
+ * per-item field their inputs default to the item, such as [$Index]. One
+ * declaration drives the Where blocks of the formula editor, autocomplete and
+ * the docs.
  */
-export const SOLID_SCRIPT_CONDITION_HELPERS: readonly SolidScriptConditionHelper[] = [
+export const SOLID_SCRIPT_WHERE_HELPERS: readonly SolidScriptWhereHelper[] = [
   {
     key: 'facing',
+    ...SOLID_SCRIPT_WHERE_CHECK,
     name: 'Facing',
     display: 'Facing',
     description: `Yes when a direction, such as a face's normal, points along another direction, within a number of degrees, ${SOLID_SCRIPT_FACING_WITHIN_DEFAULT} by default.`,
@@ -77,6 +97,7 @@ export const SOLID_SCRIPT_CONDITION_HELPERS: readonly SolidScriptConditionHelper
   },
   {
     key: 'in_box',
+    ...SOLID_SCRIPT_WHERE_CHECK,
     name: 'InBox',
     display: 'In Box',
     description:
@@ -99,6 +120,7 @@ export const SOLID_SCRIPT_CONDITION_HELPERS: readonly SolidScriptConditionHelper
   },
   {
     key: 'near',
+    ...SOLID_SCRIPT_WHERE_CHECK,
     name: 'Near',
     display: 'Near',
     description:
@@ -116,12 +138,19 @@ export const SOLID_SCRIPT_CONDITION_HELPERS: readonly SolidScriptConditionHelper
   },
   {
     key: 'every_nth',
+    ...SOLID_SCRIPT_WHERE_CHECK,
     name: 'EveryNth',
     display: 'Every Nth',
     description:
       'Yes for every Nth item, such as every second one: Step 1 keeps every item, 2 every second item (skipping the one between), 3 every third, and so on. Items count from 0, so of 6 items EveryNth([$Index], 2) keeps items 0, 2 and 4, and EveryNth([$Index], 2, 1) keeps items 1, 3 and 5.',
     inputs: [
-      { name: 'index', label: 'Index', type: ['Number'], about: 'Item number from 0, usually [$Index].' },
+      {
+        name: 'index',
+        label: 'Index',
+        type: ['Number'],
+        about: 'Item number from 0, usually [$Index].',
+        each: '[$Index]',
+      },
       {
         name: 'step',
         label: 'Step',
@@ -141,6 +170,7 @@ export const SOLID_SCRIPT_CONDITION_HELPERS: readonly SolidScriptConditionHelper
   },
   {
     key: 'has_tag',
+    ...SOLID_SCRIPT_WHERE_CHECK,
     name: 'HasTag',
     display: 'Has Tag',
     description: 'Yes when a tag or list of tags includes a name, ignoring case, such as HasTag([$Face.Tags], "Top").',
@@ -156,6 +186,7 @@ export const SOLID_SCRIPT_CONDITION_HELPERS: readonly SolidScriptConditionHelper
   },
   {
     key: 'hits',
+    ...SOLID_SCRIPT_WHERE_CHECK,
     name: 'Hits',
     display: 'Hits',
     description:
@@ -201,58 +232,38 @@ export const SOLID_SCRIPT_CONDITION_HELPERS: readonly SolidScriptConditionHelper
   },
 ];
 
-/**
- * Docs for one curated helper.
- *
- * @param key Stored name, such as in_box.
- * @returns Docs.
- */
-function solidScriptConditionHelperDoc(key: string): SolidScriptFunctionDoc {
-  const helper = SOLID_SCRIPT_CONDITION_HELPERS.find((entry) => entry.key === key);
-  if (!helper) throw new Error(`missing condition helper ${key}`);
-  return {
-    usage: `${helper.name}(${helper.inputs.map((input) => input.name).join(', ')})`,
-    summary: helper.description,
-    group: 'Checks',
-    gives: ['Yes/No'],
-  };
-}
+/** Docs entries of the Where helpers, keyed by stored name. */
+export const SOLID_SCRIPT_WHERE_HELPER_DOCS = Object.fromEntries(
+  SOLID_SCRIPT_WHERE_HELPERS.map((helper) => [
+    helper.key,
+    {
+      usage: `${helper.name}(${helper.inputs.map((input) => input.name).join(', ')})`,
+      summary: helper.description,
+      group: helper.group,
+      gives: helper.gives,
+    },
+  ]),
+) as Readonly<Record<SolidScriptWhereHelperKey, SolidScriptFunctionDoc>>;
+
+/** Argument docs of the Where helpers, keyed by stored name. */
+export const SOLID_SCRIPT_WHERE_HELPER_ARGUMENTS = Object.fromEntries(
+  SOLID_SCRIPT_WHERE_HELPERS.map((helper) => [
+    helper.key,
+    Object.fromEntries(
+      helper.inputs.map((input) => [
+        input.name,
+        { type: input.type, about: input.about, ...(input.choices ? { choices: input.choices } : {}) },
+      ]),
+    ),
+  ]),
+) as Readonly<Record<SolidScriptWhereHelperKey, Readonly<Record<string, Omit<SolidScriptFunctionArgument, 'name'>>>>>;
 
 /**
- * Argument docs for one curated helper.
+ * Finds a Where helper by its stored name.
  *
  * @param key Stored name, such as in_box.
- * @returns Inputs keyed by name.
+ * @returns Helper, or undefined for any other function.
  */
-function solidScriptConditionHelperArgs(
-  key: string,
-): Readonly<Record<string, Omit<SolidScriptFunctionArgument, 'name'>>> {
-  const helper = SOLID_SCRIPT_CONDITION_HELPERS.find((entry) => entry.key === key);
-  if (!helper) throw new Error(`missing condition helper ${key}`);
-  return Object.fromEntries(
-    helper.inputs.map((input) => [
-      input.name,
-      { type: input.type, about: input.about, ...(input.choices ? { choices: input.choices } : {}) },
-    ]),
-  );
+export function solidScriptWhereHelper(key: string): SolidScriptWhereHelper | undefined {
+  return SOLID_SCRIPT_WHERE_HELPERS.find((helper) => helper.key === key);
 }
-
-/** Docs entries for the curated condition functions, keyed by stored name. */
-export const SOLID_SCRIPT_CONDITION_HELPER_DOCS = {
-  facing: solidScriptConditionHelperDoc('facing'),
-  in_box: solidScriptConditionHelperDoc('in_box'),
-  near: solidScriptConditionHelperDoc('near'),
-  every_nth: solidScriptConditionHelperDoc('every_nth'),
-  has_tag: solidScriptConditionHelperDoc('has_tag'),
-  hits: solidScriptConditionHelperDoc('hits'),
-};
-
-/** Argument docs for the curated condition functions, keyed by stored name. */
-export const SOLID_SCRIPT_CONDITION_HELPER_ARGUMENTS = {
-  facing: solidScriptConditionHelperArgs('facing'),
-  in_box: solidScriptConditionHelperArgs('in_box'),
-  near: solidScriptConditionHelperArgs('near'),
-  every_nth: solidScriptConditionHelperArgs('every_nth'),
-  has_tag: solidScriptConditionHelperArgs('has_tag'),
-  hits: solidScriptConditionHelperArgs('hits'),
-};

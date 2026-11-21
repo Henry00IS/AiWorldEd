@@ -104,6 +104,7 @@ export type SolidScriptCommandCategory =
   | 'Parts'
   | 'Groups'
   | 'Operators'
+  | 'Where'
   | 'Checks'
   | 'Math'
   | 'Trigonometry'

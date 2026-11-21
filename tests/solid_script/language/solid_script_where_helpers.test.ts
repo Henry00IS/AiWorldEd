@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { SOLID_SCRIPT_CONDITION_HELPERS } from '@/solid_script/language/solid_script_condition_helpers.js';
+import { SOLID_SCRIPT_WHERE_HELPERS } from '@/solid_script/language/solid_script_where_helpers.js';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptDocumentCreate } from '@/solid_script/document/solid_script_document.js';
 
-const EVERY_NTH = SOLID_SCRIPT_CONDITION_HELPERS.find((helper) => helper.key === 'every_nth')!;
+const EVERY_NTH = SOLID_SCRIPT_WHERE_HELPERS.find((helper) => helper.key === 'every_nth')!;
 
 /**
  * Keeps the items of a list of 6 that pass EveryNth, through Filter List.
