@@ -120,7 +120,8 @@ export function solidScriptTransformEach(
   worldOf: SolidScriptTransformWorldOf,
 ): void {
   const picked = solidScriptTransformPicked(run, label);
-  if (!keys.some((key) => solidScriptEachUsed(run.source(key)))) {
+  const each = keys.includes('around') && solidScriptTransformAroundWord(run) === 'Each Center';
+  if (!each && !keys.some((key) => solidScriptEachUsed(run.source(key)))) {
     solidScriptTransformWrite(run, label, picked, [worldOf(run, picked, run.fields())]);
     return;
   }
@@ -205,6 +206,41 @@ export function solidScriptTransformLocal(
   local: (args: SolidScriptBlockArguments) => THREE.Matrix4,
 ): SolidScriptTransformWorldOf {
   return (run, _, args) => solidScriptTransformWorld(run.matrix(), local(args));
+}
+
+/** Words of Around: the point Rotate By and Scale By work about. */
+export const SOLID_SCRIPT_TRANSFORM_AROUND = ['Origin', 'Combined Center', 'Each Center'] as const;
+
+/**
+ * Reads Around, stopping on a word it does not know.
+ *
+ * @param run Running line.
+ * @returns Around word.
+ */
+function solidScriptTransformAroundWord(run: SolidScriptBlockRun): (typeof SOLID_SCRIPT_TRANSFORM_AROUND)[number] {
+  const typed = run.text('around').trim();
+  const found = SOLID_SCRIPT_TRANSFORM_AROUND.find((word) => word.toLowerCase() === typed.toLowerCase());
+  if (!found) throw new Error(`Around must be Origin, Combined Center or Each Center, not "${typed}"`);
+  return found;
+}
+
+/**
+ * Applies a local change about the point Around names: the origin of the
+ * current space, the combined center of what is picked, or, with Each Center,
+ * the center of each item, which then changes on its own.
+ *
+ * @param label Command, for messages.
+ * @param local Change in the current space.
+ * @returns Transform of what is picked.
+ */
+export function solidScriptTransformAround(
+  label: string,
+  local: (args: SolidScriptBlockArguments) => THREE.Matrix4,
+): SolidScriptTransformWorldOf {
+  return (run, picked, args) =>
+    solidScriptTransformAroundWord(run) === 'Origin'
+      ? solidScriptTransformWorld(run.matrix(), local(args))
+      : solidScriptTransformAboutCenter(run, label, picked, local(args));
 }
 
 /**

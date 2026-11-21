@@ -10,8 +10,11 @@ import {
   solidScriptParameter,
   solidScriptParameterOf,
   solidScriptParameterOptional,
+  solidScriptParameterWords,
 } from './solid_script_command_parameters.js';
 import {
+  SOLID_SCRIPT_TRANSFORM_AROUND,
+  solidScriptTransformAround,
   solidScriptTransformEach,
   solidScriptTransformLocal,
   solidScriptTransformMoveTo,
@@ -38,6 +41,31 @@ const SOLID_SCRIPT_TRANSFORM_OF: SolidScriptCommandParameter = {
   ...solidScriptParameterOf('objects, paths or points', '$Selected.Objects', ['Object', 'Path', 'Vector']),
   paths: true,
 };
+
+/** Meaning of each Around word. */
+const SOLID_SCRIPT_TRANSFORM_AROUND_MEANINGS: Readonly<Record<(typeof SOLID_SCRIPT_TRANSFORM_AROUND)[number], string>> =
+  {
+    Origin: 'The origin of the current space.',
+    'Combined Center': 'The middle of the box around everything in Of.',
+    'Each Center': 'The middle of each item on its own, so every item turns or grows in place.',
+  };
+
+/**
+ * The Around field of Rotate By and Scale By.
+ *
+ * @param what What the line does, such as turns.
+ * @returns Field.
+ */
+function solidScriptParameterAround(what: string): SolidScriptCommandParameter {
+  return solidScriptParameterWords(
+    'around',
+    'Around',
+    'text',
+    'Origin',
+    `The point it ${what} about: Origin, Combined Center, or Each Center for every item in place. Type one, such as Each Center.`,
+    SOLID_SCRIPT_TRANSFORM_AROUND.map((word) => ({ word, detail: SOLID_SCRIPT_TRANSFORM_AROUND_MEANINGS[word] })),
+  );
+}
 
 /**
  * Commands that change the space later lines work in, or transform existing
@@ -136,13 +164,20 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
     label: 'Rotate By',
     description: 'Turn existing objects or points by an angle',
     manual:
-      'Turns the objects or points in Of, or [$Selected.Objects] when Of is left off, around the origin of the current space, first around X, then Y, then Z, in degrees. Without Into the change happens where the items already are; with Into the originals stay and the turned copies are only in that variable. Example: Rotate By 0, 90, 0 Of [Box] turns the box a quarter turn around the upright Y axis of the current space.',
+      'Turns the objects or points in Of, or [$Selected.Objects] when Of is left off, around the origin of the current space, first around X, then Y, then Z, in degrees. Around Combined Center turns them about the middle of all of them, and Each Center turns every item about its own middle, in place. Without Into the change happens where the items already are; with Into the originals stay and the turned copies are only in that variable. Example: Rotate By 0, 90, 0 Of [Box] turns the box a quarter turn around the upright Y axis of the current space.',
     stops: ['No objects or points.', 'A By that is not one number or three numbers separated by commas.'],
     parameters: [
       solidScriptParameter('by', 'By', 'vector3', '0, 0, 0', 'Degrees around X, then Y, then Z, such as 0, 90, 0.'),
+      solidScriptParameterAround('turns'),
     ],
-    listing: (read) => ['Rotate By', ' ', read.value('by'), ' Degrees'],
-    world: solidScriptTransformLocal((args) => solidScriptRotateMatrix(args, 'by')),
+    listing: (read) => [
+      'Rotate By',
+      ' ',
+      read.value('by'),
+      ' Degrees',
+      ...(read.changed('around') ? [' Around ', read.value('around')] : []),
+    ],
+    world: solidScriptTransformAround('Rotate By', (args) => solidScriptRotateMatrix(args, 'by')),
   }),
   solidScriptTransformTool({
     id: 'rotate_to',
@@ -162,7 +197,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
     label: 'Scale By',
     description: 'Stretch or shrink existing objects or points by a factor',
     manual:
-      'Stretches or shrinks the objects or points in Of, or [$Selected.Objects] when Of is left off, measured from the origin of the current space: 1 keeps the size, 2 doubles it, 0.5 halves it. Without Into the change happens where the items already are; with Into the originals stay and the scaled copies are only in that variable. Example: Scale By 1, 1, 2 Of [Sphere] makes the sphere twice as tall, like an egg.',
+      'Stretches or shrinks the objects or points in Of, or [$Selected.Objects] when Of is left off, measured from the origin of the current space: 1 keeps the size, 2 doubles it, 0.5 halves it. Around Combined Center scales them about the middle of all of them, and Each Center scales every item about its own middle. Without Into the change happens where the items already are; with Into the originals stay and the scaled copies are only in that variable. Example: Scale By 1, 1, 2 Of [Sphere] makes the sphere twice as tall, like an egg.',
     stops: ['No objects or points.', 'A By that is not one number or three numbers separated by commas.'],
     parameters: [
       solidScriptParameter(
@@ -172,9 +207,15 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
         '1, 1, 1',
         'Stretch factor along X, Y and Z, such as 2, 1, 1. 1 keeps the size.',
       ),
+      solidScriptParameterAround('grows'),
     ],
-    listing: (read) => ['Scale By', ' ', read.value('by')],
-    world: solidScriptTransformLocal((args) => solidScriptScaleMatrix(args, 'by')),
+    listing: (read) => [
+      'Scale By',
+      ' ',
+      read.value('by'),
+      ...(read.changed('around') ? [' Around ', read.value('around')] : []),
+    ],
+    world: solidScriptTransformAround('Scale By', (args) => solidScriptScaleMatrix(args, 'by')),
   }),
   solidScriptTransformTool({
     id: 'scale_to',
