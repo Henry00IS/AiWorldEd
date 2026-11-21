@@ -135,6 +135,29 @@ describe('SolidScript editor', () => {
     expect(chip(2).textContent).toContain('End Hull');
   });
 
+  it('keeps Ctrl+Z and Ctrl+Y in an options window away from the script, focused field or not', () => {
+    const { commands } = editorFixture(CUBE_SPHERE);
+    chip(0).focus();
+    doubleClick(find('.solid-script-editor-palette-item[data-command="hull"]'));
+    tool('OK').click();
+    expect(commands()).toEqual(['cube', 'hull', 'end', 'sphere']);
+    chip(0).focus();
+    doubleClick(find('.solid-script-editor-palette-item[data-command="cylinder"]'));
+    const options = find('[data-solid-script-configurator]');
+    for (const [key, shiftKey] of [
+      ['z', false],
+      ['y', false],
+      ['z', true],
+    ] as const) {
+      options.focus();
+      press(options, key, { ctrlKey: true, shiftKey });
+      expect(commands()).toEqual(['cube', 'hull', 'end', 'sphere']);
+    }
+    press(options, 'Escape');
+    scriptKey('z');
+    expect(commands()).toEqual(['cube', 'sphere']);
+  });
+
   it('keeps script edits in its own undo history, apart from the scene history', () => {
     const { commands, commandStack } = editorFixture(CUBE_SPHERE);
     chip(0).focus();
@@ -1420,7 +1443,7 @@ describe('SolidScript editor undo history', () => {
     expect(order()).toBe('abcdef');
   });
 
-  it('undoes a configurator edit from the editor and from the configurator, never the level', () => {
+  it('undoes a configurator edit from the editor, while the configurator keeps undo to itself, never the level', () => {
     const { script, commandStack } = editorFixture(VARIABLES.slice(0, 2));
     const levelUndo = vi.spyOn(commandStack, 'undo');
     const reachedLevel = vi.fn();
@@ -1440,8 +1463,6 @@ describe('SolidScript editor undo history', () => {
     doubleClick(chip(1));
     const window_ = find('[data-solid-script-configurator]');
     press(window_.querySelector('button')!, 'z', { ctrlKey: true });
-    expect(script().blocks[1]!.values['value']).toBe('1');
-    press(window_.querySelector('button')!, 'y', { ctrlKey: true });
     expect(script().blocks[1]!.values['value']).toBe('7');
     window.removeEventListener('keydown', reachedLevel);
     expect(reachedLevel).not.toHaveBeenCalled();

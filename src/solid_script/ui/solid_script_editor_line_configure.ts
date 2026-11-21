@@ -34,8 +34,6 @@ export interface SolidScriptEditorLineConfigureHost {
   inputs: (document: SolidScriptDocument) => readonly SolidScriptInput[];
   /** Names every field of every line fills in, such as $Face. */
   fills: () => readonly string[];
-  /** Undoes (false) or redoes (true) a step for Ctrl+Z and Ctrl+Y, or null. */
-  history: ((redo: boolean) => void) | null;
   /** Element the configurator windows mount in. */
   mount: () => HTMLElement;
   /** Dialog the configurator windows open over, or null for the editor itself. */
@@ -170,7 +168,6 @@ export class SolidScriptEditorLineConfigure {
       apply,
       this.host.names(document, line),
       cancelled,
-      this.host.history,
       this.host.inputs(document),
       this.host.fills(),
       this.host.parent(),

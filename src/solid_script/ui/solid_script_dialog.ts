@@ -22,7 +22,9 @@ const SOLID_SCRIPT_DIALOG_KEY_EVENTS = ['keydown', 'keyup', 'copy', 'cut', 'past
  * again and the focus goes back to what had it when it opened, such as a script
  * line or the window below, so keys never fall through to the scene. The dialog
  * on top takes the keyboard focus when it opens, and keys and the clipboard
- * reach only that dialog: windows below it get none.
+ * reach only that dialog: windows below it get none. Undo and redo (Ctrl+Z,
+ * Ctrl+Y, Ctrl+Shift+Z) never leave a dialog: in a text field they undo typing,
+ * elsewhere they step the dialog's own history, if it has one.
  */
 export abstract class SolidScriptDialog extends PanelFloating {
   /** Open dialogs, the topmost last. */
@@ -296,13 +298,26 @@ export abstract class SolidScriptDialog extends PanelFloating {
   }
 
   /**
-   * Handles Enter and Escape; other keys stay inside the dialog.
+   * Undoes (false) or redoes (true) a step of the dialog's own history, for
+   * Ctrl+Z and Ctrl+Y outside a text field. Dialogs without one do nothing.
+   *
+   * @param _redo True for redo.
+   */
+  protected historyStep(_redo: boolean): void {}
+
+  /**
+   * Handles Enter, Escape, undo and redo; other keys stay inside the dialog.
    *
    * @param event Key event.
    */
   private key(event: KeyboardEvent): void {
     event.stopPropagation();
-    if (event.key === 'Escape') {
+    const key = event.key.toLowerCase();
+    if ((event.ctrlKey || event.metaKey) && (key === 'z' || key === 'y')) {
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+      event.preventDefault();
+      this.historyStep(key === 'y' || event.shiftKey);
+    } else if (event.key === 'Escape') {
       event.preventDefault();
       this.cancelRequest();
     } else if (event.key === 'Enter' && this.enterConfirms(event.target)) {

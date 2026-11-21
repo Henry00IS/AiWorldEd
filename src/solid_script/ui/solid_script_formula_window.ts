@@ -153,7 +153,6 @@ export class SolidScriptFormulaWindow extends SolidScriptDialog {
       names: () => this.options.names,
       inputs: () => this.options.inputs,
       fills: () => this.options.fills,
-      history: null,
       mount: () => this.options.host,
       parent: () => this,
     });

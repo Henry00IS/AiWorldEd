@@ -178,7 +178,6 @@ export class SolidScriptEditor extends PanelFloating {
       names: (document, line) => solidScriptDocumentNamesAt(document, line),
       inputs: (document) => solidScriptInputsList(document.blocks),
       fills: () => [],
-      history: (redo) => this.historyStep(redo),
       mount: () => this.root.ownerDocument.body,
       parent: () => null,
     });

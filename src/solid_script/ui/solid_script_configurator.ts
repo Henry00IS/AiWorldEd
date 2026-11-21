@@ -50,8 +50,6 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
    * @param apply Stores the configured values.
    * @param names Names the script defines, for suggestions and checks.
    * @param cancelled Runs when the window closes without storing, or null.
-   * @param history Undoes (false) or redoes (true) a step of the script's own
-   *   history for Ctrl+Z and Ctrl+Y outside a text field, or null.
    * @param inputs Input lines whose words choice fields offer.
    * @param fills Names every field fills in besides the command's own, such as
    *   $Face for the blocks of a Where formula.
@@ -65,37 +63,18 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
     private readonly apply: (values: Record<string, string>) => void,
     private readonly names: readonly SolidScriptName[] = [],
     private readonly cancelled: (() => void) | null = null,
-    history: ((redo: boolean) => void) | null = null,
     private readonly inputs: readonly SolidScriptInput[] = [],
     private readonly fills: readonly string[] = [],
     parent: SolidScriptDialog | null = null,
   ) {
     super(host, command.label, 'OK', parent);
     this.root.dataset['solidScriptConfigurator'] = command.id;
-    this.historyKeysListen(history);
     this.content.append(this.note(command.description), this.fieldsBuild(values));
     this.preview.className = SOLID_SCRIPT_EDITOR_CLASSES.preview;
     this.preview.setAttribute('aria-label', 'Line');
     Object.assign(this.problem.style, { color: '#e5484d', minHeight: '16px', marginBottom: '8px' });
     this.content.append(this.preview, this.problem, this.buttonRow());
     this.refresh();
-  }
-
-  /**
-   * Gives Ctrl+Z and Ctrl+Y to the script, never to the level behind the
-   * window; inside a text field they undo typing.
-   *
-   * @param history Undoes (false) or redoes (true) a step, or null.
-   */
-  private historyKeysListen(history: ((redo: boolean) => void) | null): void {
-    this.root.addEventListener('keydown', (event) => {
-      const key = event.key.toLowerCase();
-      if (!(event.ctrlKey || event.metaKey) || (key !== 'z' && key !== 'y')) return;
-      event.stopPropagation();
-      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
-      event.preventDefault();
-      history?.(key === 'y' || event.shiftKey);
-    });
   }
 
   /**
