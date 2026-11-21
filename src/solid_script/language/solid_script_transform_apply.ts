@@ -83,13 +83,13 @@ export function solidScriptTransformOnMatrix(run: SolidScriptBlockRun): THREE.Ma
   if (on === undefined) return new THREE.Matrix4();
   const values = solidScriptTransformFlat(on);
   if (values.length !== 1)
-    throw new Error('On takes one face or one solid; give a single face or solid, such as [Wall.Faces.First]');
+    throw new Error('On takes one face or one object; give a single face or object, such as [Wall.Faces.First]');
   const value = values[0];
   if (value === undefined)
-    throw new Error('On takes one face or one solid; give a single face or solid, such as [Wall.Faces.First]');
+    throw new Error('On takes one face or one object; give a single face or object, such as [Wall.Faces.First]');
   if (value instanceof SolidScriptElement && value.kind === 'face') return solidScriptTransformFaceOn(run, value);
   if (value instanceof SolidScriptElement && value.kind === 'brush') return solidScriptTransformBrushOn(run, value);
-  throw new Error(`On takes a face or a solid, not ${solidScriptKindNamed(value)}`);
+  throw new Error(`On takes a face or an object, not ${solidScriptKindNamed(value)}`);
 }
 
 /**
@@ -422,9 +422,9 @@ function solidScriptTransformFlat(value: SolidScriptValue): SolidScriptValue[] {
  */
 function solidScriptTransformFaceOn(run: SolidScriptBlockRun, element: SolidScriptElement): THREE.Matrix4 {
   const faces = run.elements.faces(element);
-  if (faces.length !== 1) throw new Error('On takes one face or one solid; give a single face or solid');
+  if (faces.length !== 1) throw new Error('On takes one face or one object; give a single face or object');
   const face = faces[0];
-  if (!face) throw new Error('On takes one face or one solid; give a single face or solid');
+  if (!face) throw new Error('On takes one face or one object; give a single face or object');
   return solidScriptGeometryFaceMatrix(face);
 }
 

@@ -33,20 +33,6 @@ import { solidScriptMatrixRows } from '@/solid_script/language/solid_script_resh
 /** What stops every block without its End. */
 const SOLID_SCRIPT_STOPS_END = 'A missing End line.';
 
-/** Ids of the flat transform tools that take Of. */
-export const SOLID_SCRIPT_TRANSFORM_TOOL_IDS = [
-  'move_by',
-  'move_to',
-  'rotate_by',
-  'rotate_to',
-  'scale_by',
-  'scale_to',
-  'align',
-  'mirror',
-  'resize',
-  'matrix',
-] as const;
-
 /** Shared Of field of the flat transform tools, including Move By and Move To. */
 const SOLID_SCRIPT_TRANSFORM_OF: SolidScriptCommandParameter = {
   ...solidScriptParameterOf('objects, paths or points', '$Selected.Objects', ['Object', 'Path', 'Vector']),
@@ -64,10 +50,10 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
     category: 'Transforms',
     description: 'Change the space that later lines work in',
     manual:
-      'Changes only the space of the lines between this line and its End. Move, Rotate and Scale are applied in that order after On. On takes a face or a solid: a face uses the same frame as Place On Face, a solid uses its center with world axes, and leaving On off keeps the parent space. What the lines build is stored in ordinary script space. Transform never groups solids for CSG. Example: Transform On [Wall.Faces.First] Move 0, 0.1, 0 around a Cube stands the cube just above that wall face.',
+      'Changes only the space of the lines between this line and its End. Move, Rotate and Scale are applied in that order after On. On takes a face or an object: a face uses the same frame as Place On Face, a solid uses its center with world axes, and leaving On off keeps the parent space. What the lines build is stored in ordinary script space. Transform never groups solids for CSG. Example: Transform On [Wall.Faces.First] Move 0, 0.1, 0 around a Cube stands the cube just above that wall face.',
     stops: [
       'A Move, Rotate or Scale that is not one number or three numbers separated by commas.',
-      'An On that is not one face or one solid.',
+      'An On that is not one face or one object.',
       SOLID_SCRIPT_STOPS_END,
     ],
     nesting: 'open',
@@ -98,7 +84,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
           'on',
           'On',
           'value',
-          'Face or solid whose space the lines work in, such as [Front]; left off keeps the parent space. A face uses the same frame as Place On Face. A solid uses its center with world axes.',
+          'Face or object whose space the lines work in, such as [Front]; left off keeps the parent space. A face uses the same frame as Place On Face. An object uses its center with world axes.',
         ),
         accepts: solidScriptOfAccepts(['Face', 'Object']),
         nameGroups: ['Objects', 'Faces'],

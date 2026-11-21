@@ -86,9 +86,9 @@ function solidScriptClipSolid(
 ): SolidScriptShapeSolid {
   const fate = solidScriptClipFate(solid.points, plane);
   if (fate === 'keep') return solid;
-  if (fate === 'gone') throw new Error(solidScriptClipGone(label, solid.label, 'brush'));
+  if (fate === 'gone') throw new Error(solidScriptClipGone(label, solid.label, 'solid'));
   const body = solidScriptBodyClip(solid, plane.normal, plane.constant);
-  if (!solidScriptBodySolid(body)) throw new Error(solidScriptClipFlat(label, solid.label, 'brush'));
+  if (!solidScriptBodySolid(body)) throw new Error(solidScriptClipFlat(label, solid.label, 'solid'));
   return { ...solid, points: body.points, faces: body.faces, clippedBy: plane };
 }
 
@@ -152,10 +152,10 @@ function solidScriptClipSide(point: THREE.Vector3, plane: SolidScriptClipPlane):
  *
  * @param label Command.
  * @param name Shape label.
- * @param kind Brush or mesh, for the message.
+ * @param kind Solid or mesh, for the message.
  * @returns Message.
  */
-function solidScriptClipGone(label: string, name: string, kind: 'brush' | 'mesh'): string {
+function solidScriptClipGone(label: string, name: string, kind: 'solid' | 'mesh'): string {
   const who = name.trim() === '' ? `this ${kind}` : name;
   return `${label} cut the whole of ${who} away; move Through or turn Normal so some of it stays, such as the side Normal points away from`;
 }
@@ -165,10 +165,10 @@ function solidScriptClipGone(label: string, name: string, kind: 'brush' | 'mesh'
  *
  * @param label Command.
  * @param name Shape label.
- * @param kind Brush or mesh, for the message.
+ * @param kind Solid or mesh, for the message.
  * @returns Message.
  */
-function solidScriptClipFlat(label: string, name: string, kind: 'brush' | 'mesh'): string {
+function solidScriptClipFlat(label: string, name: string, kind: 'solid' | 'mesh'): string {
   const who = name.trim() === '' ? `this ${kind}` : name;
   return `${label} left a flat shape from ${who}; move Through or turn Normal so the part that stays has some thickness`;
 }

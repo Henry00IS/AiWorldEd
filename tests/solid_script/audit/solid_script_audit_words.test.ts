@@ -119,3 +119,47 @@ describe('SolidScript says Path, never outline or Curve To Mesh', () => {
     expect(files.flatMap((file) => using(quoted(file), words).map((text) => `${file}: ${text}`))).toEqual([]);
   });
 });
+
+/**
+ * Finds a command of the catalog by its label.
+ *
+ * @param label Label.
+ * @returns Command.
+ */
+function command(label: string) {
+  const found = solidScriptCommands.find((entry) => entry.label === label);
+  expect(found, label).toBeTruthy();
+  return found as NonNullable<typeof found>;
+}
+
+/**
+ * Reads the hint of a field of a command.
+ *
+ * @param label Command label.
+ * @param key Field key.
+ * @returns Hint.
+ */
+function hint(label: string, key: string): string {
+  return command(label).parameters.find((parameter) => parameter.key === key)?.hint ?? '';
+}
+
+describe('SolidScript says objects where meshes work as well as solids', () => {
+  it('in the blocks that build, wrap or pick from objects', () => {
+    for (const label of ['Select Faces', 'Place On Face', 'Place At Points', 'Texture', 'Hull', 'Output'])
+      expect(command(label).description, label).toMatch(/\bobjects\b/);
+  });
+
+  it('in the Of and On fields that take objects', () => {
+    for (const label of ['Points From Faces', 'Points From Edges', 'Points From Vertices'])
+      expect(hint(label, 'of'), label).toMatch(/\bobjects\b/);
+    expect(hint('Transform', 'on')).toMatch(/^Face or object\b/);
+    expect(hint('Output', 'of')).toMatch(/\bobjects\b/);
+  });
+
+  it('in the messages of lines given the wrong kind', () => {
+    const wrong =
+      /takes (faces|edges, faces|vertices, faces) or solids|holds faces or solids|picks from solids|holds solids, faces|one face or one solid|single face or solid|takes a face or a solid|part or solids/;
+    const files = sources('src/solid_script');
+    expect(files.flatMap((file) => (wrong.test(readFileSync(file, 'utf8')) ? [file] : []))).toEqual([]);
+  });
+});

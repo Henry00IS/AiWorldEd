@@ -127,9 +127,9 @@ export const SOLID_SCRIPT_COMMANDS_COMBINE: readonly SolidScriptCommand[] = [
     named: true,
     label: 'Hull',
     category: 'Combine',
-    description: 'Wrap solids or points in one solid',
+    description: 'Wrap objects or points in one solid',
     manual:
-      'Wraps the solids, Point lines and the optional Points From List between this line and its End in one convex solid, like shrink wrap stretched around them. A list of vectors such as the points Scatter Points writes can be handed over in Points From List, so Hull (From [Spots]) wraps those points. Points inside the wrap are ignored, so the result is never hollow or dented. Mode chooses how the solid combines with the ones before it: Additive, Subtractive or Intersecting. Example: two small spheres far apart give a capsule. Scatter Points on a Cube, then Hull From the points, gives an irregular rock.',
+      'Wraps the objects, Point lines and the optional Points From List between this line and its End in one convex solid, like shrink wrap stretched around them. A list of vectors such as the points Scatter Points writes can be handed over in Points From List, so Hull (From [Spots]) wraps those points. Points inside the wrap are ignored, so the result is never hollow or dented. Mode chooses how the solid combines with the ones before it: Additive, Subtractive or Intersecting. Example: two small spheres far apart give a capsule. Scatter Points on a Cube, then Hull From the points, gives an irregular rock.',
     stops: ['Fewer than four corners, or corners that all lie in one plane.', 'A missing End line.'],
     nesting: 'open',
     parameters: [
@@ -137,7 +137,7 @@ export const SOLID_SCRIPT_COMMANDS_COMBINE: readonly SolidScriptCommand[] = [
         'points',
         'Points From List',
         'points3',
-        'Optional: a list of x, y, z points, such as a list variable [Spots] from Scatter Points, or vectors written [0, 0, 0], [2, 0, 0], [0, 2, 0], [0, 0, 2]. Point lines and solids inside add more.',
+        'Optional: a list of x, y, z points, such as a list variable [Spots] from Scatter Points, or vectors written [0, 0, 0], [2, 0, 0], [0, 2, 0], [0, 0, 2]. Point lines and objects inside add more.',
       ),
       solidScriptParameterMode(),
     ],

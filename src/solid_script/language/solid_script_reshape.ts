@@ -178,25 +178,6 @@ export function solidScriptResizeFactors(
 }
 
 /**
- * Matrix of a Resize line, from the combined bounds of shapes about the origin.
- *
- * @param shapes Shapes to measure.
- * @param args Block fields: size and keep.
- * @param planar True to ignore Z.
- * @returns Scale matrix.
- */
-export function solidScriptResizeMatrix(
-  shapes: readonly SolidScriptShape[],
-  args: SolidScriptBlockArguments,
-  planar: boolean,
-): THREE.Matrix4 {
-  const size = solidScriptResizeSize(args);
-  const extent = new THREE.Box3().setFromPoints(solidScriptShapePoints(shapes)).getSize(new THREE.Vector3()).toArray();
-  const [x, y, z] = solidScriptResizeFactors(extent, size, args.flag('keep'), planar);
-  return new THREE.Matrix4().makeScale(x, y, z);
-}
-
-/**
  * Reads the rows of a Matrix block into a matrix.
  *
  * @param args Block fields: row1, row2, row3, four numbers each.

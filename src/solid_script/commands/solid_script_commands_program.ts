@@ -334,8 +334,8 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Inputs',
     description: 'Check an input when it changes',
     manual:
-      'Runs these lines when someone changes the input in the inspector, before the output is rebuilt. The script skips them where they stand. They cannot build solids. Use them to check the new value. Set Input can fix it, and Show Message can say why. Read any input as [Name]. Example: When Input Changes Steps, then If [Steps] > 64, Set Input Steps to 64 and Show Message At most 64 steps.',
-    stops: ['A name that is not an Input of the script.', 'Building a solid.'],
+      'Runs these lines when someone changes the input in the inspector, before the output is rebuilt. The script skips them where they stand. They cannot build objects. Use them to check the new value. Set Input can fix it, and Show Message can say why. Read any input as [Name]. Example: When Input Changes Steps, then If [Steps] > 64, Set Input Steps to 64 and Show Message At most 64 steps.',
+    stops: ['A name that is not an Input of the script.', 'Building an object.'],
     nesting: 'open',
     flow: { kind: 'handler', name: 'name' },
     parameters: [
@@ -354,8 +354,8 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Inputs',
     description: 'Run lines when a button is pressed',
     manual:
-      'Runs these lines when someone presses a button in the inspector. The button comes from an Input with Type Button. The script skips these lines where they stand. They cannot build solids. Use Set Input to change inputs, and Show Message to explain. The solid is then rebuilt. Example: Input Reset with Type Button, then When Button Pressed Reset holds Set Input Width to 2.',
-    stops: ['A name that is not a button Input of the script.', 'Building a solid.'],
+      'Runs these lines when someone presses a button in the inspector. The button comes from an Input with Type Button. The script skips these lines where they stand. They cannot build objects. Use Set Input to change inputs, and Show Message to explain. The solid is then rebuilt. Example: Input Reset with Type Button, then When Button Pressed Reset holds Set Input Width to 2.',
+    stops: ['A name that is not a button Input of the script.', 'Building an object.'],
     nesting: 'open',
     flow: { kind: 'handler', name: 'name' },
     parameters: [
@@ -374,8 +374,8 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Inputs',
     description: 'Change inputs just before a bake',
     manual:
-      'Runs these lines when the generator is baked into plain solids, just before they are made. The script skips them where they stand. They cannot build solids. Set Input changes inputs for the bake only, so a script can show a light preview while you edit and bake a detailed version. Undoing the bake brings back the generator with its old inputs. Example: When Baked holds Set Input Sides to 32, so the editor shows 8 sides and the baked solids have 32.',
-    stops: ['Building a solid.'],
+      'Runs these lines when the generator is baked into plain solids, just before they are made. The script skips them where they stand. They cannot build objects. Set Input changes inputs for the bake only, so a script can show a light preview while you edit and bake a detailed version. Undoing the bake brings back the generator with its old inputs. Example: When Baked holds Set Input Sides to 32, so the editor shows 8 sides and the baked solids have 32.',
+    stops: ['Building an object.'],
     nesting: 'open',
     flow: { kind: 'handler' },
     parameters: [],

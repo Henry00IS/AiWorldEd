@@ -60,12 +60,12 @@ function solidScriptSelectFrom(run: SolidScriptBlockRun, kind: SolidScriptSelect
   if (from.length === 0)
     throw new Error(
       given
-        ? `${kind.label} has no ${kind.many} in Of; check that Of holds solids, faces or edges`
+        ? `${kind.label} has no ${kind.many} in Of; check that Of holds objects, faces or edges`
         : solidScriptOfEmpty(kind.label, faces.length > 0 ? 'faces' : 'objects'),
     );
   return from.map((value) => {
     if (!(value instanceof SolidScriptElement) || !kind.from.includes(value.kind))
-      throw new Error(`${kind.label} picks from solids, faces or edges, not ${solidScriptKindNamed(value)}`);
+      throw new Error(`${kind.label} picks from objects, faces or edges, not ${solidScriptKindNamed(value)}`);
     return value;
   });
 }
@@ -226,7 +226,7 @@ function solidScriptSelectBrushPool(run: SolidScriptBlockRun): SolidScriptElemen
     if (given.length === 0) throw new Error('Select Objects has no solids in Of; check that Of holds solids');
     return given.map((value) => {
       if (!(value instanceof SolidScriptElement) || value.kind !== 'brush')
-        throw new Error(`Select Objects picks from solids, not ${solidScriptKindNamed(value)}`);
+        throw new Error(`Select Objects picks from objects, not ${solidScriptKindNamed(value)}`);
       return value;
     });
   }

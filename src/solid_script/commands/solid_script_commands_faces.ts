@@ -196,7 +196,7 @@ function solidScriptFaceEdgeTargets(run: SolidScriptBlockRun, label: string): So
   const edges: SolidScriptEdgeFacts[] = [];
   for (const value of values) {
     if (!(value instanceof SolidScriptElement) || value.kind === 'vertex' || value.kind === 'data')
-      throw new Error(`${label} takes edges, faces or solids, not ${solidScriptKindNamed(value)}`);
+      throw new Error(`${label} takes edges, faces or objects, not ${solidScriptKindNamed(value)}`);
     for (const edge of run.elements.edges(value))
       if (!edges.some((known) => known.faces[0].leaf === edge.faces[0].leaf && known.index === edge.index))
         edges.push(edge);
@@ -269,7 +269,7 @@ function solidScriptFaceSelectFrom(run: SolidScriptBlockRun): SolidScriptFaceFac
   const faces: SolidScriptFaceFacts[] = [];
   for (const value of from) {
     if (!(value instanceof SolidScriptElement) || (value.kind !== 'face' && value.kind !== 'brush'))
-      throw new Error(`Select Faces picks from solids or faces, not ${solidScriptKindNamed(value)}`);
+      throw new Error(`Select Faces picks from objects or faces, not ${solidScriptKindNamed(value)}`);
     faces.push(...run.elements.faces(value));
   }
   if (faces.length === 0)
@@ -311,10 +311,14 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     id: 'select_faces',
     label: 'Select Faces',
     category: 'Faces',
-    description: 'Pick faces of solids',
+    description: 'Pick faces of objects',
     manual:
-      'Picks faces and puts them in [$Selected.Faces], where Extrude Face, Inset Face, Bevel Edges, Delete Faces and Texture Faces find them when their Of is empty. Of says where to pick from: solids (all their faces) or faces (a list to narrow down); empty uses [$Selected.Objects]. Which is a preset that equals a written-out Where: All keeps every face, Facing Up equals Facing([$Face.Normal], Vector(0, 1, 0)), and Top equals [=HasTag([$Face.Tags], "Top")]. Which Between keeps the faces between this Select Faces and the previous one. Where is a condition each remaining face must pass, with [$Face] the face being tested, [$Index] its place in the list from 0 and [$Count] how many there are; [$X], [$Y] and [$Z] are short forms of [$Face.Center], and [$NX], [$NY] and [$NZ] of [$Face.Normal]. Left off, Where keeps what Which picked. How adds to or removes from the faces picked before. Into also writes the faces to a variable, a Face list. To pick faces of a new solid, set Of to that solid or its Name. To walk the same faces after later Select lines, write them Into a variable. Example: Cube, then Select Faces Facing Up and Extrude Face By 1 pulls the top up.',
-    stops: ['No solids to pick from.', 'A Which that is not one of the choices.', 'An Of that is not solids or faces.'],
+      'Picks faces and puts them in [$Selected.Faces], where Extrude Face, Inset Face, Bevel Edges, Delete Faces and Texture Faces find them when their Of is empty. Of says where to pick from: objects (all their faces) or faces (a list to narrow down); empty uses [$Selected.Objects]. Which is a preset that equals a written-out Where: All keeps every face, Facing Up equals Facing([$Face.Normal], Vector(0, 1, 0)), and Top equals [=HasTag([$Face.Tags], "Top")]. Which Between keeps the faces between this Select Faces and the previous one. Where is a condition each remaining face must pass, with [$Face] the face being tested, [$Index] its place in the list from 0 and [$Count] how many there are; [$X], [$Y] and [$Z] are short forms of [$Face.Center], and [$NX], [$NY] and [$NZ] of [$Face.Normal]. Left off, Where keeps what Which picked. How adds to or removes from the faces picked before. Into also writes the faces to a variable, a Face list. To pick faces of a new object, set Of to that object or its Name. To walk the same faces after later Select lines, write them Into a variable. Example: Cube, then Select Faces Facing Up and Extrude Face By 1 pulls the top up.',
+    stops: [
+      'No objects to pick from.',
+      'A Which that is not one of the choices.',
+      'An Of that is not objects or faces.',
+    ],
     parameters: [
       solidScriptParameterWords(
         'which',
@@ -378,7 +382,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Spread points on faces, inside a shape, in a box, or on a grid',
     manual:
-      'Spreads points and writes their positions to Into as a list of vectors. On chooses how: On Faces (the default) spreads them over faces, more on bigger ones, and writes the way each face looks to Normals, and skips faces that lie back to back against another solid in Of, such as where the solids of a Rotate Extrude ring meet; Inside fills the volume of an object; In Box fills a box of Size, centered on the origin; Grid lays Counts points along that box. Of gives the faces, objects for On Faces and Inside; empty uses [$Selected.Faces]. The same Seed gives the same points for the random modes. Example: Select Faces Facing Up, Scatter Points 20 Into [Spots], then Place At Points At [Spots], Sphere, End.',
+      'Spreads points and writes their positions to Into as a list of vectors. On chooses how: On Faces (the default) spreads them over faces, more on bigger ones, and writes the way each face looks to Normals, and skips faces that lie back to back against another object in Of, such as where the solids of a Rotate Extrude ring meet; Inside fills the volume of an object; In Box fills a box of Size, centered on the origin; Grid lays Counts points along that box. Of gives the faces, objects for On Faces and Inside; empty uses [$Selected.Faces]. The same Seed gives the same points for the random modes. Example: Select Faces Facing Up, Scatter Points 20 Into [Spots], then Place At Points At [Spots], Sphere, End.',
     stops: [
       'No faces, when On is On Faces or Inside.',
       'A Count that is not a whole number from 0 to 10000.',
@@ -477,11 +481,11 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     id: 'place_on_face',
     label: 'Place On Face',
     category: 'Faces',
-    description: 'Stand solids on faces',
+    description: 'Stand objects on faces',
     builds: true,
     intoList: true,
     manual:
-      'Builds the solids between this line and its End standing on a face: up is the way the face points and the center is the middle of the face. Of gives the face, such as [Top] in For Each [Top] In [$Selected.Faces]; given several faces it builds them on each. Empty Of uses [$Selected.Faces]. Faces that lie back to back against another solid in Of, inside the shape, are skipped. Lift moves them out from the face. The same as Points From Faces then Place At Points with Align To Normal, with the same lift. Into is always a list of the objects it built, even when there is only one. Lift can change per face, with [$Face] the face, [$Index] its number from 0 and [$Count] how many there are. Example: For Each [Top] In [$Selected.Faces], Place On Face Of [Top], Cylinder, End, End puts a post on every picked face.',
+      'Builds the objects between this line and its End standing on a face: up is the way the face points and the center is the middle of the face. Of gives the face, such as [Top] in For Each [Top] In [$Selected.Faces]; given several faces it builds them on each. Empty Of uses [$Selected.Faces]. Faces that lie back to back against another object in Of, inside the shape, are skipped. Lift moves them out from the face. The same as Points From Faces then Place At Points with Align To Normal, with the same lift. Into is always a list of the objects it built, even when there is only one. Lift can change per face, with [$Face] the face, [$Index] its number from 0 and [$Count] how many there are. Example: For Each [Top] In [$Selected.Faces], Place On Face Of [Top], Cylinder, End, End puts a post on every picked face.',
     stops: ['No faces.', 'Nothing between this line and its End.', 'A missing End line.'],
     nesting: 'open',
     endLabel: 'Place',
@@ -493,7 +497,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
           'Lift',
           'number',
           '0',
-          'Metres to move the solids out from the face, such as 0.02 or [=[$Index] * 0.1].',
+          'Metres to move the objects out from the face, such as 0.02 or [=[$Index] * 0.1].',
         ),
         'Face',
       ),
@@ -517,11 +521,11 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     id: 'place_at_points',
     label: 'Place At Points',
     category: 'Faces',
-    description: 'Stand solids at a list of points',
+    description: 'Stand objects at a list of points',
     builds: true,
     intoList: true,
     manual:
-      'Builds the solids between this line and its End at each point in At, a list of vectors such as the points Scatter Points writes. Directions, when given, turns up (Y) along one direction for all points, or along the matching entry of a list with one per point; leave it empty to keep world up. Lift moves them out along that up. Align To Normal stands each copy the way Place On Face would, with Directions as the face normal. Directions, Lift, Align To Normal, Rotation and Scale can each change per point: [$Point] is the point, with its Position and Normal (the direction, or world up), [$Index] its number from 0, [$Count] how many points there are, and [$X], [$Y] and [$Z] its position; for example Lift [=[$Index] * 0.1] stacks the copies like stairs. Into is always a list of the objects it built, even when there is only one. Example: Scatter Points 20 Into [Spots] Normals [Dirs], then Place At Points At [Spots] Directions [Dirs], Sphere, End, puts a ball on every point, standing on the face.',
+      'Builds the objects between this line and its End at each point in At, a list of vectors such as the points Scatter Points writes. Directions, when given, turns up (Y) along one direction for all points, or along the matching entry of a list with one per point; leave it empty to keep world up. Lift moves them out along that up. Align To Normal stands each copy the way Place On Face would, with Directions as the face normal. Directions, Lift, Align To Normal, Rotation and Scale can each change per point: [$Point] is the point, with its Position and Normal (the direction, or world up), [$Index] its number from 0, [$Count] how many points there are, and [$X], [$Y] and [$Z] its position; for example Lift [=[$Index] * 0.1] stacks the copies like stairs. Into is always a list of the objects it built, even when there is only one. Example: Scatter Points 20 Into [Spots] Normals [Dirs], then Place At Points At [Spots] Directions [Dirs], Sphere, End, puts a ball on every point, standing on the face.',
     stops: [
       'A point or direction that is not x, y, z.',
       'A Directions list with more than one entry whose length is not the number of points in At.',
@@ -552,7 +556,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
           'Lift',
           'number',
           '0',
-          'Metres to move the solids out along up, such as 0.02 or [=[$Index] * 0.1].',
+          'Metres to move the objects out along up, such as 0.02 or [=[$Index] * 0.1].',
         ),
         'Point',
       ),
@@ -870,9 +874,9 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     id: 'texture',
     label: 'Texture',
     category: 'Faces',
-    description: 'Paint solids with a texture',
+    description: 'Paint objects with a texture',
     manual:
-      "Gives every face of the objects between this line and its End the texture named by Texture, the name a texture has in the texture library. Solids outside any Texture block keep the generator's own texture, and an inner Texture block wins over an outer one. A texture Input picks the name from the library, so the inspector can change it. Example: Input Wall, texture, then Texture [Wall] around the walls paints them with the picked texture.",
+      "Gives every face of the objects between this line and its End the texture named by Texture, the name a texture has in the texture library. Objects outside any Texture block keep the generator's own texture, and an inner Texture block wins over an outer one. A texture Input picks the name from the library, so the inspector can change it. Example: Input Wall, texture, then Texture [Wall] around the walls paints them with the picked texture.",
     stops: ['A missing End line.', 'A [Name] for a variable not set above this line.'],
     nesting: 'open',
     parameters: [

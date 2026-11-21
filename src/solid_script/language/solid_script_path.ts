@@ -176,7 +176,7 @@ export function solidScriptPathResample(path: readonly number[][], count: number
 }
 
 /** A point on a path and the way the path faces there. */
-export interface SolidScriptPathSample {
+interface SolidScriptPathPlace {
   /** Point at that distance along the path. */
   position: number[];
   /** Unit direction of the stretch that holds it. */
@@ -191,11 +191,11 @@ export interface SolidScriptPathSample {
  * @param amount How far along, from 0 to 1.
  * @returns Point and direction.
  */
-export function solidScriptPathSample(path: readonly number[][], amount: number, usage: string): SolidScriptPathSample {
+function solidScriptPathPlace(path: readonly number[][], amount: number, usage: string): SolidScriptPathPlace {
   if (path.length < 2) throw new Error(`${usage} needs at least 2 points`);
   const total = solidScriptPathLength(path);
   const target = Math.min(1, Math.max(0, amount)) * total;
-  const at = solidScriptPathWalk(path, target);
+  const at = solidScriptPathReach(path, target);
   const direction = solidScriptPathStretch(path, at.stretch, usage);
   return { position: at.position, direction };
 }
@@ -208,7 +208,7 @@ export function solidScriptPathSample(path: readonly number[][], amount: number,
  * @returns Point.
  */
 export function solidScriptPathAt(path: readonly number[][], amount: number, usage: string): number[] {
-  return solidScriptPathSample(path, amount, usage).position;
+  return solidScriptPathPlace(path, amount, usage).position;
 }
 
 /**
@@ -219,7 +219,7 @@ export function solidScriptPathAt(path: readonly number[][], amount: number, usa
  * @returns Unit direction.
  */
 export function solidScriptPathDirection(path: readonly number[][], amount: number, usage: string): number[] {
-  return solidScriptPathSample(path, amount, usage).direction;
+  return solidScriptPathPlace(path, amount, usage).direction;
 }
 
 /**
@@ -237,15 +237,15 @@ export function solidScriptPathTrim(path: readonly number[][], start: number, en
   const total = solidScriptPathLength(path);
   if (total <= SOLID_SCRIPT_PATH_EPSILON || high - low <= SOLID_SCRIPT_PATH_EPSILON)
     throw new Error(`${usage} needs a stretch with some length, so start and end must differ`);
-  const from = solidScriptPathWalk(path, low * total);
-  const to = solidScriptPathWalk(path, high * total);
+  const from = solidScriptPathReach(path, low * total);
+  const to = solidScriptPathReach(path, high * total);
   const middle = path.slice(from.stretch, to.stretch);
   const points = [from.position, ...middle, to.position];
   return start <= end ? points : [...points].reverse();
 }
 
 /** A walk along a path to a target length. */
-interface SolidScriptPathWalked {
+interface SolidScriptPathReached {
   position: number[];
   stretch: number;
 }
@@ -258,7 +258,7 @@ interface SolidScriptPathWalked {
  * @param target Length from the start, in metres.
  * @returns Point and stretch.
  */
-function solidScriptPathWalk(path: readonly number[][], target: number): SolidScriptPathWalked {
+function solidScriptPathReach(path: readonly number[][], target: number): SolidScriptPathReached {
   let walked = 0;
   for (let stretch = 1; stretch < path.length; stretch++) {
     const a = path[stretch - 1];

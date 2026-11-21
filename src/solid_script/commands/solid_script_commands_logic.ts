@@ -398,10 +398,10 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     id: 'output',
     label: 'Output',
     category: 'Parts',
-    description: 'Stamp a snapshot of a part or solids',
+    description: 'Stamp a snapshot of a part or objects',
     manual:
-      "Places a snapshot of a Part or of solids right where this line sits, including the Part's CSG group and Mode. A wall Part with a subtractive door always comes out as a wall with a hole. To make a cutter that reaches the world, set the Part's Mode to Subtractive, or to Pass-Through to let its solids join the CSG order around it. Blocks around this line move the stamp. Later changes to the Part do not reach copies already stamped. The Part line must have run already. Example: Output [Post] inside Transform Move 2, 0, 0 stamps the post two metres to the right.",
-    stops: ['No part or solids with this name.', 'A value that is not a part, a solid or a mesh.', 'Nothing to stamp.'],
+      "Places a snapshot of a Part or of objects right where this line sits, including the Part's CSG group and Mode. A wall Part with a subtractive door always comes out as a wall with a hole. To make a cutter that reaches the world, set the Part's Mode to Subtractive, or to Pass-Through to let its solids join the CSG order around it. Blocks around this line move the stamp. Later changes to the Part do not reach copies already stamped. The Part line must have run already. Example: Output [Post] inside Transform Move 2, 0, 0 stamps the post two metres to the right.",
+    stops: ['No part or objects with this name.', 'A value that is not a part or an object.', 'Nothing to stamp.'],
     parameters: [
       {
         ...solidScriptParameter(
@@ -409,7 +409,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
           'Of',
           'value',
           '',
-          'The part or solids to stamp, such as [Wall]. A name such as Post also works.',
+          'The part or objects to stamp, such as [Wall]. A name such as Post also works.',
         ),
         nameGroups: ['Parts', 'Objects'],
         accepts: ['Object', 'Object List', 'Text', 'List'],

@@ -383,7 +383,7 @@ export abstract class SolidScriptMachineCalls<
     const source = this.outputSource(value, scope);
     const group = this.outputGroupOf(source);
     const shapes = group ? [group] : this.outputLeavesOf(source);
-    if (shapes.length === 0) throw new Error('Output has nothing to stamp; give a part or solids such as [Wall]');
+    if (shapes.length === 0) throw new Error('Output has nothing to stamp; give a part or objects such as [Wall]');
     return shapes.map((shape) =>
       solidScriptShapeTransform(
         solidScriptShapeClone(
@@ -407,14 +407,14 @@ export abstract class SolidScriptMachineCalls<
       .trim()
       .replace(/^\[(.*)\]$/s, '$1')
       .trim();
-    if (name === '') throw new Error('Output needs a part or solids, such as [Wall]');
+    if (name === '') throw new Error('Output needs a part or objects, such as [Wall]');
     const key = this.nameKey(name);
     if (scope.variableHas(key)) return scope.variableGet(key);
     const held = this.partsHeld.get(key);
     if (held) return name;
     const known = [...this.partsHeld.keys()].map(this.nameShown).sort();
     throw new Error(
-      `no part or solids are named "${name}". ${known.length > 0 ? `Parts: ${known.join(', ')}` : 'Define one with Define Part'}`,
+      `no part or objects are named "${name}". ${known.length > 0 ? `Parts: ${known.join(', ')}` : 'Define one with Define Part'}`,
     );
   }
 
@@ -472,7 +472,7 @@ export abstract class SolidScriptMachineCalls<
     const brushes = this.outputBrushes(value);
     if (!brushes) {
       const kind = solidScriptKindOf(value);
-      throw new Error(`Output needs a part, a solid or a mesh, not a ${kind}`);
+      throw new Error(`Output needs a part or an object, not a ${kind}`);
     }
     return brushes.map((brush) => this.elements.leaf(brush));
   }

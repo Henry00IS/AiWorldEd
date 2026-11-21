@@ -5,9 +5,6 @@ import type { SolidScriptShapeSolid, SolidScriptUvPolicy } from './solid_script_
 import { surfaceUvApplyPolicy } from '@/texture/uv_matrix/surface_uv_policy.js';
 import type { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
 
-/** Allowed Textures words, in listing order. */
-export const SOLID_SCRIPT_UV_TEXTURES = ['Move With Shape', 'World Aligned'] as const;
-
 /**
  * Reads a Textures field, or none when it is left off and optional.
  *
