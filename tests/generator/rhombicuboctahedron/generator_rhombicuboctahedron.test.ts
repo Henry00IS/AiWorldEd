@@ -52,8 +52,15 @@ describe('Rhombicuboctahedron', () => {
 
   it('puts every default generator corner on the quarter metre grid', () => {
     const size = modifierGeneratorNodeSize('rhombicuboctahedron');
-    const { pieces } = primitivePieces('rhombicuboctahedron', size);
+    expect(size).toEqual([1, 1, 1]);
+    const { pieces, box } = primitivePieces('rhombicuboctahedron', size);
     expect(pieces).toHaveLength(1);
+    const middle = box.getCenter(new THREE.Vector3());
+    const corners = (pieces[0]?.brush.vertices ?? []).map((vertex) =>
+      vertex.clone().sub(middle).toArray().map((value) => Math.abs(value)).sort().join(','),
+    );
+    expect(corners).toHaveLength(24);
+    expect(new Set(corners)).toEqual(new Set(['0.25,0.25,0.5']));
     for (const vertex of pieces[0]?.brush.vertices ?? [])
       for (const coordinate of vertex.toArray()) expect(coordinate * 4).toBeCloseTo(Math.round(coordinate * 4), 8);
   });

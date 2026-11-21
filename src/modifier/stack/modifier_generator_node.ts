@@ -38,7 +38,7 @@ const MODIFIER_GENERATOR_NODE_SIZES: Readonly<Record<string, readonly [number, n
   pipe: [2, 3, 2],
   pyramid: [2, 2, 2],
   prism: [3, 1.5, 4],
-  rhombicuboctahedron: [2, 2, 2],
+  rhombicuboctahedron: [1, 1, 1],
   hollowBox: [4, 3, 4],
   curvedStairs: [4, 3, 4],
   solidScript: [2, 2, 2],
