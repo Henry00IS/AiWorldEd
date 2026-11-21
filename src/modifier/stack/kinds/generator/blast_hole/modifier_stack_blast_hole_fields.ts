@@ -77,7 +77,7 @@ export const BLAST_HOLE_FIELDS: readonly ModifierStackField[] = [
     min: 0,
     max: 1,
     step: 0.05,
-    hint: 'Hole outline before the jags: 0 is a circle (a stadium on long walls), 1 a rectangle.',
+    hint: 'Hole boundary before the jags: 0 is a circle (a stadium on long walls), 1 a rectangle.',
   },
   {
     ...BLAST_HOLE_JAGGED_ROW,
@@ -121,7 +121,7 @@ export const BLAST_HOLE_FIELDS: readonly ModifierStackField[] = [
     min: 0,
     max: 1,
     step: 0.05,
-    hint: 'How deep the jags cut in; for Bricks, how uneven the outline spikes are.',
+    hint: 'How deep the jags cut in; for Bricks, how uneven the boundary spikes are.',
   },
   {
     ...BLAST_HOLE_JAGGED_ROW,
@@ -144,7 +144,7 @@ export const BLAST_HOLE_FIELDS: readonly ModifierStackField[] = [
     max: Math.max(BLAST_HOLE_MAX_DETAIL, BLAST_HOLE_RAGGED_MAX_DETAIL),
     integer: true,
     step: 1,
-    hint: 'Finer teeth and chips on the edge; for Bricks, extra points along each outline spike.',
+    hint: 'Finer teeth and chips on the edge; for Bricks, extra points along each boundary spike.',
   },
   {
     ...BLAST_HOLE_BRICK_ROW,

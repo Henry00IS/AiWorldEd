@@ -112,6 +112,7 @@ export type SolidScriptCommandCategory =
   | 'Text'
   | 'List'
   | 'Curve'
+  | 'Path'
   | 'Random'
   | 'Functions'
   | 'Values';
@@ -169,8 +170,8 @@ export interface SolidScriptCommandParameter {
   nameGroups?: readonly string[];
   /** Kinds of value the field accepts. */
   accepts: SolidScriptCommandAccepts;
-  /** Set on an Of field that also reads the flat outlines a Name gives. */
-  outlines?: boolean;
+  /** Set on an Of field that also reads the flat paths a Name gives. */
+  paths?: boolean;
   /**
    * Set for a field naming a variable the line writes or changes: what it gives
    * the variable, and how it offers names: name offers the script's variables
@@ -285,8 +286,8 @@ export interface SolidScriptCommandSpec {
    */
   named?: boolean;
   /**
-   * True for 2D shapes that draw one flat outline, such as Circle: Into writes
-   * that outline.
+   * True for 2D shapes that draw one flat path, such as Circle: Into writes
+   * that path.
    */
   draws?: boolean;
   /** False for lines that do nothing when run, such as notes. */
@@ -362,8 +363,8 @@ interface SolidScriptCommandFields {
 
 /**
  * Works out the fields of a command: a builder gets a name and where it goes, a
- * 2D shape a variable for its outline, and a tool without its own Into gets one
- * to write a copy; the listing shows them.
+ * 2D shape a variable for its path, and a tool without its own Into gets one to
+ * write a copy; the listing shows them.
  *
  * @param spec Command spec.
  * @returns Fields.
@@ -376,7 +377,7 @@ function solidScriptCommandFields(spec: SolidScriptCommandSpec): SolidScriptComm
   const into = builds
     ? [solidScriptCommandBuiltInto(intoList, spec.category)]
     : spec.draws === true
-      ? [solidScriptParameterInto('the outline it draws, an Outline', 'Outline', 'outline drawn', 'label')]
+      ? [solidScriptParameterInto('the closed path it draws, a Path', 'Path', 'path drawn', 'label')]
       : [];
   const given = named ? [...spec.parameters, solidScriptParameterShapeName(), ...into] : [...spec.parameters, ...into];
   const writeCopy = edits && !given.some((field) => field.key === 'into');

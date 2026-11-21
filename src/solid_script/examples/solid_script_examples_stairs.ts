@@ -28,13 +28,13 @@ const SOLID_SCRIPT_EXAMPLE_SPOT: readonly SolidScriptLine[] = solidScriptExample
 );
 
 /**
- * Lines that build one solid from a side outline: each outline point once on
+ * Lines that build one solid from a side profile: each of its points once on
  * each side of the flight.
  *
  * @param list Name of the list of along, height points.
  * @returns Lines.
  */
-function solidScriptExampleOutlineSolid(list: string): SolidScriptLine[] {
+function solidScriptExampleSideSolid(list: string): SolidScriptLine[] {
   return solidScriptExamplePolyhedron(
     solidScriptExampleBlock('for_each', { variable: 'P', list: `[${list}]` }, [
       solidScriptExamplePoint('[=Spot([P.X], [P.Y], -1)]'),
@@ -50,7 +50,7 @@ function solidScriptExampleOutlineSolid(list: string): SolidScriptLine[] {
  * @param points Points as along, height field text.
  * @returns Lines.
  */
-function solidScriptExampleOutline(list: string, points: readonly string[]): SolidScriptLine[] {
+function solidScriptExampleSide(list: string, points: readonly string[]): SolidScriptLine[] {
   return [
     solidScriptExampleLine('clear_variable', { name: list }),
     ...points.map((point) => solidScriptExampleLine('add_item', { value: `[=Vector(${point})]`, list })),
@@ -59,17 +59,17 @@ function solidScriptExampleOutline(list: string, points: readonly string[]): Sol
 
 /** Lines that clip the step rectangle to the part above the slab underside. */
 const SOLID_SCRIPT_EXAMPLE_SLAB_CLIP: readonly SolidScriptLine[] = [
-  ...solidScriptExampleOutline('Corners', ['[From], [Floor]', '[To], [Floor]', '[To], [Top]', '[From], [Top]']),
-  solidScriptExampleLine('clear_variable', { name: 'Outline' }),
+  ...solidScriptExampleSide('Corners', ['[From], [Floor]', '[To], [Floor]', '[To], [Top]', '[From], [Top]']),
+  solidScriptExampleLine('clear_variable', { name: 'Side' }),
   ...solidScriptExampleRepeat('C', '0', '4', [
     solidScriptExampleSet('N', '[=([C] + 1) % 4]'),
     solidScriptExampleSet('Here', '[Corners([C])]'),
     solidScriptExampleSet('Next', '[Corners([N])]'),
     solidScriptExampleSet('A', '[=[Here.Y] - Underside([Here.X])]'),
     solidScriptExampleSet('B', '[=[Next.Y] - Underside([Next.X])]'),
-    ...solidScriptExampleIf('[A] >= 0', [solidScriptExampleLine('add_item', { value: '[Here]', list: 'Outline' })]),
+    ...solidScriptExampleIf('[A] >= 0', [solidScriptExampleLine('add_item', { value: '[Here]', list: 'Side' })]),
     ...solidScriptExampleIf('([A] > 0 and [B] < 0) or ([A] < 0 and [B] > 0)', [
-      solidScriptExampleLine('add_item', { value: '[=Lerp([Here], [Next], [A] / ([A] - [B]))]', list: 'Outline' }),
+      solidScriptExampleLine('add_item', { value: '[=Lerp([Here], [Next], [A] / ([A] - [B]))]', list: 'Side' }),
     ]),
   ]),
 ];
@@ -133,27 +133,27 @@ export const SOLID_SCRIPT_EXAMPLE_STAIRS: readonly SolidScriptLine[] = [
       [
         solidScriptExampleSet('LandingStep', '[=[Last] and [Length] > [Steps] * [Run]]'),
         ...SOLID_SCRIPT_EXAMPLE_SLAB_CLIP,
-        ...solidScriptExampleOutlineSolid('outline'),
+        ...solidScriptExampleSideSolid('Side'),
       ],
       [
         solidScriptExampleSet('Bottom', '[Floor]'),
         ...solidScriptExampleIf('[Fill] == "Floating Treads"', [
           solidScriptExampleSet('Bottom', '[=Max([Floor], [Top] - [Thickness])]'),
         ]),
-        ...solidScriptExampleOutline('outline', ['[From], [Bottom]', '[To], [Bottom]', '[To], [Top]', '[From], [Top]']),
-        ...solidScriptExampleOutlineSolid('outline'),
+        ...solidScriptExampleSide('Side', ['[From], [Bottom]', '[To], [Bottom]', '[To], [Top]', '[From], [Top]']),
+        ...solidScriptExampleSideSolid('Side'),
       ],
     ),
     ...solidScriptExampleIf('[NoseDepth] > 0 and [NoseTall] + [NoseSlope] > 0', [
       solidScriptExampleSet('Front', '[=[I] * [Run]]'),
-      ...solidScriptExampleOutline('nose', [
+      ...solidScriptExampleSide('nose', [
         '[Front], [Top] - [NoseTall]',
         '[Front] + [NoseDepth], [Top] - [NoseTall] - [NoseSlope]',
         '[Front] + [NoseDepth], [Top]',
         '[Front] + [NoseCut], [Top]',
         '[Front], [Top] - [NoseCut]',
       ]),
-      ...solidScriptExampleOutlineSolid('nose'),
+      ...solidScriptExampleSideSolid('nose'),
     ]),
   ]),
 ];

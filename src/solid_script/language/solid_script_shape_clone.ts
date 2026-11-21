@@ -7,6 +7,7 @@ import type {
   SolidScriptShapeSolid,
 } from './solid_script_shape.js';
 import type { SolidScriptShapeMesh, SolidScriptUv } from './solid_script_mesh.js';
+import { solidScriptPathMap } from './solid_script_path_model.js';
 
 /**
  * Copies a shape tree so a later stamp or edit does not change the original.
@@ -19,7 +20,7 @@ export function solidScriptShapeClone(shape: SolidScriptShape): SolidScriptShape
     return { ...shape, children: shape.children.map(solidScriptShapeClone) };
   if (shape.kind === 'solid') return solidScriptSolidClone(shape);
   if (shape.kind === 'mesh') return solidScriptMeshClone(shape);
-  return { ...shape, points: shape.points.map(([x, y]) => [x, y] as [number, number]) };
+  return { ...shape, path: solidScriptPathMap(shape.path, ([x, y]): [number, number] => [x, y]) };
 }
 
 /**

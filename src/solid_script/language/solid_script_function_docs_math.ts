@@ -225,7 +225,7 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_MATH = {
     summary: solidScriptFunctionDocSummary(
       'Log, the base-10 logarithm, asks how many times you multiply 10 to get this number. The Log of 100 is 2, because 10 × 10 is 100. Handy when sizes span a huge range and you want them on a friendlier scale.',
       ['Log(10) is 1.', 'Log(100) is 2.', 'Log(1000) is 3.'],
-      'Use it to tame a huge distance or a growth curve so a height or a slider stays readable.',
+      'Use it to tame a huge distance or a fast-growing value so a height or a slider stays readable.',
     ),
     group: 'Math',
     gives: ['Number'],

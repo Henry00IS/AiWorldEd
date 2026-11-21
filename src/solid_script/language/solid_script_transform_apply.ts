@@ -1,3 +1,4 @@
+import { solidScriptShapePolygonPoints } from './solid_script_shape.js';
 import * as THREE from 'three';
 import type { SolidScriptGeometryLeaf } from './solid_script_geometry.js';
 import { solidScriptGeometryFaceMatrix } from './solid_script_geometry.js';
@@ -13,7 +14,8 @@ import {
 } from './solid_script_reshape.js';
 import { solidScriptRunValueOptional } from './solid_script_run_optional.js';
 import { solidScriptOfEmpty } from './solid_script_select.js';
-import { SolidScriptElement, type SolidScriptValue } from './solid_script_value.js';
+import { SolidScriptElement, SolidScriptPathElement, type SolidScriptValue } from './solid_script_value.js';
+import { solidScriptPathMap, solidScriptPathSample } from './solid_script_path_model.js';
 import {
   solidScriptMoveMatrix,
   solidScriptOffsetMatrix,
@@ -30,7 +32,7 @@ export type SolidScriptTransformPicked =
   | { readonly kind: 'points'; readonly points: readonly THREE.Vector3[] }
   | {
       readonly kind: 'outlines';
-      readonly outlines: readonly SolidScriptElement[];
+      readonly outlines: readonly SolidScriptPathElement[];
       readonly points: readonly THREE.Vector3[];
     };
 
@@ -38,7 +40,7 @@ export type SolidScriptTransformPicked =
 interface SolidScriptTransformTargets {
   leaves: SolidScriptGeometryLeaf[];
   points: THREE.Vector3[];
-  outlines: SolidScriptElement[];
+  outlines: SolidScriptPathElement[];
 }
 
 /**
@@ -179,10 +181,15 @@ function solidScriptTransformWrite(
     return;
   }
   if (picked.kind === 'outlines') {
-    if (run.text('into').trim() !== '') throw new Error(`${label} changes an outline where it is; leave Into empty`);
-    picked.outlines.forEach((element, index) =>
-      run.outlineReplace(element, solidScriptOutlineTransform(run.outlineLatest(element), worldAt(index))),
-    );
+    if (run.text('into').trim() !== '') throw new Error(`${label} changes a path where it is; leave Into empty`);
+    picked.outlines.forEach((element, index) => {
+      const drawn = run.pathDrawn(element);
+      if (drawn) run.pathReplace(element, solidScriptOutlineTransform(drawn, worldAt(index)));
+      else
+        element.path = solidScriptPathMap(element.path, ([x = 0, y = 0, z = 0]) =>
+          new THREE.Vector3(x, y, z).applyMatrix4(worldAt(index)).toArray(),
+        );
+    });
     return;
   }
   picked.leaves.forEach((leaf, index) => solidScriptTransformReplace(run, leaf, worldAt(index)));
@@ -357,7 +364,7 @@ export function solidScriptTransformPicked(run: SolidScriptBlockRun, label: stri
   for (const value of values) solidScriptTransformCollect(run, label, value, targets);
   const { leaves, points, outlines } = targets;
   if (outlines.length > 0 && leaves.length + points.length > 0)
-    throw new Error(`${label} works on outlines on their own, not mixed with objects or points`);
+    throw new Error(`${label} works on paths on their own, not mixed with objects or points`);
   if (outlines.length > 0)
     return { kind: 'outlines', outlines, points: solidScriptTransformOutlinePoints(run, outlines) };
   if (leaves.length > 0 && points.length > 0)
@@ -374,9 +381,13 @@ export function solidScriptTransformPicked(run: SolidScriptBlockRun, label: stri
  */
 function solidScriptTransformOutlinePoints(
   run: SolidScriptBlockRun,
-  outlines: readonly SolidScriptElement[],
+  outlines: readonly SolidScriptPathElement[],
 ): THREE.Vector3[] {
-  return outlines.flatMap((element) => run.outlineLatest(element).points.map(([x, y]) => new THREE.Vector3(x, y, 0)));
+  return outlines.flatMap((element) => {
+    const drawn = run.pathDrawn(element);
+    if (drawn) return solidScriptShapePolygonPoints(drawn).map(([x, y]) => new THREE.Vector3(x, y, 0));
+    return solidScriptPathSample(element.path).map(([x = 0, y = 0, z = 0]) => new THREE.Vector3(x, y, z));
+  });
 }
 
 /**
@@ -504,7 +515,7 @@ function solidScriptTransformCollect(
     targets.points.push(solidScriptTransformVector(value));
     return;
   }
-  if (value instanceof SolidScriptElement && value.kind === 'outline') {
+  if (value instanceof SolidScriptPathElement) {
     if (!targets.outlines.includes(value)) targets.outlines.push(value);
     return;
   }
@@ -514,7 +525,7 @@ function solidScriptTransformCollect(
     return;
   }
   throw new Error(
-    `${label} takes objects, outlines or points, not ${solidScriptKindNamed(value)}; give those in Of, or leave Of empty to use [$Selected.Objects]`,
+    `${label} takes objects, paths or points, not ${solidScriptKindNamed(value)}; give those in Of, or leave Of empty to use [$Selected.Objects]`,
   );
 }
 

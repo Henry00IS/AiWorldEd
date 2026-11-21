@@ -67,7 +67,7 @@ describe('Physics level generators', () => {
     generatorAdd(model, 'column', 0);
     scriptSet(generatorAdd(model, MODIFIER_STACK_SOLID_SCRIPT_KIND, 5), [{ command: 'cube' }]);
     scriptSet(generatorAdd(model, MODIFIER_STACK_SOLID_SCRIPT_KIND, 10), [
-      { command: 'curve_to_mesh', values: { path: '[-1, 0, 0], [1, 0, 0]', radius: '0.3', mesh: 'true' } },
+      { command: 'sweep_along_path', values: { path: '[-1, 0, 0], [1, 0, 0]', radius: '0.3', mesh: 'true' } },
     ]);
     world.updateMatrixWorld(true);
     model.markDirty();

@@ -13,9 +13,7 @@ import {
   solidScriptParameterWhen,
   solidScriptParameterWords,
 } from './solid_script_command_parameters.js';
-import { solidScriptFaceWrite } from './solid_script_face_of.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
-import { solidScriptMemberVector } from '@/solid_script/language/solid_script_members.js';
 import { solidScriptPathMesh, solidScriptPathSweep } from '@/solid_script/language/solid_script_path.js';
 import {
   SOLID_SCRIPT_PATH_CORNER_SIDES_MAX,
@@ -27,9 +25,14 @@ import {
   solidScriptPathRound,
   solidScriptPathSpiral,
 } from '@/solid_script/language/solid_script_path_shape.js';
-import { solidScriptValueNumber, solidScriptValueNumbers } from '@/solid_script/language/solid_script_value.js';
+import { solidScriptPathSample } from '@/solid_script/language/solid_script_path_model.js';
+import {
+  SolidScriptPathElement,
+  solidScriptValueNumber,
+  solidScriptValueNumbers,
+} from '@/solid_script/language/solid_script_value.js';
 
-/** Most sides of a round Curve To Mesh profile. */
+/** Most sides of a round Sweep Along Path profile. */
 const SOLID_SCRIPT_SWEEP_SIDES_MAX = 64;
 
 /** Shapes a Path line can build. */
@@ -39,7 +42,7 @@ const SOLID_SCRIPT_PATH_SHAPES = ['Line', 'Arc', 'Spiral', 'From Points'] as con
 type SolidScriptPathShape = (typeof SOLID_SCRIPT_PATH_SHAPES)[number];
 
 /**
- * Reads the profile: the listed outline, or a round one of Radius and Sides.
+ * Reads the profile: the listed points, or a round one of Radius and Sides.
  *
  * @param run Running line.
  * @returns Profile corners, counter-clockwise.
@@ -264,9 +267,9 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
     id: 'path',
     label: 'Path',
     category: 'Meshes',
-    description: 'Build a list of points along a line, arc, spiral or polyline',
+    description: 'Draw a path along a line, arc, spiral or points',
     manual:
-      'Writes a list of points to Into, for Curve To Mesh, Place At Points or PathAt. Shape Line (the default) walks from From to To. Arc turns around Center in the plane facing Normal, from Start by Sweep degrees, the same way as RotateVector around Normal; a negative Sweep turns the other way. Spiral also climbs Height along Normal while the radius moves from Radius to End Radius, for Turns of a rotation. From Points uses the corners in Points; Radius rounds those corners, with Sides segments on each, and Closed joins the last point back to the first. Count is how many points Line, Arc and Spiral write. Example: Path Line From 0, 0, 0 To 4, 0, 0 Count 8 Into [Rail], then Curve To Mesh along [Rail].',
+      'Writes a Path, a line of points that is open or closed, to Into, for Sweep Along Path, Place At Points or PathAt; inside Linear Extrude, Rotate Extrude or Offset a closed Path is filled instead. Shape Line (the default) walks from From to To. Arc turns around Center in the plane facing Normal, from Start by Sweep degrees, the same way as RotateVector around Normal; a negative Sweep turns the other way. Spiral also climbs Height along Normal while the radius moves from Radius to End Radius, for Turns of a rotation. From Points uses the corners in Points; Radius rounds those corners, with Sides segments on each. Closed, for Arc and From Points, joins the last point back to the first. Count is how many points Line, Arc and Spiral write. Example: Path Line From 0, 0, 0 To 4, 0, 0 Count 8 Into [Rail], then Sweep Along Path along [Rail].',
     stops: [
       'A Shape other than Line, Arc, Spiral or From Points.',
       'A Count that is not a whole number from 2 to 10000, when Shape is Line, Arc or Spiral.',
@@ -420,10 +423,10 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
           'Closed',
           'boolean',
           'No',
-          'Yes: join the last point back to the first, and round that corner too. Type Yes or No, such as Yes.',
+          'Yes: join the last point back to the first, so Linear Extrude, Rotate Extrude and Offset can fill the path; From Points rounds that corner too. Type Yes or No, such as Yes.',
         ),
         'shape',
-        ['From Points'],
+        ['Arc', 'From Points'],
       ),
       solidScriptParameterWhen(
         solidScriptParameter(
@@ -437,33 +440,31 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
         ['Line', 'Arc', 'Spiral'],
       ),
       {
-        ...solidScriptParameterInto('the points, a list of vectors', 'Vector List', 'what is made', 'label'),
-        hint: 'Variable to write the points to, a list of vectors, such as Path.',
+        ...solidScriptParameterInto('the path, a Path', 'Path', 'what is made', 'label'),
+        hint: 'Variable to write the Path to, such as Path.',
         optional: false,
         default: 'Path',
       },
     ],
     listing: (read) => solidScriptPathListing(read),
     execute: (run) => {
-      if (run.text('into').trim() === '') throw new Error('Path needs a name in Into, such as Path or Rail');
-      solidScriptFaceWrite(
-        run,
-        'into',
-        solidScriptPathBuild(run).map((point) => solidScriptMemberVector(point)),
-      );
-      return [];
+      if (run.text('into').trim() === '' && !run.planar)
+        throw new Error('Path needs a name in Into, such as Path or Rail');
+      const shape = solidScriptPathShapeOf(run);
+      const closed = (shape === 'Arc' || shape === 'From Points') && run.fields().flag('closed');
+      return run.pathWrite(solidScriptPathBuild(run), closed);
     },
   }),
   new SolidScriptCommand({
-    id: 'curve_to_mesh',
+    id: 'sweep_along_path',
     named: true,
-    label: 'Curve To Mesh',
+    label: 'Sweep Along Path',
     category: 'Meshes',
     description: 'Sweep a profile along a path',
     manual:
-      'Sweeps a flat profile along a path of points, like a pipe, rail or moulding. The profile is a circle of Radius and Sides, or the x, y outline in Profile, where x runs to the side of the path and y up. Each stretch of the path becomes one solid, and the joints are cut on the mitre between two stretches so the pieces meet exactly. A dented profile fills in as a solid; with As Mesh on, the whole sweep is one mesh instead and keeps any profile. Closed joins the last point back to the first. Example: a path from Path or Resample of a few points, Radius 0.05, gives a round handrail.',
+      'Sweeps a flat profile along a Path, like a pipe, rail or moulding. The profile is a circle of Radius and Sides, or the x, y points in Profile, where x runs to the side of the path and y up. Each stretch of the path becomes one solid, and the joints are cut on the mitre between two stretches so the pieces meet exactly. A dented profile fills in as a solid; with As Mesh on, the whole sweep is one mesh instead and keeps any profile. A closed Path, such as a Square or a Path with Closed on, joins its last point back to the first; a list of points stays open. Example: a Path, or Resample of a few points, Radius 0.05, gives a round handrail.',
     stops: [
-      'A Path with fewer than 2 different points, or 3 when Closed.',
+      'A Path with fewer than 2 different points, or 3 when it is closed.',
       'A Profile with fewer than 3 points, or points that are not x, y.',
       `Sides below 3 or above ${SOLID_SCRIPT_SWEEP_SIDES_MAX}, or a Radius that is not above 0.`,
     ],
@@ -473,7 +474,7 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
         'Path',
         'points3',
         '[0, 0, 0], [1, 0, 0], [2, 1, 0]',
-        'Points the profile follows, such as a list variable [Path].',
+        'The Path the profile follows, or a list of points, such as [Path].',
       ),
       solidScriptParameter('radius', 'Radius', 'number', '0.1', 'Radius of the round profile in metres, such as 0.1.'),
       solidScriptParameter(
@@ -487,14 +488,7 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
         'profile',
         'Profile',
         'points2',
-        'Optional: an x, y outline swept instead of the circle, written as vectors whose z is ignored, such as [0, 0, 0], [0.2, 0, 0], [0.2, 0.1, 0].',
-      ),
-      solidScriptParameter(
-        'closed',
-        'Closed',
-        'boolean',
-        'No',
-        'Yes: join the last point back to the first. Type Yes or No, such as Yes.',
+        'Optional: x, y points swept instead of the circle, written as vectors whose z is ignored, such as [0, 0, 0], [0.2, 0, 0], [0.2, 0.1, 0].',
       ),
       solidScriptParameter(
         'mesh',
@@ -505,25 +499,26 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
       ),
     ],
     listing: (read) => [
-      'Curve To Mesh',
+      'Sweep Along Path',
       'Along ',
       read.value('path'),
       ...solidScriptListingOptions([
         read.changed('profile') ? ['Profile ', read.value('profile')] : ['Radius ', read.value('radius')],
-        read.on('closed') && ['Closed'],
         read.on('mesh') && ['As Mesh'],
       ]),
     ],
     execute: (run) => {
-      const path = (run.value('path') as number[][]).map(([x, y, z]) => new THREE.Vector3(x, y, z));
+      const given = run.values('path');
+      const drawn = given.length === 1 && given[0] instanceof SolidScriptPathElement ? given[0] : undefined;
+      const points = drawn ? solidScriptPathSample(drawn.path) : (run.value('path') as number[][]);
+      const path = points.map(([x, y, z]) => new THREE.Vector3(x, y, z));
       const profile = solidScriptSweepProfile(run);
-      const fields = run.fields();
-      const closed = fields.flag('closed');
+      const closed = drawn?.path.closed ?? false;
       const rings = solidScriptPathSweep(path, profile, closed);
-      if (fields.flag('mesh')) return run.mesh(solidScriptPathMesh(rings, closed, 'Curve To Mesh'));
+      if (run.fields().flag('mesh')) return run.mesh(solidScriptPathMesh(rings, closed, 'Sweep Along Path'));
       return rings.slice(1).flatMap((ring, index) => {
         const before = rings[index];
-        return before ? run.solid(solidScriptBodyPrism(before, ring, 'Curve To Mesh')) : [];
+        return before ? run.solid(solidScriptBodyPrism(before, ring, 'Sweep Along Path')) : [];
       });
     },
   }),

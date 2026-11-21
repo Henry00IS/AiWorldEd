@@ -108,3 +108,14 @@ describe('SolidScript says Objects, Solids and Meshes, never brushes', () => {
     expect(files.flatMap((file) => using(quoted(file), brush).map((text) => `${file}: ${text}`))).toEqual([]);
   });
 });
+
+describe('SolidScript says Path, never outline or Curve To Mesh', () => {
+  const words = /\boutlines?\b|Curve To Mesh/i;
+  it('in its catalogs, help, examples and docs', () => {
+    expect(using(shown(), words)).toEqual([]);
+  });
+  it('in the messages of its source', () => {
+    const files = SOURCE_FOLDERS.flatMap(sources).filter((file) => !file.endsWith('_css.ts'));
+    expect(files.flatMap((file) => using(quoted(file), words).map((text) => `${file}: ${text}`))).toEqual([]);
+  });
+});

@@ -2,6 +2,7 @@ import type * as THREE from 'three';
 import type { SolidScriptShapeMesh } from './solid_script_mesh.js';
 import type { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
 import type { SolidScriptGroupMode, SolidScriptMode } from './solid_script_mode.js';
+import { solidScriptPathSample, solidScriptPathStraight, type SolidScriptPath } from './solid_script_path_model.js';
 
 /** Boolean operation of a shape group. */
 export type SolidScriptBooleanOperation = 'union' | 'difference' | 'intersection';
@@ -135,11 +136,35 @@ export interface SolidScriptFaceTag {
   tag: string;
 }
 
-/** Simple 2D polygon in the local plane of a linear_extrude. */
+/**
+ * A closed flat Path in the drawing plane of Linear Extrude, Rotate Extrude or
+ * Offset, which fill it.
+ */
 export interface SolidScriptShapePolygon {
   kind: 'polygon';
-  points: [number, number][];
+  path: SolidScriptPath<[number, number]>;
   label: string;
+}
+
+/**
+ * Creates the leaf of a closed flat Path whose every stretch is straight.
+ *
+ * @param points Corners in the drawing plane.
+ * @param label Name.
+ * @returns Leaf.
+ */
+export function solidScriptShapePolygon(points: readonly [number, number][], label: string): SolidScriptShapePolygon {
+  return { kind: 'polygon', path: solidScriptPathStraight(points, true), label };
+}
+
+/**
+ * Samples the corners of a closed flat Path, as every reader of one does.
+ *
+ * @param leaf Leaf.
+ * @returns Corners in the drawing plane.
+ */
+export function solidScriptShapePolygonPoints(leaf: SolidScriptShapePolygon): [number, number][] {
+  return solidScriptPathSample(leaf.path);
 }
 
 /** Boolean combination of child shapes; the first child of a difference is kept. */

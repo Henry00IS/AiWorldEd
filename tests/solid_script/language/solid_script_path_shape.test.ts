@@ -36,27 +36,27 @@ function path(values: Record<string, string> = {}): SolidScriptLine {
 
 describe('SolidScript Path', () => {
   it('writes a straight line, an arc and a spiral', () => {
-    expect(echo([path({ count: '3', into: 'P' })], '[P]')).toBe('[[0, 0, 0], [0.5, 0, 0], [1, 0, 0]]');
-    expect(echo([path({ shape: 'Arc', sweep: '180', count: '3', into: 'P' })], '[P]')).toBe(
+    expect(echo([path({ count: '3', into: 'P' })], '[P.Points]')).toBe('[[0, 0, 0], [0.5, 0, 0], [1, 0, 0]]');
+    expect(echo([path({ shape: 'Arc', sweep: '180', count: '3', into: 'P' })], '[P.Points]')).toBe(
       '[[1, 0, 0], [0, 0, -1], [-1, 0, 0]]',
     );
-    expect(echo([path({ shape: 'Spiral', height: '2', turns: '1', count: '3', into: 'P' })], '[P]')).toBe(
+    expect(echo([path({ shape: 'Spiral', height: '2', turns: '1', count: '3', into: 'P' })], '[P.Points]')).toBe(
       '[[1, 0, 0], [-1, 1, 0], [1, 2, 0]]',
     );
   });
 
   it('keeps Points as they are, and rounds a corner when Radius is above 0', () => {
     const corners = { shape: 'From Points', points: '[0, 0, 0], [1, 0, 0], [1, 1, 0]', into: 'P' };
-    expect(echo([path(corners)], '[P]')).toBe('[[0, 0, 0], [1, 0, 0], [1, 1, 0]]');
-    const rounded = echo([path({ ...corners, corner_radius: '0.5', sides: '2' })], '[P]');
+    expect(echo([path(corners)], '[P.Points]')).toBe('[[0, 0, 0], [1, 0, 0], [1, 1, 0]]');
+    const rounded = echo([path({ ...corners, corner_radius: '0.5', sides: '2' })], '[P.Points]');
     expect(rounded.startsWith('[[0, 0, 0], [0.5, 0, 0],')).toBe(true);
     expect(rounded.endsWith(', [1, 0.5, 0], [1, 1, 0]]')).toBe(true);
     expect(rounded).toContain('[0.5, 0, 0]');
   });
 
   it('stops when the line has no length, the arc has no sweep, or a corner radius does not fit', () => {
-    expect(echo([path({ to: '0, 0, 0', into: 'P' })], '[P]')).toMatch(/From and To to stand apart/);
-    expect(echo([path({ shape: 'Arc', sweep: '0', into: 'P' })], '[P]')).toMatch(/Sweep other than 0/);
+    expect(echo([path({ to: '0, 0, 0', into: 'P' })], '[P.Points]')).toMatch(/From and To to stand apart/);
+    expect(echo([path({ shape: 'Arc', sweep: '0', into: 'P' })], '[P.Points]')).toMatch(/Sweep other than 0/);
     expect(
       echo(
         [
@@ -67,7 +67,7 @@ describe('SolidScript Path', () => {
             into: 'P',
           }),
         ],
-        '[P]',
+        '[P.Points]',
       ),
     ).toMatch(/smaller Radius/);
   });

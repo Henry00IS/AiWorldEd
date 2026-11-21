@@ -20,7 +20,7 @@ export const SOLID_SCRIPT_KINDS = [
   'Object',
   'Solid',
   'Mesh',
-  'Outline',
+  'Path',
   'Face',
   'Edge',
   'Vertex',

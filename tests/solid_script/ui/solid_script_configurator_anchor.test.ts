@@ -57,16 +57,16 @@ describe('SolidScript editable choice fields', () => {
   });
 
   it('shows a switch as Yes or No text, never a checkbox, and lists it like before', () => {
-    const closed = parameterOf('curve_to_mesh', 'closed');
+    const closed = parameterOf('sweep_along_path', 'mesh');
     const field = solidScriptConfiguratorFieldBuild(closed, 'false', () => {});
     expect(field.element.querySelector('input[type="checkbox"]')).toBeNull();
     expect(field.read()).toBe('No');
     expect(solidScriptConfiguratorFieldBuild(closed, 'true', () => {}).read()).toBe('Yes');
     expect(solidScriptConfiguratorFieldBuild(closed, '[Shut]', () => {}).read()).toBe('[Shut]');
-    const command = solidScriptCommandFind('curve_to_mesh')!;
+    const command = solidScriptCommandFind('sweep_along_path')!;
     const text = (closedText: string) =>
       command
-        .listing({ closed: closedText })
+        .listing({ mesh: closedText })
         .map((part) => part.text)
         .join('');
     expect(text('Yes')).toBe(text('true'));

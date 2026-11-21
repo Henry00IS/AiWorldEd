@@ -37,10 +37,10 @@ export const SOLID_SCRIPT_EXAMPLE_PYRAMID: readonly SolidScriptLine[] = [
 
 /** Port of the Prism generator. */
 export const SOLID_SCRIPT_EXAMPLE_PRISM: readonly SolidScriptLine[] = [
-  solidScriptExampleNote('Prism: a regular outline stretched to the box, copied at both ends of its axis.'),
+  solidScriptExampleNote('Prism: a regular polygon stretched to the box, copied at both ends of its axis.'),
   solidScriptExampleInput('Sides', 'Count', '3', { label: 'Sides', min: '3', max: '12' }),
   solidScriptExampleInput('Axis', 'Choice', 'Along Z', { label: 'Axis', choices: 'Along Z, Along X, Upright' }),
-  solidScriptExampleNote('First find how far the outline reaches, so it can be stretched to fill the box.'),
+  solidScriptExampleNote('First find how far the polygon reaches, so it can be stretched to fill the box.'),
   solidScriptExampleNote(
     'If runs the lines inside only when its condition holds. Here each If picks the axis and writes the matching corners.',
   ),
@@ -138,13 +138,13 @@ export const SOLID_SCRIPT_EXAMPLE_HOLLOW_BOX: readonly SolidScriptLine[] = [
 ];
 
 /**
- * Lines that add one corner of the arch outline to the outline list.
+ * Lines that add one corner of the arch to the Corners list.
  *
  * @param value Corner as field text.
  * @returns Line.
  */
 function solidScriptExampleArchCorner(value: string): SolidScriptLine {
-  return solidScriptExampleLine('add_item', { value, list: 'Outline' });
+  return solidScriptExampleLine('add_item', { value, list: 'Corners' });
 }
 
 /** Port of the Arch generator. */
@@ -185,7 +185,7 @@ export const SOLID_SCRIPT_EXAMPLE_ARCH: readonly SolidScriptLine[] = [
   ]),
   ...solidScriptExampleBlock('function', { name: 'Prism' }, [
     ...solidScriptExamplePolyhedron(
-      solidScriptExampleBlock('for_each', { variable: 'P', list: '[Outline]' }, [
+      solidScriptExampleBlock('for_each', { variable: 'P', list: '[Corners]' }, [
         ...solidScriptExampleIf(
           '[AlongX]',
           [solidScriptExamplePoint('[P.X], [P.Y], [=-[Across]]'), solidScriptExamplePoint('[P.X], [P.Y], [Across]')],
@@ -200,7 +200,7 @@ export const SOLID_SCRIPT_EXAMPLE_ARCH: readonly SolidScriptLine[] = [
       ...solidScriptExampleRepeat('Side', '0', '2', [
         solidScriptExampleSet('Inner', '[=[Side] == 0 ? -[Rx] : [Rx]]'),
         solidScriptExampleSet('Outer', '[=[Side] == 0 ? -[Half] : [Half]]'),
-        solidScriptExampleLine('clear_variable', { name: 'Outline' }),
+        solidScriptExampleLine('clear_variable', { name: 'Corners' }),
         solidScriptExampleArchCorner('[=Vector([Outer], [Floor])]'),
         solidScriptExampleArchCorner('[=Vector([Inner], [Floor])]'),
         solidScriptExampleArchCorner('[=Vector([Inner], [Top])]'),
@@ -211,7 +211,7 @@ export const SOLID_SCRIPT_EXAMPLE_ARCH: readonly SolidScriptLine[] = [
     ...solidScriptExampleRepeat('I', '0', '[Segments]', [
       solidScriptExampleSet('A', '[=Corner([I], 0)]'),
       solidScriptExampleSet('B', '[=Corner([I] + 1, 0)]'),
-      solidScriptExampleLine('clear_variable', { name: 'Outline' }),
+      solidScriptExampleLine('clear_variable', { name: 'Corners' }),
       ...solidScriptExampleIf(
         '[Style] == "Voussoir Ring"',
         [

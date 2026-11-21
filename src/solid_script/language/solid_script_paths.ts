@@ -1,56 +1,83 @@
-import { solidScriptShapeNested, type SolidScriptShape, type SolidScriptShapePolygon } from './solid_script_shape.js';
-import { SolidScriptElement } from './solid_script_value.js';
+import { solidScriptShapeNested } from './solid_script_shape.js';
+import type { SolidScriptShape, SolidScriptShapePolygon } from './solid_script_shape.js';
+import { solidScriptPathMap, type SolidScriptPath } from './solid_script_path_model.js';
+import { SolidScriptPathElement } from './solid_script_value.js';
 
 /**
- * Keeps the flat outlines of one run that lines have read by Name, so a tool
- * such as Move By can change an outline before the block around it extrudes or
- * spins it.
+ * Turns a point of the drawing plane of Linear Extrude into script space: X
+ * stays, the drawing's Y runs to the back, on the ground.
+ *
+ * @param point Point of the drawing plane.
+ * @returns X, Y and Z.
  */
-export class SolidScriptOutlines {
-  private readonly elements = new Map<SolidScriptShapePolygon, SolidScriptElement>();
-  private readonly latest = new Map<SolidScriptElement, SolidScriptShapePolygon>();
+export function solidScriptPathFromFlat([x, y]: readonly [number, number]): number[] {
+  return [x, 0, y === 0 ? 0 : -y];
+}
+
+/**
+ * Keeps the Paths of one run: those Path lines write and the closed ones
+ * Square, Circle, Polygon or a closed Path line drew for Linear Extrude, Rotate
+ * Extrude or Offset to fill. A tool such as Move By can change a drawn path
+ * before the block around it fills it.
+ */
+export class SolidScriptPaths {
+  private count = 0;
+  private readonly elements = new Map<SolidScriptShapePolygon, SolidScriptPathElement>();
+  private readonly latest = new Map<SolidScriptPathElement, SolidScriptShapePolygon>();
 
   /**
-   * Returns the element of an outline; a later version of the same outline is
+   * Returns a new Path element for points in script space.
+   *
+   * @param path Path.
+   * @param name Name it shows.
+   * @returns Path element.
+   */
+  created(path: SolidScriptPath<number[]>, name: string): SolidScriptPathElement {
+    this.count += 1;
+    return new SolidScriptPathElement(this.count, name, path);
+  }
+
+  /**
+   * Returns the element of a drawn path; a later version of the same path is
    * the same element.
    *
-   * @param outline Outline.
-   * @returns Outline element.
+   * @param drawn Closed flat path.
+   * @returns Path element.
    */
-  element(outline: SolidScriptShapePolygon): SolidScriptElement {
-    const known = this.elements.get(outline);
+  element(drawn: SolidScriptShapePolygon): SolidScriptPathElement {
+    const known = this.elements.get(drawn);
     if (known) return known;
-    const element = new SolidScriptElement('outline', this.latest.size + 1, outline.label);
-    this.elements.set(outline, element);
-    this.latest.set(element, outline);
+    const element = this.created(solidScriptPathMap(drawn.path, solidScriptPathFromFlat), drawn.label);
+    this.elements.set(drawn, element);
+    this.latest.set(element, drawn);
     return element;
   }
 
   /**
-   * Reads an outline element as the outline is now.
+   * Reads a drawn path as it is now.
    *
-   * @param element Outline element.
-   * @returns Outline.
+   * @param element Path element.
+   * @returns The closed flat path, or undefined for a path no block fills.
    */
-  outline(element: SolidScriptElement): SolidScriptShapePolygon {
-    const outline = this.latest.get(element);
-    if (!outline) throw new Error(`${String(element)} belongs to another run`);
-    return outline;
+  drawn(element: SolidScriptPathElement): SolidScriptShapePolygon | undefined {
+    return this.latest.get(element);
   }
 
   /**
-   * Swaps an outline for its changed version in every list of built shapes.
+   * Swaps a drawn path for its changed version in every list of built shapes.
    *
-   * @param element Outline element.
-   * @param by Changed outline.
+   * @param element Path element.
+   * @param by Changed path.
    * @param lists Lists of built shapes, changed in place.
    */
-  replace(element: SolidScriptElement, by: SolidScriptShapePolygon, lists: readonly SolidScriptShape[][]): void {
-    const from = this.outline(element);
+  replace(element: SolidScriptPathElement, by: SolidScriptShapePolygon, lists: readonly SolidScriptShape[][]): void {
+    const from = this.latest.get(element);
+    if (!from) throw new Error(`${String(element)} belongs to another run`);
     for (const list of lists)
       for (let index = 0; index < list.length; index++) list[index] = solidScriptShapeSwap(list[index]!, from, by);
     this.latest.set(element, by);
     this.elements.set(by, element);
+    element.path = solidScriptPathMap(by.path, solidScriptPathFromFlat);
   }
 }
 

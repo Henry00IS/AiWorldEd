@@ -37,14 +37,12 @@ export function solidScriptOffset(
   if (options.distance === 0) return pieces;
   if (options.distance < 0) {
     if (!convex)
-      throw new Error('a negative Distance needs a convex outline for now; split the outline into convex Polygons');
+      throw new Error('a negative Distance needs a convex path for now; split the path into convex Polygons');
     return [solidScriptOffsetSharp(hull, options.distance)];
   }
   if (options.round) return pieces.map((piece) => solidScriptOffsetRound(piece, options.distance, options.sides));
   if (!convex)
-    throw new Error(
-      'sharp corners need a convex outline for now; switch Round on or split the outline into convex Polygons',
-    );
+    throw new Error('sharp corners need a convex path for now; switch Round on or split the path into convex Polygons');
   return [solidScriptOffsetSharp(hull, options.distance)];
 }
 
@@ -80,7 +78,7 @@ function solidScriptOffsetSharp(points: SolidScriptPoint2[], distance: number): 
   });
   const hull = solidScriptPolygonHull(moved);
   if (distance < 0 && (hull.length !== points.length || solidScriptPolygonArea(hull) <= 1e-9))
-    throw new Error(`a Distance of ${distance} shrinks the outline away; use a smaller inset`);
+    throw new Error(`a Distance of ${distance} shrinks the path away; use a smaller inset`);
   return hull;
 }
 

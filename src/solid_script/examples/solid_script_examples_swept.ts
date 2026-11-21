@@ -84,7 +84,7 @@ export const SOLID_SCRIPT_EXAMPLE_PIPE: readonly SolidScriptLine[] = [
 
 /** Port of the Torus generator. */
 export const SOLID_SCRIPT_EXAMPLE_TORUS: readonly SolidScriptLine[] = [
-  solidScriptExampleNote('Torus: a round tube outline, copied around the ring; each piece joins two copies.'),
+  solidScriptExampleNote('Torus: a round tube profile, copied around the ring; each piece joins two copies.'),
   solidScriptExampleInput('RingSides', 'Count', '16', { label: 'Ring Sides', min: '3', max: '64' }),
   solidScriptExampleInput('TubeSides', 'Count', '8', { label: 'Tube Sides', min: '3', max: '32' }),
   solidScriptExampleInput('Thickness', 'Number', '0.25', { label: 'Tube Thickness', min: '0.02', max: '0.5' }),
@@ -92,7 +92,7 @@ export const SOLID_SCRIPT_EXAMPLE_TORUS: readonly SolidScriptLine[] = [
   ...solidScriptExampleRingSize(),
   ...SOLID_SCRIPT_EXAMPLE_RING_POINT,
   solidScriptExampleSet('Tube', '[=Min([Thickness] * Min([Rx], [Rz]), [Limit] / 2)]'),
-  solidScriptExampleNote('The tube outline, stretched so it reaches from -1 to 1 both ways.'),
+  solidScriptExampleNote('The tube profile, stretched so it reaches from -1 to 1 both ways.'),
   solidScriptExampleSet('Low', '1, 1'),
   solidScriptExampleSet('High', '-1, -1'),
   ...solidScriptExampleRepeat('I', '0', '[TubeSides]', [

@@ -413,9 +413,7 @@ describe('Offset', () => {
         [1.5, 1.5],
       ]),
     );
-    expect(() => solidScriptOffset(square, { distance: -1, round: false, sides: 16 })).toThrow(
-      /shrinks the outline away/,
-    );
+    expect(() => solidScriptOffset(square, { distance: -1, round: false, sides: 16 })).toThrow(/shrinks the path away/);
   });
 
   it('builds inside Linear Extrude and stops outside it or on a concave inset', () => {
@@ -437,7 +435,7 @@ describe('Offset', () => {
       END,
       END,
     );
-    expect(concave.error?.message).toMatch(/negative Distance needs a convex outline/);
+    expect(concave.error?.message).toMatch(/negative Distance needs a convex path/);
     const corner: [number, number][] = [
       [0, 0],
       [3, 0],

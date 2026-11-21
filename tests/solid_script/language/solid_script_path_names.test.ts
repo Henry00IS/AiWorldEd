@@ -75,7 +75,7 @@ function solids(shapes: readonly SolidScriptShape[]): number {
 /** A Linear Extrude of height 1 standing on the ground. */
 const EXTRUDE = line('linear_extrude', { height: '1', anchor: 'Bottom' });
 
-describe('SolidScript outlines read by Name', () => {
+describe('SolidScript paths read by Name', () => {
   it('moves a named Circle inside Rotate Extrude, the same as a Transform block around it', () => {
     const named = run(
       line('rotate_extrude'),
@@ -96,7 +96,7 @@ describe('SolidScript outlines read by Name', () => {
     expect(corners(named.shapes)).toEqual(corners(framed.shapes));
   });
 
-  it('finds a name in any case, after other lines, and many lines below the outline', () => {
+  it('finds a name in any case, after other lines, and many lines below the path', () => {
     const result = run(
       line('variable', { name: 'Gap', value: '2' }),
       line('linear_extrude', { height: '1' }),
@@ -110,7 +110,7 @@ describe('SolidScript outlines read by Name', () => {
     expect(bounds(result.shapes)).toEqual([1.5, -0.5, -0.5, 2.5, 0.5, 0.5]);
   });
 
-  it('moves, turns, scales, resizes and mirrors a named outline inside Linear Extrude', () => {
+  it('moves, turns, scales, resizes and mirrors a named path inside Linear Extrude', () => {
     const tool = (extra: SolidScriptLine) =>
       run(EXTRUDE, line('square', { size: '2, 1', anchor: 'Left, Front', label: 'Slab' }), extra, END);
     const cases: [SolidScriptLine, number[]][] = [
@@ -128,7 +128,7 @@ describe('SolidScript outlines read by Name', () => {
     }
   });
 
-  it('keeps moving the same outline over several lines, each from where the last left it', () => {
+  it('keeps moving the same path over several lines, each from where the last left it', () => {
     const result = run(
       EXTRUDE,
       line('square', { size: '1, 1', anchor: 'Left, Front', label: 'Step' }),
@@ -168,7 +168,7 @@ describe('SolidScript outlines read by Name', () => {
     expect(bounds(hulled.shapes)).toEqual([-0.5, 0, -0.5, 3.5, 1, 0.5]);
   });
 
-  it('moves an outline from a block line that comes after the nested block has ended', () => {
+  it('moves a path from a block line that comes after the nested block has ended', () => {
     const result = run(
       EXTRUDE,
       line('repeat', { count: '1', variable: 'I' }),
@@ -181,7 +181,7 @@ describe('SolidScript outlines read by Name', () => {
     expect(bounds(result.shapes)).toEqual([0, 0, -5, 1, 1, -4]);
   });
 
-  it('moves every outline that shares a reused name, and copies from Repeat by their own names', () => {
+  it('moves every path that shares a reused name, and copies from Repeat by their own names', () => {
     const shared = run(
       EXTRUDE,
       line('square', { size: '1, 1', anchor: 'Left, Front', label: 'Dot' }),
@@ -238,21 +238,21 @@ describe('SolidScript outlines read by Name', () => {
       line('move_by', { by: '1, 0, 0', of: 'There' }),
       END,
     );
-    expect(missing.error?.message).toContain('No object or outline above is named "There"; give one a Name first');
+    expect(missing.error?.message).toContain('No object or path above is named "There"; give one a Name first');
     const faces = run(
       EXTRUDE,
       line('square', { label: 'Flat' }),
       line('select_faces', { which: 'All', of: 'Flat' }),
       END,
     );
-    expect(faces.error?.message).toContain('"Flat" is a flat outline, and this line works on objects');
+    expect(faces.error?.message).toContain('"Flat" is a Path, and this line works on objects');
     const into = run(
       EXTRUDE,
       line('square', { label: 'Flat' }),
       line('move_by', { by: '1, 0, 0', of: 'Flat', into: 'Copy' }),
       END,
     );
-    expect(into.error?.message).toContain('Move By changes an outline where it is; leave Into empty');
+    expect(into.error?.message).toContain('Move By changes a path where it is; leave Into empty');
     const mixed = run(
       EXTRUDE,
       line('square', { label: 'Flat' }),
@@ -263,7 +263,7 @@ describe('SolidScript outlines read by Name', () => {
     expect(mixed.error?.message).toContain('not mixed with objects or points');
     const outside = run(line('circle', { label: 'Lost' }));
     expect(outside.error?.message).toContain(
-      'Circle is a flat outline; place it inside a Linear Extrude or Rotate Extrude',
+      'Circle draws a closed Path: give it an Into to keep the Path, or place it inside a Linear Extrude or Rotate Extrude to fill it',
     );
   });
 
@@ -277,7 +277,7 @@ describe('SolidScript outlines read by Name', () => {
     expect(result.error?.message).toBeUndefined();
     expect(bounds(result.shapes)[1]).toBe(5);
   });
-  it('reads a reused Name inside an extrude as the open outline, not the finished solids that kept it', () => {
+  it('reads a reused Name inside an extrude as the open path, not the finished solids that kept it', () => {
     const block = (extrude: string) => [
       line(extrude),
       line('circle', { label: 'Boing' }),
@@ -292,7 +292,7 @@ describe('SolidScript outlines read by Name', () => {
     }
   });
 
-  it('writes each outline Into its variable, so Move By Of the variable moves exactly that outline', () => {
+  it('writes each path Into its variable, so Move By Of the variable moves exactly that path', () => {
     const block = (radius: string): SolidScriptLine[] => [
       line('rotate_extrude', { sides: '8' }),
       line('circle', { r: radius, label: 'Boing', into: 'C' }),

@@ -13,10 +13,13 @@ import {
   solidScriptShapeJoin,
   solidScriptShapeLeavesPositive,
   solidScriptShapeMapLeaves,
+  solidScriptShapePolygon,
+  solidScriptShapePolygonPoints,
   type SolidScriptShape,
   type SolidScriptShapePolygon,
   type SolidScriptShapeSolid,
 } from './solid_script_shape.js';
+import { solidScriptPathMap } from './solid_script_path_model.js';
 
 /** Most corner points one Minkowski result may have before it is refused. */
 const SOLID_SCRIPT_MINKOWSKI_POINTS_MAX = 20000;
@@ -107,7 +110,7 @@ export function solidScriptOutlineTransform(
 ): SolidScriptShapePolygon {
   return {
     ...outline,
-    points: outline.points.map(([x, y]): SolidScriptPoint2 => {
+    path: solidScriptPathMap(outline.path, ([x, y]): SolidScriptPoint2 => {
       const point = new THREE.Vector3(x, y, 0).applyMatrix4(matrix);
       return [point.x, point.y];
     }),
@@ -125,7 +128,9 @@ function solidScriptShapePoints(shapes: readonly SolidScriptShape[]): THREE.Vect
   return shapes
     .flatMap(solidScriptShapeLeavesPositive)
     .flatMap((leaf) =>
-      leaf.kind === 'polygon' ? leaf.points.map(([x, y]) => new THREE.Vector3(x, y, 0)) : leaf.points,
+      leaf.kind === 'polygon'
+        ? solidScriptShapePolygonPoints(leaf).map(([x, y]) => new THREE.Vector3(x, y, 0))
+        : leaf.points,
     );
 }
 
@@ -246,16 +251,19 @@ export function solidScriptMinkowski(
         );
       return sum.flatMap((a) => tool.map((b) => a.clone().add(b)));
     }, points);
-  const flatGrow = (piece: SolidScriptPoint2[]): SolidScriptShape => ({
-    kind: 'polygon',
-    label,
-    points: solidScriptPolygonHull(
-      grow(piece.map(([x, y]) => new THREE.Vector3(x, y, 0))).map((point): SolidScriptPoint2 => [point.x, point.y]),
-    ),
-  });
+  const flatGrow = (piece: SolidScriptPoint2[]): SolidScriptShape =>
+    solidScriptShapePolygon(
+      solidScriptPolygonHull(
+        grow(piece.map(([x, y]) => new THREE.Vector3(x, y, 0))).map((point): SolidScriptPoint2 => [point.x, point.y]),
+      ),
+      label,
+    );
   const pieces = solidScriptShapeLeavesPositive(first).flatMap((leaf): SolidScriptShape[] => {
-    if (planar) return leaf.kind === 'polygon' ? solidScriptPolygonConvexPieces(leaf.points).map(flatGrow) : [];
-    if (leaf.kind !== 'solid') throw new Error('Minkowski needs solids here; flat outlines belong in a Linear Extrude');
+    if (planar)
+      return leaf.kind === 'polygon'
+        ? solidScriptPolygonConvexPieces(solidScriptShapePolygonPoints(leaf)).map(flatGrow)
+        : [];
+    if (leaf.kind !== 'solid') throw new Error('Minkowski needs solids here; closed paths belong in a Linear Extrude');
     return [{ kind: 'solid', label, ...solidScriptBodyHull(grow(leaf.points), label) }];
   });
   const joined = solidScriptShapeJoin(pieces, label);
@@ -290,13 +298,15 @@ export function solidScriptRotateExtrude(
   const step = ((angle / segments) * Math.PI) / 180;
   const lift = matrix.clone().multiply(SOLID_SCRIPT_AXES_FLAT);
   return solidScriptShapeMapLeaves(shape, (leaf) => {
-    if (leaf.kind !== 'polygon') throw new Error('only flat shapes (Square, Circle, Polygon) can be spun');
-    if (leaf.points.some(([x]) => x < -1e-9))
+    if (leaf.kind !== 'polygon')
+      throw new Error('only closed paths (Square, Circle, Polygon or a closed Path) can be spun');
+    const corners = solidScriptShapePolygonPoints(leaf);
+    if (corners.some(([x]) => x < -1e-9))
       throw new Error(
-        'Rotate Extrude spins around the Y axis (up), so its outlines must lie at X 0 or more; move them with Move',
+        'Rotate Extrude spins around the Y axis (up), so its paths must lie at X 0 or more; move them with Move',
       );
     const pieces: SolidScriptShapeSolid[] = [];
-    for (const piece of solidScriptPolygonConvexPieces(leaf.points))
+    for (const piece of solidScriptPolygonConvexPieces(corners))
       for (let segment = 0; segment < segments; segment++) {
         const spun = (turn: number) =>
           piece.map(([radius, height]) =>

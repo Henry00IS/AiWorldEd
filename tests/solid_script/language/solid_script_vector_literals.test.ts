@@ -110,15 +110,15 @@ describe('SolidScript point lists', () => {
   const fails = (...lines: SolidScriptLine[]) =>
     solidScriptProgramRun(solidScriptDocumentCreate(lines), {}).error?.message ?? null;
 
-  it('sweeps Curve To Mesh along vectors in brackets, with a profile of vectors whose z is ignored', () => {
-    expect(fails(line('curve_to_mesh', { path: '[0, 0, 0], [1, 0, 0], [2, 1, 0]' }))).toBeNull();
+  it('sweeps Sweep Along Path along vectors in brackets, with a profile of vectors whose z is ignored', () => {
+    expect(fails(line('sweep_along_path', { path: '[0, 0, 0], [1, 0, 0], [2, 1, 0]' }))).toBeNull();
     expect(
       fails(
         set('Path', '[0, 0, 0], [1, 0, 0]'),
-        line('curve_to_mesh', { path: '[Path]', profile: '[0, 0, 0], [0.2, 0, 0], [0.2, 0.1, 0]' }),
+        line('sweep_along_path', { path: '[Path]', profile: '[0, 0, 0], [0.2, 0, 0], [0.2, 0.1, 0]' }),
       ),
     ).toBeNull();
-    expect(fails(line('curve_to_mesh', { path: '0, 0, 0; 1, 0, 0' }))).toMatch(/\[0, 0, 0\], \[1, 0, 0\]/);
+    expect(fails(line('sweep_along_path', { path: '0, 0, 0; 1, 0, 0' }))).toMatch(/\[0, 0, 0\], \[1, 0, 0\]/);
   });
 
   it('takes Polygon corners from vectors in brackets', () => {

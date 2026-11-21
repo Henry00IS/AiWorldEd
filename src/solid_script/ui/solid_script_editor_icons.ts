@@ -26,6 +26,7 @@ const SOLID_SCRIPT_EDITOR_ICON_PATHS: Readonly<Record<string, string>> = {
   Text: '<path d="M3 3.5h10 M8 3.5v9.5 M6 13h4"/>',
   List: '<path d="M5.5 3.5h9 M5.5 8h9 M5.5 12.5h9"/><circle cx="2.5" cy="3.5" r="1"/><circle cx="2.5" cy="8" r="1"/><circle cx="2.5" cy="12.5" r="1"/>',
   Curve: '<path d="M2 13.5C3 4 13 12 14 2.5"/><circle cx="2" cy="13.5" r="1"/><circle cx="14" cy="2.5" r="1"/>',
+  Path: '<path d="M2 13.5 6 6l4 4 4-7.5"/><circle cx="2" cy="13.5" r="1"/><circle cx="14" cy="2.5" r="1"/>',
   Random:
     '<rect x="2.5" y="2.5" width="11" height="11" rx="2"/><circle cx="5.5" cy="5.5" r=".8" fill="currentColor"/><circle cx="10.5" cy="10.5" r=".8" fill="currentColor"/><circle cx="8" cy="8" r=".8" fill="currentColor"/>',
   Functions: '<path d="M10.5 2.5c-2 0-2.5 1-2.8 3L6.5 13c-.3 1.5-1 1.5-2.5 1.5 M4.5 7h6"/>',

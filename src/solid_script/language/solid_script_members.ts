@@ -5,8 +5,11 @@ import { solidScriptKindNamed } from './solid_script_kinds.js';
 import { solidScriptFaceCornerUvs } from './solid_script_uvs.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
 import { solidScriptMemberForm } from './solid_script_shown_names.js';
+import { solidScriptPathLength } from './solid_script_path.js';
+import { solidScriptPathSample, solidScriptPathWalk } from './solid_script_path_model.js';
 import {
   SolidScriptElement,
+  SolidScriptPathElement,
   SolidScriptPoint,
   solidScriptValueNumbers,
   solidScriptValueType,
@@ -79,6 +82,11 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
   Text: {
     Length: form('Lengths', 'Number'),
     Words: form('Words', 'Text List'),
+  },
+  Path: {
+    Points: form('Points', 'Vector List'),
+    Closed: form('Closed', 'Yes/No'),
+    Length: form('Lengths', 'Number'),
   },
   Object: {
     Name: form('Names', 'Text'),
@@ -456,6 +464,13 @@ function solidScriptMemberElement(
   elements: SolidScriptElements,
 ): SolidScriptValue {
   if (member === 'data') return elements.data(element);
+  if (element instanceof SolidScriptPathElement) {
+    if (member === 'points')
+      return solidScriptPathSample(element.path).map((point) => point.map(solidScriptMemberRound));
+    if (member === 'closed') return element.path.closed;
+    if (member === 'length') return solidScriptMemberRound(solidScriptPathLength(solidScriptPathWalk(element.path)));
+    return undefined;
+  }
   if (member === 'parent' && element.kind !== 'brush') return elements.parent(element);
   const leaf = elements.leaf(element);
   const faceList = (faces: readonly SolidScriptFaceFacts[]): SolidScriptValue[] => {

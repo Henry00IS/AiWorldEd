@@ -3,10 +3,11 @@ import type { SolidScriptCompiled } from './solid_script_expression_compile.js';
 import { solidScriptFieldFormulaCompile } from './solid_script_field_formula_compile.js';
 import { solidScriptNameDotProblem, solidScriptSystemIsVector } from './solid_script_name_rules.js';
 import type { SolidScriptValue } from './solid_script_value.js';
-import { solidScriptValueText } from './solid_script_value.js';
+import { SolidScriptPathElement, solidScriptValueText } from './solid_script_value.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
 import { solidScriptFieldVectorRead, solidScriptFormulaListStarts } from './solid_script_formula_list_literal.js';
 import { SOLID_SCRIPT_ESCAPED, solidScriptStringEscapes } from './solid_script_lexer.js';
+import { solidScriptPathSample } from './solid_script_path_model.js';
 
 /**
  * How the text typed into a block field is read. Field text is plain text
@@ -610,7 +611,9 @@ export function solidScriptFieldPoints(values: readonly SolidScriptValue[], size
   if (values.every((value) => typeof value === 'number')) return [fit(values as number[], [...values])];
   const points: number[][] = [];
   for (const value of values) {
-    if (numeric(value)) points.push(fit(value, value));
+    if (value instanceof SolidScriptPathElement)
+      for (const point of solidScriptPathSample(value.path)) points.push(fit(point, value));
+    else if (numeric(value)) points.push(fit(value, value));
     else if (Array.isArray(value))
       for (const entry of value) {
         if (!numeric(entry)) throw wrong(entry);

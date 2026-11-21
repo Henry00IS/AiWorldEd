@@ -10,7 +10,13 @@ import {
   solidScriptPathResample,
   solidScriptPathTrim,
 } from './solid_script_path.js';
-import { solidScriptValueNumbers, solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
+import {
+  SolidScriptPathElement,
+  solidScriptValueNumbers,
+  solidScriptValueText,
+  type SolidScriptValue,
+} from './solid_script_value.js';
+import { solidScriptPathWalk } from './solid_script_path_model.js';
 
 /** A built-in function over evaluated arguments. */
 type SolidScriptCurveFunction = (args: SolidScriptValue[]) => SolidScriptValue;
@@ -55,7 +61,8 @@ function solidScriptCurveRead(args: readonly SolidScriptValue[], usage: string):
  * @returns Points.
  */
 function solidScriptCurvePath(args: readonly SolidScriptValue[], usage: string): number[][] {
-  const list = args[0];
+  const given = args[0];
+  const list = given instanceof SolidScriptPathElement ? solidScriptPathWalk(given.path) : given;
   if (!Array.isArray(list)) throw new Error(`${usage} needs a list of points, not ${solidScriptValueText(list)}`);
   const points = list.map((entry) => solidScriptValueNumbers(entry));
   const size = points[0]?.length ?? 0;

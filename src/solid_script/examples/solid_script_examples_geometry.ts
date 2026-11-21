@@ -50,8 +50,8 @@ export const SOLID_SCRIPT_EXAMPLE_TAPERED_BOX: readonly SolidScriptLine[] = [
 ];
 
 /**
- * A rounded rectangular rail: Path rounds the corners, Curve To Mesh sweeps a
- * tube.
+ * A rounded rectangular rail: Path rounds the corners, Sweep Along Path sweeps
+ * a tube.
  */
 export const SOLID_SCRIPT_EXAMPLE_ROUNDED_RAIL: readonly SolidScriptLine[] = [
   solidScriptExampleNote(
@@ -70,8 +70,8 @@ export const SOLID_SCRIPT_EXAMPLE_ROUNDED_RAIL: readonly SolidScriptLine[] = [
     closed: 'Yes',
     into: 'Rail',
   }),
-  solidScriptExampleNote('Curve To Mesh sweeps a tube along that path. Radius is how thick the rail is.'),
-  solidScriptExampleLine('curve_to_mesh', { path: '[Rail]', radius: '[Thickness]', sides: '8', closed: 'Yes' }),
+  solidScriptExampleNote('Sweep Along Path sweeps a tube along that closed Path. Radius is how thick the rail is.'),
+  solidScriptExampleLine('sweep_along_path', { path: '[Rail]', radius: '[Thickness]', sides: '8' }),
 ];
 
 /** A hilly floor: Grid Mesh, then Displace with Noise at each point. */

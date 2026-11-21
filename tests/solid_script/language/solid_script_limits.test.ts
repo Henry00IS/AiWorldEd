@@ -69,7 +69,8 @@ describe('SolidScript limits', { timeout: 60_000 }, () => {
         command: 'variable',
         values: {
           name: 'List',
-          value: '[=Concat([A], [A], [A], [A], [A], [A], [A], [A], [A], [A], [A])]',
+          value:
+            '[=Concat([A.Points], [A.Points], [A.Points], [A.Points], [A.Points], [A.Points], [A.Points], [A.Points], [A.Points], [A.Points], [A.Points])]',
         },
       },
     );
@@ -125,7 +126,10 @@ describe('SolidScript limits', { timeout: 60_000 }, () => {
   it('reuses the For Each items cap and names the line and the fix', () => {
     const result = run(
       { command: 'path', values: { count: '10000', into: 'Items' } },
-      { command: 'variable', values: { name: 'Items', value: '[=Concat([Items], Slice([Items], 0, 1))]' } },
+      {
+        command: 'variable',
+        values: { name: 'Items', value: '[=Concat([Items.Points], Slice([Items.Points], 0, 1))]' },
+      },
       { command: 'for_each', values: { list: '[Items]', variable: 'Item' } },
       END,
     );

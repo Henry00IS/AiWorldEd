@@ -23,7 +23,9 @@ export function solidScriptMachineGatherCheck(gathering: readonly SolidScriptGat
  */
 export function solidScriptMachineFlatCheck(label: string, planar: boolean, flat: boolean): void {
   if (flat && !planar)
-    throw new Error(`${label} is a flat outline; place it inside a Linear Extrude or Rotate Extrude`);
+    throw new Error(
+      `${label} draws a closed Path: give it an Into to keep the Path, or place it inside a Linear Extrude or Rotate Extrude to fill it`,
+    );
   if (!flat && planar) throw new Error(`${label} is a solid and cannot be inside a Linear Extrude or Rotate Extrude`);
 }
 

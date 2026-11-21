@@ -30,7 +30,7 @@ describe('objects contain solids and meshes but not flat paths', () => {
     expect(solidScriptValueType([mesh])).toBe('Mesh List');
     expect(solidScriptKindAccepted(['Object'], 'Solid')).toBe(true);
     expect(solidScriptKindAccepted(['Object'], 'Mesh')).toBe(true);
-    expect(solidScriptKindAccepted(['Object'], 'Outline')).toBe(false);
+    expect(solidScriptKindAccepted(['Object'], 'Path')).toBe(false);
     expect(solidScriptKindAccepted(['Solid'], 'Mesh')).toBe(false);
   });
   it('offers typed Solids and Meshes filters and the shared geometry members', () => {

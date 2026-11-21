@@ -10,6 +10,7 @@ import {
   type SolidScriptShape,
   type SolidScriptShapeSolid,
 } from './solid_script_shape.js';
+import { solidScriptShapePolygonPoints } from './solid_script_shape.js';
 
 /**
  * Extrudes the 2D polygons of a shape tree the way linear_extrude does: the
@@ -31,16 +32,19 @@ export function solidScriptExtrude(
   const [scaleX, scaleY] = args.vector('scale', [1, 1]) as [number, number];
   const lift = matrix.clone().multiply(SOLID_SCRIPT_AXES_FLAT);
   return solidScriptShapeMapLeaves(shape, (leaf) => {
-    if (leaf.kind !== 'polygon') throw new Error('only flat shapes (Square, Circle, Polygon) can be extruded');
-    const pieces = solidScriptPolygonConvexPieces(leaf.points).map((piece): SolidScriptShapeSolid => ({
-      kind: 'solid',
-      label: leaf.label,
-      ...solidScriptBodyPrism(
-        piece.map(([x, y]) => new THREE.Vector3(x, y, base).applyMatrix4(lift)),
-        piece.map(([x, y]) => new THREE.Vector3(x * scaleX, y * scaleY, base + height).applyMatrix4(lift)),
-        leaf.label,
-      ),
-    }));
+    if (leaf.kind !== 'polygon')
+      throw new Error('only closed paths (Square, Circle, Polygon or a closed Path) can be extruded');
+    const pieces = solidScriptPolygonConvexPieces(solidScriptShapePolygonPoints(leaf)).map(
+      (piece): SolidScriptShapeSolid => ({
+        kind: 'solid',
+        label: leaf.label,
+        ...solidScriptBodyPrism(
+          piece.map(([x, y]) => new THREE.Vector3(x, y, base).applyMatrix4(lift)),
+          piece.map(([x, y]) => new THREE.Vector3(x * scaleX, y * scaleY, base + height).applyMatrix4(lift)),
+          leaf.label,
+        ),
+      }),
+    );
     return solidScriptShapeJoin(pieces, leaf.label) as SolidScriptShape;
   });
 }

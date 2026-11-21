@@ -721,7 +721,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Shrink faces inside a ring',
     manual:
-      'Gives each face of a mesh a smaller copy of itself inside, joined to the old outline by a ring of faces. Of gives the faces; empty uses [$Selected.Faces]. A solid stops the line: wrap it in Mesh From Solids first. Inner and Ring name variables for the new faces, as the operation builds them. Afterwards [$Selected.Faces] holds the inner faces. Example: Mesh From Solids around a Cube, Select Faces Facing Up, Inset Face By 0.1, Extrude Face By -0.2 sinks a tray.',
+      'Gives each face of a mesh a smaller copy of itself inside, joined to the old path by a ring of faces. Of gives the faces; empty uses [$Selected.Faces]. A solid stops the line: wrap it in Mesh From Solids first. Inner and Ring name variables for the new faces, as the operation builds them. Afterwards [$Selected.Faces] holds the inner faces. Example: Mesh From Solids around a Cube, Select Faces Facing Up, Inset Face By 0.1, Extrude Face By -0.2 sinks a tray.',
     stops: ['No faces.', 'A solid. Wrap it in Mesh From Solids first.'],
     parameters: [
       solidScriptParameterEach(

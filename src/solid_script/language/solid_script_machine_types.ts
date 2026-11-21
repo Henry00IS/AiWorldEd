@@ -19,7 +19,7 @@ import type {
   SolidScriptShapeSolid,
 } from './solid_script_shape.js';
 import type { SolidScriptUseFacts } from './solid_script_system.js';
-import type { SolidScriptElement, SolidScriptValue } from './solid_script_value.js';
+import type { SolidScriptElement, SolidScriptPathElement, SolidScriptValue } from './solid_script_value.js';
 
 /** One field of a command, as the machine reads it. */
 export interface SolidScriptMachineField {
@@ -39,8 +39,8 @@ export interface SolidScriptMachineField {
    * only names new faces, edges, points or other values.
    */
   into?: 'copy' | 'label';
-  /** Set on an Of field that also reads the flat outlines a Name gives. */
-  outlines?: boolean;
+  /** Set on an Of field that also reads the drawn paths a Name gives. */
+  paths?: boolean;
 }
 
 /** What the machine needs from a command: its structure and its own run step. */
@@ -151,8 +151,16 @@ export interface SolidScriptBlockRun {
    * the one kind of solid made with a hull.
    */
   solidFromPoints(points: readonly THREE.Vector3[]): SolidScriptShape[];
-  /** Draws one flat outline for Linear Extrude. */
-  outline(points: SolidScriptPoint2[]): SolidScriptShape[];
+  /**
+   * Draws one closed flat path for Linear Extrude, Rotate Extrude or Offset to
+   * fill.
+   */
+  pathFlat(points: SolidScriptPoint2[]): SolidScriptShape[];
+  /**
+   * Writes a Path line's path Into its variable; inside Linear Extrude, Rotate
+   * Extrude or Offset a closed one is also drawn for the block to fill.
+   */
+  pathWrite(points: readonly THREE.Vector3[], closed: boolean): SolidScriptShape[];
   /** Runs the lines inside, moved by a matrix. */
   transformed(matrix: THREE.Matrix4): SolidScriptShape[];
   /**
@@ -271,10 +279,10 @@ export interface SolidScriptBlockRun {
   leafReplace(leaf: SolidScriptGeometryLeaf, by: SolidScriptGeometryLeaf): void;
   /** Returns what a solid or mesh became after the swaps since it was read. */
   leafLatest(leaf: SolidScriptGeometryLeaf): SolidScriptGeometryLeaf;
-  /** Reads an outline element as the outline is now. */
-  outlineLatest(element: SolidScriptElement): SolidScriptShapePolygon;
-  /** Swaps an outline for its changed version, wherever it was built. */
-  outlineReplace(element: SolidScriptElement, by: SolidScriptShapePolygon): void;
+  /** Reads a drawn path as it is now, or undefined for a path no block fills. */
+  pathDrawn(element: SolidScriptPathElement): SolidScriptShapePolygon | undefined;
+  /** Swaps a drawn path for its changed version, wherever it was built. */
+  pathReplace(element: SolidScriptPathElement, by: SolidScriptShapePolygon): void;
   /** Starts a copy session so an Into tool leaves the original alone. */
   toolCopyStart(): void;
   /** Ends a copy session. */

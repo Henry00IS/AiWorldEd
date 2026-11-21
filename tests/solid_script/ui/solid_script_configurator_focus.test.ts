@@ -17,8 +17,8 @@ afterEach(() => document.body.replaceChildren());
 
 describe('SolidScript configurator focus', () => {
   it('keeps the focus where a drag started when it ends over another input', () => {
-    const left = solidScriptConfiguratorFieldBuild(parameterOf('curve_to_mesh', 'radius'), '1', () => {});
-    const right = solidScriptConfiguratorFieldBuild(parameterOf('curve_to_mesh', 'sides'), '8', () => {});
+    const left = solidScriptConfiguratorFieldBuild(parameterOf('sweep_along_path', 'radius'), '1', () => {});
+    const right = solidScriptConfiguratorFieldBuild(parameterOf('sweep_along_path', 'sides'), '8', () => {});
     document.body.append(left.element, right.element);
     const typed = right.element.querySelector<HTMLInputElement>('input')!;
     typed.focus();
@@ -28,7 +28,7 @@ describe('SolidScript configurator focus', () => {
   });
 
   it('does nothing when a caption is clicked', () => {
-    const field = solidScriptConfiguratorFieldBuild(parameterOf('curve_to_mesh', 'radius'), '1', () => {});
+    const field = solidScriptConfiguratorFieldBuild(parameterOf('sweep_along_path', 'radius'), '1', () => {});
     document.body.append(field.element);
     const input = field.element.querySelector<HTMLInputElement>('input')!;
     field.element.querySelector<HTMLElement>('.solid-script-editor-field-label')!.click();

@@ -56,11 +56,11 @@ export const SOLID_SCRIPT_KIND_CHECKS = {
     summary: 'Yes for a mesh, such as IsMesh([Skin]).',
     checks: ['Mesh'],
   },
-  Outline: {
-    key: 'is_outline',
-    usage: 'IsOutline(value)',
-    summary: 'Yes for a flat outline, such as IsOutline([Ring]) after Circle Into [Ring].',
-    checks: ['Outline'],
+  Path: {
+    key: 'is_path',
+    usage: 'IsPath(value)',
+    summary: 'Yes for a Path, open or closed, such as IsPath([Ring]) after Circle Into [Ring] or Path Into [Ring].',
+    checks: ['Path'],
   },
   Face: {
     key: 'is_face',
@@ -132,7 +132,7 @@ export const SOLID_SCRIPT_FUNCTIONS_KIND_CHECKS = {
   is_face: solidScriptKindCheck('Face'),
   is_edge: solidScriptKindCheck('Edge'),
   is_vertex: solidScriptKindCheck('Vertex'),
-  is_outline: solidScriptKindCheck('Outline'),
+  is_path: solidScriptKindCheck('Path'),
   is_data: solidScriptKindCheck('Data'),
 } as const satisfies Readonly<Record<string, SolidScriptBuiltin>>;
 
@@ -145,7 +145,7 @@ export const SOLID_SCRIPT_KIND_CHECK_DOCS = {
   is_face: solidScriptKindCheckDoc(SOLID_SCRIPT_KIND_CHECKS.Face),
   is_edge: solidScriptKindCheckDoc(SOLID_SCRIPT_KIND_CHECKS.Edge),
   is_vertex: solidScriptKindCheckDoc(SOLID_SCRIPT_KIND_CHECKS.Vertex),
-  is_outline: solidScriptKindCheckDoc(SOLID_SCRIPT_KIND_CHECKS.Outline),
+  is_path: solidScriptKindCheckDoc(SOLID_SCRIPT_KIND_CHECKS.Path),
   is_data: solidScriptKindCheckDoc(SOLID_SCRIPT_KIND_CHECKS.Data),
 } as const;
 
@@ -158,6 +158,6 @@ export const SOLID_SCRIPT_KIND_CHECK_ARGUMENTS = {
   is_face: { value: { type: 'Any', about: 'The value to check.' } },
   is_edge: { value: { type: 'Any', about: 'The value to check.' } },
   is_vertex: { value: { type: 'Any', about: 'The value to check.' } },
-  is_outline: { value: { type: 'Any', about: 'The value to check.' } },
+  is_path: { value: { type: 'Any', about: 'The value to check.' } },
   is_data: { value: { type: 'Any', about: 'The value to check.' } },
 } as const;

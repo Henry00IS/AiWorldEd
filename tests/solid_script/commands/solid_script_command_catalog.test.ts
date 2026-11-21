@@ -422,7 +422,7 @@ describe('solid script command catalog', () => {
       expect(result.error?.message ?? '', id).toMatch(hint);
       expect(solidScriptShapeMeshes(result.shapes), id).toHaveLength(0);
     }
-    const skip = new Set([...refused, 'vertex', 'face', 'curve_to_mesh']);
+    const skip = new Set([...refused, 'vertex', 'face', 'sweep_along_path']);
     for (const command of solidScriptCommands.filter(
       (entry) => solidScriptCommandPreservesBrushes(entry) && !skip.has(entry.id),
     )) {

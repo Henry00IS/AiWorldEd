@@ -29,6 +29,8 @@ import {
   SOLID_SCRIPT_SHAPE_NAME_KEY,
   solidScriptShapeLeavesPositive,
   type SolidScriptShape,
+  solidScriptShapePolygon,
+  solidScriptShapePolygonPoints,
 } from '@/solid_script/language/solid_script_shape.js';
 import {
   SOLID_SCRIPT_HANDLERS,
@@ -155,7 +157,7 @@ const SOLID_SCRIPT_INPUT_COMMAND = new SolidScriptCommand({
   },
 });
 
-/** Commands for inputs, functions, inspector events, list items and outlines. */
+/** Commands for inputs, functions, inspector events, list items and paths. */
 export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
   SOLID_SCRIPT_INPUT_COMMAND,
   new SolidScriptCommand({
@@ -481,12 +483,12 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     id: 'offset',
     label: 'Offset',
     category: '2D Shapes',
-    description: 'Grow or shrink flat outlines',
+    description: 'Grow or shrink flat paths',
     manual:
-      'Moves the edges of the flat outlines between this line and its End outwards by Distance in metres, or inwards when Distance is below 0. Round gives grown corners a curve with Sides points around a full circle. Switched off, corners stay sharp. Growing with Round works on any outline. Sharp corners and shrinking need a convex one for now. Like other outlines, it belongs inside Linear Extrude or Rotate Extrude. Example: Offset 0.1 with Round around a Square 2 gives a slab with soft corners.',
+      'Moves the edges of the flat paths between this line and its End outwards by Distance in metres, or inwards when Distance is below 0. Round gives grown corners a round edge with Sides points around a full circle. Switched off, corners stay sharp. Growing with Round works on any path. Sharp corners and shrinking need a convex one for now. Like other paths, it belongs inside Linear Extrude or Rotate Extrude. Example: Offset 0.1 with Round around a Square 2 gives a slab with soft corners.',
     stops: [
       'Being outside Linear Extrude or Rotate Extrude.',
-      'Shrinking a concave outline or growing it with sharp corners, or shrinking an outline away completely.',
+      'Shrinking a concave path or growing it with sharp corners, or shrinking a path away completely.',
     ],
     nesting: 'open',
     parameters: [
@@ -516,7 +518,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     ],
     execute: (run) => {
       if (!run.planar)
-        throw new Error('Offset grows flat outlines, so it belongs inside Linear Extrude or Rotate Extrude');
+        throw new Error('Offset grows flat paths, so it belongs inside Linear Extrude or Rotate Extrude');
       const fields = run.fields();
       const options = {
         distance: fields.number('distance', 0.1),
@@ -524,19 +526,17 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
         sides: solidScriptSides(fields),
       };
       const name = run.text(SOLID_SCRIPT_SHAPE_NAME_KEY).trim();
-      const outlines: SolidScriptShape[] = run
+      const paths: SolidScriptShape[] = run
         .local(true)
         .flatMap(solidScriptShapeLeavesPositive)
         .flatMap((leaf) =>
           leaf.kind === 'polygon'
-            ? solidScriptOffset(leaf.points, options).map((points) => ({
-                kind: 'polygon' as const,
-                label: name || leaf.label,
-                points,
-              }))
+            ? solidScriptOffset(solidScriptShapePolygonPoints(leaf), options).map((points) =>
+                solidScriptShapePolygon(points, name || leaf.label),
+              )
             : [],
         );
-      return run.placed(outlines);
+      return run.placed(paths);
     },
   }),
 ];

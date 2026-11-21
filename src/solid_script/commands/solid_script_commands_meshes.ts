@@ -39,8 +39,8 @@ import {
 /** What stops every mesh block without its End. */
 const SOLID_SCRIPT_MESH_STOPS_END = 'A missing End line.';
 
-/** What stops every mesh tool given a flat outline. */
-const SOLID_SCRIPT_MESH_STOPS_FLAT = 'A flat outline such as Square between this line and its End. Extrude it first.';
+/** What stops every mesh tool given a flat path. */
+const SOLID_SCRIPT_MESH_STOPS_FLAT = 'A flat path such as Square between this line and its End. Extrude it first.';
 
 /** Most rounds of Subdivide. */
 const SOLID_SCRIPT_SUBDIVIDE_LEVELS_MAX = 4;
@@ -60,8 +60,7 @@ function solidScriptMeshInside(run: SolidScriptBlockRun, label: string): SolidSc
   if (run.planar) throw new Error(`${label} cannot be inside a Linear Extrude; put it around the extrusion`);
   const shapes = run.local(false);
   const flat = shapes.find((shape) => shape.kind === 'polygon');
-  if (flat)
-    throw new Error(`${label} needs solids or meshes; a flat outline becomes a solid inside Linear Extrude first`);
+  if (flat) throw new Error(`${label} needs solids or meshes; a flat path becomes a solid inside Linear Extrude first`);
   return solidScriptMeshFromBrushes(shapes, label);
 }
 
@@ -508,7 +507,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Relax a mesh so it looks softer',
     manual:
-      'Moves every point of a mesh part of the way towards its neighbours, Rounds times, which softens bumps and sharp corners. The outline of an open mesh stays where it is. Strength is how far each round moves, from 0 (not at all) to 1 (all the way). Of is the mesh; empty uses [$Selected.Objects]. A solid stops the line: wrap it in Mesh From Solids first. Example: Mesh From Solids, Subdivide, then Smooth Mesh 10 rounds at 0.5 takes the harsh edges off a rocky surface.',
+      'Moves every point of a mesh part of the way towards its neighbours, Rounds times, which softens bumps and sharp corners. The path of an open mesh stays where it is. Strength is how far each round moves, from 0 (not at all) to 1 (all the way). Of is the mesh; empty uses [$Selected.Objects]. A solid stops the line: wrap it in Mesh From Solids first. Example: Mesh From Solids, Subdivide, then Smooth Mesh 10 rounds at 0.5 takes the harsh edges off a rocky surface.',
     stops: [
       `Rounds below 1 or above ${SOLID_SCRIPT_SMOOTH_ROUNDS_MAX}.`,
       'A Strength below 0 or above 1.',

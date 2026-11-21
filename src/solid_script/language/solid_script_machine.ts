@@ -57,7 +57,9 @@ import {
 } from './solid_script_machine_runs.js';
 import { solidScriptGeometryLeaves, type SolidScriptGeometryLeaf } from './solid_script_geometry.js';
 import { SolidScriptOutputProcessed } from './solid_script_output_processed.js';
-import { SolidScriptOutlines } from './solid_script_outlines.js';
+import { SolidScriptPaths, solidScriptPathFromFlat } from './solid_script_paths.js';
+import { solidScriptPathFlat, solidScriptPathLoopOpen } from './solid_script_path_flat.js';
+import { solidScriptPathStraight } from './solid_script_path_model.js';
 import { solidScriptGeneratorPiecesCacheClear } from './solid_script_generator_pieces.js';
 import { solidScriptBodyHull, type SolidScriptBody } from './solid_script_body.js';
 import {
@@ -72,6 +74,7 @@ import {
   solidScriptShapeLeavesPositive,
   solidScriptShapesNamed,
   solidScriptLeafRewritten,
+  solidScriptShapePolygon,
 } from './solid_script_shape.js';
 import { SolidScriptElement, solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
 import { SOLID_SCRIPT_HANDLERS, SolidScriptMachineCalls } from './solid_script_machine_calls.js';
@@ -155,8 +158,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   private received: SolidScriptGeometryLeaf[] | null = null;
   /** What each swapped solid or mesh became. */
   private readonly leafSwaps = new Map<SolidScriptGeometryLeaf, SolidScriptGeometryLeaf>();
-  /** Flat outlines lines have read by Name. */
-  private readonly outlines = new SolidScriptOutlines();
+  /** Paths of the run: written by Path lines, or drawn for a block to fill. */
+  private readonly paths = new SolidScriptPaths();
   /** How many Group or Part blocks are around the running line. */
   private groupDepth = 0;
   /**
@@ -412,7 +415,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     const named = solidScriptShapesNamed(built, name);
     // Open outlines win where the line takes them: inside an extrude, a Name
     // means the outline being drawn, not a finished brush that kept the Name.
-    if (field.outlines === true && this.outlinesOf(named).length > 0) return this.ofOutlines(field, name, named);
+    if (field.paths === true && this.outlinesOf(named).length > 0) return this.ofOutlines(field, name, named);
     const leaves = solidScriptGeometryLeaves(named);
     if (leaves.length > 0) return leaves.map((leaf) => this.elements.brush(leaf));
     return this.ofOutlines(field, name, named);
@@ -445,9 +448,9 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     named: readonly SolidScriptShape[],
   ): SolidScriptValue[] {
     const outlines = this.outlinesOf(named);
-    if (outlines.length === 0) throw new Error(`No object or outline above is named "${name}"; give one a Name first`);
-    if (field.outlines !== true) throw new Error(`"${name}" is a flat outline, and this line works on objects`);
-    return outlines.map((outline) => this.outlines.element(outline));
+    if (outlines.length === 0) throw new Error(`No object or path above is named "${name}"; give one a Name first`);
+    if (field.paths !== true) throw new Error(`"${name}" is a Path, and this line works on objects`);
+    return outlines.map((outline) => this.paths.element(outline));
   }
 
   /**
@@ -866,6 +869,35 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       const mode = stored.includes('[') ? solidScriptValueText(value('mode')) : stored;
       return { ...node.values, mode };
     };
+    const intoName = (): string =>
+      node.command
+        .valueText(node.values, 'into')
+        .trim()
+        .replace(/^\[(.*)\]$/s, '$1');
+    const pathCreated = (points: number[][], closed: boolean): SolidScriptShape[] => {
+      if (!state.machine.stepTake(state.scope)) return [];
+      const moved = points.map((point) => new THREE.Vector3(...point).applyMatrix4(state.context.matrix).toArray());
+      state.machine.variableSet(
+        state.scope,
+        intoName(),
+        state.machine.paths.created(solidScriptPathStraight(moved, closed), labelOf()),
+      );
+      return [];
+    };
+    const drawn = (points: readonly SolidScriptPoint2[]): SolidScriptShape[] => {
+      state.machine.gatherCheck(node);
+      if (!state.context.planar && intoName() !== '') return pathCreated(points.map(solidScriptPathFromFlat), true);
+      state.machine.flatCheck(node, state.context, true);
+      if (!state.machine.stepTake(state.scope)) return [];
+      const moved = points.map(([x, y]): SolidScriptPoint2 => {
+        const point = new THREE.Vector3(x, y, 0).applyMatrix4(state.context.matrix);
+        return [point.x, point.y];
+      });
+      const outline = solidScriptShapePolygon(moved, labelOf());
+      const into = intoName();
+      if (into !== '') state.machine.variableSet(state.scope, into, state.machine.paths.element(outline));
+      return [outline];
+    };
     const built = (body: () => SolidScriptBody, faceUvs?: SolidScriptFaceUv[]): SolidScriptShape[] => {
       state.machine.gatherCheck(node);
       state.machine.flatCheck(node, state.context, false);
@@ -917,21 +949,20 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       positionsMove: (items, to) => state.machine.positionsMove(items, node.command.label, to),
       solid: (body, faceUvs) => built(() => body, faceUvs),
       solidFromPoints: (points) => built(() => solidScriptBodyHull(points, labelOf())),
-      outline: (points) => {
-        state.machine.gatherCheck(node);
-        state.machine.flatCheck(node, state.context, true);
-        if (!state.machine.stepTake(state.scope)) return [];
-        const moved = points.map(([x, y]): SolidScriptPoint2 => {
-          const point = new THREE.Vector3(x, y, 0).applyMatrix4(state.context.matrix);
-          return [point.x, point.y];
-        });
-        const outline: SolidScriptShapePolygon = { kind: 'polygon', label: labelOf(), points: moved };
-        const into = node.command
-          .valueText(node.values, 'into')
-          .trim()
-          .replace(/^\[(.*)\]$/s, '$1');
-        if (into !== '') state.machine.variableSet(state.scope, into, state.machine.outlines.element(outline));
-        return [outline];
+      pathFlat: drawn,
+      pathWrite: (given, closed) => {
+        const points = closed ? solidScriptPathLoopOpen(given) : given;
+        if (state.context.planar) {
+          if (!closed)
+            throw new Error(
+              'Linear Extrude, Rotate Extrude and Offset fill closed paths, and this Path is open; turn on Closed',
+            );
+          return drawn(solidScriptPathFlat(points));
+        }
+        return pathCreated(
+          points.map((point) => point.toArray()),
+          closed,
+        );
       },
       transformed: (matrix) => inside({ ...state.context, matrix: state.context.matrix.clone().multiply(matrix) }),
       hulled: (extra = []) =>
@@ -1056,8 +1087,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       leafReplace: (leaf, found) => {
         state.machine.leafRewrite(leaf, found);
       },
-      outlineLatest: (element) => state.machine.outlines.outline(element),
-      outlineReplace: (element, by) => state.machine.outlines.replace(element, by, state.machine.builtStack),
+      pathDrawn: (element) => state.machine.paths.drawn(element),
+      pathReplace: (element, by) => state.machine.paths.replace(element, by, state.machine.builtStack),
       toolCopyStart: () => state.machine.toolCopyStart(),
       toolCopyEnd: () => state.machine.toolCopyEnd(),
       toolCopyResults: () => state.machine.toolCopyResults(),

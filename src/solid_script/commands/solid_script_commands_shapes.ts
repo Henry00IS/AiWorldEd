@@ -192,16 +192,16 @@ export const SOLID_SCRIPT_COMMANDS_SOLIDS: readonly SolidScriptCommand[] = [
   }),
 ];
 
-/** Commands that draw a flat outline for Linear Extrude. */
+/** Commands that draw a flat path for Linear Extrude. */
 export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'square',
     draws: true,
     label: 'Square',
     category: '2D Shapes',
-    description: 'Draw a rectangle outline',
+    description: 'Draw a rectangle path',
     manual:
-      'Draws a flat rectangle with the given width (X) and depth (Y of the drawing, which runs to the back once extruded) in metres, centered on the origin; Anchor picks another spot of it, such as Left, Front for the corner that ends up front left. It only works inside a Linear Extrude, which pulls it up into a solid, or a Rotate Extrude. A Name lets later lines inside the same block move, turn or scale it, such as Move By 1, 0, 0 Of Ring. Into writes the outline to a variable, so Move By 1, 0, 0 Of [Ring] moves exactly this one, even when another outline has the same Name. Example: a size of 3, 0.2 extruded by 1 gives a thin wall.',
+      'Draws a flat rectangle with the given width (X) and depth (Y of the drawing, which runs to the back once extruded) in metres, centered on the origin; Anchor picks another spot of it, such as Left, Front for the corner that ends up front left. It only works inside a Linear Extrude, which pulls it up into a solid, or a Rotate Extrude. A Name lets later lines inside the same block move, turn or scale it, such as Move By 1, 0, 0 Of Ring. Into writes the path to a variable, so Move By 1, 0, 0 Of [Ring] moves exactly this one, even when another path has the same Name. Example: a size of 3, 0.2 extruded by 1 gives a thin wall.',
     stops: ['A size of 0 or less on either axis.', 'Being placed outside a Linear Extrude or Rotate Extrude.'],
     parameters: [
       solidScriptParameter(
@@ -218,16 +218,16 @@ export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
       read.value('size'),
       ...solidScriptListingOptions([read.changed('anchor') && ['Anchor ', read.value('anchor')]]),
     ],
-    execute: (run) => run.outline(solidScriptSquarePoints(run.fields())),
+    execute: (run) => run.pathFlat(solidScriptSquarePoints(run.fields())),
   }),
   new SolidScriptCommand({
     id: 'circle',
     draws: true,
     label: 'Circle',
     category: '2D Shapes',
-    description: 'Draw a circle outline',
+    description: 'Draw a circle path',
     manual:
-      'Draws a flat faceted circle around the origin; Anchor moves another spot of it there, such as Left, Front for its corner. It only works inside a Linear Extrude or Rotate Extrude. A Name lets later lines inside the same block move, turn or scale it, such as Move By 1, 0, 0 Of Ring. Into writes the outline to a variable, so Move By 1, 0, 0 Of [Ring] moves exactly this one, even when another outline has the same Name. Sides sets how many straight edges go around it. Example: radius 1 with 6 sides extruded by 0.3 gives a hexagonal tile.',
+      'Draws a flat faceted circle around the origin; Anchor moves another spot of it there, such as Left, Front for its corner. It only works inside a Linear Extrude or Rotate Extrude. A Name lets later lines inside the same block move, turn or scale it, such as Move By 1, 0, 0 Of Ring. Into writes the path to a variable, so Move By 1, 0, 0 Of [Ring] moves exactly this one, even when another path has the same Name. Sides sets how many straight edges go around it. Example: radius 1 with 6 sides extruded by 0.3 gives a hexagonal tile.',
     stops: [
       'A radius of 0 or less.',
       'Sides outside 3 to 64.',
@@ -247,16 +247,16 @@ export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
         read.changed('anchor') && ['Anchor ', read.value('anchor')],
       ]),
     ],
-    execute: (run) => run.outline(solidScriptCircleOutline(run.fields())),
+    execute: (run) => run.pathFlat(solidScriptCircleOutline(run.fields())),
   }),
   new SolidScriptCommand({
     id: 'polygon',
     draws: true,
     label: 'Polygon',
     category: '2D Shapes',
-    description: 'Draw an outline through Point lines',
+    description: 'Draw a path through Point lines',
     manual:
-      'Draws a flat outline through the Point lines between this line and its End, in order around the edge. Each Point gives X and Y, and Z is ignored. Unlike the solids it may be dented (concave), such as an L or a star. It is split into convex solids when extruded. It only works inside a Linear Extrude or Rotate Extrude. A Name lets later lines inside the same block move, turn or scale it, such as Move By 1, 0, 0 Of Ring. Into writes the outline to a variable, so Move By 1, 0, 0 Of [Ring] moves exactly this one, even when another outline has the same Name. The lines inside may use Repeat, For Each, If and Set, and Points From List adds the points of a list variable such as [Outline]. Example: Points at 0, 0 and 2, 0 and 2, 1 and 1, 1 and 1, 2 and 0, 2 give an L.',
+      'Draws a flat path through the Point lines between this line and its End, in order around the edge. Each Point gives X and Y, and Z is ignored. Unlike the solids it may be dented (concave), such as an L or a star. It is split into convex solids when extruded. It only works inside a Linear Extrude or Rotate Extrude. A Name lets later lines inside the same block move, turn or scale it, such as Move By 1, 0, 0 Of Ring. Into writes the path to a variable, so Move By 1, 0, 0 Of [Ring] moves exactly this one, even when another path has the same Name. The lines inside may use Repeat, For Each, If and Set, and Points From List adds the points of a list variable such as [Path]. Example: Points at 0, 0 and 2, 0 and 2, 1 and 1, 1 and 1, 2 and 0, 2 give an L.',
     stops: [
       'Fewer than three points.',
       'Being placed outside a Linear Extrude or Rotate Extrude.',
@@ -268,13 +268,13 @@ export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
         'points',
         'Points From List',
         'points2',
-        'Optional: a list of x, y points in outline order, such as a list variable [Outline]. Point lines inside add more.',
+        'Optional: a list of x, y points in path order, such as a list variable [Path]. Point lines inside add more.',
       ),
     ],
     listing: (read) => [
       'Polygon',
       ...solidScriptListingOptions([read.changed('points') && ['From ', read.value('points')]]),
     ],
-    execute: (run) => run.outline(solidScriptPolygonOutline(run.fields(), run.gathered('points').points)),
+    execute: (run) => run.pathFlat(solidScriptPolygonOutline(run.fields(), run.gathered('points').points)),
   }),
 ];

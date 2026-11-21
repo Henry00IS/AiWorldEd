@@ -8,6 +8,7 @@ import {
   type SolidScriptShape,
   type SolidScriptShapeLeaf,
 } from './solid_script_shape.js';
+import { solidScriptShapePolygon, solidScriptShapePolygonPoints } from './solid_script_shape.js';
 
 /**
  * Reads the optional Points From List of a Hull: each entry is one x, y, z
@@ -64,7 +65,7 @@ function solidScriptHullOutline(
   label: string,
 ): SolidScriptShape[] {
   const points: SolidScriptPoint2[] = [
-    ...leaves.flatMap((leaf) => (leaf.kind === 'polygon' ? leaf.points : [])),
+    ...leaves.flatMap((leaf) => (leaf.kind === 'polygon' ? solidScriptShapePolygonPoints(leaf) : [])),
     ...extra.map((point) => [point.x, point.y] as SolidScriptPoint2),
   ];
   if (points.length === 0) return [];
@@ -72,7 +73,7 @@ function solidScriptHullOutline(
     throw new Error(
       `${label} needs at least 3 points on the drawing and has ${points.length}; add Point lines, a list in Points From List, or a flat shape inside`,
     );
-  return [{ kind: 'polygon', label, points: solidScriptPolygonHull(points) }];
+  return [solidScriptShapePolygon(solidScriptPolygonHull(points), label)];
 }
 
 /**

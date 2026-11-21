@@ -66,8 +66,13 @@ function points(name: string, ...items: string[]): SolidScriptLine[] {
 /** An L-shaped path: 2 m along X, then 2 m along Y. */
 const L_PATH = points('path', '0, 0, 0', '2, 0, 0', '2, 2, 0');
 
-/** A square loop, 4 m a side. */
-const LOOP = points('path', '0, 0, 0', '4, 0, 0', '4, 4, 0', '0, 4, 0');
+/** A closed square Path, 4 m a side. */
+const LOOP: SolidScriptLine[] = [
+  {
+    command: 'path',
+    values: { shape: 'From Points', points: '[0, 0, 0], [4, 0, 0], [4, 4, 0], [0, 4, 0]', closed: 'Yes', into: 'path' },
+  },
+];
 
 /**
  * Rounded keys of points.
@@ -116,7 +121,7 @@ describe('SolidScript paths', () => {
 
   it('sweeps a round profile along a path into one solid per stretch, joined on mitred ends', () => {
     const pieces = solids(
-      run(...L_PATH, { command: 'curve_to_mesh', values: { path: '[path]', radius: '0.5', sides: '4' } }),
+      run(...L_PATH, { command: 'sweep_along_path', values: { path: '[path]', radius: '0.5', sides: '4' } }),
     );
     expect(pieces).toHaveLength(2);
     for (const piece of pieces) expect(keys(piece)).toHaveLength(8);
@@ -129,9 +134,9 @@ describe('SolidScript paths', () => {
     }
   });
 
-  it('sweeps a listed outline as a profile, and builds one closed mesh with outward faces', () => {
+  it('sweeps listed points as a profile, and builds one closed mesh with outward faces', () => {
     const result = run(...L_PATH, {
-      command: 'curve_to_mesh',
+      command: 'sweep_along_path',
       values: { path: '[path]', profile: '[0, 0, 0], [0.4, 0, 0], [0.4, 0.2, 0], [0, 0.2, 0]', mesh: 'true' },
     });
     expect(result.error).toBeNull();
@@ -144,10 +149,10 @@ describe('SolidScript paths', () => {
     expect(volume(mesh)).toBeLessThan(0.08 * 4.5);
   });
 
-  it('closes a looped path without caps', () => {
+  it('closes a closed Path without caps', () => {
     const result = run(...LOOP, {
-      command: 'curve_to_mesh',
-      values: { path: '[path]', radius: '0.25', sides: '6', closed: 'true', mesh: 'true' },
+      command: 'sweep_along_path',
+      values: { path: '[path]', radius: '0.25', sides: '6', mesh: 'true' },
     });
     const [mesh] = solidScriptShapeMeshes(result.shapes);
     expect(mesh?.points).toHaveLength(24);
@@ -155,8 +160,8 @@ describe('SolidScript paths', () => {
     expect(
       solids(
         run(...LOOP, {
-          command: 'curve_to_mesh',
-          values: { path: '[path]', closed: 'true' },
+          command: 'sweep_along_path',
+          values: { path: '[path]' },
         }),
       ),
     ).toHaveLength(4);
@@ -164,7 +169,7 @@ describe('SolidScript paths', () => {
 
   it('says plainly when the path is too short', () => {
     const result = run(...points('path', '0, 0, 0'), {
-      command: 'curve_to_mesh',
+      command: 'sweep_along_path',
       values: { path: '[path]' },
     });
     expect(result.error?.message).toMatch(/Path needs at least 2 different points/);

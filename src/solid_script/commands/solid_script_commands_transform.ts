@@ -49,8 +49,8 @@ export const SOLID_SCRIPT_TRANSFORM_TOOL_IDS = [
 
 /** Shared Of field of the flat transform tools, including Move By and Move To. */
 const SOLID_SCRIPT_TRANSFORM_OF: SolidScriptCommandParameter = {
-  ...solidScriptParameterOf('objects, outlines or points', '$Selected.Objects', ['Object', 'Outline', 'Vector']),
-  outlines: true,
+  ...solidScriptParameterOf('objects, paths or points', '$Selected.Objects', ['Object', 'Path', 'Vector']),
+  paths: true,
 };
 
 /**

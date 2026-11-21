@@ -1,3 +1,5 @@
+import type { SolidScriptPath } from './solid_script_path_model.js';
+
 /** Runtime value of the solid script language. */
 export type SolidScriptValue = number | string | boolean | undefined | SolidScriptElement | SolidScriptValue[];
 
@@ -5,7 +7,7 @@ export type SolidScriptValue = number | string | boolean | undefined | SolidScri
  * What a geometry value stands for: a brush or mesh, one of its faces, edges or
  * corners, or the Data of one.
  */
-export type SolidScriptElementKind = 'brush' | 'outline' | 'face' | 'edge' | 'vertex' | 'point' | 'data';
+export type SolidScriptElementKind = 'brush' | 'path' | 'face' | 'edge' | 'vertex' | 'point' | 'data';
 
 /**
  * A geometry value: a stable id the run looks up when it is read, so it follows
@@ -55,10 +57,30 @@ export class SolidScriptPoint extends SolidScriptElement {
   }
 }
 
+/**
+ * A Path: points joined by segments, open or closed, such as a Path line or a
+ * Square. It holds the path as it is now in script space; the run updates it
+ * when a line moves the path.
+ */
+export class SolidScriptPathElement extends SolidScriptElement {
+  /**
+   * @param id Number of the path in its run.
+   * @param name Name it shows.
+   * @param path Points in script space, as X, Y and Z.
+   */
+  constructor(
+    id: number,
+    name: string,
+    public path: SolidScriptPath<number[]>,
+  ) {
+    super('path', id, name);
+  }
+}
+
 /** Friendly type of each element kind. */
 export const SOLID_SCRIPT_ELEMENT_TYPES: Readonly<Record<SolidScriptElementKind, string>> = {
   brush: 'Solid',
-  outline: 'Outline',
+  path: 'Path',
   face: 'Face',
   edge: 'Edge',
   vertex: 'Vertex',

@@ -1,5 +1,7 @@
 import { solidScriptTimeText } from './solid_script_system.js';
+import { solidScriptPathSample } from './solid_script_path_model.js';
 import {
+  SolidScriptPathElement,
   solidScriptValueNumber,
   solidScriptValueNumbers,
   solidScriptValueText,
@@ -199,7 +201,8 @@ function solidScriptExtraShuffle(list: readonly SolidScriptValue[], seed: number
  */
 function solidScriptExtraNearest(args: readonly SolidScriptValue[]): number {
   const usage = 'Nearest(points, point)';
-  const list = args[0];
+  const given = args[0];
+  const list = given instanceof SolidScriptPathElement ? solidScriptPathSample(given.path) : given;
   if (!Array.isArray(list) || list.length === 0)
     throw new Error(`${usage} needs a list of points, not ${solidScriptValueText(list)}`);
   const from = solidScriptExtraVector(args, 1, usage);

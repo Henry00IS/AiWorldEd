@@ -164,11 +164,13 @@ describe('SolidScript formula function categories', () => {
       'Text',
       'List',
       'Curve',
+      'Path',
       'Random',
       'Functions',
     ]);
-    for (const group of ['Math', 'Trigonometry', 'Vector', 'Text', 'List', 'Curve', 'Random'])
+    for (const group of ['Math', 'Trigonometry', 'Vector', 'Text', 'List', 'Path', 'Random'])
       expect(counts.get(group), group).toBeGreaterThan(2);
+    expect(counts.get('Curve')).toBe(2);
     expect(catalog.find(solidScriptFormulaOwnId('Henry'))?.category).toBe('Functions');
     const calls = catalog.commands.filter((command) => /^formula_(fn|own)_/.test(command.id));
     expect(calls.filter((command) => !SOLID_SCRIPT_FORMULA_CATEGORIES.includes(command.category))).toEqual([]);
