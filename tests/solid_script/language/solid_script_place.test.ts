@@ -66,11 +66,11 @@ describe('SolidScript Place At Points', () => {
   it('stops when Directions does not match the number of points', () => {
     expect(
       failed(
-        line('place_at_points', { at: '[0, 0, 0], [1, 0, 0]', directions: '0, 1, 0' }),
+        line('place_at_points', { at: '[0, 0, 0], [1, 0, 0]', directions: '[0, 1, 0], [1, 0, 0], [0, 0, 1]' }),
         line('cube', { anchor: 'Center, Center, Center' }),
         END,
       ),
-    ).toMatch(/Line \d+: Directions needs one direction for each point in At.*At has 2 and Directions has 1/i);
+    ).toMatch(/Line \d+: Directions needs one direction, or one for each point in At.*At has 2 and Directions has 3/i);
   });
 
   it('writes every copy Into a list, even when there is only one', () => {

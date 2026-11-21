@@ -201,6 +201,11 @@ export interface SolidScriptBlockRun {
    */
   valueWith(key: string, variables: Readonly<Record<string, SolidScriptValue>>): SolidScriptValue;
   /**
+   * Evaluates every field with extra variables, the way fields() does, such as
+   * the brush a per-item Move By is moving.
+   */
+  fieldsWith(variables: Readonly<Record<string, SolidScriptValue>>): SolidScriptBlockArguments;
+  /**
    * Runs the lines inside in the block's own frame, flat or solid, and returns
    * their shapes unplaced.
    */

@@ -784,20 +784,20 @@ export function solidScriptGeometryBevel(
  * joined to its old edge by a ring of faces.
  *
  * @param mesh Mesh.
- * @param chosen Face numbers to inset.
- * @param distance Metres from the old edge to the new one.
+ * @param chosen Metres from the old edge to the new one, by the number of each
+ *   face to inset.
  * @returns Mesh.
  */
 export function solidScriptGeometryInset(
   mesh: SolidScriptShapeMesh,
-  chosen: ReadonlySet<number>,
-  distance: number,
+  chosen: ReadonlyMap<number, number>,
 ): SolidScriptShapeMesh {
   const points = mesh.points.map((point) => point.clone());
   const faces: number[][] = [];
   const uvs: SolidScriptShapeMesh['uvs'] = [];
   mesh.faces.forEach((loop, faceIndex) => {
-    if (!chosen.has(faceIndex)) {
+    const distance = chosen.get(faceIndex);
+    if (distance === undefined) {
       faces.push([...loop]);
       uvs.push(mesh.uvs[faceIndex] ?? null);
       return;

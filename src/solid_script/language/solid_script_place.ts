@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { solidScriptGeometryFrame } from './solid_script_geometry.js';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
+import { solidScriptEachUsed } from './solid_script_each_uses.js';
 import { solidScriptAlignDirectionMatrix } from './solid_script_transforms.js';
 import {
   SolidScriptPoint,
@@ -48,22 +49,26 @@ function solidScriptPlacePoint(value: unknown, label: string): THREE.Vector3 {
 
 /**
  * Matrices that stand a shape at each point of a Place At Points line, in the
- * frame of the blocks around it.
+ * frame of the blocks around it. Directions, Lift, Align To Normal, Rotation
+ * and Scale may each change per point.
  *
  * @param run Running line.
  * @returns One matrix per point.
  */
 export function solidScriptPlaceMatrices(run: SolidScriptBlockRun): THREE.Matrix4[] {
   const points = solidScriptPlacePoints(run, 'at', 'At');
-  const directions = solidScriptPlaceDirections(run, points.length);
-  const lift = solidScriptValueNumber(run.value('lift'));
-  if (lift === undefined) throw new Error('Lift needs a number of metres, such as 0');
-  const align = solidScriptPlaceAlignOn(run);
+  const directionOf = solidScriptPlaceDirections(run, points);
   const parent = run.matrix();
   return points.map((point, index) => {
-    const direction = directions[index] ?? null;
+    const direction = directionOf(index);
     const fills = solidScriptPlaceFills(point, direction, index, points.length);
-    return parent.clone().multiply(solidScriptPlaceCopyMatrix(run, point, direction, lift, align, fills));
+    const lift = solidScriptValueNumber(run.valueWith('lift', fills));
+    if (lift === undefined) throw new Error('Lift needs a number of metres, such as 0');
+    const align = run.valueWith('align', fills);
+    if (align !== undefined && typeof align !== 'boolean') throw new Error('Align To Normal needs Yes or No');
+    const rotate = solidScriptPlaceEachRotate(run, fills);
+    const scale = solidScriptPlaceEachScale(run, fills);
+    return parent.clone().multiply(solidScriptPlaceAtMatrix(point, direction, lift, align === true, rotate, scale));
   });
 }
 
@@ -92,61 +97,46 @@ function solidScriptPlaceFills(
 }
 
 /**
- * Reads Align To Normal as Yes or No.
+ * Reads the optional Directions: one direction for every point, a list with one
+ * per point, or a direction worked out per point, such as [=Vector(0, 1,
+ * [$X])], where [$Point.Normal] is still world up.
  *
  * @param run Running line.
- * @returns True when Align To Normal is Yes.
+ * @param points Points of At.
+ * @returns The direction for the point at a position, or null for world up.
  */
-function solidScriptPlaceAlignOn(run: SolidScriptBlockRun): boolean {
-  const align = run.value('align');
-  if (align !== undefined && typeof align !== 'boolean') throw new Error('Align To Normal needs Yes or No');
-  return align === true;
-}
-
-/**
- * Matrix of one Place At Points copy, before the blocks around it.
- *
- * @param run Running line.
- * @param point Point to stand on.
- * @param direction Up direction, or null for world up.
- * @param lift Metres out along up.
- * @param align True to use the Place On Face frame.
- * @param fills Per-point values.
- * @returns Matrix.
- */
-function solidScriptPlaceCopyMatrix(
+function solidScriptPlaceDirections(
   run: SolidScriptBlockRun,
-  point: THREE.Vector3,
-  direction: THREE.Vector3 | null,
-  lift: number,
-  align: boolean,
-  fills: SolidScriptPlaceFills,
-): THREE.Matrix4 {
-  return solidScriptPlaceAtMatrix(
-    point,
-    direction,
-    lift,
-    align,
-    solidScriptPlaceEachRotate(run, fills),
-    solidScriptPlaceEachScale(run, fills),
-  );
+  points: readonly THREE.Vector3[],
+): (index: number) => THREE.Vector3 | null {
+  const source = run.source('directions');
+  if (source.trim() === '') return () => null;
+  if (solidScriptEachUsed(source))
+    return (index) =>
+      solidScriptPlacePoint(
+        solidScriptPlaceSingle(
+          run.valueWith('directions', solidScriptPlaceFills(points[index]!, null, index, points.length)),
+        ),
+        'Directions',
+      );
+  const directions = solidScriptPlacePoints(run, 'directions', 'Directions');
+  if (directions.length === 1) return () => directions[0]!;
+  if (directions.length !== points.length)
+    throw new Error(
+      `Directions needs one direction, or one for each point in At, or leave it empty; At has ${points.length} and Directions has ${directions.length}`,
+    );
+  return (index) => directions[index]!;
 }
 
 /**
- * Reads optional directions, one per point, or none when the field is empty.
+ * Unwraps a list that holds a single vector, the way a points field keeps one
+ * vector.
  *
- * @param run Running line.
- * @param count How many points At has.
- * @returns A direction for each point, or an empty list.
+ * @param value Value.
+ * @returns The vector, or the value as it was.
  */
-function solidScriptPlaceDirections(run: SolidScriptBlockRun, count: number): THREE.Vector3[] {
-  if (run.text('directions').trim() === '') return [];
-  const directions = solidScriptPlacePoints(run, 'directions', 'Directions');
-  if (directions.length !== count)
-    throw new Error(
-      `Directions needs one direction for each point in At, or leave it empty; At has ${count} and Directions has ${directions.length}`,
-    );
-  return directions;
+function solidScriptPlaceSingle(value: SolidScriptValue): SolidScriptValue {
+  return Array.isArray(value) && value.length === 1 && Array.isArray(value[0]) ? value[0] : value;
 }
 
 /** Radians per degree, as the Rotate block uses. */

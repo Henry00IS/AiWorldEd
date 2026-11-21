@@ -88,7 +88,7 @@ describe('SolidScript geometry lookups', () => {
   it('insets mesh faces and merges close points', () => {
     const mesh = solidScriptGeometryMesh(box(2, 2, 2));
     const top = mesh.faces.findIndex((loop) => loop.every((corner) => mesh.points[corner]!.z > 0.9));
-    const inset = solidScriptGeometryInset(mesh, new Set([top]), 0.25);
+    const inset = solidScriptGeometryInset(mesh, new Map([[top, 0.25]]));
     expect(inset.faces).toHaveLength(6 - 1 + 5);
     const inner = inset.faces[top + 4]!.map((corner) => inset.points[corner]!);
     expect(Math.max(...inner.map((point) => Math.abs(point.x)))).toBeCloseTo(0.75);

@@ -8,10 +8,10 @@ import {
 import { solidScriptValueNumber, solidScriptValueNumbers, type SolidScriptValue } from './solid_script_value.js';
 
 /** Where Scatter Points can put its points. */
-export const SOLID_SCRIPT_SCATTER_WHERE = ['On Faces', 'Inside', 'In Box', 'Grid'] as const;
+export const SOLID_SCRIPT_SCATTER_ON = ['On Faces', 'Inside', 'In Box', 'Grid'] as const;
 
-/** One of the Where words. */
-export type SolidScriptScatterWhere = (typeof SOLID_SCRIPT_SCATTER_WHERE)[number];
+/** One of the On words. */
+export type SolidScriptScatterOn = (typeof SOLID_SCRIPT_SCATTER_ON)[number];
 
 /** Points Scatter Points writes, and face directions when it is On Faces. */
 export interface SolidScriptScatterResult {
@@ -20,11 +20,11 @@ export interface SolidScriptScatterResult {
 }
 
 /**
- * Spreads points the way the Where field says: on faces, inside brushes, in a
- * box, or on a grid.
+ * Spreads points the way the On field says: on faces, inside brushes, in a box,
+ * or on a grid.
  *
  * @param run Running line.
- * @param faces Faces or brushes in Of, read only when that Where needs them.
+ * @param faces Faces or brushes in Of, read only when that On needs them.
  * @returns Positions, and Normals for Faces.
  */
 export function solidScriptScatterRun(
@@ -32,23 +32,23 @@ export function solidScriptScatterRun(
   faces: () => readonly SolidScriptFaceFacts[],
 ): SolidScriptScatterResult {
   if (run.text('into').trim() === '') throw new Error('Scatter Points needs a variable in Into for the points');
-  const where = solidScriptScatterWhere(run);
-  if (where === 'On Faces') return solidScriptScatterOnFaces(run, faces());
-  if (where === 'Inside') return { positions: solidScriptScatterInside(run, faces()), normals: null };
-  if (where === 'In Box') return { positions: solidScriptScatterInBox(run), normals: null };
+  const on = solidScriptScatterOn(run);
+  if (on === 'On Faces') return solidScriptScatterOnFaces(run, faces());
+  if (on === 'Inside') return { positions: solidScriptScatterInside(run, faces()), normals: null };
+  if (on === 'In Box') return { positions: solidScriptScatterInBox(run), normals: null };
   return { positions: solidScriptScatterGrid(run), normals: null };
 }
 
 /**
- * Reads Where, or Faces when the field is empty.
+ * Reads On, or On Faces when the field is empty.
  *
  * @param run Running line.
- * @returns Where word.
+ * @returns On word.
  */
-export function solidScriptScatterWhere(run: SolidScriptBlockRun): SolidScriptScatterWhere {
-  const text = run.text('where').trim() || 'On Faces';
-  const match = SOLID_SCRIPT_SCATTER_WHERE.find((word) => word.toLowerCase() === text.toLowerCase());
-  if (!match) throw new Error(`Where needs On Faces, Inside, In Box or Grid, not ${text}`);
+export function solidScriptScatterOn(run: SolidScriptBlockRun): SolidScriptScatterOn {
+  const text = run.text('on').trim() || 'On Faces';
+  const match = SOLID_SCRIPT_SCATTER_ON.find((word) => word.toLowerCase() === text.toLowerCase());
+  if (!match) throw new Error(`On needs On Faces, Inside, In Box or Grid, not ${text}`);
   return match;
 }
 

@@ -183,7 +183,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     {
       command: 'scatter_points',
       values: {
-        where: 'In Box',
+        on: 'In Box',
         count: '[Count]',
         seed: '[Seed]',
         size: '[Size], [Height], [Size]',

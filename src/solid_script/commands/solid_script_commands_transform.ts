@@ -4,6 +4,7 @@ import {
   type SolidScriptCommandSpec,
 } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
+import { solidScriptParameterEach } from './solid_script_command_each.js';
 import {
   solidScriptOfAccepts,
   solidScriptParameter,
@@ -11,17 +12,19 @@ import {
   solidScriptParameterOptional,
 } from './solid_script_command_parameters.js';
 import {
-  solidScriptTransformApply,
-  solidScriptTransformMove,
+  solidScriptTransformEach,
+  solidScriptTransformLocal,
   solidScriptTransformMoveTo,
   solidScriptTransformResize,
   solidScriptTransformRotateTo,
   solidScriptTransformScaleTo,
   solidScriptTransformSpace,
+  type SolidScriptTransformWorldOf,
 } from '@/solid_script/language/solid_script_transform_apply.js';
 import {
   solidScriptAlignMatrix,
   solidScriptMirrorMatrix,
+  solidScriptMoveMatrix,
   solidScriptRotateMatrix,
   solidScriptScaleMatrix,
 } from '@/solid_script/language/solid_script_transforms.js';
@@ -121,10 +124,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
       solidScriptParameter('by', 'By', 'vector3', '0, 0, 0', 'Distance along X, Y and Z in metres, such as 0, 2, 0.'),
     ],
     listing: (read) => ['Move By', ' ', read.value('by')],
-    execute: (run) => {
-      solidScriptTransformMove(run);
-      return [];
-    },
+    world: solidScriptTransformLocal((args) => solidScriptMoveMatrix(args, 'by')),
   }),
   solidScriptTransformTool({
     id: 'move_to',
@@ -143,10 +143,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
       ),
     ],
     listing: (read) => ['Move To', ' ', read.value('to')],
-    execute: (run) => {
-      solidScriptTransformMoveTo(run);
-      return [];
-    },
+    world: solidScriptTransformMoveTo,
   }),
   solidScriptTransformTool({
     id: 'rotate_by',
@@ -159,10 +156,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
       solidScriptParameter('by', 'By', 'vector3', '0, 0, 0', 'Degrees around X, then Y, then Z, such as 0, 90, 0.'),
     ],
     listing: (read) => ['Rotate By', ' ', read.value('by'), ' Degrees'],
-    execute: (run) => {
-      solidScriptTransformApply(run, 'Rotate By', solidScriptRotateMatrix(run.fields(), 'by'));
-      return [];
-    },
+    world: solidScriptTransformLocal((args) => solidScriptRotateMatrix(args, 'by')),
   }),
   solidScriptTransformTool({
     id: 'rotate_to',
@@ -175,10 +169,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
       solidScriptParameter('to', 'To', 'vector3', '0, 0, 0', 'Degrees around X, then Y, then Z, such as 0, 90, 0.'),
     ],
     listing: (read) => ['Rotate To', ' ', read.value('to'), ' Degrees'],
-    execute: (run) => {
-      solidScriptTransformRotateTo(run);
-      return [];
-    },
+    world: solidScriptTransformRotateTo,
   }),
   solidScriptTransformTool({
     id: 'scale_by',
@@ -197,10 +188,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
       ),
     ],
     listing: (read) => ['Scale By', ' ', read.value('by')],
-    execute: (run) => {
-      solidScriptTransformApply(run, 'Scale By', solidScriptScaleMatrix(run.fields(), 'by'));
-      return [];
-    },
+    world: solidScriptTransformLocal((args) => solidScriptScaleMatrix(args, 'by')),
   }),
   solidScriptTransformTool({
     id: 'scale_to',
@@ -223,10 +211,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
       ),
     ],
     listing: (read) => ['Scale To', ' ', read.value('to')],
-    execute: (run) => {
-      solidScriptTransformScaleTo(run);
-      return [];
-    },
+    world: solidScriptTransformScaleTo,
   }),
   solidScriptTransformTool({
     id: 'align',
@@ -245,10 +230,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
       ),
     ],
     listing: (read) => ['Align To', ' ', read.value('direction')],
-    execute: (run) => {
-      solidScriptTransformApply(run, 'Align To', solidScriptAlignMatrix(run.fields()));
-      return [];
-    },
+    world: solidScriptTransformLocal(solidScriptAlignMatrix),
   }),
   solidScriptTransformTool({
     id: 'mirror',
@@ -267,10 +249,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
       ),
     ],
     listing: (read) => ['Mirror', ' Across ', read.value('v')],
-    execute: (run) => {
-      solidScriptTransformApply(run, 'Mirror', solidScriptMirrorMatrix(run.fields()));
-      return [];
-    },
+    world: solidScriptTransformLocal(solidScriptMirrorMatrix),
   }),
   solidScriptTransformTool({
     id: 'resize',
@@ -305,10 +284,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
       read.value('size'),
       ...solidScriptListingOptions([read.on('keep') && ['Keep Proportions']]),
     ],
-    execute: (run) => {
-      solidScriptTransformResize(run);
-      return [];
-    },
+    world: solidScriptTransformResize,
   }),
   solidScriptTransformTool({
     id: 'matrix',
@@ -338,10 +314,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
       ),
     ],
     listing: (read) => ['Matrix', ' ', read.value('row1'), ' / ', read.value('row2'), ' / ', read.value('row3')],
-    execute: (run) => {
-      solidScriptTransformApply(run, 'Matrix', solidScriptMatrixRows(run.fields()));
-      return [];
-    },
+    world: solidScriptTransformLocal(solidScriptMatrixRows),
   }),
 ];
 
@@ -360,8 +333,9 @@ function solidScriptTransformTool(spec: {
   stops: readonly string[];
   parameters: readonly SolidScriptCommandParameter[];
   listing: SolidScriptCommandSpec['listing'];
-  execute: SolidScriptCommandSpec['execute'];
+  world: SolidScriptTransformWorldOf;
 }): SolidScriptCommand {
+  const keys = spec.parameters.map((parameter) => parameter.key);
   return new SolidScriptCommand({
     id: spec.id,
     edits: true,
@@ -370,9 +344,15 @@ function solidScriptTransformTool(spec: {
     description: spec.description,
     manual: spec.manual,
     stops: spec.stops,
-    parameters: [...spec.parameters, SOLID_SCRIPT_TRANSFORM_OF],
+    parameters: [
+      ...spec.parameters.map((parameter) => solidScriptParameterEach(parameter, 'Item')),
+      SOLID_SCRIPT_TRANSFORM_OF,
+    ],
     listing: (read) => [...spec.listing(read), ...(read.text('of') === '' ? [] : [' Of ', read.value('of')])],
-    execute: spec.execute,
+    execute: (run) => {
+      solidScriptTransformEach(run, spec.label, keys, spec.world);
+      return [];
+    },
   });
 }
 

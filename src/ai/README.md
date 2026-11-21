@@ -183,7 +183,7 @@ Irregular rock from a point list:
 
 ```solid-script
 [
-  { "command": "scatter_points", "values": { "where": "In Box", "count": "16", "seed": "4", "size": "2, 1.2, 2", "into": "Spots" } },
+  { "command": "scatter_points", "values": { "on": "In Box", "count": "16", "seed": "4", "size": "2, 1.2, 2", "into": "Spots" } },
   { "command": "hull", "values": { "points": "[Spots]" } },
   { "command": "end" }
 ]

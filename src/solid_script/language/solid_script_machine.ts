@@ -851,6 +851,16 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     const value = (key: string): SolidScriptValue => state.machine.fieldValue(fields, node, key, state.scope);
     /** Fields that read no per-item value, worked out once for all items. */
     const once = new Map<string, SolidScriptValue>();
+    const valueWith = (key: string, variables: Readonly<Record<string, SolidScriptValue>>): SolidScriptValue => {
+      if (!solidScriptEachUsed(solidScriptLineFieldOf(fields, node, key).text)) {
+        if (!once.has(key)) once.set(key, value(key));
+        return once.get(key) as SolidScriptValue;
+      }
+      const inner = new SolidScriptScope(state.scope);
+      for (const [name, assigned] of Object.entries(variables))
+        inner.variableDefine(state.machine.nameKey(name), assigned);
+      return state.machine.fieldValue(fields, node, key, inner);
+    };
     const modeOf = (): Readonly<Record<string, string>> => {
       if (!node.command.parameters.some((field) => field.key === 'mode')) return node.values;
       const stored = (node.values['mode'] ?? '').trim();
@@ -1139,15 +1149,11 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
           solidScriptMeshChecked(solidScriptMeshTransform({ ...mesh, label: labelOf() }, state.context.matrix)),
         ]);
       },
-      valueWith: (key, variables) => {
-        if (!solidScriptEachUsed(solidScriptLineFieldOf(fields, node, key).text)) {
-          if (!once.has(key)) once.set(key, value(key));
-          return once.get(key) as SolidScriptValue;
-        }
-        const inner = new SolidScriptScope(state.scope);
-        for (const [name, assigned] of Object.entries(variables))
-          inner.variableDefine(state.machine.nameKey(name), assigned);
-        return state.machine.fieldValue(fields, node, key, inner);
+      valueWith,
+      fieldsWith: (variables) => {
+        const values = new Map<string, SolidScriptValue>();
+        for (const key of evaluated) values.set(key, valueWith(key, variables));
+        return new SolidScriptBlockArguments(values, labels);
       },
       print: (text) => {
         state.machine.messages.push(text);

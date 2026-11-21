@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import type { SolidScriptGeometryLeaf } from './solid_script_geometry.js';
 import { solidScriptGeometryFaceMatrix } from './solid_script_geometry.js';
 import { solidScriptKindNamed, solidScriptKindOf } from './solid_script_kinds.js';
+import type { SolidScriptBlockArguments } from './solid_script_block_arguments.js';
+import { solidScriptEachUsed } from './solid_script_each_uses.js';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
 import {
   solidScriptOutlineTransform,
@@ -89,112 +91,155 @@ export function solidScriptTransformOnMatrix(run: SolidScriptBlockRun): THREE.Ma
 }
 
 /**
- * Applies a local transform to the brushes, meshes or points in Of.
+ * Works out the script-space transform of what a transform line picked, from
+ * the line's fields, such as a Move By of its By.
+ */
+export type SolidScriptTransformWorldOf = (
+  run: SolidScriptBlockRun,
+  picked: SolidScriptTransformPicked,
+  args: SolidScriptBlockArguments,
+) => THREE.Matrix4;
+
+/**
+ * Transforms the brushes, meshes, outlines or points in Of. When a field reads
+ * a per-item value, such as By [=Vector(0, [$Index], 0)], each brush, outline
+ * or point gets its own transform, with [$Item] the item, [$Index] its place in
+ * Of from 0 and [$Count] how many there are; else they all move as one.
  *
  * @param run Running line.
  * @param label Command, for messages.
- * @param local Transform in the current space.
+ * @param keys Keys of the fields that may change per item.
+ * @param worldOf Transform of what is picked.
  */
-export function solidScriptTransformApply(run: SolidScriptBlockRun, label: string, local: THREE.Matrix4): void {
-  solidScriptTransformApplyWorld(run, label, solidScriptTransformWorld(run.matrix(), local));
+export function solidScriptTransformEach(
+  run: SolidScriptBlockRun,
+  label: string,
+  keys: readonly string[],
+  worldOf: SolidScriptTransformWorldOf,
+): void {
+  const picked = solidScriptTransformPicked(run, label);
+  if (!keys.some((key) => solidScriptEachUsed(run.source(key)))) {
+    solidScriptTransformWrite(run, label, picked, [worldOf(run, picked, run.fields())]);
+    return;
+  }
+  const items = solidScriptTransformItems(run, picked);
+  const worlds = items.map(({ item, part }, index) =>
+    worldOf(run, part, run.fieldsWith({ $Item: item, $Index: index, $Count: items.length })),
+  );
+  solidScriptTransformWrite(run, label, picked, worlds);
 }
 
 /**
- * Applies a script-space transform to the brushes, meshes or points in Of.
+ * Splits what a transform line picked into its items: each brush or mesh, each
+ * outline, or each point.
+ *
+ * @param run Running line.
+ * @param picked What Of gave.
+ * @returns Each item, as a value and as its own pick.
+ */
+function solidScriptTransformItems(
+  run: SolidScriptBlockRun,
+  picked: SolidScriptTransformPicked,
+): { item: SolidScriptValue; part: SolidScriptTransformPicked }[] {
+  if (picked.kind === 'leaves')
+    return picked.leaves.map((leaf) => ({ item: run.elements.brush(leaf), part: { kind: 'leaves', leaves: [leaf] } }));
+  if (picked.kind === 'points')
+    return picked.points.map((point) => ({
+      item: [point.x, point.y, point.z],
+      part: { kind: 'points', points: [point] },
+    }));
+  return picked.outlines.map((outline) => ({
+    item: outline,
+    part: { kind: 'outlines', outlines: [outline], points: solidScriptTransformOutlinePoints(run, [outline]) },
+  }));
+}
+
+/**
+ * Applies script-space transforms to what a transform line picked: one for all
+ * of it, or one per item.
  *
  * @param run Running line.
  * @param label Command, for messages.
- * @param world Transform in script space.
+ * @param picked What Of gave.
+ * @param worlds One transform for everything, or one per item.
  */
-export function solidScriptTransformApplyWorld(run: SolidScriptBlockRun, label: string, world: THREE.Matrix4): void {
-  const picked = solidScriptTransformPicked(run, label);
+function solidScriptTransformWrite(
+  run: SolidScriptBlockRun,
+  label: string,
+  picked: SolidScriptTransformPicked,
+  worlds: readonly THREE.Matrix4[],
+): void {
+  const worldAt = (index: number): THREE.Matrix4 => worlds[worlds.length === 1 ? 0 : index]!;
   if (picked.kind === 'points') {
     solidScriptTransformWritePoints(
       run,
       label,
-      picked.points.map((point) => point.clone().applyMatrix4(world)),
+      picked.points.map((point, index) => point.clone().applyMatrix4(worldAt(index))),
     );
     return;
   }
   if (picked.kind === 'outlines') {
-    solidScriptTransformOutlines(run, label, picked.outlines, world);
+    if (run.text('into').trim() !== '') throw new Error(`${label} changes an outline where it is; leave Into empty`);
+    picked.outlines.forEach((element, index) =>
+      run.outlineReplace(element, solidScriptOutlineTransform(run.outlineLatest(element), worldAt(index))),
+    );
     return;
   }
-  for (const leaf of picked.leaves) solidScriptTransformReplace(run, leaf, world);
+  picked.leaves.forEach((leaf, index) => solidScriptTransformReplace(run, leaf, worldAt(index)));
 }
 
 /**
- * Applies a script-space transform to flat outlines, in place.
+ * Script-space transform of a local transform in the line's space.
  *
- * @param run Running line.
- * @param label Command, for messages.
- * @param outlines Outline elements.
- * @param world Transform in script space.
+ * @param local Works out the transform in the current space from the fields.
+ * @returns Transform of what is picked.
  */
-function solidScriptTransformOutlines(
-  run: SolidScriptBlockRun,
-  label: string,
-  outlines: readonly SolidScriptElement[],
-  world: THREE.Matrix4,
-): void {
-  if (run.text('into').trim() !== '') throw new Error(`${label} changes an outline where it is; leave Into empty`);
-  for (const element of outlines)
-    run.outlineReplace(element, solidScriptOutlineTransform(run.outlineLatest(element), world));
+export function solidScriptTransformLocal(
+  local: (args: SolidScriptBlockArguments) => THREE.Matrix4,
+): SolidScriptTransformWorldOf {
+  return (run, _, args) => solidScriptTransformWorld(run.matrix(), local(args));
 }
 
 /**
- * Moves the brushes, meshes or points in Of by a distance in the current space.
+ * Moves what is picked so its center sits at To, a point in script space.
  *
- * @param run Running line.
+ * @param _ Running line.
+ * @param picked What is moved.
+ * @param args Fields.
+ * @returns Transform.
  */
-export function solidScriptTransformMove(run: SolidScriptBlockRun): void {
-  solidScriptTransformApply(run, 'Move By', solidScriptOffsetMatrix(solidScriptRunVector(run, 'by', [0, 0, 0])));
-}
-
-/**
- * Moves the brushes, meshes or points in Of so their combined center sits at
- * To, a point in script space.
- *
- * @param run Running line.
- */
-export function solidScriptTransformMoveTo(run: SolidScriptBlockRun): void {
-  const picked = solidScriptTransformPicked(run, 'Move To');
-  const to = solidScriptRunVector(run, 'to', [0, 0, 0]);
+export const solidScriptTransformMoveTo: SolidScriptTransformWorldOf = (_, picked, args) => {
+  const to = solidScriptTransformVectorField(args, 'to', [0, 0, 0]);
   const center = solidScriptTransformCenter(solidScriptTransformPickedPoints(picked));
-  solidScriptTransformApplyWorld(
-    run,
-    'Move To',
-    solidScriptOffsetMatrix([to[0] - center.x, to[1] - center.y, to[2] - center.z]),
-  );
-}
+  return solidScriptOffsetMatrix([to[0] - center.x, to[1] - center.y, to[2] - center.z]);
+};
 
 /**
- * Turns the brushes, meshes or points in Of around their combined center, by
- * the To angles in the current space.
+ * Turns what is picked around its center by the To angles in the current space.
  *
  * @param run Running line.
+ * @param picked What is turned.
+ * @param args Fields.
+ * @returns Transform.
  */
-export function solidScriptTransformRotateTo(run: SolidScriptBlockRun): void {
-  solidScriptTransformAboutCenter(run, 'Rotate To', solidScriptRotateMatrix(run.fields(), 'to'));
-}
+export const solidScriptTransformRotateTo: SolidScriptTransformWorldOf = (run, picked, args) =>
+  solidScriptTransformAboutCenter(run, 'Rotate To', picked, solidScriptRotateMatrix(args, 'to'));
 
 /**
- * Stretches the brushes, meshes or points in Of about their combined center so
- * they measure exactly To, in metres, in the current space.
+ * Stretches what is picked about its center so it measures exactly To, in
+ * metres, in the current space.
  *
  * @param run Running line.
+ * @param picked What is stretched.
+ * @param args Fields.
+ * @returns Transform.
  */
-export function solidScriptTransformScaleTo(run: SolidScriptBlockRun): void {
-  const space = run.matrix();
-  if (Math.abs(space.determinant()) < 1e-9)
-    throw new Error('Scale To cannot work in a space that squashes shapes flat');
-  const inverse = space.clone().invert();
-  const points = solidScriptTransformPickedPoints(solidScriptTransformPicked(run, 'Scale To')).map((point) =>
-    point.clone().applyMatrix4(inverse),
-  );
+export const solidScriptTransformScaleTo: SolidScriptTransformWorldOf = (run, picked, args) => {
+  const inverse = solidScriptTransformInverse(run, 'Scale To');
+  const points = solidScriptTransformPickedPoints(picked).map((point) => point.clone().applyMatrix4(inverse));
   const box = new THREE.Box3().setFromPoints(points);
   const extent = box.getSize(new THREE.Vector3()).toArray();
-  const size = solidScriptRunVector(run, 'to', [2, 2, 2]);
+  const size = solidScriptTransformVectorField(args, 'to', [2, 2, 2]);
   if (size.some((value) => value <= 0)) throw new Error('To needs a size above 0 on every axis, such as 2, 2, 2');
   const axes = run.planar ? 2 : 3;
   const factors: [number, number, number] = [1, 1, 1];
@@ -211,76 +256,89 @@ export function solidScriptTransformScaleTo(run: SolidScriptBlockRun): void {
   const local = solidScriptOffsetMatrix([center.x, center.y, center.z])
     .multiply(new THREE.Matrix4().makeScale(...factors))
     .multiply(solidScriptOffsetMatrix([-center.x, -center.y, -center.z]));
-  solidScriptTransformApply(run, 'Scale To', local);
-}
+  return solidScriptTransformWorld(run.matrix(), local);
+};
 
 /**
- * Applies a local transform about the combined center of the selection, in the
- * current space.
+ * Stretches what is picked to an exact size, measured in the current space
+ * about its origin.
+ *
+ * @param run Running line.
+ * @param picked What is stretched.
+ * @param args Fields.
+ * @returns Transform.
+ */
+export const solidScriptTransformResize: SolidScriptTransformWorldOf = (run, picked, args) => {
+  const inverse = solidScriptTransformInverse(run, 'Resize');
+  const points = solidScriptTransformPickedPoints(picked).map((point) => point.clone().applyMatrix4(inverse));
+  const extent = new THREE.Box3().setFromPoints(points).getSize(new THREE.Vector3()).toArray();
+  const [x, y, z] = solidScriptResizeFactors(extent, solidScriptResizeSize(args), args.flag('keep'), run.planar);
+  return solidScriptTransformWorld(run.matrix(), new THREE.Matrix4().makeScale(x, y, z));
+};
+
+/**
+ * Inverse of the line's space, which must not squash shapes flat.
  *
  * @param run Running line.
  * @param label Command, for messages.
- * @param local Transform about the origin of the current space, moved to the
- *   center.
+ * @returns Inverse matrix.
  */
-function solidScriptTransformAboutCenter(run: SolidScriptBlockRun, label: string, local: THREE.Matrix4): void {
+function solidScriptTransformInverse(run: SolidScriptBlockRun, label: string): THREE.Matrix4 {
   const space = run.matrix();
   if (Math.abs(space.determinant()) < 1e-9)
     throw new Error(`${label} cannot work in a space that squashes shapes flat`);
-  const inverse = space.clone().invert();
+  return space.clone().invert();
+}
+
+/**
+ * A local transform about the center of what is picked, in the current space.
+ *
+ * @param run Running line.
+ * @param label Command, for messages.
+ * @param picked What is transformed.
+ * @param local Transform about the origin of the current space, moved to the
+ *   center.
+ * @returns Script-space transform.
+ */
+function solidScriptTransformAboutCenter(
+  run: SolidScriptBlockRun,
+  label: string,
+  picked: SolidScriptTransformPicked,
+  local: THREE.Matrix4,
+): THREE.Matrix4 {
+  const inverse = solidScriptTransformInverse(run, label);
   const center = solidScriptTransformCenter(
-    solidScriptTransformPickedPoints(solidScriptTransformPicked(run, label)).map((point) =>
-      point.clone().applyMatrix4(inverse),
-    ),
+    solidScriptTransformPickedPoints(picked).map((point) => point.clone().applyMatrix4(inverse)),
   );
   const about = solidScriptOffsetMatrix([center.x, center.y, center.z])
     .multiply(local)
     .multiply(solidScriptOffsetMatrix([-center.x, -center.y, -center.z]));
-  solidScriptTransformApply(run, label, about);
+  return solidScriptTransformWorld(run.matrix(), about);
 }
 
 /**
  * Reads a vector field, or the fallback when the field is left off.
  *
- * @param run Running line.
+ * @param args Fields.
  * @param key Field key.
  * @param fallback Value when the field is left off.
  * @returns X, Y and Z.
  */
-function solidScriptRunVector(
-  run: SolidScriptBlockRun,
+function solidScriptTransformVectorField(
+  args: SolidScriptBlockArguments,
   key: string,
   fallback: readonly number[],
 ): [number, number, number] {
-  if (run.text(key).trim() === '') return [fallback[0] ?? 0, fallback[1] ?? 0, fallback[2] ?? 0];
-  const value = run.value(key);
+  const value = args.value(key);
+  if (value === undefined || value === '') return [fallback[0] ?? 0, fallback[1] ?? 0, fallback[2] ?? 0];
   if (solidScriptKindOf(value) !== 'Vector')
-    throw new Error(`${key === 'by' ? 'By' : 'To'} needs one number or three numbers separated by commas`);
+    throw new Error('To needs one number or three numbers separated by commas');
   const items = Array.isArray(value) ? value : [];
   return [
     typeof items[0] === 'number' ? items[0] : 0,
     typeof items[1] === 'number' ? items[1] : 0,
     typeof items[2] === 'number' ? items[2] : 0,
   ];
-}
-
-/**
- * Stretches the brushes, meshes or points in Of to an exact size, measured in
- * the current space about its origin.
- *
- * @param run Running line.
- */
-export function solidScriptTransformResize(run: SolidScriptBlockRun): void {
-  const space = run.matrix();
-  if (Math.abs(space.determinant()) < 1e-9) throw new Error('Resize cannot work in a space that squashes shapes flat');
-  const inverse = space.clone().invert();
-  const points = solidScriptTransformPickedPoints(solidScriptTransformPicked(run, 'Resize')).map((point) =>
-    point.clone().applyMatrix4(inverse),
-  );
-  const extent = new THREE.Box3().setFromPoints(points).getSize(new THREE.Vector3()).toArray();
-  const size = solidScriptResizeSize(run.fields());
-  const [x, y, z] = solidScriptResizeFactors(extent, size, run.fields().flag('keep'), run.planar);
-  solidScriptTransformApply(run, 'Resize', new THREE.Matrix4().makeScale(x, y, z));
 }
 
 /**
