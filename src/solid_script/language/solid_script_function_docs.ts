@@ -439,7 +439,7 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
   },
   nearest: {
     usage: 'Nearest(points, point)',
-    summary: 'Index of the closest point in a list, from 0, such as ClosestPoint(Vector(0, 0, 0), [Points]).',
+    summary: 'Index of the closest point in a list, from 0, such as Nearest([Points], Vector(0, 0, 0)).',
     group: 'Random',
     gives: ['Number'],
   },
