@@ -124,6 +124,8 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     Length: form('Lengths', 'Number'),
     Direction: form('Directions', 'Vector'),
     Angle: form('Angles', 'Number'),
+    SignedAngle: form('SignedAngles', 'Number'),
+    IsConvex: form('IsConvex', 'Yes/No'),
     IsBoundary: form('IsBoundaries', 'Yes/No'),
     Faces: form('Faces', 'Face List'),
     Parent: form('Parents', 'Object'),
@@ -513,6 +515,8 @@ function solidScriptMemberElement(
       if (edges.length === 0) throw new Error(`${String(element)} was cut away`);
       if (member === 'faces') return faceList(edges.flatMap((edge) => edge.faces.filter((face) => face !== null)));
       if (member === 'angle') return solidScriptMemberRound(Math.max(...edges.map(solidScriptMemberEdgeAngle)));
+      if (member === 'signedangle') return solidScriptMemberRound(solidScriptMemberEdgeSigned(edges));
+      if (member === 'isconvex') return solidScriptMemberEdgeSigned(edges) > SOLID_SCRIPT_MEMBER_FLAT;
       if (member === 'isboundary') return leaf.kind === 'mesh' && edges.some((edge) => edge.faces[1] === null);
       return solidScriptMemberEdge(edges, member);
     }
@@ -551,6 +555,30 @@ function solidScriptMemberEdgeAngle(edge: SolidScriptEdgeFacts): number {
   const [first, second] = edge.faces;
   if (!second) return 0;
   return THREE.MathUtils.radToDeg(first.normal.angleTo(second.normal));
+}
+
+/**
+ * Degrees below which the faces at an edge count as flat, neither outer nor
+ * inner corner.
+ */
+const SOLID_SCRIPT_MEMBER_FLAT = 0.001;
+
+/**
+ * Signed angle of an edge: its Angle, positive on an outer (convex) corner such
+ * as every edge of a cube, negative on an inner (concave) one; 0 when flat or
+ * when one face uses it. Of an edge cut in pieces, the sharpest piece.
+ *
+ * @param edges Pieces of the edge.
+ * @returns Degrees from -180 to 180.
+ */
+function solidScriptMemberEdgeSigned(edges: readonly SolidScriptEdgeFacts[]): number {
+  const signed = edges.map((edge) => {
+    const [first, second] = edge.faces;
+    if (!second) return 0;
+    const behind = second.center.clone().sub(first.center).dot(first.normal) < 0;
+    return solidScriptMemberEdgeAngle(edge) * (behind ? 1 : -1);
+  });
+  return signed.reduce((sharpest, angle) => (Math.abs(angle) > Math.abs(sharpest) ? angle : sharpest), 0);
 }
 
 /**
