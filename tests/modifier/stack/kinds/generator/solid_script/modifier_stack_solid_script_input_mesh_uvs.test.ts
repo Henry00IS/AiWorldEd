@@ -10,7 +10,6 @@ import { modifierStackCompile } from '@/modifier/stack/evaluate/modifier_stack_c
 import { modifierStackMeshesShown } from '@/modifier/stack/meshes/modifier_stack_meshes.js';
 import { solidChunkUvProject } from '@/solid/mesh/solid_brush_mesh_chunk.js';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
-import { createDefaultFaceSurface, orientDefaultFaceSurface } from '@/texture/uv_matrix/face_surface_description.js';
 
 /** One triangle corner in world space, with its baked UV. */
 interface Corner {
@@ -24,13 +23,11 @@ interface Mismatch {
   position: [number, number, number];
   output: [number, number];
   source: [number, number];
-  def: [number, number];
   brush: string;
   face: number;
 }
 
 const FIXTURE = path.resolve('tests/fixtures/bug-ss-mesh-different-uvs-than-input-brushes.json');
-const REPORT = path.resolve('/tmp/uv-transfer/compare.txt');
 
 /**
  * Loads the transferred level: its solid and the SolidScript modifier volume.
@@ -46,20 +43,6 @@ function loadLevel(): { world: THREE.Group; model: SolidModel; volume: THREE.Obj
   const volume = world.children.find((child) => ModifierVolume.isVolume(child));
   if (!model || !volume) throw new Error('Expected a solid and a modifier volume');
   return { world, model, volume };
-}
-
-/**
- * Turns a volume's modifier on or off and rebuilds the solid.
- *
- * @param volume Modifier volume.
- * @param model Solid.
- * @param enabled Whether the stack is on.
- */
-function volumeEnabled(volume: THREE.Object3D, model: SolidModel, enabled: boolean): void {
-  const settings = ModifierVolume.read(volume);
-  ModifierVolume.write(volume, { ...settings, enabled });
-  model.markDirty();
-  model.rebuild(true);
 }
 
 /**
@@ -127,34 +110,6 @@ function sourceUv(
 }
 
 /**
- * Projects a world point with the default face-oriented mapping in the brush's
- * centred model-space frame, the mapping Mesh From Brushes gets when no face
- * UVs were stored.
- *
- * @param brush Brush.
- * @param face Face index.
- * @param world Point in world space.
- * @param root Solid root.
- * @returns Texture coordinates.
- */
-function defaultUv(
-  brush: SolidBrushInstance,
-  face: number,
-  world: THREE.Vector3,
-  root: THREE.Object3D,
-): [number, number] {
-  const model = world.clone().applyMatrix4(root.matrixWorld.clone().invert());
-  const box = brush.getModelSpaceBounds();
-  const center = box.getCenter(new THREE.Vector3());
-  const local = model.sub(center);
-  const plane = brush.getModelSpacePlanes()[face];
-  const normal = plane?.normal.clone().normalize() ?? new THREE.Vector3(0, 1, 0);
-  const surface = orientDefaultFaceSurface(createDefaultFaceSurface(), normal);
-  const coords = surface.uv.project(local);
-  return [coords.u, coords.v];
-}
-
-/**
  * Picks the source face whose plane holds a world point and looks the same way.
  *
  * @param brushes Input brushes.
@@ -184,73 +139,10 @@ function sourceFace(
   return best;
 }
 
-/**
- * Rounds a number for the report.
- *
- * @param value Number.
- * @returns Rounded number.
- */
-function rounded(value: number): number {
-  return Math.round(value * 1e4) / 1e4 + 0;
-}
-
-/**
- * Writes the comparison report.
- *
- * @param source Source-mesh corners.
- * @param output Modifier-mesh corners.
- * @param mismatches Differing corners.
- */
-function writeReport(source: Corner[], output: Corner[], mismatches: Mismatch[]): void {
-  const lines: string[] = [];
-  lines.push(`source corners: ${source.length}`);
-  lines.push(`output corners: ${output.length}`);
-  lines.push(`mismatches (uv delta > 0.01): ${mismatches.length}`);
-  const groups = new Map<string, Mismatch[]>();
-  for (const row of mismatches) {
-    const key = `${row.brush} face ${row.face}`;
-    const list = groups.get(key) ?? [];
-    list.push(row);
-    groups.set(key, list);
-  }
-  for (const [key, rows] of groups) {
-    const first = rows[0]!;
-    const dSrc = [first.output[0] - first.source[0], first.output[1] - first.source[1]].map(rounded);
-    const sameSrc = rows.every(
-      (row) =>
-        Math.abs(row.output[0] - row.source[0] - (first.output[0] - first.source[0])) < 0.02 &&
-        Math.abs(row.output[1] - row.source[1] - (first.output[1] - first.source[1])) < 0.02,
-    );
-    const vsDef = rows.filter((row) => Math.hypot(row.output[0] - row.def[0], row.output[1] - row.def[1]) < 0.02);
-    lines.push(
-      `${key}: ${rows.length} corners; constant offset vs source=${sameSrc} ${dSrc.join(', ')}; ` +
-        `match default ${vsDef.length}/${rows.length}; example out=${first.output.map(rounded).join(',')} ` +
-        `src=${first.source.map(rounded).join(',')} def=${first.def.map(rounded).join(',')} ` +
-        `pos=${first.position.map(rounded).join(', ')}`,
-    );
-  }
-  const leftover = mismatches.filter(
-    (row) => Math.hypot(row.output[0] - row.def[0], row.output[1] - row.def[1]) >= 0.02,
-  );
-  lines.push(`not default remapping: ${leftover.length}`);
-  for (const row of leftover.slice(0, 30)) {
-    lines.push(
-      `  pos ${row.position.map(rounded).join(', ')} ${row.brush} face ${row.face} ` +
-        `out=${row.output.map(rounded).join(',')} src=${row.source.map(rounded).join(',')} ` +
-        `def=${row.def.map(rounded).join(',')}`,
-    );
-  }
-  fs.writeFileSync(REPORT, `${lines.join('\n')}\n`);
-  fs.writeFileSync('/tmp/uv-transfer/mismatches.json', JSON.stringify(mismatches, null, 2));
-}
-
 describe('Mesh From Brushes of Input Brushes keeps the source UVs', () => {
   it('keeps the transferred level’s brush UVs on the output mesh', () => {
     const { model, volume } = loadLevel();
     expect(model.getBrushes()).toHaveLength(3);
-    volumeEnabled(volume, model, false);
-    const source = meshCorners(model.getResultMesh());
-    volumeEnabled(volume, model, true);
     modifierStackCompile(model.getBrushes(), model.root);
     const shown = modifierStackMeshesShown(volume)[0];
     expect(shown, 'the modifier should show a mesh').toBeTruthy();
@@ -261,18 +153,15 @@ describe('Mesh From Brushes of Input Brushes keeps the source UVs', () => {
       const hit = sourceFace(brushes, corner, model.root);
       if (!hit) continue;
       const expected = sourceUv(hit.brush, hit.face, corner.position, model.root);
-      const def = defaultUv(hit.brush, hit.face, corner.position, model.root);
       if (Math.hypot(corner.uv[0] - expected[0], corner.uv[1] - expected[1]) <= 0.01) continue;
       mismatches.push({
         position: [corner.position.x, corner.position.y, corner.position.z],
         output: corner.uv,
         source: expected,
-        def,
         brush: hit.brush.name,
         face: hit.face,
       });
     }
-    writeReport(source, output, mismatches);
-    expect(mismatches.length, `see ${REPORT}`).toBe(0);
+    expect(mismatches.slice(0, 5)).toEqual([]);
   });
 });
