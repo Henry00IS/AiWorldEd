@@ -83,10 +83,15 @@ export interface SolidScriptSuggestionScope {
    * a word after == does not replace the whole field.
    */
   phrase?: boolean;
+  /** True for a field taking a direction: it offers Pick Normal…. */
+  direction?: boolean;
 }
 
-/** How a suggestion is written: as the whole field, as a value or as a call. */
-export type SolidScriptSuggestionPick = 'word' | 'value' | 'function';
+/**
+ * How a suggestion is written: as the whole field, as a value or as a call; an
+ * action opens a picker that writes the field instead.
+ */
+export type SolidScriptSuggestionPick = 'word' | 'value' | 'function' | 'action';
 
 /** One suggestion: what it shows and how it is written. */
 export interface SolidScriptSuggestion {
@@ -705,6 +710,32 @@ function solidScriptSuggestionChoiceValues(scope: SolidScriptSuggestionScope): S
     category: 'Choices',
     pick: 'value' as const,
   }));
+}
+
+/** The picker a direction field offers. */
+const SOLID_SCRIPT_SUGGESTION_PICK_NORMAL: SolidScriptSuggestion = {
+  label: 'Pick Normal…',
+  detail: 'Direction: click a face of a shape in a small 3D view to fill in the way it points.',
+  category: 'Pick',
+  pick: 'action',
+};
+
+/**
+ * Lists the pickers a field offers where the caret is: Pick Normal… on a
+ * direction field, outside any [ ].
+ *
+ * @param text Field text.
+ * @param caret Caret index.
+ * @param scope What the field may refer to.
+ * @returns Picker suggestions.
+ */
+export function solidScriptSuggestionActions(
+  text: string,
+  caret: number,
+  scope: SolidScriptSuggestionScope,
+): SolidScriptSuggestion[] {
+  if (scope.direction !== true || solidScriptSuggestionBrackets(text.slice(0, caret)).length > 0) return [];
+  return [SOLID_SCRIPT_SUGGESTION_PICK_NORMAL];
 }
 
 /**

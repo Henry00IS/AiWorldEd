@@ -4,6 +4,7 @@ import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import { SOLID_SCRIPT_COMMAND_EACH_ICON } from '@/solid_script/commands/solid_script_command_each.js';
 import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
 import {
+  solidScriptSuggestionActions,
   solidScriptSuggestionActive,
   solidScriptSuggestionContext,
   type SolidScriptSuggestionHint,
@@ -133,10 +134,13 @@ export class SolidScriptConfiguratorNames {
    *
    * @param input Text input.
    * @param scope What the field may refer to.
+   * @param pickNormal Opens the Pick Normal window, which writes the field;
+   *   only a direction field offers it.
    */
   constructor(
     private readonly input: HTMLInputElement,
     private readonly scope: SolidScriptSuggestionScope,
+    private readonly pickNormal?: (write: (text: string) => void) => void,
   ) {
     this.list.className = SOLID_SCRIPT_EDITOR_CLASSES.suggestions;
     this.list.setAttribute('role', 'listbox');
@@ -146,10 +150,10 @@ export class SolidScriptConfiguratorNames {
     this.host.append(this.signature, solidScriptScrollerWrap(this.list, '1 1 auto', 0));
     panelFloatingScopeMark(this.host);
     // Only the user opens the list, by typing or clicking; a field that gets the focus does not.
-    input.addEventListener('input', () => this.update());
-    input.addEventListener('click', () => this.update());
+    input.addEventListener('input', () => this.update(false));
+    input.addEventListener('click', () => this.update(true));
     input.addEventListener('keyup', (event) => {
-      if (this.host.isConnected && SOLID_SCRIPT_SUGGESTIONS_CARET_KEYS.has(event.key)) this.update();
+      if (this.host.isConnected && SOLID_SCRIPT_SUGGESTIONS_CARET_KEYS.has(event.key)) this.update(false);
     });
     input.addEventListener('keydown', (event) => this.key(event));
     input.addEventListener('blur', () => this.close());
@@ -185,8 +189,14 @@ export class SolidScriptConfiguratorNames {
     line(hint.summary);
   }
 
-  /** Lists what fits at the caret, with the call being typed on top. */
-  private update(): void {
+  /**
+   * Lists what fits at the caret, with the call being typed on top and the
+   * field's pickers last. Pickers alone open the list only on a click, so
+   * typing never ends on one.
+   *
+   * @param clicked True when a click opened the list.
+   */
+  private update(clicked: boolean): void {
     const caret = this.input.selectionStart ?? this.input.value.length;
     const context = solidScriptSuggestionContext(
       this.input.value,
@@ -194,8 +204,10 @@ export class SolidScriptConfiguratorNames {
       this.scope.words.length > 0 && !this.scope.phrase,
       this.scope.phrase === true,
     );
-    this.shown = solidScriptSuggestions(context, this.scope);
-    this.active = solidScriptSuggestionActive(this.shown, context);
+    const listed = solidScriptSuggestions(context, this.scope);
+    const actions = this.pickNormal ? solidScriptSuggestionActions(this.input.value, caret, this.scope) : [];
+    this.shown = [...listed, ...(listed.length > 0 || clicked ? actions : [])];
+    this.active = solidScriptSuggestionActive(listed, context);
     const hint = solidScriptSuggestionHint(context, this.scope);
     if (this.shown.length === 0 && !hint) return this.close();
     this.hintWrite(hint);
@@ -264,6 +276,7 @@ export class SolidScriptConfiguratorNames {
   private accept(index: number): void {
     const suggestion = this.shown[index];
     if (!suggestion) return;
+    if (suggestion.pick === 'action') return this.pickOpen();
     const caret = this.input.selectionStart ?? this.input.value.length;
     const written = solidScriptSuggestionWrite(suggestion, this.input.value, caret, caret);
     this.input.value = written.text;
@@ -271,5 +284,17 @@ export class SolidScriptConfiguratorNames {
     this.close();
     // A change, not typing, so the list stays closed until the next click or key.
     this.input.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  /**
+   * Opens the Pick Normal window, which replaces the field with the picked
+   * normal.
+   */
+  private pickOpen(): void {
+    this.close();
+    this.pickNormal?.((text) => {
+      this.input.value = text;
+      this.input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
   }
 }

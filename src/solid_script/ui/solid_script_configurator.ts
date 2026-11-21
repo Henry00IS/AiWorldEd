@@ -31,6 +31,7 @@ import { SOLID_SCRIPT_FORMULA_CATEGORIES } from '@/solid_script/commands/solid_s
 import type { SolidScriptFormulaContext } from '@/solid_script/commands/solid_script_formula_inputs.js';
 import { SolidScriptFormulaWindow, solidScriptFormulaWindowProblem } from './solid_script_formula_window.js';
 import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
+import { SolidScriptNormalPickWindow } from './normal_pick/solid_script_normal_pick_window.js';
 
 /**
  * The configurator of one command line: a window titled with the command, a
@@ -119,6 +120,7 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
       ...(SOLID_SCRIPT_FORMULA_CATEGORIES.includes(command.category)
         ? {}
         : { formula: (field, text, write) => this.formulaOpen(field, text, write) }),
+      normal: (write) => new SolidScriptNormalPickWindow({ host: this.host, parent: this, write }).show(),
     });
   }
 

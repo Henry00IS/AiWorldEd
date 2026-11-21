@@ -34,6 +34,7 @@ import { solidScriptEditorViewRead, type SolidScriptEditorView } from './solid_s
 import { SolidScriptConfiguratorNames } from './solid_script_configurator_names.js';
 import { solidScriptEditorToolButton } from './solid_script_editor_icons.js';
 import { SOLID_SCRIPT_COMMAND_EACH_ICON } from '@/solid_script/commands/solid_script_command_each.js';
+import { solidScriptParameterTakesDirection } from '@/solid_script/commands/solid_script_parameter_direction.js';
 import { textureSelectCreate } from '@/texture/ui/texture_select.js';
 import { solidScriptSuggestionSelectedWords, type SolidScriptSuggestionScope } from './solid_script_suggestions.js';
 import {
@@ -88,6 +89,11 @@ export interface SolidScriptConfiguratorScope {
    * OK; fields have no … button without it.
    */
   formula?: (parameter: SolidScriptCommandParameter, stored: string, write: (text: string) => void) => void;
+  /**
+   * Opens the Pick Normal window, which writes the field text; direction fields
+   * offer it among their suggestions.
+   */
+  normal?: (write: (text: string) => void) => void;
 }
 
 /** How a field's inputs are read and checked. */
@@ -215,12 +221,13 @@ export function solidScriptConfiguratorFieldBuild(
     paths: parameter.writes?.offers === 'path',
     words,
     phrase: parameter.type === 'condition' || parameter.key === 'where',
+    direction: solidScriptParameterTakesDirection(parameter),
   };
   let known = solidScriptFieldKnown(scope.names, scope.extra);
   const texts = solidScriptConfiguratorSuggests(parameter)
     ? [...inputs.querySelectorAll<HTMLInputElement>('input[type="text"]')]
     : [];
-  const lists = texts.map((input) => new SolidScriptConfiguratorNames(input, suggest));
+  const lists = texts.map((input) => new SolidScriptConfiguratorNames(input, suggest, scope.normal));
   inputs.addEventListener('input', changed);
   inputs.addEventListener('change', changed);
   const raw = solidScriptFieldAsTyped(parameter);
