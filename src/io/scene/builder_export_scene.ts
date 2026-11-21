@@ -11,6 +11,7 @@ import {
 } from '@/materials/factory_content_material.js';
 import { isContentViewLitMaterial } from '@/materials/factory_content_view_lit_material.js';
 import { isDefaultSurfaceTexture } from '@/texture/library/factory_debug_texture.js';
+import { MODIFIER_STACK_MESH_KEY } from '@/modifier/stack/meshes/modifier_stack_meshes.js';
 
 /**
  * Name of the export root when the world group has none. Exporters write only
@@ -24,10 +25,11 @@ type ExportMaterialClones = Map<THREE.Material, THREE.Material>;
 
 /**
  * Builds a temporary scene graph for GLB/export that contains only game
- * content: regular meshes/groups and solid-model CSG result meshes. Excludes
- * brush hull helpers, selection outlines, decorative edges, and clip previews.
- * The returned root is an identity container: exporters write its children as
- * the top-level objects of the file.
+ * content: regular meshes/groups, solid-model CSG result meshes, and the meshes
+ * generators show on volumes until they are baked. Excludes brush hull helpers,
+ * selection outlines, decorative edges, clip previews, and the volume boxes
+ * themselves. The returned root is an identity container: exporters write its
+ * children as the top-level objects of the file.
  *
  * @param worldGroup Live editor world root.
  * @returns A detached group (does not mutate the live scene).
@@ -40,7 +42,80 @@ export function buildExportScene(worldGroup: THREE.Group): THREE.Group {
     const cloned = cloneObjectForExport(child, materials);
     if (cloned) exportRoot.add(cloned);
   });
+  addModifierStackMeshesForExport(worldGroup, exportRoot, materials);
   return exportRoot;
+}
+
+/**
+ * Adds the meshes generators show on volumes and generator nodes. Those meshes
+ * are editor helpers on omitted parents, so the walk of world children would
+ * skip them, and a script that turns brushes into a mesh leaves the solid's
+ * compiled result empty.
+ *
+ * @param worldGroup Live editor world root.
+ * @param exportRoot Detached export root.
+ * @param materials Material clones of this export.
+ */
+function addModifierStackMeshesForExport(
+  worldGroup: THREE.Group,
+  exportRoot: THREE.Group,
+  materials: ExportMaterialClones,
+): void {
+  worldGroup.updateWorldMatrix(true, true);
+  const toRoot = worldGroup.matrixWorld.clone().invert();
+  worldGroup.traverse((object) => {
+    if (!modifierStackMeshVisible(object, worldGroup)) return;
+    exportRoot.add(cloneModifierStackMeshForExport(object, toRoot, materials));
+  });
+}
+
+/**
+ * Returns whether an object is a visible generator mesh under the world root.
+ *
+ * @param object Candidate object.
+ * @param worldGroup Live editor world root.
+ * @returns True when the mesh should be exported.
+ */
+function modifierStackMeshVisible(object: THREE.Object3D, worldGroup: THREE.Group): object is THREE.Mesh {
+  if (!(object instanceof THREE.Mesh) || object.userData[MODIFIER_STACK_MESH_KEY] !== true) return false;
+  return objectVisibleUnderRoot(object, worldGroup);
+}
+
+/**
+ * Returns whether an object and its ancestors down to a root are visible.
+ *
+ * @param object Object to test.
+ * @param root Ancestor that ends the walk.
+ * @returns True when every node on the path is visible.
+ */
+function objectVisibleUnderRoot(object: THREE.Object3D, root: THREE.Object3D): boolean {
+  let current: THREE.Object3D | null = object;
+  while (current) {
+    if (!current.visible) return false;
+    if (current === root) return true;
+    current = current.parent;
+  }
+  return true;
+}
+
+/**
+ * Clones a generator mesh for export, with its pose relative to the world root
+ * so it stays in the same place without its volume or generator parent.
+ *
+ * @param mesh Live generator mesh.
+ * @param toRoot Matrix that takes world coordinates into the export root.
+ * @param materials Material clones of this export.
+ * @returns Export mesh.
+ */
+function cloneModifierStackMeshForExport(
+  mesh: THREE.Mesh,
+  toRoot: THREE.Matrix4,
+  materials: ExportMaterialClones,
+): THREE.Mesh {
+  const clone = cloneContentMeshForExport(mesh, materials);
+  mesh.updateWorldMatrix(true, false);
+  toRoot.clone().multiply(mesh.matrixWorld).decompose(clone.position, clone.quaternion, clone.scale);
+  return clone;
 }
 
 /**
@@ -107,7 +182,7 @@ export function shouldOmitFromExport(object: THREE.Object3D): boolean {
  */
 function cloneSolidModelForExport(solidRoot: THREE.Object3D, materials: ExportMaterialClones): THREE.Mesh | null {
   const resultMesh = findSolidResultMesh(solidRoot);
-  if (!resultMesh) return null;
+  if (!resultMesh || !solidResultHasExportGeometry(resultMesh)) return null;
   const mesh = cloneContentMeshForExport(resultMesh, materials);
   resultMesh.updateMatrix();
   if (!resultMesh.matrix.equals(new THREE.Matrix4()))
@@ -131,6 +206,16 @@ function findSolidResultMesh(solidRoot: THREE.Object3D): THREE.Mesh | null {
     }
   }
   return null;
+}
+
+/**
+ * Returns whether a solid result has vertices to write.
+ *
+ * @param mesh Compiled result mesh.
+ * @returns True when the geometry has vertices.
+ */
+function solidResultHasExportGeometry(mesh: THREE.Mesh): boolean {
+  return (mesh.geometry.getAttribute('position')?.count ?? 0) > 0;
 }
 
 /**
