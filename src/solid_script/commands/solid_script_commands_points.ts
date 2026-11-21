@@ -8,6 +8,7 @@ import {
   solidScriptPointsFromVertexTargets,
   solidScriptPointsFromVertices,
 } from '@/solid_script/language/solid_script_points_from.js';
+import { solidScriptGeometryFacesOutside } from '@/solid_script/language/solid_script_geometry.js';
 import type { SolidScriptValue } from '@/solid_script/language/solid_script_value.js';
 import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptParameterInto, solidScriptParameterOf } from './solid_script_command_parameters.js';
@@ -64,7 +65,7 @@ export const SOLID_SCRIPT_COMMANDS_POINTS: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Take a point at the center of each face',
     manual:
-      'Writes a point at the center of each face in Of, and the way the face looks in Normals. Empty Of uses [$Selected.Faces]. Use the points with Place At Points, and turn on Align To Normal so each copy stands the way Place On Face would. Example: Select Faces Facing Up, Points From Faces Into [Spots] Normals [Dirs], Place At Points At [Spots] Directions [Dirs] Align To Normal, Cylinder, End.',
+      'Writes a point at the center of each face in Of, and the way the face looks in Normals. Empty Of uses [$Selected.Faces]. Faces that lie back to back against another brush in Of, inside the shape, are skipped. Use the points with Place At Points, and turn on Align To Normal so each copy stands the way Place On Face would. Example: Select Faces Facing Up, Points From Faces Into [Spots] Normals [Dirs], Place At Points At [Spots] Directions [Dirs] Align To Normal, Cylinder, End.',
     stops: ['No faces.'],
     parameters: [...solidScriptPointsFromFields('faces or brushes', '$Selected.Faces', ['Brush', 'Face'])],
     listing: (read) => [
@@ -78,7 +79,7 @@ export const SOLID_SCRIPT_COMMANDS_POINTS: readonly SolidScriptCommand[] = [
       solidScriptPointsFromWrite(
         run,
         'Points From Faces',
-        solidScriptPointsFromFaces(solidScriptFaceTargets(run, 'Points From Faces')),
+        solidScriptPointsFromFaces(solidScriptGeometryFacesOutside(solidScriptFaceTargets(run, 'Points From Faces'))),
       );
       return [];
     },

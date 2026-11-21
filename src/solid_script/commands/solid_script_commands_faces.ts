@@ -25,6 +25,7 @@ import {
   solidScriptGeometryFacePrism,
   solidScriptGeometryFaces,
   solidScriptGeometryFacesDelete,
+  solidScriptGeometryFacesOutside,
   solidScriptGeometryInset,
   type SolidScriptEdgeFacts,
   type SolidScriptFaceFacts,
@@ -506,7 +507,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     builds: true,
     intoList: true,
     manual:
-      'Builds the brushes between this line and its End standing on a face: up is the way the face points and the center is the middle of the face. Of gives the face, such as [Face] in For Each [Face] In [$Selected.Faces]; given several faces it builds them on each. Empty Of uses [$Selected.Faces]. Lift moves them out from the face. The same as Points From Faces then Place At Points with Align To Normal, with the same lift. Into is always a list of the brushes or meshes it built, even when there is only one. Example: For Each [Face] In [$Selected.Faces], Place On Face Of [Face], Cylinder, End, End puts a post on every picked face.',
+      'Builds the brushes between this line and its End standing on a face: up is the way the face points and the center is the middle of the face. Of gives the face, such as [Face] in For Each [Face] In [$Selected.Faces]; given several faces it builds them on each. Empty Of uses [$Selected.Faces]. Faces that lie back to back against another brush in Of, inside the shape, are skipped. Lift moves them out from the face. The same as Points From Faces then Place At Points with Align To Normal, with the same lift. Into is always a list of the brushes or meshes it built, even when there is only one. Example: For Each [Face] In [$Selected.Faces], Place On Face Of [Face], Cylinder, End, End puts a post on every picked face.',
     stops: ['No faces.', 'Nothing between this line and its End.', 'A missing End line.'],
     nesting: 'open',
     endLabel: 'Place',
@@ -529,7 +530,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       const lift = solidScriptValueNumber(run.value('lift'));
       if (lift === undefined) throw new Error('Lift needs a number of metres, such as 0');
       const identity = new THREE.Matrix4();
-      return solidScriptFaceTargets(run, 'Place On Face').flatMap((face) =>
+      return solidScriptGeometryFacesOutside(solidScriptFaceTargets(run, 'Place On Face')).flatMap((face) =>
         run.framed(solidScriptPlaceAtMatrix(face.center, face.normal, lift, true, identity, identity)),
       );
     },

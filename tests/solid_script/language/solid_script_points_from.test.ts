@@ -104,4 +104,24 @@ describe('SolidScript Points From Faces, Edges and Vertices', () => {
       ),
     ).toEqual(['0.8 0.2']);
   });
+
+  it('skips faces where two brushes in Of meet back to back, in Points From Faces and Place On Face', () => {
+    const pair: SolidScriptLine[] = [
+      line('cube', { size: '2, 2, 2', anchor: 'Center, Center, Center', label: 'Pair' }),
+      line('transform', { move: '2, 0, 0' }),
+      line('cube', { size: '2, 2, 2', anchor: 'Center, Center, Center', label: 'Pair' }),
+      END,
+    ];
+    expect(
+      printed(
+        ...pair,
+        line('points_from_faces', { of: 'Pair', into: 'Spots' }),
+        line('echo', { value: '[=[Spots.Count]]' }),
+        line('place_on_face', { of: 'Pair', into: 'Posts' }),
+        CHILD,
+        END,
+        line('echo', { value: '[=[Posts.Count]]' }),
+      ),
+    ).toEqual(['10', '10']);
+  });
 });
