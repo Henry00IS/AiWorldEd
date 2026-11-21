@@ -247,8 +247,8 @@ describe('SolidScript catalog fields', () => {
     expect(stale).toEqual([]);
   });
 
-  it('no longer offers Readable Text or UV Shift on Input Brushes', () => {
+  it('offers only Into on Input Brushes', () => {
     const keys = solidScriptCommands.find((command) => command.id === 'input_brushes')?.parameters.map((p) => p.key);
-    expect(keys).toEqual(['textures', 'into']);
+    expect(keys).toEqual(['into']);
   });
 });

@@ -64,6 +64,29 @@ function solidScriptExampleArrayInputs(follow: string, count = true): SolidScrip
  * @param readable True to pass the port's Readable Text through.
  * @returns Lines.
  */
+/**
+ * Writes the received brushes Into [Copy] and sets Textures on that list,
+ * before any later Of-tool move.
+ *
+ * @returns Lines.
+ */
+function solidScriptExampleInputCopy(): SolidScriptLine[] {
+  return [
+    solidScriptExampleLine('input_brushes', { into: 'Copy' }),
+    solidScriptExampleLine('transform_uvs', { textures: '[Textures]', of: '[Copy]' }),
+  ];
+}
+
+/**
+ * Writes the received brushes Into [Copy], sets Textures, and stamps that copy
+ * as the original.
+ *
+ * @returns Lines.
+ */
+function solidScriptExamplePassCopy(): SolidScriptLine[] {
+  return [...solidScriptExampleInputCopy(), solidScriptExampleLine('output', { of: '[Copy]' })];
+}
+
 function solidScriptExampleCopyUvs(index: string, readable: boolean): SolidScriptLine[] {
   const shifted = '([UvShiftU] != 0 or [UvShiftV] != 0)';
   return solidScriptExampleIf(`[Copy.Count] > 0${readable ? '' : ` and ${shifted}`}`, [
@@ -85,9 +108,7 @@ function solidScriptExampleCopyUvs(index: string, readable: boolean): SolidScrip
  */
 function solidScriptExampleMovedCopy(move: string, index: string): SolidScriptLine[] {
   return [
-    ...solidScriptExampleBlock('transform', { move }, [
-      solidScriptExampleLine('input_brushes', { textures: '[Textures]', into: 'Copy' }),
-    ]),
+    ...solidScriptExampleBlock('transform', { move }, solidScriptExampleInputCopy()),
     ...solidScriptExampleCopyUvs(index, false),
     solidScriptExampleLine('output', { of: '[Copy]' }),
   ];
@@ -102,7 +123,7 @@ function solidScriptExampleMovedCopy(move: string, index: string): SolidScriptLi
  */
 function solidScriptExampleMatrixOf(values: Record<string, string>, uvs: SolidScriptLine[] = []): SolidScriptLine[] {
   return [
-    solidScriptExampleLine('input_brushes', { textures: '[Textures]', into: 'Copy' }),
+    ...solidScriptExampleInputCopy(),
     solidScriptExampleLine('matrix', { ...values, of: '[Copy]' }),
     ...uvs,
     solidScriptExampleLine('output', { of: '[Copy]' }),
@@ -139,7 +160,7 @@ export const SOLID_SCRIPT_EXAMPLE_SHEAR: readonly SolidScriptLine[] = [
         'Echo writes a message in the editor when something is wrong. Here it runs if the two axes are the same.',
       ),
       solidScriptExampleLine('echo', { value: 'Shear Axis and Along must differ; the brushes pass on unchanged.' }),
-      solidScriptExampleLine('input_brushes', { textures: '[Textures]' }),
+      ...solidScriptExamplePassCopy(),
     ],
     [
       solidScriptExampleNote('The slide per metre: the tangent of the angle, or the factor itself.'),
@@ -296,7 +317,7 @@ export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
   ),
   solidScriptExampleNote('Copy I turns by First + I × Turn around K through Around, then rises along K.'),
   solidScriptExampleNote('Copy 0 is the original.'),
-  solidScriptExampleLine('input_brushes', { textures: '[Textures]' }),
+  ...solidScriptExamplePassCopy(),
   ...solidScriptExampleIf('[Count] > 1', [
     ...solidScriptExampleRepeat('I', '1', '[Count]', [
       solidScriptExampleSet('A', '[=[First] + [I] * [Turn]]'),
@@ -385,7 +406,7 @@ export const SOLID_SCRIPT_EXAMPLE_TRANSFORM_ARRAY: readonly SolidScriptLine[] = 
     '[=[Offset] + Vector([Relative.X] * [$Input.Size.X], [Relative.Y] * [$Input.Size.Y], [Relative.Z] * [$Input.Size.Z]) + [Pivot] - Vector(Dot([S1], [Pivot]), Dot([S2], [Pivot]), Dot([S3], [Pivot]))]',
   ),
   solidScriptExampleNote('Copy 0 is the original; R1 to R3 and Shift hold the step applied I times.'),
-  solidScriptExampleLine('input_brushes', { textures: '[Textures]' }),
+  ...solidScriptExamplePassCopy(),
   solidScriptExampleSet('R1', '[=Vector(1, 0, 0)]'),
   solidScriptExampleSet('R2', '[=Vector(0, 1, 0)]'),
   solidScriptExampleSet('R3', '[=Vector(0, 0, 1)]'),
@@ -442,7 +463,7 @@ export const SOLID_SCRIPT_EXAMPLE_MIRROR: readonly SolidScriptLine[] = [
     solidScriptExampleLine('clip', { through: '[=[K] * [D]]', normal: '[Drop]', of: '[$Input.Brushes]' }),
   ]),
   solidScriptExampleNote('Copy 0 is the original; the copy is reflected: p - 2 (p · K - D) K.'),
-  solidScriptExampleLine('input_brushes', { textures: '[Textures]' }),
+  ...solidScriptExamplePassCopy(),
   ...solidScriptExampleMatrixOf(
     {
       row1: '[=1 - 2 * [K.X] * [K.X]], [=-2 * [K.X] * [K.Y]], [=-2 * [K.X] * [K.Z]], [=2 * [D] * [K.X]]',

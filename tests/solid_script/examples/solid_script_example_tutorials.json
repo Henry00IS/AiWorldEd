@@ -27,11 +27,11 @@
     "pipe": 26,
     "torus": 36,
     "curvedStairs": 33,
-    "shear": 28,
-    "linear": 53,
-    "radial": 101,
-    "transform": 63,
-    "mirror": 46
+    "shear": 31,
+    "linear": 54,
+    "radial": 105,
+    "transform": 66,
+    "mirror": 49
   },
   "times": {
     "spiralStaircase": 29.542,

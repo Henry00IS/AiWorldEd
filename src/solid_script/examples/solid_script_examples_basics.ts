@@ -192,7 +192,7 @@ export const SOLID_SCRIPT_EXAMPLE_PEDESTAL: readonly SolidScriptLine[] = [
   solidScriptExampleSet('Width', '[$Input.Size.X]'),
   solidScriptExampleSet('Depth', '[$Input.Size.Z]'),
   solidScriptExampleNote('Input Brushes keeps the received brushes in the world.'),
-  solidScriptExampleLine('input_brushes', { textures: 'Move With Shape' }),
+  solidScriptExampleLine('input_brushes'),
   solidScriptExampleNote(
     'Else runs when the script is used as a generator, and builds a box for the slab to sit under.',
   ),

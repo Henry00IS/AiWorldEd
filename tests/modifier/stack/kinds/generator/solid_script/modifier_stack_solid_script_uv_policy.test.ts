@@ -68,14 +68,14 @@ function bounds(brush: SolidBrushInstance): number[] {
  * UVs Offset and output.
  *
  * @param offset Transform UVs Offset; [I] is the copy index.
- * @param textures Input Brushes and Transform UVs Textures.
+ * @param textures Transform UVs Textures.
  * @returns Lines.
  */
 function copies(offset: string, textures = 'Move With Shape'): SolidScriptLine[] {
   return [
     { command: 'repeat', values: { variable: 'I', from: '0', to: '3' } },
     { command: 'transform', values: { move: '[=[I] * 2], 0, 0' } },
-    { command: 'input_brushes', values: { textures, into: 'Copy' } },
+    { command: 'input_brushes', values: { into: 'Copy' } },
     { command: 'end' },
     { command: 'transform_uvs', values: { offset, textures, of: '[Copy]' } },
     { command: 'output', values: { of: '[Copy]' } },

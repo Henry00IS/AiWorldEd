@@ -4,7 +4,7 @@ import type { SolidScriptGeometryLeaf } from './solid_script_geometry.js';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
 import { solidScriptInputBrushName, type SolidScriptUseSolid } from './solid_script_system.js';
 import type { SolidScriptReceived, SolidScriptShape, SolidScriptShapeSolid } from './solid_script_shape.js';
-import { solidScriptUvPolicyTextures, solidScriptUvPolicyWrite } from './solid_script_uv_policy.js';
+import { solidScriptUvPolicyWrite } from './solid_script_uv_policy.js';
 
 /**
  * Builds the shapes of an Input Brushes line: each received brush, as it is
@@ -17,7 +17,6 @@ import { solidScriptUvPolicyTextures, solidScriptUvPolicyWrite } from './solid_s
  */
 export function solidScriptInputBrushesBuild(run: SolidScriptBlockRun): SolidScriptShape[] {
   run.fields();
-  const textures = solidScriptInputBrushesTextures(run);
   const matrix = run.matrix();
   const turn = new THREE.Matrix3().getNormalMatrix(matrix);
   const use = run.use();
@@ -31,7 +30,6 @@ export function solidScriptInputBrushesBuild(run: SolidScriptBlockRun): SolidScr
       index,
       matrix,
       turn,
-      textures,
       use.textures?.[index],
       solidScriptInputBrushesMode(latest[index], modes[index], use.modes?.[index]),
     ),
@@ -50,7 +48,6 @@ export function solidScriptInputBrushesBuild(run: SolidScriptBlockRun): SolidScr
  * @param index Brush index.
  * @param matrix Script-space move.
  * @param turn Normal matrix of that move.
- * @param textures Copied or world.
  * @param faces Received face textures, when any.
  * @returns Shapes.
  */
@@ -61,7 +58,6 @@ function solidScriptInputBrushesOne(
   index: number,
   matrix: THREE.Matrix4,
   turn: THREE.Matrix3,
-  textures: 'copied' | 'world',
   faces:
     | readonly {
         point: readonly [number, number, number];
@@ -76,7 +72,7 @@ function solidScriptInputBrushesOne(
     normal: new THREE.Vector3(...face.normal).applyMatrix3(turn).normalize(),
     texture: face.texture,
   }));
-  const received = solidScriptInputBrushesReceived(index, matrix, textures, leaf);
+  const received = solidScriptInputBrushesReceived(index, matrix, leaf);
   const faceUvs = leaf && leaf.kind === 'solid' ? leaf.faceUvs : undefined;
   return run
     .solid(solidScriptInputBrushesBody(leaf, solid, solidScriptInputBrushName(index)), faceUvs)
@@ -118,16 +114,6 @@ function solidScriptInputBrushesInto(run: SolidScriptBlockRun, built: readonly S
 }
 
 /**
- * Reads Textures and stops when it is not an allowed word.
- *
- * @param run Running line.
- * @returns Lower-case textures word.
- */
-function solidScriptInputBrushesTextures(run: SolidScriptBlockRun): 'copied' | 'world' {
-  return solidScriptUvPolicyTextures(run, true) ?? 'copied';
-}
-
-/**
  * Corners and faces of one received brush, after writes, or as it arrived. A
  * brush a write turned into a mesh is wrapped again.
  *
@@ -156,18 +142,16 @@ function solidScriptInputBrushesBody(
  *
  * @param index Brush index.
  * @param matrix Script-space move.
- * @param textures Copied or world.
  * @param leaf Latest received leaf, when it exists.
  * @returns Record.
  */
 function solidScriptInputBrushesReceived(
   index: number,
   matrix: THREE.Matrix4,
-  textures: 'copied' | 'world',
   leaf: SolidScriptGeometryLeaf | undefined,
 ): SolidScriptReceived {
   const clip = solidScriptInputBrushesClip(leaf);
-  return { index, matrix, textures, readable: true, shiftU: 0, shiftV: 0, ...(clip ? { clip } : {}) };
+  return { index, matrix, textures: 'copied', readable: true, shiftU: 0, shiftV: 0, ...(clip ? { clip } : {}) };
 }
 
 /**

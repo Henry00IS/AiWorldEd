@@ -108,7 +108,7 @@ describe('SolidScript as a modifier', () => {
 
   it('bevels the received brush, and the inspector and the editor run it like the stack does', () => {
     const script = both(
-      { command: 'input_brushes', values: { textures: 'Move With Shape' } },
+      { command: 'input_brushes' },
       { command: 'select_brushes' },
       { command: 'select_faces', values: { which: 'All', where: '', of: '', how: 'New' } },
       { command: 'bevel_edges', values: { distance: '0.1' } },

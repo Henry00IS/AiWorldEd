@@ -457,7 +457,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     { command: 'variable', values: { name: 'Low', value: '[$Input.Min.Y]' } },
     { command: 'variable', values: { name: 'Width', value: '[$Input.Size.X]' } },
     { command: 'variable', values: { name: 'Depth', value: '[$Input.Size.Z]' } },
-    { command: 'input_brushes', values: { textures: 'Move With Shape' } },
+    { command: 'input_brushes' },
     { command: 'else' },
     { command: 'cube', values: { size: '1, 1, 1', anchor: 'Center, Center, Center' } },
     { command: 'end' },
@@ -2056,7 +2056,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
         value: 'Shear Axis and Along must differ; the brushes pass on unchanged.',
       },
     },
-    { command: 'input_brushes', values: { textures: '[Textures]' } },
+    { command: 'input_brushes' },
     { command: 'else', values: {} },
     {
       command: 'note',
@@ -2098,7 +2098,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
         value: '[=[Slide] * -Dot([Measure], [$Input.Center])]',
       },
     },
-    { command: 'input_brushes', values: { textures: '[Textures]', into: 'Copy' } },
+    { command: 'input_brushes', values: { into: 'Copy' } },
     {
       command: 'matrix',
       values: {

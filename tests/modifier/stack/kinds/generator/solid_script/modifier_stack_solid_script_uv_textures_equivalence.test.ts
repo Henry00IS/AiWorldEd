@@ -62,13 +62,12 @@ function line(command: string, values: Record<string, string> = {}): SolidScript
 }
 
 /**
- * An Input Brushes line, optionally with Textures and always writing Into Copy.
+ * An Input Brushes line that writes the received brushes Into Copy.
  *
- * @param textures Move With Shape or World Aligned, or empty to leave it off.
  * @returns Line.
  */
-function inputBrushes(textures = ''): SolidScriptLine {
-  return line('input_brushes', { into: 'Copy', ...(textures === '' ? {} : { textures }) });
+function inputBrushes(): SolidScriptLine {
+  return line('input_brushes', { into: 'Copy' });
 }
 
 /**
@@ -112,43 +111,19 @@ function block(command: SolidScriptLine, inner: readonly SolidScriptLine[]): Sol
 }
 
 /**
- * Input Brushes with Textures set on the line itself, inside the same template.
- *
- * @param textures Input Brushes Textures.
- * @param inner Template that contains one Input Brushes Into Copy line.
- * @returns Lines.
- */
-function texturesOnInput(textures: string, inner: readonly SolidScriptLine[]): SolidScriptLine[] {
-  return withInput(textures, inner);
-}
-
-/**
- * Replaces a placeholder Input Brushes in a template with one that has
- * Textures.
- *
- * @param textures Input Brushes Textures.
- * @param inner Template that contains one Input Brushes Into Copy line.
- * @returns Lines.
- */
-function withInput(textures: string, inner: readonly SolidScriptLine[]): SolidScriptLine[] {
-  return inner.map((entry) => (entry.command === 'input_brushes' ? inputBrushes(textures) : entry));
-}
-
-/**
- * Input Brushes with no Textures, then the same later edits, then Transform
- * UVs.
+ * Input Brushes, then the same later edits, then Transform UVs at the end.
  *
  * @param textures Transform UVs Textures.
  * @param inner Template that contains one Input Brushes Into Copy line.
  * @returns Lines.
  */
 function texturesAfter(textures: string, inner: readonly SolidScriptLine[]): SolidScriptLine[] {
-  return [...withInput('', inner), transformUvs(textures)];
+  return [...inner, transformUvs(textures)];
 }
 
 /**
- * Input Brushes with no Textures, then Transform UVs immediately after it, then
- * the same later edits, so Of-tools see the policy before they move the copy.
+ * Input Brushes, then Transform UVs immediately after it, then the same later
+ * edits, so Of-tools see the policy before they move the copy.
  *
  * @param textures Transform UVs Textures.
  * @param inner Template that contains one Input Brushes Into Copy line.
@@ -156,7 +131,7 @@ function texturesAfter(textures: string, inner: readonly SolidScriptLine[]): Sol
  */
 function texturesViaUvs(textures: string, inner: readonly SolidScriptLine[]): SolidScriptLine[] {
   const lines: SolidScriptLine[] = [];
-  for (const entry of withInput('', inner)) {
+  for (const entry of inner) {
     lines.push(entry);
     if (entry.command === 'input_brushes') lines.push(transformUvs(textures));
   }
@@ -299,168 +274,59 @@ function signatureOf(result: CompiledUvs): string {
 }
 
 /**
- * Numeric UV deltas between two sample lists of the same length and positions.
- *
- * @param left Samples from the Input Brushes Textures script.
- * @param right Samples from the Transform UVs script.
- * @returns Deltas, each as position, left UV, right UV and difference.
- */
-function sampleDeltas(left: readonly string[], right: readonly string[]): string[] {
-  const onlyLeft = left.filter((sample) => !right.includes(sample));
-  const onlyRight = right.filter((sample) => !left.includes(sample));
-  return onlyLeft.length === 0 && onlyRight.length === 0 ? [] : positionDeltas(onlyLeft, onlyRight);
-}
-
-/**
- * Pairs leftover samples that share a position, then lists anything unmatched.
- *
- * @param left Samples only on the Input Brushes Textures result.
- * @param right Samples only on the Transform UVs result.
- * @returns Delta lines.
- */
-function positionDeltas(left: readonly string[], right: readonly string[]): string[] {
-  const remaining = [...right];
-  const rows: string[] = [];
-  for (const sample of left) {
-    const at = sample.split(':')[0] ?? '';
-    const match = remaining.findIndex((entry) => entry.startsWith(`${at}:`));
-    if (match < 0) {
-      rows.push(`only input ${sample}`);
-      continue;
-    }
-    const row = sampleDelta(sample, remaining[match]);
-    remaining.splice(match, 1);
-    if (row) rows.push(row);
-  }
-  return [...rows, ...remaining.map((sample) => `only later ${sample}`)];
-}
-
-/**
- * One sample pair as a delta line, or none when they match or positions differ.
- *
- * @param left Left sample, or missing.
- * @param right Right sample, or missing.
- * @returns Line, or null when they match.
- */
-function sampleDelta(left: string | undefined, right: string | undefined): string | null {
-  if (left === right) return null;
-  if (!left || !right) return `missing ${left ?? 'left'} vs ${right ?? 'right'}`;
-  const [leftAt, leftUv] = left.split(':');
-  const [rightAt, rightUv] = right.split(':');
-  if (leftAt !== rightAt) return `pos ${left} vs ${right}`;
-  const [lu, lv] = (leftUv ?? '0,0').split(',').map(Number);
-  const [ru, rv] = (rightUv ?? '0,0').split(',').map(Number);
-  return `pos ${leftAt} input=${leftUv} later=${rightUv} dU=${rounded(ru - lu)} dV=${rounded(rv - lv)}`;
-}
-
-/**
- * Describes how two compiled results differ, with UV numbers.
- *
- * @param left Input Brushes Textures result.
- * @param right Transform UVs result.
- * @returns Lines, or empty when they match.
- */
-function difference(left: CompiledUvs, right: CompiledUvs): string[] {
-  if (signatureOf(left) === signatureOf(right)) return [];
-  const lines: string[] = [];
-  if (left.error !== right.error) lines.push(`error input=${left.error} later=${right.error}`);
-  if (left.brushes.length !== right.brushes.length)
-    lines.push(`brush count input=${left.brushes.length} later=${right.brushes.length}`);
-  const count = Math.max(left.brushes.length, right.brushes.length);
-  for (let index = 0; index < count; index++) {
-    const first = left.brushes[index];
-    const second = right.brushes[index];
-    if (!first || !second) {
-      lines.push(`brush ${index} missing`);
-      continue;
-    }
-    lines.push(...sampleDeltas(brushSamples(first), brushSamples(second)).map((row) => `brush ${index} ${row}`));
-  }
-  lines.push(...meshDifference(left.meshes, right.meshes));
-  return lines;
-}
-
-/**
- * Describes mesh-corner UV differences.
- *
- * @param left Input Brushes Textures mesh samples.
- * @param right Transform UVs mesh samples.
- * @returns Lines.
- */
-function meshDifference(left: readonly string[], right: readonly string[]): string[] {
-  if (left.length !== right.length) return [`mesh count input=${left.length} later=${right.length}`];
-  const lines: string[] = [];
-  for (let index = 0; index < left.length; index++) {
-    const first = (left[index] ?? '').split(';').filter(Boolean);
-    const second = (right[index] ?? '').split(';').filter(Boolean);
-    lines.push(...sampleDeltas(first, second).map((row) => `mesh ${index} ${row}`));
-  }
-  return lines;
-}
-
-/**
- * Compares Input Brushes Textures with Transform UVs Textures for one template.
+ * Compiles a Transform UVs Textures script and reports a missing or failed
+ * result.
  *
  * @param name Case name.
  * @param textures Move With Shape or World Aligned.
- * @param inner Template that contains one Input Brushes Into Copy line.
- * @returns Difference lines, empty when they match.
+ * @param result Compiled output.
+ * @param wantMesh True requires shown mesh samples; false requires brushes.
+ * @returns Problem lines, or empty.
  */
-function comparePair(name: string, textures: string, inner: readonly SolidScriptLine[]): string[] {
-  const left = compileModifier(stamped(texturesOnInput(textures, inner)));
-  const right = compileModifier(stamped(texturesViaUvs(textures, inner)));
-  return difference(left, right).map((row) => `${name} ${textures}: ${row}`);
+function compiledOk(name: string, textures: string, result: CompiledUvs, wantMesh: boolean): string[] {
+  const label = `${name} ${textures}`;
+  if (result.error !== '') return [`${label}: error ${result.error}`];
+  if (wantMesh) {
+    if (result.meshes.every((mesh) => mesh === '')) return [`${label}: showed no mesh`];
+    return [];
+  }
+  return result.brushes.length === 0 ? [`${label}: showed no brushes`] : [];
 }
 
 /**
- * Compares both texture policies for one template, and checks they differ when
- * the script moves the brushes.
+ * Compiles both texture policies with Transform UVs after Input Brushes, and
+ * checks they differ when the script moves the brushes.
  *
  * @param name Case name.
  * @param inner Template that contains one Input Brushes Into Copy line.
  * @param mustDiffer True when World Aligned must not match Move With Shape.
- * @returns Difference lines from the pair comparisons, plus a policy-sameness
- *   failure when mustDiffer is true and the policies match.
+ * @returns Problem lines, or empty.
  */
 function compareCase(name: string, inner: readonly SolidScriptLine[], mustDiffer: boolean): string[] {
-  const rows = [...comparePair(name, WORLD, inner), ...comparePair(name, COPIED, inner)];
-  if (!mustDiffer) return rows;
-  const world = signatureOf(compileModifier(stamped(texturesOnInput(WORLD, inner))));
-  const copied = signatureOf(compileModifier(stamped(texturesOnInput(COPIED, inner))));
-  if (world === copied)
+  const world = compileModifier(stamped(texturesViaUvs(WORLD, inner)));
+  const copied = compileModifier(stamped(texturesViaUvs(COPIED, inner)));
+  const rows = [...compiledOk(name, WORLD, world, false), ...compiledOk(name, COPIED, copied, false)];
+  if (mustDiffer && signatureOf(world) === signatureOf(copied))
     rows.push(`${name}: World Aligned matched Move With Shape, so the case does not test the option`);
   return rows;
 }
 
 /**
- * Compares the two ways of setting Textures when the result is baked to a mesh.
- * Transform UVs stays inside Mesh From Brushes, after the moves.
+ * Compiles both texture policies baked through Mesh From Brushes, with
+ * Transform UVs after Input Brushes and before later Of-tools.
  *
  * @param name Case name.
  * @param inner Template that contains one Input Brushes Into Copy line.
- * @returns Difference lines.
+ * @param mustDiffer True when World Aligned must not match Move With Shape.
+ * @returns Problem lines, or empty.
  */
-function compareMeshes(name: string, inner: readonly SolidScriptLine[], worldToo: boolean): string[] {
+function compareMeshes(name: string, inner: readonly SolidScriptLine[], mustDiffer: boolean): string[] {
   const label = `Mesh From Brushes ${name}`;
-  const rows = [...compareMeshed(label, COPIED, inner)];
-  return worldToo ? [...rows, ...compareMeshed(label, WORLD, inner)] : rows;
-}
-
-/**
- * Compiles both scripts baked through Mesh From Brushes and lists UV
- * differences.
- *
- * @param name Case name.
- * @param textures Move With Shape or World Aligned.
- * @param inner Template that contains one Input Brushes Into Copy line.
- * @returns Difference lines.
- */
-function compareMeshed(name: string, textures: string, inner: readonly SolidScriptLine[]): string[] {
-  const left = compileVolume(meshed(stamped(texturesOnInput(textures, inner))));
-  const right = compileVolume(meshed(stamped(texturesViaUvs(textures, inner))));
-  const rows = difference(left, right).map((row) => `${name} ${textures}: ${row}`);
-  if (left.meshes.every((mesh) => mesh === '') && right.meshes.every((mesh) => mesh === ''))
-    rows.push(`${name} ${textures}: both scripts showed no mesh`);
+  const world = compileVolume(meshed(stamped(texturesViaUvs(WORLD, inner))));
+  const copied = compileVolume(meshed(stamped(texturesViaUvs(COPIED, inner))));
+  const rows = [...compiledOk(label, WORLD, world, true), ...compiledOk(label, COPIED, copied, true)];
+  if (mustDiffer && signatureOf(world) === signatureOf(copied))
+    rows.push(`${label}: World Aligned matched Move With Shape, so the case does not test the option`);
   return rows;
 }
 
@@ -606,21 +472,19 @@ function compileLevel(lines: readonly SolidScriptLine[]): { samples: string[]; e
 }
 
 /**
- * Compares Input Brushes Textures with Transform UVs on the transferred level.
+ * Compiles Transform UVs Textures on the transferred level and checks the mesh
+ * came out.
  *
  * @param name Case name.
  * @param textures Move With Shape or World Aligned.
  * @param inner Template that contains one Input Brushes Into Copy line.
- * @returns Difference lines.
+ * @returns Problem lines, or empty.
  */
 function compareLevel(name: string, textures: string, inner: readonly SolidScriptLine[]): string[] {
-  const left = compileLevel(meshed(stamped(texturesOnInput(textures, inner))));
-  const right = compileLevel(meshed(stamped(texturesViaUvs(textures, inner))));
-  if (left.error !== right.error) return [`${name} ${textures}: error input=${left.error} later=${right.error}`];
-  const rows = meshDifference(left.samples, right.samples).map((row) => `${name} ${textures}: ${row}`);
-  if (left.samples.every((mesh) => mesh === '') && right.samples.every((mesh) => mesh === ''))
-    rows.push(`${name} ${textures}: both scripts showed no mesh`);
-  return rows;
+  const result = compileLevel(meshed(stamped(texturesViaUvs(textures, inner))));
+  if (result.error !== '') return [`${name} ${textures}: error ${result.error}`];
+  if (result.samples.every((mesh) => mesh === '')) return [`${name} ${textures}: showed no mesh`];
+  return [];
 }
 
 /**
@@ -660,13 +524,10 @@ function mixedPolicy(): SolidScriptLine[] {
  * Three copies two metres apart, each with its own [Textures], moved by a
  * Transform around Input Brushes.
  *
- * @param viaUvs True uses Transform UVs after Input Brushes; false sets
- *   Textures on Input Brushes.
  * @returns Lines.
  */
-function mixedWrap(viaUvs: boolean): SolidScriptLine[] {
-  const input = inputBrushes(viaUvs ? '' : '[Textures]');
-  const inside = viaUvs ? [input, transformUvs('[Textures]')] : [input];
+function mixedWrap(): SolidScriptLine[] {
+  const inside = [inputBrushes(), transformUvs('[Textures]')];
   return block(line('repeat', { variable: 'I', from: '0', to: '3' }), [
     ...mixedPolicy(),
     ...block(line('transform', { move: '[=[I] * 2], 0, 0' }), inside),
@@ -678,31 +539,21 @@ function mixedWrap(viaUvs: boolean): SolidScriptLine[] {
  * Three copies two metres apart, each with its own [Textures], then moved by
  * Move By Of [Copy].
  *
- * @param viaUvs True uses Transform UVs after Input Brushes, before Move By.
  * @returns Lines.
  */
-function mixedMoveBy(viaUvs: boolean): SolidScriptLine[] {
-  const input = inputBrushes(viaUvs ? '' : '[Textures]');
+function mixedMoveBy(): SolidScriptLine[] {
   const move = line('move_by', { by: '[=[I] * 2], 0, 0', of: '[Copy]' });
-  const inside = viaUvs ? [input, transformUvs('[Textures]'), move] : [input, move];
+  const inside = [inputBrushes(), transformUvs('[Textures]'), move];
   return block(line('repeat', { variable: 'I', from: '0', to: '3' }), [...mixedPolicy(), ...inside, outputCopy()]);
 }
 
-/**
- * Compares Input Brushes Textures with Transform UVs for a mixed-policy script.
- *
- * @param name Case name.
- * @param writeOld Script that sets Textures on Input Brushes.
- * @param writeNew Script that sets Textures on Transform UVs.
- * @returns Difference lines.
- */
 /**
  * Checks that a mixed-policy run produced three copies, and that the World
  * Aligned copy at two metres did not keep the same UVs as the moved copy after
  * it.
  *
  * @param name Case name.
- * @param result Input Brushes Textures result.
+ * @param result Compiled mixed-policy result.
  * @returns Problem lines, or empty.
  */
 function mixedPolicyCheck(name: string, result: CompiledUvs): string[] {
@@ -718,15 +569,6 @@ function mixedPolicyCheck(name: string, result: CompiledUvs): string[] {
   return [`${name}: mixed UVs world=${JSON.stringify(world)} copied=${JSON.stringify(copied)}`];
 }
 
-/**
- * Unique face-corner UVs of a brush at a world position.
- *
- * @param brush Brush.
- * @param x World X in metres.
- * @param y World Y in metres.
- * @param z World Z in metres.
- * @returns U and V pairs.
- */
 /**
  * Model-space mid X of a brush, rounded.
  *
@@ -748,6 +590,15 @@ function brushAtX(brushes: readonly SolidBrushInstance[], x: number): SolidBrush
   return brushes.find((brush) => brushCenterX(brush) === rounded(x));
 }
 
+/**
+ * Unique face-corner UVs of a brush at a world position.
+ *
+ * @param brush Brush.
+ * @param x World X in metres.
+ * @param y World Y in metres.
+ * @param z World Z in metres.
+ * @returns U and V pairs.
+ */
 function brushUvsAt(brush: SolidBrushInstance, x: number, y: number, z: number): [number, number][] {
   const prefix = `${rounded(x)},${rounded(y)},${rounded(z)}:`;
   const hits = brushSamples(brush).filter((sample) => sample.startsWith(prefix));
@@ -755,15 +606,38 @@ function brushUvsAt(brush: SolidBrushInstance, x: number, y: number, z: number):
   return [...unique].map((text) => text.split(',').map(Number) as [number, number]);
 }
 
-function compareMixed(name: string, writeOld: () => SolidScriptLine[], writeNew: () => SolidScriptLine[]): string[] {
-  const left = compileModifier(writeOld());
-  const right = compileModifier(writeNew());
-  const rows = difference(left, right).map((row) => `${name}: ${row}`);
-  const meshLeft = compileVolume(meshed(writeOld()));
-  const meshRight = compileVolume(meshed(writeNew()));
-  rows.push(...difference(meshLeft, meshRight).map((row) => `Mesh From Brushes ${name}: ${row}`));
-  rows.push(...mixedPolicyCheck(name, left));
+/**
+ * Compiles a mixed-policy script as brushes and as a mesh, and checks the World
+ * Aligned copy kept world-locked UVs.
+ *
+ * @param name Case name.
+ * @param write Script.
+ * @param checkMesh True also checks mesh-corner UVs of the mixed copies.
+ * @returns Problem lines, or empty.
+ */
+function compareMixed(name: string, write: () => SolidScriptLine[], checkMesh: boolean): string[] {
+  const result = compileModifier(write());
+  const rows = mixedPolicyCheck(name, result);
+  const meshedResult = compileVolume(meshed(write()));
+  if (meshedResult.error !== '') rows.push(`Mesh From Brushes ${name}: error ${meshedResult.error}`);
+  else if (meshedResult.meshes.every((mesh) => mesh === '')) rows.push(`Mesh From Brushes ${name}: showed no mesh`);
+  else if (checkMesh) rows.push(...mixedPolicyCheckMesh(`Mesh From Brushes ${name}`, meshedResult));
   return rows;
+}
+
+/**
+ * Checks mesh-corner UVs of the mixed World Aligned and Move With Shape copies.
+ *
+ * @param name Case name.
+ * @param result Compiled mesh result.
+ * @returns Problem lines, or empty.
+ */
+function mixedPolicyCheckMesh(name: string, result: CompiledUvs): string[] {
+  const world = meshUvsAt(result, 2.5, 0.5, 0.5);
+  const copied = meshUvsAt(result, 4.5, 0.5, 0.5);
+  if (world.some((uv) => uv[0] === 3.25 && uv[1] === -0.1) && copied.some((uv) => uv[0] === 1.25 && uv[1] === -0.1))
+    return [];
+  return [`${name}: mixed UVs world=${JSON.stringify(world)} copied=${JSON.stringify(copied)}`];
 }
 
 /**
@@ -788,24 +662,23 @@ function compileGenerator(lines: readonly SolidScriptLine[]): CompiledUvs {
   return compileShown(world, model, node);
 }
 
-describe('Input Brushes Textures matches Transform UVs Textures', () => {
-  it('gives the same output UVs when Textures is set on Input Brushes or later on Transform UVs', () => {
+describe('Transform UVs Textures replaces Input Brushes Textures', () => {
+  it('sets Textures with Transform UVs after Input Brushes, for wraps and Of-tools, on brushes and meshes', () => {
     const rows: string[] = [];
     for (const [name, inner, mustDiffer] of aroundCases()) {
       rows.push(...compareCase(name, inner, mustDiffer));
-      rows.push(...compareMeshes(name, inner, true));
+      rows.push(...compareMeshes(name, inner, false));
     }
     for (const [name, inner, mustDiffer] of afterCases()) {
       rows.push(...compareCase(name, inner, mustDiffer));
-      rows.push(...compareMeshes(name, inner, true));
+      rows.push(...compareMeshes(name, inner, name.includes('Move By')));
     }
     expect(rows, rows.slice(0, 40).join('\n')).toEqual([]);
   });
 
   it('gives the same mesh UVs on the transferred level, including after a move', () => {
-    const input = inputBrushes();
-    const plain = [input];
-    const moved = block(line('transform', { move: '2, 0, 0' }), [input]);
+    const plain = [inputBrushes()];
+    const moved = block(line('transform', { move: '2, 0, 0' }), [inputBrushes()]);
     const rows = [
       ...compareLevel('transferred level', WORLD, plain),
       ...compareLevel('transferred level', COPIED, plain),
@@ -815,31 +688,17 @@ describe('Input Brushes Textures matches Transform UVs Textures', () => {
     expect(rows, rows.slice(0, 40).join('\n')).toEqual([]);
   });
 
-  it('gives the same output when copies in a Repeat use different Textures', () => {
-    const rows = [
-      ...compareMixed(
-        'mixed Wrap',
-        () => mixedWrap(false),
-        () => mixedWrap(true),
-      ),
-      ...compareMixed(
-        'mixed Move By',
-        () => mixedMoveBy(false),
-        () => mixedMoveBy(true),
-      ),
-    ];
+  it('lets Repeat copies use different Textures, including mixed Move By meshes', () => {
+    const rows = [...compareMixed('mixed Wrap', mixedWrap, false), ...compareMixed('mixed Move By', mixedMoveBy, true)];
     expect(rows, rows.slice(0, 40).join('\n')).toEqual([]);
   });
 
   it('world-locks Mesh From Brushes UVs when Transform UVs World Aligned comes before Move By', () => {
     const inner = afterCases().find((entry) => entry[0] === 'Move By');
     if (!inner) throw new Error('Expected the Move By case');
-    const left = compileVolume(meshed(stamped(texturesOnInput(WORLD, inner[1]))));
-    const right = compileVolume(meshed(stamped(texturesViaUvs(WORLD, inner[1]))));
-    expect(left.error).toBe('');
-    expect(right.error).toBe('');
-    expect(meshUvsAt(left, 2.5, 0.5, 0.5)).toContainEqual([3.25, -0.1]);
-    expect(meshUvsAt(right, 2.5, 0.5, 0.5)).toContainEqual([3.25, -0.1]);
+    const result = compileVolume(meshed(stamped(texturesViaUvs(WORLD, inner[1]))));
+    expect(result.error).toBe('');
+    expect(meshUvsAt(result, 2.5, 0.5, 0.5)).toContainEqual([3.25, -0.1]);
   });
 
   it('does not world-lock Mesh From Brushes UVs when Transform UVs World Aligned comes after Move By', () => {
@@ -851,13 +710,10 @@ describe('Input Brushes Textures matches Transform UVs Textures', () => {
     expect(meshUvsAt(later, 2.5, 0.5, 0.5)).not.toContainEqual([3.25, -0.1]);
   });
 
-  it('gives the same empty generator result, because Input Brushes receives no brushes', () => {
-    const left = compileGenerator([inputBrushes(WORLD)]);
-    const right = compileGenerator([inputBrushes('')]);
-    expect(left.error).toBe('');
-    expect(right.error).toBe('');
-    expect(signatureOf(left)).toBe(signatureOf(right));
-    expect(left.brushes).toHaveLength(0);
-    expect(left.meshes.every((mesh) => mesh === '')).toBe(true);
+  it('gives an empty generator result, because Input Brushes receives no brushes', () => {
+    const result = compileGenerator([inputBrushes()]);
+    expect(result.error).toBe('');
+    expect(result.brushes).toHaveLength(0);
+    expect(result.meshes.every((mesh) => mesh === '')).toBe(true);
   });
 });

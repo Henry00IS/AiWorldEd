@@ -53,12 +53,9 @@ describe('SolidScript listing', () => {
     );
   });
 
-  it('shows Textures on Input Brushes, and every Transform UVs field, only when it differs from its default', () => {
+  it('shows Input Brushes Into, and every Transform UVs field, only when it differs from its default', () => {
     expect(listed('input_brushes')).toBe('Input Brushes');
-    expect(listed('input_brushes', { textures: 'Move With Shape' })).toBe('Input Brushes');
-    expect(listed('input_brushes', { textures: 'World Aligned', into: 'Copy' })).toBe(
-      "Input Brushes Textures 'World Aligned' (Into 'Copy')",
-    );
+    expect(listed('input_brushes', { into: 'Copy' })).toBe("Input Brushes (Into 'Copy')");
     expect(listed('transform_uvs')).toBe('Transform UVs');
     expect(listed('transform_uvs', { offset: '0, 0, 0', scale: '2,2,2', rotate: '0', textures: '' })).toBe(
       "Transform UVs Scale '2,2,2'",

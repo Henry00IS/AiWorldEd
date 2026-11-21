@@ -270,7 +270,12 @@ describe('SolidScript UV commands', () => {
       shiftV: -1,
     });
     const direct = solidScriptProgramRun(
-      solidScriptDocumentCreate([{ command: 'input_brushes', values: { textures: 'World Aligned' } }]),
+      solidScriptDocumentCreate([
+        { command: 'input_brushes' },
+        SELECT_BRUSHES,
+        SELECT_ALL,
+        { command: 'transform_uvs', values: { textures: 'World Aligned' } },
+      ]),
       { use },
     );
     expect(direct.error?.message ?? null).toBeNull();
@@ -330,9 +335,9 @@ describe('SolidScript UV commands', () => {
 
 /**
  * Texture policy of the received brush after Input Brushes writes it Into
- * [Copy] with Textures and the lines given run on it.
+ * [Copy], Transform UVs sets Textures, and the lines given run on it.
  *
- * @param textures Input Brushes Textures.
+ * @param textures Transform UVs Textures.
  * @param lines Lines run on [Copy] before it is output.
  * @returns Policy of the output brush.
  */
@@ -341,7 +346,8 @@ function receivedPolicy(textures: string, ...lines: SolidScriptLine[]) {
   const use: SolidScriptUseFacts = { usage: 'Modifier', solids: [solidScriptUseSolidOf(corners)], faces: 6 };
   const result = solidScriptProgramRun(
     solidScriptDocumentCreate([
-      { command: 'input_brushes', values: { textures, into: 'Copy' } },
+      { command: 'input_brushes', values: { into: 'Copy' } },
+      { command: 'transform_uvs', values: { textures, of: '[Copy]' } },
       ...lines,
       { command: 'output', values: { of: '[Copy]' } },
     ]),
