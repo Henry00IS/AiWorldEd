@@ -1,3 +1,4 @@
+import type { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
 import type { SolidScriptValue } from './solid_script_value.js';
 import { SOLID_SCRIPT_MODE_DEFAULT, type SolidScriptGroupMode, type SolidScriptMode } from './solid_script_mode.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
@@ -295,6 +296,8 @@ export interface SolidScriptUseFaceTexture {
   normal: readonly [number, number, number];
   /** Texture identity. */
   texture: string;
+  /** Authored UV matrix in the same script space as the corners, when known. */
+  uv?: SurfaceUvMatrix;
 }
 
 /** Use of a run that sets none: a generator, which receives nothing. */

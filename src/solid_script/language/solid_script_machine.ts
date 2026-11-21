@@ -26,6 +26,7 @@ import {
 import { type SolidScriptPoint2 } from './solid_script_polygon.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
 import { solidScriptShapeTransform } from './solid_script_reshape.js';
+import { solidScriptUseFaceUvs } from './solid_script_uvs.js';
 import { solidScriptMeshChecked, solidScriptMeshTransform } from './solid_script_mesh.js';
 import { SolidScriptScope } from './solid_script_scope.js';
 import { solidScriptIntoAssigned } from './solid_script_into_assigned.js';
@@ -219,12 +220,14 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     const use = this.system.use;
     return (use?.solids ?? []).map((solid, index) => {
       const mode = use?.modes?.[index];
+      const faceUvs = solidScriptUseFaceUvs(use?.textures?.[index]);
       const leaf: SolidScriptGeometryLeaf = {
         kind: 'solid',
         label: solidScriptInputBrushName(index),
         points: solid.corners.map(([x, y, z]) => new THREE.Vector3(x, y, z)),
         faces: solid.faces.map((loop) => [...loop]),
         ...(mode ? { mode } : {}),
+        ...(faceUvs ? { faceUvs } : {}),
       };
       this.elements.modeRoleSet(leaf, mode ?? SOLID_SCRIPT_MODE_DEFAULT);
       return leaf;

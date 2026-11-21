@@ -27,6 +27,7 @@ import {
   modifierStackSolidScriptPassedModeUnits,
 } from './modifier_stack_solid_script_passed_mode.js';
 import { modifierStackSolidScriptHostMode } from './modifier_stack_solid_script_host_mode.js';
+import { modifierStackSolidScriptReceivedFaces } from './modifier_stack_solid_script_received_faces.js';
 import { modifierStackSolidScriptReceivedWrite } from './modifier_stack_solid_script_received.js';
 
 /**
@@ -139,20 +140,7 @@ export class ModifierStackKindSolidScriptModifier extends ModifierStackKindSolid
       })),
       modes: brushes.map((brush) => solidScriptBrushModeLabel(brush.operation)),
       faces: brushes.reduce((sum, brush) => sum + brush.brush.faces.length, 0),
-      textures: brushes.map((brush) => {
-        const placed = brush.getModelSpaceBrush();
-        placed.transformVertices(toFrame);
-        return placed.faces.map((face, index) => {
-          const points = placed.getFaceVertices(face);
-          const middle = points.reduce((sum, point) => sum.add(point), new THREE.Vector3()).divideScalar(points.length);
-          const normal = placed.planes[index]!.normal;
-          return {
-            point: centred(middle),
-            normal: [normal.x, normal.y, normal.z] as const,
-            texture: brush.getSurfaceTextureId(face.surfaceIndex),
-          };
-        });
-      }),
+      textures: modifierStackSolidScriptReceivedFaces(brushes, toFrame, centre),
     };
     const size = box.getSize(new THREE.Vector3());
     modifierStackSolidScriptReceivedWrite(context.volume, context.step.id, {

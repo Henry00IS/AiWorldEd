@@ -77,8 +77,9 @@ function solidScriptInputBrushesOne(
     texture: face.texture,
   }));
   const received = solidScriptInputBrushesReceived(index, matrix, textures, leaf);
+  const faceUvs = leaf && leaf.kind === 'solid' ? leaf.faceUvs : undefined;
   return run
-    .solid(solidScriptInputBrushesBody(leaf, solid, solidScriptInputBrushName(index)))
+    .solid(solidScriptInputBrushesBody(leaf, solid, solidScriptInputBrushName(index)), faceUvs)
     .map((shape) => solidScriptInputBrushesSolid(shape, faceTextures, received, mode));
 }
 

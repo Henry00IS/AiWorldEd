@@ -12,11 +12,30 @@ import {
 import { solidScriptValueNumbers, type SolidScriptValue } from './solid_script_value.js';
 import type { SolidScriptShapeMesh } from './solid_script_mesh.js';
 import type { SolidScriptFaceUv, SolidScriptShapeSolid } from './solid_script_shape.js';
+import type { SolidScriptUseFaceTexture } from './solid_script_system.js';
 import { DEFAULT_CHECKER_TEXTURE_ID } from '@/texture/library/texture_id.js';
 
 /** Closest a stored UV record may be to a face plane to count as that face. */
 const SOLID_SCRIPT_FACE_UV_ALIGN = 0.99;
 const SOLID_SCRIPT_FACE_UV_GAP = 1e-4;
+
+/**
+ * Turns received face records that carry a UV matrix into script-space UV
+ * records Input Brushes can store on a solid.
+ *
+ * @param faces Received face textures, when any.
+ * @returns Records, or none when no face has a matrix.
+ */
+export function solidScriptUseFaceUvs(
+  faces: readonly SolidScriptUseFaceTexture[] | undefined,
+): SolidScriptFaceUv[] | undefined {
+  const mapped = (faces ?? []).flatMap((face) =>
+    face.uv
+      ? [{ point: new THREE.Vector3(...face.point), normal: new THREE.Vector3(...face.normal), uv: face.uv }]
+      : [],
+  );
+  return mapped.length > 0 ? mapped : undefined;
+}
 
 /**
  * Builds a stored UV record for one face, in script space.
