@@ -8,6 +8,7 @@ import type { ModifierStackContext } from './modifier_stack_context.js';
 import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
 import { modifierStackValidUnits } from './modifier_stack_validity.js';
 import {
+  modifierStackMeshAnchor,
   modifierStackMeshesShow,
   type ModifierStackMeshOutput,
 } from '@/modifier/stack/meshes/modifier_stack_meshes.js';
@@ -50,7 +51,7 @@ export function modifierStackEvaluateVolume(
       units = modifierStackValidStepUnits(kind.apply(units, { ...shared, volume, step, report, meshes }), report);
     report.outputs = modifierStackBrushCount(units);
   });
-  if (shared.ownsGenerated) modifierStackMeshesShow(volume, meshes);
+  if (shared.ownsGenerated) modifierStackMeshesShow(volume, meshes, modifierStackMeshAnchor(volume, shared.solidRoot));
   return { units, reports };
 }
 
