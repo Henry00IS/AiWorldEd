@@ -406,6 +406,13 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
     group: 'Path',
     gives: ['List'],
   },
+  resample_every: {
+    usage: 'ResampleEvery(points, distance)',
+    summary:
+      'Points a fixed distance apart along a path, from its start, keeping its end as a shorter last step, such as ResampleEvery([[0, 0, 0], [1, 0, 0]], 0.4).',
+    group: 'Path',
+    gives: ['List'],
+  },
   profile_points: {
     usage: 'ProfilePoints(curve, height, radius)',
     summary:
@@ -691,6 +698,9 @@ const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
   is_bool: { value: { type: 'Any', about: 'The value to check.' } },
   curve_at: { x: { type: ['Number'], about: 'Where on the curve, from 0 to 1.', start: '0.5' } },
   resample: { count: { type: ['Number'], about: 'How many points to give.', start: '8' } },
+  resample_every: {
+    distance: { type: ['Number'], about: 'How far apart the points are, at least 0.01.', start: '0.5' },
+  },
   hash: { value: { type: 'Any', about: 'The value to hash.' } },
   path_at: {
     amount: { type: ['Number'], about: 'How far along the path: 0 is the start, 1 is the end.', start: '0.5' },

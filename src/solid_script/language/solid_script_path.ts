@@ -157,22 +157,47 @@ function solidScriptPathGap(a: readonly number[], b: readonly number[]): number 
  */
 export function solidScriptPathResample(path: readonly number[][], count: number): number[][] {
   const total = solidScriptPathLength(path);
-  const result: number[][] = [];
+  return solidScriptPathSample(
+    path,
+    Array.from({ length: count }, (_, index) => (total * index) / (count - 1)),
+  );
+}
+
+/**
+ * Places points a fixed distance apart along a path from its start, and keeps
+ * its end as a last, shorter step when the length does not divide evenly.
+ *
+ * @param path Points, at least 2.
+ * @param step Distance between points, above 0.
+ * @returns Points.
+ */
+export function solidScriptPathResampleEvery(path: readonly number[][], step: number): number[][] {
+  const total = solidScriptPathLength(path);
+  const whole = Math.floor(total / step + 1e-9);
+  const targets = Array.from({ length: whole + 1 }, (_, index) => Math.min(total, index * step));
+  if (total - whole * step > 1e-6) targets.push(total);
+  return solidScriptPathSample(path, targets);
+}
+
+/**
+ * Points at rising distances along a path.
+ *
+ * @param path Points, at least 2.
+ * @param targets Distances from the start, smallest first.
+ * @returns Points.
+ */
+function solidScriptPathSample(path: readonly number[][], targets: readonly number[]): number[][] {
   let stretch = 1;
   let walked = 0;
-  for (let index = 0; index < count; index++) {
-    const target = (total * index) / (count - 1);
-    while (stretch < path.length - 1 && walked + solidScriptPathGap(path[stretch - 1]!, path[stretch]!) < target) {
-      walked += solidScriptPathGap(path[stretch - 1]!, path[stretch]!);
-      stretch++;
-    }
-    const a = path[stretch - 1]!;
-    const b = path[stretch]!;
-    const gap = solidScriptPathGap(a, b);
+  const gapAt = (at: number): number => solidScriptPathGap(path[at - 1] ?? [], path[at] ?? []);
+  return targets.map((target) => {
+    while (stretch < path.length - 1 && walked + gapAt(stretch) < target) walked += gapAt(stretch++);
+    const a = path[stretch - 1] ?? [];
+    const b = path[stretch] ?? [];
+    const gap = gapAt(stretch);
     const t = gap > 0 ? Math.min(1, Math.max(0, (target - walked) / gap)) : 0;
-    result.push(a.map((value, axis) => value + ((b[axis] ?? 0) - value) * t));
-  }
-  return result;
+    return a.map((value, axis) => value + ((b[axis] ?? 0) - value) * t);
+  });
 }
 
 /** A point on a path and the way the path faces there. */

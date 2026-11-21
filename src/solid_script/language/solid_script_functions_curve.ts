@@ -8,6 +8,7 @@ import {
   solidScriptPathDirection,
   solidScriptPathLength,
   solidScriptPathResample,
+  solidScriptPathResampleEvery,
   solidScriptPathTrim,
 } from './solid_script_path.js';
 import {
@@ -85,6 +86,15 @@ export const SOLID_SCRIPT_FUNCTIONS_CURVE = {
     const count = Math.round(solidScriptExtraNumber(args, 1, usage));
     if (count < 2 || count > 10000) throw new Error(`${usage} needs a count from 2 to 10000, not ${count}`);
     return solidScriptPathResample(path, count);
+  },
+  resample_every: (args) => {
+    const usage = 'ResampleEvery(points, distance)';
+    const path = solidScriptCurvePath(args, usage);
+    if (path.length < 2) throw new Error(`${usage} needs at least 2 points`);
+    const step = solidScriptExtraNumber(args, 1, usage);
+    if (!(step >= 0.01)) throw new Error(`${usage} needs a distance of at least 0.01, not ${step}`);
+    if (solidScriptPathLength(path) / step > 10000) throw new Error(`${usage} would give more than 10000 points`);
+    return solidScriptPathResampleEvery(path, step);
   },
   path_at: (args) => {
     const usage = 'PathAt(points, amount)';
