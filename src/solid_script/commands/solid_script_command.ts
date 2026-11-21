@@ -337,7 +337,8 @@ interface SolidScriptCommandFields {
 
 /**
  * Works out the fields of a command: a builder gets a name and where it goes, a
- * tool without its own Into gets one to write a copy; the listing shows them.
+ * 2D shape a variable for its outline, and a tool without its own Into gets one
+ * to write a copy; the listing shows them.
  *
  * @param spec Command spec.
  * @returns Fields.
@@ -347,11 +348,15 @@ function solidScriptCommandFields(spec: SolidScriptCommandSpec): SolidScriptComm
   const intoList = spec.intoList === true;
   const builds = spec.builds ?? (named && spec.category !== '2D Shapes');
   const edits = spec.edits === true;
-  const into = builds ? [solidScriptCommandBuiltInto(intoList)] : [];
+  const into = builds
+    ? [solidScriptCommandBuiltInto(intoList)]
+    : spec.category === '2D Shapes'
+      ? [solidScriptParameterInto('the outline it draws, an Outline', 'Outline', 'outline drawn', 'label')]
+      : [];
   const given = named ? [...spec.parameters, solidScriptParameterShapeName(), ...into] : [...spec.parameters, ...into];
   const writeCopy = edits && !given.some((field) => field.key === 'into');
   const parameters = writeCopy ? [...given, solidScriptParameterToolInto()] : given;
-  const listing = solidScriptCommandListing(spec, named, builds, writeCopy);
+  const listing = solidScriptCommandListing(spec, named, into.length > 0 || writeCopy);
   return { named, intoList, builds, edits, writeCopy, parameters, listing };
 }
 
@@ -538,21 +543,20 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
  *
  * @param spec Command spec.
  * @param named Whether the line has a Name field.
- * @param builds Whether a building line writes Into.
- * @param writeCopy Whether an edit tool adds Into.
+ * @param intoAdded Whether the line gets an added Into field: a builder, a 2D
+ *   shape, or an edit tool that writes a copy.
  * @returns Listing writer.
  */
 function solidScriptCommandListing(
   spec: SolidScriptCommandSpec,
   named: boolean,
-  builds: boolean,
-  writeCopy: boolean,
+  intoAdded: boolean,
 ): SolidScriptListingWrite {
-  if (!named && !writeCopy && !builds) return spec.listing;
+  if (!named && !intoAdded) return spec.listing;
   return (read) => {
     const pieces = spec.listing(read);
     const name = named ? read.text(SOLID_SCRIPT_SHAPE_NAME_KEY) : '';
-    const into = builds || writeCopy ? read.text('into') : '';
+    const into = intoAdded ? read.text('into') : '';
     return [
       ...pieces,
       ...(name === '' ? [] : [' Named ', solidScriptListingValue(name)]),

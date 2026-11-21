@@ -18,6 +18,7 @@ export const SOLID_SCRIPT_KINDS = [
   'Vector',
   'Brush',
   'Mesh',
+  'Outline',
   'Face',
   'Edge',
   'Vertex',

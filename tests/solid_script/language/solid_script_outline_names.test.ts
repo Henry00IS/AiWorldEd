@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
+import { solidScriptDocumentListing } from '@/solid_script/document/solid_script_document_listing.js';
+import { solidScriptKindCheck } from '@/solid_script/document/solid_script_document_kind_check.js';
 import { solidScriptShapeLeavesPositive, type SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
 
 const END: SolidScriptLine = { command: 'end' };
@@ -288,5 +290,26 @@ describe('SolidScript outlines read by Name', () => {
       expect(twice.error?.message).toBeUndefined();
       expect(bounds(twice.shapes)).toEqual(bounds(once.shapes));
     }
+  });
+
+  it('writes each outline Into its variable, so Move By Of the variable moves exactly that outline', () => {
+    const block = (radius: string): SolidScriptLine[] => [
+      line('rotate_extrude', { sides: '8' }),
+      line('circle', { r: radius, label: 'Boing', into: 'C' }),
+      line('move_by', { by: '8, 0, 0', of: '[C]' }),
+      END,
+    ];
+    const result = run(...block('1'), ...block('0.5'), line('echo', { value: '[C]' }));
+    expect(result.error?.message).toBeUndefined();
+    expect(result.messages).toEqual(['Boing']);
+    expect(solids(result.shapes)).toBe(16);
+    const [minX, , , maxX] = bounds(result.shapes);
+    expect(minX).toBeLessThan(-8);
+    expect(maxX).toBeGreaterThan(8);
+    const ring = bounds(run(...block('1')).shapes);
+    expect(bounds(result.shapes)).toEqual(ring);
+    const document = solidScriptDocumentCreate([...block('1'), line('echo', { value: '[C]' })]);
+    expect(solidScriptKindCheck(document)).toEqual([]);
+    expect(solidScriptDocumentListing(document).join('\n')).toMatch(/Circle .* Into .*C/);
   });
 });

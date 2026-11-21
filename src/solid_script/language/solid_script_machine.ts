@@ -906,7 +906,13 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
           const point = new THREE.Vector3(x, y, 0).applyMatrix4(state.context.matrix);
           return [point.x, point.y];
         });
-        return [{ kind: 'polygon', label: labelOf(), points: moved }];
+        const outline: SolidScriptShapePolygon = { kind: 'polygon', label: labelOf(), points: moved };
+        const into = node.command
+          .valueText(node.values, 'into')
+          .trim()
+          .replace(/^\[(.*)\]$/s, '$1');
+        if (into !== '') state.machine.variableSet(state.scope, into, state.machine.outlines.element(outline));
+        return [outline];
       },
       transformed: (matrix) => inside({ ...state.context, matrix: state.context.matrix.clone().multiply(matrix) }),
       hulled: (extra = []) =>
