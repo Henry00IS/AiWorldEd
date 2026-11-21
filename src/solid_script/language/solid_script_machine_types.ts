@@ -15,10 +15,11 @@ import type {
   SolidScriptFaceUv,
   SolidScriptShape,
   SolidScriptShapeLeaf,
+  SolidScriptShapePolygon,
   SolidScriptShapeSolid,
 } from './solid_script_shape.js';
 import type { SolidScriptUseFacts } from './solid_script_system.js';
-import type { SolidScriptValue } from './solid_script_value.js';
+import type { SolidScriptElement, SolidScriptValue } from './solid_script_value.js';
 
 /** One field of a command, as the machine reads it. */
 export interface SolidScriptMachineField {
@@ -38,6 +39,8 @@ export interface SolidScriptMachineField {
    * only names new faces, edges, points or other values.
    */
   into?: 'copy' | 'label';
+  /** Set on an Of field that also reads the flat outlines a Name gives. */
+  outlines?: boolean;
 }
 
 /** What the machine needs from a command: its structure and its own run step. */
@@ -252,6 +255,10 @@ export interface SolidScriptBlockRun {
   leafReplace(leaf: SolidScriptGeometryLeaf, by: SolidScriptGeometryLeaf): void;
   /** Returns what a solid or mesh became after the swaps since it was read. */
   leafLatest(leaf: SolidScriptGeometryLeaf): SolidScriptGeometryLeaf;
+  /** Reads an outline element as the outline is now. */
+  outlineLatest(element: SolidScriptElement): SolidScriptShapePolygon;
+  /** Swaps an outline for its changed version, wherever it was built. */
+  outlineReplace(element: SolidScriptElement, by: SolidScriptShapePolygon): void;
   /** Starts a copy session so an Into tool leaves the original alone. */
   toolCopyStart(): void;
   /** Ends a copy session. */

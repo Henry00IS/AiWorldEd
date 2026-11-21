@@ -45,10 +45,10 @@ export const SOLID_SCRIPT_TRANSFORM_TOOL_IDS = [
 ] as const;
 
 /** Shared Of field of the flat transform tools, including Move By and Move To. */
-const SOLID_SCRIPT_TRANSFORM_OF = solidScriptParameterOf('brushes, meshes or points', '$Selected.Brushes', [
-  'Brush',
-  'Vector',
-]);
+const SOLID_SCRIPT_TRANSFORM_OF: SolidScriptCommandParameter = {
+  ...solidScriptParameterOf('brushes, meshes, outlines or points', '$Selected.Brushes', ['Brush', 'Vector']),
+  outlines: true,
+};
 
 /**
  * Commands that change the space later lines work in, or transform existing

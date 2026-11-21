@@ -3,7 +3,12 @@ import type { SolidScriptGeometryLeaf } from './solid_script_geometry.js';
 import { solidScriptGeometryFaceMatrix } from './solid_script_geometry.js';
 import { solidScriptKindNamed, solidScriptKindOf } from './solid_script_kinds.js';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
-import { solidScriptResizeFactors, solidScriptResizeSize, solidScriptShapeTransform } from './solid_script_reshape.js';
+import {
+  solidScriptOutlineTransform,
+  solidScriptResizeFactors,
+  solidScriptResizeSize,
+  solidScriptShapeTransform,
+} from './solid_script_reshape.js';
 import { solidScriptRunValueOptional } from './solid_script_run_optional.js';
 import { solidScriptOfEmpty } from './solid_script_select.js';
 import { SolidScriptElement, type SolidScriptValue } from './solid_script_value.js';
@@ -14,10 +19,25 @@ import {
   solidScriptScaleMatrix,
 } from './solid_script_transforms.js';
 
-/** Brushes and meshes, or a list of points, that a transform line works on. */
+/**
+ * Brushes and meshes, flat outlines, or a list of points, that a transform line
+ * works on.
+ */
 export type SolidScriptTransformPicked =
   | { readonly kind: 'leaves'; readonly leaves: readonly SolidScriptGeometryLeaf[] }
-  | { readonly kind: 'points'; readonly points: readonly THREE.Vector3[] };
+  | { readonly kind: 'points'; readonly points: readonly THREE.Vector3[] }
+  | {
+      readonly kind: 'outlines';
+      readonly outlines: readonly SolidScriptElement[];
+      readonly points: readonly THREE.Vector3[];
+    };
+
+/** What the values of Of turned out to be, collected one by one. */
+interface SolidScriptTransformTargets {
+  leaves: SolidScriptGeometryLeaf[];
+  points: THREE.Vector3[];
+  outlines: SolidScriptElement[];
+}
 
 /**
  * Matrix that applies a local transform in the current space: local numbers are
@@ -96,7 +116,30 @@ export function solidScriptTransformApplyWorld(run: SolidScriptBlockRun, label: 
     );
     return;
   }
+  if (picked.kind === 'outlines') {
+    solidScriptTransformOutlines(run, label, picked.outlines, world);
+    return;
+  }
   for (const leaf of picked.leaves) solidScriptTransformReplace(run, leaf, world);
+}
+
+/**
+ * Applies a script-space transform to flat outlines, in place.
+ *
+ * @param run Running line.
+ * @param label Command, for messages.
+ * @param outlines Outline elements.
+ * @param world Transform in script space.
+ */
+function solidScriptTransformOutlines(
+  run: SolidScriptBlockRun,
+  label: string,
+  outlines: readonly SolidScriptElement[],
+  world: THREE.Matrix4,
+): void {
+  if (run.text('into').trim() !== '') throw new Error(`${label} changes an outline where it is; leave Into empty`);
+  for (const element of outlines)
+    run.outlineReplace(element, solidScriptOutlineTransform(run.outlineLatest(element), world));
 }
 
 /**
@@ -252,12 +295,30 @@ export function solidScriptTransformPicked(run: SolidScriptBlockRun, label: stri
   const given = run.ofValues();
   const values = given ?? run.selectedGet('brushes');
   if (values.length === 0) throw new Error(solidScriptTransformEmpty(label, given !== null));
-  const leaves: SolidScriptGeometryLeaf[] = [];
-  const points: THREE.Vector3[] = [];
-  for (const value of values) solidScriptTransformCollect(run, label, value, leaves, points);
+  const targets: SolidScriptTransformTargets = { leaves: [], points: [], outlines: [] };
+  for (const value of values) solidScriptTransformCollect(run, label, value, targets);
+  const { leaves, points, outlines } = targets;
+  if (outlines.length > 0 && leaves.length + points.length > 0)
+    throw new Error(`${label} works on outlines on their own, not mixed with brushes, meshes or points`);
+  if (outlines.length > 0)
+    return { kind: 'outlines', outlines, points: solidScriptTransformOutlinePoints(run, outlines) };
   if (leaves.length > 0 && points.length > 0)
     throw new Error(`${label} works on brushes and meshes, or on a list of points, not both at once`);
   return points.length > 0 ? { kind: 'points', points } : { kind: 'leaves', leaves };
+}
+
+/**
+ * Points of flat outlines, at Z 0.
+ *
+ * @param run Running line.
+ * @param outlines Outline elements.
+ * @returns Points in script space.
+ */
+function solidScriptTransformOutlinePoints(
+  run: SolidScriptBlockRun,
+  outlines: readonly SolidScriptElement[],
+): THREE.Vector3[] {
+  return outlines.flatMap((element) => run.outlineLatest(element).points.map(([x, y]) => new THREE.Vector3(x, y, 0)));
 }
 
 /**
@@ -368,32 +429,34 @@ function solidScriptTransformEmpty(label: string, given: boolean): string {
 }
 
 /**
- * Adds one Of or selection value as a leaf or a point.
+ * Adds one Of or selection value as a leaf, an outline or a point.
  *
  * @param run Running line.
  * @param label Command, for messages.
  * @param value Value.
- * @param leaves Leaves already collected.
- * @param points Points already collected.
+ * @param targets What was collected so far.
  */
 function solidScriptTransformCollect(
   run: SolidScriptBlockRun,
   label: string,
   value: SolidScriptValue,
-  leaves: SolidScriptGeometryLeaf[],
-  points: THREE.Vector3[],
+  targets: SolidScriptTransformTargets,
 ): void {
   if (solidScriptKindOf(value) === 'Vector') {
-    points.push(solidScriptTransformVector(value));
+    targets.points.push(solidScriptTransformVector(value));
+    return;
+  }
+  if (value instanceof SolidScriptElement && value.kind === 'outline') {
+    if (!targets.outlines.includes(value)) targets.outlines.push(value);
     return;
   }
   if (value instanceof SolidScriptElement && value.kind === 'brush') {
     const leaf = run.leafLatest(run.elements.leaf(value));
-    if (!leaves.includes(leaf)) leaves.push(leaf);
+    if (!targets.leaves.includes(leaf)) targets.leaves.push(leaf);
     return;
   }
   throw new Error(
-    `${label} takes brushes, meshes or points, not ${solidScriptKindNamed(value)}; give those in Of, or leave Of empty to use [$Selected.Brushes]`,
+    `${label} takes brushes, meshes, outlines or points, not ${solidScriptKindNamed(value)}; give those in Of, or leave Of empty to use [$Selected.Brushes]`,
   );
 }
 
@@ -418,7 +481,7 @@ function solidScriptTransformVector(value: SolidScriptValue): THREE.Vector3 {
  * @returns Points in script space.
  */
 function solidScriptTransformPickedPoints(picked: SolidScriptTransformPicked): THREE.Vector3[] {
-  return picked.kind === 'points' ? [...picked.points] : picked.leaves.flatMap((leaf) => leaf.points);
+  return picked.kind === 'leaves' ? picked.leaves.flatMap((leaf) => leaf.points) : [...picked.points];
 }
 
 /**

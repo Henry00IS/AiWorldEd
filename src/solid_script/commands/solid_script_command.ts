@@ -164,6 +164,8 @@ export interface SolidScriptCommandParameter {
   nameGroups?: readonly string[];
   /** Kinds of value the field accepts. */
   accepts: SolidScriptCommandAccepts;
+  /** Set on an Of field that also reads the flat outlines a Name gives. */
+  outlines?: boolean;
   /**
    * Set for a field naming a variable the line writes or changes: what it gives
    * the variable, and how it offers names: name offers the script's variables

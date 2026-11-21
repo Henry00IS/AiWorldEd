@@ -282,7 +282,7 @@ describe('SolidScript faces', () => {
       }),
     ).toBe(12);
     const missing = run(...lines, select('All', { of: 'Handle' }));
-    expect(missing.error?.message).toContain('No brush or mesh above is named "Handle"');
+    expect(missing.error?.message).toContain('No brush, mesh or outline above is named "Handle"');
     expect(solidScriptDocumentListing(solidScriptDocumentCreate([lines[0]!, select('All', { of: 'Knob' })]))).toEqual([
       "Cube '4, 4, 1' Named 'Base'",
       "Select Faces 'All' Of 'Knob'",

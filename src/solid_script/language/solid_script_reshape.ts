@@ -14,6 +14,7 @@ import {
   solidScriptShapeLeavesPositive,
   solidScriptShapeMapLeaves,
   type SolidScriptShape,
+  type SolidScriptShapePolygon,
   type SolidScriptShapeSolid,
 } from './solid_script_shape.js';
 
@@ -68,14 +69,29 @@ export function solidScriptShapeTransform(shape: SolidScriptShape, matrix: THREE
       ? solidScriptSolidTransform(leaf, matrix)
       : leaf.kind === 'mesh'
         ? solidScriptMeshTransform(leaf, matrix)
-        : {
-            ...leaf,
-            points: leaf.points.map(([x, y]): SolidScriptPoint2 => {
-              const point = new THREE.Vector3(x, y, 0).applyMatrix4(matrix);
-              return [point.x, point.y];
-            }),
-          },
+        : solidScriptOutlineTransform(leaf, matrix),
   );
+}
+
+/**
+ * Applies a matrix to a flat outline; where a point lands off the flat plane,
+ * only its X and Y are kept.
+ *
+ * @param outline Outline.
+ * @param matrix Matrix.
+ * @returns Transformed outline.
+ */
+export function solidScriptOutlineTransform(
+  outline: SolidScriptShapePolygon,
+  matrix: THREE.Matrix4,
+): SolidScriptShapePolygon {
+  return {
+    ...outline,
+    points: outline.points.map(([x, y]): SolidScriptPoint2 => {
+      const point = new THREE.Vector3(x, y, 0).applyMatrix4(matrix);
+      return [point.x, point.y];
+    }),
+  };
 }
 
 /**

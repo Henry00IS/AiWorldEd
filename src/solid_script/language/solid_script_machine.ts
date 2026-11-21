@@ -55,6 +55,7 @@ import {
 } from './solid_script_machine_runs.js';
 import { solidScriptGeometryLeaves, type SolidScriptGeometryLeaf } from './solid_script_geometry.js';
 import { SolidScriptOutputProcessed } from './solid_script_output_processed.js';
+import { SolidScriptOutlines } from './solid_script_outlines.js';
 import { solidScriptGeneratorPiecesCacheClear } from './solid_script_generator_pieces.js';
 import { solidScriptBodyHull, type SolidScriptBody } from './solid_script_body.js';
 import {
@@ -63,8 +64,10 @@ import {
   solidScriptShapeMapLeaves,
   type SolidScriptFaceUv,
   type SolidScriptShape,
+  type SolidScriptShapePolygon,
   type SolidScriptShapeSolid,
   SOLID_SCRIPT_SHAPE_NAME_KEY,
+  solidScriptShapeLeavesPositive,
   solidScriptShapesNamed,
   solidScriptLeafRewritten,
 } from './solid_script_shape.js';
@@ -150,6 +153,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   private received: SolidScriptGeometryLeaf[] | null = null;
   /** What each swapped solid or mesh became. */
   private readonly leafSwaps = new Map<SolidScriptGeometryLeaf, SolidScriptGeometryLeaf>();
+  /** Flat outlines lines have read by Name. */
+  private readonly outlines = new SolidScriptOutlines();
   /** How many Group or Part blocks are around the running line. */
   private groupDepth = 0;
   /**
@@ -382,8 +387,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
 
   /**
    * Reads one value of an Of field: an element as it is, a value that is not
-   * text as it is, a name as the brushes that have it, and any other kind stops
-   * with what the field takes.
+   * text as it is, a name as the brushes, or else the flat outlines, that have
+   * it, and any other kind stops with what the field takes.
    *
    * @param field The Of field, with the kinds it accepts.
    * @param entry Value.
@@ -402,9 +407,34 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       ...this.shapesLatest(this.builtStack.flat()),
       ...(this.received ?? []).map((leaf) => this.leafLatestOf(leaf)),
     ];
-    const leaves = solidScriptGeometryLeaves(solidScriptShapesNamed(built, name));
-    if (leaves.length === 0) throw new Error(`No brush or mesh above is named "${name}"; give one a Name first`);
-    return leaves.map((leaf) => this.elements.brush(leaf));
+    const named = solidScriptShapesNamed(built, name);
+    const leaves = solidScriptGeometryLeaves(named);
+    if (leaves.length > 0) return leaves.map((leaf) => this.elements.brush(leaf));
+    return this.ofOutlines(field, name, named);
+  }
+
+  /**
+   * Reads the flat outlines among the shapes with a Name, as an Of field gets
+   * them.
+   *
+   * @param field The Of field, which tells whether it takes outlines.
+   * @param name Name.
+   * @param named Shapes with that Name.
+   * @returns Outline elements.
+   */
+  private ofOutlines(
+    field: SolidScriptMachineField,
+    name: string,
+    named: readonly SolidScriptShape[],
+  ): SolidScriptValue[] {
+    const outlines = named
+      .flatMap(solidScriptShapeLeavesPositive)
+      .filter((leaf): leaf is SolidScriptShapePolygon => leaf.kind === 'polygon');
+    if (outlines.length === 0)
+      throw new Error(`No brush, mesh or outline above is named "${name}"; give one a Name first`);
+    if (field.outlines !== true)
+      throw new Error(`"${name}" is a flat outline, and this line works on brushes and meshes`);
+    return outlines.map((outline) => this.outlines.element(outline));
   }
 
   /**
@@ -988,6 +1018,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       leafReplace: (leaf, found) => {
         state.machine.leafRewrite(leaf, found);
       },
+      outlineLatest: (element) => state.machine.outlines.outline(element),
+      outlineReplace: (element, by) => state.machine.outlines.replace(element, by, state.machine.builtStack),
       toolCopyStart: () => state.machine.toolCopyStart(),
       toolCopyEnd: () => state.machine.toolCopyEnd(),
       toolCopyResults: () => state.machine.toolCopyResults(),
