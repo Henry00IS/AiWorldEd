@@ -12,6 +12,7 @@ import {
   modifierStackReshapeClip,
   modifierStackReshapeTransform,
   modifierStackReshapedOf,
+  modifierStackReplacedIds,
 } from '@/modifier/stack/evaluate/modifier_stack_reshape.js';
 
 /**
@@ -52,6 +53,16 @@ describe('modifier stack reshape', () => {
     hidden.pullTransformFromMesh();
     expect(hidden.visible).toBe(false);
     expect(modifierStackHiddenStandIn(brush)).toBe(hidden);
+  });
+
+  it('lists the authored ids the last compile replaced', () => {
+    const { brush } = movedBox();
+    const hidden = modifierStackHiddenStandIn(brush);
+    const scope = 'reshape-replaced-ids';
+    expect(modifierStackReshapeChanged(scope, new Map([[brush.id, hidden]]))).toEqual([brush.id]);
+    expect(modifierStackReplacedIds(scope)).toEqual([brush.id]);
+    expect(modifierStackReshapeChanged(scope, new Map())).toEqual([brush.id]);
+    expect(modifierStackReplacedIds(scope)).toEqual([]);
   });
 
   it('collects reshaped authored brushes and tracks which replacements changed', () => {

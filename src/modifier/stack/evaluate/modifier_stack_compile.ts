@@ -9,7 +9,10 @@ import {
   modifierGeneratorsActive,
   modifierVolumeSceneRoot,
   modifierVolumesActive,
+  modifierVolumesAll,
+  modifierStackNodesActive,
 } from '@/modifier/stack/modifier_volume.js';
+import { modifierStackMeshesShow, modifierStackMeshesShown } from '@/modifier/stack/meshes/modifier_stack_meshes.js';
 import {
   modifierStackGeneratorPiecesSwap,
   modifierStackGeneratorPiecesTouched,
@@ -340,7 +343,9 @@ function modifierStackRunAll(
 ): ModifierStackRun[] {
   const cache = modifierStackCacheOf(shared.solidRoot);
   const runs = captures.map((capture) => modifierStackRunCached(capture, shared, sceneRoot, cache));
-  modifierStackCachePrune(shared.solidRoot, new Set([...live, ...captures.map((capture) => capture.volume.uuid)]));
+  const evaluated = new Set([...live, ...captures.map((capture) => capture.volume.uuid)]);
+  modifierStackCachePrune(shared.solidRoot, evaluated);
+  modifierStackMeshesClearIdle(shared.solidRoot, sceneRoot, evaluated);
   return runs;
 }
 
@@ -512,6 +517,62 @@ function modifierStackBudgetSpent(
   before: number,
 ): Pick<ModifierStackCacheEntry, 'budgetUsed' | 'budgetBefore' | 'budgetLimited'> {
   return { budgetUsed: before - budget.remaining(), budgetBefore: before, budgetLimited: budget.limited() };
+}
+
+/**
+ * Removes shown meshes from volumes this solid owns that did not evaluate, so a
+ * hidden or disabled volume does not leave its mesh behind.
+ *
+ * @param solidRoot Solid root.
+ * @param sceneRoot Scene root.
+ * @param evaluated Uuids of volumes and generator nodes that ran.
+ */
+function modifierStackMeshesClearIdle(
+  solidRoot: THREE.Object3D,
+  sceneRoot: THREE.Object3D,
+  evaluated: ReadonlySet<string>,
+): void {
+  for (const volume of modifierVolumesAll(sceneRoot)) {
+    if (evaluated.has(volume.uuid)) continue;
+    if (modifierStackGeneratedOwner(volume, sceneRoot) !== solidRoot) continue;
+    modifierStackMeshesShow(volume, []);
+  }
+}
+
+/**
+ * Returns whether this solid still shows a mesh on a volume or generator that
+ * is hidden or disabled, so a rebuild can take the mesh down.
+ *
+ * @param solidRoot Solid root.
+ * @returns True when an idle owned volume still shows a mesh.
+ */
+export function modifierStackMeshesIdleOwned(solidRoot: THREE.Object3D): boolean {
+  const sceneRoot = modifierVolumeSceneRoot(solidRoot);
+  const active = new Set(modifierStackNodesActive(sceneRoot).map((node) => node.uuid));
+  return modifierVolumesAll(sceneRoot).some((volume) =>
+    modifierStackMeshOwnedIdle(volume, solidRoot, sceneRoot, active),
+  );
+}
+
+/**
+ * Returns whether a volume belongs to the solid, is not evaluating, and still
+ * shows a mesh.
+ *
+ * @param volume Modifier volume or generator node.
+ * @param solidRoot Solid root.
+ * @param sceneRoot Scene root.
+ * @param active Uuids of visible, enabled volumes and generator nodes.
+ * @returns True when the shown mesh is stale.
+ */
+function modifierStackMeshOwnedIdle(
+  volume: THREE.Object3D,
+  solidRoot: THREE.Object3D,
+  sceneRoot: THREE.Object3D,
+  active: ReadonlySet<string>,
+): boolean {
+  if (active.has(volume.uuid)) return false;
+  if (modifierStackGeneratedOwner(volume, sceneRoot) !== solidRoot) return false;
+  return modifierStackMeshesShown(volume).length > 0;
 }
 
 /**

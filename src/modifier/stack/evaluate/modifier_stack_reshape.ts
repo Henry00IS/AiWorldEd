@@ -163,3 +163,14 @@ export function modifierStackReshapeChanged(
   const ids = new Set([...previous.keys(), ...replaced.keys()]);
   return [...ids].filter((id) => previous.get(id) !== replaced.get(id));
 }
+
+/**
+ * Returns the authored ids that the last compile of a solid replaced, such as
+ * hidden stand-ins Mesh From Brushes leaves while it shows its mesh.
+ *
+ * @param scopeId Solid identity.
+ * @returns Authored ids with a replacement.
+ */
+export function modifierStackReplacedIds(scopeId: string): string[] {
+  return [...(modifierStackReplacedByScope.get(scopeId)?.keys() ?? [])];
+}

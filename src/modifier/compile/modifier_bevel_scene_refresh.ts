@@ -11,7 +11,11 @@ import {
 } from '@/modifier/stack/modifier_volume.js';
 import { modifierStackBrushTouches, modifierStackUnder } from '@/modifier/stack/evaluate/modifier_stack_capture.js';
 import { modifierStackOwnersActive } from '@/modifier/stack/owner/modifier_stack_owner.js';
-import { modifierStackDerivedByRoot } from '@/modifier/stack/evaluate/modifier_stack_compile.js';
+import {
+  modifierStackDerivedByRoot,
+  modifierStackMeshesIdleOwned,
+} from '@/modifier/stack/evaluate/modifier_stack_compile.js';
+import { modifierStackReplacedIds } from '@/modifier/stack/evaluate/modifier_stack_reshape.js';
 import { modifierStackStatusReset } from '@/modifier/stack/evaluate/modifier_stack_status.js';
 import { MODIFIER_STACK_KIND_BEVEL } from '@/modifier/volume/modifier_volume_record.js';
 import { modifierStackHelpersRefresh } from '@/modifier/stack/helpers/modifier_stack_helpers.js';
@@ -85,9 +89,9 @@ function modifierBevelVolumeDerives(volume: THREE.Object3D): boolean {
 
 /**
  * Rebuilds one solid incrementally: authored brushes a volume touches now or
- * touched before, and brushes under a brush or CSG group that owns a stack,
- * become dirty seeds, and the rebuild pipeline adds only the derived brushes
- * whose volume was re-evaluated.
+ * touched before, brushes a modifier still replaces, and brushes under a brush
+ * or CSG group that owns a stack, become dirty seeds, and the rebuild pipeline
+ * adds only the derived brushes whose volume was re-evaluated.
  *
  * @param model Solid model.
  * @param volumes Active volumes.
@@ -95,11 +99,18 @@ function modifierBevelVolumeDerives(volume: THREE.Object3D): boolean {
  */
 function modifierBevelRefreshModel(model: SolidModel, volumes: readonly THREE.Object3D[], derives: boolean): void {
   const owners = modifierStackOwnersActive(model.root);
-  const next = new Set<string>();
+  const next = new Set<string>(modifierStackReplacedIds(model.root.uuid));
   for (const brush of model.getBrushes()) if (modifierBevelRefreshSeeds(brush, volumes, owners)) next.add(brush.id);
   const ids = ModifierBevelAffectedSet.union(model.root.uuid, next);
   const ownersDerive = owners.some(modifierBevelVolumeDerives);
-  if (ids.length === 0 && !derives && !ownersDerive && !modifierStackDerivedByRoot.has(model.root)) return;
+  if (
+    ids.length === 0 &&
+    !derives &&
+    !ownersDerive &&
+    !modifierStackDerivedByRoot.has(model.root) &&
+    !modifierStackMeshesIdleOwned(model.root)
+  )
+    return;
   model.markBrushesDirty(ids);
   model.rebuild();
 }
