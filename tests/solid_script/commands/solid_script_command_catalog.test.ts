@@ -426,7 +426,12 @@ describe('solid script command catalog', () => {
 
   it('never turns a solid into a mesh when the command is declared as keeping solids', () => {
     const converters = solidScriptCommands.filter((command) => !solidScriptCommandPreservesBrushes(command));
-    expect(converters.map((command) => command.id).sort()).toEqual(['grid_mesh', 'mesh', 'mesh_from_solids']);
+    expect(converters.map((command) => command.id).sort()).toEqual([
+      'fill_paths',
+      'grid_mesh',
+      'mesh',
+      'mesh_from_solids',
+    ]);
     const projectUvs = solidScriptCommandFind('project_uvs');
     expect(projectUvs && projectUvs.category === 'Faces').toBe(true);
     expect(projectUvs && solidScriptCommandPreservesBrushes(projectUvs)).toBe(true);

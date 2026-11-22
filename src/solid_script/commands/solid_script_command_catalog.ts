@@ -9,6 +9,7 @@ import { SOLID_SCRIPT_COMMANDS_MESH_EDGES } from './solid_script_commands_mesh_e
 import { SOLID_SCRIPT_COMMANDS_PATH_FROM } from './solid_script_commands_path_from.js';
 import { SOLID_SCRIPT_COMMANDS_MESH_FACES } from './solid_script_commands_mesh_faces.js';
 import { SOLID_SCRIPT_COMMANDS_MESHES } from './solid_script_commands_meshes.js';
+import { SOLID_SCRIPT_COMMANDS_FILL } from './solid_script_commands_fill.js';
 import { SOLID_SCRIPT_COMMANDS_FACES } from './solid_script_commands_faces.js';
 import { SOLID_SCRIPT_COMMANDS_DELETE } from './solid_script_commands_delete.js';
 import { SOLID_SCRIPT_COMMANDS_BEVEL } from './solid_script_commands_bevel.js';
@@ -53,6 +54,7 @@ export const solidScriptCommands: readonly SolidScriptCommand[] = [
   ...SOLID_SCRIPT_COMMANDS_CLIP,
   ...SOLID_SCRIPT_COMMANDS_COMBINE,
   ...SOLID_SCRIPT_COMMANDS_MESHES,
+  ...SOLID_SCRIPT_COMMANDS_FILL,
   ...SOLID_SCRIPT_COMMANDS_MESH_FACES,
   ...SOLID_SCRIPT_COMMANDS_MESH_EDGES,
   ...SOLID_SCRIPT_COMMANDS_PATH_FROM,
@@ -113,12 +115,12 @@ export function solidScriptCommandsOfCategory(category: SolidScriptCommandCatego
 
 /**
  * Returns whether a command must keep brushes as brushes. Only Mesh, Mesh From
- * Brushes and Grid Mesh may emit a mesh; every other command either keeps a
- * brush or stops with a plain error.
+ * Solids, Grid Mesh and Fill Paths may emit a mesh; every other command either
+ * keeps a brush or stops with a plain error.
  *
  * @param command Command.
  * @returns True when the command must not emit a mesh from a brush.
  */
 export function solidScriptCommandPreservesBrushes(command: SolidScriptCommand): boolean {
-  return command.id !== 'mesh' && command.id !== 'mesh_from_solids' && command.id !== 'grid_mesh';
+  return !['mesh', 'mesh_from_solids', 'grid_mesh', 'fill_paths'].includes(command.id);
 }
