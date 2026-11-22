@@ -40,7 +40,7 @@ export function solidScriptMeshEdgesPicked(run: SolidScriptBlockRun, label: stri
  * @param edge Edge.
  * @returns Edge key, or null when the face no longer has it.
  */
-function solidScriptMeshEdgesKey(mesh: SolidScriptShapeMesh, edge: SolidScriptEdgeFacts): string | null {
+export function solidScriptMeshEdgesKey(mesh: SolidScriptShapeMesh, edge: SolidScriptEdgeFacts): string | null {
   const loop = mesh.faces[edge.faces[0].index] ?? [];
   const at = (corner: number, where: SolidScriptEdgeFacts['start']): boolean =>
     (mesh.points[corner]?.distanceTo(where) ?? Infinity) < SOLID_SCRIPT_MESH_EDGES_SAME;

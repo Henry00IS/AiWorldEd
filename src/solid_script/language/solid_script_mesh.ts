@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { SolidScriptFaceTag, SolidScriptShape } from './solid_script_shape.js';
 import type { SolidScriptMode } from './solid_script_mode.js';
 import { solidScriptMeshLimitCheck } from './solid_script_limits.js';
+import { solidScriptMeshEdgeKey as solidScriptMeshEdgePair } from './solid_script_mesh_edge_split.js';
 
 /** Texture coordinate of one face corner. */
 export type SolidScriptUv = [number, number];
@@ -241,35 +242,38 @@ function solidScriptMeshEdgeEnds(key: number, count: number): [number, number] {
  * subdivision, rounding the mesh; without it the shape stays exactly as it was,
  * only with more faces.
  *
+ * Sharp edges stay creased: they split at their middle, and a point where two
+ * of them meet slides only along them; where more meet it stays put. Keep
+ * Corners holds the corners of an open mesh's border in place.
+ *
  * @param mesh Mesh.
  * @param smooth True to round the mesh.
+ * @param sharp Creased edges, by solidScriptMeshEdgePair key.
+ * @param keepCorners True to keep border corners where they are.
  * @returns Subdivided mesh.
  */
-export function solidScriptMeshSubdivide(mesh: SolidScriptShapeMesh, smooth: boolean): SolidScriptShapeMesh {
+export function solidScriptMeshSubdivide(
+  mesh: SolidScriptShapeMesh,
+  smooth: boolean,
+  sharp: ReadonlySet<string> = new Set(),
+  keepCorners = false,
+): SolidScriptShapeMesh {
   const points = mesh.points;
   const facePoints = mesh.faces.map((face) => solidScriptMeshLoopCenter(points, face));
   const count = points.length;
-  const edgeFaces = new Map<number, number[]>();
-  mesh.faces.forEach((face, faceIndex) =>
-    face.forEach((a, corner) => {
-      const key = solidScriptMeshEdgeKey(a, face[(corner + 1) % face.length]!, count);
-      const list = edgeFaces.get(key) ?? [];
-      list.push(faceIndex);
-      edgeFaces.set(key, list);
-    }),
-  );
+  const edgeFaces = solidScriptMeshEdgeFaces(mesh);
   const edgeIndex = new Map<number, number>();
   const edgePoints: THREE.Vector3[] = [];
   for (const [key, faces] of edgeFaces) {
     const [a, b] = solidScriptMeshEdgeEnds(key, count);
     const middle = points[a]!.clone().add(points[b]!).multiplyScalar(0.5);
-    if (smooth && faces.length === 2)
+    if (smooth && faces.length === 2 && !sharp.has(solidScriptMeshEdgePair(a, b)))
       middle.multiplyScalar(2).add(facePoints[faces[0]!]!).add(facePoints[faces[1]!]!).multiplyScalar(0.25);
     edgeIndex.set(key, edgePoints.length);
     edgePoints.push(middle);
   }
   const moved = smooth
-    ? solidScriptMeshCatmullPoints(mesh, facePoints, edgeFaces)
+    ? solidScriptMeshCatmullPoints(mesh, facePoints, edgeFaces, { sharp, keepCorners })
     : points.map((point) => point.clone());
   const edgeBase = moved.length;
   const faceBase = edgeBase + edgePoints.length;
@@ -301,30 +305,74 @@ export function solidScriptMeshSubdivide(mesh: SolidScriptShapeMesh, smooth: boo
 }
 
 /**
+ * Faces around every edge of a mesh, by edge key, in the order Subdivide
+ * numbers its edge points.
+ *
+ * @param mesh Mesh.
+ * @returns Face numbers per edge.
+ */
+function solidScriptMeshEdgeFaces(mesh: SolidScriptShapeMesh): Map<number, number[]> {
+  const count = mesh.points.length;
+  const edgeFaces = new Map<number, number[]>();
+  mesh.faces.forEach((face, faceIndex) =>
+    face.forEach((a, corner) => {
+      const key = solidScriptMeshEdgeKey(a, face[(corner + 1) % face.length] ?? a, count);
+      edgeFaces.set(key, [...(edgeFaces.get(key) ?? []), faceIndex]);
+    }),
+  );
+  return edgeFaces;
+}
+
+/**
+ * The creased edges after one Subdivide: each sharp edge becomes the two halves
+ * either side of its new middle point.
+ *
+ * @param mesh Mesh before Subdivide.
+ * @param sharp Creased edges before.
+ * @returns Creased edges after.
+ */
+export function solidScriptMeshSubdivideSharp(mesh: SolidScriptShapeMesh, sharp: ReadonlySet<string>): Set<string> {
+  const count = mesh.points.length;
+  const next = new Set<string>();
+  [...solidScriptMeshEdgeFaces(mesh).keys()].forEach((key, index) => {
+    const [a, b] = solidScriptMeshEdgeEnds(key, count);
+    if (!sharp.has(solidScriptMeshEdgePair(a, b))) return;
+    next.add(solidScriptMeshEdgePair(a, count + index));
+    next.add(solidScriptMeshEdgePair(count + index, b));
+  });
+  return next;
+}
+
+/**
  * Catmull-Clark positions of the original points. Border points follow their
  * border edges only, so open meshes keep their outline.
  *
  * @param mesh Mesh.
  * @param facePoints Face centers.
  * @param edgeFaces Faces of every edge.
+ * @param creases Sharp edges, and whether border corners stay put.
  * @returns Moved points.
  */
 function solidScriptMeshCatmullPoints(
   mesh: SolidScriptShapeMesh,
   facePoints: readonly THREE.Vector3[],
   edgeFaces: ReadonlyMap<number, number[]>,
+  creases: { sharp: ReadonlySet<string>; keepCorners: boolean },
 ): THREE.Vector3[] {
   const pointFaces = mesh.points.map((): number[] => []);
   mesh.faces.forEach((face, faceIndex) => face.forEach((point) => pointFaces[point]!.push(faceIndex)));
   const pointEdges = mesh.points.map((): [number, boolean][] => []);
   for (const [key, faces] of edgeFaces) {
     const [a, b] = solidScriptMeshEdgeEnds(key, mesh.points.length);
-    pointEdges[a]!.push([b, faces.length < 2]);
-    pointEdges[b]!.push([a, faces.length < 2]);
+    const hard = faces.length < 2 || creases.sharp.has(solidScriptMeshEdgePair(a, b));
+    pointEdges[a]!.push([b, hard]);
+    pointEdges[b]!.push([a, hard]);
   }
   return mesh.points.map((point, index) => {
     const edges = pointEdges[index]!;
     const border = edges.filter(([, open]) => open);
+    const corner = creases.keepCorners && border.length >= 2 && pointFaces[index]!.length === 1;
+    if (corner || (border.length > 2 && creases.sharp.size > 0)) return point.clone();
     if (border.length >= 2) {
       const sum = border.reduce((total, [other]) => total.add(mesh.points[other]!), new THREE.Vector3());
       return point

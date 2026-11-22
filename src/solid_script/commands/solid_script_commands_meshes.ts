@@ -2,6 +2,7 @@ import { solidScriptListingOf } from './solid_script_command_listing.js';
 import { solidScriptConditionHolds } from '@/solid_script/language/solid_script_condition.js';
 import { solidScriptEachUses } from '@/solid_script/language/solid_script_each_uses.js';
 import { solidScriptParameterEach } from './solid_script_command_each.js';
+import { solidScriptMeshEdgesKey } from './solid_script_commands_mesh_edges.js';
 import * as THREE from 'three';
 import { solidScriptMeshMerge } from '@/solid_script/language/solid_script_mesh_merge.js';
 import { solidScriptKindNamed } from '@/solid_script/language/solid_script_kinds.js';
@@ -25,6 +26,7 @@ import {
   solidScriptMeshJoin,
   solidScriptMeshSmooth,
   solidScriptMeshSubdivide,
+  solidScriptMeshSubdivideSharp,
   type SolidScriptShapeMesh,
   type SolidScriptUv,
 } from '@/solid_script/language/solid_script_mesh.js';
@@ -172,6 +174,25 @@ function solidScriptMeshKept(first: SolidScriptShapeMesh): Partial<SolidScriptSh
     ...(first.texture === undefined ? {} : { texture: first.texture }),
     ...(first.uvCarry ? { uvCarry: first.uvCarry } : {}),
   };
+}
+
+/**
+ * The edges of a mesh that pass Crease, with [$Edge] the edge, by point pair.
+ *
+ * @param run Running line.
+ * @param mesh Mesh.
+ * @returns Creased edges.
+ */
+function solidScriptMeshCreased(run: SolidScriptBlockRun, mesh: SolidScriptShapeMesh): Set<string> {
+  if (run.source('crease').trim() === '') return new Set();
+  const edges = run.elements.edges(run.elements.brush(mesh));
+  return new Set(
+    edges.flatMap((edge, index) =>
+      solidScriptConditionHolds(run, 'crease', { $Edge: run.elements.edge(edge), $Index: index, $Count: edges.length })
+        ? (solidScriptMeshEdgesKey(mesh, edge) ?? [])
+        : [],
+    ),
+  );
 }
 
 /**
@@ -539,7 +560,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Split mesh faces into smaller ones',
     manual:
-      'Splits every face of a mesh into four-sided faces, Levels times. Each level makes about four times as many faces. With Smooth on, the corners are rounded off as well, so a Cube becomes a soft rounded ball after a few levels. Of is the mesh; empty uses [$Selected.Objects]. A solid stops the line: wrap it in Mesh From Solids first. Example: Mesh From Solids around a Cube, then Subdivide 2 times, gives a smooth blob. With Smooth off it stays a cube with a finer grid for Displace.',
+      'Splits every face of a mesh into four-sided faces, Levels times. Each level makes about four times as many faces. With Smooth on, the corners are rounded off as well, so a Cube becomes a soft rounded ball after a few levels; edges that pass Crease stay sharp, and Keep Corners holds the corners of an open mesh in place. Of is the mesh; empty uses [$Selected.Objects]. A solid stops the line: wrap it in Mesh From Solids first. Example: Mesh From Solids around a Cube, then Subdivide 2 times, gives a smooth blob. With Smooth off it stays a cube with a finer grid for Displace.',
     stops: [
       `Levels below 1 or above ${SOLID_SCRIPT_SUBDIVIDE_LEVELS_MAX}.`,
       'A solid. Wrap it in Mesh From Solids first.',
@@ -560,6 +581,22 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
         'Yes',
         'Yes: round the shape off. No: keep its shape exactly, only with more faces. Type Yes or No, such as Yes.',
       ),
+      solidScriptParameterEach(
+        solidScriptParameterOptional(
+          'crease',
+          'Crease',
+          'value',
+          'A condition an edge must pass to stay sharp while Smooth rounds the rest, such as [=[$Edge.Angle] > 60]. Left off creases none.',
+        ),
+        'Edge',
+      ),
+      solidScriptParameter(
+        'keep_corners',
+        'Keep Corners',
+        'boolean',
+        'No',
+        'Yes: the corners of an open mesh, such as a Grid Mesh, stay where they are while Smooth rounds its border. Type Yes or No, such as Yes.',
+      ),
       solidScriptParameterOfWhere('Object', '[=[$Object.Center.Y] > 0]'),
       solidScriptParameterOf('meshes', '$Selected.Objects', ['Object']),
     ],
@@ -567,15 +604,25 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
       'Subdivide',
       read.value('levels'),
       ' Times',
-      ...solidScriptListingOptions([!read.on('smooth') && ['Not Smooth']]),
+      ...solidScriptListingOptions([
+        !read.on('smooth') && ['Not Smooth'],
+        read.text('crease') !== '' && ['Crease ', read.value('crease')],
+        read.on('keep_corners') && ['Keep Corners'],
+      ]),
       ...solidScriptListingOf(read),
     ],
     execute: (run) => {
       const levels = solidScriptMeshCount(run, 'levels', 'Levels', [1, SOLID_SCRIPT_SUBDIVIDE_LEVELS_MAX]);
       const smooth = run.fields().flag('smooth');
+      const keepCorners = run.fields().flag('keep_corners');
       return solidScriptMeshApply(run, 'Subdivide', (mesh) => {
         let result = mesh;
-        for (let level = 0; level < levels; level++) result = solidScriptMeshSubdivide(result, smooth);
+        let sharp = solidScriptMeshCreased(run, mesh);
+        for (let level = 0; level < levels; level++) {
+          const next = solidScriptMeshSubdivide(result, smooth, sharp, keepCorners);
+          sharp = solidScriptMeshSubdivideSharp(result, sharp);
+          result = next;
+        }
         return result;
       });
     },

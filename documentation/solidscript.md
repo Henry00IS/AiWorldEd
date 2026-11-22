@@ -171,3 +171,4 @@ The **Examples** window holds showcase scripts such as the Spiral Staircase, sma
 - Path From Edges joins edges that share corners into a list of Paths (closed when they go all the way round, broken where three or more meet); Path From Faces gives the edges round each face as a closed Path. Both take Of and Where.
 - Fill Paths builds a flat mesh of triangles that fills closed Paths (or one loop of points): a path inside another is a hole, one inside that is filled again. The mesh faces the way the biggest path runs round.
 - Unwrap Seams [=[$Edge.Angle] > 45] cuts the UVs open only along edges that pass it: faces joined by other edges stay in one island, each folded open from its neighbour so lengths and angles stay true.
+- Subdivide Crease [=[$Edge.Angle] > 60] keeps edges that pass it sharp while Smooth rounds the rest; Keep Corners holds the corners of an open mesh in place.
