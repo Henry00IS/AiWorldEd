@@ -14,6 +14,7 @@ import {
   solidScriptParameter,
   solidScriptParameterInto,
   solidScriptParameterOptional,
+  solidScriptParameterRest,
   solidScriptParameterWhen,
   solidScriptParameterWords,
   solidScriptParameterOf,
@@ -251,6 +252,34 @@ function solidScriptTextureLeaf(run: SolidScriptBlockRun, leaf: SolidScriptShape
 }
 
 /**
+ * Runs Select Faces: picks faces by Which and Where, joins them with the pick
+ * before as How says, and writes Into and Rest.
+ *
+ * @param run Running line.
+ */
+function solidScriptSelectFacesRun(run: SolidScriptBlockRun): void {
+  const how = run.text('how').trim();
+  if (!(SOLID_SCRIPT_FACE_HOW as readonly string[]).includes(how))
+    throw new Error(`How must be New, Add or Remove, not "${how}"`);
+  const faces = solidScriptFaceSelectFrom(run);
+  const items = faces.map((face) => run.elements.face(face));
+  const which = run.text('which').trim();
+  const chosen =
+    which === SOLID_SCRIPT_SELECT_BETWEEN
+      ? run.selectFresh('faces', items)
+      : solidScriptFaceSelectWhich(which, faces).map((face) => run.elements.face(face));
+  const picked = chosen.filter((item, index) =>
+    solidScriptConditionHolds(run, 'where', { $Face: item, $Index: index, $Count: chosen.length }),
+  );
+  solidScriptFaceSelectWrite(run, how, items, picked);
+  solidScriptFaceWrite(
+    run,
+    'rest',
+    items.filter((item) => !picked.includes(item)),
+  );
+}
+
+/**
  * Commands that pick faces of the shapes built so far and work on faces and
  * edges given as values.
  */
@@ -261,7 +290,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Pick faces of objects',
     manual:
-      'Picks faces and puts them in [$Selected.Faces], where Extrude Face, Inset Face, Bevel Edges, Delete Faces and Texture Faces find them when their Of is empty. Of says where to pick from: objects (all their faces) or faces (a list to narrow down); empty uses [$Selected.Objects]. Which is a preset that equals a written-out Where: All keeps every face, Facing Up equals Facing([$Face.Normal], Vector(0, 1, 0)), and Top equals [=HasTag([$Face.Tags], "Top")]. Which Between keeps the faces between this Select Faces and the previous one. Where is a condition each remaining face must pass, with [$Face] the face being tested, [$Index] its place in the list from 0 and [$Count] how many there are; [$X], [$Y] and [$Z] are short forms of [$Face.Center], and [$NX], [$NY] and [$NZ] of [$Face.Normal]. Left off, Where keeps what Which picked. How adds to or removes from the faces picked before. Into also writes the faces to a variable, a Face list. To pick faces of a new object, set Of to that object or its Name. To walk the same faces after later Select lines, write them Into a variable. Example: Cube, then Select Faces Facing Up and Extrude Face By 1 pulls the top up.',
+      'Picks faces and puts them in [$Selected.Faces], where Extrude Face, Inset Face, Bevel Edges, Delete Faces and Texture Faces find them when their Of is empty. Of says where to pick from: objects (all their faces) or faces (a list to narrow down); empty uses [$Selected.Objects]. Which is a preset that equals a written-out Where: All keeps every face, Facing Up equals Facing([$Face.Normal], Vector(0, 1, 0)), and Top equals [=HasTag([$Face.Tags], "Top")]. Which Between keeps the faces between this Select Faces and the previous one. Where is a condition each remaining face must pass, with [$Face] the face being tested, [$Index] its place in the list from 0 and [$Count] how many there are; [$X], [$Y] and [$Z] are short forms of [$Face.Center], and [$NX], [$NY] and [$NZ] of [$Face.Normal]. Left off, Where keeps what Which picked. How adds to or removes from the faces picked before. Into also writes the faces to a variable, a Face list, and Rest the faces looked at but not picked, so one line splits faces in two. To pick faces of a new object, set Of to that object or its Name. To walk the same faces after later Select lines, write them Into a variable. Example: Cube, then Select Faces Facing Up and Extrude Face By 1 pulls the top up.',
     stops: [
       'No objects to pick from.',
       'A Which that is not one of the choices.',
@@ -295,6 +324,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         SOLID_SCRIPT_FACE_HOW.map((word) => ({ word, detail: SOLID_SCRIPT_FACE_HOW_DETAILS[word] })),
       ),
       solidScriptParameterInto('the picked faces, a Face list', 'Face List', 'what is made', 'label'),
+      solidScriptParameterRest('faces', 'Face List'),
     ],
     listing: (read) => {
       return [
@@ -303,23 +333,11 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         ...solidScriptListingOf(read),
         ...solidScriptListingOptions([read.changed('how') && ['How ', read.value('how')]]),
         ...(read.text('into') === '' ? [] : [' Into ', read.value('into')]),
+        ...(read.text('rest') === '' ? [] : [' Rest ', read.value('rest')]),
       ];
     },
     execute: (run) => {
-      const how = run.text('how').trim();
-      if (!(SOLID_SCRIPT_FACE_HOW as readonly string[]).includes(how))
-        throw new Error(`How must be New, Add or Remove, not "${how}"`);
-      const faces = solidScriptFaceSelectFrom(run);
-      const items = faces.map((face) => run.elements.face(face));
-      const which = run.text('which').trim();
-      const chosen =
-        which === SOLID_SCRIPT_SELECT_BETWEEN
-          ? run.selectFresh('faces', items)
-          : solidScriptFaceSelectWhich(which, faces).map((face) => run.elements.face(face));
-      const picked = chosen.filter((item, index) =>
-        solidScriptConditionHolds(run, 'where', { $Face: item, $Index: index, $Count: chosen.length }),
-      );
-      solidScriptFaceSelectWrite(run, how, items, picked);
+      solidScriptSelectFacesRun(run);
       return [];
     },
   }),

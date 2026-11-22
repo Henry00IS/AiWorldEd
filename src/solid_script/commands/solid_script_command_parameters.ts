@@ -276,6 +276,23 @@ export function solidScriptParameterInto(
 }
 
 /**
+ * The optional Rest field of a Select line: the items it looked at but did not
+ * pick.
+ *
+ * @param many Plural of the items, such as faces.
+ * @param kind Kind of list it writes, such as Face List.
+ * @returns Field.
+ */
+export function solidScriptParameterRest(many: string, kind: string): SolidScriptCommandParameter {
+  return {
+    ...solidScriptParameterInto(`the ${many} not picked, a ${kind}`, kind, 'what is left', 'label'),
+    key: 'rest',
+    label: 'Rest',
+    hint: `Optional: variable to write the ${many} looked at but not picked, a ${kind}, such as Others; left off writes none.`,
+  };
+}
+
+/**
  * The optional Into field of an edit tool: empty edits in place; a name keeps
  * the original and holds only the edited copy.
  *

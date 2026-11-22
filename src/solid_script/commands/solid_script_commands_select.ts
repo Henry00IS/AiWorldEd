@@ -8,8 +8,10 @@ import {
   solidScriptOfAccepts,
   solidScriptParameterOf,
   solidScriptParameterOptional,
+  solidScriptParameterRest,
   solidScriptParameterWords,
 } from './solid_script_command_parameters.js';
+import { solidScriptFaceWrite } from './solid_script_face_of.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import type { SolidScriptSelectedKind } from '@/solid_script/language/solid_script_machine_variables.js';
 import { SOLID_SCRIPT_SELECT_BETWEEN, solidScriptOfEmpty } from '@/solid_script/language/solid_script_select.js';
@@ -148,7 +150,7 @@ function solidScriptSelectCommand(kind: SolidScriptSelectKind): SolidScriptComma
     label: kind.label,
     category: 'Faces',
     description: `Pick ${kind.many}`,
-    manual: `Picks ${kind.many} and puts them in [$Selected.${kind.item === 'Edge' ? 'Edges' : kind.item === 'Object' ? 'Objects' : 'Vertices'}], where lines with an empty Of find them. ${kind.item === 'Object' ? 'Of says which objects to pick from, solids and meshes alike; empty uses every object built so far, and those a modifier has received.' : 'Of says where to pick from: objects, faces or edges; empty uses [$Selected.Faces], or [$Selected.Objects] when no faces are picked.'} Which All keeps every one, the same as a Where left off. Which Between keeps the ${kind.many} between this ${kind.label} and the previous one. Where is a 🔁 condition each remaining one must pass, with [$${kind.item}] the item being tested, such as [=[$${kind.item}.${kind.item === 'Edge' ? 'Length' : kind.item === 'Object' ? 'Size.X' : 'Position.Y'}] > 1], and [$Index] its number from 0. Left off, Where keeps what Which picked. How adds to or removes from the ${kind.many} picked before. Into also writes them to a variable, a ${kind.item} list. Example: ${kind.example}`,
+    manual: `Picks ${kind.many} and puts them in [$Selected.${kind.item === 'Edge' ? 'Edges' : kind.item === 'Object' ? 'Objects' : 'Vertices'}], where lines with an empty Of find them. ${kind.item === 'Object' ? 'Of says which objects to pick from, solids and meshes alike; empty uses every object built so far, and those a modifier has received.' : 'Of says where to pick from: objects, faces or edges; empty uses [$Selected.Faces], or [$Selected.Objects] when no faces are picked.'} Which All keeps every one, the same as a Where left off. Which Between keeps the ${kind.many} between this ${kind.label} and the previous one. Where is a 🔁 condition each remaining one must pass, with [$${kind.item}] the item being tested, such as [=[$${kind.item}.${kind.item === 'Edge' ? 'Length' : kind.item === 'Object' ? 'Size.X' : 'Position.Y'}] > 1], and [$Index] its number from 0. Left off, Where keeps what Which picked. How adds to or removes from the ${kind.many} picked before. Into also writes them to a variable, a ${kind.item} list, and Rest the ${kind.many} looked at but not picked, so one line can split them in two. Example: ${kind.example}`,
     stops: [
       'No objects to pick from.',
       'A Which that is not one of the choices.',
@@ -187,6 +189,7 @@ function solidScriptSelectCommand(kind: SolidScriptSelectKind): SolidScriptComma
         'what is made',
         'label',
       ),
+      solidScriptParameterRest(kind.many, `${kind.item} List`),
     ],
     listing: (read) => [
       kind.label,
@@ -196,6 +199,7 @@ function solidScriptSelectCommand(kind: SolidScriptSelectKind): SolidScriptComma
       ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
       ...solidScriptListingOptions([read.changed('how') && ['How ', read.value('how')]]),
       ...(read.text('into') === '' ? [] : [' Into ', read.value('into')]),
+      ...(read.text('rest') === '' ? [] : [' Rest ', read.value('rest')]),
     ],
     execute: (run) => {
       const pool = solidScriptSelectItems(run, kind);
@@ -208,6 +212,11 @@ function solidScriptSelectCommand(kind: SolidScriptSelectKind): SolidScriptComma
       );
       run.selectNote(kind.selected, pool);
       solidScriptSelectWrite(run, kind, picked);
+      solidScriptFaceWrite(
+        run,
+        'rest',
+        pool.filter((item) => !picked.includes(item)),
+      );
       return [];
     },
   });
