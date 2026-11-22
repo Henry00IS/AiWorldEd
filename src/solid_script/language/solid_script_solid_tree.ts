@@ -5,7 +5,7 @@ import { solidScriptSolidBuildable } from './solid_script_solid_validate.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { solidScriptGroupModeOperation, solidScriptModeOperation } from './solid_script_mode.js';
 import type {
-  SolidScriptFaceTexture,
+  SolidScriptFaceSmooth,
   SolidScriptFaceUv,
   SolidScriptShape,
   SolidScriptShapeSolid,
@@ -63,7 +63,9 @@ function solidScriptSolidTreeNodes(
     const operation = solidScriptModeOperation(shape.mode) ?? role;
     const brush = solidScriptSolidTreeBrush(shape, operation, options);
     if (shape.texture) brush.texture = shape.texture;
-    if (shape.faceTextures) brush.faceTextures = solidScriptSolidTreeFaceTextures(brush, shape.faceTextures, options);
+    if (shape.faceTextures)
+      brush.faceTextures = solidScriptSolidTreeFacePins(brush, shape.faceTextures, options, (face) => face.texture);
+    if (shape.faceSmooth) solidScriptSolidTreeSmooth(brush, shape.faceSmooth, options);
     if (shape.boxUvSize !== undefined) brush.boxUvSize = shape.boxUvSize;
     if (shape.faceUvs) brush.faceUvs = solidScriptSolidTreeFaceUvs(brush, shape.faceUvs, options);
     return [brush];
@@ -118,21 +120,29 @@ const SOLID_SCRIPT_SOLID_TREE_FACE_GAP = 1e-3;
 /** Least alignment of a textured face's direction with a brush face. */
 const SOLID_SCRIPT_SOLID_TREE_FACE_ALIGN = 0.99;
 
+/** A record pinned to a face by a point on it and the way it looks. */
+interface SolidScriptFacePin {
+  point: THREE.Vector3;
+  normal: THREE.Vector3;
+}
+
 /**
- * Finds the brush faces given their own texture: the face whose plane holds the
- * textured face's point and looks the same way.
+ * Finds the brush faces records are pinned to: the face whose plane holds the
+ * record's point and looks the same way.
  *
  * @param brush Brush node, centered on its origin.
- * @param faces Textured faces in script space.
+ * @param faces Records in script space.
  * @param options Placement options.
- * @returns Texture per brush face, by face index.
+ * @param valueOf What each record gives its face.
+ * @returns Value per brush face, by face index.
  */
-function solidScriptSolidTreeFaceTextures(
+function solidScriptSolidTreeFacePins<Pin extends SolidScriptFacePin, Value>(
   brush: SolidTreeBrush,
-  faces: readonly SolidScriptFaceTexture[],
+  faces: readonly Pin[],
   options: SolidScriptSolidTreeOptions,
-): (string | undefined)[] {
-  const textures: (string | undefined)[] = brush.brush.faces.map(() => undefined);
+  valueOf: (face: Pin) => Value,
+): (Value | undefined)[] {
+  const textures: (Value | undefined)[] = brush.brush.faces.map(() => undefined);
   for (const face of faces) {
     const point = solidScriptSolidTreePoint(face.point, options).sub(brush.center);
     const tip = solidScriptSolidTreePoint(face.point.clone().add(face.normal), options).sub(brush.center);
@@ -146,9 +156,28 @@ function solidScriptSolidTreeFaceTextures(
         bestAlign = align;
       }
     });
-    if (best >= 0) textures[best] = face.texture;
+    if (best >= 0) textures[best] = valueOf(face);
   }
   return textures;
+}
+
+/**
+ * Gives the brush the smooth shading of its faces, leaving it out when every
+ * face stays flat.
+ *
+ * @param brush Brush node, centered on its origin.
+ * @param faces Smooth shading records in script space, later ones winning.
+ * @param options Placement options.
+ */
+function solidScriptSolidTreeSmooth(
+  brush: SolidTreeBrush,
+  faces: readonly SolidScriptFaceSmooth[],
+  options: SolidScriptSolidTreeOptions,
+): void {
+  const angles = solidScriptSolidTreeFacePins(brush, faces, options, (face) => face.angle).map((angle) =>
+    angle !== undefined && angle > 0 ? angle : undefined,
+  );
+  if (angles.some((angle) => angle !== undefined)) brush.faceSmooth = angles;
 }
 
 /**

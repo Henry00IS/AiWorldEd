@@ -8,6 +8,7 @@ import { SOLID_SCRIPT_COMMANDS_LOGIC } from './solid_script_commands_logic.js';
 import { SOLID_SCRIPT_COMMANDS_MESHES } from './solid_script_commands_meshes.js';
 import { SOLID_SCRIPT_COMMANDS_FACES } from './solid_script_commands_faces.js';
 import { SOLID_SCRIPT_COMMANDS_DELETE } from './solid_script_commands_delete.js';
+import { SOLID_SCRIPT_COMMANDS_SHADING } from './solid_script_commands_shading.js';
 import { SOLID_SCRIPT_COMMANDS_POINTS } from './solid_script_commands_points.js';
 import { SOLID_SCRIPT_COMMANDS_POSITIONS } from './solid_script_commands_positions.js';
 import { SOLID_SCRIPT_COMMANDS_UVS } from './solid_script_commands_uvs.js';
@@ -51,6 +52,7 @@ export const solidScriptCommands: readonly SolidScriptCommand[] = [
   ...SOLID_SCRIPT_COMMANDS_SELECT,
   ...SOLID_SCRIPT_COMMANDS_FACES.slice(1),
   ...SOLID_SCRIPT_COMMANDS_DELETE,
+  ...SOLID_SCRIPT_COMMANDS_SHADING,
   ...SOLID_SCRIPT_COMMANDS_POINTS,
   ...SOLID_SCRIPT_COMMANDS_POSITIONS,
   ...SOLID_SCRIPT_COMMANDS_QUERY,

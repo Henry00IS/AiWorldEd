@@ -31,6 +31,7 @@ import { modifierStackFrame } from '@/modifier/stack/evaluate/modifier_stack_fra
 import { modifierStackSolidScriptBoxValues } from './modifier_stack_solid_script_box.js';
 import { solidScriptDocumentReadsBoxMember } from '@/solid_script/language/solid_script_use_check.js';
 import { modifierStackSolidScriptSurfaces } from './modifier_stack_solid_script_surfaces.js';
+import { modifierStackSolidScriptSmooth } from './modifier_stack_solid_script_smooth.js';
 import {
   modifierStackSolidScriptLayout,
   type ModifierStackSolidScriptPassed,
@@ -289,7 +290,7 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
             ? piece.faces.map((_, index) => node.faceTextures?.[index] ?? node.texture)
             : null,
         operation: node.operation,
-        smooth: undefined,
+        smooth: modifierStackSolidScriptSmooth(node, context),
       };
       return this.pieceUnit(piece, counter.next++, context, look);
     }

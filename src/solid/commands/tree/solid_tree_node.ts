@@ -18,6 +18,11 @@ export interface SolidTreeBrush {
   /** Textures of single faces by face index, winning over texture. */
   faceTextures?: readonly (string | undefined)[];
   /**
+   * Degrees each face blends smoothly with its neighbours, by face index; none
+   * is flat.
+   */
+  faceSmooth?: readonly (number | undefined)[];
+  /**
    * Metres of one box-projection repeat; when set and faceUvs is absent, faces
    * use a box projection in the centred brush's space.
    */

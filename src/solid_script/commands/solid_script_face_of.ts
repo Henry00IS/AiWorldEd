@@ -7,20 +7,26 @@ import { solidScriptOfEmpty } from '@/solid_script/language/solid_script_select.
 
 /**
  * Reads the faces a line works on now: those its Of gives (faces, or every face
- * of the brushes it gives), else [$Selected.Faces]. A face a list held that was
- * cut away has left it; a single face that was cut away stops the line. Where,
- * when the line has one, keeps only the faces that pass it.
+ * of the brushes it gives), else the selected faces, or the selected objects'
+ * faces for a line that works on whole objects first. A face a list held that
+ * was cut away has left it; a single face that was cut away stops the line.
+ * Where, when the line has one, keeps only the faces that pass it.
  *
  * @param run Running line.
  * @param label Command, for messages.
+ * @param selected What an empty Of uses: the selected faces or objects.
  * @returns Faces read from the latest geometry, each piece of a split face.
  */
-export function solidScriptFaceTargets(run: SolidScriptBlockRun, label: string): SolidScriptFaceFacts[] {
+export function solidScriptFaceTargets(
+  run: SolidScriptBlockRun,
+  label: string,
+  selected: 'faces' | 'objects' = 'faces',
+): SolidScriptFaceFacts[] {
   const given = run.ofValues();
-  const values = given ?? run.selectedGet('faces');
+  const values = given ?? run.selectedGet(selected);
   if (values.length === 0)
     throw new Error(
-      given ? `${label} has no faces in Of; check that Of holds faces or objects` : solidScriptOfEmpty(label, 'faces'),
+      given ? `${label} has no faces in Of; check that Of holds faces or objects` : solidScriptOfEmpty(label, selected),
     );
   const faces: SolidScriptFaceFacts[] = [];
   const seen = new WeakMap<SolidScriptGeometryLeaf, Set<number>>();

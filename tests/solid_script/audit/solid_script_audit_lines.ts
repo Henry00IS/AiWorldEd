@@ -160,6 +160,7 @@ export function solidScriptAuditLine(
       'mirror',
       'resize',
       'matrix',
+      'shade_smooth',
     ].includes(command.id) &&
     'of' in filled
   )

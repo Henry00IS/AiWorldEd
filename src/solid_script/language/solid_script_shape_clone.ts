@@ -1,6 +1,6 @@
+import type * as THREE from 'three';
 import type {
   SolidScriptFaceTag,
-  SolidScriptFaceTexture,
   SolidScriptFaceUv,
   SolidScriptReceived,
   SolidScriptShape,
@@ -32,7 +32,8 @@ export function solidScriptShapeClone(shape: SolidScriptShape): SolidScriptShape
 function solidScriptSolidClone(leaf: SolidScriptShapeSolid): SolidScriptShapeSolid {
   const copy: SolidScriptShapeSolid = { ...leaf, points: leaf.points.map((point) => point.clone()) };
   if (leaf.received) copy.received = solidScriptReceivedClone(leaf.received);
-  if (leaf.faceTextures) copy.faceTextures = leaf.faceTextures.map(solidScriptFaceTextureClone);
+  if (leaf.faceTextures) copy.faceTextures = leaf.faceTextures.map(solidScriptFacePinClone);
+  if (leaf.faceSmooth) copy.faceSmooth = leaf.faceSmooth.map(solidScriptFacePinClone);
   if (leaf.faceUvs) copy.faceUvs = leaf.faceUvs.map(solidScriptFaceUvClone);
   if (leaf.faceTags) copy.faceTags = leaf.faceTags.map(solidScriptFaceTagClone);
   if (leaf.clippedBy) copy.clippedBy = { normal: leaf.clippedBy.normal.clone(), constant: leaf.clippedBy.constant };
@@ -58,7 +59,7 @@ function solidScriptReceivedClone(received: SolidScriptReceived): SolidScriptRec
  * @param face Record.
  * @returns Independent copy.
  */
-function solidScriptFaceTextureClone(face: SolidScriptFaceTexture): SolidScriptFaceTexture {
+function solidScriptFacePinClone<Pin extends { point: THREE.Vector3; normal: THREE.Vector3 }>(face: Pin): Pin {
   return { ...face, point: face.point.clone(), normal: face.normal.clone() };
 }
 

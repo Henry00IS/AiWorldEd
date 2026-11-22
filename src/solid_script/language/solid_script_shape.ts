@@ -32,6 +32,8 @@ export interface SolidScriptShapeSolid {
   texture?: string;
   /** Textures of single faces, from Texture Faces; they win over texture. */
   faceTextures?: SolidScriptFaceTexture[];
+  /** Smooth shading of single faces, from Shade Smooth; later ones win. */
+  faceSmooth?: SolidScriptFaceSmooth[];
   /**
    * Metres of one box-projection repeat; when set and faceUvs is absent, faces
    * keep a box projection and the solid stays a brush.
@@ -111,6 +113,19 @@ export interface SolidScriptFaceUv {
   normal: THREE.Vector3;
   /** UV matrix in script space. */
   uv: SurfaceUvMatrix;
+}
+
+/**
+ * Smooth shading a line gave one face, found again as the face on its plane
+ * that holds the point.
+ */
+export interface SolidScriptFaceSmooth {
+  /** A point on the face, in script space. */
+  point: THREE.Vector3;
+  /** Unit direction the face looks, in script space. */
+  normal: THREE.Vector3;
+  /** Degrees up to which it blends with the faces around it; 0 is flat. */
+  angle: number;
 }
 
 /** A texture given to one face of a solid, found again by its plane. */
