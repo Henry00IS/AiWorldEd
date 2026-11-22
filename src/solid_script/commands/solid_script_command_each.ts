@@ -10,7 +10,7 @@ import {
 } from '@/solid_script/language/solid_script_system_names.js';
 
 /** Element a per-element field is worked out for, once each. */
-export type SolidScriptCommandEach = 'Object' | 'Face' | 'Edge' | 'Vertex' | 'Point' | 'Item';
+export type SolidScriptCommandEach = 'Object' | 'Face' | 'Edge' | 'Vertex' | 'Point' | 'Item' | 'Index';
 
 /** Icon shown on a field worked out once per element. */
 export const SOLID_SCRIPT_COMMAND_EACH_ICON = '🔁';
@@ -24,6 +24,7 @@ const SOLID_SCRIPT_COMMAND_EACH_FILLS: Readonly<Record<SolidScriptCommandEach, r
     Vertex: ['$Vertex', '$Index', '$Id', '$Count', '$X', '$Y', '$Z', '$NX', '$NY', '$NZ'],
     Point: ['$Point', '$Index', '$Id', '$Count', '$X', '$Y', '$Z', '$NX', '$NY', '$NZ'],
     Item: ['$Item', '$Index', '$Id', '$Count', '$X', '$Y', '$Z'],
+    Index: ['$Index', '$Count'],
   };
 
 /** How the help names each kind of item and what its $X, $Y and $Z read. */
@@ -36,6 +37,7 @@ const SOLID_SCRIPT_COMMAND_EACH_WORDS: Readonly<
   Vertex: { noun: 'corner', place: 'its position', normal: true },
   Point: { noun: 'point', place: 'its position', normal: true },
   Item: { noun: 'item', place: 'its parts when it is a vector, or its center', normal: false },
+  Index: { noun: 'point made', place: '', normal: false },
 };
 
 /**
@@ -47,6 +49,8 @@ const SOLID_SCRIPT_COMMAND_EACH_WORDS: Readonly<
  */
 export function solidScriptEachSentence(each: SolidScriptCommandEach): string {
   const words = SOLID_SCRIPT_COMMAND_EACH_WORDS[each];
+  if (each === 'Index')
+    return `${SOLID_SCRIPT_COMMAND_EACH_ICON} fields can change per ${words.noun}: [$Index] is its number from 0 and [$Count] how many there are.`;
   const normal = words.normal ? ', and [$NX], [$NY] and [$NZ] its normal' : '';
   return `${SOLID_SCRIPT_COMMAND_EACH_ICON} fields can change per ${words.noun}: [$${each}] is the ${words.noun}, [$Index] its number from 0, [$Id] a number that stays with it when others are deleted, and [$Count] how many there are; [$X], [$Y] and [$Z] are ${words.place}${normal}.`;
 }

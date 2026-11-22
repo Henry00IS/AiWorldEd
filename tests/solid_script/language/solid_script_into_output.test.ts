@@ -214,7 +214,7 @@ function toolHost(command: SolidScriptCommand): SolidScriptLine[] {
  * @returns Lines, or null when this is not a list writer.
  */
 function listScript(command: SolidScriptCommand): SolidScriptLine[] | null {
-  if (command.id === 'path' || command.id === 'filter_list') return [intoLine(command)];
+  if (command.id === 'path' || command.id === 'filter_list' || command.id === 'points') return [intoLine(command)];
   if (command.id === 'scatter_points' || command.id.startsWith('points_from_') || command.id === 'find_on')
     return [
       CUBE,
@@ -341,7 +341,8 @@ describe('Into-set results stay out of the world until Output', () => {
     const result = run(lines);
     expect(result.error?.message ?? null).toBeNull();
     const leaves = solidScriptGeometryLeaves(result.shapes);
-    if (command.id === 'path' || command.id === 'filter_list') expect(leaves).toHaveLength(0);
+    if (command.id === 'path' || command.id === 'filter_list' || command.id === 'points')
+      expect(leaves).toHaveLength(0);
     else expect(leaves).toHaveLength(1);
   });
 

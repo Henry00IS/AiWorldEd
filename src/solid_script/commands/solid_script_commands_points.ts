@@ -11,9 +11,19 @@ import {
   solidScriptPointsFromVertices,
 } from '@/solid_script/language/solid_script_points_from.js';
 import { solidScriptGeometryFacesOutside } from '@/solid_script/language/solid_script_geometry.js';
-import type { SolidScriptValue } from '@/solid_script/language/solid_script_value.js';
+import {
+  solidScriptValueNumber,
+  solidScriptValueNumbers,
+  type SolidScriptValue,
+} from '@/solid_script/language/solid_script_value.js';
+import { SOLID_SCRIPT_LIMITS, solidScriptLimitCount } from '@/solid_script/language/solid_script_limits.js';
+import { solidScriptParameterEach } from './solid_script_command_each.js';
 import { SolidScriptCommand } from './solid_script_command.js';
-import { solidScriptParameterInto, solidScriptParameterOf } from './solid_script_command_parameters.js';
+import {
+  solidScriptParameter,
+  solidScriptParameterInto,
+  solidScriptParameterOf,
+} from './solid_script_command_parameters.js';
 import { solidScriptFaceTargets, solidScriptFaceWrite } from './solid_script_face_of.js';
 
 /**
@@ -27,6 +37,38 @@ function solidScriptPointsFromWrite(run: SolidScriptBlockRun, items: readonly So
   const normals: SolidScriptValue[] = items.map((item) => solidScriptMemberVector(item.normal));
   solidScriptFaceWrite(run, 'into', points);
   solidScriptFaceWrite(run, 'normals', normals);
+}
+
+/**
+ * Reads how many points a Points line makes: a whole number from 0 up to the
+ * list cap.
+ *
+ * @param run Running line.
+ * @returns Count.
+ */
+function solidScriptPointsCount(run: SolidScriptBlockRun): number {
+  const count = solidScriptValueNumber(run.value('count'));
+  const most = SOLID_SCRIPT_LIMITS.listItems;
+  if (count === undefined || !Number.isInteger(count) || count < 0 || count > most)
+    throw new Error(`Count needs a whole number from 0 to ${solidScriptLimitCount(most)}, such as 10`);
+  return count;
+}
+
+/**
+ * Makes Count points, each at the position At works out for its [$Index].
+ *
+ * @param run Running line.
+ */
+function solidScriptPointsRun(run: SolidScriptBlockRun): void {
+  const count = solidScriptPointsCount(run);
+  const points = Array.from({ length: count }, (_, index) => {
+    const at = run.valueWith('at', { $Index: index, $Count: count });
+    const numbers = solidScriptValueNumbers(at);
+    if (numbers?.length !== 3)
+      throw new Error('At needs three numbers for each point, such as [=Vector([$Index], 0, 0)]');
+    return numbers;
+  });
+  solidScriptFaceWrite(run, 'into', points);
 }
 
 /** A Where for the hint of each kind of Points From line. */
@@ -69,6 +111,37 @@ function solidScriptPointsFromFields(
 
 /** Commands that take points from faces, edges or vertices. */
 export const SOLID_SCRIPT_COMMANDS_POINTS: readonly SolidScriptCommand[] = [
+  new SolidScriptCommand({
+    id: 'points',
+    label: 'Points',
+    category: 'Faces',
+    description: 'Make a list of points from a formula',
+    manual:
+      'Makes Count points and writes them to Into, a list of vectors. At is worked out once per point, with [$Index] its number from 0 and [$Count] how many there are, so one line lays out a row, a ring or a spiral without Repeat and Add Item. Use the points with Place At Points, Path From Points or Sweep Along Path. Example: Points Count 8 At [=Vector(Cos([$Index] * 45) * 3, 0, Sin([$Index] * 45) * 3)] Into [Ring], then Place At Points At [Ring] with a Cylinder inside, makes a ring of 8 posts.',
+    stops: ['A Count that is not a whole number from 0.', 'An At that is not three numbers.'],
+    parameters: [
+      solidScriptParameter('count', 'Count', 'count', '10', 'How many points to make, such as 10.'),
+      solidScriptParameterEach(
+        solidScriptParameter(
+          'at',
+          'At',
+          'vector3',
+          '[=Vector([$Index], 0, 0)]',
+          'Where each point goes, such as [=Vector([$Index], 0, 0)] for a row 1 m apart.',
+        ),
+        'Index',
+      ),
+      {
+        ...solidScriptParameterInto('the points, a list of vectors', 'Vector List', 'what is made', 'label'),
+        hint: 'Variable to write the points to, a list of vectors, such as Points.',
+      },
+    ],
+    listing: (read) => ['Points', read.value('count'), ' At ', read.value('at'), ' Into ', read.value('into')],
+    execute: (run) => {
+      solidScriptPointsRun(run);
+      return [];
+    },
+  }),
   new SolidScriptCommand({
     id: 'points_from_faces',
     label: 'Points From Faces',
