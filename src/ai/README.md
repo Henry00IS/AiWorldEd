@@ -600,3 +600,4 @@ Solid mutations (including hierarchy create/reparent/rename/ungroup) are **undoa
 - Scale Faces has a 🔁 Center (left off: the center of each face) and a 🔁 Axis that scales only along that direction, as Single Axis does, such as Axis 1, 0, 0 to make faces narrower but not shorter.
 - Scatter Points On Faces writes to Rotations, when named, the turn that stands a shape up on the face under each point, in X, Y, Z degrees as Rotation reads them, as Distribute Points on Faces does.
 - Align To has Axis (X, Y or Z: which axis of the items points along Direction, Y by default) and Amount (0 to 1, the share of the turn to take, so 0.5 leans halfway), as Align Rotation to Vector does.
+- RotateBy(rotation, by, local) composes two X, Y, Z degree turns, as Rotate Rotation does: By turns in world space, or in the rotated space when Local is true, which adding the angles does not do.

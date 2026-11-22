@@ -811,6 +811,15 @@ const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
     direction: { type: ['Vector'], about: 'The direction to turn.', start: '0, 1, 0' },
   },
   matrix_move: { matrix: { type: ['List'], about: 'A matrix, such as one from Transform.' } },
+  rotate_by: {
+    rotation: { type: ['Vector'], about: 'First turn in X, Y, Z degrees.', start: '0, 0, 0' },
+    by: { type: ['Vector'], about: 'Turn to apply, in X, Y, Z degrees.', start: '0, 90, 0' },
+    local: {
+      type: ['Yes/No'],
+      about: 'True: turn in the rotated space. False: turn in world space.',
+      default: 'false',
+    },
+  },
   matrix_rotate: { matrix: { type: ['List'], about: 'A matrix, such as one from Transform.' } },
   matrix_scale: { matrix: { type: ['List'], about: 'A matrix, such as one from Transform.' } },
   project_onto: {

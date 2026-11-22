@@ -131,6 +131,16 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_MATRIX = {
     group: 'Vector',
     gives: ['Vector'],
   },
+  rotate_by: {
+    usage: 'RotateBy(rotation, by, local)',
+    summary: solidScriptFunctionDocSummary(
+      'Composes two turns in X, Y, Z degrees: By in world space, or in the rotated space when Local is true.',
+      ['RotateBy(Vector(0, 90, 0), Vector(0, 0, 0)) is Vector(0, 90, 0).'],
+      'Use it to turn a rotation without adding its angles, which is not the same as composing turns.',
+    ),
+    group: 'Vector',
+    gives: ['Vector'],
+  },
   matrix_rotate: {
     usage: 'MatrixRotate(matrix)',
     summary: solidScriptFunctionDocSummary(

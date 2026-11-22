@@ -94,8 +94,25 @@ function solidScriptMatrixInvert(args: readonly SolidScriptValue[]): number[][] 
   return solidScriptMatrixRows(matrix.invert());
 }
 
+/**
+ * Composes two turns in X, Y, Z degrees: the second in world space, or in the
+ * rotated space when Local is true.
+ *
+ * @param args First turn, second turn and optional Local.
+ * @returns Combined turn in X, Y, Z degrees.
+ */
+function solidScriptMatrixRotateBy(args: readonly SolidScriptValue[]): number[] {
+  const usage = 'RotateBy(rotation, by, local)';
+  const rotation = solidScriptRotationDegreesMatrix(solidScriptMatrixVector(args[0], usage, 'Rotation').toArray());
+  const by = solidScriptRotationDegreesMatrix(solidScriptMatrixVector(args[1], usage, 'By').toArray());
+  const local = args[2] ?? false;
+  if (typeof local !== 'boolean') throw new Error(`${usage} needs true or false for Local`);
+  return solidScriptRotationDegrees(local ? rotation.multiply(by) : by.multiply(rotation));
+}
+
 /** Matrix functions: build, undo, read back and apply. */
 export const SOLID_SCRIPT_FUNCTIONS_MATRIX = {
+  rotate_by: solidScriptMatrixRotateBy,
   transform: solidScriptMatrixTransform,
   invert: solidScriptMatrixInvert,
   transform_point: (args) => {
