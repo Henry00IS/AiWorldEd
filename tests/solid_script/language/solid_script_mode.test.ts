@@ -31,7 +31,7 @@ describe('SolidScript brush Mode', () => {
     ]);
   });
 
-  it('is on every brush generator and on no mesh command', () => {
+  it('is on every brush generator and on the mesh blocks only', () => {
     const generators = [
       'cube',
       'sphere',
@@ -50,12 +50,13 @@ describe('SolidScript brush Mode', () => {
         id,
       ).toBe(true);
     }
+    const blocks = ['mesh', 'mesh_from_solids'];
     for (const command of solidScriptCommands) {
       if (command.category !== 'Meshes') continue;
       expect(
         command.parameters.some((parameter) => parameter.key === 'mode'),
         command.id,
-      ).toBe(false);
+      ).toBe(blocks.includes(command.id));
     }
   });
 

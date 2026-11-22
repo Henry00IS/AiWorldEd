@@ -13,6 +13,7 @@ import {
   solidScriptParameterOptional,
 } from './solid_script_command_parameters.js';
 import { solidScriptParameterOfWhere } from './solid_script_command_of_where.js';
+import { solidScriptMeshModeSet, solidScriptParameterMeshMode } from './solid_script_command_mesh_mode.js';
 import { solidScriptOfWhere } from '@/solid_script/language/solid_script_of_where.js';
 import { solidScriptShapeGone } from '@/solid_script/language/solid_script_shape_gone.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
@@ -340,7 +341,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Build a mesh from Vertex and Face lines',
     manual:
-      'Builds a mesh, a regular model made of faces instead of solids, from the Vertex and Face lines between this line and its End. Each Vertex adds a corner point. They are numbered from 0 in order. Each Face joins corner numbers, listed counter-clockwise as seen from outside. Unlike solids, a mesh may be open, dented or any solid at all, but it does not cut or get cut. The lines inside may use Repeat, For Each, If, Set and moves, so a grid or a terrain can come from loops. Example: Vertex lines at -1, -1, 0 and 1, -1, 0 and 0, 1, 0, then Face 0, 1, 2 give one triangle.',
+      'Builds a mesh, a regular model made of faces instead of solids, from the Vertex and Face lines between this line and its End. Each Vertex adds a corner point. They are numbered from 0 in order. Each Face joins corner numbers, listed counter-clockwise as seen from outside. Unlike solids, a mesh may be open, dented or any solid at all. It does not cut solids or get cut by them, but Mode Subtractive cuts a closed mesh out of the meshes before it on its level and Intersecting keeps only their overlap, like solids. The lines inside may use Repeat, For Each, If, Set and moves, so a grid or a terrain can come from loops. Example: Vertex lines at -1, -1, 0 and 1, -1, 0 and 0, 1, 0, then Face 0, 1, 2 give one triangle.',
     stops: [
       'A Face with fewer than three corners, or a corner number with no Vertex.',
       'No Face lines.',
@@ -348,15 +349,15 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
       SOLID_SCRIPT_MESH_STOPS_END,
     ],
     nesting: 'open',
-    parameters: [],
-    listing: () => ['Mesh'],
+    parameters: [solidScriptParameterMeshMode()],
+    listing: (read) => ['Mesh', ...solidScriptListingOptions([read.changed('mode') && ['Mode ', read.value('mode')]])],
     execute: (run) => {
       const { points, uvs, faces } = run.gathered('mesh');
       const corners = faces.map((face) => {
         const uv = face.map((index) => uvs[index] ?? null);
         return uv.every((entry) => entry !== null) ? (uv as SolidScriptUv[]) : null;
       });
-      return run.mesh({ kind: 'mesh', label: 'mesh', points, faces, uvs: corners });
+      return run.mesh(solidScriptMeshModeSet(run, { kind: 'mesh', label: 'mesh', points, faces, uvs: corners }));
     },
   }),
   new SolidScriptCommand({
@@ -430,7 +431,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Turn solids into one mesh',
     manual:
-      'Turns the solids between this line and its End into one mesh, baking their cut result the same way the editor cuts solids, including Subtractive and Intersecting modes and Group. Only the solids inside this block are baked, not the rest of the world. Use it when a solid should be a model rather than level geometry, or to change it with the other mesh tools. Example: a Cube, then a smaller Cube with Mode Subtractive, inside Mesh From Solids, becomes a mesh with a notch.',
+      'Turns the solids between this line and its End into one mesh, baking their cut result the same way the editor cuts solids, including Subtractive and Intersecting modes and Group. Only the solids inside this block are baked, not the rest of the world. Use it when a solid should be a model rather than level geometry, or to change it with the other mesh tools. Example: a Cube, then a smaller Cube with Mode Subtractive, inside Mesh From Solids, becomes a mesh with a notch. Mode on this line combines the whole mesh with the meshes before it, the same way.',
     stops: [
       'A Subtractive or Intersecting solid that removes everything, so nothing is left to turn into a mesh.',
       'A solid that is no longer convex.',
@@ -438,9 +439,12 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
       SOLID_SCRIPT_MESH_STOPS_END,
     ],
     nesting: 'open',
-    parameters: [],
-    listing: () => ['Mesh From Solids'],
-    execute: (run) => solidScriptMeshTool(run, 'Mesh From Solids', (mesh) => mesh),
+    parameters: [solidScriptParameterMeshMode()],
+    listing: (read) => [
+      'Mesh From Solids',
+      ...solidScriptListingOptions([read.changed('mode') && ['Mode ', read.value('mode')]]),
+    ],
+    execute: (run) => solidScriptMeshTool(run, 'Mesh From Solids', (mesh) => solidScriptMeshModeSet(run, mesh)),
   }),
   new SolidScriptCommand({
     id: 'join_meshes',
@@ -452,7 +456,6 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
       'Joins the meshes in Of into one mesh, keeping every face and corner as they are; the joined mesh takes the place of the first, with its Name and texture, and the others are taken out. Of is the meshes; empty uses [$Selected.Objects]. Where, when given, is a 🔁 condition a mesh must pass to be joined. A solid stops the line: wrap it in Mesh From Solids first. Merge By Distance afterwards welds the corners that touch. Example: two Mesh From Solids blocks, Select Objects, then Join Meshes gives one mesh to Subdivide as a whole.',
     stops: ['A solid. Wrap it in Mesh From Solids first.', 'No mesh to work on.'],
     parameters: [
-      solidScriptParameterOfWhere('Object', '[=[$Object.Center.Y] > 0]'),
       solidScriptParameterOfWhere('Object', '[=[$Object.Center.Y] > 0]'),
       solidScriptParameterOf('meshes', '$Selected.Objects', ['Object']),
     ],

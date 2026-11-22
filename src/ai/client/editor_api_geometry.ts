@@ -15,7 +15,7 @@ import { failResult, okResult } from './editor_api_result.js';
 import { solidScriptProgramEvaluate } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptSolidTreeBuild } from '@/solid_script/language/solid_script_solid_tree.js';
 import { geometryScriptLinesRead } from './editor_api_geometry_script.js';
-import { solidScriptShapeMeshes } from '@/solid_script/language/solid_script_mesh.js';
+import { solidScriptShapeMeshesCut } from '@/solid_script/language/solid_script_mesh_modes.js';
 import {
   solidScriptMeshDocumentBuild,
   type SolidScriptMeshDocument,
@@ -167,7 +167,7 @@ export class EditorApiGeometry {
         .clone()
         .invert()
         .multiply(new THREE.Matrix4().makeTranslation(offset.x, offset.y, offset.z));
-      const meshes = solidScriptShapeMeshes(shapes).map((mesh) => solidScriptMeshDocumentBuild(mesh, toWorld));
+      const meshes = solidScriptShapeMeshesCut(shapes).map((mesh) => solidScriptMeshDocumentBuild(mesh, toWorld));
       return { nodes, meshes, messages };
     } catch (error) {
       return `Script: ${error instanceof Error ? error.message : String(error)}`;

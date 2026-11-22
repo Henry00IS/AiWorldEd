@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { SolidScriptFaceTag, SolidScriptShape } from './solid_script_shape.js';
+import type { SolidScriptMode } from './solid_script_mode.js';
 import { solidScriptMeshLimitCheck } from './solid_script_limits.js';
 
 /** Texture coordinate of one face corner. */
@@ -28,6 +29,11 @@ export interface SolidScriptShapeMesh {
   texture?: string;
   /** Tags the operations that built faces gave them, such as Inner. */
   faceTags?: SolidScriptFaceTag[];
+  /**
+   * How it combines with the meshes before it: Subtractive cuts itself out of
+   * them and Intersecting keeps only the overlap; none adds it.
+   */
+  mode?: SolidScriptMode;
   /**
    * Accumulated pose of the mesh since its UVs were written. Transform UVs
    * World Aligned uses it to project from the current script-space position,

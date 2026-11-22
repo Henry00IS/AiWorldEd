@@ -13,7 +13,7 @@ import {
 } from '@/solid_script/language/solid_script_shape.js';
 import type { SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
 import type { SolidScriptMode } from '@/solid_script/language/solid_script_mode.js';
-import { solidScriptShapeMeshes } from '@/solid_script/language/solid_script_mesh.js';
+import { solidScriptShapeMeshesCut } from '@/solid_script/language/solid_script_mesh_modes.js';
 import {
   solidScriptMeshDocumentBuild,
   type SolidScriptMeshDocument,
@@ -112,7 +112,7 @@ export function modifierStackSolidScriptLayout(
       operation,
       namePrefix: '',
     });
-    const meshes = solidScriptShapeMeshes(shapes).map((mesh) => solidScriptMeshDocumentBuild(mesh, placed));
+    const meshes = solidScriptShapeMeshesCut(shapes).map((mesh) => solidScriptMeshDocumentBuild(mesh, placed));
     return { nodes, meshes, passed, error: '' };
   } catch (error) {
     return { nodes: [], meshes: [], passed: [], error: solidScriptErrorText(error) };
