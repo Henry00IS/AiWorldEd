@@ -37,27 +37,24 @@ export class CsgBooleanOps {
     const polygonsA = this.meshBuilder.meshToPolygons(meshA);
     const polygonsB = this.meshBuilder.meshToPolygons(meshB);
     if (polygonsA.length === 0 || polygonsB.length === 0) return null;
-    const resultPolygons = this.computeResultPolygons(polygonsA, polygonsB, operation);
+    const resultPolygons = this.operatePolygons(polygonsA, polygonsB, operation);
     if (resultPolygons.length === 0) return null;
     const color = this.extractMeshColor(meshA);
     return this.meshBuilder.polygonsToMesh(resultPolygons, color, resultName);
   }
 
   /**
-   * Computes the polygon soup for a boolean operation using BSP trees.
+   * Computes the polygon soup for a boolean operation using BSP trees; also
+   * used directly by callers that hold polygons rather than scene meshes.
    *
    * @param polygonsA Polygons from mesh A.
    * @param polygonsB Polygons from mesh B.
    * @param operation The boolean operation.
    * @returns Resulting polygons.
    */
-  private computeResultPolygons(
-    polygonsA: CsgPolygon[],
-    polygonsB: CsgPolygon[],
-    operation: CsgOperation,
-  ): CsgPolygon[] {
-    const a = new CsgBspNode(polygonsA.map((polygon) => polygon.clone()));
-    const b = new CsgBspNode(polygonsB.map((polygon) => polygon.clone()));
+  operatePolygons(polygonsA: CsgPolygon[], polygonsB: CsgPolygon[], operation: CsgOperation): CsgPolygon[] {
+    const a = new CsgBspNode(polygonsA.filter((polygon) => polygon.hasArea()).map((polygon) => polygon.clone()));
+    const b = new CsgBspNode(polygonsB.filter((polygon) => polygon.hasArea()).map((polygon) => polygon.clone()));
     if (operation === CsgOperation.UNION) {
       return this.computeUnion(a, b);
     }

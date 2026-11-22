@@ -1,5 +1,43 @@
 import * as THREE from 'three';
-import { CsgPolygon } from './csg_polygon.js';
+import { CsgPolygon, type CsgCornerUv } from './csg_polygon.js';
+
+/** One corner of a polygon being split: where it is and its texture coordinate. */
+interface CsgBspCorner {
+  vertex: THREE.Vector3;
+  uv: CsgCornerUv | null;
+}
+
+/** Corners gathered for one side of a split. */
+interface CsgBspCorners {
+  vertices: THREE.Vector3[];
+  uvs: (CsgCornerUv | null)[];
+}
+
+/**
+ * Adds a corner to one side of a split.
+ *
+ * @param side Corners of that side.
+ * @param corner Corner to add, copied.
+ */
+function csgBspCornerPush(side: CsgBspCorners, corner: CsgBspCorner): void {
+  side.vertices.push(corner.vertex.clone());
+  side.uvs.push(corner.uv);
+}
+
+/**
+ * Turns one side of a split into a polygon, keeping the source's mapping and
+ * texture coordinates; a side with no area is dropped.
+ *
+ * @param into List the piece goes to.
+ * @param side Corners of that side.
+ * @param source Polygon that was split.
+ */
+function csgBspPiecePush(into: CsgPolygon[], side: CsgBspCorners, source: CsgPolygon): void {
+  if (side.vertices.length < 3) return;
+  const uvs = side.uvs.every((uv) => uv !== null) ? (side.uvs as CsgCornerUv[]) : null;
+  const piece = new CsgPolygon(side.vertices, source.getSurfaceMapping(), uvs);
+  if (piece.hasArea()) into.push(piece);
+}
 
 /** Vertex classification codes for plane splitting. */
 const COPLANAR = 0;
@@ -194,42 +232,41 @@ export class CsgBspNode {
    */
   private pushSpanningFragments(polygon: CsgPolygon, types: number[], front: CsgPolygon[], back: CsgPolygon[]): void {
     const vertices = polygon.getVertices();
-    const frontVertices: THREE.Vector3[] = [];
-    const backVertices: THREE.Vector3[] = [];
+    const uvs = polygon.getUvs();
+    const frontSide: CsgBspCorners = { vertices: [], uvs: [] };
+    const backSide: CsgBspCorners = { vertices: [], uvs: [] };
     for (let index = 0; index < vertices.length; index++) {
-      const nextIndex = (index + 1) % vertices.length;
-      const type = types[index]!;
-      const nextType = types[nextIndex]!;
-      const vertex = vertices[index]!;
-      const nextVertex = vertices[nextIndex]!;
-      if (type !== BACK) frontVertices.push(vertex.clone());
-      if (type !== FRONT) backVertices.push(vertex.clone());
-      if ((type | nextType) === SPANNING) {
-        const intersection = this.intersectEdge(vertex, nextVertex);
-        frontVertices.push(intersection.clone());
-        backVertices.push(intersection.clone());
-      }
+      const next = (index + 1) % vertices.length;
+      const type = types[index] ?? COPLANAR;
+      const corner = { vertex: vertices[index] ?? new THREE.Vector3(), uv: uvs?.[index] ?? null };
+      if (type !== BACK) csgBspCornerPush(frontSide, corner);
+      if (type !== FRONT) csgBspCornerPush(backSide, corner);
+      if ((type | (types[next] ?? COPLANAR)) !== SPANNING) continue;
+      const crossing = this.intersectEdge(corner, { vertex: vertices[next] ?? corner.vertex, uv: uvs?.[next] ?? null });
+      csgBspCornerPush(frontSide, crossing);
+      csgBspCornerPush(backSide, crossing);
     }
-    const surface = polygon.getSurfaceMapping();
-    if (frontVertices.length >= 3) {
-      front.push(new CsgPolygon(frontVertices, surface));
-    }
-    if (backVertices.length >= 3) {
-      back.push(new CsgPolygon(backVertices, surface));
-    }
+    csgBspPiecePush(front, frontSide, polygon);
+    csgBspPiecePush(back, backSide, polygon);
   }
 
   /**
-   * Intersects an edge with this node's plane.
+   * Finds where an edge crosses this node's plane, blending the texture
+   * coordinates of its ends when both have one.
    *
    * @param start Edge start.
    * @param end Edge end.
-   * @returns Intersection point.
+   * @returns The crossing corner.
    */
-  private intersectEdge(start: THREE.Vector3, end: THREE.Vector3): THREE.Vector3 {
-    const startDistance = this.planeNormal!.dot(start) - this.planeConstant;
-    const endDistance = this.planeNormal!.dot(end) - this.planeConstant;
+  private intersectEdge(start: CsgBspCorner, end: CsgBspCorner): CsgBspCorner {
+    const normal = this.planeNormal ?? new THREE.Vector3();
+    const startDistance = normal.dot(start.vertex) - this.planeConstant;
+    const endDistance = normal.dot(end.vertex) - this.planeConstant;
     const t = startDistance / (startDistance - endDistance);
-    return start.clone().lerp(end, t);
+    const uv: CsgCornerUv | null =
+      start.uv && end.uv
+        ? [start.uv[0] + (end.uv[0] - start.uv[0]) * t, start.uv[1] + (end.uv[1] - start.uv[1]) * t]
+        : null;
+    return { vertex: start.vertex.clone().lerp(end.vertex, t), uv };
   }
 }

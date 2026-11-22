@@ -112,3 +112,12 @@ describe('Mesh Mode', () => {
     expect(typeof apart === 'string' ? apart : apart.length).toBe(2);
   });
 });
+
+describe('Mesh Mode texture coordinates', () => {
+  it('keeps the coordinates of the faces that are cut, blended at the cut', () => {
+    const meshes = shown(...cubeMesh('2, 2, 2', ''), ...cubeMesh('1, 1, 1', 'Subtractive', '1, 1, 1'));
+    if (typeof meshes === 'string') throw new Error(meshes);
+    const [mesh] = meshes;
+    expect(mesh?.uvs.every((uv) => uv !== null)).toBe(true);
+  });
+});
