@@ -16,7 +16,8 @@ import {
   type SolidScriptLine,
   type SolidScriptUse,
 } from '@/solid_script/document/solid_script_document.js';
-import { solidScriptEditorOpen } from '@/solid_script/ui/solid_script_editor_open.js';
+import { solidScriptEditorCurrentGet, solidScriptEditorOpen } from '@/solid_script/ui/solid_script_editor_open.js';
+import { projectFolderCurrentSet } from '@/project/fs/project_folder_current.js';
 
 /**
  * Opens the editor of a SolidScript generator, or of a SolidScript modifier.
@@ -152,4 +153,57 @@ export function caption(): string {
  */
 export function linePress(at: number): void {
   chip(at).dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 }));
+}
+
+/** Lines of a script with a cube and a sphere. */
+export const CUBE_SPHERE: SolidScriptLine[] = [{ command: 'cube' }, { command: 'sphere' }];
+
+/**
+ * Presses an undo or redo key in the script editor's lines.
+ *
+ * @param key Z or Y.
+ * @param modifiers Extra modifier keys, such as Shift for Ctrl+Shift+Z.
+ */
+export function scriptKey(key: 'z' | 'y', modifiers: KeyboardEventInit = {}): void {
+  press(find('[data-solid-script-editor] .solid-script-editor-lines'), key, { ctrlKey: true, ...modifiers });
+}
+
+/**
+ * Types into an input.
+ *
+ * @param input Input.
+ * @param value New text.
+ */
+export function type(input: HTMLInputElement, value: string): void {
+  input.value = value;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+/**
+ * Drops drag data on an element.
+ *
+ * @param element Drop target.
+ * @param data Drag data by type.
+ */
+export function drop(element: HTMLElement, data: Record<string, string>): void {
+  const event = new MouseEvent('drop', { bubbles: true, cancelable: true, clientY: -1 });
+  Object.defineProperty(event, 'dataTransfer', {
+    value: { types: Object.keys(data), files: [], getData: (kind: string) => data[kind] ?? '' },
+  });
+  element.dispatchEvent(event);
+}
+
+/** Lets pending promises settle. */
+export async function settle(): Promise<void> {
+  for (let round = 0; round < 10; round++) await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+/**
+ * Closes the open editor, forgets the project folder and empties the page after
+ * a test.
+ */
+export function editorCleanup(): void {
+  solidScriptEditorCurrentGet()?.close();
+  projectFolderCurrentSet(null);
+  document.body.replaceChildren();
 }
