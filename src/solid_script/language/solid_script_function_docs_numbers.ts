@@ -119,6 +119,36 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_NUMBERS = {
     group: 'Math',
     gives: ['Number'],
   },
+  bit_not: {
+    usage: 'BitNot(a)',
+    summary: solidScriptFunctionDocSummary(
+      'Flips every bit of a whole number, as 32 bits with a sign, so it gives minus the number less one.',
+      ['BitNot(0) is -1.', 'BitNot(5) is -6.'],
+      'Use it with BitAnd to turn a flag bit off.',
+    ),
+    group: 'Math',
+    gives: ['Number'],
+  },
+  bit_shift: {
+    usage: 'BitShift(a, shift)',
+    summary: solidScriptFunctionDocSummary(
+      'Moves the bits of a whole number left by Shift places, or right for a negative Shift, keeping the sign; at most 31 places.',
+      ['BitShift(3, 2) is 12.', 'BitShift(12, -2) is 3.'],
+      'Use it to pack or unpack small numbers into one.',
+    ),
+    group: 'Math',
+    gives: ['Number'],
+  },
+  bit_rotate: {
+    usage: 'BitRotate(a, shift)',
+    summary: solidScriptFunctionDocSummary(
+      'Turns the 32 bits of a whole number left by Shift places, or right for a negative Shift; bits that fall off one end come back in at the other.',
+      ['BitRotate(6, 1) is 12.', 'BitRotate(1, -1) is -2147483648.'],
+      'Use it to scramble bits for a hash of your own.',
+    ),
+    group: 'Math',
+    gives: ['Number'],
+  },
   median: {
     usage: 'Median(list)',
     summary: solidScriptFunctionDocSummary(
@@ -162,6 +192,12 @@ export const SOLID_SCRIPT_NUMBERS_ARGUMENTS = {
   log: {
     number: SOLID_SCRIPT_NUMBERS_PER_AXIS,
     base: { type: ['Number'], about: 'The number multiplied, 10 when left off.', default: '10', start: '2' },
+  },
+  bit_shift: {
+    shift: { type: ['Number'], about: 'Places to move: left when above 0, right when below.', start: '1' },
+  },
+  bit_rotate: {
+    shift: { type: ['Number'], about: 'Places to turn: left when above 0, right when below.', start: '1' },
   },
   sinh: { number: SOLID_SCRIPT_NUMBERS_PER_AXIS },
   cosh: { number: SOLID_SCRIPT_NUMBERS_PER_AXIS },

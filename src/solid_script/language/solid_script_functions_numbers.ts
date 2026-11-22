@@ -123,6 +123,15 @@ export const SOLID_SCRIPT_FUNCTIONS_NUMBERS = {
   bit_and: solidScriptNumbersBits('BitAnd(a, b)', (a, b) => a & b),
   bit_or: solidScriptNumbersBits('BitOr(a, b)', (a, b) => a | b),
   bit_xor: solidScriptNumbersBits('BitXor(a, b)', (a, b) => a ^ b),
+  bit_not: (args) => ~Math.round(solidScriptExtraNumber(args, 0, 'BitNot(a)')),
+  bit_shift: solidScriptNumbersBits('BitShift(a, shift)', (a, shift) => {
+    const steps = Math.max(-31, Math.min(31, shift));
+    return steps >= 0 ? a << steps : a >> -steps;
+  }),
+  bit_rotate: solidScriptNumbersBits('BitRotate(a, shift)', (a, shift) => {
+    const steps = ((shift % 32) + 32) % 32;
+    return (a << steps) | (a >>> (32 - steps));
+  }),
   median: (args) => {
     const sorted = solidScriptNumbersSorted(args, 'Median(list)');
     const middle = Math.floor(sorted.length / 2);
