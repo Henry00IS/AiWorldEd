@@ -195,3 +195,4 @@ The **Examples** window holds showcase scripts such as the Spiral Staircase, sma
 - Scale Faces scales faces that share corners as one island, by their average Factor about their average Center.
 - Scale Edges grows or shrinks edges, joined ones as one island about their average midpoint.
 - InvertRotation, RotationAxis, RotationAngle and MixRotation work on turns in X, Y, Z degrees.
+- Select Shortest Paths picks the edges of the cheapest way from Start corners to the nearest End corner, with a Cost per edge.

@@ -117,6 +117,7 @@ const SOLID_SCRIPT_AUDIT_FACES = new Set([
   'find_on',
   'scale_faces',
   'scale_edges',
+  'select_shortest_paths',
 ]);
 
 /** Commands that work on a mesh, which the prelude's mesh feeds. */
