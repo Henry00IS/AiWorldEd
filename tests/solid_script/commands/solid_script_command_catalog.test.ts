@@ -125,7 +125,6 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
       'delete_edges',
       'delete_vertices',
       'join_meshes',
-      'bevel_vertices',
     ].includes(command.id)
   ) {
     const tools =
@@ -472,7 +471,6 @@ describe('solid script command catalog', () => {
       'delete_edges',
       'delete_vertices',
       'join_meshes',
-      'bevel_vertices',
     ];
     for (const id of refused) {
       const pick = [

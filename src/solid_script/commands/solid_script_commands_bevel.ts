@@ -18,13 +18,12 @@ import {
   type SolidScriptGeometryLeaf,
   type SolidScriptVertexFacts,
 } from '@/solid_script/language/solid_script_geometry.js';
+import * as THREE from 'three';
+import type { SolidScriptBody } from '@/solid_script/language/solid_script_body.js';
+import { solidScriptGeometryCornerBevel } from '@/solid_script/language/solid_script_geometry_corners.js';
 import { solidScriptKindNamed } from '@/solid_script/language/solid_script_kinds.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
-import {
-  SOLID_SCRIPT_MESH_NEEDS_WRAP,
-  solidScriptMeshLoopCenter,
-  solidScriptMeshLoopNormal,
-} from '@/solid_script/language/solid_script_mesh.js';
+import { solidScriptMeshLoopCenter, solidScriptMeshLoopNormal } from '@/solid_script/language/solid_script_mesh.js';
 import {
   solidScriptMeshBevel,
   type SolidScriptMeshBevelPick,
@@ -140,21 +139,20 @@ function solidScriptBevelStore(
 }
 
 /**
- * Bevels edges of one solid with planes.
+ * Stores a solid cut by planes and gives the faces the planes made.
  *
  * @param run Running line.
- * @param leaf Solid.
- * @param edges Its edges.
- * @param distanceOf Distance per edge.
+ * @param leaf Solid before.
+ * @param body Corners and faces after.
+ * @param cuts Direction and a point of every cutting plane.
  * @returns The new faces.
  */
-function solidScriptBevelSolid(
+function solidScriptBevelSolidStore(
   run: SolidScriptBlockRun,
   leaf: SolidScriptGeometryLeaf & { kind: 'solid' },
-  edges: readonly SolidScriptEdgeFacts[],
-  distanceOf: (edge: SolidScriptEdgeFacts) => number,
+  body: SolidScriptBody,
+  cuts: readonly { normal: THREE.Vector3; point: THREE.Vector3 }[],
 ): SolidScriptValue[] {
-  const { body, cuts } = solidScriptGeometryBevel(leaf, edges, distanceOf);
   const bevelled = { ...leaf, ...body };
   const made = solidScriptGeometryFaces([bevelled])
     .filter((face) =>
@@ -227,8 +225,10 @@ function solidScriptBevelEdgesRun(run: SolidScriptBlockRun): [] {
   for (const [leaf, held] of solidScriptFaceGroups(all, (edge) => edge.faces[0].leaf)) {
     const edges = held.filter((edge) => !edge.faces.some((face) => face?.tags.includes(SOLID_SCRIPT_BEVEL_TAG)));
     if (edges.length === 0) continue;
-    if (leaf.kind === 'solid') made.push(...solidScriptBevelSolid(run, leaf, edges, distanceOf));
-    else {
+    if (leaf.kind === 'solid') {
+      const { body, cuts } = solidScriptGeometryBevel(leaf, edges, distanceOf);
+      made.push(...solidScriptBevelSolidStore(run, leaf, body, cuts));
+    } else {
       const picks = edges.map((edge) => ({ at: [edge.start, edge.end], distance: distanceOf(edge) }));
       made.push(...solidScriptBevelMesh(run, leaf, picks));
     }
@@ -279,14 +279,19 @@ function solidScriptBevelVerticesRun(run: SolidScriptBlockRun): [] {
   const made: SolidScriptValue[] = [];
   const picks = corners.map((corner, index) => ({ ...corner, distance: read(index) }));
   for (const [leaf, held] of solidScriptFaceGroups(picks, (pick) => pick.leaf)) {
-    if (leaf.kind !== 'mesh') throw new Error(SOLID_SCRIPT_MESH_NEEDS_WRAP);
-    made.push(
-      ...solidScriptBevelMesh(
-        run,
-        leaf,
-        held.map((pick) => ({ at: [pick.vertex.position], distance: pick.distance })),
-      ),
-    );
+    const cuts = held.map((pick) => ({ at: pick.vertex.position, distance: pick.distance }));
+    if (leaf.kind === 'mesh')
+      made.push(
+        ...solidScriptBevelMesh(
+          run,
+          leaf,
+          cuts.map((cut) => ({ at: [cut.at], distance: cut.distance })),
+        ),
+      );
+    else {
+      const { body, planes } = solidScriptGeometryCornerBevel(leaf, cuts);
+      made.push(...solidScriptBevelSolidStore(run, leaf, body, planes));
+    }
   }
   return solidScriptBevelMade(run, made);
 }
@@ -335,10 +340,10 @@ export const SOLID_SCRIPT_COMMANDS_BEVEL: readonly SolidScriptCommand[] = [
     edits: true,
     label: 'Bevel Vertices',
     category: 'Vertices',
-    description: 'Cut corners of a mesh off flat',
+    description: 'Cut corners off flat',
     manual:
-      'Cuts corners of a mesh off: every edge that meets a corner gets a new corner Distance along it, and a new face joins them. Of gives corners, faces (their corners) or meshes (all their corners); empty uses [$Selected.Vertices], else the corners of [$Selected.Faces]. The 🔁 Where keeps the corners it holds for, and Distance may change per corner. Corners at the same place are joined first. Into names a variable for the new faces, and [$Selected.Faces] holds them afterwards. A solid stops, with a hint to wrap it in Mesh From Solids first. Example: Mesh From Solids around a Cube, then Select Objects and Bevel Vertices by 0.2 cuts its 8 corners off.',
-    stops: ['No corners.', 'Corners of a solid.', 'A Distance of 0 or less, or one too long for the edges.'],
+      'Cuts corners off flat. On a mesh every edge that meets a corner gets a new corner Distance along it, and a new face joins them. On a solid each corner is cut by a plane square to the average direction of its edges, Distance along the edge it reaches first, so the solid stays convex; on a box that is Distance along every edge. Of gives corners, faces (their corners) or meshes (all their corners); empty uses [$Selected.Vertices], else the corners of [$Selected.Faces]. The 🔁 Where keeps the corners it holds for, and Distance may change per corner. Corners at the same place are joined first. Into names a variable for the new faces, and [$Selected.Faces] holds them afterwards. Example: Cube, Select Objects, then Bevel Vertices by 0.2 cuts its 8 corners off.',
+    stops: ['No corners.', 'A Distance of 0 or less, or one too long for the edges.'],
     parameters: [
       solidScriptParameterEach(
         solidScriptParameter(

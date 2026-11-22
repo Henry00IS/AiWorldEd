@@ -131,17 +131,6 @@ describe('Bevel Vertices', () => {
     expect(mesh.faces).toHaveLength(10);
     expect(closed(mesh)).toBe(true);
   });
-
-  it('stops on a solid, with the Mesh From Solids hint', () => {
-    const result = solidScriptProgramRun(
-      solidScriptDocumentCreate([
-        { command: 'cube' },
-        { command: 'select_objects' },
-        { command: 'bevel_vertices', values: { of: '[$Selected.Objects]' } },
-      ]),
-    );
-    expect(result.error?.message).toContain('Mesh From Solids');
-  });
 });
 
 describe('Bevel Edges per edge', () => {
