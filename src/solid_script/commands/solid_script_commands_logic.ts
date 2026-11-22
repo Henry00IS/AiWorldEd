@@ -5,6 +5,7 @@ import {
   solidScriptParameter,
   solidScriptParameterGroupMode,
   solidScriptParameterOptional,
+  solidScriptParameterWords,
   solidScriptParameterWrites,
 } from './solid_script_command_parameters.js';
 import {
@@ -21,6 +22,24 @@ export const SOLID_SCRIPT_COMMAND_END = 'end';
 
 /** Id of the command of an empty line, which inserting a command fills. */
 export const SOLID_SCRIPT_COMMAND_BLANK = 'blank';
+
+/** Kinds of Warn line, as typed. */
+const SOLID_SCRIPT_WARN_KINDS = ['Warning', 'Stop'] as const;
+
+/**
+ * Runs a Warn line: adds its message to the warnings, or stops the script with
+ * it when Kind is Stop.
+ *
+ * @param run Running line.
+ */
+function solidScriptWarnRun(run: SolidScriptBlockRun): void {
+  const typed = run.text('kind').trim() || 'Warning';
+  const kind = SOLID_SCRIPT_WARN_KINDS.find((word) => word.toLowerCase() === typed.toLowerCase());
+  if (!kind) throw new Error(`Kind needs Warning or Stop, not ${typed}`);
+  const text = solidScriptValueText(run.value('text'));
+  if (kind === 'Stop') throw new Error(text);
+  run.warn(text);
+}
 
 /**
  * Lists the counter values of a Repeat line: Start, then Start + Step, up to
@@ -282,6 +301,44 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     ],
     listing: (read) => ['@ Echo', read.value('value')],
     execute: (run) => run.print(solidScriptValueText(run.value('value'))),
+  }),
+  new SolidScriptCommand({
+    id: 'warn',
+    label: 'Warn',
+    category: 'Logic',
+    description: 'Warn about a problem, or stop the script',
+    manual:
+      'Adds a warning to the Output and the inspector, the way the editor warns about a solid that is not convex, so whoever uses the generator sees it. Kind Stop ends the script with the message as its mistake instead, like a broken line. Put it inside If to warn only when something is wrong. [Name] and [=formula] are filled in, like in Echo. Example: If [=[Width] > 20], Warn Width above 20 m is too wide for a door.',
+    stops: ['Kind Stop, which always stops the script with the message.'],
+    parameters: [
+      solidScriptParameter(
+        'text',
+        'Message',
+        'message',
+        'Check the size',
+        'Plain text to show, such as Width [Width] is too wide. [Name] puts in a variable.',
+      ),
+      solidScriptParameterWords(
+        'kind',
+        'Kind',
+        'text',
+        'Warning',
+        'Warning keeps going and shows the message; Stop ends the script with it. Type one, such as Stop.',
+        [
+          { word: 'Warning', detail: 'Show the message and keep going' },
+          { word: 'Stop', detail: 'End the script with the message as its mistake' },
+        ],
+      ),
+    ],
+    listing: (read) => [
+      'Warn',
+      read.value('text'),
+      ...solidScriptListingOptions([read.changed('kind') && ['Kind ', read.value('kind')]]),
+    ],
+    execute: (run) => {
+      solidScriptWarnRun(run);
+      return [];
+    },
   }),
   new SolidScriptCommand({
     id: 'note',
