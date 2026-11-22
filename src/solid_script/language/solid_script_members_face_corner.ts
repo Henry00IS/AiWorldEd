@@ -160,6 +160,36 @@ function solidScriptFaceCornerUv(face: SolidScriptFaceFacts, index: number): THR
   return new THREE.Vector3(u, v, 0);
 }
 
+/**
+ * The corners of a face in order around it, starting at one of them.
+ *
+ * @param face Face.
+ * @param index Corner to start at.
+ * @param elements Geometry values of the run.
+ * @returns Face corner elements.
+ */
+function solidScriptFaceCornerRing(
+  face: SolidScriptFaceFacts,
+  index: number,
+  elements: SolidScriptElements,
+): SolidScriptElement[] {
+  const count = face.corners.length;
+  return face.corners.map((_, step) => elements.faceCorner(face, (index + step) % count));
+}
+
+/**
+ * The corner some steps on around a face, wrapping past its last corner.
+ *
+ * @param steps Corners to move, back when below 0.
+ * @returns Reader.
+ */
+function solidScriptFaceCornerStep(steps: number): SolidScriptFaceCornerReader {
+  return (face, index, elements) => {
+    const count = face.corners.length;
+    return elements.faceCorner(face, (((index + steps) % count) + count) % count);
+  };
+}
+
 /** Members of a face corner, folded, and how each is read. */
 const SOLID_SCRIPT_FACE_CORNER_READERS: Readonly<Record<string, SolidScriptFaceCornerReader>> = {
   face: (face, _index, elements) => elements.face(face),
@@ -171,6 +201,9 @@ const SOLID_SCRIPT_FACE_CORNER_READERS: Readonly<Record<string, SolidScriptFaceC
   uv: solidScriptFaceCornerUv,
   nextedge: (face, index, elements) => solidScriptFaceCornerEdge(elements, face, index, index + 1),
   previousedge: (face, index, elements) => solidScriptFaceCornerEdge(elements, face, index - 1, index),
+  nextcorner: solidScriptFaceCornerStep(1),
+  previouscorner: solidScriptFaceCornerStep(-1),
+  ring: solidScriptFaceCornerRing,
 };
 
 /**
