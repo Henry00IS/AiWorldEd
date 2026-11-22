@@ -511,9 +511,9 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
     gives: ['List'],
   },
   nearest: {
-    usage: 'Nearest(points, point, skip)',
+    usage: 'Nearest(points, point, skip, groups, group)',
     summary:
-      'Index of the closest point in a list, from 0, such as Nearest([Points], Vector(0, 0, 0)). Skip leaves out one index, so Nearest([Points], [$Point], [$Index]) finds the nearest other point; -1 when none is left.',
+      'Index of the closest point in a list, from 0, such as Nearest([Points], Vector(0, 0, 0)). Skip leaves out one index, so Nearest([Points], [$Point], [$Index]) finds the nearest other point; -1 when none is left. Groups gives a group number per point and Group the one to search, so only points of the same group are found.',
     group: 'Random',
     gives: ['Number'],
   },
@@ -886,6 +886,8 @@ const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
       about: 'An index to leave out, such as [$Index] for the nearest other point; -1 skips none.',
       start: '-1',
     },
+    groups: { type: ['List'], about: 'A group number for each point, in the same order, such as [1, 1, 2].' },
+    group: { type: ['Number'], about: 'The group to search; only its points can be found.', start: '1' },
   },
   time_text: { pattern: { type: ['Text'], about: 'Layout with YYYY, MM, DD, HH, mm and ss, such as "HH:mm".' } },
   slice: { start: { type: ['Number'], about: 'Position of the first item, from 0.', start: '0' } },
@@ -919,6 +921,7 @@ export function solidScriptFunctionArguments(key: string): SolidScriptFunctionAr
 
 /** Inputs at the end of a function that may be left off, by function key. */
 const SOLID_SCRIPT_FUNCTION_INPUTS_LEFT_OFF: Readonly<Record<string, number>> = {
+  nearest: 3,
   first: 1,
   last: 1,
   checker: 1,

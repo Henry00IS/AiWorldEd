@@ -215,29 +215,50 @@ function solidScriptExtraShuffle(list: readonly SolidScriptValue[], seed: number
 
 /**
  * Index of the closest point in a list, optionally skipping one index so a
- * point finds its nearest other point.
+ * point finds its nearest other point, and optionally only among the points of
+ * one group.
  *
- * @param args Points, the point to measure from and an optional index to skip.
+ * @param args Points, the point to measure from, an index to skip, the group of
+ *   each point and the group to search.
  * @returns Index from 0, or -1 when no other point is left.
  */
 function solidScriptExtraNearest(args: readonly SolidScriptValue[]): number {
-  const usage = 'Nearest(points, point, skip)';
+  const usage = 'Nearest(points, point, skip, groups, group)';
   const given = args[0];
   const list = given instanceof SolidScriptPathElement ? solidScriptPathSample(given.path) : given;
   if (!Array.isArray(list) || list.length === 0)
     throw new Error(`${usage} needs a list of points, not ${solidScriptValueText(list)}`);
   const from = solidScriptExtraVector(args, 1, usage);
   const skip = args.length > 2 ? solidScriptExtraNumber(args, 2, usage) : -1;
+  const searched = solidScriptExtraNearestSearched(args, list.length, usage);
   let best = -1;
   let nearest = Number.POSITIVE_INFINITY;
   list.forEach((entry, index) => {
     const distance = solidScriptExtraNearestDistance(entry, from, usage);
-    if (index !== skip && distance < nearest) {
-      nearest = distance;
-      best = index;
-    }
+    if (index !== skip && searched(index) && distance < nearest) [nearest, best] = [distance, index];
   });
   return best;
+}
+
+/**
+ * Tells which points Nearest may pick: every point, or only those whose group
+ * is the searched group.
+ *
+ * @param args Nearest arguments, with the groups fourth and the group fifth.
+ * @param count How many points there are.
+ * @param usage Usage text for errors.
+ * @returns Whether a point index may be picked.
+ */
+function solidScriptExtraNearestSearched(
+  args: readonly SolidScriptValue[],
+  count: number,
+  usage: string,
+): (index: number) => boolean {
+  if (args.length < 4) return () => true;
+  const groups = solidScriptExtraVector(args, 3, usage);
+  if (groups.length !== count) throw new Error(`${usage} needs one group per point, ${count} in all`);
+  const group = solidScriptExtraNumber(args, 4, usage);
+  return (index) => groups[index] === group;
 }
 
 /**
