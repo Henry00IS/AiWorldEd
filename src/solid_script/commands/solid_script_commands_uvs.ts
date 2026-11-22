@@ -203,10 +203,10 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Move, scale or rotate texture coordinates',
     manual:
-      "Offsets, scales and rotates the UV mapping of the faces in UV space. Offset is tiles added to U and V (Z is ignored); on solids from Input Objects it shifts the texture of that copy. It is added after Scale and Rotate. Pivot is Center (the middle of the faces' UVs), Tile (the middle of the texture tile under that center, such as 0.5, 0.5) or Origin (0, 0). Readable Text Yes keeps lettering readable when a later Mirror or a mirrored copy would otherwise reverse it, No lets the reflection reverse it, and left off the solid keeps the Readable Text it already has. Textures is Move With Shape, so textures stay on their faces, or World Aligned, so they stay where they are in the world; left off, the solid keeps the Textures it already has. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. Solids stay solids; meshes stay meshes. Example: Project UVs, then Transform UVs Offset 0.5, 0 Rotate 90.",
+      "Offsets, scales and rotates the UV mapping of the faces in UV space. Offset is tiles added to U and V (Z is ignored); on solids from Input Objects it shifts the texture of that copy. It is added after Scale and Rotate. Pivot is Center (the middle of the faces' UVs), Tile (the middle of the texture tile under that center, such as 0.5, 0.5), Origin (0, 0) or Each Face (the middle of each face's own UVs, so every face turns and scales in place). Readable Text Yes keeps lettering readable when a later Mirror or a mirrored copy would otherwise reverse it, No lets the reflection reverse it, and left off the solid keeps the Readable Text it already has. Textures is Move With Shape, so textures stay on their faces, or World Aligned, so they stay where they are in the world; left off, the solid keeps the Textures it already has. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. Solids stay solids; meshes stay meshes. Example: Project UVs, then Transform UVs Offset 0.5, 0 Rotate 90.",
     stops: [
       'No faces.',
-      'A Pivot other than Center, Tile or Origin.',
+      'A Pivot other than Center, Tile, Origin or Each Face.',
       'Textures other than Move With Shape or World Aligned.',
     ],
     parameters: [
@@ -235,6 +235,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
           { word: 'Center', detail: "The middle of the faces' UVs" },
           { word: 'Tile', detail: 'The middle of the texture tile under the UV center, such as 0.5, 0.5' },
           { word: 'Origin', detail: 'U 0, V 0' },
+          { word: 'Each Face', detail: "The middle of each face's own UVs, so every face turns in place" },
         ],
       ),
       solidScriptParameterOptional(
@@ -711,7 +712,7 @@ function solidScriptUvsFitCorners(
  * @param faces Faces to transform.
  */
 function solidScriptUvsTransform(run: SolidScriptBlockRun, faces: readonly SolidScriptFaceFacts[], bake = true): void {
-  const transform = solidScriptUvsTransformValues(run, faces);
+  const transform = solidScriptUvsTransformOf(run, faces);
   for (const [leaf, group] of solidScriptFaceGroups(faces, (face) => face.leaf)) {
     const latest = run.leafLatest(leaf);
     if (latest.kind === 'solid' && latest.received && !bake) continue;
@@ -722,7 +723,7 @@ function solidScriptUvsTransform(run: SolidScriptBlockRun, faces: readonly Solid
         latest,
         group.map((face) => ({
           face,
-          uvs: solidScriptFaceCornerUvs(face).map((uv) => textureUvTransformPoint(uv, transform)),
+          uvs: solidScriptFaceCornerUvs(face).map((uv) => textureUvTransformPoint(uv, transform(face))),
         })),
       );
   }
@@ -734,23 +735,52 @@ function solidScriptUvsTransform(run: SolidScriptBlockRun, faces: readonly Solid
  * @param run Running line.
  * @param leaf Solid.
  * @param faces Faces of this solid.
- * @param transform Transform.
+ * @param transform Transform per face.
  */
 function solidScriptUvsTransformSolid(
   run: SolidScriptBlockRun,
   leaf: Extract<SolidScriptGeometryLeaf, { kind: 'solid' }>,
   faces: readonly SolidScriptFaceFacts[],
-  transform: TextureUvTransform,
+  transform: (face: SolidScriptFaceFacts) => TextureUvTransform,
 ): void {
   run.leafReplace(
     leaf,
     solidScriptSolidFaceUvsWrite(
       leaf,
       faces.map((face) =>
-        solidScriptFaceUvRecord(face, textureUvTransformMatrix(solidScriptFaceUvMatrix(face), transform)),
+        solidScriptFaceUvRecord(face, textureUvTransformMatrix(solidScriptFaceUvMatrix(face), transform(face))),
       ),
     ),
   );
+}
+
+/**
+ * Reads the transform of each face: one for all of them, or with Pivot Each
+ * Face one about each face's own middle.
+ *
+ * @param run Running line.
+ * @param faces Faces to transform.
+ * @returns Transform per face.
+ */
+function solidScriptUvsTransformOf(
+  run: SolidScriptBlockRun,
+  faces: readonly SolidScriptFaceFacts[],
+): (face: SolidScriptFaceFacts) => TextureUvTransform {
+  if (solidScriptUvsPivotWord(run) !== 'each face') {
+    const shared = solidScriptUvsTransformValues(run, faces);
+    return () => shared;
+  }
+  return (face) => solidScriptUvsTransformValues(run, [face]);
+}
+
+/**
+ * Reads the Pivot word, folded to lower case.
+ *
+ * @param run Running line.
+ * @returns Pivot word.
+ */
+function solidScriptUvsPivotWord(run: SolidScriptBlockRun): string {
+  return (solidScriptValueText(run.value('pivot')).trim() || 'Center').toLowerCase();
 }
 
 /**
@@ -787,14 +817,15 @@ function solidScriptUvsTransformValues(
  * @returns Pivot U and V.
  */
 function solidScriptUvsPivot(run: SolidScriptBlockRun, faces: readonly SolidScriptFaceFacts[]): [number, number] {
-  const pivot = solidScriptValueText(run.value('pivot')).trim() || 'Center';
-  const folded = pivot.toLowerCase();
+  const folded = solidScriptUvsPivotWord(run);
   if (folded === 'origin') return [0, 0];
   const uvs = faces.flatMap((face) => solidScriptFaceCornerUvs(face));
   if (uvs.length === 0) return [0, 0];
   const midU = uvs.reduce((sum, uv) => sum + uv[0], 0) / uvs.length;
   const midV = uvs.reduce((sum, uv) => sum + uv[1], 0) / uvs.length;
-  if (folded === 'center') return [midU, midV];
+  if (folded === 'center' || folded === 'each face') return [midU, midV];
   if (folded === 'tile') return [Math.floor(midU) + 0.5, Math.floor(midV) + 0.5];
-  throw new Error(`Pivot must be Center, Tile or Origin, not ${pivot}`);
+  throw new Error(
+    `Pivot must be Center, Tile, Origin or Each Face, not ${solidScriptValueText(run.value('pivot')).trim()}`,
+  );
 }
