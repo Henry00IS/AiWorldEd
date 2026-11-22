@@ -43,7 +43,7 @@ export const SOLID_SCRIPT_COMMANDS_QUERY: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Find the closest point on faces, or the first hit along a ray',
     manual:
-      'Looks at the faces in Of, or [$Selected.Faces] when Of is empty, and writes what it finds. How Closest (the default) picks the nearest point to From on any of those faces. Target, for Closest, measures to the face surfaces (Faces, the default), their edges (Edges) or their corners (Corners). Along Ray follows Direction from From and picks the first face it meets. A find further than Max Distance is a miss. Sample is read on the face found, with [$Face], and written to Sampled, such as [=[$Face.Texture]]. Into gets the point, Distance how far it is, Normal the way the face looks, Face the face, and Hit whether a face was found. A list of points in From, or of directions in Direction, finds once per item: then Into, Distance, Normal and Hit are lists with one entry per item (a miss gives 0, 0, 0, 0 and No), and Face gets the faces that were hit. Example: Cube, Select Faces All, Find On Closest From 0, 2, 0 Into [Spot] Face [Top] Hit [Found].',
+      'Looks at the faces in Of, or [$Selected.Faces] when Of is empty, and writes what it finds. How Closest (the default) picks the nearest point to From on any of those faces. Target, for Closest, measures to the face surfaces (Faces, the default), their edges (Edges) or their corners (Corners). Along Ray follows Direction from From and picks the first face it meets. At UV reads the first two numbers of From as texture coordinates and finds the first face whose UVs hold them, blending its corners into the point, as Sample UV Surface does; overlapping UVs give the first face. A find further than Max Distance is a miss. Sample is read on the face found, with [$Face], and written to Sampled, such as [=[$Face.Texture]]. Into gets the point, Distance how far it is, Normal the way the face looks, Face the face, and Hit whether a face was found. A list of points in From, or of directions in Direction, finds once per item: then Into, Distance, Normal and Hit are lists with one entry per item (a miss gives 0, 0, 0, 0 and No), and Face gets the faces that were hit. Example: Cube, Select Faces All, Find On Closest From 0, 2, 0 Into [Spot] Face [Top] Hit [Found].',
     stops: [
       'No faces.',
       'A From or Direction that is not x, y, z.',
@@ -56,13 +56,14 @@ export const SOLID_SCRIPT_COMMANDS_QUERY: readonly SolidScriptCommand[] = [
         'How',
         'text',
         'Closest',
-        'How to look: Closest for the nearest point to From, or Along Ray for the first face the ray meets. Type Closest or Along Ray, such as Closest.',
+        'How to look: Closest for the nearest point to From, Along Ray for the first face the ray meets, or At UV for the point whose texture coordinates are the first two numbers of From. Type Closest, Along Ray or At UV, such as Closest.',
         [
           { word: 'Closest', detail: 'The nearest point to From on any face' },
           {
             word: 'Along Ray',
             detail: 'The first face the ray from From along Direction meets',
           },
+          { word: 'At UV', detail: 'The point whose texture coordinates are the U and V of From' },
         ],
       ),
       solidScriptParameter(

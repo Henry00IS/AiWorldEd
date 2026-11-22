@@ -2,9 +2,10 @@ import * as THREE from 'three';
 import type { SolidScriptFaceFacts } from './solid_script_geometry.js';
 import { solidScriptValueNumbers } from './solid_script_value.js';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
+import { solidScriptFindAtUv } from './solid_script_find_uv.js';
 
 /** How Find On can look for a face. */
-export const SOLID_SCRIPT_FIND_HOW = ['Closest', 'Along Ray'] as const;
+export const SOLID_SCRIPT_FIND_HOW = ['Closest', 'Along Ray', 'At UV'] as const;
 
 /** One of the How words. */
 export type SolidScriptFindHow = (typeof SOLID_SCRIPT_FIND_HOW)[number];
@@ -59,12 +60,31 @@ export function solidScriptFindOn(
   const hits = Array.from({ length: sizes[0] ?? 1 }, (_, index) => {
     const from = at(froms.vectors, index);
     const direction = directions ? at(directions.vectors, index) : null;
-    const hit = direction
-      ? solidScriptFindRayFrom(from, direction, faces)
-      : solidScriptFindClosest(from, faces, target);
+    const hit = solidScriptFindOne(how, from, direction, faces, target);
     return hit.distance !== undefined && hit.distance > limit ? { hit: false } : hit;
   });
   return { hits, listed: sizes.length > 0 };
+}
+
+/**
+ * Finds once, the way How asks.
+ *
+ * @param how How to look.
+ * @param from Point to measure from, start of the ray, or UV point.
+ * @param direction Ray direction, for Along Ray.
+ * @param faces Faces to search.
+ * @param target What Closest measures to.
+ * @returns The hit, or a miss.
+ */
+function solidScriptFindOne(
+  how: SolidScriptFindHow,
+  from: THREE.Vector3,
+  direction: THREE.Vector3 | null,
+  faces: readonly SolidScriptFaceFacts[],
+  target: SolidScriptFindTarget,
+): SolidScriptFindHit {
+  if (direction) return solidScriptFindRayFrom(from, direction, faces);
+  return how === 'At UV' ? solidScriptFindAtUv(from, faces) : solidScriptFindClosest(from, faces, target);
 }
 
 /**
