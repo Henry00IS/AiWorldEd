@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { solidScriptCommandFind, solidScriptCommands } from '@/solid_script/commands/solid_script_command_catalog.js';
+import { solidScriptEachNote } from '@/solid_script/commands/solid_script_command_each.js';
 import { solidScriptDocumentCreate } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptDocumentNamesAt } from '@/solid_script/document/solid_script_document_names.js';
 import { solidScriptFieldMistake } from '@/solid_script/language/solid_script_field_mistakes.js';
@@ -40,13 +41,17 @@ function solidScriptSystemNameProblems(names: readonly string[]): string[] {
 
 /**
  * Collects texts of a command that should teach its fills: the manual, field
- * defaults and field hints.
+ * defaults, field hints and the one note on what per-item fields may read.
  *
  * @param command Command.
  * @returns Texts.
  */
 function solidScriptCommandTeachings(command: (typeof solidScriptCommands)[number]): string[] {
-  return [command.manual, ...command.parameters.flatMap((parameter) => [parameter.default, parameter.hint])];
+  return [
+    command.manual,
+    solidScriptEachNote(command.parameters),
+    ...command.parameters.flatMap((parameter) => [parameter.default, parameter.hint]),
+  ];
 }
 
 /**

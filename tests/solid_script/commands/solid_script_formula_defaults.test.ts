@@ -30,6 +30,7 @@ const SUBJECTS = new Set([
   'list or text',
   'text or list',
   'vector',
+  'matrix',
   'points',
   'curve',
   'key',

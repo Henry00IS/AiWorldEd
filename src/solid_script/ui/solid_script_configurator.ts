@@ -1,3 +1,4 @@
+import { solidScriptEachNote } from '@/solid_script/commands/solid_script_command_each.js';
 import type {
   SolidScriptCommand,
   SolidScriptCommandParameter,
@@ -71,7 +72,15 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
   ) {
     super(host, command.label, 'OK', parent);
     this.root.dataset['solidScriptConfigurator'] = command.id;
-    this.content.append(this.note(command.description), this.fieldsBuild(values));
+    this.content.append(this.note(command.description));
+    const each = solidScriptEachNote(command.parameters);
+    if (each) {
+      const note = this.note(each);
+      note.dataset['solidScriptEachNote'] = '';
+      Object.assign(note.style, { margin: '0 0 12px', fontSize: '12px' });
+      this.content.append(note);
+    }
+    this.content.append(this.fieldsBuild(values));
     this.preview.className = SOLID_SCRIPT_EDITOR_CLASSES.preview;
     this.preview.setAttribute('aria-label', 'Line');
     Object.assign(this.problem.style, { color: '#e5484d', minHeight: '16px', marginBottom: '8px' });

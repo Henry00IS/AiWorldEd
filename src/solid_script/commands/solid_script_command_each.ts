@@ -48,12 +48,25 @@ const SOLID_SCRIPT_COMMAND_EACH_WORDS: Readonly<
 export function solidScriptEachSentence(each: SolidScriptCommandEach): string {
   const words = SOLID_SCRIPT_COMMAND_EACH_WORDS[each];
   const normal = words.normal ? ', and [$NX], [$NY] and [$NZ] its normal' : '';
-  return `Can change per ${words.noun}: [$${each}] is the ${words.noun}, [$Index] its number from 0, [$Id] a number that stays with it when others are deleted, and [$Count] how many there are; [$X], [$Y] and [$Z] are ${words.place}${normal}.`;
+  return `${SOLID_SCRIPT_COMMAND_EACH_ICON} fields can change per ${words.noun}: [$${each}] is the ${words.noun}, [$Index] its number from 0, [$Id] a number that stays with it when others are deleted, and [$Count] how many there are; [$X], [$Y] and [$Z] are ${words.place}${normal}.`;
 }
 
 /**
- * Makes a field per-item for one kind of item: it may read that item's values,
- * and its hint ends with what it may read.
+ * Explains, once for a whole window, what its per-item fields may read: one
+ * sentence per kind of item they work on.
+ *
+ * @param parameters Fields of the window.
+ * @returns Note, or '' when no field is per-item.
+ */
+export function solidScriptEachNote(parameters: readonly SolidScriptCommandParameter[]): string {
+  const kinds = [...new Set(parameters.flatMap((parameter) => (parameter.each ? [parameter.each] : [])))];
+  return kinds.map(solidScriptEachSentence).join(' ');
+}
+
+/**
+ * Makes a field per-item for one kind of item: it may read that item's values.
+ * Its hint stays about the field; what the item values mean is said once per
+ * window by solidScriptEachNote.
  *
  * @param parameter Field.
  * @param each Kind of item.
@@ -68,7 +81,6 @@ export function solidScriptParameterEach(
 ): SolidScriptCommandParameter {
   return {
     ...parameter,
-    hint: `${parameter.hint} ${solidScriptEachSentence(each)}`,
     each,
     ...(eachWhen ? { eachWhen } : {}),
   };

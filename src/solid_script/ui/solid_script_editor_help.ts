@@ -3,6 +3,8 @@ import type { SolidScriptCommand, SolidScriptCommandParameter } from '@/solid_sc
 import { solidScriptParameterApplies } from '@/solid_script/commands/solid_script_command_parameters.js';
 import {
   SOLID_SCRIPT_COMMAND_EACH_ICON,
+  solidScriptEachNote,
+  solidScriptEachSentence,
   solidScriptParameterEachActive,
 } from '@/solid_script/commands/solid_script_command_each.js';
 import type { SolidScriptBlock } from '@/solid_script/document/solid_script_document.js';
@@ -213,7 +215,8 @@ function solidScriptEditorHelpMore(
 }
 
 /**
- * The note on how fields are read, when the command has fields that use it.
+ * The note on how fields are read, when the command has fields that use it, and
+ * the one note on what its per-item fields may read.
  *
  * @param command Command.
  * @param open Opens a mentioned command, or null.
@@ -223,8 +226,9 @@ function solidScriptEditorHelpFieldNotes(
   command: SolidScriptCommand,
   open: SolidScriptEditorLinkOpen | null,
 ): HTMLElement[] {
-  if (!command.parameters.some((parameter) => parameter.type !== 'name' && parameter.type !== 'text')) return [];
-  return solidScriptEditorHelpBlocks(SOLID_SCRIPT_EDITOR_HELP_FIELDS, open, command.id, false);
+  const each = solidScriptEditorHelpBlocks(solidScriptEachNote(command.parameters), open, command.id, false);
+  if (!command.parameters.some((parameter) => parameter.type !== 'name' && parameter.type !== 'text')) return each;
+  return [...solidScriptEditorHelpBlocks(SOLID_SCRIPT_EDITOR_HELP_FIELDS, open, command.id, false), ...each];
 }
 
 /**
@@ -250,6 +254,7 @@ function solidScriptEditorHelpParameter(
   if (solidScriptParameterEachActive(parameter, values)) {
     item.classList.add(SOLID_SCRIPT_EDITOR_CLASSES.helpEach);
     name.textContent = `${SOLID_SCRIPT_COMMAND_EACH_ICON} ${parameter.label}`;
+    if (parameter.each) name.title = solidScriptEachSentence(parameter.each);
   } else name.textContent = parameter.label;
   const value = document.createElement('span');
   value.className = SOLID_SCRIPT_EDITOR_CLASSES.parameterValue;
