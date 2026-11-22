@@ -1,5 +1,5 @@
 import { solidScriptAxesEach } from './solid_script_functions_axes.js';
-import { solidScriptExtraNumber } from './solid_script_functions_extra.js';
+import { solidScriptExtraNumber, solidScriptExtraVector } from './solid_script_functions_extra.js';
 import { solidScriptValueNumbers, solidScriptValueTruthy, type SolidScriptValue } from './solid_script_value.js';
 
 /** A built-in function over evaluated arguments. */
@@ -85,15 +85,63 @@ function solidScriptNumbersLog(args: readonly SolidScriptValue[]): number {
 }
 
 /**
- * How far numbers spread from their average: the square root of the average
- * squared distance from it.
+ * Reads the items of a list to spread, each as its axes: one for a number,
+ * three for a vector.
  *
- * @param numbers Numbers.
- * @returns Standard deviation.
+ * @param list The list.
+ * @param usage How to call it, for messages.
+ * @returns Items and whether they are vectors.
  */
-function solidScriptNumbersDeviation(numbers: readonly number[]): number {
-  const mean = numbers.reduce((total, value) => total + value, 0) / numbers.length;
-  return Math.sqrt(numbers.reduce((total, value) => total + (value - mean) ** 2, 0) / numbers.length);
+function solidScriptNumbersItems(list: SolidScriptValue, usage: string): { items: number[][]; vectors: boolean } {
+  if (!Array.isArray(list) || list.length === 0) throw new Error(`${usage} needs a list with at least one number`);
+  const numbers = solidScriptValueNumbers(list);
+  if (numbers) return { items: numbers.map((value) => [value]), vectors: false };
+  const items = list.flatMap((item) => solidScriptValueNumbers(item) ?? []);
+  const size = solidScriptValueNumbers(list[0])?.length ?? 0;
+  if (size === 0 || items.length !== list.length * size)
+    throw new Error(`${usage} needs a list of numbers, or of vectors of one size`);
+  return { items: list.map((_, index) => items.slice(index * size, index * size + size)), vectors: true };
+}
+
+/**
+ * The variance of items axis by axis: the average squared distance from their
+ * average.
+ *
+ * @param items Items, each as its axes.
+ * @returns Variance per axis.
+ */
+function solidScriptNumbersVariance(items: readonly number[][]): number[] {
+  return (items[0] ?? []).map((_, axis) => {
+    const values = items.map((item) => item[axis] ?? 0);
+    const mean = values.reduce((total, value) => total + value, 0) / values.length;
+    return values.reduce((total, value) => total + (value - mean) ** 2, 0) / values.length;
+  });
+}
+
+/**
+ * Variance-based spread of a list, or with groups one result per item for the
+ * items of its own group.
+ *
+ * @param usage How to call it, for messages.
+ * @param finish Turns a variance into the result, such as its square root.
+ * @returns Built-in.
+ */
+function solidScriptNumbersSpread(usage: string, finish: (variance: number) => number): SolidScriptNumbersBuiltin {
+  return (args) => {
+    const { items, vectors } = solidScriptNumbersItems(args[0], usage);
+    const shown = (variance: readonly number[]): SolidScriptValue =>
+      vectors ? variance.map(finish) : finish(variance[0] ?? 0);
+    if (args.length < 2) return shown(solidScriptNumbersVariance(items));
+    const groups = solidScriptExtraVector(args, 1, usage);
+    if (groups.length !== items.length) throw new Error(`${usage} needs one group per item, ${items.length} in all`);
+    const spreads = new Map(
+      [...new Set(groups)].map((group) => [
+        group,
+        shown(solidScriptNumbersVariance(items.filter((_, index) => groups[index] === group))),
+      ]),
+    );
+    return groups.map((group) => spreads.get(group));
+  };
 }
 
 /**
@@ -142,5 +190,6 @@ export const SOLID_SCRIPT_FUNCTIONS_NUMBERS = {
     const sorted = solidScriptNumbersSorted(args, 'Range(list)');
     return (sorted.at(-1) ?? 0) - (sorted[0] ?? 0);
   },
-  std_dev: (args) => solidScriptNumbersDeviation(solidScriptNumbersSorted(args, 'StdDev(list)')),
+  std_dev: solidScriptNumbersSpread('StdDev(list, groups)', Math.sqrt),
+  variance: solidScriptNumbersSpread('Variance(list, groups)', (variance) => variance),
 } satisfies Readonly<Record<string, SolidScriptNumbersBuiltin>>;

@@ -170,14 +170,24 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_NUMBERS = {
     gives: ['Number'],
   },
   std_dev: {
-    usage: 'StdDev(list)',
+    usage: 'StdDev(list, groups)',
     summary: solidScriptFunctionDocSummary(
-      'The standard deviation: how far the numbers of a list typically sit from their average, the square root of the average squared distance.',
-      ['StdDev([2, 4, 4, 4, 5, 5, 7, 9]) is 2.', 'StdDev([5, 5]) is 0.'],
+      'The standard deviation: how far the numbers of a list typically sit from their average, the square root of the Variance. A list of vectors works per axis. With Groups, each item gets the standard deviation of the items in its own group, one result per item.',
+      ['StdDev([2, 4, 4, 4, 5, 5, 7, 9]) is 2.', 'StdDev([1, 3, 10, 10], [0, 0, 1, 1]) is [1, 1, 0, 0].'],
       'Use it to tell an even row of sizes from a ragged one.',
     ),
     group: 'Math',
-    gives: ['Number'],
+    gives: ['Number', 'Vector', 'List'],
+  },
+  variance: {
+    usage: 'Variance(list, groups)',
+    summary: solidScriptFunctionDocSummary(
+      'The variance: the average squared distance of the numbers of a list from their average. A list of vectors works per axis. With Groups, each item gets the variance of the items in its own group, one result per item.',
+      ['Variance([2, 4, 4, 4, 5, 5, 7, 9]) is 4.', 'Variance([1, 3, 2, 8], [5, 5, 7, 7]) is [1, 1, 9, 9].'],
+      'Use it to measure how uneven heights are within each part.',
+    ),
+    group: 'Math',
+    gives: ['Number', 'Vector', 'List'],
   },
 } as const;
 
@@ -185,6 +195,12 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_NUMBERS = {
 const SOLID_SCRIPT_NUMBERS_PER_AXIS = {
   type: ['Number', 'Vector'],
   about: 'A number, or a vector to work on per axis.',
+} as const;
+
+/** Inputs of the functions that measure how a list spreads. */
+const SOLID_SCRIPT_NUMBERS_SPREAD = {
+  list: { type: ['List'], about: 'The numbers or vectors to measure, such as [Box.Vertices.Positions].' },
+  groups: { type: ['List'], about: 'A group number for each item, in the same order, such as [0, 0, 1].' },
 } as const;
 
 /** Inputs of the number helpers that mean something of their own. */
@@ -199,6 +215,8 @@ export const SOLID_SCRIPT_NUMBERS_ARGUMENTS = {
   bit_rotate: {
     shift: { type: ['Number'], about: 'Places to turn: left when above 0, right when below.', start: '1' },
   },
+  std_dev: SOLID_SCRIPT_NUMBERS_SPREAD,
+  variance: SOLID_SCRIPT_NUMBERS_SPREAD,
   sinh: { number: SOLID_SCRIPT_NUMBERS_PER_AXIS },
   cosh: { number: SOLID_SCRIPT_NUMBERS_PER_AXIS },
   tanh: { number: SOLID_SCRIPT_NUMBERS_PER_AXIS },

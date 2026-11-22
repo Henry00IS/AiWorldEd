@@ -7,6 +7,8 @@ export const SOLID_SCRIPT_FUNCTION_INPUTS_LEFT_OFF: Readonly<Record<string, numb
   magic: 3,
   gabor: 5,
   gradient: 1,
+  std_dev: 1,
+  variance: 1,
   principal_axes: 1,
   matrix_svd: 1,
   first: 1,
