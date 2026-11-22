@@ -25,7 +25,10 @@ describe('Points', () => {
 
   it('makes none for Count 0 and stops on a bad Count or At', () => {
     expect(
-      ran({ command: 'points', values: { count: '0', into: 'P' } }, { command: 'echo', values: { value: '[P.Count]' } }),
+      ran(
+        { command: 'points', values: { count: '0', into: 'P' } },
+        { command: 'echo', values: { value: '[P.Count]' } },
+      ),
     ).toBe('0');
     expect(ran({ command: 'points', values: { count: '1.5', into: 'P' } })).toMatch(/Count needs a whole number/);
     expect(ran({ command: 'points', values: { count: '2', at: '1, 2', into: 'P' } })).toMatch(/At needs three/);

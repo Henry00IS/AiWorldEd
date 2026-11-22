@@ -84,8 +84,8 @@ function solidScriptListCompare(a: SolidScriptValue, b: SolidScriptValue): numbe
 }
 
 /**
- * Puts items in order, by their own value or by what By works out for each
- * one; items with the same key keep their order.
+ * Puts items in order, by their own value or by what By works out for each one;
+ * items with the same key keep their order.
  *
  * @param run Running line.
  * @param items Items of the list.
@@ -367,11 +367,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     ],
     execute: (run) => {
       const sign = run.fields().flag('descending') ? -1 : 1;
-      run.listUpdate(
-        run.text('list'),
-        (items) => solidScriptListSorted(run, items, sign),
-        false,
-      );
+      run.listUpdate(run.text('list'), (items) => solidScriptListSorted(run, items, sign), false);
       return [];
     },
   }),
