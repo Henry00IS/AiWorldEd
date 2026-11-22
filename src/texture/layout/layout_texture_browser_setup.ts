@@ -8,6 +8,8 @@ import { ControllerTextureBrowser } from '@/texture/controller/controller_textur
 import { ControllerTextureAssignment } from '@/texture/controller/controller_texture_assignment.js';
 import { StatusBar } from '@/ui/status/status_bar.js';
 import type { ViewportEditor } from '@/viewports/core/viewport_editor.js';
+import type { HandlerComponentMeshOperations } from '@/edit/topology/handler_component_mesh_operations.js';
+import { routeTexturePick } from './texture_pick_route.js';
 import {
   bindFloatingPanelToViewports,
   scheduleStartupFloatingPanelLayoutPass,
@@ -26,6 +28,8 @@ export interface TextureBrowserSetupDeps {
   worldObject: THREE.Object3D;
   /** Admits a one-shot edit of an object (collaboration locks). */
   editGate: (object: THREE.Object3D, apply: () => void) => void;
+  /** Mesh operations of the open edit session, which paint Edit Mode faces. */
+  getEditMeshOperations: () => HandlerComponentMeshOperations | null;
 }
 
 /** Result of texture browser construction. */
@@ -144,7 +148,7 @@ function createTextureBrowserController(
   });
   controller.setSelectionCallback((entry) => {
     if (!entry) return;
-    assignmentController.onTextureSelected(entry);
+    routeTexturePick(entry, deps.getEditMeshOperations(), assignmentController);
     deps.afterSurfaceChange();
   });
   return controller;

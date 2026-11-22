@@ -1,3 +1,4 @@
+import { getStateTexturePaint } from '@/texture/paint/state_texture_paint.js';
 import type { HandlerComponentMeshOperations } from '@/edit/topology/handler_component_mesh_operations.js';
 import type { EditMeshToolCommand } from './edit_mesh_tool_command.js';
 
@@ -19,6 +20,7 @@ const EDIT_MESH_INSTANT_COMMANDS: Partial<
   triangulate_faces: (operations) => operations.triangulateSelectedFaces(),
   poke_faces: (operations) => operations.pokeSelectedFaces(),
   join_triangles: (operations) => operations.joinSelectedTriangles(),
+  assign_texture: (operations) => operations.assignTextureToSelectedFaces(getStateTexturePaint().getLastTextureId()),
 };
 
 /**

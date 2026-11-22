@@ -221,6 +221,13 @@ export function buildViewportToolFaceMenuEntries(actions: ViewportToolEditMenuAc
       'Join flat pairs of selected triangles into quads, for example after importing a triangulated model',
       tool('join_triangles'),
     ),
+    { kind: 'separator' },
+    createAction(
+      'Assign Texture',
+      '',
+      'Paint the selected mesh faces with the texture last picked in the Texture Browser',
+      tool('assign_texture'),
+    ),
   ];
 }
 

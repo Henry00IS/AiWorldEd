@@ -14,12 +14,12 @@ Press `Tab` to return to Object Select.
 
 Press `Tab` on a selected mesh or solid brush to enter Edit Mode. `1`, `2`, and `3` switch Vertex, Edge, and Face select. The options bar has four menus, and every tool appears in exactly one of them:
 
-| Menu       | Tools                                                                                                                                                                                                    |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Mesh**   | Knife Topology Tool (`K`), Make Face, Fill Holes, Delete (`Backspace`), Dissolve (`Delete`)                                                                                                              |
-| **Vertex** | Merge Vertices (`M`), Connect Vertices (`J`), Smooth Vertices                                                                                                                                            |
-| **Edge**   | Loop Cut (`Ctrl+R`), Subdivide Edges, Bevel Edges (`Ctrl+B`), Extrude Edges (`E`), Bridge Edge Loops, Rotate Edges, Collapse Edges                                                                       |
-| **Face**   | Extrude Faces (`E`), Extrude Faces Individually, Inset Faces (`I`), Solidify, Shrink / Fatten, Duplicate Faces (`Shift+D`), Split Faces (`Y`), Flip Faces, Triangulate Faces, Poke Faces, Join Triangles |
+| Menu       | Tools                                                                                                                                                                                                                    |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Mesh**   | Knife Topology Tool (`K`), Make Face, Fill Holes, Delete (`Backspace`), Dissolve (`Delete`)                                                                                                                              |
+| **Vertex** | Merge Vertices (`M`), Connect Vertices (`J`), Smooth Vertices                                                                                                                                                            |
+| **Edge**   | Loop Cut (`Ctrl+R`), Subdivide Edges, Bevel Edges (`Ctrl+B`), Extrude Edges (`E`), Bridge Edge Loops, Rotate Edges, Collapse Edges                                                                                       |
+| **Face**   | Extrude Faces (`E`), Extrude Faces Individually, Inset Faces (`I`), Solidify, Shrink / Fatten, Duplicate Faces (`Shift+D`), Split Faces (`Y`), Flip Faces, Triangulate Faces, Poke Faces, Join Triangles, Assign Texture |
 
 - `K` starts the knife: click an edge to insert a vertex. The new point stays on the edge, so a convex brush stays convex. Afterwards the new vertex is selected in Vertex select, or the two halves of the cut edge in Edge select, ready to move.
 - `Ctrl+R` starts Loop Cut: hover an edge, click to lock that belt, slide along the locked edge, then click or Enter to confirm. Loop cuts only insert vertices on the locked belt edges.
@@ -44,6 +44,7 @@ These tools work on meshes. A convex solid brush cannot hold the faces they add,
 - **Flip Faces** (Face select): turn the selected faces to face the other way, for example after building a face from the wrong side.
 - **Triangulate Faces** and **Poke Faces** (Face select): split the selected faces into triangles, along their outline or fanned around a new center vertex. Every piece stays selected.
 - **Join Triangles** (Face select): join flat pairs of selected triangles into quads, squarest pairs first, for example to clean up an imported model before extruding or cutting loops.
+- **Assign Texture** (Face select): paint the selected mesh faces with a texture. Clicking a texture in the Texture Browser while in Face mode on a mesh does the same; the menu entry uses the texture picked last. Each face keeps its UVs, every texture on the mesh becomes its own material, and exports write one material per texture on a single mesh. Solid faces keep their own face tool.
 - **Connect Vertices** (`J`, Vertex select): cut the faces between the selected vertices with new edges, for example from one edge midpoint to another.
 - **Smooth Vertices** (Vertex select): move the selected vertices half way towards the average of their edge neighbours to even out bumps and spacing; run it again to smooth further.
 - **Subdivide Edges** (Edge select): split each selected edge in half and select the halves. Run it again for finer cuts.

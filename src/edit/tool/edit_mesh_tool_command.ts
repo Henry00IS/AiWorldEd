@@ -23,4 +23,5 @@ export type EditMeshToolCommand =
   | 'fill_holes'
   | 'rotate_edges'
   | 'fatten_faces'
-  | 'collapse_edges';
+  | 'collapse_edges'
+  | 'assign_texture';
