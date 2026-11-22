@@ -14,6 +14,7 @@ import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_m
 import {
   SOLID_SCRIPT_PATH_RESOLUTION,
   SOLID_SCRIPT_PATH_TYPES,
+  solidScriptPathClosedSet,
   solidScriptPathHandles,
   solidScriptPathTyped,
   solidScriptPathWithHandles,
@@ -209,7 +210,7 @@ function solidScriptPathHandleFields() {
   ];
 }
 
-/** Set Handles, Set Handle Type, Set Tilt and Set Path Type. */
+/** Set Handles, Set Handle Type, Set Tilt, Set Path Type and Set Path Closed. */
 export const SOLID_SCRIPT_COMMANDS_PATH_HANDLES: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'set_handles',
@@ -399,6 +400,44 @@ export const SOLID_SCRIPT_COMMANDS_PATH_HANDLES: readonly SolidScriptCommand[] =
       solidScriptPathHandlesWrite(
         run,
         solidScriptPathTyped(source, type, solidScriptPathResolution(run, 'Set Path Type')),
+      );
+      return [];
+    },
+  }),
+  new SolidScriptCommand({
+    id: 'set_path_closed',
+    edits: true,
+    label: 'Set Path Closed',
+    category: 'Meshes',
+    description: 'Join the ends of a path, or open it',
+    manual:
+      'Writes to Into a copy of a Path that is closed, its last point joined back to its first, or open. Closing a straight path adds a straight stretch; closing a curved one adds a Bezier stretch with handles a third of the way along, for Set Handles to bend. Opening drops the stretch from the last point back to the first. Tilts and the way the path curves stay. Read it back with [Path.Closed]. Path is a Path or a list of points for a straight open one. Example: Set Path Closed Path [Rail] Closed Yes Into [Rail] makes a ring of an open rail.',
+    stops: ['A Path that is not a Path or a list of at least 2 points.', 'A Closed that is not Yes or No.'],
+    parameters: [
+      solidScriptParameter(
+        'closed',
+        'Closed',
+        'boolean',
+        'Yes',
+        'Yes: join the last point back to the first. No: open the path there. Type Yes or No, such as Yes.',
+      ),
+      ...solidScriptPathHandleFields().filter((field) => field.key !== 'resolution'),
+    ],
+    listing: (read) => [
+      'Set Path Closed',
+      'Of ',
+      read.value('path'),
+      ' To ',
+      read.value('closed'),
+      ' Into ',
+      read.value('into'),
+    ],
+    execute: (run) => {
+      const closed = run.value('closed');
+      if (typeof closed !== 'boolean') throw new Error('Set Path Closed needs Yes or No in Closed');
+      solidScriptPathHandlesWrite(
+        run,
+        solidScriptPathClosedSet(solidScriptPathHandlesSource(run, 'Set Path Closed'), closed),
       );
       return [];
     },

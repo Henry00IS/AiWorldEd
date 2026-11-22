@@ -165,3 +165,35 @@ export function solidScriptPathTyped(
   const straight = { ...solidScriptPathPlain(path), segments: path.segments.map(() => ({ kind: 'line' as const })) };
   return type === 'Poly' ? straight : { ...straight, spline: { kind: 'catmull', resolution } };
 }
+
+/**
+ * Makes the stretch that joins the last point of a path back to its first:
+ * straight on a straight path, else a Bezier stretch with handles a third of
+ * the way along it.
+ *
+ * @param path Open path.
+ * @returns Stretch.
+ */
+function solidScriptPathClosing(path: SolidScriptPath<number[]>): SolidScriptPathSegment<number[]> {
+  const curved = path.segments.find((segment) => segment.kind === 'bezier');
+  const last = path.points.at(-1) ?? [];
+  const first = path.points[0] ?? last;
+  if (!curved || path.spline) return { kind: 'line' };
+  return { ...curved, out: solidScriptPathThird(last, first), in: solidScriptPathThird(first, last) };
+}
+
+/**
+ * Joins the last point of a path back to its first, or opens it there. A NURBS
+ * path that runs through its ends when open runs freely around when closed.
+ *
+ * @param path Path.
+ * @param closed True to close it.
+ * @returns Path, the same one when it already is so.
+ */
+export function solidScriptPathClosedSet(path: SolidScriptPath<number[]>, closed: boolean): SolidScriptPath<number[]> {
+  if (path.closed === closed) return path;
+  const segments = closed ? [...path.segments, solidScriptPathClosing(path)] : path.segments.slice(0, -1);
+  const spline = path.spline;
+  if (spline?.kind !== 'nurbs' || spline.knots === 'Bezier') return { ...path, segments, closed };
+  return { ...path, segments, closed, spline: { ...spline, knots: closed ? 'Normal' : 'Endpoint' } };
+}
