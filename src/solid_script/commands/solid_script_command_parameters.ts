@@ -352,7 +352,7 @@ export function solidScriptParameterWhen(
  * Tells whether a field applies to the values as typed: fields with no When
  * always do, and a When whose choice is not one of that field's known words
  * (such as a variable) also shows, because the choice is only known when the
- * script runs.
+ * script runs. A field whose choosing field is hidden is hidden too.
  *
  * @param parameter Field.
  * @param values Stored or default values by key.
@@ -370,9 +370,9 @@ export function solidScriptParameterApplies(
   const source = parameters.find((entry) => entry.key === rule.field);
   const text = solidScriptParameterValueEffective(values[rule.field], source?.default ?? '').trim();
   const folded = text.toLowerCase();
-  if (rule.words.some((word) => word.toLowerCase() === folded)) return true;
   const known = source?.words?.map((entry) => entry.word.toLowerCase()) ?? [];
-  return text !== '' && !known.includes(folded);
+  const holds = rule.words.some((word) => word.toLowerCase() === folded) || (text !== '' && !known.includes(folded));
+  return holds && (!source || solidScriptParameterApplies(source, values, parameters));
 }
 
 /**

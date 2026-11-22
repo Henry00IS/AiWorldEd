@@ -1,17 +1,36 @@
 import * as THREE from 'three';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
-import {
-  solidScriptGeometryFacesOutside,
-  solidScriptGeometryScatter,
-  type SolidScriptFaceFacts,
-} from './solid_script_geometry.js';
+import { solidScriptGeometryFacesOutside, type SolidScriptFaceFacts } from './solid_script_geometry.js';
 import { solidScriptValueNumber, solidScriptValueNumbers, type SolidScriptValue } from './solid_script_value.js';
+import {
+  SOLID_SCRIPT_SCATTER_MOST,
+  solidScriptScatterByCount,
+  solidScriptScatterByDensity,
+  solidScriptScatterRandom,
+  solidScriptScatterRound,
+  solidScriptScatterSpacer,
+  solidScriptScatterTake,
+} from './solid_script_scatter_spread.js';
+import {
+  solidScriptScatterGroups,
+  solidScriptScatterPieces,
+  solidScriptScatterTetPoint,
+  solidScriptScatterWeighted,
+} from './solid_script_scatter_inside.js';
 
 /** Where Scatter Points can put its points. */
 export const SOLID_SCRIPT_SCATTER_ON = ['On Faces', 'Inside', 'In Box', 'Grid'] as const;
 
+/** How Scatter Points decides how many points to give. */
+export const SOLID_SCRIPT_SCATTER_BY = ['Count', 'Density'] as const;
+
 /** One of the On words. */
 export type SolidScriptScatterOn = (typeof SOLID_SCRIPT_SCATTER_ON)[number];
+
+/** Reads the Density of each face, given the faces Scatter Points works on. */
+export type SolidScriptScatterDensity = (
+  faces: readonly SolidScriptFaceFacts[],
+) => (face: SolidScriptFaceFacts) => number;
 
 /** Points Scatter Points writes, and face directions when it is On Faces. */
 export interface SolidScriptScatterResult {
@@ -25,15 +44,17 @@ export interface SolidScriptScatterResult {
  *
  * @param run Running line.
  * @param faces Faces or brushes in Of, read only when that On needs them.
+ * @param densityOf Reads Density per face, for On Faces By Density.
  * @returns Positions, and Normals for Faces.
  */
 export function solidScriptScatterRun(
   run: SolidScriptBlockRun,
   faces: () => readonly SolidScriptFaceFacts[],
+  densityOf: SolidScriptScatterDensity,
 ): SolidScriptScatterResult {
   if (run.text('into').trim() === '') throw new Error('Scatter Points needs a variable in Into for the points');
   const on = solidScriptScatterOn(run);
-  if (on === 'On Faces') return solidScriptScatterOnFaces(run, faces());
+  if (on === 'On Faces') return solidScriptScatterOnFaces(run, faces(), densityOf);
   if (on === 'Inside') return { positions: solidScriptScatterInside(run, faces()), normals: null };
   if (on === 'In Box') return { positions: solidScriptScatterInBox(run), normals: null };
   return { positions: solidScriptScatterGrid(run), normals: null };
@@ -53,23 +74,59 @@ export function solidScriptScatterOn(run: SolidScriptBlockRun): SolidScriptScatt
 }
 
 /**
- * Spreads points on faces, more on bigger ones. Same seed, same points. Faces
- * back to back against another brush in Of, inside the shape, get none.
+ * Tells whether By asks for Density rather than a Count; empty means Count.
+ *
+ * @param run Running line.
+ * @returns True for Density.
+ */
+function solidScriptScatterByDensityWanted(run: SolidScriptBlockRun): boolean {
+  const text = run.text('by').trim() || 'Count';
+  const match = SOLID_SCRIPT_SCATTER_BY.find((word) => word.toLowerCase() === text.toLowerCase());
+  if (!match) throw new Error(`By needs Count or Density, not ${text}`);
+  return match === 'Density';
+}
+
+/**
+ * Spreads points on faces, by Count (more on bigger faces) or by Density per
+ * face. Same seed, same points. Faces back to back against another brush in Of,
+ * inside the shape, get none.
  *
  * @param run Running line.
  * @param faces Faces.
+ * @param densityOf Reads Density per face.
  * @returns Positions and the way each face looks.
  */
 function solidScriptScatterOnFaces(
   run: SolidScriptBlockRun,
   faces: readonly SolidScriptFaceFacts[],
+  densityOf: SolidScriptScatterDensity,
 ): SolidScriptScatterResult {
-  const points = solidScriptGeometryScatter(
-    solidScriptGeometryFacesOutside(faces),
-    solidScriptScatterCount(run),
-    solidScriptScatterSeed(run),
-  );
+  const outside = solidScriptGeometryFacesOutside(faces);
+  const seed = solidScriptScatterSeed(run);
+  const spacing = solidScriptScatterSpacing(run);
+  const points = solidScriptScatterByDensityWanted(run)
+    ? solidScriptScatterByDensity(outside, densityOf(outside), seed, spacing)
+    : solidScriptScatterByCount(outside, solidScriptScatterCount(run), seed, spacing);
   return { positions: points.map((point) => point.position), normals: points.map((point) => point.face.normal) };
+}
+
+/**
+ * How many points a volume gets: Count, or the volume times Density rounded at
+ * random.
+ *
+ * @param run Running line.
+ * @param volume Cubic metres.
+ * @param random Next unit random number.
+ * @returns Points wanted.
+ */
+function solidScriptScatterAmount(run: SolidScriptBlockRun, volume: number, random: () => number): number {
+  if (!solidScriptScatterByDensityWanted(run)) return solidScriptScatterCount(run);
+  const density = solidScriptValueNumber(run.value('density'));
+  if (density === undefined) throw new Error('Density needs a number of points per cubic metre, such as 10');
+  const count = solidScriptScatterRound(volume * Math.max(0, density), random);
+  if (count > SOLID_SCRIPT_SCATTER_MOST)
+    throw new Error(`Density gives more than ${SOLID_SCRIPT_SCATTER_MOST} points; use a lower Density`);
+  return count;
 }
 
 /**
@@ -84,9 +141,15 @@ function solidScriptScatterInside(run: SolidScriptBlockRun, faces: readonly Soli
   const total = pieces.reduce((sum, piece) => sum + piece.weight, 0);
   if (pieces.length === 0 || total <= 1e-18)
     throw new Error('Inside needs an object with some volume in Of; a flat shape has no inside to scatter in');
-  const random = solidScriptScatterRng(solidScriptScatterSeed(run));
-  return Array.from({ length: solidScriptScatterCount(run) }, () =>
-    solidScriptScatterTetPoint(solidScriptScatterWeighted(pieces, random() * total), random),
+  const random = solidScriptScatterRandom(solidScriptScatterSeed(run));
+  const count = solidScriptScatterAmount(run, total, random);
+  const next = (): THREE.Vector3 =>
+    solidScriptScatterTetPoint(solidScriptScatterWeighted(pieces, random() * total), random);
+  return solidScriptScatterTake(
+    count,
+    next,
+    (point) => point,
+    solidScriptScatterSpacer(solidScriptScatterSpacing(run)),
   );
 }
 
@@ -99,13 +162,31 @@ function solidScriptScatterInside(run: SolidScriptBlockRun, faces: readonly Soli
  */
 function solidScriptScatterInBox(run: SolidScriptBlockRun): THREE.Vector3[] {
   const size = solidScriptScatterSize(run);
-  const random = solidScriptScatterRng(solidScriptScatterSeed(run));
+  const random = solidScriptScatterRandom(solidScriptScatterSeed(run));
   const matrix = run.matrix();
-  return Array.from({ length: solidScriptScatterCount(run) }, () =>
+  const count = solidScriptScatterAmount(run, size.x * size.y * size.z, random);
+  const next = (): THREE.Vector3 =>
     new THREE.Vector3((random() - 0.5) * size.x, (random() - 0.5) * size.y, (random() - 0.5) * size.z).applyMatrix4(
       matrix,
-    ),
+    );
+  return solidScriptScatterTake(
+    count,
+    next,
+    (point) => point,
+    solidScriptScatterSpacer(solidScriptScatterSpacing(run)),
   );
+}
+
+/**
+ * Reads Spacing, the smallest distance between points: 0 or more metres.
+ *
+ * @param run Running line.
+ * @returns Spacing.
+ */
+function solidScriptScatterSpacing(run: SolidScriptBlockRun): number {
+  const spacing = solidScriptValueNumber(run.value('spacing'));
+  if (spacing === undefined || spacing < 0) throw new Error('Spacing needs metres of 0 or more, such as 0.5');
+  return spacing;
 }
 
 /**
@@ -230,163 +311,4 @@ function solidScriptScatterGridPoint(
   const along = (count: number, index: number, length: number): number =>
     count === 1 ? 0 : (index / (count - 1) - 0.5) * length;
   return new THREE.Vector3(along(counts.x, x, size.x), along(counts.y, y, size.y), along(counts.z, z, size.z));
-}
-
-/** A tetrahedron used to fill a brush, with its volume as weight. */
-interface SolidScriptScatterPiece {
-  corners: [THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3];
-  weight: number;
-}
-
-/**
- * Groups Inside targets by the brush or mesh they belong to.
- *
- * @param faces Faces.
- * @returns Faces of each shape.
- */
-function solidScriptScatterGroups(faces: readonly SolidScriptFaceFacts[]): SolidScriptFaceFacts[][] {
-  const groups = new Map<object, SolidScriptFaceFacts[]>();
-  for (const face of faces) {
-    const known = groups.get(face.leaf) ?? [];
-    known.push(face);
-    groups.set(face.leaf, known);
-  }
-  return [...groups.values()];
-}
-
-/**
- * Fills a solid with tetrahedra from its middle to each face triangle.
- *
- * @param faces Faces of one solid.
- * @returns Pieces.
- */
-function solidScriptScatterPieces(faces: readonly SolidScriptFaceFacts[]): SolidScriptScatterPiece[] {
-  const origin = solidScriptScatterCenter(faces);
-  const pieces: SolidScriptScatterPiece[] = [];
-  for (const face of faces)
-    for (let corner = 1; corner + 1 < face.corners.length; corner++) {
-      const a = face.corners[0];
-      const b = face.corners[corner];
-      const c = face.corners[corner + 1];
-      if (!a || !b || !c) continue;
-      const weight = solidScriptScatterTetVolume(origin, a, b, c);
-      if (weight > 1e-18) pieces.push({ corners: [origin, a, b, c], weight });
-    }
-  return pieces;
-}
-
-/**
- * Middle of the unique corners of some faces.
- *
- * @param faces Faces.
- * @returns Center.
- */
-function solidScriptScatterCenter(faces: readonly SolidScriptFaceFacts[]): THREE.Vector3 {
-  const seen: THREE.Vector3[] = [];
-  for (const face of faces)
-    for (const corner of face.corners)
-      if (!seen.some((point) => point.distanceToSquared(corner) < 1e-16)) seen.push(corner);
-  const center = new THREE.Vector3();
-  for (const point of seen) center.add(point);
-  return seen.length === 0 ? center : center.multiplyScalar(1 / seen.length);
-}
-
-/**
- * Volume of a tetrahedron.
- *
- * @param origin First corner.
- * @param a Second corner.
- * @param b Third corner.
- * @param c Fourth corner.
- * @returns Volume, never negative.
- */
-function solidScriptScatterTetVolume(
-  origin: THREE.Vector3,
-  a: THREE.Vector3,
-  b: THREE.Vector3,
-  c: THREE.Vector3,
-): number {
-  return (
-    Math.abs(
-      new THREE.Vector3()
-        .subVectors(a, origin)
-        .dot(new THREE.Vector3().subVectors(b, origin).cross(new THREE.Vector3().subVectors(c, origin))),
-    ) / 6
-  );
-}
-
-/**
- * Picks the piece whose running weight first reaches the target.
- *
- * @param pieces Weighted pieces.
- * @param target Value from 0 to the total weight.
- * @returns That piece's corners.
- */
-function solidScriptScatterWeighted(
-  pieces: readonly SolidScriptScatterPiece[],
-  target: number,
-): [THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3] {
-  let reach = 0;
-  let last = pieces[0];
-  for (const piece of pieces) {
-    reach += piece.weight;
-    last = piece;
-    if (reach >= target) return piece.corners;
-  }
-  if (!last) throw new Error('Inside needs an object with some volume in Of; a flat shape has no inside to scatter in');
-  return last.corners;
-}
-
-/**
- * A uniform random point inside a tetrahedron.
- *
- * @param corners The four corners.
- * @param random Next unit random number.
- * @returns Point.
- */
-function solidScriptScatterTetPoint(
-  corners: [THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3],
-  random: () => number,
-): THREE.Vector3 {
-  const [first, second, third, fourth] = corners;
-  const weights = [
-    solidScriptScatterSpace(random()),
-    solidScriptScatterSpace(random()),
-    solidScriptScatterSpace(random()),
-    solidScriptScatterSpace(random()),
-  ] as const;
-  const total = weights[0] + weights[1] + weights[2] + weights[3];
-  return new THREE.Vector3()
-    .addScaledVector(first, weights[0] / total)
-    .addScaledVector(second, weights[1] / total)
-    .addScaledVector(third, weights[2] / total)
-    .addScaledVector(fourth, weights[3] / total);
-}
-
-/**
- * Turns a unit random number into a spacing used to pick uniformly in a
- * tetrahedron.
- *
- * @param unit Number from 0 to 1.
- * @returns Positive spacing.
- */
-function solidScriptScatterSpace(unit: number): number {
-  return -Math.log(Math.min(1 - 1e-12, Math.max(1e-12, unit)));
-}
-
-/**
- * Random numbers 0..1, the same sequence for the same seed. Kept for Inside and
- * Box only; Faces keeps its own sequence.
- *
- * @param seed Seed.
- * @returns Next number.
- */
-function solidScriptScatterRng(seed: number): () => number {
-  let state = (Math.floor(seed * 1000) ^ 0x6d2b79f5) >>> 0;
-  return (): number => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let mixed = Math.imul(state ^ (state >>> 15), state | 1);
-    mixed ^= mixed + Math.imul(mixed ^ (mixed >>> 7), mixed | 61);
-    return ((mixed ^ (mixed >>> 14)) >>> 0) / 4294967296;
-  };
 }
