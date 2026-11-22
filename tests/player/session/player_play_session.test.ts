@@ -282,7 +282,7 @@ describe('PlayerPlaySession toys and keyboard', () => {
     const play = playEnter();
     expect(play.shown.at(-1)).toContain('1-5 or wheel pick toy');
     play.session.toggleViewMode();
-    expect(play.shown.at(-1)).toBe('Third-person — ESC exit, LMB throw, 1-5 pick toy, RMB first-person, Ctrl slow-mo');
+    expect(play.shown.at(-1)).toBe('Third-person — ESC exit, LMB throw, 1-5 pick toy, RMB first-person');
     play.tool.onKeyDown('Digit5');
     click(play);
     frames(play, 1);

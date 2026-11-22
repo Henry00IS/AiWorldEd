@@ -1,9 +1,5 @@
 import type { ManagerInput } from '@/input/manager_input.js';
-import {
-  PLAYER_RUN_SPEED_METERS_PER_SECOND,
-  PLAYER_SLOW_MOTION_TIME_SCALE,
-  PLAYER_WALK_SPEED_METERS_PER_SECOND,
-} from '@/player/player_constants.js';
+import { PLAYER_RUN_SPEED_METERS_PER_SECOND, PLAYER_WALK_SPEED_METERS_PER_SECOND } from '@/player/player_constants.js';
 
 /** Horizontal move axes from WASD, scaled to unit length when diagonal. */
 export interface PlayerMoveAxes {
@@ -56,23 +52,6 @@ export function playerMovementResolveSpeed(inputManager: ManagerInput): number {
  */
 export function playerMovementIsJumpHeld(inputManager: ManagerInput): boolean {
   return inputManager.isKeyDown('Space');
-}
-
-/**
- * Scales play-mode simulation delta for Control-held slow motion.
- *
- * @param rawDeltaSeconds Unscaled frame delta.
- * @param isSlowMotionHeld True while Control is held.
- * @returns Scaled simulation delta used by body and avatar.
- */
-export function playerMovementResolveSimulationDeltaSeconds(
-  rawDeltaSeconds: number,
-  isSlowMotionHeld: boolean,
-): number {
-  if (!isSlowMotionHeld) {
-    return rawDeltaSeconds;
-  }
-  return rawDeltaSeconds * PLAYER_SLOW_MOTION_TIME_SCALE;
 }
 
 /**

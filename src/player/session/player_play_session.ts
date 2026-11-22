@@ -18,7 +18,6 @@ import type { PlayerSpawnState } from '@/player/player_spawn_state.js';
 import type { PlayerFigurineMarker } from '@/player/figurine/player_figurine_marker.js';
 import { PlayerCharacterAvatar } from '@/player/character/player_character_avatar.js';
 import type { PlayerHelperLayer } from '@/player/player_helper_layer.js';
-import { playerMovementResolveSimulationDeltaSeconds } from '@/player/movement/player_movement_input.js';
 import { playerSpawnResolveFeetUnderCamera } from '@/player/spawn/player_spawn_ground.js';
 import type { PlayerBallSystem } from '@/player/ball/player_ball_system.js';
 import { playerEyePositionFromFeet } from '@/player/collision/player_capsule_collider.js';
@@ -354,12 +353,8 @@ export class PlayerPlaySession {
       return;
     }
     const now = performance.now();
-    const rawDeltaSeconds = Math.min(0.05, Math.max(0, (now - this.lastFrameTimeMs) / 1000));
+    const deltaSeconds = Math.min(0.05, Math.max(0, (now - this.lastFrameTimeMs) / 1000));
     this.lastFrameTimeMs = now;
-    const deltaSeconds = playerMovementResolveSimulationDeltaSeconds(
-      rawDeltaSeconds,
-      this.host.inputManager.isCtrlDown(),
-    );
     this.host.collisionWorld.setFocus('player', [this.body.getFeetPosition()]);
     this.bodyUpdate(deltaSeconds);
     this.carry.record(this.body.copyHorizontalVelocityTo(new THREE.Vector3()), now / 1000);
@@ -374,7 +369,7 @@ export class PlayerPlaySession {
       this.host.collisionWorld,
       deltaSeconds,
     );
-    this.viewModelUpdate(this.activeCamera, now, rawDeltaSeconds);
+    this.viewModelUpdate(this.activeCamera, now, deltaSeconds);
   }
 
   /**

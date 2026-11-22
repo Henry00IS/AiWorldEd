@@ -18,6 +18,6 @@ export function playerPlayHint(viewMode: PlayerViewMode, instrument: string | nu
     return `${title} — LMB put away, ←/→ instrument, ↑/↓ octave, Shift vibrato, wheel pick toy, RMB third-person`;
   if (instrument !== null)
     return `${title} — LMB put away (then 1-5 pick toy), ←/→ instrument, ↑/↓ octave, Shift vibrato, RMB first-person`;
-  if (firstPerson) return 'Play mode — ESC exit, LMB throw, 1-5 or wheel pick toy, RMB third-person, Ctrl slow-mo';
-  return 'Third-person — ESC exit, LMB throw, 1-5 pick toy, RMB first-person, Ctrl slow-mo';
+  if (firstPerson) return 'Play mode — ESC exit, LMB throw, 1-5 or wheel pick toy, RMB third-person';
+  return 'Third-person — ESC exit, LMB throw, 1-5 pick toy, RMB first-person';
 }
