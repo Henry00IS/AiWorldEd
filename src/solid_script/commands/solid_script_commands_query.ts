@@ -1,3 +1,5 @@
+import { solidScriptListingOf } from './solid_script_command_listing.js';
+import { solidScriptParameterOfWhere } from './solid_script_command_of_where.js';
 import * as THREE from 'three';
 import { SolidScriptCommand, type SolidScriptCommandParameter } from './solid_script_command.js';
 import {
@@ -73,6 +75,7 @@ export const SOLID_SCRIPT_COMMANDS_QUERY: readonly SolidScriptCommand[] = [
         'how',
         ['Along Ray'],
       ),
+      solidScriptParameterOfWhere('Face', '[=[$Face.Normal.Y] > 0.9]'),
       solidScriptParameterOf('faces or objects', '$Selected.Faces'),
       solidScriptFindEach({
         ...solidScriptParameterInto('the hit point, a Vector', 'Vector', 'hit point', 'label'),
@@ -108,7 +111,7 @@ export const SOLID_SCRIPT_COMMANDS_QUERY: readonly SolidScriptCommand[] = [
         ' From ',
         read.value('from'),
         ...(ray ? [' Direction ', read.value('direction')] : []),
-        ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+        ...solidScriptListingOf(read),
         ...(read.text('into') === '' ? [] : [' Into ', read.value('into')]),
         ...(read.text('distance') === '' ? [] : [' Distance ', read.value('distance')]),
         ...(read.text('normal') === '' ? [] : [' Normal ', read.value('normal')]),

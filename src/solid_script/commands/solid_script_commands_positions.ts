@@ -1,3 +1,4 @@
+import { solidScriptListingOf } from './solid_script_command_listing.js';
 import { solidScriptParameterEach } from './solid_script_command_each.js';
 import { SolidScriptCommand } from './solid_script_command.js';
 import {
@@ -88,13 +89,7 @@ export const SOLID_SCRIPT_COMMANDS_POSITIONS: readonly SolidScriptCommand[] = [
         'Object',
       ]),
     ],
-    listing: (read) => [
-      'Set Positions',
-      ' To ',
-      read.value('to'),
-      ...(read.text('where').trim() === '' ? [] : [' Where ', read.value('where')]),
-      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
-    ],
+    listing: (read) => ['Set Positions', ' To ', read.value('to'), ...solidScriptListingOf(read)],
     execute: (run) => {
       solidScriptSetPositionsRun(run);
       return [];

@@ -1,3 +1,5 @@
+import { solidScriptListingOf } from './solid_script_command_listing.js';
+import { solidScriptParameterOfWhere } from './solid_script_command_of_where.js';
 import * as THREE from 'three';
 import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
@@ -208,6 +210,7 @@ export const SOLID_SCRIPT_COMMANDS_ARRAY: readonly SolidScriptCommand[] = [
         'shape',
         ['Along Path'],
       ),
+      solidScriptParameterOfWhere('Object', '[=[$Object.Center.Y] > 0]'),
       solidScriptParameterOf('objects', '$Selected.Objects', ['Object']),
       solidScriptParameterInto('the copies, an Object list', 'Object List', 'what is made', 'copy'),
     ],
@@ -222,7 +225,7 @@ export const SOLID_SCRIPT_COMMANDS_ARRAY: readonly SolidScriptCommand[] = [
             ? ['Along ', read.value('path')]
             : ['Offset ', read.value('offset')],
       ]),
-      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+      ...solidScriptListingOf(read),
     ],
     execute: (run) => solidScriptArrayRun(run),
   }),

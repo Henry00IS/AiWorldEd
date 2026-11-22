@@ -1,3 +1,4 @@
+import { solidScriptOfWhere } from './solid_script_of_where.js';
 import { solidScriptShapePolygonPoints } from './solid_script_shape.js';
 import * as THREE from 'three';
 import type { SolidScriptGeometryLeaf } from './solid_script_geometry.js';
@@ -394,8 +395,9 @@ function solidScriptTransformVectorField(
  */
 export function solidScriptTransformPicked(run: SolidScriptBlockRun, label: string): SolidScriptTransformPicked {
   const given = run.ofValues();
-  const values = given ?? run.selectedGet('objects');
-  if (values.length === 0) throw new Error(solidScriptTransformEmpty(label, given !== null));
+  const all = given ?? run.selectedGet('objects');
+  if (all.length === 0) throw new Error(solidScriptTransformEmpty(label, given !== null));
+  const values = solidScriptOfWhere(run, all);
   const targets: SolidScriptTransformTargets = { leaves: [], points: [], outlines: [] };
   for (const value of values) solidScriptTransformCollect(run, label, value, targets);
   const { leaves, points, outlines } = targets;

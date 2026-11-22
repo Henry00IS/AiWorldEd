@@ -137,6 +137,7 @@ describe('Context lists what the focused line can read before it runs', () => {
       '$Selected.Faces',
       '$Selected.Edges',
       '$Selected.Vertices',
+      '$Object',
       '$Vertex',
       '$X',
       '$Y',

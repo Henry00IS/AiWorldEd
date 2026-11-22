@@ -1,3 +1,5 @@
+import { solidScriptListingOf } from './solid_script_command_listing.js';
+import { solidScriptParameterOfWhere } from './solid_script_command_of_where.js';
 import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptParameterEach } from './solid_script_command_each.js';
 import {
@@ -43,7 +45,7 @@ function solidScriptScatterListingFaces(read: SolidScriptListingValues): SolidSc
     ...solidScriptScatterListingAmount(read),
     ' With Seed ',
     read.value('seed'),
-    ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+    ...solidScriptListingOf(read),
     ' Into ',
     read.value('into'),
     ...(read.text('normals') === '' ? [] : [' Normals ', read.value('normals')]),
@@ -172,6 +174,7 @@ export const SOLID_SCRIPT_COMMAND_SCATTER = new SolidScriptCommand({
       'on',
       ['On Faces', 'Inside', 'In Box'],
     ),
+    solidScriptParameterWhen(solidScriptParameterOfWhere('Face', '[=[$Face.Normal.Y] > 0.9]'), 'on', ['On Faces']),
     solidScriptParameterWhen(solidScriptParameterOf('faces, objects', '$Selected.Faces'), 'on', ['On Faces', 'Inside']),
     {
       ...solidScriptParameterInto('the points, a list of vectors', 'Vector List', 'what is made', 'label'),

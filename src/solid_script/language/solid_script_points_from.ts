@@ -1,7 +1,13 @@
+import { solidScriptConditionHolds } from './solid_script_condition.js';
 import * as THREE from 'three';
 import { solidScriptKindNamed } from './solid_script_kinds.js';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
-import type { SolidScriptEdgeFacts, SolidScriptFaceFacts, SolidScriptVertexFacts } from './solid_script_geometry.js';
+import type {
+  SolidScriptEdgeFacts,
+  SolidScriptFaceFacts,
+  SolidScriptGeometryLeaf,
+  SolidScriptVertexFacts,
+} from './solid_script_geometry.js';
 import { solidScriptOfEmpty } from './solid_script_select.js';
 import { SolidScriptElement } from './solid_script_value.js';
 
@@ -62,7 +68,8 @@ export function solidScriptPointsFromVertices(
 
 /**
  * Reads edges a Points From Edges line works on: Of (edges, faces or brushes),
- * else [$Selected.Edges], else the edges of [$Selected.Faces].
+ * else [$Selected.Edges], else the edges of [$Selected.Faces], that pass the
+ * line's Where.
  *
  * @param run Running line.
  * @param label Command, for messages.
@@ -81,12 +88,15 @@ export function solidScriptPointsFromEdgeTargets(run: SolidScriptBlockRun, label
       if (!edges.some((known) => known.faces[0].leaf === edge.faces[0].leaf && known.index === edge.index))
         edges.push(edge);
   }
-  return edges;
+  return edges.filter((edge, index) =>
+    solidScriptConditionHolds(run, 'where', { $Edge: run.elements.edge(edge), $Index: index, $Count: edges.length }),
+  );
 }
 
 /**
  * Reads vertices a Points From Vertices line works on: Of (vertices, faces or
- * brushes), else [$Selected.Vertices], else the vertices of [$Selected.Faces].
+ * brushes), else [$Selected.Vertices], else the vertices of [$Selected.Faces],
+ * that pass the line's Where.
  *
  * @param run Running line.
  * @param label Command, for messages.
@@ -98,13 +108,26 @@ export function solidScriptPointsFromVertexTargets(run: SolidScriptBlockRun, lab
   const values = given ?? (picked.length > 0 ? picked : run.selectedGet('faces'));
   if (values.length === 0)
     throw new Error(given ? `${label} has no vertices in Of` : solidScriptOfEmpty(label, 'vertices'));
-  const vertices: SolidScriptVertexFacts[] = [];
+  const corners: { leaf: SolidScriptGeometryLeaf; vertex: SolidScriptVertexFacts }[] = [];
   for (const value of values) {
     if (!(value instanceof SolidScriptElement) || value.kind === 'edge' || value.kind === 'data')
       throw new Error(`${label} takes vertices, faces or objects, not ${solidScriptKindNamed(value)}`);
+    const leaf = run.elements.leaf(value);
     for (const vertex of run.elements.vertices(value))
-      if (!vertices.some((known) => known.index === vertex.index && known.position.distanceTo(vertex.position) < 1e-6))
-        vertices.push(vertex);
+      if (
+        !corners.some(
+          (known) => known.vertex.index === vertex.index && known.vertex.position.distanceTo(vertex.position) < 1e-6,
+        )
+      )
+        corners.push({ leaf, vertex });
   }
-  return vertices;
+  return corners
+    .filter(({ leaf, vertex }, index) =>
+      solidScriptConditionHolds(run, 'where', {
+        $Vertex: run.elements.vertex(leaf, vertex),
+        $Index: index,
+        $Count: corners.length,
+      }),
+    )
+    .map(({ vertex }) => vertex);
 }

@@ -1,3 +1,4 @@
+import { solidScriptListingOf } from './solid_script_command_listing.js';
 import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptParameterOf } from './solid_script_command_parameters.js';
 import { solidScriptParameterOfWhere } from './solid_script_command_of_where.js';
@@ -142,11 +143,7 @@ export const SOLID_SCRIPT_COMMANDS_DELETE: readonly SolidScriptCommand[] = [
       solidScriptParameterOfWhere('Object', '[=[$Object.Center.Y] < 0]'),
       solidScriptParameterOf('objects', '$Selected.Objects', ['Object']),
     ],
-    listing: (read) => [
-      'Delete Objects',
-      ...(read.text('where').trim() === '' ? [] : [' Where ', read.value('where')]),
-      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
-    ],
+    listing: (read) => ['Delete Objects', ...solidScriptListingOf(read)],
     execute: (run) => {
       solidScriptDeleteObjects(run);
       return [];
@@ -165,11 +162,7 @@ export const SOLID_SCRIPT_COMMANDS_DELETE: readonly SolidScriptCommand[] = [
       solidScriptParameterOfWhere('Face', '[=[$NY] > 0.5]'),
       solidScriptParameterOf('faces or meshes', '$Selected.Faces'),
     ],
-    listing: (read) => [
-      'Delete Faces',
-      ...(read.text('where').trim() === '' ? [] : [' Where ', read.value('where')]),
-      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
-    ],
+    listing: (read) => ['Delete Faces', ...solidScriptListingOf(read)],
     execute: (run) => {
       solidScriptDeleteFaces(run, solidScriptFaceTargets(run, 'Delete Faces'));
       return [];
@@ -188,11 +181,7 @@ export const SOLID_SCRIPT_COMMANDS_DELETE: readonly SolidScriptCommand[] = [
       solidScriptParameterOfWhere('Edge', '[=[$Edge.Angle] > 30]'),
       solidScriptParameterOf('edges, faces or meshes', '$Selected.Edges', ['Edge', 'Face', 'Object']),
     ],
-    listing: (read) => [
-      'Delete Edges',
-      ...(read.text('where').trim() === '' ? [] : [' Where ', read.value('where')]),
-      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
-    ],
+    listing: (read) => ['Delete Edges', ...solidScriptListingOf(read)],
     execute: (run) => {
       solidScriptDeleteEdges(run);
       return [];
@@ -216,11 +205,7 @@ export const SOLID_SCRIPT_COMMANDS_DELETE: readonly SolidScriptCommand[] = [
         'Object',
       ]),
     ],
-    listing: (read) => [
-      'Delete Vertices',
-      ...(read.text('where').trim() === '' ? [] : [' Where ', read.value('where')]),
-      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
-    ],
+    listing: (read) => ['Delete Vertices', ...solidScriptListingOf(read)],
     execute: (run) => {
       solidScriptDeleteVertices(run);
       return [];

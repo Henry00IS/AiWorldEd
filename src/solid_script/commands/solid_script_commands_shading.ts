@@ -1,3 +1,4 @@
+import { solidScriptListingOf } from './solid_script_command_listing.js';
 import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptParameter, solidScriptParameterOf } from './solid_script_command_parameters.js';
 import { solidScriptParameterOfWhere } from './solid_script_command_of_where.js';
@@ -62,8 +63,7 @@ export const SOLID_SCRIPT_COMMANDS_SHADING: readonly SolidScriptCommand[] = [
     listing: (read) => [
       'Shade Smooth',
       ...(read.changed('angle') ? [' Angle ', read.value('angle')] : []),
-      ...(read.text('where') === '' ? [] : [' Where ', read.value('where')]),
-      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+      ...solidScriptListingOf(read),
     ],
     execute: (run) => solidScriptShadeSmoothRun(run),
   }),

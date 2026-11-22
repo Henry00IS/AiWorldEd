@@ -1,3 +1,5 @@
+import { solidScriptListingOf } from './solid_script_command_listing.js';
+import { solidScriptParameterOfWhere } from './solid_script_command_of_where.js';
 import type { SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
 import type { SolidScriptGeometryLeaf } from '@/solid_script/language/solid_script_geometry.js';
 import { solidScriptEachRead } from '@/solid_script/language/solid_script_each_read.js';
@@ -234,7 +236,7 @@ function solidScriptTexturePaint(run: SolidScriptBlockRun, shapes: SolidScriptSh
   const order = new Map<SolidScriptShape, number>(leaves.map((leaf, index) => [leaf, index]));
   return shapes.map((shape) =>
     solidScriptShapeMapLeaves(shape, (leaf) =>
-      solidScriptTextureLeaf(run, leaf, solidScriptValueText(read(order.get(leaf) ?? -1)).trim()),
+      solidScriptTextureLeaf(run, leaf, solidScriptValueText(read(order.get(leaf) ?? -1) ?? '').trim()),
     ),
   );
 }
@@ -306,8 +308,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       return [
         'Select Faces',
         read.value('which'),
-        ...(read.text('where').trim() === '' ? [] : [' Where ', read.value('where')]),
-        ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+        ...solidScriptListingOf(read),
         ...solidScriptListingOptions([read.changed('how') && ['How ', read.value('how')]]),
         ...(read.text('into') === '' ? [] : [' Into ', read.value('into')]),
       ];
@@ -344,6 +345,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     nesting: 'open',
     endLabel: 'Place',
     parameters: [
+      solidScriptParameterOfWhere('Face', '[=[$Face.Normal.Y] > 0.9]'),
       solidScriptParameterOf('faces', '$Selected.Faces'),
       solidScriptParameterEach(
         solidScriptParameter(
@@ -358,7 +360,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     ],
     listing: (read) => [
       'Place On Face',
-      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+      ...solidScriptListingOf(read),
       ...solidScriptListingOptions([read.changed('lift') && ['Lift ', read.value('lift')]]),
     ],
     execute: (run) => {
@@ -527,6 +529,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         ),
         'Face',
       ),
+      solidScriptParameterOfWhere('Face', '[=[$Face.Normal.Y] > 0.9]'),
       solidScriptParameterOf('faces or objects', '$Selected.Faces'),
       solidScriptParameterInto('the new solids, an Object list', 'Object List', 'what is made', 'copy'),
       {
@@ -545,7 +548,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       'By ',
       read.value('distance'),
       ...(read.text('lift').trim() === '' ? [] : [' Lift ', read.value('lift')]),
-      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+      ...solidScriptListingOf(read),
       ...(read.text('into') === '' ? [] : [' Into ', read.value('into')]),
       ...(read.text('top') === '' ? [] : [' Top ', read.value('top')]),
       ...(read.text('sides') === '' ? [] : [' Sides ', read.value('sides')]),
@@ -631,6 +634,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         ),
         'Face',
       ),
+      solidScriptParameterOfWhere('Face', '[=[$Face.Normal.Y] > 0.9]'),
       solidScriptParameterOf('faces', '$Selected.Faces'),
       {
         ...solidScriptParameterInto('the inner faces, a Face list', 'Face List', 'inner faces', 'label'),
@@ -647,7 +651,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       'Inset Face',
       'By ',
       read.value('distance'),
-      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+      ...solidScriptListingOf(read),
       ...(read.text('inner') === '' ? [] : [' Inner ', read.value('inner')]),
       ...(read.text('ring') === '' ? [] : [' Ring ', read.value('ring')]),
     ],
@@ -733,13 +737,10 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         },
         'Face',
       ),
+      solidScriptParameterOfWhere('Face', '[=[$Face.Normal.Y] > 0.9]'),
       solidScriptParameterOf('faces or solids', '$Selected.Faces'),
     ],
-    listing: (read) => [
-      'Texture Faces',
-      read.value('texture'),
-      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
-    ],
+    listing: (read) => ['Texture Faces', read.value('texture'), ...solidScriptListingOf(read)],
     execute: (run) => {
       const targets = solidScriptFaceTargets(run, 'Texture Faces');
       const read = solidScriptFaceEach(run, 'texture', targets);
@@ -780,14 +781,10 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         ),
         'Face',
       ),
+      solidScriptParameterOfWhere('Face', '[=[$Face.Normal.Y] > 0.9]'),
       solidScriptParameterOf('faces or objects', '$Selected.Faces'),
     ],
-    listing: (read) => [
-      'Scale Faces',
-      'By ',
-      read.value('factor'),
-      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
-    ],
+    listing: (read) => ['Scale Faces', 'By ', read.value('factor'), ...solidScriptListingOf(read)],
     execute: (run) => {
       const targets = solidScriptFaceTargets(run, 'Scale Faces');
       const factorOf = solidScriptFaceEachNumber(run, 'factor', targets, 'Factor needs a number, such as 1 or 0.5', 1);

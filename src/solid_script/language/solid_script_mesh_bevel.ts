@@ -169,7 +169,9 @@ function solidScriptMeshBevelRoom(work: SolidScriptMeshBevelWork, from: number, 
   const length = solidScriptMeshBevelPoint(work, to).distanceTo(solidScriptMeshBevelPoint(work, from));
   const room = work.distances.has(to) ? length / 2 : length;
   if (distance >= room - 1e-9)
-    throw new Error(`Bevel Distance ${distance} is too long for an edge of ${Math.round(length * 1e4) / 1e4} m; try a Distance below half the shortest edge`);
+    throw new Error(
+      `Bevel Distance ${distance} is too long for an edge of ${Math.round(length * 1e4) / 1e4} m; try a Distance below half the shortest edge`,
+    );
   return distance;
 }
 

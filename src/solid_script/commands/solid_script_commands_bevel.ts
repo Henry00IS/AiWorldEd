@@ -1,3 +1,4 @@
+import { solidScriptListingOf } from './solid_script_command_listing.js';
 import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptParameterEach } from './solid_script_command_each.js';
 import {
@@ -320,8 +321,7 @@ export const SOLID_SCRIPT_COMMANDS_BEVEL: readonly SolidScriptCommand[] = [
       'Bevel Edges',
       'By ',
       read.value('distance'),
-      ...(read.text('where') === '' ? [] : [' Where ', read.value('where')]),
-      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+      ...solidScriptListingOf(read),
       ...(read.text('into') === '' ? [] : [' Into ', read.value('into')]),
     ],
     execute: (run) => solidScriptBevelEdgesRun(run),
@@ -354,8 +354,7 @@ export const SOLID_SCRIPT_COMMANDS_BEVEL: readonly SolidScriptCommand[] = [
       'Bevel Vertices',
       'By ',
       read.value('distance'),
-      ...(read.text('where') === '' ? [] : [' Where ', read.value('where')]),
-      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+      ...solidScriptListingOf(read),
       ...(read.text('into') === '' ? [] : [' Into ', read.value('into')]),
     ],
     execute: (run) => solidScriptBevelVerticesRun(run),

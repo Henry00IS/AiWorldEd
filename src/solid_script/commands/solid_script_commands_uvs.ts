@@ -1,3 +1,5 @@
+import { solidScriptListingOf } from './solid_script_command_listing.js';
+import { solidScriptParameterOfWhere } from './solid_script_command_of_where.js';
 import * as THREE from 'three';
 import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
@@ -141,6 +143,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
         'mode',
         ['Cylinder', 'Sphere'],
       ),
+      solidScriptParameterOfWhere('Face', '[=[$Face.Normal.Y] > 0.9]'),
       solidScriptParameterOf('faces or objects', '$Selected.Faces'),
     ],
     listing: (read) => [
@@ -149,7 +152,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
       read.value('mode'),
       ' Size ',
       read.value('size'),
-      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+      ...solidScriptListingOf(read),
     ],
     execute: (run) => {
       solidScriptUvsProject(run, solidScriptFaceTargets(run, 'Project UVs'));
@@ -167,14 +170,10 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
     stops: ['No faces.', 'A Size of 0 or less.'],
     parameters: [
       solidScriptParameter('size', 'Size', 'number', '1', 'Metres covered by one texture repeat, such as 1.'),
+      solidScriptParameterOfWhere('Face', '[=[$Face.Normal.Y] > 0.9]'),
       solidScriptParameterOf('faces or objects', '$Selected.Faces'),
     ],
-    listing: (read) => [
-      'Unwrap',
-      ' Size ',
-      read.value('size'),
-      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
-    ],
+    listing: (read) => ['Unwrap', ' Size ', read.value('size'), ...solidScriptListingOf(read)],
     execute: (run) => {
       solidScriptUvsUnwrap(run, solidScriptFaceTargets(run, 'Unwrap'));
       return [];
@@ -189,8 +188,11 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
     manual:
       "Packs the UV islands of the faces into the 0 to 1 square, keeping each island's shape, with a small gap between them. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. Solids stay solids; meshes stay meshes. Example: Unwrap, then Pack Islands.",
     stops: ['No faces.'],
-    parameters: [solidScriptParameterOf('faces or objects', '$Selected.Faces')],
-    listing: (read) => ['Pack Islands', ...(read.text('of') === '' ? [] : [' Of ', read.value('of')])],
+    parameters: [
+      solidScriptParameterOfWhere('Face', '[=[$Face.Normal.Y] > 0.9]'),
+      solidScriptParameterOf('faces or objects', '$Selected.Faces'),
+    ],
+    listing: (read) => ['Pack Islands', ...solidScriptListingOf(read)],
     execute: (run) => {
       solidScriptUvsPack(run, solidScriptFaceTargets(run, 'Pack Islands'));
       return [];
@@ -258,6 +260,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
         ),
         optional: true,
       },
+      solidScriptParameterOfWhere('Face', '[=[$Face.Normal.Y] > 0.9]'),
       solidScriptParameterOf('faces or objects', '$Selected.Faces'),
     ],
     listing: (read) => [
@@ -268,6 +271,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
       ...solidScriptListingOptions([
         read.text('readable') !== '' && [read.on('readable') ? 'Readable Text' : 'Readable Text No'],
         read.changed('textures') && ['Textures ', read.value('textures')],
+        read.text('where') !== '' && ['Where ', read.value('where')],
         read.text('of') !== '' && ['Of ', read.value('of')],
       ]),
     ],

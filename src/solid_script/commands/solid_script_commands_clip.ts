@@ -1,3 +1,5 @@
+import { solidScriptListingOf } from './solid_script_command_listing.js';
+import { solidScriptParameterOfWhere } from './solid_script_command_of_where.js';
 import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptParameter, solidScriptParameterOf } from './solid_script_command_parameters.js';
 import { solidScriptBrushTargets } from './solid_script_brush_of.js';
@@ -34,6 +36,7 @@ export const SOLID_SCRIPT_COMMANDS_CLIP: readonly SolidScriptCommand[] = [
         '0, 1, 0',
         'The way the part you cut away faces, such as 0, 1, 0 to cut away the top.',
       ),
+      solidScriptParameterOfWhere('Object', '[=[$Object.Center.Y] > 0]'),
       solidScriptParameterOf('objects', '$Selected.Objects', ['Object']),
     ],
     listing: (read) => [
@@ -42,7 +45,7 @@ export const SOLID_SCRIPT_COMMANDS_CLIP: readonly SolidScriptCommand[] = [
       read.value('through'),
       ' Normal ',
       read.value('normal'),
-      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+      ...solidScriptListingOf(read),
     ],
     execute: (run) => {
       const plane = solidScriptClipPlane(run);

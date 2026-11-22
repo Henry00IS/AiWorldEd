@@ -1,3 +1,5 @@
+import { solidScriptListingOf } from './solid_script_command_listing.js';
+import { solidScriptParameterOfWhere } from './solid_script_command_of_where.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import { solidScriptMemberVector } from '@/solid_script/language/solid_script_members.js';
 import {
@@ -18,31 +20,39 @@ import { solidScriptFaceTargets, solidScriptFaceWrite } from './solid_script_fac
  * Writes points and optional normals from a Points From line.
  *
  * @param run Running line.
- * @param label Command, for messages.
  * @param items Points.
  */
-function solidScriptPointsFromWrite(
-  run: SolidScriptBlockRun,
-  label: string,
-  items: readonly SolidScriptPointsFromItem[],
-): void {
-  if (items.length === 0) throw new Error(`${label} found no points`);
+function solidScriptPointsFromWrite(run: SolidScriptBlockRun, items: readonly SolidScriptPointsFromItem[]): void {
   const points: SolidScriptValue[] = items.map((item) => solidScriptMemberVector(item.position));
   const normals: SolidScriptValue[] = items.map((item) => solidScriptMemberVector(item.normal));
   solidScriptFaceWrite(run, 'into', points);
   solidScriptFaceWrite(run, 'normals', normals);
 }
 
+/** A Where for the hint of each kind of Points From line. */
+const SOLID_SCRIPT_POINTS_WHERE_EXAMPLE = {
+  Face: '[=[$Face.Normal.Y] > 0.9]',
+  Edge: '[=[$Edge.Length] > 0.5]',
+  Vertex: '[=[$Vertex.Position.Y] > 0]',
+} as const;
+
 /**
- * Shared Into, Normals and Of fields of a Points From line.
+ * Shared Where, Into, Normals and Of fields of a Points From line.
  *
  * @param of What Of works on, such as faces or brushes.
  * @param fallback Selected list Of uses when empty, such as $Selected.Faces.
  * @param elements Kinds Of accepts.
+ * @param each Kind of item Where reads.
  * @returns Fields.
  */
-function solidScriptPointsFromFields(of: string, fallback: string, elements: readonly string[]) {
+function solidScriptPointsFromFields(
+  of: string,
+  fallback: string,
+  elements: readonly string[],
+  each: 'Face' | 'Edge' | 'Vertex',
+) {
   return [
+    solidScriptParameterOfWhere(each, SOLID_SCRIPT_POINTS_WHERE_EXAMPLE[each]),
     solidScriptParameterOf(of, fallback, elements),
     {
       ...solidScriptParameterInto('the points, a list of vectors', 'Vector List', 'what is made', 'label'),
@@ -67,10 +77,10 @@ export const SOLID_SCRIPT_COMMANDS_POINTS: readonly SolidScriptCommand[] = [
     manual:
       'Writes a point at the center of each face in Of, and the way the face looks in Normals. Empty Of uses [$Selected.Faces]. Faces that lie back to back against another object in Of, inside the shape, are skipped. Use the points with Place At Points, and turn on Align To Normal so each copy stands the way Place On Face would. Example: Select Faces Facing Up, Points From Faces Into [Spots] Normals [Dirs], Place At Points At [Spots] Directions [Dirs] Align To Normal, Cylinder, End.',
     stops: ['No faces.'],
-    parameters: [...solidScriptPointsFromFields('faces or objects', '$Selected.Faces', ['Object', 'Face'])],
+    parameters: [...solidScriptPointsFromFields('faces or objects', '$Selected.Faces', ['Object', 'Face'], 'Face')],
     listing: (read) => [
       'Points From Faces',
-      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+      ...solidScriptListingOf(read),
       ' Into ',
       read.value('into'),
       ...(read.text('normals') === '' ? [] : [' Normals ', read.value('normals')]),
@@ -78,7 +88,6 @@ export const SOLID_SCRIPT_COMMANDS_POINTS: readonly SolidScriptCommand[] = [
     execute: (run) => {
       solidScriptPointsFromWrite(
         run,
-        'Points From Faces',
         solidScriptPointsFromFaces(solidScriptGeometryFacesOutside(solidScriptFaceTargets(run, 'Points From Faces'))),
       );
       return [];
@@ -92,10 +101,15 @@ export const SOLID_SCRIPT_COMMANDS_POINTS: readonly SolidScriptCommand[] = [
     manual:
       'Writes a point at the middle of each edge in Of, and the way the edge looks out in Normals, from the faces that meet there. Of can be edges, faces or objects; empty uses [$Selected.Edges], or the edges of [$Selected.Faces]. Example: Select Faces Which All, Points From Edges Into [Spots] Normals [Dirs], then Place At Points At [Spots] Directions [Dirs] Align To Normal.',
     stops: ['No edges.'],
-    parameters: solidScriptPointsFromFields('edges, faces or objects', '$Selected.Edges', ['Object', 'Face', 'Edge']),
+    parameters: solidScriptPointsFromFields(
+      'edges, faces or objects',
+      '$Selected.Edges',
+      ['Object', 'Face', 'Edge'],
+      'Edge',
+    ),
     listing: (read) => [
       'Points From Edges',
-      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+      ...solidScriptListingOf(read),
       ' Into ',
       read.value('into'),
       ...(read.text('normals') === '' ? [] : [' Normals ', read.value('normals')]),
@@ -103,7 +117,6 @@ export const SOLID_SCRIPT_COMMANDS_POINTS: readonly SolidScriptCommand[] = [
     execute: (run) => {
       solidScriptPointsFromWrite(
         run,
-        'Points From Edges',
         solidScriptPointsFromEdges(solidScriptPointsFromEdgeTargets(run, 'Points From Edges')),
       );
       return [];
@@ -117,14 +130,15 @@ export const SOLID_SCRIPT_COMMANDS_POINTS: readonly SolidScriptCommand[] = [
     manual:
       'Writes a point at each vertex in Of, and the average way of the faces around it in Normals. Of can be vertices, faces or objects; empty uses [$Selected.Vertices], or the vertices of [$Selected.Faces]. Example: Select Objects, Points From Vertices Into [Spots] Normals [Dirs].',
     stops: ['No vertices.'],
-    parameters: solidScriptPointsFromFields('vertices, faces or objects', '$Selected.Vertices', [
-      'Object',
-      'Face',
+    parameters: solidScriptPointsFromFields(
+      'vertices, faces or objects',
+      '$Selected.Vertices',
+      ['Object', 'Face', 'Vertex'],
       'Vertex',
-    ]),
+    ),
     listing: (read) => [
       'Points From Vertices',
-      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+      ...solidScriptListingOf(read),
       ' Into ',
       read.value('into'),
       ...(read.text('normals') === '' ? [] : [' Normals ', read.value('normals')]),
@@ -132,7 +146,6 @@ export const SOLID_SCRIPT_COMMANDS_POINTS: readonly SolidScriptCommand[] = [
     execute: (run) => {
       solidScriptPointsFromWrite(
         run,
-        'Points From Vertices',
         solidScriptPointsFromVertices(solidScriptPointsFromVertexTargets(run, 'Points From Vertices')),
       );
       return [];

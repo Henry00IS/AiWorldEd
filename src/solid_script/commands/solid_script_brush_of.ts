@@ -1,3 +1,4 @@
+import { solidScriptOfWhere } from '@/solid_script/language/solid_script_of_where.js';
 import { solidScriptKindNamed } from '@/solid_script/language/solid_script_kinds.js';
 import type { SolidScriptGeometryLeaf } from '@/solid_script/language/solid_script_geometry.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
@@ -6,7 +7,8 @@ import { solidScriptOfEmpty } from '@/solid_script/language/solid_script_select.
 
 /**
  * Reads the brushes a line works on now: those its Of gives, else
- * [$Selected.Objects]. Meshes are included, as they are in that list.
+ * [$Selected.Objects], that pass the line's Where. Meshes are included, as they
+ * are in that list.
  *
  * @param run Running line.
  * @param label Command, for messages.
@@ -17,7 +19,8 @@ export function solidScriptBrushTargets(run: SolidScriptBlockRun, label: string)
   const values = given ?? run.selectedGet('objects');
   if (values.length === 0) throw new Error(solidScriptBrushTargetsEmpty(label, given !== null));
   const leaves: SolidScriptGeometryLeaf[] = [];
-  for (const value of values) leaves.push(...solidScriptBrushTarget(run, label, value, leaves));
+  for (const value of solidScriptOfWhere(run, values))
+    leaves.push(...solidScriptBrushTarget(run, label, value, leaves));
   return leaves;
 }
 

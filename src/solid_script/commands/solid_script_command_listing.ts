@@ -142,3 +142,16 @@ export function solidScriptListingInputs(names: string): SolidScriptListingPiece
 export function solidScriptListingText(parts: readonly SolidScriptListingPart[]): string {
   return parts.map((part) => part.text).join('');
 }
+
+/**
+ * The Where and Of of a line's listing, each left out when empty.
+ *
+ * @param read Line values.
+ * @returns Pieces.
+ */
+export function solidScriptListingOf(read: SolidScriptListingValues): SolidScriptListingPiece[] {
+  return [
+    ...(read.text('where').trim() === '' ? [] : [' Where ', read.value('where')]),
+    ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+  ];
+}

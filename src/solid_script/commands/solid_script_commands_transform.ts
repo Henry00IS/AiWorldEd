@@ -1,3 +1,5 @@
+import { solidScriptListingOf } from './solid_script_command_listing.js';
+import { solidScriptParameterOfWhere } from './solid_script_command_of_where.js';
 import {
   SolidScriptCommand,
   type SolidScriptCommandParameter,
@@ -384,9 +386,10 @@ function solidScriptTransformTool(spec: {
     stops: spec.stops,
     parameters: [
       ...spec.parameters.map((parameter) => solidScriptParameterEach(parameter, 'Item')),
+      solidScriptParameterOfWhere('Item', '[=[$Index] % 2 == 0]'),
       SOLID_SCRIPT_TRANSFORM_OF,
     ],
-    listing: (read) => [...spec.listing(read), ...(read.text('of') === '' ? [] : [' Of ', read.value('of')])],
+    listing: (read) => [...spec.listing(read), ...solidScriptListingOf(read)],
     execute: (run) => {
       solidScriptTransformEach(run, spec.label, keys, spec.world);
       return [];

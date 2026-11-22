@@ -1,3 +1,4 @@
+import { solidScriptListingOf } from './solid_script_command_listing.js';
 import { solidScriptEachUses } from '@/solid_script/language/solid_script_each_uses.js';
 import { solidScriptParameterEach } from './solid_script_command_each.js';
 import * as THREE from 'three';
@@ -452,13 +453,10 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     stops: ['A solid. Wrap it in Mesh From Solids first.', 'No mesh to work on.'],
     parameters: [
       solidScriptParameterOfWhere('Object', '[=[$Object.Center.Y] > 0]'),
+      solidScriptParameterOfWhere('Object', '[=[$Object.Center.Y] > 0]'),
       solidScriptParameterOf('meshes', '$Selected.Objects', ['Object']),
     ],
-    listing: (read) => [
-      'Join Meshes',
-      ...(read.text('where').trim() === '' ? [] : [' Where ', read.value('where')]),
-      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
-    ],
+    listing: (read) => ['Join Meshes', ...solidScriptListingOf(read)],
     execute: (run) => {
       const [first, ...rest] = solidScriptMeshTargets(run, 'Join Meshes');
       if (!first) return [];
@@ -484,13 +482,10 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
         '0.001',
         'Largest gap between corners that are welded, in metres, such as 0.01.',
       ),
+      solidScriptParameterOfWhere('Object', '[=[$Object.Center.Y] > 0]'),
       solidScriptParameterOf('meshes', '$Selected.Objects', ['Object']),
     ],
-    listing: (read) => [
-      'Merge By Distance',
-      read.value('distance'),
-      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
-    ],
+    listing: (read) => ['Merge By Distance', read.value('distance'), ...solidScriptListingOf(read)],
     execute: (run) => {
       const distance = solidScriptMeshNumber(run.value('distance'), 'Distance');
       if (distance < 0) throw new Error(`Distance must be 0 or more, not ${distance}`);
@@ -525,6 +520,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
         'Yes',
         'Yes: round the shape off. No: keep its shape exactly, only with more faces. Type Yes or No, such as Yes.',
       ),
+      solidScriptParameterOfWhere('Object', '[=[$Object.Center.Y] > 0]'),
       solidScriptParameterOf('meshes', '$Selected.Objects', ['Object']),
     ],
     listing: (read) => [
@@ -532,7 +528,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
       read.value('levels'),
       ' Times',
       ...solidScriptListingOptions([!read.on('smooth') && ['Not Smooth']]),
-      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+      ...solidScriptListingOf(read),
     ],
     execute: (run) => {
       const levels = solidScriptMeshCount(run, 'levels', 'Levels', [1, SOLID_SCRIPT_SUBDIVIDE_LEVELS_MAX]);
@@ -573,6 +569,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
         '0.5',
         'How far each round moves the points, 0 to 1, such as 0.5.',
       ),
+      solidScriptParameterOfWhere('Object', '[=[$Object.Center.Y] > 0]'),
       solidScriptParameterOf('meshes', '$Selected.Objects', ['Object']),
     ],
     listing: (read) => [
@@ -580,7 +577,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
       read.value('rounds'),
       ' Times, Strength ',
       read.value('strength'),
-      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+      ...solidScriptListingOf(read),
     ],
     execute: (run) => {
       const rounds = solidScriptMeshCount(run, 'rounds', 'Rounds', [1, SOLID_SCRIPT_SMOOTH_ROUNDS_MAX]);
@@ -613,14 +610,10 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
         ),
         'Vertex',
       ),
+      solidScriptParameterOfWhere('Object', '[=[$Object.Center.Y] > 0]'),
       solidScriptParameterOf('meshes', '$Selected.Objects', ['Object']),
     ],
-    listing: (read) => [
-      'Displace',
-      'By ',
-      read.value('distance'),
-      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
-    ],
+    listing: (read) => ['Displace', 'By ', read.value('distance'), ...solidScriptListingOf(read)],
     execute: (run) => solidScriptMeshApply(run, 'Displace', (mesh) => solidScriptMeshDisplaceRun(run, mesh)),
   }),
   new SolidScriptCommand({
@@ -632,8 +625,11 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     manual:
       'Turns faces of a mesh around, so they show the other side. It flips the faces Select Faces picked, or every face when none are picked. Use it when a mesh looks inside out, or to see a box from the inside, such as a sky box or a cave. Of is the mesh; empty uses [$Selected.Objects]. A solid stops the line: wrap it in Mesh From Solids first. Example: Mesh From Solids around a large Cube, then Flip Faces, is a room seen from within.',
     stops: ['A solid. Wrap it in Mesh From Solids first.', 'No mesh to work on.'],
-    parameters: [solidScriptParameterOf('meshes', '$Selected.Objects', ['Object'])],
-    listing: (read) => ['Flip Faces', ...(read.text('of') === '' ? [] : [' Of ', read.value('of')])],
+    parameters: [
+      solidScriptParameterOfWhere('Object', '[=[$Object.Center.Y] > 0]'),
+      solidScriptParameterOf('meshes', '$Selected.Objects', ['Object']),
+    ],
+    listing: (read) => ['Flip Faces', ...solidScriptListingOf(read)],
     execute: (run) => solidScriptMeshApply(run, 'Flip Faces', (mesh) => solidScriptMeshFlipRun(run, mesh)),
   }),
 ];
