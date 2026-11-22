@@ -2,7 +2,7 @@ import type { SolidScriptFunctionDoc } from './solid_script_function_docs.js';
 import { solidScriptFunctionDocSummary } from './solid_script_function_docs_math.js';
 import type { SolidScriptBuiltinName } from './solid_script_functions_builtin.js';
 
-/** Docs of the brick, swirl and streak texture functions. */
+/** Docs of the brick, swirl, streak and fade texture functions. */
 export const SOLID_SCRIPT_FUNCTION_DOCS_TEXTURE = {
   brick: {
     usage: 'Brick(position, scale, seed, output, mortar, width, height, offset, smooth)',
@@ -41,9 +41,23 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_TEXTURE = {
     group: 'Random',
     gives: ['Number'],
   },
+  gradient: {
+    usage: 'Gradient(position, type)',
+    summary: solidScriptFunctionDocSummary(
+      'A fade from 0 to 1 across space, always held between 0 and 1. Type Linear (the default) runs along X from 0 to 1; Quadratic is that squared; Easing starts and ends gently; Diagonal runs along X and Y together; Spherical is 1 in the middle and 0 a metre away; Quadratic Sphere is that squared; Radial turns once around Z, 0.5 along +X.',
+      [
+        'Gradient(Vector(0.25, 0, 0)) is 0.25.',
+        'Gradient(Vector(0.5, 0, 0), "Quadratic") is 0.25.',
+        'Gradient(Vector([$X], [$Y], 0), "Radial") gives a sweep around the middle.',
+      ],
+      'Use it to fade a height, size or chance across an object, or to make a ramp for Remap.',
+    ),
+    group: 'Random',
+    gives: ['Number'],
+  },
 } as const satisfies Partial<Record<SolidScriptBuiltinName, SolidScriptFunctionDoc>>;
 
-/** Inputs of Brick, Magic and Gabor that mean something of their own. */
+/** Inputs of Brick, Magic, Gabor and Gradient that mean something of their own. */
 export const SOLID_SCRIPT_TEXTURE_ARGUMENTS = {
   gabor: {
     position: {
@@ -71,6 +85,19 @@ export const SOLID_SCRIPT_TEXTURE_ARGUMENTS = {
     height: { type: ['Number'], about: 'Row height.', start: '0.25' },
     offset: { type: ['Number'], about: 'Shift of every other row, as part of a brick.', start: '0.5' },
     smooth: { type: ['Number'], about: 'How softly the gap fades, from 0 to 1.', start: '0.1' },
+  },
+  gradient: {
+    position: {
+      type: ['Vector'],
+      about: 'Where to read the fade, such as Vector([$X], [$Y], [$Z]).',
+      start: '0, 0, 0',
+    },
+    type: {
+      type: ['Text'],
+      about: 'Linear, Quadratic, Easing, Diagonal, Spherical, Quadratic Sphere or Radial.',
+      choices: ['Linear', 'Quadratic', 'Easing', 'Diagonal', 'Spherical', 'Quadratic Sphere', 'Radial'],
+      default: 'Linear',
+    },
   },
   magic: {
     position: {

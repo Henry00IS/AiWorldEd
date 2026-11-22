@@ -119,8 +119,38 @@ function solidScriptTextureMagic(args: SolidScriptTextureArgs): number[] {
   return channels.map((value) => solidScriptMemberRound(0.5 - (distortion === 0 ? value : value / (2 * distortion))));
 }
 
+/** Kinds of Gradient, by the shape it fades in. */
+const SOLID_SCRIPT_TEXTURE_GRADIENTS = {
+  Linear: ([x = 0]: number[]) => x,
+  Quadratic: ([x = 0]: number[]) => Math.max(x, 0) ** 2,
+  Easing: ([x = 0]: number[]) => {
+    const t = Math.min(1, Math.max(0, x));
+    return t * t * (3 - 2 * t);
+  },
+  Diagonal: ([x = 0, y = 0]: number[]) => (x + y) / 2,
+  Spherical: (position: number[]) => Math.max(0.999999 - Math.hypot(...position), 0),
+  'Quadratic Sphere': (position: number[]) => Math.max(0.999999 - Math.hypot(...position), 0) ** 2,
+  Radial: ([x = 0, y = 0]: number[]) => Math.atan2(y, x) / (2 * Math.PI) + 0.5,
+} as const;
+
+/**
+ * Samples a gradient that fades from 0 to 1 across space.
+ *
+ * @param args Position and Type.
+ * @returns Value from 0 to 1.
+ */
+function solidScriptTextureGradient(args: SolidScriptTextureArgs): number {
+  const position = solidScriptValueNumbers(args[0]);
+  if (position?.length !== 3) throw new Error('Gradient needs a position vector of three numbers');
+  const kinds = Object.keys(SOLID_SCRIPT_TEXTURE_GRADIENTS) as (keyof typeof SOLID_SCRIPT_TEXTURE_GRADIENTS)[];
+  const kind = solidScriptNoiseWord(args[1], kinds, 'Gradient Type');
+  const value = SOLID_SCRIPT_TEXTURE_GRADIENTS[kind](position);
+  return solidScriptMemberRound(Math.min(1, Math.max(0, value)));
+}
+
 /** Texture functions returning scalar fields or colour vectors. */
 export const SOLID_SCRIPT_FUNCTIONS_TEXTURE = {
   brick: solidScriptTextureBrick,
   magic: solidScriptTextureMagic,
+  gradient: solidScriptTextureGradient,
 };
