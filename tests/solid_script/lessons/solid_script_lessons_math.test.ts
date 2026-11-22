@@ -59,7 +59,7 @@ describe('RandomInt', () => {
   it('fills in its ID per item in a Where', () => {
     const inputs = solidScriptFormulaCheckInputs('random_int', { each: 'Face' });
     expect(inputs.map((input) => input.name)).toEqual(['min', 'max', 'id', 'seed']);
-    expect(inputs.find((input) => input.name === 'id')?.fallback).toBe('[$Index]');
+    expect(inputs.find((input) => input.name === 'id')?.fallback).toBe('[$Id]');
   });
 });
 

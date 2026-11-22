@@ -84,9 +84,9 @@ describe('formula blocks start with sensible values', () => {
     });
   });
 
-  it('shows ID as [$Index] and Seed as 0 greyed, and Along starts at the face', () => {
+  it('shows ID as [$Id] and Seed as 0 greyed, and Along starts at the face', () => {
     const random = solidScriptFormulaCheckInputs('random', { each: 'Face' });
-    expect(random.find((input) => input.name === 'id')?.fallback).toBe('[$Index]');
+    expect(random.find((input) => input.name === 'id')?.fallback).toBe('[$Id]');
     expect(random.find((input) => input.name === 'seed')?.default).toBe('0');
     const along = solidScriptFormulaCheckInputs('along', { each: 'Face' });
     expect(along.find((input) => input.name === 'point')?.fallback).toBe('[$Face.Center]');

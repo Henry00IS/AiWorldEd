@@ -106,11 +106,11 @@ describe('SolidScript per-element fields', () => {
     expect(solidScriptCommandEachFills(command, { name: 'Width' })).not.toEqual(expect.arrayContaining(['$Vertex']));
   });
 
-  it('declares Where of Filter List as per item, with $Item and $Index', () => {
+  it('declares Where of Filter List as per item, with $Item, $Index and $Id', () => {
     const where = parameter('filter_list', 'where');
     expect(where.each).toBe('Item');
     expect(solidScriptParameterEachKind(where, {})).toBe('Item');
-    expect(solidScriptParameterEachFills('Item')).toEqual(['$Item', '$Index', '$Count', '$X', '$Y', '$Z']);
+    expect(solidScriptParameterEachFills('Item')).toEqual(['$Item', '$Index', '$Id', '$Count', '$X', '$Y', '$Z']);
     const command = solidScriptCommandFind('filter_list');
     if (!command) throw new Error('Filter List is missing');
     expect(solidScriptCommandEachFills(command, {})).toEqual(expect.arrayContaining(['$Item', '$Index']));

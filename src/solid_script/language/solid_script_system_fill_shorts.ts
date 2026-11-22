@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { SolidScriptElements } from './solid_script_elements.js';
 import { solidScriptMemberRead } from './solid_script_members.js';
 import type { SolidScriptScope } from './solid_script_scope.js';
-import { solidScriptValueNumbers, type SolidScriptValue } from './solid_script_value.js';
+import { SolidScriptElement, solidScriptValueNumbers, type SolidScriptValue } from './solid_script_value.js';
 
 /**
  * Where a current item is and which way it faces, by the name it is filled in
@@ -99,6 +99,7 @@ export function solidScriptSystemFillShort(
   scope: SolidScriptScope,
   elements: SolidScriptElements,
 ): SolidScriptValue {
+  if (name === '$id') return solidScriptSystemFillId(scope, elements);
   const short = SOLID_SCRIPT_SYSTEM_FILL_SHORTS[name];
   if (!short) return undefined;
   for (let current: SolidScriptScope | null = scope; current; current = current.parent)
@@ -106,6 +107,25 @@ export function solidScriptSystemFillShort(
       const held = current.variableOwn(item.element);
       if (held === undefined) continue;
       return solidScriptSystemFillAxis(held, short.normal ? item.normal : item.position, short.axis, elements);
+    }
+  return undefined;
+}
+
+/**
+ * Reads $Id: the Id of the innermost current face, edge, corner or point, else
+ * the number of the current item.
+ *
+ * @param scope Scope of the running line.
+ * @param elements Geometry values of the run.
+ * @returns Number, or undefined when there is no current item.
+ */
+function solidScriptSystemFillId(scope: SolidScriptScope, elements: SolidScriptElements): SolidScriptValue {
+  for (let current: SolidScriptScope | null = scope; current; current = current.parent)
+    for (const item of SOLID_SCRIPT_SYSTEM_FILL_ITEMS) {
+      const held = current.variableOwn(item.element);
+      if (held === undefined) continue;
+      const id = held instanceof SolidScriptElement ? solidScriptSystemFillMember(held, 'Id', elements) : undefined;
+      return typeof id === 'number' ? id : current.variableOwn('$index');
     }
   return undefined;
 }

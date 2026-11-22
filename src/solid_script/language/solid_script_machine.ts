@@ -1,4 +1,4 @@
-import { solidScriptEachUsed } from './solid_script_each_uses.js';
+import { solidScriptEachUsed, solidScriptEachUses } from './solid_script_each_uses.js';
 import { solidScriptShapesNotConvex } from './solid_script_solid_validate.js';
 import {
   SOLID_SCRIPT_USE_GENERATOR,
@@ -33,7 +33,7 @@ import { solidScriptMeshChecked, solidScriptMeshTransform } from './solid_script
 import { SolidScriptScope } from './solid_script_scope.js';
 import { solidScriptIntoAssigned } from './solid_script_into_assigned.js';
 import { solidScriptIntoCopyName } from './solid_script_into.js';
-import { solidScriptScopeElementBind } from './solid_script_scope_element.js';
+import { solidScriptScopeElementBind, solidScriptScopeIdBind } from './solid_script_scope_element.js';
 import {
   SOLID_SCRIPT_GROUP_MODE_DEFAULT,
   SOLID_SCRIPT_MODE_DEFAULT,
@@ -860,6 +860,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       const inner = new SolidScriptScope(state.scope);
       for (const [name, assigned] of Object.entries(variables))
         inner.variableDefine(state.machine.nameKey(name), assigned);
+      if (solidScriptEachUses(solidScriptLineFieldOf(fields, node, key).text).has('$id'))
+        solidScriptScopeIdBind(inner, state.machine.elements);
       return state.machine.fieldValue(fields, node, key, inner);
     };
     const modeOf = (): Readonly<Record<string, string>> => {
@@ -1014,7 +1016,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
             const inner = new SolidScriptScope(state.scope);
             inner.variableDefine(key, round);
             if (keyed) inner.variableDefine(keyName, keyed.keys[index]);
-            solidScriptScopeElementBind(inner, round, index);
+            solidScriptScopeElementBind(inner, round, index, state.machine.elements);
             if (node.children.length === 0) return;
             const built = state.machine.linesRun(node.children, inner, state.context, inner, children());
             for (const shape of built) shapes.push(shape);

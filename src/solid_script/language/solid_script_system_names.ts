@@ -46,6 +46,10 @@ export const SOLID_SCRIPT_SYSTEM_FILLS = {
   $NZ: { type: 'Number', detail: 'short form of $Vertex.Normal.Z, or $Face.Normal.Z' },
   $Count: { type: 'Number', detail: 'how many items the line works through' },
   $Index: { type: 'Number', detail: 'the number of this solid, face, edge, vertex, point or list item, from 0' },
+  $Id: {
+    type: 'Number',
+    detail: 'a number that stays with this face, edge, vertex or point, from where it is; else its $Index',
+  },
 } as const satisfies Record<SolidScriptSystemName, SolidScriptSystemFill>;
 
 /** A name a command may fill in, such as $NZ. */

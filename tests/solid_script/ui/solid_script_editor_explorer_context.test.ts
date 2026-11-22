@@ -146,6 +146,7 @@ describe('Context lists what the focused line can read before it runs', () => {
       '$NZ',
       '$Count',
       '$Index',
+      '$Id',
     ]);
   });
 

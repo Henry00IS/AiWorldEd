@@ -4,6 +4,7 @@ import type { SolidScriptEdgeFacts, SolidScriptFaceFacts } from './solid_script_
 import { solidScriptKindNamed } from './solid_script_kinds.js';
 import { solidScriptFaceCornerUvs } from './solid_script_uvs.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
+import { solidScriptMemberIdOf } from './solid_script_member_id.js';
 import { solidScriptMemberForm } from './solid_script_shown_names.js';
 import { solidScriptPathLength } from './solid_script_path.js';
 import { solidScriptPathSample, solidScriptPathWalk } from './solid_script_path_model.js';
@@ -111,6 +112,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     Height: form('Heights', 'Number'),
     Tag: form('Tags', 'Text'),
     Tags: form('Tags', 'Text List'),
+    Id: form('Ids', 'Number'),
     Edges: form('Edges', 'Edge List'),
     Vertices: form('Vertices', 'Vertex List'),
     Neighbors: form('Neighbors', 'Face List'),
@@ -129,6 +131,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     SignedAngle: form('SignedAngles', 'Number'),
     IsConvex: form('IsConvex', 'Yes/No'),
     IsBoundary: form('IsBoundaries', 'Yes/No'),
+    Id: form('Ids', 'Number'),
     Faces: form('Faces', 'Face List'),
     Parent: form('Parents', 'Object'),
     Data: form('Data', 'Data'),
@@ -136,6 +139,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
   Vertex: {
     Position: form('Positions', 'Vector'),
     Normal: form('Normals', 'Vector'),
+    Id: form('Ids', 'Number'),
     Faces: form('Faces', 'Face List'),
     Edges: form('Edges', 'Edge List'),
     Parent: form('Parents', 'Object'),
@@ -144,6 +148,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
   Point: {
     Position: form('Positions', 'Vector'),
     Normal: form('Normals', 'Vector'),
+    Id: form('Ids', 'Number'),
   },
 } as const;
 
@@ -335,6 +340,31 @@ export function solidScriptMemberVector(vector: THREE.Vector3): SolidScriptValue
   return vector.toArray().map(solidScriptMemberRound);
 }
 
+/** Members that give where each kind of item is, for its Id. */
+const SOLID_SCRIPT_MEMBER_ID_PLACES: Readonly<Record<string, readonly string[]>> = {
+  face: ['center', 'normal'],
+  edge: ['center'],
+  vertex: ['position'],
+};
+
+/**
+ * Reads the Id of a face, edge, corner or point: a whole number worked out from
+ * where it is, so it stays when other items are deleted or reordered.
+ *
+ * @param value Value the Id is read from.
+ * @param elements Geometry values of the run.
+ * @returns Id, or undefined when the value has none.
+ */
+function solidScriptMemberId(value: SolidScriptValue, elements: SolidScriptElements): number | undefined {
+  if (value instanceof SolidScriptPoint) return solidScriptMemberIdOf(value.position);
+  if (!(value instanceof SolidScriptElement)) return undefined;
+  const places = SOLID_SCRIPT_MEMBER_ID_PLACES[value.kind];
+  if (!places) return undefined;
+  return solidScriptMemberIdOf(
+    places.flatMap((place) => solidScriptValueNumbers(solidScriptMemberElement(value, place, elements)) ?? []),
+  );
+}
+
 /**
  * Reads a member of a value, such as .Count of a list, .Center of a face or a
  * key under .Data.
@@ -352,6 +382,10 @@ export function solidScriptMemberRead(
   written = member,
 ): SolidScriptValue {
   const key = solidScriptNameKey(member);
+  if (key === 'id') {
+    const id = solidScriptMemberId(value, elements);
+    if (id !== undefined) return id;
+  }
   if (value instanceof SolidScriptPoint) {
     if (key === 'position') return value.position;
     if (key === 'normal') return value.normal;

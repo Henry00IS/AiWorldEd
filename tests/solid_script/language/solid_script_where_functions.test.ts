@@ -66,11 +66,11 @@ describe('SolidScript Random, Chance, Spread and Along', () => {
     expect(formula('Random(0, 1)')).toBe(formula('Random(0, 1, 0, 0)'));
   });
 
-  it('uses [$Index] as the ID of Random in a per-item field', () => {
+  it('uses [$Id] as the ID of Random in a per-item field', () => {
     const own = lifts(4, '[=Random(0, 1)]');
-    expect(own).toEqual(lifts(4, '[=Random(0, 1, [$Index])]'));
+    expect(own).toEqual(lifts(4, '[=Random(0, 1, [$Id])]'));
     expect(new Set(own).size).toBe(4);
-    expect(lifts(4, '[=Random(0, 1, [$Index], 7)]')).not.toEqual(own);
+    expect(lifts(4, '[=Random(0, 1, [$Id], 7)]')).not.toEqual(own);
     expect(solidScriptEachUsed('[=Random(0, 1)]')).toBe(true);
     expect(solidScriptEachUsed('[=Random(0, 1, 3)]')).toBe(false);
   });
@@ -98,10 +98,10 @@ describe('SolidScript Random, Chance, Spread and Along', () => {
     expect(formula('Along(Vector(1, 0, 0), Vector(0, 0, 0), 3)')).toMatch(/direction/i);
   });
 
-  it('shows ID and Seed as inputs, with [$Index] and 0 greyed in a per-item field', () => {
+  it('shows ID and Seed as inputs, with [$Id] and 0 greyed in a per-item field', () => {
     const inputs = solidScriptFormulaCheckInputs('random', { each: 'Face' });
     expect(inputs.map((input) => input.name)).toEqual(['min', 'max', 'id', 'seed']);
-    expect(inputs.find((input) => input.name === 'id')?.fallback).toBe('[$Index]');
+    expect(inputs.find((input) => input.name === 'id')?.fallback).toBe('[$Id]');
     expect(inputs.find((input) => input.name === 'seed')?.default).toBe('0');
     expect(solidScriptFormulaCheckInputs('random', {}).find((input) => input.name === 'id')?.default).toBe('0');
     const spread = solidScriptFormulaCheckInputs('spread', { each: 'Point' });

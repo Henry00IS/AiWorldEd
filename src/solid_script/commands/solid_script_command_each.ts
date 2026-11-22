@@ -18,12 +18,12 @@ export const SOLID_SCRIPT_COMMAND_EACH_ICON = '🔁';
 /** Official fills of the current element, by the element kind. */
 const SOLID_SCRIPT_COMMAND_EACH_FILLS: Readonly<Record<SolidScriptCommandEach, readonly SolidScriptSystemFillName[]>> =
   {
-    Object: ['$Object', '$Index', '$Count', '$X', '$Y', '$Z'],
-    Face: ['$Face', '$Index', '$Count', '$X', '$Y', '$Z', '$NX', '$NY', '$NZ'],
-    Edge: ['$Edge', '$Index', '$Count', '$X', '$Y', '$Z'],
-    Vertex: ['$Vertex', '$Index', '$Count', '$X', '$Y', '$Z', '$NX', '$NY', '$NZ'],
-    Point: ['$Point', '$Index', '$Count', '$X', '$Y', '$Z', '$NX', '$NY', '$NZ'],
-    Item: ['$Item', '$Index', '$Count', '$X', '$Y', '$Z'],
+    Object: ['$Object', '$Index', '$Id', '$Count', '$X', '$Y', '$Z'],
+    Face: ['$Face', '$Index', '$Id', '$Count', '$X', '$Y', '$Z', '$NX', '$NY', '$NZ'],
+    Edge: ['$Edge', '$Index', '$Id', '$Count', '$X', '$Y', '$Z'],
+    Vertex: ['$Vertex', '$Index', '$Id', '$Count', '$X', '$Y', '$Z', '$NX', '$NY', '$NZ'],
+    Point: ['$Point', '$Index', '$Id', '$Count', '$X', '$Y', '$Z', '$NX', '$NY', '$NZ'],
+    Item: ['$Item', '$Index', '$Id', '$Count', '$X', '$Y', '$Z'],
   };
 
 /** How the help names each kind of item and what its $X, $Y and $Z read. */
@@ -48,7 +48,7 @@ const SOLID_SCRIPT_COMMAND_EACH_WORDS: Readonly<
 export function solidScriptEachSentence(each: SolidScriptCommandEach): string {
   const words = SOLID_SCRIPT_COMMAND_EACH_WORDS[each];
   const normal = words.normal ? ', and [$NX], [$NY] and [$NZ] its normal' : '';
-  return `Can change per ${words.noun}: [$${each}] is the ${words.noun}, [$Index] its number from 0 and [$Count] how many there are; [$X], [$Y] and [$Z] are ${words.place}${normal}.`;
+  return `Can change per ${words.noun}: [$${each}] is the ${words.noun}, [$Index] its number from 0, [$Id] a number that stays with it when others are deleted, and [$Count] how many there are; [$X], [$Y] and [$Z] are ${words.place}${normal}.`;
 }
 
 /**
