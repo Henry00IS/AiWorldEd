@@ -464,7 +464,7 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Sweep a profile along a path',
     manual:
-      'Sweeps a flat profile along a Path, like a pipe, rail or moulding. The profile is a circle of Radius and Sides, or the x, y points in Profile, where x runs to the side of the path and y up. Scale sizes the profile at each path point, worked out once per point with [$Point], [$Index] and [$Count], so a horn or a vine can taper, and Twist turns it by that many degrees about the path at each point, so a rope or a twisted bar spirals; a twisted stretch bends its sides, so As Mesh suits Twist best. Each stretch of the path becomes one solid, and the joints are cut on the mitre between two stretches so the pieces meet exactly. A dented profile fills in as a solid; with As Mesh on, the whole sweep is one mesh instead and keeps any profile. A closed Path, such as a Square or a Path with Closed on, joins its last point back to the first; a list of points stays open. Example: a Path, or Resample of a few points, Radius 0.05, gives a round handrail.',
+      'Sweeps a flat profile along a Path, like a pipe, rail or moulding. The profile is a circle of Radius and Sides, or the x, y points in Profile, where x runs to the side of the path and y up. Scale sizes the profile at each path point, worked out once per point with [$Point], [$Index] and [$Count], so a horn or a vine can taper, and Twist turns it by that many degrees about the path at each point, so a rope or a twisted bar spirals; a twisted stretch bends its sides, so As Mesh suits Twist best. Each stretch of the path becomes one solid, and the joints are cut on the mitre between two stretches so the pieces meet exactly. A dented profile fills in as a solid; with As Mesh on, the whole sweep is one mesh instead and keeps any profile, and Fill Caps off leaves the ends of an open path open, like a tube. A closed Path, such as a Square or a Path with Closed on, joins its last point back to the first; a list of points stays open. Example: a Path, or Resample of a few points, Radius 0.05, gives a round handrail.',
     stops: [
       'A Path with fewer than 2 different points, or 3 when it is closed.',
       'A Profile with fewer than 3 points, or points that are not x, y.',
@@ -520,6 +520,13 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
         'No',
         'Yes: build one mesh. No: one solid per stretch. Type Yes or No, such as Yes.',
       ),
+      solidScriptParameter(
+        'caps',
+        'Fill Caps',
+        'boolean',
+        'Yes',
+        'With As Mesh, Yes: close both ends of an open path with a face. No: leave the mesh open there, like a tube. Type Yes or No, such as No.',
+      ),
     ],
     listing: (read) => [
       'Sweep Along Path',
@@ -530,6 +537,7 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
         read.changed('scale') && ['Scale ', read.value('scale')],
         read.changed('twist') && ['Twist ', read.value('twist')],
         read.on('mesh') && ['As Mesh'],
+        read.on('mesh') && !read.on('caps') && ['Open Ends'],
       ]),
     ],
     execute: (run) => {
@@ -540,7 +548,8 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
       const profile = solidScriptSweepProfile(run);
       const closed = drawn?.path.closed ?? false;
       const rings = solidScriptSweepScaled(run, solidScriptPathSweep(path, profile, closed), path, closed);
-      if (run.fields().flag('mesh')) return run.mesh(solidScriptPathMesh(rings, closed, 'Sweep Along Path'));
+      if (run.fields().flag('mesh'))
+        return run.mesh(solidScriptPathMesh(rings, closed, 'Sweep Along Path', run.fields().flag('caps')));
       return rings.slice(1).flatMap((ring, index) => {
         const before = rings[index];
         return before ? run.solid(solidScriptBodyPrism(before, ring, 'Sweep Along Path')) : [];

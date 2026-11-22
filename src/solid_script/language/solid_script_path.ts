@@ -93,17 +93,19 @@ export function solidScriptPathSweep(
 
 /**
  * Builds one mesh from swept rings: a band of four-sided faces between each
- * pair of rings, and a cap at each end of an open path.
+ * pair of rings, and, when caps are wanted, a cap at each end of an open path.
  *
  * @param rings Rings from solidScriptPathSweep.
  * @param closed True when the path loops; its last ring repeats the first.
  * @param label Mesh label.
+ * @param caps True to close the ends of an open path with a face each.
  * @returns Mesh.
  */
 export function solidScriptPathMesh(
   rings: readonly THREE.Vector3[][],
   closed: boolean,
   label: string,
+  caps: boolean,
 ): SolidScriptShapeMesh {
   const used = closed ? rings.slice(0, -1) : rings;
   const size = used[0]?.length ?? 0;
@@ -118,7 +120,7 @@ export function solidScriptPathMesh(
       faces.push([lower + corner, lower + next, upper + next, upper + corner]);
     }
   }
-  if (!closed) {
+  if (!closed && caps) {
     faces.push(Array.from({ length: size }, (_, corner) => size - 1 - corner));
     faces.push(Array.from({ length: size }, (_, corner) => (used.length - 1) * size + corner));
   }

@@ -33,3 +33,20 @@ describe('Sweep Along Path Twist', () => {
     expect(sweptSize('[=[$Index] * 45]', 'No')).not.toMatch(/line/);
   });
 });
+
+describe('Sweep Along Path Fill Caps', () => {
+  it('closes the ends of an open path by default and leaves them open with Fill Caps off', () => {
+    const faces = (caps: string): string => {
+      const result = solidScriptProgramRun(
+        solidScriptDocumentCreate([
+          { command: 'sweep_along_path', values: { path: '[0, 0, 0], [2, 0, 0]', sides: '6', mesh: 'Yes', caps } },
+          { command: 'select_objects', values: { into: 'O' } },
+          { command: 'echo', values: { value: '[O(0).Faces.Count]' } },
+        ]),
+      );
+      return result.error?.message ?? result.messages[0] ?? '';
+    };
+    expect(faces('Yes')).toBe('8');
+    expect(faces('No')).toBe('6');
+  });
+});
