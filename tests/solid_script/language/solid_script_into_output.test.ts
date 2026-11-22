@@ -28,6 +28,7 @@ const MESH_TOOLS = new Set([
 const FACE_TOOLS = new Set([
   'extrude_face',
   'texture_faces',
+  'tag_faces',
   'scale_faces',
   'project_uvs',
   'unwrap',

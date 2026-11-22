@@ -157,3 +157,4 @@ The **Examples** window holds showcase scripts such as the Spiral Staircase, sma
 - Merge By Distance has Mode All (any corners closer than Distance) or Connected (only the two ends of an edge shorter than Distance, so separate parts that nearly touch stay apart), and a 🔁 Weld Where a corner must pass to be welded, such as [=[$Vertex.Position.Y] > 0].
 - Sweep Along Path has a 🔁 Twist: degrees the profile turns about the path at each path point, such as [=[$Index] * 15] for a twisted rope; As Mesh suits it best, since a twisted stretch bends its sides.
 - Sweep Along Path As Mesh has Fill Caps (Yes by default): No leaves the two ends of an open path open, like a tube.
+- Tag Faces Roof gives the faces in Of (empty: [$Selected.Faces]) a tag of your own, which [$Face.Tags] and HasTag then find and which stays through moves and cuts, as Face Set does; the 🔁 Tag may change per face, and Remove takes it off again.
