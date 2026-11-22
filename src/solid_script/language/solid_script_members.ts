@@ -1,3 +1,8 @@
+import {
+  solidScriptCornerAngles,
+  solidScriptCornerEdgeUvSplit,
+  solidScriptCornerUvSplit,
+} from './solid_script_members_corners.js';
 import { solidScriptFaceTextureOwn } from './solid_script_shape.js';
 import * as THREE from 'three';
 import type { SolidScriptElements } from './solid_script_elements.js';
@@ -120,6 +125,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     Island: form('Islands', 'Number'),
     Parent: form('Parents', 'Object'),
     UVs: form('UVs', 'Vector List'),
+    Angles: form('Angles', 'Number List'),
     Texture: form('Textures', 'Text'),
     Data: form('Data', 'Data'),
   },
@@ -133,6 +139,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     SignedAngle: form('SignedAngles', 'Number'),
     IsConvex: form('IsConvex', 'Yes/No'),
     IsBoundary: form('IsBoundaries', 'Yes/No'),
+    IsUVSplit: form('IsUVSplits', 'Yes/No'),
     Id: form('Ids', 'Number'),
     Faces: form('Faces', 'Face List'),
     Parent: form('Parents', 'Object'),
@@ -144,6 +151,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     Id: form('Ids', 'Number'),
     Faces: form('Faces', 'Face List'),
     Edges: form('Edges', 'Edge List'),
+    IsUVSplit: form('IsUVSplits', 'Yes/No'),
     Parent: form('Parents', 'Object'),
     Data: form('Data', 'Data'),
   },
@@ -559,6 +567,7 @@ function solidScriptMemberElement(
       if (member === 'signedangle') return solidScriptMemberRound(solidScriptMemberEdgeSigned(edges));
       if (member === 'isconvex') return solidScriptMemberEdgeSigned(edges) > SOLID_SCRIPT_MEMBER_FLAT;
       if (member === 'isboundary') return leaf.kind === 'mesh' && edges.some((edge) => edge.faces[1] === null);
+      if (member === 'isuvsplit') return edges.some(solidScriptCornerEdgeUvSplit);
       return solidScriptMemberEdge(edges, member);
     }
     case 'vertex': {
@@ -569,6 +578,7 @@ function solidScriptMemberElement(
       const at = (point: THREE.Vector3): boolean => point.distanceTo(vertex.position) < 1e-6;
       const brush = elements.parent(element);
       if (member === 'faces') return faceList(elements.faces(brush).filter((face) => face.corners.some(at)));
+      if (member === 'isuvsplit') return solidScriptCornerUvSplit(elements.faces(brush), vertex.position);
       if (member === 'edges') {
         const found: SolidScriptValue[] = [];
         for (const edge of elements.edges(brush))
@@ -724,6 +734,8 @@ function solidScriptMemberFace(
       return edgeList();
     case 'vertices':
       return vertexList();
+    case 'angles':
+      return solidScriptCornerAngles(first).map(solidScriptMemberRound);
     case 'uvs':
       return solidScriptFaceCornerUvs(first).map(([u, v]) => [solidScriptMemberRound(u), solidScriptMemberRound(v), 0]);
     default:

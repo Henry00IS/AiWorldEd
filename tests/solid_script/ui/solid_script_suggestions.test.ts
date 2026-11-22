@@ -109,6 +109,7 @@ describe('SolidScript member suggestions', () => {
       '$Selected.Faces.First.Island',
       '$Selected.Faces.First.Parent',
       '$Selected.Faces.First.UVs',
+      '$Selected.Faces.First.Angles',
       '$Selected.Faces.First.Texture',
       '$Selected.Faces.First.Data',
     ]);
