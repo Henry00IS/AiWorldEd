@@ -371,7 +371,7 @@ function solidScriptMeshCatmullPoints(
   return mesh.points.map((point, index) => {
     const edges = pointEdges[index]!;
     const border = edges.filter(([, open]) => open);
-    const corner = creases.keepCorners && border.length >= 2 && pointFaces[index]!.length === 1;
+    const corner = creases.keepCorners && border.length >= 2 && pointFaces[index]?.length === 1;
     if (corner || (border.length > 2 && creases.sharp.size > 0)) return point.clone();
     if (border.length >= 2) {
       const sum = border.reduce((total, [other]) => total.add(mesh.points[other]!), new THREE.Vector3());
