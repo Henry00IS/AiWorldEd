@@ -6,6 +6,7 @@ import {
 import { solidScriptFaceTextureOwn } from './solid_script_shape.js';
 import * as THREE from 'three';
 import { solidScriptFaceIslands } from './solid_script_face_islands.js';
+import { solidScriptPathHandles } from './solid_script_path_handles.js';
 import type { SolidScriptElements } from './solid_script_elements.js';
 import type { SolidScriptEdgeFacts, SolidScriptFaceFacts } from './solid_script_geometry.js';
 import { solidScriptKindNamed } from './solid_script_kinds.js';
@@ -95,6 +96,8 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     Points: form('Points', 'Vector List'),
     Closed: form('Closed', 'Yes/No'),
     Length: form('Lengths', 'Number'),
+    HandlesLeft: form('HandlesLefts', 'Vector List'),
+    HandlesRight: form('HandlesRights', 'Vector List'),
   },
   Object: {
     Name: form('Names', 'Text'),
@@ -518,6 +521,10 @@ function solidScriptMemberElement(
       return solidScriptPathSample(element.path).map((point) => point.map(solidScriptMemberRound));
     if (member === 'closed') return element.path.closed;
     if (member === 'length') return solidScriptMemberRound(solidScriptPathLength(solidScriptPathWalk(element.path)));
+    if (member === 'handlesleft' || member === 'handlesright')
+      return solidScriptPathHandles(element.path)[member === 'handlesleft' ? 'left' : 'right'].map((point) =>
+        point.map(solidScriptMemberRound),
+      );
     return undefined;
   }
   if (member === 'parent' && element.kind !== 'brush') return elements.parent(element);

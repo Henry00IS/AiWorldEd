@@ -36,13 +36,29 @@ const TRIANGLE = line('path', {
 });
 
 describe('one Path kind for lines and flat shapes', () => {
-  it('samples a path through one function, every segment straight for now', () => {
-    const open = solidScriptPathStraight([1, 2, 3], false);
+  it('samples a path through one function', () => {
+    const open = solidScriptPathStraight([[1], [2], [3]], false);
     expect(open.segments).toEqual([{ kind: 'line' }, { kind: 'line' }]);
-    expect(solidScriptPathSample(open)).toEqual([1, 2, 3]);
-    const closed = solidScriptPathStraight([1, 2, 3], true);
+    expect(solidScriptPathSample(open)).toEqual([[1], [2], [3]]);
+    const closed = solidScriptPathStraight([[1], [2], [3]], true);
     expect(closed.segments).toHaveLength(3);
-    expect(solidScriptPathSample(closed)).toEqual([1, 2, 3]);
+    expect(solidScriptPathSample(closed)).toEqual([[1], [2], [3]]);
+  });
+
+  it('samples a Bezier stretch in Resolution steps between its handles', () => {
+    const curved = {
+      points: [
+        [0, 0],
+        [3, 0],
+      ],
+      segments: [{ kind: 'bezier' as const, out: [1, 3], in: [2, 3], resolution: 2 }],
+      closed: false,
+    };
+    expect(solidScriptPathSample(curved)).toEqual([
+      [0, 0],
+      [1.5, 2.25],
+      [3, 0],
+    ]);
   });
 
   it('names Path a kind, and drops the separate outline kind', () => {

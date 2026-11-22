@@ -1,13 +1,11 @@
 /**
- * How one stretch of a path runs between its two points. Every stretch is
- * straight for now; curved kinds, such as a Bezier, a quadratic or a rounded
- * corner, add their own kind and the control values they need here, and
- * solidScriptPathSample turns them into points.
+ * How one stretch of a path runs between its two points: straight, or a Bezier
+ * curve that leaves its start toward Out and comes into its end from In,
+ * sampled in Resolution steps. solidScriptPathSample turns them into points.
  */
-export interface SolidScriptPathSegment {
-  /** How the stretch runs. */
-  readonly kind: 'line';
-}
+export type SolidScriptPathSegment<Point> =
+  | { readonly kind: 'line' }
+  | { readonly kind: 'bezier'; readonly out: Point; readonly in: Point; readonly resolution: number };
 
 /**
  * A path: points joined by segments, one from each point to the next, and from
@@ -18,7 +16,7 @@ export interface SolidScriptPath<Point> {
   /** Points the segments join, in order. */
   readonly points: readonly Point[];
   /** One per stretch: points less one, or as many as points when closed. */
-  readonly segments: readonly SolidScriptPathSegment[];
+  readonly segments: readonly SolidScriptPathSegment<Point>[];
   /** True when the last point joins back to the first. */
   readonly closed: boolean;
 }
@@ -36,22 +34,56 @@ export function solidScriptPathStraight<Point>(points: readonly Point[], closed:
 }
 
 /**
- * Samples a path into the points its segments pass through, in order. A
- * straight stretch gives only its start, as its end starts the next one, and a
- * closed path does not repeat its first point at the end.
+ * Samples a path into the points its segments pass through, in order. A stretch
+ * gives its start and, when curved, the points inside it, as its end starts the
+ * next one; a closed path does not repeat its first point at the end.
  *
  * @param path Path.
  * @returns Points.
  */
-export function solidScriptPathSample<Point>(path: SolidScriptPath<Point>): Point[] {
+export function solidScriptPathSample<Point extends readonly number[]>(path: SolidScriptPath<Point>): Point[] {
   const sampled: Point[] = [];
   path.segments.forEach((segment, index) => {
     const start = path.points[index];
-    if (segment.kind === 'line' && start !== undefined) sampled.push(start);
+    const end = path.points[(index + 1) % path.points.length];
+    if (start === undefined) return;
+    sampled.push(start);
+    if (segment.kind === 'bezier' && end !== undefined)
+      for (let step = 1; step < segment.resolution; step++)
+        sampled.push(solidScriptPathBezierAt(start, segment.out, segment.in, end, step / segment.resolution));
   });
   const last = path.points[path.points.length - 1];
   if (!path.closed && last !== undefined) sampled.push(last);
   return sampled;
+}
+
+/**
+ * Finds the point a Bezier stretch passes at T, from 0 at its start to 1 at its
+ * end.
+ *
+ * @param start Start point.
+ * @param out Handle it leaves toward.
+ * @param into Handle the end is reached from.
+ * @param end End point.
+ * @param t Place along it.
+ * @returns Point, with as many numbers as Start.
+ */
+function solidScriptPathBezierAt<Point extends readonly number[]>(
+  start: Point,
+  out: Point,
+  into: Point,
+  end: Point,
+  t: number,
+): Point {
+  const u = 1 - t;
+  const mixed = start.map(
+    (value, axis) =>
+      u * u * u * value +
+      3 * u * u * t * (out[axis] ?? 0) +
+      3 * u * t * t * (into[axis] ?? 0) +
+      t * t * t * (end[axis] ?? 0),
+  );
+  return mixed as readonly number[] as Point;
 }
 
 /**
@@ -61,22 +93,25 @@ export function solidScriptPathSample<Point>(path: SolidScriptPath<Point>): Poin
  * @param path Path.
  * @returns Points.
  */
-export function solidScriptPathWalk<Point>(path: SolidScriptPath<Point>): Point[] {
+export function solidScriptPathWalk<Point extends readonly number[]>(path: SolidScriptPath<Point>): Point[] {
   const sampled = solidScriptPathSample(path);
   const first = sampled[0];
   return path.closed && first !== undefined && sampled.length > 1 ? [...sampled, first] : sampled;
 }
 
 /**
- * Moves every point of a path, keeping its segments.
+ * Moves every point and handle of a path, keeping its segments.
  *
  * @param path Path.
- * @param move New place of one point.
+ * @param move New place of one point or handle.
  * @returns Moved path.
  */
 export function solidScriptPathMap<Point, Moved>(
   path: SolidScriptPath<Point>,
   move: (point: Point) => Moved,
 ): SolidScriptPath<Moved> {
-  return { points: path.points.map(move), segments: path.segments, closed: path.closed };
+  const segments = path.segments.map((segment): SolidScriptPathSegment<Moved> =>
+    segment.kind === 'line' ? segment : { ...segment, out: move(segment.out), in: move(segment.in) },
+  );
+  return { points: path.points.map(move), segments, closed: path.closed };
 }

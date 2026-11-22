@@ -119,6 +119,8 @@ const SOLID_SCRIPT_AUDIT_FACES = new Set([
   'scale_edges',
   'select_shortest_paths',
   'face_groups',
+  'set_handles',
+  'set_path_type',
 ]);
 
 /** Commands that work on a mesh, which the prelude's mesh feeds. */

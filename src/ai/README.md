@@ -636,3 +636,4 @@ Solid mutations (including hierarchy create/reparent/rename/ungroup) are **undoa
 - InvertRotation, RotationAxis, RotationAngle and MixRotation work on turns in X, Y, Z degrees.
 - Select Shortest Paths picks the edges of the cheapest way from Start corners to the nearest End corner, with a Cost per edge.
 - Face Groups splits faces into groups joined through edges, stopping at edges that pass Cut.
+- Set Handles bends a path into Bezier stretches between per-point handles; Set Path Type turns a path Poly or Bezier; Path.HandlesLeft and Path.HandlesRight read them.
