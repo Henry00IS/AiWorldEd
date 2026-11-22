@@ -16,9 +16,17 @@ export interface SolidScriptScaleFaceHow {
   axis: THREE.Vector3 | null;
 }
 
+/** One face or edge to scale: its corners and how. */
+export interface SolidScriptScaleElement {
+  corners: readonly THREE.Vector3[];
+  how: SolidScriptScaleFaceHow;
+}
+
 /**
- * Scales the faces of a brush or mesh, each about its own center. A brush stays
- * a brush, convex or not until the output is checked; a mesh stays a mesh.
+ * Scales the faces of a brush or mesh. Faces that share corners scale as one
+ * island, by the average of their Factors about the average of their Centers. A
+ * brush stays a brush, convex or not until the output is checked; a mesh stays
+ * a mesh.
  *
  * @param leaf Brush or mesh.
  * @param faces Faces of that leaf to scale.
@@ -32,31 +40,89 @@ export function solidScriptScaleFaces(
   howOf: (face: SolidScriptFaceFacts) => SolidScriptScaleFaceHow,
   label: string,
 ): SolidScriptGeometryLeaf {
-  const hows = new Map(faces.map((face) => [face, howOf(face)]));
-  for (const how of hows.values())
+  return solidScriptScaleElements(
+    leaf,
+    faces.map((face) => ({ corners: face.corners, how: howOf(face) })),
+    label,
+  );
+}
+
+/**
+ * Scales faces or edges of a brush or mesh, joined ones as one island.
+ *
+ * @param leaf Brush or mesh.
+ * @param elements Faces or edges with how each is scaled.
+ * @param label Command, for messages.
+ * @returns Updated leaf.
+ */
+export function solidScriptScaleElements(
+  leaf: SolidScriptGeometryLeaf,
+  elements: readonly SolidScriptScaleElement[],
+  label: string,
+): SolidScriptGeometryLeaf {
+  for (const { how } of elements)
     if (!Number.isFinite(how.factor)) throw new Error(`${label} needs a Factor, such as 1 or 0.5, not ${how.factor}`);
-  const points = leaf.points.map((point) => solidScriptScaleFacePoint(point, hows));
+  const islands = solidScriptScaleIslands(elements);
+  const points = leaf.points.map((point) => {
+    const island = islands.find((entry) => entry.corners.some((corner) => solidScriptScaleSame(corner, point)));
+    return island ? solidScriptScaleFaceMove(point, island.how) : point.clone();
+  });
   return leaf.kind === 'solid' ? solidScriptSolidEdited(leaf, points) : { ...leaf, points };
 }
 
 /**
- * Moves one corner: the average of scaling it the way of each selected face
- * that holds it, or the same point when no selected face holds it.
+ * Joins elements that share a corner into islands, each with the average of its
+ * elements' Factors, Centers and Axes.
  *
- * @param point Corner.
- * @param hows Faces being scaled and how.
- * @returns New position.
+ * @param elements Faces or edges with how each is scaled.
+ * @returns Islands with their corners and how.
  */
-function solidScriptScaleFacePoint(
-  point: THREE.Vector3,
-  hows: ReadonlyMap<SolidScriptFaceFacts, SolidScriptScaleFaceHow>,
-): THREE.Vector3 {
-  const moved = [...hows].flatMap(([face, how]) => {
-    if (!face.corners.some((corner) => corner.distanceTo(point) <= SOLID_SCRIPT_GEOMETRY_EPSILON)) return [];
-    return [solidScriptScaleFaceMove(point, how)];
-  });
-  if (moved.length === 0) return point.clone();
-  return moved.reduce((sum, next) => sum.add(next), new THREE.Vector3()).divideScalar(moved.length);
+function solidScriptScaleIslands(elements: readonly SolidScriptScaleElement[]): SolidScriptScaleElement[] {
+  const owner = elements.map((_, index) => index);
+  const root = (index: number): number => {
+    const above = owner[index] ?? index;
+    return above === index ? index : (owner[index] = root(above));
+  };
+  elements.forEach((element, index) =>
+    elements.slice(0, index).forEach((other, at) => {
+      if (element.corners.some((corner) => other.corners.some((point) => solidScriptScaleSame(corner, point))))
+        owner[root(index)] = root(at);
+    }),
+  );
+  const groups = new Map<number, SolidScriptScaleElement[]>();
+  elements.forEach((element, index) => groups.set(root(index), [...(groups.get(root(index)) ?? []), element]));
+  return [...groups.values()].map(solidScriptScaleIslandOf);
+}
+
+/**
+ * Averages the elements of one island.
+ *
+ * @param members Elements of the island.
+ * @returns The island's corners and how.
+ */
+function solidScriptScaleIslandOf(members: readonly SolidScriptScaleElement[]): SolidScriptScaleElement {
+  const average = (vectors: THREE.Vector3[]): THREE.Vector3 =>
+    vectors.reduce((sum, vector) => sum.add(vector), new THREE.Vector3()).divideScalar(vectors.length);
+  const axes = members.flatMap(({ how }) => (how.axis ? [how.axis] : []));
+  return {
+    corners: members.flatMap((member) => member.corners),
+    how: {
+      factor: members.reduce((sum, { how }) => sum + how.factor, 0) / members.length,
+      center: average(members.map(({ how }) => how.center)),
+      axis: axes.length === members.length ? average(axes).normalize() : null,
+    },
+  };
+}
+
+/**
+ * Tells whether two corners are the same point.
+ *
+ * @param a First corner.
+ * @param b Second corner.
+ * @returns True when they touch.
+ */
+function solidScriptScaleSame(a: THREE.Vector3, b: THREE.Vector3): boolean {
+  return a.distanceTo(b) <= SOLID_SCRIPT_GEOMETRY_EPSILON;
 }
 
 /**

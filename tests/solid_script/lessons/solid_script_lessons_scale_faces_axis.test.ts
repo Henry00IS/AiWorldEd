@@ -36,4 +36,20 @@ describe('Scale Faces Center and Axis', () => {
   it('scales about Center when given', () => {
     expect(top({ factor: '0.5', center: '0.5, 0.5, 0.5' })).toBe('0.25 [0.25, 0.5, 0.25]');
   });
+
+  it('scales faces that share corners as one island about the middle of their centers', () => {
+    const result = solidScriptProgramRun(
+      solidScriptDocumentCreate([
+        {
+          command: 'grid_mesh',
+          values: { size: '2, 0, 2', columns: '2', rows: '1', anchor: 'Center, Center, Center' },
+        },
+        { command: 'select_objects', values: { into: 'G' } },
+        { command: 'select_faces', values: { which: 'All' } },
+        { command: 'scale_faces', values: { factor: '0.5' } },
+        { command: 'echo', values: { value: '[G(0).Size]' } },
+      ]),
+    );
+    expect(result.error?.message ?? result.messages[0]).toBe('[1, 0, 1]');
+  });
 });
