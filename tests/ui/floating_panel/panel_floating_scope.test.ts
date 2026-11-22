@@ -134,6 +134,42 @@ describe('floating window keyboard scope', () => {
     },
   );
 
+  it.each(kinds)('lets Save, Load and Export through from the %s unless it is modal', (name, make) => {
+    const saved = vi.fn<() => void>();
+    const loaded = vi.fn<() => void>();
+    const exported = vi.fn<() => void>();
+    handler.setOnSaveScene(saved);
+    handler.setOnLoadScene(loaded);
+    handler.setOnExportModel(exported);
+    const panel = make(host);
+    windows.push(panel);
+    panel.show();
+    click(panel.getRootElement());
+    const focused = document.activeElement ?? panel.getRootElement();
+    press(focused, { code: 'KeyS', key: 's', ctrlKey: true });
+    press(focused, { code: 'KeyO', key: 'o', ctrlKey: true });
+    press(focused, { code: 'KeyE', key: 'E', ctrlKey: true, shiftKey: true });
+    const times = name === 'About dialog' ? 0 : 1;
+    expect(saved).toHaveBeenCalledTimes(times);
+    expect(loaded).toHaveBeenCalledTimes(times);
+    expect(exported).toHaveBeenCalledTimes(times);
+  });
+
+  it('exports with the shortcut after a texture tile in the Texture Browser is picked', () => {
+    const exported = vi.fn<() => void>();
+    handler.setOnExportModel(exported);
+    const panel = new TextureBrowser(host, { onOpenProject: vi.fn(), onSelectTexture: vi.fn() });
+    windows.push(panel);
+    panel.show();
+    const tile = document.createElement('div');
+    tile.tabIndex = 0;
+    panel.getRootElement().append(tile);
+    click(tile);
+    tile.focus();
+    press(tile, { code: 'KeyE', key: 'E', ctrlKey: true, shiftKey: true });
+    expect(exported).toHaveBeenCalledOnce();
+  });
+
   it.each(kinds)('gives the keys back to the scene once a viewport is clicked after the %s', (_name, make) => {
     const panel = make(host);
     windows.push(panel);

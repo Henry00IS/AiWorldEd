@@ -518,9 +518,10 @@ export class HandlerKeyboardShortcut {
   /**
    * Processes a keydown event through the unified Shape Editor-style pipeline.
    * Order: window scope (keys pressed in a floating window stay there, except
-   * undo and redo of windows that change the scene) → form-field ignore → tool
-   * event router (navigation gate, active receiver, busy exclusivity, global
-   * fallthrough) → legacy modal/global when no router is registered.
+   * Save, Load and Export outside modal windows and undo and redo of windows
+   * that change the scene) → form-field ignore → tool event router (navigation
+   * gate, active receiver, busy exclusivity, global fallthrough) → legacy
+   * modal/global when no router is registered.
    *
    * @param event The keyboard event to process.
    */
@@ -528,6 +529,7 @@ export class HandlerKeyboardShortcut {
     const scope = panelFloatingScopeOf(event.target);
     if (scope !== null) {
       const typing = handlerKeyboardShortcutIsTypingInFormField(event);
+      if (scope !== 'none' && !typing) handlerKeyboardShortcutHandleFileKeys(this.toActionHost(), event);
       if (scope === 'undo' && (!typing || handlerKeyboardShortcutFieldAllowsEditorUndo(event)))
         handlerKeyboardShortcutHandleUndoRedoKeys(this.toActionHost(), event);
       return;

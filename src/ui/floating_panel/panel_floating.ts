@@ -55,9 +55,10 @@ export interface FloatingPanelOptions {
   /** Optional backdrop background CSS. Defaults to a dim scrim when modal. */
   backdropBackground?: string;
   /**
-   * Scene shortcuts that still reach the scene while the window has focus:
-   * 'undo' for windows that change the scene directly, such as the UV Editor,
-   * so Ctrl+Z undoes their change. Every other key stays in the window.
+   * Editor shortcuts that still work while the window has focus: 'undo' for
+   * windows that change the scene directly, such as the UV Editor, so Ctrl+Z
+   * undoes their change. Save, Load and Export work from every window but a
+   * modal one; every other key stays in the window.
    */
   sceneKeys?: PanelFloatingScopePass;
 }
@@ -126,7 +127,7 @@ export abstract class PanelFloating {
     this.boundDocumentKeyDown = (event) => this.onDocumentKeyDown(event);
     this.root = this.createShellRoot();
     this.backdrop = this.modal ? this.createModalBackdrop(options) : null;
-    panelFloatingScopeMark(this.getStackElement(), options.sceneKeys ?? 'none');
+    panelFloatingScopeMark(this.getStackElement(), options.sceneKeys ?? (this.modal ? 'none' : 'file'));
     FloatingPanelStack.register(this.getStackElement(), () => this.clampToScreenIfVisible(), this.stackLayer);
     this.bindBringToFrontOnPointer();
   }
