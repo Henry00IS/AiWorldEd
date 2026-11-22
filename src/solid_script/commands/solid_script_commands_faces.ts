@@ -373,7 +373,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     builds: true,
     intoList: true,
     manual:
-      'Builds the objects between this line and its End at each point in At, a list of vectors such as the points Scatter Points writes. Directions, when given, turns up (Y) along one direction for all points, or along the matching entry of a list with one per point; leave it empty to keep world up. Forward, when given, also turns the front (Z) of each copy toward it, as far as it can while up stays, so a fence post stands up and faces along a path. Lift moves them out along that up. Align To Normal stands each copy the way Place On Face would, with Directions as the face normal. Directions, Forward, Lift, Align To Normal, Rotation and Scale can each change per point: [$Point] is the point, with its Position and Normal (the direction, or world up), [$Index] its number from 0, [$Count] how many points there are, and [$X], [$Y] and [$Z] its position; for example Lift [=[$Index] * 0.1] stacks the copies like stairs. Build One Line builds only one of the lines inside at each point, the one Choice picks (from 0, wrapping, so -1 is the last; lines that only set values do not count), to scatter variants such as three kinds of rock. Into is always a list of the objects it built, even when there is only one. Example: Scatter Points 20 Into [Spots] Normals [Dirs], then Place At Points At [Spots] Directions [Dirs], Sphere, End, puts a ball on every point, standing on the face.',
+      'Builds the objects between this line and its End at each point in At, a list of vectors such as the points Scatter Points writes. Directions, when given, turns up (Y) along one direction for all points, or along the matching entry of a list with one per point; leave it empty to keep world up. Forward, when given, also turns the front (Z) of each copy toward it, as far as it can while up stays, so a fence post stands up and faces along a path. Lift moves them out along that up. Align To Normal stands each copy the way Place On Face would, with Directions as the face normal. Directions, Forward, Lift, Align To Normal, Rotation and Scale can each change per point: [$Point] is the point, with its Position and Normal (the direction, or world up), [$Index] its number from 0, [$Count] how many points there are, and [$X], [$Y] and [$Z] its position; for example Lift [=[$Index] * 0.1] stacks the copies like stairs. Build One Line builds only one of the lines inside at each point, the one Choice picks (from 0, wrapping, so -1 is the last; lines that only set values do not count), to scatter variants such as three kinds of rock. Where is a 🔁 condition a point must pass before a copy is built; skipped points keep their place in the index and count, and all other fields still use the original index. Into is always a list of the objects it built, even when there is only one. Example: Scatter Points 20 Into [Spots] Normals [Dirs], then Place At Points At [Spots] Directions [Dirs], Sphere, End, puts a ball on every point, standing on the face.',
     stops: [
       'A point or direction that is not x, y, z.',
       'A Directions or Forward list with more than one entry whose length is not the number of points in At.',
@@ -382,6 +382,15 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     nesting: 'open',
     endLabel: 'Place',
     parameters: [
+      solidScriptParameterEach(
+        solidScriptParameterOptional(
+          'where',
+          'Where',
+          'value',
+          'A condition a point must pass to get a copy, such as [=[$X] > 0] or [=EveryNth([$Index], 2)]. Left off builds at every point.',
+        ),
+        'Point',
+      ),
       solidScriptParameter(
         'at',
         'At',
@@ -477,6 +486,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       'Place At Points',
       ' At ',
       read.value('at'),
+      ...(read.text('where').trim() === '' ? [] : [' Where ', read.value('where')]),
       ...(read.text('directions') === '' ? [] : [' Directions ', read.value('directions')]),
       ...(read.text('forward') === '' ? [] : [' Forward ', read.value('forward')]),
       ...solidScriptListingOptions([

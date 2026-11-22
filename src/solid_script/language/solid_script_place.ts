@@ -1,3 +1,4 @@
+import { solidScriptConditionHolds } from './solid_script_condition.js';
 import * as THREE from 'three';
 import { solidScriptGeometryFrame } from './solid_script_geometry.js';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
@@ -61,7 +62,8 @@ export const SOLID_SCRIPT_PLACE_BUILD = ['Every Line', 'One Line'] as const;
  * Copies of a Place At Points line: the matrix that stands a shape at each
  * point, in the frame of the blocks around it, and with Build One Line the
  * Choice of line for that point. Directions, Forward, Lift, Align To Normal,
- * Rotation, Scale and Choice may each change per point.
+ * Rotation, Scale and Choice may each change per point. Where is read before
+ * the copy is made, with the point's original index and count.
  *
  * @param run Running line.
  * @returns One copy per point.
@@ -72,11 +74,12 @@ export function solidScriptPlaceMatrices(run: SolidScriptBlockRun): SolidScriptP
   const forwardOf = solidScriptPlaceDirections(run, points, 'forward', 'Forward');
   const parent = run.matrix();
   const one = solidScriptPlaceOneWanted(run);
-  return points.map((point, index) => {
+  return points.flatMap((point, index) => {
     const direction = directionOf(index);
     const fills = solidScriptPlaceFills(point, direction, index, points.length);
+    if (!solidScriptConditionHolds(run, 'where', fills)) return [];
     const matrix = solidScriptPlaceCopyMatrix(run, point, direction, fills, forwardOf(index));
-    return { matrix: parent.clone().multiply(matrix), choice: one ? solidScriptPlaceChoice(run, fills) : null };
+    return [{ matrix: parent.clone().multiply(matrix), choice: one ? solidScriptPlaceChoice(run, fills) : null }];
   });
 }
 
