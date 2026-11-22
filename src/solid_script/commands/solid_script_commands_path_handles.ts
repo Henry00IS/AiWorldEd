@@ -17,6 +17,7 @@ import {
   SOLID_SCRIPT_PATH_RESOLUTION,
   SOLID_SCRIPT_PATH_TYPES,
   solidScriptPathClosedSet,
+  solidScriptPathResolutionSet,
   solidScriptPathHandles,
   solidScriptPathTyped,
   solidScriptPathWithHandles,
@@ -424,6 +425,39 @@ export const SOLID_SCRIPT_COMMANDS_PATH_HANDLES: readonly SolidScriptCommand[] =
       solidScriptPathHandlesWrite(
         run,
         solidScriptPathTyped(source, type, solidScriptPathResolution(run, 'Set Path Type')),
+      );
+      return [];
+    },
+  }),
+  new SolidScriptCommand({
+    id: 'set_path_resolution',
+    edits: true,
+    label: 'Set Path Resolution',
+    category: 'Paths',
+    description: 'Change the steps used to draw each curved stretch',
+    manual:
+      'Writes to Into a copy of a Path with every curved stretch drawn in Resolution steps. Its control points, handles, tilts and closing stay the same. A straight path keeps the setting without adding points. Read the setting with [Path.Resolution]. Path is a Path or a list of points for a straight open one. Example: Set Path Resolution Path [Rail] Resolution 24 Into [Rail] draws each curved stretch in 24 steps.',
+    stops: [
+      'A Path that is not a Path or a list of at least 2 points.',
+      'A Resolution that is not a whole number from 1 to 256.',
+    ],
+    parameters: solidScriptPathHandleFields(),
+    listing: (read) => [
+      'Set Path Resolution',
+      'Of ',
+      read.value('path'),
+      ' To ',
+      read.value('resolution'),
+      ' Into ',
+      read.value('into'),
+    ],
+    execute: (run) => {
+      solidScriptPathHandlesWrite(
+        run,
+        solidScriptPathResolutionSet(
+          solidScriptPathHandlesSource(run, 'Set Path Resolution'),
+          solidScriptPathResolution(run, 'Set Path Resolution'),
+        ),
       );
       return [];
     },

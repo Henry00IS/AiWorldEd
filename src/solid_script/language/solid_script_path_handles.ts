@@ -197,3 +197,33 @@ export function solidScriptPathClosedSet(path: SolidScriptPath<number[]>, closed
   if (spline?.kind !== 'nurbs' || spline.knots === 'Bezier') return { ...path, segments, closed };
   return { ...path, segments, closed, spline: { ...spline, knots: closed ? 'Normal' : 'Endpoint' } };
 }
+
+/**
+ * Reads the steps each curved stretch of a path is drawn in: those of its
+ * whole-path curve or of its first Bezier stretch, the default for a straight
+ * path.
+ *
+ * @param path Path.
+ * @returns Steps per stretch.
+ */
+export function solidScriptPathResolutionOf(path: SolidScriptPath<number[]>): number {
+  if (path.spline) return path.spline.resolution;
+  const curved = path.segments.find((segment) => segment.kind === 'bezier');
+  return curved?.kind === 'bezier' ? curved.resolution : (path.resolution ?? SOLID_SCRIPT_PATH_RESOLUTION);
+}
+
+/**
+ * Draws every curved stretch of a path in other steps, its points and handles
+ * kept.
+ *
+ * @param path Path.
+ * @param resolution Steps per stretch.
+ * @returns Path.
+ */
+export function solidScriptPathResolutionSet(
+  path: SolidScriptPath<number[]>,
+  resolution: number,
+): SolidScriptPath<number[]> {
+  const segments = path.segments.map((segment) => (segment.kind === 'bezier' ? { ...segment, resolution } : segment));
+  return { ...path, segments, resolution, ...(path.spline ? { spline: { ...path.spline, resolution } } : {}) };
+}

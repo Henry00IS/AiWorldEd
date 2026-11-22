@@ -25,6 +25,8 @@ export interface SolidScriptPath<Point> {
   readonly segments: readonly SolidScriptPathSegment<Point>[];
   /** True when the last point joins back to the first. */
   readonly closed: boolean;
+  /** Stored drawing steps per stretch, also kept on a straight path. */
+  readonly resolution?: number;
   /**
    * Tilt of each point, in degrees about the way the path runs there; none is 0
    * everywhere.

@@ -8,7 +8,7 @@ import {
 import { solidScriptFaceTextureOwn } from './solid_script_shape.js';
 import * as THREE from 'three';
 import { solidScriptFaceIslands } from './solid_script_face_islands.js';
-import { solidScriptPathHandles } from './solid_script_path_handles.js';
+import { solidScriptPathHandles, solidScriptPathResolutionOf } from './solid_script_path_handles.js';
 import type { SolidScriptElements } from './solid_script_elements.js';
 import type { SolidScriptEdgeFacts, SolidScriptFaceFacts } from './solid_script_geometry.js';
 import { solidScriptKindNamed } from './solid_script_kinds.js';
@@ -23,7 +23,12 @@ import { solidScriptNameKey } from './solid_script_name_key.js';
 import { solidScriptMemberIdOf } from './solid_script_member_id.js';
 import { solidScriptMemberForm } from './solid_script_shown_names.js';
 import { solidScriptPathLength } from './solid_script_path.js';
-import { solidScriptPathSample, solidScriptPathSampleTilts, solidScriptPathWalk } from './solid_script_path_model.js';
+import {
+  solidScriptPathSample,
+  solidScriptPathSampleTilts,
+  solidScriptPathWalk,
+  type SolidScriptPath,
+} from './solid_script_path_model.js';
 import {
   SolidScriptElement,
   SolidScriptPathElement,
@@ -108,6 +113,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     HandlesLeft: form('HandlesLefts', 'Vector List'),
     HandlesRight: form('HandlesRights', 'Vector List'),
     Tilts: form('Tilts', 'Number List'),
+    Resolution: form('Resolutions', 'Number'),
   },
   Object: {
     Name: form('Names', 'Text'),
@@ -535,6 +541,26 @@ function solidScriptMemberBounds(bounds: THREE.Box3, member: string): SolidScrip
 }
 
 /**
+ * Reads a member of a path.
+ *
+ * @param path Path.
+ * @param member Member, folded.
+ * @returns Value, or undefined when it has no such member.
+ */
+function solidScriptMemberPath(path: SolidScriptPath<number[]>, member: string): SolidScriptValue {
+  if (member === 'points') return solidScriptPathSample(path).map((point) => point.map(solidScriptMemberRound));
+  if (member === 'closed') return path.closed;
+  if (member === 'tilts') return solidScriptPathSampleTilts(path).map(solidScriptMemberRound);
+  if (member === 'length') return solidScriptMemberRound(solidScriptPathLength(solidScriptPathWalk(path)));
+  if (member === 'resolution') return solidScriptPathResolutionOf(path);
+  if (member === 'handlesleft' || member === 'handlesright')
+    return solidScriptPathHandles(path)[member === 'handlesleft' ? 'left' : 'right'].map((point) =>
+      point.map(solidScriptMemberRound),
+    );
+  return undefined;
+}
+
+/**
  * Reads a member of a brush, face, edge or corner.
  *
  * @param element Element.
@@ -548,18 +574,7 @@ function solidScriptMemberElement(
   elements: SolidScriptElements,
 ): SolidScriptValue {
   if (member === 'data') return elements.data(element);
-  if (element instanceof SolidScriptPathElement) {
-    if (member === 'points')
-      return solidScriptPathSample(element.path).map((point) => point.map(solidScriptMemberRound));
-    if (member === 'closed') return element.path.closed;
-    if (member === 'tilts') return solidScriptPathSampleTilts(element.path).map(solidScriptMemberRound);
-    if (member === 'length') return solidScriptMemberRound(solidScriptPathLength(solidScriptPathWalk(element.path)));
-    if (member === 'handlesleft' || member === 'handlesright')
-      return solidScriptPathHandles(element.path)[member === 'handlesleft' ? 'left' : 'right'].map((point) =>
-        point.map(solidScriptMemberRound),
-      );
-    return undefined;
-  }
+  if (element instanceof SolidScriptPathElement) return solidScriptMemberPath(element.path, member);
   if (member === 'parent' && element.kind !== 'brush') return elements.parent(element);
   const leaf = elements.leaf(element);
   const faceList = (faces: readonly SolidScriptFaceFacts[]): SolidScriptValue[] => {
