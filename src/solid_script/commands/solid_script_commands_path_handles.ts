@@ -13,6 +13,7 @@ import { solidScriptPathStraight, type SolidScriptPath } from '@/solid_script/la
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import {
   SOLID_SCRIPT_PATH_RESOLUTION,
+  SOLID_SCRIPT_PATH_TYPES,
   solidScriptPathHandles,
   solidScriptPathTyped,
   solidScriptPathWithHandles,
@@ -358,17 +359,26 @@ export const SOLID_SCRIPT_COMMANDS_PATH_HANDLES: readonly SolidScriptCommand[] =
     category: 'Meshes',
     description: 'Make a path straight or curved between its points',
     manual:
-      'Writes to Into a copy of a Path whose stretches run another way between its points. Poly makes every stretch straight and drops its handles. Bezier makes every stretch a Bezier curve, keeping the handles a curved stretch has and giving a straight one handles a third of the way along it, so its shape stays until Set Handles moves them. Resolution is how many steps each curved stretch is drawn in. Path is a Path or a list of points for a straight open one. Example: Set Path Type Path [Rail] Type Bezier Into [Rail], then Set Handles bends it.',
+      'Writes to Into a copy of a Path whose stretches run another way between its points. Poly makes every stretch straight and drops its handles. Bezier makes every stretch a Bezier curve, keeping the handles a curved stretch has and giving a straight one handles a third of the way along it, so its shape stays until Set Handles moves them; a Catmull Rom path keeps its shape too. Catmull Rom runs a smooth curve through every point, each open end standing in for its missing neighbour. NURBS runs a smooth cubic curve pulled toward the points: a straight path keeps its points, and an open one still reaches its ends; a curved one keeps its shape, each point and its two handles becoming three points. A NURBS path with fewer than 4 points runs straight through them. Making a Catmull Rom or NURBS path Poly gives back its points. Resolution is how many steps each curved stretch is drawn in. Path is a Path or a list of points for a straight open one. Example: Set Path Type Path [Rail] Type Bezier Into [Rail], then Set Handles bends it.',
     stops: [
       'A Path that is not a Path or a list of at least 2 points.',
-      'A Type other than Poly or Bezier.',
+      'A Type other than Poly, Bezier, Catmull Rom or NURBS.',
       'A Resolution that is not a whole number from 1 to 256.',
     ],
     parameters: [
-      solidScriptParameterWords('type', 'Type', 'text', 'Bezier', 'Poly or Bezier. Type one word, such as Poly.', [
-        { word: 'Poly', detail: 'Straight stretches between the points' },
-        { word: 'Bezier', detail: 'Curved stretches between handles' },
-      ]),
+      solidScriptParameterWords(
+        'type',
+        'Type',
+        'text',
+        'Bezier',
+        'Poly, Bezier, Catmull Rom or NURBS. Type one, such as Poly.',
+        [
+          { word: 'Poly', detail: 'Straight stretches between the points' },
+          { word: 'Bezier', detail: 'Curved stretches between handles' },
+          { word: 'Catmull Rom', detail: 'A smooth curve through every point' },
+          { word: 'NURBS', detail: 'A smooth curve pulled toward the points' },
+        ],
+      ),
       ...solidScriptPathHandleFields(),
     ],
     listing: (read) => [
@@ -381,9 +391,10 @@ export const SOLID_SCRIPT_COMMANDS_PATH_HANDLES: readonly SolidScriptCommand[] =
       read.value('into'),
     ],
     execute: (run) => {
-      const type = run.text('type').trim();
-      if (type !== 'Poly' && type !== 'Bezier')
-        throw new Error(`Set Path Type needs Poly or Bezier in Type, not ${type}`);
+      const text = run.text('type').trim();
+      const type = SOLID_SCRIPT_PATH_TYPES.find((word) => word === text);
+      if (type === undefined)
+        throw new Error(`Set Path Type needs Poly, Bezier, Catmull Rom or NURBS in Type, not ${text}`);
       const source = solidScriptPathHandlesSource(run, 'Set Path Type');
       solidScriptPathHandlesWrite(
         run,

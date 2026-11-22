@@ -1,3 +1,9 @@
+import {
+  solidScriptPathBezierStretch,
+  solidScriptPathSplineSample,
+  type SolidScriptPathSpline,
+} from './solid_script_path_splines.js';
+
 /**
  * How one stretch of a path runs between its two points: straight, or a Bezier
  * curve that leaves its start toward Out and comes into its end from In,
@@ -24,6 +30,11 @@ export interface SolidScriptPath<Point> {
    * everywhere.
    */
   readonly tilts?: readonly number[];
+  /**
+   * A curve run through all the points at once; the segments are then straight
+   * and unused.
+   */
+  readonly spline?: SolidScriptPathSpline;
 }
 
 /**
@@ -47,48 +58,19 @@ export function solidScriptPathStraight<Point>(points: readonly Point[], closed:
  * @returns Points.
  */
 export function solidScriptPathSample<Point extends readonly number[]>(path: SolidScriptPath<Point>): Point[] {
+  if (path.spline) return solidScriptPathSplineSample(path.points, path.closed, path.spline);
   const sampled: Point[] = [];
   path.segments.forEach((segment, index) => {
     const start = path.points[index];
     const end = path.points[(index + 1) % path.points.length];
     if (start === undefined) return;
-    sampled.push(start);
     if (segment.kind === 'bezier' && end !== undefined)
-      for (let step = 1; step < segment.resolution; step++)
-        sampled.push(solidScriptPathBezierAt(start, segment.out, segment.in, end, step / segment.resolution));
+      sampled.push(...solidScriptPathBezierStretch(start, segment.out, segment.in, end, segment.resolution));
+    else sampled.push(start);
   });
   const last = path.points[path.points.length - 1];
   if (!path.closed && last !== undefined) sampled.push(last);
   return sampled;
-}
-
-/**
- * Finds the point a Bezier stretch passes at T, from 0 at its start to 1 at its
- * end.
- *
- * @param start Start point.
- * @param out Handle it leaves toward.
- * @param into Handle the end is reached from.
- * @param end End point.
- * @param t Place along it.
- * @returns Point, with as many numbers as Start.
- */
-function solidScriptPathBezierAt<Point extends readonly number[]>(
-  start: Point,
-  out: Point,
-  into: Point,
-  end: Point,
-  t: number,
-): Point {
-  const u = 1 - t;
-  const mixed = start.map(
-    (value, axis) =>
-      u * u * u * value +
-      3 * u * u * t * (out[axis] ?? 0) +
-      3 * u * t * t * (into[axis] ?? 0) +
-      t * t * t * (end[axis] ?? 0),
-  );
-  return mixed as readonly number[] as Point;
 }
 
 /**
@@ -118,13 +100,19 @@ export function solidScriptPathMap<Point, Moved>(
   const segments = path.segments.map((segment): SolidScriptPathSegment<Moved> =>
     segment.kind === 'line' ? segment : { ...segment, out: move(segment.out), in: move(segment.in) },
   );
-  return { points: path.points.map(move), segments, closed: path.closed, ...(path.tilts ? { tilts: path.tilts } : {}) };
+  return {
+    points: path.points.map(move),
+    segments,
+    closed: path.closed,
+    ...(path.tilts ? { tilts: path.tilts } : {}),
+    ...(path.spline ? { spline: path.spline } : {}),
+  };
 }
 
 /**
  * Gives the tilt at every point solidScriptPathSample gives, in the same order:
  * each point's own, and inside a curved stretch a blend from its start's tilt
- * to its end's.
+ * to its end's; a whole-path curve blends tilts the way it blends points.
  *
  * @param path Path.
  * @returns Tilts in degrees.
@@ -132,6 +120,12 @@ export function solidScriptPathMap<Point, Moved>(
 export function solidScriptPathSampleTilts<Point>(path: SolidScriptPath<Point>): number[] {
   const count = path.points.length;
   const tilt = (index: number): number => path.tilts?.[index % count] ?? 0;
+  if (path.spline)
+    return solidScriptPathSplineSample(
+      path.points.map((_, index) => [tilt(index)]),
+      path.closed,
+      path.spline,
+    ).map((value) => value[0] ?? 0);
   const sampled: number[] = [];
   path.segments.forEach((segment, index) => {
     if (index >= count) return;

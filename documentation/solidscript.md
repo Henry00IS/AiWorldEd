@@ -207,3 +207,4 @@ The **Examples** window holds showcase scripts such as the Spiral Staircase, sma
 - Find On How At UV finds the point on the faces whose texture coordinates are the U and V of From.
 - Set Handle Type places path handles by Type Auto, Vector, Align or Free, on Side Both, Left or Right, for points that pass Pick Where.
 - Set Tilt tilts a path per point; [Path.Tilts] reads it back and Sweep Along Path turns the profile by it on top of Twist.
+- Set Path Type also makes Catmull Rom paths through every point and NURBS paths pulled toward them; curved paths keep their shape either way.

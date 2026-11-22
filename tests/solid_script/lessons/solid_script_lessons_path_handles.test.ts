@@ -45,7 +45,7 @@ describe('Path handles and types', () => {
 
   it('stops on a Type that is not Poly or Bezier', () => {
     expect(ran([{ command: 'set_path_type', values: { path: '[P]', type: 'Wavy', into: 'P' } }])).toContain(
-      'Poly or Bezier',
+      'Poly, Bezier, Catmull Rom or NURBS',
     );
   });
 });
