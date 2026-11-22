@@ -30,7 +30,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     category: 'Transforms',
     description: 'Pull flat paths up into solids',
     manual:
-      'Lays the flat paths between this line and its End (Square, Circle, Polygon) on the ground, their Y running to the back, and pulls them straight up along Y into solids. Anchor is Center by default, so the middle of its height sits on the origin; Bottom makes the extrusion stand on the paths. Top Scale below 1 narrows the top, for a tapered shape. Mode chooses how the solid combines with the ones before it: Additive, Subtractive or Intersecting. Into is always a list of the solids it built, even when there is only one. Example: a Polygon star with height 0.2 gives a star-shaped tile.',
+      'Lays the flat paths between this line and its End (Square, Circle, Star, Polygon) on the ground, their Y running to the back, and pulls them straight up along Y into solids. Anchor is Center by default, so the middle of its height sits on the origin; Bottom makes the extrusion stand on the paths. Top Scale below 1 narrows the top, for a tapered shape. Mode chooses how the solid combines with the ones before it: Additive, Subtractive or Intersecting. Into is always a list of the solids it built, even when there is only one. Example: a Polygon star with height 0.2 gives a star-shaped tile.',
     stops: [
       'A height of 0 or less.',
       'A solid such as Cube between this line and its End. Only flat paths can be extruded.',
@@ -76,7 +76,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORMS: readonly SolidScriptCommand[] = [
     category: 'Transforms',
     description: 'Spin flat paths around the Y axis',
     manual:
-      "Spins the flat paths between this line and its End (Square, Circle, Polygon) around the upright Y axis, like clay on a potter's wheel. The path's X is the distance from the axis and its Y the height. Angle below 360 leaves a gap, for a partial ring or a curved wall. Each piece becomes one solid per side. Into is always a list of those solids, even when there is only one. Mode chooses how each solid combines with the ones before it: Additive, Subtractive or Intersecting. Example: a Square of 0.5, 2 moved to X = 3 and spun 360 degrees gives a round tower wall.",
+      "Spins the flat paths between this line and its End (Square, Circle, Star, Polygon) around the upright Y axis, like clay on a potter's wheel. The path's X is the distance from the axis and its Y the height. Angle below 360 leaves a gap, for a partial ring or a curved wall. Each piece becomes one solid per side. Into is always a list of those solids, even when there is only one. Mode chooses how each solid combines with the ones before it: Additive, Subtractive or Intersecting. Example: a Square of 0.5, 2 moved to X = 3 and spun 360 degrees gives a round tower wall.",
     stops: [
       'A path with points at X below 0.',
       'An angle of 0 or more than 360.',

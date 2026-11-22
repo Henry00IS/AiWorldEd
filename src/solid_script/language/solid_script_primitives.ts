@@ -21,6 +21,9 @@ export const SOLID_SCRIPT_SIDES = { default: 16, min: 3, max: 64 } as const;
  */
 export const SOLID_SCRIPT_RINGS = { default: 8, min: 2, max: 32 } as const;
 
+/** Default, fewest and most outer points of a Star. */
+export const SOLID_SCRIPT_STAR_POINTS = { default: 8, min: 3, max: 64 } as const;
+
 /**
  * Reads a whole count within a range, such as the sides of a cylinder.
  *
@@ -213,4 +216,47 @@ export function solidScriptPolygonOutline(
       `Polygon needs at least 3 points and has ${points.length}; add Point lines inside it or a list in Points From List`,
     );
   return points;
+}
+
+/**
+ * Reads the Twist of a Star in radians; it must keep each inner corner between
+ * its two tips so the outline never crosses itself.
+ *
+ * @param args Block fields.
+ * @param count Outer points.
+ * @returns Twist in radians.
+ */
+function solidScriptStarTwist(args: SolidScriptBlockArguments, count: number): number {
+  const twist = args.number('twist', 0);
+  const most = 180 / count;
+  if (!(Math.abs(twist) < most))
+    throw args.error(
+      'twist',
+      `must lie between ${-most} and ${most} degrees, so the inner corners stay between the tips`,
+      twist,
+    );
+  return THREE.MathUtils.degToRad(twist);
+}
+
+/**
+ * Outline points of a Star block: outer points evenly around the middle, each
+ * followed by an inner point halfway to the next, turned further by Twist.
+ *
+ * @param args Block fields.
+ * @returns Points, counter-clockwise, outer first.
+ */
+export function solidScriptStarOutline(args: SolidScriptBlockArguments): SolidScriptPoint2[] {
+  const count = solidScriptCount(args, 'points', SOLID_SCRIPT_STAR_POINTS);
+  const inner = args.positive('inner', args.number('inner', 1));
+  const outer = args.positive('outer', args.number('outer', 2));
+  const twist = solidScriptStarTwist(args, count);
+  const reach = Math.max(inner, outer);
+  const [sx = 0, sy = 0] = solidScriptAnchorMin([reach * 2, reach * 2], args.anchor(SOLID_SCRIPT_ANCHOR_FLAT));
+  const step = (2 * Math.PI) / count;
+  return Array.from({ length: count * 2 }, (_, index): SolidScriptPoint2 => {
+    const isOuter = index % 2 === 0;
+    const angle = step * Math.floor(index / 2) + (isOuter ? 0 : step / 2 + twist);
+    const radius = isOuter ? outer : inner;
+    return [radius * Math.cos(angle) + sx + reach, radius * Math.sin(angle) + sy + reach];
+  });
 }
