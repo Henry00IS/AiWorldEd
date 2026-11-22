@@ -45,6 +45,18 @@ describe('SolidScript Path', () => {
     );
   });
 
+  it('draws a Line by direction and length with Along as its To', () => {
+    const to = '[=Along(Vector(1, 0, 0), Vector(0, 2, 0), 3)]';
+    expect(echo([path({ from: '1, 0, 0', to, count: '2', into: 'P' })], '[P.Points]')).toBe('[[1, 0, 0], [1, 3, 0]]');
+  });
+
+  it('turns a Spiral the other way, clockwise from above, with negative Turns', () => {
+    const quarter = (turns: string) =>
+      echo([path({ shape: 'Spiral', height: '0', turns, count: '2', into: 'P' })], '[=Last([P.Points])]');
+    expect(quarter('0.25')).toBe('[0, 0, -1]');
+    expect(quarter('-0.25')).toBe('[0, 0, 1]');
+  });
+
   it('keeps Points as they are, and rounds a corner when Radius is above 0', () => {
     const corners = { shape: 'From Points', points: '[0, 0, 0], [1, 0, 0], [1, 1, 0]', into: 'P' };
     expect(echo([path(corners)], '[P.Points]')).toBe('[[0, 0, 0], [1, 0, 0], [1, 1, 0]]');

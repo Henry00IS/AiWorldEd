@@ -182,3 +182,4 @@ The **Examples** window holds showcase scripts such as the Spiral Staircase, sma
 - Remap(value, from_low, from_high, to_low, to_high, clamp, steps): Steps makes the result jump between that many even levels; 0 or left off slides smoothly.
 - Remap also takes Ease after Steps: Linear (the default), Smoothstep or Smootherstep. The latter two blend gently at the edges.
 - Star (2D Shapes) draws a flat star: Points tips at the Outer radius, an inner corner at the Inner radius halfway between each two, Twist turning the inner corners in degrees, and Anchor like Circle.
+- Path Line by direction and length: set To to Along(From, Direction, Length). Path Spiral turns clockwise from above with negative Turns.
