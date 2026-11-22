@@ -40,7 +40,7 @@ import {
 const SOLID_SCRIPT_SWEEP_SIDES_MAX = 64;
 
 /** Shapes a Path line can build. */
-const SOLID_SCRIPT_PATH_SHAPES = ['Line', 'Arc', 'Spiral', 'From Points', 'Smooth', 'Bezier'] as const;
+const SOLID_SCRIPT_PATH_SHAPES = ['Line', 'Arc', 'Spiral', 'From Points', 'Smooth', 'Bezier', 'Quadratic'] as const;
 
 /** One Shape word. */
 type SolidScriptPathShape = (typeof SOLID_SCRIPT_PATH_SHAPES)[number];
@@ -78,7 +78,7 @@ function solidScriptSweepProfile(run: SolidScriptBlockRun): THREE.Vector2[] {
 function solidScriptPathShapeOf(run: SolidScriptBlockRun): SolidScriptPathShape {
   const text = run.text('shape').trim() || 'Line';
   const match = SOLID_SCRIPT_PATH_SHAPES.find((word) => word.toLowerCase() === text.toLowerCase());
-  if (!match) throw new Error(`Shape needs Line, Arc, Spiral, From Points, Smooth or Bezier, not ${text}`);
+  if (!match) throw new Error(`Shape needs Line, Arc, Spiral, From Points, Smooth, Bezier or Quadratic, not ${text}`);
   return match;
 }
 
@@ -148,7 +148,24 @@ function solidScriptPathBuild(run: SolidScriptBlockRun): THREE.Vector3[] {
       count,
       'Path',
     );
+  if (shape === 'Quadratic') return solidScriptPathBuildQuadratic(run, count);
   return solidScriptPathBuildSpiral(run, count);
+}
+
+/**
+ * Builds a Quadratic path: the Bezier curve with handles two thirds of the way
+ * from each end to Middle, which runs the same.
+ *
+ * @param run Running line.
+ * @param count How many points.
+ * @returns Points.
+ */
+function solidScriptPathBuildQuadratic(run: SolidScriptBlockRun, count: number): THREE.Vector3[] {
+  const from = solidScriptPathFieldVector(run, 'from', 'From');
+  const middle = solidScriptPathFieldVector(run, 'middle', 'Middle');
+  const to = solidScriptPathFieldVector(run, 'to', 'To');
+  const pull = (end: THREE.Vector3) => end.clone().lerp(middle, 2 / 3);
+  return solidScriptPathBezier(from, pull(from), pull(to), to, count, 'Path');
 }
 
 /**
@@ -280,6 +297,8 @@ function solidScriptPathListingFields(read: SolidScriptListingValues, shape: str
   if (shape === '' || shape === 'line') return solidScriptPathListingKeys(read, ['from', 'to', 'count']);
   if (shape === 'arc')
     return [read.value('shape'), ...solidScriptPathListingKeys(read, ['center', 'radius', 'sweep', 'count'])];
+  if (shape === 'quadratic')
+    return [read.value('shape'), ...solidScriptPathListingKeys(read, ['from', 'middle', 'to', 'count'])];
   if (shape === 'bezier')
     return [
       read.value('shape'),
@@ -329,6 +348,7 @@ function solidScriptPathListingKeys(
     turns: ' Turns ',
     from_handle: ' From Handle ',
     to_handle: ' To Handle ',
+    middle: ' Middle ',
   };
   return keys.flatMap((key) => [labels[key] ?? ` ${key} `, read.value(key)]);
 }
@@ -341,9 +361,9 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Draw a path along a line, arc, spiral or points',
     manual:
-      'Writes a Path, a line of points that is open or closed, to Into, for Sweep Along Path, Place At Points or PathAt; inside Linear Extrude, Rotate Extrude or Offset a closed Path is filled instead. Shape Line (the default) walks from From to To; for a direction and a length, set To to Along(From, Direction, Length). Arc turns around Center in the plane facing Normal, from Start by Sweep degrees, the same way as RotateVector around Normal; a negative Sweep turns the other way. Spiral also climbs Height along Normal while the radius moves from Radius to End Radius, for Turns of a rotation. From Points uses the corners in Points; Radius rounds those corners, with Sides segments on each, and can change per corner with [$Index]; Limit Radius shrinks radii that do not fit. Smooth bends a gentle curve through every point in Points, with Sides segments on each stretch. Bezier runs from From to To, leaving From toward From Handle and coming into To from To Handle. Closed, for Arc, From Points and Smooth, joins the last point back to the first. Count is how many points Line, Arc, Spiral and Bezier write. Example: Path Line From 0, 0, 0 To 4, 0, 0 Count 8 Into [Rail], then Sweep Along Path along [Rail].',
+      'Writes a Path, a line of points that is open or closed, to Into, for Sweep Along Path, Place At Points or PathAt; inside Linear Extrude, Rotate Extrude or Offset a closed Path is filled instead. Shape Line (the default) walks from From to To; for a direction and a length, set To to Along(From, Direction, Length). Arc turns around Center in the plane facing Normal, from Start by Sweep degrees, the same way as RotateVector around Normal; a negative Sweep turns the other way. Spiral also climbs Height along Normal while the radius moves from Radius to End Radius, for Turns of a rotation. From Points uses the corners in Points; Radius rounds those corners, with Sides segments on each, and can change per corner with [$Index]; Limit Radius shrinks radii that do not fit. Smooth bends a gentle curve through every point in Points, with Sides segments on each stretch. Bezier runs from From to To, leaving From toward From Handle and coming into To from To Handle. Quadratic runs from From to To pulled toward Middle, passing halfway between Middle and the middle of From and To. Closed, for Arc, From Points and Smooth, joins the last point back to the first. Count is how many points Line, Arc, Spiral, Bezier and Quadratic write. Example: Path Line From 0, 0, 0 To 4, 0, 0 Count 8 Into [Rail], then Sweep Along Path along [Rail].',
     stops: [
-      'A Shape other than Line, Arc, Spiral, From Points, Smooth or Bezier.',
+      'A Shape other than Line, Arc, Spiral, From Points, Smooth, Bezier or Quadratic.',
       'A Count that is not a whole number from 2 to 10000, when Shape is Line, Arc, Spiral or Bezier.',
       'From and To at the same point, a Sweep or Turns of 0, a Radius of 0 on an Arc, or a Normal of 0, 0, 0.',
       'A Points list with fewer than 2 different points, or 3 when Closed or when rounding corners.',
@@ -356,7 +376,7 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
         'Shape',
         'text',
         'Line',
-        'The kind of path: Line, Arc, Spiral, From Points, Smooth or Bezier. Type one word, such as Arc.',
+        'The kind of path: Line, Arc, Spiral, From Points, Smooth, Bezier or Quadratic. Type one word, such as Arc.',
         [
           { word: 'Line', detail: 'A straight line from From to To' },
           { word: 'Arc', detail: 'A circular arc around Center' },
@@ -364,12 +384,13 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
           { word: 'From Points', detail: 'The corners in Points, with optional rounding' },
           { word: 'Smooth', detail: 'A smooth curve through every point in Points' },
           { word: 'Bezier', detail: 'A curve from From to To bent by two handles' },
+          { word: 'Quadratic', detail: 'A curve from From to To pulled toward Middle' },
         ],
       ),
       solidScriptParameterWhen(
         solidScriptParameter('from', 'From', 'vector3', '0, 0, 0', 'Start of the line, in metres, such as 0, 0, 0.'),
         'shape',
-        ['Line', 'Bezier'],
+        ['Line', 'Bezier', 'Quadratic'],
       ),
       solidScriptParameterWhen(
         solidScriptParameter(
@@ -381,6 +402,17 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
         ),
         'shape',
         ['Bezier'],
+      ),
+      solidScriptParameterWhen(
+        solidScriptParameter(
+          'middle',
+          'Middle',
+          'vector3',
+          '0.5, 1, 0',
+          'Point the curve is pulled toward between From and To, in metres, such as 2, 2, 0.',
+        ),
+        'shape',
+        ['Quadratic'],
       ),
       solidScriptParameterWhen(
         solidScriptParameter(
@@ -396,7 +428,7 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
       solidScriptParameterWhen(
         solidScriptParameter('to', 'To', 'vector3', '1, 0, 0', 'End of the line, in metres, such as 4, 0, 0.'),
         'shape',
-        ['Line', 'Bezier'],
+        ['Line', 'Bezier', 'Quadratic'],
       ),
       solidScriptParameterWhen(
         solidScriptParameter(
@@ -547,7 +579,7 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
           `How many points to write, ${SOLID_SCRIPT_PATH_COUNT_MIN} to ${SOLID_SCRIPT_PATH_COUNT_MAX}, such as 16.`,
         ),
         'shape',
-        ['Line', 'Arc', 'Spiral', 'Bezier'],
+        ['Line', 'Arc', 'Spiral', 'Bezier', 'Quadratic'],
       ),
       {
         ...solidScriptParameterInto('the path, a Path', 'Path', 'what is made', 'label'),

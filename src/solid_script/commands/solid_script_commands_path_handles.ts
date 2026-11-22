@@ -10,6 +10,8 @@ import {
 import { solidScriptFaceWriteValue } from './solid_script_face_of.js';
 import * as THREE from 'three';
 import { solidScriptPathStraight, type SolidScriptPath } from '@/solid_script/language/solid_script_path_model.js';
+import { solidScriptPathSubdivide } from '@/solid_script/language/solid_script_path_subdivide.js';
+import { SOLID_SCRIPT_MESH_POINTS_MAX } from '@/solid_script/language/solid_script_limits.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import {
   SOLID_SCRIPT_PATH_RESOLUTION,
@@ -181,6 +183,25 @@ function solidScriptSetTiltRun(run: SolidScriptBlockRun): void {
 }
 
 /**
+ * Reads Subdivide Path's Cuts for each point: rounded, and none below 0.
+ *
+ * @param run Running line.
+ * @param path Path to cut.
+ * @returns Cuts in the stretch each point starts.
+ */
+function solidScriptSubdivideCuts(run: SolidScriptBlockRun, path: SolidScriptPath<number[]>): number[] {
+  const cuts = path.points.map((point, index) => {
+    const fills = { $Point: new SolidScriptPoint([...point]), $Index: index, $Count: path.points.length };
+    const cut = solidScriptValueNumber(run.valueWith('cuts', fills));
+    if (cut === undefined) throw new Error('Subdivide Path needs a whole number of Cuts per point, such as 2');
+    return Math.max(0, Math.round(cut));
+  });
+  if (cuts.reduce((sum, cut) => sum + cut, path.points.length) > SOLID_SCRIPT_MESH_POINTS_MAX)
+    throw new Error(`Subdivide Path would make more than ${SOLID_SCRIPT_MESH_POINTS_MAX} points; use fewer Cuts`);
+  return cuts;
+}
+
+/**
  * The Path, Resolution and Into fields of both lines.
  *
  * @returns Fields.
@@ -210,7 +231,10 @@ function solidScriptPathHandleFields() {
   ];
 }
 
-/** Set Handles, Set Handle Type, Set Tilt, Set Path Type and Set Path Closed. */
+/**
+ * Set Handles, Set Handle Type, Set Tilt, Set Path Type, Set Path Closed and
+ * Subdivide Path.
+ */
 export const SOLID_SCRIPT_COMMANDS_PATH_HANDLES: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'set_handles',
@@ -439,6 +463,41 @@ export const SOLID_SCRIPT_COMMANDS_PATH_HANDLES: readonly SolidScriptCommand[] =
         run,
         solidScriptPathClosedSet(solidScriptPathHandlesSource(run, 'Set Path Closed'), closed),
       );
+      return [];
+    },
+  }),
+  new SolidScriptCommand({
+    id: 'subdivide_path',
+    edits: true,
+    label: 'Subdivide Path',
+    category: 'Meshes',
+    description: 'Add points evenly inside each stretch of a path',
+    manual:
+      'Writes to Into a copy of a Path with Cuts new points inside each stretch, evenly along it, so its shape stays: a Bezier stretch is split into Bezier stretches along its curve, a Catmull Rom path gets points on its curve, and a straight stretch or a NURBS path gets points on the line between its points. Cuts is a 🔁 whole number per point, with [$Point] the point and [$Index] its number from 0, and gives the cuts of the stretch that starts there; below 0 counts as none. New points get the tilt between their neighbours. Path is a Path or a list of points for a straight open one. Example: Subdivide Path Path [Rail] Cuts 3 Into [Rail], then Points From Path, puts points evenly along every stretch.',
+    stops: [
+      'A Path that is not a Path or a list of at least 2 points.',
+      'Cuts that are not a number.',
+      'Cuts that would make too many points.',
+    ],
+    parameters: [
+      solidScriptParameterEach(
+        solidScriptParameter('cuts', 'Cuts', 'count', '1', 'New points inside each stretch, such as 2.'),
+        'Point',
+      ),
+      ...solidScriptPathHandleFields().filter((field) => field.key !== 'resolution'),
+    ],
+    listing: (read) => [
+      'Subdivide Path',
+      'Of ',
+      read.value('path'),
+      ' Cuts ',
+      read.value('cuts'),
+      ' Into ',
+      read.value('into'),
+    ],
+    execute: (run) => {
+      const source = solidScriptPathHandlesSource(run, 'Subdivide Path');
+      solidScriptPathHandlesWrite(run, solidScriptPathSubdivide(source, solidScriptSubdivideCuts(run, source)));
       return [];
     },
   }),
