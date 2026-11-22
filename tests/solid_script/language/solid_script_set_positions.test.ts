@@ -73,4 +73,24 @@ describe('SolidScript Set Positions', () => {
     expect(dent.warnings.map((warning) => warning.text).join()).toMatch(/1 solid is not convex/);
     expect(run(BOX, line('set_positions', { to: '[=[$Vertex.Position]]' })).error?.message).toMatch(/Set Positions/);
   });
+
+  it('adds Offset after To, per corner', () => {
+    const result = run(
+      BOX,
+      line('set_positions', { of: 'Box', where: '[=[$Y] > 0]', offset: '[=Vector(0, 1 + [$Index] * 0, 0)]' }),
+    );
+    expect(result.error?.message).toBeUndefined();
+    expect(bounds(result.shapes)).toEqual([-1, -1, -1, 1, 2, 1]);
+    expect(run(BOX, line('set_positions', { of: 'Box', offset: '1, 2' })).error?.message).toMatch(/Offset needs three/);
+  });
+
+  it('reads every position before moving any, so later corners see the shape before the line', () => {
+    const result = run(
+      line('cube', { size: '2, 2, 2', anchor: 'Center, Center, Center', into: 'Held' }),
+      line('set_positions', { of: '[Held]', where: '[=[$Y] > 0]', offset: '[=Vector(0, [Held.Max.Y], 0)]' }),
+      line('output', { of: '[Held]' }),
+    );
+    expect(result.error?.message).toBeUndefined();
+    expect(bounds(result.shapes)).toEqual([-1, -1, -1, 1, 2, 1]);
+  });
 });

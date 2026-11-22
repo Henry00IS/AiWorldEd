@@ -90,6 +90,8 @@ Solids, faces, edges and corners are values, like numbers and text. A dot reads 
 
 ## Fields that change per item
 
+**Set Positions** moves each corner in Of To a position worked out per corner, plus an optional **Offset** added after it, so Offset `0, 0.5, 0` lifts the picked corners without writing `[=[$Vertex.Position] + …]`. Every corner reads the shape before the line, so moving one never changes what its neighbours see.
+
 Many fields can change per item: a Where condition, Displace's Distance, Extrude Face's Distance, Place At Points' Lift, Move By's By and more. Write a formula that reads a per-item value and the field is worked out once for each item; its caption gets 🔁 and green caps. A field that reads none is worked out once for all items.
 
 - Every per-item field has `[$Index]` (the item's place in the list, from 0), `[$Id]` (a whole number that stays with a face, edge, vertex or point, worked out from where it is, so deleting or reordering other items keeps it; for other items it is `[$Index]`) and `[$Count]` (how many items there are), and the item itself: `[$Face]`, `[$Edge]`, `[$Vertex]`, `[$Object]`, `[$Point]` or `[$Item]`.
