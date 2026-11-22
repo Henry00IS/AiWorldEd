@@ -159,27 +159,32 @@ function solidScriptPathSpiralAt(
 }
 
 /**
- * Rounds the corners of a polyline with a corner radius, or returns the points
- * unchanged when the radius is 0.
+ * Rounds the corners of a polyline, each with its own corner radius; a corner
+ * with radius 0 stays sharp.
  *
  * @param points Path corners, at least 2.
- * @param radius Metres of corner radius, 0 or more.
+ * @param radiusOf Metres of corner radius for a corner by its index, 0 or more.
  * @param sides Segments of each rounded corner, 1 to 64.
  * @param closed True when the last point joins the first.
  * @param label Command, for messages.
+ * @param limit True to shrink radii that do not fit instead of stopping.
  * @returns Points.
  */
 export function solidScriptPathRound(
   points: readonly THREE.Vector3[],
-  radius: number,
+  radiusOf: (index: number) => number,
   sides: number,
   closed: boolean,
   label: string,
+  limit = false,
 ): THREE.Vector3[] {
   const path = solidScriptPathOpen(points, closed, label);
-  if (!(radius > 0)) return path.map((point) => point.clone());
+  const radii = path.map((_, index) => radiusOf(index));
+  const bad = radii.find((radius) => !(radius >= 0));
+  if (bad !== undefined) throw new Error(`${label} needs a Radius of 0 or more, not ${bad}`);
+  if (radii.every((radius) => radius === 0)) return path.map((point) => point.clone());
   if (path.length < 3) throw new Error(`${label} needs at least 3 points to round corners, not ${path.length}`);
-  const distances = solidScriptPathCornerDistances(path, radius, closed, label);
+  const distances = solidScriptPathCornerDistances(path, radii, closed, label, limit);
   return solidScriptPathCornerPoints(path, distances, solidScriptPathCornerSides(sides, label), closed);
 }
 
@@ -285,20 +290,48 @@ function solidScriptPathCornerSides(sides: number, label: string): number {
  * Tangent lengths from each corner to its fillet, in corner order.
  *
  * @param path Unique corners.
- * @param radius Corner radius.
+ * @param radii Corner radius per corner.
  * @param closed True when the last point joins the first.
  * @param label Command, for messages.
+ * @param limit True to shrink tangent lengths that do not fit.
  * @returns Distance per corner, 0 when the corner is straight.
  */
 function solidScriptPathCornerDistances(
   path: readonly THREE.Vector3[],
-  radius: number,
+  radii: readonly number[],
   closed: boolean,
   label: string,
+  limit: boolean,
 ): number[] {
-  const distances = path.map((_, index) => solidScriptPathCornerDistance(path, index, radius, closed));
-  solidScriptPathCornerFit(path, distances, closed, radius, label);
+  const distances = path.map((_, index) => solidScriptPathCornerDistance(path, index, radii[index] ?? 0, closed));
+  if (limit) return solidScriptPathCornerLimit(path, distances, closed);
+  solidScriptPathCornerFit(path, distances, closed, label);
   return distances;
+}
+
+/**
+ * Shrinks tangent lengths so the two arcs on each stretch never overlap: each
+ * corner keeps the smaller share of its two stretches.
+ *
+ * @param path Unique corners.
+ * @param distances Tangent lengths per corner.
+ * @param closed True when the last point joins the first.
+ * @returns Shrunk tangent lengths.
+ */
+function solidScriptPathCornerLimit(
+  path: readonly THREE.Vector3[],
+  distances: readonly number[],
+  closed: boolean,
+): number[] {
+  const fit = path.map((corner, index) => {
+    const next = path[(index + 1) % path.length];
+    const both = (distances[index] ?? 0) + (distances[(index + 1) % path.length] ?? 0);
+    if (!next || (!closed && index === path.length - 1) || both <= 0) return 1;
+    return Math.min(1, corner.distanceTo(next) / both);
+  });
+  return distances.map(
+    (distance, index) => distance * Math.min(fit[index] ?? 1, fit[(index + path.length - 1) % path.length] ?? 1),
+  );
 }
 
 /**
@@ -377,14 +410,12 @@ function solidScriptPathCornerAround(
  * @param path Unique corners.
  * @param distances Tangent lengths per corner.
  * @param closed True when the last point joins the first.
- * @param radius Corner radius, for the message.
  * @param label Command, for messages.
  */
 function solidScriptPathCornerFit(
   path: readonly THREE.Vector3[],
   distances: readonly number[],
   closed: boolean,
-  radius: number,
   label: string,
 ): void {
   const last = closed ? path.length : path.length - 1;
@@ -395,7 +426,7 @@ function solidScriptPathCornerFit(
     const second = distances[(index + 1) % distances.length] ?? 0;
     if (a && b && first + second > a.distanceTo(b) + SOLID_SCRIPT_PATH_SHAPE_EPSILON)
       throw new Error(
-        `${label} cannot use Radius ${radius} on a stretch of ${+a.distanceTo(b).toFixed(4)} m; use a smaller Radius, or longer stretches`,
+        `${label} cannot round corners ${index} and ${(index + 1) % path.length} with their Radius on a stretch of ${+a.distanceTo(b).toFixed(4)} m; use a smaller Radius, longer stretches, or Limit Radius`,
       );
   }
 }
@@ -420,7 +451,7 @@ function solidScriptPathCornerPoints(
     const rays = distances[index] ? solidScriptPathCornerRays(path, index, closed) : null;
     if (rays && (distances[index] ?? 0) > 0)
       points.push(...solidScriptPathCornerArc(rays, distances[index] ?? 0, sides));
-    else if (!closed || index > 0) points.push(corner.clone());
+    else points.push(corner.clone());
   });
   return points;
 }

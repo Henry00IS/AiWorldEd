@@ -30,6 +30,7 @@ import {
 import { solidScriptPathSample } from '@/solid_script/language/solid_script_path_model.js';
 import {
   SolidScriptPathElement,
+  SolidScriptPoint,
   solidScriptValueNumber,
   solidScriptValueNumbers,
 } from '@/solid_script/language/solid_script_value.js';
@@ -190,11 +191,38 @@ function solidScriptPathFromPoints(run: SolidScriptBlockRun): THREE.Vector3[] {
   });
   return solidScriptPathRound(
     points,
-    solidScriptPathFieldNumber(run, 'corner_radius', 'Radius'),
+    (index) => solidScriptPathCornerRadius(run, points, index),
     solidScriptPathFieldNumber(run, 'sides', 'Sides'),
     run.fields().flag('closed'),
     'Path',
+    run.fields().flag('limit_radius'),
   );
+}
+
+/**
+ * Reads Radius for one corner of From Points, with [$Point] and [$Index] that
+ * corner.
+ *
+ * @param run Running line.
+ * @param points Corners.
+ * @param index Corner index.
+ * @returns Metres.
+ */
+function solidScriptPathCornerRadius(
+  run: SolidScriptBlockRun,
+  points: readonly THREE.Vector3[],
+  index: number,
+): number {
+  const point = points[index] ?? new THREE.Vector3();
+  const radius = solidScriptValueNumber(
+    run.valueWith('corner_radius', {
+      $Point: new SolidScriptPoint([point.x, point.y, point.z], [0, 1, 0]),
+      $Index: index,
+      $Count: points.length,
+    }),
+  );
+  if (radius === undefined) throw new Error('Path needs a number in Radius, such as 0.25 or [=[$Index] * 0.1]');
+  return radius;
 }
 
 /**
@@ -235,6 +263,7 @@ function solidScriptPathListingFields(read: SolidScriptListingValues, shape: str
     ' ',
     read.value('points'),
     ...(read.changed('corner_radius') ? [' Radius ', read.value('corner_radius')] : []),
+    ...(read.changed('limit_radius') ? [' Limit Radius ', read.value('limit_radius')] : []),
   ];
 }
 
@@ -398,12 +427,26 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
         ['From Points'],
       ),
       solidScriptParameterWhen(
+        solidScriptParameterEach(
+          solidScriptParameter(
+            'corner_radius',
+            'Radius',
+            'number',
+            '0',
+            'Metres to round each corner by, such as 0.25, or per corner with [$Index], such as [=[$Index] * 0.1]. 0 keeps a corner sharp.',
+          ),
+          'Point',
+        ),
+        'shape',
+        ['From Points'],
+      ),
+      solidScriptParameterWhen(
         solidScriptParameter(
-          'corner_radius',
-          'Radius',
-          'number',
-          '0',
-          'Metres to round each corner by, such as 0.25. 0 keeps the corners sharp.',
+          'limit_radius',
+          'Limit Radius',
+          'boolean',
+          'No',
+          'Yes: shrink a corner radius that does not fit, so the rounded corners never overlap; No stops with a message instead. Type Yes or No, such as Yes.',
         ),
         'shape',
         ['From Points'],

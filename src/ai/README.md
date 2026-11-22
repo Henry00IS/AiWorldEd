@@ -605,3 +605,4 @@ Solid mutations (including hierarchy create/reparent/rename/ungroup) are **undoa
 - Function inputs may have defaults, such as W, D = 1: a call may leave those off, and they take the value after =. Numbers, Yes/No, quoted text and [lists] are read as values. Inputs with a default come last.
 - A Function reruns for each item when its formula is used per item, such as in a Where or a per-face field: [Local.X] holds that item's value each time.
 - Scatter Points Ids writes a steady number for each point, worked out from where it lies, so Random seeded by it stays with a point when Count grows or other points are removed.
+- Path From Points Radius can change per corner with [$Index] and [$Point], such as [=[$Index] * 0.1]; a corner with 0 stays sharp. Limit Radius Yes shrinks radii that do not fit so rounded corners never overlap.
