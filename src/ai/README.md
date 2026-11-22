@@ -633,3 +633,4 @@ Solid mutations (including hierarchy create/reparent/rename/ungroup) are **undoa
 - Merge Points welds mesh corners that share a Merge ID into one at their average position, with Pick Where.
 - Scale Faces scales faces that share corners as one island, by their average Factor about their average Center.
 - Scale Edges grows or shrinks edges, joined ones as one island about their average midpoint.
+- InvertRotation, RotationAxis, RotationAngle and MixRotation work on turns in X, Y, Z degrees.

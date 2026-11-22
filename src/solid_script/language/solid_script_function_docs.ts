@@ -2,6 +2,10 @@ import {
   SOLID_SCRIPT_CLUSTER_ARGUMENTS,
   SOLID_SCRIPT_FUNCTION_DOCS_CLUSTER,
 } from './solid_script_function_docs_cluster.js';
+import {
+  SOLID_SCRIPT_FUNCTION_DOCS_ROTATION,
+  SOLID_SCRIPT_ROTATION_ARGUMENTS,
+} from './solid_script_function_docs_rotation.js';
 import type { SOLID_SCRIPT_KINDS } from './solid_script_kinds.js';
 import type { SolidScriptBuiltinName } from './solid_script_functions_builtin.js';
 import {
@@ -107,6 +111,7 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
   ...SOLID_SCRIPT_FUNCTION_DOCS_MATRIX,
   ...SOLID_SCRIPT_FUNCTION_DOCS_NUMBERS,
   ...SOLID_SCRIPT_FUNCTION_DOCS_CLUSTER,
+  ...SOLID_SCRIPT_FUNCTION_DOCS_ROTATION,
   ...SOLID_SCRIPT_FUNCTION_DOCS_COORDINATES,
   str: {
     usage: 'Str(a, b, ...)',
@@ -916,6 +921,7 @@ const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
   ...SOLID_SCRIPT_KIND_CHECK_ARGUMENTS,
   ...SOLID_SCRIPT_NUMBERS_ARGUMENTS,
   ...SOLID_SCRIPT_CLUSTER_ARGUMENTS,
+  ...SOLID_SCRIPT_ROTATION_ARGUMENTS,
   ...SOLID_SCRIPT_COORDINATES_ARGUMENTS,
   ...SOLID_SCRIPT_SHAPING_WAVE_ARGUMENTS,
 };
