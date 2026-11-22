@@ -19,8 +19,10 @@ import { solidScriptKindOf } from './solid_script_kinds.js';
 import { type SolidScriptGroupMode } from './solid_script_mode.js';
 import { solidScriptShapeTransform } from './solid_script_reshape.js';
 import { solidScriptShapeClone } from './solid_script_shape_clone.js';
+import { SolidScriptBuiltFrames } from './solid_script_built_frames.js';
 import {
   solidScriptShapeGrouped,
+  solidScriptShapeIsLeaf,
   solidScriptShapeJoin,
   solidScriptShapeMapLeaves,
   type SolidScriptShape,
@@ -91,6 +93,8 @@ export abstract class SolidScriptMachineCalls<
   protected readonly parts = new Map<string, SolidScriptPart<Command>>();
   /** CSG groups built by each Part, by name key, so Output can stamp Mode. */
   protected readonly partsHeld = new Map<string, SolidScriptShapeGroup>();
+  /** The space each object was built in, read by Output. */
+  protected readonly builtFrames = new SolidScriptBuiltFrames();
   protected readonly toolCopy = new SolidScriptToolCopy();
   /** Part group each stored brush belongs to. */
   protected readonly partsByBrush = new Map<number, SolidScriptShapeGroup>();
@@ -381,8 +385,9 @@ export abstract class SolidScriptMachineCalls<
 
   /**
    * Stamps a snapshot of a Part or of brushes at this line, including the
-   * Part's CSG group and Mode. Later changes to the Part do not reach this
-   * copy.
+   * Part's CSG group and Mode. A Part moves by every block around this line; an
+   * object only by those it was not already built inside. Later changes to the
+   * Part do not reach this copy.
    *
    * @param value Part name, or the brushes or meshes to stamp.
    * @param scope Scope of the Output line.
@@ -403,7 +408,7 @@ export abstract class SolidScriptMachineCalls<
         solidScriptShapeClone(
           solidScriptShapeMapLeaves(shape, (leaf) => (leaf.kind === 'polygon' ? leaf : this.leafLatestOf(leaf))),
         ),
-        context.matrix,
+        group || !solidScriptShapeIsLeaf(shape) ? context.matrix : this.builtFrames.relative(shape, context.matrix),
       ),
     );
   }

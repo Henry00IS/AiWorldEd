@@ -335,6 +335,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   protected leafRewrite(leaf: SolidScriptGeometryLeaf, found: SolidScriptGeometryLeaf): void {
     const by = solidScriptLeafRewritten(leaf, found);
     this.elements.modeRoleCopy(leaf, by);
+    this.builtFrames.copy(leaf, by);
     if (this.toolCopy.take(leaf, by)) {
       this.processed.note(by);
       return;
@@ -356,12 +357,14 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   }
 
   /**
-   * Records the inherited Mode of newly placed solids and returns them.
+   * Records the inherited Mode and the blocks of newly placed shapes and
+   * returns them.
    *
    * @param shapes Shapes just created or stamped.
    * @returns The same shapes.
    */
   protected modeRolePlaced(shapes: SolidScriptShape[]): SolidScriptShape[] {
+    this.builtFrames.record(shapes);
     solidScriptModeRoleRemember(shapes, this.modeRoleCurrent(), (leaf, role) => this.elements.modeRoleSet(leaf, role));
     return shapes;
   }
@@ -635,6 +638,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     this.definitionsRegister(lines);
     const built: SolidScriptShape[] = [];
     this.builtStack.push(built);
+    this.builtFrames.enter(context.matrix);
     try {
       for (let index = 0; index < lines.length; index++) {
         const shapes = this.lineRun(lines[index]!, scope, context, runs[index]!);
@@ -648,6 +652,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       }
     } finally {
       this.builtStack.pop();
+      this.builtFrames.leave();
     }
     return built;
   }
