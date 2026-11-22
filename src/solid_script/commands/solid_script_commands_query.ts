@@ -1,4 +1,5 @@
 import { solidScriptListingOf } from './solid_script_command_listing.js';
+import { solidScriptParameterEach } from './solid_script_command_each.js';
 import { solidScriptParameterOfWhere } from './solid_script_command_of_where.js';
 import * as THREE from 'three';
 import { SolidScriptCommand, type SolidScriptCommandParameter } from './solid_script_command.js';
@@ -6,11 +7,18 @@ import {
   solidScriptParameter,
   solidScriptParameterInto,
   solidScriptParameterOf,
+  solidScriptParameterOptional,
   solidScriptParameterWhen,
+  solidScriptParameterWrites,
   solidScriptParameterWords,
 } from './solid_script_command_parameters.js';
 import { solidScriptFaceTargets, solidScriptFaceWriteValue } from './solid_script_face_of.js';
-import { solidScriptFindOn, type SolidScriptFindHit } from '@/solid_script/language/solid_script_find.js';
+import { solidScriptFaceEach } from './solid_script_face_each.js';
+import {
+  solidScriptFindOn,
+  type SolidScriptFindFound,
+  type SolidScriptFindHit,
+} from '@/solid_script/language/solid_script_find.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import { solidScriptMemberVector } from '@/solid_script/language/solid_script_members.js';
 
@@ -35,7 +43,7 @@ export const SOLID_SCRIPT_COMMANDS_QUERY: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Find the closest point on faces, or the first hit along a ray',
     manual:
-      'Looks at the faces in Of, or [$Selected.Faces] when Of is empty, and writes what it finds. How Closest (the default) picks the nearest point to From on any of those faces. Along Ray follows Direction from From and picks the first face it meets. Into gets the point, Distance how far it is, Normal the way the face looks, Face the face, and Hit whether a face was found. A list of points in From, or of directions in Direction, finds once per item: then Into, Distance, Normal and Hit are lists with one entry per item (a miss gives 0, 0, 0, 0 and No), and Face gets the faces that were hit. Example: Cube, Select Faces All, Find On Closest From 0, 2, 0 Into [Spot] Face [Top] Hit [Found].',
+      'Looks at the faces in Of, or [$Selected.Faces] when Of is empty, and writes what it finds. How Closest (the default) picks the nearest point to From on any of those faces. Target, for Closest, measures to the face surfaces (Faces, the default), their edges (Edges) or their corners (Corners). Along Ray follows Direction from From and picks the first face it meets. A find further than Max Distance is a miss. Sample is read on the face found, with [$Face], and written to Sampled, such as [=[$Face.Texture]]. Into gets the point, Distance how far it is, Normal the way the face looks, Face the face, and Hit whether a face was found. A list of points in From, or of directions in Direction, finds once per item: then Into, Distance, Normal and Hit are lists with one entry per item (a miss gives 0, 0, 0, 0 and No), and Face gets the faces that were hit. Example: Cube, Select Faces All, Find On Closest From 0, 2, 0 Into [Spot] Face [Top] Hit [Found].',
     stops: [
       'No faces.',
       'A From or Direction that is not x, y, z.',
@@ -75,6 +83,37 @@ export const SOLID_SCRIPT_COMMANDS_QUERY: readonly SolidScriptCommand[] = [
         'how',
         ['Along Ray'],
       ),
+      solidScriptParameterWhen(
+        solidScriptParameterWords(
+          'target',
+          'Target',
+          'text',
+          'Faces',
+          'What Closest measures to: Faces for the nearest point on a face, Edges for the nearest point on a face edge, or Corners for the nearest corner. Type Faces, Edges or Corners, such as Faces.',
+          [
+            { word: 'Faces', detail: 'The nearest point on any face' },
+            { word: 'Edges', detail: 'The nearest point on any face edge' },
+            { word: 'Corners', detail: 'The nearest corner of any face' },
+          ],
+        ),
+        'how',
+        ['Closest'],
+      ),
+      solidScriptParameterOptional(
+        'max_distance',
+        'Max Distance',
+        'number',
+        'Furthest a find may be, in metres, such as 10; anything further is a miss. Empty finds at any distance.',
+      ),
+      solidScriptParameterEach(
+        solidScriptParameterOptional(
+          'sample',
+          'Sample',
+          'value',
+          'A value read on the face found, written to Sampled, such as [=[$Face.Texture]] or [=[$Face.Data.Heat]]; a miss gives nothing.',
+        ),
+        'Face',
+      ),
       solidScriptParameterOfWhere('Face', '[=[$Face.Normal.Y] > 0.9]'),
       solidScriptParameterOf('faces or objects', '$Selected.Faces'),
       solidScriptFindEach({
@@ -101,6 +140,15 @@ export const SOLID_SCRIPT_COMMANDS_QUERY: readonly SolidScriptCommand[] = [
         key: 'hit',
         label: 'Hit',
       }),
+      solidScriptParameterWrites(
+        solidScriptParameterOptional(
+          'sampled',
+          'Sampled',
+          'name',
+          'Variable to write the Sample read on the face found to, one per item for a list, such as Ground; left off writes none.',
+        ),
+        { rule: 'value', field: 'sample', what: 'read on the face found by **{command}**' },
+      ),
     ],
     listing: (read) => {
       const how = read.text('how').trim();
@@ -111,16 +159,23 @@ export const SOLID_SCRIPT_COMMANDS_QUERY: readonly SolidScriptCommand[] = [
         ' From ',
         read.value('from'),
         ...(ray ? [' Direction ', read.value('direction')] : []),
+        ...(ray || ['', 'faces'].includes(read.text('target').trim().toLowerCase())
+          ? []
+          : [' Target ', read.value('target')]),
+        ...(read.text('max_distance') === '' ? [] : [' Max Distance ', read.value('max_distance')]),
+        ...(read.text('sample') === '' ? [] : [' Sample ', read.value('sample')]),
         ...solidScriptListingOf(read),
         ...(read.text('into') === '' ? [] : [' Into ', read.value('into')]),
         ...(read.text('distance') === '' ? [] : [' Distance ', read.value('distance')]),
         ...(read.text('normal') === '' ? [] : [' Normal ', read.value('normal')]),
         ...(read.text('face') === '' ? [] : [' Face ', read.value('face')]),
         ...(read.text('hit') === '' ? [] : [' Hit ', read.value('hit')]),
+        ...(read.text('sampled') === '' ? [] : [' Sampled ', read.value('sampled')]),
       ];
     },
     execute: (run) => {
       const found = solidScriptFindOn(run, solidScriptFaceTargets(run, 'Find On'));
+      solidScriptFindWriteSample(run, found);
       if (found.listed) return solidScriptFindWriteLists(run, found.hits);
       const [hit] = found.hits;
       solidScriptFaceWriteValue(run, 'hit', hit?.hit ?? false);
@@ -171,4 +226,20 @@ function solidScriptFindWriteLists(run: SolidScriptBlockRun, hits: readonly Soli
   solidScriptFaceWriteValue(run, 'face', faces);
   run.selectedSet('faces', faces);
   return [];
+}
+
+/**
+ * Reads Sample on each face found and writes it to Sampled: one value, or one
+ * per item when From or Direction is a list; a miss gives an empty text.
+ *
+ * @param run Running line.
+ * @param found What Find On found.
+ */
+function solidScriptFindWriteSample(run: SolidScriptBlockRun, found: SolidScriptFindFound): void {
+  const sample = run.source('sample').trim();
+  if (run.text('sampled').trim() === '' || sample === '') return;
+  const faces = found.hits.flatMap((hit) => (hit.face ? [hit.face] : []));
+  const read = solidScriptFaceEach(run, 'sample', faces);
+  const values = found.hits.map((hit) => (hit.face ? read(hit.face) : ''));
+  solidScriptFaceWriteValue(run, 'sampled', found.listed ? values : (values[0] ?? ''));
 }
