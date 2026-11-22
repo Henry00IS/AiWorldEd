@@ -84,8 +84,8 @@ function solidScriptPointsRun(run: SolidScriptBlockRun): void {
 }
 
 /**
- * Reads how Points From Path spreads its points: Count points, or one every
- * Spacing metres.
+ * Reads how Points From Path spreads its points: Count points, at least 2, or
+ * one every Spacing metres.
  *
  * @param run Running line.
  * @returns Spread.
@@ -100,9 +100,9 @@ function solidScriptPathSpreadRead(run: SolidScriptBlockRun): SolidScriptPathSpr
   }
   if (by !== 'count') throw new Error(`By needs Count or Spacing, not ${run.text('by')}`);
   const count = solidScriptValueNumber(run.value('count'));
-  if (count === undefined || !Number.isInteger(count) || count < 1 || count > SOLID_SCRIPT_LIMITS.listItems)
-    throw new Error('Count needs a whole number from 1, such as 10');
-  return { count };
+  if (count === undefined || !Number.isInteger(count) || count < 0 || count > SOLID_SCRIPT_LIMITS.listItems)
+    throw new Error('Count needs a whole number, such as 10');
+  return { count: Math.max(2, count) };
 }
 
 /**
@@ -188,7 +188,13 @@ export const SOLID_SCRIPT_COMMANDS_POINTS: readonly SolidScriptCommand[] = [
         ],
       ),
       solidScriptParameterWhen(
-        solidScriptParameter('count', 'Count', 'count', '10', 'How many points, such as 10.'),
+        solidScriptParameter(
+          'count',
+          'Count',
+          'count',
+          '10',
+          'How many points, such as 10; at least 2, so both ends of the path get one.',
+        ),
         'by',
         ['Count'],
       ),

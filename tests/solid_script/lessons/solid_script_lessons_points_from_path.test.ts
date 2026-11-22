@@ -52,6 +52,12 @@ describe('Points From Path', () => {
     expect(points).toBe('[[0, 0, 0], [2, 0, 0], [2, 0, 2], [0, 0, 2]]');
   });
 
+  it('raises a Count of 0 or 1 to 2 so both ends of the path get a point', () => {
+    for (const count of ['0', '1'])
+      expect(ran({ command: 'points_from_path', values: { ...LINE, count } })[0]).toBe('[[0, 0, 0], [4, 0, 0]]');
+    expect(ran({ command: 'points_from_path', values: { ...LINE, count: '-1' } })[0]).toMatch(/Count needs/);
+  });
+
   it('stops on a bad Spacing', () => {
     expect(ran({ command: 'points_from_path', values: { ...LINE, by: 'Spacing', spacing: '0' } })[0]).toMatch(
       /Spacing needs/,
