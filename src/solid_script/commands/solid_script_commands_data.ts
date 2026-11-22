@@ -8,26 +8,27 @@ import { solidScriptDataBlur } from '@/solid_script/language/solid_script_data_b
 import { solidScriptOfEmpty } from '@/solid_script/language/solid_script_select.js';
 import { SolidScriptElement } from '@/solid_script/language/solid_script_value.js';
 
-/** Kinds of items Blur Data works on. */
+/** Kinds of items the Data lines work on. */
 const SOLID_SCRIPT_DATA_BLUR_KINDS: ReadonlySet<string> = new Set(['face', 'edge', 'vertex']);
 
 /**
- * Reads the faces, edges or corners Blur Data averages: those of its Of, else
+ * Reads the faces, edges or corners a Data line works on: those of its Of, else
  * of [$Selected.Faces], that pass Where.
  *
  * @param run Running line.
+ * @param label Line label, for messages.
  * @returns Items.
  */
-function solidScriptDataBlurItems(run: SolidScriptBlockRun): SolidScriptElement[] {
+export function solidScriptDataItems(run: SolidScriptBlockRun, label: string): SolidScriptElement[] {
   const given = run.ofValues();
   const items = given ?? run.selectedGet('faces');
   if (items.length === 0)
     throw new Error(
-      given ? 'Blur Data has nothing in Of; check that Of holds faces' : solidScriptOfEmpty('Blur Data', 'faces'),
+      given ? `${label} has nothing in Of; check that Of holds faces` : solidScriptOfEmpty(label, 'faces'),
     );
   const checked = items.map((item) => {
     if (!(item instanceof SolidScriptElement) || !SOLID_SCRIPT_DATA_BLUR_KINDS.has(item.kind))
-      throw new Error('Blur Data takes faces, edges or corners');
+      throw new Error(`${label} takes faces, edges or corners`);
     return item;
   });
   return checked.filter((item, index) =>
@@ -90,7 +91,7 @@ export const SOLID_SCRIPT_COMMANDS_DATA: readonly SolidScriptCommand[] = [
     execute: (run) => {
       const key = run.text('key').trim();
       if (key === '') throw new Error('Blur Data needs a Key, such as Height');
-      solidScriptDataBlur(solidScriptDataBlurItems(run), key, solidScriptDataBlurRounds(run), run.elements);
+      solidScriptDataBlur(solidScriptDataItems(run, 'Blur Data'), key, solidScriptDataBlurRounds(run), run.elements);
       return [];
     },
   }),

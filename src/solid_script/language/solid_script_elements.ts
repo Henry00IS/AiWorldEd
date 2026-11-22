@@ -579,6 +579,16 @@ export class SolidScriptElements {
   }
 
   /**
+   * Removes one user value, so it reads as empty again.
+   *
+   * @param element Element or its Data.
+   * @param key Key, folded.
+   */
+  dataRemove(element: SolidScriptElement, key: string): void {
+    this.entry(element).data.delete(key);
+  }
+
+  /**
    * Lists the user values of a Data element.
    *
    * @param element Data element.

@@ -200,3 +200,5 @@ The **Examples** window holds showcase scripts such as the Spiral Staircase, sma
 - Set Handles bends a path into Bezier stretches between per-point handles; Set Path Type turns a path Poly or Bezier; Path.HandlesLeft and Path.HandlesRight read them.
 - Sweep Along Path takes an optional Up per Point: the profile's up faces it on each stretch, else it turns as little as possible from the stretch before.
 - ClusterConnected(points, starts, ends, distance) groups points joined by edges whose cluster middles are closer than Distance.
+- Brick(position, scale, seed, output, mortar, width, height, offset, smooth) gives brick mortar or a per-brick Tint; Magic(position, scale, depth, distortion) gives swirling colour bands.
+- Rename Data moves a .Data value to a new key and Remove Data removes one key, on faces, edges or corners.
