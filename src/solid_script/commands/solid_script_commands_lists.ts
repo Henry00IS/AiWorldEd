@@ -83,6 +83,28 @@ function solidScriptListCompare(a: SolidScriptValue, b: SolidScriptValue): numbe
   });
 }
 
+/**
+ * Puts items in order, by their own value or by what By works out for each
+ * one; items with the same key keep their order.
+ *
+ * @param run Running line.
+ * @param items Items of the list.
+ * @param sign 1 for smallest first, -1 for biggest first.
+ * @returns Sorted items.
+ */
+function solidScriptListSorted(
+  run: SolidScriptBlockRun,
+  items: readonly SolidScriptValue[],
+  sign: number,
+): SolidScriptValue[] {
+  if (run.source('by').trim() === '') return [...items].sort((a, b) => sign * solidScriptListCompare(a, b));
+  const keyed = items.map((item, index) => ({
+    item,
+    key: run.valueWith('by', { $Item: item, $Index: index, $Count: items.length }),
+  }));
+  return keyed.sort((a, b) => sign * solidScriptListCompare(a.key, b.key)).map((entry) => entry.item);
+}
+
 /** Commands that change lists and forget or empty variables. */
 export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
@@ -316,10 +338,19 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     category: 'Lists',
     description: 'Put a list in order',
     manual:
-      'Puts the items of a list in order: numbers from small to big, words from A to Z, numbers before words. Switch on Biggest First to turn the order around. Example: Heights holds 5, 2, 9. Sort List Heights leaves 2, 5, 9.',
+      'Puts the items of a list in order: numbers from small to big, words from A to Z, numbers before words. Switch on Biggest First to turn the order around. By, when given, is a 🔁 value worked out for each item as [$Item], and the items are ordered by it instead, such as faces by height or points by distance; items with the same By keep their order. Example: Heights holds 5, 2, 9. Sort List Heights leaves 2, 5, 9, Sort List [Spots] By [=[$Y]] puts the lowest point first, and By [=Random(0, 1)] shuffles a list.',
     stops: [SOLID_SCRIPT_LIST_STOP],
     parameters: [
       SOLID_SCRIPT_LIST_NAME,
+      solidScriptParameterEach(
+        solidScriptParameterOptional(
+          'by',
+          'By',
+          'value',
+          'What to order each item by, such as [=[$Y]] for faces by height or [=Random(0, 1)] to shuffle. Left off orders the items themselves.',
+        ),
+        'Item',
+      ),
       solidScriptParameter(
         'descending',
         'Biggest First',
@@ -331,13 +362,14 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     listing: (read) => [
       'Sort List',
       read.value('list'),
+      ...(read.text('by').trim() === '' ? [] : [' By ', read.value('by')]),
       ...solidScriptListingOptions([read.on('descending') && ['Biggest First']]),
     ],
     execute: (run) => {
       const sign = run.fields().flag('descending') ? -1 : 1;
       run.listUpdate(
         run.text('list'),
-        (items) => [...items].sort((a, b) => sign * solidScriptListCompare(a, b)),
+        (items) => solidScriptListSorted(run, items, sign),
         false,
       );
       return [];

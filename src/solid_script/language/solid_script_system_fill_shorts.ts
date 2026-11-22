@@ -62,7 +62,8 @@ function solidScriptSystemFillMember(
 }
 
 /**
- * Reads one axis of the place or direction of a current item.
+ * Reads one axis of the place or direction of a current item; a vector item,
+ * such as a point in a list, is its own place.
  *
  * @param held Current item.
  * @param member Member that gives the vector, or an empty text for none.
@@ -77,7 +78,8 @@ function solidScriptSystemFillAxis(
   elements: SolidScriptElements,
 ): SolidScriptValue {
   if (member === '') return undefined;
-  const source = solidScriptSystemFillMember(held, member, elements);
+  const plain = solidScriptValueNumbers(held)?.length === 3 || held instanceof THREE.Vector3;
+  const source = plain ? held : solidScriptSystemFillMember(held, member, elements);
   if (source instanceof THREE.Vector3) return source.getComponent(axis);
   const numbers = solidScriptValueNumbers(source);
   return numbers?.length === 3 ? numbers[axis] : undefined;

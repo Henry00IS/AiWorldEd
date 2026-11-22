@@ -577,3 +577,5 @@ Solid mutations (including hierarchy create/reparent/rename/ungroup) are **undoa
 - `flip_faces` and `triangulate` take faces or meshes in Of, filtered per face by Where. `split_edges` cuts mesh faces apart along edges filtered by Where, without moving corners; the copies can move apart later.
 
 - Extrude Face has a per-face Direction (empty uses the normal). Individual Yes, the default, pulls every mesh face on its own; No pulls touching faces as one region, with walls only around its border. At a corner shared by several picked faces, the move is their average. On solids, negative Distance builds a Subtractive slab sunk into the solid, never a mesh. Top and Sides keep the faces the line made.
+
+- Sort List has an optional per-item By, such as [=[$Y]] for height or [=Random(0, 1)] for a seeded shuffle. It evaluates every key before sorting, keeps the order of equal keys, and Biggest First reverses the comparison. Without By it orders the items themselves.
