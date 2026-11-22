@@ -1,3 +1,4 @@
+import { solidScriptFunctionInputs } from '../language/solid_script_function_inputs.js';
 import { solidScriptFieldIsVariable } from '@/solid_script/language/solid_script_field.js';
 
 /**
@@ -125,10 +126,7 @@ export function solidScriptListingOptions(
  * @returns Pieces.
  */
 export function solidScriptListingInputs(names: string): SolidScriptListingPiece[] {
-  const shown = names
-    .split(',')
-    .map((name) => name.trim())
-    .filter((name) => name !== '');
+  const shown = solidScriptFunctionInputs(names);
   if (shown.length === 0) return [];
   return [shown.length === 1 ? ' With Input ' : ' With Inputs ', solidScriptListingValue(names.trim())];
 }

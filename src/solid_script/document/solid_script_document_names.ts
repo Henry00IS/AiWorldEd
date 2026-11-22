@@ -1,3 +1,4 @@
+import { solidScriptFunctionInputs } from '../language/solid_script_function_inputs.js';
 import type { SolidScriptBlock, SolidScriptDocument } from './solid_script_document.js';
 import {
   solidScriptDocumentFlowAt,
@@ -372,10 +373,7 @@ function solidScriptNamesOfBlocks(list: SolidScriptNameList, block: SolidScriptB
 function solidScriptNameInputs(block: SolidScriptBlock | undefined): string[] {
   const flow = block ? solidScriptGivenFlow(block) : undefined;
   if (!block || flow?.kind !== 'function') return [];
-  return (block.values[flow.inputs] ?? '')
-    .split(',')
-    .map((input) => input.trim())
-    .filter((input) => input !== '');
+  return solidScriptFunctionInputs(block.values[flow.inputs] ?? '').map((input) => input.name);
 }
 
 /**

@@ -12,10 +12,28 @@ import {
   SolidScriptElement,
   solidScriptValueText,
   solidScriptValueTruthy,
+  type SolidScriptValue,
 } from '@/solid_script/language/solid_script_value.js';
+import { solidScriptConditionHolds } from '@/solid_script/language/solid_script_condition.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import { solidScriptRunValueOptional } from '@/solid_script/language/solid_script_run_optional.js';
 import { SOLID_SCRIPT_REPEAT_ROUNDS_MAX, solidScriptLimitCount } from '@/solid_script/language/solid_script_limits.js';
+
+/**
+ * Lists the places of the For Each items that pass its Where, with [$Item] the
+ * item; without a Where every item passes.
+ *
+ * @param run Running For Each line.
+ * @param items Items of the list.
+ * @returns Places of the kept items, in order.
+ */
+function solidScriptForEachKept(run: SolidScriptBlockRun, items: readonly SolidScriptValue[]): number[] {
+  const places = items.map((_, index) => index);
+  if (run.source('where').trim() === '') return places;
+  return places.filter((index) =>
+    solidScriptConditionHolds(run, 'where', { $Item: items[index], $Index: index, $Count: items.length }),
+  );
+}
 
 /** Id of the command that closes a block. */
 export const SOLID_SCRIPT_COMMAND_END = 'end';
@@ -166,7 +184,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Logic',
     description: 'Run lines once per item of a list',
     manual:
-      'Runs the lines inside once for each item of a list, with Item holding the current one. The list can be numbers separated by commas, a list variable such as [Points], or geometry such as [$Selected.Faces], [Top.Edges] or [$Input.Objects]; over [Face.Data] it runs once per user value. Key, when given, holds the item number from 0, or the key name over Data. [$Selected.*] carries from round to round and stays after End, so a later round can add to or move what an earlier round picked. Write a pick Into a variable when you want to keep it through later Select lines. Example: For Each [Face] In [$Selected.Faces], Extrude Face Of [Face] By 0.2, End.',
+      'Runs the lines inside once for each item of a list, with Item holding the current one. The list can be numbers separated by commas, a list variable such as [Points], or geometry such as [$Selected.Faces], [Top.Edges] or [$Input.Objects]; over [Face.Data] it runs once per user value. Key, when given, holds the item number from 0, or the key name over Data. Where, when given, is a 🔁 condition an item must pass, with [$Item] the item, for the lines inside to run for it; Key still counts in the whole list. [$Selected.*] carries from round to round and stays after End, so a later round can add to or move what an earlier round picked. Write a pick Into a variable when you want to keep it through later Select lines. Example: For Each [Face] In [$Selected.Faces], Extrude Face Of [Face] By 0.2, End.',
     stops: [
       `More than ${SOLID_SCRIPT_REPEAT_ROUNDS_MAX} items.`,
       'An Item or Key name that is not letters, digits and _.',
@@ -192,6 +210,15 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
         '1, 2, 3',
         'Items separated by commas, or a list such as [Points], [$Selected.Faces] or [Face.Data].',
       ),
+      solidScriptParameterEach(
+        solidScriptParameterOptional(
+          'where',
+          'Where',
+          'value',
+          'A condition each item must pass for the lines inside to run for it, such as [=[$Item.Normal.Y] > 0.5]; Key keeps the item number from the whole list. Left off runs for every item.',
+        ),
+        'Item',
+      ),
       solidScriptParameterWrites(
         solidScriptParameterOptional(
           'key',
@@ -208,6 +235,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
       ' In ',
       read.value('list'),
       ...(read.text('key').trim() === '' ? [] : [' Key ', read.value('key')]),
+      ...(read.text('where').trim() === '' ? [] : [' Where ', read.value('where')]),
     ],
     execute: (run) => {
       const list = run.list('list');
@@ -223,9 +251,14 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
         .text('key')
         .trim()
         .replace(/^\[(.*)\]$/s, '$1');
-      if (key === '') return run.repeated(run.text('variable'), items);
       const keys = entries ? entries.map((entry) => entry.name) : items.map((_, index) => index);
-      return run.repeated(run.text('variable'), items, { name: key, keys });
+      const kept = solidScriptForEachKept(run, items);
+      const keptItems = kept.map((index) => items[index]);
+      if (key === '') return run.repeated(run.text('variable'), keptItems);
+      return run.repeated(run.text('variable'), keptItems, {
+        name: key,
+        keys: kept.map((index) => keys[index] ?? index),
+      });
     },
   }),
   new SolidScriptCommand({

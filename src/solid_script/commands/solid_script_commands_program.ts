@@ -275,7 +275,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
           'parameters',
           'Inputs',
           'text',
-          'Names of the values it takes, such as W, D. Read them as [Local.W].',
+          'Names of the values it takes, such as W, D = 1. Read them as [Local.W]. An input with = and a value after it may be left off a call and takes that value; those come last.',
         ),
       ),
     ],

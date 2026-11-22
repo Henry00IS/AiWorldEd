@@ -1,3 +1,4 @@
+import { solidScriptFunctionInputs } from '../language/solid_script_function_inputs.js';
 import type { SolidScriptBlock, SolidScriptDocument } from './solid_script_document.js';
 import {
   solidScriptFlowChanged,
@@ -761,10 +762,8 @@ class SolidScriptFlowAnalysis {
     let entry: SolidScriptFlowState = new Map([...state].filter(([key]) => !key.startsWith('local.')));
     const flow = solidScriptGivenFlow(node.block);
     const field = flow?.kind === 'function' ? flow.inputs : '';
-    const parameters = (node.block.values[field] ?? '').split(',').map((parameter) => parameter.trim());
-    parameters.forEach((parameter, index) => {
-      if (parameter !== '')
-        entry = this.write(entry, `Local.${parameter}`, values[index] ?? [SOLID_SCRIPT_FLOW_UNKNOWN], this.current);
+    solidScriptFunctionInputs(node.block.values[field] ?? '').forEach((input, index) => {
+      entry = this.write(entry, `Local.${input.name}`, values[index] ?? [SOLID_SCRIPT_FLOW_UNKNOWN], this.current);
     });
     return entry;
   }

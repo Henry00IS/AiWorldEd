@@ -28,6 +28,7 @@ import {
 } from './solid_script_shape.js';
 import { SolidScriptElement, type SolidScriptValue } from './solid_script_value.js';
 import * as THREE from 'three';
+import { solidScriptFunctionInputDefault, solidScriptFunctionInputs } from './solid_script_function_inputs.js';
 
 /** Command ids of the blocks that run when an inspector event happens. */
 export const SOLID_SCRIPT_HANDLERS = {
@@ -49,19 +50,6 @@ export const SOLID_SCRIPT_DEFINITIONS: ReadonlySet<string> = new Set([
 
 /** Most parts that may be in use inside each other at once. */
 export { SOLID_SCRIPT_PART_DEPTH_MAX } from './solid_script_limits.js';
-
-/**
- * Reads the input names of a Define Function line, such as "width, depth".
- *
- * @param text Field text.
- * @returns Names in order.
- */
-export function solidScriptFunctionParameters(text: string): string[] {
-  return text
-    .split(',')
-    .map((name) => name.trim())
-    .filter((name) => name !== '');
-}
 
 /** A Define Part block and the scope it was defined in. */
 export interface SolidScriptPart<Command extends SolidScriptMachineCommand> {
@@ -109,7 +97,10 @@ export abstract class SolidScriptMachineCalls<
   /** Function blocks by name. */
   protected readonly functions = new Map<string, SolidScriptBlockNode<Command>>();
   /** Input names of each Function block. */
-  protected readonly functionParameters = new Map<SolidScriptBlockNode<Command>, readonly string[]>();
+  protected readonly functionParameters = new Map<
+    SolidScriptBlockNode<Command>,
+    readonly { key: string; fallback: SolidScriptValue | undefined }[]
+  >();
   /** When Input Changes and When Button Pressed blocks, in line order. */
   protected readonly handlers: SolidScriptBlockNode<Command>[] = [];
   protected line = 0;
@@ -178,8 +169,11 @@ export abstract class SolidScriptMachineCalls<
     if (solidScriptBuiltinFind(name)) throw new Error(`${name}() is a built-in function; pick another name`);
     const known = this.functions.get(this.nameKey(name));
     if (known && known !== node) throw new Error(`a function named "${name}" is already defined on line ${known.line}`);
-    for (const parameter of solidScriptFunctionParameters(node.command.valueText(node.values, 'parameters')))
-      this.nameCheck(parameter, 'a function input');
+    const inputs = solidScriptFunctionInputs(node.command.valueText(node.values, 'parameters'));
+    for (const input of inputs) this.nameCheck(input.name, 'a function input');
+    const firstDefault = inputs.findIndex((input) => input.fallback !== null);
+    if (firstDefault >= 0 && inputs.slice(firstDefault).some((input) => input.fallback === null))
+      throw new Error(`the inputs of ${name}() with a default must come last, such as W, D = 1`);
     this.functions.set(this.nameKey(name), node);
   }
 
@@ -201,23 +195,13 @@ export abstract class SolidScriptMachineCalls<
   ): { shapes: SolidScriptShape[]; value: SolidScriptValue } | null {
     const node = this.functions.get(solidScriptNameKey(name));
     if (!node) return null;
-    let parameters = this.functionParameters.get(node);
-    if (!parameters) {
-      parameters = solidScriptFunctionParameters(node.command.valueText(node.values, 'parameters')).map((parameter) =>
-        this.nameKey(parameter),
-      );
-      this.functionParameters.set(node, parameters);
-    }
-    if (values.length !== parameters.length)
-      throw new Error(
-        `${this.nameShown(solidScriptNameKey(name))}() takes ${parameters.length} value(s) (${parameters.map(this.nameShown).join(', ') || 'none'}), not ${values.length}`,
-      );
+    const given = this.functionArguments(node, name, values);
     if (this.stack.length >= SOLID_SCRIPT_PART_DEPTH_MAX)
       throw new Error(
         `this line ran functions or parts more than ${solidScriptLimitCount(SOLID_SCRIPT_PART_DEPTH_MAX)} levels deep. A function or part that uses itself needs an If that stops it.`,
       );
     const locals = new SolidScriptScope(null);
-    for (let index = 0; index < parameters.length; index++) locals.variableDefine(parameters[index]!, values[index]);
+    for (const [key, value] of given) locals.variableDefine(key, value);
     const frame: SolidScriptFrame = { kind: 'function', name, line: this.line, locals, returned: null };
     this.stack.push(frame);
     try {
@@ -228,6 +212,36 @@ export abstract class SolidScriptMachineCalls<
     } finally {
       this.stack.pop();
     }
+  }
+
+  /**
+   * Pairs a Function's input names with the values a call passes; inputs left
+   * off take their defaults.
+   *
+   * @param node Function line.
+   * @param name Function name, for messages.
+   * @param values Values passed.
+   * @returns Input keys with their values.
+   */
+  protected functionArguments(
+    node: SolidScriptBlockNode<Command>,
+    name: string,
+    values: readonly SolidScriptValue[],
+  ): [string, SolidScriptValue][] {
+    let inputs = this.functionParameters.get(node);
+    if (!inputs) {
+      inputs = solidScriptFunctionInputs(node.command.valueText(node.values, 'parameters')).map((input) => ({
+        key: this.nameKey(input.name),
+        fallback: input.fallback === null ? undefined : solidScriptFunctionInputDefault(input.fallback),
+      }));
+      this.functionParameters.set(node, inputs);
+    }
+    const needed = inputs.filter((input) => input.fallback === undefined).length;
+    if (values.length < needed || values.length > inputs.length)
+      throw new Error(
+        `${this.nameShown(solidScriptNameKey(name))}() takes ${needed === inputs.length ? needed : `${needed} to ${inputs.length}`} value(s) (${inputs.map((input) => this.nameShown(input.key)).join(', ') || 'none'}), not ${values.length}`,
+      );
+    return inputs.map((input, index) => [input.key, index < values.length ? values[index] : input.fallback]);
   }
 
   /**

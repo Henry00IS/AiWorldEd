@@ -601,3 +601,6 @@ Solid mutations (including hierarchy create/reparent/rename/ungroup) are **undoa
 - Scatter Points On Faces writes to Rotations, when named, the turn that stands a shape up on the face under each point, in X, Y, Z degrees as Rotation reads them, as Distribute Points on Faces does.
 - Align To has Axis (X, Y or Z: which axis of the items points along Direction, Y by default) and Amount (0 to 1, the share of the turn to take, so 0.5 leans halfway), as Align Rotation to Vector does.
 - RotateBy(rotation, by, local) composes two X, Y, Z degree turns, as Rotate Rotation does: By turns in world space, or in the rotated space when Local is true, which adding the angles does not do.
+- For Each has a 🔁 Where an item must pass, with [$Item] the item, for the lines inside to run for it, such as Where [=[$Item.Normal.Y] > 0.5]; Key still counts in the whole list.
+- Function inputs may have defaults, such as W, D = 1: a call may leave those off, and they take the value after =. Numbers, Yes/No, quoted text and [lists] are read as values. Inputs with a default come last.
+- A Function reruns for each item when its formula is used per item, such as in a Where or a per-face field: [Local.X] holds that item's value each time.
