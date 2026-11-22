@@ -156,6 +156,7 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
       'mirror',
       'resize',
       'matrix',
+      'array',
     ].includes(command.id)
   )
     return [{ command: 'cube', values: { anchor: 'Center, Center, Center' } }, { command: 'select_objects' }, line];
