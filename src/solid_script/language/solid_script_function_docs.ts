@@ -325,14 +325,16 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
     gives: ['Number'],
   },
   first: {
-    usage: 'First(list)',
-    summary: 'The first item, such as First([4, 5, 6]) is 4.',
+    usage: 'First(list, count)',
+    summary:
+      'The first item, such as First([4, 5, 6]) is 4. With a Count, a list of the first items, such as First([4, 5, 6], 2) is [4, 5].',
     group: 'List',
     gives: 'Any',
   },
   last: {
-    usage: 'Last(list)',
-    summary: 'The last item, such as Last([4, 5, 6]) is 6.',
+    usage: 'Last(list, count)',
+    summary:
+      'The last item, such as Last([4, 5, 6]) is 6. With a Count, a list of the last items, such as Last([4, 5, 6], 2) is [5, 6].',
     group: 'List',
     gives: 'Any',
   },
@@ -901,6 +903,8 @@ export function solidScriptFunctionArguments(key: string): SolidScriptFunctionAr
 
 /** Inputs at the end of a function that may be left off, by function key. */
 const SOLID_SCRIPT_FUNCTION_INPUTS_LEFT_OFF: Readonly<Record<string, number>> = {
+  first: 1,
+  last: 1,
   checker: 1,
   log: 1,
   pad_left: 1,

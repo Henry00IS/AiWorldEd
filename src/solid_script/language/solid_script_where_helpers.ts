@@ -42,6 +42,8 @@ export const SOLID_SCRIPT_WHERE_HELPER_KEYS = [
   'chance',
   'random',
   'random_int',
+  'random_direction',
+  'random_rotation',
   'spread',
   'along',
 ] as const;
@@ -73,6 +75,34 @@ export interface SolidScriptWhereHelper {
 
 /** What a yes-or-no helper gives, and its docs group. */
 const SOLID_SCRIPT_WHERE_CHECK = { group: 'Checks', gives: ['Yes/No'] } as const;
+
+/**
+ * The ID and Seed inputs of a random helper.
+ *
+ * @param one What each ID gets, such as value.
+ * @param many The same word for several, such as values.
+ * @returns ID and Seed inputs.
+ */
+function solidScriptWhereRandomInputs(one: string, many: string): SolidScriptWhereHelperInput[] {
+  return [
+    {
+      name: 'id',
+      label: 'ID',
+      type: ['Number'],
+      about: `Which item asks, such as [$Id]; each ID gets its own ${one}.`,
+      start: '0',
+      optional: '0',
+      each: '[$Id]',
+    },
+    {
+      name: 'seed',
+      label: 'Seed',
+      type: ['Number'],
+      about: `Any number, such as 1; another seed gives other ${many} for the same IDs.`,
+      optional: '0',
+    },
+  ];
+}
 
 /**
  * The Where helpers, the functions made for fields that change per item, such
@@ -282,21 +312,7 @@ export const SOLID_SCRIPT_WHERE_HELPERS: readonly SolidScriptWhereHelper[] = [
         about: 'Share of the items that get Yes, from 0 (none) to 1 (all), such as 0.3.',
         start: '0.5',
       },
-      {
-        name: 'id',
-        label: 'ID',
-        type: ['Number'],
-        about: 'Which item asks, such as [$Id]; each ID gets its own answer.',
-        optional: '0',
-        each: '[$Id]',
-      },
-      {
-        name: 'seed',
-        label: 'Seed',
-        type: ['Number'],
-        about: 'Any number, such as 1; another seed gives other answers for the same IDs.',
-        optional: '0',
-      },
+      ...solidScriptWhereRandomInputs('answer', 'answers'),
     ],
   },
   {
@@ -322,21 +338,7 @@ export const SOLID_SCRIPT_WHERE_HELPERS: readonly SolidScriptWhereHelper[] = [
         about: 'The highest value, or a vector of highest values, such as 1.',
         start: '1',
       },
-      {
-        name: 'id',
-        label: 'ID',
-        type: ['Number'],
-        about: 'Which item asks, such as [$Id]; each ID gets its own value.',
-        optional: '0',
-        each: '[$Id]',
-      },
-      {
-        name: 'seed',
-        label: 'Seed',
-        type: ['Number'],
-        about: 'Any number, such as 1; another seed gives other values for the same IDs.',
-        optional: '0',
-      },
+      ...solidScriptWhereRandomInputs('value', 'values'),
     ],
   },
   {
@@ -356,22 +358,28 @@ export const SOLID_SCRIPT_WHERE_HELPERS: readonly SolidScriptWhereHelper[] = [
         about: 'The highest whole number, included, such as 3.',
         start: '3',
       },
-      {
-        name: 'id',
-        label: 'ID',
-        type: ['Number'],
-        about: 'Which item asks, such as [$Id]; each ID gets its own number.',
-        optional: '0',
-        each: '[$Id]',
-      },
-      {
-        name: 'seed',
-        label: 'Seed',
-        type: ['Number'],
-        about: 'Any number, such as 1; another seed gives other numbers for the same IDs.',
-        optional: '0',
-      },
+      ...solidScriptWhereRandomInputs('number', 'numbers'),
     ],
+  },
+  {
+    key: 'random_direction',
+    name: 'RandomDirection',
+    display: 'Random Direction',
+    group: 'Random',
+    gives: ['Vector'],
+    description:
+      'A random direction one unit long, every way equally likely, such as Move Faces by RandomDirection() times 0.1 for a rough surface. The same ID and Seed always give the same direction.',
+    inputs: solidScriptWhereRandomInputs('direction', 'directions'),
+  },
+  {
+    key: 'random_rotation',
+    name: 'RandomRotation',
+    display: 'Random Rotation',
+    group: 'Random',
+    gives: ['Vector'],
+    description:
+      'A random rotation in degrees, turned X then Y then Z, with every orientation equally likely, such as a rotation per scattered rock. The same ID and Seed always give the same rotation.',
+    inputs: solidScriptWhereRandomInputs('rotation', 'rotations'),
   },
   {
     key: 'spread',

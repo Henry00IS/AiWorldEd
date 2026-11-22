@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { solidScriptExtraNumber, solidScriptExtraSeeded } from './solid_script_functions_extra.js';
 import { solidScriptValueNumbers, type SolidScriptValue } from './solid_script_value.js';
+import { solidScriptRotationDegrees } from './solid_script_transforms.js';
 
 /** Built-in function implementation over evaluated positional arguments. */
 type SolidScriptBuiltin = (args: SolidScriptValue[]) => SolidScriptValue;
@@ -53,6 +54,40 @@ function solidScriptWhereMix(
 }
 
 /**
+ * A direction one unit long, every way equally likely, for an ID and a Seed.
+ *
+ * @param id Which item asks.
+ * @param seed Stream.
+ * @returns Unit vector.
+ */
+function solidScriptWhereRandomDirection(id: number, seed: number): THREE.Vector3 {
+  const height = solidScriptWhereRandom(id * 4, seed) * 2 - 1;
+  const turn = solidScriptWhereRandom(id * 4 + 1, seed) * Math.PI * 2;
+  const flat = Math.sqrt(1 - height * height);
+  return new THREE.Vector3(flat * Math.cos(turn), height, flat * Math.sin(turn));
+}
+
+/**
+ * A rotation with every orientation equally likely, for an ID and a Seed, as
+ * degrees turned X then Y then Z.
+ *
+ * @param id Which item asks.
+ * @param seed Stream.
+ * @returns Degrees per axis.
+ */
+function solidScriptWhereRandomRotation(id: number, seed: number): number[] {
+  const [lean, first, second] = [0, 1, 2].map((part) => solidScriptWhereRandom(id * 4 + part, seed)) as [
+    number,
+    number,
+    number,
+  ];
+  const [low, high] = [Math.sqrt(1 - lean), Math.sqrt(lean)];
+  const [a, b] = [first * Math.PI * 2, second * Math.PI * 2];
+  const turn = new THREE.Quaternion(low * Math.sin(a), low * Math.cos(a), high * Math.sin(b), high * Math.cos(b));
+  return solidScriptRotationDegrees(new THREE.Matrix4().makeRotationFromQuaternion(turn));
+}
+
+/**
  * The functions of the Where helpers that are not checks: Random, Chance,
  * Spread and Along. A per-item field fills in their ID or Index and Count.
  */
@@ -69,6 +104,21 @@ export const SOLID_SCRIPT_FUNCTIONS_WHERE = {
     return (
       solidScriptWhereRandom(solidScriptWhereOptional(args, 1, usage), solidScriptWhereOptional(args, 2, usage)) <
       probability
+    );
+  },
+  random_direction: (args) => {
+    const usage = 'RandomDirection(id, seed)';
+    const way = solidScriptWhereRandomDirection(
+      solidScriptWhereOptional(args, 0, usage),
+      solidScriptWhereOptional(args, 1, usage),
+    );
+    return [way.x, way.y, way.z];
+  },
+  random_rotation: (args) => {
+    const usage = 'RandomRotation(id, seed)';
+    return solidScriptWhereRandomRotation(
+      solidScriptWhereOptional(args, 0, usage),
+      solidScriptWhereOptional(args, 1, usage),
     );
   },
   random_int: (args) => {

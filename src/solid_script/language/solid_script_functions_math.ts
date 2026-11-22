@@ -250,6 +250,19 @@ function solidScriptMathStepAmount(args: readonly SolidScriptValue[], usage: str
   return Math.min(1, Math.max(0, (solidScriptExtraNumber(args, 2, usage) - low) / (high - low || 1)));
 }
 
+/**
+ * Reads how many items to take, a whole number of 0 or more.
+ *
+ * @param args Arguments, with the count second.
+ * @param usage How to call the function, for the message.
+ * @returns Count.
+ */
+function solidScriptMathCount(args: readonly SolidScriptValue[], usage: string): number {
+  const count = Math.floor(solidScriptExtraNumber(args, 1, usage));
+  if (count < 0) throw new Error(`${usage} needs a count of 0 or more`);
+  return count;
+}
+
 /** Math and list functions: ranges, smoothing, angles and list picks. */
 export const SOLID_SCRIPT_FUNCTIONS_MATH = {
   smoothstep: (args) => {
@@ -301,8 +314,16 @@ export const SOLID_SCRIPT_FUNCTIONS_MATH = {
     if (numbers.length === 0) throw new Error('Average(list) needs at least one number');
     return numbers.reduce((total, value) => total + value, 0) / numbers.length;
   },
-  first: (args) => solidScriptMathList(args, 0, 'First(list)')[0],
-  last: (args) => solidScriptMathList(args, 0, 'Last(list)').at(-1),
+  first: (args) => {
+    const list = solidScriptMathList(args, 0, 'First(list, count)');
+    return args.length > 1 ? list.slice(0, solidScriptMathCount(args, 'First(list, count)')) : list[0];
+  },
+  last: (args) => {
+    const list = solidScriptMathList(args, 0, 'Last(list, count)');
+    return args.length > 1
+      ? list.slice(Math.max(0, list.length - solidScriptMathCount(args, 'Last(list, count)')))
+      : list.at(-1);
+  },
   slice: (args) => {
     const usage = 'Slice(list, start, count)';
     const list = solidScriptMathList(args, 0, usage);
