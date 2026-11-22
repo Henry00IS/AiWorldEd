@@ -34,6 +34,7 @@ import {
   solidScriptScaleMatrix,
 } from '@/solid_script/language/solid_script_transforms.js';
 import { solidScriptMatrixRows } from '@/solid_script/language/solid_script_reshape.js';
+import { solidScriptTransformRandomize } from '@/solid_script/language/solid_script_transform_randomize.js';
 
 /** What stops every block without its End. */
 const SOLID_SCRIPT_STOPS_END = 'A missing End line.';
@@ -218,6 +219,62 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
       ...(read.changed('around') ? [' Around ', read.value('around')] : []),
     ],
     world: solidScriptTransformAround('Scale By', (args) => solidScriptScaleMatrix(args, 'by')),
+  }),
+  solidScriptTransformTool({
+    id: 'randomize',
+    label: 'Randomize',
+    description: 'Move, turn and scale each object or point by a random amount',
+    manual:
+      'Gives every object or point in Of, or [$Selected.Objects] when Of is left off, its own random change: a move of up to Move metres either way on each axis, a turn of up to Turn degrees either way around X, then Y, then Z, and one Scale factor between the two given, all about its own center. ID picks the random numbers of each item, [$Id] by default, so deleting one item keeps the others where they are; Seed gives another set. The same ID and Seed always give the same change. Without Into the change happens where the items already are; with Into the originals stay and the changed copies are only in that variable. Example: Scatter Points, Place At Points with a Cylinder inside Into [Rocks], then Randomize Of [Rocks] Turn 0, 180, 0 Scale 0.8, 1.2 makes every rock face its own way and size.',
+    stops: [
+      'No objects or points.',
+      'A Scale of 0 or below.',
+      'A Move or Turn that is not one number or three numbers.',
+    ],
+    parameters: [
+      solidScriptParameter(
+        'move',
+        'Move',
+        'vector3',
+        '0, 0, 0',
+        'Largest move either way on X, Y and Z in metres, such as 0.2, 0, 0.2.',
+      ),
+      solidScriptParameter(
+        'turn',
+        'Turn',
+        'vector3',
+        '0, 180, 0',
+        'Largest turn either way around X, Y and Z in degrees, such as 0, 180, 0 for any way around up.',
+      ),
+      {
+        ...solidScriptParameter(
+          'scale',
+          'Scale',
+          'value',
+          '0.8, 1.2',
+          'Smallest and biggest size factor, such as 0.8, 1.2; one number, such as 1, keeps every size.',
+        ),
+        accepts: ['Number', 'Number List', 'Vector', 'Text'],
+      },
+      solidScriptParameter('seed', 'Seed', 'number', '0', 'Another number gives another set of changes, such as 1.'),
+      solidScriptParameter(
+        'id',
+        'ID',
+        'number',
+        '[=[$Id]]',
+        'Which random numbers an item gets, such as [=[$Id]], so an item keeps its change when others are deleted.',
+      ),
+    ],
+    listing: (read) => [
+      'Randomize',
+      ...(read.changed('move') ? [' Move ', read.value('move')] : []),
+      ' Turn ',
+      read.value('turn'),
+      ' Scale ',
+      read.value('scale'),
+      ...(read.changed('seed') ? [' Seed ', read.value('seed')] : []),
+    ],
+    world: solidScriptTransformRandomize,
   }),
   solidScriptTransformTool({
     id: 'scale_to',

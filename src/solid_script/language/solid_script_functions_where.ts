@@ -13,7 +13,7 @@ type SolidScriptBuiltin = (args: SolidScriptValue[]) => SolidScriptValue;
  * @param seed Stream; another seed gives numbers that do not follow these.
  * @returns Number from 0 up to 1.
  */
-function solidScriptWhereRandom(id: number, seed: number): number {
+export function solidScriptWhereRandom(id: number, seed: number): number {
   return solidScriptExtraSeeded(seed === 0 ? id : id + solidScriptExtraSeeded(seed) * 1e6);
 }
 

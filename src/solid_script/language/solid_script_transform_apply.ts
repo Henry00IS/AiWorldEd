@@ -344,7 +344,7 @@ function solidScriptTransformInverse(run: SolidScriptBlockRun, label: string): T
  *   center.
  * @returns Script-space transform.
  */
-function solidScriptTransformAboutCenter(
+export function solidScriptTransformAboutCenter(
   run: SolidScriptBlockRun,
   label: string,
   picked: SolidScriptTransformPicked,

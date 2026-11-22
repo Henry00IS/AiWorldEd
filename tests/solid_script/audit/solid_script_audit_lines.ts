@@ -164,6 +164,7 @@ export function solidScriptAuditLine(
       'resize',
       'matrix',
       'shade_smooth',
+      'randomize',
     ].includes(command.id) &&
     'of' in filled
   )
