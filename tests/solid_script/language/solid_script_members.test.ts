@@ -49,10 +49,10 @@ describe('SolidScript Edge.Center', () => {
       line('echo', { value: '[Edges.First.Middle]' }),
     ];
     const unknown =
-      /an Edge has no \.Middle; it has \.Start, \.End, \.Center, \.Length, \.Direction, \.Angle, \.SignedAngle, \.IsConvex, \.IsBoundary, \.IsUVSplit, \.Id, \.Faces, \.FaceCorners, \.Parent, \.Data/;
+      /an Edge has no \.Middle; it has \.Start, \.End, \.Center, \.Length, \.Direction, \.Angle, \.SignedAngle, \.IsConvex, \.IsBoundary, \.IsManifold, \.IsUVSplit, \.Id, \.Faces, \.FaceCorners, \.Parent, \.Data/;
     expect(run(lines).error?.message ?? '').toMatch(unknown);
     expect(solidScriptKindCheck(solidScriptDocumentCreate(lines)).map((warning) => warning.text)).toEqual([
-      '[Edges.First] holds Edge, which has no .Middle; it has .Start, .End, .Center, .Length, .Direction, .Angle, .SignedAngle, .IsConvex, .IsBoundary, .IsUVSplit, .Id, .Faces, .FaceCorners, .Parent, .Data',
+      '[Edges.First] holds Edge, which has no .Middle; it has .Start, .End, .Center, .Length, .Direction, .Angle, .SignedAngle, .IsConvex, .IsBoundary, .IsManifold, .IsUVSplit, .Id, .Faces, .FaceCorners, .Parent, .Data',
     ]);
   });
 });

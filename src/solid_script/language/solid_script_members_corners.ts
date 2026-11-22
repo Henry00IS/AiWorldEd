@@ -72,3 +72,31 @@ function solidScriptCornerUvDiffers(a: [number, number] | undefined, b: [number,
   if (!a || !b) return false;
   return Math.hypot(a[0] - b[0], a[1] - b[1]) > SOLID_SCRIPT_CORNER_SAME;
 }
+
+/** Most a face's corners may spread along its normal and still count as flat. */
+const SOLID_SCRIPT_CORNER_PLANAR = 0.01;
+
+/**
+ * Measures how far a face is bent: how far its corners spread along its normal,
+ * 0 for a flat face.
+ *
+ * @param pieces Pieces of the face, at least one.
+ * @returns Spread in metres.
+ */
+export function solidScriptCornerWarp(pieces: readonly SolidScriptFaceFacts[]): number {
+  const normal = pieces[0]?.normal;
+  if (!normal) return 0;
+  const heights = pieces.flatMap((face) => face.corners.map((corner) => corner.dot(normal)));
+  return Math.max(...heights) - Math.min(...heights);
+}
+
+/**
+ * Tells whether a face is flat: its corners spread less than a centimetre along
+ * its normal.
+ *
+ * @param pieces Pieces of the face, at least one.
+ * @returns True for a flat face.
+ */
+export function solidScriptCornerPlanar(pieces: readonly SolidScriptFaceFacts[]): boolean {
+  return solidScriptCornerWarp(pieces) <= SOLID_SCRIPT_CORNER_PLANAR;
+}

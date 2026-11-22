@@ -1,5 +1,7 @@
 import {
   solidScriptCornerAngles,
+  solidScriptCornerPlanar,
+  solidScriptCornerWarp,
   solidScriptCornerEdgeUvSplit,
   solidScriptCornerUvSplit,
 } from './solid_script_members_corners.js';
@@ -138,6 +140,8 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     Parent: form('Parents', 'Object'),
     UVs: form('UVs', 'Vector List'),
     Angles: form('Angles', 'Number List'),
+    IsPlanar: form('IsPlanar', 'Yes/No'),
+    Warp: form('Warps', 'Number'),
     FaceCorners: form('FaceCorners', 'FaceCorner List'),
     Texture: form('Textures', 'Text'),
     Data: form('Data', 'Data'),
@@ -152,6 +156,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     SignedAngle: form('SignedAngles', 'Number'),
     IsConvex: form('IsConvex', 'Yes/No'),
     IsBoundary: form('IsBoundaries', 'Yes/No'),
+    IsManifold: form('IsManifold', 'Yes/No'),
     IsUVSplit: form('IsUVSplits', 'Yes/No'),
     Id: form('Ids', 'Number'),
     Faces: form('Faces', 'Face List'),
@@ -600,6 +605,8 @@ function solidScriptMemberElement(
       if (member === 'signedangle') return solidScriptMemberRound(solidScriptMemberEdgeSigned(edges));
       if (member === 'isconvex') return solidScriptMemberEdgeSigned(edges) > SOLID_SCRIPT_MEMBER_FLAT;
       if (member === 'isboundary') return leaf.kind === 'mesh' && edges.some((edge) => edge.faces[1] === null);
+      if (member === 'ismanifold')
+        return faceList(edges.flatMap((edge) => edge.faces.filter((face) => face !== null))).length === 2;
       if (member === 'isuvsplit') return edges.some(solidScriptCornerEdgeUvSplit);
       if (member === 'facecorners') return solidScriptFaceCornersAlongEdge(elements, edges);
       return solidScriptMemberEdge(edges, member);
@@ -762,6 +769,10 @@ function solidScriptMemberFace(
       return vertexList();
     case 'angles':
       return solidScriptCornerAngles(first).map(solidScriptMemberRound);
+    case 'isplanar':
+      return solidScriptCornerPlanar(pieces);
+    case 'warp':
+      return solidScriptMemberRound(solidScriptCornerWarp(pieces));
     case 'facecorners':
       return solidScriptFaceCornersOfFace(elements, first);
     case 'uvs':
