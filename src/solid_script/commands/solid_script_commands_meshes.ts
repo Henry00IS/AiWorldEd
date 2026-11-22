@@ -1,7 +1,9 @@
 import { solidScriptListingOf } from './solid_script_command_listing.js';
+import { solidScriptConditionHolds } from '@/solid_script/language/solid_script_condition.js';
 import { solidScriptEachUses } from '@/solid_script/language/solid_script_each_uses.js';
 import { solidScriptParameterEach } from './solid_script_command_each.js';
 import * as THREE from 'three';
+import { solidScriptMeshMerge } from '@/solid_script/language/solid_script_mesh_merge.js';
 import { solidScriptKindNamed } from '@/solid_script/language/solid_script_kinds.js';
 import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
@@ -11,6 +13,7 @@ import {
   solidScriptParameterAnchor,
   solidScriptParameterOf,
   solidScriptParameterOptional,
+  solidScriptParameterWords,
 } from './solid_script_command_parameters.js';
 import { solidScriptParameterOfWhere } from './solid_script_command_of_where.js';
 import { solidScriptMeshModeSet, solidScriptParameterMeshMode } from './solid_script_command_mesh_mode.js';
@@ -20,7 +23,6 @@ import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_m
 import {
   SOLID_SCRIPT_MESH_NEEDS_WRAP,
   solidScriptMeshJoin,
-  solidScriptMeshMerge,
   solidScriptMeshSmooth,
   solidScriptMeshSubdivide,
   type SolidScriptShapeMesh,
@@ -267,6 +269,34 @@ function solidScriptMeshDisplaceRun(run: SolidScriptBlockRun, mesh: SolidScriptS
   });
 }
 
+/**
+ * Welds the corners of a mesh for Merge By Distance: Mode All welds any near
+ * corners, Connected only the ends of short edges; a corner must pass Weld
+ * Where to be welded.
+ *
+ * @param run Running line.
+ * @param mesh Mesh.
+ * @param distance Largest gap that is welded.
+ * @returns Welded mesh.
+ */
+function solidScriptMeshMergeRun(
+  run: SolidScriptBlockRun,
+  mesh: SolidScriptShapeMesh,
+  distance: number,
+): SolidScriptShapeMesh {
+  const mode = run.text('merging').trim().toLowerCase() || 'all';
+  if (mode !== 'all' && mode !== 'connected')
+    throw new Error(`Mode needs All or Connected, not ${run.text('merging')}`);
+  const count = mesh.points.length;
+  const welds = (index: number): boolean => {
+    if (run.source('weld').trim() === '') return true;
+    const position = mesh.points[index] ?? new THREE.Vector3();
+    const $Vertex = run.elements.vertex(mesh, { index, position, normal: new THREE.Vector3() });
+    return solidScriptConditionHolds(run, 'weld', { $Vertex, $Index: index, $Count: count });
+  };
+  return solidScriptMeshMerge(mesh, distance, { connected: mode === 'connected', welds });
+}
+
 /** Commands that build and change meshes, which become regular mesh objects. */
 export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
@@ -457,7 +487,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Weld corners that nearly touch',
     manual:
-      'Welds corners of a mesh that are closer than Distance into one, so pieces that touch share their corners and smooth as one surface. Faces that fold away are dropped. Of is the mesh to weld; empty uses [$Selected.Objects]. A solid stops the line: wrap it in Mesh From Solids first, which also bakes several solids, including cuts, into one mesh. Example: Mesh From Solids around two Cubes side by side, then Merge By Distance 0.001, gives one mesh whose touching corners are shared.',
+      'Welds corners of a mesh that are closer than Distance into one, so pieces that touch share their corners and smooth as one surface. Faces that fold away are dropped. Mode Connected welds only the two ends of an edge shorter than Distance, so separate parts that nearly touch stay apart. The 🔁 Weld Where, when given, is a condition a corner must pass to be welded. Of is the mesh to weld; empty uses [$Selected.Objects]. A solid stops the line: wrap it in Mesh From Solids first, which also bakes several solids, including cuts, into one mesh. Example: Mesh From Solids around two Cubes side by side, then Merge By Distance 0.001, gives one mesh whose touching corners are shared.',
     stops: ['A Distance below 0.', 'A solid. Wrap it in Mesh From Solids first.', 'No mesh to work on.'],
     parameters: [
       solidScriptParameter(
@@ -467,14 +497,39 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
         '0.001',
         'Largest gap between corners that are welded, in metres, such as 0.01.',
       ),
+      solidScriptParameterWords(
+        'merging',
+        'Mode',
+        'text',
+        'All',
+        'Which corners weld: All for any corners that near, or Connected for only the two ends of an edge shorter than Distance. Type All or Connected, such as All.',
+        [
+          { word: 'All', detail: 'Any corners closer than Distance' },
+          { word: 'Connected', detail: 'Only the ends of edges shorter than Distance' },
+        ],
+      ),
+      solidScriptParameterEach(
+        solidScriptParameterOptional(
+          'weld',
+          'Weld Where',
+          'value',
+          'A condition each corner must pass to be welded, such as [=[$Vertex.Position.Y] > 0]. Left off may weld every corner.',
+        ),
+        'Vertex',
+      ),
       solidScriptParameterOfWhere('Object', '[=[$Object.Center.Y] > 0]'),
       solidScriptParameterOf('meshes', '$Selected.Objects', ['Object']),
     ],
-    listing: (read) => ['Merge By Distance', read.value('distance'), ...solidScriptListingOf(read)],
+    listing: (read) => [
+      'Merge By Distance',
+      read.value('distance'),
+      ...solidScriptListingOptions([read.changed('merging') && ['Mode ', read.value('merging')]]),
+      ...solidScriptListingOf(read),
+    ],
     execute: (run) => {
       const distance = solidScriptMeshNumber(run.value('distance'), 'Distance');
       if (distance < 0) throw new Error(`Distance must be 0 or more, not ${distance}`);
-      return solidScriptMeshApply(run, 'Merge By Distance', (mesh) => solidScriptMeshMerge(mesh, distance));
+      return solidScriptMeshApply(run, 'Merge By Distance', (mesh) => solidScriptMeshMergeRun(run, mesh, distance));
     },
   }),
   new SolidScriptCommand({

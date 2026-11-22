@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { solidScriptMeshMerge } from './solid_script_mesh_merge.js';
 import { SolidCsgCompiler } from '@/solid/algorithm/compile/solid_csg_compiler.js';
 import type { SolidCompiledPolygon } from '@/solid/algorithm/compile/solid_compiled_polygon.js';
 import { SOLID_VERTEX_EQUAL_EPSILON } from '@/solid/algorithm/math/solid_math_constants.js';
@@ -18,7 +19,6 @@ import {
   solidScriptMeshChecked,
   solidScriptMeshJoin,
   solidScriptMeshLoopNormal,
-  solidScriptMeshMerge,
   type SolidScriptShapeMesh,
   type SolidScriptUv,
 } from './solid_script_mesh.js';
