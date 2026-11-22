@@ -12,7 +12,10 @@ import {
   SOLID_SCRIPT_KIND_CHECK_DOCS,
 } from './solid_script_functions_kind_checks.js';
 import { SOLID_SCRIPT_FUNCTION_DOCS_MATH, solidScriptFunctionDocSummary } from './solid_script_function_docs_math.js';
-import { SOLID_SCRIPT_FUNCTION_DOCS_SHAPING } from './solid_script_function_docs_shaping.js';
+import {
+  SOLID_SCRIPT_FUNCTION_DOCS_MATRIX,
+  SOLID_SCRIPT_FUNCTION_DOCS_SHAPING,
+} from './solid_script_function_docs_shaping.js';
 /** A kind of value the editor checks name, such as Face or Face List. */
 export type SolidScriptKindName = (typeof SOLID_SCRIPT_KINDS)[number] | `${(typeof SOLID_SCRIPT_KINDS)[number]} List`;
 
@@ -87,6 +90,7 @@ export interface SolidScriptFunctionDoc {
 const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, SolidScriptFunctionDoc>> = {
   ...SOLID_SCRIPT_FUNCTION_DOCS_MATH,
   ...SOLID_SCRIPT_FUNCTION_DOCS_SHAPING,
+  ...SOLID_SCRIPT_FUNCTION_DOCS_MATRIX,
   str: {
     usage: 'Str(a, b, ...)',
     summary: 'Joins values into one text, such as Str(3, "x") is 3x.',
@@ -721,6 +725,23 @@ const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
     vector: { type: ['Vector'], about: 'The point or direction to turn.', start: '1, 0, 0' },
     angles: { type: ['Vector'], about: 'Degrees around X, then Y, then Z.', start: '0, 90, 0' },
   },
+  transform: {
+    move: { type: ['Vector'], about: 'How far to move, in metres.', start: '0, 0, 0' },
+    rotate: { type: ['Vector'], about: 'Degrees around X, Y and Z.', start: '0, 0, 0' },
+    scale: { type: ['Vector'], about: 'Scale along each axis.', start: '1, 1, 1' },
+  },
+  invert: { matrix: { type: ['List'], about: 'A matrix, such as one from Transform.' } },
+  transform_point: {
+    matrix: { type: ['List'], about: 'A matrix, such as one from Transform.' },
+    point: { type: ['Vector'], about: 'The point to place.', start: '0, 0, 0' },
+  },
+  transform_direction: {
+    matrix: { type: ['List'], about: 'A matrix, such as one from Transform.' },
+    direction: { type: ['Vector'], about: 'The direction to turn.', start: '0, 1, 0' },
+  },
+  matrix_move: { matrix: { type: ['List'], about: 'A matrix, such as one from Transform.' } },
+  matrix_rotate: { matrix: { type: ['List'], about: 'A matrix, such as one from Transform.' } },
+  matrix_scale: { matrix: { type: ['List'], about: 'A matrix, such as one from Transform.' } },
   project_onto: {
     vector: { type: ['Vector'], about: 'The vector to project.', start: '2, 3, 0' },
     direction: { type: ['Vector'], about: 'The direction to keep.', start: '1, 0, 0' },

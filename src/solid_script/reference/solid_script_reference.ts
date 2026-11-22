@@ -98,6 +98,8 @@ Formulas know: numbers, text in double quotes, true, false, every name in bracke
 - Part names become solid and group names in the outliner, so wrap pieces in Define Part for readable names.
 - Generator blocks (Cone, Capsule, Torus, Pipe, Pyramid, Prism, Rhombicuboctahedron, Hollow Box, Curved Stairs, Column, Stairs, Arch, Blast Hole) build the same pieces as the generator of that name: they fill a box of their Size, placed on the origin by their Anchor, and their other fields have the generator's names, ranges and choices. A choice is written as its value, such as "z" for Prism's Axis, and may come from a variable. Sphere and Cylinder are built the same way as the Sphere, Cylinder and Cone generators.
 
+- Matrix formulas: Transform(move, rotate, scale) makes four rows of four numbers; Invert undoes it, TransformPoint places a point, TransformDirection turns and scales a direction without moving it, and MatrixMove/MatrixRotate/MatrixScale read its parts.
+
 ## Meshes
 
 - Mesh blocks build regular editable meshes instead of solids. Mesh holds Vertex lines (a position and an optional texture coordinate) and Face lines (vertex numbers from 0, counter-clockwise seen from outside). Mesh From Solids turns the solids inside it into one mesh, baking their cut result the same way the editor cuts solids, including Subtractive and Intersecting modes and Group; only the solids inside the block are baked, not the rest of the world. Grid Mesh builds a mesh of quads in a plane: Size is width, height and depth, with one length at 0 so the grid is flat (2, 0, 2 on the ground, 2, 2, 0 for a wall facing the front); Columns and Rows are how many faces there are, and Anchor works like Cube.

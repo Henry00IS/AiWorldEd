@@ -72,3 +72,83 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_SHAPING = {
     gives: ['Vector'],
   },
 } as const satisfies Partial<Record<SolidScriptBuiltinName, SolidScriptFunctionDoc>>;
+
+/** Docs of the matrix functions. */
+export const SOLID_SCRIPT_FUNCTION_DOCS_MATRIX = {
+  transform: {
+    usage: 'Transform(move, rotate, scale)',
+    summary: solidScriptFunctionDocSummary(
+      'Packs a move, a turn and a scale into one matrix: four rows of four numbers. It scales first, then turns around X, Y and Z like Rotate, then moves.',
+      ['Transform(Vector(1, 2, 3), Vector(0, 0, 0), Vector(1, 1, 1)) moves by 1, 2, 3.'],
+      'Use it to keep a whole placement in one variable, then apply it with TransformPoint or undo it with Invert.',
+    ),
+    group: 'Vector',
+    gives: ['List'],
+  },
+  invert: {
+    usage: 'Invert(matrix)',
+    summary: solidScriptFunctionDocSummary(
+      'The matrix that undoes another: applying both leaves every point where it was.',
+      [
+        'TransformPoint(Invert(Transform(Vector(1, 0, 0), Vector(0, 0, 0), Vector(1, 1, 1))), Vector(1, 0, 0)) is Vector(0, 0, 0).',
+      ],
+      'Use it to turn a world point into the space of a placed object.',
+    ),
+    group: 'Vector',
+    gives: ['List'],
+  },
+  transform_point: {
+    usage: 'TransformPoint(matrix, point)',
+    summary: solidScriptFunctionDocSummary(
+      'Places a point with a matrix: it is scaled, turned and moved.',
+      [
+        'TransformPoint(Transform(Vector(1, 2, 3), Vector(0, 0, 0), Vector(1, 1, 1)), Vector(0, 0, 0)) is Vector(1, 2, 3).',
+      ],
+      'Use it for corners and positions.',
+    ),
+    group: 'Vector',
+    gives: ['Vector'],
+  },
+  transform_direction: {
+    usage: 'TransformDirection(matrix, direction)',
+    summary: solidScriptFunctionDocSummary(
+      'Turns and scales a direction with a matrix but does not move it, since a direction has no place.',
+      [
+        'TransformDirection(Transform(Vector(5, 0, 0), Vector(0, 0, 0), Vector(1, 1, 1)), Vector(0, 1, 0)) is Vector(0, 1, 0).',
+      ],
+      'Use it for normals, offsets and the way something faces.',
+    ),
+    group: 'Vector',
+    gives: ['Vector'],
+  },
+  matrix_move: {
+    usage: 'MatrixMove(matrix)',
+    summary: solidScriptFunctionDocSummary(
+      'The move a matrix makes: where it puts 0, 0, 0.',
+      ['MatrixMove(Transform(Vector(1, 2, 3), Vector(0, 0, 0), Vector(1, 1, 1))) is Vector(1, 2, 3).'],
+      'Use it to read the position back out of a placement.',
+    ),
+    group: 'Vector',
+    gives: ['Vector'],
+  },
+  matrix_rotate: {
+    usage: 'MatrixRotate(matrix)',
+    summary: solidScriptFunctionDocSummary(
+      'The turn a matrix makes, as degrees around X, Y and Z in the order Rotate uses.',
+      ['MatrixRotate(Transform(Vector(0, 0, 0), Vector(0, 0, 0), Vector(1, 1, 1))) is Vector(0, 0, 0).'],
+      'Use it to read the rotation back out of a placement.',
+    ),
+    group: 'Vector',
+    gives: ['Vector'],
+  },
+  matrix_scale: {
+    usage: 'MatrixScale(matrix)',
+    summary: solidScriptFunctionDocSummary(
+      'The scale a matrix makes along each axis.',
+      ['MatrixScale(Transform(Vector(0, 0, 0), Vector(0, 0, 0), Vector(2, 1, 1))) is Vector(2, 1, 1).'],
+      'Use it to read the size back out of a placement.',
+    ),
+    group: 'Vector',
+    gives: ['Vector'],
+  },
+} as const satisfies Partial<Record<SolidScriptBuiltinName, SolidScriptFunctionDoc>>;
