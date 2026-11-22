@@ -38,4 +38,19 @@ describe('Cluster', () => {
   it('stops on a groups list of the wrong length', () => {
     expect(formula(`Cluster(${POINTS}, 0.6, [1, 2])`)).toContain('one group per point');
   });
+
+  it('joins points only along edges whose cluster middles are closer than Distance', () => {
+    const points = '[Vector(0, 0, 0), Vector(0.1, 0, 0), Vector(0.2, 0, 0), Vector(5, 0, 0)]';
+    const starts = '[Vector(0, 0, 0), Vector(0.1, 0, 0), Vector(0.2, 0, 0)]';
+    const ends = '[Vector(0.1, 0, 0), Vector(0.2, 0, 0), Vector(5, 0, 0)]';
+    expect(formula(`ClusterConnected(${points}, ${starts}, ${ends}, 0.2)`)).toBe('[0, 0, 0, 3]');
+    expect(formula(`ClusterConnected(${points}, ${starts}, ${ends}, 0.12)`)).toBe('[0, 0, 2, 3]');
+    expect(formula(`ClusterConnected(${points}, ${starts}, ${ends})`)).toBe('[0, 1, 2, 3]');
+  });
+
+  it('stops on edge lists of different lengths', () => {
+    expect(formula('ClusterConnected(List(Vector(0, 0, 0)), List(Vector(0, 0, 0)), List())')).toContain(
+      'one End per Start',
+    );
+  });
 });

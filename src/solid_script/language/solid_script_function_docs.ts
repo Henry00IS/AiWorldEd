@@ -949,6 +949,7 @@ export function solidScriptFunctionArguments(key: string): SolidScriptFunctionAr
 const SOLID_SCRIPT_FUNCTION_INPUTS_LEFT_OFF: Readonly<Record<string, number>> = {
   nearest: 3,
   cluster: 2,
+  cluster_connected: 1,
   first: 1,
   last: 1,
   checker: 1,

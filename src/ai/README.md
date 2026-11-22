@@ -637,3 +637,5 @@ Solid mutations (including hierarchy create/reparent/rename/ungroup) are **undoa
 - Select Shortest Paths picks the edges of the cheapest way from Start corners to the nearest End corner, with a Cost per edge.
 - Face Groups splits faces into groups joined through edges, stopping at edges that pass Cut.
 - Set Handles bends a path into Bezier stretches between per-point handles; Set Path Type turns a path Poly or Bezier; Path.HandlesLeft and Path.HandlesRight read them.
+- Sweep Along Path takes an optional Up per Point: the profile's up faces it on each stretch, else it turns as little as possible from the stretch before.
+- ClusterConnected(points, starts, ends, distance) groups points joined by edges whose cluster middles are closer than Distance.
