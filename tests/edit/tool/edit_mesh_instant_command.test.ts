@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { runEditMeshInstantCommand } from '@/edit/tool/edit_mesh_instant_command.js';
+import { getStateTexturePaint } from '@/texture/paint/state_texture_paint.js';
 import type { HandlerComponentMeshOperations } from '@/edit/topology/handler_component_mesh_operations.js';
 
 describe('runEditMeshInstantCommand', () => {
@@ -62,5 +63,16 @@ describe('runEditMeshInstantCommand', () => {
       'rotate',
       'collapse',
     ]);
+  });
+
+  it('paints the selected faces with the last picked texture', () => {
+    const painted: string[] = [];
+    const operations = {
+      assignTextureToSelectedFaces: (textureId: string) => painted.push(textureId),
+    } as unknown as HandlerComponentMeshOperations;
+    getStateTexturePaint().setLastTextureId('walls/brick.png');
+    expect(runEditMeshInstantCommand('assign_texture', operations)).toBe(true);
+    getStateTexturePaint().reset();
+    expect(painted).toEqual(['walls/brick.png']);
   });
 });

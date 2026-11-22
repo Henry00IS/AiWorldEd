@@ -40,6 +40,7 @@ import { rotateTopologyWorkingEdges } from './topology_edge_rotate.js';
 import { collapseTopologyWorkingEdges } from './topology_edge_collapse.js';
 import { fillTopologyWorkingHoles } from './topology_face_fill_holes.js';
 import { smoothTopologyWorkingVertices } from './topology_vertex_smooth.js';
+import { assignTopologyWorkingFaceTexture } from './topology_face_texture.js';
 import { findEditDomainTargetById, resolveTopologyEditTarget } from './topology_target_resolve.js';
 import type { TopologyMeshTarget } from './topology_target.js';
 import type { TopologyWorkingGeometry } from './topology_working_geometry.js';
@@ -284,6 +285,34 @@ export class HandlerComponentMeshOperations {
   flipSelectedFaces(): boolean {
     return this.mutateSelectedMeshFaces('Flip Faces', (_target, geometry, faces) =>
       flipTopologyWorkingFaces(geometry, faces),
+    );
+  }
+
+  /**
+   * Returns whether a texture picked now paints Edit Mode faces: the session is
+   * in Face mode on at least one mesh. Brush-only sessions keep their own
+   * paint.
+   *
+   * @returns True when picks belong to {@link assignTextureToSelectedFaces}.
+   */
+  takesTexturePicks(): boolean {
+    const session = this.deps.getSession();
+    return (
+      session.isActive() &&
+      session.getComponentMode() === EditorComponentMode.FACE &&
+      session.getContentMeshTargets().length > 0
+    );
+  }
+
+  /**
+   * Paints the selected mesh faces with a texture, one undo step per mesh.
+   *
+   * @param textureId Library texture.
+   * @returns True when at least one face changed texture.
+   */
+  assignTextureToSelectedFaces(textureId: string): boolean {
+    return this.mutateSelectedMeshFaces('Assign Texture', (_target, geometry, faces) =>
+      assignTopologyWorkingFaceTexture(geometry, faces, textureId),
     );
   }
 

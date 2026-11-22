@@ -111,6 +111,8 @@ describe('viewport_tool_edit_menu', () => {
       'Triangulate Faces',
       'Poke Faces',
       'Join Triangles',
+      'separator',
+      'Assign Texture',
     ]);
     for (const entry of entries) if (isMenuAction(entry)) entry.onClick();
     expect(calls).toEqual([
@@ -125,6 +127,7 @@ describe('viewport_tool_edit_menu', () => {
       'tool:triangulate_faces',
       'tool:poke_faces',
       'tool:join_triangles',
+      'tool:assign_texture',
     ]);
     expect(shortcutForLabel(entries, 'Duplicate Faces')).toBe('Shift+D');
     expect(shortcutForLabel(entries, 'Extrude Faces')).toBe('E');
