@@ -1,3 +1,4 @@
+import { solidScriptParameterEach } from './solid_script_command_each.js';
 import { solidScriptListingOf } from './solid_script_command_listing.js';
 import { solidScriptParameterOfWhere } from './solid_script_command_of_where.js';
 import * as THREE from 'three';
@@ -60,11 +61,11 @@ function solidScriptArrayPathOf(run: SolidScriptBlockRun): { path: number[][]; c
  * Reads the layout of an Array line from its fields.
  *
  * @param run Running line.
+ * @param count Number of copies, including the original.
  * @returns Layout.
  */
-function solidScriptArrayLayoutOf(run: SolidScriptBlockRun): SolidScriptArrayLayout {
+function solidScriptArrayLayoutOf(run: SolidScriptBlockRun, count: number): SolidScriptArrayLayout {
   const fields = run.fields();
-  const count = Math.round(fields.number('count', 3));
   if (count < 1 || count > SOLID_SCRIPT_ARRAY_COUNT_MAX)
     throw new Error(`Count must be 1 to ${SOLID_SCRIPT_ARRAY_COUNT_MAX}, not ${count}`);
   const shape = solidScriptArrayShapeOf(run);
@@ -83,7 +84,8 @@ function solidScriptArrayLayoutOf(run: SolidScriptBlockRun): SolidScriptArrayLay
 }
 
 /**
- * Makes the copies of an Array line and adds them as built by it.
+ * Makes the copies of an Array line and adds them as built by it; every
+ * original and copy gets its copy number under .Data.Copy.
  *
  * @param run Running line.
  * @returns The copies placed in the result.
@@ -91,21 +93,59 @@ function solidScriptArrayLayoutOf(run: SolidScriptBlockRun): SolidScriptArrayLay
 function solidScriptArrayRun(run: SolidScriptBlockRun): SolidScriptShape[] {
   const picked = solidScriptTransformPicked(run, 'Array');
   if (picked.kind !== 'leaves') throw new Error('Array copies objects, not points or paths');
-  const matrices = solidScriptArrayMatrices(solidScriptArrayLayoutOf(run));
-  const copies = matrices.flatMap((matrix) => {
-    const world = solidScriptTransformWorld(run.matrix(), matrix);
-    return picked.leaves.map(
-      (leaf) =>
-        solidScriptShapeTransform(solidScriptShapeClone(run.leafLatest(leaf)), world) as SolidScriptGeometryLeaf,
-    );
+  const numbered = picked.leaves.flatMap((leaf, index) => {
+    const count = run.valueWith('count', {
+      $Object: run.elements.brush(leaf),
+      $Index: index,
+      $Count: picked.leaves.length,
+    });
+    if (typeof count !== 'number') throw new Error('Count needs a number, such as 3');
+    return solidScriptArrayCopies(run, leaf, Math.round(count));
   });
-  const adopted = run.adopted(copies);
+  const adopted = run.adopted(numbered.map(({ copy }) => copy));
+  const kept = numbered.filter(({ copy }) => adopted.includes(copy));
+  for (const leaf of picked.leaves) solidScriptArrayNumber(run, run.leafLatest(leaf), 0);
+  for (const { copy, number } of kept) solidScriptArrayNumber(run, copy, number);
   solidScriptFaceWrite(
     run,
     'into',
-    copies.filter((copy) => adopted.includes(copy)).map((copy) => run.elements.brush(copy)),
+    kept.map(({ copy }) => run.elements.brush(copy)),
   );
   return adopted;
+}
+
+/**
+ * Makes the extra copies of one object, numbered from 1.
+ *
+ * @param run Running line.
+ * @param leaf Object to copy.
+ * @param count Number including the original.
+ * @returns Extra copies with their numbers.
+ */
+function solidScriptArrayCopies(
+  run: SolidScriptBlockRun,
+  leaf: SolidScriptGeometryLeaf,
+  count: number,
+): { copy: SolidScriptGeometryLeaf; number: number }[] {
+  return solidScriptArrayMatrices(solidScriptArrayLayoutOf(run, count)).map((matrix, index) => ({
+    copy: solidScriptShapeTransform(
+      solidScriptShapeClone(run.leafLatest(leaf)),
+      solidScriptTransformWorld(run.matrix(), matrix),
+    ) as SolidScriptGeometryLeaf,
+    number: index + 1,
+  }));
+}
+
+/**
+ * Writes the copy number of an object under .Data.Copy: 0 for the original.
+ *
+ * @param run Running line.
+ * @param leaf Original or copy.
+ * @param number Copy number.
+ */
+function solidScriptArrayNumber(run: SolidScriptBlockRun, leaf: SolidScriptGeometryLeaf, number: number): void {
+  const element = run.elements.brush(leaf);
+  run.elements.dataWrite(run.elements.data(element), 'copy', 'Copy', number);
 }
 
 /** Array: copies of objects along a line, around a circle or along a path. */
@@ -117,7 +157,7 @@ export const SOLID_SCRIPT_COMMANDS_ARRAY: readonly SolidScriptCommand[] = [
     category: 'Transforms',
     description: 'Copy objects along a line, a circle or a path',
     manual:
-      'Makes copies of the objects in Of, so there are Count of each, the original first. Shape Line puts each copy Offset further than the one before. Circle turns the copies evenly around Axis through Center over Angle degrees; a whole turn of 360 leaves no copy on top of the original. Along Path spreads them evenly along a Path by length, the original at its start, and with Align on turns each copy as the Path turns. Of is the objects; empty uses [$Selected.Objects]. Without Into the copies join the result; with Into they are only in that variable, until Output. Example: a Cube, then Array Count 5 Offset 1.5, 0, 0 makes a row of five, and Array Count 8 Shape Circle around a post at 3, 0, 0 makes a ring of eight.',
+      'Makes copies of the objects in Of, so there are Count of each, the original first. The 🔁 Count may vary per object, such as [=[$Index] + 2]. Shape Line puts each copy Offset further than the one before. Circle turns the copies evenly around Axis through Center over Angle degrees; a whole turn of 360 leaves no copy on top of the original. Along Path spreads them evenly along a Path by length, the original at its start, and with Align on turns each copy as the Path turns. Of is the objects; empty uses [$Selected.Objects]. The copy number of each object is under [Object.Data.Copy], 0 for the original and 1 on for the copies, so later lines can vary by it, such as Move By [=Vector(0, [$Item.Data.Copy] * 0.2, 0)]. Without Into the copies join the result; with Into they are only in that variable, until Output. Example: a Cube, then Array Count 5 Offset 1.5, 0, 0 makes a row of five, and Array Count 8 Shape Circle around a post at 3, 0, 0 makes a ring of eight.',
     stops: [
       `A Count below 1 or above ${SOLID_SCRIPT_ARRAY_COUNT_MAX}.`,
       'A Shape that is not Line, Circle or Along Path.',
@@ -125,12 +165,15 @@ export const SOLID_SCRIPT_COMMANDS_ARRAY: readonly SolidScriptCommand[] = [
       'Points or paths in Of: Array copies objects.',
     ],
     parameters: [
-      solidScriptParameter(
-        'count',
-        'Count',
-        'count',
-        '3',
-        `How many there are in the end, the original included, 1 to ${SOLID_SCRIPT_ARRAY_COUNT_MAX}, such as 5.`,
+      solidScriptParameterEach(
+        solidScriptParameter(
+          'count',
+          'Count',
+          'count',
+          '3',
+          `How many there are in the end, the original included, 1 to ${SOLID_SCRIPT_ARRAY_COUNT_MAX}, such as 5.`,
+        ),
+        'Object',
       ),
       solidScriptParameterWords(
         'shape',
