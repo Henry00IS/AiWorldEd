@@ -11,6 +11,12 @@ import type { SolidScriptElements } from './solid_script_elements.js';
 import type { SolidScriptEdgeFacts, SolidScriptFaceFacts } from './solid_script_geometry.js';
 import { solidScriptKindNamed } from './solid_script_kinds.js';
 import { solidScriptFaceCornerUvs } from './solid_script_uvs.js';
+import {
+  solidScriptFaceCornerMember,
+  solidScriptFaceCornersAlongEdge,
+  solidScriptFaceCornersAtVertex,
+  solidScriptFaceCornersOfFace,
+} from './solid_script_members_face_corner.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
 import { solidScriptMemberIdOf } from './solid_script_member_id.js';
 import { solidScriptMemberForm } from './solid_script_shown_names.js';
@@ -54,6 +60,7 @@ const SOLID_SCRIPT_MEMBER_LIST_WORDS: Readonly<Record<string, string>> = {
   'Face List': 'Faces',
   'Edge List': 'Edges',
   'Vertex List': 'Vertices',
+  'FaceCorner List': 'FaceCorners',
 };
 
 /** One declared member, with the name used through a list. */
@@ -131,6 +138,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     Parent: form('Parents', 'Object'),
     UVs: form('UVs', 'Vector List'),
     Angles: form('Angles', 'Number List'),
+    FaceCorners: form('FaceCorners', 'FaceCorner List'),
     Texture: form('Textures', 'Text'),
     Data: form('Data', 'Data'),
   },
@@ -147,6 +155,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     IsUVSplit: form('IsUVSplits', 'Yes/No'),
     Id: form('Ids', 'Number'),
     Faces: form('Faces', 'Face List'),
+    FaceCorners: form('FaceCorners', 'FaceCorner List'),
     Parent: form('Parents', 'Object'),
     Data: form('Data', 'Data'),
   },
@@ -157,6 +166,20 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     Faces: form('Faces', 'Face List'),
     Edges: form('Edges', 'Edge List'),
     IsUVSplit: form('IsUVSplits', 'Yes/No'),
+    FaceCorners: form('FaceCorners', 'FaceCorner List'),
+    Parent: form('Parents', 'Object'),
+    Data: form('Data', 'Data'),
+  },
+  FaceCorner: {
+    Face: form('Faces', 'Face'),
+    Vertex: form('Vertices', 'Vertex'),
+    Index: form('Indices', 'Number'),
+    Position: form('Positions', 'Vector'),
+    Normal: form('Normals', 'Vector'),
+    UV: form('UVs', 'Vector'),
+    Angle: form('Angles', 'Number'),
+    NextEdge: form('NextEdges', 'Edge'),
+    PreviousEdge: form('PreviousEdges', 'Edge'),
     Parent: form('Parents', 'Object'),
     Data: form('Data', 'Data'),
   },
@@ -578,6 +601,7 @@ function solidScriptMemberElement(
       if (member === 'isconvex') return solidScriptMemberEdgeSigned(edges) > SOLID_SCRIPT_MEMBER_FLAT;
       if (member === 'isboundary') return leaf.kind === 'mesh' && edges.some((edge) => edge.faces[1] === null);
       if (member === 'isuvsplit') return edges.some(solidScriptCornerEdgeUvSplit);
+      if (member === 'facecorners') return solidScriptFaceCornersAlongEdge(elements, edges);
       return solidScriptMemberEdge(edges, member);
     }
     case 'vertex': {
@@ -589,6 +613,8 @@ function solidScriptMemberElement(
       const brush = elements.parent(element);
       if (member === 'faces') return faceList(elements.faces(brush).filter((face) => face.corners.some(at)));
       if (member === 'isuvsplit') return solidScriptCornerUvSplit(elements.faces(brush), vertex.position);
+      if (member === 'facecorners')
+        return solidScriptFaceCornersAtVertex(elements, elements.faces(brush), vertex.position);
       if (member === 'edges') {
         const found: SolidScriptValue[] = [];
         for (const edge of elements.edges(brush))
@@ -599,6 +625,11 @@ function solidScriptMemberElement(
         return found;
       }
       return undefined;
+    }
+    case 'facecorner': {
+      const value = solidScriptFaceCornerMember(element, member, elements);
+      if (value instanceof THREE.Vector3) return solidScriptMemberVector(value);
+      return typeof value === 'number' ? solidScriptMemberRound(value) : value;
     }
     default:
       return undefined;
@@ -731,6 +762,8 @@ function solidScriptMemberFace(
       return vertexList();
     case 'angles':
       return solidScriptCornerAngles(first).map(solidScriptMemberRound);
+    case 'facecorners':
+      return solidScriptFaceCornersOfFace(elements, first);
     case 'uvs':
       return solidScriptFaceCornerUvs(first).map(([u, v]) => [solidScriptMemberRound(u), solidScriptMemberRound(v), 0]);
     default:

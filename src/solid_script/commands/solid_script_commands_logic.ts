@@ -98,7 +98,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
       'A name that is not letters, digits and _, or starts with a digit.',
       'A [Name] for a variable not set above this line, or a [=formula] that cannot be read.',
       'Setting an input of the script, which can only be read.',
-      'Setting a member such as Face.Center or Object.Edges, which can only be read; Vertex.Position, Face.UVs, Object.Mode and the values under .Data can be set.',
+      'Setting a member such as Face.Center or Object.Edges, which can only be read; Vertex.Position, Face.UVs, FaceCorner.UV, Object.Mode and the values under .Data can be set.',
       'An item number past the end of a list, such as Points(5) when Points has 3 items.',
     ],
     parameters: [

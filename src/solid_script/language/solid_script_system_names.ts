@@ -36,6 +36,7 @@ export const SOLID_SCRIPT_SYSTEM_FILLS = {
   $Face: { type: 'Face', detail: 'the face a line is testing or working on' },
   $Edge: { type: 'Edge', detail: 'the edge a line is testing or working on' },
   $Vertex: { type: 'Vertex', detail: 'the corner a line is testing or working on' },
+  $FaceCorner: { type: 'FaceCorner', detail: "the face corner, one face's use of a vertex, a line is working on" },
   $Point: { type: 'Point', detail: 'the point a line is testing or working on' },
   $Item: { type: 'Value', detail: 'the item a Filter List condition is testing' },
   $X: { type: 'Number', detail: 'X of the current position or center' },

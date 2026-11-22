@@ -2,6 +2,7 @@ import { solidScriptKindNamed } from './solid_script_kinds.js';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
 import {
   solidScriptNameIsDataWrite,
+  solidScriptNameIsFaceCornerUvWrite,
   solidScriptNameIsModeWrite,
   solidScriptNameIsPositionWrite,
 } from './solid_script_name_rules.js';
@@ -24,9 +25,15 @@ import {
 } from './solid_script_list_item.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
 import type { SolidScriptScope } from './solid_script_scope.js';
-import { SolidScriptElement, solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
+import {
+  SolidScriptElement,
+  solidScriptValueNumbers,
+  solidScriptValueText,
+  type SolidScriptValue,
+} from './solid_script_value.js';
 import type { SolidScriptGeometryLeaf } from './solid_script_geometry.js';
 import {
+  solidScriptFaceCornerUvs,
   solidScriptFaceUvsFit,
   solidScriptMeshFaceUvsWrite,
   solidScriptSolidFaceUvsWrite,
@@ -161,6 +168,54 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
   }
 
   /**
+   * Writes FaceCorner.UV, or the UV of every face corner in a list, changing
+   * only that face's use of the corner.
+   *
+   * @param written Name as written.
+   * @param scope Scope of the line.
+   * @param valueOf UV of one face corner, from the corner, its number in the
+   *   list and how many there are.
+   * @returns True when the name was a face corner's UV.
+   */
+  protected faceCornerUvSet(
+    written: string,
+    scope: SolidScriptScope,
+    valueOf: (item: SolidScriptValue, index: number, count: number) => SolidScriptValue,
+  ): boolean {
+    if (!solidScriptNameIsFaceCornerUvWrite(written)) return false;
+    const parts = solidScriptMemberParts(written);
+    const shown = parts.slice(0, -1).join('.');
+    const owner = this.fieldVariable(solidScriptNameKey(shown), scope);
+    const items = Array.isArray(owner) ? owner : [owner];
+    for (const [index, item] of items.entries())
+      this.faceCornerUvWrite(item, valueOf(item, index, items.length), shown);
+    return true;
+  }
+
+  /**
+   * Writes the UV of one face corner of a mesh.
+   *
+   * @param item Face corner element.
+   * @param value U, V and an unused Z.
+   * @param shown Owner name, for messages.
+   */
+  private faceCornerUvWrite(item: SolidScriptValue, value: SolidScriptValue, shown: string): void {
+    if (!(item instanceof SolidScriptElement) || item.kind !== 'facecorner')
+      throw new Error(`only face corners have .UV; ${shown} is ${solidScriptKindNamed(item)}`);
+    const at = this.elements.faceCornerAt(item);
+    if (!at) throw new Error(`${String(item)} was cut away`);
+    const latest = this.leafLatest(at.face.leaf);
+    if (latest.kind !== 'mesh')
+      throw new Error('only the face corners of meshes keep a UV of their own; on a solid, set Face.UVs instead');
+    const [u, v, ...rest] = solidScriptValueNumbers(value) ?? [];
+    if (u === undefined || v === undefined || rest.length > 1)
+      throw new Error('FaceCorner.UV needs two or three numbers, such as 0.5, 0.5, 0');
+    const uvs = solidScriptFaceCornerUvs(at.face);
+    uvs[at.index] = [u, v];
+    this.leafRewrite(latest, solidScriptMeshFaceUvsWrite(latest, at.face.index, uvs));
+  }
+
+  /**
    * Sets a variable after checking its name and that lines may change it.
    *
    * @param scope Scope of the line.
@@ -182,6 +237,7 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
     }
     if (this.dataSet(written, scope, () => value)) return;
     if (this.uvsSet(written, scope, value)) return;
+    if (this.faceCornerUvSet(written, scope, () => value)) return;
     if (this.positionAssign(scope, written, value)) return;
     if (this.modeSet(written, scope, value)) return;
     const locals = name.startsWith(SOLID_SCRIPT_LOCAL_PREFIX) ? this.frameFunction()?.locals : undefined;
@@ -196,7 +252,8 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
   /**
    * Writes a Set value, evaluating a Vertex.Position formula once per corner
    * with $Vertex and $Index, from the geometry as it was before the line, and a
-   * Data write through a list once per item with $Item and $Index.
+   * Data or FaceCorner.UV write through a list once per item with $Item and
+   * $Index.
    *
    * @param scope Scope of the line.
    * @param written Name as written.
@@ -205,14 +262,12 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
    */
   protected variableWrite(scope: SolidScriptScope, written: string, key: string, run: SolidScriptBlockRun): void {
     if (this.positionWriteEach(scope, written, key, run)) return;
-    if (
-      solidScriptNameIsDataWrite(written) &&
-      solidScriptEachUsed(run.source(key)) &&
-      this.dataSet(written, scope, (item, index, count) =>
-        run.valueWith(key, { $Item: item, $Index: index, $Count: count }),
-      )
-    )
-      return;
+    if (solidScriptEachUsed(run.source(key))) {
+      const each = (item: SolidScriptValue, index: number, count: number): SolidScriptValue =>
+        run.valueWith(key, { $Item: item, $Index: index, $Count: count });
+      if (solidScriptNameIsDataWrite(written) && this.dataSet(written, scope, each)) return;
+      if (this.faceCornerUvSet(written, scope, each)) return;
+    }
     this.variableSet(scope, written, run.valueItems(key));
   }
 

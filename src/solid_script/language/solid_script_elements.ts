@@ -44,6 +44,8 @@ interface SolidScriptElementEntry {
   position?: THREE.Vector3;
   /** Edge: unit direction along its line. */
   direction?: THREE.Vector3;
+  /** Face corner: the face it belongs to. */
+  owner?: SolidScriptElement;
   /** Face: its number on the solid or mesh when the id was made. */
   faceIndex?: number;
   /** The user's own values, by key. */
@@ -429,6 +431,40 @@ export class SolidScriptElements {
       )
         return entry.element;
     return this.add('vertex', latest, { position: vertex.position.clone() }).element;
+  }
+
+  /**
+   * Returns the element of one face's use of one of its corners, the same one
+   * every time.
+   *
+   * @param face Face read now.
+   * @param index Corner number in the face, from 0.
+   * @returns Face corner element.
+   */
+  faceCorner(face: SolidScriptFaceFacts, index: number): SolidScriptElement {
+    const owner = this.face(face);
+    const position = face.corners[index] ?? face.center;
+    for (const entry of this.entries)
+      if (entry.owner === owner && (entry.position?.distanceTo(position) ?? 1) < 1e-6) return entry.element;
+    return this.add('facecorner', this.host.leafLatest(face.leaf), { owner, position: position.clone() }).element;
+  }
+
+  /**
+   * Finds a face corner now: the piece of its face that still has a corner
+   * where it was, and the corner's number there.
+   *
+   * @param element Face corner element.
+   * @returns Face and corner number, or undefined when it was cut away.
+   */
+  faceCornerAt(element: SolidScriptElement): { face: SolidScriptFaceFacts; index: number } | undefined {
+    const entry = this.entry(element);
+    const position = entry.position;
+    if (!entry.owner || !position) return undefined;
+    for (const face of this.faces(entry.owner)) {
+      const index = face.corners.findIndex((corner) => corner.distanceTo(position) < 1e-6);
+      if (index >= 0) return { face, index };
+    }
+    return undefined;
   }
 
   /**

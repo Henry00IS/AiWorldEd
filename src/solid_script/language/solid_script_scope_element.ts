@@ -5,11 +5,11 @@ import { solidScriptSystemFillShort } from './solid_script_system_fill_shorts.js
 import { SolidScriptElement, type SolidScriptValue } from './solid_script_value.js';
 
 /** Element kinds that have a current-element name, such as $Face. */
-const SOLID_SCRIPT_SCOPE_ELEMENT_KINDS = ['face', 'edge', 'vertex'] as const;
+const SOLID_SCRIPT_SCOPE_ELEMENT_KINDS = ['face', 'edge', 'vertex', 'facecorner'] as const;
 
 /**
- * Binds $Face, $Edge or $Vertex, $Index and $Id in a For Each or 🔁 scope, so a
- * nested scope's $Face is the innermost element.
+ * Binds $Face, $Edge, $Vertex or $FaceCorner, $Index and $Id in a For Each or
+ * 🔁 scope, so a nested scope's $Face is the innermost element.
  *
  * @param scope Scope of this round.
  * @param item Current item.

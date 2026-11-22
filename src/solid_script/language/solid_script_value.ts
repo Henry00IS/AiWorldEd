@@ -5,9 +5,9 @@ export type SolidScriptValue = number | string | boolean | undefined | SolidScri
 
 /**
  * What a geometry value stands for: a brush or mesh, one of its faces, edges or
- * corners, or the Data of one.
+ * corners, one face's use of a corner, or the Data of one.
  */
-export type SolidScriptElementKind = 'brush' | 'path' | 'face' | 'edge' | 'vertex' | 'point' | 'data';
+export type SolidScriptElementKind = 'brush' | 'path' | 'face' | 'edge' | 'vertex' | 'facecorner' | 'point' | 'data';
 
 /**
  * A geometry value: a stable id the run looks up when it is read, so it follows
@@ -84,6 +84,7 @@ export const SOLID_SCRIPT_ELEMENT_TYPES: Readonly<Record<SolidScriptElementKind,
   face: 'Face',
   edge: 'Edge',
   vertex: 'Vertex',
+  facecorner: 'FaceCorner',
   point: 'Point',
   data: 'Data',
 };

@@ -109,7 +109,7 @@ export function solidScriptNameDotProblem(name: string, use: 'read' | 'set'): st
     return '';
   if (parts.length >= 2 && parts[last]?.toLowerCase() === 'data')
     return `${text} needs a key to set, such as ${text}.Height; a line sets a value under .Data, not .Data itself`;
-  return `${text} can only be read; a line sets whole names, .X, .Y and .Z of a vector, Vertex.Position, Face.UVs, Solid.Mode, or a value under .Data such as Face.Data.Height or Solid.Edges.Data.Kind`;
+  return `${text} can only be read; a line sets whole names, .X, .Y and .Z of a vector, Vertex.Position, Face.UVs, FaceCorner.UV, Solid.Mode, or a value under .Data such as Face.Data.Height or Solid.Edges.Data.Kind`;
 }
 
 /**
@@ -142,8 +142,8 @@ export function solidScriptSystemIsVector(name: string): boolean | null {
 }
 
 /**
- * Tells whether a name sets Face.UVs or a list of faces' UVs, such as Face.UVs
- * or Sides.UVs.
+ * Tells whether a name sets Face.UVs, a list of faces' UVs, or the UV of a face
+ * corner, such as Face.UVs, Sides.UVs or FaceCorner.UV.
  *
  * @param name Name as written, without brackets.
  * @returns True for such a name.
@@ -151,7 +151,22 @@ export function solidScriptSystemIsVector(name: string): boolean | null {
 export function solidScriptNameIsUvWrite(name: string): boolean {
   if (!name.includes('.')) return false;
   const parts = solidScriptNameParts(name.trim());
-  return parts.length >= 2 && parts[parts.length - 1]?.toLowerCase() === 'uvs';
+  return (
+    (parts.length >= 2 && parts[parts.length - 1]?.toLowerCase() === 'uvs') || solidScriptNameIsFaceCornerUvWrite(name)
+  );
+}
+
+/**
+ * Tells whether a name sets the UV of a face corner or of each face corner in a
+ * list, such as FaceCorner.UV or Corners.UV.
+ *
+ * @param name Name as written, without brackets.
+ * @returns True for such a name.
+ */
+export function solidScriptNameIsFaceCornerUvWrite(name: string): boolean {
+  if (!name.includes('.')) return false;
+  const parts = solidScriptNameParts(name.trim());
+  return parts.length >= 2 && parts[parts.length - 1]?.toLowerCase() === 'uv';
 }
 
 /**
