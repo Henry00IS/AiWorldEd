@@ -2,8 +2,11 @@ import { triangulateSimplePolygon3d } from '@/mesh/convert/mesh_polygon_triangul
 import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptListingOf } from './solid_script_command_listing.js';
 import { solidScriptParameterOfWhere } from './solid_script_command_of_where.js';
-import { solidScriptParameterOf } from './solid_script_command_parameters.js';
-import { solidScriptFaceGroups, solidScriptFaceTargets } from './solid_script_face_of.js';
+import { solidScriptParameterInto, solidScriptParameterOf } from './solid_script_command_parameters.js';
+import { solidScriptFaceGroups, solidScriptFaceTargets, solidScriptFaceWrite } from './solid_script_face_of.js';
+import { solidScriptGeometryFacesDelete } from '@/solid_script/language/solid_script_geometry.js';
+import type { SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
+import type { SolidScriptValue } from '@/solid_script/language/solid_script_value.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import { SOLID_SCRIPT_MESH_NEEDS_WRAP, type SolidScriptShapeMesh } from '@/solid_script/language/solid_script_mesh.js';
 import {
@@ -66,6 +69,55 @@ function solidScriptMeshFacesTriangulate(mesh: SolidScriptShapeMesh, faces: Read
   return solidScriptMeshFacesSplit(mesh, pieces);
 }
 
+/**
+ * Cuts the picked faces of one mesh off: the old mesh keeps the rest, unless
+ * every face is picked, which leaves it whole.
+ *
+ * @param run Running line.
+ * @param leaf Mesh.
+ * @param picked Numbers of the picked faces.
+ * @returns The cut-off piece and the mesh left, or null when it stays whole.
+ */
+function solidScriptMeshSeparateOne(
+  run: SolidScriptBlockRun,
+  leaf: SolidScriptShapeMesh,
+  picked: ReadonlySet<number>,
+): { piece: SolidScriptShapeMesh; rest: SolidScriptShapeMesh } | null {
+  if (picked.size === leaf.faces.length) return null;
+  const others = new Set(leaf.faces.map((_, index) => index).filter((index) => !picked.has(index)));
+  const rest = solidScriptGeometryFacesDelete(leaf, picked);
+  run.leafReplace(leaf, rest);
+  return { piece: solidScriptGeometryFacesDelete(leaf, others), rest };
+}
+
+/**
+ * Cuts the picked faces of each mesh off into a new mesh with the same Name,
+ * texture and mode; the faces left stay in the old one.
+ *
+ * @param run Running line.
+ * @returns New meshes.
+ */
+function solidScriptMeshSeparate(run: SolidScriptBlockRun): SolidScriptShape[] {
+  const selected = run.selectedGet('faces').length > 0 ? 'faces' : 'objects';
+  const pieces: SolidScriptShapeMesh[] = [];
+  const kept: SolidScriptValue[] = [];
+  for (const [leaf, held] of solidScriptFaceGroups(
+    solidScriptFaceTargets(run, 'Separate Mesh', selected),
+    (face) => face.leaf,
+  )) {
+    if (leaf.kind !== 'mesh') throw new Error(SOLID_SCRIPT_MESH_NEEDS_WRAP);
+    const split = solidScriptMeshSeparateOne(run, leaf, new Set(held.map((face) => face.index)));
+    if (!split) continue;
+    pieces.push(split.piece);
+    kept.push(run.elements.brush(split.rest));
+  }
+  const adopted = run.adopted(pieces);
+  const made = pieces.filter((piece) => adopted.includes(piece)).map((piece) => run.elements.brush(piece));
+  solidScriptFaceWrite(run, 'into', made);
+  solidScriptFaceWrite(run, 'rest', kept);
+  return adopted;
+}
+
 /** Flip Faces and Triangulate work on face selections, not object masks. */
 export const SOLID_SCRIPT_COMMANDS_MESH_FACES: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
@@ -105,5 +157,33 @@ export const SOLID_SCRIPT_COMMANDS_MESH_FACES: readonly SolidScriptCommand[] = [
       solidScriptMeshFacesApply(run, 'Triangulate', solidScriptMeshFacesTriangulate);
       return [];
     },
+  }),
+  new SolidScriptCommand({
+    id: 'separate_mesh',
+    edits: true,
+    label: 'Separate Mesh',
+    category: 'Meshes',
+    description: 'Split mesh faces off into a mesh of their own',
+    manual:
+      'Cuts the picked faces of each mesh off into a new mesh, with the same Name, texture and mode, and leaves the other faces in the old one. Of gives faces, or meshes for every face; empty uses [$Selected.Faces], or all faces of [$Selected.Objects] when no faces are picked. Where is a 🔁 condition a face must pass to go. A mesh whose faces all go stays whole. Into gets the new meshes and Rest the meshes left behind. A solid stops the line: wrap it in Mesh From Solids first. Example: Mesh From Solids around a Cube, then Separate Mesh Where [=[$NY] > 0.9] Into [Lid] Rest [Box], and Move By 0, 1, 0 Of [Lid] lifts the lid off.',
+    stops: ['A solid. Wrap it in Mesh From Solids first.', 'No faces to work on.'],
+    parameters: [
+      solidScriptParameterOfWhere('Face', '[=[$NY] > 0.9]'),
+      solidScriptParameterOf('faces or meshes', '$Selected.Faces', ['Face', 'Object']),
+      solidScriptParameterInto('the new meshes, an Object list', 'Object List', 'what is made', 'label'),
+      {
+        ...solidScriptParameterInto('the meshes left behind, an Object list', 'Object List', 'what is left', 'label'),
+        key: 'rest',
+        label: 'Rest',
+        hint: 'Optional: variable to write the meshes the faces were cut from, an Object list, such as Box; left off writes none.',
+      },
+    ],
+    listing: (read) => [
+      'Separate Mesh',
+      ...solidScriptListingOf(read),
+      ...(read.text('into') === '' ? [] : [' Into ', read.value('into')]),
+      ...(read.text('rest') === '' ? [] : [' Rest ', read.value('rest')]),
+    ],
+    execute: solidScriptMeshSeparate,
   }),
 ];

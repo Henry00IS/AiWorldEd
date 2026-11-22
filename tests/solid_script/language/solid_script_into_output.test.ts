@@ -22,6 +22,7 @@ const MESH_TOOLS = new Set([
   'displace',
   'flip_faces',
   'triangulate',
+  'separate_mesh',
   'split_edges',
 ]);
 const FACE_TOOLS = new Set([

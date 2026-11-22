@@ -131,6 +131,7 @@ const SOLID_SCRIPT_AUDIT_MESHES = new Set([
   'displace',
   'flip_faces',
   'triangulate',
+  'separate_mesh',
   'split_edges',
 ]);
 
