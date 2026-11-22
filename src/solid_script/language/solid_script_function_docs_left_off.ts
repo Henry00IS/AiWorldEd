@@ -5,6 +5,7 @@ export const SOLID_SCRIPT_FUNCTION_INPUTS_LEFT_OFF: Readonly<Record<string, numb
   cluster_connected: 1,
   brick: 8,
   magic: 3,
+  gabor: 5,
   principal_axes: 1,
   matrix_svd: 1,
   first: 1,

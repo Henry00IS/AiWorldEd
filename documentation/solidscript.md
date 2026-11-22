@@ -208,3 +208,4 @@ The **Examples** window holds showcase scripts such as the Spiral Staircase, sma
 - Set Handle Type places path handles by Type Auto, Vector, Align or Free, on Side Both, Left or Right, for points that pass Pick Where.
 - Set Tilt tilts a path per point; [Path.Tilts] reads it back and Sweep Along Path turns the profile by it on top of Twist.
 - Set Path Type also makes Catmull Rom paths through every point and NURBS paths pulled toward them; curved paths keep their shape either way.
+- Gabor gives wavy streaks: Value, Phase or Intensity of random wave bumps that follow Orientation as much as Anisotropy says.

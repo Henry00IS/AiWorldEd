@@ -11,6 +11,7 @@ import { SOLID_SCRIPT_FUNCTIONS_NUMBERS } from './solid_script_functions_numbers
 import { SOLID_SCRIPT_FUNCTIONS_CLUSTER } from './solid_script_functions_cluster.js';
 import { SOLID_SCRIPT_FUNCTIONS_ROTATION } from './solid_script_functions_rotation.js';
 import { SOLID_SCRIPT_FUNCTIONS_TEXTURE } from './solid_script_functions_texture.js';
+import { SOLID_SCRIPT_FUNCTIONS_GABOR } from './solid_script_functions_gabor.js';
 import { SOLID_SCRIPT_FUNCTIONS_PRINCIPAL } from './solid_script_functions_principal.js';
 import { SOLID_SCRIPT_FUNCTIONS_COORDINATES } from './solid_script_functions_coordinates.js';
 import { solidScriptAxesEach, solidScriptAxesPick } from './solid_script_functions_axes.js';
@@ -175,6 +176,7 @@ const SOLID_SCRIPT_FUNCTIONS_NAMED = {
   ...SOLID_SCRIPT_FUNCTIONS_NUMBERS,
   ...SOLID_SCRIPT_FUNCTIONS_CLUSTER,
   ...SOLID_SCRIPT_FUNCTIONS_TEXTURE,
+  ...SOLID_SCRIPT_FUNCTIONS_GABOR,
   ...SOLID_SCRIPT_FUNCTIONS_PRINCIPAL,
   ...SOLID_SCRIPT_FUNCTIONS_ROTATION,
   ...SOLID_SCRIPT_FUNCTIONS_COORDINATES,
