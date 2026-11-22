@@ -19,6 +19,7 @@ import { ModifierStackKindTorus } from '@/modifier/stack/kinds/generator/primiti
 import { ModifierStackKindPipe } from '@/modifier/stack/kinds/generator/primitive/modifier_stack_kind_pipe.js';
 import { ModifierStackKindPyramid } from '@/modifier/stack/kinds/generator/primitive/modifier_stack_kind_pyramid.js';
 import { ModifierStackKindPrism } from '@/modifier/stack/kinds/generator/primitive/modifier_stack_kind_prism.js';
+import { ModifierStackKindIcosphere } from '@/modifier/stack/kinds/generator/primitive/modifier_stack_kind_icosphere.js';
 import { ModifierStackKindRhombicuboctahedron } from '@/modifier/stack/kinds/generator/primitive/modifier_stack_kind_rhombicuboctahedron.js';
 import { ModifierStackKindHollowBox } from '@/modifier/stack/kinds/generator/primitive/modifier_stack_kind_hollow_box.js';
 import { ModifierStackKindCurvedStairs } from '@/modifier/stack/kinds/generator/primitive/modifier_stack_kind_curved_stairs.js';
@@ -250,6 +251,7 @@ export const SOLID_SCRIPT_COMMANDS_GENERATORS: readonly SolidScriptCommand[] = [
   new ModifierStackKindPyramid(),
   new ModifierStackKindPrism(),
   new ModifierStackKindRhombicuboctahedron(),
+  new ModifierStackKindIcosphere(),
   new ModifierStackKindHollowBox(),
   new ModifierStackKindCurvedStairs(),
   new ModifierStackKindColumn(),

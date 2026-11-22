@@ -430,6 +430,7 @@ describe('solid script command catalog', () => {
     expect(converters.map((command) => command.id).sort()).toEqual([
       'fill_paths',
       'grid_mesh',
+      'icosphere_mesh',
       'mesh',
       'mesh_from_solids',
     ]);

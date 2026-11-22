@@ -9,6 +9,7 @@ import { solidScriptKindNamed } from '@/solid_script/language/solid_script_kinds
 import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import { SOLID_SCRIPT_ANCHOR_SOLID } from '@/solid_script/language/solid_script_anchor.js';
+import { solidScriptIcosphere } from '@/solid_script/language/solid_script_icosphere.js';
 import {
   solidScriptParameter,
   solidScriptParameterAnchor,
@@ -366,6 +367,33 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
       ]),
     ],
     execute: (run) => run.mesh(solidScriptGridMesh(run.fields())),
+  }),
+  new SolidScriptCommand({
+    id: 'icosphere_mesh',
+    label: 'Icosphere Mesh',
+    category: 'Meshes',
+    description: 'Build a sphere of even triangles',
+    manual:
+      'Builds a mesh sphere centred on the origin from an icosahedron, with a corner at the top and the bottom. Radius is the distance in metres from the center to every corner. Subdivisions 1 is the icosahedron of 20 triangles; each step more splits every triangle into four, pushing the new corners out to the sphere, so 2 gives 80 and 3 gives 320. Unlike a UV sphere every triangle is about the same size, which suits Displace and Scatter. For a solid ball use the Icosphere generator. Example: Icosphere Mesh Radius 2 Subdivisions 3, then Displace with a Noise formula, gives a rock.',
+    stops: ['A Radius of 0 or less.', 'Subdivisions outside 1 to 7, or with decimals.'],
+    parameters: [
+      solidScriptParameter('radius', 'Radius', 'number', '1', 'Metres from the center to every corner, such as 1.'),
+      solidScriptParameter(
+        'subdivisions',
+        'Subdivisions',
+        'count',
+        '1',
+        'Times the triangles are split, 1 to 7, such as 2.',
+      ),
+    ],
+    listing: (read) => [
+      'Icosphere Mesh',
+      ...solidScriptListingOptions([
+        read.changed('radius') && ['Radius ', read.value('radius')],
+        read.changed('subdivisions') && ['Subdivisions ', read.value('subdivisions')],
+      ]),
+    ],
+    execute: (run) => run.mesh(solidScriptIcosphere(run.fields())),
   }),
   new SolidScriptCommand({
     id: 'mesh',

@@ -99,7 +99,7 @@ const generatorKinds = new Set(
  * Kinds that are round all over at their defaults: no edge turns sharper than
  * the bevel angle, so a following bevel rightly adds nothing.
  */
-const roundKinds = new Set(['sphere', 'capsule']);
+const roundKinds = new Set(['sphere', 'capsule', 'icosphere']);
 
 /**
  * Kinds tried in second place. A generator there replaces what came before, so
