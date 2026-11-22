@@ -48,7 +48,10 @@ import { textureUvUnwrapFace } from '@/texture/uv_project/texture_uv_unwrap.js';
 import { solidScriptUvUnfold } from '@/solid_script/language/solid_script_uv_unfold.js';
 import { solidScriptUvsSeamLinks } from './solid_script_uvs_seams.js';
 import { solidScriptParameterEach } from './solid_script_command_each.js';
-import { solidScriptUvIslandsPack } from '@/solid_script/language/solid_script_uv_islands.js';
+import {
+  solidScriptUvIslandsPack,
+  type SolidScriptUvPackSettings,
+} from '@/solid_script/language/solid_script_uv_islands.js';
 import {
   textureUvTransformMatrix,
   textureUvTransformPoint,
@@ -218,7 +221,13 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
       const faces = solidScriptFaceTargets(run, 'Unwrap');
       if (run.source('seams').trim() === '') solidScriptUvsUnwrap(run, faces);
       else solidScriptUvsUnwrapSeams(run, faces);
-      if (solidScriptUvsPacks(run)) solidScriptUvsPack(run, solidScriptFaceTargets(run, 'Unwrap'), 'Unwrap');
+      if (solidScriptUvsPacks(run))
+        solidScriptUvsPack(run, solidScriptFaceTargets(run, 'Unwrap'), {
+          margin: solidScriptUvsMargin(run, 'Unwrap'),
+          rotate: true,
+          from: [0, 0],
+          to: [1, 1],
+        });
       return [];
     },
   }),
@@ -229,7 +238,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
     category: 'UVs',
     description: 'Fit UV islands into 0 to 1',
     manual:
-      "Packs the UV islands of the faces into the 0 to 1 square, keeping each island's shape and scaling all of them alike. Faces that share a corner with the same UV, such as faces Unwrap kept joined, move together as one island. Margin is the gap between islands as a share of the square. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. Solids stay solids; meshes stay meshes. Example: Unwrap, then Pack Islands.",
+      "Packs the UV islands of the faces into the 0 to 1 square, keeping each island's shape and scaling all of them alike. Faces that share a corner with the same UV, such as faces Unwrap kept joined, move together as one island. Margin is the gap between islands as a share of the square. Rotate Yes turns each island first so its bounding box is as small as it can be; No keeps the way it faces. Bottom Left and Top Right give the area to fill in U and V, the 0 to 1 square when they do not span one; islands keep their shape. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. Solids stay solids; meshes stay meshes. Example: Unwrap, then Pack Islands.",
     stops: ['No faces.', 'A Margin below 0 or above 1.'],
     parameters: [
       solidScriptParameter(
@@ -239,16 +248,40 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
         '0.001',
         'Gap between islands as a share of the square, such as 0.001.',
       ),
+      solidScriptParameter(
+        'rotate',
+        'Rotate',
+        'boolean',
+        'Yes',
+        'Yes: turn each island so it takes the least room. No: keep the way it faces. Type Yes or No, such as Yes.',
+      ),
+      solidScriptParameter(
+        'from',
+        'Bottom Left',
+        'vector3',
+        '0, 0, 0',
+        'Lowest U and V of the area to fill, such as 0, 0, 0.',
+      ),
+      solidScriptParameter(
+        'to',
+        'Top Right',
+        'vector3',
+        '1, 1, 0',
+        'Highest U and V of the area to fill, such as 1, 1, 0.',
+      ),
       solidScriptParameterOfWhere('Face', '[=[$Face.Normal.Y] > 0.9]'),
       solidScriptParameterOf('faces or objects', '$Selected.Faces'),
     ],
     listing: (read) => [
       'Pack Islands',
       ...(read.text('margin') === '' ? [] : [' Margin ', read.value('margin')]),
+      ...(read.text('rotate') === '' ? [] : [' Rotate ', read.value('rotate')]),
+      ...(read.text('from') === '' ? [] : [' Bottom Left ', read.value('from')]),
+      ...(read.text('to') === '' ? [] : [' Top Right ', read.value('to')]),
       ...solidScriptListingOf(read),
     ],
     execute: (run) => {
-      solidScriptUvsPack(run, solidScriptFaceTargets(run, 'Pack Islands'), 'Pack Islands');
+      solidScriptUvsPack(run, solidScriptFaceTargets(run, 'Pack Islands'), solidScriptUvsPackSettings(run));
       return [];
     },
   }),
@@ -459,6 +492,27 @@ function solidScriptUvsMargin(run: SolidScriptBlockRun, label: string): number {
   if (margin === undefined || !(margin >= 0 && margin <= 1))
     throw new Error(`${label} needs a Margin from 0 to 1, such as 0.001`);
   return margin;
+}
+
+/**
+ * Reads how Pack Islands packs: Margin, Rotate, and the area between Bottom
+ * Left and Top Right, the 0 to 1 square when they do not span one.
+ *
+ * @param run Running line.
+ * @returns Settings.
+ */
+function solidScriptUvsPackSettings(run: SolidScriptBlockRun): SolidScriptUvPackSettings {
+  const rotate = run.value('rotate');
+  if (typeof rotate !== 'boolean') throw new Error('Pack Islands needs Yes or No in Rotate');
+  const from = solidScriptUvsVector(run, 'from', [0, 0, 0], 'Pack Islands Bottom Left');
+  const to = solidScriptUvsVector(run, 'to', [1, 1, 0], 'Pack Islands Top Right');
+  const spans = to.x > from.x && to.y > from.y;
+  return {
+    margin: solidScriptUvsMargin(run, 'Pack Islands'),
+    rotate,
+    from: spans ? [from.x, from.y] : [0, 0],
+    to: spans ? [to.x, to.y] : [1, 1],
+  };
 }
 
 /**
@@ -748,9 +802,13 @@ function solidScriptUvsUnwrapSeams(run: SolidScriptBlockRun, faces: readonly Sol
  * @param faces Faces to pack.
  * @param label Command, for messages.
  */
-function solidScriptUvsPack(run: SolidScriptBlockRun, faces: readonly SolidScriptFaceFacts[], label: string): void {
+function solidScriptUvsPack(
+  run: SolidScriptBlockRun,
+  faces: readonly SolidScriptFaceFacts[],
+  settings: SolidScriptUvPackSettings,
+): void {
   const uvs = faces.map((face) => solidScriptFaceCornerUvs(face));
-  const packed = solidScriptUvIslandsPack(faces, uvs, solidScriptUvsMargin(run, label));
+  const packed = solidScriptUvIslandsPack(faces, uvs, settings);
   for (const [leaf, group] of solidScriptFaceGroups(
     faces.map((face, index) => ({ face, index })),
     (item) => item.face.leaf,

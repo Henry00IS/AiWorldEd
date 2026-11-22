@@ -6,22 +6,71 @@ const TEXTURE_UV_PACK_GAP = 0.02;
 
 /**
  * Packs UV islands into the 0–1 square, keeping each island's shape, with a gap
- * between them about Margin of the square wide.
+ * between them about Margin of the square wide. With Rotate each island is
+ * first turned so its bounding box is as small as it can be.
  *
  * @param islands Islands as corner UV loops.
  * @param margin Gap between islands, as a share of the square.
+ * @param rotate True to turn each island for the best fit.
  * @returns Packed islands in the same order, or empty when none have area.
  */
 export function textureUvPackIslands(
   islands: readonly TextureUvIsland[],
   margin = TEXTURE_UV_PACK_GAP,
+  rotate = false,
 ): [number, number][][] {
-  const boxes = islands.map(textureUvPackBox);
+  const boxes = islands.map((island) => textureUvPackBox(rotate ? textureUvPackTurned(island) : island));
   const placed = textureUvPackShelves(boxes, margin);
   const bounds = textureUvPackBounds(placed);
   if (!(bounds.width > 0) || !(bounds.height > 0)) return islands.map((island) => island.map(([u, v]) => [u, v]));
   const scale = 1 / Math.max(bounds.width, bounds.height);
   return placed.map((island) => island.map(([u, v]) => [u * scale, v * scale]));
+}
+
+/**
+ * Turns an island about the origin by an angle.
+ *
+ * @param island Corner UV loop.
+ * @param angle Angle in radians.
+ * @returns Turned corners.
+ */
+function textureUvPackTurn(island: TextureUvIsland, angle: number): [number, number][] {
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  return island.map(([u, v]) => [u * cos - v * sin, u * sin + v * cos]);
+}
+
+/**
+ * Bounding box area of an island.
+ *
+ * @param island Corner UV loop.
+ * @returns Area.
+ */
+function textureUvPackArea(island: TextureUvIsland): number {
+  const us = island.map(([u]) => u);
+  const vs = island.map(([, v]) => v);
+  return (Math.max(...us) - Math.min(...us)) * (Math.max(...vs) - Math.min(...vs));
+}
+
+/**
+ * Turns an island so its bounding box is smallest: the best box always lies
+ * along one of its edges, so each edge direction is tried.
+ *
+ * @param island Corner UV loop.
+ * @returns Turned corners.
+ */
+export function textureUvPackTurned(island: TextureUvIsland): [number, number][] {
+  const angles = new Set<number>([0]);
+  island.forEach(([u, v], index) => {
+    const [nextU, nextV] = island[(index + 1) % island.length] ?? [u, v];
+    if (nextU !== u || nextV !== v) angles.add(Number((-Math.atan2(nextV - v, nextU - u) % (Math.PI / 2)).toFixed(9)));
+  });
+  let best = textureUvPackTurn(island, 0);
+  for (const angle of angles) {
+    const turned = textureUvPackTurn(island, angle);
+    if (textureUvPackArea(turned) < textureUvPackArea(best) - 1e-12) best = turned;
+  }
+  return best;
 }
 
 /** Bounding box of one island, with its shifted corners. */

@@ -123,6 +123,43 @@ describe('SolidScript UV commands', () => {
     expect(uvs.every(([u, v]) => u >= -1e-4 && v >= -1e-4 && u <= 1 + 1e-4 && v <= 1 + 1e-4)).toBe(true);
   });
 
+  it('packs islands inside the Bottom Left and Top Right corners', () => {
+    const uvs = cornerIslands(
+      onlySolid(
+        run(
+          { command: 'cube' },
+          SELECT_BRUSHES,
+          SELECT_ALL,
+          { command: 'unwrap', values: { pack: 'No' } },
+          { command: 'pack_islands', values: { from: '0.5, 0.25, 0', to: '1, 0.75, 0' } },
+        ),
+      ),
+    ).flat();
+    expect(uvs.every(([u, v]) => u >= 0.5 - 1e-4 && v >= 0.25 - 1e-4 && u <= 1 + 1e-4 && v <= 0.75 + 1e-4)).toBe(true);
+    const reach = Math.max(Math.max(...uvs.map(([u]) => u)) - 0.5, Math.max(...uvs.map(([, v]) => v)) - 0.25);
+    expect(reach).toBeCloseTo(0.5, 3);
+  });
+
+  it('turns tilted islands square by default, and keeps them tilted with Rotate No', () => {
+    const tilted = (rotate: string) =>
+      cornerIslands(
+        onlySolid(
+          run(
+            { command: 'cube' },
+            SELECT_BRUSHES,
+            SELECT_UP,
+            { command: 'project_uvs' },
+            { command: 'transform_uvs', values: { rotate: '45' } },
+            { command: 'pack_islands', values: rotate === '' ? {} : { rotate } },
+          ),
+        ),
+      )
+        .flat()
+        .every(([u, v]) => [u, v].every((value) => Math.abs(value) < 1e-3 || Math.abs(value - 1) < 1e-3));
+    expect(tilted('')).toBe(true);
+    expect(tilted('No')).toBe(false);
+  });
+
   it('offsets UVs with Transform UVs', () => {
     const before = cornerIslands(
       onlySolid(run({ command: 'cube' }, SELECT_BRUSHES, SELECT_ALL, { command: 'project_uvs' })),
