@@ -5,6 +5,8 @@ import { SOLID_SCRIPT_COMMANDS_TRANSFORM } from './solid_script_commands_transfo
 import { SOLID_SCRIPT_COMMANDS_ARRAY } from './solid_script_commands_array.js';
 import { SOLID_SCRIPT_COMMANDS_LISTS } from './solid_script_commands_lists.js';
 import { SOLID_SCRIPT_COMMANDS_LOGIC } from './solid_script_commands_logic.js';
+import { SOLID_SCRIPT_COMMANDS_MESH_EDGES } from './solid_script_commands_mesh_edges.js';
+import { SOLID_SCRIPT_COMMANDS_MESH_FACES } from './solid_script_commands_mesh_faces.js';
 import { SOLID_SCRIPT_COMMANDS_MESHES } from './solid_script_commands_meshes.js';
 import { SOLID_SCRIPT_COMMANDS_FACES } from './solid_script_commands_faces.js';
 import { SOLID_SCRIPT_COMMANDS_DELETE } from './solid_script_commands_delete.js';
@@ -48,6 +50,8 @@ export const solidScriptCommands: readonly SolidScriptCommand[] = [
   ...SOLID_SCRIPT_COMMANDS_CLIP,
   ...SOLID_SCRIPT_COMMANDS_COMBINE,
   ...SOLID_SCRIPT_COMMANDS_MESHES,
+  ...SOLID_SCRIPT_COMMANDS_MESH_FACES,
+  ...SOLID_SCRIPT_COMMANDS_MESH_EDGES,
   ...SOLID_SCRIPT_COMMANDS_PATHS,
   ...SOLID_SCRIPT_COMMANDS_FACES.slice(0, 1),
   ...SOLID_SCRIPT_COMMANDS_SELECT,

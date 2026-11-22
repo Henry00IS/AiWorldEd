@@ -2,6 +2,7 @@ import { solidScriptListingOf } from './solid_script_command_listing.js';
 import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptParameterOf } from './solid_script_command_parameters.js';
 import { solidScriptParameterOfWhere } from './solid_script_command_of_where.js';
+import { solidScriptElementOf } from './solid_script_element_of.js';
 import { solidScriptFaceGroups, solidScriptFaceTargets } from './solid_script_face_of.js';
 import { solidScriptConditionHolds } from '@/solid_script/language/solid_script_condition.js';
 import {
@@ -14,43 +15,11 @@ import { solidScriptKindNamed } from '@/solid_script/language/solid_script_kinds
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import { SOLID_SCRIPT_MESH_NEEDS_WRAP } from '@/solid_script/language/solid_script_mesh.js';
 import { solidScriptOfWhere } from '@/solid_script/language/solid_script_of_where.js';
-import { solidScriptOfEmpty } from '@/solid_script/language/solid_script_select.js';
 import { solidScriptShapeGone } from '@/solid_script/language/solid_script_shape_gone.js';
 import { SolidScriptElement, type SolidScriptValue } from '@/solid_script/language/solid_script_value.js';
 
 /** Corners closer than this, in metres, are the same corner. */
 const SOLID_SCRIPT_DELETE_SAME = 1e-6;
-
-/** What a Delete line takes and which selection an empty Of uses. */
-type SolidScriptDeleteKind = 'objects' | 'edges' | 'vertices';
-
-/**
- * Reads the items a Delete line works on: its Of, else the selection, else for
- * edges and corners those of [$Selected.Faces].
- *
- * @param run Running line.
- * @param kind Selection an empty Of uses.
- * @param label Command, for messages.
- * @returns Geometry values, each a solid, mesh, face, edge or corner.
- */
-function solidScriptDeleteItems(
-  run: SolidScriptBlockRun,
-  kind: SolidScriptDeleteKind,
-  label: string,
-): SolidScriptElement[] {
-  const given = run.ofValues();
-  const picked = run.selectedGet(kind);
-  const values = given ?? (picked.length > 0 || kind === 'objects' ? picked : run.selectedGet('faces'));
-  if (values.length === 0)
-    throw new Error(
-      given ? `${label} has nothing in Of; check that Of holds ${kind}` : solidScriptOfEmpty(label, kind),
-    );
-  return values.map((value) => {
-    if (!(value instanceof SolidScriptElement) || value.kind === 'point' || value.kind === 'data')
-      throw new Error(`${label} takes ${kind}, not ${solidScriptKindNamed(value)}`);
-    return value;
-  });
-}
 
 /**
  * Takes faces out of the meshes they belong to; a solid stops the line.
@@ -71,7 +40,7 @@ function solidScriptDeleteFaces(run: SolidScriptBlockRun, faces: readonly SolidS
  * @param run Running line.
  */
 function solidScriptDeleteObjects(run: SolidScriptBlockRun): void {
-  const items = solidScriptOfWhere(run, solidScriptDeleteItems(run, 'objects', 'Delete Objects'));
+  const items = solidScriptOfWhere(run, solidScriptElementOf(run, 'objects', 'Delete Objects'));
   const gone = new Set<SolidScriptValue>();
   for (const item of items) {
     if (!(item instanceof SolidScriptElement) || item.kind !== 'brush')
@@ -92,7 +61,7 @@ function solidScriptDeleteObjects(run: SolidScriptBlockRun): void {
  * @param run Running line.
  */
 function solidScriptDeleteEdges(run: SolidScriptBlockRun): void {
-  const edges = solidScriptDeleteItems(run, 'edges', 'Delete Edges').flatMap((item) => run.elements.edges(item));
+  const edges = solidScriptElementOf(run, 'edges', 'Delete Edges').flatMap((item) => run.elements.edges(item));
   const faces = edges
     .filter((edge, index) =>
       solidScriptConditionHolds(run, 'where', { $Edge: run.elements.edge(edge), $Index: index, $Count: edges.length }),
@@ -107,7 +76,7 @@ function solidScriptDeleteEdges(run: SolidScriptBlockRun): void {
  * @param run Running line.
  */
 function solidScriptDeleteVertices(run: SolidScriptBlockRun): void {
-  const corners = solidScriptDeleteItems(run, 'vertices', 'Delete Vertices').flatMap((item) => {
+  const corners = solidScriptElementOf(run, 'vertices', 'Delete Vertices').flatMap((item) => {
     const leaf = run.elements.leaf(item);
     return run.elements.vertices(item).map((vertex) => ({ leaf, vertex }));
   });

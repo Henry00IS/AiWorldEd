@@ -267,24 +267,6 @@ function solidScriptMeshDisplaceRun(run: SolidScriptBlockRun, mesh: SolidScriptS
   });
 }
 
-/**
- * Turns the selected faces of a mesh around, or every face when none are
- * picked.
- *
- * @param run Running line.
- * @param mesh Mesh.
- * @returns Flipped mesh.
- */
-function solidScriptMeshFlipRun(run: SolidScriptBlockRun, mesh: SolidScriptShapeMesh): SolidScriptShapeMesh {
-  const picked = solidScriptMeshPicked(run, mesh, 'faces');
-  const keep = (index: number): boolean => Boolean(picked && !picked.has(index));
-  return {
-    ...mesh,
-    faces: mesh.faces.map((face, index) => (keep(index) ? face : [...face].reverse())),
-    uvs: mesh.uvs.map((uv, index) => (!uv || keep(index) ? uv : [...uv].reverse())),
-  };
-}
-
 /** Commands that build and change meshes, which become regular mesh objects. */
 export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
@@ -618,21 +600,5 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     ],
     listing: (read) => ['Displace', 'By ', read.value('distance'), ...solidScriptListingOf(read)],
     execute: (run) => solidScriptMeshApply(run, 'Displace', (mesh) => solidScriptMeshDisplaceRun(run, mesh)),
-  }),
-  new SolidScriptCommand({
-    id: 'flip_faces',
-    edits: true,
-    label: 'Flip Faces',
-    category: 'Meshes',
-    description: 'Turn mesh faces to show the other side',
-    manual:
-      'Turns faces of a mesh around, so they show the other side. It flips the faces Select Faces picked, or every face when none are picked. Use it when a mesh looks inside out, or to see a box from the inside, such as a sky box or a cave. Of is the mesh; empty uses [$Selected.Objects]. A solid stops the line: wrap it in Mesh From Solids first. Example: Mesh From Solids around a large Cube, then Flip Faces, is a room seen from within.',
-    stops: ['A solid. Wrap it in Mesh From Solids first.', 'No mesh to work on.'],
-    parameters: [
-      solidScriptParameterOfWhere('Object', '[=[$Object.Center.Y] > 0]'),
-      solidScriptParameterOf('meshes', '$Selected.Objects', ['Object']),
-    ],
-    listing: (read) => ['Flip Faces', ...solidScriptListingOf(read)],
-    execute: (run) => solidScriptMeshApply(run, 'Flip Faces', (mesh) => solidScriptMeshFlipRun(run, mesh)),
   }),
 ];
