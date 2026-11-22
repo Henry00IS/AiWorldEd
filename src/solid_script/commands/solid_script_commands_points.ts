@@ -16,14 +16,26 @@ import {
   solidScriptValueNumbers,
   type SolidScriptValue,
 } from '@/solid_script/language/solid_script_value.js';
-import { SOLID_SCRIPT_LIMITS, solidScriptLimitCount } from '@/solid_script/language/solid_script_limits.js';
+import {
+  solidScriptPathPointsSpread,
+  solidScriptPathWalked,
+  type SolidScriptPathSpread,
+} from '@/solid_script/language/solid_script_points_from_path.js';
+import {
+  SOLID_SCRIPT_LIMITS,
+  solidScriptLimitCount,
+  solidScriptListLimitCheck,
+} from '@/solid_script/language/solid_script_limits.js';
 import { solidScriptParameterEach } from './solid_script_command_each.js';
 import { SolidScriptCommand } from './solid_script_command.js';
 import {
   solidScriptParameter,
   solidScriptParameterInto,
   solidScriptParameterOf,
+  solidScriptParameterWhen,
+  solidScriptParameterWords,
 } from './solid_script_command_parameters.js';
+import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import { solidScriptFaceTargets, solidScriptFaceWrite } from './solid_script_face_of.js';
 
 /**
@@ -71,6 +83,43 @@ function solidScriptPointsRun(run: SolidScriptBlockRun): void {
   solidScriptFaceWrite(run, 'into', points);
 }
 
+/**
+ * Reads how Points From Path spreads its points: Count points, or one every
+ * Spacing metres.
+ *
+ * @param run Running line.
+ * @returns Spread.
+ */
+function solidScriptPathSpreadRead(run: SolidScriptBlockRun): SolidScriptPathSpread {
+  const by = (run.text('by').trim() || 'Count').toLowerCase();
+  if (by === 'spacing') {
+    const spacing = solidScriptValueNumber(run.value('spacing'));
+    if (spacing === undefined || !(spacing >= 0.01))
+      throw new Error('Spacing needs a distance of at least 0.01, such as 0.5');
+    return { spacing };
+  }
+  if (by !== 'count') throw new Error(`By needs Count or Spacing, not ${run.text('by')}`);
+  const count = solidScriptValueNumber(run.value('count'));
+  if (count === undefined || !Number.isInteger(count) || count < 1 || count > SOLID_SCRIPT_LIMITS.listItems)
+    throw new Error('Count needs a whole number from 1, such as 10');
+  return { count };
+}
+
+/**
+ * Runs Points From Path: writes the points, and the directions and amounts when
+ * asked.
+ *
+ * @param run Running line.
+ */
+function solidScriptPointsFromPathRun(run: SolidScriptBlockRun): void {
+  const { walked, closed } = solidScriptPathWalked(run.value('path'));
+  const spread = solidScriptPathPointsSpread(walked, closed, solidScriptPathSpreadRead(run));
+  solidScriptListLimitCheck(spread.points);
+  solidScriptFaceWrite(run, 'into', spread.points);
+  solidScriptFaceWrite(run, 'directions', spread.directions);
+  solidScriptFaceWrite(run, 'amounts', spread.amounts);
+}
+
 /** A Where for the hint of each kind of Points From line. */
 const SOLID_SCRIPT_POINTS_WHERE_EXAMPLE = {
   Face: '[=[$Face.Normal.Y] > 0.9]',
@@ -111,6 +160,85 @@ function solidScriptPointsFromFields(
 
 /** Commands that take points from faces, edges or vertices. */
 export const SOLID_SCRIPT_COMMANDS_POINTS: readonly SolidScriptCommand[] = [
+  new SolidScriptCommand({
+    id: 'points_from_path',
+    label: 'Points From Path',
+    category: 'Faces',
+    description: 'Spread points along a path, with the way it runs',
+    manual:
+      'Spreads points along a Path or a list of points and writes them to Into. By Count puts Count points evenly from start to end; By Spacing puts one every Spacing metres from the start, keeping the end. A closed Path does not repeat its start at the end. Directions, when named, gets the way the path runs at each point, and Amounts how far along each one is, from 0 at the start to 1 at the end; times PathLength([Path]) that is the distance along. Example: Path Arc Into [Rail], Points From Path [Rail] By Spacing 0.5 Into [Posts] Directions [Ways], then Place At Points At [Posts] Forward [Ways] with a Cube inside, stands a post every half metre, each facing along the rail.',
+    stops: ['A Path with fewer than 2 points.', 'A Count that is not a whole number from 1, or a Spacing below 0.01.'],
+    parameters: [
+      solidScriptParameter(
+        'path',
+        'Path',
+        'points3',
+        '[0, 0, 0], [4, 0, 0]',
+        'The Path, or a list of points, such as [Path].',
+      ),
+      solidScriptParameterWords(
+        'by',
+        'By',
+        'text',
+        'Count',
+        'How the points are spread: Count puts a number of them, Spacing one every so many metres. Type one, such as Spacing.',
+        [
+          { word: 'Count', detail: 'Count points evenly along the path' },
+          { word: 'Spacing', detail: 'One point every Spacing metres' },
+        ],
+      ),
+      solidScriptParameterWhen(
+        solidScriptParameter('count', 'Count', 'count', '10', 'How many points, such as 10.'),
+        'by',
+        ['Count'],
+      ),
+      solidScriptParameterWhen(
+        solidScriptParameter('spacing', 'Spacing', 'number', '0.5', 'Metres between points, such as 0.5.'),
+        'by',
+        ['Spacing'],
+      ),
+      {
+        ...solidScriptParameterInto('the points, a list of vectors', 'Vector List', 'what is made', 'label'),
+        hint: 'Variable to write the points to, a list of vectors, such as Points.',
+      },
+      {
+        ...solidScriptParameterInto('the directions, a list of vectors', 'Vector List', 'directions', 'label'),
+        key: 'directions',
+        label: 'Directions',
+        hint: 'Optional: variable to write the way the path runs at each point, such as Directions; left off writes none.',
+      },
+      {
+        ...solidScriptParameterInto(
+          'how far along each point is, a list of numbers',
+          'Number List',
+          'amounts',
+          'label',
+        ),
+        key: 'amounts',
+        label: 'Amounts',
+        hint: 'Optional: variable to write how far along each point is, 0 to 1, such as Amounts; left off writes none.',
+      },
+    ],
+    listing: (read) => [
+      'Points From Path',
+      read.value('path'),
+      ...solidScriptListingOptions([
+        [
+          'By ',
+          read.value('by'),
+          ' ',
+          read.value(read.text('by').trim().toLowerCase() === 'spacing' ? 'spacing' : 'count'),
+        ],
+      ]),
+      ' Into ',
+      read.value('into'),
+      ...(read.text('directions') === '' ? [] : [' Directions ', read.value('directions')]),
+    ],
+    execute: (run) => {
+      solidScriptPointsFromPathRun(run);
+      return [];
+    },
+  }),
   new SolidScriptCommand({
     id: 'points',
     label: 'Points',
