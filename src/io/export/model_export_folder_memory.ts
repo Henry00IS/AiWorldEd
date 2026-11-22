@@ -5,6 +5,13 @@ import { modelExportDirectoryDestination, type ModelExportDestination } from './
 const MODEL_EXPORT_FOLDER_MEMORY_KEY = 'model-export';
 
 /**
+ * Longest wait for the browser to read the remembered folder and answer its
+ * permission, in milliseconds; a stale handle may never answer, and the Export
+ * dialog waits on this.
+ */
+const MODEL_EXPORT_FOLDER_MEMORY_WAIT_MS = 1000;
+
+/**
  * Remembers the folder the last model export went to, for the session and in
  * IndexedDB across reloads, so the Export dialog starts there.
  */
@@ -24,14 +31,20 @@ export class ModelExportFolderMemory {
 
   /**
    * Returns the remembered folder as a destination, unless the browser denies
-   * writing to it; a lapsed permission is asked again on export.
+   * writing to it; a lapsed permission is asked again on export. A folder the
+   * browser fails or never answers for is dropped for the session.
    *
    * @returns Destination, or null when none is remembered or usable.
    */
   async recall(): Promise<ModelExportDestination | null> {
-    const folder = this.folder ?? (await this.load());
-    if (folder === null || (await modelExportFolderMemoryDenied(folder))) return null;
-    return modelExportDirectoryDestination(folder);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const gaveUp = new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), MODEL_EXPORT_FOLDER_MEMORY_WAIT_MS);
+    });
+    const folder = await Promise.race([this.usableFolder().catch(() => null), gaveUp]);
+    clearTimeout(timer);
+    if (folder === null) this.forget();
+    return folder === null ? null : modelExportDirectoryDestination(folder);
   }
 
   /**
@@ -42,6 +55,18 @@ export class ModelExportFolderMemory {
   remember(folder: FileSystemDirectoryHandle): void {
     this.folder = folder;
     void this.store.save(folder).catch(() => undefined);
+  }
+
+  /** @returns The remembered folder, or null when none is or it is denied. */
+  private async usableFolder(): Promise<FileSystemDirectoryHandle | null> {
+    const folder = this.folder ?? (await this.load());
+    return folder === null || (await modelExportFolderMemoryDenied(folder)) ? null : folder;
+  }
+
+  /** Drops the remembered folder for the session; the store keeps it. */
+  private forget(): void {
+    this.folder = null;
+    this.loading = Promise.resolve(null);
   }
 
   /** @returns The stored folder, read once per session. */
