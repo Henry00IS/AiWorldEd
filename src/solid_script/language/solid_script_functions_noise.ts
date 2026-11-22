@@ -55,7 +55,7 @@ function solidScriptNoiseAt(args: readonly SolidScriptValue[], usage: string): S
  * @param usage How to call the function, for the message.
  * @returns The word.
  */
-function solidScriptNoiseWord<T extends string>(value: SolidScriptValue, words: readonly T[], usage: string): T {
+export function solidScriptNoiseWord<T extends string>(value: SolidScriptValue, words: readonly T[], usage: string): T {
   if (value === undefined) return words[0] as T;
   const text = solidScriptValueText(value).trim().toLowerCase();
   const word = words.find((entry) => entry.toLowerCase() === text);

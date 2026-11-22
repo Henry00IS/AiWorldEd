@@ -26,7 +26,7 @@ function solidScriptMatrixVector(value: SolidScriptValue, usage: string, what: s
  * @param usage How to call the function, for the message.
  * @returns The matrix.
  */
-function solidScriptMatrixRead(value: SolidScriptValue, usage: string): THREE.Matrix4 {
+export function solidScriptMatrixRead(value: SolidScriptValue, usage: string): THREE.Matrix4 {
   const rows = Array.isArray(value) ? value.map((row) => solidScriptValueNumbers(row)) : [];
   const numbers = rows.flatMap((row) => (row?.length === 4 ? row : []));
   if (rows.length !== 4 || numbers.length !== 16)
@@ -42,7 +42,7 @@ function solidScriptMatrixRead(value: SolidScriptValue, usage: string): THREE.Ma
  * @param matrix Matrix.
  * @returns Rows.
  */
-function solidScriptMatrixRows(matrix: THREE.Matrix4): number[][] {
+export function solidScriptMatrixRows(matrix: THREE.Matrix4): number[][] {
   const columns = matrix.elements;
   return [0, 1, 2, 3].map((row) => [0, 1, 2, 3].map((column) => columns[column * 4 + row] ?? 0));
 }

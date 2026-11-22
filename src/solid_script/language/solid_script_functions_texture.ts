@@ -1,6 +1,7 @@
+import { solidScriptNoiseWord } from './solid_script_functions_noise.js';
 import { solidScriptExtraNumber, solidScriptExtraSeeded } from './solid_script_functions_extra.js';
 import { solidScriptMemberRound } from './solid_script_members.js';
-import { solidScriptValueNumbers, solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
+import { solidScriptValueNumbers, type SolidScriptValue } from './solid_script_value.js';
 
 /** Arguments of a procedural texture. */
 type SolidScriptTextureArgs = readonly SolidScriptValue[];
@@ -70,9 +71,8 @@ function solidScriptTextureBrick(args: SolidScriptTextureArgs): number {
     args,
   );
   const seed = solidScriptTextureNumber(args, 2, 0, 'Brick');
-  const output = args[3] === undefined ? 'mortar' : solidScriptValueText(args[3]).toLowerCase();
-  if (output === 'tint') return solidScriptExtraSeeded(seed + column * 73856093 + row * 19349663);
-  if (output !== 'mortar') throw new Error('Brick Output takes Mortar or Tint');
+  const output = solidScriptNoiseWord(args[3], ['Mortar', 'Tint'], 'Brick Output');
+  if (output === 'Tint') return solidScriptExtraSeeded(seed + column * 73856093 + row * 19349663);
   const mortar = solidScriptTextureNumber(args, 4, 0.02, 'Brick');
   const smooth = solidScriptTextureNumber(args, 8, 0.1, 'Brick');
   if (mortar < 0 || smooth < 0 || smooth > 1) throw new Error('Brick needs Mortar >= 0 and Smooth from 0 to 1');
