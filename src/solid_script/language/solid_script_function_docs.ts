@@ -850,6 +850,20 @@ const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
   },
   matrix_rotate: { matrix: { type: ['List'], about: 'A matrix, such as one from Transform.' } },
   matrix_scale: { matrix: { type: ['List'], about: 'A matrix, such as one from Transform.' } },
+  matrix_multiply: {
+    a: {
+      type: ['List'],
+      about: 'The matrix applied last, such as a group placement.',
+      start: 'Transform([1, 0, 0], [0, 0, 0], [1, 1, 1])',
+    },
+    b: {
+      type: ['List'],
+      about: 'The matrix applied first, such as a placement inside the group.',
+      start: 'Transform([0, 0, 0], [0, 0, 0], [2, 2, 2])',
+    },
+  },
+  matrix_determinant: { matrix: { type: ['List'], about: 'A matrix, such as one from Transform.' } },
+  matrix_transpose: { matrix: { type: ['List'], about: 'A matrix, such as one from Transform.' } },
   project_onto: {
     vector: { type: ['Vector'], about: 'The vector to project.', start: '2, 3, 0' },
     direction: { type: ['Vector'], about: 'The direction to keep.', start: '1, 0, 0' },

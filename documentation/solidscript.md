@@ -188,3 +188,4 @@ The **Examples** window holds showcase scripts such as the Spiral Staircase, sma
 - Pack Islands: faces that share a corner with the same UV, such as faces Unwrap Seams kept joined, now pack as one island; Margin (default 0.001) is the gap between islands as a share of the square.
 - Texture Faces works on meshes: each texture becomes one of the mesh's texture slots and each face points at its slot; one slot is the whole-mesh texture as before.
 - Icosphere Mesh: a mesh sphere of even triangles with Radius and Subdivisions (1 to 7), and a matching Icosphere generator for the world editor; both share one shape module.
+- MatrixMultiply(a, b), MatrixDeterminant(matrix) and MatrixTranspose(matrix).

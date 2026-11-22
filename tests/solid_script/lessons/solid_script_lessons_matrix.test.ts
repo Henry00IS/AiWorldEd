@@ -40,4 +40,22 @@ describe('matrices', () => {
     expect(formula(`Equal(TransformPoint(Invert(${placed}), Vector(1, 2, 1)), Vector(1, 0, 0))`)).toBe('Yes');
     expect(formula('Invert(Transform(Vector(0, 0, 0), Vector(0, 0, 0), Vector(0, 1, 1)))')).toContain('try');
   });
+
+  it('multiplies matrices so the second applies first, like placing inside a placed group', () => {
+    const move = 'Transform(Vector(1, 0, 0), Vector(0, 0, 0), Vector(1, 1, 1))';
+    const grow = 'Transform(Vector(0, 0, 0), Vector(0, 0, 0), Vector(2, 2, 2))';
+    expect(formula(`TransformPoint(MatrixMultiply(${move}, ${grow}), Vector(1, 0, 0))`)).toBe('[3, 0, 0]');
+    expect(formula(`TransformPoint(MatrixMultiply(${grow}, ${move}), Vector(1, 0, 0))`)).toBe('[4, 0, 0]');
+  });
+
+  it('gives the determinant: the volume a matrix scales by, below 0 when it mirrors', () => {
+    expect(formula(`MatrixDeterminant(${placed})`)).toBe('8');
+    expect(formula('MatrixDeterminant(Transform(Vector(0, 0, 0), Vector(0, 0, 0), Vector(-1, 1, 1)))')).toBe('-1');
+  });
+
+  it('transposes a matrix, swapping its rows and columns', () => {
+    expect(formula('MatrixTranspose(Transform(Vector(1, 2, 3), Vector(0, 0, 0), Vector(1, 1, 1)))')).toBe(
+      '[[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [1, 2, 3, 1]]',
+    );
+  });
 });

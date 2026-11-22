@@ -199,6 +199,40 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_MATRIX = {
     group: 'Vector',
     gives: ['Vector'],
   },
+  matrix_multiply: {
+    usage: 'MatrixMultiply(a, b)',
+    summary: solidScriptFunctionDocSummary(
+      'One matrix that does b first and then a, like an object placed by b inside a group placed by a.',
+      [
+        'TransformPoint(MatrixMultiply(Transform(Vector(1, 0, 0), Vector(0, 0, 0), Vector(1, 1, 1)), Transform(Vector(0, 0, 0), Vector(0, 0, 0), Vector(2, 2, 2))), Vector(1, 0, 0)) is Vector(3, 0, 0).',
+      ],
+      'Use it to stack placements into one.',
+    ),
+    group: 'Vector',
+    gives: ['List'],
+  },
+  matrix_determinant: {
+    usage: 'MatrixDeterminant(matrix)',
+    summary: solidScriptFunctionDocSummary(
+      'How much a matrix scales volume: 1 keeps it, 0 flattens space, and below 0 mirrors.',
+      ['MatrixDeterminant(Transform(Vector(0, 0, 0), Vector(0, 0, 0), Vector(2, 2, 2))) is 8.'],
+      'Use it to tell whether a placement mirrors, or whether Invert can undo it.',
+    ),
+    group: 'Vector',
+    gives: ['Number'],
+  },
+  matrix_transpose: {
+    usage: 'MatrixTranspose(matrix)',
+    summary: solidScriptFunctionDocSummary(
+      'The matrix with its rows and columns swapped.',
+      [
+        'MatrixTranspose(Transform(Vector(0, 0, 0), Vector(0, 0, 0), Vector(1, 1, 1))) is Transform(Vector(0, 0, 0), Vector(0, 0, 0), Vector(1, 1, 1)).',
+      ],
+      'For a turn alone it gives the turn back the other way.',
+    ),
+    group: 'Vector',
+    gives: ['List'],
+  },
 } as const satisfies Partial<Record<SolidScriptBuiltinName, SolidScriptFunctionDoc>>;
 
 /** Inputs of the waves and the checkerboard that mean something of their own. */

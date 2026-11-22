@@ -110,7 +110,7 @@ function solidScriptMatrixRotateBy(args: readonly SolidScriptValue[]): number[] 
   return solidScriptRotationDegrees(local ? rotation.multiply(by) : by.multiply(rotation));
 }
 
-/** Matrix functions: build, undo, read back and apply. */
+/** Matrix functions: build, combine, undo, read back and apply. */
 export const SOLID_SCRIPT_FUNCTIONS_MATRIX = {
   rotate_by: solidScriptMatrixRotateBy,
   transform: solidScriptMatrixTransform,
@@ -128,4 +128,11 @@ export const SOLID_SCRIPT_FUNCTIONS_MATRIX = {
   matrix_move: (args) => solidScriptMatrixParts(args[0], 'MatrixMove(matrix)')[0],
   matrix_rotate: (args) => solidScriptMatrixParts(args[0], 'MatrixRotate(matrix)')[1],
   matrix_scale: (args) => solidScriptMatrixParts(args[0], 'MatrixScale(matrix)')[2],
+  matrix_multiply: (args) => {
+    const usage = 'MatrixMultiply(a, b)';
+    return solidScriptMatrixRows(solidScriptMatrixRead(args[0], usage).multiply(solidScriptMatrixRead(args[1], usage)));
+  },
+  matrix_determinant: (args) => solidScriptMatrixRead(args[0], 'MatrixDeterminant(matrix)').determinant(),
+  matrix_transpose: (args) =>
+    solidScriptMatrixRows(solidScriptMatrixRead(args[0], 'MatrixTranspose(matrix)').transpose()),
 } satisfies Readonly<Record<string, SolidScriptMatrixFunction>>;
