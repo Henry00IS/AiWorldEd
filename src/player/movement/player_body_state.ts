@@ -41,6 +41,7 @@ export class PlayerBodyState {
   private readonly horizontalVelocity: THREE.Vector3;
   private planarSpeed: number;
   private facingYawRadians: number;
+  private lockedYawRadians: number | null = null;
   private wantsRun: boolean;
   private readonly horizontalDelta: THREE.Vector3;
   private readonly scratchForward: THREE.Vector3;
@@ -176,6 +177,17 @@ export class PlayerBodyState {
   }
 
   /**
+   * Holds the body in place facing a direction (playing a keyboard: the
+   * movement and jump keys play notes instead), or frees it. Gravity and
+   * collision still apply.
+   *
+   * @param yawRadians Facing yaw, or null to move again.
+   */
+  lockInPlace(yawRadians: number | null): void {
+    this.lockedYawRadians = yawRadians;
+  }
+
+  /**
    * Returns the body facing yaw used by the third-person avatar.
    *
    * @returns Facing yaw in radians.
@@ -285,7 +297,7 @@ export class PlayerBodyState {
    * @param inputManager Shared keyboard input.
    */
   private applyJumpEdge(inputManager: ManagerInput): void {
-    const jumpHeld = playerMovementIsJumpHeld(inputManager);
+    const jumpHeld = this.lockedYawRadians === null && playerMovementIsJumpHeld(inputManager);
     const canJump = this.isGrounded || this.coyoteTimeRemaining > 0;
     if (jumpHeld && !this.jumpWasHeld && canJump) {
       this.verticalVelocity = PLAYER_JUMP_SPEED_METERS_PER_SECOND;
@@ -304,7 +316,7 @@ export class PlayerBodyState {
    * @param deltaSeconds Frame delta.
    */
   private buildHorizontalMotion(inputManager: ManagerInput, look: PlayerLookState, deltaSeconds: number): void {
-    const axes = playerMovementReadAxes(inputManager);
+    const axes = this.lockedYawRadians === null ? playerMovementReadAxes(inputManager) : { forward: 0, right: 0 };
     const targetSpeed = playerMovementResolveSpeed(inputManager);
     this.wantsRun = targetSpeed >= PLAYER_RUN_SPEED_METERS_PER_SECOND * 0.9;
     look.copyHorizontalForwardTo(this.scratchForward);
@@ -365,6 +377,10 @@ export class PlayerBodyState {
    * @param lockFacingToLookYaw True in first-person.
    */
   private updateFacingYaw(look: PlayerLookState, deltaSeconds: number, lockFacingToLookYaw: boolean): void {
+    if (this.lockedYawRadians !== null) {
+      this.facingYawRadians = this.lockedYawRadians;
+      return;
+    }
     if (lockFacingToLookYaw) {
       this.facingYawRadians = look.getYawRadians();
       return;

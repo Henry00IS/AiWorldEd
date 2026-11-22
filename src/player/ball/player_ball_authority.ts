@@ -52,6 +52,7 @@ export class PlayerBallAuthority {
   private bouncedAny: boolean;
   /** Steps the tick runs ahead of the step count, for time not simulated. */
   private tickBehind: number;
+  private reserved = 0;
 
   /** Creates an empty simulation. */
   constructor() {
@@ -62,6 +63,17 @@ export class PlayerBallAuthority {
     this.removedAny = false;
     this.bouncedAny = false;
     this.tickBehind = -Infinity;
+  }
+
+  /**
+   * Keeps the highest toy ids free for other toys (a placed keyboard), removing
+   * the balls that use them; later throws stay below them.
+   *
+   * @param count Number of reserved ids (0 frees them).
+   */
+  reserveTop(count: number): void {
+    this.reserved = count;
+    this.removeWhere((body) => body.id > PLAYER_BALL_MAXIMUM_PER_MEMBER - count);
   }
 
   /**
@@ -79,7 +91,7 @@ export class PlayerBallAuthority {
     kind: PhysicsToyKind = 'tennis',
     resting = false,
   ): PlayerBallBody {
-    const surplus = this.bodies.length - PLAYER_BALL_MAXIMUM_PER_MEMBER + 1;
+    const surplus = this.bodies.length - PLAYER_BALL_MAXIMUM_PER_MEMBER + this.reserved + 1;
     const oldest = new Set(this.bodies.slice(0, Math.max(0, surplus)));
     this.removeWhere((body) => oldest.has(body));
     const { id, spawn } = this.idTake();

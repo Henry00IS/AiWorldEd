@@ -21,6 +21,8 @@ export interface PlayerCharacterControlIkOptions {
   handOrient: PlayerCharacterEndOrientMode;
   /** Character-local outward wall normal (required for palm_wall). */
   wallNormalLocalOut?: THREE.Vector3;
+  /** Character-local finger direction for palm_wall (default up). */
+  fingersLocalOut?: THREE.Vector3;
   /** Inward hand yaw in radians for palm_inward (thumbs toward pelvis). */
   handInwardYawRadians?: number;
 }
@@ -208,7 +210,7 @@ export class PlayerCharacterControlIk {
     playerCharacterSolveTwoBoneIk(upper, lower, hand, this.targetWorld, this.poleWorld, this.ikScratch);
     if (options.handOrient === 'palm_wall' && options.wallNormalLocalOut) {
       lower.updateMatrixWorld(true);
-      this.orientPalmOnWall(hand, isLeft, options.wallNormalLocalOut);
+      this.orientPalmOnWall(hand, isLeft, options.wallNormalLocalOut, options.fingersLocalOut);
       return;
     }
     if (options.handOrient === 'palm_inward') {
@@ -229,7 +231,8 @@ export class PlayerCharacterControlIk {
   }
 
   /**
-   * Orients a palm flat against the wall with fingers up.
+   * Orients a palm flat against the wall with fingers up (or along a given
+   * direction, for example forward on a keyboard).
    *
    * Simple extruded bones: +Y along the bone (fingers), +X out of the palm, +Z
    * along the thumb. The right hand mesh is mirrored relative to the shared
@@ -238,9 +241,15 @@ export class PlayerCharacterControlIk {
    * @param hand Hand bone.
    * @param isLeft True for left hand.
    * @param wallNormalLocalOut Character-local outward wall normal.
+   * @param fingers Character-local finger direction (default up).
    */
-  private orientPalmOnWall(hand: THREE.Bone, isLeft: boolean, wallNormalLocalOut: THREE.Vector3): void {
-    this.writePalmWallBasis(isLeft, wallNormalLocalOut);
+  private orientPalmOnWall(
+    hand: THREE.Bone,
+    isLeft: boolean,
+    wallNormalLocalOut: THREE.Vector3,
+    fingers?: THREE.Vector3,
+  ): void {
+    this.writePalmWallBasis(isLeft, wallNormalLocalOut, fingers);
     this.basisMatrix.makeBasis(this.axisX, this.axisY, this.axisZ);
     this.boneCharRot.setFromRotationMatrix(this.basisMatrix);
     this.boneWorldRot.copy(this.rootWorldQuaternion).multiply(this.boneCharRot);
@@ -248,13 +257,16 @@ export class PlayerCharacterControlIk {
   }
 
   /**
-   * Builds a wall-palm basis with fingers up and palm into the wall.
+   * Builds a wall-palm basis with fingers up (or along a given direction) and
+   * palm into the wall.
    *
    * @param isLeft True for left hand.
    * @param wallNormalLocalOut Character-local outward wall normal.
+   * @param fingers Character-local finger direction (default up).
    */
-  private writePalmWallBasis(isLeft: boolean, wallNormalLocalOut: THREE.Vector3): void {
-    this.axisY.set(0, 1, 0);
+  private writePalmWallBasis(isLeft: boolean, wallNormalLocalOut: THREE.Vector3, fingers?: THREE.Vector3): void {
+    if (fingers) this.axisY.copy(fingers);
+    else this.axisY.set(0, 1, 0);
     this.axisX.copy(wallNormalLocalOut).multiplyScalar(-1);
     this.normalizeAxisOrFallback(this.axisX, 0, 0, 1);
     this.axisZ.crossVectors(this.axisX, this.axisY);

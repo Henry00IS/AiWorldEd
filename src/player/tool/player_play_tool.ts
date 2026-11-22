@@ -3,18 +3,28 @@ import { Tool } from '@/editor/tools/tool.js';
 import { managerPointerLock } from '@/input/manager_pointer_lock.js';
 import type { PlayerPlaySession } from '@/player/session/player_play_session.js';
 import { nativeContextMenuAllowed } from '@/ui/input/native_browser_defaults.js';
-import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
+import type { PlayerToyKind } from '@/player/toy/player_toy_kind.js';
 
 /**
  * Keys that pick a toy directly (like the picker's slot numbers; 1 empties the
  * hands).
  */
-const PLAYER_PLAY_TOY_KEYS: Readonly<Record<string, PhysicsToyKind | null>> = {
+const PLAYER_PLAY_TOY_KEYS: Readonly<Record<string, PlayerToyKind | null>> = {
   Digit1: null,
   Digit2: 'tennis',
   Digit3: 'soccer',
   Digit4: 'plane',
+  Digit5: 'keyboard',
 };
+
+/**
+ * Keys that switch a placed keyboard's instrument (the number keys play notes
+ * then).
+ */
+const PLAYER_PLAY_INSTRUMENT_KEYS: Readonly<Record<string, number>> = { ArrowLeft: -1, ArrowRight: 1 };
+
+/** Keys that shift a placed keyboard's octave. */
+const PLAYER_PLAY_OCTAVE_KEYS: Readonly<Record<string, number>> = { ArrowDown: -1, ArrowUp: 1 };
 
 /**
  * Single-use exclusive play tool. Pointer lock uses the shared counter; Escape
@@ -127,6 +137,14 @@ export class PlayerPlayTool extends Tool {
   override onKeyDown(keyCode: string, _event?: KeyboardEvent): boolean {
     if (keyCode === 'Escape') {
       this.exitToParent();
+      return true;
+    }
+    const keyboard = this.session.getKeyboard();
+    const step = PLAYER_PLAY_INSTRUMENT_KEYS[keyCode];
+    const octave = PLAYER_PLAY_OCTAVE_KEYS[keyCode];
+    if (keyboard.isPlaced()) {
+      if (step !== undefined) this.session.stepKeyboardInstrument(step);
+      if (octave !== undefined) this.session.stepKeyboardOctave(octave);
       return true;
     }
     const toy = PLAYER_PLAY_TOY_KEYS[keyCode];
@@ -285,15 +303,15 @@ export class PlayerPlayTool extends Tool {
   }
 
   /**
-   * Picks the toy from the mouse wheel (Ctrl+wheel zooms the third-person
-   * camera).
+   * Zooms the third-person camera or picks the first-person toy from the mouse
+   * wheel.
    *
    * @param event Wheel event.
    */
   private onWheelLocked(event: WheelEvent): void {
     event.preventDefault();
     event.stopPropagation();
-    this.session.applyWheel(event.deltaY, event.ctrlKey);
+    this.session.applyWheel(event.deltaY);
   }
 
   /** Ends play mode and restores the parent editor tool. */

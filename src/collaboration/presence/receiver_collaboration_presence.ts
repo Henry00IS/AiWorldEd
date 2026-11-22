@@ -12,6 +12,7 @@ import {
 import { PRESENCE_ID_CHARACTER, type PresenceFrame } from '@/collaboration/shared/presence_frame.js';
 import type { MemberCollaborationRoster } from '@/collaboration/sync/member_collaboration_roster.js';
 import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
+import type { PlayerCharacterHandTargets } from '@/player/character/player_character_hand_targets.js';
 
 /** Clock and frame scheduling of the receiver (replaceable in tests). */
 export interface ReceiverCollaborationPresenceOptions {
@@ -48,6 +49,8 @@ export class ReceiverCollaborationPresence {
   private readonly members: Map<number, Map<number, PresenceCollaborationItem>>;
   /** Toy each member holds in play mode, as its toy frames said last. */
   private readonly held: Map<number, PhysicsToyKind | null>;
+  /** Targets the hands of members playing a toy (a keyboard) follow. */
+  private readonly hands = new Map<number, PlayerCharacterHandTargets>();
   private scheduled: boolean;
 
   /**
@@ -83,6 +86,22 @@ export class ReceiverCollaborationPresence {
     const item = this.members.get(user)?.get(PRESENCE_ID_CHARACTER);
     if (!(item instanceof CharacterCollaborationPresence)) return;
     item.hold(kind);
+    this.animate();
+  }
+
+  /**
+   * Puts a member's character hands on targets (now and whenever it appears),
+   * or frees them.
+   *
+   * @param user Member id.
+   * @param hands Hand targets, or null.
+   */
+  handsSet(user: number, hands: PlayerCharacterHandTargets | null): void {
+    if (hands) this.hands.set(user, hands);
+    else this.hands.delete(user);
+    const item = this.members.get(user)?.get(PRESENCE_ID_CHARACTER);
+    if (!(item instanceof CharacterCollaborationPresence)) return;
+    item.handsSet(hands);
     this.animate();
   }
 
@@ -175,6 +194,7 @@ export class ReceiverCollaborationPresence {
         ? new CharacterCollaborationPresence(name, color, this.options.model)
         : new CameraCollaborationPresence(name, color);
     if (item instanceof CharacterCollaborationPresence) item.hold(this.held.get(user) ?? null);
+    if (item instanceof CharacterCollaborationPresence) item.handsSet(this.hands.get(user) ?? null);
     items.set(id, item);
     this.host.helperAdd(item.object);
     return item;

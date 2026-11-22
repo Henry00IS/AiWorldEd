@@ -14,12 +14,6 @@ export const PLAYER_WALK_SPEED_METERS_PER_SECOND = 4.5;
 export const PLAYER_RUN_SPEED_METERS_PER_SECOND = 10.5;
 
 /**
- * Simulation time scale while Control is held in play mode. Scales movement and
- * animation together so gait and locomotion can be inspected in slow motion.
- */
-export const PLAYER_SLOW_MOTION_TIME_SCALE = 0.12;
-
-/**
  * Grounded acceleration while steering (HL2-like: snappy ramp, shared by first-
  * and third-person).
  */

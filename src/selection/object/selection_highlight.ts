@@ -287,7 +287,6 @@ export class SelectionHighlight {
     material.depthTest = depthOcclusionEnabled;
     material.depthWrite = false;
     material.depthFunc = depthOcclusionEnabled ? occludedDepthFunc : THREE.AlwaysDepth;
-    material.needsUpdate = true;
   }
 
   /**

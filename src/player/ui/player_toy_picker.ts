@@ -1,4 +1,4 @@
-import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
+import { PLAYER_TOY_KEYBOARD, type PlayerToyKind } from '@/player/toy/player_toy_kind.js';
 import { PLAYER_TOY_KINDS, PLAYER_TOY_LABELS } from '@/player/toy/player_toy_models.js';
 import { Theme } from '@/theme.js';
 
@@ -8,12 +8,16 @@ const PLAYER_TOY_PICKER_ACCENT = '#e86a17';
 const PLAYER_TOY_PICKER_BRIGHT_MS = 1600;
 
 /** The picker's slots in key order: empty hands, then the toys. */
-export const PLAYER_TOY_PICKER_SLOTS: readonly (PhysicsToyKind | null)[] = [null, ...PLAYER_TOY_KINDS];
+export const PLAYER_TOY_PICKER_SLOTS: readonly (PlayerToyKind | null)[] = [
+  null,
+  ...PLAYER_TOY_KINDS,
+  PLAYER_TOY_KEYBOARD,
+];
 /** Name and slot data of empty hands. */
 const PLAYER_TOY_PICKER_EMPTY = { label: 'Empty hands', data: 'empty' };
 
 /** Slot icons (24 px, current color); empty hands show an open hand. */
-const PLAYER_TOY_PICKER_ICONS: Readonly<Record<PhysicsToyKind | 'empty', string>> = {
+const PLAYER_TOY_PICKER_ICONS: Readonly<Record<PlayerToyKind | 'empty', string>> = {
   empty:
     '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#f4f1e8" stroke-width="1.4"' +
     ' stroke-linecap="round" stroke-linejoin="round"><path d="M8 12V5.5a1.3 1.3 0 0 1 2.6 0V11M10.6 10V4.3a1.3 1.3 0 0 1 2.6 0V11' +
@@ -32,18 +36,24 @@ const PLAYER_TOY_PICKER_ICONS: Readonly<Record<PhysicsToyKind | 'empty', string>
     '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#f4f1e8" stroke-width="1.3"' +
     ' stroke-linejoin="round"><path d="M3 11.5L21 4l-6.5 16-3.2-6.3z" fill="rgba(244,241,232,0.25)"/>' +
     '<path d="M21 4L11.3 13.7"/></svg>',
+  keyboard:
+    '<svg viewBox="0 0 24 24" width="24" height="24" fill="#f4f1e8" stroke="#222" stroke-width="0.8">' +
+    '<rect x="2.5" y="6" width="19" height="12" rx="1"/>' +
+    '<path d="M6.3 6v12M10.1 6v12M13.9 6v12M17.7 6v12" fill="none"/>' +
+    '<path d="M5.2 6h2.2v7H5.2zM9 6h2.2v7H9zM16.6 6h2.2v7h-2.2z" fill="#222"/></svg>',
 };
 
 /**
  * The play-mode toy picker: a small hotbar at the bottom of the play viewport
- * with an empty-hands slot and one slot per toy. The mouse wheel (or 1-4) moves
- * the selection; it shows the selected slot's name and dims when left alone.
+ * with an empty-hands slot and one slot per toy. The keys 1-5 (and the wheel in
+ * first person) move the selection; it shows the selected slot's name and dims
+ * when left alone.
  */
 export class PlayerToyPicker {
   private readonly element: HTMLDivElement;
   private readonly label: HTMLDivElement;
-  private readonly slots: Map<PhysicsToyKind | null, HTMLDivElement>;
-  private selected: PhysicsToyKind | null;
+  private readonly slots: Map<PlayerToyKind | null, HTMLDivElement>;
+  private selected: PlayerToyKind | null;
   private dimTimer: ReturnType<typeof setTimeout> | null;
 
   /**
@@ -52,7 +62,7 @@ export class PlayerToyPicker {
    * @param ownerDocument Document to build in.
    * @param selected Initially selected toy (null: empty hands).
    */
-  constructor(ownerDocument: Document, selected: PhysicsToyKind | null) {
+  constructor(ownerDocument: Document, selected: PlayerToyKind | null) {
     this.element = ownerDocument.createElement('div');
     this.element.className = 'player-toy-picker';
     this.element.setAttribute('role', 'listbox');
@@ -98,7 +108,7 @@ export class PlayerToyPicker {
    *
    * @param kind Selected toy (null: empty hands).
    */
-  select(kind: PhysicsToyKind | null): void {
+  select(kind: PlayerToyKind | null): void {
     this.selected = kind;
     this.render();
     this.brighten();
@@ -121,7 +131,7 @@ export class PlayerToyPicker {
    * @param number Slot number (its key).
    * @returns Slot.
    */
-  private buildSlot(ownerDocument: Document, kind: PhysicsToyKind | null, number: number): HTMLDivElement {
+  private buildSlot(ownerDocument: Document, kind: PlayerToyKind | null, number: number): HTMLDivElement {
     const slot = ownerDocument.createElement('div');
     slot.setAttribute('role', 'option');
     slot.dataset['toy'] = kind ?? PLAYER_TOY_PICKER_EMPTY.data;
@@ -166,7 +176,7 @@ export class PlayerToyPicker {
  * @param step +1 for the next slot, -1 for the previous.
  * @returns New toy, or null for empty hands.
  */
-export function playerToyPickerStep(kind: PhysicsToyKind | null, step: number): PhysicsToyKind | null {
+export function playerToyPickerStep(kind: PlayerToyKind | null, step: number): PlayerToyKind | null {
   const count = PLAYER_TOY_PICKER_SLOTS.length;
   const index = PLAYER_TOY_PICKER_SLOTS.indexOf(kind);
   return PLAYER_TOY_PICKER_SLOTS[(((index + Math.sign(step)) % count) + count) % count] ?? null;
@@ -178,7 +188,8 @@ export function playerToyPickerStep(kind: PhysicsToyKind | null, step: number): 
  * @param kind Toy kind (null: empty hands).
  * @returns Name.
  */
-function playerToyPickerLabel(kind: PhysicsToyKind | null): string {
+function playerToyPickerLabel(kind: PlayerToyKind | null): string {
+  if (kind === PLAYER_TOY_KEYBOARD) return 'Keyboard';
   return kind === null ? PLAYER_TOY_PICKER_EMPTY.label : PLAYER_TOY_LABELS[kind];
 }
 
