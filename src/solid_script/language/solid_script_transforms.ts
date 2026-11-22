@@ -52,13 +52,37 @@ export function solidScriptRotateMatrix(args: SolidScriptBlockArguments, key = '
 
 /**
  * Matrix of an Align To block: the shortest turn that makes up (+Y) point along
- * the direction.
+ * the direction, or, with Forward, the turn that also points the front (+Z)
+ * along Forward.
  *
  * @param args Block fields.
  * @returns Matrix.
  */
 export function solidScriptAlignMatrix(args: SolidScriptBlockArguments): THREE.Matrix4 {
-  return solidScriptAlignDirectionMatrix(new THREE.Vector3(...args.vector('direction', [0, 1, 0])));
+  const direction = new THREE.Vector3(...args.vector('direction', [0, 1, 0]));
+  const up = solidScriptAlignDirectionMatrix(direction);
+  const typed = args.value('forward');
+  if (typed === undefined || (typeof typed === 'string' && typed.trim() === '')) return up;
+  return solidScriptForwardMatrix(direction, new THREE.Vector3(...args.vector('forward', [0, 0, 1]))) ?? up;
+}
+
+/**
+ * Rotation whose up (Y) points along one direction and whose front (Z) points
+ * as close as it can to a second one: the second is laid square to up first.
+ * Gives null when the second is 0, 0, 0 or runs along up, so the caller keeps
+ * its own turn.
+ *
+ * @param up Way up should point.
+ * @param forward Way the front should point.
+ * @returns Rotation, or null.
+ */
+export function solidScriptForwardMatrix(up: THREE.Vector3, forward: THREE.Vector3): THREE.Matrix4 | null {
+  if (up.lengthSq() < 1e-18) return null;
+  const y = up.clone().normalize();
+  const z = forward.clone().addScaledVector(y, -forward.dot(y));
+  if (z.lengthSq() < 1e-12 * Math.max(1, forward.lengthSq())) return null;
+  z.normalize();
+  return new THREE.Matrix4().makeBasis(new THREE.Vector3().crossVectors(y, z), y, z);
 }
 
 /**

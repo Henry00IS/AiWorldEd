@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { solidScriptGeometryFrame } from './solid_script_geometry.js';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
 import { solidScriptEachUsed } from './solid_script_each_uses.js';
-import { solidScriptAlignDirectionMatrix } from './solid_script_transforms.js';
+import { solidScriptAlignDirectionMatrix, solidScriptForwardMatrix } from './solid_script_transforms.js';
 import {
   SolidScriptPoint,
   solidScriptValueNumber,
@@ -57,7 +57,8 @@ function solidScriptPlacePoint(value: unknown, label: string): THREE.Vector3 {
  */
 export function solidScriptPlaceMatrices(run: SolidScriptBlockRun): THREE.Matrix4[] {
   const points = solidScriptPlacePoints(run, 'at', 'At');
-  const directionOf = solidScriptPlaceDirections(run, points);
+  const directionOf = solidScriptPlaceDirections(run, points, 'directions', 'Directions');
+  const forwardOf = solidScriptPlaceDirections(run, points, 'forward', 'Forward');
   const parent = run.matrix();
   return points.map((point, index) => {
     const direction = directionOf(index);
@@ -68,7 +69,8 @@ export function solidScriptPlaceMatrices(run: SolidScriptBlockRun): THREE.Matrix
     if (align !== undefined && typeof align !== 'boolean') throw new Error('Align To Normal needs Yes or No');
     const rotate = solidScriptPlaceEachRotate(run, fills);
     const scale = solidScriptPlaceEachScale(run, fills);
-    return parent.clone().multiply(solidScriptPlaceAtMatrix(point, direction, lift, align === true, rotate, scale));
+    const matrix = solidScriptPlaceAtMatrix(point, direction, lift, align === true, rotate, scale, forwardOf(index));
+    return parent.clone().multiply(matrix);
   });
 }
 
@@ -97,35 +99,41 @@ function solidScriptPlaceFills(
 }
 
 /**
- * Reads the optional Directions: one direction for every point, a list with one
- * per point, or a direction worked out per point, such as [=Vector(0, 1,
- * [$X])], where [$Point.Normal] is still world up.
+ * Reads an optional field of directions, such as Directions or Forward: one
+ * direction for every point, a list with one per point, or a direction worked
+ * out per point, such as [=Vector(0, 1, [$X])], where [$Point.Normal] is still
+ * world up.
  *
  * @param run Running line.
  * @param points Points of At.
- * @returns The direction for the point at a position, or null for world up.
+ * @param key Field key.
+ * @param label Field caption, for messages.
+ * @returns The direction for the point at a position, or null when empty.
  */
 function solidScriptPlaceDirections(
   run: SolidScriptBlockRun,
   points: readonly THREE.Vector3[],
+  key: string,
+  label: string,
 ): (index: number) => THREE.Vector3 | null {
-  const source = run.source('directions');
+  const source = run.source(key);
   if (source.trim() === '') return () => null;
   if (solidScriptEachUsed(source))
     return (index) =>
       solidScriptPlacePoint(
         solidScriptPlaceSingle(
-          run.valueWith('directions', solidScriptPlaceFills(points[index]!, null, index, points.length)),
+          run.valueWith(key, solidScriptPlaceFills(points[index] ?? new THREE.Vector3(), null, index, points.length)),
         ),
-        'Directions',
+        label,
       );
-  const directions = solidScriptPlacePoints(run, 'directions', 'Directions');
-  if (directions.length === 1) return () => directions[0]!;
+  const directions = solidScriptPlacePoints(run, key, label);
+  const [first] = directions;
+  if (first && directions.length === 1) return () => first;
   if (directions.length !== points.length)
     throw new Error(
-      `Directions needs one direction, or one for each point in At, or leave it empty; At has ${points.length} and Directions has ${directions.length}`,
+      `${label} needs one direction, or one for each point in At, or leave it empty; At has ${points.length} and ${label} has ${directions.length}`,
     );
-  return (index) => directions[index]!;
+  return (index) => directions[index] ?? null;
 }
 
 /**
@@ -167,6 +175,8 @@ export function solidScriptPlaceAlignMatrix(direction: THREE.Vector3): THREE.Mat
  *   turn.
  * @param rotate Per-point rotation, after the lift.
  * @param scale Per-point scale, after the rotation.
+ * @param forward Where the front (Z) should point, square to up; null keeps the
+ *   turn above.
  * @returns Matrix.
  */
 export function solidScriptPlaceAtMatrix(
@@ -176,12 +186,16 @@ export function solidScriptPlaceAtMatrix(
   align: boolean,
   rotate: THREE.Matrix4,
   scale: THREE.Matrix4,
+  forward: THREE.Vector3 | null = null,
 ): THREE.Matrix4 {
-  const oriented = !direction
-    ? new THREE.Matrix4()
-    : align
-      ? solidScriptPlaceAlignMatrix(direction)
-      : solidScriptAlignDirectionMatrix(direction);
+  const front = forward ? solidScriptForwardMatrix(direction ?? new THREE.Vector3(0, 1, 0), forward) : null;
+  const oriented =
+    front ??
+    (!direction
+      ? new THREE.Matrix4()
+      : align
+        ? solidScriptPlaceAlignMatrix(direction)
+        : solidScriptAlignDirectionMatrix(direction));
   return new THREE.Matrix4()
     .makeTranslation(position.x, position.y, position.z)
     .multiply(oriented)

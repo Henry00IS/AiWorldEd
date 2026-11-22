@@ -362,10 +362,10 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     builds: true,
     intoList: true,
     manual:
-      'Builds the objects between this line and its End at each point in At, a list of vectors such as the points Scatter Points writes. Directions, when given, turns up (Y) along one direction for all points, or along the matching entry of a list with one per point; leave it empty to keep world up. Lift moves them out along that up. Align To Normal stands each copy the way Place On Face would, with Directions as the face normal. Directions, Lift, Align To Normal, Rotation and Scale can each change per point: [$Point] is the point, with its Position and Normal (the direction, or world up), [$Index] its number from 0, [$Count] how many points there are, and [$X], [$Y] and [$Z] its position; for example Lift [=[$Index] * 0.1] stacks the copies like stairs. Into is always a list of the objects it built, even when there is only one. Example: Scatter Points 20 Into [Spots] Normals [Dirs], then Place At Points At [Spots] Directions [Dirs], Sphere, End, puts a ball on every point, standing on the face.',
+      'Builds the objects between this line and its End at each point in At, a list of vectors such as the points Scatter Points writes. Directions, when given, turns up (Y) along one direction for all points, or along the matching entry of a list with one per point; leave it empty to keep world up. Forward, when given, also turns the front (Z) of each copy toward it, as far as it can while up stays, so a fence post stands up and faces along a path. Lift moves them out along that up. Align To Normal stands each copy the way Place On Face would, with Directions as the face normal. Directions, Forward, Lift, Align To Normal, Rotation and Scale can each change per point: [$Point] is the point, with its Position and Normal (the direction, or world up), [$Index] its number from 0, [$Count] how many points there are, and [$X], [$Y] and [$Z] its position; for example Lift [=[$Index] * 0.1] stacks the copies like stairs. Into is always a list of the objects it built, even when there is only one. Example: Scatter Points 20 Into [Spots] Normals [Dirs], then Place At Points At [Spots] Directions [Dirs], Sphere, End, puts a ball on every point, standing on the face.',
     stops: [
       'A point or direction that is not x, y, z.',
-      'A Directions list with more than one entry whose length is not the number of points in At.',
+      'A Directions or Forward list with more than one entry whose length is not the number of points in At.',
       'A missing End line.',
     ],
     nesting: 'open',
@@ -384,6 +384,15 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
           'Directions',
           'points3',
           'Optional: the way up (Y) points, one direction for all points such as 1, 0, 0, one per point such as [Dirs] from Scatter Points Normals, or [=Vector(0, 1, [$X] * 0.1)]. Empty keeps world up.',
+        ),
+        'Point',
+      ),
+      solidScriptParameterEach(
+        solidScriptParameterOptional(
+          'forward',
+          'Forward',
+          'points3',
+          'Optional: the way the front (Z) points, laid square to up, one for all points such as 1, 0, 0, one per point such as [Ways], or [=PathDirection([Path], [$Index] / ([$Count] - 1))]. Empty, 0, 0, 0 or a way along up keeps the turn Directions gives.',
         ),
         'Point',
       ),
@@ -433,6 +442,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       ' At ',
       read.value('at'),
       ...(read.text('directions') === '' ? [] : [' Directions ', read.value('directions')]),
+      ...(read.text('forward') === '' ? [] : [' Forward ', read.value('forward')]),
       ...solidScriptListingOptions([
         read.changed('lift') && ['Lift ', read.value('lift')],
         read.on('align') && ['Align To Normal'],
