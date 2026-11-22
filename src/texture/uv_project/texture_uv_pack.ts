@@ -1,19 +1,23 @@
 /** One UV island, a loop of corner coordinates. */
 export type TextureUvIsland = readonly (readonly [number, number])[];
 
-/** Padding between packed islands, in UV units before the final 0–1 scale. */
+/** Gap between packed islands when none is given, as a share of the square. */
 const TEXTURE_UV_PACK_GAP = 0.02;
 
 /**
- * Packs UV islands into the 0–1 square, keeping each island's shape, with a
- * small gap between them.
+ * Packs UV islands into the 0–1 square, keeping each island's shape, with a gap
+ * between them about Margin of the square wide.
  *
  * @param islands Islands as corner UV loops.
+ * @param margin Gap between islands, as a share of the square.
  * @returns Packed islands in the same order, or empty when none have area.
  */
-export function textureUvPackIslands(islands: readonly TextureUvIsland[]): [number, number][][] {
+export function textureUvPackIslands(
+  islands: readonly TextureUvIsland[],
+  margin = TEXTURE_UV_PACK_GAP,
+): [number, number][][] {
   const boxes = islands.map(textureUvPackBox);
-  const placed = textureUvPackShelves(boxes);
+  const placed = textureUvPackShelves(boxes, margin);
   const bounds = textureUvPackBounds(placed);
   if (!(bounds.width > 0) || !(bounds.height > 0)) return islands.map((island) => island.map(([u, v]) => [u, v]));
   const scale = 1 / Math.max(bounds.width, bounds.height);
@@ -49,12 +53,14 @@ function textureUvPackBox(island: TextureUvIsland): TextureUvPackBox {
  * would grow wider than the tallest running span.
  *
  * @param boxes Islands at the origin.
+ * @param margin Gap between islands, as a share of the shelf width.
  * @returns Corners in packed positions, same order as the boxes.
  */
-function textureUvPackShelves(boxes: readonly TextureUvPackBox[]): [number, number][][] {
+function textureUvPackShelves(boxes: readonly TextureUvPackBox[], margin: number): [number, number][][] {
   const packed: [number, number][][] = boxes.map(() => []);
-  const cursor = { x: 0, y: 0, height: 0 };
+  const cursor = { x: 0, y: 0, height: 0, gap: 0 };
   const limit = textureUvPackShelfLimit(boxes);
+  cursor.gap = margin * limit;
   for (const index of textureUvPackShelfOrder(boxes)) {
     const box = boxes[index];
     if (box) textureUvPackShelfPlace(cursor, box, limit, packed, index);
@@ -93,26 +99,26 @@ function textureUvPackShelfLimit(boxes: readonly TextureUvPackBox[]): number {
  * Places one island on the current shelf, or starts a new shelf when it would
  * not fit.
  *
- * @param cursor Shelf cursor.
+ * @param cursor Shelf cursor and the gap between islands.
  * @param box Island at the origin.
  * @param limit Shelf width limit.
  * @param packed Packed corners by original index.
  * @param index Original index.
  */
 function textureUvPackShelfPlace(
-  cursor: { x: number; y: number; height: number },
+  cursor: { x: number; y: number; height: number; gap: number },
   box: TextureUvPackBox,
   limit: number,
   packed: [number, number][][],
   index: number,
 ): void {
-  if (cursor.x > 0 && cursor.x + box.width + TEXTURE_UV_PACK_GAP > limit) {
-    cursor.y += cursor.height + TEXTURE_UV_PACK_GAP;
+  if (cursor.x > 0 && cursor.x + box.width + cursor.gap > limit) {
+    cursor.y += cursor.height + cursor.gap;
     cursor.x = 0;
     cursor.height = 0;
   }
   packed[index] = box.local.map(([u, v]) => [u + cursor.x, v + cursor.y]);
-  cursor.x += box.width + TEXTURE_UV_PACK_GAP;
+  cursor.x += box.width + cursor.gap;
   cursor.height = Math.max(cursor.height, box.height);
 }
 

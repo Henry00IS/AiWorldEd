@@ -624,3 +624,4 @@ Solid mutations (including hierarchy create/reparent/rename/ungroup) are **undoa
 - Path Line by direction and length: set To to Along(From, Direction, Length). Path Spiral turns clockwise from above with negative Turns.
 - Nearest(points, point, skip, groups, group): Groups gives a group number per point and Group the one to search, so only points of the same group are found.
 - Scatter Points By Density: each triangle draws from its own random stream, so raising Density keeps every point a lower Density gave and only adds more.
+- Pack Islands: faces that share a corner with the same UV, such as faces Unwrap Seams kept joined, now pack as one island; Margin (default 0.001) is the gap between islands as a share of the square.

@@ -6,14 +6,16 @@ import { solidScriptProgramRun } from '@/solid_script/language/solid_script_prog
  * Unwraps a cube of size 2 and reads each face's corner UVs.
  *
  * @param seams Seams field.
+ * @param pack Pack Islands values, or null to leave islands unpacked.
  * @returns UVs per face, as U, V pairs.
  */
-function unwrap(seams: string): number[][][] {
+function unwrap(seams: string, pack: Record<string, string> | null = null): number[][][] {
   const result = solidScriptProgramRun(
     solidScriptDocumentCreate([
       { command: 'cube', values: { size: '2', into: 'C' } },
       { command: 'select_faces', values: { which: 'All', of: '[C]' } },
       { command: 'unwrap', values: { seams } },
+      ...(pack ? [{ command: 'pack_islands', values: pack }] : []),
       { command: 'for_each', values: { variable: 'F', list: '[C.Faces]' } },
       { command: 'echo', values: { value: '[F.UVs]' } },
       { command: 'end' },
@@ -49,5 +51,22 @@ describe('Unwrap Seams', () => {
         const [nu = 0, nv = 0] = face[(index + 1) % face.length] ?? [];
         expect(Math.hypot(nu - u, nv - v)).toBeCloseTo(2, 6);
       });
+  });
+
+  it('packs faces joined by Unwrap as one island, keeping their shared corners shared', () => {
+    const seams = '[=[$Edge.Angle] > 100]';
+    const packed = unwrap(seams, {});
+    expect(distinct(packed).size).toBe(distinct(unwrap(seams)).size);
+    packed.flat().forEach((uv) => uv.forEach((value) => expect(value).toBeLessThanOrEqual(1 + 1e-9)));
+  });
+
+  it('leaves Margin of the square between islands, so a wider Margin packs them smaller', () => {
+    const width = (margin: string): number => {
+      const [first = [], second = []] = unwrap('', { margin })[0] ?? [];
+      const [u0 = 0] = first;
+      const [u1 = 0] = second;
+      return Math.abs(u1 - u0);
+    };
+    expect(width('0.2')).toBeLessThan(width('0'));
   });
 });

@@ -48,7 +48,7 @@ import { textureUvUnwrapFace } from '@/texture/uv_project/texture_uv_unwrap.js';
 import { solidScriptUvUnfold } from '@/solid_script/language/solid_script_uv_unfold.js';
 import { solidScriptUvsSeamLinks } from './solid_script_uvs_seams.js';
 import { solidScriptParameterEach } from './solid_script_command_each.js';
-import { textureUvPackIslands } from '@/texture/uv_project/texture_uv_pack.js';
+import { solidScriptUvIslandsPack } from '@/solid_script/language/solid_script_uv_islands.js';
 import {
   textureUvTransformMatrix,
   textureUvTransformPoint,
@@ -206,13 +206,24 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Fit UV islands into 0 to 1',
     manual:
-      "Packs the UV islands of the faces into the 0 to 1 square, keeping each island's shape, with a small gap between them. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. Solids stay solids; meshes stay meshes. Example: Unwrap, then Pack Islands.",
-    stops: ['No faces.'],
+      "Packs the UV islands of the faces into the 0 to 1 square, keeping each island's shape and scaling all of them alike. Faces that share a corner with the same UV, such as faces Unwrap kept joined, move together as one island. Margin is the gap between islands as a share of the square. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. Solids stay solids; meshes stay meshes. Example: Unwrap, then Pack Islands.",
+    stops: ['No faces.', 'A Margin below 0 or above 1.'],
     parameters: [
+      solidScriptParameter(
+        'margin',
+        'Margin',
+        'number',
+        '0.001',
+        'Gap between islands as a share of the square, such as 0.001.',
+      ),
       solidScriptParameterOfWhere('Face', '[=[$Face.Normal.Y] > 0.9]'),
       solidScriptParameterOf('faces or objects', '$Selected.Faces'),
     ],
-    listing: (read) => ['Pack Islands', ...solidScriptListingOf(read)],
+    listing: (read) => [
+      'Pack Islands',
+      ...(read.text('margin') === '' ? [] : [' Margin ', read.value('margin')]),
+      ...solidScriptListingOf(read),
+    ],
     execute: (run) => {
       solidScriptUvsPack(run, solidScriptFaceTargets(run, 'Pack Islands'));
       return [];
@@ -410,6 +421,20 @@ function solidScriptUvsSize(run: SolidScriptBlockRun, label: string): number {
   if (size === undefined) throw new Error(`${label} needs a Size in metres, such as 1`);
   if (!(size > 0)) throw new Error(`Size must be greater than 0, not ${size}`);
   return size;
+}
+
+/**
+ * Reads Pack Islands' Margin, 0.001 when left off.
+ *
+ * @param run Running line.
+ * @returns Gap between islands as a share of the square.
+ */
+function solidScriptUvsMargin(run: SolidScriptBlockRun): number {
+  if (run.source('margin').trim() === '') return 0.001;
+  const margin = solidScriptValueNumber(run.value('margin'));
+  if (margin === undefined || !(margin >= 0 && margin <= 1))
+    throw new Error('Pack Islands needs a Margin from 0 to 1, such as 0.001');
+  return margin;
 }
 
 /**
@@ -687,8 +712,8 @@ function solidScriptUvsUnwrapSeams(run: SolidScriptBlockRun, faces: readonly Sol
  * @param faces Faces to pack.
  */
 function solidScriptUvsPack(run: SolidScriptBlockRun, faces: readonly SolidScriptFaceFacts[]): void {
-  const islands = faces.map((face) => solidScriptFaceCornerUvs(face));
-  const packed = textureUvPackIslands(islands);
+  const uvs = faces.map((face) => solidScriptFaceCornerUvs(face));
+  const packed = solidScriptUvIslandsPack(faces, uvs, solidScriptUvsMargin(run));
   for (const [leaf, group] of solidScriptFaceGroups(
     faces.map((face, index) => ({ face, index })),
     (item) => item.face.leaf,
