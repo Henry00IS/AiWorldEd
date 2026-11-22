@@ -116,6 +116,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     Edges: form('Edges', 'Edge List'),
     Vertices: form('Vertices', 'Vertex List'),
     Neighbors: form('Neighbors', 'Face List'),
+    Island: form('Islands', 'Number'),
     Parent: form('Parents', 'Object'),
     UVs: form('UVs', 'Vector List'),
     Texture: form('Textures', 'Text'),
@@ -547,6 +548,7 @@ function solidScriptMemberElement(
         return faceList(elements.edges(element).flatMap((edge) => edge.faces.filter((face) => face !== null))).filter(
           (face) => face !== element,
         );
+      if (member === 'island') return solidScriptMemberIsland(element, elements);
       return solidScriptMemberFace(element, member, elements, edgeList, vertexList);
     case 'edge': {
       const edges = elements.edges(element);
@@ -667,6 +669,21 @@ function solidScriptMemberIslands(
     islands.set(key, [...(islands.get(key) ?? []), face]);
   });
   return [...islands.values()];
+}
+
+/**
+ * Finds which island of its object a face is in: the number of that island in
+ * [Object.Islands], from 0.
+ *
+ * @param element Face element.
+ * @param elements Geometry values of the run.
+ * @returns Island number.
+ */
+function solidScriptMemberIsland(element: SolidScriptElement, elements: SolidScriptElements): number {
+  const first = elements.faces(element)[0];
+  if (!first) throw new Error(`${String(element)} was cut away`);
+  const islands = solidScriptMemberIslands(elements.brush(first.leaf), elements);
+  return islands.findIndex((island) => island.some((face) => face.index === first.index));
 }
 
 /**

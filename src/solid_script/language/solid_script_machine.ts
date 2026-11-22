@@ -1127,7 +1127,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         }
         return into;
       },
-      local: (planar) => inside({ matrix: new THREE.Matrix4(), planar }),
+      local: (planar) => state.machine.shapesLatest(inside({ matrix: new THREE.Matrix4(), planar })),
       placed: (shapes) =>
         state.machine.modeRolePlaced(
           shapes
