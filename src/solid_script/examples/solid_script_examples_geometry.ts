@@ -90,6 +90,6 @@ export const SOLID_SCRIPT_EXAMPLE_HILLY_FLOOR: readonly SolidScriptLine[] = [
     "Displace moves each selected point along its normal. The distance uses Noise, which turns a point into a smooth random height: the same Seed is the same hills. [X] and [Z] are the point's place on the floor.",
   ),
   solidScriptExampleLine('displace', {
-    distance: '[=[Height] * (Noise([$X], 0, [$Z], [Scale], [Seed]) * 2 - 1)]',
+    distance: '[=[Height] * (Noise(Vector([$X], 0, [$Z]), [Scale], [Seed]) * 2 - 1)]',
   }),
 ];

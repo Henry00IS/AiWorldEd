@@ -2,6 +2,7 @@ import { SOLID_SCRIPT_FUNCTIONS_EXTRA } from './solid_script_functions_extra.js'
 import { SOLID_SCRIPT_FUNCTIONS_MATH } from './solid_script_functions_math.js';
 import { SOLID_SCRIPT_FUNCTIONS_SHAPING } from './solid_script_functions_shaping.js';
 import { SOLID_SCRIPT_FUNCTIONS_MATRIX } from './solid_script_functions_matrix.js';
+import { SOLID_SCRIPT_FUNCTIONS_NOISE } from './solid_script_functions_noise.js';
 import { SOLID_SCRIPT_FUNCTIONS_CURVE } from './solid_script_functions_curve.js';
 import { SOLID_SCRIPT_FUNCTIONS_CONDITION } from './solid_script_functions_condition.js';
 import { SOLID_SCRIPT_FUNCTIONS_WHERE } from './solid_script_functions_where.js';
@@ -159,6 +160,7 @@ const SOLID_SCRIPT_FUNCTIONS_NAMED = {
   ...SOLID_SCRIPT_FUNCTIONS_MATH,
   ...SOLID_SCRIPT_FUNCTIONS_SHAPING,
   ...SOLID_SCRIPT_FUNCTIONS_MATRIX,
+  ...SOLID_SCRIPT_FUNCTIONS_NOISE,
   ...SOLID_SCRIPT_FUNCTIONS_CURVE,
   ...SOLID_SCRIPT_FUNCTIONS_CONDITION,
   ...SOLID_SCRIPT_FUNCTIONS_WHERE,

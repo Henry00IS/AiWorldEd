@@ -12,6 +12,7 @@ import {
   SOLID_SCRIPT_KIND_CHECK_DOCS,
 } from './solid_script_functions_kind_checks.js';
 import { SOLID_SCRIPT_FUNCTION_DOCS_MATH, solidScriptFunctionDocSummary } from './solid_script_function_docs_math.js';
+import { SOLID_SCRIPT_NOISE_TYPES, SOLID_SCRIPT_VORONOI_OUTPUTS } from './solid_script_functions_noise.js';
 import {
   SOLID_SCRIPT_FUNCTION_DOCS_MATRIX,
   SOLID_SCRIPT_FUNCTION_DOCS_SHAPING,
@@ -439,9 +440,38 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
     gives: ['Number'],
   },
   noise: {
-    usage: 'Noise(x, y, z, scale, seed)',
-    summary:
-      'Smooth random bumps from 0 to 1 at a point; one seed gives the same field, such as Noise(Vector(1, 0, 0), 1, 4).',
+    usage: 'Noise(position, scale, seed, detail, roughness, type)',
+    summary: solidScriptFunctionDocSummary(
+      'Smooth random bumps from 0 to 1 at a position; one seed always gives the same field. Scale is the size of one bump in metres. Detail adds finer layers on top (2 when left off, 0 for plain bumps) and Roughness is how strong each finer layer is (0.5). Type Ridged gives sharp ridges, Terrain keeps low ground smooth and high ground rough.',
+      [
+        'Noise(Vector(1, 0, 0), 1, 4) gives the same number every time.',
+        'Noise(Vector([$X], 0, [$Z]), 4, 1, 4, 0.6, "Terrain") makes mountains under Displace.',
+      ],
+      'Use it with Displace for rolling ground, or with Random sizes that change smoothly across a level.',
+    ),
+    group: 'Random',
+    gives: ['Number'],
+  },
+  noise_vector: {
+    usage: 'NoiseVector(position, scale, seed)',
+    summary: solidScriptFunctionDocSummary(
+      'Three separate smooth noise values at once, each from 0 to 1, as a vector.',
+      ['NoiseVector(Vector(1, 0, 0), 1, 4) gives three different numbers.'],
+      'Use it to wobble a position or a rotation on every axis.',
+    ),
+    group: 'Random',
+    gives: ['Vector'],
+  },
+  voronoi: {
+    usage: 'Voronoi(position, scale, seed, output)',
+    summary: solidScriptFunctionDocSummary(
+      'Splits space into random cells, like cracked mud or cobblestones. Output Distance (the default) is how far the position is from its cell spot, Edge is how close it is to the edge between two cells (0 on the edge), and Cell is one random value from 0 to 1 per cell.',
+      [
+        'Voronoi(Vector(0, 0, 0), 1, 3, "Cell") gives one value for the whole cell.',
+        'Voronoi(Vector([$X], 0, [$Z]), 2, 1, "Edge") < 0.1 picks the cracks.',
+      ],
+      'Use it for stone tiles, cracks, or giving each patch of ground its own height.',
+    ),
     group: 'Random',
     gives: ['Number'],
   },
@@ -730,6 +760,32 @@ const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
     rotate: { type: ['Vector'], about: 'Degrees around X, Y and Z.', start: '0, 0, 0' },
     scale: { type: ['Vector'], about: 'Scale along each axis.', start: '1, 1, 1' },
   },
+  noise: {
+    position: { type: ['Vector'], about: 'Where to read the noise, such as Vector([$X], 0, [$Z]).', start: '0, 0, 0' },
+    scale: { type: ['Number'], about: 'Size of one bump in metres.', start: '1', default: '1' },
+    detail: { type: ['Number'], about: 'Finer layers on top, 0 to 15.', default: '2', start: '2' },
+    roughness: {
+      type: ['Number'],
+      about: 'How strong each finer layer is, such as 0.5.',
+      default: '0.5',
+      start: '0.5',
+    },
+    type: { type: ['Text'], about: 'Smooth, Ridged or Terrain.', choices: SOLID_SCRIPT_NOISE_TYPES, default: 'Smooth' },
+  },
+  noise_vector: {
+    position: { type: ['Vector'], about: 'Where to read the noise, such as Vector([$X], 0, [$Z]).', start: '0, 0, 0' },
+    scale: { type: ['Number'], about: 'Size of one bump in metres.', start: '1', default: '1' },
+  },
+  voronoi: {
+    position: { type: ['Vector'], about: 'Where to read the cells, such as Vector([$X], 0, [$Z]).', start: '0, 0, 0' },
+    scale: { type: ['Number'], about: 'Size of one cell in metres.', start: '1', default: '1' },
+    output: {
+      type: ['Text'],
+      about: 'Distance, Edge or Cell.',
+      choices: SOLID_SCRIPT_VORONOI_OUTPUTS,
+      default: 'Distance',
+    },
+  },
   invert: { matrix: { type: ['List'], about: 'A matrix, such as one from Transform.' } },
   transform_point: {
     matrix: { type: ['List'], about: 'A matrix, such as one from Transform.' },
@@ -811,7 +867,11 @@ const SOLID_SCRIPT_FUNCTION_INPUTS_LEFT_OFF: Readonly<Record<string, number>> = 
   format_number: 2,
   time_text: 1,
   hash: 1,
-  noise: 2,
+  noise: 5,
+  noise_vector: 2,
+  voronoi: 3,
+  remap: 1,
+  rotate_vector: 1,
   shuffle: 1,
   slice: 1,
   vector: 1,

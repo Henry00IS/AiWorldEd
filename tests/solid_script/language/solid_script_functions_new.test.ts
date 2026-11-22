@@ -48,11 +48,11 @@ describe('SolidScript formula helpers', () => {
   });
 
   it('gives smooth noise from 0 to 1, the same for the same seed', () => {
-    const at = Number(formula('Noise(0.25, 0, 0, 1, 3)'));
+    const at = Number(formula('Noise(Vector(0.25, 0, 0), 1, 3)'));
     expect(at).toBeGreaterThanOrEqual(0);
     expect(at).toBeLessThanOrEqual(1);
-    expect(formula('Noise(0.25, 0, 0, 1, 3)')).toBe(formula('Noise(0.25, 0, 0, 1, 3)'));
-    expect(formula('Noise(0, 0, 0, 1, 3)')).not.toBe(formula('Noise(10, 0, 0, 1, 3)'));
+    expect(formula('Noise(Vector(0.25, 0, 0), 1, 3)')).toBe(formula('Noise(Vector(0.25, 0, 0), 1, 3)'));
+    expect(formula('Noise(Vector(0, 0, 0), 1, 3)')).not.toBe(formula('Noise(Vector(10, 0, 0), 1, 3)'));
   });
 
   it('samples, aims and trims a path by a fraction of its length', () => {
@@ -76,6 +76,6 @@ describe('SolidScript formula helpers', () => {
     expect(formula('RotateVector([1, 0, 0], [0, 0, 0], 90)')).toMatch(/must not be 0, 0, 0|cannot use 0, 0, 0/);
     expect(formula('PathAt([[0, 0, 0]], 0.5)')).toMatch(/needs at least 2 points/);
     expect(formula('Nearest([], [0, 0, 0])')).toMatch(/needs a list of points/);
-    expect(formula('Noise(0, 0, 0, 0, 1)')).toMatch(/scale greater than 0/);
+    expect(formula('Noise(Vector(0, 0, 0), 0, 1)')).toMatch(/scale greater than 0/);
   });
 });

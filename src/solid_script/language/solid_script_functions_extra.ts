@@ -135,7 +135,7 @@ function solidScriptExtraHashKey(value: SolidScriptValue): number {
  * @param seed Seed.
  * @returns Number from 0 to 1.
  */
-function solidScriptExtraNoise(x: number, y: number, z: number, seed: number): number {
+export function solidScriptExtraNoise(x: number, y: number, z: number, seed: number): number {
   const ix = Math.floor(x);
   const iy = Math.floor(y);
   const iz = Math.floor(z);
@@ -361,18 +361,6 @@ export const SOLID_SCRIPT_FUNCTIONS_EXTRA = {
     if (args.length < 1) throw new Error(`${usage} needs a value`);
     const seed = args.length > 1 ? solidScriptExtraNumber(args, 1, usage) : 0;
     return solidScriptExtraSeeded(solidScriptExtraHashKey(args[0]) + seed);
-  },
-  noise: (args) => {
-    const usage = 'Noise(x, y, z, scale, seed)';
-    const scale = args.length > 3 ? solidScriptExtraNumber(args, 3, usage) : 1;
-    if (!(scale > 0)) throw new Error(`${usage} needs a scale greater than 0`);
-    const seed = args.length > 4 ? solidScriptExtraNumber(args, 4, usage) : 0;
-    return solidScriptExtraNoise(
-      solidScriptExtraNumber(args, 0, usage) / scale,
-      solidScriptExtraNumber(args, 1, usage) / scale,
-      solidScriptExtraNumber(args, 2, usage) / scale,
-      seed,
-    );
   },
   shuffle: (args) => {
     const usage = 'Shuffle(list, seed)';

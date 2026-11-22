@@ -197,7 +197,7 @@ Hilly floor:
 [
   { "command": "grid_mesh", "values": { "size": "8, 0, 8", "columns": "8", "rows": "8" } },
   { "command": "select_objects" },
-  { "command": "displace", "values": { "distance": "[=0.4 * (Noise([$X], 0, [$Z], 3, 2) * 2 - 1)]" } }
+  { "command": "displace", "values": { "distance": "[=0.4 * (Noise(Vector([$X], 0, [$Z]), 3, 2) * 2 - 1)]" } }
 ]
 ```
 

@@ -387,7 +387,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     {
       command: 'displace',
       values: {
-        distance: '[=[Height] * (Noise([$X], 0, [$Z], [Scale], [Seed]) * 2 - 1)]',
+        distance: '[=[Height] * (Noise(Vector([$X], 0, [$Z]), [Scale], [Seed]) * 2 - 1)]',
       },
     },
   ],

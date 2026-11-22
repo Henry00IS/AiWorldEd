@@ -78,7 +78,7 @@ describe('SolidScript function docs', () => {
     expect(solidScriptFunctionInputsLeast('clamp')).toBe(3);
     expect(solidScriptFunctionInputsLeast('abs')).toBe(1);
     expect(solidScriptFunctionInputsLeast('pad_left')).toBe(2);
-    expect(solidScriptFunctionInputsLeast('noise')).toBe(3);
+    expect(solidScriptFunctionInputsLeast('noise')).toBe(1);
     expect(solidScriptFunctionInputsLeast('max')).toBe(1);
     expect(solidScriptFunctionInputsLeast('pick')).toBe(2);
   });
