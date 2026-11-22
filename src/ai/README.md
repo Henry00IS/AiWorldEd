@@ -645,3 +645,4 @@ Solid mutations (including hierarchy create/reparent/rename/ungroup) are **undoa
 - Dual Mesh swaps the faces and corners of a mesh, with Keep Boundaries for open edges.
 - Find On How At UV finds the point on the faces whose texture coordinates are the U and V of From.
 - Set Handle Type places path handles by Type Auto, Vector, Align or Free, on Side Both, Left or Right, for points that pass Pick Where.
+- Set Tilt tilts a path per point; [Path.Tilts] reads it back and Sweep Along Path turns the profile by it on top of Twist.

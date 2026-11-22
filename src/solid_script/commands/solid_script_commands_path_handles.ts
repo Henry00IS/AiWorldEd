@@ -162,6 +162,23 @@ function solidScriptSetHandleTypeRun(run: SolidScriptBlockRun): void {
 }
 
 /**
+ * Gives the Path's points the tilt in Tilt, in degrees.
+ *
+ * @param run Running line.
+ */
+function solidScriptSetTiltRun(run: SolidScriptBlockRun): void {
+  const source = solidScriptPathHandlesSource(run, 'Set Tilt');
+  const tilts = source.points.map((point, index) => {
+    const tilt = solidScriptValueNumber(
+      run.valueWith('tilt', { $Point: new SolidScriptPoint([...point]), $Index: index, $Count: source.points.length }),
+    );
+    if (tilt === undefined) throw new Error('Set Tilt needs a number of degrees per point, such as 45');
+    return tilt;
+  });
+  solidScriptPathHandlesWrite(run, { ...source, tilts });
+}
+
+/**
  * The Path, Resolution and Into fields of both lines.
  *
  * @returns Fields.
@@ -191,7 +208,7 @@ function solidScriptPathHandleFields() {
   ];
 }
 
-/** Set Handles, Set Handle Type and Set Path Type. */
+/** Set Handles, Set Handle Type, Set Tilt and Set Path Type. */
 export const SOLID_SCRIPT_COMMANDS_PATH_HANDLES: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'set_handles',
@@ -301,6 +318,36 @@ export const SOLID_SCRIPT_COMMANDS_PATH_HANDLES: readonly SolidScriptCommand[] =
     ],
     execute: (run) => {
       solidScriptSetHandleTypeRun(run);
+      return [];
+    },
+  }),
+  new SolidScriptCommand({
+    id: 'set_tilt',
+    edits: true,
+    label: 'Set Tilt',
+    category: 'Meshes',
+    description: 'Tilt a path about the way it runs at each point',
+    manual:
+      'Writes to Into a copy of a Path whose points have a Tilt: a 🔁 number of degrees per point, with [$Point] the point and [$Index] its number from 0, such as [=[$Index] * 30]. Sweep Along Path turns the profile by the tilt about the way the path runs there, on top of its Twist, and curved stretches blend from one tilt to the next. Read the tilts back with [Path.Tilts], one per point the path passes. Path is a Path or a list of points for a straight open one. Example: Set Tilt Path [Rail] Tilt [=[$Index] * 45] Into [Rail], then Sweep Along Path [Rail], gives a twisted band.',
+    stops: ['A Path that is not a Path or a list of at least 2 points.', 'A Tilt that is not a number.'],
+    parameters: [
+      solidScriptParameterEach(
+        solidScriptParameter('tilt', 'Tilt', 'number', '0', 'Degrees to tilt each point by, such as 45.'),
+        'Point',
+      ),
+      ...solidScriptPathHandleFields().filter((field) => field.key !== 'resolution'),
+    ],
+    listing: (read) => [
+      'Set Tilt',
+      'Of ',
+      read.value('path'),
+      ' Tilt ',
+      read.value('tilt'),
+      ' Into ',
+      read.value('into'),
+    ],
+    execute: (run) => {
+      solidScriptSetTiltRun(run);
       return [];
     },
   }),

@@ -15,7 +15,7 @@ import { solidScriptNameKey } from './solid_script_name_key.js';
 import { solidScriptMemberIdOf } from './solid_script_member_id.js';
 import { solidScriptMemberForm } from './solid_script_shown_names.js';
 import { solidScriptPathLength } from './solid_script_path.js';
-import { solidScriptPathSample, solidScriptPathWalk } from './solid_script_path_model.js';
+import { solidScriptPathSample, solidScriptPathSampleTilts, solidScriptPathWalk } from './solid_script_path_model.js';
 import {
   SolidScriptElement,
   SolidScriptPathElement,
@@ -98,6 +98,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     Length: form('Lengths', 'Number'),
     HandlesLeft: form('HandlesLefts', 'Vector List'),
     HandlesRight: form('HandlesRights', 'Vector List'),
+    Tilts: form('Tilts', 'Number List'),
   },
   Object: {
     Name: form('Names', 'Text'),
@@ -520,6 +521,7 @@ function solidScriptMemberElement(
     if (member === 'points')
       return solidScriptPathSample(element.path).map((point) => point.map(solidScriptMemberRound));
     if (member === 'closed') return element.path.closed;
+    if (member === 'tilts') return solidScriptPathSampleTilts(element.path).map(solidScriptMemberRound);
     if (member === 'length') return solidScriptMemberRound(solidScriptPathLength(solidScriptPathWalk(element.path)));
     if (member === 'handlesleft' || member === 'handlesright')
       return solidScriptPathHandles(element.path)[member === 'handlesleft' ? 'left' : 'right'].map((point) =>

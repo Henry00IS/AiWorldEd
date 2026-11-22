@@ -6,14 +6,15 @@ import { SolidScriptPoint, solidScriptValueNumber, solidScriptValueNumbers } fro
 /**
  * Sizes each ring of a sweep by the Scale of its path point, about that point,
  * so a sweep can taper, and turns it by the Twist of that point, in degrees
- * about the way the path runs there. Scale and Twist are worked out once per
- * point, with [$Point], [$Index] and [$Count]; Scale 1 and Twist 0 keep the
- * profile as it is.
+ * about the way the path runs there, plus the path's own tilt there. Scale and
+ * Twist are worked out once per point, with [$Point], [$Index] and [$Count];
+ * Scale 1 and Twist 0 keep the profile as it is.
  *
  * @param run Running Sweep Along Path line.
  * @param rings One ring per path point, plus the first again when closed.
  * @param path Path points as given.
  * @param closed True when the path loops.
+ * @param tilts Tilt of each path point, in degrees, added to its Twist.
  * @returns Rings, sized.
  */
 export function solidScriptSweepScaled(
@@ -21,6 +22,7 @@ export function solidScriptSweepScaled(
   rings: readonly THREE.Vector3[][],
   path: readonly THREE.Vector3[],
   closed: boolean,
+  tilts: readonly number[],
 ): THREE.Vector3[][] {
   const points = solidScriptPathDistinct(path, closed);
   const scales = points.map((point, index) => solidScriptSweepScale(run, point, index, points.length));
@@ -30,7 +32,7 @@ export function solidScriptSweepScaled(
     const center = points[at] ?? new THREE.Vector3();
     const turn = new THREE.Quaternion().setFromAxisAngle(
       solidScriptSweepRingAxis(ring),
-      THREE.MathUtils.degToRad(twists[at] ?? 0),
+      THREE.MathUtils.degToRad((twists[at] ?? 0) + (tilts[at] ?? 0)),
     );
     const scale = scales[at] ?? 1;
     return ring.map((corner) => corner.clone().sub(center).multiplyScalar(scale).applyQuaternion(turn).add(center));

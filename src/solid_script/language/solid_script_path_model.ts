@@ -19,6 +19,11 @@ export interface SolidScriptPath<Point> {
   readonly segments: readonly SolidScriptPathSegment<Point>[];
   /** True when the last point joins back to the first. */
   readonly closed: boolean;
+  /**
+   * Tilt of each point, in degrees about the way the path runs there; none is 0
+   * everywhere.
+   */
+  readonly tilts?: readonly number[];
 }
 
 /**
@@ -113,5 +118,28 @@ export function solidScriptPathMap<Point, Moved>(
   const segments = path.segments.map((segment): SolidScriptPathSegment<Moved> =>
     segment.kind === 'line' ? segment : { ...segment, out: move(segment.out), in: move(segment.in) },
   );
-  return { points: path.points.map(move), segments, closed: path.closed };
+  return { points: path.points.map(move), segments, closed: path.closed, ...(path.tilts ? { tilts: path.tilts } : {}) };
+}
+
+/**
+ * Gives the tilt at every point solidScriptPathSample gives, in the same order:
+ * each point's own, and inside a curved stretch a blend from its start's tilt
+ * to its end's.
+ *
+ * @param path Path.
+ * @returns Tilts in degrees.
+ */
+export function solidScriptPathSampleTilts<Point>(path: SolidScriptPath<Point>): number[] {
+  const count = path.points.length;
+  const tilt = (index: number): number => path.tilts?.[index % count] ?? 0;
+  const sampled: number[] = [];
+  path.segments.forEach((segment, index) => {
+    if (index >= count) return;
+    sampled.push(tilt(index));
+    if (segment.kind === 'bezier')
+      for (let step = 1; step < segment.resolution; step++)
+        sampled.push(tilt(index) + ((tilt(index + 1) - tilt(index)) * step) / segment.resolution);
+  });
+  if (!path.closed && count > 0) sampled.push(tilt(count - 1));
+  return sampled;
 }
