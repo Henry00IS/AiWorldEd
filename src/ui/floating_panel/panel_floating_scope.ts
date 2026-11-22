@@ -11,8 +11,11 @@ const PANEL_FLOATING_SCOPE_ATTRIBUTE = 'data-panel-floating-scope';
 /** Elements outside any window that keep the focus where it is when clicked. */
 const PANEL_FLOATING_SCOPE_KEEPS_FOCUS = `[${PANEL_FLOATING_SCOPE_ATTRIBUTE}], [role="menu"]`;
 
-/** Which scene shortcuts still reach the scene from inside a window. */
-export type PanelFloatingScopePass = 'none' | 'undo';
+/**
+ * Which editor shortcuts still work from inside a window: 'file' lets Save,
+ * Load and Export through, 'undo' also lets undo and redo through.
+ */
+export type PanelFloatingScopePass = 'none' | 'file' | 'undo';
 
 /** Documents that release window focus on outside clicks already. */
 const panelFloatingScopeDocuments = new WeakSet<Document>();
@@ -40,7 +43,8 @@ export function panelFloatingScopeOf(target: EventTarget | null): PanelFloatingS
   const element = target instanceof Element ? target : target instanceof Document ? target.activeElement : null;
   const scope = element?.closest(`[${PANEL_FLOATING_SCOPE_ATTRIBUTE}]`);
   if (!scope) return null;
-  return scope.getAttribute(PANEL_FLOATING_SCOPE_ATTRIBUTE) === 'undo' ? 'undo' : 'none';
+  const pass = scope.getAttribute(PANEL_FLOATING_SCOPE_ATTRIBUTE);
+  return pass === 'undo' || pass === 'file' ? pass : 'none';
 }
 
 /**
