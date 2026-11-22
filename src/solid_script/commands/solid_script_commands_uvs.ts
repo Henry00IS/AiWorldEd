@@ -169,10 +169,29 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Lay each face flat in UV space',
     manual:
-      "Gives each face its own UV island, projected onto the face's plane with the editor's planar basis, shifted so the lowest U and V are 0. With Seams, only edges that pass Seams are cut open: faces joined by other edges stay together, each folded open from its neighbour so lengths and angles stay true, which suits a strip of wall or a box's sides. Size is metres of one texture repeat. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. Solids stay solids; meshes stay meshes. Use Pack Islands afterwards to fit the islands into 0 to 1. Example: Cube, Select Faces, Unwrap, Pack Islands.",
-    stops: ['No faces.', 'A Size of 0 or less.'],
+      "Gives each face its own UV island, projected onto the face's plane with the editor's planar basis, shifted so the lowest U and V are 0. With Seams, only edges that pass Seams are cut open: faces joined by other edges stay together, each folded open from its neighbour so lengths and angles stay true, which suits a strip of wall or a box's sides. Pack Yes (the default) then packs the islands into the 0 to 1 square as Pack Islands does, Margin apart. Pack No leaves them where they fold, Size metres to one texture repeat, so a texture keeps its true size across faces. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. Solids stay solids; meshes stay meshes. Example: Cube, Select Faces, Unwrap Seams [=[$Edge.Angle] > 45].",
+    stops: ['No faces.', 'A Size of 0 or less.', 'A Pack that is not Yes or No.', 'A Margin below 0 or above 1.'],
     parameters: [
-      solidScriptParameter('size', 'Size', 'number', '1', 'Metres covered by one texture repeat, such as 1.'),
+      solidScriptParameter(
+        'pack',
+        'Pack',
+        'boolean',
+        'Yes',
+        'Yes: pack the islands into 0 to 1. No: keep them at Size. Type Yes or No, such as Yes.',
+      ),
+      solidScriptParameter(
+        'size',
+        'Size',
+        'number',
+        '1',
+        'Metres covered by one texture repeat when Pack is No, such as 1.',
+      ),
+      solidScriptParameterOptional(
+        'margin',
+        'Margin',
+        'number',
+        'Gap between islands as a share of the square when Pack is Yes, such as 0.001. Left off is 0.001.',
+      ),
       solidScriptParameterEach(
         solidScriptParameterOptional(
           'seams',
@@ -187,8 +206,11 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
     ],
     listing: (read) => [
       'Unwrap',
+      ' Pack ',
+      read.value('pack'),
       ' Size ',
       read.value('size'),
+      ...(read.text('margin') === '' ? [] : [' Margin ', read.value('margin')]),
       ...(read.text('seams') === '' ? [] : [' Seams ', read.value('seams')]),
       ...solidScriptListingOf(read),
     ],
@@ -196,6 +218,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
       const faces = solidScriptFaceTargets(run, 'Unwrap');
       if (run.source('seams').trim() === '') solidScriptUvsUnwrap(run, faces);
       else solidScriptUvsUnwrapSeams(run, faces);
+      if (solidScriptUvsPacks(run)) solidScriptUvsPack(run, solidScriptFaceTargets(run, 'Unwrap'), 'Unwrap');
       return [];
     },
   }),
@@ -225,7 +248,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
       ...solidScriptListingOf(read),
     ],
     execute: (run) => {
-      solidScriptUvsPack(run, solidScriptFaceTargets(run, 'Pack Islands'));
+      solidScriptUvsPack(run, solidScriptFaceTargets(run, 'Pack Islands'), 'Pack Islands');
       return [];
     },
   }),
@@ -424,17 +447,30 @@ function solidScriptUvsSize(run: SolidScriptBlockRun, label: string): number {
 }
 
 /**
- * Reads Pack Islands' Margin, 0.001 when left off.
+ * Reads Margin, 0.001 when left off.
  *
  * @param run Running line.
+ * @param label Command, for messages.
  * @returns Gap between islands as a share of the square.
  */
-function solidScriptUvsMargin(run: SolidScriptBlockRun): number {
+function solidScriptUvsMargin(run: SolidScriptBlockRun, label: string): number {
   if (run.source('margin').trim() === '') return 0.001;
   const margin = solidScriptValueNumber(run.value('margin'));
   if (margin === undefined || !(margin >= 0 && margin <= 1))
-    throw new Error('Pack Islands needs a Margin from 0 to 1, such as 0.001');
+    throw new Error(`${label} needs a Margin from 0 to 1, such as 0.001`);
   return margin;
+}
+
+/**
+ * Reads Unwrap's Pack.
+ *
+ * @param run Running line.
+ * @returns True to pack the islands into 0 to 1.
+ */
+function solidScriptUvsPacks(run: SolidScriptBlockRun): boolean {
+  const pack = run.value('pack');
+  if (typeof pack !== 'boolean') throw new Error('Unwrap needs Yes or No in Pack');
+  return pack;
 }
 
 /**
@@ -710,10 +746,11 @@ function solidScriptUvsUnwrapSeams(run: SolidScriptBlockRun, faces: readonly Sol
  *
  * @param run Running line.
  * @param faces Faces to pack.
+ * @param label Command, for messages.
  */
-function solidScriptUvsPack(run: SolidScriptBlockRun, faces: readonly SolidScriptFaceFacts[]): void {
+function solidScriptUvsPack(run: SolidScriptBlockRun, faces: readonly SolidScriptFaceFacts[], label: string): void {
   const uvs = faces.map((face) => solidScriptFaceCornerUvs(face));
-  const packed = solidScriptUvIslandsPack(faces, uvs, solidScriptUvsMargin(run));
+  const packed = solidScriptUvIslandsPack(faces, uvs, solidScriptUvsMargin(run, label));
   for (const [leaf, group] of solidScriptFaceGroups(
     faces.map((face, index) => ({ face, index })),
     (item) => item.face.leaf,
