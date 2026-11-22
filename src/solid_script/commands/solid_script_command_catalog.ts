@@ -14,6 +14,7 @@ import { SOLID_SCRIPT_COMMANDS_BEVEL } from './solid_script_commands_bevel.js';
 import { SOLID_SCRIPT_COMMANDS_SHADING } from './solid_script_commands_shading.js';
 import { SOLID_SCRIPT_COMMANDS_POINTS } from './solid_script_commands_points.js';
 import { SOLID_SCRIPT_COMMANDS_POSITIONS } from './solid_script_commands_positions.js';
+import { SOLID_SCRIPT_COMMANDS_DATA } from './solid_script_commands_data.js';
 import { SOLID_SCRIPT_COMMANDS_UVS } from './solid_script_commands_uvs.js';
 import { SOLID_SCRIPT_COMMANDS_SELECT } from './solid_script_commands_select.js';
 import { SOLID_SCRIPT_COMMANDS_PATHS } from './solid_script_commands_paths.js';
@@ -61,6 +62,7 @@ export const solidScriptCommands: readonly SolidScriptCommand[] = [
   ...SOLID_SCRIPT_COMMANDS_SHADING,
   ...SOLID_SCRIPT_COMMANDS_POINTS,
   ...SOLID_SCRIPT_COMMANDS_POSITIONS,
+  ...SOLID_SCRIPT_COMMANDS_DATA,
   ...SOLID_SCRIPT_COMMANDS_QUERY,
   ...SOLID_SCRIPT_COMMANDS_UVS,
   ...SOLID_SCRIPT_COMMANDS_LOGIC,
