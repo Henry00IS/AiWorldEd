@@ -5,6 +5,7 @@ import { playerCharacterApplyRoomTint } from './player_character_tint.js';
 import { playerCharacterEnsureModelLoaded } from './player_character_model_loader.js';
 import { playerCharacterBuildRig, playerCharacterDisposeRig, type PlayerCharacterRig } from './player_character_rig.js';
 import { PlayerCharacterAnimator } from './player_character_animator.js';
+import type { PlayerCharacterHandTargets } from './player_character_hand_targets.js';
 import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
 import { PlayerToyHeld } from '@/player/toy/player_toy_held.js';
 import { playerCharacterTagHelperTree } from './player_character_model_prepare.js';
@@ -109,6 +110,16 @@ export class PlayerCharacterAvatar {
     }
     this.roomColor = color;
     this.applyRoomColor();
+  }
+
+  /**
+   * Puts the character's hands on targets (the keys of a placed keyboard), or
+   * frees them.
+   *
+   * @param targets Hand targets, or null.
+   */
+  setHandTargets(targets: PlayerCharacterHandTargets | null): void {
+    this.animator.setHandTargets(targets);
   }
 
   /**

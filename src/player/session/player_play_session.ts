@@ -27,6 +27,10 @@ import { PlayerToyViewModel } from '@/player/toy/player_toy_viewmodel.js';
 import { PlayerBallCarry } from '@/player/ball/player_ball_carry.js';
 import { playerToyCharge, playerToyChargePower } from '@/player/toy/player_toy_viewmodel_pose.js';
 import { PlayerToyPicker, playerToyPickerStep } from '@/player/ui/player_toy_picker.js';
+import { PLAYER_KEYBOARD_INSTRUMENTS } from '@/player/keyboard/player_keyboard_instruments.js';
+import { playerPlayHint } from '@/player/session/player_play_hint.js';
+import { PlayerKeyboardPlay } from '@/player/keyboard/player_keyboard_play.js';
+import { PLAYER_TOY_KEYBOARD, type PlayerToyKind } from '@/player/toy/player_toy_kind.js';
 
 /** Wheel travel that moves the toy picker by one slot (one mouse notch). */
 const PLAYER_PLAY_WHEEL_STEP = 100;
@@ -68,7 +72,7 @@ export interface PlayerPresencePose {
 /** Orchestrates enter/exit/update for first- and third-person play mode. */
 export class PlayerPlaySession {
   private readonly host: PlayerPlaySessionHost;
-  private readonly body: PlayerBodyState;
+  private readonly body = new PlayerBodyState();
   private readonly look: PlayerLookState;
   private readonly cameraApplier: PlayerCameraPoseApplier;
   private readonly avatar: PlayerCharacterAvatar;
@@ -77,6 +81,9 @@ export class PlayerPlaySession {
   private readonly carry: PlayerBallCarry;
   private readonly carried: THREE.Vector3;
   private picker: PlayerToyPicker | null;
+  private selected: PlayerToyKind | null = null;
+  private hint: string | null = null;
+  private readonly keyboard: PlayerKeyboardPlay;
   private wheelTravel: number;
   private isActive: boolean;
   private viewMode: PlayerViewMode;
@@ -94,10 +101,10 @@ export class PlayerPlaySession {
    */
   constructor(host: PlayerPlaySessionHost) {
     this.host = host;
-    this.body = new PlayerBodyState();
     this.look = new PlayerLookState();
     this.cameraApplier = new PlayerCameraPoseApplier();
     this.avatar = new PlayerCharacterAvatar(host.helperLayer);
+    this.keyboard = new PlayerKeyboardPlay(host.ballSystem, this.body);
     this.viewModel = null;
     this.pressedAt = null;
     this.carry = new PlayerBallCarry();
@@ -210,7 +217,8 @@ export class PlayerPlaySession {
     this.host.figurineMarker.hide();
     this.avatar.attach();
     this.showToys(viewport);
-    this.host.showStatusMessage('Play mode — ESC exit, LMB throw, wheel pick toy, RMB third-person, Ctrl slow-mo');
+    this.hint = null;
+    this.hintUpdate();
     return true;
   }
 
@@ -222,6 +230,7 @@ export class PlayerPlaySession {
    */
   private showToys(viewport: Viewport3D): void {
     this.host.ballSystem.setHeld(null);
+    this.selected = null;
     const element = viewport.getContentElement();
     this.picker = new PlayerToyPicker(element.ownerDocument, null);
     this.picker.mount(element);
@@ -242,14 +251,53 @@ export class PlayerPlaySession {
   }
 
   /**
-   * Picks the toy to throw.
+   * Picks the toy to throw (or the keyboard to put down); a placed keyboard is
+   * put away when another toy is picked.
    *
    * @param kind Toy kind, or null for empty hands.
    */
-  selectToy(kind: PhysicsToyKind | null): void {
+  selectToy(kind: PlayerToyKind | null): void {
     if (!this.isActive) return;
-    this.host.ballSystem.setHeld(kind);
+    if (kind !== PLAYER_TOY_KEYBOARD) this.keyboard.putAway();
+    this.selected = kind;
+    this.host.ballSystem.setHeld(kind === PLAYER_TOY_KEYBOARD ? null : kind);
     this.picker?.select(kind);
+  }
+
+  /**
+   * Returns the picked toy.
+   *
+   * @returns Toy kind, or null for empty hands.
+   */
+  getSelectedToy(): PlayerToyKind | null {
+    return this.selected;
+  }
+
+  /**
+   * Switches the placed keyboard's instrument and names it in the hint.
+   *
+   * @param step +1 or -1.
+   */
+  stepKeyboardInstrument(step: number): void {
+    if (this.keyboard.instrumentStep(step) !== null) this.hintUpdate();
+  }
+
+  /**
+   * Shifts the placed keyboard an octave up or down and shows it in the hint.
+   *
+   * @param step +1 or -1.
+   */
+  stepKeyboardOctave(step: number): void {
+    if (this.keyboard.octaveStep(step)) this.hintUpdate();
+  }
+
+  /**
+   * Returns the keyboard the player plays.
+   *
+   * @returns Keyboard controller.
+   */
+  getKeyboard(): PlayerKeyboardPlay {
+    return this.keyboard;
   }
 
   /**
@@ -280,6 +328,7 @@ export class PlayerPlaySession {
       this.activeViewport?.syncFlyingCameraOrientation();
     }
     this.activeViewport?.setFlyingCameraEnabled(true);
+    this.keyboard.putAway();
     this.hideToys();
     this.avatar.detach();
     this.host.figurineMarker.reveal();
@@ -312,15 +361,10 @@ export class PlayerPlaySession {
       this.host.inputManager.isCtrlDown(),
     );
     this.host.collisionWorld.setFocus('player', [this.body.getFeetPosition()]);
-    this.body.update(
-      this.host.inputManager,
-      this.look,
-      this.host.collisionWorld,
-      deltaSeconds,
-      this.viewMode === 'first_person',
-    );
+    this.bodyUpdate(deltaSeconds);
     this.carry.record(this.body.copyHorizontalVelocityTo(new THREE.Vector3()), now / 1000);
     this.avatar.setHeld(this.host.ballSystem.getHeld(), this.host.ballSystem.getOwnColor());
+    this.avatar.setHandTargets(this.keyboard.getHands());
     this.avatar.update(this.body, this.viewMode, deltaSeconds);
     this.cameraApplier.apply(
       this.activeCamera,
@@ -331,6 +375,19 @@ export class PlayerPlaySession {
       deltaSeconds,
     );
     this.viewModelUpdate(this.activeCamera, now, rawDeltaSeconds);
+  }
+
+  /**
+   * Plays the held keyboard keys (the body stays on its spot while the keyboard
+   * is placed), then moves the body.
+   *
+   * @param deltaSeconds Simulation step in seconds.
+   */
+  private bodyUpdate(deltaSeconds: number): void {
+    const firstPerson = this.viewMode === 'first_person';
+    this.keyboard.update(this.host.inputManager, this.look, firstPerson);
+    this.hintUpdate();
+    this.body.update(this.host.inputManager, this.look, this.host.collisionWorld, deltaSeconds, firstPerson);
   }
 
   /**
@@ -357,9 +414,11 @@ export class PlayerPlaySession {
   /**
    * Starts a throw of the held toy on the button going down (a soccer ball is
    * put down at once): in first person the arm winds back and keeps drawing
-   * back while the button is held, in third person the hold is timed.
+   * back while the button is held, in third person the hold is timed. With the
+   * keyboard picked, a click puts it down or away.
    */
   pressToy(): void {
+    if (this.isActive && this.selected === PLAYER_TOY_KEYBOARD) return this.keyboard.toggle(this.look);
     const kind = this.host.ballSystem.getHeld();
     if (!this.isActive || kind === null) return;
     const now = performance.now() / 1000;
@@ -422,23 +481,30 @@ export class PlayerPlaySession {
       return;
     }
     this.viewMode = playerViewModeToggle(this.viewMode);
-    const label = this.viewMode === 'first_person' ? 'First-person' : 'Third-person';
-    this.host.showStatusMessage(`${label} camera`);
+    this.hintUpdate();
+  }
+
+  /** Shows the controls hint whenever the view or the keyboard changes. */
+  private hintUpdate(): void {
+    const instrument = PLAYER_KEYBOARD_INSTRUMENTS[this.keyboard.instrument()]?.label ?? null;
+    const hint = playerPlayHint(this.viewMode, this.keyboard.isPlaced() ? instrument : null, this.keyboard.octave());
+    if (hint === this.hint) return;
+    this.hint = hint;
+    this.host.showStatusMessage(hint);
   }
 
   /**
-   * Applies the mouse wheel: it steps through the toys, or with Ctrl zooms the
-   * third-person camera.
+   * Applies the mouse wheel: in third person it zooms the camera, in first
+   * person it steps through the toys (the number keys pick them in both).
    *
    * @param wheelDeltaY Wheel delta Y.
-   * @param zoom True to zoom instead (Ctrl held).
    */
-  applyWheel(wheelDeltaY: number, zoom = false): void {
+  applyWheel(wheelDeltaY: number): void {
     if (!this.isActive) {
       return;
     }
-    if (zoom) {
-      if (this.viewMode === 'third_person') this.cameraApplier.applyWheelZoom(wheelDeltaY);
+    if (this.viewMode === 'third_person') {
+      this.cameraApplier.applyWheelZoom(wheelDeltaY);
       return;
     }
     if (Math.sign(wheelDeltaY) !== Math.sign(this.wheelTravel)) this.wheelTravel = 0;
@@ -446,7 +512,7 @@ export class PlayerPlaySession {
     if (Math.abs(this.wheelTravel) < PLAYER_PLAY_WHEEL_STEP && Math.abs(wheelDeltaY) < PLAYER_PLAY_WHEEL_STEP / 2)
       return;
     this.wheelTravel = 0;
-    this.selectToy(playerToyPickerStep(this.host.ballSystem.getHeld(), wheelDeltaY));
+    this.selectToy(playerToyPickerStep(this.selected, wheelDeltaY));
   }
 
   /**

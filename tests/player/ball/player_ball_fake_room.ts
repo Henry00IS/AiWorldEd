@@ -4,6 +4,8 @@ import { toyTennisBallDecode, toyTennisBallEncode } from '@/collaboration/toys/t
 import type { PlayerBallLink, PlayerBallLinkListener, PlayerBallSnapshot } from '@/player/ball/player_ball_link.js';
 import { PlayerBallSystem } from '@/player/ball/player_ball_system.js';
 import { PlayerCollisionWorld } from '@/player/collision/player_collision_world.js';
+import type { PlayerKeyboardSynthFactory } from '@/player/keyboard/player_keyboard_instance.js';
+import { PlayerKeyboardSynth } from '@/player/keyboard/player_keyboard_synth.js';
 
 export const PLAYER_BALL_FAKE_FRAME_MS = 16;
 
@@ -23,6 +25,11 @@ export interface PlayerBallFakeClient {
   syncs: number;
   playing: boolean;
   listener: PlayerBallLinkListener | null;
+  /**
+   * Members whose character hands the link put on targets (true) or freed
+   * (false).
+   */
+  readonly hands: [number, boolean][];
 }
 
 /** One snapshot as it went over the fake relay. */
@@ -58,6 +65,10 @@ export class PlayerBallFakeRoom {
   readonly frames: PlayerBallFakeFrame[] = [];
   latencyMs = 40;
   now = 0;
+  /** Number of the next frames the relay loses. */
+  drop = 0;
+  /** Keyboard voices of every client (silent unless a test listens). */
+  keyboardSynth: PlayerKeyboardSynthFactory = () => new PlayerKeyboardSynth(() => null);
   private deliveries: PlayerBallFakeDelivery[] = [];
 
   /**
@@ -73,7 +84,7 @@ export class PlayerBallFakeRoom {
     collision.setWorldRoot(world);
     const helpers = new THREE.Group();
     const client: PlayerBallFakeClient = {
-      ...{ user, helpers, world, collision, sounds: [], syncs: 0, playing: false, listener: null },
+      ...{ user, helpers, world, collision, sounds: [], syncs: 0, playing: false, listener: null, hands: [] },
       feet: new THREE.Vector3(-1, 0, -1.5 * user),
       velocity: new THREE.Vector3(),
       system: undefined as never,
@@ -167,6 +178,7 @@ export class PlayerBallFakeRoom {
       now: () => this.now,
       schedule: () => undefined,
       sound: (_position, speed) => client.sounds.push(speed),
+      keyboardSynth: () => this.keyboardSynth(),
     });
   }
 
@@ -186,6 +198,7 @@ export class PlayerBallFakeRoom {
       colorOf: (member) => 0x100000 * member,
       publish: (snapshot) => this.publish(client.user, snapshot),
       listen: (listener) => (client.listener = listener),
+      handsSet: (member, hands) => client.hands.push([member, hands !== null]),
     };
   }
 
@@ -205,6 +218,10 @@ export class PlayerBallFakeRoom {
       ...{ time: this.now, sender, full: snapshot.full, entries: snapshot.balls.length, held: snapshot.held },
       ...{ upBytes: frame.byteLength, downBytes: relayed.byteLength },
     });
+    if (this.drop > 0) {
+      this.drop -= 1;
+      return true;
+    }
     for (const to of this.clients.keys())
       if (to !== sender) this.deliveries.push({ at: this.now + this.latencyMs, to, frame: relayed });
     return true;

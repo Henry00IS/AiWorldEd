@@ -1,8 +1,10 @@
 import type { HostCollaborationEditor } from '@/collaboration/host/host_collaboration_editor.js';
 import type { ReceiverCollaborationPresence } from '@/collaboration/presence/receiver_collaboration_presence.js';
-import { toyFrameDecode, toyFrameEncode, type ToyFrame } from '@/collaboration/shared/toy_frame.js';
+import { toyFrameDecode, toyFrameEncode } from '@/collaboration/shared/toy_frame.js';
 import type { SessionCollaborationTransport } from '@/collaboration/session/session_collaboration_types.js';
 import type { MemberCollaborationRoster } from '@/collaboration/sync/member_collaboration_roster.js';
+import type { PlayerCharacterHandTargets } from '@/player/character/player_character_hand_targets.js';
+import { PLAYER_TOY_KEYBOARD } from '@/player/toy/player_toy_kind.js';
 import type {
   PlayerBallLink,
   PlayerBallLinkListener,
@@ -10,7 +12,7 @@ import type {
   PlayerBallSnapshot,
 } from '@/player/ball/player_ball_link.js';
 import { ToyRespawnFlags } from './toy_respawn_flags.js';
-import { toyHeldDecode, toyTennisBallDecode, toyTennisBallEncode } from './toy_tennis_ball.js';
+import { toyTennisBallDecode, toyTennisBallEncode } from './toy_tennis_ball.js';
 
 /** Capability a relay announces when it relays toy frames. */
 export const TOYS_COLLABORATION_CAPABILITY = 'toys';
@@ -91,18 +93,9 @@ export class ToysCollaborationSession implements PlayerBallLink {
     const balls = toyTennisBallDecode(decoded);
     if (!balls) return;
     this.respawns.incoming(decoded.sender, decoded.respawned, balls.balls);
-    this.heldUpdate(decoded);
+    const held = balls.held;
+    if (held !== undefined) this.presence.holdSet(decoded.sender, held === PLAYER_TOY_KEYBOARD ? null : held);
     this.listener?.snapshot(decoded.sender, balls);
-  }
-
-  /**
-   * Shows the toy a member holds, as every frame announces it.
-   *
-   * @param frame Valid relayed frame.
-   */
-  private heldUpdate(frame: ToyFrame): void {
-    const held = toyHeldDecode(frame);
-    if (held !== undefined) this.presence.holdSet(frame.sender, held);
   }
 
   /**
@@ -146,6 +139,11 @@ export class ToysCollaborationSession implements PlayerBallLink {
     if (!this.running) return false;
     const respawned = this.respawns.outgoing(snapshot.balls, performance.now());
     return this.transport.sendPresence(toyFrameEncode(toyTennisBallEncode(snapshot, respawned)));
+  }
+
+  /** @inheritdoc */
+  handsSet(member: number, hands: PlayerCharacterHandTargets | null): void {
+    this.presence.handsSet(member, hands);
   }
 
   /** @inheritdoc */

@@ -74,6 +74,18 @@ export class AudioEffectSoftReverb {
   }
 
   /**
+   * Returns the wet send of the reverb (ambient tail only) for sources that pan
+   * their own dry signal, building the graph once per context.
+   *
+   * @param context Live audio context.
+   * @returns Wet send gain node.
+   */
+  getWetSendInput(context: AudioContext): AudioNode {
+    this.ensureGraph(context);
+    return this.wetSend ?? context.destination;
+  }
+
+  /**
    * Applies room character: external dry/send gains and Freeverb size/damp/wet.
    *
    * @param character Room character from the space probe.
