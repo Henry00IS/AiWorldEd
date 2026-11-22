@@ -141,3 +141,4 @@ The **Examples** window holds showcase scripts such as the Spiral Staircase, sma
 
 - Sort List has an optional per-item By, such as [=[$Y]] for height or [=Random(0, 1)] for a seeded shuffle. It evaluates every key before sorting, keeps the order of equal keys, and Biggest First reverses the comparison. Without By it orders the items themselves.
 - Warn adds its Message, with [Name] and [=formula] filled in, to the warnings in the Output and inspector and keeps running. Kind Stop ends the script with that message as its error. Put it inside If to warn only on bad input.
+- List(index) stops when the index is not in the list and names the valid range. ItemOr(list, index, fallback) returns its fallback instead. ItemClamp(list, index) uses the first or last item outside the range. ItemWrap(list, index) wraps around, so -1 is the last item and Count is the first; [=ItemWrap([Points], [$Index] + 1)] reads the next point of a closed loop.

@@ -223,6 +223,20 @@ function solidScriptMathUnit(vector: number[] | undefined, usage: string, what: 
   return vector.map((value) => value / size);
 }
 
+/**
+ * Reads the list of ItemClamp or ItemWrap, which needs at least one item.
+ *
+ * @param args Arguments.
+ * @param usage How the function is written, for messages.
+ * @returns Items.
+ */
+function solidScriptMathItemList(args: readonly SolidScriptValue[], usage: string): readonly SolidScriptValue[] {
+  if (args.length !== 2) throw new Error(`${usage} takes a list and an index`);
+  const list = solidScriptMathList(args, 0, usage);
+  if (list.length === 0) throw new Error(`${usage} needs a list with at least one item`);
+  return list;
+}
+
 /** Math and list functions: ranges, smoothing, angles and list picks. */
 export const SOLID_SCRIPT_FUNCTIONS_MATH = {
   smoothstep: (args) => {
@@ -294,6 +308,16 @@ export const SOLID_SCRIPT_FUNCTIONS_MATH = {
     const list = solidScriptMathList(args, 0, usage);
     const index = solidScriptExtraNumber(args, 1, usage);
     return Number.isInteger(index) && index >= 0 && index < list.length ? list[index] : args[2];
+  },
+  item_clamp: (args) => {
+    const list = solidScriptMathItemList(args, 'ItemClamp(list, index)');
+    const index = Math.round(solidScriptExtraNumber(args, 1, 'ItemClamp(list, index)'));
+    return list[Math.min(Math.max(index, 0), list.length - 1)];
+  },
+  item_wrap: (args) => {
+    const list = solidScriptMathItemList(args, 'ItemWrap(list, index)');
+    const index = Math.round(solidScriptExtraNumber(args, 1, 'ItemWrap(list, index)'));
+    return list[((index % list.length) + list.length) % list.length];
   },
   unique: (args) => {
     const seen = new Set<string>();

@@ -337,6 +337,20 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
     group: 'List',
     gives: 'Any',
   },
+  item_clamp: {
+    usage: 'ItemClamp(list, index)',
+    summary:
+      'The item at an index, from 0, using the first or last item when the index is outside the list, such as ItemClamp([1, 2, 3], 5) is 3.',
+    group: 'List',
+    gives: 'Any',
+  },
+  item_wrap: {
+    usage: 'ItemWrap(list, index)',
+    summary:
+      'The item at an index, from 0, counting round again past either end, so -1 is the last, such as ItemWrap([1, 2, 3], 3) is 1.',
+    group: 'List',
+    gives: 'Any',
+  },
   index_of: {
     usage: 'IndexOf(list, value)',
     summary: 'Where a value is, from 0, or -1, such as IndexOf([4, 5, 6], 5) is 1.',
