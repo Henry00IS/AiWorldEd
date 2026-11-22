@@ -1,3 +1,8 @@
+import { SOLID_SCRIPT_FUNCTION_INPUTS_LEFT_OFF } from './solid_script_function_docs_left_off.js';
+import {
+  SOLID_SCRIPT_FUNCTION_DOCS_TEXTURE,
+  SOLID_SCRIPT_TEXTURE_ARGUMENTS,
+} from './solid_script_function_docs_texture.js';
 import {
   SOLID_SCRIPT_CLUSTER_ARGUMENTS,
   SOLID_SCRIPT_FUNCTION_DOCS_CLUSTER,
@@ -111,6 +116,7 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
   ...SOLID_SCRIPT_FUNCTION_DOCS_MATRIX,
   ...SOLID_SCRIPT_FUNCTION_DOCS_NUMBERS,
   ...SOLID_SCRIPT_FUNCTION_DOCS_CLUSTER,
+  ...SOLID_SCRIPT_FUNCTION_DOCS_TEXTURE,
   ...SOLID_SCRIPT_FUNCTION_DOCS_ROTATION,
   ...SOLID_SCRIPT_FUNCTION_DOCS_COORDINATES,
   str: {
@@ -921,6 +927,7 @@ const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
   ...SOLID_SCRIPT_KIND_CHECK_ARGUMENTS,
   ...SOLID_SCRIPT_NUMBERS_ARGUMENTS,
   ...SOLID_SCRIPT_CLUSTER_ARGUMENTS,
+  ...SOLID_SCRIPT_TEXTURE_ARGUMENTS,
   ...SOLID_SCRIPT_ROTATION_ARGUMENTS,
   ...SOLID_SCRIPT_COORDINATES_ARGUMENTS,
   ...SOLID_SCRIPT_SHAPING_WAVE_ARGUMENTS,
@@ -944,33 +951,6 @@ export function solidScriptFunctionArguments(key: string): SolidScriptFunctionAr
     return { name, ...known };
   });
 }
-
-/** Inputs at the end of a function that may be left off, by function key. */
-const SOLID_SCRIPT_FUNCTION_INPUTS_LEFT_OFF: Readonly<Record<string, number>> = {
-  nearest: 3,
-  cluster: 2,
-  cluster_connected: 1,
-  first: 1,
-  last: 1,
-  checker: 1,
-  log: 1,
-  pad_left: 1,
-  pad_right: 1,
-  part: 1,
-  split: 1,
-  join: 1,
-  format_number: 2,
-  time_text: 1,
-  hash: 1,
-  noise: 5,
-  noise_vector: 2,
-  voronoi: 3,
-  remap: 3,
-  rotate_vector: 1,
-  shuffle: 1,
-  slice: 1,
-  vector: 1,
-};
 
 /** Fewest inputs of functions that take as many as needed, when more than one. */
 const SOLID_SCRIPT_FUNCTION_INPUTS_LEAST: Readonly<Record<string, number>> = { pick: 2, list: 0 };

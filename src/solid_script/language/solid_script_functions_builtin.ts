@@ -10,6 +10,7 @@ import { SOLID_SCRIPT_FUNCTIONS_KIND_CHECKS } from './solid_script_functions_kin
 import { SOLID_SCRIPT_FUNCTIONS_NUMBERS } from './solid_script_functions_numbers.js';
 import { SOLID_SCRIPT_FUNCTIONS_CLUSTER } from './solid_script_functions_cluster.js';
 import { SOLID_SCRIPT_FUNCTIONS_ROTATION } from './solid_script_functions_rotation.js';
+import { SOLID_SCRIPT_FUNCTIONS_TEXTURE } from './solid_script_functions_texture.js';
 import { SOLID_SCRIPT_FUNCTIONS_COORDINATES } from './solid_script_functions_coordinates.js';
 import { solidScriptAxesEach, solidScriptAxesPick } from './solid_script_functions_axes.js';
 import {
@@ -172,6 +173,7 @@ const SOLID_SCRIPT_FUNCTIONS_NAMED = {
   ...SOLID_SCRIPT_FUNCTIONS_KIND_CHECKS,
   ...SOLID_SCRIPT_FUNCTIONS_NUMBERS,
   ...SOLID_SCRIPT_FUNCTIONS_CLUSTER,
+  ...SOLID_SCRIPT_FUNCTIONS_TEXTURE,
   ...SOLID_SCRIPT_FUNCTIONS_ROTATION,
   ...SOLID_SCRIPT_FUNCTIONS_COORDINATES,
 } satisfies Readonly<Record<string, SolidScriptBuiltin>>;
