@@ -8,21 +8,34 @@ export interface SolidScriptPathEdge {
   cost: number;
 }
 
+/** The cheapest way from every corner to its nearest End corner. */
+export interface SolidScriptPathWays {
+  /**
+   * For each corner, the edge it leaves by, or -1 at an End or when no End is
+   * reachable.
+   */
+  next: number[];
+  /**
+   * For each corner, the total cost to its nearest End, Infinity when none is
+   * reachable.
+   */
+  total: number[];
+}
+
 /**
- * Finds, for every corner, the next corner on its cheapest way to the nearest
- * End corner. Costs below 0 count as 0.
+ * Finds, for every corner, the next edge on its cheapest way to the nearest End
+ * corner and what the whole way costs. Costs below 0 count as 0.
  *
  * @param count Number of corners.
  * @param edges Edges between corners.
  * @param ends Corner numbers paths lead to.
- * @returns For each corner, the edge it leaves by, or -1 at an End or when no
- *   End is reachable.
+ * @returns The ways of every corner.
  */
 export function solidScriptShortestPathsNext(
   count: number,
   edges: readonly SolidScriptPathEdge[],
   ends: readonly number[],
-): number[] {
+): SolidScriptPathWays {
   const total = Array.from({ length: count }, () => Infinity);
   const next = Array.from({ length: count }, () => -1);
   const done = Array.from({ length: count }, () => false);
@@ -32,7 +45,7 @@ export function solidScriptShortestPathsNext(
       (best, cost, index) => (!done[index] && cost < (total[best] ?? Infinity) ? index : best),
       -1,
     );
-    if (at < 0) return next;
+    if (at < 0) return { next, total };
     done[at] = true;
     edges.forEach((edge, index) => {
       const other = edge.a === at ? edge.b : edge.b === at ? edge.a : -1;
@@ -69,4 +82,22 @@ export function solidScriptShortestPathsEdges(
     }
   }
   return [...picked];
+}
+
+/**
+ * Lists, for every corner, the corner its cheapest way goes to next, or the
+ * corner itself at an End or when no End is reachable.
+ *
+ * @param edges Edges between corners.
+ * @param next For each corner, the edge it leaves by.
+ * @returns Corner numbers.
+ */
+export function solidScriptShortestPathsNextCorners(
+  edges: readonly SolidScriptPathEdge[],
+  next: readonly number[],
+): number[] {
+  return next.map((edge, corner) => {
+    const { a, b } = edges[edge] ?? { a: corner, b: corner };
+    return a === corner ? b : a;
+  });
 }
