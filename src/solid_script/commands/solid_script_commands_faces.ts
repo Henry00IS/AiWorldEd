@@ -4,6 +4,7 @@ import { solidScriptParameterOfWhere } from './solid_script_command_of_where.js'
 import type { SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
 import type { SolidScriptGeometryLeaf } from '@/solid_script/language/solid_script_geometry.js';
 import { solidScriptEachRead } from '@/solid_script/language/solid_script_each_read.js';
+import { solidScriptScaleFacesHowOf } from './solid_script_scale_faces_how.js';
 import { solidScriptFaceEach, solidScriptFaceEachNumber } from './solid_script_face_each.js';
 import { solidScriptParameterEach } from './solid_script_command_each.js';
 import { solidScriptKindNamed } from '@/solid_script/language/solid_script_kinds.js';
@@ -675,7 +676,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Scale faces about their centers',
     manual:
-      'Scales each face about its center, in the plane of the face. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. A solid stays a solid, and a mesh stays a mesh. Factor 1 leaves the face as it is; 0.5 shrinks it toward its center, and 2 grows it. If several picked faces share a corner, the corner takes the average of those moves. A solid may be left not convex for now, so later lines can keep moving its corners; only when the script ends does a warning list the solids still not convex, which are not built. Example: Select Faces Facing Up, Scale Faces By 0.5 turns the top of a Cube into a smaller roof.',
+      'Scales each face about its center, in the plane of the face. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. A solid stays a solid, and a mesh stays a mesh. Factor 1 leaves the face as it is; 0.5 shrinks it toward its center, and 2 grows it. Center, when given, is the point a face is scaled about instead, and Axis scales only along that direction, as Single Axis does; both may change per face. If several picked faces share a corner, the corner takes the average of those moves. A solid may be left not convex for now, so later lines can keep moving its corners; only when the script ends does a warning list the solids still not convex, which are not built. Example: Select Faces Facing Up, Scale Faces By 0.5 turns the top of a Cube into a smaller roof.',
     stops: ['No faces.', 'A Factor that is not a number.'],
     parameters: [
       solidScriptParameterEach(
@@ -688,15 +689,33 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         ),
         'Face',
       ),
+      solidScriptParameterEach(
+        solidScriptParameterOptional(
+          'center',
+          'Center',
+          'vector3',
+          'Point each face is scaled about, such as 0, 0, 0 or [=[$Face.Parent.Center]]. Left off uses the center of the face.',
+        ),
+        'Face',
+      ),
+      solidScriptParameterEach(
+        solidScriptParameterOptional(
+          'axis',
+          'Axis',
+          'vector3',
+          'Direction to scale along only, such as 1, 0, 0 to make faces narrower but not shorter. Left off scales every way.',
+        ),
+        'Face',
+      ),
       solidScriptParameterOfWhere('Face', '[=[$Face.Normal.Y] > 0.9]'),
       solidScriptParameterOf('faces or objects', '$Selected.Faces'),
     ],
     listing: (read) => ['Scale Faces', 'By ', read.value('factor'), ...solidScriptListingOf(read)],
     execute: (run) => {
       const targets = solidScriptFaceTargets(run, 'Scale Faces');
-      const factorOf = solidScriptFaceEachNumber(run, 'factor', targets, 'Factor needs a number, such as 1 or 0.5', 1);
+      const howOf = solidScriptScaleFacesHowOf(run, targets);
       for (const [leaf, faces] of solidScriptFaceGroups(targets, (face) => face.leaf))
-        run.leafReplace(leaf, solidScriptScaleFaces(leaf, faces, factorOf, 'Scale Faces'));
+        run.leafReplace(leaf, solidScriptScaleFaces(leaf, faces, howOf, 'Scale Faces'));
       return [];
     },
   }),

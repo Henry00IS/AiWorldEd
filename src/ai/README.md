@@ -597,3 +597,4 @@ Solid mutations (including hierarchy create/reparent/rename/ungroup) are **undoa
 - Sweep Along Path has a 🔁 Twist: degrees the profile turns about the path at each path point, such as [=[$Index] * 15] for a twisted rope; As Mesh suits it best, since a twisted stretch bends its sides.
 - Sweep Along Path As Mesh has Fill Caps (Yes by default): No leaves the two ends of an open path open, like a tube.
 - Tag Faces Roof gives the faces in Of (empty: [$Selected.Faces]) a tag of your own, which [$Face.Tags] and HasTag then find and which stays through moves and cuts, as Face Set does; the 🔁 Tag may change per face, and Remove takes it off again.
+- Scale Faces has a 🔁 Center (left off: the center of each face) and a 🔁 Axis that scales only along that direction, as Single Axis does, such as Axis 1, 0, 0 to make faces narrower but not shorter.
