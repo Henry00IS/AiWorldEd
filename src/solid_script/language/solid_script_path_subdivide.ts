@@ -1,5 +1,6 @@
 import type { SolidScriptPath, SolidScriptPathSegment } from './solid_script_path_model.js';
 import { solidScriptPathCatmullHandles } from './solid_script_path_splines.js';
+import { solidScriptPathHandleTypesSubdivided } from './solid_script_path_handle_types.js';
 
 /** A point or handle: X, Y and Z. */
 type SolidScriptSubdividePoint = number[];
@@ -167,14 +168,18 @@ export function solidScriptPathSubdivide(
   const points: SolidScriptSubdividePoint[] = [];
   const segments: SolidScriptPathSegment<number[]>[] = [];
   const tilts: number[] = [];
+  const added: number[] = [];
   path.points.forEach((point, index) => {
     points.push(point);
     tilts.push(path.tilts?.[index] ?? 0);
     if (index >= path.segments.length) return;
     const stretch = solidScriptSubdivideStretch(path, index, cuts[index] ?? 0);
     points.push(...stretch.points);
+    added[index] = stretch.points.length;
     segments.push(...stretch.segments);
     tilts.push(...solidScriptSubdivideTilts(path, index, stretch.points.length));
   });
-  return { ...path, points, segments, ...(path.tilts ? { tilts } : {}) };
+  const { handleTypes: _before, ...kept } = path;
+  const handleTypes = solidScriptPathHandleTypesSubdivided(path, added);
+  return { ...kept, points, segments, ...(path.tilts ? { tilts } : {}), ...(handleTypes ? { handleTypes } : {}) };
 }

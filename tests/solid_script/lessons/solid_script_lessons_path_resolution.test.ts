@@ -49,6 +49,10 @@ describe('path resolution', () => {
     expect(ran([typed('Bezier', '4')], '[P.Resolution] [P.Points.Count]')).toBe('4 9');
   });
 
+  it('keeps the setting on a straight path without adding points', () => {
+    expect(ran([resolve('5')], '[P.Resolution] [P.Points.Count]')).toBe('5 3');
+  });
+
   it('draws a Bezier path in other steps without moving its points', () => {
     expect(ran([typed('Bezier', '4'), resolve('8')], '[P.Resolution] [P.Points.Count]')).toBe('8 17');
     expect(ran([typed('Bezier', '4'), resolve('8')], '[P.Points(0)] [P.Points(16)]')).toBe('[0, 0, 0] [2, 0, 2]');

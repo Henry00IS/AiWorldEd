@@ -184,3 +184,111 @@ export function solidScriptPathHandleTypes(
   });
   return { left: placed.map(([left]) => left.toArray()), right: placed.map(([, right]) => right.toArray()) };
 }
+
+/** The handle type of each point of a path, on its left and its right. */
+export interface SolidScriptPathHandleTypes {
+  readonly left: readonly SolidScriptHandleType[];
+  readonly right: readonly SolidScriptHandleType[];
+}
+
+/**
+ * Reads the handle types of every point of a path, Free where none is kept.
+ *
+ * @param path Path.
+ * @returns Handle types.
+ */
+export function solidScriptPathHandleTypesOf(path: SolidScriptPath<number[]>): SolidScriptPathHandleTypes {
+  const kept = path.handleTypes;
+  return {
+    left: path.points.map((_, index) => kept?.left[index] ?? 'Free'),
+    right: path.points.map((_, index) => kept?.right[index] ?? 'Free'),
+  };
+}
+
+/**
+ * Gives the picked points one handle type on the chosen side.
+ *
+ * @param path Path.
+ * @param type Handle type.
+ * @param side Which handles of a point change.
+ * @param picked Whether each point changes.
+ * @returns Handle types.
+ */
+export function solidScriptPathHandleTypesSet(
+  path: SolidScriptPath<number[]>,
+  type: SolidScriptHandleType,
+  side: SolidScriptHandleSide,
+  picked: readonly boolean[],
+): SolidScriptPathHandleTypes {
+  const now = solidScriptPathHandleTypesOf(path);
+  const changed = (types: readonly SolidScriptHandleType[], changes: boolean) =>
+    types.map((kept, index) => (changes && picked[index] ? type : kept));
+  return { left: changed(now.left, side !== 'Right'), right: changed(now.right, side !== 'Left') };
+}
+
+/**
+ * Gives handle types that no longer place a handle once it is moved by hand:
+ * Auto becomes Align, Vector becomes Free.
+ *
+ * @param type Handle type.
+ * @returns Handle type.
+ */
+export function solidScriptHandleTypeMoved(type: SolidScriptHandleType): SolidScriptHandleType {
+  return type === 'Auto' ? 'Align' : type === 'Vector' ? 'Free' : type;
+}
+
+/**
+ * Gives the handle types of a path's points after their handles were moved by
+ * hand.
+ *
+ * @param path Path.
+ * @returns Handle types.
+ */
+export function solidScriptPathHandleTypesMoved(path: SolidScriptPath<number[]>): SolidScriptPathHandleTypes {
+  const now = solidScriptPathHandleTypesOf(path);
+  return { left: now.left.map(solidScriptHandleTypeMoved), right: now.right.map(solidScriptHandleTypeMoved) };
+}
+
+/**
+ * Gives the handle types a path gets when it is made Bezier: a straight path
+ * Vector, a whole-path curve Align, a Bezier path those it has.
+ *
+ * @param path Path before.
+ * @returns Handle types.
+ */
+export function solidScriptPathHandleTypesBezier(path: SolidScriptPath<number[]>): SolidScriptPathHandleTypes {
+  const curved = path.segments.some((segment) => segment.kind === 'bezier');
+  if (curved && !path.spline) return solidScriptPathHandleTypesOf(path);
+  const type: SolidScriptHandleType = path.spline ? 'Align' : 'Vector';
+  return { left: path.points.map(() => type), right: path.points.map(() => type) };
+}
+
+/**
+ * Gives the handle types of a Bezier path after points were added inside its
+ * stretches: new points get Align, and the handles beside a cut stretch keep
+ * their type when it can follow the new points, Auto becoming Align and Vector
+ * Free.
+ *
+ * @param path Path before.
+ * @param added Points added after each point.
+ * @returns Handle types in the new point order, or undefined for a path whose
+ *   handles are not its own.
+ */
+export function solidScriptPathHandleTypesSubdivided(
+  path: SolidScriptPath<number[]>,
+  added: readonly number[],
+): SolidScriptPathHandleTypes | undefined {
+  if (path.spline || path.segments.every((segment) => segment.kind === 'line')) return path.handleTypes;
+  const now = solidScriptPathHandleTypesOf(path);
+  const count = path.points.length;
+  const cut = (index: number): boolean => (added[(index + count) % count] ?? 0) > 0 && (path.closed || index >= 0);
+  const types = path.points.map((_, index) => ({
+    left: cut(index - 1) ? solidScriptHandleTypeMoved(now.left[index] ?? 'Free') : (now.left[index] ?? 'Free'),
+    right: cut(index) ? solidScriptHandleTypeMoved(now.right[index] ?? 'Free') : (now.right[index] ?? 'Free'),
+  }));
+  const order = types.flatMap((type, index) => [
+    type,
+    ...Array.from({ length: added[index] ?? 0 }, () => ({ left: 'Align' as const, right: 'Align' as const })),
+  ]);
+  return { left: order.map((type) => type.left), right: order.map((type) => type.right) };
+}

@@ -9,6 +9,7 @@ import { solidScriptFaceTextureOwn } from './solid_script_shape.js';
 import * as THREE from 'three';
 import { solidScriptFaceIslands } from './solid_script_face_islands.js';
 import { solidScriptPathHandles, solidScriptPathResolutionOf } from './solid_script_path_handles.js';
+import { solidScriptPathHandleTypesOf } from './solid_script_path_handle_types.js';
 import type { SolidScriptElements } from './solid_script_elements.js';
 import type { SolidScriptEdgeFacts, SolidScriptFaceFacts } from './solid_script_geometry.js';
 import { solidScriptKindNamed } from './solid_script_kinds.js';
@@ -114,6 +115,8 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     HandlesRight: form('HandlesRights', 'Vector List'),
     Tilts: form('Tilts', 'Number List'),
     Resolution: form('Resolutions', 'Number'),
+    HandleTypesLeft: form('HandleTypesLefts', 'Text List'),
+    HandleTypesRight: form('HandleTypesRights', 'Text List'),
   },
   Object: {
     Name: form('Names', 'Text'),
@@ -553,6 +556,8 @@ function solidScriptMemberPath(path: SolidScriptPath<number[]>, member: string):
   if (member === 'tilts') return solidScriptPathSampleTilts(path).map(solidScriptMemberRound);
   if (member === 'length') return solidScriptMemberRound(solidScriptPathLength(solidScriptPathWalk(path)));
   if (member === 'resolution') return solidScriptPathResolutionOf(path);
+  if (member === 'handletypesleft') return [...solidScriptPathHandleTypesOf(path).left];
+  if (member === 'handletypesright') return [...solidScriptPathHandleTypesOf(path).right];
   if (member === 'handlesleft' || member === 'handlesright')
     return solidScriptPathHandles(path)[member === 'handlesleft' ? 'left' : 'right'].map((point) =>
       point.map(solidScriptMemberRound),

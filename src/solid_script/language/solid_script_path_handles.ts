@@ -4,6 +4,7 @@ import {
   type SolidScriptPathSegment,
 } from './solid_script_path_model.js';
 import { SOLID_SCRIPT_PATH_NURBS_ORDER, solidScriptPathCatmullHandles } from './solid_script_path_splines.js';
+import { solidScriptPathHandleTypesBezier } from './solid_script_path_handle_types.js';
 
 /** What Set Path Type can make a path. */
 export type SolidScriptPathType = 'Poly' | 'Bezier' | 'Catmull Rom' | 'NURBS';
@@ -102,7 +103,7 @@ export function solidScriptPathWithHandles(
 
 /**
  * Copies a path without its whole-path curve, keeping its points, segments,
- * closing and tilts.
+ * closing, tilts, resolution and handle types.
  *
  * @param path Path.
  * @returns Path.
@@ -113,6 +114,8 @@ function solidScriptPathPlain(path: SolidScriptPath<number[]>): SolidScriptPath<
     segments: path.segments,
     closed: path.closed,
     ...(path.tilts ? { tilts: path.tilts } : {}),
+    ...(path.resolution === undefined ? {} : { resolution: path.resolution }),
+    ...(path.handleTypes ? { handleTypes: path.handleTypes } : {}),
   };
 }
 
@@ -160,9 +163,14 @@ export function solidScriptPathTyped(
   type: SolidScriptPathType,
   resolution: number,
 ): SolidScriptPath<number[]> {
-  if (type === 'Bezier') return solidScriptPathWithHandles(path, solidScriptPathHandles(path), resolution);
+  if (type === 'Bezier')
+    return {
+      ...solidScriptPathWithHandles(path, solidScriptPathHandles(path), resolution),
+      handleTypes: solidScriptPathHandleTypesBezier(path),
+    };
   if (type === 'NURBS') return solidScriptPathNurbs(path, resolution);
-  const straight = { ...solidScriptPathPlain(path), segments: path.segments.map(() => ({ kind: 'line' as const })) };
+  const { handleTypes: _dropped, ...plain } = solidScriptPathPlain(path);
+  const straight = { ...plain, segments: path.segments.map(() => ({ kind: 'line' as const })) };
   return type === 'Poly' ? straight : { ...straight, spline: { kind: 'catmull', resolution } };
 }
 

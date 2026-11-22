@@ -25,7 +25,10 @@ import {
 import {
   SOLID_SCRIPT_HANDLE_SIDES,
   SOLID_SCRIPT_HANDLE_TYPES,
+  solidScriptHandleTypeMoved,
   solidScriptPathHandleTypes,
+  solidScriptPathHandleTypesOf,
+  solidScriptPathHandleTypesSet,
   type SolidScriptHandleSide,
   type SolidScriptHandleType,
 } from '@/solid_script/language/solid_script_path_handle_types.js';
@@ -129,10 +132,13 @@ function solidScriptSetHandlesRun(run: SolidScriptBlockRun): void {
     left: solidScriptPathHandlesRead(run, 'left', points, kept.left),
     right: solidScriptPathHandlesRead(run, 'right', points, kept.right),
   };
-  solidScriptPathHandlesWrite(
-    run,
-    solidScriptPathWithHandles(source, handles, solidScriptPathResolution(run, 'Set Handles')),
-  );
+  const types = solidScriptPathHandleTypesOf(source);
+  const moved = (key: string, kept: SolidScriptHandleType[]) =>
+    run.source(key).trim() === '' ? kept : kept.map(solidScriptHandleTypeMoved);
+  solidScriptPathHandlesWrite(run, {
+    ...solidScriptPathWithHandles(source, handles, solidScriptPathResolution(run, 'Set Handles')),
+    handleTypes: { left: moved('left', [...types.left]), right: moved('right', [...types.right]) },
+  });
 }
 
 /**
@@ -160,10 +166,10 @@ function solidScriptSetHandleTypeRun(run: SolidScriptBlockRun): void {
     }),
   );
   const handles = solidScriptPathHandleTypes(source, solidScriptPathHandles(source), type, side, picked);
-  solidScriptPathHandlesWrite(
-    run,
-    solidScriptPathWithHandles(source, handles, solidScriptPathResolution(run, 'Set Handle Type')),
-  );
+  solidScriptPathHandlesWrite(run, {
+    ...solidScriptPathWithHandles(source, handles, solidScriptPathResolution(run, 'Set Handle Type')),
+    handleTypes: solidScriptPathHandleTypesSet(source, type, side, picked),
+  });
 }
 
 /**
@@ -294,7 +300,7 @@ export const SOLID_SCRIPT_COMMANDS_PATH_HANDLES: readonly SolidScriptCommand[] =
     category: 'Paths',
     description: 'Place path handles automatically, as vectors or in line',
     manual:
-      'Writes to Into a copy of a Path whose points that pass the 🔁 Pick Where get handles placed by Type, with every stretch a Bezier curve. Auto places both handles along the way from the point before to the point after, sized to the stretches beside it, for a smooth curve through the points. Vector puts each handle a third of the way to the neighbour on its side, so the stretches stay straight. Align turns the handles into one line through the point, keeping their lengths; with Side Left or Right only that handle turns, to point away from the other. Free keeps the handles. Side picks which handles change. The handles are placed once, when the line runs: move the points later and run Set Handle Type again. Resolution is how many steps each stretch is drawn in. Path is a Path or a list of points for a straight open one. Example: Set Handle Type Path [Rail] Type Auto Into [Rail] rounds a zigzag into a smooth curve.',
+      'Writes to Into a copy of a Path whose points that pass the 🔁 Pick Where get handles placed by Type, with every stretch a Bezier curve. Auto places both handles along the way from the point before to the point after, sized to the stretches beside it, for a smooth curve through the points. Vector puts each handle a third of the way to the neighbour on its side, so the stretches stay straight. Align turns the handles into one line through the point, keeping their lengths; with Side Left or Right only that handle turns, to point away from the other. Free keeps the handles. Side picks which handles change. The handles are placed once, when the line runs: move the points later and run Set Handle Type again. Resolution is how many steps each stretch is drawn in. Path is a Path or a list of points for a straight open one. The path keeps the type of every handle; [Path.HandleTypesLeft] and [Path.HandleTypesRight] read them, one word per point, so a later Pick Where can choose points by type. Example: Set Handle Type Path [Rail] Type Auto Into [Rail] rounds a zigzag into a smooth curve.',
     stops: [
       'A Path that is not a Path or a list of at least 2 points.',
       'A Type other than Auto, Vector, Align or Free, or a Side other than Both, Left or Right.',

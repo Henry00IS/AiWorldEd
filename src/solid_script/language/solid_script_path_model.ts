@@ -3,6 +3,7 @@ import {
   solidScriptPathSplineSample,
   type SolidScriptPathSpline,
 } from './solid_script_path_splines.js';
+import type { SolidScriptPathHandleTypes } from './solid_script_path_handle_types.js';
 
 /**
  * How one stretch of a path runs between its two points: straight, or a Bezier
@@ -27,6 +28,8 @@ export interface SolidScriptPath<Point> {
   readonly closed: boolean;
   /** Stored drawing steps per stretch, also kept on a straight path. */
   readonly resolution?: number;
+  /** Handle type of each point on its left and right; none is Free everywhere. */
+  readonly handleTypes?: SolidScriptPathHandleTypes;
   /**
    * Tilt of each point, in degrees about the way the path runs there; none is 0
    * everywhere.
