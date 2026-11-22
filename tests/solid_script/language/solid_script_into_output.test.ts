@@ -17,6 +17,7 @@ const MESH_TOOLS = new Set([
   'delete_vertices',
   'join_meshes',
   'merge_by_distance',
+  'merge_points',
   'subdivide',
   'mesh_smooth',
   'displace',

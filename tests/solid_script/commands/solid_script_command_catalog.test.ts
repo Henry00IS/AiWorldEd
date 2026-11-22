@@ -99,6 +99,7 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
   if (
     [
       'merge_by_distance',
+      'merge_points',
       'subdivide',
       'mesh_smooth',
       'displace',
@@ -440,6 +441,7 @@ describe('solid script command catalog', () => {
     const hint = /no longer be a convex solid.+Mesh From Solids first/;
     const refused = [
       'merge_by_distance',
+      'merge_points',
       'subdivide',
       'mesh_smooth',
       'displace',

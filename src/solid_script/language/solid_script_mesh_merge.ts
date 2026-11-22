@@ -30,15 +30,33 @@ export function solidScriptMeshMerge(
   const roots = options.connected
     ? solidScriptMeshMergeConnected(mesh, distance, options.welds)
     : solidScriptMeshMergeNear(mesh.points, distance, options.welds);
-  const kept: THREE.Vector3[] = [];
+  return solidScriptMeshMergeInto(mesh, roots, false);
+}
+
+/**
+ * Welds each corner into its root corner and drops the faces that fold to fewer
+ * than three corners.
+ *
+ * @param mesh Mesh.
+ * @param roots Corner each corner welds into; a root welds into itself.
+ * @param average True to place a welded corner at the middle of all that weld
+ *   into it, false to keep the root where it is.
+ * @returns Mesh with fewer corners.
+ */
+export function solidScriptMeshMergeInto(
+  mesh: SolidScriptShapeMesh,
+  roots: readonly number[],
+  average: boolean,
+): SolidScriptShapeMesh {
   const places = new Map<number, number>();
-  const target = roots.map((root) => {
-    const known = places.get(root);
-    if (known !== undefined) return known;
-    places.set(root, kept.length);
-    kept.push(mesh.points[root]!.clone());
-    return kept.length - 1;
+  const target = roots.map((root) => places.get(root) ?? places.set(root, places.size).size - 1);
+  const sums = [...places.keys()].map(() => ({ sum: new THREE.Vector3(), count: 0 }));
+  roots.forEach((root, index) => {
+    const entry = sums[target[index] ?? 0];
+    entry?.sum.add(mesh.points[average ? index : root] ?? new THREE.Vector3());
+    if (entry) entry.count += 1;
   });
+  const kept = sums.map((entry) => entry.sum.divideScalar(Math.max(entry.count, 1)));
   return { ...mesh, points: kept, ...solidScriptMeshMergeFaces(mesh, target) };
 }
 

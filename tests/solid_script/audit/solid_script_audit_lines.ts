@@ -127,6 +127,7 @@ const SOLID_SCRIPT_AUDIT_MESHES = new Set([
   'join_meshes',
   'bevel_vertices',
   'merge_by_distance',
+  'merge_points',
   'subdivide',
   'mesh_smooth',
   'displace',

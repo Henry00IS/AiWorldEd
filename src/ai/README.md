@@ -630,3 +630,4 @@ Solid mutations (including hierarchy create/reparent/rename/ungroup) are **undoa
 - MatrixMultiply(a, b), MatrixDeterminant(matrix) and MatrixTranspose(matrix).
 - Corner values: [Face.Angles] gives the angle at each corner in degrees, in vertex order; [Vertex.IsUVSplit] and [Edge.IsUVSplit] tell whether the faces there give different UVs.
 - Cluster(points, distance, groups) groups close points, giving each the index of the point its cluster started from.
+- Merge Points welds mesh corners that share a Merge ID into one at their average position, with Pick Where.

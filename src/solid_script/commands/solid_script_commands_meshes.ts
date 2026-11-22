@@ -1,3 +1,4 @@
+import { solidScriptMergePoints } from '@/solid_script/language/solid_script_merge_points.js';
 import { solidScriptListingOf } from './solid_script_command_listing.js';
 import { solidScriptConditionHolds } from '@/solid_script/language/solid_script_condition.js';
 import { solidScriptEachUses } from '@/solid_script/language/solid_script_each_uses.js';
@@ -528,6 +529,52 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
       for (const leaf of rest) run.leafReplace(leaf, solidScriptShapeGone(leaf.label));
       return [];
     },
+  }),
+  new SolidScriptCommand({
+    id: 'merge_points',
+    edits: true,
+    label: 'Merge Points',
+    category: 'Meshes',
+    description: 'Weld corners that share a Merge ID',
+    manual:
+      'Welds mesh corners that share a Merge ID into one at their average position, even if they are far apart. Merge ID is a whole number worked out per corner with [$Vertex], [$Index] and [$Count]; left as [$Index], every corner stays separate. Pick Where, when given, is a condition a corner must pass to merge. Faces that fold away are dropped. Of is the mesh; empty uses [$Selected.Objects]. A solid stops the line: wrap it in Mesh From Solids first. Example: Merge Points Merge ID 0 joins every corner at their middle.',
+    stops: [
+      'A Merge ID that is not a whole number.',
+      'A solid. Wrap it in Mesh From Solids first.',
+      'No mesh to work on.',
+    ],
+    parameters: [
+      solidScriptParameterEach(
+        solidScriptParameter(
+          'merge_id',
+          'Merge ID',
+          'number',
+          '[$Index]',
+          'A whole number per corner; corners with the same number merge, such as 0 to join all of them.',
+        ),
+        'Vertex',
+      ),
+      solidScriptParameterEach(
+        solidScriptParameterOptional(
+          'pick',
+          'Pick Where',
+          'value',
+          'A condition each corner must pass to merge, such as [=[$Vertex.Position.Y] > 0]. Left off may merge every corner.',
+        ),
+        'Vertex',
+      ),
+      solidScriptParameterOfWhere('Object', '[=[$Object.Center.Y] > 0]'),
+      solidScriptParameterOf('meshes', '$Selected.Objects', ['Object']),
+    ],
+    listing: (read) => [
+      'Merge Points',
+      ...solidScriptListingOptions([
+        read.changed('merge_id') && ['Merge ID ', read.value('merge_id')],
+        read.text('pick') !== '' && ['Pick Where ', read.value('pick')],
+      ]),
+      ...solidScriptListingOf(read),
+    ],
+    execute: (run) => solidScriptMeshApply(run, 'Merge Points', (mesh) => solidScriptMergePoints(run, mesh)),
   }),
   new SolidScriptCommand({
     id: 'merge_by_distance',

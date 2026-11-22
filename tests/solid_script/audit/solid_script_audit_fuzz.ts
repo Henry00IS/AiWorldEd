@@ -84,6 +84,7 @@ const PLAIN: readonly ((random: () => number, name: string) => SolidScriptLine)[
               'delete_vertices',
               'join_meshes',
               'merge_by_distance',
+              'merge_points',
               'subdivide',
               'mesh_smooth',
               'displace',
