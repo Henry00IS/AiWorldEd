@@ -464,7 +464,7 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Sweep a profile along a path',
     manual:
-      'Sweeps a flat profile along a Path, like a pipe, rail or moulding. The profile is a circle of Radius and Sides, or the x, y points in Profile, where x runs to the side of the path and y up. Scale sizes the profile at each path point, worked out once per point with [$Point], [$Index] and [$Count], so a horn or a vine can taper. Each stretch of the path becomes one solid, and the joints are cut on the mitre between two stretches so the pieces meet exactly. A dented profile fills in as a solid; with As Mesh on, the whole sweep is one mesh instead and keeps any profile. A closed Path, such as a Square or a Path with Closed on, joins its last point back to the first; a list of points stays open. Example: a Path, or Resample of a few points, Radius 0.05, gives a round handrail.',
+      'Sweeps a flat profile along a Path, like a pipe, rail or moulding. The profile is a circle of Radius and Sides, or the x, y points in Profile, where x runs to the side of the path and y up. Scale sizes the profile at each path point, worked out once per point with [$Point], [$Index] and [$Count], so a horn or a vine can taper, and Twist turns it by that many degrees about the path at each point, so a rope or a twisted bar spirals; a twisted stretch bends its sides, so As Mesh suits Twist best. Each stretch of the path becomes one solid, and the joints are cut on the mitre between two stretches so the pieces meet exactly. A dented profile fills in as a solid; with As Mesh on, the whole sweep is one mesh instead and keeps any profile. A closed Path, such as a Square or a Path with Closed on, joins its last point back to the first; a list of points stays open. Example: a Path, or Resample of a few points, Radius 0.05, gives a round handrail.',
     stops: [
       'A Path with fewer than 2 different points, or 3 when it is closed.',
       'A Profile with fewer than 3 points, or points that are not x, y.',
@@ -503,6 +503,16 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
         ),
         'Point',
       ),
+      solidScriptParameterEach(
+        solidScriptParameter(
+          'twist',
+          'Twist',
+          'number',
+          '0',
+          'Degrees the profile turns about the path at each path point, such as 90 or [=[$Index] * 15] for a twisted rope.',
+        ),
+        'Point',
+      ),
       solidScriptParameter(
         'mesh',
         'As Mesh',
@@ -518,6 +528,7 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
       ...solidScriptListingOptions([
         read.changed('profile') ? ['Profile ', read.value('profile')] : ['Radius ', read.value('radius')],
         read.changed('scale') && ['Scale ', read.value('scale')],
+        read.changed('twist') && ['Twist ', read.value('twist')],
         read.on('mesh') && ['As Mesh'],
       ]),
     ],

@@ -594,3 +594,4 @@ Solid mutations (including hierarchy create/reparent/rename/ungroup) are **undoa
 - Array numbers what it makes under .Data.Copy: 0 for the original and 1 on for each copy, as Duplicate Index does, so a later line can vary by it, such as Move By [=Vector(0, [$Item.Data.Copy] * 0.2, 0)] Of [Copies].
 - The 🔁 Count of Array may vary per object, with [$Object] and [$Index], as Duplicate Elements Amount does, such as Count [=[$Index] + 2].
 - Merge By Distance has Mode All (any corners closer than Distance) or Connected (only the two ends of an edge shorter than Distance, so separate parts that nearly touch stay apart), and a 🔁 Weld Where a corner must pass to be welded, such as [=[$Vertex.Position.Y] > 0].
+- Sweep Along Path has a 🔁 Twist: degrees the profile turns about the path at each path point, such as [=[$Index] * 15] for a twisted rope; As Mesh suits it best, since a twisted stretch bends its sides.
