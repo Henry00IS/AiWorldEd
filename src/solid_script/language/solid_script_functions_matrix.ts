@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { solidScriptRotationDegreesMatrix } from './solid_script_transforms.js';
+import { solidScriptRotationDegrees, solidScriptRotationDegreesMatrix } from './solid_script_transforms.js';
 import { solidScriptValueNumbers, solidScriptValueText, type SolidScriptValue } from './solid_script_value.js';
 
 /** A built-in function over evaluated arguments. */
@@ -73,13 +73,11 @@ function solidScriptMatrixTransform(args: readonly SolidScriptValue[]): number[]
  * @returns The parts.
  */
 function solidScriptMatrixParts(value: SolidScriptValue, usage: string): [number[], number[], number[]] {
+  const matrix = solidScriptMatrixRead(value, usage);
   const position = new THREE.Vector3();
-  const turn = new THREE.Quaternion();
   const scale = new THREE.Vector3();
-  solidScriptMatrixRead(value, usage).decompose(position, turn, scale);
-  const angles = new THREE.Euler().setFromQuaternion(turn, 'ZYX');
-  const degrees = [angles.x, angles.y, angles.z].map((angle) => (angle * 180) / Math.PI);
-  return [position.toArray(), degrees, scale.toArray()];
+  matrix.decompose(position, new THREE.Quaternion(), scale);
+  return [position.toArray(), solidScriptRotationDegrees(matrix), scale.toArray()];
 }
 
 /**

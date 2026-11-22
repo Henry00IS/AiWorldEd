@@ -28,6 +28,20 @@ export function solidScriptRotationDegreesMatrix(angles: readonly number[]): THR
 }
 
 /**
+ * Reads the turn of a matrix back as degrees around X, then Y, then Z, the
+ * angles solidScriptRotationDegreesMatrix takes.
+ *
+ * @param matrix Matrix.
+ * @returns Degrees around X, Y and Z.
+ */
+export function solidScriptRotationDegrees(matrix: THREE.Matrix4): number[] {
+  const turn = new THREE.Quaternion();
+  matrix.decompose(new THREE.Vector3(), turn, new THREE.Vector3());
+  const angles = new THREE.Euler().setFromQuaternion(turn, 'ZYX');
+  return [angles.x, angles.y, angles.z].map((angle) => angle / SOLID_SCRIPT_DEGREES);
+}
+
+/**
  * Matrix of a Move By or Transform Move field.
  *
  * @param args Block fields, key by or move.

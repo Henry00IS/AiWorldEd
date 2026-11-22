@@ -17,7 +17,11 @@ import {
 import { solidScriptFaceEachNumber } from './solid_script_face_each.js';
 import { solidScriptFaceTargets, solidScriptFaceWrite } from './solid_script_face_of.js';
 import { solidScriptScatterRun } from '@/solid_script/language/solid_script_scatter.js';
-import { solidScriptMemberVector } from '@/solid_script/language/solid_script_members.js';
+import { solidScriptMemberRound, solidScriptMemberVector } from '@/solid_script/language/solid_script_members.js';
+import type * as THREE from 'three';
+import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
+import { solidScriptPlaceAlignMatrix } from '@/solid_script/language/solid_script_place.js';
+import { solidScriptRotationDegrees } from '@/solid_script/language/solid_script_transforms.js';
 
 /**
  * Lists a Scatter Points line: the On Faces form stays as it was, so existing
@@ -49,6 +53,7 @@ function solidScriptScatterListingFaces(read: SolidScriptListingValues): SolidSc
     ' Into ',
     read.value('into'),
     ...(read.text('normals') === '' ? [] : [' Normals ', read.value('normals')]),
+    ...(read.text('rotations') === '' ? [] : [' Rotations ', read.value('rotations')]),
     ...solidScriptListingOptions([read.changed('spacing') && ['Spacing ', read.value('spacing')]]),
   ];
 }
@@ -94,6 +99,30 @@ function solidScriptScatterListingAmount(read: SolidScriptListingValues): SolidS
 }
 
 /**
+ * Writes the way the face under each point looks to Normals, and the turn that
+ * stands a shape up along it, in X, Y, Z degrees as Rotation reads them, to
+ * Rotations.
+ *
+ * @param run Running line.
+ * @param normals Face direction under each point.
+ */
+function solidScriptScatterWriteFaces(run: SolidScriptBlockRun, normals: readonly THREE.Vector3[]): void {
+  solidScriptFaceWrite(
+    run,
+    'normals',
+    normals.map((normal) => solidScriptMemberVector(normal)),
+  );
+  if (run.text('rotations').trim() === '') return;
+  solidScriptFaceWrite(
+    run,
+    'rotations',
+    normals.map((normal) =>
+      solidScriptRotationDegrees(solidScriptPlaceAlignMatrix(normal)).map(solidScriptMemberRound),
+    ),
+  );
+}
+
+/**
  * Scatter Points: spreads points on faces, inside a shape, in a box or on a
  * grid.
  */
@@ -103,7 +132,7 @@ export const SOLID_SCRIPT_COMMAND_SCATTER = new SolidScriptCommand({
   category: 'Faces',
   description: 'Spread points on faces, inside a shape, in a box, or on a grid',
   manual:
-    'Spreads points and writes their positions to Into as a list of vectors. On chooses how: On Faces (the default) spreads them over faces, more on bigger ones, and writes the way each face looks to Normals, and skips faces that lie back to back against another object in Of, such as where the solids of a Rotate Extrude ring meet; Inside fills the volume of an object; In Box fills a box of Size, centered on the origin; Grid lays Counts points along that box. By chooses how many: Count gives that many, and Density gives so many per square metre On Faces (it can change per face, with [$Face] the face) or per cubic metre Inside and In Box, so a bigger shape gets more. Spacing keeps points at least that far apart; when not all of them fit, it gives as many as fit. Of gives the faces, objects for On Faces and Inside; empty uses [$Selected.Faces]. The same Seed gives the same points for the random modes. Example: Select Faces Facing Up, Scatter Points 20 Into [Spots], then Place At Points At [Spots], Sphere, End.',
+    'Spreads points and writes their positions to Into as a list of vectors. On chooses how: On Faces (the default) spreads them over faces, more on bigger ones, and writes the way each face looks to Normals and the turn that stands a shape up on it to Rotations (X, Y, Z degrees, as Rotation reads them), and skips faces that lie back to back against another object in Of, such as where the solids of a Rotate Extrude ring meet; Inside fills the volume of an object; In Box fills a box of Size, centered on the origin; Grid lays Counts points along that box. By chooses how many: Count gives that many, and Density gives so many per square metre On Faces (it can change per face, with [$Face] the face) or per cubic metre Inside and In Box, so a bigger shape gets more. Spacing keeps points at least that far apart; when not all of them fit, it gives as many as fit. Of gives the faces, objects for On Faces and Inside; empty uses [$Selected.Faces]. The same Seed gives the same points for the random modes. Example: Select Faces Facing Up, Scatter Points 20 Into [Spots], then Place At Points At [Spots], Sphere, End.',
   stops: [
     'No faces, when On is On Faces or Inside.',
     'A Count that is not a whole number from 0 to 10000.',
@@ -197,6 +226,20 @@ export const SOLID_SCRIPT_COMMAND_SCATTER = new SolidScriptCommand({
       ['On Faces'],
     ),
     solidScriptParameterWhen(
+      {
+        ...solidScriptParameterInto(
+          'the turn that stands a shape up on the face under each point, in X, Y, Z degrees, a list of vectors',
+          'Vector List',
+          'face rotations',
+          'label',
+        ),
+        key: 'rotations',
+        label: 'Rotations',
+      },
+      'on',
+      ['On Faces'],
+    ),
+    solidScriptParameterWhen(
       solidScriptParameter(
         'size',
         'Size',
@@ -237,12 +280,7 @@ export const SOLID_SCRIPT_COMMAND_SCATTER = new SolidScriptCommand({
       'into',
       found.positions.map((point) => solidScriptMemberVector(point)),
     );
-    if (found.normals)
-      solidScriptFaceWrite(
-        run,
-        'normals',
-        found.normals.map((point) => solidScriptMemberVector(point)),
-      );
+    if (found.normals) solidScriptScatterWriteFaces(run, found.normals);
     return [];
   },
 });
