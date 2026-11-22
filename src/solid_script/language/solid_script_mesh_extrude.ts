@@ -219,3 +219,52 @@ export function solidScriptMeshExtrudeRegion(
     sides,
   );
 }
+
+/**
+ * Pulls edges out into new faces: each edge gets a four-sided face from it to
+ * its moved copy, and edges that share a corner share its moved copy, so a
+ * chain of edges becomes one strip.
+ *
+ * @param mesh Mesh.
+ * @param edges Picked edges, each as its two corners in the order of the face
+ *   that holds it.
+ * @param distance Metres to move; negative goes the other way.
+ * @param direction Way to move, or null for the way the faces at each corner
+ *   face.
+ * @returns Mesh and the faces made.
+ */
+export function solidScriptMeshExtrudeEdges(
+  mesh: SolidScriptShapeMesh,
+  edges: readonly (readonly [number, number])[],
+  distance: number,
+  direction: THREE.Vector3 | null,
+): SolidScriptMeshExtruded {
+  const build = solidScriptMeshExtrudeStart(mesh);
+  const moved = new Map<number, number>();
+  const top = (corner: number): number => {
+    const known = moved.get(corner);
+    if (known !== undefined) return known;
+    const way = direction ?? solidScriptMeshExtrudeCornerNormal(mesh, corner);
+    const made =
+      build.points.push((mesh.points[corner] ?? new THREE.Vector3()).clone().addScaledVector(way, distance)) - 1;
+    moved.set(corner, made);
+    return made;
+  };
+  const sides = edges.map(([a, b]) => solidScriptMeshExtrudeSide(build, b, a, top));
+  return solidScriptMeshExtrudeFinish(mesh, build, [], sides);
+}
+
+/**
+ * The way the faces around a corner face, on average.
+ *
+ * @param mesh Mesh.
+ * @param corner Point number.
+ * @returns Unit direction, or up when the faces cancel out.
+ */
+function solidScriptMeshExtrudeCornerNormal(mesh: SolidScriptShapeMesh, corner: number): THREE.Vector3 {
+  const sum = new THREE.Vector3();
+  mesh.faces.forEach((loop) => {
+    if (loop.includes(corner)) sum.add(solidScriptMeshLoopNormal(mesh.points, loop));
+  });
+  return sum.lengthSq() > 1e-18 ? sum.normalize() : new THREE.Vector3(0, 1, 0);
+}

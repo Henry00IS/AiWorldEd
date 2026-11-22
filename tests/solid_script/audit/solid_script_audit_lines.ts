@@ -133,6 +133,7 @@ const SOLID_SCRIPT_AUDIT_MESHES = new Set([
   'triangulate',
   'separate_mesh',
   'split_edges',
+  'extrude_edges',
 ]);
 
 /**

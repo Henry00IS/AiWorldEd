@@ -24,6 +24,7 @@ const MESH_TOOLS = new Set([
   'triangulate',
   'separate_mesh',
   'split_edges',
+  'extrude_edges',
 ]);
 const FACE_TOOLS = new Set([
   'extrude_face',
