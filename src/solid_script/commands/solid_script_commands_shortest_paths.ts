@@ -84,7 +84,7 @@ function solidScriptShortestPathsGraphOf(
  * @param run Running line.
  */
 function solidScriptShortestPathsRun(run: SolidScriptBlockRun): void {
-  const picked = solidScriptElementOf(run, 'objects', 'Select Shortest Paths').flatMap((object) => {
+  const found = solidScriptElementOf(run, 'objects', 'Select Shortest Paths').flatMap((object) => {
     const { vertices, elements, edges } = solidScriptShortestPathsGraphOf(run, object);
     const passing = (field: string): number[] =>
       vertices.flatMap((vertex, index) =>
@@ -93,6 +93,7 @@ function solidScriptShortestPathsRun(run: SolidScriptBlockRun): void {
     const next = solidScriptShortestPathsNext(vertices.length, edges, passing('end'));
     return solidScriptShortestPathsEdges(edges, next, passing('start')).map((index) => elements[index]);
   });
+  const picked = found.filter((edge, index) => found.indexOf(edge) === index);
   run.selectedSet('edges', picked);
   const into = run.text('into').trim();
   if (into !== '') run.variableSet(into.replace(/^\[(.*)\]$/s, '$1'), picked);

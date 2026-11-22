@@ -30,7 +30,8 @@ const SOLID_SCRIPT_MESH_EDGES_SAME = 1e-6;
 
 /**
  * Reads the edges of Of that pass Where. An empty Of uses selected edges, else
- * those of selected faces, else every edge of the selected objects.
+ * those of selected faces, else every edge of the selected objects. Each edge
+ * comes once, even when picked edges in line share it.
  *
  * @param run Running line.
  * @param label Line name, for messages.
@@ -39,10 +40,27 @@ const SOLID_SCRIPT_MESH_EDGES_SAME = 1e-6;
 export function solidScriptMeshEdgesPicked(run: SolidScriptBlockRun, label: string): SolidScriptEdgeFacts[] {
   const nothingPicked = run.selectedGet('edges').length === 0 && run.selectedGet('faces').length === 0;
   const kind = run.ofValues() === null && nothingPicked ? 'objects' : 'edges';
-  const edges = solidScriptElementOf(run, kind, label).flatMap((item) => run.elements.edges(item));
+  const read = solidScriptElementOf(run, kind, label).flatMap((item) => run.elements.edges(item));
+  const seen = new Map<unknown, Set<number>>();
+  const edges = read.filter((edge) => solidScriptMeshEdgesFirst(seen, edge));
   return edges.filter((edge, index) =>
     solidScriptConditionHolds(run, 'where', { $Edge: run.elements.edge(edge), $Index: index, $Count: edges.length }),
   );
+}
+
+/**
+ * Tells whether an edge is seen for the first time, and marks it seen.
+ *
+ * @param seen Edge numbers seen so far, by solid or mesh.
+ * @param edge Edge read from geometry.
+ * @returns True the first time.
+ */
+function solidScriptMeshEdgesFirst(seen: Map<unknown, Set<number>>, edge: SolidScriptEdgeFacts): boolean {
+  const numbers = seen.get(edge.faces[0].leaf) ?? new Set<number>();
+  seen.set(edge.faces[0].leaf, numbers);
+  if (numbers.has(edge.index)) return false;
+  numbers.add(edge.index);
+  return true;
 }
 
 /**
