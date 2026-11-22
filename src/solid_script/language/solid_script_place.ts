@@ -47,31 +47,90 @@ function solidScriptPlacePoint(value: unknown, label: string): THREE.Vector3 {
   return new THREE.Vector3(x, y, z);
 }
 
+/** Where one copy of Place At Points stands, and which line inside builds it. */
+export interface SolidScriptPlaced {
+  matrix: THREE.Matrix4;
+  /** Choice of the line inside, wrapping; null builds every line. */
+  choice: number | null;
+}
+
+/** Words of Build: every line inside at each point, or one chosen per point. */
+export const SOLID_SCRIPT_PLACE_BUILD = ['Every Line', 'One Line'] as const;
+
 /**
- * Matrices that stand a shape at each point of a Place At Points line, in the
- * frame of the blocks around it. Directions, Lift, Align To Normal, Rotation
- * and Scale may each change per point.
+ * Copies of a Place At Points line: the matrix that stands a shape at each
+ * point, in the frame of the blocks around it, and with Build One Line the
+ * Choice of line for that point. Directions, Forward, Lift, Align To Normal,
+ * Rotation, Scale and Choice may each change per point.
  *
  * @param run Running line.
- * @returns One matrix per point.
+ * @returns One copy per point.
  */
-export function solidScriptPlaceMatrices(run: SolidScriptBlockRun): THREE.Matrix4[] {
+export function solidScriptPlaceMatrices(run: SolidScriptBlockRun): SolidScriptPlaced[] {
   const points = solidScriptPlacePoints(run, 'at', 'At');
   const directionOf = solidScriptPlaceDirections(run, points, 'directions', 'Directions');
   const forwardOf = solidScriptPlaceDirections(run, points, 'forward', 'Forward');
   const parent = run.matrix();
+  const one = solidScriptPlaceOneWanted(run);
   return points.map((point, index) => {
     const direction = directionOf(index);
     const fills = solidScriptPlaceFills(point, direction, index, points.length);
-    const lift = solidScriptValueNumber(run.valueWith('lift', fills));
-    if (lift === undefined) throw new Error('Lift needs a number of metres, such as 0');
-    const align = run.valueWith('align', fills);
-    if (align !== undefined && typeof align !== 'boolean') throw new Error('Align To Normal needs Yes or No');
-    const rotate = solidScriptPlaceEachRotate(run, fills);
-    const scale = solidScriptPlaceEachScale(run, fills);
-    const matrix = solidScriptPlaceAtMatrix(point, direction, lift, align === true, rotate, scale, forwardOf(index));
-    return parent.clone().multiply(matrix);
+    const matrix = solidScriptPlaceCopyMatrix(run, point, direction, fills, forwardOf(index));
+    return { matrix: parent.clone().multiply(matrix), choice: one ? solidScriptPlaceChoice(run, fills) : null };
   });
+}
+
+/**
+ * Matrix of one copy, from its per-point Lift, Align To Normal, Rotation and
+ * Scale.
+ *
+ * @param run Running line.
+ * @param point Point to stand on.
+ * @param direction Up direction, or null for world up.
+ * @param fills Per-point values.
+ * @param forward Front direction, or null.
+ * @returns Matrix in the frame of the line.
+ */
+function solidScriptPlaceCopyMatrix(
+  run: SolidScriptBlockRun,
+  point: THREE.Vector3,
+  direction: THREE.Vector3 | null,
+  fills: SolidScriptPlaceFills,
+  forward: THREE.Vector3 | null,
+): THREE.Matrix4 {
+  const lift = solidScriptValueNumber(run.valueWith('lift', fills));
+  if (lift === undefined) throw new Error('Lift needs a number of metres, such as 0');
+  const align = run.valueWith('align', fills);
+  if (align !== undefined && typeof align !== 'boolean') throw new Error('Align To Normal needs Yes or No');
+  const rotate = solidScriptPlaceEachRotate(run, fills);
+  const scale = solidScriptPlaceEachScale(run, fills);
+  return solidScriptPlaceAtMatrix(point, direction, lift, align === true, rotate, scale, forward);
+}
+
+/**
+ * Tells whether Build asks for one line per point; empty means every line.
+ *
+ * @param run Running line.
+ * @returns True for One Line.
+ */
+function solidScriptPlaceOneWanted(run: SolidScriptBlockRun): boolean {
+  const typed = run.text('build').trim() || 'Every Line';
+  const found = SOLID_SCRIPT_PLACE_BUILD.find((word) => word.toLowerCase() === typed.toLowerCase());
+  if (!found) throw new Error(`Build needs Every Line or One Line, not ${typed}`);
+  return found === 'One Line';
+}
+
+/**
+ * Reads the Choice of one point, rounded to a whole number.
+ *
+ * @param run Running line.
+ * @param fills Per-point values.
+ * @returns Choice, any whole number; it wraps over the lines inside.
+ */
+function solidScriptPlaceChoice(run: SolidScriptBlockRun, fills: SolidScriptPlaceFills): number {
+  const choice = solidScriptValueNumber(run.valueWith('choice', fills));
+  if (choice === undefined) throw new Error('Choice needs a whole number, such as 0 or [=RandomInt(0, 999, [$Index])]');
+  return Math.round(choice);
 }
 
 /**

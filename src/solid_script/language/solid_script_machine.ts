@@ -1083,6 +1083,17 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       receivedLatest: () => state.machine.receivedLatest(),
       receivedModes: () => state.machine.receivedModes(),
       framed: (matrix) => inside({ ...state.context, matrix }),
+      framedChoice: (matrix, choice) => {
+        const options = node.children.filter((child) => child.command.builds || child.command.nesting === 'open');
+        const picked = options[((choice % options.length) + options.length) % options.length];
+        if (!picked) return [];
+        return state.machine.linesRun(
+          [picked],
+          state.scope,
+          { ...state.context, matrix },
+          new SolidScriptScope(state.scope),
+        );
+      },
       leafLatest: (leaf) => state.machine.leafLatestOf(leaf),
       leafReplace: (leaf, found) => {
         state.machine.leafRewrite(leaf, found);

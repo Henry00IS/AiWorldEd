@@ -275,6 +275,11 @@ export interface SolidScriptBlockRun {
    * line.
    */
   framed(matrix: THREE.Matrix4): SolidScriptShape[];
+  /**
+   * Runs one of the building lines inside placed by a matrix: the choice wraps
+   * over them, so -1 is the last one. Lines that only set values are skipped.
+   */
+  framedChoice(matrix: THREE.Matrix4, choice: number): SolidScriptShape[];
   /** Swaps a built solid or mesh for another, wherever it was built. */
   leafReplace(leaf: SolidScriptGeometryLeaf, by: SolidScriptGeometryLeaf): void;
   /** Returns what a solid or mesh became after the swaps since it was read. */
