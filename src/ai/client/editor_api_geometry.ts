@@ -20,7 +20,8 @@ import {
   solidScriptMeshDocumentBuild,
   type SolidScriptMeshDocument,
 } from '@/solid_script/output/solid_script_mesh_document.js';
-import { contentMeshImportCreate, contentMeshImportFinalize } from '@/io/geometry/content_mesh_import.js';
+import { contentMeshImportCreate } from '@/io/geometry/content_mesh_import.js';
+import { contentMeshImportFinalizeSlots } from '@/io/geometry/content_mesh_texture_slots.js';
 import { CommandPrimitiveCreate } from '@/tools/creation/commands/command_primitive_create.js';
 
 /** UserData key marking meshes a script built through the assistant tools. */
@@ -114,7 +115,7 @@ export class EditorApiGeometry {
   private meshCreate(output: SolidScriptMeshDocument): THREE.Mesh {
     const mesh = contentMeshImportCreate(output.document, output.name, EDITOR_API_SCRIPT_MESH_KEY);
     this.host.worldObject.add(mesh);
-    contentMeshImportFinalize(mesh, output.hasUvs);
+    contentMeshImportFinalizeSlots(mesh, output.hasUvs, output);
     this.host.worldObject.remove(mesh);
     return mesh;
   }

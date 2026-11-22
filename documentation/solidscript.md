@@ -186,3 +186,4 @@ The **Examples** window holds showcase scripts such as the Spiral Staircase, sma
 - Nearest(points, point, skip, groups, group): Groups gives a group number per point and Group the one to search, so only points of the same group are found.
 - Scatter Points By Density: each triangle draws from its own random stream, so raising Density keeps every point a lower Density gave and only adds more.
 - Pack Islands: faces that share a corner with the same UV, such as faces Unwrap Seams kept joined, now pack as one island; Margin (default 0.001) is the gap between islands as a share of the square.
+- Texture Faces works on meshes: each texture becomes one of the mesh's texture slots and each face points at its slot; one slot is the whole-mesh texture as before.

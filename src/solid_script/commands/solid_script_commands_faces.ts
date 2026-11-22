@@ -623,13 +623,8 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Paint faces with a texture',
     manual:
-      'Gives faces their own library texture. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. It works on solids and wins over a Texture block around them. The faces keep it when the solid is moved, turned or scaled. Example: Cube, Select Faces Facing Up, Texture Faces grass gives a box a grass top.',
-    stops: [
-      'No faces.',
-      'Faces of a mesh. Texture Faces works on solids for now.',
-      'An empty Texture.',
-      'A [Name] for a variable not set above this line.',
-    ],
+      'Gives faces their own library texture. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. It works on solids and meshes and wins over a Texture block around them. On a mesh each texture becomes one of its texture slots, and each face points at its slot. The faces keep it when the object is moved, turned or scaled. Example: Cube, Select Faces Facing Up, Texture Faces grass gives a box a grass top.',
+    stops: ['No faces.', 'An empty Texture.', 'A [Name] for a variable not set above this line.'],
     parameters: [
       solidScriptParameterEach(
         {
@@ -658,7 +653,6 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         return texture;
       };
       for (const [leaf, faces] of solidScriptFaceGroups(targets, (face) => face.leaf)) {
-        if (leaf.kind !== 'solid') throw new Error('Texture Faces works on solids for now, not meshes');
         const added = faces.map((face) => ({
           point: face.center.clone(),
           normal: face.normal.clone(),

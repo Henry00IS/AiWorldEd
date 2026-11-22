@@ -139,6 +139,28 @@ export interface SolidScriptFaceTexture {
 }
 
 /**
+ * Finds the texture Texture Faces gave a face: the last record on the face's
+ * plane that looks the same way.
+ *
+ * @param textures Face texture records.
+ * @param normal Unit direction the face looks.
+ * @param center A point on the face.
+ * @returns Library texture name, or undefined when none was given.
+ */
+export function solidScriptFaceTextureOwn(
+  textures: readonly SolidScriptFaceTexture[],
+  normal: THREE.Vector3,
+  center: THREE.Vector3,
+): string | undefined {
+  return [...textures]
+    .reverse()
+    .find(
+      (texture) =>
+        texture.normal.dot(normal) >= 0.99 && Math.abs(texture.point.clone().sub(center).dot(normal)) <= 1e-3,
+    )?.texture;
+}
+
+/**
  * A tag an operation gave the face it built, found again as the face on its
  * plane that holds the point.
  */

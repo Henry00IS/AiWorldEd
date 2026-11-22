@@ -97,6 +97,7 @@ function solidScriptMeshClone(mesh: SolidScriptShapeMesh): SolidScriptShapeMesh 
     uvs: mesh.uvs.map((face) => face?.map(([u, v]): SolidScriptUv => [u, v]) ?? null),
   };
   if (mesh.faceTags) copy.faceTags = mesh.faceTags.map(solidScriptFaceTagClone);
+  if (mesh.faceTextures) copy.faceTextures = mesh.faceTextures.map(solidScriptFacePinClone);
   if (mesh.uvCarry) copy.uvCarry = mesh.uvCarry.clone();
   return copy;
 }

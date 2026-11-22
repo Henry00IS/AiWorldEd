@@ -2,7 +2,10 @@ import * as THREE from 'three';
 import type { MeshDocument } from '@/mesh/document/mesh_document.js';
 import { cloneMeshDocument } from '@/mesh/document/mesh_document_clone.js';
 import { writePersistentMeshDocument } from '@/mesh/document/mesh_document_binding.js';
-import { contentMeshImportFinalize } from '@/io/geometry/content_mesh_import.js';
+import {
+  contentMeshImportFinalizeSlots,
+  type ContentMeshTextureSlots,
+} from '@/io/geometry/content_mesh_texture_slots.js';
 import { createContentMaterial } from '@/materials/factory_content_material.js';
 import { Theme } from '@/theme.js';
 import { MODIFIER_VOLUME_BEVEL_EDGE_KEY } from '@/modifier/volume/modifier_volume_bevel_keys.js';
@@ -20,8 +23,10 @@ export interface ModifierStackMeshOutput {
   document: MeshDocument;
   /** True when the document carries texture coordinates of its own. */
   hasUvs: boolean;
-  /** Library texture of the whole mesh, or null for the default. */
-  texture: string | null;
+  /** Texture slots: slot 0 is the whole mesh's, null being the default. */
+  textures: (string | null)[];
+  /** Slot of each document face. */
+  slots: number[];
   /** World matrix of the frame the document is in. */
   frame: THREE.Matrix4;
 }
@@ -86,7 +91,7 @@ function modifierStackMeshCreate(
   mesh.userData[MODIFIER_STACK_MESH_KEY] = true;
   mesh.userData[MODIFIER_VOLUME_BEVEL_EDGE_KEY] = true;
   mesh.userData['modifierStackMeshUvs'] = output.hasUvs;
-  mesh.userData['modifierStackMeshTexture'] = output.texture;
+  mesh.userData['modifierStackMeshSlots'] = { textures: output.textures, slots: output.slots };
   volume.matrixWorld.clone().invert().multiply(output.frame).decompose(mesh.position, mesh.quaternion, mesh.scale);
   mesh.pinTo(anchor, output.frame);
   writePersistentMeshDocument(mesh, cloneMeshDocument(output.document));
@@ -100,12 +105,7 @@ function modifierStackMeshCreate(
  * @param mesh Shown mesh, with its texture settings in its user data.
  */
 function modifierStackMeshFinalize(mesh: THREE.Mesh): void {
-  const texture: unknown = mesh.userData['modifierStackMeshTexture'];
-  contentMeshImportFinalize(
-    mesh,
-    mesh.userData['modifierStackMeshUvs'] === true,
-    typeof texture === 'string' ? texture : undefined,
-  );
+  contentMeshImportFinalizeSlots(mesh, mesh.userData['modifierStackMeshUvs'] === true, modifierStackMeshSlots(mesh));
   mesh.raycast = () => undefined;
   mesh.traverse((node) => {
     node.userData[MODIFIER_VOLUME_BEVEL_EDGE_KEY] = true;
@@ -133,4 +133,17 @@ export function modifierStackMeshesShown(volume: THREE.Object3D): THREE.Mesh[] {
  */
 function modifierStackMeshDispose(node: THREE.Object3D): void {
   if (node instanceof THREE.Mesh || node instanceof THREE.LineSegments) node.geometry?.dispose();
+}
+
+/**
+ * Reads the texture slots a shown mesh was built with.
+ *
+ * @param mesh Shown generator mesh.
+ * @returns Its slots, or one default slot when none were stored.
+ */
+export function modifierStackMeshSlots(mesh: THREE.Object3D): ContentMeshTextureSlots {
+  const stored: unknown = mesh.userData['modifierStackMeshSlots'];
+  if (typeof stored === 'object' && stored !== null && 'textures' in stored && 'slots' in stored)
+    return stored as ContentMeshTextureSlots;
+  return { textures: [null], slots: [] };
 }

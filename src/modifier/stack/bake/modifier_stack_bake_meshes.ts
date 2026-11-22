@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { cloneMeshDocument } from '@/mesh/document/mesh_document_clone.js';
 import { readPersistentMeshDocument } from '@/mesh/document/mesh_document_binding.js';
-import { contentMeshImportCreate, contentMeshImportFinalize } from '@/io/geometry/content_mesh_import.js';
-import { modifierStackMeshesShown } from '@/modifier/stack/meshes/modifier_stack_meshes.js';
+import { contentMeshImportCreate } from '@/io/geometry/content_mesh_import.js';
+import { contentMeshImportFinalizeSlots } from '@/io/geometry/content_mesh_texture_slots.js';
+import { modifierStackMeshSlots, modifierStackMeshesShown } from '@/modifier/stack/meshes/modifier_stack_meshes.js';
 
 /** UserData key marking meshes made by baking a generator. */
 export const MODIFIER_STACK_BAKE_MESH_KEY = 'isGeneratorMesh';
@@ -38,11 +39,10 @@ export function modifierStackBakeMeshesCreate(volume: THREE.Object3D, parent: TH
     );
     toParent.clone().multiply(shown.matrixWorld).decompose(mesh.position, mesh.quaternion, mesh.scale);
     parent.add(mesh);
-    const texture: unknown = shown.userData['modifierStackMeshTexture'];
-    contentMeshImportFinalize(
+    contentMeshImportFinalizeSlots(
       mesh,
       shown.userData['modifierStackMeshUvs'] === true,
-      typeof texture === 'string' ? texture : undefined,
+      modifierStackMeshSlots(shown),
     );
     parent.remove(mesh);
     return [{ mesh, parent }];

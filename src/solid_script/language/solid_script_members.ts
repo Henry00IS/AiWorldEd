@@ -1,3 +1,4 @@
+import { solidScriptFaceTextureOwn } from './solid_script_shape.js';
 import * as THREE from 'three';
 import type { SolidScriptElements } from './solid_script_elements.js';
 import type { SolidScriptEdgeFacts, SolidScriptFaceFacts } from './solid_script_geometry.js';
@@ -630,15 +631,7 @@ function solidScriptMemberEdgeSigned(edges: readonly SolidScriptEdgeFacts[]): nu
  * @returns Library texture name, or empty for the generator's texture.
  */
 function solidScriptMemberTexture(face: SolidScriptFaceFacts): string {
-  const painted = face.leaf.kind === 'solid' ? (face.leaf.faceTextures ?? []) : [];
-  const own = [...painted]
-    .reverse()
-    .find(
-      (texture) =>
-        texture.normal.dot(face.normal) >= 0.99 &&
-        Math.abs(texture.point.clone().sub(face.center).dot(face.normal)) <= 1e-3,
-    );
-  return own?.texture ?? face.leaf.texture ?? '';
+  return solidScriptFaceTextureOwn(face.leaf.faceTextures ?? [], face.normal, face.center) ?? face.leaf.texture ?? '';
 }
 
 /**

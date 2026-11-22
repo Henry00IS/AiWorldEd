@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { SolidScriptFaceTag, SolidScriptShape } from './solid_script_shape.js';
+import type { SolidScriptFaceTag, SolidScriptFaceTexture, SolidScriptShape } from './solid_script_shape.js';
 import type { SolidScriptMode } from './solid_script_mode.js';
 import { solidScriptMeshLimitCheck } from './solid_script_limits.js';
 import { solidScriptMeshEdgeKey as solidScriptMeshEdgePair } from './solid_script_mesh_edge_split.js';
@@ -30,6 +30,8 @@ export interface SolidScriptShapeMesh {
   texture?: string;
   /** Tags the operations that built faces gave them, such as Inner. */
   faceTags?: SolidScriptFaceTag[];
+  /** Textures of single faces, from Texture Faces; they win over texture. */
+  faceTextures?: SolidScriptFaceTexture[];
   /**
    * How it combines with the meshes before it: Subtractive cuts itself out of
    * them and Intersecting keeps only the overlap; none adds it.
@@ -88,6 +90,7 @@ export function solidScriptMeshJoin(meshes: readonly SolidScriptShapeMesh[], lab
     joined.uvs.push(...mesh.uvs.map((uv) => (uv ? uv.map(([u, v]): SolidScriptUv => [u, v]) : null)));
     if (joined.texture === undefined && mesh.texture !== undefined) joined.texture = mesh.texture;
     if (mesh.faceTags) joined.faceTags = [...(joined.faceTags ?? []), ...mesh.faceTags];
+    if (mesh.faceTextures) joined.faceTextures = [...(joined.faceTextures ?? []), ...mesh.faceTextures];
   }
   return joined;
 }
@@ -107,7 +110,8 @@ export function solidScriptMeshTransform(mesh: SolidScriptShapeMesh, matrix: THR
     points: mesh.points.map((point) => point.clone().applyMatrix4(matrix)),
     faces: flip ? mesh.faces.map((face) => [...face].reverse()) : mesh.faces.map((face) => [...face]),
     uvs: flip ? mesh.uvs.map((uv) => (uv ? [...uv].reverse() : null)) : mesh.uvs,
-    ...(mesh.faceTags ? { faceTags: solidScriptFaceTagsTransform(mesh.faceTags, matrix) } : {}),
+    ...(mesh.faceTags ? { faceTags: solidScriptFacePinsTransform(mesh.faceTags, matrix) } : {}),
+    ...(mesh.faceTextures ? { faceTextures: solidScriptFacePinsTransform(mesh.faceTextures, matrix) } : {}),
   };
   const uvCarry = solidScriptMeshUvCarry(mesh, matrix);
   if (uvCarry) moved.uvCarry = uvCarry;
@@ -130,16 +134,17 @@ function solidScriptMeshUvCarry(mesh: SolidScriptShapeMesh, matrix: THREE.Matrix
 }
 
 /**
- * Moves face tags with their shape.
+ * Moves records pinned to faces by a point and a direction, such as face tags
+ * and face textures, with their shape.
  *
- * @param tags Face tags.
+ * @param tags Records in script space.
  * @param matrix Transform.
- * @returns Moved tags.
+ * @returns Moved records.
  */
-export function solidScriptFaceTagsTransform(
-  tags: readonly SolidScriptFaceTag[],
+export function solidScriptFacePinsTransform<Pin extends { point: THREE.Vector3; normal: THREE.Vector3 }>(
+  tags: readonly Pin[],
   matrix: THREE.Matrix4,
-): SolidScriptFaceTag[] {
+): Pin[] {
   const normals = new THREE.Matrix3().getNormalMatrix(matrix);
   return tags.map((face) => ({
     ...face,

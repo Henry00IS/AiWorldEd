@@ -6,7 +6,7 @@ import {
   solidScriptPolygonHull,
   type SolidScriptPoint2,
 } from './solid_script_polygon.js';
-import { solidScriptFaceTagsTransform, solidScriptMeshTransform } from './solid_script_mesh.js';
+import { solidScriptFacePinsTransform, solidScriptMeshTransform } from './solid_script_mesh.js';
 import { solidScriptFaceUvsCarry, solidScriptUvCarryAccumulate } from './solid_script_uvs.js';
 import { solidScriptBodyFacesMoved, solidScriptBodyHull, solidScriptBodyPrism } from './solid_script_body.js';
 import {
@@ -41,30 +41,10 @@ function solidScriptSolidTransform(leaf: SolidScriptShapeSolid, matrix: THREE.Ma
     faces: solidScriptBodyFacesMoved(leaf.faces, matrix),
   };
   if (leaf.received) moved.received = { ...leaf.received, matrix: matrix.clone().multiply(leaf.received.matrix) };
-  if (leaf.faceTags) moved.faceTags = solidScriptFaceTagsTransform(leaf.faceTags, matrix);
+  if (leaf.faceTags) moved.faceTags = solidScriptFacePinsTransform(leaf.faceTags, matrix);
   if (leaf.faceTextures) moved.faceTextures = solidScriptFacePinsTransform(leaf.faceTextures, matrix);
   if (leaf.faceSmooth) moved.faceSmooth = solidScriptFacePinsTransform(leaf.faceSmooth, matrix);
   return solidScriptSolidTransformUvs(leaf, moved, matrix);
-}
-
-/**
- * Moves records pinned to faces by a point and a direction, such as face
- * textures, with a transform.
- *
- * @param faces Records in script space.
- * @param matrix Transform.
- * @returns Moved records.
- */
-function solidScriptFacePinsTransform<Pin extends { point: THREE.Vector3; normal: THREE.Vector3 }>(
-  faces: readonly Pin[],
-  matrix: THREE.Matrix4,
-): Pin[] {
-  const normals = new THREE.Matrix3().getNormalMatrix(matrix);
-  return faces.map((face) => ({
-    ...face,
-    point: face.point.clone().applyMatrix4(matrix),
-    normal: face.normal.clone().applyMatrix3(normals).normalize(),
-  }));
 }
 
 /**
