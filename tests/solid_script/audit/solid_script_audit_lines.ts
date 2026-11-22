@@ -124,6 +124,7 @@ const SOLID_SCRIPT_AUDIT_MESHES = new Set([
   'delete_edges',
   'delete_vertices',
   'join_meshes',
+  'bevel_vertices',
   'merge_by_distance',
   'subdivide',
   'mesh_smooth',

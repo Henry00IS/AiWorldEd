@@ -18,12 +18,10 @@ import { solidScriptFaceGroups, solidScriptFaceTargets, solidScriptFaceWrite } f
 import { solidScriptScaleFaces } from '@/solid_script/language/solid_script_scale_faces.js';
 import { SOLID_SCRIPT_COMMAND_SCATTER } from './solid_script_commands_scatter.js';
 import {
-  solidScriptGeometryBevel,
   solidScriptGeometryFacePrism,
   solidScriptGeometryFaces,
   solidScriptGeometryFacesOutside,
   solidScriptGeometryInset,
-  type SolidScriptEdgeFacts,
   type SolidScriptFaceFacts,
 } from '@/solid_script/language/solid_script_geometry.js';
 import {
@@ -46,7 +44,6 @@ import {
 } from '@/solid_script/language/solid_script_condition.js';
 import {
   SolidScriptElement,
-  solidScriptValueNumber,
   solidScriptValueText,
   type SolidScriptValue,
 } from '@/solid_script/language/solid_script_value.js';
@@ -92,9 +89,6 @@ const SOLID_SCRIPT_FACE_HOW_DETAILS: Readonly<Record<(typeof SOLID_SCRIPT_FACE_H
   Remove: 'Drop faces from the pick',
 };
 
-/** The tag Bevel Edges gives the faces it cuts, so it never cuts them again. */
-const SOLID_SCRIPT_FACE_BEVEL_TAG = 'Bevel';
-
 /**
  * Keeps the faces a Select Faces Which preset picks. Each preset equals a
  * written-out Where: All keeps every face, Top and Bottom use HasTag, and
@@ -115,34 +109,8 @@ function solidScriptFaceSelectWhich(which: string, faces: readonly SolidScriptFa
   throw new Error(`Which must be one of ${SOLID_SCRIPT_FACE_WHICH.join(', ')}, not "${which}"`);
 }
 
-/**
- * Reads the edges a line works on now: those its Of gives (edges, the edges of
- * faces, or every edge of brushes), else [$Selected.Edges], else the edges of
- * [$Selected.Faces].
- *
- * @param run Running line.
- * @param label Command, for messages.
- * @returns Edges read from the latest geometry.
- */
-function solidScriptFaceEdgeTargets(run: SolidScriptBlockRun, label: string): SolidScriptEdgeFacts[] {
-  const given = run.ofValues();
-  const picked = run.selectedGet('edges');
-  const values = given ?? (picked.length > 0 ? picked : run.selectedGet('faces'));
-  if (values.length === 0)
-    throw new Error(`${label} has no edges to work on; pick faces with Select Faces above it, or give edges in Of`);
-  const edges: SolidScriptEdgeFacts[] = [];
-  for (const value of values) {
-    if (!(value instanceof SolidScriptElement) || value.kind === 'vertex' || value.kind === 'data')
-      throw new Error(`${label} takes edges, faces or objects, not ${solidScriptKindNamed(value)}`);
-    for (const edge of run.elements.edges(value))
-      if (!edges.some((known) => known.faces[0].leaf === edge.faces[0].leaf && known.index === edge.index))
-        edges.push(edge);
-  }
-  return edges;
-}
-
 /** What a Distance that is not a number stops with. */
-const SOLID_SCRIPT_FACE_DISTANCE_NEEDS = 'Distance needs a number of metres, such as 0.2';
+export const SOLID_SCRIPT_FACE_DISTANCE_NEEDS = 'Distance needs a number of metres, such as 0.2';
 
 /**
  * Numbers the faces an Extrude or Inset of a mesh made: for every chosen face
@@ -657,70 +625,6 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       run.selectedSet('faces', inner);
       solidScriptFaceWrite(run, 'inner', inner);
       solidScriptFaceWrite(run, 'ring', ring);
-      return [];
-    },
-  }),
-  new SolidScriptCommand({
-    id: 'bevel_edges',
-    edits: true,
-    label: 'Bevel Edges',
-    category: 'Faces',
-    description: 'Cut edges off flat',
-    manual:
-      'Cuts edges of solids off flat, Distance back along each face. Of gives edges, faces (their edges) or solids (all their edges); empty uses [$Selected.Edges], else the edges of [$Selected.Faces]. Edges already bevelled are skipped, so bevelling face by face ends the same as bevelling all at once. Into names a variable for the new faces, and [$Selected.Faces] holds them afterwards. Example: Cube, Select Faces All, Bevel Edges by 0.1.',
-    stops: ['No edges.', 'Edges of a mesh. Bevel Edges works on solids for now.', 'A Distance of 0 or less.'],
-    parameters: [
-      solidScriptParameter('distance', 'Distance', 'number', '0.1', 'Metres to cut back along each side, such as 0.1.'),
-      solidScriptParameterOf('edges, faces or objects', '$Selected.Edges', ['Object', 'Face', 'Edge']),
-      solidScriptParameterInto('the new faces, a Face list', 'Face List', 'what is made', 'label'),
-    ],
-    listing: (read) => [
-      'Bevel Edges',
-      'By ',
-      read.value('distance'),
-      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
-      ...(read.text('into') === '' ? [] : [' Into ', read.value('into')]),
-    ],
-    execute: (run) => {
-      const distance = solidScriptValueNumber(run.value('distance'));
-      if (distance === undefined) throw new Error(SOLID_SCRIPT_FACE_DISTANCE_NEEDS);
-      if (distance <= 0) throw new Error('Bevel Edges needs a Distance above 0');
-      const made: SolidScriptValue[] = [];
-      const groups = solidScriptFaceGroups(
-        solidScriptFaceEdgeTargets(run, 'Bevel Edges'),
-        (edge) => edge.faces[0].leaf,
-      );
-      for (const [leaf, all] of groups) {
-        if (leaf.kind !== 'solid') throw new Error('Bevel Edges works on solids for now, not meshes');
-        const edges = all.filter(
-          (edge) => !edge.faces.some((face) => face?.tags.includes(SOLID_SCRIPT_FACE_BEVEL_TAG)),
-        );
-        if (edges.length === 0) continue;
-        const { body, cuts } = solidScriptGeometryBevel(leaf, edges, distance);
-        const bevelled: SolidScriptShapeSolid = { ...leaf, ...body };
-        const faces = solidScriptGeometryFaces([bevelled]).filter((face) =>
-          cuts.some(
-            (cut) =>
-              cut.normal.dot(face.normal) > 0.9999 &&
-              Math.abs(face.center.clone().sub(cut.point).dot(cut.normal)) < 1e-5,
-          ),
-        );
-        const tags = faces.map((face) => ({
-          point: face.center.clone(),
-          normal: face.normal.clone(),
-          tag: SOLID_SCRIPT_FACE_BEVEL_TAG,
-        }));
-        run.leafReplace(leaf, { ...bevelled, faceTags: [...(leaf.faceTags ?? []), ...tags] });
-        const read = solidScriptGeometryFaces([run.leafLatest(leaf)]);
-        for (const face of read)
-          if (
-            face.tags.includes(SOLID_SCRIPT_FACE_BEVEL_TAG) &&
-            faces.some((cut) => cut.center.distanceTo(face.center) < 1e-6)
-          )
-            made.push(run.elements.face(face));
-      }
-      run.selectedSet('faces', made);
-      solidScriptFaceWrite(run, 'into', made);
       return [];
     },
   }),

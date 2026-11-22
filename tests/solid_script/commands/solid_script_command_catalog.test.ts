@@ -108,6 +108,7 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
       'delete_edges',
       'delete_vertices',
       'join_meshes',
+      'bevel_vertices',
     ].includes(command.id)
   ) {
     const tools =
@@ -437,11 +438,14 @@ describe('solid script command catalog', () => {
       'delete_edges',
       'delete_vertices',
       'join_meshes',
+      'bevel_vertices',
     ];
     for (const id of refused) {
       const pick = [
         { command: 'select_objects' },
-        ...(id.endsWith('_face') || id.startsWith('delete_') ? [{ command: solidScriptSamplePick(id) }] : []),
+        ...(id.endsWith('_face') || id.startsWith('delete_') || id.startsWith('bevel_')
+          ? [{ command: solidScriptSamplePick(id) }]
+          : []),
       ];
       const result = run({ command: 'cube' }, ...pick, { command: id });
       expect(result.error?.message ?? '', id).toMatch(hint);

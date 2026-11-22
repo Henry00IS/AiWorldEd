@@ -748,18 +748,18 @@ export function solidScriptGeometryFacePrism(
 
 /**
  * Bevels edges of a convex solid: every edge both of whose faces are known is
- * cut off flat, the given distance along each face.
+ * cut off flat, its own distance along each face.
  *
  * @param solid Solid.
  * @param edges Edges to bevel, read from this solid.
- * @param distance Metres along each face.
+ * @param distanceOf Metres along each face, per edge.
  * @returns The bevelled solid's corners and faces, and the direction and a
  *   point of every new face.
  */
 export function solidScriptGeometryBevel(
   solid: SolidScriptShapeSolid,
   edges: readonly SolidScriptEdgeFacts[],
-  distance: number,
+  distanceOf: (edge: SolidScriptEdgeFacts) => number,
 ): { body: SolidScriptBody; cuts: { normal: THREE.Vector3; point: THREE.Vector3 }[] } {
   let body: SolidScriptBody = { points: solid.points, faces: solid.faces };
   const cuts: { normal: THREE.Vector3; point: THREE.Vector3 }[] = [];
@@ -772,7 +772,7 @@ export function solidScriptGeometryBevel(
       .addScaledVector(first.normal, -first.normal.dot(second.normal))
       .normalize()
       .negate();
-    const through = edge.start.clone().addScaledVector(inward, distance);
+    const through = edge.start.clone().addScaledVector(inward, distanceOf(edge));
     body = solidScriptBodyClip(body, bisector, bisector.dot(through));
     cuts.push({ normal: bisector, point: through });
   }
