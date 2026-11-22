@@ -65,6 +65,16 @@ describe('Scatter Points By Density', () => {
     expect(count('2, 2, 2', { on: 'Inside', by: 'Density', density: '5' }, 'All')).toBe(40);
   });
 
+  it('keeps every point of a lower Density when Density goes up, each triangle drawing from its own stream', () => {
+    const sparse = scatter('2, 2, 2', { by: 'Density', density: '10' });
+    const dense = scatter('2, 2, 2', { by: 'Density', density: '30' });
+    if (typeof sparse === 'string' || typeof dense === 'string') throw new Error('scatter failed');
+    const text = (point: number[]) => point.join(', ');
+    const kept = new Set(dense.map(text));
+    expect(sparse.length).toBeGreaterThan(20);
+    expect(sparse.every((point) => kept.has(text(point)))).toBe(true);
+  });
+
   it('stops when Density gives more than 10000 points', () => {
     expect(scatter('20, 1, 20', { by: 'Density', density: '100' })).toContain('more than 10000');
   });

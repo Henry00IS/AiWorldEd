@@ -200,7 +200,8 @@ export function solidScriptScatterByCount(
 /**
  * Spreads points over faces by density: each triangle gets its area times its
  * face's density in points, rounded at random, so bigger and denser faces get
- * more. A density below 0 counts as 0.
+ * more. Each triangle draws from its own random stream of the seed, so a higher
+ * density keeps every point a lower one gave. A density below 0 counts as 0.
  *
  * @param faces Faces, each convex with its corners in order.
  * @param densityOf Points per square metre on a face.
@@ -214,11 +215,11 @@ export function solidScriptScatterByDensity(
   seed: number,
   spacing: number,
 ): SolidScriptScatterPoint[] {
-  const random = solidScriptScatterRandom(seed);
   const keep = solidScriptScatterSpacer(spacing);
   const densities = new Map(faces.map((face) => [face, Math.max(0, densityOf(face))]));
   const points: SolidScriptScatterPoint[] = [];
-  for (const triangle of solidScriptScatterTriangles(faces)) {
+  for (const [index, triangle] of solidScriptScatterTriangles(faces).entries()) {
+    const random = solidScriptScatterRandom(seed * 7919 + index);
     const count = solidScriptScatterRound(triangle.area * (densities.get(triangle.face) ?? 0), random);
     if (points.length + count > SOLID_SCRIPT_SCATTER_MOST)
       throw new Error(`Density gives more than ${SOLID_SCRIPT_SCATTER_MOST} points; use a lower Density`);

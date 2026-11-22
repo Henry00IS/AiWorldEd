@@ -623,3 +623,4 @@ Solid mutations (including hierarchy create/reparent/rename/ungroup) are **undoa
 - Star (2D Shapes) draws a flat star: Points tips at the Outer radius, an inner corner at the Inner radius halfway between each two, Twist turning the inner corners in degrees, and Anchor like Circle.
 - Path Line by direction and length: set To to Along(From, Direction, Length). Path Spiral turns clockwise from above with negative Turns.
 - Nearest(points, point, skip, groups, group): Groups gives a group number per point and Group the one to search, so only points of the same group are found.
+- Scatter Points By Density: each triangle draws from its own random stream, so raising Density keeps every point a lower Density gave and only adds more.
