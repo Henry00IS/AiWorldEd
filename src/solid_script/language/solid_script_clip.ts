@@ -9,9 +9,15 @@ import {
   type SolidScriptShapeMesh,
   type SolidScriptUv,
 } from './solid_script_mesh.js';
-import type { SolidScriptShapeSolid } from './solid_script_shape.js';
+import type { SolidScriptFaceTag, SolidScriptShapeSolid } from './solid_script_shape.js';
 import { solidScriptValueNumbers } from './solid_script_value.js';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
+
+/**
+ * The tag Clip gives the faces it makes over a cut, so Where can pick or skip
+ * them.
+ */
+export const SOLID_SCRIPT_CLIP_TAG = 'Cut';
 
 /** A plane that cuts a solid or mesh, given in script space. */
 export interface SolidScriptClipPlane {
@@ -89,7 +95,8 @@ function solidScriptClipSolid(
   if (fate === 'gone') throw new Error(solidScriptClipGone(label, solid.label, 'solid'));
   const body = solidScriptBodyClip(solid, plane.normal, plane.constant);
   if (!solidScriptBodySolid(body)) throw new Error(solidScriptClipFlat(label, solid.label, 'solid'));
-  return { ...solid, points: body.points, faces: body.faces, clippedBy: plane };
+  const faceTags = solidScriptClipTags(body.points, body.faces, plane, solid.faceTags);
+  return { ...solid, points: body.points, faces: body.faces, clippedBy: plane, faceTags };
 }
 
 /**
@@ -117,8 +124,39 @@ function solidScriptClipMesh(
     points: capped.points,
     faces: capped.faces,
     uvs: capped.uvs,
-    ...(mesh.faceTags ? { faceTags: mesh.faceTags.filter((tag) => solidScriptClipSide(tag.point, plane) <= 0) } : {}),
+    faceTags: solidScriptClipTags(capped.points, capped.faces, plane, mesh.faceTags),
   });
+}
+
+/**
+ * Face tags of a cut shape: the tags it had on the part that stays, plus Cut on
+ * every face that lies on the plane and faces the part cut away, the faces the
+ * cut made. A tag sits on the middle of a face's first edge, which the face
+ * always holds.
+ *
+ * @param points Corners of the cut shape.
+ * @param faces Faces as corner indices.
+ * @param plane Cutting plane.
+ * @param kept Tags the shape had, if any.
+ * @returns Tags.
+ */
+function solidScriptClipTags(
+  points: readonly THREE.Vector3[],
+  faces: readonly (readonly number[])[],
+  plane: SolidScriptClipPlane,
+  kept: readonly SolidScriptFaceTag[] | undefined,
+): SolidScriptFaceTag[] {
+  const tags = (kept ?? []).filter((tag) => solidScriptClipSide(tag.point, plane) <= SOLID_SCRIPT_GEOMETRY_EPSILON);
+  for (const face of faces) {
+    const corners = face.flatMap((index) => points[index] ?? []);
+    const [first, second] = corners;
+    if (!first || !second || corners.length < 3) continue;
+    if (corners.some((corner) => Math.abs(solidScriptClipSide(corner, plane)) > SOLID_SCRIPT_GEOMETRY_EPSILON))
+      continue;
+    if (solidScriptMeshLoopNormal(points, face).normalize().dot(plane.normal) < 0.99) continue;
+    tags.push({ point: first.clone().lerp(second, 0.5), normal: plane.normal.clone(), tag: SOLID_SCRIPT_CLIP_TAG });
+  }
+  return tags;
 }
 
 /**

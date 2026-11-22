@@ -12,7 +12,7 @@ export const SOLID_SCRIPT_COMMANDS_CLIP: readonly SolidScriptCommand[] = [
     category: 'Transforms',
     description: 'Cut objects with a plane',
     manual:
-      'Cuts the objects in Of, or [$Selected.Objects] when Of is empty, with a plane. Through is a point on the plane. Normal is the way the part you cut away faces; the part on the other side stays. A solid stays a convex solid. A mesh stays a mesh, and a closed mesh gets a new face over the cut. Without Into the cut happens where the solid already is; with Into the original stays and the clipped copy is only in that variable. Example: Cube, then Clip Through 0, 0, 0 Normal 0, 1, 0 keeps the lower half.',
+      'Cuts the objects in Of, or [$Selected.Objects] when Of is empty, with a plane. Through is a point on the plane. Normal is the way the part you cut away faces; the part on the other side stays. A solid stays a convex solid. A mesh stays a mesh, and a closed mesh gets a new face over the cut. The faces Clip makes over the cut get the tag Cut, so a later Where can pick them with [=HasTag([$Face.Tags], "Cut")] or skip them. Without Into the cut happens where the solid already is; with Into the original stays and the clipped copy is only in that variable. Example: Cube, then Clip Through 0, 0, 0 Normal 0, 1, 0 keeps the lower half.',
     stops: [
       'No solids.',
       'A Through or Normal that is not x, y, z.',
