@@ -1,10 +1,8 @@
 import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import {
   VIRTUAL_LIST_SCROLLBAR_BIND_SCROLLER_CLASS,
-  virtualListScrollbarBind,
   virtualListScrollbarBindStylesEnsure,
-  virtualListScrollbarGutterSync,
-  type VirtualListScrollbarBinding,
+  virtualListScrollbarGutterBind,
 } from '@/ui/virtual_list/virtual_list_scrollbar_bind.js';
 
 /** Main text; at least 7:1 contrast on every dialog surface. */
@@ -72,21 +70,9 @@ export function dialogProjectHistoryPane(padding: string): DialogProjectHistoryP
   Object.assign(content.style, { padding, boxSizing: 'border-box' });
   scroller.append(content);
   host.append(scroller);
-  const binding: VirtualListScrollbarBinding = virtualListScrollbarBind(
-    host,
-    scroller,
-    DIALOG_PROJECT_HISTORY_SCROLL_STEP_PX,
-    [content],
-  );
-  const sync = () => virtualListScrollbarGutterSync(scroller, binding, 0);
-  // The gutter follows every size change, not only redraws: a note growing as
-  // it is typed or a picture loading can make the content overflow later.
-  const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(sync);
-  for (const element of [scroller, content]) observer?.observe(element);
-  const dispose = () => {
-    observer?.disconnect();
-    binding.dispose();
-  };
+  const { sync, dispose } = virtualListScrollbarGutterBind(host, scroller, DIALOG_PROJECT_HISTORY_SCROLL_STEP_PX, 0, [
+    content,
+  ]);
   return { host, scroller, content, sync, dispose };
 }
 

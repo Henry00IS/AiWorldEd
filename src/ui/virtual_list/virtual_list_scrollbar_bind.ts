@@ -87,6 +87,42 @@ export function virtualListScrollbarGutterSync(
 }
 
 /**
+ * Binds the custom scrollbar and keeps the scroller's right gutter reserved
+ * while its content overflows, so the bar never covers fields or buttons at the
+ * right edge. The gutter follows every scroll, every size change of the host,
+ * the scroller or observed content (such as a window that lays out a list built
+ * before it was shown) and every change of the content.
+ *
+ * @param host Positioned host that receives the scrollbar element.
+ * @param scroller Element that actually scrolls.
+ * @param stepPx Arrow step in CSS pixels.
+ * @param idlePaddingPx Right padding while nothing overflows.
+ * @param observed Extra elements whose size changes the content height.
+ * @returns Binding whose sync also sets the gutter.
+ */
+export function virtualListScrollbarGutterBind(
+  host: HTMLElement,
+  scroller: HTMLElement,
+  stepPx: number,
+  idlePaddingPx: number,
+  observed: readonly HTMLElement[] = [],
+): VirtualListScrollbarBinding {
+  const binding = virtualListScrollbarBind(host, scroller, stepPx, observed);
+  const sync = (): void => virtualListScrollbarGutterSync(scroller, binding, idlePaddingPx);
+  const resized = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(sync);
+  for (const element of [host, scroller, ...observed]) resized?.observe(element);
+  const changed = typeof MutationObserver === 'undefined' ? null : new MutationObserver(sync);
+  changed?.observe(scroller, { childList: true, subtree: true, characterData: true });
+  sync();
+  const dispose = (): void => {
+    resized?.disconnect();
+    changed?.disconnect();
+    binding.dispose();
+  };
+  return { scrollbar: binding.scrollbar, sync, dispose };
+}
+
+/**
  * Pushes scroller metrics into a custom scrollbar.
  *
  * @param scrollbar Custom scrollbar.
