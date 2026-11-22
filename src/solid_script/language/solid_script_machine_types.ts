@@ -104,7 +104,10 @@ export interface SolidScriptRoundKey {
 export interface SolidScriptBlockRun {
   /** True inside Linear Extrude, where only flat shapes may be drawn. */
   readonly planar: boolean;
-  /** Every evaluated field of the line, read strictly. */
+  /**
+   * Every evaluated field of the line, read strictly; fields that read a
+   * per-item value are left out, since only valueWith can work them out.
+   */
   fields(): SolidScriptBlockArguments;
   /** The stored text of a field, such as a name. */
   text(key: string): string;

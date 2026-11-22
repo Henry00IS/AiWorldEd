@@ -12,7 +12,7 @@ const SOLID_SCRIPT_PATH_EPSILON = 1e-9;
  * @param closed True when the path loops back to its first point.
  * @returns Distinct points.
  */
-function solidScriptPathDistinct(path: readonly THREE.Vector3[], closed: boolean): THREE.Vector3[] {
+export function solidScriptPathDistinct(path: readonly THREE.Vector3[], closed: boolean): THREE.Vector3[] {
   const points = path.filter(
     (point, index) => index === 0 || point.distanceTo(path[index - 1]!) > SOLID_SCRIPT_PATH_EPSILON,
   );

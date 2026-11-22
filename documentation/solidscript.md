@@ -99,7 +99,7 @@ Many fields can change per item: a Where condition, Displace's Distance, Extrude
 
 ## Paths and meshes
 
-A **Path** is a line of 3D points, open or closed. **Path** draws one along a **Line**, **Arc**, **Spiral** or **From Points**, and **Square**, **Circle** and **Polygon** draw closed ones. **Linear Extrude**, **Rotate Extrude** and **Offset** fill any closed Path drawn inside them, and **Sweep Along Path** sweeps a circle or your own profile along any Path, such as a rail or a pipe. `[Path.Points]` is its list of points, `[Path.Closed]` says whether it is closed, and `IsPath(value)` checks for one. Where points are asked for, a Path or vectors in brackets separated by commas both work, such as `[0, 0, 0], [1, 0, 0], [2, 1, 0]`; a Profile ignores z.
+A **Path** is a line of 3D points, open or closed. **Path** draws one along a **Line**, **Arc**, **Spiral** or **From Points**, and **Square**, **Circle** and **Polygon** draw closed ones. **Linear Extrude**, **Rotate Extrude** and **Offset** fill any closed Path drawn inside them, and **Sweep Along Path** sweeps a circle or your own profile along any Path, such as a rail or a pipe. **Scale** sizes the profile at each path point, with `[$Index]` and `[$Count]`, so a horn or vine can taper. `[Path.Points]` is its list of points, `[Path.Closed]` says whether it is closed, and `IsPath(value)` checks for one. Where points are asked for, a Path or vectors in brackets separated by commas both work, such as `[0, 0, 0], [1, 0, 0], [2, 1, 0]`; a Profile ignores z.
 
 <details>
 <summary>More Details</summary>

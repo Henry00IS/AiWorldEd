@@ -924,7 +924,8 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       },
       fields: () => {
         const values = new Map<string, SolidScriptValue>();
-        for (const key of evaluated) values.set(key, value(key));
+        for (const key of evaluated)
+          if (!solidScriptEachUsed(solidScriptLineFieldOf(fields, node, key).text)) values.set(key, value(key));
         return new SolidScriptBlockArguments(values, labels);
       },
       text: (key) => {

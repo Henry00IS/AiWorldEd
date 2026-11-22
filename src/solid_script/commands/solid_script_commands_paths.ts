@@ -15,6 +15,8 @@ import {
 } from './solid_script_command_parameters.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import { solidScriptPathMesh, solidScriptPathSweep } from '@/solid_script/language/solid_script_path.js';
+import { solidScriptSweepScaled } from '@/solid_script/language/solid_script_sweep_scale.js';
+import { solidScriptParameterEach } from './solid_script_command_each.js';
 import {
   SOLID_SCRIPT_PATH_CORNER_SIDES_MAX,
   SOLID_SCRIPT_PATH_CORNER_SIDES_MIN,
@@ -462,11 +464,12 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Sweep a profile along a path',
     manual:
-      'Sweeps a flat profile along a Path, like a pipe, rail or moulding. The profile is a circle of Radius and Sides, or the x, y points in Profile, where x runs to the side of the path and y up. Each stretch of the path becomes one solid, and the joints are cut on the mitre between two stretches so the pieces meet exactly. A dented profile fills in as a solid; with As Mesh on, the whole sweep is one mesh instead and keeps any profile. A closed Path, such as a Square or a Path with Closed on, joins its last point back to the first; a list of points stays open. Example: a Path, or Resample of a few points, Radius 0.05, gives a round handrail.',
+      'Sweeps a flat profile along a Path, like a pipe, rail or moulding. The profile is a circle of Radius and Sides, or the x, y points in Profile, where x runs to the side of the path and y up. Scale sizes the profile at each path point, worked out once per point with [$Point], [$Index] and [$Count], so a horn or a vine can taper. Each stretch of the path becomes one solid, and the joints are cut on the mitre between two stretches so the pieces meet exactly. A dented profile fills in as a solid; with As Mesh on, the whole sweep is one mesh instead and keeps any profile. A closed Path, such as a Square or a Path with Closed on, joins its last point back to the first; a list of points stays open. Example: a Path, or Resample of a few points, Radius 0.05, gives a round handrail.',
     stops: [
       'A Path with fewer than 2 different points, or 3 when it is closed.',
       'A Profile with fewer than 3 points, or points that are not x, y.',
       `Sides below 3 or above ${SOLID_SCRIPT_SWEEP_SIDES_MAX}, or a Radius that is not above 0.`,
+      'A Scale below 0.',
     ],
     parameters: [
       solidScriptParameter(
@@ -490,6 +493,16 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
         'points2',
         'Optional: x, y points swept instead of the circle, written as vectors whose z is ignored, such as [0, 0, 0], [0.2, 0, 0], [0.2, 0.1, 0].',
       ),
+      solidScriptParameterEach(
+        solidScriptParameter(
+          'scale',
+          'Scale',
+          'number',
+          '1',
+          'Size of the profile at each path point, 1 as it is, such as 0.5 or [=1 - [$Index] / [$Count]] to taper toward the end.',
+        ),
+        'Point',
+      ),
       solidScriptParameter(
         'mesh',
         'As Mesh',
@@ -504,6 +517,7 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
       read.value('path'),
       ...solidScriptListingOptions([
         read.changed('profile') ? ['Profile ', read.value('profile')] : ['Radius ', read.value('radius')],
+        read.changed('scale') && ['Scale ', read.value('scale')],
         read.on('mesh') && ['As Mesh'],
       ]),
     ],
@@ -514,7 +528,7 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
       const path = points.map(([x, y, z]) => new THREE.Vector3(x, y, z));
       const profile = solidScriptSweepProfile(run);
       const closed = drawn?.path.closed ?? false;
-      const rings = solidScriptPathSweep(path, profile, closed);
+      const rings = solidScriptSweepScaled(run, solidScriptPathSweep(path, profile, closed), path, closed);
       if (run.fields().flag('mesh')) return run.mesh(solidScriptPathMesh(rings, closed, 'Sweep Along Path'));
       return rings.slice(1).flatMap((ring, index) => {
         const before = rings[index];
