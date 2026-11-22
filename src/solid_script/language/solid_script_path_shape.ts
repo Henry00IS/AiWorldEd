@@ -9,7 +9,7 @@ export const SOLID_SCRIPT_PATH_CORNER_SIDES_MIN = 1;
 export const SOLID_SCRIPT_PATH_CORNER_SIDES_MAX = 64;
 
 /** Shortest stretch or turn that still counts. */
-const SOLID_SCRIPT_PATH_SHAPE_EPSILON = 1e-7;
+export const SOLID_SCRIPT_PATH_SHAPE_EPSILON = 1e-7;
 
 /** Right-handed unit axes around a path Normal. */
 type SolidScriptPathFrame = { x: THREE.Vector3; y: THREE.Vector3; z: THREE.Vector3 };
@@ -255,7 +255,7 @@ function solidScriptPathOnFrame(
  * @param label Command, for messages.
  * @returns Open list of unique corners.
  */
-function solidScriptPathOpen(points: readonly THREE.Vector3[], closed: boolean, label: string): THREE.Vector3[] {
+export function solidScriptPathOpen(points: readonly THREE.Vector3[], closed: boolean, label: string): THREE.Vector3[] {
   if (points.length < 2) throw new Error(`${label} needs at least 2 points, not ${points.length}`);
   const path = points.map((point) => point.clone());
   const first = path[0];
@@ -273,7 +273,7 @@ function solidScriptPathOpen(points: readonly THREE.Vector3[], closed: boolean, 
  * @param label Command, for messages.
  * @returns Whole count.
  */
-function solidScriptPathCornerSides(sides: number, label: string): number {
+export function solidScriptPathCornerSides(sides: number, label: string): number {
   const steps = Math.round(sides);
   if (
     !Number.isInteger(steps) ||
