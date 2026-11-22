@@ -18,6 +18,15 @@ import {
   solidScriptPathWithHandles,
 } from '@/solid_script/language/solid_script_path_handles.js';
 import {
+  SOLID_SCRIPT_HANDLE_SIDES,
+  SOLID_SCRIPT_HANDLE_TYPES,
+  solidScriptPathHandleTypes,
+  type SolidScriptHandleSide,
+  type SolidScriptHandleType,
+} from '@/solid_script/language/solid_script_path_handle_types.js';
+import { solidScriptNoiseWord } from '@/solid_script/language/solid_script_functions_noise.js';
+import { solidScriptConditionHolds } from '@/solid_script/language/solid_script_condition.js';
+import {
   SolidScriptPathElement,
   SolidScriptPoint,
   solidScriptValueNumber,
@@ -122,6 +131,37 @@ function solidScriptSetHandlesRun(run: SolidScriptBlockRun): void {
 }
 
 /**
+ * Places the handles of the Path's points that pass Pick Where by Type.
+ *
+ * @param run Running line.
+ */
+function solidScriptSetHandleTypeRun(run: SolidScriptBlockRun): void {
+  const source = solidScriptPathHandlesSource(run, 'Set Handle Type');
+  const type: SolidScriptHandleType = solidScriptNoiseWord(
+    run.text('type'),
+    SOLID_SCRIPT_HANDLE_TYPES,
+    'Set Handle Type Type',
+  );
+  const side: SolidScriptHandleSide = solidScriptNoiseWord(
+    run.text('side'),
+    SOLID_SCRIPT_HANDLE_SIDES,
+    'Set Handle Type Side',
+  );
+  const picked = source.points.map((point, index) =>
+    solidScriptConditionHolds(run, 'pick', {
+      $Point: new SolidScriptPoint([...point]),
+      $Index: index,
+      $Count: source.points.length,
+    }),
+  );
+  const handles = solidScriptPathHandleTypes(source, solidScriptPathHandles(source), type, side, picked);
+  solidScriptPathHandlesWrite(
+    run,
+    solidScriptPathWithHandles(source, handles, solidScriptPathResolution(run, 'Set Handle Type')),
+  );
+}
+
+/**
  * The Path, Resolution and Into fields of both lines.
  *
  * @returns Fields.
@@ -151,7 +191,7 @@ function solidScriptPathHandleFields() {
   ];
 }
 
-/** Set Handles and Set Path Type. */
+/** Set Handles, Set Handle Type and Set Path Type. */
 export const SOLID_SCRIPT_COMMANDS_PATH_HANDLES: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'set_handles',
@@ -200,6 +240,67 @@ export const SOLID_SCRIPT_COMMANDS_PATH_HANDLES: readonly SolidScriptCommand[] =
     ],
     execute: (run) => {
       solidScriptSetHandlesRun(run);
+      return [];
+    },
+  }),
+  new SolidScriptCommand({
+    id: 'set_handle_type',
+    edits: true,
+    label: 'Set Handle Type',
+    category: 'Meshes',
+    description: 'Place path handles automatically, as vectors or in line',
+    manual:
+      'Writes to Into a copy of a Path whose points that pass the 🔁 Pick Where get handles placed by Type, with every stretch a Bezier curve. Auto places both handles along the way from the point before to the point after, sized to the stretches beside it, for a smooth curve through the points. Vector puts each handle a third of the way to the neighbour on its side, so the stretches stay straight. Align turns the handles into one line through the point, keeping their lengths; with Side Left or Right only that handle turns, to point away from the other. Free keeps the handles. Side picks which handles change. The handles are placed once, when the line runs: move the points later and run Set Handle Type again. Resolution is how many steps each stretch is drawn in. Path is a Path or a list of points for a straight open one. Example: Set Handle Type Path [Rail] Type Auto Into [Rail] rounds a zigzag into a smooth curve.',
+    stops: [
+      'A Path that is not a Path or a list of at least 2 points.',
+      'A Type other than Auto, Vector, Align or Free, or a Side other than Both, Left or Right.',
+      'A Resolution that is not a whole number from 1 to 256.',
+    ],
+    parameters: [
+      solidScriptParameterWords(
+        'type',
+        'Type',
+        'text',
+        'Auto',
+        'Auto, Vector, Align or Free. Type one word, such as Auto.',
+        [
+          { word: 'Auto', detail: 'Smooth handles from the neighbouring points' },
+          { word: 'Vector', detail: 'Handles a third of the way to each neighbour' },
+          { word: 'Align', detail: 'Handles in one line through the point' },
+          { word: 'Free', detail: 'Handles stay where they are' },
+        ],
+      ),
+      solidScriptParameterWords('side', 'Side', 'text', 'Both', 'Both, Left or Right. Type one word, such as Both.', [
+        { word: 'Both', detail: 'Both handles of each point' },
+        { word: 'Left', detail: 'The handle each point is reached from' },
+        { word: 'Right', detail: 'The handle each point leaves toward' },
+      ]),
+      solidScriptParameterEach(
+        solidScriptParameterOptional(
+          'pick',
+          'Pick Where',
+          'value',
+          'A condition each point must pass to change, such as [=[$Index] > 0]. Left off changes every point.',
+        ),
+        'Point',
+      ),
+      ...solidScriptPathHandleFields(),
+    ],
+    listing: (read) => [
+      'Set Handle Type',
+      'Of ',
+      read.value('path'),
+      ' To ',
+      read.value('type'),
+      ...solidScriptListingOptions([
+        read.changed('side') && ['Side ', read.value('side')],
+        read.text('pick').trim() !== '' && ['Pick Where ', read.value('pick')],
+      ]),
+      ' Into ',
+      read.value('into'),
+    ],
+    execute: (run) => {
+      solidScriptSetHandleTypeRun(run);
       return [];
     },
   }),

@@ -121,6 +121,7 @@ const SOLID_SCRIPT_AUDIT_FACES = new Set([
   'face_groups',
   'set_handles',
   'set_path_type',
+  'set_handle_type',
 ]);
 
 /** Commands that work on a mesh, which the prelude's mesh feeds. */

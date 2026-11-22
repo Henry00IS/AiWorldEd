@@ -643,3 +643,5 @@ Solid mutations (including hierarchy create/reparent/rename/ungroup) are **undoa
 - Rename Data moves a .Data value to a new key and Remove Data removes one key, on faces, edges or corners.
 - PrincipalAxes(points, output) gives the main axes, spread or middle of a point cloud; MatrixSvd(matrix, output) gives the stretches S and the turns U and V of a matrix.
 - Dual Mesh swaps the faces and corners of a mesh, with Keep Boundaries for open edges.
+- Find On How At UV finds the point on the faces whose texture coordinates are the U and V of From.
+- Set Handle Type places path handles by Type Auto, Vector, Align or Free, on Side Both, Left or Right, for points that pass Pick Where.
