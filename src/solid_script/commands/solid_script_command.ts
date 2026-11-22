@@ -217,7 +217,12 @@ export interface SolidScriptCommandParameter {
    * these words, such as Detail of Select Faces while Which is Where, or while
    * it is a Vertex.Position write when position is true.
    */
-  eachWhen?: { readonly field: string; readonly words?: readonly string[]; readonly position?: boolean };
+  eachWhen?: {
+    readonly field: string;
+    readonly words?: readonly string[];
+    readonly position?: boolean;
+    readonly data?: boolean;
+  };
 }
 
 /** One word a field takes, with what it means. */

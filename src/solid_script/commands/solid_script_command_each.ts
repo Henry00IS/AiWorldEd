@@ -1,5 +1,8 @@
 import type { SolidScriptCommandParameter } from './solid_script_command.js';
-import { solidScriptNameIsPositionWrite } from '@/solid_script/language/solid_script_name_rules.js';
+import {
+  solidScriptNameIsDataWrite,
+  solidScriptNameIsPositionWrite,
+} from '@/solid_script/language/solid_script_name_rules.js';
 import { solidScriptEachUsed } from '@/solid_script/language/solid_script_each_uses.js';
 import {
   solidScriptSystemFill,
@@ -101,7 +104,8 @@ const SOLID_SCRIPT_COMMAND_EACH_FILL_KEYS: ReadonlySet<string> = new Set(
 /**
  * Tells which items a field may be worked out for with the line's current
  * values, such as Value of Set when Variable is a Position write, so the field
- * offers [$Vertex] and the other per-item values.
+ * offers [$Vertex] and the other per-item values, or a Data write, which offers
+ * [$Item].
  *
  * @param parameter Field.
  * @param values Stored values of the line.
@@ -117,6 +121,7 @@ export function solidScriptParameterEachKind(
   if (!when) return parameter.each;
   const held = values[when.field] ?? '';
   if (when.position && solidScriptNameIsPositionWrite(held)) return parameter.each;
+  if (when.data && solidScriptNameIsDataWrite(held)) return 'Item';
   return when.words?.some((word) => word.toLowerCase() === held.trim().toLowerCase()) ? parameter.each : undefined;
 }
 

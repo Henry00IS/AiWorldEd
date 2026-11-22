@@ -1,6 +1,11 @@
 import { solidScriptKindNamed } from './solid_script_kinds.js';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
-import { solidScriptNameIsModeWrite, solidScriptNameIsPositionWrite } from './solid_script_name_rules.js';
+import {
+  solidScriptNameIsDataWrite,
+  solidScriptNameIsModeWrite,
+  solidScriptNameIsPositionWrite,
+} from './solid_script_name_rules.js';
+import { solidScriptEachUsed } from './solid_script_each_uses.js';
 import { solidScriptModeWriteValue } from './solid_script_mode_write.js';
 import { SOLID_SCRIPT_GEOMETRY_EPSILON } from './solid_script_geometry.js';
 import {
@@ -77,10 +82,15 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
    *
    * @param written Name as written.
    * @param scope Scope of the line.
-   * @param value Value.
+   * @param valueOf Value of each element, from it, its number and how many
+   *   there are.
    * @returns True when the name was such a value.
    */
-  protected dataSet(written: string, scope: SolidScriptScope, value: SolidScriptValue): boolean {
+  protected dataSet(
+    written: string,
+    scope: SolidScriptScope,
+    valueOf: (item: SolidScriptValue, index: number, count: number) => SolidScriptValue,
+  ): boolean {
     const parts = solidScriptMemberParts(written);
     const at = parts.length - 2;
     if (at < 1 || parts[at]!.toLowerCase() !== 'data') return false;
@@ -92,7 +102,7 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
     if (!SOLID_SCRIPT_NAME.test(name))
       throw new Error(`"${name}" cannot be a Data key; keys use letters, digits and _, not starting with a digit`);
     const items = Array.isArray(owner) ? owner : [owner];
-    for (const item of items) {
+    for (const [index, item] of items.entries()) {
       if (!(item instanceof SolidScriptElement))
         throw new Error(
           `only solids, faces, edges and corners have .Data; ${parts.slice(0, at).join('.')} is ${solidScriptKindNamed(item)}`,
@@ -101,7 +111,7 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
         item.kind === 'data' ? item : this.elements.data(item),
         solidScriptNameKey(name),
         name,
-        value,
+        valueOf(item, index, items.length),
       );
     }
     return true;
@@ -170,7 +180,7 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
       if (this.modeSet(written, scope, value)) return;
       return this.variableSetSelected(written, name, value);
     }
-    if (this.dataSet(written, scope, value)) return;
+    if (this.dataSet(written, scope, () => value)) return;
     if (this.uvsSet(written, scope, value)) return;
     if (this.positionAssign(scope, written, value)) return;
     if (this.modeSet(written, scope, value)) return;
@@ -185,7 +195,8 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
 
   /**
    * Writes a Set value, evaluating a Vertex.Position formula once per corner
-   * with $Vertex and $Index, from the geometry as it was before the line.
+   * with $Vertex and $Index, from the geometry as it was before the line, and a
+   * Data write through a list once per item with $Item and $Index.
    *
    * @param scope Scope of the line.
    * @param written Name as written.
@@ -194,6 +205,14 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
    */
   protected variableWrite(scope: SolidScriptScope, written: string, key: string, run: SolidScriptBlockRun): void {
     if (this.positionWriteEach(scope, written, key, run)) return;
+    if (
+      solidScriptNameIsDataWrite(written) &&
+      solidScriptEachUsed(run.source(key)) &&
+      this.dataSet(written, scope, (item, index, count) =>
+        run.valueWith(key, { $Item: item, $Index: index, $Count: count }),
+      )
+    )
+      return;
     this.variableSet(scope, written, run.valueItems(key));
   }
 
