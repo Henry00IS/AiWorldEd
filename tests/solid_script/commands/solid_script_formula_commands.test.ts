@@ -243,6 +243,8 @@ describe('SolidScript formula block listings', () => {
       ['Along Point', '0, 0, 0'],
       ['Along Direction', '0, 1, 0'],
       ['Along Distance', '1'],
+      ['Xor A', 'true'],
+      ['Xor B', 'false'],
       ['Hits Box Center', '0, 0, 0'],
       ['Hits Box Size', '1'],
       ['Hits Box How', 'Touching'],

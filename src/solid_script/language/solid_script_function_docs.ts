@@ -12,6 +12,10 @@ import {
   SOLID_SCRIPT_KIND_CHECK_DOCS,
 } from './solid_script_functions_kind_checks.js';
 import { SOLID_SCRIPT_FUNCTION_DOCS_MATH, solidScriptFunctionDocSummary } from './solid_script_function_docs_math.js';
+import {
+  SOLID_SCRIPT_FUNCTION_DOCS_NUMBERS,
+  SOLID_SCRIPT_NUMBERS_ARGUMENTS,
+} from './solid_script_function_docs_numbers.js';
 import { SOLID_SCRIPT_NOISE_TYPES, SOLID_SCRIPT_VORONOI_OUTPUTS } from './solid_script_functions_noise.js';
 import {
   SOLID_SCRIPT_FUNCTION_DOCS_MATRIX,
@@ -92,6 +96,7 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
   ...SOLID_SCRIPT_FUNCTION_DOCS_MATH,
   ...SOLID_SCRIPT_FUNCTION_DOCS_SHAPING,
   ...SOLID_SCRIPT_FUNCTION_DOCS_MATRIX,
+  ...SOLID_SCRIPT_FUNCTION_DOCS_NUMBERS,
   str: {
     usage: 'Str(a, b, ...)',
     summary: 'Joins values into one text, such as Str(3, "x") is 3x.',
@@ -660,7 +665,6 @@ const PER_AXIS_INPUTS = {
   sqrt: { number: PER_AXIS },
   exp: { number: PER_AXIS },
   ln: { number: PER_AXIS },
-  log: { number: PER_AXIS },
   pow: { number: PER_AXIS, power: { ...PER_AXIS, about: 'The power, or one per axis.', start: '2' } },
   snap: { value: PER_AXIS, step: { ...PER_AXIS, about: 'Step size, such as 0.25, or one per axis.', start: '0.25' } },
   wrap: {
@@ -865,6 +869,7 @@ const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
   ...PER_AXIS_INPUTS,
   ...SOLID_SCRIPT_WHERE_HELPER_ARGUMENTS,
   ...SOLID_SCRIPT_KIND_CHECK_ARGUMENTS,
+  ...SOLID_SCRIPT_NUMBERS_ARGUMENTS,
 };
 
 /**
@@ -888,6 +893,7 @@ export function solidScriptFunctionArguments(key: string): SolidScriptFunctionAr
 
 /** Inputs at the end of a function that may be left off, by function key. */
 const SOLID_SCRIPT_FUNCTION_INPUTS_LEFT_OFF: Readonly<Record<string, number>> = {
+  log: 1,
   pad_left: 1,
   pad_right: 1,
   part: 1,
