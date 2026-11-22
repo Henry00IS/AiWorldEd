@@ -1,3 +1,4 @@
+import { fileSystemHandleAnswer } from '@/project/fs/file_system_handle_answer.js';
 import { StoreProjectHandle } from '@/project/fs/store_project_handle.js';
 import { modelExportDirectoryDestination, type ModelExportDestination } from './model_export_destination.js';
 
@@ -24,14 +25,15 @@ export class ModelExportFolderMemory {
 
   /**
    * Returns the remembered folder as a destination, unless the browser denies
-   * writing to it; a lapsed permission is asked again on export.
+   * writing to it; a lapsed permission is asked again on export. A folder the
+   * browser fails or never answers for is dropped for the session.
    *
    * @returns Destination, or null when none is remembered or usable.
    */
   async recall(): Promise<ModelExportDestination | null> {
-    const folder = this.folder ?? (await this.load());
-    if (folder === null || (await modelExportFolderMemoryDenied(folder))) return null;
-    return modelExportDirectoryDestination(folder);
+    const folder = await fileSystemHandleAnswer(this.usableFolder()).catch(() => null);
+    if (folder === null) this.forget();
+    return folder === null ? null : modelExportDirectoryDestination(folder);
   }
 
   /**
@@ -42,6 +44,18 @@ export class ModelExportFolderMemory {
   remember(folder: FileSystemDirectoryHandle): void {
     this.folder = folder;
     void this.store.save(folder).catch(() => undefined);
+  }
+
+  /** @returns The remembered folder, or null when none is or it is denied. */
+  private async usableFolder(): Promise<FileSystemDirectoryHandle | null> {
+    const folder = this.folder ?? (await this.load());
+    return folder === null || (await modelExportFolderMemoryDenied(folder)) ? null : folder;
+  }
+
+  /** Drops the remembered folder for the session; the store keeps it. */
+  private forget(): void {
+    this.folder = null;
+    this.loading = Promise.resolve(null);
   }
 
   /** @returns The stored folder, read once per session. */

@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SceneFileRecent } from '@/io/scene_file/recent/scene_file_recent.js';
-import { SceneFileRecentFakeStorage, sceneFileRecentFakeHandle } from './scene_file_recent_fakes.js';
+import {
+  SceneFileRecentFakeStorage,
+  sceneFileRecentFakeHandle,
+  type SceneFileRecentFakeHandle,
+} from './scene_file_recent_fakes.js';
 
 /**
  * Lists the names of the reachable Recent files.
@@ -97,5 +101,104 @@ describe('SceneFileRecent', () => {
 
     expect(recent.accessible()).toEqual([]);
     expect(storage.saved).toEqual([]);
+  });
+
+  describe('when the browser never answers for a stored file', () => {
+    afterEach(() => vi.useRealTimers());
+
+    /**
+     * Runs list work with fake timers running out, the way a stale handle
+     * leaves the Recent menu waiting.
+     *
+     * @param work List work.
+     * @returns Resolves once the work finished.
+     */
+    async function pastWait(work: () => Promise<unknown>): Promise<void> {
+      vi.useFakeTimers();
+      const done = work();
+      await vi.advanceTimersByTimeAsync(5000);
+      await done;
+    }
+
+    /**
+     * Makes a handle whose browser calls never answer.
+     *
+     * @param name File name.
+     * @returns Stale handle.
+     */
+    function staleHandle(name: string): SceneFileRecentFakeHandle {
+      const handle = sceneFileRecentFakeHandle(name);
+      handle.queryPermission = () => new Promise<PermissionState>(() => undefined);
+      handle.getFile = () => new Promise<File>(() => undefined);
+      handle.isSameEntry = () => new Promise<boolean>(() => undefined);
+      return handle;
+    }
+
+    it('still lists the other files and drops the stale one from storage', async () => {
+      const kept = sceneFileRecentFakeHandle('kept.aiworld');
+      const storage = new SceneFileRecentFakeStorage([
+        { handle: staleHandle('stale.aiworld'), usedAt: 2 },
+        { handle: kept, usedAt: 1 },
+      ]);
+      const recent = new SceneFileRecent(storage);
+      await pastWait(() => recent.start());
+
+      expect(names(recent)).toEqual(['kept.aiworld']);
+      expect(storage.saved.map((entry) => entry.handle.name)).toEqual(['kept.aiworld']);
+    });
+
+    it('drops a file whose read never answers', async () => {
+      const stale = sceneFileRecentFakeHandle('stale.aiworld');
+      stale.getFile = () => new Promise<File>(() => undefined);
+      const storage = new SceneFileRecentFakeStorage([{ handle: stale, usedAt: 1 }]);
+      const recent = new SceneFileRecent(storage);
+      await pastWait(() => recent.start());
+
+      expect(recent.accessible()).toEqual([]);
+      expect(storage.saved).toEqual([]);
+    });
+
+    it('drops a file whose permission check fails', async () => {
+      const broken = sceneFileRecentFakeHandle('broken.aiworld');
+      broken.queryPermission = async () => Promise.reject(new DOMException('stale', 'InvalidStateError'));
+      const storage = new SceneFileRecentFakeStorage([{ handle: broken, usedAt: 1 }]);
+      await new SceneFileRecent(storage).start();
+
+      expect(storage.saved).toEqual([]);
+    });
+
+    it('keeps remembering new files after a stale one', async () => {
+      const storage = new SceneFileRecentFakeStorage([{ handle: staleHandle('stale.aiworld'), usedAt: 1 }]);
+      const recent = new SceneFileRecent(storage);
+      await pastWait(() => recent.start());
+      await pastWait(() => recent.remember(sceneFileRecentFakeHandle('new.aiworld')));
+
+      expect(names(recent)).toEqual(['new.aiworld']);
+    });
+
+    it('moves on when comparing with a stale file never answers', async () => {
+      const kept = sceneFileRecentFakeHandle('kept.aiworld');
+      kept.isSameEntry = () => new Promise<boolean>(() => undefined);
+      const recent = new SceneFileRecent(new SceneFileRecentFakeStorage([{ handle: kept, usedAt: 1 }]));
+      await recent.start();
+      await pastWait(() => recent.remember(sceneFileRecentFakeHandle('new.aiworld')));
+
+      expect(names(recent)).toEqual(['new.aiworld', 'kept.aiworld']);
+    });
+
+    it('refuses opening a file whose permission check never answers, and drops it', async () => {
+      const handle = sceneFileRecentFakeHandle('level.aiworld');
+      const storage = new SceneFileRecentFakeStorage([{ handle, usedAt: 1 }]);
+      const recent = new SceneFileRecent(storage);
+      await recent.start();
+      handle.queryPermission = () => new Promise<PermissionState>(() => undefined);
+      let opened: unknown = 'waiting';
+      await pastWait(async () => (opened = await recent.access({ entry: { handle, usedAt: 1 }, access: 'granted' })));
+      await recent.refresh();
+
+      expect(opened).toBeNull();
+      expect(handle.requests).toBe(0);
+      expect(storage.saved).toEqual([]);
+    });
   });
 });
