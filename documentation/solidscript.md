@@ -190,3 +190,4 @@ The **Examples** window holds showcase scripts such as the Spiral Staircase, sma
 - Icosphere Mesh: a mesh sphere of even triangles with Radius and Subdivisions (1 to 7), and a matching Icosphere generator for the world editor; both share one shape module.
 - MatrixMultiply(a, b), MatrixDeterminant(matrix) and MatrixTranspose(matrix).
 - Corner values: [Face.Angles] gives the angle at each corner in degrees, in vertex order; [Vertex.IsUVSplit] and [Edge.IsUVSplit] tell whether the faces there give different UVs.
+- Cluster(points, distance, groups) groups close points, giving each the index of the point its cluster started from.

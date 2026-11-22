@@ -1,3 +1,7 @@
+import {
+  SOLID_SCRIPT_CLUSTER_ARGUMENTS,
+  SOLID_SCRIPT_FUNCTION_DOCS_CLUSTER,
+} from './solid_script_function_docs_cluster.js';
 import type { SOLID_SCRIPT_KINDS } from './solid_script_kinds.js';
 import type { SolidScriptBuiltinName } from './solid_script_functions_builtin.js';
 import {
@@ -102,6 +106,7 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
   ...SOLID_SCRIPT_FUNCTION_DOCS_SHAPING,
   ...SOLID_SCRIPT_FUNCTION_DOCS_MATRIX,
   ...SOLID_SCRIPT_FUNCTION_DOCS_NUMBERS,
+  ...SOLID_SCRIPT_FUNCTION_DOCS_CLUSTER,
   ...SOLID_SCRIPT_FUNCTION_DOCS_COORDINATES,
   str: {
     usage: 'Str(a, b, ...)',
@@ -910,6 +915,7 @@ const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
   ...SOLID_SCRIPT_WHERE_HELPER_ARGUMENTS,
   ...SOLID_SCRIPT_KIND_CHECK_ARGUMENTS,
   ...SOLID_SCRIPT_NUMBERS_ARGUMENTS,
+  ...SOLID_SCRIPT_CLUSTER_ARGUMENTS,
   ...SOLID_SCRIPT_COORDINATES_ARGUMENTS,
   ...SOLID_SCRIPT_SHAPING_WAVE_ARGUMENTS,
 };
@@ -936,6 +942,7 @@ export function solidScriptFunctionArguments(key: string): SolidScriptFunctionAr
 /** Inputs at the end of a function that may be left off, by function key. */
 const SOLID_SCRIPT_FUNCTION_INPUTS_LEFT_OFF: Readonly<Record<string, number>> = {
   nearest: 3,
+  cluster: 2,
   first: 1,
   last: 1,
   checker: 1,

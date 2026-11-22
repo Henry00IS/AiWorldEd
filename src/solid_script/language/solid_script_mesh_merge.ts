@@ -51,7 +51,7 @@ export function solidScriptMeshMerge(
  * @param welds Which corners may be welded.
  * @returns Corner each one welds to, itself when none.
  */
-function solidScriptMeshMergeNear(
+export function solidScriptMeshMergeNear(
   points: readonly THREE.Vector3[],
   distance: number,
   welds: (point: number) => boolean,
