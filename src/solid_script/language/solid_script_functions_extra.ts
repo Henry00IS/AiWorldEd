@@ -63,7 +63,7 @@ export function solidScriptExtraNumber(args: readonly SolidScriptValue[], index:
  * @param usage How to call the function, for the message.
  * @returns Numbers.
  */
-function solidScriptExtraVector(args: readonly SolidScriptValue[], index: number, usage: string): number[] {
+export function solidScriptExtraVector(args: readonly SolidScriptValue[], index: number, usage: string): number[] {
   const numbers = Array.isArray(args[index]) ? solidScriptValueNumbers(args[index]) : undefined;
   if (!numbers) throw new Error(`${usage} needs a vector such as [1, 2, 3], not ${solidScriptValueText(args[index])}`);
   return numbers;

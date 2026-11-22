@@ -2,7 +2,7 @@ import type { SolidScriptFunctionDoc } from './solid_script_function_docs.js';
 import { solidScriptFunctionDocSummary } from './solid_script_function_docs_math.js';
 import type { SolidScriptBuiltinName } from './solid_script_functions_builtin.js';
 
-/** Docs of the shaping functions and Euler turns. */
+/** Docs of the shaping functions, waves, the checkerboard and Euler turns. */
 export const SOLID_SCRIPT_FUNCTION_DOCS_SHAPING = {
   remap: {
     usage: 'Remap(value, from_low, from_high, to_low, to_high, clamp)',
@@ -70,6 +70,38 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_SHAPING = {
     ),
     group: 'Vector',
     gives: ['Vector'],
+  },
+  saw: {
+    usage: 'Saw(value)',
+    summary: solidScriptFunctionDocSummary(
+      'A saw wave: climbs from 0 toward 1 over each whole step, then drops back to 0 and climbs again. On a vector it works on each axis.',
+      ['Saw(2.25) is 0.25.', 'Saw(3) is 0.'],
+      'Use it for repeating ramps, such as stairs that rise and reset along a wall.',
+    ),
+    group: 'Math',
+    gives: ['Number', 'Vector'],
+    perAxis: true,
+  },
+  triangle: {
+    usage: 'Triangle(value)',
+    summary: solidScriptFunctionDocSummary(
+      'A triangle wave: 0 at every whole number and 1 halfway between, rising and falling in straight lines. On a vector it works on each axis.',
+      ['Triangle(0.5) is 1.', 'Triangle(0.25) is 0.5.', 'Triangle(2) is 0.'],
+      'Use it for zigzags, such as a crenellated wall top or a back-and-forth path.',
+    ),
+    group: 'Math',
+    gives: ['Number', 'Vector'],
+    perAxis: true,
+  },
+  checker: {
+    usage: 'Checker(position, scale)',
+    summary: solidScriptFunctionDocSummary(
+      'A checkerboard of squares one unit wide, made smaller by Scale: 1 in odd squares and 0 in even ones, counting every axis of the position. A point on a square edge belongs to the square below it.',
+      ['Checker(Vector(0.5, 0.5, 0.5)) is 0.', 'Checker(Vector(1.5, 0.5, 0.5)) is 1.', 'Checker(0.75, 2) is 1.'],
+      'Use it to tag every other face of a floor, reading each face position.',
+    ),
+    group: 'Math',
+    gives: ['Number'],
   },
 } as const satisfies Partial<Record<SolidScriptBuiltinName, SolidScriptFunctionDoc>>;
 
@@ -162,3 +194,19 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_MATRIX = {
     gives: ['Vector'],
   },
 } as const satisfies Partial<Record<SolidScriptBuiltinName, SolidScriptFunctionDoc>>;
+
+/** Inputs of the waves and the checkerboard that mean something of their own. */
+export const SOLID_SCRIPT_SHAPING_WAVE_ARGUMENTS = {
+  saw: { value: { type: ['Number', 'Vector'], about: 'A number, or a vector to work on per axis.', start: '0.5' } },
+  triangle: {
+    value: { type: ['Number', 'Vector'], about: 'A number, or a vector to work on per axis.', start: '0.5' },
+  },
+  checker: {
+    position: {
+      type: ['Number', 'Vector'],
+      about: 'Where to look on the board, such as a face position.',
+      start: '0.5',
+    },
+    scale: { type: ['Number'], about: 'Squares per unit; 2 makes them half as wide.', default: '1', start: '1' },
+  },
+} as const;

@@ -302,6 +302,16 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_MATH = {
     group: 'Math',
     gives: ['Number'],
   },
+  smootherstep: {
+    usage: 'Smootherstep(edge_low, edge_high, value)',
+    summary: solidScriptFunctionDocSummary(
+      'Like Smoothstep but even gentler at both edges, so it starts and settles with no sudden change in speed. Below the low edge it stays 0; above the high edge it stays 1.',
+      ['Smootherstep(0, 10, 0) is 0.', 'Smootherstep(0, 10, 5) is 0.5.', 'Smootherstep(0, 10, 10) is 1.'],
+      'Use it for a falloff or a blend that must meet flat ground without a visible crease.',
+    ),
+    group: 'Math',
+    gives: ['Number'],
+  },
   wrap: {
     usage: 'Wrap(value, min, max)',
     summary: solidScriptFunctionDocSummary(

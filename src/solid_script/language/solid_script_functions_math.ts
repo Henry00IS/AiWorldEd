@@ -237,14 +237,28 @@ function solidScriptMathItemList(args: readonly SolidScriptValue[], usage: strin
   return list;
 }
 
+/**
+ * How far a value is from the low edge to the high edge, kept from 0 to 1.
+ *
+ * @param args Low edge, high edge and value.
+ * @param usage How to call the function, for the message.
+ * @returns Amount from 0 to 1.
+ */
+function solidScriptMathStepAmount(args: readonly SolidScriptValue[], usage: string): number {
+  const low = solidScriptExtraNumber(args, 0, usage);
+  const high = solidScriptExtraNumber(args, 1, usage);
+  return Math.min(1, Math.max(0, (solidScriptExtraNumber(args, 2, usage) - low) / (high - low || 1)));
+}
+
 /** Math and list functions: ranges, smoothing, angles and list picks. */
 export const SOLID_SCRIPT_FUNCTIONS_MATH = {
   smoothstep: (args) => {
-    const usage = 'Smoothstep(edge_low, edge_high, value)';
-    const low = solidScriptExtraNumber(args, 0, usage);
-    const high = solidScriptExtraNumber(args, 1, usage);
-    const t = Math.min(1, Math.max(0, (solidScriptExtraNumber(args, 2, usage) - low) / (high - low || 1)));
+    const t = solidScriptMathStepAmount(args, 'Smoothstep(edge_low, edge_high, value)');
     return t * t * (3 - 2 * t);
+  },
+  smootherstep: (args) => {
+    const t = solidScriptMathStepAmount(args, 'Smootherstep(edge_low, edge_high, value)');
+    return t * t * t * (t * (t * 6 - 15) + 10);
   },
   wrap: solidScriptAxesEach('Wrap(value, min, max)', (args) => {
     const usage = 'Wrap(value, min, max)';

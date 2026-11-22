@@ -16,10 +16,15 @@ import {
   SOLID_SCRIPT_FUNCTION_DOCS_NUMBERS,
   SOLID_SCRIPT_NUMBERS_ARGUMENTS,
 } from './solid_script_function_docs_numbers.js';
+import {
+  SOLID_SCRIPT_COORDINATES_ARGUMENTS,
+  SOLID_SCRIPT_FUNCTION_DOCS_COORDINATES,
+} from './solid_script_function_docs_coordinates.js';
 import { SOLID_SCRIPT_NOISE_TYPES, SOLID_SCRIPT_VORONOI_OUTPUTS } from './solid_script_functions_noise.js';
 import {
   SOLID_SCRIPT_FUNCTION_DOCS_MATRIX,
   SOLID_SCRIPT_FUNCTION_DOCS_SHAPING,
+  SOLID_SCRIPT_SHAPING_WAVE_ARGUMENTS,
 } from './solid_script_function_docs_shaping.js';
 /** A kind of value the editor checks name, such as Face or Face List. */
 export type SolidScriptKindName = (typeof SOLID_SCRIPT_KINDS)[number] | `${(typeof SOLID_SCRIPT_KINDS)[number]} List`;
@@ -97,6 +102,7 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
   ...SOLID_SCRIPT_FUNCTION_DOCS_SHAPING,
   ...SOLID_SCRIPT_FUNCTION_DOCS_MATRIX,
   ...SOLID_SCRIPT_FUNCTION_DOCS_NUMBERS,
+  ...SOLID_SCRIPT_FUNCTION_DOCS_COORDINATES,
   str: {
     usage: 'Str(a, b, ...)',
     summary: 'Joins values into one text, such as Str(3, "x") is 3x.',
@@ -870,6 +876,8 @@ const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
   ...SOLID_SCRIPT_WHERE_HELPER_ARGUMENTS,
   ...SOLID_SCRIPT_KIND_CHECK_ARGUMENTS,
   ...SOLID_SCRIPT_NUMBERS_ARGUMENTS,
+  ...SOLID_SCRIPT_COORDINATES_ARGUMENTS,
+  ...SOLID_SCRIPT_SHAPING_WAVE_ARGUMENTS,
 };
 
 /**
@@ -893,6 +901,7 @@ export function solidScriptFunctionArguments(key: string): SolidScriptFunctionAr
 
 /** Inputs at the end of a function that may be left off, by function key. */
 const SOLID_SCRIPT_FUNCTION_INPUTS_LEFT_OFF: Readonly<Record<string, number>> = {
+  checker: 1,
   log: 1,
   pad_left: 1,
   pad_right: 1,

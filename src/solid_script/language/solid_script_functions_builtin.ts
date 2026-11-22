@@ -8,6 +8,7 @@ import { SOLID_SCRIPT_FUNCTIONS_CONDITION } from './solid_script_functions_condi
 import { SOLID_SCRIPT_FUNCTIONS_WHERE } from './solid_script_functions_where.js';
 import { SOLID_SCRIPT_FUNCTIONS_KIND_CHECKS } from './solid_script_functions_kind_checks.js';
 import { SOLID_SCRIPT_FUNCTIONS_NUMBERS } from './solid_script_functions_numbers.js';
+import { SOLID_SCRIPT_FUNCTIONS_COORDINATES } from './solid_script_functions_coordinates.js';
 import { solidScriptAxesEach, solidScriptAxesPick } from './solid_script_functions_axes.js';
 import {
   solidScriptValueNumber,
@@ -168,6 +169,7 @@ const SOLID_SCRIPT_FUNCTIONS_NAMED = {
   hits_box: () => undefined,
   ...SOLID_SCRIPT_FUNCTIONS_KIND_CHECKS,
   ...SOLID_SCRIPT_FUNCTIONS_NUMBERS,
+  ...SOLID_SCRIPT_FUNCTIONS_COORDINATES,
 } satisfies Readonly<Record<string, SolidScriptBuiltin>>;
 
 /** Name of a built-in function; its kinds must be declared for each. */

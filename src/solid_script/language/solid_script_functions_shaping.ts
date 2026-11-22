@@ -71,8 +71,24 @@ function solidScriptShapingAccumulate(args: readonly SolidScriptValue[]): number
 }
 
 /**
- * Shaping functions: smooth minimum and maximum, bounce, ranges and running
- * sums.
+ * Says whether a point falls in an odd square of a checkerboard of unit
+ * squares, scaled; points on a square's edge belong to the square below.
+ *
+ * @param args Position, as a number or vector, and the scale.
+ * @returns 1 in an odd square, 0 in an even one.
+ */
+function solidScriptShapingChecker(args: readonly SolidScriptValue[]): number {
+  const usage = 'Checker(position, scale)';
+  const scale = args.length > 1 ? solidScriptExtraNumber(args, 1, usage) : 1;
+  const position = Array.isArray(args[0]) ? solidScriptValueNumbers(args[0]) : [solidScriptExtraNumber(args, 0, usage)];
+  if (!position) throw new Error(`${usage} needs a number or a vector, not ${solidScriptValueText(args[0])}`);
+  const squares = position.reduce((total, value) => total + Math.floor((value * scale + 0.000001) * 0.999999), 0);
+  return Math.abs(squares) % 2;
+}
+
+/**
+ * Shaping functions: smooth minimum and maximum, bounce, ranges, running sums,
+ * repeating waves and a checkerboard.
  */
 export const SOLID_SCRIPT_FUNCTIONS_SHAPING = {
   smooth_min: solidScriptAxesEach('SmoothMin(a, b, distance)', (args) => {
@@ -101,4 +117,13 @@ export const SOLID_SCRIPT_FUNCTIONS_SHAPING = {
   ),
   remap: solidScriptAxesEach('Remap(value, from_low, from_high, to_low, to_high, clamp)', solidScriptShapingRemap),
   accumulate: solidScriptShapingAccumulate,
+  saw: solidScriptAxesEach('Saw(value)', (args) => {
+    const value = solidScriptExtraNumber(args, 0, 'Saw(value)');
+    return value - Math.floor(value);
+  }),
+  triangle: solidScriptAxesEach('Triangle(value)', (args) => {
+    const value = solidScriptExtraNumber(args, 0, 'Triangle(value)');
+    return Math.abs(value - Math.floor(value + 0.5)) * 2;
+  }),
+  checker: solidScriptShapingChecker,
 } satisfies Readonly<Record<string, SolidScriptShaping>>;
