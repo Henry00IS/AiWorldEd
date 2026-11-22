@@ -24,7 +24,7 @@ const SOLID_SCRIPT_MESH_EDGES_SAME = 1e-6;
  * @param label Line name, for messages.
  * @returns Edges.
  */
-function solidScriptMeshEdgesPicked(run: SolidScriptBlockRun, label: string): SolidScriptEdgeFacts[] {
+export function solidScriptMeshEdgesPicked(run: SolidScriptBlockRun, label: string): SolidScriptEdgeFacts[] {
   const nothingPicked = run.selectedGet('edges').length === 0 && run.selectedGet('faces').length === 0;
   const kind = run.ofValues() === null && nothingPicked ? 'objects' : 'edges';
   const edges = solidScriptElementOf(run, kind, label).flatMap((item) => run.elements.edges(item));

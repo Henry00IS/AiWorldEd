@@ -168,3 +168,4 @@ The **Examples** window holds showcase scripts such as the Spiral Staircase, sma
 - Scatter Points Ids writes a steady number for each point, worked out from where it lies, so Random seeded by it stays with a point when Count grows or other points are removed.
 - Path From Points Radius can change per corner with [$Index] and [$Point], such as [=[$Index] * 0.1]; a corner with 0 stays sharp. Limit Radius Yes shrinks radii that do not fit so rounded corners never overlap.
 - Path Shape Smooth bends a gentle curve through every point in Points (Sides segments per stretch, Closed joins the ends); Shape Bezier runs From to To, leaving From toward From Handle and coming into To from To Handle, with Count points.
+- Path From Edges joins edges that share corners into a list of Paths (closed when they go all the way round, broken where three or more meet); Path From Faces gives the edges round each face as a closed Path. Both take Of and Where.

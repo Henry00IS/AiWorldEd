@@ -217,7 +217,12 @@ function toolHost(command: SolidScriptCommand): SolidScriptLine[] {
  */
 function listScript(command: SolidScriptCommand): SolidScriptLine[] | null {
   if (command.id === 'path' || command.id === 'filter_list' || command.id === 'points') return [intoLine(command)];
-  if (command.id === 'scatter_points' || command.id.startsWith('points_from_') || command.id === 'find_on')
+  if (
+    command.id === 'scatter_points' ||
+    command.id.startsWith('points_from_') ||
+    command.id.startsWith('path_from_') ||
+    command.id === 'find_on'
+  )
     return [
       CUBE,
       { command: 'select_objects' },

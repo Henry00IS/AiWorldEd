@@ -164,6 +164,8 @@ export interface SolidScriptBlockRun {
    * Extrude or Offset a closed one is also drawn for the block to fill.
    */
   pathWrite(points: readonly THREE.Vector3[], closed: boolean): SolidScriptShape[];
+  /** Makes Path values from points already in place, one per line of points. */
+  pathsMake(paths: readonly { points: readonly THREE.Vector3[]; closed: boolean }[]): SolidScriptPathElement[];
   /** Runs the lines inside, moved by a matrix. */
   transformed(matrix: THREE.Matrix4): SolidScriptShape[];
   /**

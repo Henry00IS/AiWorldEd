@@ -972,6 +972,16 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
           closed,
         );
       },
+      pathsMake: (paths) =>
+        paths.map((path) =>
+          state.machine.paths.created(
+            solidScriptPathStraight(
+              path.points.map((point) => point.toArray()),
+              path.closed,
+            ),
+            labelOf(),
+          ),
+        ),
       transformed: (matrix) => inside({ ...state.context, matrix: state.context.matrix.clone().multiply(matrix) }),
       hulled: (extra = []) =>
         !state.machine.stepTake(state.scope)
