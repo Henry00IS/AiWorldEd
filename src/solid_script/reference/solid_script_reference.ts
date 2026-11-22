@@ -100,6 +100,8 @@ Formulas know: numbers, text in double quotes, true, false, every name in bracke
 
 - Matrix formulas: Transform(move, rotate, scale) makes four rows of four numbers; Invert undoes it, TransformPoint places a point, TransformDirection turns and scales a direction without moving it, and MatrixMove/MatrixRotate/MatrixScale read its parts.
 
+- Extrude Face has a per-face Direction (empty uses the normal). Individual Yes, the default, pulls every mesh face on its own; No pulls touching faces as one region, with walls only around its border. At a corner shared by several picked faces, the move is their average. On solids, negative Distance builds a Subtractive slab sunk into the solid, never a mesh. Top and Sides keep the faces the line made.
+
 ## Meshes
 
 - Mesh blocks build regular editable meshes instead of solids. Mesh holds Vertex lines (a position and an optional texture coordinate) and Face lines (vertex numbers from 0, counter-clockwise seen from outside). Mesh From Solids turns the solids inside it into one mesh, baking their cut result the same way the editor cuts solids, including Subtractive and Intersecting modes and Group; only the solids inside the block are baked, not the rest of the world. Grid Mesh builds a mesh of quads in a plane: Size is width, height and depth, with one length at 0 so the grid is flat (2, 0, 2 on the ground, 2, 2, 0 for a wall facing the front); Columns and Rows are how many faces there are, and Anchor works like Cube.

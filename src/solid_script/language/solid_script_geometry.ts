@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { solidScriptBodyPrism, type SolidScriptBody } from './solid_script_body.js';
+import type { SolidScriptBody } from './solid_script_body.js';
 import { solidScriptBodyClip } from './solid_script_body_clip.js';
 import { SOLID_SCRIPT_AXES_FACING, SOLID_SCRIPT_AXES_UP, solidScriptAxesHeight } from './solid_script_axes.js';
 import {
@@ -724,26 +724,6 @@ export function solidScriptGeometryFaceFind(leaf: SolidScriptGeometryLeaf, face:
       solidScriptMeshLoopCenter(mesh.points, loop).distanceTo(face.center) < 1e-4 &&
       solidScriptMeshLoopNormal(mesh.points, loop).dot(face.normal) > 0.9999,
   );
-}
-
-/**
- * Builds the block a face sweeps out when it is pulled along its direction: a
- * new convex solid on the face, with the face at both ends.
- *
- * @param face Face.
- * @param distance Metres, above 0.
- * @param lift Metres the block starts away from the face, along its direction.
- * @param label Command, for messages.
- * @returns Body.
- */
-export function solidScriptGeometryFacePrism(
-  face: SolidScriptFaceFacts,
-  distance: number,
-  lift: number,
-  label: string,
-): SolidScriptBody {
-  const along = (metres: number) => face.corners.map((corner) => corner.clone().addScaledVector(face.normal, metres));
-  return solidScriptBodyPrism(along(lift), along(lift + distance), label);
 }
 
 /**

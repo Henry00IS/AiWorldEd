@@ -406,43 +406,6 @@ export function solidScriptMeshSmooth(
 }
 
 /**
- * Pulls chosen faces out along their normals, each on its own, with side faces
- * joining them to the rest of the mesh. A negative distance pushes the face in,
- * making a dent with walls facing into it.
- *
- * @param mesh Mesh.
- * @param distance Distance per face, or null to leave the face alone; gets the
- *   face center, normal and number.
- * @returns Extruded mesh.
- */
-export function solidScriptMeshExtrudeFaces(
-  mesh: SolidScriptShapeMesh,
-  distance: (center: THREE.Vector3, normal: THREE.Vector3, index: number) => number | null,
-): SolidScriptShapeMesh {
-  const points = mesh.points.map((point) => point.clone());
-  const faces: number[][] = [];
-  const uvs: (SolidScriptUv[] | null)[] = [];
-  mesh.faces.forEach((face, faceIndex) => {
-    const normal = solidScriptMeshLoopNormal(mesh.points, face);
-    const amount = distance(solidScriptMeshLoopCenter(mesh.points, face), normal, faceIndex);
-    if (amount === null || amount === 0) {
-      faces.push([...face]);
-      uvs.push(mesh.uvs[faceIndex] ?? null);
-      return;
-    }
-    const top = face.map((index) => points.push(mesh.points[index]!.clone().addScaledVector(normal, amount)) - 1);
-    face.forEach((a, corner) => {
-      const next = (corner + 1) % face.length;
-      faces.push([a, face[next]!, top[next]!, top[corner]!]);
-      uvs.push(null);
-    });
-    faces.push(top);
-    uvs.push(mesh.uvs[faceIndex] ?? null);
-  });
-  return solidScriptMeshChecked({ ...mesh, points, faces, uvs });
-}
-
-/**
  * Returns whether a shape tree holds a mesh.
  *
  * @param shape Shape tree.

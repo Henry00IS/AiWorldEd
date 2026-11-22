@@ -134,3 +134,5 @@ A script can be a **generator**, which builds new geometry from nothing, or a **
 ## Examples
 
 The **Examples** window holds showcase scripts such as the Spiral Staircase, small lessons (an irregular rock from Hull, a tapered box, a rounded rail, a hilly floor), and the built-in generators and modifiers rebuilt line by line, so you can see how they work and change them.
+
+- Extrude Face has a per-face Direction (empty uses the normal). Individual Yes, the default, pulls every mesh face on its own; No pulls touching faces as one region, with walls only around its border. At a corner shared by several picked faces, the move is their average. On solids, negative Distance builds a Subtractive slab sunk into the solid, never a mesh. Top and Sides keep the faces the line made.

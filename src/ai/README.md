@@ -575,3 +575,5 @@ Solid mutations (including hierarchy create/reparent/rename/ungroup) are **undoa
 - Online server (`src/ai/client/relay/`, `src/collaboration/mcp/`): `mcp.listen` / `mcp.request` / `mcp.response` over the relay WebSocket, answered by the same JSON-RPC handler (`mcp_jsonrpc_answer.ts`) and tool dispatch as the local server
 
 - `flip_faces` and `triangulate` take faces or meshes in Of, filtered per face by Where. `split_edges` cuts mesh faces apart along edges filtered by Where, without moving corners; the copies can move apart later.
+
+- Extrude Face has a per-face Direction (empty uses the normal). Individual Yes, the default, pulls every mesh face on its own; No pulls touching faces as one region, with walls only around its border. At a corner shared by several picked faces, the move is their average. On solids, negative Distance builds a Subtractive slab sunk into the solid, never a mesh. Top and Sides keep the faces the line made.

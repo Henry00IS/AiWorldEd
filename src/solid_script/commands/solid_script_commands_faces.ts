@@ -1,3 +1,4 @@
+import { SOLID_SCRIPT_COMMANDS_EXTRUDE } from './solid_script_commands_extrude.js';
 import { solidScriptListingOf } from './solid_script_command_listing.js';
 import { solidScriptParameterOfWhere } from './solid_script_command_of_where.js';
 import type { SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
@@ -23,23 +24,14 @@ import { solidScriptFaceGroups, solidScriptFaceTargets, solidScriptFaceWrite } f
 import { solidScriptScaleFaces } from '@/solid_script/language/solid_script_scale_faces.js';
 import { SOLID_SCRIPT_COMMAND_SCATTER } from './solid_script_commands_scatter.js';
 import {
-  solidScriptGeometryFacePrism,
   solidScriptGeometryFaces,
   solidScriptGeometryFacesOutside,
   solidScriptGeometryInset,
   type SolidScriptFaceFacts,
 } from '@/solid_script/language/solid_script_geometry.js';
-import {
-  SOLID_SCRIPT_MESH_NEEDS_WRAP,
-  solidScriptMeshExtrudeFaces,
-  type SolidScriptShapeMesh,
-} from '@/solid_script/language/solid_script_mesh.js';
+import { SOLID_SCRIPT_MESH_NEEDS_WRAP, type SolidScriptShapeMesh } from '@/solid_script/language/solid_script_mesh.js';
 import { SOLID_SCRIPT_AXES_FACING } from '@/solid_script/language/solid_script_axes.js';
-import {
-  solidScriptShapeMapLeaves,
-  type SolidScriptFaceTag,
-  type SolidScriptShapeSolid,
-} from '@/solid_script/language/solid_script_shape.js';
+import { solidScriptShapeMapLeaves, type SolidScriptFaceTag } from '@/solid_script/language/solid_script_shape.js';
 import { SOLID_SCRIPT_SELECT_BETWEEN, solidScriptOfEmpty } from '@/solid_script/language/solid_script_select.js';
 import {
   SOLID_SCRIPT_FACING_WITHIN_DEFAULT,
@@ -500,120 +492,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
         choice === null ? run.framed(matrix) : run.framedChoice(matrix, choice),
       ),
   }),
-  new SolidScriptCommand({
-    id: 'extrude_face',
-    edits: true,
-    label: 'Extrude Face',
-    category: 'Faces',
-    description: 'Pull faces out',
-    manual:
-      'Pulls faces out along the way they point. On a solid each face becomes a new solid, a slab standing on it, and Into gets those solids; on a mesh the face itself moves out. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. Top and Sides name variables for the new faces: Top the moved or capping faces and Sides the new side faces, as the operation builds them. Afterwards [$Selected.Faces] holds the top faces. Lift moves a slab away from its face. Example: Select Faces Facing Up, Extrude Face By 1, Top [Roof].',
-    stops: ['No faces.', 'A negative Distance on a solid.', 'A Lift on a mesh.'],
-    parameters: [
-      solidScriptParameterEach(
-        solidScriptParameter(
-          'distance',
-          'Distance',
-          'number',
-          '0.2',
-          'Metres to pull out, such as 0.5 or [=Random(0.5, 2)].',
-        ),
-        'Face',
-      ),
-      solidScriptParameterEach(
-        solidScriptParameterOptional(
-          'lift',
-          'Lift',
-          'number',
-          'Metres between a solid face and its slab, such as 0.05; left off is 0. Solids only.',
-        ),
-        'Face',
-      ),
-      solidScriptParameterOfWhere('Face', '[=[$Face.Normal.Y] > 0.9]'),
-      solidScriptParameterOf('faces or objects', '$Selected.Faces'),
-      solidScriptParameterInto('the new solids, an Object list', 'Object List', 'what is made', 'copy'),
-      {
-        ...solidScriptParameterInto('the top faces, a Face list', 'Face List', 'top faces', 'label'),
-        key: 'top',
-        label: 'Top',
-      },
-      {
-        ...solidScriptParameterInto('the new side faces, a Face list', 'Face List', 'side faces', 'label'),
-        key: 'sides',
-        label: 'Sides',
-      },
-    ],
-    listing: (read) => [
-      'Extrude Face',
-      'By ',
-      read.value('distance'),
-      ...(read.text('lift').trim() === '' ? [] : [' Lift ', read.value('lift')]),
-      ...solidScriptListingOf(read),
-      ...(read.text('into') === '' ? [] : [' Into ', read.value('into')]),
-      ...(read.text('top') === '' ? [] : [' Top ', read.value('top')]),
-      ...(read.text('sides') === '' ? [] : [' Sides ', read.value('sides')]),
-    ],
-    execute: (run) => {
-      const targets = solidScriptFaceTargets(run, 'Extrude Face');
-      const distanceOf = solidScriptFaceEachNumber(run, 'distance', targets, SOLID_SCRIPT_FACE_DISTANCE_NEEDS);
-      const liftOf = solidScriptFaceEachNumber(run, 'lift', targets, 'Lift needs a number of metres, such as 0.25', 0);
-      const added: { slab: SolidScriptShapeSolid; normal: THREE.Vector3 }[] = [];
-      const tops: SolidScriptValue[] = [];
-      const sides: SolidScriptValue[] = [];
-      const brushes: SolidScriptValue[] = [];
-      for (const [leaf, faces] of solidScriptFaceGroups(targets, (face) => face.leaf)) {
-        if (leaf.kind === 'solid') {
-          for (const face of faces) {
-            const distance = distanceOf(face);
-            if (distance < 0)
-              throw new Error('Extrude Face cannot push into a solid; use a Subtractive solid to cut into it');
-            added.push({
-              slab: {
-                kind: 'solid',
-                label: 'Slab',
-                ...solidScriptGeometryFacePrism(face, distance, liftOf(face), 'Extrude Face'),
-              },
-              normal: face.normal,
-            });
-          }
-          continue;
-        }
-        if (faces.some((face) => liftOf(face) !== 0))
-          throw new Error('Lift only works on solids; on a mesh, Extrude Face moves the face itself');
-        const numbers = new Set(faces.map((face) => face.index));
-        const distances = new Map(faces.map((face) => [face.index, distanceOf(face)]));
-        run.leafReplace(
-          leaf,
-          solidScriptMeshExtrudeFaces(leaf, (_, __, index) => distances.get(index) ?? null),
-        );
-        const outputs = solidScriptFaceOutputs(leaf, numbers);
-        const read = solidScriptGeometryFaces([run.leafLatest(leaf)]);
-        // The moved faces stay the same faces, in the order of their numbers.
-        [...faces]
-          .sort((a, b) => a.index - b.index)
-          .forEach((face, at) => run.elements.faceMoved(face, read[outputs.tops[at]!]!));
-        tops.push(...outputs.tops.map((number) => run.elements.face(read[number]!)));
-        sides.push(...outputs.sides.map((number) => run.elements.face(read[number]!)));
-        brushes.push(run.elements.brush(leaf));
-      }
-      const adopted = run.adopted(added.map((entry) => entry.slab));
-      // A slab is built from its face: the cap looks the way the face does, the sides across it.
-      for (const { slab, normal } of added) {
-        if (!adopted.includes(slab)) continue;
-        brushes.push(run.elements.brush(slab));
-        for (const face of solidScriptGeometryFaces([slab])) {
-          const along = face.normal.dot(normal);
-          if (along > 0.9999) tops.push(run.elements.face(face));
-          else if (Math.abs(along) < 1e-6) sides.push(run.elements.face(face));
-        }
-      }
-      run.selectedSet('faces', tops);
-      solidScriptFaceWrite(run, 'into', brushes);
-      solidScriptFaceWrite(run, 'top', tops);
-      solidScriptFaceWrite(run, 'sides', sides);
-      return adopted;
-    },
-  }),
+  ...SOLID_SCRIPT_COMMANDS_EXTRUDE,
   new SolidScriptCommand({
     id: 'inset_face',
     edits: true,
