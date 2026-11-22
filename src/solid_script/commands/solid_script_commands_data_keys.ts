@@ -69,7 +69,7 @@ export const SOLID_SCRIPT_COMMANDS_DATA_KEYS: SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'rename_data',
     label: 'Rename Data',
-    category: 'Faces',
+    category: 'Data',
     description: 'Move a .Data value to a new key',
     manual:
       'Moves the value under .Data Key of each item in Of that passes the 🔁 Where to the key To, as Rename Attribute does; Key then reads as empty. A value already under To is replaced, and items without Key are left as they are. Of gives faces, edges or corners; empty uses [$Selected.Faces]. Example: Rename Data Key Heat To Warmth Of [Box.Faces], then [Box.Faces(0).Data.Warmth] reads what Heat held.',
@@ -95,7 +95,7 @@ export const SOLID_SCRIPT_COMMANDS_DATA_KEYS: SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'remove_data',
     label: 'Remove Data',
-    category: 'Faces',
+    category: 'Data',
     description: 'Remove a .Data key',
     manual:
       'Removes .Data Key from each item in Of that passes the 🔁 Where, as Remove Named Attribute does, so it reads as empty again. Of gives faces, edges or corners; empty uses [$Selected.Faces]. Example: Remove Data Key Heat Of [Box.Faces].',

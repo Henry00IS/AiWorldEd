@@ -130,7 +130,7 @@ function solidScriptScatterWriteFaces(run: SolidScriptBlockRun, normals: readonl
 export const SOLID_SCRIPT_COMMAND_SCATTER = new SolidScriptCommand({
   id: 'scatter_points',
   label: 'Scatter Points',
-  category: 'Faces',
+  category: 'Points',
   description: 'Spread points on faces, inside a shape, in a box, or on a grid',
   manual:
     'Spreads points and writes their positions to Into as a list of vectors. On chooses how: On Faces (the default) spreads them over faces, more on bigger ones, and writes the way each face looks to Normals and the turn that stands a shape up on it to Rotations (X, Y, Z degrees, as Rotation reads them), and skips faces that lie back to back against another object in Of, such as where the solids of a Rotate Extrude ring meet; Inside fills the volume of an object; In Box fills a box of Size, centered on the origin; Grid lays Counts points along that box. By chooses how many: Count gives that many, and Density gives so many per square metre On Faces (it can change per face, with [$Face] the face) or per cubic metre Inside and In Box, so a bigger shape gets more. Ids gets a number for each point from where it lies, so a random value seeded by it stays with that point when other points come or go, unlike [$Index]. Spacing keeps points at least that far apart; when not all of them fit, it gives as many as fit. Of gives the faces, objects for On Faces and Inside; empty uses [$Selected.Faces]. The same Seed gives the same points for the random modes. Example: Select Faces Facing Up, Scatter Points 20 Into [Spots], then Place At Points At [Spots], Sphere, End.',

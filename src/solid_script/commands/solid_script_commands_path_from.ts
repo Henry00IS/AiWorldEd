@@ -19,7 +19,7 @@ export const SOLID_SCRIPT_COMMANDS_PATH_FROM: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'path_from_edges',
     label: 'Path From Edges',
-    category: 'Faces',
+    category: 'Paths',
     description: 'Turn edges into paths',
     manual:
       'Joins edges that share corners into Paths and writes them to Into as a list of Paths. A path runs on through every corner where exactly two of the edges meet and stops at an open end or where three or more meet; edges that go all the way round give a closed path. Of gives edges, or the edges of faces or objects; empty uses [$Selected.Edges], else the edges of [$Selected.Faces], else every edge of [$Selected.Objects]. Where is a 🔁 condition an edge must pass. Example: Path From Edges Of [Box.Faces] Where [=[$Edge.Angle] > 30] Into [Rims], then For Each Rim In [Rims], Sweep Along Path along [Rim].',
@@ -41,7 +41,7 @@ export const SOLID_SCRIPT_COMMANDS_PATH_FROM: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'path_from_faces',
     label: 'Path From Faces',
-    category: 'Faces',
+    category: 'Paths',
     description: 'Turn the edges round each face into closed paths',
     manual:
       'Writes the edges round each face to Into as a list of closed Paths, one per face, running round its corners in order. Of gives faces or objects; empty uses [$Selected.Faces]. Where is a 🔁 condition a face must pass. Example: Path From Faces Of [Box] Where [=[$Face.Normal.Y] > 0.9] Into [Tops], then Sweep Along Path along [Tops(0)] with a small Radius trims the top.',

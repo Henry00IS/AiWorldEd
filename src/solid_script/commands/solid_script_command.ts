@@ -107,6 +107,13 @@ export type SolidScriptCommandCategory =
   | 'Combine'
   | 'Meshes'
   | 'Faces'
+  | 'Objects'
+  | 'Edges'
+  | 'Vertices'
+  | 'Points'
+  | 'Paths'
+  | 'Data'
+  | 'UVs'
   | 'Inputs'
   | 'Logic'
   | 'Lists'
@@ -257,6 +264,8 @@ export interface SolidScriptCommandSpec {
   label: string;
   /** Palette group. */
   category: SolidScriptCommandCategory;
+  /** Kind written to Into when this line builds; Solid when left off. */
+  builtKind?: 'Solid' | 'Mesh' | 'Object';
   /** Short description in a few words, shown in the palette and as hover help. */
   description: string;
   /**
@@ -335,19 +344,14 @@ export interface SolidScriptCommandSpec {
 
 /**
  * Into field of a building line: what it builds, a list when the line can
- * create several items. Mesh lines build meshes, Place and Group lines hold
- * lines that may build either, so they give objects, and the rest build
- * solids.
+ * create several items. The declared kind stays the same regardless of which
+ * palette group the line is in.
  *
  * @param listed True when Into is always a list.
- * @param category Palette group of the line.
+ * @param kind Kind it builds.
  * @returns Field.
  */
-function solidScriptCommandBuiltInto(
-  listed: boolean,
-  category: SolidScriptCommandCategory,
-): SolidScriptCommandParameter {
-  const kind = category === 'Meshes' ? 'Mesh' : category === 'Faces' || category === 'Parts' ? 'Object' : 'Solid';
+function solidScriptCommandBuiltInto(listed: boolean, kind: 'Solid' | 'Mesh' | 'Object'): SolidScriptCommandParameter {
   const many = `${kind.toLowerCase()}${kind === 'Mesh' ? 'es' : 's'}`;
   return listed
     ? solidScriptParameterInto(`the ${many} it builds, a ${kind} list`, `${kind} List`, 'what is made', 'copy')
@@ -389,7 +393,7 @@ function solidScriptCommandFields(spec: SolidScriptCommandSpec): SolidScriptComm
   const builds = spec.builds ?? (named && spec.category !== '2D Shapes');
   const edits = spec.edits === true;
   const into = builds
-    ? [solidScriptCommandBuiltInto(intoList, spec.category)]
+    ? [solidScriptCommandBuiltInto(intoList, spec.builtKind ?? 'Solid')]
     : spec.draws === true
       ? [solidScriptParameterInto('the closed path it draws, a Path', 'Path', 'path drawn', 'label')]
       : [];

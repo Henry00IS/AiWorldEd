@@ -75,7 +75,7 @@ export const SOLID_SCRIPT_COMMANDS_POSITIONS: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'set_positions',
     label: 'Set Positions',
-    category: 'Faces',
+    category: 'Vertices',
     description: 'Move corners to positions worked out one by one, or by an Offset',
     manual:
       'Moves each corner in Of to the position To works out for it. To is worked out once per corner, and Offset, when given, is added after it, so Offset 0, 0.5, 0 lifts every corner by half a metre without writing [=[$Vertex.Position] + …]. Where, when given, is a 🔁 condition a corner must pass to move. Every position is read from the shape before the line, and all corners move together. Of gives vertices, or the corners of faces, edges, objects; empty uses [$Selected.Vertices], or the corners of [$Selected.Faces] when no vertices are selected. A mesh takes any position. A solid stays a solid, rebuilt around its corners while they make a convex solid. A solid may be left not convex for now, so later lines can keep moving its corners; only when the script ends does a warning list the solids still not convex, which are not built. The same as Set [$Selected.Vertices.Positions], with Of and Where added. Example: Cube, Select Vertices Where [=[$Vertex.Position.Y] > 0], then Set Positions To [=[$Vertex.Position] * Vector(0.5, 1, 0.5)] narrows the top into a frustum.',

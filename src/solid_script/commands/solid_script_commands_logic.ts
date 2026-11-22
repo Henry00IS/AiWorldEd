@@ -411,6 +411,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
   }),
   new SolidScriptCommand({
     id: 'group',
+    builtKind: 'Object',
     label: 'Group',
     category: 'Parts',
     description: 'Wrap shapes in a CSG group',

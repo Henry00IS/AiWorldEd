@@ -398,6 +398,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
   }),
   new SolidScriptCommand({
     id: 'mesh',
+    builtKind: 'Mesh',
     named: true,
     label: 'Mesh',
     category: 'Meshes',
@@ -488,6 +489,7 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
   }),
   new SolidScriptCommand({
     id: 'mesh_from_solids',
+    builtKind: 'Mesh',
     named: true,
     label: 'Mesh From Solids',
     category: 'Meshes',

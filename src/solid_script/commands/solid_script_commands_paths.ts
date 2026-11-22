@@ -358,7 +358,7 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'path',
     label: 'Path',
-    category: 'Meshes',
+    category: 'Paths',
     description: 'Draw a path along a line, arc, spiral or points',
     manual:
       'Writes a Path, a line of points that is open or closed, to Into, for Sweep Along Path, Place At Points or PathAt; inside Linear Extrude, Rotate Extrude or Offset a closed Path is filled instead. Shape Line (the default) walks from From to To; for a direction and a length, set To to Along(From, Direction, Length). Arc turns around Center in the plane facing Normal, from Start by Sweep degrees, the same way as RotateVector around Normal; a negative Sweep turns the other way. Spiral also climbs Height along Normal while the radius moves from Radius to End Radius, for Turns of a rotation. From Points uses the corners in Points; Radius rounds those corners, with Sides segments on each, and can change per corner with [$Index]; Limit Radius shrinks radii that do not fit. Smooth bends a gentle curve through every point in Points, with Sides segments on each stretch. Bezier runs from From to To, leaving From toward From Handle and coming into To from To Handle. Quadratic runs from From to To pulled toward Middle, passing halfway between Middle and the middle of From and To. Closed, for Arc, From Points and Smooth, joins the last point back to the first. Count is how many points Line, Arc, Spiral, Bezier and Quadratic write. Example: Path Line From 0, 0, 0 To 4, 0, 0 Count 8 Into [Rail], then Sweep Along Path along [Rail].',
@@ -599,9 +599,10 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
   }),
   new SolidScriptCommand({
     id: 'sweep_along_path',
+    builtKind: 'Mesh',
     named: true,
     label: 'Sweep Along Path',
-    category: 'Meshes',
+    category: 'Paths',
     description: 'Sweep a profile along a path',
     manual:
       'Sweeps a flat profile along a Path, like a pipe, rail or moulding. The profile is a circle of Radius and Sides, or the x, y points in Profile, where x runs to the side of the path and y up. Scale sizes the profile at each path point, worked out once per point with [$Point], [$Index] and [$Count], so a horn or a vine can taper, and Twist turns it by that many degrees about the path at each point, so a rope or a twisted bar spirals. Up is the way the up side of the profile faces on the stretch from each path point, also worked out per point, such as 0, 1, 0 to keep a rail level on a winding path; left off, the profile turns as little as it can from one stretch to the next; a twisted stretch bends its sides, so As Mesh suits Twist best. Each stretch of the path becomes one solid, and the joints are cut on the mitre between two stretches so the pieces meet exactly. A dented profile fills in as a solid; with As Mesh on, the whole sweep is one mesh instead and keeps any profile, and Fill Caps off leaves the ends of an open path open, like a tube. A closed Path, such as a Square or a Path with Closed on, joins its last point back to the first; a list of points stays open. Example: a Path, or Resample of a few points, Radius 0.05, gives a round handrail.',

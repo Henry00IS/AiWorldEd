@@ -29,7 +29,7 @@ export const SOLID_SCRIPT_COMMANDS_FILL: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'fill_paths',
     label: 'Fill Paths',
-    category: 'Meshes',
+    category: 'Paths',
     description: 'Fill closed paths with a flat mesh',
     manual:
       'Builds a flat mesh of triangles that fills closed paths, for a floor, a pond or a terrain patch. Paths holds Paths, such as the list Path From Edges writes, or the points of one closed loop. A path inside another is a hole, one inside that is filled again, and so on. Every path is laid flat in the plane of the biggest one, and the mesh faces the way that path runs round; Flip Faces turns it over. Example: Path From Points [0, 0, 0], [0, 0, 4], [4, 0, 4], [4, 0, 0] Closed Into [Floor], a smaller Path Into [Hole], then Fill Paths [Floor], [Hole] gives a floor with a hole.',

@@ -103,7 +103,7 @@ export const SOLID_SCRIPT_COMMANDS_DELETE: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'delete_objects',
     label: 'Delete Objects',
-    category: 'Faces',
+    category: 'Objects',
     description: 'Take whole objects out',
     manual:
       'Takes solids and meshes out of the result, and out of [$Selected.Objects]. Of gives the objects; empty uses [$Selected.Objects]. Where, when given, is a 🔁 condition an object must pass to be taken out. A list that still holds a deleted object reads it with no faces. Example: Select Objects, then Delete Objects Where [=[$Object.Center.Y] < 0] takes out everything below the floor.',
@@ -141,7 +141,7 @@ export const SOLID_SCRIPT_COMMANDS_DELETE: readonly SolidScriptCommand[] = [
     id: 'delete_edges',
     edits: true,
     label: 'Delete Edges',
-    category: 'Faces',
+    category: 'Edges',
     description: 'Take out the faces along edges',
     manual:
       'Takes out of a mesh every face that uses an edge in Of, leaving an opening along it. Of gives edges, or the edges of faces or meshes; empty uses [$Selected.Edges], or the edges of [$Selected.Faces] when no edges are picked. Where, when given, is a 🔁 condition an edge must pass. A solid stops the line: wrap it in Mesh From Solids first. Example: Mesh From Solids around a Cube, Select Edges Where [=[$Edge.Center.Y] > 0.4], then Delete Edges takes out the top and the four side faces that meet it.',
@@ -160,7 +160,7 @@ export const SOLID_SCRIPT_COMMANDS_DELETE: readonly SolidScriptCommand[] = [
     id: 'delete_vertices',
     edits: true,
     label: 'Delete Vertices',
-    category: 'Faces',
+    category: 'Vertices',
     description: 'Take out the faces around corners',
     manual:
       'Takes out of a mesh every face that uses a corner in Of, leaving a hole around it. Of gives vertices, or the corners of faces, edges or meshes; empty uses [$Selected.Vertices], or the corners of [$Selected.Faces] when no vertices are picked. Where, when given, is a 🔁 condition a corner must pass. A solid stops the line: wrap it in Mesh From Solids first. Example: Mesh From Solids around a Cube, then Delete Vertices Of [$Selected.Objects] Where [=[$Y] > 0] and [=[$X] > 0] takes out the three faces around one top corner.',

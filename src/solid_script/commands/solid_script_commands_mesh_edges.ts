@@ -151,7 +151,7 @@ export const SOLID_SCRIPT_COMMANDS_MESH_EDGES: readonly SolidScriptCommand[] = [
     id: 'split_edges',
     edits: true,
     label: 'Split Edges',
-    category: 'Meshes',
+    category: 'Edges',
     description: 'Cut mesh faces apart along edges',
     manual:
       'Cuts a mesh apart along edges, so the faces on either side no longer share corners there. Nothing moves, but later lines can pull the sides apart, and the editor shades a split edge hard. Corners are copied only where faces around them are cut off from each other. Of gives edges, or the edges of faces or meshes; empty uses [$Selected.Edges], else the edges of [$Selected.Faces], else every edge of [$Selected.Objects]. Where is a 🔁 condition an edge must pass. A solid stops the line: wrap it in Mesh From Solids first. Example: Mesh From Solids around a Sphere, then Split Edges Where [=[$Edge.Angle] > 30], keeps sharp creases apart.',
@@ -170,7 +170,7 @@ export const SOLID_SCRIPT_COMMANDS_MESH_EDGES: readonly SolidScriptCommand[] = [
     id: 'extrude_edges',
     edits: true,
     label: 'Extrude Edges',
-    category: 'Meshes',
+    category: 'Edges',
     description: 'Pull mesh edges out into new faces',
     manual:
       'Pulls edges of a mesh out into new four-sided faces, from each edge to a moved copy of it, and picks those faces in [$Selected.Faces]. Edges that share a corner share its moved copy, so a chain of edges becomes one strip, such as a rim or a fence along a border. Distance is how far, in metres; a negative one goes the other way. Direction is the way to move; left off, each corner moves the way the faces around it face. Of gives edges, or the edges of faces or meshes; empty uses [$Selected.Edges], else the edges of [$Selected.Faces], else every edge of [$Selected.Objects]. Where is a 🔁 condition an edge must pass. A solid stops the line: wrap it in Mesh From Solids first. Example: Grid Mesh, then Extrude Edges Where [$Edge.IsBoundary] Distance 0.5 Direction 0, 1, 0 raises a low wall round it.',

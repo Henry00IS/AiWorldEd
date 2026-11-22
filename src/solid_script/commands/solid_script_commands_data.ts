@@ -54,7 +54,7 @@ export const SOLID_SCRIPT_COMMANDS_DATA: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'blur_data',
     label: 'Blur Data',
-    category: 'Faces',
+    category: 'Data',
     description: 'Smooth a .Data value by averaging it with its neighbors',
     manual:
       'Averages the number or vector under .Data Key of each item in Of with those of its neighbors, Rounds times, as Blur Attribute does. Faces are neighbors when they share an edge, and edges or corners when they share a corner; only items in Of that pass the 🔁 Where count, and the others keep their values. Every round reads the values of the round before, so the result does not depend on the order. Items whose Key holds no number are left as they are. Of gives faces, edges or corners; empty uses [$Selected.Faces]. Example: Set [Box.Faces.Data.Heat] [=[$Item.Normal].Y > 0.5 ? 6 : 0], then Blur Data Key Heat Rounds 3 Of [Box.Faces] spreads the heat of the top over the sides.',

@@ -163,7 +163,7 @@ export const SOLID_SCRIPT_COMMANDS_POINTS: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'points_from_path',
     label: 'Points From Path',
-    category: 'Faces',
+    category: 'Points',
     description: 'Spread points along a path, with the way it runs',
     manual:
       'Spreads points along a Path or a list of points and writes them to Into. By Count puts Count points evenly from start to end; By Spacing puts one every Spacing metres from the start, keeping the end. A closed Path does not repeat its start at the end. Directions, when named, gets the way the path runs at each point, and Amounts how far along each one is, from 0 at the start to 1 at the end; times PathLength([Path]) that is the distance along. Example: Path Arc Into [Rail], Points From Path [Rail] By Spacing 0.5 Into [Posts] Directions [Ways], then Place At Points At [Posts] Forward [Ways] with a Cube inside, stands a post every half metre, each facing along the rail.',
@@ -248,7 +248,7 @@ export const SOLID_SCRIPT_COMMANDS_POINTS: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'points',
     label: 'Points',
-    category: 'Faces',
+    category: 'Points',
     description: 'Make a list of points from a formula',
     manual:
       'Makes Count points and writes them to Into, a list of vectors. At is worked out once per point, with [$Index] its number from 0 and [$Count] how many there are, so one line lays out a row, a ring or a spiral without Repeat and Add Item. Use the points with Place At Points, Path From Points or Sweep Along Path. Example: Points Count 8 At [=Vector(Cos([$Index] * 45) * 3, 0, Sin([$Index] * 45) * 3)] Into [Ring], then Place At Points At [Ring] with a Cylinder inside, makes a ring of 8 posts.',
@@ -279,7 +279,7 @@ export const SOLID_SCRIPT_COMMANDS_POINTS: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'points_from_faces',
     label: 'Points From Faces',
-    category: 'Faces',
+    category: 'Points',
     description: 'Take a point at the center of each face',
     manual:
       'Writes a point at the center of each face in Of, and the way the face looks in Normals. Empty Of uses [$Selected.Faces]. Faces that lie back to back against another object in Of, inside the shape, are skipped. Use the points with Place At Points, and turn on Align To Normal so each copy stands the way Place On Face would. Example: Select Faces Facing Up, Points From Faces Into [Spots] Normals [Dirs], Place At Points At [Spots] Directions [Dirs] Align To Normal, Cylinder, End.',
@@ -303,7 +303,7 @@ export const SOLID_SCRIPT_COMMANDS_POINTS: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'points_from_edges',
     label: 'Points From Edges',
-    category: 'Faces',
+    category: 'Points',
     description: 'Take a point at the middle of each edge',
     manual:
       'Writes a point at the middle of each edge in Of, and the way the edge looks out in Normals, from the faces that meet there. Of can be edges, faces or objects; empty uses [$Selected.Edges], or the edges of [$Selected.Faces]. Example: Select Faces Which All, Points From Edges Into [Spots] Normals [Dirs], then Place At Points At [Spots] Directions [Dirs] Align To Normal.',
@@ -332,7 +332,7 @@ export const SOLID_SCRIPT_COMMANDS_POINTS: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'points_from_vertices',
     label: 'Points From Vertices',
-    category: 'Faces',
+    category: 'Points',
     description: 'Take a point at each vertex',
     manual:
       'Writes a point at each vertex in Of, and the average way of the faces around it in Normals. Of can be vertices, faces or objects; empty uses [$Selected.Vertices], or the vertices of [$Selected.Faces]. Example: Select Objects, Points From Vertices Into [Spots] Normals [Dirs].',

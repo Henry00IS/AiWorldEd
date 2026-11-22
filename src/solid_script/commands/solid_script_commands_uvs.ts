@@ -67,7 +67,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
     id: 'project_uvs',
     edits: true,
     label: 'Project UVs',
-    category: 'Faces',
+    category: 'UVs',
     description: 'Give faces texture coordinates from a box, plane, cylinder or sphere',
     manual:
       "Gives faces texture coordinates projected from a Mode: Box (the Overhead, Front or Side view each face faces most), Planar (one plane, From Face, Overhead, Front or Side), Cylinder or Sphere. Size is metres of one texture repeat. Space is Local (from the shape's center, so a move keeps the mapping) or World (from the script origin, along the world axes). Cylinder and Sphere take Axis and an optional Center (empty uses the shape's center); a solid face gets a fitted planar map, a mesh face gets exact corner coordinates. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. Solids stay solids; meshes stay meshes. Example: Cube, Select Faces, Project UVs Mode Box Size 1 wraps each side from the way it faces.",
@@ -166,7 +166,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
     id: 'unwrap',
     edits: true,
     label: 'Unwrap',
-    category: 'Faces',
+    category: 'UVs',
     description: 'Lay each face flat in UV space',
     manual:
       "Gives each face its own UV island, projected onto the face's plane with the editor's planar basis, shifted so the lowest U and V are 0. With Seams, only edges that pass Seams are cut open: faces joined by other edges stay together, each folded open from its neighbour so lengths and angles stay true, which suits a strip of wall or a box's sides. Pack Yes (the default) then packs the islands into the 0 to 1 square as Pack Islands does, Margin apart. Pack No leaves them where they fold, Size metres to one texture repeat, so a texture keeps its true size across faces. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. Solids stay solids; meshes stay meshes. Example: Cube, Select Faces, Unwrap Seams [=[$Edge.Angle] > 45].",
@@ -226,7 +226,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
     id: 'pack_islands',
     edits: true,
     label: 'Pack Islands',
-    category: 'Faces',
+    category: 'UVs',
     description: 'Fit UV islands into 0 to 1',
     manual:
       "Packs the UV islands of the faces into the 0 to 1 square, keeping each island's shape and scaling all of them alike. Faces that share a corner with the same UV, such as faces Unwrap kept joined, move together as one island. Margin is the gap between islands as a share of the square. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. Solids stay solids; meshes stay meshes. Example: Unwrap, then Pack Islands.",
@@ -256,7 +256,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
     id: 'transform_uvs',
     edits: true,
     label: 'Transform UVs',
-    category: 'Faces',
+    category: 'UVs',
     description: 'Move, scale or rotate texture coordinates',
     manual:
       "Offsets, scales and rotates the UV mapping of the faces in UV space. Offset is tiles added to U and V (Z is ignored); on solids from Input Objects it shifts the texture of that copy. It is added after Scale and Rotate. Pivot is Center (the middle of the faces' UVs), Tile (the middle of the texture tile under that center, such as 0.5, 0.5), Origin (0, 0) or Each Face (the middle of each face's own UVs, so every face turns and scales in place). Readable Text Yes keeps lettering readable when a later Mirror or a mirrored copy would otherwise reverse it, No lets the reflection reverse it, and left off the solid keeps the Readable Text it already has. Textures is Move With Shape, so textures stay on their faces, or World Aligned, so they stay where they are in the world; left off, the solid keeps the Textures it already has. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. Solids stay solids; meshes stay meshes. Example: Project UVs, then Transform UVs Offset 0.5, 0 Rotate 90.",

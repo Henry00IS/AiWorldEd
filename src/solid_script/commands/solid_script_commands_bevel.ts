@@ -297,7 +297,7 @@ export const SOLID_SCRIPT_COMMANDS_BEVEL: readonly SolidScriptCommand[] = [
     id: 'bevel_edges',
     edits: true,
     label: 'Bevel Edges',
-    category: 'Faces',
+    category: 'Edges',
     description: 'Cut edges off flat',
     manual:
       'Cuts edges off flat. Of gives edges, faces (their edges) or objects (all their edges); empty uses [$Selected.Edges], else the edges of [$Selected.Faces]. The 🔁 Where keeps the edges it holds for, and Distance may change per edge, such as [=[$Edge.Length] * 0.1]. On a solid each edge is cut Distance back along each face. On a mesh each edge becomes a strip whose sides lie Distance along the edges that meet it, and a corner where several bevelled edges meet gets a face of its own; a corner where edges of different Distance meet uses the largest, and corners at the same place are joined first. Mesh edges on an open border, with a face on one side only, stay sharp with a warning. Edges of faces a bevel made are skipped, so bevelling face by face ends the same as bevelling all at once. Into names a variable for the new faces, and [$Selected.Faces] holds them afterwards. Example: Cube, Select Faces All, Bevel Edges by 0.1.',
@@ -334,7 +334,7 @@ export const SOLID_SCRIPT_COMMANDS_BEVEL: readonly SolidScriptCommand[] = [
     id: 'bevel_vertices',
     edits: true,
     label: 'Bevel Vertices',
-    category: 'Faces',
+    category: 'Vertices',
     description: 'Cut corners of a mesh off flat',
     manual:
       'Cuts corners of a mesh off: every edge that meets a corner gets a new corner Distance along it, and a new face joins them. Of gives corners, faces (their corners) or meshes (all their corners); empty uses [$Selected.Vertices], else the corners of [$Selected.Faces]. The 🔁 Where keeps the corners it holds for, and Distance may change per corner. Corners at the same place are joined first. Into names a variable for the new faces, and [$Selected.Faces] holds them afterwards. A solid stops, with a hint to wrap it in Mesh From Solids first. Example: Mesh From Solids around a Cube, then Select Objects and Bevel Vertices by 0.2 cuts its 8 corners off.',

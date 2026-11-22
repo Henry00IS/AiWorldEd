@@ -345,6 +345,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
   SOLID_SCRIPT_COMMAND_SCATTER,
   new SolidScriptCommand({
     id: 'place_on_face',
+    builtKind: 'Object',
     label: 'Place On Face',
     category: 'Faces',
     description: 'Stand objects on faces',
@@ -386,8 +387,9 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
 
   new SolidScriptCommand({
     id: 'place_at_points',
+    builtKind: 'Object',
     label: 'Place At Points',
-    category: 'Faces',
+    category: 'Points',
     description: 'Stand objects at a list of points',
     builds: true,
     intoList: true,
@@ -592,7 +594,7 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
   new SolidScriptCommand({
     id: 'texture',
     label: 'Texture',
-    category: 'Faces',
+    category: 'Objects',
     description: 'Paint objects with a texture',
     manual:
       "Gives every face of the objects between this line and its End the texture named by Texture, the name a texture has in the texture library. Objects outside any Texture block keep the generator's own texture, and an inner Texture block wins over an outer one. A texture Input picks the name from the library, so the inspector can change it. The 🔁 Texture may change per object, such as with [$Index]. Example: Input Wall, texture, then Texture [Wall] around the walls paints them with the picked texture.",

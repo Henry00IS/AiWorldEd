@@ -29,6 +29,17 @@ function run(...lines: SolidScriptLine[]) {
 }
 
 /** Sample lines inside each block that needs some, so it runs on its own. */
+/** Palette groups whose sample lines run on a picked cube. */
+const SOLID_SCRIPT_SAMPLE_PICKED: readonly string[] = [
+  'Objects',
+  'Faces',
+  'Edges',
+  'Vertices',
+  'Points',
+  'UVs',
+  'Data',
+];
+
 const SOLID_SCRIPT_SAMPLE_CHILDREN: Readonly<Record<string, readonly SolidScriptLine[]>> = {
   polyhedron: [
     { command: 'point', values: { position: '0, 0, 0' } },
@@ -123,10 +134,12 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
         : command.id === 'displace'
           ? [{ command: 'subdivide', values: { levels: '3', smooth: 'false' } }]
           : [];
-    const pick = command.category === 'Faces' ? [{ command: solidScriptSamplePick(command.id) }] : [];
+    const pick = SOLID_SCRIPT_SAMPLE_PICKED.includes(command.category)
+      ? [{ command: solidScriptSamplePick(command.id) }]
+      : [];
     return [...meshFirst, { command: 'select_objects' }, ...tools, ...pick, line];
   }
-  if (command.category === 'Faces') {
+  if (SOLID_SCRIPT_SAMPLE_PICKED.includes(command.category) || command.id.startsWith('path_from_')) {
     if (command.id === 'select_objects') return [{ command: 'cube' }, line];
     const pick: SolidScriptLine[] = [{ command: 'cube' }, { command: 'select_objects' }, { command: 'select_faces' }];
     if (command.id === 'select_faces') return [{ command: 'cube' }, { command: 'select_objects' }, line];
@@ -337,7 +350,9 @@ describe('solid script command catalog', () => {
         (command) => command.nesting === 'open' && command.category !== 'Solids' && command.category !== '2D Shapes',
       )
       .map((command) => command.category);
-    expect(new Set(openers)).toEqual(new Set(['Transforms', 'Combine', 'Meshes', 'Faces', 'Inputs', 'Logic', 'Parts']));
+    expect(new Set(openers)).toEqual(
+      new Set(['Transforms', 'Combine', 'Objects', 'Meshes', 'Faces', 'Points', 'Inputs', 'Logic', 'Parts']),
+    );
     expect(solidScriptCommandFind('cube')?.nesting).toBe('none');
     expect(solidScriptCommandFind('else')?.nesting).toBe('continue');
     expect(solidScriptCommandFind('end')?.nesting).toBe('close');
@@ -437,7 +452,7 @@ describe('solid script command catalog', () => {
       'mesh_from_solids',
     ]);
     const projectUvs = solidScriptCommandFind('project_uvs');
-    expect(projectUvs && projectUvs.category === 'Faces').toBe(true);
+    expect(projectUvs && projectUvs.category === 'UVs').toBe(true);
     expect(projectUvs && solidScriptCommandPreservesBrushes(projectUvs)).toBe(true);
     const hint = /no longer be a convex solid.+Mesh From Solids first/;
     const refused = [

@@ -240,7 +240,7 @@ export const SOLID_SCRIPT_COMMANDS_PATH_HANDLES: readonly SolidScriptCommand[] =
     id: 'set_handles',
     edits: true,
     label: 'Set Handles',
-    category: 'Meshes',
+    category: 'Paths',
     description: 'Bend a path with handles at its points',
     manual:
       "Writes to Into a copy of a Path whose points have a Left and a Right handle, with every stretch bent into a Bezier curve: a stretch leaves its start toward that point's Right handle and comes into its end from that point's Left handle. Left and Right are 🔁 positions, with [$Point] the point and [$Index] its number from 0, such as [=[$Point.Position] + Vector(0, 1, 0)]; left off, a field keeps the handles the path has, which on a straight stretch lie a third of the way along it. Resolution is how many steps each stretch is drawn in. Read the handles back with [Path.HandlesLeft] and [Path.HandlesRight]. Path is a Path or a list of points for a straight open one. Example: Path From Points [0, 0, 0], [4, 0, 0] Into [Arch], then Set Handles Path [Arch] Right 1, 2, 0 Left 3, 2, 0 Into [Arch] bends it into an arch.",
@@ -290,7 +290,7 @@ export const SOLID_SCRIPT_COMMANDS_PATH_HANDLES: readonly SolidScriptCommand[] =
     id: 'set_handle_type',
     edits: true,
     label: 'Set Handle Type',
-    category: 'Meshes',
+    category: 'Paths',
     description: 'Place path handles automatically, as vectors or in line',
     manual:
       'Writes to Into a copy of a Path whose points that pass the 🔁 Pick Where get handles placed by Type, with every stretch a Bezier curve. Auto places both handles along the way from the point before to the point after, sized to the stretches beside it, for a smooth curve through the points. Vector puts each handle a third of the way to the neighbour on its side, so the stretches stay straight. Align turns the handles into one line through the point, keeping their lengths; with Side Left or Right only that handle turns, to point away from the other. Free keeps the handles. Side picks which handles change. The handles are placed once, when the line runs: move the points later and run Set Handle Type again. Resolution is how many steps each stretch is drawn in. Path is a Path or a list of points for a straight open one. Example: Set Handle Type Path [Rail] Type Auto Into [Rail] rounds a zigzag into a smooth curve.',
@@ -351,7 +351,7 @@ export const SOLID_SCRIPT_COMMANDS_PATH_HANDLES: readonly SolidScriptCommand[] =
     id: 'set_tilt',
     edits: true,
     label: 'Set Tilt',
-    category: 'Meshes',
+    category: 'Paths',
     description: 'Tilt a path about the way it runs at each point',
     manual:
       'Writes to Into a copy of a Path whose points have a Tilt: a 🔁 number of degrees per point, with [$Point] the point and [$Index] its number from 0, such as [=[$Index] * 30]. Sweep Along Path turns the profile by the tilt about the way the path runs there, on top of its Twist, and curved stretches blend from one tilt to the next. Read the tilts back with [Path.Tilts], one per point the path passes. Path is a Path or a list of points for a straight open one. Example: Set Tilt Path [Rail] Tilt [=[$Index] * 45] Into [Rail], then Sweep Along Path [Rail], gives a twisted band.',
@@ -381,7 +381,7 @@ export const SOLID_SCRIPT_COMMANDS_PATH_HANDLES: readonly SolidScriptCommand[] =
     id: 'set_path_type',
     edits: true,
     label: 'Set Path Type',
-    category: 'Meshes',
+    category: 'Paths',
     description: 'Make a path straight or curved between its points',
     manual:
       'Writes to Into a copy of a Path whose stretches run another way between its points. Poly makes every stretch straight and drops its handles. Bezier makes every stretch a Bezier curve, keeping the handles a curved stretch has and giving a straight one handles a third of the way along it, so its shape stays until Set Handles moves them; a Catmull Rom path keeps its shape too. Catmull Rom runs a smooth curve through every point, each open end standing in for its missing neighbour. NURBS runs a smooth cubic curve pulled toward the points: a straight path keeps its points, and an open one still reaches its ends; a curved one keeps its shape, each point and its two handles becoming three points. A NURBS path with fewer than 4 points runs straight through them. Making a Catmull Rom or NURBS path Poly gives back its points. Resolution is how many steps each curved stretch is drawn in. Path is a Path or a list of points for a straight open one. Example: Set Path Type Path [Rail] Type Bezier Into [Rail], then Set Handles bends it.',
@@ -432,7 +432,7 @@ export const SOLID_SCRIPT_COMMANDS_PATH_HANDLES: readonly SolidScriptCommand[] =
     id: 'set_path_closed',
     edits: true,
     label: 'Set Path Closed',
-    category: 'Meshes',
+    category: 'Paths',
     description: 'Join the ends of a path, or open it',
     manual:
       'Writes to Into a copy of a Path that is closed, its last point joined back to its first, or open. Closing a straight path adds a straight stretch; closing a curved one adds a Bezier stretch with handles a third of the way along, for Set Handles to bend. Opening drops the stretch from the last point back to the first. Tilts and the way the path curves stay. Read it back with [Path.Closed]. Path is a Path or a list of points for a straight open one. Example: Set Path Closed Path [Rail] Closed Yes Into [Rail] makes a ring of an open rail.',
@@ -470,7 +470,7 @@ export const SOLID_SCRIPT_COMMANDS_PATH_HANDLES: readonly SolidScriptCommand[] =
     id: 'subdivide_path',
     edits: true,
     label: 'Subdivide Path',
-    category: 'Meshes',
+    category: 'Paths',
     description: 'Add points evenly inside each stretch of a path',
     manual:
       'Writes to Into a copy of a Path with Cuts new points inside each stretch, evenly along it, so its shape stays: a Bezier stretch is split into Bezier stretches along its curve, a Catmull Rom path gets points on its curve, and a straight stretch or a NURBS path gets points on the line between its points. Cuts is a 🔁 whole number per point, with [$Point] the point and [$Index] its number from 0, and gives the cuts of the stretch that starts there; below 0 counts as none. New points get the tilt between their neighbours. Path is a Path or a list of points for a straight open one. Example: Subdivide Path Path [Rail] Cuts 3 Into [Rail], then Points From Path, puts points evenly along every stretch.',

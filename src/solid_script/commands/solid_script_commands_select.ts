@@ -1,7 +1,7 @@
 import { solidScriptParameterEach } from './solid_script_command_each.js';
 import { solidScriptKindNamed } from '@/solid_script/language/solid_script_kinds.js';
 import { SolidScriptCommand, type SolidScriptCommandWord } from './solid_script_command.js';
-import type { SolidScriptCommandEach } from './solid_script_command_each.js';
+import type { SolidScriptCommandCategory } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import {
   solidScriptParameterInto,
@@ -26,6 +26,16 @@ const SOLID_SCRIPT_SELECT_HOW: readonly SolidScriptCommandWord[] = [
   { word: 'Remove', detail: 'Drop these from the pick' },
 ];
 
+/** What these lines pick. */
+type SolidScriptSelectItem = 'Object' | 'Edge' | 'Vertex';
+
+/** Palette group of each kind of pick, also the name of its $Selected list. */
+const SOLID_SCRIPT_SELECT_GROUPS = {
+  Object: 'Objects',
+  Edge: 'Edges',
+  Vertex: 'Vertices',
+} as const satisfies Record<SolidScriptSelectItem, SolidScriptCommandCategory>;
+
 /** What one Select line picks. */
 interface SolidScriptSelectKind {
   id: string;
@@ -35,7 +45,7 @@ interface SolidScriptSelectKind {
   /** Example for the manual. */
   example: string;
   /** Name of the value a Where condition reads, such as Edge. */
-  item: SolidScriptCommandEach;
+  item: SolidScriptSelectItem;
   selected: SolidScriptSelectedKind;
   /** Kinds of element it picks from. */
   from: readonly string[];
@@ -148,9 +158,9 @@ function solidScriptSelectCommand(kind: SolidScriptSelectKind): SolidScriptComma
   return new SolidScriptCommand({
     id: kind.id,
     label: kind.label,
-    category: 'Faces',
+    category: SOLID_SCRIPT_SELECT_GROUPS[kind.item],
     description: `Pick ${kind.many}`,
-    manual: `Picks ${kind.many} and puts them in [$Selected.${kind.item === 'Edge' ? 'Edges' : kind.item === 'Object' ? 'Objects' : 'Vertices'}], where lines with an empty Of find them. ${kind.item === 'Object' ? 'Of says which objects to pick from, solids and meshes alike; empty uses every object built so far, and those a modifier has received.' : 'Of says where to pick from: objects, faces or edges; empty uses [$Selected.Faces], or [$Selected.Objects] when no faces are picked.'} Which All keeps every one, the same as a Where left off. Which Between keeps the ${kind.many} between this ${kind.label} and the previous one. Where is a 🔁 condition each remaining one must pass, with [$${kind.item}] the item being tested, such as [=[$${kind.item}.${kind.item === 'Edge' ? 'Length' : kind.item === 'Object' ? 'Size.X' : 'Position.Y'}] > 1], and [$Index] its number from 0. Left off, Where keeps what Which picked. How adds to or removes from the ${kind.many} picked before. Into also writes them to a variable, a ${kind.item} list, and Rest the ${kind.many} looked at but not picked, so one line can split them in two. Example: ${kind.example}`,
+    manual: `Picks ${kind.many} and puts them in [$Selected.${SOLID_SCRIPT_SELECT_GROUPS[kind.item]}], where lines with an empty Of find them. ${kind.item === 'Object' ? 'Of says which objects to pick from, solids and meshes alike; empty uses every object built so far, and those a modifier has received.' : 'Of says where to pick from: objects, faces or edges; empty uses [$Selected.Faces], or [$Selected.Objects] when no faces are picked.'} Which All keeps every one, the same as a Where left off. Which Between keeps the ${kind.many} between this ${kind.label} and the previous one. Where is a 🔁 condition each remaining one must pass, with [$${kind.item}] the item being tested, such as [=[$${kind.item}.${kind.item === 'Edge' ? 'Length' : kind.item === 'Object' ? 'Size.X' : 'Position.Y'}] > 1], and [$Index] its number from 0. Left off, Where keeps what Which picked. How adds to or removes from the ${kind.many} picked before. Into also writes them to a variable, a ${kind.item} list, and Rest the ${kind.many} looked at but not picked, so one line can split them in two. Example: ${kind.example}`,
     stops: [
       'No objects to pick from.',
       'A Which that is not one of the choices.',

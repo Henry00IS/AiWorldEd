@@ -40,7 +40,7 @@ export const SOLID_SCRIPT_COMMANDS_SHADING: readonly SolidScriptCommand[] = [
     id: 'shade_smooth',
     edits: true,
     label: 'Shade Smooth',
-    category: 'Faces',
+    category: 'Objects',
     description: 'Shade faces smooth, keeping sharp edges hard',
     manual:
       'Shades faces smoothly into each other, so a round shape built of flat faces looks round. Faces that meet at less than Angle degrees blend; sharper edges stay hard, so 60 smooths a Cylinder but keeps its rim. Angle 0 makes faces flat again, and 180 smooths every edge. Of gives the objects, or single faces; empty uses [$Selected.Objects]. The 🔁 Where keeps the faces it holds for, such as [=Abs([$Face.Normal.Y]) < 0.5] for the sides only. Smooth solids blend with each other where they meet, so a shape made of several pieces looks like one. It works on solids, and the faces keep it when the solid is moved, turned or scaled. Example: Sphere, Select Objects, Shade Smooth.',

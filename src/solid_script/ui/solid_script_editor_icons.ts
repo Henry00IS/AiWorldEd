@@ -10,6 +10,17 @@ const SOLID_SCRIPT_EDITOR_ICON_PATHS: Readonly<Record<string, string>> = {
   Meshes: '<path d="M2 13.5 8 2.5l6 11z M5 8h6 M8 2.5 5 8l3 5.5 3-5.5z"/>',
   Faces:
     '<path d="M2 5.5 8 2.5l6 3v6l-6 3-6-3z M2 5.5l6 3 6-3 M8 8.5v6"/><path d="M4 5.5 8 3.5l4 2-4 2z" fill="currentColor"/>',
+  Objects:
+    '<rect x="1.5" y="5.5" width="8" height="8" rx="1"/><path d="M6.5 5.5v-3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-4"/>',
+  Edges: '<path d="M2.5 2.5h11v11h-11z" stroke-opacity=".45"/><path d="M2.5 13.5h11" stroke-width="2.4"/>',
+  Vertices:
+    '<path d="M3 3h10v10H3z" stroke-opacity=".45"/><circle cx="3" cy="3" r="1.4" fill="currentColor"/><circle cx="13" cy="3" r="1.4" fill="currentColor"/><circle cx="3" cy="13" r="1.4" fill="currentColor"/><circle cx="13" cy="13" r="1.4" fill="currentColor"/>',
+  Points:
+    '<circle cx="3" cy="4" r="1.4" fill="currentColor"/><circle cx="8" cy="2.5" r="1.4" fill="currentColor"/><circle cx="12.5" cy="5" r="1.4" fill="currentColor"/><circle cx="5" cy="9" r="1.4" fill="currentColor"/><circle cx="10" cy="9.5" r="1.4" fill="currentColor"/><circle cx="3.5" cy="13.5" r="1.4" fill="currentColor"/><circle cx="12.5" cy="13" r="1.4" fill="currentColor"/>',
+  Paths:
+    '<path d="M2 12.5C5 2 11 14 14 3.5"/><path d="M2 12.5 4.5 5 M14 3.5l-2.5 7.5" stroke-opacity=".5"/><circle cx="2" cy="12.5" r="1"/><circle cx="14" cy="3.5" r="1"/>',
+  UVs: '<rect x="2.5" y="2.5" width="11" height="11"/><path d="M2.5 8h11 M8 2.5v11"/><path d="M2.5 2.5H8V8H2.5z M8 8h5.5v5.5H8z" fill="currentColor" fill-opacity=".45"/>',
+  Data: '<ellipse cx="8" cy="3.5" rx="5.5" ry="2"/><path d="M2.5 3.5v9c0 1.1 2.5 2 5.5 2s5.5-.9 5.5-2v-9 M2.5 8c0 1.1 2.5 2 5.5 2s5.5-.9 5.5-2"/>',
   Lists:
     '<path d="M5.5 3.5h9 M5.5 8h9 M5.5 12.5h9"/><circle cx="2.5" cy="3.5" r="1"/><circle cx="2.5" cy="8" r="1"/><circle cx="2.5" cy="12.5" r="1"/>',
   Inputs: '<path d="M2 4.5h12 M2 11.5h12"/><circle cx="5.5" cy="4.5" r="1.8"/><circle cx="10.5" cy="11.5" r="1.8"/>',
