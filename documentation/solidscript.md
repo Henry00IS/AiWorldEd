@@ -165,3 +165,4 @@ The **Examples** window holds showcase scripts such as the Spiral Staircase, sma
 - For Each has a 🔁 Where an item must pass, with [$Item] the item, for the lines inside to run for it, such as Where [=[$Item.Normal.Y] > 0.5]; Key still counts in the whole list.
 - Function inputs may have defaults, such as W, D = 1: a call may leave those off, and they take the value after =. Numbers, Yes/No, quoted text and [lists] are read as values. Inputs with a default come last.
 - A Function reruns for each item when its formula is used per item, such as in a Where or a per-face field: [Local.X] holds that item's value each time.
+- Scatter Points Ids writes a steady number for each point, worked out from where it lies, so Random seeded by it stays with a point when Count grows or other points are removed.

@@ -312,3 +312,21 @@ function solidScriptScatterGridPoint(
     count === 1 ? 0 : (index / (count - 1) - 0.5) * length;
   return new THREE.Vector3(along(counts.x, x, size.x), along(counts.y, y, size.y), along(counts.z, z, size.z));
 }
+
+/**
+ * Gives each point a steady id from where it lies, to a hundredth of a
+ * millimetre, so a point keeps its id when others are added or taken away.
+ *
+ * @param positions Points.
+ * @returns Whole numbers from 0, one per point.
+ */
+export function solidScriptScatterIds(positions: readonly THREE.Vector3[]): number[] {
+  return positions.map((point) => {
+    let hash = 0x811c9dc5;
+    for (const axis of [point.x, point.y, point.z]) {
+      hash = Math.imul(hash ^ Math.round(axis * 1e5), 0x01000193);
+      hash ^= hash >>> 13;
+    }
+    return (hash >>> 0) % 2147483647;
+  });
+}
