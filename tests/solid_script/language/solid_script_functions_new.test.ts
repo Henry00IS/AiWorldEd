@@ -68,7 +68,7 @@ describe('SolidScript formula helpers', () => {
   it('rotates, measures, projects and reflects vectors', () => {
     expect(vector(formula('RotateVector([1, 0, 0], [0, 1, 0], 90)'))).toEqual([0, 0, -1]);
     expect(formula('Angle([1, 0, 0], [0, 1, 0])')).toBe('90');
-    expect(formula('Project([1, 2, 0], [0, 0, 0], [0, 1, 0])')).toBe('[1, 0, 0]');
+    expect(formula('ProjectOnPlane([1, 2, 0], [0, 0, 0], [0, 1, 0])')).toBe('[1, 0, 0]');
     expect(formula('Reflect([1, -1, 0], [0, 1, 0])')).toBe('[1, 1, 0]');
   });
 

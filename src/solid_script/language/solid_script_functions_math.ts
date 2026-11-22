@@ -73,15 +73,54 @@ function solidScriptMathVectors(args: readonly SolidScriptValue[], usage: string
  * @returns Rotated vector.
  */
 function solidScriptMathRotate(args: readonly SolidScriptValue[]): number[] {
-  const usage = 'RotateVector(vector, axis, degrees)';
+  const usage = 'RotateVector(vector, axis, degrees, center)';
   const vector = solidScriptMathTriple(solidScriptValueNumbers(args[0]));
   const axis = solidScriptMathTriple(solidScriptValueNumbers(args[1]));
-  if (!vector || !axis) throw new Error(`${usage} needs two vectors of three numbers, and an angle in degrees`);
+  const center = args.length > 3 ? solidScriptMathTriple(solidScriptValueNumbers(args[3])) : [0, 0, 0];
+  if (!vector || !axis || !center) throw new Error(`${usage} needs vectors of three numbers, and an angle in degrees`);
   const [ax, ay, az] = axis;
   const size = Math.hypot(ax, ay, az);
   if (size === 0) throw new Error(`${usage} cannot use 0, 0, 0 as an axis; write a direction such as 0, 1, 0`);
   const radians = (solidScriptExtraNumber(args, 2, usage) * Math.PI) / 180;
-  return solidScriptMathRotateAxis(vector, [ax / size, ay / size, az / size], radians);
+  const from = vector.map((value, index) => value - (center[index] ?? 0)) as [number, number, number];
+  const turned = solidScriptMathRotateAxis(from, [ax / size, ay / size, az / size], radians);
+  return turned.map((value, index) => value + (center[index] ?? 0));
+}
+
+/**
+ * Turns a vector by angles around X, then Y, then Z.
+ *
+ * @param args Vector and the three angles in degrees.
+ * @returns Rotated vector.
+ */
+function solidScriptMathRotateEuler(args: readonly SolidScriptValue[]): number[] {
+  const usage = 'RotateEuler(vector, angles)';
+  const vector = solidScriptMathTriple(solidScriptValueNumbers(args[0]));
+  const angles = solidScriptMathTriple(solidScriptValueNumbers(args[1]));
+  if (!vector || !angles) throw new Error(`${usage} needs a vector and three angles in degrees, such as 0, 90, 0`);
+  const axes: [number, number, number][] = [
+    [1, 0, 0],
+    [0, 1, 0],
+    [0, 0, 1],
+  ];
+  return axes.reduce<number[]>((turned, axis, index) => {
+    const [x = 0, y = 0, z = 0] = turned;
+    return solidScriptMathRotateAxis([x, y, z], axis, ((angles[index] ?? 0) * Math.PI) / 180);
+  }, vector);
+}
+
+/**
+ * The part of a vector that points along a direction.
+ *
+ * @param args Vector and direction.
+ * @returns Projected vector.
+ */
+function solidScriptMathProjectOnto(args: readonly SolidScriptValue[]): number[] {
+  const usage = 'ProjectOnto(vector, direction)';
+  const [vector, direction] = solidScriptMathVectors(args, usage);
+  const unit = solidScriptMathUnit(direction, usage, 'direction');
+  const along = vector.reduce((sum, value, index) => sum + value * (unit[index] ?? 0), 0);
+  return unit.map((value) => value * along);
 }
 
 /**
@@ -144,7 +183,7 @@ function solidScriptMathAngle(args: readonly SolidScriptValue[]): number {
  * @returns The closest point on the plane.
  */
 function solidScriptMathProject(args: readonly SolidScriptValue[]): number[] {
-  const usage = 'Project(point, through, normal)';
+  const usage = 'ProjectOnPlane(point, through, normal)';
   const point = solidScriptValueNumbers(args[0]);
   const through = solidScriptValueNumbers(args[1]);
   const normal = solidScriptMathUnit(solidScriptValueNumbers(args[2]), usage, 'normal');
@@ -186,14 +225,6 @@ function solidScriptMathUnit(vector: number[] | undefined, usage: string, what: 
 
 /** Math and list functions: ranges, smoothing, angles and list picks. */
 export const SOLID_SCRIPT_FUNCTIONS_MATH = {
-  remap: (args) => {
-    const usage = 'Remap(value, from_low, from_high, to_low, to_high)';
-    const [value, fromLow, fromHigh, toLow, toHigh] = [0, 1, 2, 3, 4].map((index) =>
-      solidScriptExtraNumber(args, index, usage),
-    ) as [number, number, number, number, number];
-    if (fromHigh === fromLow) throw new Error(`${usage} needs from_low and from_high to differ`);
-    return toLow + ((value - fromLow) / (fromHigh - fromLow)) * (toHigh - toLow);
-  },
   smoothstep: (args) => {
     const usage = 'Smoothstep(edge_low, edge_high, value)';
     const low = solidScriptExtraNumber(args, 0, usage);
@@ -281,6 +312,8 @@ export const SOLID_SCRIPT_FUNCTIONS_MATH = {
     ),
   rotate_vector: (args) => solidScriptMathRotate(args),
   angle: (args) => solidScriptMathAngle(args),
-  project: (args) => solidScriptMathProject(args),
+  rotate_euler: (args) => solidScriptMathRotateEuler(args),
+  project_on_plane: (args) => solidScriptMathProject(args),
+  project_onto: (args) => solidScriptMathProjectOnto(args),
   reflect: (args) => solidScriptMathReflect(args),
 } satisfies Readonly<Record<string, SolidScriptMath>>;

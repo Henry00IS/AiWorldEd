@@ -22,7 +22,10 @@ export interface SolidScriptFlowSides {
   readonly otherwise: SolidScriptFlowState | null;
 }
 
-/** Comparisons that stop the script unless both sides are numbers or both text. */
+/**
+ * Comparisons that stop the script unless both sides are numbers, vectors or
+ * text.
+ */
 const SOLID_SCRIPT_NARROW_ORDER: ReadonlySet<string> = new Set(['<', '<=', '>', '>=']);
 
 /** What a condition is read with: its formula, the variables and their kinds. */
@@ -212,7 +215,7 @@ function solidScriptNarrowCompare(
       after = solidScriptNarrowKeep(
         after,
         key,
-        kinds.filter((kind) => kind === 'Number' || kind === 'Text'),
+        kinds.filter((kind) => kind === 'Number' || kind === 'Vector' || kind === 'Text'),
       );
     else if ((node.operator === '==') === truth) after = solidScriptNarrowKeep(after, key, kinds);
   }

@@ -303,16 +303,6 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_MATH = {
     group: 'Math',
     gives: ['Number', 'Vector'],
   },
-  remap: {
-    usage: 'Remap(value, from_low, from_high, to_low, to_high)',
-    summary: solidScriptFunctionDocSummary(
-      'Moves a number from one range into another, keeping its place in the range. Midway through 0 to 10 becomes midway through 0 to 100.',
-      ['Remap(5, 0, 10, 0, 100) is 50.', 'Remap(0, 0, 10, 20, 30) is 20.', 'Remap(10, 0, 10, 20, 30) is 30.'],
-      'Use it to turn a 0-to-1 blend into a real height, or a distance into a falloff.',
-    ),
-    group: 'Math',
-    gives: ['Number'],
-  },
   smoothstep: {
     usage: 'Smoothstep(edge_low, edge_high, value)',
     summary: solidScriptFunctionDocSummary(
@@ -474,13 +464,14 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_MATH = {
     gives: ['Vector'],
   },
   rotate_vector: {
-    usage: 'RotateVector(vector, axis, degrees)',
+    usage: 'RotateVector(vector, axis, degrees, center)',
     summary: solidScriptFunctionDocSummary(
-      'Turns a point or a direction around an axis, like rotating a handle around a pole. A quarter turn around up sends a point that was on the right around to the back.',
+      'Turns a point or a direction around an axis, like rotating a handle around a pole. A quarter turn around up sends a point that was on the right around to the back. Center, when given, is the point the axis goes through; left off it is 0, 0, 0.',
       [
         'RotateVector(Vector(1, 0, 0), Vector(0, 1, 0), 90) turns a point on the right around to the back.',
         'RotateVector(Vector(1, 0, 0), Vector(0, 1, 0), 0) is Vector(1, 0, 0).',
         'RotateVector(Vector(0, 2, 0), Vector(0, 1, 0), 90) is Vector(0, 2, 0).',
+        'RotateVector(Vector(2, 0, 0), Vector(0, 1, 0), 180, Vector(1, 0, 0)) turns around the point 1, 0, 0 to Vector(0, 0, 0).',
       ],
       'Use it to walk a spiral, to swing a door, or to spin a detail around a column.',
     ),
@@ -501,15 +492,28 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_MATH = {
     group: 'Vector',
     gives: ['Number'],
   },
-  project: {
-    usage: 'Project(point, through, normal)',
+  project_on_plane: {
+    usage: 'ProjectOnPlane(point, through, normal)',
     summary: solidScriptFunctionDocSummary(
       'Drops a point straight onto a flat plane, like a shadow falling at a right angle. The plane goes through one point (Through) and faces a direction (Normal), which is the way the surface points.',
       [
-        'Project(Vector(0, 2, 0), Vector(0, 0, 0), Vector(0, 1, 0)) is Vector(0, 0, 0).',
-        'Project(Vector(3, 5, 1), Vector(0, 0, 0), Vector(0, 1, 0)) is Vector(3, 0, 1).',
+        'ProjectOnPlane(Vector(0, 2, 0), Vector(0, 0, 0), Vector(0, 1, 0)) is Vector(0, 0, 0).',
+        'ProjectOnPlane(Vector(3, 5, 1), Vector(0, 0, 0), Vector(0, 1, 0)) is Vector(3, 0, 1).',
       ],
       'Use it to flatten a point onto the floor, or to find where a post meets a wall.',
+    ),
+    group: 'Vector',
+    gives: ['Vector'],
+  },
+  project_onto: {
+    usage: 'ProjectOnto(vector, direction)',
+    summary: solidScriptFunctionDocSummary(
+      'Keeps only the part of a vector that points along a direction, like the length of a shadow cast along a line.',
+      [
+        'ProjectOnto(Vector(2, 3, 0), Vector(1, 0, 0)) is Vector(2, 0, 0).',
+        'ProjectOnto(Vector(2, 2, 0), Vector(0, 0, 5)) is Vector(0, 0, 0).',
+      ],
+      'Use it to measure how far a point lies along a wall, or to slide a move along one axis only.',
     ),
     group: 'Vector',
     gives: ['Vector'],

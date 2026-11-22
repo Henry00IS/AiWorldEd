@@ -43,6 +43,8 @@ export function solidScriptArithmeticBinary(
       );
     return left.map((entry, index) => solidScriptArithmeticBinary(operator, entry, right[index]));
   }
+  if (Array.isArray(left) && Array.isArray(right) && ['<', '<=', '>', '>='].includes(operator))
+    return solidScriptCompareAxes(operator, left, right);
   if (typeof left === 'string' && typeof right === 'string') {
     const compared = solidScriptCompare(operator, left, right);
     if (compared !== undefined) return compared;
@@ -88,6 +90,22 @@ function solidScriptNumberBinary(operator: string, left: number, right: number):
   if (operator === '%') return left % right;
   if (operator === '^') return left ** right;
   return solidScriptCompare(operator, left, right);
+}
+
+/**
+ * Compares two vectors axis by axis: Yes only when every axis holds.
+ *
+ * @param operator Comparison symbol.
+ * @param left Left vector.
+ * @param right Right vector.
+ * @returns Whether every axis holds.
+ */
+function solidScriptCompareAxes(operator: string, left: SolidScriptValue[], right: SolidScriptValue[]): boolean {
+  if (left.length !== right.length)
+    throw new Error(
+      `cannot use ${operator} on lists of ${left.length} and ${right.length} numbers; both sides need as many numbers`,
+    );
+  return left.every((entry, index) => solidScriptArithmeticBinary(operator, entry, right[index]) === true);
 }
 
 /**

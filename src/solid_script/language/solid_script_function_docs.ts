@@ -12,6 +12,7 @@ import {
   SOLID_SCRIPT_KIND_CHECK_DOCS,
 } from './solid_script_functions_kind_checks.js';
 import { SOLID_SCRIPT_FUNCTION_DOCS_MATH, solidScriptFunctionDocSummary } from './solid_script_function_docs_math.js';
+import { SOLID_SCRIPT_FUNCTION_DOCS_SHAPING } from './solid_script_function_docs_shaping.js';
 /** A kind of value the editor checks name, such as Face or Face List. */
 export type SolidScriptKindName = (typeof SOLID_SCRIPT_KINDS)[number] | `${(typeof SOLID_SCRIPT_KINDS)[number]} List`;
 
@@ -85,6 +86,7 @@ export interface SolidScriptFunctionDoc {
  */
 const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, SolidScriptFunctionDoc>> = {
   ...SOLID_SCRIPT_FUNCTION_DOCS_MATH,
+  ...SOLID_SCRIPT_FUNCTION_DOCS_SHAPING,
   str: {
     usage: 'Str(a, b, ...)',
     summary: 'Joins values into one text, such as Str(3, "x") is 3x.',
@@ -641,6 +643,29 @@ const PER_AXIS_INPUTS = {
       start: '0.001',
     },
   },
+  smooth_min: {
+    a: { ...PER_AXIS, about: 'The first number, or a vector.', start: '0' },
+    b: { ...PER_AXIS, about: 'The second number, or a vector.', start: '1' },
+    distance: { ...PER_AXIS, about: 'How close they must come to blend; 0 is plain Min.', start: '0.5' },
+  },
+  smooth_max: {
+    a: { ...PER_AXIS, about: 'The first number, or a vector.', start: '0' },
+    b: { ...PER_AXIS, about: 'The second number, or a vector.', start: '1' },
+    distance: { ...PER_AXIS, about: 'How close they must come to blend; 0 is plain Max.', start: '0.5' },
+  },
+  ping_pong: {
+    value: { ...PER_AXIS, start: '3' },
+    length: { ...PER_AXIS, about: 'Top of the bounce, or one per axis.', start: '2' },
+  },
+  remap: {
+    value: { ...PER_AXIS, start: '0.5' },
+    clamp: {
+      type: ['Yes/No'],
+      about: 'Keeps the result inside the target range; false lets it go on past.',
+      default: 'true',
+      start: 'true',
+    },
+  },
 } as const;
 
 const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
@@ -688,7 +713,18 @@ const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
     b: { type: 'Any', about: 'Another list or value.' },
     '...': { type: 'Any', about: 'More lists or values.' },
   },
-  rotate_vector: { degrees: { type: ['Number'], about: 'Angle in degrees.', start: '90' } },
+  rotate_vector: {
+    degrees: { type: ['Number'], about: 'Angle in degrees.', start: '90' },
+    center: { type: ['Vector'], about: 'Point the axis goes through.', default: '0, 0, 0', start: '0, 0, 0' },
+  },
+  rotate_euler: {
+    vector: { type: ['Vector'], about: 'The point or direction to turn.', start: '1, 0, 0' },
+    angles: { type: ['Vector'], about: 'Degrees around X, then Y, then Z.', start: '0, 90, 0' },
+  },
+  project_onto: {
+    vector: { type: ['Vector'], about: 'The vector to project.', start: '2, 3, 0' },
+    direction: { type: ['Vector'], about: 'The direction to keep.', start: '1, 0, 0' },
+  },
   pick: { number: { type: ['Number'], about: 'Position of the value to give, from 0.' } },
   index_of: { value: { type: 'Any', about: 'The value to find.' } },
   is_undef: { value: { type: 'Any', about: 'The value to check.' } },
