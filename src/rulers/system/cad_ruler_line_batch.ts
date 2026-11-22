@@ -284,7 +284,6 @@ export class CadRulerLineBatch {
     material.depthTest = depthOcclusionEnabled;
     material.depthWrite = false;
     material.depthFunc = depthOcclusionEnabled ? occludedDepthFunc : THREE.AlwaysDepth;
-    material.needsUpdate = true;
   }
 
   /** Hides the dim occluded pass when drawing full-bright 2D lines. */
