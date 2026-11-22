@@ -64,20 +64,58 @@ export function solidScriptRotateMatrix(args: SolidScriptBlockArguments, key = '
   return solidScriptRotationDegreesMatrix(args.vector(key, [0, 0, 0]));
 }
 
+/** Local axes Align To can point along Direction. */
+const SOLID_SCRIPT_ALIGN_AXES: Readonly<Record<string, THREE.Vector3>> = {
+  x: new THREE.Vector3(1, 0, 0),
+  y: SOLID_SCRIPT_AXES_UP,
+  z: new THREE.Vector3(0, 0, 1),
+};
+
 /**
- * Matrix of an Align To block: the shortest turn that makes up (+Y) point along
- * the direction, or, with Forward, the turn that also points the front (+Z)
- * along Forward.
+ * Matrix of an Align To block: the shortest turn that makes Axis (+Y unless
+ * told otherwise) point along the direction, or, for Y with Forward, the turn
+ * that also points the front (+Z) along Forward; Amount takes only that share
+ * of the turn.
  *
  * @param args Block fields.
  * @returns Matrix.
  */
 export function solidScriptAlignMatrix(args: SolidScriptBlockArguments): THREE.Matrix4 {
   const direction = new THREE.Vector3(...args.vector('direction', [0, 1, 0]));
+  const typedAxis = args.value('axis');
+  const axisName = (typeof typedAxis === 'string' ? typedAxis : 'Y').trim().toLowerCase() || 'y';
+  const axis = SOLID_SCRIPT_ALIGN_AXES[axisName];
+  if (!axis) throw new Error(`Axis needs X, Y or Z, not ${String(typedAxis)}`);
+  const full = axis === SOLID_SCRIPT_AXES_UP ? solidScriptAlignUpMatrix(args, direction) : null;
+  const turn = full ? new THREE.Quaternion().setFromRotationMatrix(full) : solidScriptAlignAxisTurn(axis, direction);
+  const amount = args.number('amount', 1);
+  return new THREE.Matrix4().makeRotationFromQuaternion(new THREE.Quaternion().slerp(turn, amount));
+}
+
+/**
+ * The turn that points up (Y) along a direction, with Forward when given.
+ *
+ * @param args Block fields.
+ * @param direction Direction up should point along.
+ * @returns Rotation matrix.
+ */
+function solidScriptAlignUpMatrix(args: SolidScriptBlockArguments, direction: THREE.Vector3): THREE.Matrix4 {
   const up = solidScriptAlignDirectionMatrix(direction);
   const typed = args.value('forward');
   if (typed === undefined || (typeof typed === 'string' && typed.trim() === '')) return up;
   return solidScriptForwardMatrix(direction, new THREE.Vector3(...args.vector('forward', [0, 0, 1]))) ?? up;
+}
+
+/**
+ * The shortest turn that points a local axis along a direction.
+ *
+ * @param axis Unit local axis.
+ * @param direction Direction it should point along.
+ * @returns Turn.
+ */
+function solidScriptAlignAxisTurn(axis: THREE.Vector3, direction: THREE.Vector3): THREE.Quaternion {
+  if (direction.lengthSq() < 1e-18) throw new Error('Direction needs a direction that is not 0, 0, 0');
+  return new THREE.Quaternion().setFromUnitVectors(axis, direction.clone().normalize());
 }
 
 /**

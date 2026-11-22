@@ -304,7 +304,7 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
     label: 'Align To',
     description: 'Turn existing objects or points to point along a direction',
     manual:
-      'Turns the objects or points in Of, or [$Selected.Objects] when Of is left off, so that their upright Y axis points along Direction, by the shortest turn around the origin of the current space. Forward, when given, also turns their front (Z) to point along it, as far as it can while up stays on Direction, so a post can face up and along a path. Without Into the change happens where the items already are; with Into the originals stay and the turned copies are only in that variable. Example: after Scatter Points Into Spots Normals Ways, For Each [Spot] In [Spots] Key I, Move To [Spot] Of [Spike] Into [Copy], Align To [Ways([I])] Of [Copy] stands a spike out of every face.',
+      'Turns the objects or points in Of, or [$Selected.Objects] when Of is left off, so that their upright Y axis, or the axis Axis names, points along Direction, by the shortest turn around the origin of the current space; Amount takes only that share of the turn, so 0.5 leans halfway. Forward, when given with Axis Y, also turns their front (Z) to point along it, as far as it can while up stays on Direction, so a post can face up and along a path. Without Into the change happens where the items already are; with Into the originals stay and the turned copies are only in that variable. Example: after Scatter Points Into Spots Normals Ways, For Each [Spot] In [Spots] Key I, Move To [Spot] Of [Spike] Into [Copy], Align To [Ways([I])] Of [Copy] stands a spike out of every face.',
     stops: ['No objects or points.', 'A Direction of 0, 0, 0.'],
     parameters: [
       solidScriptParameter(
@@ -320,12 +320,35 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
         'vector3',
         'Optional: where the front (Z) should point, laid square to up first, such as 1, 0, 0 to face along X. Empty, 0, 0, 0 or a way along up keeps the shortest turn.',
       ),
+      solidScriptParameterWords(
+        'axis',
+        'Axis',
+        'text',
+        'Y',
+        'Which axis of the items points along Direction: X, Y or Z. Type one, such as Z.',
+        [
+          { word: 'X', detail: 'Point the side along Direction' },
+          { word: 'Y', detail: 'Point up along Direction' },
+          { word: 'Z', detail: 'Point the front along Direction' },
+        ],
+      ),
+      solidScriptParameter(
+        'amount',
+        'Amount',
+        'number',
+        '1',
+        'How much of the turn to take, from 0 (none) to 1 (all of it), such as 0.5 to lean halfway.',
+      ),
     ],
     listing: (read) => [
       'Align To',
       ' ',
       read.value('direction'),
       ...(read.text('forward') === '' ? [] : [' Forward ', read.value('forward')]),
+      ...solidScriptListingOptions([
+        read.changed('axis') && ['Axis ', read.value('axis')],
+        read.changed('amount') && ['Amount ', read.value('amount')],
+      ]),
     ],
     world: solidScriptTransformLocal(solidScriptAlignMatrix),
   }),
