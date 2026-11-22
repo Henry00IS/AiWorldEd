@@ -163,7 +163,7 @@ function solidScriptFormulaValues(words: readonly SolidScriptCommandWord[] = [])
     const formula = text ? solidScriptFormulaTextBlock : (typed: string) => solidScriptFormulaTyped(leaf.kind, typed);
     const fields = [{ key: 'value', label: leaf.label, formula }];
     return solidScriptFormulaBlock(leaf, 'Values', {
-      parameters: [{ ...field, ...offered }],
+      parameters: [{ ...field, ...offered, ...(leaf.kind === 'variable' ? { reference: true } : {}) }],
       check: (values) => solidScriptFormulaFieldsProblem(fields, values),
       listing: (read) => [leaf.label, ' ', solidScriptFormulaLeafListing(leaf.kind, read)],
     });
@@ -205,6 +205,7 @@ function solidScriptFormulaCheckField(input: SolidScriptFormulaInput): SolidScri
     ...(optional ? { optional } : {}),
     ...(placeholder ? { placeholder } : {}),
     ...(words.length > 0 ? { words } : {}),
+    ...(input.kind === 'variable' ? { reference: true } : {}),
   };
 }
 

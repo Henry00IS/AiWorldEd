@@ -496,7 +496,7 @@ describe('SolidScript faces', () => {
     expect(listing).toEqual([
       "Select Faces 'All' Where '[=HasTag([$Face.Tags], \"Step Tread\")]'",
       "Select Faces 'All' Where '[=Facing([$Face.Normal], Vector(0, 1, 0), 45)]' (How 'Add') Into 'Top'",
-      "For Each 'Face' In '[$Selected.Faces]'",
+      "For Each 'Face' In [$Selected.Faces]",
       "    Extrude Face By '0.1' Of [Face] Top 'Roof'",
       'End For Each',
     ]);

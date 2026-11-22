@@ -203,6 +203,7 @@ export class SolidScriptConfiguratorNames {
       caret,
       this.scope.words.length > 0 && !this.scope.phrase,
       this.scope.phrase === true,
+      this.scope.reference === true,
     );
     const listed = solidScriptSuggestions(context, this.scope);
     const actions = this.pickNormal ? solidScriptSuggestionActions(this.input.value, caret, this.scope) : [];
@@ -278,7 +279,7 @@ export class SolidScriptConfiguratorNames {
     if (!suggestion) return;
     if (suggestion.pick === 'action') return this.pickOpen();
     const caret = this.input.selectionStart ?? this.input.value.length;
-    const written = solidScriptSuggestionWrite(suggestion, this.input.value, caret, caret);
+    const written = solidScriptSuggestionWrite(suggestion, this.input.value, caret, caret, this.scope.reference);
     this.input.value = written.text;
     this.input.setSelectionRange(written.caret, written.caret);
     this.close();

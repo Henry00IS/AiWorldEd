@@ -171,6 +171,11 @@ export interface SolidScriptCommandParameter {
    */
   verbatim?: boolean;
   /**
+   * True when this field reads one variable reference, shown and stored in
+   * brackets.
+   */
+  reference?: boolean;
+  /**
    * True when the field keeps the spaces typed at its start and end, such as
    * the words of a Text block; it reads them as any other field otherwise.
    */

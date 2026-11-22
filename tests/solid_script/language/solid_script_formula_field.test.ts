@@ -49,7 +49,7 @@ describe('SolidScript formula field', () => {
     expect(solidScriptFormulaShown('text', '""')).toBe('');
     expect(solidScriptFormulaShown('text', '"a\\nb"')).toBe('a\\nb');
     expect(solidScriptFormulaShown('text', 'Str("a", [t])')).toBe('[=Str("a", [t])]');
-    expect(solidScriptFormulaShown('variable', '[$Face.Center]')).toBe('$Face.Center');
+    expect(solidScriptFormulaShown('variable', '[$Face.Center]')).toBe('[$Face.Center]');
     expect(solidScriptFormulaShown('variable', '[=1]')).toBe('[=1]');
     expect(solidScriptFormulaShown('any', ' 2 ')).toBe('2');
   });

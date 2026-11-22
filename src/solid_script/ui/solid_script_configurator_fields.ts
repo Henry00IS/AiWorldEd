@@ -225,6 +225,7 @@ export function solidScriptConfiguratorFieldBuild(
     paths: parameter.writes?.offers === 'path',
     words,
     phrase: parameter.type === 'condition' || parameter.key === 'where',
+    reference: parameter.reference === true,
     direction: solidScriptParameterTakesDirection(parameter),
   };
   let known = solidScriptFieldKnown(scope.names, scope.extra);

@@ -83,6 +83,11 @@ export interface SolidScriptSuggestionScope {
    * a word after == does not replace the whole field.
    */
   phrase?: boolean;
+  /**
+   * True when this field holds one reference, so names are offered even without
+   * brackets.
+   */
+  reference?: boolean;
   /** True for a field taking a direction: it offers Pick Normal…. */
   direction?: boolean;
 }
@@ -299,7 +304,12 @@ export function solidScriptSuggestionContext(
   caret: number,
   words: boolean,
   phrase = false,
+  reference = false,
 ): SolidScriptSuggestionContext | null {
+  if (reference && text.trim() === '')
+    return { kind: 'name', from: 0, to: text.length, prefix: '', offer: true, call: null };
+  if (reference && !text.trimStart().startsWith('['))
+    return { kind: 'name', from: 0, to: text.length, prefix: text.trim(), offer: true, call: null };
   if (phrase && !solidScriptSuggestionBrackets(text.slice(0, caret)).at(-1))
     return solidScriptSuggestionPhraseContext(text, caret);
   const before = text.slice(0, caret);
@@ -686,7 +696,7 @@ export function solidScriptSuggestions(
   const groups = solidScriptSuggestionGroups(scope);
   const listed = [
     ...(scope.phrase ? solidScriptSuggestionChoiceValues(scope) : []),
-    ...all.filter((entry) => entry.pick !== 'word'),
+    ...all.filter((entry) => (scope.reference ? entry.pick === 'value' : entry.pick !== 'word')),
   ];
   return listed
     .map((entry, index) => ({ suggestion: entry, index, rank: solidScriptSuggestionRank(entry, prefix) }))
@@ -872,6 +882,7 @@ export function solidScriptSuggestionHintSignature(hint: SolidScriptSuggestionHi
  * @param text Field text.
  * @param start Selection start.
  * @param end Selection end.
+ * @param reference True when the field holds one reference.
  * @returns New text and caret.
  */
 export function solidScriptSuggestionWrite(
@@ -879,9 +890,10 @@ export function solidScriptSuggestionWrite(
   text: string,
   start: number,
   end: number,
+  reference = false,
 ): SolidScriptSuggestionWritten {
   if (suggestion.pick === 'word') return { text: suggestion.label, caret: suggestion.label.length };
-  const context = start === end ? solidScriptSuggestionContext(text, start, false) : null;
+  const context = start === end ? solidScriptSuggestionContext(text, start, false, false, reference) : null;
   const call = suggestion.pick === 'function';
   let from = start;
   let after = text.slice(end);

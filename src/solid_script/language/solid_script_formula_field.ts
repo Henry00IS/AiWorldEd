@@ -198,17 +198,30 @@ export function solidScriptFormulaTextBlock(shown: string): string {
 export function solidScriptFormulaShown(kind: SolidScriptFormulaInputKind, formula: string): string {
   const text = formula.trim();
   if (kind === 'text') return solidScriptFormulaTextShown(text);
+  if (kind === 'variable')
+    return solidScriptFormulaReference(text) ?? (solidScriptFormulaIsName(text) ? `[${text}]` : text);
   const lone = solidScriptFormulaLone(text);
-  if (kind === 'variable' && lone && solidScriptFormulaUnwrap(text) === null) {
-    const name = text.slice(lone.from + 1, lone.to - 1).trim();
-    return SOLID_SCRIPT_FORMULA_NAME.test(name) ? name : text;
-  }
   if (kind !== 'vector') return text;
   const inner = lone ? text.slice(lone.from + 1, lone.to - 1) : SOLID_SCRIPT_FORMULA_VECTOR_CALL.exec(text)?.[1];
   const parts = inner === undefined ? [] : solidScriptFieldArguments(inner);
   const numbers = parts.every((part) => SOLID_SCRIPT_FORMULA_NUMBER.test(part));
   const size = parts.length === 3 || parts.length === 2;
   return size && (numbers || !lone) && parts.every(solidScriptFormulaPlainPart) ? parts.join(', ') : text;
+}
+
+/**
+ * Reads a lone reference to a variable or value, such as [Width] or
+ * [$Face.Parent], in the one form a Variable field shows and stores it.
+ *
+ * @param formula Formula part.
+ * @returns The reference in brackets, or null for anything else.
+ */
+export function solidScriptFormulaReference(formula: string): string | null {
+  const text = formula.trim();
+  const lone = solidScriptFormulaLone(text);
+  if (!lone || solidScriptFormulaUnwrap(text) !== null) return null;
+  const name = text.slice(1, -1).trim();
+  return SOLID_SCRIPT_FORMULA_NAME.test(name) ? `[${name}]` : null;
 }
 
 /**

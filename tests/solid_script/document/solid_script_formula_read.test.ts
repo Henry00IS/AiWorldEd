@@ -59,15 +59,15 @@ describe('SolidScript formula blocks read', () => {
       'if',
       '  and',
       '    more',
-      '      variable a',
+      '      variable [a]',
       '      number 0',
       '    end',
       '    or',
-      '      variable b',
+      '      variable [b]',
       '      not',
       '        and',
-      '          variable c',
-      '          variable d',
+      '          variable [c]',
+      '          variable [d]',
       '        end',
       '      end',
       '    end',
@@ -81,7 +81,7 @@ describe('SolidScript formula blocks read', () => {
   });
 
   it('shows Equals holding Absolute holding a number', () => {
-    expect(tree('[x] == abs(-54)')).toEqual(['equals', '  variable x', '  fn_abs', '    number -54', '  end', 'end']);
+    expect(tree('[x] == abs(-54)')).toEqual(['equals', '  variable [x]', '  fn_abs', '    number -54', '  end', 'end']);
   });
 
   it('keeps a chain of one operator in one group, and a different operator in its own', () => {
@@ -105,7 +105,7 @@ describe('SolidScript formula blocks read', () => {
       '  number 2',
       'end',
     ]);
-    expect(tree('-[w] * 2')).toEqual(['times', '  negate', '    variable w', '  end', '  number 2', 'end']);
+    expect(tree('-[w] * 2')).toEqual(['times', '  negate', '    variable [w]', '  end', '  number 2', 'end']);
   });
 
   it('shows numbers, vectors, words and variables in their own simple blocks', () => {
@@ -115,7 +115,7 @@ describe('SolidScript formula blocks read', () => {
       'vector value=1, [b], 3',
       'end',
     ]);
-    expect(lines('"Top" != [$Face.Name]')).toEqual(['differs', 'text value=Top', 'variable value=$Face.Name', 'end']);
+    expect(lines('"Top" != [$Face.Name]')).toEqual(['differs', 'text value=Top', 'variable value=[$Face.Name]', 'end']);
     expect(lines('"two words" == "a$"b"')).toEqual(['equals', 'text value=two words', 'text value=a"b', 'end']);
   });
 
@@ -127,7 +127,7 @@ describe('SolidScript formula blocks read', () => {
     expect(lines('Pick([l], 0) > true')).toEqual([
       'more',
       'fn_pick',
-      'variable value=l',
+      'variable value=[l]',
       'number value=0',
       'end',
       'value value=true',

@@ -17,7 +17,10 @@ import {
   solidScriptFormulaOperatorBlock,
 } from '@/solid_script/commands/solid_script_formula_groups.js';
 import { solidScriptBuiltinFind } from '@/solid_script/language/solid_script_expression_compile.js';
-import { solidScriptFormulaShown } from '@/solid_script/language/solid_script_formula_field.js';
+import {
+  solidScriptFormulaReference,
+  solidScriptFormulaShown,
+} from '@/solid_script/language/solid_script_formula_field.js';
 import {
   SolidScriptFormulaSource,
   type SolidScriptFormulaSpan,
@@ -78,12 +81,6 @@ interface SolidScriptFormulaGrouped {
   /** Name of a function as typed. */
   name: string;
 }
-
-/** Value blocks tried in turn, each with how it shows a formula it holds. */
-const SOLID_SCRIPT_FORMULA_SHOWN: readonly { command: string; kind: 'vector' | 'variable' }[] = [
-  { command: SOLID_SCRIPT_FORMULA_COMMAND.vector, kind: 'vector' },
-  { command: SOLID_SCRIPT_FORMULA_COMMAND.variable, kind: 'variable' },
-];
 
 /** Turns a read formula into lines. */
 class SolidScriptFormulaReader {
@@ -232,11 +229,10 @@ class SolidScriptFormulaReader {
     const negative = node.kind === 'unary' && node.operator === '-' && node.operand.kind === 'number';
     if (negative) return this.leaf(SOLID_SCRIPT_FORMULA_COMMAND.number, text, `-${this.source.slice(node.operand)}`);
     if (node.kind === 'number') return this.leaf(SOLID_SCRIPT_FORMULA_COMMAND.number, text, inner);
-    for (const entry of SOLID_SCRIPT_FORMULA_SHOWN) {
-      const shown = solidScriptFormulaShown(entry.kind, inner);
-      if (shown !== inner.trim()) return this.leaf(entry.command, text, shown);
-    }
-    return null;
+    const reference = solidScriptFormulaReference(inner);
+    if (reference) return this.leaf(SOLID_SCRIPT_FORMULA_COMMAND.variable, text, reference);
+    const vector = solidScriptFormulaShown('vector', inner);
+    return vector === inner.trim() ? null : this.leaf(SOLID_SCRIPT_FORMULA_COMMAND.vector, text, vector);
   }
 
   /**
