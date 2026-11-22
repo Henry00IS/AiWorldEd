@@ -94,4 +94,21 @@ describe('CommandSolidTreeAdd', () => {
     expect(faces[0]).toBe('grass');
     expect(new Set(faces.slice(1))).toEqual(new Set(['brick']));
   });
+
+  it('keeps the smooth shading a script gave single faces, blending across the brushes of one insert', () => {
+    const model = new SolidModel('Smooth');
+    const smooth = (node: SolidTreeNode): SolidTreeBrush => {
+      const brush = node as SolidTreeBrush;
+      return { ...brush, faceSmooth: brush.brush.faces.map((_, index) => (index === 0 ? 30 : undefined)) };
+    };
+    new CommandSolidTreeAdd(model, [
+      smooth(box('A', SolidOperation.Additive, 0)),
+      smooth(box('B', SolidOperation.Additive, 2)),
+    ]).execute();
+    const [a, b] = model.getBrushes();
+    const first = a?.faceSmoothing();
+    expect(first?.[0]).toMatchObject({ maxAngle: 30, smoothClass: 0 });
+    expect(first?.slice(1).every((face) => face === undefined)).toBe(true);
+    expect(b?.faceSmoothing()[0]?.group).toBe(first?.[0]?.group);
+  });
 });

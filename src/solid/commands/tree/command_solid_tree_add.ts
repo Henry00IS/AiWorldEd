@@ -3,7 +3,11 @@ import type { UndoCommand } from '@/commands/command_undo.js';
 import type { SolidModel } from '@/solid/model/solid_model.js';
 import type { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import type { SolidTreeBrush, SolidTreeNode } from './solid_tree_node.js';
-import { solidTreeBrushTexturesApply, solidTreeNodesCreate } from './solid_tree_nodes_create.js';
+import {
+  solidTreeBrushSmoothApply,
+  solidTreeBrushTexturesApply,
+  solidTreeNodesCreate,
+} from './solid_tree_nodes_create.js';
 
 /** One inserted object and the parent it was appended to, in insert order. */
 type SolidTreeInsert =
@@ -17,6 +21,8 @@ type SolidTreeInsert =
  */
 export class CommandSolidTreeAdd implements UndoCommand {
   private readonly inserts: SolidTreeInsert[] = [];
+  /** Smoothing group the smooth faces of this insert share. */
+  private readonly smoothGroup = THREE.MathUtils.generateUUID();
   private executed = false;
 
   /**
@@ -99,6 +105,7 @@ export class CommandSolidTreeAdd implements UndoCommand {
   private brushInsert(node: SolidTreeBrush, parent: THREE.Object3D): SolidBrushInstance {
     const instance = this.model.prepareTopologyBrush(node.brush, node.operation, node.center, node.texture, node.name);
     solidTreeBrushTexturesApply(instance, node);
+    solidTreeBrushSmoothApply(instance, node, this.smoothGroup);
     this.inserts.push({ parent, instance });
     this.model.addBrushInstanceAfter(instance, parent, null, false);
     return instance;

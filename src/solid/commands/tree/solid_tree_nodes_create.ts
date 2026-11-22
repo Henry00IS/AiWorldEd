@@ -79,3 +79,23 @@ export function solidTreeBrushTexturesApply(instance: SolidBrushInstance, node: 
     if (texture && face) instance.setFaceTextureId(face.surfaceIndex, texture);
   });
 }
+
+/**
+ * Stores the smooth shading a node gives single faces; faces of one group blend
+ * with each other across brushes up to the node's largest angle.
+ *
+ * @param instance Brush instance.
+ * @param node Source node.
+ * @param group Smoothing group shared by the brushes of one insert.
+ */
+export function solidTreeBrushSmoothApply(instance: SolidBrushInstance, node: SolidTreeBrush, group: string): void {
+  const angles = node.faceSmooth ?? [];
+  const maxAngle = Math.max(0, ...angles.map((angle) => angle ?? 0));
+  if (maxAngle <= 0) return;
+  angles.forEach((angle, index) => {
+    const face = node.brush.faces[index];
+    if (angle === undefined || !face) return;
+    const surface = instance.getFaceSurface(face.surfaceIndex);
+    instance.setFaceSurface(face.surfaceIndex, { ...surface, smooth: { group, maxAngle, smoothClass: 0 } });
+  });
+}
