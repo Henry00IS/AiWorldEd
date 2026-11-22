@@ -1,3 +1,4 @@
+import { solidScriptConditionHolds } from '@/solid_script/language/solid_script_condition.js';
 import { solidScriptKindNamed } from '@/solid_script/language/solid_script_kinds.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import type { SolidScriptFaceFacts, SolidScriptGeometryLeaf } from '@/solid_script/language/solid_script_geometry.js';
@@ -7,7 +8,8 @@ import { solidScriptOfEmpty } from '@/solid_script/language/solid_script_select.
 /**
  * Reads the faces a line works on now: those its Of gives (faces, or every face
  * of the brushes it gives), else [$Selected.Faces]. A face a list held that was
- * cut away has left it; a single face that was cut away stops the line.
+ * cut away has left it; a single face that was cut away stops the line. Where,
+ * when the line has one, keeps only the faces that pass it.
  *
  * @param run Running line.
  * @param label Command, for messages.
@@ -29,7 +31,22 @@ export function solidScriptFaceTargets(run: SolidScriptBlockRun, label: string):
     if (read.length === 0 && values.length === 1) throw new Error(`${String(value)} was cut away by a line above`);
     for (const face of read) if (solidScriptFaceSeen(seen, face)) faces.push(face);
   }
-  return faces;
+  return solidScriptFaceWhere(run, faces);
+}
+
+/**
+ * Keeps the faces that pass the line's Where, with [$Face] the face; a line
+ * without a Where, or with an empty one, keeps them all.
+ *
+ * @param run Running line.
+ * @param faces Faces the line would work on.
+ * @returns Faces that pass.
+ */
+function solidScriptFaceWhere(run: SolidScriptBlockRun, faces: SolidScriptFaceFacts[]): SolidScriptFaceFacts[] {
+  if (run.source('where').trim() === '') return faces;
+  return faces.filter((face, index) =>
+    solidScriptConditionHolds(run, 'where', { $Face: run.elements.face(face), $Index: index, $Count: faces.length }),
+  );
 }
 
 /**

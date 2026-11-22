@@ -21,7 +21,6 @@ import {
   solidScriptGeometryBevel,
   solidScriptGeometryFacePrism,
   solidScriptGeometryFaces,
-  solidScriptGeometryFacesDelete,
   solidScriptGeometryFacesOutside,
   solidScriptGeometryInset,
   type SolidScriptEdgeFacts,
@@ -722,28 +721,6 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
       }
       run.selectedSet('faces', made);
       solidScriptFaceWrite(run, 'into', made);
-      return [];
-    },
-  }),
-  new SolidScriptCommand({
-    id: 'delete_faces',
-    edits: true,
-    label: 'Delete Faces',
-    category: 'Faces',
-    description: 'Take faces out',
-    manual:
-      'Takes faces out of a mesh, leaving an opening. Of gives the faces, or a mesh for all its faces; empty uses [$Selected.Faces]. A solid stops the line: wrap it in Mesh From Solids first. The faces leave every list that held them. Example: Mesh From Solids around a Cube, Select Faces Facing Up, Delete Faces leaves an open box.',
-    stops: ['No faces.', 'A solid. Wrap it in Mesh From Solids first.'],
-    parameters: [solidScriptParameterOf('faces or meshes', '$Selected.Faces')],
-    listing: (read) => ['Delete Faces', ...(read.text('of') === '' ? [] : [' Of ', read.value('of')])],
-    execute: (run) => {
-      for (const [leaf, faces] of solidScriptFaceGroups(
-        solidScriptFaceTargets(run, 'Delete Faces'),
-        (face) => face.leaf,
-      )) {
-        if (leaf.kind !== 'mesh') throw new Error(SOLID_SCRIPT_MESH_NEEDS_WRAP);
-        run.leafReplace(leaf, solidScriptGeometryFacesDelete(leaf, new Set(faces.map((face) => face.index))));
-      }
       return [];
     },
   }),

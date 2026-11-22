@@ -121,6 +121,9 @@ const SOLID_SCRIPT_AUDIT_FACES = new Set([
 const SOLID_SCRIPT_AUDIT_MESHES = new Set([
   'inset_face',
   'delete_faces',
+  'delete_edges',
+  'delete_vertices',
+  'join_meshes',
   'merge_by_distance',
   'subdivide',
   'mesh_smooth',

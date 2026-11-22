@@ -65,8 +65,8 @@ export function solidScriptMeshChecked(mesh: SolidScriptShapeMesh): SolidScriptS
 }
 
 /**
- * Joins meshes into one, keeping every face. A mesh holds one texture, so the
- * result takes the first texture any of them has.
+ * Joins meshes into one, keeping every face and its tags. A mesh holds one
+ * texture, so the result takes the first texture any of them has.
  *
  * @param meshes Meshes.
  * @param label Label of the result.
@@ -80,6 +80,7 @@ export function solidScriptMeshJoin(meshes: readonly SolidScriptShapeMesh[], lab
     joined.faces.push(...mesh.faces.map((face) => face.map((corner) => corner + base)));
     joined.uvs.push(...mesh.uvs.map((uv) => (uv ? uv.map(([u, v]): SolidScriptUv => [u, v]) : null)));
     if (joined.texture === undefined && mesh.texture !== undefined) joined.texture = mesh.texture;
+    if (mesh.faceTags) joined.faceTags = [...(joined.faceTags ?? []), ...mesh.faceTags];
   }
   return joined;
 }

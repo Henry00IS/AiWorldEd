@@ -72,6 +72,18 @@ const SOLID_SCRIPT_SAMPLE_CHILDREN: Readonly<Record<string, readonly SolidScript
 };
 
 /**
+ * The Select line that picks what a face, edge or corner tool works on.
+ *
+ * @param id Command id.
+ * @returns Select command id.
+ */
+function solidScriptSamplePick(id: string): string {
+  if (id === 'delete_edges') return 'select_edges';
+  if (id === 'delete_vertices') return 'select_vertices';
+  return 'select_faces';
+}
+
+/**
  * Wraps one command's default line in lines that are valid on their own: blocks
  * get a child and an End, 2D shapes an extrusion, Else an If.
  *
@@ -85,9 +97,18 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
   const started: SolidScriptLine[] = [line, ...children.map((entry) => ({ ...entry, values: { ...entry.values } }))];
   const meshFirst: SolidScriptLine[] = [{ command: 'mesh_from_solids' }, { command: 'cube' }, { command: 'end' }];
   if (
-    ['merge_by_distance', 'subdivide', 'mesh_smooth', 'displace', 'flip_faces', 'inset_face', 'delete_faces'].includes(
-      command.id,
-    )
+    [
+      'merge_by_distance',
+      'subdivide',
+      'mesh_smooth',
+      'displace',
+      'flip_faces',
+      'inset_face',
+      'delete_faces',
+      'delete_edges',
+      'delete_vertices',
+      'join_meshes',
+    ].includes(command.id)
   ) {
     const tools =
       command.id === 'mesh_smooth'
@@ -95,7 +116,7 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
         : command.id === 'displace'
           ? [{ command: 'subdivide', values: { levels: '3', smooth: 'false' } }]
           : [];
-    const pick = command.category === 'Faces' ? [{ command: 'select_faces' }] : [];
+    const pick = command.category === 'Faces' ? [{ command: solidScriptSamplePick(command.id) }] : [];
     return [...meshFirst, { command: 'select_objects' }, ...tools, ...pick, line];
   }
   if (command.category === 'Faces') {
@@ -412,11 +433,14 @@ describe('solid script command catalog', () => {
       'flip_faces',
       'inset_face',
       'delete_faces',
+      'delete_edges',
+      'delete_vertices',
+      'join_meshes',
     ];
     for (const id of refused) {
       const pick = [
         { command: 'select_objects' },
-        ...(id === 'inset_face' || id === 'delete_faces' ? [{ command: 'select_faces' }] : []),
+        ...(id.endsWith('_face') || id.startsWith('delete_') ? [{ command: solidScriptSamplePick(id) }] : []),
       ];
       const result = run({ command: 'cube' }, ...pick, { command: id });
       expect(result.error?.message ?? '', id).toMatch(hint);

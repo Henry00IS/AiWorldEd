@@ -33,6 +33,7 @@ import { solidScriptMeshChecked, solidScriptMeshTransform } from './solid_script
 import { SolidScriptScope } from './solid_script_scope.js';
 import { solidScriptIntoAssigned } from './solid_script_into_assigned.js';
 import { solidScriptIntoCopyName } from './solid_script_into.js';
+import { solidScriptShapePruned } from './solid_script_shape_gone.js';
 import { solidScriptScopeElementBind, solidScriptScopeIdBind } from './solid_script_scope_element.js';
 import {
   SOLID_SCRIPT_GROUP_MODE_DEFAULT,
@@ -309,14 +310,18 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
   }
 
   /**
-   * Shapes with each solid or mesh replaced by the version later writes left.
+   * Shapes with each solid or mesh replaced by the version later writes left,
+   * and the deleted ones left out.
    *
    * @param shapes Shapes as they were first stored.
    * @returns Shapes carrying the latest leaves.
    */
   private shapesLatest(shapes: readonly SolidScriptShape[]): SolidScriptShape[] {
-    return shapes.map((shape) =>
-      solidScriptShapeMapLeaves(shape, (leaf) => (leaf.kind === 'polygon' ? leaf : this.leafLatestOf(leaf))),
+    return shapes.flatMap(
+      (shape) =>
+        solidScriptShapePruned(
+          solidScriptShapeMapLeaves(shape, (leaf) => (leaf.kind === 'polygon' ? leaf : this.leafLatestOf(leaf))),
+        ) ?? [],
     );
   }
 

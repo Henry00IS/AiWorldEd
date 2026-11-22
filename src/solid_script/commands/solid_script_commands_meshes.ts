@@ -11,9 +11,13 @@ import {
   solidScriptParameterOf,
   solidScriptParameterOptional,
 } from './solid_script_command_parameters.js';
+import { solidScriptParameterOfWhere } from './solid_script_command_of_where.js';
+import { solidScriptOfWhere } from '@/solid_script/language/solid_script_of_where.js';
+import { solidScriptShapeGone } from '@/solid_script/language/solid_script_shape_gone.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import {
   SOLID_SCRIPT_MESH_NEEDS_WRAP,
+  solidScriptMeshJoin,
   solidScriptMeshMerge,
   solidScriptMeshSmooth,
   solidScriptMeshSubdivide,
@@ -145,11 +149,25 @@ function solidScriptMeshTargets(run: SolidScriptBlockRun, label: string): SolidS
       given ? `${label} has no mesh in Of; check that Of holds a mesh` : solidScriptOfEmpty(label, 'objects'),
     );
   const leaves: SolidScriptShapeMesh[] = [];
-  for (const value of values) {
+  for (const value of solidScriptOfWhere(run, values)) {
     const leaf = solidScriptMeshLeaf(run, value, label);
     if (!leaves.includes(leaf)) leaves.push(leaf);
   }
   return leaves;
+}
+
+/**
+ * What a joined mesh keeps of the first mesh besides its faces: its texture and
+ * the pose its UVs were written in.
+ *
+ * @param first First mesh of the join.
+ * @returns Fields to keep.
+ */
+function solidScriptMeshKept(first: SolidScriptShapeMesh): Partial<SolidScriptShapeMesh> {
+  return {
+    ...(first.texture === undefined ? {} : { texture: first.texture }),
+    ...(first.uvCarry ? { uvCarry: first.uvCarry } : {}),
+  };
 }
 
 /**
@@ -422,6 +440,32 @@ export const SOLID_SCRIPT_COMMANDS_MESHES: readonly SolidScriptCommand[] = [
     parameters: [],
     listing: () => ['Mesh From Solids'],
     execute: (run) => solidScriptMeshTool(run, 'Mesh From Solids', (mesh) => mesh),
+  }),
+  new SolidScriptCommand({
+    id: 'join_meshes',
+    edits: true,
+    label: 'Join Meshes',
+    category: 'Meshes',
+    description: 'Join meshes into one',
+    manual:
+      'Joins the meshes in Of into one mesh, keeping every face and corner as they are; the joined mesh takes the place of the first, with its Name and texture, and the others are taken out. Of is the meshes; empty uses [$Selected.Objects]. Where, when given, is a 🔁 condition a mesh must pass to be joined. A solid stops the line: wrap it in Mesh From Solids first. Merge By Distance afterwards welds the corners that touch. Example: two Mesh From Solids blocks, Select Objects, then Join Meshes gives one mesh to Subdivide as a whole.',
+    stops: ['A solid. Wrap it in Mesh From Solids first.', 'No mesh to work on.'],
+    parameters: [
+      solidScriptParameterOfWhere('Object', '[=[$Object.Center.Y] > 0]'),
+      solidScriptParameterOf('meshes', '$Selected.Objects', ['Object']),
+    ],
+    listing: (read) => [
+      'Join Meshes',
+      ...(read.text('where').trim() === '' ? [] : [' Where ', read.value('where')]),
+      ...(read.text('of') === '' ? [] : [' Of ', read.value('of')]),
+    ],
+    execute: (run) => {
+      const [first, ...rest] = solidScriptMeshTargets(run, 'Join Meshes');
+      if (!first) return [];
+      run.leafReplace(first, { ...solidScriptMeshJoin([first, ...rest], first.label), ...solidScriptMeshKept(first) });
+      for (const leaf of rest) run.leafReplace(leaf, solidScriptShapeGone(leaf.label));
+      return [];
+    },
   }),
   new SolidScriptCommand({
     id: 'merge_by_distance',

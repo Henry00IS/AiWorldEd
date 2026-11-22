@@ -80,6 +80,9 @@ const PLAIN: readonly ((random: () => number, name: string) => SolidScriptLine)[
             ![
               'inset_face',
               'delete_faces',
+              'delete_edges',
+              'delete_vertices',
+              'join_meshes',
               'merge_by_distance',
               'subdivide',
               'mesh_smooth',
