@@ -15,7 +15,7 @@ import {
 } from './solid_script_command_parameters.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import { solidScriptPathMesh, solidScriptPathSweep } from '@/solid_script/language/solid_script_path.js';
-import { solidScriptSweepScaled } from '@/solid_script/language/solid_script_sweep_scale.js';
+import { solidScriptSweepScaled, solidScriptSweepUps } from '@/solid_script/language/solid_script_sweep_scale.js';
 import { solidScriptParameterEach } from './solid_script_command_each.js';
 import {
   SOLID_SCRIPT_PATH_CORNER_SIDES_MAX,
@@ -572,7 +572,7 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
     category: 'Meshes',
     description: 'Sweep a profile along a path',
     manual:
-      'Sweeps a flat profile along a Path, like a pipe, rail or moulding. The profile is a circle of Radius and Sides, or the x, y points in Profile, where x runs to the side of the path and y up. Scale sizes the profile at each path point, worked out once per point with [$Point], [$Index] and [$Count], so a horn or a vine can taper, and Twist turns it by that many degrees about the path at each point, so a rope or a twisted bar spirals; a twisted stretch bends its sides, so As Mesh suits Twist best. Each stretch of the path becomes one solid, and the joints are cut on the mitre between two stretches so the pieces meet exactly. A dented profile fills in as a solid; with As Mesh on, the whole sweep is one mesh instead and keeps any profile, and Fill Caps off leaves the ends of an open path open, like a tube. A closed Path, such as a Square or a Path with Closed on, joins its last point back to the first; a list of points stays open. Example: a Path, or Resample of a few points, Radius 0.05, gives a round handrail.',
+      'Sweeps a flat profile along a Path, like a pipe, rail or moulding. The profile is a circle of Radius and Sides, or the x, y points in Profile, where x runs to the side of the path and y up. Scale sizes the profile at each path point, worked out once per point with [$Point], [$Index] and [$Count], so a horn or a vine can taper, and Twist turns it by that many degrees about the path at each point, so a rope or a twisted bar spirals. Up is the way the up side of the profile faces on the stretch from each path point, also worked out per point, such as 0, 1, 0 to keep a rail level on a winding path; left off, the profile turns as little as it can from one stretch to the next; a twisted stretch bends its sides, so As Mesh suits Twist best. Each stretch of the path becomes one solid, and the joints are cut on the mitre between two stretches so the pieces meet exactly. A dented profile fills in as a solid; with As Mesh on, the whole sweep is one mesh instead and keeps any profile, and Fill Caps off leaves the ends of an open path open, like a tube. A closed Path, such as a Square or a Path with Closed on, joins its last point back to the first; a list of points stays open. Example: a Path, or Resample of a few points, Radius 0.05, gives a round handrail.',
     stops: [
       'A Path with fewer than 2 different points, or 3 when it is closed.',
       'A Profile with fewer than 3 points, or points that are not x, y.',
@@ -621,6 +621,15 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
         ),
         'Point',
       ),
+      solidScriptParameterEach(
+        solidScriptParameterOptional(
+          'up',
+          'Up',
+          'vector3',
+          "Way the profile's up side faces on the stretch from each path point, such as 0, 0, 1. Left off, the profile turns as little as it can along the path.",
+        ),
+        'Point',
+      ),
       solidScriptParameter(
         'mesh',
         'As Mesh',
@@ -644,6 +653,7 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
         read.changed('profile') ? ['Profile ', read.value('profile')] : ['Radius ', read.value('radius')],
         read.changed('scale') && ['Scale ', read.value('scale')],
         read.changed('twist') && ['Twist ', read.value('twist')],
+        read.text('up').trim() !== '' && ['Up ', read.value('up')],
         read.on('mesh') && ['As Mesh'],
         read.on('mesh') && !read.on('caps') && ['Open Ends'],
       ]),
@@ -655,7 +665,12 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
       const path = points.map(([x, y, z]) => new THREE.Vector3(x, y, z));
       const profile = solidScriptSweepProfile(run);
       const closed = drawn?.path.closed ?? false;
-      const rings = solidScriptSweepScaled(run, solidScriptPathSweep(path, profile, closed), path, closed);
+      const rings = solidScriptSweepScaled(
+        run,
+        solidScriptPathSweep(path, profile, closed, solidScriptSweepUps(run, path, closed)),
+        path,
+        closed,
+      );
       if (run.fields().flag('mesh'))
         return run.mesh(solidScriptPathMesh(rings, closed, 'Sweep Along Path', run.fields().flag('caps')));
       return rings.slice(1).flatMap((ring, index) => {

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
 import { solidScriptPathDistinct } from './solid_script_path.js';
-import { SolidScriptPoint, solidScriptValueNumber } from './solid_script_value.js';
+import { SolidScriptPoint, solidScriptValueNumber, solidScriptValueNumbers } from './solid_script_value.js';
 
 /**
  * Sizes each ring of a sweep by the Scale of its path point, about that point,
@@ -38,6 +38,31 @@ export function solidScriptSweepScaled(
 }
 
 /**
+ * Reads the Up of each path point, the way the profile's up side faces on the
+ * stretch that starts there; empty gives none, so the profile turns as little
+ * as it can.
+ *
+ * @param run Running Sweep Along Path line.
+ * @param path Path points as given.
+ * @param closed True when the path loops.
+ * @returns Up per path point, or none.
+ */
+export function solidScriptSweepUps(
+  run: SolidScriptBlockRun,
+  path: readonly THREE.Vector3[],
+  closed: boolean,
+): (THREE.Vector3 | null)[] {
+  if (run.source('up').trim() === '') return [];
+  const points = solidScriptPathDistinct(path, closed);
+  return points.map((point, index) => {
+    const numbers = solidScriptValueNumbers(run.valueWith('up', solidScriptSweepFills(point, index, points.length)));
+    if (numbers?.length !== 3) throw new Error('Up needs three numbers, such as 0, 0, 1 or [=[$Point.Normal]]');
+    const up = new THREE.Vector3(numbers[0], numbers[1], numbers[2]);
+    return up.lengthSq() > 0 ? up.normalize() : null;
+  });
+}
+
+/**
  * Reads the Scale of one path point: a number of 0 or more.
  *
  * @param run Running line.
@@ -69,7 +94,7 @@ function solidScriptSweepTwist(run: SolidScriptBlockRun, point: THREE.Vector3, i
 }
 
 /**
- * What Scale and Twist read for one path point.
+ * What Scale, Twist and Up read for one path point.
  *
  * @param point Path point.
  * @param index Its number from 0.

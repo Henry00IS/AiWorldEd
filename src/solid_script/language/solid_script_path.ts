@@ -35,6 +35,33 @@ function solidScriptPathSide(direction: THREE.Vector3): THREE.Vector3 {
 }
 
 /**
+ * Picks the side direction of every stretch: square to its Up when one is
+ * given, else carried from the stretch before with as little turn as possible.
+ *
+ * @param directions Unit direction of each stretch.
+ * @param ups For each stretch, the way the profile's up should face, or null.
+ * @returns Unit side of each stretch.
+ */
+function solidScriptPathSides(
+  directions: readonly THREE.Vector3[],
+  ups: readonly (THREE.Vector3 | null)[],
+): THREE.Vector3[] {
+  const sides: THREE.Vector3[] = [];
+  directions.forEach((direction, index) => {
+    const before = sides[index - 1];
+    const carried = before
+      ? before
+          .clone()
+          .applyQuaternion(new THREE.Quaternion().setFromUnitVectors(directions[index - 1] ?? direction, direction))
+      : solidScriptPathSide(direction);
+    const up = ups[index];
+    const facing = up ? new THREE.Vector3().crossVectors(up, direction) : null;
+    sides.push(facing && facing.lengthSq() > SOLID_SCRIPT_PATH_EPSILON ? facing.normalize() : carried);
+  });
+  return sides;
+}
+
+/**
  * Sweeps a flat profile along a path. Each stretch carries the profile square
  * to its direction, turned as little as possible from the stretch before, and
  * each joint ring lies on the mitre plane between its two stretches, so
@@ -44,12 +71,15 @@ function solidScriptPathSide(direction: THREE.Vector3): THREE.Vector3 {
  * @param path Path points, at least 2 distinct.
  * @param profile Profile points.
  * @param closed True when the path loops.
+ * @param ups For each stretch, the way the profile's up should face, or null to
+ *   turn it as little as possible from the stretch before.
  * @returns One ring per path point, plus the first again when closed.
  */
 export function solidScriptPathSweep(
   path: readonly THREE.Vector3[],
   profile: readonly THREE.Vector2[],
   closed: boolean,
+  ups: readonly (THREE.Vector3 | null)[] = [],
 ): THREE.Vector3[][] {
   const points = solidScriptPathDistinct(path, closed);
   if (points.length < 2 || (closed && points.length < 3))
@@ -58,11 +88,7 @@ export function solidScriptPathSweep(
   const directions = Array.from({ length: stretches }, (_, index) =>
     points[(index + 1) % points.length]!.clone().sub(points[index]!).normalize(),
   );
-  const sides: THREE.Vector3[] = [solidScriptPathSide(directions[0]!)];
-  for (let index = 1; index < stretches; index++) {
-    const turn = new THREE.Quaternion().setFromUnitVectors(directions[index - 1]!, directions[index]!);
-    sides.push(sides[index - 1]!.clone().applyQuaternion(turn));
-  }
+  const sides = solidScriptPathSides(directions, ups);
   const mitre = (index: number): THREE.Vector3 => {
     const after = directions[Math.min(index, stretches - 1) % stretches]!;
     const before = closed ? directions[(index + stretches - 1) % stretches]! : directions[Math.max(index - 1, 0)]!;
