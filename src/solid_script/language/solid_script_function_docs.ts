@@ -496,8 +496,9 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
     gives: ['List'],
   },
   nearest: {
-    usage: 'Nearest(points, point)',
-    summary: 'Index of the closest point in a list, from 0, such as Nearest([Points], Vector(0, 0, 0)).',
+    usage: 'Nearest(points, point, skip)',
+    summary:
+      'Index of the closest point in a list, from 0, such as Nearest([Points], Vector(0, 0, 0)). Skip leaves out one index, so Nearest([Points], [$Point], [$Index]) finds the nearest other point; -1 when none is left.',
     group: 'Random',
     gives: ['Number'],
   },
@@ -843,6 +844,11 @@ const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
   nearest: {
     points: { type: ['List', 'Path'], about: 'The points to search, or a Path.' },
     point: { type: ['Vector'], about: 'The point to measure from.', start: '0, 0, 0' },
+    skip: {
+      type: ['Number'],
+      about: 'An index to leave out, such as [$Index] for the nearest other point; -1 skips none.',
+      start: '-1',
+    },
   },
   time_text: { pattern: { type: ['Text'], about: 'Layout with YYYY, MM, DD, HH, mm and ss, such as "HH:mm".' } },
   slice: { start: { type: ['Number'], about: 'Position of the first item, from 0.', start: '0' } },

@@ -194,31 +194,45 @@ function solidScriptExtraShuffle(list: readonly SolidScriptValue[], seed: number
 }
 
 /**
- * Index of the closest point in a list.
+ * Index of the closest point in a list, optionally skipping one index so a
+ * point finds its nearest other point.
  *
- * @param args Points and the point to measure from.
- * @returns Index from 0.
+ * @param args Points, the point to measure from and an optional index to skip.
+ * @returns Index from 0, or -1 when no other point is left.
  */
 function solidScriptExtraNearest(args: readonly SolidScriptValue[]): number {
-  const usage = 'Nearest(points, point)';
+  const usage = 'Nearest(points, point, skip)';
   const given = args[0];
   const list = given instanceof SolidScriptPathElement ? solidScriptPathSample(given.path) : given;
   if (!Array.isArray(list) || list.length === 0)
     throw new Error(`${usage} needs a list of points, not ${solidScriptValueText(list)}`);
   const from = solidScriptExtraVector(args, 1, usage);
-  let best = 0;
+  const skip = args.length > 2 ? solidScriptExtraNumber(args, 2, usage) : -1;
+  let best = -1;
   let nearest = Number.POSITIVE_INFINITY;
   list.forEach((entry, index) => {
-    const point = solidScriptValueNumbers(entry);
-    if (!point || point.length !== from.length)
-      throw new Error(`${usage} needs points that all have the same number of values as the point`);
-    const distance = Math.hypot(...point.map((value, axis) => value - (from[axis] ?? 0)));
-    if (distance < nearest) {
+    const distance = solidScriptExtraNearestDistance(entry, from, usage);
+    if (index !== skip && distance < nearest) {
       nearest = distance;
       best = index;
     }
   });
   return best;
+}
+
+/**
+ * Distance from a list entry to the point Nearest measures from.
+ *
+ * @param entry Point from the list.
+ * @param from Point to measure from.
+ * @param usage Usage text for errors.
+ * @returns Straight-line distance.
+ */
+function solidScriptExtraNearestDistance(entry: SolidScriptValue, from: readonly number[], usage: string): number {
+  const point = solidScriptValueNumbers(entry);
+  if (!point || point.length !== from.length)
+    throw new Error(`${usage} needs points that all have the same number of values as the point`);
+  return Math.hypot(...point.map((value, axis) => value - (from[axis] ?? 0)));
 }
 
 /**

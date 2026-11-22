@@ -45,6 +45,8 @@ describe('SolidScript formula helpers', () => {
     expect(formula('Shuffle([1, 2, 3, 4], 9)')).toBe(formula('Shuffle([1, 2, 3, 4], 9)'));
     expect(formula('Shuffle([1, 2, 3, 4], 9)').startsWith('[')).toBe(true);
     expect(formula('Nearest([[0, 0, 0], [4, 0, 0], [1, 0, 0]], [1.2, 0, 0])')).toBe('2');
+    expect(formula('Nearest([[0, 0, 0], [4, 0, 0], [1, 0, 0]], [1, 0, 0], 2)')).toBe('0');
+    expect(formula('Nearest([[1, 0, 0]], [1, 0, 0], 0)')).toBe('-1');
   });
 
   it('gives smooth noise from 0 to 1, the same for the same seed', () => {
