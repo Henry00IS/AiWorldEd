@@ -192,7 +192,7 @@ function builderScript(
 function toolHost(command: SolidScriptCommand): SolidScriptLine[] {
   if (MESH_TOOLS.has(command.id)) {
     const which = command.id === 'delete_faces' ? 'Facing Up' : 'All';
-    const faces = FACE_TOOLS.has(command.id) ? [{ command: 'select_faces', values: { which } }] : [];
+    const faces: SolidScriptLine[] = FACE_TOOLS.has(command.id) ? [{ command: 'select_faces', values: { which } }] : [];
     const top = { where: '[=[$Y] > 0 and [$X] > 0 and [$Z] > 0]' };
     if (command.id === 'delete_edges') faces.push({ command: 'select_edges', values: { where: '[=[$Y] > 0.4]' } });
     if (command.id === 'delete_vertices') faces.push({ command: 'select_vertices', values: top });
