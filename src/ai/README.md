@@ -642,3 +642,4 @@ Solid mutations (including hierarchy create/reparent/rename/ungroup) are **undoa
 - Brick(position, scale, seed, output, mortar, width, height, offset, smooth) gives brick mortar or a per-brick Tint; Magic(position, scale, depth, distortion) gives swirling colour bands.
 - Rename Data moves a .Data value to a new key and Remove Data removes one key, on faces, edges or corners.
 - PrincipalAxes(points, output) gives the main axes, spread or middle of a point cloud; MatrixSvd(matrix, output) gives the stretches S and the turns U and V of a matrix.
+- Dual Mesh swaps the faces and corners of a mesh, with Keep Boundaries for open edges.

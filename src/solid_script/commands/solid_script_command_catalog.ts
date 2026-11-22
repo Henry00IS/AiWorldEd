@@ -21,6 +21,7 @@ import { SOLID_SCRIPT_COMMANDS_SHADING } from './solid_script_commands_shading.j
 import { SOLID_SCRIPT_COMMANDS_POINTS } from './solid_script_commands_points.js';
 import { SOLID_SCRIPT_COMMANDS_POSITIONS } from './solid_script_commands_positions.js';
 import { SOLID_SCRIPT_COMMANDS_DATA } from './solid_script_commands_data.js';
+import { SOLID_SCRIPT_COMMANDS_MESH_DUAL } from './solid_script_commands_mesh_dual.js';
 import { SOLID_SCRIPT_COMMANDS_DATA_KEYS } from './solid_script_commands_data_keys.js';
 import { SOLID_SCRIPT_COMMANDS_TAGS } from './solid_script_commands_tags.js';
 import { SOLID_SCRIPT_COMMANDS_UVS } from './solid_script_commands_uvs.js';
@@ -78,6 +79,7 @@ export const solidScriptCommands: readonly SolidScriptCommand[] = [
   ...SOLID_SCRIPT_COMMANDS_POSITIONS,
   ...SOLID_SCRIPT_COMMANDS_DATA,
   ...SOLID_SCRIPT_COMMANDS_DATA_KEYS,
+  ...SOLID_SCRIPT_COMMANDS_MESH_DUAL,
   ...SOLID_SCRIPT_COMMANDS_TAGS,
   ...SOLID_SCRIPT_COMMANDS_QUERY,
   ...SOLID_SCRIPT_COMMANDS_UVS,

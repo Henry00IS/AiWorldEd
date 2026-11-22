@@ -18,6 +18,7 @@ const MESH_TOOLS = new Set([
   'join_meshes',
   'merge_by_distance',
   'merge_points',
+  'dual_mesh',
   'subdivide',
   'mesh_smooth',
   'displace',

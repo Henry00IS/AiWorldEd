@@ -100,6 +100,7 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
     [
       'merge_by_distance',
       'merge_points',
+      'dual_mesh',
       'subdivide',
       'mesh_smooth',
       'displace',
@@ -442,6 +443,7 @@ describe('solid script command catalog', () => {
     const refused = [
       'merge_by_distance',
       'merge_points',
+      'dual_mesh',
       'subdivide',
       'mesh_smooth',
       'displace',

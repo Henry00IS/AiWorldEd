@@ -205,7 +205,7 @@ function solidScriptMeshCreased(run: SolidScriptBlockRun, mesh: SolidScriptShape
  * @param change What the tool does.
  * @returns Nothing; the meshes are replaced in place.
  */
-function solidScriptMeshApply(
+export function solidScriptMeshApply(
   run: SolidScriptBlockRun,
   label: string,
   change: (mesh: SolidScriptShapeMesh) => SolidScriptShapeMesh,
