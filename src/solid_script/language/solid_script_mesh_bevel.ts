@@ -16,6 +16,8 @@ export interface SolidScriptMeshBevelPick {
 export interface SolidScriptMeshBevelled {
   mesh: SolidScriptShapeMesh;
   made: number[];
+  /** How many picked edges were left alone because they are on an open border. */
+  skipped: number;
 }
 
 /** Working state of one bevel: corners joined by place and the picks. */
@@ -97,27 +99,33 @@ function solidScriptMeshBevelTwins(loops: readonly number[][]): Map<string, [num
 
 /**
  * Reads the picks into bevelled edges and the distance at each corner they
- * touch; a corner where several meet takes the largest.
+ * touch; a corner where several meet takes the largest. Edges on an open
+ * border, with a face on one side only, are left alone.
  *
  * @param work Bevel state, filled in.
  * @param picks Edges and corners.
  * @param placeOf Number of the joined corner at a place.
+ * @returns How many edges were left alone.
  */
 function solidScriptMeshBevelPicks(
   work: SolidScriptMeshBevelWork,
   picks: readonly SolidScriptMeshBevelPick[],
   placeOf: (point: THREE.Vector3) => number,
-): void {
+): number {
+  let skipped = 0;
   for (const pick of picks) {
     const corners = pick.at.map(placeOf);
     const [a, b] = corners;
     if (a !== undefined && b !== undefined) {
-      if (!work.twins.has(`${a}>${b}`) || !work.twins.has(`${b}>${a}`))
-        throw new Error('Bevel needs edges with a face on both sides; this edge is on an open border');
+      if (!work.twins.has(`${a}>${b}`) || !work.twins.has(`${b}>${a}`)) {
+        skipped++;
+        continue;
+      }
       work.edges.add(solidScriptMeshBevelEdgeKey(a, b));
     }
     for (const corner of corners) work.distances.set(corner, Math.max(work.distances.get(corner) ?? 0, pick.distance));
   }
+  return skipped;
 }
 
 /**
@@ -371,7 +379,8 @@ function solidScriptMeshBevelOutwards(work: SolidScriptMeshBevelWork): Map<numbe
  *
  * @param mesh Mesh.
  * @param picks Edges and corners to bevel.
- * @returns Bevelled mesh and the numbers of the faces it made.
+ * @returns Bevelled mesh, the numbers of the faces it made and how many edges
+ *   on an open border it left alone.
  */
 export function solidScriptMeshBevel(
   mesh: SolidScriptShapeMesh,
@@ -386,8 +395,8 @@ export function solidScriptMeshBevel(
     distances: new Map(),
     slides: new Map(),
   };
-  solidScriptMeshBevelPicks(work, picks, welded.placeOf);
-  return solidScriptMeshBevelBuild(mesh, work);
+  const skipped = solidScriptMeshBevelPicks(work, picks, welded.placeOf);
+  return { ...solidScriptMeshBevelBuild(mesh, work), skipped };
 }
 
 /**
@@ -422,7 +431,7 @@ function solidScriptMeshBevelUvs(
 function solidScriptMeshBevelBuild(
   mesh: SolidScriptShapeMesh,
   work: SolidScriptMeshBevelWork,
-): SolidScriptMeshBevelled {
+): Omit<SolidScriptMeshBevelled, 'skipped'> {
   const outwards = solidScriptMeshBevelOutwards(work);
   const corners = solidScriptMeshBevelCorners(work);
   const kept = corners.map((loop) => loop.flat());

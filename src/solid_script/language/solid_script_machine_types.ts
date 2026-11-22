@@ -331,6 +331,8 @@ export interface SolidScriptBlockRun {
   variableClear(name: string): void;
   /** Writes a line to the output. */
   print(text: string): SolidScriptShape[];
+  /** Notes a warning on this line; the script still runs. */
+  warn(text: string): void;
 }
 
 /** A warning of a run: the script still runs. */

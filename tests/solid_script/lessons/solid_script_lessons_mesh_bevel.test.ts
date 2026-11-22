@@ -162,3 +162,34 @@ describe('Bevel Edges per edge', () => {
     expect(Math.min(...top.map((point) => point.x))).toBeCloseTo(-0.4, 5);
   });
 });
+
+describe('Bevel Edges on open borders', () => {
+  it('skips edges on an open border with a warning and bevels the rest', () => {
+    const result = solidScriptProgramRun(
+      solidScriptDocumentCreate([
+        { command: 'grid_mesh', values: { size: '2, 0, 2', columns: '2', rows: '2' } },
+        { command: 'select_objects' },
+        { command: 'bevel_edges', values: { distance: '0.1', of: '[$Selected.Objects]' } },
+      ]),
+    );
+    expect(result.error).toBeNull();
+    expect(result.warnings.map((warning) => warning.line)).toContain(3);
+    expect(result.warnings.find((warning) => warning.line === 3)?.text).toContain('open border');
+    const [leaf] = solidScriptGeometryLeaves(result.shapes);
+    if (leaf?.kind !== 'mesh') throw new Error('Expected a mesh');
+    expect(leaf.faces.length).toBeGreaterThan(4);
+  });
+
+  it('only warns when every picked edge is on an open border', () => {
+    const result = solidScriptProgramRun(
+      solidScriptDocumentCreate([
+        { command: 'grid_mesh', values: { size: '2, 0, 2' } },
+        { command: 'select_objects' },
+        { command: 'select_edges', values: { where: '[=Abs([$Edge.Center.X]) > 0.99]' } },
+        { command: 'bevel_edges', values: { distance: '0.1' } },
+      ]),
+    );
+    expect(result.error).toBeNull();
+    expect(result.warnings.find((warning) => warning.line === 4)?.text).toContain('open border');
+  });
+});

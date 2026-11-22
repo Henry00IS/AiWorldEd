@@ -1207,6 +1207,9 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         state.machine.messages.push(text);
         return [];
       },
+      warn: (text) => {
+        state.machine.warnings.set(state.machine.line, text);
+      },
       inputValue: (name) => state.machine.inputs[name] ?? state.machine.inputKeyed().get(solidScriptNameKey(name)),
       use: () => state.machine.system.use ?? SOLID_SCRIPT_USE_GENERATOR,
       matrix: () => state.context.matrix.clone(),
