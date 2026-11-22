@@ -1,3 +1,4 @@
+import { fileSystemHandleAnswer } from '@/project/fs/file_system_handle_answer.js';
 import {
   SCENE_FILE_DESCRIPTION,
   SCENE_FILE_EXTENSION,
@@ -300,14 +301,16 @@ export class SceneFileSession {
   }
 
   /**
-   * Queries and, if needed, requests readwrite permission on a handle.
+   * Queries and, if needed, requests readwrite permission on a handle; a handle
+   * the browser does not answer for in time fails.
    *
    * @param handle File handle to check.
    * @returns True when writing is allowed.
    */
   private async ensureWritePermission(handle: SceneFileHandle): Promise<boolean> {
     const descriptor = { mode: 'readwrite' as const };
-    if (!handle.queryPermission || (await handle.queryPermission(descriptor)) === 'granted') return true;
+    if (!handle.queryPermission) return true;
+    if ((await fileSystemHandleAnswer(handle.queryPermission(descriptor))) === 'granted') return true;
     if (!handle.requestPermission) return false;
     return (await handle.requestPermission(descriptor)) === 'granted';
   }

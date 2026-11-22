@@ -94,6 +94,17 @@ describe('ModelExportFolderMemory', () => {
       expect(await recallPastWait(memory)).toBeNull();
     });
 
+    it('refuses exporting to a recalled folder whose permission check stops answering', async () => {
+      const stale = folderHandle('Test', 'prompt');
+      const recalled = await new ModelExportFolderMemory(handleStore(stale).store).recall();
+      vi.mocked(stale.queryPermission).mockImplementation(() => new Promise<PermissionState>(() => undefined));
+      vi.useFakeTimers();
+      const access = recalled?.access?.();
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(await access).toBe(false);
+      expect(stale.requestPermission).not.toHaveBeenCalled();
+    });
+
     it('drops the folder when reading the stored handle never answers', async () => {
       const store = { save: vi.fn(async () => undefined), load: vi.fn(() => new Promise<null>(() => undefined)) };
       const memory = new ModelExportFolderMemory(store as unknown as StoreProjectHandle);

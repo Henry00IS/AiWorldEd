@@ -1,4 +1,5 @@
 import type { SceneFileHandle } from '@/io/scene_file/scene_file_session.js';
+import { fileSystemHandleAnswer } from '@/project/fs/file_system_handle_answer.js';
 import { sceneFileRecentListAdd, type SceneFileRecentEntry } from './scene_file_recent_list.js';
 import type { SceneFileRecentStorage } from './scene_file_recent_store.js';
 
@@ -17,9 +18,13 @@ export interface SceneFileRecentItem {
 /** Result of checking one Recent file. */
 type SceneFileRecentCheck = SceneFileRecentAccess | 'hidden' | 'gone';
 
+/** Read errors of a file that is deleted, or a handle that never answered. */
+const sceneFileRecentGoneErrors: ReadonlySet<string> = new Set(['NotFoundError', 'TimeoutError']);
+
 /**
  * The files opened or saved most recently. Lists only files the browser still
- * has access to, without asking; files that no longer exist drop off the list.
+ * has access to, without asking; files that no longer exist, or that the
+ * browser fails or never answers for, drop off the list.
  */
 export class SceneFileRecent {
   private entries: SceneFileRecentEntry[] = [];
@@ -84,7 +89,8 @@ export class SceneFileRecent {
 
   /**
    * Asks for read access to a Recent file when the browser needs it. Call from
-   * a click: the browser only asks during a user action.
+   * a click: the browser only asks during a user action. A file the browser
+   * fails or never answers for is dropped.
    *
    * @param item Recent file.
    * @returns The handle, or null when access was not granted.
@@ -92,7 +98,11 @@ export class SceneFileRecent {
   async access(item: SceneFileRecentItem): Promise<SceneFileHandle | null> {
     const handle = item.entry.handle;
     if (handle.queryPermission === undefined || handle.requestPermission === undefined) return handle;
-    const state = await handle.queryPermission({ mode: 'read' }).catch(() => 'denied' as const);
+    const state = await fileSystemHandleAnswer(handle.queryPermission({ mode: 'read' })).catch(() => null);
+    if (state === null) {
+      void this.forget(handle);
+      return null;
+    }
     if (state === 'granted') return handle;
     const asked = await handle.requestPermission({ mode: 'read' }).catch(() => 'denied' as const);
     void this.refresh();
@@ -170,19 +180,22 @@ function sceneFileRecentItem(
 
 /**
  * Checks one file without asking the user: readable, reachable after a prompt,
- * hidden (access denied or unreadable now) or gone (deleted).
+ * hidden (access denied or unreadable now) or gone (deleted, or a stale handle
+ * the browser fails or never answers for).
  *
  * @param handle File handle.
  * @returns Check result.
  */
 async function sceneFileRecentCheck(handle: SceneFileHandle): Promise<SceneFileRecentCheck> {
-  const state = (await handle.queryPermission?.({ mode: 'read' }).catch(() => 'denied' as const)) ?? 'granted';
+  const query = handle.queryPermission?.({ mode: 'read' });
+  const state = query === undefined ? 'granted' : await fileSystemHandleAnswer(query).catch(() => null);
+  if (state === null) return 'gone';
   if (state === 'prompt') return 'prompt';
   if (state !== 'granted') return 'hidden';
   try {
-    await handle.getFile();
+    await fileSystemHandleAnswer(handle.getFile());
     return 'granted';
   } catch (error) {
-    return error instanceof DOMException && error.name === 'NotFoundError' ? 'gone' : 'hidden';
+    return error instanceof DOMException && sceneFileRecentGoneErrors.has(error.name) ? 'gone' : 'hidden';
   }
 }

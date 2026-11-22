@@ -1,15 +1,9 @@
+import { fileSystemHandleAnswer } from '@/project/fs/file_system_handle_answer.js';
 import { StoreProjectHandle } from '@/project/fs/store_project_handle.js';
 import { modelExportDirectoryDestination, type ModelExportDestination } from './model_export_destination.js';
 
 /** Key of the last export folder in the folder handle store. */
 const MODEL_EXPORT_FOLDER_MEMORY_KEY = 'model-export';
-
-/**
- * Longest wait for the browser to read the remembered folder and answer its
- * permission, in milliseconds; a stale handle may never answer, and the Export
- * dialog waits on this.
- */
-const MODEL_EXPORT_FOLDER_MEMORY_WAIT_MS = 1000;
 
 /**
  * Remembers the folder the last model export went to, for the session and in
@@ -37,12 +31,7 @@ export class ModelExportFolderMemory {
    * @returns Destination, or null when none is remembered or usable.
    */
   async recall(): Promise<ModelExportDestination | null> {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const gaveUp = new Promise<null>((resolve) => {
-      timer = setTimeout(() => resolve(null), MODEL_EXPORT_FOLDER_MEMORY_WAIT_MS);
-    });
-    const folder = await Promise.race([this.usableFolder().catch(() => null), gaveUp]);
-    clearTimeout(timer);
+    const folder = await fileSystemHandleAnswer(this.usableFolder()).catch(() => null);
     if (folder === null) this.forget();
     return folder === null ? null : modelExportDirectoryDestination(folder);
   }

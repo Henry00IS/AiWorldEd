@@ -99,6 +99,20 @@ describe('ControllerProject', () => {
     controller.dispose();
   });
 
+  it('stays closed when the browser never answers for the remembered folder', async () => {
+    const { root, store, controller } = controllerCreate();
+    store.handle = root.asHandle();
+    vi.spyOn(root, 'queryPermission').mockImplementation(() => new Promise<PermissionState>(() => undefined));
+    vi.useFakeTimers();
+    const restored = controller.restore();
+    await vi.advanceTimersByTimeAsync(5000);
+    await restored;
+    vi.useRealTimers();
+    expect(controller.fileSystem()).toBeNull();
+    expect(controller.pendingName()).toBeNull();
+    controller.dispose();
+  });
+
   it('stays closed when permission is refused', async () => {
     const { root, store, controller } = controllerCreate();
     store.handle = root.asHandle();

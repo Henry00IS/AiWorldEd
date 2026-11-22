@@ -1,4 +1,5 @@
 import type { SceneFileHandle } from '@/io/scene_file/scene_file_session.js';
+import { fileSystemHandleAnswer } from '@/project/fs/file_system_handle_answer.js';
 
 /** Most files the Recent list keeps. */
 export const SCENE_FILE_RECENT_LIMIT = 10;
@@ -50,12 +51,13 @@ export function sceneFileRecentListParse(value: unknown): SceneFileRecentEntry[]
  *
  * @param left First handle.
  * @param right Second handle.
- * @returns True for the same file; false when the browser cannot tell.
+ * @returns True for the same file; false when the browser cannot tell or does
+ *   not answer in time.
  */
 async function sceneFileRecentSame(left: SceneFileHandle, right: SceneFileHandle): Promise<boolean> {
   if (left === right) return true;
   if (left.isSameEntry === undefined) return false;
-  return left.isSameEntry(right).catch(() => false);
+  return fileSystemHandleAnswer(left.isSameEntry(right)).catch(() => false);
 }
 
 /**
