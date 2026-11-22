@@ -615,3 +615,9 @@ Solid mutations (including hierarchy create/reparent/rename/ungroup) are **undoa
 - Number helpers: Log(number, base) takes any base (10 when left off); Sinh, Cosh and Tanh work per axis; Gcd and Lcm of whole numbers; Xor of two tests; BitAnd, BitOr and BitXor; Median, Range and StdDev of a list of numbers.
 - Waves and coordinates: Smootherstep(edge_low, edge_high, value); Saw(value) and Triangle(value) repeat every whole step; Checker(position, scale) gives 1 in odd squares of a checkerboard; FlipToward(vector, reference); FromCylinder(radius, degrees, height), FromSphere(radius, yaw, pitch), ToCylinder(vector) and ToSphere(vector) around the up (Y) axis.
 - Random turns: RandomDirection(id, seed) gives a unit direction and RandomRotation(id, seed) an evenly spread rotation in degrees (X then Y then Z); in a per-item field the ID is the item. First(list, count) and Last(list, count) take several items.
+- Ranges and slices: Clamp(value, min, max) swaps reversed limits; Lerp(from, to, amount) accepts a vector amount when blending vectors; Slice(list or text, start, count) also takes characters of text, counted from 0.
+- Points From Path: a Count of 0 or 1 is raised to 2, so both ends of the path always get a point.
+- DivFloor(a, b) divides and rounds down, below 0 too, so DivFloor(a, b) * b + Mod(a, b) is a; Round(a / b) and Ceil(a / b) round the other ways. Facing() is the way to compare two directions by angle.
+- Remap(value, from_low, from_high, to_low, to_high, clamp, steps): Steps makes the result jump between that many even levels; 0 or left off slides smoothly.
+- Remap also takes Ease after Steps: Linear (the default), Smoothstep or Smootherstep. The latter two blend gently at the edges.
+- Star (2D Shapes) draws a flat star: Points tips at the Outer radius, an inner corner at the Inner radius halfway between each two, Twist turning the inner corners in degrees, and Anchor like Circle.

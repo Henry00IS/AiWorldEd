@@ -79,6 +79,16 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_NUMBERS = {
     group: 'Checks',
     gives: ['Yes/No'],
   },
+  div_floor: {
+    usage: 'DivFloor(a, b)',
+    summary: solidScriptFunctionDocSummary(
+      'How many whole times b fits into a, rounded down, even below 0. Together with Mod it splits a number into whole rounds and a leftover. Round and Ceil of the plain division round the other ways.',
+      ['DivFloor(7, 2) is 3.', 'DivFloor(-7, 2) is -4.'],
+      'Use it to turn a running index into a row number, such as which floor a step is on.',
+    ),
+    group: 'Math',
+    gives: ['Number'],
+  },
   bit_and: {
     usage: 'BitAnd(a, b)',
     summary: solidScriptFunctionDocSummary(

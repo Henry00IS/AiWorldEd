@@ -80,7 +80,8 @@ function solidScriptNumbersLog(args: readonly SolidScriptValue[]): number {
   const usage = 'Log(number, base)';
   const base = args.length > 1 ? solidScriptExtraNumber(args, 1, usage) : 10;
   if (base <= 0 || base === 1) throw new Error(`${usage} needs a base above 0 other than 1`);
-  return Math.log(solidScriptExtraNumber(args, 0, usage)) / Math.log(base);
+  const number = solidScriptExtraNumber(args, 0, usage);
+  return base === 10 ? Math.log10(number) : Math.log(number) / Math.log(base);
 }
 
 /**
@@ -96,8 +97,8 @@ function solidScriptNumbersDeviation(numbers: readonly number[]): number {
 }
 
 /**
- * Number helpers: logarithms, hyperbolic functions, whole numbers, bits and
- * list statistics.
+ * Number helpers: logarithms, hyperbolic functions, whole numbers, whole
+ * division, bits and list statistics.
  */
 export const SOLID_SCRIPT_FUNCTIONS_NUMBERS = {
   log: solidScriptAxesEach('Log(number, base)', (args) => solidScriptNumbersLog(args)),
@@ -112,6 +113,12 @@ export const SOLID_SCRIPT_FUNCTIONS_NUMBERS = {
   xor: (args) => {
     if (args.length !== 2) throw new Error('Xor(a, b) takes two values');
     return solidScriptValueTruthy(args[0]) !== solidScriptValueTruthy(args[1]);
+  },
+  div_floor: (args) => {
+    const usage = 'DivFloor(a, b)';
+    const divisor = solidScriptExtraNumber(args, 1, usage);
+    if (divisor === 0) throw new Error(`${usage} cannot divide by 0`);
+    return Math.floor(solidScriptExtraNumber(args, 0, usage) / divisor);
   },
   bit_and: solidScriptNumbersBits('BitAnd(a, b)', (a, b) => a & b),
   bit_or: solidScriptNumbersBits('BitOr(a, b)', (a, b) => a | b),

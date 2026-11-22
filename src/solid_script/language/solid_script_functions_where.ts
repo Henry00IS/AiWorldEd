@@ -89,7 +89,8 @@ function solidScriptWhereRandomRotation(id: number, seed: number): number[] {
 
 /**
  * The functions of the Where helpers that are not checks: Random, Chance,
- * Spread and Along. A per-item field fills in their ID or Index and Count.
+ * RandomDirection, RandomRotation, RandomInt, Spread and Along. A per-item
+ * field fills in their ID or Index and Count.
  */
 export const SOLID_SCRIPT_FUNCTIONS_WHERE = {
   random: (args) => {

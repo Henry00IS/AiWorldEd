@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { solidScriptAxesEach } from './solid_script_functions_axes.js';
 import { solidScriptExtraNumber } from './solid_script_functions_extra.js';
 import {
@@ -6,6 +7,9 @@ import {
   solidScriptValueTruthy,
   type SolidScriptValue,
 } from './solid_script_value.js';
+
+/** How to call Remap, for messages. */
+const SOLID_SCRIPT_SHAPING_REMAP_USAGE = 'Remap(value, from_low, from_high, to_low, to_high, clamp, steps, ease)';
 
 /** A built-in function over evaluated arguments. */
 type SolidScriptShaping = (args: SolidScriptValue[]) => SolidScriptValue;
@@ -40,19 +44,53 @@ function solidScriptShapingPingPong(value: number, length: number): number {
 }
 
 /**
- * Moves a number from one range into another, kept inside the target range when
- * clamped.
+ * Rounds a 0-to-1 amount down into steps, the way a stepped remap does; no
+ * Steps given, or Steps 0, leaves it smooth.
  *
- * @param args Value, the two ranges and Clamp.
+ * @param amount Amount from the low end to the high end.
+ * @param args Remap arguments, with Steps seventh.
+ * @param usage How to call the function, for the message.
+ * @returns Stepped amount.
+ */
+function solidScriptShapingSteps(amount: number, args: readonly SolidScriptValue[], usage: string): number {
+  const steps = args.length > 6 ? Math.round(solidScriptExtraNumber(args, 6, usage)) : 0;
+  if (steps < 0) throw new Error(`${usage} needs Steps of 0 or more`);
+  return steps === 0 ? amount : Math.floor(amount * (steps + 1)) / steps;
+}
+
+/**
+ * Eases a blend gently at both edges, when Ease asks; otherwise leaves it
+ * linear, including amounts past the ends.
+ *
+ * @param amount Blend amount.
+ * @param args Remap arguments, with Ease eighth.
+ * @param usage How to call the function, for the message.
+ * @returns Eased amount.
+ */
+function solidScriptShapingEase(amount: number, args: readonly SolidScriptValue[], usage: string): number {
+  const ease = args.length > 7 ? solidScriptValueText(args[7]).toLowerCase() : 'linear';
+  if (ease === 'linear') return amount;
+  if (ease === 'smoothstep') return THREE.MathUtils.smoothstep(amount, 0, 1);
+  if (ease === 'smootherstep') return THREE.MathUtils.smootherstep(amount, 0, 1);
+  throw new Error(`${usage} needs Ease Linear, Smoothstep or Smootherstep`);
+}
+
+/**
+ * Moves a number from one range into another, kept inside the target range when
+ * clamped, and in steps when Steps is given.
+ *
+ * @param args Value, the two ranges, Clamp, Steps and Ease.
  * @returns Number.
  */
 function solidScriptShapingRemap(args: readonly SolidScriptValue[]): number {
-  const usage = 'Remap(value, from_low, from_high, to_low, to_high, clamp)';
+  const usage = SOLID_SCRIPT_SHAPING_REMAP_USAGE;
   const [value, fromLow, fromHigh, toLow, toHigh] = [0, 1, 2, 3, 4].map((index) =>
     solidScriptExtraNumber(args, index, usage),
   ) as [number, number, number, number, number];
   if (fromHigh === fromLow) throw new Error(`${usage} needs from_low and from_high to differ`);
-  const mapped = toLow + ((value - fromLow) / (fromHigh - fromLow)) * (toHigh - toLow);
+  const stepped = solidScriptShapingSteps((value - fromLow) / (fromHigh - fromLow), args, usage);
+  const amount = solidScriptShapingEase(stepped, args, usage);
+  const mapped = toLow + amount * (toHigh - toLow);
   const clamp = args.length < 6 || solidScriptValueTruthy(args[5] ?? true);
   return clamp ? Math.min(Math.max(toLow, toHigh), Math.max(Math.min(toLow, toHigh), mapped)) : mapped;
 }
@@ -115,7 +153,7 @@ export const SOLID_SCRIPT_FUNCTIONS_SHAPING = {
       solidScriptExtraNumber(args, 1, 'PingPong(value, length)'),
     ),
   ),
-  remap: solidScriptAxesEach('Remap(value, from_low, from_high, to_low, to_high, clamp)', solidScriptShapingRemap),
+  remap: solidScriptAxesEach(SOLID_SCRIPT_SHAPING_REMAP_USAGE, solidScriptShapingRemap),
   accumulate: solidScriptShapingAccumulate,
   saw: solidScriptAxesEach('Saw(value)', (args) => {
     const value = solidScriptExtraNumber(args, 0, 'Saw(value)');

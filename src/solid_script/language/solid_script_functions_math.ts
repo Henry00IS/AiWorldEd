@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { solidScriptExtraNumber } from './solid_script_functions_extra.js';
 import { solidScriptAxesEach } from './solid_script_functions_axes.js';
 import {
@@ -263,15 +264,30 @@ function solidScriptMathCount(args: readonly SolidScriptValue[], usage: string):
   return count;
 }
 
+/**
+ * Some characters of a text, counted from 0; a start before 0 starts at 0 and a
+ * count past the end stops at the end.
+ *
+ * @param args Text, start and count.
+ * @param usage How to call the function, for the message.
+ * @returns Part of the text.
+ */
+function solidScriptMathSliceText(args: readonly SolidScriptValue[], usage: string): string {
+  const characters = [...solidScriptValueText(args[0])];
+  const start = Math.max(0, Math.floor(solidScriptExtraNumber(args, 1, usage)));
+  const count = args.length > 2 ? Math.floor(solidScriptExtraNumber(args, 2, usage)) : characters.length;
+  return characters.slice(start, start + Math.max(0, count)).join('');
+}
+
 /** Math and list functions: ranges, smoothing, angles and list picks. */
 export const SOLID_SCRIPT_FUNCTIONS_MATH = {
   smoothstep: (args) => {
     const t = solidScriptMathStepAmount(args, 'Smoothstep(edge_low, edge_high, value)');
-    return t * t * (3 - 2 * t);
+    return THREE.MathUtils.smoothstep(t, 0, 1);
   },
   smootherstep: (args) => {
     const t = solidScriptMathStepAmount(args, 'Smootherstep(edge_low, edge_high, value)');
-    return t * t * t * (t * (t * 6 - 15) + 10);
+    return THREE.MathUtils.smootherstep(t, 0, 1);
   },
   wrap: solidScriptAxesEach('Wrap(value, min, max)', (args) => {
     const usage = 'Wrap(value, min, max)';
@@ -325,7 +341,8 @@ export const SOLID_SCRIPT_FUNCTIONS_MATH = {
       : list.at(-1);
   },
   slice: (args) => {
-    const usage = 'Slice(list, start, count)';
+    const usage = 'Slice(list or text, start, count)';
+    if (typeof args[0] === 'string') return solidScriptMathSliceText(args, usage);
     const list = solidScriptMathList(args, 0, usage);
     const start = Math.floor(solidScriptExtraNumber(args, 1, usage));
     const count = args.length > 2 ? Math.floor(solidScriptExtraNumber(args, 2, usage)) : list.length;

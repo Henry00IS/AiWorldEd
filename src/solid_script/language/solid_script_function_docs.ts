@@ -339,10 +339,11 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
     gives: 'Any',
   },
   slice: {
-    usage: 'Slice(list, start, count)',
-    summary: 'Some items, from 0, such as Slice([4, 5, 6], 1, 2) is [5, 6].',
+    usage: 'Slice(list or text, start, count)',
+    summary:
+      'Some items, from 0, such as Slice([4, 5, 6], 1, 2) is [5, 6]. On a text it gives some characters, such as Slice("Tower", 1, 3) is "owe".',
     group: 'List',
-    gives: ['List'],
+    gives: ['List', 'Text'],
   },
   item_or: {
     usage: 'ItemOr(list, index, fallback)',
@@ -462,7 +463,8 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
   },
   hash: {
     usage: 'Hash(value, seed)',
-    summary: 'A number from 0 to 1 that is always the same for the same value and seed, such as Hash("Wall", 1).',
+    summary:
+      'A number from 0 to 1 that is always the same for the same value and seed, such as Hash("Wall", 1). It takes numbers, text, Yes/No and vectors; for a face, edge or vertex give its stable id, such as Hash([$Face.Id]), so the number stays when other faces change.',
     group: 'Random',
     gives: ['Number'],
   },
@@ -658,6 +660,7 @@ const PER_AXIS = { type: ['Number', 'Vector'], about: 'A number, or a vector to 
  * as a number, under the name its usage writes.
  */
 const PER_AXIS_INPUTS = {
+  lerp: { amount: { ...PER_AXIS, about: 'How far from From toward To, or one amount per axis.', start: '0.5' } },
   sin: { degrees: { ...PER_AXIS, start: '45' } },
   cos: { degrees: { ...PER_AXIS, start: '45' } },
   tan: { degrees: { ...PER_AXIS, start: '45' } },
@@ -725,6 +728,19 @@ const PER_AXIS_INPUTS = {
       about: 'Keeps the result inside the target range; false lets it go on past.',
       default: 'true',
       start: 'true',
+    },
+    steps: {
+      type: ['Number'],
+      about: 'How many even steps the result jumps between; 0 slides smoothly.',
+      default: '0',
+      start: '4',
+    },
+    ease: {
+      type: ['Text'],
+      about: 'Linear slides evenly; Smoothstep and Smootherstep ease gently at the edges.',
+      choices: ['Linear', 'Smoothstep', 'Smootherstep'],
+      default: 'Linear',
+      start: 'Linear',
     },
   },
 } as const;
@@ -918,7 +934,7 @@ const SOLID_SCRIPT_FUNCTION_INPUTS_LEFT_OFF: Readonly<Record<string, number>> = 
   noise: 5,
   noise_vector: 2,
   voronoi: 3,
-  remap: 1,
+  remap: 3,
   rotate_vector: 1,
   shuffle: 1,
   slice: 1,

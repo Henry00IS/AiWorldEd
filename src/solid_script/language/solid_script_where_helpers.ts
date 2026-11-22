@@ -117,7 +117,7 @@ export const SOLID_SCRIPT_WHERE_HELPERS: readonly SolidScriptWhereHelper[] = [
     ...SOLID_SCRIPT_WHERE_CHECK,
     name: 'Facing',
     display: 'Facing',
-    description: `Yes when a direction, such as a face's normal, points along another direction, within a number of degrees, ${SOLID_SCRIPT_FACING_WITHIN_DEFAULT} by default.`,
+    description: `Yes when a direction, such as a face's normal, points along another direction, within a number of degrees, ${SOLID_SCRIPT_FACING_WITHIN_DEFAULT} by default. It compares two directions by the angle between them, whatever their lengths.`,
     inputs: [
       {
         name: 'normal',

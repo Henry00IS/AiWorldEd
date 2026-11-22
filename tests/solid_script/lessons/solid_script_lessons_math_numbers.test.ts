@@ -57,3 +57,23 @@ describe('number helpers', () => {
     expect(formula('Median([])')).toContain('at least one number');
   });
 });
+
+describe('whole division', () => {
+  it('rounds DivFloor down, below 0 too, so it pairs with Mod', () => {
+    expect(formula('DivFloor(7, 2)')).toBe('3');
+    expect(formula('DivFloor(-7, 2)')).toBe('-4');
+    expect(formula('DivFloor(-7, 2) * 2 + Mod(-7, 2)')).toBe('-7');
+    expect(formula('DivFloor(1, 0)')).toContain('cannot divide by 0');
+  });
+});
+
+describe('Hash on any value', () => {
+  it('hashes vectors and text the same each time, and tells different ones apart', () => {
+    expect(formula('Hash(Vector(1, 2, 3))')).toBe(formula('Hash(Vector(1, 2, 3))'));
+    expect(formula('Hash(Vector(1, 2, 3))')).not.toBe(formula('Hash(Vector(3, 2, 1))'));
+    expect(formula('Hash(Vector(1, 2, 3), 1)')).not.toBe(formula('Hash(Vector(1, 2, 3))'));
+    const value = Number(formula('Hash("Wall")'));
+    expect(value).toBeGreaterThanOrEqual(0);
+    expect(value).toBeLessThan(1);
+  });
+});

@@ -13,8 +13,9 @@ type SolidScriptCoordinatesBuiltin = (args: SolidScriptValue[]) => SolidScriptVa
  * @returns X, Y and Z.
  */
 function solidScriptCoordinatesVector(args: readonly SolidScriptValue[], usage: string): [number, number, number] {
-  const [x, y, z] = solidScriptExtraVector(args, 0, usage);
-  if (x === undefined || y === undefined || z === undefined)
+  const numbers = solidScriptExtraVector(args, 0, usage);
+  const [x, y, z] = numbers;
+  if (numbers.length !== 3 || x === undefined || y === undefined || z === undefined)
     throw new Error(`${usage} needs a vector of three numbers`);
   return [x, y, z];
 }

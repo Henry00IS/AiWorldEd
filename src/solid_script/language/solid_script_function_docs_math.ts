@@ -261,8 +261,8 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_MATH = {
   clamp: {
     usage: 'Clamp(value, min, max)',
     summary: solidScriptFunctionDocSummary(
-      'Keeps a number inside a low and a high end, like a fence. Below the low end becomes the low end, above the high end becomes the high end, and inside it stays as it is.',
-      ['Clamp(12, 0, 10) is 10.', 'Clamp(-3, 0, 10) is 0.', 'Clamp(7, 0, 10) is 7.'],
+      'Keeps a number inside a low and a high end, like a fence. Below the low end becomes the low end, above the high end becomes the high end, and inside it stays as it is. Ends given the wrong way round are swapped.',
+      ['Clamp(12, 0, 10) is 10.', 'Clamp(-3, 0, 10) is 0.', 'Clamp(7, 0, 10) is 7.', 'Clamp(12, 10, 0) is 10.'],
       'Use it so a stair height, a blend amount or a falloff never overshoots.',
     ),
     group: 'Math',
@@ -281,11 +281,12 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_MATH = {
   lerp: {
     usage: 'Lerp(from, to, amount)',
     summary: solidScriptFunctionDocSummary(
-      'Picks a spot between two values. 0 is the start, 1 is the end, 0.5 is halfway. Works with numbers and with points. Amounts outside 0 and 1 continue past the ends.',
+      'Picks a spot between two values. 0 is the start, 1 is the end, 0.5 is halfway. Works with numbers and with points; between points the amount may be a vector, one amount per axis. Amounts outside 0 and 1 continue past the ends.',
       [
         'Lerp(0, 10, 0.5) is 5.',
         'Lerp(0, 10, 0) is 0.',
         'Lerp(Vector(0, 0, 0), Vector(0, 10, 0), 0.5) is Vector(0, 5, 0).',
+        'Lerp(Vector(0, 0, 0), Vector(10, 10, 10), Vector(0, 0.5, 1)) is Vector(0, 5, 10).',
       ],
       'Use it to raise each stair a little further, to slide a point along a path, or to fade a falloff.',
     ),
@@ -486,7 +487,7 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_MATH = {
         'Angle(Vector(1, 0, 0), Vector(1, 0, 0)) is 0.',
         'Angle(Vector(1, 0, 0), Vector(-1, 0, 0)) is 180.',
       ],
-      'Use it to see how sharp a corner is, or how far a door has swung.',
+      'Use it to see how sharp a corner is, or how far a door has swung. To ask whether two directions are within some degrees of each other, Facing does it in one step.',
     ),
     group: 'Vector',
     gives: ['Number'],

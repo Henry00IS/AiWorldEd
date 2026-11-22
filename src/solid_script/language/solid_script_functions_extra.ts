@@ -84,6 +84,26 @@ function solidScriptExtraPair(args: readonly SolidScriptValue[], usage: string):
 }
 
 /**
+ * Picks a spot between two numbers or two vectors; on vectors the amount may be
+ * a vector too, one amount per axis.
+ *
+ * @param args From, to and amount.
+ * @returns Number or vector.
+ */
+function solidScriptExtraLerpArguments(args: readonly SolidScriptValue[]): SolidScriptValue {
+  const usage = 'Lerp(from, to, amount)';
+  if (!Array.isArray(args[0]) && !Array.isArray(args[1])) {
+    const a = solidScriptExtraNumber(args, 0, usage);
+    return a + (solidScriptExtraNumber(args, 1, usage) - a) * solidScriptExtraNumber(args, 2, usage);
+  }
+  const [a, b] = solidScriptExtraPair(args, usage);
+  const amounts = Array.isArray(args[2]) ? solidScriptExtraVector(args, 2, usage) : undefined;
+  if (amounts && amounts.length !== a.length) throw new Error(`${usage} needs an amount per axis of the vectors`);
+  const amount = amounts ? 0 : solidScriptExtraNumber(args, 2, usage);
+  return a.map((value, axis) => value + ((b[axis] ?? value) - value) * (amounts?.[axis] ?? amount));
+}
+
+/**
  * Builds a pattern from text, with a plain message when it cannot be read.
  *
  * @param pattern Pattern text.
@@ -387,21 +407,10 @@ export const SOLID_SCRIPT_FUNCTIONS_EXTRA = {
   trunc: (args) => Math.trunc(solidScriptExtraNumber(args, 0, 'Trunc(number)')),
   clamp: (args) => {
     const usage = 'Clamp(value, min, max)';
-    return Math.min(
-      Math.max(solidScriptExtraNumber(args, 0, usage), solidScriptExtraNumber(args, 1, usage)),
-      solidScriptExtraNumber(args, 2, usage),
-    );
+    const ends = [solidScriptExtraNumber(args, 1, usage), solidScriptExtraNumber(args, 2, usage)];
+    return Math.min(Math.max(solidScriptExtraNumber(args, 0, usage), Math.min(...ends)), Math.max(...ends));
   },
-  lerp: (args) => {
-    const usage = 'Lerp(from, to, amount)';
-    const amount = solidScriptExtraNumber(args, 2, usage);
-    if (Array.isArray(args[0]) || Array.isArray(args[1])) {
-      const [a, b] = solidScriptExtraPair(args, usage);
-      return a.map((value, index) => value + (b[index]! - value) * amount);
-    }
-    const a = solidScriptExtraNumber(args, 0, usage);
-    return a + (solidScriptExtraNumber(args, 1, usage) - a) * amount;
-  },
+  lerp: solidScriptExtraLerpArguments,
   length: (args) => Math.hypot(...solidScriptExtraVector(args, 0, 'Length(vector)')),
   normalize: (args) => {
     const vector = solidScriptExtraVector(args, 0, 'Normalize(vector)');
