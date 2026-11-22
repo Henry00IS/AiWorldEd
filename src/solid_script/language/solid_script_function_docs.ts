@@ -855,6 +855,10 @@ const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
     matrix: { type: ['List'], about: 'A matrix, such as one from Transform.' },
     point: { type: ['Vector'], about: 'The point to place.', start: '0, 0, 0' },
   },
+  project_point: {
+    matrix: { type: ['List'], about: 'A matrix, such as a perspective one.' },
+    point: { type: ['Vector'], about: 'The point to project.', start: '0, 0, 0' },
+  },
   transform_direction: {
     matrix: { type: ['List'], about: 'A matrix, such as one from Transform.' },
     direction: { type: ['Vector'], about: 'The direction to turn.', start: '0, 1, 0' },

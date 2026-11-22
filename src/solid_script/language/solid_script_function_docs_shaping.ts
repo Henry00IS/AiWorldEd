@@ -138,11 +138,23 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_MATRIX = {
   transform_point: {
     usage: 'TransformPoint(matrix, point)',
     summary: solidScriptFunctionDocSummary(
-      'Places a point with a matrix: it is scaled, turned and moved.',
+      'Places a point with a matrix: it is scaled, turned and moved. The bottom row is left out; ProjectPoint uses it.',
       [
         'TransformPoint(Transform(Vector(1, 2, 3), Vector(0, 0, 0), Vector(1, 1, 1)), Vector(0, 0, 0)) is Vector(1, 2, 3).',
       ],
       'Use it for corners and positions.',
+    ),
+    group: 'Vector',
+    gives: ['Vector'],
+  },
+  project_point: {
+    usage: 'ProjectPoint(matrix, point)',
+    summary: solidScriptFunctionDocSummary(
+      'Places a point with a matrix like TransformPoint, then divides it by the size of W, the bottom row applied to the point, so a perspective matrix shrinks what is far away. A W of 0 gives Vector(0, 0, 0).',
+      [
+        'ProjectPoint(MatrixTranspose(Transform(Vector(1, 2, 3), Vector(0, 0, 0), Vector(1, 1, 1))), Vector(1, 0, 0)) is Vector(0.5, 0, 0).',
+      ],
+      'Use it with a camera or perspective matrix.',
     ),
     group: 'Vector',
     gives: ['Vector'],

@@ -98,7 +98,7 @@ Formulas know: numbers, text in double quotes, true, false, every name in bracke
 - Part names become solid and group names in the outliner, so wrap pieces in Define Part for readable names.
 - Generator blocks (Cone, Capsule, Torus, Pipe, Pyramid, Prism, Rhombicuboctahedron, Hollow Box, Curved Stairs, Column, Stairs, Arch, Blast Hole) build the same pieces as the generator of that name: they fill a box of their Size, placed on the origin by their Anchor, and their other fields have the generator's names, ranges and choices. A choice is written as its value, such as "z" for Prism's Axis, and may come from a variable. Sphere and Cylinder are built the same way as the Sphere, Cylinder and Cone generators.
 
-- Matrix formulas: Transform(move, rotate, scale) makes four rows of four numbers; Invert undoes it, TransformPoint places a point, TransformDirection turns and scales a direction without moving it, and MatrixMove/MatrixRotate/MatrixScale read its parts.
+- Matrix formulas: Transform(move, rotate, scale) makes four rows of four numbers; Invert undoes it, TransformPoint places a point by the top three rows, ProjectPoint also divides it by W from the bottom row, TransformDirection turns and scales a direction without moving it, and MatrixMove/MatrixRotate/MatrixScale read its parts.
 
 - Extrude Face has a per-face Direction (empty uses the normal). Individual Yes, the default, pulls every mesh face on its own; No pulls touching faces as one region, with walls only around its border. At a corner shared by several picked faces, the move is their average. On solids, negative Distance builds a Subtractive slab sunk into the solid, never a mesh. Top and Sides keep the faces the line made.
 

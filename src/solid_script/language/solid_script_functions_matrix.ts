@@ -110,15 +110,34 @@ function solidScriptMatrixRotateBy(args: readonly SolidScriptValue[]): number[] 
   return solidScriptRotationDegrees(local ? rotation.multiply(by) : by.multiply(rotation));
 }
 
+/**
+ * Applies a matrix to a point: its top three rows give the placed point and its
+ * bottom row the W a projection divides by.
+ *
+ * @param args Matrix and point.
+ * @param usage Usage for errors.
+ * @returns Placed point and W.
+ */
+function solidScriptMatrixPoint(
+  args: readonly SolidScriptValue[],
+  usage: string,
+): { affine: THREE.Vector3; w: number } {
+  const point = new THREE.Vector4(...solidScriptMatrixVector(args[1], usage, 'a point').toArray(), 1);
+  const [x = 0, y = 0, z = 0, w = 1] = solidScriptMatrixRows(solidScriptMatrixRead(args[0], usage)).map((row) =>
+    new THREE.Vector4(...row).dot(point),
+  );
+  return { affine: new THREE.Vector3(x, y, z), w };
+}
+
 /** Matrix functions: build, combine, undo, read back and apply. */
 export const SOLID_SCRIPT_FUNCTIONS_MATRIX = {
   rotate_by: solidScriptMatrixRotateBy,
   transform: solidScriptMatrixTransform,
   invert: solidScriptMatrixInvert,
-  transform_point: (args) => {
-    const usage = 'TransformPoint(matrix, point)';
-    const point = solidScriptMatrixVector(args[1], usage, 'a point');
-    return point.applyMatrix4(solidScriptMatrixRead(args[0], usage)).toArray();
+  transform_point: (args) => solidScriptMatrixPoint(args, 'TransformPoint(matrix, point)').affine.toArray(),
+  project_point: (args) => {
+    const { affine, w } = solidScriptMatrixPoint(args, 'ProjectPoint(matrix, point)');
+    return (w === 0 ? new THREE.Vector3() : affine.divideScalar(Math.abs(w))).toArray();
   },
   transform_direction: (args) => {
     const usage = 'TransformDirection(matrix, direction)';
