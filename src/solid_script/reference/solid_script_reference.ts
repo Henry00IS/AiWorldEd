@@ -167,6 +167,7 @@ Formulas know: numbers, text in double quotes, true, false, every name in bracke
 - Cluster(points, distance, groups) groups close points, giving each the index of the point its cluster started from.
 - Merge Points welds mesh corners that share a Merge ID into one at their average position, with Pick Where.
 - Scale Faces scales faces that share corners as one island, by their average Factor about their average Center.
+- Scale Edges grows or shrinks edges, joined ones as one island about their average midpoint.
 - Set Positions moves each corner in Of (vertices, or the corners of faces, edges, objects; empty: [$Selected.Vertices], else the corners of [$Selected.Faces]) To a vector worked out per corner, with [$Vertex], [$Index], [$Count], [$X], [$Y], [$Z] (its position) and [$NX], [$NY], [$NZ] (its normal); an optional Offset, also per corner, is added after To, so Offset 0, 0.5, 0 lifts every corner; an optional Where picks which corners move. Every To, Offset and Where reads the shape before the line, and all corners move together, so a corner never sees a neighbour already moved. A mesh takes any position; a solid is rebuilt around its corners while they stay convex. It equals Set [$Selected.Vertices.Positions] with Of and Where added.
 - A script may mix objects. Meshes have no Mode and sit outside the solid pipeline.
 - In a SolidScript generator, meshes show as a preview that is not saved, picked or collided with; Bake turns them into mesh objects. geometry_script_build creates them as mesh objects in the same undo step as the solids.

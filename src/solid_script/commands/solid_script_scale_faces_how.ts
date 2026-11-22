@@ -38,7 +38,7 @@ export function solidScriptScaleFacesHowOf(
  * @param label Field caption, for messages.
  * @returns Vector, or null.
  */
-function solidScriptScaleFacesVector(value: SolidScriptValue, label: string): THREE.Vector3 | null {
+export function solidScriptScaleFacesVector(value: SolidScriptValue, label: string): THREE.Vector3 | null {
   if (value === undefined || (typeof value === 'string' && value.trim() === '')) return null;
   const numbers = solidScriptValueNumbers(value);
   if (numbers?.length !== 3) throw new Error(`${label} needs three numbers, such as 0, 1, 0`);

@@ -32,6 +32,7 @@ const FACE_TOOLS = new Set([
   'texture_faces',
   'tag_faces',
   'scale_faces',
+  'scale_edges',
   'project_uvs',
   'unwrap',
   'pack_islands',

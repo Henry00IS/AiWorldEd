@@ -193,3 +193,4 @@ The **Examples** window holds showcase scripts such as the Spiral Staircase, sma
 - Cluster(points, distance, groups) groups close points, giving each the index of the point its cluster started from.
 - Merge Points welds mesh corners that share a Merge ID into one at their average position, with Pick Where.
 - Scale Faces scales faces that share corners as one island, by their average Factor about their average Center.
+- Scale Edges grows or shrinks edges, joined ones as one island about their average midpoint.
