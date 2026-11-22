@@ -1,3 +1,6 @@
+import type { SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
+import type { SolidScriptGeometryLeaf } from '@/solid_script/language/solid_script_geometry.js';
+import { solidScriptEachRead } from '@/solid_script/language/solid_script_each_read.js';
 import { solidScriptFaceEach, solidScriptFaceEachNumber } from './solid_script_face_each.js';
 import { solidScriptParameterEach } from './solid_script_command_each.js';
 import { solidScriptKindNamed } from '@/solid_script/language/solid_script_kinds.js';
@@ -205,6 +208,52 @@ function solidScriptFaceSelectWrite(
   run.selectNote('faces', items);
   run.selectedSet('faces', after);
   solidScriptFaceWrite(run, 'into', after);
+}
+
+/**
+ * Paints the objects of a Texture block, working the texture out for each
+ * object; an object with a texture from an inner block keeps it, and one whose
+ * texture reads empty keeps the default.
+ *
+ * @param run Running line.
+ * @param shapes Shapes built inside the block.
+ * @returns Painted shapes.
+ */
+function solidScriptTexturePaint(run: SolidScriptBlockRun, shapes: SolidScriptShape[]): SolidScriptShape[] {
+  const leaves: SolidScriptGeometryLeaf[] = [];
+  shapes.forEach((shape) =>
+    solidScriptShapeMapLeaves(shape, (leaf) => {
+      if (leaf.kind === 'solid' || leaf.kind === 'mesh') leaves.push(leaf);
+      return leaf;
+    }),
+  );
+  const read = solidScriptEachRead(run, 'texture', leaves.length, (index) => {
+    const leaf = leaves[index];
+    return { ...(leaf ? { $Object: run.elements.brush(leaf) } : {}), $Index: index, $Count: leaves.length };
+  });
+  const order = new Map<SolidScriptShape, number>(leaves.map((leaf, index) => [leaf, index]));
+  return shapes.map((shape) =>
+    solidScriptShapeMapLeaves(shape, (leaf) =>
+      solidScriptTextureLeaf(run, leaf, solidScriptValueText(read(order.get(leaf) ?? -1)).trim()),
+    ),
+  );
+}
+
+/**
+ * Gives one object of a Texture block its texture.
+ *
+ * @param run Running line.
+ * @param leaf Object as built.
+ * @param texture Texture name; empty keeps the default.
+ * @returns The object, painted when it had no texture yet.
+ */
+function solidScriptTextureLeaf(run: SolidScriptBlockRun, leaf: SolidScriptShape, texture: string): SolidScriptShape {
+  if ((leaf.kind !== 'solid' && leaf.kind !== 'mesh') || texture === '') return leaf;
+  const latest = run.leafLatest(leaf);
+  if (latest.texture !== undefined) return latest;
+  const painted = { ...latest, texture };
+  run.leafReplace(latest, painted);
+  return painted;
 }
 
 /**
@@ -634,39 +683,26 @@ export const SOLID_SCRIPT_COMMANDS_FACES: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Paint objects with a texture',
     manual:
-      "Gives every face of the objects between this line and its End the texture named by Texture, the name a texture has in the texture library. Objects outside any Texture block keep the generator's own texture, and an inner Texture block wins over an outer one. A texture Input picks the name from the library, so the inspector can change it. Example: Input Wall, texture, then Texture [Wall] around the walls paints them with the picked texture.",
+      "Gives every face of the objects between this line and its End the texture named by Texture, the name a texture has in the texture library. Objects outside any Texture block keep the generator's own texture, and an inner Texture block wins over an outer one. A texture Input picks the name from the library, so the inspector can change it. The 🔁 Texture may change per object, such as with [$Index]. Example: Input Wall, texture, then Texture [Wall] around the walls paints them with the picked texture.",
     stops: ['A missing End line.', 'A [Name] for a variable not set above this line.'],
     nesting: 'open',
     parameters: [
-      {
-        ...solidScriptParameterOptional(
-          'texture',
-          'Texture',
-          'message',
-          "Name of a library texture; [Name] puts in a variable, such as a texture Input. Empty keeps the generator's texture.",
-        ),
-        texture: true,
-        accepts: ['Text'],
-      },
+      solidScriptParameterEach(
+        {
+          ...solidScriptParameterOptional(
+            'texture',
+            'Texture',
+            'message',
+            'Name of a library texture; [Name] puts in a variable, such as a texture Input, and [=Pick([$Index] % 2, "grass", "stone")] alternates two. Empty keeps the generator\'s texture.',
+          ),
+          texture: true,
+          accepts: ['Text'],
+        },
+        'Object',
+      ),
     ],
     listing: (read) => ['Texture', read.value('texture')],
-    execute: (run) => {
-      const texture = solidScriptValueText(run.value('texture')).trim();
-      const shapes = run.local(run.planar);
-      if (texture === '') return run.placed(shapes);
-      return run.placed(
-        shapes.map((shape) =>
-          solidScriptShapeMapLeaves(shape, (leaf) => {
-            if (leaf.kind !== 'solid' && leaf.kind !== 'mesh') return leaf;
-            const latest = run.leafLatest(leaf);
-            if (latest.texture !== undefined) return latest;
-            const painted = { ...latest, texture };
-            run.leafReplace(latest, painted);
-            return painted;
-          }),
-        ),
-      );
-    },
+    execute: (run) => run.placed(solidScriptTexturePaint(run, run.local(run.planar))),
   }),
   new SolidScriptCommand({
     id: 'texture_faces',
