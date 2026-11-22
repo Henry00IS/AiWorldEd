@@ -635,3 +635,4 @@ Solid mutations (including hierarchy create/reparent/rename/ungroup) are **undoa
 - Scale Edges grows or shrinks edges, joined ones as one island about their average midpoint.
 - InvertRotation, RotationAxis, RotationAngle and MixRotation work on turns in X, Y, Z degrees.
 - Select Shortest Paths picks the edges of the cheapest way from Start corners to the nearest End corner, with a Cost per edge.
+- Face Groups splits faces into groups joined through edges, stopping at edges that pass Cut.

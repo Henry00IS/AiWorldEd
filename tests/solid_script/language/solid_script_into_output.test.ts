@@ -225,7 +225,8 @@ function listScript(command: SolidScriptCommand): SolidScriptLine[] | null {
     command.id === 'scatter_points' ||
     command.id.startsWith('points_from_') ||
     command.id.startsWith('path_from_') ||
-    command.id === 'find_on'
+    command.id === 'find_on' ||
+    command.id === 'face_groups'
   )
     return [
       CUBE,

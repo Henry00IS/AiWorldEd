@@ -8,6 +8,7 @@ import { SOLID_SCRIPT_COMMANDS_LOGIC } from './solid_script_commands_logic.js';
 import { SOLID_SCRIPT_COMMANDS_MESH_EDGES } from './solid_script_commands_mesh_edges.js';
 import { SOLID_SCRIPT_COMMANDS_SCALE_EDGES } from './solid_script_commands_scale_edges.js';
 import { SOLID_SCRIPT_COMMANDS_SHORTEST_PATHS } from './solid_script_commands_shortest_paths.js';
+import { SOLID_SCRIPT_COMMANDS_FACE_GROUPS } from './solid_script_commands_face_groups.js';
 import { SOLID_SCRIPT_COMMANDS_PATH_FROM } from './solid_script_commands_path_from.js';
 import { SOLID_SCRIPT_COMMANDS_MESH_FACES } from './solid_script_commands_mesh_faces.js';
 import { SOLID_SCRIPT_COMMANDS_MESHES } from './solid_script_commands_meshes.js';
@@ -61,6 +62,7 @@ export const solidScriptCommands: readonly SolidScriptCommand[] = [
   ...SOLID_SCRIPT_COMMANDS_MESH_EDGES,
   ...SOLID_SCRIPT_COMMANDS_SCALE_EDGES,
   ...SOLID_SCRIPT_COMMANDS_SHORTEST_PATHS,
+  ...SOLID_SCRIPT_COMMANDS_FACE_GROUPS,
   ...SOLID_SCRIPT_COMMANDS_PATH_FROM,
   ...SOLID_SCRIPT_COMMANDS_PATHS,
   ...SOLID_SCRIPT_COMMANDS_FACES.slice(0, 1),

@@ -5,6 +5,7 @@ import {
 } from './solid_script_members_corners.js';
 import { solidScriptFaceTextureOwn } from './solid_script_shape.js';
 import * as THREE from 'three';
+import { solidScriptFaceIslands } from './solid_script_face_islands.js';
 import type { SolidScriptElements } from './solid_script_elements.js';
 import type { SolidScriptEdgeFacts, SolidScriptFaceFacts } from './solid_script_geometry.js';
 import { solidScriptKindNamed } from './solid_script_kinds.js';
@@ -656,22 +657,7 @@ function solidScriptMemberIslands(
   element: SolidScriptElement,
   elements: SolidScriptElements,
 ): SolidScriptFaceFacts[][] {
-  const faces = elements.faces(element);
-  const group = faces.map((_, index) => index);
-  const root = (index: number): number => {
-    while (group[index] !== index) index = group[index] = group[group[index]!]!;
-    return index;
-  };
-  for (const edge of elements.edges(element)) {
-    const [first, second] = edge.faces;
-    if (second) group[root(first.index)] = root(second.index);
-  }
-  const islands = new Map<number, SolidScriptFaceFacts[]>();
-  faces.forEach((face, index) => {
-    const key = root(index);
-    islands.set(key, [...(islands.get(key) ?? []), face]);
-  });
-  return [...islands.values()];
+  return solidScriptFaceIslands(elements.faces(element), elements.edges(element), () => true);
 }
 
 /**
