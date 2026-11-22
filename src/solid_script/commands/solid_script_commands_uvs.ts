@@ -45,6 +45,9 @@ import {
   textureUvProjectSpherePoint,
 } from '@/texture/uv_project/texture_uv_project_radial.js';
 import { textureUvUnwrapFace } from '@/texture/uv_project/texture_uv_unwrap.js';
+import { solidScriptUvUnfold } from '@/solid_script/language/solid_script_uv_unfold.js';
+import { solidScriptUvsSeamLinks } from './solid_script_uvs_seams.js';
+import { solidScriptParameterEach } from './solid_script_command_each.js';
 import { textureUvPackIslands } from '@/texture/uv_project/texture_uv_pack.js';
 import {
   textureUvTransformMatrix,
@@ -166,16 +169,33 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Lay each face flat in UV space',
     manual:
-      "Gives each face its own UV island, projected onto the face's plane with the editor's planar basis, shifted so the lowest U and V are 0. Size is metres of one texture repeat. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. Solids stay solids; meshes stay meshes. Use Pack Islands afterwards to fit the islands into 0 to 1. Example: Cube, Select Faces, Unwrap, Pack Islands.",
+      "Gives each face its own UV island, projected onto the face's plane with the editor's planar basis, shifted so the lowest U and V are 0. With Seams, only edges that pass Seams are cut open: faces joined by other edges stay together, each folded open from its neighbour so lengths and angles stay true, which suits a strip of wall or a box's sides. Size is metres of one texture repeat. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. Solids stay solids; meshes stay meshes. Use Pack Islands afterwards to fit the islands into 0 to 1. Example: Cube, Select Faces, Unwrap, Pack Islands.",
     stops: ['No faces.', 'A Size of 0 or less.'],
     parameters: [
       solidScriptParameter('size', 'Size', 'number', '1', 'Metres covered by one texture repeat, such as 1.'),
+      solidScriptParameterEach(
+        solidScriptParameterOptional(
+          'seams',
+          'Seams',
+          'value',
+          'A condition an edge must pass to be cut open, such as [=[$Edge.Angle] > 45]; faces joined by other edges stay together in one island. Left off lays each face alone.',
+        ),
+        'Edge',
+      ),
       solidScriptParameterOfWhere('Face', '[=[$Face.Normal.Y] > 0.9]'),
       solidScriptParameterOf('faces or objects', '$Selected.Faces'),
     ],
-    listing: (read) => ['Unwrap', ' Size ', read.value('size'), ...solidScriptListingOf(read)],
+    listing: (read) => [
+      'Unwrap',
+      ' Size ',
+      read.value('size'),
+      ...(read.text('seams') === '' ? [] : [' Seams ', read.value('seams')]),
+      ...solidScriptListingOf(read),
+    ],
     execute: (run) => {
-      solidScriptUvsUnwrap(run, solidScriptFaceTargets(run, 'Unwrap'));
+      const faces = solidScriptFaceTargets(run, 'Unwrap');
+      if (run.source('seams').trim() === '') solidScriptUvsUnwrap(run, faces);
+      else solidScriptUvsUnwrapSeams(run, faces);
       return [];
     },
   }),
@@ -642,6 +662,22 @@ function solidScriptUvsUnwrap(run: SolidScriptBlockRun, faces: readonly SolidScr
       return mapped;
     });
   }
+}
+
+/**
+ * Unwraps faces into islands cut open only along Seams, each face folded open
+ * from its neighbour.
+ *
+ * @param run Running line.
+ * @param faces Faces to unwrap.
+ */
+function solidScriptUvsUnwrapSeams(run: SolidScriptBlockRun, faces: readonly SolidScriptFaceFacts[]): void {
+  const uvs = solidScriptUvUnfold(faces, solidScriptUvsSeamLinks(run, faces), solidScriptUvsSize(run, 'Unwrap'));
+  for (const [leaf, group] of solidScriptFaceGroups(
+    faces.map((face, index) => ({ face, uvs: uvs[index] ?? [] })),
+    (item) => item.face.leaf,
+  ))
+    solidScriptUvsWriteCorners(run, leaf, group);
 }
 
 /**

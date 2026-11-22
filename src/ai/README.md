@@ -609,3 +609,4 @@ Solid mutations (including hierarchy create/reparent/rename/ungroup) are **undoa
 - Path Shape Smooth bends a gentle curve through every point in Points (Sides segments per stretch, Closed joins the ends); Shape Bezier runs From to To, leaving From toward From Handle and coming into To from To Handle, with Count points.
 - Path From Edges joins edges that share corners into a list of Paths (closed when they go all the way round, broken where three or more meet); Path From Faces gives the edges round each face as a closed Path. Both take Of and Where.
 - Fill Paths builds a flat mesh of triangles that fills closed Paths (or one loop of points): a path inside another is a hole, one inside that is filled again. The mesh faces the way the biggest path runs round.
+- Unwrap Seams [=[$Edge.Angle] > 45] cuts the UVs open only along edges that pass it: faces joined by other edges stay in one island, each folded open from its neighbour so lengths and angles stay true.
