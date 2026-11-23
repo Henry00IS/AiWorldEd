@@ -143,7 +143,7 @@ export class SolidScriptEditorOutput {
   show(document: SolidScriptDocument, options: SolidScriptProgramOptions | null, run: SolidScriptExplorerRun): void {
     this.settings?.write(document);
     this.checkSchedule(document);
-    const result = solidScriptProgramRun(document, { context: 'preview', ...options, profile: true });
+    const result = solidScriptProgramRun(document, { ...options, profile: true });
     this.passed = result.passed;
     if (!result.error) {
       this.failed = null;

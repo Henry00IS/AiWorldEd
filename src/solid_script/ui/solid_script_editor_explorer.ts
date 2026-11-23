@@ -234,7 +234,7 @@ export function solidScriptExplorerEntries(
   }
   const options = run.options;
   const system = solidScriptSystemValues(
-    options?.context ?? 'preview',
+    options?.context ?? 'generator',
     options?.box ?? null,
     false,
     options?.use,

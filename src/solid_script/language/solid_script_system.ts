@@ -10,7 +10,7 @@ import {
 } from './solid_script_box.js';
 
 /** Where a script runs. */
-export type SolidScriptRunContext = 'generator' | 'preview' | 'handler' | 'assistant';
+export type SolidScriptRunContext = 'generator' | 'handler' | 'assistant';
 
 /** What the editor around a script knows; filled in by the editor. */
 export interface SolidScriptSystemHost {
@@ -112,7 +112,7 @@ export const SOLID_SCRIPT_SYSTEM_SELECTED: readonly SolidScriptSystemValue[] = [
 
 /** Every built-in value, by group. */
 export const SOLID_SCRIPT_SYSTEM_GLOBALS: readonly SolidScriptSystemValue[] = [
-  { name: 'Run.Context', type: 'Text', detail: 'where the script runs: generator, preview, handler or assistant' },
+  { name: 'Run.Context', type: 'Text', detail: 'where the script runs: generator, handler or assistant' },
   { name: 'Run.Count', type: 'Number', detail: 'how many scripts ran in this window, this one included' },
   { name: 'Run.Seed', type: 'Number', detail: 'a new random whole number every run' },
   { name: 'Box.Width', type: 'Number', detail: 'width of the generator or modifier volume box in metres (X)' },

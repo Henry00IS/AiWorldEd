@@ -252,7 +252,6 @@ export class SolidScriptEditorDebugger {
     const run = solidScriptProgramRun(document, {
       breakpoints: { lines: this.breakLines, pauseAt: 0 },
       ...this.session.runStart(),
-      context: 'preview',
     });
     this.breaks = run.error ? [] : run.breaks;
     return run;

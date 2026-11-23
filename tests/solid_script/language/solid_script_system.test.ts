@@ -66,7 +66,7 @@ describe('SolidScript system values', () => {
 
   it('tells where the script runs and counts runs', () => {
     expect(echo('[$Run.Context]')).toBe('generator');
-    expect(echo('[$Run.Context]', { context: 'preview' })).toBe('preview');
+    expect(echo('[$Run.Context]', { context: 'handler' })).toBe('handler');
     const first = Number(echo('[$Run.Count]'));
     expect(Number(echo('[$Run.Count]'))).toBe(first + 1);
     expect(Number(echo('[$Run.Seed]'))).toBeGreaterThanOrEqual(0);

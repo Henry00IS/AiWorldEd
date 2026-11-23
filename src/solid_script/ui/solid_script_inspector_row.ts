@@ -230,7 +230,7 @@ function solidScriptInspectorDetail(
 ): void {
   const lines = `${document.blocks.length} ${document.blocks.length === 1 ? 'line' : 'lines'}`;
   try {
-    const result = solidScriptProgramEvaluate(document, { ...options, context: 'preview' });
+    const result = solidScriptProgramEvaluate(document, options);
     element.textContent = `${lines} · ${solidScriptOutputLine(result)}`;
     fail('');
   } catch (error) {

@@ -258,7 +258,7 @@ describe('SolidScript editor suggestions and variables', () => {
     type(search, 'text');
     // Built-in values whose name or detail holds the search show too.
     expect(explorerRows().filter((row) => !row.endsWith('Read Only|'))).toEqual(['label|Big Hall|Text|3,4']);
-    expect(explorerRows()).toContain('$Run.Context|preview|Text · Read Only|');
+    expect(explorerRows()).toContain('$Run.Context|generator|Text · Read Only|');
     press(search, 'Escape');
     expect(explorerRows()).toHaveLength(5);
     find<HTMLButtonElement>(

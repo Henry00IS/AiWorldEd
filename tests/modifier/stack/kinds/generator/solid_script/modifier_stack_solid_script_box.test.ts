@@ -52,7 +52,7 @@ function echoStart(start: ReturnType<typeof modifierStackSolidScriptRunStart>): 
       },
       { command: 'cube' },
     ]),
-    { ...start, context: 'preview' },
+    start,
   );
   return { text: run.error ? run.error.message : (run.messages[0] ?? ''), warnings: run.warnings.map((w) => w.text) };
 }

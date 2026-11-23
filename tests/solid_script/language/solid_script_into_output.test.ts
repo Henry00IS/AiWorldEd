@@ -373,14 +373,11 @@ describe('Into-set results stay out of the world until Output', () => {
     expect(result.variables.some((entry) => entry.name === HELD)).toBe(true);
   });
 
-  it('does not warn, and the preview has the solid, when Output places the variable', () => {
-    const result = run(
-      [
-        { ...CUBE, values: { ...CUBE.values, into: HELD } },
-        { command: 'output', values: { of: '[Held]' } },
-      ],
-      { context: 'preview' },
-    );
+  it('does not warn, and the run has the solid, when Output places the variable', () => {
+    const result = run([
+      { ...CUBE, values: { ...CUBE.values, into: HELD } },
+      { command: 'output', values: { of: '[Held]' } },
+    ]);
     expect(result.error?.message ?? null).toBeNull();
     expect(result.warnings).toEqual([]);
     expect(solidScriptGeometryLeaves(result.shapes)).toHaveLength(1);
