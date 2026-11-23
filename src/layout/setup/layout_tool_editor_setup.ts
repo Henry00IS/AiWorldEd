@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { CommandStack } from '@/commands/command_stack.js';
 import { TransformMode } from '@/types/transform_mode.js';
 import { HandlerTransform } from '@/transform/core/handler_transform.js';
 import { GizmoTransform } from '@/transform/gizmo/gizmo_transform.js';
@@ -158,6 +159,10 @@ export interface LayoutToolEditorSetupDeps {
    * it.
    */
   editorOverlayPolicy: PolicyEditorOverlay;
+  /** Level undo history; a finished widget drag goes in as one step. */
+  commandStack: CommandStack;
+  /** Shows or clears the Generator highlight on the tool rail. */
+  setRailEditing?: (editing: boolean) => void;
   /**
    * Called when a permanent gizmo handle drag begins so widgets latch
    * wantsActive.

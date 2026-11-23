@@ -71,6 +71,11 @@ export interface DependenciesBridgeTransformInteraction {
   onPermanentGizmoHandleDragBegan?: () => void;
   /** Invoked when a gizmo or bounds handle drag ends. */
   onPermanentGizmoHandleDragEnded?: () => void;
+  /**
+   * Returns whether an editor widget acts on a click at a client point, so no
+   * selection follows it.
+   */
+  isClickClaimedAt?: (clientX: number, clientY: number) => boolean;
 }
 
 /** Handles pointer events for gizmo and bounds transform drags. */
@@ -745,13 +750,15 @@ export class BridgeTransformInteraction {
   }
 
   /**
-   * Applies click-through selection after a bounds face press with no drag.
+   * Applies click-through selection after a bounds face press with no drag,
+   * unless an editor widget such as the Edit button acts on that click.
    *
    * @param event The original pointerdown event used for picking.
    * @param viewport The viewport that received the press.
    */
   private applyBoundsFaceSelectionClick(event: MouseEvent | null, viewport: Viewport3D | Viewport2D | null): void {
     if (!event || !viewport) return;
+    if (this.deps.isClickClaimedAt?.(event.clientX, event.clientY)) return;
     if (typeof viewport.getObjectPickStack !== 'function') return;
     const stack = viewport.getObjectPickStack(event);
     const orderedStack = orderObjectPickStackForViewport(stack, this.shouldUseReverseOutlinerObjectPick(viewport));

@@ -86,6 +86,19 @@ export abstract class Widget implements IEditorEventReceiver {
     return this.isActive && this.wantsActive;
   }
 
+  /**
+   * Returns whether a release at a client point is a click this widget acts on,
+   * so nothing under it acts on the same click. Off unless a widget turns it on
+   * for itself.
+   *
+   * @param _clientX Release client X.
+   * @param _clientY Release client Y.
+   * @returns True for a click the widget acts on.
+   */
+  claimsClickAt(_clientX: number, _clientY: number): boolean {
+    return false;
+  }
+
   /** Called when the widget is activated. */
   onActivate(): void {}
 
@@ -179,4 +192,16 @@ export abstract class Widget implements IEditorEventReceiver {
 
   /** Called when the widget loses input focus. */
   onFocusLost(): void {}
+}
+
+/**
+ * Returns whether any widget acts on a click at a client point.
+ *
+ * @param widgets Registered widgets.
+ * @param clientX Release client X.
+ * @param clientY Release client Y.
+ * @returns True when a widget claims the click.
+ */
+export function widgetsClaimClickAt(widgets: readonly Widget[], clientX: number, clientY: number): boolean {
+  return widgets.some((widget) => widget.claimsClickAt(clientX, clientY));
 }

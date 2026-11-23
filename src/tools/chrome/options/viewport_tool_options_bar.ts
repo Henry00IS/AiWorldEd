@@ -24,6 +24,7 @@ import {
   TOOL_INSTRUCTION_GRID_ORIGIN_VERTEX,
   TOOL_INSTRUCTION_GRID_RESET,
   TOOL_INSTRUCTION_UV_EDITOR,
+  TOOL_INSTRUCTION_GENERATOR,
   toolInstructionForTransformMode,
 } from '@/tools/chrome/instruction/tool_instruction_catalog.js';
 import type { EditorOrientationAxisId } from '@/navigation/orientation/editor_orientation_axis.js';
@@ -99,6 +100,17 @@ export class ViewportToolOptionsBar {
   private readonly root: HTMLElement;
   private readonly actionsRow: HTMLElement;
   private readonly transformButtons: Map<TransformMode, HTMLButtonElement>;
+  /**
+   * Highlight shown after the transform buttons while an object's widgets are
+   * edited.
+   */
+  private readonly generatorButton = createViewportToolRailButton(
+    ToolbarIcons.toolGenerator(),
+    TOOL_INSTRUCTION_GENERATOR,
+    () => {},
+  );
+  /** True while the Generator tool is active. */
+  private generatorEditing = false;
   private readonly modeDropdown: ViewportToolModeDropdown;
   private readonly objectDropdown: ViewportToolObjectDropdown;
   private readonly alignDropdown: ViewportToolNamedDropdown;
@@ -281,8 +293,21 @@ export class ViewportToolOptionsBar {
   setActiveTransformMode(mode: TransformMode): void {
     this.activeTransformMode = mode;
     this.transformButtons.forEach((button, buttonMode) => {
-      styleViewportToolRailButton(button, buttonMode === mode);
+      styleViewportToolRailButton(button, !this.generatorEditing && buttonMode === mode);
     });
+    styleViewportToolRailButton(this.generatorButton, true);
+    this.generatorButton.hidden = !this.generatorEditing;
+  }
+
+  /**
+   * Shows the Generator highlight in place of the transform mode highlight
+   * while an object's widgets are edited.
+   *
+   * @param editing True while the Generator tool is active.
+   */
+  setGeneratorEditing(editing: boolean): void {
+    this.generatorEditing = editing;
+    this.setActiveTransformMode(this.activeTransformMode);
   }
 
   /**
@@ -391,6 +416,8 @@ export class ViewportToolOptionsBar {
 
   /** Builds Bounds / Move / Rotate / Scale icon buttons once. */
   private buildTransformButtons(): void {
+    applyViewportToolOptionsIconButtonMetrics(this.generatorButton);
+    this.generatorButton.dataset['generatorEditing'] = 'true';
     this.addTransformButton(TransformMode.BOUNDS, ToolbarIcons.toolBounds());
     this.addTransformButton(TransformMode.TRANSLATE, ToolbarIcons.toolMove());
     this.addTransformButton(TransformMode.ROTATE, ToolbarIcons.toolRotate());
@@ -469,6 +496,7 @@ export class ViewportToolOptionsBar {
       }
       this.actionsRow.appendChild(button);
     });
+    this.actionsRow.appendChild(this.generatorButton);
     this.setActiveTransformMode(this.activeTransformMode);
   }
 

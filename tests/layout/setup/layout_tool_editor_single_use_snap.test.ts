@@ -70,6 +70,7 @@ describe('layout tool editor single-use Shift snap precision', () => {
       inputManager,
       gridSnap,
       editorOverlayPolicy: new PolicyEditorOverlay(),
+      commandStack: new CommandStack(16),
       getUserSnapEnabled: () => true,
       getActiveViewport: () =>
         ({
@@ -196,6 +197,7 @@ describe('layout tool editor single-use Shift snap precision', () => {
       inputManager,
       gridSnap,
       editorOverlayPolicy: new PolicyEditorOverlay(),
+      commandStack: new CommandStack(16),
       getUserSnapEnabled: () => true,
       getActiveViewport: () => createSnapViewportStub(),
       getInteractiveViewports: () => [],

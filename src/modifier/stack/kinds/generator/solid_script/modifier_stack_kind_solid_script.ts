@@ -1,4 +1,8 @@
 import type { ModifierStackPoseFollow } from '@/modifier/stack/kinds/modifier_stack_kind.js';
+import {
+  modifierStackSlidersPlaced,
+  modifierStackSlidersRecord,
+} from '@/modifier/stack/widgets/modifier_stack_sliders.js';
 import * as THREE from 'three';
 import {
   MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY,
@@ -155,6 +159,16 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
   }
 
   /**
+   * Has an edit mode when the script turns on Has Edit Mode.
+   *
+   * @param parameters Normalized parameters.
+   * @returns True for a script with an edit mode.
+   */
+  override hasEditMode(parameters: Record<string, unknown>): boolean {
+    return solidScriptDocumentNormalize(parameters[MODIFIER_STACK_SOLID_SCRIPT_KEY]).editMode === true;
+  }
+
+  /**
    * Returns the line count shown in the header.
    *
    * @param parameters Normalized parameters.
@@ -248,6 +262,12 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
     );
     if (layout.error) context.report.error = layout.error;
     const frame = modifierStackFrame(context.volume, 'volume');
+    const scriptToWorld = frame.clone().multiply(layout.placement);
+    modifierStackSlidersRecord(
+      context.volume,
+      context.step.id,
+      modifierStackSlidersPlaced(context.step.id, scriptToWorld, layout.widgets),
+    );
     if (context.ownsGenerated) for (const mesh of layout.meshes) context.meshes?.push({ ...mesh, frame });
     const count = modifierStackSolidScriptBrushCount(layout.nodes);
     if (context.budget.takeCopies(1, count) < count) {

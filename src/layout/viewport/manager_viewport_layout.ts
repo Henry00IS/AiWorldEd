@@ -1,4 +1,5 @@
 import type { EditorSettingsStore } from '@/settings/store/editor_settings_store.js';
+import { widgetsClaimClickAt } from '@/editor/widgets/widget.js';
 import { MODEL_EXPORT_FILE_NAME_DEFAULT } from '@/io/export/model_export_options.js';
 import * as THREE from 'three';
 import { findPickSurfaceAtClientPoint } from '@/utils/pointer_client_hit.js';
@@ -297,6 +298,10 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
       onRulerTransformFeedback: (meshes, phase) => this.onCadRulerTransformFeedback(meshes, phase),
       onPermanentGizmoHandleDragBegan: () => this.toolEditorSystem?.editorWindow.onPermanentGizmoHandleDragBegan(),
       onPermanentGizmoHandleDragEnded: () => this.toolEditorSystem?.editorWindow.onPermanentGizmoHandleDragEnded(),
+      isClickClaimedAt: (clientX, clientY) => {
+        const widgets = this.toolEditorSystem?.editorWindow.getWidgets() ?? [];
+        return widgetsClaimClickAt(widgets, clientX, clientY);
+      },
     });
     this.transformInteractionBridge.setViewportProbe((clientX, clientY) =>
       this.findInteractiveViewportAtClientPoint(
@@ -417,6 +422,8 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
       getGridOrientationHandler: () => this.gridOrientationHandler ?? null,
       getSnapAlignHost: () => this.createSnapAlignHost(),
       editorOverlayPolicy: this.editorOverlayPolicy,
+      commandStack: this.commandStack,
+      setRailEditing: (editing) => this.toolsPaletteController?.setGeneratorEditing(editing),
       onPermanentGizmoHandleDragBegan: () => this.toolEditorSystem?.editorWindow.onPermanentGizmoHandleDragBegan(),
       onPermanentGizmoHandleDragEnded: () => this.toolEditorSystem?.editorWindow.onPermanentGizmoHandleDragEnded(),
     });

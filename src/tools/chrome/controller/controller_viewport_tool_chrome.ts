@@ -1,4 +1,5 @@
 import { EditorToolId } from '@/types/editor_tool_id.js';
+import { toolChromeModeLabel } from './controller_viewport_tool_chrome_mode_label.js';
 import { SelectionMode } from '@/types/selection_mode.js';
 import { TransformMode } from '@/types/transform_mode.js';
 import { EditorInteractionMode, getEditorInteractionModeLabel } from '@/types/editor_interaction_mode.js';
@@ -113,6 +114,12 @@ export class ControllerViewportToolChrome {
   private deps: ControllerViewportToolChromeDependencies;
   private activeTool: EditorToolId;
   private activeTransformMode: TransformMode;
+  /** True while the Generator tool is active, shown as its own highlight. */
+  private generatorEditing = false;
+  /** Receives the highlighted mode's name, or null. */
+  private modeLabelListener: ((label: string) => void) | null = null;
+  /** Name last given to the listener, or null. */
+  private modeLabelShown: string | null = null;
   private activeInteractionMode: EditorInteractionMode;
   private activeComponentMode: EditorComponentMode;
   private activeGridPickMode: GridAlignPickMode;
@@ -379,6 +386,44 @@ export class ControllerViewportToolChrome {
     this.hosts.forEach((host) => {
       host.setActiveTransformMode(mode);
     });
+    this.modeLabelPublish();
+  }
+
+  /**
+   * Calls a listener with the highlighted mode's name now and whenever it
+   * changes.
+   *
+   * @param listener Receives names such as Bounds, Move or Generator.
+   */
+  setModeLabelListener(listener: (label: string) => void): void {
+    this.modeLabelListener = listener;
+    this.modeLabelShown = null;
+    this.modeLabelPublish();
+  }
+
+  /** Tells the listener the highlighted mode's name when it changed. */
+  private modeLabelPublish(): void {
+    const label = toolChromeModeLabel({
+      tool: this.activeTool,
+      transform: this.activeTransformMode,
+      interaction: this.activeInteractionMode,
+      component: this.activeComponentMode,
+      generatorEditing: this.generatorEditing,
+    });
+    if (label === this.modeLabelShown) return;
+    this.modeLabelShown = label;
+    this.modeLabelListener?.(label);
+  }
+
+  /**
+   * Shows or clears the Generator highlight on all panes.
+   *
+   * @param editing True while the Generator tool is active.
+   */
+  setGeneratorEditing(editing: boolean): void {
+    this.generatorEditing = editing;
+    this.hosts.forEach((host) => host.setGeneratorEditing(editing));
+    this.modeLabelPublish();
   }
 
   /** Refreshes active tool highlight and clip enablement on all panes. */
@@ -626,6 +671,7 @@ export class ControllerViewportToolChrome {
     host.setHandlers(this.buildHandlers());
     host.setActiveTool(this.activeTool);
     host.setActiveTransformMode(this.activeTransformMode);
+    host.setGeneratorEditing(this.generatorEditing);
     host.setActiveInteractionMode(this.activeInteractionMode);
     host.setActiveComponentMode(this.activeComponentMode);
     host.setActiveGridPickMode(this.activeGridPickMode);
@@ -638,6 +684,7 @@ export class ControllerViewportToolChrome {
     this.hosts.forEach((host) => {
       host.setActiveTool(this.activeTool);
     });
+    this.modeLabelPublish();
   }
 
   /** Broadcasts Object Mode / Edit Mode to all hosts. */
@@ -645,6 +692,7 @@ export class ControllerViewportToolChrome {
     this.hosts.forEach((host) => {
       host.setActiveInteractionMode(this.activeInteractionMode);
     });
+    this.modeLabelPublish();
   }
 
   /** Broadcasts Edit Mode component mode to all hosts. */
@@ -652,6 +700,7 @@ export class ControllerViewportToolChrome {
     this.hosts.forEach((host) => {
       host.setActiveComponentMode(this.activeComponentMode);
     });
+    this.modeLabelPublish();
   }
 
   /**

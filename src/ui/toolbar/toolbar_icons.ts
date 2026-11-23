@@ -216,6 +216,17 @@ export class ToolbarIcons {
   }
 
   /**
+   * Generator edit mode icon: a slider handle on its track.
+   *
+   * @returns SVG markup string.
+   */
+  static toolGenerator(): string {
+    return this.wrapSvg(
+      '<path fill="none" stroke="currentColor" stroke-width="1.6" d="M4 12h16"/><circle cx="14" cy="12" r="3" fill="currentColor"/><path fill="none" stroke="currentColor" stroke-width="1.4" d="M6 7v10M18 7v10"/>',
+    );
+  }
+
+  /**
    * Move / translate gizmo icon.
    *
    * @returns SVG markup string.

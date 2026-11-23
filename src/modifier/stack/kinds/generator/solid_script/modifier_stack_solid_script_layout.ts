@@ -12,6 +12,7 @@ import {
   type SolidScriptShapeSolid,
 } from '@/solid_script/language/solid_script_shape.js';
 import type { SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
+import type { SolidScriptWidgetSlider } from '@/solid_script/language/solid_script_widget.js';
 import type { SolidScriptMode } from '@/solid_script/language/solid_script_mode.js';
 import { solidScriptShapeMeshesCut } from '@/solid_script/language/solid_script_mesh_modes.js';
 import {
@@ -38,6 +39,10 @@ export interface ModifierStackSolidScriptLayout {
    * frame-space moves.
    */
   passed: ModifierStackSolidScriptPassed[];
+  /** Widgets the script asked for, in script coordinates. */
+  widgets: SolidScriptWidgetSlider[];
+  /** Matrix from script coordinates to frame coordinates. */
+  placement: THREE.Matrix4;
   /** Problem description, or empty. */
   error: string;
 }
@@ -113,9 +118,10 @@ export function modifierStackSolidScriptLayout(
       namePrefix: '',
     });
     const meshes = solidScriptShapeMeshesCut(shapes).map((mesh) => solidScriptMeshDocumentBuild(mesh, placed));
-    return { nodes, meshes, passed, error: '' };
+    return { nodes, meshes, passed, widgets: evaluated.widgets, placement: placed, error: '' };
   } catch (error) {
-    return { nodes: [], meshes: [], passed: [], error: solidScriptErrorText(error) };
+    const failed = { widgets: [], placement: new THREE.Matrix4() };
+    return { nodes: [], meshes: [], passed: [], ...failed, error: solidScriptErrorText(error) };
   }
 }
 

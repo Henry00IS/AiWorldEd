@@ -131,6 +131,21 @@ describe('TransformInteractionBridge', () => {
     expect(onPointerDown).toHaveBeenCalled();
   });
 
+  it('selects through after a still bounds face press, unless a widget claims the click', () => {
+    const behind = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
+    const picking = Object.assign(viewport, { getObjectPickStack: () => [behind] });
+    for (const claimed of [false, true]) {
+      selectionManager.setSelection([mesh]);
+      const bridge = createBridge(() => true, undefined, { isClickClaimedAt: () => claimed });
+      const click = new MouseEvent('pointerdown', { clientX: 400, clientY: 300 });
+      const faceClick = bridge as unknown as {
+        applyBoundsFaceSelectionClick(event: MouseEvent, view: Viewport3D): void;
+      };
+      faceClick.applyBoundsFaceSelectionClick(click, picking as unknown as Viewport3D);
+      expect(selectionManager.getAllSelectedObjectsAsArray()).toEqual(claimed ? [mesh] : [behind]);
+    }
+  });
+
   it('should end a bounds drag when pointerup fires on window outside the canvas', () => {
     const bridge = createBridge(() => true);
     const downEvent = new MouseEvent('pointerdown', { clientX: 400, clientY: 300 });
@@ -304,6 +319,7 @@ describe('TransformInteractionBridge', () => {
       gridSnap?: GridSnap;
       isShiftDown?: () => boolean;
       getUserSnapEnabled?: () => boolean;
+      isClickClaimedAt?: (clientX: number, clientY: number) => boolean;
     },
   ): BridgeTransformInteraction {
     const gridSnap = options?.gridSnap ?? new GridSnap(false, 1);
@@ -329,6 +345,7 @@ describe('TransformInteractionBridge', () => {
     if (onDuplicateSelectedForDrag !== undefined) {
       deps.onDuplicateSelectedForDrag = onDuplicateSelectedForDrag;
     }
+    if (options?.isClickClaimedAt) deps.isClickClaimedAt = options.isClickClaimedAt;
     return new BridgeTransformInteraction(deps);
   }
 });

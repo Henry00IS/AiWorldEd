@@ -122,9 +122,9 @@ export class StatusBar {
   }
 
   /**
-   * Updates the current transform mode display.
+   * Updates the mode display.
    *
-   * @param mode The current transform mode name.
+   * @param mode Name of the highlighted mode, such as Bounds or Generator.
    */
   setTransformMode(mode: string): void {
     if (this.isDisposed) return;

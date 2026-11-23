@@ -12,7 +12,7 @@ import { modifierStackOwnerEncode } from '@/modifier/stack/owner/modifier_stack_
  * @param owner Volume, brush or group.
  * @returns Stack, or undefined when the object has none.
  */
-function modifierStackParametersStackRead(owner: THREE.Object3D): ModifierStackSettings | undefined {
+export function modifierStackParametersStackRead(owner: THREE.Object3D): ModifierStackSettings | undefined {
   return ModifierVolume.isVolume(owner) ? ModifierVolume.read(owner) : modifierStackOwnerEncode(owner);
 }
 

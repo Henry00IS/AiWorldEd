@@ -1,17 +1,20 @@
 import type { Object3D } from 'three';
 import type { EditorViewportPickContext } from '@/editor/window/editor_viewport_pick_context.js';
+import type { ModifierStackSlider } from '@/modifier/stack/widgets/modifier_stack_sliders.js';
 
 /**
  * What the Edit button and the Generator tool need from the scene: the selected
- * generator, the panes it shows in, picking and the overlays.
+ * object with an edit mode, the panes it shows in, picking, its sliders, the
+ * grid and the overlays.
  */
 export interface GeneratorEditHost {
   /**
-   * Returns the generator when it is the only selected, unlocked object.
+   * Returns the selected object when it is the only selected, unlocked object
+   * and has an edit mode: a step whose script has Has Edit Mode on.
    *
-   * @returns Generator node, or null.
+   * @returns Object, or null.
    */
-  selectedGenerator(): Object3D | null;
+  selectedEditable(): Object3D | null;
 
   /**
    * Returns the camera and pick surface of every interactive pane.
@@ -21,19 +24,51 @@ export interface GeneratorEditHost {
   panes(): EditorViewportPickContext[];
 
   /**
-   * Selects the nearest generator under a client point; anything else under the
-   * point is ignored, so a click never selects an ordinary object.
+   * Selects the nearest object with an edit mode under a client point; anything
+   * else under the point is ignored, so a click never selects an ordinary
+   * object.
    *
    * @param clientX Pointer client X.
    * @param clientY Pointer client Y.
    */
-  pickGenerator(clientX: number, clientY: number): void;
+  pickEditable(clientX: number, clientY: number): void;
 
   /**
-   * Hides or restores the transform gizmos and bounds rulers while a generator
-   * is edited.
+   * Hides or restores the transform gizmos and bounds rulers, and shows the
+   * Generator highlight on the tool rail, while an object is edited.
    *
    * @param editing True while the Generator tool is active.
    */
   setEditing(editing: boolean): void;
+
+  /**
+   * Returns the sliders of the selected object as its last evaluation placed
+   * them.
+   *
+   * @returns Sliders; empty without a selected object with an edit mode.
+   */
+  sliders(): ModifierStackSlider[];
+
+  /**
+   * Snaps a distance to the grid when grid snapping is on.
+   *
+   * @param distance Distance in metres.
+   * @returns Snapped distance.
+   */
+  snapDistance(distance: number): number;
+
+  /**
+   * Writes a value into the input of a slider and rebuilds at once, as one live
+   * step of a drag that is not yet in the undo history.
+   *
+   * @param slider Slider being dragged.
+   * @param value Value to write.
+   */
+  slide(slider: ModifierStackSlider, value: number): void;
+
+  /** Ends a drag: everything it wrote becomes one undo step, shared with others. */
+  slideEnd(): void;
+
+  /** Takes back everything the drag wrote. */
+  slideCancel(): void;
 }

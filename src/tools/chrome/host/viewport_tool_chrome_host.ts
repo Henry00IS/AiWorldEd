@@ -171,6 +171,15 @@ export class ViewportToolChromeHost {
   }
 
   /**
+   * Shows or clears the Generator highlight.
+   *
+   * @param editing True while the Generator tool is active.
+   */
+  setGeneratorEditing(editing: boolean): void {
+    this.optionsBar.setGeneratorEditing(editing);
+  }
+
+  /**
    * Updates the Object Mode / Edit Mode control.
    *
    * @param mode Interaction mode.

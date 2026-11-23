@@ -68,6 +68,26 @@ describe('ViewportToolChromeHost', () => {
     host.dispose();
   });
 
+  it('shows its own Generator highlight in place of the transform highlight while editing', () => {
+    const host = new ViewportToolChromeHost(container, createHostHandlers(), () => undefined);
+    host.setActiveTransformMode(TransformMode.BOUNDS);
+    const options = container.querySelector('.editor-viewport-tool-options-bar') as HTMLElement;
+    const button = (label: string) =>
+      [...options.querySelectorAll('button')].find((each) => each.getAttribute('aria-label') === label);
+    const generator = () => button('Generator');
+    const activeBorder = button('Bounds')?.style.border;
+    const idleBorder = button('Move')?.style.border;
+    expect(generator()?.hidden).toBe(true);
+    host.setGeneratorEditing(true);
+    expect(generator()?.hidden).toBe(false);
+    expect(generator()?.style.border).toBe(activeBorder);
+    expect(button('Bounds')?.style.border).toBe(idleBorder);
+    host.setGeneratorEditing(false);
+    expect(generator()?.hidden).toBe(true);
+    expect(button('Bounds')?.style.border).toBe(activeBorder);
+    host.dispose();
+  });
+
   it('registers chrome as pointer-block surfaces for the input bridge', () => {
     const host = new ViewportToolChromeHost(container, createHostHandlers(), () => undefined);
     const rail = container.querySelector('.editor-viewport-tool-rail') as HTMLElement;

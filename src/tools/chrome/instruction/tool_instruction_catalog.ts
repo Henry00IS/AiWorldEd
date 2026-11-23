@@ -40,6 +40,16 @@ export function toolInstructionForEditorTool(toolId: EditorToolId): ToolInstruct
 }
 
 /**
+ * Instruction of the Generator highlight shown while an object's widgets are
+ * edited.
+ */
+export const TOOL_INSTRUCTION_GENERATOR: ToolInstruction = {
+  title: 'Generator',
+  shortcut: 'Esc Returns to Bounds',
+  description: 'Editing the widgets of the selected object. Click Edit on an object in Bounds to start.',
+};
+
+/**
  * Returns the instruction for a transform mode control.
  *
  * @param mode Transform mode.

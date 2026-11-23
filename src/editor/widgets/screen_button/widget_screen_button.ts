@@ -2,6 +2,7 @@ import type { Vector3 } from 'three';
 import { Widget } from '../widget.js';
 import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import type { EditorViewportPickContext } from '@/editor/window/editor_viewport_pick_context.js';
+import { WidgetScreenElements } from './widget_screen_elements.js';
 
 /** One button pinned to a point in the scene. */
 export interface WidgetScreenButtonAnchor {
@@ -26,15 +27,16 @@ export interface WidgetScreenButtonFrame {
 /**
  * Flat buttons drawn over the panes at scene points. They never take the
  * pointer, so drags and picks under them work as before; a button acts only
- * when a left press and release both land on it at exactly the same point.
+ * when a left press and release both land on it at exactly the same point, with
+ * no pointer move in between.
  */
 export abstract class WidgetScreenButton extends Widget {
-  /** Button elements by pane pick surface, then by anchor key. */
-  private readonly elements = new Map<HTMLElement, Map<string, HTMLElement>>();
+  /** Button elements by pane and anchor key. */
+  private readonly elements = new WidgetScreenElements((doc) => this.elementCreate(doc));
   /** Documents whose pointer presses are watched. */
   private readonly watched = new Set<Document>();
   /** Client point and key of a left press on a button, or null. */
-  private press: { x: number; y: number; key: string } | null = null;
+  private press: { doc: Document; x: number; y: number; key: string } | null = null;
   /** Key of a click waiting until the editor has finished with the release. */
   private pending: string | null = null;
 
@@ -59,13 +61,13 @@ export abstract class WidgetScreenButton extends Widget {
     for (const pane of frame.panes) {
       for (const anchor of frame.anchors) shown.add(this.place(pane, anchor));
     }
-    for (const element of this.elementsAll()) if (!shown.has(element)) element.hidden = true;
+    this.elements.hideOthers(shown);
   }
 
   /** Hides every button, as when the owning tool is left. */
   hide(): void {
     this.press = null;
-    for (const element of this.elementsAll()) element.hidden = true;
+    this.elements.hideOthers(new Set());
   }
 
   /**
@@ -76,10 +78,11 @@ export abstract class WidgetScreenButton extends Widget {
    * @param clientY Release client Y.
    * @returns True for a click on a button.
    */
-  claimsClickAt(clientX: number, clientY: number): boolean {
+  override claimsClickAt(clientX: number, clientY: number): boolean {
     if (this.pending !== null) return true;
     const press = this.press;
-    return press !== null && press.x === clientX && press.y === clientY && this.keyAt(clientX, clientY) === press.key;
+    if (press === null || press.x !== clientX || press.y !== clientY) return false;
+    return this.keyAt(press.doc, clientX, clientY) === press.key;
   }
 
   /**
@@ -90,28 +93,7 @@ export abstract class WidgetScreenButton extends Widget {
    * @returns The button element.
    */
   private place(pane: EditorViewportPickContext, anchor: WidgetScreenButtonAnchor): HTMLElement {
-    const ndc = anchor.position.clone().project(pane.camera);
-    const rect = pane.pickElement.getBoundingClientRect();
-    const element = this.elementFor(pane.pickElement, anchor);
-    element.hidden = Math.abs(ndc.x) > 1 || Math.abs(ndc.y) > 1 || Math.abs(ndc.z) > 1;
-    element.style.left = `${rect.left + ((ndc.x + 1) / 2) * rect.width}px`;
-    element.style.top = `${rect.top + ((1 - ndc.y) / 2) * rect.height}px`;
-    return element;
-  }
-
-  /**
-   * Returns the element of a button in a pane, creating it on first use.
-   *
-   * @param pick Pane pick surface.
-   * @param anchor Button.
-   * @returns Button element showing the anchor's caption.
-   */
-  private elementFor(pick: HTMLElement, anchor: WidgetScreenButtonAnchor): HTMLElement {
-    const pane = this.elements.get(pick) ?? new Map<string, HTMLElement>();
-    this.elements.set(pick, pane);
-    const element = pane.get(anchor.key) ?? this.elementCreate(pick.ownerDocument);
-    pane.set(anchor.key, element);
-    element.dataset['key'] = anchor.key;
+    const element = this.elements.place(pane, anchor.key, anchor.position);
     element.textContent = anchor.label;
     element.title = anchor.title;
     element.setAttribute('aria-label', anchor.title);
@@ -134,15 +116,6 @@ export abstract class WidgetScreenButton extends Widget {
   }
 
   /**
-   * Returns every button element of every pane.
-   *
-   * @returns Button elements.
-   */
-  private elementsAll(): HTMLElement[] {
-    return [...this.elements.values()].flatMap((pane) => [...pane.values()]);
-  }
-
-  /**
    * Watches left presses and releases in a document without consuming them.
    *
    * @param doc Document that owns buttons.
@@ -150,18 +123,30 @@ export abstract class WidgetScreenButton extends Widget {
   private watch(doc: Document): void {
     if (this.watched.has(doc)) return;
     this.watched.add(doc);
-    doc.addEventListener('pointerdown', (event) => this.pointerDown(event), true);
+    doc.addEventListener('pointerdown', (event) => this.pointerDown(doc, event), true);
+    doc.addEventListener('pointermove', (event) => this.pointerMove(event), true);
     doc.addEventListener('pointerup', (event) => this.pointerUp(event), true);
   }
 
   /**
    * Remembers a left press that lands on a button.
    *
+   * @param doc Document the press happened in.
    * @param event Pointer event.
    */
-  private pointerDown(event: MouseEvent): void {
-    const key = event.button === 0 ? this.keyAt(event.clientX, event.clientY) : null;
-    this.press = key === null ? null : { x: event.clientX, y: event.clientY, key };
+  private pointerDown(doc: Document, event: MouseEvent): void {
+    const key = event.button === 0 ? this.keyAt(doc, event.clientX, event.clientY) : null;
+    this.press = key === null ? null : { doc, x: event.clientX, y: event.clientY, key };
+  }
+
+  /**
+   * Forgets a press once the pointer moves at all, even if it comes back.
+   *
+   * @param event Pointer event.
+   */
+  private pointerMove(event: MouseEvent): void {
+    const press = this.press;
+    if (press && (event.clientX !== press.x || event.clientY !== press.y)) this.press = null;
   }
 
   /**
@@ -186,15 +171,16 @@ export abstract class WidgetScreenButton extends Widget {
   }
 
   /**
-   * Returns the key of the shown button under a client point.
+   * Returns the key of the shown button of a document under a client point.
    *
+   * @param doc Document of the pointer.
    * @param clientX Client X.
    * @param clientY Client Y.
    * @returns Key, or null over no button.
    */
-  private keyAt(clientX: number, clientY: number): string | null {
-    for (const element of this.elementsAll()) {
-      if (element.hidden) continue;
+  private keyAt(doc: Document, clientX: number, clientY: number): string | null {
+    for (const element of this.elements.all()) {
+      if (element.hidden || element.ownerDocument !== doc) continue;
       const rect = element.getBoundingClientRect();
       const inside = clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
       if (inside) return element.dataset['key'] ?? null;

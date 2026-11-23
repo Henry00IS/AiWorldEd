@@ -1,10 +1,60 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
 import { layoutGeneratorEditHostCreate } from '@/layout/setup/layout_generator_edit_host.js';
 import { modifierGeneratorNodeCreate } from '@/modifier/stack/modifier_generator_node.js';
 import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { EditorOverlayId } from '@/tools/overlay/editor_overlay_id.js';
 import { PolicyEditorOverlay } from '@/tools/overlay/policy_editor_overlay.js';
+import { CommandStack } from '@/commands/command_stack.js';
+import { GridSnap } from '@/transform/snap/grid_snap.js';
+import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
+import { modifierStackParametersRead } from '@/modifier/stack/modifier_stack_parameters_commit.js';
+import {
+  modifierStackSlidersRecord,
+  type ModifierStackSlider,
+} from '@/modifier/stack/widgets/modifier_stack_sliders.js';
+import {
+  solidScriptDocumentCreate,
+  solidScriptDocumentEditModeWith,
+} from '@/solid_script/document/solid_script_document.js';
+
+/**
+ * Creates a SolidScript generator whose script has Has Edit Mode set as given.
+ *
+ * @param editMode True for a script with an edit mode.
+ * @returns Generator node and its step id.
+ */
+function scriptGenerator(editMode: boolean): { node: THREE.Mesh; stepId: string } {
+  const node = modifierGeneratorNodeCreate('solidScript');
+  const settings = ModifierVolume.read(node);
+  const step = settings.modifiers[0];
+  if (!step) throw new Error('no step');
+  const script = solidScriptDocumentCreate([{ command: 'input', values: { name: 'Height', type: 'Number' } }]);
+  step.parameters['script'] = solidScriptDocumentEditModeWith(script, editMode);
+  step.parameters['inputs'] = { Height: '1' };
+  ModifierVolume.write(node, settings);
+  return { node, stepId: step.id };
+}
+
+/**
+ * Returns a slider of a step, writing Height.
+ *
+ * @param stepId Step id.
+ * @returns Slider.
+ */
+function heightSlider(stepId: string): ModifierStackSlider {
+  return {
+    stepId,
+    key: `${stepId}:1:0`,
+    label: 'Height',
+    value: 1,
+    writes: 'Height',
+    origin: new THREE.Vector3(),
+    direction: new THREE.Vector3(0, 1, 0),
+    min: null,
+    max: null,
+  };
+}
 
 /**
  * Builds a host over a real selection and overlay policy; the pick stack
@@ -20,46 +70,90 @@ function setup(stack: THREE.Mesh[]) {
     getCamera: () => new THREE.PerspectiveCamera(),
     getContentElement: () => document.createElement('div'),
   };
+  const commandStack = new CommandStack(16);
+  const gridSnap = new GridSnap(true, 0.25);
+  const setRailEditing = vi.fn();
   const host = layoutGeneratorEditHostCreate({
     selectionManager,
     editorOverlayPolicy,
     getInteractiveViewports: () => [pane, { ...pane, getContentElement: () => null }],
     pickStack: () => stack,
+    commandStack,
+    gridSnap,
+    setRailEditing,
   });
-  return { host, selectionManager, editorOverlayPolicy };
+  return { host, selectionManager, editorOverlayPolicy, commandStack, gridSnap, setRailEditing };
 }
 
 describe('layoutGeneratorEditHostCreate', () => {
-  it('reports a generator only when it is the single selection', () => {
-    const generator = modifierGeneratorNodeCreate('stairs');
-    const brush = new THREE.Mesh();
+  it('reports the single selected object only when its script has an edit mode', () => {
+    const editable = scriptGenerator(true).node;
+    const plain = scriptGenerator(false).node;
+    const stairs = modifierGeneratorNodeCreate('stairs');
     const { host, selectionManager } = setup([]);
-    selectionManager.setSelection([generator]);
-    expect(host.selectedGenerator()).toBe(generator);
-    selectionManager.setSelection([generator, brush]);
-    expect(host.selectedGenerator()).toBeNull();
-    selectionManager.setSelection([brush]);
-    expect(host.selectedGenerator()).toBeNull();
+    selectionManager.setSelection([editable]);
+    expect(host.selectedEditable()).toBe(editable);
+    selectionManager.setSelection([editable, new THREE.Mesh()]);
+    expect(host.selectedEditable()).toBeNull();
+    for (const other of [plain, stairs]) {
+      selectionManager.setSelection([other]);
+      expect(host.selectedEditable()).toBeNull();
+    }
   });
 
-  it('picks the nearest generator and never an ordinary object', () => {
-    const generator = modifierGeneratorNodeCreate('column');
-    const brush = new THREE.Mesh();
-    const { host, selectionManager } = setup([brush, generator]);
-    host.pickGenerator(5, 5);
-    expect(selectionManager.getAllSelectedObjectsAsArray()).toEqual([generator]);
-    const empty = setup([brush]);
-    empty.selectionManager.setSelection([generator]);
-    empty.host.pickGenerator(5, 5);
-    expect(empty.selectionManager.getAllSelectedObjectsAsArray()).toEqual([generator]);
+  it('picks the nearest object with an edit mode and never an ordinary object', () => {
+    const editable = scriptGenerator(true).node;
+    const plain = scriptGenerator(false).node;
+    const { host, selectionManager } = setup([new THREE.Mesh(), plain, editable]);
+    host.pickEditable(5, 5);
+    expect(selectionManager.getAllSelectedObjectsAsArray()).toEqual([editable]);
+  });
+
+  it('writes a drag live and puts it in the undo history as one step', () => {
+    const { node, stepId } = scriptGenerator(true);
+    const { host, selectionManager, commandStack } = setup([]);
+    selectionManager.setSelection([node]);
+    modifierStackSlidersRecord(node, stepId, [heightSlider(stepId)]);
+    expect(host.sliders().map((slider) => slider.key)).toEqual([`${stepId}:1:0`]);
+    const inputs = () => modifierStackParametersRead(node, stepId)?.['inputs'];
+    host.slide(heightSlider(stepId), 2);
+    host.slide(heightSlider(stepId), 3);
+    expect(inputs()).toEqual({ Height: '3' });
+    expect(commandStack.canUndo()).toBe(false);
+    host.slideEnd();
+    expect(inputs()).toEqual({ Height: '3' });
+    commandStack.undo();
+    expect(inputs()).toEqual({ Height: '1' });
+    expect(commandStack.canUndo()).toBe(false);
+  });
+
+  it('takes a cancelled drag back without an undo step', () => {
+    const { node, stepId } = scriptGenerator(true);
+    const { host, selectionManager, commandStack } = setup([]);
+    selectionManager.setSelection([node]);
+    host.slide(heightSlider(stepId), 4);
+    host.slideCancel();
+    expect(modifierStackParametersRead(node, stepId)?.['inputs']).toEqual({ Height: '1' });
+    expect(commandStack.canUndo()).toBe(false);
+  });
+
+  it('snaps distances to the grid only while snapping is on', () => {
+    const { host, gridSnap } = setup([]);
+    gridSnap.setEnabled(true);
+    gridSnap.setInterval(0.25);
+    expect(host.snapDistance(0.3)).toBeCloseTo(0.25);
+    gridSnap.setEnabled(false);
+    expect(host.snapDistance(0.3)).toBeCloseTo(0.3);
   });
 
   it('holds the generator editing overlay while editing', () => {
-    const { host, editorOverlayPolicy } = setup([]);
+    const { host, editorOverlayPolicy, setRailEditing } = setup([]);
     host.setEditing(true);
     expect(editorOverlayPolicy.isAllowed(EditorOverlayId.GENERATOR_EDITING)).toBe(true);
+    expect(setRailEditing).toHaveBeenLastCalledWith(true);
     host.setEditing(false);
     expect(editorOverlayPolicy.isAllowed(EditorOverlayId.GENERATOR_EDITING)).toBe(false);
+    expect(setRailEditing).toHaveBeenLastCalledWith(false);
   });
 
   it('lists only panes that have a content element', () => {

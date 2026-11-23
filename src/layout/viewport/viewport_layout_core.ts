@@ -1077,6 +1077,7 @@ export abstract class ViewportLayoutCore {
     });
     this.clipPlaneHandler = result.clipPlaneHandler;
     this.toolsPaletteController = result.toolsPaletteController;
+    this.toolsPaletteController.setModeLabelListener((label) => this.statusBar?.setTransformMode(label));
     this.keyboardShortcutHandler.setOnComponentMode(
       (mode) => {
         this.toolsPaletteController?.setComponentMode(mode);

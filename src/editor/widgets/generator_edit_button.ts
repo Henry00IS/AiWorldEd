@@ -5,8 +5,8 @@ import { WidgetScreenButton, type WidgetScreenButtonFrame } from './screen_butto
 const GENERATOR_EDIT_BUTTON_KEY = 'edit';
 
 /**
- * The Edit button at the center of a selected generator in the Bounds tool; a
- * still click on it enters the Generator tool.
+ * The Edit button at the center of a selected object with an edit mode in the
+ * Bounds tool; a still click on it enters the Generator tool.
  */
 export class GeneratorEditButton extends WidgetScreenButton {
   /**
@@ -26,12 +26,12 @@ export class GeneratorEditButton extends WidgetScreenButton {
   protected override frameRead(): WidgetScreenButtonFrame {
     const services = this.editor?.getServices();
     const host = services?.getGeneratorEditHost?.() ?? null;
-    const generator = host && !services?.isEditModeActive() ? host.selectedGenerator() : null;
+    const generator = host && !services?.isEditModeActive() ? host.selectedEditable() : null;
     if (!host || !generator) return { panes: [], anchors: [] };
     const position = new Box3().setFromObject(generator).getCenter(new Vector3());
     return {
       panes: host.panes(),
-      anchors: [{ key: GENERATOR_EDIT_BUTTON_KEY, label: 'Edit', title: 'Edit Generator', position }],
+      anchors: [{ key: GENERATOR_EDIT_BUTTON_KEY, label: 'Edit', title: 'Edit Widgets', position }],
     };
   }
 

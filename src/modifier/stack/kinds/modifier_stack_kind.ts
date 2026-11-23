@@ -114,6 +114,17 @@ export abstract class ModifierStackKind {
   }
 
   /**
+   * Returns whether a step of this kind has an edit mode with widgets in the
+   * scene. Off unless a kind turns it on for itself.
+   *
+   * @param _parameters Normalized parameters.
+   * @returns True for a step with an edit mode.
+   */
+  hasEditMode(_parameters: Record<string, unknown>): boolean {
+    return false;
+  }
+
+  /**
    * Returns a short header summary such as a copy count.
    *
    * @param _parameters Normalized parameters.

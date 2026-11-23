@@ -1,6 +1,7 @@
 import { TransformMode } from '@/types/transform_mode.js';
 import { BoxSelectTool } from './box_select_tool.js';
 import { BoundsWidget } from '../widgets/bounds_widget.js';
+import { widgetsClaimClickAt } from '../widgets/widget.js';
 import { GeneratorEditButton } from '../widgets/generator_edit_button.js';
 import { GeneratorTool } from './generator/generator_tool.js';
 
@@ -49,7 +50,7 @@ export class BoundsTool extends BoxSelectTool {
     if (
       button === 0 &&
       this.editor &&
-      this.editButton.claimsClickAt(this.editor.lastPointerClientX, this.editor.lastPointerClientY)
+      widgetsClaimClickAt(this.editor.getWidgets(), this.editor.lastPointerClientX, this.editor.lastPointerClientY)
     ) {
       return;
     }

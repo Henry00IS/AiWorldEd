@@ -13,7 +13,7 @@ When the editor opens, you will see four views:
 - **Side** looks at the Y–Z plane.
 - **Perspective** is the free-moving 3D view.
 
-The scene hierarchy and object properties appear to the right. The status bar along the bottom reports the active mode, snapping, selection type, and recent actions.
+The scene hierarchy and object properties appear to the right. The status bar along the bottom reports the active mode as highlighted on the tool rail (such as Bounds, Move, Generator or Edit Mode · Face), snapping, selection type, and recent actions.
 
 ## Add your first object
 

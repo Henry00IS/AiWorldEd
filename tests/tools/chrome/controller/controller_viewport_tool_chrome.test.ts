@@ -5,6 +5,7 @@ import { EditorToolId } from '@/types/editor_tool_id.js';
 import { SelectionMode } from '@/types/selection_mode.js';
 import { EditorInteractionMode } from '@/types/editor_interaction_mode.js';
 import { EditorComponentMode } from '@/types/editor_component_mode.js';
+import { TransformMode } from '@/types/transform_mode.js';
 import { ControllerFaceExtrusion } from '@/tools/face/controller_face_extrusion.js';
 import { ToolClipPlane } from '@/tools/clip_plane/tool_clip_plane.js';
 import { HandlerClipPlane } from '@/tools/clip_plane/handler_clip_plane.js';
@@ -264,6 +265,30 @@ describe('ControllerViewportToolChrome', () => {
     blocked.attachPane(document.createElement('div'));
     blocked.toggleInteractionMode();
     expect(blocked.getActiveInteractionMode()).toBe(EditorInteractionMode.OBJECT_MODE);
+  });
+
+  it('names the highlighted mode live for the status bar', () => {
+    const labels: string[] = [];
+    controller.setModeLabelListener((label) => labels.push(label));
+    controller.setActiveTransformMode(TransformMode.TRANSLATE);
+    controller.setActiveTransformMode(TransformMode.ROTATE);
+    controller.setGeneratorEditing(true);
+    controller.setGeneratorEditing(false);
+    controller.selectTool(EditorToolId.FACE);
+    controller.selectTool(EditorToolId.OBJECT);
+    controller.setInteractionMode(EditorInteractionMode.EDIT_MODE);
+    controller.setComponentMode(EditorComponentMode.EDGE);
+    expect(labels).toEqual([
+      'Bounds',
+      'Move',
+      'Rotate',
+      'Generator',
+      'Rotate',
+      'Face Select',
+      'Rotate',
+      'Edit Mode · Vertex · Rotate',
+      'Edit Mode · Edge · Rotate',
+    ]);
   });
 
   it('sets interaction mode from the dropdown path', () => {
