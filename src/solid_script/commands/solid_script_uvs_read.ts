@@ -11,6 +11,12 @@ import type {
   SolidScriptUvPackSettings,
 } from '@/solid_script/language/solid_script_uv_islands.js';
 
+/** How Unwrap may lay islands flat, each with its meaning. */
+export const SOLID_SCRIPT_UVS_UNWRAP_METHODS: readonly SolidScriptCommandWord[] = [
+  { word: 'Unfold', detail: 'Fold each face open from its neighbour, true to size' },
+  { word: 'Conformal', detail: 'Keep joined corners joined and angles true' },
+];
+
 /** How Pack Islands may fit islands, each with its meaning. */
 export const SOLID_SCRIPT_UVS_PACK_METHODS: readonly SolidScriptCommandWord[] = [
   { word: 'Bounding Box', detail: 'Pack the bounding boxes of the islands in rows' },
@@ -105,4 +111,17 @@ export function solidScriptUvsVector(
   if (x === undefined || y === undefined || z === undefined || numbers?.length !== 3)
     throw new Error(`${label} needs three numbers, such as 0, 1, 0`);
   return new THREE.Vector3(x, y, z);
+}
+
+/**
+ * Reads Unwrap's Method, Unfold when empty.
+ *
+ * @param run Running line.
+ * @returns Unfold or Conformal.
+ */
+export function solidScriptUvsUnwrapMethod(run: SolidScriptBlockRun): 'Unfold' | 'Conformal' {
+  const text = run.text('method').trim() || 'Unfold';
+  const method = SOLID_SCRIPT_UVS_UNWRAP_METHODS.find((entry) => entry.word.toLowerCase() === text.toLowerCase());
+  if (!method) throw new Error(`Unwrap needs Unfold or Conformal in Method, not ${run.text('method')}`);
+  return method.word === 'Conformal' ? 'Conformal' : 'Unfold';
 }

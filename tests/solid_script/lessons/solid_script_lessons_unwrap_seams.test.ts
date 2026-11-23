@@ -117,3 +117,21 @@ describe('Unwrap Seams', () => {
     expect(result.error?.message).toContain('Pack');
   });
 });
+
+describe('Unwrap Method', () => {
+  it('lays faces cut apart by Seams the same by Conformal as by Unfold', () => {
+    const seams = '[=[$Edge.Angle] > 45]';
+    expect(unwrap({ seams, method: 'Conformal' })).toEqual(unwrap({ seams }));
+  });
+
+  it('stops on an unknown Method', () => {
+    const result = solidScriptProgramRun(
+      solidScriptDocumentCreate([
+        { command: 'cube', values: { into: 'C' } },
+        { command: 'select_faces', values: { which: 'All', of: '[C]' } },
+        { command: 'unwrap', values: { seams: '[=[$Edge.Angle] > 45]', method: 'Wobbly' } },
+      ]),
+    );
+    expect(result.error?.message).toContain('Unwrap needs Unfold or Conformal in Method, not Wobbly');
+  });
+});

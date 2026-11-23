@@ -138,7 +138,7 @@ function solidScriptUnfoldMove(
  * @param point Point.
  * @returns Corner index, or -1.
  */
-function solidScriptUnfoldCorner(face: SolidScriptUnfoldFace | undefined, point: THREE.Vector3): number {
+export function solidScriptUnfoldCorner(face: SolidScriptUnfoldFace | undefined, point: THREE.Vector3): number {
   return face?.corners.findIndex((corner) => corner.distanceTo(point) <= 1e-6) ?? -1;
 }
 
@@ -162,7 +162,7 @@ function solidScriptUnfoldFlat(face: SolidScriptUnfoldFace, size: number): THREE
  * @returns Lowest U for the next island: a whole number, at least one past this
  *   one's right side.
  */
-function solidScriptUnfoldShift(island: readonly THREE.Vector2[][], start: number): number {
+export function solidScriptUnfoldShift(island: readonly THREE.Vector2[][], start: number): number {
   const all = island.flat();
   const low = new THREE.Vector2(Math.min(...all.map((uv) => uv.x)) - start, Math.min(...all.map((uv) => uv.y)));
   all.forEach((uv) => uv.sub(low));

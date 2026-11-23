@@ -42,6 +42,7 @@ import {
 } from '@/texture/uv_project/texture_uv_project_radial.js';
 import { textureUvUnwrapFace } from '@/texture/uv_project/texture_uv_unwrap.js';
 import { solidScriptUvUnfold } from '@/solid_script/language/solid_script_uv_unfold.js';
+import { solidScriptUvConformal } from '@/solid_script/language/solid_script_uv_conformal.js';
 import { solidScriptUvsSeamLinks } from './solid_script_uvs_seams.js';
 import { solidScriptParameterEach } from './solid_script_command_each.js';
 import {
@@ -50,6 +51,8 @@ import {
 } from '@/solid_script/language/solid_script_uv_islands.js';
 import {
   SOLID_SCRIPT_UVS_PACK_METHODS,
+  SOLID_SCRIPT_UVS_UNWRAP_METHODS,
+  solidScriptUvsUnwrapMethod,
   solidScriptUvsMargin,
   solidScriptUvsPackSettings,
   solidScriptUvsPacks,
@@ -175,8 +178,14 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
     category: 'UVs',
     description: 'Lay each face flat in UV space',
     manual:
-      "Gives each face its own UV island, projected onto the face's plane with the editor's planar basis, shifted so the lowest U and V are 0. With Seams, only edges that pass Seams are cut open: faces joined by other edges stay together, each folded open from its neighbour so lengths and angles stay true, which suits a strip of wall or a box's sides. Pack Yes (the default) then packs the islands into the 0 to 1 square as Pack Islands does, Margin apart. Pack No leaves them where they fold, Size metres to one texture repeat, so a texture keeps its true size across faces. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. Solids stay solids; meshes stay meshes. Example: Cube, Select Faces, Unwrap Seams [=[$Edge.Angle] > 45].",
-    stops: ['No faces.', 'A Size of 0 or less.', 'A Pack that is not Yes or No.', 'A Margin below 0 or above 1.'],
+      "Gives each face its own UV island, projected onto the face's plane with the editor's planar basis, laid side by side along U a whole number of repeats apart. With Seams, only edges that pass Seams are cut open: faces joined by other edges stay together, each folded open from its neighbour so lengths and angles stay true, which suits a strip of wall or a box's sides. Method Conformal instead keeps every joined corner joined and spreads the stretch over the island so angles stay as true as a curved surface allows, the two corners farthest apart keeping their unfolded places. Pack Yes (the default) then packs the islands into the 0 to 1 square as Pack Islands does, Margin apart. Pack No leaves them where they fold, Size metres to one texture repeat, so a texture keeps its true size across faces. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. Solids stay solids; meshes stay meshes. Example: Cube, Select Faces, Unwrap Seams [=[$Edge.Angle] > 45].",
+    stops: [
+      'No faces.',
+      'A Size of 0 or less.',
+      'A Pack that is not Yes or No.',
+      'A Margin below 0 or above 1.',
+      'A Method other than Unfold or Conformal.',
+    ],
     parameters: [
       solidScriptParameter(
         'pack',
@@ -207,6 +216,14 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
         ),
         'Edge',
       ),
+      solidScriptParameterWords(
+        'method',
+        'Method',
+        'text',
+        'Unfold',
+        'How islands of several faces are laid flat when Seams is set: Unfold folds each face open from its neighbour, true to size but cracked where the surface curves; Conformal keeps joined corners joined and angles as true as the surface allows. Type one, such as Conformal.',
+        SOLID_SCRIPT_UVS_UNWRAP_METHODS,
+      ),
       solidScriptParameterOfWhere('Face', '[=[$Face.Normal.Y] > 0.9]'),
       solidScriptParameterOf('faces or objects', '$Selected.Faces'),
     ],
@@ -218,12 +235,14 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
       read.value('size'),
       ...(read.text('margin') === '' ? [] : [' Margin ', read.value('margin')]),
       ...(read.text('seams') === '' ? [] : [' Seams ', read.value('seams')]),
+      ...(read.changed('method') ? [' Method ', read.value('method')] : []),
       ...solidScriptListingOf(read),
     ],
     execute: (run) => {
+      const method = solidScriptUvsUnwrapMethod(run);
       const faces = solidScriptFaceTargets(run, 'Unwrap');
       if (run.source('seams').trim() === '') solidScriptUvsUnwrap(run, faces);
-      else solidScriptUvsUnwrapSeams(run, faces);
+      else solidScriptUvsUnwrapSeams(run, faces, method);
       if (solidScriptUvsPacks(run))
         solidScriptUvsPack(run, solidScriptFaceTargets(run, 'Unwrap'), {
           margin: solidScriptUvsMargin(run, 'Unwrap'),
@@ -731,13 +750,19 @@ function solidScriptUvsUnwrap(run: SolidScriptBlockRun, faces: readonly SolidScr
 
 /**
  * Unwraps faces into islands cut open only along Seams, each face folded open
- * from its neighbour.
+ * from its neighbour, or with Method Conformal relaxed into a conformal map.
  *
  * @param run Running line.
  * @param faces Faces to unwrap.
+ * @param method Unfold or Conformal.
  */
-function solidScriptUvsUnwrapSeams(run: SolidScriptBlockRun, faces: readonly SolidScriptFaceFacts[]): void {
-  const uvs = solidScriptUvUnfold(faces, solidScriptUvsSeamLinks(run, faces), solidScriptUvsSize(run, 'Unwrap'));
+function solidScriptUvsUnwrapSeams(
+  run: SolidScriptBlockRun,
+  faces: readonly SolidScriptFaceFacts[],
+  method: 'Unfold' | 'Conformal',
+): void {
+  const lay = method === 'Conformal' ? solidScriptUvConformal : solidScriptUvUnfold;
+  const uvs = lay(faces, solidScriptUvsSeamLinks(run, faces), solidScriptUvsSize(run, 'Unwrap'));
   for (const [leaf, group] of solidScriptFaceGroups(
     faces.map((face, index) => ({ face, uvs: uvs[index] ?? [] })),
     (item) => item.face.leaf,
