@@ -301,6 +301,11 @@ export interface SolidScriptCommandSpec {
   stops?: readonly string[];
   /** Fields a configurator edits. */
   parameters: readonly SolidScriptCommandParameter[];
+  /**
+   * Other palette groups that list the command too, such as Text for Len, which
+   * counts the items of a list or the letters of a text; none when omitted.
+   */
+  alsoIn?: readonly SolidScriptCommandCategory[];
   /** How the line shapes the block structure; a plain line when omitted. */
   nesting?: SolidScriptCommandNesting;
   /** What the line means for the order lines run in; a plain line when omitted. */
@@ -441,6 +446,8 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
   /** Lines added between the block and its End when it is added. */
   readonly parts: readonly SolidScriptCommandPart[];
   readonly inPalette: boolean;
+  /** Other palette groups that list the command too. */
+  readonly alsoIn: readonly SolidScriptCommandCategory[];
   readonly runs: boolean;
   /** True for blocks that build brushes or meshes, with Into. */
   readonly builds: boolean;
@@ -491,6 +498,7 @@ export class SolidScriptCommand implements SolidScriptMachineCommand {
     this.endLabel = spec.endLabel ?? spec.label;
     this.parts = spec.parts ?? [];
     this.inPalette = spec.inPalette !== false;
+    this.alsoIn = spec.alsoIn ?? [];
     this.runs = spec.runs !== false;
     this.check = spec.check;
     this.run = spec.execute;

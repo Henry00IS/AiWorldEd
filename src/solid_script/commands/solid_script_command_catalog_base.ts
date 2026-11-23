@@ -37,15 +37,16 @@ export class SolidScriptCommandCatalog {
   }
 
   /**
-   * Palette commands of one group, sorted by their display name so a new
-   * command appears in order without hand-sorting the registry.
+   * Palette commands of one group, with those it lists too, sorted by their
+   * display name so a new command appears in order without hand-sorting the
+   * registry.
    *
    * @param category Palette group.
    * @returns Commands of that group, sorted by label.
    */
   ofCategory(category: SolidScriptCommandCategory): SolidScriptCommand[] {
     return this.commands
-      .filter((command) => command.inPalette && command.category === category)
+      .filter((command) => command.inPalette && (command.category === category || command.alsoIn.includes(category)))
       .sort((left, right) => left.label.localeCompare(right.label));
   }
 }

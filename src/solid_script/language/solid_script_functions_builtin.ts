@@ -10,6 +10,7 @@ import { SOLID_SCRIPT_FUNCTIONS_KIND_CHECKS } from './solid_script_functions_kin
 import { SOLID_SCRIPT_FUNCTIONS_NUMBERS } from './solid_script_functions_numbers.js';
 import { SOLID_SCRIPT_FUNCTIONS_CLUSTER } from './solid_script_functions_cluster.js';
 import { SOLID_SCRIPT_FUNCTIONS_ROTATION } from './solid_script_functions_rotation.js';
+import { SOLID_SCRIPT_FUNCTIONS_DICTIONARY } from './solid_script_functions_dictionary.js';
 import { SOLID_SCRIPT_FUNCTIONS_TEXTURE } from './solid_script_functions_texture.js';
 import { SOLID_SCRIPT_FUNCTIONS_GABOR } from './solid_script_functions_gabor.js';
 import { SOLID_SCRIPT_FUNCTIONS_PRINCIPAL } from './solid_script_functions_principal.js';
@@ -179,6 +180,7 @@ const SOLID_SCRIPT_FUNCTIONS_NAMED = {
   ...SOLID_SCRIPT_FUNCTIONS_GABOR,
   ...SOLID_SCRIPT_FUNCTIONS_PRINCIPAL,
   ...SOLID_SCRIPT_FUNCTIONS_ROTATION,
+  ...SOLID_SCRIPT_FUNCTIONS_DICTIONARY,
   ...SOLID_SCRIPT_FUNCTIONS_COORDINATES,
 } satisfies Readonly<Record<string, SolidScriptBuiltin>>;
 

@@ -162,7 +162,7 @@ const SOLID_SCRIPT_SUGGESTION_GROUPS_TAIL = ['Functions', 'Built-In Functions'] 
 const SOLID_SCRIPT_SUGGESTION_NOT_VALUES = new Set(['Functions', 'Parts', 'Solids', 'Handlers']);
 
 /** Most suggestions listed at the caret at once. */
-const SOLID_SCRIPT_SUGGESTIONS_MAX = 256;
+const SOLID_SCRIPT_SUGGESTIONS_MAX = 320;
 
 /**
  * Tells whether a field offers current-element names, such as $Object on Select
@@ -645,7 +645,7 @@ function solidScriptSuggestionPaths(prefix: string, scope: SolidScriptSuggestion
  */
 function solidScriptSuggestionWritable(base: string, kind: string, name: string): boolean {
   const gives = solidScriptSuggestionMemberGives(kind, name);
-  if (gives?.replace(/ List$/, '') === 'Data' || solidScriptSuggestionPathElement(gives)) return true;
+  if (gives?.replace(/ List$/, '') === 'Dictionary' || solidScriptSuggestionPathElement(gives)) return true;
   return solidScriptNameDotProblem(`${base}.${name}`, 'set') === '';
 }
 

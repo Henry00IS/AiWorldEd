@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { SolidScriptBlockArguments } from './solid_script_block_arguments.js';
 import { SOLID_SCRIPT_AXES_UP } from './solid_script_axes.js';
+import { SolidScriptRotation } from './solid_script_value.js';
 
 /** Radians per degree. */
 const SOLID_SCRIPT_DEGREES = Math.PI / 180;
@@ -53,14 +54,17 @@ export function solidScriptMoveMatrix(args: SolidScriptBlockArguments, key = 'by
 }
 
 /**
- * Matrix of a Rotate line or a Transform Rotate field: degrees around X, then
- * Y, then Z.
+ * Matrix of a Rotate line or a Transform Rotate field: a Rotation, or degrees
+ * around X, then Y, then Z.
  *
  * @param args Block fields, key by, to or rotate.
  * @param key Field key.
  * @returns Matrix.
  */
 export function solidScriptRotateMatrix(args: SolidScriptBlockArguments, key = 'by'): THREE.Matrix4 {
+  const value = args.value(key);
+  if (value instanceof SolidScriptRotation)
+    return new THREE.Matrix4().makeRotationFromQuaternion(new THREE.Quaternion(...value.quaternion));
   return solidScriptRotationDegreesMatrix(args.vector(key, [0, 0, 0]));
 }
 

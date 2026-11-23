@@ -13,6 +13,7 @@ import {
 import { solidScriptFormulaCheckName, type SolidScriptFormulaOwnFunction } from './solid_script_formula_inputs.js';
 import { solidScriptFunctionKey } from '@/solid_script/language/solid_script_name_key.js';
 import { solidScriptNameWords } from '@/solid_script/language/solid_script_name_words.js';
+import { solidScriptFunctionGroups } from '@/solid_script/language/solid_script_function_doc_groups.js';
 
 /** How a group block joins the blocks inside it into a formula. */
 export type SolidScriptFormulaGroupForm =
@@ -48,6 +49,8 @@ export interface SolidScriptFormulaBlockText {
   manual: string;
   /** Other words people search for. */
   synonyms?: readonly string[];
+  /** Other palette groups that list it too. */
+  alsoIn?: readonly SolidScriptCommandCategory[];
 }
 
 /** Ids of the blocks that keep the formula together. */
@@ -355,7 +358,8 @@ function solidScriptFormulaFunction(key: string): SolidScriptCommand {
   const name = solidScriptFormulaCheckName(key);
   const label = SOLID_SCRIPT_FORMULA_FUNCTION_NAMES[key] ?? solidScriptNameWords(name);
   const id = `${SOLID_SCRIPT_FORMULA_FUNCTION}${key}`;
-  const call = { id, label, summary: doc?.summary ?? label, category: doc?.group ?? 'Functions' };
+  const [category = 'Functions', ...alsoIn] = solidScriptFunctionGroups(key);
+  const call = { id, label, summary: doc?.summary ?? label, category, alsoIn };
   const max = inputs.includes('...') ? Number.POSITIVE_INFINITY : inputs.length;
   const min = Math.max(1, solidScriptFunctionInputsLeast(key));
   const group = { join: { form: 'call', key }, min, max } as const;
@@ -411,7 +415,8 @@ export function solidScriptFormulaOwn(own: SolidScriptFormulaOwnFunction): Solid
  * Creates the group block of a call, which holds one block per input.
  *
  * @param call Id, name, what the function does and its palette group; Functions
- *   when it has none, as the script's own Functions.
+ *   when it has none, as the script's own Functions. Also In lists other groups
+ *   that show it too.
  * @param inputs Input names.
  * @param usage How the call is written.
  * @param group How it joins and how many blocks it holds.
@@ -419,7 +424,13 @@ export function solidScriptFormulaOwn(own: SolidScriptFormulaOwnFunction): Solid
  * @returns Command.
  */
 function solidScriptFormulaCall(
-  call: { id: string; label: string; summary: string; category?: SolidScriptCommandCategory },
+  call: {
+    id: string;
+    label: string;
+    summary: string;
+    category?: SolidScriptCommandCategory;
+    alsoIn?: readonly SolidScriptCommandCategory[];
+  },
   inputs: readonly string[],
   usage: string,
   group: Omit<SolidScriptFormulaGroup, 'id' | 'sections'>,
@@ -431,6 +442,7 @@ function solidScriptFormulaCall(
     label: call.label,
     description: call.summary.replace(/\.$/, ''),
     manual: `${call.summary}${takes} Written as ${usage}.`,
+    ...(call.alsoIn ? { alsoIn: call.alsoIn } : {}),
   };
   return solidScriptFormulaGroupAdd(text, call.category ?? 'Functions', { ...group, sections: 1 }, parts);
 }

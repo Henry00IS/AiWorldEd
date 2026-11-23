@@ -106,6 +106,20 @@ export function solidScriptParameterWords(
 }
 
 /**
+ * Describes a turn field, such as By of Rotate By: degrees around X, then Y,
+ * then Z, or a Rotation value.
+ *
+ * @param key Key of the stored value.
+ * @param label Visible caption.
+ * @param hint Hover text, which names both ways to give a turn.
+ * @returns Field.
+ */
+export function solidScriptParameterRotation(key: string, label: string, hint: string): SolidScriptCommandParameter {
+  const accepts = [...SOLID_SCRIPT_FIELD_ACCEPTS.vector3, 'Rotation'];
+  return { ...solidScriptParameter(key, label, 'vector3', '0, 0, 0', hint), accepts };
+}
+
+/**
  * Describes a field that may stay empty.
  *
  * @param key Key of the stored value.

@@ -55,7 +55,7 @@ function solidScriptFlowWord(part: string): string {
 export function solidScriptFlowItemOf(kind: string): string {
   if (kind.endsWith(' List')) return kind.slice(0, -' List'.length);
   if (kind === 'Vector') return 'Number';
-  return kind === 'List' || kind === 'Data' ? SOLID_SCRIPT_FLOW_UNKNOWN : kind;
+  return kind === 'List' || kind === 'Dictionary' ? SOLID_SCRIPT_FLOW_UNKNOWN : kind;
 }
 
 /**
@@ -77,7 +77,7 @@ export function solidScriptFlowUnique(kinds: readonly string[]): string[] {
  */
 export function solidScriptFlowMember(kinds: readonly string[], part: string): string[] {
   const gives = kinds.flatMap((kind) => {
-    if (kind === SOLID_SCRIPT_FLOW_UNKNOWN || kind === 'Data' || kind === 'Data List')
+    if (kind === SOLID_SCRIPT_FLOW_UNKNOWN || kind === 'Dictionary' || kind === 'Dictionary List')
       return [SOLID_SCRIPT_FLOW_UNKNOWN];
     const member = solidScriptMemberType(kind, solidScriptFlowWord(part));
     if (member === null && kind === 'List') return [SOLID_SCRIPT_FLOW_UNKNOWN];
@@ -253,7 +253,8 @@ export function solidScriptFlowItemKinds(text: string, head: SolidScriptFlowHead
 }
 
 /**
- * Tells the kinds a For Each Key may hold: text keys over Data, else numbers.
+ * Tells the kinds a For Each Key may hold: text keys over a Dictionary, else
+ * numbers.
  *
  * @param text List field text.
  * @param head Kinds the script's names may hold.
@@ -261,7 +262,7 @@ export function solidScriptFlowItemKinds(text: string, head: SolidScriptFlowHead
  */
 export function solidScriptFlowKeyKinds(text: string, head: SolidScriptFlowHead): string[] {
   const kinds = solidScriptFlowValueKinds(text, head);
-  return solidScriptFlowUnique(kinds.map((kind) => (kind === 'Data' ? 'Text' : 'Number')));
+  return solidScriptFlowUnique(kinds.map((kind) => (kind === 'Dictionary' ? 'Text' : 'Number')));
 }
 
 /**

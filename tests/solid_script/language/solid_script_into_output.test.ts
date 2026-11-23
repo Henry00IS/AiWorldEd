@@ -215,13 +215,19 @@ function toolHost(command: SolidScriptCommand): SolidScriptLine[] {
 }
 
 /**
+ * Lines that write Held on their own, with no geometry before them and none
+ * after.
+ */
+const SCRIPT_ONLY = ['path', 'filter_list', 'points', 'make_dictionary', 'make_rotation'];
+
+/**
  * Scripts that write only point or pick lists into Held.
  *
  * @param command Command.
  * @returns Lines, or null when this is not a list writer.
  */
 function listScript(command: SolidScriptCommand): SolidScriptLine[] | null {
-  if (command.id === 'path' || command.id === 'filter_list' || command.id === 'points') return [intoLine(command)];
+  if (SCRIPT_ONLY.includes(command.id)) return [intoLine(command)];
   if (
     command.id === 'scatter_points' ||
     command.id.startsWith('points_from_') ||
@@ -354,8 +360,7 @@ describe('Into-set results stay out of the world until Output', () => {
     const result = run(lines);
     expect(result.error?.message ?? null).toBeNull();
     const leaves = solidScriptGeometryLeaves(result.shapes);
-    if (command.id === 'path' || command.id === 'filter_list' || command.id === 'points')
-      expect(leaves).toHaveLength(0);
+    if (SCRIPT_ONLY.includes(command.id)) expect(leaves).toHaveLength(0);
     else expect(leaves).toHaveLength(1);
   });
 

@@ -140,7 +140,7 @@ export class SolidScriptEditorPalette {
       for (const command of commands) {
         const element = this.item(command);
         this.list.append(element);
-        const text = [command.label, command.description, command.category, command.id, ...command.synonyms]
+        const text = [command.label, command.description, category, command.id, ...command.synonyms]
           .join(' ')
           .toLowerCase();
         this.entries.push({ command, element, caption, text });

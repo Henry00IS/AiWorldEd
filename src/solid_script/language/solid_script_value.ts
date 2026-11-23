@@ -5,9 +5,11 @@ export type SolidScriptValue = number | string | boolean | undefined | SolidScri
 
 /**
  * What a geometry value stands for: a brush or mesh, one of its faces, edges or
- * corners, one face's use of a corner, or the Data of one.
+ * corners, one face's use of a corner, a Dictionary, such as the Data of one,
+ * or a Rotation.
  */
-export type SolidScriptElementKind = 'brush' | 'path' | 'face' | 'edge' | 'vertex' | 'facecorner' | 'point' | 'data';
+export type SolidScriptElementKind =
+  'brush' | 'path' | 'face' | 'edge' | 'vertex' | 'facecorner' | 'point' | 'data' | 'rotation';
 
 /**
  * A geometry value: a stable id the run looks up when it is read, so it follows
@@ -77,6 +79,82 @@ export class SolidScriptPathElement extends SolidScriptElement {
   }
 }
 
+/**
+ * A Rotation: a turn kept as a quaternion, so turns combine and blend the
+ * shortest way without the gimbal lock of three angles. It shows, and is made
+ * by Rotation(x, y, z), as degrees around X, then Y, then Z, like the rotation
+ * of an object.
+ */
+export class SolidScriptRotation extends SolidScriptElement {
+  /**
+   * @param quaternion X, Y, Z and W of the unit quaternion.
+   * @param degrees The same turn as degrees around X, then Y, then Z.
+   */
+  constructor(
+    readonly quaternion: readonly number[],
+    readonly degrees: readonly number[],
+  ) {
+    super('rotation', -1);
+  }
+
+  /**
+   * Writes the turn the way a formula makes it, such as Rotation(0, 90, 0).
+   *
+   * @returns Text.
+   */
+  override toString(): string {
+    return `Rotation(${this.degrees.join(', ')})`;
+  }
+}
+
+/** One value of a Dictionary, with its key as written. */
+export interface SolidScriptDictionaryEntry {
+  /** Key as written, such as Wood. */
+  name: string;
+  /** Value under the key. */
+  value: SolidScriptValue;
+}
+
+/**
+ * A Dictionary: values looked up by a key, such as [Prices.Data.Wood]. One made
+ * by the script belongs to no geometry; the .Data of a solid, face, edge or
+ * corner is one too, sharing its values with the geometry.
+ */
+export class SolidScriptDictionary extends SolidScriptElement {
+  /**
+   * @param entries Values by folded key.
+   * @param id Number of the .Data in its run, or -1 for one the script made.
+   */
+  constructor(
+    readonly entries: Map<string, SolidScriptDictionaryEntry> = new Map(),
+    id = -1,
+  ) {
+    super('data', id);
+  }
+
+  /**
+   * Copies a dictionary the script made, so a copy set to another name changes
+   * on its own; the .Data of geometry stays shared.
+   *
+   * @returns Copy, or this for the .Data of geometry.
+   */
+  copy(): SolidScriptDictionary {
+    if (this.id > 0) return this;
+    return new SolidScriptDictionary(new Map([...this.entries].map(([key, entry]) => [key, { ...entry }])));
+  }
+
+  /**
+   * Writes a dictionary the script made as its keys and values, such as Wood:
+   * 5, Stone: 7; the .Data of geometry by its kind and number.
+   *
+   * @returns Text.
+   */
+  override toString(): string {
+    if (this.id > 0) return super.toString();
+    return [...this.entries.values()].map((entry) => `${entry.name}: ${solidScriptValueText(entry.value)}`).join(', ');
+  }
+}
+
 /** Friendly type of each element kind. */
 export const SOLID_SCRIPT_ELEMENT_TYPES: Readonly<Record<SolidScriptElementKind, string>> = {
   brush: 'Solid',
@@ -86,7 +164,8 @@ export const SOLID_SCRIPT_ELEMENT_TYPES: Readonly<Record<SolidScriptElementKind,
   vertex: 'Vertex',
   facecorner: 'FaceCorner',
   point: 'Point',
-  data: 'Data',
+  data: 'Dictionary',
+  rotation: 'Rotation',
 };
 
 /**

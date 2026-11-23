@@ -12,6 +12,7 @@ import {
   solidScriptParameter,
   solidScriptParameterOf,
   solidScriptParameterOptional,
+  solidScriptParameterRotation,
   solidScriptParameterWords,
 } from './solid_script_command_parameters.js';
 import {
@@ -96,12 +97,10 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
         '0, 0, 0',
         'Distance along X, Y and Z in metres, in this space, such as 0, 2, 0.',
       ),
-      solidScriptParameter(
+      solidScriptParameterRotation(
         'rotate',
         'Rotate',
-        'vector3',
-        '0, 0, 0',
-        'Degrees around X, then Y, then Z, in this space, such as 0, 90, 0.',
+        'Degrees around X, then Y, then Z, in this space, such as 0, 90, 0, or a Rotation such as [Spin].',
       ),
       solidScriptParameter(
         'scale',
@@ -167,10 +166,14 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
     label: 'Rotate By',
     description: 'Turn existing objects or points by an angle',
     manual:
-      'Turns the objects or points in Of, or [$Selected.Objects] when Of is left off, around the origin of the current space, first around X, then Y, then Z, in degrees. Around Combined Center turns them about the middle of all of them, and Each Center turns every item about its own middle, in place. Without Into the change happens where the items already are; with Into the originals stay and the turned copies are only in that variable. Example: Rotate By 0, 90, 0 Of [Box] turns the box a quarter turn around the upright Y axis of the current space.',
+      'Turns the objects or points in Of, or [$Selected.Objects] when Of is left off, around the origin of the current space, first around X, then Y, then Z, in degrees. Around Combined Center turns them about the middle of all of them, and Each Center turns every item about its own middle, in place. Without Into the change happens where the items already are; with Into the originals stay and the turned copies are only in that variable. By also takes a Rotation, such as one from Make Rotation. Example: Rotate By 0, 90, 0 Of [Box] turns the box a quarter turn around the upright Y axis of the current space.',
     stops: ['No objects or points.', 'A By that is not one number or three numbers separated by commas.'],
     parameters: [
-      solidScriptParameter('by', 'By', 'vector3', '0, 0, 0', 'Degrees around X, then Y, then Z, such as 0, 90, 0.'),
+      solidScriptParameterRotation(
+        'by',
+        'By',
+        'Degrees around X, then Y, then Z, such as 0, 90, 0, or a Rotation such as [Spin].',
+      ),
       solidScriptParameterAround('turns'),
     ],
     listing: (read) => [
@@ -187,10 +190,14 @@ export const SOLID_SCRIPT_COMMANDS_TRANSFORM: readonly SolidScriptCommand[] = [
     label: 'Rotate To',
     description: 'Turn existing objects or points around their center to an angle',
     manual:
-      'Turns the objects or points in Of, or [$Selected.Objects] when Of is left off, around their combined center, first around X, then Y, then Z, in degrees, in the current space. The combined center is the middle of the box around the selection, the same point Move To uses. These angles are applied to the solids as they are now, so a second Rotate To of the same angles turns them again. Without Into the change happens where the items already are; with Into the originals stay and the turned copies are only in that variable. Example: Rotate To 0, 90, 0 Of [Box] turns the box a quarter turn around the upright Y axis through its center.',
+      'Turns the objects or points in Of, or [$Selected.Objects] when Of is left off, around their combined center, first around X, then Y, then Z, in degrees, in the current space. The combined center is the middle of the box around the selection, the same point Move To uses. These angles are applied to the solids as they are now, so a second Rotate To of the same angles turns them again. Without Into the change happens where the items already are; with Into the originals stay and the turned copies are only in that variable. To also takes a Rotation, such as one from Make Rotation. Example: Rotate To 0, 90, 0 Of [Box] turns the box a quarter turn around the upright Y axis through its center.',
     stops: ['No objects or points.', 'A To that is not one number or three numbers separated by commas.'],
     parameters: [
-      solidScriptParameter('to', 'To', 'vector3', '0, 0, 0', 'Degrees around X, then Y, then Z, such as 0, 90, 0.'),
+      solidScriptParameterRotation(
+        'to',
+        'To',
+        'Degrees around X, then Y, then Z, such as 0, 90, 0, or a Rotation such as [Spin].',
+      ),
     ],
     listing: (read) => ['Rotate To', ' ', read.value('to'), ' Degrees'],
     world: solidScriptTransformRotateTo,

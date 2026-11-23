@@ -26,6 +26,7 @@ import {
 import { solidScriptNameKey } from './solid_script_name_key.js';
 import type { SolidScriptScope } from './solid_script_scope.js';
 import {
+  SolidScriptDictionary,
   SolidScriptElement,
   solidScriptValueNumbers,
   solidScriptValueText,
@@ -84,8 +85,8 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
   protected abstract leafRewrite(leaf: SolidScriptGeometryLeaf, by: SolidScriptGeometryLeaf): void;
 
   /**
-   * Writes a user value under .Data, such as Face.Data.Height, to one element
-   * or every element of a list.
+   * Writes a user value under .Data, such as Face.Data.Height or
+   * Prices.Data.Wood, to one element, every element of a list or a Dictionary.
    *
    * @param written Name as written.
    * @param scope Scope of the line.
@@ -112,7 +113,7 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
     for (const [index, item] of items.entries()) {
       if (!(item instanceof SolidScriptElement))
         throw new Error(
-          `only solids, faces, edges and corners have .Data; ${parts.slice(0, at).join('.')} is ${solidScriptKindNamed(item)}`,
+          `only solids, faces, edges, corners and dictionaries have .Data; ${parts.slice(0, at).join('.')} is ${solidScriptKindNamed(item)}`,
         );
       this.elements.dataWrite(
         item.kind === 'data' ? item : this.elements.data(item),
@@ -216,13 +217,16 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
   }
 
   /**
-   * Sets a variable after checking its name and that lines may change it.
+   * Sets a variable after checking its name and that lines may change it. A
+   * Dictionary the script made is copied, so the two names change on their
+   * own.
    *
    * @param scope Scope of the line.
-   * @param name Name.
-   * @param value Value.
+   * @param written Name.
+   * @param given Value.
    */
-  protected variableSet(scope: SolidScriptScope, written: string, value: SolidScriptValue): void {
+  protected variableSet(scope: SolidScriptScope, written: string, given: SolidScriptValue): void {
+    const value = given instanceof SolidScriptDictionary ? given.copy() : given;
     const name = this.nameKey(written);
     if (SOLID_SCRIPT_NAMES_PLAIN.has(name)) {
       this.writableCheck(name, name);

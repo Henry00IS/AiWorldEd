@@ -86,11 +86,17 @@ export const SOLID_SCRIPT_KIND_CHECKS = {
     summary: 'Yes for a list or vector, such as IsList([1, 2, 3]).',
     checks: ['List', 'Vector'],
   },
-  Data: {
-    key: 'is_data',
-    usage: 'IsData(value)',
-    summary: 'Yes for the values kept under .Data, such as IsData([Object.Data]).',
-    checks: ['Data'],
+  Dictionary: {
+    key: 'is_dictionary',
+    usage: 'IsDictionary(value)',
+    summary: 'Yes for a Dictionary, such as IsDictionary([Prices]) or IsDictionary([Object.Data]).',
+    checks: ['Dictionary'],
+  },
+  Rotation: {
+    key: 'is_rotation',
+    usage: 'IsRotation(value)',
+    summary: 'Yes for a Rotation, such as IsRotation(Rotation(0, 90, 0)); No for three numbers.',
+    checks: ['Rotation'],
   },
 } as const satisfies Record<string, SolidScriptKindCheck>;
 
@@ -133,7 +139,8 @@ export const SOLID_SCRIPT_FUNCTIONS_KIND_CHECKS = {
   is_edge: solidScriptKindCheck('Edge'),
   is_vertex: solidScriptKindCheck('Vertex'),
   is_path: solidScriptKindCheck('Path'),
-  is_data: solidScriptKindCheck('Data'),
+  is_dictionary: solidScriptKindCheck('Dictionary'),
+  is_rotation: solidScriptKindCheck('Rotation'),
 } as const satisfies Readonly<Record<string, SolidScriptBuiltin>>;
 
 /** Docs for the new kind checks, with literal keys so the catalog types them. */
@@ -146,7 +153,8 @@ export const SOLID_SCRIPT_KIND_CHECK_DOCS = {
   is_edge: solidScriptKindCheckDoc(SOLID_SCRIPT_KIND_CHECKS.Edge),
   is_vertex: solidScriptKindCheckDoc(SOLID_SCRIPT_KIND_CHECKS.Vertex),
   is_path: solidScriptKindCheckDoc(SOLID_SCRIPT_KIND_CHECKS.Path),
-  is_data: solidScriptKindCheckDoc(SOLID_SCRIPT_KIND_CHECKS.Data),
+  is_dictionary: solidScriptKindCheckDoc(SOLID_SCRIPT_KIND_CHECKS.Dictionary),
+  is_rotation: solidScriptKindCheckDoc(SOLID_SCRIPT_KIND_CHECKS.Rotation),
 } as const;
 
 /** Input help for the new kind checks. */
@@ -159,5 +167,6 @@ export const SOLID_SCRIPT_KIND_CHECK_ARGUMENTS = {
   is_edge: { value: { type: 'Any', about: 'The value to check.' } },
   is_vertex: { value: { type: 'Any', about: 'The value to check.' } },
   is_path: { value: { type: 'Any', about: 'The value to check.' } },
-  is_data: { value: { type: 'Any', about: 'The value to check.' } },
+  is_dictionary: { value: { type: 'Any', about: 'The value to check.' } },
+  is_rotation: { value: { type: 'Any', about: 'The value to check.' } },
 } as const;

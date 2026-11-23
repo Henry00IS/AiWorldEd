@@ -12,6 +12,10 @@ import {
   SOLID_SCRIPT_FUNCTION_DOCS_CLUSTER,
 } from './solid_script_function_docs_cluster.js';
 import {
+  SOLID_SCRIPT_DICTIONARY_ARGUMENTS,
+  SOLID_SCRIPT_FUNCTION_DOCS_DICTIONARY,
+} from './solid_script_function_docs_dictionary.js';
+import {
   SOLID_SCRIPT_FUNCTION_DOCS_ROTATION,
   SOLID_SCRIPT_ROTATION_ARGUMENTS,
 } from './solid_script_function_docs_rotation.js';
@@ -105,7 +109,8 @@ export interface SolidScriptFunctionDoc {
   perAxis?: true;
   /**
    * Group in the reference and the category of its block in the formula editor;
-   * Functions holds what fits no other.
+   * Functions holds what fits no other. A function whose first input takes a
+   * list or a text is listed under List and Text too.
    */
   group: SolidScriptFunctionGroup;
 }
@@ -123,6 +128,7 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
   ...SOLID_SCRIPT_FUNCTION_DOCS_TEXTURE,
   ...SOLID_SCRIPT_FUNCTION_DOCS_PRINCIPAL,
   ...SOLID_SCRIPT_FUNCTION_DOCS_ROTATION,
+  ...SOLID_SCRIPT_FUNCTION_DOCS_DICTIONARY,
   ...SOLID_SCRIPT_FUNCTION_DOCS_COORDINATES,
   str: {
     usage: 'Str(a, b, ...)',
@@ -183,12 +189,6 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
     summary: 'Fills behind up to a width, such as PadRight(7, 3, 0) is 700.',
     group: 'Text',
     gives: ['Text'],
-  },
-  contains: {
-    usage: 'Contains(text, part)',
-    summary: 'Yes when the text holds the part, such as Contains("hello", "ell").',
-    group: 'Text',
-    gives: ['Yes/No'],
   },
   starts_with: {
     usage: 'StartsWith(text, part)',
@@ -946,6 +946,7 @@ const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
   ...SOLID_SCRIPT_TEXTURE_ARGUMENTS,
   ...SOLID_SCRIPT_PRINCIPAL_ARGUMENTS,
   ...SOLID_SCRIPT_ROTATION_ARGUMENTS,
+  ...SOLID_SCRIPT_DICTIONARY_ARGUMENTS,
   ...SOLID_SCRIPT_COORDINATES_ARGUMENTS,
   ...SOLID_SCRIPT_SHAPING_WAVE_ARGUMENTS,
 };

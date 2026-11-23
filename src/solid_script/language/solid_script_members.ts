@@ -133,7 +133,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     Mode: form('Modes', 'Text'),
     Islands: form('Islands', 'List'),
     Textures: form('Textures', 'Text List'),
-    Data: form('Data', 'Data'),
+    Data: form('Data', 'Dictionary'),
   },
   Face: {
     Center: form('Centers', 'Vector'),
@@ -155,7 +155,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     Warp: form('Warps', 'Number'),
     FaceCorners: form('FaceCorners', 'FaceCorner List'),
     Texture: form('Textures', 'Text'),
-    Data: form('Data', 'Data'),
+    Data: form('Data', 'Dictionary'),
   },
   Edge: {
     Start: form('Starts', 'Vector'),
@@ -173,7 +173,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     Faces: form('Faces', 'Face List'),
     FaceCorners: form('FaceCorners', 'FaceCorner List'),
     Parent: form('Parents', 'Object'),
-    Data: form('Data', 'Data'),
+    Data: form('Data', 'Dictionary'),
   },
   Vertex: {
     Position: form('Positions', 'Vector'),
@@ -184,7 +184,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     IsUVSplit: form('IsUVSplits', 'Yes/No'),
     FaceCorners: form('FaceCorners', 'FaceCorner List'),
     Parent: form('Parents', 'Object'),
-    Data: form('Data', 'Data'),
+    Data: form('Data', 'Dictionary'),
   },
   FaceCorner: {
     Face: form('Faces', 'Face'),
@@ -200,7 +200,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     PreviousCorner: form('PreviousCorners', 'FaceCorner'),
     Ring: form('Rings', 'FaceCorner List'),
     Parent: form('Parents', 'Object'),
-    Data: form('Data', 'Data'),
+    Data: form('Data', 'Dictionary'),
   },
   Point: {
     Position: form('Positions', 'Vector'),
@@ -424,7 +424,8 @@ function solidScriptMemberId(value: SolidScriptValue, elements: SolidScriptEleme
 
 /**
  * Reads a member of a value, such as .Count of a list, .Center of a face or a
- * key under .Data.
+ * key under .Data; a Dictionary reads its keys directly or under its own
+ * .Data.
  *
  * @param value Value the member is read from.
  * @param member Member name, folded to lower case.
@@ -447,7 +448,7 @@ export function solidScriptMemberRead(
     if (key === 'position') return value.position;
     if (key === 'normal') return value.normal;
   } else if (value instanceof SolidScriptElement) {
-    if (value.kind === 'data') return elements.dataRead(value, member);
+    if (value.kind === 'data') return key === 'data' ? value : elements.dataRead(value, member);
     const read = solidScriptMemberElement(value, key, elements);
     if (read !== undefined) return read;
   } else if (Array.isArray(value)) {
@@ -509,7 +510,7 @@ function solidScriptMemberList(
     return solidScriptMemberBounds(elements.bounds(list as SolidScriptElement[]), key);
   if (list.length === 0) return [];
   const itemType = solidScriptMemberKind(solidScriptValueType(list[0]));
-  if (itemType === 'Data') return list.map((item) => solidScriptMemberRead(item, member, elements, written));
+  if (itemType === 'Dictionary') return list.map((item) => solidScriptMemberRead(item, member, elements, written));
   const decl = itemType ? solidScriptMemberDecl(itemType, member) : undefined;
   if (!decl || solidScriptNameKey(decl.plural) !== key) return undefined;
   if (!list.every((item) => item instanceof SolidScriptElement)) {

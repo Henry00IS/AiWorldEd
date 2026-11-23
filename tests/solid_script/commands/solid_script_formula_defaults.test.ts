@@ -28,6 +28,7 @@ const SUBJECTS = new Set([
   'text',
   'list',
   'list or text',
+  'dictionary',
   'text or list',
   'vector',
   'matrix',

@@ -25,7 +25,8 @@ export const SOLID_SCRIPT_KINDS = [
   'Edge',
   'Vertex',
   'List',
-  'Data',
+  'Dictionary',
+  'Rotation',
 ] as const;
 
 /**
@@ -38,7 +39,7 @@ export function solidScriptKindKnown(kind: string): boolean {
   const known: readonly string[] = SOLID_SCRIPT_KINDS;
   if (known.includes(kind)) return true;
   const base = kind.endsWith(' List') ? kind.slice(0, -' List'.length) : '';
-  return known.includes(base) && base !== 'List' && base !== 'Data';
+  return known.includes(base) && base !== 'List';
 }
 
 /**

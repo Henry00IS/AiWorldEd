@@ -5,6 +5,7 @@ import {
   type SolidScriptFunctionDoc,
 } from '@/solid_script/language/solid_script_function_docs.js';
 import { solidScriptKindsWords } from '@/solid_script/language/solid_script_kinds.js';
+import { solidScriptFunctionGroups } from '@/solid_script/language/solid_script_function_doc_groups.js';
 import { SOLID_SCRIPT_SYSTEM_GLOBALS } from '@/solid_script/language/solid_script_system.js';
 import {
   SOLID_SCRIPT_EXAMPLE_COLUMNS,
@@ -84,7 +85,7 @@ Every field is plain text, without quotes, read like this:
 - Common mistakes get a hint with what was probably meant, built from the text as written, in the error and in the editor before running: math outside a formula such as [K]*2, [[K]*2] or [K*2] (Did you mean to write [=[K]*2]?), =[K]*2 without brackets, a member of a variable the line sees read without its own brackets inside a formula such as [=Edge.Start + 1] (Did you mean to write [=[Edge.Start] + 1]?; a formula reads .X, .Y and .Z of a value itself, any other member only from a name in brackets), a variable of the script written with a $ such as [$Width] (Did you mean to write [Width]?, unless $Width is also a system value), and a system value without its $ such as [Box.Width], never offered for a name a line of the script writes.
 - An unknown [Name] stops the script with "line N: ... there is no variable [Name]"; a formula that cannot be read stops it with the formula and the reason.
 
-Formulas know: numbers, text in double quotes, true, false, every name in brackets such as [Width], [$Box.Width] or [Edge.Length] (a word without brackets is only ever a function, such as Sin(5), so [=Width] stops with a hint to write [=[Width]]), lists in brackets such as [0, [1, 1, 1], "Easy"], [], [0] or ["a"] (a bracket with a comma, one number, one text or nothing in it is a list; [Name] and [[Name]] stay names, so a list of one other value is written List([X])), the operators (loosest first) ? :, ||, &&, == !=, < <= > >=, + -, * / %, unary - + !, with % the remainder (such as [I] % 2 == 0 for an even number), and the functions Sin, Cos, Tan, Asin, Acos, Atan, Atan2 (degrees), Abs, Sign, Ceil, Floor, Round, Sqrt, Exp, Ln, Log (base 10), Pow, Min, Max, Norm, Cross, Len, Concat, Str, IsUndef, IsNum, IsList, IsString, IsBool, IsVector, IsSolid, IsMesh, IsFace, IsEdge, IsVertex, IsOutline, IsData, Lookup (Lookup(key, table) blends between the two nearest key, value pairs of a table), Rands (Rands(min, max, count, seed) gives the same random numbers for the same seed), List (List(a, b, ...) makes a list of any number of values, none for an empty one), plus the functions the script defines with Function blocks. Lists add item by item and a number times a list scales it.
+Formulas know: numbers, text in double quotes, true, false, every name in brackets such as [Width], [$Box.Width] or [Edge.Length] (a word without brackets is only ever a function, such as Sin(5), so [=Width] stops with a hint to write [=[Width]]), lists in brackets such as [0, [1, 1, 1], "Easy"], [], [0] or ["a"] (a bracket with a comma, one number, one text or nothing in it is a list; [Name] and [[Name]] stay names, so a list of one other value is written List([X])), the operators (loosest first) ? :, ||, &&, == !=, < <= > >=, + -, * / %, unary - + !, with % the remainder (such as [I] % 2 == 0 for an even number), and the functions Sin, Cos, Tan, Asin, Acos, Atan, Atan2 (degrees), Abs, Sign, Ceil, Floor, Round, Sqrt, Exp, Ln, Log (base 10), Pow, Min, Max, Norm, Cross, Len, Concat, Str, IsUndef, IsNum, IsList, IsString, IsBool, IsVector, IsSolid, IsMesh, IsFace, IsEdge, IsVertex, IsOutline, IsDictionary, IsRotation, Lookup (Lookup(key, table) blends between the two nearest key, value pairs of a table), Rands (Rands(min, max, count, seed) gives the same random numbers for the same seed), List (List(a, b, ...) makes a list of any number of values, none for an empty one), plus the functions the script defines with Function blocks. Lists add item by item and a number times a list scales it.
 
 ## Solids
 
@@ -188,7 +189,9 @@ Formulas know: numbers, text in double quotes, true, false, every name in bracke
 - Sweep Along Path takes an optional Up per Point: the profile's up faces it on each stretch, else it turns as little as possible from the stretch before.
 - ClusterConnected(points, starts, ends, distance) groups points joined by edges whose cluster middles are closer than Distance.
 - Brick(position, scale, seed, output, mortar, width, height, offset, smooth) gives brick mortar or a per-brick Tint; Magic(position, scale, depth, distortion) gives swirling colour bands.
-- Rename Data moves a .Data value to a new key and Remove Data removes one key, on faces, edges or corners.
+- Rename Data moves a .Data value to a new key and Remove Data removes one key, on faces, edges, corners or dictionaries.
+- A Rotation is a whole turn kept as a quaternion, so turns combine without gimbal lock: Make Rotation Into Spin (How X Then Y Then Z with Degrees, or Axis And Angle with Axis and Angle) or Rotation(x, y, z) and RotationAround(axis, angle) make one, CombineRotations, MixRotation, InvertRotation, ApplyRotation and RotationDegrees work on it, and Rotate By, Rotate To and Transform Rotate take it as well as three numbers.
+- A Dictionary keeps values under keys: Make Dictionary Into Prices Keys Wood, Stone Values 5, 7 (or [=Dictionary(List("Wood", "Stone"), List(5, 7))]) makes one, and it works like .Data: [Prices.Data.Wood] reads, Set Prices.Data.Wood writes, For Each over [Prices] with a Key walks it, Keys(), Values() and Contains() read it, and setting it to another name copies it. The .Data of geometry is a Dictionary too.
 - PrincipalAxes(points, output, groups) gives the main axes, spread or middle of a point cloud, or of the group of each point with Groups; MatrixSvd(matrix, output) gives the stretches S and the turns U and V of a matrix.
 - Dual Mesh swaps the faces and corners of a mesh, with Keep Boundaries for open edges.
 - Find On How At UV finds the point on the faces whose texture coordinates are the U and V of From.
@@ -254,7 +257,8 @@ Formulas know: numbers, text in double quotes, true, false, every name in bracke
 `;
 
 /**
- * Lists the built-in functions by group for the reference.
+ * Lists the built-in functions by group for the reference, a function that
+ * takes a list or a text under both List and Text.
  *
  * @returns Groups such as "Text: pad_left(text, width, fill) fills in front up
  *   to a width".
@@ -262,7 +266,8 @@ Formulas know: numbers, text in double quotes, true, false, every name in bracke
 function solidScriptReferenceFunctions(): string {
   const groups = new Map<string, string[]>();
   for (const [key, doc] of Object.entries(SOLID_SCRIPT_FUNCTION_DOCS))
-    groups.set(doc.group, [...(groups.get(doc.group) ?? []), solidScriptReferenceFunction(key, doc)]);
+    for (const group of solidScriptFunctionGroups(key))
+      groups.set(group, [...(groups.get(group) ?? []), solidScriptReferenceFunction(key, doc)]);
   return [...groups].map(([group, entries]) => `${group}: ${entries.join(' ')}`).join(' ');
 }
 

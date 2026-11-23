@@ -285,10 +285,6 @@ export const SOLID_SCRIPT_FUNCTIONS_EXTRA = {
   uppercase: (args) => solidScriptExtraText(args, 0, 'Uppercase(text)').toUpperCase(),
   lowercase: (args) => solidScriptExtraText(args, 0, 'Lowercase(text)').toLowerCase(),
   trim: (args) => solidScriptExtraText(args, 0, 'Trim(text)').trim(),
-  contains: (args) =>
-    solidScriptExtraText(args, 0, 'Contains(text, part)').includes(
-      solidScriptExtraText(args, 1, 'Contains(text, part)'),
-    ),
   starts_with: (args) =>
     solidScriptExtraText(args, 0, 'StartsWith(text, part)').startsWith(
       solidScriptExtraText(args, 1, 'StartsWith(text, part)'),

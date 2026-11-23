@@ -6,7 +6,7 @@ import { solidScriptParameter, solidScriptParameterOf } from './solid_script_com
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import { solidScriptDataBlur } from '@/solid_script/language/solid_script_data_blur.js';
 import { solidScriptOfEmpty } from '@/solid_script/language/solid_script_select.js';
-import { SolidScriptElement } from '@/solid_script/language/solid_script_value.js';
+import { SolidScriptDictionary, SolidScriptElement } from '@/solid_script/language/solid_script_value.js';
 
 /** Kinds of items the Data lines work on. */
 const SOLID_SCRIPT_DATA_BLUR_KINDS: ReadonlySet<string> = new Set(['face', 'edge', 'vertex']);
@@ -17,9 +17,14 @@ const SOLID_SCRIPT_DATA_BLUR_KINDS: ReadonlySet<string> = new Set(['face', 'edge
  *
  * @param run Running line.
  * @param label Line label, for messages.
+ * @param dictionaries True when Of may hold dictionaries too.
  * @returns Items.
  */
-export function solidScriptDataItems(run: SolidScriptBlockRun, label: string): SolidScriptElement[] {
+export function solidScriptDataItems(
+  run: SolidScriptBlockRun,
+  label: string,
+  dictionaries = false,
+): SolidScriptElement[] {
   const given = run.ofValues();
   const items = given ?? run.selectedGet('faces');
   if (items.length === 0)
@@ -27,8 +32,9 @@ export function solidScriptDataItems(run: SolidScriptBlockRun, label: string): S
       given ? `${label} has nothing in Of; check that Of holds faces` : solidScriptOfEmpty(label, 'faces'),
     );
   const checked = items.map((item) => {
+    if (item instanceof SolidScriptDictionary && dictionaries) return item;
     if (!(item instanceof SolidScriptElement) || !SOLID_SCRIPT_DATA_BLUR_KINDS.has(item.kind))
-      throw new Error(`${label} takes faces, edges or corners`);
+      throw new Error(`${label} takes faces, edges or corners${dictionaries ? ', or dictionaries' : ''}`);
     return item;
   });
   return checked.filter((item, index) =>

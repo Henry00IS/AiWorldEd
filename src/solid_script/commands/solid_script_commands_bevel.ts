@@ -67,7 +67,12 @@ function solidScriptBevelItems(
       given ? `${label} has nothing in Of; check that Of holds ${kind}` : solidScriptOfEmpty(label, kind),
     );
   return values.map((value) => {
-    if (!(value instanceof SolidScriptElement) || value.kind === 'point' || value.kind === 'data')
+    if (
+      !(value instanceof SolidScriptElement) ||
+      value.kind === 'point' ||
+      value.kind === 'data' ||
+      value.kind === 'rotation'
+    )
       throw new Error(`${label} takes ${kind}, faces or objects, not ${solidScriptKindNamed(value)}`);
     return value;
   });

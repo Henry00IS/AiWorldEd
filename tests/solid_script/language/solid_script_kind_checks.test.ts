@@ -56,7 +56,8 @@ describe('SolidScript kind checks', () => {
       'is_edge',
       'is_vertex',
       'is_list',
-      'is_data',
+      'is_dictionary',
+      'is_rotation',
     ]);
     for (const check of Object.values(SOLID_SCRIPT_KIND_CHECKS)) {
       expect(SOLID_SCRIPT_FUNCTIONS_BUILTIN[check.key], check.key).toBeTypeOf('function');
@@ -67,7 +68,7 @@ describe('SolidScript kind checks', () => {
     expect(SOLID_SCRIPT_FUNCTION_DOCS['is_undef']?.usage).toBe('IsUndef(value)');
   });
 
-  it('answers IsVector, IsSolid, IsMesh, IsFace, IsEdge, IsVertex and IsData at run time', () => {
+  it('answers IsVector, IsSolid, IsMesh, IsFace, IsEdge, IsVertex and IsDictionary at run time', () => {
     const numbers = run(
       { command: 'variable', values: { name: 'Long', value: '1, 2, 3, 4' } },
       {
@@ -89,7 +90,7 @@ describe('SolidScript kind checks', () => {
         command: 'echo',
         values: {
           value:
-            '[=IsSolid([$Selected.Objects.First])] [=IsMesh([$Selected.Objects.First])] [=IsFace([Faces.First])] [=IsEdge([Edges.First])] [=IsVertex([Corners.First])] [=IsData([Faces.First.Data])]',
+            '[=IsSolid([$Selected.Objects.First])] [=IsMesh([$Selected.Objects.First])] [=IsFace([Faces.First])] [=IsEdge([Edges.First])] [=IsVertex([Corners.First])] [=IsDictionary([Faces.First.Data])]',
         },
       },
     );

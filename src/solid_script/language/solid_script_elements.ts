@@ -13,19 +13,19 @@ import {
 } from './solid_script_geometry.js';
 import { solidScriptGeometryLeafMatrix } from './solid_script_geometry_matrix.js';
 import { SOLID_SCRIPT_MODE_DEFAULT, type SolidScriptMode } from './solid_script_mode.js';
-import { SolidScriptElement, type SolidScriptElementKind, type SolidScriptValue } from './solid_script_value.js';
+import {
+  SolidScriptDictionary,
+  SolidScriptElement,
+  type SolidScriptDictionaryEntry,
+  type SolidScriptElementKind,
+  type SolidScriptValue,
+} from './solid_script_value.js';
 
 /** A plane a face lies on, with the outline the face had when its id was made. */
 interface SolidScriptElementPlane {
   normal: THREE.Vector3;
   /** Corners of the face when the id was made; pieces inside it are the face. */
   corners: THREE.Vector3[];
-}
-
-/** One user value under .Data, with the spelling its key was written in. */
-interface SolidScriptElementDatum {
-  name: string;
-  value: SolidScriptValue;
 }
 
 /** What an element id stands for. */
@@ -49,9 +49,9 @@ interface SolidScriptElementEntry {
   /** Face: its number on the solid or mesh when the id was made. */
   faceIndex?: number;
   /** The user's own values, by key. */
-  data: Map<string, SolidScriptElementDatum>;
+  data: Map<string, SolidScriptDictionaryEntry>;
   /** The Data value of the element, made on first read. */
-  dataElement?: SolidScriptElement;
+  dataElement?: SolidScriptDictionary;
 }
 
 /** How the elements of a run find the latest version of a solid or mesh. */
@@ -578,60 +578,73 @@ export class SolidScriptElements {
   }
 
   /**
-   * Returns the Data value of an element.
+   * Returns the Data value of an element, a Dictionary that shares its values
+   * with the element; a Dictionary is its own Data.
    *
    * @param element Element.
    * @returns Data element.
    */
-  data(element: SolidScriptElement): SolidScriptElement {
+  data(element: SolidScriptElement): SolidScriptDictionary {
+    if (element instanceof SolidScriptDictionary) return element;
     const entry = this.entry(element);
     if (entry.dataElement) return entry.dataElement;
-    const data = this.add('data', entry.leaf, { data: entry.data });
-    entry.dataElement = data.element;
-    return data.element;
+    const dictionary = new SolidScriptDictionary(entry.data, this.entries.length + 1);
+    this.add('data', entry.leaf, { data: entry.data, element: dictionary });
+    entry.dataElement = dictionary;
+    return dictionary;
+  }
+
+  /**
+   * Returns the values of an element or its Data, by folded key.
+   *
+   * @param element Element, its Data or a Dictionary.
+   * @returns Values.
+   */
+  private dataValues(element: SolidScriptElement): Map<string, SolidScriptDictionaryEntry> {
+    return element instanceof SolidScriptDictionary ? element.entries : this.entry(element).data;
   }
 
   /**
    * Reads one user value; a key never set reads as empty.
    *
-   * @param element Element or its Data.
+   * @param element Element, its Data or a Dictionary.
    * @param key Key, folded.
    * @returns Value.
    */
   dataRead(element: SolidScriptElement, key: string): SolidScriptValue {
-    return this.entry(element).data.get(key)?.value ?? '';
+    return this.dataValues(element).get(key)?.value ?? '';
   }
 
   /**
    * Writes one user value.
    *
-   * @param element Element or its Data.
+   * @param element Element, its Data or a Dictionary.
    * @param key Key, folded.
    * @param name Key as written.
    * @param value Value.
    */
   dataWrite(element: SolidScriptElement, key: string, name: string, value: SolidScriptValue): void {
-    this.entry(element).data.set(key, { name, value });
+    this.dataValues(element).set(key, { name, value });
   }
 
   /**
    * Removes one user value, so it reads as empty again.
    *
-   * @param element Element or its Data.
+   * @param element Element, its Data or a Dictionary.
    * @param key Key, folded.
    */
   dataRemove(element: SolidScriptElement, key: string): void {
-    this.entry(element).data.delete(key);
+    this.dataValues(element).delete(key);
   }
 
   /**
-   * Lists the user values of a Data element.
+   * Lists the user values of a Data element or a Dictionary.
    *
-   * @param element Data element.
+   * @param element Data element or Dictionary.
    * @returns Keys as written with their values.
    */
-  dataEntries(element: SolidScriptElement): { name: string; value: SolidScriptValue }[] {
-    return [...this.entry(element).data.values()].map((datum) => ({ ...datum }));
+  dataEntries(element: SolidScriptElement): SolidScriptDictionaryEntry[] {
+    return [...this.dataValues(element).values()].map((datum) => ({ ...datum }));
   }
 
   /**
