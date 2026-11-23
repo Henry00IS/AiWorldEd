@@ -1,5 +1,6 @@
 import type { Vector3 } from 'three';
 import type { EditorViewportPickContext } from '@/editor/window/editor_viewport_pick_context.js';
+import { widgetScreenClip } from './widget_screen_clip.js';
 
 /** Where a scene point lands on screen. */
 export interface WidgetScreenPoint {
@@ -77,9 +78,9 @@ export class WidgetScreenElements {
   }
 
   /**
-   * Lays an element as a line between two scene points: placed at the first, as
-   * wide as the distance on screen and turned toward the second; hidden when
-   * either end is out of view.
+   * Lays an element as a line between two scene points: the part in view,
+   * placed at its first end, as wide as it is on screen and turned toward its
+   * other end; hidden only when no part is in view.
    *
    * @param pane Pane camera and pick surface.
    * @param key Key.
@@ -88,14 +89,15 @@ export class WidgetScreenElements {
    * @returns The element.
    */
   line(pane: EditorViewportPickContext, key: string, from: Vector3, to: Vector3): HTMLElement {
-    const start = widgetScreenProject(from, pane);
-    const end = widgetScreenProject(to, pane);
+    const segment = widgetScreenClip(from, to, pane);
     const element = this.get(pane.pickElement, key);
-    element.hidden = !start.visible || !end.visible;
-    element.style.left = `${start.x}px`;
-    element.style.top = `${start.y}px`;
-    element.style.width = `${Math.hypot(end.x - start.x, end.y - start.y)}px`;
-    element.style.transform = `rotate(${Math.atan2(end.y - start.y, end.x - start.x)}rad)`;
+    element.hidden = segment === null;
+    if (!segment) return element;
+    const { x0, y0, x1, y1 } = segment;
+    element.style.left = `${x0}px`;
+    element.style.top = `${y0}px`;
+    element.style.width = `${Math.hypot(x1 - x0, y1 - y0)}px`;
+    element.style.transform = `rotate(${Math.atan2(y1 - y0, x1 - x0)}rad)`;
     return element;
   }
 

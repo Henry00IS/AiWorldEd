@@ -253,6 +253,22 @@ describe('Generator Edit button and Generator tool', () => {
     expect([line?.style.left, line?.style.top, line?.style.width]).toEqual(['100px', '50px', '50px']);
   });
 
+  it('keeps the part of a ruler that is in view when its handle or zero point is not', async () => {
+    const { editor, state } = setup(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1)));
+    await click(editor, [100, 50], [100, 50]);
+    const ruler = (): HTMLElement | undefined =>
+      [...document.querySelectorAll<HTMLElement>('[data-ruler]')].find((each) => !each.hidden);
+    state.sliders = [{ ...slider(), value: 10 }];
+    editor.onRepaint();
+    expect([ruler()?.style.left, ruler()?.style.top, ruler()?.style.width]).toEqual(['100px', '50px', '100px']);
+    state.sliders = [{ ...slider(), origin: new THREE.Vector3(-10, 0, 0), value: 20 }];
+    editor.onRepaint();
+    expect([ruler()?.style.left, ruler()?.style.width]).toEqual(['0px', '200px']);
+    state.sliders = [{ ...slider(), origin: new THREE.Vector3(-10, 5, 0), value: 20 }];
+    editor.onRepaint();
+    expect(ruler()).toBeUndefined();
+  });
+
   it('never grabs a slider that writes nothing', async () => {
     const { editor, host, state } = setup(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1)));
     await click(editor, [100, 50], [100, 50]);
