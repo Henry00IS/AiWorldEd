@@ -16,43 +16,75 @@ const SOLID_SCRIPT_FILL_POINTS_MERGE = 1e-9;
 
 /**
  * Fills loose points with triangles whose circles hold no other point, seen on
- * the plane facing Normal; the mesh covers the convex hull round all points.
- * Points repeated on the plane are kept once.
+ * the plane facing Normal; the mesh covers the convex hull round the points of
+ * every group, each group filled on its own. Points repeated on the plane are
+ * kept once, and a group with too few points to fill is left out.
  *
  * @param points Points.
  * @param normal Direction the plane and the faces look.
  * @param label Command, for messages.
+ * @param groups A group per point, or null for one group.
  * @returns Mesh of triangles facing Normal.
  */
 export function solidScriptFillPoints(
   points: readonly THREE.Vector3[],
   normal: THREE.Vector3,
   label: string,
+  groups: readonly string[] | null,
 ): SolidScriptShapeMesh {
   if (points.length > SOLID_SCRIPT_FILL_POINTS_LIMIT)
     throw new Error(`${label} takes at most ${SOLID_SCRIPT_FILL_POINTS_LIMIT} points; use fewer points`);
   const frame = solidScriptPathFrame(normal, label);
-  const kept = solidScriptFillPointsUnique(points, frame);
-  const flat = kept.map((point) => new THREE.Vector2(point.dot(frame.x), point.dot(frame.y)));
-  const hull = solidScriptFillPointsHull(flat);
-  if (hull.length < 3) throw new Error(`${label} needs at least 3 points that are not all in one line`);
-  return solidScriptFillPointsBuild(kept, flat, hull);
+  const mesh: SolidScriptShapeMesh = { kind: 'mesh', label: 'mesh', points: [], faces: [], uvs: [] };
+  for (const group of solidScriptFillPointsGroups(points, groups, label)) {
+    const kept = solidScriptFillPointsUnique(group, frame);
+    const flat = kept.map((point) => new THREE.Vector2(point.dot(frame.x), point.dot(frame.y)));
+    const hull = solidScriptFillPointsHull(flat);
+    if (hull.length >= 3) solidScriptFillPointsBuild(mesh, kept, flat, hull);
+  }
+  if (mesh.faces.length === 0) throw new Error(`${label} needs at least 3 points that are not all in one line`);
+  return mesh;
 }
 
 /**
- * Inserts the non-hull points into a fan of triangles, then turns edges to
- * empty each triangle's circle.
+ * Splits the points by their Group, in the order each group first appears.
  *
+ * @param points Points.
+ * @param groups A group per point, or null for one group.
+ * @param label Command, for messages.
+ * @returns Points of every group.
+ */
+function solidScriptFillPointsGroups(
+  points: readonly THREE.Vector3[],
+  groups: readonly string[] | null,
+  label: string,
+): THREE.Vector3[][] {
+  if (!groups) return [[...points]];
+  if (groups.length !== points.length)
+    throw new Error(`${label} needs one Group per point, ${points.length}, not ${groups.length}`);
+  const split = new Map<string, THREE.Vector3[]>();
+  points.forEach((point, index) => {
+    const key = groups[index] ?? '';
+    split.set(key, [...(split.get(key) ?? []), point]);
+  });
+  return [...split.values()];
+}
+
+/**
+ * Inserts the non-hull points into a fan of triangles, turns edges to empty
+ * each triangle's circle, and adds the points and triangles to a mesh.
+ *
+ * @param mesh Mesh to add to.
  * @param kept Points in space.
  * @param flat Points on the plane.
  * @param hull Convex hull corner numbers.
- * @returns Triangulated mesh.
  */
 function solidScriptFillPointsBuild(
+  mesh: SolidScriptShapeMesh,
   kept: THREE.Vector3[],
   flat: THREE.Vector2[],
   hull: number[],
-): SolidScriptShapeMesh {
+): void {
   const triangles = hull.slice(1, -1).map((corner, at): BlastHoleTriangle => [hull[0]!, corner, hull[at + 2]!]);
   const onHull = new Set(hull);
   flat.forEach((_, index) => {
@@ -60,7 +92,10 @@ function solidScriptFillPointsBuild(
       solidScriptFillPointsSplitEdge(flat, triangles, index);
   });
   blastHoleDelaunayFlip(flat, triangles);
-  return { kind: 'mesh', label: 'mesh', points: kept, faces: triangles, uvs: triangles.map(() => null) };
+  const base = mesh.points.length;
+  mesh.points.push(...kept);
+  mesh.faces.push(...triangles.map((triangle) => triangle.map((corner) => base + corner)));
+  mesh.uvs.push(...triangles.map(() => null));
 }
 
 /**

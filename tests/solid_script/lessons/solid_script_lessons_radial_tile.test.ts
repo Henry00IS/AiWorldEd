@@ -40,4 +40,11 @@ describe('RadialTile', () => {
     expect(formula('RadialTile(Vector(1, 0, 0), 4, "Other")')).toContain('Output Segment, Angle, Local or Width');
     expect(formula('RadialTile(5, 4)')).toContain('needs a Vector for Position');
   });
+
+  it('rounds the wedge edges into arcs with Roundness, from straight at 0 to round at 1', () => {
+    expect(formula('Round(RadialTile(Vector(1, 0.5, 0), 4, "Local", 0) * 1000) / 1000')).toBe('[1, 0.5, 0]');
+    expect(formula('Round(RadialTile(Vector(1, 0.5, 0), 4, "Local", 1) * 1000) / 1000')).toBe('[1.118, 0.5, 0]');
+    expect(formula('Round(RadialTile(Vector(1, 0.5, 0), 4, "Local", 0.5) * 1000) / 1000')).toBe('[1.059, 0.5, 0]');
+    expect(formula('RadialTile(Vector(1, 0, 0), 4, "Local", 2)')).toContain('Roundness from 0 to 1');
+  });
 });

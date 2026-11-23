@@ -290,12 +290,12 @@ function solidScriptShapingChecker(args: readonly SolidScriptValue[]): number {
 const SOLID_SCRIPT_SHAPING_RADIAL_OUTPUTS = ['Segment', 'Angle', 'Local', 'Width'] as const;
 
 /** How to call RadialTile, for messages. */
-const SOLID_SCRIPT_SHAPING_RADIAL_USAGE = 'RadialTile(position, segments, output)';
+const SOLID_SCRIPT_SHAPING_RADIAL_USAGE = 'RadialTile(position, segments, output, roundness)';
 
 /**
  * Reads the inputs of RadialTile.
  *
- * @param args Position, Segments and optional Output.
+ * @param args Position, Segments, optional Output and Roundness.
  * @returns Position as numbers, the number of segments and the output.
  */
 function solidScriptShapingRadialInputs(args: readonly SolidScriptValue[]): [number[], number, string] {
@@ -312,16 +312,33 @@ function solidScriptShapingRadialInputs(args: readonly SolidScriptValue[]): [num
 }
 
 /**
+ * Reads the Roundness of RadialTile.
+ *
+ * @param args Arguments.
+ * @returns From 0 to 1, 0 when left off.
+ */
+function solidScriptShapingRadialRoundness(args: readonly SolidScriptValue[]): number {
+  const roundness = args.length > 3 ? solidScriptExtraNumber(args, 3, SOLID_SCRIPT_SHAPING_RADIAL_USAGE) : 0;
+  if (!(roundness >= 0 && roundness <= 1))
+    throw new Error(`${SOLID_SCRIPT_SHAPING_RADIAL_USAGE} needs a Roundness from 0 to 1, such as 0.5`);
+  return roundness;
+}
+
+/**
  * Cuts the plane round the Z axis into equal wedges, the first centred on X,
  * and tells which wedge a position is in: its number, its centre angle in
  * degrees, the position turned so that wedge points along X, or the length of
- * the wedge's arc at the position's distance from the axis.
+ * the wedge's arc at the position's distance from the axis. Roundness moves the
+ * X of Local from the distance along the wedge's centre, which is the same all
+ * along a straight edge across the wedge, toward the distance from the axis,
+ * which is the same all round an arc.
  *
- * @param args Position, Segments and optional Output.
+ * @param args Position, Segments, optional Output and Roundness.
  * @returns The chosen output.
  */
 function solidScriptShapingRadialTile(args: readonly SolidScriptValue[]): SolidScriptValue {
   const [[x = 0, y = 0, z = 0], segments, output] = solidScriptShapingRadialInputs(args);
+  const roundness = solidScriptShapingRadialRoundness(args);
   const step = (Math.PI * 2) / segments;
   const angle = (Math.atan2(y, x) + Math.PI * 2) % (Math.PI * 2);
   const segment = Math.floor(angle / step + 0.5) % segments;
@@ -329,7 +346,8 @@ function solidScriptShapingRadialTile(args: readonly SolidScriptValue[]): SolidS
   if (output === 'Segment') return segment;
   if (output === 'Angle') return THREE.MathUtils.radToDeg(centre);
   if (output === 'Width') return Math.hypot(x, y) * step;
-  return [x * Math.cos(centre) + y * Math.sin(centre), y * Math.cos(centre) - x * Math.sin(centre), z];
+  const along = x * Math.cos(centre) + y * Math.sin(centre);
+  return [THREE.MathUtils.lerp(along, Math.hypot(x, y), roundness), y * Math.cos(centre) - x * Math.sin(centre), z];
 }
 
 /**

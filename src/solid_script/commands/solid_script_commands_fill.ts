@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 import { SolidScriptCommand } from './solid_script_command.js';
-import { solidScriptParameter } from './solid_script_command_parameters.js';
+import { solidScriptParameter, solidScriptParameterOptional } from './solid_script_command_parameters.js';
 import { solidScriptFillPaths } from '@/solid_script/language/solid_script_fill_paths.js';
 import { solidScriptFillPoints } from '@/solid_script/language/solid_script_fill_points.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import { solidScriptPathSample } from '@/solid_script/language/solid_script_path_model.js';
 import { solidScriptScaleFacesVector } from './solid_script_scale_faces_how.js';
-import { SolidScriptPathElement } from '@/solid_script/language/solid_script_value.js';
+import { SolidScriptPathElement, solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
 
 /**
  * Reads the loops of a Fill Paths line: each Path in Paths, or one loop of the
@@ -57,7 +57,7 @@ export const SOLID_SCRIPT_COMMANDS_FILL: readonly SolidScriptCommand[] = [
     category: 'Points',
     description: 'Fill loose points with a flat mesh of triangles',
     manual:
-      'Builds a mesh of triangles between loose points, such as scattered points or a list of spots, covering the convex hull round all of them, for terrain, a broken floor or a low-poly patch. The points are laid flat on the plane facing Normal to pick the triangles, and keep their place, so heights stay. No triangle has another point inside the circle through its corners, which keeps triangles as even as the points allow. Points at the same place on the plane are kept once. The faces look along Normal. Example: Scatter Points on a plane Into [Spots], then Fill Points [Spots].',
+      'Builds a mesh of triangles between loose points, such as scattered points or a list of spots, covering the convex hull round all of them, for terrain, a broken floor or a low-poly patch. The points are laid flat on the plane facing Normal to pick the triangles, and keep their place, so heights stay. No triangle has another point inside the circle through its corners, which keeps triangles as even as the points allow. Points at the same place on the plane are kept once. Groups gives each point a group, and every group is filled on its own; a group with fewer than 3 points that are not in one line is left out. The faces look along Normal. Example: Scatter Points on a plane Into [Spots], then Fill Points [Spots].',
     stops: [
       'Fewer than 3 points, or points that are all in one line on the plane.',
       'More than 5000 points.',
@@ -78,15 +78,30 @@ export const SOLID_SCRIPT_COMMANDS_FILL: readonly SolidScriptCommand[] = [
         '0, 1, 0',
         'The way the plane and the faces look, such as 0, 1, 0 for points on the ground.',
       ),
+      solidScriptParameterOptional(
+        'groups',
+        'Groups',
+        'value',
+        'A group per point, such as [Ids]; each group is filled on its own. Empty fills all points together.',
+      ),
     ],
-    listing: (read) => ['Fill Points', ' ', read.value('points'), ' Normal ', read.value('normal')],
+    listing: (read) => [
+      'Fill Points',
+      ' ',
+      read.value('points'),
+      ' Normal ',
+      read.value('normal'),
+      ...(read.changed('groups') ? [' Groups ', read.value('groups')] : []),
+    ],
     execute: (run) => {
       const points = run.value('points');
       const normal = solidScriptScaleFacesVector(run.value('normal'), 'Normal') ?? new THREE.Vector3(0, 1, 0);
       if (!Array.isArray(points) || !points.every(Array.isArray))
         throw new Error('Fill Points needs points, such as [0, 0, 0], [2, 0, 0], [1, 0, 2]');
       const places = (points as number[][]).map(([x = 0, y = 0, z = 0]) => new THREE.Vector3(x, y, z));
-      return run.mesh(solidScriptFillPoints(places, normal, 'Fill Points'));
+      const groups = run.value('groups');
+      const keys = Array.isArray(groups) ? groups.map((group) => solidScriptValueText(group)) : null;
+      return run.mesh(solidScriptFillPoints(places, normal, 'Fill Points', keys));
     },
   }),
 ];

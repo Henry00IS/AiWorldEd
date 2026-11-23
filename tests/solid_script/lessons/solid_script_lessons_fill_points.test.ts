@@ -107,4 +107,21 @@ describe('Fill Points', () => {
   it('needs at least 3 points that are not in one line', () => {
     expect(fill({ points: '[0, 0, 0], [1, 0, 0], [2, 0, 0]' })).toContain('not all in one line');
   });
+
+  it('fills every group of points on its own with Groups, one per point', () => {
+    const points = '[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1], [3, 0, 0], [4, 0, 0], [4, 0, 1], [3, 0, 1]';
+    const mesh = fill({ points, groups: '[=List(0, 0, 0, 0, 1, 1, 1, 1)]' });
+    if (typeof mesh === 'string') throw new Error(mesh);
+    expect(mesh.points).toHaveLength(8);
+    expect(mesh.faces).toHaveLength(4);
+    for (const face of mesh.faces)
+      expect(new Set(face.map((corner) => (mesh.points[corner]!.x > 2 ? 1 : 0))).size).toBe(1);
+    expect(fill({ points, groups: '[=List(0, 1)]' })).toContain('one Group per point');
+  });
+
+  it('leaves out a group too small to fill', () => {
+    const mesh = fill({ points: '[0, 0, 0], [1, 0, 0], [1, 0, 1], [5, 0, 5]', groups: '[=List(0, 0, 0, 1)]' });
+    if (typeof mesh === 'string') throw new Error(mesh);
+    expect(mesh.faces).toHaveLength(1);
+  });
 });

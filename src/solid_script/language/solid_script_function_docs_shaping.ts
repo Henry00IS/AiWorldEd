@@ -139,9 +139,9 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_SHAPING = {
     gives: ['Number'],
   },
   radial_tile: {
-    usage: 'RadialTile(position, segments, output)',
+    usage: 'RadialTile(position, segments, output, roundness)',
     summary: solidScriptFunctionDocSummary(
-      'Cuts the plane round the Z axis into Segments equal wedges, the first centred on X, counting toward Y. Output Segment (the default) gives the wedge number from 0, Angle its centre in degrees, Local the position turned so its wedge points along X (Z kept), and Width the length of the wedge arc at the distance of the position from the axis.',
+      'Cuts the plane round the Z axis into Segments equal wedges, the first centred on X, counting toward Y. Output Segment (the default) gives the wedge number from 0, Angle its centre in degrees, Local the position turned so its wedge points along X (Z kept), and Width the length of the wedge arc at the distance of the position from the axis. Roundness, from 0 (the default) to 1, bends the straight edges that Local X draws across each wedge into arcs round the axis.',
       ['RadialTile(Vector(0, 1, 0), 4) is 1.', 'RadialTile(Vector(0, 2, 0), 4, "Angle") is 90.'],
       'Use Local to draw one pattern per wedge, such as the spokes of a wheel or rosette.',
     ),
@@ -345,6 +345,12 @@ export const SOLID_SCRIPT_SHAPING_WAVE_ARGUMENTS = {
       about: 'Segment, Angle, Local or Width.',
       choices: ['Segment', 'Angle', 'Local', 'Width'],
       default: 'Segment',
+    },
+    roundness: {
+      type: ['Number'],
+      about: 'From 0, straight edges across each wedge, to 1, arcs round the axis.',
+      default: '0',
+      start: '0.5',
     },
   },
 } as const;
