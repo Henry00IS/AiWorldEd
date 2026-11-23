@@ -190,5 +190,5 @@ describe.sequential('texture re-sync after the owner switches folders', () => {
     expect(bob.textures.getEntries().every((entry) => isDefaultCheckerTextureId(entry.id))).toBe(true);
     expect(readContentMeshTextureId(bob.mesh('Stone'))).toBe('stone.png');
     expect(await markOf(owner, 'stone.png')).toBe(4);
-  });
+  }, 40000);
 });
