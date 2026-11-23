@@ -16,8 +16,6 @@ export interface SolidScriptMeshBevelPick {
 export interface SolidScriptMeshBevelled {
   mesh: SolidScriptShapeMesh;
   made: number[];
-  /** How many picked edges were left alone because they are on an open border. */
-  skipped: number;
 }
 
 /** Working state of one bevel: corners joined by place and the picks. */
@@ -99,33 +97,40 @@ function solidScriptMeshBevelTwins(loops: readonly number[][]): Map<string, [num
 
 /**
  * Reads the picks into bevelled edges and the distance at each corner they
- * touch; a corner where several meet takes the largest. Edges on an open
- * border, with a face on one side only, are left alone.
+ * touch; a corner where several meet takes the largest. An edge no face uses is
+ * left alone.
  *
  * @param work Bevel state, filled in.
  * @param picks Edges and corners.
  * @param placeOf Number of the joined corner at a place.
- * @returns How many edges were left alone.
  */
 function solidScriptMeshBevelPicks(
   work: SolidScriptMeshBevelWork,
   picks: readonly SolidScriptMeshBevelPick[],
   placeOf: (point: THREE.Vector3) => number,
-): number {
-  let skipped = 0;
+): void {
   for (const pick of picks) {
     const corners = pick.at.map(placeOf);
     const [a, b] = corners;
     if (a !== undefined && b !== undefined) {
-      if (!work.twins.has(`${a}>${b}`) || !work.twins.has(`${b}>${a}`)) {
-        skipped++;
-        continue;
-      }
+      if (!work.twins.has(`${a}>${b}`) && !work.twins.has(`${b}>${a}`)) continue;
       work.edges.add(solidScriptMeshBevelEdgeKey(a, b));
     }
     for (const corner of corners) work.distances.set(corner, Math.max(work.distances.get(corner) ?? 0, pick.distance));
   }
-  return skipped;
+}
+
+/**
+ * Whether the edge between two corners is on an open border: a face runs along
+ * it one way only.
+ *
+ * @param work Bevel state.
+ * @param a Corner.
+ * @param b Corner.
+ * @returns True on a border.
+ */
+function solidScriptMeshBevelBorder(work: SolidScriptMeshBevelWork, a: number, b: number): boolean {
+  return !work.twins.has(`${a}>${b}`) || !work.twins.has(`${b}>${a}`);
 }
 
 /**
@@ -286,7 +291,7 @@ function solidScriptMeshBevelEnds(
   to: number,
 ): [number, number] {
   const found = work.twins.get(`${from}>${to}`);
-  if (!found) throw new Error('Bevel needs edges with a face on both sides; this edge is on an open border');
+  if (!found) throw new Error(`Bevel lost the face along edge ${from} to ${to}`);
   const [face, spot] = found;
   const loop = solidScriptMeshBevelAt(corners, face);
   return [
@@ -296,7 +301,9 @@ function solidScriptMeshBevelEnds(
 }
 
 /**
- * The strip of one bevelled edge, between the faces on its two sides.
+ * The strip of one bevelled edge, between the faces on its two sides. On an
+ * open border it runs from the face's cut-back edge to the edge itself, so the
+ * border stays where it was.
  *
  * @param work Bevel state.
  * @param corners New corners per face and spot.
@@ -305,24 +312,48 @@ function solidScriptMeshBevelEnds(
  */
 function solidScriptMeshBevelStrip(work: SolidScriptMeshBevelWork, corners: number[][][], key: string): number[] {
   const [a, b] = key.split(',').map(Number) as [number, number];
+  const [from, to] = work.twins.has(`${a}>${b}`) ? [a, b] : [b, a];
+  if (!work.twins.has(`${to}>${from}`)) {
+    const [newFrom, newTo] = solidScriptMeshBevelEnds(work, corners, from, to);
+    return [newTo, newFrom, from, to];
+  }
   const [firstA, firstB] = solidScriptMeshBevelEnds(work, corners, a, b);
   const [secondB, secondA] = solidScriptMeshBevelEnds(work, corners, b, a);
   return [firstB, firstA, secondA, secondB];
 }
 
 /**
+ * Picks the face to start walking round a corner from: on an open border the
+ * one whose edge leaving the corner is on the border, so the walk covers every
+ * face; else any.
+ *
+ * @param work Bevel state.
+ * @param corner The corner.
+ * @returns Face and spot of the corner in it, or none when no face uses it.
+ */
+function solidScriptMeshBevelRingStart(work: SolidScriptMeshBevelWork, corner: number): [number, number] | undefined {
+  const leaving = [...work.twins.entries()].filter(([key]) => key.startsWith(`${corner}>`));
+  const open = leaving.find(([key]) => !work.twins.has(`${key.slice(key.indexOf('>') + 1)}>${corner}`));
+  return (open ?? leaving[0])?.[1];
+}
+
+/**
  * Walks the faces around a bevelled corner and gives the new corners in that
- * order, each once.
+ * order, each once; on an open border the walk runs from one border to the
+ * other.
  *
  * @param work Bevel state.
  * @param corners New corners per face and spot.
  * @param corner The corner.
- * @returns Ring of new corners, or an empty list when the corner is on an open
- *   border.
+ * @returns New corners in order, and whether the walk stopped at a border.
  */
-function solidScriptMeshBevelRing(work: SolidScriptMeshBevelWork, corners: number[][][], corner: number): number[] {
+function solidScriptMeshBevelRing(
+  work: SolidScriptMeshBevelWork,
+  corners: number[][][],
+  corner: number,
+): { ring: number[]; open: boolean } {
   const ring: number[] = [];
-  const start = [...work.twins.entries()].find(([key]) => key.startsWith(`${corner}>`))?.[1];
+  const start = solidScriptMeshBevelRingStart(work, corner);
   let at = start;
   for (let guard = 0; at && guard < work.loops.length; guard++) {
     const [face, spot] = at;
@@ -330,14 +361,46 @@ function solidScriptMeshBevelRing(work: SolidScriptMeshBevelWork, corners: numbe
     ring.push(...[...solidScriptMeshBevelAt(solidScriptMeshBevelAt(corners, face), spot)].reverse());
     at = work.twins.get(`${corner}>${loop[(spot + loop.length - 1) % loop.length]}`);
     if (at && start && at[0] === start[0])
-      return ring.filter((value, index) => value !== ring[(index + 1) % ring.length]);
+      return { ring: ring.filter((value, index) => value !== ring[(index + 1) % ring.length]), open: false };
   }
-  return [];
+  return { ring: ring.filter((value, index) => value !== ring[index + 1]), open: true };
+}
+
+/**
+ * Whether a bevelled edge on an open border ends at a corner, so its strip
+ * keeps the corner where it was.
+ *
+ * @param work Bevel state.
+ * @param corner The corner.
+ * @returns True when one does.
+ */
+function solidScriptMeshBevelKeepsCorner(work: SolidScriptMeshBevelWork, corner: number): boolean {
+  return [...work.edges].some((key) => {
+    const [a, b] = key.split(',').map(Number) as [number, number];
+    return (a === corner || b === corner) && solidScriptMeshBevelBorder(work, a, b);
+  });
+}
+
+/**
+ * Twice the area of a face, from the sum of its corner cross products.
+ *
+ * @param points Corner places.
+ * @param loop Face.
+ * @returns Square metres, doubled.
+ */
+function solidScriptMeshBevelArea(points: readonly THREE.Vector3[], loop: readonly number[]): number {
+  return loop
+    .reduce((total, corner, spot) => {
+      const next = points[solidScriptMeshBevelAt(loop, spot + 1)] ?? new THREE.Vector3();
+      return total.add((points[corner] ?? new THREE.Vector3()).clone().cross(next));
+    }, new THREE.Vector3())
+    .length();
 }
 
 /**
  * The face that fills the hole a bevel leaves at a corner, turned to look the
- * way the faces around it do; none when the strips close it already.
+ * way the faces around it do; none when the strips close it already. On an open
+ * border the corner itself closes it when a border strip keeps it.
  *
  * @param work Bevel state.
  * @param corners New corners per face and spot.
@@ -351,9 +414,10 @@ function solidScriptMeshBevelPatch(
   corner: number,
   outward: THREE.Vector3,
 ): number[] | null {
-  const ring = solidScriptMeshBevelRing(work, corners, corner);
-  if (ring.length < 3) return null;
-  return solidScriptMeshLoopNormal(work.points, ring).dot(outward) < 0 ? ring.reverse() : ring;
+  const { ring, open } = solidScriptMeshBevelRing(work, corners, corner);
+  const loop = open && solidScriptMeshBevelKeepsCorner(work, corner) ? [corner, ...ring] : ring;
+  if (loop.length < 3 || solidScriptMeshBevelArea(work.points, loop) < 1e-12) return null;
+  return solidScriptMeshLoopNormal(work.points, loop).dot(outward) < 0 ? loop.reverse() : loop;
 }
 
 /**
@@ -374,13 +438,14 @@ function solidScriptMeshBevelOutwards(work: SolidScriptMeshBevelWork): Map<numbe
 /**
  * Bevels edges and corners of a mesh with one flat cut each: every edge that
  * meets a bevelled corner gets a new corner Distance along it, bevelled edges
- * become strips, and corners left open get a face. Corners at the same place
- * are joined first. Faces the bevel changed get automatic texture coordinates.
+ * become strips, and corners left open get a face. An edge on an open border
+ * becomes a flat strip inside its face, so the border stays where it was.
+ * Corners at the same place are joined first. Faces the bevel changed get
+ * automatic texture coordinates.
  *
  * @param mesh Mesh.
  * @param picks Edges and corners to bevel.
- * @returns Bevelled mesh, the numbers of the faces it made and how many edges
- *   on an open border it left alone.
+ * @returns Bevelled mesh and the numbers of the faces it made.
  */
 export function solidScriptMeshBevel(
   mesh: SolidScriptShapeMesh,
@@ -395,8 +460,8 @@ export function solidScriptMeshBevel(
     distances: new Map(),
     slides: new Map(),
   };
-  const skipped = solidScriptMeshBevelPicks(work, picks, welded.placeOf);
-  return { ...solidScriptMeshBevelBuild(mesh, work), skipped };
+  solidScriptMeshBevelPicks(work, picks, welded.placeOf);
+  return solidScriptMeshBevelBuild(mesh, work);
 }
 
 /**
@@ -431,7 +496,7 @@ function solidScriptMeshBevelUvs(
 function solidScriptMeshBevelBuild(
   mesh: SolidScriptShapeMesh,
   work: SolidScriptMeshBevelWork,
-): Omit<SolidScriptMeshBevelled, 'skipped'> {
+): SolidScriptMeshBevelled {
   const outwards = solidScriptMeshBevelOutwards(work);
   const corners = solidScriptMeshBevelCorners(work);
   const kept = corners.map((loop) => loop.flat());

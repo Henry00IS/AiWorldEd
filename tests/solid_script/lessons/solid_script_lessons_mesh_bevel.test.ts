@@ -152,33 +152,78 @@ describe('Bevel Edges per edge', () => {
   });
 });
 
-describe('Bevel Edges on open borders', () => {
-  it('skips edges on an open border with a warning and bevels the rest', () => {
-    const result = solidScriptProgramRun(
-      solidScriptDocumentCreate([
-        { command: 'grid_mesh', values: { size: '2, 0, 2', columns: '2', rows: '2' } },
-        { command: 'select_objects' },
-        { command: 'bevel_edges', values: { distance: '0.1', of: '[$Selected.Objects]' } },
-      ]),
+/**
+ * Area of every face of a mesh, added up.
+ *
+ * @param mesh Mesh.
+ * @returns Square metres.
+ */
+function area(mesh: SolidScriptShapeMesh): number {
+  return mesh.faces.reduce((sum, loop) => {
+    const points = loop.map((corner) => mesh.points[corner] ?? new THREE.Vector3());
+    const normal = points.reduce(
+      (total, point, index) => total.add(point.clone().cross(points[(index + 1) % points.length]!)),
+      new THREE.Vector3(),
     );
-    expect(result.error).toBeNull();
-    expect(result.warnings.map((warning) => warning.line)).toContain(3);
-    expect(result.warnings.find((warning) => warning.line === 3)?.text).toContain('open border');
-    const [leaf] = solidScriptGeometryLeaves(result.shapes);
-    if (leaf?.kind !== 'mesh') throw new Error('Expected a mesh');
-    expect(leaf.faces.length).toBeGreaterThan(4);
+    return sum + normal.length() / 2;
+  }, 0);
+}
+
+/**
+ * Bevels a flat 2 m grid of 2 by 2 squares on the given lines.
+ *
+ * @param lines Lines after the grid is picked.
+ * @returns Mesh and warnings.
+ */
+function grid(...lines: SolidScriptLine[]) {
+  const result = solidScriptProgramRun(
+    solidScriptDocumentCreate([
+      { command: 'grid_mesh', values: { size: '2, 0, 2', columns: '2', rows: '2' } },
+      { command: 'select_objects' },
+      ...lines,
+    ]),
+  );
+  expect(result.error).toBeNull();
+  const [leaf] = solidScriptGeometryLeaves(result.shapes);
+  if (leaf?.kind !== 'mesh') throw new Error('Expected a mesh');
+  return { mesh: leaf, warnings: result.warnings };
+}
+
+describe('Bevel Edges on open borders', () => {
+  it('bevels every edge of an open grid, border edges with a flat strip inside the border', () => {
+    const { mesh, warnings } = grid({ command: 'bevel_edges', values: { distance: '0.1', of: '[$Selected.Objects]' } });
+    expect(warnings).toEqual([]);
+    expect(area(mesh)).toBeCloseTo(4, 6);
+    const xs = mesh.points.map((point) => point.x);
+    expect(Math.min(...xs)).toBeCloseTo(-1, 6);
+    expect(Math.max(...xs)).toBeCloseTo(1, 6);
+    expect(mesh.faces.length).toBe(4 + 12 + 5);
   });
 
-  it('only warns when every picked edge is on an open border', () => {
-    const result = solidScriptProgramRun(
-      solidScriptDocumentCreate([
-        { command: 'grid_mesh', values: { size: '2, 0, 2' } },
-        { command: 'select_objects' },
-        { command: 'select_edges', values: { where: '[=Abs([$Edge.Center.X]) > 0.99]' } },
-        { command: 'bevel_edges', values: { distance: '0.1' } },
-      ]),
+  it('cuts a face back along its side edges for one border edge and keeps the mesh closed around it', () => {
+    const { mesh, warnings } = grid(
+      { command: 'select_edges', values: { where: '[=[$Edge.Center.X] > 0.99]' } },
+      { command: 'bevel_edges', values: { distance: '0.1' } },
     );
-    expect(result.error).toBeNull();
-    expect(result.warnings.find((warning) => warning.line === 4)?.text).toContain('open border');
+    expect(warnings).toEqual([]);
+    expect(area(mesh)).toBeCloseTo(4, 6);
+    const corners = new Map<string, number>();
+    for (const loop of mesh.faces)
+      loop.forEach((corner, spot) => {
+        const a = mesh.points[corner]!;
+        const b = mesh.points[loop[(spot + 1) % loop.length]!]!;
+        const key = [a, b]
+          .map((point) =>
+            point
+              .toArray()
+              .map((value) => value.toFixed(5))
+              .join(','),
+          )
+          .sort()
+          .join('|');
+        corners.set(key, (corners.get(key) ?? 0) + 1);
+      });
+    const border = [...corners.values()].filter((count) => count === 1).length;
+    expect(border).toBe(8 + 2);
   });
 });

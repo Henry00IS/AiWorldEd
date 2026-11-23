@@ -178,11 +178,7 @@ function solidScriptBevelMesh(
   leaf: SolidScriptGeometryLeaf & { kind: 'mesh' },
   picks: readonly SolidScriptMeshBevelPick[],
 ): SolidScriptValue[] {
-  const { mesh, made, skipped } = solidScriptMeshBevel(leaf, picks);
-  if (skipped > 0)
-    run.warn(
-      `${skipped === 1 ? '1 edge is' : `${skipped} edges are`} on an open border, with a face on one side only, and stayed sharp; try Select Edges with a Where that leaves border edges out.`,
-    );
+  const { mesh, made } = solidScriptMeshBevel(leaf, picks);
   const tags = made.map((face) => {
     const loop = mesh.faces[face] ?? [];
     return {
@@ -305,12 +301,8 @@ export const SOLID_SCRIPT_COMMANDS_BEVEL: readonly SolidScriptCommand[] = [
     category: 'Edges',
     description: 'Cut edges off flat',
     manual:
-      'Cuts edges off flat. Of gives edges, faces (their edges) or objects (all their edges); empty uses [$Selected.Edges], else the edges of [$Selected.Faces]. The 🔁 Where keeps the edges it holds for, and Distance may change per edge, such as [=[$Edge.Length] * 0.1]. On a solid each edge is cut Distance back along each face. On a mesh each edge becomes a strip whose sides lie Distance along the edges that meet it, and a corner where several bevelled edges meet gets a face of its own; a corner where edges of different Distance meet uses the largest, and corners at the same place are joined first. Mesh edges on an open border, with a face on one side only, stay sharp with a warning. Edges of faces a bevel made are skipped, so bevelling face by face ends the same as bevelling all at once. Into names a variable for the new faces, and [$Selected.Faces] holds them afterwards. Example: Cube, Select Faces All, Bevel Edges by 0.1.',
-    stops: [
-      'No edges.',
-      'A Distance of 0 or less, or one too long for the edges of a mesh.',
-      'An edge of a mesh with a face on one side only.',
-    ],
+      'Cuts edges off flat. Of gives edges, faces (their edges) or objects (all their edges); empty uses [$Selected.Edges], else the edges of [$Selected.Faces]. The 🔁 Where keeps the edges it holds for, and Distance may change per edge, such as [=[$Edge.Length] * 0.1]. On a solid each edge is cut Distance back along each face. On a mesh each edge becomes a strip whose sides lie Distance along the edges that meet it, and a corner where several bevelled edges meet gets a face of its own; a corner where edges of different Distance meet uses the largest, and corners at the same place are joined first. A mesh edge on an open border, with a face on one side only, becomes a flat strip inside that face, so the border stays where it was. Edges of faces a bevel made are skipped, so bevelling face by face ends the same as bevelling all at once. Into names a variable for the new faces, and [$Selected.Faces] holds them afterwards. Example: Cube, Select Faces All, Bevel Edges by 0.1.',
+    stops: ['No edges.', 'A Distance of 0 or less, or one too long for the edges of a mesh.'],
     parameters: [
       solidScriptParameterEach(
         solidScriptParameter(
