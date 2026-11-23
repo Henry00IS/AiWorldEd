@@ -163,6 +163,7 @@ Formulas know: numbers, text in double quotes, true, false, every name in bracke
 - Texture Faces works on meshes: each texture becomes one of the mesh's texture slots and each face points at its slot; one slot is the whole-mesh texture as before.
 - Icosphere Mesh: a mesh sphere of even triangles with Radius and Subdivisions (1 to 7), and a matching Icosphere generator for the world editor; both share one shape module.
 - MatrixMultiply(a, b), MatrixDeterminant(matrix) and MatrixTranspose(matrix).
+- MatrixAt(matrix, row, column) reads one of the sixteen numbers, rows and columns from 0 to 3.
 - Corner values: [Face.Angles] gives the angle at each corner in degrees, in vertex order; [Vertex.IsUVSplit] and [Edge.IsUVSplit] tell whether the faces there give different UVs.
 - Cluster(points, distance, groups) groups close points, giving each the index of the point its cluster started from.
 - Merge Points welds mesh corners that share a Merge ID into one at their average position, with Pick Where.

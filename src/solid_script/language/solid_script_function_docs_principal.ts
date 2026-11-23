@@ -2,7 +2,10 @@ import type { SolidScriptFunctionDoc } from './solid_script_function_docs.js';
 import { solidScriptFunctionDocSummary } from './solid_script_function_docs_math.js';
 import type { SolidScriptBuiltinName } from './solid_script_functions_builtin.js';
 
-/** Docs of the functions that find main axes of points and matrices. */
+/**
+ * Docs of the functions that find main axes of points and matrices, and read
+ * matrices.
+ */
 export const SOLID_SCRIPT_FUNCTION_DOCS_PRINCIPAL = {
   principal_axes: {
     usage: 'PrincipalAxes(points, output)',
@@ -27,9 +30,22 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_PRINCIPAL = {
     group: 'Vector',
     gives: ['List'],
   },
+  matrix_at: {
+    usage: 'MatrixAt(matrix, row, column)',
+    summary: solidScriptFunctionDocSummary(
+      'One number of a matrix, by row and column, each from 0 to 3. Column 3 of the top three rows is the move.',
+      ['MatrixAt(Transform(Vector(1, 2, 3), Vector(0, 0, 0), Vector(1, 1, 1)), 2, 3) is 3.'],
+      'Use it to split a matrix into its sixteen numbers.',
+    ),
+    group: 'Vector',
+    gives: ['Number'],
+  },
 } as const satisfies Partial<Record<SolidScriptBuiltinName, SolidScriptFunctionDoc>>;
 
-/** Inputs of PrincipalAxes and MatrixSvd that mean something of their own. */
+/**
+ * Inputs of PrincipalAxes, MatrixSvd and MatrixAt that mean something of their
+ * own.
+ */
 export const SOLID_SCRIPT_PRINCIPAL_ARGUMENTS = {
   principal_axes: {
     points: {
@@ -51,5 +67,10 @@ export const SOLID_SCRIPT_PRINCIPAL_ARGUMENTS = {
       start: 'Transform(Vector(0, 0, 0), Vector(0, 0, 0), Vector(1, 2, 3))',
     },
     output: { type: ['Text'], about: 'S, U or V.', choices: ['S', 'U', 'V'], default: 'S' },
+  },
+  matrix_at: {
+    matrix: { type: ['List'], about: 'A matrix, such as one from Transform.' },
+    row: { type: ['Number'], about: 'The row from 0 to 3, such as 0.', start: '0' },
+    column: { type: ['Number'], about: 'The column from 0 to 3, such as 3.', start: '3' },
   },
 } as const;

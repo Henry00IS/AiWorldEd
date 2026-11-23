@@ -129,6 +129,23 @@ function solidScriptMatrixPoint(
   return { affine: new THREE.Vector3(x, y, z), w };
 }
 
+/**
+ * Reads one number of a matrix by row and column, each from 0 to 3.
+ *
+ * @param args Matrix, row and column.
+ * @returns The number.
+ */
+function solidScriptMatrixAt(args: readonly SolidScriptValue[]): number {
+  const usage = 'MatrixAt(matrix, row, column)';
+  const rows = solidScriptMatrixRows(solidScriptMatrixRead(args[0], usage));
+  const [row, column] = [args[1], args[2]];
+  const inside = (value: SolidScriptValue | undefined): value is number =>
+    typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 3;
+  if (!inside(row) || !inside(column))
+    throw new Error(`${usage} needs a whole row and column from 0 to 3, such as MatrixAt(matrix, 0, 3)`);
+  return rows[row]?.[column] ?? 0;
+}
+
 /** Matrix functions: build, combine, undo, read back and apply. */
 export const SOLID_SCRIPT_FUNCTIONS_MATRIX = {
   rotate_by: solidScriptMatrixRotateBy,
@@ -151,6 +168,7 @@ export const SOLID_SCRIPT_FUNCTIONS_MATRIX = {
     const usage = 'MatrixMultiply(a, b)';
     return solidScriptMatrixRows(solidScriptMatrixRead(args[0], usage).multiply(solidScriptMatrixRead(args[1], usage)));
   },
+  matrix_at: solidScriptMatrixAt,
   matrix_determinant: (args) => solidScriptMatrixRead(args[0], 'MatrixDeterminant(matrix)').determinant(),
   matrix_transpose: (args) =>
     solidScriptMatrixRows(solidScriptMatrixRead(args[0], 'MatrixTranspose(matrix)').transpose()),
