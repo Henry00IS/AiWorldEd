@@ -61,7 +61,7 @@ describe('PlayerCharacterRagdoll', () => {
       swing = Math.max(swing, at(rig, PLAYER_CHARACTER_BONE.handLeft).distanceTo(animatedHand));
     }
     expect(ragdoll.getWeight()).toBeGreaterThan(0.99);
-    expect(swing).toBeGreaterThan(0.1);
+    expect(swing).toBeGreaterThan(0.03);
     const shoulder = at(rig, PLAYER_CHARACTER_BONE.upperArmRight);
     const hand = new THREE.Vector3();
     expect(playerCharacterCopyRightHand(rig, hand)).toBe(true);

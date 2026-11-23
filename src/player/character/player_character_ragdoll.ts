@@ -7,6 +7,8 @@ import type { PlayerCharacterRig } from './player_character_rig.js';
 
 /** Fixed simulation step of the ragdoll. */
 const RAGDOLL_STEP_SECONDS = 1 / 60;
+/** Solver iterations per step (stiff joints without stretching). */
+const RAGDOLL_SOLVER_ITERATIONS = 12;
 /** Most steps simulated in one frame (a stall does not snowball). */
 const RAGDOLL_MAX_STEPS = 4;
 /** Rate (per second) the ragdoll blends in when flight starts. */
@@ -14,14 +16,14 @@ const RAGDOLL_BLEND_IN_PER_SECOND = 10;
 /** Rate (per second) the ragdoll blends back into the animated pose on landing. */
 const RAGDOLL_BLEND_OUT_PER_SECOND = 6;
 /** Rate (per second) the limbs' spin follows what their pose spring asks for. */
-const RAGDOLL_RESPONSE_PER_SECOND = 10;
+const RAGDOLL_RESPONSE_PER_SECOND = 20;
 /**
  * Pull of the right arm toward the beam anchor (per second, like the pose
  * springs).
  */
-const RAGDOLL_REACH_STIFFNESS = 14;
+const RAGDOLL_REACH_STIFFNESS = 16;
 /** Fastest spin of a limb. */
-const RAGDOLL_MAX_SPIN_RADIANS_PER_SECOND = 30;
+const RAGDOLL_MAX_SPIN_RADIANS_PER_SECOND = 12;
 /** Pelvis travel in one frame that counts as a teleport (the ragdoll restarts). */
 const RAGDOLL_TELEPORT_METERS = 4;
 /** Density of the limbs (water, so masses are about a person's). */
@@ -43,6 +45,11 @@ interface RagdollSegmentSpec {
   radius: number;
   /** Pose spring (per second): how fast it turns back toward the animated pose. */
   stiffness: number;
+  /**
+   * Farthest a part may turn away from its animated pose, in radians (a cone
+   * limit about the pose, so a hard jolt can never fold a limb over).
+   */
+  limit: number;
   /** Shown as animated, not as simulated (the head keeps looking where the player looks). */
   looks?: boolean;
 }
@@ -62,6 +69,7 @@ const RAGDOLL_SEGMENTS: readonly RagdollSegmentSpec[] = [
     extend: 0,
     radius: 0.1,
     stiffness: 0,
+    limit: 0,
   },
   {
     bone: PLAYER_CHARACTER_BONE.spine,
@@ -69,16 +77,18 @@ const RAGDOLL_SEGMENTS: readonly RagdollSegmentSpec[] = [
     tip: PLAYER_CHARACTER_BONE.head,
     extend: 0,
     radius: 0.1,
-    stiffness: 9,
+    stiffness: 14,
+    limit: 0.35,
   },
-  { bone: PLAYER_CHARACTER_BONE.head, parent: 1, tip: null, extend: 0, radius: 0.1, stiffness: 9, looks: true },
+  { bone: PLAYER_CHARACTER_BONE.head, parent: 1, tip: null, extend: 0, radius: 0.1, stiffness: 14, limit: 0.5, looks: true },
   {
     bone: PLAYER_CHARACTER_BONE.upperArmLeft,
     parent: 1,
     tip: PLAYER_CHARACTER_BONE.lowerArmLeft,
     extend: 0,
     radius: 0.04,
-    stiffness: 2.5,
+    stiffness: 6,
+    limit: 1.2,
   },
   {
     bone: PLAYER_CHARACTER_BONE.lowerArmLeft,
@@ -86,7 +96,8 @@ const RAGDOLL_SEGMENTS: readonly RagdollSegmentSpec[] = [
     tip: PLAYER_CHARACTER_BONE.handLeft,
     extend: 0.1,
     radius: 0.035,
-    stiffness: 2.5,
+    stiffness: 6,
+    limit: 1,
   },
   {
     bone: PLAYER_CHARACTER_BONE.upperArmRight,
@@ -94,7 +105,8 @@ const RAGDOLL_SEGMENTS: readonly RagdollSegmentSpec[] = [
     tip: PLAYER_CHARACTER_BONE.lowerArmRight,
     extend: 0,
     radius: 0.04,
-    stiffness: 2.5,
+    stiffness: 6,
+    limit: 1.2,
   },
   {
     bone: PLAYER_CHARACTER_BONE.lowerArmRight,
@@ -102,7 +114,8 @@ const RAGDOLL_SEGMENTS: readonly RagdollSegmentSpec[] = [
     tip: PLAYER_CHARACTER_BONE.handRight,
     extend: 0.1,
     radius: 0.035,
-    stiffness: 2.5,
+    stiffness: 6,
+    limit: 1,
   },
   {
     bone: PLAYER_CHARACTER_BONE.upperLegLeft,
@@ -110,7 +123,8 @@ const RAGDOLL_SEGMENTS: readonly RagdollSegmentSpec[] = [
     tip: PLAYER_CHARACTER_BONE.lowerLegLeft,
     extend: 0,
     radius: 0.06,
-    stiffness: 3.5,
+    stiffness: 8,
+    limit: 0.8,
   },
   {
     bone: PLAYER_CHARACTER_BONE.lowerLegLeft,
@@ -118,7 +132,8 @@ const RAGDOLL_SEGMENTS: readonly RagdollSegmentSpec[] = [
     tip: PLAYER_CHARACTER_BONE.footLeft,
     extend: 0.08,
     radius: 0.05,
-    stiffness: 3.5,
+    stiffness: 8,
+    limit: 0.7,
   },
   {
     bone: PLAYER_CHARACTER_BONE.upperLegRight,
@@ -126,7 +141,8 @@ const RAGDOLL_SEGMENTS: readonly RagdollSegmentSpec[] = [
     tip: PLAYER_CHARACTER_BONE.lowerLegRight,
     extend: 0,
     radius: 0.06,
-    stiffness: 3.5,
+    stiffness: 8,
+    limit: 0.8,
   },
   {
     bone: PLAYER_CHARACTER_BONE.lowerLegRight,
@@ -134,7 +150,8 @@ const RAGDOLL_SEGMENTS: readonly RagdollSegmentSpec[] = [
     tip: PLAYER_CHARACTER_BONE.footRight,
     extend: 0.08,
     radius: 0.05,
-    stiffness: 3.5,
+    stiffness: 8,
+    limit: 0.7,
   },
 ];
 
@@ -160,6 +177,10 @@ interface RagdollSegment {
   position: THREE.Vector3;
   /** Animated world rotation this frame. */
   rotation: THREE.Quaternion;
+  /** Rotation the drive turned it toward last (the animated pose or the reach). */
+  target: THREE.Quaternion;
+  /** Whether the target is the reach (no limit about the animated pose then). */
+  reaching: boolean;
 }
 
 /**
@@ -182,6 +203,10 @@ export class PlayerCharacterRagdoll {
   private time = 0;
   private readonly pelvisFrom = new THREE.Vector3();
   private readonly pelvisFromRotation = new THREE.Quaternion();
+  /** Pelvis velocity over this frame's steps (what its children move with). */
+  private readonly pelvisVelocity = new THREE.Vector3();
+  /** Pelvis spin over this frame's steps. */
+  private readonly pelvisSpin = new THREE.Vector3();
 
   /**
    * Returns how far the pose is taken over by the ragdoll.
@@ -248,7 +273,7 @@ export class PlayerCharacterRagdoll {
   private build(rapier: typeof RAPIER, rig: PlayerCharacterRig): void {
     const world = new rapier.World({ x: 0, y: -PLAYER_GRAVITY_METERS_PER_SECOND_SQUARED, z: 0 });
     world.timestep = RAGDOLL_STEP_SECONDS;
-    world.numSolverIterations = 8;
+    world.numSolverIterations = RAGDOLL_SOLVER_ITERATIONS;
     const segments: RagdollSegment[] = [];
     for (const spec of RAGDOLL_SEGMENTS) {
       const bone = rig.bones.get(spec.bone);
@@ -260,7 +285,7 @@ export class PlayerCharacterRagdoll {
       const rotation = bone.getWorldQuaternion(new THREE.Quaternion());
       const desc = spec.parent < 0 ? rapier.RigidBodyDesc.kinematicPositionBased() : rapier.RigidBodyDesc.dynamic();
       desc.setTranslation(position.x, position.y, position.z).setRotation(rotation);
-      desc.setLinearDamping(0.1).setAngularDamping(1);
+      desc.setLinearDamping(0.5).setAngularDamping(4);
       const body = world.createRigidBody(desc);
       world.createCollider(this.capsule(rapier, rig, spec, position, rotation), body);
       const parent = segments[spec.parent];
@@ -274,7 +299,7 @@ export class PlayerCharacterRagdoll {
         );
         joint.setContactsEnabled(false);
       }
-      segments.push({ spec, bone, body, position, rotation });
+      segments.push({ spec, bone, body, position, rotation, target: rotation.clone(), reaching: false });
     }
     this.world = world;
     this.segments = segments;
@@ -350,7 +375,8 @@ export class PlayerCharacterRagdoll {
 
   /**
    * Steps the world at its fixed rate: the pelvis glides to its animated pose,
-   * the springs turn the parts toward theirs.
+   * the springs turn the parts toward theirs, and every part is kept within its
+   * limit and spin.
    *
    * @param reach Point the right arm reaches for, or null.
    * @param deltaSeconds Frame time.
@@ -362,6 +388,7 @@ export class PlayerCharacterRagdoll {
     this.time = Math.min(this.time + deltaSeconds, RAGDOLL_MAX_STEPS * RAGDOLL_STEP_SECONDS);
     const steps = Math.floor(this.time / RAGDOLL_STEP_SECONDS);
     this.time -= steps * RAGDOLL_STEP_SECONDS;
+    if (steps > 0) this.pelvisMotion(pelvis, steps * RAGDOLL_STEP_SECONDS);
     for (let step = 1; step <= steps; step++) {
       const along = step / steps;
       pelvis.body.setNextKinematicTranslation(scratchPosition.lerpVectors(this.pelvisFrom, pelvis.position, along));
@@ -372,6 +399,9 @@ export class PlayerCharacterRagdoll {
         if (index > 0) this.drive(segment, RAGDOLL_REACH_SEGMENTS.has(index) ? reach : null);
       });
       world.step();
+      this.segments.forEach((segment, index) => {
+        if (index > 0) this.limit(segment);
+      });
     }
     if (steps > 0) {
       this.pelvisFrom.copy(pelvis.position);
@@ -399,6 +429,8 @@ export class PlayerCharacterRagdoll {
       scratchTarget.premultiply(scratchParent.setFromUnitVectors(scratchAxis, scratchDirection));
       stiffness = RAGDOLL_REACH_STIFFNESS;
     }
+    segment.target.copy(scratchTarget);
+    segment.reaching = reach !== null;
     scratchTarget.multiply(scratchParent.copy(scratchQuaternion).invert());
     if (scratchTarget.w < 0) scratchTarget.set(-scratchTarget.x, -scratchTarget.y, -scratchTarget.z, -scratchTarget.w);
     const angle = 2 * Math.acos(Math.min(1, scratchTarget.w));
@@ -418,6 +450,46 @@ export class PlayerCharacterRagdoll {
   }
 
   /**
+   * Works out how the pelvis moves over this frame's steps, so its children
+   * move with it from the first step (a yank or a network snap never leaves
+   * them a step behind for the joints to fling).
+   *
+   * @param pelvis Pelvis part.
+   * @param seconds Time the steps cover.
+   */
+  private pelvisMotion(pelvis: RagdollSegment, seconds: number): void {
+    this.pelvisVelocity.subVectors(pelvis.position, this.pelvisFrom).divideScalar(seconds);
+    scratchTarget.copy(pelvis.rotation).multiply(scratchParent.copy(this.pelvisFromRotation).invert());
+    if (scratchTarget.w < 0) scratchTarget.set(-scratchTarget.x, -scratchTarget.y, -scratchTarget.z, -scratchTarget.w);
+    const angle = 2 * Math.acos(Math.min(1, scratchTarget.w));
+    const sine = Math.sqrt(Math.max(0, 1 - scratchTarget.w * scratchTarget.w));
+    this.pelvisSpin.set(scratchTarget.x, scratchTarget.y, scratchTarget.z);
+    if (sine > 1e-6) this.pelvisSpin.multiplyScalar(angle / sine / seconds);
+    else this.pelvisSpin.set(0, 0, 0);
+  }
+
+  /**
+   * Keeps a part within its cone about the animated pose (not while reaching,
+   * which turns it far on purpose) and its spin under the cap.
+   *
+   * @param segment Part.
+   */
+  private limit(segment: RagdollSegment): void {
+    const body = segment.body;
+    const spin = body.angvel();
+    scratchSpin.set(spin.x, spin.y, spin.z);
+    if (scratchSpin.length() > RAGDOLL_MAX_SPIN_RADIANS_PER_SECOND) {
+      body.setAngvel(scratchSpin.setLength(RAGDOLL_MAX_SPIN_RADIANS_PER_SECOND), true);
+    }
+    if (segment.reaching || segment.spec.limit <= 0) return;
+    const rotation = body.rotation();
+    scratchQuaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
+    const angle = scratchQuaternion.angleTo(segment.target);
+    if (angle <= segment.spec.limit) return;
+    body.setRotation(scratchQuaternion.slerp(segment.target, 1 - segment.spec.limit / angle), true);
+  }
+
+  /**
    * Returns the velocity a part's center needs to turn with a spin about its
    * joint, which moves with the part it hangs from (so the joint holds without
    * fighting the drive).
@@ -431,8 +503,9 @@ export class PlayerCharacterRagdoll {
     const pivot = body.translation();
     const center = body.worldCom();
     const parentCenter = parent.worldCom();
-    const parentSpin = parent.angvel();
-    const parentVelocity = parent.linvel();
+    const pelvis = parent === this.segments[0]?.body;
+    const parentSpin = pelvis ? this.pelvisSpin : parent.angvel();
+    const parentVelocity = pelvis ? this.pelvisVelocity : parent.linvel();
     scratchDirection.set(pivot.x - parentCenter.x, pivot.y - parentCenter.y, pivot.z - parentCenter.z);
     scratchVelocity
       .set(parentSpin.x, parentSpin.y, parentSpin.z)
