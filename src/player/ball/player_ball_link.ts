@@ -129,7 +129,8 @@ export interface PlayerBallLink {
    * Sends a snapshot of this client's own balls.
    *
    * @param snapshot Every own ball or the ones that changed.
-   * @returns True when the snapshot went out.
+   * @returns True when the snapshot went out (or was dropped because the relay
+   *   would refuse it and close the connection).
    */
   publish(snapshot: PlayerBallSnapshot): boolean;
   /**
