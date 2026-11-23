@@ -286,6 +286,52 @@ function solidScriptShapingChecker(args: readonly SolidScriptValue[]): number {
   return Math.abs(squares) % 2;
 }
 
+/** What RadialTile gives. */
+const SOLID_SCRIPT_SHAPING_RADIAL_OUTPUTS = ['Segment', 'Angle', 'Local', 'Width'] as const;
+
+/** How to call RadialTile, for messages. */
+const SOLID_SCRIPT_SHAPING_RADIAL_USAGE = 'RadialTile(position, segments, output)';
+
+/**
+ * Reads the inputs of RadialTile.
+ *
+ * @param args Position, Segments and optional Output.
+ * @returns Position as numbers, the number of segments and the output.
+ */
+function solidScriptShapingRadialInputs(args: readonly SolidScriptValue[]): [number[], number, string] {
+  const position = Array.isArray(args[0]) ? solidScriptValueNumbers(args[0]) : null;
+  if (!position || position.length < 2)
+    throw new Error(`${SOLID_SCRIPT_SHAPING_RADIAL_USAGE} needs a vector, such as Vector(1, 0, 0)`);
+  const segments = args.length > 1 ? solidScriptExtraNumber(args, 1, SOLID_SCRIPT_SHAPING_RADIAL_USAGE) : 4;
+  if (!Number.isInteger(segments) || segments < 1)
+    throw new Error(`${SOLID_SCRIPT_SHAPING_RADIAL_USAGE} needs whole Segments of 1 or more, such as 6`);
+  const output = solidScriptValueText(args[2] ?? 'Segment');
+  if (!SOLID_SCRIPT_SHAPING_RADIAL_OUTPUTS.some((name) => name === output))
+    throw new Error(`${SOLID_SCRIPT_SHAPING_RADIAL_USAGE} needs Output Segment, Angle, Local or Width, not ${output}`);
+  return [position, segments, output];
+}
+
+/**
+ * Cuts the plane round the Z axis into equal wedges, the first centred on X,
+ * and tells which wedge a position is in: its number, its centre angle in
+ * degrees, the position turned so that wedge points along X, or the length of
+ * the wedge's arc at the position's distance from the axis.
+ *
+ * @param args Position, Segments and optional Output.
+ * @returns The chosen output.
+ */
+function solidScriptShapingRadialTile(args: readonly SolidScriptValue[]): SolidScriptValue {
+  const [[x = 0, y = 0, z = 0], segments, output] = solidScriptShapingRadialInputs(args);
+  const step = (Math.PI * 2) / segments;
+  const angle = (Math.atan2(y, x) + Math.PI * 2) % (Math.PI * 2);
+  const segment = Math.floor(angle / step + 0.5) % segments;
+  const centre = segment * step;
+  if (output === 'Segment') return segment;
+  if (output === 'Angle') return THREE.MathUtils.radToDeg(centre);
+  if (output === 'Width') return Math.hypot(x, y) * step;
+  return [x * Math.cos(centre) + y * Math.sin(centre), y * Math.cos(centre) - x * Math.sin(centre), z];
+}
+
 /**
  * Shaping functions: smooth minimum and maximum, bounce, ranges, running sums,
  * repeating waves and a checkerboard.
@@ -328,4 +374,5 @@ export const SOLID_SCRIPT_FUNCTIONS_SHAPING = {
     return Math.abs(value - Math.floor(value + 0.5)) * 2;
   }),
   checker: solidScriptShapingChecker,
+  radial_tile: solidScriptShapingRadialTile,
 } satisfies Readonly<Record<string, SolidScriptShaping>>;

@@ -17,6 +17,7 @@ export const SOLID_SCRIPT_FUNCTION_INPUTS_LEFT_OFF: Readonly<Record<string, numb
   first: 1,
   last: 1,
   checker: 1,
+  radial_tile: 2,
   log: 1,
   pad_left: 1,
   pad_right: 1,
