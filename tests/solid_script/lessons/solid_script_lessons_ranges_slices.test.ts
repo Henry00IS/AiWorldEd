@@ -49,6 +49,8 @@ describe('stepped Remap', () => {
       formula(`Remap(${value}, 0, 10, 0, 100, true, 4)`),
     );
     expect(new Set(levels)).toEqual(new Set(['0', '25', '50', '75', '100']));
+    expect(formula('Remap(6, 0, 10, 0, 100, true, 4)')).toBe('50');
+    expect(formula('Remap(7, 0, 10, 0, 100, true, 4)')).toBe('75');
     expect(formula('Remap(3, 0, 10, 0, 100, true, 0)')).toBe('30');
     expect(formula('Remap(3, 0, 10, 0, 100, true, -1)')).toContain('Steps of 0 or more');
   });

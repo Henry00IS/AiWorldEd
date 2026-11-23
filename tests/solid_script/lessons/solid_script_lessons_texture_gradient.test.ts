@@ -33,6 +33,8 @@ describe('Gradient', () => {
     expect(formula('Abs(Gradient(Vector(0, 0.5, 0), "Spherical") - 0.5) < 0.0001')).toBe('Yes');
     expect(formula('Abs(Gradient(Vector(0, 0.5, 0), "Quadratic Sphere") - 0.25) < 0.0001')).toBe('Yes');
     expect(formula('Gradient(Vector(2, 0, 0), "Spherical")')).toBe('0');
+    expect(formula('Gradient(Vector(0, 0, 0), "Spherical")')).toBe('1');
+    expect(formula('Gradient(Vector(0, 0, 0), "Quadratic Sphere")')).toBe('1');
     expect(formula('Gradient(Vector(1, 0, 0), "Radial")')).toBe('0.5');
     expect(formula('Gradient(Vector(0, 1, 0), "Radial")')).toBe('0.75');
   });

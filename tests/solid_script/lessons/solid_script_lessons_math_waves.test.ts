@@ -40,6 +40,8 @@ describe('waves, checkerboard, Smootherstep and coordinates', () => {
     expect(formula('Checker(Vector(-0.5, 0.5, 0.5))')).toBe('1');
     expect(formula('Checker(0.75, 2)')).toBe('1');
     expect(formula('Checker(1)')).toBe('0');
+    expect(formula('Checker(Vector(0, 0.5, 0.5))')).toBe('1');
+    expect(formula('Checker(0.1 * 3, 10)')).toBe('0');
   });
 
   it('flips a vector toward a reference only when it points away', () => {

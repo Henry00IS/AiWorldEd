@@ -44,7 +44,7 @@ function solidScriptShapingPingPong(value: number, length: number): number {
 }
 
 /**
- * Rounds a 0-to-1 amount down into steps, the way a stepped remap does; no
+ * Snaps a 0-to-1 amount to the nearest of Steps + 1 even levels from 0 to 1; no
  * Steps given, or Steps 0, leaves it smooth.
  *
  * @param amount Amount from the low end to the high end.
@@ -55,7 +55,7 @@ function solidScriptShapingPingPong(value: number, length: number): number {
 function solidScriptShapingSteps(amount: number, args: readonly SolidScriptValue[], usage: string): number {
   const steps = args.length > 6 ? Math.round(solidScriptExtraNumber(args, 6, usage)) : 0;
   if (steps < 0) throw new Error(`${usage} needs Steps of 0 or more`);
-  return steps === 0 ? amount : Math.floor(amount * (steps + 1)) / steps;
+  return steps === 0 ? amount : Math.round(amount * steps) / steps;
 }
 
 /**
@@ -161,6 +161,19 @@ function solidScriptShapingAccumulate(args: readonly SolidScriptValue[]): SolidS
 }
 
 /**
+ * Finds which unit square along one axis a value lies in. A value within a
+ * billionth of a whole number counts as lying on that edge, and an edge belongs
+ * to the square below it.
+ *
+ * @param value Scaled coordinate.
+ * @returns Whole number of the square.
+ */
+function solidScriptShapingSquare(value: number): number {
+  const edge = Math.round(value);
+  return Math.abs(value - edge) < 1e-9 ? edge - 1 : Math.floor(value);
+}
+
+/**
  * Says whether a point falls in an odd square of a checkerboard of unit
  * squares, scaled; points on a square's edge belong to the square below.
  *
@@ -172,7 +185,7 @@ function solidScriptShapingChecker(args: readonly SolidScriptValue[]): number {
   const scale = args.length > 1 ? solidScriptExtraNumber(args, 1, usage) : 1;
   const position = Array.isArray(args[0]) ? solidScriptValueNumbers(args[0]) : [solidScriptExtraNumber(args, 0, usage)];
   if (!position) throw new Error(`${usage} needs a number or a vector, not ${solidScriptValueText(args[0])}`);
-  const squares = position.reduce((total, value) => total + Math.floor((value * scale + 0.000001) * 0.999999), 0);
+  const squares = position.reduce((total, value) => total + solidScriptShapingSquare(value * scale), 0);
   return Math.abs(squares) % 2;
 }
 

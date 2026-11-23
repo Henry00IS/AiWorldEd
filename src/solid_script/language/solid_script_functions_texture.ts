@@ -154,8 +154,8 @@ const SOLID_SCRIPT_TEXTURE_GRADIENTS = {
     return t * t * (3 - 2 * t);
   },
   Diagonal: ([x = 0, y = 0]: number[]) => (x + y) / 2,
-  Spherical: (position: number[]) => Math.max(0.999999 - Math.hypot(...position), 0),
-  'Quadratic Sphere': (position: number[]) => Math.max(0.999999 - Math.hypot(...position), 0) ** 2,
+  Spherical: (position: number[]) => Math.max(1 - Math.hypot(...position), 0),
+  'Quadratic Sphere': (position: number[]) => Math.max(1 - Math.hypot(...position), 0) ** 2,
   Radial: ([x = 0, y = 0]: number[]) => Math.atan2(y, x) / (2 * Math.PI) + 0.5,
 } as const;
 

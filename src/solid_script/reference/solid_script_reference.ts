@@ -153,7 +153,7 @@ Formulas know: numbers, text in double quotes, true, false, every name in bracke
 - Ranges and slices: Clamp(value, min, max) swaps reversed limits; Lerp(from, to, amount) accepts a vector amount when blending vectors; Slice(list or text, start, count) also takes characters of text, counted from 0.
 - Points From Path: a Count of 0 or 1 is raised to 2, so both ends of the path always get a point.
 - DivFloor(a, b) divides and rounds down, below 0 too, so DivFloor(a, b) * b + Mod(a, b) is a; Round(a / b) and Ceil(a / b) round the other ways. Facing() is the way to compare two directions by angle.
-- Remap(value, from_low, from_high, to_low, to_high, clamp, steps): Steps makes the result jump between that many even levels; 0 or left off slides smoothly.
+- Remap(value, from_low, from_high, to_low, to_high, clamp, steps): Steps snaps the result to the nearest of Steps + 1 even levels across the target range; 0 or left off slides smoothly.
 - Remap also takes Ease after Steps: Linear (the default), Smoothstep or Smootherstep. The latter two blend gently at the edges.
 - Star (2D Shapes) draws a flat star: Points tips at the Outer radius, an inner corner at the Inner radius halfway between each two, Twist turning the inner corners in degrees, and Anchor like Circle.
 - Path Line by direction and length: set To to Along(From, Direction, Length). Path Spiral turns clockwise from above with negative Turns.

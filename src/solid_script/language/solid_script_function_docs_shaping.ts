@@ -7,7 +7,7 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_SHAPING = {
   remap: {
     usage: 'Remap(value, from_low, from_high, to_low, to_high, clamp, steps, ease)',
     summary: solidScriptFunctionDocSummary(
-      'Moves a number from one range into another, keeping its place in the range. Midway through 0 to 10 becomes midway through 0 to 100. Past the ends it stays at the target ends; Clamp false lets it go on past them. Steps jumps between that many even levels instead of sliding. Ease Smoothstep or Smootherstep blends gently at the edges. On a vector it works on each axis.',
+      'Moves a number from one range into another, keeping its place in the range. Midway through 0 to 10 becomes midway through 0 to 100. Past the ends it stays at the target ends; Clamp false lets it go on past them. Steps snaps to the nearest of Steps + 1 even levels instead of sliding. Ease Smoothstep or Smootherstep blends gently at the edges. On a vector it works on each axis.',
       [
         'Remap(5, 0, 10, 0, 100) is 50.',
         'Remap(15, 0, 10, 0, 100) is 100.',
