@@ -62,7 +62,6 @@ The script runs on every change. **Start** builds everything, **Debug** builds o
 - **Input Group** shows the inputs inside it under a heading, **Input Row** puts them side by side, **Show Inputs When** shows them only while another input has a given value, or any one of several values written with commas, and **Input Note** shows a line of text among them.
 - When Input Changes and When Button Pressed blocks can check and change inputs.
 - **When Baked** runs just before the generator is baked, so a light preview can bake as a detailed version; undo brings back the old inputs.
-- `[$Run.IsPreview]` is Yes while the result is shown live or previewed and No while it is baked into plain solids, so a script can keep preview-only helpers out of a bake, such as `If [=[$Run.IsPreview]]` round a marker. Export writes what the editor shows, so bake first to export the final result.
 - Values stored as `Persistent.Name` stay between runs.
 
 </details>

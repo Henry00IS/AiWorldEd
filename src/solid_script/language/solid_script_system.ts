@@ -1,4 +1,3 @@
-import { modifierStackBakeFinal } from '@/modifier/stack/bake/modifier_stack_bake_final.js';
 import type { SurfaceUvMatrix } from '@/texture/uv_matrix/surface_uv_matrix.js';
 import type { SolidScriptValue } from './solid_script_value.js';
 import { SOLID_SCRIPT_MODE_DEFAULT, type SolidScriptGroupMode, type SolidScriptMode } from './solid_script_mode.js';
@@ -114,11 +113,6 @@ export const SOLID_SCRIPT_SYSTEM_SELECTED: readonly SolidScriptSystemValue[] = [
 /** Every built-in value, by group. */
 export const SOLID_SCRIPT_SYSTEM_GLOBALS: readonly SolidScriptSystemValue[] = [
   { name: 'Run.Context', type: 'Text', detail: 'where the script runs: generator, preview, handler or assistant' },
-  {
-    name: 'Run.IsPreview',
-    type: 'Yes/No',
-    detail: 'Yes while the result is shown live or previewed, No while it is baked into plain solids',
-  },
   { name: 'Run.Count', type: 'Number', detail: 'how many scripts ran in this window, this one included' },
   { name: 'Run.Seed', type: 'Number', detail: 'a new random whole number every run' },
   { name: 'Box.Width', type: 'Number', detail: 'width of the generator or modifier volume box in metres (X)' },
@@ -368,7 +362,6 @@ export function solidScriptSystemValues(
   const bounds = (): { min: number[]; max: number[] } => (measured ??= solidScriptUseBounds(use));
   const read: Readonly<Record<string, () => SolidScriptValue>> = {
     'Run.Context': () => context,
-    'Run.IsPreview': () => !modifierStackBakeFinal(),
     'Run.Count': () => runs,
     'Run.Seed': () => Math.floor(Math.random() * 1_000_000),
     'Editor.Name': () => editor().editorName,

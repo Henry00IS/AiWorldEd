@@ -301,27 +301,6 @@ describe('SolidScript generator', () => {
     expect(fixture.pieces()).toHaveLength(2);
   });
 
-  it('reads Run.IsPreview as Yes live and No while baking, so a bake can leave preview-only pieces out', () => {
-    const fixture = scriptFixture();
-    scriptSet(fixture.node, {
-      script: script(
-        { command: 'cube' },
-        { command: 'if', values: { condition: '[=[$Run.IsPreview]]' } },
-        { command: 'transform', values: { move: '4, 0, 0' } },
-        { command: 'cube' },
-        { command: 'end' },
-        { command: 'end' },
-      ),
-    });
-    expect(fixture.pieces()).toHaveLength(2);
-    fixture.world.updateMatrixWorld(true);
-    const bake = new CommandModifierVolumeBake(fixture.node);
-    bake.execute();
-    expect(fixture.model.getBrushes()).toHaveLength(1);
-    bake.undo();
-    expect(fixture.pieces()).toHaveLength(2);
-  });
-
   it('textures the faces Texture Faces picked and leaves the others on the main texture', () => {
     const fixture = scriptFixture();
     scriptSet(fixture.node, {
