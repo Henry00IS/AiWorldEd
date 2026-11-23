@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ModelExportFolderMemory } from '@/io/export/model_export_folder_memory.js';
 import type { StoreProjectHandle } from '@/project/fs/store_project_handle.js';
 
@@ -63,5 +63,57 @@ describe('ModelExportFolderMemory', () => {
   it('drops a folder the browser denies', async () => {
     const denied = folderHandle('UnityGame', 'denied');
     expect(await new ModelExportFolderMemory(handleStore(denied).store).recall()).toBeNull();
+  });
+
+  describe('when the browser never answers or fails', () => {
+    afterEach(() => vi.useRealTimers());
+
+    /**
+     * Recalls with fake timers running out, the way a stale handle leaves the
+     * Export dialog waiting.
+     *
+     * @param memory Memory to ask.
+     * @returns Recalled destination.
+     */
+    async function recallPastWait(memory: ModelExportFolderMemory) {
+      vi.useFakeTimers();
+      const recalled = memory.recall();
+      await vi.advanceTimersByTimeAsync(5000);
+      return recalled;
+    }
+
+    it('drops a folder whose permission check never answers', async () => {
+      const stale = {
+        kind: 'directory',
+        name: 'Test',
+        queryPermission: vi.fn(() => new Promise<PermissionState>(() => undefined)),
+        requestPermission: vi.fn(() => new Promise<PermissionState>(() => undefined)),
+      } as unknown as FileSystemDirectoryHandle;
+      const memory = new ModelExportFolderMemory(handleStore(stale).store);
+      expect(await recallPastWait(memory)).toBeNull();
+      expect(await recallPastWait(memory)).toBeNull();
+    });
+
+    it('refuses exporting to a recalled folder whose permission check stops answering', async () => {
+      const stale = folderHandle('Test', 'prompt');
+      const recalled = await new ModelExportFolderMemory(handleStore(stale).store).recall();
+      vi.mocked(stale.queryPermission).mockImplementation(() => new Promise<PermissionState>(() => undefined));
+      vi.useFakeTimers();
+      const access = recalled?.access?.();
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(await access).toBe(false);
+      expect(stale.requestPermission).not.toHaveBeenCalled();
+    });
+
+    it('drops the folder when reading the stored handle never answers', async () => {
+      const store = { save: vi.fn(async () => undefined), load: vi.fn(() => new Promise<null>(() => undefined)) };
+      const memory = new ModelExportFolderMemory(store as unknown as StoreProjectHandle);
+      expect(await recallPastWait(memory)).toBeNull();
+    });
+
+    it('drops the folder when reading the stored handle fails', async () => {
+      const store = { save: vi.fn(async () => undefined), load: vi.fn(async () => Promise.reject(new Error('gone'))) };
+      expect(await new ModelExportFolderMemory(store as unknown as StoreProjectHandle).recall()).toBeNull();
+    });
   });
 });

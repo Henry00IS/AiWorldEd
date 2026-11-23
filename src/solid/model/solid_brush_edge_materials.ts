@@ -180,7 +180,6 @@ export class SolidBrushEdgeMaterials {
     material.depthTest = false;
     material.depthWrite = false;
     material.depthFunc = THREE.AlwaysDepth;
-    material.needsUpdate = true;
   }
 
   /**
@@ -248,7 +247,6 @@ export class SolidBrushEdgeMaterials {
     material.depthTest = depthOcclusionEnabled;
     material.depthWrite = false;
     material.depthFunc = depthOcclusionEnabled ? THREE.LessEqualDepth : THREE.AlwaysDepth;
-    material.needsUpdate = true;
   }
 
   /** Writes override or per-operation diffuse onto every shared edge material. */

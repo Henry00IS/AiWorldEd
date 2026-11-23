@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import {
   SceneFileSession,
   SCENE_FILE_DEFAULT_NAME,
@@ -158,6 +158,24 @@ describe('SceneFileSession', () => {
     expect(pickerWindow.showSaveFilePicker).toHaveBeenCalledTimes(1);
     expect(denied.writes).toEqual([]);
     expect(replacement.writes).toEqual(['data']);
+  });
+
+  describe('when the browser never answers for the remembered file', () => {
+    afterEach(() => vi.useRealTimers());
+
+    it('falls back to Save As', async () => {
+      const stale = createHandle('stale.aiworld');
+      stale.queryPermission = () => new Promise<PermissionState>(() => undefined);
+      const replacement = createHandle('new.aiworld');
+      const { session, pickerWindow } = createSession(replacement, stale);
+      await session.open();
+      vi.useFakeTimers();
+      const saved = session.save(text('data'));
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(await saved).toBe('new.aiworld');
+      expect(pickerWindow.showSaveFilePicker).toHaveBeenCalledTimes(1);
+      expect(replacement.writes).toEqual(['data']);
+    });
   });
 
   it('returns null and keeps the previous file when the picker is cancelled', async () => {

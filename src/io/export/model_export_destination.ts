@@ -1,4 +1,5 @@
 import { downloadBlob } from '@/io/dialog/manager_file_dialog.js';
+import { fileSystemHandleAnswer } from '@/project/fs/file_system_handle_answer.js';
 
 /** Where an export writes its files, by path relative to the model's folder. */
 export interface ModelExportDestination {
@@ -77,7 +78,8 @@ export function modelExportDirectoryDestination(handle: FileSystemDirectoryHandl
 }
 
 /**
- * Checks write access to a picked folder and asks for it when it lapsed.
+ * Checks write access to a picked folder and asks for it when it lapsed; a
+ * folder the browser does not answer for in time is refused.
  *
  * @param handle Picked folder.
  * @returns True when writing is allowed.
@@ -85,7 +87,7 @@ export function modelExportDirectoryDestination(handle: FileSystemDirectoryHandl
 async function modelExportDirectoryAccess(handle: FileSystemDirectoryHandle): Promise<boolean> {
   const descriptor = { mode: 'readwrite' as const };
   try {
-    if ((await handle.queryPermission(descriptor)) === 'granted') return true;
+    if ((await fileSystemHandleAnswer(handle.queryPermission(descriptor))) === 'granted') return true;
     return (await handle.requestPermission(descriptor)) === 'granted';
   } catch {
     return false;

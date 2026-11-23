@@ -1,5 +1,6 @@
 import { projectDesktopBridge, type ProjectDesktopBridge } from '@/project/desktop/project_desktop_protocol.js';
 import { ProjectFileSystemDesktop } from '@/project/desktop/project_file_system_desktop.js';
+import { fileSystemHandleAnswer } from '@/project/fs/file_system_handle_answer.js';
 import type { ProjectFileSystem } from '@/project/fs/project_file_system.js';
 import { ProjectFileSystemHandle } from '@/project/fs/project_file_system_handle.js';
 import { ProjectPickerBrowser, type ProjectPicker } from '@/project/fs/project_picker.js';
@@ -173,13 +174,14 @@ export class ControllerProject {
 
   /**
    * Reopens the last project when access is still granted; otherwise keeps it
-   * pending until {@link reopen} runs from a click.
+   * pending until {@link reopen} runs from a click. A folder the browser does
+   * not answer for in time stays closed.
    */
   async restore(): Promise<void> {
     if (this.gate() !== null) return void (this.suspended = true);
     const remembered = await this.rememberedLoad();
     if (remembered === null || this.current !== null) return;
-    const permission = await remembered.permissionQuery().catch(() => 'denied' as PermissionState);
+    const permission = await fileSystemHandleAnswer(remembered.permissionQuery()).catch(() => 'denied' as const);
     if (permission === 'granted') return this.activate(remembered);
     if (permission === 'prompt') this.pending = remembered;
     this.status(this.pending === null ? '' : `Click to reopen project "${remembered.name}"`);

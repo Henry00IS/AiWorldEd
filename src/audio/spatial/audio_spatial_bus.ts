@@ -88,6 +88,36 @@ export class AudioSpatialBus {
   }
 
   /**
+   * Creates a panner for a lasting source (one that keeps sounding while other
+   * sounds move the shared panner), configured like the shared one and wired to
+   * the speakers.
+   *
+   * @param context Live audio context.
+   * @returns Source panner (owned and disconnected by the caller).
+   */
+  createSourcePanner(context: AudioContext): PannerNode {
+    const panner = context.createPanner();
+    this.configurePannerDefaults(panner);
+    panner.connect(context.destination);
+    return panner;
+  }
+
+  /**
+   * Places a lasting source panner like the shared one for the given pose.
+   *
+   * @param context Live audio context.
+   * @param panner Source panner from createSourcePanner.
+   * @param pose Spatial mode, camera, and source world position.
+   */
+  placeSourcePanner(context: AudioContext, panner: PannerNode, pose: AudioSpatialPlaybackPose): void {
+    if (pose.mode === 'spatial3d' && pose.camera) {
+      this.prepareSpatial3dPanner(context, panner, pose.camera, pose.sourcePosition);
+      return;
+    }
+    this.writePannerPosition(context, panner, this.readListenerPosition(context.listener));
+  }
+
+  /**
    * Builds dry→panner and wet→destination once per context.
    *
    * @param context Live audio context.
@@ -135,10 +165,25 @@ export class AudioSpatialBus {
    * @param sourcePosition World position of the selection / sound.
    */
   private prepareSpatial3d(context: AudioContext, camera: Camera, sourcePosition: THREE.Vector3): void {
-    const panner = this.panner;
-    if (!panner) {
-      return;
+    if (this.panner) {
+      this.prepareSpatial3dPanner(context, this.panner, camera, sourcePosition);
     }
+  }
+
+  /**
+   * Positions one panner at a clamped source, listener from camera.
+   *
+   * @param context Live audio context.
+   * @param panner Panner to place.
+   * @param camera Perspective camera for the listener.
+   * @param sourcePosition World position of the sound.
+   */
+  private prepareSpatial3dPanner(
+    context: AudioContext,
+    panner: PannerNode,
+    camera: Camera,
+    sourcePosition: THREE.Vector3,
+  ): void {
     panner.panningModel = 'equalpower';
     syncAudioListenerFromCamera(context, camera);
     const listenerPosition = this.readListenerPosition(context.listener);
