@@ -61,7 +61,7 @@ describe('PlayerCharacterRagdoll', () => {
       swing = Math.max(swing, at(rig, PLAYER_CHARACTER_BONE.handLeft).distanceTo(animatedHand));
     }
     expect(ragdoll.getWeight()).toBeGreaterThan(0.99);
-    expect(swing).toBeGreaterThan(0.03);
+    expect(swing).toBeGreaterThan(0.1);
     const shoulder = at(rig, PLAYER_CHARACTER_BONE.upperArmRight);
     const hand = new THREE.Vector3();
     expect(playerCharacterCopyRightHand(rig, hand)).toBe(true);
@@ -76,6 +76,41 @@ describe('PlayerCharacterRagdoll', () => {
     rig.bones.forEach((bone, id) =>
       expect(bone.quaternion.angleTo(rig.restLocalQuaternions.get(id) ?? bone.quaternion)).toBeCloseTo(0, 2),
     );
+    ragdoll.dispose();
+  });
+
+  it('is pulled along by the hand: the legs trail the pull, then hang still under the anchor', () => {
+    const rig = playerCharacterBuildRig();
+    const ragdoll = new PlayerCharacterRagdoll();
+    const segments = (ragdoll as unknown as { segments: { body: { angvel(): THREE.Vector3Like } }[] }).segments;
+    const feet = new THREE.Vector3();
+    const anchor = new THREE.Vector3(3, 14, 20);
+    const velocity = new THREE.Vector3();
+    let trail = 0;
+    let trailFrames = 0;
+    for (let frame = 0; frame < 240; frame++) {
+      const to = anchor
+        .clone()
+        .sub(feet)
+        .sub(new THREE.Vector3(0, 2.2, 0));
+      const far = to.length() > 1;
+      if (frame === 0) velocity.copy(to).setLength(14);
+      if (far) velocity.addScaledVector(to.normalize(), 45 * STEP).clampLength(0, 25);
+      else velocity.multiplyScalar(Math.exp(-8 * STEP)).addScaledVector(to, 20 * STEP);
+      feet.addScaledVector(velocity, STEP);
+      animate(rig, feet);
+      ragdoll.apply(rig, true, anchor, velocity, STEP);
+      const leg = at(rig, PLAYER_CHARACTER_BONE.lowerLegLeft)
+        .sub(at(rig, PLAYER_CHARACTER_BONE.upperLegLeft))
+        .normalize();
+      if (far && velocity.length() > 5) {
+        trail += -leg.dot(velocity.clone().normalize());
+        trailFrames++;
+      }
+      if (frame === 239) expect(-leg.y).toBeGreaterThan(0.95);
+    }
+    expect(trail / trailFrames).toBeGreaterThan(0.55);
+    segments.forEach(({ body }) => expect(new THREE.Vector3().copy(body.angvel()).length()).toBeLessThan(1.5));
     ragdoll.dispose();
   });
 
@@ -99,7 +134,7 @@ describe('PlayerCharacterRagdoll', () => {
     ragdoll.dispose();
   });
 
-  it('keeps the head looking where the animation (the player\'s look) turns it while the body is limp', () => {
+  it("keeps the head looking where the animation (the player's look) turns it while the body is limp", () => {
     const rig = playerCharacterBuildRig();
     const ragdoll = new PlayerCharacterRagdoll();
     const feet = new THREE.Vector3();
