@@ -5,6 +5,7 @@ import { SolidBrushEdgeMaterials, SOLID_BRUSH_EDGE_USERDATA_KEY } from './solid_
 import { SolidOperation, solidOperationBrushRead } from '@/solid/types/solid_operation.js';
 import { modifierStackDerivedByRoot } from '@/modifier/stack/evaluate/modifier_stack_compile.js';
 import type { SolidBrushInstance } from './solid_brush_instance.js';
+import { SolidBrushEdgeHullCache, type SolidBrushEdgeHullEntry } from './solid_brush_edge_hull_cache.js';
 
 /** UserData flag on merged static brush-edge LineSegments under a solid root. */
 export const SOLID_BRUSH_EDGE_BATCH_USERDATA_KEY = 'isSolidBrushEdgeBatch';
@@ -62,10 +63,13 @@ const livePoseMeshes = new Set<THREE.Mesh>();
 const edgeCache = new WeakMap<THREE.Mesh, CachedBrushEdges>();
 
 /**
- * Solid-space edge positions of brushes that modifiers and generators derive. A
- * reused compile hands back the same instances, so entries stay valid.
+ * Solid-space edges of brushes that modifiers and generators derive. A reused
+ * compile hands back the same instances, so entries stay valid.
  */
-const derivedEdgeCache = new WeakMap<SolidBrushInstance, Float32Array | null>();
+const derivedEdgeCache = new WeakMap<SolidBrushInstance, SolidBrushEdgeHullEntry>();
+
+/** Edges of each solid's derived brushes by their exact shape. */
+const derivedHullCaches = new WeakMap<THREE.Object3D, SolidBrushEdgeHullCache>();
 
 /**
  * Merges solid-brush wireframes into a few shared LineSegments per solid model
@@ -393,28 +397,39 @@ export class SolidBrushEdgeBatch {
     solidRoot: THREE.Group,
     chunksByOperation: Map<SolidOperation, Float32Array[]>,
   ): void {
+    let hulls = derivedHullCaches.get(solidRoot);
+    if (!hulls) derivedHullCaches.set(solidRoot, (hulls = new SolidBrushEdgeHullCache()));
     for (const brush of modifierStackDerivedByRoot.get(solidRoot)?.values() ?? []) {
       if (!brush.visible) continue;
-      const solidSpace = this.getOrBuildDerivedBrushPositions(brush);
+      const solidSpace = this.getOrBuildDerivedBrushPositions(brush, hulls);
       if (solidSpace && solidSpace.length >= 6) this.appendChunk(chunksByOperation, brush.operation, solidSpace);
     }
+    hulls.roll();
   }
 
   /**
-   * Returns the solid-space edge positions of a derived brush from cache or a
-   * fresh bake of its model-space hull.
+   * Returns the solid-space edge positions of a derived brush from cache, from
+   * an earlier brush of exactly the same model-space hull, or a fresh bake.
    *
    * @param brush Derived brush instance.
+   * @param hulls Edges of the solid's derived brushes by their exact shape.
    * @returns Solid-space positions, or null when empty.
    */
-  private static getOrBuildDerivedBrushPositions(brush: SolidBrushInstance): Float32Array | null {
+  private static getOrBuildDerivedBrushPositions(
+    brush: SolidBrushInstance,
+    hulls: SolidBrushEdgeHullCache,
+  ): Float32Array | null {
     const cached = derivedEdgeCache.get(brush);
-    if (cached !== undefined) return cached;
+    if (cached) {
+      hulls.keep(cached);
+      return cached.edges;
+    }
     const hull = SolidBrushVisual.buildHullGeometry(brush.getModelSpaceBrush());
-    const positions = this.extractLocalEdgePositions(hull);
+    const positions = hull.getAttribute('position').array as Float32Array;
+    const entry = hulls.edges(positions, () => this.extractLocalEdgePositions(hull));
     hull.dispose();
-    derivedEdgeCache.set(brush, positions);
-    return positions;
+    derivedEdgeCache.set(brush, entry);
+    return entry.edges;
   }
 
   /**
