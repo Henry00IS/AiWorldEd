@@ -67,6 +67,8 @@ export type SolidScriptCommandGives =
        * per item.
        */
       readonly each?: readonly string[];
+      /** Field whose typed items are the keys of the Dictionary written. */
+      readonly keys?: string;
     }
   | { readonly rule: 'value' | 'item' | 'key' | 'word'; readonly field: string; readonly what: string }
   | { readonly rule: 'returned' | 'list'; readonly what: string }
@@ -128,6 +130,7 @@ export type SolidScriptCommandCategory =
   | 'Vector'
   | 'Text'
   | 'List'
+  | 'Dictionary'
   | 'Curve'
   | 'Path'
   | 'Random'

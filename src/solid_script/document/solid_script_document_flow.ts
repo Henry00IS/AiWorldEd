@@ -6,6 +6,9 @@ import {
   solidScriptFlowItemKinds,
   solidScriptFlowKeyKinds,
   solidScriptFlowValueKinds,
+  solidScriptFlowDataWrite,
+  solidScriptFlowTypedKeys,
+  solidScriptFlowValueKeys,
   SOLID_SCRIPT_FLOW_UNKNOWN,
   type SolidScriptFlowHead,
 } from './solid_script_document_flow_kinds.js';
@@ -13,6 +16,7 @@ import {
   solidScriptFlowDelete,
   solidScriptFlowEqual,
   solidScriptFlowJoin,
+  solidScriptFlowKeysAdd,
   solidScriptFlowLocalsBack,
   solidScriptFlowVariableJoin,
   type SolidScriptFlowVariable,
@@ -445,7 +449,8 @@ class SolidScriptFlowAnalysis {
   /**
    * Follows one field that names a variable: a name not set yet that a list
    * line adds to, or an item such as Points(2), becomes a list; a part such as
-   * Face.Data.Height leaves the kind; a forgotten name is gone.
+   * Face.Data.Height leaves the kind, and a key under the .Data of a variable
+   * is remembered for it; a forgotten name is gone.
    *
    * @param block Line.
    * @param given Field and the name typed in it.
@@ -470,8 +475,11 @@ class SolidScriptFlowAnalysis {
     const item = /^((?:local\.|persistent\.)?[A-Za-z_]\w*)\s*\(.*\)$/i.exec(name)?.[1];
     const line = this.lineOf.get(block) ?? -1;
     if (item !== undefined || gives.rule === 'list') return this.listWrite(item ?? name, state, line);
+    const data = solidScriptFlowDataWrite(name);
+    if (data) return solidScriptFlowKeysAdd(state, solidScriptNameKey(data.owner), [data.key]);
     if (/\./.test(name.replace(/^(local|persistent)\./i, ''))) return state;
-    return this.write(state, name, this.kindsGiven(block, gives, state, returns, frame), line);
+    const kinds = this.kindsGiven(block, gives, state, returns, frame);
+    return this.write(state, name, kinds, line, solidScriptFlowKeysGiven(block, gives, state));
   }
 
   /**
@@ -546,6 +554,7 @@ class SolidScriptFlowAnalysis {
    * @param name Name as written, maybe in brackets.
    * @param kinds Kinds written.
    * @param line 0-based line that writes it.
+   * @param keys Keys of the Dictionary written, when known.
    * @returns Variables after.
    */
   private write(
@@ -553,12 +562,13 @@ class SolidScriptFlowAnalysis {
     name: string,
     kinds: readonly string[],
     line: number,
+    keys: readonly string[] = [],
   ): SolidScriptFlowState {
     const bare = name
       .trim()
       .replace(/^\[(.*)\]$/s, '$1')
       .trim();
-    return bare === '' ? state : solidScriptFlowWrite(state, solidScriptNameKey(bare), kinds, line);
+    return bare === '' ? state : solidScriptFlowWrite(state, solidScriptNameKey(bare), kinds, line, keys);
   }
 
   /**
@@ -790,6 +800,25 @@ interface SolidScriptFlowCall {
   readonly frame: SolidScriptFlowFrame;
   /** Function line and kinds of values. */
   readonly key: string;
+}
+
+/**
+ * Tells the keys of the Dictionary a field writes, where its line shows them:
+ * the typed Keys of Make Dictionary, or those its Value copies or lists.
+ *
+ * @param block Line.
+ * @param gives What the field gives.
+ * @param state Variables before the line.
+ * @returns Keys as written; none when unknown.
+ */
+function solidScriptFlowKeysGiven(
+  block: SolidScriptBlock,
+  gives: SolidScriptCommandGives,
+  state: SolidScriptFlowState,
+): string[] {
+  if (gives.rule === 'kind') return gives.keys ? solidScriptFlowTypedKeys(block.values[gives.keys] ?? '') : [];
+  if (gives.rule !== 'value') return [];
+  return solidScriptFlowValueKeys(block.values[gives.field] ?? '', (key) => state.get(key)?.keys ?? []);
 }
 
 /**

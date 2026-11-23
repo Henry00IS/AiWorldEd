@@ -1,3 +1,4 @@
+import { solidScriptSuggestionDictionary } from './solid_script_suggestion_keys.js';
 import type { SolidScriptCommandWord } from '@/solid_script/commands/solid_script_command.js';
 import type { SolidScriptName } from '@/solid_script/document/solid_script_document_names.js';
 import {
@@ -524,7 +525,7 @@ function solidScriptSuggestionMemberNames(kind: string): string[] {
 
 /**
  * Lists the members of what is typed before its last dot, such as the axes of a
- * vector, Count of a list or Normal of a face.
+ * vector, Count of a list, Normal of a face or the keys of a Dictionary.
  *
  * @param prefix Typed name.
  * @param scope What the field may refer to.
@@ -550,9 +551,11 @@ function solidScriptSuggestionMembers(
         pick: 'value',
       }));
   }
-  const kinds = solidScriptSuggestionKinds(base, scope);
-  if (kinds.length === 0) return null;
-  return solidScriptSuggestionMembersOf(base, kinds, () => true, 'value');
+  const kindsOf = (name: string): string[] => solidScriptSuggestionKinds(name, scope);
+  const dictionary = solidScriptSuggestionDictionary(base, kindsOf, scope.names, 'value');
+  const kinds = kindsOf(base).filter((kind) => !dictionary || kind !== 'Dictionary');
+  if (!dictionary && kinds.length === 0) return null;
+  return [...solidScriptSuggestionMembersOf(base, kinds, () => true, 'value'), ...(dictionary ?? [])];
 }
 
 /**
@@ -610,8 +613,9 @@ function solidScriptSuggestionPathElement(type: string | null): boolean {
 /**
  * Lists, for a field holding a whole path a Set writes, the members after the
  * last dot that lead to a value a line can set: Data and the members that give
- * brushes, faces, edges or corners, or .X, .Y and .Z of a vector variable.
- * Members a line can only read, such as Center, are left out.
+ * brushes, faces, edges or corners, .X, .Y and .Z of a vector variable, or the
+ * keys under the .Data of a Dictionary. Members a line can only read, such as
+ * Center, are left out.
  *
  * @param prefix Typed path.
  * @param scope What the field may refer to.
@@ -624,13 +628,16 @@ function solidScriptSuggestionPaths(prefix: string, scope: SolidScriptSuggestion
   if (prefix.startsWith('$') && !/^\$selected\./i.test(prefix)) return null;
   const base = prefix.slice(0, dot);
   if (/^\$selected$/i.test(base)) return null;
-  const kinds = solidScriptSuggestionKinds(base, scope).filter((kind) => kind !== 'List');
-  return solidScriptSuggestionMembersOf(
+  const kindsOf = (name: string): string[] => solidScriptSuggestionKinds(name, scope);
+  const dictionary = solidScriptSuggestionDictionary(base, kindsOf, scope.names, 'word') ?? [];
+  const kinds = kindsOf(base).filter((kind) => kind !== 'List' && kind !== 'Dictionary');
+  const members = solidScriptSuggestionMembersOf(
     base,
     kinds,
     (kind, name) => solidScriptSuggestionWritable(base, kind, name),
     'word',
   );
+  return [...members, ...dictionary];
 }
 
 /**

@@ -78,6 +78,11 @@ export interface SolidScriptName {
    */
   kinds?: readonly string[];
   /**
+   * Keys its Dictionary, or the .Data of what it holds, may have been given
+   * where the line stands, as written; missing when none is known.
+   */
+  keys?: readonly string[];
+  /**
    * The writes that may reach where the line stands, each as a sentence after
    * the kinds it gives, such as "Brush: What is made of **Cube** (line 3).";
    * missing when no write is known there.
@@ -233,12 +238,14 @@ function solidScriptNamesKinds(
     const kinds = solidScriptFlowKinds(state, key);
     const sources = solidScriptFlowSources(state, key).filter((source) => source.kinds.length > 0);
     const reaches = solidScriptNameReaches(sources, key, blocks);
+    const keys = state.get(key)?.keys ?? [];
     return {
       name,
       category,
       line,
       detail,
       ...(kinds && kinds.length > 0 ? { kinds } : {}),
+      ...(keys.length > 0 ? { keys } : {}),
       ...(reaches !== '' ? { reaches, reachLines: sources.map((source) => source.line) } : {}),
     };
   });

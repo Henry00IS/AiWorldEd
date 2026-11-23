@@ -9,6 +9,11 @@ export interface SolidScriptFlowVariable {
    * gave that the variable may still hold here.
    */
   readonly from: ReadonlyMap<number, ReadonlySet<string>>;
+  /**
+   * Keys a Dictionary it holds may have been given, as written; none when
+   * unknown.
+   */
+  readonly keys?: readonly string[];
 }
 
 /** One write that may reach a point: its 0-based line and the kinds it gave. */
@@ -52,7 +57,8 @@ export function solidScriptFlowVariableJoin(
 ): SolidScriptFlowVariable {
   const from = new Map(left.from);
   for (const [line, kinds] of right.from) from.set(line, new Set([...(from.get(line) ?? []), ...kinds]));
-  return { kinds: new Set([...left.kinds, ...right.kinds]), from };
+  const keys = solidScriptFlowKeysJoin(left.keys ?? [], right.keys ?? []);
+  return { kinds: new Set([...left.kinds, ...right.kinds]), from, ...(keys.length > 0 ? { keys } : {}) };
 }
 
 /**
@@ -76,7 +82,7 @@ export function solidScriptFlowVariableKeep(
     if (given.has(SOLID_SCRIPT_FLOW_UNKNOWN)) left.push(...fresh);
     if (left.length > 0) from.set(line, new Set(left));
   }
-  return { kinds: kept, from };
+  return { kinds: kept, from, ...(variable?.keys ? { keys: variable.keys } : {}) };
 }
 
 /**
@@ -91,6 +97,7 @@ export function solidScriptFlowEqual(left: SolidScriptFlowState, right: SolidScr
   for (const [key, variable] of left) {
     const other = right.get(key);
     if (!other || !solidScriptFlowSame(variable.kinds, other.kinds)) return false;
+    if (!solidScriptFlowSame(new Set(variable.keys ?? []), new Set(other.keys ?? []))) return false;
     if (variable.from.size !== other.from.size) return false;
     for (const [line, kinds] of variable.from)
       if (!solidScriptFlowSame(kinds, other.from.get(line) ?? new Set())) return false;
@@ -116,6 +123,7 @@ function solidScriptFlowSame(left: ReadonlySet<string>, right: ReadonlySet<strin
  * @param key Name key.
  * @param kinds Kinds written; none for a kind only running tells.
  * @param line 0-based line that writes it.
+ * @param keys Keys of the Dictionary it holds, when known.
  * @returns State after.
  */
 export function solidScriptFlowWrite(
@@ -123,9 +131,45 @@ export function solidScriptFlowWrite(
   key: string,
   kinds: readonly string[],
   line: number,
+  keys: readonly string[] = [],
 ): SolidScriptFlowState {
   const written = new Set(kinds.length > 0 ? kinds : [SOLID_SCRIPT_FLOW_UNKNOWN]);
-  return new Map(state).set(key, { kinds: written, from: new Map([[line, written]]) });
+  const variable = { kinds: written, from: new Map([[line, written]]), ...(keys.length > 0 ? { keys } : {}) };
+  return new Map(state).set(key, variable);
+}
+
+/**
+ * Joins two lists of Dictionary keys, each key once in any case, in the order
+ * they were first given.
+ *
+ * @param left Keys known first.
+ * @param right Keys to add.
+ * @returns Keys.
+ */
+export function solidScriptFlowKeysJoin(left: readonly string[], right: readonly string[]): string[] {
+  const joined: string[] = [];
+  for (const key of [...left, ...right])
+    if (!joined.some((known) => known.toLowerCase() === key.toLowerCase())) joined.push(key);
+  return joined;
+}
+
+/**
+ * Adds keys a line writes under the .Data of a variable, such as Glass of Set
+ * Prices.Data.Glass; a name not set yet is left as it is.
+ *
+ * @param state State before.
+ * @param key Name key of the variable.
+ * @param keys Keys written.
+ * @returns State after.
+ */
+export function solidScriptFlowKeysAdd(
+  state: SolidScriptFlowState,
+  key: string,
+  keys: readonly string[],
+): SolidScriptFlowState {
+  const variable = state.get(key);
+  if (!variable) return state;
+  return new Map(state).set(key, { ...variable, keys: solidScriptFlowKeysJoin(variable.keys ?? [], keys) });
 }
 
 /**

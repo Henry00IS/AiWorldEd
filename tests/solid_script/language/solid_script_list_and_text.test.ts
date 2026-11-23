@@ -40,9 +40,13 @@ describe('Functions that work on lists and on text', () => {
   });
 
   it('gives each such function both groups, and the reference lists it under both', () => {
-    for (const key of BOTH) expect([...solidScriptFunctionGroups(key)].sort(), key).toEqual(['List', 'Text']);
+    for (const key of BOTH)
+      expect([...solidScriptFunctionGroups(key)].filter((group) => group !== 'Dictionary').sort(), key).toEqual([
+        'List',
+        'Text',
+      ]);
     expect(solidScriptFunctionGroups('uppercase')).toEqual(['Text']);
     const listed = solidScriptReference().split('Contains(list or text: ').length - 1;
-    expect(listed).toBe(2);
+    expect(listed).toBe(3);
   });
 });

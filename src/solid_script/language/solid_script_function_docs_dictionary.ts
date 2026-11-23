@@ -11,21 +11,21 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_DICTIONARY = {
     usage: 'Dictionary(keys, values)',
     summary:
       'A Dictionary from a list of keys and a list of values in the same order, such as Dictionary(List("Wood", "Stone"), List(5, 7)); then [Prices.Data.Wood] reads 5.',
-    group: 'List',
+    group: 'Dictionary',
     gives: ['Dictionary'],
   },
   keys: {
     usage: 'Keys(dictionary)',
     summary:
       'The keys of a Dictionary in the order they were added, such as Keys(Dictionary(List("a", "b"), List(1, 2))) is [a, b].',
-    group: 'List',
+    group: 'Dictionary',
     gives: ['List'],
   },
   values: {
     usage: 'Values(dictionary)',
     summary:
       'The values of a Dictionary in the order of its keys, such as Values(Dictionary(List("a", "b"), List(1, 2))) is [1, 2].',
-    group: 'List',
+    group: 'Dictionary',
     gives: ['List'],
   },
 } as const;

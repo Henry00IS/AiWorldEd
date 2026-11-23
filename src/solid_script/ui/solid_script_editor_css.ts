@@ -170,6 +170,7 @@ export const SOLID_SCRIPT_EDITOR_CATEGORY_COLORS: Readonly<Record<string, string
   Vector: '#3d8fd6',
   Text: '#4f9e6b',
   List: '#3ca7a0',
+  Dictionary: '#9a8256',
   Curve: '#e2762b',
   Random: '#c99a1e',
   Functions: '#2aa198',

@@ -73,6 +73,7 @@ export const SOLID_SCRIPT_FUNCTION_GROUPS = [
   'Vector',
   'Text',
   'List',
+  'Dictionary',
   'Curve',
   'Path',
   'Random',

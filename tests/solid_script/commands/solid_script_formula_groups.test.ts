@@ -163,6 +163,7 @@ describe('SolidScript formula function categories', () => {
       'Vector',
       'Text',
       'List',
+      'Dictionary',
       'Curve',
       'Path',
       'Random',

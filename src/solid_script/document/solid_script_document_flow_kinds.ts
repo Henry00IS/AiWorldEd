@@ -4,6 +4,7 @@ import { solidScriptMemberType } from '@/solid_script/language/solid_script_memb
 import { SOLID_SCRIPT_SYSTEM_LISTED } from '@/solid_script/language/solid_script_system.js';
 import { solidScriptSystemFill } from '@/solid_script/language/solid_script_system_names.js';
 import { solidScriptValueNumber } from '@/solid_script/language/solid_script_value.js';
+import { solidScriptNameKey } from '@/solid_script/language/solid_script_name_key.js';
 
 /**
  * The kind of a value only running tells, kept among the kinds a name may hold
@@ -288,4 +289,58 @@ export function solidScriptFlowChanged(rule: 'emptied' | 'shrunk', kinds: readon
           : 'Text',
     ),
   );
+}
+
+/**
+ * Name of a plain variable that holds a Dictionary, read whole, such as
+ * [Prices].
+ */
+const SOLID_SCRIPT_FLOW_KEYS_COPY = /^\[\s*([A-Za-z_][A-Za-z0-9_]*)\s*\]$/;
+
+/**
+ * Start of a Dictionary formula with its keys written out, such as
+ * [=Dictionary(List("a"), ...)].
+ */
+const SOLID_SCRIPT_FLOW_KEYS_FORMULA = /^\[=\s*Dictionary\s*\(\s*(?:List\s*\(|\[)([^)\]]*)/i;
+
+/**
+ * Tells the keys a Dictionary written from a field has, where the field shows
+ * them: the keys of a variable it copies, such as [Prices], or the texts a
+ * Dictionary formula lists, such as [=Dictionary(List("a", "b"), ...)].
+ *
+ * @param text Field text.
+ * @param keysOf Keys known for a variable, by name key.
+ * @returns Keys as written; none when the field shows none.
+ */
+export function solidScriptFlowValueKeys(text: string, keysOf: (key: string) => readonly string[]): string[] {
+  const trimmed = text.trim();
+  const copied = SOLID_SCRIPT_FLOW_KEYS_COPY.exec(trimmed)?.[1];
+  if (copied) return [...keysOf(solidScriptNameKey(copied))];
+  const listed = SOLID_SCRIPT_FLOW_KEYS_FORMULA.exec(trimmed)?.[1] ?? '';
+  return [...listed.matchAll(/"([A-Za-z_][A-Za-z0-9_]*)"/g)].map((match) => match[1] ?? '');
+}
+
+/**
+ * Tells the keys typed in a field as items separated by commas, such as Wood,
+ * Stone; items that are no plain name, such as [Names], are left out.
+ *
+ * @param text Field text.
+ * @returns Keys as written.
+ */
+export function solidScriptFlowTypedKeys(text: string): string[] {
+  return solidScriptFieldSplit(text, ',')
+    .map((item) => item.trim())
+    .filter((item) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(item));
+}
+
+/**
+ * Reads a write of one key under the .Data of a plain variable, such as
+ * Prices.Data.Glass.
+ *
+ * @param name Name a field writes.
+ * @returns The variable and the key, or null for any other name.
+ */
+export function solidScriptFlowDataWrite(name: string): { owner: string; key: string } | null {
+  const found = /^([A-Za-z_][A-Za-z0-9_]*)\.data\.([A-Za-z_][A-Za-z0-9_]*)$/i.exec(name.trim());
+  return found ? { owner: found[1] ?? '', key: found[2] ?? '' } : null;
 }

@@ -90,7 +90,7 @@ export const SOLID_SCRIPT_COMMANDS_DATA_KEYS: SolidScriptCommand[] = [
       {
         ...solidScriptParameterWrites(
           solidScriptParameter('into', 'Into', 'name', 'Prices', 'Variable that gets the Dictionary, such as Prices.'),
-          { rule: 'kind', kind: 'Dictionary', what: 'Dictionary of **{command}**' },
+          { rule: 'kind', kind: 'Dictionary', what: 'Dictionary of **{command}**', keys: 'keys' },
         ),
         into: 'label',
       },

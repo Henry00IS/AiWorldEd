@@ -35,6 +35,7 @@ import {
 } from '@/solid_script/language/solid_script_formula_field.js';
 import { solidScriptFormulaProblem } from '@/solid_script/language/solid_script_formula_bare.js';
 import { solidScriptWhereHelper } from '@/solid_script/language/solid_script_where_helpers.js';
+import { solidScriptFunctionGroups } from '@/solid_script/language/solid_script_function_doc_groups.js';
 
 export { SOLID_SCRIPT_FORMULA_COMMAND, SOLID_SCRIPT_FORMULA_FUNCTION } from './solid_script_formula_groups.js';
 
@@ -236,7 +237,8 @@ function solidScriptFormulaCheckProblem(
 
 /**
  * Creates the block of one check or Where helper, such as In Box, with a field
- * per input; Where helpers go in the Where group.
+ * per input; Where helpers go in the Where group, and a check is also listed in
+ * the other groups of its function, such as IsDictionary under Dictionary.
  *
  * @param key Check key, such as in_box.
  * @param context Where the formula is used.
@@ -246,8 +248,10 @@ function solidScriptFormulaCheck(key: string, context: SolidScriptFormulaContext
   const inputs = solidScriptFormulaCheckInputs(key, context);
   const label = solidScriptFormulaCheckLabel(key);
   const summary = SOLID_SCRIPT_FUNCTION_DOCS[key]?.summary ?? label;
+  const alsoIn = solidScriptFunctionGroups(key).slice(1);
+  const id = `${SOLID_SCRIPT_FORMULA_CHECK}${key}`;
   return solidScriptFormulaBlock(
-    { id: `${SOLID_SCRIPT_FORMULA_CHECK}${key}`, label, description: summary.replace(/\.$/, ''), manual: summary },
+    { id, label, description: summary.replace(/\.$/, ''), manual: summary, ...(alsoIn.length > 0 ? { alsoIn } : {}) },
     solidScriptWhereHelper(key) ? 'Where' : 'Checks',
     {
       parameters: inputs.map(solidScriptFormulaCheckField),
