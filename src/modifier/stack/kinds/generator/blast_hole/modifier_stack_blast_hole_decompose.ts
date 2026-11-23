@@ -246,7 +246,7 @@ function blastHoleTriangulate(points: readonly THREE.Vector2[], outlineCount: nu
   const triangles = blastHoleEarClip(points.slice(0, outlineCount));
   if (!triangles) return null;
   for (let index = outlineCount; index < points.length; index++) blastHoleInsertPoint(points, triangles, index);
-  return blastHoleDelaunayFlip(points, triangles);
+  return blastHoleDelaunayFlip(points, triangles, new Set());
 }
 
 /**

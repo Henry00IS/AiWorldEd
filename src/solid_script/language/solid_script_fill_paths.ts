@@ -7,18 +7,34 @@ interface SolidScriptFillRing {
   points: THREE.Vector3[];
   flat: THREE.Vector2[];
   area: number;
+  turn: number;
 }
 
 /**
- * Fills closed loops with triangles, the way a floor plan is filled: a loop
- * inside one other loop is a hole, one inside two is filled again, and so on.
- * Every loop is laid flat in the plane of the biggest one.
+ * Which areas Fill Paths fills: Even-Odd by how deep a loop sits, Non-Zero by
+ * how often loops wind round it.
+ */
+export type SolidScriptFillRule = 'Even-Odd' | 'Non-Zero';
+
+/**
+ * Fills closed loops with triangles, the way a floor plan is filled. With
+ * Even-Odd a loop inside one other loop is a hole, one inside two is filled
+ * again, and so on. With Non-Zero the area inside a loop is filled when the
+ * loops round it, counted 1 for each that runs one way and -1 for each that
+ * runs the other, do not add up to 0, so a loop inside another running the same
+ * way fills rather than cuts a hole. Every loop is laid flat in the plane of
+ * the biggest one.
  *
  * @param loops Closed loops, each at least 3 points.
  * @param label Command, for messages.
+ * @param rule Even-Odd or Non-Zero.
  * @returns Mesh of triangles facing the way the biggest loop runs round.
  */
-export function solidScriptFillPaths(loops: readonly THREE.Vector3[][], label: string): SolidScriptShapeMesh {
+export function solidScriptFillPaths(
+  loops: readonly THREE.Vector3[][],
+  label: string,
+  rule: SolidScriptFillRule,
+): SolidScriptShapeMesh {
   const usable = loops.map(solidScriptFillOpen).filter((loop) => loop.length >= 3);
   if (usable.length === 0) throw new Error(`${label} needs a closed path with at least 3 points`);
   const normal = usable
@@ -28,42 +44,75 @@ export function solidScriptFillPaths(loops: readonly THREE.Vector3[][], label: s
   const frame = solidScriptPathFrame(normal, label);
   const rings = usable.map((points): SolidScriptFillRing => {
     const flat = points.map((point) => new THREE.Vector2(point.dot(frame.x), point.dot(frame.y)));
-    return { points, flat, area: Math.abs(THREE.ShapeUtils.area(flat)) };
+    const area = THREE.ShapeUtils.area(flat);
+    return { points, flat, area: Math.abs(area), turn: Math.sign(area) };
   });
+  const filled = new Map(rings.map((ring) => [ring, solidScriptFillFilled(ring, rings, rule)]));
   const mesh: SolidScriptShapeMesh = { kind: 'mesh', label: 'mesh', points: [], faces: [], uvs: [] };
   rings.forEach((ring) => {
-    const depth = solidScriptFillDepth(ring, rings);
-    if (depth % 2 === 0) solidScriptFillOne(mesh, ring, solidScriptFillHoles(ring, depth, rings));
+    const parent = solidScriptFillParent(ring, rings);
+    if (filled.get(ring) && !(parent && filled.get(parent)))
+      solidScriptFillOne(mesh, ring, solidScriptFillHoles(ring, rings, filled));
   });
   return mesh;
 }
 
 /**
- * Counts the loops that hold a loop inside them.
+ * Whether the area just inside a loop is filled under the rule.
  *
  * @param ring Loop.
  * @param rings Every loop.
- * @returns How many hold it.
+ * @param rule Even-Odd or Non-Zero.
+ * @returns True when filled.
  */
-function solidScriptFillDepth(ring: SolidScriptFillRing, rings: readonly SolidScriptFillRing[]): number {
-  return rings.filter((other) => other !== ring && solidScriptFillHolds(other, ring)).length;
+function solidScriptFillFilled(
+  ring: SolidScriptFillRing,
+  rings: readonly SolidScriptFillRing[],
+  rule: SolidScriptFillRule,
+): boolean {
+  const around = rings.filter((other) => other !== ring && solidScriptFillHolds(other, ring));
+  if (rule === 'Even-Odd') return around.length % 2 === 0;
+  return around.reduce((sum, other) => sum + other.turn, ring.turn) !== 0;
 }
 
 /**
- * The holes of a filled loop: loops just one level inside it.
+ * The smallest loop that holds a loop.
+ *
+ * @param ring Loop.
+ * @param rings Every loop.
+ * @returns Parent, or undefined at the top.
+ */
+function solidScriptFillParent(
+  ring: SolidScriptFillRing,
+  rings: readonly SolidScriptFillRing[],
+): SolidScriptFillRing | undefined {
+  return rings
+    .filter((other) => other !== ring && solidScriptFillHolds(other, ring))
+    .reduce<SolidScriptFillRing | undefined>(
+      (best, other) => (!best || other.area < best.area ? other : best),
+      undefined,
+    );
+}
+
+/**
+ * The holes of a filled loop: the nearest unfilled loops inside it, with only
+ * filled loops between.
  *
  * @param ring Filled loop.
- * @param depth How many loops hold it.
  * @param rings Every loop.
+ * @param filled Whether each loop is filled.
  * @returns Holes.
  */
 function solidScriptFillHoles(
   ring: SolidScriptFillRing,
-  depth: number,
   rings: readonly SolidScriptFillRing[],
+  filled: ReadonlyMap<SolidScriptFillRing, boolean>,
 ): SolidScriptFillRing[] {
-  return rings.filter(
-    (other) => other !== ring && solidScriptFillHolds(ring, other) && solidScriptFillDepth(other, rings) === depth + 1,
+  const inside = rings.filter((other) => other !== ring && solidScriptFillHolds(ring, other));
+  return inside.filter(
+    (other) =>
+      !filled.get(other) &&
+      inside.every((between) => between === other || !solidScriptFillHolds(between, other) || filled.get(between)),
   );
 }
 

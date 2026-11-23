@@ -154,9 +154,15 @@ function blastHoleFlipEdge(
  *
  * @param points Points.
  * @param triangles Triangles, changed in place.
+ * @param fixed Edges never flipped, keyed by the lower point number, then the
+ *   higher.
  * @returns True when anything flipped.
  */
-function blastHoleFlipSweep(points: readonly THREE.Vector2[], triangles: BlastHoleTriangle[]): boolean {
+function blastHoleFlipSweep(
+  points: readonly THREE.Vector2[],
+  triangles: BlastHoleTriangle[],
+  fixed: ReadonlySet<string>,
+): boolean {
   const edges = blastHoleTriangleEdges(triangles);
   const touched = new Set<number>();
   for (let first = 0; first < triangles.length; first++)
@@ -164,6 +170,7 @@ function blastHoleFlipSweep(points: readonly THREE.Vector2[], triangles: BlastHo
       const triangle = triangles[first]!;
       const second = edges.get(`${triangle[(corner + 1) % 3]}>${triangle[corner]}`);
       if (second === undefined || touched.has(second)) continue;
+      if (fixed.has(blastHoleEdgeKey(triangle[corner]!, triangle[(corner + 1) % 3]!))) continue;
       if (blastHoleFlipEdge(points, triangles, first, second, corner)) touched.add(first).add(second);
     }
   return touched.size > 0;
@@ -175,14 +182,28 @@ function blastHoleFlipSweep(points: readonly THREE.Vector2[], triangles: BlastHo
  *
  * @param points Points.
  * @param triangles Triangles, changed in place.
+ * @param fixed Edges that must stay, keyed by blastHoleEdgeKey.
  * @returns The same triangles.
  */
 export function blastHoleDelaunayFlip(
   points: readonly THREE.Vector2[],
   triangles: BlastHoleTriangle[],
+  fixed: ReadonlySet<string>,
 ): BlastHoleTriangle[] {
-  for (let sweep = 0; sweep < triangles.length * 4 + 16; sweep++) if (!blastHoleFlipSweep(points, triangles)) break;
+  for (let sweep = 0; sweep < triangles.length * 4 + 16; sweep++)
+    if (!blastHoleFlipSweep(points, triangles, fixed)) break;
   return triangles;
+}
+
+/**
+ * Key of an undirected edge: the lower point number, then the higher.
+ *
+ * @param a One end.
+ * @param b Other end.
+ * @returns Key.
+ */
+export function blastHoleEdgeKey(a: number, b: number): string {
+  return a < b ? `${a}-${b}` : `${b}-${a}`;
 }
 
 /**
