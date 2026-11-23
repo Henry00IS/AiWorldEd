@@ -2,6 +2,7 @@ import { curveDecode } from '@/curve/model/curve_codec.js';
 import { curveFromPolyline, type Curve } from '@/curve/model/curve_model.js';
 import { curveEvaluate } from '@/curve/model/curve_sample.js';
 import { generatorRevolveStationsFromCurve } from '@/generator/revolve/generator_revolve_curve.js';
+import { solidScriptAxesEach } from './solid_script_functions_axes.js';
 import { solidScriptExtraNumber } from './solid_script_functions_extra.js';
 import {
   solidScriptPathAt,
@@ -74,10 +75,10 @@ function solidScriptCurvePath(args: readonly SolidScriptValue[], usage: string):
 
 /** Functions that read Curve inputs and paths. */
 export const SOLID_SCRIPT_FUNCTIONS_CURVE = {
-  curve_at: (args) => {
+  curve_at: solidScriptAxesEach('CurveAt(curve, x)', (args) => {
     const usage = 'CurveAt(curve, x)';
     return curveEvaluate(solidScriptCurveRead(args, usage), solidScriptExtraNumber(args, 1, usage));
-  },
+  }),
   path_length: (args) => solidScriptPathLength(solidScriptCurvePath(args, 'PathLength(points)')),
   resample: (args) => {
     const usage = 'Resample(points, count)';

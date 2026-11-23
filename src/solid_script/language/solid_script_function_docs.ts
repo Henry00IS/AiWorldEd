@@ -446,9 +446,10 @@ const SOLID_SCRIPT_FUNCTION_DOCS_NAMED: Readonly<Record<SolidScriptBuiltinName, 
   },
   curve_at: {
     usage: 'CurveAt(curve, x)',
-    summary: 'Height of a curve at x, from 0 to 1, such as CurveAt([Profile], 0.5).',
+    summary:
+      'Height of a curve at x, from 0 to 1, such as CurveAt([Profile], 0.5). A vector x maps every axis through the curve, so CurveAt([Profile], [$Position]) bends a position one axis at a time.',
     group: 'Curve',
-    gives: ['Number'],
+    gives: ['Number', 'Vector'],
   },
   path_length: {
     usage: 'PathLength(points)',
@@ -900,7 +901,13 @@ const SOLID_SCRIPT_FUNCTION_ARGUMENTS_OWN: Readonly<
   is_list: { value: { type: 'Any', about: 'The value to check.' } },
   is_string: { value: { type: 'Any', about: 'The value to check.' } },
   is_bool: { value: { type: 'Any', about: 'The value to check.' } },
-  curve_at: { x: { type: ['Number'], about: 'Where on the curve, from 0 to 1.', start: '0.5' } },
+  curve_at: {
+    x: {
+      type: ['Number', 'Vector'],
+      about: 'Where on the curve, from 0 to 1, or a vector to map per axis.',
+      start: '0.5',
+    },
+  },
   resample: { count: { type: ['Number'], about: 'How many points to give.', start: '8' } },
   resample_every: {
     distance: { type: ['Number'], about: 'How far apart the points are, at least 0.01.', start: '0.5' },
