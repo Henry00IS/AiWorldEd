@@ -39,10 +39,16 @@ function distinct(faces: number[][][]): Set<string> {
 }
 
 describe('Unwrap Seams', () => {
-  it('lays each face alone without Seams', () => {
+  it('lays each face alone without Seams, true to size and a whole number of repeats apart', () => {
     const faces = unwrap({ pack: 'No' });
     expect(faces).toHaveLength(6);
-    faces.flat().forEach(([u = 0, v = 0]) => expect(Math.max(u, v)).toBeLessThanOrEqual(2 + 1e-9));
+    for (const face of faces) {
+      const us = face.map(([u = 0]) => u);
+      const vs = face.map(([, v = 0]) => v);
+      expect(Math.max(...us) - Math.min(...us)).toBeCloseTo(2, 6);
+      expect(Math.max(...vs) - Math.min(...vs)).toBeCloseTo(2, 6);
+      expect(Math.min(...us) % 1).toBeCloseTo(0, 6);
+    }
   });
 
   it('keeps faces joined along edges that are not seams, each face true to size', () => {
@@ -81,6 +87,24 @@ describe('Unwrap Seams', () => {
   it('packs with its own Margin', () => {
     expect(unwrap({ margin: '0.2' })).toEqual(unwrap({ pack: 'No' }, { margin: '0.2' }));
   });
+
+  it.each([{}, { seams: '[=[$Edge.Angle] > 45]' }])(
+    'packs every face of a cube apart, never two on one spot (%o)',
+    (values) => {
+      const boxes = unwrap(values).map((face) => {
+        const us = face.map(([u = 0]) => u);
+        const vs = face.map(([, v = 0]) => v);
+        return [Math.min(...us), Math.min(...vs), Math.max(...us), Math.max(...vs)];
+      });
+      boxes.forEach(([u0 = 0, v0 = 0, u1 = 0, v1 = 0], at) =>
+        boxes
+          .slice(at + 1)
+          .forEach(([a0 = 0, b0 = 0, a1 = 0, b1 = 0]) =>
+            expect(Math.min(u1, a1) - Math.max(u0, a0) < 1e-6 || Math.min(v1, b1) - Math.max(v0, b0) < 1e-6).toBe(true),
+          ),
+      );
+    },
+  );
 
   it('stops on a Pack that is not Yes or No', () => {
     const result = solidScriptProgramRun(

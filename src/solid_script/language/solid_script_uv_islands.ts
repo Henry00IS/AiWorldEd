@@ -3,14 +3,23 @@ import {
   textureUvPackTurned,
   type TextureUvIsland,
 } from '@/texture/uv_project/texture_uv_pack.js';
+import { textureUvPackProfiles, type TextureUvPackShape } from '@/texture/uv_project/texture_uv_pack_profile.js';
 import type { SolidScriptFaceFacts, SolidScriptGeometryLeaf } from './solid_script_geometry.js';
 
-/** How islands are packed: the gap, whether they turn, and the area they fill. */
+/** How islands are packed: by bounding box, convex hull or exact shape. */
+export type SolidScriptUvPackMethod = 'Bounding Box' | TextureUvPackShape;
+
+/**
+ * How islands are packed: the gap, whether they turn, the method and the area
+ * they fill.
+ */
 export interface SolidScriptUvPackSettings {
   /** Gap between islands, as a share of the area's height. */
   margin: number;
   /** True to turn each island for the best fit. */
   rotate: boolean;
+  /** Bounding Box, Convex Hull or Exact Shape. */
+  method: SolidScriptUvPackMethod;
   /** Bottom left corner of the area, U and V. */
   from: readonly [number, number];
   /** Top right corner of the area, U and V. */
@@ -24,7 +33,7 @@ export interface SolidScriptUvPackSettings {
  *
  * @param faces Faces.
  * @param uvs Each face's corner UVs, in corner order.
- * @param settings Margin, Rotate and the area.
+ * @param settings Margin, Rotate, Method and the area.
  * @returns Packed corner UVs per face, in the same order.
  */
 export function solidScriptUvIslandsPack(
@@ -37,21 +46,56 @@ export function solidScriptUvIslandsPack(
   const height = settings.to[1] - settings.from[1];
   const corners = islands.map((island) => island.flatMap((index) => uvs[index] ?? []));
   const turned = settings.rotate ? corners.map(textureUvPackTurned) : corners;
-  const packed = textureUvPackIslands(
-    turned.map((island) => island.map(([u, v]): [number, number] => [(u * height) / width, v])),
-    settings.margin,
-  ).map((island) =>
+  const scaled = turned.map((island) => island.map(([u, v]): [number, number] => [(u * height) / width, v]));
+  const packed = solidScriptUvIslandsPlace(islands, uvs, scaled, settings).map((island) =>
     island.map(([u, v]): [number, number] => [settings.from[0] + u * width, settings.from[1] + v * height]),
   );
   const result = uvs.map((face) => face.map(([u, v]): [number, number] => [u, v]));
   islands.forEach((island, at) =>
-    island.reduce((next, index) => {
-      const count = uvs[index]?.length ?? 0;
-      result[index] = (packed[at] ?? []).slice(next, next + count);
-      return next + count;
-    }, 0),
+    solidScriptUvIslandsSplit(island, uvs, packed[at] ?? []).forEach((face, next) => (result[island[next]!] = face)),
   );
   return result;
+}
+
+/**
+ * Packs islands into the 0–1 square by the chosen method.
+ *
+ * @param islands Face numbers of each island.
+ * @param uvs Each face's corner UVs, in corner order.
+ * @param corners Every island's corners, face after face.
+ * @param settings Margin, Rotate and Method.
+ * @returns Packed corners of every island, face after face.
+ */
+function solidScriptUvIslandsPlace(
+  islands: readonly number[][],
+  uvs: readonly TextureUvIsland[],
+  corners: readonly TextureUvIsland[],
+  settings: SolidScriptUvPackSettings,
+): [number, number][][] {
+  if (settings.method === 'Bounding Box') return textureUvPackIslands(corners, settings.margin);
+  const loops = islands.map((island, at) => solidScriptUvIslandsSplit(island, uvs, corners[at] ?? []));
+  return textureUvPackProfiles(loops, settings.margin, settings.method, settings.rotate).map((island) => island.flat());
+}
+
+/**
+ * Splits an island's corners, face after face, back into one loop per face.
+ *
+ * @param island Face numbers of the island.
+ * @param uvs Each face's corner UVs, giving each face's corner count.
+ * @param corners The island's corners, face after face.
+ * @returns Corner loop of each face.
+ */
+function solidScriptUvIslandsSplit(
+  island: readonly number[],
+  uvs: readonly TextureUvIsland[],
+  corners: TextureUvIsland,
+): [number, number][][] {
+  let next = 0;
+  return island.map((index) => {
+    const count = uvs[index]?.length ?? 0;
+    next += count;
+    return corners.slice(next - count, next).map(([u, v]): [number, number] => [u, v]);
+  });
 }
 
 /**

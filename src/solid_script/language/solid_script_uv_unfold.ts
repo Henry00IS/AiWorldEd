@@ -19,7 +19,9 @@ export interface SolidScriptUnfoldLink {
  * Lays faces flat in UV space, keeping linked faces joined: each island of
  * linked faces starts from one face laid on its own plane, and every face next
  * to a laid one is folded open about the edge they share, so lengths and angles
- * stay true. Each island is shifted so its lowest U and V are 0.
+ * stay true. Islands are laid side by side along U, each starting a whole
+ * number of repeats after the one before with a gap of one, and their lowest V
+ * is 0.
  *
  * @param faces Faces.
  * @param links Edges that are not seams.
@@ -33,11 +35,15 @@ export function solidScriptUvUnfold(
 ): [number, number][][] {
   const flat = faces.map((face) => solidScriptUnfoldFlat(face, size));
   const placed: (THREE.Vector2[] | undefined)[] = faces.map(() => undefined);
+  let start = 0;
   faces.forEach((_, root) => {
     if (placed[root]) return;
     placed[root] = flat[root];
     const island = solidScriptUnfoldIsland(root, faces, links, flat, placed);
-    solidScriptUnfoldShift(island.map((index) => placed[index] ?? []));
+    start = solidScriptUnfoldShift(
+      island.map((index) => placed[index] ?? []),
+      start,
+    );
   });
   return placed.map((uvs) => (uvs ?? []).map((uv): [number, number] => [uv.x, uv.y]));
 }
@@ -149,12 +155,16 @@ function solidScriptUnfoldFlat(face: SolidScriptUnfoldFace, size: number): THREE
 }
 
 /**
- * Moves an island so its lowest U and V are 0.
+ * Moves an island so its lowest U is Start and its lowest V is 0.
  *
  * @param island UVs of its faces, moved in place.
+ * @param start Lowest U for the island.
+ * @returns Lowest U for the next island: a whole number, at least one past this
+ *   one's right side.
  */
-function solidScriptUnfoldShift(island: readonly THREE.Vector2[][]): void {
+function solidScriptUnfoldShift(island: readonly THREE.Vector2[][], start: number): number {
   const all = island.flat();
-  const low = new THREE.Vector2(Math.min(...all.map((uv) => uv.x)), Math.min(...all.map((uv) => uv.y)));
+  const low = new THREE.Vector2(Math.min(...all.map((uv) => uv.x)) - start, Math.min(...all.map((uv) => uv.y)));
   all.forEach((uv) => uv.sub(low));
+  return Math.ceil(Math.max(start, ...all.map((uv) => uv.x))) + 1;
 }

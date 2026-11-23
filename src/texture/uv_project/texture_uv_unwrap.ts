@@ -5,23 +5,25 @@ import { textureUvProjectPoint } from './texture_uv_project_view.js';
 
 /**
  * Unwraps a face onto its own plane, using the editor's planar basis, then
- * shifts the island so its lowest U and V are 0.
+ * shifts the island so its lowest U is Start and its lowest V is 0.
  *
  * @param corners Face corners in order.
  * @param normal Unit face normal.
  * @param size Metres covered by one texture repeat.
+ * @param start Lowest U of the island.
  * @returns Matrix in the corners' space, or null when the face has no corners.
  */
 export function textureUvUnwrapFace(
   corners: readonly THREE.Vector3[],
   normal: THREE.Vector3,
   size: number,
+  start: number,
 ): SurfaceUvMatrix | null {
   const origin = corners[0];
   if (!origin) return null;
   const mapped = textureUvProjectPlanar(normal, size, origin);
   const lowest = textureUvUnwrapLowest(corners, mapped);
-  return textureUvUnwrapShift(mapped, -lowest[0], -lowest[1]);
+  return textureUvUnwrapShift(mapped, start - lowest[0], -lowest[1]);
 }
 
 /**

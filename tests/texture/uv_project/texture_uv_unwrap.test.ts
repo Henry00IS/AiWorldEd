@@ -11,7 +11,7 @@ describe('textureUvUnwrapFace', () => {
       new THREE.Vector3(2, 0, 2),
       new THREE.Vector3(0, 0, 2),
     ];
-    const matrix = textureUvUnwrapFace(corners, new THREE.Vector3(0, 1, 0), 1);
+    const matrix = textureUvUnwrapFace(corners, new THREE.Vector3(0, 1, 0), 1, 0);
     if (!matrix) throw new Error('Expected an unwrap');
     const uvs = corners.map((corner) => textureUvProjectPoint(matrix, corner));
     const minU = Math.min(...uvs.map(([u]) => u));

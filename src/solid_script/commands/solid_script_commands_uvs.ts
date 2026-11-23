@@ -14,11 +14,7 @@ import { solidScriptFaceGroups, solidScriptFaceTargets } from './solid_script_fa
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import type { SolidScriptFaceFacts } from '@/solid_script/language/solid_script_geometry.js';
 import type { SolidScriptGeometryLeaf } from '@/solid_script/language/solid_script_geometry.js';
-import {
-  solidScriptValueNumber,
-  solidScriptValueNumbers,
-  solidScriptValueText,
-} from '@/solid_script/language/solid_script_value.js';
+import { solidScriptValueNumber, solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
 import {
   solidScriptFaceCornerUvs,
   solidScriptFaceUvMatrix,
@@ -52,6 +48,13 @@ import {
   solidScriptUvIslandsPack,
   type SolidScriptUvPackSettings,
 } from '@/solid_script/language/solid_script_uv_islands.js';
+import {
+  SOLID_SCRIPT_UVS_PACK_METHODS,
+  solidScriptUvsMargin,
+  solidScriptUvsPackSettings,
+  solidScriptUvsPacks,
+  solidScriptUvsVector,
+} from './solid_script_uvs_read.js';
 import {
   textureUvTransformMatrix,
   textureUvTransformPoint,
@@ -225,6 +228,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
         solidScriptUvsPack(run, solidScriptFaceTargets(run, 'Unwrap'), {
           margin: solidScriptUvsMargin(run, 'Unwrap'),
           rotate: true,
+          method: 'Bounding Box',
           from: [0, 0],
           to: [1, 1],
         });
@@ -238,8 +242,12 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
     category: 'UVs',
     description: 'Fit UV islands into 0 to 1',
     manual:
-      "Packs the UV islands of the faces into the 0 to 1 square, keeping each island's shape and scaling all of them alike. Faces that share a corner with the same UV, such as faces Unwrap kept joined, move together as one island. Margin is the gap between islands as a share of the square. Rotate Yes turns each island first so its bounding box is as small as it can be; No keeps the way it faces. Bottom Left and Top Right give the area to fill in U and V, the 0 to 1 square when they do not span one; islands keep their shape. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. Solids stay solids; meshes stay meshes. Example: Unwrap, then Pack Islands.",
-    stops: ['No faces.', 'A Margin below 0 or above 1.'],
+      "Packs the UV islands of the faces into the 0 to 1 square, keeping each island's shape and scaling all of them alike. Faces that share a corner with the same UV, such as faces Unwrap kept joined, move together as one island. Margin is the gap between islands as a share of the square. Rotate Yes turns each island first so its bounding box is as small as it can be; No keeps the way it faces. Method Bounding Box packs the islands' boxes in rows; Convex Hull places each island, largest first, as low as its convex hull fits on those placed before, so slanted sides nest; Exact Shape does so by the faces themselves, so an island can sit in another's notch. With Rotate Yes, Convex Hull and Exact Shape also try quarter and half turns. Bottom Left and Top Right give the area to fill in U and V, the 0 to 1 square when they do not span one; islands keep their shape. Of gives the faces, or solids for all their faces; empty uses [$Selected.Faces]. Solids stay solids; meshes stay meshes. Example: Unwrap, then Pack Islands.",
+    stops: [
+      'No faces.',
+      'A Margin below 0 or above 1.',
+      'A Method other than Bounding Box, Convex Hull or Exact Shape.',
+    ],
     parameters: [
       solidScriptParameter(
         'margin',
@@ -254,6 +262,14 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
         'boolean',
         'Yes',
         'Yes: turn each island so it takes the least room. No: keep the way it faces. Type Yes or No, such as Yes.',
+      ),
+      solidScriptParameterWords(
+        'method',
+        'Method',
+        'text',
+        'Bounding Box',
+        'How tightly islands fit: Bounding Box packs their boxes in rows, Convex Hull nests their convex hulls, Exact Shape nests their faces into notches. Type one, such as Convex Hull.',
+        SOLID_SCRIPT_UVS_PACK_METHODS,
       ),
       solidScriptParameter(
         'from',
@@ -276,6 +292,7 @@ export const SOLID_SCRIPT_COMMANDS_UVS: readonly SolidScriptCommand[] = [
       'Pack Islands',
       ...(read.text('margin') === '' ? [] : [' Margin ', read.value('margin')]),
       ...(read.text('rotate') === '' ? [] : [' Rotate ', read.value('rotate')]),
+      ...(read.changed('method') ? [' Method ', read.value('method')] : []),
       ...(read.text('from') === '' ? [] : [' Bottom Left ', read.value('from')]),
       ...(read.text('to') === '' ? [] : [' Top Right ', read.value('to')]),
       ...solidScriptListingOf(read),
@@ -477,80 +494,6 @@ function solidScriptUvsSize(run: SolidScriptBlockRun, label: string): number {
   if (size === undefined) throw new Error(`${label} needs a Size in metres, such as 1`);
   if (!(size > 0)) throw new Error(`Size must be greater than 0, not ${size}`);
   return size;
-}
-
-/**
- * Reads Margin, 0.001 when left off.
- *
- * @param run Running line.
- * @param label Command, for messages.
- * @returns Gap between islands as a share of the square.
- */
-function solidScriptUvsMargin(run: SolidScriptBlockRun, label: string): number {
-  if (run.source('margin').trim() === '') return 0.001;
-  const margin = solidScriptValueNumber(run.value('margin'));
-  if (margin === undefined || !(margin >= 0 && margin <= 1))
-    throw new Error(`${label} needs a Margin from 0 to 1, such as 0.001`);
-  return margin;
-}
-
-/**
- * Reads how Pack Islands packs: Margin, Rotate, and the area between Bottom
- * Left and Top Right, the 0 to 1 square when they do not span one.
- *
- * @param run Running line.
- * @returns Settings.
- */
-function solidScriptUvsPackSettings(run: SolidScriptBlockRun): SolidScriptUvPackSettings {
-  const rotate = run.value('rotate');
-  if (typeof rotate !== 'boolean') throw new Error('Pack Islands needs Yes or No in Rotate');
-  const from = solidScriptUvsVector(run, 'from', [0, 0, 0], 'Pack Islands Bottom Left');
-  const to = solidScriptUvsVector(run, 'to', [1, 1, 0], 'Pack Islands Top Right');
-  const spans = to.x > from.x && to.y > from.y;
-  return {
-    margin: solidScriptUvsMargin(run, 'Pack Islands'),
-    rotate,
-    from: spans ? [from.x, from.y] : [0, 0],
-    to: spans ? [to.x, to.y] : [1, 1],
-  };
-}
-
-/**
- * Reads Unwrap's Pack.
- *
- * @param run Running line.
- * @returns True to pack the islands into 0 to 1.
- */
-function solidScriptUvsPacks(run: SolidScriptBlockRun): boolean {
-  const pack = run.value('pack');
-  if (typeof pack !== 'boolean') throw new Error('Unwrap needs Yes or No in Pack');
-  return pack;
-}
-
-/**
- * Reads a vector field as numbers, or the fallback when the field is empty.
- *
- * @param run Running line.
- * @param key Field key.
- * @param fallback Used when the field is empty.
- * @param label Field caption, for messages.
- * @returns Three numbers.
- */
-function solidScriptUvsVector(
-  run: SolidScriptBlockRun,
-  key: string,
-  fallback: [number, number, number],
-  label: string,
-): THREE.Vector3 {
-  const text = solidScriptValueText(run.value(key)).trim();
-  if (text === '') return new THREE.Vector3(...fallback);
-  const numbers = solidScriptValueNumbers(run.value(key));
-  const x = numbers?.[0];
-  const y = numbers?.[1];
-  const z = numbers?.[2];
-  if (x === undefined || y === undefined || z === undefined || numbers?.length !== 3)
-    throw new Error(`${label} needs three numbers, such as 0, 1, 0`);
-  return new THREE.Vector3(x, y, z);
 }
 
 /**
@@ -763,16 +706,23 @@ function solidScriptUvsWriteMesh(
 }
 
 /**
- * Unwraps the given faces.
+ * Unwraps the given faces, each laid on its own plane, side by side along U a
+ * whole number of repeats apart, so no two share a spot.
  *
  * @param run Running line.
  * @param faces Faces to unwrap.
  */
 function solidScriptUvsUnwrap(run: SolidScriptBlockRun, faces: readonly SolidScriptFaceFacts[]): void {
   const size = solidScriptUvsSize(run, 'Unwrap');
+  const reach = Math.max(
+    0,
+    ...faces.flatMap((face) => face.corners.map((corner) => corner.distanceTo(face.corners[0]!))),
+  );
+  const stride = Math.ceil((2 * reach) / size) + 1;
+  const order = new Map(faces.map((face, index) => [face, index]));
   for (const [leaf, group] of solidScriptFaceGroups(faces, (face) => face.leaf)) {
     solidScriptUvsWriteLeaf(run, leaf, group, (face) => {
-      const mapped = textureUvUnwrapFace(face.corners, face.normal, size);
+      const mapped = textureUvUnwrapFace(face.corners, face.normal, size, (order.get(face) ?? 0) * stride);
       if (!mapped) throw new Error('Unwrap needs a face with at least one corner');
       return mapped;
     });
