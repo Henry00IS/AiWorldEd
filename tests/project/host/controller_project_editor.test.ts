@@ -219,6 +219,15 @@ describe('ControllerProjectEditor', () => {
     editor.dispose();
   });
 
+  it('drops a queued thumbnail refresh when it is disposed', async () => {
+    const { editor } = editorCreate();
+    const refresh = vi.spyOn(editor.panel, 'thumbnailsRefresh');
+    await editor.openOrReopen();
+    editor.dispose();
+    await settle(150);
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
   it("shows the room owner's project read-only while in a room and the local project again after", async () => {
     const { editor, panelRoot, library, host, autosave, project } = editorCreate([], textureSourceBlocked);
     const changed = vi.spyOn(autosave, 'changed');

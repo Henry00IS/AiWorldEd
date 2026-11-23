@@ -76,7 +76,7 @@ export class ControllerProjectEditor {
   private readonly opener: ProjectSceneOpener;
   private readonly unsubscribers: (() => void)[];
   private notice: string | null;
-  private renderQueued: boolean;
+  private renderTimer: ReturnType<typeof setTimeout> | null;
   private roomShown: boolean;
   private roomScenePending: boolean;
   private readonly curveThumbnails = new CurveThumbnails(() => this.renderQueue());
@@ -129,7 +129,7 @@ export class ControllerProjectEditor {
       host.anchor(),
     );
     this.notice = projectPickerHandleSupported() ? null : CONTROLLER_PROJECT_EDITOR_UNSUPPORTED;
-    this.renderQueued = false;
+    this.renderTimer = null;
     this.roomShown = false;
     this.roomScenePending = false;
     this.unsubscribers = [
@@ -230,11 +230,13 @@ export class ControllerProjectEditor {
     });
   }
 
-  /** Stops watching, autosaving and listening. */
+  /** Stops watching, autosaving, listening and any queued thumbnail refresh. */
   dispose(): void {
     curveProjectAccessSet(null);
     projectFileReaderSet(null);
     this.unsubscribers.splice(0).forEach((unsubscribe) => unsubscribe());
+    if (this.renderTimer !== null) clearTimeout(this.renderTimer);
+    this.renderTimer = null;
     this.curveSources.dispose();
     this.textureCache.dispose();
     this.autosave.dispose();
@@ -375,10 +377,9 @@ export class ControllerProjectEditor {
    * texture loads.
    */
   private renderQueue(): void {
-    if (this.renderQueued) return;
-    this.renderQueued = true;
-    setTimeout(() => {
-      this.renderQueued = false;
+    if (this.renderTimer !== null) return;
+    this.renderTimer = setTimeout(() => {
+      this.renderTimer = null;
       if (this.project.suspendedReason() !== null) this.render();
       else this.panel.thumbnailsRefresh();
     }, 100);
