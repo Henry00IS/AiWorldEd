@@ -145,6 +145,7 @@ const SOLID_SCRIPT_AUDIT_MESHES = new Set([
   'flip_faces',
   'triangulate',
   'separate_mesh',
+  'duplicate_faces',
   'split_edges',
   'extrude_edges',
 ]);
