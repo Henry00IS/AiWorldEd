@@ -1,5 +1,5 @@
 import { solidScriptEachUsed, solidScriptEachUses } from './solid_script_each_uses.js';
-import type { SolidScriptWidgetSlider } from './solid_script_widget.js';
+import type { SolidScriptWidget } from './solid_script_widget.js';
 import { solidScriptShapesNotConvex } from './solid_script_solid_validate.js';
 import {
   SOLID_SCRIPT_USE_GENERATOR,
@@ -128,7 +128,7 @@ export const SOLID_SCRIPT_SEEN_LIMIT = 250_000;
 export class SolidScriptMachine<Command extends SolidScriptMachineCommand> extends SolidScriptMachineCalls<Command> {
   private readonly messages: string[] = [];
   /** Widgets the lines asked for, in run order. */
-  private readonly widgets: SolidScriptWidgetSlider[] = [];
+  private readonly widgets: SolidScriptWidget[] = [];
   /**
    * System lists such as [$Selected.Faces] where the run paused or reached its
    * step limit, or null to read them where the run ends.
@@ -1189,7 +1189,11 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
         state.machine.notices.push(text);
       },
       widgetAdd: (widget) => {
-        if (widget.writes !== '' && state.machine.readOnly.get(solidScriptNameKey(widget.writes)) !== 'input')
+        if (
+          'writes' in widget &&
+          widget.writes !== '' &&
+          state.machine.readOnly.get(solidScriptNameKey(widget.writes)) !== 'input'
+        )
           throw new Error(`there is no input "${widget.writes}" to write; add an Input line for it above`);
         state.machine.widgets.push({ ...widget, line: state.machine.line });
       },

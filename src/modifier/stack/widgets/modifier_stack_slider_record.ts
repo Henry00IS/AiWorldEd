@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { ModifierStackStepRecord } from './modifier_stack_step_record.js';
-import type { SolidScriptWidgetSlider } from '@/solid_script/language/solid_script_widget.js';
+import type { SolidScriptWidget, SolidScriptWidgetSlider } from '@/solid_script/language/solid_script_widget.js';
 
 /** A slider handle of a modifier step, in world coordinates. */
 export interface ModifierStackSlider {
@@ -88,10 +88,11 @@ export function modifierStackSlidersRecorded(owner: THREE.Object3D, stepId: stri
 /**
  * Turns the Widget Sliders of a script run into step sliders that write Inputs.
  *
- * @param sliders Sliders in script coordinates.
+ * @param widgets Widgets of the run, in script coordinates.
  * @returns Sliders in script coordinates.
  */
-export function modifierStackSlidersOfScript(sliders: readonly SolidScriptWidgetSlider[]): ModifierStackSliderLocal[] {
+export function modifierStackSlidersOfScript(widgets: readonly SolidScriptWidget[]): ModifierStackSliderLocal[] {
+  const sliders = widgets.filter((widget): widget is SolidScriptWidgetSlider => widget.kind === 'Slider');
   return sliders.map((slider, index) => ({
     id: `${slider.line}:${index}`,
     label: slider.label,

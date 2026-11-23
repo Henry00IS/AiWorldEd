@@ -12,7 +12,7 @@ import {
   type SolidScriptShapeSolid,
 } from '@/solid_script/language/solid_script_shape.js';
 import type { SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
-import type { SolidScriptWidgetSlider } from '@/solid_script/language/solid_script_widget.js';
+import type { SolidScriptWidget } from '@/solid_script/language/solid_script_widget.js';
 import type { SolidScriptMode } from '@/solid_script/language/solid_script_mode.js';
 import { solidScriptShapeMeshesCut } from '@/solid_script/language/solid_script_mesh_modes.js';
 import {
@@ -40,7 +40,7 @@ export interface ModifierStackSolidScriptLayout {
    */
   passed: ModifierStackSolidScriptPassed[];
   /** Widgets the script asked for, in script coordinates. */
-  widgets: SolidScriptWidgetSlider[];
+  widgets: SolidScriptWidget[];
   /** Matrix from script coordinates to frame coordinates. */
   placement: THREE.Matrix4;
   /** Problem description, or empty. */

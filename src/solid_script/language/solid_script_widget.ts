@@ -27,3 +27,32 @@ export interface SolidScriptWidgetSlider {
   /** CSS colour of the handle and its line, or empty text for the theme colour. */
   color: string;
 }
+
+/**
+ * A drawing a Debug Draw line asked for, in script coordinates: line segments
+ * and, for Text, a caption at a point.
+ */
+export interface SolidScriptWidgetDraw {
+  /** Kind of widget. */
+  kind: 'Draw';
+  /** 1-based line that declared it. */
+  line: number;
+  /** Text shown at the point, or empty text for none. */
+  label: string;
+  /** Point the text is shown at. */
+  at: readonly [number, number, number];
+  /** CSS colour, or empty text for the theme colour. */
+  color: string;
+  /** Segments, each from x, y, z to x, y, z. */
+  segments: readonly (readonly [number, number, number, number, number, number])[];
+}
+
+/** Anything a line puts in the scene for the Generator tool or for debugging. */
+export type SolidScriptWidget = SolidScriptWidgetSlider | SolidScriptWidgetDraw;
+
+/** What a line hands over to add a widget: everything but its line. */
+export type SolidScriptWidgetAdded = SolidScriptWidget extends infer W
+  ? W extends SolidScriptWidget
+    ? Omit<W, 'line'>
+    : never
+  : never;

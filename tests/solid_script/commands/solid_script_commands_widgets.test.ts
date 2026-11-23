@@ -51,8 +51,7 @@ describe('Widget Slider', () => {
       { command: 'end' },
     ]);
     expect(result.error).toBeNull();
-    expect(result.widgets[0]?.origin).toEqual([1, 1, 0]);
-    expect(result.widgets[0]?.direction).toEqual([0, 0, 1]);
+    expect(result.widgets[0]).toMatchObject({ origin: [1, 1, 0], direction: [0, 0, 1] });
   });
 
   it('stops when Writes names no input', () => {

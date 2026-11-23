@@ -2,6 +2,7 @@ import { Tool } from '../tool.js';
 import type { GeneratorEditHost } from './generator_edit_host.js';
 import { GeneratorPathWidget } from './generator_path_widget.js';
 import { GeneratorSliderWidget } from './generator_slider_widget.js';
+import { GeneratorDrawWidget } from './generator_draw_widget.js';
 
 /**
  * Edits the widgets of the selected object in the scene. Transform gizmos and
@@ -16,12 +17,15 @@ export class GeneratorTool extends Tool {
   private readonly sliders = new GeneratorSliderWidget();
   /** Paths of the edited object. */
   private readonly paths = new GeneratorPathWidget();
+  /** Debug Draw drawings of the edited object. */
+  private readonly drawings = new GeneratorDrawWidget();
 
   /** Called when the tool is activated. */
   override onActivate(): void {
     this.host()?.setEditing(true);
     this.editor?.addWidget(this.sliders);
     this.editor?.addWidget(this.paths);
+    this.editor?.addWidget(this.drawings);
     const pathHint = this.host()?.paths().length ? ' · Ctrl+Click Adds a Point · Del Removes It' : '';
     this.editor?.getServices()?.setStatusMessage(`Generator${pathHint} · Esc Returns to Bounds`);
   }

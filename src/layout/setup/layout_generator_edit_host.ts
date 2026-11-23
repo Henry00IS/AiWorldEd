@@ -15,6 +15,7 @@ import {
   modifierStackSliderPatch,
   modifierStackSliders,
 } from '@/modifier/stack/widgets/modifier_stack_sliders.js';
+import { modifierStackDraws } from '@/modifier/stack/widgets/modifier_stack_draw_record.js';
 import type { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { EditorOverlayId } from '@/tools/overlay/editor_overlay_id.js';
 import type { PolicyEditorOverlay } from '@/tools/overlay/policy_editor_overlay.js';
@@ -69,6 +70,7 @@ export function layoutGeneratorEditHostCreate(deps: LayoutGeneratorEditHostDeps)
     snapDistance: (distance) =>
       editSnapDistanceToGrid(distance, deps.gridSnap.getInterval(), deps.gridSnap.isEnabled()),
     paths: () => layoutGeneratorEditOf(selected(), modifierStackPaths),
+    draws: () => layoutGeneratorEditOf(layoutGeneratorEditOnly(deps.selectionManager), modifierStackDraws),
     slide: (slider, value) =>
       layoutGeneratorEditWrite(drag, selected(), slider.stepId, (owner) =>
         slider.writes === '' ? null : modifierStackSliderPatch(owner, slider, value),
@@ -178,9 +180,20 @@ function layoutGeneratorEditChangeCancel(drag: { current: LayoutGeneratorEditDra
  * @returns Object, or null.
  */
 function layoutGeneratorEditSelected(selectionManager: ManagerSelection): THREE.Object3D | null {
+  const only = layoutGeneratorEditOnly(selectionManager);
+  return only && modifierStackEditSteps(only).length > 0 ? only : null;
+}
+
+/**
+ * Returns the one selected object when it is not locked.
+ *
+ * @param selectionManager Object selection.
+ * @returns Object, or null.
+ */
+function layoutGeneratorEditOnly(selectionManager: ManagerSelection): THREE.Object3D | null {
   const selected = selectionManager.getAllSelectedObjectsAsArray();
   const only = selected.length === 1 ? selected[0] : undefined;
-  return only && !isObjectOrAncestorLocked(only) && modifierStackEditSteps(only).length > 0 ? only : null;
+  return only && !isObjectOrAncestorLocked(only) ? only : null;
 }
 
 /**

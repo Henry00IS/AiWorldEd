@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { GeneratorDrawWidget } from '@/editor/tools/generator/generator_draw_widget.js';
 import { EditorWindow } from '@/editor/window/editor_window.js';
 import { EditorInputBridge } from '@/editor/window/editor_input_bridge.js';
 import { Tool } from '@/editor/tools/tool.js';
@@ -540,8 +541,9 @@ describe('Editor tools lifecycle', () => {
     editor.userSwitchToBoundsTool();
     expect(editor.activeTool).toBeInstanceOf(BoundsTool);
     const widgets = editor.getWidgets();
-    expect(widgets).toHaveLength(2);
+    expect(widgets).toHaveLength(3);
     expect(widgets[0]).toBeInstanceOf(BoundsWidget);
     expect(widgets[1]).toBeInstanceOf(GeneratorEditButton);
+    expect(widgets[2]).toBeInstanceOf(GeneratorDrawWidget);
   });
 });

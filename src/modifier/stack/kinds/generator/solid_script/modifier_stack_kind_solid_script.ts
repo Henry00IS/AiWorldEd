@@ -6,6 +6,7 @@ import {
 } from '@/modifier/stack/widgets/modifier_stack_slider_record.js';
 import * as THREE from 'three';
 import { modifierStackPathsRecord } from '@/modifier/stack/widgets/modifier_stack_path_record.js';
+import { modifierStackDrawsRecord } from '@/modifier/stack/widgets/modifier_stack_draw_record.js';
 import {
   MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY,
   MODIFIER_STACK_SOLID_SCRIPT_KEY,
@@ -253,6 +254,7 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
       modifierStackSlidersPlaced(context.step.id, scriptToWorld, modifierStackSlidersOfScript(layout.widgets)),
     );
     modifierStackPathsRecord(context.volume, context.step.id, document, inputs, scriptToWorld);
+    modifierStackDrawsRecord(context.volume, context.step.id, layout.widgets, scriptToWorld);
     if (context.ownsGenerated) for (const mesh of layout.meshes) context.meshes?.push({ ...mesh, frame });
     const count = modifierStackSolidScriptBrushCount(layout.nodes);
     if (context.budget.takeCopies(1, count) < count) {

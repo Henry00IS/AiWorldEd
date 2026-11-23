@@ -9,6 +9,7 @@ import type { ModifierStackPath } from '@/modifier/stack/widgets/modifier_stack_
 import type { PathAsset } from '@/path/model/path_asset.js';
 import { pathEditSelect, pathEditSelected } from '@/path/edit/path_edit_selection.js';
 import type { ModifierStackSlider } from '@/modifier/stack/widgets/modifier_stack_slider_record.js';
+import type { ModifierStackDraw } from '@/modifier/stack/widgets/modifier_stack_draw_record.js';
 import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { managerMouseCursor } from '@/input/manager_mouse_cursor.js';
 
@@ -34,11 +35,12 @@ function setup(selected: THREE.Object3D | null) {
   const camera = new THREE.OrthographicCamera(-2, 2, 1, -1, 0.1, 100);
   camera.position.set(0, 0, 10);
   camera.updateMatrixWorld();
-  const state: { selected: THREE.Object3D | null; sliders: ModifierStackSlider[]; paths: ModifierStackPath[] } = {
-    selected,
-    sliders: [],
-    paths: [],
-  };
+  const state: {
+    selected: THREE.Object3D | null;
+    sliders: ModifierStackSlider[];
+    paths: ModifierStackPath[];
+    draws: ModifierStackDraw[];
+  } = { selected, sliders: [], paths: [], draws: [] };
   const host: GeneratorEditHost = {
     selectedEditable: () => state.selected,
     panes: () => [{ camera, pickElement: pick }],
@@ -46,6 +48,7 @@ function setup(selected: THREE.Object3D | null) {
     setEditing: vi.fn(),
     sliders: () => state.sliders,
     paths: () => state.paths,
+    draws: () => state.draws,
     pathWrite: vi.fn((path: ModifierStackPath, asset: PathAsset) => {
       state.paths = state.paths.map((each) => (each.key === path.key ? { ...each, path: asset } : each));
     }),
@@ -319,6 +322,31 @@ describe('Generator Edit button and Generator tool', () => {
     editor.onRepaint();
     drag(editor, [100, 50], [174, 50]);
     expect(host.slide).not.toHaveBeenCalled();
+  });
+});
+
+describe('Debug Draw in the scene', () => {
+  it('draws the lines and text of the selected object in Bounds and while editing', async () => {
+    const { editor, state } = setup(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1)));
+    const line = { key: 'd', label: '', color: '#e0453a', at: new THREE.Vector3() };
+    state.draws = [
+      { ...line, segments: [[new THREE.Vector3(-1, 0, 0), new THREE.Vector3(1, 0, 0)]] },
+      { ...line, key: 't', label: 'Hi', color: '', segments: [] },
+    ];
+    const shown = (selector: string): HTMLElement[] =>
+      [...document.querySelectorAll<HTMLElement>(selector)].filter((each) => !each.hidden);
+    editor.onRepaint();
+    expect(shown('[data-debug-line]').map((each) => [each.style.width, each.style.borderTopColor])).toEqual([
+      ['100px', 'rgb(224, 69, 58)'],
+    ]);
+    expect(shown('[data-debug-text]').map((each) => each.textContent)).toEqual(['Hi']);
+    await click(editor, [100, 50], [100, 50]);
+    expect(editor.activeTool).toBeInstanceOf(GeneratorTool);
+    editor.onRepaint();
+    expect(shown('[data-debug-line]')).toHaveLength(1);
+    state.draws = [];
+    editor.onRepaint();
+    expect(shown('[data-debug-line]')).toHaveLength(0);
   });
 });
 

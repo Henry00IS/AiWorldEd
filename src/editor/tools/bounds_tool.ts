@@ -4,6 +4,7 @@ import { BoundsWidget } from '../widgets/bounds_widget.js';
 import { widgetsClaimClickAt } from '../widgets/widget.js';
 import { GeneratorEditButton } from '../widgets/generator_edit_button.js';
 import { GeneratorTool } from './generator/generator_tool.js';
+import { GeneratorDrawWidget } from './generator/generator_draw_widget.js';
 
 /**
  * Permanent bounds tool (Shape Editor-style tool + widget): object selection
@@ -14,6 +15,7 @@ export class BoundsTool extends BoxSelectTool {
   private readonly boundsWidget: BoundsWidget;
   private readonly editButton: GeneratorEditButton;
   private readonly generatorTool: GeneratorTool;
+  private readonly drawings = new GeneratorDrawWidget();
 
   /** Creates a bounds tool. */
   constructor() {
@@ -68,6 +70,7 @@ export class BoundsTool extends BoxSelectTool {
     services.setStatusMessage('Bounds');
     this.editor.addWidget(this.boundsWidget);
     this.editor.addWidget(this.editButton);
+    this.editor.addWidget(this.drawings);
     this.updateBoundsWidgetVisibility();
   }
 

@@ -3,6 +3,7 @@ import type { EditorViewportPickContext } from '@/editor/window/editor_viewport_
 import type { PathAsset } from '@/path/model/path_asset.js';
 import type { ModifierStackPath } from '@/modifier/stack/widgets/modifier_stack_path_record.js';
 import type { ModifierStackSlider } from '@/modifier/stack/widgets/modifier_stack_slider_record.js';
+import type { ModifierStackDraw } from '@/modifier/stack/widgets/modifier_stack_draw_record.js';
 
 /**
  * What the Edit button and the Generator tool need from the scene: the selected
@@ -58,6 +59,13 @@ export interface GeneratorEditHost {
    * @returns Paths; empty without a selected object with an edit mode.
    */
   paths(): ModifierStackPath[];
+  /**
+   * Returns the Debug Draw drawings of the one selected object, with or without
+   * an edit mode.
+   *
+   * @returns Drawings in world coordinates; empty without such a selection.
+   */
+  draws(): ModifierStackDraw[];
 
   /**
    * Snaps a distance to the grid when grid snapping is on.

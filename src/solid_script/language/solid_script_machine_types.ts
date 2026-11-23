@@ -19,7 +19,7 @@ import type {
   SolidScriptShapeSolid,
 } from './solid_script_shape.js';
 import type { SolidScriptUseFacts } from './solid_script_system.js';
-import type { SolidScriptWidgetSlider } from './solid_script_widget.js';
+import type { SolidScriptWidget, SolidScriptWidgetAdded } from './solid_script_widget.js';
 import type { SolidScriptElement, SolidScriptPathElement, SolidScriptValue } from './solid_script_value.js';
 
 /** One field of a command, as the machine reads it. */
@@ -312,7 +312,7 @@ export interface SolidScriptBlockRun {
    * Adds a widget of this line for the Generator tool; a Writes given must name
    * an Input.
    */
-  widgetAdd(widget: Omit<SolidScriptWidgetSlider, 'line'>): void;
+  widgetAdd(widget: SolidScriptWidgetAdded): void;
   /** The inspector value of a script input, or undefined when none is set. */
   inputValue(name: string): string | undefined;
   /** Where the script is used, and what a modifier receives. */
@@ -356,7 +356,7 @@ export interface SolidScriptEvaluation {
   shapes: SolidScriptShape[];
   messages: string[];
   /** Widgets the lines asked for, in run order. */
-  widgets: SolidScriptWidgetSlider[];
+  widgets: SolidScriptWidget[];
   /** Warnings by line in line order, such as a block with nothing inside. */
   warnings: SolidScriptWarning[];
   /** Line of every shape in run order, built or not. */
