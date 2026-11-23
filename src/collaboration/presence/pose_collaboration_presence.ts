@@ -7,6 +7,14 @@ import {
 
 /** Jump between two received poses that is shown as a teleport (snap). */
 export const POSE_COLLABORATION_PRESENCE_TELEPORT_METERS = 5;
+/**
+ * Fastest a member really moves (well above the grapple's 32 m/s, falls
+ * included): a jump the time since the newest pose could have covered at this
+ * speed is motion, not a teleport.
+ */
+export const POSE_COLLABORATION_PRESENCE_TELEPORT_METERS_PER_SECOND = 60;
+/** Longest wait between poses that still widens the teleport distance. */
+const POSE_COLLABORATION_PRESENCE_TELEPORT_WAIT_MS = 500;
 /** Time constant of the correction that hides changes to the sampled path. */
 export const POSE_COLLABORATION_PRESENCE_CORRECTION_MS = 100;
 /** Render delay before any arrival was measured. */
@@ -24,7 +32,7 @@ const POSE_COLLABORATION_PRESENCE_CORRECTION_EPSILON = 1e-4;
  * surrounding samples. When packets are late or missing the position goes on
  * linearly for a short capped time (the rotation never does), then holds.
  * Whenever a new pose changes the path being shown, the difference decays
- * smoothly instead of snapping; jumps over the teleport distance snap.
+ * smoothly instead of snapping; teleports snap.
  */
 export class PoseCollaborationPresence {
   readonly position: THREE.Vector3;
@@ -67,15 +75,30 @@ export class PoseCollaborationPresence {
    * @param now Receive time in milliseconds.
    */
   target(position: THREE.Vector3, quaternion: THREE.Quaternion, now: number): void {
-    const newest = this.buffer.newest();
-    if (!newest || newest.position.distanceTo(position) > POSE_COLLABORATION_PRESENCE_TELEPORT_METERS)
-      return this.snap(position, quaternion, now);
+    if (this.isTeleport(position, now)) return this.snap(position, quaternion, now);
     this.update(now);
     this.buffer.push(position, quaternion, now);
     this.sample(now);
     this.offsetPosition.subVectors(this.position, this.sampled.position);
     this.offsetQuaternion.copy(this.quaternion).multiply(this.sampled.quaternion.clone().invert());
     this.compose();
+  }
+
+  /**
+   * Returns whether a received position is a teleport (or the first pose): a
+   * jump over the teleport distance that is also farther than the fastest real
+   * motion covers since the newest pose, so fast flight still glides.
+   *
+   * @param position Received position.
+   * @param now Receive time in milliseconds.
+   * @returns True when it should snap.
+   */
+  isTeleport(position: THREE.Vector3, now: number): boolean {
+    const newest = this.buffer.newest();
+    if (!newest) return true;
+    const waited = THREE.MathUtils.clamp(now - newest.time, 0, POSE_COLLABORATION_PRESENCE_TELEPORT_WAIT_MS);
+    const reach = (POSE_COLLABORATION_PRESENCE_TELEPORT_METERS_PER_SECOND * waited) / 1000;
+    return newest.position.distanceTo(position) > Math.max(POSE_COLLABORATION_PRESENCE_TELEPORT_METERS, reach);
   }
 
   /**

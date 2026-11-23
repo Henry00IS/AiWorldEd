@@ -7,10 +7,7 @@ import {
   type MotionCollaborationPresence,
 } from '@/collaboration/presence/look_collaboration_presence.js';
 import { NametagCollaborationPresence } from '@/collaboration/presence/nametag_collaboration_presence.js';
-import {
-  POSE_COLLABORATION_PRESENCE_TELEPORT_METERS,
-  PoseCollaborationPresence,
-} from '@/collaboration/presence/pose_collaboration_presence.js';
+import { PoseCollaborationPresence } from '@/collaboration/presence/pose_collaboration_presence.js';
 import {
   SoundCollaborationPresence,
   type SoundCollaborationPresenceSink,
@@ -105,9 +102,7 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
   private readonly animator: PlayerCharacterAnimator;
   private readonly sound: SoundCollaborationPresence;
   private readonly flags: { time: number; flags: number }[];
-  private readonly lastTarget: THREE.Vector3;
   private rig: PlayerCharacterRig | null;
-  private hasTarget: boolean;
   private teleported: boolean;
   private updated: number;
   private settleUntil: number;
@@ -148,9 +143,7 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
     this.sound = new SoundCollaborationPresence(sound);
     this.animator = new PlayerCharacterAnimator((x, y, z, speed) => this.sound.step(x, y, z, speed, this.clock));
     this.flags = [];
-    this.lastTarget = new THREE.Vector3();
     this.rig = null;
-    this.hasTarget = false;
     this.teleported = true;
     this.updated = Number.NaN;
     this.settleUntil = 0;
@@ -183,10 +176,7 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
    */
   target(entry: PresenceEntry, now: number): void {
     const position = new THREE.Vector3(...entry.position);
-    if (!this.hasTarget || this.lastTarget.distanceTo(position) > POSE_COLLABORATION_PRESENCE_TELEPORT_METERS)
-      this.teleported = true;
-    this.hasTarget = true;
-    this.lastTarget.copy(position);
+    if (this.pose.isTeleport(position, now)) this.teleported = true;
     this.flags.push({ time: now, flags: entry.fov });
     if (this.flags.length > CHARACTER_COLLABORATION_PRESENCE_FLAGS_KEPT) this.flags.shift();
     this.pose.target(position, new THREE.Quaternion(...entry.quaternion), now);
