@@ -187,6 +187,32 @@ describe('PlayerPlaySession toys and keyboard', () => {
     play.system.dispose();
   });
 
+  it('fires the grapple beam with a left click, pulls while held and lets go on release or another toy', () => {
+    const play = playEnter();
+    play.tool.onKeyDown('Digit6');
+    frames(play, 1);
+    expect(play.session.getSelectedToy()).toBe('grapple');
+    expect(play.balls.getHeld()).toBeNull();
+    expect(play.shown.at(-1)).toContain('hold LMB grapple, let go to fly');
+    const beams = () => play.helpers.children.filter((child) => child.name === 'Grapple Beam');
+    const grapple = (play.session as unknown as { grapple: { getAnchor(): THREE.Vector3 | null } }).grapple;
+    play.session.applyLookDelta(0, 300);
+    click(play);
+    expect(grapple.getAnchor()).not.toBeNull();
+    frames(play, 2);
+    expect(beams()).toHaveLength(1);
+    expect(play.session.getBodyMotion()?.velocity.length()).toBeGreaterThan(5);
+    play.session.releaseToy();
+    expect(grapple.getAnchor()).toBeNull();
+    frames(play, 10);
+    expect(beams()).toHaveLength(0);
+    click(play);
+    expect(grapple.getAnchor()).not.toBeNull();
+    play.tool.onKeyDown('Digit2');
+    expect(grapple.getAnchor()).toBeNull();
+    play.system.dispose();
+  });
+
   it('places the keyboard with a left click and puts it away with the next, in both views', () => {
     const play = playEnter();
     play.tool.onKeyDown('Digit5');
@@ -280,14 +306,14 @@ describe('PlayerPlaySession toys and keyboard', () => {
 
   it('hints the keyboard controls while it is out, and how toys are picked in each view', () => {
     const play = playEnter();
-    expect(play.shown.at(-1)).toContain('1-5 or wheel pick toy');
+    expect(play.shown.at(-1)).toContain('1-6 or wheel pick toy');
     play.session.toggleViewMode();
-    expect(play.shown.at(-1)).toBe('Third-person — ESC exit, LMB throw, 1-5 pick toy, RMB first-person');
+    expect(play.shown.at(-1)).toBe('Third-person — ESC exit, LMB throw, 1-6 pick toy, RMB first-person');
     play.tool.onKeyDown('Digit5');
     click(play);
     frames(play, 1);
     expect(play.shown.at(-1)).toBe(
-      'Keyboard: Sine, octave 1 — LMB put away (then 1-5 pick toy), ←/→ instrument, ↑/↓ octave, Shift vibrato, RMB first-person',
+      'Keyboard: Sine, octave 1 — LMB put away (then 1-6 pick toy), ←/→ instrument, ↑/↓ octave, Shift vibrato, RMB first-person',
     );
     play.session.toggleViewMode();
     expect(play.shown.at(-1)).toBe(

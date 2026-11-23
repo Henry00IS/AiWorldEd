@@ -63,6 +63,8 @@ export interface PlayerBallSnapshot {
    * its events overflow one entry (payloads are opaque here).
    */
   keyboard?: ToyEntry[];
+  /** Entry of the thrower's hooked grapple beam, when hooked. */
+  grapple?: ToyEntry;
 }
 
 /** Another member in play mode, as this client shows them. */

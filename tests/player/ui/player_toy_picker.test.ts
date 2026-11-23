@@ -7,13 +7,14 @@ describe('PlayerToyPicker', () => {
     document.body.innerHTML = '';
   });
 
-  it('steps through empty hands, tennis ball, soccer ball, paper plane and keyboard, wrapping both ways', () => {
+  it('steps through empty hands, tennis ball, soccer ball, paper plane, keyboard and grapple, wrapping both ways', () => {
     expect(playerToyPickerStep(null, 100)).toBe('tennis');
     expect(playerToyPickerStep('tennis', 100)).toBe('soccer');
     expect(playerToyPickerStep('soccer', 3)).toBe('plane');
     expect(playerToyPickerStep('plane', 100)).toBe('keyboard');
-    expect(playerToyPickerStep('keyboard', 100)).toBeNull();
-    expect(playerToyPickerStep(null, -100)).toBe('keyboard');
+    expect(playerToyPickerStep('keyboard', 100)).toBe('grapple');
+    expect(playerToyPickerStep('grapple', 100)).toBeNull();
+    expect(playerToyPickerStep(null, -100)).toBe('grapple');
     expect(playerToyPickerStep('tennis', -1)).toBeNull();
   });
 
@@ -28,8 +29,15 @@ describe('PlayerToyPicker', () => {
     expect(container.style.position).toBe('relative');
     expect(element.style.pointerEvents).toBe('none');
     const slots = [...element.querySelectorAll<HTMLElement>('[role="option"]')];
-    expect(slots.map((slot) => slot.dataset['toy'])).toEqual(['empty', 'tennis', 'soccer', 'plane', 'keyboard']);
-    expect(slots.map((slot) => slot.textContent)).toEqual(['1', '2', '3', '4', '5']);
+    expect(slots.map((slot) => slot.dataset['toy'])).toEqual([
+      'empty',
+      'tennis',
+      'soccer',
+      'plane',
+      'keyboard',
+      'grapple',
+    ]);
+    expect(slots.map((slot) => slot.textContent)).toEqual(['1', '2', '3', '4', '5', '6']);
     picker.select(null);
     expect(element.textContent).toContain('Empty hands');
     picker.select('plane');
@@ -39,10 +47,13 @@ describe('PlayerToyPicker', () => {
       'false',
       'true',
       'false',
+      'false',
     ]);
     expect(element.textContent).toContain('Paper plane');
     picker.select('keyboard');
     expect(element.textContent).toContain('Keyboard');
+    picker.select('grapple');
+    expect(element.textContent).toContain('Grapple beam');
     expect(element.style.opacity).toBe('1');
     vi.advanceTimersByTime(2000);
     expect(Number(element.style.opacity)).toBeLessThan(1);

@@ -10,7 +10,8 @@ import {
 import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
 import type { PlayerBallSnapshot, PlayerBallState } from '@/player/ball/player_ball_link.js';
 import { playerKeyboardEntriesFind, TOY_TYPE_KEYBOARD } from '@/player/keyboard/player_keyboard_protocol.js';
-import { PLAYER_TOY_KEYBOARD, type PlayerToyKind } from '@/player/toy/player_toy_kind.js';
+import { PLAYER_TOY_GRAPPLE, PLAYER_TOY_KEYBOARD, type PlayerToyKind } from '@/player/toy/player_toy_kind.js';
+import { playerGrappleEntryFind } from '@/player/grapple/player_grapple_remote.js';
 
 /**
  * Toy type: a soccer ball put down in front of its player (same 7-byte payload
@@ -55,11 +56,12 @@ const TOY_TENNIS_BALL_INT16 = 32767;
  *
  * @param snapshot Own balls, the placed keyboard and the held toy.
  * @param respawned Respawn flags (bit n: toy id n + 1 was just respawned).
- * @returns Toy snapshot with an entry per ball (and the keyboard entries).
+ * @returns Toy snapshot with an entry per ball (and the keyboard and grapple
+ *   entries).
  */
 export function toyTennisBallEncode(snapshot: PlayerBallSnapshot, respawned = 0): ToySnapshot {
   const entries = snapshot.balls.map((ball) => toyTennisBallEntry(ball));
-  entries.push(...(snapshot.keyboard ?? []));
+  entries.push(...(snapshot.keyboard ?? []), ...(snapshot.grapple ? [snapshot.grapple] : []));
   const frame = toyFramePrecision(entries.map((entry) => entry.position));
   const held = toyHeldType(snapshot.held);
   return { full: snapshot.full, tick: snapshot.tick, ...frame, respawned, held, entries };
@@ -72,7 +74,7 @@ export function toyTennisBallEncode(snapshot: PlayerBallSnapshot, respawned = 0)
  * @returns Toy type.
  */
 function toyHeldType(held: PlayerToyKind | null | undefined): number {
-  if (!held) return TOY_HELD_EMPTY;
+  if (!held || held === PLAYER_TOY_GRAPPLE) return TOY_HELD_EMPTY;
   return held === PLAYER_TOY_KEYBOARD ? TOY_TYPE_KEYBOARD : TOY_TYPES[held];
 }
 
@@ -124,8 +126,8 @@ function toyTennisBallVelocity(value: number): number {
 
 /**
  * Reads the balls and paper planes of a relayed toy frame, the held toy and the
- * keyboard entries (payloads stay opaque here); unknown toy types are ignored.
- * A malformed ball payload rejects the whole frame.
+ * keyboard and grapple entries (payloads stay opaque here); unknown toy types
+ * are ignored. A malformed ball payload rejects the whole frame.
  *
  * @param frame Decoded toy frame.
  * @returns Ball snapshot, or null when a ball payload is malformed.
@@ -141,12 +143,14 @@ export function toyTennisBallDecode(frame: ToyFrame): PlayerBallSnapshot | null 
   }
   const held = toyHeldDecode(frame);
   const keyboard = playerKeyboardEntriesFind(frame.entries);
+  const grapple = playerGrappleEntryFind(frame.entries);
   return {
     full: frame.full,
     tick: frame.tick,
     balls,
     ...(held === undefined ? {} : { held }),
     ...(keyboard.length > 0 ? { keyboard } : {}),
+    ...(grapple ? { grapple } : {}),
   };
 }
 

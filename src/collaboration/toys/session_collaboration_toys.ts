@@ -4,7 +4,7 @@ import { toyFrameDecode, toyFrameEncode } from '@/collaboration/shared/toy_frame
 import type { SessionCollaborationTransport } from '@/collaboration/session/session_collaboration_types.js';
 import type { MemberCollaborationRoster } from '@/collaboration/sync/member_collaboration_roster.js';
 import type { PlayerCharacterHandTargets } from '@/player/character/player_character_hand_targets.js';
-import { PLAYER_TOY_KEYBOARD } from '@/player/toy/player_toy_kind.js';
+import { PLAYER_TOY_GRAPPLE, PLAYER_TOY_KEYBOARD } from '@/player/toy/player_toy_kind.js';
 import type {
   PlayerBallLink,
   PlayerBallLinkListener,
@@ -94,7 +94,8 @@ export class ToysCollaborationSession implements PlayerBallLink {
     if (!balls) return;
     this.respawns.incoming(decoded.sender, decoded.respawned, balls.balls);
     const held = balls.held;
-    if (held !== undefined) this.presence.holdSet(decoded.sender, held === PLAYER_TOY_KEYBOARD ? null : held);
+    const empty = held === PLAYER_TOY_KEYBOARD || held === PLAYER_TOY_GRAPPLE;
+    if (held !== undefined) this.presence.holdSet(decoded.sender, empty ? null : held);
     this.listener?.snapshot(decoded.sender, balls);
   }
 
