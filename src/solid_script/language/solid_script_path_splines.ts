@@ -127,131 +127,103 @@ function solidScriptPathCatmullSample<Point extends readonly number[]>(
   return sampled;
 }
 
+/** Settings of a NURBS path. */
+type SolidScriptPathNurbsSpline = Extract<SolidScriptPathSpline, { kind: 'nurbs' }>;
+
 /**
- * Tells how a NURBS path's knots repeat: how often each inner value, how often
- * the first, and how many at the end carry on from the start.
- *
- * @param order Order.
- * @param closed True when the path loops.
- * @param mode How the knots are spaced.
- * @returns Repeats of inner values, of the first value, and knots at the end.
+ * The control points a NURBS path is drawn from, its knots and the part of them
+ * it runs over.
  */
-function solidScriptPathKnotRuns(
-  order: number,
-  closed: boolean,
-  mode: SolidScriptPathKnots,
-): { repeat: number; head: number; tail: number } {
-  const repeat = mode === 'Bezier' ? order - 1 : 1;
-  const head = mode === 'Endpoint' ? order - (closed ? 1 : 0) : mode === 'Bezier' ? Math.min(2, repeat) : 1;
-  return { repeat, head, tail: closed ? 2 * order - 1 : mode === 'Endpoint' ? order : 0 };
+interface SolidScriptPathNurbsSetup<Point extends readonly number[]> {
+  controls: readonly Point[];
+  knots: number[];
+  degree: number;
+  from: number;
+  to: number;
 }
 
 /**
- * Lays out the knots of a NURBS path: each Bezier stretch shares one knot
- * value, Endpoint repeats the first and last so the path reaches its ends, and
- * a closed path carries on past its end to wrap round.
+ * Builds a knot vector one unit apart: Normal spaces every knot evenly;
+ * Endpoint repeats the first and last knot Degree + 1 times so the curve starts
+ * and ends on its end points; Bezier repeats every inner knot Degree times so
+ * each run of Degree + 1 points is its own Bezier stretch.
  *
- * @param count Points.
- * @param order Order.
- * @param closed True when the path loops.
- * @param mode How the knots are spaced.
- * @returns Knots.
+ * @param controls Number of control points.
+ * @param degree Degree.
+ * @param mode Knot mode.
+ * @returns Knots, Controls + Degree + 1 of them.
  */
-function solidScriptPathKnotValues(
-  count: number,
-  order: number,
-  closed: boolean,
-  mode: SolidScriptPathKnots,
-): number[] {
-  const { repeat, head, tail } = solidScriptPathKnotRuns(order, closed, mode);
-  const knots = new Array<number>(count + order + (closed ? order - 1 : 0)).fill(0);
-  const offset = mode === 'Endpoint' && closed ? 1 : 0;
-  let left = head;
-  let current = offset;
-  for (let index = offset; index < knots.length - tail; index++) {
-    knots[index] = current;
-    left--;
-    if (left === 0) {
-      current++;
-      left = repeat;
-    }
-  }
-  for (let index = 0; index < tail; index++)
-    knots[knots.length - tail + index] = current + (knots[index] ?? 0) - (knots[0] ?? 0);
-  return knots;
+function solidScriptPathKnotVector(controls: number, degree: number, mode: SolidScriptPathKnots): number[] {
+  const count = controls + degree + 1;
+  if (mode === 'Normal') return Array.from({ length: count }, (_, index) => index);
+  if (mode === 'Endpoint')
+    return Array.from({ length: count }, (_, index) => Math.min(Math.max(index - degree, 0), controls - degree));
+  return Array.from({ length: count }, (_, index) => Math.floor(Math.max(index - 1, 0) / degree));
 }
 
 /**
- * Weighs the points that shape a NURBS path at one place along it, the way the
- * standard recurrence does, starting from the point Span less Degree.
- *
- * @param knots Knots.
- * @param degree Order less one.
- * @param t Place along the path, in knot values.
- * @param span Knot the place lies after.
- * @returns Weight of each of Degree plus one points.
- */
-function solidScriptPathNurbsBasis(knots: readonly number[], degree: number, t: number, span: number): number[] {
-  const weights = [1];
-  const left = [0];
-  const right = [0];
-  for (let j = 1; j <= degree; j++) {
-    left[j] = t - (knots[span + 1 - j] ?? 0);
-    right[j] = (knots[span + j] ?? 0) - t;
-    let saved = 0;
-    for (let r = 0; r < j; r++) {
-      const share = (weights[r] ?? 0) / ((right[r + 1] ?? 0) + (left[j - r] ?? 0));
-      weights[r] = saved + (right[r + 1] ?? 0) * share;
-      saved = (left[j - r] ?? 0) * share;
-    }
-    weights[j] = saved;
-  }
-  return weights;
-}
-
-/**
- * Mixes points by weight, the first weight going to the point at Start and
- * wrapping round past the last.
+ * Works out what a NURBS path is drawn from. A closed Normal path repeats its
+ * first Degree points at the end, the usual periodic curve; Bezier knots skip
+ * the outer handles of an open path and run round to the start on a closed one.
+ * Paths that cannot be drawn give none.
  *
  * @param points Points.
- * @param weights Weights.
- * @param start Point the first weight goes to.
- * @returns Mixed point.
- */
-function solidScriptPathMix<Point extends readonly number[]>(
-  points: readonly Point[],
-  weights: readonly number[],
-  start: number,
-): Point {
-  const mixed = (points[0] ?? []).map((_, axis) =>
-    weights.reduce((sum, weight, j) => sum + weight * (points[(start + j) % points.length]?.[axis] ?? 0), 0),
-  );
-  return mixed as readonly number[] as Point;
-}
-
-/**
- * Tells whether a NURBS path can be drawn: enough points for its order, and
- * Bezier knots that fall in whole stretches.
- *
- * @param count Points.
- * @param spline NURBS settings.
  * @param closed True when the path loops.
- * @returns True when it can.
+ * @param spline NURBS settings.
+ * @returns Setup, or none to keep the points.
  */
-function solidScriptPathNurbsDrawable(
-  count: number,
-  spline: SolidScriptPathSpline & { kind: 'nurbs' },
+function solidScriptPathNurbsSetup<Point extends readonly number[]>(
+  points: readonly Point[],
   closed: boolean,
-): boolean {
-  if (count < spline.order || spline.order < 2 || spline.resolution < 1) return false;
-  if (spline.knots !== 'Bezier') return true;
-  return count > spline.order && (!closed || count % (spline.order - 1) === 0);
+  spline: SolidScriptPathNurbsSpline,
+): SolidScriptPathNurbsSetup<Point> | undefined {
+  const degree = spline.order - 1;
+  if (degree < 1) return undefined;
+  const bezier = spline.knots === 'Bezier';
+  const controls = bezier
+    ? closed
+      ? [...points.slice(1), ...points.slice(0, 2)]
+      : points.slice(1, -1)
+    : closed
+      ? [...points, ...points.slice(0, degree)]
+      : [...points];
+  if (points.length < spline.order || (bezier && (controls.length - 1) % degree !== 0)) return undefined;
+  const knots = solidScriptPathKnotVector(controls.length, degree, closed && !bezier ? 'Normal' : spline.knots);
+  return { controls, knots, degree, from: knots[degree] ?? 0, to: knots[controls.length] ?? 0 };
 }
 
 /**
- * Samples a NURBS path: Resolution points along each stretch between distinct
- * knots, and the end of an open one. One that cannot be drawn runs straight
- * through its points.
+ * Finds the point of a NURBS path at a parameter with de Boor's algorithm: the
+ * Degree + 1 control points of the knot span are blended pairwise, Degree
+ * times, into one point.
+ *
+ * @param setup Path setup.
+ * @param t Parameter, from From to To.
+ * @returns Point.
+ */
+function solidScriptPathDeBoor<Point extends readonly number[]>(
+  setup: SolidScriptPathNurbsSetup<Point>,
+  t: number,
+): Point {
+  const { controls, knots, degree } = setup;
+  let span = degree;
+  while (span < controls.length - 1 && (knots[span + 1] ?? 0) <= t) span++;
+  const blend: number[][] = Array.from({ length: degree + 1 }, (_, j) => [...(controls[span - degree + j] ?? [])]);
+  for (let round = 1; round <= degree; round++) {
+    for (let j = degree; j >= round; j--) {
+      const low = knots[span - degree + j] ?? 0;
+      const high = knots[span + 1 + j - round] ?? 0;
+      const share = high === low ? 0 : (t - low) / (high - low);
+      blend[j] = (blend[j] ?? []).map((part, axis) => (1 - share) * (blend[j - 1]?.[axis] ?? 0) + share * part);
+    }
+  }
+  return (blend[degree] ?? []) as readonly number[] as Point;
+}
+
+/**
+ * Samples a NURBS path evenly along its parameter, Resolution steps per unit
+ * knot step; an open path also gets its last point, a closed one does not
+ * repeat its first.
  *
  * @param points Points.
  * @param closed True when the path loops.
@@ -261,26 +233,14 @@ function solidScriptPathNurbsDrawable(
 function solidScriptPathNurbsSample<Point extends readonly number[]>(
   points: readonly Point[],
   closed: boolean,
-  spline: SolidScriptPathSpline & { kind: 'nurbs' },
+  spline: SolidScriptPathNurbsSpline,
 ): Point[] {
-  if (!solidScriptPathNurbsDrawable(points.length, spline, closed)) return [...points];
-  const degree = spline.order - 1;
-  const knots = solidScriptPathKnotValues(points.length, spline.order, closed, spline.knots);
-  const wrapped = points.length + (closed ? degree : 0);
-  const at = (t: number, span: number): Point =>
-    solidScriptPathMix(points, solidScriptPathNurbsBasis(knots, degree, t, span), span - degree);
-  const sampled: Point[] = [];
-  let lastSpan = degree;
-  for (let span = degree; span < wrapped; span++) {
-    const from = knots[span] ?? 0;
-    const width = (knots[span + 1] ?? 0) - from;
-    if (width <= 0) continue;
-    lastSpan = span;
-    for (let step = 0; step < spline.resolution; step++)
-      sampled.push(at(from + (width * step) / spline.resolution, span));
-  }
-  if (!closed) sampled.push(at(knots[wrapped] ?? 0, lastSpan));
-  return sampled;
+  const setup = solidScriptPathNurbsSetup(points, closed, spline);
+  if (!setup) return [...points];
+  const steps = Math.max(1, Math.round((setup.to - setup.from) * spline.resolution));
+  return Array.from({ length: closed ? steps : steps + 1 }, (_, index) =>
+    solidScriptPathDeBoor(setup, setup.from + ((setup.to - setup.from) * index) / steps),
+  );
 }
 
 /**

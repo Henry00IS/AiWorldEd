@@ -52,6 +52,12 @@ describe('Set Path Type Catmull Rom and NURBS', () => {
     );
   });
 
+  it('keeps an open NURBS path of five points smooth across its inner knot', () => {
+    expect(typed('[0, 0, 0], [1, 2, 0], [2, 0, 0], [3, 2, 0], [4, 0, 0]', [['NURBS', '1']])).toBe(
+      '[[0, 0, 0], [2, 1, 0], [4, 0, 0]]',
+    );
+  });
+
   it('rounds a closed NURBS path inside its points with no seam', () => {
     expect(typed(SQUARE, [['NURBS', '1']], true)).toBe('[[5, 1, 0], [5, 5, 0], [1, 5, 0], [1, 1, 0]]');
   });
