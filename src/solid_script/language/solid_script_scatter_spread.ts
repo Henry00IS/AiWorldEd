@@ -117,6 +117,35 @@ function solidScriptScatterPick(
   return triangle;
 }
 
+/** Points kept by the spacer, by grid cell: x, then y, then z. */
+type SolidScriptScatterCells = Map<number, Map<number, Map<number, THREE.Vector3[]>>>;
+
+/**
+ * Lists the points kept in one grid cell.
+ *
+ * @param cells Points by cell.
+ * @param x Cell along x.
+ * @param y Cell along y.
+ * @param z Cell along z.
+ * @param make Adds the cell when it is missing.
+ * @returns Points, or undefined when the cell is missing and not made.
+ */
+function solidScriptScatterCell(
+  cells: SolidScriptScatterCells,
+  x: number,
+  y: number,
+  z: number,
+  make = false,
+): THREE.Vector3[] | undefined {
+  let byY = cells.get(x);
+  if (!byY && make) cells.set(x, (byY = new Map()));
+  let byZ = byY?.get(y);
+  if (byY && !byZ && make) byY.set(y, (byZ = new Map()));
+  let points = byZ?.get(z);
+  if (byZ && !points && make) byZ.set(z, (points = []));
+  return points;
+}
+
 /**
  * Keeps points a distance apart: each call tells whether a point is far enough
  * from every point kept so far, and keeps it when it is. A spacing of 0 keeps
@@ -127,21 +156,17 @@ function solidScriptScatterPick(
  */
 export function solidScriptScatterSpacer(spacing: number): (point: THREE.Vector3) => boolean {
   if (spacing <= 0) return () => true;
-  const cells = new Map<string, THREE.Vector3[]>();
-  const cell = (point: THREE.Vector3, dx: number, dy: number, dz: number): string =>
-    `${Math.floor(point.x / spacing) + dx},${Math.floor(point.y / spacing) + dy},${Math.floor(point.z / spacing) + dz}`;
-  const near = (point: THREE.Vector3): boolean =>
-    [-1, 0, 1].some((dx) =>
-      [-1, 0, 1].some((dy) =>
-        [-1, 0, 1].some((dz) =>
-          (cells.get(cell(point, dx, dy, dz)) ?? []).some((kept) => kept.distanceTo(point) < spacing),
-        ),
-      ),
-    );
+  const cells: SolidScriptScatterCells = new Map();
   return (point) => {
-    if (near(point)) return false;
-    const key = cell(point, 0, 0, 0);
-    cells.set(key, [...(cells.get(key) ?? []), point]);
+    const x = Math.floor(point.x / spacing);
+    const y = Math.floor(point.y / spacing);
+    const z = Math.floor(point.z / spacing);
+    for (let dx = -1; dx <= 1; dx++)
+      for (let dy = -1; dy <= 1; dy++)
+        for (let dz = -1; dz <= 1; dz++)
+          for (const kept of solidScriptScatterCell(cells, x + dx, y + dy, z + dz) ?? [])
+            if (kept.distanceTo(point) < spacing) return false;
+    solidScriptScatterCell(cells, x, y, z, true)!.push(point);
     return true;
   };
 }
