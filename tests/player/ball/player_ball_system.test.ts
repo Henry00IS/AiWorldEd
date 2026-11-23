@@ -191,6 +191,24 @@ describe('PlayerBallSystem', () => {
     expect(shown(watcher).size).toBe(PLAYER_BALL_MAXIMUM_PER_MEMBER);
   });
 
+  it('hooks the grapple with all four balls out by replacing the oldest, in a frame the relay accepts', () => {
+    const { room: fake, thrower, watcher } = room();
+    for (let index = 0; index < PLAYER_BALL_MAXIMUM_PER_MEMBER; index++) {
+      thrower.system.throwFrom(EYE, FORWARD);
+      fake.run(2);
+    }
+    fake.run(40);
+    thrower.system.setGrapple(new THREE.Vector3(0, 5, 20));
+    expect(() => fake.run(40)).not.toThrow();
+    const ids = thrower.system
+      .getAuthority()
+      .getBodies()
+      .map((body) => body.id);
+    expect(ids).toEqual([2, 3, 4]);
+    expect(fake.frames.at(-1)?.entries).toBe(PLAYER_BALL_MAXIMUM_PER_MEMBER - 1);
+    expect(shown(watcher).size).toBe(PLAYER_BALL_MAXIMUM_PER_MEMBER - 1);
+  });
+
   it('removes balls when their thrower leaves play mode or the room', () => {
     const { room: fake, owner, thrower, watcher } = room();
     [owner, thrower, watcher].forEach((client) => client.system.throwFrom(EYE, FORWARD));

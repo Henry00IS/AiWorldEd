@@ -29,6 +29,7 @@ import {
 import { PLAYER_TOY_GRAPPLE, type PlayerToyKind } from '@/player/toy/player_toy_kind.js';
 import { PlayerBallAuthority, playerBallThrowStart } from './player_ball_authority.js';
 import {
+  PLAYER_BALL_MAXIMUM_PER_MEMBER,
   PLAYER_BALL_OFFLINE_COLOR,
   PLAYER_BALL_PLACE_FORWARD_METERS,
   PLAYER_BALL_PLACE_REACH_METERS,
@@ -639,10 +640,11 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
       return false;
     }
     const extraId = this.keyboardExtraId(now);
+    const grappleId = this.grappleId(now, extraId);
     this.publisher.note(this.authority.takeChanges());
     const snapshot = this.grappleFrame(
       this.keyboardFrame(this.publisher.next(this.authority, now, this.playingHeld()), now, extraId),
-      now,
+      grappleId,
     );
     if (snapshot && link.publish(snapshot)) {
       this.publisher.mark(snapshot, this.authority.isAwake(), now);
@@ -672,12 +674,40 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
    */
   private keyboardExtraId(now: number): number | null {
     if (!this.keyboard.isOverflowing(now)) return null;
+    return this.toyIdFree([PLAYER_KEYBOARD_TOY_ID], true);
+  }
+
+  /**
+   * Finds a toy id for the grapple entry while hooked or just missed: one no
+   * own toy and no keyboard entry uses, or else (only for the beam) the oldest
+   * toy's, removing that toy as a new throw would; a miss then goes unsent.
+   * Runs before the snapshot is built, so a removed toy is never listed.
+   *
+   * @param now Current time in milliseconds.
+   * @param extraId Toy id of the keyboard's continuation entry, or null.
+   * @returns Toy id, or null when there is nothing to send or no id.
+   */
+  private grappleId(now: number, extraId: number | null): number | null {
+    const missed = this.grappleMissed !== null && now < this.grappleMissed.until;
+    if (!this.grapple && !missed) return null;
+    const keyboard = this.keyboard.getLocal() ? [PLAYER_KEYBOARD_TOY_ID] : [];
+    return this.toyIdFree([...keyboard, ...(extraId === null ? [] : [extraId])], this.grapple !== null);
+  }
+
+  /**
+   * Finds a toy id no own toy uses, besides the given ones.
+   *
+   * @param kept Ids already taken by other entries.
+   * @param evict Whether to free the oldest toy's id when none is left.
+   * @returns Toy id, or null.
+   */
+  private toyIdFree(kept: readonly number[], evict: boolean): number | null {
     const bodies = this.authority.getBodies();
-    const ids = Array.from({ length: PLAYER_KEYBOARD_TOY_ID - 1 }, (_, index) => index + 1);
-    const free = ids.find((id) => bodies.every((body) => body.id !== id));
+    const ids = Array.from({ length: PLAYER_BALL_MAXIMUM_PER_MEMBER }, (_, index) => index + 1);
+    const free = ids.find((id) => !kept.includes(id) && bodies.every((body) => body.id !== id));
     if (free !== undefined) return free;
     const oldest = bodies[0];
-    if (!oldest) return null;
+    if (!evict || !oldest) return null;
     this.authority.removeWhere((body) => body === oldest);
     return oldest.id;
   }
@@ -703,28 +733,15 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
   }
 
   /**
-   * Adds the hooked own grapple beam (or a shot just missed) to a snapshot,
-   * under a toy id no own toy uses (for the beam the oldest toy makes way when
-   * all are out, as a new throw would; a miss then goes unsent).
+   * Adds the hooked own grapple beam (or a shot just missed) to a snapshot.
    *
    * @param snapshot Snapshot due now, or null.
-   * @param now Current time in milliseconds.
+   * @param id Toy id freed for it (null: nothing to add).
    * @returns Snapshot to send, or null.
    */
-  private grappleFrame(snapshot: PlayerBallSnapshot | null, now: number): PlayerBallSnapshot | null {
-    const missed = this.grappleMissed && now < this.grappleMissed.until ? this.grappleMissed : null;
-    if (!snapshot || (!this.grapple && !missed)) return snapshot;
-    const taken = new Set([
-      ...this.authority.getBodies().map((body) => body.id),
-      ...(snapshot.keyboard ?? []).map((entry) => entry.id),
-    ]);
-    let id = [1, 2, 3, PLAYER_KEYBOARD_TOY_ID].find((candidate) => !taken.has(candidate));
-    if (id === undefined) {
-      const oldest = this.authority.getBodies()[0];
-      if (!oldest || !this.grapple) return snapshot;
-      this.authority.removeWhere((body) => body === oldest);
-      id = oldest.id;
-    }
+  private grappleFrame(snapshot: PlayerBallSnapshot | null, id: number | null): PlayerBallSnapshot | null {
+    const missed = this.grappleMissed;
+    if (!snapshot || id === null) return snapshot;
     if (this.grapple) return { ...snapshot, grapple: playerGrappleEntry(id, this.grapple) };
     return missed ? { ...snapshot, grapple: playerGrappleMissEntry(id, missed.end, missed.count) } : snapshot;
   }
