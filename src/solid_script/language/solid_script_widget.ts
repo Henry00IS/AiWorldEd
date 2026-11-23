@@ -24,4 +24,6 @@ export interface SolidScriptWidgetSlider {
   min: number | null;
   /** Largest value a drag writes, or null for no limit. */
   max: number | null;
+  /** CSS colour of the handle and its line, or empty text for the theme colour. */
+  color: string;
 }

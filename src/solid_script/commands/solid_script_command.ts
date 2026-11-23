@@ -186,6 +186,11 @@ export interface SolidScriptCommandParameter {
   /** True for a library texture: the window offers the texture picker or typing. */
   texture?: boolean;
   /**
+   * True for a vector field that takes a direction its label does not name,
+   * such as a widget's Along: it offers Pick Normal….
+   */
+  direction?: boolean;
+  /**
    * Name groups of the script the field offers, such as Brushes and Parts for
    * Of, Inputs for Show Inputs When or Parts for Output.
    */

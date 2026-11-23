@@ -54,6 +54,7 @@ function heightSlider(stepId: string): ModifierStackSlider {
     value: 1,
     writes: 'Height',
     target: 'input',
+    color: '',
     origin: new THREE.Vector3(),
     direction: new THREE.Vector3(0, 1, 0),
     min: null,

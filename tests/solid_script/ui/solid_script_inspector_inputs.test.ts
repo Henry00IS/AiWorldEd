@@ -213,7 +213,7 @@ describe('SolidScript inspector inputs', () => {
     expect(panel.style.display).toBe('');
     expect(panel.textContent).toContain('Steps');
     expect(panel.textContent).toContain('Rails');
-    expect(panel.textContent).toContain('look');
+    expect(panel.textContent).toContain('Look');
     expect(panel.querySelector<HTMLInputElement>('input[aria-label="Steps"]')?.value).toBe('2');
     expect(panel.querySelector<HTMLInputElement>('input[type="checkbox"]')?.checked).toBe(false);
     expect(panel.querySelector<HTMLSelectElement>('select')?.value).toBe('plain');

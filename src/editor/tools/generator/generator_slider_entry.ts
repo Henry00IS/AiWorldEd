@@ -68,5 +68,7 @@ const GENERATOR_SLIDER_ENTRY_STYLE: Partial<CSSStyleDeclaration> = {
   zIndex: '6',
   width: '64px',
   font: '12px sans-serif',
-  color: ThemeCss.textColor,
+  color: ThemeCss.inputTextColor,
+  background: ThemeCss.inputBackground,
+  border: `1px solid ${ThemeCss.inputBorderColor}`,
 };

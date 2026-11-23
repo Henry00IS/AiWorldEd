@@ -359,7 +359,7 @@ describe('Input', () => {
       ]).blocks,
     );
     expect(inputs.map((input) => [input.name, input.label, input.type, input.fallback, input.min, input.max])).toEqual([
-      ['steps', 'steps', 'Count', '3', 1, 10],
+      ['steps', 'Steps', 'Count', '3', 1, 10],
       ['look', 'Look', 'Choice', '1', null, null],
     ]);
   });

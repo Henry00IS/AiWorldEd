@@ -4,6 +4,8 @@ import { solidScriptListingOptions } from './solid_script_command_listing.js';
 import { solidScriptParameter, solidScriptParameterOptional } from './solid_script_command_parameters.js';
 import { SOLID_SCRIPT_WIDGET_COMMAND_PREFIX } from '@/solid_script/language/solid_script_widget.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
+import { solidScriptNameWords } from '@/solid_script/language/solid_script_name_words.js';
+import { SOLID_SCRIPT_WIDGET_COLOR_WORDS, solidScriptWidgetColor } from './solid_script_widget_color.js';
 
 /** Id of the Widget Slider command. */
 export const SOLID_SCRIPT_COMMAND_WIDGET_SLIDER = `${SOLID_SCRIPT_WIDGET_COMMAND_PREFIX}slider`;
@@ -30,19 +32,19 @@ function solidScriptWidgetSliderRun(run: SolidScriptBlockRun): [] {
   const along = new THREE.Vector3(...fields.vector('along', [0, 1, 0]));
   if (along.lengthSq() < 1e-12) throw fields.error('along', 'a direction that is not 0, 0, 0', along.length());
   const at = new THREE.Vector3(...fields.vector('at', [0, 0, 0]));
-  const matrix = run.matrix();
-  const origin = at.clone().applyMatrix4(matrix);
-  const direction = at.clone().add(along.normalize()).applyMatrix4(matrix).sub(origin);
+  const origin = at.clone().applyMatrix4(run.matrix());
+  const direction = at.clone().add(along.normalize()).applyMatrix4(run.matrix()).sub(origin);
   const writes = run.text('writes').trim();
   run.widgetAdd({
     kind: 'Slider',
-    label: run.text('caption').trim() || writes || 'Value',
+    label: run.text('label').trim() || solidScriptNameWords(writes) || 'Value',
     value: fields.number('shows', 0),
     writes,
     origin: origin.toArray(),
     direction: direction.toArray(),
     min: solidScriptWidgetLimit(run, 'min'),
     max: solidScriptWidgetLimit(run, 'max'),
+    color: solidScriptWidgetColor(run),
   });
   return [];
 }
@@ -56,7 +58,11 @@ export const SOLID_SCRIPT_COMMANDS_WIDGETS: readonly SolidScriptCommand[] = [
     description: 'Drag a handle in the scene to change an input',
     manual:
       'Puts a handle in the scene that you drag while editing the generator (select it with Bounds, then click Edit). The handle sits at At, moved along Along by the value of Shows, and it slides only along that line. Dragging it writes the value under the mouse into the Input named by Writes, snapped to the grid and kept between Minimum and Maximum; then the script runs and the handle moves to whatever Shows gives. Without Writes the handle only shows the value. So the script decides: if it clamps or resets the value, the handle stops there, and when you let go the input keeps the value the handle shows. One drag is one undo step. Shows is usually the input itself or a value worked out from it. Example: Input Height, Number, Default 2, then Set Tall [=Min([Height], 5)], then Widget Slider Shows [Tall] Writes Height Along 0, 1, 0, then Cube of size 1, [Tall], 1: the handle stops at 5.',
-    stops: ['A Writes that names no Input above the line.', 'An Along of 0, 0, 0.'],
+    stops: [
+      'A Writes that names no Input above the line.',
+      'An Along of 0, 0, 0.',
+      'A Color that is not a colour name or a hex colour.',
+    ],
     parameters: [
       solidScriptParameter('shows', 'Shows', 'number', '0', 'Value the handle shows, such as [Height].'),
       solidScriptParameterOptional(
@@ -72,7 +78,16 @@ export const SOLID_SCRIPT_COMMANDS_WIDGETS: readonly SolidScriptCommand[] = [
         '0, 0, 0',
         'Point the handle sits at for a value of 0, such as 0, 0, 0.',
       ),
-      solidScriptParameter('along', 'Along', 'vector3', '0, 1, 0', 'Direction the handle slides in, such as 0, 1, 0.'),
+      {
+        ...solidScriptParameter(
+          'along',
+          'Along',
+          'vector3',
+          '0, 1, 0',
+          'Direction the handle slides in, such as 0, 1, 0.',
+        ),
+        direction: true,
+      },
       solidScriptParameterOptional(
         'min',
         'Minimum',
@@ -86,11 +101,20 @@ export const SOLID_SCRIPT_COMMANDS_WIDGETS: readonly SolidScriptCommand[] = [
         'Largest value a drag writes, such as 10. Left off, no limit.',
       ),
       solidScriptParameterOptional(
-        'caption',
-        'Caption',
+        'label',
+        'Label',
         'text',
-        'Caption beside the handle, such as Height. Left off, Writes is shown.',
+        'Name beside the handle, such as Height. Left off, the name in Writes is shown in words, so BoxWidth shows Box Width.',
       ),
+      {
+        ...solidScriptParameterOptional(
+          'color',
+          'Color',
+          'text',
+          'Colour of the handle and its line, a name such as Orange or a hex colour such as #ff8800. Left off, the theme colour.',
+        ),
+        words: SOLID_SCRIPT_WIDGET_COLOR_WORDS,
+      },
     ],
     listing: (read) => [
       'Widget Slider',

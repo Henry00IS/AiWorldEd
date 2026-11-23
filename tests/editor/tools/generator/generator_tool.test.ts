@@ -9,6 +9,8 @@ import type { ModifierStackPath } from '@/modifier/stack/widgets/modifier_stack_
 import type { PathAsset } from '@/path/model/path_asset.js';
 import { pathEditSelect, pathEditSelected } from '@/path/edit/path_edit_selection.js';
 import type { ModifierStackSlider } from '@/modifier/stack/widgets/modifier_stack_slider_record.js';
+import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
+import { managerMouseCursor } from '@/input/manager_mouse_cursor.js';
 
 /** Pane rectangle; the generator at the origin projects to its center. */
 const PANE = { left: 0, top: 0, width: 200, height: 100, right: 200, bottom: 100, x: 0, y: 0 };
@@ -18,7 +20,7 @@ const PANE = { left: 0, top: 0, width: 200, height: 100, right: 200, bottom: 100
  * is the given generator.
  *
  * @param selected Generator the host reports as selected.
- * @returns Editor, host spies and the click selection spy.
+ * @returns Editor, host spies, the click selection spy and the pane element.
  */
 function setup(selected: THREE.Object3D | null) {
   const pick = document.createElement('div');
@@ -70,7 +72,7 @@ function setup(selected: THREE.Object3D | null) {
   editor.validateTools();
   editor.userSwitchToBoundsTool();
   editor.onRepaint();
-  return { editor, host, applyClick, state };
+  return { editor, host, applyClick, state, pick };
 }
 
 /**
@@ -103,6 +105,7 @@ function editButton(): HTMLElement | null {
 afterEach(() => {
   vi.restoreAllMocks();
   pathEditSelect(null);
+  managerMouseCursor.reset();
   document.body.replaceChildren();
 });
 
@@ -269,6 +272,46 @@ describe('Generator Edit button and Generator tool', () => {
     expect(ruler()).toBeUndefined();
   });
 
+  it('shows a resize cursor along the handle and an orange dot (the Bounds hover colour) while the pointer is over it', async () => {
+    const { editor, state, pick } = setup(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1)));
+    await click(editor, [100, 50], [100, 50]);
+    state.sliders = [slider()];
+    [editor.lastPointerClientX, editor.lastPointerClientY] = [102, 51];
+    editor.onRepaint();
+    managerMouseCursor.update();
+    expect([pick?.style.cursor, sliderHandle()?.dataset['hover']]).toEqual(['ew-resize', 'true']);
+    expect(sliderHandle()?.style.backgroundImage).toContain('rgb(232, 106, 23)');
+    state.sliders = [{ ...slider(), direction: new THREE.Vector3(0, 1, 0) }];
+    editor.onRepaint();
+    managerMouseCursor.update();
+    expect(pick?.style.cursor).toBe('ns-resize');
+    [editor.lastPointerClientX, editor.lastPointerClientY] = [10, 10];
+    editor.onRepaint();
+    managerMouseCursor.update();
+    expect([pick?.style.cursor, sliderHandle()?.dataset['hover']]).toEqual(['', 'false']);
+  });
+
+  it('draws a handle and its ruler in the colour the script picked', async () => {
+    const { editor, state } = setup(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1)));
+    await click(editor, [100, 50], [100, 50]);
+    state.sliders = [{ ...slider(), value: 1, color: '#3d8fd6' }];
+    [editor.lastPointerClientX, editor.lastPointerClientY] = [10, 10];
+    editor.onRepaint();
+    const ruler = [...document.querySelectorAll<HTMLElement>('[data-ruler]')].find((each) => !each.hidden);
+    expect(sliderHandle()?.style.backgroundImage).toContain('rgb(61, 143, 214)');
+    expect(ruler?.style.borderTopColor).toBe('rgb(61, 143, 214)');
+  });
+
+  it('opens the typing field in the input colours of the theme', async () => {
+    const { editor, state } = setup(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1)));
+    await click(editor, [100, 50], [100, 50]);
+    state.sliders = [slider()];
+    editor.onRepaint();
+    await click(editor, [100, 50], [100, 50]);
+    const field = document.querySelector<HTMLInputElement>('input[aria-label="Height"]');
+    expect([field?.style.color, field?.style.background]).toEqual([ThemeCss.inputTextColor, ThemeCss.inputBackground]);
+  });
+
   it('never grabs a slider that writes nothing', async () => {
     const { editor, host, state } = setup(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1)));
     await click(editor, [100, 50], [100, 50]);
@@ -395,6 +438,7 @@ function slider(): ModifierStackSlider {
     value: 0,
     writes: 'Height',
     target: 'input',
+    color: '',
     origin: new THREE.Vector3(),
     direction: new THREE.Vector3(1, 0, 0),
     min: null,

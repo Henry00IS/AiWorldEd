@@ -21,7 +21,7 @@ const named = SOLID_SCRIPT_AUDIT_COMMANDS.filter(([, command]) =>
   command.parameters.some((parameter) => parameter.key === SOLID_SCRIPT_SHAPE_NAME_KEY),
 );
 
-describe('the name given on a line shows up on what it builds', () => {
+describe('the name given on a line shows up on what it builds or the handle it puts in the scene', () => {
   it.each(named)('%s', (_id, command) => {
     for (const [written, shown] of [
       ['Audit Piece', 'Audit Piece'],
@@ -38,7 +38,7 @@ describe('the name given on a line shows up on what it builds', () => {
         continue;
       }
       expect(run.error?.text ?? '').toBe('');
-      expect(labels(run.shapes)).toContain(shown);
+      expect([...labels(run.shapes), ...run.widgets.map((widget) => widget.label)]).toContain(shown);
     }
   });
 });

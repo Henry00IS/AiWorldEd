@@ -242,7 +242,7 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
     min: number,
     max: number,
   ): ModifierStackSliderLocal {
-    return { id: key, label, value, origin, direction, min, max, writes: key, target: 'parameter' };
+    return { id: key, label, value, origin, direction, min, max, writes: key, target: 'parameter', color: '' };
   }
 
   /**

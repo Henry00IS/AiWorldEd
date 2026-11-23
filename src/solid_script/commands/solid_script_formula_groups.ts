@@ -12,6 +12,7 @@ import {
 } from '@/solid_script/language/solid_script_function_docs.js';
 import { solidScriptFormulaCheckName, type SolidScriptFormulaOwnFunction } from './solid_script_formula_inputs.js';
 import { solidScriptFunctionKey } from '@/solid_script/language/solid_script_name_key.js';
+import { solidScriptNameWords } from '@/solid_script/language/solid_script_name_words.js';
 
 /** How a group block joins the blocks inside it into a formula. */
 export type SolidScriptFormulaGroupForm =
@@ -352,7 +353,7 @@ function solidScriptFormulaFunction(key: string): SolidScriptCommand {
   const doc = SOLID_SCRIPT_FUNCTION_DOCS[key];
   const inputs = solidScriptFunctionArguments(key).map((input) => input.name);
   const name = solidScriptFormulaCheckName(key);
-  const label = SOLID_SCRIPT_FORMULA_FUNCTION_NAMES[key] ?? name.replace(/([a-z])([A-Z])/g, '$1 $2');
+  const label = SOLID_SCRIPT_FORMULA_FUNCTION_NAMES[key] ?? solidScriptNameWords(name);
   const id = `${SOLID_SCRIPT_FORMULA_FUNCTION}${key}`;
   const call = { id, label, summary: doc?.summary ?? label, category: doc?.group ?? 'Functions' };
   const max = inputs.includes('...') ? Number.POSITIVE_INFINITY : inputs.length;

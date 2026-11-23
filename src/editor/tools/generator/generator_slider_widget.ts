@@ -3,6 +3,8 @@ import { WidgetScreenElements, widgetScreenProject } from '@/editor/widgets/scre
 import type { EditorViewportPickContext } from '@/editor/window/editor_viewport_pick_context.js';
 import type { ModifierStackSlider } from '@/modifier/stack/widgets/modifier_stack_slider_record.js';
 import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
+import { Theme } from '@/theme.js';
+import { cursorFromScreenDelta } from '@/transform/bounds/bounds_resize_cursor.js';
 import type { GeneratorEditHost } from './generator_edit_host.js';
 import { GeneratorSliderEntry } from './generator_slider_entry.js';
 import {
@@ -50,21 +52,44 @@ export class GeneratorSliderWidget extends Widget {
   /** Drag in progress, or null. */
   private drag: GeneratorSliderDrag | null = null;
 
-  /** Places every handle and ruler of this frame and hides the rest. */
+  /**
+   * Places every handle and ruler of this frame and hides the rest; the handle
+   * under the pointer turns orange and shows a cursor along its line.
+   */
   override onRender(): void {
     const host = this.host();
+    const hovered = host ? this.hovered(host) : null;
     const shown = new Set<HTMLElement>();
     for (const pane of host?.panes() ?? []) {
       for (const slider of host?.sliders() ?? []) {
         const element = this.handles.place(pane, slider.key, generatorSliderHandle(slider));
-        element.textContent = `${slider.label} ${generatorSliderValueText(slider.value)}`;
-        element.dataset['dragging'] = String(this.drag?.key === slider.key);
-        shown.add(element);
-        shown.add(this.rulers.line(pane, slider.key, slider.origin, generatorSliderHandle(slider)));
+        generatorSliderElementShow(element, slider, hovered?.slider.key === slider.key, this.drag?.key === slider.key);
+        const ruler = this.rulers.line(pane, slider.key, slider.origin, generatorSliderHandle(slider));
+        ruler.style.borderTopColor = slider.color || ThemeCss.textColor;
+        shown.add(element).add(ruler);
       }
     }
+    if (hovered)
+      this.editor?.setMouseCursor(generatorSliderCursor(hovered.slider, hovered.pane), hovered.pane.pickElement);
     this.handles.hideOthers(shown);
     this.rulers.hideOthers(shown);
+  }
+
+  /**
+   * Returns the handle being dragged, or else the writable handle under the
+   * pointer.
+   *
+   * @param host Edit host.
+   * @returns Slider and its pane, or null.
+   */
+  private hovered(host: GeneratorEditHost): { slider: ModifierStackSlider; pane: EditorViewportPickContext } | null {
+    const drag = this.drag;
+    if (drag) {
+      const slider = host.sliders().find((each) => each.key === drag.key);
+      return slider ? { slider, pane: drag.pane } : null;
+    }
+    const editor = this.editor;
+    return editor ? generatorSliderHit(host, editor.lastPointerClientX, editor.lastPointerClientY) : null;
   }
 
   /**
@@ -224,6 +249,42 @@ function generatorSliderHit(
 }
 
 /**
+ * Shows a handle's caption and value, and draws its dot orange while it is
+ * hovered or dragged, else in the script's colour.
+ *
+ * @param element Handle element.
+ * @param slider Slider shown.
+ * @param hover Whether the pointer is over the handle.
+ * @param dragging Whether the handle is being dragged.
+ */
+function generatorSliderElementShow(
+  element: HTMLElement,
+  slider: ModifierStackSlider,
+  hover: boolean,
+  dragging: boolean,
+): void {
+  element.textContent = `${slider.label} ${generatorSliderValueText(slider.value)}`;
+  element.dataset['dragging'] = String(dragging);
+  element.dataset['hover'] = String(hover);
+  const dot = hover ? GENERATOR_SLIDER_HOVER_COLOR : slider.color || ThemeCss.textColor;
+  element.style.backgroundImage = `radial-gradient(circle at 7px 50%, ${dot} 0 5px, transparent 6px)`;
+}
+
+/**
+ * Returns the resize cursor whose arrows follow a handle's line on screen.
+ *
+ * @param slider Slider hovered.
+ * @param pane Pane the pointer is in.
+ * @returns CSS cursor keyword.
+ */
+function generatorSliderCursor(slider: ModifierStackSlider, pane: EditorViewportPickContext): string {
+  const handle = generatorSliderHandle(slider);
+  const from = widgetScreenProject(handle, pane);
+  const to = widgetScreenProject(handle.clone().add(slider.direction), pane);
+  return cursorFromScreenDelta(to.x - from.x, to.y - from.y);
+}
+
+/**
  * Creates a handle element in a document: a dot with its caption beside it,
  * which never takes the pointer.
  *
@@ -253,6 +314,9 @@ function generatorSliderRulerCreate(doc: Document): HTMLElement {
   return element;
 }
 
+/** Colour of a hovered handle's dot: the orange of a hovered Bounds handle. */
+const GENERATOR_SLIDER_HOVER_COLOR = `#${Theme.selectionColor.toString(16).padStart(6, '0')}`;
+
 /** Inline style of a ruler line. */
 const GENERATOR_SLIDER_RULER_STYLE: Partial<CSSStyleDeclaration> = {
   position: 'fixed',
@@ -271,7 +335,6 @@ const GENERATOR_SLIDER_STYLE: Partial<CSSStyleDeclaration> = {
   pointerEvents: 'none',
   zIndex: '5',
   paddingLeft: '18px',
-  backgroundImage: `radial-gradient(circle at 7px 50%, ${ThemeCss.textColor} 0 5px, transparent 6px)`,
   backgroundRepeat: 'no-repeat',
   color: ThemeCss.textColor,
   font: '12px sans-serif',

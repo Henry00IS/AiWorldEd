@@ -12,6 +12,7 @@ import {
 } from '@/solid_script/language/solid_script_function_docs.js';
 import { solidScriptFunctionSpelling } from '@/solid_script/language/solid_script_name_key.js';
 import type { SolidScriptFormulaInputKind } from '@/solid_script/language/solid_script_formula_field.js';
+import { solidScriptNameWords } from '@/solid_script/language/solid_script_name_words.js';
 
 /**
  * Where the blocks of a formula are used: the element a field is worked out
@@ -173,7 +174,7 @@ export function solidScriptFormulaCheckName(key: string): string {
  */
 export function solidScriptFormulaCheckLabel(key: string): string {
   const helper = solidScriptWhereHelper(key);
-  return helper?.display ?? solidScriptFormulaCheckName(key).replace(/([a-z])([A-Z])/g, '$1 $2');
+  return helper?.display ?? solidScriptNameWords(solidScriptFormulaCheckName(key));
 }
 
 /**

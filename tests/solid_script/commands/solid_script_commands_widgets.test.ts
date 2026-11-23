@@ -38,6 +38,7 @@ describe('Widget Slider', () => {
         direction: [0, 1, 0],
         min: 1,
         max: null,
+        color: '',
       },
     ]);
   });
@@ -61,5 +62,25 @@ describe('Widget Slider', () => {
     ]);
     expect(result.error?.message).toContain('there is no input "Height"');
     expect(result.widgets).toEqual([]);
+  });
+
+  it('takes a Color as a name or a hex colour, and stops on anything else', () => {
+    const colored = (color: string) =>
+      run([HEIGHT, { command: 'widget_slider', values: { shows: '[Height]', writes: 'Height', color } }]);
+    expect(colored('Orange').widgets[0]?.color).toBe('#ff8c1a');
+    expect(colored('#3A8').widgets[0]?.color).toBe('#3a8');
+    expect(colored('[="Blue"]').widgets[0]?.color).toBe('#3d8fd6');
+    expect(colored('sparkly').error?.message).toContain('Color needs a colour such as Orange or #ff8800');
+  });
+
+  it('shows its Label, or else the name it writes in words', () => {
+    const shown = (values: Record<string, string>) =>
+      run([
+        { ...HEIGHT, values: { ...HEIGHT.values, name: 'BoxWidth' } },
+        { command: 'widget_slider', values },
+      ]).widgets[0]?.label;
+    expect(shown({ shows: '1', writes: 'BoxWidth', label: 'Wide' })).toBe('Wide');
+    expect(shown({ shows: '1', writes: 'BoxWidth' })).toBe('Box Width');
+    expect(shown({ shows: '1' })).toBe('Value');
   });
 });

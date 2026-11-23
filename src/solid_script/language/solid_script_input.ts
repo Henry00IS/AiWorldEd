@@ -1,5 +1,6 @@
 import type { SolidScriptValue } from './solid_script_value.js';
 import { solidScriptParameterValueEffective } from '@/solid_script/commands/solid_script_parameter_default.js';
+import { solidScriptNameWords } from './solid_script_name_words.js';
 
 /** Kinds of value a script input takes, as the inspector edits them. */
 export const SOLID_SCRIPT_INPUT_TYPES = [
@@ -126,7 +127,7 @@ export function solidScriptInputRead(values: SolidScriptInputValues): SolidScrip
     throw new Error('a choice input needs Choices, such as "small, large"');
   return {
     name,
-    label: label || name,
+    label: label || solidScriptNameWords(name),
     type: type as SolidScriptInputType,
     fallback: solidScriptParameterValueEffective(values['default'], SOLID_SCRIPT_INPUT_DEFAULTS.default),
     min,

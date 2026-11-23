@@ -26,7 +26,8 @@ export interface ModifierStackSlider {
    */
   writes: string;
   /** Whether writes names a script Input or a parameter of the step. */
-  target: ModifierStackSliderTarget;
+  target: ModifierStackSliderTarget; /** CSS colour of the handle and its line, or empty text for the theme colour. */
+  color: string;
 }
 
 /** What a slider writes into: a script Input or a parameter of its step. */
@@ -51,7 +52,8 @@ export interface ModifierStackSliderLocal {
   /** Name of the Input or parameter a drag writes into, or empty. */
   writes: string;
   /** Whether writes names a script Input or a parameter of the step. */
-  target: ModifierStackSliderTarget;
+  target: ModifierStackSliderTarget; /** CSS colour of the handle and its line, or empty text for the theme colour. */
+  color: string;
 }
 
 /** Sliders each step made at its last evaluation, by stack owner and step id. */
@@ -100,6 +102,7 @@ export function modifierStackSlidersOfScript(sliders: readonly SolidScriptWidget
     max: slider.max,
     writes: slider.writes,
     target: 'input',
+    color: slider.color,
   }));
 }
 
@@ -119,7 +122,7 @@ export function modifierStackSlidersPlaced(
   return sliders.map((slider) => {
     const origin = slider.origin.clone().applyMatrix4(frame);
     const tip = slider.origin.clone().add(slider.direction).applyMatrix4(frame);
-    const { label, value, writes, min, max, target } = slider;
+    const { label, value, writes, min, max, target, color } = slider;
     return {
       stepId,
       key: `${stepId}:${slider.id}`,
@@ -129,6 +132,7 @@ export function modifierStackSlidersPlaced(
       min,
       max,
       target,
+      color,
       origin,
       direction: tip.sub(origin),
     };
