@@ -14,6 +14,7 @@ import {
   SOLID_SCRIPT_EXAMPLE_IRREGULAR_ROCK,
   SOLID_SCRIPT_EXAMPLE_ROUNDED_RAIL,
   SOLID_SCRIPT_EXAMPLE_BASEBOARD,
+  SOLID_SCRIPT_EXAMPLE_PATH_STAIRS,
   SOLID_SCRIPT_EXAMPLE_TAPERED_BOX,
 } from './solid_script_examples_geometry.js';
 import {
@@ -205,6 +206,15 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
       'A Path input traced around the bottom corners of a room in the scene; Sweep Along Path runs a moulding along it.',
     port: null,
     lines: SOLID_SCRIPT_EXAMPLE_BASEBOARD,
+  },
+  {
+    id: 'pathStairs',
+    name: 'Path Stairs',
+    group: 'Basics',
+    summary:
+      'Stairs that follow a Path input drawn in the scene: sloped stretches become flights, level ones landings.',
+    port: null,
+    lines: SOLID_SCRIPT_EXAMPLE_PATH_STAIRS,
   },
   {
     id: 'hillyFloor',

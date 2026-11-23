@@ -5,6 +5,8 @@ import {
   solidScriptExampleInput,
   solidScriptExampleLine,
   solidScriptExampleNote,
+  solidScriptExampleRepeat,
+  solidScriptExampleSet,
 } from './solid_script_example_lines.js';
 
 /** An irregular convex rock: Scatter Points in a box, then Hull around them. */
@@ -107,6 +109,58 @@ export const SOLID_SCRIPT_EXAMPLE_BASEBOARD: readonly SolidScriptLine[] = [
       '[0, 0, 0], [[Thickness], 0, 0], [[Thickness], [=[Height] * 0.8], 0], [[=[Thickness] / 2], [Height], 0], [0, [Height], 0]',
     up: '0, 1, 0',
   }),
+];
+
+/** The run a new Path Stairs follows: a flight, a landing and a second flight. */
+const SOLID_SCRIPT_EXAMPLE_PATH_STAIRS_RUN = pathAssetEncode({
+  points: [
+    [-3, -1.2, 0],
+    [-1, 0, 0],
+    [1, 0, 0],
+    [3, 1.2, 0],
+  ],
+  segments: [{ kind: 'Straight' }, { kind: 'Straight' }, { kind: 'Straight' }],
+  closed: false,
+});
+
+/**
+ * Stairs along a Path input: every sloped stretch becomes a flight of steps and
+ * every level stretch a landing, turned to face the way the path runs.
+ */
+export const SOLID_SCRIPT_EXAMPLE_PATH_STAIRS: readonly SolidScriptLine[] = [
+  solidScriptExampleNote(
+    'Run is a Path you draw in the scene: a sloped stretch becomes a flight of steps and a level stretch a landing. Click Edit, then drag the points, or Ctrl+Click to add a point after the picked one. An Arc stretch winds the stairs round.',
+  ),
+  solidScriptExampleInput('Run', 'Path', SOLID_SCRIPT_EXAMPLE_PATH_STAIRS_RUN, { label: 'Run' }),
+  solidScriptExampleInput('Width', 'Number', '1.2', { min: '0.3', max: '10', label: 'Width' }),
+  solidScriptExampleInput('Rise', 'Number', '0.18', { min: '0.05', max: '1', label: 'Target Rise' }),
+  solidScriptExampleSet('P', '[Run.Points]'),
+  ...solidScriptExampleRepeat('I', '0', '[=Len([P]) - 1]', [
+    solidScriptExampleNote(
+      '[A] and [B] are the ends of one stretch. [Flat] is the stretch seen from above, and [Turn] the way it faces, in degrees.',
+    ),
+    solidScriptExampleSet('A', '[=ItemClamp([P], [I])]'),
+    solidScriptExampleSet('B', '[=ItemClamp([P], [I] + 1)]'),
+    solidScriptExampleSet('Flat', '[=Vector([B.X] - [A.X], 0, [B.Z] - [A.Z])]'),
+    solidScriptExampleSet('Turn', '[=Atan2([Flat.X], [Flat.Z])]'),
+    solidScriptExampleSet('Steps', '[=Max(1, Round(Abs([B.Y] - [A.Y]) / [Rise]))]'),
+    solidScriptExampleSet('Base', '[=Min([A.Y], [B.Y]) - [Rise]]'),
+    ...solidScriptExampleRepeat('S', '0', '[Steps]', [
+      solidScriptExampleNote(
+        'Each step is a block from below the flight up to its own top; a level stretch has one step, which is the landing.',
+      ),
+      solidScriptExampleSet('Top', '[=[A.Y] + ([B.Y] - [A.Y]) * ([S] + 1) / [Steps]]'),
+      solidScriptExampleSet('Mid', '[=Lerp([A], [B], ([S] + 0.5) / [Steps])]'),
+      ...solidScriptExampleBlock('transform', { move: '[=Vector([Mid.X], [Base], [Mid.Z])]' }, [
+        solidScriptExampleLine('cube', {
+          size: '[Width], [=[Top] - [Base]], [=[Flat.Length] / [Steps]]',
+          anchor: 'Center, Bottom, Center',
+        }),
+      ]),
+      solidScriptExampleLine('select_objects', { which: 'Between' }),
+      solidScriptExampleLine('rotate_to', { to: '0, [Turn], 0' }),
+    ]),
+  ]),
 ];
 
 /** A hilly floor: Grid Mesh, then Displace with Noise at each point. */
