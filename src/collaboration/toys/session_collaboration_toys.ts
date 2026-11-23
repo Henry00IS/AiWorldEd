@@ -153,6 +153,11 @@ export class ToysCollaborationSession implements PlayerBallLink {
   }
 
   /** @inheritdoc */
+  missSet(member: number, end: THREE.Vector3): void {
+    this.presence.missSet(member, end);
+  }
+
+  /** @inheritdoc */
   listen(listener: PlayerBallLinkListener | null): void {
     this.listener = listener;
   }

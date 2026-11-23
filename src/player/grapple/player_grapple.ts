@@ -80,14 +80,15 @@ export class PlayerGrapple implements PlayerBodyPull {
    * @param world Level collision the beam hooks on.
    * @param look Look state (the aim).
    * @param layer Helper layer for the beam.
-   * @param announce Tells the others where the beam hooks (null: let go).
+   * @param announce Tells the others where the beam hooks (null: let go), or
+   *   where a missed shot's flicker ends.
    * @param sound Sounds (replaceable in tests).
    */
   constructor(
     private readonly world: PlayerCollisionWorld,
     private readonly look: PlayerLookState,
     layer: PlayerHelperLayer,
-    private readonly announce: (anchor: THREE.Vector3 | null) => void,
+    private readonly announce: (anchor: THREE.Vector3 | null, missEnd?: THREE.Vector3) => void,
     sound?: PlayerGrappleSound,
   ) {
     this.beam = new PlayerGrappleBeam(layer);
@@ -109,6 +110,7 @@ export class PlayerGrapple implements PlayerBodyPull {
     if (!hit) {
       this.beam.fizzle(this.hand, this.missEnd.copy(origin).addScaledVector(forward, PLAYER_GRAPPLE_FIZZLE_METERS));
       this.sound.miss();
+      this.announce(null, this.missEnd);
       return false;
     }
     this.anchor = hit.point.clone();

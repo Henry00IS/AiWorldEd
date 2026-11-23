@@ -63,7 +63,7 @@ export interface PlayerBallSnapshot {
    * its events overflow one entry (payloads are opaque here).
    */
   keyboard?: ToyEntry[];
-  /** Entry of the thrower's hooked grapple beam, when hooked. */
+  /** Entry of the thrower's hooked grapple beam, or of a shot just missed. */
   grapple?: ToyEntry;
 }
 
@@ -153,4 +153,11 @@ export interface PlayerBallLink {
    * @param anchor Anchor, or null.
    */
   reachSet?(member: number, anchor: THREE.Vector3 | null): void;
+  /**
+   * Flickers a member's missed grapple shot from its gun out to an end.
+   *
+   * @param member Member id.
+   * @param end End of the flicker.
+   */
+  missSet?(member: number, end: THREE.Vector3): void;
 }

@@ -20,7 +20,12 @@ import {
 import type { PlayerKeyboardSynthFactory } from '@/player/keyboard/player_keyboard_instance.js';
 import type { PlayerKeyboardPose } from '@/player/keyboard/player_keyboard_pose.js';
 import { PlayerKeyboardSystem } from '@/player/keyboard/player_keyboard_system.js';
-import { PlayerGrappleRemote, playerGrappleEntry } from '@/player/grapple/player_grapple_remote.js';
+import {
+  PLAYER_GRAPPLE_MISS_SENT_MS,
+  PlayerGrappleRemote,
+  playerGrappleEntry,
+  playerGrappleMissEntry,
+} from '@/player/grapple/player_grapple_remote.js';
 import { PLAYER_TOY_GRAPPLE, type PlayerToyKind } from '@/player/toy/player_toy_kind.js';
 import { PlayerBallAuthority, playerBallThrowStart } from './player_ball_authority.js';
 import {
@@ -98,6 +103,8 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
   private readonly keyboard: PlayerKeyboardSystem;
   private readonly grapples: PlayerGrappleRemote;
   private grapple: THREE.Vector3 | null = null;
+  /** The own latest missed shot, sent in the frames until `until`. */
+  private grappleMissed: { end: THREE.Vector3; count: number; until: number } | null = null;
   private held: PhysicsToyKind | null;
   /** Whether the grapple gun is in hand instead of a toy (the others see it). */
   private grappling = false;
@@ -123,7 +130,10 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
     this.publisher = new PlayerBallPublisher();
     this.view = new PlayerBallView(options.view);
     this.keyboard = this.keyboardCreate(options);
-    this.grapples = new PlayerGrappleRemote((member, anchor) => this.link?.reachSet?.(member, anchor));
+    this.grapples = new PlayerGrappleRemote(
+      (member, anchor) => this.link?.reachSet?.(member, anchor),
+      (member, end) => this.link?.missSet?.(member, end),
+    );
     this.link = null;
     this.held = 'tennis';
     this.lastFrame = null;
@@ -365,6 +375,19 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
    */
   setGrapple(anchor: THREE.Vector3 | null): void {
     this.grapple = anchor?.clone() ?? null;
+    this.publisher.noteHeld();
+    this.wake();
+  }
+
+  /**
+   * Shows the others a missed grapple shot (a flicker out to its end), counted
+   * so each of a quick series shows.
+   *
+   * @param end Where the flicker ends.
+   */
+  grappleMiss(end: THREE.Vector3): void {
+    const count = ((this.grappleMissed?.count ?? 0) + 1) & 0xff;
+    this.grappleMissed = { end: end.clone(), count, until: this.options.now() + PLAYER_GRAPPLE_MISS_SENT_MS };
     this.publisher.noteHeld();
     this.wake();
   }
@@ -619,6 +642,7 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
     this.publisher.note(this.authority.takeChanges());
     const snapshot = this.grappleFrame(
       this.keyboardFrame(this.publisher.next(this.authority, now, this.playingHeld()), now, extraId),
+      now,
     );
     if (snapshot && link.publish(snapshot)) {
       this.publisher.mark(snapshot, this.authority.isAwake(), now);
@@ -679,14 +703,17 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
   }
 
   /**
-   * Adds the hooked own grapple beam to a snapshot, under a toy id no own toy
-   * uses (the oldest toy makes way when all are out, as a new throw would).
+   * Adds the hooked own grapple beam (or a shot just missed) to a snapshot,
+   * under a toy id no own toy uses (for the beam the oldest toy makes way when
+   * all are out, as a new throw would; a miss then goes unsent).
    *
    * @param snapshot Snapshot due now, or null.
+   * @param now Current time in milliseconds.
    * @returns Snapshot to send, or null.
    */
-  private grappleFrame(snapshot: PlayerBallSnapshot | null): PlayerBallSnapshot | null {
-    if (!snapshot || this.grapple === null) return snapshot;
+  private grappleFrame(snapshot: PlayerBallSnapshot | null, now: number): PlayerBallSnapshot | null {
+    const missed = this.grappleMissed && now < this.grappleMissed.until ? this.grappleMissed : null;
+    if (!snapshot || (!this.grapple && !missed)) return snapshot;
     const taken = new Set([
       ...this.authority.getBodies().map((body) => body.id),
       ...(snapshot.keyboard ?? []).map((entry) => entry.id),
@@ -694,11 +721,12 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
     let id = [1, 2, 3, PLAYER_KEYBOARD_TOY_ID].find((candidate) => !taken.has(candidate));
     if (id === undefined) {
       const oldest = this.authority.getBodies()[0];
-      if (!oldest) return snapshot;
+      if (!oldest || !this.grapple) return snapshot;
       this.authority.removeWhere((body) => body === oldest);
       id = oldest.id;
     }
-    return { ...snapshot, grapple: playerGrappleEntry(id, this.grapple) };
+    if (this.grapple) return { ...snapshot, grapple: playerGrappleEntry(id, this.grapple) };
+    return missed ? { ...snapshot, grapple: playerGrappleMissEntry(id, missed.end, missed.count) } : snapshot;
   }
 
   /**

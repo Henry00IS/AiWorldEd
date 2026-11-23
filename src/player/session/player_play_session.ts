@@ -109,8 +109,8 @@ export class PlayerPlaySession {
     this.cameraApplier = new PlayerCameraPoseApplier();
     this.avatar = new PlayerCharacterAvatar(host.helperLayer);
     this.keyboard = new PlayerKeyboardPlay(host.ballSystem, this.body);
-    this.grapple = new PlayerGrapple(host.collisionWorld, this.look, host.helperLayer, (anchor) =>
-      host.ballSystem.setGrapple(anchor),
+    this.grapple = new PlayerGrapple(host.collisionWorld, this.look, host.helperLayer, (anchor, missEnd) =>
+      missEnd ? host.ballSystem.grappleMiss(missEnd) : host.ballSystem.setGrapple(anchor),
     );
     this.body.setPull(this.grapple);
     this.viewModel = null;

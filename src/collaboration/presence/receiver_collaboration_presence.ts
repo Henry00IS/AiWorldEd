@@ -124,6 +124,19 @@ export class ReceiverCollaborationPresence {
   }
 
   /**
+   * Flickers a member's missed grapple shot from its character's gun.
+   *
+   * @param user Member id.
+   * @param end End of the flicker.
+   */
+  missSet(user: number, end: THREE.Vector3): void {
+    const item = this.members.get(user)?.get(PRESENCE_ID_CHARACTER);
+    if (!(item instanceof CharacterCollaborationPresence)) return;
+    item.miss(end);
+    this.animate();
+  }
+
+  /**
    * Applies a member's latest presence; entries missing from it disappear.
    *
    * @param frame Decoded frame.

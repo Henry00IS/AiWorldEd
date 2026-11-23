@@ -116,6 +116,7 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
   private disposed: boolean;
   private hands: PlayerCharacterHandTargets | null = null;
   private reach: THREE.Vector3 | null = null;
+  private readonly missEnd = new THREE.Vector3();
   private readonly beam: PlayerGrappleBeam;
   private readonly beamSound: PlayerGrappleSound;
   private readonly hand = new THREE.Vector3();
@@ -302,6 +303,18 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
   }
 
   /**
+   * Flickers a missed shot from the gun out to its end, with the fizz (quieter
+   * than the own).
+   *
+   * @param end End of the flicker.
+   */
+  miss(end: THREE.Vector3): void {
+    this.beam.fizzle(this.copyHandTo(this.hand), this.missEnd.copy(end));
+    this.beamSound.place(this.hand);
+    this.beamSound.miss();
+  }
+
+  /**
    * Copies where the beam leaves the character: the muzzle of the gun in its
    * hand, or its right hand, as shown.
    *
@@ -339,8 +352,8 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
   }
 
   /**
-   * Draws the hooked beam from the hand as shown this frame, and plays its hum
-   * there.
+   * Draws the hooked beam (or a missed shot's flicker) from the hand as shown
+   * this frame, and plays the hum there.
    *
    * @param deltaSeconds Frame time.
    * @returns True while the beam is drawn.
@@ -350,7 +363,7 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
       this.beam.show(this.copyHandTo(this.hand), this.reach);
       this.beamSound.place(this.hand);
       this.beamSound.pulling(Math.hypot(this.motion.getPlanarSpeed(), this.motion.getRawVerticalVelocity()));
-    }
+    } else if (this.beam.isShown()) this.beam.follow(this.copyHandTo(this.hand), this.missEnd);
     return this.beam.update(deltaSeconds) || this.reach !== null;
   }
 

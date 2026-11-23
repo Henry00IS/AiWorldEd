@@ -40,7 +40,7 @@ function box(root: THREE.Group, size: [number, number, number], center: [number,
  * Builds a floor, a 7 m wall from z 8 to 10 and a ceiling slab 12 m up over x
  * -10..-4, with a body standing at the origin and a grapple on it.
  *
- * @returns Body, look, world, grapple and the announced anchors.
+ * @returns Body, look, world, grapple, the announced anchors and misses.
  */
 function scene() {
   const root = new THREE.Group();
@@ -54,18 +54,19 @@ function scene() {
   body.resetAt(new THREE.Vector3(0, 0, 0), world);
   const look = new PlayerLookState();
   const announced: (THREE.Vector3 | null)[] = [];
+  const misses: THREE.Vector3[] = [];
   const drawn: THREE.Object3D[] = [];
   const layer = { helperAdd: (object: THREE.Object3D) => drawn.push(object), helperRemove: () => {} };
   const grapple = new PlayerGrapple(
     world,
     look,
     layer,
-    (anchor) => announced.push(anchor?.clone() ?? null),
+    (anchor, missEnd) => (missEnd ? misses.push(missEnd.clone()) : announced.push(anchor?.clone() ?? null)),
     new PlayerGrappleSound(() => null),
   );
   body.setPull(grapple);
   for (let step = 0; step < 5; step++) body.update(NO_KEYS, look, world, STEP);
-  return { body, look, world, grapple, announced, drawn };
+  return { body, look, world, grapple, announced, misses, drawn };
 }
 
 /**
@@ -121,7 +122,7 @@ describe('PlayerGrapple', () => {
   });
 
   it('hooks again at once in the air, and only fizzles on a miss', () => {
-    const { body, look, world, grapple, announced } = scene();
+    const { body, look, world, grapple, announced, misses } = scene();
     grapple.press(...aimAt(look, body, new THREE.Vector3(-7, 12, 0)), 0);
     for (let step = 0; step < 20; step++) body.update(NO_KEYS, look, world, STEP);
     grapple.release(1);
@@ -141,6 +142,7 @@ describe('PlayerGrapple', () => {
       ),
     ).toBe(false);
     expect(announced.length).toBe(count + 1);
+    expect(misses).toHaveLength(1);
     expect(grapple.getAnchor()).toBeNull();
   });
 
