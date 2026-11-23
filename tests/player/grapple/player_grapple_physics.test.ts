@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import {
+  PLAYER_GRAPPLE_CEILING_CLEARANCE_METERS,
   PLAYER_GRAPPLE_CLEARANCE_METERS,
   PLAYER_GRAPPLE_MAX_SPEED_METERS_PER_SECOND,
   PLAYER_GRAPPLE_PULL_METERS_PER_SECOND_SQUARED,
@@ -18,6 +19,7 @@ import {
   playerGrappleTarget,
   playerGrappleYank,
 } from '@/player/grapple/player_grapple_physics.js';
+import { PLAYER_EYE_HEIGHT_METERS } from '@/player/player_constants.js';
 import { PLAYER_CAPSULE_CENTER_ABOVE_FEET_METERS } from '@/player/collision/player_collision_character_rig.js';
 import {
   PLAYER_COLLIDER_HEIGHT_METERS,
@@ -65,7 +67,10 @@ describe('player grapple physics', () => {
     const ceiling = playerGrappleTarget(new THREE.Vector3(1, 5, 2), new THREE.Vector3(0, -1, 0), new THREE.Vector3());
     expect(ceiling.x).toBe(1);
     expect(ceiling.z).toBe(2);
-    expect(5 - (ceiling.y + PLAYER_COLLIDER_HEIGHT_METERS / 2)).toBeCloseTo(PLAYER_GRAPPLE_CLEARANCE_METERS, 6);
+    expect(5 - (ceiling.y + PLAYER_COLLIDER_HEIGHT_METERS / 2)).toBeCloseTo(
+      PLAYER_GRAPPLE_CLEARANCE_METERS + PLAYER_GRAPPLE_CEILING_CLEARANCE_METERS,
+      6,
+    );
     const wall = playerGrappleTarget(new THREE.Vector3(0, 5, 3), new THREE.Vector3(0, 0, -1), new THREE.Vector3());
     expect(3 - (wall.z + PLAYER_COLLIDER_RADIUS_METERS)).toBeCloseTo(PLAYER_GRAPPLE_CLEARANCE_METERS, 6);
     const offset = playerGrappleOffset(new THREE.Vector3(1, 0, 0), ceiling, new THREE.Vector3());
@@ -81,6 +86,8 @@ describe('player grapple physics', () => {
     expect(result.velocity.length()).toBeLessThan(0.05);
     const head = result.position.y + PLAYER_COLLIDER_HEIGHT_METERS / 2;
     expect(12 - head).toBeGreaterThan(PLAYER_GRAPPLE_CLEARANCE_METERS + PLAYER_GRAPPLE_SLACK_METERS);
+    const eye = result.position.y - PLAYER_CAPSULE_CENTER_ABOVE_FEET_METERS + PLAYER_EYE_HEIGHT_METERS;
+    expect(12 - eye).toBeGreaterThan(1);
   });
 
   it('yanks toward the anchor and always lifts off the ground', () => {
@@ -125,11 +132,11 @@ describe('player grapple physics', () => {
 
   it('flies fast to a far anchor and settles there without jitter', () => {
     const target = new THREE.Vector3(30, 25, 0);
-    const result = fly(new THREE.Vector3(), target, 4);
+    const result = fly(new THREE.Vector3(), target, 5);
     expect(result.fastest).toBeCloseTo(PLAYER_GRAPPLE_MAX_SPEED_METERS_PER_SECOND, 6);
     expect(result.position.distanceTo(target)).toBeLessThan(HANG + 0.05);
     expect(result.velocity.length()).toBeLessThan(0.05);
-    const later = fly(new THREE.Vector3(), target, 4.5);
+    const later = fly(new THREE.Vector3(), target, 5.5);
     expect(later.position.distanceTo(result.position)).toBeLessThan(0.01);
   });
 

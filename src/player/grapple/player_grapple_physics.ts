@@ -8,6 +8,7 @@ import {
   PLAYER_GRAPPLE_AIM_METERS_PER_SECOND_SQUARED,
   PLAYER_GRAPPLE_ARRIVE_METERS,
   PLAYER_GRAPPLE_BRAKE_METERS_PER_SECOND_SQUARED,
+  PLAYER_GRAPPLE_CEILING_CLEARANCE_METERS,
   PLAYER_GRAPPLE_CLEARANCE_METERS,
   PLAYER_GRAPPLE_HANG_DAMPING_PER_SECOND,
   PLAYER_GRAPPLE_LEDGE_LIFT_METERS,
@@ -40,7 +41,8 @@ const scratchAcross = new THREE.Vector3();
  */
 export function playerGrappleTarget(point: THREE.Vector3, normal: THREE.Vector3, target: THREE.Vector3): THREE.Vector3 {
   const reach = PLAYER_COLLIDER_RADIUS_METERS + PLAYER_CAPSULE_HALF_SEGMENT_METERS * Math.abs(normal.y);
-  target.copy(point).addScaledVector(normal, reach + PLAYER_GRAPPLE_CLEARANCE_METERS);
+  const clearance = PLAYER_GRAPPLE_CLEARANCE_METERS + PLAYER_GRAPPLE_CEILING_CLEARANCE_METERS * Math.max(0, -normal.y);
+  target.copy(point).addScaledVector(normal, reach + clearance);
   if (normal.y >= PLAYER_MIN_WALKABLE_NORMAL_Y) target.y += PLAYER_GRAPPLE_LEDGE_LIFT_METERS;
   return target;
 }

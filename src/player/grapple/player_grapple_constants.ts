@@ -11,6 +11,13 @@ export const PLAYER_GRAPPLE_COOLDOWN_SECONDS = 0.06;
 export const PLAYER_GRAPPLE_CLEARANCE_METERS = 0.15;
 
 /**
+ * Extra gap under a ceiling (scaled by how much the surface faces down), so the
+ * eye hangs about a meter below it and the rope's give never brings the head
+ * close.
+ */
+export const PLAYER_GRAPPLE_CEILING_CLEARANCE_METERS = 0.45;
+
+/**
  * How much higher the pull aims over a floor or ledge top (the feet clear its
  * edge).
  */
@@ -26,7 +33,7 @@ export const PLAYER_GRAPPLE_SLACK_METERS = 0.25;
  * Stiffness of the rope beyond the slack (acceleration per meter of stretch):
  * the body hangs about gravity / stiffness past the slack.
  */
-export const PLAYER_GRAPPLE_ROPE_STIFFNESS_PER_SECOND_SQUARED = 240;
+export const PLAYER_GRAPPLE_ROPE_STIFFNESS_PER_SECOND_SQUARED = 160;
 
 /** Speed left for swinging on the rope once braked at the slack. */
 export const PLAYER_GRAPPLE_ROPE_SWING_SPEED_METERS_PER_SECOND = 2;
@@ -86,10 +93,10 @@ export const PLAYER_GRAPPLE_ARRIVE_METERS = 2.5;
  * Hardest braking of the speed on arrival: the body zips in and the rope
  * catches it instead of it overshooting and bouncing back.
  */
-export const PLAYER_GRAPPLE_BRAKE_METERS_PER_SECOND_SQUARED = 120;
+export const PLAYER_GRAPPLE_BRAKE_METERS_PER_SECOND_SQUARED = 60;
 
 /** Damping rate (per second) of the motion while hanging on the rope. */
-export const PLAYER_GRAPPLE_HANG_DAMPING_PER_SECOND = 6;
+export const PLAYER_GRAPPLE_HANG_DAMPING_PER_SECOND = 4;
 
 /**
  * Drag rate (per second) of airborne speed above the run speed: after letting
