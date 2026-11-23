@@ -5,15 +5,26 @@ import { generatorPointerRay } from './generator_path_geometry.js';
 import type { ModifierStackSlider } from '@/modifier/stack/widgets/modifier_stack_slider_record.js';
 
 /**
+ * How a slider drag snaps: distances by the grid, dial angles by the rotation
+ * step.
+ */
+export interface GeneratorSliderSnap {
+  /** Snaps a distance in metres. */
+  distance: (distance: number) => number;
+  /** Snaps an angle in degrees. */
+  angle: (degrees: number) => number;
+}
+
+/**
  * Returns the value a slider takes under a client point: the point on its line
- * nearest the pointer ray, its distance snapped by the grid, then kept between
- * Minimum and Maximum.
+ * nearest the pointer ray, its distance snapped by the grid, or a dial's angle
+ * snapped by the rotation step, then kept between Minimum and Maximum.
  *
  * @param slider Slider.
  * @param pane Pane the pointer is over.
  * @param clientX Pointer client X.
  * @param clientY Pointer client Y.
- * @param snap Snaps a distance in metres to the grid.
+ * @param snap Snaps distances and angles.
  * @returns Value, or null when the pane looks straight down the slider.
  */
 export function generatorSliderValueAt(
@@ -21,29 +32,35 @@ export function generatorSliderValueAt(
   pane: EditorViewportPickContext,
   clientX: number,
   clientY: number,
-  snap: (distance: number) => number,
+  snap: GeneratorSliderSnap,
 ): number | null {
-  if (slider.axis) return generatorSliderTurnAt(slider, slider.axis, generatorPointerRay(pane, clientX, clientY));
+  const ray = generatorPointerRay(pane, clientX, clientY);
+  if (slider.axis) return generatorSliderTurnAt(slider, slider.axis, ray, snap.angle);
   const length = slider.direction.length();
   if (!(length > 0)) return null;
-  const ray = generatorPointerRay(pane, clientX, clientY);
   const unit = slider.direction.clone().divideScalar(length);
   const distance = editAxisDragParameter(slider.origin, unit, ray.origin, ray.direction);
   if (distance === null) return null;
-  return generatorSliderClamp(slider, snap(distance) / length);
+  return generatorSliderClamp(slider, snap.distance(distance) / length);
 }
 
 /**
- * Returns the angle a dial takes under a pointer ray: the angle in whole
- * degrees from its arm to where the ray meets the dial's plane, the turn
- * nearest the value it shows, kept between Minimum and Maximum.
+ * Returns the angle a dial takes under a pointer ray: the snapped angle from
+ * its arm to where the ray meets the dial's plane, the turn nearest the value
+ * it shows, kept between Minimum and Maximum.
  *
  * @param slider Dial.
  * @param axis Unit axis of the dial.
  * @param ray Pointer ray.
+ * @param snap Snaps an angle in degrees.
  * @returns Degrees, or null when the ray misses the dial's plane.
  */
-function generatorSliderTurnAt(slider: ModifierStackSlider, axis: THREE.Vector3, ray: THREE.Ray): number | null {
+function generatorSliderTurnAt(
+  slider: ModifierStackSlider,
+  axis: THREE.Vector3,
+  ray: THREE.Ray,
+  snap: (degrees: number) => number,
+): number | null {
   const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(axis, slider.origin);
   const hit = ray.intersectPlane(plane, new THREE.Vector3());
   if (!hit) return null;
@@ -51,7 +68,7 @@ function generatorSliderTurnAt(slider: ModifierStackSlider, axis: THREE.Vector3,
   const side = new THREE.Vector3().crossVectors(axis, slider.direction);
   const angle = THREE.MathUtils.radToDeg(Math.atan2(arm.dot(side), arm.dot(slider.direction)));
   const turns = Math.round((slider.value - angle) / 360);
-  return generatorSliderClamp(slider, Math.round(angle + turns * 360));
+  return generatorSliderClamp(slider, snap(angle + turns * 360));
 }
 
 /**

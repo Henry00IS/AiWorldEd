@@ -1,5 +1,5 @@
 import { modifierStackAimPatch, modifierStackAims } from '@/modifier/stack/widgets/modifier_stack_aim_record.js';
-import type * as THREE from 'three';
+import * as THREE from 'three';
 import type { CommandStack } from '@/commands/command_stack.js';
 import type { GeneratorEditHost } from '@/editor/tools/generator/generator_edit_host.js';
 import type { EditorViewportPickContext } from '@/editor/window/editor_viewport_pick_context.js';
@@ -18,7 +18,8 @@ import {
 } from '@/modifier/stack/widgets/modifier_stack_sliders.js';
 import { modifierStackDraws } from '@/modifier/stack/widgets/modifier_stack_draw_record.js';
 import {
-  modifierStackButtonPatch,
+  modifierStackButtonPress,
+  type ModifierStackButton,
   modifierStackButtons,
 } from '@/modifier/stack/widgets/modifier_stack_button_record.js';
 import type { ManagerSelection } from '@/selection/object/manager_selection.js';
@@ -28,6 +29,8 @@ import { gridSnapInvertedByShift } from '@/transform/snap/grid_snap_shift_precis
 import type { GridSnap } from '@/transform/snap/grid_snap.js';
 import { editSnapDistanceToGrid } from '@/edit/tool/edit_axis_drag.js';
 import { isObjectOrAncestorLocked } from '@/utils/object_lock.js';
+import type { BridgeTransformInteraction } from '@/tools/bridge/bridge_transform_interaction.js';
+import { solidScriptNoticesPublish } from '@/solid_script/ui/solid_script_notices_channel.js';
 
 /** Overlay reason held while the Generator tool is active. */
 const LAYOUT_GENERATOR_EDIT_REASON = 'generator-tool';
@@ -48,6 +51,8 @@ export interface LayoutGeneratorEditHostDeps {
   gridSnap: GridSnap;
   /** Whether the user turned grid snapping on. */
   getUserSnapEnabled: () => boolean;
+  /** Transform bridge whose orientation the X, Y and Z axis locks follow. */
+  getTransformInteractionBridge?: () => Pick<BridgeTransformInteraction, 'resolveGizmoOrientation'> | null;
   /** Shows or clears the Generator highlight on the tool rail. */
   setRailEditing?: (editing: boolean) => void;
 }
@@ -81,6 +86,13 @@ export function layoutGeneratorEditHostCreate(deps: LayoutGeneratorEditHostDeps)
         deps.gridSnap.getInterval(),
         gridSnapInvertedByShift(deps.getUserSnapEnabled(), invert),
       ),
+    snapAngle: (degrees, invert) => layoutGeneratorEditAngle(deps, degrees, invert),
+    axisOrientation: () => {
+      const only = selected();
+      return (
+        deps.getTransformInteractionBridge?.()?.resolveGizmoOrientation(only ? [only] : []) ?? new THREE.Quaternion()
+      );
+    },
     paths: () => layoutGeneratorEditOf(selected(), modifierStackPaths),
     draws: () => layoutGeneratorEditOf(layoutGeneratorEditOnly(deps.selectionManager), modifierStackDraws),
     slide: (slider, value) =>
@@ -91,7 +103,7 @@ export function layoutGeneratorEditHostCreate(deps: LayoutGeneratorEditHostDeps)
       layoutGeneratorEditWrite(drag, selected(), path.stepId, (owner) => modifierStackPathPatch(owner, path, asset)),
     buttons: () => layoutGeneratorEditOf(selected(), modifierStackButtons),
     press: (button) => {
-      layoutGeneratorEditWrite(drag, selected(), button.stepId, (owner) => modifierStackButtonPatch(owner, button));
+      layoutGeneratorEditWrite(drag, selected(), button.stepId, (owner) => layoutGeneratorEditPress(owner, button));
       layoutGeneratorEditChangeEnd(drag, deps.commandStack);
     },
     aims: () => layoutGeneratorEditOf(selected(), modifierStackAims),
@@ -100,6 +112,38 @@ export function layoutGeneratorEditHostCreate(deps: LayoutGeneratorEditHostDeps)
     changeEnd: () => layoutGeneratorEditChangeEnd(drag, deps.commandStack),
     changeCancel: () => layoutGeneratorEditChangeCancel(drag),
   };
+}
+
+/**
+ * Returns the patch a click on a button makes, and shows the messages its
+ * handlers showed in the inspector of its step.
+ *
+ * @param owner Object edited.
+ * @param button Button clicked.
+ * @returns Patch, or null when the step or the input is gone.
+ */
+function layoutGeneratorEditPress(owner: THREE.Object3D, button: ModifierStackButton): Record<string, unknown> | null {
+  const pressed = modifierStackButtonPress(owner, button);
+  if (pressed) solidScriptNoticesPublish(owner, button.stepId, pressed.notices, pressed.error);
+  return pressed?.patch ?? null;
+}
+
+/**
+ * Snaps an angle by the rotation step when grid snapping is on, or the other
+ * way round while Shift is held, and keeps tenths of a degree.
+ *
+ * @param deps Scene services.
+ * @param degrees Angle in degrees.
+ * @param invert True while Shift is held.
+ * @returns Snapped angle.
+ */
+function layoutGeneratorEditAngle(deps: LayoutGeneratorEditHostDeps, degrees: number, invert: boolean): number {
+  const snapped = editSnapDistanceToGrid(
+    degrees,
+    deps.gridSnap.getRotationSnapDegrees(),
+    gridSnapInvertedByShift(deps.getUserSnapEnabled(), invert),
+  );
+  return Math.round(snapped * 10) / 10;
 }
 
 /**

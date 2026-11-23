@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import type { EditorWindow } from '@/editor/window/editor_window.js';
 import { TransformModalAxis } from '@/transform/modal/transform_modal_axis.js';
 import type { PathEditSelectMode } from '@/path/edit/path_edit_selection.js';
@@ -15,7 +16,53 @@ const GENERATOR_DRAG_AXIS_KEYS: Readonly<
  * @returns True while Shift is held.
  */
 export function generatorShiftHeld(editor: EditorWindow): boolean {
-  return editor.getLatchedModifierFlags()?.shiftKey === true || editor.isShiftPressed;
+  return editor.getLatchedModifierFlags()?.shiftKey ?? editor.isShiftPressed;
+}
+
+/**
+ * Follows Shift during a drag, so pressing or letting go of it turns grid
+ * snapping over at once, without waiting for the pointer to move.
+ */
+export class GeneratorShiftWatch {
+  /** Window listened on, or null. */
+  private target: Window | null = null;
+  /** Editor whose modifiers follow Shift. */
+  private editor: EditorWindow | null = null;
+  /** Reacts to Shift going down or up. */
+  private readonly listener = (event: KeyboardEvent): void => {
+    if (event.key !== 'Shift' || !this.editor) return;
+    this.editor.updateModifiersFromDomEvent(event);
+    this.changed();
+  };
+
+  /**
+   * Creates a watcher.
+   *
+   * @param changed Called after Shift goes down or up.
+   */
+  constructor(private readonly changed: () => void) {}
+
+  /**
+   * Starts following Shift in the window of a pane.
+   *
+   * @param editor Editor window.
+   * @param ownerWindow Window of the dragged pane.
+   */
+  start(editor: EditorWindow, ownerWindow: Window | null): void {
+    this.stop();
+    this.editor = editor;
+    this.target = ownerWindow;
+    ownerWindow?.addEventListener('keydown', this.listener, true);
+    ownerWindow?.addEventListener('keyup', this.listener, true);
+  }
+
+  /** Stops following Shift. */
+  stop(): void {
+    this.target?.removeEventListener('keydown', this.listener, true);
+    this.target?.removeEventListener('keyup', this.listener, true);
+    this.target = null;
+    this.editor = null;
+  }
 }
 
 /**
@@ -51,4 +98,16 @@ export function generatorAxisKey(
 export function generatorAxisIndex(axis: TransformModalAxis): number | null {
   const index = [TransformModalAxis.X, TransformModalAxis.Y, TransformModalAxis.Z].indexOf(axis);
   return index < 0 ? null : index;
+}
+
+/**
+ * Returns the world direction of a locked axis turned by the orientation of the
+ * axis locks.
+ *
+ * @param index Axis index: 0, 1 or 2.
+ * @param orientation Rotation of the axis locks.
+ * @returns Unit world direction.
+ */
+export function generatorAxisUnit(index: number, orientation: THREE.Quaternion): THREE.Vector3 {
+  return new THREE.Vector3().setComponent(index, 1).applyQuaternion(orientation);
 }

@@ -31,6 +31,7 @@ import {
 } from '@/solid_script/document/solid_script_document_inputs.js';
 import type { SolidScriptEvent } from '@/solid_script/language/solid_script_machine_types.js';
 import { solidScriptDocumentEvent } from '@/solid_script/document/solid_script_document_event.js';
+import { solidScriptNoticesListen } from './solid_script_notices_channel.js';
 
 /** Builds what the rows act on, with a status line. */
 type SolidScriptInspectorTargetOf = (status: (text: string) => void) => ModifierStackActionTarget | null;
@@ -88,6 +89,7 @@ export function solidScriptInspectorInputs(
     }
     notices.replaceChildren(...lines);
   };
+  solidScriptInspectorNoticesFollow(element, targetOf, noticesShow);
   const commit = (event: SolidScriptEvent, text: string | null): void => {
     const target = targetOf(() => undefined);
     if (!target) return;
@@ -123,6 +125,29 @@ export function solidScriptInspectorInputs(
     });
   };
   return { element, write };
+}
+
+/**
+ * Shows the messages a press in the scene passed on for the step the rows
+ * belong to, until the rows leave the page.
+ *
+ * @param element Rows element.
+ * @param targetOf Builds what the rows act on.
+ * @param show Shows messages under the rows.
+ */
+function solidScriptInspectorNoticesFollow(
+  element: HTMLElement,
+  targetOf: SolidScriptInspectorTargetOf,
+  show: (texts: readonly string[], error: string | null) => void,
+): void {
+  const stop = solidScriptNoticesListen((owner, stepId, texts, error) => {
+    if (!element.isConnected) {
+      stop();
+      return;
+    }
+    const target = targetOf(() => undefined);
+    if (target?.volume === owner && target.stepId === stepId) show(texts, error);
+  });
 }
 
 /**

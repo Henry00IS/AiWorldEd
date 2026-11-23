@@ -1,4 +1,4 @@
-import type { Object3D, Vector3 } from 'three';
+import type { Object3D, Quaternion, Vector3 } from 'three';
 import type { EditorViewportPickContext } from '@/editor/window/editor_viewport_pick_context.js';
 import type { PathAsset } from '@/path/model/path_asset.js';
 import type { ModifierStackPath } from '@/modifier/stack/widgets/modifier_stack_path_record.js';
@@ -105,6 +105,25 @@ export interface GeneratorEditHost {
    * @returns Snapped distance.
    */
   snapDistance(distance: number, invert: boolean): number;
+
+  /**
+   * Snaps an angle by the rotation step when grid snapping is on, or the other
+   * way round while Shift is held.
+   *
+   * @param degrees Angle in degrees.
+   * @param invert True while Shift is held.
+   * @returns Snapped angle in degrees.
+   */
+  snapAngle(degrees: number, invert: boolean): number;
+
+  /**
+   * Returns the rotation of the X, Y and Z axis locks, as the transform gizmo
+   * orients its axes: the workspace grid in Global space, the edited object in
+   * Local space.
+   *
+   * @returns World rotation.
+   */
+  axisOrientation(): Quaternion;
 
   /**
    * Writes a value into the input of a slider and rebuilds at once, as one live

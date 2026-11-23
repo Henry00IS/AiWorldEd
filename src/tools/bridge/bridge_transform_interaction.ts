@@ -673,12 +673,13 @@ export class BridgeTransformInteraction {
   }
 
   /**
-   * Resolves the handle quaternion for the active transform space.
+   * Resolves the handle quaternion for the active transform space, which the X,
+   * Y and Z axis locks follow.
    *
    * @param selected Selected objects.
    * @returns World quaternion for transform handles.
    */
-  private resolveGizmoOrientation(selected: THREE.Object3D[]): THREE.Quaternion {
+  resolveGizmoOrientation(selected: THREE.Object3D[]): THREE.Quaternion {
     return resolveLayoutGizmoOrientation(
       {
         transformSpace: this.resolveActiveTransformSpace(),

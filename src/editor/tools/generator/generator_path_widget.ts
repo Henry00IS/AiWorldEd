@@ -13,7 +13,9 @@ import {
 import { TransformModalAxis, transformModalAxisToggle } from '@/transform/modal/transform_modal_axis.js';
 import type { GeneratorEditHost } from './generator_edit_host.js';
 import {
+  GeneratorShiftWatch,
   generatorAxisIndex,
+  generatorAxisUnit,
   generatorAxisKey,
   generatorSelectMode,
   generatorShiftHeld,
@@ -65,6 +67,10 @@ export class GeneratorPathWidget extends Widget {
   private grab: GeneratorPathGrab | null = null;
   /** Box-select rectangle, once shown. */
   private marquee: HTMLElement | null = null;
+  /** Turns snapping over at once when Shift changes during a drag. */
+  private readonly shift = new GeneratorShiftWatch(() => {
+    if (this.grab?.moved) this.dragApply(this.grab);
+  });
 
   /** Draws every path of this frame and hides the rest. */
   override onRender(): void {
@@ -92,6 +98,7 @@ export class GeneratorPathWidget extends Widget {
     const press = hit ? this.hitPress(hit, mode) : this.emptyPress(host, x, y, mode);
     if (!press) return;
     this.grab = { ...press, mode, x, y, moved: false, axis: TransformModalAxis.None };
+    this.shift.start(editor, press.pane.pickElement.ownerDocument.defaultView);
     this.latchWantsActiveFromGizmoState(true);
   }
 
@@ -217,7 +224,7 @@ export class GeneratorPathWidget extends Widget {
     const world =
       axis === null
         ? generatorPathPlanePoint(grab.pane, x, y, grab.anchor, snap)
-        : generatorPathAxisPoint(grab.pane, x, y, grab.anchor, axis, snap);
+        : generatorPathAxisPoint(grab.pane, x, y, grab.anchor, generatorAxisUnit(axis, host.axisOrientation()), snap);
     const moved = world ? generatorPathDragged(grab, world) : null;
     if (moved) host.pathWrite(grab.path, moved);
   }
@@ -358,6 +365,7 @@ export class GeneratorPathWidget extends Widget {
   /** Forgets the press, hides the box select and gives the pointer back. */
   private grabStop(): void {
     this.grab = null;
+    this.shift.stop();
     if (this.marquee) this.marquee.hidden = true;
     this.clearWantsActiveLatch();
   }

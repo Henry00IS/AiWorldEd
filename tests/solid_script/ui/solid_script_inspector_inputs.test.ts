@@ -12,6 +12,7 @@ import {
 } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
 import { modifierStackSolidScriptLayout } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_layout.js';
 import { pathEditSelect } from '@/path/edit/path_edit_selection.js';
+import { solidScriptNoticesPublish } from '@/solid_script/ui/solid_script_notices_channel.js';
 import { pathAssetDecode } from '@/path/model/path_asset.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { ModifierStackFieldRows } from '@/modifier/stack/ui/modifier_stack_field_rows.js';
@@ -73,7 +74,7 @@ function inputsFixture(lines: SolidScriptLine[]) {
       current[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY] as Record<string, string>,
     ).nodes.length;
   };
-  return { panel, rows, commandStack, parameters, solids, stepId: first.id };
+  return { panel, rows, commandStack, parameters, solids, stepId: first.id, node };
 }
 
 describe('SolidScript inspector inputs', () => {
@@ -271,5 +272,17 @@ describe('SolidScript inspector inputs', () => {
     expect(panel.querySelector('[data-solid-script-notices]')?.textContent).toBe('');
     commandStack.undo();
     expect(parameters()[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]).toEqual({ steps: '6' });
+  });
+
+  it('shows the messages of a press in the scene under the rows of the pressed step only', () => {
+    const { panel, node, stepId } = inputsFixture([
+      { command: 'input', values: { name: 'reset', type: 'Button' } },
+      { command: 'cube' },
+    ]);
+    const notices = () => panel.querySelector('[data-solid-script-notices]')?.textContent;
+    solidScriptNoticesPublish(node, 'other', ['Not this one'], null);
+    expect(notices()).toBe('');
+    solidScriptNoticesPublish(node, stepId, ['Rails picked'], 'Too many rails');
+    expect(notices()).toBe('Rails pickedToo many rails');
   });
 });

@@ -72,7 +72,7 @@ function heightSlider(stepId: string): ModifierStackSlider {
  * @param stack Meshes under every client point, nearest first.
  * @returns Host, selection and policy.
  */
-function setup(stack: THREE.Mesh[]) {
+function setup(stack: THREE.Mesh[], orientation: THREE.Quaternion | null = null) {
   const selectionManager = new ManagerSelection();
   const editorOverlayPolicy = new PolicyEditorOverlay();
   const pane = {
@@ -90,6 +90,7 @@ function setup(stack: THREE.Mesh[]) {
     commandStack,
     gridSnap,
     getUserSnapEnabled: () => gridSnap.isEnabled(),
+    getTransformInteractionBridge: () => (orientation ? { resolveGizmoOrientation: () => orientation } : null),
     setRailEditing,
   });
   return { host, selectionManager, editorOverlayPolicy, commandStack, gridSnap, setRailEditing };
@@ -205,6 +206,23 @@ describe('layoutGeneratorEditHostCreate', () => {
     gridSnap.setEnabled(false);
     expect(host.snapDistance(0.3, false)).toBeCloseTo(0.3);
     expect(host.snapDistance(0.3, true)).toBeCloseTo(0.25);
+  });
+
+  it('snaps angles by the rotation step while snapping is on, Shift turning it over, and keeps tenths of a degree', () => {
+    const { host, gridSnap } = setup([]);
+    gridSnap.setEnabled(true);
+    gridSnap.setRotationSnapDegrees(15);
+    expect(host.snapAngle(22.3456, false)).toBe(15);
+    expect(host.snapAngle(22.3456, true)).toBe(22.3);
+    gridSnap.setEnabled(false);
+    expect(host.snapAngle(22.3456, false)).toBe(22.3);
+    expect(host.snapAngle(22.3456, true)).toBe(15);
+  });
+
+  it('locks axes as the transform gizmo orients them, and along the world without it', () => {
+    expect(setup([]).host.axisOrientation().equals(new THREE.Quaternion())).toBe(true);
+    const turned = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 1);
+    expect(setup([], turned).host.axisOrientation().equals(turned)).toBe(true);
   });
 
   it('holds the generator editing overlay while editing', () => {

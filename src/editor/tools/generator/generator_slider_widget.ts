@@ -4,7 +4,7 @@ import type { EditorViewportPickContext } from '@/editor/window/editor_viewport_
 import type { ModifierStackSlider } from '@/modifier/stack/widgets/modifier_stack_slider_record.js';
 import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { cursorFromScreenDelta } from '@/transform/bounds/bounds_resize_cursor.js';
-import { generatorShiftHeld } from './generator_drag_keys.js';
+import { GeneratorShiftWatch, generatorShiftHeld } from './generator_drag_keys.js';
 import type { GeneratorEditHost } from './generator_edit_host.js';
 import { GeneratorSliderEntry } from './generator_slider_entry.js';
 import {
@@ -58,6 +58,10 @@ export class GeneratorSliderWidget extends Widget {
   private readonly entry = new GeneratorSliderEntry();
   /** Drag in progress, or null. */
   private drag: GeneratorSliderDrag | null = null;
+  /** Turns snapping over at once when Shift changes during a drag. */
+  private readonly shift = new GeneratorShiftWatch(() => {
+    if (this.drag?.written !== null) this.onGlobalMouseDrag();
+  });
 
   /**
    * Places the dashed ruler of a slider, from its zero point to its handle.
@@ -125,6 +129,7 @@ export class GeneratorSliderWidget extends Widget {
     this.entry.close();
     const [x, y] = [editor.lastPointerClientX, editor.lastPointerClientY];
     this.drag = { key: hit.slider.key, pane: hit.pane, written: null, x, y };
+    this.shift.start(editor, hit.pane.pickElement.ownerDocument.defaultView);
     this.latchWantsActiveFromGizmoState(true);
   }
 
@@ -136,8 +141,11 @@ export class GeneratorSliderWidget extends Widget {
     const editor = this.editor;
     if (!drag || !host || !slider || !editor) return;
     const { lastPointerClientX: x, lastPointerClientY: y } = editor;
-    const snap = (distance: number): number => host.snapDistance(distance, generatorShiftHeld(editor));
-    const value = generatorSliderValueAt(slider, drag.pane, x, y, snap);
+    const invert = generatorShiftHeld(editor);
+    const value = generatorSliderValueAt(slider, drag.pane, x, y, {
+      distance: (distance) => host.snapDistance(distance, invert),
+      angle: (degrees) => host.snapAngle(degrees, invert),
+    });
     if (value === null || value === drag.written) return;
     drag.written = value;
     host.slide(slider, value);
@@ -230,6 +238,7 @@ export class GeneratorSliderWidget extends Widget {
   /** Forgets the drag and gives the pointer back. */
   private dragStop(): void {
     this.drag = null;
+    this.shift.stop();
     this.clearWantsActiveLatch();
   }
 

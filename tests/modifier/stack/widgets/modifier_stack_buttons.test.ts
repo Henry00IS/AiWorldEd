@@ -6,7 +6,7 @@ import { modifierGeneratorNodeCreate } from '@/modifier/stack/modifier_generator
 import { modifierStackCompile } from '@/modifier/stack/evaluate/modifier_stack_compile.js';
 import { MODIFIER_STACK_SOLID_SCRIPT_KIND } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
 import {
-  modifierStackButtonPatch,
+  modifierStackButtonPress,
   modifierStackButtons,
 } from '@/modifier/stack/widgets/modifier_stack_button_record.js';
 import { modifierStackDraws } from '@/modifier/stack/widgets/modifier_stack_draw_record.js';
@@ -49,20 +49,27 @@ describe('modifier stack buttons and drawings', () => {
     expect(rest).toEqual([]);
     expect([toggle?.kind, toggle?.label, toggle?.on]).toEqual(['Toggle', 'Show Rails', false]);
     expect(toggle?.at.distanceTo(centre.clone().add(new THREE.Vector3(0, 1, 0)))).toBeLessThan(1e-9);
-    expect(modifierStackButtonPatch(node, toggle!)).toEqual({ inputs: { ShowRails: 'Yes' } });
+    expect(modifierStackButtonPress(node, toggle!)).toEqual({
+      patch: { inputs: { ShowRails: 'Yes' } },
+      notices: [],
+      error: null,
+    });
   });
 
-  it('presses a Button Input and keeps the Persistent value its When Button Pressed sets', () => {
+  it('presses a Button Input, keeps the Persistent value its When Button Pressed sets and passes on its messages', () => {
     const { node } = scene([
       PICK,
       { command: 'when_button_pressed', values: { name: 'PickRails' } },
       { command: 'variable', values: { name: 'Persistent.Page', value: 'Rails' } },
+      { command: 'show_message', values: { text: 'Rails picked' } },
       { command: 'end' },
       { command: 'widget_button', values: { writes: 'PickRails' } },
       { command: 'cube' },
     ]);
     const [button] = modifierStackButtons(node);
-    expect(JSON.stringify(modifierStackButtonPatch(node, button!))).toContain('Rails');
+    const pressed = modifierStackButtonPress(node, button!);
+    expect(JSON.stringify(pressed?.patch)).toContain('Rails');
+    expect(pressed?.notices).toEqual(['Rails picked']);
   });
 
   it('records Debug Draw in the world, also without an edit mode', () => {

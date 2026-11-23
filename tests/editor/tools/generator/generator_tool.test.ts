@@ -44,7 +44,8 @@ function setup(selected: THREE.Object3D | null) {
     draws: ModifierStackDraw[];
     buttons: ModifierStackButton[];
     aims: ModifierStackAim[];
-  } = { selected, sliders: [], paths: [], draws: [], buttons: [], aims: [] };
+    orientation: THREE.Quaternion;
+  } = { selected, sliders: [], paths: [], draws: [], buttons: [], aims: [], orientation: new THREE.Quaternion() };
   const host: GeneratorEditHost = {
     selectedEditable: () => state.selected,
     panes: () => [{ camera, pickElement: pick }],
@@ -61,6 +62,8 @@ function setup(selected: THREE.Object3D | null) {
       state.paths = state.paths.map((each) => (each.key === path.key ? { ...each, path: asset } : each));
     }),
     snapDistance: (distance, invert) => (invert ? distance : Math.round(distance * 2) / 2),
+    snapAngle: (degrees, invert) => (invert ? degrees : Math.round(degrees / 15) * 15),
+    axisOrientation: () => state.orientation,
     slide: vi.fn((slider: ModifierStackSlider, value: number) => {
       state.sliders = state.sliders.map((each) =>
         each.key === slider.key ? { ...each, value: Math.min(value, 1) } : each,
@@ -267,14 +270,19 @@ describe('Generator Edit button and Generator tool', () => {
     expect([line?.style.left, line?.style.top, line?.style.width]).toEqual(['100px', '50px', '50px']);
   });
 
-  it('turns a dial handle about its axis and writes the angle under the pointer in whole degrees', async () => {
+  it('turns a dial handle about its axis and writes the angle under the pointer, snapped by the rotation step unless Shift turns it the other way', async () => {
     const { editor, host, state } = setup(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1)));
     await click(editor, [100, 50], [100, 50]);
     state.sliders = [{ ...slider(), axis: new THREE.Vector3(0, 0, 1) }];
     editor.onRepaint();
     expect([sliderHandle()?.style.left, sliderHandle()?.style.top]).toEqual(['150px', '50px']);
     drag(editor, [150, 50], [101, 1]);
-    expect(host.slide).toHaveBeenLastCalledWith(expect.objectContaining({ key: 'a' }), 89);
+    expect(host.slide).toHaveBeenLastCalledWith(expect.objectContaining({ key: 'a' }), 90);
+    editor.updateModifiersFromDomEvent({ shiftKey: true, ctrlKey: false, altKey: false, metaKey: false });
+    [editor.lastPointerClientX, editor.lastPointerClientY] = [101, 2];
+    editor.onGlobalMouseDrag(0, new THREE.Vector2(), new THREE.Vector2());
+    expect(vi.mocked(host.slide).mock.lastCall?.[1]).toBeCloseTo(88.81, 1);
+    editor.updateModifiersFromDomEvent({ shiftKey: false, ctrlKey: false, altKey: false, metaKey: false });
     state.sliders = [{ ...slider(), axis: new THREE.Vector3(0, 0, 1), value: 90 }];
     editor.onRepaint();
     expect([sliderHandle()?.style.left, sliderHandle()?.style.top]).toEqual(['100px', '0px']);
@@ -593,6 +601,37 @@ describe('Generator tool path selection and drags', () => {
     drag(editor, [100, 50], [137, 50]);
     expect(vi.mocked(host.slide).mock.lastCall?.[1]).toBeCloseTo(0.74);
     hold(editor, {});
+  });
+
+  it('turns grid snapping over at once when Shift goes down or up mid-drag, without a pointer move', async () => {
+    const { editor, host, state } = await pathSetup();
+    drag(editor, [150, 50], [174, 26]);
+    expect(state.paths[0]?.path.points[1]).toEqual([1.5, 0.5, 0]);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Shift', shiftKey: true }));
+    expect(state.paths[0]?.path.points[1]).toEqual([1.48, 0.48, 0]);
+    window.dispatchEvent(new KeyboardEvent('keyup', { key: 'Shift', shiftKey: false }));
+    expect(state.paths[0]?.path.points[1]).toEqual([1.5, 0.5, 0]);
+    editor.onGlobalMouseUp(0);
+    state.paths = [];
+    state.sliders = [slider()];
+    editor.onRepaint();
+    drag(editor, [100, 50], [137, 50]);
+    expect(vi.mocked(host.slide).mock.lastCall?.[1]).toBe(0.5);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Shift', shiftKey: true }));
+    expect(vi.mocked(host.slide).mock.lastCall?.[1]).toBeCloseTo(0.74);
+    editor.onGlobalMouseUp(0);
+    window.dispatchEvent(new KeyboardEvent('keyup', { key: 'Shift', shiftKey: false }));
+    expect(vi.mocked(host.slide).mock.lastCall?.[1]).toBeCloseTo(0.74);
+  });
+
+  it('locks to the axes of the transform space, as the transform gizmo does', async () => {
+    const { editor, state } = await pathSetup();
+    state.orientation = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI / 2);
+    drag(editor, [150, 50], [174, 26]);
+    editor.onKeyDown('KeyX', new KeyboardEvent('keydown', { code: 'KeyX' }));
+    const point = state.paths[0]?.path.points[1] ?? [];
+    expect(point.map((value) => Number(value.toFixed(6)))).toEqual([1, 0.5, 0]);
+    editor.onGlobalMouseUp(0);
   });
 });
 

@@ -59,15 +59,15 @@ export function generatorPathPlanePoint(
 }
 
 /**
- * Returns the world point under a client point on the world axis line through
- * an anchor, its coordinate on that axis snapped by the grid.
+ * Returns the world point under a client point on the axis line through an
+ * anchor, the distance travelled along it snapped by the grid.
  *
  * @param pane Pane.
  * @param clientX Client X.
  * @param clientY Client Y.
  * @param anchor World point the line runs through.
- * @param axis World axis index of the line.
- * @param snap Snaps a world coordinate to the grid.
+ * @param unit Unit world direction of the line.
+ * @param snap Snaps a distance to the grid.
  * @returns World point, or null when the pane looks along the line.
  */
 export function generatorPathAxisPoint(
@@ -75,12 +75,12 @@ export function generatorPathAxisPoint(
   clientX: number,
   clientY: number,
   anchor: THREE.Vector3,
-  axis: number,
+  unit: THREE.Vector3,
   snap: (value: number) => number,
 ): THREE.Vector3 | null {
   const ray = generatorPointerRay(pane, clientX, clientY);
-  const along = editAxisDragParameter(anchor, new THREE.Vector3().setComponent(axis, 1), ray.origin, ray.direction);
-  return along === null ? null : anchor.clone().setComponent(axis, snap(anchor.getComponent(axis) + along));
+  const along = editAxisDragParameter(anchor, unit, ray.origin, ray.direction);
+  return along === null ? null : anchor.clone().addScaledVector(unit, snap(along));
 }
 
 /**

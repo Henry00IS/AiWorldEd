@@ -75,19 +75,29 @@ export function modifierStackButtons(owner: THREE.Object3D): ModifierStackButton
   return modifierStackEditSteps(owner).flatMap((entry) => MODIFIER_STACK_BUTTONS.recorded(owner, entry.id));
 }
 
+/** What a click on a button does. */
+export interface ModifierStackButtonPressed {
+  /** Parameter patch to store. */
+  patch: Record<string, unknown>;
+  /** Messages the handlers showed. */
+  notices: string[];
+  /** Mistake a handler stopped at, or null. */
+  error: string | null;
+}
+
 /**
- * Returns the parameter patch a click on a button makes: a Button Input is
- * pressed and a Switch Input flipped, and the When Button Pressed or When Input
- * Changes lines run and keep what they set.
+ * Returns what a click on a button does: a Button Input is pressed and a Switch
+ * Input flipped, and the When Button Pressed or When Input Changes lines run,
+ * keep what they set and pass on the messages they show.
  *
  * @param owner Stack owner.
  * @param button Button clicked.
- * @returns Parameter patch, or null when the step or the input is gone.
+ * @returns Patch and messages, or null when the step or the input is gone.
  */
-export function modifierStackButtonPatch(
+export function modifierStackButtonPress(
   owner: THREE.Object3D,
   button: ModifierStackButton,
-): Record<string, unknown> | null {
+): ModifierStackButtonPressed | null {
   const entry = modifierStackStep(owner, button.stepId);
   if (!entry || button.writes === '') return null;
   const script = entry.parameters[MODIFIER_STACK_SOLID_SCRIPT_KEY];
@@ -99,6 +109,7 @@ export function modifierStackButtonPatch(
   if (input?.type !== 'Button' && input?.type !== 'Switch') return null;
   const event: SolidScriptEvent = { kind: input.type === 'Button' ? 'button' : 'input', name: input.name };
   const flipped = solidScriptFieldBoolean(values[input.name] ?? input.fallback) === true ? 'No' : 'Yes';
-  const text = event.kind === 'button' ? null : flipped;
-  return { [MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]: solidScriptDocumentEvent(script, event, values, text).next };
+  const { next, handled } = solidScriptDocumentEvent(script, event, values, event.kind === 'button' ? null : flipped);
+  const patch = { [MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]: next };
+  return { patch, notices: handled.notices, error: handled.error?.message ?? null };
 }
