@@ -146,11 +146,11 @@ export const PLAYER_GRAPPLE_HAND_HEIGHT_METERS = 1.2;
 export const PLAYER_GRAPPLE_HAND_SIDE_METERS = 0.28;
 
 /**
- * Loudness of the grapple sounds: the own at half the first version's 0.45,
+ * Loudness of the grapple sounds: the own at 80% of the first version's 0.45,
  * others' at 60% of that. Both go mono into the panner, which costs 3 dB at the
  * center, hence the √2.
  */
-export const PLAYER_GRAPPLE_VOLUME = { own: 0.225 * Math.SQRT2, others: 0.135 * Math.SQRT2 } as const;
+export const PLAYER_GRAPPLE_VOLUME = { own: 0.36 * Math.SQRT2, others: 0.216 * Math.SQRT2 } as const;
 
 /** Distance from the player within which the grapple sounds play at full level. */
 export const PLAYER_GRAPPLE_FALLOFF_FULL_METERS = 4;
