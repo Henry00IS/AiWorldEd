@@ -446,6 +446,7 @@ describe('solid script command catalog', () => {
     const converters = solidScriptCommands.filter((command) => !solidScriptCommandPreservesBrushes(command));
     expect(converters.map((command) => command.id).sort()).toEqual([
       'fill_paths',
+      'fill_points',
       'grid_mesh',
       'icosphere_mesh',
       'mesh',

@@ -138,12 +138,12 @@ export function solidScriptCommandsOfCategory(category: SolidScriptCommandCatego
 
 /**
  * Returns whether a command must keep brushes as brushes. Only Mesh, Mesh From
- * Solids, Grid Mesh and Fill Paths may emit a mesh; every other command either
- * keeps a brush or stops with a plain error.
+ * Solids, Grid Mesh, Icosphere Mesh, Fill Paths and Fill Points may emit a
+ * mesh; every other command either keeps a brush or stops with a plain error.
  *
  * @param command Command.
  * @returns True when the command must not emit a mesh from a brush.
  */
 export function solidScriptCommandPreservesBrushes(command: SolidScriptCommand): boolean {
-  return !['mesh', 'mesh_from_solids', 'grid_mesh', 'icosphere_mesh', 'fill_paths'].includes(command.id);
+  return !['mesh', 'mesh_from_solids', 'grid_mesh', 'icosphere_mesh', 'fill_paths', 'fill_points'].includes(command.id);
 }
