@@ -71,6 +71,8 @@ export class PlayerGrapple implements PlayerBodyPull {
   private readonly aim = new THREE.Vector3();
   private readonly offset = new THREE.Vector3();
   private readonly hand = new THREE.Vector3();
+  /** Where a missed shot's flicker ends, on the view's centre ray. */
+  private readonly missEnd = new THREE.Vector3();
 
   /**
    * Creates an idle grapple.
@@ -105,10 +107,7 @@ export class PlayerGrapple implements PlayerBodyPull {
     if (now - this.releasedAt < PLAYER_GRAPPLE_COOLDOWN_SECONDS) return false;
     const hit = this.world.raycastNearest(origin, forward, PLAYER_GRAPPLE_RANGE_METERS);
     if (!hit) {
-      this.beam.fizzle(
-        origin.clone().addScaledVector(forward, 0.5),
-        origin.clone().addScaledVector(forward, PLAYER_GRAPPLE_FIZZLE_METERS),
-      );
+      this.beam.fizzle(this.hand, this.missEnd.copy(origin).addScaledVector(forward, PLAYER_GRAPPLE_FIZZLE_METERS));
       this.sound.miss();
       return false;
     }
@@ -201,7 +200,7 @@ export class PlayerGrapple implements PlayerBodyPull {
     if (this.anchor) {
       this.beam.show(this.hand, this.anchor);
       this.sound.pulling(speed);
-    }
+    } else this.beam.follow(this.hand, this.missEnd);
     this.beam.update(deltaSeconds);
     this.fovUpdate(camera, speed, deltaSeconds);
   }

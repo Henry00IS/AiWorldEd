@@ -53,7 +53,8 @@ function scene() {
   body.resetAt(new THREE.Vector3(0, 0, 0), world);
   const look = new PlayerLookState();
   const announced: (THREE.Vector3 | null)[] = [];
-  const layer = { helperAdd: () => {}, helperRemove: () => {} };
+  const drawn: THREE.Object3D[] = [];
+  const layer = { helperAdd: (object: THREE.Object3D) => drawn.push(object), helperRemove: () => {} };
   const grapple = new PlayerGrapple(
     world,
     look,
@@ -63,7 +64,7 @@ function scene() {
   );
   body.setPull(grapple);
   for (let step = 0; step < 5; step++) body.update(NO_KEYS, look, world, STEP);
-  return { body, look, world, grapple, announced };
+  return { body, look, world, grapple, announced, drawn };
 }
 
 /**
@@ -140,6 +141,30 @@ describe('PlayerGrapple', () => {
     ).toBe(false);
     expect(announced.length).toBe(count + 1);
     expect(grapple.getAnchor()).toBeNull();
+  });
+
+  it('draws a miss from the hand out along the view centre, like a hit', () => {
+    const { grapple, drawn } = scene();
+    const camera = new THREE.PerspectiveCamera();
+    camera.position.set(0, 3, -4);
+    camera.updateMatrixWorld();
+    const hand = new THREE.Vector3(0.4, 1.4, -0.2);
+    grapple.update(camera, hand, 0, STEP);
+    const forward = new THREE.Vector3(0, 0.6, -1).normalize();
+    expect(grapple.press(camera.position, forward, 0)).toBe(false);
+    const core = drawn[0]!.children[0]!;
+    const end = () =>
+      new THREE.Vector3(0, 1, 0).applyQuaternion(core.quaternion).multiplyScalar(core.scale.y).add(core.position);
+    expect(core.visible).toBe(true);
+    expect(core.position.distanceTo(hand)).toBeLessThan(1e-6);
+    const onRay = end().sub(camera.position);
+    expect(onRay.clone().normalize().dot(forward)).toBeCloseTo(1, 6);
+    hand.set(1, 2, 0);
+    grapple.update(camera, hand, 0, STEP);
+    expect(core.position.distanceTo(hand)).toBeLessThan(1e-6);
+    expect(end().distanceTo(onRay.add(camera.position))).toBeLessThan(1e-6);
+    for (let step = 0; step < 30; step++) grapple.update(camera, hand, 0, STEP);
+    expect(core.visible).toBe(false);
   });
 
   it('climbs over a wall too high to jump by hooking its top', () => {

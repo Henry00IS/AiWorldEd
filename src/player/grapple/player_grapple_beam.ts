@@ -113,6 +113,16 @@ export class PlayerGrappleBeam {
     this.fizzleAge = 0;
   }
 
+  /**
+   * Keeps a playing flicker between moving ends (the hand moves on).
+   *
+   * @param from Hand position.
+   * @param to End of the flicker.
+   */
+  follow(from: THREE.Vector3, to: THREE.Vector3): void {
+    if (this.core.visible && Number.isFinite(this.fizzleAge)) this.span(from, to, 0.6);
+  }
+
   /** Stops drawing the beam (a flash or flicker plays out). */
   hide(): void {
     this.core.visible = this.glow.visible = false;

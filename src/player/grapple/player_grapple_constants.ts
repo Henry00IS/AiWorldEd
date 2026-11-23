@@ -153,10 +153,13 @@ export const PLAYER_GRAPPLE_FLASH_SECONDS = 0.22;
 export const PLAYER_GRAPPLE_FLASH_RADIUS_METERS = 0.6;
 
 /** Seconds a missed shot's beam flickers out. */
-export const PLAYER_GRAPPLE_FIZZLE_SECONDS = 0.16;
+export const PLAYER_GRAPPLE_FIZZLE_SECONDS = 0.25;
 
-/** Length of a missed shot's beam. */
-export const PLAYER_GRAPPLE_FIZZLE_METERS = 14;
+/**
+ * How far along the view's centre ray a missed shot's beam reaches (from the
+ * camera).
+ */
+export const PLAYER_GRAPPLE_FIZZLE_METERS = 20;
 
 /** First-person beam start in camera space (right, down, ahead of the eye). */
 export const PLAYER_GRAPPLE_HAND_OFFSET: readonly [number, number, number] = [0.26, -0.24, -0.8];
