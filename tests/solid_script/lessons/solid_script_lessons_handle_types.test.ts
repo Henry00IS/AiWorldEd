@@ -54,7 +54,7 @@ describe('Set Handle Type', () => {
     );
   });
 
-  it('lines Auto handles up along the turn, sized to the stretch on each side', () => {
+  it('lines Auto handles up with the chord between the neighbours, a third of the stretch on each side', () => {
     const path = solidScriptPathStraight(
       [
         [0, 0, 0],
@@ -67,10 +67,11 @@ describe('Set Handle Type', () => {
     const point = new THREE.Vector3(2, 0, 0);
     const left = new THREE.Vector3(...(handles.left[1] ?? [])).sub(point);
     const right = new THREE.Vector3(...(handles.right[1] ?? [])).sub(point);
-    const along = new THREE.Vector3(1, 0, 0).add(new THREE.Vector3(1, 1, 0).normalize()).normalize();
+    const along = new THREE.Vector3(4, 2, 0).normalize();
     expect(right.clone().normalize().dot(along)).toBeCloseTo(1, 9);
     expect(left.clone().normalize().dot(along)).toBeCloseTo(-1, 9);
     expect(left.length() / right.length()).toBeCloseTo(2 / Math.hypot(2, 2), 9);
+    expect(right.length()).toBeCloseTo(Math.hypot(2, 2) / 3, 9);
   });
 
   it('aligns both handles through the point, keeping their lengths', () => {

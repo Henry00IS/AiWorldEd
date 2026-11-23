@@ -14,23 +14,19 @@ export const SOLID_SCRIPT_HANDLE_SIDES = ['Both', 'Left', 'Right'] as const;
 /** One of the handle sides. */
 export type SolidScriptHandleSide = (typeof SOLID_SCRIPT_HANDLE_SIDES)[number];
 
-/**
- * How much shorter than the stretch beside it an Auto handle is, per unit of
- * the summed directions to its neighbours; it makes a run of evenly spaced
- * points on a circle sample close to the circle.
- */
-const SOLID_SCRIPT_HANDLE_AUTO_SHORTEN = 2.5614;
+/** Shortest handle, in metres, still taken as having a direction. */
+const SOLID_SCRIPT_HANDLE_TINY = 1e-6;
 
-/** The point, the one before and the one after, as vectors. */
+/** The point, and the points before and after it when the path has them. */
 interface SolidScriptHandleAround {
   point: THREE.Vector3;
-  before: THREE.Vector3;
-  after: THREE.Vector3;
+  before: THREE.Vector3 | undefined;
+  after: THREE.Vector3 | undefined;
 }
 
 /**
- * Reads a point with its neighbours; an open path's ends mirror their one
- * neighbour through themselves.
+ * Reads a point with its neighbours; a closed path wraps around, an open path's
+ * end has a neighbour on one side only.
  *
  * @param path Path.
  * @param index Point number.
@@ -39,37 +35,47 @@ interface SolidScriptHandleAround {
 function solidScriptHandleAround(path: SolidScriptPath<number[]>, index: number): SolidScriptHandleAround {
   const count = path.points.length;
   const vector = (at: number): THREE.Vector3 => new THREE.Vector3(...(path.points[(at + count) % count] ?? [0, 0, 0]));
-  const point = vector(index);
-  const mirror = (other: THREE.Vector3): THREE.Vector3 => point.clone().multiplyScalar(2).sub(other);
-  const before = path.closed || index > 0 ? vector(index - 1) : mirror(vector(index + 1));
-  const after = path.closed || index < count - 1 ? vector(index + 1) : mirror(vector(index - 1));
-  return { point, before, after };
+  return {
+    point: vector(index),
+    before: path.closed || index > 0 ? vector(index - 1) : undefined,
+    after: path.closed || index < count - 1 ? vector(index + 1) : undefined,
+  };
 }
 
 /**
- * Places both Auto handles of a point along the sum of the unit directions from
- * the point before and to the point after, each as long as its own stretch,
- * held to five times the other, over the shortening.
+ * Places both Auto handles of a point on the line through it parallel to the
+ * chord from the point before to the point after, each a third as long as its
+ * own stretch; an end uses the way to its one neighbour.
  *
  * @param around The point and its neighbours.
- * @returns Left and right handle, or none when the directions cancel.
+ * @returns Left and right handle.
  */
-function solidScriptHandleAuto(around: SolidScriptHandleAround): [THREE.Vector3, THREE.Vector3] | undefined {
-  const fromBefore = around.point.clone().sub(around.before);
-  const toAfter = around.after.clone().sub(around.point);
-  const beforeLength = fromBefore.length() || 1;
-  const afterLength = toAfter.length() || 1;
-  const direction = toAfter.divideScalar(afterLength).add(fromBefore.divideScalar(beforeLength));
-  const scale = direction.length() * SOLID_SCRIPT_HANDLE_AUTO_SHORTEN;
-  if (scale === 0) return undefined;
-  const left = around.point.clone().addScaledVector(direction, -Math.min(beforeLength, afterLength * 5) / scale);
-  const right = around.point.clone().addScaledVector(direction, Math.min(afterLength, beforeLength * 5) / scale);
-  return [left, right];
+function solidScriptHandleAuto(around: SolidScriptHandleAround): [THREE.Vector3, THREE.Vector3] {
+  const { point, before = around.point, after = around.point } = around;
+  const tangent = after.clone().sub(before);
+  if (tangent.length() < SOLID_SCRIPT_HANDLE_TINY) return solidScriptHandleVector(around);
+  tangent.normalize();
+  return [
+    point.clone().addScaledVector(tangent, -point.distanceTo(before) / 3),
+    point.clone().addScaledVector(tangent, point.distanceTo(after) / 3),
+  ];
 }
 
 /**
- * Turns one handle to point straight away from the other, keeping its length; a
- * handle with nothing to point away from stays.
+ * Places both Vector handles of a point a third of the way to each neighbour;
+ * with no neighbour on a side, that handle sits on the point.
+ *
+ * @param around The point and its neighbours.
+ * @returns Left and right handle.
+ */
+function solidScriptHandleVector(around: SolidScriptHandleAround): [THREE.Vector3, THREE.Vector3] {
+  const { point, before = around.point, after = around.point } = around;
+  return [point.clone().lerp(before, 1 / 3), point.clone().lerp(after, 1 / 3)];
+}
+
+/**
+ * Mirrors a handle's way through the point so it points away from the other
+ * handle, keeping its own length.
  *
  * @param point The point.
  * @param other The handle to point away from.
@@ -77,20 +83,20 @@ function solidScriptHandleAuto(around: SolidScriptHandleAround): [THREE.Vector3,
  * @returns Turned handle.
  */
 function solidScriptHandleOpposite(point: THREE.Vector3, other: THREE.Vector3, handle: THREE.Vector3): THREE.Vector3 {
-  const direction = other.clone().sub(point);
-  if (direction.lengthSq() === 0) return handle;
-  return point.clone().addScaledVector(direction.normalize(), -handle.distanceTo(point));
+  const away = point.clone().sub(other);
+  if (away.length() < SOLID_SCRIPT_HANDLE_TINY) return handle.clone();
+  return point.clone().addScaledVector(away.normalize(), handle.distanceTo(point));
 }
 
 /**
- * Turns both handles of a point into one line through it, keeping their lengths
- * and the plane they lie in; a handle of no length takes the other's length and
- * direction, mirrored.
+ * Lines up both handles of a point on one line through it, each keeping its
+ * length: the line runs along the difference of the two unit handle ways, so
+ * both turn by the same angle.
  *
  * @param point The point.
  * @param left Left handle.
  * @param right Right handle.
- * @returns Aligned left and right handle.
+ * @returns Left and right handle.
  */
 function solidScriptHandleAlignBoth(
   point: THREE.Vector3,
@@ -99,17 +105,13 @@ function solidScriptHandleAlignBoth(
 ): [THREE.Vector3, THREE.Vector3] {
   const toLeft = left.clone().sub(point);
   const toRight = right.clone().sub(point);
-  const [leftLength, rightLength] = [toLeft.length(), toRight.length()];
-  if (leftLength === 0 || rightLength === 0) {
-    if (leftLength === rightLength) return [left, right];
-    return leftLength === 0 ? [point.clone().sub(toRight), right] : [left, point.clone().sub(toLeft)];
-  }
-  const middle = toLeft.clone().normalize().add(toRight.clone().normalize());
-  if (middle.length() <= 0.0001 * (leftLength + rightLength)) return [left, right];
-  middle.normalize();
-  const square = (offset: THREE.Vector3, length: number): THREE.Vector3 =>
-    point.clone().addScaledVector(offset.addScaledVector(middle, -offset.dot(middle)).normalize(), length);
-  return [square(toLeft, leftLength), square(toRight, rightLength)];
+  const unit = (vector: THREE.Vector3): THREE.Vector3 =>
+    vector.length() < SOLID_SCRIPT_HANDLE_TINY ? new THREE.Vector3() : vector.clone().normalize();
+  const line = unit(toRight).sub(unit(toLeft));
+  if (line.length() < SOLID_SCRIPT_HANDLE_TINY) line.copy(unit(toRight).add(unit(toLeft)));
+  if (line.length() < SOLID_SCRIPT_HANDLE_TINY) return [left.clone(), right.clone()];
+  line.normalize();
+  return [point.clone().addScaledVector(line, -toLeft.length()), point.clone().addScaledVector(line, toRight.length())];
 }
 
 /**
@@ -131,7 +133,7 @@ function solidScriptHandlePlaced(
 ): [THREE.Vector3, THREE.Vector3] | undefined {
   const { point } = around;
   if (type === 'Auto') return solidScriptHandleAuto(around);
-  if (type === 'Vector') return [point.clone().lerp(around.before, 1 / 3), point.clone().lerp(around.after, 1 / 3)];
+  if (type === 'Vector') return solidScriptHandleVector(around);
   if (type === 'Free') return undefined;
   if (side === 'Both') return solidScriptHandleAlignBoth(point, kept[0], kept[1]);
   return [solidScriptHandleOpposite(point, kept[1], kept[0]), solidScriptHandleOpposite(point, kept[0], kept[1])];
