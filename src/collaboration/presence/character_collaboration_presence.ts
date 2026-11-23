@@ -31,6 +31,8 @@ import {
 import { PLAYER_CHARACTER_ROOM_TINT, playerCharacterApplyRoomTint } from '@/player/character/player_character_tint.js';
 import { playerCharacterCopyRightHand } from '@/player/character/player_character_rig.js';
 import { PlayerGrappleBeam } from '@/player/grapple/player_grapple_beam.js';
+import { PLAYER_GRAPPLE_REMOTE_VOLUME } from '@/player/grapple/player_grapple_constants.js';
+import { PlayerGrappleSound } from '@/player/grapple/player_grapple_sound.js';
 import { playerGrappleHand } from '@/player/grapple/player_grapple.js';
 
 export const CHARACTER_COLLABORATION_PRESENCE_TINT = PLAYER_CHARACTER_ROOM_TINT;
@@ -121,6 +123,7 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
   private hands: PlayerCharacterHandTargets | null = null;
   private reach: THREE.Vector3 | null = null;
   private readonly beam: PlayerGrappleBeam;
+  private readonly beamSound: PlayerGrappleSound;
   private readonly hand = new THREE.Vector3();
 
   /**
@@ -167,6 +170,7 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
       },
       helperRemove: (object) => this.object.remove(object),
     });
+    this.beamSound = new PlayerGrappleSound(undefined, PLAYER_GRAPPLE_REMOTE_VOLUME);
     this.object.add(this.body, this.tag.sprite);
     presenceCollaborationTag(this.object);
     this.bodyLoad(model);
@@ -289,14 +293,21 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
   }
 
   /**
-   * Hooks the member's grapple beam on an anchor (the right arm reaches for it
-   * and the beam leaves the hand), or lets go.
+   * Hooks the member's grapple beam on an anchor (the right arm reaches for it,
+   * the beam leaves the hand and zaps, quieter than the own), or lets go.
    *
    * @param anchor Anchor, or null.
    */
   reachSet(anchor: THREE.Vector3 | null): void {
-    if (anchor && !(this.reach && anchor.equals(this.reach))) this.beam.hook(anchor);
-    if (!anchor && this.reach) this.beam.hide();
+    if (anchor && !(this.reach && anchor.equals(this.reach))) {
+      this.beam.hook(anchor);
+      this.beamSound.place(this.copyHandTo(this.hand));
+      this.beamSound.hook();
+    }
+    if (!anchor && this.reach) {
+      this.beam.hide();
+      this.beamSound.release();
+    }
     this.reach = anchor?.clone() ?? null;
     this.animator.setReach(this.reach);
   }
@@ -327,6 +338,7 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
     this.disposed = true;
     this.held.clear();
     this.beam.dispose();
+    this.beamSound.dispose();
     this.animator.dispose();
     this.materials.splice(0).forEach((material) => material.dispose());
     this.body.traverse((child) => {
@@ -336,13 +348,18 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
   }
 
   /**
-   * Draws the hooked beam from the hand as shown this frame.
+   * Draws the hooked beam from the hand as shown this frame, and plays its hum
+   * there.
    *
    * @param deltaSeconds Frame time.
    * @returns True while the beam is drawn.
    */
   private beamUpdate(deltaSeconds: number): boolean {
-    if (this.reach) this.beam.show(this.copyHandTo(this.hand), this.reach);
+    if (this.reach) {
+      this.beam.show(this.copyHandTo(this.hand), this.reach);
+      this.beamSound.place(this.hand);
+      this.beamSound.pulling(Math.hypot(this.motion.getPlanarSpeed(), this.motion.getRawVerticalVelocity()));
+    }
     return this.beam.update(deltaSeconds) || this.reach !== null;
   }
 

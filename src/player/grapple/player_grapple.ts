@@ -162,7 +162,8 @@ export class PlayerGrapple implements PlayerBodyPull {
 
   /**
    * Draws the beam from the hand (in front of the first-person camera, or the
-   * character's right hand), follows the speed with the hum and widens the view
+   * character's right hand), plays the sounds there, follows the speed with the
+   * hum and widens the view
    * at speed. Call after the camera and the character were placed.
    *
    * @param camera Play camera.
@@ -174,6 +175,7 @@ export class PlayerGrapple implements PlayerBodyPull {
   update(camera: THREE.PerspectiveCamera, hand: THREE.Vector3 | null, speed: number, deltaSeconds: number): void {
     if (hand) this.hand.copy(hand);
     else this.hand.set(...PLAYER_GRAPPLE_HAND_OFFSET).applyMatrix4(camera.matrixWorld);
+    this.sound.place(this.hand);
     if (this.anchor) {
       this.beam.show(this.hand, this.anchor);
       this.sound.pulling(speed);

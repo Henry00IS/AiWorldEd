@@ -145,8 +145,17 @@ export const PLAYER_GRAPPLE_HAND_HEIGHT_METERS = 1.2;
 /** Sideways offset (to the character's right) where the beam leaves the hand. */
 export const PLAYER_GRAPPLE_HAND_SIDE_METERS = 0.28;
 
-/** Loudness of the grapple sounds. */
-export const PLAYER_GRAPPLE_VOLUME = 0.45;
+/** Loudness of the own grapple sounds (a fifth of the first version's 0.45). */
+export const PLAYER_GRAPPLE_VOLUME = 0.09;
+
+/** Loudness of other players' grapple sounds (quieter than the own). */
+export const PLAYER_GRAPPLE_REMOTE_VOLUME = 0.06;
+
+/** Distance from the player within which the grapple sounds play at full level. */
+export const PLAYER_GRAPPLE_FALLOFF_FULL_METERS = 4;
+
+/** Distance from the player where the grapple sounds fall silent (linear in between). */
+export const PLAYER_GRAPPLE_FALLOFF_SILENT_METERS = 20;
 
 /** Hum frequency at rest. */
 export const PLAYER_GRAPPLE_HUM_HERTZ = 55;
