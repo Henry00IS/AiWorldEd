@@ -98,4 +98,26 @@ describe('PlayerCharacterRagdoll', () => {
     expect(closest).toBeGreaterThan(0.1);
     ragdoll.dispose();
   });
+
+  it('keeps the head looking where the animation (the player\'s look) turns it while the body is limp', () => {
+    const rig = playerCharacterBuildRig();
+    const ragdoll = new PlayerCharacterRagdoll();
+    const feet = new THREE.Vector3();
+    const velocity = new THREE.Vector3(0, 8, 24);
+    const head = rig.bones.get(PLAYER_CHARACTER_BONE.head);
+    const look = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.4, 0.9, 0));
+    let worst = 0;
+    for (let frame = 0; frame < 60; frame++) {
+      feet.addScaledVector(velocity, STEP);
+      animate(rig, feet);
+      head?.quaternion.multiply(look);
+      rig.root.updateMatrixWorld(true);
+      const looking = head?.getWorldQuaternion(new THREE.Quaternion()) ?? new THREE.Quaternion();
+      ragdoll.apply(rig, true, feet.clone().add(new THREE.Vector3(0, 20, 30)), velocity, STEP);
+      worst = Math.max(worst, head?.getWorldQuaternion(new THREE.Quaternion()).angleTo(looking) ?? Infinity);
+    }
+    expect(ragdoll.getWeight()).toBeGreaterThan(0.99);
+    expect(worst).toBeLessThan(1e-3);
+    ragdoll.dispose();
+  });
 });

@@ -43,12 +43,16 @@ interface RagdollSegmentSpec {
   radius: number;
   /** Pose spring (per second): how fast it turns back toward the animated pose. */
   stiffness: number;
+  /** Shown as animated, not as simulated (the head keeps looking where the player looks). */
+  looks?: boolean;
 }
 
 /**
  * The parts: pelvis (moved by the animation), chest, head, arms and legs, two
  * capsules each, hung on ball joints. The springs hold the torso and head close
- * to the pose and leave the limbs loose.
+ * to the pose and leave the limbs loose. The head is simulated (the limbs bump
+ * into it) but shown at its animated world rotation, so it still looks where
+ * the player looks.
  */
 const RAGDOLL_SEGMENTS: readonly RagdollSegmentSpec[] = [
   {
@@ -67,7 +71,7 @@ const RAGDOLL_SEGMENTS: readonly RagdollSegmentSpec[] = [
     radius: 0.1,
     stiffness: 9,
   },
-  { bone: PLAYER_CHARACTER_BONE.head, parent: 1, tip: null, extend: 0, radius: 0.1, stiffness: 9 },
+  { bone: PLAYER_CHARACTER_BONE.head, parent: 1, tip: null, extend: 0, radius: 0.1, stiffness: 9, looks: true },
   {
     bone: PLAYER_CHARACTER_BONE.upperArmLeft,
     parent: 1,
@@ -444,10 +448,11 @@ export class PlayerCharacterRagdoll {
       if (index === 0) return;
       const parent = segment.bone.parent;
       if (!parent) return;
-      const rotation = segment.body.rotation();
+      const rotation = segment.spec.looks ? segment.rotation : segment.body.rotation();
       parent.getWorldQuaternion(scratchParent).invert();
       scratchQuaternion.set(rotation.x, rotation.y, rotation.z, rotation.w).premultiply(scratchParent);
-      segment.bone.quaternion.slerp(scratchQuaternion, this.weight);
+      if (segment.spec.looks) segment.bone.quaternion.copy(scratchQuaternion);
+      else segment.bone.quaternion.slerp(scratchQuaternion, this.weight);
       segment.bone.updateMatrixWorld(true);
     });
   }
