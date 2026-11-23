@@ -29,7 +29,7 @@ import {
   type SolidScriptInputLayoutItem,
 } from '@/solid_script/document/solid_script_document_inputs.js';
 import type { SolidScriptEvent } from '@/solid_script/language/solid_script_machine_types.js';
-import { solidScriptProgramHandle } from '@/solid_script/language/solid_script_program.js';
+import { solidScriptDocumentEvent } from '@/solid_script/document/solid_script_document_event.js';
 
 /** Builds what the rows act on, with a status line. */
 type SolidScriptInspectorTargetOf = (status: (text: string) => void) => ModifierStackActionTarget | null;
@@ -90,11 +90,8 @@ export function solidScriptInspectorInputs(
   const commit = (event: SolidScriptEvent, text: string | null): void => {
     const target = targetOf(() => undefined);
     if (!target) return;
-    const typed = text === null ? { ...values } : { ...values, [event.name]: text };
-    const handled = solidScriptProgramHandle(solidScriptDocumentNormalize(script), event, typed);
+    const { next, handled } = solidScriptDocumentEvent(script, event, values, text);
     noticesShow(handled.notices, handled.error?.message ?? null);
-    const next: Record<string, string> = { ...typed, ...handled.inputs };
-    for (const key of handled.removed) delete next[key];
     if (JSON.stringify(next) === JSON.stringify(values)) return;
     modifierStackParametersCommit(target.volume, target.stepId, { [inputsKey]: next }, target.commandStack);
     target.refresh?.();

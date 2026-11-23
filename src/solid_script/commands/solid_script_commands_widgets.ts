@@ -1,29 +1,22 @@
 import * as THREE from 'three';
 import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
-import {
-  solidScriptParameter,
-  solidScriptParameterDefines,
-  solidScriptParameterOptional,
-} from './solid_script_command_parameters.js';
+import { solidScriptParameter } from './solid_script_command_parameters.js';
 import { SOLID_SCRIPT_WIDGET_COMMAND_PREFIX } from '@/solid_script/language/solid_script_widget.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
-import { solidScriptNameWords } from '@/solid_script/language/solid_script_name_words.js';
+import {
+  solidScriptWidgetAtParameter,
+  solidScriptWidgetLabel,
+  solidScriptWidgetLabelParameter,
+  solidScriptWidgetLimit,
+  solidScriptWidgetLimitParameters,
+  solidScriptWidgetPoint,
+  solidScriptWidgetWritesParameter,
+} from './solid_script_widget_fields.js';
 import { solidScriptColorRead, solidScriptParameterColor } from './solid_script_color_field.js';
 
 /** Id of the Widget Slider command. */
 export const SOLID_SCRIPT_COMMAND_WIDGET_SLIDER = `${SOLID_SCRIPT_WIDGET_COMMAND_PREFIX}slider`;
-
-/**
- * Reads an optional number field, or null when it is left off.
- *
- * @param run The running line.
- * @param key Field key.
- * @returns Number or null.
- */
-function solidScriptWidgetLimit(run: SolidScriptBlockRun, key: string): number | null {
-  return run.source(key).trim() === '' ? null : run.fields().number(key, 0);
-}
 
 /**
  * Adds the slider of a Widget Slider line, placed by the Transform around it.
@@ -36,19 +29,21 @@ function solidScriptWidgetSliderRun(run: SolidScriptBlockRun): [] {
   const along = new THREE.Vector3(...fields.vector('along', [0, 1, 0]));
   if (along.lengthSq() < 1e-12) throw fields.error('along', 'a direction that is not 0, 0, 0', along.length());
   const at = new THREE.Vector3(...fields.vector('at', [0, 0, 0]));
-  const origin = at.clone().applyMatrix4(run.matrix());
+  const origin = solidScriptWidgetPoint(run, 'at', [0, 0, 0]);
   const direction = at.clone().add(along.normalize()).applyMatrix4(run.matrix()).sub(origin);
-  const writes = run.text('writes').trim();
   run.widgetAdd({
     kind: 'Slider',
-    label: run.text('label').trim() || solidScriptNameWords(writes) || 'Value',
+    label: solidScriptWidgetLabel(run, 'Value'),
     value: fields.number('shows', 0),
-    writes,
+    writes: run.text('writes').trim(),
     origin: origin.toArray(),
     direction: direction.toArray(),
     min: solidScriptWidgetLimit(run, 'min'),
     max: solidScriptWidgetLimit(run, 'max'),
     color: solidScriptColorRead(run),
+    component: null,
+    ruler: true,
+    axis: null,
   });
   return [];
 }
@@ -69,22 +64,10 @@ export const SOLID_SCRIPT_COMMANDS_WIDGETS: readonly SolidScriptCommand[] = [
     ],
     parameters: [
       solidScriptParameter('shows', 'Shows', 'number', '0', 'Value the handle shows, such as [Height].'),
-      solidScriptParameterDefines(
-        solidScriptParameterOptional(
-          'writes',
-          'Writes',
-          'name',
-          'Name of the Input a drag writes into, such as Height. Left off, the handle only shows the value.',
-        ),
-        ['Inputs'],
+      solidScriptWidgetWritesParameter(
+        'Name of the Input a drag writes into, such as Height. Left off, the handle only shows the value.',
       ),
-      solidScriptParameter(
-        'at',
-        'At',
-        'vector3',
-        '0, 0, 0',
-        'Point the handle sits at for a value of 0, such as 0, 0, 0.',
-      ),
+      solidScriptWidgetAtParameter('Point the handle sits at for a value of 0, such as 0, 0, 0.'),
       {
         ...solidScriptParameter(
           'along',
@@ -95,22 +78,8 @@ export const SOLID_SCRIPT_COMMANDS_WIDGETS: readonly SolidScriptCommand[] = [
         ),
         direction: true,
       },
-      solidScriptParameterOptional(
-        'min',
-        'Minimum',
-        'number',
-        'Smallest value a drag writes, such as 0. Left off, no limit.',
-      ),
-      solidScriptParameterOptional(
-        'max',
-        'Maximum',
-        'number',
-        'Largest value a drag writes, such as 10. Left off, no limit.',
-      ),
-      solidScriptParameterOptional(
-        'label',
-        'Label',
-        'text',
+      ...solidScriptWidgetLimitParameters('0', '10'),
+      solidScriptWidgetLabelParameter(
         'Name beside the handle, such as Height. Left off, the name in Writes is shown in words, so BoxWidth shows Box Width.',
       ),
       solidScriptParameterColor(

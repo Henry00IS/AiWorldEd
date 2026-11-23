@@ -14,6 +14,10 @@ export interface WidgetScreenButtonAnchor {
   title: string;
   /** World point the button is centered on. */
   position: Vector3;
+  /** Whether a toggle shows as on, or undefined for a plain button. */
+  pressed?: boolean;
+  /** CSS colour of the edge, or undefined for the theme's. */
+  color?: string;
 }
 
 /** Buttons to show this frame and the panes to show them in. */
@@ -111,6 +115,9 @@ export abstract class WidgetScreenButton extends Widget {
     element.textContent = anchor.label;
     element.title = anchor.title;
     element.setAttribute('aria-label', anchor.title);
+    if (anchor.pressed !== undefined) element.setAttribute('aria-pressed', String(anchor.pressed));
+    element.style.borderColor = anchor.color || ThemeCss.inputBorderColor;
+    element.style.background = anchor.pressed ? ThemeCss.accentAlpha(0.45) : ThemeCss.buttonBackground;
     return element;
   }
 
@@ -123,6 +130,7 @@ export abstract class WidgetScreenButton extends Widget {
   private elementCreate(doc: Document): HTMLElement {
     const element = doc.createElement('div');
     element.setAttribute('role', 'button');
+    element.dataset['widgetButton'] = 'true';
     Object.assign(element.style, WIDGET_SCREEN_BUTTON_STYLE);
     doc.body.append(element);
     this.watch(doc);

@@ -55,7 +55,9 @@ export function modifierStackSliderPatch(
   value: number,
 ): Record<string, unknown> | null {
   if (slider.target === 'parameter') return modifierStackStep(owner, slider.stepId) ? { [slider.writes]: value } : null;
-  return modifierStackInputPatch(owner, slider.stepId, slider.writes, String(value));
+  const component = slider.component;
+  const vector = component?.vector.map((each, index) => (index === component.index ? value : each));
+  return modifierStackInputPatch(owner, slider.stepId, slider.writes, vector ? vector.join(', ') : String(value));
 }
 
 /**
@@ -94,7 +96,7 @@ export function modifierStackPathPatch(
  * @param text Input value as text.
  * @returns Parameter patch, or null when the step is gone.
  */
-function modifierStackInputPatch(
+export function modifierStackInputPatch(
   owner: THREE.Object3D,
   stepId: string,
   name: string,
@@ -113,6 +115,6 @@ function modifierStackInputPatch(
  * @param stepId Step id.
  * @returns Step, or undefined when it is gone.
  */
-function modifierStackStep(owner: THREE.Object3D, stepId: string): ModifierStackEntry | undefined {
+export function modifierStackStep(owner: THREE.Object3D, stepId: string): ModifierStackEntry | undefined {
   return modifierStackParametersStackRead(owner)?.modifiers.find((each) => each.id === stepId);
 }

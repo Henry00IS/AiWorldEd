@@ -63,6 +63,30 @@ describe('modifier stack sliders', () => {
     expect(slider?.direction.distanceTo(new THREE.Vector3(0, 1, 0))).toBeLessThan(1e-9);
   });
 
+  it('writes a drag on one face of a Widget Size into that part of the Vector Input', () => {
+    const node = modifierGeneratorNodeCreate(MODIFIER_STACK_SOLID_SCRIPT_KIND);
+    const model = new SolidModel('Size');
+    model.root.add(node);
+    const script = solidScriptDocumentCreate([
+      { command: 'input', values: { name: 'BoxSize', type: 'Vector', default: '1, 1, 1' } },
+      { command: 'widget_size', values: { shows: '[BoxSize]', writes: 'BoxSize' } },
+      { command: 'cube', values: { size: '[BoxSize]' } },
+    ]);
+    const settings = ModifierVolume.read(node);
+    const step = settings.modifiers[0];
+    if (!step) throw new Error('no step');
+    step.parameters = {
+      ...step.parameters,
+      script: solidScriptDocumentEditModeWith(script, true),
+      inputs: { BoxSize: '2, 1, 4' },
+    };
+    ModifierVolume.write(node, settings);
+    modifierStackCompile(model.getBrushes(), model.root);
+    const top = modifierStackSliders(node)[2];
+    expect(top?.value).toBe(1);
+    expect(top && modifierStackSliderPatch(node, top, 3)).toMatchObject({ inputs: { BoxSize: '2, 3, 4' } });
+  });
+
   it('offers no edit mode and no sliders while Has Edit Mode is off', () => {
     const { node } = sliderScene(false, '1');
     expect(modifierStackEditSteps(node)).toEqual([]);

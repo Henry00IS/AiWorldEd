@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import { ModifierStackStepRecord } from './modifier_stack_step_record.js';
-import type { SolidScriptWidget, SolidScriptWidgetSlider } from '@/solid_script/language/solid_script_widget.js';
+import type {
+  SolidScriptWidget,
+  SolidScriptWidgetComponent,
+  SolidScriptWidgetSlider,
+} from '@/solid_script/language/solid_script_widget.js';
 
 /** A slider handle of a modifier step, in world coordinates. */
 export interface ModifierStackSlider {
@@ -26,8 +30,18 @@ export interface ModifierStackSlider {
    */
   writes: string;
   /** Whether writes names a script Input or a parameter of the step. */
-  target: ModifierStackSliderTarget; /** CSS colour of the handle and its line, or empty text for the theme colour. */
+  target: ModifierStackSliderTarget;
+  /** CSS colour of the handle and its line, or empty text for the theme colour. */
   color: string;
+  /** One of x, y and z of a Vector Input the handle changes, or null. */
+  component: SolidScriptWidgetComponent | null;
+  /** Whether a dashed ruler runs from the zero point to the handle. */
+  ruler: boolean;
+  /**
+   * World unit axis through origin a dial turns about, or null for a straight
+   * slider.
+   */
+  axis: THREE.Vector3 | null;
 }
 
 /** What a slider writes into: a script Input or a parameter of its step. */
@@ -52,8 +66,15 @@ export interface ModifierStackSliderLocal {
   /** Name of the Input or parameter a drag writes into, or empty. */
   writes: string;
   /** Whether writes names a script Input or a parameter of the step. */
-  target: ModifierStackSliderTarget; /** CSS colour of the handle and its line, or empty text for the theme colour. */
+  target: ModifierStackSliderTarget;
+  /** CSS colour of the handle and its line, or empty text for the theme colour. */
   color: string;
+  /** One of x, y and z of a Vector Input the handle changes, or null. */
+  component: SolidScriptWidgetComponent | null;
+  /** Whether a dashed ruler runs from the zero point to the handle. */
+  ruler: boolean;
+  /** Axis through origin a dial turns about, or null for a straight slider. */
+  axis: THREE.Vector3 | null;
 }
 
 /** Sliders each step made at its last evaluation, by stack owner and step id. */
@@ -104,6 +125,9 @@ export function modifierStackSlidersOfScript(widgets: readonly SolidScriptWidget
     writes: slider.writes,
     target: 'input',
     color: slider.color,
+    component: slider.component,
+    ruler: slider.ruler,
+    axis: slider.axis && new THREE.Vector3(...slider.axis),
   }));
 }
 
@@ -120,22 +144,15 @@ export function modifierStackSlidersPlaced(
   frame: THREE.Matrix4,
   sliders: readonly ModifierStackSliderLocal[],
 ): ModifierStackSlider[] {
-  return sliders.map((slider) => {
-    const origin = slider.origin.clone().applyMatrix4(frame);
-    const tip = slider.origin.clone().add(slider.direction).applyMatrix4(frame);
-    const { label, value, writes, min, max, target, color } = slider;
+  return sliders.map(({ id, origin: local, direction, axis, ...rest }) => {
+    const origin = local.clone().applyMatrix4(frame);
     return {
+      ...rest,
       stepId,
-      key: `${stepId}:${slider.id}`,
-      label,
-      value,
-      writes,
-      min,
-      max,
-      target,
-      color,
+      key: `${stepId}:${id}`,
       origin,
-      direction: tip.sub(origin),
+      direction: local.clone().add(direction).applyMatrix4(frame).sub(origin),
+      axis: axis && axis.clone().transformDirection(frame),
     };
   });
 }

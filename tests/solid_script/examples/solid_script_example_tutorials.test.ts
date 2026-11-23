@@ -76,6 +76,7 @@ const COVERAGE: Readonly<Record<string, string>> = {
   Matrix: 'shear',
   'Input Group': 'linear',
   Clip: 'mirror',
+  'Widgets, Widget Toggle menus and Persistent': 'widgetShowcase',
 };
 
 type TutorialStore = {

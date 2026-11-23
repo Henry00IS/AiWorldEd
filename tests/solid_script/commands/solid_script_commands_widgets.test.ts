@@ -39,6 +39,9 @@ describe('Widget Slider', () => {
         min: 1,
         max: null,
         color: '',
+        component: null,
+        ruler: true,
+        axis: null,
       },
     ]);
   });

@@ -21,6 +21,10 @@ const named = SOLID_SCRIPT_AUDIT_COMMANDS.filter(([, command]) =>
   command.parameters.some((parameter) => parameter.key === SOLID_SCRIPT_SHAPE_NAME_KEY),
 );
 
+/**
+ * A handle per axis, such as those of a Widget Size, adds the axis after the
+ * name, so a label that starts with the name counts.
+ */
 describe('the name given on a line shows up on what it builds or the handle it puts in the scene', () => {
   it.each(named)('%s', (_id, command) => {
     for (const [written, shown] of [
@@ -38,7 +42,11 @@ describe('the name given on a line shows up on what it builds or the handle it p
         continue;
       }
       expect(run.error?.text ?? '').toBe('');
-      expect([...labels(run.shapes), ...run.widgets.map((widget) => widget.label)]).toContain(shown);
+      const all = [...labels(run.shapes), ...run.widgets.map((widget) => widget.label)];
+      expect(
+        all.filter((label) => label === shown || label.startsWith(`${shown} `)),
+        all.join(' | '),
+      ).not.toEqual([]);
     }
   });
 });

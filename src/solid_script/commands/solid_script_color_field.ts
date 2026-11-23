@@ -7,7 +7,8 @@ import { SOLID_SCRIPT_COLOR_WORDS, solidScriptColorResolve } from '@/solid_scrip
  * Describes an optional Color field: the window shows a colour picker beside
  * the text, which takes a colour name, a hex colour or a [variable].
  *
- * @param hint Hover text, saying what the colour paints and what it is left off.
+ * @param hint Hover text, saying what the colour paints and what it is left
+ *   off.
  * @returns Field.
  */
 export function solidScriptParameterColor(hint: string): SolidScriptCommandParameter {

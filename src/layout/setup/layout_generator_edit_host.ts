@@ -1,3 +1,4 @@
+import { modifierStackAimPatch, modifierStackAims } from '@/modifier/stack/widgets/modifier_stack_aim_record.js';
 import type * as THREE from 'three';
 import type { CommandStack } from '@/commands/command_stack.js';
 import type { GeneratorEditHost } from '@/editor/tools/generator/generator_edit_host.js';
@@ -16,6 +17,10 @@ import {
   modifierStackSliders,
 } from '@/modifier/stack/widgets/modifier_stack_sliders.js';
 import { modifierStackDraws } from '@/modifier/stack/widgets/modifier_stack_draw_record.js';
+import {
+  modifierStackButtonPatch,
+  modifierStackButtons,
+} from '@/modifier/stack/widgets/modifier_stack_button_record.js';
 import type { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { EditorOverlayId } from '@/tools/overlay/editor_overlay_id.js';
 import type { PolicyEditorOverlay } from '@/tools/overlay/policy_editor_overlay.js';
@@ -77,6 +82,14 @@ export function layoutGeneratorEditHostCreate(deps: LayoutGeneratorEditHostDeps)
       ),
     pathWrite: (path, asset) =>
       layoutGeneratorEditWrite(drag, selected(), path.stepId, (owner) => modifierStackPathPatch(owner, path, asset)),
+    buttons: () => layoutGeneratorEditOf(selected(), modifierStackButtons),
+    press: (button) => {
+      layoutGeneratorEditWrite(drag, selected(), button.stepId, (owner) => modifierStackButtonPatch(owner, button));
+      layoutGeneratorEditChangeEnd(drag, deps.commandStack);
+    },
+    aims: () => layoutGeneratorEditOf(selected(), modifierStackAims),
+    aim: (aim, direction) =>
+      layoutGeneratorEditWrite(drag, selected(), aim.stepId, (owner) => modifierStackAimPatch(owner, aim, direction)),
     changeEnd: () => layoutGeneratorEditChangeEnd(drag, deps.commandStack),
     changeCancel: () => layoutGeneratorEditChangeCancel(drag),
   };

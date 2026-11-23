@@ -3,6 +3,9 @@ import type { GeneratorEditHost } from './generator_edit_host.js';
 import { GeneratorPathWidget } from './generator_path_widget.js';
 import { GeneratorSliderWidget } from './generator_slider_widget.js';
 import { GeneratorDrawWidget } from './generator_draw_widget.js';
+import { GeneratorButtonWidget } from './generator_button_widget.js';
+import { GeneratorAimWidget } from './generator_aim_widget.js';
+import { widgetsClaimClickAt } from '../../widgets/widget.js';
 
 /**
  * Edits the widgets of the selected object in the scene. Transform gizmos and
@@ -19,6 +22,10 @@ export class GeneratorTool extends Tool {
   private readonly paths = new GeneratorPathWidget();
   /** Debug Draw drawings of the edited object. */
   private readonly drawings = new GeneratorDrawWidget();
+  /** Widget Buttons and Widget Toggles of the edited object. */
+  private readonly buttons = new GeneratorButtonWidget();
+  /** Widget Direction arrows of the edited object. */
+  private readonly aims = new GeneratorAimWidget();
 
   /** Called when the tool is activated. */
   override onActivate(): void {
@@ -26,6 +33,8 @@ export class GeneratorTool extends Tool {
     this.editor?.addWidget(this.sliders);
     this.editor?.addWidget(this.paths);
     this.editor?.addWidget(this.drawings);
+    this.editor?.addWidget(this.buttons);
+    this.editor?.addWidget(this.aims);
     const pathHint = this.host()?.paths().length ? ' · Ctrl+Click Adds a Point · Del Removes It' : '';
     this.editor?.getServices()?.setStatusMessage(`Generator${pathHint} · Esc Returns to Bounds`);
   }
@@ -63,7 +72,8 @@ export class GeneratorTool extends Tool {
   }
 
   /**
-   * Switches to the object with an edit mode under a click that did not move.
+   * Switches to the object with an edit mode under a click that did not move,
+   * unless a Widget Button takes the click.
    *
    * @param button Mouse button index.
    */
@@ -73,6 +83,7 @@ export class GeneratorTool extends Tool {
     if (button !== 0 || !editor || !press) return;
     this.press = null;
     if (press.x !== editor.lastPointerClientX || press.y !== editor.lastPointerClientY) return;
+    if (widgetsClaimClickAt(editor.getWidgets(), press.x, press.y)) return;
     this.host()?.pickEditable(press.x, press.y);
   }
 

@@ -3,8 +3,8 @@ import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 
 /**
  * Puts a colour picker before the text input of a Color field. Picking writes
- * the colour as hex into the text, and typed text that names a colour moves
- * the picker to it, so a [variable] can still be typed.
+ * the colour as hex into the text, and typed text that names a colour moves the
+ * picker to it, so a [variable] can still be typed.
  *
  * @param input Text input with the stored text.
  * @param inputs Container of the field's inputs.

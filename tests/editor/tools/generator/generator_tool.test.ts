@@ -10,6 +10,8 @@ import type { PathAsset } from '@/path/model/path_asset.js';
 import { pathEditSelect, pathEditSelected } from '@/path/edit/path_edit_selection.js';
 import type { ModifierStackSlider } from '@/modifier/stack/widgets/modifier_stack_slider_record.js';
 import type { ModifierStackDraw } from '@/modifier/stack/widgets/modifier_stack_draw_record.js';
+import type { ModifierStackButton } from '@/modifier/stack/widgets/modifier_stack_button_record.js';
+import type { ModifierStackAim } from '@/modifier/stack/widgets/modifier_stack_aim_record.js';
 import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { managerMouseCursor } from '@/input/manager_mouse_cursor.js';
 
@@ -40,7 +42,9 @@ function setup(selected: THREE.Object3D | null) {
     sliders: ModifierStackSlider[];
     paths: ModifierStackPath[];
     draws: ModifierStackDraw[];
-  } = { selected, sliders: [], paths: [], draws: [] };
+    buttons: ModifierStackButton[];
+    aims: ModifierStackAim[];
+  } = { selected, sliders: [], paths: [], draws: [], buttons: [], aims: [] };
   const host: GeneratorEditHost = {
     selectedEditable: () => state.selected,
     panes: () => [{ camera, pickElement: pick }],
@@ -49,6 +53,10 @@ function setup(selected: THREE.Object3D | null) {
     sliders: () => state.sliders,
     paths: () => state.paths,
     draws: () => state.draws,
+    buttons: () => state.buttons,
+    press: vi.fn(),
+    aims: () => state.aims,
+    aim: vi.fn(),
     pathWrite: vi.fn((path: ModifierStackPath, asset: PathAsset) => {
       state.paths = state.paths.map((each) => (each.key === path.key ? { ...each, path: asset } : each));
     }),
@@ -259,6 +267,47 @@ describe('Generator Edit button and Generator tool', () => {
     expect([line?.style.left, line?.style.top, line?.style.width]).toEqual(['100px', '50px', '50px']);
   });
 
+  it('turns a dial handle about its axis and writes the angle under the pointer in whole degrees', async () => {
+    const { editor, host, state } = setup(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1)));
+    await click(editor, [100, 50], [100, 50]);
+    state.sliders = [{ ...slider(), axis: new THREE.Vector3(0, 0, 1) }];
+    editor.onRepaint();
+    expect([sliderHandle()?.style.left, sliderHandle()?.style.top]).toEqual(['150px', '50px']);
+    drag(editor, [150, 50], [101, 1]);
+    expect(host.slide).toHaveBeenLastCalledWith(expect.objectContaining({ key: 'a' }), 89);
+    state.sliders = [{ ...slider(), axis: new THREE.Vector3(0, 0, 1), value: 90 }];
+    editor.onRepaint();
+    expect([sliderHandle()?.style.left, sliderHandle()?.style.top]).toEqual(['100px', '0px']);
+    editor.onGlobalMouseUp(0);
+    expect(host.changeEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it('drags the tip of a Widget Direction on the plane facing the camera, as one undo step', async () => {
+    const { editor, host, state } = setup(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1)));
+    await click(editor, [100, 50], [100, 50]);
+    state.aims = [aim()];
+    editor.onRepaint();
+    expect([aimHandle()?.style.left, aimHandle()?.style.top]).toEqual(['150px', '50px']);
+    drag(editor, [150, 50], [100, 0]);
+    const [moved, direction] = vi.mocked(host.aim).mock.calls.at(-1) ?? [];
+    expect(moved?.key).toBe('d');
+    expect(direction?.distanceTo(new THREE.Vector3(0, 1, 0))).toBeLessThan(1e-9);
+    editor.onGlobalMouseUp(0);
+    expect(host.changeEnd).toHaveBeenCalledTimes(1);
+    drag(editor, [150, 50], [100, 0]);
+    expect(editor.onKeyDown('Escape', new KeyboardEvent('keydown', { code: 'Escape' }))).toBe(true);
+    expect(host.changeCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves out the ruler of a handle that has none, as a Widget Point has', async () => {
+    const { editor, state } = setup(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1)));
+    await click(editor, [100, 50], [100, 50]);
+    state.sliders = [{ ...slider(), value: 1, ruler: false }];
+    editor.onRepaint();
+    expect(sliderHandle()).not.toBeNull();
+    expect([...document.querySelectorAll<HTMLElement>('[data-ruler]')].find((each) => !each.hidden)).toBeUndefined();
+  });
+
   it('keeps the part of a ruler that is in view when its handle or zero point is not', async () => {
     const { editor, state } = setup(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1)));
     await click(editor, [100, 50], [100, 50]);
@@ -322,6 +371,28 @@ describe('Generator Edit button and Generator tool', () => {
     editor.onRepaint();
     drag(editor, [100, 50], [174, 50]);
     expect(host.slide).not.toHaveBeenCalled();
+  });
+});
+
+describe('Widget Button and Widget Toggle in the scene', () => {
+  it('shows toggles as pressed or not, and a still click presses one without picking an object', async () => {
+    const { editor, host, state } = setup(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1)));
+    await click(editor, [100, 50], [100, 50]);
+    const toggle = { stepId: 's', kind: 'Toggle' as const, writes: 'ShowRails', color: '#3d8fd6' };
+    state.buttons = [
+      { ...toggle, key: 'a', label: 'Rails', on: true, at: new THREE.Vector3(1, 0, 0) },
+      { ...toggle, key: 'b', label: 'Posts', on: false, at: new THREE.Vector3(-1, 0, 0) },
+    ];
+    editor.onRepaint();
+    const shown = [...document.querySelectorAll<HTMLElement>('[data-widget-button]')].filter((each) => !each.hidden);
+    expect(shown.map((each) => [each.textContent, each.getAttribute('aria-pressed')])).toEqual([
+      ['Rails', 'true'],
+      ['Posts', 'false'],
+    ]);
+    expect(shown[0]?.style.borderColor).toBe('rgb(61, 143, 214)');
+    await click(editor, [50, 50], [50, 50]);
+    expect(host.press).toHaveBeenCalledWith(expect.objectContaining({ key: 'b' }));
+    expect(host.pickEditable).not.toHaveBeenCalled();
   });
 });
 
@@ -467,11 +538,41 @@ function slider(): ModifierStackSlider {
     writes: 'Height',
     target: 'input',
     color: '',
+    component: null,
+    ruler: true,
+    axis: null,
     origin: new THREE.Vector3(),
     direction: new THREE.Vector3(1, 0, 0),
     min: null,
     max: null,
   };
+}
+
+/**
+ * Returns a Widget Direction at the origin pointing along X, writing Facing.
+ *
+ * @returns Arrow.
+ */
+function aim(): ModifierStackAim {
+  return {
+    stepId: 's',
+    key: 'd',
+    label: 'Facing',
+    writes: 'Facing',
+    color: '',
+    origin: new THREE.Vector3(),
+    direction: new THREE.Vector3(1, 0, 0),
+    toScript: new THREE.Matrix3(),
+  };
+}
+
+/**
+ * Returns the shown Widget Direction handle, or null.
+ *
+ * @returns Handle element or null.
+ */
+function aimHandle(): HTMLElement | null {
+  return [...document.querySelectorAll<HTMLElement>('[data-aim-handle]')].find((each) => !each.hidden) ?? null;
 }
 
 /**

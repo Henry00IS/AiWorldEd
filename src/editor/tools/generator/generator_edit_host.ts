@@ -1,9 +1,11 @@
-import type { Object3D } from 'three';
+import type { Object3D, Vector3 } from 'three';
 import type { EditorViewportPickContext } from '@/editor/window/editor_viewport_pick_context.js';
 import type { PathAsset } from '@/path/model/path_asset.js';
 import type { ModifierStackPath } from '@/modifier/stack/widgets/modifier_stack_path_record.js';
 import type { ModifierStackSlider } from '@/modifier/stack/widgets/modifier_stack_slider_record.js';
 import type { ModifierStackDraw } from '@/modifier/stack/widgets/modifier_stack_draw_record.js';
+import type { ModifierStackButton } from '@/modifier/stack/widgets/modifier_stack_button_record.js';
+import type { ModifierStackAim } from '@/modifier/stack/widgets/modifier_stack_aim_record.js';
 
 /**
  * What the Edit button and the Generator tool need from the scene: the selected
@@ -66,6 +68,33 @@ export interface GeneratorEditHost {
    * @returns Drawings in world coordinates; empty without such a selection.
    */
   draws(): ModifierStackDraw[];
+  /**
+   * Returns the Widget Buttons and Widget Toggles of the selected object.
+   *
+   * @returns Buttons in world coordinates.
+   */
+  buttons(): ModifierStackButton[];
+  /**
+   * Presses a button: its Button Input is pressed or its Switch Input flipped,
+   * the handlers run, and the change is one undo step.
+   *
+   * @param button Button clicked.
+   */
+  press(button: ModifierStackButton): void;
+  /**
+   * Returns the Widget Direction arrows of the selected object.
+   *
+   * @returns Arrows in world coordinates.
+   */
+  aims(): ModifierStackAim[];
+  /**
+   * Points an arrow along a world direction and rebuilds at once, as one live
+   * step of a drag that is not yet in the undo history.
+   *
+   * @param aim Arrow dragged.
+   * @param direction World direction.
+   */
+  aim(aim: ModifierStackAim, direction: Vector3): void;
 
   /**
    * Snaps a distance to the grid when grid snapping is on.

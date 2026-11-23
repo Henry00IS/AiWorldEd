@@ -7,6 +7,8 @@ import {
 import * as THREE from 'three';
 import { modifierStackPathsRecord } from '@/modifier/stack/widgets/modifier_stack_path_record.js';
 import { modifierStackDrawsRecord } from '@/modifier/stack/widgets/modifier_stack_draw_record.js';
+import { modifierStackButtonsRecord } from '@/modifier/stack/widgets/modifier_stack_button_record.js';
+import { modifierStackAimsRecord } from '@/modifier/stack/widgets/modifier_stack_aim_record.js';
 import {
   MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY,
   MODIFIER_STACK_SOLID_SCRIPT_KEY,
@@ -255,6 +257,8 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
     );
     modifierStackPathsRecord(context.volume, context.step.id, document, inputs, scriptToWorld);
     modifierStackDrawsRecord(context.volume, context.step.id, layout.widgets, scriptToWorld);
+    modifierStackButtonsRecord(context.volume, context.step.id, layout.widgets, scriptToWorld);
+    modifierStackAimsRecord(context.volume, context.step.id, layout.widgets, scriptToWorld);
     if (context.ownsGenerated) for (const mesh of layout.meshes) context.meshes?.push({ ...mesh, frame });
     const count = modifierStackSolidScriptBrushCount(layout.nodes);
     if (context.budget.takeCopies(1, count) < count) {

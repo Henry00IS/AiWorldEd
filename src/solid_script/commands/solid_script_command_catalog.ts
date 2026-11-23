@@ -33,6 +33,8 @@ import { SOLID_SCRIPT_COMMANDS_GENERATORS } from './solid_script_commands_genera
 import { SOLID_SCRIPT_COMMANDS_PROGRAM } from './solid_script_commands_program.js';
 import { SOLID_SCRIPT_COMMANDS_WIDGETS } from './solid_script_commands_widgets.js';
 import { SOLID_SCRIPT_COMMANDS_DEBUG } from './solid_script_commands_debug.js';
+import { SOLID_SCRIPT_COMMANDS_WIDGET_BUTTONS } from './solid_script_commands_widget_buttons.js';
+import { SOLID_SCRIPT_COMMANDS_WIDGET_HANDLES } from './solid_script_commands_widget_handles.js';
 import { SOLID_SCRIPT_COMMANDS_QUERY } from './solid_script_commands_query.js';
 import { SOLID_SCRIPT_COMMANDS_CLIP } from './solid_script_commands_clip.js';
 import { SolidScriptCommandCatalog } from './solid_script_command_catalog_base.js';
@@ -101,6 +103,8 @@ export const solidScriptCommands: readonly SolidScriptCommand[] = [
   ...SOLID_SCRIPT_COMMANDS_LISTS,
   ...SOLID_SCRIPT_COMMANDS_PROGRAM,
   ...SOLID_SCRIPT_COMMANDS_WIDGETS,
+  ...SOLID_SCRIPT_COMMANDS_WIDGET_BUTTONS,
+  ...SOLID_SCRIPT_COMMANDS_WIDGET_HANDLES,
   ...SOLID_SCRIPT_COMMANDS_DEBUG,
 ];
 

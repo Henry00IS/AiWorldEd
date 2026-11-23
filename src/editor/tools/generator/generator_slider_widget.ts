@@ -3,13 +3,18 @@ import { WidgetScreenElements, widgetScreenProject } from '@/editor/widgets/scre
 import type { EditorViewportPickContext } from '@/editor/window/editor_viewport_pick_context.js';
 import type { ModifierStackSlider } from '@/modifier/stack/widgets/modifier_stack_slider_record.js';
 import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
-import { Theme } from '@/theme.js';
 import { cursorFromScreenDelta } from '@/transform/bounds/bounds_resize_cursor.js';
 import type { GeneratorEditHost } from './generator_edit_host.js';
 import { GeneratorSliderEntry } from './generator_slider_entry.js';
 import {
+  GENERATOR_HANDLE_HOVER_COLOR,
+  GENERATOR_HANDLE_RULER_STYLE,
+  GENERATOR_HANDLE_STYLE,
+} from './generator_handle_style.js';
+import {
   generatorSliderClamp,
   generatorSliderHandle,
+  generatorSliderTangent,
   generatorSliderValueAt,
   generatorSliderValueText,
 } from './generator_slider_value.js';
@@ -40,7 +45,8 @@ interface GeneratorSliderDrag {
  * handle follows what the script then shows. When the drag ends the input keeps
  * the value the handle shows, and the drag is one undo step; Escape during a
  * drag takes it back. A still click on a handle opens a field to type an exact
- * value, and a dashed ruler runs from the zero point to each handle.
+ * value, and a dashed ruler runs from the zero point to each handle that has
+ * one.
  */
 export class GeneratorSliderWidget extends Widget {
   /** Handle elements by pane and slider key. */
@@ -51,6 +57,19 @@ export class GeneratorSliderWidget extends Widget {
   private readonly entry = new GeneratorSliderEntry();
   /** Drag in progress, or null. */
   private drag: GeneratorSliderDrag | null = null;
+
+  /**
+   * Places the dashed ruler of a slider, from its zero point to its handle.
+   *
+   * @param pane Pane drawn in.
+   * @param slider Slider.
+   * @returns Ruler element.
+   */
+  private ruler(pane: EditorViewportPickContext, slider: ModifierStackSlider): HTMLElement {
+    const ruler = this.rulers.line(pane, slider.key, slider.origin, generatorSliderHandle(slider));
+    ruler.style.borderTopColor = slider.color || ThemeCss.textColor;
+    return ruler;
+  }
 
   /**
    * Places every handle and ruler of this frame and hides the rest; the handle
@@ -64,9 +83,8 @@ export class GeneratorSliderWidget extends Widget {
       for (const slider of host?.sliders() ?? []) {
         const element = this.handles.place(pane, slider.key, generatorSliderHandle(slider));
         generatorSliderElementShow(element, slider, hovered?.slider.key === slider.key, this.drag?.key === slider.key);
-        const ruler = this.rulers.line(pane, slider.key, slider.origin, generatorSliderHandle(slider));
-        ruler.style.borderTopColor = slider.color || ThemeCss.textColor;
-        shown.add(element).add(ruler);
+        shown.add(element);
+        if (slider.ruler) shown.add(this.ruler(pane, slider));
       }
     }
     if (hovered)
@@ -266,12 +284,13 @@ function generatorSliderElementShow(
   element.textContent = `${slider.label} ${generatorSliderValueText(slider.value)}`;
   element.dataset['dragging'] = String(dragging);
   element.dataset['hover'] = String(hover);
-  const dot = hover ? GENERATOR_SLIDER_HOVER_COLOR : slider.color || ThemeCss.textColor;
+  const dot = hover ? GENERATOR_HANDLE_HOVER_COLOR : slider.color || ThemeCss.textColor;
   element.style.backgroundImage = `radial-gradient(circle at 7px 50%, ${dot} 0 5px, transparent 6px)`;
 }
 
 /**
- * Returns the resize cursor whose arrows follow a handle's line on screen.
+ * Returns the resize cursor whose arrows follow the way a handle moves on
+ * screen.
  *
  * @param slider Slider hovered.
  * @param pane Pane the pointer is in.
@@ -280,7 +299,7 @@ function generatorSliderElementShow(
 function generatorSliderCursor(slider: ModifierStackSlider, pane: EditorViewportPickContext): string {
   const handle = generatorSliderHandle(slider);
   const from = widgetScreenProject(handle, pane);
-  const to = widgetScreenProject(handle.clone().add(slider.direction), pane);
+  const to = widgetScreenProject(handle.clone().add(generatorSliderTangent(slider)), pane);
   return cursorFromScreenDelta(to.x - from.x, to.y - from.y);
 }
 
@@ -294,7 +313,7 @@ function generatorSliderCursor(slider: ModifierStackSlider, pane: EditorViewport
 function generatorSliderElementCreate(doc: Document): HTMLElement {
   const element = doc.createElement('div');
   element.setAttribute('role', 'slider');
-  Object.assign(element.style, GENERATOR_SLIDER_STYLE);
+  Object.assign(element.style, GENERATOR_HANDLE_STYLE);
   doc.body.append(element);
   return element;
 }
@@ -309,35 +328,7 @@ function generatorSliderElementCreate(doc: Document): HTMLElement {
 function generatorSliderRulerCreate(doc: Document): HTMLElement {
   const element = doc.createElement('div');
   element.dataset['ruler'] = 'true';
-  Object.assign(element.style, GENERATOR_SLIDER_RULER_STYLE);
+  Object.assign(element.style, GENERATOR_HANDLE_RULER_STYLE);
   doc.body.append(element);
   return element;
 }
-
-/** Colour of a hovered handle's dot: the orange of a hovered Bounds handle. */
-const GENERATOR_SLIDER_HOVER_COLOR = `#${Theme.selectionColor.toString(16).padStart(6, '0')}`;
-
-/** Inline style of a ruler line. */
-const GENERATOR_SLIDER_RULER_STYLE: Partial<CSSStyleDeclaration> = {
-  position: 'fixed',
-  height: '0',
-  borderTop: `1px dashed ${ThemeCss.textColor}`,
-  transformOrigin: '0 0',
-  pointerEvents: 'none',
-  zIndex: '4',
-  opacity: '0.7',
-};
-
-/** Inline style of a slider handle. */
-const GENERATOR_SLIDER_STYLE: Partial<CSSStyleDeclaration> = {
-  position: 'fixed',
-  transform: 'translate(-7px, -50%)',
-  pointerEvents: 'none',
-  zIndex: '5',
-  paddingLeft: '18px',
-  backgroundRepeat: 'no-repeat',
-  color: ThemeCss.textColor,
-  font: '12px sans-serif',
-  whiteSpace: 'nowrap',
-  userSelect: 'none',
-};

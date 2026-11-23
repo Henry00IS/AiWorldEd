@@ -1,3 +1,4 @@
+import { SOLID_SCRIPT_EXAMPLE_WIDGET_SHOWCASE } from './solid_script_examples_widgets.js';
 import type { SolidScriptLine, SolidScriptUses } from '@/solid_script/document/solid_script_document.js';
 import {
   SOLID_SCRIPT_EXAMPLE_COLUMNS,
@@ -125,6 +126,15 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
     summary: 'A spiral staircase around a column, with a smooth sloped underside, posts and a handrail.',
     port: null,
     lines: SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE,
+  },
+  {
+    id: 'widgetShowcase',
+    name: 'Widget Showcase',
+    group: 'Showcase',
+    summary:
+      'A box to edit with every kind of Widget, on three pages picked by a row of Widget Toggles that keeps its choice in Persistent.Page.',
+    port: null,
+    lines: SOLID_SCRIPT_EXAMPLE_WIDGET_SHOWCASE,
   },
   {
     id: 'doorway',
