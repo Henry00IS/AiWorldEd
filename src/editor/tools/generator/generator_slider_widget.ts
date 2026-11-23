@@ -4,6 +4,7 @@ import type { EditorViewportPickContext } from '@/editor/window/editor_viewport_
 import type { ModifierStackSlider } from '@/modifier/stack/widgets/modifier_stack_slider_record.js';
 import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import { cursorFromScreenDelta } from '@/transform/bounds/bounds_resize_cursor.js';
+import { generatorShiftHeld } from './generator_drag_keys.js';
 import type { GeneratorEditHost } from './generator_edit_host.js';
 import { GeneratorSliderEntry } from './generator_slider_entry.js';
 import {
@@ -132,9 +133,11 @@ export class GeneratorSliderWidget extends Widget {
     const drag = this.drag;
     const host = this.host();
     const slider = drag ? host?.sliders().find((each) => each.key === drag.key) : undefined;
-    if (!drag || !host || !slider || !this.editor) return;
-    const { lastPointerClientX: x, lastPointerClientY: y } = this.editor;
-    const value = generatorSliderValueAt(slider, drag.pane, x, y, (distance) => host.snapDistance(distance));
+    const editor = this.editor;
+    if (!drag || !host || !slider || !editor) return;
+    const { lastPointerClientX: x, lastPointerClientY: y } = editor;
+    const snap = (distance: number): number => host.snapDistance(distance, generatorShiftHeld(editor));
+    const value = generatorSliderValueAt(slider, drag.pane, x, y, snap);
     if (value === null || value === drag.written) return;
     drag.written = value;
     host.slide(slider, value);

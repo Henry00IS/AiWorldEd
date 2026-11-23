@@ -1,5 +1,6 @@
 import { modifierStackParametersCommit } from '@/modifier/stack/modifier_stack_parameters_commit.js';
 import { pathEditSelected, pathEditSelectionListen } from '@/path/edit/path_edit_selection.js';
+import { PATH_POINT_PANEL_NONE } from '@/path/ui/path_point_panel.js';
 import { PathField } from '@/path/ui/path_field.js';
 import { pathAssetEncode } from '@/path/model/path_asset.js';
 import type { ModifierStackActionTarget, ModifierStackWidget } from '@/modifier/stack/modifier_stack_types.js';
@@ -413,7 +414,7 @@ function solidScriptInspectorPathRow(
   row.dataset['solidScriptPath'] = input.name;
   const follow = (): void => {
     const picked = pathEditSelected();
-    field.setSelected(picked?.name === input.name && picked.stepId === stepIdOf() ? picked.point : null);
+    field.setSelected(picked?.name === input.name && picked.stepId === stepIdOf() ? picked : PATH_POINT_PANEL_NONE);
   };
   const stop = pathEditSelectionListen(() => (row.isConnected ? follow() : stop()));
   return {

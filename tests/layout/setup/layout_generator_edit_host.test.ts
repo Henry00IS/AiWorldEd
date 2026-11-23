@@ -89,6 +89,7 @@ function setup(stack: THREE.Mesh[]) {
     pickStack: () => stack,
     commandStack,
     gridSnap,
+    getUserSnapEnabled: () => gridSnap.isEnabled(),
     setRailEditing,
   });
   return { host, selectionManager, editorOverlayPolicy, commandStack, gridSnap, setRailEditing };
@@ -195,13 +196,15 @@ describe('layoutGeneratorEditHostCreate', () => {
     expect(commandStack.canUndo()).toBe(false);
   });
 
-  it('snaps distances to the grid only while snapping is on', () => {
+  it('snaps distances to the grid only while snapping is on, and the other way round while Shift is held', () => {
     const { host, gridSnap } = setup([]);
     gridSnap.setEnabled(true);
     gridSnap.setInterval(0.25);
-    expect(host.snapDistance(0.3)).toBeCloseTo(0.25);
+    expect(host.snapDistance(0.3, false)).toBeCloseTo(0.25);
+    expect(host.snapDistance(0.3, true)).toBeCloseTo(0.3);
     gridSnap.setEnabled(false);
-    expect(host.snapDistance(0.3)).toBeCloseTo(0.3);
+    expect(host.snapDistance(0.3, false)).toBeCloseTo(0.3);
+    expect(host.snapDistance(0.3, true)).toBeCloseTo(0.25);
   });
 
   it('holds the generator editing overlay while editing', () => {

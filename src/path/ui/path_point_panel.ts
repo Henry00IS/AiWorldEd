@@ -7,7 +7,7 @@ import {
 } from '@/path/model/path_asset.js';
 import {
   pathAssetPointMove,
-  pathAssetPointRemove,
+  pathAssetPointsRemove,
   pathAssetSegmentKindSet,
   pathAssetSegmentSet,
 } from '@/path/model/path_asset_edit.js';
@@ -22,10 +22,26 @@ import {
 /** What each setting of a stretch is called in the inspector. */
 const PATH_POINT_PANEL_HANDLES = { control: 'Control', out: 'Out', in: 'In', axis: 'Arc Axis' } as const;
 
+/** Axis letters of the X, Y and Z rows. */
+const PATH_POINT_PANEL_AXES = ['X', 'Y', 'Z'] as const;
+
+/** Points and stretches the panel shows. */
+export interface PathPointPanelSelection {
+  /** Selected point indices. */
+  points: readonly number[];
+  /** Selected stretch indices. */
+  segments: readonly number[];
+}
+
+/** Nothing selected. */
+export const PATH_POINT_PANEL_NONE: PathPointPanelSelection = { points: [], segments: [] };
+
 /**
- * The selected point of a path in the inspector: its position, the kind and
- * settings of the stretch leaving it, and Delete Point. Nothing shows while no
- * point is selected; points are picked in the scene.
+ * The selected points or stretches of a path in the inspector. Points show
+ * their position, one row per axis, and Delete; stretches show their kind and
+ * settings. With several selected, a field shows the value they share, or is
+ * blank, and a typed value goes to all of them. Nothing shows while nothing is
+ * selected; points and stretches are picked in the scene.
  */
 export class PathPointPanel {
   /** Panel element. */
@@ -51,64 +67,122 @@ export class PathPointPanel {
   }
 
   /**
-   * Shows a point of a path, or hides the panel.
+   * Shows the selected points, else the selected stretches, or hides the panel.
    *
    * @param path Path.
-   * @param index Selected point, or null.
+   * @param selected Selected points and stretches.
    */
-  show(path: PathAsset, index: number | null): void {
-    const point = index === null ? undefined : path.points[index];
-    this.element.style.display = point ? 'grid' : 'none';
-    if (!point || index === null) return void this.element.replaceChildren();
-    const removed = pathAssetPointRemove(path, index);
-    this.element.replaceChildren(
-      modifierStackUiCaption(`Point ${index + 1} of ${path.points.length}`),
-      this.vectorRow('Point', point, (moved) => this.onCommit(pathAssetPointMove(path, index, moved))),
-      ...this.stretchRows(path, index),
-      ...(removed
-        ? [modifierStackUiTextButton('Delete Point', 'Remove this point', () => this.onCommit(removed))]
-        : []),
-    );
+  show(path: PathAsset, selected: PathPointPanelSelection): void {
+    const points = selected.points.filter((index) => index < path.points.length);
+    const segments = selected.segments.filter((index) => index < path.segments.length);
+    const rows = points.length > 0 ? this.pointRows(path, points) : this.stretchRows(path, segments);
+    this.element.style.display = rows.length > 0 ? 'grid' : 'none';
+    this.element.replaceChildren(...rows);
   }
 
   /**
-   * Builds the rows of the stretch leaving a point: its kind, then Degrees and
-   * Axis for an Arc, Control for Quadratic, Out and In for Bezier.
+   * Builds the rows of selected points: a caption, X, Y and Z, and Delete.
    *
    * @param path Path.
-   * @param index Point index, which is the stretch index.
-   * @returns Rows; none for the last point of an open path.
+   * @param points Selected point indices.
+   * @returns Rows.
    */
-  private stretchRows(path: PathAsset, index: number): HTMLElement[] {
-    const segment = path.segments[index];
-    if (!segment) return [];
+  private pointRows(path: PathAsset, points: readonly number[]): HTMLElement[] {
+    const one = points.length === 1;
+    const caption = one ? `Point ${points[0]! + 1} of ${path.points.length}` : `${points.length} Points`;
+    const values = points.map((index) => path.points[index]!);
+    const axes = this.vectorRows('Point', values, (axis, typed) =>
+      this.onCommit(
+        points.reduce(
+          (moved, index) => pathAssetPointMove(moved, index, pathPointAxisSet(moved.points[index]!, axis, typed)),
+          path,
+        ),
+      ),
+    );
+    const removed = pathAssetPointsRemove(path, points);
+    const label = one ? 'Delete Point' : 'Delete Points';
+    const remove = removed
+      ? [modifierStackUiTextButton(label, 'Remove the selected points', () => this.onCommit(removed))]
+      : [];
+    return [modifierStackUiCaption(caption), ...axes, ...remove];
+  }
+
+  /**
+   * Builds the rows of selected stretches: a caption, their kind, then their
+   * settings.
+   *
+   * @param path Path.
+   * @param indices Selected stretch indices.
+   * @returns Rows; none without a selected stretch.
+   */
+  private stretchRows(path: PathAsset, indices: readonly number[]): HTMLElement[] {
+    if (indices.length === 0) return [];
+    const caption =
+      indices.length === 1 ? `Stretch ${indices[0]! + 1} of ${path.segments.length}` : `${indices.length} Stretches`;
+    return [modifierStackUiCaption(caption), this.kindRow(path, indices), ...this.settingRows(path, indices)];
+  }
+
+  /**
+   * Builds the settings every selected stretch has, such as Arc Degrees or
+   * Control; a typed value changes each of them.
+   *
+   * @param path Path.
+   * @param indices Selected stretch indices.
+   * @returns Rows.
+   */
+  private settingRows(path: PathAsset, indices: readonly number[]): HTMLElement[] {
+    const segments = indices.map((index) => path.segments[index]!);
+    const set = (change: (segment: PathAssetSegment) => Partial<PathAssetSegment>): void =>
+      this.onCommit(
+        indices.reduce((next, index) => {
+          const segment = next.segments[index]!;
+          return pathAssetSegmentSet(next, index, { ...segment, ...change(segment) });
+        }, path),
+      );
+    const degrees = segments.map((segment) => segment.degrees);
+    const arc = degrees.every((value) => value !== undefined)
+      ? [this.degreesRow(degrees as number[], (value) => set(() => ({ degrees: value })))]
+      : [];
+    const handles = (['control', 'out', 'in', 'axis'] as const).flatMap((key) => {
+      const values = segments.map((segment) => segment[key]);
+      if (!values.every((value) => value !== undefined)) return [];
+      return this.vectorRows(PATH_POINT_PANEL_HANDLES[key], values as PathAssetPoint[], (axis, typed) =>
+        set((segment) => ({ [key]: pathPointAxisSet(segment[key]!, axis, typed) })),
+      );
+    });
+    return [...arc, ...handles];
+  }
+
+  /**
+   * Builds the Stretch row: the kind the selected stretches share, or blank.
+   *
+   * @param path Path.
+   * @param indices Selected stretch indices.
+   * @returns Row.
+   */
+  private kindRow(path: PathAsset, indices: readonly number[]): HTMLElement {
     const kind = new InputSelect(
       PATH_ASSET_SEGMENT_KINDS.map((each) => ({ value: each, label: each })),
       'Stretch',
     );
-    kind.setSharedValues([segment.kind]);
-    kind.bindCommit(() => this.onCommit(pathAssetSegmentKindSet(path, index, kind.getValue() as PathAssetSegmentKind)));
-    const set = (changed: Partial<PathAssetSegment>): void =>
-      this.onCommit(pathAssetSegmentSet(path, index, { ...segment, ...changed }));
-    const handles = (['control', 'out', 'in', 'axis'] as const).flatMap((key) => {
-      const value = segment[key];
-      return value ? [this.vectorRow(PATH_POINT_PANEL_HANDLES[key], value, (moved) => set({ [key]: moved }))] : [];
+    kind.setSharedValues(indices.map((index) => path.segments[index]!.kind));
+    kind.bindCommit(() => {
+      const chosen = kind.getValue() as PathAssetSegmentKind;
+      this.onCommit(indices.reduce((next, index) => pathAssetSegmentKindSet(next, index, chosen), path));
     });
-    const rows = [modifierStackUiRow('Stretch', kind.getElement(), 'How the path runs on to the next point')];
-    if (segment.degrees !== undefined) rows.push(this.degreesRow(segment.degrees, (degrees) => set({ degrees })));
-    return [...rows, ...handles];
+    return modifierStackUiRow('Stretch', kind.getElement(), 'How the path runs on to the next point');
   }
 
   /**
    * Builds the Arc Degrees row: a sweep from 1 to 359 degrees either way.
    *
-   * @param degrees Sweep shown.
+   * @param degrees Sweeps shown.
    * @param onChange Receives a typed sweep.
    * @returns Row.
    */
-  private degreesRow(degrees: number, onChange: (degrees: number) => void): HTMLElement {
+  private degreesRow(degrees: readonly number[], onChange: (degrees: number) => void): HTMLElement {
     const field = inputNumericCreateUvField(15, 'Arc Degrees');
-    field.setNumber(degrees, 0);
+    field.setSharedValues(degrees, 0);
     field.bindCommit(() => {
       const typed = field.parseNumberOrNull();
       if (typed === null || !Number.isFinite(typed) || typed === 0) return;
@@ -118,26 +192,42 @@ export class PathPointPanel {
   }
 
   /**
-   * Builds a row of X, Y and Z number fields.
+   * Builds one row per axis, as other vector settings in the inspector, each
+   * showing the value the points share or blank.
    *
-   * @param label Row label, also the start of each field's name.
-   * @param value Shown point.
-   * @param onChange Receives the point with one number typed.
-   * @returns Row.
+   * @param label Start of each row's name, such as Point.
+   * @param values Shown points.
+   * @param onChange Receives the axis and the typed number.
+   * @returns X, Y and Z rows.
    */
-  private vectorRow(label: string, value: PathAssetPoint, onChange: (point: PathAssetPoint) => void): HTMLElement {
-    const row = document.createElement('div');
-    Object.assign(row.style, { display: 'flex', gap: '4px' });
-    ['X', 'Y', 'Z'].forEach((axis, index) => {
-      const field = inputNumericCreateUvField(0.25, `${label} ${axis}`);
-      field.setNumber(value[index]!, 2);
+  private vectorRows(
+    label: string,
+    values: readonly PathAssetPoint[],
+    onChange: (axis: number, typed: number) => void,
+  ): HTMLElement[] {
+    return PATH_POINT_PANEL_AXES.map((letter, axis) => {
+      const field = inputNumericCreateUvField(0.25, `${label} ${letter}`);
+      field.setSharedValues(
+        values.map((value) => value[axis]!),
+        2,
+      );
       field.bindCommit(() => {
         const typed = field.parseNumberOrNull();
-        if (typed === null || !Number.isFinite(typed)) return;
-        onChange(value.map((each, at) => (at === index ? typed : each)) as unknown as PathAssetPoint);
+        if (typed !== null && Number.isFinite(typed)) onChange(axis, typed);
       });
-      row.append(field.getElement());
+      return modifierStackUiRow(`${label} ${letter}`, field.getElement());
     });
-    return modifierStackUiRow(label, row);
   }
+}
+
+/**
+ * Returns a point with one axis set.
+ *
+ * @param point Point.
+ * @param axis Axis, 0 for x.
+ * @param value New value.
+ * @returns Changed point.
+ */
+function pathPointAxisSet(point: PathAssetPoint, axis: number, value: number): PathAssetPoint {
+  return point.map((each, at) => (at === axis ? value : each)) as unknown as PathAssetPoint;
 }

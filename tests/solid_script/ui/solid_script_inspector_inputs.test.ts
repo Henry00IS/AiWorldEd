@@ -83,9 +83,9 @@ describe('SolidScript inspector inputs', () => {
     ]);
     const point = (): string => panel.querySelector('[data-path-point]')?.textContent ?? 'missing';
     expect(point()).toBe('');
-    pathEditSelect({ stepId: 'other', name: 'rail', point: 1 });
+    pathEditSelect({ stepId: 'other', name: 'rail', points: [1], segments: [] });
     expect(point()).toBe('');
-    pathEditSelect({ stepId, name: 'rail', point: 1 });
+    pathEditSelect({ stepId, name: 'rail', points: [1], segments: [] });
     expect(point()).toContain('Point 2 of 2');
     const x = panel.querySelector<HTMLInputElement>('[aria-label="Point X"]');
     if (!x) throw new Error('Expected Point X');

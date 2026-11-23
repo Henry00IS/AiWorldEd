@@ -60,7 +60,7 @@ function setup(selected: THREE.Object3D | null) {
     pathWrite: vi.fn((path: ModifierStackPath, asset: PathAsset) => {
       state.paths = state.paths.map((each) => (each.key === path.key ? { ...each, path: asset } : each));
     }),
-    snapDistance: (distance) => Math.round(distance * 2) / 2,
+    snapDistance: (distance, invert) => (invert ? distance : Math.round(distance * 2) / 2),
     slide: vi.fn((slider: ModifierStackSlider, value: number) => {
       state.sliders = state.sliders.map((each) =>
         each.key === slider.key ? { ...each, value: Math.min(value, 1) } : each,
@@ -444,7 +444,7 @@ describe('Generator tool paths', () => {
     ]);
     expect(document.querySelectorAll('[data-path-line]:not([hidden])').length).toBeGreaterThan(0);
     await click(editor, [150, 50], [150, 50]);
-    expect(pathEditSelected()).toEqual({ stepId: 's', name: 'Rail', point: 1 });
+    expect(pathEditSelected()).toEqual({ stepId: 's', name: 'Rail', points: [1], segments: [] });
     editor.onRepaint();
     expect(pathPoints()[1]?.dataset['selected']).toBe('true');
     expect(host.pathWrite).not.toHaveBeenCalled();
@@ -458,7 +458,7 @@ describe('Generator tool paths', () => {
     editor.onGlobalMouseUp(0);
     expect(host.changeEnd).toHaveBeenCalledTimes(1);
     expect(host.changeCancel).not.toHaveBeenCalled();
-    expect(pathEditSelected()?.point).toBe(1);
+    expect(pathEditSelected()?.points).toEqual([1]);
   });
 
   it('takes a point drag back on Escape, and Escape then lets go of the selected point first', async () => {
@@ -482,13 +482,117 @@ describe('Generator tool paths', () => {
       [1, 0, 0],
       [1, 1, 0],
     ]);
-    expect(pathEditSelected()?.point).toBe(2);
+    expect(pathEditSelected()?.points).toEqual([2]);
     expect(host.changeEnd).toHaveBeenCalledTimes(1);
     expect(host.pickEditable).not.toHaveBeenCalled();
     expect(editor.onKeyDown('Delete', new KeyboardEvent('keydown', { code: 'Delete' }))).toBe(true);
     expect(state.paths[0]?.path.points).toHaveLength(2);
     expect(host.changeEnd).toHaveBeenCalledTimes(2);
     expect(editor.onKeyDown('Delete', new KeyboardEvent('keydown', { code: 'Delete' }))).toBe(false);
+  });
+});
+
+describe('Generator tool path selection and drags', () => {
+  /**
+   * Enters the Generator tool on an object with one path from (0,0,0) to
+   * (1,0,0), drawn at (100,50) and (150,50).
+   *
+   * @returns Setup parts.
+   */
+  async function pathSetup() {
+    const parts = setup(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1)));
+    await click(parts.editor, [100, 50], [100, 50]);
+    parts.state.paths = [railPath()];
+    parts.editor.onRepaint();
+    return parts;
+  }
+
+  /**
+   * Holds or releases Shift and Ctrl as the editor reads them.
+   *
+   * @param editor Editor window.
+   * @param keys Keys held.
+   */
+  function hold(editor: EditorWindow, keys: { shift?: boolean; ctrl?: boolean }): void {
+    editor.updateModifiersFromDomEvent({
+      shiftKey: keys.shift === true,
+      ctrlKey: keys.ctrl === true,
+      altKey: false,
+      metaKey: false,
+    });
+  }
+
+  it('selects a stretch by clicking its line; Shift adds and Ctrl toggles points, as in the curve editor', async () => {
+    const { editor } = await pathSetup();
+    await click(editor, [125, 50], [125, 50]);
+    expect(pathEditSelected()).toEqual({ stepId: 's', name: 'Rail', points: [], segments: [0] });
+    editor.onRepaint();
+    expect(document.querySelector('[data-path-line][data-selected="true"]:not([hidden])')).not.toBeNull();
+    await click(editor, [100, 50], [100, 50]);
+    expect(pathEditSelected()).toMatchObject({ points: [0], segments: [] });
+    hold(editor, { shift: true });
+    await click(editor, [150, 50], [150, 50]);
+    expect(pathEditSelected()?.points).toEqual([0, 1]);
+    hold(editor, { ctrl: true });
+    await click(editor, [100, 50], [100, 50]);
+    hold(editor, {});
+    expect(pathEditSelected()?.points).toEqual([1]);
+  });
+
+  it('box-selects the points inside a drag on empty space', async () => {
+    const { editor, host } = await pathSetup();
+    drag(editor, [90, 40], [160, 60]);
+    editor.onRepaint();
+    expect(document.querySelector('[data-path-marquee]:not([hidden])')).not.toBeNull();
+    editor.onGlobalMouseUp(0);
+    expect(pathEditSelected()).toMatchObject({ points: [0, 1], segments: [] });
+    expect(host.pathWrite).not.toHaveBeenCalled();
+  });
+
+  it('drags every selected point together, as one undo step', async () => {
+    const { editor, host, state } = await pathSetup();
+    await click(editor, [100, 50], [100, 50]);
+    hold(editor, { shift: true });
+    await click(editor, [150, 50], [150, 50]);
+    hold(editor, {});
+    drag(editor, [150, 50], [174, 26]);
+    expect(state.paths[0]?.path.points).toEqual([
+      [0.5, 0.5, 0],
+      [1.5, 0.5, 0],
+    ]);
+    editor.onGlobalMouseUp(0);
+    expect(host.changeEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it('locks a point drag to the axis of X, Y or Z, and the same key again frees it', async () => {
+    const { editor, state } = await pathSetup();
+    drag(editor, [150, 50], [174, 26]);
+    const key = (code: string): boolean => editor.onKeyDown(code, new KeyboardEvent('keydown', { code }));
+    expect(key('KeyX')).toBe(true);
+    expect(state.paths[0]?.path.points[1]).toEqual([1.5, 0, 0]);
+    expect(key('KeyX')).toBe(true);
+    expect(state.paths[0]?.path.points[1]).toEqual([1.5, 0.5, 0]);
+    expect(key('KeyY')).toBe(true);
+    expect(state.paths[0]?.path.points[1]).toEqual([1, 0.5, 0]);
+    editor.onGlobalMouseUp(0);
+    expect(key('KeyX')).toBe(false);
+  });
+
+  it('turns grid snapping the other way while Shift is held in a point or slider drag', async () => {
+    const { editor, host, state } = await pathSetup();
+    [editor.lastPointerClientX, editor.lastPointerClientY] = [150, 50];
+    editor.onMouseDown(0);
+    hold(editor, { shift: true });
+    [editor.lastPointerClientX, editor.lastPointerClientY] = [174, 26];
+    editor.onGlobalMouseDrag(0, new THREE.Vector2(), new THREE.Vector2());
+    expect(state.paths[0]?.path.points[1]).toEqual([1.48, 0.48, 0]);
+    editor.onGlobalMouseUp(0);
+    state.paths = [];
+    state.sliders = [slider()];
+    editor.onRepaint();
+    drag(editor, [100, 50], [137, 50]);
+    expect(vi.mocked(host.slide).mock.lastCall?.[1]).toBeCloseTo(0.74);
+    hold(editor, {});
   });
 });
 

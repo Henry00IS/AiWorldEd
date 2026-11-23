@@ -11,7 +11,7 @@ import { projectFileRead } from '@/project/project_file_access.js';
 import { PANEL_PROJECT_PATH_DRAG_TYPE } from '@/project/ui/panel_project_drag.js';
 import { modifierStackUiTextButton, modifierStackUiToggleRow } from '@/modifier/stack/ui/modifier_stack_ui_style.js';
 import { pathAssetClosedSet } from '@/path/model/path_asset_edit.js';
-import { PathPointPanel } from './path_point_panel.js';
+import { PATH_POINT_PANEL_NONE, PathPointPanel, type PathPointPanelSelection } from './path_point_panel.js';
 
 /** What a path field shows and whom it tells. */
 export interface PathFieldOptions {
@@ -36,12 +36,12 @@ export class PathField {
   private readonly message = document.createElement('div');
   /** Closed checkbox. */
   private readonly closed = document.createElement('input');
-  /** Selected point and the stretch leaving it. */
+  /** Selected points or stretches. */
   private readonly point: PathPointPanel;
   /** Path shown. */
   private path: PathAsset = PATH_ASSET_DEFAULT;
-  /** Selected point, or null. */
-  private selected: number | null = null;
+  /** Selected points and stretches. */
+  private selected: PathPointPanelSelection = PATH_POINT_PANEL_NONE;
 
   /**
    * Builds the field.
@@ -104,13 +104,14 @@ export class PathField {
   }
 
   /**
-   * Shows the settings of the point selected in the scene, or hides them.
+   * Shows the settings of the points or stretches selected in the scene, or
+   * hides them when nothing is selected.
    *
-   * @param index Selected point, or null.
+   * @param selected Selected points and stretches.
    */
-  setSelected(index: number | null): void {
-    this.selected = index;
-    this.point.show(this.path, index);
+  setSelected(selected: PathPointPanelSelection): void {
+    this.selected = selected;
+    this.point.show(this.path, selected);
   }
 
   /** Offers the path as a .aipath download. */

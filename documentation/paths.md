@@ -15,18 +15,21 @@ The **Baseboard** example (Examples window, Basics) traces three walls of a room
 
 Select the object and click **Edit** at its centre, or use the Generator tool. Every Path input of the object is drawn as a line with a dot on each point.
 
-- **Click** a point to pick it. The inspector then shows that point's position and the stretch that leaves it.
-- **Drag** a point to move it. It moves on the grid plane that faces the camera most: level in the Top view, upright in the Front and Side views, and it snaps to the grid while grid snapping is on. One drag is one undo step.
-- **Ctrl+Click** adds a point after the picked one (or after the last point when none is picked), on the same plane and snapped to the grid. Click corner after corner to trace a room.
-- **Delete** removes the picked point; a Path always keeps two points.
-- **Esc** takes back a drag in progress, then lets go of the picked point, then returns to Bounds.
-- A Bezier or Quadratic stretch shows its handles while its first point is picked; drag them like points.
+- **Click** a point or the line of a stretch to select it, as in the curve editor. The inspector then shows the selected points' positions, one row per axis, or the selected stretches' settings.
+- **Shift+Click** adds to the selection and **Ctrl+Click** a point or line toggles it. **Drag** on empty space to box-select points; with Shift the box adds, with Ctrl it toggles.
+- **Drag** a selected point to move every selected point together. They move on the grid plane that faces the camera most: level in the Top view, upright in the Front and Side views, and snap to the grid while grid snapping is on. Hold **Shift** while dragging to turn snapping the other way. Press **X**, **Y** or **Z** during a drag to move only along that world axis; the same key again frees it. One drag is one undo step.
+- **Ctrl+Click** on empty space adds a point after the last selected one (or after the last point when none is selected), on the same plane and snapped to the grid. Click corner after corner to trace a room.
+- **Delete** removes the selected points; a Path always keeps two points.
+- **Esc** takes back a drag in progress, then clears the selection, then returns to Bounds.
+- A Bezier or Quadratic stretch shows its handles while it or its first point is selected; drag them like points.
+
+With several points or stretches selected, the inspector shows what they share and a dash where they differ; typing a value sets it on all of them.
 
 Every change goes through the generator's input values, so it can be undone and redone, and it reaches everyone in an online session like any other setting.
 
 ## Stretch kinds
 
-Each stretch runs from a point to the next and has its own kind, set in the inspector while its first point is picked:
+Each stretch runs from a point to the next and has its own kind, set in the inspector while it or its first point is selected:
 
 | Kind          | Shape                                                                                                                                                    |
 | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |

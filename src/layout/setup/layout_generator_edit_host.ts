@@ -24,6 +24,7 @@ import {
 import type { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { EditorOverlayId } from '@/tools/overlay/editor_overlay_id.js';
 import type { PolicyEditorOverlay } from '@/tools/overlay/policy_editor_overlay.js';
+import { gridSnapInvertedByShift } from '@/transform/snap/grid_snap_shift_precision.js';
 import type { GridSnap } from '@/transform/snap/grid_snap.js';
 import { editSnapDistanceToGrid } from '@/edit/tool/edit_axis_drag.js';
 import { isObjectOrAncestorLocked } from '@/utils/object_lock.js';
@@ -45,6 +46,8 @@ export interface LayoutGeneratorEditHostDeps {
   commandStack: CommandStack;
   /** Live grid snap. */
   gridSnap: GridSnap;
+  /** Whether the user turned grid snapping on. */
+  getUserSnapEnabled: () => boolean;
   /** Shows or clears the Generator highlight on the tool rail. */
   setRailEditing?: (editing: boolean) => void;
 }
@@ -72,8 +75,12 @@ export function layoutGeneratorEditHostCreate(deps: LayoutGeneratorEditHostDeps)
     pickEditable: (clientX, clientY) => layoutGeneratorEditPick(deps, clientX, clientY),
     setEditing: (editing) => layoutGeneratorEditOverlays(deps, editing),
     sliders: () => layoutGeneratorEditOf(selected(), modifierStackSliders),
-    snapDistance: (distance) =>
-      editSnapDistanceToGrid(distance, deps.gridSnap.getInterval(), deps.gridSnap.isEnabled()),
+    snapDistance: (distance, invert) =>
+      editSnapDistanceToGrid(
+        distance,
+        deps.gridSnap.getInterval(),
+        gridSnapInvertedByShift(deps.getUserSnapEnabled(), invert),
+      ),
     paths: () => layoutGeneratorEditOf(selected(), modifierStackPaths),
     draws: () => layoutGeneratorEditOf(layoutGeneratorEditOnly(deps.selectionManager), modifierStackDraws),
     slide: (slider, value) =>

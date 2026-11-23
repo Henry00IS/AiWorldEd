@@ -69,6 +69,19 @@ export function pathAssetPointRemove(path: PathAsset, index: number): PathAsset 
 }
 
 /**
+ * Removes several points, as Remove does one at a time from the last.
+ *
+ * @param path Path.
+ * @param indices Point indices.
+ * @returns Changed path, or null when fewer than two points would be left.
+ */
+export function pathAssetPointsRemove(path: PathAsset, indices: readonly number[]): PathAsset | null {
+  return [...indices]
+    .sort((a, b) => b - a)
+    .reduce<PathAsset | null>((left, index) => left && pathAssetPointRemove(left, index), path);
+}
+
+/**
  * Closes or opens a path; a closed path gets a straight stretch back to its
  * first point.
  *

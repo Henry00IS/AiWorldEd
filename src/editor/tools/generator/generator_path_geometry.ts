@@ -1,9 +1,9 @@
 import * as THREE from 'three';
+import { editAxisDragParameter } from '@/edit/tool/edit_axis_drag.js';
 import type { EditorViewportPickContext } from '@/editor/window/editor_viewport_pick_context.js';
 import type { ModifierStackPath } from '@/modifier/stack/widgets/modifier_stack_path_record.js';
 import type { PathAssetPoint } from '@/path/model/path_asset.js';
-import { pathAssetScriptPath } from '@/path/model/path_asset_script.js';
-import { solidScriptPathWalk } from '@/solid_script/language/solid_script_path_model.js';
+import { pathAssetStretchWalks } from '@/path/model/path_asset_script.js';
 
 /** Decimals a point placed in the scene keeps, so stored paths stay tidy. */
 const GENERATOR_PATH_DECIMALS = 6;
@@ -59,6 +59,31 @@ export function generatorPathPlanePoint(
 }
 
 /**
+ * Returns the world point under a client point on the world axis line through
+ * an anchor, its coordinate on that axis snapped by the grid.
+ *
+ * @param pane Pane.
+ * @param clientX Client X.
+ * @param clientY Client Y.
+ * @param anchor World point the line runs through.
+ * @param axis World axis index of the line.
+ * @param snap Snaps a world coordinate to the grid.
+ * @returns World point, or null when the pane looks along the line.
+ */
+export function generatorPathAxisPoint(
+  pane: EditorViewportPickContext,
+  clientX: number,
+  clientY: number,
+  anchor: THREE.Vector3,
+  axis: number,
+  snap: (value: number) => number,
+): THREE.Vector3 | null {
+  const ray = generatorPointerRay(pane, clientX, clientY);
+  const along = editAxisDragParameter(anchor, new THREE.Vector3().setComponent(axis, 1), ray.origin, ray.direction);
+  return along === null ? null : anchor.clone().setComponent(axis, snap(anchor.getComponent(axis) + along));
+}
+
+/**
  * Places a path point in the world.
  *
  * @param path Path input.
@@ -83,13 +108,13 @@ export function generatorPathScript(path: ModifierStackPath, world: THREE.Vector
 }
 
 /**
- * Returns the world line a path is drawn as, closed paths back to their start.
+ * Returns the world line of each stretch of a path.
  *
  * @param path Path input.
- * @returns World points in order.
+ * @returns World points of each stretch, in stretch order.
  */
-export function generatorPathWalk(path: ModifierStackPath): THREE.Vector3[] {
-  return solidScriptPathWalk(pathAssetScriptPath(path.path)).map((point) =>
-    new THREE.Vector3(point[0], point[1], point[2]).applyMatrix4(path.frame),
+export function generatorPathStretchWalks(path: ModifierStackPath): THREE.Vector3[][] {
+  return pathAssetStretchWalks(path.path).map((walk) =>
+    walk.map((point) => new THREE.Vector3(point[0], point[1], point[2]).applyMatrix4(path.frame)),
   );
 }

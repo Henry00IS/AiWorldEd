@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { pathAssetDecode, pathAssetEncode, pathAssetFromData, type PathAsset } from '@/path/model/path_asset.js';
 import { pathAssetArcInner } from '@/path/model/path_asset_arc.js';
-import { pathAssetScriptPath } from '@/path/model/path_asset_script.js';
+import { pathAssetScriptPath, pathAssetStretchWalks } from '@/path/model/path_asset_script.js';
 import { solidScriptPathSample } from '@/solid_script/language/solid_script_path_model.js';
 
 describe('path assets', () => {
@@ -84,5 +84,30 @@ describe('path assets', () => {
       expect(new THREE.Vector3(...point).distanceTo(new THREE.Vector3(2, 0, 1))).toBeCloseTo(1, 9);
     expect(path.segments.at(-1)?.kind).toBe('bezier');
     expect(solidScriptPathSample(path).at(-1)).toEqual([4, 0, 2]);
+  });
+
+  it('draws each stretch on its own from its start to its end, closed paths back to the start', () => {
+    const asset: PathAsset = {
+      points: [
+        [0, 0, 0],
+        [2, 0, 0],
+        [2, 2, 0],
+      ],
+      segments: [{ kind: 'Straight' }, { kind: 'Arc', degrees: 90, axis: [0, 0, 1] }, { kind: 'Straight' }],
+      closed: true,
+    };
+    const walks = pathAssetStretchWalks(asset);
+    expect(walks).toHaveLength(3);
+    expect(walks[0]).toEqual([
+      [0, 0, 0],
+      [2, 0, 0],
+    ]);
+    expect(walks[1]!.length).toBeGreaterThan(2);
+    expect(walks[1]![0]).toEqual([2, 0, 0]);
+    expect(walks[1]!.at(-1)).toEqual([2, 2, 0]);
+    expect(walks[2]).toEqual([
+      [2, 2, 0],
+      [0, 0, 0],
+    ]);
   });
 });

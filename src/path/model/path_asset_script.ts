@@ -1,4 +1,8 @@
-import type { SolidScriptPath, SolidScriptPathSegment } from '@/solid_script/language/solid_script_path_model.js';
+import {
+  solidScriptPathWalk,
+  type SolidScriptPath,
+  type SolidScriptPathSegment,
+} from '@/solid_script/language/solid_script_path_model.js';
 import { solidScriptPathCatmullHandles } from '@/solid_script/language/solid_script_path_splines.js';
 import { PATH_ASSET_RESOLUTION, type PathAsset, type PathAssetPoint, type PathAssetSegment } from './path_asset.js';
 import { pathAssetArcInner } from './path_asset_arc.js';
@@ -7,6 +11,8 @@ import { pathAssetArcInner } from './path_asset_arc.js';
 interface PathAssetScriptParts {
   points: number[][];
   segments: SolidScriptPathSegment<number[]>[];
+  /** Index of the first script segment of each stretch of the asset. */
+  starts: number[];
 }
 
 /**
@@ -19,11 +25,40 @@ interface PathAssetScriptParts {
  * @returns Script path.
  */
 export function pathAssetScriptPath(asset: PathAsset): SolidScriptPath<number[]> {
+  const parts = pathAssetScriptParts(asset);
+  return { points: parts.points, segments: parts.segments, closed: asset.closed };
+}
+
+/**
+ * Returns the line each stretch of a path is drawn as, from its start to its
+ * end, so a stretch can be drawn and picked on its own.
+ *
+ * @param asset Path asset.
+ * @returns Points of each stretch, in stretch order.
+ */
+export function pathAssetStretchWalks(asset: PathAsset): number[][][] {
+  const parts = pathAssetScriptParts(asset);
+  return parts.starts.map((start, index) => {
+    const end = parts.starts[index + 1] ?? parts.segments.length;
+    const points = [...parts.points.slice(start, end), parts.points[end % parts.points.length]!];
+    return solidScriptPathWalk({ points, segments: parts.segments.slice(start, end), closed: false });
+  });
+}
+
+/**
+ * Builds the script points and segments of a path asset, and where each of its
+ * stretches starts among them.
+ *
+ * @param asset Path asset.
+ * @returns Parts.
+ */
+function pathAssetScriptParts(asset: PathAsset): PathAssetScriptParts {
   const smooth = solidScriptPathCatmullHandles(asset.points, asset.closed);
-  const parts: PathAssetScriptParts = { points: [], segments: [] };
+  const parts: PathAssetScriptParts = { points: [], segments: [], starts: [] };
   asset.segments.forEach((segment, index) => {
     const start = asset.points[index]!;
     const end = asset.points[(index + 1) % asset.points.length]!;
+    parts.starts.push(parts.segments.length);
     parts.points.push([...start]);
     if (segment.kind === 'Arc') return pathAssetScriptArc(parts, start, end, segment);
     const handles: [number[], number[]] | null =
@@ -37,7 +72,7 @@ export function pathAssetScriptPath(asset: PathAsset): SolidScriptPath<number[]>
     );
   });
   if (!asset.closed) parts.points.push([...asset.points[asset.points.length - 1]!]);
-  return { points: parts.points, segments: parts.segments, closed: asset.closed };
+  return parts;
 }
 
 /**

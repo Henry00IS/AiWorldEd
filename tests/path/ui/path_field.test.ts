@@ -71,33 +71,72 @@ describe('PathField', () => {
     expect(onCommit).toHaveBeenCalledTimes(1);
   });
 
-  it('shows only the selected point: its position and the settings of the stretch leaving it', () => {
+  it('shows a selected point as one row per axis, like other vector fields, without the stretch', () => {
     const onCommit = vi.fn();
     const field = new PathField({ label: 'Rail', onCommit });
     field.setText(pathAssetEncode(SQUARE));
-    field.setSelected(1);
+    field.setSelected({ points: [1], segments: [] });
     const root = field.getElement();
     expect(root.querySelector('[data-path-point]')?.textContent).toContain('Point 2 of 4');
-    expect(root.querySelectorAll('[aria-label^="Point "]')).toHaveLength(3);
-    expect(root.querySelector<HTMLInputElement>('[aria-label="Arc Degrees"]')?.value).toBe('90');
+    const axes = [...root.querySelectorAll('[aria-label^="Point "]')];
+    expect(axes.map((each) => each.getAttribute('aria-label'))).toEqual(['Point X', 'Point Y', 'Point Z']);
+    expect(new Set(axes.map((each) => each.closest('.modifier-stack-ui-row'))).size).toBe(3);
+    expect(root.querySelector('[aria-label="Stretch"]')).toBeNull();
     type(root, 'Point X', '3');
     expect(onCommit).toHaveBeenLastCalledWith({
       ...SQUARE,
       points: [SQUARE.points[0], [3, 0, 0], ...SQUARE.points.slice(2)],
     });
+  });
+
+  it('shows a selected stretch: its kind and settings', () => {
+    const onCommit = vi.fn();
+    const field = new PathField({ label: 'Rail', onCommit });
+    field.setText(pathAssetEncode(SQUARE));
+    field.setSelected({ points: [], segments: [1] });
+    const root = field.getElement();
+    expect(root.querySelector('[data-path-point]')?.textContent).toContain('Stretch 2 of 4');
+    expect(root.querySelector('[aria-label="Point X"]')).toBeNull();
+    expect(root.querySelector<HTMLInputElement>('[aria-label="Arc Degrees"]')?.value).toBe('90');
     type(root, 'Arc Degrees', '180');
     expect(onCommit.mock.lastCall?.[0].segments[1]).toEqual({ kind: 'Arc', degrees: 180, axis: [0, 1, 0] });
     type(root, 'Stretch', 'Bezier');
     expect(onCommit.mock.lastCall?.[0].segments[1].kind).toBe('Bezier');
-    field.setSelected(0);
-    expect(root.querySelector('[aria-label="Arc Degrees"]')).toBeNull();
   });
 
-  it('keeps one selected point for the scene and the inspector, and tells who listens', () => {
+  it('edits what several selected points or stretches share', () => {
+    const onCommit = vi.fn();
+    const field = new PathField({ label: 'Rail', onCommit });
+    field.setText(pathAssetEncode(SQUARE));
+    field.setSelected({ points: [0, 1], segments: [] });
+    const root = field.getElement();
+    expect(root.querySelector('[data-path-point]')?.textContent).toContain('2 Points');
+    expect(root.querySelector<HTMLInputElement>('[aria-label="Point X"]')?.value).toBe('—');
+    expect(root.querySelector<HTMLInputElement>('[aria-label="Point Y"]')?.value).toBe('0.00');
+    type(root, 'Point Y', '2');
+    expect(onCommit.mock.lastCall?.[0].points.slice(0, 2)).toEqual([
+      [0, 2, 0],
+      [1, 2, 0],
+    ]);
+    field.setSelected({ points: [0, 2], segments: [] });
+    [...root.querySelectorAll('button')].find((each) => each.textContent === 'Delete Points')?.click();
+    expect(onCommit.mock.lastCall?.[0].points).toEqual([SQUARE.points[1], SQUARE.points[3]]);
+    field.setSelected({ points: [], segments: [0, 1] });
+    expect(root.querySelector('[data-path-point]')?.textContent).toContain('2 Stretches');
+    expect(root.querySelector<HTMLSelectElement>('[aria-label="Stretch"]')?.value).toBe('');
+    expect(root.querySelector('[aria-label="Arc Degrees"]')).toBeNull();
+    type(root, 'Stretch', 'Smooth');
+    expect(onCommit.mock.lastCall?.[0].segments.slice(0, 2).map((each: { kind: string }) => each.kind)).toEqual([
+      'Smooth',
+      'Smooth',
+    ]);
+  });
+
+  it('keeps one selection for the scene and the inspector, and tells who listens', () => {
     const heard = vi.fn();
     const stop = pathEditSelectionListen(heard);
-    pathEditSelect({ stepId: 'm1', name: 'Rail', point: 2 });
-    expect(pathEditSelected()).toEqual({ stepId: 'm1', name: 'Rail', point: 2 });
+    pathEditSelect({ stepId: 'm1', name: 'Rail', points: [2], segments: [] });
+    expect(pathEditSelected()).toEqual({ stepId: 'm1', name: 'Rail', points: [2], segments: [] });
     stop();
     pathEditSelect(null);
     expect(heard).toHaveBeenCalledTimes(1);

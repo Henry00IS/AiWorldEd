@@ -97,12 +97,14 @@ export interface GeneratorEditHost {
   aim(aim: ModifierStackAim, direction: Vector3): void;
 
   /**
-   * Snaps a distance to the grid when grid snapping is on.
+   * Snaps a distance to the grid when grid snapping is on, or the other way
+   * round while Shift is held.
    *
    * @param distance Distance in metres.
+   * @param invert True while Shift is held.
    * @returns Snapped distance.
    */
-  snapDistance(distance: number): number;
+  snapDistance(distance: number, invert: boolean): number;
 
   /**
    * Writes a value into the input of a slider and rebuilds at once, as one live
