@@ -1,3 +1,4 @@
+import { modifierStackBakeFinalRun } from './modifier_stack_bake_final.js';
 import * as THREE from 'three';
 import type { UndoCommand } from '@/commands/command_undo.js';
 import { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
@@ -66,16 +67,18 @@ export class CommandModifierVolumeBake implements UndoCommand {
     this.volume = volume;
     this.ownerStack = modifierStackOwnerEncode(volume);
     this.sceneRoot = modifierVolumeSceneRoot(volume);
-    const restore = modifierStackBakeParametersApply(this.sceneRoot);
-    try {
-      this.plans = modifierStackBakePlan(volume);
-      this.meshes = modifierStackBakeMeshesCreate(
-        volume,
-        modifierStackBakeContentParent(volume, this.plans[0]?.model.root.parent ?? null, this.sceneRoot),
-      );
-    } finally {
-      restore();
-    }
+    const built = modifierStackBakeFinalRun(() => {
+      const restore = modifierStackBakeParametersApply(this.sceneRoot);
+      try {
+        const plans = modifierStackBakePlan(volume);
+        const parent = modifierStackBakeContentParent(volume, plans[0]?.model.root.parent ?? null, this.sceneRoot);
+        return { plans, meshes: modifierStackBakeMeshesCreate(volume, parent) };
+      } finally {
+        restore();
+      }
+    });
+    this.plans = built.plans;
+    this.meshes = built.meshes;
   }
 
   /**
