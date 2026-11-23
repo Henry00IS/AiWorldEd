@@ -16,7 +16,11 @@ import {
 } from './solid_script_command_parameters.js';
 import { solidScriptFaceEachNumber } from './solid_script_face_each.js';
 import { solidScriptFaceTargets, solidScriptFaceWrite } from './solid_script_face_of.js';
-import { solidScriptScatterIds, solidScriptScatterRun } from '@/solid_script/language/solid_script_scatter.js';
+import {
+  solidScriptScatterIds,
+  solidScriptScatterKeep,
+  solidScriptScatterRun,
+} from '@/solid_script/language/solid_script_scatter.js';
 import { solidScriptMemberRound, solidScriptMemberVector } from '@/solid_script/language/solid_script_members.js';
 import type * as THREE from 'three';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
@@ -55,7 +59,10 @@ function solidScriptScatterListingFaces(read: SolidScriptListingValues): SolidSc
     read.value('into'),
     ...(read.text('normals') === '' ? [] : [' Normals ', read.value('normals')]),
     ...(read.text('rotations') === '' ? [] : [' Rotations ', read.value('rotations')]),
-    ...solidScriptListingOptions([read.changed('spacing') && ['Spacing ', read.value('spacing')]]),
+    ...solidScriptListingOptions([
+      read.changed('spacing') && ['Spacing ', read.value('spacing')],
+      read.changed('keep') && ['Keep ', read.value('keep')],
+    ]),
   ];
 }
 
@@ -82,7 +89,10 @@ function solidScriptScatterListingOther(read: SolidScriptListingValues, on: stri
     ...(read.text('of') === '' || box ? [] : [' Of ', read.value('of')]),
     ' Into ',
     read.value('into'),
-    ...solidScriptListingOptions([!grid && read.changed('spacing') && ['Spacing ', read.value('spacing')]]),
+    ...solidScriptListingOptions([
+      !grid && read.changed('spacing') && ['Spacing ', read.value('spacing')],
+      read.changed('keep') && ['Keep ', read.value('keep')],
+    ]),
   ];
 }
 
@@ -133,7 +143,7 @@ export const SOLID_SCRIPT_COMMAND_SCATTER = new SolidScriptCommand({
   category: 'Points',
   description: 'Spread points on faces, inside a shape, in a box, or on a grid',
   manual:
-    'Spreads points and writes their positions to Into as a list of vectors. On chooses how: On Faces (the default) spreads them over faces, more on bigger ones, and writes the way each face looks to Normals and the turn that stands a shape up on it to Rotations (X, Y, Z degrees, as Rotation reads them), and skips faces that lie back to back against another object in Of, such as where the solids of a Rotate Extrude ring meet; Inside fills the volume of an object; In Box fills a box of Size, centered on the origin; Grid lays Counts points along that box. By chooses how many: Count gives that many, and Density gives so many per square metre On Faces (it can change per face, with [$Face] the face) or per cubic metre Inside and In Box, so a bigger shape gets more. Ids gets a number for each point from where it lies, so a random value seeded by it stays with that point when other points come or go, unlike [$Index]. Spacing keeps points at least that far apart; when not all of them fit, it gives as many as fit. Of gives the faces, objects for On Faces and Inside; empty uses [$Selected.Faces]. The same Seed gives the same points for the random modes. Example: Select Faces Facing Up, Scatter Points 20 Into [Spots], then Place At Points At [Spots], Sphere, End.',
+    'Spreads points and writes their positions to Into as a list of vectors. On chooses how: On Faces (the default) spreads them over faces, more on bigger ones, and writes the way each face looks to Normals and the turn that stands a shape up on it to Rotations (X, Y, Z degrees, as Rotation reads them), and skips faces that lie back to back against another object in Of, such as where the solids of a Rotate Extrude ring meet; Inside fills the volume of an object; In Box fills a box of Size, centered on the origin; Grid lays Counts points along that box. By chooses how many: Count gives that many, and Density gives so many per square metre On Faces (it can change per face, with [$Face] the face) or per cubic metre Inside and In Box, so a bigger shape gets more. Ids gets a number for each point from where it lies, so a random value seeded by it stays with that point when other points come or go, unlike [$Index]. Spacing keeps points at least that far apart; when not all of them fit, it gives as many as fit. The 🔁 Keep is the chance, from 0 to 1, that each point stays, with [$Point] the point: every point draws one steady number from its Id and the Seed, so raising Keep only adds points. Of gives the faces, objects for On Faces and Inside; empty uses [$Selected.Faces]. The same Seed gives the same points for the random modes. Example: Select Faces Facing Up, Scatter Points 20 Into [Spots], then Place At Points At [Spots], Sphere, End.',
   stops: [
     'No faces, when On is On Faces or Inside.',
     'A Count that is not a whole number from 0 to 10000.',
@@ -198,6 +208,16 @@ export const SOLID_SCRIPT_COMMAND_SCATTER = new SolidScriptCommand({
       ),
       'on',
       ['On Faces', 'Inside', 'In Box'],
+    ),
+    solidScriptParameterEach(
+      solidScriptParameter(
+        'keep',
+        'Keep',
+        'number',
+        '1',
+        'Chance from 0 to 1 that each point stays, such as 0.5; it can change per point, such as [=Noise([$Point.Position], 0.2)] for patches.',
+      ),
+      'Point',
     ),
     solidScriptParameterWhen(
       solidScriptParameter('seed', 'Seed', 'number', '0', 'Any number, such as 1; another seed gives other points.'),
@@ -275,7 +295,7 @@ export const SOLID_SCRIPT_COMMAND_SCATTER = new SolidScriptCommand({
   ],
   listing: (read) => solidScriptScatterListing(read),
   execute: (run) => {
-    const found = solidScriptScatterRun(
+    const scattered = solidScriptScatterRun(
       run,
       () => solidScriptFaceTargets(run, 'Scatter Points'),
       (faces) =>
@@ -286,6 +306,7 @@ export const SOLID_SCRIPT_COMMAND_SCATTER = new SolidScriptCommand({
           'Density needs a number of points per square metre, such as 10',
         ),
     );
+    const found = solidScriptScatterKeep(run, scattered);
     solidScriptFaceWrite(
       run,
       'into',

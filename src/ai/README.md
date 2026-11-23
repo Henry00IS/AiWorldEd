@@ -631,6 +631,7 @@ Solid mutations (including hierarchy create/reparent/rename/ungroup) are **undoa
 - Path Line by direction and length: set To to Along(From, Direction, Length). Path Spiral turns clockwise from above with negative Turns.
 - Nearest(points, point, skip, groups, group): Groups gives a group number per point and Group the one to search, so only points of the same group are found.
 - Scatter Points By Density: each triangle draws from its own random stream, so raising Density keeps every point a lower Density gave and only adds more.
+- Scatter Points Keep is a 🔁 chance from 0 to 1 per point, with [$Point] the point, that it stays: each point draws one steady number from its Id and the Seed, so raising Keep only adds points, and Keep [=Noise([$Point.Position], 0.2)] thins points into patches.
 - Pack Islands: faces that share a corner with the same UV, such as faces Unwrap Seams kept joined, now pack as one island; Margin (default 0.001) is the gap between islands as a share of the square; Rotate (Yes by default) turns each island so it takes the least room, as Unwrap does when it packs; Bottom Left and Top Right give the area to fill, 0 to 1 when left off.
 - Texture Faces works on meshes: each texture becomes one of the mesh's texture slots and each face points at its slot; one slot is the whole-mesh texture as before.
 - Icosphere Mesh: a mesh sphere of even triangles with Radius and Subdivisions (1 to 7), and a matching Icosphere generator for the world editor; both share one shape module.

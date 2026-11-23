@@ -1,7 +1,12 @@
 import * as THREE from 'three';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
 import { solidScriptGeometryFacesOutside, type SolidScriptFaceFacts } from './solid_script_geometry.js';
-import { solidScriptValueNumber, solidScriptValueNumbers, type SolidScriptValue } from './solid_script_value.js';
+import {
+  SolidScriptPoint,
+  solidScriptValueNumber,
+  solidScriptValueNumbers,
+  type SolidScriptValue,
+} from './solid_script_value.js';
 import {
   SOLID_SCRIPT_SCATTER_MOST,
   solidScriptScatterByCount,
@@ -329,4 +334,52 @@ export function solidScriptScatterIds(positions: readonly THREE.Vector3[]): numb
     }
     return (hash >>> 0) % 2147483647;
   });
+}
+
+/**
+ * Reads the Keep chance of one scattered point, a number from 0 to 1.
+ *
+ * @param run Running line.
+ * @param point The point.
+ * @param index Its number from 0.
+ * @param count How many points were scattered.
+ * @returns Chance.
+ */
+function solidScriptScatterKeepChance(
+  run: SolidScriptBlockRun,
+  point: THREE.Vector3,
+  index: number,
+  count: number,
+): number {
+  const value = run.valueWith('keep', { $Point: new SolidScriptPoint(point.toArray()), $Index: index, $Count: count });
+  const chance = solidScriptValueNumber(value);
+  if (chance === undefined || !(chance >= 0 && chance <= 1))
+    throw new Error('Keep needs a chance from 0 to 1 per point, such as 0.5 or [=Max(0, [$Point.Normal.Y])]');
+  return chance;
+}
+
+/**
+ * Thins scattered points by their 🔁 Keep chance. Each point draws one steady
+ * number from its Id and the Seed and stays when that number is below its
+ * chance, so raising the chance only ever adds points.
+ *
+ * @param run Running line.
+ * @param found Scattered points.
+ * @returns Points that stay, with their face directions.
+ */
+export function solidScriptScatterKeep(
+  run: SolidScriptBlockRun,
+  found: SolidScriptScatterResult,
+): SolidScriptScatterResult {
+  const seed = solidScriptScatterSeed(run);
+  const ids = solidScriptScatterIds(found.positions);
+  const stays = found.positions.map((point, index) => {
+    const chance = solidScriptScatterKeepChance(run, point, index, found.positions.length);
+    const draw = Math.imul((ids[index] ?? 0) ^ Math.imul(Math.round(seed * 1000) + 1, 0x9e3779b1), 0x85ebca6b) >>> 0;
+    return ((draw ^ (draw >>> 15)) >>> 0) / 4294967296 < chance;
+  });
+  return {
+    positions: found.positions.filter((_, index) => stays[index]),
+    normals: found.normals?.filter((_, index) => stays[index]) ?? null,
+  };
 }
