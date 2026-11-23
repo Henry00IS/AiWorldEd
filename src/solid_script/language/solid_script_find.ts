@@ -136,7 +136,7 @@ function solidScriptFindHow(run: SolidScriptBlockRun): SolidScriptFindHow {
  * @param label Field caption.
  * @returns Word.
  */
-function solidScriptFindWord<T extends string>(
+export function solidScriptFindWord<T extends string>(
   run: SolidScriptBlockRun,
   key: string,
   words: readonly T[],

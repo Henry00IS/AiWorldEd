@@ -16,10 +16,19 @@ import { solidScriptFaceTargets, solidScriptFaceWriteValue } from './solid_scrip
 import { solidScriptFaceEach } from './solid_script_face_each.js';
 import {
   solidScriptFindOn,
+  solidScriptFindWord,
   type SolidScriptFindFound,
   type SolidScriptFindHit,
 } from '@/solid_script/language/solid_script_find.js';
+import {
+  SOLID_SCRIPT_FIND_BLENDS,
+  solidScriptFindBlendValues,
+  solidScriptFindCornerWeights,
+} from '@/solid_script/language/solid_script_find_blend.js';
+import type { SolidScriptFaceFacts } from '@/solid_script/language/solid_script_geometry.js';
+import { solidScriptFaceCornersOfFace } from '@/solid_script/language/solid_script_members_face_corner.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
+import type { SolidScriptValue } from '@/solid_script/language/solid_script_value.js';
 import { solidScriptMemberVector } from '@/solid_script/language/solid_script_members.js';
 
 /**
@@ -43,7 +52,7 @@ export const SOLID_SCRIPT_COMMANDS_QUERY: readonly SolidScriptCommand[] = [
     category: 'Data',
     description: 'Find the closest point on faces, or the first hit along a ray',
     manual:
-      'Looks at the faces in Of, or [$Selected.Faces] when Of is empty, and writes what it finds. How Closest (the default) picks the nearest point to From on any of those faces. Target, for Closest, measures to the face surfaces (Faces, the default), their edges (Edges) or their corners (Corners). Along Ray follows Direction from From and picks the first face it meets. At UV reads the first two numbers of From as texture coordinates and finds the first face whose UVs hold them, blending its corners into the point; overlapping UVs give the first face. A find further than Max Distance is a miss. Sample is read on the face found, with [$Face], and written to Sampled, such as [=[$Face.Texture]]. Into gets the point, Distance how far it is, Normal the way the face looks, Face the face, and Hit whether a face was found. A list of points in From, or of directions in Direction, finds once per item: then Into, Distance, Normal and Hit are lists with one entry per item (a miss gives 0, 0, 0, 0 and No), and Face gets the faces that were hit. Example: Cube, Select Faces All, Find On Closest From 0, 2, 0 Into [Spot] Face [Top] Hit [Found].',
+      'Looks at the faces in Of, or [$Selected.Faces] when Of is empty, and writes what it finds. How Closest (the default) picks the nearest point to From on any of those faces. Target, for Closest, measures to the face surfaces (Faces, the default), their edges (Edges) or their corners (Corners). Along Ray follows Direction from From and picks the first face it meets. At UV reads the first two numbers of From as texture coordinates and finds the first face whose UVs hold them, blending its corners into the point; overlapping UVs give the first face. A find further than Max Distance is a miss. Sample is read on the face found, with [$Face], and written to Sampled, such as [=[$Face.Texture]]. Blend Corners reads Sample at every corner of that face instead, with [$FaceCorner], and blends the numbers or vectors by where the point lies, such as [=[$FaceCorner.UV]] for the texture coordinates there. Into gets the point, Distance how far it is, Normal the way the face looks, Face the face, and Hit whether a face was found. A list of points in From, or of directions in Direction, finds once per item: then Into, Distance, Normal and Hit are lists with one entry per item (a miss gives 0, 0, 0, 0 and No), and Face gets the faces that were hit. Example: Cube, Select Faces All, Find On Closest From 0, 2, 0 Into [Spot] Face [Top] Hit [Found].',
     stops: [
       'No faces.',
       'A From or Direction that is not x, y, z.',
@@ -115,6 +124,17 @@ export const SOLID_SCRIPT_COMMANDS_QUERY: readonly SolidScriptCommand[] = [
         ),
         'Face',
       ),
+      solidScriptParameterWords(
+        'blend',
+        'Blend',
+        'text',
+        'Face',
+        'How Sample is read: Face reads it once on the face found; Corners reads it at every corner of that face, with [$FaceCorner], and blends the numbers or vectors by how near the point lies to each corner. Type Face or Corners, such as Corners.',
+        [
+          { word: 'Face', detail: 'Read Sample once on the face found' },
+          { word: 'Corners', detail: 'Read Sample at each corner and blend by where the point lies' },
+        ],
+      ),
       solidScriptParameterOfWhere('Face', '[=[$Face.Normal.Y] > 0.9]'),
       solidScriptParameterOf('faces or objects', '$Selected.Faces'),
       solidScriptFindEach({
@@ -165,6 +185,7 @@ export const SOLID_SCRIPT_COMMANDS_QUERY: readonly SolidScriptCommand[] = [
           : [' Target ', read.value('target')]),
         ...(read.text('max_distance') === '' ? [] : [' Max Distance ', read.value('max_distance')]),
         ...(read.text('sample') === '' ? [] : [' Sample ', read.value('sample')]),
+        ...(['', 'face'].includes(read.text('blend').trim().toLowerCase()) ? [] : [' Blend ', read.value('blend')]),
         ...solidScriptListingOf(read),
         ...(read.text('into') === '' ? [] : [' Into ', read.value('into')]),
         ...(read.text('distance') === '' ? [] : [' Distance ', read.value('distance')]),
@@ -230,17 +251,43 @@ function solidScriptFindWriteLists(run: SolidScriptBlockRun, hits: readonly Soli
 }
 
 /**
- * Reads Sample on each face found and writes it to Sampled: one value, or one
- * per item when From or Direction is a list; a miss gives an empty text.
+ * Reads Sample on each face found, or blended from its corners with Blend
+ * Corners, and writes it to Sampled: one value, or one per item when From or
+ * Direction is a list; a miss gives an empty text.
  *
  * @param run Running line.
  * @param found What Find On found.
  */
 function solidScriptFindWriteSample(run: SolidScriptBlockRun, found: SolidScriptFindFound): void {
+  const corners = solidScriptFindWord(run, 'blend', SOLID_SCRIPT_FIND_BLENDS, 'Blend') === 'Corners';
   const sample = run.source('sample').trim();
   if (run.text('sampled').trim() === '' || sample === '') return;
   const faces = found.hits.flatMap((hit) => (hit.face ? [hit.face] : []));
-  const read = solidScriptFaceEach(run, 'sample', faces);
-  const values = found.hits.map((hit) => (hit.face ? read(hit.face) : ''));
+  const read = corners ? solidScriptFindBlendRead(run) : solidScriptFaceEach(run, 'sample', faces);
+  const values = found.hits.map((hit) => (hit.face ? read(hit.face, hit.position) : ''));
   solidScriptFaceWriteValue(run, 'sampled', found.listed ? values : (values[0] ?? ''));
+}
+
+/**
+ * Reads Sample at every corner of a face, with [$Face] and [$FaceCorner], and
+ * blends the results by how near the point lies to each corner.
+ *
+ * @param run Running line.
+ * @returns Blended Sample for a face and a point on it.
+ */
+function solidScriptFindBlendRead(
+  run: SolidScriptBlockRun,
+): (face: SolidScriptFaceFacts, point?: THREE.Vector3) => SolidScriptValue {
+  return (face, point) => {
+    const corners = solidScriptFaceCornersOfFace(run.elements, face);
+    const values = corners.map((corner, index) =>
+      run.valueWith('sample', {
+        $Face: run.elements.face(face),
+        $FaceCorner: corner,
+        $Index: index,
+        $Count: corners.length,
+      }),
+    );
+    return solidScriptFindBlendValues(values, solidScriptFindCornerWeights(face, point ?? face.corners[0]!));
+  };
 }
