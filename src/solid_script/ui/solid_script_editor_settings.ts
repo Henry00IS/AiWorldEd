@@ -1,11 +1,12 @@
 import { modifierStackUiText } from '@/modifier/stack/ui/modifier_stack_ui_style.js';
 import {
   solidScriptDocumentAuthorWith,
+  solidScriptDocumentEditModeWith,
   solidScriptDocumentUsesWith,
   type SolidScriptDocument,
   type SolidScriptUse,
 } from '@/solid_script/document/solid_script_document.js';
-import { solidScriptInspectorUses } from './solid_script_inspector_row.js';
+import { solidScriptInspectorEditMode, solidScriptInspectorUses } from './solid_script_inspector_row.js';
 import { LocalSettingsStorage, type SettingsStorage } from '@/settings/storage/settings_storage.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
 import {
@@ -24,15 +25,18 @@ import {
 
 /**
  * The Settings tab of the script editor: Can Be Used As, the same switches as
- * the inspector, and who wrote the script, which are saved with the script;
- * then how the editor shows code and how fast Debug steps, which are kept on
- * this computer.
+ * the inspector, Has Edit Mode, and who wrote the script, which are saved with
+ * the script; then how the editor shows code and how fast Debug steps, which
+ * are kept on this computer.
  */
 export class SolidScriptEditorSettings {
   /** Tab content. */
   readonly element = document.createElement('div');
   private readonly author = document.createElement('input');
   private readonly uses: { element: HTMLElement; write: (document: SolidScriptDocument) => void };
+  private readonly editMode = solidScriptInspectorEditMode((on) =>
+    this.change((script) => solidScriptDocumentEditModeWith(script, on)),
+  );
   private current: SolidScriptDocument | null = null;
 
   /**
@@ -70,6 +74,7 @@ export class SolidScriptEditorSettings {
     row.append(modifierStackUiText('span', 'Author', true), this.author);
     this.element.append(
       this.uses.element,
+      this.editMode.element,
       row,
       solidScriptEditorSettingsView(viewChanged, storage),
       solidScriptEditorSettingsDebug(speedChanged, storage),
@@ -84,6 +89,7 @@ export class SolidScriptEditorSettings {
   write(script: SolidScriptDocument): void {
     this.current = script;
     this.uses.write(script);
+    this.editMode.write(script);
     if (this.author.ownerDocument.activeElement !== this.author) this.author.value = script.author ?? '';
   }
 

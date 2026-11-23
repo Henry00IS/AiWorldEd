@@ -115,6 +115,7 @@ export type SolidScriptCommandCategory =
   | 'Data'
   | 'UVs'
   | 'Inputs'
+  | 'Widgets'
   | 'Logic'
   | 'Lists'
   | 'Parts'

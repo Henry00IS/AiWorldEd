@@ -53,6 +53,7 @@ describe('SolidScript editor', () => {
       'UVs',
       'Data',
       'Inputs',
+      'Widgets',
       'Logic',
       'Lists',
       'Parts',
@@ -724,6 +725,19 @@ describe('SolidScript editor', () => {
     scriptKey('z');
     expect(script().author).toBeUndefined();
     expect(author.value).toBe('');
+  });
+
+  it('turns Has Edit Mode on and off in the Settings tab, undone with the script', () => {
+    const { script } = editorFixture(CUBE_SPHERE);
+    find<HTMLButtonElement>('[role="tab"][data-tab="settings"]').click();
+    const box = find<HTMLInputElement>('[data-solid-script-settings] input[aria-label="Has Edit Mode"]');
+    expect(box.checked).toBe(false);
+    box.checked = true;
+    box.dispatchEvent(new Event('change'));
+    expect(script().editMode).toBe(true);
+    scriptKey('z');
+    expect(script().editMode).toBeUndefined();
+    expect(box.checked).toBe(false);
   });
 
   it('adds Input lines from the Variables tab, after the other inputs', () => {

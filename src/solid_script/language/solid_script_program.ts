@@ -192,6 +192,7 @@ function solidScriptProgramFailed(error: unknown): Omit<SolidScriptRun, 'ms'> {
   return {
     shapes: [],
     messages: [],
+    widgets: [],
     warnings: [],
     steps: [],
     variables: [],

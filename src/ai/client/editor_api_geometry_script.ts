@@ -12,6 +12,7 @@ import {
 import { solidScriptCommandFind, solidScriptCommands } from '@/solid_script/commands/solid_script_command_catalog.js';
 import {
   solidScriptBlockCreate,
+  solidScriptDocumentEditModeAfter,
   solidScriptDocumentNormalize,
   type SolidScriptBlock,
   type SolidScriptDocument,
@@ -152,7 +153,10 @@ export class EditorApiGeometryScript {
     const handled = geometryScriptHandle(document, events, typed);
     const before = ModifierVolume.read(generator.node);
     const patch = {
-      [MODIFIER_STACK_SOLID_SCRIPT_KEY]: document,
+      [MODIFIER_STACK_SOLID_SCRIPT_KEY]: solidScriptDocumentEditModeAfter(
+        solidScriptDocumentNormalize(generator.parameters[MODIFIER_STACK_SOLID_SCRIPT_KEY]),
+        document,
+      ),
       [MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]: handled.inputs,
       ...(args.placement ? { placement: args.placement } : {}),
     };

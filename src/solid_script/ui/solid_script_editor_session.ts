@@ -16,6 +16,7 @@ import {
 } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
 import { solidScriptInspectorInputValues } from './solid_script_inspector_inputs.js';
 import {
+  solidScriptDocumentEditModeAfter,
   solidScriptDocumentNormalize,
   type SolidScriptDocument,
   type SolidScriptUse,
@@ -116,7 +117,7 @@ export class SolidScriptEditorSession {
    */
   commit(document: SolidScriptDocument): boolean {
     const before = this.document();
-    if (!this.store(document)) return false;
+    if (!this.store(solidScriptDocumentEditModeAfter(before, document))) return false;
     SolidScriptEditorHistory.of(this.node, this.stepId, this.commandStack).record(before, this.document());
     return true;
   }

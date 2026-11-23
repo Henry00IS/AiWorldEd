@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   solidScriptDocumentCreate,
+  solidScriptDocumentEditModeAfter,
+  solidScriptDocumentEditModeWith,
   solidScriptDocumentNormalize,
   solidScriptDocumentUseProblem,
   solidScriptDocumentUses,
@@ -55,5 +57,25 @@ describe('Can Be Used As', () => {
     const modifier = solidScriptProgramRun(script, { use: { usage: 'Modifier', solids, faces: 4 } });
     expect(modifier.error).toBeNull();
     expect(modifier.messages).toEqual(['modifier Modifier 1']);
+  });
+});
+
+describe('Has Edit Mode', () => {
+  const plain = solidScriptDocumentCreate([{ command: 'cube' }], 'Box');
+  const slider = solidScriptDocumentCreate([{ command: 'cube' }, { command: 'widget_slider' }], 'Box');
+
+  it('is off and unstored for an older script, and kept in a script file when on', async () => {
+    expect('editMode' in solidScriptDocumentNormalize(plain)).toBe(false);
+    const on = solidScriptDocumentEditModeWith(plain, true);
+    expect(solidScriptDocumentNormalize(on).editMode).toBe(true);
+    expect('editMode' in solidScriptDocumentEditModeWith(on, false)).toBe(false);
+    expect((await solidScriptFileDecode(await solidScriptFileEncode(on))).editMode).toBe(true);
+  });
+
+  it('turns on when an edit adds a Widget line, and stays off when turned off with the same lines', () => {
+    expect(solidScriptDocumentEditModeAfter(plain, slider).editMode).toBe(true);
+    expect(solidScriptDocumentEditModeAfter(slider, slider).editMode).toBeUndefined();
+    const off = { ...slider, blocks: slider.blocks.map((block) => ({ ...block, off: true as const })) };
+    expect(solidScriptDocumentEditModeAfter(plain, off).editMode).toBeUndefined();
   });
 });

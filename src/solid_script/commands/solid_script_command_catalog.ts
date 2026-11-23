@@ -31,6 +31,7 @@ import { SOLID_SCRIPT_COMMANDS_SELECT } from './solid_script_commands_select.js'
 import { SOLID_SCRIPT_COMMANDS_PATHS } from './solid_script_commands_paths.js';
 import { SOLID_SCRIPT_COMMANDS_GENERATORS } from './solid_script_commands_generators.js';
 import { SOLID_SCRIPT_COMMANDS_PROGRAM } from './solid_script_commands_program.js';
+import { SOLID_SCRIPT_COMMANDS_WIDGETS } from './solid_script_commands_widgets.js';
 import { SOLID_SCRIPT_COMMANDS_QUERY } from './solid_script_commands_query.js';
 import { SOLID_SCRIPT_COMMANDS_CLIP } from './solid_script_commands_clip.js';
 import { SolidScriptCommandCatalog } from './solid_script_command_catalog_base.js';
@@ -53,6 +54,7 @@ export const SOLID_SCRIPT_COMMAND_CATEGORIES: readonly SolidScriptCommandCategor
   'UVs',
   'Data',
   'Inputs',
+  'Widgets',
   'Logic',
   'Lists',
   'Parts',
@@ -97,6 +99,7 @@ export const solidScriptCommands: readonly SolidScriptCommand[] = [
   ...SOLID_SCRIPT_COMMANDS_LOGIC,
   ...SOLID_SCRIPT_COMMANDS_LISTS,
   ...SOLID_SCRIPT_COMMANDS_PROGRAM,
+  ...SOLID_SCRIPT_COMMANDS_WIDGETS,
 ];
 
 /** Favorite command ids before the user changes them: Note, Echo, Set and Input. */

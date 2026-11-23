@@ -30,6 +30,8 @@ interface SolidScriptFileJson {
   name: string;
   blocks: SolidScriptDocument['blocks'];
   uses?: SolidScriptDocument['uses'];
+  /** True when the script has an edit mode. */
+  editMode?: true;
   resources: SolidScriptFileResource[];
 }
 
@@ -47,6 +49,7 @@ export async function solidScriptFileEncode(document: SolidScriptDocument): Prom
     name: document.name,
     blocks: document.blocks,
     ...(document.uses ? { uses: document.uses } : {}),
+    ...(document.editMode ? { editMode: true as const } : {}),
     resources: [],
   };
   const chunks: Uint8Array[] = [];

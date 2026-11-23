@@ -167,6 +167,29 @@ export function solidScriptInspectorUses(
 }
 
 /**
+ * Builds the Has Edit Mode checkbox, in the style of Can Be Used As: on, the
+ * Edit button of a selected object that runs the script opens its widgets.
+ *
+ * @param commit Stores the script with edit mode on or off.
+ * @returns Row and how to show a script's setting.
+ */
+export function solidScriptInspectorEditMode(commit: (on: boolean) => void): {
+  element: HTMLElement;
+  write: (document: SolidScriptDocument) => void;
+} {
+  const box = document.createElement('input');
+  box.type = 'checkbox';
+  box.setAttribute('aria-label', 'Has Edit Mode');
+  box.addEventListener('change', () => commit(box.checked));
+  const element = document.createElement('label');
+  element.dataset['solidScriptEditMode'] = 'true';
+  element.title = 'Shows an Edit button on objects that run this script, to drag its Widget lines in the scene';
+  Object.assign(element.style, { display: 'flex', gap: '4px', alignItems: 'center' });
+  element.append(box, modifierStackUiText('span', 'Has Edit Mode', true));
+  return { element, write: (script) => void (box.checked = script.editMode === true) };
+}
+
+/**
  * Builds the empty card that holds the row's name, details and buttons.
  *
  * @returns Card.

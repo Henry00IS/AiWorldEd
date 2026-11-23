@@ -45,7 +45,7 @@ The script runs on every change. **Start** builds everything, **Debug** builds o
 - A small **×N** at the end of a line says how often it ran; hover it for its time.
 - Drag the splitters beside the palette, beside the help column and above the output to resize them; the editor keeps the sizes for next time.
 - The inspector's **Script** row shows the script's size and, under it, its messages: why the script may not be used in this step (such as a modifier-only script in a generator), then the script's error in red directly below; with neither it shows no message.
-- The **Settings** tab holds **Can Be Used As** (Generator, Modifier; the use of the step you opened stays on, as in the inspector) and an **Author** line saved with the script. Both are script edits, so Ctrl+Z in the editor undoes them.
+- The **Settings** tab holds **Can Be Used As** (Generator, Modifier; the use of the step you opened stays on, as in the inspector), **Has Edit Mode** and an **Author** line saved with the script. All are script edits, so Ctrl+Z in the editor undoes them.
 - The **Variables** tab lists every name with its value at the step shown, and the **System** values such as `$Time.Year`, `$Editor.Version` or `$Box.Width`. `$Box` is the generator or the modifier volume: `[$Box.Width]`, `[$Box.Height]`, `[$Box.Depth]`, `[$Box.Size]`, `[$Box.Extents]`, `[$Box.Min]` and `[$Box.Max]` describe its box, and `[$Box.Position]`, `[$Box.Rotation]` and `[$Box.Scale]` are its pose in the level, in metres and degrees. The examples size themselves from the box. Where a script runs without a box, such as in the assistant, the size values read as 1 and the Output shows a ⚠️ warning on the line instead of stopping; Position, Rotation and Scale then read as the origin, no turn and a scale of one.
 
 </details>
@@ -65,6 +65,12 @@ The script runs on every change. **Start** builds everything, **Debug** builds o
 - Values stored as `Persistent.Name` stay between runs.
 
 </details>
+
+## Widgets
+
+**Widget** lines put handles in the scene. Turn on **Has Edit Mode** in the Settings tab (adding the first Widget line turns it on for you), select the object with Bounds and click **Edit** in its middle: its widgets appear, and Escape brings you back to Bounds.
+
+- **Widget Slider** slides along **Along** from **At**, placed by the Transform around it. **Shows** is the value the handle sits at, and **Writes** names the Input a drag changes, snapped to the grid and kept between the optional **Minimum** and **Maximum**. The script runs on every move and the handle follows Shows, so a script that clamps or resets the value stops the handle there; when you let go the Input keeps the value the handle shows. One drag is one undo step.
 
 ## Solids, faces and points
 

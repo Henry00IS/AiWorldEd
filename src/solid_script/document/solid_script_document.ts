@@ -1,6 +1,8 @@
 import { SOLID_SCRIPT_COMMAND_CATALOG } from '@/solid_script/commands/solid_script_command_catalog.js';
 import type { SolidScriptCommandCatalog } from '@/solid_script/commands/solid_script_command_catalog_base.js';
 
+import { SOLID_SCRIPT_WIDGET_COMMAND_PREFIX } from '@/solid_script/language/solid_script_widget.js';
+
 /** Version of the stored script format. */
 export const SOLID_SCRIPT_DOCUMENT_VERSION = 1;
 
@@ -48,6 +50,11 @@ export interface SolidScriptDocument {
   uses?: SolidScriptUses;
   /** Who wrote it, shown in the editor's Settings; absent when not given. */
   author?: string;
+  /**
+   * True when the Edit button offers its widgets in the scene; absent means no
+   * edit mode.
+   */
+  editMode?: true;
 }
 
 /** A command line to create, by command id and the values replacing defaults. */
@@ -145,10 +152,49 @@ export function solidScriptDocumentNormalize(input: unknown): SolidScriptDocumen
   const name = typeof record['name'] === 'string' ? record['name'] : '';
   const document: SolidScriptDocument = { version: SOLID_SCRIPT_DOCUMENT_VERSION, name, blocks };
   const author = typeof record['author'] === 'string' ? record['author'] : '';
-  return solidScriptDocumentAuthorWith(
-    solidScriptDocumentUsesWith(document, solidScriptUsesNormalize(record['uses'])),
-    author,
-  );
+  const used = solidScriptDocumentUsesWith(document, solidScriptUsesNormalize(record['uses']));
+  return solidScriptDocumentEditModeWith(solidScriptDocumentAuthorWith(used, author), record['editMode'] === true);
+}
+
+/**
+ * Turns Has Edit Mode on or off; off is left out, so older scripts stay as they
+ * were.
+ *
+ * @param document Script.
+ * @param on True when the script has an edit mode.
+ * @returns Script.
+ */
+export function solidScriptDocumentEditModeWith(document: SolidScriptDocument, on: boolean): SolidScriptDocument {
+  const { editMode: _old, ...rest } = document;
+  return on ? { ...rest, editMode: true } : rest;
+}
+
+/**
+ * Counts the Widget lines of a script that run.
+ *
+ * @param document Script.
+ * @returns Count.
+ */
+function solidScriptDocumentWidgetCount(document: SolidScriptDocument): number {
+  return document.blocks.filter((block) => !block.off && block.command.startsWith(SOLID_SCRIPT_WIDGET_COMMAND_PREFIX))
+    .length;
+}
+
+/**
+ * Turns Has Edit Mode on when an edit gives a script a Widget line it did not
+ * run before, so its widgets can be reached; turning it off again sticks until
+ * the next Widget line.
+ *
+ * @param before Script before the edit.
+ * @param after Script the edit stores.
+ * @returns Script to store.
+ */
+export function solidScriptDocumentEditModeAfter(
+  before: SolidScriptDocument,
+  after: SolidScriptDocument,
+): SolidScriptDocument {
+  if (after.editMode || solidScriptDocumentWidgetCount(after) <= solidScriptDocumentWidgetCount(before)) return after;
+  return solidScriptDocumentEditModeWith(after, true);
 }
 
 /**
