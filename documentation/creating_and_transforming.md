@@ -32,6 +32,8 @@ Open the Tools palette and choose Object Select to see the four transform choice
 
 Bounds mode (`T`) resizes from the faces of an oriented bounding box. It is often the most intuitive way to change architectural dimensions because you can pull one side without thinking in scale factors.
 
+When a single generator is selected, an **Edit** button sits at its center. Click it without moving the mouse to edit that generator in the scene; dragging over the button resizes or selects as usual. While editing, the transform gizmos are hidden, a click only switches to another generator, and `Esc` or any other tool returns you to Bounds. To move the object, go back to Move or Bounds.
+
 ### Move
 
 Move mode (`W`) shows the translation gizmo. Drag an axis for a single-axis move or an available plane/free handle for a broader move. Press `G` for a one-shot move of the selection.

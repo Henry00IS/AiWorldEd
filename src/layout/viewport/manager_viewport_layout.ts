@@ -416,6 +416,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
       getEditModeCoordinator: () => this.editModeCoordinator ?? null,
       getGridOrientationHandler: () => this.gridOrientationHandler ?? null,
       getSnapAlignHost: () => this.createSnapAlignHost(),
+      editorOverlayPolicy: this.editorOverlayPolicy,
       onPermanentGizmoHandleDragBegan: () => this.toolEditorSystem?.editorWindow.onPermanentGizmoHandleDragBegan(),
       onPermanentGizmoHandleDragEnded: () => this.toolEditorSystem?.editorWindow.onPermanentGizmoHandleDragEnded(),
     });

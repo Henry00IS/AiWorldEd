@@ -7,4 +7,6 @@ export enum EditorOverlayId {
   CAD_BOUNDS_RULERS = 'cad_bounds_rulers',
   /** Permanent bounds / translate / rotate / scale gizmos. */
   TRANSFORM_GIZMOS = 'transform_gizmos',
+  /** Generator editing; while on, gizmos and bounds rulers stay hidden. */
+  GENERATOR_EDITING = 'generator_editing',
 }

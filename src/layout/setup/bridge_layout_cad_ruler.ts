@@ -71,7 +71,8 @@ export function reattachCadRulersToViewports(
  * @param host CAD ruler host.
  */
 export function refreshCadRulersFromSelection(host: LayoutCadRulerHost): void {
-  if (!host.editorOverlayPolicy.isAllowed(EditorOverlayId.CAD_BOUNDS_RULERS)) {
+  const policy = host.editorOverlayPolicy;
+  if (!policy.isAllowed(EditorOverlayId.CAD_BOUNDS_RULERS) || policy.isAllowed(EditorOverlayId.GENERATOR_EDITING)) {
     host.cadRulerSystem.setSelectionMeshes([]);
     return;
   }

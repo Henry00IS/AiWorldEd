@@ -541,6 +541,13 @@ export interface EditorServices {
   getSnapAlignHost?(): import('@/snap/tool/snap_align_host.js').SnapAlignHost | null;
 
   /**
+   * Returns the host used by the Edit button and the Generator tool.
+   *
+   * @returns Host, or null when generators cannot be edited in the scene.
+   */
+  getGeneratorEditHost?(): import('@/editor/tools/generator/generator_edit_host.js').GeneratorEditHost | null;
+
+  /**
    * Sets the persistent gizmo widget mode.
    *
    * @param mode Transform mode.

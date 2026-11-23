@@ -80,7 +80,7 @@ describe('layout_cad_ruler_bridge', () => {
       rulerBoundsBuilder: { buildFromMeshes: vi.fn() },
       transformHandler: {},
       transformGizmo: {},
-      editorOverlayPolicy: { isAllowed: () => true },
+      editorOverlayPolicy: { isAllowed: (id: EditorOverlayId) => id !== EditorOverlayId.GENERATOR_EDITING },
       selectionManager: {
         getAllSelectedObjectsAsArray: () => [mesh],
       } as unknown as ManagerSelection,

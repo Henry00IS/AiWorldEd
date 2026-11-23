@@ -12,6 +12,8 @@ import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { filterUnlockedObjects } from '@/utils/object_lock.js';
 import { resolveTransformTargets } from '@/selection/object/resolve_transform_targets.js';
 import { EditorWindow } from '@/editor/window/editor_window.js';
+import type { PolicyEditorOverlay } from '@/tools/overlay/policy_editor_overlay.js';
+import { layoutGeneratorEditHostCreate } from './layout_generator_edit_host.js';
 import { EditorInputBridge } from '@/editor/window/editor_input_bridge.js';
 import type { EditorServices } from '@/editor/window/editor_services.js';
 import { GuiWindow } from '@/editor/gui/gui_window.js';
@@ -151,6 +153,11 @@ export interface LayoutToolEditorSetupDeps {
   getGridOrientationHandler?: () => import('@/tools/grid/handler_grid_orientation.js').HandlerGridOrientation | null;
   /** Host for single-use Face Align, Seat, and Hinge. */
   getSnapAlignHost?: () => import('@/snap/tool/snap_align_host.js').SnapAlignHost | null;
+  /**
+   * Overlay policy; the Generator tool hides gizmos and bounds rulers through
+   * it.
+   */
+  editorOverlayPolicy: PolicyEditorOverlay;
   /**
    * Called when a permanent gizmo handle drag begins so widgets latch
    * wantsActive.
@@ -434,6 +441,11 @@ function createEditorServices(
   getLatchedModifierFlags: () => DomModifierKeyFlags | null,
 ): EditorServices {
   const selectableCache = new Map<THREE.Object3D, ISelectable>();
+  const generatorEditHost = layoutGeneratorEditHostCreate({
+    ...deps,
+    pickStack: (clientX, clientY) =>
+      pickObjectStackAtClientPoint(deps, clientX, clientY, null, getPointerOwnerDocument()),
+  });
   const componentTransformBridge = createComponentTransformBridge(deps, getPointerOwnerDocument);
   return {
     getTransformTargets: () => {
@@ -642,6 +654,7 @@ function createEditorServices(
       deps.getGridOrientationHandler?.()?.updateHoverAtClientPoint(clientX, clientY, getPointerOwnerDocument());
     },
     getSnapAlignHost: () => deps.getSnapAlignHost?.() ?? null,
+    getGeneratorEditHost: () => generatorEditHost,
     isEditModeActive: () => deps.getEditModeCoordinator?.()?.isActive() === true,
     pickEditEdgeParameter: (clientX, clientY, ownerDocument) => {
       return (

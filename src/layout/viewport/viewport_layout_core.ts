@@ -1153,7 +1153,10 @@ export abstract class ViewportLayoutCore {
       this.transformGizmo.setVisible(false);
       return;
     }
-    if (!this.editorOverlayPolicy.isAllowed(EditorOverlayId.TRANSFORM_GIZMOS)) {
+    if (
+      !this.editorOverlayPolicy.isAllowed(EditorOverlayId.TRANSFORM_GIZMOS) ||
+      this.editorOverlayPolicy.isAllowed(EditorOverlayId.GENERATOR_EDITING)
+    ) {
       this.transformGizmo.setVisible(false);
       return;
     }

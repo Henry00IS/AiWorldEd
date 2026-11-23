@@ -19,6 +19,7 @@ import { TransformMode } from '@/types/transform_mode.js';
 import { HandlerComponentTransform } from '@/edit/transform/handler_component_transform.js';
 import type { Viewport2D } from '@/viewports/core/viewport_2d.js';
 import type { Viewport3D } from '@/viewports/core/viewport_3d.js';
+import { PolicyEditorOverlay } from '@/tools/overlay/policy_editor_overlay.js';
 
 describe('layout tool editor single-use Shift snap precision', () => {
   let gridSnap: GridSnap;
@@ -68,6 +69,7 @@ describe('layout tool editor single-use Shift snap precision', () => {
       selectionManager,
       inputManager,
       gridSnap,
+      editorOverlayPolicy: new PolicyEditorOverlay(),
       getUserSnapEnabled: () => true,
       getActiveViewport: () =>
         ({
@@ -193,6 +195,7 @@ describe('layout tool editor single-use Shift snap precision', () => {
       selectionManager,
       inputManager,
       gridSnap,
+      editorOverlayPolicy: new PolicyEditorOverlay(),
       getUserSnapEnabled: () => true,
       getActiveViewport: () => createSnapViewportStub(),
       getInteractiveViewports: () => [],
