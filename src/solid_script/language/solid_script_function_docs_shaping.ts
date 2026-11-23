@@ -67,6 +67,19 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_SHAPING = {
     group: 'List',
     gives: ['List'],
   },
+  duplicate: {
+    usage: 'Duplicate(list, counts, output)',
+    summary: solidScriptFunctionDocSummary(
+      'Repeats every item of a list, such as points, edges or faces, Counts times in list order. Counts is one number for all items or one per item, and 0 leaves an item out. Output Items (the default) gives the copies, Copy gives the copy number of each result from 0, and Source the position of the item it came from, so the three lists line up.',
+      [
+        'Duplicate(List(4, 5), 2) is List(4, 4, 5, 5).',
+        'Duplicate(List(4, 5), List(2, 3), "Copy") is List(0, 1, 0, 1, 2).',
+      ],
+      'Use it to stack several copies of each point, then lift each by its copy number.',
+    ),
+    group: 'List',
+    gives: ['List'],
+  },
   rotate_euler: {
     usage: 'RotateEuler(vector, angles)',
     summary: solidScriptFunctionDocSummary(
@@ -263,6 +276,21 @@ export const SOLID_SCRIPT_SHAPING_WAVE_ARGUMENTS = {
       about: 'Leading, Trailing or Total.',
       choices: ['Leading', 'Trailing', 'Total'],
       default: 'Leading',
+    },
+  },
+  duplicate: {
+    list: { type: ['List'], about: 'Items to repeat, such as [Points].', start: 'List(4, 5)' },
+    counts: {
+      type: ['Number', 'List'],
+      about: 'Copies of every item, or a list with one count per item.',
+      default: '1',
+      start: '2',
+    },
+    output: {
+      type: ['Text'],
+      about: 'Items, Copy or Source.',
+      choices: ['Items', 'Copy', 'Source'],
+      default: 'Items',
     },
   },
   saw: { value: { type: ['Number', 'Vector'], about: 'A number, or a vector to work on per axis.', start: '0.5' } },

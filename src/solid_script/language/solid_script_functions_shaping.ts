@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { solidScriptAxesEach } from './solid_script_functions_axes.js';
 import { solidScriptExtraNumber } from './solid_script_functions_extra.js';
+import { SOLID_SCRIPT_LIMITS, solidScriptListLimitCheck } from './solid_script_limits.js';
 import {
   solidScriptValueNumbers,
   solidScriptValueText,
@@ -160,6 +161,55 @@ function solidScriptShapingAccumulate(args: readonly SolidScriptValue[]): SolidS
   return sums.map((sum) => (vectors ? sum : (sum[0] ?? 0)));
 }
 
+/** What Duplicate gives per result. */
+const SOLID_SCRIPT_SHAPING_DUPLICATE_OUTPUTS = ['Items', 'Copy', 'Source'] as const;
+
+/** How to call Duplicate, for messages. */
+const SOLID_SCRIPT_SHAPING_DUPLICATE_USAGE = 'Duplicate(list, counts, output)';
+
+/**
+ * Reads how many copies each item gets: one Count for all, or one per item;
+ * stops when the copies would pass the list cap.
+ *
+ * @param value Counts.
+ * @param size Number of items.
+ * @returns Count per item.
+ */
+function solidScriptShapingDuplicateCounts(value: SolidScriptValue, size: number): number[] {
+  const counts = Array.isArray(value) ? solidScriptValueNumbers(value) : solidScriptValueNumbers([value ?? 1]);
+  if (!counts?.every((count) => Number.isInteger(count) && count >= 0))
+    throw new Error(`${SOLID_SCRIPT_SHAPING_DUPLICATE_USAGE} needs whole Counts of 0 or more`);
+  if (Array.isArray(value) && counts.length !== size)
+    throw new Error(`${SOLID_SCRIPT_SHAPING_DUPLICATE_USAGE} needs one Count per item`);
+  const each = Array.isArray(value) ? counts : Array.from({ length: size }, () => counts[0] ?? 1);
+  const total = each.reduce((sum, count) => sum + count, 0);
+  solidScriptListLimitCheck(new Array(Math.min(total, SOLID_SCRIPT_LIMITS.listItems + 1)));
+  return each;
+}
+
+/**
+ * Repeats every item of a list its Count times, in list order; Output Copy
+ * gives each result's copy number from 0 instead, and Source the position of
+ * the item it came from.
+ *
+ * @param args The list, Counts and optional Output.
+ * @returns Results.
+ */
+function solidScriptShapingDuplicate(args: readonly SolidScriptValue[]): SolidScriptValue[] {
+  const list = args[0];
+  if (!Array.isArray(list))
+    throw new Error(`${SOLID_SCRIPT_SHAPING_DUPLICATE_USAGE} needs a list, not ${solidScriptValueText(list)}`);
+  const counts = solidScriptShapingDuplicateCounts(args.length > 1 ? args[1] : 1, list.length);
+  const output = solidScriptValueText(args[2] ?? 'Items');
+  if (!SOLID_SCRIPT_SHAPING_DUPLICATE_OUTPUTS.some((name) => name === output))
+    throw new Error(`${SOLID_SCRIPT_SHAPING_DUPLICATE_USAGE} needs Output Items, Copy or Source, not ${output}`);
+  return list.flatMap((item, source) =>
+    Array.from({ length: counts[source] ?? 0 }, (_, copy) =>
+      output === 'Copy' ? copy : output === 'Source' ? source : item,
+    ),
+  );
+}
+
 /**
  * Finds which unit square along one axis a value lies in. A value within a
  * billionth of a whole number counts as lying on that edge, and an edge belongs
@@ -220,6 +270,7 @@ export const SOLID_SCRIPT_FUNCTIONS_SHAPING = {
   ),
   remap: solidScriptAxesEach(SOLID_SCRIPT_SHAPING_REMAP_USAGE, solidScriptShapingRemap),
   accumulate: solidScriptShapingAccumulate,
+  duplicate: solidScriptShapingDuplicate,
   saw: solidScriptAxesEach('Saw(value)', (args) => {
     const value = solidScriptExtraNumber(args, 0, 'Saw(value)');
     return value - Math.floor(value);
