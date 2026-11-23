@@ -34,8 +34,28 @@ export function generatorSliderValueAt(
   const unit = slider.direction.clone().divideScalar(length);
   const distance = editAxisDragParameter(slider.origin, unit, ray.ray.origin, ray.ray.direction);
   if (distance === null) return null;
-  const value = snap(distance) / length;
+  return generatorSliderClamp(slider, snap(distance) / length);
+}
+
+/**
+ * Keeps a value between a slider's Minimum and Maximum.
+ *
+ * @param slider Slider.
+ * @param value Value.
+ * @returns Value inside the limits.
+ */
+export function generatorSliderClamp(slider: ModifierStackSlider, value: number): number {
   return Math.min(slider.max ?? Infinity, Math.max(slider.min ?? -Infinity, value));
+}
+
+/**
+ * Formats a slider value the way its caption and typing field show it.
+ *
+ * @param value Value.
+ * @returns Text with at most four decimals.
+ */
+export function generatorSliderValueText(value: number): string {
+  return String(Number(value.toFixed(4)));
 }
 
 /**

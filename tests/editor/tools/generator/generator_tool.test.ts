@@ -191,6 +191,56 @@ describe('Generator Edit button and Generator tool', () => {
     expect(editor.activeTool).toBeInstanceOf(GeneratorTool);
   });
 
+  it('types an exact value after a still click on a handle, as one undo step', async () => {
+    const { editor, host, state } = setup(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1)));
+    await click(editor, [100, 50], [100, 50]);
+    state.sliders = [{ ...slider(), value: 0.5 }];
+    editor.onRepaint();
+    expect(sliderHandle()?.textContent).toBe('Height 0.5');
+    await click(editor, [125, 50], [125, 50]);
+    const field = document.querySelector<HTMLInputElement>('input[aria-label="Height"]');
+    expect(field?.value).toBe('0.5');
+    expect(host.slide).not.toHaveBeenCalled();
+    if (!field) return;
+    field.value = '0.75';
+    field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    expect(host.slide).toHaveBeenCalledWith(expect.objectContaining({ key: 'a' }), 0.75);
+    expect(host.slideEnd).toHaveBeenCalledTimes(1);
+    expect(document.querySelector('input[aria-label="Height"]')).toBeNull();
+    expect(editor.activeTool).toBeInstanceOf(GeneratorTool);
+  });
+
+  it('keeps a typed value inside Minimum and Maximum and lets Escape close the field', async () => {
+    const { editor, host, state } = setup(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1)));
+    await click(editor, [100, 50], [100, 50]);
+    state.sliders = [{ ...slider(), min: 0, max: 0.8 }];
+    editor.onRepaint();
+    await click(editor, [100, 50], [100, 50]);
+    const field = document.querySelector<HTMLInputElement>('input[aria-label="Height"]');
+    if (!field) throw new Error('no field');
+    field.value = '-3';
+    field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    expect(host.slide).toHaveBeenLastCalledWith(expect.objectContaining({ key: 'a' }), 0);
+    await click(editor, [100, 50], [100, 50]);
+    const again = document.querySelector<HTMLInputElement>('input[aria-label="Height"]');
+    if (!again) throw new Error('no field');
+    again.value = 'abc';
+    again.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    expect(host.slide).toHaveBeenCalledTimes(1);
+    again.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(document.querySelector('input[aria-label="Height"]')).toBeNull();
+    expect(host.slideEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it('draws a ruler line from the zero point to the handle', async () => {
+    const { editor, state } = setup(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1)));
+    await click(editor, [100, 50], [100, 50]);
+    state.sliders = [{ ...slider(), value: 1 }];
+    editor.onRepaint();
+    const line = [...document.querySelectorAll<HTMLElement>('[data-ruler]')].find((each) => !each.hidden);
+    expect([line?.style.left, line?.style.top, line?.style.width]).toEqual(['100px', '50px', '50px']);
+  });
+
   it('never grabs a slider that writes nothing', async () => {
     const { editor, host, state } = setup(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1)));
     await click(editor, [100, 50], [100, 50]);
