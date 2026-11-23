@@ -74,7 +74,7 @@ describe('toy models', () => {
   });
 
   it('builds the grapple gun about 25 cm long, held at its grip, the muzzle ahead along -Z', () => {
-    const gun = playerGrappleGun();
+    const gun = playerGrappleGun(0xffc400);
     gun.updateMatrixWorld(true);
     const size = new THREE.Box3().setFromObject(gun).getSize(new THREE.Vector3());
     expect(size.z).toBeGreaterThan(0.22);
@@ -87,6 +87,28 @@ describe('toy models', () => {
     expect(new THREE.Raycaster(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, -1, 0)).intersectObject(gun)).toEqual(
       [],
     );
+  });
+
+  it('glows in the player color only on its accents, with ring sights to look through along the barrel', () => {
+    const meshes = (gun: THREE.Object3D) => {
+      gun.updateMatrixWorld(true);
+      const found: THREE.Mesh[] = [];
+      gun.traverse((child) => child instanceof THREE.Mesh && found.push(child));
+      return found;
+    };
+    const glowOf = (gun: THREE.Object3D) =>
+      meshes(gun).flatMap((mesh) =>
+        mesh.material instanceof THREE.MeshBasicMaterial ? [mesh.material.color.getHex()] : [],
+      );
+    expect(new Set(glowOf(playerGrappleGun(0xffc400)))).toEqual(new Set([0xffc400]));
+    expect(new Set(glowOf(playerGrappleGun(0x3388ff)))).toEqual(new Set([0x3388ff]));
+    const gun = playerGrappleGun(0xffc400);
+    const rings = meshes(gun).filter((mesh) => mesh.geometry instanceof THREE.TorusGeometry);
+    expect(rings).toHaveLength(2);
+    rings.forEach((ring) => {
+      const hole = new THREE.Vector3(0, 0, 1).transformDirection(ring.matrixWorld);
+      expect(Math.abs(hole.z)).toBeGreaterThan(0.999);
+    });
   });
 
   it('holds the grapple gun pointing ahead, or at its anchor, and tells where its muzzle is', () => {
@@ -112,7 +134,7 @@ describe('toy models', () => {
     const camera = new THREE.PerspectiveCamera(70, 1.5, 0.1, 100);
     camera.updateMatrixWorld();
     expect(view.getMuzzleWorld(camera, new THREE.Vector3())).toBeNull();
-    view.setGun(true);
+    view.setGun(0xffc400);
     view.update(1, 0.016, 0);
     const muzzle = view.getMuzzleWorld(camera, new THREE.Vector3());
     expect(muzzle?.z).toBeLessThan(-0.3);
@@ -122,7 +144,7 @@ describe('toy models', () => {
     expect(Math.abs(ndc?.x ?? 9)).toBeLessThan(0.8);
     expect(Math.abs(ndc?.y ?? 9)).toBeLessThan(0.8);
     view.setItem('tennis', 0);
-    view.setGun(false);
+    view.setGun(null);
     expect(view.getMuzzleWorld(camera, new THREE.Vector3())).toBeNull();
     view.dispose();
   });

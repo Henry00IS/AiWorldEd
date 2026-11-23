@@ -74,7 +74,7 @@ export class PlayerToyHeld {
     this.color = color;
     if (rig === null || kind === null) return;
     if (this.mesh === null) {
-      this.mesh = kind === PLAYER_TOY_GRAPPLE ? playerGrappleGun() : playerToyMesh(kind, color);
+      this.mesh = kind === PLAYER_TOY_GRAPPLE ? playerGrappleGun(color) : playerToyMesh(kind, color);
       this.mesh.traverse((child) => (child.frustumCulled = false));
       this.tag(this.mesh);
     }

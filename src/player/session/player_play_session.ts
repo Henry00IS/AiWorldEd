@@ -459,7 +459,7 @@ export class PlayerPlaySession {
     const held = this.host.ballSystem.getHeld();
     const gun = this.selected === PLAYER_TOY_GRAPPLE;
     this.viewModel.root.visible = this.viewMode === 'first_person' && (held !== null || gun);
-    this.viewModel.setGun(gun);
+    this.viewModel.setGun(gun ? this.host.ballSystem.getOwnColor() : null);
     this.viewModel.setItem(held, this.host.ballSystem.getOwnColor());
     this.viewModel.setTint(this.host.ballSystem.getRoomColor());
     this.viewModel.update(now / 1000, deltaSeconds, this.body.getPlanarSpeed(), this.body.getIsGrounded());

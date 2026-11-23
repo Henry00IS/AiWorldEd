@@ -74,6 +74,7 @@ export class PlayerToyViewModel {
   private tint: number | null;
   private item: THREE.Mesh | null;
   private gun: THREE.Group | null;
+  private gunColor: number | null = null;
   private kind: PhysicsToyKind | null;
   private color: number;
   private actionAt: number;
@@ -148,20 +149,19 @@ export class PlayerToyViewModel {
   }
 
   /**
-   * Shows the grapple gun in the hand (held up, pointing ahead) or puts it
-   * away.
+   * Shows the grapple gun in the hand (held up, pointing ahead) with its
+   * accents in the player's color, or puts it away.
    *
-   * @param shown Whether the gun is picked.
+   * @param color Player color while the gun is picked, or null.
    */
-  setGun(shown: boolean): void {
-    if (shown === (this.gun !== null)) return;
-    if (!shown) {
-      this.gun?.removeFromParent();
-      this.gun = null;
-      return;
-    }
+  setGun(color: number | null): void {
+    if (color === this.gunColor) return;
+    this.gun?.removeFromParent();
+    this.gun = null;
+    this.gunColor = color;
+    if (color === null) return;
     this.removeItem();
-    this.gun = playerGrappleGun();
+    this.gun = playerGrappleGun(color);
     this.gun.traverse((child) => (child.frustumCulled = false));
     this.rig.grip.position.copy(PLAYER_TOY_VIEW_GUN_GRIP);
     this.rig.grip.add(this.gun);
@@ -374,7 +374,7 @@ export class PlayerToyViewModel {
   /** Frees the arm geometry and materials (the toy geometry is shared). */
   dispose(): void {
     this.removeItem();
-    this.setGun(false);
+    this.setGun(null);
     this.root.traverse((child) => {
       if (child instanceof THREE.Mesh) child.geometry.dispose();
     });
