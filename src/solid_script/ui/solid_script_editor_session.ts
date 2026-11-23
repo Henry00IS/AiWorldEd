@@ -7,6 +7,12 @@ import {
 } from '@/modifier/stack/modifier_stack_parameters_commit.js';
 import { SolidScriptEditorHistory } from './solid_script_editor_history.js';
 import { modifierStackSolidScriptRunStart } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_received.js';
+import {
+  modifierStackSolidScriptRunShown,
+  modifierStackSolidScriptRunTimed,
+} from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_run_share.js';
+import type { SolidScriptProgramOptions } from '@/solid_script/language/solid_script_program.js';
+import type { SolidScriptRun } from '@/solid_script/language/solid_script_machine_types.js';
 import type { SolidScriptUseFacts } from '@/solid_script/language/solid_script_system.js';
 import type { SolidScriptBoxCorners, SolidScriptBoxPose } from '@/solid_script/language/solid_script_box.js';
 import {
@@ -106,6 +112,27 @@ export class SolidScriptEditorSession {
     use?: SolidScriptUseFacts;
   } {
     return { inputs: this.inputs(), ...modifierStackSolidScriptRunStart(this.node, this.stepId, this.use()) };
+  }
+
+  /**
+   * Runs the stored script for the editor, timing its lines, or takes the run
+   * the stack or the inspector already made of it with the same options.
+   *
+   * @param options Run options.
+   * @returns Run.
+   */
+  run(options: SolidScriptProgramOptions): SolidScriptRun {
+    return modifierStackSolidScriptRunShown(this.node, this.stepId, this.document(), { ...options, profile: true });
+  }
+
+  /**
+   * Makes every run of the script time its lines while the editor is open, so
+   * the editor can show the run the stack or the inspector made.
+   *
+   * @param open True while the editor is open.
+   */
+  timed(open: boolean): void {
+    modifierStackSolidScriptRunTimed(this.node, this.stepId, open);
   }
 
   /**

@@ -208,6 +208,7 @@ export class SolidScriptEditor extends PanelFloating {
 
   /** Shows the window and starts following the script. */
   open(): void {
+    this.session.timed(true);
     this.show();
     this.revision = this.session.revision();
     this.render(0);
@@ -217,6 +218,7 @@ export class SolidScriptEditor extends PanelFloating {
 
   /** Stops debugging and closes the window. */
   close(): void {
+    this.session.timed(false);
     this.debugger.stop();
     if (this.pollTimer !== null) clearInterval(this.pollTimer);
     if (this.noticeTimer !== null) clearTimeout(this.noticeTimer);
@@ -438,11 +440,8 @@ export class SolidScriptEditor extends PanelFloating {
   private debugChanged(): void {
     const stepped = this.debugger.line();
     const atBreak = this.debugger.atBreakpoint();
-    this.output.show(
-      this.session.document(),
-      this.debugger.runOptions() ?? this.session.runStart(),
-      this.debugCaption(),
-    );
+    const options = this.debugger.runOptions() ?? this.session.runStart();
+    this.output.show(this.session.document(), options, this.debugCaption(), this.session.run(options));
     const traced = new Set(this.tracing ? this.output.linesPassed() : []);
     const breakpoints = this.breakpointLines();
     const runs = this.output.lineRuns();

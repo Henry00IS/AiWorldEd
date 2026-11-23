@@ -273,6 +273,7 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
       modifierStackSolidScriptInputsLinked(context, inputs, frame, box),
       use,
       modifierStackSolidScriptBoxValues(context.volume, box),
+      { owner: context.volume, stepId: context.step.id },
     );
     if (layout.error) context.report.error = layout.error;
     const scriptToWorld = frame.clone().multiply(layout.placement);

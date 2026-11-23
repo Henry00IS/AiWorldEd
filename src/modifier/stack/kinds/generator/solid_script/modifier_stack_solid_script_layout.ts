@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import type { SolidTreeNode } from '@/solid/commands/tree/solid_tree_node.js';
 import type { SolidOperation } from '@/solid/types/solid_operation.js';
-import { solidScriptProgramEvaluate } from '@/solid_script/language/solid_script_program.js';
+import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
+import { modifierStackSolidScriptRunBuilt } from './modifier_stack_solid_script_run_share.js';
 import { solidScriptSolidTreeBuild } from '@/solid_script/language/solid_script_solid_tree.js';
 import { SOLID_SCRIPT_USE_GENERATOR, type SolidScriptUseFacts } from '@/solid_script/language/solid_script_system.js';
 import type { ModifierStackSolidScriptBoxValues } from './modifier_stack_solid_script_box.js';
@@ -85,6 +86,11 @@ export interface ModifierStackSolidScriptPassed {
  * @param use Where the script is used and what a modifier receives.
  * @param boxValues $Box size, pose and corners; the layout box size, plus and
  *   minus Extents and no pose when omitted.
+ * @param step Generator or modifier volume and step id the script runs for, so
+ *   the run the inspector or the editor made of the same edit is used; a run of
+ *   its own when omitted.
+ * @param step.owner Volume, brush or group owning the stack.
+ * @param step.stepId Step id.
  * @returns Nodes in frame coordinates, or an error.
  */
 export function modifierStackSolidScriptLayout(
@@ -96,6 +102,7 @@ export function modifierStackSolidScriptLayout(
   inputs: Readonly<Record<string, string>> = {},
   use: SolidScriptUseFacts = SOLID_SCRIPT_USE_GENERATOR,
   boxValues?: ModifierStackSolidScriptBoxValues,
+  step?: { owner: THREE.Object3D; stepId: string },
 ): ModifierStackSolidScriptLayout {
   try {
     const size = box.getSize(new THREE.Vector3());
@@ -106,7 +113,11 @@ export function modifierStackSolidScriptLayout(
       ...(boxValues?.corners ? { corners: boxValues.corners } : {}),
       use,
     };
-    const evaluated = solidScriptProgramEvaluate(document, stepLimit === undefined ? run : { ...run, stepLimit });
+    const options = stepLimit === undefined ? run : { ...run, stepLimit };
+    const evaluated = step
+      ? modifierStackSolidScriptRunBuilt(step.owner, step.stepId, document, options)
+      : solidScriptProgramRun(document, options);
+    if (evaluated.error) throw new Error(evaluated.error.message);
     const placed = modifierStackSolidScriptPlacementMatrix(evaluated.shapes, placement, box);
     const received: SolidScriptShapeSolid[] = [];
     const shapes = modifierStackSolidScriptReceivedTake(evaluated.shapes, received);

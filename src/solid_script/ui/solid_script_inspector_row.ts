@@ -15,12 +15,11 @@ import {
   type SolidScriptUse,
 } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptErrorText } from '@/solid_script/language/solid_script_error.js';
-import {
-  solidScriptProgramEvaluate,
-  type SolidScriptProgramOptions,
-} from '@/solid_script/language/solid_script_program.js';
+import { solidScriptProgramRun, type SolidScriptProgramOptions } from '@/solid_script/language/solid_script_program.js';
+import type { SolidScriptRun } from '@/solid_script/language/solid_script_machine_types.js';
 import { solidScriptOutputLine } from '@/solid_script/language/solid_script_output_solids.js';
 import { modifierStackSolidScriptRunStart } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_received.js';
+import { modifierStackSolidScriptRunShown } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_run_share.js';
 import { SOLID_SCRIPT_FILE_EXTENSION } from '@/solid_script/file/solid_script_file.js';
 import { solidScriptEditorIcon } from './solid_script_editor_icons.js';
 import { solidScriptInspectorInputValues } from './solid_script_inspector_inputs.js';
@@ -65,9 +64,28 @@ export function solidScriptInspectorRow(
     const target = targetOf(() => {});
     const start = target ? modifierStackSolidScriptRunStart(target.volume, target.stepId, use) : {};
     const inputs = solidScriptInspectorInputValues(parameters[inputsKey]);
-    solidScriptInspectorWrite(parts, solidScriptDocumentNormalize(parameters[key]), use, { ...start, inputs });
+    const document = solidScriptDocumentNormalize(parameters[key]);
+    solidScriptInspectorWrite(parts, document, use, solidScriptInspectorRun(target, document, { ...start, inputs }));
   };
   return { element: modifierStackUiRow('Script', card, SOLID_SCRIPT_INSPECTOR_HINT), write };
+}
+
+/**
+ * Runs a stored script for the row, or takes the run the stack or the editor
+ * already made of it with the same options.
+ *
+ * @param target Generator or modifier and step, or null when gone.
+ * @param document Script.
+ * @param options Values of its Input lines and what the step's run starts from.
+ * @returns Run.
+ */
+function solidScriptInspectorRun(
+  target: ModifierStackActionTarget | null,
+  document: SolidScriptDocument,
+  options: SolidScriptProgramOptions,
+): SolidScriptRun {
+  if (!target) return solidScriptProgramRun(document, options);
+  return modifierStackSolidScriptRunShown(target.volume, target.stepId, document, options);
 }
 
 /** What the script row shows: name, size line and message area. */
@@ -98,17 +116,17 @@ function solidScriptInspectorParts(): SolidScriptInspectorParts {
  * @param parts Parts of the row.
  * @param document Stored script.
  * @param use How this step uses its script.
- * @param options Values of its Input lines and what the step's run starts from.
+ * @param run Run of the script with the values of its Input lines.
  */
 function solidScriptInspectorWrite(
   parts: SolidScriptInspectorParts,
   document: SolidScriptDocument,
   use: SolidScriptUse,
-  options: SolidScriptProgramOptions,
+  run: SolidScriptRun,
 ): void {
   parts.name.replaceChildren(solidScriptEditorIcon('script'), document.name || 'Script');
   parts.messages.warn(solidScriptDocumentUseProblem(document, use));
-  solidScriptInspectorDetail(parts.detail, parts.messages.fail, document, options);
+  solidScriptInspectorDetail(parts.detail, parts.messages.fail, document, run);
 }
 
 /**
@@ -243,23 +261,22 @@ function solidScriptInspectorButtons(
  * @param element Detail line.
  * @param fail Shows the script's error, or hides it when empty.
  * @param document Script.
- * @param options Values of its Input lines and what the step's run starts from.
+ * @param run Run of the script.
  */
 function solidScriptInspectorDetail(
   element: HTMLElement,
   fail: (text: string) => void,
   document: SolidScriptDocument,
-  options: SolidScriptProgramOptions,
+  run: SolidScriptRun,
 ): void {
   const lines = `${document.blocks.length} ${document.blocks.length === 1 ? 'line' : 'lines'}`;
-  try {
-    const result = solidScriptProgramEvaluate(document, options);
-    element.textContent = `${lines} · ${solidScriptOutputLine(result)}`;
-    fail('');
-  } catch (error) {
+  if (run.error) {
     element.textContent = lines;
-    fail(solidScriptErrorText(error));
+    fail(solidScriptErrorText(new Error(run.error.message)));
+    return;
   }
+  element.textContent = `${lines} · ${solidScriptOutputLine(run)}`;
+  fail('');
 }
 
 /** The row's message area: the use warning, with the script's error below it. */

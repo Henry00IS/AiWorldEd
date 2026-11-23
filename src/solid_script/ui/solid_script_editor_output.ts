@@ -2,9 +2,13 @@ import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
 import { solidScriptKindCheck } from '@/solid_script/document/solid_script_document_kind_check.js';
 import type { SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptErrorLine, solidScriptErrorText } from '@/solid_script/language/solid_script_error.js';
-import { solidScriptProgramRun, type SolidScriptProgramOptions } from '@/solid_script/language/solid_script_program.js';
+import type { SolidScriptProgramOptions } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptOutputLine } from '@/solid_script/language/solid_script_output_solids.js';
-import type { SolidScriptLineProfile, SolidScriptWarning } from '@/solid_script/language/solid_script_machine_types.js';
+import type {
+  SolidScriptLineProfile,
+  SolidScriptRun,
+  SolidScriptWarning,
+} from '@/solid_script/language/solid_script_machine_types.js';
 import { SolidScriptEditorExplorer, type SolidScriptExplorerRun } from './solid_script_editor_explorer.js';
 import {
   solidScriptDocumentDefines,
@@ -139,11 +143,16 @@ export class SolidScriptEditorOutput {
    *   whole script.
    * @param run Where the debugger captures the values, such as "At step 2, line
    *   4".
+   * @param result Run of the script with these options, timing its lines.
    */
-  show(document: SolidScriptDocument, options: SolidScriptProgramOptions | null, run: SolidScriptExplorerRun): void {
+  show(
+    document: SolidScriptDocument,
+    options: SolidScriptProgramOptions | null,
+    run: SolidScriptExplorerRun,
+    result: SolidScriptRun,
+  ): void {
     this.settings?.write(document);
     this.checkSchedule(document);
-    const result = solidScriptProgramRun(document, { ...options, profile: true });
     this.passed = result.passed;
     if (!result.error) {
       this.failed = null;
