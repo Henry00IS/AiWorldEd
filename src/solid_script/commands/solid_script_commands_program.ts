@@ -369,21 +369,6 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     execute: () => [],
   }),
   new SolidScriptCommand({
-    id: SOLID_SCRIPT_HANDLERS.bake,
-    label: 'When Baked',
-    category: 'Inputs',
-    description: 'Change inputs just before a bake',
-    manual:
-      'Runs these lines when the generator is baked into plain solids, just before they are made. The script skips them where they stand. They cannot build objects. Set Input changes inputs for the bake only, so a script can show a light preview while you edit and bake a detailed version. Undoing the bake brings back the generator with its old inputs. Example: When Baked holds Set Input Sides to 32, so the editor shows 8 sides and the baked solids have 32.',
-    stops: ['Building an object.'],
-    nesting: 'open',
-    flow: { kind: 'handler' },
-    parameters: [],
-    endLabel: 'When',
-    listing: () => ['When Baked'],
-    execute: () => [],
-  }),
-  new SolidScriptCommand({
     id: 'if_used_as',
     label: 'If Used As',
     category: 'Logic',

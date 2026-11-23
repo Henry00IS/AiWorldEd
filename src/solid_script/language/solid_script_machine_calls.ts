@@ -36,7 +36,6 @@ import { solidScriptFunctionInputDefault, solidScriptFunctionInputs } from './so
 export const SOLID_SCRIPT_HANDLERS = {
   input: 'when_input_changes',
   button: 'when_button_pressed',
-  bake: 'when_baked',
 } as const;
 
 /**
@@ -47,7 +46,6 @@ export const SOLID_SCRIPT_DEFINITIONS: ReadonlySet<string> = new Set([
   'function',
   SOLID_SCRIPT_HANDLERS.input,
   SOLID_SCRIPT_HANDLERS.button,
-  SOLID_SCRIPT_HANDLERS.bake,
 ]);
 
 /** Most parts that may be in use inside each other at once. */

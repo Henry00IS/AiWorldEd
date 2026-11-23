@@ -103,17 +103,6 @@ export abstract class ModifierStackKind {
   }
 
   /**
-   * Returns the parameters a bake builds with, such as a script's inputs after
-   * its bake event; null bakes the stored parameters.
-   *
-   * @param _parameters Normalized parameters.
-   * @returns Parameters to bake with, or null.
-   */
-  bakeParameters(_parameters: Record<string, unknown>): Record<string, unknown> | null {
-    return null;
-  }
-
-  /**
    * Returns whether a step of this kind has an edit mode with widgets in the
    * scene. Off unless a kind turns it on for itself.
    *

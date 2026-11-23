@@ -594,7 +594,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     const id = SOLID_SCRIPT_HANDLERS[event.kind];
     for (const handler of this.handlers) {
       if (handler.command.id !== id) continue;
-      if (event.kind !== 'bake' && handler.command.valueText(handler.values, 'name').trim() !== event.name) continue;
+      if (handler.command.valueText(handler.values, 'name').trim() !== event.name) continue;
       if (handler.children.length > 0) this.linesRun(handler.children, this.root, context);
       this.stopping = false;
       if (this.steps.length > 0 && !this.failure)

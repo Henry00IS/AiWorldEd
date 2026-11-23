@@ -28,8 +28,6 @@ import {
 } from '@/solid_script/document/solid_script_document.js';
 import { SOLID_SCRIPT_USE_GENERATOR, type SolidScriptUseFacts } from '@/solid_script/language/solid_script_system.js';
 import { solidScriptBrushModeLabel, solidScriptModeLabel } from '@/solid_script/language/solid_script_mode.js';
-import { SOLID_SCRIPT_HANDLERS } from '@/solid_script/language/solid_script_machine_calls.js';
-import { solidScriptProgramHandle } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptDebugStepLimit } from '@/solid_script/debug/solid_script_debug_steps.js';
 import { modifierStackFrame } from '@/modifier/stack/evaluate/modifier_stack_frame.js';
 import { modifierStackSolidScriptBoxValues } from './modifier_stack_solid_script_box.js';
@@ -138,24 +136,6 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
    */
   override createParameters(): Record<string, unknown> {
     return { [MODIFIER_STACK_SOLID_SCRIPT_KEY]: solidScriptDocumentDefault() };
-  }
-
-  /**
-   * Runs the script's When Baked blocks, so a bake builds with the inputs they
-   * set; a script without one, or whose blocks fail, bakes as it stands.
-   *
-   * @param parameters Normalized parameters.
-   * @returns Parameters with the changed inputs, or null.
-   */
-  override bakeParameters(parameters: Record<string, unknown>): Record<string, unknown> | null {
-    const document = solidScriptDocumentNormalize(parameters[MODIFIER_STACK_SOLID_SCRIPT_KEY]);
-    if (!document.blocks.some((block) => block.command === SOLID_SCRIPT_HANDLERS.bake)) return null;
-    const inputs = solidScriptInspectorInputValues(parameters[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]);
-    const handled = solidScriptProgramHandle(document, { kind: 'bake', name: '' }, inputs);
-    if (handled.error) return null;
-    const next: Record<string, string> = { ...inputs, ...handled.inputs };
-    for (const key of handled.removed) delete next[key];
-    return { ...parameters, [MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]: next };
   }
 
   /**

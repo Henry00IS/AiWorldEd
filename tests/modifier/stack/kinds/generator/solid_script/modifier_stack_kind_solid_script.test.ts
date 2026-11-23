@@ -19,6 +19,7 @@ import {
 } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptDebugStepLimitSet } from '@/solid_script/debug/solid_script_debug_steps.js';
 import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
+import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
 import { CommandModifierVolumeBake } from '@/modifier/stack/bake/command_modifier_volume_bake.js';
 import { MODIFIER_STACK_SOLID_SCRIPT_KIND } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
 import { modifierStackSolidScriptRunStart } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_received.js';
@@ -275,14 +276,13 @@ describe('SolidScript generator', () => {
     expect(modifierStackStatusRead(fixture.node)?.steps[0]?.error).toContain('Turn on Generator under Can Be Used As');
   });
 
-  it('runs When Baked before a bake, so the brushes are baked with the inputs it sets, and undo keeps the old ones', () => {
+  it('bakes exactly the brushes the editor shows, with no When Baked block to change them', () => {
+    expect(solidScriptCommandFind('when_baked')).toBeUndefined();
+    expect(modifierStackKindFind(MODIFIER_STACK_SOLID_SCRIPT_KIND)).not.toHaveProperty('bakeParameters');
     const fixture = scriptFixture();
     scriptSet(fixture.node, {
       script: script(
         { command: 'input', values: { name: 'count', type: 'Count', default: '2' } },
-        { command: 'when_baked' },
-        { command: 'set_input', values: { name: 'count', value: '5' } },
-        { command: 'end' },
         { command: 'repeat', values: { variable: 'i', from: '1', to: '[=[count] + 1]' } },
         { command: 'transform', values: { move: '[=[i] * 2], 0, 0' } },
         { command: 'cube' },
@@ -294,10 +294,8 @@ describe('SolidScript generator', () => {
     fixture.world.updateMatrixWorld(true);
     const bake = new CommandModifierVolumeBake(fixture.node);
     bake.execute();
-    expect(fixture.model.getBrushes()).toHaveLength(5);
+    expect(fixture.model.getBrushes()).toHaveLength(2);
     bake.undo();
-    expect(fixture.model.getBrushes()).toHaveLength(0);
-    expect(ModifierVolume.read(fixture.node).modifiers[0]?.parameters['inputs'] ?? {}).toEqual({});
     expect(fixture.pieces()).toHaveLength(2);
   });
 
