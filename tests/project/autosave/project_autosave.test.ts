@@ -115,6 +115,29 @@ describe('ProjectAutosave', () => {
     expect(autosave.metrics().writes).toBe(1);
   });
 
+  it('keeps each autosave name on the same local day as its folder while the editor runs past midnight', async () => {
+    const zone = process.env['TZ'];
+    process.env['TZ'] = 'Europe/Berlin';
+    try {
+      const { fileSystem } = projectAutosaveProjectCreate();
+      const { autosave, clock, edits } = autosaveCreate(fileSystem);
+      clock.now = new Date(2026, 10, 14, 23, 59, 50).getTime();
+      autosave.sceneSet('maps/start.json');
+      edit(edits, autosave);
+      await advance(clock, PROJECT_AUTOSAVE_DELAY_MS);
+      await vi.waitFor(async () => expect(await savesOf(fileSystem)).toHaveLength(1));
+      edit(edits, autosave);
+      await advance(clock, PROJECT_AUTOSAVE_INTERVAL_MS);
+      await vi.waitFor(async () => expect(await savesOf(fileSystem)).toHaveLength(2));
+      const saves = await savesOf(fileSystem);
+      expect(saves.map((save) => save.day)).toEqual(['2026-11-14', '2026-11-15']);
+      for (const save of saves) expect(save.id.startsWith(`${save.day.replace(/-/g, '')}-`)).toBe(true);
+    } finally {
+      if (zone === undefined) delete process.env['TZ'];
+      else process.env['TZ'] = zone;
+    }
+  });
+
   it('names a save after the file Ctrl+S saves to, else the project file', async () => {
     const { fileSystem } = projectAutosaveProjectCreate();
     const { autosave, edits, file } = autosaveCreate(fileSystem);

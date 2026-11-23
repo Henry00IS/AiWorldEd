@@ -1,5 +1,5 @@
 import type { SettingsStorage } from '@/settings/storage/settings_storage.js';
-import { LocalSettingsStorage, MemorySettingsStorage } from '@/settings/storage/settings_storage.js';
+import { settingsStorageDefault } from '@/settings/storage/settings_storage.js';
 import { notificationFrameEvents } from '@/audio/notification/notification_frame_events.js';
 
 /** Storage key for audio preference JSON. */
@@ -48,19 +48,6 @@ function parseAudioSettingsJson(raw: string): AudioSettingsSnapshot {
   }
 }
 
-/**
- * Creates the default storage backend, falling back to memory when localStorage
- * is unavailable.
- *
- * @returns Settings storage implementation.
- */
-function createDefaultAudioStorage(): SettingsStorage {
-  if (typeof window !== 'undefined' && window.localStorage) {
-    return new LocalSettingsStorage(window.localStorage);
-  }
-  return new MemorySettingsStorage();
-}
-
 /** Persists and exposes the editor audio enabled toggle. */
 export class AudioSettings {
   private readonly storage: SettingsStorage;
@@ -72,7 +59,7 @@ export class AudioSettings {
    * @param storage Optional storage backend; when omitted, uses localStorage if
    *   available, otherwise memory.
    */
-  constructor(storage: SettingsStorage = createDefaultAudioStorage()) {
+  constructor(storage: SettingsStorage = settingsStorageDefault()) {
     this.storage = storage;
     this.enabled = loadAudioSettings(storage).enabled;
   }

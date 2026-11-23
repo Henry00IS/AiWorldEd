@@ -12,6 +12,14 @@ import { PhysicsPlane } from '@/physics/ball/physics_plane.js';
 import type { PhysicsBallMover } from '@/physics/ball/physics_ball_contacts.js';
 import type { PhysicsBallImpact } from '@/physics/ball/physics_ball_world.js';
 import type { PlayerCollisionWorld } from '@/player/collision/player_collision_world.js';
+import {
+  PLAYER_KEYBOARD_PLACE_FORWARD_METERS,
+  PLAYER_KEYBOARD_STAND_RADIUS_METERS,
+  PLAYER_KEYBOARD_TOY_ID,
+} from '@/player/keyboard/player_keyboard_constants.js';
+import type { PlayerKeyboardSynthFactory } from '@/player/keyboard/player_keyboard_instance.js';
+import type { PlayerKeyboardPose } from '@/player/keyboard/player_keyboard_pose.js';
+import { PlayerKeyboardSystem } from '@/player/keyboard/player_keyboard_system.js';
 import { PlayerBallAuthority, playerBallThrowStart } from './player_ball_authority.js';
 import {
   PLAYER_BALL_OFFLINE_COLOR,
@@ -42,6 +50,8 @@ export interface PlayerBallSystemOptions {
   now?: () => number;
   schedule?: (callback: () => void) => void;
   sound?: PlayerBallSoundSink;
+  /** Voices of the keyboards (replaceable in tests). */
+  keyboardSynth?: PlayerKeyboardSynthFactory;
 }
 
 /**
@@ -77,12 +87,13 @@ const scratchEuler = new THREE.Euler(0, 0, 0, 'YXZ');
  * Balls disappear when their thrower leaves play mode or the room.
  */
 export class PlayerBallSystem implements PlayerBallLinkListener {
-  private readonly options: Required<PlayerBallSystemOptions>;
+  private readonly options: Required<Omit<PlayerBallSystemOptions, 'keyboardSynth'>>;
   private readonly authority: PlayerBallAuthority;
   private readonly receiver: PlayerBallReceiver;
   private readonly publisher: PlayerBallPublisher;
   private readonly view: PlayerBallView;
   private link: PlayerBallLink | null;
+  private readonly keyboard: PlayerKeyboardSystem;
   private held: PhysicsToyKind | null;
   private lastFrame: number | null;
   private scheduled: boolean;
@@ -105,11 +116,27 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
     this.receiver = new PlayerBallReceiver();
     this.publisher = new PlayerBallPublisher();
     this.view = new PlayerBallView(options.view);
+    this.keyboard = this.keyboardCreate(options);
     this.link = null;
     this.held = 'tennis';
     this.lastFrame = null;
     this.scheduled = false;
     this.disposed = false;
+  }
+
+  /**
+   * Builds the keyboards, putting the others' character hands on theirs through
+   * the room link.
+   *
+   * @param options Dependencies.
+   * @returns Keyboard system.
+   */
+  private keyboardCreate(options: PlayerBallSystemOptions): PlayerKeyboardSystem {
+    return new PlayerKeyboardSystem({
+      view: options.view,
+      hands: (member, hands) => this.link?.handsSet?.(member, hands),
+      ...(options.keyboardSynth ? { synth: options.keyboardSynth } : {}),
+    });
   }
 
   /**
@@ -241,23 +268,139 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
    * @returns True when placed.
    */
   private place(eye: THREE.Vector3, forward: THREE.Vector3, velocity: THREE.Vector3): boolean {
+    const radius = PHYSICS_TOY_SHAPES.soccer.radius;
+    const { position, grounded } = this.groundAhead(eye, forward, radius, PLAYER_BALL_PLACE_FORWARD_METERS);
+    this.authority.spawn(position, velocity, 'soccer', grounded && velocity.lengthSq() === 0);
+    this.wake();
+    return true;
+  }
+
+  /**
+   * Finds where something put down in front of the player lands: a sphere swept
+   * forward at knee height stops at the first wall, then dropped onto the
+   * ground.
+   *
+   * @param eye Eye position.
+   * @param forward Unit look direction.
+   * @param radius Sphere radius.
+   * @param forwardMeters Wanted distance ahead.
+   * @returns Sphere center and whether ground was found below it.
+   */
+  private groundAhead(
+    eye: THREE.Vector3,
+    forward: THREE.Vector3,
+    radius: number,
+    forwardMeters: number,
+  ): { position: THREE.Vector3; grounded: boolean } {
     const levelWorld = this.options.collisionWorld.syncLevelWorld();
     const feet = this.options.localPlayer()?.feet ?? eye;
-    const radius = PHYSICS_TOY_SHAPES.soccer.radius;
     const across = new THREE.Vector3(forward.x, 0, forward.z);
     if (across.lengthSq() < 1e-8) across.set(0, 0, -1);
     across.normalize();
     const start = new THREE.Vector3(eye.x, feet.y + PLAYER_BALL_PLACE_REACH_METERS, eye.z);
-    let reach = PLAYER_BALL_PLACE_FORWARD_METERS;
-    const wall = levelWorld?.castSphere(start, across, radius, reach, false);
-    if (wall) reach = Math.max(0, wall.distance - PHYSICS_BALL_CONTACT_SKIN_METERS);
+    const wall = levelWorld?.castSphere(start, across, radius, forwardMeters, false);
+    const reach = wall ? Math.max(0, wall.distance - PHYSICS_BALL_CONTACT_SKIN_METERS) : forwardMeters;
     const position = start.addScaledVector(across, reach);
     const ground = levelWorld?.castSphere(position, DOWN, radius, 2 * PLAYER_BALL_PLACE_REACH_METERS, false);
     if (ground) position.y -= Math.max(0, ground.distance - PHYSICS_BALL_CONTACT_SKIN_METERS);
-    const resting = ground !== null && ground !== undefined && velocity.lengthSq() === 0;
-    this.authority.spawn(position, velocity, 'soccer', resting);
+    return { position, grounded: ground !== null && ground !== undefined };
+  }
+
+  /**
+   * Puts the own keyboard on its stand on the ground in front of the player,
+   * facing the player (play mode only). The highest toy id stays free for it.
+   *
+   * @param eye Eye position.
+   * @param yaw Look yaw (the keyboard is played looking this way).
+   * @returns Placement, or null when not playing.
+   */
+  placeKeyboard(eye: THREE.Vector3, yaw: number): PlayerKeyboardPose | null {
+    if (this.options.isPlaying() === false) return null;
+    const forward = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+    const radius = PLAYER_KEYBOARD_STAND_RADIUS_METERS;
+    const { position } = this.groundAhead(eye, forward, radius, PLAYER_KEYBOARD_PLACE_FORWARD_METERS);
+    position.y -= radius;
+    const feet = (this.options.localPlayer()?.feet ?? eye).clone();
+    const pose = { position, feet, yaw };
+    this.authority.reserveTop(1);
+    this.keyboard.place(pose, this.getOwnColor(), this.options.now());
+    this.publisher.noteHeld();
     this.wake();
-    return true;
+    return pose;
+  }
+
+  /** Puts the own keyboard away: the others' copies fade out and disappear. */
+  putAwayKeyboard(): void {
+    if (!this.keyboard.getLocal()) return;
+    this.keyboard.putAway();
+    this.authority.reserveTop(0);
+    this.publisher.noteHeld();
+    this.wake();
+  }
+
+  /**
+   * Returns the current time of the toy clock.
+   *
+   * @returns Time in milliseconds.
+   */
+  now(): number {
+    return this.options.now();
+  }
+
+  /**
+   * Plays or releases a key of the own keyboard.
+   *
+   * @param pitch MIDI pitch.
+   * @param down Pressed or released.
+   * @param now Time of the key change in milliseconds (one sample shares it).
+   */
+  keyboardKey(pitch: number, down: boolean, now: number = this.options.now()): void {
+    this.keyboard.key(pitch, down, now);
+    this.wake();
+  }
+
+  /**
+   * Shifts the own keyboard an octave up or down.
+   *
+   * @param step +1 or -1.
+   * @returns True when the octave changed.
+   */
+  keyboardOctaveStep(step: number): boolean {
+    const changed = this.keyboard.octaveStep(step, this.options.now());
+    this.wake();
+    return changed;
+  }
+
+  /**
+   * Eases the own keyboard's vibrato in or out (held Shift).
+   *
+   * @param on New state.
+   * @param now Time of the change in milliseconds.
+   */
+  keyboardVibrato(on: boolean, now: number = this.options.now()): void {
+    this.keyboard.vibrato(on, now);
+    this.wake();
+  }
+
+  /**
+   * Switches the own keyboard's instrument.
+   *
+   * @param step +1 or -1.
+   * @returns New slot, or null without a keyboard.
+   */
+  keyboardInstrumentStep(step: number): number | null {
+    const slot = this.keyboard.instrumentStep(step, this.options.now());
+    this.wake();
+    return slot;
+  }
+
+  /**
+   * Returns the keyboards (own and the other members').
+   *
+   * @returns Keyboard system.
+   */
+  getKeyboards(): PlayerKeyboardSystem {
+    return this.keyboard;
   }
 
   /**
@@ -268,6 +411,7 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
    */
   snapshot(member: number, snapshot: PlayerBallSnapshot): void {
     this.receiver.snapshot(member, snapshot, this.options.now());
+    this.keyboard.incoming(member, snapshot, this.options.now(), this.colorOf(member));
     this.wake();
   }
 
@@ -288,6 +432,7 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
    */
   memberLeft(member: number): void {
     this.receiver.keepMembers((other) => other !== member);
+    this.keyboard.keepMembers((other) => other !== member);
     this.wake();
   }
 
@@ -303,12 +448,16 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
     this.lastFrame = now;
     const players = this.link?.players() ?? [];
     this.receiver.keepMembers((member) => players.some((player) => player.member === member));
+    this.keyboard.keepMembers((member) => players.some((player) => player.member === member));
+    if (this.options.isPlaying() === false) this.putAwayKeyboard();
+    const keyboards = this.keyboard.update(now);
     const remote = this.receiver.frame(now);
     const impacts = [...this.simulate(players, remote.balls, seconds), ...remote.impacts];
     impacts.forEach((impact) => this.options.sound(impact.position, impact.speed));
     this.view.sync([...this.ownItems(), ...remote.balls.map((ball) => this.remoteItem(ball))]);
     const owing = this.publish(now);
-    return owing || this.authority.getBodies().length > 0 || this.receiver.isSettled(now) === false;
+    const balls = this.authority.getBodies().length > 0 || this.receiver.isSettled(now) === false;
+    return owing || keyboards || balls;
   }
 
   /**
@@ -334,6 +483,8 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
     this.authority.removeWhere(() => true);
     this.authority.takeChanges();
     this.receiver.clear();
+    this.keyboard.clear();
+    this.authority.reserveTop(0);
     this.publisher.reset();
     this.view.sync([]);
     this.lastFrame = null;
@@ -429,10 +580,63 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
       this.authority.takeChanges();
       return false;
     }
+    const extraId = this.keyboardExtraId(now);
     this.publisher.note(this.authority.takeChanges());
-    const snapshot = this.publisher.next(this.authority, now, this.options.isPlaying() ? this.held : undefined);
-    if (snapshot && link.publish(snapshot)) this.publisher.mark(snapshot, this.authority.isAwake(), now);
-    return this.publisher.isOwing();
+    const snapshot = this.keyboardFrame(this.publisher.next(this.authority, now, this.playingHeld()), now, extraId);
+    if (snapshot && link.publish(snapshot)) {
+      this.publisher.mark(snapshot, this.authority.isAwake(), now);
+      this.keyboard.sent();
+    }
+    return this.publisher.isOwing() || this.keyboard.isOwing(now);
+  }
+
+  /**
+   * Returns the held toy to announce: the thrown one while playing.
+   *
+   * @returns Held kind, null for empty hands, undefined when not playing.
+   */
+  private playingHeld(): PhysicsToyKind | null | undefined {
+    return this.options.isPlaying() ? this.held : undefined;
+  }
+
+  /**
+   * Finds a toy id for the keyboard's continuation entry while its events
+   * overflow one entry: a free ball id, or else the oldest toy's, removing that
+   * toy as a new throw would.
+   *
+   * @param now Current time in milliseconds.
+   * @returns Toy id, or null when one entry is enough.
+   */
+  private keyboardExtraId(now: number): number | null {
+    if (!this.keyboard.isOverflowing(now)) return null;
+    const bodies = this.authority.getBodies();
+    const ids = Array.from({ length: PLAYER_KEYBOARD_TOY_ID - 1 }, (_, index) => index + 1);
+    const free = ids.find((id) => bodies.every((body) => body.id !== id));
+    if (free !== undefined) return free;
+    const oldest = bodies[0];
+    if (!oldest) return null;
+    this.authority.removeWhere((body) => body === oldest);
+    return oldest.id;
+  }
+
+  /**
+   * Adds the own keyboard to the snapshot due now, or makes a snapshot of its
+   * own when only keyboard events are owed and the rate allows one.
+   *
+   * @param snapshot Ball snapshot due now, or null.
+   * @param now Current time in milliseconds.
+   * @param extraId Toy id for a continuation entry, or null.
+   * @returns Snapshot to send, or null.
+   */
+  private keyboardFrame(
+    snapshot: PlayerBallSnapshot | null,
+    now: number,
+    extraId: number | null,
+  ): PlayerBallSnapshot | null {
+    const held = this.playingHeld();
+    if (snapshot) return this.keyboard.outgoing(snapshot, now, extraId);
+    if (held === undefined || !this.keyboard.isOwing(now) || !this.publisher.isRateReady(now)) return null;
+    return this.keyboard.outgoing({ full: false, tick: this.authority.getTick(now), balls: [], held }, now, extraId);
   }
 
   /**

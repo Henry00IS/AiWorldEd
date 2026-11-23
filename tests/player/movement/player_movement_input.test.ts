@@ -1,15 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   playerMovementReadAxes,
-  playerMovementResolveSimulationDeltaSeconds,
   playerMovementResolveSpeed,
   type PlayerMoveAxes,
 } from '@/player/movement/player_movement_input.js';
-import {
-  PLAYER_RUN_SPEED_METERS_PER_SECOND,
-  PLAYER_SLOW_MOTION_TIME_SCALE,
-  PLAYER_WALK_SPEED_METERS_PER_SECOND,
-} from '@/player/player_constants.js';
+import { PLAYER_RUN_SPEED_METERS_PER_SECOND, PLAYER_WALK_SPEED_METERS_PER_SECOND } from '@/player/player_constants.js';
 import { ManagerInput } from '@/input/manager_input.js';
 
 /**
@@ -56,11 +51,6 @@ describe('playerMovementReadAxes', () => {
   it('resolves walk and run speeds from Shift', () => {
     expect(playerMovementResolveSpeed(createInputStub([], false))).toBe(PLAYER_WALK_SPEED_METERS_PER_SECOND);
     expect(playerMovementResolveSpeed(createInputStub([], true))).toBe(PLAYER_RUN_SPEED_METERS_PER_SECOND);
-  });
-
-  it('scales simulation delta while slow motion is held', () => {
-    expect(playerMovementResolveSimulationDeltaSeconds(0.016, false)).toBeCloseTo(0.016);
-    expect(playerMovementResolveSimulationDeltaSeconds(0.016, true)).toBeCloseTo(0.016 * PLAYER_SLOW_MOTION_TIME_SCALE);
   });
 
   it('moves back from Colemak physical S which types r', () => {

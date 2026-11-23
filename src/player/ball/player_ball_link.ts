@@ -1,5 +1,8 @@
 import type * as THREE from 'three';
+import type { ToyEntry } from '@/collaboration/shared/toy_frame.js';
 import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
+import type { PlayerCharacterHandTargets } from '@/player/character/player_character_hand_targets.js';
+import type { PlayerToyKind } from '@/player/toy/player_toy_kind.js';
 
 /** One toy (a ball or a paper plane) as its thrower publishes it. */
 export interface PlayerBallState {
@@ -54,7 +57,12 @@ export interface PlayerBallSnapshot {
    * Toy the thrower holds in play mode (null: empty hands), when announced
    * (full snapshots and changes); receivers keep the last one.
    */
-  held?: PhysicsToyKind | null;
+  held?: PlayerToyKind | null;
+  /**
+   * Entries of the thrower's placed keyboard, when listed: one, or two while
+   * its events overflow one entry (payloads are opaque here).
+   */
+  keyboard?: ToyEntry[];
 }
 
 /** Another member in play mode, as this client shows them. */
@@ -128,4 +136,11 @@ export interface PlayerBallLink {
    * @param listener Listener, or null.
    */
   listen(listener: PlayerBallLinkListener | null): void;
+  /**
+   * Puts a member's character hands on targets, or frees them.
+   *
+   * @param member Member id.
+   * @param hands Hand targets, or null.
+   */
+  handsSet?(member: number, hands: PlayerCharacterHandTargets | null): void;
 }

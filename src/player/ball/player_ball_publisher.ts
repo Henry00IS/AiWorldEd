@@ -98,7 +98,7 @@ export class PlayerBallPublisher {
    * @param now Current time in milliseconds.
    * @returns True when one may go out.
    */
-  private isRateReady(now: number): boolean {
+  isRateReady(now: number): boolean {
     this.refill(now);
     return this.tokens >= 1 && now - this.sentAt >= PLAYER_BALL_FRAME_INTERVAL_MS;
   }

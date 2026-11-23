@@ -22,6 +22,7 @@ import { PlayerCharacterAnimator } from '@/player/character/player_character_ani
 import { playerCharacterLookApply, playerCharacterLookDistribute } from '@/player/character/player_character_look.js';
 import { playerCharacterBuildRig, type PlayerCharacterRig } from '@/player/character/player_character_rig.js';
 import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
+import type { PlayerCharacterHandTargets } from '@/player/character/player_character_hand_targets.js';
 import { PlayerToyHeld } from '@/player/toy/player_toy_held.js';
 import {
   playerCharacterEnsureModelLoaded,
@@ -114,6 +115,7 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
   private readonly color: number;
   private readonly held: PlayerToyHeld;
   private disposed: boolean;
+  private hands: PlayerCharacterHandTargets | null = null;
 
   /**
    * Creates the character; the body appears once the model is loaded.
@@ -208,7 +210,7 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
     }
     const active = moving || this.motion.getPlanarSpeed() > 0 || !motion.grounded || motion.wallPushing;
     if (active) this.settleUntil = now + CHARACTER_COLLABORATION_PRESENCE_SETTLE_MS;
-    return active || now < this.settleUntil;
+    return active || this.hands !== null || now < this.settleUntil;
   }
 
   /**
@@ -259,6 +261,17 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
    */
   hold(kind: PhysicsToyKind | null): void {
     this.held.set(this.rig, kind, this.color);
+  }
+
+  /**
+   * Puts the hands on targets (keys of a keyboard the member plays), or frees
+   * them; the character keeps animating while they are set.
+   *
+   * @param hands Hand targets, or null.
+   */
+  handsSet(hands: PlayerCharacterHandTargets | null): void {
+    this.hands = hands;
+    this.animator.setHandTargets(hands);
   }
 
   /**

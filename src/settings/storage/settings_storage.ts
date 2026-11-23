@@ -64,6 +64,19 @@ export class MemorySettingsStorage implements SettingsStorage {
   }
 }
 
+/**
+ * Creates the default storage backend, falling back to memory when localStorage
+ * is unavailable.
+ *
+ * @returns Settings storage implementation.
+ */
+export function settingsStorageDefault(): SettingsStorage {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    return new LocalSettingsStorage(window.localStorage);
+  }
+  return new MemorySettingsStorage();
+}
+
 /** String key-value storage backed by a browser Storage instance. */
 export class LocalSettingsStorage implements SettingsStorage {
   private readonly storage: Storage;
