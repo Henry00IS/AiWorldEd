@@ -66,6 +66,25 @@ describe('SolidScript listing', () => {
     );
   });
 
+  it('shows every Widget Slider field that differs from its default', () => {
+    expect(listed('widget_slider', { shows: '[Height]', writes: 'Height' })).toBe(
+      "Widget Slider [Height] Writes 'Height'",
+    );
+    const all = {
+      shows: '[Height]',
+      writes: 'Height',
+      at: '1, 0, 0',
+      along: '0, 0, 1',
+      min: '0',
+      max: '5',
+      label: 'Tall',
+      color: 'Orange',
+    };
+    expect(listed('widget_slider', all)).toBe(
+      "Widget Slider [Height] Writes 'Height' (At '1, 0, 0', Along '0, 0, 1', Min '0', Max '5', Label 'Tall', Color 'Orange')",
+    );
+  });
+
   it('shows the sides and rings of round shapes only when changed', () => {
     expect(listed('sphere', { r: '1', sides: '16', rings: '8' })).toBe("Sphere Radius '1'");
     expect(listed('sphere', { r: '1', sides: '8', rings: '4' })).toBe("Sphere Radius '1' (Sides '8', Rings '4')");

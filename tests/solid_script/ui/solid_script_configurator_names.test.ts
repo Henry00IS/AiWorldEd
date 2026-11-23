@@ -114,6 +114,23 @@ describe('SolidScript configurator fields', () => {
     expect(offered.slice(0, 2)).toEqual(['Post', 'Rail']);
   });
 
+  it('offers the Inputs for the Writes of a Widget Slider, and warns about a name that is not one', () => {
+    const writes = solidScriptCommandFind('widget_slider')!.parameters.find((each) => each.key === 'writes')!;
+    const names = [
+      { name: 'Height', category: 'Inputs' as const, line: 0, detail: 'Input' },
+      { name: 'Width', category: 'Inputs' as const, line: 1, detail: 'Input' },
+      { name: 'Tall', category: 'Variables' as const, line: 2, detail: '' },
+    ];
+    const field = solidScriptConfiguratorFieldBuild(writes, 'Height', () => {}, { names, extra: [] });
+    document.body.append(field.element);
+    field.element.querySelector('input')!.dispatchEvent(new MouseEvent('click'));
+    const offered = [...document.querySelectorAll('[role="option"]')].map((row) => row.firstElementChild?.textContent);
+    expect(offered).toEqual(['Height', 'Width']);
+    expect(field.warning()).toBe('');
+    const wrong = solidScriptConfiguratorFieldBuild(writes, 'Tall', () => {}, { names, extra: [] });
+    expect(wrong.warning()).toBe('Writes: there is no Input named Tall; add an Input line for it.');
+  });
+
   it('draws a formula highlighted with unknown names underlined', () => {
     const value = setValue();
     const field = solidScriptConfiguratorFieldBuild(

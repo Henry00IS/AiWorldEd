@@ -140,6 +140,27 @@ const SOLID_SCRIPT_CONFIGURATOR_WRITABLE_GROUPS: readonly string[] = [
 ];
 
 /**
+ * Warns when a field that names an Input, such as the Writes of a Widget Slider
+ * or the Input of Set Input, names one the script does not have.
+ *
+ * @param parameter Parameter.
+ * @param text Field text.
+ * @param names Names the line sees.
+ * @returns Warning, or an empty string.
+ */
+function solidScriptConfiguratorInputWarning(
+  parameter: SolidScriptCommandParameter,
+  text: string,
+  names: readonly SolidScriptName[],
+): string {
+  const name = text.trim();
+  if (parameter.nameGroups?.join() !== 'Inputs' || name === '' || name.includes('[')) return '';
+  const key = solidScriptNameKey(name);
+  if (names.some((entry) => entry.category === 'Inputs' && solidScriptNameKey(entry.name) === key)) return '';
+  return `${parameter.label}: there is no Input named ${name}; add an Input line for it.`;
+}
+
+/**
  * Tells which name groups of the script a field offers: the ones it asks for,
  * or the writable ones for a field naming a variable the line writes.
  *
@@ -254,7 +275,10 @@ export function solidScriptConfiguratorFieldBuild(
     return problem ? `${parameter.label} ${problem}` : '';
   };
   const warning = (): string => {
-    if (raw) return words.length > 0 ? choice() : '';
+    if (raw)
+      return (
+        solidScriptConfiguratorInputWarning(parameter, field.read(), scope.names) || (words.length > 0 ? choice() : '')
+      );
     const sees = (name: string): boolean => known.names.has(solidScriptNameKey(name));
     const mistake = solidScriptFieldMistakeOf(parameter, field.read(), sees, sees);
     if (mistake) return `${parameter.label}: ${mistake}`;

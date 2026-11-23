@@ -1,7 +1,11 @@
 import * as THREE from 'three';
 import { SolidScriptCommand } from './solid_script_command.js';
 import { solidScriptListingOptions } from './solid_script_command_listing.js';
-import { solidScriptParameter, solidScriptParameterOptional } from './solid_script_command_parameters.js';
+import {
+  solidScriptParameter,
+  solidScriptParameterDefines,
+  solidScriptParameterOptional,
+} from './solid_script_command_parameters.js';
 import { SOLID_SCRIPT_WIDGET_COMMAND_PREFIX } from '@/solid_script/language/solid_script_widget.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import { solidScriptNameWords } from '@/solid_script/language/solid_script_name_words.js';
@@ -65,11 +69,14 @@ export const SOLID_SCRIPT_COMMANDS_WIDGETS: readonly SolidScriptCommand[] = [
     ],
     parameters: [
       solidScriptParameter('shows', 'Shows', 'number', '0', 'Value the handle shows, such as [Height].'),
-      solidScriptParameterOptional(
-        'writes',
-        'Writes',
-        'name',
-        'Name of the Input a drag writes into, such as Height. Left off, the handle only shows the value.',
+      solidScriptParameterDefines(
+        solidScriptParameterOptional(
+          'writes',
+          'Writes',
+          'name',
+          'Name of the Input a drag writes into, such as Height. Left off, the handle only shows the value.',
+        ),
+        ['Inputs'],
       ),
       solidScriptParameter(
         'at',
@@ -122,8 +129,12 @@ export const SOLID_SCRIPT_COMMANDS_WIDGETS: readonly SolidScriptCommand[] = [
       ' Writes ',
       read.value('writes'),
       ...solidScriptListingOptions([
+        read.changed('at') && ['At ', read.value('at')],
+        read.changed('along') && ['Along ', read.value('along')],
         read.text('min') !== '' && ['Min ', read.value('min')],
         read.text('max') !== '' && ['Max ', read.value('max')],
+        read.text('label') !== '' && ['Label ', read.value('label')],
+        read.text('color') !== '' && ['Color ', read.value('color')],
       ]),
     ],
     execute: solidScriptWidgetSliderRun,
