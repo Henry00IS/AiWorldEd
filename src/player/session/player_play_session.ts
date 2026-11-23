@@ -394,6 +394,7 @@ export class PlayerPlaySession {
       this.viewMode,
       this.host.collisionWorld,
       deltaSeconds,
+      this.selected === PLAYER_TOY_GRAPPLE,
     );
     this.viewModelUpdate(this.activeCamera, now, deltaSeconds);
     this.grappleUpdate(this.activeCamera, deltaSeconds);
