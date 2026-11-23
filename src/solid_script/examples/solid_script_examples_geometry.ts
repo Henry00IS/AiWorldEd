@@ -1,4 +1,5 @@
 import { pathAssetEncode } from '@/path/model/path_asset.js';
+import { pathReferenceEncode } from '@/path/model/path_reference.js';
 import type { SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 import {
   solidScriptExampleBlock,
@@ -77,8 +78,11 @@ export const SOLID_SCRIPT_EXAMPLE_ROUNDED_RAIL: readonly SolidScriptLine[] = [
   solidScriptExampleLine('sweep_along_path', { path: '[Rail]', radius: '[Thickness]', sides: '8' }),
 ];
 
-/** The room corners a new Baseboard traces: three walls of a 4 by 3 metre room. */
-const SOLID_SCRIPT_EXAMPLE_BASEBOARD_ROOM = pathAssetEncode({
+/**
+ * Wall of a new Baseboard: it follows the Path object named Room Wall, and
+ * traces three walls of a 4 by 3 metre room until the scene has one.
+ */
+const SOLID_SCRIPT_EXAMPLE_BASEBOARD_WALL = pathReferenceEncode('Room Wall', {
   points: [
     [-2, 0, 1.5],
     [-2, 0, -1.5],
@@ -90,14 +94,14 @@ const SOLID_SCRIPT_EXAMPLE_BASEBOARD_ROOM = pathAssetEncode({
 });
 
 /**
- * A baseboard along a Path input: trace the bottom corners of a room in the
- * scene and Sweep Along Path runs a moulding profile along them.
+ * A baseboard along a Path object of the scene: trace the bottom corners of a
+ * room with it and Sweep Along Path runs a moulding profile along them.
  */
 export const SOLID_SCRIPT_EXAMPLE_BASEBOARD: readonly SolidScriptLine[] = [
   solidScriptExampleNote(
-    'Wall is a Path you draw in the scene: select this object, click Edit, then Ctrl+Click each bottom corner of the room. Drag a point to move it; pick one to set its stretch, such as an Arc for a round bay, in the inspector.',
+    'Wall follows the Path object named Room Wall. Add a Path from the shape picker and name it Room Wall, then select it, click Edit and Ctrl+Click each bottom corner of the room; the board follows as you draw. Until the scene has one, Wall keeps the room shape stored here. Pick Own Path under Wall to draw on this object instead.',
   ),
-  solidScriptExampleInput('Wall', 'Path', SOLID_SCRIPT_EXAMPLE_BASEBOARD_ROOM, { label: 'Wall' }),
+  solidScriptExampleInput('Wall', 'Path', SOLID_SCRIPT_EXAMPLE_BASEBOARD_WALL, { label: 'Wall' }),
   solidScriptExampleInput('Height', 'Number', '0.12', { min: '0.02', max: '1', label: 'Height' }),
   solidScriptExampleInput('Thickness', 'Number', '0.02', { min: '0.005', max: '0.2', label: 'Thickness' }),
   solidScriptExampleNote(

@@ -3,6 +3,7 @@ import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import { solidBrushShapeCreate, type SolidBrushShape } from '@/solid/brush/solid_brush_shape.js';
 import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
 import { modifierGeneratorNodeSize } from '@/modifier/stack/modifier_generator_node.js';
+import { MODIFIER_STACK_PATH_KIND } from '@/modifier/stack/kinds/generator/path/modifier_stack_path_object.js';
 import { ModifierStackKindGenerator } from '@/modifier/stack/kinds/generator/modifier_stack_kind_generator.js';
 
 /** Icon frame size in SVG units. */
@@ -24,6 +25,17 @@ const MODIFIER_GENERATOR_ICON_PARAMETERS: Readonly<Record<string, Record<string,
 
 /** Direction towards the light: from above, slightly left of the viewer. */
 const MODIFIER_GENERATOR_ICON_LIGHT = new THREE.Vector3(0.55, 1, 0.35).normalize();
+
+/**
+ * Icon of a Path object, which builds no pieces to draw: a winding line with
+ * its points marked.
+ */
+const MODIFIER_GENERATOR_ICON_PATH = [
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">',
+  '<path d="M4 18 C8 18 8 6 12 6 S16 18 20 18" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+  '<g fill="currentColor"><circle cx="4" cy="18" r="1.8"/><circle cx="12" cy="6" r="1.8"/><circle cx="20" cy="18" r="1.8"/></g>',
+  '</svg>',
+].join('');
 
 /** Markup already drawn, per kind. */
 const modifierGeneratorIconCache = new Map<string, string>();
@@ -49,13 +61,14 @@ interface ModifierGeneratorIconPiece {
 /**
  * Returns the icon of a generator kind, drawn from the pieces it builds with
  * its default settings in a new node's box. Faces fill and outline in
- * currentColor, so the icon follows the theme text colour. Unknown kinds get
- * the box brush icon.
+ * currentColor, so the icon follows the theme text colour. A Path object gets a
+ * line with points, and unknown kinds get the box brush icon.
  *
  * @param kind Generator kind id.
  * @returns SVG markup.
  */
 export function modifierGeneratorIconSvg(kind: string): string {
+  if (kind === MODIFIER_STACK_PATH_KIND) return MODIFIER_GENERATOR_ICON_PATH;
   const cached = modifierGeneratorIconCache.get(kind);
   if (cached) return cached;
   const generator = modifierStackKindFind(kind);

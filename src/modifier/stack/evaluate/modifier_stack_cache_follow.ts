@@ -29,6 +29,20 @@ export function modifierStackPoseFollowOf(capture: ModifierStackCapture): Modifi
 }
 
 /**
+ * Describes what the enabled steps of a capture read from elsewhere in the
+ * scene, such as the Path objects a script follows.
+ *
+ * @param capture Volume capture.
+ * @returns Key text; empty when they read nothing from elsewhere.
+ */
+export function modifierStackSceneReadsKey(capture: ModifierStackCapture): string {
+  return capture.settings.modifiers
+    .filter((step) => step.enabled)
+    .map((step) => modifierStackKindFind(step.kind)?.sceneReadsKey(capture.volume, step.parameters) ?? '')
+    .join('|');
+}
+
+/**
  * Returns the matrix from a node's frame to its solid's model space: where its
  * pieces were placed.
  *

@@ -103,6 +103,19 @@ export abstract class ModifierStackKind {
   }
 
   /**
+   * Returns text that changes whenever something this step reads from elsewhere
+   * in the scene changes, so a cached evaluation is redone. Most kinds read
+   * nothing from elsewhere.
+   *
+   * @param _volume Owning volume.
+   * @param _parameters Stored parameters.
+   * @returns Key text, or empty.
+   */
+  sceneReadsKey(_volume: THREE.Object3D, _parameters: Record<string, unknown>): string {
+    return '';
+  }
+
+  /**
    * Returns whether a step of this kind has an edit mode with widgets in the
    * scene. Off unless a kind turns it on for itself.
    *

@@ -9,7 +9,28 @@ A **Path** is a line of points you draw in the scene: the bottom corners of a ro
 
 Adding a Path input turns on **Has Edit Mode** for the script, so its points can be reached in the scene. A new Path is a straight line two metres long.
 
-The **Baseboard** example (Examples window, Basics) traces three walls of a room and sweeps a moulding along them.
+The **Baseboard** example (Examples window, Basics) follows a Path object named Room Wall and sweeps a moulding along it.
+
+## Path objects
+
+A **Path object** is a path that stands in the scene on its own, so several scripts can follow the same line and you can move it like any other object.
+
+1. Select a solid model or one of its brushes and pick **Path** under **Add Shape** in the inspector. It appears as a small box with its path drawn through it.
+2. Name it in the outliner, such as `Room Wall`.
+3. Select it and click **Edit**, or use the Generator tool, and draw its points as described below. Everything works as for a Path input: selecting points and stretches, multi-select, X, Y and Z locks, Shift, Arcs and the other stretch kinds.
+
+A Path object is saved with the scene, every change to it is one undo step, and it reaches everyone in an online session like any other object. Moving or turning it carries its path along.
+
+### Follow a Path object from a script
+
+Every Path input in the inspector has a choice beside its name: **Own Path** keeps a path of the input's own, or pick a Path object of the scene by name. While the input follows a Path object:
+
+- The script reads that path as it lies in the scene, measured from the script origin at the centre of the generator box, so the result lines up with it in **Script Units** placement.
+- Moving the Path object, or editing its points, rebuilds every script that follows it at once.
+- Its points are edited on the Path object, not on the script.
+- The input keeps the shape it had before it was linked. Picking **Own Path** again goes back to that shape; while no Path object has the name, the script uses it and says which name is missing.
+
+A Path input whose default names a Path object, as the Baseboard example's does, follows it as soon as the scene has one by that name.
 
 ## Draw and edit in the scene
 
@@ -43,9 +64,9 @@ An Arc is a true circle: the points a script reads lie on the circle itself, sam
 
 ## Save and reuse a Path
 
-A Path is stored with the generator, so saving it as a file is optional. The inspector row of a Path input has:
+A Path is stored with the generator or the Path object, so saving it as a file is optional. The inspector row of a Path input or Path object has:
 
 - **Save Path**: downloads the path as a `.aipath` file.
-- **Open Path**: reads a `.aipath` file into the input.
+- **Open Path**: reads a `.aipath` file into the input or Path object.
 
 You can also drag a `.aipath` file from the project browser or from the desktop onto the row. A file that is not a path, or holds fewer than two points, shows why it was not opened.

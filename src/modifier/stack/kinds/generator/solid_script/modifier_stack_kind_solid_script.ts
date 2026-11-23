@@ -6,6 +6,11 @@ import {
 } from '@/modifier/stack/widgets/modifier_stack_slider_record.js';
 import * as THREE from 'three';
 import { modifierStackPathsRecord } from '@/modifier/stack/widgets/modifier_stack_path_record.js';
+import {
+  modifierStackScenePathsFollowed,
+  modifierStackScenePathsKey,
+  modifierStackScenePathsLink,
+} from '@/modifier/stack/kinds/generator/path/modifier_stack_scene_paths.js';
 import { modifierStackDrawsRecord } from '@/modifier/stack/widgets/modifier_stack_draw_record.js';
 import { modifierStackButtonsRecord } from '@/modifier/stack/widgets/modifier_stack_button_record.js';
 import { modifierStackAimsRecord } from '@/modifier/stack/widgets/modifier_stack_aim_record.js';
@@ -120,18 +125,39 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
 
   /**
    * Returns how the brushes follow a move or turn of the node. They follow any
-   * move or turn unless the script reads the volume's position or rotation,
-   * which would go stale.
+   * move or turn unless the script reads the volume's position or rotation, or
+   * follows a Path object that stays where it is, which would go stale.
    *
    * @param parameters Normalized parameters.
    * @returns 'rigid', 'translate' when only rotation is read, or null when
-   *   position is read.
+   *   position is read or a Path object is followed.
    */
   override volumePoseFollow(parameters: Record<string, unknown>): ModifierStackPoseFollow | null {
+    if (
+      modifierStackScenePathsFollowed(
+        solidScriptInspectorInputValues(parameters[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]),
+      )
+    )
+      return null;
     const document = solidScriptDocumentNormalize(parameters[MODIFIER_STACK_SOLID_SCRIPT_KEY]);
     if (solidScriptDocumentReadsBoxMember(document, 'Position')) return null;
     if (solidScriptDocumentReadsBoxMember(document, 'Rotation')) return 'translate';
     return 'rigid';
+  }
+
+  /**
+   * Returns where the Path objects the script's inputs follow are and what they
+   * hold, so the script runs again when one changes.
+   *
+   * @param volume Owning volume.
+   * @param parameters Stored parameters.
+   * @returns Key text, or empty when no input follows a Path object.
+   */
+  override sceneReadsKey(volume: THREE.Object3D, parameters: Record<string, unknown>): string {
+    return modifierStackScenePathsKey(
+      volume,
+      solidScriptInspectorInputValues(parameters[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]),
+    );
   }
 
   /**
@@ -237,18 +263,18 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
   ): { units: ModifierStackUnit[]; passed: ModifierStackSolidScriptPassed[] } {
     const document = solidScriptDocumentNormalize(parameters[MODIFIER_STACK_SOLID_SCRIPT_KEY]);
     const inputs = parameters[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY] as Record<string, string>;
+    const frame = modifierStackFrame(context.volume, 'volume');
     const layout = modifierStackSolidScriptLayout(
       document,
       parameters['placement'] as ModifierStackSolidScriptPlacement,
       box,
       this.pieceOperation(parameters),
       solidScriptDebugStepLimit(context.volume, context.step.id),
-      inputs,
+      modifierStackSolidScriptInputsLinked(context, inputs, frame, box),
       use,
       modifierStackSolidScriptBoxValues(context.volume, box),
     );
     if (layout.error) context.report.error = layout.error;
-    const frame = modifierStackFrame(context.volume, 'volume');
     const scriptToWorld = frame.clone().multiply(layout.placement);
     modifierStackSlidersRecord(
       context.volume,
@@ -314,6 +340,30 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
     group.updateMatrixWorld(true);
     return { tree: group, brushes: members.flatMap((member) => member.brushes), authored: false, origin: null };
   }
+}
+
+/**
+ * Fills in the Path inputs that follow a Path object, as it lies around the
+ * script origin at the box centre, and says which names no Path object has.
+ *
+ * @param context Evaluation context.
+ * @param inputs Stored input values by name.
+ * @param frame Matrix from frame coordinates to the world.
+ * @param box Box in frame coordinates the script origin is centred in.
+ * @returns Input values to run the script with.
+ */
+function modifierStackSolidScriptInputsLinked(
+  context: ModifierStackContext,
+  inputs: Record<string, string>,
+  frame: THREE.Matrix4,
+  box: THREE.Box3,
+): Record<string, string> {
+  const centre = box.getCenter(new THREE.Vector3());
+  const origin = frame.clone().multiply(new THREE.Matrix4().makeTranslation(centre.x, centre.y, centre.z));
+  const linked = modifierStackScenePathsLink(context.volume, inputs, origin);
+  if (linked.missing.length > 0)
+    context.report.error = `No Path object is named ${linked.missing.join(', ')}; its own path is used.`;
+  return linked.inputs;
 }
 
 /**

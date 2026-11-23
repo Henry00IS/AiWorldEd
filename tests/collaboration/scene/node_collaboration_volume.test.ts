@@ -10,6 +10,12 @@ import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierStackStatusRead } from '@/modifier/stack/evaluate/modifier_stack_status.js';
 import { modifierVolumeTemplateCreate } from '@/modifier/stack/modifier_volume_templates.js';
 import { modifierGeneratorNodeCreate } from '@/modifier/stack/modifier_generator_node.js';
+import { modifierStackCompile } from '@/modifier/stack/evaluate/modifier_stack_compile.js';
+import {
+  MODIFIER_STACK_PATH_KIND,
+  modifierStackPathObjectAsset,
+} from '@/modifier/stack/kinds/generator/path/modifier_stack_path_object.js';
+import { MODIFIER_STACK_PATH_LINE_KEY } from '@/modifier/stack/kinds/generator/path/modifier_stack_path_line.js';
 import { modifierStackParameterSet } from '@/modifier/stack/modifier_stack_operations.js';
 import type { ModifierStackValue } from '@/modifier/stack/modifier_stack_types.js';
 import { curveEncode } from '@/curve/model/curve_codec.js';
@@ -189,6 +195,36 @@ describe('collaboration of modifier volumes', () => {
     stairs.position.set(0.25, 0, -0.5);
     joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
     expect(replicaObject(joiner, stairs.uuid).position.toArray()).toEqual([0.25, 0, -0.5]);
+  });
+
+  it('syncs a Path object and the edits of its path, but never the line it draws', () => {
+    const { joiner, tracker, model } = volumePair();
+    const path = modifierGeneratorNodeCreate(MODIFIER_STACK_PATH_KIND);
+    path.name = 'Room Wall';
+    model.root.add(path);
+    model.root.updateMatrixWorld(true);
+    modifierStackCompile(model.getBrushes(), model.root);
+    const line = path.children.find((child) => child.userData[MODIFIER_STACK_PATH_LINE_KEY] === true);
+    if (!line) throw new Error('Expected the path line');
+    joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
+    expect(ModifierVolume.read(replicaObject(joiner, path.uuid))).toEqual(ModifierVolume.read(path));
+    expect(joiner.applier.nodes().get(line.uuid)).toBeUndefined();
+    const corner = {
+      points: [
+        [0, 0, 0],
+        [3, 0, 0],
+        [3, 0, 2],
+      ],
+      segments: [{ kind: 'Straight' }, { kind: 'Arc' }],
+      closed: false,
+    };
+    const stack = ModifierVolume.read(path);
+    const step = stack.modifiers[0]!;
+    const parameters = { ...step.parameters, inputs: { Path: JSON.stringify(corner) } };
+    ModifierVolume.write(path, { ...stack, modifiers: [{ ...step, parameters }] });
+    joiner.remoteApply(JSON.parse(JSON.stringify(tracker.commit().ops)));
+    const remote = ModifierVolume.read(replicaObject(joiner, path.uuid)).modifiers[0]!.parameters;
+    expect(modifierStackPathObjectAsset(remote).points).toEqual(corner.points);
   });
 
   it.each([

@@ -5,7 +5,11 @@ import type { ModifierStackStatus } from './modifier_stack_status.js';
 import type { ModifierStackRecords } from './modifier_stack_records.js';
 import type { ModifierStackCapture } from './modifier_stack_authored_bevel.js';
 import type { ModifierStackSharedContext } from './modifier_stack_evaluate.js';
-import { modifierStackFollowPoseKey, modifierStackPoseFollowOf } from './modifier_stack_cache_follow.js';
+import {
+  modifierStackFollowPoseKey,
+  modifierStackPoseFollowOf,
+  modifierStackSceneReadsKey,
+} from './modifier_stack_cache_follow.js';
 
 /** One volume's last evaluation inside one solid. */
 export interface ModifierStackCacheEntry {
@@ -61,9 +65,10 @@ export function modifierStackCachePrune(solidRoot: THREE.Object3D, live: Readonl
 
 /**
  * Describes everything a volume's evaluation depends on: its pose and settings,
- * the solid frame, where generated pieces go, the remaining budget, and every
- * captured brush's pose, shape, surfaces and authored chamfer. A generator node
- * whose output follows a move or turn leaves that part of its pose out.
+ * the solid frame, where generated pieces go, what it reads from elsewhere in
+ * the scene, the remaining budget, and every captured brush's pose, shape,
+ * surfaces and authored chamfer. A generator node whose output follows a move
+ * or turn leaves that part of its pose out.
  *
  * @param capture Volume capture.
  * @param shared Shared context of this compile.
@@ -82,6 +87,7 @@ export function modifierStackCacheSignature(
     JSON.stringify(settings),
     shared.ownsGenerated ? 1 : 0,
     JSON.stringify(slot ?? null),
+    modifierStackSceneReadsKey(capture),
   ];
   const caps = [...capture.caps].map(([id, unit]) => `cap:${id}:${modifierStackCacheUnit(unit, shared)}`);
   return [...head, ...capture.units.map((unit) => modifierStackCacheUnit(unit, shared)), ...caps].join('|');

@@ -13,7 +13,9 @@ import {
 import { modifierStackSolidScriptLayout } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_layout.js';
 import { pathEditSelect } from '@/path/edit/path_edit_selection.js';
 import { solidScriptNoticesPublish } from '@/solid_script/ui/solid_script_notices_channel.js';
-import { pathAssetDecode } from '@/path/model/path_asset.js';
+import { PATH_ASSET_DEFAULT, pathAssetDecode } from '@/path/model/path_asset.js';
+import { pathReferenceRead } from '@/path/model/path_reference.js';
+import { MODIFIER_STACK_PATH_KIND } from '@/modifier/stack/kinds/generator/path/modifier_stack_path_object.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { ModifierStackFieldRows } from '@/modifier/stack/ui/modifier_stack_field_rows.js';
 import {
@@ -97,6 +99,36 @@ describe('SolidScript inspector inputs', () => {
     expect(commandStack.canUndo()).toBe(true);
     pathEditSelect(null);
     expect(point()).toBe('');
+  });
+
+  it('lets a path input follow a Path object picked by name, and keeps its own path to go back to', () => {
+    const { panel, parameters, node } = inputsFixture([
+      { command: 'input', values: { name: 'rail', type: 'Path', label: 'Rail' } },
+    ]);
+    const scenePath = modifierGeneratorNodeCreate(MODIFIER_STACK_PATH_KIND);
+    scenePath.name = 'Room Wall';
+    node.parent?.add(scenePath);
+    const select = panel.querySelector<HTMLSelectElement>('select[aria-label="Rail Follows"]');
+    if (!select) throw new Error('Expected the Follows choice');
+    select.dispatchEvent(new Event('mousedown'));
+    expect([...select.options].map((option) => option.textContent)).toEqual(['Own Path', 'Room Wall']);
+    select.value = 'Room Wall';
+    select.dispatchEvent(new Event('change'));
+    const stored = (): string =>
+      (parameters()[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY] as Record<string, string>)['rail'] ?? '';
+    expect(pathReferenceRead(stored())).toEqual({ scene: 'Room Wall', fallback: PATH_ASSET_DEFAULT });
+    expect(panel.textContent).toContain('Follows the Path object Room Wall');
+    const summaryHidden = (): boolean => {
+      for (let at = panel.querySelector<HTMLElement>('[data-path-summary]'); at; at = at.parentElement)
+        if (at.style.display === 'none') return true;
+      return false;
+    };
+    expect(summaryHidden()).toBe(true);
+    select.value = '';
+    select.dispatchEvent(new Event('change'));
+    expect(summaryHidden()).toBe(false);
+    expect(pathAssetDecode(stored())).toEqual(PATH_ASSET_DEFAULT);
+    expect(pathReferenceRead(stored())).toBeNull();
   });
 
   it('shows a curve input as a curve field and stores the edited curve as text', () => {

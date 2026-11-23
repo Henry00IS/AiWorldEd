@@ -23,6 +23,7 @@ export const MODIFIER_GENERATOR_NODE_KINDS: readonly string[] = [
   'arch',
   'blastHole',
   'solidScript',
+  'path',
 ];
 
 /** Box size of a new generator node, per kind, in meters. */
@@ -44,6 +45,7 @@ const MODIFIER_GENERATOR_NODE_SIZES: Readonly<Record<string, readonly [number, n
   hollowBox: [4, 3, 4],
   curvedStairs: [4, 3, 4],
   solidScript: [2, 2, 2],
+  path: [0.5, 0.5, 0.5],
 };
 
 /**

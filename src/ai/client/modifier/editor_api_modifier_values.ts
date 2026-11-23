@@ -67,7 +67,8 @@ export function modifierParametersPatch(
         `${kind.label} has no parameter "${key}". Parameters: ${fields.map((entry) => entry.key).join(', ')}`,
       );
     if (field.type === 'action') throw new Error(`${key} is a button, not a value; press it with modifier_action_run`);
-    if (field.type === 'widget') throw new Error(`${key} stores nothing; ${field.hint ?? 'it is an inspector row'}`);
+    if (field.type === 'widget' && !field.acceptsText)
+      throw new Error(`${key} stores nothing; ${field.hint ?? 'it is an inspector row'}`);
     next[key] = modifierFieldValueCheck(field, value, resolve, warnings);
   }
   return { parameters: kind.normalizeParameters(next), warnings };

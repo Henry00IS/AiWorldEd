@@ -18,11 +18,11 @@ function parse(markup: string): SVGSVGElement {
 }
 
 describe('generator icons', () => {
-  it('renders every generator kind from its own geometry as theme-coloured shaded faces', () => {
+  it('renders every generator kind from its own geometry as theme-coloured shaded faces, and a Path as a line with points', () => {
     const icons = MODIFIER_GENERATOR_NODE_KINDS.map((kind) => modifierGeneratorIconSvg(kind));
     for (const [index, icon] of icons.entries()) {
       const root = parse(icon);
-      const faces = root.querySelectorAll('polygon');
+      const faces = root.querySelectorAll(MODIFIER_GENERATOR_NODE_KINDS[index] === 'path' ? 'path, circle' : 'polygon');
       expect(faces.length, MODIFIER_GENERATOR_NODE_KINDS[index]).toBeGreaterThanOrEqual(2);
       expect(icon).toContain('currentColor');
       expect(icon).not.toMatch(/#[0-9a-f]{3,6}/i);

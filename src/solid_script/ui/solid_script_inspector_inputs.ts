@@ -1,8 +1,6 @@
 import { modifierStackParametersCommit } from '@/modifier/stack/modifier_stack_parameters_commit.js';
-import { pathEditSelected, pathEditSelectionListen } from '@/path/edit/path_edit_selection.js';
-import { PATH_POINT_PANEL_NONE } from '@/path/ui/path_point_panel.js';
-import { PathField } from '@/path/ui/path_field.js';
-import { pathAssetEncode } from '@/path/model/path_asset.js';
+import { pathInputRow } from '@/path/ui/path_input_row.js';
+import { modifierStackScenePathNames } from '@/modifier/stack/kinds/generator/path/modifier_stack_scene_paths.js';
 import type { ModifierStackActionTarget, ModifierStackWidget } from '@/modifier/stack/modifier_stack_types.js';
 import {
   modifierStackUiCaption,
@@ -111,7 +109,7 @@ export function solidScriptInspectorInputs(
       const built = solidScriptInspectorLayoutRows(
         layout,
         (input, text) => commit({ kind: input.type === 'Button' ? 'button' : 'input', name: input.name }, text),
-        () => targetOf(() => undefined)?.stepId ?? null,
+        () => targetOf(() => undefined),
       );
       rowsHost.replaceChildren(...built.elements);
       writers = built.rowWriters;
@@ -157,14 +155,14 @@ function solidScriptInspectorNoticesFollow(
  *
  * @param layout Rows in line order.
  * @param commit Stores a new value of an input, or presses a button with null.
- * @param stepIdOf Returns the id of the step the rows show, or null.
+ * @param targetNow Returns what the rows act on, or null.
  * @returns Elements in order, how to show each input's value, and how to show
  *   only the rows whose Show Inputs When conditions hold.
  */
 function solidScriptInspectorLayoutRows(
   layout: readonly SolidScriptInputLayoutItem[],
   commit: (input: SolidScriptInput, text: string | null) => void,
-  stepIdOf: () => string | null,
+  targetNow: () => ModifierStackActionTarget | null,
 ): {
   elements: HTMLElement[];
   rowWriters: ((text: string) => void)[];
@@ -191,7 +189,7 @@ function solidScriptInspectorLayoutRows(
     const element =
       item.kind === 'note'
         ? modifierStackUiText('div', item.text, true)
-        : solidScriptInspectorInputRowWritten(item.input, commit, rowWriters, stepIdOf);
+        : solidScriptInspectorInputRowWritten(item.input, commit, rowWriters, targetNow);
     if (item.row === null) {
       row = null;
       elements.push(element);
@@ -226,16 +224,16 @@ function solidScriptInspectorLayoutRows(
  * @param input Input.
  * @param commit Stores a new value of an input, or presses a button with null.
  * @param writers Receives how to show the value, in input order.
- * @param stepIdOf Returns the id of the step the rows show, or null.
+ * @param targetNow Returns what the rows act on, or null.
  * @returns Control element.
  */
 function solidScriptInspectorInputRowWritten(
   input: SolidScriptInput,
   commit: (input: SolidScriptInput, text: string | null) => void,
   writers: ((text: string) => void)[],
-  stepIdOf: () => string | null,
+  targetNow: () => ModifierStackActionTarget | null,
 ): HTMLElement {
-  const control = solidScriptInspectorInputRow(input, (text) => commit(input, text), stepIdOf);
+  const control = solidScriptInspectorInputRow(input, (text) => commit(input, text), targetNow);
   writers.push(control.write);
   return control.element;
 }
@@ -245,13 +243,13 @@ function solidScriptInspectorInputRowWritten(
  *
  * @param input Input.
  * @param commit Stores a new value as text, or presses a button with null.
- * @param stepIdOf Returns the id of the step the row shows, or null.
+ * @param targetNow Returns what the row acts on, or null.
  * @returns Row and how to show a value.
  */
 function solidScriptInspectorInputRow(
   input: SolidScriptInput,
   commit: (text: string | null) => void,
-  stepIdOf: () => string | null,
+  targetNow: () => ModifierStackActionTarget | null,
 ): { element: HTMLElement; write: (text: string) => void } {
   const hint = input.tooltip || `Script input [${input.name}]`;
   if (input.type === 'Button') {
@@ -286,7 +284,16 @@ function solidScriptInspectorInputRow(
     };
   }
   if (input.type === 'Curve') return solidScriptInspectorCurveRow(input, commit, hint);
-  if (input.type === 'Path') return solidScriptInspectorPathRow(input, commit, hint, stepIdOf);
+  if (input.type === 'Path') {
+    return pathInputRow({
+      name: input.name,
+      label: input.label,
+      hint,
+      commit,
+      placeOf: targetNow,
+      scenePathsOf: (place) => modifierStackScenePathNames(place.volume),
+    });
+  }
   if (input.type === 'Texture') {
     const { row, write } = modifierStackTextureRow(
       { key: input.name, label: input.label, type: 'texture', default: '', hint },
@@ -415,38 +422,4 @@ function solidScriptInspectorCurveRow(
   const row = modifierStackUiRow(input.label, field.getElement(), hint);
   row.dataset['solidScriptCurve'] = input.name;
   return { element: row, write };
-}
-
-/**
- * Builds the control of a path input: its summary and file buttons, and the
- * settings of the point of this input selected in the scene. It follows the
- * selection while it is shown.
- *
- * @param input Path input.
- * @param commit Stores a new value as text.
- * @param hint Row tooltip.
- * @param stepIdOf Returns the id of the step the row shows, or null.
- * @returns Row and how to show a value.
- */
-function solidScriptInspectorPathRow(
-  input: SolidScriptInput,
-  commit: (text: string) => void,
-  hint: string,
-  stepIdOf: () => string | null,
-): { element: HTMLElement; write: (text: string) => void } {
-  const field = new PathField({ label: input.label, onCommit: (path) => commit(pathAssetEncode(path)) });
-  const row = modifierStackUiRow(input.label, field.getElement(), hint);
-  row.dataset['solidScriptPath'] = input.name;
-  const follow = (): void => {
-    const picked = pathEditSelected();
-    field.setSelected(picked?.name === input.name && picked.stepId === stepIdOf() ? picked : PATH_POINT_PANEL_NONE);
-  };
-  const stop = pathEditSelectionListen(() => (row.isConnected ? follow() : stop()));
-  return {
-    element: row,
-    write: (text) => {
-      field.setText(text);
-      follow();
-    },
-  };
 }

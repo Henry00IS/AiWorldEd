@@ -25,6 +25,7 @@ import { ModifierStackKindCurvedStairs } from './kinds/generator/primitive/modif
 import { ModifierStackKindSolidScript } from './kinds/generator/solid_script/modifier_stack_kind_solid_script.js';
 import { ModifierStackKindSolidScriptModifier } from './kinds/generator/solid_script/modifier_stack_kind_solid_script_modifier.js';
 import { ModifierStackKindPhysicsShatter } from './kinds/shatter/modifier_stack_kind_physics_shatter.js';
+import { ModifierStackKindPath } from './kinds/generator/path/modifier_stack_kind_path.js';
 import { physicsShatterBakeDecode } from './kinds/shatter/sim/physics_shatter_bake.js';
 
 /** Every installed modifier kind, in add-menu order. */
@@ -47,6 +48,7 @@ export const modifierStackKinds: readonly ModifierStackKind[] = [
   new ModifierStackKindCurvedStairs(),
   new ModifierStackKindSolidScript(),
   new ModifierStackKindSolidScriptModifier(),
+  new ModifierStackKindPath(),
   new ModifierStackKindArrayLinear(),
   new ModifierStackKindArrayRadial(),
   new ModifierStackKindArrayTransform(),

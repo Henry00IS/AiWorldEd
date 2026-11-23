@@ -51,6 +51,7 @@ describe('modifier stack kinds', () => {
       'curvedStairs',
       'solidScript',
       'solidScriptModifier',
+      'path',
       'linear',
       'radial',
       'transform',

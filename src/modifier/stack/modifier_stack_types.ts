@@ -103,6 +103,11 @@ export interface ModifierStackField {
    * stores nothing under its key and edits the stack through its target.
    */
   widget?: (targetOf: (status: (text: string) => void) => ModifierStackActionTarget | null) => ModifierStackWidget;
+  /**
+   * True lets assistants write a widget field's value as text under its key;
+   * the kind's normalizeParameters files it where the widget keeps it.
+   */
+  acceptsText?: boolean;
 }
 
 /** Custom inspector row of a widget field. */
