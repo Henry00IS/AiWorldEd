@@ -5,7 +5,10 @@ import { PhysicsRapierRuntime } from '@/physics/rapier/physics_rapier_runtime.js
 import { playerEyePositionFromFeet } from '@/player/collision/player_capsule_collider.js';
 import { PlayerCollisionWorld } from '@/player/collision/player_collision_world.js';
 import { PlayerGrapple } from '@/player/grapple/player_grapple.js';
-import { PLAYER_GRAPPLE_COOLDOWN_SECONDS } from '@/player/grapple/player_grapple_constants.js';
+import {
+  PLAYER_GRAPPLE_CLIMB_SPEED_METERS_PER_SECOND,
+  PLAYER_GRAPPLE_COOLDOWN_SECONDS,
+} from '@/player/grapple/player_grapple_constants.js';
 import { PlayerGrappleSound } from '@/player/grapple/player_grapple_sound.js';
 import { PlayerLookState } from '@/player/look/player_look_state.js';
 import { PlayerBodyState } from '@/player/movement/player_body_state.js';
@@ -150,6 +153,40 @@ describe('PlayerGrapple', () => {
     expect(highest).toBeGreaterThan(7);
     grapple.release(2);
     for (let step = 0; step < 90; step++) body.update(NO_KEYS, look, world, STEP);
+    expect(body.getIsGrounded()).toBe(true);
+    expect(body.getFeetPosition().y).toBeCloseTo(7, 1);
+    expect(body.getFeetPosition().z).toBeGreaterThan(8);
+  });
+
+  it('climbs a wall face hooked too low for the ledge with Space, over the top after letting go', () => {
+    const hang = scene();
+    hang.grapple.press(...aimAt(hang.look, hang.body, new THREE.Vector3(0, 4.5, 8)), 0);
+    let hangHighest = 0;
+    for (let step = 0; step < 180; step++) {
+      hang.body.update(NO_KEYS, hang.look, hang.world, STEP);
+      hangHighest = Math.max(hangHighest, hang.body.getFeetPosition().y);
+    }
+    expect(hangHighest).toBeLessThan(5);
+    const { body, look, world, grapple } = scene();
+    const climbKeys = {
+      isKeyDown: (key: string) => key === 'Space',
+      isPhysicalKeyDown: (key: string) => key === 'KeyW',
+      isShiftDown: () => false,
+    } as unknown as ManagerInput;
+    grapple.press(...aimAt(look, body, new THREE.Vector3(0, 4.5, 8)), 0);
+    for (let step = 0; step < 60; step++) body.update(NO_KEYS, look, world, STEP);
+    let fastest = 0;
+    let step = 0;
+    for (; step < 300 && body.getFeetPosition().y < 7.1; step++) {
+      body.update(climbKeys, look, world, STEP);
+      fastest = Math.max(fastest, body.getVerticalVelocity());
+    }
+    expect(body.getFeetPosition().y).toBeGreaterThan(7.1);
+    expect(fastest).toBeLessThanOrEqual(PLAYER_GRAPPLE_CLIMB_SPEED_METERS_PER_SECOND + 1e-6);
+    grapple.release(1 + step * STEP);
+    for (let after = 0; after < 120; after++) {
+      body.update(body.getFeetPosition().z < 8.6 ? climbKeys : NO_KEYS, look, world, STEP);
+    }
     expect(body.getIsGrounded()).toBe(true);
     expect(body.getFeetPosition().y).toBeCloseTo(7, 1);
     expect(body.getFeetPosition().z).toBeGreaterThan(8);

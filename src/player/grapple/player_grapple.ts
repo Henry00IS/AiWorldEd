@@ -20,6 +20,7 @@ import {
   PLAYER_GRAPPLE_RANGE_METERS,
 } from './player_grapple_constants.js';
 import {
+  playerGrappleClimb,
   playerGrappleOffset,
   playerGrapplePull,
   playerGrappleTarget,
@@ -59,6 +60,11 @@ export class PlayerGrapple implements PlayerBodyPull {
   private anchor: THREE.Vector3 | null = null;
   private readonly target = new THREE.Vector3();
   private yankOwed = false;
+  /**
+   * Whether the hook is on a wall, ledge or floor (not a ceiling), so Space
+   * climbs past it.
+   */
+  private climbable = false;
   private releasedAt = Number.NEGATIVE_INFINITY;
   private fovKick = 0;
   private baseFov: number | null = null;
@@ -108,6 +114,7 @@ export class PlayerGrapple implements PlayerBodyPull {
     }
     this.anchor = hit.point.clone();
     this.ledgeTarget(hit.point, hit.normal) ?? playerGrappleTarget(hit.point, hit.normal, this.target);
+    this.climbable = hit.normal.y > -PLAYER_MIN_WALKABLE_NORMAL_Y;
     this.yankOwed = true;
     this.beam.hook(this.anchor);
     this.sound.hook();
@@ -150,21 +157,36 @@ export class PlayerGrapple implements PlayerBodyPull {
     return this.anchor;
   }
 
-  /** @inheritdoc */
-  pull(feet: THREE.Vector3, velocity: THREE.Vector3, grounded: boolean, deltaSeconds: number): boolean {
+  /**
+   * Pulls toward the target; climbing (Space held) also lifts the body, and on
+   * a wall or ledge the rope then lets it rise past the target (it still holds
+   * it to the wall), so it can climb over the top. Under a ceiling the rope
+   * holds as ever.
+   *
+   * @inheritdoc
+   */
+  pull(
+    feet: THREE.Vector3,
+    velocity: THREE.Vector3,
+    grounded: boolean,
+    climbing: boolean,
+    deltaSeconds: number,
+  ): boolean {
     if (!this.anchor) return false;
     playerGrappleOffset(feet, this.target, this.offset);
     if (this.yankOwed) playerGrappleYank(velocity, this.offset, grounded);
     this.yankOwed = false;
+    if (climbing && this.climbable) this.offset.y = Math.max(0, this.offset.y);
     playerGrapplePull(velocity, this.offset, this.look.copyLookForwardTo(this.aim), deltaSeconds);
+    if (climbing) velocity.y = playerGrappleClimb(velocity.y, deltaSeconds);
     return true;
   }
 
   /**
    * Draws the beam from the hand (in front of the first-person camera, or the
    * character's right hand), plays the sounds there, follows the speed with the
-   * hum and widens the view
-   * at speed. Call after the camera and the character were placed.
+   * hum and widens the view at speed. Call after the camera and the character
+   * were placed.
    *
    * @param camera Play camera.
    * @param hand Character's right hand in third person, or null in first

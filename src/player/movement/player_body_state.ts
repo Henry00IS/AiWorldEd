@@ -26,9 +26,11 @@ import {
 } from './player_movement_input.js';
 import type { ManagerInput } from '@/input/manager_input.js';
 import {
+  PLAYER_GRAPPLE_CLIMB_AFTER_RELEASE_SECONDS,
   PLAYER_GRAPPLE_FLIGHT_DRAG_PER_SECOND,
   PLAYER_GRAPPLE_WALL_FRICTION_PER_SECOND,
 } from '@/player/grapple/player_grapple_constants.js';
+import { playerGrappleClimb } from '@/player/grapple/player_grapple_physics.js';
 
 /** Something pulling the body, such as the grapple beam. */
 export interface PlayerBodyPull {
@@ -38,10 +40,17 @@ export interface PlayerBodyPull {
    * @param feet Feet position.
    * @param velocity Body velocity (changed).
    * @param grounded Whether the body stands on the ground.
+   * @param climbing Whether Space is held (climb while pulled).
    * @param deltaSeconds Step in seconds.
    * @returns True while pulling.
    */
-  pull(feet: THREE.Vector3, velocity: THREE.Vector3, grounded: boolean, deltaSeconds: number): boolean;
+  pull(
+    feet: THREE.Vector3,
+    velocity: THREE.Vector3,
+    grounded: boolean,
+    climbing: boolean,
+    deltaSeconds: number,
+  ): boolean;
 }
 
 /** Live play-mode body transform, velocity, and facing. */
@@ -62,6 +71,8 @@ export class PlayerBodyState {
   private lockedYawRadians: number | null = null;
   private puller: PlayerBodyPull | null = null;
   private isPulled = false;
+  /** Seconds the climb still lifts after the pull ended with Space held. */
+  private climbRemaining = 0;
   private wantsRun: boolean;
   private readonly horizontalDelta: THREE.Vector3;
   private readonly scratchForward: THREE.Vector3;
@@ -119,6 +130,7 @@ export class PlayerBodyState {
     this.facingYawRadians = facingYawRadians;
     this.wantsRun = false;
     this.isPulled = false;
+    this.climbRemaining = 0;
     playerCollisionForgetSafeFeet(this.collisionScratch);
     this.isGrounded = playerCollisionIsStandingOnGround(world, this.feetPosition);
   }
@@ -287,14 +299,21 @@ export class PlayerBodyState {
 
   /**
    * Lets the puller change the velocity; while pulled the body is airborne and
-   * never snapped to the ground.
+   * never snapped to the ground. Space held climbs, and keeps lifting a moment
+   * after letting go, so the body clears the ledge it climbed to.
    *
    * @param deltaSeconds Frame delta.
    */
   private applyPull(deltaSeconds: number): void {
     const velocity = this.scratchVelocity.copy(this.horizontalVelocity).setY(this.verticalVelocity);
-    this.isPulled = this.puller?.pull(this.feetPosition, velocity, this.isGrounded, deltaSeconds) ?? false;
-    if (!this.isPulled) return;
+    const climbing = this.jumpWasHeld;
+    this.isPulled = this.puller?.pull(this.feetPosition, velocity, this.isGrounded, climbing, deltaSeconds) ?? false;
+    if (!this.isPulled) {
+      this.climbRemaining = climbing && !this.isGrounded ? Math.max(0, this.climbRemaining - deltaSeconds) : 0;
+      if (this.climbRemaining > 0) this.verticalVelocity = playerGrappleClimb(this.verticalVelocity, deltaSeconds);
+      return;
+    }
+    this.climbRemaining = climbing ? PLAYER_GRAPPLE_CLIMB_AFTER_RELEASE_SECONDS : 0;
     this.horizontalVelocity.set(velocity.x, 0, velocity.z);
     this.verticalVelocity = velocity.y;
     this.isGrounded = false;

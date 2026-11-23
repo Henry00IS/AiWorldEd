@@ -110,6 +110,21 @@ export const PLAYER_GRAPPLE_FLIGHT_DRAG_PER_SECOND = 0.15;
  */
 export const PLAYER_GRAPPLE_WALL_FRICTION_PER_SECOND = 6;
 
+/**
+ * Upward push (m/s²) while Space is held on the beam; gravity still pulls, so
+ * it lifts gently, to climb up a wall and over its ledge.
+ */
+export const PLAYER_GRAPPLE_CLIMB_METERS_PER_SECOND_SQUARED = 26;
+
+/** Fastest the climb lifts the body (m/s). */
+export const PLAYER_GRAPPLE_CLIMB_SPEED_METERS_PER_SECOND = 3;
+
+/**
+ * Seconds the climb keeps lifting after letting go of the beam (Space still
+ * held).
+ */
+export const PLAYER_GRAPPLE_CLIMB_AFTER_RELEASE_SECONDS = 0.3;
+
 /** Field of view added at full flight speed. */
 export const PLAYER_GRAPPLE_FOV_KICK_DEGREES = 12;
 
@@ -162,7 +177,10 @@ export const PLAYER_GRAPPLE_VOLUME = { own: 0.27 * Math.SQRT2, others: 0.162 * M
 /** Distance from the player within which the grapple sounds play at full level. */
 export const PLAYER_GRAPPLE_FALLOFF_FULL_METERS = 4;
 
-/** Distance from the player where the grapple sounds fall silent (linear in between). */
+/**
+ * Distance from the player where the grapple sounds fall silent (linear in
+ * between).
+ */
 export const PLAYER_GRAPPLE_FALLOFF_SILENT_METERS = 20;
 
 /** Hum frequency at rest. */

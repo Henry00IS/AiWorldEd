@@ -10,6 +10,8 @@ import {
   PLAYER_GRAPPLE_BRAKE_METERS_PER_SECOND_SQUARED,
   PLAYER_GRAPPLE_CEILING_CLEARANCE_METERS,
   PLAYER_GRAPPLE_CLEARANCE_METERS,
+  PLAYER_GRAPPLE_CLIMB_METERS_PER_SECOND_SQUARED,
+  PLAYER_GRAPPLE_CLIMB_SPEED_METERS_PER_SECOND,
   PLAYER_GRAPPLE_HANG_DAMPING_PER_SECOND,
   PLAYER_GRAPPLE_LEDGE_LIFT_METERS,
   PLAYER_GRAPPLE_MAX_SPEED_METERS_PER_SECOND,
@@ -122,4 +124,21 @@ export function playerGrapplePull(
   const limit = Math.min(PLAYER_GRAPPLE_MAX_SPEED_METERS_PER_SECOND, stoppable);
   const speed = velocity.length();
   if (speed > limit) velocity.multiplyScalar(limit / speed);
+}
+
+/**
+ * Returns the vertical speed after one step of climbing (Space held on the
+ * beam): a gentle push up, never past the climb speed (a faster rise is left
+ * alone).
+ *
+ * @param verticalSpeed Vertical speed.
+ * @param deltaSeconds Step in seconds.
+ * @returns New vertical speed.
+ */
+export function playerGrappleClimb(verticalSpeed: number, deltaSeconds: number): number {
+  if (verticalSpeed >= PLAYER_GRAPPLE_CLIMB_SPEED_METERS_PER_SECOND) return verticalSpeed;
+  return Math.min(
+    PLAYER_GRAPPLE_CLIMB_SPEED_METERS_PER_SECOND,
+    verticalSpeed + PLAYER_GRAPPLE_CLIMB_METERS_PER_SECOND_SQUARED * deltaSeconds,
+  );
 }

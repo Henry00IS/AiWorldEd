@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import {
   PLAYER_GRAPPLE_CEILING_CLEARANCE_METERS,
   PLAYER_GRAPPLE_CLEARANCE_METERS,
+  PLAYER_GRAPPLE_CLIMB_METERS_PER_SECOND_SQUARED,
+  PLAYER_GRAPPLE_CLIMB_SPEED_METERS_PER_SECOND,
   PLAYER_GRAPPLE_MAX_SPEED_METERS_PER_SECOND,
   PLAYER_GRAPPLE_PULL_METERS_PER_SECOND_SQUARED,
   PLAYER_GRAPPLE_PULL_PER_METER,
@@ -14,6 +16,7 @@ import {
   PLAYER_GRAPPLE_YANK_METERS_PER_SECOND,
 } from '@/player/grapple/player_grapple_constants.js';
 import {
+  playerGrappleClimb,
   playerGrappleOffset,
   playerGrapplePull,
   playerGrappleTarget,
@@ -88,6 +91,15 @@ describe('player grapple physics', () => {
     expect(12 - head).toBeGreaterThan(PLAYER_GRAPPLE_CLEARANCE_METERS + PLAYER_GRAPPLE_SLACK_METERS);
     const eye = result.position.y - PLAYER_CAPSULE_CENTER_ABOVE_FEET_METERS + PLAYER_EYE_HEIGHT_METERS;
     expect(12 - eye).toBeGreaterThan(1);
+  });
+
+  it('climbs gently: pushes up to the climb speed, never past it, and leaves a faster rise alone', () => {
+    expect(playerGrappleClimb(0, 0.1)).toBeCloseTo(PLAYER_GRAPPLE_CLIMB_METERS_PER_SECOND_SQUARED * 0.1, 6);
+    expect(playerGrappleClimb(PLAYER_GRAPPLE_CLIMB_SPEED_METERS_PER_SECOND - 0.01, 0.1)).toBe(
+      PLAYER_GRAPPLE_CLIMB_SPEED_METERS_PER_SECOND,
+    );
+    expect(playerGrappleClimb(9, 0.1)).toBe(9);
+    expect(PLAYER_GRAPPLE_CLIMB_METERS_PER_SECOND_SQUARED).toBeLessThan(2 * PLAYER_GRAVITY_METERS_PER_SECOND_SQUARED);
   });
 
   it('yanks toward the anchor and always lifts off the ground', () => {
