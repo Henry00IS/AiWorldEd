@@ -282,6 +282,7 @@ export abstract class ViewportLayoutCore {
         onViewportDisposed: (viewport) => this.onDetachedViewportDisposed(viewport),
         onPopupWindowReady: (popup) => this.keyboardShortcutHandler?.registerOnWindow(popup),
         onPopupWindowClosed: (popup) => this.keyboardShortcutHandler?.unregisterFromWindow(popup),
+        beforeRender: () => this.beforeFrameRender(),
         prepareViewportPass: (viewport) => {
           this.cadRulerSystem.prepareForCamera(viewport.getCamera());
           this.prepareDetachedGizmoBoundsScreenSpace(viewport);
@@ -1556,6 +1557,16 @@ export abstract class ViewportLayoutCore {
 
   /** @returns Toolbar action callback bundle for the shell builder. */
   protected abstract createToolbarShellActionsBundle(): import('@/layout/shell/builder_editor_shell.js').EditorToolbarActions;
+
+  /**
+   * Places the screen overlays that follow the cameras (CAD ruler labels, tool
+   * widgets) right before a window draws. Shared by the main window loop and
+   * every detached window so overlays move in the same frame as the camera.
+   */
+  protected beforeFrameRender(): void {
+    this.cadRulerSystem.refreshLabelProjection();
+    this.toolEditorSystem?.editorWindow.onRepaint();
+  }
 
   /** Binds the shared render loop to live viewports and coordinators. */
   protected abstract bindRenderLoop(): void;

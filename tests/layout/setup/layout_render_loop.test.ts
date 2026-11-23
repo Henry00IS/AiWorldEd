@@ -100,6 +100,28 @@ describe('LayoutRenderLoop', () => {
     expect(endCameraPass).toHaveBeenCalled();
   });
 
+  it('runs the before-render work with the camera matrices of this frame', async () => {
+    loop = new LayoutRenderLoop();
+    const viewport = createViewportMock();
+    const camera = new THREE.PerspectiveCamera();
+    (viewport as unknown as { getCamera: () => THREE.Camera }).getCamera = () => camera;
+    const cameraFitCoordinator = {
+      updateAnimations: () => camera.position.set(5, 0, 0),
+    } as unknown as CoordinatorCameraFit;
+    const seen: number[] = [];
+    loop.bind({
+      getActiveViewports: () => [viewport],
+      cameraFitCoordinator,
+      clipPlaneHandler: null,
+      onBeforeRender: () => seen.push(new THREE.Vector3(5, 0, 0).applyMatrix4(camera.matrixWorldInverse).x),
+      multiViewComposer: { render: vi.fn() } as unknown as MultiViewComposer,
+      sharedScene: { getScene: () => new THREE.Scene() } as unknown as SharedWorldScene,
+    });
+    loop.start();
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+    expect(seen[0]).toBeCloseTo(0, 6);
+  });
+
   it('reuses the same multi-view pass objects and hooks across frames', async () => {
     loop = new LayoutRenderLoop();
     const visible = createViewportMock();

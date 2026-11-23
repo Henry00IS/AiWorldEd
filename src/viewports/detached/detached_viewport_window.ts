@@ -254,6 +254,7 @@ export class DetachedViewportWindow {
       onViewportDisposed: (viewport) => this.hooks.onViewportDisposed?.(viewport),
       onPopupWindowReady: (popup, sessionId) => this.hooks.onPopupWindowReady?.(popup, sessionId),
       onPopupWindowClosed: (popup, sessionId) => this.hooks.onPopupWindowClosed?.(popup, sessionId),
+      beforeRender: () => this.hooks.beforeRender?.(),
       prepareViewportPass: (viewport) => this.hooks.prepareViewportPass?.(viewport),
       finalizeViewportPass: (viewport) => this.hooks.finalizeViewportPass?.(viewport),
       onDetachArea: (kind) => this.open({ initialKind: kind }),

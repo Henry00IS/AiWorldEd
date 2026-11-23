@@ -6,6 +6,7 @@ import type { ViewportEditor } from '@/viewports/core/viewport_editor.js';
 import { isPerspectiveViewport } from '@/viewports/core/viewport_editor.js';
 import { SharedWebGLSurface } from '@/viewports/shared/shared_webgl_surface.js';
 import { MultiViewComposer, type MultiViewPanePass } from '@/viewports/core/multi_view_composer.js';
+import { viewportFrameCamerasSync } from '@/viewports/core/viewport_frame_cameras.js';
 import { disposeEditorViewport } from '@/viewports/core/viewport_dispose.js';
 import { applyDetachedWindowFavicon, embedDetachedWindowFaviconDataUrl } from './detached_window_favicon.js';
 import { DETACHED_HOST_WATCH_INTERVAL_MS, isDetachedHostGone } from './detached_host_liveness.js';
@@ -71,6 +72,14 @@ export interface DetachedViewportSessionHooks {
    * @param sessionId Stable id of the closed session.
    */
   onSessionClosed?: (sessionId: string) => void;
+
+  /**
+   * Invoked once per popup frame after the cameras moved and before any pane
+   * draws, matching the main window loop's before-render work (CAD ruler
+   * labels, tool widgets) so overlays follow this window's camera in the same
+   * frame.
+   */
+  beforeRender?: () => void;
 
   /**
    * Invoked immediately before drawing a detached pane, matching the main
@@ -578,6 +587,8 @@ export class DetachedViewportSession {
     visible.forEach((viewport) => {
       if (isPerspectiveViewport(viewport)) viewport.update(delta);
     });
+    viewportFrameCamerasSync(visible);
+    this.hooks.beforeRender?.();
     this.multiViewComposer.render(
       this.renderSource.getScene(),
       visible.map((viewport) => this.buildPanePass(viewport)),

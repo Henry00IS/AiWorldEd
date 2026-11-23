@@ -6,6 +6,7 @@ import type { CoordinatorEditorOrientation } from '@/navigation/orientation/coor
 import { HandlerClipPlane } from '@/tools/clip_plane/handler_clip_plane.js';
 import type { HandlerGridOrientation } from '@/tools/grid/handler_grid_orientation.js';
 import { MultiViewComposer, type MultiViewPanePass } from '@/viewports/core/multi_view_composer.js';
+import { viewportFrameCamerasSync } from '@/viewports/core/viewport_frame_cameras.js';
 import type { SharedWorldScene } from '@/viewports/shared/shared_world_scene.js';
 import type { CadRulerSystem } from '@/rulers/system/cad_ruler_system.js';
 import type { GizmoTransform } from '@/transform/gizmo/gizmo_transform.js';
@@ -220,6 +221,7 @@ export class LayoutRenderLoop {
     this.updatePerspectiveViewports(activeViewports, delta);
     this.cameraFitCoordinator?.updateAnimations();
     this.editorOrientationCoordinator?.updateAnimations();
+    viewportFrameCamerasSync(activeViewports);
     this.onBeforeRender?.();
     this.updateClipPreviewScales(activeViewports);
     this.gridOrientationHandler?.updatePreviewScreenScales();

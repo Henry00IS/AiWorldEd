@@ -269,6 +269,39 @@ describe('DetachedViewportWindow', () => {
     detached.dispose();
   });
 
+  it('runs the host frame work in every popup frame before drawing, with the camera of this frame', () => {
+    const { fakeWindow } = createFakePopup();
+    vi.spyOn(window, 'open').mockReturnValue(fakeWindow);
+    const order: string[] = [];
+    let seenX = Number.NaN;
+    let frameCallback: FrameRequestCallback | null = null;
+    (fakeWindow.requestAnimationFrame as ReturnType<typeof vi.fn>).mockImplementation(
+      (callback: FrameRequestCallback) => {
+        frameCallback = callback;
+        return 1;
+      },
+    );
+    const detached = new DetachedViewportWindow({
+      createSurface: createMockSurface,
+      hooks: {
+        beforeRender: () => {
+          order.push('before');
+          const camera = detached.getViewport()!.getCamera();
+          seenX = new THREE.Vector3().applyMatrix4(camera.matrixWorld).x;
+        },
+        prepareViewportPass: () => order.push('prepare'),
+      },
+    });
+    detached.setRenderSource({ getScene: () => new THREE.Scene() });
+    expect(detached.open()).toBe(true);
+    detached.getViewport()!.getCamera().position.x += 7;
+    const expected = detached.getViewport()!.getCamera().position.x;
+    frameCallback!(performance.now());
+    expect(order).toEqual(['before', 'prepare']);
+    expect(seenX).toBeCloseTo(expected, 6);
+    detached.dispose();
+  });
+
   it('styles the popup workspace with the shared main window host chrome and separator', () => {
     const { fakeWindow, body } = createFakePopup();
     vi.spyOn(window, 'open').mockReturnValue(fakeWindow);

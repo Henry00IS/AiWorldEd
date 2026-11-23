@@ -1148,10 +1148,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
       cadRulerSystem: this.cadRulerSystem,
       transformGizmo: this.transformGizmo,
       transformHandler: this.transformHandler,
-      onBeforeRender: () => {
-        this.cadRulerSystem.refreshLabelProjection();
-        this.toolEditorSystem?.editorWindow.onRepaint();
-      },
+      onBeforeRender: () => this.beforeFrameRender(),
       multiViewComposer: this.multiViewComposer,
       sharedScene: this.sharedWorldScene,
     });
