@@ -39,6 +39,19 @@ function solidScriptTextureNumber(
 }
 
 /**
+ * Measures how far a coordinate lies from the nearest edge of its cell along
+ * one axis: the cell part is wrapped to 0..1 and folded about its middle.
+ *
+ * @param coordinate Coordinate.
+ * @param size Cell size.
+ * @returns Distance to the nearest cell edge.
+ */
+function solidScriptTextureEdgeDistance(coordinate: number, size: number): number {
+  const part = coordinate / size - Math.floor(coordinate / size);
+  return size * (0.5 - Math.abs(part - 0.5));
+}
+
+/**
  * Measures distance to the nearest joint of a staggered rectangular grid.
  *
  * @param position Scaled coordinates.
@@ -50,12 +63,29 @@ function solidScriptTextureBrickCell(position: readonly number[], args: SolidScr
   const height = solidScriptTextureNumber(args, 6, 0.25, 'Brick');
   const offset = solidScriptTextureNumber(args, 7, 0.5, 'Brick');
   if (width <= 0 || height <= 0) throw new Error('Brick needs Width and Height greater than 0');
-  const row = Math.floor((position[1] ?? 0) / height);
-  const horizontal = (position[0] ?? 0) + (row % 2 === 0 ? offset * width : 0);
-  const column = Math.floor(horizontal / width);
-  const x = horizontal - column * width;
-  const y = (position[1] ?? 0) - row * height;
-  return [Math.min(x, width - x, y, height - y), column, row];
+  const y = position[1] ?? 0;
+  const row = Math.floor(y / height);
+  const x = (position[0] ?? 0) + (row % 2 === 0 ? offset * width : 0);
+  const distance = Math.min(solidScriptTextureEdgeDistance(x, width), solidScriptTextureEdgeDistance(y, height));
+  return [distance, Math.floor(x / width), row];
+}
+
+/**
+ * Gives how much mortar lies at a distance from the nearest joint: full up to
+ * the solid core of the gap, none from Mortar on, and an S-shaped fall in
+ * between whose width is Smooth's share of the gap.
+ *
+ * @param distance Distance to the nearest joint.
+ * @param mortar Gap size.
+ * @param smooth Share of the gap that fades, from 0 to 1.
+ * @returns Mortar amount from 0 to 1.
+ */
+function solidScriptTextureMortar(distance: number, mortar: number, smooth: number): number {
+  const core = mortar * (1 - smooth);
+  if (distance >= mortar) return 0;
+  if (distance <= core) return 1;
+  const fall = (distance - core) / (mortar - core);
+  return solidScriptMemberRound(1 - fall * fall * (3 - 2 * fall));
 }
 
 /**
@@ -76,10 +106,7 @@ function solidScriptTextureBrick(args: SolidScriptTextureArgs): number {
   const mortar = solidScriptTextureNumber(args, 4, 0.02, 'Brick');
   const smooth = solidScriptTextureNumber(args, 8, 0.1, 'Brick');
   if (mortar < 0 || smooth < 0 || smooth > 1) throw new Error('Brick needs Mortar >= 0 and Smooth from 0 to 1');
-  if (distance >= mortar) return 0;
-  if (smooth === 0) return 1;
-  const blend = Math.min(1, (1 - distance / mortar) / smooth);
-  return solidScriptMemberRound(blend * blend * (3 - 2 * blend));
+  return solidScriptTextureMortar(distance, mortar, smooth);
 }
 
 /**

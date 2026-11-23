@@ -7,7 +7,7 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_TEXTURE = {
   brick: {
     usage: 'Brick(position, scale, seed, output, mortar, width, height, offset, smooth)',
     summary: solidScriptFunctionDocSummary(
-      'A wall of bricks laid in rows across X and Y, with Scale multiplying the position. Output Mortar (the default) is 1 on the gaps between bricks and 0 inside them; Tint is one random value from 0 to 1 per brick, changed by Seed. Mortar is the gap size (0.02), Width and Height the brick size (0.5 by 0.25), Offset how far every other row shifts, as part of a brick (0.5), and Smooth how softly the gap fades into the brick, from 0 to 1 (0.1).',
+      'A wall of bricks laid in rows across X and Y, with Scale multiplying the position. Output Mortar (the default) is 1 on the gaps between bricks and 0 inside them; Tint is one random value from 0 to 1 per brick, changed by Seed. Mortar is the gap size (0.02), Width and Height the brick size (0.5 by 0.25), Offset how far every other row shifts, as part of a brick (0.5), and Smooth the share of the gap that fades softly into the brick, from 0 to 1 (0.1).',
       [
         'Brick(Vector(0, 0.125, 0)) is 0.',
         'Brick(Vector(0, 0.25, 0)) is 1.',
