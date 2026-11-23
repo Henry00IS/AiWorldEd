@@ -31,7 +31,7 @@ import {
 import { PLAYER_CHARACTER_ROOM_TINT, playerCharacterApplyRoomTint } from '@/player/character/player_character_tint.js';
 import { playerCharacterCopyRightHand } from '@/player/character/player_character_rig.js';
 import { PlayerGrappleBeam } from '@/player/grapple/player_grapple_beam.js';
-import { PLAYER_GRAPPLE_REMOTE_VOLUME } from '@/player/grapple/player_grapple_constants.js';
+import { PLAYER_GRAPPLE_VOLUME } from '@/player/grapple/player_grapple_constants.js';
 import { PlayerGrappleSound } from '@/player/grapple/player_grapple_sound.js';
 import { playerGrappleHand } from '@/player/grapple/player_grapple.js';
 
@@ -170,7 +170,7 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
       },
       helperRemove: (object) => this.object.remove(object),
     });
-    this.beamSound = new PlayerGrappleSound(undefined, PLAYER_GRAPPLE_REMOTE_VOLUME);
+    this.beamSound = new PlayerGrappleSound(undefined, PLAYER_GRAPPLE_VOLUME.others);
     this.object.add(this.body, this.tag.sprite);
     presenceCollaborationTag(this.object);
     this.bodyLoad(model);

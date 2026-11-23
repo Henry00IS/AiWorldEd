@@ -58,7 +58,7 @@ export class PlayerGrappleSound {
    */
   constructor(
     private readonly context: PlayerGrappleAudioContext = playerGrappleEditorContext,
-    private readonly volume = PLAYER_GRAPPLE_VOLUME,
+    private readonly volume: number = PLAYER_GRAPPLE_VOLUME.own,
   ) {}
 
   /**
