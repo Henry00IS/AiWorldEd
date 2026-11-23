@@ -11,6 +11,7 @@ export const SOLID_SCRIPT_FUNCTION_INPUTS_LEFT_OFF: Readonly<Record<string, numb
   variance: 1,
   principal_axes: 1,
   matrix_svd: 1,
+  accumulate: 2,
   first: 1,
   last: 1,
   checker: 1,

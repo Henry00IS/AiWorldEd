@@ -95,17 +95,69 @@ function solidScriptShapingRemap(args: readonly SolidScriptValue[]): number {
   return clamp ? Math.min(Math.max(toLow, toHigh), Math.max(Math.min(toLow, toHigh), mapped)) : mapped;
 }
 
+/** How to call Accumulate, for messages. */
+const SOLID_SCRIPT_SHAPING_ACCUMULATE_USAGE = 'Accumulate(list, groups, output)';
+
+/** What Accumulate gives for each item. */
+const SOLID_SCRIPT_SHAPING_ACCUMULATE_OUTPUTS = ['Leading', 'Trailing', 'Total'] as const;
+
 /**
- * Running sums of a list of numbers.
+ * Reads Accumulate's items as numbers or vectors, each as its parts.
  *
- * @param args The list.
- * @returns Sum up to and including each item.
+ * @param value The list.
+ * @returns Parts of every item, and whether the items are vectors.
  */
-function solidScriptShapingAccumulate(args: readonly SolidScriptValue[]): number[] {
-  const numbers = Array.isArray(args[0]) ? solidScriptValueNumbers(args[0]) : undefined;
-  if (!numbers) throw new Error(`Accumulate(list) needs a list of numbers, not ${solidScriptValueText(args[0])}`);
-  let total = 0;
-  return numbers.map((value) => (total += value));
+function solidScriptShapingAccumulateItems(value: SolidScriptValue): { items: number[][]; vectors: boolean } {
+  const list = Array.isArray(value) ? value : undefined;
+  const vectors = Array.isArray(list?.[0]);
+  const items = list?.map((item) => (vectors ? solidScriptValueNumbers(item) : solidScriptValueNumbers([item])));
+  if (!items?.every((item) => item?.length === (vectors ? 3 : 1)))
+    throw new Error(
+      `${SOLID_SCRIPT_SHAPING_ACCUMULATE_USAGE} needs a list of numbers or vectors, not ${solidScriptValueText(value)}`,
+    );
+  return { items: items as number[][], vectors };
+}
+
+/**
+ * Reads the group key of every item: one group for all when Groups is empty.
+ *
+ * @param value Groups.
+ * @param count Number of items.
+ * @returns Key per item.
+ */
+function solidScriptShapingAccumulateGroups(value: SolidScriptValue | undefined, count: number): string[] {
+  const groups = Array.isArray(value) ? value : [];
+  if (groups.length === 0) return Array.from({ length: count }, () => '');
+  if (groups.length !== count)
+    throw new Error(`${SOLID_SCRIPT_SHAPING_ACCUMULATE_USAGE} needs one group per item in Groups, or none`);
+  return groups.map((group) => solidScriptValueText(group));
+}
+
+/**
+ * Sums of a list of numbers or vectors, within each group in list order:
+ * Leading up to and including each item, Trailing before it, or the Total.
+ *
+ * @param args The list, optional Groups and optional Output.
+ * @returns A sum per item.
+ */
+function solidScriptShapingAccumulate(args: readonly SolidScriptValue[]): SolidScriptValue[] {
+  const { items, vectors } = solidScriptShapingAccumulateItems(args[0]);
+  const keys = solidScriptShapingAccumulateGroups(args[1], items.length);
+  const output = solidScriptValueText(args[2] ?? 'Leading');
+  if (!SOLID_SCRIPT_SHAPING_ACCUMULATE_OUTPUTS.some((name) => name === output))
+    throw new Error(`${SOLID_SCRIPT_SHAPING_ACCUMULATE_USAGE} needs Output Leading, Trailing or Total, not ${output}`);
+  const add = (a: number[], b: number[]): number[] => a.map((part, axis) => part + (b[axis] ?? 0));
+  const zero = (items[0] ?? [0]).map(() => 0);
+  const totals = new Map<string, number[]>();
+  for (const [index, key] of keys.entries()) totals.set(key, add(totals.get(key) ?? zero, items[index] ?? zero));
+  const running = new Map<string, number[]>();
+  const sums = items.map((item, index) => {
+    const key = keys[index] ?? '';
+    const before = running.get(key) ?? zero;
+    running.set(key, add(before, item));
+    return output === 'Total' ? (totals.get(key) ?? zero) : output === 'Trailing' ? before : add(before, item);
+  });
+  return sums.map((sum) => (vectors ? sum : (sum[0] ?? 0)));
 }
 
 /**

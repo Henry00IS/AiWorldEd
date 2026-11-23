@@ -55,14 +55,17 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_SHAPING = {
     perAxis: true,
   },
   accumulate: {
-    usage: 'Accumulate(list)',
+    usage: 'Accumulate(list, groups, output)',
     summary: solidScriptFunctionDocSummary(
-      'Running sums of a list: each item becomes the total of itself and everything before it. The last item is the same as Sum.',
-      ['Accumulate(List(1, 2, 3)) is List(1, 3, 6).', 'Accumulate(List()) is List().'],
-      'Use it to stack steps of different heights, or to place planks of different widths side by side.',
+      'Running sums of a list of numbers or vectors: each item becomes the total of itself and everything before it. Groups gives a group per item, so each group is summed on its own in list order. Output Leading (the default) includes the item, Trailing gives the sum before it, and Total gives the whole sum of its group.',
+      [
+        'Accumulate(List(1, 2, 3)) is List(1, 3, 6).',
+        'Accumulate(List(1, 2, 3, 4), List(0, 0, 1, 1), "Total") is List(3, 3, 7, 7).',
+      ],
+      'Use it to stack steps of different heights, or to place planks side by side in rows of their own.',
     ),
     group: 'List',
-    gives: ['Number List'],
+    gives: ['List'],
   },
   rotate_euler: {
     usage: 'RotateEuler(vector, angles)',
@@ -247,8 +250,21 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_MATRIX = {
   },
 } as const satisfies Partial<Record<SolidScriptBuiltinName, SolidScriptFunctionDoc>>;
 
-/** Inputs of the waves and the checkerboard that mean something of their own. */
+/**
+ * Inputs of the waves, the checkerboard and Accumulate that mean something of
+ * their own.
+ */
 export const SOLID_SCRIPT_SHAPING_WAVE_ARGUMENTS = {
+  accumulate: {
+    list: { type: ['List'], about: 'Numbers or vectors to sum, such as List(1, 2, 3).', start: 'List(1, 2, 3)' },
+    groups: { type: ['List'], about: 'A group per item, such as each face tag; empty sums all together.' },
+    output: {
+      type: ['Text'],
+      about: 'Leading, Trailing or Total.',
+      choices: ['Leading', 'Trailing', 'Total'],
+      default: 'Leading',
+    },
+  },
   saw: { value: { type: ['Number', 'Vector'], about: 'A number, or a vector to work on per axis.', start: '0.5' } },
   triangle: {
     value: { type: ['Number', 'Vector'], about: 'A number, or a vector to work on per axis.', start: '0.5' },
