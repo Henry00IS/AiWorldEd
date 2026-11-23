@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { solidScriptDocumentCreate } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
+import { SOLID_SCRIPT_FUNCTIONS_GABOR } from '@/solid_script/language/solid_script_functions_gabor.js';
 
 /**
  * Evaluates one formula and returns what Echo prints, or the error.
@@ -51,6 +52,19 @@ describe('Gabor', () => {
   it('runs its stripes along Orientation when Anisotropy is 1', () => {
     expect(formula(`Gabor(${AT}, 5, 2, 1, Vector(1, 0, 0)) == Gabor(${AT}, 5, 2, 1, Vector(0, 1, 0))`)).toBe('No');
     expect(formula(`Gabor(${AT}, 5, 2, 1, Vector(2, 0, 0)) == Gabor(${AT}, 5, 2, 1, Vector(1, 0, 0))`)).toBe('Yes');
+  });
+
+  it('keeps nearly every Value between 0 and 1, spread well around a half', () => {
+    const values = Array.from({ length: 2000 }, (_, i) =>
+      SOLID_SCRIPT_FUNCTIONS_GABOR.gabor([
+        [Math.sin(i * 12.9) * 40, Math.sin(i * 78.2) * 30, Math.sin(i * 39.4) * 20],
+        1,
+      ]),
+    );
+    const spread = Math.sqrt(values.reduce((sum, value) => sum + (value - 0.5) ** 2, 0) / values.length);
+    expect(values.filter((value) => value < 0 || value > 1).length / values.length).toBeLessThan(0.03);
+    expect(spread).toBeGreaterThan(0.12);
+    expect(spread).toBeLessThan(0.2);
   });
 
   it('stops on a position that is not a vector and an Output it does not know', () => {
