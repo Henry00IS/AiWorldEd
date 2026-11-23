@@ -9,7 +9,7 @@ import {
 import { SOLID_SCRIPT_WIDGET_COMMAND_PREFIX } from '@/solid_script/language/solid_script_widget.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import { solidScriptNameWords } from '@/solid_script/language/solid_script_name_words.js';
-import { SOLID_SCRIPT_WIDGET_COLOR_WORDS, solidScriptWidgetColor } from './solid_script_widget_color.js';
+import { solidScriptColorRead, solidScriptParameterColor } from './solid_script_color_field.js';
 
 /** Id of the Widget Slider command. */
 export const SOLID_SCRIPT_COMMAND_WIDGET_SLIDER = `${SOLID_SCRIPT_WIDGET_COMMAND_PREFIX}slider`;
@@ -48,7 +48,7 @@ function solidScriptWidgetSliderRun(run: SolidScriptBlockRun): [] {
     direction: direction.toArray(),
     min: solidScriptWidgetLimit(run, 'min'),
     max: solidScriptWidgetLimit(run, 'max'),
-    color: solidScriptWidgetColor(run),
+    color: solidScriptColorRead(run),
   });
   return [];
 }
@@ -113,15 +113,9 @@ export const SOLID_SCRIPT_COMMANDS_WIDGETS: readonly SolidScriptCommand[] = [
         'text',
         'Name beside the handle, such as Height. Left off, the name in Writes is shown in words, so BoxWidth shows Box Width.',
       ),
-      {
-        ...solidScriptParameterOptional(
-          'color',
-          'Color',
-          'text',
-          'Colour of the handle and its line, a name such as Orange or a hex colour such as #ff8800. Left off, the theme colour.',
-        ),
-        words: SOLID_SCRIPT_WIDGET_COLOR_WORDS,
-      },
+      solidScriptParameterColor(
+        'Colour of the handle and its line, a name such as Orange or a hex colour such as #ff8800. Left off, the theme colour.',
+      ),
     ],
     listing: (read) => [
       'Widget Slider',

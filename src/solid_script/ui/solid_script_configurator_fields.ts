@@ -39,6 +39,7 @@ import {
 } from '@/solid_script/commands/solid_script_command_each.js';
 import { solidScriptParameterTakesDirection } from '@/solid_script/commands/solid_script_parameter_direction.js';
 import { textureSelectCreate } from '@/texture/ui/texture_select.js';
+import { solidScriptConfiguratorColorAttach } from './solid_script_configurator_color.js';
 import { solidScriptSuggestionSelectedWords, type SolidScriptSuggestionScope } from './solid_script_suggestions.js';
 import {
   solidScriptChoiceWordProblem,
@@ -382,7 +383,8 @@ function solidScriptConfiguratorInputs(
   const placeholder = solidScriptParameterPlaceholder(parameter);
   if (placeholder !== '') input.placeholder = placeholder;
   if (parameter.texture === true) return solidScriptConfiguratorTexture(input, parameter, inputs);
-  inputs.append(input);
+  if (parameter.color === true) solidScriptConfiguratorColorAttach(input, inputs);
+  else inputs.append(input);
   const read = () =>
     parameter.verbatim === true || parameter.spaces === true ? input.value : solidScriptFieldTrim(input.value);
   return { read, problem: () => solidScriptConfiguratorProblem(parameter, input.value) };

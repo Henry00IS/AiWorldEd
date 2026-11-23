@@ -191,6 +191,11 @@ export interface SolidScriptCommandParameter {
    */
   direction?: boolean;
   /**
+   * True for a colour: the window shows a colour picker beside the text, which
+   * takes a colour name, a hex colour or a [variable].
+   */
+  color?: boolean;
+  /**
    * Name groups of the script the field offers, such as Brushes and Parts for
    * Of, Inputs for Show Inputs When or Parts for Output.
    */

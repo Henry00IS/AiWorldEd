@@ -128,6 +128,7 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
   guides: 'solid-script-editor-guides',
   settingsGroup: 'solid-script-editor-settings-group',
   fieldFormula: 'solid-script-editor-field-formula',
+  colorSwatch: 'solid-script-editor-color-swatch',
   formulaBody: 'solid-script-editor-formula-body',
   formulaText: 'solid-script-editor-formula-text',
   codeTip: 'solid-script-editor-code-tip',
@@ -375,6 +376,7 @@ const SOLID_SCRIPT_EDITOR_DIALOG_CSS = `
 .${c.field}[hidden] { display: none; }
 .${c.fieldFormula} { flex: 0 0 auto; width: 26px; height: 26px; padding: 0; border-radius: ${SOLID_SCRIPT_EDITOR_INPUT_RADIUS}; border: 1px solid ${ThemeCss.inkAlpha(0.16)}; background: ${ThemeCss.inkAlpha(0.06)}; color: ${ThemeCss.textColor}; font: inherit; cursor: pointer; }
 .${c.fieldFormula}:hover { background: ${ThemeCss.inkAlpha(0.12)}; }
+.${c.colorSwatch} { flex: 0 0 auto; width: 26px; height: 26px; padding: 1px; border-radius: ${SOLID_SCRIPT_EDITOR_INPUT_RADIUS}; border: 1px solid ${ThemeCss.inkAlpha(0.16)}; background: ${ThemeCss.inputBackground}; cursor: pointer; }
 .${c.formulaBody} { display: flex; flex: 1 1 0; min-height: 0; margin-bottom: 10px; }
 .${c.formulaBody} > .${c.palette} { flex-shrink: 0; border: 1px solid ${ThemeCss.separatorColor}; border-radius: 5px; }
 .${c.formulaBody} > .${c.linesHost} { flex: 1; min-width: 0; border: 1px solid ${ThemeCss.separatorColor}; border-radius: 5px; overflow: hidden; }

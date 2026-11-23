@@ -68,7 +68,7 @@ describe('Widget Slider', () => {
     const colored = (color: string) =>
       run([HEIGHT, { command: 'widget_slider', values: { shows: '[Height]', writes: 'Height', color } }]);
     expect(colored('Orange').widgets[0]?.color).toBe('#ff8c1a');
-    expect(colored('#3A8').widgets[0]?.color).toBe('#3a8');
+    expect(colored('#3A8').widgets[0]?.color).toBe('#33aa88');
     expect(colored('[="Blue"]').widgets[0]?.color).toBe('#3d8fd6');
     expect(colored('sparkly').error?.message).toContain('Color needs a colour such as Orange or #ff8800');
   });
