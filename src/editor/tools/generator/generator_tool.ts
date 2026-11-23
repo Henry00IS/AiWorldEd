@@ -1,5 +1,6 @@
 import { Tool } from '../tool.js';
 import type { GeneratorEditHost } from './generator_edit_host.js';
+import { GeneratorPathWidget } from './generator_path_widget.js';
 import { GeneratorSliderWidget } from './generator_slider_widget.js';
 
 /**
@@ -13,12 +14,16 @@ export class GeneratorTool extends Tool {
   private press: { x: number; y: number } | null = null;
   /** Slider handles of the edited object. */
   private readonly sliders = new GeneratorSliderWidget();
+  /** Paths of the edited object. */
+  private readonly paths = new GeneratorPathWidget();
 
   /** Called when the tool is activated. */
   override onActivate(): void {
     this.host()?.setEditing(true);
     this.editor?.addWidget(this.sliders);
-    this.editor?.getServices()?.setStatusMessage('Generator · Esc Returns to Bounds');
+    this.editor?.addWidget(this.paths);
+    const pathHint = this.host()?.paths().length ? ' · Ctrl+Click Adds a Point · Del Removes It' : '';
+    this.editor?.getServices()?.setStatusMessage(`Generator${pathHint} · Esc Returns to Bounds`);
   }
 
   /** Called when the tool is deactivated. */
@@ -68,12 +73,14 @@ export class GeneratorTool extends Tool {
   }
 
   /**
-   * Returns to the Bounds tool on Escape.
+   * Lets the paths use Escape and Delete first, then returns to the Bounds tool
+   * on Escape.
    *
    * @param keyCode Key code string.
    * @returns True when the key was handled.
    */
   override onKeyDown(keyCode: string): boolean {
+    if (this.paths.onKeyDown(keyCode)) return true;
     if (keyCode !== 'Escape' || !this.editor) return false;
     this.editor.userSwitchToBoundsTool();
     return true;

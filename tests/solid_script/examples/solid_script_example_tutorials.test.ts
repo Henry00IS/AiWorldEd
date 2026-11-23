@@ -54,6 +54,7 @@ const COVERAGE: Readonly<Record<string, string>> = {
   Random: 'pebbles',
   'Path From Points': 'roundedRail',
   'Sweep Along Path': 'roundedRail',
+  'Path Input': 'baseboard',
   'Grid Mesh': 'hillyFloor',
   Displace: 'hillyFloor',
   Noise: 'hillyFloor',

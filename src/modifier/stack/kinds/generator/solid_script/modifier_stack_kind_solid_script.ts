@@ -5,6 +5,7 @@ import {
   modifierStackSlidersRecord,
 } from '@/modifier/stack/widgets/modifier_stack_slider_record.js';
 import * as THREE from 'three';
+import { modifierStackPathsRecord } from '@/modifier/stack/widgets/modifier_stack_path_record.js';
 import {
   MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY,
   MODIFIER_STACK_SOLID_SCRIPT_KEY,
@@ -231,13 +232,15 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
     context: ModifierStackContext,
     use: SolidScriptUseFacts,
   ): { units: ModifierStackUnit[]; passed: ModifierStackSolidScriptPassed[] } {
+    const document = solidScriptDocumentNormalize(parameters[MODIFIER_STACK_SOLID_SCRIPT_KEY]);
+    const inputs = parameters[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY] as Record<string, string>;
     const layout = modifierStackSolidScriptLayout(
-      solidScriptDocumentNormalize(parameters[MODIFIER_STACK_SOLID_SCRIPT_KEY]),
+      document,
       parameters['placement'] as ModifierStackSolidScriptPlacement,
       box,
       this.pieceOperation(parameters),
       solidScriptDebugStepLimit(context.volume, context.step.id),
-      parameters[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY] as Record<string, string>,
+      inputs,
       use,
       modifierStackSolidScriptBoxValues(context.volume, box),
     );
@@ -249,6 +252,7 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
       context.step.id,
       modifierStackSlidersPlaced(context.step.id, scriptToWorld, modifierStackSlidersOfScript(layout.widgets)),
     );
+    modifierStackPathsRecord(context.volume, context.step.id, document, inputs, scriptToWorld);
     if (context.ownsGenerated) for (const mesh of layout.meshes) context.meshes?.push({ ...mesh, frame });
     const count = modifierStackSolidScriptBrushCount(layout.nodes);
     if (context.budget.takeCopies(1, count) < count) {

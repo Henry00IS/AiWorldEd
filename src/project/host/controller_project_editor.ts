@@ -37,6 +37,9 @@ const CONTROLLER_PROJECT_EDITOR_MODEL_KINDS: ReadonlySet<ProjectFileKind> = new 
 export const CONTROLLER_PROJECT_EDITOR_CURVE_HINT =
   'Drag a .aicurve file onto a curve field, such as a Column profile.';
 
+/** Explains what to do with a path file. */
+export const CONTROLLER_PROJECT_EDITOR_PATH_HINT = "Drag a .aipath file onto a SolidScript generator's Path input.";
+
 /** Explains what to do with a SolidScript file. */
 export const CONTROLLER_PROJECT_EDITOR_SCRIPT_HINT =
   "Drag a .aiscript file onto a SolidScript generator's Script row, or into its script editor.";
@@ -317,6 +320,7 @@ export class ControllerProjectEditor {
     if (record.kind === 'texture') return this.host.textureSelect(record.path);
     if (record.kind === 'curve') return this.statusShow(CONTROLLER_PROJECT_EDITOR_CURVE_HINT);
     if (record.kind === 'script') return this.statusShow(CONTROLLER_PROJECT_EDITOR_SCRIPT_HINT);
+    if (record.kind === 'path') return this.statusShow(CONTROLLER_PROJECT_EDITOR_PATH_HINT);
     if (this.project.suspendedReason() !== null) return this.statusShow(CONTROLLER_PROJECT_EDITOR_ROOM_NOTICE);
     await this.opener.open(record, placement);
   }

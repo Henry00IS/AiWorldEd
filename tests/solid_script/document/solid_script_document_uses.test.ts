@@ -78,4 +78,12 @@ describe('Has Edit Mode', () => {
     const off = { ...slider, blocks: slider.blocks.map((block) => ({ ...block, off: true as const })) };
     expect(solidScriptDocumentEditModeAfter(plain, off).editMode).toBeUndefined();
   });
+
+  it('turns on when an edit adds a Path input, whose points are drawn in the scene', () => {
+    const path = solidScriptDocumentCreate([{ command: 'input', values: { name: 'rail', type: 'Path' } }], 'Rail');
+    const number = solidScriptDocumentCreate([{ command: 'input', values: { name: 'rail', type: 'Number' } }], 'Rail');
+    expect(solidScriptDocumentEditModeAfter(plain, path).editMode).toBe(true);
+    expect(solidScriptDocumentEditModeAfter(number, path).editMode).toBe(true);
+    expect(solidScriptDocumentEditModeAfter(plain, number).editMode).toBeUndefined();
+  });
 });

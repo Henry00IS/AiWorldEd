@@ -12,6 +12,7 @@ export const SOLID_SCRIPT_INPUT_TYPES = [
   'Curve',
   'Texture',
   'Vector',
+  'Path',
 ] as const;
 
 /**
@@ -28,6 +29,7 @@ export const SOLID_SCRIPT_INPUT_TYPE_DETAILS: Readonly<Record<SolidScriptInputTy
   Curve: 'A curve editor',
   Texture: 'A texture picker',
   Vector: 'An X, Y, Z field',
+  Path: 'A path drawn in the scene',
 };
 
 /**
@@ -44,6 +46,7 @@ export const SOLID_SCRIPT_INPUT_KINDS: Readonly<Record<SolidScriptInputType, str
   Curve: 'Text',
   Texture: 'Text',
   Vector: 'Vector',
+  Path: 'Path',
 };
 
 /** Id of the Input command. */
@@ -227,6 +230,7 @@ const SOLID_SCRIPT_INPUT_TYPE_LABELS: Readonly<Record<string, string>> = {
   Button: 'Button',
   Curve: 'Curve',
   Texture: 'Texture',
+  Path: 'Path',
 };
 
 /**

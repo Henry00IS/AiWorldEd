@@ -11,6 +11,8 @@ import {
   MODIFIER_STACK_SOLID_SCRIPT_KIND,
 } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
 import { modifierStackSolidScriptLayout } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_layout.js';
+import { pathEditSelect } from '@/path/edit/path_edit_selection.js';
+import { pathAssetDecode } from '@/path/model/path_asset.js';
 import { SolidOperation } from '@/solid/types/solid_operation.js';
 import { ModifierStackFieldRows } from '@/modifier/stack/ui/modifier_stack_field_rows.js';
 import {
@@ -71,10 +73,31 @@ function inputsFixture(lines: SolidScriptLine[]) {
       current[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY] as Record<string, string>,
     ).nodes.length;
   };
-  return { panel, rows, commandStack, parameters, solids };
+  return { panel, rows, commandStack, parameters, solids, stepId: first.id };
 }
 
 describe('SolidScript inspector inputs', () => {
+  it('shows a path input with the point selected in the scene, and stores a typed position as one undo step', () => {
+    const { panel, parameters, commandStack, stepId } = inputsFixture([
+      { command: 'input', values: { name: 'rail', type: 'Path', label: 'Rail' } },
+    ]);
+    const point = (): string => panel.querySelector('[data-path-point]')?.textContent ?? 'missing';
+    expect(point()).toBe('');
+    pathEditSelect({ stepId: 'other', name: 'rail', point: 1 });
+    expect(point()).toBe('');
+    pathEditSelect({ stepId, name: 'rail', point: 1 });
+    expect(point()).toContain('Point 2 of 2');
+    const x = panel.querySelector<HTMLInputElement>('[aria-label="Point X"]');
+    if (!x) throw new Error('Expected Point X');
+    x.value = '3';
+    x.dispatchEvent(new Event('change'));
+    const stored = (parameters()[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY] as Record<string, string>)['rail'] ?? '';
+    expect(pathAssetDecode(stored)?.points[1]).toEqual([3, 0, 0]);
+    expect(commandStack.canUndo()).toBe(true);
+    pathEditSelect(null);
+    expect(point()).toBe('');
+  });
+
   it('shows a curve input as a curve field and stores the edited curve as text', () => {
     const { panel, parameters } = inputsFixture([
       { command: 'input', values: { name: 'profile', type: 'Curve', default: '', label: 'Profile' } },

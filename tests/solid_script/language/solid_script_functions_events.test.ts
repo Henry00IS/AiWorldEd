@@ -452,3 +452,30 @@ describe('Offset', () => {
     expect(Math.max(...grown.map(([, y]) => y))).toBeCloseTo(3.2, 5);
   });
 });
+
+describe('Path inputs', () => {
+  const rail = (values: Record<string, string> = {}) => line('input', { name: 'rail', type: 'Path', ...values });
+  const drawn = JSON.stringify({
+    points: [
+      [0, 0, 0],
+      [2, 0, 0],
+      [2, 0, 2],
+    ],
+    segments: [{ kind: 'Straight' }, { kind: 'Arc', degrees: 180, axis: [0, 1, 0] }],
+    closed: false,
+  });
+
+  it('give the variable the Path drawn in the scene, its arcs exact, or a two metre line by default', () => {
+    const given = runWith({ inputs: { rail: drawn } }, rail(), echo('[rail.Length] [rail.Closed]'));
+    expect(given.error).toBeNull();
+    const [length, closed] = (given.messages[0] ?? '').split(' ');
+    expect(Number(length)).toBeGreaterThan(2 + Math.PI - 0.005);
+    expect(Number(length)).toBeLessThan(2 + Math.PI);
+    expect(closed).toBe('No');
+    expect(run(rail(), echo('[rail.Points]')).messages).toEqual(['[[-1, 0, 0], [1, 0, 0]]']);
+  });
+
+  it('fall back to the Default on text that holds no path', () => {
+    expect(runWith({ inputs: { rail: 'nonsense' } }, rail(), echo('[rail.Length]')).messages).toEqual(['2']);
+  });
+});

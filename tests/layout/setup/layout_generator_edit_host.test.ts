@@ -8,6 +8,8 @@ import { PolicyEditorOverlay } from '@/tools/overlay/policy_editor_overlay.js';
 import { CommandStack } from '@/commands/command_stack.js';
 import { SolidModel } from '@/solid/model/solid_model.js';
 import { modifierStackCompile } from '@/modifier/stack/evaluate/modifier_stack_compile.js';
+import { PATH_ASSET_DEFAULT, pathAssetDecode } from '@/path/model/path_asset.js';
+import { pathAssetPointMove } from '@/path/model/path_asset_edit.js';
 import { GridSnap } from '@/transform/snap/grid_snap.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierStackParametersRead } from '@/modifier/stack/modifier_stack_parameters_commit.js';
@@ -123,10 +125,39 @@ describe('layoutGeneratorEditHostCreate', () => {
     host.slide(heightSlider(stepId), 3);
     expect(inputs()).toEqual({ Height: '3' });
     expect(commandStack.canUndo()).toBe(false);
-    host.slideEnd();
+    host.changeEnd();
     expect(inputs()).toEqual({ Height: '3' });
     commandStack.undo();
     expect(inputs()).toEqual({ Height: '1' });
+    expect(commandStack.canUndo()).toBe(false);
+  });
+
+  it('lists the Path inputs of the edited object and writes a moved point as one undo step', () => {
+    const model = new SolidModel('Rail');
+    const node = modifierGeneratorNodeCreate('solidScript');
+    const settings = ModifierVolume.read(node);
+    const step = settings.modifiers[0];
+    if (!step) throw new Error('no step');
+    const script = solidScriptDocumentCreate([{ command: 'input', values: { name: 'Rail', type: 'Path' } }]);
+    step.parameters['script'] = solidScriptDocumentEditModeWith(script, true);
+    ModifierVolume.write(node, settings);
+    model.root.add(node);
+    model.root.updateMatrixWorld(true);
+    modifierStackCompile(model.getBrushes(), model.root);
+    const { host, selectionManager, commandStack } = setup([]);
+    selectionManager.setSelection([node]);
+    const [rail] = host.paths();
+    if (!rail) throw new Error('no path');
+    expect(rail.path).toEqual(PATH_ASSET_DEFAULT);
+    const stored = () =>
+      String((modifierStackParametersRead(node, step.id)?.['inputs'] as Record<string, string>)?.['Rail']);
+    host.pathWrite(rail, pathAssetPointMove(rail.path, 1, [2, 0, 0]));
+    host.pathWrite(rail, pathAssetPointMove(rail.path, 1, [3, 0, 0]));
+    host.changeEnd();
+    expect(pathAssetDecode(stored())?.points[1]).toEqual([3, 0, 0]);
+    expect(host.paths()[0]?.path.points[1]).toEqual([3, 0, 0]);
+    commandStack.undo();
+    expect(stored()).toBe('undefined');
     expect(commandStack.canUndo()).toBe(false);
   });
 
@@ -143,7 +174,7 @@ describe('layoutGeneratorEditHostCreate', () => {
     if (!landing) throw new Error('no landing handle');
     const read = () => modifierStackParametersRead(node, landing.stepId)?.['landing'];
     host.slide(landing, 0.25);
-    host.slideEnd();
+    host.changeEnd();
     expect(read()).toBe(0.25);
     expect(host.sliders().find((slider) => slider.label === 'Landing')?.value).toBeCloseTo(0.25);
     commandStack.undo();
@@ -155,7 +186,7 @@ describe('layoutGeneratorEditHostCreate', () => {
     const { host, selectionManager, commandStack } = setup([]);
     selectionManager.setSelection([node]);
     host.slide(heightSlider(stepId), 4);
-    host.slideCancel();
+    host.changeCancel();
     expect(modifierStackParametersRead(node, stepId)?.['inputs']).toEqual({ Height: '1' });
     expect(commandStack.canUndo()).toBe(false);
   });

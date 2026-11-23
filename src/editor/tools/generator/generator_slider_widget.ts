@@ -60,30 +60,11 @@ export class GeneratorSliderWidget extends Widget {
         element.textContent = `${slider.label} ${generatorSliderValueText(slider.value)}`;
         element.dataset['dragging'] = String(this.drag?.key === slider.key);
         shown.add(element);
-        shown.add(this.rulerPlace(pane, slider));
+        shown.add(this.rulers.line(pane, slider.key, slider.origin, generatorSliderHandle(slider)));
       }
     }
     this.handles.hideOthers(shown);
     this.rulers.hideOthers(shown);
-  }
-
-  /**
-   * Lays a ruler line from a slider's zero point to its handle.
-   *
-   * @param pane Pane.
-   * @param slider Slider.
-   * @returns Ruler element.
-   */
-  private rulerPlace(pane: EditorViewportPickContext, slider: ModifierStackSlider): HTMLElement {
-    const from = widgetScreenProject(slider.origin, pane);
-    const to = widgetScreenProject(generatorSliderHandle(slider), pane);
-    const element = this.rulers.get(pane.pickElement, slider.key);
-    element.hidden = !from.visible || !to.visible;
-    element.style.left = `${from.x}px`;
-    element.style.top = `${from.y}px`;
-    element.style.width = `${Math.hypot(to.x - from.x, to.y - from.y)}px`;
-    element.style.transform = `rotate(${Math.atan2(to.y - from.y, to.x - from.x)}rad)`;
-    return element;
   }
 
   /**
@@ -174,7 +155,7 @@ export class GeneratorSliderWidget extends Widget {
   private slideFinish(host: GeneratorEditHost, key: string, written: number | null): void {
     const slider = host.sliders().find((each) => each.key === key);
     if (slider && written !== null && slider.value !== written) host.slide(slider, slider.value);
-    host.slideEnd();
+    host.changeEnd();
   }
 
   /**
@@ -186,13 +167,13 @@ export class GeneratorSliderWidget extends Widget {
   override onKeyDown(keyCode: string): boolean {
     if (keyCode !== 'Escape' || !this.drag) return false;
     this.dragStop();
-    this.host()?.slideCancel();
+    this.host()?.changeCancel();
     return true;
   }
 
   /** Cancels a drag and hides the handles when the tool is left. */
   override onDeactivate(): void {
-    if (this.drag) this.host()?.slideCancel();
+    if (this.drag) this.host()?.changeCancel();
     this.dragStop();
     this.entry.close();
     this.handles.hideOthers(new Set());

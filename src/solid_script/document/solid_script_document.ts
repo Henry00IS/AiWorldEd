@@ -170,20 +170,31 @@ export function solidScriptDocumentEditModeWith(document: SolidScriptDocument, o
 }
 
 /**
- * Counts the Widget lines of a script that run.
+ * Counts the lines of a script that run and are edited in the scene: Widget
+ * lines and Path inputs.
  *
  * @param document Script.
  * @returns Count.
  */
-function solidScriptDocumentWidgetCount(document: SolidScriptDocument): number {
-  return document.blocks.filter((block) => !block.off && block.command.startsWith(SOLID_SCRIPT_WIDGET_COMMAND_PREFIX))
-    .length;
+function solidScriptDocumentSceneEditedCount(document: SolidScriptDocument): number {
+  return document.blocks.filter((block) => !block.off && solidScriptDocumentEditedInScene(block)).length;
 }
 
 /**
- * Turns Has Edit Mode on when an edit gives a script a Widget line it did not
- * run before, so its widgets can be reached; turning it off again sticks until
- * the next Widget line.
+ * Returns whether a line is edited in the scene: a Widget line or a Path input.
+ *
+ * @param block Line.
+ * @returns True for such a line.
+ */
+function solidScriptDocumentEditedInScene(block: SolidScriptDocument['blocks'][number]): boolean {
+  if (block.command.startsWith(SOLID_SCRIPT_WIDGET_COMMAND_PREFIX)) return true;
+  return block.command === 'input' && String(block.values?.['type'] ?? '').trim() === 'Path';
+}
+
+/**
+ * Turns Has Edit Mode on when an edit gives a script a Widget line or a Path
+ * input it did not run before, so they can be reached in the scene; turning it
+ * off again sticks until the next such line.
  *
  * @param before Script before the edit.
  * @param after Script the edit stores.
@@ -193,7 +204,8 @@ export function solidScriptDocumentEditModeAfter(
   before: SolidScriptDocument,
   after: SolidScriptDocument,
 ): SolidScriptDocument {
-  if (after.editMode || solidScriptDocumentWidgetCount(after) <= solidScriptDocumentWidgetCount(before)) return after;
+  if (after.editMode || solidScriptDocumentSceneEditedCount(after) <= solidScriptDocumentSceneEditedCount(before))
+    return after;
   return solidScriptDocumentEditModeWith(after, true);
 }
 

@@ -37,6 +37,7 @@ import {
   SOLID_SCRIPT_PART_DEPTH_MAX,
 } from '@/solid_script/language/solid_script_machine_calls.js';
 import { solidScriptInputBrushesBuild } from '@/solid_script/language/solid_script_input_brushes.js';
+import { solidScriptInputPath } from '@/solid_script/language/solid_script_input_path.js';
 import { solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
 
 /** Fields of an Input line. */
@@ -110,9 +111,9 @@ const SOLID_SCRIPT_INPUT_COMMAND = new SolidScriptCommand({
   category: 'Inputs',
   description: 'Add a setting to the inspector',
   manual:
-    "Adds a setting to the inspector, like the settings of a built-in generator. Lines read it as a variable, such as [Width], but cannot change it. Until someone changes it, it has the Default value. Type picks the control: Number, Count (whole numbers), Switch (Yes or No), Text, Choice, Button, Curve, Texture or Vector. A Number, Count or Vector can have a Minimum and Maximum; a Vector's apply to each of its x, y and z. A Number or Count with both gets a slider beside its field. A Choice lists its Choices. A Button runs When Button Pressed. A Curve opens the curve editor; read it with curve_at or profile_points, and a Number Default is a flat line at that height. A Texture picks a library texture by name for a Texture block; an empty Default keeps the generator's texture. A Vector shows X, Y and Z fields on one row and gives one value, such as 1, 2, 3 for a Cube of size [Size]. Example: Input Steps, Count, Default 8. Then Repeat [I] From 1 To [Steps] builds that many steps.",
+    "Adds a setting to the inspector, like the settings of a built-in generator. Lines read it as a variable, such as [Width], but cannot change it. Until someone changes it, it has the Default value. Type picks the control: Number, Count (whole numbers), Switch (Yes or No), Text, Choice, Button, Curve, Texture, Vector or Path. A Number, Count or Vector can have a Minimum and Maximum; a Vector's apply to each of its x, y and z. A Number or Count with both gets a slider beside its field. A Choice lists its Choices. A Button runs When Button Pressed. A Curve opens the curve editor; read it with curve_at or profile_points, and a Number Default is a flat line at that height. A Texture picks a library texture by name for a Texture block; an empty Default keeps the generator's texture. A Vector shows X, Y and Z fields on one row and gives one value, such as 1, 2, 3 for a Cube of size [Size]. A Path is drawn in the scene: click Edit on the object, Ctrl+Click to add points and drag them; it gives a Path for Sweep Along Path and the other Path lines, and the inspector shows the picked point's position and stretch. Example: Input Steps, Count, Default 8. Then Repeat [I] From 1 To [Steps] builds that many steps.",
   stops: [
-    'A Type that is not Number, Count, Switch, Text, Choice, Button, Curve, Texture or Vector.',
+    'A Type that is not Number, Count, Switch, Text, Choice, Button, Curve, Texture, Vector or Path.',
     'A value outside Minimum and Maximum, a Count with decimals, a Vector that is not three numbers, or a Choice that is not listed.',
     'A second Input with the same name, or a name a line above already sets.',
   ],
@@ -123,7 +124,7 @@ const SOLID_SCRIPT_INPUT_COMMAND = new SolidScriptCommand({
     ' (',
     read.value('type'),
     // A curve's text is long and unreadable; the inspector shows it.
-    ...(['Button', 'Curve'].includes(read.text('type').trim()) ? [')'] : [') = ', read.value('default')]),
+    ...(['Button', 'Curve', 'Path'].includes(read.text('type').trim()) ? [')'] : [') = ', read.value('default')]),
     ...solidScriptListingOptions([
       read.text('min') !== '' && ['Min ', read.value('min')],
       read.text('max') !== '' && ['Max ', read.value('max')],
@@ -135,6 +136,10 @@ const SOLID_SCRIPT_INPUT_COMMAND = new SolidScriptCommand({
       Object.fromEntries(SOLID_SCRIPT_INPUT_PARAMETERS.map((field) => [field.key, run.text(field.key)])),
     );
     const given = run.inputValue(input.name);
+    if (input.type === 'Path') {
+      run.inputDefine(input.name, solidScriptInputPath(run, given ?? input.fallback));
+      return [];
+    }
     let value: SolidScriptValue;
     try {
       value = solidScriptInputValue(input, given ?? input.fallback);

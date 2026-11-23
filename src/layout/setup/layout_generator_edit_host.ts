@@ -10,10 +10,11 @@ import {
 import type { ModifierStackSettings } from '@/modifier/stack/modifier_stack_types.js';
 import {
   modifierStackEditSteps,
+  modifierStackPathPatch,
+  modifierStackPaths,
   modifierStackSliderPatch,
   modifierStackSliders,
 } from '@/modifier/stack/widgets/modifier_stack_sliders.js';
-import type { ModifierStackSlider } from '@/modifier/stack/widgets/modifier_stack_slider_record.js';
 import type { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { EditorOverlayId } from '@/tools/overlay/editor_overlay_id.js';
 import type { PolicyEditorOverlay } from '@/tools/overlay/policy_editor_overlay.js';
@@ -64,12 +65,18 @@ export function layoutGeneratorEditHostCreate(deps: LayoutGeneratorEditHostDeps)
     panes: () => layoutGeneratorEditPanes(deps),
     pickEditable: (clientX, clientY) => layoutGeneratorEditPick(deps, clientX, clientY),
     setEditing: (editing) => layoutGeneratorEditOverlays(deps, editing),
-    sliders: () => layoutGeneratorEditSliders(selected()),
+    sliders: () => layoutGeneratorEditOf(selected(), modifierStackSliders),
     snapDistance: (distance) =>
       editSnapDistanceToGrid(distance, deps.gridSnap.getInterval(), deps.gridSnap.isEnabled()),
-    slide: (slider, value) => layoutGeneratorEditSlide(drag, selected(), slider, value),
-    slideEnd: () => layoutGeneratorEditSlideEnd(drag, deps.commandStack),
-    slideCancel: () => layoutGeneratorEditSlideCancel(drag),
+    paths: () => layoutGeneratorEditOf(selected(), modifierStackPaths),
+    slide: (slider, value) =>
+      layoutGeneratorEditWrite(drag, selected(), slider.stepId, (owner) =>
+        slider.writes === '' ? null : modifierStackSliderPatch(owner, slider, value),
+      ),
+    pathWrite: (path, asset) =>
+      layoutGeneratorEditWrite(drag, selected(), path.stepId, (owner) => modifierStackPathPatch(owner, path, asset)),
+    changeEnd: () => layoutGeneratorEditChangeEnd(drag, deps.commandStack),
+    changeCancel: () => layoutGeneratorEditChangeCancel(drag),
   };
 }
 
@@ -86,13 +93,14 @@ function layoutGeneratorEditPick(deps: LayoutGeneratorEditHostDeps, clientX: num
 }
 
 /**
- * Returns the sliders of an object, or none without one.
+ * Returns what an object shows in its edit mode, or nothing without one.
  *
  * @param owner Object, or null.
- * @returns Sliders.
+ * @param read Reads the items of an object.
+ * @returns Items.
  */
-function layoutGeneratorEditSliders(owner: THREE.Object3D | null): ModifierStackSlider[] {
-  return owner ? modifierStackSliders(owner) : [];
+function layoutGeneratorEditOf<T>(owner: THREE.Object3D | null, read: (owner: THREE.Object3D) => T[]): T[] {
+  return owner ? read(owner) : [];
 }
 
 /**
@@ -108,26 +116,25 @@ function layoutGeneratorEditOverlays(deps: LayoutGeneratorEditHostDeps, editing:
 }
 
 /**
- * Writes one live value of a drag, remembering the stack before its first move.
+ * Writes one live change, remembering the stack before the first one.
  *
- * @param drag Drag in progress.
- * @param drag.current Current drag, or null.
+ * @param drag Change in progress.
+ * @param drag.current Current change, or null.
  * @param owner Selected object.
- * @param slider Slider being dragged.
- * @param value Value to write.
+ * @param stepId Step the change writes.
+ * @param patchOf Returns the parameter patch, or null for nothing to write.
  */
-function layoutGeneratorEditSlide(
+function layoutGeneratorEditWrite(
   drag: { current: LayoutGeneratorEditDrag | null },
   owner: THREE.Object3D | null,
-  slider: ModifierStackSlider,
-  value: number,
+  stepId: string,
+  patchOf: (owner: THREE.Object3D) => Record<string, unknown> | null,
 ): void {
-  if (!owner || slider.writes === '') return;
-  const before = modifierStackParametersStackRead(owner);
-  if (!before) return;
+  const before = owner ? modifierStackParametersStackRead(owner) : undefined;
+  const patch = owner && before ? patchOf(owner) : null;
+  if (!owner || !before || !patch) return;
   if (drag.current?.owner !== owner) drag.current = { owner, before };
-  const patch = modifierStackSliderPatch(owner, slider, value);
-  if (patch) modifierStackParametersCommand(owner, slider.stepId, patch)?.execute();
+  modifierStackParametersCommand(owner, stepId, patch)?.execute();
 }
 
 /**
@@ -138,7 +145,7 @@ function layoutGeneratorEditSlide(
  * @param drag.current Current drag, or null.
  * @param commandStack Level undo history.
  */
-function layoutGeneratorEditSlideEnd(
+function layoutGeneratorEditChangeEnd(
   drag: { current: LayoutGeneratorEditDrag | null },
   commandStack: CommandStack,
 ): void {
@@ -156,7 +163,7 @@ function layoutGeneratorEditSlideEnd(
  * @param drag Drag in progress.
  * @param drag.current Current drag, or null.
  */
-function layoutGeneratorEditSlideCancel(drag: { current: LayoutGeneratorEditDrag | null }): void {
+function layoutGeneratorEditChangeCancel(drag: { current: LayoutGeneratorEditDrag | null }): void {
   const current = drag.current;
   drag.current = null;
   const after = current ? modifierStackParametersStackRead(current.owner) : undefined;

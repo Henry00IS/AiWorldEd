@@ -1,11 +1,13 @@
 import type { Object3D } from 'three';
 import type { EditorViewportPickContext } from '@/editor/window/editor_viewport_pick_context.js';
+import type { PathAsset } from '@/path/model/path_asset.js';
+import type { ModifierStackPath } from '@/modifier/stack/widgets/modifier_stack_path_record.js';
 import type { ModifierStackSlider } from '@/modifier/stack/widgets/modifier_stack_slider_record.js';
 
 /**
  * What the Edit button and the Generator tool need from the scene: the selected
- * object with an edit mode, the panes it shows in, picking, its sliders, the
- * grid and the overlays.
+ * object with an edit mode, the panes it shows in, picking, its sliders and
+ * paths, the grid and the overlays.
  */
 export interface GeneratorEditHost {
   /**
@@ -50,6 +52,14 @@ export interface GeneratorEditHost {
   sliders(): ModifierStackSlider[];
 
   /**
+   * Returns the Path inputs of the selected object as its last evaluation
+   * stored them.
+   *
+   * @returns Paths; empty without a selected object with an edit mode.
+   */
+  paths(): ModifierStackPath[];
+
+  /**
    * Snaps a distance to the grid when grid snapping is on.
    *
    * @param distance Distance in metres.
@@ -66,9 +76,21 @@ export interface GeneratorEditHost {
    */
   slide(slider: ModifierStackSlider, value: number): void;
 
-  /** Ends a drag: everything it wrote becomes one undo step, shared with others. */
-  slideEnd(): void;
+  /**
+   * Stores a changed path in its input and rebuilds at once, as one live step
+   * of a change that is not yet in the undo history.
+   *
+   * @param path Path input.
+   * @param asset Changed path.
+   */
+  pathWrite(path: ModifierStackPath, asset: PathAsset): void;
 
-  /** Takes back everything the drag wrote. */
-  slideCancel(): void;
+  /**
+   * Ends a change such as a drag: everything it wrote becomes one undo step,
+   * shared with others.
+   */
+  changeEnd(): void;
+
+  /** Takes back everything the change wrote. */
+  changeCancel(): void;
 }

@@ -4,6 +4,7 @@ import { textureSourceBlocked, textureSourceGateSet } from '@/texture/library/te
 import {
   CONTROLLER_PROJECT_EDITOR_LOCAL_NOTICE,
   CONTROLLER_PROJECT_EDITOR_ROOM_NOTICE,
+  CONTROLLER_PROJECT_EDITOR_PATH_HINT,
   CONTROLLER_PROJECT_EDITOR_SCRIPT_HINT,
   CONTROLLER_PROJECT_EDITOR_UNSUPPORTED,
   ControllerProjectEditor,
@@ -101,6 +102,19 @@ describe('ControllerProjectEditor', () => {
     panelRoot.querySelector('[data-file-path="props/Arch.aiscript"]')?.dispatchEvent(new MouseEvent('dblclick'));
     await settle();
     expect(host.status).toHaveBeenLastCalledWith(CONTROLLER_PROJECT_EDITOR_SCRIPT_HINT);
+    expect(host.sceneLoad).not.toHaveBeenCalled();
+    editor.dispose();
+  });
+
+  it('explains where a double-clicked path file goes instead of opening it', async () => {
+    const { editor, panelRoot, host, root } = editorCreate();
+    root.put('props/Hall.aipath', '{}');
+    await editor.openOrReopen();
+    editor.panel.show();
+    editor.panel.folderSelect('props');
+    panelRoot.querySelector('[data-file-path="props/Hall.aipath"]')?.dispatchEvent(new MouseEvent('dblclick'));
+    await settle();
+    expect(host.status).toHaveBeenLastCalledWith(CONTROLLER_PROJECT_EDITOR_PATH_HINT);
     expect(host.sceneLoad).not.toHaveBeenCalled();
     editor.dispose();
   });

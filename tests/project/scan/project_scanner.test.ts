@@ -60,6 +60,13 @@ describe('ProjectScanner', () => {
     expect(snapshot.files.get('AiWorldEd/Scripts/Arch.aiscript')?.kind).toBe('script');
   });
 
+  it('lists .aipath files as paths', async () => {
+    const root = new ProjectMockDirectoryHandle('game');
+    root.put('AiWorldEd/Paths/Hall.aipath', '{}');
+    const snapshot = await new ProjectScanner().scan(new ProjectFileSystemHandle(root.asHandle()));
+    expect(snapshot.files.get('AiWorldEd/Paths/Hall.aipath')?.kind).toBe('path');
+  });
+
   it('stops at the file and depth caps', async () => {
     const root = new ProjectMockDirectoryHandle('game');
     for (let index = 0; index < 5; index += 1) root.put(`t${index}.png`, 'x');

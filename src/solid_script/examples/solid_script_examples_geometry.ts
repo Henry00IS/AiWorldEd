@@ -1,3 +1,4 @@
+import { pathAssetEncode } from '@/path/model/path_asset.js';
 import type { SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 import {
   solidScriptExampleBlock,
@@ -72,6 +73,40 @@ export const SOLID_SCRIPT_EXAMPLE_ROUNDED_RAIL: readonly SolidScriptLine[] = [
   }),
   solidScriptExampleNote('Sweep Along Path sweeps a tube along that closed Path. Radius is how thick the rail is.'),
   solidScriptExampleLine('sweep_along_path', { path: '[Rail]', radius: '[Thickness]', sides: '8' }),
+];
+
+/** The room corners a new Baseboard traces: three walls of a 4 by 3 metre room. */
+const SOLID_SCRIPT_EXAMPLE_BASEBOARD_ROOM = pathAssetEncode({
+  points: [
+    [-2, 0, 1.5],
+    [-2, 0, -1.5],
+    [2, 0, -1.5],
+    [2, 0, 1.5],
+  ],
+  segments: [{ kind: 'Straight' }, { kind: 'Straight' }, { kind: 'Straight' }],
+  closed: false,
+});
+
+/**
+ * A baseboard along a Path input: trace the bottom corners of a room in the
+ * scene and Sweep Along Path runs a moulding profile along them.
+ */
+export const SOLID_SCRIPT_EXAMPLE_BASEBOARD: readonly SolidScriptLine[] = [
+  solidScriptExampleNote(
+    'Wall is a Path you draw in the scene: select this object, click Edit, then Ctrl+Click each bottom corner of the room. Drag a point to move it; pick one to set its stretch, such as an Arc for a round bay, in the inspector.',
+  ),
+  solidScriptExampleInput('Wall', 'Path', SOLID_SCRIPT_EXAMPLE_BASEBOARD_ROOM, { label: 'Wall' }),
+  solidScriptExampleInput('Height', 'Number', '0.12', { min: '0.02', max: '1', label: 'Height' }),
+  solidScriptExampleInput('Thickness', 'Number', '0.02', { min: '0.005', max: '0.2', label: 'Thickness' }),
+  solidScriptExampleNote(
+    'Sweep Along Path runs the moulding profile along the wall: x runs to the side of the path and y up, so the board stands on the floor with a bevelled top.',
+  ),
+  solidScriptExampleLine('sweep_along_path', {
+    path: '[Wall]',
+    profile:
+      '[0, 0, 0], [[Thickness], 0, 0], [[Thickness], [=[Height] * 0.8], 0], [[=[Thickness] / 2], [Height], 0], [0, [Height], 0]',
+    up: '0, 1, 0',
+  }),
 ];
 
 /** A hilly floor: Grid Mesh, then Displace with Noise at each point. */

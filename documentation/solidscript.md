@@ -68,7 +68,7 @@ The script runs on every change. **Start** builds everything, **Debug** builds o
 
 ## Widgets
 
-**Widget** lines put handles in the scene. Turn on **Has Edit Mode** in the Settings tab (adding the first Widget line turns it on for you), select the object with Bounds and click **Edit** in its middle: its widgets appear, and Escape brings you back to Bounds.
+**Widget** lines put handles in the scene. Turn on **Has Edit Mode** in the Settings tab (adding the first Widget line turns it on for you), select the object with Bounds and click **Edit** in its middle: its widgets appear, and Escape brings you back to Bounds. A **Path** input is drawn there too: Ctrl+Click adds points, dragging moves them, and the inspector sets each stretch (Straight, Quadratic, Bezier, Smooth or an exact Arc); see [Paths](paths.md).
 
 - **Widget Slider** slides along **Along** from **At**, placed by the Transform around it. **Shows** is the value the handle sits at, and **Writes** names the Input a drag changes, snapped to the grid and kept between the optional **Minimum** and **Maximum**. The script runs on every move and the handle follows Shows, so a script that clamps or resets the value stops the handle there; when you let go the Input keeps the value the handle shows. One drag is one undo step.
 

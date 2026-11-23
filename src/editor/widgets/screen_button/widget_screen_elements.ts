@@ -77,6 +77,29 @@ export class WidgetScreenElements {
   }
 
   /**
+   * Lays an element as a line between two scene points: placed at the first, as
+   * wide as the distance on screen and turned toward the second; hidden when
+   * either end is out of view.
+   *
+   * @param pane Pane camera and pick surface.
+   * @param key Key.
+   * @param from World start.
+   * @param to World end.
+   * @returns The element.
+   */
+  line(pane: EditorViewportPickContext, key: string, from: Vector3, to: Vector3): HTMLElement {
+    const start = widgetScreenProject(from, pane);
+    const end = widgetScreenProject(to, pane);
+    const element = this.get(pane.pickElement, key);
+    element.hidden = !start.visible || !end.visible;
+    element.style.left = `${start.x}px`;
+    element.style.top = `${start.y}px`;
+    element.style.width = `${Math.hypot(end.x - start.x, end.y - start.y)}px`;
+    element.style.transform = `rotate(${Math.atan2(end.y - start.y, end.x - start.x)}rad)`;
+    return element;
+  }
+
+  /**
    * Returns every element of every pane.
    *
    * @returns Elements.

@@ -7,6 +7,8 @@ import { modifierStackCompile } from '@/modifier/stack/evaluate/modifier_stack_c
 import { MODIFIER_STACK_SOLID_SCRIPT_KIND } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
 import {
   modifierStackEditSteps,
+  modifierStackPathPatch,
+  modifierStackPaths,
   modifierStackSliderPatch,
   modifierStackSliders,
 } from '@/modifier/stack/widgets/modifier_stack_sliders.js';
@@ -14,6 +16,7 @@ import {
   solidScriptDocumentCreate,
   solidScriptDocumentEditModeWith,
 } from '@/solid_script/document/solid_script_document.js';
+import { pathAssetDecode, pathAssetEncode, type PathAsset } from '@/path/model/path_asset.js';
 
 /**
  * Builds a SolidScript generator in a solid, moved away from the origin, whose
@@ -89,5 +92,46 @@ describe('modifier stack sliders', () => {
     expect(rise?.origin.distanceTo(new THREE.Vector3(centre.x, box.min.y, box.min.z))).toBeLessThan(1e-9);
     expect(rise?.direction.distanceTo(new THREE.Vector3(0, 1, 0))).toBeLessThan(1e-9);
     expect(landing && modifierStackSliderPatch(node, landing, 0.5)).toEqual({ landing: 0.5 });
+  });
+
+  it('records the Path inputs of a script with their stored path and the frame that places them', () => {
+    const model = new SolidModel('Paths');
+    const node = modifierGeneratorNodeCreate(MODIFIER_STACK_SOLID_SCRIPT_KIND);
+    node.position.set(3, 1, -2);
+    model.root.add(node);
+    const stored: PathAsset = {
+      points: [
+        [0, 0, 0],
+        [2, 0, 0],
+        [2, 0, 2],
+      ],
+      segments: [{ kind: 'Straight' }, { kind: 'Arc', degrees: 90, axis: [0, 1, 0] }],
+      closed: false,
+    };
+    const script = solidScriptDocumentCreate([
+      { command: 'input', values: { name: 'Rail', type: 'Path' } },
+      { command: 'input', values: { name: 'Off', type: 'Path' }, off: true },
+      { command: 'cube' },
+    ]);
+    const settings = ModifierVolume.read(node);
+    const step = settings.modifiers[0];
+    if (!step) throw new Error('no step');
+    step.parameters = {
+      ...step.parameters,
+      script: { ...script, editMode: true },
+      inputs: { Rail: pathAssetEncode(stored) },
+    };
+    ModifierVolume.write(node, settings);
+    model.root.updateMatrixWorld(true);
+    modifierStackCompile(model.getBrushes(), model.root);
+    const [rail, ...rest] = modifierStackPaths(node);
+    expect(rest).toEqual([]);
+    expect([rail?.name, rail?.label, rail?.stepId]).toEqual(['Rail', 'Rail', step.id]);
+    expect(rail?.path).toEqual(stored);
+    const centre = new THREE.Box3().setFromObject(node).getCenter(new THREE.Vector3());
+    expect(new THREE.Vector3().applyMatrix4(rail?.frame ?? new THREE.Matrix4()).distanceTo(centre)).toBeLessThan(1e-9);
+    const moved: PathAsset = { ...stored, segments: [...stored.segments, { kind: 'Straight' }], closed: true };
+    const patch = rail && modifierStackPathPatch(node, rail, moved);
+    expect(pathAssetDecode(String((patch?.['inputs'] as Record<string, string>)['Rail']))).toEqual(moved);
   });
 });

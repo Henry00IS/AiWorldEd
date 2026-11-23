@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { ModifierStackStepRecord } from './modifier_stack_step_record.js';
 import type { SolidScriptWidgetSlider } from '@/solid_script/language/solid_script_widget.js';
 
 /** A slider handle of a modifier step, in world coordinates. */
@@ -54,7 +55,7 @@ export interface ModifierStackSliderLocal {
 }
 
 /** Sliders each step made at its last evaluation, by stack owner and step id. */
-const MODIFIER_STACK_SLIDERS = new WeakMap<THREE.Object3D, Map<string, ModifierStackSlider[]>>();
+const MODIFIER_STACK_SLIDERS = new ModifierStackStepRecord<ModifierStackSlider>();
 
 /**
  * Keeps the sliders a step made at its evaluation, replacing the last ones.
@@ -68,9 +69,7 @@ export function modifierStackSlidersRecord(
   stepId: string,
   sliders: readonly ModifierStackSlider[],
 ): void {
-  let steps = MODIFIER_STACK_SLIDERS.get(owner);
-  if (!steps) MODIFIER_STACK_SLIDERS.set(owner, (steps = new Map()));
-  steps.set(stepId, [...sliders]);
+  MODIFIER_STACK_SLIDERS.record(owner, stepId, sliders);
 }
 
 /**
@@ -81,7 +80,7 @@ export function modifierStackSlidersRecord(
  * @returns World sliders; empty before the step is evaluated.
  */
 export function modifierStackSlidersRecorded(owner: THREE.Object3D, stepId: string): ModifierStackSlider[] {
-  return MODIFIER_STACK_SLIDERS.get(owner)?.get(stepId) ?? [];
+  return MODIFIER_STACK_SLIDERS.recorded(owner, stepId);
 }
 
 /**

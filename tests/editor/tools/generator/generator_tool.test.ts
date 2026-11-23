@@ -5,6 +5,9 @@ import { BoundsTool } from '@/editor/tools/bounds_tool.js';
 import { GeneratorTool } from '@/editor/tools/generator/generator_tool.js';
 import type { EditorServices } from '@/editor/window/editor_services.js';
 import type { GeneratorEditHost } from '@/editor/tools/generator/generator_edit_host.js';
+import type { ModifierStackPath } from '@/modifier/stack/widgets/modifier_stack_path_record.js';
+import type { PathAsset } from '@/path/model/path_asset.js';
+import { pathEditSelect, pathEditSelected } from '@/path/edit/path_edit_selection.js';
 import type { ModifierStackSlider } from '@/modifier/stack/widgets/modifier_stack_slider_record.js';
 
 /** Pane rectangle; the generator at the origin projects to its center. */
@@ -29,21 +32,29 @@ function setup(selected: THREE.Object3D | null) {
   const camera = new THREE.OrthographicCamera(-2, 2, 1, -1, 0.1, 100);
   camera.position.set(0, 0, 10);
   camera.updateMatrixWorld();
-  const state: { selected: THREE.Object3D | null; sliders: ModifierStackSlider[] } = { selected, sliders: [] };
+  const state: { selected: THREE.Object3D | null; sliders: ModifierStackSlider[]; paths: ModifierStackPath[] } = {
+    selected,
+    sliders: [],
+    paths: [],
+  };
   const host: GeneratorEditHost = {
     selectedEditable: () => state.selected,
     panes: () => [{ camera, pickElement: pick }],
     pickEditable: vi.fn(),
     setEditing: vi.fn(),
     sliders: () => state.sliders,
+    paths: () => state.paths,
+    pathWrite: vi.fn((path: ModifierStackPath, asset: PathAsset) => {
+      state.paths = state.paths.map((each) => (each.key === path.key ? { ...each, path: asset } : each));
+    }),
     snapDistance: (distance) => Math.round(distance * 2) / 2,
     slide: vi.fn((slider: ModifierStackSlider, value: number) => {
       state.sliders = state.sliders.map((each) =>
         each.key === slider.key ? { ...each, value: Math.min(value, 1) } : each,
       );
     }),
-    slideEnd: vi.fn(),
-    slideCancel: vi.fn(),
+    changeEnd: vi.fn(),
+    changeCancel: vi.fn(),
   };
   const applyClick = vi.fn();
   const known: Partial<EditorServices> = {
@@ -91,6 +102,7 @@ function editButton(): HTMLElement | null {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  pathEditSelect(null);
   document.body.replaceChildren();
 });
 
@@ -175,8 +187,8 @@ describe('Generator Edit button and Generator tool', () => {
     expect(sliderHandle()?.style.left).toBe('150px');
     editor.onGlobalMouseUp(0);
     expect(host.slide).toHaveBeenLastCalledWith(expect.objectContaining({ value: 1 }), 1);
-    expect(host.slideEnd).toHaveBeenCalledTimes(1);
-    expect(host.slideCancel).not.toHaveBeenCalled();
+    expect(host.changeEnd).toHaveBeenCalledTimes(1);
+    expect(host.changeCancel).not.toHaveBeenCalled();
     expect(editor.activeTool).toBeInstanceOf(GeneratorTool);
   });
 
@@ -187,7 +199,7 @@ describe('Generator Edit button and Generator tool', () => {
     editor.onRepaint();
     drag(editor, [100, 50], [124, 50]);
     expect(editor.onKeyDown('Escape', new KeyboardEvent('keydown', { code: 'Escape' }))).toBe(true);
-    expect(host.slideCancel).toHaveBeenCalledTimes(1);
+    expect(host.changeCancel).toHaveBeenCalledTimes(1);
     expect(editor.activeTool).toBeInstanceOf(GeneratorTool);
   });
 
@@ -205,7 +217,7 @@ describe('Generator Edit button and Generator tool', () => {
     field.value = '0.75';
     field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
     expect(host.slide).toHaveBeenCalledWith(expect.objectContaining({ key: 'a' }), 0.75);
-    expect(host.slideEnd).toHaveBeenCalledTimes(1);
+    expect(host.changeEnd).toHaveBeenCalledTimes(1);
     expect(document.querySelector('input[aria-label="Height"]')).toBeNull();
     expect(editor.activeTool).toBeInstanceOf(GeneratorTool);
   });
@@ -229,7 +241,7 @@ describe('Generator Edit button and Generator tool', () => {
     expect(host.slide).toHaveBeenCalledTimes(1);
     again.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(document.querySelector('input[aria-label="Height"]')).toBeNull();
-    expect(host.slideEnd).toHaveBeenCalledTimes(1);
+    expect(host.changeEnd).toHaveBeenCalledTimes(1);
   });
 
   it('draws a ruler line from the zero point to the handle', async () => {
@@ -250,6 +262,109 @@ describe('Generator Edit button and Generator tool', () => {
     expect(host.slide).not.toHaveBeenCalled();
   });
 });
+
+describe('Generator tool paths', () => {
+  /**
+   * Enters the Generator tool on an object with one path from (0,0,0) to
+   * (1,0,0), drawn at (100,50) and (150,50).
+   *
+   * @returns Setup parts.
+   */
+  async function pathSetup() {
+    const parts = setup(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1)));
+    await click(parts.editor, [100, 50], [100, 50]);
+    parts.state.paths = [railPath()];
+    parts.editor.onRepaint();
+    return parts;
+  }
+
+  it('draws each point and the line between them, and selects a point on a still click', async () => {
+    const { editor, host } = await pathSetup();
+    expect(pathPoints().map((each) => [each.style.left, each.style.top])).toEqual([
+      ['100px', '50px'],
+      ['150px', '50px'],
+    ]);
+    expect(document.querySelectorAll('[data-path-line]:not([hidden])').length).toBeGreaterThan(0);
+    await click(editor, [150, 50], [150, 50]);
+    expect(pathEditSelected()).toEqual({ stepId: 's', name: 'Rail', point: 1 });
+    editor.onRepaint();
+    expect(pathPoints()[1]?.dataset['selected']).toBe('true');
+    expect(host.pathWrite).not.toHaveBeenCalled();
+    expect(host.pickEditable).not.toHaveBeenCalled();
+  });
+
+  it('drags a point on the plane facing the camera with grid snapping, as one undo step', async () => {
+    const { editor, host, state } = await pathSetup();
+    drag(editor, [150, 50], [174, 26]);
+    expect(state.paths[0]?.path.points[1]).toEqual([1.5, 0.5, 0]);
+    editor.onGlobalMouseUp(0);
+    expect(host.changeEnd).toHaveBeenCalledTimes(1);
+    expect(host.changeCancel).not.toHaveBeenCalled();
+    expect(pathEditSelected()?.point).toBe(1);
+  });
+
+  it('takes a point drag back on Escape, and Escape then lets go of the selected point first', async () => {
+    const { editor, host } = await pathSetup();
+    drag(editor, [150, 50], [174, 26]);
+    expect(editor.onKeyDown('Escape', new KeyboardEvent('keydown', { code: 'Escape' }))).toBe(true);
+    expect(host.changeCancel).toHaveBeenCalledTimes(1);
+    expect(editor.onKeyDown('Escape', new KeyboardEvent('keydown', { code: 'Escape' }))).toBe(true);
+    expect(pathEditSelected()).toBeNull();
+    expect(editor.activeTool).toBeInstanceOf(GeneratorTool);
+  });
+
+  it('adds a point after the selected one on a Ctrl click, snapped, and Delete removes it again', async () => {
+    const { editor, host, state } = await pathSetup();
+    await click(editor, [150, 50], [150, 50]);
+    editor.updateModifiersFromDomEvent({ shiftKey: false, ctrlKey: true, altKey: false, metaKey: false });
+    await click(editor, [151, 1], [151, 1]);
+    editor.updateModifiersFromDomEvent({ shiftKey: false, ctrlKey: false, altKey: false, metaKey: false });
+    expect(state.paths[0]?.path.points).toEqual([
+      [0, 0, 0],
+      [1, 0, 0],
+      [1, 1, 0],
+    ]);
+    expect(pathEditSelected()?.point).toBe(2);
+    expect(host.changeEnd).toHaveBeenCalledTimes(1);
+    expect(host.pickEditable).not.toHaveBeenCalled();
+    expect(editor.onKeyDown('Delete', new KeyboardEvent('keydown', { code: 'Delete' }))).toBe(true);
+    expect(state.paths[0]?.path.points).toHaveLength(2);
+    expect(host.changeEnd).toHaveBeenCalledTimes(2);
+    expect(editor.onKeyDown('Delete', new KeyboardEvent('keydown', { code: 'Delete' }))).toBe(false);
+  });
+});
+
+/**
+ * Returns a path input from (0,0,0) to (1,0,0) placed at the world origin.
+ *
+ * @returns Path input.
+ */
+function railPath(): ModifierStackPath {
+  return {
+    stepId: 's',
+    key: 's:Rail',
+    name: 'Rail',
+    label: 'Rail',
+    path: {
+      points: [
+        [0, 0, 0],
+        [1, 0, 0],
+      ],
+      segments: [{ kind: 'Straight' }],
+      closed: false,
+    },
+    frame: new THREE.Matrix4(),
+  };
+}
+
+/**
+ * Returns the shown path points.
+ *
+ * @returns Point elements.
+ */
+function pathPoints(): HTMLElement[] {
+  return [...document.querySelectorAll<HTMLElement>('[data-path-point-handle]')].filter((each) => !each.hidden);
+}
 
 /**
  * Returns a slider along X at the origin, at value 0, writing Height.

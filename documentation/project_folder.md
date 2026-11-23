@@ -22,7 +22,7 @@ The editor remembers the folder. On your next visit the panel shows **Reopen "<f
   - a level (`.aiworld`, or a `.json` level saved by an older version) is loaded (asks first when the current scene has unsaved changes);
   - a model (`.vmf`, `.obj`, `.glb` or `.fbx`) is added like a new volume: in front of the last used view, clear of other geometry and snapped to the grid. Right-click a model and choose **Add at Original Location** to keep the coordinates stored in the file.
 
-Compatible files are `png`, `jpg`, `jpeg`, `gif`, `webp`, `bmp` (textures), `aiworld` (levels), `aicurve` (curves), `vmf`, `obj`, `glb` and `fbx`, plus `json` and `curve` files saved by older versions, which still open unchanged. Other files are ignored. Very large projects are capped at 20000 files and 4000 folders; the panel shows at most 600 tiles at once (search to narrow it down).
+Compatible files are `png`, `jpg`, `jpeg`, `gif`, `webp`, `bmp` (textures), `aiworld` (levels), `aicurve` (curves), `aiscript` (SolidScript scripts), `aipath` (paths), `vmf`, `obj`, `glb` and `fbx`, plus `json` and `curve` files saved by older versions, which still open unchanged. Other files are ignored. Very large projects are capped at 20000 files and 4000 folders; the panel shows at most 600 tiles at once (search to narrow it down).
 
 ## Textures come from the project
 

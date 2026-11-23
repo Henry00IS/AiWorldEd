@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { editAxisDragParameter } from '@/edit/tool/edit_axis_drag.js';
 import type { EditorViewportPickContext } from '@/editor/window/editor_viewport_pick_context.js';
+import { generatorPointerRay } from './generator_path_geometry.js';
 import type { ModifierStackSlider } from '@/modifier/stack/widgets/modifier_stack_slider_record.js';
 
 /**
@@ -24,15 +25,9 @@ export function generatorSliderValueAt(
 ): number | null {
   const length = slider.direction.length();
   if (!(length > 0)) return null;
-  const rect = pane.pickElement.getBoundingClientRect();
-  const ndc = new THREE.Vector2(
-    ((clientX - rect.left) / rect.width) * 2 - 1,
-    -(((clientY - rect.top) / rect.height) * 2 - 1),
-  );
-  const ray = new THREE.Raycaster();
-  ray.setFromCamera(ndc, pane.camera);
+  const ray = generatorPointerRay(pane, clientX, clientY);
   const unit = slider.direction.clone().divideScalar(length);
-  const distance = editAxisDragParameter(slider.origin, unit, ray.ray.origin, ray.ray.direction);
+  const distance = editAxisDragParameter(slider.origin, unit, ray.origin, ray.direction);
   if (distance === null) return null;
   return generatorSliderClamp(slider, snap(distance) / length);
 }
