@@ -268,14 +268,16 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
   /** Top-level lines of the script running, whose texts spell its names. */
   protected scriptLines: readonly SolidScriptBlockNode<SolidScriptMachineCommand>[] = [];
   /**
+   * First spelling of each name key in the texts of the lines they were found
+   * in, null when they have none, so each key is looked for once per script.
+   */
+  private textSpellings = { lines: this.scriptLines, found: new Map<string, string | null>() };
+  /**
    * Spells a name key for a message or the debugger: as the run stored it, else
    * as the script first wrote it.
    */
   protected readonly nameShown = (key: string): string =>
-    solidScriptNameSpelling(
-      key,
-      (found) => this.spellings.get(found) ?? solidScriptNameFind(found, this.scriptTexts()),
-    );
+    solidScriptNameSpelling(key, (found) => this.spellings.get(found) ?? this.textSpelling(found));
   /** Keys by name as written, for the names this run has seen. */
   protected readonly keys = new Map<string, string>();
   /** Functions and parts running inside each other, innermost last. */
@@ -512,6 +514,23 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
       yield* this.scriptWrites(node.children);
       if (node.otherwise) yield* this.scriptWrites(node.otherwise);
     }
+  }
+
+  /**
+   * Finds the first spelling of a name key in the texts of the script running.
+   *
+   * @param key Name key.
+   * @returns Spelling, or undefined when no text has it.
+   */
+  private textSpelling(key: string): string | undefined {
+    if (this.textSpellings.lines !== this.scriptLines)
+      this.textSpellings = { lines: this.scriptLines, found: new Map() };
+    let found = this.textSpellings.found.get(key);
+    if (found === undefined) {
+      found = solidScriptNameFind(key, this.scriptTexts()) ?? null;
+      this.textSpellings.found.set(key, found);
+    }
+    return found ?? undefined;
   }
 
   /**

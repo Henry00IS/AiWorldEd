@@ -83,6 +83,11 @@ const SOLID_SCRIPT_ELEMENTS_SAME = 0.9999;
  */
 export class SolidScriptElements {
   private readonly entries: SolidScriptElementEntry[] = [];
+  /**
+   * Elements by the solid or mesh they were read from, each list in the order
+   * they were made, so a lookup only looks at the elements of one brush.
+   */
+  private readonly byLeaf = new Map<SolidScriptGeometryLeaf, SolidScriptElementEntry[]>();
   private readonly brushes = new Map<SolidScriptGeometryLeaf, SolidScriptElement>();
   /**
    * Bounds already read, by the ids of the elements, with the brushes they were
@@ -190,7 +195,39 @@ export class SolidScriptElements {
       ...parts,
     };
     this.entries.push(entry);
+    const held = this.byLeaf.get(leaf);
+    if (held) held.push(entry);
+    else this.byLeaf.set(leaf, [entry]);
     return entry;
+  }
+
+  /**
+   * Files the elements read from a solid or mesh under the version that
+   * replaced it, in the order they were made.
+   *
+   * @param from Solid or mesh replaced.
+   * @param to Replacement.
+   */
+  private refile(from: SolidScriptGeometryLeaf, to: SolidScriptGeometryLeaf): void {
+    const moved = this.byLeaf.get(from);
+    if (!moved || from === to) return;
+    this.byLeaf.delete(from);
+    const held = this.byLeaf.get(to);
+    this.byLeaf.set(to, held ? [...held, ...moved].sort((a, b) => a.element.id - b.element.id) : moved);
+  }
+
+  /**
+   * Lists the elements of a solid or mesh as it is now, read from it or from
+   * any earlier version of it, in the order they were made.
+   *
+   * @param latest Solid or mesh now.
+   * @returns Entries.
+   */
+  private entriesOf(latest: SolidScriptGeometryLeaf): SolidScriptElementEntry[] {
+    const lists: SolidScriptElementEntry[][] = [];
+    for (const [leaf, held] of this.byLeaf) if (this.host.leafLatest(leaf) === latest) lists.push(held);
+    if (lists.length < 2) return lists[0] ?? [];
+    return lists.flat().sort((a, b) => a.element.id - b.element.id);
   }
 
   /**
@@ -308,23 +345,20 @@ export class SolidScriptElements {
   }
 
   /**
-   * Moves the stored planes and positions of held faces, edges and corners when
-   * a later write is the same faces moved as one, so later reads still find
-   * them.
+   * Files the elements of a solid or mesh under its replacement, and moves the
+   * stored planes and positions of held faces, edges and corners when a later
+   * write is the same faces moved as one, so later reads still find them.
    *
    * @param from Solid or mesh as first seen.
    * @param to Replacement.
    */
   follow(from: SolidScriptGeometryLeaf, to: SolidScriptGeometryLeaf): void {
+    this.refile(from, to);
     const matrix = solidScriptGeometryLeafMatrix(from, to);
     if (!matrix || matrix.equals(new THREE.Matrix4())) return;
     const normals = new THREE.Matrix3().getNormalMatrix(matrix);
     const linear = new THREE.Matrix3().setFromMatrix4(matrix);
-    const latest = this.host.leafLatest(to);
-    for (const entry of this.entries) {
-      if (this.host.leafLatest(entry.leaf) !== latest) continue;
-      this.entryFollow(entry, matrix, normals, linear);
-    }
+    for (const entry of this.entriesOf(this.host.leafLatest(to))) this.entryFollow(entry, matrix, normals, linear);
   }
 
   /**
@@ -398,13 +432,8 @@ export class SolidScriptElements {
    */
   edge(edge: SolidScriptEdgeFacts): SolidScriptElement {
     const latest = this.host.leafLatest(edge.faces[0].leaf);
-    for (const entry of this.entries)
-      if (
-        entry.element.kind === 'edge' &&
-        this.host.leafLatest(entry.leaf) === latest &&
-        SolidScriptElements.edgeMatches(entry, edge)
-      )
-        return entry.element;
+    for (const entry of this.entriesOf(latest))
+      if (entry.element.kind === 'edge' && SolidScriptElements.edgeMatches(entry, edge)) return entry.element;
     const plane = (face: SolidScriptFaceFacts | null): SolidScriptElementPlane | null =>
       face ? { normal: face.normal.clone(), corners: face.corners.map((corner) => corner.clone()) } : null;
     return this.add('edge', latest, {
@@ -423,13 +452,8 @@ export class SolidScriptElements {
    */
   vertex(leaf: SolidScriptGeometryLeaf, vertex: SolidScriptVertexFacts): SolidScriptElement {
     const latest = this.host.leafLatest(leaf);
-    for (const entry of this.entries)
-      if (
-        entry.element.kind === 'vertex' &&
-        this.host.leafLatest(entry.leaf) === latest &&
-        entry.position!.distanceTo(vertex.position) < 1e-6
-      )
-        return entry.element;
+    for (const entry of this.entriesOf(latest))
+      if (entry.element.kind === 'vertex' && entry.position!.distanceTo(vertex.position) < 1e-6) return entry.element;
     return this.add('vertex', latest, { position: vertex.position.clone() }).element;
   }
 
