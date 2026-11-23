@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import {
+  PLAYER_GRAPPLE_CLEARANCE_METERS,
   PLAYER_GRAPPLE_MAX_SPEED_METERS_PER_SECOND,
-  PLAYER_GRAPPLE_PULL_HEIGHT_METERS,
   PLAYER_GRAPPLE_PULL_METERS_PER_SECOND_SQUARED,
   PLAYER_GRAPPLE_PULL_PER_METER,
-  PLAYER_GRAPPLE_STANDOFF_METERS,
+  PLAYER_GRAPPLE_ROPE_STIFFNESS_PER_SECOND_SQUARED,
+  PLAYER_GRAPPLE_SLACK_METERS,
   PLAYER_GRAPPLE_SWING_DAMPING_PER_SECOND,
   PLAYER_GRAPPLE_YANK_AWAY_KEPT,
   PLAYER_GRAPPLE_YANK_LIFT_METERS_PER_SECOND,
@@ -17,7 +18,20 @@ import {
   playerGrappleTarget,
   playerGrappleYank,
 } from '@/player/grapple/player_grapple_physics.js';
-import { PLAYER_GRAVITY_METERS_PER_SECOND_SQUARED } from '@/player/player_constants.js';
+import { PLAYER_CAPSULE_CENTER_ABOVE_FEET_METERS } from '@/player/collision/player_collision_character_rig.js';
+import {
+  PLAYER_COLLIDER_HEIGHT_METERS,
+  PLAYER_COLLIDER_RADIUS_METERS,
+  PLAYER_GRAVITY_METERS_PER_SECOND_SQUARED,
+} from '@/player/player_constants.js';
+
+/**
+ * Where a body hangs below a target on the rope (slack plus stretch under
+ * gravity).
+ */
+const HANG =
+  PLAYER_GRAPPLE_SLACK_METERS +
+  PLAYER_GRAVITY_METERS_PER_SECOND_SQUARED / PLAYER_GRAPPLE_ROPE_STIFFNESS_PER_SECOND_SQUARED;
 
 const STEP = 1 / 120;
 
@@ -47,13 +61,26 @@ function fly(start: THREE.Vector3, target: THREE.Vector3, seconds: number) {
 }
 
 describe('player grapple physics', () => {
-  it('aims off the hit surface and pulls the point low above the feet', () => {
-    const target = playerGrappleTarget(new THREE.Vector3(1, 5, 2), new THREE.Vector3(0, -1, 0), new THREE.Vector3());
-    expect(target.toArray()).toEqual([1, 5 - PLAYER_GRAPPLE_STANDOFF_METERS, 2]);
-    const offset = playerGrappleOffset(new THREE.Vector3(1, 0, 0), target, new THREE.Vector3());
-    expect(offset.y).toBeCloseTo(target.y - PLAYER_GRAPPLE_PULL_HEIGHT_METERS);
+  it('aims the body center off the hit surface by the capsule reach and a clearance', () => {
+    const ceiling = playerGrappleTarget(new THREE.Vector3(1, 5, 2), new THREE.Vector3(0, -1, 0), new THREE.Vector3());
+    expect(ceiling.x).toBe(1);
+    expect(ceiling.z).toBe(2);
+    expect(5 - (ceiling.y + PLAYER_COLLIDER_HEIGHT_METERS / 2)).toBeCloseTo(PLAYER_GRAPPLE_CLEARANCE_METERS, 6);
+    const wall = playerGrappleTarget(new THREE.Vector3(0, 5, 3), new THREE.Vector3(0, 0, -1), new THREE.Vector3());
+    expect(3 - (wall.z + PLAYER_COLLIDER_RADIUS_METERS)).toBeCloseTo(PLAYER_GRAPPLE_CLEARANCE_METERS, 6);
+    const offset = playerGrappleOffset(new THREE.Vector3(1, 0, 0), ceiling, new THREE.Vector3());
+    expect(offset.y).toBeCloseTo(ceiling.y - PLAYER_CAPSULE_CENTER_ABOVE_FEET_METERS);
     expect(offset.x).toBe(0);
     expect(offset.z).toBe(2);
+  });
+
+  it('hangs below a ceiling hook on the rope slack, with the head and eye well off the ceiling', () => {
+    const ceiling = playerGrappleTarget(new THREE.Vector3(0, 12, 0), new THREE.Vector3(0, -1, 0), new THREE.Vector3());
+    const result = fly(new THREE.Vector3(3, 0, 0), ceiling, 4);
+    expect(result.position.y).toBeCloseTo(ceiling.y - HANG, 1);
+    expect(result.velocity.length()).toBeLessThan(0.05);
+    const head = result.position.y + PLAYER_COLLIDER_HEIGHT_METERS / 2;
+    expect(12 - head).toBeGreaterThan(PLAYER_GRAPPLE_CLEARANCE_METERS + PLAYER_GRAPPLE_SLACK_METERS);
   });
 
   it('yanks toward the anchor and always lifts off the ground', () => {
@@ -100,14 +127,13 @@ describe('player grapple physics', () => {
     const target = new THREE.Vector3(30, 25, 0);
     const result = fly(new THREE.Vector3(), target, 4);
     expect(result.fastest).toBeCloseTo(PLAYER_GRAPPLE_MAX_SPEED_METERS_PER_SECOND, 6);
-    expect(result.closest).toBeLessThan(0.05);
-    expect(result.position.distanceTo(target)).toBeLessThan(0.05);
+    expect(result.position.distanceTo(target)).toBeLessThan(HANG + 0.05);
     expect(result.velocity.length()).toBeLessThan(0.05);
     const later = fly(new THREE.Vector3(), target, 4.5);
     expect(later.position.distanceTo(result.position)).toBeLessThan(0.01);
   });
 
-  it('brakes a straight pull so it stops at the anchor instead of overshooting', () => {
+  it('brakes a straight pull so the rope catches it at the slack instead of overshooting', () => {
     const target = new THREE.Vector3(0, 30, 0);
     const position = new THREE.Vector3();
     const velocity = new THREE.Vector3();
@@ -122,8 +148,8 @@ describe('player grapple physics', () => {
       fastest = Math.max(fastest, velocity.length());
     }
     expect(fastest).toBeGreaterThan(25);
-    expect(highest).toBeLessThan(target.y + 0.15);
-    expect(position.distanceTo(target)).toBeLessThan(0.2);
+    expect(highest).toBeLessThan(target.y + PLAYER_GRAPPLE_SLACK_METERS);
+    expect(position.distanceTo(target)).toBeLessThan(HANG + 0.05);
   });
 
   it('swings in an arc under an anchor ahead instead of a straight line', () => {

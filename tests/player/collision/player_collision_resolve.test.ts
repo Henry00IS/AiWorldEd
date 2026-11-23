@@ -982,4 +982,20 @@ describe('playerCollisionIntegrateStep', () => {
     expect(feet.y).toBeGreaterThan(topY - 0.05);
     expect(feet.y).toBeLessThan(topY + 0.08);
   });
+  it('keeps flying when the capsule only grazes an edge, instead of jumping back to the last ground', () => {
+    const root = new THREE.Group();
+    root.add(createBoxMesh(new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(60, 1, 60)));
+    root.add(createBoxMesh(new THREE.Vector3(-7, 12.5, 0), new THREE.Vector3(6, 1, 6)));
+    const world = new PlayerCollisionWorld();
+    world.activate();
+    world.setWorldRoot(root);
+    const scratch = createPlayerCollisionScratch();
+    const feet = new THREE.Vector3(0, 0, 0);
+    playerCollisionIntegrateStep(world, feet, new THREE.Vector3(), 0, 1 / 60, scratch, null, true);
+    expect(scratch.hasLastSafeFeet).toBe(true);
+    const grazing = new THREE.Vector3(-10.345429223155861, 10.535569070954807, 2.1586100423678545);
+    feet.copy(grazing);
+    const result = playerCollisionIntegrateStep(world, feet, new THREE.Vector3(), 0.7, 1 / 60, scratch, null, false);
+    expect(result.feetPosition.distanceTo(grazing)).toBeLessThan(0.05);
+  });
 });

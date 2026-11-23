@@ -145,4 +145,12 @@ export interface PlayerBallLink {
    * @param hands Hand targets, or null.
    */
   handsSet?(member: number, hands: PlayerCharacterHandTargets | null): void;
+  /**
+   * Points a member's character at the anchor of its grapple beam (it reaches
+   * for it and draws the beam), or lets go.
+   *
+   * @param member Member id.
+   * @param anchor Anchor, or null.
+   */
+  reachSet?(member: number, anchor: THREE.Vector3 | null): void;
 }

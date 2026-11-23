@@ -1,3 +1,4 @@
+import type * as THREE from 'three';
 import type { HostCollaborationEditor } from '@/collaboration/host/host_collaboration_editor.js';
 import type { ReceiverCollaborationPresence } from '@/collaboration/presence/receiver_collaboration_presence.js';
 import { toyFrameDecode, toyFrameEncode } from '@/collaboration/shared/toy_frame.js';
@@ -145,6 +146,11 @@ export class ToysCollaborationSession implements PlayerBallLink {
   /** @inheritdoc */
   handsSet(member: number, hands: PlayerCharacterHandTargets | null): void {
     this.presence.handsSet(member, hands);
+  }
+
+  /** @inheritdoc */
+  reachSet(member: number, anchor: THREE.Vector3 | null): void {
+    this.presence.reachSet(member, anchor);
   }
 
   /** @inheritdoc */

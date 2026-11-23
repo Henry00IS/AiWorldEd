@@ -30,7 +30,8 @@ import { PLAYER_KEYBOARD_INSTRUMENTS } from '@/player/keyboard/player_keyboard_i
 import { playerPlayHint } from '@/player/session/player_play_hint.js';
 import { PlayerKeyboardPlay } from '@/player/keyboard/player_keyboard_play.js';
 import { PLAYER_TOY_GRAPPLE, PLAYER_TOY_KEYBOARD, type PlayerToyKind } from '@/player/toy/player_toy_kind.js';
-import { PlayerGrapple } from '@/player/grapple/player_grapple.js';
+import { PlayerGrapple, playerGrappleHand } from '@/player/grapple/player_grapple.js';
+import { PlayerGrappleCrosshair } from '@/player/grapple/player_grapple_crosshair.js';
 
 /** Wheel travel that moves the toy picker by one slot (one mouse notch). */
 const PLAYER_PLAY_WHEEL_STEP = 100;
@@ -85,6 +86,8 @@ export class PlayerPlaySession {
   private hint: string | null = null;
   private readonly keyboard: PlayerKeyboardPlay;
   private readonly grapple: PlayerGrapple;
+  private crosshair: PlayerGrappleCrosshair | null = null;
+  private readonly scratchHand = new THREE.Vector3();
   private wheelTravel: number;
   private isActive: boolean;
   private viewMode: PlayerViewMode;
@@ -235,8 +238,9 @@ export class PlayerPlaySession {
   }
 
   /**
-   * Shows the toy picker over the play viewport and the hand in front of the
-   * camera, starting with empty hands, and tells the others.
+   * Shows the toy picker and the grapple crosshair over the play viewport and
+   * the hand in front of the camera, starting with empty hands, and tells the
+   * others.
    *
    * @param viewport Play viewport.
    */
@@ -246,13 +250,15 @@ export class PlayerPlaySession {
     const element = viewport.getContentElement();
     this.picker = new PlayerToyPicker(element.ownerDocument, null);
     this.picker.mount(element);
+    this.crosshair = new PlayerGrappleCrosshair(element.ownerDocument);
+    this.crosshair.mount(element);
     const view = (this.viewModel ??= new PlayerToyViewModel(this.host.ballSystem.getRoomColor()));
     view.setItem(null, this.host.ballSystem.getOwnColor());
     viewport.setOverlayRender((renderer, aspect) => view.render(renderer, aspect));
     this.host.ballSystem.announceHeld();
   }
 
-  /** Hides the toy picker and the hand. */
+  /** Hides the toy picker, the crosshair and the hand. */
   private hideToys(): void {
     this.grapple.reset(this.activeCamera);
     this.viewModel?.reset();
@@ -260,6 +266,8 @@ export class PlayerPlaySession {
     this.carry.reset();
     this.picker?.unmount();
     this.picker = null;
+    this.crosshair?.unmount();
+    this.crosshair = null;
     this.activeViewport?.setOverlayRender(null);
   }
 
@@ -377,6 +385,7 @@ export class PlayerPlaySession {
     this.carry.record(this.body.copyHorizontalVelocityTo(new THREE.Vector3()), now / 1000);
     this.avatar.setHeld(this.host.ballSystem.getHeld(), this.host.ballSystem.getOwnColor());
     this.avatar.setHandTargets(this.keyboard.getHands());
+    this.avatar.setReach(this.grapple.getAnchor());
     this.avatar.update(this.body, this.viewMode, deltaSeconds);
     this.cameraApplier.apply(
       this.activeCamera,
@@ -387,14 +396,36 @@ export class PlayerPlaySession {
       deltaSeconds,
     );
     this.viewModelUpdate(this.activeCamera, now, deltaSeconds);
-    this.grapple.update(
-      this.activeCamera,
-      this.body.getFeetPosition(),
-      this.body.getFacingYawRadians(),
-      this.bodyVelocity().length(),
-      this.viewMode === 'first_person',
-      deltaSeconds,
-    );
+    this.grappleUpdate(this.activeCamera, deltaSeconds);
+  }
+
+  /**
+   * Draws the beam from the hand, and the crosshair while the beam is picked
+   * (lit when something is in reach).
+   *
+   * @param camera Play camera.
+   * @param deltaSeconds Frame time.
+   */
+  private grappleUpdate(camera: THREE.PerspectiveCamera, deltaSeconds: number): void {
+    let hand: THREE.Vector3 | null = null;
+    if (this.viewMode === 'third_person') {
+      hand = this.scratchHand;
+      if (!this.avatar.copyRightHandTo(hand))
+        playerGrappleHand(this.body.getFeetPosition(), this.body.getFacingYawRadians(), hand);
+    }
+    this.grapple.update(camera, hand, this.bodyVelocity().length(), deltaSeconds);
+    const picked = this.selected === PLAYER_TOY_GRAPPLE;
+    this.crosshair?.set(picked, picked && this.grapple.aims(...this.viewRay(camera)));
+  }
+
+  /**
+   * Returns the ray through the middle of the view.
+   *
+   * @param camera Play camera.
+   * @returns Origin and unit direction.
+   */
+  private viewRay(camera: THREE.PerspectiveCamera): [THREE.Vector3, THREE.Vector3] {
+    return [camera.getWorldPosition(new THREE.Vector3()), camera.getWorldDirection(new THREE.Vector3())];
   }
 
   /**
@@ -440,9 +471,9 @@ export class PlayerPlaySession {
    */
   pressToy(): void {
     if (this.isActive && this.selected === PLAYER_TOY_KEYBOARD) return this.keyboard.toggle(this.look);
-    if (this.isActive && this.selected === PLAYER_TOY_GRAPPLE) {
-      const eye = playerEyePositionFromFeet(this.body.getFeetPosition(), new THREE.Vector3());
-      this.grapple.press(eye, performance.now() / 1000);
+    if (this.isActive && this.selected === PLAYER_TOY_GRAPPLE && this.activeCamera) {
+      const [origin, forward] = this.viewRay(this.activeCamera);
+      this.grapple.press(origin, forward, performance.now() / 1000);
       return;
     }
     const kind = this.host.ballSystem.getHeld();

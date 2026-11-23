@@ -29,6 +29,9 @@ import {
   playerCharacterIsModelReady,
 } from '@/player/character/player_character_model_loader.js';
 import { PLAYER_CHARACTER_ROOM_TINT, playerCharacterApplyRoomTint } from '@/player/character/player_character_tint.js';
+import { playerCharacterCopyRightHand } from '@/player/character/player_character_rig.js';
+import { PlayerGrappleBeam } from '@/player/grapple/player_grapple_beam.js';
+import { playerGrappleHand } from '@/player/grapple/player_grapple.js';
 
 export const CHARACTER_COLLABORATION_PRESENCE_TINT = PLAYER_CHARACTER_ROOM_TINT;
 export const characterCollaborationTint = playerCharacterApplyRoomTint;
@@ -116,6 +119,9 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
   private readonly held: PlayerToyHeld;
   private disposed: boolean;
   private hands: PlayerCharacterHandTargets | null = null;
+  private reach: THREE.Vector3 | null = null;
+  private readonly beam: PlayerGrappleBeam;
+  private readonly hand = new THREE.Vector3();
 
   /**
    * Creates the character; the body appears once the model is loaded.
@@ -154,6 +160,13 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
     this.color = color;
     this.held = new PlayerToyHeld(presenceCollaborationTag);
     this.disposed = false;
+    this.beam = new PlayerGrappleBeam({
+      helperAdd: (object) => {
+        presenceCollaborationTag(object);
+        this.object.add(object);
+      },
+      helperRemove: (object) => this.object.remove(object),
+    });
     this.object.add(this.body, this.tag.sprite);
     presenceCollaborationTag(this.object);
     this.bodyLoad(model);
@@ -208,9 +221,10 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
       );
       this.held.update(this.rig);
     }
+    const beam = this.beamUpdate(delta);
     const active = moving || this.motion.getPlanarSpeed() > 0 || !motion.grounded || motion.wallPushing;
     if (active) this.settleUntil = now + CHARACTER_COLLABORATION_PRESENCE_SETTLE_MS;
-    return active || this.hands !== null || now < this.settleUntil;
+    return active || beam || this.hands !== null || now < this.settleUntil;
   }
 
   /**
@@ -275,6 +289,31 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
   }
 
   /**
+   * Hooks the member's grapple beam on an anchor (the right arm reaches for it
+   * and the beam leaves the hand), or lets go.
+   *
+   * @param anchor Anchor, or null.
+   */
+  reachSet(anchor: THREE.Vector3 | null): void {
+    if (anchor && !(this.reach && anchor.equals(this.reach))) this.beam.hook(anchor);
+    if (!anchor && this.reach) this.beam.hide();
+    this.reach = anchor?.clone() ?? null;
+    this.animator.setReach(this.reach);
+  }
+
+  /**
+   * Copies where the beam leaves the character: its right hand as shown.
+   *
+   * @param target Destination.
+   * @returns The target.
+   */
+  copyHandTo(target: THREE.Vector3): THREE.Vector3 {
+    if (!this.rig || !playerCharacterCopyRightHand(this.rig, target))
+      playerGrappleHand(this.pose.position, this.bodyYaw, target);
+    return target;
+  }
+
+  /**
    * Returns the toy shown in the hand.
    *
    * @returns Kind, or null.
@@ -287,11 +326,24 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
   dispose(): void {
     this.disposed = true;
     this.held.clear();
+    this.beam.dispose();
+    this.animator.dispose();
     this.materials.splice(0).forEach((material) => material.dispose());
     this.body.traverse((child) => {
       if (child instanceof THREE.SkinnedMesh) child.skeleton.dispose();
     });
     this.tag.dispose();
+  }
+
+  /**
+   * Draws the hooked beam from the hand as shown this frame.
+   *
+   * @param deltaSeconds Frame time.
+   * @returns True while the beam is drawn.
+   */
+  private beamUpdate(deltaSeconds: number): boolean {
+    if (this.reach) this.beam.show(this.copyHandTo(this.hand), this.reach);
+    return this.beam.update(deltaSeconds) || this.reach !== null;
   }
 
   /**

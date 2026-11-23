@@ -51,6 +51,8 @@ export class ReceiverCollaborationPresence {
   private readonly held: Map<number, PhysicsToyKind | null>;
   /** Targets the hands of members playing a toy (a keyboard) follow. */
   private readonly hands = new Map<number, PlayerCharacterHandTargets>();
+  /** Anchors of members' hooked grapple beams. */
+  private readonly reaches = new Map<number, THREE.Vector3>();
   private scheduled: boolean;
 
   /**
@@ -106,6 +108,22 @@ export class ReceiverCollaborationPresence {
   }
 
   /**
+   * Points a member's character at its grapple beam's anchor (now and whenever
+   * it appears), or lets go.
+   *
+   * @param user Member id.
+   * @param anchor Anchor, or null.
+   */
+  reachSet(user: number, anchor: THREE.Vector3 | null): void {
+    if (anchor) this.reaches.set(user, anchor);
+    else this.reaches.delete(user);
+    const item = this.members.get(user)?.get(PRESENCE_ID_CHARACTER);
+    if (!(item instanceof CharacterCollaborationPresence)) return;
+    item.reachSet(anchor);
+    this.animate();
+  }
+
+  /**
    * Applies a member's latest presence; entries missing from it disappear.
    *
    * @param frame Decoded frame.
@@ -132,6 +150,7 @@ export class ReceiverCollaborationPresence {
    */
   memberLeft(user: number): void {
     this.held.delete(user);
+    this.reaches.delete(user);
     const items = this.members.get(user);
     if (items === undefined) return;
     [...items.keys()].forEach((id) => this.itemRemove(items, id));
@@ -195,6 +214,7 @@ export class ReceiverCollaborationPresence {
         : new CameraCollaborationPresence(name, color);
     if (item instanceof CharacterCollaborationPresence) item.hold(this.held.get(user) ?? null);
     if (item instanceof CharacterCollaborationPresence) item.handsSet(this.hands.get(user) ?? null);
+    if (item instanceof CharacterCollaborationPresence) item.reachSet(this.reaches.get(user) ?? null);
     items.set(id, item);
     this.host.helperAdd(item.object);
     return item;

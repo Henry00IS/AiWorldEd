@@ -187,7 +187,7 @@ describe('PlayerPlaySession toys and keyboard', () => {
     play.system.dispose();
   });
 
-  it('fires the grapple beam with a left click, pulls while held and lets go on release or another toy', () => {
+  it('fires the grapple beam at the crosshair, pulls while held and lets go on release or another toy', () => {
     const play = playEnter();
     play.tool.onKeyDown('Digit6');
     frames(play, 1);
@@ -197,6 +197,9 @@ describe('PlayerPlaySession toys and keyboard', () => {
     const beams = () => play.helpers.children.filter((child) => child.name === 'Grapple Beam');
     const grapple = (play.session as unknown as { grapple: { getAnchor(): THREE.Vector3 | null } }).grapple;
     play.session.applyLookDelta(0, 300);
+    frames(play, 1);
+    const crosshair = document.querySelector<HTMLElement>('.player-grapple-crosshair');
+    expect([crosshair?.style.display, crosshair?.dataset['hooks']]).toEqual(['block', 'true']);
     click(play);
     expect(grapple.getAnchor()).not.toBeNull();
     frames(play, 2);
@@ -210,6 +213,8 @@ describe('PlayerPlaySession toys and keyboard', () => {
     expect(grapple.getAnchor()).not.toBeNull();
     play.tool.onKeyDown('Digit2');
     expect(grapple.getAnchor()).toBeNull();
+    frames(play, 1);
+    expect(crosshair?.style.display).toBe('none');
     play.system.dispose();
   });
 

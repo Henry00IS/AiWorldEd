@@ -4,14 +4,32 @@ export const PLAYER_GRAPPLE_RANGE_METERS = 90;
 /** Shortest time between letting go and hooking again. */
 export const PLAYER_GRAPPLE_COOLDOWN_SECONDS = 0.06;
 
-/** Distance off the hit surface the pull aims for (keeps the body out of it). */
-export const PLAYER_GRAPPLE_STANDOFF_METERS = 0.6;
+/**
+ * Gap the pull keeps between the capsule and the hooked surface before the rope
+ * slack (keeps the camera off it, so it never sees through).
+ */
+export const PLAYER_GRAPPLE_CLEARANCE_METERS = 0.15;
 
 /**
- * Height above the feet of the point pulled to the anchor (low, so hooking a
- * ledge top lands the feet on it).
+ * How much higher the pull aims over a floor or ledge top (the feet clear its
+ * edge).
  */
-export const PLAYER_GRAPPLE_PULL_HEIGHT_METERS = 0.5;
+export const PLAYER_GRAPPLE_LEDGE_LIFT_METERS = 0.2;
+
+/**
+ * Rope slack at the end of the pull: within this distance of the target the
+ * beam lets the body hang like on a rope instead of pulling it in.
+ */
+export const PLAYER_GRAPPLE_SLACK_METERS = 0.25;
+
+/**
+ * Stiffness of the rope beyond the slack (acceleration per meter of stretch):
+ * the body hangs about gravity / stiffness past the slack.
+ */
+export const PLAYER_GRAPPLE_ROPE_STIFFNESS_PER_SECOND_SQUARED = 240;
+
+/** Speed left for swinging on the rope once braked at the slack. */
+export const PLAYER_GRAPPLE_ROPE_SWING_SPEED_METERS_PER_SECOND = 2;
 
 /**
  * Highest a ledge top may be above a wall hook for the pull to aim up onto it
@@ -59,19 +77,19 @@ export const PLAYER_GRAPPLE_YANK_AWAY_KEPT = 0.4;
 export const PLAYER_GRAPPLE_YANK_LIFT_METERS_PER_SECOND = 4.5;
 
 /**
- * Distance from the anchor inside which the pull eases off, gravity is held and
- * the body is damped, so it settles there without jitter.
+ * Stretch past the slack inside which the aim stops steering and the motion is
+ * damped toward hanging still.
  */
 export const PLAYER_GRAPPLE_ARRIVE_METERS = 2.5;
 
 /**
- * Hardest braking of the speed toward the anchor on arrival: the body zips in
- * and sticks instead of overshooting and bouncing back.
+ * Hardest braking of the speed on arrival: the body zips in and the rope
+ * catches it instead of it overshooting and bouncing back.
  */
 export const PLAYER_GRAPPLE_BRAKE_METERS_PER_SECOND_SQUARED = 120;
 
-/** Damping rate (per second) at the anchor itself. */
-export const PLAYER_GRAPPLE_ARRIVE_DAMPING_PER_SECOND = 9;
+/** Damping rate (per second) of the motion while hanging on the rope. */
+export const PLAYER_GRAPPLE_HANG_DAMPING_PER_SECOND = 6;
 
 /**
  * Drag rate (per second) of airborne speed above the run speed: after letting

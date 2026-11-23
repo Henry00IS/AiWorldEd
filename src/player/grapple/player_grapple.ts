@@ -30,7 +30,8 @@ import { PlayerGrappleSound } from './player_grapple_sound.js';
 const DOWN = new THREE.Vector3(0, -1, 0);
 
 /**
- * Writes where the beam leaves a character's right hand.
+ * Writes about where a character's right hand is, for the beam while its rig is
+ * not loaded yet.
  *
  * @param feet Feet position.
  * @param yaw Body facing yaw.
@@ -46,11 +47,11 @@ export function playerGrappleHand(feet: THREE.Vector3, yaw: number, target: THRE
 }
 
 /**
- * The grapple beam toy: pressing fires a beam along the look; where it hooks
- * the level, holding pulls the body toward it with physics forces (through the
- * body's pull), so it swings in arcs and flies on with its momentum after
- * letting go. A miss only flickers. Draws the beam, widens the view at speed
- * and plays its sounds.
+ * The grapple beam toy: pressing fires a beam from the middle of the view;
+ * where it hooks the level, holding pulls the body toward it with physics
+ * forces (through the body's pull), so it swings in arcs and flies on with its
+ * momentum after letting go. A miss only flickers. Draws the beam, widens the
+ * view at speed and plays its sounds.
  */
 export class PlayerGrapple implements PlayerBodyPull {
   private readonly beam: PlayerGrappleBeam;
@@ -86,20 +87,21 @@ export class PlayerGrapple implements PlayerBodyPull {
   }
 
   /**
-   * Fires the beam from the eye along the look (the button went down).
+   * Fires the beam from the middle of the view (where the crosshair is) along
+   * the camera's direction (the button went down).
    *
-   * @param eye Eye position.
+   * @param origin Camera position.
+   * @param forward Unit camera direction.
    * @param now Current time in seconds.
    * @returns True when it hooked.
    */
-  press(eye: THREE.Vector3, now: number): boolean {
+  press(origin: THREE.Vector3, forward: THREE.Vector3, now: number): boolean {
     if (now - this.releasedAt < PLAYER_GRAPPLE_COOLDOWN_SECONDS) return false;
-    const forward = this.look.copyLookForwardTo(this.aim);
-    const hit = this.world.raycastNearest(eye, forward, PLAYER_GRAPPLE_RANGE_METERS);
+    const hit = this.world.raycastNearest(origin, forward, PLAYER_GRAPPLE_RANGE_METERS);
     if (!hit) {
       this.beam.fizzle(
-        eye.clone().addScaledVector(forward, 0.5),
-        eye.clone().addScaledVector(forward, PLAYER_GRAPPLE_FIZZLE_METERS),
+        origin.clone().addScaledVector(forward, 0.5),
+        origin.clone().addScaledVector(forward, PLAYER_GRAPPLE_FIZZLE_METERS),
       );
       this.sound.miss();
       return false;
@@ -111,6 +113,18 @@ export class PlayerGrapple implements PlayerBodyPull {
     this.sound.hook();
     this.announce(this.anchor);
     return true;
+  }
+
+  /**
+   * Returns whether a shot from the middle of the view would hook (lights the
+   * crosshair).
+   *
+   * @param origin Camera position.
+   * @param forward Unit camera direction.
+   * @returns True when something is in reach.
+   */
+  aims(origin: THREE.Vector3, forward: THREE.Vector3): boolean {
+    return this.world.raycastNearest(origin, forward, PLAYER_GRAPPLE_RANGE_METERS) !== null;
   }
 
   /**
@@ -148,26 +162,18 @@ export class PlayerGrapple implements PlayerBodyPull {
 
   /**
    * Draws the beam from the hand (in front of the first-person camera, or the
-   * character's hand), follows the speed with the hum and widens the view at
-   * speed. Call after the camera was placed.
+   * character's right hand), follows the speed with the hum and widens the view
+   * at speed. Call after the camera and the character were placed.
    *
    * @param camera Play camera.
-   * @param feet Feet position.
-   * @param yaw Body facing yaw.
+   * @param hand Character's right hand in third person, or null in first
+   *   person.
    * @param speed Body speed in meters per second.
-   * @param firstPerson Whether the view is first person.
    * @param deltaSeconds Frame time.
    */
-  update(
-    camera: THREE.PerspectiveCamera,
-    feet: THREE.Vector3,
-    yaw: number,
-    speed: number,
-    firstPerson: boolean,
-    deltaSeconds: number,
-  ): void {
-    if (firstPerson) this.hand.set(...PLAYER_GRAPPLE_HAND_OFFSET).applyMatrix4(camera.matrixWorld);
-    else playerGrappleHand(feet, yaw, this.hand);
+  update(camera: THREE.PerspectiveCamera, hand: THREE.Vector3 | null, speed: number, deltaSeconds: number): void {
+    if (hand) this.hand.copy(hand);
+    else this.hand.set(...PLAYER_GRAPPLE_HAND_OFFSET).applyMatrix4(camera.matrixWorld);
     if (this.anchor) {
       this.beam.show(this.hand, this.anchor);
       this.sound.pulling(speed);

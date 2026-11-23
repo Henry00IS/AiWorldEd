@@ -120,7 +120,7 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
     this.publisher = new PlayerBallPublisher();
     this.view = new PlayerBallView(options.view);
     this.keyboard = this.keyboardCreate(options);
-    this.grapples = new PlayerGrappleRemote(options.view);
+    this.grapples = new PlayerGrappleRemote((member, anchor) => this.link?.reachSet?.(member, anchor));
     this.link = null;
     this.held = 'tennis';
     this.lastFrame = null;
@@ -473,10 +473,9 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
     const impacts = [...this.simulate(players, remote.balls, seconds), ...remote.impacts];
     impacts.forEach((impact) => this.options.sound(impact.position, impact.speed));
     this.view.sync([...this.ownItems(), ...remote.balls.map((ball) => this.remoteItem(ball))]);
-    const beams = this.grapples.update(players, seconds);
     const owing = this.publish(now);
     const balls = this.authority.getBodies().length > 0 || this.receiver.isSettled(now) === false;
-    return owing || keyboards || balls || beams;
+    return owing || keyboards || balls;
   }
 
   /**

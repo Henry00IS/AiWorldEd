@@ -37,22 +37,25 @@ describe('grapple beam networking', () => {
     expect(relay({ full: true, tick: 8, balls: [] })?.grapple).toBeUndefined();
   });
 
-  it('draws a member beam from its character until a full frame lets go', () => {
-    const added: THREE.Object3D[] = [];
-    const remote = new PlayerGrappleRemote({
-      helperAdd: (object) => added.push(object),
-      helperRemove: (object) => added.splice(added.indexOf(object), 1),
-    });
-    const players = [{ member: 4, feet: new THREE.Vector3(0, 0, 0), velocity: new THREE.Vector3() }];
+  it('points a member character at its anchor until a full frame lets go', () => {
+    const reaches: [number, number[] | null][] = [];
+    const remote = new PlayerGrappleRemote((member, anchor) => reaches.push([member, anchor?.toArray() ?? null]));
     remote.incoming(4, { full: true, tick: 1, balls: [], grapple: playerGrappleEntry(1, new THREE.Vector3(0, 10, 5)) });
-    expect(remote.update(players, 1 / 60)).toBe(true);
-    expect(added).toHaveLength(1);
+    remote.incoming(4, {
+      full: false,
+      tick: 2,
+      balls: [],
+      grapple: playerGrappleEntry(1, new THREE.Vector3(0, 10, 5)),
+    });
     expect(remote.anchorOf(4)?.toArray()).toEqual([0, 10, 5]);
-    remote.incoming(4, { full: false, tick: 2, balls: [] });
+    remote.incoming(4, { full: false, tick: 3, balls: [] });
     expect(remote.anchorOf(4)).not.toBeNull();
-    remote.incoming(4, { full: true, tick: 3, balls: [] });
+    remote.incoming(4, { full: true, tick: 4, balls: [] });
     expect(remote.anchorOf(4)).toBeNull();
-    expect(added).toHaveLength(0);
-    expect(remote.update(players, 1 / 60)).toBe(false);
+    remote.incoming(4, { full: true, tick: 5, balls: [] });
+    expect(reaches).toEqual([
+      [4, [0, 10, 5]],
+      [4, null],
+    ]);
   });
 });
