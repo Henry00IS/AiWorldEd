@@ -1,5 +1,8 @@
-/** Longest reach of the beam from the eye. */
-export const PLAYER_GRAPPLE_RANGE_METERS = 90;
+/**
+ * Reach of the beam from the eye: far enough to hook anything in view, so the
+ * whole level is in reach (the pull's distance term stays capped).
+ */
+export const PLAYER_GRAPPLE_RANGE_METERS = 10_000;
 
 /** Shortest time between letting go and hooking again. */
 export const PLAYER_GRAPPLE_COOLDOWN_SECONDS = 0.06;

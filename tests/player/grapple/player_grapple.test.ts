@@ -8,6 +8,7 @@ import { PlayerGrapple } from '@/player/grapple/player_grapple.js';
 import {
   PLAYER_GRAPPLE_CLIMB_SPEED_METERS_PER_SECOND,
   PLAYER_GRAPPLE_COOLDOWN_SECONDS,
+  PLAYER_GRAPPLE_MAX_SPEED_METERS_PER_SECOND,
 } from '@/player/grapple/player_grapple_constants.js';
 import { PlayerGrappleSound } from '@/player/grapple/player_grapple_sound.js';
 import { PlayerLookState } from '@/player/look/player_look_state.js';
@@ -165,6 +166,24 @@ describe('PlayerGrapple', () => {
     expect(end().distanceTo(onRay.add(camera.position))).toBeLessThan(1e-6);
     for (let step = 0; step < 30; step++) grapple.update(camera, hand, 0, STEP);
     expect(core.visible).toBe(false);
+  });
+
+  it('hooks a wall far across the level and flies there at the capped speed', () => {
+    const { body, look, world, grapple } = scene();
+    const root = new THREE.Group();
+    box(root, [60, 1, 60], [0, -0.5, 0]);
+    box(root, [40, 40, 2], [0, 20, 400]);
+    world.setWorldRoot(root);
+    expect(grapple.press(...aimAt(look, body, new THREE.Vector3(0, 10, 399)), 0)).toBe(true);
+    expect(grapple.getAnchor()?.z).toBeCloseTo(399, 3);
+    let fastest = 0;
+    for (let step = 0; step < 240; step++) {
+      body.update(NO_KEYS, look, world, STEP);
+      fastest = Math.max(fastest, velocityOf(body).length());
+    }
+    expect(body.getFeetPosition().z).toBeGreaterThan(100);
+    expect(fastest).toBeGreaterThan(30);
+    expect(fastest).toBeLessThanOrEqual(PLAYER_GRAPPLE_MAX_SPEED_METERS_PER_SECOND + 1e-6);
   });
 
   it('climbs over a wall too high to jump by hooking its top', () => {
