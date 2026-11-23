@@ -79,7 +79,7 @@ export const SOLID_SCRIPT_COMMANDS_TAGS: readonly SolidScriptCommand[] = [
     category: 'Faces',
     description: 'Give faces a tag, or take it off',
     manual:
-      'Gives each face in Of the tag in Tag, so later lines can find it with [$Face.Tag], [$Face.Tags] or HasTag, as Face Set does; with Remove on it takes that tag off again. The tag stays with the face when the object is moved, turned, scaled or cut. Tags the faces are given by where they look (Top, Side, Bottom) and by their generator stay. Of gives the faces, or objects for all their faces; empty uses [$Selected.Faces]. The 🔁 Tag may change per face. Example: Select Faces Facing Up, Tag Faces Roof, then later Texture Faces tiles Where [=HasTag([$Face.Tags], "Roof")].',
+      'Gives each face in Of the tag in Tag, so later lines can find it with [$Face.Tag], [$Face.Tags] or HasTag; with Remove on it takes that tag off again. The tag stays with the face when the object is moved, turned, scaled or cut. Tags the faces are given by where they look (Top, Side, Bottom) and by their generator stay. Of gives the faces, or objects for all their faces; empty uses [$Selected.Faces]. The 🔁 Tag may change per face. Example: Select Faces Facing Up, Tag Faces Roof, then later Texture Faces tiles Where [=HasTag([$Face.Tags], "Roof")].',
     stops: ['No faces.', 'An empty Tag.'],
     parameters: [
       solidScriptParameterEach(
