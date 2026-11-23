@@ -3,11 +3,15 @@ import type { PlayerBodyState } from '@/player/movement/player_body_state.js';
 import type { PlayerViewMode } from '@/player/player_mode.js';
 import { playerCharacterApplyRoomTint } from './player_character_tint.js';
 import { playerCharacterEnsureModelLoaded } from './player_character_model_loader.js';
-import { playerCharacterBuildRig, playerCharacterDisposeRig, type PlayerCharacterRig } from './player_character_rig.js';
+import {
+  playerCharacterBuildRig,
+  playerCharacterCopyRightHand,
+  playerCharacterDisposeRig,
+  type PlayerCharacterRig,
+} from './player_character_rig.js';
 import { PlayerCharacterAnimator } from './player_character_animator.js';
 import type { PlayerCharacterHandTargets } from './player_character_hand_targets.js';
-import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
-import { PlayerToyHeld } from '@/player/toy/player_toy_held.js';
+import { PlayerToyHeld, type PlayerToyHeldKind } from '@/player/toy/player_toy_held.js';
 import { playerCharacterTagHelperTree } from './player_character_model_prepare.js';
 import type { PlayerHelperLayer } from '@/player/player_helper_layer.js';
 
@@ -22,6 +26,8 @@ export class PlayerCharacterAvatar {
   /** Pose root for gait/footsteps when the mesh rig is not ready. */
   private readonly locomotionRoot: THREE.Object3D;
   private readonly held: PlayerToyHeld;
+  /** Point the right arm reaches for (the grapple beam's anchor), or null. */
+  private reach: THREE.Vector3 | null = null;
   private heldColor: number;
   private isAttached: boolean;
   private isDisposed: boolean;
@@ -91,7 +97,7 @@ export class PlayerCharacterAvatar {
     this.animator.update(locomotionRoot, body, deltaSeconds);
     if (viewMode === 'third_person' && this.rig) {
       this.animator.pose(this.rig, body);
-      this.held.update(this.rig);
+      this.held.update(this.rig, this.reach);
     }
   }
 
@@ -123,12 +129,44 @@ export class PlayerCharacterAvatar {
   }
 
   /**
-   * Shows a toy in the character's right hand (seen in third person).
+   * Makes the right arm reach for a point (the grapple beam's anchor), or not.
    *
-   * @param kind Toy kind, or null.
+   * @param point Point, or null.
+   */
+  setReach(point: THREE.Vector3 | null): void {
+    this.reach = point;
+    this.animator.setReach(point);
+  }
+
+  /**
+   * Copies where the muzzle of the grapple gun in the hand is as last posed
+   * (third person).
+   *
+   * @param target Destination.
+   * @returns False unless the gun is shown in the hand.
+   */
+  copyMuzzleTo(target: THREE.Vector3): boolean {
+    return this.held.copyMuzzleTo(target);
+  }
+
+  /**
+   * Copies where the right hand is as last posed (third person).
+   *
+   * @param target Destination.
+   * @returns False while the rig is not loaded.
+   */
+  copyRightHandTo(target: THREE.Vector3): boolean {
+    return this.rig !== null && playerCharacterCopyRightHand(this.rig, target);
+  }
+
+  /**
+   * Shows a toy or the grapple gun in the character's right hand (seen in third
+   * person).
+   *
+   * @param kind Held kind, or null.
    * @param color Member color.
    */
-  setHeld(kind: PhysicsToyKind | null, color: number): void {
+  setHeld(kind: PlayerToyHeldKind | null, color: number): void {
     const changed = kind !== this.held.getKind() || color !== this.heldColor;
     this.heldColor = color;
     if (changed || (this.rig !== null && kind !== null && this.held.getMesh() === null))
@@ -158,6 +196,7 @@ export class PlayerCharacterAvatar {
   dispose(): void {
     this.isDisposed = true;
     this.held.clear();
+    this.animator.dispose();
     this.detach();
     this.restoreOriginalMaterials();
     this.disposeTintedMaterials();

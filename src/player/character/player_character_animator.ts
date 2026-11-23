@@ -14,6 +14,8 @@ import { PlayerLocomotionSystem } from './locomotion/player_locomotion_system.js
 import { PLAYER_LOCOMOTION_GAIT } from './locomotion/player_locomotion_gait_config.js';
 import type { PlayerLocomotionBody, PlayerLocomotionFootstepSink } from './locomotion/player_locomotion_body.js';
 import type { PlayerLocomotionStateId } from './locomotion/state/player_locomotion_state_id.js';
+import { PlayerCharacterRagdoll } from './player_character_ragdoll.js';
+import { PLAYER_RUN_SPEED_METERS_PER_SECOND } from '@/player/player_constants.js';
 
 /**
  * Applies an extra pose between the base locomotion pose and the limb IK (for
@@ -30,6 +32,11 @@ const PLAYER_CHARACTER_ANIMATOR_FINGERS_FORWARD = new THREE.Vector3(0, 0, 1);
  * right one is mirrored.
  */
 const PLAYER_CHARACTER_ANIMATOR_ELBOW_POLE = new THREE.Vector3(0.55, 0.95, -0.35);
+/**
+ * Planar speed in the air past which the character counts as flung (goes limp
+ * into the ragdoll until it lands), well above a running jump.
+ */
+const PLAYER_CHARACTER_ANIMATOR_FLIGHT_SPEED = PLAYER_RUN_SPEED_METERS_PER_SECOND * 1.25;
 
 /**
  * The character's animation: exclusive locomotion states (walk, run, idle, wall
@@ -46,6 +53,11 @@ export class PlayerCharacterAnimator {
   private readonly handRight = new THREE.Vector3();
   private readonly rootInverse = new THREE.Quaternion();
   private readonly rootPosition = new THREE.Vector3();
+  private readonly ragdoll = new PlayerCharacterRagdoll();
+  private reach: THREE.Vector3 | null = null;
+  private flying = false;
+  private deltaSeconds = 0;
+  private readonly velocity = new THREE.Vector3();
 
   /**
    * Creates an animator in the idle state.
@@ -77,6 +89,30 @@ export class PlayerCharacterAnimator {
   }
 
   /**
+   * Makes the right arm reach for a point (the grapple beam's anchor) and the
+   * character fly limp while it does, or stops reaching.
+   *
+   * @param point Point, or null.
+   */
+  setReach(point: THREE.Vector3 | null): void {
+    this.reach = point;
+  }
+
+  /**
+   * Returns how far the pose is taken over by the flight ragdoll.
+   *
+   * @returns 0 (animated) to 1 (limp).
+   */
+  getRagdollWeight(): number {
+    return this.ragdoll.getWeight();
+  }
+
+  /** Frees the flight ragdoll. */
+  dispose(): void {
+    this.ragdoll.dispose();
+  }
+
+  /**
    * Returns the active locomotion state.
    *
    * @returns State id.
@@ -86,13 +122,19 @@ export class PlayerCharacterAnimator {
   }
 
   /**
-   * Advances the locomotion state, the limb targets and the footsteps.
+   * Advances the locomotion state, the limb targets and the footsteps, and
+   * tells whether the character flies (reaching for an anchor, or flung fast
+   * through the air, until it lands).
    *
    * @param root Character root, already placed at the feet and facing.
    * @param body Motion of the body.
    * @param deltaSeconds Frame delta.
    */
   update(root: THREE.Object3D, body: PlayerLocomotionBody, deltaSeconds: number): void {
+    this.deltaSeconds = deltaSeconds;
+    const airborne = !body.getIsGrounded();
+    if (this.reach || (airborne && body.getPlanarSpeed() > PLAYER_CHARACTER_ANIMATOR_FLIGHT_SPEED)) this.flying = true;
+    else if (!airborne) this.flying = false;
     this.locomotion.update(this.controls, root, body, deltaSeconds);
     playerCharacterApplyPoseWeightsFromState(
       this.poseWeights,
@@ -104,7 +146,7 @@ export class PlayerCharacterAnimator {
   /**
    * Poses the skeleton: torso from the locomotion state, then the overlay, then
    * the legs and arms by IK (so hands stay planted when the overlay bends the
-   * torso).
+   * torso), then, while flying, the ragdoll over it.
    *
    * @param rig Character rig.
    * @param body Motion of the body.
@@ -124,6 +166,8 @@ export class PlayerCharacterAnimator {
     }
     if (this.handTargets?.copyHandTargetsTo(this.handLeft, this.handRight)) this.solveTargetIk(rig);
     else this.solveLimbIk(rig);
+    body.copyHorizontalVelocityTo(this.velocity).setY(body.getVerticalVelocity());
+    this.ragdoll.apply(rig, this.flying, this.reach, this.velocity, this.deltaSeconds);
   }
 
   /**

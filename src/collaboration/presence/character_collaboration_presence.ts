@@ -7,10 +7,7 @@ import {
   type MotionCollaborationPresence,
 } from '@/collaboration/presence/look_collaboration_presence.js';
 import { NametagCollaborationPresence } from '@/collaboration/presence/nametag_collaboration_presence.js';
-import {
-  POSE_COLLABORATION_PRESENCE_TELEPORT_METERS,
-  PoseCollaborationPresence,
-} from '@/collaboration/presence/pose_collaboration_presence.js';
+import { PoseCollaborationPresence } from '@/collaboration/presence/pose_collaboration_presence.js';
 import {
   SoundCollaborationPresence,
   type SoundCollaborationPresenceSink,
@@ -21,14 +18,18 @@ import { NotificationGlobal } from '@/audio/notification/notification_global.js'
 import { PlayerCharacterAnimator } from '@/player/character/player_character_animator.js';
 import { playerCharacterLookApply, playerCharacterLookDistribute } from '@/player/character/player_character_look.js';
 import { playerCharacterBuildRig, type PlayerCharacterRig } from '@/player/character/player_character_rig.js';
-import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
 import type { PlayerCharacterHandTargets } from '@/player/character/player_character_hand_targets.js';
-import { PlayerToyHeld } from '@/player/toy/player_toy_held.js';
+import { PlayerToyHeld, type PlayerToyHeldKind } from '@/player/toy/player_toy_held.js';
 import {
   playerCharacterEnsureModelLoaded,
   playerCharacterIsModelReady,
 } from '@/player/character/player_character_model_loader.js';
 import { PLAYER_CHARACTER_ROOM_TINT, playerCharacterApplyRoomTint } from '@/player/character/player_character_tint.js';
+import { playerCharacterCopyRightHand } from '@/player/character/player_character_rig.js';
+import { PlayerGrappleBeam } from '@/player/grapple/player_grapple_beam.js';
+import { PLAYER_GRAPPLE_VOLUME } from '@/player/grapple/player_grapple_constants.js';
+import { PlayerGrappleSound } from '@/player/grapple/player_grapple_sound.js';
+import { playerGrappleHand } from '@/player/grapple/player_grapple.js';
 
 export const CHARACTER_COLLABORATION_PRESENCE_TINT = PLAYER_CHARACTER_ROOM_TINT;
 export const characterCollaborationTint = playerCharacterApplyRoomTint;
@@ -101,9 +102,7 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
   private readonly animator: PlayerCharacterAnimator;
   private readonly sound: SoundCollaborationPresence;
   private readonly flags: { time: number; flags: number }[];
-  private readonly lastTarget: THREE.Vector3;
   private rig: PlayerCharacterRig | null;
-  private hasTarget: boolean;
   private teleported: boolean;
   private updated: number;
   private settleUntil: number;
@@ -116,6 +115,11 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
   private readonly held: PlayerToyHeld;
   private disposed: boolean;
   private hands: PlayerCharacterHandTargets | null = null;
+  private reach: THREE.Vector3 | null = null;
+  private readonly missEnd = new THREE.Vector3();
+  private readonly beam: PlayerGrappleBeam;
+  private readonly beamSound: PlayerGrappleSound;
+  private readonly hand = new THREE.Vector3();
 
   /**
    * Creates the character; the body appears once the model is loaded.
@@ -140,9 +144,7 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
     this.sound = new SoundCollaborationPresence(sound);
     this.animator = new PlayerCharacterAnimator((x, y, z, speed) => this.sound.step(x, y, z, speed, this.clock));
     this.flags = [];
-    this.lastTarget = new THREE.Vector3();
     this.rig = null;
-    this.hasTarget = false;
     this.teleported = true;
     this.updated = Number.NaN;
     this.settleUntil = 0;
@@ -154,6 +156,14 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
     this.color = color;
     this.held = new PlayerToyHeld(presenceCollaborationTag);
     this.disposed = false;
+    this.beam = new PlayerGrappleBeam({
+      helperAdd: (object) => {
+        presenceCollaborationTag(object);
+        this.object.add(object);
+      },
+      helperRemove: (object) => this.object.remove(object),
+    });
+    this.beamSound = new PlayerGrappleSound(undefined, PLAYER_GRAPPLE_VOLUME.others);
     this.object.add(this.body, this.tag.sprite);
     presenceCollaborationTag(this.object);
     this.bodyLoad(model);
@@ -167,10 +177,7 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
    */
   target(entry: PresenceEntry, now: number): void {
     const position = new THREE.Vector3(...entry.position);
-    if (!this.hasTarget || this.lastTarget.distanceTo(position) > POSE_COLLABORATION_PRESENCE_TELEPORT_METERS)
-      this.teleported = true;
-    this.hasTarget = true;
-    this.lastTarget.copy(position);
+    if (this.pose.isTeleport(position, now)) this.teleported = true;
     this.flags.push({ time: now, flags: entry.fov });
     if (this.flags.length > CHARACTER_COLLABORATION_PRESENCE_FLAGS_KEPT) this.flags.shift();
     this.pose.target(position, new THREE.Quaternion(...entry.quaternion), now);
@@ -206,11 +213,12 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
       this.animator.pose(this.rig, this.motion, (rig) =>
         playerCharacterLookApply(rig, playerCharacterLookDistribute(this.lookYaw, this.lookPitch)),
       );
-      this.held.update(this.rig);
+      this.held.update(this.rig, this.reach);
     }
+    const beam = this.beamUpdate(delta);
     const active = moving || this.motion.getPlanarSpeed() > 0 || !motion.grounded || motion.wallPushing;
     if (active) this.settleUntil = now + CHARACTER_COLLABORATION_PRESENCE_SETTLE_MS;
-    return active || this.hands !== null || now < this.settleUntil;
+    return active || beam || this.hands !== null || now < this.settleUntil;
   }
 
   /**
@@ -255,11 +263,11 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
   }
 
   /**
-   * Shows the toy the member holds in its right hand.
+   * Shows the toy (or the grapple gun) the member holds in its right hand.
    *
-   * @param kind Toy kind, or null for empty hands.
+   * @param kind Held kind, or null for empty hands.
    */
-  hold(kind: PhysicsToyKind | null): void {
+  hold(kind: PlayerToyHeldKind | null): void {
     this.held.set(this.rig, kind, this.color);
   }
 
@@ -275,11 +283,57 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
   }
 
   /**
+   * Hooks the member's grapple beam on an anchor (the right arm reaches for it,
+   * the beam leaves the hand and zaps, quieter than the own), or lets go.
+   *
+   * @param anchor Anchor, or null.
+   */
+  reachSet(anchor: THREE.Vector3 | null): void {
+    if (anchor && !(this.reach && anchor.equals(this.reach))) {
+      this.beam.hook(anchor);
+      this.beamSound.place(this.copyHandTo(this.hand));
+      this.beamSound.hook();
+    }
+    if (!anchor && this.reach) {
+      this.beam.hide();
+      this.beamSound.release();
+    }
+    this.reach = anchor?.clone() ?? null;
+    this.animator.setReach(this.reach);
+  }
+
+  /**
+   * Flickers a missed shot from the gun out to its end, with the fizz (quieter
+   * than the own).
+   *
+   * @param end End of the flicker.
+   */
+  miss(end: THREE.Vector3): void {
+    this.beam.fizzle(this.copyHandTo(this.hand), this.missEnd.copy(end));
+    this.beamSound.place(this.hand);
+    this.beamSound.miss();
+  }
+
+  /**
+   * Copies where the beam leaves the character: the muzzle of the gun in its
+   * hand, or its right hand, as shown.
+   *
+   * @param target Destination.
+   * @returns The target.
+   */
+  copyHandTo(target: THREE.Vector3): THREE.Vector3 {
+    if (this.held.copyMuzzleTo(target)) return target;
+    if (!this.rig || !playerCharacterCopyRightHand(this.rig, target))
+      playerGrappleHand(this.pose.position, this.bodyYaw, target);
+    return target;
+  }
+
+  /**
    * Returns the toy shown in the hand.
    *
    * @returns Kind, or null.
    */
-  holding(): PhysicsToyKind | null {
+  holding(): PlayerToyHeldKind | null {
     return this.held.getKind();
   }
 
@@ -287,11 +341,30 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
   dispose(): void {
     this.disposed = true;
     this.held.clear();
+    this.beam.dispose();
+    this.beamSound.dispose();
+    this.animator.dispose();
     this.materials.splice(0).forEach((material) => material.dispose());
     this.body.traverse((child) => {
       if (child instanceof THREE.SkinnedMesh) child.skeleton.dispose();
     });
     this.tag.dispose();
+  }
+
+  /**
+   * Draws the hooked beam (or a missed shot's flicker) from the hand as shown
+   * this frame, and plays the hum there.
+   *
+   * @param deltaSeconds Frame time.
+   * @returns True while the beam is drawn.
+   */
+  private beamUpdate(deltaSeconds: number): boolean {
+    if (this.reach) {
+      this.beam.show(this.copyHandTo(this.hand), this.reach);
+      this.beamSound.place(this.hand);
+      this.beamSound.pulling(Math.hypot(this.motion.getPlanarSpeed(), this.motion.getRawVerticalVelocity()));
+    } else if (this.beam.isShown()) this.beam.follow(this.copyHandTo(this.hand), this.missEnd);
+    return this.beam.update(deltaSeconds) || this.reach !== null;
   }
 
   /**

@@ -6,7 +6,7 @@ import {
   PLAYER_BALL_SEND_BURST,
   PLAYER_BALL_SEND_PER_SECOND,
 } from './player_ball_constants.js';
-import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
+import type { PlayerToyKind } from '@/player/toy/player_toy_kind.js';
 import type { PlayerBallSnapshot } from './player_ball_link.js';
 
 /**
@@ -84,7 +84,7 @@ export class PlayerBallPublisher {
    * @param held Toy held in play mode (null: empty hands), if playing.
    * @returns Snapshot to send, or null.
    */
-  next(authority: PlayerBallAuthority, now: number, held?: PhysicsToyKind | null): PlayerBallSnapshot | null {
+  next(authority: PlayerBallAuthority, now: number, held?: PlayerToyKind | null): PlayerBallSnapshot | null {
     const snapshot = this.due(authority, now);
     if (held === undefined) return snapshot;
     if (this.heldPending && (snapshot || this.isRateReady(now)))

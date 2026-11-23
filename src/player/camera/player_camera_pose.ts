@@ -5,6 +5,9 @@ import {
   PLAYER_CAMERA_EASE_OUT_RATE_PER_SECOND,
   PLAYER_CAMERA_FLOOR_NORMAL_Y_MIN,
   PLAYER_CAMERA_FLOOR_SKIN_METERS,
+  PLAYER_CAMERA_SHOULDER_RATE_PER_SECOND,
+  PLAYER_CAMERA_SHOULDER_SIDE_METERS,
+  PLAYER_CAMERA_SHOULDER_UP_METERS,
   PLAYER_CAMERA_WALL_SKIN_METERS,
   PLAYER_THIRD_PERSON_DISTANCE_DEFAULT,
   PLAYER_THIRD_PERSON_DISTANCE_MAX,
@@ -19,11 +22,14 @@ import { playerEyePositionFromFeet } from '@/player/collision/player_capsule_col
  * Owns third-person zoom distance and applies FP/TP camera poses. The
  * third-person camera sweeps a sphere from the head toward its orbit position
  * so it stops in front of walls, slides up over floors, snaps in immediately
- * when blocked, and eases back out when the view clears.
+ * when blocked, and eases back out when the view clears. On request it moves
+ * over the right shoulder (the orbit pivots beside the head, swept the same
+ * way, so the view keeps looking along the look direction and never clips).
  */
 export class PlayerCameraPoseApplier {
   private thirdPersonDistance: number;
   private smoothedDistance: number;
+  private shoulder = 0;
   private readonly scratchEye: THREE.Vector3;
   private readonly scratchForward: THREE.Vector3;
   private readonly scratchDesired: THREE.Vector3;
@@ -82,6 +88,8 @@ export class PlayerCameraPoseApplier {
    * @param viewMode First- or third-person mode.
    * @param collisionWorld World used for third-person wall avoidance.
    * @param deltaSeconds Frame time used to ease the camera back out.
+   * @param overShoulder Whether the third-person camera goes over the right
+   *   shoulder (eased on and off in about 0.25 s).
    */
   apply(
     camera: THREE.PerspectiveCamera,
@@ -90,7 +98,11 @@ export class PlayerCameraPoseApplier {
     viewMode: PlayerViewMode,
     collisionWorld: PlayerCollisionWorld,
     deltaSeconds: number = 1 / 60,
+    overShoulder = false,
   ): void {
+    const blend = 1 - Math.exp(-PLAYER_CAMERA_SHOULDER_RATE_PER_SECOND * Math.max(0, deltaSeconds));
+    this.shoulder += ((overShoulder ? 1 : 0) - this.shoulder) * blend;
+    if (Math.abs((overShoulder ? 1 : 0) - this.shoulder) < 1e-3) this.shoulder = overShoulder ? 1 : 0;
     playerEyePositionFromFeet(feetPosition, this.scratchEye);
     look.copyLookForwardTo(this.scratchForward);
     if (viewMode === 'first_person') {
@@ -126,6 +138,7 @@ export class PlayerCameraPoseApplier {
     collisionWorld: PlayerCollisionWorld,
     deltaSeconds: number,
   ): void {
+    if (this.shoulder > 0) this.moveOntoShoulder(collisionWorld);
     this.scratchDesired.copy(this.scratchEye).addScaledVector(this.scratchForward, -this.thirdPersonDistance);
     this.liftDesiredAboveFloor(collisionWorld);
     const clearDistance = this.resolveClearDistance(collisionWorld);
@@ -134,6 +147,25 @@ export class PlayerCameraPoseApplier {
     camera.up.set(0, 1, 0);
     camera.lookAt(this.scratchEye);
     camera.updateMatrixWorld(true);
+  }
+
+  /**
+   * Moves the orbit pivot from the head to beside it over the right shoulder,
+   * as far as a sphere swept sideways from the head stays clear.
+   *
+   * @param collisionWorld Collision world.
+   */
+  private moveOntoShoulder(collisionWorld: PlayerCollisionWorld): void {
+    this.scratchDesired
+      .crossVectors(this.scratchForward, THREE.Object3D.DEFAULT_UP)
+      .normalize()
+      .multiplyScalar(PLAYER_CAMERA_SHOULDER_SIDE_METERS * this.shoulder);
+    this.scratchDesired.y += PLAYER_CAMERA_SHOULDER_UP_METERS * this.shoulder;
+    this.scratchDesired.add(this.scratchEye);
+    const distance = this.measureDesiredDirection();
+    const hit = this.castFromEye(collisionWorld, distance);
+    const clear = hit ? Math.max(0, hit.distance - PLAYER_CAMERA_WALL_SKIN_METERS) : distance;
+    this.scratchEye.addScaledVector(this.scratchDirection, Math.min(distance, clear));
   }
 
   /**

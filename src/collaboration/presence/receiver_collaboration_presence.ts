@@ -11,8 +11,8 @@ import {
 } from '@/collaboration/presence/character_collaboration_presence.js';
 import { PRESENCE_ID_CHARACTER, type PresenceFrame } from '@/collaboration/shared/presence_frame.js';
 import type { MemberCollaborationRoster } from '@/collaboration/sync/member_collaboration_roster.js';
-import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
 import type { PlayerCharacterHandTargets } from '@/player/character/player_character_hand_targets.js';
+import type { PlayerToyHeldKind } from '@/player/toy/player_toy_held.js';
 
 /** Clock and frame scheduling of the receiver (replaceable in tests). */
 export interface ReceiverCollaborationPresenceOptions {
@@ -48,9 +48,11 @@ export class ReceiverCollaborationPresence {
   private readonly options: ReceiverCollaborationPresenceOptions;
   private readonly members: Map<number, Map<number, PresenceCollaborationItem>>;
   /** Toy each member holds in play mode, as its toy frames said last. */
-  private readonly held: Map<number, PhysicsToyKind | null>;
+  private readonly held: Map<number, PlayerToyHeldKind | null>;
   /** Targets the hands of members playing a toy (a keyboard) follow. */
   private readonly hands = new Map<number, PlayerCharacterHandTargets>();
+  /** Anchors of members' hooked grapple beams. */
+  private readonly reaches = new Map<number, THREE.Vector3>();
   private scheduled: boolean;
 
   /**
@@ -74,13 +76,13 @@ export class ReceiverCollaborationPresence {
   }
 
   /**
-   * Shows the toy a member holds on its character (now and whenever it
-   * appears).
+   * Shows the toy (or grapple gun) a member holds on its character (now and
+   * whenever it appears).
    *
    * @param user Member id.
-   * @param kind Toy kind, or null for empty hands.
+   * @param kind Held kind, or null for empty hands.
    */
-  holdSet(user: number, kind: PhysicsToyKind | null): void {
+  holdSet(user: number, kind: PlayerToyHeldKind | null): void {
     if (this.held.get(user) === kind) return;
     this.held.set(user, kind);
     const item = this.members.get(user)?.get(PRESENCE_ID_CHARACTER);
@@ -102,6 +104,35 @@ export class ReceiverCollaborationPresence {
     const item = this.members.get(user)?.get(PRESENCE_ID_CHARACTER);
     if (!(item instanceof CharacterCollaborationPresence)) return;
     item.handsSet(hands);
+    this.animate();
+  }
+
+  /**
+   * Points a member's character at its grapple beam's anchor (now and whenever
+   * it appears), or lets go.
+   *
+   * @param user Member id.
+   * @param anchor Anchor, or null.
+   */
+  reachSet(user: number, anchor: THREE.Vector3 | null): void {
+    if (anchor) this.reaches.set(user, anchor);
+    else this.reaches.delete(user);
+    const item = this.members.get(user)?.get(PRESENCE_ID_CHARACTER);
+    if (!(item instanceof CharacterCollaborationPresence)) return;
+    item.reachSet(anchor);
+    this.animate();
+  }
+
+  /**
+   * Flickers a member's missed grapple shot from its character's gun.
+   *
+   * @param user Member id.
+   * @param end End of the flicker.
+   */
+  missSet(user: number, end: THREE.Vector3): void {
+    const item = this.members.get(user)?.get(PRESENCE_ID_CHARACTER);
+    if (!(item instanceof CharacterCollaborationPresence)) return;
+    item.miss(end);
     this.animate();
   }
 
@@ -132,6 +163,7 @@ export class ReceiverCollaborationPresence {
    */
   memberLeft(user: number): void {
     this.held.delete(user);
+    this.reaches.delete(user);
     const items = this.members.get(user);
     if (items === undefined) return;
     [...items.keys()].forEach((id) => this.itemRemove(items, id));
@@ -195,6 +227,7 @@ export class ReceiverCollaborationPresence {
         : new CameraCollaborationPresence(name, color);
     if (item instanceof CharacterCollaborationPresence) item.hold(this.held.get(user) ?? null);
     if (item instanceof CharacterCollaborationPresence) item.handsSet(this.hands.get(user) ?? null);
+    if (item instanceof CharacterCollaborationPresence) item.reachSet(this.reaches.get(user) ?? null);
     items.set(id, item);
     this.host.helperAdd(item.object);
     return item;
