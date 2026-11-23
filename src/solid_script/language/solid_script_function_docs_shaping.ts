@@ -80,6 +80,19 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_SHAPING = {
     group: 'List',
     gives: ['List'],
   },
+  chunks: {
+    usage: 'Chunks(list, sizes)',
+    summary: solidScriptFunctionDocSummary(
+      'Splits a flat list into lists, in list order. Sizes is one number, giving lists of that many items with the last taking what is left, or a list with the size of every chunk, adding up to the whole list; 0 gives an empty chunk.',
+      [
+        'Chunks(List(1, 2, 3, 4, 5), List(2, 3)) is List(List(1, 2), List(3, 4, 5)).',
+        'Chunks(List(1, 2, 3), 2) is List(List(1, 2), List(3)).',
+      ],
+      'Use it with For Each to build one path from every chunk of a flat list of points.',
+    ),
+    group: 'List',
+    gives: ['List'],
+  },
   rotate_euler: {
     usage: 'RotateEuler(vector, angles)',
     summary: solidScriptFunctionDocSummary(
@@ -291,6 +304,15 @@ export const SOLID_SCRIPT_SHAPING_WAVE_ARGUMENTS = {
       about: 'Items, Copy or Source.',
       choices: ['Items', 'Copy', 'Source'],
       default: 'Items',
+    },
+  },
+  chunks: {
+    list: { type: ['List'], about: 'Items to split, such as [Points].', start: 'List(1, 2, 3, 4)' },
+    sizes: {
+      type: ['Number', 'List'],
+      about: 'Items in every chunk, or a list with the size of each chunk.',
+      default: '1',
+      start: '2',
     },
   },
   saw: { value: { type: ['Number', 'Vector'], about: 'A number, or a vector to work on per axis.', start: '0.5' } },

@@ -210,6 +210,53 @@ function solidScriptShapingDuplicate(args: readonly SolidScriptValue[]): SolidSc
   );
 }
 
+/** How to call Chunks, for messages. */
+const SOLID_SCRIPT_SHAPING_CHUNKS_USAGE = 'Chunks(list, sizes)';
+
+/**
+ * Reads the size of every chunk: one Size for all, the last taking what is
+ * left, or one per chunk adding up to the whole list.
+ *
+ * @param value Sizes.
+ * @param size Number of items.
+ * @returns Size per chunk.
+ */
+function solidScriptShapingChunkSizes(value: SolidScriptValue, size: number): number[] {
+  if (!Array.isArray(value)) {
+    const each = solidScriptValueNumbers([value ?? 1])?.[0] ?? 0;
+    if (!Number.isInteger(each) || each < 1)
+      throw new Error(`${SOLID_SCRIPT_SHAPING_CHUNKS_USAGE} needs whole Sizes of 1 or more, such as 2`);
+    return Array.from({ length: Math.ceil(size / each) }, (_, chunk) => Math.min(each, size - chunk * each));
+  }
+  const sizes = solidScriptValueNumbers(value);
+  if (!sizes?.every((part) => Number.isInteger(part) && part >= 0))
+    throw new Error(`${SOLID_SCRIPT_SHAPING_CHUNKS_USAGE} needs whole Sizes of 0 or more, such as List(2, 3)`);
+  const total = sizes.reduce((sum, part) => sum + part, 0);
+  if (total !== size)
+    throw new Error(`${SOLID_SCRIPT_SHAPING_CHUNKS_USAGE} needs Sizes that add up to ${size}, not ${total}`);
+  return sizes;
+}
+
+/**
+ * Splits a flat list into lists of the given sizes, in list order, such as a
+ * list of points into one list per path.
+ *
+ * @param args The list and Sizes.
+ * @returns One list per chunk.
+ */
+function solidScriptShapingChunks(args: readonly SolidScriptValue[]): SolidScriptValue[] {
+  const list = args[0];
+  if (!Array.isArray(list))
+    throw new Error(`${SOLID_SCRIPT_SHAPING_CHUNKS_USAGE} needs a list, not ${solidScriptValueText(list)}`);
+  const sizes = solidScriptShapingChunkSizes(args.length > 1 ? args[1] : 1, list.length);
+  let start = 0;
+  return sizes.map((part) => {
+    const chunk = list.slice(start, start + part);
+    start += part;
+    return chunk;
+  });
+}
+
 /**
  * Finds which unit square along one axis a value lies in. A value within a
  * billionth of a whole number counts as lying on that edge, and an edge belongs
@@ -271,6 +318,7 @@ export const SOLID_SCRIPT_FUNCTIONS_SHAPING = {
   remap: solidScriptAxesEach(SOLID_SCRIPT_SHAPING_REMAP_USAGE, solidScriptShapingRemap),
   accumulate: solidScriptShapingAccumulate,
   duplicate: solidScriptShapingDuplicate,
+  chunks: solidScriptShapingChunks,
   saw: solidScriptAxesEach('Saw(value)', (args) => {
     const value = solidScriptExtraNumber(args, 0, 'Saw(value)');
     return value - Math.floor(value);
