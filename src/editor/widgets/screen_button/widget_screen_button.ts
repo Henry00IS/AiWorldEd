@@ -34,7 +34,7 @@ export abstract class WidgetScreenButton extends Widget {
   /** Button elements by pane and anchor key. */
   private readonly elements = new WidgetScreenElements((doc) => this.elementCreate(doc));
   /** Documents whose pointer presses are watched. */
-  private readonly watched = new Set<Document>();
+  private readonly watched = new Map<Document, () => void>();
   /** Client point and key of a left press on a button, or null. */
   private press: { doc: Document; x: number; y: number; key: string } | null = null;
   /** Key of a click waiting until the editor has finished with the release. */
@@ -64,10 +64,24 @@ export abstract class WidgetScreenButton extends Widget {
     this.elements.hideOthers(shown);
   }
 
-  /** Hides every button, as when the owning tool is left. */
+  /** Removes the buttons and their listeners, as when the owning tool is left. */
   hide(): void {
+    this.dispose();
+  }
+
+  /** Removes every button and document listener, and cancels pending clicks. */
+  dispose(): void {
     this.press = null;
-    this.elements.hideOthers(new Set());
+    this.pending = null;
+    this.watched.forEach((unwatch) => unwatch());
+    this.watched.clear();
+    this.elements.dispose();
+  }
+
+  /** Stops watching and drawing when the owning tool is left. */
+  override onDeactivate(): void {
+    this.dispose();
+    super.onDeactivate();
   }
 
   /**
@@ -122,10 +136,17 @@ export abstract class WidgetScreenButton extends Widget {
    */
   private watch(doc: Document): void {
     if (this.watched.has(doc)) return;
-    this.watched.add(doc);
-    doc.addEventListener('pointerdown', (event) => this.pointerDown(doc, event), true);
-    doc.addEventListener('pointermove', (event) => this.pointerMove(event), true);
-    doc.addEventListener('pointerup', (event) => this.pointerUp(event), true);
+    const down = (event: MouseEvent): void => this.pointerDown(doc, event);
+    const move = (event: MouseEvent): void => this.pointerMove(event);
+    const up = (event: MouseEvent): void => this.pointerUp(event);
+    doc.addEventListener('pointerdown', down, true);
+    doc.addEventListener('pointermove', move, true);
+    doc.addEventListener('pointerup', up, true);
+    this.watched.set(doc, () => {
+      doc.removeEventListener('pointerdown', down, true);
+      doc.removeEventListener('pointermove', move, true);
+      doc.removeEventListener('pointerup', up, true);
+    });
   }
 
   /**

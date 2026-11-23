@@ -97,4 +97,20 @@ describe('WidgetScreenButton', () => {
     setup({ Far: new THREE.Vector3(5, 0, 0) });
     expect(document.querySelector<HTMLElement>('[aria-label="Far"]')?.hidden).toBe(true);
   });
+
+  it('stops watching the document and removes its buttons when hidden, then watches again when shown', async () => {
+    const added = vi.spyOn(document, 'addEventListener');
+    const removed = vi.spyOn(document, 'removeEventListener');
+    const probe = setup({ Center: new THREE.Vector3(0, 0, 0) });
+    const listeners = added.mock.calls.map(([type, listener]) => [type, listener]);
+    expect(listeners.map(([type]) => type)).toEqual(['pointerdown', 'pointermove', 'pointerup']);
+    probe.hide();
+    expect(removed.mock.calls.map(([type, listener]) => [type, listener])).toEqual(listeners);
+    expect(document.querySelector('[aria-label="Center"]')).toBeNull();
+    await click([100, 50], [100, 50]);
+    expect(probe.clicks).toEqual([]);
+    probe.onRender();
+    await click([100, 50], [100, 50]);
+    expect(probe.clicks).toEqual(['Center']);
+  });
 });
