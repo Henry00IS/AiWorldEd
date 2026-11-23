@@ -157,10 +157,15 @@ describe('PlayerCameraPoseApplier', () => {
     applier.apply(camera, feet, look, 'third_person', world, 1 / 60);
     const centered = camera.position.clone();
     for (let frame = 0; frame < 18; frame++) applier.apply(camera, feet, look, 'third_person', world, 1 / 60, true);
-    const right = look.copyLookForwardTo(new THREE.Vector3()).cross(new THREE.Vector3(0, 1, 0)).normalize();
+    const right = look
+      .copyLookForwardTo(new THREE.Vector3())
+      .cross(new THREE.Vector3(0, 1, 0))
+      .normalize();
     const side = camera.position.clone().sub(centered).dot(right);
     expect(side).toBeGreaterThan(PLAYER_CAMERA_SHOULDER_SIDE_METERS * 0.95);
-    expect(camera.getWorldDirection(new THREE.Vector3()).angleTo(look.copyLookForwardTo(new THREE.Vector3()))).toBeLessThan(1e-6);
+    expect(
+      camera.getWorldDirection(new THREE.Vector3()).angleTo(look.copyLookForwardTo(new THREE.Vector3())),
+    ).toBeLessThan(1e-6);
     for (let frame = 0; frame < 18; frame++) applier.apply(camera, feet, look, 'third_person', world, 1 / 60, false);
     expect(camera.position.distanceTo(centered)).toBeLessThan(0.05 * PLAYER_CAMERA_SHOULDER_SIDE_METERS + 0.01);
   });
@@ -169,7 +174,10 @@ describe('PlayerCameraPoseApplier', () => {
     const root = new THREE.Group();
     const wall = new THREE.Mesh(new THREE.BoxGeometry(1, 6, 20));
     const look = new PlayerLookState(0, 0);
-    const right = look.copyLookForwardTo(new THREE.Vector3()).cross(new THREE.Vector3(0, 1, 0)).normalize();
+    const right = look
+      .copyLookForwardTo(new THREE.Vector3())
+      .cross(new THREE.Vector3(0, 1, 0))
+      .normalize();
     wall.position.copy(right).multiplyScalar(0.9);
     root.add(wall);
     root.updateMatrixWorld(true);
