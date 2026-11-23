@@ -60,19 +60,48 @@ function solidScriptPrincipalSpread(points: readonly THREE.Vector3[], center: TH
  * Gives the main axes of a cloud of points, the axis with the widest spread
  * first; or the spread along each, or the middle.
  *
- * @param args Points and optional Output.
+ * @param points Points, at least one.
+ * @param output What to give.
  * @returns Axes, spread or middle.
  */
-function solidScriptPrincipalAxes(args: readonly SolidScriptValue[]): number[] | number[][] {
-  const usage = 'PrincipalAxes(points, output)';
-  const points = solidScriptPrincipalPoints(args[0], usage);
-  const output = solidScriptNoiseWord(args[1], SOLID_SCRIPT_PRINCIPAL_OUTPUTS, usage);
+function solidScriptPrincipalOf(
+  points: readonly THREE.Vector3[],
+  output: (typeof SOLID_SCRIPT_PRINCIPAL_OUTPUTS)[number],
+): number[] | number[][] {
   const center = points.reduce((sum, point) => sum.add(point), new THREE.Vector3()).divideScalar(points.length);
   if (output === 'Center') return solidScriptPrincipalNumbers(center);
   const spread = solidScriptPrincipalSpread(points, center);
   const eigen = solidScriptEigenSymmetric(spread);
   if (output === 'Spread') return eigen.values.map((value) => solidScriptMemberRound(Math.sqrt(Math.max(0, value))));
   return eigen.vectors.map(solidScriptPrincipalNumbers);
+}
+
+/**
+ * Gives the main axes, spread or middle of the points; with Groups, every point
+ * gets the result of the points in its own group.
+ *
+ * @param args Points, optional Output and optional Groups.
+ * @returns One result, or one per point.
+ */
+function solidScriptPrincipalAxes(args: readonly SolidScriptValue[]): SolidScriptValue {
+  const usage = 'PrincipalAxes(points, output, groups)';
+  const points = solidScriptPrincipalPoints(args[0], usage);
+  const output = solidScriptNoiseWord(args[1], SOLID_SCRIPT_PRINCIPAL_OUTPUTS, usage);
+  const groups = Array.isArray(args[2]) ? args[2].map((group) => solidScriptValueText(group)) : [];
+  if (groups.length === 0) return solidScriptPrincipalOf(points, output);
+  if (groups.length !== points.length) throw new Error(`${usage} needs one group per point in Groups, or none`);
+  const results = new Map<string, SolidScriptValue>();
+  return groups.map((group) => {
+    if (!results.has(group))
+      results.set(
+        group,
+        solidScriptPrincipalOf(
+          points.filter((_point, index) => groups[index] === group),
+          output,
+        ),
+      );
+    return results.get(group);
+  });
 }
 
 /**

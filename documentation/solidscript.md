@@ -204,7 +204,7 @@ The **Examples** window holds showcase scripts such as the Spiral Staircase, sma
 - ClusterConnected(points, starts, ends, distance) groups points joined by edges whose cluster middles are closer than Distance.
 - Brick(position, scale, seed, output, mortar, width, height, offset, smooth) gives brick mortar or a per-brick Tint; Magic(position, scale, depth, distortion) gives swirling colour bands.
 - Rename Data moves a .Data value to a new key and Remove Data removes one key, on faces, edges or corners.
-- PrincipalAxes(points, output) gives the main axes, spread or middle of a point cloud; MatrixSvd(matrix, output) gives the stretches S and the turns U and V of a matrix.
+- PrincipalAxes(points, output, groups) gives the main axes, spread or middle of a point cloud, or of the group of each point with Groups; MatrixSvd(matrix, output) gives the stretches S and the turns U and V of a matrix.
 - Dual Mesh swaps the faces and corners of a mesh, with Keep Boundaries for open edges.
 - Find On How At UV finds the point on the faces whose texture coordinates are the U and V of From.
 - Set Handle Type places path handles by Type Auto, Vector, Align or Free, on Side Both, Left or Right, for points that pass Pick Where, and the path keeps each type: read them with [Path.HandleTypesLeft] and [Path.HandleTypesRight], Free until set. A straight path made Bezier gets Vector and a whole-path curve Align; handles moved by Set Handles turn Auto into Align and Vector into Free, and new points from Subdivide Path get Align.

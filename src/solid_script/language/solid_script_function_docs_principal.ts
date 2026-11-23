@@ -8,9 +8,9 @@ import type { SolidScriptBuiltinName } from './solid_script_functions_builtin.js
  */
 export const SOLID_SCRIPT_FUNCTION_DOCS_PRINCIPAL = {
   principal_axes: {
-    usage: 'PrincipalAxes(points, output)',
+    usage: 'PrincipalAxes(points, output, groups)',
     summary: solidScriptFunctionDocSummary(
-      'The main directions of a cloud of points. Output Axes (the default) gives three unit axes square to each other, the one the points spread along most first; Spread gives how far the points spread along each axis (the standard deviation); Center gives their average position.',
+      'The main directions of a cloud of points. Output Axes (the default) gives three unit axes square to each other, the one the points spread along most first; Spread gives how far the points spread along each axis (the standard deviation); Center gives their average position. Groups gives a group per point; then every point gets the result of the points in its own group.',
       [
         'First(PrincipalAxes(List(Vector(0, 0, 0), Vector(1, 1, 0), Vector(2, 2, 0)))) is [0.707106781, 0.707106781, 0].',
         'PrincipalAxes([Box.Vertices.Positions], "Spread") gives the size along each axis.',
@@ -59,6 +59,7 @@ export const SOLID_SCRIPT_PRINCIPAL_ARGUMENTS = {
       choices: ['Axes', 'Spread', 'Center'],
       default: 'Axes',
     },
+    groups: { type: ['List'], about: 'A group per point, such as each face tag; empty uses all points together.' },
   },
   matrix_svd: {
     matrix: {
