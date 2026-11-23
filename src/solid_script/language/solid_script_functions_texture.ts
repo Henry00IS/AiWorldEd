@@ -83,40 +83,39 @@ function solidScriptTextureBrick(args: SolidScriptTextureArgs): number {
 }
 
 /**
- * Coefficients of successive trigonometric turbulence stages: target, signs,
- * cosine, negate.
+ * Folds one colour swirl through the next: channel roles rotate each stage,
+ * with alternating sine and cosine waves.
+ *
+ * @param wave Three channels from the previous stage.
+ * @param stage Stage number, from 0.
+ * @param bend How strongly the waves bend.
+ * @returns Folded channels, from -1 to 1.
  */
-const SOLID_SCRIPT_TEXTURE_MAGIC_STAGES = [
-  [1, 1, -1, 1, 1, -1],
-  [0, 1, -1, -1, 1, 1],
-  [2, -1, -1, -1, 0, 1],
-  [0, -1, 1, -1, 1, -1],
-  [1, -1, 1, 1, 0, -1],
-  [1, -1, 1, 1, 1, -1],
-  [0, 1, 1, 1, 1, 1],
-  [2, 1, 1, -1, 0, 1],
-  [0, -1, -1, 1, 1, -1],
-  [1, 1, -1, 1, 0, -1],
-] as const;
+function solidScriptTextureSwirl(wave: readonly number[], stage: number, bend: number): number[] {
+  return [0, 1, 2].map((axis) => {
+    const forward = wave[(axis + 1) % 3] ?? 0;
+    const back = wave[(axis + 2) % 3] ?? 0;
+    const angle = (wave[axis] ?? 0) + bend * (forward - back * 0.5) + (axis + 1) * (stage + 1) * 0.7;
+    return stage % 2 === 0 ? Math.sin(angle) : Math.cos(angle);
+  });
+}
 
 /**
- * Samples a three-channel trigonometric turbulence texture.
+ * Swirling colour bands made by feeding waves through one another, with the
+ * channel roles rotating each time.
  *
  * @param args Position, Scale, Depth and Distortion.
- * @returns Three colour channels; their mean is the factor.
+ * @returns Three colour values from 0 to 1.
  */
 function solidScriptTextureMagic(args: SolidScriptTextureArgs): number[] {
-  const [x = 0, y = 0, z = 0] = solidScriptTexturePosition(args, 'Magic');
-  const depth = solidScriptTextureNumber(args, 2, 2, 'Magic');
-  const distortion = solidScriptTextureNumber(args, 3, 1, 'Magic');
-  if (depth < 0 || depth > 10 || depth !== Math.floor(depth)) throw new Error('Magic needs Depth from 0 to 10');
-  const channels = [Math.sin(5 * (x + y + z)), Math.cos(5 * (-x + y - z)), -Math.cos(5 * (-x - y + z))];
-  if (depth > 0) channels.forEach((value, axis) => (channels[axis] = value * distortion));
-  for (const [target, a, b, c, cosine, sign] of SOLID_SCRIPT_TEXTURE_MAGIC_STAGES.slice(0, depth)) {
-    const phase = a * (channels[0] ?? 0) + b * (channels[1] ?? 0) + c * (channels[2] ?? 0);
-    channels[target] = sign * (cosine ? Math.cos(phase) : Math.sin(phase)) * distortion;
-  }
-  return channels.map((value) => solidScriptMemberRound(0.5 - (distortion === 0 ? value : value / (2 * distortion))));
+  const usage = 'Magic(position, scale, depth, distortion)';
+  const [x = 0, y = 0, z = 0] = solidScriptTexturePosition(args, usage);
+  const depth = solidScriptTextureNumber(args, 2, 2, usage);
+  const bend = solidScriptTextureNumber(args, 3, 1, usage);
+  if (!Number.isInteger(depth) || depth < 0 || depth > 10) throw new Error(`${usage} needs a whole Depth from 0 to 10`);
+  let wave = [Math.sin(x * 2.3 + y * 0.9), Math.cos(y * 3.1 + z * 1.3), Math.sin(z * 2.7 - x * 1.1)];
+  for (let stage = 0; stage < depth; stage++) wave = solidScriptTextureSwirl(wave, stage, bend);
+  return wave.map((value) => solidScriptMemberRound(value * 0.5 + 0.5));
 }
 
 /** Kinds of Gradient, by the shape it fades in. */

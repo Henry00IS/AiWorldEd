@@ -22,7 +22,10 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_TEXTURE = {
     usage: 'Magic(position, scale, depth, distortion)',
     summary: solidScriptFunctionDocSummary(
       'Swirling colour bands made of nested waves, with Scale multiplying the position. Gives a vector of three values, mostly from 0 to 1. Depth, from 0 to 10, is how many times the waves fold into each other (2), and Distortion how strongly they bend (1). The average of the three values is a single pattern number.',
-      ['Magic(Vector(0, 0, 0), 1, 0) is [0.5, 0, 1].', 'Average(Magic(Vector([$X], [$Y], [$Z]), 2)) gives one number.'],
+      [
+        'Magic(Vector(0, 0, 0), 1, 0) is [0.5, 1, 0.5].',
+        'Average(Magic(Vector([$X], [$Y], [$Z]), 2)) gives one number.',
+      ],
       'Use it for psychedelic tints or to scatter values in a busy but smooth way.',
     ),
     group: 'Random',
