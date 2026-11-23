@@ -118,6 +118,7 @@ const SOLID_SCRIPT_AUDIT_FACES = new Set([
   'scale_faces',
   'scale_edges',
   'select_shortest_paths',
+  'select_group_boundaries',
   'face_groups',
   'set_handles',
   'set_path_type',

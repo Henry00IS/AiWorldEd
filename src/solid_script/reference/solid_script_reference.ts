@@ -171,6 +171,7 @@ Formulas know: numbers, text in double quotes, true, false, every name in bracke
 - Scale Edges grows or shrinks edges, joined ones as one island about their average midpoint.
 - InvertRotation, RotationAxis, RotationAngle and MixRotation work on turns in X, Y, Z degrees.
 - Select Shortest Paths picks the edges of the cheapest way from Start corners to the nearest End corner, with a Cost per edge, and can write the next corner and the total cost of every corner to Nexts and Costs.
+- Select Group Boundaries picks the edges between two faces whose Group value differs, such as Group [=[$Face.Normal.Y] > 0.9] for the rim of a top; an edge with one face is no boundary.
 - Face Groups splits faces into groups joined through edges, stopping at edges that pass Cut.
 - Set Handles bends a path into Bezier stretches between per-point handles; Set Path Type turns a path Poly or Bezier; Path.HandlesLeft and Path.HandlesRight read them.
 - Sweep Along Path takes an optional Up per Point: the profile's up faces it on each stretch, else it turns as little as possible from the stretch before.
