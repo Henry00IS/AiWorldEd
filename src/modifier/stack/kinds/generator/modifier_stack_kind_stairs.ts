@@ -18,6 +18,7 @@ import {
 } from './modifier_stack_stairs_nosing.js';
 import { MODIFIER_STACK_STAIRS_PRESETS } from './modifier_stack_stairs_presets.js';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
+import type { ModifierStackSliderLocal } from '@/modifier/stack/widgets/modifier_stack_slider_record.js';
 import type { ModifierStackField } from '@/modifier/stack/modifier_stack_types.js';
 import {
   modifierStackChoices,
@@ -178,6 +179,70 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
    */
   override summary(parameters: Record<string, unknown>): string {
     return parameters['sizing'] === 'Step Count' ? `${parameters['count']} steps` : `rise ${parameters['rise']} m`;
+  }
+
+  /**
+   * Has an edit mode with handles for the landing and the target rise.
+   *
+   * @param _parameters Normalized parameters.
+   * @returns True.
+   */
+  override hasEditMode(_parameters: Record<string, unknown>): boolean {
+    return true;
+  }
+
+  /**
+   * Returns a Landing handle that pulls back from the top end of the flight
+   * and, while steps go by target rise, a Target Rise handle that rises from
+   * the bottom end.
+   *
+   * @param parameters Normalized parameters.
+   * @param box Volume box in frame coordinates.
+   * @returns Sliders in frame coordinates.
+   */
+  protected override sliders(parameters: Record<string, unknown>, box: THREE.Box3): ModifierStackSliderLocal[] {
+    const flight = this.flightOf(parameters, box);
+    const climb = modifierStackStairsClimb(parameters['direction']);
+    const up = new THREE.Vector3(0, 1, 0);
+    const ahead = new THREE.Vector3().setComponent(climb.axis === 'x' ? 0 : 2, climb.positive ? 1 : -1);
+    const middle = box.getCenter(new THREE.Vector3());
+    const top = middle
+      .clone()
+      .setY(box.max.y)
+      .addScaledVector(ahead, flight.length / 2);
+    const bottom = middle
+      .clone()
+      .setY(box.min.y)
+      .addScaledVector(ahead, -flight.length / 2);
+    const landing = flight.length - flight.run * flight.steps;
+    const sliders = [this.slider('landing', 'Landing', landing, top, ahead.clone().negate(), 0, flight.length * 0.9)];
+    if (parameters['sizing'] === 'Step Count') return sliders;
+    const rise = modifierStackNumber(parameters['rise'], 0.125, 0.01, 10);
+    return [...sliders, this.slider('rise', 'Target Rise', rise, bottom, up, 0.01, 10)];
+  }
+
+  /**
+   * Describes one handle that writes a parameter.
+   *
+   * @param key Parameter key.
+   * @param label Caption.
+   * @param value Shown value.
+   * @param origin Point for a value of 0.
+   * @param direction Move for a value of 1.
+   * @param min Smallest value.
+   * @param max Largest value.
+   * @returns Slider in frame coordinates.
+   */
+  private slider(
+    key: string,
+    label: string,
+    value: number,
+    origin: THREE.Vector3,
+    direction: THREE.Vector3,
+    min: number,
+    max: number,
+  ): ModifierStackSliderLocal {
+    return { id: key, label, value, origin, direction, min, max, writes: key, target: 'parameter' };
   }
 
   /**

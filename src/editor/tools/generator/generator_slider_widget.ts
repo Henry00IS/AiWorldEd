@@ -1,7 +1,7 @@
 import { Widget } from '@/editor/widgets/widget.js';
 import { WidgetScreenElements, widgetScreenProject } from '@/editor/widgets/screen_button/widget_screen_elements.js';
 import type { EditorViewportPickContext } from '@/editor/window/editor_viewport_pick_context.js';
-import type { ModifierStackSlider } from '@/modifier/stack/widgets/modifier_stack_sliders.js';
+import type { ModifierStackSlider } from '@/modifier/stack/widgets/modifier_stack_slider_record.js';
 import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
 import type { GeneratorEditHost } from './generator_edit_host.js';
 import { generatorSliderHandle, generatorSliderValueAt } from './generator_slider_value.js';

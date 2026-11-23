@@ -12,8 +12,8 @@ import {
   modifierStackEditSteps,
   modifierStackSliderPatch,
   modifierStackSliders,
-  type ModifierStackSlider,
 } from '@/modifier/stack/widgets/modifier_stack_sliders.js';
+import type { ModifierStackSlider } from '@/modifier/stack/widgets/modifier_stack_slider_record.js';
 import type { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { EditorOverlayId } from '@/tools/overlay/editor_overlay_id.js';
 import type { PolicyEditorOverlay } from '@/tools/overlay/policy_editor_overlay.js';

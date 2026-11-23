@@ -6,13 +6,15 @@ import { ManagerSelection } from '@/selection/object/manager_selection.js';
 import { EditorOverlayId } from '@/tools/overlay/editor_overlay_id.js';
 import { PolicyEditorOverlay } from '@/tools/overlay/policy_editor_overlay.js';
 import { CommandStack } from '@/commands/command_stack.js';
+import { SolidModel } from '@/solid/model/solid_model.js';
+import { modifierStackCompile } from '@/modifier/stack/evaluate/modifier_stack_compile.js';
 import { GridSnap } from '@/transform/snap/grid_snap.js';
 import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierStackParametersRead } from '@/modifier/stack/modifier_stack_parameters_commit.js';
 import {
   modifierStackSlidersRecord,
   type ModifierStackSlider,
-} from '@/modifier/stack/widgets/modifier_stack_sliders.js';
+} from '@/modifier/stack/widgets/modifier_stack_slider_record.js';
 import {
   solidScriptDocumentCreate,
   solidScriptDocumentEditModeWith,
@@ -49,6 +51,7 @@ function heightSlider(stepId: string): ModifierStackSlider {
     label: 'Height',
     value: 1,
     writes: 'Height',
+    target: 'input',
     origin: new THREE.Vector3(),
     direction: new THREE.Vector3(0, 1, 0),
     min: null,
@@ -89,13 +92,13 @@ describe('layoutGeneratorEditHostCreate', () => {
   it('reports the single selected object only when its script has an edit mode', () => {
     const editable = scriptGenerator(true).node;
     const plain = scriptGenerator(false).node;
-    const stairs = modifierGeneratorNodeCreate('stairs');
+    const column = modifierGeneratorNodeCreate('column');
     const { host, selectionManager } = setup([]);
     selectionManager.setSelection([editable]);
     expect(host.selectedEditable()).toBe(editable);
     selectionManager.setSelection([editable, new THREE.Mesh()]);
     expect(host.selectedEditable()).toBeNull();
-    for (const other of [plain, stairs]) {
+    for (const other of [plain, column]) {
       selectionManager.setSelection([other]);
       expect(host.selectedEditable()).toBeNull();
     }
@@ -125,6 +128,26 @@ describe('layoutGeneratorEditHostCreate', () => {
     commandStack.undo();
     expect(inputs()).toEqual({ Height: '1' });
     expect(commandStack.canUndo()).toBe(false);
+  });
+
+  it('drags a built-in Stairs Landing into its parameter as one undo step', () => {
+    const model = new SolidModel('Stairs');
+    const node = modifierGeneratorNodeCreate('stairs');
+    model.root.add(node);
+    model.root.updateMatrixWorld(true);
+    modifierStackCompile(model.getBrushes(), model.root);
+    const { host, selectionManager, commandStack } = setup([]);
+    selectionManager.setSelection([node]);
+    expect(host.selectedEditable()).toBe(node);
+    const landing = host.sliders().find((slider) => slider.label === 'Landing');
+    if (!landing) throw new Error('no landing handle');
+    const read = () => modifierStackParametersRead(node, landing.stepId)?.['landing'];
+    host.slide(landing, 0.25);
+    host.slideEnd();
+    expect(read()).toBe(0.25);
+    expect(host.sliders().find((slider) => slider.label === 'Landing')?.value).toBeCloseTo(0.25);
+    commandStack.undo();
+    expect(read()).toBe(0);
   });
 
   it('takes a cancelled drag back without an undo step', () => {

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { editAxisDragParameter } from '@/edit/tool/edit_axis_drag.js';
 import type { EditorViewportPickContext } from '@/editor/window/editor_viewport_pick_context.js';
-import type { ModifierStackSlider } from '@/modifier/stack/widgets/modifier_stack_sliders.js';
+import type { ModifierStackSlider } from '@/modifier/stack/widgets/modifier_stack_slider_record.js';
 
 /**
  * Returns the value a slider takes under a client point: the point on its line

@@ -3,52 +3,7 @@ import { modifierStackParametersStackRead } from '@/modifier/stack/modifier_stac
 import type { ModifierStackEntry } from '@/modifier/stack/modifier_stack_types.js';
 import { MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
 import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
-import type { SolidScriptWidgetSlider } from '@/solid_script/language/solid_script_widget.js';
-
-/** A slider handle of a modifier step, in world coordinates. */
-export interface ModifierStackSlider {
-  /** Id of the step that made it. */
-  stepId: string;
-  /** Key that stays the same between evaluations of the step. */
-  key: string;
-  /** Caption beside the handle. */
-  label: string;
-  /** Value the handle shows. */
-  value: number;
-  /** World point of the handle for a value of 0. */
-  origin: THREE.Vector3;
-  /** World move of the handle for a value of 1. */
-  direction: THREE.Vector3;
-  /** Smallest value a drag writes, or null for no limit. */
-  min: number | null;
-  /** Largest value a drag writes, or null for no limit. */
-  max: number | null;
-  /**
-   * Name of the Input a drag writes into, or empty for a handle that only
-   * shows.
-   */
-  writes: string;
-}
-
-/** Sliders each step made at its last evaluation, by stack owner and step id. */
-const MODIFIER_STACK_SLIDERS = new WeakMap<THREE.Object3D, Map<string, ModifierStackSlider[]>>();
-
-/**
- * Keeps the sliders a step made at its evaluation, replacing the last ones.
- *
- * @param owner Stack owner.
- * @param stepId Step id.
- * @param sliders Sliders in world coordinates.
- */
-export function modifierStackSlidersRecord(
-  owner: THREE.Object3D,
-  stepId: string,
-  sliders: readonly ModifierStackSlider[],
-): void {
-  let steps = MODIFIER_STACK_SLIDERS.get(owner);
-  if (!steps) MODIFIER_STACK_SLIDERS.set(owner, (steps = new Map()));
-  steps.set(stepId, [...sliders]);
-}
+import { modifierStackSlidersRecorded, type ModifierStackSlider } from './modifier_stack_slider_record.js';
 
 /**
  * Says whether an enabled step offers its widgets in edit mode, as its kind
@@ -80,15 +35,15 @@ export function modifierStackEditSteps(owner: THREE.Object3D): ModifierStackEntr
  * @returns Sliders, in stack order.
  */
 export function modifierStackSliders(owner: THREE.Object3D): ModifierStackSlider[] {
-  const steps = MODIFIER_STACK_SLIDERS.get(owner);
-  return modifierStackEditSteps(owner).flatMap((entry) => steps?.get(entry.id) ?? []);
+  return modifierStackEditSteps(owner).flatMap((entry) => modifierStackSlidersRecorded(owner, entry.id));
 }
 
 /**
- * Returns the stored input values of a SolidScript step with one input set.
+ * Returns the parameter patch that sets the value a slider writes: the stored
+ * input values with one input set, or the one parameter.
  *
  * @param owner Stack owner.
- * @param slider Slider whose input changes.
+ * @param slider Slider whose value changes.
  * @param value New value.
  * @returns Parameter patch, or null when the step is gone.
  */
@@ -99,28 +54,7 @@ export function modifierStackSliderPatch(
 ): Record<string, unknown> | null {
   const entry = modifierStackParametersStackRead(owner)?.modifiers.find((each) => each.id === slider.stepId);
   if (!entry) return null;
+  if (slider.target === 'parameter') return { [slider.writes]: value };
   const inputs = (entry.parameters[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY] ?? {}) as Record<string, string>;
   return { [MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]: { ...inputs, [slider.writes]: String(value) } };
-}
-
-/**
- * Turns script-space sliders of one step into world sliders.
- *
- * @param stepId Step id.
- * @param frame Matrix from script coordinates to the world.
- * @param sliders Sliders in script coordinates.
- * @returns World sliders.
- */
-export function modifierStackSlidersPlaced(
-  stepId: string,
-  frame: THREE.Matrix4,
-  sliders: readonly SolidScriptWidgetSlider[],
-): ModifierStackSlider[] {
-  return sliders.map((slider, index) => {
-    const origin = new THREE.Vector3(...slider.origin).applyMatrix4(frame);
-    const tip = new THREE.Vector3(...slider.origin).add(new THREE.Vector3(...slider.direction)).applyMatrix4(frame);
-    const { label, value, writes, min, max } = slider;
-    const key = `${stepId}:${slider.line}:${index}`;
-    return { stepId, key, label, value, writes, min, max, origin, direction: tip.sub(origin) };
-  });
 }

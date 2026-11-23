@@ -1,8 +1,9 @@
 import type { ModifierStackPoseFollow } from '@/modifier/stack/kinds/modifier_stack_kind.js';
 import {
+  modifierStackSlidersOfScript,
   modifierStackSlidersPlaced,
   modifierStackSlidersRecord,
-} from '@/modifier/stack/widgets/modifier_stack_sliders.js';
+} from '@/modifier/stack/widgets/modifier_stack_slider_record.js';
 import * as THREE from 'three';
 import {
   MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY,
@@ -246,7 +247,7 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
     modifierStackSlidersRecord(
       context.volume,
       context.step.id,
-      modifierStackSlidersPlaced(context.step.id, scriptToWorld, layout.widgets),
+      modifierStackSlidersPlaced(context.step.id, scriptToWorld, modifierStackSlidersOfScript(layout.widgets)),
     );
     if (context.ownsGenerated) for (const mesh of layout.meshes) context.meshes?.push({ ...mesh, frame });
     const count = modifierStackSolidScriptBrushCount(layout.nodes);

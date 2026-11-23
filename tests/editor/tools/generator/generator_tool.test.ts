@@ -5,7 +5,7 @@ import { BoundsTool } from '@/editor/tools/bounds_tool.js';
 import { GeneratorTool } from '@/editor/tools/generator/generator_tool.js';
 import type { EditorServices } from '@/editor/window/editor_services.js';
 import type { GeneratorEditHost } from '@/editor/tools/generator/generator_edit_host.js';
-import type { ModifierStackSlider } from '@/modifier/stack/widgets/modifier_stack_sliders.js';
+import type { ModifierStackSlider } from '@/modifier/stack/widgets/modifier_stack_slider_record.js';
 
 /** Pane rectangle; the generator at the origin projects to its center. */
 const PANE = { left: 0, top: 0, width: 200, height: 100, right: 200, bottom: 100, x: 0, y: 0 };
@@ -213,6 +213,7 @@ function slider(): ModifierStackSlider {
     label: 'Height',
     value: 0,
     writes: 'Height',
+    target: 'input',
     origin: new THREE.Vector3(),
     direction: new THREE.Vector3(1, 0, 0),
     min: null,

@@ -5,7 +5,11 @@ import { ModifierVolume } from '@/modifier/stack/modifier_volume.js';
 import { modifierGeneratorNodeCreate } from '@/modifier/stack/modifier_generator_node.js';
 import { modifierStackCompile } from '@/modifier/stack/evaluate/modifier_stack_compile.js';
 import { MODIFIER_STACK_SOLID_SCRIPT_KIND } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
-import { modifierStackEditSteps, modifierStackSliders } from '@/modifier/stack/widgets/modifier_stack_sliders.js';
+import {
+  modifierStackEditSteps,
+  modifierStackSliderPatch,
+  modifierStackSliders,
+} from '@/modifier/stack/widgets/modifier_stack_sliders.js';
 import {
   solidScriptDocumentCreate,
   solidScriptDocumentEditModeWith,
@@ -60,5 +64,30 @@ describe('modifier stack sliders', () => {
     const { node } = sliderScene(false, '1');
     expect(modifierStackEditSteps(node)).toEqual([]);
     expect(modifierStackSliders(node)).toEqual([]);
+  });
+
+  it('gives Stairs a Landing and a Target Rise handle that write its parameters', () => {
+    const model = new SolidModel('Stairs');
+    const node = modifierGeneratorNodeCreate('stairs');
+    node.position.set(3, 1, -2);
+    model.root.add(node);
+    model.root.updateMatrixWorld(true);
+    modifierStackCompile(model.getBrushes(), model.root);
+    const box = new THREE.Box3().setFromObject(node);
+    const centre = box.getCenter(new THREE.Vector3());
+    const [landing, rise, ...rest] = modifierStackSliders(node);
+    expect(rest).toEqual([]);
+    expect([landing?.label, landing?.value, landing?.writes, landing?.target]).toEqual([
+      'Landing',
+      0,
+      'landing',
+      'parameter',
+    ]);
+    expect(landing?.origin.distanceTo(new THREE.Vector3(centre.x, box.max.y, box.max.z))).toBeLessThan(1e-9);
+    expect(landing?.direction.distanceTo(new THREE.Vector3(0, 0, -1))).toBeLessThan(1e-9);
+    expect([rise?.label, rise?.value, rise?.writes, rise?.min]).toEqual(['Target Rise', 0.125, 'rise', 0.01]);
+    expect(rise?.origin.distanceTo(new THREE.Vector3(centre.x, box.min.y, box.min.z))).toBeLessThan(1e-9);
+    expect(rise?.direction.distanceTo(new THREE.Vector3(0, 1, 0))).toBeLessThan(1e-9);
+    expect(landing && modifierStackSliderPatch(node, landing, 0.5)).toEqual({ landing: 0.5 });
   });
 });

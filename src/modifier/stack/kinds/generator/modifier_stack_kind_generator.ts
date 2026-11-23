@@ -1,4 +1,9 @@
 import * as THREE from 'three';
+import {
+  modifierStackSlidersPlaced,
+  modifierStackSlidersRecord,
+  type ModifierStackSliderLocal,
+} from '@/modifier/stack/widgets/modifier_stack_slider_record.js';
 import { SolidBrushInstance } from '@/solid/model/solid_brush_instance.js';
 import type { SolidBrush } from '@/solid/brush/solid_brush.js';
 import type { ModifierStackField, ModifierStackUnit } from '@/modifier/stack/modifier_stack_types.js';
@@ -373,6 +378,7 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKindGenera
     box: THREE.Box3,
     context: ModifierStackContext,
   ): ModifierStackUnit[] {
+    this.slidersRecord(parameters, box, context);
     const operation = this.pieceOperation(parameters);
     const fill = operation === SolidOperation.Subtractive && this.fillsBack(parameters);
     const pieces = this.grantedPieces(this.buildPieces(parameters, box), context, fill ? 2 : 1);
@@ -381,6 +387,32 @@ export abstract class ModifierStackKindGenerator extends ModifierStackKindGenera
     if (fill) made.push(...this.pieceUnits(fillPieces, box, context, SolidOperation.Additive, pieces.length));
     if (operation !== SolidOperation.Intersecting || made.length === 0) return made;
     return [modifierStackGeneratorIntersectUnit(made, context)];
+  }
+
+  /**
+   * Returns the slider handles of the edit mode, for a kind that turns
+   * hasEditMode on; none by default.
+   *
+   * @param _parameters Normalized parameters.
+   * @param _box Volume box in frame coordinates.
+   * @returns Sliders in frame coordinates that write parameters.
+   */
+  protected sliders(_parameters: Record<string, unknown>, _box: THREE.Box3): ModifierStackSliderLocal[] {
+    return [];
+  }
+
+  /**
+   * Keeps the step's slider handles in world coordinates for the edit mode.
+   *
+   * @param parameters Normalized parameters.
+   * @param box Volume box in frame coordinates.
+   * @param context Evaluation context.
+   */
+  private slidersRecord(parameters: Record<string, unknown>, box: THREE.Box3, context: ModifierStackContext): void {
+    const sliders = this.hasEditMode(parameters) ? this.sliders(parameters, box) : [];
+    const frame = modifierStackFrame(context.volume, 'volume');
+    const placed = modifierStackSlidersPlaced(context.step.id, frame, sliders);
+    modifierStackSlidersRecord(context.volume, context.step.id, placed);
   }
 
   /**

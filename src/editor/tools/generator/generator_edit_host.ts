@@ -1,6 +1,6 @@
 import type { Object3D } from 'three';
 import type { EditorViewportPickContext } from '@/editor/window/editor_viewport_pick_context.js';
-import type { ModifierStackSlider } from '@/modifier/stack/widgets/modifier_stack_sliders.js';
+import type { ModifierStackSlider } from '@/modifier/stack/widgets/modifier_stack_slider_record.js';
 
 /**
  * What the Edit button and the Generator tool need from the scene: the selected
