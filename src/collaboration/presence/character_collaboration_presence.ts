@@ -21,9 +21,8 @@ import { NotificationGlobal } from '@/audio/notification/notification_global.js'
 import { PlayerCharacterAnimator } from '@/player/character/player_character_animator.js';
 import { playerCharacterLookApply, playerCharacterLookDistribute } from '@/player/character/player_character_look.js';
 import { playerCharacterBuildRig, type PlayerCharacterRig } from '@/player/character/player_character_rig.js';
-import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
 import type { PlayerCharacterHandTargets } from '@/player/character/player_character_hand_targets.js';
-import { PlayerToyHeld } from '@/player/toy/player_toy_held.js';
+import { PlayerToyHeld, type PlayerToyHeldKind } from '@/player/toy/player_toy_held.js';
 import {
   playerCharacterEnsureModelLoaded,
   playerCharacterIsModelReady,
@@ -223,7 +222,7 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
       this.animator.pose(this.rig, this.motion, (rig) =>
         playerCharacterLookApply(rig, playerCharacterLookDistribute(this.lookYaw, this.lookPitch)),
       );
-      this.held.update(this.rig);
+      this.held.update(this.rig, this.reach);
     }
     const beam = this.beamUpdate(delta);
     const active = moving || this.motion.getPlanarSpeed() > 0 || !motion.grounded || motion.wallPushing;
@@ -273,11 +272,11 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
   }
 
   /**
-   * Shows the toy the member holds in its right hand.
+   * Shows the toy (or the grapple gun) the member holds in its right hand.
    *
-   * @param kind Toy kind, or null for empty hands.
+   * @param kind Held kind, or null for empty hands.
    */
-  hold(kind: PhysicsToyKind | null): void {
+  hold(kind: PlayerToyHeldKind | null): void {
     this.held.set(this.rig, kind, this.color);
   }
 
@@ -313,12 +312,14 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
   }
 
   /**
-   * Copies where the beam leaves the character: its right hand as shown.
+   * Copies where the beam leaves the character: the muzzle of the gun in its
+   * hand, or its right hand, as shown.
    *
    * @param target Destination.
    * @returns The target.
    */
   copyHandTo(target: THREE.Vector3): THREE.Vector3 {
+    if (this.held.copyMuzzleTo(target)) return target;
     if (!this.rig || !playerCharacterCopyRightHand(this.rig, target))
       playerGrappleHand(this.pose.position, this.bodyYaw, target);
     return target;
@@ -329,7 +330,7 @@ export class CharacterCollaborationPresence implements PresenceCollaborationItem
    *
    * @returns Kind, or null.
    */
-  holding(): PhysicsToyKind | null {
+  holding(): PlayerToyHeldKind | null {
     return this.held.getKind();
   }
 

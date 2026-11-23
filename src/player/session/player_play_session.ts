@@ -246,6 +246,7 @@ export class PlayerPlaySession {
    */
   private showToys(viewport: Viewport3D): void {
     this.host.ballSystem.setHeld(null);
+    this.host.ballSystem.setGrappling(false);
     this.selected = null;
     const element = viewport.getContentElement();
     this.picker = new PlayerToyPicker(element.ownerDocument, null);
@@ -284,6 +285,7 @@ export class PlayerPlaySession {
     if (kind !== PLAYER_TOY_GRAPPLE) this.grapple.release(performance.now() / 1000);
     this.selected = kind;
     this.host.ballSystem.setHeld(kind === PLAYER_TOY_KEYBOARD || kind === PLAYER_TOY_GRAPPLE ? null : kind);
+    this.host.ballSystem.setGrappling(kind === PLAYER_TOY_GRAPPLE);
     this.picker?.select(kind);
   }
 
@@ -383,7 +385,8 @@ export class PlayerPlaySession {
     this.host.collisionWorld.setFocus('player', [this.body.getFeetPosition()]);
     this.bodyUpdate(deltaSeconds);
     this.carry.record(this.body.copyHorizontalVelocityTo(new THREE.Vector3()), now / 1000);
-    this.avatar.setHeld(this.host.ballSystem.getHeld(), this.host.ballSystem.getOwnColor());
+    const gun = this.selected === PLAYER_TOY_GRAPPLE;
+    this.avatar.setHeld(gun ? PLAYER_TOY_GRAPPLE : this.host.ballSystem.getHeld(), this.host.ballSystem.getOwnColor());
     this.avatar.setHandTargets(this.keyboard.getHands());
     this.avatar.setReach(this.grapple.getAnchor());
     this.avatar.update(this.body, this.viewMode, deltaSeconds);
@@ -408,10 +411,10 @@ export class PlayerPlaySession {
    * @param deltaSeconds Frame time.
    */
   private grappleUpdate(camera: THREE.PerspectiveCamera, deltaSeconds: number): void {
-    let hand: THREE.Vector3 | null = null;
+    let hand: THREE.Vector3 | null = this.viewModel?.getMuzzleWorld(camera, this.scratchHand) ?? null;
     if (this.viewMode === 'third_person') {
       hand = this.scratchHand;
-      if (!this.avatar.copyRightHandTo(hand))
+      if (!this.avatar.copyMuzzleTo(hand) && !this.avatar.copyRightHandTo(hand))
         playerGrappleHand(this.body.getFeetPosition(), this.body.getFacingYawRadians(), hand);
     }
     this.grapple.update(camera, hand, this.bodyVelocity().length(), deltaSeconds);
@@ -454,7 +457,9 @@ export class PlayerPlaySession {
   private viewModelUpdate(camera: THREE.PerspectiveCamera, now: number, deltaSeconds: number): void {
     if (!this.viewModel) return;
     const held = this.host.ballSystem.getHeld();
-    this.viewModel.root.visible = this.viewMode === 'first_person' && held !== null;
+    const gun = this.selected === PLAYER_TOY_GRAPPLE;
+    this.viewModel.root.visible = this.viewMode === 'first_person' && (held !== null || gun);
+    this.viewModel.setGun(gun);
     this.viewModel.setItem(held, this.host.ballSystem.getOwnColor());
     this.viewModel.setTint(this.host.ballSystem.getRoomColor());
     this.viewModel.update(now / 1000, deltaSeconds, this.body.getPlanarSpeed(), this.body.getIsGrounded());

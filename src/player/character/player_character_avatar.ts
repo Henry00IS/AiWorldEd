@@ -11,8 +11,7 @@ import {
 } from './player_character_rig.js';
 import { PlayerCharacterAnimator } from './player_character_animator.js';
 import type { PlayerCharacterHandTargets } from './player_character_hand_targets.js';
-import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
-import { PlayerToyHeld } from '@/player/toy/player_toy_held.js';
+import { PlayerToyHeld, type PlayerToyHeldKind } from '@/player/toy/player_toy_held.js';
 import { playerCharacterTagHelperTree } from './player_character_model_prepare.js';
 import type { PlayerHelperLayer } from '@/player/player_helper_layer.js';
 
@@ -27,6 +26,8 @@ export class PlayerCharacterAvatar {
   /** Pose root for gait/footsteps when the mesh rig is not ready. */
   private readonly locomotionRoot: THREE.Object3D;
   private readonly held: PlayerToyHeld;
+  /** Point the right arm reaches for (the grapple beam's anchor), or null. */
+  private reach: THREE.Vector3 | null = null;
   private heldColor: number;
   private isAttached: boolean;
   private isDisposed: boolean;
@@ -96,7 +97,7 @@ export class PlayerCharacterAvatar {
     this.animator.update(locomotionRoot, body, deltaSeconds);
     if (viewMode === 'third_person' && this.rig) {
       this.animator.pose(this.rig, body);
-      this.held.update(this.rig);
+      this.held.update(this.rig, this.reach);
     }
   }
 
@@ -133,7 +134,19 @@ export class PlayerCharacterAvatar {
    * @param point Point, or null.
    */
   setReach(point: THREE.Vector3 | null): void {
+    this.reach = point;
     this.animator.setReach(point);
+  }
+
+  /**
+   * Copies where the muzzle of the grapple gun in the hand is as last posed
+   * (third person).
+   *
+   * @param target Destination.
+   * @returns False unless the gun is shown in the hand.
+   */
+  copyMuzzleTo(target: THREE.Vector3): boolean {
+    return this.held.copyMuzzleTo(target);
   }
 
   /**
@@ -147,12 +160,13 @@ export class PlayerCharacterAvatar {
   }
 
   /**
-   * Shows a toy in the character's right hand (seen in third person).
+   * Shows a toy or the grapple gun in the character's right hand (seen in third
+   * person).
    *
-   * @param kind Toy kind, or null.
+   * @param kind Held kind, or null.
    * @param color Member color.
    */
-  setHeld(kind: PhysicsToyKind | null, color: number): void {
+  setHeld(kind: PlayerToyHeldKind | null, color: number): void {
     const changed = kind !== this.held.getKind() || color !== this.heldColor;
     this.heldColor = color;
     if (changed || (this.rig !== null && kind !== null && this.held.getMesh() === null))

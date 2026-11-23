@@ -160,5 +160,9 @@ describe('ToysCollaborationSession', () => {
     expect(held.at(-1)).toEqual([1, null]);
     session.binary(relayed(3, { full: true, tick: 6, balls: [], held: null }));
     expect(held.at(-1)).toEqual([3, null]);
+    session.binary(relayed(3, { full: true, tick: 7, balls: [], held: 'grapple' }));
+    expect(held.at(-1)).toEqual([3, 'grapple']);
+    session.binary(relayed(3, { full: true, tick: 8, balls: [], held: 'keyboard' }));
+    expect(held.at(-1)).toEqual([3, null]);
   });
 });

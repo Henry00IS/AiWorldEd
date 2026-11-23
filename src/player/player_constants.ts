@@ -128,7 +128,10 @@ export const PLAYER_CAMERA_COLLISION_RADIUS_METERS = 0.2;
 /** Closest the third-person camera may be pulled toward the head. */
 export const PLAYER_CAMERA_COLLISION_MIN_DISTANCE_METERS = 0.1;
 
-/** Over-the-shoulder offset of the third-person camera to the player's right (grapple aiming). */
+/**
+ * Over-the-shoulder offset of the third-person camera to the player's right
+ * (grapple aiming).
+ */
 export const PLAYER_CAMERA_SHOULDER_SIDE_METERS = 0.6;
 
 /** Over-the-shoulder lift of the third-person camera. */

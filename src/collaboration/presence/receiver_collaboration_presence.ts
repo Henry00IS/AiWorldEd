@@ -11,8 +11,8 @@ import {
 } from '@/collaboration/presence/character_collaboration_presence.js';
 import { PRESENCE_ID_CHARACTER, type PresenceFrame } from '@/collaboration/shared/presence_frame.js';
 import type { MemberCollaborationRoster } from '@/collaboration/sync/member_collaboration_roster.js';
-import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
 import type { PlayerCharacterHandTargets } from '@/player/character/player_character_hand_targets.js';
+import type { PlayerToyHeldKind } from '@/player/toy/player_toy_held.js';
 
 /** Clock and frame scheduling of the receiver (replaceable in tests). */
 export interface ReceiverCollaborationPresenceOptions {
@@ -48,7 +48,7 @@ export class ReceiverCollaborationPresence {
   private readonly options: ReceiverCollaborationPresenceOptions;
   private readonly members: Map<number, Map<number, PresenceCollaborationItem>>;
   /** Toy each member holds in play mode, as its toy frames said last. */
-  private readonly held: Map<number, PhysicsToyKind | null>;
+  private readonly held: Map<number, PlayerToyHeldKind | null>;
   /** Targets the hands of members playing a toy (a keyboard) follow. */
   private readonly hands = new Map<number, PlayerCharacterHandTargets>();
   /** Anchors of members' hooked grapple beams. */
@@ -76,13 +76,13 @@ export class ReceiverCollaborationPresence {
   }
 
   /**
-   * Shows the toy a member holds on its character (now and whenever it
-   * appears).
+   * Shows the toy (or grapple gun) a member holds on its character (now and
+   * whenever it appears).
    *
    * @param user Member id.
-   * @param kind Toy kind, or null for empty hands.
+   * @param kind Held kind, or null for empty hands.
    */
-  holdSet(user: number, kind: PhysicsToyKind | null): void {
+  holdSet(user: number, kind: PlayerToyHeldKind | null): void {
     if (this.held.get(user) === kind) return;
     this.held.set(user, kind);
     const item = this.members.get(user)?.get(PRESENCE_ID_CHARACTER);

@@ -21,6 +21,7 @@ import type { PlayerKeyboardSynthFactory } from '@/player/keyboard/player_keyboa
 import type { PlayerKeyboardPose } from '@/player/keyboard/player_keyboard_pose.js';
 import { PlayerKeyboardSystem } from '@/player/keyboard/player_keyboard_system.js';
 import { PlayerGrappleRemote, playerGrappleEntry } from '@/player/grapple/player_grapple_remote.js';
+import { PLAYER_TOY_GRAPPLE, type PlayerToyKind } from '@/player/toy/player_toy_kind.js';
 import { PlayerBallAuthority, playerBallThrowStart } from './player_ball_authority.js';
 import {
   PLAYER_BALL_OFFLINE_COLOR,
@@ -98,6 +99,8 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
   private readonly grapples: PlayerGrappleRemote;
   private grapple: THREE.Vector3 | null = null;
   private held: PhysicsToyKind | null;
+  /** Whether the grapple gun is in hand instead of a toy (the others see it). */
+  private grappling = false;
   private lastFrame: number | null;
   private scheduled: boolean;
   private disposed: boolean;
@@ -163,6 +166,19 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
   setHeld(kind: PhysicsToyKind | null): void {
     if (kind === this.held) return;
     this.held = kind;
+    this.publisher.noteHeld();
+    this.wake();
+  }
+
+  /**
+   * Holds the grapple gun (picked in play mode) or puts it away; the others see
+   * it in the player's hand.
+   *
+   * @param grappling Whether the gun is picked.
+   */
+  setGrappling(grappling: boolean): void {
+    if (grappling === this.grappling) return;
+    this.grappling = grappling;
     this.publisher.noteHeld();
     this.wake();
   }
@@ -612,12 +628,14 @@ export class PlayerBallSystem implements PlayerBallLinkListener {
   }
 
   /**
-   * Returns the held toy to announce: the thrown one while playing.
+   * Returns the held toy to announce while playing: the grapple gun or the toy
+   * thrown next.
    *
    * @returns Held kind, null for empty hands, undefined when not playing.
    */
-  private playingHeld(): PhysicsToyKind | null | undefined {
-    return this.options.isPlaying() ? this.held : undefined;
+  private playingHeld(): PlayerToyKind | null | undefined {
+    if (!this.options.isPlaying()) return undefined;
+    return this.grappling ? PLAYER_TOY_GRAPPLE : this.held;
   }
 
   /**

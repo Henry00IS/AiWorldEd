@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
 import { playerCharacterApplyRoomTint } from '@/player/character/player_character_tint.js';
 import { PLAYER_CHARACTER_BODY_COLOR } from '@/player/character/player_character_model_prepare.js';
+import { playerGrappleGun, playerGrappleGunMuzzle } from '@/player/grapple/player_grapple_gun.js';
 import { playerToyMesh, playerToyMeshDispose } from './player_toy_models.js';
 import {
   PLAYER_TOY_ARM_PLANE_CENTER,
@@ -9,6 +10,7 @@ import {
   playerToyArmBuild,
   playerToyArmGrip,
   playerToyArmLevel,
+  type PlayerToyArmPose,
   type PlayerToyArmRig,
 } from './player_toy_viewmodel_arm.js';
 import {
@@ -41,6 +43,12 @@ const PLAYER_TOY_VIEW_AIR_DELAY = 0.1;
 const PLAYER_TOY_VIEW_AIR_EASE = { slow: 0.15, fast: 0.1 };
 /** Attitude of the held plane in view space: level, nose a little up. */
 const PLAYER_TOY_VIEW_PLANE_ATTITUDE = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.1, 0.06, 0, 'YXZ'));
+/** Arm holding the grapple gun out low on the right, the fist upright. */
+const PLAYER_TOY_VIEW_GUN_POSE: PlayerToyArmPose = { pitch: -0.42, yaw: 0.1, elbow: 0.7, wrist: 0, roll: 1.45 };
+/** Where the gun's grip is in the hand (in the fist). */
+const PLAYER_TOY_VIEW_GUN_GRIP = new THREE.Vector3(0.01, 0.035, -0.055);
+/** Attitude of the gun in view space: pointing ahead, toward the crosshair. */
+const PLAYER_TOY_VIEW_GUN_ATTITUDE = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.04, 0.09, 0, 'YXZ'));
 
 /**
  * First-person right arm holding the toy at its true size, drawn by its own
@@ -50,9 +58,10 @@ const PLAYER_TOY_VIEW_PLANE_ATTITUDE = new THREE.Quaternion().setFromEuler(new T
  * and on a click winds back, swings forward from the shoulder and lets go (or
  * reaches down to put a soccer ball down). While the button is held after the
  * wind-up the arm keeps drawing back, charging the throw for up to a second.
- * The toy is thrown at the release, from where the hand is on screen. Sleeve
- * and hand take the character's body color, tinted in a room like the character
- * the others see.
+ * The toy is thrown at the release, from where the hand is on screen. With the
+ * grapple beam picked the hand holds its gun out instead, pointing ahead, and
+ * the beam leaves its muzzle where it is on screen. Sleeve and hand take the
+ * character's body color, tinted in a room like the character the others see.
  */
 export class PlayerToyViewModel {
   readonly scene: THREE.Scene;
@@ -64,6 +73,7 @@ export class PlayerToyViewModel {
   private tinted: THREE.Material[];
   private tint: number | null;
   private item: THREE.Mesh | null;
+  private gun: THREE.Group | null;
   private kind: PhysicsToyKind | null;
   private color: number;
   private actionAt: number;
@@ -103,6 +113,7 @@ export class PlayerToyViewModel {
     this.tint = null;
     this.setTint(tint);
     this.item = null;
+    this.gun = null;
     this.kind = null;
     this.color = 0;
     this.actionAt = Number.NEGATIVE_INFINITY;
@@ -137,6 +148,26 @@ export class PlayerToyViewModel {
   }
 
   /**
+   * Shows the grapple gun in the hand (held up, pointing ahead) or puts it
+   * away.
+   *
+   * @param shown Whether the gun is picked.
+   */
+  setGun(shown: boolean): void {
+    if (shown === (this.gun !== null)) return;
+    if (!shown) {
+      this.gun?.removeFromParent();
+      this.gun = null;
+      return;
+    }
+    this.removeItem();
+    this.gun = playerGrappleGun();
+    this.gun.traverse((child) => (child.frustumCulled = false));
+    this.rig.grip.position.copy(PLAYER_TOY_VIEW_GUN_GRIP);
+    this.rig.grip.add(this.gun);
+  }
+
+  /**
    * Tints sleeve and hand with the room color (the character tint the others
    * see), or shows the plain character colors outside a room.
    *
@@ -147,10 +178,10 @@ export class PlayerToyViewModel {
     this.tint = color;
     this.tinted.forEach((material) => material.dispose());
     this.untinted.forEach((material, mesh) => (mesh.material = material));
-    const item = this.item;
-    item?.removeFromParent();
+    const held = [this.item, this.gun].filter((object): object is THREE.Mesh | THREE.Group => !!object);
+    held.forEach((object) => object.removeFromParent());
     this.tinted = color === null ? [] : playerCharacterApplyRoomTint(this.root, color);
-    if (item) this.rig.grip.add(item);
+    held.forEach((object) => this.rig.grip.add(object));
   }
 
   /**
@@ -235,12 +266,15 @@ export class PlayerToyViewModel {
     this.bobPhase += deltaSeconds * (4 + 5 * walk) * this.stride;
     const since = this.since(now);
     const charge = this.pressed ? playerToyCharge(now - this.actionAt) : this.charge;
-    const pose = playerToyPoseAt(since, this.actionKind === 'soccer', charge);
+    const pose = this.gun
+      ? { ...PLAYER_TOY_VIEW_GUN_POSE }
+      : playerToyPoseAt(since, this.actionKind === 'soccer', charge);
     const breathe = Math.sin(now * 1.7) * 0.012;
     pose.pitch += breathe - Math.abs(Math.sin(this.bobPhase)) * 0.05 * walk;
     pose.yaw += Math.cos(this.bobPhase) * 0.035 * walk + Math.sin(now * 0.9) * 0.008;
     playerToyArmApply(this.rig, pose);
     if (this.kind === 'plane') playerToyArmLevel(this.rig, PLAYER_TOY_VIEW_PLANE_ATTITUDE);
+    if (this.gun) playerToyArmLevel(this.rig, PLAYER_TOY_VIEW_GUN_ATTITUDE);
     if (this.item) this.item.visible = playerToyViewHolds(since, this.releaseAt());
   }
 
@@ -272,7 +306,34 @@ export class PlayerToyViewModel {
    */
   getHandWorld(playCamera: THREE.PerspectiveCamera, out: THREE.Vector3): THREE.Vector3 {
     this.root.updateMatrixWorld(true);
-    const local = this.rig.grip.getWorldPosition(new THREE.Vector3());
+    return this.toPlayWorld(this.rig.grip.getWorldPosition(new THREE.Vector3()), playCamera, out);
+  }
+
+  /**
+   * Returns where the beam leaves the gun in the hand in the world (the point
+   * the play camera shows where the hand camera shows the muzzle).
+   *
+   * @param playCamera Play camera.
+   * @param out Receives the position.
+   * @returns The position, or null without the gun.
+   */
+  getMuzzleWorld(playCamera: THREE.PerspectiveCamera, out: THREE.Vector3): THREE.Vector3 | null {
+    if (!this.gun || !this.root.visible) return null;
+    this.root.updateMatrixWorld(true);
+    const local = playerGrappleGunMuzzle(this.gun, new THREE.Vector3());
+    return local ? this.toPlayWorld(local, playCamera, out) : null;
+  }
+
+  /**
+   * Maps a point of the hand scene to the world point the play camera shows at
+   * the same screen position and depth.
+   *
+   * @param local Point in the hand camera's space.
+   * @param playCamera Play camera.
+   * @param out Receives the position.
+   * @returns The position.
+   */
+  private toPlayWorld(local: THREE.Vector3, playCamera: THREE.PerspectiveCamera, out: THREE.Vector3): THREE.Vector3 {
     const depth = -local.z;
     playCamera.updateMatrixWorld();
     this.camera.aspect = playCamera.aspect;
@@ -313,6 +374,7 @@ export class PlayerToyViewModel {
   /** Frees the arm geometry and materials (the toy geometry is shared). */
   dispose(): void {
     this.removeItem();
+    this.setGun(false);
     this.root.traverse((child) => {
       if (child instanceof THREE.Mesh) child.geometry.dispose();
     });

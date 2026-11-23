@@ -11,7 +11,7 @@ import type { PhysicsToyKind } from '@/physics/ball/physics_ball_constants.js';
 import type { PlayerBallSnapshot, PlayerBallState } from '@/player/ball/player_ball_link.js';
 import { playerKeyboardEntriesFind, TOY_TYPE_KEYBOARD } from '@/player/keyboard/player_keyboard_protocol.js';
 import { PLAYER_TOY_GRAPPLE, PLAYER_TOY_KEYBOARD, type PlayerToyKind } from '@/player/toy/player_toy_kind.js';
-import { playerGrappleEntryFind } from '@/player/grapple/player_grapple_remote.js';
+import { playerGrappleEntryFind, TOY_TYPE_GRAPPLE } from '@/player/grapple/player_grapple_remote.js';
 
 /**
  * Toy type: a soccer ball put down in front of its player (same 7-byte payload
@@ -74,7 +74,8 @@ export function toyTennisBallEncode(snapshot: PlayerBallSnapshot, respawned = 0)
  * @returns Toy type.
  */
 function toyHeldType(held: PlayerToyKind | null | undefined): number {
-  if (!held || held === PLAYER_TOY_GRAPPLE) return TOY_HELD_EMPTY;
+  if (!held) return TOY_HELD_EMPTY;
+  if (held === PLAYER_TOY_GRAPPLE) return TOY_TYPE_GRAPPLE;
   return held === PLAYER_TOY_KEYBOARD ? TOY_TYPE_KEYBOARD : TOY_TYPES[held];
 }
 
@@ -162,6 +163,7 @@ export function toyTennisBallDecode(frame: ToyFrame): PlayerBallSnapshot | null 
  */
 export function toyHeldDecode(frame: ToyFrame): PlayerToyKind | null | undefined {
   if (frame.held === TOY_TYPE_KEYBOARD) return PLAYER_TOY_KEYBOARD;
+  if (frame.held === TOY_TYPE_GRAPPLE) return PLAYER_TOY_GRAPPLE;
   return frame.held === TOY_HELD_EMPTY ? null : toyKindOf(frame.held);
 }
 

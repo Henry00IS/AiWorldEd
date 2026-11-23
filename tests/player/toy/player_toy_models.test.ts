@@ -7,6 +7,7 @@ import { PlayerToyHeld } from '@/player/toy/player_toy_held.js';
 import { PLAYER_CHARACTER_BODY_COLOR } from '@/player/character/player_character_model_prepare.js';
 import { PLAYER_TOY_KINDS, playerToyGeometry, playerToyMesh } from '@/player/toy/player_toy_models.js';
 import { PlayerToyViewModel } from '@/player/toy/player_toy_viewmodel.js';
+import { playerGrappleGun, playerGrappleGunMuzzle } from '@/player/grapple/player_grapple_gun.js';
 
 /**
  * Builds a rig with only a right hand bone under a turned root.
@@ -70,6 +71,60 @@ describe('toy models', () => {
     expect(held.getMesh()?.name).toBe('Tennis ball');
     held.clear();
     expect(rig.root.children).toEqual([hand]);
+  });
+
+  it('builds the grapple gun about 25 cm long, held at its grip, the muzzle ahead along -Z', () => {
+    const gun = playerGrappleGun();
+    gun.updateMatrixWorld(true);
+    const size = new THREE.Box3().setFromObject(gun).getSize(new THREE.Vector3());
+    expect(size.z).toBeGreaterThan(0.22);
+    expect(size.z).toBeLessThan(0.28);
+    expect(size.x).toBeLessThan(0.06);
+    const muzzle = playerGrappleGunMuzzle(gun, new THREE.Vector3());
+    expect(muzzle?.z).toBeLessThan(-0.15);
+    expect(Math.abs(muzzle?.x ?? 1)).toBeLessThan(1e-6);
+    expect(muzzle?.y).toBeGreaterThan(0);
+    expect(new THREE.Raycaster(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, -1, 0)).intersectObject(gun)).toEqual(
+      [],
+    );
+  });
+
+  it('holds the grapple gun pointing ahead, or at its anchor, and tells where its muzzle is', () => {
+    const { rig, hand } = handRig();
+    const held = new PlayerToyHeld(() => {});
+    const muzzle = new THREE.Vector3();
+    expect(held.copyMuzzleTo(muzzle)).toBe(false);
+    held.set(rig, 'grapple', 0);
+    expect(held.copyMuzzleTo(muzzle)).toBe(true);
+    const wrist = hand.getWorldPosition(new THREE.Vector3());
+    const facing = new THREE.Vector3(0, 0, 1).applyQuaternion(rig.root.quaternion);
+    expect(muzzle.clone().sub(wrist).dot(facing)).toBeGreaterThan(0.12);
+    const anchor = wrist.clone().add(new THREE.Vector3(0, 20, 0));
+    held.update(rig, anchor);
+    held.copyMuzzleTo(muzzle);
+    expect(muzzle.y - wrist.y).toBeGreaterThan(0.12);
+    held.set(rig, null, 0);
+    expect(held.copyMuzzleTo(muzzle)).toBe(false);
+  });
+
+  it('shows the grapple gun in the first-person hand pointing ahead, its muzzle low right of the view center', () => {
+    const view = new PlayerToyViewModel(null);
+    const camera = new THREE.PerspectiveCamera(70, 1.5, 0.1, 100);
+    camera.updateMatrixWorld();
+    expect(view.getMuzzleWorld(camera, new THREE.Vector3())).toBeNull();
+    view.setGun(true);
+    view.update(1, 0.016, 0);
+    const muzzle = view.getMuzzleWorld(camera, new THREE.Vector3());
+    expect(muzzle?.z).toBeLessThan(-0.3);
+    expect(muzzle?.x).toBeGreaterThan(0);
+    expect(muzzle?.y).toBeLessThan(0);
+    const ndc = muzzle?.clone().project(camera);
+    expect(Math.abs(ndc?.x ?? 9)).toBeLessThan(0.8);
+    expect(Math.abs(ndc?.y ?? 9)).toBeLessThan(0.8);
+    view.setItem('tennis', 0);
+    view.setGun(false);
+    expect(view.getMuzzleWorld(camera, new THREE.Vector3())).toBeNull();
+    view.dispose();
   });
 
   it('hides the first-person toy from the release until the refill and ignores clicks before the release', () => {

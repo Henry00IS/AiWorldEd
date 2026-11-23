@@ -17,7 +17,7 @@ function relay(snapshot: PlayerBallSnapshot): PlayerBallSnapshot | null {
 }
 
 describe('grapple beam networking', () => {
-  it('carries the anchor in a toy entry next to the balls, holding empty hands', () => {
+  it('carries the anchor in a toy entry next to the balls, and the gun as the held toy', () => {
     const snapshot: PlayerBallSnapshot = {
       full: true,
       tick: 7,
@@ -28,7 +28,7 @@ describe('grapple beam networking', () => {
       grapple: playerGrappleEntry(2, new THREE.Vector3(30.25, 14.5, -60.125)),
     };
     const decoded = relay(snapshot);
-    expect(decoded?.held).toBeNull();
+    expect(decoded?.held).toBe('grapple');
     expect(decoded?.balls.map((ball) => ball.id)).toEqual([1]);
     expect(decoded?.grapple?.type).toBe(TOY_TYPE_GRAPPLE);
     decoded?.grapple?.position.forEach((value, axis) =>
