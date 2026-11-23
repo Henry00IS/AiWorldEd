@@ -103,7 +103,7 @@ export function solidScriptPathWithHandles(
 
 /**
  * Copies a path without its whole-path curve, keeping its points, segments,
- * closing, tilts, resolution and handle types.
+ * closing, tilts, normal, resolution and handle types.
  *
  * @param path Path.
  * @returns Path.
@@ -114,6 +114,7 @@ function solidScriptPathPlain(path: SolidScriptPath<number[]>): SolidScriptPath<
     segments: path.segments,
     closed: path.closed,
     ...(path.tilts ? { tilts: path.tilts } : {}),
+    ...(path.normal ? { normal: path.normal } : {}),
     ...(path.resolution === undefined ? {} : { resolution: path.resolution }),
     ...(path.handleTypes ? { handleTypes: path.handleTypes } : {}),
   };
@@ -139,12 +140,27 @@ function solidScriptPathNurbs(path: SolidScriptPath<number[]>, resolution: numbe
     point,
     handles.right[index] ?? point,
   ]);
-  const tilts = path.tilts?.flatMap((tilt) => [tilt, tilt, tilt]);
   return {
     ...solidScriptPathStraight(points, path.closed),
-    ...(tilts ? { tilts } : {}),
+    ...solidScriptPathTripled(path),
     spline: { kind: 'nurbs', resolution, order, knots: 'Bezier' },
   };
+}
+
+/**
+ * Gives a path's tilts and normal for three points per point, as a curved path
+ * made NURBS has: each point's own repeated for its two handles.
+ *
+ * @param path Path.
+ * @returns Tilts and normal, where the path has them.
+ */
+function solidScriptPathTripled(path: SolidScriptPath<number[]>): Pick<SolidScriptPath<number[]>, 'tilts' | 'normal'> {
+  const tilts = path.tilts?.flatMap((tilt) => [tilt, tilt, tilt]);
+  const normal =
+    path.normal?.mode === 'Free'
+      ? { mode: 'Free' as const, normals: path.normal.normals.flatMap((up) => [up, up, up]) }
+      : path.normal;
+  return { ...(tilts ? { tilts } : {}), ...(normal ? { normal } : {}) };
 }
 
 /**

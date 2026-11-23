@@ -188,8 +188,10 @@ function solidScriptTransformWrite(
       const drawn = run.pathDrawn(element);
       if (drawn) run.pathReplace(element, solidScriptOutlineTransform(drawn, worldAt(index)));
       else
-        element.path = solidScriptPathMap(element.path, ([x = 0, y = 0, z = 0]) =>
-          new THREE.Vector3(x, y, z).applyMatrix4(worldAt(index)).toArray(),
+        element.path = solidScriptPathMap(
+          element.path,
+          ([x = 0, y = 0, z = 0]) => new THREE.Vector3(x, y, z).applyMatrix4(worldAt(index)).toArray(),
+          ([x = 0, y = 1, z = 0]) => new THREE.Vector3(x, y, z).transformDirection(worldAt(index)).toArray(),
         );
     });
     return;

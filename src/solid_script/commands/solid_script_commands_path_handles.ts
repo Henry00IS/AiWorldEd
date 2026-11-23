@@ -5,6 +5,7 @@ import {
   solidScriptParameter,
   solidScriptParameterInto,
   solidScriptParameterOptional,
+  solidScriptParameterWhen,
   solidScriptParameterWords,
 } from './solid_script_command_parameters.js';
 import { solidScriptFaceWriteValue } from './solid_script_face_of.js';
@@ -187,6 +188,46 @@ function solidScriptSetTiltRun(run: SolidScriptBlockRun): void {
     return tilt;
   });
   solidScriptPathHandlesWrite(run, { ...source, tilts });
+}
+
+/** How Set Path Normal makes the path's up side face. */
+const SOLID_SCRIPT_PATH_NORMAL_MODES = ['Minimum Twist', 'Up', 'Free'] as const;
+
+/**
+ * Reads the Free normal of every point of a path: a vector that is not 0, 0, 0,
+ * kept as a unit direction.
+ *
+ * @param run Running line.
+ * @param points Path points.
+ * @returns Normal per point.
+ */
+function solidScriptSetPathNormalsRead(run: SolidScriptBlockRun, points: readonly (readonly number[])[]): number[][] {
+  return points.map((point, index) => {
+    const numbers = solidScriptValueNumbers(
+      run.valueWith('normal', { $Point: new SolidScriptPoint([...point]), $Index: index, $Count: points.length }),
+    );
+    const normal = numbers?.length === 3 ? new THREE.Vector3(numbers[0], numbers[1], numbers[2]) : undefined;
+    if (!normal || normal.lengthSq() === 0)
+      throw new Error('Set Path Normal needs a direction per point that is not 0, 0, 0, such as 0, 1, 0');
+    return normal.normalize().toArray();
+  });
+}
+
+/**
+ * Stores how the Path's up side faces: Minimum Twist drops any stored normal,
+ * Up keeps it facing up, and Free stores the Normal of each point.
+ *
+ * @param run Running line.
+ */
+function solidScriptSetPathNormalRun(run: SolidScriptBlockRun): void {
+  const { normal: _before, ...source } = solidScriptPathHandlesSource(run, 'Set Path Normal');
+  const mode = solidScriptNoiseWord(run.text('mode').trim() || 'Minimum Twist', SOLID_SCRIPT_PATH_NORMAL_MODES, 'Mode');
+  if (mode === 'Minimum Twist') return solidScriptPathHandlesWrite(run, source);
+  if (mode === 'Up') return solidScriptPathHandlesWrite(run, { ...source, normal: { mode } });
+  solidScriptPathHandlesWrite(run, {
+    ...source,
+    normal: { mode, normals: solidScriptSetPathNormalsRead(run, source.points) },
+  });
 }
 
 /**
@@ -381,6 +422,57 @@ export const SOLID_SCRIPT_COMMANDS_PATH_HANDLES: readonly SolidScriptCommand[] =
     ],
     execute: (run) => {
       solidScriptSetTiltRun(run);
+      return [];
+    },
+  }),
+  new SolidScriptCommand({
+    id: 'set_path_normal',
+    edits: true,
+    label: 'Set Path Normal',
+    category: 'Paths',
+    description: "Store the way a path's up side faces",
+    manual:
+      "Writes to Into a copy of a Path that keeps the way its up side faces. Mode Minimum Twist (the default) turns it as little as it can along the path, Up keeps it facing up as much as the path allows, and Free gives each point its own 🔁 Normal, with [$Point] the point and [$Index] its number from 0, such as [=[$Point.Normal]]; curved stretches blend from one normal to the next. Sweep Along Path faces its profile's up side this way when its own Up is empty, and the normal turns with the path when it is moved or turned. Read it back with [Path.Normals], one per point the path passes. Path is a Path or a list of points for a straight open one. Example: Set Path Normal Path [Rail] Mode Up Into [Rail], then Sweep Along Path [Rail], keeps a rail's profile upright.",
+    stops: [
+      'A Path that is not a Path or a list of at least 2 points.',
+      'A Mode other than Minimum Twist, Up or Free.',
+      'A Free Normal that is not a direction, or is 0, 0, 0.',
+    ],
+    parameters: [
+      solidScriptParameterWords(
+        'mode',
+        'Mode',
+        'text',
+        'Minimum Twist',
+        'How the up side faces: Minimum Twist, Up or Free. Type one, such as Up.',
+        [
+          { word: 'Minimum Twist', detail: 'Turn as little as possible along the path' },
+          { word: 'Up', detail: 'Keep facing up as much as the path allows' },
+          { word: 'Free', detail: 'Give each point its own Normal' },
+        ],
+      ),
+      solidScriptParameterWhen(
+        solidScriptParameterEach(
+          solidScriptParameter('normal', 'Normal', 'value', '0, 1, 0', 'Way up faces at each point, such as 0, 1, 0.'),
+          'Point',
+        ),
+        'mode',
+        ['Free'],
+      ),
+      ...solidScriptPathHandleFields().filter((field) => field.key !== 'resolution'),
+    ],
+    listing: (read) => [
+      'Set Path Normal',
+      'Of ',
+      read.value('path'),
+      ' Mode ',
+      read.value('mode'),
+      ...(read.text('mode').trim().toLowerCase() === 'free' ? [' Normal ', read.value('normal')] : []),
+      ' Into ',
+      read.value('into'),
+    ],
+    execute: (run) => {
+      solidScriptSetPathNormalRun(run);
       return [];
     },
   }),

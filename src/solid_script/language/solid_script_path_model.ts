@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+import { SOLID_SCRIPT_AXES_UP } from './solid_script_axes.js';
 import {
   solidScriptPathBezierStretch,
   solidScriptPathSplineSample,
@@ -35,12 +37,21 @@ export interface SolidScriptPath<Point> {
    * everywhere.
    */
   readonly tilts?: readonly number[];
+  /** The way the path's up side faces; none turns it as little as it can. */
+  readonly normal?: SolidScriptPathNormal;
   /**
    * A curve run through all the points at once; the segments are then straight
    * and unused.
    */
   readonly spline?: SolidScriptPathSpline;
 }
+
+/**
+ * How a path's up side is stored: Up keeps it facing up as much as it can, and
+ * Free gives one direction per point, blended along curved stretches.
+ */
+export type SolidScriptPathNormal =
+  { readonly mode: 'Up' } | { readonly mode: 'Free'; readonly normals: readonly (readonly number[])[] };
 
 /**
  * Creates a path whose every stretch is straight.
@@ -92,16 +103,21 @@ export function solidScriptPathWalk<Point extends readonly number[]>(path: Solid
 }
 
 /**
- * Moves every point and handle of a path, keeping its segments.
+ * Moves every point and handle of a path, keeping its segments. A stored normal
+ * stays when Turn says how directions turn, and is dropped otherwise, such as
+ * for a flat path.
  *
  * @param path Path.
  * @param move New place of one point or handle.
+ * @param turn New way of one direction.
  * @returns Moved path.
  */
 export function solidScriptPathMap<Point, Moved>(
   path: SolidScriptPath<Point>,
   move: (point: Point) => Moved,
+  turn?: (direction: readonly number[]) => number[],
 ): SolidScriptPath<Moved> {
+  const normal = path.normal;
   const segments = path.segments.map((segment): SolidScriptPathSegment<Moved> =>
     segment.kind === 'line' ? segment : { ...segment, out: move(segment.out), in: move(segment.in) },
   );
@@ -111,6 +127,9 @@ export function solidScriptPathMap<Point, Moved>(
     closed: path.closed,
     ...(path.tilts ? { tilts: path.tilts } : {}),
     ...(path.spline ? { spline: path.spline } : {}),
+    ...(normal && turn
+      ? { normal: normal.mode === 'Free' ? { mode: 'Free', normals: normal.normals.map(turn) } : normal }
+      : {}),
   };
 }
 
@@ -141,4 +160,25 @@ export function solidScriptPathSampleTilts<Point>(path: SolidScriptPath<Point>):
   });
   if (!path.closed && count > 0) sampled.push(tilt(count - 1));
   return sampled;
+}
+
+/**
+ * Gives the stored up side at every point solidScriptPathSample gives, in the
+ * same order, as unit directions; none when the path turns as little as it can.
+ * Free normals blend along curved stretches the way tilts do.
+ *
+ * @param path Path.
+ * @returns Up per sampled point, or none.
+ */
+export function solidScriptPathSampleNormals<Point>(path: SolidScriptPath<Point>): number[][] | undefined {
+  const normal = path.normal;
+  if (!normal) return undefined;
+  if (normal.mode === 'Up') return solidScriptPathSampleTilts(path).map(() => [...SOLID_SCRIPT_AXES_UP.toArray()]);
+  const axes = [0, 1, 2].map((axis) =>
+    solidScriptPathSampleTilts({ ...path, tilts: normal.normals.map((direction) => direction[axis] ?? 0) }),
+  );
+  return (axes[0] ?? []).map((_, index) => {
+    const blended = new THREE.Vector3(axes[0]?.[index] ?? 0, axes[1]?.[index] ?? 0, axes[2]?.[index] ?? 0);
+    return blended.lengthSq() > 0 ? blended.normalize().toArray() : [...SOLID_SCRIPT_AXES_UP.toArray()];
+  });
 }

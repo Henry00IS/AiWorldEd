@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import type { SolidScriptPath, SolidScriptPathSegment } from './solid_script_path_model.js';
 import { solidScriptPathCatmullHandles } from './solid_script_path_splines.js';
 import { solidScriptPathHandleTypesSubdivided } from './solid_script_path_handle_types.js';
@@ -154,8 +155,48 @@ function solidScriptSubdivideTilts(path: SolidScriptPath<number[]>, index: numbe
 }
 
 /**
+ * Gives the Free normals of the points a stretch's cuts make, evenly blended
+ * between the normals of its ends.
+ *
+ * @param normals Normal of each point.
+ * @param index Stretch number.
+ * @param cuts Cuts made.
+ * @returns Unit directions.
+ */
+function solidScriptSubdivideNormals(normals: readonly (readonly number[])[], index: number, cuts: number): number[][] {
+  const from = new THREE.Vector3(...(normals[index] ?? [0, 1, 0]));
+  const to = new THREE.Vector3(...(normals[(index + 1) % normals.length] ?? [0, 1, 0]));
+  return Array.from({ length: cuts }, (_, cut) => {
+    const blended = from.clone().lerp(to, (cut + 1) / (cuts + 1));
+    return (blended.lengthSq() > 0 ? blended.normalize() : from.clone()).toArray();
+  });
+}
+
+/**
+ * Gives a subdivided path's normal: a Free normal gains a blended one for every
+ * point the cuts made.
+ *
+ * @param path Path before the cuts.
+ * @param added Points added in each stretch.
+ * @returns Normal, where the path has one.
+ */
+function solidScriptSubdivideNormal(
+  path: SolidScriptPath<number[]>,
+  added: readonly number[],
+): Pick<SolidScriptPath<number[]>, 'normal'> {
+  if (path.normal?.mode !== 'Free') return path.normal ? { normal: path.normal } : {};
+  const free = path.normal.normals;
+  const normals = free.flatMap((normal, index) => [
+    [...normal],
+    ...solidScriptSubdivideNormals(free, index, added[index] ?? 0),
+  ]);
+  return { normal: { mode: 'Free', normals } };
+}
+
+/**
  * Cuts every stretch of a path into even parts, keeping its shape, closing,
- * curve kind and tilts; new points get the tilt between their neighbours.
+ * curve kind, tilts and normal; new points get the tilt and Free normal between
+ * their neighbours.
  *
  * @param path Path.
  * @param cuts Cuts in each stretch, by the point it starts at.
@@ -181,5 +222,12 @@ export function solidScriptPathSubdivide(
   });
   const { handleTypes: _before, ...kept } = path;
   const handleTypes = solidScriptPathHandleTypesSubdivided(path, added);
-  return { ...kept, points, segments, ...(path.tilts ? { tilts } : {}), ...(handleTypes ? { handleTypes } : {}) };
+  return {
+    ...kept,
+    points,
+    segments,
+    ...(path.tilts ? { tilts } : {}),
+    ...solidScriptSubdivideNormal(path, added),
+    ...(handleTypes ? { handleTypes } : {}),
+  };
 }

@@ -41,20 +41,22 @@ export function solidScriptSweepScaled(
 
 /**
  * Reads the Up of each path point, the way the profile's up side faces on the
- * stretch that starts there; empty gives none, so the profile turns as little
- * as it can.
+ * stretch that starts there; empty uses the path's stored normal, or none, so
+ * the profile turns as little as it can.
  *
  * @param run Running Sweep Along Path line.
  * @param path Path points as given.
  * @param closed True when the path loops.
+ * @param stored Stored normal per path point, if the path has one.
  * @returns Up per path point, or none.
  */
 export function solidScriptSweepUps(
   run: SolidScriptBlockRun,
   path: readonly THREE.Vector3[],
   closed: boolean,
+  stored?: readonly (readonly number[])[],
 ): (THREE.Vector3 | null)[] {
-  if (run.source('up').trim() === '') return [];
+  if (run.source('up').trim() === '') return stored?.map(([x = 0, y = 1, z = 0]) => new THREE.Vector3(x, y, z)) ?? [];
   const points = solidScriptPathDistinct(path, closed);
   return points.map((point, index) => {
     const numbers = solidScriptValueNumbers(run.valueWith('up', solidScriptSweepFills(point, index, points.length)));

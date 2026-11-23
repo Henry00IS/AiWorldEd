@@ -23,9 +23,10 @@ import {
 import { solidScriptNameKey } from './solid_script_name_key.js';
 import { solidScriptMemberIdOf } from './solid_script_member_id.js';
 import { solidScriptMemberForm } from './solid_script_shown_names.js';
-import { solidScriptPathLength } from './solid_script_path.js';
+import { solidScriptPathLength, solidScriptPathUps } from './solid_script_path.js';
 import {
   solidScriptPathSample,
+  solidScriptPathSampleNormals,
   solidScriptPathSampleTilts,
   solidScriptPathWalk,
   type SolidScriptPath,
@@ -114,6 +115,7 @@ export const SOLID_SCRIPT_MEMBER_DECLS = {
     HandlesLeft: form('HandlesLefts', 'Vector List'),
     HandlesRight: form('HandlesRights', 'Vector List'),
     Tilts: form('Tilts', 'Number List'),
+    Normals: form('Normals', 'Vector List'),
     Resolution: form('Resolutions', 'Number'),
     HandleTypesLeft: form('HandleTypesLefts', 'Text List'),
     HandleTypesRight: form('HandleTypesRights', 'Text List'),
@@ -544,6 +546,20 @@ function solidScriptMemberBounds(bounds: THREE.Box3, member: string): SolidScrip
 }
 
 /**
+ * Gives the way a path's up side faces at every point it passes: its stored
+ * normal, or the least-turning one when none is stored.
+ *
+ * @param path Path.
+ * @returns Unit vector per sampled point.
+ */
+function solidScriptMemberPathNormals(path: SolidScriptPath<number[]>): SolidScriptValue {
+  const vector = ([x = 0, y = 0, z = 0]: readonly number[]): THREE.Vector3 => new THREE.Vector3(x, y, z);
+  const points = solidScriptPathSample(path).map(vector);
+  const stored = solidScriptPathSampleNormals(path)?.map(vector);
+  return solidScriptPathUps(points, path.closed, stored).map(solidScriptMemberVector);
+}
+
+/**
  * Reads a member of a path.
  *
  * @param path Path.
@@ -554,6 +570,7 @@ function solidScriptMemberPath(path: SolidScriptPath<number[]>, member: string):
   if (member === 'points') return solidScriptPathSample(path).map((point) => point.map(solidScriptMemberRound));
   if (member === 'closed') return path.closed;
   if (member === 'tilts') return solidScriptPathSampleTilts(path).map(solidScriptMemberRound);
+  if (member === 'normals') return solidScriptMemberPathNormals(path);
   if (member === 'length') return solidScriptMemberRound(solidScriptPathLength(solidScriptPathWalk(path)));
   if (member === 'resolution') return solidScriptPathResolutionOf(path);
   if (member === 'handletypesleft') return [...solidScriptPathHandleTypesOf(path).left];

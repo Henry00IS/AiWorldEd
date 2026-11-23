@@ -62,6 +62,45 @@ function solidScriptPathSides(
 }
 
 /**
+ * Gives the unit direction of every stretch of distinct path points.
+ *
+ * @param points Distinct points.
+ * @param closed True when the path loops.
+ * @returns Direction of each stretch.
+ */
+function solidScriptPathDirections(points: readonly THREE.Vector3[], closed: boolean): THREE.Vector3[] {
+  const stretches = closed ? points.length : points.length - 1;
+  return Array.from({ length: stretches }, (_, index) =>
+    points[(index + 1) % points.length]!.clone().sub(points[index]!).normalize(),
+  );
+}
+
+/**
+ * Gives the way a swept profile's up side faces at every distinct path point:
+ * that of the stretch starting there, or of the last stretch at an open end.
+ *
+ * @param path Path points.
+ * @param closed True when the path loops.
+ * @param ups For each stretch, the way up should face, or null to turn it as
+ *   little as possible from the stretch before.
+ * @returns Unit up per distinct point.
+ */
+export function solidScriptPathUps(
+  path: readonly THREE.Vector3[],
+  closed: boolean,
+  ups: readonly (THREE.Vector3 | null)[] = [],
+): THREE.Vector3[] {
+  const points = solidScriptPathDistinct(path, closed);
+  if (points.length < 2) return points.map(() => SOLID_SCRIPT_AXES_UP.clone());
+  const directions = solidScriptPathDirections(points, closed);
+  const sides = solidScriptPathSides(directions, ups);
+  return points.map((_, index) => {
+    const stretch = Math.min(index, directions.length - 1);
+    return new THREE.Vector3().crossVectors(directions[stretch]!, sides[stretch]!).normalize();
+  });
+}
+
+/**
  * Sweeps a flat profile along a path. Each stretch carries the profile square
  * to its direction, turned as little as possible from the stretch before, and
  * each joint ring lies on the mitre plane between its two stretches, so
@@ -84,10 +123,8 @@ export function solidScriptPathSweep(
   const points = solidScriptPathDistinct(path, closed);
   if (points.length < 2 || (closed && points.length < 3))
     throw new Error(`Path needs at least ${closed ? 3 : 2} different points, not ${points.length}`);
-  const stretches = closed ? points.length : points.length - 1;
-  const directions = Array.from({ length: stretches }, (_, index) =>
-    points[(index + 1) % points.length]!.clone().sub(points[index]!).normalize(),
-  );
+  const directions = solidScriptPathDirections(points, closed);
+  const stretches = directions.length;
   const sides = solidScriptPathSides(directions, ups);
   const mitre = (index: number): THREE.Vector3 => {
     const after = directions[Math.min(index, stretches - 1) % stretches]!;

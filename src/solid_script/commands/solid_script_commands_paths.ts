@@ -27,7 +27,11 @@ import {
   solidScriptPathRound,
   solidScriptPathSpiral,
 } from '@/solid_script/language/solid_script_path_shape.js';
-import { solidScriptPathSample, solidScriptPathSampleTilts } from '@/solid_script/language/solid_script_path_model.js';
+import {
+  solidScriptPathSample,
+  solidScriptPathSampleNormals,
+  solidScriptPathSampleTilts,
+} from '@/solid_script/language/solid_script_path_model.js';
 import { solidScriptPathBezier, solidScriptPathSmooth } from '@/solid_script/language/solid_script_path_curves.js';
 import {
   SolidScriptPathElement,
@@ -700,7 +704,12 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
       const closed = drawn?.path.closed ?? false;
       const rings = solidScriptSweepScaled(
         run,
-        solidScriptPathSweep(path, profile, closed, solidScriptSweepUps(run, path, closed)),
+        solidScriptPathSweep(
+          path,
+          profile,
+          closed,
+          solidScriptSweepUps(run, path, closed, drawn ? solidScriptPathSampleNormals(drawn.path) : undefined),
+        ),
         path,
         closed,
         drawn ? solidScriptPathSampleTilts(drawn.path) : [],
