@@ -53,7 +53,7 @@ Open your project folder and click a texture to paint it onto faces. Fine-tune w
 
 ## Also Included
 
-- **Play mode**: press `Space` to walk through your level, throw tennis balls, soccer balls and paper planes, or put down a keyboard and play music with friends.
+- **Play mode**: press `Space` to walk through your level, throw tennis balls, soccer balls and paper planes, put down a keyboard and play music with friends, or swing around with a grapple beam.
 - **Primitives and terrain** for quick blockouts.
 - **Modifiers**: bevel, array, mirror, shear, physics shatter and more, on a volume or a single brush.
 - **Real-time collaboration**: build the same level together.
