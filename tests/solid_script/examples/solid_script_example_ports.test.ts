@@ -319,7 +319,7 @@ describe('SolidScript examples', () => {
     expect(solidScriptExamplesFind('')).toHaveLength(SOLID_SCRIPT_EXAMPLES.length);
   });
 
-  it('writes Local., Persistent. and built-in functions in PascalCase in every example', () => {
+  it('writes $Local., $Persistent. and built-in functions in PascalCase in every example', () => {
     const lowercase: string[] = [];
     for (const example of SOLID_SCRIPT_EXAMPLES)
       for (const line of example.lines)

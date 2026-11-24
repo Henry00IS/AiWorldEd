@@ -178,7 +178,7 @@ describe('SolidScript listing', () => {
     expect(listed('function', { name: 'Thread', parameters: 'N' })).toBe("Function 'Thread' With Input 'N'");
     expect(listed('function', { name: 'area', parameters: 'w, d' })).toBe("Function 'area' With Inputs 'w, d'");
     expect(solidScriptCommandFind('function')?.parameters.map((field) => field.key)).toEqual(['name', 'parameters']);
-    expect(listed('return', { value: '[local.x]' })).toBe('Return [local.x]');
+    expect(listed('return', { value: '[$local.x]' })).toBe('Return [$local.x]');
     expect(listed('set_input', { name: 'width', value: '2' })).toBe("Set Input 'width' To '2'");
     expect(listed('show_message', { text: 'Too thin' })).toBe("Show Message 'Too thin'");
     expect(listed('input', { name: 'width', type: 'Number', default: '1' })).toBe("Input 'width' ('Number') = '1'");

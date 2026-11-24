@@ -30,14 +30,14 @@ const HENRY_LINES: SolidScriptLine[] = [
   off('for_each', { variable: 'Item', list: '[Width]' }),
   off('end'),
   off('function', { name: 'Fat', parameters: 'Thickness' }),
-  off('return', { value: '[Local.Thickness]' }),
+  off('return', { value: '[$Local.Thickness]' }),
   off('end'),
   { command: 'cube', values: { into: 'Henry' } },
   { command: 'echo', values: { value: '[Henry]' } },
 ];
 
 /** Names only the off lines of Henry's script give. */
-const HENRY_OFF_NAMES = ['Width', 'Height', 'Item', 'Fat', 'Thickness', 'Local.Thickness'];
+const HENRY_OFF_NAMES = ['Width', 'Height', 'Item', 'Fat', 'Thickness', '$Local.Thickness'];
 
 describe('SolidScript lines turned off in the static checks', () => {
   const document = solidScriptDocumentCreate(HENRY_LINES);

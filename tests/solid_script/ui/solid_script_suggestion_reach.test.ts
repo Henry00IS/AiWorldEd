@@ -76,12 +76,12 @@ describe('autocomplete describes a name by the writes that reach the caret', () 
   it('tells a Function input by the Calls that pass it', () => {
     const lines = [
       { command: 'function', values: { name: 'Post', parameters: 'X' } },
-      { command: 'echo', values: { value: '[Local.X]' } },
+      { command: 'echo', values: { value: '[$Local.X]' } },
       END,
       { command: 'call', values: { name: 'Post', values: '1' } },
       { command: 'call', values: { name: 'Post', values: 'oak' } },
     ];
-    expect(detail(lines, 1, 'Local.X')).toBe(
+    expect(detail(lines, 1, '$Local.X')).toBe(
       'Number: Passed in by **Call** (line 4). Text: Passed in by **Call** (line 5).',
     );
   });

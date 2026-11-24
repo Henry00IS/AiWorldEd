@@ -33,7 +33,7 @@ function script(name = 'Henry'): SolidScriptDocument {
   const lines: SolidScriptLine[] = [
     { command: 'note', values: { text: 'Mixes two numbers.' } },
     { command: 'function', values: { name, parameters: 'A, B' } },
-    { command: 'return', values: { value: `[=${name}([Local.A] - 1, [Local.B])]` } },
+    { command: 'return', values: { value: `[=${name}([$Local.A] - 1, [$Local.B])]` } },
     { command: 'end' },
     { command: 'function', values: { name: 'Seed', parameters: '' } },
     { command: 'return', values: { value: '4' } },

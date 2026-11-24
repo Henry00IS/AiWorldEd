@@ -20,7 +20,7 @@ const SCRIPT = solidScriptDocumentCreate([
   { command: 'extrude_face', values: { top: 'Tops' } },
   { command: 'end' },
   { command: 'repeat', values: { variable: 'I', from: '0', to: '4' } },
-  { command: 'variable', values: { name: 'Local.Size', value: '2' } },
+  { command: 'variable', values: { name: '$Local.Size', value: '2' } },
   { command: 'end' },
   { command: 'function', values: { name: 'Area', parameters: 'W, D' } },
   { command: 'end' },

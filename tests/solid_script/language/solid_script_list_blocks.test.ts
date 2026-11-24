@@ -147,13 +147,13 @@ describe('SolidScript persistent values', () => {
   const script = solidScriptDocumentCreate([
     line('input', { name: 'Add', type: 'Button' }),
     line('when_button_pressed', { name: 'Add' }),
-    line('if', { condition: 'is_undef([persistent.count])' }),
-    line('variable', { name: 'persistent.count', value: '0' }),
+    line('if', { condition: 'is_undef([$persistent.count])' }),
+    line('variable', { name: '$persistent.count', value: '0' }),
     { command: 'end' },
-    line('variable', { name: 'persistent.count', value: '[=[persistent.count] + 1]' }),
-    line('add_item', { value: '[persistent.count]', list: 'persistent.history' }),
+    line('variable', { name: '$persistent.count', value: '[=[$persistent.count] + 1]' }),
+    line('add_item', { value: '[$persistent.count]', list: '$persistent.history' }),
     { command: 'end' },
-    line('repeat', { variable: 'i', from: '1', to: '[=[persistent.count] + 1]' }),
+    line('repeat', { variable: 'i', from: '1', to: '[=[$persistent.count] + 1]' }),
     line('cube'),
     { command: 'end' },
   ]);
@@ -161,9 +161,9 @@ describe('SolidScript persistent values', () => {
   it('keeps values a button press sets as hidden stored inputs', () => {
     const first = solidScriptProgramHandle(script, { kind: 'button', name: 'Add' }, {});
     expect(first.error).toBeNull();
-    expect(first.inputs).toEqual({ 'persistent.count': '1', 'persistent.history': '[1]' });
+    expect(first.inputs).toEqual({ '$persistent.count': '1', '$persistent.history': '[1]' });
     const second = solidScriptProgramHandle(script, { kind: 'button', name: 'Add' }, first.inputs);
-    expect(second.inputs).toEqual({ 'persistent.count': '2', 'persistent.history': '[1,2]' });
+    expect(second.inputs).toEqual({ '$persistent.count': '2', '$persistent.history': '[1,2]' });
     const built = solidScriptProgramRun(script, { inputs: second.inputs });
     expect(built.error).toBeNull();
     expect(JSON.stringify(built.shapes).match(/"kind":"solid"/g)).toHaveLength(2);
@@ -171,12 +171,14 @@ describe('SolidScript persistent values', () => {
 
   it('lets the build read but not store them, and reads a missing value as nothing', () => {
     const build = solidScriptDocumentCreate([
-      line('variable', { name: 'persistent.x', value: '3' }),
-      line('echo', { value: '[persistent.x]' }),
+      line('variable', { name: '$persistent.x', value: '3' }),
+      line('echo', { value: '[$persistent.x]' }),
       CUBE,
     ]);
     expect(solidScriptProgramRun(build).messages).toEqual(['3']);
-    const missing = solidScriptProgramRun(solidScriptDocumentCreate([line('echo', { value: '[persistent.y]' }), CUBE]));
+    const missing = solidScriptProgramRun(
+      solidScriptDocumentCreate([line('echo', { value: '[$persistent.y]' }), CUBE]),
+    );
     expect(missing.error).toBeNull();
     expect(missing.messages).toEqual(['undef']);
   });
@@ -185,12 +187,12 @@ describe('SolidScript persistent values', () => {
     const forget = solidScriptDocumentCreate([
       line('input', { name: 'Reset', type: 'Button' }),
       line('when_button_pressed', { name: 'Reset' }),
-      line('delete_variable', { name: 'persistent.count' }),
+      line('delete_variable', { name: '$persistent.count' }),
       { command: 'end' },
       CUBE,
     ]);
-    const handled = solidScriptProgramHandle(forget, { kind: 'button', name: 'Reset' }, { 'persistent.count': '4' });
+    const handled = solidScriptProgramHandle(forget, { kind: 'button', name: 'Reset' }, { '$persistent.count': '4' });
     expect(handled.error).toBeNull();
-    expect(handled.removed).toEqual(['persistent.count']);
+    expect(handled.removed).toEqual(['$persistent.count']);
   });
 });

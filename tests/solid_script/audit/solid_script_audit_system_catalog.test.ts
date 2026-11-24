@@ -14,6 +14,7 @@ import {
   SOLID_SCRIPT_SYSTEM_CATALOG,
   SOLID_SCRIPT_SYSTEM_FILLS,
 } from '@/solid_script/language/solid_script_system_names.js';
+import { solidScriptNameIsSystem } from '@/solid_script/language/solid_script_name_key.js';
 import { solidScriptExplorerEntries } from '@/solid_script/ui/solid_script_editor_explorer.js';
 
 /** Catalog names by their key, as system names ignore case. */
@@ -97,7 +98,10 @@ describe('the System tab lists every system name, no exceptions', () => {
       sourceNames(path, /['"`](\$[A-Z][A-Za-z0-9]*(?:\.[A-Z][A-Za-z0-9]*)*)/g),
     );
     const groups = new Set(SOLID_SCRIPT_SYSTEM_CATALOG.map((entry) => entry.name.split('.')[0]?.toLowerCase()));
-    const unknown = spelled.filter((name) => !CATALOG_KEYS.has(name.toLowerCase()) && !groups.has(name.toLowerCase()));
+    const unknown = spelled.filter(
+      (name) =>
+        solidScriptNameIsSystem(`${name}.`) && !CATALOG_KEYS.has(name.toLowerCase()) && !groups.has(name.toLowerCase()),
+    );
     expect([...new Set(unknown)]).toEqual([]);
   });
 

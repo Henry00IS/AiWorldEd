@@ -1,3 +1,4 @@
+import { solidScriptNameIsSystem } from './solid_script_name_key.js';
 import { solidScriptKindNamed } from './solid_script_kinds.js';
 import { SOLID_SCRIPT_SYSTEM_GLOBALS, type SolidScriptSystemReader } from './solid_script_system.js';
 import type { SolidScriptExpression } from './solid_script_ast.js';
@@ -22,14 +23,14 @@ import type { SolidScriptGeometryLeaf } from './solid_script_geometry.js';
 export const SOLID_SCRIPT_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /** Prefix of a variable that belongs to the Function it is used in. */
-export const SOLID_SCRIPT_LOCAL_PREFIX = 'local.';
+export const SOLID_SCRIPT_LOCAL_PREFIX = '$local.';
 
 /**
  * Start of a variable kept with the generator between runs, such as
- * [persistent.presses]. Its value is stored, saved and shared like an input
+ * [$persistent.presses]. Its value is stored, saved and shared like an input
  * that has no row in the inspector.
  */
-export const SOLID_SCRIPT_PERSISTENT_PREFIX = 'persistent.';
+export const SOLID_SCRIPT_PERSISTENT_PREFIX = '$persistent.';
 
 /**
  * Reads the persistent values stored among a generator's input values.
@@ -204,23 +205,23 @@ export function solidScriptVectorComponentWrite(
   return changed;
 }
 
-/** Names without their local. start, by full name, so reads do not cut text. */
+/** Names without their $local. start, by full name, so reads do not cut text. */
 const SOLID_SCRIPT_LOCAL_BARE = new Map<string, string>();
 
 /** Most names kept in SOLID_SCRIPT_LOCAL_BARE before it starts over. */
 const SOLID_SCRIPT_LOCAL_BARE_MAX = 4096;
 
 /**
- * Returns a local name without its local. start.
+ * Returns a local name without its $local. start.
  *
- * @param name Name starting with local.
+ * @param name Name starting with $local.
  * @returns Bare name.
  */
 export function solidScriptLocalBare(name: string): string {
   let bare = SOLID_SCRIPT_LOCAL_BARE.get(name);
   if (bare === undefined) {
     bare = name.slice(SOLID_SCRIPT_LOCAL_PREFIX.length);
-    // Names built while running, such as local.p[i], could fill it up.
+    // Names built while running, such as $local.p[i], could fill it up.
     if (SOLID_SCRIPT_LOCAL_BARE.size >= SOLID_SCRIPT_LOCAL_BARE_MAX) SOLID_SCRIPT_LOCAL_BARE.clear();
     SOLID_SCRIPT_LOCAL_BARE.set(name, bare);
   }
@@ -230,11 +231,11 @@ export function solidScriptLocalBare(name: string): string {
 /** How deep Parse() may read text that holds Parse() again. */
 const SOLID_SCRIPT_PARSE_DEPTH = 8;
 
-/** Where a variable name lives, found by its Local. or Persistent. start. */
+/** Where a variable name lives, found by its $Local. or $Persistent. start. */
 export interface SolidScriptVariableWhere {
   /** Scope that holds it. */
   scope: SolidScriptScope;
-  /** Name key without the Local. or Persistent. start. */
+  /** Name key without the $Local. or $Persistent. start. */
   name: string;
   /** True for a variable of the running Function. */
   local: boolean;
@@ -457,7 +458,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
   }
 
   /**
-   * Finds where a variable name lives: [Local.X] in the innermost Function's
+   * Finds where a variable name lives: [$Local.X] in the innermost Function's
    * own variables, any other name in the scopes of the running line.
    *
    * @param name Name as written.
@@ -478,7 +479,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
     const frame = this.frameFunction();
     if (!frame?.locals)
       throw new Error(
-        `[${this.nameShown(name)}] is a local variable, and Local. only works inside a Function; outside one, write [${this.nameShown(name).slice(SOLID_SCRIPT_LOCAL_PREFIX.length)}]`,
+        `[${this.nameShown(name)}] is a local variable, and $Local. only works inside a Function; outside one, write [${this.nameShown(name).slice(SOLID_SCRIPT_LOCAL_PREFIX.length)}]`,
       );
     return { scope: frame.locals, name: bare, local: true, persistent: false };
   }
@@ -589,7 +590,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
   }
 
   /**
-   * Reads any variable name as written in brackets, such as width, local.n,
+   * Reads any variable name as written in brackets, such as width, $local.n,
    * Pos.X, points(2) or Box.Width; throws when there is none.
    *
    * @param name Name as written.
@@ -607,7 +608,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
       // A Function's own input or variable, the common read inside one.
       const found = this.fieldLocal(solidScriptLocalBare(name));
       if (found !== undefined) return found;
-    } else if (name.startsWith(SOLID_SCRIPT_SYSTEM_PREFIX)) return this.systemVariable(name, scope);
+    } else if (solidScriptNameIsSystem(name)) return this.systemVariable(name, scope);
     return this.fieldVariableWhere(name, scope);
   }
 
@@ -628,7 +629,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
       if (component && where.scope.variableHas(component.name))
         return solidScriptVectorComponentRead(component, where.scope.variableGet(component.name));
     }
-    if (item && !where.scope.variableHas(base) && (base.includes('.') || base.startsWith(SOLID_SCRIPT_SYSTEM_PREFIX))) {
+    if (item && !where.scope.variableHas(base) && (base.includes('.') || solidScriptNameIsSystem(base))) {
       // An item of a system list or a member, such as $Input.Objects(0) or Top.Edges(1).
       const list = this.fieldVariable(base, scope);
       const index = item.index === '' ? null : this.indexValue(item.index, scope);
@@ -653,7 +654,7 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
   /**
    * Reads a variable of the innermost Function running.
    *
-   * @param bare Name after local.
+   * @param bare Name after $local.
    * @returns Value, or undefined outside a Function or when it has none.
    */
   fieldLocal(bare: string): SolidScriptValue {

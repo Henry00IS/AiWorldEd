@@ -41,8 +41,8 @@ describe('SolidScript line profile', () => {
     // Arrange
     const document = solidScriptDocumentCreate([
       { command: 'function', values: { name: 'down', parameters: 'n' } },
-      { command: 'if', values: { condition: '[local.n] > 0' } },
-      { command: 'call', values: { name: 'down', values: '[=[local.n] - 1]' } },
+      { command: 'if', values: { condition: '[$local.n] > 0' } },
+      { command: 'call', values: { name: 'down', values: '[=[$local.n] - 1]' } },
       { command: 'end', values: {} },
       { command: 'end', values: {} },
       { command: 'call', values: { name: 'down', values: '3' } },

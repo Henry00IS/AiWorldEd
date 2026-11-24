@@ -88,8 +88,8 @@ export const SOLID_SCRIPT_EXAMPLE_PRISM: readonly SolidScriptLine[] = [
  */
 function solidScriptExampleSlabFunction(): SolidScriptLine[] {
   return solidScriptExampleBlock('function', { name: 'Slab', parameters: 'From, To' }, [
-    ...solidScriptExampleBlock('transform', { move: '[Local.From]' }, [
-      solidScriptExampleLine('cube', { size: '[=[Local.To] - [Local.From]]', anchor: 'Left, Bottom, Back' }),
+    ...solidScriptExampleBlock('transform', { move: '[$Local.From]' }, [
+      solidScriptExampleLine('cube', { size: '[=[$Local.To] - [$Local.From]]', anchor: 'Left, Bottom, Back' }),
     ]),
   ]);
 }
@@ -111,7 +111,7 @@ export const SOLID_SCRIPT_EXAMPLE_HOLLOW_BOX: readonly SolidScriptLine[] = [
   solidScriptExampleInput('WallThickness', 'Number', '0.25', { label: 'Wall Thickness', min: '0.01', max: '100' }),
   solidScriptExampleInput('OpenTop', 'Switch', 'No', { label: 'Open Top' }),
   ...solidScriptExampleNote(
-    'Function names a group of lines so Call can run them later. Slab takes From and To; inside the function, [Local.From] and [Local.To] are the values from that Call. The script skips the Function lines where they stand.',
+    'Function names a group of lines so Call can run them later. Slab takes From and To; inside the function, [$Local.From] and [$Local.To] are the values from that Call. The script skips the Function lines where they stand.',
   ),
   ...solidScriptExampleSlabFunction(),
   SOLID_SCRIPT_EXAMPLE_HALF,
@@ -176,10 +176,10 @@ export const SOLID_SCRIPT_EXAMPLE_ARCH: readonly SolidScriptLine[] = [
   solidScriptExampleSet('Floor', '[=-[$Box.Extents.Y]]'),
   solidScriptExampleSet('Top', '[$Box.Extents.Y]'),
   ...solidScriptExampleBlock('function', { name: 'Corner', parameters: 'Index, Grow' }, [
-    solidScriptExampleSet('Local.Angle', '[=[First] + [Arc] * [Local.Index] / [Segments]]'),
+    solidScriptExampleSet('$Local.Angle', '[=[First] + [Arc] * [$Local.Index] / [Segments]]'),
     solidScriptExampleLine('return', {
       value:
-        '[=Vector(Cos([Local.Angle]) * ([Rx] + [Local.Grow]), [Floor] + Sin([Local.Angle]) * ([Ry] + [Local.Grow]))]',
+        '[=Vector(Cos([$Local.Angle]) * ([Rx] + [$Local.Grow]), [Floor] + Sin([$Local.Angle]) * ([Ry] + [$Local.Grow]))]',
     }),
   ]),
   ...solidScriptExampleBlock('function', { name: 'Prism' }, [

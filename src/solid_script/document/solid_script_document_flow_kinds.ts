@@ -1,3 +1,4 @@
+import { solidScriptNameIsSystem } from '@/solid_script/language/solid_script_name_key.js';
 import { solidScriptFlowFormulaKinds } from './solid_script_document_flow_formula.js';
 import { solidScriptFieldSplit } from '@/solid_script/language/solid_script_field.js';
 import { solidScriptMemberType } from '@/solid_script/language/solid_script_members.js';
@@ -158,8 +159,8 @@ function solidScriptFlowParts(path: string): string[] {
  */
 export function solidScriptFlowPathKinds(path: string, head: SolidScriptFlowHead): string[] {
   const parts = solidScriptFlowParts(path.trim());
-  if (parts.length > 1 && /^(local|persistent)$/i.test(parts[0] ?? '')) parts.splice(0, 2, `${parts[0]}.${parts[1]}`);
-  const system = path.trim().startsWith('$');
+  if (parts.length > 1 && /^\$(local|persistent)$/i.test(parts[0] ?? '')) parts.splice(0, 2, `${parts[0]}.${parts[1]}`);
+  const system = solidScriptNameIsSystem(path.trim());
   const first = parts[0] ?? '';
   const start = system ? solidScriptFlowSystemStart(parts) : null;
   let kinds = start ? start.kinds : [...head(solidScriptFlowWord(first).toLowerCase())];

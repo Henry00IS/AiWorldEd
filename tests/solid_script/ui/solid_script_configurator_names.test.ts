@@ -93,11 +93,11 @@ describe('SolidScript configurator suggestions', () => {
 });
 
 describe('SolidScript configurator fields', () => {
-  it('lets Set change a Function variable written Local.Name', () => {
+  it('lets Set change a Function variable written $Local.Name', () => {
     const set = solidScriptCommandFind('variable')!;
     const target = set.parameters.find((parameter) => parameter.key === 'name')!;
-    expect(solidScriptConfiguratorFieldBuild(target, 'Local.Width', () => {}).problem()).toBe('');
-    expect(solidScriptConfiguratorFieldBuild(target, 'Persistent.Presses', () => {}).problem()).toBe('');
+    expect(solidScriptConfiguratorFieldBuild(target, '$Local.Width', () => {}).problem()).toBe('');
+    expect(solidScriptConfiguratorFieldBuild(target, '$Persistent.Presses', () => {}).problem()).toBe('');
   });
 
   it('offers the parts the script defines for Output', () => {

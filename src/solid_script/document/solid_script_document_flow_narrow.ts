@@ -172,7 +172,7 @@ function solidScriptNarrowName(context: SolidScriptNarrowContext, side: SolidScr
   if (side.kind !== 'variable') return undefined;
   const part = /^__flow_part_(\d+)$/.exec(side.name)?.[1];
   const name = part === undefined ? side.name : (context.formula.parts[Number(part)] ?? '');
-  return /^((local|persistent)\.)?[A-Za-z_]\w*$/i.test(name.trim()) ? solidScriptNameKey(name.trim()) : undefined;
+  return /^(\$(local|persistent)\.)?[A-Za-z_]\w*$/i.test(name.trim()) ? solidScriptNameKey(name.trim()) : undefined;
 }
 
 /**
@@ -258,7 +258,7 @@ function solidScriptNarrowCheck(
 }
 
 /**
- * Tells whether a test may narrow a name: one a line set, or a Persistent.
+ * Tells whether a test may narrow a name: one a line set, or a $Persistent.
  * value an earlier run may have kept. A test of a name nothing set stops the
  * run, so it makes no variable.
  *
@@ -267,7 +267,7 @@ function solidScriptNarrowCheck(
  * @returns True when the name may be narrowed.
  */
 function solidScriptNarrowKnown(state: SolidScriptFlowState, key: string): boolean {
-  return state.has(key) || key.startsWith('persistent.');
+  return state.has(key) || key.startsWith('$persistent.');
 }
 
 /**

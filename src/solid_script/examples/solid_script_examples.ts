@@ -136,7 +136,7 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
     name: 'Widget Showcase',
     group: 'Showcase',
     summary:
-      'A box to edit with every kind of Widget, on three pages picked by a row of Widget Toggles that keeps its choice in Persistent.Page.',
+      'A box to edit with every kind of Widget, on three pages picked by a row of Widget Toggles that keeps its choice in $Persistent.Page.',
     port: null,
     lines: SOLID_SCRIPT_EXAMPLE_WIDGET_SHOWCASE,
   },

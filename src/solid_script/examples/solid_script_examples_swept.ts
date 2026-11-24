@@ -34,10 +34,10 @@ const SOLID_SCRIPT_EXAMPLE_WALL_POINT: readonly SolidScriptLine[] = solidScriptE
   'function',
   { name: 'WallPoint', parameters: 'Angle, Inset, Height' },
   [
-    solidScriptExampleSet('Local.In', '[=Normalize(Vector(Cos([Local.Angle]) / [Rx], -Sin([Local.Angle]) / [Rz]))]'),
+    solidScriptExampleSet('$Local.In', '[=Normalize(Vector(Cos([$Local.Angle]) / [Rx], -Sin([$Local.Angle]) / [Rz]))]'),
     solidScriptExampleLine('return', {
       value:
-        '[=RingPoint([Local.Angle], [$Box.Size], [Local.Height]) - [Local.Inset] * Vector([Local.In.X], 0, [Local.In.Y])]',
+        '[=RingPoint([$Local.Angle], [$Box.Size], [$Local.Height]) - [$Local.Inset] * Vector([$Local.In.X], 0, [$Local.In.Y])]',
     }),
   ],
 );
@@ -60,7 +60,7 @@ export const SOLID_SCRIPT_EXAMPLE_PIPE: readonly SolidScriptLine[] = [
   solidScriptExampleInput('Sweep', 'Number', '360', { label: 'Sweep Angle', min: '1', max: '360' }),
   ...solidScriptExampleRingSize(),
   ...solidScriptExampleNote(
-    'Function WallPoint gives a point back with Return, so later lines can write [=WallPoint(...)] in a formula. [Local.Angle], [Local.Inset] and [Local.Height] are the values for this one call. RingPoint gives the point on the oval of the box.',
+    'Function WallPoint gives a point back with Return, so later lines can write [=WallPoint(...)] in a formula. [$Local.Angle], [$Local.Inset] and [$Local.Height] are the values for this one call. RingPoint gives the point on the oval of the box.',
   ),
   ...SOLID_SCRIPT_EXAMPLE_WALL_POINT,
   solidScriptExampleSet('Wall', '[=Min([WallThickness], [Limit])]'),

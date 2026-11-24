@@ -12,14 +12,27 @@ const SOLID_SCRIPT_NAME_KEYS_LIMIT = 8192;
 
 /** Starts of names as stored and as taught. */
 const SOLID_SCRIPT_NAME_PREFIXES: readonly (readonly [string, string])[] = [
-  ['local.', 'Local.'],
-  ['persistent.', 'Persistent.'],
+  ['$local.', '$Local.'],
+  ['$persistent.', '$Persistent.'],
 ];
+
+/**
+ * Tells whether a name is a system name: it starts with $ and is not one of the
+ * script's own $Local. or $Persistent. names.
+ *
+ * @param name Name as written or as a key.
+ * @returns True for a system value such as $Box.Size.
+ */
+export function solidScriptNameIsSystem(name: string): boolean {
+  if (!name.startsWith('$')) return false;
+  const lower = name.toLowerCase();
+  return !SOLID_SCRIPT_NAME_PREFIXES.some(([folded]) => lower.startsWith(folded));
+}
 
 /**
  * Returns the key a name is stored and looked up under.
  *
- * @param name Name as written, such as StepHeight or local.Count.
+ * @param name Name as written, such as StepHeight or $local.Count.
  * @returns Key, such as stepheight.
  */
 export function solidScriptNameKey(name: string): string {
@@ -34,7 +47,7 @@ export function solidScriptNameKey(name: string): string {
 
 /**
  * Spells a name key for a message or the debugger as it was written, with
- * Local. and Persistent. as taught, such as Local.Width for local.width.
+ * $Local. and $Persistent. as taught, such as $Local.Width for $local.width.
  *
  * @param key Key.
  * @param written Finds how a key was written, or undefined.

@@ -30,21 +30,21 @@ function facet(a: string, b: string, c: string, level: string): SolidScriptLine 
  */
 const TRIANGLE = solidScriptExampleBlock('function', { name: 'Facet', parameters: 'A, B, C, Level' }, [
   ...solidScriptExampleIf(
-    '[Local.Level] <= 1',
+    '[$Local.Level] <= 1',
     [
-      solidScriptExamplePoint('[=[Local.A] * [Half]]'),
-      solidScriptExamplePoint('[=[Local.B] * [Half]]'),
-      solidScriptExamplePoint('[=[Local.C] * [Half]]'),
+      solidScriptExamplePoint('[=[$Local.A] * [Half]]'),
+      solidScriptExamplePoint('[=[$Local.B] * [Half]]'),
+      solidScriptExamplePoint('[=[$Local.C] * [Half]]'),
     ],
     [
-      solidScriptExampleSet('Local.AB', '[=Normalize([Local.A] + [Local.B])]'),
-      solidScriptExampleSet('Local.BC', '[=Normalize([Local.B] + [Local.C])]'),
-      solidScriptExampleSet('Local.CA', '[=Normalize([Local.C] + [Local.A])]'),
-      solidScriptExampleSet('Local.Next', '[=[Local.Level] - 1]'),
-      facet('[Local.A]', '[Local.AB]', '[Local.CA]', '[Local.Next]'),
-      facet('[Local.AB]', '[Local.B]', '[Local.BC]', '[Local.Next]'),
-      facet('[Local.CA]', '[Local.BC]', '[Local.C]', '[Local.Next]'),
-      facet('[Local.AB]', '[Local.BC]', '[Local.CA]', '[Local.Next]'),
+      solidScriptExampleSet('$Local.AB', '[=Normalize([$Local.A] + [$Local.B])]'),
+      solidScriptExampleSet('$Local.BC', '[=Normalize([$Local.B] + [$Local.C])]'),
+      solidScriptExampleSet('$Local.CA', '[=Normalize([$Local.C] + [$Local.A])]'),
+      solidScriptExampleSet('$Local.Next', '[=[$Local.Level] - 1]'),
+      facet('[$Local.A]', '[$Local.AB]', '[$Local.CA]', '[$Local.Next]'),
+      facet('[$Local.AB]', '[$Local.B]', '[$Local.BC]', '[$Local.Next]'),
+      facet('[$Local.CA]', '[$Local.BC]', '[$Local.C]', '[$Local.Next]'),
+      facet('[$Local.AB]', '[$Local.BC]', '[$Local.CA]', '[$Local.Next]'),
     ],
   ),
 ]);

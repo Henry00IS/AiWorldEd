@@ -1,3 +1,4 @@
+import { solidScriptNameIsSystem } from '@/solid_script/language/solid_script_name_key.js';
 import { solidScriptSuggestionDictionary } from './solid_script_suggestion_keys.js';
 import type { SolidScriptCommandWord } from '@/solid_script/commands/solid_script_command.js';
 import type { SolidScriptName } from '@/solid_script/document/solid_script_document_names.js';
@@ -539,7 +540,7 @@ function solidScriptSuggestionMembers(
   if (dot < 0) return null;
   const base = prefix.slice(0, dot);
   // The values of a group of system values, such as $Selected.Faces.
-  if (base.startsWith('$') && !base.includes('.')) {
+  if (solidScriptNameIsSystem(base) && !base.includes('.')) {
     const group = SOLID_SCRIPT_SYSTEM_LISTED.filter(([label]) =>
       label.toLowerCase().startsWith(`${base.toLowerCase()}.`),
     );
@@ -625,7 +626,7 @@ function solidScriptSuggestionPathElement(type: string | null): boolean {
 function solidScriptSuggestionPaths(prefix: string, scope: SolidScriptSuggestionScope): SolidScriptSuggestion[] | null {
   const dot = prefix.lastIndexOf('.');
   if (dot < 0) return null;
-  if (prefix.startsWith('$') && !/^\$selected\./i.test(prefix)) return null;
+  if (solidScriptNameIsSystem(prefix) && !/^\$selected\./i.test(prefix)) return null;
   const base = prefix.slice(0, dot);
   if (/^\$selected$/i.test(base)) return null;
   const kindsOf = (name: string): string[] => solidScriptSuggestionKinds(name, scope);

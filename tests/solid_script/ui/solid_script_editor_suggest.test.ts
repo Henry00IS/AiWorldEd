@@ -227,8 +227,8 @@ describe('SolidScript editor suggestions and variables', () => {
       tool('Cancel').click();
       return names;
     };
-    expect(offered(1)).toContain('Local.h');
-    expect(offered(3)).not.toContain('Local.h');
+    expect(offered(1)).toContain('$Local.h');
+    expect(offered(3)).not.toContain('$Local.h');
   });
 
   it('explores variables: search, lists by index, every Set line, and Insert into the open field', () => {

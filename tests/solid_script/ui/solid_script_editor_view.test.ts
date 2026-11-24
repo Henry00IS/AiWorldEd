@@ -42,7 +42,7 @@ describe('SolidScript editor view', () => {
 
   it('draws a line with indent guides, its icon, colours and squiggles as switched', () => {
     const [block] = solidScriptDocumentCreate([
-      { command: 'variable', values: { name: 'Turn', value: '[=Max([Local.Anglex], 2)]' } },
+      { command: 'variable', values: { name: 'Turn', value: '[=Max([$Local.Anglex], 2)]' } },
     ]).blocks;
     const build = (icons: boolean, failed: boolean) =>
       solidScriptEditorRowBuild(
@@ -55,8 +55,8 @@ describe('SolidScript editor view', () => {
           openerCommand: '',
           off: false,
           view: { ...SOLID_SCRIPT_EDITOR_VIEW_DEFAULT, icons },
-          unknown: new Set(['local.anglex']),
-          error: new Set(failed ? ['local.anglex'] : []),
+          unknown: new Set(['$local.anglex']),
+          error: new Set(failed ? ['$local.anglex'] : []),
           catalog: SOLID_SCRIPT_COMMAND_CATALOG,
           switches: true,
         },
@@ -70,8 +70,8 @@ describe('SolidScript editor view', () => {
     const span = (from: HTMLElement, text: string) =>
       [...from.querySelectorAll('span span')].find((entry) => entry.textContent === text)!;
     expect(span(row, 'Max').className).toContain('token-function');
-    expect(span(row, 'Local.Anglex').className).toContain('squiggle');
-    expect(span(build(false, true), 'Local.Anglex').className).toContain('squiggle-error');
+    expect(span(row, '$Local.Anglex').className).toContain('squiggle');
+    expect(span(build(false, true), '$Local.Anglex').className).toContain('squiggle-error');
     expect(build(false, false).querySelector('svg')).toBeNull();
   });
 

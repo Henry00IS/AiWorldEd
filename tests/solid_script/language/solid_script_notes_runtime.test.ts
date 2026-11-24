@@ -101,10 +101,10 @@ function expectNotesChangeNothing(noted: readonly SolidScriptLine[], options: Pa
 /** A loop that counts, a For Each, a Function called from a formula and a Call. */
 const LOOPS: SolidScriptLine[] = [
   { command: 'function', values: { name: 'Twice', parameters: 'A' } },
-  { command: 'return', values: { value: '[=[Local.A] * 2]' } },
+  { command: 'return', values: { value: '[=[$Local.A] * 2]' } },
   END,
   { command: 'function', values: { name: 'Post', parameters: 'X' } },
-  { command: 'transform', values: { move: '[Local.X], 0, 0' } },
+  { command: 'transform', values: { move: '[$Local.X], 0, 0' } },
   { command: 'cube', values: { size: '0.2, 1, 0.2' } },
   END,
   END,

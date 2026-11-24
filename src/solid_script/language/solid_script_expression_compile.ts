@@ -1,3 +1,4 @@
+import { solidScriptNameIsSystem } from './solid_script_name_key.js';
 import type { SolidScriptExpression } from './solid_script_ast.js';
 import {
   SOLID_SCRIPT_FUNCTION_DOCS,
@@ -365,7 +366,7 @@ function solidScriptCompileSystemRead(
   dotted: string,
 ): SolidScriptValue | undefined {
   if (scope.variableHas(root)) return undefined;
-  if (root.startsWith('$')) return evaluator.systemRead(dotted.slice(1));
+  if (solidScriptNameIsSystem(root)) return evaluator.systemRead(dotted.slice(1));
   const hinted = solidScriptSystemBareHint(dotted);
   if (hinted && !evaluator.scriptWrites(root)) throw new Error(hinted);
   return undefined;

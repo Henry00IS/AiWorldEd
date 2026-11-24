@@ -44,7 +44,7 @@ const PATH_WRITES: SolidScriptLine[] = [
   { command: 'set_handles', values: { path: '[Wall]', left: '1, 2, 0', right: '3, 2, 0', into: 'Bent' } },
   { command: 'set_tilt', values: { path: '[Bent]', tilt: '30', into: 'Bent' } },
   { command: 'set_path_closed', values: { path: '[Bent]', closed: 'Yes', into: 'Bent' } },
-  { command: 'variable', values: { name: 'persistent.Runs', value: '[=[persistent.Runs] + 1]' } },
+  { command: 'variable', values: { name: '$persistent.Runs', value: '[=[$persistent.Runs] + 1]' } },
   {
     command: 'sweep_along_path',
     values: { path: '[Wall]', profile: '[0, 0, 0], [0.1, 0, 0], [0.1, 0.1, 0], [0, 0.1, 0]', up: '0, 1, 0' },
@@ -129,7 +129,7 @@ function pathScene() {
   model.root.add(script);
   stepPatch(script, {
     script: { ...solidScriptDocumentCreate(PATH_WRITES), editMode: true },
-    inputs: { Wall: pathReferenceEncode('Room Wall', PATH_ASSET_DEFAULT), 'persistent.Runs': '1' },
+    inputs: { Wall: pathReferenceEncode('Room Wall', PATH_ASSET_DEFAULT), '$persistent.Runs': '1' },
   });
   const compile = () => {
     model.root.updateMatrixWorld(true);

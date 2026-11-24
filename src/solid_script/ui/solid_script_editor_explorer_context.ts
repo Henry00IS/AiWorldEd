@@ -180,7 +180,7 @@ function solidScriptContextWrittenEntry(
   const kinds = [...(after.get(solidScriptNameKey(name))?.kinds ?? [])];
   return {
     name: solidScriptNameShown(name),
-    category: name.toLowerCase().startsWith('local.') ? 'Locals' : 'Variables',
+    category: name.toLowerCase().startsWith('$local.') ? 'Locals' : 'Variables',
     value: null,
     type: solidScriptNameKindsText(kinds) || SOLID_SCRIPT_CONTEXT_KIND_UNKNOWN,
     lines: [line],

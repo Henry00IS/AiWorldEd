@@ -52,7 +52,7 @@ const END: SolidScriptLine = { command: 'end' };
 /** Henry's example: a point on a circle at a height. */
 const SPOT: SolidScriptLine[] = [
   fn('Spot', 'Angle, Radius, Height'),
-  ret('[=Vector([Local.Radius] * Cos([Local.Angle]), [Local.Height], -[Local.Radius] * Sin([Local.Angle]))]'),
+  ret('[=Vector([$Local.Radius] * Cos([$Local.Angle]), [$Local.Height], -[$Local.Radius] * Sin([$Local.Angle]))]'),
   END,
 ];
 
@@ -91,7 +91,7 @@ describe('Functions of the script give the kinds of their Returns', () => {
   });
 
   it('joins several Returns of mixed kinds', () => {
-    const lines = [fn('Pick', 'N'), when('[Local.N] > 1'), ret('5'), END, when('[Local.N] > 2'), ret('hello'), END];
+    const lines = [fn('Pick', 'N'), when('[$Local.N] > 1'), ret('5'), END, when('[$Local.N] > 2'), ret('hello'), END];
     lines.push(ret('[=Vector(1, 2, 3)]'), END);
     expect(gives(lines, 'Pick')).toEqual(['Number', 'Text', 'Vector']);
     expect(givesText(lines, 'Pick')).toBe('Number or Text or Vector');
@@ -107,11 +107,11 @@ describe('Functions of the script give the kinds of their Returns', () => {
   it('follows nested calls to other Functions, in any order', () => {
     const lines = [
       fn('Outer', 'A'),
-      ret('[=Inner([Local.A]).X]'),
+      ret('[=Inner([$Local.A]).X]'),
       END,
       ...SPOT,
       fn('Inner', 'B'),
-      ret('[=Spot(0, 1, [Local.B])]'),
+      ret('[=Spot(0, 1, [$Local.B])]'),
       END,
     ];
     expect(gives(lines, 'Inner')).toEqual(['Vector']);
@@ -119,28 +119,28 @@ describe('Functions of the script give the kinds of their Returns', () => {
   });
 
   it('uses the inputs given at the calls, and their kinds when nothing calls it', () => {
-    const lines = [fn('Same', 'V'), ret('[Local.V]'), END];
+    const lines = [fn('Same', 'V'), ret('[$Local.V]'), END];
     expect(givesText(lines, 'Same')).toBe('Any');
     const called = [...lines, set('A', '[=Same(2)]'), set('B', '[=Same("x")]')];
     expect(gives(called, 'Same')).toEqual(['Number', 'Text']);
-    expect(gives([fn('Twice', 'V'), ret('[=Sqrt([Local.V])]'), END], 'Twice')).toEqual(['Number']);
+    expect(gives([fn('Twice', 'V'), ret('[=Sqrt([$Local.V])]'), END], 'Twice')).toEqual(['Number']);
   });
 
   it('settles recursion that ends, and gives Any for a cycle that never does', () => {
-    const down = [fn('Down', 'N'), when('[Local.N] <= 0'), ret('0'), END, ret('[=Down([Local.N] - 1) + 1]'), END];
+    const down = [fn('Down', 'N'), when('[$Local.N] <= 0'), ret('0'), END, ret('[=Down([$Local.N] - 1) + 1]'), END];
     expect(gives(down, 'Down')).toEqual(['Number']);
     expect(gives([...down, set('R', '[=Down(3)]')], 'Down')).toEqual(['Number']);
-    const loop = [fn('Ping', 'N'), ret('[=Pong([Local.N])]'), END, fn('Pong', 'N'), ret('[=Ping([Local.N])]'), END];
+    const loop = [fn('Ping', 'N'), ret('[=Pong([$Local.N])]'), END, fn('Pong', 'N'), ret('[=Ping([$Local.N])]'), END];
     expect(givesText(loop, 'Ping')).toBe('Any');
     expect(givesText(loop, 'Pong')).toBe('Any');
     expect(givesText([fn('Self'), ret('[=Self()]'), END], 'Self')).toBe('Any');
-    const mixed = [fn('Odd', 'N'), when('[Local.N] == 0'), ret('nope'), END, ret('[=Even([Local.N] - 1)]'), END];
+    const mixed = [fn('Odd', 'N'), when('[$Local.N] == 0'), ret('nope'), END, ret('[=Even([$Local.N] - 1)]'), END];
     mixed.push(
       fn('Even', 'N'),
-      when('[Local.N] == 0'),
+      when('[$Local.N] == 0'),
       ret('[=Vector(0, 0, 0)]'),
       END,
-      ret('[=Odd([Local.N] - 1)]'),
+      ret('[=Odd([$Local.N] - 1)]'),
       END,
     );
     expect(gives(mixed, 'Odd')).toEqual(['Text', 'Vector']);

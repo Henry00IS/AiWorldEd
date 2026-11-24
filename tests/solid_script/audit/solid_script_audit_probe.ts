@@ -77,7 +77,7 @@ export function solidScriptAuditCovers(predicted: readonly string[], kind: strin
 /**
  * Finds every variable whose kind at a line the editor's flow analysis did not
  * predict: names a run holds that the editor thinks no line set, or kinds it
- * rules out. System and Persistent. values are left out.
+ * rules out. System and $Persistent. values are left out.
  *
  * @param lines Lines.
  * @returns Problems in plain words, empty when the analysis was sound.

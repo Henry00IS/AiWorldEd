@@ -141,17 +141,20 @@ function solidScriptExamplePathStairsFunctions(): SolidScriptLine[] {
       'Side gives the way to the right of a stretch from From to To, seen from above, one long. A stretch that only climbs straight up has no side, so it gives 0, 0, 0.',
     ),
     ...solidScriptExampleBlock('function', { name: 'Side', parameters: 'From, To' }, [
-      solidScriptExampleSet('Local.Flat', '[=Vector([Local.To.Z] - [Local.From.Z], 0, [Local.From.X] - [Local.To.X])]'),
-      solidScriptExampleLine('return', { value: '[=[Local.Flat] / Max(0.0001, [Local.Flat.Length])]' }),
+      solidScriptExampleSet(
+        '$Local.Flat',
+        '[=Vector([$Local.To.Z] - [$Local.From.Z], 0, [$Local.From.X] - [$Local.To.X])]',
+      ),
+      solidScriptExampleLine('return', { value: '[=[$Local.Flat] / Max(0.0001, [$Local.Flat.Length])]' }),
     ]),
     ...solidScriptExampleNote(
       'Corner turns the Side before a bend and the Side after it into the one corner both steps share, stretched so both stay Width wide. A bend that turns right back keeps the Side after it.',
     ),
     ...solidScriptExampleBlock('function', { name: 'Corner', parameters: 'Before, After' }, [
-      solidScriptExampleSet('Local.Sum', '[=[Local.Before] + [Local.After]]'),
-      solidScriptExampleSet('Local.Mitre', '[=[Local.Sum] / Max(0.5, Dot([Local.Sum], [Local.After]))]'),
+      solidScriptExampleSet('$Local.Sum', '[=[$Local.Before] + [$Local.After]]'),
+      solidScriptExampleSet('$Local.Mitre', '[=[$Local.Sum] / Max(0.5, Dot([$Local.Sum], [$Local.After]))]'),
       solidScriptExampleLine('return', {
-        value: '[=Lerp([Local.After], [Local.Mitre], Min(1, [Local.Sum.Length] * 4))]',
+        value: '[=Lerp([$Local.After], [$Local.Mitre], Min(1, [$Local.Sum.Length] * 4))]',
       }),
     ]),
   ];

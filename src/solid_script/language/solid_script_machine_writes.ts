@@ -1,3 +1,4 @@
+import { solidScriptNameIsSystem } from './solid_script_name_key.js';
 import { solidScriptKindNamed } from './solid_script_kinds.js';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
 import {
@@ -45,7 +46,6 @@ import {
   SOLID_SCRIPT_LOCAL_PREFIX,
   SOLID_SCRIPT_NAME,
   SOLID_SCRIPT_NAMES_PLAIN,
-  SOLID_SCRIPT_SYSTEM_PREFIX,
   SolidScriptMachineVariables,
   solidScriptLocalBare,
   solidScriptMemberParts,
@@ -235,7 +235,7 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
       home.variableSet(name, value);
       return;
     }
-    if (name.startsWith(SOLID_SCRIPT_SYSTEM_PREFIX)) {
+    if (solidScriptNameIsSystem(name)) {
       if (this.positionAssign(scope, written, value)) return;
       if (this.modeSet(written, scope, value)) return;
       return this.variableSetSelected(written, name, value);

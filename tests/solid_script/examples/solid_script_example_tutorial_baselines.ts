@@ -910,8 +910,8 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     },
     { command: 'input', values: { name: 'OpenTop', type: 'Switch', default: 'No', label: 'Open Top' } },
     { command: 'function', values: { name: 'Slab', parameters: 'From, To' } },
-    { command: 'transform', values: { move: '[Local.From]' } },
-    { command: 'cube', values: { size: '[=[Local.To] - [Local.From]]', anchor: 'Left, Bottom, Back' } },
+    { command: 'transform', values: { move: '[$Local.From]' } },
+    { command: 'cube', values: { size: '[=[$Local.To] - [$Local.From]]', anchor: 'Left, Bottom, Back' } },
     { command: 'end', values: {} },
     { command: 'end', values: {} },
     {
@@ -1143,20 +1143,20 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     { command: 'variable', values: { name: 'TurnSign', value: '1' } },
     { command: 'variable', values: { name: 'Limit', value: '[=Min([Rx], [Rz]) ^ 2 / Max([Rx], [Rz])]' } },
     { command: 'function', values: { name: 'WallPoint', parameters: 'Angle, Inset, Height' } },
-    { command: 'variable', values: { name: 'Local.C', value: '[=Cos([Local.Angle])]' } },
-    { command: 'variable', values: { name: 'Local.S', value: '[=Sin([Local.Angle]) * [TurnSign]]' } },
+    { command: 'variable', values: { name: '$Local.C', value: '[=Cos([$Local.Angle])]' } },
+    { command: 'variable', values: { name: '$Local.S', value: '[=Sin([$Local.Angle]) * [TurnSign]]' } },
     {
       command: 'variable',
       values: {
-        name: 'Local.Inward',
-        value: '[=Normalize(Vector([Local.C] / [Rx], [Local.S] / [Rz]))]',
+        name: '$Local.Inward',
+        value: '[=Normalize(Vector([$Local.C] / [Rx], [$Local.S] / [Rz]))]',
       },
     },
     {
       command: 'return',
       values: {
         value:
-          '[=Vector([Rx] * [Local.C] - [Local.Inset] * [Local.Inward.X], [Local.Height], [Local.Inset] * [Local.Inward.Y] - [Rz] * [Local.S])]',
+          '[=Vector([Rx] * [$Local.C] - [$Local.Inset] * [$Local.Inward.X], [$Local.Height], [$Local.Inset] * [$Local.Inward.Y] - [Rz] * [$Local.S])]',
       },
     },
     { command: 'end', values: {} },
@@ -1236,20 +1236,20 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     { command: 'variable', values: { name: 'TurnSign', value: '1' } },
     { command: 'variable', values: { name: 'Limit', value: '[=Min([Rx], [Rz]) ^ 2 / Max([Rx], [Rz])]' } },
     { command: 'function', values: { name: 'WallPoint', parameters: 'Angle, Inset, Height' } },
-    { command: 'variable', values: { name: 'Local.C', value: '[=Cos([Local.Angle])]' } },
-    { command: 'variable', values: { name: 'Local.S', value: '[=Sin([Local.Angle]) * [TurnSign]]' } },
+    { command: 'variable', values: { name: '$Local.C', value: '[=Cos([$Local.Angle])]' } },
+    { command: 'variable', values: { name: '$Local.S', value: '[=Sin([$Local.Angle]) * [TurnSign]]' } },
     {
       command: 'variable',
       values: {
-        name: 'Local.Inward',
-        value: '[=Normalize(Vector([Local.C] / [Rx], [Local.S] / [Rz]))]',
+        name: '$Local.Inward',
+        value: '[=Normalize(Vector([$Local.C] / [Rx], [$Local.S] / [Rz]))]',
       },
     },
     {
       command: 'return',
       values: {
         value:
-          '[=Vector([Rx] * [Local.C] - [Local.Inset] * [Local.Inward.X], [Local.Height], [Local.Inset] * [Local.Inward.Y] - [Rz] * [Local.S])]',
+          '[=Vector([Rx] * [$Local.C] - [$Local.Inset] * [$Local.Inward.X], [$Local.Height], [$Local.Inset] * [$Local.Inward.Y] - [Rz] * [$Local.S])]',
       },
     },
     { command: 'end', values: {} },
@@ -1448,15 +1448,15 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     {
       command: 'variable',
       values: {
-        name: 'Local.Angle',
-        value: '[=[First] + [Arc] * [Local.Index] / [Segments]]',
+        name: '$Local.Angle',
+        value: '[=[First] + [Arc] * [$Local.Index] / [Segments]]',
       },
     },
     {
       command: 'return',
       values: {
         value:
-          '[=Vector(Cos([Local.Angle]) * ([Rx] + [Local.Grow]), [Floor] + Sin([Local.Angle]) * ([Ry] + [Local.Grow]))]',
+          '[=Vector(Cos([$Local.Angle]) * ([Rx] + [$Local.Grow]), [Floor] + Sin([$Local.Angle]) * ([Ry] + [$Local.Grow]))]',
       },
     },
     { command: 'end', values: {} },
@@ -1674,12 +1674,12 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     { command: 'variable', values: { name: 'Start', value: '[=-[Forward] * [Length] / 2]' } },
     { command: 'variable', values: { name: 'Floor', value: '[=-[$Box.Height] / 2]' } },
     { command: 'function', values: { name: 'Spot', parameters: 'Along, Height, Side' } },
-    { command: 'variable', values: { name: 'Local.Run', value: '[=[Start] + [Forward] * [Local.Along]]' } },
+    { command: 'variable', values: { name: '$Local.Run', value: '[=[Start] + [Forward] * [$Local.Along]]' } },
     {
       command: 'return',
       values: {
         value:
-          '[=[AlongX] ? Vector([Local.Run], [Local.Height], [Local.Side] * [Across]) : Vector([Local.Side] * [Across], [Local.Height], [Local.Run])]',
+          '[=[AlongX] ? Vector([$Local.Run], [$Local.Height], [$Local.Side] * [Across]) : Vector([$Local.Side] * [Across], [$Local.Height], [$Local.Run])]',
       },
     },
     { command: 'end', values: {} },
@@ -1724,7 +1724,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     {
       command: 'return',
       values: {
-        value: '[=[Floor] + (([LandingStep] ? [From] : [Local.Along]) - [NoseDepth]) * [Slope] - [Drop]]',
+        value: '[=[Floor] + (([LandingStep] ? [From] : [$Local.Along]) - [NoseDepth]) * [Slope] - [Drop]]',
       },
     },
     { command: 'end', values: {} },
@@ -3097,7 +3097,8 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     {
       command: 'return',
       values: {
-        value: '[=Vector([Local.Radius] * Cos([Local.Angle]), [Local.Height], -[Local.Radius] * Sin([Local.Angle]))]',
+        value:
+          '[=Vector([$Local.Radius] * Cos([$Local.Angle]), [$Local.Height], -[$Local.Radius] * Sin([$Local.Angle]))]',
       },
     },
     { command: 'end', values: {} },
@@ -3108,7 +3109,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
       },
     },
     { command: 'function', values: { name: 'Slope', parameters: 'Angle' } },
-    { command: 'return', values: { value: '[=[Base] + [Rise] * [Local.Angle] / [Per]]' } },
+    { command: 'return', values: { value: '[=[Base] + [Rise] * [$Local.Angle] / [Per]]' } },
     { command: 'end', values: {} },
     { command: 'transform', values: { move: '0, [Base], 0' } },
     {

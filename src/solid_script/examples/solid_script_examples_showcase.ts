@@ -55,7 +55,7 @@ export const SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE: readonly SolidScriptLine[] =
   solidScriptExampleSet('RailWidth', '[=[OuterWidth] - 0.2]'),
   ...solidScriptExampleNote('The slope rises evenly with the angle, through the front edge of every tread.'),
   ...solidScriptExampleBlock('function', { name: 'Slope', parameters: 'Angle' }, [
-    solidScriptExampleLine('return', { value: '[=[Base] + [Rise] * [Local.Angle] / [Per]]' }),
+    solidScriptExampleLine('return', { value: '[=[Base] + [Rise] * [$Local.Angle] / [Per]]' }),
   ]),
   ...solidScriptExampleBlock('transform', { move: '0, [Base], 0' }, [
     solidScriptExampleLine('cylinder', {

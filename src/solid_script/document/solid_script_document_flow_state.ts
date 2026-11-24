@@ -187,7 +187,7 @@ export function solidScriptFlowDelete(state: SolidScriptFlowState, key: string):
 
 /**
  * Puts back the Function locals of a caller after a Function ran: its own
- * Local. names come back and the called Function's go.
+ * $Local. names come back and the called Function's go.
  *
  * @param after State the Function left.
  * @param caller State of the caller before the call.
@@ -197,8 +197,8 @@ export function solidScriptFlowLocalsBack(
   after: SolidScriptFlowState,
   caller: SolidScriptFlowState,
 ): SolidScriptFlowState {
-  const back = new Map([...after].filter(([key]) => !key.startsWith('local.')));
-  for (const [key, variable] of caller) if (key.startsWith('local.')) back.set(key, variable);
+  const back = new Map([...after].filter(([key]) => !key.startsWith('$local.')));
+  for (const [key, variable] of caller) if (key.startsWith('$local.')) back.set(key, variable);
   return back;
 }
 

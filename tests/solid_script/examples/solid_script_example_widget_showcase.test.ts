@@ -32,7 +32,7 @@ describe('Widget Showcase example', () => {
     expect(shown({})).toEqual({ on: ['Shape'], others: ['Slider'] });
   });
 
-  it('acts as a menu: a pressed toggle stores its page in Persistent.Page and turns the others off', () => {
+  it('acts as a menu: a pressed toggle stores its page in $Persistent.Page and turns the others off', () => {
     const place = solidScriptDocumentEvent(SCRIPT, { kind: 'button', name: 'PickPlace' }, {}, null).next;
     expect(shown(place)).toEqual({ on: ['Place'], others: ['Slider'] });
     const aim = solidScriptDocumentEvent(SCRIPT, { kind: 'button', name: 'PickAim' }, place, null).next;

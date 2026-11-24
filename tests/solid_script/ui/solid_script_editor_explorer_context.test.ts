@@ -114,13 +114,13 @@ describe('Context lists what the focused line can read before it runs', () => {
   it('lists a Function input with what every Call passes, only inside the Function', () => {
     const lines = [
       line('function', { name: 'Twice', parameters: 'Value' }),
-      line('return', { value: '[=[Local.Value] * 2]' }),
+      line('return', { value: '[=[$Local.Value] * 2]' }),
       END,
       line('call', { name: 'Twice', values: '1', result: 'R' }),
       set('After', '[R]'),
     ];
-    expect(contextAt(lines, 1)).toContain('Local.Value=Number');
-    expect(contextAt(lines, 4).some((entry) => entry.startsWith('Local.Value'))).toBe(false);
+    expect(contextAt(lines, 1)).toContain('$Local.Value=Number');
+    expect(contextAt(lines, 4).some((entry) => entry.startsWith('$Local.Value'))).toBe(false);
     expect(contextAt(lines, 4)).toContain('R=Number');
   });
 

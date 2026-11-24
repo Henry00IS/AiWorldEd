@@ -1,9 +1,10 @@
+import { solidScriptNameIsSystem } from './solid_script_name_key.js';
 import { SOLID_SCRIPT_SYSTEM_GLOBALS, SOLID_SCRIPT_SYSTEM_SELECTED } from './solid_script_system.js';
 
 /**
  * Which names may contain a dot. A script's own names use letters, digits and _
  * only; a dot reads a member, such as Face.Center, Faces.Count, Pos.X or
- * Face.Data.Height, and Local. and Persistent. go in front of a name. System
+ * Face.Data.Height, and $Local. and $Persistent. go in front of a name. System
  * values start with $, such as $Selected.Faces or $Box.Width.
  */
 
@@ -42,7 +43,7 @@ const SOLID_SCRIPT_SYSTEM_SPELLINGS: ReadonlyMap<string, string> = new Map(
 const SOLID_SCRIPT_NAME_PART = /^[A-Za-z_]\w*\s*(\(.*\))?$/s;
 
 /** A name of the script set as a whole, with an optional prefix and vector part. */
-const SOLID_SCRIPT_NAME_OWN = /^(local\.|persistent\.)?[A-Za-z_]\w*\s*(\(.*\))?(\.[xyzXYZ])?$/is;
+const SOLID_SCRIPT_NAME_OWN = /^(\$local\.|\$persistent\.)?[A-Za-z_]\w*\s*(\(.*\))?(\.[xyzXYZ])?$/is;
 
 /** The [$Selected.*] lists, the only system values a line may set. */
 const SOLID_SCRIPT_NAME_SELECTED = /^\$selected\.(objects|faces|edges|vertices)$/i;
@@ -81,7 +82,7 @@ function solidScriptNameParts(name: string): string[] {
 export function solidScriptNameDotProblem(name: string, use: 'read' | 'set'): string {
   const text = name.trim();
   if (!text.includes('.')) return '';
-  if (text.startsWith('$')) {
+  if (solidScriptNameIsSystem(text)) {
     if (
       use === 'set' &&
       !SOLID_SCRIPT_NAME_SELECTED.test(text) &&
@@ -94,7 +95,9 @@ export function solidScriptNameDotProblem(name: string, use: 'read' | 'set'): st
   const parts = solidScriptNameParts(text);
   const last = parts.length - 1;
   const bad = parts.find(
-    (part, index) => !SOLID_SCRIPT_NAME_PART.test(part) && !(index === last && /^\[.*\]$/s.test(part)),
+    (part, index) =>
+      !SOLID_SCRIPT_NAME_PART.test(index === 0 ? part.replace(/^\$/, '') : part) &&
+      !(index === last && /^\[.*\]$/s.test(part)),
   );
   if (bad !== undefined)
     return `"${text}" cannot be a name: names use letters, digits and _, and a dot reads a member such as Face.Center, Pos.X or Face.Data.Height`;
@@ -198,7 +201,7 @@ export function solidScriptNameIsPositionWrite(name: string): boolean {
 export function solidScriptNameIsModeWrite(name: string): boolean {
   if (!name.includes('.')) return false;
   const raw = name.trim();
-  const system = raw.startsWith('$');
+  const system = solidScriptNameIsSystem(raw);
   const parts = solidScriptNameParts(system ? raw.slice(1) : raw);
   if (parts.length < 2) return false;
   const last = parts[parts.length - 1]?.toLowerCase() ?? '';

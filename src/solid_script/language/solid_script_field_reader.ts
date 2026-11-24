@@ -17,9 +17,9 @@ export interface SolidScriptFieldHost {
   fieldVariable(name: string, scope: SolidScriptScope): SolidScriptValue;
   /**
    * Reads a variable of the innermost Function running, by its name after
-   * local.
+   * $local.
    *
-   * @param bare Name after local.
+   * @param bare Name after $local.
    */
   fieldLocal(bare: string): SolidScriptValue;
   /**
@@ -84,7 +84,7 @@ export class SolidScriptFieldReader implements SolidScriptFieldContext {
   /**
    * Reads a Function's own variable written local.name.
    *
-   * @param bare Name after local.
+   * @param bare Name after $local.
    * @param name Name as written.
    * @returns Value.
    */

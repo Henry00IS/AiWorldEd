@@ -95,7 +95,7 @@ describe('Function blocks', () => {
     const result = run(
       echo('top'),
       fn('greet', 'who'),
-      echo('hello [local.who]'),
+      echo('hello [$local.who]'),
       line('cube'),
       END,
       line(SOLID_SCRIPT_HANDLERS.input, { name: 'width' }),
@@ -118,19 +118,19 @@ describe('Function blocks', () => {
       line('cube'),
       echo('[=area(2, 3)] [=fact(5)] [=limit(7)] [=limit(0.5)]'),
       fn('area', 'w, d'),
-      ret('[=[local.w] * [local.d]]'),
+      ret('[=[$local.w] * [$local.d]]'),
       END,
       fn('fact', 'n'),
-      line('if', { condition: '[local.n] <= 1' }),
+      line('if', { condition: '[$local.n] <= 1' }),
       line('return', { value: '1' }),
       END,
-      line('return', { value: '[=[local.n] * fact([local.n] - 1)]' }),
+      line('return', { value: '[=[$local.n] * fact([$local.n] - 1)]' }),
       END,
       fn('limit', 'v'),
-      line('if', { condition: '[local.v] > 1' }),
+      line('if', { condition: '[$local.v] > 1' }),
       line('return', { value: '1' }),
       END,
-      line('return', { value: '[local.v]' }),
+      line('return', { value: '[$local.v]' }),
       END,
     );
     expect(result.error).toBeNull();
@@ -140,10 +140,10 @@ describe('Function blocks', () => {
   it('builds the shapes of a Call where it stands and stores Return in Result In', () => {
     const result = run(
       fn('post', 'x, h'),
-      line('transform', { move: '[local.x], 0, 0' }),
-      line('cube', { size: `1, [local.h], 1` }),
+      line('transform', { move: '[$local.x], 0, 0' }),
+      line('cube', { size: `1, [$local.h], 1` }),
       END,
-      line('return', { value: '[=[local.x] + 1]' }),
+      line('return', { value: '[=[$local.x] + 1]' }),
       END,
       line('call', { name: 'post', values: '[=max(2, 4)], 3', result: 'next' }),
       echo('[next]'),
@@ -158,8 +158,8 @@ describe('Function blocks', () => {
       line('cube'),
       line('variable', { name: 'total', value: '1' }),
       fn('bump', 'by'),
-      line('variable', { name: 'local.twice', value: '[=[local.by] * 2]' }),
-      line('variable', { name: 'total', value: '[=[total] + [local.twice]]' }),
+      line('variable', { name: '$local.twice', value: '[=[$local.by] * 2]' }),
+      line('variable', { name: 'total', value: '[=[total] + [$local.twice]]' }),
       line('variable', { name: 'made', value: 'done' }),
       END,
       line('call', { name: 'bump', values: '3' }),
@@ -173,13 +173,13 @@ describe('Function blocks', () => {
   });
 
   it('stops on misuse with plain explanations', () => {
-    const outside = run(line('cube'), echo('[local.x]'));
-    expect(outside.error?.message).toMatch(/Local\. only works inside a Function; outside one, write \[x\]/);
-    const missing = run(line('cube'), fn('f'), echo('[local.y]'), END, line('call', { name: 'f' }));
-    expect(missing.error?.message).toMatch(/no local variable \[Local\.y\]/);
-    const count = run(line('cube'), fn('f', 'a, b'), ret('[local.a]'), END, echo('[=f(1)]'));
+    const outside = run(line('cube'), echo('[$local.x]'));
+    expect(outside.error?.message).toMatch(/\$Local\. only works inside a Function; outside one, write \[x\]/);
+    const missing = run(line('cube'), fn('f'), echo('[$local.y]'), END, line('call', { name: 'f' }));
+    expect(missing.error?.message).toMatch(/no local variable \[\$Local\.y\]/);
+    const count = run(line('cube'), fn('f', 'a, b'), ret('[$local.a]'), END, echo('[=f(1)]'));
     expect(count.error?.message).toMatch(/f\(\) takes 2 value\(s\).*not 1/);
-    const builtin = run(line('cube'), fn('sin', 'x'), ret('[local.x]'), END);
+    const builtin = run(line('cube'), fn('sin', 'x'), ret('[$local.x]'), END);
     expect(builtin.error?.message).toMatch(/sin.*built-in/);
     const unknown = run(line('cube'), echo('[=nope(1)]'));
     expect(unknown.error?.message).toMatch(/unknown function nope\(\); add a Function block/);
@@ -201,7 +201,7 @@ describe('Function blocks', () => {
     expect(partValue.error?.message).toMatch(/Return with a Value only works in a Function/);
     const loose = run(line('cube'), line('return'));
     expect(loose.error?.message).toMatch(/only works inside one of them/);
-    const endless = run(line('cube'), fn('loop', 'x'), ret('[=loop([local.x])]'), END, echo('[=loop(1)]'));
+    const endless = run(line('cube'), fn('loop', 'x'), ret('[=loop([$local.x])]'), END, echo('[=loop(1)]'));
     expect(endless.error?.message).toMatch(/more than 256 levels deep/);
   });
 
@@ -209,8 +209,8 @@ describe('Function blocks', () => {
     const result = runWith(
       { breakpoints: { lines: new Set([3]), pauseAt: 2 } },
       fn('step', 'i'),
-      line('variable', { name: 'local.h', value: '[=[local.i] * 0.2]' }),
-      line('cube', { size: '1, 1, [local.h]' }),
+      line('variable', { name: '$local.h', value: '[=[$local.i] * 0.2]' }),
+      line('cube', { size: '1, 1, [$local.h]' }),
       END,
       line('repeat', { variable: 'n', from: '1', to: '3' }),
       line('call', { name: 'step', values: '[n]' }),
@@ -223,8 +223,8 @@ describe('Function blocks', () => {
         name: 'step()',
         line: 6,
         locals: [
-          { name: 'Local.i', value: '2', type: 'Whole Number', items: [] },
-          { name: 'Local.h', value: '0.4', type: 'Number', items: [] },
+          { name: '$Local.i', value: '2', type: 'Whole Number', items: [] },
+          { name: '$Local.h', value: '0.4', type: 'Number', items: [] },
         ],
       },
     ]);

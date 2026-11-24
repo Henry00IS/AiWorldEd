@@ -220,7 +220,7 @@ export function solidScriptExplorerEntries(
   }
   const listed = new Set(entries.map((entry) => entry.name));
   for (const [name, variable] of live) {
-    if (listed.has(name) || name.startsWith('Local.')) continue;
+    if (listed.has(name) || name.startsWith('$Local.')) continue;
     entries.push({
       name,
       category: variable.items.length > 0 ? 'Lists' : 'Variables',

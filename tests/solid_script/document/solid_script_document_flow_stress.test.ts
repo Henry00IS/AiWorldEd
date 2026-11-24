@@ -109,7 +109,7 @@ describe('SolidScript kinds stress: Functions', () => {
   it('shows a Function input the union of what every Call passes, and its Return the union back', () => {
     const lines = [
       line('function', { name: 'ToString', parameters: 'Value' }),
-      line('return', { value: '[=Str([Local.Value])]' }),
+      line('return', { value: '[=Str([$Local.Value])]' }),
       END,
       line('cube', { into: 'Henry' }),
       line('call', { name: 'ToString', values: '1', result: 'R1' }),
@@ -117,7 +117,7 @@ describe('SolidScript kinds stress: Functions', () => {
       line('call', { name: 'ToString', values: 'oak', result: 'R3' }),
       set('R4', '[=ToString([Henry.Faces])]'),
     ];
-    expect(kindsAt(lines, 1, 'local.value')).toEqual(['Face List', 'Number', 'Solid', 'Text']);
+    expect(kindsAt(lines, 1, '$local.value')).toEqual(['Face List', 'Number', 'Solid', 'Text']);
     expect(kindsEnd(lines, 'r1')).toEqual(['Text']);
     expect(kindsEnd(lines, 'r4')).toEqual(['Text']);
   });
@@ -125,11 +125,11 @@ describe('SolidScript kinds stress: Functions', () => {
   it('joins what different Return lines give on different paths', () => {
     const lines = [
       line('function', { name: 'Choose', parameters: 'N' }),
-      line('if', { condition: '[Local.N] > 1' }),
+      line('if', { condition: '[$Local.N] > 1' }),
       line('return', { value: '5' }),
       ELSE,
-      line('cube', { into: 'Local.Made' }),
-      line('return', { value: '[Local.Made]' }),
+      line('cube', { into: '$Local.Made' }),
+      line('return', { value: '[$Local.Made]' }),
       END,
       END,
       line('call', { name: 'Choose', values: '2', result: 'R' }),
@@ -137,31 +137,31 @@ describe('SolidScript kinds stress: Functions', () => {
     ];
     expect(kindsEnd(lines, 'r')).toEqual(['Number', 'Solid']);
     expect(kindsEnd(lines, 's')).toEqual(['Number', 'Solid']);
-    expect(kindsAt(lines, 5, 'local.made')).toEqual(['Solid']);
+    expect(kindsAt(lines, 5, '$local.made')).toEqual(['Solid']);
   });
 
   it('ends on recursion, direct, through another Function and without a way out', () => {
     const lines = [
       line('function', { name: 'Fact', parameters: 'N' }),
-      line('if', { condition: '[Local.N] <= 1' }),
+      line('if', { condition: '[$Local.N] <= 1' }),
       line('return', { value: '1' }),
       END,
-      line('return', { value: '[=[Local.N] * Fact([Local.N] - 1)]' }),
+      line('return', { value: '[=[$Local.N] * Fact([$Local.N] - 1)]' }),
       END,
       line('function', { name: 'Ping', parameters: 'X' }),
-      line('call', { name: 'Pong', values: '[Local.X]', result: 'Local.Y' }),
-      line('return', { value: '[Local.Y]' }),
+      line('call', { name: 'Pong', values: '[$Local.X]', result: '$Local.Y' }),
+      line('return', { value: '[$Local.Y]' }),
       END,
       line('function', { name: 'Pong', parameters: 'X' }),
-      line('if', { condition: 'IsString([Local.X])' }),
-      line('return', { value: '[Local.X]' }),
+      line('if', { condition: 'IsString([$Local.X])' }),
+      line('return', { value: '[$Local.X]' }),
       END,
-      line('call', { name: 'Ping', values: '[=Str([Local.X])]', result: 'Local.Z' }),
-      line('return', { value: '[Local.Z]' }),
+      line('call', { name: 'Ping', values: '[=Str([$Local.X])]', result: '$Local.Z' }),
+      line('return', { value: '[$Local.Z]' }),
       END,
       line('function', { name: 'Forever', parameters: 'X' }),
-      line('call', { name: 'Forever', values: '[Local.X]', result: 'Local.R' }),
-      line('return', { value: '[Local.R]' }),
+      line('call', { name: 'Forever', values: '[$Local.X]', result: '$Local.R' }),
+      line('return', { value: '[$Local.R]' }),
       END,
       line('call', { name: 'Fact', values: '5', result: 'F' }),
       line('call', { name: 'Ping', values: '7', result: 'P' }),
@@ -175,23 +175,23 @@ describe('SolidScript kinds stress: Functions', () => {
   it('passes kinds through chains of Local inputs', () => {
     const lines = [
       line('function', { name: 'Outer', parameters: 'P' }),
-      line('call', { name: 'Middle', values: '[Local.P]', result: 'Local.R' }),
-      line('return', { value: '[Local.R]' }),
+      line('call', { name: 'Middle', values: '[$Local.P]', result: '$Local.R' }),
+      line('return', { value: '[$Local.R]' }),
       END,
       line('function', { name: 'Middle', parameters: 'Q' }),
-      line('call', { name: 'Inner', values: '[Local.Q.Faces(0)]', result: 'Local.S' }),
-      line('return', { value: '[Local.S]' }),
+      line('call', { name: 'Inner', values: '[$Local.Q.Faces(0)]', result: '$Local.S' }),
+      line('return', { value: '[$Local.S]' }),
       END,
       line('function', { name: 'Inner', parameters: 'Face' }),
-      line('return', { value: '[Local.Face.Edges]' }),
+      line('return', { value: '[$Local.Face.Edges]' }),
       END,
       line('cube', { into: 'Box' }),
       line('call', { name: 'Outer', values: '[Box]', result: 'Out' }),
     ];
-    expect(kindsAt(lines, 5, 'local.q')).toEqual(['Solid']);
-    expect(kindsAt(lines, 9, 'local.face')).toEqual(['Face']);
+    expect(kindsAt(lines, 5, '$local.q')).toEqual(['Solid']);
+    expect(kindsAt(lines, 9, '$local.face')).toEqual(['Face']);
     expect(kindsEnd(lines, 'out')).toEqual(['Edge List']);
-    expect(kindsEnd(lines, 'local.r')).toEqual([]);
+    expect(kindsEnd(lines, '$local.r')).toEqual([]);
   });
 });
 
@@ -462,10 +462,10 @@ function chain(count: number, loops: number): SolidScriptLine[] {
     const next = `F${(at + 1) % count}`;
     lines.push(line('function', { name: `F${at}`, parameters: 'X' }));
     for (let deep = 0; deep < loops; deep++) lines.push(line('repeat', { variable: `I${deep}`, from: '0', to: '3' }));
-    lines.push(set('Local.Y', `[=${next}([Local.X])]`));
-    lines.push(line('call', { name: next, values: '[Local.Y]', result: 'Local.X' }));
+    lines.push(set('$Local.Y', `[=${next}([$Local.X])]`));
+    lines.push(line('call', { name: next, values: '[$Local.Y]', result: '$Local.X' }));
     for (let deep = 0; deep < loops; deep++) lines.push(END);
-    lines.push(line('return', { value: '[Local.X]' }), END);
+    lines.push(line('return', { value: '[$Local.X]' }), END);
   }
   return lines;
 }
@@ -487,7 +487,7 @@ describe('the analyzer stays quick', () => {
     const lines: SolidScriptLine[] = [];
     for (let at = 0; at < 10; at++) {
       lines.push(line('function', { name: `G${at}`, parameters: 'X' }));
-      lines.push(line('return', { value: at < 9 ? `[=G${at + 1}([Local.X])]` : '[Local.X]' }), END);
+      lines.push(line('return', { value: at < 9 ? `[=G${at + 1}([$Local.X])]` : '[$Local.X]' }), END);
     }
     lines.push(line('call', { name: 'G0', values: 'oak', result: 'R' }));
     expect(kindsEnd(lines, 'r')).toEqual(['Text']);

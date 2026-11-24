@@ -37,7 +37,7 @@ function disagreements(lines: readonly SolidScriptLine[]): string[] {
         problems.push(
           `${where}: lines ${shown.join(',')} in "${reaches}", reach lines ${(entry.reachLines ?? []).join(',')}`,
         );
-      if (/passed in by/i.test(reaches) && !/^local\./i.test(entry.name))
+      if (/passed in by/i.test(reaches) && !/^\$local\./i.test(entry.name))
         problems.push(`${where}: "${reaches}" says passed in, but it is no input`);
       if (/undefined|\{\w+\}|\[object/.test(reaches)) problems.push(`${where}: "${reaches}"`);
       // The hover text of a suggestion and of a Variables row is this hint in plain words.

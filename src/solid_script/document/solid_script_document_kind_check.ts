@@ -117,7 +117,7 @@ function solidScriptKindMembersTold(kinds: readonly string[]): string {
  */
 function solidScriptKindMemberMissing(path: string, head: SolidScriptFlowHead): string | undefined {
   const parts = path.split('.');
-  if (parts.length > 1 && /^(local|persistent)$/i.test(parts[0] ?? '')) parts.splice(0, 2, `${parts[0]}.${parts[1]}`);
+  if (parts.length > 1 && /^\$(local|persistent)$/i.test(parts[0] ?? '')) parts.splice(0, 2, `${parts[0]}.${parts[1]}`);
   if (/\(.*\)$/.test(parts[0] ?? '')) return undefined;
   let kinds = [...head((parts[0] ?? '').toLowerCase())];
   for (const [index, part] of parts.slice(1).entries()) {

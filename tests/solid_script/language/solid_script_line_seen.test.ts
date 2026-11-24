@@ -91,7 +91,7 @@ describe('SolidScript keeps what each line saw the last time it ran', () => {
     const run = solidScriptProgramRun(
       solidScriptDocumentCreate([
         { command: 'function', values: { name: 'post', parameters: 'n' } },
-        { command: 'cube', values: { size: '[local.n], 1, 1' } },
+        { command: 'cube', values: { size: '[$local.n], 1, 1' } },
         { command: 'end', values: {} },
         { command: 'call', values: { name: 'post', values: '3' } },
         { command: 'call', values: { name: 'post', values: '5' } },
@@ -101,7 +101,7 @@ describe('SolidScript keeps what each line saw the last time it ran', () => {
 
     // Assert
     expect(run.error).toBeNull();
-    expect(valuesOf(run.seen.get(2))).toContain('Local.n=5');
+    expect(valuesOf(run.seen.get(2))).toContain('$Local.n=5');
   });
 
   it('keeps nothing for a line that runs again once too many values were kept', () => {

@@ -5,7 +5,7 @@ import { solidScriptFunctionKey, solidScriptNameKey } from './solid_script_name_
 
 /**
  * What one piece of field text is, for its colour: plain text, a bracket, a
- * name of the script, a Function's own Local. name, a Persistent. name, a
+ * name of the script, a Function's own $Local. name, a $Persistent. name, a
  * built-in value, a function call, a number, a "text", an operator or a word
  * such as true.
  */
@@ -42,7 +42,7 @@ export interface SolidScriptFieldToken {
 /** Words a formula reads as values or operators, not as names. */
 const SOLID_SCRIPT_FIELD_KEYWORDS = new Set(['true', 'false', 'undef', 'and', 'or', 'not', 'for']);
 
-/** A name, with dotted parts such as Local.Width or Pos.X. */
+/** A name, with dotted parts such as $Local.Width or Pos.X. */
 const SOLID_SCRIPT_FIELD_WORD = /^\$?[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]+)*/;
 
 /** A number in a formula. */
@@ -62,16 +62,16 @@ interface SolidScriptFieldOpen {
 }
 
 /**
- * Names the kind of a word: Local. and Persistent. names, built-in values such
- * as Face.Center (with an optional .X part), or a name of the script.
+ * Names the kind of a word: $Local. and $Persistent. names, built-in values
+ * such as Face.Center (with an optional .X part), or a name of the script.
  *
  * @param word Word as written.
  * @returns Kind.
  */
 function solidScriptFieldWordKind(word: string): SolidScriptFieldTokenKind {
   const lower = word.toLowerCase();
-  if (lower.startsWith('local.')) return 'local';
-  if (lower.startsWith('persistent.')) return 'persistent';
+  if (lower.startsWith('$local.')) return 'local';
+  if (lower.startsWith('$persistent.')) return 'persistent';
   if (lower.startsWith('$')) return 'system';
   return 'name';
 }

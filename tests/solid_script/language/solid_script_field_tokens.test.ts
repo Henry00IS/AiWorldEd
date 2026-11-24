@@ -40,12 +40,12 @@ describe('solidScriptFieldTokens', () => {
   });
 
   it('tells Local, Persistent and built-in names apart and keeps escapes plain', () => {
-    expect(pieces('[Local.Width] [Persistent.Presses] [Face.Center.x] $[x$] 12')).toEqual([
+    expect(pieces('[$Local.Width] [$Persistent.Presses] [Face.Center.x] $[x$] 12')).toEqual([
       'bracket:[',
-      'local:Local.Width',
+      'local:$Local.Width',
       'bracket:]',
       'bracket:[',
-      'persistent:Persistent.Presses',
+      'persistent:$Persistent.Presses',
       'bracket:]',
       'bracket:[',
       'name:Face.Center.x',
@@ -53,11 +53,11 @@ describe('solidScriptFieldTokens', () => {
       'text: $[x$] ',
       'number:12',
     ]);
-    expect(pieces('[=true and Local.A]')).toEqual([
+    expect(pieces('[=true and $Local.A]')).toEqual([
       'bracket:[=',
       'keyword:true',
       'keyword:and',
-      'local:Local.A',
+      'local:$Local.A',
       'bracket:]',
     ]);
   });
@@ -81,13 +81,13 @@ describe('solidScriptFieldTokens', () => {
       solidScriptFieldTokens(text)
         .map((token) => solidScriptFieldTokenKey(text, token))
         .filter((key): key is string => key !== null);
-    expect(keys('[Width] [Pos.x] [points(0)] [part[i]] [=Max(Local.A, b)]')).toEqual([
+    expect(keys('[Width] [Pos.x] [points(0)] [part[i]] [=Max($Local.A, b)]')).toEqual([
       'width',
       'pos',
       'points',
       'i',
       'max()',
-      'local.a',
+      '$local.a',
     ]);
   });
   it('colours every number of a list, of points and of a formula', () => {

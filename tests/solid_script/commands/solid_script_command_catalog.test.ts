@@ -195,7 +195,7 @@ function standalone(command: SolidScriptCommand): SolidScriptLine[] {
     return [
       { command: 'function', values: { name: 'area', parameters: 'w, d' } },
       { command: 'cube' },
-      { command: 'return', values: { value: '[=[local.w] * [local.d]]' } },
+      { command: 'return', values: { value: '[=[$local.w] * [$local.d]]' } },
       { command: 'end' },
       { command: 'call', values: { name: 'area', values: '2, 3', result: 'size' } },
     ];

@@ -120,13 +120,13 @@ function solidScriptConfiguratorVectorSize(parameter: SolidScriptCommandParamete
 }
 
 /** Pattern of names a variable can have. */
-const SOLID_SCRIPT_CONFIGURATOR_NAME = /^((local|persistent)\.)?[A-Za-z_][A-Za-z0-9_]*$/i;
+const SOLID_SCRIPT_CONFIGURATOR_NAME = /^(\$(local|persistent)\.)?[A-Za-z_][A-Za-z0-9_]*$/i;
 
 /**
  * Pattern of what Set can change: a variable, or an item of a list such as
  * points(2) or points().
  */
-const SOLID_SCRIPT_CONFIGURATOR_TARGET = /^((local|persistent)\.)?[A-Za-z_][A-Za-z0-9_]*(\.[xyz]|\s*\(.*\))?$/i;
+const SOLID_SCRIPT_CONFIGURATOR_TARGET = /^(\$(local|persistent)\.)?[A-Za-z_][A-Za-z0-9_]*(\.[xyz]|\s*\(.*\))?$/i;
 
 /**
  * Name groups a field naming a variable the line writes offers. Inputs are left

@@ -1,3 +1,4 @@
+import { solidScriptNameIsSystem } from '@/solid_script/language/solid_script_name_key.js';
 import {
   solidScriptFlowItemOf,
   solidScriptFlowMember,
@@ -168,7 +169,7 @@ function solidScriptFlowFormulaNames(formula: SolidScriptFlowFormula, head: Soli
   const parts = formula.parts.map((part) => solidScriptFlowPartKinds(part, head));
   return (name) => {
     if (name.startsWith(SOLID_SCRIPT_FLOW_PART)) return parts[Number(name.slice(SOLID_SCRIPT_FLOW_PART.length))] ?? [];
-    if (name.startsWith('$')) return solidScriptFlowPathKinds(name, head);
+    if (solidScriptNameIsSystem(name)) return solidScriptFlowPathKinds(name, head);
     const kinds = head(solidScriptNameKey(name));
     return kinds.length > 0 ? [...kinds] : [SOLID_SCRIPT_FLOW_UNKNOWN];
   };
@@ -218,7 +219,7 @@ function solidScriptFlowSystemMember(
   head: SolidScriptFlowHead,
 ): string[] {
   const path = solidScriptFlowDotted(node);
-  return path?.startsWith('$')
+  return path && solidScriptNameIsSystem(path)
     ? solidScriptFlowPathKinds(path, head)
     : solidScriptFlowMember(kinds(node.target), node.name);
 }

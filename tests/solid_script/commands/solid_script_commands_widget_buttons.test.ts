@@ -50,7 +50,7 @@ describe('solidScriptDocumentEvent', () => {
     const script = solidScriptDocumentCreate([
       RESET,
       { command: 'when_button_pressed', values: { name: 'ResetAll' } },
-      { command: 'variable', values: { name: 'Persistent.Page', value: 'Rails' } },
+      { command: 'variable', values: { name: '$Persistent.Page', value: 'Rails' } },
       { command: 'end' },
     ]);
     const { next, handled } = solidScriptDocumentEvent(script, { kind: 'button', name: 'ResetAll' }, {}, null);

@@ -51,9 +51,9 @@ describe('SolidScript messages spell names as they were written', () => {
     );
   });
 
-  it('teaches Local. in PascalCase outside a Function', () => {
-    expect(failure(line('echo', { value: '[local.Width]' }))).toMatch(
-      /\[Local\.Width\] is a local variable, and Local\. only works inside a Function; outside one, write \[Width\]/,
+  it('teaches $Local. in PascalCase outside a Function', () => {
+    expect(failure(line('echo', { value: '[$local.Width]' }))).toMatch(
+      /\[\$Local\.Width\] is a local variable, and \$Local\. only works inside a Function; outside one, write \[Width\]/,
     );
   });
 
@@ -70,13 +70,13 @@ describe('SolidScript messages spell names as they were written', () => {
     const result = runWith(
       { breakpoints: { lines: new Set([3]), pauseAt: 1 } },
       line('function', { name: 'StepUp', parameters: 'Index' }),
-      line('variable', { name: 'local.Height', value: '[=[Local.Index] * 2]' }),
+      line('variable', { name: '$local.Height', value: '[=[$Local.Index] * 2]' }),
       line('cube'),
       END,
       line('echo', { value: '[=stepup(3)]' }),
     );
     expect(result.stack.map((frame) => [frame.name, frame.locals.map((local) => local.name)])).toEqual([
-      ['StepUp()', ['Local.Index', 'Local.Height']],
+      ['StepUp()', ['$Local.Index', '$Local.Height']],
     ]);
   });
 });

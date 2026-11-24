@@ -16,7 +16,7 @@ Double-click a command in the palette, or drag it in, to add it below the curren
 - Variables have no declared type, like `var` in other languages: any line may give a variable any kind of value, and a later line another kind. Left empty, a Set's Value gives empty text. **Clear Variable** empties a variable the way that fits what it holds: a list or vector becomes `[]`, a number 0, a Yes/No No and anything else empty text, and a name no line set becomes `[]`; **Delete Variable** forgets it. Commas typed outside brackets in a Value make a list, each item read on its own: `[5,3,4],zu,45,[4,5,6]` is a vector, the text `zu`, the number 45 and another vector, while `2,3,4` is still a vector and one item stays one value. Write `$,` for a comma inside a text, such as `Hello$, World`; `Hello, [Name]` is a list of two items. Clicking the Value of a Yes/No suggests Yes and No.
 - Every command declares which kinds each field takes and what each field naming a variable gives. A line given a kind it cannot use stops with a plain message, such as `Of needs a Solid, Face or Text, or a list of them, not a Yes/No`; formula functions declare theirs too, so `Abs()` given a Solid stops the same way. While you type, the editor follows the script without running it and knows what kinds each name may hold at the caret: through If and Else, loops, Functions (per Call, and what each Return gives back) and Parts. An If narrows what it tests: inside `If [Henry] > 3` and its Else, Henry is a number; inside `If IsNum([V])`, V is a Number, and inside `If IsFace([X])`, X is a Face; a branch no run can take, such as `If 1 == 2` or a test a script Input's kind rules out, is skipped. Hover, the **Variables** tab and autocomplete show every kind a name may hold, such as `Number or Text`, each with the write that gives it and its line, such as `Solid: What is made of Cube (line 3).` or `Number: Set to 15 (line 3). Solid: What is made of Cube (line 5).` after an If and Else; clicking a name in the Variables tab goes to the last such write, and a wavy underline only appears where no way through the script gives a usable value.
 - Fields that take one of a few words, such as Anchor, Which, How, a generator's choices or a texture name, take a Text or a Number; a Solid or a list there stops the line with `… needs a Text or Number, not a Solid`. A block's Name names everything it builds: a named Linear Extrude, Rotate Extrude or Offset passes its Name to every piece, and without one each path keeps its own; Point only adds a corner, so it has no Name or Into. A Repeat or For Each counter lives in its loop, so a Function called inside the loop does not see it. The editor's hints tell item writes such as `Set Points(0)` as **Set**, not as an input passed in. Mistakes name the line and field and say what to do, such as `division by zero; check that what is divided by cannot be 0` or `a closing ")" is missing at the end`.
-- Names ignore case: `[count]` and `[Count]` are one variable, and `sin(65)` is `Sin(65)`. Write them in PascalCase, such as `[StepHeight]`, `[Local.Width]`, `[Persistent.Presses]`, `Function Staircase` and `CharacterCode("A")`, like the examples do; the explorer keeps the spelling of the first Set or Input.
+- Names ignore case: `[count]` and `[Count]` are one variable, and `sin(65)` is `Sin(65)`. Write them in PascalCase, such as `[StepHeight]`, `[$Local.Width]`, `[$Persistent.Presses]`, `Function Staircase` and `CharacterCode("A")`, like the examples do; the explorer keeps the spelling of the first Set or Input.
 - Functions such as `Sin`, `Lerp`, `Remap`, `Split` or `TimeText` work in formulas; hover one in the suggestions to see what it does, with an example. `%` is the remainder, such as `[=[I] % 2 == 0]` for even numbers. `ItemOr([List], 5, 0)` reads an item with a fallback when there is none. Numbers that are at most 0.001 apart are equal, so `0.1 + 0.2 == 0.3` is Yes; `Equal([A], [B], 0.05)` picks another tolerance. Math of one number, such as `Abs`, `Floor`, `Round`, `Snap`, `Mod` or `Sin`, works on each axis of a vector, so `Floor([$Point])` gives the grid cell; `Min` and `Max` of two vectors give the lowest or highest per axis. `RandomInt(1, 3)` gives 1, 2 or 3, Max included, and takes an ID and Seed like `Random`.
 - A Texture field in a line's window has **Pick** and **Type**: Pick uses the same texture picker as the inspector and stores the texture's full library path; Type takes a name, a variable such as `[Wall]` or a formula. A field whose text uses `[` opens on Type.
 - A field that takes a direction, such as Clip's Normal, Mirror's Plane Normal, Align To's Direction, Place At Points' Directions, Find On's Direction, Project UVs' Axis or the Normal of the paths, lists **Pick Normal…** among its suggestions when clicked. It opens a small 3D view of a 26-faced shape on the floor grid: one face for each axis, each 45° edge direction and each corner diagonal, coloured by the axes it points along and labelled, such as `+X`, `+X+Y 45°` or `+X-Y+Z`. Drag to orbit and scroll to zoom; hovering a face highlights it, and clicking it writes the way it points, such as `1, 1, 0`, which the field reads as a direction. The same shape is the **Rhombicuboctahedron** generator, whose Precision is Grid Aligned (corners on the grid, every slanted face exactly 45°) or Precise (the true shape with square faces).
@@ -62,7 +62,7 @@ The script runs on every change. **Start** builds everything, **Debug** builds o
 - **Input Group** shows the inputs inside it under a heading, **Input Row** puts them side by side, **Show Inputs When** shows them only while another input has a given value, or any one of several values written with commas, and **Input Note** shows a line of text among them.
 - When Input Changes and When Button Pressed blocks can check and change inputs.
 - A bake builds exactly what the editor shows.
-- Values stored as `Persistent.Name` stay between runs.
+- Values stored as `$Persistent.Name` stay between runs.
 
 </details>
 
@@ -81,13 +81,13 @@ The script runs on every change. **Start** builds everything, **Debug** builds o
   Input PickSliders, Type Button
   Input PickPaths, Type Button
   When Button Pressed PickSliders
-    Set Persistent.Page to Sliders
+    Set $Persistent.Page to Sliders
   End When
   When Button Pressed PickPaths
-    Set Persistent.Page to Paths
+    Set $Persistent.Page to Paths
   End When
-  Widget Toggle Shows [=[Persistent.Page] == "Sliders"] Writes PickSliders At -1, 2, 0 Label Sliders
-  Widget Toggle Shows [=[Persistent.Page] == "Paths"] Writes PickPaths At 1, 2, 0 Label Paths
+  Widget Toggle Shows [=[$Persistent.Page] == "Sliders"] Writes PickSliders At -1, 2, 0 Label Sliders
+  Widget Toggle Shows [=[$Persistent.Page] == "Paths"] Writes PickPaths At 1, 2, 0 Label Paths
   ```
 
   Picking one turns the others off because each Shows compares the same Persistent value. The **Widget Showcase** example builds on this.
@@ -201,7 +201,7 @@ The **Examples** window holds showcase scripts such as the Spiral Staircase, sma
 - RotateBy(rotation, by, local) composes two X, Y, Z degree turns: By turns in world space, or in the rotated space when Local is true, which adding the angles does not do.
 - For Each has a 🔁 Where an item must pass, with [$Item] the item, for the lines inside to run for it, such as Where [=[$Item.Normal.Y] > 0.5]; Key still counts in the whole list.
 - Function inputs may have defaults, such as W, D = 1: a call may leave those off, and they take the value after =. Numbers, Yes/No, quoted text and [lists] are read as values. Inputs with a default come last.
-- A Function reruns for each item when its formula is used per item, such as in a Where or a per-face field: [Local.X] holds that item's value each time.
+- A Function reruns for each item when its formula is used per item, such as in a Where or a per-face field: [$Local.X] holds that item's value each time.
 - Scatter Points Ids writes a steady number for each point, worked out from where it lies, so Random seeded by it stays with a point when Count grows or other points are removed.
 - Path From Points Radius can change per corner with [$Index] and [$Point], such as [=[$Index] * 0.1]; a corner with 0 stays sharp. Limit Radius Yes shrinks radii that do not fit so rounded corners never overlap.
 - Path Shape Smooth bends a gentle curve through every point in Points (Sides segments per stretch, Closed joins the ends); Shape Bezier runs From to To, leaving From toward From Handle and coming into To from To Handle, with Count points.

@@ -19,10 +19,10 @@ const SOLID_SCRIPT_EXAMPLE_SPOT: readonly SolidScriptLine[] = solidScriptExample
   'function',
   { name: 'Spot', parameters: 'Along, Height, Side' },
   [
-    solidScriptExampleSet('Local.Run', '[=[Start] + [Forward] * [Local.Along]]'),
+    solidScriptExampleSet('$Local.Run', '[=[Start] + [Forward] * [$Local.Along]]'),
     solidScriptExampleLine('return', {
       value:
-        '[=[AlongX] ? Vector([Local.Run], [Local.Height], [Local.Side] * [Across]) : Vector([Local.Side] * [Across], [Local.Height], [Local.Run])]',
+        '[=[AlongX] ? Vector([$Local.Run], [$Local.Height], [$Local.Side] * [Across]) : Vector([$Local.Side] * [Across], [$Local.Height], [$Local.Run])]',
     }),
   ],
 );
@@ -119,7 +119,7 @@ export const SOLID_SCRIPT_EXAMPLE_STAIRS: readonly SolidScriptLine[] = [
   solidScriptExampleSet('Drop', '[=[Waist] * Sqrt(1 + [Slope] ^ 2)]'),
   ...solidScriptExampleBlock('function', { name: 'Underside', parameters: 'Along' }, [
     solidScriptExampleLine('return', {
-      value: '[=[Floor] + (([LandingStep] ? [From] : [Local.Along]) - [NoseDepth]) * [Slope] - [Drop]]',
+      value: '[=[Floor] + (([LandingStep] ? [From] : [$Local.Along]) - [NoseDepth]) * [Slope] - [Drop]]',
     }),
   ]),
   ...solidScriptExampleNote('Set here, so the underside function can read them for each step.'),

@@ -50,13 +50,13 @@ describe('names ignore case', () => {
     const result = run(
       { command: 'input', values: { name: 'Steps', type: 'Count', default: '2' } },
       { command: 'function', values: { name: 'Twice', parameters: 'Value' } },
-      { command: 'return', values: { value: '[=[LOCAL.value] * 2]' } },
+      { command: 'return', values: { value: '[=[$LOCAL.value] * 2]' } },
       { command: 'end' },
       { command: 'repeat', values: { variable: 'I', from: '1', to: '[=[steps] + 1]' } },
       echo('[=twice([i])]'),
       { command: 'end' },
-      { command: 'variable', values: { name: 'Persistent.Total', value: '7' } },
-      echo('[persistent.total]'),
+      { command: 'variable', values: { name: '$Persistent.Total', value: '7' } },
+      echo('[$persistent.total]'),
     );
     expect(result.error?.message ?? null).toBeNull();
     expect(result.messages).toEqual(['2', '4', '7']);

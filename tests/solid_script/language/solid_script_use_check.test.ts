@@ -60,7 +60,7 @@ describe('solid script checks skip lines turned off', () => {
       solidScriptProgramRun(solidScriptDocumentCreate([...lines, { command: 'cube' }])).error?.message ?? '';
     const fat: SolidScriptLine[] = [
       { command: 'function', values: { name: 'Fat', parameters: 'Thickness' }, off: true },
-      { command: 'return', values: { value: '[Local.Thickness]' }, off: true },
+      { command: 'return', values: { value: '[$Local.Thickness]' }, off: true },
       { command: 'end', off: true },
     ];
     expect(run([...fat, { command: 'call', values: { name: 'Fat', values: '2' } }])).toMatch(/Fat/);

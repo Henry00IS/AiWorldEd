@@ -472,12 +472,12 @@ class SolidScriptFlowAnalysis {
     if (gives.rule === 'forgotten') return this.forget(state, name);
     if (gives.rule === 'kept' || gives.rule === 'read' || gives.rule === 'defines') return state;
     if (gives.rule === 'emptied' || gives.rule === 'shrunk') return this.change(state, name, gives.rule, block);
-    const item = /^((?:local\.|persistent\.)?[A-Za-z_]\w*)\s*\(.*\)$/i.exec(name)?.[1];
+    const item = /^((?:\$local\.|\$persistent\.)?[A-Za-z_]\w*)\s*\(.*\)$/i.exec(name)?.[1];
     const line = this.lineOf.get(block) ?? -1;
     if (item !== undefined || gives.rule === 'list') return this.listWrite(item ?? name, state, line);
     const data = solidScriptFlowDataWrite(name);
     if (data) return solidScriptFlowKeysAdd(state, solidScriptNameKey(data.owner), [data.key]);
-    if (/\./.test(name.replace(/^(local|persistent)\./i, ''))) return state;
+    if (/\./.test(name.replace(/^\$(local|persistent)\./i, ''))) return state;
     const kinds = this.kindsGiven(block, gives, state, returns, frame);
     return this.write(state, name, kinds, line, solidScriptFlowKeysGiven(block, gives, state));
   }
@@ -757,7 +757,7 @@ class SolidScriptFlowAnalysis {
   }
 
   /**
-   * Gives a Function's lines its inputs as Local. names, with no other locals.
+   * Gives a Function's lines its inputs as $Local. names, with no other locals.
    *
    * @param node Function line.
    * @param state Variables of the caller.
@@ -769,11 +769,11 @@ class SolidScriptFlowAnalysis {
     state: SolidScriptFlowState,
     values: readonly (readonly string[])[],
   ): SolidScriptFlowState {
-    let entry: SolidScriptFlowState = new Map([...state].filter(([key]) => !key.startsWith('local.')));
+    let entry: SolidScriptFlowState = new Map([...state].filter(([key]) => !key.startsWith('$local.')));
     const flow = solidScriptGivenFlow(node.block);
     const field = flow?.kind === 'function' ? flow.inputs : '';
     solidScriptFunctionInputs(node.block.values[field] ?? '').forEach((input, index) => {
-      entry = this.write(entry, `Local.${input.name}`, values[index] ?? [SOLID_SCRIPT_FLOW_UNKNOWN], this.current);
+      entry = this.write(entry, `$Local.${input.name}`, values[index] ?? [SOLID_SCRIPT_FLOW_UNKNOWN], this.current);
     });
     return entry;
   }
@@ -857,7 +857,7 @@ function solidScriptFlowCallKey(node: SolidScriptFlowNode, values: readonly (rea
  */
 function solidScriptFlowGlobals(state: SolidScriptFlowState): string {
   return [...state]
-    .filter(([key]) => !key.startsWith('local.'))
+    .filter(([key]) => !key.startsWith('$local.'))
     .map(
       ([key, variable]) =>
         `${key}=${[...variable.kinds].sort().join('|')}@${[...variable.from.keys()].sort().join('|')}`,

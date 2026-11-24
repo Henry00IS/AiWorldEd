@@ -471,7 +471,7 @@ export const SOLID_SCRIPT_COMMANDS_LOGIC: readonly SolidScriptCommand[] = [
     category: 'Parts',
     description: 'Leave the function or part early',
     manual:
-      'Stops a Function or a part early. The lines after it are skipped. In a Function, the script goes on after the Call that started it, and Return can give back a value. A Call line stores that value in its Result In variable. In a Part, Return stops building the variable. Solids built before Return stay. Put Return inside an If to stop only sometimes. Example: Return [Local.V] gives back the value V.',
+      'Stops a Function or a part early. The lines after it are skipped. In a Function, the script goes on after the Call that started it, and Return can give back a value. A Call line stores that value in its Result In variable. In a Part, Return stops building the variable. Solids built before Return stay. Put Return inside an If to stop only sometimes. Example: Return [$Local.V] gives back the value V.',
     stops: ['Being outside a Function or a Define Part.', 'A Value inside a part. Parts hand back results with Set.'],
     flow: { kind: 'return', value: 'value' },
     parameters: [

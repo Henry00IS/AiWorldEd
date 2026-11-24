@@ -93,19 +93,19 @@ describe('SolidScript kinds followed through the script', () => {
     const lines = [
       line('cube', { into: 'Henry' }),
       line('function', { name: 'F', parameters: 'B' }),
-      line('echo', { value: '[Local.B]' }),
+      line('echo', { value: '[$Local.B]' }),
       line('end'),
       line('call', { name: 'F', values: '[Henry]' }),
     ];
-    expect(kindsAt(lines, 2, 'local.b')).toEqual(['Solid']);
-    expect(kindsAt([...lines, line('call', { name: 'F', values: '4' })], 2, 'local.b')).toEqual(['Number', 'Solid']);
-    expect(kindsAt(lines, 5, 'local.b')).toEqual([]);
+    expect(kindsAt(lines, 2, '$local.b')).toEqual(['Solid']);
+    expect(kindsAt([...lines, line('call', { name: 'F', values: '4' })], 2, '$local.b')).toEqual(['Number', 'Solid']);
+    expect(kindsAt(lines, 5, '$local.b')).toEqual([]);
   });
 
   it('gives Result In what the Function returns', () => {
     const lines = [
       line('function', { name: 'G', parameters: 'Of' }),
-      line('return', { value: '[Local.Of.Faces]' }),
+      line('return', { value: '[$Local.Of.Faces]' }),
       line('end'),
       line('cube', { into: 'Box' }),
       line('call', { name: 'G', values: '[Box]', result: 'R' }),

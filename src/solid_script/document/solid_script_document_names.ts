@@ -99,7 +99,7 @@ export interface SolidScriptName {
 }
 
 /** Pattern of a plain name, or of a Function's own variable. */
-const SOLID_SCRIPT_NAME_PLAIN = /^(Local\.|Persistent\.)?[A-Za-z_][A-Za-z0-9_]*$/;
+const SOLID_SCRIPT_NAME_PLAIN = /^(\$Local\.|\$Persistent\.)?[A-Za-z_][A-Za-z0-9_]*$/;
 
 /** Name categories whose names hold a value whose kind the checks follow. */
 const SOLID_SCRIPT_NAMES_KINDED: ReadonlySet<SolidScriptNameCategory> = new Set([
@@ -192,14 +192,14 @@ export function solidScriptNameKindsText(kinds: readonly string[] | undefined): 
 }
 
 /**
- * Spells the Local. and Persistent. starts the way they are taught, whatever
- * case a line wrote them in, such as Local.Angle for local.Angle.
+ * Spells the $Local. and $Persistent. starts the way they are taught, whatever
+ * case a line wrote them in, such as $Local.Angle for $local.Angle.
  *
  * @param name Name as written.
  * @returns Name with its start in PascalCase.
  */
 export function solidScriptNameShown(name: string): string {
-  return name.replace(/^local\./i, 'Local.').replace(/^persistent\./i, 'Persistent.');
+  return name.replace(/^\$local\./i, '$Local.').replace(/^\$persistent\./i, '$Persistent.');
 }
 
 /**
@@ -295,7 +295,7 @@ function solidScriptNameWriteText(block: SolidScriptBlock, key: string): string 
 /**
  * Lists the names a script defines, in line order, each once per kind: Input,
  * Set, Call results, Repeat and For Each counters, Function inputs as
- * Local.Name, Define Part, shape Names, When Input Changes and When Button
+ * $Local.Name, Define Part, shape Names, When Input Changes and When Button
  * Pressed lines, each with the kinds it may hold when the script's own lines
  * are done. Names built from other names, such as part[i], are left out. Lines
  * turned off give none.
@@ -346,9 +346,9 @@ function solidScriptNamesOfGiven(
   const detail = solidScriptGivenDetail(block, gives.what);
   const item = /^([A-Za-z_][A-Za-z0-9_]*)\s*\(.*\)$/.exec(name);
   if (item) list.add(item[1] ?? '', 'Lists', line, 'list');
-  else if (/^local\./i.test(name))
+  else if (/^\$local\./i.test(name))
     list.add(name, 'Locals', line, `${detail} in a **${solidScriptGivenFlowLabel('function')}**`);
-  else if (/^persistent\./i.test(name)) list.add(name, 'Persistent', line, 'kept between runs');
+  else if (/^\$persistent\./i.test(name)) list.add(name, 'Persistent', line, 'kept between runs');
   else list.add(name, solidScriptNameCategoryOf(gives), line, detail);
 }
 
@@ -384,7 +384,7 @@ function solidScriptNameInputs(block: SolidScriptBlock | undefined): string[] {
 }
 
 /**
- * Adds a Function and its inputs as Local. names.
+ * Adds a Function and its inputs as $Local. names.
  *
  * @param list Names so far.
  * @param block Function line.
@@ -394,7 +394,7 @@ function solidScriptNamesOfFunction(list: SolidScriptNameList, block: SolidScrip
   const name = solidScriptGivenFlowName(block);
   const inputs = solidScriptNameInputs(block);
   list.add(name, 'Functions', line, `${name}(${(block.values['parameters'] ?? '').trim()})`);
-  for (const input of inputs) list.add(`Local.${input}`, 'Locals', line, `input of ${name}()`);
+  for (const input of inputs) list.add(`$Local.${input}`, 'Locals', line, `input of ${name}()`);
 }
 
 /**
@@ -484,7 +484,7 @@ function solidScriptNamesOpen(document: SolidScriptDocument, position: number): 
 }
 
 /**
- * Adds the locals a line inside a Function sees: its inputs and the Local.
+ * Adds the locals a line inside a Function sees: its inputs and the $Local.
  * names the lines above it write.
  *
  * @param list Names so far.
@@ -501,10 +501,10 @@ function solidScriptNamesLocals(
   const block = document.blocks[functionLine];
   const name = block ? solidScriptGivenFlowName(block) : '';
   for (const input of solidScriptNameInputs(block))
-    list.add(`Local.${input}`, 'Locals', functionLine, `input of ${name}()`);
+    list.add(`$Local.${input}`, 'Locals', functionLine, `input of ${name}()`);
   for (const { block: inner, line } of solidScriptDocumentActiveLines(document.blocks, functionLine + 1, position))
     for (const { gives, name: target } of solidScriptGivenFields(inner))
-      if ('what' in gives && /^local\./i.test(target))
+      if ('what' in gives && /^\$local\./i.test(target))
         list.add(target, 'Locals', line, `${solidScriptGivenDetail(inner, gives.what)} in ${name}()`);
 }
 
@@ -534,7 +534,7 @@ function solidScriptOriginTargets(block: SolidScriptBlock): string[] {
   const written = solidScriptGivenFields(block)
     .filter(({ gives }) => gives.rule !== 'read' && gives.rule !== 'forgotten' && gives.rule !== 'defines')
     .map(({ name }) => name);
-  return [...written, ...solidScriptNameInputs(block).map((input) => `Local.${input}`)];
+  return [...written, ...solidScriptNameInputs(block).map((input) => `$Local.${input}`)];
 }
 
 /**
@@ -597,9 +597,9 @@ export function solidScriptFieldKnown(
 
 /**
  * Returns the [name] references and calls of a field that nothing defines, each
- * once: names no line sets, Local. names the Function does not have, and calls
+ * once: names no line sets, $Local. names the Function does not have, and calls
  * of functions that are neither built in nor a Function of the script. Names
- * built from other names and Persistent. names are skipped.
+ * built from other names and $Persistent. names are skipped.
  *
  * @param text Field text.
  * @param known What the field may use.
@@ -638,7 +638,7 @@ export function solidScriptFieldUnknown(text: string, known: SolidScriptFieldKno
 
 /**
  * Gives the part of a name as written that names the variable, without its
- * members: Local.X for Local.X.Faces, Henry for Henry.Faces.
+ * members: $Local.X for $Local.X.Faces, Henry for Henry.Faces.
  *
  * @param written Name as written.
  * @returns Variable name.
@@ -646,7 +646,7 @@ export function solidScriptFieldUnknown(text: string, known: SolidScriptFieldKno
 function solidScriptFieldUnknownWritten(written: string): string {
   return written
     .split('.')
-    .slice(0, /^local\./i.test(written) ? 2 : 1)
+    .slice(0, /^\$local\./i.test(written) ? 2 : 1)
     .join('.');
 }
 

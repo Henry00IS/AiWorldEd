@@ -40,7 +40,7 @@ export interface SolidScriptFieldContext {
   /**
    * Returns a Function's own variable written local.name, as variable() does.
    *
-   * @param bare Name after local.
+   * @param bare Name after $local.
    * @param name Name as written.
    */
   variableLocal(bare: string, name: string): SolidScriptValue;
@@ -90,8 +90,8 @@ type SolidScriptFieldGroup = Extract<SolidScriptFieldPiece, { kind: 'group' }>;
 /** A plain variable name, such as width. */
 const SOLID_SCRIPT_FIELD_NAME_PLAIN = /^[A-Za-z_]\w*$/;
 
-/** A Function's own variable, such as local.n. */
-const SOLID_SCRIPT_FIELD_NAME_LOCAL = /^local\.([A-Za-z_]\w*)$/;
+/** A Function's own variable, such as $local.n. */
+const SOLID_SCRIPT_FIELD_NAME_LOCAL = /^\$local\.([A-Za-z_]\w*)$/;
 
 /** A part of a vector variable, such as Pos.X. */
 const SOLID_SCRIPT_FIELD_NAME_COMPONENT = /^([A-Za-z_]\w*)\.([xyzXYZ])$/;
@@ -853,9 +853,7 @@ function solidScriptFieldNameProblem(pieces: readonly SolidScriptFieldPiece[]): 
  * @returns True for a lone variable.
  */
 export function solidScriptFieldIsVariable(text: string): boolean {
-  return /^\[\s*(local\.|persistent\.)?\$?[A-Za-z_]\w*(\.[A-Za-z_]\w*)*(\s*\([^[\]]*\)(\s*\.\s*\w+)*)?\s*\]$/.test(
-    text.trim(),
-  );
+  return /^\[\s*\$?[A-Za-z_]\w*(\.[A-Za-z_]\w*)*(\s*\([^[\]]*\)(\s*\.\s*\w+)*)?\s*\]$/.test(text.trim());
 }
 
 /**

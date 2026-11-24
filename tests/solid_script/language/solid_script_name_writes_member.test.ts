@@ -10,19 +10,19 @@ describe('solidScriptNameWritesMember', () => {
       'Vertex.Position',
       'Vertices.Positions.Y',
       'Solid.Mode',
-      'Local.UVs',
+      '$Local.UVs',
     ])
       expect(solidScriptNameWritesMember(name), name).toBe(true);
   });
 
   it('tells plain and Local names that cannot', () => {
-    for (const name of ['Height', 'Local.AB', 'Local.Data', 'Box.Size.X', 'Ring(1).Point'])
+    for (const name of ['Height', '$Local.AB', '$Local.Data', 'Box.Size.X', 'Ring(1).Point'])
       expect(solidScriptNameWritesMember(name), name).toBe(false);
   });
 
   it('gives the same answer when asked again', () => {
-    expect(solidScriptNameWritesMember('Local.Next')).toBe(false);
-    expect(solidScriptNameWritesMember('Local.Next')).toBe(false);
+    expect(solidScriptNameWritesMember('$Local.Next')).toBe(false);
+    expect(solidScriptNameWritesMember('$Local.Next')).toBe(false);
     expect(solidScriptNameWritesMember('Face.Data.Next')).toBe(true);
   });
 });

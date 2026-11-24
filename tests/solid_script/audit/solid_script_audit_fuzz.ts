@@ -152,13 +152,13 @@ function solidScriptAuditLines(random: () => number, depth: number): SolidScript
 export function solidScriptAuditFuzz(seed: number): SolidScriptLine[] {
   const random = solidScriptAuditRandom(seed);
   const body = pick(random, [
-    [line('return', { value: '[Local.P]' })],
-    [line('variable', { name: 'A', value: '[Local.P]' }), line('return', { value: '[=[Local.P] + 1]' })],
+    [line('return', { value: '[$Local.P]' })],
+    [line('variable', { name: 'A', value: '[$Local.P]' }), line('return', { value: '[=[$Local.P] + 1]' })],
     [
-      line('if', { condition: 'IsNum([Local.P])' }),
+      line('if', { condition: 'IsNum([$Local.P])' }),
       line('return', { value: 'abc' }),
       line('end'),
-      line('return', { value: '[Local.P]' }),
+      line('return', { value: '[$Local.P]' }),
     ],
   ]);
   return [

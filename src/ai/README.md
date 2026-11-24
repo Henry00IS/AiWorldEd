@@ -609,7 +609,7 @@ Solid mutations (including hierarchy create/reparent/rename/ungroup) are **undoa
 - RotateBy(rotation, by, local) composes two X, Y, Z degree turns: By turns in world space, or in the rotated space when Local is true, which adding the angles does not do.
 - For Each has a 🔁 Where an item must pass, with [$Item] the item, for the lines inside to run for it, such as Where [=[$Item.Normal.Y] > 0.5]; Key still counts in the whole list.
 - Function inputs may have defaults, such as W, D = 1: a call may leave those off, and they take the value after =. Numbers, Yes/No, quoted text and [lists] are read as values. Inputs with a default come last.
-- A Function reruns for each item when its formula is used per item, such as in a Where or a per-face field: [Local.X] holds that item's value each time.
+- A Function reruns for each item when its formula is used per item, such as in a Where or a per-face field: [$Local.X] holds that item's value each time.
 - Scatter Points Ids writes a steady number for each point, worked out from where it lies, so Random seeded by it stays with a point when Count grows or other points are removed.
 - Path From Points Radius can change per corner with [$Index] and [$Point], such as [=[$Index] * 0.1]; a corner with 0 stays sharp. Limit Radius Yes shrinks radii that do not fit so rounded corners never overlap.
 - Path Shape Smooth bends a gentle curve through every point in Points (Sides segments per stretch, Closed joins the ends); Shape Bezier runs From to To, leaving From toward From Handle and coming into To from To Handle, with Count points.

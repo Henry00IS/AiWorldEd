@@ -498,7 +498,7 @@ export interface SolidScriptRun extends SolidScriptEvaluation {
 
 /** One variable and its value as the debugger shows it. */
 export interface SolidScriptVariable {
-  /** Name as fields read it, such as width, local.n or points(2). */
+  /** Name as fields read it, such as width, $local.n or points(2). */
   name: string;
   /** Value as text. */
   value: string;

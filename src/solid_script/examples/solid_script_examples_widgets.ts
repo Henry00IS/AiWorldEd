@@ -32,7 +32,7 @@ function solidScriptExampleWidgetPage(
   return {
     input: solidScriptExampleInput(`Pick${page}`, 'Button', '', { label: page }),
     handler: solidScriptExampleBlock('when_button_pressed', { name: `Pick${page}` }, [
-      solidScriptExampleSet('Persistent.Page', page),
+      solidScriptExampleSet('$Persistent.Page', page),
     ]),
     toggle: solidScriptExampleLine('widget_toggle', {
       shows: `[=[Page] == "${page}"]`,
@@ -54,7 +54,7 @@ const SOLID_SCRIPT_EXAMPLE_WIDGET_PAGE_LINES = SOLID_SCRIPT_EXAMPLE_WIDGET_PAGES
  */
 export const SOLID_SCRIPT_EXAMPLE_WIDGET_SHOWCASE: readonly SolidScriptLine[] = [
   ...solidScriptExampleNote(
-    'Select this with Bounds and click Edit to use its widgets. The list of toggles beside the box is a menu: each is a Widget Toggle that presses a Button input, whose When Button Pressed stores the page in Persistent.Page. Persistent values stay between runs, and each toggle shows as on while Page is its own, so picking one turns the others off.',
+    'Select this with Bounds and click Edit to use its widgets. The list of toggles beside the box is a menu: each is a Widget Toggle that presses a Button input, whose When Button Pressed stores the page in $Persistent.Page. Persistent values stay between runs, and each toggle shows as on while Page is its own, so picking one turns the others off.',
   ),
   ...SOLID_SCRIPT_EXAMPLE_WIDGET_PAGE_LINES.map((page) => page.input),
   solidScriptExampleInput('BoxSize', 'Vector', '2, 1, 2', { label: 'Box Size' }),
@@ -63,10 +63,12 @@ export const SOLID_SCRIPT_EXAMPLE_WIDGET_SHOWCASE: readonly SolidScriptLine[] = 
   solidScriptExampleInput('Turn', 'Number', '30', { label: 'Turn' }),
   solidScriptExampleInput('Facing', 'Vector', '1, 1, 0', { label: 'Facing' }),
   ...SOLID_SCRIPT_EXAMPLE_WIDGET_PAGE_LINES.flatMap((page) => page.handler),
-  ...solidScriptExampleNote('Before any toggle is clicked Persistent.Page holds nothing yet, so the Shape page shows.'),
+  ...solidScriptExampleNote(
+    'Before any toggle is clicked $Persistent.Page holds nothing yet, so the Shape page shows.',
+  ),
   solidScriptExampleSet('Page', 'Shape'),
-  ...solidScriptExampleIf('[=[Persistent.Page] == "Place" || [Persistent.Page] == "Aim"]', [
-    solidScriptExampleSet('Page', '[Persistent.Page]'),
+  ...solidScriptExampleIf('[=[$Persistent.Page] == "Place" || [$Persistent.Page] == "Aim"]', [
+    solidScriptExampleSet('Page', '[$Persistent.Page]'),
   ]),
   ...SOLID_SCRIPT_EXAMPLE_WIDGET_PAGE_LINES.map((page) => page.toggle),
   ...solidScriptExampleIf('[=[Page] == "Place"]', [

@@ -407,7 +407,7 @@ export const SOLID_SCRIPT_COMMANDS_LISTS: readonly SolidScriptCommand[] = [
     category: 'Lists',
     description: 'Forget a variable',
     manual:
-      'Forgets a variable, as if it was never set. Reading it afterwards stops the script, until a line sets it again. With a Persistent. name, it is no longer kept between runs. Example: Delete Variable Step forgets Step.',
+      'Forgets a variable, as if it was never set. Reading it afterwards stops the script, until a line sets it again. With a $Persistent. name, it is no longer kept between runs. Example: Delete Variable Step forgets Step.',
     stops: ['A name that is not set.', 'An input. Inputs can only be read.'],
     parameters: [solidScriptParameterWrites(SOLID_SCRIPT_LIST_VARIABLE_FIELD, { rule: 'forgotten' })],
     listing: (read) => ['Delete Variable', read.value('name')],

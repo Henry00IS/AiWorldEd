@@ -191,9 +191,9 @@ describe('SolidScript dotted names', () => {
     expect(
       echoed(
         line('variable', { name: 'v', value: '50, 20, 40' }),
-        line('variable', { name: 'persistent.best', value: '[v.y]' }),
+        line('variable', { name: '$persistent.best', value: '[v.y]' }),
         line('add_item', { value: '1', list: 'items' }),
-        line('echo', { value: '[v.x] [v.y] [v.z] [persistent.best] [items.count] [=[v].z + 1]' }),
+        line('echo', { value: '[v.x] [v.y] [v.z] [$persistent.best] [items.count] [=[v].z + 1]' }),
       ),
     ).toEqual(['50 20 40 20 1 41']);
   });

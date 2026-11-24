@@ -14,7 +14,7 @@ function run(inputs: string, call: string): ReturnType<typeof solidScriptProgram
   return solidScriptProgramRun(
     solidScriptDocumentCreate([
       { command: 'function', values: { name: 'Area', parameters: inputs } },
-      { command: 'return', values: { value: '[=[Local.W] * [Local.D]]' } },
+      { command: 'return', values: { value: '[=[$Local.W] * [$Local.D]]' } },
       { command: 'end' },
       { command: 'echo', values: { value: call } },
     ]),
@@ -46,7 +46,7 @@ describe('Function input defaults', () => {
     const result = solidScriptProgramRun(
       solidScriptDocumentCreate([
         { command: 'function', values: { name: 'Big', parameters: 'N, Over = 10' } },
-        { command: 'return', values: { value: '[=[Local.N] > [Local.Over]]' } },
+        { command: 'return', values: { value: '[=[$Local.N] > [$Local.Over]]' } },
         { command: 'end' },
         { command: 'for_each', values: { variable: 'N', list: '5, 15, 25', where: '[=Big([$Item])]' } },
         { command: 'echo', values: { value: '[N]' } },

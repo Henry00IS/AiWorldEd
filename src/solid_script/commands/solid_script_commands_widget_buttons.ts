@@ -88,7 +88,7 @@ export const SOLID_SCRIPT_COMMANDS_WIDGET_BUTTONS: readonly SolidScriptCommand[]
     category: 'Widgets',
     description: 'A button in the scene that shows on or off',
     manual:
-      'Puts a button in the scene while editing that shows as on while Shows is Yes. A click on a Switch Input named by Writes flips it, and its When Input Changes lines run; a click on a Button Input presses it, and its When Button Pressed lines decide what changes. So the script decides what on means: Shows is often the Switch itself, or a check of a Persistent value such as [=[Persistent.Page] == "Paths"], which makes a row of toggles act as a menu with one picked. Example: Input ShowRails with Type Switch, then Widget Toggle Shows [ShowRails] Writes ShowRails Label Rails.',
+      'Puts a button in the scene while editing that shows as on while Shows is Yes. A click on a Switch Input named by Writes flips it, and its When Input Changes lines run; a click on a Button Input presses it, and its When Button Pressed lines decide what changes. So the script decides what on means: Shows is often the Switch itself, or a check of a Persistent value such as [=[$Persistent.Page] == "Paths"], which makes a row of toggles act as a menu with one picked. Example: Input ShowRails with Type Switch, then Widget Toggle Shows [ShowRails] Writes ShowRails Label Rails.',
     stops: ['A Writes that names no Input above the line.', 'A Color that is not a colour.'],
     parameters: [
       solidScriptParameter('shows', 'Shows', 'boolean', 'No', 'Yes while the toggle shows as on, such as [ShowRails].'),

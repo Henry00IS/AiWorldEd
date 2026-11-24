@@ -15,7 +15,7 @@ const SOLID_SCRIPT_NAMES_WRITING_MEMBER_MOST = 4096;
  * Tells whether a name as written may set a member of an element, such as
  * Face.Data.Height, Faces.UVs, FaceCorner.UV, Vertex.Position or Solid.Mode,
  * the way each of those writes tells it from the name alone; the answer is
- * kept, so a line that sets Local.Next over and over reads the name once.
+ * kept, so a line that sets $Local.Next over and over reads the name once.
  *
  * @param written Name as written.
  * @returns True when one of those writes may take the name.

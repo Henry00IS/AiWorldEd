@@ -84,7 +84,7 @@ describe('SolidScript limits', { timeout: 60_000 }, () => {
   it('stops when functions run more than 256 levels deep, and names the line and the fix', () => {
     const result = run(
       { command: 'function', values: { name: 'Loop', parameters: 'X' } },
-      { command: 'return', values: { value: '[=Loop([local.X])]' } },
+      { command: 'return', values: { value: '[=Loop([$local.X])]' } },
       END,
       { command: 'echo', values: { value: '[=Loop(1)]' } },
     );

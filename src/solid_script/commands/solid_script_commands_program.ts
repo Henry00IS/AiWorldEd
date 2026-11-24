@@ -256,7 +256,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
     category: 'Parts',
     description: 'Group lines to run from elsewhere',
     manual:
-      'Names a group of lines so you can run them from other places. The script skips these lines where they stand. They only run when a Call line, or a formula such as [=Area(2, 3)], calls the function. Inputs names the values it takes, such as W, D. Inside the function, read them as [Local.W] and [Local.D]. Names with Local. belong to this one call. Names without it, such as [Width], are shared by the whole script. A Return line gives a value back. A function may call itself, but an If must stop it. Example: Function Area with inputs W, D holds Return [=[Local.W] * [Local.D]]. Then Call Area with 2, 3 gives 6.',
+      'Names a group of lines so you can run them from other places. The script skips these lines where they stand. They only run when a Call line, or a formula such as [=Area(2, 3)], calls the function. Inputs names the values it takes, such as W, D. Inside the function, read them as [$Local.W] and [$Local.D]. Names with $Local. belong to this one call. Names without it, such as [Width], are shared by the whole script. A Return line gives a value back. A function may call itself, but an If must stop it. Example: Function Area with inputs W, D holds Return [=[$Local.W] * [$Local.D]]. Then Call Area with 2, 3 gives 6.',
     stops: [
       'A name another function, or a built-in one, already uses.',
       'A call with more or fewer values than the function has Inputs.',
@@ -280,7 +280,7 @@ export const SOLID_SCRIPT_COMMANDS_PROGRAM: readonly SolidScriptCommand[] = [
           'parameters',
           'Inputs',
           'text',
-          'Names of the values it takes, such as W, D = 1. Read them as [Local.W]. An input with = and a value after it may be left off a call and takes that value; those come last.',
+          'Names of the values it takes, such as W, D = 1. Read them as [$Local.W]. An input with = and a value after it may be left off a call and takes that value; those come last.',
         ),
       ),
     ],

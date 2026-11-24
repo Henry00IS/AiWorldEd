@@ -18,8 +18,8 @@ const SCRIPT = solidScriptDocumentCreate([
   { command: 'repeat', values: { variable: 'i' } },
   { command: 'end' },
   { command: 'function', values: { name: 'area', parameters: 'w, d' } },
-  { command: 'return', values: { value: '[=[local.w] * [local.d]]' } },
-  { command: 'variable', values: { name: 'local.sum', value: '1' } },
+  { command: 'return', values: { value: '[=[$local.w] * [$local.d]]' } },
+  { command: 'variable', values: { name: '$local.sum', value: '1' } },
   { command: 'end' },
   { command: 'part', values: { name: 'column' } },
   { command: 'end' },
@@ -37,9 +37,9 @@ describe('SolidScript names', () => {
       ['points', 'Lists', 2],
       ['i', 'Counters', 4],
       ['area', 'Functions', 6],
-      ['Local.w', 'Locals', 6],
-      ['Local.d', 'Locals', 6],
-      ['Local.sum', 'Locals', 8],
+      ['$Local.w', 'Locals', 6],
+      ['$Local.d', 'Locals', 6],
+      ['$Local.sum', 'Locals', 8],
       ['column', 'Variables', 10],
       ['column', 'Parts', 10],
       ['steps', 'Handlers', 12],
@@ -51,11 +51,11 @@ describe('SolidScript names', () => {
   it('offers a Function its own locals and a loop its counter only on the lines inside them', () => {
     const scoped = solidScriptDocumentCreate([
       { command: 'function', values: { name: 'area', parameters: 'w, d' } },
-      { command: 'variable', values: { name: 'local.sum', value: '1' } },
-      { command: 'return', values: { value: '[local.sum]' } },
+      { command: 'variable', values: { name: '$local.sum', value: '1' } },
+      { command: 'return', values: { value: '[$local.sum]' } },
       { command: 'end' },
       { command: 'function', values: { name: 'lift', parameters: 'h' } },
-      { command: 'variable', values: { name: 'local.sum', value: '2' } },
+      { command: 'variable', values: { name: '$local.sum', value: '2' } },
       { command: 'end' },
       { command: 'repeat', values: { variable: 'i' } },
       { command: 'for_each', values: { variable: 'P', list: '1, 2', key: 'N' } },
@@ -70,9 +70,9 @@ describe('SolidScript names', () => {
       solidScriptDocumentNamesAt(scoped, line)
         .filter((entry) => ['Locals', 'Counters', 'System'].includes(entry.category))
         .map((entry) => entry.name);
-    expect(at(2)).toEqual(['Local.w', 'Local.d', 'Local.sum']);
-    expect(at(5)).toEqual(['Local.h']);
-    expect(at(6)).toEqual(['Local.h', 'Local.sum']);
+    expect(at(2)).toEqual(['$Local.w', '$Local.d', '$Local.sum']);
+    expect(at(5)).toEqual(['$Local.h']);
+    expect(at(6)).toEqual(['$Local.h', '$Local.sum']);
     expect(at(8)).toEqual(['i']);
     expect(at(9)).toEqual(['i', 'P', 'N']);
     expect(at(13)).toEqual(['i']);
@@ -92,24 +92,24 @@ describe('SolidScript names', () => {
     const written = (text: string): string[] => solidScriptFieldUnknown(text, known).map((entry) => entry.written);
     expect(written('[width], [depth], [=[i] * [h] + [x]]')).toEqual(['depth', 'h']);
     expect(written('$[depth$] [part[i]] [points(0)] [Pos.x]')).toEqual(['points', 'Pos']);
-    expect(solidScriptFieldUnknown('[=Area(1) + Max(2, 3) + Spto(1) + [Local.A]]', known)).toEqual([
+    expect(solidScriptFieldUnknown('[=Area(1) + Max(2, 3) + Spto(1) + [$Local.A]]', known)).toEqual([
       { written: 'Spto', key: 'spto()', call: true },
-      { written: 'Local.A', key: 'local.a', call: false },
+      { written: '$Local.A', key: '$local.a', call: false },
     ]);
   });
 
   it('marks per line the names and calls the line cannot see', () => {
     const script = solidScriptDocumentCreate([
       { command: 'function', values: { name: 'Spin', parameters: 'Angle' } },
-      { command: 'variable', values: { name: 'Local.Turn', value: '[=[Local.Anglex] + [Local.Angle]]' } },
+      { command: 'variable', values: { name: '$Local.Turn', value: '[=[$Local.Anglex] + [$Local.Angle]]' } },
       { command: 'end' },
       { command: 'variable', values: { name: 'Width', value: '[Widht]' } },
       { command: 'variable', values: { name: 'Depth', value: '[=Spin([Width]) + Spn(1)]' } },
-      { command: 'variable', values: { name: 'Off', value: '[Local.Angle]' }, off: true },
+      { command: 'variable', values: { name: 'Off', value: '[$Local.Angle]' }, off: true },
     ]);
     expect(solidScriptDocumentNamesUnknown(script)).toEqual(
       new Map([
-        [1, new Set(['local.anglex'])],
+        [1, new Set(['$local.anglex'])],
         [3, new Set(['widht'])],
         [4, new Set(['spn()'])],
       ]),
@@ -131,7 +131,7 @@ describe('SolidScript origins', () => {
         { command: 'end' },
       ]),
     );
-    expect(Object.fromEntries(origins)).toEqual({ w: [0, 2], pts: [1, 3], 'Local.a': [4], 'Local.b': [4], i: [6] });
+    expect(Object.fromEntries(origins)).toEqual({ w: [0, 2], pts: [1, 3], '$Local.a': [4], '$Local.b': [4], i: [6] });
   });
 
   it.each([

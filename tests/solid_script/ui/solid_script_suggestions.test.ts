@@ -26,7 +26,7 @@ const SCRIPT = solidScriptDocumentCreate([
   { command: 'variable', values: { name: 'Width', value: '2' } },
   { command: 'variable', values: { name: 'Angle', value: '30' } },
   { command: 'function', values: { name: 'Area', parameters: 'W, D' } },
-  { command: 'return', values: { value: '[=[Local.W] * [Local.D]]' } },
+  { command: 'return', values: { value: '[=[$Local.W] * [$Local.D]]' } },
   { command: 'end' },
 ]);
 
@@ -140,7 +140,7 @@ describe('SolidScript suggestion context', () => {
   it('knows what is typed at the caret', () => {
     expect(at('[A|')).toMatchObject({ kind: 'name', from: 0, prefix: 'A' });
     expect(at('1, [|')).toMatchObject({ kind: 'name', from: 3, prefix: '' });
-    expect(at('[Local.|')).toMatchObject({ kind: 'name', prefix: 'Local.' });
+    expect(at('[$Local.|')).toMatchObject({ kind: 'name', prefix: '$Local.' });
     expect(at('[$Box.W|')).toMatchObject({ kind: 'name', prefix: '$Box.W' });
     expect(at('[=|')).toMatchObject({ kind: 'formula', from: 2, prefix: '', call: null });
     expect(at('[=[Width] * A|')).toMatchObject({ kind: 'formula', from: 12, prefix: 'A', call: null });
@@ -328,8 +328,8 @@ describe('SolidScript suggestions', () => {
   });
 
   it('lists the locals of a Function and explains built-in values and functions', () => {
-    const locals = solidScriptSuggestions(at('[Local.|'), SCOPE).map((entry) => entry.label);
-    expect(locals).toEqual(['Local.W', 'Local.D']);
+    const locals = solidScriptSuggestions(at('[$Local.|'), SCOPE).map((entry) => entry.label);
+    expect(locals).toEqual(['$Local.W', '$Local.D']);
     const year = solidScriptSuggestions(at('[$Time.Y|'), SCOPE);
     expect(year.map((entry) => entry.label)).toEqual(['$Time.Year']);
     expect(year[0]?.detail).toMatch(/^Number: Year now\.$/);
@@ -399,7 +399,7 @@ describe('SolidScript suggestions follow the kinds a name may hold where the lin
       { command: 'end', values: {} },
       { command: 'call', values: { name: 'F', values: '[Henry]' } },
     ]);
-    expect(shownAt(document, 2, '[Local.B.').map((entry) => entry.label)).toContain('Local.B.Faces');
+    expect(shownAt(document, 2, '[$Local.B.').map((entry) => entry.label)).toContain('$Local.B.Faces');
   });
 
   it('shows the kind in the Variables tab before running', () => {
