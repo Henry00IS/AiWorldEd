@@ -15,6 +15,7 @@ const PLAYER_PLAY_TOY_KEYS: Readonly<Record<string, PlayerToyKind | null>> = {
   Digit3: 'soccer',
   Digit4: 'plane',
   Digit5: 'keyboard',
+  Digit6: 'grapple',
 };
 
 /**

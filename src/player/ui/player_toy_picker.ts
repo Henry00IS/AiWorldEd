@@ -1,4 +1,4 @@
-import { PLAYER_TOY_KEYBOARD, type PlayerToyKind } from '@/player/toy/player_toy_kind.js';
+import { PLAYER_TOY_GRAPPLE, PLAYER_TOY_KEYBOARD, type PlayerToyKind } from '@/player/toy/player_toy_kind.js';
 import { PLAYER_TOY_KINDS, PLAYER_TOY_LABELS } from '@/player/toy/player_toy_models.js';
 import { Theme } from '@/theme.js';
 
@@ -12,6 +12,7 @@ export const PLAYER_TOY_PICKER_SLOTS: readonly (PlayerToyKind | null)[] = [
   null,
   ...PLAYER_TOY_KINDS,
   PLAYER_TOY_KEYBOARD,
+  PLAYER_TOY_GRAPPLE,
 ];
 /** Name and slot data of empty hands. */
 const PLAYER_TOY_PICKER_EMPTY = { label: 'Empty hands', data: 'empty' };
@@ -41,11 +42,16 @@ const PLAYER_TOY_PICKER_ICONS: Readonly<Record<PlayerToyKind | 'empty', string>>
     '<rect x="2.5" y="6" width="19" height="12" rx="1"/>' +
     '<path d="M6.3 6v12M10.1 6v12M13.9 6v12M17.7 6v12" fill="none"/>' +
     '<path d="M5.2 6h2.2v7H5.2zM9 6h2.2v7H9zM16.6 6h2.2v7h-2.2z" fill="#222"/></svg>',
+  grapple:
+    '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke-linecap="round">' +
+    '<path d="M4 20L18.5 5.5" stroke="#42d9ff" stroke-width="3.2" opacity="0.45"/>' +
+    '<path d="M4 20L18.5 5.5" stroke="#fff" stroke-width="1.2"/>' +
+    '<circle cx="19" cy="5" r="2.6" fill="#42d9ff"/><circle cx="4.5" cy="19.5" r="2" fill="#f4f1e8"/></svg>',
 };
 
 /**
  * The play-mode toy picker: a small hotbar at the bottom of the play viewport
- * with an empty-hands slot and one slot per toy. The keys 1-5 (and the wheel in
+ * with an empty-hands slot and one slot per toy. The keys 1-6 (and the wheel in
  * first person) move the selection; it shows the selected slot's name and dims
  * when left alone.
  */
@@ -190,6 +196,7 @@ export function playerToyPickerStep(kind: PlayerToyKind | null, step: number): P
  */
 function playerToyPickerLabel(kind: PlayerToyKind | null): string {
   if (kind === PLAYER_TOY_KEYBOARD) return 'Keyboard';
+  if (kind === PLAYER_TOY_GRAPPLE) return 'Grapple beam';
   return kind === null ? PLAYER_TOY_PICKER_EMPTY.label : PLAYER_TOY_LABELS[kind];
 }
 

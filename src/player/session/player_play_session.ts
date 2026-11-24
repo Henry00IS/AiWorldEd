@@ -29,7 +29,9 @@ import { PlayerToyPicker, playerToyPickerStep } from '@/player/ui/player_toy_pic
 import { PLAYER_KEYBOARD_INSTRUMENTS } from '@/player/keyboard/player_keyboard_instruments.js';
 import { playerPlayHint } from '@/player/session/player_play_hint.js';
 import { PlayerKeyboardPlay } from '@/player/keyboard/player_keyboard_play.js';
-import { PLAYER_TOY_KEYBOARD, type PlayerToyKind } from '@/player/toy/player_toy_kind.js';
+import { PLAYER_TOY_GRAPPLE, PLAYER_TOY_KEYBOARD, type PlayerToyKind } from '@/player/toy/player_toy_kind.js';
+import { PlayerGrapple, playerGrappleHand } from '@/player/grapple/player_grapple.js';
+import { PlayerGrappleCrosshair } from '@/player/grapple/player_grapple_crosshair.js';
 
 /** Wheel travel that moves the toy picker by one slot (one mouse notch). */
 const PLAYER_PLAY_WHEEL_STEP = 100;
@@ -83,6 +85,9 @@ export class PlayerPlaySession {
   private selected: PlayerToyKind | null = null;
   private hint: string | null = null;
   private readonly keyboard: PlayerKeyboardPlay;
+  private readonly grapple: PlayerGrapple;
+  private crosshair: PlayerGrappleCrosshair | null = null;
+  private readonly scratchHand = new THREE.Vector3();
   private wheelTravel: number;
   private isActive: boolean;
   private viewMode: PlayerViewMode;
@@ -104,6 +109,10 @@ export class PlayerPlaySession {
     this.cameraApplier = new PlayerCameraPoseApplier();
     this.avatar = new PlayerCharacterAvatar(host.helperLayer);
     this.keyboard = new PlayerKeyboardPlay(host.ballSystem, this.body);
+    this.grapple = new PlayerGrapple(host.collisionWorld, this.look, host.helperLayer, (anchor, missEnd) =>
+      missEnd ? host.ballSystem.grappleMiss(missEnd) : host.ballSystem.setGrapple(anchor),
+    );
+    this.body.setPull(this.grapple);
     this.viewModel = null;
     this.pressedAt = null;
     this.carry = new PlayerBallCarry();
@@ -145,9 +154,16 @@ export class PlayerPlaySession {
    */
   getBodyMotion(): PlayerBallMotion | null {
     if (!this.isActive) return null;
-    const velocity = this.body.copyHorizontalVelocityTo(new THREE.Vector3());
-    velocity.y = this.body.getVerticalVelocity();
-    return { feet: this.body.getFeetPosition().clone(), velocity };
+    return { feet: this.body.getFeetPosition().clone(), velocity: this.bodyVelocity() };
+  }
+
+  /**
+   * Returns the body velocity.
+   *
+   * @returns Velocity in meters per second.
+   */
+  private bodyVelocity(): THREE.Vector3 {
+    return this.body.copyHorizontalVelocityTo(new THREE.Vector3()).setY(this.body.getVerticalVelocity());
   }
 
   /**
@@ -222,44 +238,54 @@ export class PlayerPlaySession {
   }
 
   /**
-   * Shows the toy picker over the play viewport and the hand in front of the
-   * camera, starting with empty hands, and tells the others.
+   * Shows the toy picker and the grapple crosshair over the play viewport and
+   * the hand in front of the camera, starting with empty hands, and tells the
+   * others.
    *
    * @param viewport Play viewport.
    */
   private showToys(viewport: Viewport3D): void {
     this.host.ballSystem.setHeld(null);
+    this.host.ballSystem.setGrappling(false);
     this.selected = null;
     const element = viewport.getContentElement();
     this.picker = new PlayerToyPicker(element.ownerDocument, null);
     this.picker.mount(element);
+    this.crosshair = new PlayerGrappleCrosshair(element.ownerDocument);
+    this.crosshair.mount(element);
     const view = (this.viewModel ??= new PlayerToyViewModel(this.host.ballSystem.getRoomColor()));
     view.setItem(null, this.host.ballSystem.getOwnColor());
     viewport.setOverlayRender((renderer, aspect) => view.render(renderer, aspect));
     this.host.ballSystem.announceHeld();
   }
 
-  /** Hides the toy picker and the hand. */
+  /** Hides the toy picker, the crosshair and the hand. */
   private hideToys(): void {
+    this.grapple.reset(this.activeCamera);
     this.viewModel?.reset();
     this.pressedAt = null;
     this.carry.reset();
     this.picker?.unmount();
     this.picker = null;
+    this.crosshair?.unmount();
+    this.crosshair = null;
     this.activeViewport?.setOverlayRender(null);
   }
 
   /**
-   * Picks the toy to throw (or the keyboard to put down); a placed keyboard is
-   * put away when another toy is picked.
+   * Picks the toy to throw (or the keyboard to put down, or the grapple beam to
+   * fire); a placed keyboard is put away and a hooked beam lets go when another
+   * toy is picked.
    *
    * @param kind Toy kind, or null for empty hands.
    */
   selectToy(kind: PlayerToyKind | null): void {
     if (!this.isActive) return;
     if (kind !== PLAYER_TOY_KEYBOARD) this.keyboard.putAway();
+    if (kind !== PLAYER_TOY_GRAPPLE) this.grapple.release(performance.now() / 1000);
     this.selected = kind;
-    this.host.ballSystem.setHeld(kind === PLAYER_TOY_KEYBOARD ? null : kind);
+    this.host.ballSystem.setHeld(kind === PLAYER_TOY_KEYBOARD || kind === PLAYER_TOY_GRAPPLE ? null : kind);
+    this.host.ballSystem.setGrappling(kind === PLAYER_TOY_GRAPPLE);
     this.picker?.select(kind);
   }
 
@@ -344,6 +370,7 @@ export class PlayerPlaySession {
     this.hideToys();
     this.viewModel?.dispose();
     this.viewModel = null;
+    this.grapple.dispose();
     this.avatar.dispose();
   }
 
@@ -358,8 +385,10 @@ export class PlayerPlaySession {
     this.host.collisionWorld.setFocus('player', [this.body.getFeetPosition()]);
     this.bodyUpdate(deltaSeconds);
     this.carry.record(this.body.copyHorizontalVelocityTo(new THREE.Vector3()), now / 1000);
-    this.avatar.setHeld(this.host.ballSystem.getHeld(), this.host.ballSystem.getOwnColor());
+    const gun = this.selected === PLAYER_TOY_GRAPPLE;
+    this.avatar.setHeld(gun ? PLAYER_TOY_GRAPPLE : this.host.ballSystem.getHeld(), this.host.ballSystem.getOwnColor());
     this.avatar.setHandTargets(this.keyboard.getHands());
+    this.avatar.setReach(this.grapple.getAnchor());
     this.avatar.update(this.body, this.viewMode, deltaSeconds);
     this.cameraApplier.apply(
       this.activeCamera,
@@ -368,8 +397,39 @@ export class PlayerPlaySession {
       this.viewMode,
       this.host.collisionWorld,
       deltaSeconds,
+      this.selected === PLAYER_TOY_GRAPPLE,
     );
     this.viewModelUpdate(this.activeCamera, now, deltaSeconds);
+    this.grappleUpdate(this.activeCamera, deltaSeconds);
+  }
+
+  /**
+   * Draws the beam from the hand, and the crosshair while the beam is picked
+   * (lit when something is in reach).
+   *
+   * @param camera Play camera.
+   * @param deltaSeconds Frame time.
+   */
+  private grappleUpdate(camera: THREE.PerspectiveCamera, deltaSeconds: number): void {
+    let hand: THREE.Vector3 | null = this.viewModel?.getMuzzleWorld(camera, this.scratchHand) ?? null;
+    if (this.viewMode === 'third_person') {
+      hand = this.scratchHand;
+      if (!this.avatar.copyMuzzleTo(hand) && !this.avatar.copyRightHandTo(hand))
+        playerGrappleHand(this.body.getFeetPosition(), this.body.getFacingYawRadians(), hand);
+    }
+    this.grapple.update(camera, hand, this.bodyVelocity().length(), deltaSeconds);
+    const picked = this.selected === PLAYER_TOY_GRAPPLE;
+    this.crosshair?.set(picked, picked && this.grapple.aims(...this.viewRay(camera)));
+  }
+
+  /**
+   * Returns the ray through the middle of the view.
+   *
+   * @param camera Play camera.
+   * @returns Origin and unit direction.
+   */
+  private viewRay(camera: THREE.PerspectiveCamera): [THREE.Vector3, THREE.Vector3] {
+    return [camera.getWorldPosition(new THREE.Vector3()), camera.getWorldDirection(new THREE.Vector3())];
   }
 
   /**
@@ -397,7 +457,9 @@ export class PlayerPlaySession {
   private viewModelUpdate(camera: THREE.PerspectiveCamera, now: number, deltaSeconds: number): void {
     if (!this.viewModel) return;
     const held = this.host.ballSystem.getHeld();
-    this.viewModel.root.visible = this.viewMode === 'first_person' && held !== null;
+    const gun = this.selected === PLAYER_TOY_GRAPPLE;
+    this.viewModel.root.visible = this.viewMode === 'first_person' && (held !== null || gun);
+    this.viewModel.setGun(gun ? this.host.ballSystem.getOwnColor() : null);
     this.viewModel.setItem(held, this.host.ballSystem.getOwnColor());
     this.viewModel.setTint(this.host.ballSystem.getRoomColor());
     this.viewModel.update(now / 1000, deltaSeconds, this.body.getPlanarSpeed(), this.body.getIsGrounded());
@@ -410,10 +472,16 @@ export class PlayerPlaySession {
    * Starts a throw of the held toy on the button going down (a soccer ball is
    * put down at once): in first person the arm winds back and keeps drawing
    * back while the button is held, in third person the hold is timed. With the
-   * keyboard picked, a click puts it down or away.
+   * keyboard picked, a click puts it down or away; with the grapple beam picked
+   * it fires the beam.
    */
   pressToy(): void {
     if (this.isActive && this.selected === PLAYER_TOY_KEYBOARD) return this.keyboard.toggle(this.look);
+    if (this.isActive && this.selected === PLAYER_TOY_GRAPPLE && this.activeCamera) {
+      const [origin, forward] = this.viewRay(this.activeCamera);
+      this.grapple.press(origin, forward, performance.now() / 1000);
+      return;
+    }
     const kind = this.host.ballSystem.getHeld();
     if (!this.isActive || kind === null) return;
     const now = performance.now() / 1000;
@@ -426,11 +494,13 @@ export class PlayerPlaySession {
   /**
    * Throws on the button coming up, harder the longer it was held: in first
    * person the arm swings forward and the toy leaves the hand at the release,
-   * in third person it goes at once from in front of the eye.
+   * in third person it goes at once from in front of the eye. A hooked grapple
+   * beam lets go.
    */
   releaseToy(): void {
     if (!this.isActive) return;
     const now = performance.now() / 1000;
+    this.grapple.release(now);
     this.carry.at(now, this.carried);
     this.viewModel?.letGo(now);
     if (this.pressedAt === null) return;
@@ -482,7 +552,12 @@ export class PlayerPlaySession {
   /** Shows the controls hint whenever the view or the keyboard changes. */
   private hintUpdate(): void {
     const instrument = PLAYER_KEYBOARD_INSTRUMENTS[this.keyboard.instrument()]?.label ?? null;
-    const hint = playerPlayHint(this.viewMode, this.keyboard.isPlaced() ? instrument : null, this.keyboard.octave());
+    const hint = playerPlayHint(
+      this.viewMode,
+      this.keyboard.isPlaced() ? instrument : null,
+      this.keyboard.octave(),
+      this.selected === PLAYER_TOY_GRAPPLE,
+    );
     if (hint === this.hint) return;
     this.hint = hint;
     this.host.showStatusMessage(hint);

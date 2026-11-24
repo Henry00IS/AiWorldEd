@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { ToysCollaborationSession } from '@/collaboration/toys/session_collaboration_toys.js';
 import { toyTennisBallEncode } from '@/collaboration/toys/toy_tennis_ball.js';
 import type { HostCollaborationEditor } from '@/collaboration/host/host_collaboration_editor.js';
@@ -125,6 +125,20 @@ describe('ToysCollaborationSession', () => {
     expect(session.publish(SNAPSHOT)).toBe(false);
   });
 
+  it('drops a frame the relay would refuse (and close the connection for) instead of sending it, warning once', () => {
+    const { session, sent } = fixture();
+    session.start(2);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const balls = [1, 2, 3, 4, 1].map((id) => ({ ...BALL, id }));
+    expect(session.publish({ full: true, tick: 41, balls })).toBe(true);
+    expect(session.publish({ full: true, tick: 42, balls })).toBe(true);
+    expect(sent).toEqual([]);
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+    expect(session.publish(SNAPSHOT)).toBe(true);
+    expect(sent).toHaveLength(1);
+  });
+
   it("passes every other member's snapshot on with the stamped sender, never its own", () => {
     const { session, heard } = fixture();
     session.start(2);
@@ -159,6 +173,10 @@ describe('ToysCollaborationSession', () => {
     session.binary(relayed(1, { full: false, tick: 3, balls: [{ ...BALL, id: 2, kind: 'soccer' }], held: null }));
     expect(held.at(-1)).toEqual([1, null]);
     session.binary(relayed(3, { full: true, tick: 6, balls: [], held: null }));
+    expect(held.at(-1)).toEqual([3, null]);
+    session.binary(relayed(3, { full: true, tick: 7, balls: [], held: 'grapple' }));
+    expect(held.at(-1)).toEqual([3, 'grapple']);
+    session.binary(relayed(3, { full: true, tick: 8, balls: [], held: 'keyboard' }));
     expect(held.at(-1)).toEqual([3, null]);
   });
 });

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   POSE_COLLABORATION_PRESENCE_DELAY_MS,
   POSE_COLLABORATION_PRESENCE_TELEPORT_METERS,
+  POSE_COLLABORATION_PRESENCE_TELEPORT_METERS_PER_SECOND,
   PoseCollaborationPresence,
 } from '@/collaboration/presence/pose_collaboration_presence.js';
 import { INTERPOLATION_COLLABORATION_PRESENCE_EXTRAPOLATE_MS } from '@/collaboration/presence/interpolation_collaboration_presence.js';
@@ -140,6 +141,23 @@ describe('presence pose interpolation', () => {
     expect(pose.position.x).toBe(far);
     expect(pose.update(400 + FRAME_MS)).toBe(false);
     expect(pose.position.x).toBe(far);
+  });
+
+  it('glides through grapple-fast flight but still snaps a teleport', () => {
+    const pose = new PoseCollaborationPresence();
+    const flight = 32 * 1.25 * 0.2;
+    [0, 1, 2, 3].forEach((i) => pose.target(new THREE.Vector3(i * flight, 0, 0), new THREE.Quaternion(), i * 200));
+    expect(flight).toBeGreaterThan(POSE_COLLABORATION_PRESENCE_TELEPORT_METERS);
+    expect(pose.position.x).toBeLessThan(3 * flight - 1);
+    const shown: number[] = [];
+    for (let t = 600; t < 1200; t += FRAME_MS) {
+      pose.update(t);
+      shown.push(pose.position.x);
+    }
+    shown.slice(1).forEach((x, i) => expect(Math.abs(x - shown[i]!)).toBeLessThan(1));
+    const jump = 3 * flight + POSE_COLLABORATION_PRESENCE_TELEPORT_METERS_PER_SECOND * 0.2 + 5;
+    pose.target(new THREE.Vector3(jump, 0, 0), new THREE.Quaternion(), 800);
+    expect(pose.position.x).toBe(jump);
   });
 
   it('snaps to the first pose and on an explicit snap (play mode enter or exit)', () => {
