@@ -51,7 +51,11 @@ export function solidScriptFaceTargets(
 function solidScriptFaceWhere(run: SolidScriptBlockRun, faces: SolidScriptFaceFacts[]): SolidScriptFaceFacts[] {
   if (run.source('where').trim() === '') return faces;
   return faces.filter((face, index) =>
-    solidScriptConditionHolds(run, 'where', { $Face: run.elements.face(face), $Index: index, $Count: faces.length }),
+    solidScriptConditionHolds(run, 'where', () => ({
+      $Face: run.elements.face(face),
+      $Index: index,
+      $Count: faces.length,
+    })),
   );
 }
 

@@ -25,7 +25,7 @@ function solidScriptFaceGroupsRun(run: SolidScriptBlockRun): SolidScriptValue[] 
   const faces = solidScriptFaceTargets(run, 'Face Groups');
   const cuts = run.source('cut').trim() !== '';
   const joins = (edge: SolidScriptEdgeFacts, index: number): boolean =>
-    !cuts || !solidScriptConditionHolds(run, 'cut', { $Edge: run.elements.edge(edge), $Index: index });
+    !cuts || !solidScriptConditionHolds(run, 'cut', () => ({ $Edge: run.elements.edge(edge), $Index: index }));
   return [...solidScriptFaceGroups(faces, (face) => face.leaf)].flatMap(([leaf, held]) =>
     solidScriptFaceIslands(held, solidScriptGeometryEdges([leaf]), joins).map((group) =>
       group.map((face) => run.elements.face(face)).filter((face, at, all) => all.indexOf(face) === at),

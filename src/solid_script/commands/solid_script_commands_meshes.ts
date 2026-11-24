@@ -190,7 +190,11 @@ function solidScriptMeshCreased(run: SolidScriptBlockRun, mesh: SolidScriptShape
   const edges = run.elements.edges(run.elements.brush(mesh));
   return new Set(
     edges.flatMap((edge, index) =>
-      solidScriptConditionHolds(run, 'crease', { $Edge: run.elements.edge(edge), $Index: index, $Count: edges.length })
+      solidScriptConditionHolds(run, 'crease', () => ({
+        $Edge: run.elements.edge(edge),
+        $Index: index,
+        $Count: edges.length,
+      }))
         ? (solidScriptMeshEdgesKey(mesh, edge) ?? [])
         : [],
     ),

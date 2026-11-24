@@ -89,7 +89,11 @@ export function solidScriptPointsFromEdgeTargets(run: SolidScriptBlockRun, label
         edges.push(edge);
   }
   return edges.filter((edge, index) =>
-    solidScriptConditionHolds(run, 'where', { $Edge: run.elements.edge(edge), $Index: index, $Count: edges.length }),
+    solidScriptConditionHolds(run, 'where', () => ({
+      $Edge: run.elements.edge(edge),
+      $Index: index,
+      $Count: edges.length,
+    })),
   );
 }
 
@@ -123,11 +127,11 @@ export function solidScriptPointsFromVertexTargets(run: SolidScriptBlockRun, lab
   }
   return corners
     .filter(({ leaf, vertex }, index) =>
-      solidScriptConditionHolds(run, 'where', {
+      solidScriptConditionHolds(run, 'where', () => ({
         $Vertex: run.elements.vertex(leaf, vertex),
         $Index: index,
         $Count: corners.length,
-      }),
+      })),
     )
     .map(({ vertex }) => vertex);
 }

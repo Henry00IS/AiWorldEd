@@ -44,7 +44,11 @@ export function solidScriptMeshEdgesPicked(run: SolidScriptBlockRun, label: stri
   const seen = new Map<unknown, Set<number>>();
   const edges = read.filter((edge) => solidScriptMeshEdgesFirst(seen, edge));
   return edges.filter((edge, index) =>
-    solidScriptConditionHolds(run, 'where', { $Edge: run.elements.edge(edge), $Index: index, $Count: edges.length }),
+    solidScriptConditionHolds(run, 'where', () => ({
+      $Edge: run.elements.edge(edge),
+      $Index: index,
+      $Count: edges.length,
+    })),
   );
 }
 

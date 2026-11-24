@@ -16,16 +16,17 @@ export const SOLID_SCRIPT_FACING_WITHIN_DEFAULT = 30;
  *
  * @param run Running line.
  * @param field Field name, usually where.
- * @param bindings Values such as $Face and $Index.
+ * @param bindings Values such as $Face and $Index, or what makes them, so an
+ *   empty field makes no face, edge or corner value.
  * @returns Whether the condition holds.
  */
 export function solidScriptConditionHolds(
   run: SolidScriptBlockRun,
   field: string,
-  bindings: Readonly<Record<string, SolidScriptValue>>,
+  bindings: Readonly<Record<string, SolidScriptValue>> | (() => Readonly<Record<string, SolidScriptValue>>),
 ): boolean {
   if (run.source(field).trim() === '') return true;
-  return solidScriptValueTruthy(run.valueWith(field, bindings));
+  return solidScriptValueTruthy(run.valueWith(field, typeof bindings === 'function' ? bindings() : bindings));
 }
 
 /**

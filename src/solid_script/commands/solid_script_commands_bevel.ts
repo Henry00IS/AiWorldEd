@@ -91,7 +91,11 @@ function solidScriptBevelEdges(run: SolidScriptBlockRun): SolidScriptEdgeFacts[]
       if (!edges.some((known) => known.faces[0].leaf === edge.faces[0].leaf && known.index === edge.index))
         edges.push(edge);
   return edges.filter((edge, index) =>
-    solidScriptConditionHolds(run, 'where', { $Edge: run.elements.edge(edge), $Index: index, $Count: edges.length }),
+    solidScriptConditionHolds(run, 'where', () => ({
+      $Edge: run.elements.edge(edge),
+      $Index: index,
+      $Count: edges.length,
+    })),
   );
 }
 
@@ -256,11 +260,11 @@ function solidScriptBevelCorners(
       index,
   );
   return once.filter(({ leaf, vertex }, index) =>
-    solidScriptConditionHolds(run, 'where', {
+    solidScriptConditionHolds(run, 'where', () => ({
       $Vertex: run.elements.vertex(leaf, vertex),
       $Index: index,
       $Count: once.length,
-    }),
+    })),
   );
 }
 

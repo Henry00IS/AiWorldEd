@@ -64,7 +64,11 @@ function solidScriptDeleteEdges(run: SolidScriptBlockRun): void {
   const edges = solidScriptElementOf(run, 'edges', 'Delete Edges').flatMap((item) => run.elements.edges(item));
   const faces = edges
     .filter((edge, index) =>
-      solidScriptConditionHolds(run, 'where', { $Edge: run.elements.edge(edge), $Index: index, $Count: edges.length }),
+      solidScriptConditionHolds(run, 'where', () => ({
+        $Edge: run.elements.edge(edge),
+        $Index: index,
+        $Count: edges.length,
+      })),
     )
     .flatMap((edge) => edge.faces.filter((face): face is SolidScriptFaceFacts => face !== null));
   solidScriptDeleteFaces(run, faces);
@@ -81,11 +85,11 @@ function solidScriptDeleteVertices(run: SolidScriptBlockRun): void {
     return run.elements.vertices(item).map((vertex) => ({ leaf, vertex }));
   });
   const kept = corners.filter(({ leaf, vertex }, index) =>
-    solidScriptConditionHolds(run, 'where', {
+    solidScriptConditionHolds(run, 'where', () => ({
       $Vertex: run.elements.vertex(leaf, vertex),
       $Index: index,
       $Count: corners.length,
-    }),
+    })),
   );
   const leaves = [...new Set<SolidScriptGeometryLeaf>(kept.map(({ leaf }) => leaf))];
   const faces = solidScriptGeometryFaces(leaves).filter((face) =>
