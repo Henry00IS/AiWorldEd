@@ -173,9 +173,9 @@ export class ModifierStackKindArrayRadial extends ModifierStackKindArray {
    * @param input Stored parameters.
    * @returns Normalized parameters.
    */
-  override normalizeParameters(input: Record<string, unknown>): Record<string, unknown> {
+  protected override normalizeCurrent(input: Record<string, unknown>): Record<string, unknown> {
     const legacy = !('origin' in input) && MODIFIER_STACK_RADIAL_LEGACY_KEYS.some((key) => key in input);
-    return super.normalizeParameters(legacy ? { ...input, origin: 'Around Pivot' } : input);
+    return super.normalizeCurrent(legacy ? { ...input, origin: 'Around Pivot' } : input);
   }
 
   /**

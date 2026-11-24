@@ -78,7 +78,7 @@ export class ModifierStackKindPhysicsShatter extends ModifierStackKind {
    * @param input Stored or partial parameters.
    * @returns Normalized parameters.
    */
-  override normalizeParameters(input: Record<string, unknown>): Record<string, unknown> {
+  protected override normalizeCurrent(input: Record<string, unknown>): Record<string, unknown> {
     const future = physicsShatterFormatIsFuture(input);
     const current = future ? input : physicsShatterFormatMigrate(input);
     const output = modifierStackFieldsNormalize(this.fields, current);

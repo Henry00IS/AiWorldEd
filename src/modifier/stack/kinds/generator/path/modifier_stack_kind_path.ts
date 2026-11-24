@@ -57,7 +57,7 @@ export class ModifierStackKindPath extends ModifierStackKind {
    * @param input Stored or partial parameters.
    * @returns Normalized parameters.
    */
-  override normalizeParameters(input: Record<string, unknown>): Record<string, unknown> {
+  protected override normalizeCurrent(input: Record<string, unknown>): Record<string, unknown> {
     const text = input[MODIFIER_STACK_PATH_TEXT_KEY];
     const written = typeof text === 'string' ? pathAssetDecode(text) : null;
     const path = pathAssetEncode(written ?? modifierStackPathObjectAsset(input));

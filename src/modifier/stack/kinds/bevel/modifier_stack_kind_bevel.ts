@@ -33,7 +33,7 @@ export class ModifierStackKindBevel extends ModifierStackKind {
    * @param input Stored parameters.
    * @returns Complete bevel settings record.
    */
-  override normalizeParameters(input: Record<string, unknown>): Record<string, unknown> {
+  protected override normalizeCurrent(input: Record<string, unknown>): Record<string, unknown> {
     const carrier = new THREE.Object3D();
     carrier.userData = { ...input };
     ModifierVolumeBevel.writeSettings(carrier, ModifierVolumeBevel.readSettings(carrier));

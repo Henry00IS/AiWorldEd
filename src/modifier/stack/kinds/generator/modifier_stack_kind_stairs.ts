@@ -150,9 +150,9 @@ export class ModifierStackKindStairs extends ModifierStackKindGenerator {
    * @param input Stored or partial parameters.
    * @returns Normalized parameters.
    */
-  override normalizeParameters(input: Record<string, unknown>): Record<string, unknown> {
+  protected override normalizeCurrent(input: Record<string, unknown>): Record<string, unknown> {
     return modifierStackStairsNosingOmitDefaults(
-      modifierStackStairsTexturesOmitDefaults(super.normalizeParameters(input)),
+      modifierStackStairsTexturesOmitDefaults(super.normalizeCurrent(input)),
     );
   }
 

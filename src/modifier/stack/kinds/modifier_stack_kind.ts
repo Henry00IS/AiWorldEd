@@ -6,6 +6,7 @@ import type {
 } from '@/modifier/stack/modifier_stack_types.js';
 import type { ModifierStackContext } from '@/modifier/stack/evaluate/modifier_stack_context.js';
 import { modifierStackFieldsNormalize } from '@/modifier/stack/modifier_stack_fields.js';
+import { modifierStackChoicesUpgrade } from '@/modifier/stack/modifier_stack_upgrade.js';
 
 /** Menu grouping of a modifier kind. */
 export type ModifierStackCategory = 'generate' | 'duplicate' | 'shape';
@@ -33,12 +34,24 @@ export abstract class ModifierStackKind {
   readonly presets: readonly ModifierStackPreset[] = [];
 
   /**
-   * Returns complete, valid parameters for this kind.
+   * Returns complete, valid parameters for this kind, first upgrading choice
+   * values saved in an older format, such as an Arch Style saved as tunnel.
    *
    * @param input Stored or partial parameters.
    * @returns Normalized parameters.
    */
   normalizeParameters(input: Record<string, unknown>): Record<string, unknown> {
+    return this.normalizeCurrent(modifierStackChoicesUpgrade(this.id, input));
+  }
+
+  /**
+   * Returns complete, valid parameters from parameters whose choice values are
+   * in the current format.
+   *
+   * @param input Stored or partial parameters.
+   * @returns Normalized parameters.
+   */
+  protected normalizeCurrent(input: Record<string, unknown>): Record<string, unknown> {
     return modifierStackFieldsNormalize(this.fields, input);
   }
 

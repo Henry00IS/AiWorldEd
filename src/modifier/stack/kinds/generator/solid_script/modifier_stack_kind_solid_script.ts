@@ -112,10 +112,10 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
    * @param input Stored or partial parameters.
    * @returns Normalized parameters.
    */
-  override normalizeParameters(input: Record<string, unknown>): Record<string, unknown> {
+  protected override normalizeCurrent(input: Record<string, unknown>): Record<string, unknown> {
     const script = solidScriptDocumentNormalize(input[MODIFIER_STACK_SOLID_SCRIPT_KEY]);
     return {
-      ...super.normalizeParameters(input),
+      ...super.normalizeCurrent(input),
       [MODIFIER_STACK_SOLID_SCRIPT_KEY]: script,
       [MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]: solidScriptInspectorInputValues(
         input[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY],

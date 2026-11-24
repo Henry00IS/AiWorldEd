@@ -193,7 +193,7 @@ export class ModifierStackKindBlastHole extends ModifierStackKindGenerator {
    * @param input Stored or partial parameters.
    * @returns Normalized parameters.
    */
-  override normalizeParameters(input: Record<string, unknown>): Record<string, unknown> {
+  protected override normalizeCurrent(input: Record<string, unknown>): Record<string, unknown> {
     return modifierStackFieldsNormalize(this.fields, blastHoleFormatMigrate(input));
   }
 

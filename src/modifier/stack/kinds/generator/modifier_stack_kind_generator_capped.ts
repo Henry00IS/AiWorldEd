@@ -15,8 +15,8 @@ export abstract class ModifierStackKindGeneratorCapped extends ModifierStackKind
    * @param input Stored or partial parameters.
    * @returns Normalized parameters.
    */
-  override normalizeParameters(input: Record<string, unknown>): Record<string, unknown> {
-    return modifierStackCapTexturesOmitDefaults(super.normalizeParameters(input));
+  protected override normalizeCurrent(input: Record<string, unknown>): Record<string, unknown> {
+    return modifierStackCapTexturesOmitDefaults(super.normalizeCurrent(input));
   }
 
   /**
