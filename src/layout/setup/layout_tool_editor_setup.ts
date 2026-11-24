@@ -163,6 +163,8 @@ export interface LayoutToolEditorSetupDeps {
   commandStack: CommandStack;
   /** Shows or clears the Generator highlight on the tool rail. */
   setRailEditing?: (editing: boolean) => void;
+  /** Re-reads the inspector once a Generator tool edit is kept or taken back. */
+  onGeneratorEditChange?: () => void;
   /**
    * Called when a permanent gizmo handle drag begins so widgets latch
    * wantsActive.
@@ -448,6 +450,7 @@ function createEditorServices(
   const selectableCache = new Map<THREE.Object3D, ISelectable>();
   const generatorEditHost = layoutGeneratorEditHostCreate({
     ...deps,
+    ...(deps.onGeneratorEditChange ? { onChange: deps.onGeneratorEditChange } : {}),
     pickStack: (clientX, clientY) =>
       pickObjectStackAtClientPoint(deps, clientX, clientY, null, getPointerOwnerDocument()),
   });

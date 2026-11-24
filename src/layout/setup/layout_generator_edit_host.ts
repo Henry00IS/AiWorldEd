@@ -55,6 +55,11 @@ export interface LayoutGeneratorEditHostDeps {
   getTransformInteractionBridge?: () => Pick<BridgeTransformInteraction, 'resolveGizmoOrientation'> | null;
   /** Shows or clears the Generator highlight on the tool rail. */
   setRailEditing?: (editing: boolean) => void;
+  /**
+   * Re-reads the inspector once an edit in the scene is kept or taken back, so
+   * it shows the changed object, such as a path with a point added.
+   */
+  onChange?: () => void;
 }
 
 /** A drag in progress: the object and its stack before the first move. */
@@ -105,12 +110,19 @@ export function layoutGeneratorEditHostCreate(deps: LayoutGeneratorEditHostDeps)
     press: (button) => {
       layoutGeneratorEditWrite(drag, selected(), button.stepId, (owner) => layoutGeneratorEditPress(owner, button));
       layoutGeneratorEditChangeEnd(drag, deps.commandStack);
+      deps.onChange?.();
     },
     aims: () => layoutGeneratorEditOf(selected(), modifierStackAims),
     aim: (aim, direction) =>
       layoutGeneratorEditWrite(drag, selected(), aim.stepId, (owner) => modifierStackAimPatch(owner, aim, direction)),
-    changeEnd: () => layoutGeneratorEditChangeEnd(drag, deps.commandStack),
-    changeCancel: () => layoutGeneratorEditChangeCancel(drag),
+    changeEnd: () => {
+      layoutGeneratorEditChangeEnd(drag, deps.commandStack);
+      deps.onChange?.();
+    },
+    changeCancel: () => {
+      layoutGeneratorEditChangeCancel(drag);
+      deps.onChange?.();
+    },
   };
 }
 

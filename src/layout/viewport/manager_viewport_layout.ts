@@ -424,6 +424,7 @@ export class ManagerViewportLayout extends ViewportLayoutCore {
       editorOverlayPolicy: this.editorOverlayPolicy,
       commandStack: this.commandStack,
       setRailEditing: (editing) => this.toolsPaletteController?.setGeneratorEditing(editing),
+      onGeneratorEditChange: () => this.propertiesPanel.refreshBoundObject(),
       onPermanentGizmoHandleDragBegan: () => this.toolEditorSystem?.editorWindow.onPermanentGizmoHandleDragBegan(),
       onPermanentGizmoHandleDragEnded: () => this.toolEditorSystem?.editorWindow.onPermanentGizmoHandleDragEnded(),
     });
