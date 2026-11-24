@@ -47,6 +47,7 @@ import {
 import { solidScriptModeRoleOfUse, solidScriptModeRoleRemember } from './solid_script_mode_role.js';
 import {
   solidScriptLineFieldOf,
+  solidScriptLineFields,
   solidScriptLinesPassInput,
   solidScriptRunKnown,
   solidScriptRunMake,
@@ -858,7 +859,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
       if (node.children.length === 0) return [];
       return state.machine.linesRun(node.children, state.scope, into, new SolidScriptScope(state.scope), children());
     };
-    const fields = new Map<string, SolidScriptLineField>();
+    const fields = solidScriptLineFields(node);
     const labels = new Map(node.command.parameters.map((field) => [field.key, field.label]));
     const evaluated = node.command.parameters
       .filter((field) => !solidScriptFieldAsTyped(field))

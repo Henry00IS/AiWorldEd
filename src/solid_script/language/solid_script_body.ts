@@ -120,17 +120,34 @@ export function solidScriptBodySolid(body: SolidScriptBody): boolean {
  * @returns True when it does.
  */
 export function solidScriptBodyConvex(body: SolidScriptBody): boolean {
-  if (!solidScriptBodySolid(body)) return false;
-  return body.faces.every((loop) => {
-    const normal = solidScriptMeshLoopNormal(body.points, loop);
-    const constant = normal.dot(body.points[loop[0]!]!);
-    const on = new Set(loop);
-    return (
-      solidScriptBodyLoopConvex(body.points, loop, normal) &&
-      loop.every((index) => Math.abs(normal.dot(body.points[index]!) - constant) <= SOLID_SCRIPT_BODY_EPSILON) &&
-      body.points.every((point, index) => on.has(index) || normal.dot(point) - constant < -SOLID_SCRIPT_BODY_EPSILON)
-    );
-  });
+  if (body.faces.length < 4) return false;
+  return body.faces.every((loop) => solidScriptBodyFaceConvex(body.points, loop));
+}
+
+/**
+ * Tells whether one face of a body is a face of a strictly convex brush: it has
+ * a normal, lies flat, turns the same way at each corner, and has at least one
+ * corner off it, every one of them behind it.
+ *
+ * @param points Corners of the body.
+ * @param loop Face loop.
+ * @returns True when it is.
+ */
+function solidScriptBodyFaceConvex(points: readonly THREE.Vector3[], loop: readonly number[]): boolean {
+  const normal = solidScriptMeshLoopNormal(points, loop);
+  if (normal.lengthSq() === 0) return false;
+  const constant = normal.dot(points[loop[0]!]!);
+  if (!solidScriptBodyLoopConvex(points, loop, normal)) return false;
+  if (!loop.every((index) => Math.abs(normal.dot(points[index]!) - constant) <= SOLID_SCRIPT_BODY_EPSILON))
+    return false;
+  const on = new Set(loop);
+  let behind = false;
+  for (let index = 0; index < points.length; index++) {
+    if (on.has(index)) continue;
+    if (!(normal.dot(points[index]!) - constant < -SOLID_SCRIPT_BODY_EPSILON)) return false;
+    behind = true;
+  }
+  return behind;
 }
 
 /**

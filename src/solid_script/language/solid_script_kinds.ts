@@ -55,12 +55,25 @@ export function solidScriptKindOf(value: SolidScriptValue): string {
   if (typeof value === 'boolean') return 'Yes/No';
   if (value instanceof SolidScriptElement) return solidScriptElementType(value);
   if (!Array.isArray(value)) return solidScriptValueNumber(value) === undefined ? 'Text' : 'Number';
+  if (solidScriptKindIsVector(value)) return 'Vector';
   const kinds = new Set(value.map(solidScriptKindOf));
   const [only] = kinds;
   if (only === 'Number' && kinds.size === 1 && (value.length === 2 || value.length === 3)) return 'Vector';
   const geometry = solidScriptElementListType(kinds);
   if (geometry) return geometry;
   return kinds.size === 1 && only !== undefined && !only.endsWith('List') ? `${only} List` : 'List';
+}
+
+/**
+ * Tells at once whether a list is two or three finite numbers, the Vector most
+ * values are, without working out the kind of each item.
+ *
+ * @param value List.
+ * @returns True for such a vector.
+ */
+function solidScriptKindIsVector(value: readonly SolidScriptValue[]): boolean {
+  if (value.length !== 2 && value.length !== 3) return false;
+  return value.every((item) => typeof item === 'number' && Number.isFinite(item));
 }
 
 /**

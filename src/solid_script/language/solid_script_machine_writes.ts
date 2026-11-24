@@ -24,6 +24,7 @@ import {
   solidScriptListItemWrite,
 } from './solid_script_list_item.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
+import { solidScriptNameWritesMember } from './solid_script_name_writes_member.js';
 import type { SolidScriptScope } from './solid_script_scope.js';
 import {
   SolidScriptDictionary,
@@ -239,11 +240,7 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
       if (this.modeSet(written, scope, value)) return;
       return this.variableSetSelected(written, name, value);
     }
-    if (this.dataSet(written, scope, () => value)) return;
-    if (this.uvsSet(written, scope, value)) return;
-    if (this.faceCornerUvSet(written, scope, () => value)) return;
-    if (this.positionAssign(scope, written, value)) return;
-    if (this.modeSet(written, scope, value)) return;
+    if (solidScriptNameWritesMember(written) && this.memberSet(scope, written, value)) return;
     const locals = name.startsWith(SOLID_SCRIPT_LOCAL_PREFIX) ? this.frameFunction()?.locals : undefined;
     const bare = locals ? solidScriptLocalBare(name) : '';
     if (locals && SOLID_SCRIPT_NAME.test(bare)) return locals.variableSet(bare, value);
@@ -251,6 +248,25 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
     const component = solidScriptVectorComponent(where.name);
     if (component && !where.scope.variableHas(where.name)) return this.variableSetComponent(where, component, value);
     this.variableSetNamed(scope, where, value);
+  }
+
+  /**
+   * Sets a member of an element, such as Face.Data.Height, Faces.UVs,
+   * FaceCorner.UV, Vertex.Position or Solid.Mode.
+   *
+   * @param scope Scope of the line.
+   * @param written Name as written.
+   * @param value Value.
+   * @returns True when the name was such a member.
+   */
+  private memberSet(scope: SolidScriptScope, written: string, value: SolidScriptValue): boolean {
+    return (
+      this.dataSet(written, scope, () => value) ||
+      this.uvsSet(written, scope, value) ||
+      this.faceCornerUvSet(written, scope, () => value) ||
+      this.positionAssign(scope, written, value) ||
+      this.modeSet(written, scope, value)
+    );
   }
 
   /**
@@ -265,8 +281,9 @@ export abstract class SolidScriptMachineWrites extends SolidScriptMachineVariabl
    * @param run Line run, for the value.
    */
   protected variableWrite(scope: SolidScriptScope, written: string, key: string, run: SolidScriptBlockRun): void {
-    if (this.positionWriteEach(scope, written, key, run)) return;
-    if (solidScriptEachUsed(run.source(key))) {
+    const member = solidScriptNameWritesMember(written);
+    if (member && this.positionWriteEach(scope, written, key, run)) return;
+    if (member && solidScriptEachUsed(run.source(key))) {
       const each = (item: SolidScriptValue, index: number, count: number): SolidScriptValue =>
         run.valueWith(key, { $Item: item, $Index: index, $Count: count });
       if (solidScriptNameIsDataWrite(written) && this.dataSet(written, scope, each)) return;

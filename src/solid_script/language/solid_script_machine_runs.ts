@@ -202,8 +202,24 @@ function solidScriptLineFieldKind(
   };
 }
 
+/** Field readers of each line, by line, kept across its run views. */
+const SOLID_SCRIPT_LINE_FIELDS = new WeakMap<object, Map<string, SolidScriptLineField>>();
+
 /**
- * Returns a line's field reader, made once per run view of the line.
+ * Returns the field readers of a line, shared by every run view of it, so a
+ * Function that calls itself reads each field the way the outer call does.
+ *
+ * @param node Line.
+ * @returns Field readers by key, filled in as fields are read.
+ */
+export function solidScriptLineFields(node: object): Map<string, SolidScriptLineField> {
+  let fields = SOLID_SCRIPT_LINE_FIELDS.get(node);
+  if (!fields) SOLID_SCRIPT_LINE_FIELDS.set(node, (fields = new Map()));
+  return fields;
+}
+
+/**
+ * Returns a line's field reader, made once per line.
  *
  * @param fields Fields of the line read so far, by key.
  * @param node Line.

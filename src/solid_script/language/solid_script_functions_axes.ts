@@ -11,9 +11,16 @@ type SolidScriptBuiltin = (args: SolidScriptValue[]) => SolidScriptValue;
  * @returns Vector size, or 0 when every argument is a number.
  */
 function solidScriptAxesSize(args: readonly SolidScriptValue[], usage: string): number {
-  const sizes = new Set(args.flatMap((arg) => (Array.isArray(arg) ? [solidScriptAxesNumbers(arg, usage).length] : [])));
-  if (sizes.size > 1) throw new Error(`${usage} needs vectors of the same size`);
-  return [...sizes][0] ?? 0;
+  let size = -1;
+  let mixed = false;
+  for (const arg of args) {
+    if (!Array.isArray(arg)) continue;
+    const length = solidScriptAxesNumbers(arg, usage).length;
+    mixed ||= size !== -1 && length !== size;
+    if (size === -1) size = length;
+  }
+  if (mixed) throw new Error(`${usage} needs vectors of the same size`);
+  return Math.max(size, 0);
 }
 
 /**
