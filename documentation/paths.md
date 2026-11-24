@@ -60,7 +60,7 @@ Each stretch runs from a point to the next and has its own kind, set in the insp
 | **Smooth**    | Runs through its neighbours like a rope, with no handles to set.                                                                                         |
 | **Arc**       | An exact circular arc of **Arc Degrees** (1 to 359; negative bends the other way) turning about **Arc Axis** (Up, 0, 1, 0, by default, so it lies flat). |
 
-An Arc is a true circle: the points a script reads lie on the circle itself, sampled finely enough for a smooth sweep. Handles are offsets, so a curved stretch keeps its shape when you move its points. **Closed** joins the last point back to the first.
+An Arc turns counter-clockwise seen from the tip of its **Arc Axis**, the way Rotate By turns, so a stretch running to the right with Arc Axis 0, 0, 1 dips below the line in the Front view and one with 0, 1, 0 bulges toward the front in the Top view. To arch over the line instead, make Arc Degrees negative or point Arc Axis the other way (0, 0, -1). An Arc is a true circle: the points a script reads lie on the circle itself, sampled finely enough for a smooth sweep. Handles are offsets, so a curved stretch keeps its shape when you move its points. **Closed** joins the last point back to the first.
 
 ## Save and reuse a Path
 

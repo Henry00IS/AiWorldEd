@@ -188,7 +188,11 @@ export class PathPointPanel {
       if (typed === null || !Number.isFinite(typed) || typed === 0) return;
       onChange(Math.sign(typed) * Math.min(359, Math.max(1, Math.abs(typed))));
     });
-    return modifierStackUiRow('Arc Degrees', field.getElement(), 'How far the arc turns; negative bends the other way');
+    return modifierStackUiRow(
+      'Arc Degrees',
+      field.getElement(),
+      'How far the arc turns, counter-clockwise seen from the tip of Arc Axis like Rotate By; negative turns clockwise',
+    );
   }
 
   /**

@@ -58,6 +58,20 @@ describe('path assets', () => {
     }
   });
 
+  it('turns an Arc counter-clockwise seen from the tip of its axis, as Rotate By turns', () => {
+    const middle = (to: [number, number, number], axis: [number, number, number]) => {
+      const inner = pathAssetArcInner([0, 0, 0], to, 180, axis, 2);
+      return inner[(inner.length - 1) / 2]!.map((value) => Math.round(value * 1e9) / 1e9 || 0);
+    };
+    expect(middle([2, 0, 0], [0, 1, 0])).toEqual([1, 0, 1]);
+    expect(middle([2, 0, 0], [0, 0, 1])).toEqual([1, -1, 0]);
+    expect(middle([2, 0, 0], [0, 0, -1])).toEqual([1, 1, 0]);
+    expect(middle([0, 0, 2], [1, 0, 0])).toEqual([0, 1, 1]);
+    expect(middle([0, 0, 2], [0, 1, 0])).toEqual([-1, 0, 1]);
+    expect(middle([0, 2, 0], [0, 0, 1])).toEqual([1, 1, 0]);
+    expect(middle([0, 2, 0], [1, 0, 0])).toEqual([0, 1, -1]);
+  });
+
   it('turns Quadratic and Smooth stretches into exact Beziers and an Arc into points on its circle', () => {
     const asset: PathAsset = {
       points: [
