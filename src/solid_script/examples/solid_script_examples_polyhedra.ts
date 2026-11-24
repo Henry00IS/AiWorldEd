@@ -55,7 +55,7 @@ export const SOLID_SCRIPT_EXAMPLE_ICOSPHERE: readonly SolidScriptLine[] = [
     'Icosphere starts with twenty triangles. Each Subdivision past 1 splits every triangle into four, pushing its edge middles onto a sphere. Polyhedron wraps the corners as one solid.',
   ),
   solidScriptExampleInput('Subdivisions', 'Count', '2', { label: 'Subdivisions', min: '1', max: '4' }),
-  solidScriptExampleSet('Half', '[=Vector([$Box.Width], [$Box.Height], [$Box.Depth]) / 2]'),
+  solidScriptExampleSet('Half', '[$Box.Extents]'),
   ...solidScriptExampleNote(
     'Facet calls itself on the four smaller triangles until Level reaches 1. Local values belong to each call, so the smaller triangles do not overwrite their parent.',
   ),
@@ -93,7 +93,7 @@ export const SOLID_SCRIPT_EXAMPLE_RHOMBICUBOCTAHEDRON: readonly SolidScriptLine[
     choices: 'Grid Aligned, Precise',
   }),
   solidScriptExampleSet('Extent', '[=[Precision] == "Precise" ? 1 + Sqrt(2) : 2]'),
-  solidScriptExampleSet('Half', '[=Vector([$Box.Width], [$Box.Height], [$Box.Depth]) / (2 * [Extent])]'),
+  solidScriptExampleSet('Half', '[=[$Box.Extents] / [Extent]]'),
   ...solidScriptExamplePolyhedron(
     solidScriptExampleRepeat('Far', '0', '3', [
       ...solidScriptExampleRepeat('Signs', '0', '8', [

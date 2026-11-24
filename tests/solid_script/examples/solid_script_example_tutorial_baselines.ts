@@ -1142,7 +1142,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     { command: 'variable', values: { name: 'Rz', value: '[=[$Box.Depth] / 2]' } },
     { command: 'variable', values: { name: 'TurnSign', value: '1' } },
     { command: 'variable', values: { name: 'Limit', value: '[=Min([Rx], [Rz]) ^ 2 / Max([Rx], [Rz])]' } },
-    { command: 'function', values: { name: 'RingPoint', parameters: 'Angle, Inset, Height' } },
+    { command: 'function', values: { name: 'WallPoint', parameters: 'Angle, Inset, Height' } },
     { command: 'variable', values: { name: 'Local.C', value: '[=Cos([Local.Angle])]' } },
     { command: 'variable', values: { name: 'Local.S', value: '[=Sin([Local.Angle]) * [TurnSign]]' } },
     {
@@ -1172,10 +1172,10 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     { command: 'polyhedron', values: {} },
     { command: 'repeat', values: { variable: 'Edge', from: '0', to: '2' } },
     { command: 'variable', values: { name: 'Angle', value: '[=[Sweep] * ([Piece] + [Edge]) / [Segments]]' } },
-    { command: 'point', values: { position: '[=RingPoint([Angle], 0, -[$Box.Height] / 2)]' } },
-    { command: 'point', values: { position: '[=RingPoint([Angle], [Wall], -[$Box.Height] / 2)]' } },
-    { command: 'point', values: { position: '[=RingPoint([Angle], [Wall], [$Box.Height] / 2)]' } },
-    { command: 'point', values: { position: '[=RingPoint([Angle], 0, [$Box.Height] / 2)]' } },
+    { command: 'point', values: { position: '[=WallPoint([Angle], 0, -[$Box.Height] / 2)]' } },
+    { command: 'point', values: { position: '[=WallPoint([Angle], [Wall], -[$Box.Height] / 2)]' } },
+    { command: 'point', values: { position: '[=WallPoint([Angle], [Wall], [$Box.Height] / 2)]' } },
+    { command: 'point', values: { position: '[=WallPoint([Angle], 0, [$Box.Height] / 2)]' } },
     { command: 'end', values: {} },
     { command: 'end', values: {} },
     { command: 'end', values: {} },
@@ -1235,7 +1235,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     { command: 'variable', values: { name: 'Rz', value: '[=[$Box.Depth] / 2]' } },
     { command: 'variable', values: { name: 'TurnSign', value: '1' } },
     { command: 'variable', values: { name: 'Limit', value: '[=Min([Rx], [Rz]) ^ 2 / Max([Rx], [Rz])]' } },
-    { command: 'function', values: { name: 'RingPoint', parameters: 'Angle, Inset, Height' } },
+    { command: 'function', values: { name: 'WallPoint', parameters: 'Angle, Inset, Height' } },
     { command: 'variable', values: { name: 'Local.C', value: '[=Cos([Local.Angle])]' } },
     { command: 'variable', values: { name: 'Local.S', value: '[=Sin([Local.Angle]) * [TurnSign]]' } },
     {
@@ -1315,7 +1315,7 @@ export const SOLID_SCRIPT_TUTORIAL_BASELINES: Readonly<Record<string, readonly S
     {
       command: 'point',
       values: {
-        position: '[=RingPoint([Angle], [Tube] * (1 - [U]), [$Box.Height] / 2 * [V])]',
+        position: '[=WallPoint([Angle], [Tube] * (1 - [U]), [$Box.Height] / 2 * [V])]',
       },
     },
     { command: 'end', values: {} },

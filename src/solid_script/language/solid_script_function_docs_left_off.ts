@@ -31,6 +31,7 @@ export const SOLID_SCRIPT_FUNCTION_INPUTS_LEFT_OFF: Readonly<Record<string, numb
   noise_vector: 2,
   voronoi: 3,
   remap: 3,
+  ring_point: 1,
   rotate_vector: 1,
   shuffle: 1,
   slice: 1,

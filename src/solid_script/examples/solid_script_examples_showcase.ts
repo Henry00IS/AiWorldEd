@@ -49,13 +49,10 @@ export const SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE: readonly SolidScriptLine[] =
   solidScriptExampleSet('Rise', '[=[Height] / [Steps]]'),
   solidScriptExampleSet('Per', '[=[Turn] / [Steps]]'),
   solidScriptExampleSet('Base', '[=-[Height] / 2]'),
-  solidScriptExampleSet('RailAt', '[=[Outer] - 0.1]'),
-  ...solidScriptExampleNote('A point at an angle, a distance from the middle and a height.'),
-  ...solidScriptExampleBlock('function', { name: 'Spot', parameters: 'Angle, Radius, Height' }, [
-    solidScriptExampleLine('return', {
-      value: '[=Vector([Local.Radius] * Cos([Local.Angle]), [Local.Height], -[Local.Radius] * Sin([Local.Angle]))]',
-    }),
-  ]),
+  ...solidScriptExampleNote('RingPoint takes the width across a ring, twice its radius, at an angle and a height.'),
+  solidScriptExampleSet('InnerWidth', '[=[Inner] * 2]'),
+  solidScriptExampleSet('OuterWidth', '[=[Outer] * 2]'),
+  solidScriptExampleSet('RailWidth', '[=[OuterWidth] - 0.2]'),
   ...solidScriptExampleNote('The slope rises evenly with the angle, through the front edge of every tread.'),
   ...solidScriptExampleBlock('function', { name: 'Slope', parameters: 'Angle' }, [
     solidScriptExampleLine('return', { value: '[=[Base] + [Rise] * [Local.Angle] / [Per]]' }),
@@ -73,14 +70,14 @@ export const SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE: readonly SolidScriptLine[] =
     solidScriptExampleSet('Top', '[=[Base] + [Rise] * ([S] + 1)]'),
     ...solidScriptExampleRepeat('P', '0', '[Smooth]', [
       ...solidScriptExampleSweepPiece('[=[Per] * ([S] + [P] / [Smooth])]', '[=[Per] * ([S] + ([P] + 1) / [Smooth])]', [
-        '[=Spot([A], [Inner], [Top] - 0.06)]',
-        '[=Spot([A], [Outer], [Top] - 0.06)]',
-        '[=Spot([A], [Outer], [Top])]',
-        '[=Spot([A], [Inner], [Top])]',
+        '[=RingPoint([A], [InnerWidth], [Top] - 0.06)]',
+        '[=RingPoint([A], [OuterWidth], [Top] - 0.06)]',
+        '[=RingPoint([A], [OuterWidth], [Top])]',
+        '[=RingPoint([A], [InnerWidth], [Top])]',
       ]),
     ]),
     solidScriptExampleSet('Middle', '[=[Per] * ([S] + 0.5)]'),
-    ...solidScriptExampleBlock('transform', { move: '[=Spot([Middle], [RailAt], [Top])]' }, [
+    ...solidScriptExampleBlock('transform', { move: '[=RingPoint([Middle], [RailWidth], [Top])]' }, [
       solidScriptExampleLine('cylinder', {
         h: '[RailHeight]',
         r1: '0.02',
@@ -98,25 +95,25 @@ export const SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE: readonly SolidScriptLine[] =
     solidScriptExampleSet('From', '[=[Turn] * [K] / [Pieces]]'),
     solidScriptExampleSet('To', '[=[Turn] * ([K] + 1) / [Pieces]]'),
     ...solidScriptExampleSweepPiece('[From]', '[To]', [
-      '[=Spot([A], [Inner], Slope([A]) - 0.06)]',
-      '[=Spot([A], [Outer], Slope([A]) - 0.06)]',
-      '[=Spot([A], [Outer], Slope([A]) - 0.26)]',
-      '[=Spot([A], [Inner], Slope([A]) - 0.26)]',
+      '[=RingPoint([A], [InnerWidth], Slope([A]) - 0.06)]',
+      '[=RingPoint([A], [OuterWidth], Slope([A]) - 0.06)]',
+      '[=RingPoint([A], [OuterWidth], Slope([A]) - 0.26)]',
+      '[=RingPoint([A], [InnerWidth], Slope([A]) - 0.26)]',
     ]),
     ...solidScriptExampleSweepPiece('[From]', '[To]', [
-      '[=Spot([A], [Outer], Slope([A]) - 0.26)]',
-      '[=Spot([A], [Outer] + 0.04, Slope([A]) - 0.26)]',
-      '[=Spot([A], [Outer] + 0.04, Slope([A]) + [Rise] + 0.04)]',
-      '[=Spot([A], [Outer], Slope([A]) + [Rise] + 0.04)]',
+      '[=RingPoint([A], [OuterWidth], Slope([A]) - 0.26)]',
+      '[=RingPoint([A], [OuterWidth] + 0.08, Slope([A]) - 0.26)]',
+      '[=RingPoint([A], [OuterWidth] + 0.08, Slope([A]) + [Rise] + 0.04)]',
+      '[=RingPoint([A], [OuterWidth], Slope([A]) + [Rise] + 0.04)]',
     ]),
     ...solidScriptExampleNote(
       'The handrail runs through the post tops: a post stands half a step past the front edge.',
     ),
     ...solidScriptExampleSweepPiece('[From]', '[To]', [
-      '[=Spot([A], [RailAt] - 0.035, Slope([A]) + [Rise] * 0.5 + [RailHeight] - 0.03)]',
-      '[=Spot([A], [RailAt] + 0.035, Slope([A]) + [Rise] * 0.5 + [RailHeight] - 0.03)]',
-      '[=Spot([A], [RailAt] + 0.035, Slope([A]) + [Rise] * 0.5 + [RailHeight] + 0.03)]',
-      '[=Spot([A], [RailAt] - 0.035, Slope([A]) + [Rise] * 0.5 + [RailHeight] + 0.03)]',
+      '[=RingPoint([A], [RailWidth] - 0.07, Slope([A]) + [Rise] * 0.5 + [RailHeight] - 0.03)]',
+      '[=RingPoint([A], [RailWidth] + 0.07, Slope([A]) + [Rise] * 0.5 + [RailHeight] - 0.03)]',
+      '[=RingPoint([A], [RailWidth] + 0.07, Slope([A]) + [Rise] * 0.5 + [RailHeight] + 0.03)]',
+      '[=RingPoint([A], [RailWidth] - 0.07, Slope([A]) + [Rise] * 0.5 + [RailHeight] + 0.03)]',
     ]),
   ]),
 ];

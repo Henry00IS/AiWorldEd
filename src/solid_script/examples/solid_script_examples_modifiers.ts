@@ -427,7 +427,7 @@ export const SOLID_SCRIPT_EXAMPLE_MIRROR: readonly SolidScriptLine[] = [
     'The plane runs through the center or touches a side, then moves by Offset along its axis.',
   ),
   solidScriptExampleSet('D', '[=Dot([$Input.Center], [K]) + [PlaneOffset]]'),
-  solidScriptExampleSet('Half', '[=Abs(Dot([$Input.Size], [K])) / 2]'),
+  solidScriptExampleSet('Half', '[=Abs(Dot([$Input.Extents], [K]))]'),
   ...solidScriptExampleIf('[Plane] == "Negative Side"', [solidScriptExampleSet('D', '[=[D] - [Half]]')]),
   ...solidScriptExampleIf('[Plane] == "Positive Side"', [solidScriptExampleSet('D', '[=[D] + [Half]]')]),
   solidScriptExampleSet('Drop', '[=-[K]]'),

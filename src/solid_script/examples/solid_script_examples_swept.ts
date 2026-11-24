@@ -13,35 +13,31 @@ import {
 
 /**
  * Lines that size the ring of the box: [Rx] and [Rz] are half the width and
- * depth, [TurnSign] is 1 for counter-clockwise and [Limit] is the deepest a
- * wall can reach in before the ring closes.
+ * depth, and [Limit] is the deepest a wall can reach in before the ring
+ * closes.
  *
- * @param turnSign Turn direction as field text.
  * @returns Lines.
  */
-function solidScriptExampleRingSize(turnSign = '1'): SolidScriptLine[] {
+function solidScriptExampleRingSize(): SolidScriptLine[] {
   return [
-    solidScriptExampleSet('Rx', '[=[$Box.Width] / 2]'),
-    solidScriptExampleSet('Rz', '[=[$Box.Depth] / 2]'),
-    solidScriptExampleSet('TurnSign', turnSign),
+    solidScriptExampleSet('Rx', '[$Box.Extents.X]'),
+    solidScriptExampleSet('Rz', '[$Box.Extents.Z]'),
     solidScriptExampleSet('Limit', '[=Min([Rx], [Rz]) ^ 2 / Max([Rx], [Rz])]'),
   ];
 }
 
 /**
- * The Ring Point function: a point on the oval of the box at an angle, moved
+ * The Wall Point function: a point on the oval of the box at an angle, moved
  * inward by a distance, at a height.
  */
-const SOLID_SCRIPT_EXAMPLE_RING_POINT: readonly SolidScriptLine[] = solidScriptExampleBlock(
+const SOLID_SCRIPT_EXAMPLE_WALL_POINT: readonly SolidScriptLine[] = solidScriptExampleBlock(
   'function',
-  { name: 'RingPoint', parameters: 'Angle, Inset, Height' },
+  { name: 'WallPoint', parameters: 'Angle, Inset, Height' },
   [
-    solidScriptExampleSet('Local.C', '[=Cos([Local.Angle])]'),
-    solidScriptExampleSet('Local.S', '[=Sin([Local.Angle]) * [TurnSign]]'),
-    solidScriptExampleSet('Local.Inward', '[=Normalize(Vector([Local.C] / [Rx], [Local.S] / [Rz]))]'),
+    solidScriptExampleSet('Local.In', '[=Normalize(Vector(Cos([Local.Angle]) / [Rx], -Sin([Local.Angle]) / [Rz]))]'),
     solidScriptExampleLine('return', {
       value:
-        '[=Vector([Rx] * [Local.C] - [Local.Inset] * [Local.Inward.X], [Local.Height], [Local.Inset] * [Local.Inward.Y] - [Rz] * [Local.S])]',
+        '[=RingPoint([Local.Angle], [$Box.Size], [Local.Height]) - [Local.Inset] * Vector([Local.In.X], 0, [Local.In.Y])]',
     }),
   ],
 );
@@ -64,19 +60,19 @@ export const SOLID_SCRIPT_EXAMPLE_PIPE: readonly SolidScriptLine[] = [
   solidScriptExampleInput('Sweep', 'Number', '360', { label: 'Sweep Angle', min: '1', max: '360' }),
   ...solidScriptExampleRingSize(),
   ...solidScriptExampleNote(
-    'Function RingPoint gives a point back with Return, so later lines can write [=RingPoint(...)] in a formula. [Local.Angle], [Local.Inset] and [Local.Height] are the values for this one call.',
+    'Function WallPoint gives a point back with Return, so later lines can write [=WallPoint(...)] in a formula. [Local.Angle], [Local.Inset] and [Local.Height] are the values for this one call. RingPoint gives the point on the oval of the box.',
   ),
-  ...SOLID_SCRIPT_EXAMPLE_RING_POINT,
+  ...SOLID_SCRIPT_EXAMPLE_WALL_POINT,
   solidScriptExampleSet('Wall', '[=Min([WallThickness], [Limit])]'),
   solidScriptExampleSegments('[Sides]'),
   ...solidScriptExampleRepeat('Piece', '0', '[Segments]', [
     ...solidScriptExamplePolyhedron(
       solidScriptExampleRepeat('Edge', '0', '2', [
         solidScriptExampleSet('Angle', '[=[Sweep] * ([Piece] + [Edge]) / [Segments]]'),
-        solidScriptExamplePoint('[=RingPoint([Angle], 0, -[$Box.Height] / 2)]'),
-        solidScriptExamplePoint('[=RingPoint([Angle], [Wall], -[$Box.Height] / 2)]'),
-        solidScriptExamplePoint('[=RingPoint([Angle], [Wall], [$Box.Height] / 2)]'),
-        solidScriptExamplePoint('[=RingPoint([Angle], 0, [$Box.Height] / 2)]'),
+        solidScriptExamplePoint('[=WallPoint([Angle], 0, -[$Box.Extents.Y])]'),
+        solidScriptExamplePoint('[=WallPoint([Angle], [Wall], -[$Box.Extents.Y])]'),
+        solidScriptExamplePoint('[=WallPoint([Angle], [Wall], [$Box.Extents.Y])]'),
+        solidScriptExamplePoint('[=WallPoint([Angle], 0, [$Box.Extents.Y])]'),
       ]),
     ),
   ]),
@@ -90,7 +86,7 @@ export const SOLID_SCRIPT_EXAMPLE_TORUS: readonly SolidScriptLine[] = [
   solidScriptExampleInput('Thickness', 'Number', '0.25', { label: 'Tube Thickness', min: '0.02', max: '0.5' }),
   solidScriptExampleInput('Sweep', 'Number', '360', { label: 'Sweep Angle', min: '1', max: '360' }),
   ...solidScriptExampleRingSize(),
-  ...SOLID_SCRIPT_EXAMPLE_RING_POINT,
+  ...SOLID_SCRIPT_EXAMPLE_WALL_POINT,
   solidScriptExampleSet('Tube', '[=Min([Thickness] * Min([Rx], [Rz]), [Limit] / 2)]'),
   ...solidScriptExampleNote('The tube profile, stretched so it reaches from -1 to 1 both ways.'),
   solidScriptExampleSet('Low', '1, 1'),
@@ -109,7 +105,7 @@ export const SOLID_SCRIPT_EXAMPLE_TORUS: readonly SolidScriptLine[] = [
           solidScriptExampleSet('Turn', '[=360 * ([I] + 0.5) / [TubeSides]]'),
           solidScriptExampleSet('U', '[=(Cos([Turn]) - [Low.X]) / ([High.X] - [Low.X]) * 2 - 1]'),
           solidScriptExampleSet('V', '[=(Sin([Turn]) - [Low.Y]) / ([High.Y] - [Low.Y]) * 2 - 1]'),
-          solidScriptExamplePoint('[=RingPoint([Angle], [Tube] * (1 - [U]), [$Box.Height] / 2 * [V])]'),
+          solidScriptExamplePoint('[=WallPoint([Angle], [Tube] * (1 - [U]), [$Box.Extents.Y] * [V])]'),
         ]),
       ]),
     ),
@@ -129,25 +125,21 @@ export const SOLID_SCRIPT_EXAMPLE_CURVED_STAIRS: readonly SolidScriptLine[] = [
   solidScriptExampleInput('StepDetail', 'Count', '2', { label: 'Step Detail', min: '1', max: '16' }),
   solidScriptExampleInput('FillToFloor', 'Switch', 'Yes', { label: 'Fill To Floor' }),
   solidScriptExampleInput('StepThickness', 'Number', '0.2', { label: 'Step Thickness', min: '0.01', max: '100' }),
-  solidScriptExampleSet('TurnSign', '1'),
-  ...solidScriptExampleIf('[Direction] == "Clockwise"', [solidScriptExampleSet('TurnSign', '-1')]),
   solidScriptExampleSet('Turn', '[=[Sweep] / [Steps]]'),
+  ...solidScriptExampleIf('[Direction] == "Clockwise"', [solidScriptExampleSet('Turn', '[=-[Turn]]')]),
   solidScriptExampleSet('Rise', '[=[$Box.Height] / [Steps]]'),
   solidScriptExampleSet('Thick', '[StepThickness]'),
   ...solidScriptExampleIf('[FillToFloor]', [
     solidScriptExampleSet('Thick', '[=[Rise] * Min([Steps], [Steps] * 360 / [Sweep])]'),
   ]),
   ...solidScriptExampleRepeat('Step', '0', '[Steps]', [
-    solidScriptExampleSet('Top', '[=-[$Box.Height] / 2 + [Rise] * ([Step] + 1)]'),
-    solidScriptExampleSet('Bottom', '[=Max(-[$Box.Height] / 2, [Top] - [Thick])]'),
+    solidScriptExampleSet('Top', '[=-[$Box.Extents.Y] + [Rise] * ([Step] + 1)]'),
+    solidScriptExampleSet('Bottom', '[=Max(-[$Box.Extents.Y], [Top] - [Thick])]'),
     ...solidScriptExampleRepeat('Part', '0', '[StepDetail]', [
       ...solidScriptExamplePolyhedron(
         solidScriptExampleRepeat('Edge', '0', '2', [
           solidScriptExampleSet('Angle', '[=[Turn] * ([Step] + ([Part] + [Edge]) / [StepDetail])]'),
-          solidScriptExampleSet(
-            'Out',
-            '[=[$Box.Width] / 2 * Cos([Angle])], 0, [=-[$Box.Depth] / 2 * Sin([Angle]) * [TurnSign]]',
-          ),
+          solidScriptExampleSet('Out', '[=RingPoint([Angle], [$Box.Size])]'),
           solidScriptExamplePoint('[=[Out.X] * [InnerRadius]], [Bottom], [=[Out.Z] * [InnerRadius]]'),
           solidScriptExamplePoint('[Out.X], [Bottom], [Out.Z]'),
           solidScriptExamplePoint('[Out.X], [Top], [Out.Z]'),

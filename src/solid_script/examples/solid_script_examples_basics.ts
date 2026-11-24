@@ -87,10 +87,10 @@ export const SOLID_SCRIPT_EXAMPLE_PILLAR_RING: readonly SolidScriptLine[] = [
   solidScriptExampleSet('Center', '0, 1.5, 0'),
   ...solidScriptExampleRepeat('I', '1', '[=[Count] + 1]', [
     ...solidScriptExampleNote(
-      'Each round, [Angle] is how far around the ring, in degrees. Vector, Cos and Sin turn that angle into a point on the circle, [Radius] metres from [Center].',
+      'Each round, [Angle] is how far around the ring, in degrees. RingPoint turns that angle and the width into a point on the circle, [Radius] metres from [Center].',
     ),
     solidScriptExampleSet('Angle', '[=360 / [Count] * [I]]'),
-    solidScriptExampleSet('Pos', '[=[Center] + Vector(Cos([Angle]), 0, -Sin([Angle])) * [Radius]]'),
+    solidScriptExampleSet('Pos', '[=[Center] + RingPoint([Angle], [Radius] * 2)]'),
     ...solidScriptExampleNote('A Transform whose Move is [Pos] builds the pillar already in place, around that point.'),
     ...solidScriptExampleBlock('transform', { move: '[Pos]' }, [
       solidScriptExampleLine('cylinder', {
