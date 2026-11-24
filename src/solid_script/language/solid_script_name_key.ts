@@ -17,6 +17,15 @@ const SOLID_SCRIPT_NAME_PREFIXES: readonly (readonly [string, string])[] = [
 ];
 
 /**
+ * System names that hold the script's own names, written $Local.Name and
+ * $Persistent.Name.
+ */
+export const SOLID_SCRIPT_NAME_SCOPES = ['$Local', '$Persistent'] as const;
+
+/** A system name that holds the script's own names, such as $Local. */
+export type SolidScriptNameScope = (typeof SOLID_SCRIPT_NAME_SCOPES)[number];
+
+/**
  * Tells whether a name is a system name: it starts with $ and is not one of the
  * script's own $Local. or $Persistent. names.
  *

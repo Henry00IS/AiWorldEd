@@ -108,6 +108,7 @@ export const SOLID_SCRIPT_EDITOR_CLASSES = {
   explorerRow: 'solid-script-editor-explorer-row',
   explorerHeader: 'solid-script-editor-explorer-header',
   explorerItem: 'solid-script-editor-explorer-item',
+  explorerPlaceholder: 'solid-script-editor-explorer-placeholder',
   explorerLines: 'solid-script-editor-explorer-lines',
   explorerLine: 'solid-script-editor-explorer-line',
   tokenBracket: 'solid-script-editor-token-bracket',
@@ -337,6 +338,7 @@ const SOLID_SCRIPT_EDITOR_PANES_CSS = `
 .${c.explorerHeader} { cursor: default; font: 600 11px ${Theme.uiFontFamily}; color: ${ThemeCss.mutedTextColor}; }
 .${c.explorerHeader}:hover { background: transparent; }
 .${c.explorerItem} { padding-left: 18px; }
+.${c.explorerPlaceholder} { color: ${ThemeCss.mutedTextColor}; font-style: italic; }
 .${c.explorerLines} { display: flex; gap: 3px; }
 .${c.explorerLine} { padding: 0 4px; border: 0; border-radius: 3px; background: ${ThemeCss.inkAlpha(0.08)}; color: ${ThemeCss.textColor}; font: inherit; cursor: pointer; }
 .${c.explorerLine}:hover { background: ${ThemeCss.inkAlpha(0.18)}; }

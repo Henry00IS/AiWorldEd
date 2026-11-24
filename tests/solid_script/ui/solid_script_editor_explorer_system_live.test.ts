@@ -121,4 +121,22 @@ describe('System names show the values of the run where it was captured', () => 
     expect(valueOf('$Selected.Objects')).toBe('[cube]');
     expect(valueOf('$Selected.Faces')).toBe('[Face 3]');
   });
+
+  it('lists $Persistent and $Local, muted when empty, $Persistent opening to its names', () => {
+    editorFixture([{ command: 'variable', values: { name: '$Persistent.Page', value: '1' } }]);
+    systemShow();
+    expect(valueOf('$Local')).toBe('Only Inside a Function');
+    expect(find('[data-name="$Local"] > :nth-child(2)').classList).toContain(
+      'solid-script-editor-explorer-placeholder',
+    );
+    expect(valueOf('$Persistent')).toBe('1 Value');
+    expect(find('[data-name="$Persistent"] > :nth-child(2)').classList).not.toContain(
+      'solid-script-editor-explorer-placeholder',
+    );
+    find('.solid-script-editor-explorer-row[data-name="$Persistent"] > *').click();
+    expect(explorerRows().filter((row) => row.startsWith('$Persistent.'))).toContainEqual(
+      expect.stringMatching(/^\$Persistent\.Page\|1\|/),
+    );
+    expect(explorerRows().some((row) => row.includes('$Persistent()'))).toBe(false);
+  });
 });

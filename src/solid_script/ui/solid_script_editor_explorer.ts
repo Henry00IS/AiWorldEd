@@ -9,21 +9,19 @@ import {
   type SolidScriptNameCategory,
 } from '@/solid_script/document/solid_script_document_names.js';
 import { solidScriptInputTypeLabel } from '@/solid_script/language/solid_script_input.js';
-import { solidScriptSystemValues } from '@/solid_script/language/solid_script_system.js';
 import type { SolidScriptProgramOptions } from '@/solid_script/language/solid_script_program.js';
-import { SOLID_SCRIPT_SYSTEM_CATALOG } from '@/solid_script/language/solid_script_system_names.js';
-import { solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
 import type {
   SolidScriptFrameView,
   SolidScriptLineSeen,
   SolidScriptVariable,
 } from '@/solid_script/language/solid_script_machine_types.js';
 import { SOLID_SCRIPT_EDITOR_CLASSES } from './solid_script_editor_css.js';
+import { solidScriptExplorerContextEntries } from './solid_script_editor_explorer_context.js';
 import {
-  solidScriptExplorerContextEntries,
-  solidScriptExplorerFills,
-  solidScriptExplorerFillText,
-} from './solid_script_editor_explorer_context.js';
+  solidScriptExplorerSort,
+  solidScriptExplorerSystemEntries,
+  solidScriptExplorerVariablesSorted,
+} from './solid_script_editor_explorer_system.js';
 import { solidScriptScrollerWrap } from './solid_script_editor_scroll.js';
 
 /**
@@ -158,6 +156,13 @@ export interface SolidScriptExplorerEntry {
   reaches?: string;
   /** True in Context for a name the focused line sets. */
   setHere?: boolean;
+  /** True when Value says why there is no value now, shown muted. */
+  placeholder?: boolean;
+  /**
+   * True when its items are names it holds, such as $Local.X, not numbered list
+   * items.
+   */
+  members?: boolean;
 }
 
 /** Friendly type of a name the run has not reached yet. */
@@ -180,7 +185,7 @@ const SOLID_SCRIPT_EXPLORER_TYPES_STATIC: Partial<Record<SolidScriptNameCategory
  * @param stack Running Functions and parts, outermost first.
  * @param run System lists of the run and where it stopped; none when nothing
  *   ran.
- * @returns Entries in category order.
+ * @returns Entries in category order, by letter within each category.
  */
 export function solidScriptExplorerEntries(
   script: SolidScriptDocument,
@@ -232,38 +237,8 @@ export function solidScriptExplorerEntries(
       detail: '',
     });
   }
-  const options = run.options;
-  const system = solidScriptSystemValues(
-    options?.context ?? 'generator',
-    options?.box ?? null,
-    false,
-    options?.use,
-    options?.pose,
-    options?.corners,
-  );
-  const lists = new Map(run.system.map((list) => [list.name, list]));
-  const filling = run.stoppedBefore === null ? [] : solidScriptExplorerFills(script, run.stoppedBefore);
-  for (const value of SOLID_SCRIPT_SYSTEM_CATALOG) {
-    const list = lists.get(value.name);
-    const current = system.get(value.name.slice(1));
-    let shown = value.absent;
-    if (list) shown = list.value;
-    else if (current !== undefined) shown = solidScriptValueText(current);
-    else if (run.stoppedBefore !== null && filling.includes(value.name))
-      shown = solidScriptExplorerFillText(run.stoppedBefore);
-    entries.push({
-      name: value.name,
-      category: 'System',
-      value: shown,
-      type: value.type,
-      lines: [],
-      items: list?.items ?? [],
-      readOnly: true,
-      detail: value.detail,
-    });
-  }
-  const order = (entry: SolidScriptExplorerEntry): number => SOLID_SCRIPT_NAME_CATEGORIES.indexOf(entry.category);
-  return entries.sort((left, right) => order(left) - order(right));
+  entries.push(...solidScriptExplorerSystemEntries(script, live, run));
+  return solidScriptExplorerSort(entries);
 }
 
 /**
@@ -564,7 +539,7 @@ export class SolidScriptEditorExplorer {
   private entryRows(entry: SolidScriptExplorerEntry, query: string): HTMLElement[] {
     const isList = entry.items.length > 0;
     const open = this.open.has(entry.name);
-    const label = `${isList ? (open ? '▾ ' : '▸ ') : ''}${entry.name}${isList ? '()' : ''}`;
+    const label = `${isList ? (open ? '▾ ' : '▸ ') : ''}${entry.name}${isList && !entry.members ? '()' : ''}`;
     const row = this.row(
       entry.name,
       label,
@@ -573,6 +548,7 @@ export class SolidScriptEditorExplorer {
       entry.lines,
       entry.reachLines?.at(-1),
     );
+    if (entry.placeholder) row.children[1]?.classList.add(SOLID_SCRIPT_EDITOR_CLASSES.explorerPlaceholder);
     const told = entry.reaches || entry.detail;
     const about = told === '' ? '' : `${solidScriptSentencePlain(solidScriptSentence(told))} `;
     const target = entry.reachLines?.at(-1) ?? entry.lines[0];
@@ -619,7 +595,7 @@ export class SolidScriptEditorExplorer {
       head.append(this.cell(frame.name), this.cell(`called on line ${frame.line}`));
       head.addEventListener('click', () => this.reveal(frame.line - 1));
       rows.push(head);
-      for (const local of frame.locals) {
+      for (const local of solidScriptExplorerVariablesSorted(frame.locals)) {
         const name = solidScriptNameShown(local.name);
         const entry: SolidScriptExplorerEntry = {
           name,

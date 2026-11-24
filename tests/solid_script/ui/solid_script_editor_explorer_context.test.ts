@@ -89,7 +89,7 @@ describe('Context lists what the focused line can read before it runs', () => {
       set('C', '[B]'),
     ];
     expect(contextAt(lines, 1)).toEqual(['A=Number', 'I=Number (set here)']);
-    expect(contextAt(lines, 3)).toEqual(['A=Number', 'Box=Solid', 'B=Number (set here)', 'I=Number']);
+    expect(contextAt(lines, 3)).toEqual(['A=Number', 'B=Number (set here)', 'Box=Solid', 'I=Number']);
     expect(contextAt(lines, 5).some((entry) => entry.startsWith('I='))).toBe(false);
   });
 
@@ -127,27 +127,27 @@ describe('Context lists what the focused line can read before it runs', () => {
   it('lists the selected lists everywhere and the fills only on the line that fills them', () => {
     const lines = [line('cube'), line('displace', { distance: '[$NZ]' })];
     expect(systemAt(lines, 0)).toEqual([
-      '$Selected.Objects',
-      '$Selected.Faces',
       '$Selected.Edges',
+      '$Selected.Faces',
+      '$Selected.Objects',
       '$Selected.Vertices',
     ]);
     expect(systemAt(lines, 1)).toEqual([
-      '$Selected.Objects',
-      '$Selected.Faces',
-      '$Selected.Edges',
-      '$Selected.Vertices',
+      '$Count',
+      '$Id',
+      '$Index',
+      '$NX',
+      '$NY',
+      '$NZ',
       '$Object',
+      '$Selected.Edges',
+      '$Selected.Faces',
+      '$Selected.Objects',
+      '$Selected.Vertices',
       '$Vertex',
       '$X',
       '$Y',
       '$Z',
-      '$NX',
-      '$NY',
-      '$NZ',
-      '$Count',
-      '$Index',
-      '$Id',
     ]);
   });
 

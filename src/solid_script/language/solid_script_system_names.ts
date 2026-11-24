@@ -5,7 +5,7 @@
  * the $.
  */
 
-import { solidScriptNameKey } from './solid_script_name_key.js';
+import { SOLID_SCRIPT_NAME_SCOPES, solidScriptNameKey, type SolidScriptNameScope } from './solid_script_name_key.js';
 import {
   SOLID_SCRIPT_SYSTEM_GLOBALS,
   SOLID_SCRIPT_SYSTEM_LISTED,
@@ -132,7 +132,28 @@ export interface SolidScriptSystemCatalogEntry {
   detail: string;
   /** What the explorer shows when the value cannot be read outside a run. */
   absent: string;
+  /**
+   * True for $Local and $Persistent, which hold the script's own names rather
+   * than a value.
+   */
+  scoped?: true;
 }
+
+/** What $Local and $Persistent hold, as the variable explorer lists them. */
+const SOLID_SCRIPT_SYSTEM_SCOPES: Record<SolidScriptNameScope, Omit<SolidScriptSystemCatalogEntry, 'name'>> = {
+  $Local: {
+    type: 'Function Variables',
+    detail: 'the variables of the running Function, written $Local.Name',
+    absent: 'Only Inside a Function',
+    scoped: true,
+  },
+  $Persistent: {
+    type: 'Kept Values',
+    detail: 'values kept between runs, written $Persistent.Name',
+    absent: 'No Values Yet',
+    scoped: true,
+  },
+};
 
 /**
  * Turns registered system values into catalog entries.
@@ -150,8 +171,8 @@ function solidScriptSystemCatalogFrom(
 
 /**
  * Every system name a script can read, from the registries above: the selected
- * lists, the built-in values and the command fills. The variable explorer lists
- * exactly these.
+ * lists, the built-in values, the command fills, and $Local and $Persistent.
+ * The variable explorer lists exactly these.
  */
 export const SOLID_SCRIPT_SYSTEM_CATALOG: readonly SolidScriptSystemCatalogEntry[] = [
   ...solidScriptSystemCatalogFrom(SOLID_SCRIPT_SYSTEM_SELECTED, 'Nothing Ran Yet'),
@@ -159,4 +180,5 @@ export const SOLID_SCRIPT_SYSTEM_CATALOG: readonly SolidScriptSystemCatalogEntry
   ...(Object.entries(SOLID_SCRIPT_SYSTEM_FILLS) as [SolidScriptSystemFillName, SolidScriptSystemFill][]).map(
     ([name, fill]) => ({ name, type: fill.type, detail: fill.detail, absent: 'Only Inside Lines That Fill It' }),
   ),
+  ...SOLID_SCRIPT_NAME_SCOPES.map((name) => ({ name, ...SOLID_SCRIPT_SYSTEM_SCOPES[name] })),
 ];

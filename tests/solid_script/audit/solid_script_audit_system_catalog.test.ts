@@ -60,7 +60,7 @@ describe('the System tab lists every system name, no exceptions', () => {
     const system = solidScriptExplorerEntries(solidScriptDocumentCreate([]), [], [])
       .filter((entry) => entry.category === 'System')
       .map((entry) => entry.name);
-    expect(system).toEqual(SOLID_SCRIPT_SYSTEM_CATALOG.map((entry) => entry.name));
+    expect([...system].sort()).toEqual(SOLID_SCRIPT_SYSTEM_CATALOG.map((entry) => entry.name).sort());
     expect(new Set(system.map((name) => name.toLowerCase())).size).toBe(system.length);
   });
 
@@ -106,10 +106,12 @@ describe('the System tab lists every system name, no exceptions', () => {
   });
 
   it('gives the analyzer the kind of every catalog name', () => {
-    const wrong = SOLID_SCRIPT_SYSTEM_CATALOG.filter((entry) => {
-      const kinds = solidScriptFlowPathKinds(entry.name, () => []);
-      return kinds.length !== 1 || kinds[0] !== entry.type;
-    }).map((entry) => entry.name);
+    const wrong = SOLID_SCRIPT_SYSTEM_CATALOG.filter((entry) => !entry.scoped)
+      .filter((entry) => {
+        const kinds = solidScriptFlowPathKinds(entry.name, () => []);
+        return kinds.length !== 1 || kinds[0] !== entry.type;
+      })
+      .map((entry) => entry.name);
     expect(wrong).toEqual([]);
   });
 

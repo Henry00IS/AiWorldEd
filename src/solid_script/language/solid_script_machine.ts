@@ -534,6 +534,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     const variables = [...(this.watchedValues ?? this.watched?.variablesVisible() ?? [])].map(([name, value]) =>
       solidScriptVariableView(this.spellings.get(name) ?? name, value),
     );
+    variables.push(...this.persistentViews());
     const warnings: SolidScriptWarning[] = [...this.warnings]
       .sort(([left], [right]) => left - right)
       .map(([line, text]) => ({ line, text }));

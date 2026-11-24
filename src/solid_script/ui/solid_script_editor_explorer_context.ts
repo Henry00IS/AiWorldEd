@@ -16,6 +16,7 @@ import {
 } from '@/solid_script/language/solid_script_system_names.js';
 import type { SolidScriptVariable } from '@/solid_script/language/solid_script_machine_types.js';
 import type { SolidScriptExplorerEntry } from './solid_script_editor_explorer.js';
+import { solidScriptExplorerSort } from './solid_script_editor_explorer_system.js';
 
 /** Type shown for a name whose kind only running tells. */
 const SOLID_SCRIPT_CONTEXT_KIND_UNKNOWN = 'Known When It Runs';
@@ -50,7 +51,8 @@ const SOLID_SCRIPT_CONTEXT_SELECTED = SOLID_SCRIPT_SYSTEM_CATALOG.filter((entry)
  * @param live Values by shown name as the line sees them, from where the run
  *   stopped, the last time the line ran, or where the run's values were
  *   captured; or null.
- * @returns Entries; empty when the line is not in the script.
+ * @returns Entries by category, then by letter; empty when the line is not in
+ *   the script.
  */
 export function solidScriptExplorerContextEntries(
   script: SolidScriptDocument,
@@ -67,7 +69,7 @@ export function solidScriptExplorerContextEntries(
   const fills = solidScriptExplorerFills(script, line);
   const filled = SOLID_SCRIPT_SYSTEM_CATALOG.filter((entry) => fills.includes(entry.name));
   const fillText = live ? solidScriptExplorerFillText(line) : null;
-  return [
+  return solidScriptExplorerSort([
     ...entries,
     ...SOLID_SCRIPT_CONTEXT_SELECTED.map((entry) => {
       const found = live?.get(entry.name);
@@ -76,7 +78,7 @@ export function solidScriptExplorerContextEntries(
     ...filled.map((entry) =>
       solidScriptContextSystemEntry(entry, ', filled by this line for its own fields', fillText, []),
     ),
-  ];
+  ]);
 }
 
 /**

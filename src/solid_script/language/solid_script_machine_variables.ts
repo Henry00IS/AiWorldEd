@@ -705,6 +705,18 @@ export abstract class SolidScriptMachineVariables implements SolidScriptFieldHos
   }
 
   /**
+   * Shows the persistent values as the run holds them now, written
+   * $Persistent.Name.
+   *
+   * @returns Persistent values with their values as text.
+   */
+  protected persistentViews(): SolidScriptVariable[] {
+    return [...this.persistent.variablesVisible()].map(([name, value]) =>
+      solidScriptVariableView(this.nameShown(`${SOLID_SCRIPT_PERSISTENT_PREFIX}${name}`), value),
+    );
+  }
+
+  /**
    * Notes a changed persistent value so the inspector stores it. Only When
    * Button Pressed and When Input Changes blocks store values; the normal build
    * may change them for its own run, so every rebuild gives the same shape.
