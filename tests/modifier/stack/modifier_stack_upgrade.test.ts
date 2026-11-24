@@ -76,7 +76,7 @@ function storedStack(node: unknown): SavedStack | undefined {
   const entry = node as { userData?: Record<string, unknown> } & Record<string, unknown>;
   const data = entry[MODIFIER_STACK_USERDATA_KEY] ?? entry.userData?.[MODIFIER_STACK_USERDATA_KEY];
   if (data) return data as SavedStack;
-  for (const child of Array.isArray(node) ? node : Object.values(entry.children ?? entry.objects ?? entry)) {
+  for (const child of Array.isArray(node) ? node : Object.values(entry['children'] ?? entry['objects'] ?? entry)) {
     const found = storedStack(child);
     if (found) return found;
   }
