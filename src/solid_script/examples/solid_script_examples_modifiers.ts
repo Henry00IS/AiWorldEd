@@ -320,46 +320,33 @@ export const SOLID_SCRIPT_EXAMPLE_RADIAL_ARRAY: readonly SolidScriptLine[] = [
   ...solidScriptExamplePassCopy(),
   ...solidScriptExampleIf('[Count] > 1', [
     ...solidScriptExampleRepeat('I', '1', '[Count]', [
-      solidScriptExampleSet('A', '[=[First] + [I] * [Turn]]'),
-      solidScriptExampleSet('C', '[=Cos([A])]'),
-      solidScriptExampleSet('S', '[=Sin([A])]'),
-      solidScriptExampleSet('T', '[=1 - [C]]'),
-      solidScriptExampleSet(
-        'R1',
-        '[=Vector([C] + [T] * [K.X] * [K.X], [T] * [K.X] * [K.Y] - [S] * [K.Z], [T] * [K.X] * [K.Z] + [S] * [K.Y])]',
+      ...solidScriptExampleNote(
+        'Rotation Around gives the turn; [X], [Y] and [Z] are where it sends each axis, the columns of the matrix.',
       ),
-      solidScriptExampleSet(
-        'R2',
-        '[=Vector([T] * [K.X] * [K.Y] + [S] * [K.Z], [C] + [T] * [K.Y] * [K.Y], [T] * [K.Y] * [K.Z] - [S] * [K.X])]',
-      ),
-      solidScriptExampleSet(
-        'R3',
-        '[=Vector([T] * [K.X] * [K.Z] - [S] * [K.Y], [T] * [K.Y] * [K.Z] + [S] * [K.X], [C] + [T] * [K.Z] * [K.Z])]',
-      ),
+      solidScriptExampleSet('Rot', '[=RotationAround([K], [First] + [I] * [Turn])]'),
+      solidScriptExampleSet('X', '[=ApplyRotation(Vector(1, 0, 0), [Rot])]'),
+      solidScriptExampleSet('Y', '[=ApplyRotation(Vector(0, 1, 0), [Rot])]'),
+      solidScriptExampleSet('Z', '[=ApplyRotation(Vector(0, 0, 1), [Rot])]'),
       ...solidScriptExampleNote('Where the pushed pivot point lands: the turned offset plus the rise.'),
-      solidScriptExampleSet('P', '[=[Around] + [Push]]'),
       solidScriptExampleSet(
         'Move',
-        '[=[Around] - Vector(Dot([R1], [Around]), Dot([R2], [Around]), Dot([R3], [Around])) + Vector(Dot([R1], [Push]), Dot([R2], [Push]), Dot([R3], [Push])) + [K] * [Rise] * [I]]',
+        '[=[Around] - ApplyRotation([Around], [Rot]) + ApplyRotation([Push], [Rot]) + [K] * [Rise] * [I]]',
       ),
       ...solidScriptExampleIf(
         '[RotateCopies]',
         [
           ...solidScriptExampleMatrixOf(
             {
-              row1: '[R1.X], [R1.Y], [R1.Z], [Move.X]',
-              row2: '[R2.X], [R2.Y], [R2.Z], [Move.Y]',
-              row3: '[R3.X], [R3.Y], [R3.Z], [Move.Z]',
+              row1: '[X.X], [Y.X], [Z.X], [Move.X]',
+              row2: '[X.Y], [Y.Y], [Z.Y], [Move.Y]',
+              row3: '[X.Z], [Y.Z], [Z.Z], [Move.Z]',
             },
             solidScriptExampleCopyUvs('[I]', false),
           ),
         ],
         [
           ...solidScriptExampleNote('Rotate Copies off: only the center moves, the solids keep their turn.'),
-          solidScriptExampleSet(
-            'Delta',
-            '[=Vector(Dot([R1], [Center]), Dot([R2], [Center]), Dot([R3], [Center])) + [Move] - [Center]]',
-          ),
+          solidScriptExampleSet('Delta', '[=ApplyRotation([Center], [Rot]) + [Move] - [Center]]'),
           ...solidScriptExampleMovedCopy('[Delta]', '[I]'),
         ],
       ),
@@ -383,49 +370,36 @@ export const SOLID_SCRIPT_EXAMPLE_TRANSFORM_ARRAY: readonly SolidScriptLine[] = 
   ...solidScriptExampleInputGroup('Pivot', [...solidScriptExampleComponents('Pivot', ['0', '0', '0'], 'Pivot')]),
   solidScriptExampleSet('Offset', '[=Vector([OffsetX], [OffsetY], [OffsetZ])]'),
   solidScriptExampleSet('Relative', '[=Vector([RelativeX], [RelativeY], [RelativeZ])]'),
-  solidScriptExampleSet('Rotation', '[=Vector([RotationX], [RotationY], [RotationZ])]'),
   solidScriptExampleSet('Pivot', '[=Vector([PivotX], [PivotY], [PivotZ])]'),
   ...solidScriptExampleNote(
-    'One step: turn by the X, Y and Z angles the way the editor does, around Pivot, then move.',
-  ),
-  solidScriptExampleSet('Cx', '[=Cos([Rotation.X])]'),
-  solidScriptExampleSet('Sx', '[=Sin([Rotation.X])]'),
-  solidScriptExampleSet('Cy', '[=Cos([Rotation.Y])]'),
-  solidScriptExampleSet('Sy', '[=Sin([Rotation.Y])]'),
-  solidScriptExampleSet('Cz', '[=Cos([Rotation.Z])]'),
-  solidScriptExampleSet('Sz', '[=Sin([Rotation.Z])]'),
-  solidScriptExampleSet('S1', '[=Vector([Cy] * [Cz], -[Cy] * [Sz], [Sy])]'),
-  solidScriptExampleSet(
-    'S2',
-    '[=Vector([Cx] * [Sz] + [Sx] * [Sy] * [Cz], [Cx] * [Cz] - [Sx] * [Sy] * [Sz], -[Sx] * [Cy])]',
+    'One step: turn by the Z, then Y, then X angle, the way the editor does, around Pivot, then move.',
   ),
   solidScriptExampleSet(
-    'S3',
-    '[=Vector([Sx] * [Sz] - [Cx] * [Sy] * [Cz], [Sx] * [Cz] + [Cx] * [Sy] * [Sz], [Cx] * [Cy])]',
+    'Step',
+    '[=CombineRotations(CombineRotations(Rotation(0, 0, [RotationZ]), Rotation(0, [RotationY], 0)), Rotation([RotationX], 0, 0))]',
   ),
   solidScriptExampleSet(
     'Move',
-    '[=[Offset] + Vector([Relative.X] * [$Input.Size.X], [Relative.Y] * [$Input.Size.Y], [Relative.Z] * [$Input.Size.Z]) + [Pivot] - Vector(Dot([S1], [Pivot]), Dot([S2], [Pivot]), Dot([S3], [Pivot]))]',
+    '[=[Offset] + Vector([Relative.X] * [$Input.Size.X], [Relative.Y] * [$Input.Size.Y], [Relative.Z] * [$Input.Size.Z]) + [Pivot] - ApplyRotation([Pivot], [Step])]',
   ),
-  ...solidScriptExampleNote('Copy 0 is the original; R1 to R3 and Shift hold the step applied I times.'),
+  ...solidScriptExampleNote(
+    'Copy 0 is the original. Total is the step turned I times and Shift the move it adds up to; [X], [Y] and [Z] are where Total sends each axis, the columns of the matrix.',
+  ),
   ...solidScriptExamplePassCopy(),
-  solidScriptExampleSet('R1', '[=Vector(1, 0, 0)]'),
-  solidScriptExampleSet('R2', '[=Vector(0, 1, 0)]'),
-  solidScriptExampleSet('R3', '[=Vector(0, 0, 1)]'),
+  solidScriptExampleSet('Total', '[=Rotation(0, 0, 0)]'),
   solidScriptExampleSet('Shift', '[=Vector(0, 0, 0)]'),
   ...solidScriptExampleIf('[Count] > 1', [
     ...solidScriptExampleRepeat('I', '1', '[Count]', [
-      solidScriptExampleSet('Shift', '[=Vector(Dot([S1], [Shift]), Dot([S2], [Shift]), Dot([S3], [Shift])) + [Move]]'),
-      solidScriptExampleSet('N1', '[=[R1] * [S1.X] + [R2] * [S1.Y] + [R3] * [S1.Z]]'),
-      solidScriptExampleSet('N2', '[=[R1] * [S2.X] + [R2] * [S2.Y] + [R3] * [S2.Z]]'),
-      solidScriptExampleSet('R3', '[=[R1] * [S3.X] + [R2] * [S3.Y] + [R3] * [S3.Z]]'),
-      solidScriptExampleSet('R1', '[N1]'),
-      solidScriptExampleSet('R2', '[N2]'),
+      solidScriptExampleSet('Shift', '[=ApplyRotation([Shift], [Step]) + [Move]]'),
+      solidScriptExampleSet('Total', '[=CombineRotations([Total], [Step])]'),
+      solidScriptExampleSet('X', '[=ApplyRotation(Vector(1, 0, 0), [Total])]'),
+      solidScriptExampleSet('Y', '[=ApplyRotation(Vector(0, 1, 0), [Total])]'),
+      solidScriptExampleSet('Z', '[=ApplyRotation(Vector(0, 0, 1), [Total])]'),
       ...solidScriptExampleMatrixOf(
         {
-          row1: '[R1.X], [R1.Y], [R1.Z], [Shift.X]',
-          row2: '[R2.X], [R2.Y], [R2.Z], [Shift.Y]',
-          row3: '[R3.X], [R3.Y], [R3.Z], [Shift.Z]',
+          row1: '[X.X], [Y.X], [Z.X], [Shift.X]',
+          row2: '[X.Y], [Y.Y], [Z.Y], [Shift.Y]',
+          row3: '[X.Z], [Y.Z], [Z.Z], [Shift.Z]',
         },
         solidScriptExampleCopyUvs('[I]', false),
       ),

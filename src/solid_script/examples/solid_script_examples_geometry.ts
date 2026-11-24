@@ -6,6 +6,8 @@ import {
   solidScriptExampleInput,
   solidScriptExampleLine,
   solidScriptExampleNote,
+  solidScriptExamplePoint,
+  solidScriptExamplePolyhedron,
   solidScriptExampleRepeat,
   solidScriptExampleSet,
 } from './solid_script_example_lines.js';
@@ -128,8 +130,68 @@ const SOLID_SCRIPT_EXAMPLE_PATH_STAIRS_RUN = pathAssetEncode({
 });
 
 /**
+ * Lines of the Side and Corner functions Path Stairs uses: the way to the right
+ * of a stretch seen from above, and where a side meets the next stretch's.
+ *
+ * @returns Lines.
+ */
+function solidScriptExamplePathStairsFunctions(): SolidScriptLine[] {
+  return [
+    ...solidScriptExampleNote(
+      'Side gives the way to the right of a stretch from From to To, seen from above, one long. A stretch that only climbs straight up has no side, so it gives 0, 0, 0.',
+    ),
+    ...solidScriptExampleBlock('function', { name: 'Side', parameters: 'From, To' }, [
+      solidScriptExampleSet('Local.Flat', '[=Vector([Local.To.Z] - [Local.From.Z], 0, [Local.From.X] - [Local.To.X])]'),
+      solidScriptExampleLine('return', { value: '[=[Local.Flat] / Max(0.0001, [Local.Flat.Length])]' }),
+    ]),
+    ...solidScriptExampleNote(
+      'Corner turns the Side before a bend and the Side after it into the one corner both steps share, stretched so both stay Width wide. A bend that turns right back keeps the Side after it.',
+    ),
+    ...solidScriptExampleBlock('function', { name: 'Corner', parameters: 'Before, After' }, [
+      solidScriptExampleSet('Local.Sum', '[=[Local.Before] + [Local.After]]'),
+      solidScriptExampleSet('Local.Mitre', '[=[Local.Sum] / Max(0.5, Dot([Local.Sum], [Local.After]))]'),
+      solidScriptExampleLine('return', {
+        value: '[=Lerp([Local.After], [Local.Mitre], Min(1, [Local.Sum.Length] * 4))]',
+      }),
+    ]),
+  ];
+}
+
+/**
+ * Lines of one step of Path Stairs: a Polyhedron from the flight's base up to
+ * the step's top, between its two pairs of corners.
+ *
+ * @returns Lines.
+ */
+function solidScriptExamplePathStairsStep(): SolidScriptLine[] {
+  return [
+    ...solidScriptExampleNote(
+      'The first step of a stretch starts at the corner it shares with the stretch before, and the last ends at the one it shares with the next, so steps round a bend meet with no gap. Steps between them are square.',
+    ),
+    solidScriptExampleSet('Near', '[=Lerp([Side], [Start], Max(0, 1 - [S])) * [Width] / 2]'),
+    solidScriptExampleSet('Far', '[=Lerp([Side], [End], Max(0, [S] + 2 - [Steps])) * [Width] / 2]'),
+    solidScriptExampleSet('From', '[=Lerp([A], [B], [S] / [Steps])]'),
+    solidScriptExampleSet('To', '[=Lerp([A], [B], ([S] + 1) / [Steps])]'),
+    solidScriptExampleSet('Top', '[=Lerp([A.Y], [B.Y], ([S] + 1) / [Steps])]'),
+    ...solidScriptExampleNote(
+      'Each step is a block from below the flight up to its own top; a level stretch has one step, which is the landing.',
+    ),
+    ...solidScriptExamplePolyhedron([
+      ...solidScriptExampleBlock(
+        'for_each',
+        { variable: 'C', list: '[=List([From] + [Near], [From] - [Near], [To] + [Far], [To] - [Far])]' },
+        [
+          solidScriptExamplePoint('[=Vector([C.X], [Base], [C.Z])]'),
+          solidScriptExamplePoint('[=Vector([C.X], [Top], [C.Z])]'),
+        ],
+      ),
+    ]),
+  ];
+}
+
+/**
  * Stairs along a Path input: every sloped stretch becomes a flight of steps and
- * every level stretch a landing, turned to face the way the path runs.
+ * every level stretch a landing, the steps round each bend sharing corners.
  */
 export const SOLID_SCRIPT_EXAMPLE_PATH_STAIRS: readonly SolidScriptLine[] = [
   ...solidScriptExampleNote(
@@ -138,32 +200,20 @@ export const SOLID_SCRIPT_EXAMPLE_PATH_STAIRS: readonly SolidScriptLine[] = [
   solidScriptExampleInput('Run', 'Path', SOLID_SCRIPT_EXAMPLE_PATH_STAIRS_RUN, { label: 'Run' }),
   solidScriptExampleInput('Width', 'Number', '1.2', { min: '0.3', max: '10', label: 'Width' }),
   solidScriptExampleInput('Rise', 'Number', '0.18', { min: '0.05', max: '1', label: 'Target Rise' }),
+  ...solidScriptExamplePathStairsFunctions(),
   solidScriptExampleSet('P', '[Run.Points]'),
   ...solidScriptExampleRepeat('I', '0', '[=Len([P]) - 1]', [
     ...solidScriptExampleNote(
-      '[A] and [B] are the ends of one stretch. [Flat] is the stretch seen from above, and [Turn] the way it faces, in degrees.',
+      '[A] and [B] are the ends of one stretch. [Start] and [End] are its corners at A and at B, shared with the stretches either side.',
     ),
     solidScriptExampleSet('A', '[=ItemClamp([P], [I])]'),
     solidScriptExampleSet('B', '[=ItemClamp([P], [I] + 1)]'),
-    solidScriptExampleSet('Flat', '[=Vector([B.X] - [A.X], 0, [B.Z] - [A.Z])]'),
-    solidScriptExampleSet('Turn', '[=Atan2([Flat.X], [Flat.Z])]'),
+    solidScriptExampleSet('Side', '[=Side([A], [B])]'),
+    solidScriptExampleSet('Start', '[=Corner(Side(ItemClamp([P], [I] - 1), [A]), [Side])]'),
+    solidScriptExampleSet('End', '[=Corner([Side], Side([B], ItemClamp([P], [I] + 2)))]'),
     solidScriptExampleSet('Steps', '[=Max(1, Round(Abs([B.Y] - [A.Y]) / [Rise]))]'),
     solidScriptExampleSet('Base', '[=Min([A.Y], [B.Y]) - [Rise]]'),
-    ...solidScriptExampleRepeat('S', '0', '[Steps]', [
-      ...solidScriptExampleNote(
-        'Each step is a block from below the flight up to its own top; a level stretch has one step, which is the landing.',
-      ),
-      solidScriptExampleSet('Top', '[=[A.Y] + ([B.Y] - [A.Y]) * ([S] + 1) / [Steps]]'),
-      solidScriptExampleSet('Mid', '[=Lerp([A], [B], ([S] + 0.5) / [Steps])]'),
-      ...solidScriptExampleBlock('transform', { move: '[=Vector([Mid.X], [Base], [Mid.Z])]' }, [
-        solidScriptExampleLine('cube', {
-          size: '[Width], [=[Top] - [Base]], [=[Flat.Length] / [Steps]]',
-          anchor: 'Center, Bottom, Center',
-        }),
-      ]),
-      solidScriptExampleLine('select_objects', { which: 'Between' }),
-      solidScriptExampleLine('rotate_to', { to: '0, [Turn], 0' }),
-    ]),
+    ...solidScriptExampleRepeat('S', '0', '[Steps]', solidScriptExamplePathStairsStep()),
   ]),
 ];
 
