@@ -56,11 +56,11 @@ describe('modifier stack buttons and drawings', () => {
     });
   });
 
-  it('presses a Button Input, keeps the Persistent value its When Button Pressed sets and passes on its messages', () => {
+  it('presses a Button Input, keeps the $Persistent value its When Button Pressed sets and passes on its messages', () => {
     const { node } = scene([
       PICK,
       { command: 'when_button_pressed', values: { name: 'PickRails' } },
-      { command: 'variable', values: { name: 'Persistent.Page', value: 'Rails' } },
+      { command: 'variable', values: { name: '$Persistent.Page', value: 'Rails' } },
       { command: 'show_message', values: { text: 'Rails picked' } },
       { command: 'end' },
       { command: 'widget_button', values: { writes: 'PickRails' } },
