@@ -740,3 +740,58 @@ function drag(editor: EditorWindow, from: [number, number], to: [number, number]
   [editor.lastPointerClientX, editor.lastPointerClientY] = to;
   editor.onGlobalMouseDrag(0, new THREE.Vector2(), new THREE.Vector2());
 }
+
+describe('Widget Direction snapping', () => {
+  /**
+   * Starts the Generator tool with one Widget Direction shown.
+   *
+   * @returns Editor and host spies.
+   */
+  async function aimSetup() {
+    const made = setup(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1)));
+    await click(made.editor, [100, 50], [100, 50]);
+    made.state.aims = [aim()];
+    made.editor.onRepaint();
+    return made;
+  }
+
+  /**
+   * Returns the last direction the arrow was pointed in.
+   *
+   * @param host Edit host.
+   * @returns Direction.
+   */
+  function aimed(host: GeneratorEditHost): THREE.Vector3 | undefined {
+    return vi.mocked(host.aim).mock.calls.at(-1)?.[1];
+  }
+
+  it('points the arrow at the grid point under the pointer', async () => {
+    const { editor, host } = await aimSetup();
+    drag(editor, [150, 50], [110, 3]);
+    expect(aimed(host)?.distanceTo(new THREE.Vector3(0, 1, 0))).toBeLessThan(1e-9);
+    editor.onGlobalMouseUp(0);
+  });
+
+  it('turns grid snapping the other way while Shift is held, at once when it changes', async () => {
+    const { editor, host } = await aimSetup();
+    const free = new THREE.Vector3(0.2, 0.94, 0).normalize();
+    drag(editor, [150, 50], [110, 3]);
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Shift', shiftKey: true }));
+    expect(aimed(host)?.distanceTo(free)).toBeLessThan(1e-9);
+    window.dispatchEvent(new KeyboardEvent('keyup', { key: 'Shift', shiftKey: false }));
+    expect(aimed(host)?.distanceTo(new THREE.Vector3(0, 1, 0))).toBeLessThan(1e-9);
+    editor.onGlobalMouseUp(0);
+  });
+
+  it('moves the tip along the axis of X, Y or Z, and the same key again frees it', async () => {
+    const { editor, host } = await aimSetup();
+    const key = (code: string): boolean => editor.onKeyDown(code, new KeyboardEvent('keydown', { code }));
+    drag(editor, [150, 50], [110, 3]);
+    expect(key('KeyY')).toBe(true);
+    expect(aimed(host)?.distanceTo(new THREE.Vector3(1, 1, 0).normalize())).toBeLessThan(1e-9);
+    expect(key('KeyY')).toBe(true);
+    expect(aimed(host)?.distanceTo(new THREE.Vector3(0, 1, 0))).toBeLessThan(1e-9);
+    editor.onGlobalMouseUp(0);
+    expect(key('KeyY')).toBe(false);
+  });
+});

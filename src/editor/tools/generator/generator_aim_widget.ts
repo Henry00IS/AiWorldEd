@@ -4,8 +4,16 @@ import { WidgetScreenElements, widgetScreenProject } from '@/editor/widgets/scre
 import type { EditorViewportPickContext } from '@/editor/window/editor_viewport_pick_context.js';
 import type { ModifierStackAim } from '@/modifier/stack/widgets/modifier_stack_aim_record.js';
 import { ThemeCss } from '@/ui/theme/theme_ui_css_variables.js';
+import { TransformModalAxis, transformModalAxisToggle } from '@/transform/modal/transform_modal_axis.js';
 import type { GeneratorEditHost } from './generator_edit_host.js';
-import { generatorPointerRay } from './generator_path_geometry.js';
+import {
+  GeneratorShiftWatch,
+  generatorAxisIndex,
+  generatorAxisKey,
+  generatorAxisUnit,
+  generatorShiftHeld,
+} from './generator_drag_keys.js';
+import { generatorPathAxisPoint, generatorPathPlanePoint } from './generator_path_geometry.js';
 import { GENERATOR_HANDLE_HOVER_COLOR, GENERATOR_HANDLE_STYLE } from './generator_handle_style.js';
 
 /** Pointer distance in pixels that still grabs a tip. */
@@ -19,10 +27,20 @@ interface GeneratorAimHit {
   pane: EditorViewportPickContext;
 }
 
+/** An arrow being dragged: where its tip started and the axis it is locked to. */
+interface GeneratorAimDrag extends GeneratorAimHit {
+  /** Tip when the drag started. */
+  anchor: THREE.Vector3;
+  /** World axis the tip moves along, or none. */
+  axis: TransformModalAxis;
+}
+
 /**
  * The Widget Direction arrows of the object being edited. Dragging a tip points
- * the arrow at the pointer, on the plane through the tip that faces the view;
- * the drag is one undo step and Escape takes it back.
+ * the arrow at the grid point under the pointer, on the grid plane through the
+ * tip that faces the camera, as path points move; X, Y or Z moves the tip along
+ * that world axis instead and Shift turns grid snapping the other way. The drag
+ * is one undo step and Escape takes it back.
  */
 export class GeneratorAimWidget extends Widget {
   /** Tip elements by pane and arrow key. */
@@ -30,7 +48,9 @@ export class GeneratorAimWidget extends Widget {
   /** Shaft lines by pane and arrow key. */
   private readonly shafts = new WidgetScreenElements((doc) => generatorAimElementCreate(doc, 'aimShaft'));
   /** Arrow being dragged, or null. */
-  private drag: GeneratorAimHit | null = null;
+  private drag: GeneratorAimDrag | null = null;
+  /** Turns snapping over at once when Shift changes during a drag. */
+  private readonly shift = new GeneratorShiftWatch(() => this.dragApply());
 
   /** Places every arrow of this frame and hides the rest. */
   override onRender(): void {
@@ -59,19 +79,17 @@ export class GeneratorAimWidget extends Widget {
   override onMouseDown(button: number): void {
     const host = this.host();
     if (button !== 0 || !host || !this.editor || this.drag) return;
-    this.drag = this.hit(host);
-    if (this.drag) this.latchWantsActiveFromGizmoState(true);
+    const hit = this.hit(host);
+    if (!hit) return;
+    const anchor = hit.aim.origin.clone().add(hit.aim.direction);
+    this.drag = { ...hit, anchor, axis: TransformModalAxis.None };
+    this.shift.start(this.editor, hit.pane.pickElement.ownerDocument.defaultView);
+    this.latchWantsActiveFromGizmoState(true);
   }
 
   /** Points the dragged arrow at the pointer. */
   override onGlobalMouseDrag(): void {
-    const drag = this.drag;
-    const host = this.host();
-    const aim = drag && host?.aims().find((each) => each.key === drag.aim.key);
-    if (!drag || !host || !aim || !this.editor) return;
-    const { lastPointerClientX: x, lastPointerClientY: y } = this.editor;
-    const direction = generatorAimDirectionAt(aim, drag.pane, x, y);
-    if (direction) host.aim(aim, direction);
+    this.dragApply();
   }
 
   /**
@@ -92,6 +110,12 @@ export class GeneratorAimWidget extends Widget {
    * @returns True when a drag was cancelled.
    */
   override onKeyDown(keyCode: string): boolean {
+    const axis = generatorAxisKey(keyCode);
+    if (axis && this.drag) {
+      this.drag.axis = transformModalAxisToggle(this.drag.axis, axis);
+      this.dragApply();
+      return true;
+    }
     if (keyCode !== 'Escape' || !this.drag) return false;
     this.dragStop();
     this.host()?.changeCancel();
@@ -107,9 +131,31 @@ export class GeneratorAimWidget extends Widget {
     super.onDeactivate();
   }
 
+  /**
+   * Points the dragged arrow at the grid point under the pointer, or at the
+   * point along the locked axis through where its tip started.
+   */
+  private dragApply(): void {
+    const drag = this.drag;
+    const host = this.host();
+    const editor = this.editor;
+    const aim = drag && host?.aims().find((each) => each.key === drag.aim.key);
+    if (!drag || !host || !aim || !editor) return;
+    const { lastPointerClientX: x, lastPointerClientY: y } = editor;
+    const snap = (value: number): number => host.snapDistance(value, generatorShiftHeld(editor));
+    const axis = generatorAxisIndex(drag.axis);
+    const tip =
+      axis === null
+        ? generatorPathPlanePoint(drag.pane, x, y, drag.anchor, snap)
+        : generatorPathAxisPoint(drag.pane, x, y, drag.anchor, generatorAxisUnit(axis, host.axisOrientation()), snap);
+    const direction = tip?.sub(aim.origin);
+    if (direction && direction.lengthSq() > 1e-12) host.aim(aim, direction.normalize());
+  }
+
   /** Forgets the drag and gives the pointer back. */
   private dragStop(): void {
     this.drag = null;
+    this.shift.stop();
     this.clearWantsActiveLatch();
   }
 
@@ -145,29 +191,6 @@ export class GeneratorAimWidget extends Widget {
   private host(): GeneratorEditHost | null {
     return this.editor?.getServices()?.getGeneratorEditHost?.() ?? null;
   }
-}
-
-/**
- * Returns the world direction from an arrow's start to where the pointer ray
- * meets the plane through its tip that faces the view.
- *
- * @param aim Arrow.
- * @param pane Pane the pointer is over.
- * @param clientX Pointer client X.
- * @param clientY Pointer client Y.
- * @returns Unit direction, or null when the pointer is on the start.
- */
-function generatorAimDirectionAt(
-  aim: ModifierStackAim,
-  pane: EditorViewportPickContext,
-  clientX: number,
-  clientY: number,
-): THREE.Vector3 | null {
-  const facing = pane.camera.getWorldDirection(new THREE.Vector3());
-  const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(facing, aim.origin.clone().add(aim.direction));
-  const hit = generatorPointerRay(pane, clientX, clientY).intersectPlane(plane, new THREE.Vector3());
-  const direction = hit?.sub(aim.origin);
-  return direction && direction.lengthSq() > 1e-12 ? direction.normalize() : null;
 }
 
 /**
