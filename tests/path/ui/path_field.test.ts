@@ -71,7 +71,7 @@ describe('PathField', () => {
     expect(onCommit).toHaveBeenCalledTimes(1);
   });
 
-  it('shows a selected point as one row per axis, like other vector fields, without the stretch', () => {
+  it('shows a selected point as one row per axis, like other vector fields, then the stretch leaving it', () => {
     const onCommit = vi.fn();
     const field = new PathField({ label: 'Rail', onCommit });
     field.setText(pathAssetEncode(SQUARE));
@@ -81,7 +81,7 @@ describe('PathField', () => {
     const axes = [...root.querySelectorAll('[aria-label^="Point "]')];
     expect(axes.map((each) => each.getAttribute('aria-label'))).toEqual(['Point X', 'Point Y', 'Point Z']);
     expect(new Set(axes.map((each) => each.closest('.modifier-stack-ui-row'))).size).toBe(3);
-    expect(root.querySelector('[aria-label="Stretch"]')).toBeNull();
+    expect(root.querySelector<HTMLSelectElement>('[aria-label="Stretch"]')?.value).toBe('Arc');
     type(root, 'Point X', '3');
     expect(onCommit).toHaveBeenLastCalledWith({
       ...SQUARE,
@@ -102,6 +102,49 @@ describe('PathField', () => {
     expect(onCommit.mock.lastCall?.[0].segments[1]).toEqual({ kind: 'Arc', degrees: 180, axis: [0, 1, 0] });
     type(root, 'Stretch', 'Bezier');
     expect(onCommit.mock.lastCall?.[0].segments[1].kind).toBe('Bezier');
+  });
+
+  it('changes the stretch after a Smooth one from its first point, at every end of open and closed paths', () => {
+    const onCommit = vi.fn();
+    const field = new PathField({ label: 'Rail', onCommit });
+    const root = field.getElement();
+    const open: PathAsset = {
+      ...SQUARE,
+      segments: [{ kind: 'Smooth' }, { kind: 'Smooth' }, { kind: 'Straight' }],
+      closed: false,
+    };
+    const stretch = () => root.querySelector<HTMLSelectElement>('[aria-label="Stretch"]');
+    field.setText(pathAssetEncode(open));
+    field.setSelected({ points: [2], segments: [] });
+    expect(root.querySelector('[data-path-point]')?.textContent).toContain('Stretch 3 of 3');
+    expect(stretch()?.value).toBe('Straight');
+    type(root, 'Stretch', 'Bezier');
+    expect(onCommit.mock.lastCall?.[0].segments.map((each: { kind: string }) => each.kind)).toEqual([
+      'Smooth',
+      'Smooth',
+      'Bezier',
+    ]);
+    field.setSelected({ points: [0], segments: [] });
+    expect(stretch()?.value).toBe('Smooth');
+    field.setSelected({ points: [1], segments: [] });
+    expect(stretch()?.value).toBe('Smooth');
+    field.setSelected({ points: [3], segments: [] });
+    expect(stretch()).toBeNull();
+    field.setSelected({ points: [1, 2], segments: [] });
+    expect(root.querySelector('[data-path-point]')?.textContent).toContain('2 Stretches');
+    expect(stretch()?.value).toBe('');
+    field.setText(
+      pathAssetEncode({
+        ...SQUARE,
+        segments: [{ kind: 'Smooth' }, { kind: 'Smooth' }, { kind: 'Smooth' }, { kind: 'Straight' }],
+      }),
+    );
+    field.setSelected({ points: [3], segments: [] });
+    expect(root.querySelector('[data-path-point]')?.textContent).toContain('Stretch 4 of 4');
+    type(root, 'Stretch', 'Arc');
+    expect(onCommit.mock.lastCall?.[0].segments[3].kind).toBe('Arc');
+    field.setSelected({ points: [0], segments: [2] });
+    expect(root.querySelector('[data-path-point]')?.textContent).toContain('Stretch 3 of 4');
   });
 
   it('edits what several selected points or stretches share', () => {

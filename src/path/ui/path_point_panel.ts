@@ -38,10 +38,11 @@ export const PATH_POINT_PANEL_NONE: PathPointPanelSelection = { points: [], segm
 
 /**
  * The selected points or stretches of a path in the inspector. Points show
- * their position, one row per axis, and Delete; stretches show their kind and
- * settings. With several selected, a field shows the value they share, or is
- * blank, and a typed value goes to all of them. Nothing shows while nothing is
- * selected; points and stretches are picked in the scene.
+ * their position, one row per axis, and Delete; stretches, or else the ones
+ * leaving the selected points, show their kind and settings. With several
+ * selected, a field shows the value they share, or is blank, and a typed value
+ * goes to all of them. Nothing shows while nothing is selected; points and
+ * stretches are picked in the scene.
  */
 export class PathPointPanel {
   /** Panel element. */
@@ -68,13 +69,16 @@ export class PathPointPanel {
 
   /**
    * Shows the selected points and the selected stretches, or hides the panel.
+   * Without a selected stretch, the stretches leaving the selected points show,
+   * as their handles do in the scene.
    *
    * @param path Path.
    * @param selected Selected points and stretches.
    */
   show(path: PathAsset, selected: PathPointPanelSelection): void {
     const points = selected.points.filter((index) => index < path.points.length);
-    const segments = selected.segments.filter((index) => index < path.segments.length);
+    const chosen = selected.segments.length > 0 ? selected.segments : points;
+    const segments = chosen.filter((index) => index < path.segments.length);
     const rows = [...(points.length > 0 ? this.pointRows(path, points) : []), ...this.stretchRows(path, segments)];
     this.element.style.display = rows.length > 0 ? 'grid' : 'none';
     this.element.replaceChildren(...rows);
