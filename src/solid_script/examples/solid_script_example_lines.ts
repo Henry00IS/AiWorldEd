@@ -96,14 +96,25 @@ export function solidScriptExampleIf(
   return solidScriptExampleBlock('if', { condition }, [...inside, ...rest]);
 }
 
+/** Longest note line of an example, in characters. */
+export const SOLID_SCRIPT_EXAMPLE_NOTE_WIDTH = 100;
+
 /**
- * Builds a Note line.
+ * Builds the Note lines of a text, broken between words so no line is longer
+ * than SOLID_SCRIPT_EXAMPLE_NOTE_WIDTH characters.
  *
  * @param text Note text.
- * @returns Line.
+ * @returns Lines.
  */
-export function solidScriptExampleNote(text: string): SolidScriptLine {
-  return solidScriptExampleLine('note', { text });
+export function solidScriptExampleNote(text: string): SolidScriptLine[] {
+  const rows: string[] = [];
+  for (const word of text.trim().split(/\s+/)) {
+    const last = rows[rows.length - 1];
+    if (last !== undefined && last.length + 1 + word.length <= SOLID_SCRIPT_EXAMPLE_NOTE_WIDTH)
+      rows[rows.length - 1] = `${last} ${word}`;
+    else rows.push(word);
+  }
+  return rows.map((row) => solidScriptExampleLine('note', { text: row }));
 }
 
 /**

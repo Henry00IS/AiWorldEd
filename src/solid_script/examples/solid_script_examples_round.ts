@@ -55,7 +55,7 @@ function solidScriptExampleRingOrTip(scale: string, height: string): SolidScript
 
 /** Port of the Cylinder generator. */
 export const SOLID_SCRIPT_EXAMPLE_CYLINDER: readonly SolidScriptLine[] = [
-  solidScriptExampleNote('Cylinder: a ring of corners at the bottom and one at the top, wrapped into one solid.'),
+  ...solidScriptExampleNote('Cylinder: a ring of corners at the bottom and one at the top, wrapped into one solid.'),
   SOLID_SCRIPT_EXAMPLE_SIDES,
   ...solidScriptExamplePolyhedron([
     ...solidScriptExampleRing('1', '[=-[$Box.Height] / 2]'),
@@ -65,10 +65,10 @@ export const SOLID_SCRIPT_EXAMPLE_CYLINDER: readonly SolidScriptLine[] = [
 
 /** Port of the Cone generator. */
 export const SOLID_SCRIPT_EXAMPLE_CONE: readonly SolidScriptLine[] = [
-  solidScriptExampleNote('Cone: a ring at the bottom and a smaller ring, or a tip, at the top.'),
+  ...solidScriptExampleNote('Cone: a ring at the bottom and a smaller ring, or a tip, at the top.'),
   SOLID_SCRIPT_EXAMPLE_SIDES,
   solidScriptExampleInput('TopRadius', 'Number', '0', { label: 'Top Radius', min: '0', max: '1' }),
-  solidScriptExampleNote(
+  ...solidScriptExampleNote(
     'If the top radius is zero, an If builds a tip instead of a ring. Else runs when the condition does not hold.',
   ),
   ...solidScriptExamplePolyhedron([
@@ -79,7 +79,7 @@ export const SOLID_SCRIPT_EXAMPLE_CONE: readonly SolidScriptLine[] = [
 
 /** Port of the Sphere generator. */
 export const SOLID_SCRIPT_EXAMPLE_SPHERE: readonly SolidScriptLine[] = [
-  solidScriptExampleNote('Sphere: rings from the bottom pole to the top pole, each sized by how far round it is.'),
+  ...solidScriptExampleNote('Sphere: rings from the bottom pole to the top pole, each sized by how far round it is.'),
   SOLID_SCRIPT_EXAMPLE_SIDES,
   solidScriptExampleInput('Coverage', 'Choice', 'Full Sphere', { label: 'Shape', choices: 'Full Sphere, Dome' }),
   solidScriptExampleInput('Rings', 'Count', '8', { label: 'Rings', min: '2', max: '32' }),
@@ -101,7 +101,7 @@ export const SOLID_SCRIPT_EXAMPLE_SPHERE: readonly SolidScriptLine[] = [
 
 /** Port of the Capsule generator. */
 export const SOLID_SCRIPT_EXAMPLE_CAPSULE: readonly SolidScriptLine[] = [
-  solidScriptExampleNote('Capsule: a round end at the bottom and at the top, joined by straight sides.'),
+  ...solidScriptExampleNote('Capsule: a round end at the bottom and at the top, joined by straight sides.'),
   SOLID_SCRIPT_EXAMPLE_SIDES,
   solidScriptExampleInput('CapRings', 'Count', '4', { label: 'Cap Rings', min: '1', max: '16' }),
   solidScriptExampleSet('Cap', '[=Min([$Box.Width] / 2, [$Box.Height] / 2)]'),
@@ -127,7 +127,7 @@ const SOLID_SCRIPT_EXAMPLE_COLUMN_PROFILE = curveEncode(curvePresetBuild(SOLID_S
 
 /** Port of the Column generator, for round sections. */
 export const SOLID_SCRIPT_EXAMPLE_COLUMN: readonly SolidScriptLine[] = [
-  solidScriptExampleNote(
+  ...solidScriptExampleNote(
     'Column: the Profile curve is the radius along the height. Pieces that bulge outward join into one solid; where the curve turns inward a new solid starts.',
   ),
   solidScriptExampleInput('Profile', 'Curve', SOLID_SCRIPT_EXAMPLE_COLUMN_PROFILE, { label: 'Profile' }),
@@ -135,8 +135,8 @@ export const SOLID_SCRIPT_EXAMPLE_COLUMN: readonly SolidScriptLine[] = [
   solidScriptExampleInput('Aspect', 'Number', '1', { label: 'Depth / Width', min: '0.05', max: '20' }),
   solidScriptExampleSet('Radius', '[=Min([$Box.Width], [$Box.Depth] / [Aspect]) / 2]'),
   solidScriptExampleSet('Stations', '[=ProfilePoints([Profile], [$Box.Height], [Radius])]'),
-  solidScriptExampleNote('Sort the stations into runs: x is the height, y the radius, z the run.'),
-  solidScriptExampleNote(
+  ...solidScriptExampleNote('Sort the stations into runs: x is the height, y the radius, z the run.'),
+  ...solidScriptExampleNote(
     'Clear Variable empties [Marks]. Add Item appends to that list, and Remove Item takes the last item off when two steps are the same.',
   ),
   solidScriptExampleLine('clear_variable', { name: 'Marks' }),
@@ -173,7 +173,7 @@ export const SOLID_SCRIPT_EXAMPLE_COLUMN: readonly SolidScriptLine[] = [
       ),
     ]),
   ]),
-  solidScriptExampleNote('Each run is one solid: a ring of corners per station, or a tip where the radius is zero.'),
+  ...solidScriptExampleNote('Each run is one solid: a ring of corners per station, or a tip where the radius is zero.'),
   ...solidScriptExampleRepeat('R', '0', '[=[Run] + 1]', [
     ...solidScriptExamplePolyhedron(
       solidScriptExampleBlock('for_each', { variable: 'M', list: '[Marks]' }, [

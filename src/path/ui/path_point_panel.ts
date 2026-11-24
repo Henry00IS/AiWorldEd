@@ -67,7 +67,7 @@ export class PathPointPanel {
   }
 
   /**
-   * Shows the selected points, else the selected stretches, or hides the panel.
+   * Shows the selected points and the selected stretches, or hides the panel.
    *
    * @param path Path.
    * @param selected Selected points and stretches.
@@ -75,7 +75,7 @@ export class PathPointPanel {
   show(path: PathAsset, selected: PathPointPanelSelection): void {
     const points = selected.points.filter((index) => index < path.points.length);
     const segments = selected.segments.filter((index) => index < path.segments.length);
-    const rows = points.length > 0 ? this.pointRows(path, points) : this.stretchRows(path, segments);
+    const rows = [...(points.length > 0 ? this.pointRows(path, points) : []), ...this.stretchRows(path, segments)];
     this.element.style.display = rows.length > 0 ? 'grid' : 'none';
     this.element.replaceChildren(...rows);
   }

@@ -302,8 +302,22 @@ const SOLID_SCRIPT_REFERENCE_TOOLS = `## Tools
  * @returns Code block.
  */
 function solidScriptReferenceJson(lines: readonly SolidScriptLine[]): string {
-  const rows = lines.map((line) => JSON.stringify(line).replaceAll('":', '": ').replaceAll(',"', ', "'));
+  const rows = lines.map(solidScriptReferenceJsonValue);
   return `\`\`\`\n[${rows.join(',\n ')}]\n\`\`\``;
+}
+
+/**
+ * Writes a value as JSON with a space after every colon and comma between its
+ * parts, leaving the text inside strings as it is.
+ *
+ * @param value Value.
+ * @returns JSON text.
+ */
+function solidScriptReferenceJsonValue(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(solidScriptReferenceJsonValue).join(', ')}]`;
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  const entries = Object.entries(value).filter(([, each]) => each !== undefined);
+  return `{${entries.map(([key, each]) => `${JSON.stringify(key)}: ${solidScriptReferenceJsonValue(each)}`).join(', ')}}`;
 }
 
 /**

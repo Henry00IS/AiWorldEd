@@ -58,12 +58,12 @@ function solidScriptExampleSegments(sides: string): SolidScriptLine {
 
 /** Port of the Pipe generator. */
 export const SOLID_SCRIPT_EXAMPLE_PIPE: readonly SolidScriptLine[] = [
-  solidScriptExampleNote('Pipe: the wall is cut into pieces around the turn; each piece joins two cross-sections.'),
+  ...solidScriptExampleNote('Pipe: the wall is cut into pieces around the turn; each piece joins two cross-sections.'),
   solidScriptExampleInput('Sides', 'Count', '16', { label: 'Sides', min: '3', max: '64' }),
   solidScriptExampleInput('WallThickness', 'Number', '0.25', { label: 'Wall Thickness', min: '0.01', max: '100' }),
   solidScriptExampleInput('Sweep', 'Number', '360', { label: 'Sweep Angle', min: '1', max: '360' }),
   ...solidScriptExampleRingSize(),
-  solidScriptExampleNote(
+  ...solidScriptExampleNote(
     'Function RingPoint gives a point back with Return, so later lines can write [=RingPoint(...)] in a formula. [Local.Angle], [Local.Inset] and [Local.Height] are the values for this one call.',
   ),
   ...SOLID_SCRIPT_EXAMPLE_RING_POINT,
@@ -84,7 +84,7 @@ export const SOLID_SCRIPT_EXAMPLE_PIPE: readonly SolidScriptLine[] = [
 
 /** Port of the Torus generator. */
 export const SOLID_SCRIPT_EXAMPLE_TORUS: readonly SolidScriptLine[] = [
-  solidScriptExampleNote('Torus: a round tube profile, copied around the ring; each piece joins two copies.'),
+  ...solidScriptExampleNote('Torus: a round tube profile, copied around the ring; each piece joins two copies.'),
   solidScriptExampleInput('RingSides', 'Count', '16', { label: 'Ring Sides', min: '3', max: '64' }),
   solidScriptExampleInput('TubeSides', 'Count', '8', { label: 'Tube Sides', min: '3', max: '32' }),
   solidScriptExampleInput('Thickness', 'Number', '0.25', { label: 'Tube Thickness', min: '0.02', max: '0.5' }),
@@ -92,7 +92,7 @@ export const SOLID_SCRIPT_EXAMPLE_TORUS: readonly SolidScriptLine[] = [
   ...solidScriptExampleRingSize(),
   ...SOLID_SCRIPT_EXAMPLE_RING_POINT,
   solidScriptExampleSet('Tube', '[=Min([Thickness] * Min([Rx], [Rz]), [Limit] / 2)]'),
-  solidScriptExampleNote('The tube profile, stretched so it reaches from -1 to 1 both ways.'),
+  ...solidScriptExampleNote('The tube profile, stretched so it reaches from -1 to 1 both ways.'),
   solidScriptExampleSet('Low', '1, 1'),
   solidScriptExampleSet('High', '-1, -1'),
   ...solidScriptExampleRepeat('I', '0', '[TubeSides]', [
@@ -118,7 +118,7 @@ export const SOLID_SCRIPT_EXAMPLE_TORUS: readonly SolidScriptLine[] = [
 
 /** Port of the Curved Stairs generator. */
 export const SOLID_SCRIPT_EXAMPLE_CURVED_STAIRS: readonly SolidScriptLine[] = [
-  solidScriptExampleNote('Curved Stairs: each step turns a little further and sits a little higher.'),
+  ...solidScriptExampleNote('Curved Stairs: each step turns a little further and sits a little higher.'),
   solidScriptExampleInput('Steps', 'Count', '12', { label: 'Steps', min: '2', max: '128' }),
   solidScriptExampleInput('Sweep', 'Number', '270', { label: 'Sweep Angle', min: '1', max: '1440' }),
   solidScriptExampleInput('InnerRadius', 'Number', '0.3', { label: 'Inner Radius', min: '0', max: '0.95' }),

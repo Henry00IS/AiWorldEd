@@ -16,6 +16,7 @@ import {
 import {
   SOLID_SCRIPT_DOCUMENT_NAME_DEFAULT,
   solidScriptDocumentCreate,
+  solidScriptDocumentEditModeFresh,
   solidScriptDocumentUsesWith,
   type SolidScriptDocument,
   type SolidScriptLine,
@@ -604,7 +605,7 @@ export class SolidScriptEditor extends PanelFloating {
   private async examples(): Promise<void> {
     const example = await solidScriptExamplesAsk(this.root.ownerDocument.body);
     if (!example) return;
-    this.commit(this.scriptForHost(example.lines, example.name, example.uses), 0);
+    this.commit(solidScriptDocumentEditModeFresh(this.scriptForHost(example.lines, example.name, example.uses)), 0);
     this.noticeShow(`Opened the ${example.name} example. Undo brings your script back.`);
   }
 

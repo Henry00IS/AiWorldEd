@@ -63,7 +63,13 @@ export abstract class WidgetScreenButton extends Widget {
     const frame = this.visible ? this.frameRead() : { panes: [], anchors: [] };
     const shown = new Set<HTMLElement>();
     for (const pane of frame.panes) {
-      for (const anchor of frame.anchors) shown.add(this.place(pane, anchor));
+      const counts = new Map<string, number>();
+      for (const anchor of frame.anchors) {
+        const key = anchor.position.toArray().join(',');
+        const row = counts.get(key) ?? 0;
+        counts.set(key, row + 1);
+        shown.add(this.place(pane, anchor, row));
+      }
     }
     this.elements.hideOthers(shown);
   }
@@ -104,14 +110,17 @@ export abstract class WidgetScreenButton extends Widget {
   }
 
   /**
-   * Moves one button to its projected point, hidden when off screen.
+   * Moves one button to its projected point, hidden when off screen. Buttons
+   * with one world anchor stack downwards in a tight list, independent of
+   * zoom.
    *
    * @param pane Pane camera and pick surface.
    * @param anchor Button to place.
+   * @param row Row among buttons with this anchor.
    * @returns The button element.
    */
-  private place(pane: EditorViewportPickContext, anchor: WidgetScreenButtonAnchor): HTMLElement {
-    const element = this.elements.place(pane, anchor.key, anchor.position);
+  private place(pane: EditorViewportPickContext, anchor: WidgetScreenButtonAnchor, row: number): HTMLElement {
+    const element = this.elements.place(pane, anchor.key, anchor.position, row * WIDGET_SCREEN_BUTTON_ROW_HEIGHT);
     element.textContent = anchor.label;
     element.title = anchor.title;
     element.setAttribute('aria-label', anchor.title);
@@ -219,12 +228,18 @@ export abstract class WidgetScreenButton extends Widget {
 }
 
 /** Inline style of a screen button; it never receives pointer events. */
+/** Pixel spacing between buttons with one anchor, including their small gap. */
+const WIDGET_SCREEN_BUTTON_ROW_HEIGHT = 26;
+
 const WIDGET_SCREEN_BUTTON_STYLE: Partial<CSSStyleDeclaration> = {
   position: 'fixed',
   transform: 'translate(-50%, -50%)',
   pointerEvents: 'none',
   zIndex: '5',
   padding: '3px 12px',
+  minWidth: '64px',
+  boxSizing: 'border-box',
+  textAlign: 'center',
   borderRadius: '4px',
   border: `1px solid ${ThemeCss.inputBorderColor}`,
   background: ThemeCss.buttonBackground,

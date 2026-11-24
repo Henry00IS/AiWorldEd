@@ -76,7 +76,9 @@ const SOLID_SCRIPT_EXAMPLE_SLAB_CLIP: readonly SolidScriptLine[] = [
 
 /** Port of the Stairs generator. */
 export const SOLID_SCRIPT_EXAMPLE_STAIRS: readonly SolidScriptLine[] = [
-  solidScriptExampleNote('Stairs: a row of steps, each one a box or a slice of a sloped slab, with an optional nose.'),
+  ...solidScriptExampleNote(
+    'Stairs: a row of steps, each one a box or a slice of a sloped slab, with an optional nose.',
+  ),
   solidScriptExampleInput('Direction', 'Choice', 'Front', { label: 'Ascend', choices: 'Right, Left, Front, Back' }),
   solidScriptExampleInput('Sizing', 'Choice', 'Target Rise', { label: 'Steps By', choices: 'Target Rise, Step Count' }),
   solidScriptExampleInput('Rise', 'Number', '0.125', { label: 'Target Rise', min: '0.01', max: '10' }),
@@ -107,7 +109,7 @@ export const SOLID_SCRIPT_EXAMPLE_STAIRS: readonly SolidScriptLine[] = [
   solidScriptExampleSet('Run', '[=([Length] - [Flat]) / [Steps]]'),
   solidScriptExampleSet('Tread', '[Up]'),
   ...solidScriptExampleIf('[Fill] == "Floating Treads"', [solidScriptExampleSet('Tread', '[Thickness]')]),
-  solidScriptExampleNote('The nose: how far it sticks out and how tall it is, kept inside the step.'),
+  ...solidScriptExampleNote('The nose: how far it sticks out and how tall it is, kept inside the step.'),
   solidScriptExampleSet('NoseDepth', '[=Min([Nosing], [Run] * 0.5)]'),
   solidScriptExampleSet('NoseLimit', '[=Min([Up], [Tread])]'),
   solidScriptExampleSet('NoseTall', '[=Min([NoseHeight], [NoseLimit])]'),
@@ -120,7 +122,7 @@ export const SOLID_SCRIPT_EXAMPLE_STAIRS: readonly SolidScriptLine[] = [
       value: '[=[Floor] + (([LandingStep] ? [From] : [Local.Along]) - [NoseDepth]) * [Slope] - [Drop]]',
     }),
   ]),
-  solidScriptExampleNote('Set here, so the underside function can read them for each step.'),
+  ...solidScriptExampleNote('Set here, so the underside function can read them for each step.'),
   solidScriptExampleSet('From', '0'),
   solidScriptExampleSet('LandingStep', 'No'),
   ...solidScriptExampleRepeat('I', '0', '[Steps]', [

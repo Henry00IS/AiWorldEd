@@ -11,6 +11,7 @@ import {
 import {
   MODIFIER_STACK_SOLID_SCRIPT_KEY,
   MODIFIER_STACK_SOLID_SCRIPT_KIND,
+  MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND,
 } from './kinds/generator/solid_script/modifier_stack_solid_script_keys.js';
 
 /**
@@ -59,9 +60,9 @@ export class CommandModifierStackSet implements UndoCommand {
   }
 
   /**
-   * Keeps the live script of every SolidScript step whose script this command
-   * did not change itself: scripts have their own undo history in the script
-   * editor, so scene undo and redo leave them alone.
+   * Keeps the live script of every SolidScript generator or modifier step whose
+   * script this command did not change itself: scripts have their own undo
+   * history in the script editor, so scene undo and redo leave them alone.
    *
    * @param target Settings to apply.
    * @returns Settings with the live scripts kept.
@@ -74,7 +75,8 @@ export class CommandModifierStackSet implements UndoCommand {
     const script = (settings: ModifierStackSettings, id: string): unknown =>
       settings.modifiers.find((entry) => entry.id === id)?.parameters[MODIFIER_STACK_SOLID_SCRIPT_KEY];
     const modifiers = target.modifiers.map((entry) => {
-      if (entry.kind !== MODIFIER_STACK_SOLID_SCRIPT_KIND) return entry;
+      if (entry.kind !== MODIFIER_STACK_SOLID_SCRIPT_KIND && entry.kind !== MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND)
+        return entry;
       if (JSON.stringify(script(this.before, entry.id)) !== JSON.stringify(script(this.after, entry.id))) return entry;
       const kept = script(live, entry.id);
       if (kept === undefined) return entry;

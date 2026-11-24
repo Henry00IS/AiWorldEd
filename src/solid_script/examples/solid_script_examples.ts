@@ -283,6 +283,17 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
 ];
 
 /**
+ * Counts the lines of an example that do something, leaving out notes and blank
+ * lines.
+ *
+ * @param example Example.
+ * @returns Line count.
+ */
+export function solidScriptExampleLineCount(example: SolidScriptExample): number {
+  return example.lines.filter((line) => line.command !== 'note' && line.command !== 'blank').length;
+}
+
+/**
  * Finds the examples whose name, group or summary holds every word of a search.
  *
  * @param search Search text.

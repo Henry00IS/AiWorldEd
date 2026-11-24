@@ -106,4 +106,19 @@ describe('SolidScript editor undo history', () => {
     scriptKey('y');
     expect(names()).toBe('_ab');
   });
+
+  it('keeps the script of a SolidScript modifier through a level undo of its inputs', () => {
+    const { script, node, stepId, commandStack } = editorFixture(VARIABLES.slice(0, 3), 'modifier');
+    const names = (): string =>
+      script()
+        .blocks.map((block) => block.values['name'] ?? '_')
+        .join('');
+    modifierStackParametersCommit(node, stepId, { inputs: { width: '3' } }, commandStack);
+    press(chip(2), 'Delete');
+    expect(names()).toBe('ab');
+    commandStack.undo();
+    expect(names()).toBe('ab');
+    commandStack.redo();
+    expect(names()).toBe('ab');
+  });
 });

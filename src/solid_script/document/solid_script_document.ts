@@ -170,6 +170,17 @@ export function solidScriptDocumentEditModeWith(document: SolidScriptDocument, o
 }
 
 /**
+ * Turns Has Edit Mode on for a script that starts fresh, such as an example,
+ * when it has lines edited in the scene: Widget lines or Path inputs.
+ *
+ * @param document Script.
+ * @returns Script.
+ */
+export function solidScriptDocumentEditModeFresh(document: SolidScriptDocument): SolidScriptDocument {
+  return solidScriptDocumentSceneEditedCount(document) > 0 ? solidScriptDocumentEditModeWith(document, true) : document;
+}
+
+/**
  * Counts the lines of a script that run and are edited in the scene: Widget
  * lines and Path inputs.
  *

@@ -113,4 +113,17 @@ describe('WidgetScreenButton', () => {
     await click([100, 50], [100, 50]);
     expect(probe.clicks).toEqual(['Center']);
   });
+
+  it('stacks buttons that share one point into a tight list, each still clickable', async () => {
+    const at = new THREE.Vector3(0, 0, 0);
+    const probe = setup({ Shape: at, Place: at.clone(), Aim: at.clone() });
+    const tops = ['Shape', 'Place', 'Aim'].map((key) =>
+      parseFloat(document.querySelector<HTMLElement>(`[aria-label="${key}"]`)?.style.top ?? ''),
+    );
+    expect(tops[1]! - tops[0]!).toBe(tops[2]! - tops[1]!);
+    expect(tops[1]! - tops[0]!).toBeGreaterThan(10);
+    expect(tops[1]! - tops[0]!).toBeLessThan(30);
+    await click([100, tops[2]!], [100, tops[2]!]);
+    expect(probe.clicks).toEqual(['Aim']);
+  });
 });

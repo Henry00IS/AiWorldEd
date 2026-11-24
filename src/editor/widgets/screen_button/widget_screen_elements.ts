@@ -66,14 +66,15 @@ export class WidgetScreenElements {
    * @param pane Pane camera and pick surface.
    * @param key Key.
    * @param position World point.
+   * @param offsetY Pixels to move it down from the point.
    * @returns The element.
    */
-  place(pane: EditorViewportPickContext, key: string, position: Vector3): HTMLElement {
+  place(pane: EditorViewportPickContext, key: string, position: Vector3, offsetY = 0): HTMLElement {
     const point = widgetScreenProject(position, pane);
     const element = this.get(pane.pickElement, key);
     element.hidden = !point.visible;
     element.style.left = `${point.x}px`;
-    element.style.top = `${point.y}px`;
+    element.style.top = `${point.y + offsetY}px`;
     return element;
   }
 

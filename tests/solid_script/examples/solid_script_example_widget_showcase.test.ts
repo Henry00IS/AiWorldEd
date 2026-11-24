@@ -40,4 +40,33 @@ describe('Widget Showcase example', () => {
     const back = solidScriptDocumentEvent(SCRIPT, { kind: 'button', name: 'PickShape' }, aim, null).next;
     expect(shown(back).on).toEqual(['Shape']);
   });
+
+  it('keeps every widget outside the box and lists the menu toggles at one point beside it', () => {
+    const place = solidScriptDocumentEvent(SCRIPT, { kind: 'button', name: 'PickPlace' }, {}, null).next;
+    const aim = solidScriptDocumentEvent(SCRIPT, { kind: 'button', name: 'PickAim' }, place, null).next;
+    const within = (value: number, low: number, high: number): boolean => value > low + 0.01 && value < high - 0.01;
+    const turned = ([x, y, z]: readonly number[], angle: number): number[] => [
+      x! * Math.cos(angle) - z! * Math.sin(angle),
+      y!,
+      x! * Math.sin(angle) + z! * Math.cos(angle),
+    ];
+    const square = ([x, y, z]: readonly number[]): boolean =>
+      within(x!, -1, 1) && within(z!, -1, 1) && (within(y!, -0.5, 0.5) || within(y!, 0.7, 0.8));
+    const inside = (point: readonly number[]): boolean => square(turned(point, Math.PI / 6));
+    for (const inputs of [{}, place, aim]) {
+      const run = solidScriptProgramRun(SCRIPT, { inputs });
+      const points = run.widgets.map((widget) => {
+        const record = widget as unknown as Record<string, unknown>;
+        const origin = (record['at'] ?? record['origin']) as number[];
+        const direction = record['direction'] as number[] | undefined;
+        const value = typeof record['value'] === 'number' ? record['value'] : 0;
+        return widget.kind === 'Slider' && direction
+          ? origin.map((each, index) => each + direction[index]! * value)
+          : origin;
+      });
+      expect(points.filter(inside)).toEqual([]);
+      const toggles = run.widgets.filter((widget) => widget.kind === 'Toggle');
+      expect(new Set(toggles.map((widget) => JSON.stringify((widget as unknown as { at: number[] }).at))).size).toBe(1);
+    }
+  });
 });

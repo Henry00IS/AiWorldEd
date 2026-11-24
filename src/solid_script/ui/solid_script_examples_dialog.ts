@@ -1,5 +1,6 @@
 import {
   SOLID_SCRIPT_EXAMPLE_GROUPS,
+  solidScriptExampleLineCount,
   solidScriptExamplesFind,
   type SolidScriptExample,
 } from '@/solid_script/examples/solid_script_examples.js';
@@ -88,7 +89,7 @@ class SolidScriptExamplesDialog extends SolidScriptDialog {
     if (rows.length === 0) rows.push(this.heading('No example matches.'));
     this.list.replaceChildren(...rows);
     this.about.textContent = this.selected
-      ? `${this.selected.summary} ${this.selected.lines.length} lines.`
+      ? `${this.selected.summary} ${solidScriptExampleLineCount(this.selected)} lines.`
       : 'Try another word.';
     this.confirmEnable(this.selected !== null);
   }

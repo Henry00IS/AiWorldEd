@@ -64,8 +64,9 @@ export function pathInputRow(options: PathInputRowOptions): { element: HTMLEleme
     const mine = picked?.name === options.name && picked.stepId === options.placeOf()?.stepId;
     field.setSelected(mine ? picked : PATH_POINT_PANEL_NONE);
   };
-  const stop = pathEditSelectionListen(() => (element.isConnected ? follow() : stop()));
+  const listening = pathInputRowListen(element, follow);
   const write = (text: string): void => {
+    listening();
     const reference = pathReferenceRead(text);
     own = (reference ? reference.fallback : pathAssetDecode(text)) ?? PATH_ASSET_DEFAULT;
     follows?.write(reference?.scene ?? PATH_INPUT_ROW_OWN);
@@ -74,6 +75,27 @@ export function pathInputRow(options: PathInputRowOptions): { element: HTMLEleme
     follow();
   };
   return { element, write };
+}
+
+/**
+ * Keeps a row following the scene selection while it is in the page. A row that
+ * left the page stops listening, so it can be dropped; the inspector shows it
+ * again with a write, which listens again.
+ *
+ * @param element Row element.
+ * @param follow Shows the selection.
+ * @returns Starts listening when the row stopped.
+ */
+function pathInputRowListen(element: HTMLElement, follow: () => void): () => void {
+  let stop: (() => void) | null = null;
+  const heard = (): void => {
+    if (element.isConnected) return follow();
+    stop?.();
+    stop = null;
+  };
+  return () => {
+    stop ??= pathEditSelectionListen(heard);
+  };
 }
 
 /**

@@ -19,13 +19,15 @@ const SOLID_SCRIPT_EXAMPLE_HALF = solidScriptExampleSet(
 
 /** Port of the Pyramid generator. */
 export const SOLID_SCRIPT_EXAMPLE_PYRAMID: readonly SolidScriptLine[] = [
-  solidScriptExampleNote('Pyramid: four corners on the floor and a smaller square, or a tip, at the top.'),
+  ...solidScriptExampleNote('Pyramid: four corners on the floor and a smaller square, or a tip, at the top.'),
   solidScriptExampleInput('TopSize', 'Number', '0', { label: 'Top Size', min: '0', max: '1' }),
-  solidScriptExampleNote(
+  ...solidScriptExampleNote(
     '[Box] is the generator box in the editor: its Width, Height and Depth. [Half] is half of that, so the pyramid sits in the box.',
   ),
   SOLID_SCRIPT_EXAMPLE_HALF,
-  solidScriptExampleNote('Polyhedron builds one solid from corners you list. Each Point is one corner of the pyramid.'),
+  ...solidScriptExampleNote(
+    'Polyhedron builds one solid from corners you list. Each Point is one corner of the pyramid.',
+  ),
   ...solidScriptExamplePolyhedron(
     solidScriptExampleRepeat('Corner', '0', '4', [
       solidScriptExampleSet('Side', '[=([Corner] % 2) * 2 - 1], 0, [=Floor([Corner] / 2) * 2 - 1]'),
@@ -37,11 +39,11 @@ export const SOLID_SCRIPT_EXAMPLE_PYRAMID: readonly SolidScriptLine[] = [
 
 /** Port of the Prism generator. */
 export const SOLID_SCRIPT_EXAMPLE_PRISM: readonly SolidScriptLine[] = [
-  solidScriptExampleNote('Prism: a regular polygon stretched to the box, copied at both ends of its axis.'),
+  ...solidScriptExampleNote('Prism: a regular polygon stretched to the box, copied at both ends of its axis.'),
   solidScriptExampleInput('Sides', 'Count', '3', { label: 'Sides', min: '3', max: '12' }),
   solidScriptExampleInput('Axis', 'Choice', 'Along Z', { label: 'Axis', choices: 'Along Z, Along X, Upright' }),
-  solidScriptExampleNote('First find how far the polygon reaches, so it can be stretched to fill the box.'),
-  solidScriptExampleNote(
+  ...solidScriptExampleNote('First find how far the polygon reaches, so it can be stretched to fill the box.'),
+  ...solidScriptExampleNote(
     'If runs the lines inside only when its condition holds. Here each If picks the axis and writes the matching corners.',
   ),
   solidScriptExampleSet('Low', '1, 1'),
@@ -108,10 +110,10 @@ function solidScriptExampleSlab(from: string, to: string): SolidScriptLine {
 
 /** Port of the Hollow Box generator. */
 export const SOLID_SCRIPT_EXAMPLE_HOLLOW_BOX: readonly SolidScriptLine[] = [
-  solidScriptExampleNote('Hollow Box: a floor, a ceiling and four walls, each one box.'),
+  ...solidScriptExampleNote('Hollow Box: a floor, a ceiling and four walls, each one box.'),
   solidScriptExampleInput('WallThickness', 'Number', '0.25', { label: 'Wall Thickness', min: '0.01', max: '100' }),
   solidScriptExampleInput('OpenTop', 'Switch', 'No', { label: 'Open Top' }),
-  solidScriptExampleNote(
+  ...solidScriptExampleNote(
     'Function names a group of lines so Call can run them later. Slab takes From and To; inside the function, [Local.From] and [Local.To] are the values from that Call. The script skips the Function lines where they stand.',
   ),
   ...solidScriptExampleSlabFunction(),
@@ -149,7 +151,7 @@ function solidScriptExampleArchCorner(value: string): SolidScriptLine {
 
 /** Port of the Arch generator. */
 export const SOLID_SCRIPT_EXAMPLE_ARCH: readonly SolidScriptLine[] = [
-  solidScriptExampleNote(
+  ...solidScriptExampleNote(
     'Arch: a half ellipse cut into segments. A ring makes one stone per segment, a wall fills up to the top beside two piers, and a tunnel fills the opening.',
   ),
   solidScriptExampleInput('Style', 'Choice', 'Voussoir Ring', {
@@ -162,7 +164,7 @@ export const SOLID_SCRIPT_EXAMPLE_ARCH: readonly SolidScriptLine[] = [
   solidScriptExampleInput('Sweep', 'Number', '180', { label: 'Sweep °', min: '1', max: '180' }),
   solidScriptExampleInput('Start', 'Choice', 'Center', { label: 'Start From', choices: 'Center, Left, Right' }),
   solidScriptExampleInput('Thickness', 'Number', '0.25', { label: 'Thickness', min: '0.01', max: '100' }),
-  solidScriptExampleNote('The arch rises along Y and spans X, or Z when Span Along is z.'),
+  ...solidScriptExampleNote('The arch rises along Y and spans X, or Z when Span Along is z.'),
   solidScriptExampleSet('AlongX', '[=[Span] == "Along X"]'),
   solidScriptExampleSet('Half', '[=([AlongX] ? [$Box.Width] : [$Box.Depth]) / 2]'),
   solidScriptExampleSet('Across', '[=([AlongX] ? [$Box.Depth] : [$Box.Width]) / 2]'),
@@ -196,7 +198,7 @@ export const SOLID_SCRIPT_EXAMPLE_ARCH: readonly SolidScriptLine[] = [
   ]),
   ...solidScriptExampleIf('[Rx] >= 0.0001 and [Ry] >= 0.0001', [
     ...solidScriptExampleIf('[Style] == "Wall With Opening"', [
-      solidScriptExampleNote('The piers beside the opening.'),
+      ...solidScriptExampleNote('The piers beside the opening.'),
       ...solidScriptExampleRepeat('Side', '0', '2', [
         solidScriptExampleSet('Inner', '[=[Side] == 0 ? -[Rx] : [Rx]]'),
         solidScriptExampleSet('Outer', '[=[Side] == 0 ? -[Half] : [Half]]'),

@@ -36,7 +36,7 @@ function solidScriptExampleSweepPiece(from: string, to: string, corners: readonl
  * and a handrail.
  */
 export const SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE: readonly SolidScriptLine[] = [
-  solidScriptExampleNote(
+  ...solidScriptExampleNote(
     'This is a showcase of a finished piece. If you are new, start with Wall With a Doorway under Basics, then come back. Treads go around a center column, with a smooth slope below, a stringer and a handrail.',
   ),
   solidScriptExampleInput('Steps', 'Count', '18', { label: 'Steps', min: '3', max: '128' }),
@@ -50,13 +50,13 @@ export const SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE: readonly SolidScriptLine[] =
   solidScriptExampleSet('Per', '[=[Turn] / [Steps]]'),
   solidScriptExampleSet('Base', '[=-[Height] / 2]'),
   solidScriptExampleSet('RailAt', '[=[Outer] - 0.1]'),
-  solidScriptExampleNote('A point at an angle, a distance from the middle and a height.'),
+  ...solidScriptExampleNote('A point at an angle, a distance from the middle and a height.'),
   ...solidScriptExampleBlock('function', { name: 'Spot', parameters: 'Angle, Radius, Height' }, [
     solidScriptExampleLine('return', {
       value: '[=Vector([Local.Radius] * Cos([Local.Angle]), [Local.Height], -[Local.Radius] * Sin([Local.Angle]))]',
     }),
   ]),
-  solidScriptExampleNote('The slope rises evenly with the angle, through the front edge of every tread.'),
+  ...solidScriptExampleNote('The slope rises evenly with the angle, through the front edge of every tread.'),
   ...solidScriptExampleBlock('function', { name: 'Slope', parameters: 'Angle' }, [
     solidScriptExampleLine('return', { value: '[=[Base] + [Rise] * [Local.Angle] / [Per]]' }),
   ]),
@@ -90,7 +90,7 @@ export const SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE: readonly SolidScriptLine[] =
       }),
     ]),
   ]),
-  solidScriptExampleNote(
+  ...solidScriptExampleNote(
     'The slope, the outer stringer and the handrail follow the turn in small twisted pieces, so they look smooth.',
   ),
   solidScriptExampleSet('Pieces', '[=[Steps] * [Smooth]]'),
@@ -109,7 +109,9 @@ export const SOLID_SCRIPT_EXAMPLE_SPIRAL_STAIRCASE: readonly SolidScriptLine[] =
       '[=Spot([A], [Outer] + 0.04, Slope([A]) + [Rise] + 0.04)]',
       '[=Spot([A], [Outer], Slope([A]) + [Rise] + 0.04)]',
     ]),
-    solidScriptExampleNote('The handrail runs through the post tops: a post stands half a step past the front edge.'),
+    ...solidScriptExampleNote(
+      'The handrail runs through the post tops: a post stands half a step past the front edge.',
+    ),
     ...solidScriptExampleSweepPiece('[From]', '[To]', [
       '[=Spot([A], [RailAt] - 0.035, Slope([A]) + [Rise] * 0.5 + [RailHeight] - 0.03)]',
       '[=Spot([A], [RailAt] + 0.035, Slope([A]) + [Rise] * 0.5 + [RailHeight] - 0.03)]',
