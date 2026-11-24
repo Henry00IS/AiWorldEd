@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { SolidScriptBlockRun } from './solid_script_machine_types.js';
-import { solidScriptGeometryFacesOutside, type SolidScriptFaceFacts } from './solid_script_geometry.js';
+import type { SolidScriptFaceFacts } from './solid_script_geometry.js';
+import { solidScriptGeometryFacesOutside } from './solid_script_geometry_outside.js';
 import {
   SolidScriptPoint,
   solidScriptValueNumber,

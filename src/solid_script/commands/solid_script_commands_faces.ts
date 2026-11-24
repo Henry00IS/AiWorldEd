@@ -1,3 +1,4 @@
+import { solidScriptGeometryFacesOutside } from '@/solid_script/language/solid_script_geometry_outside.js';
 import { SOLID_SCRIPT_COMMANDS_EXTRUDE } from './solid_script_commands_extrude.js';
 import { solidScriptListingOf } from './solid_script_command_listing.js';
 import { solidScriptParameterOfWhere } from './solid_script_command_of_where.js';
@@ -27,7 +28,6 @@ import { solidScriptScaleFaces } from '@/solid_script/language/solid_script_scal
 import { SOLID_SCRIPT_COMMAND_SCATTER } from './solid_script_commands_scatter.js';
 import {
   solidScriptGeometryFaces,
-  solidScriptGeometryFacesOutside,
   solidScriptGeometryInset,
   type SolidScriptFaceFacts,
 } from '@/solid_script/language/solid_script_geometry.js';

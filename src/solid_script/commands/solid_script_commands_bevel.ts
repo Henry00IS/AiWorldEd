@@ -163,14 +163,18 @@ function solidScriptBevelSolidStore(
   cuts: readonly { normal: THREE.Vector3; point: THREE.Vector3 }[],
 ): SolidScriptValue[] {
   const bevelled = { ...leaf, ...body };
-  const made = solidScriptGeometryFaces([bevelled])
+  const made = body.faces
+    .map((loop) => ({
+      point: solidScriptMeshLoopCenter(body.points, loop),
+      normal: solidScriptMeshLoopNormal(body.points, loop),
+      tag: SOLID_SCRIPT_BEVEL_TAG,
+    }))
     .filter((face) =>
       cuts.some(
         (cut) =>
-          cut.normal.dot(face.normal) > 0.9999 && Math.abs(face.center.clone().sub(cut.point).dot(cut.normal)) < 1e-5,
+          cut.normal.dot(face.normal) > 0.9999 && Math.abs(face.point.clone().sub(cut.point).dot(cut.normal)) < 1e-5,
       ),
-    )
-    .map((face) => ({ point: face.center.clone(), normal: face.normal.clone(), tag: SOLID_SCRIPT_BEVEL_TAG }));
+    );
   return solidScriptBevelStore(run, leaf, bevelled, made);
 }
 

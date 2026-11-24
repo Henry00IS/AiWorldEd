@@ -10,7 +10,7 @@ import {
   solidScriptPointsFromVertexTargets,
   solidScriptPointsFromVertices,
 } from '@/solid_script/language/solid_script_points_from.js';
-import { solidScriptGeometryFacesOutside } from '@/solid_script/language/solid_script_geometry.js';
+import { solidScriptGeometryFacesOutside } from '@/solid_script/language/solid_script_geometry_outside.js';
 import {
   solidScriptValueNumber,
   solidScriptValueNumbers,
