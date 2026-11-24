@@ -176,6 +176,18 @@ export class SolidScriptElements {
   }
 
   /**
+   * Returns the entry of an element that keeps Data; paths keep none.
+   *
+   * @param element Element.
+   * @returns Entry.
+   */
+  private dataEntry(element: SolidScriptElement): SolidScriptElementEntry {
+    if (element.kind === 'path')
+      throw new Error('Paths have no Data; keep values for a path in a variable or a Dictionary');
+    return this.entry(element);
+  }
+
+  /**
    * Makes a new element.
    *
    * @param kind What it stands for.
@@ -610,7 +622,7 @@ export class SolidScriptElements {
    */
   data(element: SolidScriptElement): SolidScriptDictionary {
     if (element instanceof SolidScriptDictionary) return element;
-    const entry = this.entry(element);
+    const entry = this.dataEntry(element);
     if (entry.dataElement) return entry.dataElement;
     const dictionary = new SolidScriptDictionary(entry.data, this.entries.length + 1);
     this.add('data', entry.leaf, { data: entry.data, element: dictionary });
@@ -625,7 +637,7 @@ export class SolidScriptElements {
    * @returns Values.
    */
   private dataValues(element: SolidScriptElement): Map<string, SolidScriptDictionaryEntry> {
-    return element instanceof SolidScriptDictionary ? element.entries : this.entry(element).data;
+    return element instanceof SolidScriptDictionary ? element.entries : this.dataEntry(element).data;
   }
 
   /**
