@@ -5,7 +5,7 @@ import { curveFromPolyline } from '@/curve/model/curve_model.js';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptDocumentCreate } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptShapeLeavesPositive } from '@/solid_script/language/solid_script_shape.js';
-import { modifierStackKindFind } from '@/modifier/stack/modifier_stack_catalog.js';
+import { modifierStackKindFind, modifierStackKinds } from '@/modifier/stack/modifier_stack_catalog.js';
 import { ModifierStackKindGenerator } from '@/modifier/stack/kinds/generator/modifier_stack_kind_generator.js';
 import { modifierStackSolidScriptLayout } from '@/modifier/stack/kinds/generator/solid_script/modifier_stack_solid_script_layout.js';
 import type { SolidTreeNode } from '@/solid/commands/tree/solid_tree_node.js';
@@ -209,6 +209,16 @@ const PORT_CASES: Record<string, PortCase[]> = {
     { size: [4, 3, 5], parameters: { steps: 20, sweep: 720, innerRadius: 0, direction: 'Clockwise', stepDetail: 1 } },
     { size: [3, 3, 2], parameters: { steps: 6, sweep: 90, fillToFloor: false, stepThickness: 0.1, stepDetail: 3 } },
   ],
+  icosphere: [
+    { size: [2, 2, 2], parameters: {} },
+    { size: [3, 2, 1.5], parameters: { subdivisions: 1 } },
+    { size: [2, 4, 3], parameters: { subdivisions: 3 } },
+  ],
+  rhombicuboctahedron: [
+    { size: [2, 2, 2], parameters: {} },
+    { size: [3, 2, 1.5], parameters: { precision: 'Precise' } },
+    { size: [1, 4, 2], parameters: { precision: 'Grid Aligned' } },
+  ],
   stairs: [
     { size: [2, 4, 2], parameters: {} },
     {
@@ -221,7 +231,21 @@ const PORT_CASES: Record<string, PortCase[]> = {
   ],
 };
 
+/**
+ * Generators with no port: Blast Hole's seeded ragged outline and convex split
+ * are a tool, not a lesson.
+ */
+const SOLID_SCRIPT_TEST_UNPORTED = ['blastHole', 'solidScript'];
+
 describe('SolidScript ports of the generators', () => {
+  it('has a port of every built-in generator', () => {
+    const generators = modifierStackKinds
+      .filter((kind) => kind instanceof ModifierStackKindGenerator && !SOLID_SCRIPT_TEST_UNPORTED.includes(kind.id))
+      .map((kind) => kind.id);
+    const ported = SOLID_SCRIPT_EXAMPLES.flatMap((example) => example.port ?? []);
+    expect(generators.filter((id) => !ported.includes(id))).toEqual([]);
+  });
+
   for (const example of SOLID_SCRIPT_EXAMPLES.filter((entry) => entry.port)) {
     const cases = PORT_CASES[example.port ?? ''] ?? [];
     it(`${example.name} builds what the ${example.port} generator builds`, () => {

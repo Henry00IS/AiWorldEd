@@ -1,3 +1,7 @@
+import {
+  SOLID_SCRIPT_EXAMPLE_ICOSPHERE,
+  SOLID_SCRIPT_EXAMPLE_RHOMBICUBOCTAHEDRON,
+} from './solid_script_examples_polyhedra.js';
 import { SOLID_SCRIPT_EXAMPLE_WIDGET_SHOWCASE } from './solid_script_examples_widgets.js';
 import type { SolidScriptLine, SolidScriptUses } from '@/solid_script/document/solid_script_document.js';
 import {
@@ -267,6 +271,8 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
   solidScriptExamplePort('cylinder', 'Cylinder', SOLID_SCRIPT_EXAMPLE_CYLINDER),
   solidScriptExamplePort('cone', 'Cone', SOLID_SCRIPT_EXAMPLE_CONE),
   solidScriptExamplePort('sphere', 'Sphere', SOLID_SCRIPT_EXAMPLE_SPHERE),
+  solidScriptExamplePort('icosphere', 'Icosphere', SOLID_SCRIPT_EXAMPLE_ICOSPHERE),
+  solidScriptExamplePort('rhombicuboctahedron', 'Rhombicuboctahedron', SOLID_SCRIPT_EXAMPLE_RHOMBICUBOCTAHEDRON),
   solidScriptExamplePort('capsule', 'Capsule', SOLID_SCRIPT_EXAMPLE_CAPSULE),
   solidScriptExamplePort('hollowBox', 'Hollow Box', SOLID_SCRIPT_EXAMPLE_HOLLOW_BOX),
   solidScriptExamplePort('column', 'Column', SOLID_SCRIPT_EXAMPLE_COLUMN),
