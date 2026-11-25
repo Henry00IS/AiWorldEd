@@ -1,4 +1,5 @@
-import { curveDecode, curveEncode } from '@/curve/model/curve_codec.js';
+import { curveEncode } from '@/curve/model/curve_codec.js';
+import { solidScriptCurveFromText } from '@/solid_script/language/solid_script_curve_read.js';
 import { curveFromPolyline, type Curve } from '@/curve/model/curve_model.js';
 import { CurveField } from '@/curve/ui/curve_field.js';
 import { MODIFIER_STACK_CURVE_MARKER_STYLE } from '@/modifier/stack/ui/modifier_stack_curve_row.js';
@@ -61,7 +62,7 @@ function solidScriptCurveHasBracket(text: string): boolean {
  * @returns Decoded curve, or null.
  */
 function solidScriptCurveStoredDecode(text: string, raw: boolean): Curve | null {
-  return curveDecode(raw ? text.trim() : solidScriptCurveUnescape(text.trim()));
+  return solidScriptCurveFromText(raw ? text.trim() : solidScriptCurveUnescape(text.trim()));
 }
 
 /**
@@ -99,11 +100,13 @@ export function solidScriptConfiguratorCurve(
     read: () => {
       if (field.picking) return field.readPicked();
       const typed = input.value.trim();
-      return !curve.raw && curveDecode(typed) ? solidScriptCurveEscape(typed) : typed;
+      return !curve.raw && typed.startsWith('{') && solidScriptCurveFromText(typed)
+        ? solidScriptCurveEscape(typed)
+        : typed;
     },
     problem: () => {
       if (field.picking) return '';
-      return curveDecode(input.value.trim()) ? '' : problem();
+      return solidScriptCurveFromText(input.value.trim()) ? '' : problem();
     },
   };
 }
@@ -220,7 +223,7 @@ class SolidScriptConfiguratorCurveField {
   private writePreview(text: string): void {
     const decoded =
       solidScriptCurveStoredDecode(text, this.curve.raw === true) ??
-      curveDecode(this.curve.fallback) ??
+      solidScriptCurveFromText(this.curve.fallback) ??
       solidScriptCurveDefault();
     this.curveField.setCurve(decoded);
   }

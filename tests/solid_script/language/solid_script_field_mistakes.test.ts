@@ -133,4 +133,26 @@ describe('SolidScript mistake hints', () => {
     expect(solidScriptFieldMistake('[Box.Width]')).toBe('[$Box.Width]');
     expect(solidScriptFieldMistake('[=Pi * 2]')).toBe('[=[$Math.Pi] * 2]');
   });
+
+  it('never treats negative number literals or negative vectors/point lists as math, while real math still warns', () => {
+    for (const fine of [
+      '-1.5',
+      '-.5',
+      '+1.5',
+      '-1e-3',
+      '[-1.5]',
+      '[-1.5, 1]',
+      '[-1.5, -2.5]',
+      '[-1.5, 0, 1], [-1.5, 0, -1], [1.5, 0, -1], [1.5, 0, 1]',
+      '[-1.5, [K], -1]',
+    ])
+      expect(solidScriptFieldMistake(fine), fine).toBe('');
+
+    expect(solidScriptFieldMistake('1+2')).toBe('[=1+2]');
+    expect(solidScriptFieldMistake('1 + 2')).toBe('[=1 + 2]');
+    expect(solidScriptFieldMistake('1 - 2')).toBe('[=1 - 2]');
+    expect(solidScriptFieldMistake('1 - -2')).toBe('[=1 - -2]');
+    expect(solidScriptFieldMistake('-[K]')).toBe('[=-[K]]');
+    expect(solidScriptFieldMistake('[-1.5, 0, 1], [1 + 2, 0, -1]')).toBe('[-1.5, 0, 1], [[=1 + 2], 0, -1]');
+  });
 });

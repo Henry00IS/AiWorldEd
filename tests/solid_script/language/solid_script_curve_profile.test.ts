@@ -7,6 +7,7 @@ import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_com
 import { solidScriptDocumentCreate } from '@/solid_script/document/solid_script_document.js';
 import { SOLID_SCRIPT_EXAMPLES } from '@/solid_script/examples/solid_script_examples.js';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
+import { solidScriptKindCheck } from '@/solid_script/document/solid_script_document_kind_check.js';
 import { solidScriptPolygonArea } from '@/solid_script/language/solid_script_polygon.js';
 import type { SolidScriptShape } from '@/solid_script/language/solid_script_shape.js';
 
@@ -44,7 +45,10 @@ function mouldingCurve(): Curve {
 describe('CurveProfile function and Curve Profile 2D Shape', () => {
   it('registers Curve Profile under 2D Shapes with Curve, Height, Depth, Side and Segments', () => {
     const command = solidScriptCommandFind('curve_profile');
+    expect(command?.label).toBe('Curve');
+    expect(command?.synonyms).toContain('curve profile');
     expect(command?.category).toBe('2D Shapes');
+    expect(command?.listingText({ curve: '[Curve]', height: '0.2', depth: '0.05' })).toMatch(/^Curve\b/);
     expect(command?.builds).toBe(false);
     expect(command?.parameters.map((entry) => entry.key)).toEqual([
       'curve',
@@ -179,5 +183,35 @@ describe('CurveProfile function and Curve Profile 2D Shape', () => {
     const result = solidScriptProgramRun(solidScriptDocumentCreate(example!.lines));
     expect(result.error).toBeNull();
     expect(result.shapes.length).toBeGreaterThan(0);
+  });
+
+  it('accepts an untouched Curve input (default 1, no inspector points) in Curve Profile and Column', () => {
+    const doc = solidScriptDocumentCreate([
+      { command: 'input', values: { name: 'Curve', type: 'Curve' } },
+      { command: 'linear_extrude', values: { anchor: 'Center', depth: '0.5' } },
+      { command: 'curve_profile', values: { curve: '[Curve]', height: '0.2', depth: '0.05' } },
+      { command: 'end' },
+    ]);
+    expect(solidScriptKindCheck(doc)).toEqual([]);
+    const run = solidScriptProgramRun(doc, { inputs: {} });
+    expect(run.error).toBeNull();
+    expect(run.shapes.some((shape) => shape.kind === 'solid')).toBe(true);
+
+    const colDoc = solidScriptDocumentCreate([
+      { command: 'input', values: { name: 'ColCurve', type: 'Curve' } },
+      { command: 'column', values: { profile: '[ColCurve]', radius: '0.4', height: '2' } },
+    ]);
+    expect(solidScriptKindCheck(colDoc)).toEqual([]);
+    const colRun = solidScriptProgramRun(colDoc, { inputs: {} });
+    expect(colRun.error).toBeNull();
+    expect(colRun.shapes.some((shape) => shape.kind === 'solid')).toBe(true);
+
+    const numDoc = solidScriptDocumentCreate([
+      { command: 'linear_extrude', values: { anchor: 'Center', depth: '0.5' } },
+      { command: 'curve_profile', values: { curve: '1', height: '0.2', depth: '0.05' } },
+      { command: 'end' },
+    ]);
+    expect(solidScriptKindCheck(numDoc)).toEqual([]);
+    expect(solidScriptProgramRun(numDoc).error).toBeNull();
   });
 });

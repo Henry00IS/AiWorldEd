@@ -90,6 +90,8 @@ export interface SolidScriptInput {
   max: number | null;
   /** Values a choice offers. */
   choices: string[];
+  /** Optional scene Path object name to follow, for a Path input. */
+  follows: string;
   /** Hover text in the inspector, or empty for the default. */
   tooltip: string;
 }
@@ -133,6 +135,7 @@ export function solidScriptInputRead(values: SolidScriptInputValues): SolidScrip
     min,
     max,
     choices,
+    follows: type === 'Path' ? (values['follows'] ?? '').trim() : '',
     tooltip: (values['tooltip'] ?? '').trim(),
   };
 }

@@ -1,7 +1,3 @@
-import { curveEncode } from '@/curve/model/curve_codec.js';
-import { curvePresetBuild } from '@/curve/model/curve_preset.js';
-import { pathAssetEncode } from '@/path/model/path_asset.js';
-import { pathReferenceEncode } from '@/path/model/path_reference.js';
 import type { SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 import {
   solidScriptExampleBlock,
@@ -83,29 +79,17 @@ export const SOLID_SCRIPT_EXAMPLE_ROUNDED_RAIL: readonly SolidScriptLine[] = [
 ];
 
 /**
- * Wall of a new Baseboard: it follows the Path object named Room Wall, and
- * traces three walls of a 4 by 3 metre room until the scene has one.
- */
-const SOLID_SCRIPT_EXAMPLE_BASEBOARD_WALL = pathReferenceEncode('Room Wall', {
-  points: [
-    [-2, 0, 1.5],
-    [-2, 0, -1.5],
-    [2, 0, -1.5],
-    [2, 0, 1.5],
-  ],
-  segments: [{ kind: 'Straight' }, { kind: 'Straight' }, { kind: 'Straight' }],
-  closed: false,
-});
-
-/**
  * A baseboard along a Path object of the scene: trace the bottom corners of a
  * room with it and Sweep Along Path runs a moulding profile along them.
  */
 export const SOLID_SCRIPT_EXAMPLE_BASEBOARD: readonly SolidScriptLine[] = [
   ...solidScriptExampleNote(
-    'Wall follows the Path object named Room Wall. Add a Path from the shape picker and name it Room Wall, then select it, click Edit and Ctrl+Click each bottom corner of the room; the board follows as you draw. Until the scene has one, Wall keeps the room shape stored here. Pick Own Path under Wall to draw on this object instead.',
+    'Wall follows the Path object named Room Wall. Add a Path from the shape picker and name it Room Wall, then select it, click Edit and Ctrl+Click each bottom corner of the room; the board follows as you draw. Until the scene has one, Wall uses these room corner points. Pick Own Path under Wall to draw on this object instead.',
   ),
-  solidScriptExampleInput('Wall', 'Path', SOLID_SCRIPT_EXAMPLE_BASEBOARD_WALL, { label: 'Wall' }),
+  solidScriptExampleInput('Wall', 'Path', '[-2, 0, 1.5], [-2, 0, -1.5], [2, 0, -1.5], [2, 0, 1.5]', {
+    label: 'Wall',
+    follows: 'Room Wall',
+  }),
   solidScriptExampleInput('Height', 'Number', '0.12', { min: '0.02', max: '1', label: 'Height' }),
   solidScriptExampleInput('Thickness', 'Number', '0.02', { min: '0.005', max: '0.2', label: 'Thickness' }),
   ...solidScriptExampleNote(
@@ -120,34 +104,19 @@ export const SOLID_SCRIPT_EXAMPLE_BASEBOARD: readonly SolidScriptLine[] = [
 ];
 
 /**
- * Moulding curve of a new Curve Baseboard: plinth step, ogee curve and bevelled
- * top.
- */
-const SOLID_SCRIPT_EXAMPLE_BASEBOARD_CURVE = curveEncode(
-  curvePresetBuild({
-    id: 'baseboard_moulding',
-    label: 'Baseboard Moulding',
-    tooltip: 'A stepped plinth with an ogee moulding and chamfered top.',
-    markers: { bottom: 0.35, top: 0.85 },
-    start: 1,
-    steps: [
-      ['L', 0.35, 1],
-      ['L', 0.35, 0.72],
-      ['B', 0.85, 0.35, 0.5, 0.72, 0.7, 0.35],
-      ['L', 1, 0],
-    ],
-  }),
-);
-
-/**
- * A baseboard built from a Curve input: Curve Profile turns the curve into a 2D
- * XY cross-section and Sweep Along Path sweeps it along the wall path.
+ * A baseboard built from a Curve input: Curve turns the curve into a 2D XY
+ * cross-section and Sweep Along Path sweeps it along the wall path.
  */
 export const SOLID_SCRIPT_EXAMPLE_CURVE_BASEBOARD: readonly SolidScriptLine[] = [
   ...solidScriptExampleNote(
     'Edit Moulding to reshape the baseboard cross-section: left is the bottom against the floor and right is the top.',
   ),
-  solidScriptExampleInput('Moulding', 'Curve', SOLID_SCRIPT_EXAMPLE_BASEBOARD_CURVE, { label: 'Moulding' }),
+  solidScriptExampleInput(
+    'Moulding',
+    'Curve',
+    '[0, 1], [0.35, 1], [0.35, 0.72], [0.5, 0.65], [0.68, 0.45], [0.85, 0.35], [1, 0]',
+    { label: 'Moulding' },
+  ),
   solidScriptExampleInput('Height', 'Number', '0.15', { min: '0.02', max: '1', label: 'Height' }),
   solidScriptExampleInput('Depth', 'Number', '0.03', { min: '0.005', max: '0.2', label: 'Depth' }),
   solidScriptExampleLine('curve_profile', {
@@ -165,18 +134,6 @@ export const SOLID_SCRIPT_EXAMPLE_CURVE_BASEBOARD: readonly SolidScriptLine[] = 
   }),
   solidScriptExampleLine('sweep_along_path', { path: '[Wall]', profile: '[Profile]', up: '0, 1, 0' }),
 ];
-
-/** The run a new Path Stairs follows: a flight, a landing and a second flight. */
-const SOLID_SCRIPT_EXAMPLE_PATH_STAIRS_RUN = pathAssetEncode({
-  points: [
-    [-3, -1.2, 0],
-    [-1, 0, 0],
-    [1, 0, 0],
-    [3, 1.2, 0],
-  ],
-  segments: [{ kind: 'Straight' }, { kind: 'Straight' }, { kind: 'Straight' }],
-  closed: false,
-});
 
 /**
  * Lines of the Side and Corner functions Path Stairs uses: the way to the right
@@ -249,7 +206,7 @@ export const SOLID_SCRIPT_EXAMPLE_PATH_STAIRS: readonly SolidScriptLine[] = [
   ...solidScriptExampleNote(
     'Run is a Path you draw in the scene: a sloped stretch becomes a flight of steps and a level stretch a landing. Click Edit, then drag the points, or Ctrl+Click to add a point after the picked one. An Arc stretch winds the stairs round.',
   ),
-  solidScriptExampleInput('Run', 'Path', SOLID_SCRIPT_EXAMPLE_PATH_STAIRS_RUN, { label: 'Run' }),
+  solidScriptExampleInput('Run', 'Path', '[-3, -1.2, 0], [-1, 0, 0], [1, 0, 0], [3, 1.2, 0]', { label: 'Run' }),
   solidScriptExampleInput('Width', 'Number', '1.2', { min: '0.3', max: '10', label: 'Width' }),
   solidScriptExampleInput('Rise', 'Number', '0.18', { min: '0.05', max: '1', label: 'Target Rise' }),
   ...solidScriptExamplePathStairsFunctions(),

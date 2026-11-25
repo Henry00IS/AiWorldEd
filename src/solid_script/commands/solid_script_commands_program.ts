@@ -7,6 +7,7 @@ import {
   solidScriptParameterInto,
   solidScriptParameterOptional,
   solidScriptParameterSides,
+  solidScriptParameterWhen,
   solidScriptParameterWords,
   solidScriptParameterWrites,
 } from './solid_script_command_parameters.js';
@@ -37,6 +38,8 @@ import {
   SOLID_SCRIPT_PART_DEPTH_MAX,
 } from '@/solid_script/language/solid_script_machine_calls.js';
 import { solidScriptInputBrushesBuild } from '@/solid_script/language/solid_script_input_brushes.js';
+import { curveEncode } from '@/curve/model/curve_codec.js';
+import { solidScriptCurveFromText } from '@/solid_script/language/solid_script_curve_read.js';
 import { solidScriptInputPath } from '@/solid_script/language/solid_script_input_path.js';
 import { solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
 
@@ -70,7 +73,7 @@ const SOLID_SCRIPT_INPUT_PARAMETERS: readonly SolidScriptCommandParameter[] = [
     'Default',
     'text',
     '1',
-    'Value used until the inspector sets another, as plain text, such as 2.',
+    'Value used until the inspector sets another, as plain text, such as 2, or [0, 0, 0], [2, 0, 0] for a Path.',
   ),
   solidScriptParameterOptional(
     'label',
@@ -96,6 +99,16 @@ const SOLID_SCRIPT_INPUT_PARAMETERS: readonly SolidScriptCommandParameter[] = [
     'text',
     'Values a choice offers, separated by commas, such as Low, Medium, High.',
   ),
+  solidScriptParameterWhen(
+    solidScriptParameterOptional(
+      'follows',
+      'Follows',
+      'text',
+      'Optional: name of a Path object in the scene to follow, such as Room Wall.',
+    ),
+    'type',
+    ['Path'],
+  ),
   solidScriptParameterOptional(
     'tooltip',
     'Tooltip',
@@ -118,19 +131,28 @@ const SOLID_SCRIPT_INPUT_COMMAND = new SolidScriptCommand({
     'A second Input with the same name, or a name a line above already sets.',
   ],
   parameters: SOLID_SCRIPT_INPUT_PARAMETERS,
-  listing: (read) => [
-    'Input',
-    read.value('name'),
-    ' (',
-    read.value('type'),
-    // A curve's text is long and unreadable; the inspector shows it.
-    ...(['Button', 'Curve', 'Path'].includes(read.text('type').trim()) ? [')'] : [') = ', read.value('default')]),
-    ...solidScriptListingOptions([
-      read.text('min') !== '' && ['Min ', read.value('min')],
-      read.text('max') !== '' && ['Max ', read.value('max')],
-      read.text('choices') !== '' && ['Choices ', read.value('choices')],
-    ]),
-  ],
+  listing: (read) => {
+    const type = read.text('type').trim();
+    const defaultText = read.text('default').trim();
+    const follows = type === 'Path' ? read.text('follows').trim() : '';
+    const hideDefault =
+      type === 'Button' ||
+      ((type === 'Curve' || type === 'Path') &&
+        (defaultText === '' || defaultText === '1' || defaultText.startsWith('{')));
+    return [
+      'Input',
+      read.value('name'),
+      ' (',
+      read.value('type'),
+      ...(hideDefault ? [')'] : [') = ', read.value('default')]),
+      ...solidScriptListingOptions([
+        follows !== '' && ['Follows ', read.value('follows')],
+        read.text('min') !== '' && ['Min ', read.value('min')],
+        read.text('max') !== '' && ['Max ', read.value('max')],
+        read.text('choices') !== '' && ['Choices ', read.value('choices')],
+      ]),
+    ];
+  },
   execute: (run) => {
     const input = solidScriptInputRead(
       Object.fromEntries(SOLID_SCRIPT_INPUT_PARAMETERS.map((field) => [field.key, run.text(field.key)])),
@@ -138,6 +160,12 @@ const SOLID_SCRIPT_INPUT_COMMAND = new SolidScriptCommand({
     const given = run.inputValue(input.name);
     if (input.type === 'Path') {
       run.inputDefine(input.name, solidScriptInputPath(run, given ?? input.fallback));
+      return [];
+    }
+    if (input.type === 'Curve') {
+      const text = given ?? input.fallback;
+      const curve = solidScriptCurveFromText(text.trim() === '' ? '1' : text);
+      run.inputDefine(input.name, curve ? curveEncode(curve) : text);
       return [];
     }
     let value: SolidScriptValue;
@@ -149,7 +177,7 @@ const SOLID_SCRIPT_INPUT_COMMAND = new SolidScriptCommand({
       if (given === undefined) throw error;
       if (run.handling)
         value =
-          input.type === 'Text' || input.type === 'Choice' || input.type === 'Curve' || input.type === 'Texture'
+          input.type === 'Text' || input.type === 'Choice' || input.type === 'Texture'
             ? given
             : input.type === 'Vector'
               ? given.split(',').map(Number)

@@ -135,7 +135,7 @@ export function solidScriptCurveProfilePoints(
   depth: number,
   side: SolidScriptCurveProfileSide,
   segments: number,
-  usage = 'Curve Profile',
+  usage = 'Curve',
 ): SolidScriptPoint2[] {
   if (!(height > 0)) throw new Error(`${usage} height must be greater than 0, not ${height}`);
   if (!(depth > 0)) throw new Error(`${usage} depth must be greater than 0, not ${depth}`);

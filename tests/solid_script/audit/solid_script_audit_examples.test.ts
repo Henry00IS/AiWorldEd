@@ -2,12 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { solidScriptCommandFind } from '@/solid_script/commands/solid_script_command_catalog.js';
 import { solidScriptDocumentCreate, type SolidScriptDocument } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptKindCheck } from '@/solid_script/document/solid_script_document_kind_check.js';
+import { solidScriptDocumentListing } from '@/solid_script/document/solid_script_document_listing.js';
 import {
+  solidScriptDocumentDefines,
   solidScriptDocumentNamesAt,
   solidScriptDocumentNamesUnknown,
 } from '@/solid_script/document/solid_script_document_names.js';
 import { SOLID_SCRIPT_EXAMPLES } from '@/solid_script/examples/solid_script_examples.js';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
+import { solidScriptMistakeCheck, solidScriptUseCheck } from '@/solid_script/language/solid_script_use_check.js';
 import { solidScriptConfiguratorFieldBuild } from '@/solid_script/ui/solid_script_configurator_fields.js';
 import { solidScriptUseSolidOf } from '../language/solid_script_use_solid.js';
 
@@ -35,9 +38,28 @@ function fieldProblems(document: SolidScriptDocument): string[] {
   });
 }
 
+/**
+ * Finds any raw JSON object values stored in script lines or listed text.
+ *
+ * @param document Script.
+ * @returns Offending line labels.
+ */
+function jsonLikeFields(document: SolidScriptDocument): string[] {
+  const fromBlocks = document.blocks.flatMap((block, line) =>
+    Object.entries(block.values).flatMap(([key, value]) =>
+      /^\s*\{/.test(value) ? [`${line + 1}.${key}: ${value.slice(0, 40)}`] : [],
+    ),
+  );
+  const fromListing = solidScriptDocumentListing(document).flatMap((line, index) =>
+    /\{\s*"/.test(line) ? [`listing line ${index + 1}: ${line.slice(0, 40)}`] : [],
+  );
+  return [...fromBlocks, ...fromListing];
+}
+
 describe('every shipped example is clean in the run and in the editor', () => {
   it.each(SOLID_SCRIPT_EXAMPLES.map((example) => [example.id, example] as const))('%s', (_id, example) => {
     const document = solidScriptDocumentCreate(example.lines);
+    expect(jsonLikeFields(document)).toEqual([]);
     const use =
       example.uses?.generator === false
         ? { use: { usage: 'Modifier' as const, solids: [solidScriptUseSolidOf(CORNERS)], faces: 6 } }
@@ -46,6 +68,8 @@ describe('every shipped example is clean in the run and in the editor', () => {
     expect(run.error?.message ?? '').toBe('');
     expect(run.warnings.map((warning) => warning.text)).toEqual([]);
     expect(run.shapes.length).toBeGreaterThan(0);
+    expect(solidScriptUseCheck(document)).toEqual([]);
+    expect(solidScriptMistakeCheck(document, solidScriptDocumentDefines(document))).toEqual([]);
     expect(solidScriptKindCheck(document).map((warning) => `${warning.line ?? 0}: ${warning.text}`)).toEqual([]);
     expect(
       [...solidScriptDocumentNamesUnknown(document)].map(([line, keys]) => `${line + 1}: ${[...keys].join(', ')}`),

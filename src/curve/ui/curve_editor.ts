@@ -5,6 +5,8 @@ import type { CurvePreset } from '@/curve/model/curve_preset.js';
 import { MenuKeyboardCapture, type MenuKeyboardCaptureOwner } from '@/ui/menu/menu_keyboard_capture.js';
 import { MenuOutsidePointerClose } from '@/ui/menu/menu_outside_pointer_close.js';
 import { PanelFloating } from '@/ui/floating_panel/panel_floating.js';
+import type { FloatingPanelStackLayer } from '@/ui/floating_panel/panel_floating_stack.js';
+import { UiStackLayers } from '@/ui/stack/ui_stack_layers.js';
 import { applyFloatingPanelToolChrome } from '@/ui/floating_panel/panel_floating_tool_chrome.js';
 import { createFloatingPanelResizeGrip } from '@/ui/floating_panel/panel_floating_resize.js';
 import { doesElementContainEventTarget } from '@/utils/dom_node_realm.js';
@@ -122,6 +124,35 @@ export function curveEditorActiveFor(anchor: HTMLElement): CurveEditor | null {
 }
 
 /**
+ * Closes the open curve editor when its anchor sits inside the given element,
+ * such as a modal options window that is closing or opening a child dialog.
+ *
+ * @param container Ancestor element.
+ */
+export function curveEditorCloseIfInside(container: HTMLElement): void {
+  if (curveEditorActive && container.contains(curveEditorActive.anchor)) curveEditorActive.close();
+}
+
+/**
+ * Picks the floating-panel stacking band matching the host surface of an
+ * anchor, so a curve editor opened from a modal options window sits above that
+ * window and its backdrop instead of behind them.
+ *
+ * @param anchor Field element opening the editor.
+ * @returns Stacking band.
+ */
+function curveEditorStackLayer(anchor: HTMLElement): FloatingPanelStackLayer {
+  for (let node: HTMLElement | null = anchor; node; node = node.parentElement) {
+    const zIndex = Number(node.style.zIndex);
+    if (Number.isFinite(zIndex) && zIndex >= UiStackLayers.confirm) return 'confirm';
+    if (Number.isFinite(zIndex) && zIndex >= UiStackLayers.modal) return 'modal';
+  }
+  if (anchor.closest('[data-solid-script-configurator], .editor-message-box-backdrop, .editor-message-box-panel'))
+    return 'modal';
+  return 'tool';
+}
+
+/**
  * Curve editor tool window, built on the standard floating window: title bar
  * drag, close button, status bar with the resize grip, stacking and screen
  * clamping. It opens docked beside the inspector and closes on Escape, on a
@@ -176,7 +207,7 @@ export class CurveEditor extends PanelFloating implements MenuKeyboardCaptureOwn
    * @param options Editor options.
    */
   private constructor(options: CurveEditorOptions) {
-    super(options.anchor.ownerDocument.body, { corner: 'top-left' });
+    super(options.anchor.ownerDocument.body, { corner: 'top-left', stackLayer: curveEditorStackLayer(options.anchor) });
     this.anchor = options.anchor;
     this.key = options.key;
     this.handlers = options;

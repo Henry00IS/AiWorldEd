@@ -1,9 +1,9 @@
-import { curveDecode } from '@/curve/model/curve_codec.js';
-import { curveFromPolyline, type Curve } from '@/curve/model/curve_model.js';
+import type { Curve } from '@/curve/model/curve_model.js';
 import { curveEvaluate } from '@/curve/model/curve_sample.js';
 import { generatorRevolveStationsFromCurve } from '@/generator/revolve/generator_revolve_curve.js';
 import { solidScriptAxesEach } from './solid_script_functions_axes.js';
 import { solidScriptCurveProfilePoints, solidScriptCurveProfileSideRead } from './solid_script_curve_profile.js';
+import { solidScriptCurveFromText } from './solid_script_curve_read.js';
 import { solidScriptExtraNumber } from './solid_script_functions_extra.js';
 import {
   solidScriptPathAt,
@@ -42,13 +42,7 @@ function solidScriptCurveRead(args: readonly SolidScriptValue[], usage: string):
   const text = typeof args[0] === 'string' ? args[0] : solidScriptValueText(args[0]);
   let curve = SOLID_SCRIPT_CURVES.get(text);
   if (!curve) {
-    const height = text.trim() === '' ? 1 : Number(text);
-    const decoded = Number.isFinite(height)
-      ? curveFromPolyline([
-          [0, height],
-          [1, height],
-        ])
-      : curveDecode(text);
+    const decoded = solidScriptCurveFromText(text.trim() === '' ? '1' : text);
     if (!decoded) throw new Error(`${usage} needs a curve, such as a Curve input, not "${text.slice(0, 40)}"`);
     if (SOLID_SCRIPT_CURVES.size >= SOLID_SCRIPT_CURVE_CACHE_LIMIT) SOLID_SCRIPT_CURVES.clear();
     SOLID_SCRIPT_CURVES.set(text, (curve = decoded));

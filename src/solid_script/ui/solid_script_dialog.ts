@@ -220,6 +220,12 @@ export abstract class SolidScriptDialog extends PanelFloating {
     const top = opened.at(-1);
     const target = event.target;
     if (!top || !(target instanceof Node)) return;
+    const curveEditor = document.querySelector<HTMLElement>('[data-curve-editor]');
+    if (
+      curveEditor &&
+      (curveEditor.contains(target) || Number(curveEditor.style.zIndex) > Number(top.root.style.zIndex))
+    )
+      return;
     const page = event instanceof KeyboardEvent && (target === document.body || target === document.documentElement);
     const below = opened.some((dialog) => dialog !== top && dialog.root.contains(target));
     if (!page && (!below || top.root.contains(target))) return;

@@ -45,7 +45,7 @@ export function solidScriptExampleInput(
   name: string,
   type: string,
   fallback: string,
-  limits: { label?: string; min?: string; max?: string; choices?: string } = {},
+  limits: { label?: string; min?: string; max?: string; choices?: string; follows?: string } = {},
 ): SolidScriptLine {
   return solidScriptExampleLine('input', { name, type, default: fallback, ...limits });
 }

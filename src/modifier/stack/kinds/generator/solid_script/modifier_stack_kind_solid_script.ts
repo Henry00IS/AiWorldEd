@@ -34,9 +34,12 @@ import {
   solidScriptDocumentDefault,
   solidScriptDocumentNormalize,
   solidScriptDocumentUseProblem,
+  type SolidScriptDocument,
   type SolidScriptUse,
 } from '@/solid_script/document/solid_script_document.js';
 import { SOLID_SCRIPT_USE_GENERATOR, type SolidScriptUseFacts } from '@/solid_script/language/solid_script_system.js';
+import { solidScriptInputsList } from '@/solid_script/language/solid_script_input.js';
+import { solidScriptInputEffectiveValue } from '@/solid_script/language/solid_script_input_effective.js';
 import { solidScriptBrushModeLabel, solidScriptModeLabel } from '@/solid_script/language/solid_script_mode.js';
 import { solidScriptDebugStepLimit } from '@/solid_script/debug/solid_script_debug_steps.js';
 import { modifierStackFrame } from '@/modifier/stack/evaluate/modifier_stack_frame.js';
@@ -133,13 +136,16 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
    *   position is read or a Path object is followed.
    */
   override volumePoseFollow(parameters: Record<string, unknown>): ModifierStackPoseFollow | null {
+    const document = solidScriptDocumentNormalize(parameters[MODIFIER_STACK_SOLID_SCRIPT_KEY]);
     if (
       modifierStackScenePathsFollowed(
-        solidScriptInspectorInputValues(parameters[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]),
+        modifierStackSolidScriptScenePathInputs(
+          document,
+          solidScriptInspectorInputValues(parameters[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]),
+        ),
       )
     )
       return null;
-    const document = solidScriptDocumentNormalize(parameters[MODIFIER_STACK_SOLID_SCRIPT_KEY]);
     if (solidScriptDocumentReadsBoxMember(document, 'Position')) return null;
     if (solidScriptDocumentReadsBoxMember(document, 'Rotation')) return 'translate';
     return 'rigid';
@@ -154,9 +160,13 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
    * @returns Key text, or empty when no input follows a Path object.
    */
   override sceneReadsKey(volume: THREE.Object3D, parameters: Record<string, unknown>): string {
+    const document = solidScriptDocumentNormalize(parameters[MODIFIER_STACK_SOLID_SCRIPT_KEY]);
     return modifierStackScenePathsKey(
       volume,
-      solidScriptInspectorInputValues(parameters[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]),
+      modifierStackSolidScriptScenePathInputs(
+        document,
+        solidScriptInspectorInputValues(parameters[MODIFIER_STACK_SOLID_SCRIPT_INPUTS_KEY]),
+      ),
     );
   }
 
@@ -270,7 +280,12 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
       box,
       this.pieceOperation(parameters),
       solidScriptDebugStepLimit(context.volume, context.step.id),
-      modifierStackSolidScriptInputsLinked(context, inputs, frame, box),
+      modifierStackSolidScriptInputsLinked(
+        context,
+        modifierStackSolidScriptScenePathInputs(document, inputs),
+        frame,
+        box,
+      ),
       use,
       modifierStackSolidScriptBoxValues(context.volume, box),
       { owner: context.volume, stepId: context.step.id },
@@ -353,6 +368,27 @@ export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase
  * @param box Box in frame coordinates the script origin is centred in.
  * @returns Input values to run the script with.
  */
+/**
+ * Includes Path inputs whose script declaration follows a scene Path object by
+ * default, when the inspector has not stored an override for that input yet.
+ *
+ * @param document Script.
+ * @param inputs Stored inspector input values.
+ * @returns Effective input values for scene path linking.
+ */
+function modifierStackSolidScriptScenePathInputs(
+  document: SolidScriptDocument,
+  inputs: Record<string, string>,
+): Record<string, string> {
+  const merged = { ...inputs };
+  for (const input of solidScriptInputsList(document.blocks.filter((block) => !block.off))) {
+    if (input.type === 'Path' && merged[input.name] === undefined && input.follows !== '') {
+      merged[input.name] = solidScriptInputEffectiveValue(input, undefined);
+    }
+  }
+  return merged;
+}
+
 function modifierStackSolidScriptInputsLinked(
   context: ModifierStackContext,
   inputs: Record<string, string>,

@@ -226,8 +226,7 @@ export const SOLID_SCRIPT_EXAMPLES: readonly SolidScriptExample[] = [
     id: 'curveBaseboard',
     name: 'Curve Baseboard',
     group: 'Basics',
-    summary:
-      'Curve Profile turns a Curve input into a 2D baseboard cross-section; Sweep Along Path runs it along a wall path.',
+    summary: 'Curve turns a Curve input into a 2D baseboard cross-section; Sweep Along Path runs it along a wall path.',
     port: null,
     lines: SOLID_SCRIPT_EXAMPLE_CURVE_BASEBOARD,
   },

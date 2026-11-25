@@ -35,17 +35,61 @@ const SOLID_SCRIPT_MISTAKE_NAME = /\$?[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*/g;
 const SOLID_SCRIPT_MISTAKE_OPERATORS = '+-*/%^<>';
 
 /**
- * Tells whether text has a math operator outside square and round brackets.
+ * Returns the nearest non-whitespace character before an index, or empty at the
+ * start.
+ *
+ * @param text Field text.
+ * @param index Operator position.
+ * @returns Preceding non-space character.
+ */
+function solidScriptMistakePrevChar(text: string, index: number): string {
+  for (let back = index - 1; back >= 0; back--) {
+    const ch = text[back]!;
+    if (!/\s/.test(ch)) return ch;
+  }
+  return '';
+}
+
+/**
+ * Tells whether a + or - character is the sign on a number literal (leading
+ * sign like -1.5, negative item after comma/bracket/operator, or exponent sign
+ * like 1e-3) rather than binary subtraction/addition or variable negation.
+ *
+ * @param text Field text.
+ * @param index Position of + or -.
+ * @returns True when part of a number literal.
+ */
+function solidScriptMistakeLiteralSign(text: string, index: number): boolean {
+  const ch = text[index]!;
+  if (ch !== '+' && ch !== '-') return false;
+  if (!/[\d.]/.test(text[index + 1] ?? '')) return false;
+  if (index > 0 && (text[index - 1] === 'e' || text[index - 1] === 'E') && /[\d.]/.test(text[index - 2] ?? ''))
+    return true;
+  const prev = solidScriptMistakePrevChar(text, index);
+  return (
+    prev === '' || prev === ',' || prev === '[' || prev === '(' || `${SOLID_SCRIPT_MISTAKE_OPERATORS}=`.includes(prev)
+  );
+}
+
+/**
+ * Tells whether text has a math operator outside square/round brackets and
+ * quotes, ignoring signs that belong to number literals such as -1.5 or 1e-3.
  *
  * @param text Text.
  * @returns True when it does.
  */
 function solidScriptMistakeHasMath(text: string): boolean {
   let depth = 0;
-  for (const character of text) {
-    if (character === '[' || character === '(') depth++;
-    else if (character === ']' || character === ')') depth--;
-    else if (depth === 0 && SOLID_SCRIPT_MISTAKE_OPERATORS.includes(character)) return true;
+  let quoted = false;
+  for (let index = 0; index < text.length; index++) {
+    const character = text[index]!;
+    if (character === '"' && text[index - 1] !== '\\') quoted = !quoted;
+    else if (quoted) continue;
+    else if (character === '[' || character === '(') depth++;
+    else if (character === ']' || character === ')') depth = Math.max(0, depth - 1);
+    else if (depth === 0 && SOLID_SCRIPT_MISTAKE_OPERATORS.includes(character)) {
+      if (!solidScriptMistakeLiteralSign(text, index)) return true;
+    }
   }
   return false;
 }
@@ -92,9 +136,17 @@ function solidScriptMistakeMath(piece: string): string {
   if (piece.startsWith('[=')) return piece;
   if (piece.startsWith('=') && piece.includes('[')) return `[${piece}]`;
   const whole = solidScriptMistakeInside(piece);
-  if (whole !== null && solidScriptMistakeHasMath(whole))
-    return `[=${whole.includes('[') ? whole : solidScriptMistakeNamesBracket(whole)}]`;
-  if (piece.includes('[') && solidScriptMistakeHasMath(piece)) return `[=${piece}]`;
+  if (whole !== null) {
+    const items = solidScriptFieldArguments(whole);
+    if (items.length > 1) {
+      const rewritten = items.map(solidScriptMistakeMath);
+      return rewritten.some((item, index) => item !== items[index]) ? `[${rewritten.join(', ')}]` : piece;
+    }
+    if (solidScriptMistakeHasMath(whole))
+      return `[=${whole.includes('[') ? whole : solidScriptMistakeNamesBracket(whole)}]`;
+    return piece;
+  }
+  if (solidScriptMistakeHasMath(piece)) return `[=${piece}]`;
   return piece;
 }
 

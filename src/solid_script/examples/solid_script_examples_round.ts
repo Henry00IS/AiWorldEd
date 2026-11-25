@@ -1,6 +1,3 @@
-import { curveEncode } from '@/curve/model/curve_codec.js';
-import { curvePresetBuild } from '@/curve/model/curve_preset.js';
-import { CURVE_PRESET_COLUMN_CLASSIC } from '@/curve/model/curve_preset_architecture.js';
 import type { SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 import {
   solidScriptExampleBlock,
@@ -119,21 +116,12 @@ export const SOLID_SCRIPT_EXAMPLE_CAPSULE: readonly SolidScriptLine[] = [
   ),
 ];
 
-/**
- * The classic column profile a new Column starts with, without its fixed
- * heights.
- */
-const { height: _height, ...SOLID_SCRIPT_EXAMPLE_COLUMN_CLASSIC } = CURVE_PRESET_COLUMN_CLASSIC;
-
-/** The classic profile as the text a Curve input holds. */
-const SOLID_SCRIPT_EXAMPLE_COLUMN_PROFILE = curveEncode(curvePresetBuild(SOLID_SCRIPT_EXAMPLE_COLUMN_CLASSIC));
-
 /** Port of the Column generator, for round sections. */
 export const SOLID_SCRIPT_EXAMPLE_COLUMN: readonly SolidScriptLine[] = [
   ...solidScriptExampleNote(
     'Column: the Profile curve is the radius along the height. Pieces that bulge outward join into one solid; where the curve turns inward a new solid starts.',
   ),
-  solidScriptExampleInput('Profile', 'Curve', SOLID_SCRIPT_EXAMPLE_COLUMN_PROFILE, { label: 'Profile' }),
+  solidScriptExampleInput('Profile', 'Curve', 'Classic Column', { label: 'Profile' }),
   solidScriptExampleInput('Sides', 'Choice', '8', { label: 'Sides', choices: '4, 6, 8, 12, 16, 24, 32' }),
   solidScriptExampleInput('Aspect', 'Number', '1', { label: 'Depth / Width', min: '0.05', max: '20' }),
   solidScriptExampleSet('Radius', '[=Min([$Box.Width], [$Box.Depth] / [Aspect]) / 2]'),

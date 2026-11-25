@@ -11,7 +11,8 @@ import {
 import { SOLID_SCRIPT_ANCHOR_SOLID, solidScriptAnchorMin } from '@/solid_script/language/solid_script_anchor.js';
 import type { SolidScriptBlockArguments } from '@/solid_script/language/solid_script_block_arguments.js';
 import * as THREE from 'three';
-import { curveDecode } from '@/curve/model/curve_codec.js';
+import { curveEncode } from '@/curve/model/curve_codec.js';
+import { solidScriptCurveFromText } from '@/solid_script/language/solid_script_curve_read.js';
 import { solidScriptValueNumber, solidScriptValueText } from '@/solid_script/language/solid_script_value.js';
 import type { ModifierStackField } from '@/modifier/stack/modifier_stack_types.js';
 import type { ModifierStackKindGenerator } from '@/modifier/stack/kinds/generator/modifier_stack_kind_generator.js';
@@ -127,7 +128,7 @@ function solidScriptGeneratorParameter(
   if (field.type === 'curve')
     return {
       ...solidScriptParameter(field.key, field.label, 'message', '', solidScriptGeneratorHintExample(field, hint)),
-      accepts: ['Text'],
+      accepts: ['Text', 'Number'],
       curve: {
         presets: field.curvePresets ?? [],
         markers: field.curveMarkers === true,
@@ -182,8 +183,9 @@ function solidScriptGeneratorValue(args: SolidScriptBlockArguments, field: Modif
   if (field.type === 'curve') {
     const text = solidScriptValueText(args.value(field.key)).trim();
     if (text === '') return '';
-    if (!curveDecode(text)) throw args.error(field.key, 'must be a curve, such as a Curve input', text);
-    return text;
+    const curve = solidScriptCurveFromText(text);
+    if (!curve) throw args.error(field.key, 'must be a curve, such as a Curve input', text);
+    return curveEncode(curve);
   }
   if (field.type === 'boolean') return args.flag(field.key);
   if (field.type === 'choice') {

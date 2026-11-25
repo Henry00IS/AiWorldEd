@@ -9,7 +9,8 @@ import {
   modifierStackUiTextButton,
   modifierStackUiToggleRow,
 } from '@/modifier/stack/ui/modifier_stack_ui_style.js';
-import { curveDecode, curveEncode } from '@/curve/model/curve_codec.js';
+import { curveEncode } from '@/curve/model/curve_codec.js';
+import { solidScriptCurveFromText } from '@/solid_script/language/solid_script_curve_read.js';
 import { curveFromPolyline } from '@/curve/model/curve_model.js';
 import { curvePresetCatalog } from '@/curve/model/curve_preset_catalog.js';
 import { CURVE_PRESETS_ARCHITECTURE } from '@/curve/model/curve_preset_architecture.js';
@@ -21,6 +22,7 @@ import { InputSelect } from '@/ui/input/input_select.js';
 import { inputNumericCreateUvField } from '@/ui/input/input_numeric_uv_field.js';
 import { solidScriptDocumentNormalize } from '@/solid_script/document/solid_script_document.js';
 import type { SolidScriptInput } from '@/solid_script/language/solid_script_input.js';
+import { solidScriptInputEffectiveValue } from '@/solid_script/language/solid_script_input_effective.js';
 import { solidScriptNameKey } from '@/solid_script/language/solid_script_name_key.js';
 import {
   solidScriptDocumentInputLayout,
@@ -116,10 +118,10 @@ export function solidScriptInspectorInputs(
       visibility = built.visibility;
     }
     element.style.display = layout.length > 0 ? '' : 'none';
-    inputs.forEach((input, index) => writers[index]?.(values[input.name] ?? input.fallback));
+    inputs.forEach((input, index) => writers[index]?.(solidScriptInputEffectiveValue(input, values[input.name])));
     visibility((name) => {
       const input = inputs.find((each) => solidScriptNameKey(each.name) === solidScriptNameKey(name));
-      return input ? (values[input.name] ?? input.fallback) : values[name];
+      return input ? solidScriptInputEffectiveValue(input, values[input.name]) : values[name];
     });
   };
   return { element, write };
@@ -410,12 +412,11 @@ function solidScriptInspectorCurveRow(
     onCommit: (curve) => commit(curveEncode(curve)),
   });
   const write = (text: string): void => {
-    const height = text.trim() === '' ? 1 : Number(text);
     field.setCurve(
-      (Number.isFinite(height) ? null : curveDecode(text)) ??
+      solidScriptCurveFromText(text.trim() === '' ? '1' : text) ??
         curveFromPolyline([
-          [0, Number.isFinite(height) ? height : 1],
-          [1, Number.isFinite(height) ? height : 1],
+          [0, 1],
+          [1, 1],
         ]),
     );
   };

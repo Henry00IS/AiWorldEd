@@ -27,6 +27,7 @@ import {
 import { solidScriptInputRead, type SolidScriptInput } from '@/solid_script/language/solid_script_input.js';
 import { solidScriptChoiceWordsForField } from '@/solid_script/language/solid_script_choices.js';
 import { solidScriptAnchorAxisWords } from '@/solid_script/language/solid_script_anchor.js';
+import { curveEditorCloseIfInside } from '@/curve/ui/curve_editor.js';
 import { SolidScriptDialog } from './solid_script_dialog.js';
 import { SOLID_SCRIPT_FORMULA_CATEGORIES } from '@/solid_script/commands/solid_script_formula_commands.js';
 import type { SolidScriptFormulaContext } from '@/solid_script/commands/solid_script_formula_inputs.js';
@@ -159,6 +160,7 @@ export class SolidScriptConfigurator extends SolidScriptDialog {
 
   /** Closes the suggestion lists, with the window or under a dialog over it. */
   protected override popupsClose(): void {
+    curveEditorCloseIfInside(this.root);
     for (const field of this.fields.values()) field.close();
   }
 
