@@ -4,14 +4,14 @@ import { solidScriptPathMap, type SolidScriptPath } from './solid_script_path_mo
 import { SolidScriptPathElement } from './solid_script_value.js';
 
 /**
- * Turns a point of the drawing plane of Linear Extrude into script space: X
- * stays, the drawing's Y runs to the back, on the ground.
+ * Turns a 2D drawing point into an XY script-space point with Z 0, matching
+ * what Polygon and Profile inputs expect without swapping axes.
  *
- * @param point Point of the drawing plane.
+ * @param point Point of the 2D drawing plane.
  * @returns X, Y and Z.
  */
-export function solidScriptPathFromFlat([x, y]: readonly [number, number]): number[] {
-  return [x, 0, y === 0 ? 0 : -y];
+export function solidScriptPathFlatPoint([x, y]: readonly [number, number]): number[] {
+  return [x, y, 0];
 }
 
 /**
@@ -47,7 +47,7 @@ export class SolidScriptPaths {
   element(drawn: SolidScriptShapePolygon): SolidScriptPathElement {
     const known = this.elements.get(drawn);
     if (known) return known;
-    const element = this.created(solidScriptPathMap(drawn.path, solidScriptPathFromFlat), drawn.label);
+    const element = this.created(solidScriptPathMap(drawn.path, solidScriptPathFlatPoint), drawn.label);
     this.elements.set(drawn, element);
     this.latest.set(element, drawn);
     return element;
@@ -77,7 +77,7 @@ export class SolidScriptPaths {
       for (let index = 0; index < list.length; index++) list[index] = solidScriptShapeSwap(list[index]!, from, by);
     this.latest.set(element, by);
     this.elements.set(by, element);
-    element.path = solidScriptPathMap(by.path, solidScriptPathFromFlat);
+    element.path = solidScriptPathMap(by.path, solidScriptPathFlatPoint);
   }
 }
 

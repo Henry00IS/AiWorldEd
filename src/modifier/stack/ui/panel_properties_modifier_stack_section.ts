@@ -429,6 +429,16 @@ export class PanelPropertiesModifierStackSection {
           callback: () => this.edit((stack) => modifierStackAdd(stack, kind.id)),
         });
     }
+    const scripted = modifierStackKinds.filter((candidate) => candidate.category === 'script');
+    if (scripted.length > 0) {
+      items.push({ kind: 'separator' });
+      for (const kind of scripted)
+        items.push({
+          label: kind.label,
+          disabled: full,
+          callback: () => this.edit((stack) => modifierStackAdd(stack, kind.id)),
+        });
+    }
     this.showMenu(items, anchor);
   }
 
@@ -651,7 +661,8 @@ export function modifierStackEmptyHintText(): string {
     const labels = modifierStackKinds.filter((kind) => kind.category === category).map((kind) => kind.label);
     return `${heading} (${joinNames(labels)})`;
   });
-  return `No modifiers yet. Use Add Modifier for ${joinNames(groups)}.`;
+  const scripted = modifierStackKinds.filter((kind) => kind.category === 'script').map((kind) => kind.label);
+  return `No modifiers yet. Use Add Modifier for ${joinNames([...groups, ...scripted])}.`;
 }
 
 /**

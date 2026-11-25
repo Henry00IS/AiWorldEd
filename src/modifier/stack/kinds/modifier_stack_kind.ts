@@ -9,7 +9,7 @@ import { modifierStackFieldsNormalize } from '@/modifier/stack/modifier_stack_fi
 import { modifierStackChoicesUpgrade } from '@/modifier/stack/modifier_stack_upgrade.js';
 
 /** Menu grouping of a modifier kind. */
-export type ModifierStackCategory = 'generate' | 'duplicate' | 'shape';
+export type ModifierStackCategory = 'generate' | 'duplicate' | 'shape' | 'script';
 
 /**
  * How a kind's output follows its volume when the volume only moves or turns:

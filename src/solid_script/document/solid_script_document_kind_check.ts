@@ -18,7 +18,7 @@ import type { SolidScriptWarning } from '@/solid_script/language/solid_script_ma
 import { solidScriptMemberHint, solidScriptMemberNames } from '@/solid_script/language/solid_script_members.js';
 import {
   solidScriptChoiceLiteralProblems,
-  solidScriptChoiceWordProblem,
+  solidScriptChoiceFieldProblem,
   solidScriptChoiceWordsForTarget,
 } from '@/solid_script/language/solid_script_choices.js';
 import { solidScriptInputsList, type SolidScriptInput } from '@/solid_script/language/solid_script_input.js';
@@ -153,7 +153,7 @@ function solidScriptKindChoiceProblems(
 ): string[] {
   const words =
     parameter.key === 'value' ? solidScriptChoiceWordsForTarget(values['name'] ?? '', inputs) : (parameter.words ?? []);
-  const typable = solidScriptChoiceWordProblem(text, words);
+  const typable = solidScriptChoiceFieldProblem(parameter, text, words);
   const labelled = typable === '' ? [] : [`${parameter.label} ${typable}`];
   return [...labelled, ...solidScriptChoiceLiteralProblems(text, inputs)];
 }

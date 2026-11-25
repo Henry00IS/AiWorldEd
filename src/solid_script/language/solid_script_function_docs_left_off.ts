@@ -1,6 +1,7 @@
 /** Inputs at the end of a function that may be left off, by function key. */
 export const SOLID_SCRIPT_FUNCTION_INPUTS_LEFT_OFF: Readonly<Record<string, number>> = {
   nearest: 3,
+  remap_axes: 3,
   cluster: 2,
   cluster_connected: 1,
   brick: 8,

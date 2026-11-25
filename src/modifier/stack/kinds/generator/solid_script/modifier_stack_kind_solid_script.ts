@@ -101,9 +101,9 @@ export function modifierStackSolidScriptFields(use: SolidScriptUse): readonly Mo
  */
 export class ModifierStackKindSolidScript extends ModifierStackKindGeneratorBase {
   readonly id: string = MODIFIER_STACK_SOLID_SCRIPT_KIND;
-  readonly label: string = 'SolidScript';
+  readonly label: string = 'Solid Script';
   readonly description: string =
-    'Builds objects from a SolidScript of command lines. Edit Script opens the editor with its command palette; .aiscript files from the project browser can be dropped on the Script row.';
+    'Builds objects from a Solid Script of command lines. Edit Script opens the editor with its command palette; .aiscript files from the project browser can be dropped on the Script row.';
   protected readonly specificFields = modifierStackSolidScriptFields('generator');
 
   /**

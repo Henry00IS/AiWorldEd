@@ -1,10 +1,10 @@
 # Paths
 
-A **Path** is a line of points you draw in the scene: the bottom corners of a room, the centre of a road, the run of a staircase. A SolidScript generator reads it through a **Path** input, so one script can follow any shape you trace.
+A **Path** is a line of points you draw in the scene: the bottom corners of a room, the centre of a road, the run of a staircase. A Solid Script generator reads it through a **Path** input, so one script can follow any shape you trace.
 
 ## Add a Path to a script
 
-1. Open the script editor of a SolidScript generator and add an **Input** line with **Type** `Path`, such as `Input Wall (Path)`.
+1. Open the script editor of a Solid Script generator and add an **Input** line with **Type** `Path`, such as `Input Wall (Path)`.
 2. Use it like any other path: `Sweep Along Path Along [Wall]`, `Resample [Wall]`, or any line that takes a Path.
 
 Adding a Path input turns on **Has Edit Mode** for the script, so its points can be reached in the scene. A new Path is a straight line two metres long.

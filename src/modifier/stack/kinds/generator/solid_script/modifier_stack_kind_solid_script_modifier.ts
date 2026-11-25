@@ -40,10 +40,10 @@ import { modifierStackSolidScriptReceivedWrite } from './modifier_stack_solid_sc
  */
 export class ModifierStackKindSolidScriptModifier extends ModifierStackKindSolidScript {
   override readonly id: string = MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND;
-  override readonly label: string = 'SolidScript Modifier';
-  override readonly category: ModifierStackCategory = 'shape';
+  override readonly label: string = 'Solid Script';
+  override readonly category: ModifierStackCategory = 'script';
   override readonly description: string =
-    'Runs a SolidScript on what it is added to: only what the script outputs comes out, and Input Objects passes the received solids on. The script must allow Modifier under Can Be Used As.';
+    'Runs a Solid Script on what it is added to: only what the script outputs comes out, and Input Objects passes the received solids on. The script must allow Modifier under Can Be Used As.';
   protected override readonly specificFields = modifierStackSolidScriptFields('modifier');
 
   /**

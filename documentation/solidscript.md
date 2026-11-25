@@ -1,6 +1,6 @@
-# SolidScript
+# Solid Script
 
-SolidScript builds level geometry from a list of command lines: add a **SolidScript** generator to a solid model, press **Edit Script**, and every line you add turns into solids in the viewport as you type.
+Solid Script builds level geometry from a list of command lines: add a **Solid Script** generator to a solid model, press **Edit Script**, and every line you add turns into solids in the viewport as you type.
 
 ## Writing a script
 
@@ -49,6 +49,8 @@ The script runs on every change. **Start** builds everything, **Debug** builds o
 - The **Variables** tab lists every name with its value at the step shown, and the **System** values such as `$Time.Year`, `$Editor.Version` or `$Box.Width`. `$Box` is the generator or the modifier volume: `[$Box.Width]`, `[$Box.Height]`, `[$Box.Depth]`, `[$Box.Size]`, `[$Box.Extents]`, `[$Box.Min]` and `[$Box.Max]` describe its box, and `[$Box.Position]`, `[$Box.Rotation]` and `[$Box.Scale]` are its pose in the level, in metres and degrees. The examples size themselves from the box. Where a script runs without a box, such as in the assistant, the size values read as 1 and the Output shows a ⚠️ warning on the line instead of stopping; Position, Rotation and Scale then read as the origin, no turn and a scale of one.
 
 </details>
+
+- To sweep a 2D polygon (`Circle`, `Square`, `Star`, or `Polygon`) along a path, give the 2D shape an **Into** name such as `Ring`, then pass `[Ring]` (or `[Ring.Points]`) to **Sweep Along Path**'s **Profile**.
 
 ## Inputs
 
@@ -154,7 +156,7 @@ A script can be a **generator**, which builds new geometry from nothing, or a **
 <summary>More Details</summary>
 
 - Generator is on for every script that sets nothing. A script that does not allow a use is refused there with a message saying which box to turn on; the use a step already has stays on.
-- Add a SolidScript modifier from **Add Modifier** on an object, group or modifier volume. The old generators still cannot go on solids or groups.
+- Add a Solid Script modifier from **Add Modifier** on an object, group or modifier volume. The old generators still cannot go on solids or groups.
 - As a modifier, the solids it receives pass on unchanged unless the script has an **Input Objects** line. What the script builds is added, with the script origin at the center of what it receives; Operation picks whether it is added, cut out or intersected.
 - `[$Script.Usage]` is Generator or Modifier. `[$Script.Mode]` is Additive, Subtractive, Intersecting or Pass-Through: the generator node's or modifier host's mode in the scene. `[$Input.Objects]`, `[$Input.Faces]`, `[$Input.Min]`, `[$Input.Max]`, `[$Input.Size]` and `[$Input.Center]` describe what a modifier receives (all zero for a generator), and **Input Shapes** builds copies of those solids to move, mirror or cut.
 - The **Pedestal** example works both ways: as a generator it builds a box on a slab, as a modifier it puts the slab under the solid.
@@ -214,7 +216,7 @@ The **Examples** window holds showcase scripts such as the Spiral Staircase, sma
 - Subdivide Crease [=[$Edge.Angle] > 60] keeps edges that pass it sharp while Smooth rounds the rest; Keep Corners holds the corners of an open mesh in place.
 - Extrude Edges pulls mesh edges out into new four-sided faces, Distance metres along Direction (or the way the faces at each corner face), sharing corners so a chain becomes one strip; the new faces are picked.
 - Number helpers: Log(number, base) takes any base (10 when left off); Sinh, Cosh and Tanh work per axis; Gcd and Lcm of whole numbers; Xor of two tests; BitAnd, BitOr and BitXor; Median and Range of a list of numbers; StdDev and Variance of a list of numbers or vectors, with an optional Groups list giving each item the spread of its own group.
-- Waves and coordinates: Smootherstep(edge_low, edge_high, value); Saw(value) and Triangle(value) repeat every whole step; Checker(position, scale) gives 1 in odd squares of a checkerboard; FlipToward(vector, reference); FromCylinder(radius, degrees, height), FromSphere(radius, yaw, pitch), ToCylinder(vector) and ToSphere(vector) around the up (Y) axis; RingPoint(degrees, size, height) is a point on the oval that fits size (a width number, or the X and Z of a vector), turning counter-clockwise seen from above; Slerp(from, to, amount) turns one direction toward another at an even angle rate.
+- Waves and coordinates: Smootherstep(edge_low, edge_high, value); Saw(value) and Triangle(value) repeat every whole step; Checker(position, scale) gives 1 in odd squares of a checkerboard; FlipToward(vector, reference); FromCylinder(radius, degrees, height), FromSphere(radius, yaw, pitch), ToCylinder(vector) and ToSphere(vector) around the up (Y) axis; RingPoint(degrees, size, height) is a point on the oval that fits size (a width number, or the X and Z of a vector), turning counter-clockwise seen from above; Slerp(from, to, amount) turns one direction toward another at an even angle rate. RemapAxes(vectors, x, y, z) returns a list of vectors (or one vector) with its components taken from X, Y, Z, -X, -Y or -Z (duplicates allowed), such as RemapAxes([Star.Points], "X", "Z", "-Y") to lay XY points flat on the ground.
 - Random turns: RandomDirection(id, seed) gives a unit direction and RandomRotation(id, seed) an evenly spread rotation in degrees (X then Y then Z); in a per-item field the ID is the item. First(list, count) and Last(list, count) take several items.
 - Ranges and slices: Clamp(value, min, max) swaps reversed limits; Lerp(from, to, amount) accepts a vector amount when blending vectors; Slice(list or text, start, count) also takes characters of text, counted from 0.
 - Points From Path: a Count of 0 or 1 is raised to 2, so both ends of the path always get a point.

@@ -19,6 +19,7 @@ export function solidScriptFunctionGroups(key: string): readonly SolidScriptFunc
   const first = solidScriptFunctionArguments(key)[0]?.type;
   const takes = Array.isArray(first) ? first : [];
   const also: SolidScriptFunctionGroup[] = takes.includes('List') && takes.includes('Text') ? ['List', 'Text'] : [];
+  if (takes.includes('List') && takes.includes('Vector')) also.push('List');
   if (takes.includes('Dictionary') || doc.checks?.includes('Dictionary')) also.push('Dictionary');
   return [doc.group, ...also.filter((group) => group !== doc.group)];
 }

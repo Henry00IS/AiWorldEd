@@ -2,10 +2,10 @@ import * as THREE from 'three';
 import type { SolidScriptPoint2 } from './solid_script_polygon.js';
 
 /**
- * Lays the points of a closed Path in the drawing plane of Linear Extrude,
- * Rotate Extrude and Offset, from the plane it lies in: a path on the ground
- * keeps X and runs its depth to the back, as the drawing's Y; an upright path
- * keeps its height as Y. The corners turn counter-clockwise.
+ * Lays the points of a closed Path in the 2D drawing plane from the plane it
+ * lies in: a path on the ground keeps X and runs its depth to the back as Y, an
+ * XY path keeps X and Y, a YZ path maps Z and Y, and a tilted path uses an
+ * orthonormal basis in its plane. The corners turn counter-clockwise.
  *
  * @param points Sampled points in script space.
  * @returns Corners in the drawing plane.
@@ -18,12 +18,22 @@ export function solidScriptPathFlat(points: readonly THREE.Vector3[]): SolidScri
     normal.y += (point.z - next.z) * (point.x + next.x);
     normal.z += (point.x - next.x) * (point.y + next.y);
   });
-  const [x, y, z] = [Math.abs(normal.x), Math.abs(normal.y), Math.abs(normal.z)];
-  if (Math.max(x, y, z) < 1e-12)
+  const length = normal.length();
+  if (length < 1e-12)
     throw new Error('this Path encloses nothing to fill; give it corners that do not all lie on one line');
-  const flat = points.map((point): SolidScriptPoint2 =>
-    y >= x && y >= z ? [point.x, -point.z] : z >= x ? [point.x, point.y] : [point.z, point.y],
-  );
+  const [x, y, z] = [Math.abs(normal.x), Math.abs(normal.y), Math.abs(normal.z)];
+  let flat: SolidScriptPoint2[];
+  if (Math.max(x, y, z) >= length * (1 - 1e-6)) {
+    flat = points.map((point): SolidScriptPoint2 =>
+      y >= x && y >= z ? [point.x, -point.z] : z >= x ? [point.x, point.y] : [point.z, point.y],
+    );
+  } else {
+    const unit = normal.clone().divideScalar(length);
+    const ref = Math.abs(unit.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+    const uAxis = new THREE.Vector3().crossVectors(ref, unit).normalize();
+    const vAxis = new THREE.Vector3().crossVectors(unit, uAxis).normalize();
+    flat = points.map((point): SolidScriptPoint2 => [point.dot(uAxis), point.dot(vAxis)]);
+  }
   return THREE.ShapeUtils.isClockWise(flat.map(([u, v]) => new THREE.Vector2(u, v))) ? flat.reverse() : flat;
 }
 

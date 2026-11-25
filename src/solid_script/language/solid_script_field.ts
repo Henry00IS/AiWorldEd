@@ -7,7 +7,10 @@ import { SolidScriptPathElement, solidScriptValueText } from './solid_script_val
 import { solidScriptNameKey } from './solid_script_name_key.js';
 import { solidScriptFieldVectorRead, solidScriptFormulaListStarts } from './solid_script_formula_list_literal.js';
 import { SOLID_SCRIPT_ESCAPED, solidScriptStringEscapes } from './solid_script_lexer.js';
+import * as THREE from 'three';
+import { solidScriptPathFlat, solidScriptPathLoopOpen } from './solid_script_path_flat.js';
 import { solidScriptPathSample } from './solid_script_path_model.js';
+import { solidScriptPolygonArea, type SolidScriptPoint2 } from './solid_script_polygon.js';
 
 /**
  * How the text typed into a block field is read. Field text is plain text
@@ -610,16 +613,46 @@ export function solidScriptFieldPoints(values: readonly SolidScriptValue[], size
     Array.isArray(value) && value.length > 0 && value.every((entry) => typeof entry === 'number');
   if (values.every((value) => typeof value === 'number')) return [fit(values as number[], [...values])];
   const points: number[][] = [];
+  const three: THREE.Vector3[] = [];
   for (const value of values) {
-    if (value instanceof SolidScriptPathElement)
-      for (const point of solidScriptPathSample(value.path)) points.push(fit(point, value));
-    else if (numeric(value)) points.push(fit(value, value));
-    else if (Array.isArray(value))
+    if (value instanceof SolidScriptPathElement) {
+      if (size === 2) {
+        if (!value.path.closed) throw new Error('this Path is open; turn on Closed to use it as a 2D shape');
+        const sampled = solidScriptPathLoopOpen(
+          solidScriptPathSample(value.path).map(([x = 0, y = 0, z = 0]) => new THREE.Vector3(x, y, z)),
+        );
+        for (const point of solidScriptPathFlat(sampled)) points.push(point);
+      } else {
+        for (const point of solidScriptPathSample(value.path)) points.push(fit(point, value));
+      }
+    } else if (numeric(value)) {
+      if (value.length === 3) three.push(new THREE.Vector3(value[0], value[1], value[2]));
+      points.push(fit(value, value));
+    } else if (Array.isArray(value))
       for (const entry of value) {
         if (!numeric(entry)) throw wrong(entry);
+        if (entry.length === 3) three.push(new THREE.Vector3(entry[0], entry[1], entry[2]));
         points.push(fit(entry, entry));
       }
     else throw wrong(value);
+  }
+  if (
+    size === 2 &&
+    points.length >= 3 &&
+    three.length === points.length &&
+    Math.abs(solidScriptPolygonArea(points as SolidScriptPoint2[])) <= 1e-12
+  ) {
+    const clean = solidScriptPathLoopOpen(three);
+    if (clean.length >= 3) {
+      const normal = new THREE.Vector3();
+      clean.forEach((point, index) => {
+        const next = clean[(index + 1) % clean.length]!;
+        normal.x += (point.y - next.y) * (point.z + next.z);
+        normal.y += (point.z - next.z) * (point.x + next.x);
+        normal.z += (point.x - next.x) * (point.y + next.y);
+      });
+      if (normal.length() >= 1e-12) return solidScriptPathFlat(clean);
+    }
   }
   return points;
 }

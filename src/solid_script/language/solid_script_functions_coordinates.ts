@@ -1,6 +1,12 @@
 import * as THREE from 'three';
 import { solidScriptExtraNumber, solidScriptExtraVector } from './solid_script_functions_extra.js';
-import type { SolidScriptValue } from './solid_script_value.js';
+import { solidScriptPathSample } from './solid_script_path_model.js';
+import {
+  SolidScriptPathElement,
+  solidScriptValueNumbers,
+  solidScriptValueText,
+  type SolidScriptValue,
+} from './solid_script_value.js';
 
 /** A built-in function over evaluated arguments. */
 type SolidScriptCoordinatesBuiltin = (args: SolidScriptValue[]) => SolidScriptValue;
@@ -208,10 +214,77 @@ function solidScriptCoordinatesSquare(direction: THREE.Vector3): THREE.Vector3 {
  * Coordinate helpers: flipping a vector toward a reference, cylinder and sphere
  * coordinates, ring points and turning between directions.
  */
+/** Axis components a vector can read from, as [index, sign]. */
+const SOLID_SCRIPT_COORDINATES_AXES: Readonly<Record<string, readonly [number, number]>> = {
+  X: [0, 1],
+  Y: [1, 1],
+  Z: [2, 1],
+  '-X': [0, -1],
+  '-Y': [1, -1],
+  '-Z': [2, -1],
+};
+
+/**
+ * Reads one axis choice, such as X or -Y, as a component picker.
+ *
+ * @param value Argument value.
+ * @param usage How to call the function, for the message.
+ * @returns Picker returning one remapped coordinate.
+ */
+function solidScriptCoordinatesAxis(value: SolidScriptValue, usage: string): (vector: readonly number[]) => number {
+  const key = typeof value === 'string' ? value.trim().toUpperCase() : '';
+  const axis = SOLID_SCRIPT_COORDINATES_AXES[key];
+  if (!axis) throw new Error(`${usage} needs X, Y, Z, -X, -Y or -Z, not ${solidScriptValueText(value)}`);
+  const [index, sign] = axis;
+  return (vector) => sign * (vector[index] ?? 0) + 0;
+}
+
+/**
+ * Reads a value as a 2D or 3D vector padded with 0 for Z, or throws.
+ *
+ * @param value Vector value.
+ * @param usage How to call the function, for the message.
+ * @returns Three numbers.
+ */
+function solidScriptCoordinatesPadVector(value: SolidScriptValue, usage: string): [number, number, number] {
+  const numbers = solidScriptValueNumbers(value);
+  if (!numbers || (numbers.length !== 2 && numbers.length !== 3))
+    throw new Error(`${usage} needs vectors of 2 or 3 numbers, not ${solidScriptValueText(value)}`);
+  return [numbers[0] ?? 0, numbers[1] ?? 0, numbers[2] ?? 0];
+}
+
+/**
+ * Remaps the components of a list of vectors, a Path, or one vector, allowing
+ * duplicates and negated axes, such as RemapAxes([Pts], "X", "Z", "Y").
+ *
+ * @param args Vectors or vector, and three axis choices.
+ * @returns Remapped vectors or single vector.
+ */
+function solidScriptCoordinatesRemapAxes(args: readonly SolidScriptValue[]): SolidScriptValue {
+  const usage = 'RemapAxes(vectors, x, y, z)';
+  const rx = solidScriptCoordinatesAxis(args[1] ?? 'X', usage);
+  const ry = solidScriptCoordinatesAxis(args[2] ?? 'Y', usage);
+  const rz = solidScriptCoordinatesAxis(args[3] ?? 'Z', usage);
+  const remap = (vector: readonly [number, number, number]): number[] => [rx(vector), ry(vector), rz(vector)];
+  const source = args[0];
+  if (source instanceof SolidScriptPathElement) {
+    return solidScriptPathSample(source.path).map((point) => remap([point[0] ?? 0, point[1] ?? 0, point[2] ?? 0]));
+  }
+  if (!Array.isArray(source)) {
+    throw new Error(`${usage} needs a list of vectors, a Path or a vector, not ${solidScriptValueText(source)}`);
+  }
+  if (source.length === 0) return [];
+  if (source.every((entry) => typeof entry === 'number')) {
+    return remap(solidScriptCoordinatesPadVector(source, usage));
+  }
+  return source.map((entry) => remap(solidScriptCoordinatesPadVector(entry, usage)));
+}
+
 export const SOLID_SCRIPT_FUNCTIONS_COORDINATES = {
   flip_toward: solidScriptCoordinatesFlipToward,
   from_cylinder: solidScriptCoordinatesFromCylinder,
   from_sphere: solidScriptCoordinatesFromSphere,
+  remap_axes: solidScriptCoordinatesRemapAxes,
   ring_point: solidScriptCoordinatesRingPoint,
   slerp: solidScriptCoordinatesSlerp,
   to_cylinder: solidScriptCoordinatesToCylinder,

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
+import { solidScriptKindCheck } from '@/solid_script/document/solid_script_document_kind_check.js';
 import { solidScriptProgramRun } from '@/solid_script/language/solid_script_program.js';
 import { solidScriptDocumentCreate, type SolidScriptLine } from '@/solid_script/document/solid_script_document.js';
 import { solidScriptShapeLeavesPositive } from '@/solid_script/language/solid_script_shape.js';
@@ -173,6 +174,125 @@ describe('SolidScript paths', () => {
       values: { path: '[path]' },
     });
     expect(result.error?.message).toMatch(/Path needs at least 2 different points/);
+  });
+
+  it('sweeps a Circle 2D polygon Into a Path along straight and curved paths as a closed tube', () => {
+    for (const pathLine of [
+      { command: 'path', values: { shape: 'Line', from: '0, 0, 0', to: '2, 0, 0', count: '2', into: 'Rail' } },
+      {
+        command: 'path',
+        values: { shape: 'Arc', center: '0, 0, 0', radius: '2', start: '0', end: '180', count: '13', into: 'Rail' },
+      },
+    ]) {
+      for (const meshFlag of ['Yes', 'No']) {
+        const doc = solidScriptDocumentCreate([
+          { command: 'circle', values: { r: '0.2', sides: '12', into: 'Ring' } },
+          pathLine,
+          { command: 'sweep_along_path', values: { path: '[Rail]', profile: '[Ring]', mesh: meshFlag } },
+        ]);
+        expect(solidScriptKindCheck(doc)).toEqual([]);
+        const result = solidScriptProgramRun(doc);
+        expect(result.error, `${pathLine.values.shape} mesh=${meshFlag}`).toBeNull();
+        if (meshFlag === 'Yes') {
+          const [mesh] = solidScriptShapeMeshes(result.shapes);
+          expect(mesh, pathLine.values.shape).toBeTruthy();
+          expect(volume(mesh!)).toBeGreaterThan(0.15);
+          const box = new THREE.Box3().setFromPoints(mesh!.points);
+          const size = box.getSize(new THREE.Vector3());
+          expect(size.y).toBeCloseTo(0.4, 2);
+          if (pathLine.values.shape === 'Line') {
+            expect(size.x).toBeCloseTo(2, 4);
+            expect(size.z).toBeCloseTo(0.4, 2);
+          } else {
+            expect(size.x).toBeGreaterThan(4);
+            expect(size.z).toBeGreaterThan(2);
+          }
+        } else {
+          const built = solids(result);
+          expect(built.length).toBeGreaterThan(0);
+          const box = new THREE.Box3();
+          for (const pts of built) for (const pt of pts) box.expandByPoint(pt);
+          const size = box.getSize(new THREE.Vector3());
+          expect(size.y).toBeCloseTo(0.4, 2);
+        }
+      }
+    }
+  });
+
+  it('keeps 2D polygon .Points in X and Y (z = 0) matching typed coordinates, and sweeps XZ Path arcs too', () => {
+    const res = run(
+      { command: 'star', values: { points: '4', inner: '0.1', outer: '0.2', into: 'S' } },
+      { command: 'echo', values: { value: '[S.Points]' } },
+      { command: 'polygon', values: { into: 'P' } },
+      { command: 'point', values: { position: '0, 0, 5' } },
+      { command: 'point', values: { position: '1, 0, 6' } },
+      { command: 'point', values: { position: '0, 2, 7' } },
+      END,
+      { command: 'echo', values: { value: '[P.Points]' } },
+    );
+    expect(res.error).toBeNull();
+    expect(res.messages[1]).toBe('[[0, 0, 0], [1, 0, 0], [0, 2, 0]]');
+    const starPoints = JSON.parse(res.messages[0]!) as number[][];
+    expect(starPoints.every(([, , z]) => z === 0)).toBe(true);
+    expect(starPoints.some(([, y]) => Math.abs(y!) > 0.05)).toBe(true);
+
+    const xzArc = run(
+      {
+        command: 'path',
+        values: {
+          shape: 'Arc',
+          center: '0, 0, 0',
+          radius: '0.2',
+          sweep: '360',
+          count: '12',
+          closed: 'Yes',
+          into: 'Ring',
+        },
+      },
+      { command: 'path', values: { shape: 'Line', from: '0, 0, 0', to: '2, 0, 0', count: '2', into: 'Rail' } },
+      { command: 'sweep_along_path', values: { path: '[Rail]', profile: '[Ring]', mesh: 'Yes' } },
+    );
+    expect(xzArc.error).toBeNull();
+    const [arcMesh] = solidScriptShapeMeshes(xzArc.shapes);
+    expect(volume(arcMesh!)).toBeGreaterThan(0.15);
+  });
+
+  it('sweeps Square, Polygon, Star and Ring.Points profiles along a path without flattening', () => {
+    const starDoc = solidScriptDocumentCreate([
+      { command: 'star', values: { points: '5', inner: '0.1', outer: '0.3', into: 'StarProfile' } },
+      { command: 'path', values: { shape: 'Line', from: '0, 0, 0', to: '2, 0, 0', count: '2', into: 'Rail' } },
+      { command: 'sweep_along_path', values: { path: '[Rail]', profile: '[StarProfile]', mesh: 'No' } },
+    ]);
+    const starRun = solidScriptProgramRun(starDoc);
+    expect(starRun.error).toBeNull();
+    expect(solids(starRun).length).toBeGreaterThan(1);
+
+    const pointsDoc = solidScriptDocumentCreate([
+      { command: 'square', values: { size: '0.4, 0.2', into: 'BoxProfile' } },
+      { command: 'path', values: { shape: 'Line', from: '0, 0, 0', to: '2, 0, 0', count: '2', into: 'Rail' } },
+      { command: 'sweep_along_path', values: { path: '[Rail]', profile: '[BoxProfile.Points]', mesh: 'Yes' } },
+    ]);
+    const pointsRun = solidScriptProgramRun(pointsDoc);
+    expect(pointsRun.error).toBeNull();
+    const [mesh] = solidScriptShapeMeshes(pointsRun.shapes);
+    expect(volume(mesh!)).toBeCloseTo(0.4 * 0.2 * 2, 4);
+
+    const polygonDoc = solidScriptDocumentCreate([
+      { command: 'polygon', values: { into: 'L' } },
+      { command: 'point', values: { position: '-0.2, -0.2, 0' } },
+      { command: 'point', values: { position: '0.2, -0.2, 0' } },
+      { command: 'point', values: { position: '0.2, 0, 0' } },
+      { command: 'point', values: { position: '0, 0, 0' } },
+      { command: 'point', values: { position: '0, 0.2, 0' } },
+      { command: 'point', values: { position: '-0.2, 0.2, 0' } },
+      END,
+      { command: 'path', values: { shape: 'Line', from: '0, 0, 0', to: '1, 0, 0', count: '2', into: 'Rail' } },
+      { command: 'sweep_along_path', values: { path: '[Rail]', profile: '[L]', mesh: 'Yes' } },
+    ]);
+    const polyRun = solidScriptProgramRun(polygonDoc);
+    expect(polyRun.error).toBeNull();
+    const [polyMesh] = solidScriptShapeMeshes(polyRun.shapes);
+    expect(volume(polyMesh!)).toBeCloseTo(0.12, 4);
   });
 
   it('welds mesh corners closer than a distance into one', () => {

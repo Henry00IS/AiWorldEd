@@ -202,7 +202,7 @@ export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
     category: '2D Shapes',
     description: 'Draw a rectangle path',
     manual:
-      'Draws a flat rectangle with the given width (X) and depth (Y of the drawing, which runs to the back once extruded) in metres, centered on the origin; Anchor picks another spot of it, such as Left, Front for the corner that ends up front left. It only works inside a Linear Extrude, which pulls it up into a solid, or a Rotate Extrude. A Name lets later lines inside the same block move, turn or scale it, such as Move By 1, 0, 0 Of Ring. Into writes the path to a variable, so Move By 1, 0, 0 Of [Ring] moves exactly this one, even when another path has the same Name. Example: a size of 3, 0.2 extruded by 1 gives a thin wall.',
+      'Draws a flat rectangle with the given width (X) and depth (Y of the drawing, which runs to the back once extruded) in metres, centered on the origin; Anchor picks another spot of it, such as Left, Front for the corner that ends up front left. Place it inside a Linear Extrude or Rotate Extrude to turn it into a solid, or give it an Into name to keep it as a Path for Sweep Along Path Profile. A Name lets later lines inside the same block move, turn or scale it, such as Move By 1, 0, 0 Of Ring. Into writes the path to a variable, so Move By 1, 0, 0 Of [Ring] moves exactly this one, even when another path has the same Name. Example: a size of 3, 0.2 extruded by 1 gives a thin wall.',
     stops: ['A size of 0 or less on either axis.', 'Being placed outside a Linear Extrude or Rotate Extrude.'],
     parameters: [
       solidScriptParameter(
@@ -228,7 +228,7 @@ export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
     category: '2D Shapes',
     description: 'Draw a circle path',
     manual:
-      'Draws a flat faceted circle around the origin; Anchor moves another spot of it there, such as Left, Front for its corner. It only works inside a Linear Extrude or Rotate Extrude. A Name lets later lines inside the same block move, turn or scale it, such as Move By 1, 0, 0 Of Ring. Into writes the path to a variable, so Move By 1, 0, 0 Of [Ring] moves exactly this one, even when another path has the same Name. Sides sets how many straight edges go around it. Example: radius 1 with 6 sides extruded by 0.3 gives a hexagonal tile.',
+      'Draws a flat faceted circle around the origin; Anchor moves another spot of it there, such as Left, Front for its corner. Place it inside a Linear Extrude or Rotate Extrude to turn it into a solid, or give it an Into name to keep it as a Path for Sweep Along Path Profile. A Name lets later lines inside the same block move, turn or scale it, such as Move By 1, 0, 0 Of Ring. Into writes the path to a variable, so Move By 1, 0, 0 Of [Ring] moves exactly this one, even when another path has the same Name. Sides sets how many straight edges go around it. Example: radius 1 with 6 sides extruded by 0.3 gives a hexagonal tile.',
     stops: [
       'A radius of 0 or less.',
       'Sides outside 3 to 64.',
@@ -257,7 +257,7 @@ export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
     category: '2D Shapes',
     description: 'Draw a star path',
     manual:
-      'Draws a flat star around the origin: Points outer tips evenly around it at the Outer radius, with an inner corner at the Inner radius halfway between each two tips. Twist turns the inner corners further around, in degrees, for a pinwheel. Anchor moves another spot of it there, such as Left, Front. It only works inside a Linear Extrude or Rotate Extrude. A Name lets later lines inside the same block move, turn or scale it. Into writes the path to a variable. Example: 5 points with Inner 0.4 and Outer 1 extruded by 0.1 gives a star badge.',
+      'Draws a flat star around the origin: Points outer tips evenly around it at the Outer radius, with an inner corner at the Inner radius halfway between each two tips. Twist turns the inner corners further around, in degrees, for a pinwheel. Anchor moves another spot of it there, such as Left, Front. Place it inside a Linear Extrude or Rotate Extrude to turn it into a solid, or give it an Into name to keep it as a Path for Sweep Along Path Profile. A Name lets later lines inside the same block move, turn or scale it. Into writes the path to a variable. Example: 5 points with Inner 0.4 and Outer 1 extruded by 0.1 gives a star badge.',
     stops: [
       'Points outside 3 to 64.',
       'An Inner or Outer radius of 0 or less.',
@@ -304,7 +304,7 @@ export const SOLID_SCRIPT_COMMANDS_PLANAR: readonly SolidScriptCommand[] = [
     category: '2D Shapes',
     description: 'Draw a path through Point lines',
     manual:
-      'Draws a flat path through the Point lines between this line and its End, in order around the edge. Each Point gives X and Y, and Z is ignored. Unlike the solids it may be dented (concave), such as an L or a star. It is split into convex solids when extruded. It only works inside a Linear Extrude or Rotate Extrude. A Name lets later lines inside the same block move, turn or scale it, such as Move By 1, 0, 0 Of Ring. Into writes the path to a variable, so Move By 1, 0, 0 Of [Ring] moves exactly this one, even when another path has the same Name. The lines inside may use Repeat, For Each, If and Set, and Points From List adds the points of a list variable such as [Path]. Example: Points at 0, 0 and 2, 0 and 2, 1 and 1, 1 and 1, 2 and 0, 2 give an L.',
+      'Draws a flat path through the Point lines between this line and its End, in order around the edge. Each Point gives X and Y, and Z is ignored. Unlike the solids it may be dented (concave), such as an L or a star. It is split into convex solids when extruded. Place it inside a Linear Extrude or Rotate Extrude to turn it into a solid, or give it an Into name to keep it as a Path for Sweep Along Path Profile. A Name lets later lines inside the same block move, turn or scale it, such as Move By 1, 0, 0 Of Ring. Into writes the path to a variable, so Move By 1, 0, 0 Of [Ring] moves exactly this one, even when another path has the same Name. The lines inside may use Repeat, For Each, If and Set, and Points From List adds the points of a list variable such as [Path]. Example: Points at 0, 0 and 2, 0 and 2, 1 and 1, 1 and 1, 2 and 0, 2 give an L.',
     stops: [
       'Fewer than three points.',
       'Being placed outside a Linear Extrude or Rotate Extrude.',

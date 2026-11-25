@@ -38,6 +38,16 @@ export const SOLID_SCRIPT_FUNCTION_DOCS_COORDINATES = {
     group: 'Vector',
     gives: ['Vector'],
   },
+  remap_axes: {
+    usage: 'RemapAxes(vectors, x, y, z)',
+    summary: solidScriptFunctionDocSummary(
+      'Returns a new list of vectors, or one vector, with its X, Y and Z components taken from the named axes (X, Y, Z, -X, -Y or -Z; duplicates allowed).',
+      ['RemapAxes([[1, 2, 3]], "X", "Z", "Y") is [[1, 3, 2]].', 'RemapAxes([1, 2, 3], "X", "Z", "-Y") is [1, 3, -2].'],
+      'Use it to lay XY points flat on the ground, swap axes, or copy one axis into another.',
+    ),
+    group: 'Vector',
+    gives: ['Vector', 'Vector List'],
+  },
   ring_point: {
     usage: 'RingPoint(degrees, size, height)',
     summary: solidScriptFunctionDocSummary(
@@ -87,6 +97,34 @@ export const SOLID_SCRIPT_COORDINATES_ARGUMENTS = {
     radius: { type: ['Number'], about: 'How far from the up axis.', start: '1' },
     degrees: { type: ['Number'], about: 'Which way around the up axis, 0 along X.', start: '0' },
     height: { type: ['Number'], about: 'How high up.', start: '0' },
+  },
+  remap_axes: {
+    vectors: {
+      type: ['List', 'Vector', 'Path'],
+      about: 'List of vectors, a Path, or one vector, such as 1, 2, 3 or [Spot].',
+      start: '1, 2, 3',
+    },
+    x: {
+      type: ['Text'],
+      about: 'Axis to read for X, such as X or -Z.',
+      choices: ['X', 'Y', 'Z', '-X', '-Y', '-Z'],
+      default: 'X',
+      start: 'X',
+    },
+    y: {
+      type: ['Text'],
+      about: 'Axis to read for Y, such as Y or Z.',
+      choices: ['X', 'Y', 'Z', '-X', '-Y', '-Z'],
+      default: 'Y',
+      start: 'Y',
+    },
+    z: {
+      type: ['Text'],
+      about: 'Axis to read for Z, such as Z or -Y.',
+      choices: ['X', 'Y', 'Z', '-X', '-Y', '-Z'],
+      default: 'Z',
+      start: 'Z',
+    },
   },
   ring_point: {
     degrees: { type: ['Number'], about: 'Which way around the up axis, 0 along X, 90 to the back.', start: '0' },

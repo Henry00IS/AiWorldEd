@@ -72,7 +72,7 @@ export async function solidScriptFileDecode(file: Blob): Promise<SolidScriptDocu
   const entry = zip.entry(SOLID_SCRIPT_FILE_ENTRY);
   if (!entry) throw new Error(`The file has no ${SOLID_SCRIPT_FILE_ENTRY}.`);
   const json = JSON.parse(await (await zip.read(entry)).text()) as Partial<SolidScriptFileJson> | null;
-  if (json?.format !== SOLID_SCRIPT_FILE_FORMAT) throw new Error('The file is no SolidScript.');
+  if (json?.format !== SOLID_SCRIPT_FILE_FORMAT) throw new Error('The file is no Solid Script.');
   if (typeof json.version !== 'number' || json.version > SOLID_SCRIPT_DOCUMENT_VERSION)
     throw new Error('The script was saved by a newer version of the editor.');
   return solidScriptDocumentNormalize(json);

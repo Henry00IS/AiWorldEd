@@ -108,9 +108,20 @@ describe('kind check of declared choices', () => {
           line('variable', { name: 'Box.Mode', value: 'Subtractive' }),
           line('if', { condition: '[$Script.Mode] == "Pass-Through"' }),
           line('end'),
+          line('widget_slider', { name: 'Size', color: '#ff0000' }),
+          line('widget_slider', { name: 'Width', color: '#f80' }),
+          line('widget_slider', { name: 'Depth', color: 'Orange' }),
         ]),
       ),
     ).toEqual([]);
+  });
+
+  it('warns on an invalid literal in a Color field, but accepts hex and colour names', () => {
+    const warnings = solidScriptKindCheck(
+      solidScriptDocumentCreate([line('widget_slider', { name: 'Size', color: 'sparkly' })]),
+    );
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]?.text).toContain('Color');
   });
 });
 

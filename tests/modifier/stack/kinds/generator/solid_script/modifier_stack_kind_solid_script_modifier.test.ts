@@ -58,8 +58,10 @@ describe('SolidScript as a modifier', () => {
     expect(modifierStackOwnerEncode(fixture.mesh)?.modifiers.map((entry) => entry.kind)).toEqual([
       MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND,
     ]);
-    expect(modifierStackKindFind(MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND)?.category).toBe('shape');
+    expect(modifierStackKindFind(MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND)?.category).toBe('script');
+    expect(modifierStackKindFind(MODIFIER_STACK_SOLID_SCRIPT_MODIFIER_KIND)?.label).toBe('Solid Script');
     expect(modifierStackKindFind('solidScript')?.category).toBe('generate');
+    expect(modifierStackKindFind('solidScript')?.label).toBe('Solid Script');
   });
 
   it('passes the brush on and adds the Pedestal slab under it, sized from Input.Size', () => {

@@ -113,7 +113,7 @@ function solidScriptExampleModifier(
     id: modifier,
     name,
     group: 'Built-In Modifiers',
-    summary: `The ${name} modifier, rebuilt line by line. Add it as a SolidScript Modifier: it changes the solids it receives the same way.`,
+    summary: `The ${name} modifier, rebuilt line by line. Add it as a Solid Script modifier: it changes the solids it receives the same way.`,
     port: null,
     lines,
     uses: { generator: false, modifier: true },

@@ -111,11 +111,15 @@ describe('generators stay off brush and group stacks', () => {
         .map((element) => element.textContent ?? '')
         .join(' ');
       expect(menu).toContain('Bevel');
-      expect(menu).toContain('SolidScript Modifier');
+      expect(menu).toContain('Solid Script');
       const items = [...document.querySelectorAll('[role="menu"] [role="menuitem"]')].map((item) =>
         (item.textContent ?? '').trim(),
       );
-      for (const generator of generators) expect(items).not.toContain(generator.label);
+      const modifierLabels = new Set(
+        modifierStackKinds.filter((kind) => kind.category !== 'generate').map((kind) => kind.label),
+      );
+      for (const generator of generators.filter((kind) => !modifierLabels.has(kind.label)))
+        expect(items).not.toContain(generator.label);
       document.querySelectorAll('[role="menu"]').forEach((element) => element.remove());
     }
   });

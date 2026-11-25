@@ -855,7 +855,7 @@ describe('SolidScript editor', () => {
     await settle();
     expect(folder.handleAt('AiWorldEd/Scripts/Block.aiscript')).toBeTruthy();
     expect(script().name).toBe('Block');
-    expect(root.textContent).toContain('SolidScript — Block');
+    expect(root.textContent).toContain('Solid Script — Block');
     modifierStackParametersCommit(node, stepId, { script: solidScriptDocumentCreate([{ command: 'sphere' }]) }, null);
     tool('Load…').click();
     await settle();

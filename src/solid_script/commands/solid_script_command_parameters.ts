@@ -34,7 +34,7 @@ export const SOLID_SCRIPT_FIELD_ACCEPTS: Readonly<Record<SolidScriptCommandParam
     count: ['Number', 'Text'],
     vector2: ['Vector', 'Number', 'Text', 'List', 'Number List'],
     vector3: ['Vector', 'Number', 'Text', 'List', 'Number List'],
-    points2: ['Vector', 'Number', 'Text', 'List', 'Number List', 'Vector List'],
+    points2: ['Vector', 'Number', 'Text', 'List', 'Number List', 'Vector List', 'Path'],
     points3: ['Vector', 'Number', 'Text', 'List', 'Number List', 'Vector List', 'Path'],
     boolean: ['Yes/No', 'Number', 'Text'],
     value: 'Any',

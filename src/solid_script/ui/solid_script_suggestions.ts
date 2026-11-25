@@ -702,8 +702,10 @@ export function solidScriptSuggestions(
       .map(({ entry }) => entry);
   }
   const groups = solidScriptSuggestionGroups(scope);
+  const callChoices = context.kind === 'formula' ? solidScriptSuggestionCallChoices(context.call) : [];
   const listed = [
     ...(scope.phrase ? solidScriptSuggestionChoiceValues(scope) : []),
+    ...callChoices,
     ...all.filter((entry) => (scope.reference ? entry.pick === 'value' : entry.pick !== 'word')),
   ];
   return listed
@@ -721,6 +723,29 @@ export function solidScriptSuggestions(
  * @param scope What the field may refer to.
  * @returns Suggestions.
  */
+/**
+ * Lists declared choice words for the current built-in function argument as
+ * quoted formula values, such as "X", "Y", "Z" in RemapAxes.
+ *
+ * @param call Call around the caret, or null.
+ * @returns Suggestions.
+ */
+function solidScriptSuggestionCallChoices(call: SolidScriptSuggestionCall | null): SolidScriptSuggestion[] {
+  if (!call) return [];
+  const name = call.name.toLowerCase();
+  const key = Object.keys(SOLID_SCRIPT_FUNCTION_DOCS).find(
+    (entry) => entry === name || solidScriptFunctionSpelling(entry).toLowerCase() === name,
+  );
+  const input = key ? solidScriptFunctionArguments(key)[call.argument] : undefined;
+  if (!input?.choices?.length) return [];
+  return input.choices.map((word) => ({
+    label: `"${word}"`,
+    detail: solidScriptSentence(input.about),
+    category: 'Choices',
+    pick: 'value' as const,
+  }));
+}
+
 function solidScriptSuggestionChoiceValues(scope: SolidScriptSuggestionScope): SolidScriptSuggestion[] {
   return scope.words.map((word) => ({
     label: `"${word.word}"`,

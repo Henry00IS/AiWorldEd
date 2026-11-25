@@ -223,7 +223,8 @@ function solidScriptFormulaCheckProblem(
   values: SolidScriptCommandValues,
 ): string {
   const given = inputs.map(
-    (input) => (values[input.name] ?? '').trim() !== '' || input.fallback !== '' || input.start !== '',
+    (input) =>
+      (values[input.name] ?? '').trim() !== '' || input.fallback !== '' || input.start !== '' || input.default !== '',
   );
   const gap = inputs.findIndex((_input, index) => !given[index] && given.slice(index + 1).includes(true));
   if (gap >= 0) return `${inputs[gap]?.label} needs a value when a later input has one.`;
@@ -248,11 +249,13 @@ function solidScriptFormulaCheck(key: string, context: SolidScriptFormulaContext
   const inputs = solidScriptFormulaCheckInputs(key, context);
   const label = solidScriptFormulaCheckLabel(key);
   const summary = SOLID_SCRIPT_FUNCTION_DOCS[key]?.summary ?? label;
-  const alsoIn = solidScriptFunctionGroups(key).slice(1);
+  const groups = solidScriptFunctionGroups(key);
+  const category = solidScriptWhereHelper(key) ? 'Where' : (groups[0] ?? 'Checks');
+  const alsoIn = groups.slice(1);
   const id = `${SOLID_SCRIPT_FORMULA_CHECK}${key}`;
   return solidScriptFormulaBlock(
     { id, label, description: summary.replace(/\.$/, ''), manual: summary, ...(alsoIn.length > 0 ? { alsoIn } : {}) },
-    solidScriptWhereHelper(key) ? 'Where' : 'Checks',
+    category,
     {
       parameters: inputs.map(solidScriptFormulaCheckField),
       check: (values) => solidScriptFormulaCheckProblem(inputs, values),

@@ -149,9 +149,28 @@ function solidScriptFormulaInputKind(type: SolidScriptFunctionKinds): SolidScrip
  *
  * @returns Keys.
  */
+/**
+ * Built-in functions outside Checks that use a field-per-input block so their
+ * enum choices show dropdowns.
+ */
+const SOLID_SCRIPT_FORMULA_FIELD_FUNCTIONS = new Set(['remap_axes']);
+
+/**
+ * Tells whether a built-in function uses a single-line field-per-input block.
+ *
+ * @param key Function key.
+ * @returns True when rendered as a field-per-input block.
+ */
+export function solidScriptFormulaFieldFunction(key: string): boolean {
+  return SOLID_SCRIPT_FORMULA_FIELD_FUNCTIONS.has(key);
+}
+
 export function solidScriptFormulaCheckKeys(): string[] {
   const checks = Object.entries(SOLID_SCRIPT_FUNCTION_DOCS)
-    .filter(([key, doc]) => doc.group === 'Checks' && !solidScriptWhereHelper(key))
+    .filter(
+      ([key, doc]) =>
+        (doc.group === 'Checks' || SOLID_SCRIPT_FORMULA_FIELD_FUNCTIONS.has(key)) && !solidScriptWhereHelper(key),
+    )
     .map(([key]) => key);
   return [...SOLID_SCRIPT_WHERE_HELPERS.map((helper) => helper.key), ...checks];
 }

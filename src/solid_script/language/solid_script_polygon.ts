@@ -141,20 +141,49 @@ function solidScriptPolygonJoin(first: number[], second: number[]): number[] | n
  * @param input Polygon points in either winding.
  * @returns Convex polygons, counter-clockwise.
  */
-export function solidScriptPolygonConvexPieces(input: SolidScriptPoint2[]): SolidScriptPoint2[][] {
+/**
+ * Splits a simple polygon into convex index polygons referencing the input
+ * corner positions, in counter-clockwise winding.
+ *
+ * @param input Polygon points in either winding.
+ * @returns Corner index lists per convex piece.
+ */
+export function solidScriptPolygonConvexIndices(input: SolidScriptPoint2[]): number[][] {
   if (input.length < 3) throw new Error('polygon needs at least 3 points');
-  const points = solidScriptPolygonArea(input) < 0 ? [...input].reverse() : input;
-  if (
-    solidScriptPolygonIsConvex(
-      points,
-      points.map((_, index) => index),
-    )
+  const reversed = solidScriptPolygonArea(input) < 0;
+  const points = reversed ? [...input].reverse() : input;
+  const raw = solidScriptPolygonIsConvex(
+    points,
+    points.map((_, index) => index),
   )
-    return [points];
+    ? [points.map((_, index) => index)]
+    : solidScriptPolygonMerged(points);
+  return reversed ? raw.map((piece) => piece.map((index) => input.length - 1 - index)) : raw;
+}
+
+/**
+ * Triangulates a simple counter-clockwise polygon and merges neighbouring
+ * triangles while their union remains convex.
+ *
+ * @param points Counter-clockwise polygon points.
+ * @returns Merged index polygons.
+ */
+function solidScriptPolygonMerged(points: SolidScriptPoint2[]): number[][] {
   const pieces = solidScriptPolygonTriangulate(points);
   let merged = true;
   while (merged) merged = solidScriptPolygonMergeOnce(points, pieces);
-  return pieces.map((piece) => piece.map((index) => points[index] as SolidScriptPoint2));
+  return pieces;
+}
+
+/**
+ * Splits a simple polygon into convex pieces: ear clipping, then merging
+ * neighbouring triangles while the merge stays convex.
+ *
+ * @param input Polygon points in either winding.
+ * @returns Convex polygons, counter-clockwise.
+ */
+export function solidScriptPolygonConvexPieces(input: SolidScriptPoint2[]): SolidScriptPoint2[][] {
+  return solidScriptPolygonConvexIndices(input).map((piece) => piece.map((index) => input[index] as SolidScriptPoint2));
 }
 
 /**

@@ -407,7 +407,7 @@ export class SolidScriptEditor extends PanelFloating {
    */
   private render(line: number | null): void {
     const document = this.session.document();
-    this.title.textContent = `SolidScript — ${this.session.name()}`;
+    this.title.textContent = `Solid Script — ${this.session.name()}`;
     this.lines.render(document, line);
     this.selectLine(this.lines.caret());
     this.debugChanged();
@@ -425,7 +425,7 @@ export class SolidScriptEditor extends PanelFloating {
     this.revision = revision;
     this.debugger.stop();
     const document = this.session.document();
-    this.title.textContent = `SolidScript — ${this.session.name()}`;
+    this.title.textContent = `Solid Script — ${this.session.name()}`;
     this.lines.renderKeeping(document);
     this.selectLine(this.lines.caret());
     this.debugChanged();

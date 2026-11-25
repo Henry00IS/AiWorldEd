@@ -38,11 +38,11 @@ export const CONTROLLER_PROJECT_EDITOR_CURVE_HINT =
   'Drag a .aicurve file onto a curve field, such as a Column profile.';
 
 /** Explains what to do with a path file. */
-export const CONTROLLER_PROJECT_EDITOR_PATH_HINT = "Drag a .aipath file onto a SolidScript generator's Path input.";
+export const CONTROLLER_PROJECT_EDITOR_PATH_HINT = "Drag a .aipath file onto a Solid Script generator's Path input.";
 
 /** Explains what to do with a SolidScript file. */
 export const CONTROLLER_PROJECT_EDITOR_SCRIPT_HINT =
-  "Drag a .aiscript file onto a SolidScript generator's Script row, or into its script editor.";
+  "Drag a .aiscript file onto a Solid Script generator's Script row, or into its script editor.";
 
 /** Explains the read-only room project to a room member. */
 export const CONTROLLER_PROJECT_EDITOR_ROOM_NOTICE =

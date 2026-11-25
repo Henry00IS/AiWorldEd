@@ -15,6 +15,11 @@ import {
 } from './solid_script_command_parameters.js';
 import type { SolidScriptBlockRun } from '@/solid_script/language/solid_script_machine_types.js';
 import { solidScriptPathMesh, solidScriptPathSweep } from '@/solid_script/language/solid_script_path.js';
+import {
+  solidScriptPolygonArea,
+  solidScriptPolygonConvexIndices,
+  type SolidScriptPoint2,
+} from '@/solid_script/language/solid_script_polygon.js';
 import { solidScriptSweepScaled, solidScriptSweepUps } from '@/solid_script/language/solid_script_sweep_scale.js';
 import { solidScriptParameterEach } from './solid_script_command_each.js';
 import {
@@ -59,7 +64,10 @@ function solidScriptSweepProfile(run: SolidScriptBlockRun): THREE.Vector2[] {
   const listed = run.value('profile') as number[][];
   if (listed.length > 0) {
     if (listed.length < 3) throw new Error(`Profile needs at least 3 points, not ${listed.length}`);
-    const corners = listed.map(([x, y]) => new THREE.Vector2(x, y));
+    const flat = listed.map(([x = 0, y = 0]): SolidScriptPoint2 => [x, y]);
+    if (Math.abs(solidScriptPolygonArea(flat)) <= 1e-12)
+      throw new Error('Profile encloses nothing to sweep; give it corners that do not all lie on one line');
+    const corners = flat.map(([x, y]) => new THREE.Vector2(x, y));
     return THREE.ShapeUtils.isClockWise(corners) ? corners.reverse() : corners;
   }
   const fields = run.fields();
@@ -609,7 +617,7 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
     category: 'Paths',
     description: 'Sweep a profile along a path',
     manual:
-      'Sweeps a flat profile along a Path, like a pipe, rail or moulding. The profile is a circle of Radius and Sides, or the x, y points in Profile, where x runs to the side of the path and y up. Scale sizes the profile at each path point, worked out once per point with [$Point], [$Index] and [$Count], so a horn or a vine can taper, and Twist turns it by that many degrees about the path at each point, so a rope or a twisted bar spirals. Up is the way the up side of the profile faces on the stretch from each path point, also worked out per point, such as 0, 1, 0 to keep a rail level on a winding path; left off, the profile turns as little as it can from one stretch to the next; a twisted stretch bends its sides, so As Mesh suits Twist best. Each stretch of the path becomes one solid, and the joints are cut on the mitre between two stretches so the pieces meet exactly. A dented profile fills in as a solid; with As Mesh on, the whole sweep is one mesh instead and keeps any profile, and Fill Caps off leaves the ends of an open path open, like a tube. A closed Path, such as a Square or a Path with Closed on, joins its last point back to the first; a list of points stays open. Example: a Path, or Resample of a few points, Radius 0.05, gives a round handrail.',
+      'Sweeps a flat profile along a Path, like a pipe, rail or moulding. The profile is a circle of Radius and Sides, or the x, y points in Profile, where x runs to the side of the path and y up. Scale sizes the profile at each path point, worked out once per point with [$Point], [$Index] and [$Count], so a horn or a vine can taper, and Twist turns it by that many degrees about the path at each point, so a rope or a twisted bar spirals. Up is the way the up side of the profile faces on the stretch from each path point, also worked out per point, such as 0, 1, 0 to keep a rail level on a winding path; left off, the profile turns as little as it can from one stretch to the next; a twisted stretch bends its sides, so As Mesh suits Twist best. Each stretch of the path becomes one solid, and the joints are cut on the mitre between two stretches so the pieces meet exactly. A dented profile splits into convex pieces as a solid; with As Mesh on, the whole sweep is one mesh instead and keeps any profile, and Fill Caps off leaves the ends of an open path open, like a tube. A closed Path, such as a Square or a Path with Closed on, joins its last point back to the first; a list of points stays open. Example: a Path, or Resample of a few points, Radius 0.05, gives a round handrail.',
     stops: [
       'A Path with fewer than 2 different points, or 3 when it is closed.',
       'A Profile with fewer than 3 points, or points that are not x, y.',
@@ -636,7 +644,7 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
         'profile',
         'Profile',
         'points2',
-        'Optional: x, y points swept instead of the circle, written as vectors whose z is ignored, such as [0, 0, 0], [0.2, 0, 0], [0.2, 0.1, 0].',
+        'Optional: a closed 2D Path such as [Ring], or x, y points written as vectors whose z is ignored, such as [0, 0, 0], [0.2, 0, 0], [0.2, 0.1, 0].',
       ),
       solidScriptParameterEach(
         solidScriptParameter(
@@ -659,12 +667,15 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
         'Point',
       ),
       solidScriptParameterEach(
-        solidScriptParameterOptional(
-          'up',
-          'Up',
-          'vector3',
-          "Way the profile's up side faces on the stretch from each path point, such as 0, 0, 1. Left off, the profile turns as little as it can along the path.",
-        ),
+        {
+          ...solidScriptParameterOptional(
+            'up',
+            'Up',
+            'vector3',
+            "Way the profile's up side faces on the stretch from each path point, such as 0, 0, 1. Left off, the profile turns as little as it can along the path.",
+          ),
+          direction: true,
+        },
         'Point',
       ),
       solidScriptParameter(
@@ -716,9 +727,19 @@ export const SOLID_SCRIPT_COMMANDS_PATHS: readonly SolidScriptCommand[] = [
       );
       if (run.fields().flag('mesh'))
         return run.mesh(solidScriptPathMesh(rings, closed, 'Sweep Along Path', run.fields().flag('caps')));
+      const parts = solidScriptPolygonConvexIndices(profile.map((point): SolidScriptPoint2 => [point.x, point.y]));
       return rings.slice(1).flatMap((ring, index) => {
         const before = rings[index];
-        return before ? run.solid(solidScriptBodyPrism(before, ring, 'Sweep Along Path')) : [];
+        if (!before) return [];
+        return parts.flatMap((part) =>
+          run.solid(
+            solidScriptBodyPrism(
+              part.map((corner) => before[corner]!),
+              part.map((corner) => ring[corner]!),
+              'Sweep Along Path',
+            ),
+          ),
+        );
       });
     },
   }),

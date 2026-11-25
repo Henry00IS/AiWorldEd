@@ -42,7 +42,7 @@ import { textureSelectCreate } from '@/texture/ui/texture_select.js';
 import { solidScriptConfiguratorColorAttach } from './solid_script_configurator_color.js';
 import { solidScriptSuggestionSelectedWords, type SolidScriptSuggestionScope } from './solid_script_suggestions.js';
 import {
-  solidScriptChoiceWordProblem,
+  solidScriptChoiceFieldProblem,
   solidScriptChoiceWordsForField,
 } from '@/solid_script/language/solid_script_choices.js';
 import type { SolidScriptInput } from '@/solid_script/language/solid_script_input.js';
@@ -272,7 +272,7 @@ export function solidScriptConfiguratorFieldBuild(
       field.read(),
       scope.inputs ?? [],
     );
-    const problem = solidScriptChoiceWordProblem(field.read(), declared);
+    const problem = solidScriptChoiceFieldProblem(parameter, field.read(), declared);
     return problem ? `${parameter.label} ${problem}` : '';
   };
   const warning = (): string => {

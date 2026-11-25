@@ -63,6 +63,7 @@ describe('Direction fields', () => {
       ['find_on', 'direction'],
       ['project_uvs', 'axis'],
       ['widget_slider', 'along'],
+      ['sweep_along_path', 'up'],
     ] as const)
       expect(solidScriptParameterTakesDirection(field(id, key)), `${id}.${key}`).toBe(true);
     for (const [id, key] of [

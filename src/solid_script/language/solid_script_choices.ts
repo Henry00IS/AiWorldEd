@@ -4,6 +4,7 @@ import type {
 } from '@/solid_script/commands/solid_script_command.js';
 import type { SolidScriptInput } from './solid_script_input.js';
 import { solidScriptNameKey } from './solid_script_name_key.js';
+import { solidScriptColorResolve } from './solid_script_color.js';
 import { SOLID_SCRIPT_GROUP_MODE_WORDS, SOLID_SCRIPT_MODE_WORDS } from './solid_script_mode.js';
 
 /** Official words for Script.Usage. */
@@ -194,6 +195,27 @@ export function solidScriptChoiceWordProblem(text: string, words: readonly Solid
   const head = listed.slice(0, -1).join(', ');
   const allowed = head === '' ? (last ?? '') : `${head} or ${last}`;
   return `must be ${allowed}, not "${written}"`;
+}
+
+/**
+ * Explains a field value that does not match its declared choices or colour
+ * syntax. Empty text, variables and formulas are left alone.
+ *
+ * @param parameter Field definition.
+ * @param text Field text as written.
+ * @param words Declared choice words for the field.
+ * @returns Warning, or an empty string when valid.
+ */
+export function solidScriptChoiceFieldProblem(
+  parameter: SolidScriptCommandParameter,
+  text: string,
+  words: readonly SolidScriptCommandWord[],
+): string {
+  if (!parameter.color) return solidScriptChoiceWordProblem(text, words);
+  const written = text.trim();
+  if (written === '' || written.includes('[') || written.includes('=')) return '';
+  if (solidScriptColorResolve(written) !== null) return '';
+  return `needs a colour such as Orange or #ff8800, not "${written}"`;
 }
 
 /**

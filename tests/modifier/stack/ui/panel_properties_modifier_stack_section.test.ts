@@ -385,7 +385,24 @@ describe('modifier stack inspector', () => {
         expect(hint).toContain(kind.label);
       }
     }
+    expect(hint).toContain('Solid Script');
     expect(root.textContent).toContain(hint);
+  });
+
+  it('places Solid Script last and separated in Add Modifier, outside Finish', () => {
+    const fixture = stackFixture([]);
+    const { section } = inspector();
+    section.updateFromObjects([fixture.volume]);
+    button(section.getElement(), 'Add a modifier to the end of the stack').click();
+    const menu = document.querySelector('[role="menu"]');
+    if (!menu) throw new Error('Expected Add Modifier menu');
+    const items = [...menu.querySelectorAll('[role="menuitem"]')].map((el) => (el.textContent ?? '').trim());
+    expect(items[items.length - 1]).toBe('Solid Script');
+    const rows = [...menu.children];
+    const lastItem = rows[rows.length - 1];
+    const beforeLast = rows[rows.length - 2];
+    expect(lastItem?.textContent?.trim()).toBe('Solid Script');
+    expect(beforeLast?.getAttribute('role')).toBe('separator');
   });
 
   it('describes a Bevel-only volume as reshaping its sources, not as zero brushes', () => {

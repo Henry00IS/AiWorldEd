@@ -57,7 +57,7 @@ describe('.aiscript files', () => {
       ),
     ).rejects.toThrow(/newer/);
     await expect(solidScriptFileDecode(await zipOf({ 'script.json': '{"format":"x"}' }))).rejects.toThrow(
-      /SolidScript/,
+      /Solid Script/,
     );
     await expect(solidScriptFileDecode(new Blob(['not a zip']))).rejects.toThrow();
   });

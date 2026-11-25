@@ -39,6 +39,14 @@ describe('SolidScript Color field', () => {
     expect(field.warning()).toBe('');
   });
 
+  it('accepts #rgb and #rrggbb hex colours without warning', () => {
+    for (const hex of ['#ff0000', '#f00', '#123456']) {
+      const { field } = colorField(hex);
+      expect(field.problem(), hex).toBe('');
+      expect(field.warning(), hex).toBe('');
+    }
+  });
+
   it('marks a value that is not a colour, and leaves variables to the run', () => {
     expect(colorField('sparkly').field.warning()).toContain('Color');
     expect(colorField('[Tint]').field.problem()).toBe('');

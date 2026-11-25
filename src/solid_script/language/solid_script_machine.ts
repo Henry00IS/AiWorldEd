@@ -60,7 +60,7 @@ import {
 } from './solid_script_machine_runs.js';
 import { solidScriptGeometryLeaves, type SolidScriptGeometryLeaf } from './solid_script_geometry.js';
 import { SolidScriptOutputProcessed } from './solid_script_output_processed.js';
-import { SolidScriptPaths, solidScriptPathFromFlat } from './solid_script_paths.js';
+import { SolidScriptPaths, solidScriptPathFlatPoint } from './solid_script_paths.js';
 import { solidScriptPathFlat, solidScriptPathLoopOpen } from './solid_script_path_flat.js';
 import { solidScriptPathStraight } from './solid_script_path_model.js';
 import { solidScriptGeneratorPiecesCacheClear } from './solid_script_generator_pieces.js';
@@ -904,7 +904,7 @@ export class SolidScriptMachine<Command extends SolidScriptMachineCommand> exten
     };
     const drawn = (points: readonly SolidScriptPoint2[]): SolidScriptShape[] => {
       state.machine.gatherCheck(node);
-      if (!state.context.planar && intoName() !== '') return pathCreated(points.map(solidScriptPathFromFlat), true);
+      if (!state.context.planar && intoName() !== '') return pathCreated(points.map(solidScriptPathFlatPoint), true);
       state.machine.flatCheck(node, state.context, true);
       if (!state.machine.stepTake(state.scope)) return [];
       const moved = points.map(([x, y]): SolidScriptPoint2 => {

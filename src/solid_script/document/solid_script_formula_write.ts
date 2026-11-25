@@ -348,6 +348,11 @@ class SolidScriptFormulaWriter {
         solidScriptFormulaTyped(input.kind, input.start),
     );
     while (args.length > 0 && args[args.length - 1] === '') args.pop();
+    for (let index = 0; index < args.length; index++) {
+      const input = inputs[index];
+      if (args[index] === '' && input && input.default !== '')
+        args[index] = solidScriptFormulaTyped(input.kind, input.default);
+    }
     return `${name || solidScriptFormulaCheckName(key)}(${args.join(', ')})`;
   }
 }

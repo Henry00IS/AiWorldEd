@@ -10,7 +10,11 @@ import {
   solidScriptFunctionArguments,
   solidScriptFunctionInputsLeast,
 } from '@/solid_script/language/solid_script_function_docs.js';
-import { solidScriptFormulaCheckName, type SolidScriptFormulaOwnFunction } from './solid_script_formula_inputs.js';
+import {
+  solidScriptFormulaCheckName,
+  solidScriptFormulaFieldFunction,
+  type SolidScriptFormulaOwnFunction,
+} from './solid_script_formula_inputs.js';
 import { solidScriptFunctionKey } from '@/solid_script/language/solid_script_name_key.js';
 import { solidScriptNameWords } from '@/solid_script/language/solid_script_name_words.js';
 import { solidScriptFunctionGroups } from '@/solid_script/language/solid_script_function_doc_groups.js';
@@ -499,7 +503,10 @@ function solidScriptFormulaFunctions(): SolidScriptCommand[] {
   return Object.entries(SOLID_SCRIPT_FUNCTION_DOCS)
     .filter(
       ([key, doc]) =>
-        doc.group !== 'Checks' && !solidScriptWhereHelper(key) && solidScriptFunctionArguments(key).length > 0,
+        doc.group !== 'Checks' &&
+        !solidScriptWhereHelper(key) &&
+        !solidScriptFormulaFieldFunction(key) &&
+        solidScriptFunctionArguments(key).length > 0,
     )
     .map(([key]) => solidScriptFormulaFunction(key));
 }
